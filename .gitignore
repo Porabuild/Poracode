@@ -1,0 +1,10 @@
+node_modules/
+dist/
+.vite/
+coverage/
+*.log
+*.tsbuildinfo
+# heroui-agents-md
+.heroui-docs/
+.tmp/
+.agent/

@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pnpm run:*)",
+      "Bash(codex app-server:*)",
+      "Bash(codex:*)",
+      "Bash(gh api:*)",
+      "Bash(gh repo:*)"
+    ]
+  }
+}

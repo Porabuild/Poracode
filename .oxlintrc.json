@@ -1,0 +1,16 @@
+{
+  "plugins": ["import", "react", "jsx-a11y", "node", "vitest"],
+  "categories": {
+    "correctness": "error",
+    "suspicious": "error"
+  },
+  "rules": {
+    "import/no-unassigned-import": "off",
+    "import/no-duplicates": "error",
+    "jsx-a11y/alt-text": "error",
+    "react/jsx-key": "error",
+    "react/react-in-jsx-scope": "off",
+    "react/no-unsafe": "off"
+  },
+  "ignorePatterns": ["dist", "node_modules"]
+}

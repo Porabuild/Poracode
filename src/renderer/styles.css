@@ -1,0 +1,380 @@
+@import "tailwindcss";
+@import "@heroui/styles";
+@import "@xterm/xterm/css/xterm.css";
+
+@layer base {
+  :root {
+    --white: oklch(0.991 0 0);
+    --black: oklch(0 0 0);
+    --snow: oklch(0.982 0 0);
+    --eclipse: oklch(0.235 0.01 286);
+    --spacing: 0.25rem;
+    --border-width: 1px;
+    --field-border-width: 1px;
+    --disabled-opacity: 0.5;
+    --ring-offset-width: 2px;
+    --cursor-interactive: pointer;
+    --cursor-disabled: not-allowed;
+    --radius: 0.8rem;
+    --field-radius: 1rem;
+    --success: oklch(0.72 0.19 154);
+    --success-foreground: var(--eclipse);
+    --warning: oklch(0.82 0.13 78);
+    --warning-foreground: var(--eclipse);
+    --danger: oklch(0.62 0.21 25);
+    --danger-foreground: var(--snow);
+    --focus: var(--accent);
+    --link: var(--accent);
+    --surface-shadow: 0 20px 60px rgba(0, 0, 0, 0.08);
+    --overlay-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+    --field-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.02);
+    --skeleton-animation: shimmer;
+    --sidebar-background: var(--surface);
+    --content-background: var(--background);
+    --window-header-background: var(--sidebar-background);
+    --window-overlay-background: rgba(0, 0, 0, 0);
+    --terminal-surface: var(--surface);
+    --composer-surface: var(--surface);
+  }
+
+  .light,
+  [data-theme="light"] {
+    color-scheme: light;
+    --background: oklch(0.96 0.004 286);
+    --foreground: oklch(0.21 0.006 286);
+    --surface: oklch(0.985 0.002 286);
+    --surface-foreground: var(--foreground);
+    --overlay: oklch(0.99 0.002 286);
+    --overlay-foreground: var(--foreground);
+    --muted: oklch(0.52 0.01 286);
+    --scrollbar: oklch(0.78 0.01 286);
+    --default: oklch(0.93 0.004 286);
+    --default-foreground: var(--foreground);
+    --accent: oklch(0.62 0.11 245);
+    --accent-foreground: var(--snow);
+    --field-background: oklch(0.975 0.002 286);
+    --field-foreground: var(--foreground);
+    --field-placeholder: oklch(0.55 0.01 286);
+    --field-border: oklch(0.84 0.006 286 / 0.7);
+    --segment: oklch(0.975 0.002 286);
+    --segment-foreground: var(--foreground);
+    --border: oklch(0.84 0.006 286 / 0.7);
+    --separator: oklch(0.88 0.004 286 / 0.9);
+    --sidebar-background: oklch(0.945 0.004 286);
+    --content-background: oklch(0.975 0.003 286);
+    --window-header-background: var(--sidebar-background);
+    --terminal-surface: oklch(0.967 0.003 286);
+    --composer-surface: oklch(0.982 0.002 286);
+  }
+
+  .dark,
+  [data-theme="dark"] {
+    color-scheme: dark;
+    --background: oklch(0.19 0.004 286);
+    --foreground: var(--snow);
+    --surface: oklch(0.22 0.004 286);
+    --surface-foreground: var(--foreground);
+    --overlay: oklch(0.24 0.004 286);
+    --overlay-foreground: var(--foreground);
+    --muted: oklch(0.66 0.01 286);
+    --scrollbar: oklch(0.4 0.01 286);
+    --default: oklch(0.25 0.004 286);
+    --default-foreground: var(--foreground);
+    --accent: oklch(0.77 0.08 244);
+    --accent-foreground: oklch(0.18 0.004 286);
+    --field-background: oklch(0.23 0.004 286);
+    --field-foreground: var(--foreground);
+    --field-placeholder: oklch(0.54 0.01 286);
+    --field-border: oklch(0.34 0.006 286 / 0.85);
+    --segment: oklch(0.29 0.004 286);
+    --segment-foreground: var(--foreground);
+    --border: oklch(0.31 0.006 286 / 0.9);
+    --separator: oklch(0.3 0.006 286 / 0.85);
+    --sidebar-background: oklch(0.22 0.004 286);
+    --content-background: oklch(0.2 0.004 286);
+    --window-header-background: var(--sidebar-background);
+    --terminal-surface: oklch(0.155 0.004 286);
+    --composer-surface: oklch(0.225 0.004 286);
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  font-family: "Segoe UI Variable", "Segoe UI", sans-serif;
+  background: var(--background);
+  color: var(--foreground);
+  overflow: hidden;
+}
+
+#root {
+  width: 100%;
+}
+
+.lightcode-shell {
+  position: relative;
+  box-sizing: border-box;
+  padding-top: env(titlebar-area-height, 0px);
+  background:
+    radial-gradient(circle at bottom left, rgba(133, 95, 69, 0.09), transparent 22%),
+    var(--content-background);
+}
+
+.lightcode-drag-region {
+  position: absolute;
+  top: env(titlebar-area-y, 0px);
+  left: env(titlebar-area-x, 0px);
+  width: env(titlebar-area-width, 100%);
+  height: env(titlebar-area-height, 0px);
+  -webkit-app-region: drag;
+  app-region: drag;
+  user-select: none;
+  z-index: 10;
+}
+
+.lightcode-window-header {
+  background: var(--window-header-background);
+}
+
+.lightcode-codex-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: color-mix(in oklab, var(--muted) 80%, var(--foreground));
+  vertical-align: middle;
+}
+
+.lightcode-codex-icon__svg {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.lightcode-codex-icon__fill {
+  fill: currentColor;
+}
+
+.lightcode-codex-icon__shell {
+  fill: currentColor;
+  opacity: 0.32;
+}
+
+.lightcode-codex-icon__scan {
+  opacity: 0.95;
+}
+
+.lightcode-codex-icon--inactive {
+  color: color-mix(in oklab, var(--muted) 94%, var(--foreground));
+  opacity: 0.78;
+}
+
+.lightcode-codex-icon--active {
+  color: var(--foreground);
+  filter: drop-shadow(0 0 0.35rem color-mix(in oklab, var(--foreground) 18%, transparent));
+}
+
+.lightcode-codex-icon--working {
+  color: color-mix(in oklab, var(--success) 82%, var(--white));
+  filter: drop-shadow(0 0 0.6rem color-mix(in oklab, var(--success) 50%, transparent));
+}
+
+.lightcode-codex-icon--error {
+  color: var(--danger);
+  filter: drop-shadow(0 0 0.45rem color-mix(in oklab, var(--danger) 35%, transparent));
+}
+
+.lightcode-codex-icon--attention {
+  color: var(--warning);
+  filter: drop-shadow(0 0 0.45rem color-mix(in oklab, var(--warning) 48%, transparent));
+}
+
+.lightcode-terminal-pane,
+.lightcode-terminal-pane .xterm,
+.lightcode-terminal-pane .xterm-viewport,
+.lightcode-terminal-pane .xterm-screen,
+.lightcode-terminal-pane .xterm-scroll-area {
+  background: var(--content-background) !important;
+}
+
+.lightcode-composer-shell {
+  border: 1px solid var(--border);
+  border-radius: 1.5rem;
+  background: color-mix(in oklab, var(--composer-surface) 94%, transparent);
+}
+
+.lightcode-composer-shell:focus-within {
+  border-color: var(--border) !important;
+  box-shadow: none !important;
+}
+
+.lightcode-composer-editor.textarea,
+.lightcode-composer-editor.input-group,
+.lightcode-composer-editor .textarea,
+.lightcode-composer-editor .input-group {
+  min-height: 112px;
+  resize: none;
+  border: 0;
+  border-radius: 1.5rem 1.5rem 0 0;
+  background: transparent;
+  box-shadow: none;
+  padding: 0.95rem 1.1rem 0.35rem;
+}
+
+.lightcode-composer-custom-input {
+  min-height: 112px;
+  background: transparent;
+}
+
+.lightcode-composer-editor--compact,
+.lightcode-composer-editor--compact.textarea,
+.lightcode-composer-editor--compact.input-group,
+.lightcode-composer-editor--compact .textarea,
+.lightcode-composer-editor--compact .input-group {
+  min-height: 64px !important;
+  padding: 0.6rem 0.9rem 0.15rem !important;
+}
+
+.lightcode-composer-custom-input--compact {
+  min-height: 64px !important;
+}
+
+.lightcode-composer-editor.textarea__input,
+.lightcode-composer-editor .textarea__input {
+  resize: none;
+  font-size: 1rem;
+  line-height: 1.55;
+}
+
+.lightcode-composer-editor--compact.textarea__input,
+.lightcode-composer-editor--compact .textarea__input {
+  min-height: 32px !important;
+  line-height: 1.35;
+}
+
+.lightcode-composer-editor.textarea:focus,
+.lightcode-composer-editor.textarea:focus-visible,
+.lightcode-composer-editor.textarea[data-focused="true"],
+.lightcode-composer-editor.textarea[data-focus-visible="true"],
+.lightcode-composer-editor.input-group:focus,
+.lightcode-composer-editor.input-group:focus-within,
+.lightcode-composer-editor.input-group[data-focused="true"],
+.lightcode-composer-editor.input-group[data-focus-within="true"],
+.lightcode-composer-editor .textarea:focus,
+.lightcode-composer-editor .textarea:focus-visible,
+.lightcode-composer-editor .textarea[data-focused="true"],
+.lightcode-composer-editor .textarea[data-focus-visible="true"],
+.lightcode-composer-editor .input-group:focus,
+.lightcode-composer-editor .input-group:focus-within,
+.lightcode-composer-editor .input-group[data-focused="true"],
+.lightcode-composer-editor .input-group[data-focus-within="true"],
+.lightcode-composer-editor.textarea__input:focus,
+.lightcode-composer-editor .textarea__input:focus {
+  outline: none !important;
+  box-shadow: none !important;
+  border-color: transparent !important;
+  background: transparent !important;
+  --tw-ring-shadow: 0 0 #0000 !important;
+  --tw-ring-offset-shadow: 0 0 #0000 !important;
+  --tw-shadow: 0 0 #0000 !important;
+}
+
+.lightcode-composer-toolbar {
+  padding: 0.25rem 0.85rem 0.85rem;
+}
+
+.lightcode-composer-toolbar--compact {
+  padding: 0.1rem 0.7rem 0.55rem;
+}
+
+.lightcode-composer-editor.textarea,
+.lightcode-composer-editor.input-group,
+.lightcode-composer-editor.textarea__input,
+.lightcode-composer-editor .textarea,
+.lightcode-composer-editor .input-group,
+.lightcode-composer-editor .textarea__input {
+  background: transparent;
+}
+
+.lightcode-composer-menu {
+  height: 2rem;
+  color: var(--foreground);
+  gap: 0.35rem;
+}
+
+.lightcode-composer-static {
+  display: inline-flex;
+  height: 2rem;
+  min-width: 0;
+  align-items: center;
+  gap: 0.35rem;
+  color: var(--foreground);
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.lightcode-composer-utility {
+  display: inline-flex;
+  height: 2rem;
+  width: 2rem;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.lightcode-composer-send {
+  height: 2.25rem;
+  width: 2.25rem;
+  background: color-mix(in oklab, var(--accent) 18%, var(--surface));
+  color: var(--foreground);
+}
+
+.lightcode-composer-send:hover,
+.lightcode-composer-send[data-hovered="true"] {
+  background: color-mix(in oklab, var(--accent) 28%, var(--surface));
+}
+
+.lightcode-composer-send[aria-disabled="true"] {
+  background: color-mix(in oklab, var(--surface) 88%, transparent);
+}
+
+.lightcode-pill-input .input {
+  border-radius: 0.9rem;
+}
+
+.lightcode-inline-control {
+  height: 2.25rem;
+  min-width: 0;
+}
+
+.lightcode-inline-action {
+  height: 2.25rem;
+  width: 2.25rem;
+}
+
+.xterm-viewport::-webkit-scrollbar {
+  width: 10px;
+}
+
+.xterm-viewport::-webkit-scrollbar-thumb {
+  background: rgba(127, 140, 155, 0.45);
+  border-radius: 999px;
+}
+
+.xterm,
+.xterm-viewport,
+.xterm-screen {
+  height: 100% !important;
+}

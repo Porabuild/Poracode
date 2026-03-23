@@ -1,0 +1,606 @@
+import { appendFileSync, existsSync, readFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
+import { randomUUID } from "node:crypto";
+import { setTimeout as sleep } from "node:timers/promises";
+import { homedir } from "node:os";
+import { join } from "node:path";
+import { spawn, type IPty } from "node-pty";
+import type {
+  AgentKind,
+  CloseThreadPayload,
+  ProjectLocation,
+  ResizeTerminalPayload,
+  ResolveThreadServerRequestPayload,
+  SendThreadInputPayload,
+  SessionRef,
+  StartThreadPayload,
+  ThreadAttention,
+  ThreadConfig,
+  ThreadHistorySnapshot,
+  ThreadRuntimeSnapshot,
+  ThreadStatus,
+  WriteTerminalPayload,
+} from "../shared/contracts";
+import type { SupervisorEvent } from "../shared/ipc";
+import { stripInternalHistoryMarkers } from "../shared/terminalHistory";
+import { normalizeWslListOutput } from "../shared/wsl";
+import { createAgentRegistry } from "./agents/registry";
+import type { AgentAdapter, CommandSpec, StructuredSessionHandle } from "./agents/base";
+import { resetTerminalLogFile, resetTerminalLogsDir } from "./terminalLogs";
+
+interface SessionRuntime {
+  instanceId: string;
+  threadId: string;
+  agentKind: AgentKind;
+  adapter: AgentAdapter;
+  pty: IPty;
+  projectLocation: ProjectLocation;
+  config: ThreadConfig;
+  sessionRef?: SessionRef;
+  status: ThreadStatus;
+  attention: ThreadAttention;
+  canResumeWithConfig: boolean;
+  logPath: string;
+  outputLength: number;
+  structuredSession?: StructuredSessionHandle;
+  ignoreExit?: boolean;
+  ptyExited?: boolean;
+}
+
+export async function writeSubmittedPrompt(
+  pty: Pick<IPty, "write">,
+  chunks: readonly string[],
+): Promise<void> {
+  for (const [index, chunk] of chunks.entries()) {
+    pty.write(chunk);
+    if (index < chunks.length - 1) {
+      await sleep(8);
+    }
+  }
+}
+
+export class SupervisorRuntime {
+  private readonly logsDir: string;
+  private readonly adapters = new Map(
+    createAgentRegistry().map((adapter) => [adapter.kind, adapter]),
+  );
+  private readonly sessions = new Map<string, SessionRuntime>();
+  private readonly startLocks = new Map<string, Promise<void>>();
+
+  constructor(private readonly emit: (event: SupervisorEvent) => void) {
+    const baseDir = process.env.LIGHTCODE_DATA_DIR?.trim() || join(homedir(), ".lightcode");
+    this.logsDir = join(baseDir, "terminal-logs");
+    resetTerminalLogsDir(this.logsDir);
+  }
+
+  async listWslDistros(): Promise<string[]> {
+    const result = Bunless.run("wsl", ["-l", "-q"]);
+    return normalizeWslListOutput(result.stdout);
+  }
+
+  async getAgentStatuses() {
+    return Promise.all([...this.adapters.values()].map((adapter) => adapter.detectInstall()));
+  }
+
+  getThreadSnapshots(): ThreadRuntimeSnapshot[] {
+    return [...this.sessions.values()].map((session) => ({
+      threadId: session.threadId,
+      status: session.status,
+      attention: session.attention,
+      config: session.config,
+      ...(session.sessionRef ? { sessionRef: session.sessionRef } : {}),
+      canResumeWithConfig: session.canResumeWithConfig,
+    }));
+  }
+
+  getThreadHistory(threadId: string): ThreadHistorySnapshot {
+    const logPath = this.resolveLogPath(threadId);
+    if (!existsSync(logPath)) {
+      return {
+        history: "",
+        length: 0,
+      };
+    }
+    const history = stripInternalHistoryMarkers(readFileSync(logPath, "utf8"));
+    return {
+      history,
+      length: history.length,
+    };
+  }
+
+  async startThread(payload: StartThreadPayload): Promise<void> {
+    console.log("[supervisor] startThread", payload.threadId, payload.agentKind);
+
+    // Serialize starts for the same thread to prevent double app-server spawns.
+    const pending = this.startLocks.get(payload.threadId);
+    if (pending) {
+      console.log("[supervisor] startThread skipped (already starting)", payload.threadId);
+      return;
+    }
+
+    const run = this.startThreadInner(payload);
+    this.startLocks.set(payload.threadId, run.then(() => {}, () => {}));
+    try {
+      await run;
+    } finally {
+      this.startLocks.delete(payload.threadId);
+    }
+  }
+
+  private async startThreadInner(payload: StartThreadPayload): Promise<void> {
+    await this.closeThread({ threadId: payload.threadId });
+
+    const adapter = this.requireAdapter(payload.agentKind);
+    const isServerControlled = adapter.capabilities.liveInputMode === "server";
+    const initialSessionRef = payload.sessionRef ?? adapter.createInitialSessionRef();
+    const effectiveConfig = payload.config;
+    const effectiveSessionRef = payload.sessionRef ?? initialSessionRef;
+    const structuredSession = await this.createStructuredSession(
+      adapter,
+      payload.threadId,
+      payload.projectLocation,
+      effectiveConfig,
+      effectiveSessionRef,
+    );
+    const launchPrompt = isServerControlled ? "" : payload.prompt;
+    const command = payload.sessionRef
+      ? adapter.buildResumeCommand(
+          payload.projectLocation,
+          effectiveConfig,
+          launchPrompt,
+          payload.sessionRef,
+          structuredSession?.launchOptions,
+        )
+      : adapter.buildLaunchCommand(
+          payload.projectLocation,
+          effectiveConfig,
+          launchPrompt,
+          effectiveSessionRef,
+          structuredSession?.launchOptions,
+        );
+
+    const session = this.spawnThread({
+      threadId: payload.threadId,
+      adapter,
+      agentKind: payload.agentKind,
+      projectLocation: payload.projectLocation,
+      config: effectiveConfig,
+      command,
+      ...(structuredSession ? { structuredSession } : {}),
+      ...(effectiveSessionRef ? { sessionRef: effectiveSessionRef } : {}),
+    });
+
+    if (
+      isServerControlled &&
+      payload.prompt.trim().length > 0 &&
+      session.structuredSession?.startTurn
+    ) {
+      await session.structuredSession.startTurn(payload.prompt, effectiveConfig);
+    }
+  }
+
+  async sendThreadInput(payload: SendThreadInputPayload): Promise<void> {
+    const session = this.requireSession(payload.threadId);
+    if (session.status === "inactive") {
+      if (session.sessionRef) {
+        await this.restartThread(session, payload.prompt, payload.config);
+        return;
+      }
+      throw new Error("This thread exited before a resumable session id was discovered.");
+    }
+
+    const shouldRelaunch =
+      session.canResumeWithConfig &&
+      JSON.stringify(session.config) !== JSON.stringify(payload.config);
+
+    if (shouldRelaunch && session.sessionRef) {
+      await this.restartThread(session, payload.prompt, payload.config);
+      return;
+    }
+
+    session.config = payload.config;
+    if (
+      session.adapter.capabilities.liveInputMode === "server" &&
+      session.structuredSession?.startTurn
+    ) {
+      this.updateState(session, "working", "working");
+      void session.structuredSession.startTurn(payload.prompt, payload.config).catch((error) => {
+        if (this.sessions.get(session.threadId)?.instanceId !== session.instanceId) {
+          return;
+        }
+
+        this.updateState(
+          session,
+          "error",
+          "error",
+          error instanceof Error ? error.message : String(error),
+        );
+      });
+      return;
+    }
+
+    this.updateState(session, "working", "working");
+    await writeSubmittedPrompt(
+      session.pty,
+      session.adapter.buildDirectInput?.(payload.prompt) ?? [payload.prompt, "\r"],
+    );
+  }
+
+  async writeTerminal(payload: WriteTerminalPayload): Promise<void> {
+    this.requireSession(payload.threadId).pty.write(payload.data);
+  }
+
+  async resizeTerminal(payload: ResizeTerminalPayload): Promise<void> {
+    const session = this.sessions.get(payload.threadId);
+    if (!session) {
+      return;
+    }
+    session.pty.resize(payload.cols, payload.rows);
+  }
+
+  async closeThread(payload: CloseThreadPayload): Promise<void> {
+    const existing = this.sessions.get(payload.threadId);
+    if (!existing) {
+      return;
+    }
+
+    existing.ignoreExit = true;
+    this.sessions.delete(payload.threadId);
+    await existing.structuredSession?.dispose();
+    // Yield so the PTY exit event can fire before we force-kill.
+    if (existing.structuredSession) {
+      await sleep(150);
+    }
+    this.safePtyKill(existing);
+  }
+
+  async resolveThreadServerRequest(payload: ResolveThreadServerRequestPayload): Promise<void> {
+    const session = this.requireSession(payload.threadId);
+    if (!session.structuredSession?.resolveServerRequest) {
+      throw new Error(`Thread ${payload.threadId} does not support server request resolution.`);
+    }
+
+    await session.structuredSession.resolveServerRequest(payload.requestId, payload.response);
+  }
+
+  dispose(): void {
+    for (const session of this.sessions.values()) {
+      session.ignoreExit = true;
+      void session.structuredSession?.dispose();
+      this.safePtyKill(session);
+    }
+    this.sessions.clear();
+  }
+
+  private safePtyKill(session: SessionRuntime): void {
+    if (session.ptyExited) {
+      return;
+    }
+    try {
+      process.kill(session.pty.pid, 0);
+    } catch {
+      // Shell process already exited — skip pty.kill() to avoid
+      // ConPTY's AttachConsole failure in its forked agent process.
+      return;
+    }
+    session.pty.kill();
+  }
+
+  private resolveLogPath(threadId: string): string {
+    return join(this.logsDir, `${threadId}.log`);
+  }
+
+  private requireAdapter(kind: AgentKind): AgentAdapter {
+    const adapter = this.adapters.get(kind);
+    if (!adapter) {
+      throw new Error(`Unsupported agent adapter: ${kind}`);
+    }
+    return adapter;
+  }
+
+  private requireSession(threadId: string): SessionRuntime {
+    const session = this.sessions.get(threadId);
+    if (!session) {
+      throw new Error(`Unknown thread session: ${threadId}`);
+    }
+    return session;
+  }
+
+  private async createStructuredSession(
+    adapter: AgentAdapter,
+    threadId: string,
+    projectLocation: ProjectLocation,
+    config: ThreadConfig,
+    sessionRef?: SessionRef,
+  ): Promise<StructuredSessionHandle | undefined> {
+    if (!adapter.createStructuredSession) {
+      return undefined;
+    }
+
+    try {
+      return await adapter.createStructuredSession({
+        threadId,
+        projectLocation,
+        config,
+        ...(sessionRef ? { sessionRef } : {}),
+      });
+    } catch (error) {
+      console.error("[supervisor] structured session creation failed:", error);
+      return undefined;
+    }
+  }
+
+  private spawnThread(input: {
+    threadId: string;
+    agentKind: AgentKind;
+    adapter: AgentAdapter;
+    projectLocation: ProjectLocation;
+    config: ThreadConfig;
+    command: CommandSpec;
+    structuredSession?: StructuredSessionHandle;
+    sessionRef?: SessionRef;
+  }): SessionRuntime {
+    const logPath = this.resolveLogPath(input.threadId);
+    resetTerminalLogFile(logPath);
+    this.emit({
+      type: "thread-reset",
+      threadId: input.threadId,
+    });
+
+    console.log(
+      `[supervisor] spawning PTY: ${input.command.command} ${input.command.args.join(" ")}`,
+    );
+    const pty = spawn(input.command.command, input.command.args, {
+      name: process.platform === "win32" ? "xterm-color" : "xterm-256color",
+      cols: 120,
+      rows: 30,
+      cwd: input.command.cwd ?? process.cwd(),
+      env: {
+        ...process.env,
+        TERM: "xterm-256color",
+      },
+    });
+
+    const session: SessionRuntime = {
+      instanceId: randomUUID(),
+      threadId: input.threadId,
+      agentKind: input.agentKind,
+      adapter: input.adapter,
+      pty,
+      projectLocation: input.projectLocation,
+      config: input.config,
+      ...(input.sessionRef ? { sessionRef: input.sessionRef } : {}),
+      status: "launching",
+      attention: "none",
+      canResumeWithConfig: input.sessionRef !== undefined,
+      logPath,
+      outputLength: 0,
+      ...(input.structuredSession ? { structuredSession: input.structuredSession } : {}),
+    };
+
+    input.structuredSession?.setListener({
+      onClose: () => {
+        if (
+          this.sessions.get(session.threadId)?.instanceId !== session.instanceId ||
+          session.ignoreExit
+        ) {
+          return;
+        }
+        this.handleStructuredSessionClosed(session);
+      },
+      onError: (errorMessage) => {
+        if (
+          this.sessions.get(session.threadId)?.instanceId !== session.instanceId ||
+          session.ignoreExit
+        ) {
+          return;
+        }
+        this.updateState(session, "error", "error", errorMessage);
+      },
+      onServerRequest: (request) => {
+        if (
+          this.sessions.get(session.threadId)?.instanceId !== session.instanceId ||
+          session.ignoreExit
+        ) {
+          return;
+        }
+
+        this.emit({
+          type: "thread-server-request",
+          threadId: session.threadId,
+          requestId: request.requestId,
+          method: request.method,
+          params: request.params,
+        });
+      },
+      onUpdate: (update) => {
+        if (
+          this.sessions.get(session.threadId)?.instanceId !== session.instanceId ||
+          session.ignoreExit
+        ) {
+          return;
+        }
+
+        if (update.sessionRef) {
+          session.sessionRef = update.sessionRef;
+          session.canResumeWithConfig = true;
+        }
+
+        const configChanged =
+          update.config !== undefined &&
+          JSON.stringify(session.config) !== JSON.stringify(update.config);
+        const stateChanged =
+          session.status !== update.status ||
+          session.attention !== update.attention ||
+          update.errorMessage !== undefined;
+        if (update.config) {
+          session.config = update.config;
+        }
+
+        this.updateState(session, update.status, update.attention, update.errorMessage);
+        if (configChanged && !stateChanged && update.errorMessage === undefined) {
+          this.emitState(session);
+        }
+      },
+    });
+
+    this.sessions.set(input.threadId, session);
+    this.emitState(session);
+
+    pty.onData((data) => {
+      if (this.sessions.get(session.threadId)?.instanceId !== session.instanceId) {
+        return;
+      }
+
+      appendFileSync(logPath, data);
+      session.outputLength += data.length;
+      this.emit({
+        type: "thread-output",
+        threadId: session.threadId,
+        data,
+        outputLength: session.outputLength,
+      });
+
+      if (session.status === "launching") {
+        this.updateState(session, "idle", "none");
+      }
+    });
+
+    pty.onExit((event) => {
+      session.ptyExited = true;
+      if (session.ignoreExit) {
+        return;
+      }
+      if (this.sessions.get(session.threadId)?.instanceId !== session.instanceId) {
+        return;
+      }
+
+      void session.structuredSession?.dispose();
+      this.updateState(session, "inactive", "none");
+      this.emit({
+        type: "thread-exited",
+        threadId: session.threadId,
+        exitCode: event.exitCode,
+      });
+    });
+
+    return session;
+  }
+
+  private async restartThread(
+    session: SessionRuntime,
+    prompt: string,
+    config: ThreadConfig,
+  ): Promise<void> {
+    if (!session.sessionRef) {
+      throw new Error("Session cannot be restarted without a known session reference.");
+    }
+
+    session.ignoreExit = true;
+    await session.structuredSession?.dispose();
+    if (session.structuredSession) {
+      await sleep(150);
+    }
+    this.safePtyKill(session);
+
+    const effectiveConfig = config;
+    const effectiveSessionRef = session.sessionRef;
+    const structuredSession = await this.createStructuredSession(
+      session.adapter,
+      session.threadId,
+      session.projectLocation,
+      effectiveConfig,
+      effectiveSessionRef,
+    );
+    const launchPrompt = session.adapter.capabilities.liveInputMode === "server" ? "" : prompt;
+    const command = session.adapter.buildResumeCommand(
+      session.projectLocation,
+      effectiveConfig,
+      launchPrompt,
+      session.sessionRef,
+      structuredSession?.launchOptions,
+    );
+
+    const nextSession = this.spawnThread({
+      threadId: session.threadId,
+      agentKind: session.agentKind,
+      adapter: session.adapter,
+      projectLocation: session.projectLocation,
+      config: effectiveConfig,
+      command,
+      ...(structuredSession ? { structuredSession } : {}),
+      sessionRef: effectiveSessionRef,
+    });
+
+    if (
+      session.adapter.capabilities.liveInputMode === "server" &&
+      prompt.trim().length > 0 &&
+      nextSession.structuredSession?.startTurn
+    ) {
+      await nextSession.structuredSession.startTurn(prompt, effectiveConfig);
+    }
+  }
+
+  private handleStructuredSessionClosed(session: SessionRuntime): void {
+    if (session.status === "inactive") {
+      return;
+    }
+
+    this.updateState(session, "inactive", "none");
+    this.emit({
+      type: "thread-exited",
+      threadId: session.threadId,
+      exitCode: null,
+    });
+
+    session.ignoreExit = true;
+    // Defer the kill so the PTY has time to exit naturally after the
+    // structured session closes.  safePtyKill checks process liveness
+    // before invoking node-pty's kill.
+    setTimeout(() => this.safePtyKill(session), 150);
+  }
+
+  private updateState(
+    session: SessionRuntime,
+    status: ThreadStatus,
+    attention: ThreadAttention,
+    errorMessage?: string,
+  ): void {
+    if (
+      session.status === status &&
+      session.attention === attention &&
+      errorMessage === undefined
+    ) {
+      return;
+    }
+
+    session.status = status;
+    session.attention = attention;
+    this.emitState(session, errorMessage);
+  }
+
+  private emitState(session: SessionRuntime, errorMessage?: string): void {
+    this.emit({
+      type: "thread-state",
+      threadId: session.threadId,
+      status: session.status,
+      attention: session.attention,
+      config: session.config,
+      ...(session.sessionRef ? { sessionRef: session.sessionRef } : {}),
+      canResumeWithConfig: session.canResumeWithConfig,
+      ...(errorMessage ? { errorMessage } : {}),
+    });
+  }
+}
+
+const Bunless = {
+  run(command: string, args: string[]): { stdout: string } {
+    const result = spawnSync(command, args, {
+      encoding: "utf8",
+      shell: process.platform === "win32",
+    }) as { stdout?: string };
+    return {
+      stdout: `${result.stdout ?? ""}`,
+    };
+  },
+};
