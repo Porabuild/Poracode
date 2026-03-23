@@ -3,11 +3,11 @@ import { spawn, type ChildProcess } from "node:child_process";
 import type {
   AgentCapability,
   AgentStatus,
-  ThreadServerRequestId,
   ProjectLocation,
   SessionRef,
   ThreadAttention,
   ThreadConfig,
+  ThreadServerRequestId,
   ThreadStatus,
 } from "../../shared/contracts";
 import {
@@ -112,9 +112,18 @@ function buildCommand(
   sessionRef?: SessionRef,
   launchOptions?: AgentLaunchOptions,
 ): CommandSpec {
-  // When the structured session owns thread lifecycle, the TUI just connects.
+  // When the structured session owns thread lifecycle, the TUI resumes the
+  // server-created thread. Config is controlled by the server, not the CLI.
   if (launchOptions?.suppressResumeConfigOverrides) {
-    const args = buildCodexArgs(config, "", launchOptions);
+    const baseArgs = buildCodexArgs(config, "", launchOptions);
+    const args = launchOptions.resumeThreadId
+      ? [
+          "resume",
+          ...baseArgs,
+          launchOptions.resumeThreadId,
+          ...(prompt.trim().length > 0 ? [prompt] : []),
+        ]
+      : baseArgs;
     if (location.kind === "windows") {
       return buildWindowsCmdCommand(location.path, "codex", args);
     }
@@ -137,10 +146,7 @@ function buildCommand(
   return wrapWslCommand(location, "codex", args);
 }
 
-function buildCodexAppServerCommand(
-  location: ProjectLocation,
-  remoteUrl: string,
-): CommandSpec {
+function buildCodexAppServerCommand(location: ProjectLocation, remoteUrl: string): CommandSpec {
   const args = [
     "app-server",
     "--listen",
@@ -208,6 +214,18 @@ function spawnAppServer(command: CommandSpec): ChildProcess {
 
 function toSessionRef(threadId: string): SessionRef {
   return createKnownSessionRef(threadId);
+}
+
+function extractThreadField(result: unknown, field: string): string | undefined {
+  if (!result || typeof result !== "object" || !("thread" in result)) {
+    return undefined;
+  }
+  const thread = (result as Record<string, unknown>).thread;
+  if (!thread || typeof thread !== "object" || !(field in thread)) {
+    return undefined;
+  }
+  const value = (thread as Record<string, unknown>)[field];
+  return typeof value === "string" ? value : undefined;
 }
 
 export function deriveCodexStructuredState(status: CodexThreadStatus): {
@@ -297,8 +315,23 @@ export function parseCodexSocketMessage(payload: unknown): CodexSocketMessage {
   return { kind: "unknown" };
 }
 
+// ── Structured Session ──────────────────────────────────────────
+//
+// Lifecycle for a new thread:
+//   1. create()       → spawn app-server, connect WebSocket
+//   2. activate()     → initialize handshake with the server
+//   3. openThread()   → thread/start on the server, get Codex thread ID
+//   4. startTurn()    → fire initial turn (creates rollout file)
+//   5. (caller waits for rollout file, then spawns TUI with resume)
+//
+// Lifecycle for resuming a saved thread:
+//   1. create()       → spawn app-server, connect WebSocket
+//   2. activate()     → initialize handshake
+//   3. openThread()   → thread/resume with saved session ID
+//   4. (caller spawns TUI with resume)
+
 class CodexStructuredSession implements StructuredSessionHandle {
-  readonly launchOptions: AgentLaunchOptions;
+  launchOptions: AgentLaunchOptions;
 
   private readonly remoteUrl: string;
   private readonly appServer: ChildProcess;
@@ -306,8 +339,10 @@ class CodexStructuredSession implements StructuredSessionHandle {
   private readonly socket: WebSocket;
   private listener: StructuredSessionListener | undefined;
   private isDisposed = false;
+  private activated = false;
   private requestSequence = 0;
   private remoteThreadId: string | undefined;
+  private rolloutPath: string | undefined;
   private currentThreadStatus: CodexThreadStatus = { type: "idle" };
   private readonly pendingRequests = new Map<
     string,
@@ -332,9 +367,7 @@ class CodexStructuredSession implements StructuredSessionHandle {
   static async create(input: CreateStructuredSessionInput): Promise<CodexStructuredSession> {
     const port = await allocateLoopbackPort();
     const remoteUrl = `ws://127.0.0.1:${port}`;
-    const appServer = spawnAppServer(
-      buildCodexAppServerCommand(input.projectLocation, remoteUrl),
-    );
+    const appServer = spawnAppServer(buildCodexAppServerCommand(input.projectLocation, remoteUrl));
     const WebSocketCtor = requireWebSocket();
 
     const appServerOutput: string[] = [];
@@ -366,42 +399,89 @@ class CodexStructuredSession implements StructuredSessionHandle {
     const session = new CodexStructuredSession(remoteUrl, appServer, socket);
     session.appServerOutput.push(...appServerOutput);
     session.attachSocketHandlers();
-    console.log("[codex app-server] sending initialize...");
-    await session.initialize();
-    console.log("[codex app-server] initialize complete");
-
-    await session.openThread(input.config, input.sessionRef);
 
     return session;
   }
 
   setListener(listener: StructuredSessionListener): void {
     this.listener = listener;
+
+    // Re-emit current state so the listener doesn't miss updates that
+    // fired before the listener was attached.
+    if (this.activated && this.remoteThreadId) {
+      const sessionRef = toSessionRef(this.remoteThreadId);
+      listener.onUpdate({
+        ...deriveCodexStructuredState(this.currentThreadStatus),
+        sessionRef,
+      });
+    }
   }
 
-  async openThread(config: ThreadConfig, sessionRef?: SessionRef): Promise<void> {
+  async activate(): Promise<void> {
+    if (this.activated) {
+      throw new Error("CodexStructuredSession already activated.");
+    }
+    if (this.isDisposed) {
+      throw new Error("CodexStructuredSession was disposed before activation.");
+    }
+    this.activated = true;
+
+    console.log("[codex app-server] sending initialize...");
+    await this.initialize();
+    console.log("[codex app-server] initialize complete");
+  }
+
+  async openThread(config: ThreadConfig, sessionRef?: SessionRef): Promise<string> {
     const threadOverrides = {
       model: config.model,
       ...(config.approvalPolicy ? { approvalPolicy: config.approvalPolicy } : {}),
       ...(config.sandboxMode ? { sandbox: config.sandboxMode } : {}),
+      ...(config.effort ? { config: { model_reasoning_effort: config.effort } } : {}),
     };
 
+    let threadId: string;
     if (sessionRef) {
       console.log("[codex app-server] thread/resume", sessionRef.providerSessionId);
-      try {
-        await this.request("thread/resume", {
-          ...threadOverrides,
-          threadId: sessionRef.providerSessionId,
-        });
-        return;
-      } catch (error) {
-        const reason = error instanceof Error ? error.message : String(error);
-        console.log("[codex app-server] thread/resume failed, falling back to thread/start:", reason);
+      await this.request("thread/resume", {
+        ...threadOverrides,
+        threadId: sessionRef.providerSessionId,
+        persistExtendedHistory: true,
+      });
+      threadId = sessionRef.providerSessionId;
+    } else {
+      console.log("[codex app-server] thread/start");
+      const result = await this.request("thread/start", {
+        ...threadOverrides,
+        experimentalRawEvents: false,
+        persistExtendedHistory: true,
+      });
+      threadId = extractThreadField(result, "id") ?? "";
+      if (!threadId) {
+        throw new Error("thread/start response did not contain a thread id.");
       }
+      this.rolloutPath = extractThreadField(result, "path") ?? undefined;
     }
 
-    console.log("[codex app-server] thread/start");
-    await this.request("thread/start", threadOverrides);
+    this.remoteThreadId = threadId;
+    this.launchOptions = { ...this.launchOptions, resumeThreadId: threadId };
+    console.log("[codex app-server] active thread:", threadId, this.rolloutPath ?? "");
+    return threadId;
+  }
+
+  async waitForRolloutFile(timeoutMs = 10_000): Promise<void> {
+    if (!this.rolloutPath) {
+      return;
+    }
+    const { existsSync } = await import("node:fs");
+    const deadline = Date.now() + timeoutMs;
+    while (Date.now() < deadline) {
+      if (existsSync(this.rolloutPath)) {
+        console.log("[codex app-server] rollout file ready:", this.rolloutPath);
+        return;
+      }
+      await sleep(200);
+    }
+    console.log("[codex app-server] rollout file not found after timeout, proceeding anyway");
   }
 
   async startTurn(prompt: string, config: ThreadConfig): Promise<void> {
@@ -517,6 +597,12 @@ class CodexStructuredSession implements StructuredSessionHandle {
         }
 
         const threadId = String(thread.id);
+
+        // Ignore thread/started for threads we didn't create (e.g. the TUI's own thread).
+        if (this.remoteThreadId !== undefined && this.remoteThreadId !== threadId) {
+          return;
+        }
+
         this.remoteThreadId = threadId;
         const nextSessionRef = toSessionRef(threadId);
         this.currentThreadStatus =
@@ -564,10 +650,7 @@ class CodexStructuredSession implements StructuredSessionHandle {
       }
 
       if (method === "account/rateLimits/updated" && params && "rateLimits" in params) {
-        console.log(
-          "[codex app-server] rate limits updated:",
-          JSON.stringify(params.rateLimits),
-        );
+        console.log("[codex app-server] rate limits updated:", JSON.stringify(params.rateLimits));
         return;
       }
 

@@ -39,6 +39,7 @@ function createRuntimeSession(overrides: Record<string, unknown> = {}) {
     outputLength: 0,
     structuredSession: {
       launchOptions: {},
+      activate: vi.fn().mockResolvedValue(undefined),
       startTurn: vi.fn().mockResolvedValue(undefined),
       resolveServerRequest: vi.fn().mockResolvedValue(undefined),
       setListener: vi.fn(),
@@ -114,6 +115,7 @@ describe("writeSubmittedPrompt", () => {
     const session = createRuntimeSession({
       structuredSession: {
         launchOptions: {},
+        activate: vi.fn().mockResolvedValue(undefined),
         startTurn: vi.fn(
           () =>
             new Promise<void>((resolve) => {
@@ -164,6 +166,7 @@ describe("writeSubmittedPrompt", () => {
     const session = createRuntimeSession({
       structuredSession: {
         launchOptions: {},
+        activate: vi.fn().mockResolvedValue(undefined),
         startTurn: vi.fn().mockRejectedValue(new Error("request failed")),
         resolveServerRequest: vi.fn().mockResolvedValue(undefined),
         setListener: vi.fn(),

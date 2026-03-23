@@ -26,7 +26,7 @@ function makeThreadTitle(prompt: string): string {
 }
 
 function normalizeStoredThreadStatus(thread: Thread): Thread {
-  if (thread.status === "error") {
+  if (thread.status === "inactive") {
     return thread;
   }
 
@@ -359,7 +359,15 @@ export const useAppStore = create<AppStoreState>()(
               };
             }
 
-            if (thread.status === "inactive" || thread.status === "error") {
+            // Preserve threads that are already terminal or still being started —
+            // the supervisor may not have registered a session yet for "launching"
+            // threads, so resetting them to "inactive" would trigger a false
+            // auto-reopen loop.
+            if (
+              thread.status === "inactive" ||
+              thread.status === "error" ||
+              thread.status === "launching"
+            ) {
               return thread;
             }
 

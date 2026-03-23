@@ -14,6 +14,7 @@ import type {
   SendThreadInputPayload,
   SessionRef,
   StartThreadPayload,
+  StartThreadResult,
   ThreadAttention,
   ThreadConfig,
   ThreadHistorySnapshot,
@@ -25,7 +26,7 @@ import type { SupervisorEvent } from "../shared/ipc";
 import { stripInternalHistoryMarkers } from "../shared/terminalHistory";
 import { normalizeWslListOutput } from "../shared/wsl";
 import { createAgentRegistry } from "./agents/registry";
-import type { AgentAdapter, CommandSpec, StructuredSessionHandle } from "./agents/base";
+import { type AgentAdapter, type CommandSpec, type StructuredSessionHandle } from "./agents/base";
 import { resetTerminalLogFile, resetTerminalLogsDir } from "./terminalLogs";
 
 interface SessionRuntime {
@@ -108,33 +109,42 @@ export class SupervisorRuntime {
     };
   }
 
-  async startThread(payload: StartThreadPayload): Promise<void> {
-    console.log("[supervisor] startThread", payload.threadId, payload.agentKind);
+  async startThread(payload: StartThreadPayload): Promise<StartThreadResult> {
+    const threadId = payload.threadId ?? randomUUID();
+    console.log("[supervisor] startThread", threadId, payload.agentKind);
 
     // Serialize starts for the same thread to prevent double app-server spawns.
-    const pending = this.startLocks.get(payload.threadId);
+    const pending = this.startLocks.get(threadId);
     if (pending) {
-      console.log("[supervisor] startThread skipped (already starting)", payload.threadId);
-      return;
+      console.log("[supervisor] startThread skipped (already starting)", threadId);
+      return { threadId };
     }
 
-    const run = this.startThreadInner(payload);
-    this.startLocks.set(payload.threadId, run.then(() => {}, () => {}));
+    const resolvedPayload = { ...payload, threadId };
+    const run = this.startThreadInner(resolvedPayload);
+    this.startLocks.set(
+      threadId,
+      run.then(
+        () => {},
+        () => {},
+      ),
+    );
     try {
-      await run;
+      return await run;
     } finally {
-      this.startLocks.delete(payload.threadId);
+      this.startLocks.delete(threadId);
     }
   }
 
-  private async startThreadInner(payload: StartThreadPayload): Promise<void> {
+  private async startThreadInner(
+    payload: StartThreadPayload & { threadId: string },
+  ): Promise<StartThreadResult> {
     await this.closeThread({ threadId: payload.threadId });
 
     const adapter = this.requireAdapter(payload.agentKind);
     const isServerControlled = adapter.capabilities.liveInputMode === "server";
-    const initialSessionRef = payload.sessionRef ?? adapter.createInitialSessionRef();
     const effectiveConfig = payload.config;
-    const effectiveSessionRef = payload.sessionRef ?? initialSessionRef;
+    const effectiveSessionRef = payload.sessionRef;
     const structuredSession = await this.createStructuredSession(
       adapter,
       payload.threadId,
@@ -142,13 +152,52 @@ export class SupervisorRuntime {
       effectiveConfig,
       effectiveSessionRef,
     );
+
+    // Phase 1: initialize + create thread + send initial message on the server.
+    if (structuredSession?.activate) {
+      try {
+        await structuredSession.activate();
+      } catch (error) {
+        await structuredSession.dispose();
+        throw error;
+      }
+    }
+
+    if (structuredSession?.openThread) {
+      try {
+        await structuredSession.openThread(effectiveConfig, effectiveSessionRef);
+      } catch (error) {
+        await structuredSession.dispose();
+        throw error;
+      }
+    }
+
+    // For new threads: fire turn/start so the rollout file gets created,
+    // then wait for it before spawning the TUI.
+    // For resumed threads: rollout file already exists, skip this.
+    if (
+      !effectiveSessionRef &&
+      isServerControlled &&
+      payload.prompt.trim().length > 0 &&
+      structuredSession?.startTurn
+    ) {
+      void structuredSession.startTurn(payload.prompt, effectiveConfig).catch((error) => {
+        console.error("[supervisor] initial turn failed:", error);
+      });
+
+      if (structuredSession.waitForRolloutFile) {
+        await structuredSession.waitForRolloutFile();
+      }
+    }
+
+    // Phase 2: spawn TUI with resume.
     const launchPrompt = isServerControlled ? "" : payload.prompt;
-    const command = payload.sessionRef
+    const command = effectiveSessionRef
       ? adapter.buildResumeCommand(
           payload.projectLocation,
           effectiveConfig,
           launchPrompt,
-          payload.sessionRef,
+          effectiveSessionRef,
           structuredSession?.launchOptions,
         )
       : adapter.buildLaunchCommand(
@@ -170,13 +219,7 @@ export class SupervisorRuntime {
       ...(effectiveSessionRef ? { sessionRef: effectiveSessionRef } : {}),
     });
 
-    if (
-      isServerControlled &&
-      payload.prompt.trim().length > 0 &&
-      session.structuredSession?.startTurn
-    ) {
-      await session.structuredSession.startTurn(payload.prompt, effectiveConfig);
-    }
+    return { threadId: payload.threadId };
   }
 
   async sendThreadInput(payload: SendThreadInputPayload): Promise<void> {
@@ -378,6 +421,12 @@ export class SupervisorRuntime {
       ...(input.structuredSession ? { structuredSession: input.structuredSession } : {}),
     };
 
+    // Register the session before attaching the listener so that the
+    // setListener re-emit (for already-activated structured sessions)
+    // passes the instanceId guard.
+    this.sessions.set(input.threadId, session);
+    this.emitState(session);
+
     input.structuredSession?.setListener({
       onClose: () => {
         if (
@@ -444,9 +493,6 @@ export class SupervisorRuntime {
       },
     });
 
-    this.sessions.set(input.threadId, session);
-    this.emitState(session);
-
     pty.onData((data) => {
       if (this.sessions.get(session.threadId)?.instanceId !== session.instanceId) {
         return;
@@ -496,6 +542,8 @@ export class SupervisorRuntime {
       throw new Error("Session cannot be restarted without a known session reference.");
     }
 
+    const isServerControlled = session.adapter.capabilities.liveInputMode === "server";
+
     session.ignoreExit = true;
     await session.structuredSession?.dispose();
     if (session.structuredSession) {
@@ -512,7 +560,28 @@ export class SupervisorRuntime {
       effectiveConfig,
       effectiveSessionRef,
     );
-    const launchPrompt = session.adapter.capabilities.liveInputMode === "server" ? "" : prompt;
+
+    // Initialize + resume thread on the server.
+    if (structuredSession?.activate) {
+      try {
+        await structuredSession.activate();
+      } catch (error) {
+        await structuredSession.dispose();
+        throw error;
+      }
+    }
+
+    if (structuredSession?.openThread) {
+      try {
+        await structuredSession.openThread(effectiveConfig, effectiveSessionRef);
+      } catch (error) {
+        await structuredSession.dispose();
+        throw error;
+      }
+    }
+
+    // Spawn TUI with resume — rollout file already exists for saved threads.
+    const launchPrompt = isServerControlled ? "" : prompt;
     const command = session.adapter.buildResumeCommand(
       session.projectLocation,
       effectiveConfig,
@@ -521,7 +590,7 @@ export class SupervisorRuntime {
       structuredSession?.launchOptions,
     );
 
-    const nextSession = this.spawnThread({
+    this.spawnThread({
       threadId: session.threadId,
       agentKind: session.agentKind,
       adapter: session.adapter,
@@ -531,14 +600,6 @@ export class SupervisorRuntime {
       ...(structuredSession ? { structuredSession } : {}),
       sessionRef: effectiveSessionRef,
     });
-
-    if (
-      session.adapter.capabilities.liveInputMode === "server" &&
-      prompt.trim().length > 0 &&
-      nextSession.structuredSession?.startTurn
-    ) {
-      await nextSession.structuredSession.startTurn(prompt, effectiveConfig);
-    }
   }
 
   private handleStructuredSessionClosed(session: SessionRuntime): void {

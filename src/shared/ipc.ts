@@ -7,6 +7,7 @@ import type {
   SendThreadInputPayload,
   SessionRef,
   StartThreadPayload,
+  StartThreadResult,
   ThreadServerRequestId,
   ThreadAttention,
   ThreadConfig,
@@ -65,7 +66,7 @@ export interface LightcodeBridge {
   getAgentStatuses(): Promise<AgentStatus[]>;
   getThreadSnapshots(): Promise<ThreadRuntimeSnapshot[]>;
   getThreadHistory(threadId: string): Promise<ThreadHistorySnapshot>;
-  startThread(payload: StartThreadPayload): Promise<void>;
+  startThread(payload: StartThreadPayload): Promise<StartThreadResult>;
   sendThreadInput(payload: SendThreadInputPayload): Promise<void>;
   writeTerminal(payload: WriteTerminalPayload): Promise<void>;
   resizeTerminal(payload: ResizeTerminalPayload): Promise<void>;

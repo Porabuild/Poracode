@@ -61,6 +61,24 @@ describe("agent command builders", () => {
     expect(spec.args).toContain("ws://127.0.0.1:43123");
   });
 
+  it("resumes the server thread when structured session provides a threadId", () => {
+    const spec = createCodexAdapter().buildLaunchCommand(windowsProject, config, "", undefined, {
+      enabledFeatures: [CODEX_REMOTE_TUI_FEATURE],
+      remoteUrl: "ws://127.0.0.1:43123",
+      suppressResumeConfigOverrides: true,
+      resumeThreadId: "019d19c4-8050-7270-b8fc-589eee8136c2",
+    });
+
+    const codexArgs = spec.args.slice(spec.args.indexOf("codex") + 1);
+    expect(codexArgs[0]).toBe("resume");
+    expect(codexArgs).toContain("--enable");
+    expect(codexArgs).toContain(CODEX_REMOTE_TUI_FEATURE);
+    expect(codexArgs).toContain("--remote");
+    expect(codexArgs).toContain("ws://127.0.0.1:43123");
+    expect(codexArgs).not.toContain("-m");
+    expect(codexArgs[codexArgs.length - 1]).toBe("019d19c4-8050-7270-b8fc-589eee8136c2");
+  });
+
   it("omits an empty prompt when reopening Codex", () => {
     const sessionRef: SessionRef = {
       providerSessionId: "abc-123",

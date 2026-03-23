@@ -284,12 +284,12 @@ export function Sidebar(props: {
               return (
                 <section
                   key={project.id}
-                  className={`relative space-y-1.5 ${isDraggedProject ? "opacity-60" : ""}`}
+                  className={`relative space-y-0.5 ${isDraggedProject ? "opacity-60" : ""}`}
                 >
                   {projectIndicator ? renderDropIndicator(projectIndicator.placement) : null}
 
                   <div
-                    className="flex items-center gap-2 rounded-xl px-3 py-2.5 transition-colors hover:bg-white/[0.03]"
+                    className="flex items-center gap-2 rounded-xl px-3 py-1.5 transition-colors hover:bg-white/[0.03]"
                     onDragOver={(event) => {
                       if (!dragItem || dragItem.type !== "project" || dragItem.id === project.id) {
                         return;
@@ -385,7 +385,7 @@ export function Sidebar(props: {
                   </div>
 
                   {!isCollapsed ? (
-                    <div className="space-y-0.5">
+                    <div className="space-y-0.5 pl-4">
                       <button
                         className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-sm text-muted transition-colors hover:bg-white/[0.04] hover:text-foreground"
                         onClick={() => onOpenNewThread(project.id)}
@@ -480,20 +480,14 @@ export function Sidebar(props: {
                                 onClick={() => onOpenThread(thread.id)}
                                 type="button"
                               >
-                                <div className="min-w-0">
-                                  <div className="flex min-w-0 items-center gap-2">
-                                    {thread.agentKind === "codex" ? (
-                                      <CodexStatusIcon
-                                        className="size-3.5 shrink-0"
-                                        tone={codexTone ?? "inactive"}
-                                      />
-                                    ) : null}
-                                    <p className="truncate text-sm font-medium">{thread.title}</p>
-                                  </div>
-                                  <p className="truncate text-[11px] text-muted">
-                                    {formatThreadStatus(thread.status)} ·{" "}
-                                    {formatRelativeTime(thread.updatedAt)}
-                                  </p>
+                                <div className="flex min-w-0 items-center gap-2">
+                                  {thread.agentKind === "codex" ? (
+                                    <CodexStatusIcon
+                                      className="size-3.5 shrink-0"
+                                      tone={codexTone ?? "inactive"}
+                                    />
+                                  ) : null}
+                                  <p className="truncate text-sm font-medium">{thread.title}</p>
                                 </div>
                               </button>
                               <button
@@ -507,6 +501,9 @@ export function Sidebar(props: {
                               >
                                 <Trash2 className="size-3.5" />
                               </button>
+                              <span className="shrink-0 text-[11px] text-muted">
+                                {formatRelativeTime(thread.updatedAt)}
+                              </span>
                               <button
                                 aria-grabbed={isDraggedThread}
                                 aria-label={`Reorder ${thread.title}`}

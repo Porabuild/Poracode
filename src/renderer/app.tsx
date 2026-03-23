@@ -1,8 +1,8 @@
 import { startTransition, useEffect, useEffectEvent, useState } from "react";
-import { ArrowRight, FolderPlus, Server } from "lucide-react";
+import { ArrowRight, FolderOpen, Plus, Server, TerminalSquare } from "lucide-react";
 import { toWslUncPath } from "../shared/wsl";
 import { readBridge } from "./bridge";
-import { Button, Chip } from "./components/common";
+import { CodexStatusIcon, getCodexStatusTone } from "./components/common";
 import { AppShell } from "./components/layout/AppShell";
 import { Sidebar } from "./components/sidebar/Sidebar";
 import { ThreadDraftView } from "./components/thread/ThreadDraftView";
@@ -35,86 +35,111 @@ readBridge().onSupervisorEvent((event) => {
   }
 });
 
+function formatRelativeTime(iso: string): string {
+  const deltaMinutes = Math.max(1, Math.floor((Date.now() - new Date(iso).getTime()) / 60000));
+  if (deltaMinutes < 60) return `${deltaMinutes}m ago`;
+  const deltaHours = Math.floor(deltaMinutes / 60);
+  if (deltaHours < 24) return `${deltaHours}h ago`;
+  return `${Math.floor(deltaHours / 24)}d ago`;
+}
+
 function HomeView() {
   const projects = useAppStore((state) => state.projects);
-  const agentStatuses = useAppStore((state) => state.agentStatuses);
+  const threads = useAppStore((state) => state.threads);
   const openDraft = useAppStore((state) => state.openDraft);
-  const latestProject = projects[0];
-  const installedAgents = agentStatuses.filter((status) => status.installed);
+  const openThread = useAppStore((state) => state.openThread);
+  const recentThreads = threads.slice(0, 8);
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <header className="lightcode-window-header flex shrink-0 items-center justify-between border-b border-[color:var(--border)] px-6 py-4">
-        <p className="text-sm font-semibold tracking-tight text-foreground">New thread</p>
-        <div className="flex flex-wrap items-center justify-end gap-2">
-          <Chip size="sm" variant="secondary">
-            {installedAgents.length} agent{installedAgents.length === 1 ? "" : "s"} ready
-          </Chip>
-          {latestProject ? (
-            <Chip color="accent" size="sm" variant="soft">
-              {latestProject.name}
-            </Chip>
-          ) : null}
-        </div>
-      </header>
-
       <div className="flex h-full min-h-0 flex-col px-8 py-8">
-        <div className="mx-auto flex w-full max-w-[1040px] flex-1 flex-col justify-center">
+        <div className="mx-auto flex h-full w-full max-w-[560px] flex-col">
           <div className="flex flex-1 flex-col justify-center">
-            <div className="flex size-14 items-center justify-center rounded-full border border-white/10 bg-white/[0.03]">
-              <div className="size-6 rounded-full border border-white/75" />
-            </div>
-            <div className="mt-6 space-y-2">
-              <h1 className="text-5xl font-semibold tracking-tight text-foreground">
-                Let&apos;s build
-              </h1>
-              <p className="text-4xl font-medium tracking-tight text-muted">
-                {latestProject?.name ?? "lightcode"}
-              </p>
-            </div>
-            <p className="mt-4 max-w-[620px] text-base text-muted">
-              {latestProject
-                ? "Open a draft for the current workspace and launch a real CLI-backed thread."
-                : "Add a Windows or WSL project from the sidebar to start a real terminal-native thread."}
-            </p>
-            <div className="mt-10 w-full max-w-[860px] border-t border-[color:var(--border)] pt-6">
-              {latestProject ? (
-                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="space-y-2">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <Chip size="sm" variant="secondary">
-                        {latestProject.location.kind === "windows" ? (
-                          <FolderPlus className="size-3.5" />
-                        ) : (
-                          <Server className="size-3.5" />
-                        )}
-                        {latestProject.location.kind === "windows"
-                          ? "Windows"
-                          : latestProject.location.distro}
-                      </Chip>
-                      <Chip size="sm" variant="secondary">
-                        {installedAgents[0]?.label ?? "No agent detected"}
-                      </Chip>
-                    </div>
-                    <p className="text-sm text-muted">
-                      Launch directly into the live workspace view and keep the terminal as the
-                      source of truth.
-                    </p>
-                  </div>
+            {/* Fancy Lightcode logo */}
+            <h1 className="flex items-baseline gap-3 overflow-visible pr-[0.22em] pb-[0.32em] text-[clamp(3.25rem,8vw,6.25rem)] leading-[1.22] font-semibold tracking-[-0.06em]">
+              <span className="pr-[0.04em] pb-[0.04em] text-transparent [background-image:linear-gradient(135deg,var(--foreground)_0%,color-mix(in_oklab,var(--accent)_60%,var(--foreground))_52%,var(--muted)_100%)] [background-size:100%_100%] bg-clip-text">
+                Lightcode
+              </span>
+              <TerminalSquare className="translate-y-[-0.04em] size-[0.48em] shrink-0 text-[color:color-mix(in_oklab,var(--accent)_58%,var(--foreground))] opacity-90" />
+            </h1>
 
-                  <Button className="rounded-full px-4" onPress={() => openDraft(latestProject.id)}>
-                    Start thread
-                    <ArrowRight className="size-4" />
-                  </Button>
-                </div>
-              ) : (
-                <div className="space-y-2">
+            <div className="mt-10 flex w-full flex-col gap-8">
+              {/* Projects */}
+              <section>
+                <h2 className="mb-3 text-xs font-semibold uppercase tracking-[0.12em] text-muted">
+                  Projects
+                </h2>
+                {projects.length === 0 ? (
                   <p className="text-sm text-muted">
-                    Use the project controls in the sidebar to add a workspace before starting a
-                    thread.
+                    Add a Windows or WSL project from the sidebar to get started.
                   </p>
-                </div>
-              )}
+                ) : (
+                  <div className="flex flex-col gap-1">
+                    {projects.map((project) => (
+                      <button
+                        key={project.id}
+                        className="group flex items-center gap-3 rounded-lg px-3 py-2 text-left transition-colors hover:bg-white/[0.04]"
+                        onClick={() => openDraft(project.id)}
+                        type="button"
+                      >
+                        {project.location.kind === "windows" ? (
+                          <FolderOpen className="size-4 shrink-0 text-muted" />
+                        ) : (
+                          <Server className="size-4 shrink-0 text-muted" />
+                        )}
+                        <p className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">
+                          {project.name}
+                        </p>
+                        <Plus className="size-4 shrink-0 text-muted opacity-0 transition-opacity group-hover:opacity-100" />
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </section>
+
+              {/* Recent threads */}
+              {recentThreads.length > 0 ? (
+                <section>
+                  <h2 className="mb-3 text-xs font-semibold uppercase tracking-[0.12em] text-muted">
+                    Recent threads
+                  </h2>
+                  <div className="flex flex-col gap-1">
+                    {recentThreads.map((thread) => {
+                      const project = projects.find((p) => p.id === thread.projectId);
+                      const codexTone =
+                        thread.agentKind === "codex" ? getCodexStatusTone(thread) : undefined;
+
+                      return (
+                        <button
+                          key={thread.id}
+                          className="group flex items-center gap-3 rounded-lg px-3 py-2 text-left transition-colors hover:bg-white/[0.04]"
+                          onClick={() => openThread(thread.id)}
+                          type="button"
+                        >
+                          {thread.agentKind === "codex" ? (
+                            <CodexStatusIcon
+                              className="size-4 shrink-0"
+                              tone={codexTone ?? "inactive"}
+                            />
+                          ) : (
+                            <TerminalSquare className="size-4 shrink-0 text-muted" />
+                          )}
+                          <p className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">
+                            {thread.title}
+                          </p>
+                          {project ? (
+                            <span className="shrink-0 text-xs text-muted">{project.name}</span>
+                          ) : null}
+                          <span className="shrink-0 text-xs text-muted">
+                            {formatRelativeTime(thread.updatedAt)}
+                          </span>
+                          <ArrowRight className="size-3.5 shrink-0 text-muted opacity-0 transition-opacity group-hover:opacity-100" />
+                        </button>
+                      );
+                    })}
+                  </div>
+                </section>
+              ) : null}
             </div>
           </div>
         </div>
@@ -234,12 +259,18 @@ export function App() {
   const reorderThreads = useAppStore((state) => state.reorderThreads);
   const updateThreadRuntime = useAppStore((state) => state.updateThreadRuntime);
   const [storeHydrated, setStoreHydrated] = useState(() => useAppStore.persist.hasHydrated());
+  const [reopenAttempted] = useState(() => new Set<string>());
   const reopenStoredThread = useEffectEvent(
     (input: { threadId: string; projectLocation: (typeof projects)[number]["location"] }) => {
       const thread = threads.find((item) => item.id === input.threadId);
       if (!thread) {
         return;
       }
+
+      if (reopenAttempted.has(thread.id)) {
+        return;
+      }
+      reopenAttempted.add(thread.id);
 
       startTransition(() => {
         updateThreadRuntime(thread.id, {
@@ -447,14 +478,10 @@ export function App() {
               }
             }}
             onDeleteThread={(threadId) => {
+              deleteThread(threadId);
               void readBridge()
                 .closeThread({ threadId })
-                .catch(() => undefined)
-                .finally(() => {
-                  startTransition(() => {
-                    deleteThread(threadId);
-                  });
-                });
+                .catch(() => undefined);
             }}
             onOpenHome={() => {
               startTransition(() => {

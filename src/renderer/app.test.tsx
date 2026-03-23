@@ -140,9 +140,7 @@ describe("App", () => {
   it("reopens the selected thread after persisted state hydrates", async () => {
     let hydrated = false;
     let onHydrate: ((state: ReturnType<typeof useAppStore.getState>) => void) | undefined;
-    let onFinishHydration:
-      | ((state: ReturnType<typeof useAppStore.getState>) => void)
-      | undefined;
+    let onFinishHydration: ((state: ReturnType<typeof useAppStore.getState>) => void) | undefined;
 
     useAppStore.persist.hasHydrated = vi.fn(() => hydrated);
     useAppStore.persist.onHydrate = vi.fn((listener) => {

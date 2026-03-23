@@ -26,6 +26,7 @@ export interface AgentLaunchOptions {
   enabledFeatures?: string[];
   remoteUrl?: string;
   suppressResumeConfigOverrides?: boolean;
+  resumeThreadId?: string;
 }
 
 export interface StructuredSessionUpdate {
@@ -49,7 +50,9 @@ export interface StructuredSessionListener {
 
 export interface StructuredSessionHandle {
   launchOptions: AgentLaunchOptions;
-  prepareResume?(config: ThreadConfig, sessionRef: SessionRef): Promise<StructuredSessionUpdate>;
+  activate?(): Promise<void>;
+  openThread?(config: ThreadConfig, sessionRef?: SessionRef): Promise<string>;
+  waitForRolloutFile?(timeoutMs?: number): Promise<void>;
   startTurn?(prompt: string, config: ThreadConfig): Promise<void>;
   resolveServerRequest?(requestId: ThreadServerRequestId, response: unknown): Promise<void>;
   setListener(listener: StructuredSessionListener): void;

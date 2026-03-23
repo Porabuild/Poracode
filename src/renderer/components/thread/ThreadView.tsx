@@ -252,12 +252,6 @@ export function ThreadView(props: {
             ) : null}
 
             {renderControlBar(thread, agentStatus, onConfigChange)}
-
-            <p className="px-1 text-sm text-muted">
-              {isServerControlled
-                ? "Codex input is sent through the composer while the terminal mirrors CLI output."
-                : "Live thread input is handled directly in the terminal during this phase."}
-            </p>
           </div>
         </div>
       </div>

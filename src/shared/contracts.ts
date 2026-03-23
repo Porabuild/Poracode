@@ -126,7 +126,7 @@ export interface ThreadHistorySnapshot {
 }
 
 export const startThreadPayloadSchema = z.object({
-  threadId: z.string().min(1),
+  threadId: z.string().min(1).optional(),
   projectLocation: projectLocationSchema,
   agentKind: agentKindSchema,
   config: threadConfigSchema,
@@ -134,6 +134,10 @@ export const startThreadPayloadSchema = z.object({
   sessionRef: sessionRefSchema.optional(),
 });
 export type StartThreadPayload = z.infer<typeof startThreadPayloadSchema>;
+
+export interface StartThreadResult {
+  threadId: string;
+}
 
 export const sendThreadInputPayloadSchema = z.object({
   threadId: z.string().min(1),

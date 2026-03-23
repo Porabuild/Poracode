@@ -63,11 +63,6 @@ describe("ThreadView", () => {
     expect(
       screen.getByPlaceholderText("Ask Codex anything about this workspace"),
     ).toBeInTheDocument();
-    expect(
-      screen.getByText(
-        "Codex input is sent through the composer while the terminal mirrors CLI output.",
-      ),
-    ).toBeInTheDocument();
     expect(screen.getByText("terminal pane")).toHaveAttribute("data-read-only", "true");
   });
 

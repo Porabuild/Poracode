@@ -5,7 +5,8 @@
       "Bash(codex app-server:*)",
       "Bash(codex:*)",
       "Bash(gh api:*)",
-      "Bash(gh repo:*)"
+      "Bash(gh repo:*)",
+      "Bash(xargs grep:*)"
     ]
   }
 }
