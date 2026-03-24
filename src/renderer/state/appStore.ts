@@ -109,6 +109,7 @@ interface AppStoreState {
   removeThreadServerRequest: (threadId: string, requestId: ThreadServerRequestId) => void;
   clearThreadServerRequests: (threadId: string) => void;
   markThreadExited: (threadId: string) => void;
+  touchThread: (threadId: string) => void;
   reconcileRuntimeSnapshots: (snapshots: ThreadRuntimeSnapshot[]) => void;
   reorderProjects: (sourceId: string, targetId: string, placement: ReorderPlacement) => void;
   reorderThreads: (sourceId: string, targetId: string, placement: ReorderPlacement) => void;
@@ -250,7 +251,6 @@ export const useAppStore = create<AppStoreState>()(
               config: input.config ?? thread.config,
               canResumeWithConfig: input.canResumeWithConfig,
               ...(input.sessionRef ? { sessionRef: input.sessionRef } : {}),
-              updatedAt: new Date().toISOString(),
             };
           });
 
@@ -305,7 +305,6 @@ export const useAppStore = create<AppStoreState>()(
               ...thread,
               status: "inactive",
               attention: "none",
-              updatedAt: new Date().toISOString(),
             };
           });
 
@@ -322,6 +321,14 @@ export const useAppStore = create<AppStoreState>()(
                 ),
               };
         }),
+      touchThread: (threadId) =>
+        set((state) => ({
+          threads: state.threads.map((thread) =>
+            thread.id === threadId
+              ? { ...thread, updatedAt: new Date().toISOString() }
+              : thread,
+          ),
+        })),
       reconcileRuntimeSnapshots: (snapshots) =>
         set((state) => {
           const snapshotsById = new Map(snapshots.map((snapshot) => [snapshot.threadId, snapshot]));

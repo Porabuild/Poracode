@@ -1,43 +1,39 @@
 import { useEffect, useState } from "react";
-import { Bot, Shield, Sparkles, TerminalSquare } from "lucide-react";
+import { Bot, ClipboardList, ShieldOff, Sparkles, TerminalSquare } from "lucide-react";
 import type {
   AgentStatus,
   Thread,
   ThreadConfig,
   ThreadServerRequestId,
 } from "../../../shared/contracts";
-import { CodexStatusIcon, getCodexStatusTone, OptionMenu } from "../common";
+import { CodexStatusIcon, getCodexStatusTone } from "../common";
 import type { PendingThreadServerRequest } from "../../state/appStore";
 import { TerminalPane } from "./TerminalPane";
 import { ThreadComposer } from "./ThreadComposer";
 import { ThreadServerRequestPanel } from "./ThreadServerRequestPanel";
-import {
-  buildPermissionOptions,
-  formatCompactLabel,
-  withCurrentValue,
-} from "./threadComposerOptions";
+import { formatCompactLabel, withCurrentValue } from "./threadComposerOptions";
 
-function renderControlBar(
+function buildControls(
   thread: Thread,
   agentStatus: AgentStatus | undefined,
   onConfigChange: (config: ThreadConfig) => void,
 ) {
   const codexTone = getCodexStatusTone(thread);
-  const permissionOptions = buildPermissionOptions(
-    agentStatus?.capabilities.approvalPolicies ?? [],
-    agentStatus?.capabilities.sandboxModes ?? [],
-  );
-  const selectedPermission =
-    permissionOptions.find(
-      (option) =>
-        option.id === `${thread.config.approvalPolicy ?? ""}::${thread.config.sandboxMode ?? ""}`,
-    )?.id ??
-    permissionOptions[0]?.id ??
-    "";
+  const hasPermissions =
+    (agentStatus?.capabilities.approvalPolicies.length ?? 0) > 0 ||
+    (agentStatus?.capabilities.sandboxModes.length ?? 0) > 0;
+  const isFullAccess =
+    thread.config.approvalPolicy === "never" &&
+    thread.config.sandboxMode === "danger-full-access";
+  const availableEfforts =
+    agentStatus?.capabilities.modelEfforts?.[thread.config.model ?? ""] ??
+    agentStatus?.capabilities.efforts ??
+    [];
+  const isDisabled = !thread.canResumeWithConfig;
 
-  const controls = [
+  return [
     {
-      key: "agent",
+      kind: "static" as const,
       value: agentStatus?.label ?? thread.agentKind,
       icon:
         thread.agentKind === "codex" ? (
@@ -45,46 +41,34 @@ function renderControlBar(
         ) : (
           <Bot className="size-4 text-muted" />
         ),
-      isStatic: true,
     },
-    ...(agentStatus?.capabilities.modes.length
-      ? [
-          {
-            key: "mode",
-            value: thread.config.mode ?? agentStatus.capabilities.modes[0] ?? "agent",
-            icon: <TerminalSquare className="size-4 text-muted" />,
-            options: agentStatus.capabilities.modes.map((value) => ({
-              id: value,
-              label: formatCompactLabel(value),
-            })),
-            onChange: (value: string) =>
-              onConfigChange({
-                ...thread.config,
-                mode: value as Thread["config"]["mode"],
-              }),
-          },
-        ]
-      : []),
     {
-      key: "model",
-      value: thread.config.model,
       options: withCurrentValue(agentStatus?.capabilities.models ?? [], thread.config.model),
-      onChange: (value: string) =>
+      value: thread.config.model,
+      isDisabled,
+      onChange: (value: string) => {
+        const nextEfforts =
+          agentStatus?.capabilities.modelEfforts?.[value] ??
+          agentStatus?.capabilities.efforts ??
+          [];
+        const effortValid = nextEfforts.includes(thread.config.effort ?? "");
         onConfigChange({
           ...thread.config,
           model: value,
-        }),
+          ...(!effortValid && nextEfforts.length > 0 ? { effort: nextEfforts[0] } : {}),
+        });
+      },
     },
-    ...(agentStatus?.capabilities.efforts.length
+    ...(availableEfforts.length
       ? [
           {
-            key: "effort",
-            value: thread.config.effort ?? agentStatus.capabilities.efforts[0] ?? "",
             icon: <Sparkles className="size-4 text-muted" />,
-            options: agentStatus.capabilities.efforts.map((value) => ({
+            options: availableEfforts.map((value) => ({
               id: value,
               label: formatCompactLabel(value),
             })),
+            value: thread.config.effort ?? availableEfforts[0] ?? "",
+            isDisabled,
             onChange: (value: string) =>
               onConfigChange({
                 ...thread.config,
@@ -93,64 +77,72 @@ function renderControlBar(
           },
         ]
       : []),
-    ...(permissionOptions.length > 0
+    ...(agentStatus?.capabilities.modes.length === 2
       ? [
           {
-            key: "permission",
-            value: selectedPermission,
-            icon: <Shield className="size-4 text-muted" />,
-            options: permissionOptions,
-            onChange: (value: string) => {
-              const [nextApprovalPolicy, nextSandboxMode] = String(value).split("::");
-              const nextConfig: ThreadConfig = {
+            kind: "toggle" as const,
+            icon: <ClipboardList className="size-3.5" />,
+            label: formatCompactLabel(
+              agentStatus.capabilities.modes.find((m) => m !== "agent") ?? "plan",
+            ),
+            isSelected: (thread.config.mode ?? "agent") !== "agent",
+            isDisabled,
+            onChange: (isSelected: boolean) => {
+              const altMode =
+                agentStatus.capabilities.modes.find((m) => m !== "agent") ?? "plan";
+              onConfigChange({
                 ...thread.config,
-              };
-
-              if (nextApprovalPolicy) {
-                nextConfig.approvalPolicy = nextApprovalPolicy;
+                mode: (isSelected ? altMode : "agent") as Thread["config"]["mode"],
+              });
+            },
+          },
+        ]
+      : agentStatus?.capabilities.modes.length
+        ? [
+            {
+              icon: <TerminalSquare className="size-4 text-muted" />,
+              options: agentStatus.capabilities.modes.map((value) => ({
+                id: value,
+                label: formatCompactLabel(value),
+              })),
+              value: thread.config.mode ?? agentStatus.capabilities.modes[0] ?? "agent",
+              isDisabled,
+              onChange: (value: string) =>
+                onConfigChange({
+                  ...thread.config,
+                  mode: value as Thread["config"]["mode"],
+                }),
+            },
+          ]
+        : []),
+    ...(hasPermissions
+      ? [
+          {
+            kind: "toggle" as const,
+            icon: <ShieldOff className="size-3.5" />,
+            label: "Full Access",
+            isSelected: isFullAccess,
+            isDisabled,
+            onChange: (selected: boolean) => {
+              if (selected) {
+                onConfigChange({
+                  ...thread.config,
+                  approvalPolicy: "never",
+                  sandboxMode: "danger-full-access",
+                });
               } else {
-                delete nextConfig.approvalPolicy;
+                const { approvalPolicy: _a, sandboxMode: _s, ...rest } = thread.config;
+                onConfigChange({
+                  ...rest,
+                  approvalPolicy: agentStatus?.capabilities.approvalPolicies[0],
+                  sandboxMode: agentStatus?.capabilities.sandboxModes[0],
+                });
               }
-
-              if (nextSandboxMode) {
-                nextConfig.sandboxMode = nextSandboxMode;
-              } else {
-                delete nextConfig.sandboxMode;
-              }
-
-              onConfigChange(nextConfig);
             },
           },
         ]
       : []),
   ];
-
-  return (
-    <div className="flex flex-wrap items-center gap-2 rounded-[1.4rem] border border-[color:var(--border)] bg-[color:color-mix(in_oklab,var(--surface)_84%,transparent)] px-3 py-2">
-      {controls.map((control) =>
-        control.isStatic ? (
-          <div
-            key={control.key}
-            className="flex min-w-0 items-center gap-2 rounded-full bg-white/[0.03] px-2.5 py-1.5 text-sm text-muted"
-          >
-            {control.icon}
-            <span className="truncate">{control.value}</span>
-          </div>
-        ) : (
-          <OptionMenu
-            key={control.key}
-            buttonVariant="ghost"
-            className="min-w-0 rounded-full px-2.5"
-            {...(control.icon ? { icon: control.icon } : {})}
-            isDisabled={thread.status !== "inactive" || !thread.canResumeWithConfig}
-            options={control.options ?? []}
-            value={control.value}
-            onChange={control.onChange ?? (() => undefined)}
-          />
-        ),
-      )}
-    </div>
-  );
 }
 
 export function ThreadView(props: {
@@ -185,6 +177,8 @@ export function ThreadView(props: {
   const showServerComposer =
     isServerControlled && thread.status !== "inactive" && thread.status !== "launching";
 
+  const controls = buildControls(thread, agentStatus, onConfigChange);
+
   useEffect(() => {
     setPrompt("");
   }, [thread.id]);
@@ -203,7 +197,7 @@ export function ThreadView(props: {
             <div className="flex flex-wrap items-center justify-end gap-2" />
           </div>
 
-          <div className="mx-auto flex min-h-0 w-full max-w-[920px] flex-1 flex-col gap-3 pt-3">
+          <div className="mx-auto flex min-h-0 w-full max-w-[920px] flex-1 flex-col gap-2 pt-3">
             <div className="min-h-0 flex-1 overflow-hidden">
               <TerminalPane
                 readOnly={isServerControlled}
@@ -217,14 +211,27 @@ export function ThreadView(props: {
                 request={activeServerRequest}
                 onResolve={onResolveServerRequest}
               />
-            ) : showServerComposer ? (
+            ) : null}
+
+            <div className="relative">
+              {thread.status === "launching" ? (
+                <div className="absolute inset-0 z-10 flex items-center justify-center rounded-[1.5rem] bg-background/80">
+                  <span className="text-sm text-muted">Starting thread...</span>
+                </div>
+              ) : null}
               <ThreadComposer
                 compact
-                controls={[]}
-                placeholder="Ask Codex anything about this workspace"
+                controls={controls}
+                placeholder={
+                  isServerControlled
+                    ? "Ask Codex anything about this workspace"
+                    : "Send a message..."
+                }
                 prompt={prompt}
-                promptDisabled={isSubmitting}
-                submitDisabled={prompt.trim().length === 0 || !canSubmitServerInput || isSubmitting}
+                promptDisabled={isSubmitting || !showServerComposer || thread.status === "launching"}
+                submitDisabled={
+                  prompt.trim().length === 0 || !canSubmitServerInput || isSubmitting
+                }
                 submitLabel="Send message"
                 onPromptChange={setPrompt}
                 onSubmit={() => {
@@ -245,13 +252,7 @@ export function ThreadView(props: {
                     });
                 }}
               />
-            ) : thread.status === "launching" ? (
-              <div className="rounded-[1.4rem] border border-[color:var(--border)] bg-[color:color-mix(in_oklab,var(--surface)_84%,transparent)] px-4 py-3 text-sm text-muted">
-                Starting thread...
-              </div>
-            ) : null}
-
-            {renderControlBar(thread, agentStatus, onConfigChange)}
+            </div>
           </div>
         </div>
       </div>

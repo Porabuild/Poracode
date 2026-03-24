@@ -23,6 +23,8 @@ import type {
   WriteTerminalPayload,
 } from "../shared/contracts";
 import type { SupervisorEvent } from "../shared/ipc";
+import { stripAnsiPreservingLayout } from "../shared/ansi";
+import { detectRateLimitPrompt } from "../shared/rateLimitPrompt";
 import { stripInternalHistoryMarkers } from "../shared/terminalHistory";
 import { normalizeWslListOutput } from "../shared/wsl";
 import { createAgentRegistry } from "./agents/registry";
@@ -46,6 +48,7 @@ interface SessionRuntime {
   structuredSession?: StructuredSessionHandle;
   ignoreExit?: boolean;
   ptyExited?: boolean;
+  rateLimitPromptEmitted?: boolean;
 }
 
 export async function writeSubmittedPrompt(
@@ -232,7 +235,9 @@ export class SupervisorRuntime {
       throw new Error("This thread exited before a resumable session id was discovered.");
     }
 
+    const isServerControlled = session.adapter.capabilities.liveInputMode === "server";
     const shouldRelaunch =
+      !isServerControlled &&
       session.canResumeWithConfig &&
       JSON.stringify(session.config) !== JSON.stringify(payload.config);
 
@@ -509,6 +514,20 @@ export class SupervisorRuntime {
 
       if (session.status === "launching") {
         this.updateState(session, "idle", "none");
+      }
+
+      // Auto-dismiss the TUI "Approaching rate limits" prompt by selecting
+      // "Keep current model".  Model switching is handled via the GUI control
+      // bar and the structured session, not the TUI menu.
+      if (
+        session.adapter.capabilities.liveInputMode === "server" &&
+        !session.rateLimitPromptEmitted
+      ) {
+        const stripped = stripAnsiPreservingLayout(data);
+        if (detectRateLimitPrompt(stripped)) {
+          session.rateLimitPromptEmitted = true;
+          session.pty.write("2");
+        }
       }
     });
 

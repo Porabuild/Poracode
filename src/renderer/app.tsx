@@ -4,6 +4,7 @@ import { toWslUncPath } from "../shared/wsl";
 import { readBridge } from "./bridge";
 import { CodexStatusIcon, getCodexStatusTone } from "./components/common";
 import { AppShell } from "./components/layout/AppShell";
+import { SettingsOverlay } from "./components/settings/SettingsOverlay";
 import { Sidebar } from "./components/sidebar/Sidebar";
 import { ThreadDraftView } from "./components/thread/ThreadDraftView";
 import { ThreadView } from "./components/thread/ThreadView";
@@ -158,6 +159,7 @@ function AppContent() {
   const removeThreadServerRequest = useAppStore((state) => state.removeThreadServerRequest);
   const updateThreadConfig = useAppStore((state) => state.updateThreadConfig);
   const updateThreadRuntime = useAppStore((state) => state.updateThreadRuntime);
+  const touchThread = useAppStore((state) => state.touchThread);
 
   if (view.kind === "draft") {
     const project = projects.find((item) => item.id === view.projectId);
@@ -224,6 +226,7 @@ function AppContent() {
             response,
           });
           removeThreadServerRequest(thread.id, requestId);
+          touchThread(thread.id);
         }}
         onSubmitInput={async (prompt) => {
           await readBridge().sendThreadInput({
@@ -231,6 +234,7 @@ function AppContent() {
             prompt,
             config: thread.config,
           });
+          touchThread(thread.id);
         }}
       />
     );
@@ -242,10 +246,8 @@ function AppContent() {
 export function App() {
   const projects = useAppStore((state) => state.projects);
   const threads = useAppStore((state) => state.threads);
-  const themeMode = useAppStore((state) => state.themeMode);
   const view = useAppStore((state) => state.view);
   const wslDistros = useAppStore((state) => state.wslDistros);
-  const setThemeMode = useAppStore((state) => state.setThemeMode);
   const setAgentStatuses = useAppStore((state) => state.setAgentStatuses);
   const setWslDistros = useAppStore((state) => state.setWslDistros);
   const markThreadsInactiveOnLaunch = useAppStore((state) => state.markThreadsInactiveOnLaunch);
@@ -258,6 +260,7 @@ export function App() {
   const reorderProjects = useAppStore((state) => state.reorderProjects);
   const reorderThreads = useAppStore((state) => state.reorderThreads);
   const updateThreadRuntime = useAppStore((state) => state.updateThreadRuntime);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [storeHydrated, setStoreHydrated] = useState(() => useAppStore.persist.hasHydrated());
   const [reopenAttempted] = useState(() => new Set<string>());
   const reopenStoredThread = useEffectEvent(
@@ -416,7 +419,6 @@ export function App() {
             threads={threads}
             currentProjectId={currentProjectId}
             currentThreadId={view.kind === "thread" ? view.threadId : undefined}
-            themeMode={themeMode}
             wslDistros={wslDistros}
             onOpenNewThread={(projectId) => {
               const targetProjectId = projectId ?? currentProjectId ?? projects[0]?.id;
@@ -430,11 +432,7 @@ export function App() {
                 openHome();
               });
             }}
-            onThemeModeChange={(mode) => {
-              startTransition(() => {
-                setThemeMode(mode);
-              });
-            }}
+            onOpenSettings={() => setSettingsOpen(true)}
             onAddWindowsProject={() => {
               void readBridge()
                 .pickFolder()
@@ -502,6 +500,9 @@ export function App() {
         }
         content={<AppContent />}
       />
+      {settingsOpen ? (
+        <SettingsOverlay onClose={() => setSettingsOpen(false)} />
+      ) : null}
     </AppProvider>
   );
 }

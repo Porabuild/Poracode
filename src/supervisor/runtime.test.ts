@@ -8,7 +8,7 @@ function createRuntimeSession(overrides: Record<string, unknown> = {}) {
     agentKind: "codex",
     adapter: {
       kind: "codex",
-      label: "Codex CLI",
+      label: "Codex",
       capabilities: {
         models: [],
         efforts: [],
@@ -213,7 +213,7 @@ describe("writeSubmittedPrompt", () => {
     const session = createRuntimeSession({
       adapter: {
         kind: "claude",
-        label: "Claude Code CLI",
+        label: "Claude Code",
         capabilities: {
           models: [],
           efforts: [],

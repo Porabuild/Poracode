@@ -8,12 +8,13 @@ import {
   GripVertical,
   Plus,
   Server,
+  Settings2,
   Trash2,
 } from "lucide-react";
 import { useEffect, useState, type DragEvent } from "react";
-import type { Project, ThemeMode, Thread } from "../../../shared/contracts";
+import type { Project, Thread } from "../../../shared/contracts";
 import { isReorderNoOp, type ReorderPlacement } from "../../state/reorder";
-import { Button, CodexStatusIcon, getCodexStatusTone, Input, ThemeMenu } from "../common";
+import { Button, CodexStatusIcon, getCodexStatusTone, Input } from "../common";
 
 type SidebarDragItem =
   | { type: "project"; id: string }
@@ -84,15 +85,14 @@ export function Sidebar(props: {
   threads: Thread[];
   currentProjectId: string | undefined;
   currentThreadId: string | undefined;
-  themeMode: ThemeMode;
   wslDistros: string[];
   onOpenNewThread: (projectId?: string) => void;
-  onThemeModeChange: (mode: ThemeMode) => void;
   onAddWindowsProject: () => void;
   onAddWslProject: (distro: string, linuxPath: string) => void;
   onOpenThread: (threadId: string) => void;
   onDeleteThread: (threadId: string) => void;
   onOpenHome: () => void;
+  onOpenSettings: () => void;
   onReorderProjects: (
     sourceProjectId: string,
     targetProjectId: string,
@@ -109,15 +109,14 @@ export function Sidebar(props: {
     threads,
     currentProjectId,
     currentThreadId,
-    themeMode,
     wslDistros,
     onOpenNewThread,
-    onThemeModeChange,
     onAddWindowsProject,
     onAddWslProject,
     onOpenThread,
     onDeleteThread,
     onOpenHome,
+    onOpenSettings,
     onReorderProjects,
     onReorderThreads,
   } = props;
@@ -553,7 +552,15 @@ export function Sidebar(props: {
       </div>
 
       <div className="pt-1">
-        <ThemeMenu value={themeMode} onChange={onThemeModeChange} />
+        <Button
+          aria-label="Settings"
+          className="w-full justify-start"
+          onPress={onOpenSettings}
+          variant="ghost"
+        >
+          <Settings2 className="size-4 text-muted" />
+          <span>Settings</span>
+        </Button>
       </div>
     </div>
   );

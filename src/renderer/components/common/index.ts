@@ -7,4 +7,3 @@ export * from "./OptionMenu";
 export * from "./Select";
 export * from "./Separator";
 export * from "./TextArea";
-export * from "./ThemeMenu";

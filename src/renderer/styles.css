@@ -4,31 +4,12 @@
 
 @layer base {
   :root {
-    --white: oklch(0.991 0 0);
-    --black: oklch(0 0 0);
-    --snow: oklch(0.982 0 0);
-    --eclipse: oklch(0.235 0.01 286);
-    --spacing: 0.25rem;
-    --border-width: 1px;
-    --field-border-width: 1px;
-    --disabled-opacity: 0.5;
-    --ring-offset-width: 2px;
-    --cursor-interactive: pointer;
-    --cursor-disabled: not-allowed;
-    --radius: 0.8rem;
-    --field-radius: 1rem;
-    --success: oklch(0.72 0.19 154);
-    --success-foreground: var(--eclipse);
-    --warning: oklch(0.82 0.13 78);
-    --warning-foreground: var(--eclipse);
-    --danger: oklch(0.62 0.21 25);
-    --danger-foreground: var(--snow);
-    --focus: var(--accent);
+    /* Intentional overrides from HeroUI defaults */
     --link: var(--accent);
     --surface-shadow: 0 20px 60px rgba(0, 0, 0, 0.08);
     --overlay-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
-    --field-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.02);
-    --skeleton-animation: shimmer;
+
+    /* App-specific variables (not HeroUI) */
     --sidebar-background: var(--surface);
     --content-background: var(--background);
     --window-header-background: var(--sidebar-background);
@@ -43,23 +24,22 @@
     --background: oklch(0.96 0.004 286);
     --foreground: oklch(0.21 0.006 286);
     --surface: oklch(0.985 0.002 286);
-    --surface-foreground: var(--foreground);
+    --surface-secondary: oklch(0.955 0.003 286);
+    --surface-tertiary: oklch(0.94 0.003 286);
     --overlay: oklch(0.99 0.002 286);
-    --overlay-foreground: var(--foreground);
     --muted: oklch(0.52 0.01 286);
     --scrollbar: oklch(0.78 0.01 286);
     --default: oklch(0.93 0.004 286);
-    --default-foreground: var(--foreground);
     --accent: oklch(0.62 0.11 245);
     --accent-foreground: var(--snow);
     --field-background: oklch(0.975 0.002 286);
-    --field-foreground: var(--foreground);
     --field-placeholder: oklch(0.55 0.01 286);
     --field-border: oklch(0.84 0.006 286 / 0.7);
     --segment: oklch(0.975 0.002 286);
-    --segment-foreground: var(--foreground);
     --border: oklch(0.84 0.006 286 / 0.7);
     --separator: oklch(0.88 0.004 286 / 0.9);
+
+    /* App-specific */
     --sidebar-background: oklch(0.945 0.004 286);
     --content-background: oklch(0.975 0.003 286);
     --window-header-background: var(--sidebar-background);
@@ -73,23 +53,22 @@
     --background: oklch(0.19 0.004 286);
     --foreground: var(--snow);
     --surface: oklch(0.22 0.004 286);
-    --surface-foreground: var(--foreground);
+    --surface-secondary: oklch(0.25 0.004 286);
+    --surface-tertiary: oklch(0.27 0.003 286);
     --overlay: oklch(0.24 0.004 286);
-    --overlay-foreground: var(--foreground);
     --muted: oklch(0.66 0.01 286);
     --scrollbar: oklch(0.4 0.01 286);
-    --default: oklch(0.25 0.004 286);
-    --default-foreground: var(--foreground);
+    --default: oklch(0.28 0.004 286);
     --accent: oklch(0.77 0.08 244);
     --accent-foreground: oklch(0.18 0.004 286);
     --field-background: oklch(0.23 0.004 286);
-    --field-foreground: var(--foreground);
     --field-placeholder: oklch(0.54 0.01 286);
     --field-border: oklch(0.34 0.006 286 / 0.85);
     --segment: oklch(0.29 0.004 286);
-    --segment-foreground: var(--foreground);
     --border: oklch(0.31 0.006 286 / 0.9);
     --separator: oklch(0.3 0.006 286 / 0.85);
+
+    /* App-specific */
     --sidebar-background: oklch(0.22 0.004 286);
     --content-background: oklch(0.2 0.004 286);
     --window-header-background: var(--sidebar-background);
@@ -239,12 +218,12 @@ body {
 .lightcode-composer-editor--compact.input-group,
 .lightcode-composer-editor--compact .textarea,
 .lightcode-composer-editor--compact .input-group {
-  min-height: 64px !important;
-  padding: 0.6rem 0.9rem 0.15rem !important;
+  min-height: 44px !important;
+  padding: 0.75rem 0.5rem 0.1rem 0.75rem !important;
 }
 
 .lightcode-composer-custom-input--compact {
-  min-height: 64px !important;
+  min-height: 44px !important;
 }
 
 .lightcode-composer-editor.textarea__input,
@@ -292,7 +271,7 @@ body {
 }
 
 .lightcode-composer-toolbar--compact {
-  padding: 0.1rem 0.7rem 0.55rem;
+  padding: 0.1rem 0.6rem 0.6rem;
 }
 
 .lightcode-composer-editor.textarea,
@@ -305,14 +284,14 @@ body {
 }
 
 .lightcode-composer-menu {
-  height: 2rem;
+  height: 2.25rem;
   color: var(--foreground);
   gap: 0.35rem;
 }
 
 .lightcode-composer-static {
   display: inline-flex;
-  height: 2rem;
+  height: 2.25rem;
   min-width: 0;
   align-items: center;
   gap: 0.35rem;
@@ -321,10 +300,20 @@ body {
   font-weight: 600;
 }
 
+.lightcode-composer-toggle {
+  color: var(--muted);
+  height: 2.25rem;
+  padding-inline: 0.75rem;
+}
+
+.lightcode-composer-toggle[data-selected="true"] {
+  color: var(--foreground);
+}
+
 .lightcode-composer-utility {
   display: inline-flex;
-  height: 2rem;
-  width: 2rem;
+  height: 2.25rem;
+  width: 2.25rem;
   align-items: center;
   justify-content: center;
   border: 0;
@@ -365,11 +354,21 @@ body {
 }
 
 .xterm-viewport::-webkit-scrollbar {
-  width: 10px;
+  width: 4px;
 }
 
 .xterm-viewport::-webkit-scrollbar-thumb {
   background: rgba(127, 140, 155, 0.45);
+  border-radius: 999px;
+}
+
+.xterm .xterm-scrollable-element > .scrollbar.vertical {
+  width: 4px !important;
+}
+
+.xterm .xterm-scrollable-element > .scrollbar.vertical > .slider {
+  width: 4px !important;
+  left: 0 !important;
   border-radius: 999px;
 }
 

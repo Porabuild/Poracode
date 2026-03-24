@@ -27,11 +27,14 @@ import {
 } from "./base";
 
 const capabilities: AgentCapability = {
-  models: ["gpt-5.4", "gpt-5.4-mini", "gpt-5.3-codex"],
+  models: ["gpt-5.4", "gpt-5.4-mini", "gpt-5.3-codex", "gpt-5.2-codex", "gpt-5.2", "gpt-5.1-codex-max", "gpt-5.1-codex-mini"],
   efforts: ["low", "medium", "high", "xhigh"],
-  modes: ["agent"],
+  modelEfforts: {
+    "gpt-5.1-codex-mini": ["medium", "high"],
+  },
+  modes: ["agent", "plan"],
   approvalPolicies: ["on-request", "never", "untrusted"],
-  sandboxModes: ["read-only", "workspace-write", "danger-full-access"],
+  sandboxModes: ["workspace-write", "read-only", "danger-full-access"],
   supportsResume: true,
   supportsDirectInput: true,
   liveInputMode: "server",
@@ -96,6 +99,9 @@ function buildCodexArgs(
     }
     if (config.sandboxMode) {
       args.push("-s", config.sandboxMode);
+    }
+    if (config.mode === "plan") {
+      args.push("--plan");
     }
   }
 
@@ -437,6 +443,7 @@ class CodexStructuredSession implements StructuredSessionHandle {
       ...(config.approvalPolicy ? { approvalPolicy: config.approvalPolicy } : {}),
       ...(config.sandboxMode ? { sandbox: config.sandboxMode } : {}),
       ...(config.effort ? { config: { model_reasoning_effort: config.effort } } : {}),
+      ...(config.mode === "plan" ? { mode: "plan" } : {}),
     };
 
     let threadId: string;
@@ -829,7 +836,7 @@ function formatAppServerOutput(chunks: string[]): string {
 export function createCodexAdapter(): AgentAdapter {
   return {
     kind: "codex",
-    label: "Codex CLI",
+    label: "Codex",
     capabilities,
     async detectInstall(): Promise<AgentStatus> {
       const executablePath = resolveExecutablePath("codex");
@@ -838,7 +845,7 @@ export function createCodexAdapter(): AgentAdapter {
 
       return {
         kind: "codex",
-        label: "Codex CLI",
+        label: "Codex",
         installed: executablePath !== undefined,
         ...(executablePath ? { executablePath } : {}),
         ...(versionResult?.ok ? { version: versionResult.stdout } : {}),

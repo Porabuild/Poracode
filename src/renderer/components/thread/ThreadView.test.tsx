@@ -40,12 +40,13 @@ describe("ThreadView", () => {
       },
       agentStatus: {
         kind: "codex",
-        label: "Codex CLI",
+        label: "Codex",
         installed: true,
         authState: "authenticated",
         capabilities: {
           models: ["gpt-5.4"],
           efforts: ["low"],
+          modelEfforts: {},
           modes: ["agent"],
           approvalPolicies: ["on-request"],
           sandboxModes: ["read-only"],
@@ -66,7 +67,7 @@ describe("ThreadView", () => {
     expect(screen.getByText("terminal pane")).toHaveAttribute("data-read-only", "true");
   });
 
-  it("does not render the server-mode composer for inactive Codex threads", () => {
+  it("disables the composer for inactive Codex threads", () => {
     renderThreadView({
       thread: {
         id: "thread-inactive",
@@ -84,12 +85,13 @@ describe("ThreadView", () => {
       },
       agentStatus: {
         kind: "codex",
-        label: "Codex CLI",
+        label: "Codex",
         installed: true,
         authState: "authenticated",
         capabilities: {
           models: ["gpt-5.4"],
           efforts: ["low"],
+          modelEfforts: {},
           modes: ["agent"],
           approvalPolicies: ["on-request"],
           sandboxModes: ["read-only"],
@@ -105,11 +107,11 @@ describe("ThreadView", () => {
     });
 
     expect(
-      screen.queryByPlaceholderText("Ask Codex anything about this workspace"),
-    ).not.toBeInTheDocument();
+      screen.getByPlaceholderText("Ask Codex anything about this workspace"),
+    ).toBeDisabled();
   });
 
-  it("does not render the server-mode composer while a Codex thread is launching", () => {
+  it("shows a loading overlay on the composer while a Codex thread is launching", () => {
     renderThreadView({
       thread: {
         id: "thread-launching",
@@ -127,12 +129,13 @@ describe("ThreadView", () => {
       },
       agentStatus: {
         kind: "codex",
-        label: "Codex CLI",
+        label: "Codex",
         installed: true,
         authState: "authenticated",
         capabilities: {
           models: ["gpt-5.4"],
           efforts: ["low"],
+          modelEfforts: {},
           modes: ["agent"],
           approvalPolicies: ["on-request"],
           sandboxModes: ["read-only"],
@@ -147,10 +150,10 @@ describe("ThreadView", () => {
       onSubmitInput: async () => undefined,
     });
 
-    expect(
-      screen.queryByPlaceholderText("Ask Codex anything about this workspace"),
-    ).not.toBeInTheDocument();
     expect(screen.getByText("Starting thread...")).toBeInTheDocument();
+    expect(
+      screen.getByPlaceholderText("Ask Codex anything about this workspace"),
+    ).toBeDisabled();
   });
 
   it("renders server request UI instead of the composer while Codex is waiting", () => {
@@ -175,12 +178,13 @@ describe("ThreadView", () => {
       },
       agentStatus: {
         kind: "codex",
-        label: "Codex CLI",
+        label: "Codex",
         installed: true,
         authState: "authenticated",
         capabilities: {
           models: ["gpt-5.4"],
           efforts: ["low"],
+          modelEfforts: {},
           modes: ["agent"],
           approvalPolicies: ["on-request"],
           sandboxModes: ["read-only"],
@@ -215,9 +219,6 @@ describe("ThreadView", () => {
     });
 
     expect(screen.getByText("Input requested")).toBeInTheDocument();
-    expect(
-      screen.queryByPlaceholderText("Ask Codex anything about this workspace"),
-    ).not.toBeInTheDocument();
   });
 
   it("keeps Claude live threads terminal-driven", () => {
@@ -242,12 +243,13 @@ describe("ThreadView", () => {
       },
       agentStatus: {
         kind: "claude",
-        label: "Claude Code CLI",
+        label: "Claude Code",
         installed: true,
         authState: "authenticated",
         capabilities: {
           models: ["sonnet"],
           efforts: ["low"],
+          modelEfforts: {},
           modes: ["agent"],
           approvalPolicies: ["default"],
           sandboxModes: [],
@@ -265,9 +267,6 @@ describe("ThreadView", () => {
     expect(
       screen.queryByPlaceholderText("Ask Codex anything about this workspace"),
     ).not.toBeInTheDocument();
-    expect(
-      screen.getByText("Live thread input is handled directly in the terminal during this phase."),
-    ).toBeInTheDocument();
     expect(screen.getByText("terminal pane")).toHaveAttribute("data-read-only", "false");
   });
 
@@ -293,12 +292,13 @@ describe("ThreadView", () => {
       },
       agentStatus: {
         kind: "codex",
-        label: "Codex CLI",
+        label: "Codex",
         installed: true,
         authState: "authenticated",
         capabilities: {
           models: ["gpt-5.4"],
           efforts: ["low"],
+          modelEfforts: {},
           modes: ["agent"],
           approvalPolicies: ["on-request"],
           sandboxModes: ["read-only"],

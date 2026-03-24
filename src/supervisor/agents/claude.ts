@@ -18,6 +18,7 @@ import {
 const capabilities: AgentCapability = {
   models: ["sonnet", "opus", "claude-sonnet-4-6", "claude-opus-4-1"],
   efforts: ["low", "medium", "high", "max"],
+  modelEfforts: {},
   modes: ["agent", "plan"],
   approvalPolicies: ["default", "auto", "acceptEdits", "bypassPermissions", "dontAsk"],
   sandboxModes: [],
@@ -70,7 +71,7 @@ function buildCommand(
 export function createClaudeAdapter(): AgentAdapter {
   return {
     kind: "claude",
-    label: "Claude Code CLI",
+    label: "Claude Code",
     capabilities,
     async detectInstall(): Promise<AgentStatus> {
       const executablePath = resolveExecutablePath("claude");
@@ -84,7 +85,7 @@ export function createClaudeAdapter(): AgentAdapter {
 
       return {
         kind: "claude",
-        label: "Claude Code CLI",
+        label: "Claude Code",
         installed: executablePath !== undefined,
         ...(executablePath ? { executablePath } : {}),
         ...(versionResult?.ok ? { version: versionResult.stdout } : {}),

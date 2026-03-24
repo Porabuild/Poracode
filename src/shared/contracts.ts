@@ -67,6 +67,7 @@ export type SessionRef = z.infer<typeof sessionRefSchema>;
 export const agentCapabilitySchema = z.object({
   models: z.array(z.string().min(1)).default([]),
   efforts: z.array(z.string().min(1)).default([]),
+  modelEfforts: z.record(z.string(), z.array(z.string().min(1))).default({}),
   modes: z.array(threadModeSchema).default([]),
   approvalPolicies: z.array(z.string().min(1)).default([]),
   sandboxModes: z.array(z.string().min(1)).default([]),

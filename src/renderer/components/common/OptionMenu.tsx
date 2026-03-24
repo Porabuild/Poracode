@@ -1,11 +1,12 @@
 import type { ReactNode } from "react";
+import type { Selection } from "@heroui/react";
 import { Dropdown, Label } from "@heroui/react";
-import { Check, ChevronDown } from "lucide-react";
+import { ChevronDown } from "lucide-react";
 import { Button, type ButtonProps } from "./Button";
 
 export interface OptionMenuProps {
   value: string;
-  options: readonly (string | { id: string; label: string })[];
+  options: readonly (string | { id: string; label: string; icon?: ReactNode })[];
   onChange: (value: string) => void;
   icon?: ReactNode;
   placeholder?: string;
@@ -26,7 +27,7 @@ export function OptionMenu(props: OptionMenuProps) {
     buttonVariant = "secondary",
   } = props;
   const normalizedOptions = options.map((option) =>
-    typeof option === "string" ? { id: option, label: option } : option,
+    typeof option === "string" ? { id: option, label: option, icon: undefined } : option,
   );
   const currentValue =
     normalizedOptions.find((option) => option.id === value)?.label || value || placeholder;
@@ -45,18 +46,24 @@ export function OptionMenu(props: OptionMenuProps) {
         <span className="truncate">{currentValue}</span>
         <ChevronDown className="size-3.5 text-muted" />
       </Button>
-      <Dropdown.Popover className="min-w-[200px] rounded-2xl border border-border bg-overlay/95 p-1 shadow-xl">
+      <Dropdown.Popover placement="top">
         <Dropdown.Menu
           aria-label="Options"
-          className="rounded-xl"
-          onAction={(key) => onChange(String(key))}
+          selectedKeys={new Set([value])}
+          selectionMode="single"
+          onSelectionChange={(keys: Selection) => {
+            if (keys === "all") return;
+            const selected = [...keys][0];
+            if (selected !== undefined) {
+              onChange(String(selected));
+            }
+          }}
         >
           {normalizedOptions.map((option) => (
             <Dropdown.Item key={option.id} id={option.id} textValue={option.label}>
-              <div className="flex w-full items-center justify-between gap-4">
-                <Label>{option.label}</Label>
-                {option.id === value ? <Check className="size-3.5 text-accent" /> : null}
-              </div>
+              <Dropdown.ItemIndicator />
+              {option.icon}
+              <Label>{option.label}</Label>
             </Dropdown.Item>
           ))}
         </Dropdown.Menu>

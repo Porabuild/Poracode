@@ -1,12 +1,9 @@
 import { useEffect, useState } from "react";
-import { Bot, Shield, Sparkles, TerminalSquare } from "lucide-react";
+import { Bot, ClipboardList, ShieldOff, Sparkles, TerminalSquare } from "lucide-react";
 import type { AgentStatus, Project, ThreadConfig } from "../../../shared/contracts";
+import { CodexStatusIcon } from "../common";
 import { ThreadComposer } from "./ThreadComposer";
-import {
-  buildPermissionOptions,
-  formatCompactLabel,
-  withCurrentValue,
-} from "./threadComposerOptions";
+import { formatCompactLabel, withCurrentValue } from "./threadComposerOptions";
 
 export function ThreadDraftView(props: {
   project: Project;
@@ -33,6 +30,9 @@ export function ThreadDraftView(props: {
   const [sandboxMode, setSandboxMode] = useState(selectedAgent?.capabilities.sandboxModes[0] ?? "");
   const [prompt, setPrompt] = useState("");
 
+  const availableEfforts =
+    selectedAgent?.capabilities.modelEfforts?.[model] ?? selectedAgent?.capabilities.efforts ?? [];
+
   useEffect(() => {
     if (!selectedAgent) {
       return;
@@ -44,23 +44,26 @@ export function ThreadDraftView(props: {
     setSandboxMode(selectedAgent.capabilities.sandboxModes[0] ?? "");
   }, [selectedAgent]);
 
+  useEffect(() => {
+    if (availableEfforts.length > 0 && !availableEfforts.includes(effort)) {
+      setEffort(availableEfforts[0] ?? "");
+    }
+  }, [model, availableEfforts, effort]);
+
   if (!selectedAgent) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-3 px-6 text-center">
         <h1 className="text-2xl font-semibold tracking-tight">No supported agents detected</h1>
-        <p className="text-muted">Install LightCode CLI or Claude Code CLI to create a thread.</p>
+        <p className="text-muted">Install Codex or Claude Code to create a thread.</p>
       </div>
     );
   }
 
-  const permissionOptions = buildPermissionOptions(
-    selectedAgent.capabilities.approvalPolicies,
-    selectedAgent.capabilities.sandboxModes,
-  );
-  const selectedPermission =
-    permissionOptions.find((option) => option.id === `${approvalPolicy}::${sandboxMode}`)?.id ??
-    permissionOptions[0]?.id ??
-    "";
+  const hasPermissions =
+    selectedAgent.capabilities.approvalPolicies.length > 0 ||
+    selectedAgent.capabilities.sandboxModes.length > 0;
+  const isFullAccess =
+    approvalPolicy === "never" && sandboxMode === "danger-full-access";
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -78,37 +81,35 @@ export function ThreadDraftView(props: {
               <ThreadComposer
                 controls={[
                   {
-                    icon: <Bot className="size-4 text-muted" />,
+                    icon:
+                      agentKind === "codex" ? (
+                        <CodexStatusIcon className="size-4 shrink-0" tone="inactive" />
+                      ) : (
+                        <Bot className="size-4 text-muted" />
+                      ),
                     options: installedAgents.map((agent) => ({
                       id: agent.kind,
                       label: agent.label,
+                      icon:
+                        agent.kind === "codex" ? (
+                          <CodexStatusIcon className="size-4 shrink-0" tone="inactive" />
+                        ) : (
+                          <Bot className="size-4 text-muted" />
+                        ),
                     })),
                     value: agentKind,
                     onChange: (value) => setAgentKind(value as AgentStatus["kind"]),
                   },
-                  ...(selectedAgent.capabilities.modes.length > 0
-                    ? [
-                        {
-                          icon: <TerminalSquare className="size-4 text-muted" />,
-                          options: selectedAgent.capabilities.modes.map((value) => ({
-                            id: value,
-                            label: formatCompactLabel(value),
-                          })),
-                          value: mode,
-                          onChange: (value: string) => setMode(value as "agent" | "plan"),
-                        },
-                      ]
-                    : []),
                   {
                     options: withCurrentValue(selectedAgent.capabilities.models, model),
                     value: model,
                     onChange: setModel,
                   },
-                  ...(selectedAgent.capabilities.efforts.length > 0
+                  ...(availableEfforts.length > 0
                     ? [
                         {
                           icon: <Sparkles className="size-4 text-muted" />,
-                          options: selectedAgent.capabilities.efforts.map((value) => ({
+                          options: availableEfforts.map((value) => ({
                             id: value,
                             label: formatCompactLabel(value),
                           })),
@@ -117,16 +118,54 @@ export function ThreadDraftView(props: {
                         },
                       ]
                     : []),
-                  ...(permissionOptions.length > 0
+                  ...(selectedAgent.capabilities.modes.length === 2
                     ? [
                         {
-                          icon: <Shield className="size-4 text-muted" />,
-                          options: permissionOptions,
-                          value: selectedPermission,
-                          onChange: (value: string) => {
-                            const [nextApprovalPolicy, nextSandboxMode] = String(value).split("::");
-                            setApprovalPolicy(nextApprovalPolicy ?? "");
-                            setSandboxMode(nextSandboxMode ?? "");
+                          kind: "toggle" as const,
+                          icon: <ClipboardList className="size-3.5" />,
+                          label: formatCompactLabel(
+                            selectedAgent.capabilities.modes.find((m) => m !== "agent") ?? "plan",
+                          ),
+                          isSelected: mode !== "agent",
+                          onChange: (isSelected: boolean) =>
+                            setMode(
+                              isSelected
+                                ? (selectedAgent.capabilities.modes.find((m) => m !== "agent") ??
+                                    "plan")
+                                : "agent",
+                            ),
+                        },
+                      ]
+                    : selectedAgent.capabilities.modes.length > 0
+                      ? [
+                          {
+                            icon: <TerminalSquare className="size-4 text-muted" />,
+                            options: selectedAgent.capabilities.modes.map((value) => ({
+                              id: value,
+                              label: formatCompactLabel(value),
+                            })),
+                            value: mode,
+                            onChange: (value: string) => setMode(value as "agent" | "plan"),
+                          },
+                        ]
+                      : []),
+                  ...(hasPermissions
+                    ? [
+                        {
+                          kind: "toggle" as const,
+                          icon: <ShieldOff className="size-3.5" />,
+                          label: "Full Access",
+                          isSelected: isFullAccess,
+                          onChange: (selected: boolean) => {
+                            if (selected) {
+                              setApprovalPolicy("never");
+                              setSandboxMode("danger-full-access");
+                            } else {
+                              setApprovalPolicy(
+                                selectedAgent.capabilities.approvalPolicies[0] ?? "",
+                              );
+                              setSandboxMode(selectedAgent.capabilities.sandboxModes[0] ?? "");
+                            }
                           },
                         },
                       ]
