@@ -1,30 +1,31 @@
 import { useEffect, useState } from "react";
-import { Bot, ClipboardList, ShieldOff, Sparkles, TerminalSquare } from "lucide-react";
+import { ClipboardList, ShieldOff, Sparkles, TerminalSquare } from "lucide-react";
 import type {
   AgentStatus,
   Thread,
   ThreadConfig,
   ThreadServerRequestId,
 } from "../../../shared/contracts";
-import { CodexStatusIcon, getCodexStatusTone } from "../common";
+import { ClaudeIcon, CodexStatusIcon, getStatusTone } from "../providers";
 import type { PendingThreadServerRequest } from "../../state/appStore";
+import { PromptOptions } from "../common";
+import { readBridge } from "../../bridge";
 import { TerminalPane } from "./TerminalPane";
 import { ThreadComposer } from "./ThreadComposer";
 import { ThreadServerRequestPanel } from "./ThreadServerRequestPanel";
-import { formatCompactLabel, withCurrentValue } from "./threadComposerOptions";
+import { formatCompactLabel, modelOptions, withCurrentValue } from "./threadComposerOptions";
 
 function buildControls(
   thread: Thread,
   agentStatus: AgentStatus | undefined,
   onConfigChange: (config: ThreadConfig) => void,
 ) {
-  const codexTone = getCodexStatusTone(thread);
+  const codexTone = getStatusTone(thread);
   const hasPermissions =
     (agentStatus?.capabilities.approvalPolicies.length ?? 0) > 0 ||
     (agentStatus?.capabilities.sandboxModes.length ?? 0) > 0;
   const isFullAccess =
-    thread.config.approvalPolicy === "never" &&
-    thread.config.sandboxMode === "danger-full-access";
+    thread.config.approvalPolicy === "never" && thread.config.sandboxMode === "danger-full-access";
   const availableEfforts =
     agentStatus?.capabilities.modelEfforts?.[thread.config.model ?? ""] ??
     agentStatus?.capabilities.efforts ??
@@ -39,11 +40,11 @@ function buildControls(
         thread.agentKind === "codex" ? (
           <CodexStatusIcon className="size-4 shrink-0" tone={codexTone} />
         ) : (
-          <Bot className="size-4 text-muted" />
+          <ClaudeIcon className="size-4 text-muted" />
         ),
     },
     {
-      options: withCurrentValue(agentStatus?.capabilities.models ?? [], thread.config.model),
+      options: modelOptions(agentStatus?.capabilities.models ?? [], thread.config.model),
       value: thread.config.model,
       isDisabled,
       onChange: (value: string) => {
@@ -88,8 +89,7 @@ function buildControls(
             isSelected: (thread.config.mode ?? "agent") !== "agent",
             isDisabled,
             onChange: (isSelected: boolean) => {
-              const altMode =
-                agentStatus.capabilities.modes.find((m) => m !== "agent") ?? "plan";
+              const altMode = agentStatus.capabilities.modes.find((m) => m !== "agent") ?? "plan";
               onConfigChange({
                 ...thread.config,
                 mode: (isSelected ? altMode : "agent") as Thread["config"]["mode"],
@@ -169,19 +169,50 @@ export function ThreadView(props: {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const isServerControlled =
     thread.agentKind === "codex" && agentStatus?.capabilities.liveInputMode === "server";
+  const isTerminalInput = agentStatus?.capabilities.liveInputMode === "terminal";
   const activeServerRequest = pendingServerRequests[0];
   const canSubmitServerInput =
     isServerControlled &&
     thread.sessionRef !== undefined &&
     (thread.status === "idle" || thread.status === "needs_reply");
+  const canSubmitTerminalInput =
+    isTerminalInput &&
+    thread.status !== "inactive" &&
+    thread.status !== "launching";
   const showServerComposer =
     isServerControlled && thread.status !== "inactive" && thread.status !== "launching";
+  const showTerminalComposer =
+    isTerminalInput && thread.status !== "inactive" && thread.status !== "launching";
+
+  const terminalPrompt =
+    thread.terminalPrompt &&
+    (thread.status === "needs_approval" || thread.status === "needs_reply")
+      ? thread.terminalPrompt
+      : undefined;
 
   const controls = buildControls(thread, agentStatus, onConfigChange);
 
   useEffect(() => {
     setPrompt("");
   }, [thread.id]);
+
+  const writeTerminalData = (data: string) => {
+    void readBridge().writeTerminal({ threadId: thread.id, data });
+  };
+
+  const promptInputContent = terminalPrompt ? (
+    <PromptOptions
+      title={terminalPrompt.title}
+      options={terminalPrompt.options}
+      onSelect={(key) => writeTerminalData(key)}
+      onSubmitText={(key, text) => {
+        writeTerminalData(key);
+        setTimeout(() => writeTerminalData(text), 150);
+        setTimeout(() => writeTerminalData("\r"), 300);
+      }}
+      onCancel={() => writeTerminalData("\x1b")}
+    />
+  ) : undefined;
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -215,27 +246,40 @@ export function ThreadView(props: {
 
             <div className="relative">
               {thread.status === "launching" ? (
-                <div className="absolute inset-0 z-10 flex items-center justify-center rounded-[1.5rem] bg-background/80">
+                <div className="absolute inset-0 z-10 flex items-center justify-center rounded-3xl bg-background/80">
                   <span className="text-sm text-muted">Starting thread...</span>
                 </div>
               ) : null}
               <ThreadComposer
+                autoFocus
                 compact
                 controls={controls}
+                inputContent={promptInputContent}
                 placeholder={
                   isServerControlled
                     ? "Ask Codex anything about this workspace"
-                    : "Send a message..."
+                    : isTerminalInput
+                      ? "Send a message..."
+                      : "Send a message..."
                 }
                 prompt={prompt}
-                promptDisabled={isSubmitting || !showServerComposer || thread.status === "launching"}
+                promptDisabled={
+                  !(showServerComposer || showTerminalComposer) ||
+                  thread.status === "launching"
+                }
                 submitDisabled={
-                  prompt.trim().length === 0 || !canSubmitServerInput || isSubmitting
+                  prompt.trim().length === 0 ||
+                  !(canSubmitServerInput || canSubmitTerminalInput) ||
+                  isSubmitting
                 }
                 submitLabel="Send message"
                 onPromptChange={setPrompt}
                 onSubmit={() => {
-                  if (prompt.trim().length === 0 || !canSubmitServerInput || isSubmitting) {
+                  if (
+                    prompt.trim().length === 0 ||
+                    !(canSubmitServerInput || canSubmitTerminalInput) ||
+                    isSubmitting
+                  ) {
                     return;
                   }
 

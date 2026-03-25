@@ -1,54 +1,84 @@
-import { useEffect, useState } from "react";
-import { Bot, ClipboardList, ShieldOff, Sparkles, TerminalSquare } from "lucide-react";
-import type { AgentStatus, Project, ThreadConfig } from "../../../shared/contracts";
-import { CodexStatusIcon } from "../common";
+import { useState } from "react";
+import { ClipboardList, ShieldOff, Sparkles, TerminalSquare } from "lucide-react";
+import type {
+  AgentStatus,
+  Project,
+  ProjectDraftConfig,
+  ThreadConfig,
+} from "../../../shared/contracts";
+import { ClaudeIcon, CodexStatusIcon } from "../providers";
 import { ThreadComposer } from "./ThreadComposer";
-import { formatCompactLabel, withCurrentValue } from "./threadComposerOptions";
+import { formatCompactLabel, modelOptions, withCurrentValue } from "./threadComposerOptions";
 
 export function ThreadDraftView(props: {
   project: Project;
   agentStatuses: AgentStatus[];
+  lastDraftConfig?: ProjectDraftConfig;
   onStart: (input: {
     agentKind: AgentStatus["kind"];
     config: ThreadConfig;
     prompt: string;
   }) => void;
 }) {
-  const { project, agentStatuses, onStart } = props;
+  const { project, agentStatuses, lastDraftConfig, onStart } = props;
   const installedAgents = agentStatuses.filter((status) => status.installed);
-  const [agentKind, setAgentKind] = useState<AgentStatus["kind"]>(
-    installedAgents[0]?.kind ?? "codex",
-  );
+  const defaultAgent = lastDraftConfig
+    ? (installedAgents.find((a) => a.kind === lastDraftConfig.agentKind) ?? installedAgents[0])
+    : installedAgents[0];
+  const [agentKind, setAgentKind] = useState<AgentStatus["kind"]>(defaultAgent?.kind ?? "codex");
   const selectedAgent =
     installedAgents.find((status) => status.kind === agentKind) ?? installedAgents[0];
-  const [model, setModel] = useState(selectedAgent?.capabilities.models[0] ?? "");
-  const [effort, setEffort] = useState(selectedAgent?.capabilities.efforts[0] ?? "");
-  const [mode, setMode] = useState(selectedAgent?.capabilities.modes[0] ?? "agent");
-  const [approvalPolicy, setApprovalPolicy] = useState(
-    selectedAgent?.capabilities.approvalPolicies[0] ?? "",
-  );
-  const [sandboxMode, setSandboxMode] = useState(selectedAgent?.capabilities.sandboxModes[0] ?? "");
+  const [model, setModel] = useState(() => {
+    const saved = lastDraftConfig?.model;
+    const models = selectedAgent?.capabilities.models ?? [];
+    return saved && models.includes(saved) ? saved : (models[0] ?? "");
+  });
+  const [effort, setEffort] = useState(() => {
+    const saved = lastDraftConfig?.effort;
+    const efforts = selectedAgent?.capabilities.efforts ?? [];
+    if (saved && efforts.includes(saved)) return saved;
+    const fallback = selectedAgent?.capabilities.defaultEffort;
+    return fallback && efforts.includes(fallback) ? fallback : (efforts[0] ?? "");
+  });
+  const [mode, setMode] = useState(() => {
+    const saved = lastDraftConfig?.mode;
+    const modes = selectedAgent?.capabilities.modes ?? [];
+    return saved && modes.includes(saved) ? saved : (modes[0] ?? "agent");
+  });
+  const [approvalPolicy, setApprovalPolicy] = useState(() => {
+    const saved = lastDraftConfig?.approvalPolicy;
+    const policies = selectedAgent?.capabilities.approvalPolicies ?? [];
+    return saved && policies.includes(saved) ? saved : (policies[0] ?? "");
+  });
+  const [sandboxMode, setSandboxMode] = useState(() => {
+    const saved = lastDraftConfig?.sandboxMode;
+    const modes = selectedAgent?.capabilities.sandboxModes ?? [];
+    return saved && modes.includes(saved) ? saved : (modes[0] ?? "");
+  });
   const [prompt, setPrompt] = useState("");
 
   const availableEfforts =
     selectedAgent?.capabilities.modelEfforts?.[model] ?? selectedAgent?.capabilities.efforts ?? [];
 
-  useEffect(() => {
-    if (!selectedAgent) {
-      return;
-    }
+  const [lastResetAgentKind, setLastResetAgentKind] = useState(agentKind);
+  if (selectedAgent && agentKind !== lastResetAgentKind) {
+    setLastResetAgentKind(agentKind);
     setModel(selectedAgent.capabilities.models[0] ?? "");
-    setEffort(selectedAgent.capabilities.efforts[0] ?? "");
+    setEffort(
+      selectedAgent.capabilities.defaultEffort ?? selectedAgent.capabilities.efforts[0] ?? "",
+    );
     setMode(selectedAgent.capabilities.modes[0] ?? "agent");
     setApprovalPolicy(selectedAgent.capabilities.approvalPolicies[0] ?? "");
     setSandboxMode(selectedAgent.capabilities.sandboxModes[0] ?? "");
-  }, [selectedAgent]);
+  }
 
-  useEffect(() => {
+  const [lastResetModel, setLastResetModel] = useState(model);
+  if (model !== lastResetModel) {
+    setLastResetModel(model);
     if (availableEfforts.length > 0 && !availableEfforts.includes(effort)) {
       setEffort(availableEfforts[0] ?? "");
     }
-  }, [model, availableEfforts, effort]);
+  }
 
   if (!selectedAgent) {
     return (
@@ -62,8 +92,7 @@ export function ThreadDraftView(props: {
   const hasPermissions =
     selectedAgent.capabilities.approvalPolicies.length > 0 ||
     selectedAgent.capabilities.sandboxModes.length > 0;
-  const isFullAccess =
-    approvalPolicy === "never" && sandboxMode === "danger-full-access";
+  const isFullAccess = approvalPolicy === "never" && sandboxMode === "danger-full-access";
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -79,13 +108,14 @@ export function ThreadDraftView(props: {
 
             <div className="mt-10 w-full max-w-[920px] pt-2">
               <ThreadComposer
+                autoFocus
                 controls={[
                   {
                     icon:
                       agentKind === "codex" ? (
                         <CodexStatusIcon className="size-4 shrink-0" tone="inactive" />
                       ) : (
-                        <Bot className="size-4 text-muted" />
+                        <ClaudeIcon className="size-4 text-muted" />
                       ),
                     options: installedAgents.map((agent) => ({
                       id: agent.kind,
@@ -94,14 +124,14 @@ export function ThreadDraftView(props: {
                         agent.kind === "codex" ? (
                           <CodexStatusIcon className="size-4 shrink-0" tone="inactive" />
                         ) : (
-                          <Bot className="size-4 text-muted" />
+                          <ClaudeIcon className="size-4 text-muted" />
                         ),
                     })),
                     value: agentKind,
                     onChange: (value) => setAgentKind(value as AgentStatus["kind"]),
                   },
                   {
-                    options: withCurrentValue(selectedAgent.capabilities.models, model),
+                    options: modelOptions(selectedAgent.capabilities.models, model),
                     value: model,
                     onChange: setModel,
                   },

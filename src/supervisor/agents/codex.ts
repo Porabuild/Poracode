@@ -10,15 +10,19 @@ import type {
   ThreadServerRequestId,
   ThreadStatus,
 } from "../../shared/contracts";
+import { toWslUncPath } from "../../shared/wsl";
 import {
   buildWindowsCmdCommand,
   codexAuthPath,
   createKnownSessionRef,
   detectAuthFile,
   readCommandOutput,
+  readWslCommandOutput,
   resolveExecutablePath,
+  resolveWslExecutablePath,
   wrapWslCommand,
   type AgentAdapter,
+  type AgentEnvContext,
   type AgentLaunchOptions,
   type CommandSpec,
   type CreateStructuredSessionInput,
@@ -27,8 +31,17 @@ import {
 } from "./base";
 
 const capabilities: AgentCapability = {
-  models: ["gpt-5.4", "gpt-5.4-mini", "gpt-5.3-codex", "gpt-5.2-codex", "gpt-5.2", "gpt-5.1-codex-max", "gpt-5.1-codex-mini"],
+  models: [
+    "gpt-5.4",
+    "gpt-5.4-mini",
+    "gpt-5.3-codex",
+    "gpt-5.2-codex",
+    "gpt-5.2",
+    "gpt-5.1-codex-max",
+    "gpt-5.1-codex-mini",
+  ],
   efforts: ["low", "medium", "high", "xhigh"],
+  defaultEffort: "high",
   modelEfforts: {
     "gpt-5.1-codex-mini": ["medium", "high"],
   },
@@ -117,6 +130,7 @@ function buildCommand(
   prompt: string,
   sessionRef?: SessionRef,
   launchOptions?: AgentLaunchOptions,
+  wslExecPath?: string,
 ): CommandSpec {
   // When the structured session owns thread lifecycle, the TUI resumes the
   // server-created thread. Config is controlled by the server, not the CLI.
@@ -133,7 +147,7 @@ function buildCommand(
     if (location.kind === "windows") {
       return buildWindowsCmdCommand(location.path, "codex", args);
     }
-    return wrapWslCommand(location, "codex", args);
+    return wrapWslCommand(location, "codex", args, wslExecPath);
   }
 
   const codexArgs = buildCodexArgs(config, prompt, launchOptions);
@@ -149,10 +163,14 @@ function buildCommand(
   if (location.kind === "windows") {
     return buildWindowsCmdCommand(location.path, "codex", args);
   }
-  return wrapWslCommand(location, "codex", args);
+  return wrapWslCommand(location, "codex", args, wslExecPath);
 }
 
-function buildCodexAppServerCommand(location: ProjectLocation, remoteUrl: string): CommandSpec {
+function buildCodexAppServerCommand(
+  location: ProjectLocation,
+  remoteUrl: string,
+  wslExecPath?: string,
+): CommandSpec {
   const args = [
     "app-server",
     "--listen",
@@ -166,7 +184,7 @@ function buildCodexAppServerCommand(location: ProjectLocation, remoteUrl: string
   if (location.kind === "windows") {
     return buildWindowsCmdCommand(location.path, "codex", args);
   }
-  return wrapWslCommand(location, "codex", args);
+  return wrapWslCommand(location, "codex", args, wslExecPath);
 }
 
 function requireWebSocket(): typeof WebSocket {
@@ -349,6 +367,7 @@ class CodexStructuredSession implements StructuredSessionHandle {
   private requestSequence = 0;
   private remoteThreadId: string | undefined;
   private rolloutPath: string | undefined;
+  private wslDistro: string | undefined;
   private currentThreadStatus: CodexThreadStatus = { type: "idle" };
   private readonly pendingRequests = new Map<
     string,
@@ -359,10 +378,16 @@ class CodexStructuredSession implements StructuredSessionHandle {
     }
   >();
 
-  private constructor(remoteUrl: string, appServer: ChildProcess, socket: WebSocket) {
+  private constructor(
+    remoteUrl: string,
+    appServer: ChildProcess,
+    socket: WebSocket,
+    wslDistro?: string,
+  ) {
     this.remoteUrl = remoteUrl;
     this.appServer = appServer;
     this.socket = socket;
+    this.wslDistro = wslDistro;
     this.launchOptions = {
       enabledFeatures: [CODEX_REMOTE_TUI_FEATURE],
       remoteUrl,
@@ -370,10 +395,15 @@ class CodexStructuredSession implements StructuredSessionHandle {
     };
   }
 
-  static async create(input: CreateStructuredSessionInput): Promise<CodexStructuredSession> {
+  static async create(
+    input: CreateStructuredSessionInput,
+    wslExecPath?: string,
+  ): Promise<CodexStructuredSession> {
     const port = await allocateLoopbackPort();
     const remoteUrl = `ws://127.0.0.1:${port}`;
-    const appServer = spawnAppServer(buildCodexAppServerCommand(input.projectLocation, remoteUrl));
+    const appServer = spawnAppServer(
+      buildCodexAppServerCommand(input.projectLocation, remoteUrl, wslExecPath),
+    );
     const WebSocketCtor = requireWebSocket();
 
     const appServerOutput: string[] = [];
@@ -402,7 +432,9 @@ class CodexStructuredSession implements StructuredSessionHandle {
       WebSocketCtor,
     );
     console.log("[codex app-server] WebSocket connected");
-    const session = new CodexStructuredSession(remoteUrl, appServer, socket);
+    const wslDistro =
+      input.projectLocation.kind === "wsl" ? input.projectLocation.distro : undefined;
+    const session = new CodexStructuredSession(remoteUrl, appServer, socket, wslDistro);
     session.appServerOutput.push(...appServerOutput);
     session.attachSocketHandlers();
 
@@ -466,7 +498,9 @@ class CodexStructuredSession implements StructuredSessionHandle {
       if (!threadId) {
         throw new Error("thread/start response did not contain a thread id.");
       }
-      this.rolloutPath = extractThreadField(result, "path") ?? undefined;
+      const rawPath = extractThreadField(result, "path") ?? undefined;
+      this.rolloutPath =
+        rawPath && this.wslDistro ? toWslUncPath(this.wslDistro, rawPath) : rawPath;
     }
 
     this.remoteThreadId = threadId;
@@ -834,14 +868,27 @@ function formatAppServerOutput(chunks: string[]): string {
 }
 
 export function createCodexAdapter(): AgentAdapter {
+  let detectedWslExecPath: string | undefined;
+
   return {
     kind: "codex",
     label: "Codex",
     capabilities,
-    async detectInstall(): Promise<AgentStatus> {
-      const executablePath = resolveExecutablePath("codex");
+    async detectInstall(ctx?: AgentEnvContext): Promise<AgentStatus> {
+      const isWsl = ctx?.environmentMode === "wsl" && ctx.wslDistro;
+
+      const executablePath = isWsl
+        ? resolveWslExecutablePath(ctx.wslDistro!, "codex")
+        : resolveExecutablePath("codex");
+
+      detectedWslExecPath = isWsl && executablePath ? executablePath : undefined;
+
       const versionResult =
-        executablePath === undefined ? undefined : readCommandOutput("codex", ["--version"]);
+        executablePath === undefined
+          ? undefined
+          : isWsl
+            ? readWslCommandOutput(ctx.wslDistro!, "codex", ["--version"])
+            : readCommandOutput("codex", ["--version"]);
 
       return {
         kind: "codex",
@@ -849,21 +896,21 @@ export function createCodexAdapter(): AgentAdapter {
         installed: executablePath !== undefined,
         ...(executablePath ? { executablePath } : {}),
         ...(versionResult?.ok ? { version: versionResult.stdout } : {}),
-        authState: detectAuthFile(codexAuthPath()),
+        authState: isWsl ? "unknown" : detectAuthFile(codexAuthPath()),
         capabilities,
       };
     },
     buildLaunchCommand(location, config, prompt, sessionRef, launchOptions) {
-      return buildCommand(location, config, prompt, sessionRef, launchOptions);
+      return buildCommand(location, config, prompt, sessionRef, launchOptions, detectedWslExecPath);
     },
     buildResumeCommand(location, config, prompt, sessionRef, launchOptions) {
-      return buildCommand(location, config, prompt, sessionRef, launchOptions);
+      return buildCommand(location, config, prompt, sessionRef, launchOptions, detectedWslExecPath);
     },
     createInitialSessionRef() {
       return undefined;
     },
     async createStructuredSession(input) {
-      return CodexStructuredSession.create(input);
+      return CodexStructuredSession.create(input, detectedWslExecPath);
     },
     buildDirectInput(prompt) {
       return [...prompt, "\r"];

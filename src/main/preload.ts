@@ -18,9 +18,9 @@ const CHANNELS = {
 } as const;
 
 const bridge: LightcodeBridge = {
-  pickFolder: () => ipcRenderer.invoke(CHANNELS.pickFolder),
+  pickFolder: (defaultPath?) => ipcRenderer.invoke(CHANNELS.pickFolder, defaultPath),
   listWslDistros: () => ipcRenderer.invoke(CHANNELS.listWslDistros),
-  getAgentStatuses: () => ipcRenderer.invoke(CHANNELS.getAgentStatuses),
+  getAgentStatuses: (payload) => ipcRenderer.invoke(CHANNELS.getAgentStatuses, payload),
   getThreadSnapshots: () => ipcRenderer.invoke(CHANNELS.getThreadSnapshots),
   getThreadHistory: (threadId) => ipcRenderer.invoke(CHANNELS.getThreadHistory, threadId),
   startThread: (payload) => ipcRenderer.invoke(CHANNELS.startThread, payload),

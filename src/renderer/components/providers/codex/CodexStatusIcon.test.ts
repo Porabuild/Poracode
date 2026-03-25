@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { getCodexStatusTone } from "./CodexStatusIcon";
+import { getStatusTone } from "../statusTone";
 
-describe("getCodexStatusTone", () => {
+describe("getStatusTone", () => {
   it("keeps unopened resumable threads inactive", () => {
     expect(
-      getCodexStatusTone({
+      getStatusTone({
         status: "inactive",
       }),
     ).toBe("inactive");
@@ -12,7 +12,7 @@ describe("getCodexStatusTone", () => {
 
   it("marks initialized idle threads as active", () => {
     expect(
-      getCodexStatusTone({
+      getStatusTone({
         status: "idle",
       }),
     ).toBe("active");
@@ -20,7 +20,7 @@ describe("getCodexStatusTone", () => {
 
   it("treats launching threads as inactive until initialization completes", () => {
     expect(
-      getCodexStatusTone({
+      getStatusTone({
         status: "launching",
       }),
     ).toBe("inactive");
@@ -28,7 +28,7 @@ describe("getCodexStatusTone", () => {
 
   it("treats running threads as working", () => {
     expect(
-      getCodexStatusTone({
+      getStatusTone({
         status: "working",
       }),
     ).toBe("working");

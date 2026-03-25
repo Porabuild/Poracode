@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { normalizeWslListOutput, toWslUncPath } from "./wsl";
+import { normalizeWslListOutput, parseWslUncPath, toWslUncPath } from "./wsl";
 
 describe("wsl helpers", () => {
   it("normalizes WSL distro output that contains NUL characters", () => {
@@ -12,5 +12,23 @@ describe("wsl helpers", () => {
     expect(toWslUncPath("Ubuntu", "/home/demo/project")).toBe(
       "\\\\wsl.localhost\\Ubuntu\\home\\demo\\project",
     );
+  });
+
+  it("parses a WSL UNC path back to distro and linuxPath", () => {
+    expect(parseWslUncPath("\\\\wsl.localhost\\Ubuntu\\home\\demo\\project")).toEqual({
+      distro: "Ubuntu",
+      linuxPath: "/home/demo/project",
+    });
+  });
+
+  it("parses a legacy wsl$ UNC path", () => {
+    expect(parseWslUncPath("\\\\wsl$\\Debian\\home\\user\\code")).toEqual({
+      distro: "Debian",
+      linuxPath: "/home/user/code",
+    });
+  });
+
+  it("returns null for a non-WSL path", () => {
+    expect(parseWslUncPath("C:\\Users\\demo")).toBeNull();
   });
 });

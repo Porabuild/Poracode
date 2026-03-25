@@ -84,13 +84,15 @@ export function TerminalPane(props: {
     };
   }, [isVisible, status]);
 
+  const isTerminalActive = status !== "inactive";
+
   useEffect(() => {
     let isActive = true;
     let resizeFrame = 0;
     let lastCols = -1;
     let lastRows = -1;
     const mount = mountRef.current;
-    if (!mount || status === "inactive") {
+    if (!mount || !isTerminalActive) {
       return;
     }
 
@@ -201,7 +203,7 @@ export function TerminalPane(props: {
       scheduleResizeRef.current = null;
       terminal.dispose();
     };
-  }, [appearance, readOnly, status, threadId]);
+  }, [appearance, readOnly, isTerminalActive, threadId]);
 
   return (
     <div

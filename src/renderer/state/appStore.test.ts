@@ -10,7 +10,6 @@ describe("appStore runtime config sync", () => {
       threads: [],
       pendingServerRequests: [],
       agentStatuses: [],
-      wslDistros: [],
       view: { kind: "home" },
     }));
   });

@@ -6,6 +6,21 @@ export function withCurrentValue(options: readonly string[], currentValue: strin
   return [currentValue, ...options];
 }
 
+const MODEL_LABELS: Record<string, string> = {
+  "claude-opus-4-6[1m]": "Opus 1M",
+};
+
+export function modelOptions(
+  models: readonly string[],
+  currentValue: string,
+): { id: string; label: string }[] {
+  return withCurrentValue(models, currentValue).map((id) => ({
+    id,
+    label:
+      MODEL_LABELS[id] ?? id.replace(/^gpt-/i, "").replace(/\b\w/g, (c) => c.toUpperCase()),
+  }));
+}
+
 export function formatCompactLabel(value: string): string {
   const labels: Record<string, string> = {
     "danger-full-access": "Full access",

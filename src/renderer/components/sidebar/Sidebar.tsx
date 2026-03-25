@@ -1,20 +1,23 @@
 import { Tooltip } from "@heroui/react";
 import {
-  BookOpenText,
   ChevronRight,
-  Clock3,
   FolderOpen,
   FolderPlus,
   GripVertical,
+  Monitor,
+  PanelLeft,
+  PanelLeftClose,
   Plus,
-  Server,
   Settings2,
+  TerminalSquare,
   Trash2,
 } from "lucide-react";
 import { useEffect, useState, type DragEvent } from "react";
-import type { Project, Thread } from "../../../shared/contracts";
+import type { EnvironmentMode, Project, Thread } from "../../../shared/contracts";
 import { isReorderNoOp, type ReorderPlacement } from "../../state/reorder";
-import { Button, CodexStatusIcon, getCodexStatusTone, Input } from "../common";
+import { Button } from "../common";
+import { useSidebar } from "../layout/AppShell";
+import { ClaudeIcon, CodexStatusIcon, getStatusTone } from "../providers";
 
 type SidebarDragItem =
   | { type: "project"; id: string }
@@ -80,15 +83,75 @@ function renderDropIndicator(position: ReorderPlacement) {
   );
 }
 
+function SidebarButton(props: {
+  icon: React.ReactNode;
+  label: string;
+  onPress?: () => void;
+  isDisabled?: boolean;
+  isActive?: boolean;
+  iconOnly?: boolean;
+}) {
+  const { icon, label, onPress, isDisabled = false, isActive = false, iconOnly = false } = props;
+
+  const stateClass = isDisabled
+    ? "cursor-not-allowed text-muted/40"
+    : isActive
+      ? "bg-white/[0.08] text-foreground"
+      : "text-muted hover:bg-white/[0.04] hover:text-foreground";
+
+  if (iconOnly) {
+    return (
+      <Tooltip delay={150}>
+        <Tooltip.Trigger>
+          <button
+            className={`flex size-8 shrink-0 cursor-default items-center justify-center rounded-3xl transition-colors ${stateClass}`}
+            disabled={isDisabled}
+            onClick={onPress}
+            type="button"
+          >
+            {icon}
+          </button>
+        </Tooltip.Trigger>
+        <Tooltip.Content placement="right">{label}</Tooltip.Content>
+      </Tooltip>
+    );
+  }
+
+  return (
+    <button
+      className={`flex w-full cursor-default items-center gap-2 rounded-3xl px-2.5 py-1.5 text-left text-sm transition-colors ${stateClass}`}
+      disabled={isDisabled}
+      onClick={onPress}
+      type="button"
+    >
+      {icon}
+      <span>{label}</span>
+    </button>
+  );
+}
+
+function ThreadIcon(props: { thread: Thread }) {
+  const { thread } = props;
+  const tone = getStatusTone(thread);
+  if (thread.agentKind === "codex") {
+    return <CodexStatusIcon className="size-3.5" tone={tone} />;
+  }
+  if (thread.agentKind === "claude") {
+    return <ClaudeIcon className="size-3.5" tone={tone} />;
+  }
+  return null;
+}
+
 export function Sidebar(props: {
   projects: Project[];
   threads: Thread[];
   currentProjectId: string | undefined;
   currentThreadId: string | undefined;
-  wslDistros: string[];
+  environmentMode: EnvironmentMode;
+  wslAvailable: boolean;
   onOpenNewThread: (projectId?: string) => void;
-  onAddWindowsProject: () => void;
-  onAddWslProject: (distro: string, linuxPath: string) => void;
+  onAddProject: () => void;
+  onSwitchMode: () => void;
   onOpenThread: (threadId: string) => void;
   onDeleteThread: (threadId: string) => void;
   onOpenHome: () => void;
@@ -109,10 +172,11 @@ export function Sidebar(props: {
     threads,
     currentProjectId,
     currentThreadId,
-    wslDistros,
+    environmentMode,
+    wslAvailable,
     onOpenNewThread,
-    onAddWindowsProject,
-    onAddWslProject,
+    onAddProject,
+    onSwitchMode,
     onOpenThread,
     onDeleteThread,
     onOpenHome,
@@ -120,24 +184,12 @@ export function Sidebar(props: {
     onReorderProjects,
     onReorderThreads,
   } = props;
-  const [wslExpanded, setWslExpanded] = useState(false);
-  const [wslPath, setWslPath] = useState("/home/");
-  const [selectedDistro, setSelectedDistro] = useState(wslDistros[0] ?? "");
+
+  const { isCollapsed, collapse, expand } = useSidebar();
   const [collapsedProjects, setCollapsedProjects] = useState<Record<string, boolean>>({});
   const [dragItem, setDragItem] = useState<SidebarDragItem>();
   const [dropIndicator, setDropIndicator] = useState<SidebarDropIndicator>();
   const projectIds = projects.map((project) => project.id);
-
-  useEffect(() => {
-    if (wslDistros.length === 0) {
-      setSelectedDistro("");
-      return;
-    }
-
-    if (!selectedDistro || !wslDistros.includes(selectedDistro)) {
-      setSelectedDistro(wslDistros[0] ?? "");
-    }
-  }, [selectedDistro, wslDistros]);
 
   useEffect(() => {
     if (!currentProjectId) {
@@ -156,11 +208,90 @@ export function Sidebar(props: {
     });
   }, [currentProjectId]);
 
+  const activeThreads = threads.filter((thread) => thread.status !== "inactive");
+
+  const switchModeLabel =
+    environmentMode === "windows" ? "Switch to WSL" : "Switch to Windows";
+  const switchModeIcon =
+    environmentMode === "windows" ? (
+      <TerminalSquare className="size-4" />
+    ) : (
+      <Monitor className="size-4" />
+    );
+
   return (
-    <div className="flex h-full min-h-0 flex-col gap-3 px-3 pb-3 pt-0">
+    <div className="relative h-full">
+      {/* Collapsed icon rail overlay */}
+      {isCollapsed && (
+        <div className="absolute inset-0 z-10 flex h-full min-h-0 flex-col items-center gap-3 bg-[var(--sidebar-background)] px-1 pb-1 pt-0">
+          {/* App icon — same px-2 py-1 + size-6 as expanded branding button */}
+          <Tooltip delay={150}>
+            <Tooltip.Trigger>
+              <button
+                className="flex size-8 cursor-default items-center justify-center rounded-3xl transition-colors hover:bg-white/[0.04]"
+                onClick={onOpenHome}
+                type="button"
+              >
+                <div className="flex size-6 items-center justify-center rounded-full border border-white/8 bg-white/[0.03]">
+                  <div className="size-2.5 rounded-full border border-white/70" />
+                </div>
+              </button>
+            </Tooltip.Trigger>
+            <Tooltip.Content placement="right">Lightcode</Tooltip.Content>
+          </Tooltip>
+
+          {/* Thread icons — only active threads */}
+          <div className="min-h-0 flex-1 space-y-0.5 overflow-y-auto">
+            {activeThreads.map((thread) => (
+              <SidebarButton
+                key={thread.id}
+                iconOnly
+                icon={<ThreadIcon thread={thread} />}
+                label={thread.title}
+                isActive={thread.id === currentThreadId}
+                onPress={() => onOpenThread(thread.id)}
+              />
+            ))}
+          </div>
+
+          {/* Footer icons */}
+          <div className="space-y-0.5 border-t border-white/6 pt-2">
+            {environmentMode === "windows" && !wslAvailable ? (
+              <SidebarButton
+                iconOnly
+                isDisabled
+                icon={<TerminalSquare className="size-4" />}
+                label="No WSL distros detected"
+              />
+            ) : (
+              <SidebarButton
+                iconOnly
+                icon={switchModeIcon}
+                label={switchModeLabel}
+                onPress={onSwitchMode}
+              />
+            )}
+            <SidebarButton
+              iconOnly
+              icon={<Settings2 className="size-4" />}
+              label="Settings"
+              onPress={onOpenSettings}
+            />
+            <SidebarButton
+              iconOnly
+              icon={<PanelLeft className="size-4" />}
+              label="Show sidebar"
+              onPress={expand}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Full expanded sidebar — always rendered for smooth width transition */}
+      <div className={`flex h-full min-h-0 flex-col gap-3 px-3 pb-1 pt-0 ${isCollapsed ? "invisible" : ""}`}>
       <div className="space-y-1">
         <button
-          className="flex w-full items-center gap-2.5 rounded-xl px-2 py-1 text-left transition-colors hover:bg-white/[0.04]"
+          className="flex w-full cursor-default items-center gap-2.5 rounded-3xl px-2 py-1 text-left transition-colors hover:bg-white/[0.04]"
           onClick={onOpenHome}
           type="button"
         >
@@ -178,92 +309,21 @@ export function Sidebar(props: {
 
       <div className="flex items-center justify-between px-1.5">
         <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted">Threads</p>
-        <div className="flex items-center gap-1">
-          <Button
-            isIconOnly
-            aria-label="Add Windows project"
-            className="rounded-lg text-muted hover:bg-white/[0.05] hover:text-foreground"
-            onPress={onAddWindowsProject}
-            size="sm"
-            variant="ghost"
-          >
-            <FolderPlus className="size-4" />
-          </Button>
-          <Button
-            isIconOnly
-            aria-label="Add WSL project"
-            className="rounded-lg text-muted hover:bg-white/[0.05] hover:text-foreground"
-            onPress={() => setWslExpanded((value) => !value)}
-            size="sm"
-            variant="ghost"
-          >
-            {wslExpanded ? <Plus className="size-4 rotate-45" /> : <Server className="size-4" />}
-          </Button>
-        </div>
+        <Button
+          isIconOnly
+          aria-label="Add project"
+          className="rounded-3xl text-muted hover:bg-white/[0.05] hover:text-foreground"
+          onPress={onAddProject}
+          size="sm"
+          variant="ghost"
+        >
+          <FolderPlus className="size-4" />
+        </Button>
       </div>
-
-      {wslExpanded ? (
-        <div className="rounded-xl border border-white/6 bg-white/[0.03] p-3">
-          <div className="space-y-2.5">
-            <div className="space-y-1">
-              <p className="text-sm font-medium text-foreground">WSL project</p>
-              <p className="text-xs text-muted">Launch through a distro and Linux path.</p>
-            </div>
-
-            <div className="flex flex-wrap gap-2">
-              {wslDistros.map((distro) => (
-                <Button
-                  key={distro}
-                  className="rounded-lg px-3"
-                  onPress={() => setSelectedDistro(distro)}
-                  size="sm"
-                  variant={selectedDistro === distro ? "primary" : "secondary"}
-                >
-                  {distro}
-                </Button>
-              ))}
-            </div>
-
-            <Input
-              fullWidth
-              id="wsl-path"
-              placeholder="/home/you/project"
-              value={wslPath}
-              variant="secondary"
-              onChange={(event) => setWslPath(event.target.value)}
-            />
-
-            <div className="flex gap-2">
-              <Button
-                className="rounded-lg px-4"
-                isDisabled={!selectedDistro || !wslPath.trim()}
-                onPress={() => {
-                  if (!selectedDistro || !wslPath.trim()) {
-                    return;
-                  }
-                  onAddWslProject(selectedDistro, wslPath.trim());
-                  setWslExpanded(false);
-                }}
-                size="sm"
-              >
-                Add
-              </Button>
-              <Button
-                className="rounded-lg px-4"
-                onPress={() => setWslExpanded(false)}
-                size="sm"
-                variant="ghost"
-              >
-                Cancel
-              </Button>
-            </div>
-          </div>
-        </div>
-      ) : null}
 
       <div className="min-h-0 flex-1 overflow-y-auto px-1 pr-0.5">
         {projects.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-white/8 bg-white/[0.02] px-4 py-5">
+          <div className="rounded-3xl border border-dashed border-white/8 bg-white/[0.02] px-4 py-5">
             <p className="text-sm text-muted">
               Add a project to start a real terminal-backed thread.
             </p>
@@ -272,7 +332,7 @@ export function Sidebar(props: {
           <div className="space-y-4">
             {projects.map((project) => {
               const projectThreads = threads.filter((thread) => thread.projectId === project.id);
-              const isCollapsed = collapsedProjects[project.id] ?? false;
+              const isProjectCollapsed = collapsedProjects[project.id] ?? false;
               const isDraggedProject = dragItem?.type === "project" && dragItem.id === project.id;
               const projectIndicator =
                 dropIndicator?.type === "project" && dropIndicator.id === project.id
@@ -288,7 +348,7 @@ export function Sidebar(props: {
                   {projectIndicator ? renderDropIndicator(projectIndicator.placement) : null}
 
                   <div
-                    className="flex items-center gap-2 rounded-xl px-3 py-1.5 transition-colors hover:bg-white/[0.03]"
+                    className="flex items-center gap-2 rounded-3xl px-3 py-1.5 transition-colors hover:bg-white/[0.03]"
                     onDragOver={(event) => {
                       if (!dragItem || dragItem.type !== "project" || dragItem.id === project.id) {
                         return;
@@ -329,11 +389,11 @@ export function Sidebar(props: {
                     }}
                   >
                     <button
-                      className="min-w-0 flex-1 text-left"
+                      className="min-w-0 flex-1 cursor-default text-left"
                       onClick={() =>
                         setCollapsedProjects((current) => ({
                           ...current,
-                          [project.id]: !isCollapsed,
+                          [project.id]: !isProjectCollapsed,
                         }))
                       }
                       type="button"
@@ -341,7 +401,7 @@ export function Sidebar(props: {
                       <div className="flex items-center gap-2">
                         <ChevronRight
                           className={`size-3.5 shrink-0 text-muted transition-transform ${
-                            isCollapsed ? "" : "rotate-90"
+                            isProjectCollapsed ? "" : "rotate-90"
                           }`}
                         />
                         <Tooltip delay={250}>
@@ -383,23 +443,19 @@ export function Sidebar(props: {
                     </div>
                   </div>
 
-                  {!isCollapsed ? (
+                  {!isProjectCollapsed ? (
                     <div className="space-y-0.5 pl-4">
-                      <button
-                        className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-sm text-muted transition-colors hover:bg-white/[0.04] hover:text-foreground"
-                        onClick={() => onOpenNewThread(project.id)}
-                        type="button"
-                      >
-                        <Plus className="size-4" />
-                        <span>New thread</span>
-                      </button>
+                      <SidebarButton
+                        icon={<Plus className="size-4" />}
+                        label="New thread"
+                        onPress={() => onOpenNewThread(project.id)}
+                      />
 
                       {projectThreads.map((thread) => {
                         const isCurrentThread = thread.id === currentThreadId;
                         const isDraggedThread =
                           dragItem?.type === "thread" && dragItem.id === thread.id;
-                        const codexTone =
-                          thread.agentKind === "codex" ? getCodexStatusTone(thread) : undefined;
+                        const statusTone = getStatusTone(thread);
                         const threadIndicator =
                           dropIndicator?.type === "thread" && dropIndicator.id === thread.id
                             ? dropIndicator
@@ -415,11 +471,12 @@ export function Sidebar(props: {
                               : null}
 
                             <div
-                              className={`group flex items-center gap-2 rounded-lg px-2.5 py-1.5 transition-colors ${
+                              className={`group flex cursor-default items-center gap-2 rounded-3xl px-2.5 py-1.5 transition-colors ${
                                 isCurrentThread
                                   ? "bg-white/[0.08] text-foreground"
                                   : "bg-transparent text-muted hover:bg-white/[0.04] hover:text-foreground"
                               } ${isDraggedThread ? "opacity-60" : ""}`}
+                              onClick={() => onOpenThread(thread.id)}
                               onDragOver={(event) => {
                                 if (
                                   !dragItem ||
@@ -474,34 +531,32 @@ export function Sidebar(props: {
                                 setDropIndicator(undefined);
                               }}
                             >
-                              <button
-                                className="min-w-0 flex-1 text-left"
-                                onClick={() => onOpenThread(thread.id)}
-                                type="button"
-                              >
-                                <div className="flex min-w-0 items-center gap-2">
-                                  {thread.agentKind === "codex" ? (
-                                    <CodexStatusIcon
-                                      className="size-3.5 shrink-0"
-                                      tone={codexTone ?? "inactive"}
-                                    />
-                                  ) : null}
-                                  <p className="truncate text-sm font-medium">{thread.title}</p>
-                                </div>
-                              </button>
-                              <button
-                                aria-label={`Delete ${thread.title}`}
-                                className="shrink-0 rounded text-muted/55 opacity-0 transition hover:text-danger group-hover:opacity-100 focus-visible:opacity-100"
-                                onClick={(event) => {
-                                  event.stopPropagation();
-                                  onDeleteThread(thread.id);
-                                }}
-                                type="button"
-                              >
-                                <Trash2 className="size-3.5" />
-                              </button>
-                              <span className="shrink-0 text-[11px] text-muted">
-                                {formatRelativeTime(thread.updatedAt)}
+                              <div className="flex min-w-0 flex-1 items-center gap-2 text-left">
+                                {thread.agentKind === "codex" ? (
+                                  <CodexStatusIcon
+                                    className="size-3.5 shrink-0"
+                                    tone={statusTone}
+                                  />
+                                ) : thread.agentKind === "claude" ? (
+                                  <ClaudeIcon className="size-3.5 shrink-0" tone={statusTone} />
+                                ) : null}
+                                <p className="min-w-0 flex-1 truncate text-sm font-medium">{thread.title}</p>
+                              </div>
+                              <span className="relative shrink-0">
+                                <span className="text-[11px] text-muted group-hover:invisible">
+                                  {formatRelativeTime(thread.updatedAt)}
+                                </span>
+                                <button
+                                  aria-label={`Delete ${thread.title}`}
+                                  className="absolute inset-0 flex items-center justify-center rounded text-muted/55 opacity-0 transition hover:text-danger group-hover:opacity-100 focus-visible:opacity-100"
+                                  onClick={(event) => {
+                                    event.stopPropagation();
+                                    onDeleteThread(thread.id);
+                                  }}
+                                  type="button"
+                                >
+                                  <Trash2 className="size-3.5" />
+                                </button>
                               </span>
                               <button
                                 aria-grabbed={isDraggedThread}
@@ -540,27 +595,35 @@ export function Sidebar(props: {
       </div>
 
       <div className="space-y-1 border-t border-white/6 pt-2">
-        <div className="flex items-center gap-3 rounded-xl px-3 py-2 text-sm text-muted">
-          <Clock3 className="size-4" />
-          <span>Automations</span>
-        </div>
-
-        <div className="flex items-center gap-3 rounded-xl px-3 py-2 text-sm text-muted">
-          <BookOpenText className="size-4" />
-          <span>Skills</span>
-        </div>
-      </div>
-
-      <div className="pt-1">
-        <Button
-          aria-label="Settings"
-          className="w-full justify-start"
+        {environmentMode === "windows" && !wslAvailable ? (
+          <Tooltip>
+            <Tooltip.Trigger>
+              <SidebarButton
+                isDisabled
+                icon={<TerminalSquare className="size-4" />}
+                label="Switch to WSL"
+              />
+            </Tooltip.Trigger>
+            <Tooltip.Content>No WSL distros detected</Tooltip.Content>
+          </Tooltip>
+        ) : (
+          <SidebarButton
+            icon={switchModeIcon}
+            label={switchModeLabel}
+            onPress={onSwitchMode}
+          />
+        )}
+        <SidebarButton
+          icon={<Settings2 className="size-4" />}
+          label="Settings"
           onPress={onOpenSettings}
-          variant="ghost"
-        >
-          <Settings2 className="size-4 text-muted" />
-          <span>Settings</span>
-        </Button>
+        />
+        <SidebarButton
+          icon={<PanelLeftClose className="size-4" />}
+          label="Hide sidebar"
+          onPress={collapse}
+        />
+      </div>
       </div>
     </div>
   );

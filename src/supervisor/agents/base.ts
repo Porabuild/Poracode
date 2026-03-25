@@ -10,6 +10,7 @@ import type {
   AuthState,
   ProjectLocation,
   SessionRef,
+  TerminalPrompt,
   ThreadServerRequestId,
   ThreadAttention,
   ThreadConfig,
@@ -20,6 +21,12 @@ export interface CommandSpec {
   command: string;
   args: string[];
   cwd?: string;
+  sessionRef?: SessionRef;
+}
+
+export interface AgentEnvContext {
+  environmentMode: "windows" | "wsl";
+  wslDistro?: string;
 }
 
 export interface AgentLaunchOptions {
@@ -72,7 +79,7 @@ export interface AgentAdapter {
   kind: AgentKind;
   label: string;
   capabilities: AgentCapability;
-  detectInstall(): Promise<AgentStatus>;
+  detectInstall(ctx?: AgentEnvContext): Promise<AgentStatus>;
   buildLaunchCommand(
     location: ProjectLocation,
     config: ThreadConfig,
@@ -90,6 +97,14 @@ export interface AgentAdapter {
   createInitialSessionRef(): SessionRef | undefined;
   createStructuredSession?(input: CreateStructuredSessionInput): Promise<StructuredSessionHandle>;
   buildDirectInput?(prompt: string): string[];
+  detectTerminalStatus?(text: string): TerminalStatusHint | null;
+}
+
+export interface TerminalStatusHint {
+  status: ThreadStatus;
+  attention: ThreadAttention;
+  prompt?: TerminalPrompt | undefined;
+  planMode?: boolean | undefined;
 }
 
 export function buildWindowsCmdCommand(cwd: string, command: string, args: string[]): CommandSpec {
@@ -153,14 +168,29 @@ export function wrapWslCommand(
   location: ProjectLocation,
   command: string,
   args: string[],
+  wslExecPath?: string,
 ): CommandSpec {
   if (location.kind === "windows") {
     return buildWindowsCommand(location.path, command, args);
   }
 
+  const quoted = [command, ...args].map((a) => `'${a.replace(/'/g, "'\\''")}'`).join(" ");
+
+  // When the resolved executable path is known, prepend its directory to PATH
+  // and use a fast non-interactive login shell. This avoids the ~1s overhead
+  // of bash -lic while still ensuring node/npm binaries are reachable.
+  if (wslExecPath) {
+    const binDir = wslExecPath.replace(/\/[^/]+$/, "");
+    const script = `export PATH='${binDir}':\"\\$PATH\"; ${quoted}`;
+    return {
+      command: "wsl.exe",
+      args: ["-d", location.distro, "--cd", location.linuxPath, "--", "bash", "-lc", script],
+    };
+  }
+
   return {
     command: "wsl.exe",
-    args: ["-d", location.distro, "--cd", location.linuxPath, "--", command, ...args],
+    args: ["-d", location.distro, "--cd", location.linuxPath, "--", "bash", "-lic", quoted],
   };
 }
 
@@ -184,6 +214,37 @@ export function readCommandOutput(
   const result = spawnSync(command, args, {
     encoding: "utf8",
     shell: process.platform === "win32",
+  });
+  return {
+    ok: result.status === 0,
+    stdout: `${result.stdout ?? ""}`.trim(),
+    stderr: `${result.stderr ?? ""}`.trim(),
+  };
+}
+
+export function resolveWslExecutablePath(distro: string, command: string): string | undefined {
+  const result = spawnSync("wsl.exe", ["-d", distro, "--", "bash", "-lic", `which ${command}`], {
+    encoding: "utf8",
+    shell: false,
+  });
+  if (result.status !== 0) {
+    return undefined;
+  }
+  return result.stdout
+    ?.split(/\r?\n/g)
+    .find((line) => line.trim().length > 0)
+    ?.trim();
+}
+
+export function readWslCommandOutput(
+  distro: string,
+  command: string,
+  args: string[],
+): { ok: boolean; stdout: string; stderr: string } {
+  const quoted = [command, ...args].map((a) => `'${a.replace(/'/g, "'\\''")}'`).join(" ");
+  const result = spawnSync("wsl.exe", ["-d", distro, "--", "bash", "-lic", quoted], {
+    encoding: "utf8",
+    shell: false,
   });
   return {
     ok: result.status === 0,

@@ -1,8 +1,8 @@
 import { startTransition, useEffect, useEffectEvent, useState } from "react";
-import { ArrowRight, FolderOpen, Plus, Server, TerminalSquare } from "lucide-react";
-import { toWslUncPath } from "../shared/wsl";
+import { ArrowRight, FolderOpen, Plus, TerminalSquare } from "lucide-react";
+import { parseWslUncPath } from "../shared/wsl";
 import { readBridge } from "./bridge";
-import { CodexStatusIcon, getCodexStatusTone } from "./components/common";
+import { CodexStatusIcon, getStatusTone } from "./components/providers";
 import { AppShell } from "./components/layout/AppShell";
 import { SettingsOverlay } from "./components/settings/SettingsOverlay";
 import { Sidebar } from "./components/sidebar/Sidebar";
@@ -10,6 +10,7 @@ import { ThreadDraftView } from "./components/thread/ThreadDraftView";
 import { ThreadView } from "./components/thread/ThreadView";
 import { AppProvider } from "./components/ui/provider";
 import { useAppStore } from "./state/appStore";
+import { useSharedSettings } from "./state/sharedSettingsStore";
 
 // ── Module-level IPC listener ───────────────────────────────────
 // Subscribes to supervisor events as soon as the module loads,
@@ -72,22 +73,18 @@ function HomeView() {
                 </h2>
                 {projects.length === 0 ? (
                   <p className="text-sm text-muted">
-                    Add a Windows or WSL project from the sidebar to get started.
+                    Add a project from the sidebar to get started.
                   </p>
                 ) : (
                   <div className="flex flex-col gap-1">
                     {projects.map((project) => (
                       <button
                         key={project.id}
-                        className="group flex items-center gap-3 rounded-lg px-3 py-2 text-left transition-colors hover:bg-white/[0.04]"
+                        className="group flex items-center gap-3 rounded-2xl px-3 py-2 text-left transition-colors hover:bg-white/[0.04]"
                         onClick={() => openDraft(project.id)}
                         type="button"
                       >
-                        {project.location.kind === "windows" ? (
-                          <FolderOpen className="size-4 shrink-0 text-muted" />
-                        ) : (
-                          <Server className="size-4 shrink-0 text-muted" />
-                        )}
+                        <FolderOpen className="size-4 shrink-0 text-muted" />
                         <p className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">
                           {project.name}
                         </p>
@@ -108,12 +105,12 @@ function HomeView() {
                     {recentThreads.map((thread) => {
                       const project = projects.find((p) => p.id === thread.projectId);
                       const codexTone =
-                        thread.agentKind === "codex" ? getCodexStatusTone(thread) : undefined;
+                        thread.agentKind === "codex" ? getStatusTone(thread) : undefined;
 
                       return (
                         <button
                           key={thread.id}
-                          className="group flex items-center gap-3 rounded-lg px-3 py-2 text-left transition-colors hover:bg-white/[0.04]"
+                          className="group flex items-center gap-3 rounded-2xl px-3 py-2 text-left transition-colors hover:bg-white/[0.04]"
                           onClick={() => openThread(thread.id)}
                           type="button"
                         >
@@ -156,6 +153,7 @@ function AppContent() {
   const pendingServerRequests = useAppStore((state) => state.pendingServerRequests);
   const agentStatuses = useAppStore((state) => state.agentStatuses);
   const createThread = useAppStore((state) => state.createThread);
+  const updateProjectDraftConfig = useAppStore((state) => state.updateProjectDraftConfig);
   const removeThreadServerRequest = useAppStore((state) => state.removeThreadServerRequest);
   const updateThreadConfig = useAppStore((state) => state.updateThreadConfig);
   const updateThreadRuntime = useAppStore((state) => state.updateThreadRuntime);
@@ -170,7 +168,17 @@ function AppContent() {
       <ThreadDraftView
         project={project}
         agentStatuses={agentStatuses}
+        {...(project.lastDraftConfig ? { lastDraftConfig: project.lastDraftConfig } : {})}
         onStart={({ agentKind, config, prompt }) => {
+          updateProjectDraftConfig(project.id, {
+            agentKind,
+            model: config.model,
+            effort: config.effort,
+            mode: config.mode,
+            approvalPolicy: config.approvalPolicy,
+            sandboxMode: config.sandboxMode,
+          });
+
           const thread = createThread({
             projectId: project.id,
             agentKind,
@@ -247,10 +255,10 @@ export function App() {
   const projects = useAppStore((state) => state.projects);
   const threads = useAppStore((state) => state.threads);
   const view = useAppStore((state) => state.view);
-  const wslDistros = useAppStore((state) => state.wslDistros);
   const setAgentStatuses = useAppStore((state) => state.setAgentStatuses);
-  const setWslDistros = useAppStore((state) => state.setWslDistros);
   const markThreadsInactiveOnLaunch = useAppStore((state) => state.markThreadsInactiveOnLaunch);
+  const environmentMode = useSharedSettings((state) => state.environmentMode);
+  const [wslDistros, setWslDistros] = useState<string[]>([]);
   const addProject = useAppStore((state) => state.addProject);
   const openDraft = useAppStore((state) => state.openDraft);
   const openThread = useAppStore((state) => state.openThread);
@@ -336,7 +344,7 @@ export function App() {
     });
 
     void readBridge()
-      .getAgentStatuses()
+      .getAgentStatuses({ environmentMode })
       .then((statuses) => {
         if (!isActive) {
           return;
@@ -354,8 +362,29 @@ export function App() {
           return;
         }
 
+        // After a reload (including environment switches)
+        // normalizeStoredThreadStatus already set every thread to
+        // "inactive".  Only reconcile the selected thread so stale
+        // sessions don't get resurrected.  Close the rest so orphaned
+        // PTYs don't leak in the supervisor.
+        const selectedId =
+          useAppStore.getState().view.kind === "thread"
+            ? useAppStore.getState().view.threadId
+            : undefined;
+        const storeThreadIds = new Set(
+          useAppStore.getState().threads.map((t) => t.id),
+        );
+
+        for (const snapshot of snapshots) {
+          if (snapshot.threadId !== selectedId && storeThreadIds.has(snapshot.threadId)) {
+            void readBridge().closeThread({ threadId: snapshot.threadId }).catch(() => undefined);
+          }
+        }
+
         startTransition(() => {
-          reconcileRuntimeSnapshots(snapshots);
+          reconcileRuntimeSnapshots(
+            selectedId ? snapshots.filter((s) => s.threadId === selectedId) : [],
+          );
         });
       });
 
@@ -375,10 +404,10 @@ export function App() {
       isActive = false;
     };
   }, [
+    environmentMode,
     markThreadsInactiveOnLaunch,
     reconcileRuntimeSnapshots,
     setAgentStatuses,
-    setWslDistros,
     storeHydrated,
   ]);
 
@@ -419,7 +448,8 @@ export function App() {
             threads={threads}
             currentProjectId={currentProjectId}
             currentThreadId={view.kind === "thread" ? view.threadId : undefined}
-            wslDistros={wslDistros}
+            environmentMode={environmentMode}
+            wslAvailable={wslDistros.length > 0}
             onOpenNewThread={(projectId) => {
               const targetProjectId = projectId ?? currentProjectId ?? projects[0]?.id;
 
@@ -433,30 +463,46 @@ export function App() {
               });
             }}
             onOpenSettings={() => setSettingsOpen(true)}
-            onAddWindowsProject={() => {
-              void readBridge()
-                .pickFolder()
-                .then((path) => {
-                  if (!path) {
-                    return;
-                  }
-                  startTransition(() => {
-                    addProject({
-                      kind: "windows",
-                      path,
+            onAddProject={() => {
+              if (environmentMode === "wsl") {
+                void (
+                  wslDistros.length > 0
+                    ? Promise.resolve(wslDistros)
+                    : readBridge().listWslDistros()
+                )
+                  .then((distros) => {
+                    const distro = distros[0];
+                    const defaultPath = distro ? `\\\\wsl.localhost\\${distro}\\home` : undefined;
+                    return readBridge().pickFolder(defaultPath);
+                  })
+                  .then((selectedPath) => {
+                    if (!selectedPath) return;
+                    const parsed = parseWslUncPath(selectedPath);
+                    if (!parsed) return;
+                    startTransition(() => {
+                      addProject({
+                        kind: "wsl",
+                        distro: parsed.distro,
+                        linuxPath: parsed.linuxPath,
+                        uncPath: selectedPath,
+                      });
                     });
                   });
-                });
+              } else {
+                void readBridge()
+                  .pickFolder()
+                  .then((path) => {
+                    if (!path) return;
+                    startTransition(() => {
+                      addProject({ kind: "windows", path });
+                    });
+                  });
+              }
             }}
-            onAddWslProject={(distro, linuxPath) => {
-              startTransition(() => {
-                addProject({
-                  kind: "wsl",
-                  distro,
-                  linuxPath,
-                  uncPath: toWslUncPath(distro, linuxPath),
-                });
-              });
+            onSwitchMode={() => {
+              const next = environmentMode === "windows" ? "wsl" : "windows";
+              useSharedSettings.getState().setEnvironmentMode(next);
+              window.location.reload();
             }}
             onOpenThread={(threadId) => {
               const thread = threads.find((item) => item.id === threadId);
@@ -500,9 +546,7 @@ export function App() {
         }
         content={<AppContent />}
       />
-      {settingsOpen ? (
-        <SettingsOverlay onClose={() => setSettingsOpen(false)} />
-      ) : null}
+      {settingsOpen ? <SettingsOverlay onClose={() => setSettingsOpen(false)} /> : null}
     </AppProvider>
   );
 }

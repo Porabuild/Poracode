@@ -1,12 +1,14 @@
 import type {
   AgentStatus,
   CloseThreadPayload,
+  GetAgentStatusesPayload,
   ProjectLocation,
   ResizeTerminalPayload,
   ResolveThreadServerRequestPayload,
   SendThreadInputPayload,
   SessionRef,
   StartThreadPayload,
+  TerminalPrompt,
   StartThreadResult,
   ThreadServerRequestId,
   ThreadAttention,
@@ -19,7 +21,7 @@ import type {
 
 export type SupervisorRequest =
   | { id: string; type: "listWslDistros"; payload: Record<string, never> }
-  | { id: string; type: "getAgentStatuses"; payload: Record<string, never> }
+  | { id: string; type: "getAgentStatuses"; payload: GetAgentStatusesPayload }
   | { id: string; type: "getThreadSnapshots"; payload: Record<string, never> }
   | { id: string; type: "startThread"; payload: StartThreadPayload }
   | { id: string; type: "sendThreadInput"; payload: SendThreadInputPayload }
@@ -52,6 +54,7 @@ export type SupervisorEvent =
       sessionRef?: SessionRef;
       canResumeWithConfig: boolean;
       errorMessage?: string;
+      terminalPrompt?: TerminalPrompt;
     }
   | { type: "thread-exited"; threadId: string; exitCode: number | null };
 
@@ -61,9 +64,9 @@ export interface WindowChromePayload {
 }
 
 export interface LightcodeBridge {
-  pickFolder(): Promise<string | null>;
+  pickFolder(defaultPath?: string): Promise<string | null>;
   listWslDistros(): Promise<string[]>;
-  getAgentStatuses(): Promise<AgentStatus[]>;
+  getAgentStatuses(payload: GetAgentStatusesPayload): Promise<AgentStatus[]>;
   getThreadSnapshots(): Promise<ThreadRuntimeSnapshot[]>;
   getThreadHistory(threadId: string): Promise<ThreadHistorySnapshot>;
   startThread(payload: StartThreadPayload): Promise<StartThreadResult>;

@@ -3,6 +3,9 @@ import { z } from "zod";
 export const themeModeSchema = z.enum(["system", "light", "dark"]);
 export type ThemeMode = z.infer<typeof themeModeSchema>;
 
+export const environmentModeSchema = z.enum(["windows", "wsl"]);
+export type EnvironmentMode = z.infer<typeof environmentModeSchema>;
+
 export const agentKindSchema = z.enum(["codex", "claude"]);
 export type AgentKind = z.infer<typeof agentKindSchema>;
 
@@ -49,6 +52,11 @@ export const projectLocationSchema = z.discriminatedUnion("kind", [
 ]);
 export type ProjectLocation = z.infer<typeof projectLocationSchema>;
 
+export const getAgentStatusesPayloadSchema = z.object({
+  environmentMode: environmentModeSchema,
+});
+export type GetAgentStatusesPayload = z.infer<typeof getAgentStatusesPayloadSchema>;
+
 export const threadConfigSchema = z.object({
   model: z.string().min(1),
   effort: z.string().optional(),
@@ -67,6 +75,7 @@ export type SessionRef = z.infer<typeof sessionRefSchema>;
 export const agentCapabilitySchema = z.object({
   models: z.array(z.string().min(1)).default([]),
   efforts: z.array(z.string().min(1)).default([]),
+  defaultEffort: z.string().optional(),
   modelEfforts: z.record(z.string(), z.array(z.string().min(1))).default({}),
   modes: z.array(threadModeSchema).default([]),
   approvalPolicies: z.array(z.string().min(1)).default([]),
@@ -88,13 +97,36 @@ export const agentStatusSchema = z.object({
 });
 export type AgentStatus = z.infer<typeof agentStatusSchema>;
 
+export const projectDraftConfigSchema = z.object({
+  agentKind: agentKindSchema,
+  model: z.string().min(1),
+  effort: z.string().optional(),
+  mode: threadModeSchema.optional(),
+  approvalPolicy: z.string().optional(),
+  sandboxMode: z.string().optional(),
+});
+export type ProjectDraftConfig = z.infer<typeof projectDraftConfigSchema>;
+
 export const projectSchema = z.object({
   id: z.string().min(1),
   name: z.string().min(1),
   location: projectLocationSchema,
+  lastDraftConfig: projectDraftConfigSchema.optional(),
   createdAt: z.string().min(1),
 });
 export type Project = z.infer<typeof projectSchema>;
+
+export interface TerminalPromptOption {
+  key: string;
+  label: string;
+  description?: string | undefined;
+  isTextInput?: boolean | undefined;
+}
+
+export interface TerminalPrompt {
+  title: string;
+  options: TerminalPromptOption[];
+}
 
 export const threadSchema = z.object({
   id: z.string().min(1),
@@ -106,6 +138,7 @@ export const threadSchema = z.object({
   attention: threadAttentionSchema,
   canResumeWithConfig: z.boolean().default(false),
   sessionRef: sessionRefSchema.optional(),
+  terminalPrompt: z.custom<TerminalPrompt>().optional(),
   createdAt: z.string().min(1),
   updatedAt: z.string().min(1),
 });
@@ -119,6 +152,7 @@ export interface ThreadRuntimeSnapshot {
   sessionRef?: SessionRef;
   canResumeWithConfig: boolean;
   errorMessage?: string;
+  terminalPrompt?: TerminalPrompt;
 }
 
 export interface ThreadHistorySnapshot {

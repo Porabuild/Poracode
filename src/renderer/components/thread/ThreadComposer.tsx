@@ -30,6 +30,7 @@ type ComposerControl =
     };
 
 export function ThreadComposer(props: {
+  autoFocus?: boolean;
   compact?: boolean;
   prompt: string;
   placeholder: string;
@@ -42,6 +43,7 @@ export function ThreadComposer(props: {
   controls: ComposerControl[];
 }) {
   const {
+    autoFocus = false,
     compact = false,
     prompt,
     placeholder,
@@ -70,7 +72,7 @@ export function ThreadComposer(props: {
           return (
             <div
               key={`${control.value}-${index}`}
-              className="lightcode-composer-static min-w-0 rounded-full px-2.5"
+              className="lightcode-composer-static min-w-0 px-2.5"
             >
               {control.icon}
               <span className="truncate">{control.value}</span>
@@ -82,7 +84,7 @@ export function ThreadComposer(props: {
           return (
             <ToggleButton
               key={`toggle-${index}`}
-              className="lightcode-composer-toggle min-w-0 rounded-full px-2.5 text-xs"
+              className="lightcode-composer-toggle min-w-0 px-2.5 text-xs"
               isDisabled={control.isDisabled ?? false}
               isSelected={control.isSelected}
               size="sm"
@@ -105,7 +107,7 @@ export function ThreadComposer(props: {
           <OptionMenu
             key={`${control.value}-${index}`}
             buttonVariant="ghost"
-            className="lightcode-composer-menu min-w-0 rounded-full px-2.5"
+            className="lightcode-composer-menu min-w-0 px-2.5"
             options={control.options}
             value={control.value}
             onChange={control.onChange ?? (() => undefined)}
@@ -121,6 +123,7 @@ export function ThreadComposer(props: {
       <div className={customInputClassName}>{inputContent}</div>
     ) : (
       <TextArea
+        autoFocus={autoFocus}
         fullWidth
         className={editorClassName}
         disabled={promptDisabled}
@@ -142,7 +145,7 @@ export function ThreadComposer(props: {
     <Button
       isIconOnly
       aria-label={submitLabel}
-      className="lightcode-composer-send rounded-full"
+      className="lightcode-composer-send"
       isDisabled={submitDisabled || promptDisabled}
       onPress={onSubmit}
       size="sm"

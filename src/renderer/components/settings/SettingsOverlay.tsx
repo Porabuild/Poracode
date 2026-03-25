@@ -1,7 +1,7 @@
 import { ArrowLeft, Settings2 } from "lucide-react";
 import { startTransition, useState } from "react";
 import type { ThemeMode } from "../../../shared/contracts";
-import { useAppStore } from "../../state/appStore";
+import { useSharedSettings } from "../../state/sharedSettingsStore";
 import { Select } from "../common";
 import { AppShell } from "../layout/AppShell";
 
@@ -42,7 +42,7 @@ function SettingsSidebar(props: {
       <div className="min-h-0 flex-1 overflow-y-auto px-1 pr-0.5">
         <div className="space-y-0.5">
           <button
-            className={`flex w-full items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-left text-sm transition-colors ${
+            className={`flex w-full items-center gap-2.5 rounded-2xl px-2.5 py-1.5 text-left text-sm transition-colors ${
               activeSection === "general"
                 ? "bg-white/[0.08] text-foreground"
                 : "text-muted hover:bg-white/[0.04] hover:text-foreground"
@@ -60,8 +60,8 @@ function SettingsSidebar(props: {
 }
 
 function GeneralSettings() {
-  const themeMode = useAppStore((state) => state.themeMode);
-  const setThemeMode = useAppStore((state) => state.setThemeMode);
+  const themeMode = useSharedSettings((state) => state.themeMode);
+  const setThemeMode = useSharedSettings((state) => state.setThemeMode);
 
   return (
     <div className="h-full min-h-0 overflow-y-auto px-8 py-8">

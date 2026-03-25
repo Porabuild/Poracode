@@ -8,7 +8,7 @@ import {
 } from "react";
 import { resolveThemeMode } from "../../../shared/themeMode";
 import { readBridge } from "../../bridge";
-import { useAppStore } from "../../state/appStore";
+import { useSharedSettings } from "../../state/sharedSettingsStore";
 
 const AppearanceContext = createContext<"light" | "dark">("dark");
 
@@ -26,7 +26,7 @@ function getSystemPrefersDark(): boolean {
 
 export function AppProvider(props: { children: ReactNode }) {
   const { children } = props;
-  const themeMode = useAppStore((state) => state.themeMode);
+  const themeMode = useSharedSettings((state) => state.themeMode);
   const [prefersDark, setPrefersDark] = useState(getSystemPrefersDark);
   const syncSystemPreference = useEffectEvent((matches: boolean) => {
     setPrefersDark(matches);

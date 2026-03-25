@@ -106,9 +106,7 @@ describe("ThreadView", () => {
       onSubmitInput: async () => undefined,
     });
 
-    expect(
-      screen.getByPlaceholderText("Ask Codex anything about this workspace"),
-    ).toBeDisabled();
+    expect(screen.getByPlaceholderText("Ask Codex anything about this workspace")).toBeDisabled();
   });
 
   it("shows a loading overlay on the composer while a Codex thread is launching", () => {
@@ -151,9 +149,7 @@ describe("ThreadView", () => {
     });
 
     expect(screen.getByText("Starting thread...")).toBeInTheDocument();
-    expect(
-      screen.getByPlaceholderText("Ask Codex anything about this workspace"),
-    ).toBeDisabled();
+    expect(screen.getByPlaceholderText("Ask Codex anything about this workspace")).toBeDisabled();
   });
 
   it("renders server request UI instead of the composer while Codex is waiting", () => {

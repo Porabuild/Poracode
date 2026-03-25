@@ -36,6 +36,7 @@ vi.mock("./components/layout/AppShell", () => ({
       <div>{props.content}</div>
     </div>
   ),
+  useSidebar: () => ({ isCollapsed: false, collapse: () => {}, expand: () => {} }),
 }));
 
 vi.mock("./components/sidebar/Sidebar", () => ({
@@ -57,6 +58,22 @@ vi.mock("./components/thread/ThreadView", () => ({
   ThreadView: (props: { thread: { title: string } }) => <div>{props.thread.title}</div>,
 }));
 
+vi.mock("./state/sharedSettingsStore", () => ({
+  useSharedSettings: Object.assign(
+    (selector: (s: Record<string, unknown>) => unknown) =>
+      selector({ environmentMode: "windows", themeMode: "system" }),
+    {
+      getState: () => ({
+        environmentMode: "windows",
+        themeMode: "system",
+        setEnvironmentMode: () => undefined,
+        setThemeMode: () => undefined,
+      }),
+    },
+  ),
+  readEnvironmentMode: () => "windows",
+}));
+
 import { App } from "./app";
 
 describe("App", () => {
@@ -72,12 +89,10 @@ describe("App", () => {
     useAppStore.persist.onFinishHydration = originalOnFinishHydration;
     useAppStore.setState((state) => ({
       ...state,
-      themeMode: "system",
       projects: [],
       threads: [],
       pendingServerRequests: [],
       agentStatuses: [],
-      wslDistros: [],
       view: { kind: "home" },
     }));
   });

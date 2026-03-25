@@ -16,6 +16,14 @@ export function toWslUncPath(distro: string, linuxPath: string): string {
   return `\\\\wsl.localhost\\${distro}\\${normalizedLinuxPath}`;
 }
 
+export function parseWslUncPath(uncPath: string): { distro: string; linuxPath: string } | null {
+  const match = /^\\\\wsl(?:\.localhost|\$)\\([^\\]+)\\(.+)$/i.exec(uncPath);
+  if (!match) return null;
+  const distro = match[1]!;
+  const linuxPath = "/" + match[2]!.replace(/\\/g, "/");
+  return { distro, linuxPath };
+}
+
 export function getProjectDisplayPath(location: ProjectLocation): string {
   return location.kind === "windows" ? location.path : `${location.distro}:${location.linuxPath}`;
 }

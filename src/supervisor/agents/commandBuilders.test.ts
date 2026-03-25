@@ -94,6 +94,33 @@ describe("agent command builders", () => {
     expect(spec.args).not.toContain("");
   });
 
+  it("builds a Claude launch command with a pre-assigned session id", () => {
+    const claudeConfig: ThreadConfig = {
+      model: "sonnet",
+      effort: "high",
+      mode: "agent",
+      approvalPolicy: "default",
+    };
+    const spec = createClaudeAdapter().buildLaunchCommand(windowsProject, claudeConfig, "hello");
+    const script = decodePowerShellEncodedCommand(spec.args[3] ?? "");
+
+    expect(script).toContain("--session-id");
+    expect(script).not.toContain("--resume");
+    expect(script).toContain("--model");
+    expect(script).toContain("sonnet");
+    expect(script).toContain("hello");
+    expect(spec.sessionRef).toBeDefined();
+    expect(spec.sessionRef!.providerSessionId).toBeTruthy();
+  });
+
+  it("builds a Claude launch command without a trailing empty prompt", () => {
+    const spec = createClaudeAdapter().buildLaunchCommand(windowsProject, config, "");
+    const script = decodePowerShellEncodedCommand(spec.args[3] ?? "");
+
+    expect(script).toContain("--session-id");
+    expect(script).not.toContain(", '')\n& $cmd");
+  });
+
   it("builds a Claude resume command", () => {
     const sessionRef: SessionRef = {
       providerSessionId: "abc-123",
@@ -107,6 +134,11 @@ describe("agent command builders", () => {
     );
     expect(spec.command).toBeTruthy();
     expect(spec.args.length).toBeGreaterThan(0);
+
+    const script = decodePowerShellEncodedCommand(spec.args[3] ?? "");
+    expect(script).toContain("--resume");
+    expect(script).toContain("abc-123");
+    expect(script).not.toContain("--session-id");
   });
 
   it("prefers pwsh, then powershell, then cmd on Windows", () => {

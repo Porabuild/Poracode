@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { fork, type ChildProcess } from "node:child_process";
+import { watch } from "node:fs";
 import { join } from "node:path";
 import { app, BrowserWindow, dialog, ipcMain } from "electron";
 import type {
@@ -88,7 +89,13 @@ function isSupervisorReply(message: unknown): message is SupervisorReply {
 
 function startSupervisor(): void {
   supervisor?.kill();
-  supervisor = fork(join(__dirname, "supervisor.cjs"), [], {
+
+  for (const [id, pending] of pendingRequests) {
+    pending.reject(new Error("Supervisor restarted."));
+    pendingRequests.delete(id);
+  }
+
+  const child = fork(join(__dirname, "supervisor.cjs"), [], {
     stdio: ["inherit", "inherit", "inherit", "ipc"],
     env: {
       ...process.env,
@@ -96,7 +103,9 @@ function startSupervisor(): void {
     },
   });
 
-  supervisor.on("message", (message: SupervisorReply | SupervisorEvent) => {
+  supervisor = child;
+
+  child.on("message", (message: SupervisorReply | SupervisorEvent) => {
     if (isSupervisorReply(message)) {
       const pending = pendingRequests.get(message.replyTo);
       if (!pending) {
@@ -115,8 +124,10 @@ function startSupervisor(): void {
     mainWindow?.webContents.send(CHANNELS.supervisorEvent, message);
   });
 
-  supervisor.on("exit", () => {
-    supervisor = null;
+  child.on("exit", () => {
+    if (supervisor === child) {
+      supervisor = null;
+    }
   });
 }
 
@@ -145,10 +156,11 @@ function callSupervisor<TRequest extends SupervisorRequest, TResult = unknown>(
 }
 
 function registerIpcHandlers(): void {
-  ipcMain.handle(CHANNELS.pickFolder, async () => {
+  ipcMain.handle(CHANNELS.pickFolder, async (_event, defaultPath?: string) => {
     const result = await dialog.showOpenDialog(mainWindow!, {
       properties: ["openDirectory"],
-      title: "Add Windows Project",
+      title: "Add Project",
+      ...(defaultPath ? { defaultPath } : {}),
     });
 
     if (result.canceled) {
@@ -162,7 +174,9 @@ function registerIpcHandlers(): void {
     callSupervisor<SupervisorRequest, string[]>("listWslDistros", {}),
   );
 
-  ipcMain.handle(CHANNELS.getAgentStatuses, async () => callSupervisor("getAgentStatuses", {}));
+  ipcMain.handle(CHANNELS.getAgentStatuses, async (_event, payload) =>
+    callSupervisor("getAgentStatuses", payload ?? {}),
+  );
   ipcMain.handle(CHANNELS.getThreadSnapshots, async () => callSupervisor("getThreadSnapshots", {}));
 
   ipcMain.handle(CHANNELS.getThreadHistory, async (_event, threadId: string) =>
@@ -224,6 +238,18 @@ if (!hasSingleInstanceLock) {
     registerIpcHandlers();
     startSupervisor();
     mainWindow = createWindow();
+
+    if (isDev) {
+      const supervisorPath = join(__dirname, "supervisor.cjs");
+      let debounce: ReturnType<typeof setTimeout> | null = null;
+      watch(supervisorPath, () => {
+        if (debounce) clearTimeout(debounce);
+        debounce = setTimeout(() => {
+          console.log("[lightcode] supervisor changed, restarting…");
+          startSupervisor();
+        }, 200);
+      });
+    }
 
     app.on("activate", () => {
       if (BrowserWindow.getAllWindows().length === 0) {

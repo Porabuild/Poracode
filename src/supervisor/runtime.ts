@@ -7,7 +7,9 @@ import { join } from "node:path";
 import { spawn, type IPty } from "node-pty";
 import type {
   AgentKind,
+  AgentStatus,
   CloseThreadPayload,
+  GetAgentStatusesPayload,
   ProjectLocation,
   ResizeTerminalPayload,
   ResolveThreadServerRequestPayload,
@@ -15,6 +17,7 @@ import type {
   SessionRef,
   StartThreadPayload,
   StartThreadResult,
+  TerminalPrompt,
   ThreadAttention,
   ThreadConfig,
   ThreadHistorySnapshot,
@@ -28,7 +31,12 @@ import { detectRateLimitPrompt } from "../shared/rateLimitPrompt";
 import { stripInternalHistoryMarkers } from "../shared/terminalHistory";
 import { normalizeWslListOutput } from "../shared/wsl";
 import { createAgentRegistry } from "./agents/registry";
-import { type AgentAdapter, type CommandSpec, type StructuredSessionHandle } from "./agents/base";
+import {
+  type AgentAdapter,
+  type AgentEnvContext,
+  type CommandSpec,
+  type StructuredSessionHandle,
+} from "./agents/base";
 import { resetTerminalLogFile, resetTerminalLogsDir } from "./terminalLogs";
 
 interface SessionRuntime {
@@ -49,6 +57,8 @@ interface SessionRuntime {
   ignoreExit?: boolean;
   ptyExited?: boolean;
   rateLimitPromptEmitted?: boolean;
+  terminalPrompt?: TerminalPrompt | undefined;
+  prevChunk: string;
 }
 
 export async function writeSubmittedPrompt(
@@ -64,6 +74,7 @@ export async function writeSubmittedPrompt(
 }
 
 export class SupervisorRuntime {
+  private readonly isDev = Boolean(process.env.VITE_DEV_SERVER_URL);
   private readonly logsDir: string;
   private readonly adapters = new Map(
     createAgentRegistry().map((adapter) => [adapter.kind, adapter]),
@@ -82,8 +93,16 @@ export class SupervisorRuntime {
     return normalizeWslListOutput(result.stdout);
   }
 
-  async getAgentStatuses() {
-    return Promise.all([...this.adapters.values()].map((adapter) => adapter.detectInstall()));
+  async getAgentStatuses(payload: GetAgentStatusesPayload): Promise<AgentStatus[]> {
+    let ctx: AgentEnvContext | undefined;
+    if (payload.environmentMode === "wsl") {
+      const distros = await this.listWslDistros();
+      const defaultDistro = distros[0];
+      if (defaultDistro) {
+        ctx = { environmentMode: "wsl", wslDistro: defaultDistro };
+      }
+    }
+    return Promise.all([...this.adapters.values()].map((adapter) => adapter.detectInstall(ctx)));
   }
 
   getThreadSnapshots(): ThreadRuntimeSnapshot[] {
@@ -142,7 +161,11 @@ export class SupervisorRuntime {
   private async startThreadInner(
     payload: StartThreadPayload & { threadId: string },
   ): Promise<StartThreadResult> {
+    const t0 = Date.now();
+    const elapsed = () => `${Date.now() - t0}ms`;
+
     await this.closeThread({ threadId: payload.threadId });
+    console.log(`[supervisor] [${elapsed()}] closeThread done`);
 
     const adapter = this.requireAdapter(payload.agentKind);
     const isServerControlled = adapter.capabilities.liveInputMode === "server";
@@ -155,11 +178,13 @@ export class SupervisorRuntime {
       effectiveConfig,
       effectiveSessionRef,
     );
+    console.log(`[supervisor] [${elapsed()}] createStructuredSession done`);
 
     // Phase 1: initialize + create thread + send initial message on the server.
     if (structuredSession?.activate) {
       try {
         await structuredSession.activate();
+        console.log(`[supervisor] [${elapsed()}] activate done`);
       } catch (error) {
         await structuredSession.dispose();
         throw error;
@@ -169,15 +194,17 @@ export class SupervisorRuntime {
     if (structuredSession?.openThread) {
       try {
         await structuredSession.openThread(effectiveConfig, effectiveSessionRef);
+        console.log(`[supervisor] [${elapsed()}] openThread done`);
       } catch (error) {
         await structuredSession.dispose();
         throw error;
       }
     }
 
-    // For new threads: fire turn/start so the rollout file gets created,
-    // then wait for it before spawning the TUI.
+    // For new threads: fire turn/start so the rollout file gets created.
     // For resumed threads: rollout file already exists, skip this.
+    // The rollout file wait is non-blocking — the TUI is spawned immediately
+    // with resumeThreadId and picks up output as it arrives.
     if (
       !effectiveSessionRef &&
       isServerControlled &&
@@ -187,10 +214,6 @@ export class SupervisorRuntime {
       void structuredSession.startTurn(payload.prompt, effectiveConfig).catch((error) => {
         console.error("[supervisor] initial turn failed:", error);
       });
-
-      if (structuredSession.waitForRolloutFile) {
-        await structuredSession.waitForRolloutFile();
-      }
     }
 
     // Phase 2: spawn TUI with resume.
@@ -210,7 +233,9 @@ export class SupervisorRuntime {
           effectiveSessionRef,
           structuredSession?.launchOptions,
         );
+    console.log(`[supervisor] [${elapsed()}] command built, spawning PTY…`);
 
+    const resolvedSessionRef = effectiveSessionRef ?? command.sessionRef;
     const session = this.spawnThread({
       threadId: payload.threadId,
       adapter,
@@ -219,8 +244,9 @@ export class SupervisorRuntime {
       config: effectiveConfig,
       command,
       ...(structuredSession ? { structuredSession } : {}),
-      ...(effectiveSessionRef ? { sessionRef: effectiveSessionRef } : {}),
+      ...(resolvedSessionRef ? { sessionRef: resolvedSessionRef } : {}),
     });
+    console.log(`[supervisor] [${elapsed()}] PTY spawned`);
 
     return { threadId: payload.threadId };
   }
@@ -236,17 +262,25 @@ export class SupervisorRuntime {
     }
 
     const isServerControlled = session.adapter.capabilities.liveInputMode === "server";
+
+    // If the supervisor auto-cleared plan mode from terminal detection but the renderer
+    // hasn't caught up yet, adopt the session's mode to avoid a spurious relaunch.
+    const effectiveConfig =
+      payload.config.mode === "plan" && session.config.mode === undefined
+        ? { ...payload.config, mode: undefined }
+        : payload.config;
+
     const shouldRelaunch =
       !isServerControlled &&
       session.canResumeWithConfig &&
-      JSON.stringify(session.config) !== JSON.stringify(payload.config);
+      JSON.stringify(session.config) !== JSON.stringify(effectiveConfig);
 
     if (shouldRelaunch && session.sessionRef) {
-      await this.restartThread(session, payload.prompt, payload.config);
+      await this.restartThread(session, payload.prompt, effectiveConfig);
       return;
     }
 
-    session.config = payload.config;
+    session.config = effectiveConfig;
     if (
       session.adapter.capabilities.liveInputMode === "server" &&
       session.structuredSession?.startTurn
@@ -338,6 +372,29 @@ export class SupervisorRuntime {
     return join(this.logsDir, `${threadId}.log`);
   }
 
+  private resolveHintLogPath(threadId: string): string {
+    return join(this.logsDir, `${threadId}.hints.log`);
+  }
+
+  private writeHintLog(
+    session: SessionRuntime,
+    stripped: string,
+    hint: { status: string; attention: string } | null,
+  ): void {
+    const tail = stripped.slice(-300);
+    const ts = new Date().toISOString();
+    const entry = [
+      `--- ${ts} status=${session.status} hint=${hint?.status ?? "null"} ---`,
+      tail,
+      "",
+    ].join("\n");
+    try {
+      appendFileSync(this.resolveHintLogPath(session.threadId), entry);
+    } catch {
+      // best-effort
+    }
+  }
+
   private requireAdapter(kind: AgentKind): AgentAdapter {
     const adapter = this.adapters.get(kind);
     if (!adapter) {
@@ -423,6 +480,7 @@ export class SupervisorRuntime {
       canResumeWithConfig: input.sessionRef !== undefined,
       logPath,
       outputLength: 0,
+      prevChunk: "",
       ...(input.structuredSession ? { structuredSession: input.structuredSession } : {}),
     };
 
@@ -527,6 +585,43 @@ export class SupervisorRuntime {
         if (detectRateLimitPrompt(stripped)) {
           session.rateLimitPromptEmitted = true;
           session.pty.write("2");
+        }
+      }
+
+      if (session.adapter.detectTerminalStatus) {
+        const combined = session.prevChunk + data;
+        session.prevChunk = data;
+        const stripped = stripAnsiPreservingLayout(combined);
+        const hint = session.adapter.detectTerminalStatus(stripped);
+        const promptChanged =
+          JSON.stringify(hint?.prompt) !== JSON.stringify(session.terminalPrompt);
+        // Auto-switch mode when Claude exits plan mode.
+        // Case 1: idle without "plan mode on" — plan mode indicator would be visible if still active.
+        // Case 2: approval prompt → working — plan was accepted and is now executing.
+        const planModeExited =
+          hint != null &&
+          !hint.planMode &&
+          session.config.mode === "plan" &&
+          (hint.status === "idle" ||
+            (hint.status === "working" &&
+              (session.status === "needs_reply" || session.status === "needs_approval")));
+
+        if (planModeExited) {
+          session.config = { ...session.config, mode: undefined };
+        }
+
+        if (hint && (session.status !== hint.status || session.attention !== hint.attention)) {
+          session.terminalPrompt = hint.prompt;
+          this.updateState(session, hint.status, hint.attention);
+        } else if (promptChanged && hint) {
+          session.terminalPrompt = hint.prompt;
+          this.emitState(session);
+        } else if (planModeExited) {
+          // Config changed but status/prompt didn't — force emit so renderer picks up the mode switch.
+          this.emitState(session);
+        }
+        if (this.isDev) {
+          this.writeHintLog(session, stripped, hint);
         }
       }
     });
@@ -669,6 +764,7 @@ export class SupervisorRuntime {
       ...(session.sessionRef ? { sessionRef: session.sessionRef } : {}),
       canResumeWithConfig: session.canResumeWithConfig,
       ...(errorMessage ? { errorMessage } : {}),
+      ...(session.terminalPrompt ? { terminalPrompt: session.terminalPrompt } : {}),
     });
   }
 }

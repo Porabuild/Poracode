@@ -1,5 +1,6 @@
 import type {
   CloseThreadPayload,
+  GetAgentStatusesPayload,
   ResizeTerminalPayload,
   ResolveThreadServerRequestPayload,
   SendThreadInputPayload,
@@ -9,6 +10,7 @@ import type {
 import type { SupervisorReply, SupervisorRequest } from "../shared/ipc";
 import {
   closeThreadPayloadSchema,
+  getAgentStatusesPayloadSchema,
   resizeTerminalPayloadSchema,
   resolveThreadServerRequestPayloadSchema,
   sendThreadInputPayloadSchema,
@@ -26,7 +28,9 @@ async function handleRequest(request: SupervisorRequest): Promise<unknown> {
     case "listWslDistros":
       return runtime.listWslDistros();
     case "getAgentStatuses":
-      return runtime.getAgentStatuses();
+      return runtime.getAgentStatuses(
+        getAgentStatusesPayloadSchema.parse(request.payload) as GetAgentStatusesPayload,
+      );
     case "getThreadSnapshots":
       return runtime.getThreadSnapshots();
     case "startThread":

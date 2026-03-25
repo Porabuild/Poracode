@@ -5,6 +5,8 @@
 @layer base {
   :root {
     /* Intentional overrides from HeroUI defaults */
+    --radius: 0.125rem;
+    --field-radius: var(--radius);
     --link: var(--accent);
     --surface-shadow: 0 20px 60px rgba(0, 0, 0, 0.08);
     --overlay-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
@@ -81,6 +83,7 @@
   box-sizing: border-box;
 }
 
+
 html,
 body,
 #root {
@@ -122,6 +125,33 @@ body {
 
 .lightcode-window-header {
   background: var(--window-header-background);
+}
+
+.lightcode-resize-handle {
+  width: 6px;
+  margin-left: -3px;
+  margin-right: -3px;
+  cursor: col-resize;
+  position: relative;
+  z-index: 20;
+  flex-shrink: 0;
+}
+
+.lightcode-resize-handle::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 2px;
+  transform: translateX(-50%);
+  border-radius: 999px;
+  background: transparent;
+  transition: background 0.15s;
+}
+
+.lightcode-resize-handle:hover::after {
+  background: var(--accent);
 }
 
 .lightcode-codex-icon {
@@ -176,6 +206,58 @@ body {
   filter: drop-shadow(0 0 0.45rem color-mix(in oklab, var(--warning) 48%, transparent));
 }
 
+.lightcode-claude-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: color-mix(in oklab, var(--muted) 80%, var(--foreground));
+  vertical-align: middle;
+}
+
+.lightcode-claude-icon__svg {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.lightcode-claude-icon__fill {
+  fill: currentColor;
+}
+
+.lightcode-claude-icon__shell {
+  fill: currentColor;
+  opacity: 0.32;
+}
+
+.lightcode-claude-icon__scan {
+  opacity: 0.95;
+}
+
+.lightcode-claude-icon--inactive {
+  color: color-mix(in oklab, var(--muted) 94%, var(--foreground));
+  opacity: 0.78;
+}
+
+.lightcode-claude-icon--active {
+  color: var(--foreground);
+  filter: drop-shadow(0 0 0.35rem color-mix(in oklab, var(--foreground) 18%, transparent));
+}
+
+.lightcode-claude-icon--working {
+  color: color-mix(in oklab, var(--success) 82%, var(--white));
+  filter: drop-shadow(0 0 0.6rem color-mix(in oklab, var(--success) 50%, transparent));
+}
+
+.lightcode-claude-icon--error {
+  color: var(--danger);
+  filter: drop-shadow(0 0 0.45rem color-mix(in oklab, var(--danger) 35%, transparent));
+}
+
+.lightcode-claude-icon--attention {
+  color: var(--warning);
+  filter: drop-shadow(0 0 0.45rem color-mix(in oklab, var(--warning) 48%, transparent));
+}
+
 .lightcode-terminal-pane,
 .lightcode-terminal-pane .xterm,
 .lightcode-terminal-pane .xterm-viewport,
@@ -186,7 +268,7 @@ body {
 
 .lightcode-composer-shell {
   border: 1px solid var(--border);
-  border-radius: 1.5rem;
+  border-radius: var(--radius-4xl);
   background: color-mix(in oklab, var(--composer-surface) 94%, transparent);
 }
 
@@ -202,7 +284,7 @@ body {
   min-height: 112px;
   resize: none;
   border: 0;
-  border-radius: 1.5rem 1.5rem 0 0;
+  border-radius: var(--radius-4xl) var(--radius-4xl) 0 0;
   background: transparent;
   box-shadow: none;
   padding: 0.95rem 1.1rem 0.35rem;
@@ -317,7 +399,7 @@ body {
   align-items: center;
   justify-content: center;
   border: 0;
-  border-radius: 999px;
+  border-radius: var(--field-radius);
   background: transparent;
   color: var(--muted);
   cursor: pointer;
@@ -339,9 +421,6 @@ body {
   background: color-mix(in oklab, var(--surface) 88%, transparent);
 }
 
-.lightcode-pill-input .input {
-  border-radius: 0.9rem;
-}
 
 .lightcode-inline-control {
   height: 2.25rem;

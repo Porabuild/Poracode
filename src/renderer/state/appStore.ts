@@ -4,25 +4,27 @@ import type {
   AgentStatus,
   AppView,
   Project,
+  ProjectDraftConfig,
   ProjectLocation,
   SessionRef,
-  ThemeMode,
   Thread,
   ThreadAttention,
   ThreadConfig,
   ThreadServerRequestId,
+  TerminalPrompt,
   ThreadRuntimeSnapshot,
   ThreadStatus,
 } from "../../shared/contracts";
 import { getProjectName } from "../../shared/wsl";
 import { reorderIds, reorderThreadsInProject, type ReorderPlacement } from "./reorder";
+import { readEnvironmentMode } from "./sharedSettingsStore";
 
 function makeThreadTitle(prompt: string): string {
   const normalized = prompt.trim().replace(/\s+/g, " ");
-  if (normalized.length <= 42) {
+  if (normalized.length <= 120) {
     return normalized;
   }
-  return `${normalized.slice(0, 39)}...`;
+  return `${normalized.slice(0, 117)}...`;
 }
 
 function normalizeStoredThreadStatus(thread: Thread): Thread {
@@ -67,18 +69,15 @@ export interface PendingThreadServerRequest {
 }
 
 interface AppStoreState {
-  themeMode: ThemeMode;
   projects: Project[];
   threads: Thread[];
   pendingServerRequests: PendingThreadServerRequest[];
   agentStatuses: AgentStatus[];
-  wslDistros: string[];
   view: AppView;
-  setThemeMode: (themeMode: ThemeMode) => void;
   setAgentStatuses: (statuses: AgentStatus[]) => void;
-  setWslDistros: (distros: string[]) => void;
   markThreadsInactiveOnLaunch: () => void;
   addProject: (location: ProjectLocation, nameOverride?: string) => Project;
+  updateProjectDraftConfig: (projectId: string, draftConfig: ProjectDraftConfig) => void;
   openDraft: (projectId: string) => void;
   openHome: () => void;
   openThread: (threadId: string) => void;
@@ -98,6 +97,7 @@ interface AppStoreState {
       config?: ThreadConfig;
       sessionRef?: SessionRef;
       canResumeWithConfig: boolean;
+      terminalPrompt?: TerminalPrompt;
     },
   ) => void;
   addThreadServerRequest: (input: {
@@ -115,19 +115,23 @@ interface AppStoreState {
   reorderThreads: (sourceId: string, targetId: string, placement: ReorderPlacement) => void;
 }
 
+// One-time migration: copy legacy store data into the windows environment store.
+(function migrateFromLegacy() {
+  const legacy = localStorage.getItem("lightcode-app-state");
+  if (legacy && !localStorage.getItem("lightcode-env-windows")) {
+    localStorage.setItem("lightcode-env-windows", legacy);
+  }
+})();
+
 export const useAppStore = create<AppStoreState>()(
   persist(
     (set) => ({
-      themeMode: "system",
       projects: [],
       threads: [],
       pendingServerRequests: [],
       agentStatuses: [],
-      wslDistros: [],
       view: { kind: "home" },
-      setThemeMode: (themeMode) => set({ themeMode }),
       setAgentStatuses: (agentStatuses) => set({ agentStatuses }),
-      setWslDistros: (wslDistros) => set({ wslDistros }),
       markThreadsInactiveOnLaunch: () =>
         set((state) => {
           let changed = false;
@@ -161,6 +165,12 @@ export const useAppStore = create<AppStoreState>()(
 
         return project;
       },
+      updateProjectDraftConfig: (projectId, draftConfig) =>
+        set((state) => ({
+          projects: state.projects.map((project) =>
+            project.id === projectId ? { ...project, lastDraftConfig: draftConfig } : project,
+          ),
+        })),
       openDraft: (projectId) => set({ view: { kind: "draft", projectId } }),
       openHome: () => set({ view: { kind: "home" } }),
       openThread: (threadId) => set({ view: { kind: "thread", threadId } }),
@@ -251,6 +261,10 @@ export const useAppStore = create<AppStoreState>()(
               config: input.config ?? thread.config,
               canResumeWithConfig: input.canResumeWithConfig,
               ...(input.sessionRef ? { sessionRef: input.sessionRef } : {}),
+              terminalPrompt: input.terminalPrompt,
+              ...(input.status === "working" && thread.status !== "working"
+                ? { updatedAt: new Date().toISOString() }
+                : {}),
             };
           });
 
@@ -324,9 +338,7 @@ export const useAppStore = create<AppStoreState>()(
       touchThread: (threadId) =>
         set((state) => ({
           threads: state.threads.map((thread) =>
-            thread.id === threadId
-              ? { ...thread, updatedAt: new Date().toISOString() }
-              : thread,
+            thread.id === threadId ? { ...thread, updatedAt: new Date().toISOString() } : thread,
           ),
         })),
       reconcileRuntimeSnapshots: (snapshots) =>
@@ -416,7 +428,7 @@ export const useAppStore = create<AppStoreState>()(
         }),
     }),
     {
-      name: "lightcode-app-state",
+      name: `lightcode-env-${readEnvironmentMode()}`,
       version: 2,
       storage: createJSONStorage(() => localStorage),
       migrate: (persistedState) => {
@@ -437,7 +449,6 @@ export const useAppStore = create<AppStoreState>()(
         };
       },
       partialize: (state) => ({
-        themeMode: state.themeMode,
         projects: state.projects,
         threads: state.threads,
         view: state.view,
