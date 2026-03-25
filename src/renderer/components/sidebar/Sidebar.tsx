@@ -104,7 +104,7 @@ function SidebarButton(props: {
       <Tooltip delay={150}>
         <Tooltip.Trigger>
           <button
-            className={`flex size-8 shrink-0 cursor-default items-center justify-center rounded-3xl transition-colors ${stateClass}`}
+            className={`flex h-8 w-8 shrink-0 cursor-default items-center justify-center rounded-3xl transition-colors ${stateClass}`}
             disabled={isDisabled}
             onClick={onPress}
             type="button"
@@ -119,7 +119,7 @@ function SidebarButton(props: {
 
   return (
     <button
-      className={`flex w-full cursor-default items-center gap-2 rounded-3xl px-2.5 py-1.5 text-left text-sm transition-colors ${stateClass}`}
+      className={`flex w-full cursor-default items-center gap-2 rounded-3xl px-4 py-1.5 text-left text-sm transition-colors ${stateClass}`}
       disabled={isDisabled}
       onClick={onPress}
       type="button"
@@ -221,14 +221,14 @@ export function Sidebar(props: {
 
   return (
     <div className="relative h-full">
-      {/* Collapsed icon rail overlay */}
+      {/* Collapsed icon rail overlay — width 48px, icons centered at 24px (pl-2 + w-8/2) */}
       {isCollapsed && (
-        <div className="absolute inset-0 z-10 flex h-full min-h-0 flex-col items-center gap-3 bg-[var(--sidebar-background)] px-1 pb-1 pt-0">
-          {/* App icon — same px-2 py-1 + size-6 as expanded branding button */}
+        <div className="absolute inset-0 z-10 flex h-full min-h-0 flex-col items-start gap-3 pl-2 pb-1 pt-0">
+          {/* App icon — centered at 24px (pl-2 + w-8/2) */}
           <Tooltip delay={150}>
             <Tooltip.Trigger>
               <button
-                className="flex size-8 cursor-default items-center justify-center rounded-3xl transition-colors hover:bg-white/[0.04]"
+                className="flex h-11 w-8 cursor-default items-center justify-center transition-colors hover:bg-white/[0.04] rounded-3xl"
                 onClick={onOpenHome}
                 type="button"
               >
@@ -255,7 +255,7 @@ export function Sidebar(props: {
           </div>
 
           {/* Footer icons */}
-          <div className="space-y-0.5 border-t border-white/6 pt-2">
+          <div className="space-y-1 border-t border-white/6 pt-2 pr-2">
             {environmentMode === "windows" && !wslAvailable ? (
               <SidebarButton
                 iconOnly
@@ -287,11 +287,11 @@ export function Sidebar(props: {
         </div>
       )}
 
-      {/* Full expanded sidebar — always rendered for smooth width transition */}
+      {/* Full expanded sidebar — icons centered at 24px (branding px-3 + w-6/2, buttons px-4 + w-4/2) */}
       <div className={`flex h-full min-h-0 flex-col gap-3 px-3 pb-1 pt-0 ${isCollapsed ? "invisible" : ""}`}>
       <div className="space-y-1">
         <button
-          className="flex w-full cursor-default items-center gap-2.5 rounded-3xl px-2 py-1 text-left transition-colors hover:bg-white/[0.04]"
+          className="flex h-11 w-full cursor-default items-center gap-2.5 rounded-3xl px-3 text-left transition-colors hover:bg-white/[0.04]"
           onClick={onOpenHome}
           type="button"
         >
@@ -302,7 +302,7 @@ export function Sidebar(props: {
             <p className="truncate text-sm font-semibold tracking-tight text-foreground">
               Lightcode
             </p>
-            <p className="truncate text-xs text-muted">Terminal-native threads</p>
+            <p className="truncate text-xs text-muted leading-tight">Terminal-native threads</p>
           </div>
         </button>
       </div>

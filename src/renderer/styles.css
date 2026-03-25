@@ -129,8 +129,8 @@ body {
 
 .lightcode-resize-handle {
   width: 6px;
-  margin-left: -3px;
-  margin-right: -3px;
+  margin-left: -4px;
+  margin-right: -2px;
   cursor: col-resize;
   position: relative;
   z-index: 20;

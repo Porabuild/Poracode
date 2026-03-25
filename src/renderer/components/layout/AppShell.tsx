@@ -3,7 +3,7 @@ import { createContext, type ReactNode, useContext, useEffect, useRef, useState 
 const SIDEBAR_MIN_WIDTH = 220;
 const SIDEBAR_MAX_WIDTH = 500;
 const SIDEBAR_DEFAULT_WIDTH = 350;
-const SIDEBAR_COLLAPSED_WIDTH = 44;
+const SIDEBAR_COLLAPSED_WIDTH = 48;
 
 function readStoredNumber(key: string, fallback: number): number {
   try {
@@ -117,7 +117,7 @@ export function AppShell(props: { sidebar: ReactNode; content: ReactNode }) {
 
         {!isCollapsed && (
           <div
-            className="lightcode-resize-handle"
+            className="lightcode-resize-handle -mt-5 h-[calc(100%+0.75rem)]"
             onMouseDown={handleResizeStart}
             role="separator"
             aria-orientation="vertical"
