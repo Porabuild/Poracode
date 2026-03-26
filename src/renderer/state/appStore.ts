@@ -81,6 +81,9 @@ interface AppStoreState {
   openDraft: (projectId: string) => void;
   openHome: () => void;
   openThread: (threadId: string) => void;
+  openThreadSideBySide: (threadId: string) => void;
+  replaceSecondPane: (threadId: string) => void;
+  closePane: (threadId: string) => void;
   createThread: (input: {
     projectId: string;
     agentKind: Thread["agentKind"];
@@ -113,6 +116,7 @@ interface AppStoreState {
   reconcileRuntimeSnapshots: (snapshots: ThreadRuntimeSnapshot[]) => void;
   reorderProjects: (sourceId: string, targetId: string, placement: ReorderPlacement) => void;
   reorderThreads: (sourceId: string, targetId: string, placement: ReorderPlacement) => void;
+  reorderPanes: (sourceId: string, targetId: string, placement: ReorderPlacement) => void;
 }
 
 // One-time migration: copy legacy store data into the windows environment store.
@@ -173,7 +177,72 @@ export const useAppStore = create<AppStoreState>()(
         })),
       openDraft: (projectId) => set({ view: { kind: "draft", projectId } }),
       openHome: () => set({ view: { kind: "home" } }),
-      openThread: (threadId) => set({ view: { kind: "thread", threadId } }),
+      openThread: (threadId) =>
+        set((state) => {
+          if (state.view.kind === "thread") {
+            if (state.view.panes.includes(threadId)) {
+              return {};
+            }
+            return {
+              view: {
+                kind: "thread",
+                panes: [threadId, ...state.view.panes.slice(1)] as [string, ...string[]],
+              },
+            };
+          }
+          return { view: { kind: "thread", panes: [threadId] } };
+        }),
+      openThreadSideBySide: (threadId) =>
+        set((state) => {
+          if (state.view.kind !== "thread") {
+            return { view: { kind: "thread", panes: [threadId] } };
+          }
+          const existing = state.view.panes;
+          if (existing.includes(threadId)) {
+            return {};
+          }
+          if (existing.length >= 3) {
+            return {
+              view: {
+                kind: "thread",
+                panes: [existing[0]!, existing[1]!, threadId],
+              },
+            };
+          }
+          return {
+            view: {
+              kind: "thread",
+              panes: [...existing, threadId] as [string, ...string[]],
+            },
+          };
+        }),
+      replaceSecondPane: (threadId) =>
+        set((state) => {
+          if (state.view.kind !== "thread" || state.view.panes.length < 2) {
+            return {};
+          }
+          if (state.view.panes.includes(threadId)) {
+            return {};
+          }
+          const panes = [...state.view.panes];
+          panes[1] = threadId;
+          return {
+            view: { kind: "thread", panes: panes as [string, ...string[]] },
+          };
+        }),
+      closePane: (threadId) =>
+        set((state) => {
+          if (state.view.kind !== "thread") {
+            return {};
+          }
+          const remaining = state.view.panes.filter((id) => id !== threadId);
+          if (remaining.length === 0) {
+            return { view: { kind: "home" } };
+          }
+          return {
+            view: { kind: "thread", panes: remaining as [string, ...string[]] },
+          };
+        }),
       createThread: ({ projectId, agentKind, config, prompt }) => {
         const now = new Date().toISOString();
         const thread: Thread = {
@@ -191,7 +260,7 @@ export const useAppStore = create<AppStoreState>()(
 
         set((state) => ({
           threads: [thread, ...state.threads],
-          view: { kind: "thread", threadId: thread.id },
+          view: { kind: "thread", panes: [thread.id] },
         }));
 
         return thread;
@@ -204,10 +273,14 @@ export const useAppStore = create<AppStoreState>()(
             return {};
           }
 
-          const nextView =
-            state.view.kind === "thread" && state.view.threadId === threadId
-              ? { kind: "home" as const }
-              : state.view;
+          let nextView = state.view;
+          if (state.view.kind === "thread") {
+            const remaining = state.view.panes.filter((id) => id !== threadId);
+            nextView =
+              remaining.length === 0
+                ? { kind: "home" as const }
+                : { kind: "thread" as const, panes: remaining as [string, ...string[]] };
+          }
 
           return {
             threads: nextThreads,
@@ -426,17 +499,36 @@ export const useAppStore = create<AppStoreState>()(
 
           return { threads };
         }),
+      reorderPanes: (sourceId, targetId, placement) =>
+        set((state) => {
+          if (state.view.kind !== "thread") return {};
+          const reordered = reorderIds(state.view.panes, sourceId, targetId, placement);
+          if (reordered === state.view.panes) return {};
+          return { view: { kind: "thread", panes: reordered as [string, ...string[]] } };
+        }),
     }),
     {
       name: `lightcode-env-${readEnvironmentMode()}`,
-      version: 2,
+      version: 3,
       storage: createJSONStorage(() => localStorage),
       migrate: (persistedState) => {
-        const state = persistedState as Partial<AppStoreState> & { threads?: Thread[] };
+        const state = persistedState as Partial<AppStoreState> & {
+          threads?: Thread[];
+          view?: AppView | { kind: "thread"; threadId: string };
+        };
+
+        let view = state.view as AppView | undefined;
+        if (view && view.kind === "thread" && "threadId" in view && !("panes" in view)) {
+          view = {
+            kind: "thread",
+            panes: [(view as unknown as { threadId: string }).threadId],
+          };
+        }
 
         return {
           ...state,
           threads: (state.threads ?? []).map(migrateThreadStatus),
+          view,
         };
       },
       merge: (persistedState, currentState) => {

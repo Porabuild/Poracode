@@ -46,6 +46,7 @@ export function PromptOptions(props: {
   return (
     <div
       ref={containerRef}
+      role="listbox"
       className="flex flex-col gap-0.5 px-3 py-2 outline-none"
       onKeyDown={(event) => {
         if (isTextMode) return;
@@ -68,9 +69,7 @@ export function PromptOptions(props: {
       // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex
       tabIndex={0}
     >
-      {title ? (
-        <p className="px-1 pb-1 text-sm font-medium text-foreground">{title}</p>
-      ) : null}
+      {title ? <p className="px-1 pb-1 text-sm font-medium text-foreground">{title}</p> : null}
       {options.map((option, index) => {
         const isSelected = index === selectedIndex;
 
@@ -119,9 +118,7 @@ export function PromptOptions(props: {
           <button
             key={option.key}
             className={`flex items-center gap-2 rounded-2xl px-2 py-2 text-left text-sm transition ${
-              isSelected
-                ? "bg-[color:var(--accent)]/10 text-foreground"
-                : "text-muted"
+              isSelected ? "bg-[color:var(--accent)]/10 text-foreground" : "text-muted"
             }`}
             onClick={() => activateOption(option)}
             onMouseEnter={() => setSelectedIndex(index)}

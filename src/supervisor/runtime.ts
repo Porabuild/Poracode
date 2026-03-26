@@ -89,8 +89,14 @@ export class SupervisorRuntime {
   }
 
   async listWslDistros(): Promise<string[]> {
-    const result = Bunless.run("wsl", ["-l", "-q"]);
-    return normalizeWslListOutput(result.stdout);
+    const result = spawnSync("wsl.exe", ["-l", "-q"], {
+      encoding: "utf8",
+      windowsHide: true,
+    });
+    if (result.error) {
+      return [];
+    }
+    return normalizeWslListOutput(result.stdout ?? "");
   }
 
   async getAgentStatuses(payload: GetAgentStatusesPayload): Promise<AgentStatus[]> {
@@ -236,7 +242,7 @@ export class SupervisorRuntime {
     console.log(`[supervisor] [${elapsed()}] command built, spawning PTY…`);
 
     const resolvedSessionRef = effectiveSessionRef ?? command.sessionRef;
-    const session = this.spawnThread({
+    this.spawnThread({
       threadId: payload.threadId,
       adapter,
       agentKind: payload.agentKind,
@@ -768,15 +774,3 @@ export class SupervisorRuntime {
     });
   }
 }
-
-const Bunless = {
-  run(command: string, args: string[]): { stdout: string } {
-    const result = spawnSync(command, args, {
-      encoding: "utf8",
-      shell: process.platform === "win32",
-    }) as { stdout?: string };
-    return {
-      stdout: `${result.stdout ?? ""}`,
-    };
-  },
-};

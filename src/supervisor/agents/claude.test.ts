@@ -3,7 +3,8 @@ import { detectClaudeTerminalStatus } from "./claude";
 
 describe("detectClaudeTerminalStatus", () => {
   it("detects working state when 'esc to interrupt' is in the last lines", () => {
-    const text = "● Forging...\n❯ \n\nesc to interrupt                                   ○ low · /effort";
+    const text =
+      "● Forging...\n❯ \n\nesc to interrupt                                   ○ low · /effort";
     expect(detectClaudeTerminalStatus(text)).toEqual({
       status: "working",
       attention: "working",
@@ -83,8 +84,7 @@ describe("detectClaudeTerminalStatus", () => {
   });
 
   it("marks 'Type here' option as text input", () => {
-    const text =
-      "Pick one:\n> 1. Accept\n  2. Type here to provide feedback\n\nctrl-g to edit";
+    const text = "Pick one:\n> 1. Accept\n  2. Type here to provide feedback\n\nctrl-g to edit";
     const result = detectClaudeTerminalStatus(text);
     expect(result?.prompt?.options?.[1]).toEqual({
       key: "2",
@@ -115,7 +115,8 @@ describe("detectClaudeTerminalStatus", () => {
   });
 
   it("sets planMode on 'plan mode on' hint", () => {
-    const text = "● Plan mode\n❯ \n\nplan mode on                                       ○ high · /plan";
+    const text =
+      "● Plan mode\n❯ \n\nplan mode on                                       ○ high · /plan";
     const result = detectClaudeTerminalStatus(text);
     expect(result?.status).toBe("idle");
     expect(result?.planMode).toBe(true);

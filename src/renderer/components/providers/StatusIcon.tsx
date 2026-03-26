@@ -19,12 +19,10 @@ export function StatusIcon(props: {
   const scanWidth = (vbW ?? 16) * 2;
   const scanHeight = (vbH ?? 16) + 4;
 
-  const pathProps = fillRule ? { clipRule: fillRule, fillRule } as const : {};
+  const pathProps = fillRule ? ({ clipRule: fillRule, fillRule } as const) : {};
 
   return (
-    <span
-      className={`${cssPrefix} ${cssPrefix}--${tone}${className ? ` ${className}` : ""}`}
-    >
+    <span className={`${cssPrefix} ${cssPrefix}--${tone}${className ? ` ${className}` : ""}`}>
       <svg
         aria-hidden={title ? undefined : true}
         className={`${cssPrefix}__svg`}

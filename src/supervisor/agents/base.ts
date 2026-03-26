@@ -181,7 +181,7 @@ export function wrapWslCommand(
   // of bash -lic while still ensuring node/npm binaries are reachable.
   if (wslExecPath) {
     const binDir = wslExecPath.replace(/\/[^/]+$/, "");
-    const script = `export PATH='${binDir}':\"\\$PATH\"; ${quoted}`;
+    const script = `export PATH='${binDir}':"\\$PATH"; ${quoted}`;
     return {
       command: "wsl.exe",
       args: ["-d", location.distro, "--cd", location.linuxPath, "--", "bash", "-lc", script],
@@ -199,8 +199,9 @@ export function resolveExecutablePath(command: string): string | undefined {
   const result = spawnSync(locator, [command], {
     encoding: "utf8",
     shell: false,
+    windowsHide: true,
   });
-  if (result.status !== 0) {
+  if (result.error || result.status !== 0) {
     return undefined;
   }
   const output = `${result.stdout}`.split(/\r?\n/g).find((line) => line.trim().length > 0);
@@ -214,6 +215,7 @@ export function readCommandOutput(
   const result = spawnSync(command, args, {
     encoding: "utf8",
     shell: process.platform === "win32",
+    windowsHide: true,
   });
   return {
     ok: result.status === 0,
@@ -226,8 +228,9 @@ export function resolveWslExecutablePath(distro: string, command: string): strin
   const result = spawnSync("wsl.exe", ["-d", distro, "--", "bash", "-lic", `which ${command}`], {
     encoding: "utf8",
     shell: false,
+    windowsHide: true,
   });
-  if (result.status !== 0) {
+  if (result.error || result.status !== 0) {
     return undefined;
   }
   return result.stdout
@@ -245,6 +248,7 @@ export function readWslCommandOutput(
   const result = spawnSync("wsl.exe", ["-d", distro, "--", "bash", "-lic", quoted], {
     encoding: "utf8",
     shell: false,
+    windowsHide: true,
   });
   return {
     ok: result.status === 0,

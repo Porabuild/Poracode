@@ -215,4 +215,4 @@ export type ResolveThreadServerRequestPayload = z.infer<
 export type AppView =
   | { kind: "home" }
   | { kind: "draft"; projectId: string }
-  | { kind: "thread"; threadId: string };
+  | { kind: "thread"; panes: [string, ...string[]] };

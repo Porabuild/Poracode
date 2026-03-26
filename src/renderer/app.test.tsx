@@ -39,8 +39,15 @@ vi.mock("./components/layout/AppShell", () => ({
   useSidebar: () => ({ isCollapsed: false, collapse: () => {}, expand: () => {} }),
 }));
 
+vi.mock("./components/layout/SplitPaneContainer", () => ({
+  SplitPaneContainer: (props: { children: ReactNode }) => <div>{props.children}</div>,
+}));
+
 vi.mock("./components/sidebar/Sidebar", () => ({
-  Sidebar: (props: { onOpenThread?: (threadId: string) => void }) => (
+  Sidebar: (props: {
+    onOpenThread?: (threadId: string) => void;
+    onOpenThreadSideBySide?: (threadId: string) => void;
+  }) => (
     <div>
       sidebar
       <button onClick={() => props.onOpenThread?.("thread-1")} type="button">
@@ -131,7 +138,7 @@ describe("App", () => {
           updatedAt: "2026-03-22T00:00:00.000Z",
         },
       ],
-      view: { kind: "thread", threadId: "thread-1" },
+      view: { kind: "thread", panes: ["thread-1"] },
     }));
 
     render(<App />);
@@ -200,7 +207,7 @@ describe("App", () => {
           updatedAt: "2026-03-22T00:00:00.000Z",
         },
       ],
-      view: { kind: "thread", threadId: "thread-1" },
+      view: { kind: "thread", panes: ["thread-1"] },
     }));
 
     onHydrate?.(useAppStore.getState());
@@ -261,7 +268,7 @@ describe("App", () => {
     }));
 
     render(<App />);
-    fireEvent.click(screen.getByText("open-thread-1"));
+    fireEvent.click(await screen.findByText("open-thread-1"));
 
     await waitFor(() => {
       expect(bridge.startThread).toHaveBeenCalledWith({

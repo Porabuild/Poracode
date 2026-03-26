@@ -1,19 +1,20 @@
 import { useEffect, useState } from "react";
-import { ClipboardList, ShieldOff, Sparkles, TerminalSquare } from "lucide-react";
+import { ClipboardList, ShieldOff, Sparkles, TerminalSquare, X } from "lucide-react";
 import type {
   AgentStatus,
   Thread,
   ThreadConfig,
   ThreadServerRequestId,
 } from "../../../shared/contracts";
+
 import { ClaudeIcon, CodexStatusIcon, getStatusTone } from "../providers";
 import type { PendingThreadServerRequest } from "../../state/appStore";
-import { PromptOptions } from "../common";
+import { Button, PromptOptions } from "../common";
 import { readBridge } from "../../bridge";
 import { TerminalPane } from "./TerminalPane";
 import { ThreadComposer } from "./ThreadComposer";
 import { ThreadServerRequestPanel } from "./ThreadServerRequestPanel";
-import { formatCompactLabel, modelOptions, withCurrentValue } from "./threadComposerOptions";
+import { formatCompactLabel, modelOptions } from "./threadComposerOptions";
 
 function buildControls(
   thread: Thread,
@@ -36,6 +37,7 @@ function buildControls(
     {
       kind: "static" as const,
       value: agentStatus?.label ?? thread.agentKind,
+      hideLabelOnWrap: true,
       icon:
         thread.agentKind === "codex" ? (
           <CodexStatusIcon className="size-4 shrink-0" tone={codexTone} />
@@ -86,6 +88,7 @@ function buildControls(
             label: formatCompactLabel(
               agentStatus.capabilities.modes.find((m) => m !== "agent") ?? "plan",
             ),
+            hideLabelOnWrap: true,
             isSelected: (thread.config.mode ?? "agent") !== "agent",
             isDisabled,
             onChange: (isSelected: boolean) => {
@@ -105,6 +108,7 @@ function buildControls(
                 id: value,
                 label: formatCompactLabel(value),
               })),
+              hideLabelOnWrap: true,
               value: thread.config.mode ?? agentStatus.capabilities.modes[0] ?? "agent",
               isDisabled,
               onChange: (value: string) =>
@@ -121,6 +125,7 @@ function buildControls(
             kind: "toggle" as const,
             icon: <ShieldOff className="size-3.5" />,
             label: "Full Access",
+            hideLabelOnWrap: true,
             isSelected: isFullAccess,
             isDisabled,
             onChange: (selected: boolean) => {
@@ -149,6 +154,16 @@ export function ThreadView(props: {
   thread: Thread;
   agentStatus: AgentStatus | undefined;
   pendingServerRequests: PendingThreadServerRequest[];
+  showCloseButton?: boolean;
+  paneAlign?: "left" | "center" | "right";
+  isDragging?: boolean | undefined;
+  paneDragActive?: boolean | undefined;
+  dropIndicator?: boolean | undefined;
+  onClose?: (() => void) | undefined;
+  onPaneDragStart?: (() => void) | undefined;
+  onPaneDragEnd?: (() => void) | undefined;
+  onPaneDragOver?: (() => void) | undefined;
+  onPaneDrop?: (() => void) | undefined;
   onConfigChange: (config: ThreadConfig) => void;
   onResolveServerRequest: (input: {
     requestId: ThreadServerRequestId;
@@ -161,6 +176,16 @@ export function ThreadView(props: {
     thread,
     agentStatus,
     pendingServerRequests,
+    showCloseButton,
+    paneAlign = "center",
+    isDragging,
+    paneDragActive,
+    dropIndicator,
+    onClose,
+    onPaneDragStart,
+    onPaneDragEnd,
+    onPaneDragOver,
+    onPaneDrop,
     onConfigChange,
     onResolveServerRequest,
     onSubmitInput,
@@ -176,17 +201,14 @@ export function ThreadView(props: {
     thread.sessionRef !== undefined &&
     (thread.status === "idle" || thread.status === "needs_reply");
   const canSubmitTerminalInput =
-    isTerminalInput &&
-    thread.status !== "inactive" &&
-    thread.status !== "launching";
+    isTerminalInput && thread.status !== "inactive" && thread.status !== "launching";
   const showServerComposer =
     isServerControlled && thread.status !== "inactive" && thread.status !== "launching";
   const showTerminalComposer =
     isTerminalInput && thread.status !== "inactive" && thread.status !== "launching";
 
   const terminalPrompt =
-    thread.terminalPrompt &&
-    (thread.status === "needs_approval" || thread.status === "needs_reply")
+    thread.terminalPrompt && (thread.status === "needs_approval" || thread.status === "needs_reply")
       ? thread.terminalPrompt
       : undefined;
 
@@ -214,21 +236,80 @@ export function ThreadView(props: {
     />
   ) : undefined;
 
+  const alignClass =
+    paneAlign === "right" ? "ml-auto" : paneAlign === "left" ? "mr-auto" : "mx-auto";
+  const paddingClass =
+    paneAlign === "left" ? "pl-6 pr-10" : paneAlign === "right" ? "pl-6 pr-6" : "px-6";
+
   return (
-    <div className="flex h-full min-h-0 flex-col">
-      <div className="flex h-full min-h-0 flex-col px-6 pt-1 pb-4">
-        <div className="mx-auto flex h-full w-full max-w-[1040px] flex-col">
-          <div className="mx-auto flex w-full max-w-[920px] items-start justify-between gap-4">
-            <div className="min-w-0">
+    <div className={`relative flex h-full min-h-0 flex-col ${isDragging ? "opacity-50" : ""}`}>
+      {paneDragActive && !isDragging && (
+        <div
+          aria-hidden="true"
+          className="absolute inset-0 z-10"
+          onDragOver={(e) => {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = "move";
+            onPaneDragOver?.();
+          }}
+          onDrop={(e) => {
+            e.preventDefault();
+            onPaneDrop?.();
+          }}
+        />
+      )}
+      {dropIndicator && (
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 z-20 rounded-2xl bg-accent/10 ring-1 ring-inset ring-accent/30"
+        />
+      )}
+      <div className={`flex h-full min-h-0 flex-col ${paddingClass} pt-1 pb-4`}>
+        <div className={`${alignClass} flex h-full w-full max-w-[1040px] flex-col`}>
+          <div
+            className={`${alignClass} flex w-full max-w-[920px] items-start justify-between gap-4 ${onPaneDragStart ? "cursor-grab active:cursor-grabbing" : ""}`}
+            draggable={!!onPaneDragStart}
+            onDragStart={
+              onPaneDragStart
+                ? (e) => {
+                    e.dataTransfer.effectAllowed = "move";
+                    e.dataTransfer.setData("text/plain", thread.id);
+                    onPaneDragStart();
+                  }
+                : undefined
+            }
+            onDragEnd={onPaneDragEnd}
+          >
+            <div className="flex min-w-0 items-center gap-2">
+              {thread.agentKind === "codex" ? (
+                <CodexStatusIcon className="size-4 shrink-0" tone={getStatusTone(thread)} />
+              ) : thread.agentKind === "claude" ? (
+                <ClaudeIcon className="size-4 shrink-0" tone={getStatusTone(thread)} />
+              ) : null}
               <h1 className="truncate text-sm font-semibold tracking-tight text-foreground">
                 {thread.title}
               </h1>
             </div>
 
-            <div className="flex flex-wrap items-center justify-end gap-2" />
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              {showCloseButton ? (
+                <Button
+                  isIconOnly
+                  aria-label="Close pane"
+                  className="rounded-3xl text-muted hover:bg-white/[0.05] hover:text-foreground"
+                  onPress={() => onClose?.()}
+                  size="sm"
+                  variant="ghost"
+                >
+                  <X className="size-4" />
+                </Button>
+              ) : null}
+            </div>
           </div>
 
-          <div className="mx-auto flex min-h-0 w-full max-w-[920px] flex-1 flex-col gap-2 pt-3">
+          <div
+            className={`${alignClass} flex min-h-0 w-full max-w-[920px] flex-1 flex-col gap-2 pt-3`}
+          >
             <div className="min-h-0 flex-1 overflow-hidden">
               <TerminalPane
                 readOnly={isServerControlled}
@@ -251,7 +332,7 @@ export function ThreadView(props: {
                 </div>
               ) : null}
               <ThreadComposer
-                autoFocus
+                autoFocus // eslint-disable-line jsx-a11y/no-autofocus -- desktop app, expected UX
                 compact
                 controls={controls}
                 inputContent={promptInputContent}
@@ -264,8 +345,7 @@ export function ThreadView(props: {
                 }
                 prompt={prompt}
                 promptDisabled={
-                  !(showServerComposer || showTerminalComposer) ||
-                  thread.status === "launching"
+                  !(showServerComposer || showTerminalComposer) || thread.status === "launching"
                 }
                 submitDisabled={
                   prompt.trim().length === 0 ||

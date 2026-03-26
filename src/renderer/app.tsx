@@ -1,15 +1,18 @@
 import { startTransition, useEffect, useEffectEvent, useState } from "react";
 import { ArrowRight, FolderOpen, Plus, TerminalSquare } from "lucide-react";
+import { Spinner } from "@heroui/react";
 import { parseWslUncPath } from "../shared/wsl";
 import { readBridge } from "./bridge";
 import { CodexStatusIcon, getStatusTone } from "./components/providers";
 import { AppShell } from "./components/layout/AppShell";
+import { SplitPaneContainer } from "./components/layout/SplitPaneContainer";
 import { SettingsOverlay } from "./components/settings/SettingsOverlay";
 import { Sidebar } from "./components/sidebar/Sidebar";
 import { ThreadDraftView } from "./components/thread/ThreadDraftView";
 import { ThreadView } from "./components/thread/ThreadView";
 import { AppProvider } from "./components/ui/provider";
 import { useAppStore } from "./state/appStore";
+import type { ReorderPlacement } from "./state/reorder";
 import { useSharedSettings } from "./state/sharedSettingsStore";
 
 // ── Module-level IPC listener ───────────────────────────────────
@@ -36,6 +39,8 @@ readBridge().onSupervisorEvent((event) => {
     useAppStore.getState().markThreadExited(event.threadId);
   }
 });
+
+const EMPTY_PANES: string[] = [];
 
 function formatRelativeTime(iso: string): string {
   const deltaMinutes = Math.max(1, Math.floor((Date.now() - new Date(iso).getTime()) / 60000));
@@ -158,6 +163,9 @@ function AppContent() {
   const updateThreadConfig = useAppStore((state) => state.updateThreadConfig);
   const updateThreadRuntime = useAppStore((state) => state.updateThreadRuntime);
   const touchThread = useAppStore((state) => state.touchThread);
+  const reorderPanes = useAppStore((state) => state.reorderPanes);
+  const [paneDragSource, setPaneDragSource] = useState<string | undefined>();
+  const [paneDropTarget, setPaneDropTarget] = useState<string | undefined>();
 
   if (view.kind === "draft") {
     const project = projects.find((item) => item.id === view.projectId);
@@ -209,43 +217,103 @@ function AppContent() {
   }
 
   if (view.kind === "thread") {
-    const thread = threads.find((item) => item.id === view.threadId);
-    if (!thread) {
+    const closePane = useAppStore.getState().closePane;
+    const paneCount = view.panes.length;
+    const paneElements = view.panes
+      .map((paneThreadId, paneIndex) => {
+        const thread = threads.find((item) => item.id === paneThreadId);
+        if (!thread) return null;
+        const project = projects.find((item) => item.id === thread.projectId);
+        if (!project) return null;
+        const agentStatus = agentStatuses.find((status) => status.kind === thread.agentKind);
+        const paneAlign =
+          paneCount <= 1
+            ? ("center" as const)
+            : paneIndex === 0
+              ? ("right" as const)
+              : paneIndex === paneCount - 1
+                ? ("left" as const)
+                : ("center" as const);
+        return (
+          <ThreadView
+            key={paneThreadId}
+            thread={thread}
+            agentStatus={agentStatus}
+            showCloseButton={paneCount > 1}
+            paneAlign={paneAlign}
+            isDragging={paneDragSource === paneThreadId}
+            paneDragActive={paneDragSource !== undefined}
+            dropIndicator={paneDropTarget === paneThreadId}
+            onPaneDragStart={
+              paneCount > 1
+                ? () => {
+                    setPaneDragSource(paneThreadId);
+                    setPaneDropTarget(undefined);
+                  }
+                : undefined
+            }
+            onPaneDragEnd={
+              paneCount > 1
+                ? () => {
+                    setPaneDragSource(undefined);
+                    setPaneDropTarget(undefined);
+                  }
+                : undefined
+            }
+            onPaneDragOver={
+              paneCount > 1
+                ? () => {
+                    if (!paneDragSource || paneDragSource === paneThreadId) return;
+                    setPaneDropTarget(paneThreadId);
+                  }
+                : undefined
+            }
+            onPaneDrop={
+              paneCount > 1
+                ? () => {
+                    if (!paneDragSource || paneDragSource === paneThreadId) return;
+                    const sourceIdx = view.panes.indexOf(paneDragSource);
+                    const targetIdx = view.panes.indexOf(paneThreadId);
+                    const placement: ReorderPlacement = sourceIdx < targetIdx ? "after" : "before";
+                    startTransition(() => reorderPanes(paneDragSource, paneThreadId, placement));
+                    setPaneDragSource(undefined);
+                    setPaneDropTarget(undefined);
+                  }
+                : undefined
+            }
+            onClose={() => closePane(paneThreadId)}
+            onConfigChange={(config) => updateThreadConfig(thread.id, config)}
+            pendingServerRequests={pendingServerRequests.filter(
+              (request) => request.threadId === thread.id,
+            )}
+            onResolveServerRequest={async ({ requestId, method, response }) => {
+              await readBridge().resolveThreadServerRequest({
+                threadId: thread.id,
+                requestId,
+                method,
+                response,
+              });
+              removeThreadServerRequest(thread.id, requestId);
+              touchThread(thread.id);
+            }}
+            onSubmitInput={async (prompt) => {
+              await readBridge().sendThreadInput({
+                threadId: thread.id,
+                prompt,
+                config: thread.config,
+              });
+              touchThread(thread.id);
+            }}
+          />
+        );
+      })
+      .filter(Boolean);
+
+    if (paneElements.length === 0) {
       return <HomeView />;
     }
-    const project = projects.find((item) => item.id === thread.projectId);
-    if (!project) {
-      return <HomeView />;
-    }
-    const agentStatus = agentStatuses.find((status) => status.kind === thread.agentKind);
-    return (
-      <ThreadView
-        thread={thread}
-        agentStatus={agentStatus}
-        onConfigChange={(config) => updateThreadConfig(thread.id, config)}
-        pendingServerRequests={pendingServerRequests.filter(
-          (request) => request.threadId === thread.id,
-        )}
-        onResolveServerRequest={async ({ requestId, method, response }) => {
-          await readBridge().resolveThreadServerRequest({
-            threadId: thread.id,
-            requestId,
-            method,
-            response,
-          });
-          removeThreadServerRequest(thread.id, requestId);
-          touchThread(thread.id);
-        }}
-        onSubmitInput={async (prompt) => {
-          await readBridge().sendThreadInput({
-            threadId: thread.id,
-            prompt,
-            config: thread.config,
-          });
-          touchThread(thread.id);
-        }}
-      />
-    );
+
+    return <SplitPaneContainer>{paneElements}</SplitPaneContainer>;
   }
 
   return <HomeView />;
@@ -262,6 +330,8 @@ export function App() {
   const addProject = useAppStore((state) => state.addProject);
   const openDraft = useAppStore((state) => state.openDraft);
   const openThread = useAppStore((state) => state.openThread);
+  const openThreadSideBySide = useAppStore((state) => state.openThreadSideBySide);
+  const replaceSecondPane = useAppStore((state) => state.replaceSecondPane);
   const openHome = useAppStore((state) => state.openHome);
   const deleteThread = useAppStore((state) => state.deleteThread);
   const reconcileRuntimeSnapshots = useAppStore((state) => state.reconcileRuntimeSnapshots);
@@ -269,6 +339,7 @@ export function App() {
   const reorderThreads = useAppStore((state) => state.reorderThreads);
   const updateThreadRuntime = useAppStore((state) => state.updateThreadRuntime);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(true);
   const [storeHydrated, setStoreHydrated] = useState(() => useAppStore.persist.hasHydrated());
   const [reopenAttempted] = useState(() => new Set<string>());
   const reopenStoredThread = useEffectEvent(
@@ -353,6 +424,12 @@ export function App() {
         startTransition(() => {
           setAgentStatuses(statuses);
         });
+      })
+      .catch(() => undefined)
+      .finally(() => {
+        if (isActive) {
+          setInitialLoading(false);
+        }
       });
 
     void readBridge()
@@ -367,23 +444,21 @@ export function App() {
         // "inactive".  Only reconcile the selected thread so stale
         // sessions don't get resurrected.  Close the rest so orphaned
         // PTYs don't leak in the supervisor.
-        const selectedId =
-          useAppStore.getState().view.kind === "thread"
-            ? useAppStore.getState().view.threadId
-            : undefined;
-        const storeThreadIds = new Set(
-          useAppStore.getState().threads.map((t) => t.id),
-        );
+        const currentView = useAppStore.getState().view;
+        const selectedIds = new Set(currentView.kind === "thread" ? currentView.panes : []);
+        const storeThreadIds = new Set(useAppStore.getState().threads.map((t) => t.id));
 
         for (const snapshot of snapshots) {
-          if (snapshot.threadId !== selectedId && storeThreadIds.has(snapshot.threadId)) {
-            void readBridge().closeThread({ threadId: snapshot.threadId }).catch(() => undefined);
+          if (!selectedIds.has(snapshot.threadId) && storeThreadIds.has(snapshot.threadId)) {
+            void readBridge()
+              .closeThread({ threadId: snapshot.threadId })
+              .catch(() => undefined);
           }
         }
 
         startTransition(() => {
           reconcileRuntimeSnapshots(
-            selectedId ? snapshots.filter((s) => s.threadId === selectedId) : [],
+            selectedIds.size > 0 ? snapshots.filter((s) => selectedIds.has(s.threadId)) : [],
           );
         });
       });
@@ -398,7 +473,8 @@ export function App() {
         startTransition(() => {
           setWslDistros(distros);
         });
-      });
+      })
+      .catch(() => undefined);
 
     return () => {
       isActive = false;
@@ -411,33 +487,44 @@ export function App() {
     storeHydrated,
   ]);
 
+  const currentPaneIds = view.kind === "thread" ? view.panes : EMPTY_PANES;
   const currentProjectId =
     view.kind === "draft"
       ? view.projectId
       : view.kind === "thread"
-        ? threads.find((thread) => thread.id === view.threadId)?.projectId
+        ? threads.find((thread) => thread.id === view.panes[0])?.projectId
         : undefined;
-  const currentThread =
-    view.kind === "thread" ? threads.find((thread) => thread.id === view.threadId) : undefined;
-  const currentProject = currentThread
-    ? projects.find((project) => project.id === currentThread.projectId)
-    : undefined;
 
   useEffect(() => {
-    if (
-      !storeHydrated ||
-      !currentThread ||
-      !currentProject ||
-      currentThread.status !== "inactive"
-    ) {
-      return;
-    }
+    if (!storeHydrated) return;
 
-    reopenStoredThread({
-      threadId: currentThread.id,
-      projectLocation: currentProject.location,
-    });
-  }, [currentProject, currentThread, reopenStoredThread, storeHydrated]);
+    for (const paneId of currentPaneIds) {
+      const thread = threads.find((t) => t.id === paneId);
+      if (!thread || thread.status !== "inactive") continue;
+      const project = projects.find((p) => p.id === thread.projectId);
+      if (!project) continue;
+      reopenStoredThread({
+        threadId: thread.id,
+        projectLocation: project.location,
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- reopenStoredThread is a useEffectEvent
+  }, [currentPaneIds, threads, projects, storeHydrated]);
+
+  if (initialLoading) {
+    return (
+      <AppProvider>
+        <div className="flex h-screen w-screen items-center justify-center bg-background text-foreground">
+          <div className="flex flex-col items-center gap-4">
+            <Spinner size="lg" />
+            <p className="text-sm text-muted">
+              {environmentMode === "wsl" ? "Connecting to WSL\u2026" : "Loading\u2026"}
+            </p>
+          </div>
+        </div>
+      </AppProvider>
+    );
+  }
 
   return (
     <AppProvider>
@@ -447,7 +534,7 @@ export function App() {
             projects={projects}
             threads={threads}
             currentProjectId={currentProjectId}
-            currentThreadId={view.kind === "thread" ? view.threadId : undefined}
+            currentThreadIds={view.kind === "thread" ? view.panes : []}
             environmentMode={environmentMode}
             wslAvailable={wslDistros.length > 0}
             onOpenNewThread={(projectId) => {
@@ -480,12 +567,13 @@ export function App() {
                     const parsed = parseWslUncPath(selectedPath);
                     if (!parsed) return;
                     startTransition(() => {
-                      addProject({
+                      const project = addProject({
                         kind: "wsl",
                         distro: parsed.distro,
                         linuxPath: parsed.linuxPath,
                         uncPath: selectedPath,
                       });
+                      openDraft(project.id);
                     });
                   });
               } else {
@@ -494,7 +582,8 @@ export function App() {
                   .then((path) => {
                     if (!path) return;
                     startTransition(() => {
-                      addProject({ kind: "windows", path });
+                      const project = addProject({ kind: "windows", path });
+                      openDraft(project.id);
                     });
                   });
               }
@@ -512,6 +601,40 @@ export function App() {
 
               startTransition(() => {
                 openThread(threadId);
+              });
+
+              if (storeHydrated && thread?.status === "inactive" && project) {
+                reopenStoredThread({
+                  threadId,
+                  projectLocation: project.location,
+                });
+              }
+            }}
+            onOpenThreadSideBySide={(threadId) => {
+              const thread = threads.find((item) => item.id === threadId);
+              const project = thread
+                ? projects.find((item) => item.id === thread.projectId)
+                : undefined;
+
+              startTransition(() => {
+                openThreadSideBySide(threadId);
+              });
+
+              if (storeHydrated && thread?.status === "inactive" && project) {
+                reopenStoredThread({
+                  threadId,
+                  projectLocation: project.location,
+                });
+              }
+            }}
+            onReplaceSecondPane={(threadId) => {
+              const thread = threads.find((item) => item.id === threadId);
+              const project = thread
+                ? projects.find((item) => item.id === thread.projectId)
+                : undefined;
+
+              startTransition(() => {
+                replaceSecondPane(threadId);
               });
 
               if (storeHydrated && thread?.status === "inactive" && project) {

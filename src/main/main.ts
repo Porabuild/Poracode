@@ -127,6 +127,10 @@ function startSupervisor(): void {
   child.on("exit", () => {
     if (supervisor === child) {
       supervisor = null;
+      for (const [id, pending] of pendingRequests) {
+        pending.reject(new Error("Supervisor exited unexpectedly."));
+        pendingRequests.delete(id);
+      }
     }
   });
 }

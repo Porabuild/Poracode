@@ -1,6 +1,7 @@
 export * from "./Button";
 export * from "./Card";
 export * from "./Chip";
+export * from "./ContextMenu";
 export * from "./Input";
 export * from "./OptionMenu";
 export * from "./PromptOptions";

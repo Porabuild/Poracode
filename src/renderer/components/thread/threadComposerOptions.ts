@@ -16,8 +16,7 @@ export function modelOptions(
 ): { id: string; label: string }[] {
   return withCurrentValue(models, currentValue).map((id) => ({
     id,
-    label:
-      MODEL_LABELS[id] ?? id.replace(/^gpt-/i, "").replace(/\b\w/g, (c) => c.toUpperCase()),
+    label: MODEL_LABELS[id] ?? id.replace(/^gpt-/i, "").replace(/\b\w/g, (c) => c.toUpperCase()),
   }));
 }
 

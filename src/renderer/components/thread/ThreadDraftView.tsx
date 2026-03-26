@@ -8,7 +8,7 @@ import type {
 } from "../../../shared/contracts";
 import { ClaudeIcon, CodexStatusIcon } from "../providers";
 import { ThreadComposer } from "./ThreadComposer";
-import { formatCompactLabel, modelOptions, withCurrentValue } from "./threadComposerOptions";
+import { formatCompactLabel, modelOptions } from "./threadComposerOptions";
 
 export function ThreadDraftView(props: {
   project: Project;
@@ -61,8 +61,12 @@ export function ThreadDraftView(props: {
     selectedAgent?.capabilities.modelEfforts?.[model] ?? selectedAgent?.capabilities.efforts ?? [];
 
   const [lastResetAgentKind, setLastResetAgentKind] = useState(agentKind);
-  if (selectedAgent && agentKind !== lastResetAgentKind) {
+  const [wasAgentResolved, setWasAgentResolved] = useState(!!selectedAgent);
+  const needsAgentReset =
+    selectedAgent && (agentKind !== lastResetAgentKind || (!wasAgentResolved && !lastDraftConfig));
+  if (needsAgentReset) {
     setLastResetAgentKind(agentKind);
+    if (!wasAgentResolved) setWasAgentResolved(true);
     setModel(selectedAgent.capabilities.models[0] ?? "");
     setEffort(
       selectedAgent.capabilities.defaultEffort ?? selectedAgent.capabilities.efforts[0] ?? "",
@@ -108,7 +112,7 @@ export function ThreadDraftView(props: {
 
             <div className="mt-10 w-full max-w-[920px] pt-2">
               <ThreadComposer
-                autoFocus
+                autoFocus // eslint-disable-line jsx-a11y/no-autofocus -- desktop app, expected UX
                 controls={[
                   {
                     icon:

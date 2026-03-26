@@ -108,7 +108,7 @@ export function AppShell(props: { sidebar: ReactNode; content: ReactNode }) {
 
         <aside
           className={`relative min-h-0 border-r border-[color:var(--border)] -mt-5 h-[calc(100%+0.75rem)] overflow-hidden ${
-            !isResizing ? "transition-[width] duration-200" : ""
+            !isResizing ? "transition-[width,min-width] duration-200" : ""
           }`}
           style={{ width: displayWidth, minWidth: displayWidth }}
         >

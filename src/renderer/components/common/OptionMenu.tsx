@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import type { Selection } from "@heroui/react";
-import { Dropdown, Label } from "@heroui/react";
+import { Dropdown, Label, Tooltip } from "@heroui/react";
 import { ChevronDown } from "lucide-react";
 import { Button, type ButtonProps } from "./Button";
 
@@ -13,6 +13,8 @@ export interface OptionMenuProps {
   isDisabled?: boolean;
   className?: string;
   buttonVariant?: ButtonProps["variant"];
+  hideLabelOnWrap?: boolean;
+  tooltip?: string | undefined;
 }
 
 export function OptionMenu(props: OptionMenuProps) {
@@ -25,6 +27,8 @@ export function OptionMenu(props: OptionMenuProps) {
     isDisabled = false,
     className,
     buttonVariant = "secondary",
+    hideLabelOnWrap = false,
+    tooltip,
   } = props;
   const normalizedOptions = options.map((option) =>
     typeof option === "string" ? { id: option, label: option, icon: undefined } : option,
@@ -33,19 +37,38 @@ export function OptionMenu(props: OptionMenuProps) {
     normalizedOptions.find((option) => option.id === value)?.label || value || placeholder;
   const buttonProps = className ? { className } : {};
 
+  const button = (
+    <Button
+      aria-label={placeholder}
+      isDisabled={isDisabled || normalizedOptions.length === 0}
+      size="sm"
+      variant={buttonVariant}
+      {...buttonProps}
+    >
+      {icon}
+      <span className={hideLabelOnWrap ? "lightcode-composer-label-hideable truncate" : "truncate"}>
+        {currentValue}
+      </span>
+      <ChevronDown
+        className={
+          hideLabelOnWrap
+            ? "lightcode-composer-label-hideable size-3.5 text-muted"
+            : "size-3.5 text-muted"
+        }
+      />
+    </Button>
+  );
+
   return (
     <Dropdown>
-      <Button
-        aria-label={placeholder}
-        isDisabled={isDisabled || normalizedOptions.length === 0}
-        size="sm"
-        variant={buttonVariant}
-        {...buttonProps}
-      >
-        {icon}
-        <span className="truncate">{currentValue}</span>
-        <ChevronDown className="size-3.5 text-muted" />
-      </Button>
+      {tooltip ? (
+        <Tooltip>
+          {button}
+          <Tooltip.Content placement="top">{tooltip}</Tooltip.Content>
+        </Tooltip>
+      ) : (
+        button
+      )}
       <Dropdown.Popover placement="top">
         <Dropdown.Menu
           aria-label="Options"

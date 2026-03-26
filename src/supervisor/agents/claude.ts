@@ -2,8 +2,6 @@ import { randomUUID } from "node:crypto";
 import type {
   AgentCapability,
   AgentStatus,
-  ProjectLocation,
-  SessionRef,
   TerminalPrompt,
   ThreadConfig,
 } from "../../shared/contracts";
@@ -15,9 +13,7 @@ import {
   resolveWslExecutablePath,
   wrapWslCommand,
   type AgentEnvContext,
-  type AgentLaunchOptions,
   type AgentAdapter,
-  type CommandSpec,
   type TerminalStatusHint,
 } from "./base";
 
@@ -136,10 +132,21 @@ export function createClaudeAdapter(): AgentAdapter {
   };
 }
 
-type HintEntry = { re: RegExp; status: TerminalStatusHint["status"]; attention: TerminalStatusHint["attention"]; hasPrompt: boolean; planMode?: boolean };
+type HintEntry = {
+  re: RegExp;
+  status: TerminalStatusHint["status"];
+  attention: TerminalStatusHint["attention"];
+  hasPrompt: boolean;
+  planMode?: boolean;
+};
 
 const CLAUDE_HINTS: HintEntry[] = [
-  { re: /Esc to cancel\s.*Tab to amend/, status: "needs_approval", attention: "needs_approval", hasPrompt: true },
+  {
+    re: /Esc to cancel\s.*Tab to amend/,
+    status: "needs_approval",
+    attention: "needs_approval",
+    hasPrompt: true,
+  },
   { re: /Enter to select/, status: "needs_reply", attention: "needs_reply", hasPrompt: true },
   { re: /esc to interrupt/, status: "working", attention: "working", hasPrompt: false },
   // Animated spinner (✻✶✽✢*) + text + ellipsis — universal working indicator
