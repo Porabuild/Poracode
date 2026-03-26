@@ -18,7 +18,7 @@ import {
 import { useEffect, useState, type DragEvent } from "react";
 import type { EnvironmentMode, Project, Thread } from "../../../shared/contracts";
 import { isReorderNoOp, type ReorderPlacement } from "../../state/reorder";
-import { Button, ContextMenu } from "../common";
+import { Button, ContextMenu, SidebarButton } from "../common";
 import { useSidebar } from "../layout/AppShell";
 import { readBridge } from "../../bridge";
 import { useUpdateStore } from "../../state/updateStore";
@@ -66,53 +66,6 @@ function renderDropIndicator(position: ReorderPlacement) {
         position === "before" ? "top-0" : "bottom-0"
       }`}
     />
-  );
-}
-
-function SidebarButton(props: {
-  icon: React.ReactNode;
-  label: string;
-  onPress?: () => void;
-  isDisabled?: boolean;
-  isActive?: boolean;
-  iconOnly?: boolean;
-}) {
-  const { icon, label, onPress, isDisabled = false, isActive = false, iconOnly = false } = props;
-
-  const stateClass = isDisabled
-    ? "cursor-not-allowed text-muted/40"
-    : isActive
-      ? "bg-white/[0.08] text-foreground"
-      : "text-muted hover:bg-white/[0.04] hover:text-foreground";
-
-  if (iconOnly) {
-    return (
-      <Tooltip delay={150}>
-        <Tooltip.Trigger>
-          <button
-            className={`flex h-8 w-8 shrink-0 cursor-default items-center justify-center rounded-3xl transition-colors ${stateClass}`}
-            disabled={isDisabled}
-            onClick={onPress}
-            type="button"
-          >
-            {icon}
-          </button>
-        </Tooltip.Trigger>
-        <Tooltip.Content placement="right">{label}</Tooltip.Content>
-      </Tooltip>
-    );
-  }
-
-  return (
-    <button
-      className={`flex w-full cursor-default items-center gap-2 rounded-3xl px-4 py-1.5 text-left text-sm transition-colors ${stateClass}`}
-      disabled={isDisabled}
-      onClick={onPress}
-      type="button"
-    >
-      {icon}
-      <span>{label}</span>
-    </button>
   );
 }
 
@@ -594,14 +547,23 @@ export function Sidebar(props: {
                                   if (key === "delete") onDeleteThread(thread.id);
                                 }}
                               >
-                                {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions -- inner buttons handle a11y; outer div is a click target only */}
-                                <div
-                                  className={`group flex w-full cursor-default items-center gap-2 rounded-3xl border-none bg-transparent px-2.5 py-1.5 text-left transition-colors ${
-                                    isCurrentThread
-                                      ? "bg-white/[0.08] text-foreground"
-                                      : "text-muted hover:bg-white/[0.04] hover:text-foreground"
-                                  } ${isDraggedThread ? "opacity-60" : ""}`}
-                                  onClick={() => onOpenThread(thread.id)}
+                                <SidebarButton
+                                  icon={
+                                    thread.agentKind === "codex" ? (
+                                      <CodexStatusIcon
+                                        className="size-3.5 shrink-0"
+                                        tone={statusTone}
+                                      />
+                                    ) : thread.agentKind === "claude" ? (
+                                      <ClaudeIcon className="size-3.5 shrink-0" tone={statusTone} />
+                                    ) : (
+                                      <div className="size-3.5 shrink-0" />
+                                    )
+                                  }
+                                  label={thread.title}
+                                  isActive={isCurrentThread}
+                                  className={isDraggedThread ? "opacity-60" : ""}
+                                  onPress={() => onOpenThread(thread.id)}
                                   onDragOver={(event) => {
                                     if (
                                       !dragItem ||
@@ -665,60 +627,58 @@ export function Sidebar(props: {
                                     setDragItem(undefined);
                                     setDropIndicator(undefined);
                                   }}
-                                >
-                                  <div className="flex min-w-0 flex-1 items-center gap-2 text-left">
-                                    {thread.agentKind === "codex" ? (
-                                      <CodexStatusIcon
-                                        className="size-3.5 shrink-0"
-                                        tone={statusTone}
-                                      />
-                                    ) : thread.agentKind === "claude" ? (
-                                      <ClaudeIcon className="size-3.5 shrink-0" tone={statusTone} />
-                                    ) : null}
-                                    <p className="min-w-0 flex-1 truncate text-sm font-medium">
-                                      {thread.title}
-                                    </p>
-                                  </div>
-                                  <span className="relative shrink-0">
-                                    <span className="text-[11px] text-muted group-hover:invisible">
-                                      {formatRelativeTime(thread.updatedAt)}
-                                    </span>
-                                    <button
-                                      aria-label={`Delete ${thread.title}`}
-                                      className="absolute inset-0 flex items-center justify-center rounded text-muted/55 opacity-0 transition hover:text-danger group-hover:opacity-100 focus-visible:opacity-100"
-                                      onClick={(event) => {
-                                        event.stopPropagation();
-                                        onDeleteThread(thread.id);
-                                      }}
-                                      type="button"
-                                    >
-                                      <Trash2 className="size-3.5" />
-                                    </button>
-                                  </span>
-                                  <button
-                                    aria-grabbed={isDraggedThread}
-                                    aria-label={`Reorder ${thread.title}`}
-                                    className="shrink-0 cursor-grab rounded text-muted/60 active:cursor-grabbing"
-                                    draggable
-                                    onDragEnd={() => {
-                                      setDragItem(undefined);
-                                      setDropIndicator(undefined);
-                                    }}
-                                    onDragStart={(event) => {
-                                      event.dataTransfer.effectAllowed = "move";
-                                      event.dataTransfer.setData("text/plain", thread.id);
-                                      setDragItem({
-                                        type: "thread",
-                                        id: thread.id,
-                                        projectId: project.id,
-                                      });
-                                      setDropIndicator(undefined);
-                                    }}
-                                    type="button"
-                                  >
-                                    <GripVertical className="size-3.5" />
-                                  </button>
-                                </div>
+                                  suffix={
+                                    <>
+                                      <span className="relative shrink-0">
+                                        <span className="text-[11px] text-muted group-hover:invisible">
+                                          {formatRelativeTime(thread.updatedAt)}
+                                        </span>
+                                        <div
+                                          aria-label={`Delete ${thread.title}`}
+                                          role="button"
+                                          tabIndex={-1}
+                                          className="absolute inset-0 flex items-center justify-center rounded text-muted/55 opacity-0 transition hover:text-danger group-hover:opacity-100"
+                                          onClick={(event) => {
+                                            event.stopPropagation();
+                                            onDeleteThread(thread.id);
+                                          }}
+                                          onKeyDown={(event) => {
+                                            if (event.key === "Enter" || event.key === " ") {
+                                              event.stopPropagation();
+                                              onDeleteThread(thread.id);
+                                            }
+                                          }}
+                                        >
+                                          <Trash2 className="size-3.5" />
+                                        </div>
+                                      </span>
+                                      <div
+                                        aria-grabbed={isDraggedThread}
+                                        aria-label={`Reorder ${thread.title}`}
+                                        role="button"
+                                        tabIndex={-1}
+                                        className="shrink-0 cursor-grab rounded text-muted/60 active:cursor-grabbing"
+                                        draggable
+                                        onDragEnd={() => {
+                                          setDragItem(undefined);
+                                          setDropIndicator(undefined);
+                                        }}
+                                        onDragStart={(event) => {
+                                          event.dataTransfer.effectAllowed = "move";
+                                          event.dataTransfer.setData("text/plain", thread.id);
+                                          setDragItem({
+                                            type: "thread",
+                                            id: thread.id,
+                                            projectId: project.id,
+                                          });
+                                          setDropIndicator(undefined);
+                                        }}
+                                      >
+                                        <GripVertical className="size-3.5" />
+                                      </div>
+                                    </>
+                                  }
+                                />
                               </ContextMenu>
                             </div>
                           );

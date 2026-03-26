@@ -1,9 +1,9 @@
-import { ArrowLeft, Settings2 } from "lucide-react";
+import { ArrowLeft, PanelLeft, PanelLeftClose, Settings2 } from "lucide-react";
 import { startTransition, useState } from "react";
 import type { ThemeMode } from "../../../shared/contracts";
 import { useSharedSettings } from "../../state/sharedSettingsStore";
-import { Select } from "../common";
-import { AppShell } from "../layout/AppShell";
+import { Select, SidebarButton } from "../common";
+import { AppShell, useSidebar } from "../layout/AppShell";
 
 const themeOptions = [
   { id: "system", label: "System" },
@@ -19,39 +19,71 @@ function SettingsSidebar(props: {
   onClose: () => void;
 }) {
   const { activeSection, onSectionChange, onClose } = props;
+  const { isCollapsed, collapse, expand } = useSidebar();
 
   return (
-    <div className="flex h-full min-h-0 flex-col gap-3 px-3 pb-1 pt-0">
-      <div className="flex items-center justify-between px-1.5">
-        <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted">Settings</p>
-      </div>
+    <div className="relative h-full">
+      {/* Collapsed icon rail */}
+      {isCollapsed && (
+        <div className="absolute inset-0 z-10 flex h-full min-h-0 flex-col items-start gap-3 pl-2 pb-1 pt-0">
+          <div className="min-h-0 flex-1 space-y-0.5 overflow-y-auto">
+            <SidebarButton
+              iconOnly
+              icon={<Settings2 className="size-4" />}
+              label="General"
+              isActive={activeSection === "general"}
+              onPress={() => onSectionChange("general")}
+            />
+          </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto px-1 pr-0.5">
-        <div className="space-y-0.5">
-          <button
-            className={`flex w-full items-center gap-2.5 rounded-2xl px-2.5 py-1.5 text-left text-sm transition-colors ${
-              activeSection === "general"
-                ? "bg-white/[0.08] text-foreground"
-                : "text-muted hover:bg-white/[0.04] hover:text-foreground"
-            }`}
-            onClick={() => onSectionChange("general")}
-            type="button"
-          >
-            <Settings2 className="size-4" />
-            <span>General</span>
-          </button>
+          <div className="space-y-1 border-t border-white/6 pt-2 pr-2">
+            <SidebarButton
+              iconOnly
+              icon={<ArrowLeft className="size-4" />}
+              label="Return to app"
+              onPress={onClose}
+            />
+            <SidebarButton
+              iconOnly
+              icon={<PanelLeft className="size-4" />}
+              label="Show sidebar"
+              onPress={expand}
+            />
+          </div>
         </div>
-      </div>
+      )}
 
-      <div className="space-y-1 border-t border-white/6 pt-2">
-        <button
-          className="flex w-full cursor-default items-center gap-2 rounded-3xl px-4 py-1.5 text-left text-sm text-muted transition-colors hover:bg-white/[0.04] hover:text-foreground"
-          onClick={onClose}
-          type="button"
-        >
-          <ArrowLeft className="size-4" />
-          <span>Return to app</span>
-        </button>
+      {/* Expanded sidebar */}
+      <div
+        className={`flex h-full min-h-0 flex-col gap-3 px-3 pb-1 pt-0 transition-opacity duration-150 ${isCollapsed ? "invisible opacity-0" : "opacity-100 delay-100"}`}
+      >
+        <div className="flex items-center justify-between px-1.5">
+          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted">Settings</p>
+        </div>
+
+        <div className="min-h-0 flex-1 overflow-y-auto px-1 pr-0.5">
+          <div className="space-y-0.5">
+            <SidebarButton
+              icon={<Settings2 className="size-4" />}
+              label="General"
+              isActive={activeSection === "general"}
+              onPress={() => onSectionChange("general")}
+            />
+          </div>
+        </div>
+
+        <div className="space-y-1 border-t border-white/6 pt-2">
+          <SidebarButton
+            icon={<ArrowLeft className="size-4" />}
+            label="Return to app"
+            onPress={onClose}
+          />
+          <SidebarButton
+            icon={<PanelLeftClose className="size-4" />}
+            label="Hide sidebar"
+            onPress={collapse}
+          />
+        </div>
       </div>
     </div>
   );
