@@ -21,20 +21,7 @@ function SettingsSidebar(props: {
   const { activeSection, onSectionChange, onClose } = props;
 
   return (
-    <div className="flex h-full min-h-0 flex-col gap-3 px-3 pb-3 pt-0">
-      <div className="space-y-1">
-        <button
-          className="flex w-full items-center gap-2.5 rounded-xl px-2 py-1 text-left transition-colors hover:bg-white/[0.04]"
-          onClick={onClose}
-          type="button"
-        >
-          <div className="flex size-6 items-center justify-center rounded-full border border-white/8 bg-white/[0.03]">
-            <ArrowLeft className="size-3 text-muted" />
-          </div>
-          <p className="truncate text-sm font-medium text-foreground">Return to app</p>
-        </button>
-      </div>
-
+    <div className="flex h-full min-h-0 flex-col gap-3 px-3 pb-1 pt-0">
       <div className="flex items-center justify-between px-1.5">
         <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted">Settings</p>
       </div>
@@ -54,6 +41,17 @@ function SettingsSidebar(props: {
             <span>General</span>
           </button>
         </div>
+      </div>
+
+      <div className="space-y-1 border-t border-white/6 pt-2">
+        <button
+          className="flex w-full cursor-default items-center gap-2 rounded-3xl px-4 py-1.5 text-left text-sm text-muted transition-colors hover:bg-white/[0.04] hover:text-foreground"
+          onClick={onClose}
+          type="button"
+        >
+          <ArrowLeft className="size-4" />
+          <span>Return to app</span>
+        </button>
       </div>
     </div>
   );
