@@ -140,6 +140,9 @@ export function Sidebar(props: {
   onDeleteThread: (threadId: string) => void;
   onOpenHome: () => void;
   onOpenSettings: () => void;
+  onOpenTerminal: (projectId: string) => void;
+  terminalProjectIds: string[];
+  activeTerminalProjectId: string | null;
   onReorderProjects: (
     sourceProjectId: string,
     targetProjectId: string,
@@ -167,6 +170,9 @@ export function Sidebar(props: {
     onDeleteThread,
     onOpenHome,
     onOpenSettings,
+    onOpenTerminal,
+    terminalProjectIds,
+    activeTerminalProjectId,
     onReorderProjects,
     onReorderThreads,
   } = props;
@@ -209,71 +215,72 @@ export function Sidebar(props: {
       {/* Collapsed icon rail overlay — width 48px, icons centered at 24px (pl-2 + w-8/2) */}
       {isCollapsed && (
         <div className="absolute inset-0 z-10 flex h-full min-h-0 flex-col items-start gap-3 pl-2 pb-1 pt-0">
-        {/* App icon — centered at 24px (pl-2 + w-8/2) */}
-        <Tooltip delay={150}>
-          <Tooltip.Trigger>
-            <button
-              className="flex h-11 w-8 cursor-default items-center justify-center transition-colors hover:bg-white/[0.04] rounded-3xl"
-              onClick={onOpenHome}
-              type="button"
-            >
-              <div className="flex size-6 items-center justify-center rounded-full border border-white/8 bg-white/[0.03]">
-                <div className="size-2.5 rounded-full border border-white/70" />
-              </div>
-            </button>
-          </Tooltip.Trigger>
-          <Tooltip.Content placement="right">Lightcode</Tooltip.Content>
-        </Tooltip>
+          {/* App icon — centered at 24px (pl-2 + w-8/2) */}
+          <Tooltip delay={150}>
+            <Tooltip.Trigger>
+              <button
+                className="flex h-11 w-8 cursor-default items-center justify-center transition-colors hover:bg-white/[0.04] rounded-3xl"
+                onClick={onOpenHome}
+                type="button"
+              >
+                <div className="flex size-6 items-center justify-center rounded-full border border-white/8 bg-white/[0.03]">
+                  <div className="size-2.5 rounded-full border border-white/70" />
+                </div>
+              </button>
+            </Tooltip.Trigger>
+            <Tooltip.Content placement="right">Lightcode</Tooltip.Content>
+          </Tooltip>
 
-        {/* Thread icons — only active threads */}
-        <div className="min-h-0 flex-1 space-y-0.5 overflow-y-auto">
-          {activeThreads.map((thread) => (
-            <SidebarButton
-              key={thread.id}
-              iconOnly
-              icon={<ThreadIcon thread={thread} />}
-              label={thread.title}
-              isActive={currentThreadIds.includes(thread.id)}
-              onPress={() => onOpenThread(thread.id)}
-            />
-          ))}
-        </div>
+          {/* Thread icons — only active threads */}
+          <div className="min-h-0 flex-1 space-y-0.5 overflow-y-auto">
+            {activeThreads.map((thread) => (
+              <SidebarButton
+                key={thread.id}
+                iconOnly
+                icon={<ThreadIcon thread={thread} />}
+                label={thread.title}
+                isActive={currentThreadIds.includes(thread.id)}
+                onPress={() => onOpenThread(thread.id)}
+              />
+            ))}
+          </div>
 
-        {/* Footer icons */}
-        <div className="space-y-1 border-t border-white/6 pt-2 pr-2">
-          {environmentMode === "windows" && !wslAvailable ? (
+          {/* Footer icons */}
+          <div className="space-y-1 border-t border-white/6 pt-2 pr-2">
+            {environmentMode === "windows" && !wslAvailable ? (
+              <SidebarButton
+                iconOnly
+                isDisabled
+                icon={<TerminalSquare className="size-4" />}
+                label="No WSL distros detected"
+              />
+            ) : (
+              <SidebarButton
+                iconOnly
+                icon={switchModeIcon}
+                label={switchModeLabel}
+                onPress={onSwitchMode}
+              />
+            )}
             <SidebarButton
               iconOnly
-              isDisabled
-              icon={<TerminalSquare className="size-4" />}
-              label="No WSL distros detected"
+              icon={<Settings2 className="size-4" />}
+              label="Settings"
+              onPress={onOpenSettings}
             />
-          ) : (
             <SidebarButton
               iconOnly
-              icon={switchModeIcon}
-              label={switchModeLabel}
-              onPress={onSwitchMode}
+              icon={<PanelLeft className="size-4" />}
+              label="Show sidebar"
+              onPress={expand}
             />
-          )}
-          <SidebarButton
-            iconOnly
-            icon={<Settings2 className="size-4" />}
-            label="Settings"
-            onPress={onOpenSettings}
-          />
-          <SidebarButton
-            iconOnly
-            icon={<PanelLeft className="size-4" />}
-            label="Show sidebar"
-            onPress={expand}
-          />
+          </div>
         </div>
-      </div>
       )}
 
       {/* Full expanded sidebar — icons centered at 24px (branding px-3 + w-6/2, buttons px-4 + w-4/2) */}
-      <div className={`flex h-full min-h-0 flex-col gap-3 px-3 pb-1 pt-0 transition-opacity duration-150 ${isCollapsed ? "invisible opacity-0" : "opacity-100 delay-100"}`}
+      <div
+        className={`flex h-full min-h-0 flex-col gap-3 px-3 pb-1 pt-0 transition-opacity duration-150 ${isCollapsed ? "invisible opacity-0" : "opacity-100 delay-100"}`}
       >
         <div className="space-y-1">
           <button
@@ -414,7 +421,21 @@ export function Sidebar(props: {
                         </div>
                       </button>
 
-                      <div className="flex shrink-0 items-center self-center">
+                      <div className="flex shrink-0 items-center gap-0.5 self-center">
+                        <button
+                          aria-label={`Terminal for ${project.name}`}
+                          className={`shrink-0 cursor-default rounded p-0.5 transition-colors hover:text-foreground ${
+                            activeTerminalProjectId === project.id
+                              ? "text-accent"
+                              : terminalProjectIds.includes(project.id)
+                                ? "text-foreground"
+                                : "text-muted/60"
+                          }`}
+                          onClick={() => onOpenTerminal(project.id)}
+                          type="button"
+                        >
+                          <TerminalSquare className="size-3.5" />
+                        </button>
                         <button
                           aria-grabbed={isDraggedProject}
                           aria-label={`Reorder ${project.name}`}
@@ -500,8 +521,8 @@ export function Sidebar(props: {
                                   if (key === "delete") onDeleteThread(thread.id);
                                 }}
                               >
-                                <button
-                                  type="button"
+                                {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions -- inner buttons handle a11y; outer div is a click target only */}
+                                <div
                                   className={`group flex w-full cursor-default items-center gap-2 rounded-3xl border-none bg-transparent px-2.5 py-1.5 text-left transition-colors ${
                                     isCurrentThread
                                       ? "bg-white/[0.08] text-foreground"
@@ -624,7 +645,7 @@ export function Sidebar(props: {
                                   >
                                     <GripVertical className="size-3.5" />
                                   </button>
-                                </button>
+                                </div>
                               </ContextMenu>
                             </div>
                           );

@@ -13,6 +13,7 @@ const CHANNELS = {
   resizeTerminal: "lightcode:resize-terminal",
   resolveThreadServerRequest: "lightcode:resolve-thread-server-request",
   closeThread: "lightcode:close-thread",
+  startShell: "lightcode:start-shell",
   setWindowChrome: "lightcode:set-window-chrome",
   supervisorEvent: "lightcode:supervisor-event",
 } as const;
@@ -30,6 +31,7 @@ const bridge: LightcodeBridge = {
   resolveThreadServerRequest: (payload) =>
     ipcRenderer.invoke(CHANNELS.resolveThreadServerRequest, payload),
   closeThread: (payload) => ipcRenderer.invoke(CHANNELS.closeThread, payload),
+  startShell: (payload) => ipcRenderer.invoke(CHANNELS.startShell, payload),
   setWindowChrome: (payload) => ipcRenderer.invoke(CHANNELS.setWindowChrome, payload),
   onSupervisorEvent(listener) {
     const handler = (_event: Electron.IpcRendererEvent, payload: SupervisorEvent) => {

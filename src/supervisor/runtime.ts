@@ -15,6 +15,7 @@ import type {
   ResolveThreadServerRequestPayload,
   SendThreadInputPayload,
   SessionRef,
+  StartShellPayload,
   StartThreadPayload,
   StartThreadResult,
   TerminalPrompt,
@@ -61,6 +62,16 @@ interface SessionRuntime {
   prevChunk: string;
 }
 
+interface ShellSessionRuntime {
+  instanceId: string;
+  shellId: string;
+  pty: IPty;
+  logPath: string;
+  outputLength: number;
+  ptyExited?: boolean;
+  ignoreExit?: boolean;
+}
+
 export async function writeSubmittedPrompt(
   pty: Pick<IPty, "write">,
   chunks: readonly string[],
@@ -80,6 +91,7 @@ export class SupervisorRuntime {
     createAgentRegistry().map((adapter) => [adapter.kind, adapter]),
   );
   private readonly sessions = new Map<string, SessionRuntime>();
+  private readonly shellSessions = new Map<string, ShellSessionRuntime>();
   private readonly startLocks = new Map<string, Promise<void>>();
 
   constructor(private readonly emit: (event: SupervisorEvent) => void) {
@@ -315,10 +327,20 @@ export class SupervisorRuntime {
   }
 
   async writeTerminal(payload: WriteTerminalPayload): Promise<void> {
+    const shell = this.shellSessions.get(payload.threadId);
+    if (shell) {
+      shell.pty.write(payload.data);
+      return;
+    }
     this.requireSession(payload.threadId).pty.write(payload.data);
   }
 
   async resizeTerminal(payload: ResizeTerminalPayload): Promise<void> {
+    const shell = this.shellSessions.get(payload.threadId);
+    if (shell) {
+      shell.pty.resize(payload.cols, payload.rows);
+      return;
+    }
     const session = this.sessions.get(payload.threadId);
     if (!session) {
       return;
@@ -327,6 +349,14 @@ export class SupervisorRuntime {
   }
 
   async closeThread(payload: CloseThreadPayload): Promise<void> {
+    const shell = this.shellSessions.get(payload.threadId);
+    if (shell) {
+      shell.ignoreExit = true;
+      this.shellSessions.delete(payload.threadId);
+      this.safeShellPtyKill(shell);
+      return;
+    }
+
     const existing = this.sessions.get(payload.threadId);
     if (!existing) {
       return;
@@ -340,6 +370,76 @@ export class SupervisorRuntime {
       await sleep(150);
     }
     this.safePtyKill(existing);
+  }
+
+  async startShell(payload: StartShellPayload): Promise<void> {
+    // Clean up any prior shell with the same ID.
+    const existing = this.shellSessions.get(payload.shellId);
+    if (existing) {
+      existing.ignoreExit = true;
+      this.shellSessions.delete(payload.shellId);
+      this.safeShellPtyKill(existing);
+    }
+
+    const shellCmd = this.buildShellCommand(payload.projectLocation);
+    const safeId = payload.shellId.replace(/:/g, "_");
+    const logPath = this.resolveLogPath(safeId);
+    resetTerminalLogFile(logPath);
+
+    this.emit({ type: "thread-reset", threadId: payload.shellId });
+
+    console.log(`[supervisor] spawning shell PTY: ${shellCmd.command} ${shellCmd.args.join(" ")}`);
+    const pty = spawn(shellCmd.command, shellCmd.args, {
+      name: process.platform === "win32" ? "xterm-color" : "xterm-256color",
+      cols: 120,
+      rows: 30,
+      ...(shellCmd.cwd ? { cwd: shellCmd.cwd } : {}),
+      env: {
+        ...process.env,
+        TERM: "xterm-256color",
+      },
+    });
+
+    const session: ShellSessionRuntime = {
+      instanceId: randomUUID(),
+      shellId: payload.shellId,
+      pty,
+      logPath,
+      outputLength: 0,
+    };
+
+    this.shellSessions.set(payload.shellId, session);
+
+    pty.onData((data) => {
+      if (this.shellSessions.get(payload.shellId)?.instanceId !== session.instanceId) {
+        return;
+      }
+      session.outputLength += data.length;
+      try {
+        appendFileSync(logPath, data);
+      } catch {
+        /* ignore */
+      }
+      this.emit({
+        type: "thread-output",
+        threadId: payload.shellId,
+        data,
+        outputLength: session.outputLength,
+      });
+    });
+
+    pty.onExit(({ exitCode }) => {
+      session.ptyExited = true;
+      if (session.ignoreExit) {
+        return;
+      }
+      this.shellSessions.delete(payload.shellId);
+      this.emit({
+        type: "thread-exited",
+        threadId: payload.shellId,
+        exitCode: exitCode ?? null,
+      });
+    });
   }
 
   async resolveThreadServerRequest(payload: ResolveThreadServerRequestPayload): Promise<void> {
@@ -358,6 +458,12 @@ export class SupervisorRuntime {
       this.safePtyKill(session);
     }
     this.sessions.clear();
+
+    for (const shell of this.shellSessions.values()) {
+      shell.ignoreExit = true;
+      this.safeShellPtyKill(shell);
+    }
+    this.shellSessions.clear();
   }
 
   private safePtyKill(session: SessionRuntime): void {
@@ -372,6 +478,36 @@ export class SupervisorRuntime {
       return;
     }
     session.pty.kill();
+  }
+
+  private safeShellPtyKill(session: ShellSessionRuntime): void {
+    if (session.ptyExited) {
+      return;
+    }
+    try {
+      process.kill(session.pty.pid, 0);
+    } catch {
+      return;
+    }
+    session.pty.kill();
+  }
+
+  private buildShellCommand(location: ProjectLocation): {
+    command: string;
+    args: string[];
+    cwd?: string;
+  } {
+    if (location.kind === "wsl") {
+      return {
+        command: "wsl.exe",
+        args: ["-d", location.distro, "--cd", location.linuxPath, "--", "bash", "-l"],
+      };
+    }
+    return {
+      command: "C:\\Windows\\System32\\cmd.exe",
+      args: ["/k"],
+      cwd: location.path,
+    };
   }
 
   private resolveLogPath(threadId: string): string {

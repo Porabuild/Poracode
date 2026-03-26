@@ -66,7 +66,7 @@
     --field-background: oklch(0.23 0.004 286);
     --field-placeholder: oklch(0.54 0.01 286);
     --field-border: oklch(0.34 0.006 286 / 0.85);
-    --segment: oklch(0.29 0.004 286);
+    --segment: oklch(0.36 0.006 286);
     --border: oklch(0.31 0.006 286 / 0.9);
     --separator: oklch(0.3 0.006 286 / 0.85);
 
@@ -459,6 +459,24 @@ body {
 .lightcode-inline-action {
   height: 2.25rem;
   width: 2.25rem;
+}
+
+.lightcode-thin-scrollbar {
+  padding-bottom: 2px;
+  scrollbar-gutter: stable;
+}
+
+.lightcode-thin-scrollbar::-webkit-scrollbar {
+  height: 4px;
+}
+
+.lightcode-thin-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(127, 140, 155, 0.45);
+  border-radius: 999px;
+}
+
+.lightcode-thin-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
 }
 
 .xterm-viewport::-webkit-scrollbar {

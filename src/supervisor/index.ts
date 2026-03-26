@@ -4,6 +4,7 @@ import type {
   ResizeTerminalPayload,
   ResolveThreadServerRequestPayload,
   SendThreadInputPayload,
+  StartShellPayload,
   StartThreadPayload,
   WriteTerminalPayload,
 } from "../shared/contracts";
@@ -14,6 +15,7 @@ import {
   resizeTerminalPayloadSchema,
   resolveThreadServerRequestPayloadSchema,
   sendThreadInputPayloadSchema,
+  startShellPayloadSchema,
   startThreadPayloadSchema,
   writeTerminalPayloadSchema,
 } from "../shared/contracts";
@@ -60,6 +62,10 @@ async function handleRequest(request: SupervisorRequest): Promise<unknown> {
     case "closeThread":
       return runtime.closeThread(
         closeThreadPayloadSchema.parse(request.payload) as CloseThreadPayload,
+      );
+    case "startShell":
+      return runtime.startShell(
+        startShellPayloadSchema.parse(request.payload) as StartShellPayload,
       );
     default: {
       const exhaustive: never = request;

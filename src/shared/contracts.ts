@@ -212,6 +212,12 @@ export type ResolveThreadServerRequestPayload = z.infer<
   typeof resolveThreadServerRequestPayloadSchema
 >;
 
+export const startShellPayloadSchema = z.object({
+  shellId: z.string().min(1),
+  projectLocation: projectLocationSchema,
+});
+export type StartShellPayload = z.infer<typeof startShellPayloadSchema>;
+
 export type AppView =
   | { kind: "home" }
   | { kind: "draft"; projectId: string }

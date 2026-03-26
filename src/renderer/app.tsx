@@ -4,6 +4,7 @@ import { Spinner } from "@heroui/react";
 import { parseWslUncPath } from "../shared/wsl";
 import { readBridge } from "./bridge";
 import { CodexStatusIcon, getStatusTone } from "./components/providers";
+import { DevTerminalPanel } from "./components/devTerminal/DevTerminalPanel";
 import { AppShell } from "./components/layout/AppShell";
 import { SplitPaneContainer } from "./components/layout/SplitPaneContainer";
 import { SettingsOverlay } from "./components/settings/SettingsOverlay";
@@ -12,6 +13,7 @@ import { ThreadDraftView } from "./components/thread/ThreadDraftView";
 import { ThreadView } from "./components/thread/ThreadView";
 import { AppProvider } from "./components/ui/provider";
 import { useAppStore } from "./state/appStore";
+import { useDevTerminalStore } from "./state/devTerminalStore";
 import type { ReorderPlacement } from "./state/reorder";
 import { useSharedSettings } from "./state/sharedSettingsStore";
 
@@ -21,6 +23,11 @@ import { useSharedSettings } from "./state/sharedSettingsStore";
 // never missed due to useEffect timing, StrictMode double-mounts,
 // or startTransition batching.
 readBridge().onSupervisorEvent((event) => {
+  // Shell sessions use a "shell:" prefix — skip appStore updates for them.
+  if ("threadId" in event && event.threadId.startsWith("shell:")) {
+    return;
+  }
+
   if (event.type === "thread-state") {
     useAppStore.getState().updateThreadRuntime(event.threadId, event);
   }
@@ -338,6 +345,15 @@ export function App() {
   const reorderProjects = useAppStore((state) => state.reorderProjects);
   const reorderThreads = useAppStore((state) => state.reorderThreads);
   const updateThreadRuntime = useAppStore((state) => state.updateThreadRuntime);
+  const devTerminalOpen = useDevTerminalStore((s) => s.isOpen);
+  const devTerminalActiveProjectId = useDevTerminalStore((s) =>
+    s.isOpen ? s.activeProjectId : null,
+  );
+  const devTerminalTabs = useDevTerminalStore((s) => s.tabs);
+  const terminalProjectIds = devTerminalTabs.reduce<string[]>((ids, t) => {
+    if (!ids.includes(t.projectId)) ids.push(t.projectId);
+    return ids;
+  }, []);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
   const [storeHydrated, setStoreHydrated] = useState(() => useAppStore.persist.hasHydrated());
@@ -486,6 +502,17 @@ export function App() {
     setAgentStatuses,
     storeHydrated,
   ]);
+
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.ctrlKey && e.key === "`") {
+        e.preventDefault();
+        useDevTerminalStore.getState().togglePanel();
+      }
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
 
   const currentPaneIds = view.kind === "thread" ? view.panes : EMPTY_PANES;
   const currentProjectId =
@@ -655,6 +682,34 @@ export function App() {
                 openHome();
               });
             }}
+            onOpenTerminal={(projectId) => {
+              const project = projects.find((p) => p.id === projectId);
+              if (!project) return;
+
+              const store = useDevTerminalStore.getState();
+
+              // If panel is already open for this project, toggle it off.
+              if (store.isOpen && store.activeProjectId === projectId) {
+                store.closePanel();
+                return;
+              }
+
+              // Open/switch to this project.
+              store.openPanel(projectId);
+
+              // If the project already has tabs, activate the first one.
+              const existingTab = store.tabs.find((t) => t.projectId === projectId);
+              if (existingTab) {
+                store.setActiveTab(existingTab.id);
+                return;
+              }
+
+              // Otherwise create a new tab — DevTerminalPanel's effect handles spawning.
+              const tab = store.addTab(projectId, project.name);
+              store.setActiveTab(tab.id);
+            }}
+            terminalProjectIds={terminalProjectIds}
+            activeTerminalProjectId={devTerminalActiveProjectId}
             onReorderProjects={(sourceProjectId, targetProjectId, placement) => {
               startTransition(() => {
                 reorderProjects(sourceProjectId, targetProjectId, placement);
@@ -668,6 +723,8 @@ export function App() {
           />
         }
         content={<AppContent />}
+        rightPanel={<DevTerminalPanel projects={projects} />}
+        rightPanelOpen={devTerminalOpen}
       />
       {settingsOpen ? <SettingsOverlay onClose={() => setSettingsOpen(false)} /> : null}
     </AppProvider>

@@ -22,6 +22,7 @@ const CHANNELS = {
   resizeTerminal: "lightcode:resize-terminal",
   resolveThreadServerRequest: "lightcode:resolve-thread-server-request",
   closeThread: "lightcode:close-thread",
+  startShell: "lightcode:start-shell",
   setWindowChrome: "lightcode:set-window-chrome",
   supervisorEvent: "lightcode:supervisor-event",
 } as const;
@@ -209,6 +210,10 @@ function registerIpcHandlers(): void {
 
   ipcMain.handle(CHANNELS.closeThread, async (_event, payload) =>
     callSupervisor("closeThread", payload),
+  );
+
+  ipcMain.handle(CHANNELS.startShell, async (_event, payload) =>
+    callSupervisor("startShell", payload),
   );
 
   ipcMain.handle(CHANNELS.setWindowChrome, async (_event, payload: WindowChromePayload) => {

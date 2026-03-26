@@ -7,6 +7,7 @@ import type {
   ResolveThreadServerRequestPayload,
   SendThreadInputPayload,
   SessionRef,
+  StartShellPayload,
   StartThreadPayload,
   TerminalPrompt,
   StartThreadResult,
@@ -29,7 +30,8 @@ export type SupervisorRequest =
   | { id: string; type: "resizeTerminal"; payload: ResizeTerminalPayload }
   | { id: string; type: "getThreadHistory"; payload: { threadId: string } }
   | { id: string; type: "resolveThreadServerRequest"; payload: ResolveThreadServerRequestPayload }
-  | { id: string; type: "closeThread"; payload: CloseThreadPayload };
+  | { id: string; type: "closeThread"; payload: CloseThreadPayload }
+  | { id: string; type: "startShell"; payload: StartShellPayload };
 
 export type SupervisorReply =
   | { replyTo: string; ok: true; data: unknown }
@@ -75,6 +77,7 @@ export interface LightcodeBridge {
   resizeTerminal(payload: ResizeTerminalPayload): Promise<void>;
   resolveThreadServerRequest(payload: ResolveThreadServerRequestPayload): Promise<void>;
   closeThread(payload: CloseThreadPayload): Promise<void>;
+  startShell(payload: StartShellPayload): Promise<void>;
   setWindowChrome(payload: WindowChromePayload): Promise<void>;
   onSupervisorEvent(listener: (event: SupervisorEvent) => void): () => void;
 }
