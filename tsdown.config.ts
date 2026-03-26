@@ -14,6 +14,6 @@ export default defineConfig({
   clean: true,
   dts: false,
   deps: {
-    neverBundle: ["electron", "node-pty"],
+    neverBundle: ["electron", "node-pty", "electron-updater"],
   },
 });

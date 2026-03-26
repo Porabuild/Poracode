@@ -3,6 +3,10 @@
   "version": "0.1.0",
   "private": true,
   "description": "Terminal-native AI agents desktop app for Windows and WSL.",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/nicepkg/lightcode"
+  },
   "type": "module",
   "main": "dist/main/main.cjs",
   "scripts": {
@@ -16,6 +20,10 @@
     "build:renderer": "vite build",
     "build:electron": "tsdown",
     "start": "pnpm run setup:native && electron .",
+    "dist": "pnpm run build && electron-builder",
+    "dist:win": "pnpm run build && electron-builder --win",
+    "dist:linux": "pnpm run build && electron-builder --linux",
+    "dist:mac": "pnpm run build && electron-builder --mac",
     "typecheck": "pnpm exec tsgo --noEmit -p tsconfig.json",
     "typecheck:compat": "tsc --noEmit -p tsconfig.json",
     "lint": "pnpm exec oxlint --type-aware --import-plugin --node-plugin --react-plugin --jsx-a11y-plugin --vitest-plugin --deny-warnings src vite.config.ts tsdown.config.ts vitest.config.ts",
@@ -29,6 +37,7 @@
     "@heroui/styles": "^3.0.1",
     "@xterm/addon-fit": "^0.11.0",
     "@xterm/xterm": "^6.0.0",
+    "electron-updater": "^6.8.3",
     "lucide-react": "^0.577.0",
     "node-pty": "^1.1.0",
     "react": "^19.2.4",
@@ -52,6 +61,7 @@
     "concurrently": "^9.2.1",
     "cross-env": "^10.1.0",
     "electron": "^41.0.3",
+    "electron-builder": "^26.8.1",
     "electronmon": "^2.0.4",
     "jsdom": "^29.0.1",
     "oxfmt": "^0.41.0",

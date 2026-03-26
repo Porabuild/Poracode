@@ -14,6 +14,9 @@ export function DevTerminalPanel(props: { projects: Project[] }) {
   const removeTab = useDevTerminalStore((s) => s.removeTab);
   const setActiveTab = useDevTerminalStore((s) => s.setActiveTab);
   const addTab = useDevTerminalStore((s) => s.addTab);
+  const tabActivity = useDevTerminalStore((s) => s.tabActivity);
+  const markTabActive = useDevTerminalStore((s) => s.markTabActive);
+  const updateTabTitle = useDevTerminalStore((s) => s.updateTabTitle);
   const spawnedRef = useRef(new Set<string>());
 
   const projectTabs = tabs.filter((t) => t.projectId === activeProjectId);
@@ -80,7 +83,12 @@ export function DevTerminalPanel(props: { projects: Project[] }) {
                   className="group max-w-[100px] gap-1 pr-1 text-xs"
                 >
                   {index > 0 ? <Tabs.Separator /> : null}
-                  <span className="truncate">{tab.title}</span>
+                  {tabActivity[tab.id] ? (
+                    <span className="size-1.5 shrink-0 rounded-full bg-accent" />
+                  ) : null}
+                  <span className="truncate" title={tab.title}>
+                    {tab.title}
+                  </span>
                   <button
                     className="flex size-4 shrink-0 items-center justify-center rounded opacity-0 transition hover:text-danger group-hover:opacity-100"
                     onPointerDown={(e) => e.stopPropagation()}
@@ -108,13 +116,18 @@ export function DevTerminalPanel(props: { projects: Project[] }) {
       </div>
 
       {/* Terminal surfaces — render ALL tabs (all projects) to keep them alive, only show active */}
-      <div className="relative min-h-0 flex-1 pt-1 pb-2 pl-3 pr-1">
+      <div className="relative min-h-0 flex-1 px-6 pt-1 pb-2">
         {tabs.map((tab) => (
           <div
             key={tab.id}
-            className={`absolute inset-0 pt-1 pb-2 pl-3 pr-1 ${tab.id === activeTabId ? "" : "invisible"}`}
+            className={`absolute inset-0 px-6 pt-1 pb-2 ${tab.id === activeTabId ? "" : "invisible"}`}
           >
-            <XTermSurface terminalId={tab.id} />
+            <XTermSurface
+              terminalId={tab.id}
+              onActivity={() => markTabActive(tab.id)}
+              onBell={() => markTabActive(tab.id)}
+              onTitleChange={(title) => updateTabTitle(tab.id, title)}
+            />
           </div>
         ))}
 

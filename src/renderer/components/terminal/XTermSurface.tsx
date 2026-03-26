@@ -34,15 +34,34 @@ export function XTermSurface(props: {
   enabled?: boolean;
   onReset?: () => void;
   onExited?: (exitCode: number | null) => void;
+  onActivity?: () => void;
+  onBell?: () => void;
+  onTitleChange?: (title: string) => void;
   className?: string;
 }) {
-  const { terminalId, readOnly = false, enabled = true, onReset, onExited, className } = props;
+  const {
+    terminalId,
+    readOnly = false,
+    enabled = true,
+    onReset,
+    onExited,
+    onActivity,
+    onBell,
+    onTitleChange,
+    className,
+  } = props;
   const appearance = useResolvedAppearance();
   const mountRef = useRef<HTMLDivElement | null>(null);
   const onResetRef: RefObject<typeof onReset> = useRef(onReset);
   onResetRef.current = onReset;
   const onExitedRef: RefObject<typeof onExited> = useRef(onExited);
   onExitedRef.current = onExited;
+  const onActivityRef: RefObject<typeof onActivity> = useRef(onActivity);
+  onActivityRef.current = onActivity;
+  const onBellRef: RefObject<typeof onBell> = useRef(onBell);
+  onBellRef.current = onBell;
+  const onTitleChangeRef: RefObject<typeof onTitleChange> = useRef(onTitleChange);
+  onTitleChangeRef.current = onTitleChange;
 
   useEffect(() => {
     const mount = mountRef.current;
@@ -124,6 +143,18 @@ export function XTermSurface(props: {
 
     terminal.loadAddon(fit);
     terminal.open(mount);
+
+    terminal.onWriteParsed(() => {
+      onActivityRef.current?.();
+    });
+
+    terminal.onBell(() => {
+      onBellRef.current?.();
+    });
+
+    terminal.onTitleChange((title) => {
+      onTitleChangeRef.current?.(title);
+    });
 
     if (!readOnly) {
       terminal.onData((data) => {

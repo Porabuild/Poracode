@@ -2,6 +2,7 @@ import { Tooltip } from "@heroui/react";
 import {
   ChevronRight,
   Columns2,
+  Download,
   FolderOpen,
   FolderPlus,
   GripVertical,
@@ -9,6 +10,7 @@ import {
   PanelLeft,
   PanelLeftClose,
   Plus,
+  RefreshCw,
   Settings2,
   TerminalSquare,
   Trash2,
@@ -18,6 +20,8 @@ import type { EnvironmentMode, Project, Thread } from "../../../shared/contracts
 import { isReorderNoOp, type ReorderPlacement } from "../../state/reorder";
 import { Button, ContextMenu } from "../common";
 import { useSidebar } from "../layout/AppShell";
+import { readBridge } from "../../bridge";
+import { useUpdateStore } from "../../state/updateStore";
 import { ClaudeIcon, CodexStatusIcon, getStatusTone } from "../providers";
 
 type SidebarDragItem =
@@ -109,6 +113,74 @@ function SidebarButton(props: {
       {icon}
       <span>{label}</span>
     </button>
+  );
+}
+
+function UpdateButtons(props: { iconOnly?: boolean }) {
+  const { iconOnly = false } = props;
+  const updatePhase = useUpdateStore((s) => s.phase);
+  const updateVersion = useUpdateStore((s) => s.version);
+  const downloadPercent = useUpdateStore((s) => s.downloadPercent);
+
+  if (
+    updatePhase !== "available" &&
+    updatePhase !== "downloading" &&
+    updatePhase !== "downloaded"
+  ) {
+    return null;
+  }
+
+  if (updatePhase === "available") {
+    return (
+      <SidebarButton
+        iconOnly={iconOnly}
+        icon={<Download className="size-4 text-accent" />}
+        label={`Update to v${updateVersion}`}
+        onPress={() => void readBridge().startUpdateDownload()}
+      />
+    );
+  }
+
+  if (updatePhase === "downloading") {
+    if (iconOnly) {
+      return (
+        <Tooltip delay={150}>
+          <Tooltip.Trigger>
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center">
+              <Download className="size-4 animate-pulse text-accent" />
+            </div>
+          </Tooltip.Trigger>
+          <Tooltip.Content placement="right">
+            Downloading {Math.round(downloadPercent)}%
+          </Tooltip.Content>
+        </Tooltip>
+      );
+    }
+
+    return (
+      <div className="flex w-full items-center gap-2 rounded-3xl px-4 py-1.5 text-sm text-muted">
+        <Download className="size-4 shrink-0 animate-pulse text-accent" />
+        <div className="flex min-w-0 flex-1 flex-col gap-1">
+          <span className="truncate">Downloading update…</span>
+          <div className="h-1 w-full rounded-full bg-white/10">
+            <div
+              className="h-1 rounded-full bg-accent transition-[width] duration-300"
+              style={{ width: `${Math.round(downloadPercent)}%` }}
+            />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // downloaded
+  return (
+    <SidebarButton
+      iconOnly={iconOnly}
+      icon={<RefreshCw className="size-4 text-accent" />}
+      label="Restart to update"
+      onPress={() => void readBridge().installUpdate()}
+    />
   );
 }
 
@@ -247,6 +319,7 @@ export function Sidebar(props: {
 
           {/* Footer icons */}
           <div className="space-y-1 border-t border-white/6 pt-2 pr-2">
+            <UpdateButtons iconOnly />
             {environmentMode === "windows" && !wslAvailable ? (
               <SidebarButton
                 iconOnly
@@ -660,6 +733,7 @@ export function Sidebar(props: {
         </div>
 
         <div className="space-y-1 border-t border-white/6 pt-2">
+          <UpdateButtons />
           {environmentMode === "windows" && !wslAvailable ? (
             <Tooltip>
               <Tooltip.Trigger>

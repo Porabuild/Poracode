@@ -24,6 +24,9 @@ vi.mock("@xterm/xterm", () => ({
     reset = vi.fn();
     dispose = vi.fn();
     onData = vi.fn(() => ({ dispose: vi.fn() }));
+    onWriteParsed = vi.fn(() => ({ dispose: vi.fn() }));
+    onBell = vi.fn(() => ({ dispose: vi.fn() }));
+    onTitleChange = vi.fn(() => ({ dispose: vi.fn() }));
     cols = 80;
     rows = 24;
     constructor() {
@@ -39,14 +42,12 @@ vi.mock("@xterm/addon-fit", () => ({
 }));
 
 // ── bridge mock ──────────────────────────────────────────────────
-state.bridge.onSupervisorEvent.mockImplementation(
-  (listener: (e: SupervisorEvent) => void) => {
-    state.eventListeners.push(listener);
-    return () => {
-      state.eventListeners = state.eventListeners.filter((l) => l !== listener);
-    };
-  },
-);
+state.bridge.onSupervisorEvent.mockImplementation((listener: (e: SupervisorEvent) => void) => {
+  state.eventListeners.push(listener);
+  return () => {
+    state.eventListeners = state.eventListeners.filter((l) => l !== listener);
+  };
+});
 
 vi.mock("../../bridge", () => ({ readBridge: () => state.bridge }));
 vi.mock("../ui/provider", () => ({ useResolvedAppearance: () => "dark" }));
@@ -59,10 +60,24 @@ function emitEvent(event: SupervisorEvent) {
   }
 }
 
-/** Return the most recently constructed mock Terminal instance. */
-function terminal() {
+type MockFn = ReturnType<typeof vi.fn>;
+
+interface MockTerminalShape {
+  open: MockFn;
+  loadAddon: MockFn;
+  write: MockFn;
+  reset: MockFn;
+  dispose: MockFn;
+  onData: MockFn;
+  onWriteParsed: MockFn;
+  onBell: MockFn;
+  onTitleChange: MockFn;
+}
+
+/** Return the most recently constructed mock Terminal instance (asserted non-null). */
+function terminal(): MockTerminalShape {
   if (!state.terminal) throw new Error("No terminal instance created yet");
-  return state.terminal;
+  return state.terminal as unknown as MockTerminalShape;
 }
 
 describe("XTermSurface", () => {
@@ -70,14 +85,12 @@ describe("XTermSurface", () => {
     state.terminal = null;
     state.eventListeners = [];
     vi.clearAllMocks();
-    state.bridge.onSupervisorEvent.mockImplementation(
-      (listener: (e: SupervisorEvent) => void) => {
-        state.eventListeners.push(listener);
-        return () => {
-          state.eventListeners = state.eventListeners.filter((l) => l !== listener);
-        };
-      },
-    );
+    state.bridge.onSupervisorEvent.mockImplementation((listener: (e: SupervisorEvent) => void) => {
+      state.eventListeners.push(listener);
+      return () => {
+        state.eventListeners = state.eventListeners.filter((l) => l !== listener);
+      };
+    });
   });
 
   afterEach(() => {
@@ -223,5 +236,43 @@ describe("XTermSurface", () => {
 
     // The "lost data" was never written to any terminal instance
     expect(terminal().write).not.toHaveBeenCalledWith("lost data");
+  });
+
+  // ── Activity / bell / title callbacks ───────────────────────────
+
+  it("calls onActivity when onWriteParsed fires", () => {
+    const onActivity = vi.fn();
+    render(<XTermSurface terminalId="test-1" onActivity={onActivity} />);
+
+    expect(terminal().onWriteParsed).toHaveBeenCalledTimes(1);
+    // Safe: we just asserted onWriteParsed was called exactly once above.
+    const handler = terminal().onWriteParsed.mock.lastCall![0] as unknown as () => void;
+
+    act(() => handler());
+    expect(onActivity).toHaveBeenCalledTimes(1);
+  });
+
+  it("calls onBell when bell fires", () => {
+    const onBell = vi.fn();
+    render(<XTermSurface terminalId="test-1" onBell={onBell} />);
+
+    expect(terminal().onBell).toHaveBeenCalledTimes(1);
+    const handler = terminal().onBell.mock.lastCall![0] as unknown as () => void;
+
+    act(() => handler());
+    expect(onBell).toHaveBeenCalledTimes(1);
+  });
+
+  it("calls onTitleChange when title changes", () => {
+    const onTitleChange = vi.fn();
+    render(<XTermSurface terminalId="test-1" onTitleChange={onTitleChange} />);
+
+    expect(terminal().onTitleChange).toHaveBeenCalledTimes(1);
+    const handler = terminal().onTitleChange.mock.lastCall![0] as unknown as (
+      title: string,
+    ) => void;
+
+    act(() => handler("new title"));
+    expect(onTitleChange).toHaveBeenCalledWith("new title");
   });
 });

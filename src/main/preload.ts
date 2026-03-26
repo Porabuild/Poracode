@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from "electron";
-import type { LightcodeBridge, SupervisorEvent } from "../shared/ipc";
+import type { LightcodeBridge, SupervisorEvent, UpdateStatus } from "../shared/ipc";
 
 const CHANNELS = {
   pickFolder: "lightcode:pick-folder",
@@ -16,6 +16,10 @@ const CHANNELS = {
   startShell: "lightcode:start-shell",
   setWindowChrome: "lightcode:set-window-chrome",
   supervisorEvent: "lightcode:supervisor-event",
+  updateStatus: "lightcode:update-status",
+  checkForUpdate: "lightcode:check-for-update",
+  startUpdateDownload: "lightcode:start-update-download",
+  installUpdate: "lightcode:install-update",
 } as const;
 
 const bridge: LightcodeBridge = {
@@ -40,6 +44,18 @@ const bridge: LightcodeBridge = {
     ipcRenderer.on(CHANNELS.supervisorEvent, handler);
     return () => {
       ipcRenderer.removeListener(CHANNELS.supervisorEvent, handler);
+    };
+  },
+  checkForUpdate: () => ipcRenderer.invoke(CHANNELS.checkForUpdate),
+  startUpdateDownload: () => ipcRenderer.invoke(CHANNELS.startUpdateDownload),
+  installUpdate: () => ipcRenderer.invoke(CHANNELS.installUpdate),
+  onUpdateStatus(listener) {
+    const handler = (_event: Electron.IpcRendererEvent, status: UpdateStatus) => {
+      listener(status);
+    };
+    ipcRenderer.on(CHANNELS.updateStatus, handler);
+    return () => {
+      ipcRenderer.removeListener(CHANNELS.updateStatus, handler);
     };
   },
 };

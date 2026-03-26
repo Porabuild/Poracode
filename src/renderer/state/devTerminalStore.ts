@@ -13,6 +13,8 @@ interface DevTerminalState {
   activeProjectId: string | null;
   tabs: DevTerminalTab[];
   activeTabId: string | null;
+  /** Tab IDs with unseen output. Ephemeral — not persisted. */
+  tabActivity: Record<string, true>;
 }
 
 interface DevTerminalActions {
@@ -24,6 +26,9 @@ interface DevTerminalActions {
   removeTab: (tabId: string) => void;
   setActiveTab: (tabId: string) => void;
   removeTabsForProject: (projectId: string) => string[];
+  markTabActive: (tabId: string) => void;
+  clearTabActivity: (tabId: string) => void;
+  updateTabTitle: (tabId: string, title: string) => void;
 }
 
 export const useDevTerminalStore = create<DevTerminalState & DevTerminalActions>()(
@@ -33,6 +38,7 @@ export const useDevTerminalStore = create<DevTerminalState & DevTerminalActions>
       activeProjectId: null,
       tabs: [],
       activeTabId: null,
+      tabActivity: {},
 
       openPanel: (projectId) => set({ isOpen: true, activeProjectId: projectId }),
       closePanel: () => set({ isOpen: false }),
@@ -71,16 +77,25 @@ export const useDevTerminalStore = create<DevTerminalState & DevTerminalActions>
           const tabs = state.tabs.filter((t) => t.id !== tabId);
           let { activeTabId } = state;
           if (activeTabId === tabId) {
-            // Pick next tab from the same project.
             const projectTabs = removed
               ? tabs.filter((t) => t.projectId === removed.projectId)
               : tabs;
             activeTabId = projectTabs.at(-1)?.id ?? null;
           }
-          return { tabs, activeTabId };
+          const tabActivity = { ...state.tabActivity };
+          delete tabActivity[tabId];
+          return { tabs, activeTabId, tabActivity };
         }),
 
-      setActiveTab: (tabId) => set({ activeTabId: tabId }),
+      setActiveTab: (tabId) => {
+        const { tabActivity } = get();
+        if (tabActivity[tabId]) {
+          const next = { ...tabActivity };
+          delete next[tabId];
+          return set({ activeTabId: tabId, tabActivity: next });
+        }
+        set({ activeTabId: tabId });
+      },
 
       removeTabsForProject: (projectId: string) => {
         const removed = get()
@@ -94,9 +109,36 @@ export const useDevTerminalStore = create<DevTerminalState & DevTerminalActions>
           if (activeTabId && removed.includes(activeTabId)) {
             activeTabId = tabs.at(-1)?.id ?? null;
           }
-          return { tabs, activeTabId };
+          const tabActivity = { ...state.tabActivity };
+          for (const id of removed) delete tabActivity[id];
+          return { tabs, activeTabId, tabActivity };
         });
         return removed;
+      },
+
+      markTabActive: (tabId) => {
+        const { activeTabId, tabActivity } = get();
+        if (tabId === activeTabId) return;
+        if (tabActivity[tabId]) return;
+        set({ tabActivity: { ...tabActivity, [tabId]: true } });
+      },
+
+      clearTabActivity: (tabId) => {
+        const { tabActivity } = get();
+        if (!tabActivity[tabId]) return;
+        const next = { ...tabActivity };
+        delete next[tabId];
+        set({ tabActivity: next });
+      },
+
+      updateTabTitle: (tabId, rawTitle) => {
+        // Shell titles are often full paths (e.g. "C:\Windows\System32\cmd.exe").
+        // Extract the basename without extension for a cleaner tab label.
+        const segment = rawTitle.split(/[/\\]/).pop() ?? rawTitle;
+        const title = segment.replace(/\.[^.]+$/, "") || segment;
+        set((state) => ({
+          tabs: state.tabs.map((t) => (t.id === tabId ? { ...t, title } : t)),
+        }));
       },
     }),
     {

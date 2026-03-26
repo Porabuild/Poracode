@@ -60,6 +60,20 @@ export type SupervisorEvent =
     }
   | { type: "thread-exited"; threadId: string; exitCode: number | null };
 
+export type UpdateStatus =
+  | { type: "checking" }
+  | { type: "update-available"; version: string }
+  | { type: "update-not-available" }
+  | {
+      type: "downloading";
+      percent: number;
+      bytesPerSecond: number;
+      transferred: number;
+      total: number;
+    }
+  | { type: "downloaded"; version: string }
+  | { type: "error"; message: string };
+
 export interface WindowChromePayload {
   backgroundColor: string;
   symbolColor: string;
@@ -80,6 +94,10 @@ export interface LightcodeBridge {
   startShell(payload: StartShellPayload): Promise<void>;
   setWindowChrome(payload: WindowChromePayload): Promise<void>;
   onSupervisorEvent(listener: (event: SupervisorEvent) => void): () => void;
+  checkForUpdate(): Promise<void>;
+  startUpdateDownload(): Promise<void>;
+  installUpdate(): Promise<void>;
+  onUpdateStatus(listener: (status: UpdateStatus) => void): () => void;
 }
 
 export interface AddProjectDraft {

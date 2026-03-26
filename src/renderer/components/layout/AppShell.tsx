@@ -174,9 +174,7 @@ export function AppShell(props: {
             )}
             <aside
               className={`relative min-h-0 border-l border-[color:var(--border)] -mt-5 h-[calc(100%+0.75rem)] overflow-hidden ${
-                !isResizing
-                  ? "transition-[width,min-width,opacity] duration-200"
-                  : ""
+                !isResizing ? "transition-[width,min-width,opacity] duration-200" : ""
               } ${rightPanelOpen ? "opacity-100" : "opacity-0"}`}
               style={{ width: panelDisplayWidth, minWidth: panelDisplayWidth }}
             >

@@ -16,6 +16,7 @@ import { useAppStore } from "./state/appStore";
 import { useDevTerminalStore } from "./state/devTerminalStore";
 import type { ReorderPlacement } from "./state/reorder";
 import { useSharedSettings } from "./state/sharedSettingsStore";
+import { useUpdateStore } from "./state/updateStore";
 
 // ── Module-level IPC listener ───────────────────────────────────
 // Subscribes to supervisor events as soon as the module loads,
@@ -44,6 +45,33 @@ readBridge().onSupervisorEvent((event) => {
   }
   if (event.type === "thread-exited") {
     useAppStore.getState().markThreadExited(event.threadId);
+  }
+});
+
+// ── Module-level update status listener ──────────────────────────
+// Subscribes to auto-update events from the main process,
+// forwarding them to the Zustand update store.
+readBridge().onUpdateStatus((status) => {
+  const store = useUpdateStore.getState();
+  switch (status.type) {
+    case "checking":
+      store.setChecking();
+      break;
+    case "update-available":
+      store.setAvailable(status.version);
+      break;
+    case "update-not-available":
+      store.setNotAvailable();
+      break;
+    case "downloading":
+      store.setDownloading(status.percent);
+      break;
+    case "downloaded":
+      store.setDownloaded(status.version);
+      break;
+    case "error":
+      store.setError(status.message);
+      break;
   }
 });
 

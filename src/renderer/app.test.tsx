@@ -18,6 +18,11 @@ const { bridge } = vi.hoisted(() => ({
     closeThread: vi.fn().mockResolvedValue(undefined),
     setWindowChrome: vi.fn().mockResolvedValue(undefined),
     onSupervisorEvent: vi.fn(() => () => undefined),
+    startShell: vi.fn().mockResolvedValue(undefined),
+    checkForUpdate: vi.fn().mockResolvedValue(undefined),
+    startUpdateDownload: vi.fn().mockResolvedValue(undefined),
+    installUpdate: vi.fn().mockResolvedValue(undefined),
+    onUpdateStatus: vi.fn(() => () => undefined),
   },
 }));
 

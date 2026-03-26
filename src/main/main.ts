@@ -3,10 +3,12 @@ import { fork, type ChildProcess } from "node:child_process";
 import { watch } from "node:fs";
 import { join } from "node:path";
 import { app, BrowserWindow, dialog, ipcMain } from "electron";
+import { autoUpdater } from "electron-updater";
 import type {
   SupervisorEvent,
   SupervisorReply,
   SupervisorRequest,
+  UpdateStatus,
   WindowChromePayload,
 } from "../shared/ipc";
 
@@ -25,6 +27,10 @@ const CHANNELS = {
   startShell: "lightcode:start-shell",
   setWindowChrome: "lightcode:set-window-chrome",
   supervisorEvent: "lightcode:supervisor-event",
+  updateStatus: "lightcode:update-status",
+  checkForUpdate: "lightcode:check-for-update",
+  startUpdateDownload: "lightcode:start-update-download",
+  installUpdate: "lightcode:install-update",
 } as const;
 
 const isDev = Boolean(process.env.VITE_DEV_SERVER_URL);
@@ -160,6 +166,50 @@ function callSupervisor<TRequest extends SupervisorRequest, TResult = unknown>(
   });
 }
 
+function sendUpdateStatus(status: UpdateStatus): void {
+  mainWindow?.webContents.send(CHANNELS.updateStatus, status);
+}
+
+function setupAutoUpdater(): void {
+  autoUpdater.autoDownload = false;
+  autoUpdater.autoInstallOnAppQuit = true;
+
+  autoUpdater.on("checking-for-update", () => {
+    sendUpdateStatus({ type: "checking" });
+  });
+
+  autoUpdater.on("update-available", (info) => {
+    sendUpdateStatus({ type: "update-available", version: info.version });
+  });
+
+  autoUpdater.on("update-not-available", () => {
+    sendUpdateStatus({ type: "update-not-available" });
+  });
+
+  autoUpdater.on("download-progress", (progress) => {
+    sendUpdateStatus({
+      type: "downloading",
+      percent: progress.percent,
+      bytesPerSecond: progress.bytesPerSecond,
+      transferred: progress.transferred,
+      total: progress.total,
+    });
+  });
+
+  autoUpdater.on("update-downloaded", (info) => {
+    sendUpdateStatus({ type: "downloaded", version: info.version });
+  });
+
+  autoUpdater.on("error", (err) => {
+    sendUpdateStatus({ type: "error", message: err.message });
+  });
+
+  // Delay the initial check so the window has time to load
+  setTimeout(() => {
+    void autoUpdater.checkForUpdates().catch(() => undefined);
+  }, 3000);
+}
+
 function registerIpcHandlers(): void {
   ipcMain.handle(CHANNELS.pickFolder, async (_event, defaultPath?: string) => {
     const result = await dialog.showOpenDialog(mainWindow!, {
@@ -227,6 +277,18 @@ function registerIpcHandlers(): void {
       height: WINDOW_CHROME_HEIGHT,
     });
   });
+
+  ipcMain.handle(CHANNELS.checkForUpdate, async () => {
+    await autoUpdater.checkForUpdates();
+  });
+
+  ipcMain.handle(CHANNELS.startUpdateDownload, async () => {
+    await autoUpdater.downloadUpdate();
+  });
+
+  ipcMain.handle(CHANNELS.installUpdate, () => {
+    autoUpdater.quitAndInstall(false, true);
+  });
 }
 
 if (!hasSingleInstanceLock) {
@@ -247,6 +309,10 @@ if (!hasSingleInstanceLock) {
     registerIpcHandlers();
     startSupervisor();
     mainWindow = createWindow();
+
+    if (!isDev) {
+      setupAutoUpdater();
+    }
 
     if (isDev) {
       const supervisorPath = join(__dirname, "supervisor.cjs");

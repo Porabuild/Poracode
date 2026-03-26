@@ -503,6 +503,25 @@ export class SupervisorRuntime {
         args: ["-d", location.distro, "--cd", location.linuxPath, "--", "bash", "-l"],
       };
     }
+
+    // Prefer pwsh → powershell → cmd, same priority as agent launch commands.
+    const resolve = (name: string): string | undefined => {
+      const result = spawnSync(process.platform === "win32" ? "where.exe" : "which", [name], {
+        encoding: "utf8",
+        timeout: 5_000,
+        windowsHide: true,
+      });
+      if (result.status !== 0) return undefined;
+      return result.stdout.trim().split(/\r?\n/)[0];
+    };
+
+    const shell =
+      resolve("pwsh.exe") ?? resolve("pwsh") ?? resolve("powershell.exe") ?? resolve("powershell");
+
+    if (shell) {
+      return { command: shell, args: ["-NoLogo"], cwd: location.path };
+    }
+
     return {
       command: "C:\\Windows\\System32\\cmd.exe",
       args: ["/k"],

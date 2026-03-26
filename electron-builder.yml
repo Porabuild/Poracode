@@ -1,0 +1,56 @@
+appId: com.lightcode.app
+productName: Lightcode
+copyright: Copyright (C) 2026 Lightcode
+
+directories:
+  output: release
+  buildResources: build
+
+files:
+  - dist/**/*
+  - node_modules/node-pty/**/*
+  - package.json
+
+extraMetadata:
+  main: dist/main/main.cjs
+
+asar: true
+asarUnpack:
+  - node_modules/node-pty/**/*
+
+publish:
+  provider: github
+
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+  icon: build/icon.ico
+
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+
+linux:
+  target:
+    - target: AppImage
+      arch:
+        - x64
+    - target: deb
+      arch:
+        - x64
+  icon: build/icon.png
+  category: Development
+
+mac:
+  target:
+    - target: dmg
+      arch:
+        - x64
+        - arm64
+  icon: build/icon.icns
+  category: public.app-category.developer-tools
+
+npmRebuild: true
