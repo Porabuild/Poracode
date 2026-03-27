@@ -4,9 +4,16 @@ import type { AgentAdapter } from "./agents/base";
 import { GitService } from "./git";
 
 const PROMPT =
-  "Generate a concise git commit message for the following diff. " +
-  "Use imperative mood. Subject line only, no body, no prefix like 'feat:'. " +
-  "Keep it under 72 characters. Reply with only the commit message, nothing else.\n\n";
+  "Generate a git commit message for the following diff using the Conventional Commits format.\n" +
+  "Rules:\n" +
+  "- Format: <type>(<scope>): <description>\n" +
+  "- Types: feat, fix, docs, refactor, perf, test, build, ci, chore, revert\n" +
+  "- Scope is optional, infer from the changed files/modules if clear\n" +
+  "- Use imperative mood for the description\n" +
+  "- Keep the subject line under 72 characters\n" +
+  "- If the change is complex, add a blank line then a brief body (1-3 lines)\n" +
+  "- If there are breaking changes, add a BREAKING CHANGE footer or use ! after the type\n" +
+  "- Reply with only the commit message, nothing else\n\n";
 
 const MAX_DIFF_CHARS = 8000;
 

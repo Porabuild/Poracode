@@ -21,14 +21,13 @@ import {
   Dropdown,
   Label,
   Spinner,
-  TextArea,
   Tooltip,
 } from "@heroui/react";
 import type { Project, GitFileChange, GitStatusResult } from "../../../shared/contracts";
 import { readBridge } from "../../bridge";
 import { useAppStore } from "../../state/appStore";
 import { useGitStore } from "../../state/gitStore";
-import { SidebarButton } from "../common";
+import { SidebarButton, TextArea } from "../common";
 import { useSidebar } from "../layout/AppShell";
 
 function FileStatusIcon(props: { status: string; className?: string }) {
@@ -313,17 +312,39 @@ export function GitReviewSidebar(props: {
   );
   const hasStagedChanges = (gitStatus?.staged.length ?? 0) > 0;
   const hasAnyChanges = hasStagedChanges || (gitStatus?.unstaged.length ?? 0) > 0;
-  const canCommitStaged = hasStagedChanges && !!commitMessage.trim() && !isCommitting;
-  const canCommitAll = hasAnyChanges && !!commitMessage.trim() && !isCommitting;
+  const canCommitStaged = hasAnyChanges && !isCommitting && !isGenerating;
+  const canCommitAll = hasAnyChanges && !isCommitting && !isGenerating;
 
   async function handleCommit(addAll: boolean) {
-    if (!commitMessage.trim()) return;
     setIsCommitting(true);
     setCommitError(null);
     try {
+      let message = commitMessage.trim();
+      if (!message && canGenerateMessage) {
+        setIsGenerating(true);
+        try {
+          const preferred =
+            agentStatuses.find(
+              (a) => a.kind === "claude" && a.installed && a.authState === "authenticated",
+            ) ??
+            agentStatuses.find(
+              (a) => a.kind === "codex" && a.installed && a.authState === "authenticated",
+            );
+          if (!preferred) throw new Error("No agent available to generate commit message");
+          const result = await readBridge().generateCommitMessage({
+            projectLocation: project.location,
+            agentKind: preferred.kind,
+          });
+          message = result.message;
+          setCommitMessage(message);
+        } finally {
+          setIsGenerating(false);
+        }
+      }
+      if (!message) throw new Error("Commit message is required");
       await readBridge().gitCommit({
         projectLocation: project.location,
-        message: commitMessage.trim(),
+        message,
         addAll,
       });
       setCommitMessage("");
@@ -428,10 +449,13 @@ export function GitReviewSidebar(props: {
           <div className="relative">
             <TextArea
               fullWidth
+              autoSize
+              maxRows={8}
               aria-label="Commit message"
               placeholder={`Message (Ctrl+Enter to commit on "${gitStatus?.branch ?? ""}")`}
               rows={1}
               value={commitMessage}
+              className={canGenerateMessage ? "pr-8" : undefined}
               variant="secondary"
               disabled={isCommitting}
               onChange={(e) => {
@@ -439,32 +463,31 @@ export function GitReviewSidebar(props: {
                 setCommitError(null);
               }}
               onKeyDown={(e) => {
-                if (e.key === "Enter" && e.ctrlKey) {
+                if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
                   e.preventDefault();
-                  if (canCommitStaged) void handleCommit(false);
-                } else if (e.key === "Enter" && !e.shiftKey) {
-                  e.preventDefault();
-                  if (canCommitStaged) void handleCommit(false);
-                } else if (e.key === "Enter" && e.shiftKey) {
-                  e.preventDefault();
-                  if (canCommitAll) void handleCommit(true);
+                  if (canCommitStaged) void handleCommit(!hasStagedChanges);
                 }
               }}
             />
             {canGenerateMessage && (
               <Tooltip delay={0}>
-                <button
-                  type="button"
-                  className="absolute right-2 top-2 rounded p-0.5 text-muted hover:text-foreground disabled:opacity-50"
-                  disabled={isGenerating || !hasAnyChanges}
-                  onClick={() => void handleGenerateMessage()}
+                <Button
+                  isIconOnly
+                  size="sm"
+                  variant="ghost"
+                  className="absolute right-1 top-1 size-6 min-w-0"
+                  isDisabled={isGenerating || !hasAnyChanges}
+                  isPending={isGenerating}
+                  onPress={() => void handleGenerateMessage()}
                 >
-                  {isGenerating ? (
-                    <Spinner size="sm" className="size-3.5" />
-                  ) : (
-                    <Sparkles className="size-3.5" />
-                  )}
-                </button>
+                  {({ isPending }) =>
+                    isPending ? (
+                      <Spinner color="current" size="sm" />
+                    ) : (
+                      <Sparkles className="size-3.5" />
+                    )
+                  }
+                </Button>
                 <Tooltip.Content>Generate commit message</Tooltip.Content>
               </Tooltip>
             )}
@@ -478,10 +501,11 @@ export function GitReviewSidebar(props: {
 
           <ButtonGroup className="w-full">
             <Button
+              variant="tertiary"
               className="flex-1"
               isDisabled={!canCommitStaged}
               isPending={isCommitting}
-              onPress={() => void handleCommit(false)}
+              onPress={() => void handleCommit(!hasStagedChanges)}
             >
               {({ isPending }) => (
                 <>
@@ -497,8 +521,9 @@ export function GitReviewSidebar(props: {
             <Dropdown>
               <Button
                 isIconOnly
+                variant="tertiary"
                 aria-label="More commit options"
-                isDisabled={!hasAnyChanges || !commitMessage.trim() || isCommitting}
+                isDisabled={!canCommitAll}
               >
                 <ButtonGroup.Separator />
                 <ChevronDown className="size-3.5" />

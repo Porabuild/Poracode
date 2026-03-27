@@ -62,7 +62,7 @@ export function DevTerminalPanel(props: { projects: Project[] }) {
       {/* Tab bar */}
       <div className="flex shrink-0 items-center gap-0 px-3">
         <Tabs
-          className="lightcode-thin-scrollbar min-w-0 flex-1 overflow-x-auto rounded-lg"
+          className="min-w-0 flex-1 overflow-x-auto rounded-lg"
           variant="primary"
           {...(activeTabId ? { selectedKey: activeTabId } : {})}
           onSelectionChange={(key) => {
