@@ -33,6 +33,10 @@ export default defineConfig({
             return "xterm";
           }
 
+          if (id.includes("@git-diff-view")) {
+            return "git-diff";
+          }
+
           if (
             id.includes("@heroui") ||
             id.includes("react-aria") ||

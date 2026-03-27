@@ -6,11 +6,11 @@ import type {
   ThreadConfig,
 } from "../../shared/contracts";
 import {
+  batchWslCommandsAsync,
   createKnownSessionRef,
-  readCommandOutput,
-  readWslCommandOutput,
+  readCommandOutputAsync,
   resolveExecutablePath,
-  resolveWslExecutablePath,
+  resolveExecutablePathAsync,
   wrapWslCommand,
   type AgentEnvContext,
   type AgentAdapter,
@@ -76,28 +76,31 @@ export function createClaudeAdapter(): AgentAdapter {
     label: "Claude Code",
     capabilities,
     async detectInstall(ctx?: AgentEnvContext): Promise<AgentStatus> {
-      const isWsl = ctx?.environmentMode === "wsl" && ctx.wslDistro;
+      const isWsl = ctx?.envKind === "wsl" && ctx.wslDistro;
 
-      const executablePath = isWsl
-        ? resolveWslExecutablePath(ctx.wslDistro!, "claude")
-        : resolveExecutablePath("claude");
+      if (isWsl) {
+        const [whichResult, versionResult, authResult] = await batchWslCommandsAsync(
+          ctx.wslDistro!,
+          ["which claude", "claude --version", "claude auth status"],
+        );
+        const executablePath = whichResult?.ok ? whichResult.stdout : undefined;
+        detectedWslExecPath = executablePath;
+        return {
+          kind: "claude",
+          label: "Claude Code",
+          installed: executablePath !== undefined,
+          ...(executablePath ? { executablePath } : {}),
+          ...(versionResult?.ok ? { version: versionResult.stdout } : {}),
+          authState: authResult?.ok ? "authenticated" : executablePath ? "unknown" : "missing",
+          capabilities,
+        };
+      }
 
-      detectedWslExecPath = isWsl && executablePath ? executablePath : undefined;
-
-      const versionResult =
-        executablePath === undefined
-          ? undefined
-          : isWsl
-            ? readWslCommandOutput(ctx.wslDistro!, "claude", ["--version"])
-            : readCommandOutput("claude", ["--version"]);
-
-      const authResult =
-        executablePath === undefined
-          ? undefined
-          : isWsl
-            ? readWslCommandOutput(ctx.wslDistro!, "claude", ["auth", "status"])
-            : readCommandOutput("claude", ["auth", "status"]);
-
+      const executablePath = await resolveExecutablePathAsync("claude");
+      const [versionResult, authResult] = await Promise.all([
+        executablePath ? readCommandOutputAsync("claude", ["--version"]) : undefined,
+        executablePath ? readCommandOutputAsync("claude", ["auth", "status"]) : undefined,
+      ]);
       const authState =
         authResult === undefined ? "missing" : authResult.ok ? "authenticated" : "unknown";
 
@@ -129,6 +132,12 @@ export function createClaudeAdapter(): AgentAdapter {
       return [prompt, "\r"];
     },
     detectTerminalStatus: detectClaudeTerminalStatus,
+    defaultOneShotModel: "haiku",
+    buildOneShotCommand(model) {
+      const execPath = resolveExecutablePath("claude");
+      if (!execPath) return undefined;
+      return { command: execPath, args: ["-p", "--model", model] };
+    },
   };
 }
 

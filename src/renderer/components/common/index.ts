@@ -9,3 +9,4 @@ export * from "./Select";
 export * from "./Separator";
 export * from "./SidebarButton";
 export * from "./TextArea";
+export * from "./TuxIcon";

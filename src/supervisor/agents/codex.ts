@@ -12,14 +12,14 @@ import type {
 } from "../../shared/contracts";
 import { toWslUncPath } from "../../shared/wsl";
 import {
+  batchWslCommandsAsync,
   buildWindowsCmdCommand,
   codexAuthPath,
   createKnownSessionRef,
   detectAuthFile,
-  readCommandOutput,
-  readWslCommandOutput,
+  readCommandOutputAsync,
   resolveExecutablePath,
-  resolveWslExecutablePath,
+  resolveExecutablePathAsync,
   wrapWslCommand,
   type AgentAdapter,
   type AgentEnvContext,
@@ -875,20 +875,30 @@ export function createCodexAdapter(): AgentAdapter {
     label: "Codex",
     capabilities,
     async detectInstall(ctx?: AgentEnvContext): Promise<AgentStatus> {
-      const isWsl = ctx?.environmentMode === "wsl" && ctx.wslDistro;
+      const isWsl = ctx?.envKind === "wsl" && ctx.wslDistro;
 
-      const executablePath = isWsl
-        ? resolveWslExecutablePath(ctx.wslDistro!, "codex")
-        : resolveExecutablePath("codex");
+      if (isWsl) {
+        const [whichResult, versionResult] = await batchWslCommandsAsync(ctx.wslDistro!, [
+          "which codex",
+          "codex --version",
+        ]);
+        const executablePath = whichResult?.ok ? whichResult.stdout : undefined;
+        detectedWslExecPath = executablePath;
+        return {
+          kind: "codex",
+          label: "Codex",
+          installed: executablePath !== undefined,
+          ...(executablePath ? { executablePath } : {}),
+          ...(versionResult?.ok ? { version: versionResult.stdout } : {}),
+          authState: "unknown",
+          capabilities,
+        };
+      }
 
-      detectedWslExecPath = isWsl && executablePath ? executablePath : undefined;
-
-      const versionResult =
-        executablePath === undefined
-          ? undefined
-          : isWsl
-            ? readWslCommandOutput(ctx.wslDistro!, "codex", ["--version"])
-            : readCommandOutput("codex", ["--version"]);
+      const executablePath = await resolveExecutablePathAsync("codex");
+      const versionResult = executablePath
+        ? await readCommandOutputAsync("codex", ["--version"])
+        : undefined;
 
       return {
         kind: "codex",
@@ -896,7 +906,7 @@ export function createCodexAdapter(): AgentAdapter {
         installed: executablePath !== undefined,
         ...(executablePath ? { executablePath } : {}),
         ...(versionResult?.ok ? { version: versionResult.stdout } : {}),
-        authState: isWsl ? "unknown" : detectAuthFile(codexAuthPath()),
+        authState: detectAuthFile(codexAuthPath()),
         capabilities,
       };
     },
@@ -914,6 +924,12 @@ export function createCodexAdapter(): AgentAdapter {
     },
     buildDirectInput(prompt) {
       return [...prompt, "\r"];
+    },
+    defaultOneShotModel: "gpt-5.4-mini",
+    buildOneShotCommand(model) {
+      const execPath = resolveExecutablePath("codex");
+      if (!execPath) return undefined;
+      return { command: execPath, args: ["exec", "-m", model, "-"] };
     },
   };
 }

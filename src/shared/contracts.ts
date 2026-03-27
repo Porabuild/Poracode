@@ -3,9 +3,6 @@ import { z } from "zod";
 export const themeModeSchema = z.enum(["system", "light", "dark"]);
 export type ThemeMode = z.infer<typeof themeModeSchema>;
 
-export const environmentModeSchema = z.enum(["windows", "wsl"]);
-export type EnvironmentMode = z.infer<typeof environmentModeSchema>;
-
 export const agentKindSchema = z.enum(["codex", "claude"]);
 export type AgentKind = z.infer<typeof agentKindSchema>;
 
@@ -49,13 +46,12 @@ export const projectLocationSchema = z.discriminatedUnion("kind", [
     linuxPath: z.string().min(1),
     uncPath: z.string().min(1),
   }),
+  z.object({
+    kind: z.literal("posix"),
+    path: z.string().min(1),
+  }),
 ]);
 export type ProjectLocation = z.infer<typeof projectLocationSchema>;
-
-export const getAgentStatusesPayloadSchema = z.object({
-  environmentMode: environmentModeSchema,
-});
-export type GetAgentStatusesPayload = z.infer<typeof getAgentStatusesPayloadSchema>;
 
 export const threadConfigSchema = z.object({
   model: z.string().min(1),
@@ -94,6 +90,8 @@ export const agentStatusSchema = z.object({
   version: z.string().optional(),
   authState: authStateSchema,
   capabilities: agentCapabilitySchema,
+  envKind: z.enum(["windows", "wsl"]).optional(),
+  envDistro: z.string().optional(),
 });
 export type AgentStatus = z.infer<typeof agentStatusSchema>;
 
@@ -217,6 +215,109 @@ export const startShellPayloadSchema = z.object({
   projectLocation: projectLocationSchema,
 });
 export type StartShellPayload = z.infer<typeof startShellPayloadSchema>;
+
+// --- Git types ---
+
+export interface GitFileChange {
+  path: string;
+  oldPath?: string;
+  status: string;
+  staged: boolean;
+  insertions: number;
+  deletions: number;
+}
+
+export interface GitStatusResult {
+  isRepo: boolean;
+  branch: string;
+  staged: GitFileChange[];
+  unstaged: GitFileChange[];
+  totalInsertions: number;
+  totalDeletions: number;
+}
+
+export interface GitDiffResult {
+  diff: string;
+}
+
+export interface GitDiffBatchResult {
+  staged: Record<string, string>;
+  unstaged: Record<string, string>;
+}
+
+export const getGitStatusPayloadSchema = z.object({
+  projectLocation: projectLocationSchema,
+});
+export type GetGitStatusPayload = z.infer<typeof getGitStatusPayloadSchema>;
+
+export const getGitDiffPayloadSchema = z.object({
+  projectLocation: projectLocationSchema,
+  filePath: z.string().optional(),
+  staged: z.boolean().default(false),
+});
+export type GetGitDiffPayload = z.infer<typeof getGitDiffPayloadSchema>;
+
+export const getGitDiffBatchPayloadSchema = z.object({
+  projectLocation: projectLocationSchema,
+  untrackedPaths: z.array(z.string()).default([]),
+});
+export type GetGitDiffBatchPayload = z.infer<typeof getGitDiffBatchPayloadSchema>;
+
+export const gitStagePayloadSchema = z.object({
+  projectLocation: projectLocationSchema,
+  filePath: z.string().min(1),
+});
+export type GitStagePayload = z.infer<typeof gitStagePayloadSchema>;
+
+export const gitUnstagePayloadSchema = z.object({
+  projectLocation: projectLocationSchema,
+  filePath: z.string().min(1),
+});
+export type GitUnstagePayload = z.infer<typeof gitUnstagePayloadSchema>;
+
+export const gitRevertPayloadSchema = z.object({
+  projectLocation: projectLocationSchema,
+  filePath: z.string().min(1),
+});
+export type GitRevertPayload = z.infer<typeof gitRevertPayloadSchema>;
+
+export const gitStageAllPayloadSchema = z.object({
+  projectLocation: projectLocationSchema,
+});
+export type GitStageAllPayload = z.infer<typeof gitStageAllPayloadSchema>;
+
+export const gitUnstageAllPayloadSchema = z.object({
+  projectLocation: projectLocationSchema,
+});
+export type GitUnstageAllPayload = z.infer<typeof gitUnstageAllPayloadSchema>;
+
+export const gitRevertAllPayloadSchema = z.object({
+  projectLocation: projectLocationSchema,
+});
+export type GitRevertAllPayload = z.infer<typeof gitRevertAllPayloadSchema>;
+
+export const gitCommitPayloadSchema = z.object({
+  projectLocation: projectLocationSchema,
+  message: z.string().min(1),
+  addAll: z.boolean().default(false),
+});
+export type GitCommitPayload = z.infer<typeof gitCommitPayloadSchema>;
+
+export interface GitCommitResult {
+  hash: string;
+  message: string;
+}
+
+export const generateCommitMessagePayloadSchema = z.object({
+  projectLocation: projectLocationSchema,
+  agentKind: agentKindSchema,
+  model: z.string().min(1).optional(),
+});
+export type GenerateCommitMessagePayload = z.infer<typeof generateCommitMessagePayloadSchema>;
+
+export interface GenerateCommitMessageResult {
+  message: string;
+}
 
 export type AppView =
   | { kind: "home" }

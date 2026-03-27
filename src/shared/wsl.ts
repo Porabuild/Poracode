@@ -25,11 +25,12 @@ export function parseWslUncPath(uncPath: string): { distro: string; linuxPath: s
 }
 
 export function getProjectDisplayPath(location: ProjectLocation): string {
-  return location.kind === "windows" ? location.path : `${location.distro}:${location.linuxPath}`;
+  if (location.kind === "wsl") return `${location.distro}:${location.linuxPath}`;
+  return location.path;
 }
 
 export function getProjectName(location: ProjectLocation): string {
-  const rawPath = location.kind === "windows" ? location.path : location.linuxPath;
+  const rawPath = location.kind === "wsl" ? location.linuxPath : location.path;
   const segments = rawPath.split(/[\\/]/g).filter(Boolean);
   return segments.at(-1) ?? rawPath;
 }

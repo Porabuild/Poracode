@@ -1,4 +1,4 @@
-import { startTransition, useEffect, useEffectEvent, useState } from "react";
+import { lazy, startTransition, Suspense, useEffect, useEffectEvent, useState } from "react";
 import { ArrowRight, FolderOpen, Plus, TerminalSquare } from "lucide-react";
 import { Spinner } from "@heroui/react";
 import { parseWslUncPath } from "../shared/wsl";
@@ -12,10 +12,13 @@ import { Sidebar } from "./components/sidebar/Sidebar";
 import { ThreadDraftView } from "./components/thread/ThreadDraftView";
 import { ThreadView } from "./components/thread/ThreadView";
 import { AppProvider } from "./components/ui/provider";
+const GitReviewOverlay = lazy(() =>
+  import("./components/gitReview/GitReviewOverlay").then((m) => ({ default: m.GitReviewOverlay })),
+);
 import { useAppStore } from "./state/appStore";
 import { useDevTerminalStore } from "./state/devTerminalStore";
+import { useGitStore } from "./state/gitStore";
 import type { ReorderPlacement } from "./state/reorder";
-import { useSharedSettings } from "./state/sharedSettingsStore";
 import { useUpdateStore } from "./state/updateStore";
 
 // ── Module-level IPC listener ───────────────────────────────────
@@ -45,6 +48,14 @@ readBridge().onSupervisorEvent((event) => {
   }
   if (event.type === "thread-exited") {
     useAppStore.getState().markThreadExited(event.threadId);
+  }
+  if (event.type === "windows-agent-statuses") {
+    console.log(`[renderer] event: windows-agent-statuses (${event.statuses.length} agents)`);
+    useAppStore.getState().setAgentStatuses(event.statuses);
+  }
+  if (event.type === "wsl-agent-statuses") {
+    console.log(`[renderer] event: wsl-agent-statuses (${event.statuses.length} agents)`);
+    useAppStore.getState().setWslAgentStatuses(event.statuses);
   }
 });
 
@@ -274,6 +285,7 @@ function AppContent() {
             key={paneThreadId}
             thread={thread}
             agentStatus={agentStatus}
+            isWsl={project.location.kind === "wsl"}
             showCloseButton={paneCount > 1}
             paneAlign={paneAlign}
             isDragging={paneDragSource === paneThreadId}
@@ -360,8 +372,8 @@ export function App() {
   const view = useAppStore((state) => state.view);
   const setAgentStatuses = useAppStore((state) => state.setAgentStatuses);
   const markThreadsInactiveOnLaunch = useAppStore((state) => state.markThreadsInactiveOnLaunch);
-  const environmentMode = useSharedSettings((state) => state.environmentMode);
-  const [wslDistros, setWslDistros] = useState<string[]>([]);
+  const wslAgentStatuses = useAppStore((state) => state.wslAgentStatuses);
+  const wslAvailable = wslAgentStatuses.length > 0;
   const addProject = useAppStore((state) => state.addProject);
   const openDraft = useAppStore((state) => state.openDraft);
   const openThread = useAppStore((state) => state.openThread);
@@ -383,8 +395,10 @@ export function App() {
     return ids;
   }, []);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [gitReviewProjectId, setGitReviewProjectId] = useState<string | null>(null);
   const [initialLoading, setInitialLoading] = useState(true);
   const [storeHydrated, setStoreHydrated] = useState(() => useAppStore.persist.hasHydrated());
+  const [loadT0] = useState(() => Date.now());
   const [reopenAttempted] = useState(() => new Set<string>());
   const reopenStoredThread = useEffectEvent(
     (input: { threadId: string; projectLocation: (typeof projects)[number]["location"] }) => {
@@ -449,33 +463,31 @@ export function App() {
   // above (outside React).  This effect only fetches initial state.
   useEffect(() => {
     if (!storeHydrated) {
+      console.log(`[renderer] +${Date.now() - loadT0}ms: waiting for store hydration`);
       return;
     }
 
     let isActive = true;
+    const restoredView = useAppStore.getState().view;
+    console.log(
+      `[renderer] +${Date.now() - loadT0}ms: store hydrated, view=${JSON.stringify(restoredView)}, ${useAppStore.getState().projects.length} projects, ${useAppStore.getState().threads.length} threads`,
+    );
 
     startTransition(() => {
       markThreadsInactiveOnLaunch();
+      // Clear spinner immediately — agent statuses and thread snapshots
+      // arrive asynchronously and the UI updates reactively.
+      console.log(`[renderer] +${Date.now() - loadT0}ms: initialLoading = false`);
+      setInitialLoading(false);
     });
 
+    // Fire-and-forget: triggers detection in the supervisor.
+    // Results arrive via events (windows-agent-statuses, wsl-agent-statuses).
     void readBridge()
-      .getAgentStatuses({ environmentMode })
-      .then((statuses) => {
-        if (!isActive) {
-          return;
-        }
+      .getAgentStatuses()
+      .catch(() => undefined);
 
-        startTransition(() => {
-          setAgentStatuses(statuses);
-        });
-      })
-      .catch(() => undefined)
-      .finally(() => {
-        if (isActive) {
-          setInitialLoading(false);
-        }
-      });
-
+    // Reconcile thread snapshots in the background.
     void readBridge()
       .getThreadSnapshots()
       .then((snapshots) => {
@@ -483,11 +495,6 @@ export function App() {
           return;
         }
 
-        // After a reload (including environment switches)
-        // normalizeStoredThreadStatus already set every thread to
-        // "inactive".  Only reconcile the selected thread so stale
-        // sessions don't get resurrected.  Close the rest so orphaned
-        // PTYs don't leak in the supervisor.
         const currentView = useAppStore.getState().view;
         const selectedIds = new Set(currentView.kind === "thread" ? currentView.panes : []);
         const storeThreadIds = new Set(useAppStore.getState().threads.map((t) => t.id));
@@ -507,29 +514,10 @@ export function App() {
         });
       });
 
-    void readBridge()
-      .listWslDistros()
-      .then((distros) => {
-        if (!isActive) {
-          return;
-        }
-
-        startTransition(() => {
-          setWslDistros(distros);
-        });
-      })
-      .catch(() => undefined);
-
     return () => {
       isActive = false;
     };
-  }, [
-    environmentMode,
-    markThreadsInactiveOnLaunch,
-    reconcileRuntimeSnapshots,
-    setAgentStatuses,
-    storeHydrated,
-  ]);
+  }, [markThreadsInactiveOnLaunch, reconcileRuntimeSnapshots, storeHydrated]);
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
@@ -541,6 +529,42 @@ export function App() {
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, []);
+
+  // Poll git status for all projects
+  useEffect(() => {
+    if (!storeHydrated || projects.length === 0) return;
+
+    let isActive = true;
+
+    async function pollGitStatus() {
+      const t0 = Date.now();
+      for (const project of projects) {
+        if (!isActive) return;
+        try {
+          const pt = Date.now();
+          const status = await readBridge().getGitStatus({
+            projectLocation: project.location,
+          });
+          console.log(
+            `[renderer] git status ${project.name} (${project.location.kind}): ${Date.now() - pt}ms`,
+          );
+          if (!isActive) return;
+          useGitStore.getState().setStatus(project.id, status);
+        } catch {
+          // Not a git repo or git not available
+        }
+      }
+      console.log(`[renderer] git poll total: ${Date.now() - t0}ms (${projects.length} projects)`);
+    }
+
+    void pollGitStatus();
+    const intervalId = setInterval(() => void pollGitStatus(), 5000);
+
+    return () => {
+      isActive = false;
+      clearInterval(intervalId);
+    };
+  }, [storeHydrated, projects]);
 
   const currentPaneIds = view.kind === "thread" ? view.panes : EMPTY_PANES;
   const currentProjectId =
@@ -567,20 +591,22 @@ export function App() {
   }, [currentPaneIds, threads, projects, storeHydrated]);
 
   if (initialLoading) {
+    console.log(
+      `[renderer] +${Date.now() - loadT0}ms: rendering spinner (hydrated=${storeHydrated})`,
+    );
     return (
       <AppProvider>
         <div className="flex h-screen w-screen items-center justify-center bg-background text-foreground">
           <div className="flex flex-col items-center gap-4">
             <Spinner size="lg" />
-            <p className="text-sm text-muted">
-              {environmentMode === "wsl" ? "Connecting to WSL\u2026" : "Loading\u2026"}
-            </p>
+            <p className="text-sm text-muted">Loading&hellip;</p>
           </div>
         </div>
       </AppProvider>
     );
   }
 
+  console.log(`[renderer] +${Date.now() - loadT0}ms: rendering main UI`);
   return (
     <AppProvider>
       <AppShell
@@ -590,8 +616,7 @@ export function App() {
             threads={threads}
             currentProjectId={currentProjectId}
             currentThreadIds={view.kind === "thread" ? view.panes : []}
-            environmentMode={environmentMode}
-            wslAvailable={wslDistros.length > 0}
+            wslAvailable={wslAvailable}
             onOpenNewThread={(projectId) => {
               const targetProjectId = projectId ?? currentProjectId ?? projects[0]?.id;
 
@@ -605,48 +630,40 @@ export function App() {
               });
             }}
             onOpenSettings={() => setSettingsOpen(true)}
-            onAddProject={() => {
-              if (environmentMode === "wsl") {
-                void (
-                  wslDistros.length > 0
-                    ? Promise.resolve(wslDistros)
-                    : readBridge().listWslDistros()
-                )
-                  .then((distros) => {
-                    const distro = distros[0];
-                    const defaultPath = distro ? `\\\\wsl.localhost\\${distro}\\home` : undefined;
-                    return readBridge().pickFolder(defaultPath);
-                  })
-                  .then((selectedPath) => {
-                    if (!selectedPath) return;
-                    const parsed = parseWslUncPath(selectedPath);
-                    if (!parsed) return;
-                    startTransition(() => {
-                      const project = addProject({
-                        kind: "wsl",
-                        distro: parsed.distro,
-                        linuxPath: parsed.linuxPath,
-                        uncPath: selectedPath,
-                      });
-                      openDraft(project.id);
-                    });
+            onOpenGitReview={(projectId) => setGitReviewProjectId(projectId)}
+            onAddWindowsProject={() => {
+              void readBridge()
+                .pickFolder()
+                .then((path) => {
+                  if (!path) return;
+                  startTransition(() => {
+                    const project = addProject({ kind: "windows", path });
+                    openDraft(project.id);
                   });
-              } else {
-                void readBridge()
-                  .pickFolder()
-                  .then((path) => {
-                    if (!path) return;
-                    startTransition(() => {
-                      const project = addProject({ kind: "windows", path });
-                      openDraft(project.id);
-                    });
-                  });
-              }
+                });
             }}
-            onSwitchMode={() => {
-              const next = environmentMode === "windows" ? "wsl" : "windows";
-              useSharedSettings.getState().setEnvironmentMode(next);
-              window.location.reload();
+            onAddWslProject={() => {
+              void readBridge()
+                .listWslDistros()
+                .then((distros) => {
+                  const distro = distros[0];
+                  const defaultPath = distro ? `\\\\wsl.localhost\\${distro}\\home` : undefined;
+                  return readBridge().pickFolder(defaultPath);
+                })
+                .then((selectedPath) => {
+                  if (!selectedPath) return;
+                  const parsed = parseWslUncPath(selectedPath);
+                  if (!parsed) return;
+                  startTransition(() => {
+                    const project = addProject({
+                      kind: "wsl",
+                      distro: parsed.distro,
+                      linuxPath: parsed.linuxPath,
+                      uncPath: selectedPath,
+                    });
+                    openDraft(project.id);
+                  });
+                });
             }}
             onOpenThread={(threadId) => {
               const thread = threads.find((item) => item.id === threadId);
@@ -755,6 +772,20 @@ export function App() {
         rightPanelOpen={devTerminalOpen}
       />
       {settingsOpen ? <SettingsOverlay onClose={() => setSettingsOpen(false)} /> : null}
+      {gitReviewProjectId ? (
+        <Suspense
+          fallback={
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-background">
+              <Spinner size="lg" />
+            </div>
+          }
+        >
+          <GitReviewOverlay
+            project={projects.find((p) => p.id === gitReviewProjectId)!}
+            onClose={() => setGitReviewProjectId(null)}
+          />
+        </Suspense>
+      ) : null}
     </AppProvider>
   );
 }

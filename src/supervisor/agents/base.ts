@@ -2,7 +2,10 @@ import { existsSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { randomUUID } from "node:crypto";
-import { spawnSync } from "node:child_process";
+import { execFile, spawnSync } from "node:child_process";
+import { promisify } from "node:util";
+
+const execFileAsync = promisify(execFile);
 import type {
   AgentCapability,
   AgentKind,
@@ -25,7 +28,7 @@ export interface CommandSpec {
 }
 
 export interface AgentEnvContext {
-  environmentMode: "windows" | "wsl";
+  envKind: "windows" | "wsl";
   wslDistro?: string;
 }
 
@@ -98,6 +101,10 @@ export interface AgentAdapter {
   createStructuredSession?(input: CreateStructuredSessionInput): Promise<StructuredSessionHandle>;
   buildDirectInput?(prompt: string): string[];
   detectTerminalStatus?(text: string): TerminalStatusHint | null;
+  /** Default model for lightweight one-shot tasks like commit message generation. */
+  defaultOneShotModel?: string;
+  /** Build a command for one-shot prompt→response (e.g. commit-msg gen). Prompt is piped via stdin. */
+  buildOneShotCommand?(model: string): { command: string; args: string[] } | undefined;
 }
 
 export interface TerminalStatusHint {
@@ -170,8 +177,9 @@ export function wrapWslCommand(
   args: string[],
   wslExecPath?: string,
 ): CommandSpec {
-  if (location.kind === "windows") {
-    return buildWindowsCommand(location.path, command, args);
+  if (location.kind !== "wsl") {
+    const cwd = location.path;
+    return buildWindowsCommand(cwd, command, args);
   }
 
   const quoted = [command, ...args].map((a) => `'${a.replace(/'/g, "'\\''")}'`).join(" ");
@@ -224,6 +232,35 @@ export function readCommandOutput(
   };
 }
 
+const WSL_BATCH_DELIMITER = "---LIGHTCODE_BATCH_SEP---";
+
+/**
+ * Run multiple commands in a single `wsl.exe` invocation, splitting output
+ * by a known delimiter.  This avoids the ~800-1000ms per-invocation overhead
+ * of spawning separate `wsl.exe` processes.
+ */
+export function batchWslCommands(
+  distro: string,
+  commands: string[],
+): { ok: boolean; stdout: string }[] {
+  const sep = WSL_BATCH_DELIMITER;
+  const script = commands.map((cmd) => `(${cmd}) 2>/dev/null; echo "${sep}"`).join(" ");
+  const result = spawnSync("wsl.exe", ["-d", distro, "--", "bash", "-lic", script], {
+    encoding: "utf8",
+    shell: false,
+    windowsHide: true,
+    timeout: 15_000,
+  });
+  if (result.error || result.status !== 0) {
+    return commands.map(() => ({ ok: false, stdout: "" }));
+  }
+  const parts = (result.stdout ?? "").split(sep);
+  return commands.map((_, i) => {
+    const raw = (parts[i] ?? "").trim();
+    return { ok: raw.length > 0, stdout: raw };
+  });
+}
+
 export function resolveWslExecutablePath(distro: string, command: string): string | undefined {
   const result = spawnSync("wsl.exe", ["-d", distro, "--", "bash", "-lic", `which ${command}`], {
     encoding: "utf8",
@@ -255,6 +292,68 @@ export function readWslCommandOutput(
     stdout: `${result.stdout ?? ""}`.trim(),
     stderr: `${result.stderr ?? ""}`.trim(),
   };
+}
+
+// ── Async (non-blocking) variants for agent detection ──────────────
+// These use execFile instead of spawnSync so the event loop stays free
+// for IPC messages (git status, thread snapshots, etc.) during detection.
+
+export async function resolveExecutablePathAsync(command: string): Promise<string | undefined> {
+  const locator = process.platform === "win32" ? "where.exe" : "which";
+  try {
+    const { stdout } = await execFileAsync(locator, [command], {
+      windowsHide: true,
+      timeout: 5_000,
+    });
+    return stdout
+      .split(/\r?\n/g)
+      .find((line) => line.trim().length > 0)
+      ?.trim();
+  } catch {
+    return undefined;
+  }
+}
+
+export async function readCommandOutputAsync(
+  command: string,
+  args: string[],
+): Promise<{ ok: boolean; stdout: string; stderr: string }> {
+  try {
+    const { stdout, stderr } = await execFileAsync(command, args, {
+      windowsHide: true,
+      timeout: 10_000,
+    });
+    return { ok: true, stdout: (stdout ?? "").trim(), stderr: (stderr ?? "").trim() };
+  } catch (error: unknown) {
+    const err = error as { stdout?: string; stderr?: string } | undefined;
+    return {
+      ok: false,
+      stdout: (err?.stdout ?? "").trim(),
+      stderr: (err?.stderr ?? "").trim(),
+    };
+  }
+}
+
+export async function batchWslCommandsAsync(
+  distro: string,
+  commands: string[],
+): Promise<{ ok: boolean; stdout: string }[]> {
+  const sep = WSL_BATCH_DELIMITER;
+  const script = commands.map((cmd) => `(${cmd}) 2>/dev/null; echo "${sep}"`).join(" ");
+  try {
+    const { stdout } = await execFileAsync(
+      "wsl.exe",
+      ["-d", distro, "--", "bash", "-lic", script],
+      { windowsHide: true, timeout: 15_000 },
+    );
+    const parts = (stdout ?? "").split(sep);
+    return commands.map((_, i) => {
+      const raw = (parts[i] ?? "").trim();
+      return { ok: raw.length > 0, stdout: raw };
+    });
+  } catch {
+    return commands.map(() => ({ ok: false, stdout: "" }));
+  }
 }
 
 export function detectAuthFile(filePath: string): AuthState {

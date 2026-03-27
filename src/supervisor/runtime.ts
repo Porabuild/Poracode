@@ -1,5 +1,8 @@
-import { appendFileSync, existsSync, readFileSync } from "node:fs";
-import { spawnSync } from "node:child_process";
+import { appendFileSync, existsSync, readFileSync, writeFileSync } from "node:fs";
+import { execFile, spawnSync } from "node:child_process";
+import { promisify } from "node:util";
+
+const execFileAsync = promisify(execFile);
 import { randomUUID } from "node:crypto";
 import { setTimeout as sleep } from "node:timers/promises";
 import { homedir } from "node:os";
@@ -9,7 +12,22 @@ import type {
   AgentKind,
   AgentStatus,
   CloseThreadPayload,
-  GetAgentStatusesPayload,
+  GenerateCommitMessagePayload,
+  GenerateCommitMessageResult,
+  GetGitDiffBatchPayload,
+  GetGitDiffPayload,
+  GetGitStatusPayload,
+  GitCommitPayload,
+  GitCommitResult,
+  GitDiffBatchResult,
+  GitDiffResult,
+  GitRevertAllPayload,
+  GitRevertPayload,
+  GitStageAllPayload,
+  GitStagePayload,
+  GitStatusResult,
+  GitUnstageAllPayload,
+  GitUnstagePayload,
   ProjectLocation,
   ResizeTerminalPayload,
   ResolveThreadServerRequestPayload,
@@ -38,7 +56,10 @@ import {
   type CommandSpec,
   type StructuredSessionHandle,
 } from "./agents/base";
+import { generateCommitMessage } from "./commitMessageGenerator";
+import { GitService } from "./git";
 import { resetTerminalLogFile, resetTerminalLogsDir } from "./terminalLogs";
+import { detectWindowsShell, type WindowsShellPreference } from "./shellPreference";
 
 interface SessionRuntime {
   instanceId: string;
@@ -87,40 +108,131 @@ export async function writeSubmittedPrompt(
 export class SupervisorRuntime {
   private readonly isDev = Boolean(process.env.VITE_DEV_SERVER_URL);
   private readonly logsDir: string;
+  private readonly gitService = new GitService();
   private readonly adapters = new Map(
     createAgentRegistry().map((adapter) => [adapter.kind, adapter]),
   );
   private readonly sessions = new Map<string, SessionRuntime>();
   private readonly shellSessions = new Map<string, ShellSessionRuntime>();
   private readonly startLocks = new Map<string, Promise<void>>();
+  private readonly windowsShell: WindowsShellPreference;
+  private readonly statusCachePath: string;
 
   constructor(private readonly emit: (event: SupervisorEvent) => void) {
     const baseDir = process.env.LIGHTCODE_DATA_DIR?.trim() || join(homedir(), ".lightcode");
     this.logsDir = join(baseDir, "terminal-logs");
+    this.statusCachePath = join(baseDir, "agent-status-cache.json");
     resetTerminalLogsDir(this.logsDir);
+    this.windowsShell = detectWindowsShell();
+    console.log(
+      `[supervisor] detected shell: ${this.windowsShell.kind} (${this.windowsShell.shell})`,
+    );
   }
 
   async listWslDistros(): Promise<string[]> {
-    const result = spawnSync("wsl.exe", ["-l", "-q"], {
-      encoding: "utf8",
-      windowsHide: true,
-    });
-    if (result.error) {
+    const t0 = Date.now();
+    try {
+      const { stdout } = await execFileAsync("wsl.exe", ["-l", "-q"], {
+        encoding: "utf8",
+        windowsHide: true,
+        timeout: 5_000,
+      });
+      console.log(`[supervisor] listWslDistros: ${Date.now() - t0}ms`);
+      return normalizeWslListOutput(stdout ?? "");
+    } catch {
+      console.log(`[supervisor] listWslDistros: failed (${Date.now() - t0}ms)`);
       return [];
     }
-    return normalizeWslListOutput(result.stdout ?? "");
   }
 
-  async getAgentStatuses(payload: GetAgentStatusesPayload): Promise<AgentStatus[]> {
-    let ctx: AgentEnvContext | undefined;
-    if (payload.environmentMode === "wsl") {
-      const distros = await this.listWslDistros();
-      const defaultDistro = distros[0];
-      if (defaultDistro) {
-        ctx = { environmentMode: "wsl", wslDistro: defaultDistro };
+  async getAgentStatuses(): Promise<AgentStatus[]> {
+    // Emit cached results from disk immediately (if available).
+    this.emitCachedStatuses();
+
+    this.detectAllAgentStatusesBackground();
+
+    // Return empty — results arrive via events.
+    return [];
+  }
+
+  private emitCachedStatuses(): void {
+    try {
+      if (!existsSync(this.statusCachePath)) return;
+      const raw = readFileSync(this.statusCachePath, "utf8");
+      const cache = JSON.parse(raw) as {
+        windows?: AgentStatus[];
+        wsl?: AgentStatus[];
+      };
+      if (cache.windows?.length) {
+        console.log("[supervisor] agent statuses: emitting from disk cache (windows)");
+        this.emit({ type: "windows-agent-statuses", statuses: cache.windows });
       }
+      if (cache.wsl?.length) {
+        console.log("[supervisor] agent statuses: emitting from disk cache (wsl)");
+        this.emit({ type: "wsl-agent-statuses", statuses: cache.wsl });
+      }
+    } catch {
+      // Cache corrupt or missing — ignore, fresh detection will run.
     }
-    return Promise.all([...this.adapters.values()].map((adapter) => adapter.detectInstall(ctx)));
+  }
+
+  private writeDiskCache(windows: AgentStatus[], wsl: AgentStatus[]): void {
+    try {
+      writeFileSync(this.statusCachePath, JSON.stringify({ windows, wsl, updatedAt: Date.now() }));
+    } catch {
+      // best-effort
+    }
+  }
+
+  private detectAllAgentStatusesBackground(): void {
+    const t0 = Date.now();
+
+    // Windows detection — fast (~500ms), but still non-blocking.
+    void Promise.all(
+      [...this.adapters.values()].map(async (adapter) => {
+        const at = Date.now();
+        const status = await adapter.detectInstall();
+        console.log(`[supervisor] detectInstall(${adapter.kind}, windows): ${Date.now() - at}ms`);
+        return { ...status, envKind: "windows" as const };
+      }),
+    )
+      .then((windowsStatuses) => {
+        console.log(`[supervisor] windows agent statuses: done (${Date.now() - t0}ms)`);
+        this.emit({ type: "windows-agent-statuses", statuses: windowsStatuses });
+
+        this.detectWslAndWriteCache(windowsStatuses);
+      })
+      .catch(() => undefined);
+  }
+
+  private detectWslAndWriteCache(windowsStatuses: AgentStatus[]): void {
+    const t0 = Date.now();
+    void this.listWslDistros()
+      .then(async (distros) => {
+        const defaultDistro = distros[0];
+        if (!defaultDistro) {
+          console.log(`[supervisor] wsl agent statuses: no distros (${Date.now() - t0}ms)`);
+          this.writeDiskCache(windowsStatuses, []);
+          return;
+        }
+
+        const ctx: AgentEnvContext = { envKind: "wsl", wslDistro: defaultDistro };
+        const wslStatuses = await Promise.all(
+          [...this.adapters.values()].map(async (adapter) => {
+            const at = Date.now();
+            const status = await adapter.detectInstall(ctx);
+            console.log(
+              `[supervisor] detectInstall(${adapter.kind}, wsl/${defaultDistro}): ${Date.now() - at}ms`,
+            );
+            return { ...status, envKind: "wsl" as const, envDistro: defaultDistro };
+          }),
+        );
+
+        console.log(`[supervisor] wsl agent statuses: done (${Date.now() - t0}ms)`);
+        this.emit({ type: "wsl-agent-statuses", statuses: wslStatuses });
+        this.writeDiskCache(windowsStatuses, wslStatuses);
+      })
+      .catch(() => undefined);
   }
 
   getThreadSnapshots(): ThreadRuntimeSnapshot[] {
@@ -442,6 +554,59 @@ export class SupervisorRuntime {
     });
   }
 
+  async getGitStatus(payload: GetGitStatusPayload): Promise<GitStatusResult> {
+    return this.gitService.getStatus(payload.projectLocation);
+  }
+
+  async getGitDiff(payload: GetGitDiffPayload): Promise<GitDiffResult> {
+    return this.gitService.getDiff(payload.projectLocation, payload.filePath, payload.staged);
+  }
+
+  async getGitDiffBatch(payload: GetGitDiffBatchPayload): Promise<GitDiffBatchResult> {
+    return this.gitService.getDiffBatch(payload.projectLocation, payload.untrackedPaths);
+  }
+
+  async gitStage(payload: GitStagePayload): Promise<void> {
+    return this.gitService.stage(payload.projectLocation, payload.filePath);
+  }
+
+  async gitUnstage(payload: GitUnstagePayload): Promise<void> {
+    return this.gitService.unstage(payload.projectLocation, payload.filePath);
+  }
+
+  async gitRevert(payload: GitRevertPayload): Promise<void> {
+    return this.gitService.revert(payload.projectLocation, payload.filePath);
+  }
+
+  async gitStageAll(payload: GitStageAllPayload): Promise<void> {
+    return this.gitService.stageAll(payload.projectLocation);
+  }
+
+  async gitUnstageAll(payload: GitUnstageAllPayload): Promise<void> {
+    return this.gitService.unstageAll(payload.projectLocation);
+  }
+
+  async gitRevertAll(payload: GitRevertAllPayload): Promise<void> {
+    return this.gitService.revertAll(payload.projectLocation);
+  }
+
+  async gitCommit(payload: GitCommitPayload): Promise<GitCommitResult> {
+    const { hash } = await this.gitService.commit(
+      payload.projectLocation,
+      payload.message,
+      payload.addAll ?? false,
+    );
+    return { hash, message: payload.message };
+  }
+
+  async generateCommitMessage(
+    payload: GenerateCommitMessagePayload,
+  ): Promise<GenerateCommitMessageResult> {
+    const adapter = this.requireAdapter(payload.agentKind);
+    const message = await generateCommitMessage(payload.projectLocation, adapter, payload.model);
+    return { message };
+  }
+
   async resolveThreadServerRequest(payload: ResolveThreadServerRequestPayload): Promise<void> {
     const session = this.requireSession(payload.threadId);
     if (!session.structuredSession?.resolveServerRequest) {
@@ -498,33 +663,17 @@ export class SupervisorRuntime {
     cwd?: string;
   } {
     if (location.kind === "wsl") {
+      // Use WSL's default shell directly — same speed as typing `wsl` in PowerShell.
       return {
         command: "wsl.exe",
-        args: ["-d", location.distro, "--cd", location.linuxPath, "--", "bash", "-l"],
+        args: ["-d", location.distro, "--cd", location.linuxPath],
       };
     }
 
-    // Prefer pwsh → powershell → cmd, same priority as agent launch commands.
-    const resolve = (name: string): string | undefined => {
-      const result = spawnSync(process.platform === "win32" ? "where.exe" : "which", [name], {
-        encoding: "utf8",
-        timeout: 5_000,
-        windowsHide: true,
-      });
-      if (result.status !== 0) return undefined;
-      return result.stdout.trim().split(/\r?\n/)[0];
-    };
-
-    const shell =
-      resolve("pwsh.exe") ?? resolve("pwsh") ?? resolve("powershell.exe") ?? resolve("powershell");
-
-    if (shell) {
-      return { command: shell, args: ["-NoLogo"], cwd: location.path };
-    }
-
+    // Use the cached shell preference (detected once at startup).
     return {
-      command: "C:\\Windows\\System32\\cmd.exe",
-      args: ["/k"],
+      command: this.windowsShell.shell,
+      args: [...this.windowsShell.args],
       cwd: location.path,
     };
   }

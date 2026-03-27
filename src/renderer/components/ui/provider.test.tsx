@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 
 vi.mock("../../state/sharedSettingsStore", () => ({
   useSharedSettings: (selector: (s: Record<string, unknown>) => unknown) =>
-    selector({ themeMode: "system", environmentMode: "windows" }),
+    selector({ themeMode: "system" }),
 }));
 
 import { AppProvider } from "./provider";

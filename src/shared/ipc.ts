@@ -1,7 +1,22 @@
 import type {
   AgentStatus,
   CloseThreadPayload,
-  GetAgentStatusesPayload,
+  GenerateCommitMessagePayload,
+  GenerateCommitMessageResult,
+  GetGitDiffBatchPayload,
+  GetGitDiffPayload,
+  GetGitStatusPayload,
+  GitCommitPayload,
+  GitCommitResult,
+  GitDiffBatchResult,
+  GitDiffResult,
+  GitRevertAllPayload,
+  GitRevertPayload,
+  GitStageAllPayload,
+  GitStagePayload,
+  GitStatusResult,
+  GitUnstageAllPayload,
+  GitUnstagePayload,
   ProjectLocation,
   ResizeTerminalPayload,
   ResolveThreadServerRequestPayload,
@@ -22,7 +37,7 @@ import type {
 
 export type SupervisorRequest =
   | { id: string; type: "listWslDistros"; payload: Record<string, never> }
-  | { id: string; type: "getAgentStatuses"; payload: GetAgentStatusesPayload }
+  | { id: string; type: "getAgentStatuses"; payload: Record<string, never> }
   | { id: string; type: "getThreadSnapshots"; payload: Record<string, never> }
   | { id: string; type: "startThread"; payload: StartThreadPayload }
   | { id: string; type: "sendThreadInput"; payload: SendThreadInputPayload }
@@ -31,7 +46,18 @@ export type SupervisorRequest =
   | { id: string; type: "getThreadHistory"; payload: { threadId: string } }
   | { id: string; type: "resolveThreadServerRequest"; payload: ResolveThreadServerRequestPayload }
   | { id: string; type: "closeThread"; payload: CloseThreadPayload }
-  | { id: string; type: "startShell"; payload: StartShellPayload };
+  | { id: string; type: "startShell"; payload: StartShellPayload }
+  | { id: string; type: "getGitStatus"; payload: GetGitStatusPayload }
+  | { id: string; type: "getGitDiff"; payload: GetGitDiffPayload }
+  | { id: string; type: "getGitDiffBatch"; payload: GetGitDiffBatchPayload }
+  | { id: string; type: "gitStage"; payload: GitStagePayload }
+  | { id: string; type: "gitUnstage"; payload: GitUnstagePayload }
+  | { id: string; type: "gitRevert"; payload: GitRevertPayload }
+  | { id: string; type: "gitStageAll"; payload: GitStageAllPayload }
+  | { id: string; type: "gitUnstageAll"; payload: GitUnstageAllPayload }
+  | { id: string; type: "gitRevertAll"; payload: GitRevertAllPayload }
+  | { id: string; type: "gitCommit"; payload: GitCommitPayload }
+  | { id: string; type: "generateCommitMessage"; payload: GenerateCommitMessagePayload };
 
 export type SupervisorReply =
   | { replyTo: string; ok: true; data: unknown }
@@ -58,7 +84,9 @@ export type SupervisorEvent =
       errorMessage?: string;
       terminalPrompt?: TerminalPrompt;
     }
-  | { type: "thread-exited"; threadId: string; exitCode: number | null };
+  | { type: "thread-exited"; threadId: string; exitCode: number | null }
+  | { type: "windows-agent-statuses"; statuses: AgentStatus[] }
+  | { type: "wsl-agent-statuses"; statuses: AgentStatus[] };
 
 export type UpdateStatus =
   | { type: "checking" }
@@ -82,7 +110,7 @@ export interface WindowChromePayload {
 export interface LightcodeBridge {
   pickFolder(defaultPath?: string): Promise<string | null>;
   listWslDistros(): Promise<string[]>;
-  getAgentStatuses(payload: GetAgentStatusesPayload): Promise<AgentStatus[]>;
+  getAgentStatuses(): Promise<AgentStatus[]>;
   getThreadSnapshots(): Promise<ThreadRuntimeSnapshot[]>;
   getThreadHistory(threadId: string): Promise<ThreadHistorySnapshot>;
   startThread(payload: StartThreadPayload): Promise<StartThreadResult>;
@@ -92,12 +120,39 @@ export interface LightcodeBridge {
   resolveThreadServerRequest(payload: ResolveThreadServerRequestPayload): Promise<void>;
   closeThread(payload: CloseThreadPayload): Promise<void>;
   startShell(payload: StartShellPayload): Promise<void>;
+  getGitStatus(payload: GetGitStatusPayload): Promise<GitStatusResult>;
+  getGitDiff(payload: GetGitDiffPayload): Promise<GitDiffResult>;
+  getGitDiffBatch(payload: GetGitDiffBatchPayload): Promise<GitDiffBatchResult>;
+  gitStage(payload: GitStagePayload): Promise<void>;
+  gitUnstage(payload: GitUnstagePayload): Promise<void>;
+  gitRevert(payload: GitRevertPayload): Promise<void>;
+  gitStageAll(payload: GitStageAllPayload): Promise<void>;
+  gitUnstageAll(payload: GitUnstageAllPayload): Promise<void>;
+  gitRevertAll(payload: GitRevertAllPayload): Promise<void>;
+  gitCommit(payload: GitCommitPayload): Promise<GitCommitResult>;
+  generateCommitMessage(
+    payload: GenerateCommitMessagePayload,
+  ): Promise<GenerateCommitMessageResult>;
   setWindowChrome(payload: WindowChromePayload): Promise<void>;
   onSupervisorEvent(listener: (event: SupervisorEvent) => void): () => void;
   checkForUpdate(): Promise<void>;
   startUpdateDownload(): Promise<void>;
   installUpdate(): Promise<void>;
   onUpdateStatus(listener: (status: UpdateStatus) => void): () => void;
+  // Database
+  dbGetProjects(): Promise<import("./contracts").Project[]>;
+  dbGetThreads(): Promise<import("./contracts").Thread[]>;
+  dbGetState(key: string): Promise<string | null>;
+  dbSetState(key: string, value: string): Promise<void>;
+  dbUpsertProject(project: import("./contracts").Project): Promise<void>;
+  dbUpsertThread(thread: import("./contracts").Thread): Promise<void>;
+  dbDeleteThread(threadId: string): Promise<void>;
+  dbDeleteProject(projectId: string): Promise<void>;
+  dbSyncAll(
+    projects: import("./contracts").Project[],
+    threads: import("./contracts").Thread[],
+    viewJson: string,
+  ): Promise<void>;
 }
 
 export interface AddProjectDraft {

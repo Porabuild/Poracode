@@ -1,19 +1,31 @@
 import { defineConfig } from "tsdown";
 
-export default defineConfig({
-  entry: {
-    main: "src/main/main.ts",
-    preload: "src/main/preload.ts",
-    supervisor: "src/supervisor/index.ts",
-  },
+const shared = {
   outDir: "dist/main",
-  platform: "node",
-  format: "cjs",
-  target: "node24",
+  platform: "node" as const,
+  format: "cjs" as const,
+  target: "node24" as const,
   sourcemap: true,
-  clean: true,
   dts: false,
   deps: {
-    neverBundle: ["electron", "node-pty", "electron-updater"],
+    neverBundle: ["electron", "node-pty", "better-sqlite3", "electron-updater"],
   },
-});
+};
+
+export default defineConfig([
+  {
+    entry: { main: "src/main/main.ts" },
+    clean: true,
+    ...shared,
+  },
+  {
+    entry: { preload: "src/main/preload.ts" },
+    clean: false,
+    ...shared,
+  },
+  {
+    entry: { supervisor: "src/supervisor/index.ts" },
+    clean: false,
+    ...shared,
+  },
+]);

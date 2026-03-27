@@ -9,6 +9,7 @@ directories:
 files:
   - dist/**/*
   - node_modules/node-pty/**/*
+  - node_modules/better-sqlite3/**/*
   - package.json
 
 extraMetadata:
@@ -17,6 +18,7 @@ extraMetadata:
 asar: true
 asarUnpack:
   - node_modules/node-pty/**/*
+  - node_modules/better-sqlite3/**/*
 
 publish:
   provider: github

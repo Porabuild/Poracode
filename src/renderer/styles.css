@@ -461,6 +461,33 @@ body {
   width: 2.25rem;
 }
 
+.lightcode-git-header {
+  -webkit-app-region: drag;
+  app-region: drag;
+  user-select: none;
+  z-index: 10;
+}
+
+.lightcode-overlay-shell .lightcode-shell,
+.lightcode-git-body .lightcode-shell {
+  padding-top: 2px;
+}
+
+.lightcode-git-body aside,
+.lightcode-git-body .lightcode-resize-handle {
+  margin-top: 0;
+  height: calc(100% - 0.5rem);
+}
+
+.lightcode-git-body .lightcode-drag-region {
+  height: 0;
+}
+
+.lightcode-git-header__controls {
+  -webkit-app-region: no-drag;
+  app-region: no-drag;
+}
+
 .lightcode-thin-scrollbar {
   padding-bottom: 2px;
   scrollbar-gutter: stable;

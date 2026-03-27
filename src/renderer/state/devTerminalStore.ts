@@ -1,5 +1,6 @@
 import { create } from "zustand";
-import { createJSONStorage, persist } from "zustand/middleware";
+import { persist } from "zustand/middleware";
+import { createDbStorage } from "./dbStorage";
 
 export interface DevTerminalTab {
   id: string;
@@ -144,7 +145,7 @@ export const useDevTerminalStore = create<DevTerminalState & DevTerminalActions>
     {
       name: "lightcode-dev-terminals",
       version: 1,
-      storage: createJSONStorage(() => localStorage),
+      storage: createDbStorage(),
       partialize: (state) => ({
         tabs: state.tabs,
         activeProjectId: state.activeProjectId,

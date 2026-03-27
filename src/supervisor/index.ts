@@ -1,6 +1,16 @@
 import type {
   CloseThreadPayload,
-  GetAgentStatusesPayload,
+  GenerateCommitMessagePayload,
+  GetGitDiffBatchPayload,
+  GetGitDiffPayload,
+  GetGitStatusPayload,
+  GitCommitPayload,
+  GitRevertAllPayload,
+  GitRevertPayload,
+  GitStageAllPayload,
+  GitStagePayload,
+  GitUnstageAllPayload,
+  GitUnstagePayload,
   ResizeTerminalPayload,
   ResolveThreadServerRequestPayload,
   SendThreadInputPayload,
@@ -11,7 +21,17 @@ import type {
 import type { SupervisorReply, SupervisorRequest } from "../shared/ipc";
 import {
   closeThreadPayloadSchema,
-  getAgentStatusesPayloadSchema,
+  getGitDiffBatchPayloadSchema,
+  getGitDiffPayloadSchema,
+  getGitStatusPayloadSchema,
+  gitCommitPayloadSchema,
+  generateCommitMessagePayloadSchema,
+  gitRevertAllPayloadSchema,
+  gitRevertPayloadSchema,
+  gitStageAllPayloadSchema,
+  gitStagePayloadSchema,
+  gitUnstageAllPayloadSchema,
+  gitUnstagePayloadSchema,
   resizeTerminalPayloadSchema,
   resolveThreadServerRequestPayloadSchema,
   sendThreadInputPayloadSchema,
@@ -30,9 +50,7 @@ async function handleRequest(request: SupervisorRequest): Promise<unknown> {
     case "listWslDistros":
       return runtime.listWslDistros();
     case "getAgentStatuses":
-      return runtime.getAgentStatuses(
-        getAgentStatusesPayloadSchema.parse(request.payload) as GetAgentStatusesPayload,
-      );
+      return runtime.getAgentStatuses();
     case "getThreadSnapshots":
       return runtime.getThreadSnapshots();
     case "startThread":
@@ -66,6 +84,44 @@ async function handleRequest(request: SupervisorRequest): Promise<unknown> {
     case "startShell":
       return runtime.startShell(
         startShellPayloadSchema.parse(request.payload) as StartShellPayload,
+      );
+    case "getGitStatus":
+      return runtime.getGitStatus(
+        getGitStatusPayloadSchema.parse(request.payload) as GetGitStatusPayload,
+      );
+    case "getGitDiff":
+      return runtime.getGitDiff(
+        getGitDiffPayloadSchema.parse(request.payload) as GetGitDiffPayload,
+      );
+    case "getGitDiffBatch":
+      return runtime.getGitDiffBatch(
+        getGitDiffBatchPayloadSchema.parse(request.payload) as GetGitDiffBatchPayload,
+      );
+    case "gitStage":
+      return runtime.gitStage(gitStagePayloadSchema.parse(request.payload) as GitStagePayload);
+    case "gitUnstage":
+      return runtime.gitUnstage(
+        gitUnstagePayloadSchema.parse(request.payload) as GitUnstagePayload,
+      );
+    case "gitRevert":
+      return runtime.gitRevert(gitRevertPayloadSchema.parse(request.payload) as GitRevertPayload);
+    case "gitStageAll":
+      return runtime.gitStageAll(
+        gitStageAllPayloadSchema.parse(request.payload) as GitStageAllPayload,
+      );
+    case "gitUnstageAll":
+      return runtime.gitUnstageAll(
+        gitUnstageAllPayloadSchema.parse(request.payload) as GitUnstageAllPayload,
+      );
+    case "gitRevertAll":
+      return runtime.gitRevertAll(
+        gitRevertAllPayloadSchema.parse(request.payload) as GitRevertAllPayload,
+      );
+    case "gitCommit":
+      return runtime.gitCommit(gitCommitPayloadSchema.parse(request.payload) as GitCommitPayload);
+    case "generateCommitMessage":
+      return runtime.generateCommitMessage(
+        generateCommitMessagePayloadSchema.parse(request.payload) as GenerateCommitMessagePayload,
       );
     default: {
       const exhaustive: never = request;

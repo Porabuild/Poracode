@@ -1,5 +1,6 @@
 import { create } from "zustand";
-import { createJSONStorage, persist } from "zustand/middleware";
+import { persist } from "zustand/middleware";
+import { createDbStorage } from "./dbStorage";
 import type {
   AgentStatus,
   AppView,
@@ -17,7 +18,6 @@ import type {
 } from "../../shared/contracts";
 import { getProjectName } from "../../shared/wsl";
 import { reorderIds, reorderThreadsInProject, type ReorderPlacement } from "./reorder";
-import { readEnvironmentMode } from "./sharedSettingsStore";
 
 function makeThreadTitle(prompt: string): string {
   const normalized = prompt.trim().replace(/\s+/g, " ");
@@ -73,8 +73,10 @@ interface AppStoreState {
   threads: Thread[];
   pendingServerRequests: PendingThreadServerRequest[];
   agentStatuses: AgentStatus[];
+  wslAgentStatuses: AgentStatus[];
   view: AppView;
   setAgentStatuses: (statuses: AgentStatus[]) => void;
+  setWslAgentStatuses: (statuses: AgentStatus[]) => void;
   markThreadsInactiveOnLaunch: () => void;
   addProject: (location: ProjectLocation, nameOverride?: string) => Project;
   updateProjectDraftConfig: (projectId: string, draftConfig: ProjectDraftConfig) => void;
@@ -119,13 +121,56 @@ interface AppStoreState {
   reorderPanes: (sourceId: string, targetId: string, placement: ReorderPlacement) => void;
 }
 
-// One-time migration: copy legacy store data into the windows environment store.
-(function migrateFromLegacy() {
-  const legacy = localStorage.getItem("lightcode-app-state");
-  if (legacy && !localStorage.getItem("lightcode-env-windows")) {
-    localStorage.setItem("lightcode-env-windows", legacy);
+/**
+ * One-time migration: if SQLite is empty (first run after upgrade), read
+ * legacy localStorage data and seed the DB via the Zustand merge callback.
+ * Returns the legacy state or undefined if nothing to migrate.
+ */
+function readLegacyLocalStorage(): Partial<AppStoreState> | undefined {
+  const parse = (raw: string | null) => {
+    if (!raw) return undefined;
+    try {
+      const parsed = JSON.parse(raw) as { state?: Partial<AppStoreState> };
+      return parsed?.state;
+    } catch {
+      return undefined;
+    }
+  };
+
+  const win =
+    parse(localStorage.getItem("lightcode-app-v2")) ??
+    parse(localStorage.getItem("lightcode-env-windows")) ??
+    parse(localStorage.getItem("lightcode-app-state"));
+  const wsl = parse(localStorage.getItem("lightcode-env-wsl"));
+
+  if (!win && !wsl) return undefined;
+
+  const seenProjects = new Set<string>();
+  const seenThreads = new Set<string>();
+  const projects: Project[] = [];
+  const threads: Thread[] = [];
+
+  for (const source of [win, wsl]) {
+    if (!source) continue;
+    for (const p of (source.projects as Project[] | undefined) ?? []) {
+      if (!seenProjects.has(p.id)) {
+        seenProjects.add(p.id);
+        projects.push(p);
+      }
+    }
+    for (const t of (source.threads as Thread[] | undefined) ?? []) {
+      if (!seenThreads.has(t.id)) {
+        seenThreads.add(t.id);
+        threads.push(t);
+      }
+    }
   }
-})();
+
+  if (projects.length === 0 && threads.length === 0) return undefined;
+
+  const view = win?.view ?? wsl?.view ?? { kind: "home" };
+  return { projects, threads, view } as Partial<AppStoreState>;
+}
 
 export const useAppStore = create<AppStoreState>()(
   persist(
@@ -134,8 +179,10 @@ export const useAppStore = create<AppStoreState>()(
       threads: [],
       pendingServerRequests: [],
       agentStatuses: [],
+      wslAgentStatuses: [],
       view: { kind: "home" },
       setAgentStatuses: (agentStatuses) => set({ agentStatuses }),
+      setWslAgentStatuses: (wslAgentStatuses) => set({ wslAgentStatuses }),
       markThreadsInactiveOnLaunch: () =>
         set((state) => {
           let changed = false;
@@ -508,9 +555,9 @@ export const useAppStore = create<AppStoreState>()(
         }),
     }),
     {
-      name: `lightcode-env-${readEnvironmentMode()}`,
-      version: 3,
-      storage: createJSONStorage(() => localStorage),
+      name: "lightcode-app-v2",
+      version: 4,
+      storage: createDbStorage(),
       migrate: (persistedState) => {
         const state = persistedState as Partial<AppStoreState> & {
           threads?: Thread[];
@@ -532,7 +579,11 @@ export const useAppStore = create<AppStoreState>()(
         };
       },
       merge: (persistedState, currentState) => {
-        const state = persistedState as Partial<AppStoreState> & { threads?: Thread[] };
+        // If SQLite returned nothing, try localStorage migration.
+        const state =
+          (persistedState != null
+            ? (persistedState as Partial<AppStoreState> & { threads?: Thread[] })
+            : readLegacyLocalStorage()) ?? ({} as Partial<AppStoreState>);
 
         return {
           ...currentState,

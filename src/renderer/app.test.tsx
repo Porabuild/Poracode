@@ -72,18 +72,14 @@ vi.mock("./components/thread/ThreadView", () => ({
 
 vi.mock("./state/sharedSettingsStore", () => ({
   useSharedSettings: Object.assign(
-    (selector: (s: Record<string, unknown>) => unknown) =>
-      selector({ environmentMode: "windows", themeMode: "system" }),
+    (selector: (s: Record<string, unknown>) => unknown) => selector({ themeMode: "system" }),
     {
       getState: () => ({
-        environmentMode: "windows",
         themeMode: "system",
-        setEnvironmentMode: () => undefined,
         setThemeMode: () => undefined,
       }),
     },
   ),
-  readEnvironmentMode: () => "windows",
 }));
 
 import { App } from "./app";

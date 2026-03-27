@@ -4,6 +4,19 @@ import { watch } from "node:fs";
 import { join } from "node:path";
 import { app, BrowserWindow, dialog, ipcMain } from "electron";
 import { autoUpdater } from "electron-updater";
+import {
+  closeDatabase,
+  dbDeleteProject,
+  dbDeleteThread,
+  dbGetProjects,
+  dbGetState,
+  dbGetThreads,
+  dbSetState,
+  dbSyncAll,
+  dbUpsertProject,
+  dbUpsertThread,
+  initDatabase,
+} from "./db";
 import type {
   SupervisorEvent,
   SupervisorReply,
@@ -25,7 +38,27 @@ const CHANNELS = {
   resolveThreadServerRequest: "lightcode:resolve-thread-server-request",
   closeThread: "lightcode:close-thread",
   startShell: "lightcode:start-shell",
+  getGitStatus: "lightcode:get-git-status",
+  getGitDiff: "lightcode:get-git-diff",
+  getGitDiffBatch: "lightcode:get-git-diff-batch",
+  gitStage: "lightcode:git-stage",
+  gitUnstage: "lightcode:git-unstage",
+  gitRevert: "lightcode:git-revert",
+  gitStageAll: "lightcode:git-stage-all",
+  gitUnstageAll: "lightcode:git-unstage-all",
+  gitRevertAll: "lightcode:git-revert-all",
+  gitCommit: "lightcode:git-commit",
+  generateCommitMessage: "lightcode:generate-commit-message",
   setWindowChrome: "lightcode:set-window-chrome",
+  dbGetProjects: "lightcode:db-get-projects",
+  dbGetThreads: "lightcode:db-get-threads",
+  dbGetState: "lightcode:db-get-state",
+  dbSetState: "lightcode:db-set-state",
+  dbUpsertProject: "lightcode:db-upsert-project",
+  dbUpsertThread: "lightcode:db-upsert-thread",
+  dbDeleteThread: "lightcode:db-delete-thread",
+  dbDeleteProject: "lightcode:db-delete-project",
+  dbSyncAll: "lightcode:db-sync-all",
   supervisorEvent: "lightcode:supervisor-event",
   updateStatus: "lightcode:update-status",
   checkForUpdate: "lightcode:check-for-update",
@@ -229,9 +262,7 @@ function registerIpcHandlers(): void {
     callSupervisor<SupervisorRequest, string[]>("listWslDistros", {}),
   );
 
-  ipcMain.handle(CHANNELS.getAgentStatuses, async (_event, payload) =>
-    callSupervisor("getAgentStatuses", payload ?? {}),
-  );
+  ipcMain.handle(CHANNELS.getAgentStatuses, async () => callSupervisor("getAgentStatuses", {}));
   ipcMain.handle(CHANNELS.getThreadSnapshots, async () => callSupervisor("getThreadSnapshots", {}));
 
   ipcMain.handle(CHANNELS.getThreadHistory, async (_event, threadId: string) =>
@@ -266,6 +297,48 @@ function registerIpcHandlers(): void {
     callSupervisor("startShell", payload),
   );
 
+  ipcMain.handle(CHANNELS.getGitStatus, async (_event, payload) =>
+    callSupervisor("getGitStatus", payload),
+  );
+
+  ipcMain.handle(CHANNELS.getGitDiff, async (_event, payload) =>
+    callSupervisor("getGitDiff", payload),
+  );
+
+  ipcMain.handle(CHANNELS.getGitDiffBatch, async (_event, payload) =>
+    callSupervisor("getGitDiffBatch", payload),
+  );
+
+  ipcMain.handle(CHANNELS.gitStage, async (_event, payload) => callSupervisor("gitStage", payload));
+
+  ipcMain.handle(CHANNELS.gitUnstage, async (_event, payload) =>
+    callSupervisor("gitUnstage", payload),
+  );
+
+  ipcMain.handle(CHANNELS.gitRevert, async (_event, payload) =>
+    callSupervisor("gitRevert", payload),
+  );
+
+  ipcMain.handle(CHANNELS.gitStageAll, async (_event, payload) =>
+    callSupervisor("gitStageAll", payload),
+  );
+
+  ipcMain.handle(CHANNELS.gitUnstageAll, async (_event, payload) =>
+    callSupervisor("gitUnstageAll", payload),
+  );
+
+  ipcMain.handle(CHANNELS.gitRevertAll, async (_event, payload) =>
+    callSupervisor("gitRevertAll", payload),
+  );
+
+  ipcMain.handle(CHANNELS.gitCommit, async (_event, payload) =>
+    callSupervisor("gitCommit", payload),
+  );
+
+  ipcMain.handle(CHANNELS.generateCommitMessage, async (_event, payload) =>
+    callSupervisor("generateCommitMessage", payload),
+  );
+
   ipcMain.handle(CHANNELS.setWindowChrome, async (_event, payload: WindowChromePayload) => {
     if (!mainWindow || (process.platform !== "win32" && process.platform !== "linux")) {
       return;
@@ -277,6 +350,23 @@ function registerIpcHandlers(): void {
       height: WINDOW_CHROME_HEIGHT,
     });
   });
+
+  // ── Database IPC handlers ───────────────────────────────────────
+  ipcMain.handle(CHANNELS.dbGetProjects, () => dbGetProjects());
+  ipcMain.handle(CHANNELS.dbGetThreads, () => dbGetThreads());
+  ipcMain.handle(CHANNELS.dbGetState, (_event, key: string) => dbGetState(key));
+  ipcMain.handle(CHANNELS.dbSetState, (_event, key: string, value: string) =>
+    dbSetState(key, value),
+  );
+  ipcMain.handle(CHANNELS.dbUpsertProject, (_event, project) => dbUpsertProject(project));
+  ipcMain.handle(CHANNELS.dbUpsertThread, (_event, thread) => dbUpsertThread(thread));
+  ipcMain.handle(CHANNELS.dbDeleteThread, (_event, threadId: string) => dbDeleteThread(threadId));
+  ipcMain.handle(CHANNELS.dbDeleteProject, (_event, projectId: string) =>
+    dbDeleteProject(projectId),
+  );
+  ipcMain.handle(CHANNELS.dbSyncAll, (_event, projects, threads, viewJson: string) =>
+    dbSyncAll(projects, threads, viewJson),
+  );
 
   ipcMain.handle(CHANNELS.checkForUpdate, async () => {
     await autoUpdater.checkForUpdates();
@@ -306,6 +396,7 @@ if (!hasSingleInstanceLock) {
   });
 
   app.whenReady().then(() => {
+    initDatabase(app.getPath("userData"));
     registerIpcHandlers();
     startSupervisor();
     mainWindow = createWindow();
@@ -336,6 +427,7 @@ if (!hasSingleInstanceLock) {
 
 app.on("before-quit", () => {
   supervisor?.kill();
+  closeDatabase();
 });
 
 app.on("window-all-closed", () => {

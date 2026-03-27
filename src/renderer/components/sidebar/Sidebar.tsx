@@ -1,9 +1,8 @@
-import { Tooltip } from "@heroui/react";
+import { Dropdown, Label, Tooltip } from "@heroui/react";
 import {
   ChevronRight,
   Columns2,
   Download,
-  FolderOpen,
   FolderPlus,
   GripVertical,
   Monitor,
@@ -15,13 +14,15 @@ import {
   TerminalSquare,
   Trash2,
 } from "lucide-react";
+import { TuxIcon } from "../common/TuxIcon";
 import { useEffect, useState, type DragEvent } from "react";
-import type { EnvironmentMode, Project, Thread } from "../../../shared/contracts";
+import type { Project, Thread } from "../../../shared/contracts";
 import { isReorderNoOp, type ReorderPlacement } from "../../state/reorder";
 import { Button, ContextMenu, SidebarButton } from "../common";
 import { useSidebar } from "../layout/AppShell";
 import { readBridge } from "../../bridge";
 import { useUpdateStore } from "../../state/updateStore";
+import { useGitStore } from "../../state/gitStore";
 import { ClaudeIcon, CodexStatusIcon, getStatusTone } from "../providers";
 
 type SidebarDragItem =
@@ -32,10 +33,33 @@ type SidebarDropIndicator =
   | { type: "project"; id: string; placement: ReorderPlacement }
   | { type: "thread"; id: string; projectId: string; placement: ReorderPlacement };
 
+function GitBadge(props: { projectId: string; projectName: string; onPress: () => void }) {
+  const gitStatus = useGitStore((s) => s.statuses[props.projectId]);
+  if (!gitStatus?.isRepo || (gitStatus.totalInsertions === 0 && gitStatus.totalDeletions === 0))
+    return null;
+  return (
+    <button
+      aria-label={`Git changes for ${props.projectName}`}
+      className="shrink-0 cursor-default rounded px-1 py-0.5 transition-colors text-muted/60 hover:text-foreground"
+      onClick={props.onPress}
+      type="button"
+    >
+      <span className="flex items-center gap-0.5 text-[10px] font-medium">
+        {gitStatus.totalInsertions > 0 && (
+          <span className="text-success">+{gitStatus.totalInsertions}</span>
+        )}
+        {gitStatus.totalDeletions > 0 && (
+          <span className="text-danger">-{gitStatus.totalDeletions}</span>
+        )}
+      </span>
+    </button>
+  );
+}
+
 function formatProjectLocation(project: Project): string {
-  return project.location.kind === "windows"
-    ? project.location.path
-    : `${project.location.distro}:${project.location.linuxPath}`;
+  if (project.location.kind === "wsl")
+    return `${project.location.distro}:${project.location.linuxPath}`;
+  return project.location.path;
 }
 
 function formatRelativeTime(iso: string): string {
@@ -154,11 +178,10 @@ export function Sidebar(props: {
   threads: Thread[];
   currentProjectId: string | undefined;
   currentThreadIds: string[];
-  environmentMode: EnvironmentMode;
   wslAvailable: boolean;
   onOpenNewThread: (projectId?: string) => void;
-  onAddProject: () => void;
-  onSwitchMode: () => void;
+  onAddWindowsProject: () => void;
+  onAddWslProject: () => void;
   onOpenThread: (threadId: string) => void;
   onOpenThreadSideBySide: (threadId: string) => void;
   onReplaceSecondPane: (threadId: string) => void;
@@ -166,6 +189,7 @@ export function Sidebar(props: {
   onOpenHome: () => void;
   onOpenSettings: () => void;
   onOpenTerminal: (projectId: string) => void;
+  onOpenGitReview: (projectId: string) => void;
   terminalProjectIds: string[];
   activeTerminalProjectId: string | null;
   onReorderProjects: (
@@ -184,11 +208,10 @@ export function Sidebar(props: {
     threads,
     currentProjectId,
     currentThreadIds,
-    environmentMode,
     wslAvailable,
     onOpenNewThread,
-    onAddProject,
-    onSwitchMode,
+    onAddWindowsProject,
+    onAddWslProject,
     onOpenThread,
     onOpenThreadSideBySide,
     onReplaceSecondPane,
@@ -196,6 +219,7 @@ export function Sidebar(props: {
     onOpenHome,
     onOpenSettings,
     onOpenTerminal,
+    onOpenGitReview,
     terminalProjectIds,
     activeTerminalProjectId,
     onReorderProjects,
@@ -226,14 +250,6 @@ export function Sidebar(props: {
   }, [currentProjectId]);
 
   const activeThreads = threads.filter((thread) => thread.status !== "inactive");
-
-  const switchModeLabel = environmentMode === "windows" ? "Switch to WSL" : "Switch to Windows";
-  const switchModeIcon =
-    environmentMode === "windows" ? (
-      <TerminalSquare className="size-4" />
-    ) : (
-      <Monitor className="size-4" />
-    );
 
   return (
     <div className="relative h-full">
@@ -273,21 +289,6 @@ export function Sidebar(props: {
           {/* Footer icons */}
           <div className="space-y-1 border-t border-white/6 pt-2 pr-2">
             <UpdateButtons iconOnly />
-            {environmentMode === "windows" && !wslAvailable ? (
-              <SidebarButton
-                iconOnly
-                isDisabled
-                icon={<TerminalSquare className="size-4" />}
-                label="No WSL distros detected"
-              />
-            ) : (
-              <SidebarButton
-                iconOnly
-                icon={switchModeIcon}
-                label={switchModeLabel}
-                onPress={onSwitchMode}
-              />
-            )}
             <SidebarButton
               iconOnly
               icon={<Settings2 className="size-4" />}
@@ -328,16 +329,35 @@ export function Sidebar(props: {
 
         <div className="flex items-center justify-between px-1.5">
           <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted">Threads</p>
-          <Button
-            isIconOnly
-            aria-label="Add project"
-            className="rounded-3xl text-muted hover:bg-white/[0.05] hover:text-foreground"
-            onPress={onAddProject}
-            size="sm"
-            variant="ghost"
-          >
-            <FolderPlus className="size-4" />
-          </Button>
+          <Dropdown>
+            <Button
+              isIconOnly
+              aria-label="Add project"
+              className="rounded-3xl text-muted hover:bg-white/[0.05] hover:text-foreground"
+              size="sm"
+              variant="ghost"
+            >
+              <FolderPlus className="size-4" />
+            </Button>
+            <Dropdown.Popover>
+              <Dropdown.Menu
+                aria-label="Add project options"
+                onAction={(key) => {
+                  if (key === "windows") onAddWindowsProject();
+                  if (key === "wsl") onAddWslProject();
+                }}
+              >
+                <Dropdown.Item id="windows" textValue="Add Windows Project">
+                  <Monitor className="size-4 shrink-0 text-muted" />
+                  <Label>Add Windows Project</Label>
+                </Dropdown.Item>
+                <Dropdown.Item id="wsl" isDisabled={!wslAvailable} textValue="Add WSL Project">
+                  <TuxIcon className="size-4 shrink-0 text-muted" />
+                  <Label>Add WSL Project</Label>
+                </Dropdown.Item>
+              </Dropdown.Menu>
+            </Dropdown.Popover>
+          </Dropdown>
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto px-1 pr-0.5">
@@ -432,22 +452,27 @@ export function Sidebar(props: {
                             }`}
                           />
                           <Tooltip delay={250}>
-                            <Tooltip.Trigger className="inline-flex shrink-0 items-center">
-                              <span className="inline-flex shrink-0 items-center">
-                                <FolderOpen className="size-4 text-muted" />
-                              </span>
+                            <Tooltip.Trigger>
+                              <h2 className="truncate text-sm font-semibold text-foreground">
+                                {project.name}
+                              </h2>
                             </Tooltip.Trigger>
                             <Tooltip.Content showArrow className="max-w-[28rem] break-all text-xs">
                               {projectLocation}
                             </Tooltip.Content>
                           </Tooltip>
-                          <h2 className="truncate text-base font-semibold text-foreground">
-                            {project.name}
-                          </h2>
+                          {project.location.kind === "wsl" && (
+                            <TuxIcon className="h-3 w-auto shrink-0 text-muted/60" />
+                          )}
                         </div>
                       </button>
 
                       <div className="flex shrink-0 items-center gap-0.5 self-center">
+                        <GitBadge
+                          projectId={project.id}
+                          projectName={project.name}
+                          onPress={() => onOpenGitReview(project.id)}
+                        />
                         <button
                           aria-label={`Terminal for ${project.name}`}
                           className={`shrink-0 cursor-default rounded p-0.5 transition-colors hover:text-foreground ${
@@ -694,20 +719,6 @@ export function Sidebar(props: {
 
         <div className="space-y-1 border-t border-white/6 pt-2">
           <UpdateButtons />
-          {environmentMode === "windows" && !wslAvailable ? (
-            <Tooltip>
-              <Tooltip.Trigger>
-                <SidebarButton
-                  isDisabled
-                  icon={<TerminalSquare className="size-4" />}
-                  label="Switch to WSL"
-                />
-              </Tooltip.Trigger>
-              <Tooltip.Content>No WSL distros detected</Tooltip.Content>
-            </Tooltip>
-          ) : (
-            <SidebarButton icon={switchModeIcon} label={switchModeLabel} onPress={onSwitchMode} />
-          )}
           <SidebarButton
             icon={<Settings2 className="size-4" />}
             label="Settings"

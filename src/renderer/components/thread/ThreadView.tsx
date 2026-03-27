@@ -9,7 +9,7 @@ import type {
 
 import { ClaudeIcon, CodexStatusIcon, getStatusTone } from "../providers";
 import type { PendingThreadServerRequest } from "../../state/appStore";
-import { Button, PromptOptions } from "../common";
+import { Button, PromptOptions, TuxIcon } from "../common";
 import { readBridge } from "../../bridge";
 import { TerminalPane } from "./TerminalPane";
 import { ThreadComposer } from "./ThreadComposer";
@@ -153,6 +153,7 @@ function buildControls(
 export function ThreadView(props: {
   thread: Thread;
   agentStatus: AgentStatus | undefined;
+  isWsl?: boolean;
   pendingServerRequests: PendingThreadServerRequest[];
   showCloseButton?: boolean;
   paneAlign?: "left" | "center" | "right";
@@ -175,6 +176,7 @@ export function ThreadView(props: {
   const {
     thread,
     agentStatus,
+    isWsl,
     pendingServerRequests,
     showCloseButton,
     paneAlign = "center",
@@ -289,6 +291,7 @@ export function ThreadView(props: {
               <h1 className="truncate text-sm font-semibold tracking-tight text-foreground">
                 {thread.title}
               </h1>
+              {isWsl ? <TuxIcon className="h-3 w-auto shrink-0 text-muted/60" /> : null}
             </div>
 
             <div className="flex flex-wrap items-center justify-end gap-2">

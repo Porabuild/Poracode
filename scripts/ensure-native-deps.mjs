@@ -40,9 +40,21 @@ function ensureNodePty() {
   }
 }
 
+function ensureBetterSqlite3() {
+  try {
+    require("better-sqlite3");
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    throw new Error(
+      `[lightcode] better-sqlite3 is unavailable: ${message}. If pnpm blocked native build scripts, run 'pnpm approve-builds' and reinstall.`,
+    );
+  }
+}
+
 try {
   ensureElectronBinary();
   ensureNodePty();
+  ensureBetterSqlite3();
 } catch (error) {
   console.error(error instanceof Error ? error.message : String(error));
   process.exit(1);
