@@ -14,7 +14,18 @@ function getRepoPath(location: ProjectLocation): string {
   return location.path;
 }
 
+/** Convert backslash UNC path to forward-slash so Node/simple-git can resolve it. */
+function toForwardSlashUnc(uncPath: string): string {
+  return uncPath.replace(/\\/g, "/");
+}
+
 function createGit(location: ProjectLocation): SimpleGit {
+  if (location.kind === "wsl") {
+    return simpleGit({
+      baseDir: toForwardSlashUnc(location.uncPath),
+      binary: ["wsl", "git"],
+    });
+  }
   return simpleGit(getRepoPath(location));
 }
 

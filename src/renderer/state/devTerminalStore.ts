@@ -42,7 +42,7 @@ export const useDevTerminalStore = create<DevTerminalState & DevTerminalActions>
       tabActivity: {},
 
       openPanel: (projectId) => set({ isOpen: true, activeProjectId: projectId }),
-      closePanel: () => set({ isOpen: false }),
+      closePanel: () => set({ isOpen: false, activeProjectId: null }),
       togglePanel: (projectId) =>
         set((state) => {
           if (state.isOpen && state.activeProjectId === projectId) {

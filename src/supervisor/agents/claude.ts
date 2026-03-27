@@ -61,7 +61,12 @@ function buildClaudeArgs(
     args.push("--effort", config.effort);
   }
 
-  args.push("--permission-mode", resolveClaudePermissionMode(config));
+  const permissionMode = resolveClaudePermissionMode(config);
+  if (permissionMode === "never") {
+    args.push("--dangerously-skip-permissions");
+  } else {
+    args.push("--permission-mode", permissionMode);
+  }
   if (prompt.trim().length > 0) {
     args.push(prompt);
   }

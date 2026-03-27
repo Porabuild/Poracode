@@ -455,7 +455,7 @@ export function GitReviewSidebar(props: {
               placeholder={`Message (Ctrl+Enter to commit on "${gitStatus?.branch ?? ""}")`}
               rows={1}
               value={commitMessage}
-              className={canGenerateMessage ? "pr-8" : undefined}
+              className={canGenerateMessage ? "pr-8" : ""}
               variant="secondary"
               disabled={isCommitting}
               onChange={(e) => {
@@ -475,7 +475,7 @@ export function GitReviewSidebar(props: {
                   isIconOnly
                   size="sm"
                   variant="ghost"
-                  className="absolute right-1 top-1 size-6 min-w-0"
+                  className="absolute top-1.5 right-1 size-6 min-w-0"
                   isDisabled={isGenerating || !hasAnyChanges}
                   isPending={isGenerating}
                   onPress={() => void handleGenerateMessage()}

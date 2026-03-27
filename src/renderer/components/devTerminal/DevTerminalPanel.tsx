@@ -21,6 +21,8 @@ export function DevTerminalPanel(props: { projects: Project[] }) {
 
   const projectTabs = tabs.filter((t) => t.projectId === activeProjectId);
   const activeProject = projects.find((p) => p.id === activeProjectId);
+  const selectedTabId =
+    projectTabs.find((tab) => tab.id === activeTabId)?.id ?? projectTabs.at(-1)?.id ?? "__add__";
 
   // Re-spawn shells for persisted tabs on mount.
   useEffect(() => {
@@ -64,7 +66,7 @@ export function DevTerminalPanel(props: { projects: Project[] }) {
         <Tabs
           className="min-w-0 flex-1 overflow-x-auto rounded-lg"
           variant="primary"
-          {...(activeTabId ? { selectedKey: activeTabId } : {})}
+          selectedKey={selectedTabId}
           onSelectionChange={(key) => {
             const id = String(key);
             if (id === "__add__") {
@@ -120,7 +122,7 @@ export function DevTerminalPanel(props: { projects: Project[] }) {
         {tabs.map((tab) => (
           <div
             key={tab.id}
-            className={`absolute inset-0 px-6 pt-1 pb-2 ${tab.id === activeTabId ? "" : "invisible"}`}
+            className={`absolute inset-0 px-6 pt-1 pb-2 ${tab.id === selectedTabId ? "" : "invisible"}`}
           >
             <XTermSurface
               terminalId={tab.id}

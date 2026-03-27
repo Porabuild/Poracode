@@ -635,6 +635,10 @@ export class SupervisorRuntime {
     if (session.ptyExited) {
       return;
     }
+    if (process.platform === "win32") {
+      this.terminateWindowsProcessTree(session.pty.pid);
+      return;
+    }
     try {
       process.kill(session.pty.pid, 0);
     } catch {
@@ -649,12 +653,43 @@ export class SupervisorRuntime {
     if (session.ptyExited) {
       return;
     }
+    if (process.platform === "win32") {
+      this.terminateWindowsProcessTree(session.pty.pid);
+      return;
+    }
     try {
       process.kill(session.pty.pid, 0);
     } catch {
       return;
     }
     session.pty.kill();
+  }
+
+  private terminateWindowsProcessTree(pid: number): void {
+    if (!Number.isInteger(pid) || pid <= 0) {
+      return;
+    }
+    try {
+      process.kill(pid, 0);
+    } catch {
+      return;
+    }
+
+    // Avoid node-pty's ConPTY kill path on Windows. It forks a console-list
+    // agent that can throw AttachConsole errors during shutdown.
+    const result = spawnSync("taskkill", ["/PID", String(pid), "/T", "/F"], {
+      stdio: "ignore",
+      windowsHide: true,
+    });
+    if (!result.error && result.status === 0) {
+      return;
+    }
+
+    try {
+      process.kill(pid);
+    } catch {
+      // Best effort — the process may already be gone.
+    }
   }
 
   private buildShellCommand(location: ProjectLocation): {

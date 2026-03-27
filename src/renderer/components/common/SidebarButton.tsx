@@ -3,11 +3,12 @@ import { Tooltip } from "@heroui/react";
 
 export function SidebarButton(props: {
   icon: React.ReactNode;
-  label: string;
+  label: React.ReactNode;
   onPress?: () => void;
   isDisabled?: boolean;
   isActive?: boolean;
   iconOnly?: boolean;
+  tooltip?: React.ReactNode;
   suffix?: React.ReactNode;
   className?: string;
   onDragOver?: DragEventHandler<HTMLButtonElement>;
@@ -20,6 +21,7 @@ export function SidebarButton(props: {
     isDisabled = false,
     isActive = false,
     iconOnly = false,
+    tooltip,
     suffix,
     className,
     onDragOver,
@@ -50,6 +52,8 @@ export function SidebarButton(props: {
     );
   }
 
+  const labelSpan = <span className="block truncate">{label}</span>;
+
   return (
     <button
       className={`group flex w-full cursor-default items-center gap-2 rounded-3xl px-4 py-1.5 text-left text-sm transition-colors ${stateClass} ${className ?? ""}`}
@@ -60,8 +64,21 @@ export function SidebarButton(props: {
       type="button"
     >
       {icon}
-      <span className="min-w-0 flex-1 truncate">{label}</span>
-      {suffix}
+      <div className="min-w-0 flex-1">
+        {tooltip ? (
+          <Tooltip delay={250}>
+            <Tooltip.Trigger>{labelSpan}</Tooltip.Trigger>
+            <Tooltip.Content showArrow className="max-w-[28rem] break-all text-xs">
+              {tooltip}
+            </Tooltip.Content>
+          </Tooltip>
+        ) : (
+          labelSpan
+        )}
+      </div>
+      {suffix && (
+        <div className="flex shrink-0 items-center gap-0.5">{suffix}</div>
+      )}
     </button>
   );
 }

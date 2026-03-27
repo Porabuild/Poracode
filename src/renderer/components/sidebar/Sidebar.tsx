@@ -38,11 +38,15 @@ function GitBadge(props: { projectId: string; projectName: string; onPress: () =
   if (!gitStatus?.isRepo || (gitStatus.totalInsertions === 0 && gitStatus.totalDeletions === 0))
     return null;
   return (
-    <button
+    <div
+      role="button"
+      tabIndex={-1}
       aria-label={`Git changes for ${props.projectName}`}
-      className="shrink-0 cursor-default rounded px-1 py-0.5 transition-colors text-muted/60 hover:text-foreground"
-      onClick={props.onPress}
-      type="button"
+      className="shrink-0 cursor-default rounded px-1 py-0.5 transition-colors text-muted/60 hover:bg-white/[0.04] hover:text-foreground"
+      onClick={(e) => {
+        e.stopPropagation();
+        props.onPress();
+      }}
     >
       <span className="flex items-center gap-0.5 text-[10px] font-medium">
         {gitStatus.totalInsertions > 0 && (
@@ -52,7 +56,7 @@ function GitBadge(props: { projectId: string; projectName: string; onPress: () =
           <span className="text-danger">-{gitStatus.totalDeletions}</span>
         )}
       </span>
-    </button>
+    </div>
   );
 }
 
@@ -327,7 +331,7 @@ export function Sidebar(props: {
           </button>
         </div>
 
-        <div className="flex items-center justify-between px-1.5">
+        <div className="flex items-center justify-between px-1.5 pr-0">
           <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted">Threads</p>
           <Dropdown>
             <Button
@@ -360,7 +364,7 @@ export function Sidebar(props: {
           </Dropdown>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto px-1 pr-0.5">
+        <div className="min-h-0 flex-1 overflow-y-auto px-0 -mr-3 [scrollbar-gutter:stable]">
           {projects.length === 0 ? (
             <div className="rounded-3xl border border-dashed border-white/8 bg-white/[0.02] px-4 py-5">
               <p className="text-sm text-muted">
@@ -386,8 +390,31 @@ export function Sidebar(props: {
                   >
                     {projectIndicator ? renderDropIndicator(projectIndicator.placement) : null}
 
-                    <div
-                      className="flex items-center gap-2 rounded-3xl px-3 py-1.5 transition-colors hover:bg-white/[0.03]"
+                    <SidebarButton
+                      icon={
+                        <ChevronRight
+                          className={`size-3.5 shrink-0 text-muted transition-transform ${
+                            isProjectCollapsed ? "" : "rotate-90"
+                          }`}
+                        />
+                      }
+                      label={
+                        <span className="flex items-center gap-1.5">
+                          <span className="truncate font-semibold text-foreground">
+                            {project.name}
+                          </span>
+                          {project.location.kind === "wsl" && (
+                            <TuxIcon className="h-3 w-auto shrink-0 text-muted/60" />
+                          )}
+                        </span>
+                      }
+                      tooltip={projectLocation}
+                      onPress={() =>
+                        setCollapsedProjects((current) => ({
+                          ...current,
+                          [project.id]: !isProjectCollapsed,
+                        }))
+                      }
                       onDragOver={(event) => {
                         if (
                           !dragItem ||
@@ -434,80 +461,52 @@ export function Sidebar(props: {
                         setDragItem(undefined);
                         setDropIndicator(undefined);
                       }}
-                    >
-                      <button
-                        className="min-w-0 flex-1 cursor-default text-left"
-                        onClick={() =>
-                          setCollapsedProjects((current) => ({
-                            ...current,
-                            [project.id]: !isProjectCollapsed,
-                          }))
-                        }
-                        type="button"
-                      >
-                        <div className="flex items-center gap-2">
-                          <ChevronRight
-                            className={`size-3.5 shrink-0 text-muted transition-transform ${
-                              isProjectCollapsed ? "" : "rotate-90"
-                            }`}
+                      suffix={
+                        <>
+                          <GitBadge
+                            projectId={project.id}
+                            projectName={project.name}
+                            onPress={() => onOpenGitReview(project.id)}
                           />
-                          <Tooltip delay={250}>
-                            <Tooltip.Trigger>
-                              <h2 className="truncate text-sm font-semibold text-foreground">
-                                {project.name}
-                              </h2>
-                            </Tooltip.Trigger>
-                            <Tooltip.Content showArrow className="max-w-[28rem] break-all text-xs">
-                              {projectLocation}
-                            </Tooltip.Content>
-                          </Tooltip>
-                          {project.location.kind === "wsl" && (
-                            <TuxIcon className="h-3 w-auto shrink-0 text-muted/60" />
-                          )}
-                        </div>
-                      </button>
-
-                      <div className="flex shrink-0 items-center gap-0.5 self-center">
-                        <GitBadge
-                          projectId={project.id}
-                          projectName={project.name}
-                          onPress={() => onOpenGitReview(project.id)}
-                        />
-                        <button
-                          aria-label={`Terminal for ${project.name}`}
-                          className={`shrink-0 cursor-default rounded p-0.5 transition-colors hover:text-foreground ${
-                            activeTerminalProjectId === project.id
-                              ? "text-accent"
-                              : terminalProjectIds.includes(project.id)
-                                ? "text-foreground"
-                                : "text-muted/60"
-                          }`}
-                          onClick={() => onOpenTerminal(project.id)}
-                          type="button"
-                        >
-                          <TerminalSquare className="size-3.5" />
-                        </button>
-                        <button
-                          aria-grabbed={isDraggedProject}
-                          aria-label={`Reorder ${project.name}`}
-                          className="shrink-0 cursor-grab rounded text-muted/60 active:cursor-grabbing"
-                          draggable
-                          onDragEnd={() => {
-                            setDragItem(undefined);
-                            setDropIndicator(undefined);
-                          }}
-                          onDragStart={(event) => {
-                            event.dataTransfer.effectAllowed = "move";
-                            event.dataTransfer.setData("text/plain", project.id);
-                            setDragItem({ type: "project", id: project.id });
-                            setDropIndicator(undefined);
-                          }}
-                          type="button"
-                        >
-                          <GripVertical className="size-3.5" />
-                        </button>
-                      </div>
-                    </div>
+                          <div
+                            role="button"
+                            tabIndex={-1}
+                            aria-label={`Terminal for ${project.name}`}
+                            className={`shrink-0 cursor-default rounded p-0.5 transition-colors hover:bg-white/[0.04] hover:text-foreground ${
+                              activeTerminalProjectId === project.id
+                                ? "text-accent"
+                                : terminalProjectIds.includes(project.id)
+                                  ? "text-foreground"
+                                  : "text-muted/60"
+                            }`}
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              onOpenTerminal(project.id);
+                            }}
+                          >
+                            <TerminalSquare className="size-3.5" />
+                          </div>
+                          <div
+                            aria-grabbed={isDraggedProject}
+                            aria-label={`Reorder ${project.name}`}
+                            className="shrink-0 cursor-grab rounded text-muted/60 active:cursor-grabbing"
+                            draggable
+                            onDragEnd={() => {
+                              setDragItem(undefined);
+                              setDropIndicator(undefined);
+                            }}
+                            onDragStart={(event) => {
+                              event.dataTransfer.effectAllowed = "move";
+                              event.dataTransfer.setData("text/plain", project.id);
+                              setDragItem({ type: "project", id: project.id });
+                              setDropIndicator(undefined);
+                            }}
+                          >
+                            <GripVertical className="size-3.5" />
+                          </div>
+                        </>
+                      }
+                    />
 
                     {!isProjectCollapsed ? (
                       <div className="space-y-0.5 pl-4">
@@ -586,6 +585,7 @@ export function Sidebar(props: {
                                     )
                                   }
                                   label={thread.title}
+                                  tooltip={thread.title}
                                   isActive={isCurrentThread}
                                   className={isDraggedThread ? "opacity-60" : ""}
                                   onPress={() => onOpenThread(thread.id)}

@@ -13,11 +13,11 @@ export interface TextAreaProps extends HeroTextAreaProps {
 
 const sizingStyle = (maxRows: number | undefined): Record<string, string> => {
   const s: Record<string, string> = {
-    "field-sizing": "content",
+    fieldSizing: "content",
     resize: "none",
-    "overflow-y": maxRows != null ? "auto" : "hidden",
+    overflowY: maxRows != null ? "auto" : "hidden",
   };
-  if (maxRows != null) s["max-height"] = `${maxRows}lh`;
+  if (maxRows != null) s.maxHeight = `${maxRows}lh`;
   return s;
 };
 

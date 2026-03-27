@@ -6,7 +6,7 @@
   :root {
     /* Intentional overrides from HeroUI defaults */
     --radius: 0.125rem;
-    --field-radius: var(--radius);
+    --field-radius: calc(var(--radius) * 2);
     --link: var(--accent);
     --surface-shadow: 0 20px 60px rgba(0, 0, 0, 0.08);
     --overlay-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
@@ -105,6 +105,7 @@
     -ms-overflow-style: none !important;
     scrollbar-width: none !important;
   }
+
 }
 
 * {

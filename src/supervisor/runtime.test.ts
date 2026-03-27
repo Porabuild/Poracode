@@ -1,4 +1,20 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+
+const taskkillSpawnSyncMock = vi.hoisted(() => vi.fn());
+
+vi.mock("node:child_process", async (importActual) => {
+  const actual = await importActual<typeof import("node:child_process")>();
+  return {
+    ...actual,
+    spawnSync: ((command, args, options) => {
+      if (command === "taskkill") {
+        return taskkillSpawnSyncMock(command, args, options);
+      }
+      return actual.spawnSync(command, args, options);
+    }) as typeof actual.spawnSync,
+  };
+});
+
 import { SupervisorRuntime, writeSubmittedPrompt } from "./runtime";
 
 function createRuntimeSession(overrides: Record<string, unknown> = {}) {
@@ -52,6 +68,7 @@ function createRuntimeSession(overrides: Record<string, unknown> = {}) {
 describe("writeSubmittedPrompt", () => {
   beforeEach(() => {
     vi.useRealTimers();
+    taskkillSpawnSyncMock.mockReset();
   });
 
   it("writes direct-input chunks sequentially with delays between them", async () => {
@@ -240,5 +257,61 @@ describe("writeSubmittedPrompt", () => {
 
     expect(session.pty.write).toHaveBeenCalledWith("hello\r");
     expect(emitted).toHaveLength(0);
+  });
+
+  it("uses taskkill instead of pty.kill when closing a Windows shell session", async () => {
+    const runtime = new SupervisorRuntime(() => undefined);
+    const shell = {
+      instanceId: "shell-instance-1",
+      shellId: "shell-1",
+      pty: {
+        pid: 4242,
+        kill: vi.fn(),
+        write: vi.fn(),
+        resize: vi.fn(),
+      },
+      logPath: "shell.log",
+      outputLength: 0,
+    };
+    const processKillSpy = vi.spyOn(process, "kill").mockImplementation(() => true);
+    const platformDescriptor = Object.getOwnPropertyDescriptor(process, "platform");
+
+    taskkillSpawnSyncMock.mockReturnValue({
+      pid: 0,
+      output: [],
+      stdout: null,
+      stderr: null,
+      status: 0,
+      signal: null,
+    });
+
+    Object.defineProperty(process, "platform", {
+      configurable: true,
+      value: "win32",
+    });
+
+    (runtime as unknown as { shellSessions: Map<string, typeof shell> }).shellSessions.set(
+      shell.shellId,
+      shell,
+    );
+
+    try {
+      await runtime.closeThread({ threadId: shell.shellId });
+    } finally {
+      processKillSpy.mockRestore();
+      if (platformDescriptor) {
+        Object.defineProperty(process, "platform", platformDescriptor);
+      }
+    }
+
+    expect(taskkillSpawnSyncMock).toHaveBeenCalledWith(
+      "taskkill",
+      ["/PID", "4242", "/T", "/F"],
+      expect.objectContaining({
+        stdio: "ignore",
+        windowsHide: true,
+      }),
+    );
+    expect(shell.pty.kill).not.toHaveBeenCalled();
   });
 });
