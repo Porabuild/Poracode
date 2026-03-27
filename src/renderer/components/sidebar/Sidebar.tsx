@@ -8,6 +8,7 @@ import {
   Monitor,
   PanelLeft,
   PanelLeftClose,
+  Pencil,
   Plus,
   RefreshCw,
   Settings2,
@@ -15,7 +16,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { TuxIcon } from "../common/TuxIcon";
-import { useEffect, useState, type DragEvent } from "react";
+import { useEffect, useRef, useState, type DragEvent } from "react";
 import type { Project, Thread } from "../../../shared/contracts";
 import { isReorderNoOp, type ReorderPlacement } from "../../state/reorder";
 import { Button, ContextMenu, SidebarButton } from "../common";
@@ -79,6 +80,58 @@ function formatRelativeTime(iso: string): string {
   }
 
   return `${Math.floor(deltaHours / 24)}d`;
+}
+
+function InlineRenameInput(props: {
+  initialValue: string;
+  onCommit: (value: string) => void;
+  onCancel: () => void;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [value, setValue] = useState(props.initialValue);
+  const committedRef = useRef(false);
+
+  useEffect(() => {
+    const el = inputRef.current;
+    if (el) {
+      el.focus();
+      el.select();
+    }
+  }, []);
+
+  function commit() {
+    if (committedRef.current) return;
+    committedRef.current = true;
+    const trimmed = value.trim();
+    if (trimmed && trimmed !== props.initialValue) {
+      props.onCommit(trimmed);
+    } else {
+      props.onCancel();
+    }
+  }
+
+  return (
+    <input
+      ref={inputRef}
+      aria-label="Rename thread"
+      className="block w-full bg-transparent text-[inherit] leading-[inherit] outline-none"
+      value={value}
+      onChange={(e) => setValue(e.target.value)}
+      onBlur={commit}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          commit();
+        }
+        if (e.key === "Escape") {
+          e.preventDefault();
+          committedRef.current = true;
+          props.onCancel();
+        }
+      }}
+      onClick={(e) => e.stopPropagation()}
+    />
+  );
 }
 
 function getDropPlacement(event: DragEvent<HTMLElement>): ReorderPlacement {
@@ -189,7 +242,9 @@ export function Sidebar(props: {
   onOpenThread: (threadId: string) => void;
   onOpenThreadSideBySide: (threadId: string) => void;
   onReplaceSecondPane: (threadId: string) => void;
+  onRenameThread: (threadId: string, title: string) => void;
   onDeleteThread: (threadId: string) => void;
+  onDeleteProject: (projectId: string) => void;
   onOpenHome: () => void;
   onOpenSettings: () => void;
   onOpenTerminal: (projectId: string) => void;
@@ -219,7 +274,9 @@ export function Sidebar(props: {
     onOpenThread,
     onOpenThreadSideBySide,
     onReplaceSecondPane,
+    onRenameThread,
     onDeleteThread,
+    onDeleteProject,
     onOpenHome,
     onOpenSettings,
     onOpenTerminal,
@@ -232,6 +289,7 @@ export function Sidebar(props: {
 
   const { isCollapsed, collapse, expand } = useSidebar();
   const [collapsedProjects, setCollapsedProjects] = useState<Record<string, boolean>>({});
+  const [editingThreadId, setEditingThreadId] = useState<string | null>(null);
   const [dragItem, setDragItem] = useState<SidebarDragItem>();
   const [dropIndicator, setDropIndicator] = useState<SidebarDropIndicator>();
   const projectIds = projects.map((project) => project.id);
@@ -390,129 +448,146 @@ export function Sidebar(props: {
                   >
                     {projectIndicator ? renderDropIndicator(projectIndicator.placement) : null}
 
-                    <SidebarButton
-                      icon={
-                        <ChevronRight
-                          className={`size-3.5 shrink-0 text-muted transition-transform ${
-                            isProjectCollapsed ? "" : "rotate-90"
-                          }`}
-                        />
-                      }
-                      label={
-                        <span className="flex items-center gap-1.5">
-                          <span className="truncate font-semibold text-foreground">
-                            {project.name}
-                          </span>
-                          {project.location.kind === "wsl" && (
-                            <TuxIcon className="h-3 w-auto shrink-0 text-muted/60" />
-                          )}
-                        </span>
-                      }
-                      tooltip={projectLocation}
-                      onPress={() =>
-                        setCollapsedProjects((current) => ({
-                          ...current,
-                          [project.id]: !isProjectCollapsed,
-                        }))
-                      }
-                      onDragOver={(event) => {
-                        if (
-                          !dragItem ||
-                          dragItem.type !== "project" ||
-                          dragItem.id === project.id
-                        ) {
-                          return;
-                        }
-
-                        event.preventDefault();
-                        event.dataTransfer.dropEffect = "move";
-                        const placement = getDropPlacement(event);
-
-                        if (isReorderNoOp(projectIds, dragItem.id, project.id, placement)) {
-                          setDropIndicator(undefined);
-                          return;
-                        }
-
-                        setDropIndicator({
-                          type: "project",
-                          id: project.id,
-                          placement,
-                        });
+                    <ContextMenu
+                      items={[
+                        {
+                          id: "remove-project",
+                          label: "Remove Project",
+                          icon: <Trash2 className="size-3.5" />,
+                          variant: "danger",
+                        },
+                      ]}
+                      onAction={(key) => {
+                        if (key === "remove-project") onDeleteProject(project.id);
                       }}
-                      onDrop={(event) => {
-                        if (
-                          !dragItem ||
-                          dragItem.type !== "project" ||
-                          dragItem.id === project.id
-                        ) {
-                          return;
+                    >
+                      <SidebarButton
+                        icon={
+                          <ChevronRight
+                            className={`size-3.5 shrink-0 text-muted transition-transform ${
+                              isProjectCollapsed ? "" : "rotate-90"
+                            }`}
+                          />
                         }
+                        label={
+                          <span className="flex items-center gap-1.5">
+                            <span className="truncate font-semibold text-foreground">
+                              {project.name}
+                            </span>
+                            {project.location.kind === "wsl" && (
+                              <TuxIcon className="h-3 w-auto shrink-0 text-muted/60" />
+                            )}
+                          </span>
+                        }
+                        tooltip={projectLocation}
+                        onPress={() =>
+                          setCollapsedProjects((current) => ({
+                            ...current,
+                            [project.id]: !isProjectCollapsed,
+                          }))
+                        }
+                        onDragOver={(event) => {
+                          if (
+                            !dragItem ||
+                            dragItem.type !== "project" ||
+                            dragItem.id === project.id
+                          ) {
+                            return;
+                          }
 
-                        event.preventDefault();
-                        const placement = getDropPlacement(event);
+                          event.preventDefault();
+                          event.dataTransfer.dropEffect = "move";
+                          const placement = getDropPlacement(event);
 
-                        if (isReorderNoOp(projectIds, dragItem.id, project.id, placement)) {
+                          if (isReorderNoOp(projectIds, dragItem.id, project.id, placement)) {
+                            setDropIndicator(undefined);
+                            return;
+                          }
+
+                          setDropIndicator({
+                            type: "project",
+                            id: project.id,
+                            placement,
+                          });
+                        }}
+                        onDrop={(event) => {
+                          if (
+                            !dragItem ||
+                            dragItem.type !== "project" ||
+                            dragItem.id === project.id
+                          ) {
+                            return;
+                          }
+
+                          event.preventDefault();
+                          const placement = getDropPlacement(event);
+
+                          if (isReorderNoOp(projectIds, dragItem.id, project.id, placement)) {
+                            setDragItem(undefined);
+                            setDropIndicator(undefined);
+                            return;
+                          }
+
+                          onReorderProjects(dragItem.id, project.id, placement);
                           setDragItem(undefined);
                           setDropIndicator(undefined);
-                          return;
+                        }}
+                        suffix={
+                          <>
+                            <GitBadge
+                              projectId={project.id}
+                              projectName={project.name}
+                              onPress={() => onOpenGitReview(project.id)}
+                            />
+                            <div
+                              role="button"
+                              tabIndex={-1}
+                              aria-label={`Terminal for ${project.name}`}
+                              className={`shrink-0 cursor-default rounded p-0.5 transition-colors hover:bg-white/[0.04] hover:text-foreground ${
+                                activeTerminalProjectId === project.id
+                                  ? "text-accent"
+                                  : terminalProjectIds.includes(project.id)
+                                    ? "text-foreground"
+                                    : "text-muted/60"
+                              }`}
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                onOpenTerminal(project.id);
+                              }}
+                            >
+                              <TerminalSquare className="size-3.5" />
+                            </div>
+                            <div
+                              aria-grabbed={isDraggedProject}
+                              aria-label={`Reorder ${project.name}`}
+                              className="shrink-0 cursor-grab rounded text-muted/60 active:cursor-grabbing"
+                              draggable
+                              onDragEnd={() => {
+                                setDragItem(undefined);
+                                setDropIndicator(undefined);
+                              }}
+                              onDragStart={(event) => {
+                                event.dataTransfer.effectAllowed = "move";
+                                event.dataTransfer.setData("text/plain", project.id);
+                                setDragItem({ type: "project", id: project.id });
+                                setDropIndicator(undefined);
+                              }}
+                            >
+                              <GripVertical className="size-3.5" />
+                            </div>
+                          </>
                         }
-
-                        onReorderProjects(dragItem.id, project.id, placement);
-                        setDragItem(undefined);
-                        setDropIndicator(undefined);
-                      }}
-                      suffix={
-                        <>
-                          <GitBadge
-                            projectId={project.id}
-                            projectName={project.name}
-                            onPress={() => onOpenGitReview(project.id)}
-                          />
-                          <div
-                            role="button"
-                            tabIndex={-1}
-                            aria-label={`Terminal for ${project.name}`}
-                            className={`shrink-0 cursor-default rounded p-0.5 transition-colors hover:bg-white/[0.04] hover:text-foreground ${
-                              activeTerminalProjectId === project.id
-                                ? "text-accent"
-                                : terminalProjectIds.includes(project.id)
-                                  ? "text-foreground"
-                                  : "text-muted/60"
-                            }`}
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              onOpenTerminal(project.id);
-                            }}
-                          >
-                            <TerminalSquare className="size-3.5" />
-                          </div>
-                          <div
-                            aria-grabbed={isDraggedProject}
-                            aria-label={`Reorder ${project.name}`}
-                            className="shrink-0 cursor-grab rounded text-muted/60 active:cursor-grabbing"
-                            draggable
-                            onDragEnd={() => {
-                              setDragItem(undefined);
-                              setDropIndicator(undefined);
-                            }}
-                            onDragStart={(event) => {
-                              event.dataTransfer.effectAllowed = "move";
-                              event.dataTransfer.setData("text/plain", project.id);
-                              setDragItem({ type: "project", id: project.id });
-                              setDropIndicator(undefined);
-                            }}
-                          >
-                            <GripVertical className="size-3.5" />
-                          </div>
-                        </>
-                      }
-                    />
+                      />
+                    </ContextMenu>
 
                     {!isProjectCollapsed ? (
                       <div className="space-y-0.5 pl-4">
                         <SidebarButton
                           icon={<Plus className="size-4" />}
                           label="New thread"
+                          isActive={
+                            currentProjectId === project.id && currentThreadIds.length === 0
+                          }
                           onPress={() => onOpenNewThread(project.id)}
                         />
 
@@ -537,6 +612,11 @@ export function Sidebar(props: {
 
                               <ContextMenu
                                 items={[
+                                  {
+                                    id: "rename",
+                                    label: "Rename",
+                                    icon: <Pencil className="size-3.5" />,
+                                  },
                                   ...(currentThreadIds.length >= 2
                                     ? [
                                         {
@@ -566,6 +646,7 @@ export function Sidebar(props: {
                                   },
                                 ]}
                                 onAction={(key) => {
+                                  if (key === "rename") setEditingThreadId(thread.id);
                                   if (key === "replace-second") onReplaceSecondPane(thread.id);
                                   if (key === "open-side") onOpenThreadSideBySide(thread.id);
                                   if (key === "delete") onDeleteThread(thread.id);
@@ -584,11 +665,25 @@ export function Sidebar(props: {
                                       <div className="size-3.5 shrink-0" />
                                     )
                                   }
-                                  label={thread.title}
-                                  tooltip={thread.title}
+                                  label={
+                                    editingThreadId === thread.id ? (
+                                      <InlineRenameInput
+                                        initialValue={thread.title}
+                                        onCommit={(newTitle) => {
+                                          onRenameThread(thread.id, newTitle);
+                                          setEditingThreadId(null);
+                                        }}
+                                        onCancel={() => setEditingThreadId(null)}
+                                      />
+                                    ) : (
+                                      thread.title
+                                    )
+                                  }
+                                  tooltip={editingThreadId === thread.id ? undefined : thread.title}
                                   isActive={isCurrentThread}
                                   className={isDraggedThread ? "opacity-60" : ""}
                                   onPress={() => onOpenThread(thread.id)}
+                                  onDoubleClick={() => setEditingThreadId(thread.id)}
                                   onDragOver={(event) => {
                                     if (
                                       !dragItem ||

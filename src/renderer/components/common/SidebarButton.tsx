@@ -1,4 +1,4 @@
-import type { DragEventHandler } from "react";
+import { useRef, useState, type DragEventHandler } from "react";
 import { Tooltip } from "@heroui/react";
 
 export function SidebarButton(props: {
@@ -11,6 +11,7 @@ export function SidebarButton(props: {
   tooltip?: React.ReactNode;
   suffix?: React.ReactNode;
   className?: string;
+  onDoubleClick?: () => void;
   onDragOver?: DragEventHandler<HTMLButtonElement>;
   onDrop?: DragEventHandler<HTMLButtonElement>;
 }) {
@@ -24,6 +25,7 @@ export function SidebarButton(props: {
     tooltip,
     suffix,
     className,
+    onDoubleClick,
     onDragOver,
     onDrop,
   } = props;
@@ -52,13 +54,12 @@ export function SidebarButton(props: {
     );
   }
 
-  const labelSpan = <span className="block truncate">{label}</span>;
-
   return (
     <button
       className={`group flex w-full cursor-default items-center gap-2 rounded-3xl px-4 py-1.5 text-left text-sm transition-colors ${stateClass} ${className ?? ""}`}
       disabled={isDisabled}
       onClick={onPress}
+      onDoubleClick={onDoubleClick}
       onDragOver={onDragOver}
       onDrop={onDrop}
       type="button"
@@ -66,19 +67,45 @@ export function SidebarButton(props: {
       {icon}
       <div className="min-w-0 flex-1">
         {tooltip ? (
-          <Tooltip delay={250}>
-            <Tooltip.Trigger>{labelSpan}</Tooltip.Trigger>
-            <Tooltip.Content showArrow className="max-w-[28rem] break-all text-xs">
-              {tooltip}
-            </Tooltip.Content>
-          </Tooltip>
+          <OverflowTooltip tooltip={tooltip}>{label}</OverflowTooltip>
         ) : (
-          labelSpan
+          <span className="block truncate">{label}</span>
         )}
       </div>
       {suffix && (
         <div className="flex shrink-0 items-center gap-0.5">{suffix}</div>
       )}
     </button>
+  );
+}
+
+function OverflowTooltip(props: { tooltip: React.ReactNode; children: React.ReactNode }) {
+  const labelRef = useRef<HTMLSpanElement>(null);
+  const [isOpen, setIsOpen] = useState(false);
+
+  return (
+    <Tooltip
+      delay={500}
+      isOpen={isOpen}
+      onOpenChange={(open) => {
+        if (open) {
+          const el = labelRef.current;
+          if (el && el.scrollWidth > el.clientWidth) {
+            setIsOpen(true);
+          }
+        } else {
+          setIsOpen(false);
+        }
+      }}
+    >
+      <Tooltip.Trigger>
+        <span ref={labelRef} className="block truncate">
+          {props.children}
+        </span>
+      </Tooltip.Trigger>
+      <Tooltip.Content showArrow className="max-w-[28rem] break-all text-xs">
+        {props.tooltip}
+      </Tooltip.Content>
+    </Tooltip>
   );
 }

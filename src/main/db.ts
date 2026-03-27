@@ -1,7 +1,7 @@
 import { join } from "node:path";
 import Database from "better-sqlite3";
 import { drizzle } from "drizzle-orm/better-sqlite3";
-import { eq } from "drizzle-orm";
+import { asc, eq } from "drizzle-orm";
 import type { ProjectLocation, Project, Thread } from "../shared/contracts";
 import * as schema from "./db.schema";
 
@@ -51,6 +51,20 @@ export function initDatabase(userDataDir: string) {
       value TEXT NOT NULL
     );
   `);
+
+  // Migrate: add sort_order columns if missing
+  const projectCols = sqlite
+    .prepare("PRAGMA table_info(projects)")
+    .all() as { name: string }[];
+  if (!projectCols.some((c) => c.name === "sort_order")) {
+    sqlite.exec("ALTER TABLE projects ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0");
+  }
+  const threadCols = sqlite
+    .prepare("PRAGMA table_info(threads)")
+    .all() as { name: string }[];
+  if (!threadCols.some((c) => c.name === "sort_order")) {
+    sqlite.exec("ALTER TABLE threads ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0");
+  }
 
   console.log("[db] initialized");
   return _db;
@@ -131,12 +145,12 @@ function rowToThread(row: typeof schema.threads.$inferSelect): Thread {
 
 export function dbGetProjects(): Project[] {
   const db = getDb();
-  return db.select().from(schema.projects).all().map(rowToProject);
+  return db.select().from(schema.projects).orderBy(asc(schema.projects.sortOrder)).all().map(rowToProject);
 }
 
 export function dbGetThreads(): Thread[] {
   const db = getDb();
-  return db.select().from(schema.threads).all().map(rowToThread);
+  return db.select().from(schema.threads).orderBy(asc(schema.threads.sortOrder)).all().map(rowToThread);
 }
 
 export function dbGetState(key: string): string | null {
@@ -153,7 +167,7 @@ export function dbSetState(key: string, value: string): void {
     .run();
 }
 
-export function dbUpsertProject(project: Project): void {
+export function dbUpsertProject(project: Project, sortOrder: number): void {
   const db = getDb();
   db.insert(schema.projects)
     .values({
@@ -161,6 +175,7 @@ export function dbUpsertProject(project: Project): void {
       name: project.name,
       ...locationToRow(project.location),
       lastDraftConfig: project.lastDraftConfig ? JSON.stringify(project.lastDraftConfig) : null,
+      sortOrder,
       createdAt: project.createdAt,
     })
     .onConflictDoUpdate({
@@ -169,12 +184,13 @@ export function dbUpsertProject(project: Project): void {
         name: project.name,
         ...locationToRow(project.location),
         lastDraftConfig: project.lastDraftConfig ? JSON.stringify(project.lastDraftConfig) : null,
+        sortOrder,
       },
     })
     .run();
 }
 
-export function dbUpsertThread(thread: Thread): void {
+export function dbUpsertThread(thread: Thread, sortOrder: number): void {
   const db = getDb();
   db.insert(schema.threads)
     .values({
@@ -188,6 +204,7 @@ export function dbUpsertThread(thread: Thread): void {
       canResumeWithConfig: thread.canResumeWithConfig,
       sessionRef: thread.sessionRef ? JSON.stringify(thread.sessionRef) : null,
       terminalPrompt: thread.terminalPrompt ? JSON.stringify(thread.terminalPrompt) : null,
+      sortOrder,
       createdAt: thread.createdAt,
       updatedAt: thread.updatedAt,
     })
@@ -201,6 +218,7 @@ export function dbUpsertThread(thread: Thread): void {
         canResumeWithConfig: thread.canResumeWithConfig,
         sessionRef: thread.sessionRef ? JSON.stringify(thread.sessionRef) : null,
         terminalPrompt: thread.terminalPrompt ? JSON.stringify(thread.terminalPrompt) : null,
+        sortOrder,
         updatedAt: thread.updatedAt,
       },
     })
@@ -241,8 +259,8 @@ export function dbSyncAll(projectsData: Project[], threadsData: Thread[], viewJs
         db.delete(schema.projects).where(eq(schema.projects.id, pid)).run();
       }
     }
-    for (const project of projectsData) {
-      dbUpsertProject(project);
+    for (let i = 0; i < projectsData.length; i++) {
+      dbUpsertProject(projectsData[i]!, i);
     }
 
     // Sync threads
@@ -260,8 +278,8 @@ export function dbSyncAll(projectsData: Project[], threadsData: Thread[], viewJs
         db.delete(schema.threads).where(eq(schema.threads.id, tid)).run();
       }
     }
-    for (const thread of threadsData) {
-      dbUpsertThread(thread);
+    for (let i = 0; i < threadsData.length; i++) {
+      dbUpsertThread(threadsData[i]!, i);
     }
 
     // Sync view

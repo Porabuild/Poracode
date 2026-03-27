@@ -9,6 +9,7 @@ export const projects = sqliteTable("projects", {
   locationLinuxPath: text("location_linux_path"), // for wsl
   locationUncPath: text("location_unc_path"), // for wsl
   lastDraftConfig: text("last_draft_config"), // JSON
+  sortOrder: integer("sort_order").notNull().default(0),
   createdAt: text("created_at").notNull(),
 });
 
@@ -27,6 +28,7 @@ export const threads = sqliteTable("threads", {
     .default(false),
   sessionRef: text("session_ref"), // JSON
   terminalPrompt: text("terminal_prompt"), // JSON
+  sortOrder: integer("sort_order").notNull().default(0),
   createdAt: text("created_at").notNull(),
   updatedAt: text("updated_at").notNull(),
 });

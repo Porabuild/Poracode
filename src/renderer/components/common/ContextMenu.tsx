@@ -1,5 +1,6 @@
 import { type ReactNode, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { Label, Menu } from "@heroui/react";
 
 // Only one context menu can be open at a time.
 let closeActiveMenu: (() => void) | null = null;
@@ -30,12 +31,10 @@ export function ContextMenu(props: ContextMenuProps) {
     closeActiveMenu = close;
 
     function onMouseDown(e: MouseEvent) {
-      // Right-click: always close so a new context menu can open
       if (e.button === 2) {
         close();
         return;
       }
-      // Left/middle click: close only if outside the menu
       if (menuRef.current?.contains(e.target as Node)) return;
       close();
     }
@@ -72,12 +71,6 @@ export function ContextMenu(props: ContextMenuProps) {
     setPosition({ x: e.clientX, y: e.clientY });
   }
 
-  function handleItemClick(id: string, isDisabled?: boolean) {
-    if (isDisabled) return;
-    setPosition(null);
-    onAction(id);
-  }
-
   return (
     <>
       <div style={{ display: "contents" }} onContextMenu={handleContextMenu}>
@@ -87,33 +80,36 @@ export function ContextMenu(props: ContextMenuProps) {
         ? createPortal(
             <div
               ref={menuRef}
-              className="fixed z-50 min-w-40 rounded-xl border border-white/10 bg-[color:var(--overlay)] p-1 shadow-xl"
+              className="dropdown__popover fixed z-50"
               style={{ left: position.x, top: position.y }}
             >
-              {items.map((item) => (
-                <button
-                  key={item.id}
-                  aria-disabled={item.isDisabled || undefined}
-                  className={`flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm transition-colors ${
-                    item.isDisabled
-                      ? "cursor-not-allowed opacity-40"
-                      : item.variant === "danger"
-                        ? "text-danger hover:bg-danger/10"
-                        : "text-foreground hover:bg-white/[0.06]"
-                  }`}
-                  onClick={() => handleItemClick(item.id, item.isDisabled)}
-                  type="button"
-                >
-                  {item.icon ? (
-                    <span
-                      className={`size-4 shrink-0 ${item.variant === "danger" ? "text-danger" : "text-muted"}`}
-                    >
-                      {item.icon}
-                    </span>
-                  ) : null}
-                  <span>{item.label}</span>
-                </button>
-              ))}
+              <Menu
+                aria-label="Context menu"
+                autoFocus="first"
+                disabledKeys={items.filter((item) => item.isDisabled).map((item) => item.id)}
+                onAction={(key) => {
+                  setPosition(null);
+                  onAction(String(key));
+                }}
+              >
+                {items.map((item) => (
+                  <Menu.Item
+                    key={item.id}
+                    id={item.id}
+                    textValue={item.label}
+                    variant={item.variant === "danger" ? "danger" : undefined}
+                  >
+                    {item.icon && (
+                      <span
+                        className={`size-4 shrink-0 ${item.variant === "danger" ? "text-danger" : "text-muted"}`}
+                      >
+                        {item.icon}
+                      </span>
+                    )}
+                    <Label>{item.label}</Label>
+                  </Menu.Item>
+                ))}
+              </Menu>
             </div>,
             document.body,
           )

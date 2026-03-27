@@ -380,7 +380,9 @@ export function App() {
   const openThreadSideBySide = useAppStore((state) => state.openThreadSideBySide);
   const replaceSecondPane = useAppStore((state) => state.replaceSecondPane);
   const openHome = useAppStore((state) => state.openHome);
+  const renameThread = useAppStore((state) => state.renameThread);
   const deleteThread = useAppStore((state) => state.deleteThread);
+  const deleteProject = useAppStore((state) => state.deleteProject);
   const reconcileRuntimeSnapshots = useAppStore((state) => state.reconcileRuntimeSnapshots);
   const reorderProjects = useAppStore((state) => state.reorderProjects);
   const reorderThreads = useAppStore((state) => state.reorderThreads);
@@ -716,11 +718,45 @@ export function App() {
                 });
               }
             }}
+            onRenameThread={(threadId, title) => {
+              renameThread(threadId, title);
+            }}
             onDeleteThread={(threadId) => {
               deleteThread(threadId);
               void readBridge()
                 .closeThread({ threadId })
                 .catch(() => undefined);
+            }}
+            onDeleteProject={(projectId) => {
+              const projectThreadIds = threads
+                .filter((t) => t.projectId === projectId)
+                .map((t) => t.id);
+
+              deleteProject(projectId);
+
+              for (const threadId of projectThreadIds) {
+                void readBridge()
+                  .closeThread({ threadId })
+                  .catch(() => undefined);
+              }
+
+              const removedTabIds = useDevTerminalStore.getState().removeTabsForProject(projectId);
+              for (const tabId of removedTabIds) {
+                void readBridge()
+                  .closeThread({ threadId: tabId })
+                  .catch(() => undefined);
+              }
+
+              const termStore = useDevTerminalStore.getState();
+              if (termStore.isOpen && termStore.activeProjectId === projectId) {
+                termStore.closePanel();
+              }
+
+              useGitStore.getState().clearStatus(projectId);
+
+              if (gitReviewProjectId === projectId) {
+                setGitReviewProjectId(null);
+              }
             }}
             onOpenHome={() => {
               startTransition(() => {

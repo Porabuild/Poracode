@@ -79,6 +79,7 @@ interface AppStoreState {
   setWslAgentStatuses: (statuses: AgentStatus[]) => void;
   markThreadsInactiveOnLaunch: () => void;
   addProject: (location: ProjectLocation, nameOverride?: string) => Project;
+  deleteProject: (projectId: string) => void;
   updateProjectDraftConfig: (projectId: string, draftConfig: ProjectDraftConfig) => void;
   openDraft: (projectId: string) => void;
   openHome: () => void;
@@ -93,6 +94,7 @@ interface AppStoreState {
     prompt: string;
   }) => Thread;
   deleteThread: (threadId: string) => void;
+  renameThread: (threadId: string, title: string) => void;
   updateThreadConfig: (threadId: string, config: ThreadConfig) => void;
   updateThreadRuntime: (
     threadId: string,
@@ -216,6 +218,44 @@ export const useAppStore = create<AppStoreState>()(
 
         return project;
       },
+      deleteProject: (projectId) =>
+        set((state) => {
+          const nextProjects = state.projects.filter((project) => project.id !== projectId);
+
+          if (nextProjects.length === state.projects.length) {
+            return {};
+          }
+
+          const projectThreadIds = new Set(
+            state.threads
+              .filter((thread) => thread.projectId === projectId)
+              .map((thread) => thread.id),
+          );
+
+          const nextThreads = state.threads.filter((thread) => thread.projectId !== projectId);
+
+          const nextPendingServerRequests = state.pendingServerRequests.filter(
+            (request) => !projectThreadIds.has(request.threadId),
+          );
+
+          let nextView = state.view;
+          if (state.view.kind === "draft" && state.view.projectId === projectId) {
+            nextView = { kind: "home" };
+          } else if (state.view.kind === "thread") {
+            const remaining = state.view.panes.filter((id) => !projectThreadIds.has(id));
+            nextView =
+              remaining.length === 0
+                ? { kind: "home" as const }
+                : { kind: "thread" as const, panes: remaining as [string, ...string[]] };
+          }
+
+          return {
+            projects: nextProjects,
+            threads: nextThreads,
+            pendingServerRequests: nextPendingServerRequests,
+            view: nextView,
+          };
+        }),
       updateProjectDraftConfig: (projectId, draftConfig) =>
         set((state) => ({
           projects: state.projects.map((project) =>
@@ -337,6 +377,14 @@ export const useAppStore = create<AppStoreState>()(
             view: nextView,
           };
         }),
+      renameThread: (threadId, title) =>
+        set((state) => ({
+          threads: state.threads.map((thread) =>
+            thread.id === threadId
+              ? { ...thread, title, updatedAt: new Date().toISOString() }
+              : thread,
+          ),
+        })),
       updateThreadConfig: (threadId, config) =>
         set((state) => ({
           threads: state.threads.map((thread) =>

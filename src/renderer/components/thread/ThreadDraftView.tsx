@@ -102,15 +102,20 @@ export function ThreadDraftView(props: {
     <div className="flex h-full min-h-0 flex-col">
       <div className="flex h-full min-h-0 flex-col px-8 py-8">
         <div className="mx-auto flex h-full w-full max-w-[1040px] flex-col">
-          <div className="flex flex-1 flex-col justify-center">
-            <h1 className="flex max-w-[760px] items-baseline gap-3 overflow-visible pr-[0.22em] pb-[0.32em] text-[clamp(3.25rem,8vw,6.25rem)] leading-[1.22] font-semibold tracking-[-0.06em]">
-              <span className="pr-[0.04em] pb-[0.04em] text-transparent [background-image:linear-gradient(135deg,var(--foreground)_0%,color-mix(in_oklab,var(--accent)_60%,var(--foreground))_52%,var(--muted)_100%)] [background-size:100%_100%] bg-clip-text">
+          <div className="flex flex-1 flex-col items-center justify-center">
+            <div className="w-full max-w-[920px] overflow-visible pb-[0.32em] text-center">
+              <h1 className="inline-flex items-baseline gap-3 text-[clamp(3.25rem,8vw,6.25rem)] leading-[1.22] font-semibold tracking-[-0.06em]">
+                <span className="pr-[0.04em] pb-[0.04em] text-transparent [background-image:linear-gradient(135deg,var(--foreground)_0%,color-mix(in_oklab,var(--accent)_60%,var(--foreground))_52%,var(--muted)_100%)] [background-size:100%_100%] bg-clip-text">
+                  Lightcode
+                </span>
+                <TerminalSquare className="translate-y-[-0.04em] size-[0.48em] shrink-0 text-[color:color-mix(in_oklab,var(--accent)_58%,var(--foreground))] opacity-90" />
+              </h1>
+              <p className="mx-auto mt-1 max-w-full truncate text-[clamp(1.25rem,3vw,2rem)] leading-snug font-medium tracking-tight text-transparent [background-image:linear-gradient(135deg,var(--muted)_0%,color-mix(in_oklab,var(--accent)_30%,var(--muted))_100%)] [background-size:100%_100%] bg-clip-text font-mono">
                 {project.name}
-              </span>
-              <TerminalSquare className="translate-y-[-0.04em] size-[0.48em] shrink-0 text-[color:color-mix(in_oklab,var(--accent)_58%,var(--foreground))] opacity-90" />
-            </h1>
+              </p>
+            </div>
 
-            <div className="mt-10 w-full max-w-[920px] pt-2">
+            <div className="mt-36 w-full max-w-[920px]">
               <ThreadComposer
                 autoFocus // eslint-disable-line jsx-a11y/no-autofocus -- desktop app, expected UX
                 controls={[

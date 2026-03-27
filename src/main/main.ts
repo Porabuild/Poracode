@@ -358,8 +358,12 @@ function registerIpcHandlers(): void {
   ipcMain.handle(CHANNELS.dbSetState, (_event, key: string, value: string) =>
     dbSetState(key, value),
   );
-  ipcMain.handle(CHANNELS.dbUpsertProject, (_event, project) => dbUpsertProject(project));
-  ipcMain.handle(CHANNELS.dbUpsertThread, (_event, thread) => dbUpsertThread(thread));
+  ipcMain.handle(CHANNELS.dbUpsertProject, (_event, project, sortOrder: number = 0) =>
+    dbUpsertProject(project, sortOrder),
+  );
+  ipcMain.handle(CHANNELS.dbUpsertThread, (_event, thread, sortOrder: number = 0) =>
+    dbUpsertThread(thread, sortOrder),
+  );
   ipcMain.handle(CHANNELS.dbDeleteThread, (_event, threadId: string) => dbDeleteThread(threadId));
   ipcMain.handle(CHANNELS.dbDeleteProject, (_event, projectId: string) =>
     dbDeleteProject(projectId),
