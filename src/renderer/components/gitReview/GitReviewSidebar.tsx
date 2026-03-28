@@ -14,21 +14,15 @@ import {
   Sparkles,
   Undo2,
 } from "lucide-react";
-import {
-  AlertDialog,
-  Button,
-  ButtonGroup,
-  Dropdown,
-  Label,
-  Spinner,
-  Tooltip,
-} from "@heroui/react";
+import { AlertDialog, Button, ButtonGroup, Dropdown, Label, Spinner, Tooltip } from "@heroui/react";
 import type { Project, GitFileChange, GitStatusResult } from "../../../shared/contracts";
 import { readBridge } from "../../bridge";
 import { useAppStore } from "../../state/appStore";
+import { useSharedSettings } from "../../state/sharedSettingsStore";
 import { useGitStore } from "../../state/gitStore";
 import { SidebarButton, TextArea } from "../common";
 import { useSidebar } from "../layout/AppShell";
+import { resolveCommitGenConfig } from "../providers";
 
 function FileStatusIcon(props: { status: string; className?: string }) {
   const cls = `size-3.5 ${props.className ?? ""}`;
@@ -301,6 +295,9 @@ export function GitReviewSidebar(props: {
   const { isCollapsed, collapse, expand } = useSidebar();
   const gitStatus = useGitStore((s) => s.statuses[project.id]) as GitStatusResult | undefined;
   const agentStatuses = useAppStore((s) => s.agentStatuses);
+  const commitGenProvider = useSharedSettings((s) => s.commitGenProvider);
+  const commitGenModel = useSharedSettings((s) => s.commitGenModel);
+  const commitGenEffort = useSharedSettings((s) => s.commitGenEffort);
 
   const [commitMessage, setCommitMessage] = useState("");
   const [isCommitting, setIsCommitting] = useState(false);
@@ -324,16 +321,23 @@ export function GitReviewSidebar(props: {
         setIsGenerating(true);
         try {
           const preferred =
-            agentStatuses.find(
-              (a) => a.kind === "claude" && a.installed && a.authState === "authenticated",
-            ) ??
-            agentStatuses.find(
-              (a) => a.kind === "codex" && a.installed && a.authState === "authenticated",
-            );
+            commitGenProvider !== "auto"
+              ? agentStatuses.find(
+                  (a) =>
+                    a.kind === commitGenProvider && a.installed && a.authState === "authenticated",
+                )
+              : agentStatuses.find((a) => a.installed && a.authState === "authenticated");
           if (!preferred) throw new Error("No agent available to generate commit message");
+          const resolvedCommitGen = resolveCommitGenConfig(
+            preferred,
+            commitGenModel,
+            commitGenEffort,
+          );
           const result = await readBridge().generateCommitMessage({
             projectLocation: project.location,
             agentKind: preferred.kind,
+            ...(resolvedCommitGen.model ? { model: resolvedCommitGen.model } : {}),
+            ...(resolvedCommitGen.effort ? { effort: resolvedCommitGen.effort } : {}),
           });
           message = result.message;
           setCommitMessage(message);
@@ -361,16 +365,18 @@ export function GitReviewSidebar(props: {
     setCommitError(null);
     try {
       const preferred =
-        agentStatuses.find(
-          (a) => a.kind === "claude" && a.installed && a.authState === "authenticated",
-        ) ??
-        agentStatuses.find(
-          (a) => a.kind === "codex" && a.installed && a.authState === "authenticated",
-        );
+        commitGenProvider !== "auto"
+          ? agentStatuses.find(
+              (a) => a.kind === commitGenProvider && a.installed && a.authState === "authenticated",
+            )
+          : agentStatuses.find((a) => a.installed && a.authState === "authenticated");
       if (!preferred) return;
+      const resolvedCommitGen = resolveCommitGenConfig(preferred, commitGenModel, commitGenEffort);
       const result = await readBridge().generateCommitMessage({
         projectLocation: project.location,
         agentKind: preferred.kind,
+        ...(resolvedCommitGen.model ? { model: resolvedCommitGen.model } : {}),
+        ...(resolvedCommitGen.effort ? { effort: resolvedCommitGen.effort } : {}),
       });
       setCommitMessage(result.message);
     } catch (err) {

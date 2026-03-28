@@ -79,6 +79,7 @@ interface SessionRuntime {
   ignoreExit?: boolean;
   ptyExited?: boolean;
   rateLimitPromptEmitted?: boolean;
+  sessionRefDiscoveryStarted?: boolean;
   terminalPrompt?: TerminalPrompt | undefined;
   prevChunk: string;
 }
@@ -603,7 +604,12 @@ export class SupervisorRuntime {
     payload: GenerateCommitMessagePayload,
   ): Promise<GenerateCommitMessageResult> {
     const adapter = this.requireAdapter(payload.agentKind);
-    const message = await generateCommitMessage(payload.projectLocation, adapter, payload.model);
+    const message = await generateCommitMessage(
+      payload.projectLocation,
+      adapter,
+      payload.model,
+      payload.effort,
+    );
     return { message };
   }
 
@@ -935,7 +941,7 @@ export class SupervisorRuntime {
 
       if (session.adapter.detectTerminalStatus) {
         const combined = session.prevChunk + data;
-        session.prevChunk = data;
+        session.prevChunk = combined.length > 8192 ? combined.slice(-8192) : combined;
         const stripped = stripAnsiPreservingLayout(combined);
         const hint = session.adapter.detectTerminalStatus(stripped);
         const promptChanged =
@@ -958,6 +964,16 @@ export class SupervisorRuntime {
         if (hint && (session.status !== hint.status || session.attention !== hint.attention)) {
           session.terminalPrompt = hint.prompt;
           this.updateState(session, hint.status, hint.attention);
+          // Trigger session ID discovery on the first real status detection —
+          // the agent TUI is live, so the session file is guaranteed to exist.
+          if (
+            session.adapter.discoverSessionRef &&
+            !session.sessionRef &&
+            !session.sessionRefDiscoveryStarted
+          ) {
+            session.sessionRefDiscoveryStarted = true;
+            this.pollSessionRefDiscovery(session);
+          }
         } else if (promptChanged && hint) {
           session.terminalPrompt = hint.prompt;
           this.emitState(session);
@@ -990,6 +1006,37 @@ export class SupervisorRuntime {
     });
 
     return session;
+  }
+
+  private pollSessionRefDiscovery(session: SessionRuntime): void {
+    let attempt = 0;
+    // Collect session IDs already assigned to other threads to avoid duplicates.
+    const existingIds = new Set<string>();
+    for (const s of this.sessions.values()) {
+      if (s.sessionRef && s.threadId !== session.threadId) {
+        existingIds.add(s.sessionRef.providerSessionId);
+      }
+    }
+
+    const poll = async () => {
+      if (session.sessionRef || session.status === "inactive" || attempt >= 5) return;
+      attempt++;
+      try {
+        const ref = await session.adapter.discoverSessionRef?.(session.projectLocation);
+        if (ref && !session.sessionRef && !existingIds.has(ref.providerSessionId)) {
+          session.sessionRef = ref;
+          session.canResumeWithConfig = true;
+          this.emitState(session);
+          return;
+        }
+      } catch {
+        // Ignore — will retry
+      }
+      setTimeout(() => void poll(), 3000);
+    };
+    // No initial delay — triggered after the first status detection,
+    // so the agent TUI is already live and the session file should exist.
+    void poll();
   }
 
   private async restartThread(

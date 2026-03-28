@@ -3,7 +3,7 @@ import { z } from "zod";
 export const themeModeSchema = z.enum(["system", "light", "dark"]);
 export type ThemeMode = z.infer<typeof themeModeSchema>;
 
-export const agentKindSchema = z.enum(["codex", "claude"]);
+export const agentKindSchema = z.enum(["codex", "claude", "gemini"]);
 export type AgentKind = z.infer<typeof agentKindSchema>;
 
 export const liveInputModeSchema = z.enum(["terminal", "server"]);
@@ -312,6 +312,7 @@ export const generateCommitMessagePayloadSchema = z.object({
   projectLocation: projectLocationSchema,
   agentKind: agentKindSchema,
   model: z.string().min(1).optional(),
+  effort: z.string().min(1).optional(),
 });
 export type GenerateCommitMessagePayload = z.infer<typeof generateCommitMessagePayloadSchema>;
 

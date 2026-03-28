@@ -9,7 +9,6 @@ import {
   batchWslCommandsAsync,
   createKnownSessionRef,
   readCommandOutputAsync,
-  resolveExecutablePath,
   resolveExecutablePathAsync,
   wrapWslCommand,
   type AgentEnvContext,
@@ -138,10 +137,12 @@ export function createClaudeAdapter(): AgentAdapter {
     },
     detectTerminalStatus: detectClaudeTerminalStatus,
     defaultOneShotModel: "haiku",
-    buildOneShotCommand(model) {
-      const execPath = resolveExecutablePath("claude");
-      if (!execPath) return undefined;
-      return { command: execPath, args: ["-p", "--model", model] };
+    buildOneShotCommand(model, effort) {
+      const args = ["-p", "--model", model];
+      if (effort) {
+        args.push("--effort", effort);
+      }
+      return { command: "claude", args };
     },
   };
 }
@@ -241,12 +242,22 @@ function parseTerminalPrompt(text: string): TerminalPrompt | undefined {
 export function detectClaudeTerminalStatus(text: string): TerminalStatusHint | null {
   // Find whichever pattern appears closest to the end of the output —
   // the TUI status indicator at the bottom is the current state.
+  // We need the LAST match of each pattern, not the first, because the
+  // accumulated buffer can contain stale matches from earlier states.
   let best: { index: number; entry: HintEntry } | null = null;
 
   for (const entry of CLAUDE_HINTS) {
-    const match = entry.re.exec(text);
-    if (match && (best === null || match.index > best.index)) {
-      best = { index: match.index, entry };
+    const globalRe = new RegExp(
+      entry.re.source,
+      entry.re.flags.includes("g") ? entry.re.flags : entry.re.flags + "g",
+    );
+    let last: RegExpExecArray | null = null;
+    let m: RegExpExecArray | null;
+    while ((m = globalRe.exec(text)) !== null) {
+      last = m;
+    }
+    if (last && (best === null || last.index > best.index)) {
+      best = { index: last.index, entry };
     }
   }
 

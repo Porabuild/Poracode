@@ -7,7 +7,7 @@ import type {
   ThreadServerRequestId,
 } from "../../../shared/contracts";
 
-import { ClaudeIcon, CodexStatusIcon, getStatusTone } from "../providers";
+import { ProviderIcon, getStatusTone } from "../providers";
 import type { PendingThreadServerRequest } from "../../state/appStore";
 import { Button, PromptOptions, TuxIcon } from "../common";
 import { readBridge } from "../../bridge";
@@ -38,15 +38,14 @@ function buildControls(
       kind: "static" as const,
       value: agentStatus?.label ?? thread.agentKind,
       hideLabelOnWrap: true,
-      icon:
-        thread.agentKind === "codex" ? (
-          <CodexStatusIcon className="size-4 shrink-0" tone={codexTone} />
-        ) : (
-          <ClaudeIcon className="size-4 text-muted" />
-        ),
+      icon: <ProviderIcon kind={thread.agentKind} tone={codexTone} className="size-4 shrink-0" />,
     },
     {
-      options: modelOptions(agentStatus?.capabilities.models ?? [], thread.config.model),
+      options: modelOptions(
+        agentStatus?.capabilities.models ?? [],
+        thread.config.model,
+        thread.agentKind,
+      ),
       value: thread.config.model,
       isDisabled,
       onChange: (value: string) => {
@@ -119,34 +118,52 @@ function buildControls(
             },
           ]
         : []),
-    ...(hasPermissions
+    ...((agentStatus?.capabilities.approvalPolicies.length ?? 0) > 2
       ? [
           {
-            kind: "toggle" as const,
             icon: <ShieldOff className="size-3.5" />,
-            label: "Full Access",
+            options: agentStatus!.capabilities.approvalPolicies.map((value) => ({
+              id: value,
+              label: formatCompactLabel(value),
+            })),
             hideLabelOnWrap: true,
-            isSelected: isFullAccess,
+            value:
+              thread.config.approvalPolicy ??
+              agentStatus!.capabilities.approvalPolicies[0] ??
+              "default",
             isDisabled,
-            onChange: (selected: boolean) => {
-              if (selected) {
-                onConfigChange({
-                  ...thread.config,
-                  approvalPolicy: "never",
-                  sandboxMode: "danger-full-access",
-                });
-              } else {
-                const { approvalPolicy: _a, sandboxMode: _s, ...rest } = thread.config;
-                onConfigChange({
-                  ...rest,
-                  approvalPolicy: agentStatus?.capabilities.approvalPolicies[0],
-                  sandboxMode: agentStatus?.capabilities.sandboxModes[0],
-                });
-              }
-            },
+            onChange: (value: string) =>
+              onConfigChange({ ...thread.config, approvalPolicy: value }),
           },
         ]
-      : []),
+      : hasPermissions
+        ? [
+            {
+              kind: "toggle" as const,
+              icon: <ShieldOff className="size-3.5" />,
+              label: "Full Access",
+              hideLabelOnWrap: true,
+              isSelected: isFullAccess,
+              isDisabled,
+              onChange: (selected: boolean) => {
+                if (selected) {
+                  onConfigChange({
+                    ...thread.config,
+                    approvalPolicy: "never",
+                    sandboxMode: "danger-full-access",
+                  });
+                } else {
+                  const { approvalPolicy: _a, sandboxMode: _s, ...rest } = thread.config;
+                  onConfigChange({
+                    ...rest,
+                    approvalPolicy: agentStatus?.capabilities.approvalPolicies[0],
+                    sandboxMode: agentStatus?.capabilities.sandboxModes[0],
+                  });
+                }
+              },
+            },
+          ]
+        : []),
   ];
 }
 
@@ -194,8 +211,7 @@ export function ThreadView(props: {
   } = props;
   const [prompt, setPrompt] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const isServerControlled =
-    thread.agentKind === "codex" && agentStatus?.capabilities.liveInputMode === "server";
+  const isServerControlled = agentStatus?.capabilities.liveInputMode === "server";
   const isTerminalInput = agentStatus?.capabilities.liveInputMode === "terminal";
   const activeServerRequest = pendingServerRequests[0];
   const canSubmitServerInput =
@@ -283,11 +299,11 @@ export function ThreadView(props: {
             onDragEnd={onPaneDragEnd}
           >
             <div className="flex min-w-0 items-center gap-2">
-              {thread.agentKind === "codex" ? (
-                <CodexStatusIcon className="size-4 shrink-0" tone={getStatusTone(thread)} />
-              ) : thread.agentKind === "claude" ? (
-                <ClaudeIcon className="size-4 shrink-0" tone={getStatusTone(thread)} />
-              ) : null}
+              <ProviderIcon
+                kind={thread.agentKind}
+                tone={getStatusTone(thread)}
+                className="size-4 shrink-0"
+              />
               <h1 className="truncate text-sm font-semibold tracking-tight text-foreground">
                 {thread.title}
               </h1>

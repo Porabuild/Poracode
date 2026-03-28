@@ -18,7 +18,6 @@ import {
   createKnownSessionRef,
   detectAuthFile,
   readCommandOutputAsync,
-  resolveExecutablePath,
   resolveExecutablePathAsync,
   wrapWslCommand,
   type AgentAdapter,
@@ -926,10 +925,13 @@ export function createCodexAdapter(): AgentAdapter {
       return [...prompt, "\r"];
     },
     defaultOneShotModel: "gpt-5.4-mini",
-    buildOneShotCommand(model) {
-      const execPath = resolveExecutablePath("codex");
-      if (!execPath) return undefined;
-      return { command: execPath, args: ["exec", "-m", model, "-"] };
+    buildOneShotCommand(model, effort) {
+      const args = ["exec", "-m", model];
+      if (effort) {
+        args.push("-c", `model_reasoning_effort="${effort}"`);
+      }
+      args.push("-");
+      return { command: "codex", args };
     },
   };
 }

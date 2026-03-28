@@ -24,7 +24,7 @@ import { useSidebar } from "../layout/AppShell";
 import { readBridge } from "../../bridge";
 import { useUpdateStore } from "../../state/updateStore";
 import { useGitStore } from "../../state/gitStore";
-import { ClaudeIcon, CodexStatusIcon, getStatusTone } from "../providers";
+import { ProviderIcon, getStatusTone } from "../providers";
 
 type SidebarDragItem =
   | { type: "project"; id: string }
@@ -219,15 +219,13 @@ function UpdateButtons(props: { iconOnly?: boolean }) {
 }
 
 function ThreadIcon(props: { thread: Thread }) {
-  const { thread } = props;
-  const tone = getStatusTone(thread);
-  if (thread.agentKind === "codex") {
-    return <CodexStatusIcon className="size-3.5" tone={tone} />;
-  }
-  if (thread.agentKind === "claude") {
-    return <ClaudeIcon className="size-3.5" tone={tone} />;
-  }
-  return null;
+  return (
+    <ProviderIcon
+      kind={props.thread.agentKind}
+      tone={getStatusTone(props.thread)}
+      className="size-3.5"
+    />
+  );
 }
 
 export function Sidebar(props: {
@@ -654,16 +652,11 @@ export function Sidebar(props: {
                               >
                                 <SidebarButton
                                   icon={
-                                    thread.agentKind === "codex" ? (
-                                      <CodexStatusIcon
-                                        className="size-3.5 shrink-0"
-                                        tone={statusTone}
-                                      />
-                                    ) : thread.agentKind === "claude" ? (
-                                      <ClaudeIcon className="size-3.5 shrink-0" tone={statusTone} />
-                                    ) : (
-                                      <div className="size-3.5 shrink-0" />
-                                    )
+                                    <ProviderIcon
+                                      kind={thread.agentKind}
+                                      tone={statusTone}
+                                      className="size-3.5 shrink-0"
+                                    />
                                   }
                                   label={
                                     editingThreadId === thread.id ? (

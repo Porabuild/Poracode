@@ -6,7 +6,7 @@ import type {
   ProjectDraftConfig,
   ThreadConfig,
 } from "../../../shared/contracts";
-import { ClaudeIcon, CodexStatusIcon } from "../providers";
+import { ProviderIcon } from "../providers";
 import { ThreadComposer } from "./ThreadComposer";
 import { formatCompactLabel, modelOptions } from "./threadComposerOptions";
 
@@ -120,27 +120,25 @@ export function ThreadDraftView(props: {
                 autoFocus // eslint-disable-line jsx-a11y/no-autofocus -- desktop app, expected UX
                 controls={[
                   {
-                    icon:
-                      agentKind === "codex" ? (
-                        <CodexStatusIcon className="size-4 shrink-0" tone="inactive" />
-                      ) : (
-                        <ClaudeIcon className="size-4 text-muted" />
-                      ),
+                    icon: (
+                      <ProviderIcon kind={agentKind} tone="inactive" className="size-4 shrink-0" />
+                    ),
                     options: installedAgents.map((agent) => ({
                       id: agent.kind,
                       label: agent.label,
-                      icon:
-                        agent.kind === "codex" ? (
-                          <CodexStatusIcon className="size-4 shrink-0" tone="inactive" />
-                        ) : (
-                          <ClaudeIcon className="size-4 text-muted" />
-                        ),
+                      icon: (
+                        <ProviderIcon
+                          kind={agent.kind}
+                          tone="inactive"
+                          className="size-4 shrink-0"
+                        />
+                      ),
                     })),
                     value: agentKind,
                     onChange: (value) => setAgentKind(value as AgentStatus["kind"]),
                   },
                   {
-                    options: modelOptions(selectedAgent.capabilities.models, model),
+                    options: modelOptions(selectedAgent.capabilities.models, model, agentKind),
                     value: model,
                     onChange: setModel,
                   },
@@ -188,27 +186,39 @@ export function ThreadDraftView(props: {
                           },
                         ]
                       : []),
-                  ...(hasPermissions
+                  ...(selectedAgent.capabilities.approvalPolicies.length > 2
                     ? [
                         {
-                          kind: "toggle" as const,
                           icon: <ShieldOff className="size-3.5" />,
-                          label: "Full Access",
-                          isSelected: isFullAccess,
-                          onChange: (selected: boolean) => {
-                            if (selected) {
-                              setApprovalPolicy("never");
-                              setSandboxMode("danger-full-access");
-                            } else {
-                              setApprovalPolicy(
-                                selectedAgent.capabilities.approvalPolicies[0] ?? "",
-                              );
-                              setSandboxMode(selectedAgent.capabilities.sandboxModes[0] ?? "");
-                            }
-                          },
+                          options: selectedAgent.capabilities.approvalPolicies.map((value) => ({
+                            id: value,
+                            label: formatCompactLabel(value),
+                          })),
+                          value: approvalPolicy,
+                          onChange: setApprovalPolicy,
                         },
                       ]
-                    : []),
+                    : hasPermissions
+                      ? [
+                          {
+                            kind: "toggle" as const,
+                            icon: <ShieldOff className="size-3.5" />,
+                            label: "Full Access",
+                            isSelected: isFullAccess,
+                            onChange: (selected: boolean) => {
+                              if (selected) {
+                                setApprovalPolicy("never");
+                                setSandboxMode("danger-full-access");
+                              } else {
+                                setApprovalPolicy(
+                                  selectedAgent.capabilities.approvalPolicies[0] ?? "",
+                                );
+                                setSandboxMode(selectedAgent.capabilities.sandboxModes[0] ?? "");
+                              }
+                            },
+                          },
+                        ]
+                      : []),
                 ]}
                 placeholder="Ask LightCode anything, @ to add files, / for commands"
                 prompt={prompt}

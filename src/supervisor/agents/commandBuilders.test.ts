@@ -141,6 +141,18 @@ describe("agent command builders", () => {
     expect(script).not.toContain("--session-id");
   });
 
+  it("passes reasoning effort through one-shot commit generation commands", () => {
+    expect(createCodexAdapter().buildOneShotCommand?.("gpt-5.4-mini", "low")).toEqual({
+      command: "codex",
+      args: ["exec", "-m", "gpt-5.4-mini", "-c", 'model_reasoning_effort="low"', "-"],
+    });
+
+    expect(createClaudeAdapter().buildOneShotCommand?.("haiku", "low")).toEqual({
+      command: "claude",
+      args: ["-p", "--model", "haiku", "--effort", "low"],
+    });
+  });
+
   it("prefers pwsh, then powershell, then cmd on Windows", () => {
     expect(
       buildWindowsCommand("C:\\Users\\demo\\project", "codex", ["hello"], (name) =>

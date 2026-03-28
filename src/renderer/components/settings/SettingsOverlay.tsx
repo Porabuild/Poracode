@@ -1,7 +1,9 @@
-import { ArrowLeft, PanelLeft, PanelLeftClose, Settings2 } from "lucide-react";
+import { ArrowLeft, GitBranch, PanelLeft, PanelLeftClose, Settings2 } from "lucide-react";
 import { startTransition, useState } from "react";
 import type { ThemeMode } from "../../../shared/contracts";
+import { useAppStore } from "../../state/appStore";
 import { useSharedSettings } from "../../state/sharedSettingsStore";
+import { getModelLabel, resolveCommitGenConfig } from "../providers";
 import { Select, SidebarButton } from "../common";
 import { AppShell, useSidebar } from "../layout/AppShell";
 
@@ -11,7 +13,7 @@ const themeOptions = [
   { id: "dark", label: "Dark" },
 ] as const;
 
-type SettingsSection = "general";
+type SettingsSection = "general" | "git";
 
 function SettingsSidebar(props: {
   activeSection: SettingsSection;
@@ -33,6 +35,13 @@ function SettingsSidebar(props: {
               label="General"
               isActive={activeSection === "general"}
               onPress={() => onSectionChange("general")}
+            />
+            <SidebarButton
+              iconOnly
+              icon={<GitBranch className="size-4" />}
+              label="Git"
+              isActive={activeSection === "git"}
+              onPress={() => onSectionChange("git")}
             />
           </div>
 
@@ -68,6 +77,12 @@ function SettingsSidebar(props: {
               label="General"
               isActive={activeSection === "general"}
               onPress={() => onSectionChange("general")}
+            />
+            <SidebarButton
+              icon={<GitBranch className="size-4" />}
+              label="Git"
+              isActive={activeSection === "git"}
+              onPress={() => onSectionChange("git")}
             />
           </div>
         </div>
@@ -122,6 +137,115 @@ function GeneralSettings() {
   );
 }
 
+function GitSettings() {
+  const agentStatuses = useAppStore((s) => s.agentStatuses);
+  const commitGenProvider = useSharedSettings((s) => s.commitGenProvider);
+  const commitGenModel = useSharedSettings((s) => s.commitGenModel);
+  const commitGenEffort = useSharedSettings((s) => s.commitGenEffort);
+  const setCommitGenConfig = useSharedSettings((s) => s.setCommitGenConfig);
+
+  const installedAgents = agentStatuses.filter((a) => a.installed);
+  const selectedAgent =
+    commitGenProvider !== "auto"
+      ? installedAgents.find((a) => a.kind === commitGenProvider)
+      : undefined;
+  const resolvedCommitGen = resolveCommitGenConfig(
+    selectedAgent,
+    commitGenModel,
+    commitGenEffort,
+  );
+
+  const providerOptions = [
+    { id: "auto", label: "Auto (Recommended)" },
+    ...installedAgents.map((a) => ({ id: a.kind, label: a.label })),
+  ];
+
+  const modelOptions = selectedAgent
+    ? selectedAgent.capabilities.models.map((id) => ({
+        id,
+        label: getModelLabel(selectedAgent.kind, id) ?? id,
+      }))
+    : [];
+
+  const effortOptions = selectedAgent
+    ? resolvedCommitGen.availableEfforts.map((id) => ({
+        id,
+        label: id.charAt(0).toUpperCase() + id.slice(1),
+      }))
+    : [];
+
+  return (
+    <div className="h-full min-h-0 overflow-y-auto px-6 py-8">
+      <div className="mx-auto max-w-[560px]">
+        <h1 className="mb-6 text-lg font-semibold text-foreground">Git</h1>
+
+        <div className="space-y-4">
+          <h2 className="text-sm font-semibold text-muted">Commit Message Generation</h2>
+
+          <div className="flex items-center justify-between gap-4">
+            <div className="min-w-0">
+              <p className="text-sm font-medium text-foreground">Provider</p>
+              <p className="text-xs text-muted">Agent used to generate commit messages.</p>
+            </div>
+            <Select
+              aria-label="Provider"
+              className="w-[200px] shrink-0"
+              options={providerOptions}
+              value={commitGenProvider}
+              onChange={(value) => {
+                if (value === "auto") {
+                  setCommitGenConfig("auto", "", "");
+                } else {
+                  const agent = installedAgents.find((a) => a.kind === value);
+                  const next = resolveCommitGenConfig(agent, "", "");
+                  setCommitGenConfig(value, next.model, next.effort);
+                }
+              }}
+            />
+          </div>
+
+          {selectedAgent && modelOptions.length > 0 ? (
+            <div className="flex items-center justify-between gap-4">
+              <div className="min-w-0">
+                <p className="text-sm font-medium text-foreground">Model</p>
+                <p className="text-xs text-muted">Model for commit message generation.</p>
+              </div>
+              <Select
+                aria-label="Model"
+                className="w-[200px] shrink-0"
+                options={modelOptions}
+                value={resolvedCommitGen.model}
+                onChange={(value) => {
+                  const next = resolveCommitGenConfig(selectedAgent, value, commitGenEffort);
+                  setCommitGenConfig(commitGenProvider, next.model, next.effort);
+                }}
+              />
+            </div>
+          ) : null}
+
+          {selectedAgent && effortOptions.length > 0 ? (
+            <div className="flex items-center justify-between gap-4">
+              <div className="min-w-0">
+                <p className="text-sm font-medium text-foreground">Effort</p>
+                <p className="text-xs text-muted">Reasoning effort for generation.</p>
+              </div>
+              <Select
+                aria-label="Effort"
+                className="w-[200px] shrink-0"
+                options={effortOptions}
+                value={resolvedCommitGen.effort}
+                onChange={(value) =>
+                  setCommitGenConfig(commitGenProvider, resolvedCommitGen.model, value)
+                }
+              />
+            </div>
+          ) : null}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function SettingsOverlay(props: { onClose: () => void }) {
   const { onClose } = props;
   const [activeSection, setActiveSection] = useState<SettingsSection>("general");
@@ -136,7 +260,13 @@ export function SettingsOverlay(props: { onClose: () => void }) {
             onClose={onClose}
           />
         }
-        content={activeSection === "general" ? <GeneralSettings /> : null}
+        content={
+          activeSection === "general" ? (
+            <GeneralSettings />
+          ) : activeSection === "git" ? (
+            <GitSettings />
+          ) : null
+        }
       />
     </div>
   );

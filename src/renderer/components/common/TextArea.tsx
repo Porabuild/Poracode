@@ -1,7 +1,4 @@
-import {
-  TextArea as HeroTextArea,
-  type TextAreaProps as HeroTextAreaProps,
-} from "@heroui/react";
+import { TextArea as HeroTextArea, type TextAreaProps as HeroTextAreaProps } from "@heroui/react";
 import { forwardRef } from "react";
 
 export interface TextAreaProps extends HeroTextAreaProps {

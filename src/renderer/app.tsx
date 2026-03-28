@@ -3,7 +3,7 @@ import { ArrowRight, FolderOpen, Plus, TerminalSquare } from "lucide-react";
 import { Spinner } from "@heroui/react";
 import { parseWslUncPath } from "../shared/wsl";
 import { readBridge } from "./bridge";
-import { CodexStatusIcon, getStatusTone } from "./components/providers";
+import { ProviderIcon, getStatusTone } from "./components/providers";
 import { DevTerminalPanel } from "./components/devTerminal/DevTerminalPanel";
 import { AppShell } from "./components/layout/AppShell";
 import { SplitPaneContainer } from "./components/layout/SplitPaneContainer";
@@ -155,9 +155,6 @@ function HomeView() {
                   <div className="flex flex-col gap-1">
                     {recentThreads.map((thread) => {
                       const project = projects.find((p) => p.id === thread.projectId);
-                      const codexTone =
-                        thread.agentKind === "codex" ? getStatusTone(thread) : undefined;
-
                       return (
                         <button
                           key={thread.id}
@@ -165,14 +162,11 @@ function HomeView() {
                           onClick={() => openThread(thread.id)}
                           type="button"
                         >
-                          {thread.agentKind === "codex" ? (
-                            <CodexStatusIcon
-                              className="size-4 shrink-0"
-                              tone={codexTone ?? "inactive"}
-                            />
-                          ) : (
-                            <TerminalSquare className="size-4 shrink-0 text-muted" />
-                          )}
+                          <ProviderIcon
+                            kind={thread.agentKind}
+                            tone={getStatusTone(thread)}
+                            className="size-4 shrink-0"
+                          />
                           <p className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">
                             {thread.title}
                           </p>

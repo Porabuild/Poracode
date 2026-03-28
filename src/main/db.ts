@@ -53,15 +53,11 @@ export function initDatabase(userDataDir: string) {
   `);
 
   // Migrate: add sort_order columns if missing
-  const projectCols = sqlite
-    .prepare("PRAGMA table_info(projects)")
-    .all() as { name: string }[];
+  const projectCols = sqlite.prepare("PRAGMA table_info(projects)").all() as { name: string }[];
   if (!projectCols.some((c) => c.name === "sort_order")) {
     sqlite.exec("ALTER TABLE projects ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0");
   }
-  const threadCols = sqlite
-    .prepare("PRAGMA table_info(threads)")
-    .all() as { name: string }[];
+  const threadCols = sqlite.prepare("PRAGMA table_info(threads)").all() as { name: string }[];
   if (!threadCols.some((c) => c.name === "sort_order")) {
     sqlite.exec("ALTER TABLE threads ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0");
   }
@@ -145,12 +141,22 @@ function rowToThread(row: typeof schema.threads.$inferSelect): Thread {
 
 export function dbGetProjects(): Project[] {
   const db = getDb();
-  return db.select().from(schema.projects).orderBy(asc(schema.projects.sortOrder)).all().map(rowToProject);
+  return db
+    .select()
+    .from(schema.projects)
+    .orderBy(asc(schema.projects.sortOrder))
+    .all()
+    .map(rowToProject);
 }
 
 export function dbGetThreads(): Thread[] {
   const db = getDb();
-  return db.select().from(schema.threads).orderBy(asc(schema.threads.sortOrder)).all().map(rowToThread);
+  return db
+    .select()
+    .from(schema.threads)
+    .orderBy(asc(schema.threads.sortOrder))
+    .all()
+    .map(rowToThread);
 }
 
 export function dbGetState(key: string): string | null {

@@ -101,10 +101,15 @@ export interface AgentAdapter {
   createStructuredSession?(input: CreateStructuredSessionInput): Promise<StructuredSessionHandle>;
   buildDirectInput?(prompt: string): string[];
   detectTerminalStatus?(text: string): TerminalStatusHint | null;
+  /** Discover the session ID after PTY spawn (e.g. by querying the CLI). */
+  discoverSessionRef?(location: ProjectLocation): Promise<SessionRef | undefined>;
   /** Default model for lightweight one-shot tasks like commit message generation. */
   defaultOneShotModel?: string;
-  /** Build a command for one-shot prompt→response (e.g. commit-msg gen). Prompt is piped via stdin. */
-  buildOneShotCommand?(model: string): { command: string; args: string[] } | undefined;
+  /**
+   * Build a command for one-shot prompt→response (e.g. commit-msg gen).
+   * Prompt is piped via stdin.
+   */
+  buildOneShotCommand?(model: string, effort?: string): { command: string; args: string[] } | undefined;
 }
 
 export interface TerminalStatusHint {
@@ -130,14 +135,26 @@ function encodePowerShellCommand(script: string): string {
   return Buffer.from(script, "utf16le").toString("base64");
 }
 
+/** Detect the best available shell. Returns a shell path on Windows (pwsh > powershell > cmd), or `true` on Unix (default shell). */
+export function detectShell(resolvePath: ResolveExecutablePath = resolveExecutablePath): string | true {
+  if (process.platform !== "win32") return true;
+  return (
+    resolvePath("pwsh.exe") ??
+    resolvePath("pwsh") ??
+    resolvePath("powershell.exe") ??
+    resolvePath("powershell") ??
+    true
+  );
+}
+
 export function buildWindowsCommand(
   cwd: string,
   command: string,
   args: string[],
   resolvePath: ResolveExecutablePath = resolveExecutablePath,
 ): CommandSpec {
-  const pwshPath = resolvePath("pwsh.exe") ?? resolvePath("pwsh");
-  if (pwshPath) {
+  const shell = detectShell(resolvePath);
+  if (typeof shell === "string") {
     const script = [
       "$ErrorActionPreference = 'Stop'",
       `$cmd = ${quotePowerShellLiteral(command)}`,
@@ -146,23 +163,7 @@ export function buildWindowsCommand(
     ].join("; ");
 
     return {
-      command: pwshPath,
-      args: ["-NoLogo", "-NoProfile", "-EncodedCommand", encodePowerShellCommand(script)],
-      cwd,
-    };
-  }
-
-  const powershellPath = resolvePath("powershell.exe") ?? resolvePath("powershell");
-  if (powershellPath) {
-    const script = [
-      "$ErrorActionPreference = 'Stop'",
-      `$cmd = ${quotePowerShellLiteral(command)}`,
-      `$args = @(${args.map(quotePowerShellLiteral).join(", ")})`,
-      "& $cmd @args",
-    ].join("; ");
-
-    return {
-      command: powershellPath,
+      command: shell,
       args: ["-NoLogo", "-NoProfile", "-EncodedCommand", encodePowerShellCommand(script)],
       cwd,
     };
@@ -317,11 +318,13 @@ export async function resolveExecutablePathAsync(command: string): Promise<strin
 export async function readCommandOutputAsync(
   command: string,
   args: string[],
+  options?: { cwd?: string },
 ): Promise<{ ok: boolean; stdout: string; stderr: string }> {
   try {
     const { stdout, stderr } = await execFileAsync(command, args, {
       windowsHide: true,
       timeout: 10_000,
+      ...(options?.cwd ? { cwd: options.cwd } : {}),
     });
     return { ok: true, stdout: (stdout ?? "").trim(), stderr: (stderr ?? "").trim() };
   } catch (error: unknown) {

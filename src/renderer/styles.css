@@ -12,6 +12,7 @@
     --overlay-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
 
     /* App-specific variables (not HeroUI) */
+    --working-tone: var(--success);
     --sidebar-background: var(--surface);
     --content-background: var(--background);
     --window-header-background: var(--sidebar-background);
@@ -105,7 +106,6 @@
     -ms-overflow-style: none !important;
     scrollbar-width: none !important;
   }
-
 }
 
 * {
@@ -209,7 +209,8 @@ body {
   background: var(--accent);
 }
 
-.lightcode-codex-icon {
+/* --- Unified provider icon styles --- */
+.lightcode-provider-icon {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -217,98 +218,47 @@ body {
   vertical-align: middle;
 }
 
-.lightcode-codex-icon__svg {
+.lightcode-provider-icon__svg {
   width: 100%;
   height: 100%;
   overflow: visible;
 }
 
-.lightcode-codex-icon__fill {
+.lightcode-provider-icon__fill {
   fill: currentColor;
 }
 
-.lightcode-codex-icon__shell {
-  fill: currentColor;
-  opacity: 0.32;
-}
-
-.lightcode-codex-icon__scan {
-  opacity: 0.95;
-}
-
-.lightcode-codex-icon--inactive {
-  color: color-mix(in oklab, var(--muted) 94%, var(--foreground));
-  opacity: 0.78;
-}
-
-.lightcode-codex-icon--active {
-  color: var(--foreground);
-  filter: drop-shadow(0 0 0.35rem color-mix(in oklab, var(--foreground) 18%, transparent));
-}
-
-.lightcode-codex-icon--working {
-  color: color-mix(in oklab, var(--success) 82%, var(--white));
-  filter: drop-shadow(0 0 0.6rem color-mix(in oklab, var(--success) 50%, transparent));
-}
-
-.lightcode-codex-icon--error {
-  color: var(--danger);
-  filter: drop-shadow(0 0 0.45rem color-mix(in oklab, var(--danger) 35%, transparent));
-}
-
-.lightcode-codex-icon--attention {
-  color: var(--warning);
-  filter: drop-shadow(0 0 0.45rem color-mix(in oklab, var(--warning) 48%, transparent));
-}
-
-.lightcode-claude-icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  color: color-mix(in oklab, var(--muted) 80%, var(--foreground));
-  vertical-align: middle;
-}
-
-.lightcode-claude-icon__svg {
-  width: 100%;
-  height: 100%;
-  overflow: visible;
-}
-
-.lightcode-claude-icon__fill {
-  fill: currentColor;
-}
-
-.lightcode-claude-icon__shell {
+.lightcode-provider-icon__shell {
   fill: currentColor;
   opacity: 0.32;
 }
 
-.lightcode-claude-icon__scan {
+.lightcode-provider-icon__scan {
   opacity: 0.95;
 }
 
-.lightcode-claude-icon--inactive {
+.lightcode-provider-icon--inactive {
   color: color-mix(in oklab, var(--muted) 94%, var(--foreground));
   opacity: 0.78;
 }
 
-.lightcode-claude-icon--active {
+.lightcode-provider-icon--active {
   color: var(--foreground);
   filter: drop-shadow(0 0 0.35rem color-mix(in oklab, var(--foreground) 18%, transparent));
 }
 
-.lightcode-claude-icon--working {
-  color: color-mix(in oklab, var(--success) 82%, var(--white));
-  filter: drop-shadow(0 0 0.6rem color-mix(in oklab, var(--success) 50%, transparent));
+.lightcode-provider-icon--working {
+  color: color-mix(in oklab, var(--working-tone) 92%, var(--white));
+  filter: drop-shadow(0 0 0.3rem color-mix(in oklab, var(--working-tone) 45%, transparent))
+    drop-shadow(0 0 1rem color-mix(in oklab, var(--working-tone) 22%, transparent));
 }
 
-.lightcode-claude-icon--error {
+.lightcode-provider-icon--error {
   color: var(--danger);
   filter: drop-shadow(0 0 0.45rem color-mix(in oklab, var(--danger) 35%, transparent));
 }
 
-.lightcode-claude-icon--attention {
+.lightcode-provider-icon--attention {
   color: var(--warning);
   filter: drop-shadow(0 0 0.45rem color-mix(in oklab, var(--warning) 48%, transparent));
 }

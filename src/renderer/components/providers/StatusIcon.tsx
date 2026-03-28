@@ -22,10 +22,12 @@ export function StatusIcon(props: {
   const pathProps = fillRule ? ({ clipRule: fillRule, fillRule } as const) : {};
 
   return (
-    <span className={`${cssPrefix} ${cssPrefix}--${tone}${className ? ` ${className}` : ""}`}>
+    <span
+      className={`lightcode-provider-icon lightcode-provider-icon--${tone} ${cssPrefix} ${cssPrefix}--${tone}${className ? ` ${className}` : ""}`}
+    >
       <svg
         aria-hidden={title ? undefined : true}
-        className={`${cssPrefix}__svg`}
+        className="lightcode-provider-icon__svg"
         role={title ? "img" : undefined}
         viewBox={viewBox}
       >
@@ -45,12 +47,12 @@ export function StatusIcon(props: {
           </defs>
         ) : null}
         {tone === "working" ? (
-          <path className={`${cssPrefix}__shell`} d={path} {...pathProps} />
+          <path className="lightcode-provider-icon__shell" d={path} {...pathProps} />
         ) : null}
-        <path className={`${cssPrefix}__fill`} d={path} {...pathProps} />
+        <path className="lightcode-provider-icon__fill" d={path} {...pathProps} />
         {tone === "working" ? (
           <rect
-            className={`${cssPrefix}__scan`}
+            className="lightcode-provider-icon__scan"
             clipPath={`url(#${clipId})`}
             fill={`url(#${gradientId})`}
             height={scanHeight}

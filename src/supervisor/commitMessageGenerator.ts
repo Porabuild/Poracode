@@ -1,6 +1,6 @@
 import { spawn as spawnChild } from "node:child_process";
 import type { ProjectLocation } from "../shared/contracts";
-import type { AgentAdapter } from "./agents/base";
+import { resolveExecutablePathAsync, type AgentAdapter } from "./agents/base";
 import { GitService } from "./git";
 
 const PROMPT =
@@ -16,18 +16,32 @@ const PROMPT =
   "- Reply with only the commit message, nothing else\n\n";
 
 const MAX_DIFF_CHARS = 8000;
+const COMMIT_MESSAGE_TIMEOUT_MS = 120_000;
 
 function truncateDiff(diff: string): string {
   if (diff.length <= MAX_DIFF_CHARS) return diff;
   return diff.slice(0, MAX_DIFF_CHARS) + "\n\n[diff truncated]";
 }
 
-function spawnAgent(command: string, args: string[], input: string): Promise<string> {
+function getCommandCwd(location: ProjectLocation): string | undefined {
+  if (location.kind === "windows" || location.kind === "posix") {
+    return location.path;
+  }
+  return undefined;
+}
+
+function spawnAgent(
+  command: string,
+  args: string[],
+  input: string,
+  cwd?: string,
+): Promise<string> {
   return new Promise((resolve, reject) => {
     const child = spawnChild(command, args, {
       stdio: ["pipe", "pipe", "pipe"],
       windowsHide: true,
-      timeout: 30_000,
+      timeout: COMMIT_MESSAGE_TIMEOUT_MS,
+      ...(cwd ? { cwd } : {}),
     });
 
     let stdout = "";
@@ -44,13 +58,14 @@ function spawnAgent(command: string, args: string[], input: string): Promise<str
     child.on("close", (code) => {
       if (code === 0 && stdout.trim()) {
         resolve(stdout.trim());
+      } else if (code === null && child.killed) {
+        reject(new Error("Agent timed out while generating commit message"));
       } else {
         reject(new Error(stderr.trim() || `Agent exited with code ${code}`));
       }
     });
 
-    child.stdin.write(input);
-    child.stdin.end();
+    child.stdin.end(input);
   });
 }
 
@@ -58,6 +73,7 @@ export async function generateCommitMessage(
   location: ProjectLocation,
   adapter: AgentAdapter,
   model?: string,
+  effort?: string,
 ): Promise<string> {
   const effectiveModel = model ?? adapter.defaultOneShotModel;
   if (!effectiveModel) {
@@ -68,10 +84,17 @@ export async function generateCommitMessage(
     throw new Error(`${adapter.label} does not support one-shot generation`);
   }
 
-  const cmd = adapter.buildOneShotCommand(effectiveModel);
+  const cmd = adapter.buildOneShotCommand(effectiveModel, effort);
   if (!cmd) {
-    throw new Error(`${adapter.label} CLI not found`);
+    throw new Error(`${adapter.label} does not support one-shot generation`);
   }
+
+  // Verify the CLI is reachable before spawning.
+  const resolvedPath = await resolveExecutablePathAsync(cmd.command);
+  if (!resolvedPath) {
+    throw new Error(`${adapter.label} CLI not found: ${cmd.command}`);
+  }
+  console.log(`[commit-gen] spawning: ${cmd.command} ${cmd.args.join(" ")}`);
 
   const gitService = new GitService();
 
@@ -83,5 +106,10 @@ export async function generateCommitMessage(
     throw new Error("No changes to describe");
   }
 
-  return spawnAgent(cmd.command, cmd.args, PROMPT + truncateDiff(diff));
+  return spawnAgent(
+    cmd.command,
+    cmd.args,
+    PROMPT + truncateDiff(diff),
+    getCommandCwd(location),
+  );
 }
