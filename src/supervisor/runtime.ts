@@ -27,8 +27,15 @@ import type {
   GitStageAllPayload,
   GitStagePayload,
   GitStatusResult,
+  GitAddWorktreePayload,
+  GitBranchListResult,
+  GitFetchPayload,
+  GitListWorktreesPayload,
+  GitRemoveWorktreePayload,
   GitUnstageAllPayload,
   GitUnstagePayload,
+  GitWorktreeListResult,
+  GetGitBranchesPayload,
   ProjectLocation,
   ResizeTerminalPayload,
   ResolveThreadServerRequestPayload,
@@ -685,6 +692,34 @@ export class SupervisorRuntime {
     return { message };
   }
 
+  // ── Branch & Worktree ───────────────────────────────────
+
+  async gitListBranches(payload: GetGitBranchesPayload): Promise<GitBranchListResult> {
+    return this.gitService.listBranches(payload.projectLocation, payload.includeRemote);
+  }
+
+  async gitFetch(payload: GitFetchPayload): Promise<void> {
+    return this.gitService.fetch(payload.projectLocation, payload.remote, payload.prune);
+  }
+
+  async gitListWorktrees(payload: GitListWorktreesPayload): Promise<GitWorktreeListResult> {
+    return this.gitService.listWorktrees(payload.projectLocation);
+  }
+
+  async gitAddWorktree(payload: GitAddWorktreePayload): Promise<void> {
+    return this.gitService.addWorktree(
+      payload.projectLocation,
+      payload.path,
+      payload.branch,
+      payload.createBranch,
+      payload.startPoint,
+    );
+  }
+
+  async gitRemoveWorktree(payload: GitRemoveWorktreePayload): Promise<void> {
+    return this.gitService.removeWorktree(payload.projectLocation, payload.path, payload.force);
+  }
+
   async resolveThreadServerRequest(payload: ResolveThreadServerRequestPayload): Promise<void> {
     const session = this.requireSession(payload.threadId);
     if (!session.structuredSession?.resolveServerRequest) {
@@ -1034,11 +1069,9 @@ export class SupervisorRuntime {
 
       if (
         usesTerminalPresentation &&
-        (
-          session.adapter.detectStartupPrompt ||
+        (session.adapter.detectStartupPrompt ||
           session.adapter.isReadyForInitialPrompt ||
-          session.adapter.detectTerminalStatus
-        )
+          session.adapter.detectTerminalStatus)
       ) {
         const combined = session.prevChunk + data;
         session.prevChunk = combined.length > 8192 ? combined.slice(-8192) : combined;

@@ -149,11 +149,7 @@ function GitSettings() {
     commitGenProvider !== "auto"
       ? installedAgents.find((a) => a.kind === commitGenProvider)
       : undefined;
-  const resolvedCommitGen = resolveCommitGenConfig(
-    selectedAgent,
-    commitGenModel,
-    commitGenEffort,
-  );
+  const resolvedCommitGen = resolveCommitGenConfig(selectedAgent, commitGenModel, commitGenEffort);
 
   const providerOptions = [
     { id: "auto", label: "Auto (Recommended)" },

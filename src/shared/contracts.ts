@@ -143,6 +143,8 @@ export const threadSchema = z.object({
   canResumeWithConfig: z.boolean().default(false),
   sessionRef: sessionRefSchema.optional(),
   terminalPrompt: z.custom<TerminalPrompt>().optional(),
+  worktreePath: z.string().optional(),
+  worktreeBranch: z.string().optional(),
   createdAt: z.string().min(1),
   updatedAt: z.string().min(1),
 });
@@ -335,6 +337,65 @@ export type GenerateCommitMessagePayload = z.infer<typeof generateCommitMessageP
 export interface GenerateCommitMessageResult {
   message: string;
 }
+
+// ── Branch & Worktree ───────────────────────────────────
+
+export interface GitBranchInfo {
+  name: string;
+  current: boolean;
+  commit: string;
+  isRemote: boolean;
+}
+
+export interface GitBranchListResult {
+  current: string;
+  branches: GitBranchInfo[];
+}
+
+export interface GitWorktreeInfo {
+  path: string;
+  branch: string;
+  commit: string;
+  isMain: boolean;
+}
+
+export interface GitWorktreeListResult {
+  worktrees: GitWorktreeInfo[];
+}
+
+export const getGitBranchesPayloadSchema = z.object({
+  projectLocation: projectLocationSchema,
+  includeRemote: z.boolean().default(true),
+});
+export type GetGitBranchesPayload = z.infer<typeof getGitBranchesPayloadSchema>;
+
+export const gitFetchPayloadSchema = z.object({
+  projectLocation: projectLocationSchema,
+  remote: z.string().default("origin"),
+  prune: z.boolean().default(false),
+});
+export type GitFetchPayload = z.infer<typeof gitFetchPayloadSchema>;
+
+export const gitListWorktreesPayloadSchema = z.object({
+  projectLocation: projectLocationSchema,
+});
+export type GitListWorktreesPayload = z.infer<typeof gitListWorktreesPayloadSchema>;
+
+export const gitAddWorktreePayloadSchema = z.object({
+  projectLocation: projectLocationSchema,
+  path: z.string().min(1),
+  branch: z.string().optional(),
+  createBranch: z.boolean().default(false),
+  startPoint: z.string().optional(),
+});
+export type GitAddWorktreePayload = z.infer<typeof gitAddWorktreePayloadSchema>;
+
+export const gitRemoveWorktreePayloadSchema = z.object({
+  projectLocation: projectLocationSchema,
+  path: z.string().min(1),
+  force: z.boolean().default(false),
+});
+export type GitRemoveWorktreePayload = z.infer<typeof gitRemoveWorktreePayloadSchema>;
 
 export type AppView =
   | { kind: "home" }

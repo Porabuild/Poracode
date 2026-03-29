@@ -3,6 +3,7 @@ import { ArrowRight, FolderOpen, Plus, TerminalSquare } from "lucide-react";
 import { Spinner } from "@heroui/react";
 import { getProjectAgentStatuses } from "../shared/agentStatus";
 import { parseWslUncPath } from "../shared/wsl";
+import { buildWorktreeLocation, computeWorktreePath } from "../shared/worktree";
 import { readBridge } from "./bridge";
 import { ProviderIcon, getStatusTone } from "./components/providers";
 import { DevTerminalPanel } from "./components/devTerminal/DevTerminalPanel";
@@ -268,7 +269,14 @@ function AppContent() {
           project={project}
           agentStatuses={projectAgentStatuses}
           {...(project.lastDraftConfig ? { lastDraftConfig: project.lastDraftConfig } : {})}
-          onStart={({ agentKind, config, prompt }) => {
+          onStart={async ({
+            agentKind,
+            config,
+            prompt,
+            worktreeBranch,
+            worktreeBaseBranch,
+            worktreeIsNewBranch,
+          }) => {
             updateProjectDraftConfig(project.id, {
               agentKind,
               model: config.model,
@@ -278,11 +286,29 @@ function AppContent() {
               sandboxMode: config.sandboxMode,
             });
 
+            let worktreePath: string | undefined;
+            if (worktreeBranch) {
+              const wtPath = computeWorktreePath(project.location, worktreeBranch);
+              try {
+                await readBridge().gitAddWorktree({
+                  projectLocation: project.location,
+                  path: wtPath,
+                  branch: worktreeBranch,
+                  createBranch: worktreeIsNewBranch ?? false,
+                  startPoint: worktreeBaseBranch,
+                });
+                worktreePath = wtPath;
+              } catch (err) {
+                console.error("[renderer] failed to create worktree:", err);
+              }
+            }
+
             const thread = createThread({
               projectId: project.id,
               agentKind,
               config,
               prompt,
+              ...(worktreePath ? { worktreePath, worktreeBranch } : {}),
             });
             queueThreadLaunch(thread.id, prompt);
           }}
@@ -414,7 +440,11 @@ function AppContent() {
             pendingServerRequests={pendingServerRequests.filter(
               (request) => request.threadId === thread.id,
             )}
-            projectLocation={project.location}
+            projectLocation={
+              thread.worktreePath
+                ? buildWorktreeLocation(project.location, thread.worktreePath)
+                : project.location
+            }
             onLaunchConsumed={() => consumeThreadLaunch(thread.id)}
             onLaunchFailed={() => {
               startTransition(() => {
@@ -516,7 +546,10 @@ export function App() {
     return ids;
   }, []);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [gitReviewProjectId, setGitReviewProjectId] = useState<string | null>(null);
+  const [gitReviewContext, setGitReviewContext] = useState<{
+    projectId: string;
+    worktreePath?: string | undefined;
+  } | null>(null);
   const [initialLoading, setInitialLoading] = useState(true);
   const [storeHydrated, setStoreHydrated] = useState(() => useAppStore.persist.hasHydrated());
   const [loadT0] = useState(() => Date.now());
@@ -678,7 +711,7 @@ export function App() {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, []);
 
-  // Poll git status for all projects
+  // Poll git status, branches, and worktrees for all projects
   useEffect(() => {
     if (!storeHydrated || projects.length === 0) return;
 
@@ -686,8 +719,12 @@ export function App() {
 
     async function pollGitStatus() {
       const t0 = Date.now();
+      const gitStoreActions = useGitStore.getState();
+
       for (const project of projects) {
         if (!isActive) return;
+
+        // Main project status
         try {
           const pt = Date.now();
           const status = await readBridge().getGitStatus({
@@ -697,9 +734,47 @@ export function App() {
             `[renderer] git status ${project.name} (${project.location.kind}): ${Date.now() - pt}ms`,
           );
           if (!isActive) return;
-          useGitStore.getState().setStatus(project.id, status);
+          gitStoreActions.setStatus(project.id, status);
         } catch {
           // Not a git repo or git not available
+        }
+
+        // Branches
+        try {
+          const branches = await readBridge().gitListBranches({
+            projectLocation: project.location,
+            includeRemote: true,
+          });
+          if (!isActive) return;
+          gitStoreActions.setBranches(project.id, branches);
+        } catch {
+          // ignore
+        }
+
+        // Worktrees
+        try {
+          const { worktrees } = await readBridge().gitListWorktrees({
+            projectLocation: project.location,
+          });
+          if (!isActive) return;
+          gitStoreActions.setWorktrees(project.id, worktrees);
+
+          // Poll status for each non-main worktree
+          for (const wt of worktrees) {
+            if (wt.isMain || !isActive) continue;
+            try {
+              const wtLocation = buildWorktreeLocation(project.location, wt.path);
+              const wtStatus = await readBridge().getGitStatus({
+                projectLocation: wtLocation,
+              });
+              if (!isActive) return;
+              gitStoreActions.setWorktreeStatus(wt.path, wtStatus);
+            } catch {
+              // ignore
+            }
+          }
+        } catch {
+          // ignore
         }
       }
       console.log(`[renderer] git poll total: ${Date.now() - t0}ms (${projects.length} projects)`);
@@ -778,7 +853,9 @@ export function App() {
               });
             }}
             onOpenSettings={() => setSettingsOpen(true)}
-            onOpenGitReview={(projectId) => setGitReviewProjectId(projectId)}
+            onOpenGitReview={(projectId, worktreePath?) =>
+              setGitReviewContext({ projectId, worktreePath })
+            }
             onAddWindowsProject={() => {
               void readBridge()
                 .pickFolder()
@@ -900,8 +977,8 @@ export function App() {
 
               useGitStore.getState().clearStatus(projectId);
 
-              if (gitReviewProjectId === projectId) {
-                setGitReviewProjectId(null);
+              if (gitReviewContext?.projectId === projectId) {
+                setGitReviewContext(null);
               }
             }}
             onOpenHome={() => {
@@ -954,7 +1031,7 @@ export function App() {
         rightPanelOpen={devTerminalOpen}
       />
       {settingsOpen ? <SettingsOverlay onClose={() => setSettingsOpen(false)} /> : null}
-      {gitReviewProjectId ? (
+      {gitReviewContext ? (
         <Suspense
           fallback={
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-background">
@@ -963,8 +1040,17 @@ export function App() {
           }
         >
           <GitReviewOverlay
-            project={projects.find((p) => p.id === gitReviewProjectId)!}
-            onClose={() => setGitReviewProjectId(null)}
+            project={projects.find((p) => p.id === gitReviewContext.projectId)!}
+            {...(gitReviewContext.worktreePath
+              ? {
+                  locationOverride: buildWorktreeLocation(
+                    projects.find((p) => p.id === gitReviewContext.projectId)!.location,
+                    gitReviewContext.worktreePath,
+                  ),
+                  statusKey: gitReviewContext.worktreePath,
+                }
+              : {})}
+            onClose={() => setGitReviewContext(null)}
           />
         </Suspense>
       ) : null}

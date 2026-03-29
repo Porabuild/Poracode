@@ -49,6 +49,11 @@ const CHANNELS = {
   gitRevertAll: "lightcode:git-revert-all",
   gitCommit: "lightcode:git-commit",
   generateCommitMessage: "lightcode:generate-commit-message",
+  gitListBranches: "lightcode:git-list-branches",
+  gitFetch: "lightcode:git-fetch",
+  gitListWorktrees: "lightcode:git-list-worktrees",
+  gitAddWorktree: "lightcode:git-add-worktree",
+  gitRemoveWorktree: "lightcode:git-remove-worktree",
   setWindowChrome: "lightcode:set-window-chrome",
   dbGetProjects: "lightcode:db-get-projects",
   dbGetThreads: "lightcode:db-get-threads",
@@ -417,6 +422,24 @@ function registerIpcHandlers(): void {
 
   ipcMain.handle(CHANNELS.generateCommitMessage, async (_event, payload) =>
     callSupervisor("generateCommitMessage", payload),
+  );
+
+  ipcMain.handle(CHANNELS.gitListBranches, async (_event, payload) =>
+    callSupervisor("gitListBranches", payload),
+  );
+
+  ipcMain.handle(CHANNELS.gitFetch, async (_event, payload) => callSupervisor("gitFetch", payload));
+
+  ipcMain.handle(CHANNELS.gitListWorktrees, async (_event, payload) =>
+    callSupervisor("gitListWorktrees", payload),
+  );
+
+  ipcMain.handle(CHANNELS.gitAddWorktree, async (_event, payload) =>
+    callSupervisor("gitAddWorktree", payload),
+  );
+
+  ipcMain.handle(CHANNELS.gitRemoveWorktree, async (_event, payload) =>
+    callSupervisor("gitRemoveWorktree", payload),
   );
 
   ipcMain.handle(CHANNELS.setWindowChrome, async (_event, payload: WindowChromePayload) => {

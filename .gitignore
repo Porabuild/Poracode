@@ -11,3 +11,4 @@ build/icons/
 .heroui-docs/
 .tmp/
 .agent/
+**/worktrees/

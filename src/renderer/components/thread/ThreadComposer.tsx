@@ -44,6 +44,7 @@ export function ThreadComposer(props: {
   onPromptChange: (value: string) => void;
   onSubmit: () => void;
   controls: ComposerControl[];
+  afterControls?: ReactNode;
 }) {
   const {
     autoFocus = false,
@@ -57,6 +58,7 @@ export function ThreadComposer(props: {
     onPromptChange,
     onSubmit,
     controls,
+    afterControls,
   } = props;
 
   const [isWrapping, setIsWrapping] = useState(false);
@@ -275,7 +277,10 @@ export function ThreadComposer(props: {
         {renderEditor()}
         <div className={toolbarClassName}>
           {renderControls()}
-          <div className="flex items-end gap-2">{renderSendButton()}</div>
+          <div className="flex items-end gap-2">
+            {afterControls}
+            {renderSendButton()}
+          </div>
         </div>
       </div>
     </div>

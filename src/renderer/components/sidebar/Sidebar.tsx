@@ -4,6 +4,7 @@ import {
   Columns2,
   Download,
   FolderPlus,
+  GitFork,
   GripVertical,
   Monitor,
   PanelLeft,
@@ -252,7 +253,7 @@ export function Sidebar(props: {
   onOpenHome: () => void;
   onOpenSettings: () => void;
   onOpenTerminal: (projectId: string) => void;
-  onOpenGitReview: (projectId: string) => void;
+  onOpenGitReview: (projectId: string, worktreePath?: string) => void;
   terminalProjectIds: string[];
   activeTerminalProjectId: string | null;
   onReorderProjects: (
@@ -680,6 +681,14 @@ export function Sidebar(props: {
                                         }}
                                         onCancel={() => setEditingThreadId(null)}
                                       />
+                                    ) : thread.worktreeBranch ? (
+                                      <span className="flex items-center gap-1.5">
+                                        <span className="truncate">{thread.title}</span>
+                                        <span className="flex shrink-0 items-center gap-0.5 text-[10px] text-muted">
+                                          <GitFork className="size-2.5" />
+                                          {thread.worktreeBranch}
+                                        </span>
+                                      </span>
                                     ) : (
                                       thread.title
                                     )

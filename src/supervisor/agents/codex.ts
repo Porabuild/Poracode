@@ -177,13 +177,7 @@ export function buildCodexAppServerCommand(
   remoteUrl: string,
   wslExecPath?: string,
 ): CommandSpec {
-  const args = [
-    "app-server",
-    "--listen",
-    remoteUrl,
-    "--enable",
-    CODEX_REMOTE_TUI_FEATURE,
-  ];
+  const args = ["app-server", "--listen", remoteUrl, "--enable", CODEX_REMOTE_TUI_FEATURE];
 
   if (location.kind === "windows") {
     return buildWindowsCmdCommand(location.path, "codex", args);
@@ -519,7 +513,8 @@ class CodexStructuredSession implements StructuredSessionHandle {
           ? new Date(thread.createdAt * 1000).toISOString()
           : new Date().toISOString();
       this.rolloutCwd = typeof thread?.cwd === "string" ? thread.cwd : undefined;
-      this.rolloutCliVersion = typeof thread?.cliVersion === "string" ? thread.cliVersion : undefined;
+      this.rolloutCliVersion =
+        typeof thread?.cliVersion === "string" ? thread.cliVersion : undefined;
       this.rolloutSource =
         thread && typeof thread.source === "object" && thread.source !== null
           ? (thread.source as Record<string, unknown>)
@@ -979,9 +974,7 @@ export function detectCodexReadyForInitialPrompt(text: string): boolean {
     return false;
   }
 
-  return (
-    CODEX_READY_RE.test(text) && CODEX_DIRECTORY_RE.test(text) && CODEX_MODEL_RE.test(text)
-  );
+  return CODEX_READY_RE.test(text) && CODEX_DIRECTORY_RE.test(text) && CODEX_MODEL_RE.test(text);
 }
 
 function formatAppServerOutput(chunks: string[]): string {

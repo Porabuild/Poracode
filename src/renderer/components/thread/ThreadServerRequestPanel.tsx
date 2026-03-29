@@ -797,15 +797,15 @@ function ApprovalRequestCard(props: {
           }));
 
   return (
-      <RequestShell
-        title={
-          request.method === "item/fileChange/requestApproval" ||
-          request.method === "applyPatchApproval"
-            ? "File changes need approval"
-            : "Command needs approval"
-        }
-        description={params.reason ?? `${agentLead} is waiting for approval before it can continue.`}
-        details={commonDetails}
+    <RequestShell
+      title={
+        request.method === "item/fileChange/requestApproval" ||
+        request.method === "applyPatchApproval"
+          ? "File changes need approval"
+          : "Command needs approval"
+      }
+      description={params.reason ?? `${agentLead} is waiting for approval before it can continue.`}
+      details={commonDetails}
       body={
         params.permissions ? (
           <pre className="overflow-x-auto rounded-xl border border-[color:var(--border)] bg-white/[0.03] p-3 text-xs text-muted">

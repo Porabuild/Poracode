@@ -94,6 +94,8 @@ interface AppStoreState {
     agentKind: Thread["agentKind"];
     config: ThreadConfig;
     prompt: string;
+    worktreePath?: string;
+    worktreeBranch?: string;
   }) => Thread;
   queueThreadLaunch: (threadId: string, prompt: string) => void;
   consumeThreadLaunch: (threadId: string) => void;
@@ -354,7 +356,7 @@ export const useAppStore = create<AppStoreState>()(
             view: { kind: "thread", panes: remaining as [string, ...string[]] },
           };
         }),
-      createThread: ({ projectId, agentKind, config, prompt }) => {
+      createThread: ({ projectId, agentKind, config, prompt, worktreePath, worktreeBranch }) => {
         const now = new Date().toISOString();
         const thread: Thread = {
           id: crypto.randomUUID(),
@@ -365,6 +367,8 @@ export const useAppStore = create<AppStoreState>()(
           status: "launching",
           attention: "none",
           canResumeWithConfig: false,
+          ...(worktreePath ? { worktreePath } : {}),
+          ...(worktreeBranch ? { worktreeBranch } : {}),
           createdAt: now,
           updatedAt: now,
         };

@@ -4,13 +4,19 @@ import type {
   GenerateCommitMessagePayload,
   GenerateCommitMessageResult,
   GetAgentStatusesPayload,
+  GetGitBranchesPayload,
   GetGitDiffBatchPayload,
   GetGitDiffPayload,
   GetGitStatusPayload,
+  GitAddWorktreePayload,
+  GitBranchListResult,
   GitCommitPayload,
   GitCommitResult,
   GitDiffBatchResult,
   GitDiffResult,
+  GitFetchPayload,
+  GitListWorktreesPayload,
+  GitRemoveWorktreePayload,
   GitRevertAllPayload,
   GitRevertPayload,
   GitStageAllPayload,
@@ -18,6 +24,7 @@ import type {
   GitStatusResult,
   GitUnstageAllPayload,
   GitUnstagePayload,
+  GitWorktreeListResult,
   ProjectLocation,
   ResizeTerminalPayload,
   ResolveThreadServerRequestPayload,
@@ -58,7 +65,12 @@ export type SupervisorRequest =
   | { id: string; type: "gitUnstageAll"; payload: GitUnstageAllPayload }
   | { id: string; type: "gitRevertAll"; payload: GitRevertAllPayload }
   | { id: string; type: "gitCommit"; payload: GitCommitPayload }
-  | { id: string; type: "generateCommitMessage"; payload: GenerateCommitMessagePayload };
+  | { id: string; type: "generateCommitMessage"; payload: GenerateCommitMessagePayload }
+  | { id: string; type: "gitListBranches"; payload: GetGitBranchesPayload }
+  | { id: string; type: "gitFetch"; payload: GitFetchPayload }
+  | { id: string; type: "gitListWorktrees"; payload: GitListWorktreesPayload }
+  | { id: string; type: "gitAddWorktree"; payload: GitAddWorktreePayload }
+  | { id: string; type: "gitRemoveWorktree"; payload: GitRemoveWorktreePayload };
 
 export type SupervisorReply =
   | { replyTo: string; ok: true; data: unknown }
@@ -134,6 +146,11 @@ export interface LightcodeBridge {
   generateCommitMessage(
     payload: GenerateCommitMessagePayload,
   ): Promise<GenerateCommitMessageResult>;
+  gitListBranches(payload: GetGitBranchesPayload): Promise<GitBranchListResult>;
+  gitFetch(payload: GitFetchPayload): Promise<void>;
+  gitListWorktrees(payload: GitListWorktreesPayload): Promise<GitWorktreeListResult>;
+  gitAddWorktree(payload: GitAddWorktreePayload): Promise<void>;
+  gitRemoveWorktree(payload: GitRemoveWorktreePayload): Promise<void>;
   setWindowChrome(payload: WindowChromePayload): Promise<void>;
   onSupervisorEvent(listener: (event: SupervisorEvent) => void): () => void;
   checkForUpdate(): Promise<void>;

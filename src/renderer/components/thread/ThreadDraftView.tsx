@@ -7,6 +7,8 @@ import type {
   ThreadConfig,
 } from "../../../shared/contracts";
 import { ProviderIcon } from "../providers";
+import { useGitStore } from "../../state/gitStore";
+import { BranchSelector, generateWorktreeBranch } from "../common";
 import { ThreadComposer } from "./ThreadComposer";
 import { formatCompactLabel, modelOptions } from "./threadComposerOptions";
 
@@ -74,9 +76,13 @@ export function ThreadDraftView(props: {
     agentKind: AgentStatus["kind"];
     config: ThreadConfig;
     prompt: string;
+    worktreeBranch?: string;
+    worktreeBaseBranch?: string;
+    worktreeIsNewBranch?: boolean;
   }) => void;
 }) {
   const { project, agentStatuses, lastDraftConfig, onStart } = props;
+  const gitBranch = useGitStore((s) => s.statuses[project.id]?.branch);
   const installedAgents = agentStatuses.filter((status) => status.installed);
   const preferredAgentKind = resolvePreferredAgentKind(installedAgents, lastDraftConfig);
   const [agentKind, setAgentKind] = useState<AgentStatus["kind"] | undefined>(preferredAgentKind);
@@ -91,6 +97,13 @@ export function ThreadDraftView(props: {
   const [approvalPolicy, setApprovalPolicy] = useState("");
   const [sandboxMode, setSandboxMode] = useState("");
   const [prompt, setPrompt] = useState("");
+  const [worktreeMode, setWorktreeMode] = useState(false);
+  const [branchSelection, setBranchSelection] = useState<{
+    branch: string;
+    baseBranch?: string;
+    isNew: boolean;
+    isWorktree: boolean;
+  } | null>(null);
   const lastAppliedAgentKindRef = useRef<AgentStatus["kind"] | undefined>(undefined);
 
   const availableEfforts =
@@ -320,7 +333,29 @@ export function ThreadDraftView(props: {
                       ...(sandboxMode ? { sandboxMode } : {}),
                     },
                     prompt: prompt.trim(),
+                    ...(branchSelection?.isWorktree
+                      ? {
+                          worktreeBranch: generateWorktreeBranch(),
+                          worktreeBaseBranch: branchSelection.baseBranch,
+                          worktreeIsNewBranch: true,
+                        }
+                      : {}),
                   })
+                }
+                afterControls={
+                  gitBranch ? (
+                    <BranchSelector
+                      projectId={project.id}
+                      currentBranch={gitBranch}
+                      value={branchSelection?.branch ?? gitBranch}
+                      isWorktree={branchSelection?.isWorktree}
+                      isNew={branchSelection?.isNew}
+                      baseBranch={branchSelection?.baseBranch}
+                      worktreeMode={worktreeMode}
+                      onWorktreeModeChange={setWorktreeMode}
+                      onSelect={setBranchSelection}
+                    />
+                  ) : undefined
                 }
               />
             </div>

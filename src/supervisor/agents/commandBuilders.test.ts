@@ -2,11 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { ProjectLocation, SessionRef, ThreadConfig } from "../../shared/contracts";
 import { buildWindowsCommand, getWslCommand } from "./base";
 import { createClaudeAdapter } from "./claude";
-import {
-  buildCodexAppServerCommand,
-  CODEX_REMOTE_TUI_FEATURE,
-  createCodexAdapter,
-} from "./codex";
+import { buildCodexAppServerCommand, CODEX_REMOTE_TUI_FEATURE, createCodexAdapter } from "./codex";
 
 function decodePowerShellEncodedCommand(encoded: string): string {
   return Buffer.from(encoded, "base64").toString("utf16le");

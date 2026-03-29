@@ -1,10 +1,15 @@
 import type {
   CloseThreadPayload,
   GenerateCommitMessagePayload,
+  GetGitBranchesPayload,
   GetGitDiffBatchPayload,
   GetGitDiffPayload,
   GetGitStatusPayload,
+  GitAddWorktreePayload,
   GitCommitPayload,
+  GitFetchPayload,
+  GitListWorktreesPayload,
+  GitRemoveWorktreePayload,
   GitRevertAllPayload,
   GitRevertPayload,
   GitStageAllPayload,
@@ -22,10 +27,15 @@ import type { SupervisorReply, SupervisorRequest } from "../shared/ipc";
 import {
   closeThreadPayloadSchema,
   getAgentStatusesPayloadSchema,
+  getGitBranchesPayloadSchema,
   getGitDiffBatchPayloadSchema,
   getGitDiffPayloadSchema,
   getGitStatusPayloadSchema,
+  gitAddWorktreePayloadSchema,
   gitCommitPayloadSchema,
+  gitFetchPayloadSchema,
+  gitListWorktreesPayloadSchema,
+  gitRemoveWorktreePayloadSchema,
   generateCommitMessagePayloadSchema,
   gitRevertAllPayloadSchema,
   gitRevertPayloadSchema,
@@ -123,6 +133,24 @@ async function handleRequest(request: SupervisorRequest): Promise<unknown> {
     case "generateCommitMessage":
       return runtime.generateCommitMessage(
         generateCommitMessagePayloadSchema.parse(request.payload) as GenerateCommitMessagePayload,
+      );
+    case "gitListBranches":
+      return runtime.gitListBranches(
+        getGitBranchesPayloadSchema.parse(request.payload) as GetGitBranchesPayload,
+      );
+    case "gitFetch":
+      return runtime.gitFetch(gitFetchPayloadSchema.parse(request.payload) as GitFetchPayload);
+    case "gitListWorktrees":
+      return runtime.gitListWorktrees(
+        gitListWorktreesPayloadSchema.parse(request.payload) as GitListWorktreesPayload,
+      );
+    case "gitAddWorktree":
+      return runtime.gitAddWorktree(
+        gitAddWorktreePayloadSchema.parse(request.payload) as GitAddWorktreePayload,
+      );
+    case "gitRemoveWorktree":
+      return runtime.gitRemoveWorktree(
+        gitRemoveWorktreePayloadSchema.parse(request.payload) as GitRemoveWorktreePayload,
       );
     default: {
       const exhaustive: never = request;

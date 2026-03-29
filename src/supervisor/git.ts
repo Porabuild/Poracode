@@ -7,6 +7,10 @@ import type {
   GitDiffResult,
   GitDiffBatchResult,
   GitFileChange,
+  GitBranchInfo,
+  GitBranchListResult,
+  GitWorktreeInfo,
+  GitWorktreeListResult,
 } from "../shared/contracts";
 
 function getRepoPath(location: ProjectLocation): string {
@@ -284,5 +288,92 @@ export class GitService {
   async getAllDiff(location: ProjectLocation): Promise<string> {
     const git = createGit(location);
     return git.diff();
+  }
+
+  // ── Branch & Worktree ───────────────────────────────────
+
+  async listBranches(
+    location: ProjectLocation,
+    includeRemote: boolean,
+  ): Promise<GitBranchListResult> {
+    const git = createGit(location);
+    const summary = await git.branch(includeRemote ? ["-a"] : []);
+
+    const branches: GitBranchInfo[] = Object.values(summary.branches).map((b) => {
+      const isRemote = b.name.startsWith("remotes/");
+      const displayName = isRemote ? b.name.replace(/^remotes\/[^/]+\//, "") : b.name;
+      return {
+        name: displayName,
+        current: b.current,
+        commit: b.commit,
+        isRemote,
+      };
+    });
+
+    return { current: summary.current, branches };
+  }
+
+  async fetch(location: ProjectLocation, remote: string, prune: boolean): Promise<void> {
+    const git = createGit(location);
+    await git.fetch(remote, ...(prune ? [["--prune"]] : []));
+  }
+
+  async listWorktrees(location: ProjectLocation): Promise<GitWorktreeListResult> {
+    const git = createGit(location);
+    const raw = await git.raw(["worktree", "list", "--porcelain"]);
+    const worktrees: GitWorktreeInfo[] = [];
+
+    // Porcelain output: blocks separated by blank lines.
+    // Each block has lines like:
+    //   worktree /path/to/dir
+    //   HEAD abc123
+    //   branch refs/heads/main
+    // The first entry is always the main working tree.
+    for (const block of raw.split(/\n\n+/).filter(Boolean)) {
+      const lines = block.trim().split("\n");
+      let path = "";
+      let commit = "";
+      let branch = "";
+
+      for (const line of lines) {
+        if (line.startsWith("worktree ")) path = line.slice(9);
+        else if (line.startsWith("HEAD ")) commit = line.slice(5);
+        else if (line.startsWith("branch ")) branch = line.slice(7).replace("refs/heads/", "");
+      }
+
+      if (path) {
+        worktrees.push({
+          path,
+          branch,
+          commit,
+          isMain: worktrees.length === 0,
+        });
+      }
+    }
+
+    return { worktrees };
+  }
+
+  async addWorktree(
+    location: ProjectLocation,
+    path: string,
+    branch?: string,
+    createBranch?: boolean,
+    startPoint?: string,
+  ): Promise<void> {
+    const git = createGit(location);
+    const args = ["worktree", "add"];
+    if (createBranch && branch) {
+      args.push("-b", branch, path, ...(startPoint ? [startPoint] : []));
+    } else {
+      args.push(path, ...(branch ? [branch] : []));
+    }
+    await git.raw(args);
+  }
+
+  async removeWorktree(location: ProjectLocation, path: string, force: boolean): Promise<void> {
+    const git = createGit(location);
+    const args = ["worktree", "remove", ...(force ? ["--force"] : []), path];
+    await git.raw(args);
   }
 }

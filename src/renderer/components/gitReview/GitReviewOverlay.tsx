@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { ArrowLeft, ChevronDown, Columns2, GitBranch, RefreshCw, Rows2 } from "lucide-react";
 import { Button, Dropdown, Label } from "@heroui/react";
 import type { Selection } from "@heroui/react";
-import type { Project, GitStatusResult } from "../../../shared/contracts";
+import type { Project, ProjectLocation, GitStatusResult } from "../../../shared/contracts";
 import { readBridge } from "../../bridge";
 import { useGitStore } from "../../state/gitStore";
 import { AppShell } from "../layout/AppShell";
@@ -12,14 +12,25 @@ import { GitDiffContent, type DiffFilter } from "./GitDiffContent";
 /** Matches DiffModeEnum values from @git-diff-view/react — kept local to avoid importing the heavy library. */
 const DIFF_MODE = { Split: 1, Unified: 4 } as const;
 
-export function GitReviewOverlay(props: { project: Project; onClose: () => void }) {
-  const { project, onClose } = props;
+export function GitReviewOverlay(props: {
+  project: Project;
+  locationOverride?: ProjectLocation;
+  statusKey?: string;
+  onClose: () => void;
+}) {
+  const { project, locationOverride, statusKey, onClose } = props;
+  const effectiveLocation = locationOverride ?? project.location;
+  // Create a project view with the effective location so child components
+  // (GitReviewSidebar, GitDiffContent) use the right path for IPC calls.
+  const effectiveProject = locationOverride ? { ...project, location: effectiveLocation } : project;
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
   const [selectedStaged, setSelectedStaged] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const [diffMode, setDiffMode] = useState<number>(DIFF_MODE.Split);
   const [diffFilter, setDiffFilter] = useState<DiffFilter>("changes");
-  const gitStatus = useGitStore((s) => s.statuses[project.id]) as GitStatusResult | undefined;
+  const gitStatus = useGitStore((s) =>
+    statusKey ? s.worktreeStatuses[statusKey] : s.statuses[project.id],
+  ) as GitStatusResult | undefined;
 
   // Auto-switch when the current view becomes empty but the other has files
   useEffect(() => {
@@ -44,9 +55,13 @@ export function GitReviewOverlay(props: { project: Project; onClose: () => void 
   async function handleRefresh() {
     try {
       const status = await readBridge().getGitStatus({
-        projectLocation: project.location,
+        projectLocation: effectiveLocation,
       });
-      useGitStore.getState().setStatus(project.id, status);
+      if (statusKey) {
+        useGitStore.getState().setWorktreeStatus(statusKey, status);
+      } else {
+        useGitStore.getState().setStatus(project.id, status);
+      }
     } catch {
       // ignore
     }
@@ -165,7 +180,7 @@ export function GitReviewOverlay(props: { project: Project; onClose: () => void 
         <AppShell
           sidebar={
             <GitReviewSidebar
-              project={project}
+              project={effectiveProject}
               selectedFile={selectedFile}
               selectedStaged={selectedStaged}
               onSelectFile={handleSelectFile}
@@ -175,7 +190,7 @@ export function GitReviewOverlay(props: { project: Project; onClose: () => void 
           }
           content={
             <GitDiffContent
-              project={project}
+              project={effectiveProject}
               selectedFile={selectedFile}
               selectedStaged={selectedStaged}
               diffMode={diffMode}

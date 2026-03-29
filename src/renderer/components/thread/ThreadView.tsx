@@ -1,5 +1,13 @@
 import React, { useEffect, useRef, useState } from "react";
-import { ClipboardList, ShieldOff, Sparkles, TerminalSquare, X } from "lucide-react";
+import {
+  ClipboardList,
+  GitBranch,
+  GitFork,
+  ShieldOff,
+  Sparkles,
+  TerminalSquare,
+  X,
+} from "lucide-react";
 import type {
   AgentStatus,
   ProjectLocation,
@@ -11,6 +19,7 @@ import type {
 
 import { ProviderIcon, getStatusTone } from "../providers";
 import type { PendingThreadServerRequest } from "../../state/appStore";
+import { useGitStore } from "../../state/gitStore";
 import { Button, PromptOptions, TuxIcon } from "../common";
 import { readBridge } from "../../bridge";
 import { TerminalPane } from "./TerminalPane";
@@ -229,7 +238,8 @@ export function ThreadView(props: {
   const launchRequestRef = useRef<string | null>(null);
   const isServerControlled = agentStatus?.capabilities.liveInputMode === "server";
   const isTerminalInput = agentStatus?.capabilities.liveInputMode === "terminal";
-  const usesTerminalPresentation = (agentStatus?.capabilities.presentationMode ?? "terminal") === "terminal";
+  const usesTerminalPresentation =
+    (agentStatus?.capabilities.presentationMode ?? "terminal") === "terminal";
   const activeServerRequest = pendingServerRequests[0];
   const canSubmitServerInput =
     isServerControlled &&
@@ -255,6 +265,11 @@ export function ThreadView(props: {
     (thread.status === "needs_approval" || thread.status === "needs_reply")
       ? thread.terminalPrompt
       : undefined;
+
+  const gitStatus = useGitStore((s) =>
+    thread.worktreePath ? s.worktreeStatuses[thread.worktreePath] : s.statuses[thread.projectId],
+  );
+  const branchName = thread.worktreeBranch ?? gitStatus?.branch;
 
   const controls = buildControls(thread, agentStatus, onConfigChange);
 
@@ -468,6 +483,18 @@ export function ThreadView(props: {
                   isSubmitting
                 }
                 submitLabel="Send message"
+                afterControls={
+                  branchName ? (
+                    <div className="lightcode-composer-static min-w-0 px-2.5">
+                      {thread.worktreePath ? (
+                        <GitFork className="size-3.5 text-muted" />
+                      ) : (
+                        <GitBranch className="size-3.5 text-muted" />
+                      )}
+                      <span className="truncate">{branchName}</span>
+                    </div>
+                  ) : undefined
+                }
                 onPromptChange={setPrompt}
                 onSubmit={() => {
                   if (

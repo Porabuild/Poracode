@@ -436,7 +436,9 @@ describe("ThreadView", () => {
     });
 
     expect(screen.queryByText("terminal pane")).not.toBeInTheDocument();
-    expect(screen.getByPlaceholderText("Ask Codex anything about this workspace")).toBeInTheDocument();
+    expect(
+      screen.getByPlaceholderText("Ask Codex anything about this workspace"),
+    ).toBeInTheDocument();
   });
 
   it("keeps send disabled while a Codex thread is running", () => {

@@ -61,6 +61,12 @@ export function initDatabase(userDataDir: string) {
   if (!threadCols.some((c) => c.name === "sort_order")) {
     sqlite.exec("ALTER TABLE threads ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0");
   }
+  if (!threadCols.some((c) => c.name === "worktree_path")) {
+    sqlite.exec("ALTER TABLE threads ADD COLUMN worktree_path TEXT");
+  }
+  if (!threadCols.some((c) => c.name === "worktree_branch")) {
+    sqlite.exec("ALTER TABLE threads ADD COLUMN worktree_branch TEXT");
+  }
 
   console.log("[db] initialized");
   return _db;
@@ -132,6 +138,8 @@ function rowToThread(row: typeof schema.threads.$inferSelect): Thread {
     canResumeWithConfig: row.canResumeWithConfig,
     ...(row.sessionRef ? { sessionRef: JSON.parse(row.sessionRef) } : {}),
     ...(row.terminalPrompt ? { terminalPrompt: JSON.parse(row.terminalPrompt) } : {}),
+    ...(row.worktreePath ? { worktreePath: row.worktreePath } : {}),
+    ...(row.worktreeBranch ? { worktreeBranch: row.worktreeBranch } : {}),
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };
@@ -210,6 +218,8 @@ export function dbUpsertThread(thread: Thread, sortOrder: number): void {
       canResumeWithConfig: thread.canResumeWithConfig,
       sessionRef: thread.sessionRef ? JSON.stringify(thread.sessionRef) : null,
       terminalPrompt: thread.terminalPrompt ? JSON.stringify(thread.terminalPrompt) : null,
+      worktreePath: thread.worktreePath ?? null,
+      worktreeBranch: thread.worktreeBranch ?? null,
       sortOrder,
       createdAt: thread.createdAt,
       updatedAt: thread.updatedAt,
@@ -224,6 +234,8 @@ export function dbUpsertThread(thread: Thread, sortOrder: number): void {
         canResumeWithConfig: thread.canResumeWithConfig,
         sessionRef: thread.sessionRef ? JSON.stringify(thread.sessionRef) : null,
         terminalPrompt: thread.terminalPrompt ? JSON.stringify(thread.terminalPrompt) : null,
+        worktreePath: thread.worktreePath ?? null,
+        worktreeBranch: thread.worktreeBranch ?? null,
         sortOrder,
         updatedAt: thread.updatedAt,
       },
