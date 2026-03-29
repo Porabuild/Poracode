@@ -93,6 +93,12 @@ export function SidebarButton(props: {
           onDragEnd={onDragEnd}
           onDragStart={onDragStart}
           onClick={(e) => e.stopPropagation()}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              e.stopPropagation();
+            }
+          }}
         >
           <GripVertical className="size-3.5" />
         </div>

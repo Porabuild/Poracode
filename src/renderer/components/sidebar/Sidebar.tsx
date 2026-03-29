@@ -5,7 +5,6 @@ import {
   Download,
   FolderPlus,
   GitFork,
-  GripVertical,
   Monitor,
   PanelLeft,
   PanelLeftClose,
