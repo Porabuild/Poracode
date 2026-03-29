@@ -17,6 +17,8 @@ import {
   dbUpsertThread,
   initDatabase,
 } from "./db";
+import { prepareLightcodeDataRoot } from "./lightcodeData";
+import { ensureSharedSettingsFile, readSharedSettingsFile, writeSharedSettingsFile } from "./sharedSettingsFile";
 import type {
   SupervisorEvent,
   SupervisorReply,
@@ -24,6 +26,8 @@ import type {
   UpdateStatus,
   WindowChromePayload,
 } from "../shared/ipc";
+import type { SharedSettings } from "../shared/settings";
+import type { LightcodePaths } from "../shared/lightcodePaths";
 
 const CHANNELS = {
   pickFolder: "lightcode:pick-folder",
@@ -54,6 +58,8 @@ const CHANNELS = {
   gitListWorktrees: "lightcode:git-list-worktrees",
   gitAddWorktree: "lightcode:git-add-worktree",
   gitRemoveWorktree: "lightcode:git-remove-worktree",
+  getSharedSettings: "lightcode:get-shared-settings",
+  setSharedSettings: "lightcode:set-shared-settings",
   setWindowChrome: "lightcode:set-window-chrome",
   dbGetProjects: "lightcode:db-get-projects",
   dbGetThreads: "lightcode:db-get-threads",
@@ -77,6 +83,7 @@ const WINDOW_CHROME_HEIGHT = 32;
 
 let mainWindow: BrowserWindow | null = null;
 let supervisor: ChildProcess | null = null;
+let lightcodePaths: LightcodePaths | null = null;
 const pendingRequests = new Map<
   string,
   {
@@ -198,7 +205,14 @@ function isSupervisorReply(message: unknown): message is SupervisorReply {
   return typeof message === "object" && message !== null && "replyTo" in message;
 }
 
-function startSupervisor(): void {
+function requireLightcodePaths(): LightcodePaths {
+  if (!lightcodePaths) {
+    throw new Error("Lightcode paths are not initialized.");
+  }
+  return lightcodePaths;
+}
+
+function startSupervisor(baseDir: string): void {
   supervisor?.kill();
 
   for (const [id, pending] of pendingRequests) {
@@ -210,7 +224,7 @@ function startSupervisor(): void {
     stdio: ["inherit", "inherit", "inherit", "ipc"],
     env: {
       ...process.env,
-      LIGHTCODE_DATA_DIR: app.getPath("userData"),
+      LIGHTCODE_DATA_DIR: baseDir,
     },
   });
 
@@ -442,6 +456,14 @@ function registerIpcHandlers(): void {
     callSupervisor("gitRemoveWorktree", payload),
   );
 
+  ipcMain.handle(CHANNELS.getSharedSettings, () =>
+    readSharedSettingsFile(requireLightcodePaths().settingsPath),
+  );
+
+  ipcMain.handle(CHANNELS.setSharedSettings, (_event, settings: SharedSettings) => {
+    writeSharedSettingsFile(requireLightcodePaths().settingsPath, settings);
+  });
+
   ipcMain.handle(CHANNELS.setWindowChrome, async (_event, payload: WindowChromePayload) => {
     if (!mainWindow || (process.platform !== "win32" && process.platform !== "linux")) {
       return;
@@ -503,9 +525,11 @@ if (!hasSingleInstanceLock) {
   });
 
   app.whenReady().then(() => {
-    initDatabase(app.getPath("userData"));
+    lightcodePaths = prepareLightcodeDataRoot(app.getPath("userData"));
+    initDatabase(lightcodePaths.dbPath);
+    ensureSharedSettingsFile(lightcodePaths.settingsPath, dbGetState("lightcode-shared-settings"));
     registerIpcHandlers();
-    startSupervisor();
+    startSupervisor(lightcodePaths.baseDir);
     mainWindow = createWindow();
 
     if (!isDev) {
@@ -519,7 +543,7 @@ if (!hasSingleInstanceLock) {
         if (debounce) clearTimeout(debounce);
         debounce = setTimeout(() => {
           console.log("[lightcode] supervisor changed, restarting…");
-          startSupervisor();
+          startSupervisor(requireLightcodePaths().baseDir);
         }, 200);
       });
     }

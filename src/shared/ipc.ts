@@ -8,6 +8,7 @@ import type {
   GetGitDiffBatchPayload,
   GetGitDiffPayload,
   GetGitStatusPayload,
+  GitAddWorktreeResult,
   GitAddWorktreePayload,
   GitBranchListResult,
   GitCommitPayload,
@@ -42,6 +43,7 @@ import type {
   ThreadStatus,
   WriteTerminalPayload,
 } from "./contracts";
+import type { SharedSettings } from "./settings";
 
 export type SupervisorRequest =
   | { id: string; type: "listWslDistros"; payload: Record<string, never> }
@@ -149,8 +151,10 @@ export interface LightcodeBridge {
   gitListBranches(payload: GetGitBranchesPayload): Promise<GitBranchListResult>;
   gitFetch(payload: GitFetchPayload): Promise<void>;
   gitListWorktrees(payload: GitListWorktreesPayload): Promise<GitWorktreeListResult>;
-  gitAddWorktree(payload: GitAddWorktreePayload): Promise<void>;
+  gitAddWorktree(payload: GitAddWorktreePayload): Promise<GitAddWorktreeResult>;
   gitRemoveWorktree(payload: GitRemoveWorktreePayload): Promise<void>;
+  getSharedSettings(): Promise<SharedSettings>;
+  setSharedSettings(settings: SharedSettings): Promise<void>;
   setWindowChrome(payload: WindowChromePayload): Promise<void>;
   onSupervisorEvent(listener: (event: SupervisorEvent) => void): () => void;
   checkForUpdate(): Promise<void>;

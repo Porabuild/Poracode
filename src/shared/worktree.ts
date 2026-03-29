@@ -1,35 +1,25 @@
 import type { ProjectLocation } from "./contracts";
 import { toWslUncPath } from "./wsl";
 
-/** Sanitize a branch name into a safe directory segment. */
-function sanitizeBranchName(branch: string): string {
-  return branch
+/** Sanitize a branch name into a stable directory segment. */
+export function sanitizeWorktreeBranchName(branch: string): string {
+  const sanitized = branch
     .replace(/^origin\//, "")
     .replace(/\//g, "-")
-    .replace(/[^a-zA-Z0-9._-]/g, "-");
+    .replace(/[^a-zA-Z0-9._-]/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^[-.]+|[-.]+$/g, "");
+  return sanitized || "worktree";
 }
 
-/**
- * Compute the worktree directory path for a given project location and branch.
- * Places the worktree as a sibling to the project directory:
- *   <projectDir>/../<projectName>-<sanitizedBranch>
- */
-export function computeWorktreePath(location: ProjectLocation, branch: string): string {
-  const sanitized = sanitizeBranchName(branch);
-  if (location.kind === "wsl") {
-    const segments = location.linuxPath.split("/").filter(Boolean);
-    const basename = segments.at(-1) ?? "project";
-    const parentPath = "/" + segments.slice(0, -1).join("/");
-    return `${parentPath}/${basename}-${sanitized}`;
-  }
-  const sep = location.path.includes("/") ? "/" : "\\";
-  const segments = location.path.split(/[\\/]/).filter(Boolean);
-  const basename = segments.at(-1) ?? "project";
-  const parentSegments = segments.slice(0, -1);
-  if (sep === "\\") {
-    return parentSegments.join("\\") + `\\${basename}-${sanitized}`;
-  }
-  return "/" + parentSegments.join("/") + `/${basename}-${sanitized}`;
+/** Sanitize an arbitrary path segment for use in a directory name. */
+export function sanitizeWorktreePathSegment(value: string): string {
+  const sanitized = value
+    .trim()
+    .replace(/[^a-zA-Z0-9._-]/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^[-.]+|[-.]+$/g, "");
+  return sanitized || "project";
 }
 
 /**

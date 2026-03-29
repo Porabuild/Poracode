@@ -1,4 +1,3 @@
-import { join } from "node:path";
 import Database from "better-sqlite3";
 import { drizzle } from "drizzle-orm/better-sqlite3";
 import { asc, eq } from "drizzle-orm";
@@ -8,8 +7,7 @@ import * as schema from "./db.schema";
 let _db: ReturnType<typeof drizzle> | undefined;
 let _sqlite: InstanceType<typeof Database> | undefined;
 
-export function initDatabase(userDataDir: string) {
-  const dbPath = join(userDataDir, "lightcode.db");
+export function initDatabase(dbPath: string) {
   console.log(`[db] opening ${dbPath}`);
   const sqlite = new Database(dbPath);
   sqlite.pragma("journal_mode = WAL");

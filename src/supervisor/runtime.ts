@@ -1,4 +1,4 @@
-import { appendFileSync, existsSync, readFileSync, writeFileSync } from "node:fs";
+import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { execFile, spawnSync } from "node:child_process";
 import { promisify } from "node:util";
 
@@ -18,6 +18,7 @@ import type {
   GetGitDiffBatchPayload,
   GetGitDiffPayload,
   GetGitStatusPayload,
+  GitAddWorktreeResult,
   GitCommitPayload,
   GitCommitResult,
   GitDiffBatchResult,
@@ -55,6 +56,7 @@ import type {
 } from "../shared/contracts";
 import type { SupervisorEvent } from "../shared/ipc";
 import { stripAnsiPreservingLayout } from "../shared/ansi";
+import { resolveLightcodePaths } from "../shared/lightcodePaths";
 import { stripInternalHistoryMarkers } from "../shared/terminalHistory";
 import { normalizeWslListOutput } from "../shared/wsl";
 import { createAgentRegistry } from "./agents/registry";
@@ -173,8 +175,10 @@ export class SupervisorRuntime {
 
   constructor(private readonly emit: (event: SupervisorEvent) => void) {
     const baseDir = process.env.LIGHTCODE_DATA_DIR?.trim() || join(homedir(), ".lightcode");
-    this.logsDir = join(baseDir, "terminal-logs");
-    this.statusCachePath = join(baseDir, "agent-status-cache.json");
+    const paths = resolveLightcodePaths(baseDir);
+    this.logsDir = paths.terminalLogsDir;
+    this.statusCachePath = paths.statusCachePath;
+    mkdirSync(paths.cacheDir, { recursive: true });
     resetTerminalLogsDir(this.logsDir);
     this.windowsShell = detectWindowsShell();
     console.log(
@@ -706,7 +710,7 @@ export class SupervisorRuntime {
     return this.gitService.listWorktrees(payload.projectLocation);
   }
 
-  async gitAddWorktree(payload: GitAddWorktreePayload): Promise<void> {
+  async gitAddWorktree(payload: GitAddWorktreePayload): Promise<GitAddWorktreeResult> {
     return this.gitService.addWorktree(
       payload.projectLocation,
       payload.path,

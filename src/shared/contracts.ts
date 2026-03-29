@@ -363,6 +363,10 @@ export interface GitWorktreeListResult {
   worktrees: GitWorktreeInfo[];
 }
 
+export interface GitAddWorktreeResult {
+  path: string;
+}
+
 export const getGitBranchesPayloadSchema = z.object({
   projectLocation: projectLocationSchema,
   includeRemote: z.boolean().default(true),
@@ -383,7 +387,7 @@ export type GitListWorktreesPayload = z.infer<typeof gitListWorktreesPayloadSche
 
 export const gitAddWorktreePayloadSchema = z.object({
   projectLocation: projectLocationSchema,
-  path: z.string().min(1),
+  path: z.string().min(1).optional(),
   branch: z.string().optional(),
   createBranch: z.boolean().default(false),
   startPoint: z.string().optional(),

@@ -1,5 +1,7 @@
-import { readFile } from "node:fs/promises";
-import { join } from "node:path";
+import { createHash } from "node:crypto";
+import { mkdir, readFile } from "node:fs/promises";
+import { homedir } from "node:os";
+import { dirname, join, posix } from "node:path";
 import { simpleGit, type SimpleGit, type FileStatusResult } from "simple-git";
 import type {
   ProjectLocation,
@@ -9,9 +11,14 @@ import type {
   GitFileChange,
   GitBranchInfo,
   GitBranchListResult,
+  GitAddWorktreeResult,
   GitWorktreeInfo,
   GitWorktreeListResult,
 } from "../shared/contracts";
+import { readWslCommandOutputAsync } from "./agents/base";
+import { resolveLightcodePaths } from "../shared/lightcodePaths";
+import { sanitizeWorktreeBranchName, sanitizeWorktreePathSegment } from "../shared/worktree";
+import { getProjectName } from "../shared/wsl";
 
 function getRepoPath(location: ProjectLocation): string {
   if (location.kind === "wsl") return location.uncPath;
@@ -31,6 +38,61 @@ function createGit(location: ProjectLocation): SimpleGit {
     });
   }
   return simpleGit(getRepoPath(location));
+}
+
+function getLocationIdentity(location: ProjectLocation): string {
+  if (location.kind === "wsl") {
+    return `wsl:${location.distro}:${location.linuxPath}`;
+  }
+  if (location.kind === "windows") {
+    return `windows:${location.path.replace(/\\/g, "/").toLowerCase()}`;
+  }
+  return `posix:${location.path}`;
+}
+
+function getWorktreeRepoDirName(location: ProjectLocation): string {
+  const repoName = sanitizeWorktreePathSegment(getProjectName(location));
+  const hash = createHash("sha256").update(getLocationIdentity(location)).digest("hex").slice(0, 8);
+  return `${repoName}-${hash}`;
+}
+
+async function resolveWslHomeDirectory(distro: string): Promise<string> {
+  const result = await readWslCommandOutputAsync(distro, "sh", ["-lc", 'printf %s "$HOME"']);
+  const homePath = result.stdout.trim();
+  if (!result.ok || !homePath) {
+    throw new Error(`Unable to resolve home directory for WSL distro "${distro}".`);
+  }
+  return homePath;
+}
+
+export async function computeDefaultWorktreePath(
+  location: ProjectLocation,
+  branch: string,
+): Promise<string> {
+  const repoDir = getWorktreeRepoDirName(location);
+  const branchDir = sanitizeWorktreeBranchName(branch);
+
+  if (location.kind === "wsl") {
+    const homePath = await resolveWslHomeDirectory(location.distro);
+    return posix.join(homePath, ".lightcode", "worktrees", repoDir, branchDir);
+  }
+
+  return join(resolveLightcodePaths(join(homedir(), ".lightcode")).worktreesDir, repoDir, branchDir);
+}
+
+async function ensureWorktreeParentExists(location: ProjectLocation, worktreePath: string): Promise<void> {
+  if (location.kind === "wsl") {
+    const parentPath = posix.dirname(worktreePath);
+    const result = await readWslCommandOutputAsync(location.distro, "mkdir", ["-p", parentPath]);
+    if (!result.ok) {
+      throw new Error(
+        result.stderr || `Unable to create WSL worktree directory parent "${parentPath}".`,
+      );
+    }
+    return;
+  }
+
+  await mkdir(dirname(worktreePath), { recursive: true });
 }
 
 function mapFileStatus(file: FileStatusResult, staged: boolean): GitFileChange {
@@ -356,19 +418,25 @@ export class GitService {
 
   async addWorktree(
     location: ProjectLocation,
-    path: string,
+    path: string | undefined,
     branch?: string,
     createBranch?: boolean,
     startPoint?: string,
-  ): Promise<void> {
+  ): Promise<GitAddWorktreeResult> {
     const git = createGit(location);
+    const resolvedPath = path ?? (branch ? await computeDefaultWorktreePath(location, branch) : undefined);
+    if (!resolvedPath) {
+      throw new Error("Cannot create a default worktree path without a branch name.");
+    }
+    await ensureWorktreeParentExists(location, resolvedPath);
     const args = ["worktree", "add"];
     if (createBranch && branch) {
-      args.push("-b", branch, path, ...(startPoint ? [startPoint] : []));
+      args.push("-b", branch, resolvedPath, ...(startPoint ? [startPoint] : []));
     } else {
-      args.push(path, ...(branch ? [branch] : []));
+      args.push(resolvedPath, ...(branch ? [branch] : []));
     }
     await git.raw(args);
+    return { path: resolvedPath };
   }
 
   async removeWorktree(location: ProjectLocation, path: string, force: boolean): Promise<void> {

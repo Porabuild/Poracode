@@ -1,49 +1,79 @@
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
+import { readBridge } from "../bridge";
+import {
+  defaultSharedSettings,
+  normalizeSharedSettings,
+  type SharedSettings,
+} from "../../shared/settings";
 import type { ThemeMode } from "../../shared/contracts";
-import { createDbStorage } from "./dbStorage";
 
-interface SharedSettingsState {
-  themeMode: ThemeMode;
+const STORAGE_KEY = "lightcode-shared-settings";
+
+interface SharedSettingsState extends SharedSettings {
   setThemeMode: (mode: ThemeMode) => void;
-  commitGenProvider: string; // "auto" | AgentKind
-  commitGenModel: string;
-  commitGenEffort: string;
   setCommitGenConfig: (provider: string, model: string, effort: string) => void;
 }
 
-export const useSharedSettings = create<SharedSettingsState>()(
-  persist(
-    (set) => ({
-      themeMode: "system",
-      setThemeMode: (themeMode) => set({ themeMode }),
-      commitGenProvider: "auto",
-      commitGenModel: "",
-      commitGenEffort: "",
-      setCommitGenConfig: (commitGenProvider, commitGenModel, commitGenEffort) =>
-        set({ commitGenProvider, commitGenModel, commitGenEffort }),
-    }),
-    {
-      name: "lightcode-shared-settings",
-      version: 3,
-      storage: createDbStorage(),
-      partialize: (state) => ({
-        themeMode: state.themeMode,
-        commitGenProvider: state.commitGenProvider,
-        commitGenModel: state.commitGenModel,
-        commitGenEffort: state.commitGenEffort,
-      }),
-      migrate: (persisted, version) => {
-        if (version < 3) {
-          return {
-            ...(persisted as Record<string, unknown>),
-            commitGenProvider: "auto",
-            commitGenModel: "",
-            commitGenEffort: "",
-          };
-        }
-        return persisted as SharedSettingsState;
-      },
-    },
-  ),
-);
+function hasBridge(): boolean {
+  return typeof window !== "undefined" && window.lightcode !== undefined;
+}
+
+function loadFallbackSettings(): SharedSettings {
+  if (typeof window === "undefined") {
+    return { ...defaultSharedSettings };
+  }
+
+  try {
+    return normalizeSharedSettings(JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "null"));
+  } catch {
+    return { ...defaultSharedSettings };
+  }
+}
+
+function persistSettings(settings: SharedSettings): void {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  if (hasBridge()) {
+    void readBridge().setSharedSettings(settings);
+    return;
+  }
+
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+}
+
+const initialSettings = loadFallbackSettings();
+
+export const useSharedSettings = create<SharedSettingsState>()((set, get) => ({
+  ...initialSettings,
+  setThemeMode: (themeMode) => {
+    set({ themeMode });
+    persistSettings(selectSharedSettings(get()));
+  },
+  setCommitGenConfig: (commitGenProvider, commitGenModel, commitGenEffort) => {
+    set({ commitGenProvider, commitGenModel, commitGenEffort });
+    persistSettings(selectSharedSettings(get()));
+  },
+}));
+
+function selectSharedSettings(state: SharedSettingsState): SharedSettings {
+  return {
+    themeMode: state.themeMode,
+    commitGenProvider: state.commitGenProvider,
+    commitGenModel: state.commitGenModel,
+    commitGenEffort: state.commitGenEffort,
+  };
+}
+
+if (hasBridge()) {
+  void readBridge()
+    .getSharedSettings()
+    .then((settings) => {
+      useSharedSettings.setState((state) => ({
+        ...state,
+        ...normalizeSharedSettings(settings),
+      }));
+    })
+    .catch(() => undefined);
+}

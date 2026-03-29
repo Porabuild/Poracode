@@ -10,6 +10,21 @@ const { bridge } = vi.hoisted(() => ({
     getAgentStatuses: vi.fn().mockResolvedValue([]),
     getThreadSnapshots: vi.fn().mockResolvedValue([]),
     getThreadHistory: vi.fn().mockResolvedValue({ history: "", length: 0 }),
+    getGitStatus: vi.fn().mockResolvedValue({
+      isRepo: true,
+      branch: "main",
+      staged: [],
+      unstaged: [],
+      totalInsertions: 0,
+      totalDeletions: 0,
+    }),
+    gitListBranches: vi.fn().mockResolvedValue({ current: "main", branches: [] }),
+    gitFetch: vi.fn().mockResolvedValue(undefined),
+    gitListWorktrees: vi.fn().mockResolvedValue({ worktrees: [] }),
+    gitAddWorktree: vi.fn().mockResolvedValue({
+      path: "C:\\Users\\demo\\.lightcode\\worktrees\\repo-12345678\\feature-x",
+    }),
+    gitRemoveWorktree: vi.fn().mockResolvedValue(undefined),
     startThread: vi.fn().mockResolvedValue(undefined),
     sendThreadInput: vi.fn().mockResolvedValue(undefined),
     writeTerminal: vi.fn().mockResolvedValue(undefined),
@@ -63,7 +78,35 @@ vi.mock("./components/sidebar/Sidebar", () => ({
 }));
 
 vi.mock("./components/thread/ThreadDraftView", () => ({
-  ThreadDraftView: () => <div>draft</div>,
+  ThreadDraftView: (props: {
+    onStart: (input: {
+      agentKind: "codex";
+      config: { model: string };
+      prompt: string;
+      worktreeBranch?: string;
+      worktreeBaseBranch?: string;
+      worktreeIsNewBranch?: boolean;
+    }) => void;
+  }) => (
+    <div>
+      draft
+      <button
+        onClick={() =>
+          props.onStart({
+            agentKind: "codex",
+            config: { model: "gpt-5.4" },
+            prompt: "start worktree",
+            worktreeBranch: "feature/x",
+            worktreeBaseBranch: "main",
+            worktreeIsNewBranch: true,
+          })
+        }
+        type="button"
+      >
+        start-worktree
+      </button>
+    </div>
+  ),
 }));
 
 vi.mock("./components/thread/ThreadView", () => ({
@@ -279,5 +322,46 @@ describe("App", () => {
       expect(screen.getByTestId("thread-view-thread-1")).toHaveAttribute("data-pending-launch", "");
     });
     expect(bridge.startThread).not.toHaveBeenCalled();
+  });
+
+  it("uses the resolved worktree path returned by the supervisor when starting from a draft", async () => {
+    useAppStore.persist.hasHydrated = vi.fn(() => true);
+    useAppStore.persist.onHydrate = vi.fn(() => () => undefined);
+    useAppStore.persist.onFinishHydration = vi.fn(() => () => undefined);
+
+    useAppStore.setState((state) => ({
+      ...state,
+      projects: [
+        {
+          id: "project-1",
+          name: "Repo",
+          location: {
+            kind: "windows",
+            path: "C:\\repo",
+          },
+          createdAt: "2026-03-22T00:00:00.000Z",
+        },
+      ],
+      view: { kind: "draft", projectId: "project-1" },
+    }));
+
+    render(<App />);
+    fireEvent.click(screen.getByText("start-worktree"));
+
+    await waitFor(() => {
+      expect(bridge.gitAddWorktree).toHaveBeenCalledWith({
+        projectLocation: { kind: "windows", path: "C:\\repo" },
+        branch: "feature/x",
+        createBranch: true,
+        startPoint: "main",
+      });
+    });
+
+    const threads = useAppStore.getState().threads;
+    expect(threads).toHaveLength(1);
+    expect(threads[0]?.worktreePath).toBe(
+      "C:\\Users\\demo\\.lightcode\\worktrees\\repo-12345678\\feature-x",
+    );
+    expect(threads[0]?.worktreeBranch).toBe("feature/x");
   });
 });

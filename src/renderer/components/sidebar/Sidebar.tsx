@@ -35,8 +35,15 @@ type SidebarDropIndicator =
   | { type: "project"; id: string; placement: ReorderPlacement }
   | { type: "thread"; id: string; projectId: string; placement: ReorderPlacement };
 
-function GitBadge(props: { projectId: string; projectName: string; onPress: () => void }) {
-  const gitStatus = useGitStore((s) => s.statuses[props.projectId]);
+function GitBadge(props: {
+  projectId: string;
+  projectName: string;
+  onPress: () => void;
+  worktreePath?: string;
+}) {
+  const gitStatus = useGitStore((s) =>
+    props.worktreePath ? s.worktreeStatuses[props.worktreePath] : s.statuses[props.projectId],
+  );
   if (!gitStatus?.isRepo || (gitStatus.totalInsertions === 0 && gitStatus.totalDeletions === 0))
     return null;
   return (
@@ -676,14 +683,6 @@ export function Sidebar(props: {
                                         }}
                                         onCancel={() => setEditingThreadId(null)}
                                       />
-                                    ) : thread.worktreeBranch ? (
-                                      <span className="flex items-center gap-1.5">
-                                        <span className="truncate">{thread.title}</span>
-                                        <span className="flex shrink-0 items-center gap-0.5 text-[10px] text-muted">
-                                          <GitFork className="size-2.5" />
-                                          {thread.worktreeBranch}
-                                        </span>
-                                      </span>
                                     ) : (
                                       thread.title
                                     )
@@ -778,6 +777,28 @@ export function Sidebar(props: {
                                   dragLabel={`Reorder ${thread.title}`}
                                   suffix={
                                     <>
+                                      {thread.worktreePath && (
+                                        <>
+                                          <Tooltip delay={150}>
+                                            <Tooltip.Trigger>
+                                              <div className="flex shrink-0 items-center">
+                                                <GitFork className="size-3 text-muted/60" />
+                                              </div>
+                                            </Tooltip.Trigger>
+                                            <Tooltip.Content placement="right">
+                                              Worktree: {thread.worktreeBranch}
+                                            </Tooltip.Content>
+                                          </Tooltip>
+                                          <GitBadge
+                                            projectId={thread.projectId}
+                                            projectName={thread.title}
+                                            worktreePath={thread.worktreePath}
+                                            onPress={() =>
+                                              onOpenGitReview(thread.projectId, thread.worktreePath)
+                                            }
+                                          />
+                                        </>
+                                      )}
                                       <span className="relative shrink-0">
                                         <span className="text-[11px] text-muted group-hover:invisible">
                                           {formatRelativeTime(thread.updatedAt)}

@@ -3,7 +3,7 @@ import { ArrowRight, FolderOpen, Plus, TerminalSquare } from "lucide-react";
 import { Spinner } from "@heroui/react";
 import { getProjectAgentStatuses } from "../shared/agentStatus";
 import { parseWslUncPath } from "../shared/wsl";
-import { buildWorktreeLocation, computeWorktreePath } from "../shared/worktree";
+import { buildWorktreeLocation } from "../shared/worktree";
 import { readBridge } from "./bridge";
 import { ProviderIcon, getStatusTone } from "./components/providers";
 import { DevTerminalPanel } from "./components/devTerminal/DevTerminalPanel";
@@ -288,16 +288,14 @@ function AppContent() {
 
             let worktreePath: string | undefined;
             if (worktreeBranch) {
-              const wtPath = computeWorktreePath(project.location, worktreeBranch);
               try {
-                await readBridge().gitAddWorktree({
+                const result = await readBridge().gitAddWorktree({
                   projectLocation: project.location,
-                  path: wtPath,
                   branch: worktreeBranch,
                   createBranch: worktreeIsNewBranch ?? false,
                   startPoint: worktreeBaseBranch,
                 });
-                worktreePath = wtPath;
+                worktreePath = result.path;
               } catch (err) {
                 console.error("[renderer] failed to create worktree:", err);
               }
