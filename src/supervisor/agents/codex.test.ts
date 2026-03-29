@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { deriveCodexStructuredState, detectCodexUpdatePrompt, parseCodexSocketMessage } from "./codex";
+import {
+  deriveCodexStructuredState,
+  detectCodexReadyForInitialPrompt,
+  detectCodexStartupPrompt,
+  detectCodexUpdatePrompt,
+  parseCodexSocketMessage,
+} from "./codex";
 
 describe("deriveCodexStructuredState", () => {
   it("maps active approval state to needs_approval", () => {
@@ -118,5 +124,70 @@ describe("detectCodexUpdatePrompt", () => {
 
   it("detects without emoji prefix", () => {
     expect(detectCodexUpdatePrompt("Update available! 0.116.0 -> 0.117.0")).toBe(true);
+  });
+});
+
+describe("detectCodexStartupPrompt", () => {
+  const SAMPLE_TEXT = [
+    "✨ Update available! 0.116.0 -> 0.117.0",
+    "",
+    "Release notes: https://github.com/openai/codex/releases/latest",
+    "",
+    "> 1. Update now (runs `npm install -g @openai/codex`)",
+    "  2. Skip",
+    "  3. Skip until next version",
+  ].join("\n");
+
+  it("returns prompt options with terminal submit input", () => {
+    expect(detectCodexStartupPrompt(SAMPLE_TEXT)).toEqual({
+      title: "Update available! 0.116.0 -> 0.117.0",
+      options: [
+        {
+          key: "1",
+          label: "Update now",
+          description: "Runs npm install -g @openai/codex",
+          submitInput: "1",
+        },
+        {
+          key: "2",
+          label: "Skip",
+          submitInput: "2",
+          continueQueuedPrompt: true,
+        },
+        {
+          key: "3",
+          label: "Skip until next version",
+          submitInput: "3",
+          continueQueuedPrompt: true,
+        },
+      ],
+    });
+  });
+
+  it("returns null for non-update output", () => {
+    expect(detectCodexStartupPrompt("OpenAI Codex")).toBeNull();
+  });
+});
+
+describe("detectCodexReadyForInitialPrompt", () => {
+  it("returns true for the normal Codex home screen", () => {
+    const text = [
+      "OpenAI Codex (v0.116.0)",
+      "model: gpt-5.4-mini high /model to change",
+      "directory: ~/work/site-search-ui",
+    ].join("\n");
+
+    expect(detectCodexReadyForInitialPrompt(text)).toBe(true);
+  });
+
+  it("returns false while the update prompt is visible", () => {
+    const text = [
+      "Update available! 0.116.0 -> 0.117.0",
+      "OpenAI Codex (v0.116.0)",
+      "directory: ~/work/site-search-ui",
+      "model: gpt-5.4-mini high /model to change",
+    ].join("\n");
+
+    expect(detectCodexReadyForInitialPrompt(text)).toBe(false);
   });
 });

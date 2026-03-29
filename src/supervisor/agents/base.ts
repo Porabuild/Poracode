@@ -1,5 +1,4 @@
-import { existsSync, readFileSync } from "node:fs";
-import { homedir } from "node:os";
+import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { randomUUID } from "node:crypto";
 import { execFile, spawnSync } from "node:child_process";
@@ -62,6 +61,7 @@ export interface StructuredSessionHandle {
   launchOptions: AgentLaunchOptions;
   activate?(): Promise<void>;
   openThread?(config: ThreadConfig, sessionRef?: SessionRef): Promise<string>;
+  ensureResumeArtifacts?(): Promise<void>;
   waitForRolloutFile?(timeoutMs?: number): Promise<void>;
   startTurn?(prompt: string, config: ThreadConfig): Promise<void>;
   resolveServerRequest?(requestId: ThreadServerRequestId, response: unknown): Promise<void>;
@@ -100,12 +100,18 @@ export interface AgentAdapter {
   createInitialSessionRef(): SessionRef | undefined;
   createStructuredSession?(input: CreateStructuredSessionInput): Promise<StructuredSessionHandle>;
   buildDirectInput?(prompt: string): string[];
+  /** Detect PTY startup prompts that should be surfaced in the composer UI. */
+  detectStartupPrompt?(text: string): TerminalPrompt | null;
+  /** Detect when the PTY is ready to accept an initial queued launch prompt. */
+  isReadyForInitialPrompt?(text: string): boolean;
   detectTerminalStatus?(text: string): TerminalStatusHint | null;
   detectInvalidSessionRef?(text: string): boolean;
   /** Detect TUI prompts that should be auto-dismissed and return the key to send, or null. */
   detectAutoResponse?(text: string): string | null;
   /** Discover the session ID after PTY spawn (e.g. by querying the CLI). */
   discoverSessionRef?(location: ProjectLocation): Promise<SessionRef | undefined>;
+  /** Allow the adapter to reconcile config from TUI-derived state transitions it owns. */
+  syncConfigFromTerminalState?(input: SyncConfigFromTerminalStateInput): ThreadConfig | undefined;
   /** Default model for lightweight one-shot tasks like commit message generation. */
   defaultOneShotModel?: string;
   /**
@@ -123,6 +129,13 @@ export interface TerminalStatusHint {
   attention: ThreadAttention;
   prompt?: TerminalPrompt | undefined;
   planMode?: boolean | undefined;
+}
+
+export interface SyncConfigFromTerminalStateInput {
+  config: ThreadConfig;
+  previousStatus: ThreadStatus;
+  previousAttention: ThreadAttention;
+  hint: TerminalStatusHint;
 }
 
 export function buildWindowsCmdCommand(cwd: string, command: string, args: string[]): CommandSpec {
@@ -528,46 +541,4 @@ export function createKnownSessionRef(sessionId?: string): SessionRef {
     providerSessionId: sessionId ?? randomUUID(),
     discoveredAt: new Date().toISOString(),
   };
-}
-
-export function readCodexSessionIndex(): Array<{
-  id: string;
-  updatedAt: number;
-  threadName: string;
-}> {
-  const sessionIndexPath = join(homedir(), ".codex", "session_index.jsonl");
-  if (!existsSync(sessionIndexPath)) {
-    return [];
-  }
-
-  const content = readFileSync(sessionIndexPath, "utf8");
-  return content
-    .split(/\r?\n/g)
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .flatMap((line) => {
-      try {
-        const parsed = JSON.parse(line) as {
-          id?: string;
-          updated_at?: string;
-          thread_name?: string;
-        };
-        if (!parsed.id || !parsed.updated_at) {
-          return [];
-        }
-        return [
-          {
-            id: parsed.id,
-            updatedAt: Date.parse(parsed.updated_at),
-            threadName: parsed.thread_name?.trim() ?? "",
-          },
-        ];
-      } catch {
-        return [];
-      }
-    });
-}
-
-export function codexAuthPath(): string {
-  return join(homedir(), ".codex", "auth.json");
 }

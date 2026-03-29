@@ -1,21 +1,22 @@
 import { createServer } from "node:net";
 import { spawn, type ChildProcess } from "node:child_process";
+import { mkdir, writeFile } from "node:fs/promises";
+import { dirname } from "node:path";
 import type {
   AgentCapability,
   AgentStatus,
   ProjectLocation,
   SessionRef,
+  TerminalPrompt,
   ThreadAttention,
   ThreadConfig,
   ThreadServerRequestId,
   ThreadStatus,
 } from "../../shared/contracts";
-import { detectRateLimitPrompt } from "../../shared/rateLimitPrompt";
 import { toWslUncPath } from "../../shared/wsl";
 import {
   batchWslCommandsAsync,
   buildWindowsCmdCommand,
-  codexAuthPath,
   createKnownSessionRef,
   detectAuthFile,
   readCommandOutputAsync,
@@ -31,6 +32,8 @@ import {
   type StructuredSessionHandle,
   type StructuredSessionListener,
 } from "./base";
+import { detectRateLimitPrompt } from "./codex/rateLimitPrompt";
+import { codexAuthPath } from "./codex/sessionFiles";
 
 const capabilities: AgentCapability = {
   models: [
@@ -53,6 +56,7 @@ const capabilities: AgentCapability = {
   supportsResume: true,
   supportsDirectInput: true,
   liveInputMode: "server",
+  presentationMode: "terminal",
 };
 
 export const CODEX_REMOTE_TUI_FEATURE = "tui_app_server";
@@ -168,7 +172,7 @@ function buildCommand(
   return wrapWslCommand(location, "codex", args, wslExecPath);
 }
 
-function buildCodexAppServerCommand(
+export function buildCodexAppServerCommand(
   location: ProjectLocation,
   remoteUrl: string,
   wslExecPath?: string,
@@ -177,8 +181,6 @@ function buildCodexAppServerCommand(
     "app-server",
     "--listen",
     remoteUrl,
-    "--session-source",
-    "lightcode",
     "--enable",
     CODEX_REMOTE_TUI_FEATURE,
   ];
@@ -369,6 +371,11 @@ class CodexStructuredSession implements StructuredSessionHandle {
   private requestSequence = 0;
   private remoteThreadId: string | undefined;
   private rolloutPath: string | undefined;
+  private rolloutCreatedAt: string | undefined;
+  private rolloutCwd: string | undefined;
+  private rolloutCliVersion: string | undefined;
+  private rolloutSource: Record<string, unknown> | undefined;
+  private rolloutModelProvider: string | undefined;
   private wslDistro: string | undefined;
   private currentThreadStatus: CodexThreadStatus = { type: "idle" };
   private readonly pendingRequests = new Map<
@@ -500,9 +507,25 @@ class CodexStructuredSession implements StructuredSessionHandle {
       if (!threadId) {
         throw new Error("thread/start response did not contain a thread id.");
       }
+      const thread =
+        result && typeof result === "object" && "thread" in result
+          ? ((result as Record<string, unknown>).thread as Record<string, unknown> | undefined)
+          : undefined;
       const rawPath = extractThreadField(result, "path") ?? undefined;
       this.rolloutPath =
         rawPath && this.wslDistro ? toWslUncPath(this.wslDistro, rawPath) : rawPath;
+      this.rolloutCreatedAt =
+        thread && typeof thread.createdAt === "number"
+          ? new Date(thread.createdAt * 1000).toISOString()
+          : new Date().toISOString();
+      this.rolloutCwd = typeof thread?.cwd === "string" ? thread.cwd : undefined;
+      this.rolloutCliVersion = typeof thread?.cliVersion === "string" ? thread.cliVersion : undefined;
+      this.rolloutSource =
+        thread && typeof thread.source === "object" && thread.source !== null
+          ? (thread.source as Record<string, unknown>)
+          : undefined;
+      this.rolloutModelProvider =
+        typeof thread?.modelProvider === "string" ? thread.modelProvider : undefined;
     }
 
     this.remoteThreadId = threadId;
@@ -525,6 +548,45 @@ class CodexStructuredSession implements StructuredSessionHandle {
       await sleep(200);
     }
     console.log("[codex app-server] rollout file not found after timeout, proceeding anyway");
+  }
+
+  async ensureResumeArtifacts(): Promise<void> {
+    if (!this.rolloutPath || !this.remoteThreadId) {
+      return;
+    }
+
+    const { existsSync } = await import("node:fs");
+    if (existsSync(this.rolloutPath)) {
+      return;
+    }
+
+    await mkdir(dirname(this.rolloutPath), { recursive: true });
+
+    const sessionMeta = JSON.stringify({
+      timestamp: new Date().toISOString(),
+      type: "session_meta",
+      payload: {
+        id: this.remoteThreadId,
+        ...(this.rolloutCreatedAt ? { timestamp: this.rolloutCreatedAt } : {}),
+        ...(this.rolloutCwd ? { cwd: this.rolloutCwd } : {}),
+        originator: "lightcode",
+        ...(this.rolloutCliVersion ? { cli_version: this.rolloutCliVersion } : {}),
+        ...(this.rolloutSource ? { source: this.rolloutSource } : {}),
+        ...(this.rolloutModelProvider ? { model_provider: this.rolloutModelProvider } : {}),
+      },
+    });
+
+    try {
+      await writeFile(this.rolloutPath, `${sessionMeta}\n`, {
+        encoding: "utf8",
+        flag: "wx",
+      });
+      console.log("[codex app-server] seeded rollout file:", this.rolloutPath);
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "EEXIST") {
+        throw error;
+      }
+    }
   }
 
   async startTurn(prompt: string, config: ThreadConfig): Promise<void> {
@@ -865,6 +927,9 @@ async function connectCodexAppServer(
 }
 
 const CODEX_UPDATE_RE = /Update available!/;
+const CODEX_READY_RE = /OpenAI Codex/;
+const CODEX_DIRECTORY_RE = /directory:/;
+const CODEX_MODEL_RE = /\/model to change/;
 
 /**
  * Detect a Codex TUI "Update available!" interactive prompt from
@@ -872,6 +937,51 @@ const CODEX_UPDATE_RE = /Update available!/;
  */
 export function detectCodexUpdatePrompt(text: string): boolean {
   return CODEX_UPDATE_RE.test(text);
+}
+
+export function detectCodexStartupPrompt(text: string): TerminalPrompt | null {
+  if (!detectCodexUpdatePrompt(text)) {
+    return null;
+  }
+
+  const versionMatch = /Update available!\s*([0-9.]+)\s*->\s*([0-9.]+)/.exec(text);
+  const title = versionMatch
+    ? `Update available! ${versionMatch[1]} -> ${versionMatch[2]}`
+    : "Update available!";
+
+  return {
+    title,
+    options: [
+      {
+        key: "1",
+        label: "Update now",
+        description: "Runs npm install -g @openai/codex",
+        submitInput: "1",
+      },
+      {
+        key: "2",
+        label: "Skip",
+        submitInput: "2",
+        continueQueuedPrompt: true,
+      },
+      {
+        key: "3",
+        label: "Skip until next version",
+        submitInput: "3",
+        continueQueuedPrompt: true,
+      },
+    ],
+  };
+}
+
+export function detectCodexReadyForInitialPrompt(text: string): boolean {
+  if (detectCodexUpdatePrompt(text)) {
+    return false;
+  }
+
+  return (
+    CODEX_READY_RE.test(text) && CODEX_DIRECTORY_RE.test(text) && CODEX_MODEL_RE.test(text)
+  );
 }
 
 function formatAppServerOutput(chunks: string[]): string {
@@ -971,8 +1081,13 @@ export function createCodexAdapter(): AgentAdapter {
     buildDirectInput(prompt) {
       return [...prompt, "\r"];
     },
+    detectStartupPrompt(text) {
+      return detectCodexStartupPrompt(text);
+    },
+    isReadyForInitialPrompt(text) {
+      return detectCodexReadyForInitialPrompt(text);
+    },
     detectAutoResponse(text) {
-      if (detectCodexUpdatePrompt(text)) return "2";
       if (detectRateLimitPrompt(text)) return "2";
       return null;
     },

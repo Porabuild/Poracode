@@ -19,7 +19,7 @@ export const threads = sqliteTable("threads", {
     .notNull()
     .references(() => projects.id, { onDelete: "cascade" }),
   title: text("title").notNull(),
-  agentKind: text("agent_kind").notNull(), // "codex" | "claude"
+  agentKind: text("agent_kind").notNull(), // provider kind
   config: text("config").notNull(), // JSON
   status: text("status").notNull(),
   attention: text("attention").notNull(),

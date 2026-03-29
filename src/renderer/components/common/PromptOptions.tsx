@@ -5,6 +5,8 @@ export interface PromptOption {
   label: string;
   description?: string | undefined;
   isTextInput?: boolean | undefined;
+  submitInput?: string | undefined;
+  continueQueuedPrompt?: boolean | undefined;
 }
 
 export function PromptOptions(props: {
@@ -40,7 +42,7 @@ export function PromptOptions(props: {
       // Text input options are handled by the inline input's Enter key
       return;
     }
-    onSelect(option.key);
+    onSelect(option.submitInput ?? option.key);
   };
 
   return (

@@ -373,6 +373,11 @@ function formatJson(value: unknown): string {
   }
 }
 
+function resolveAgentLead(agentLabel?: string): string {
+  const trimmed = agentLabel?.trim();
+  return trimmed && trimmed.length > 0 ? trimmed : "The agent";
+}
+
 function RequestShell(props: {
   title: string;
   description: string;
@@ -415,18 +420,20 @@ function RequestShell(props: {
 
 function UserInputRequestCard(props: {
   params: UserInputRequestParams;
+  agentLabel?: string | undefined;
   onResolve: (response: unknown) => Promise<void>;
 }) {
-  const { params, onResolve } = props;
+  const { params, agentLabel, onResolve } = props;
   const [answers, setAnswers] = useState<Record<string, string>>(() =>
     getQuestionAnswerRecord(params.questions),
   );
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const agentLead = resolveAgentLead(agentLabel);
 
   return (
     <RequestShell
       title="Input requested"
-      description="Codex is waiting for more information before it can continue."
+      description={`${agentLead} is waiting for more information before it can continue.`}
       body={
         <div className="space-y-4">
           {params.questions.map((question) => (
@@ -698,11 +705,13 @@ function McpElicitationRequestCard(props: {
 
 function ApprovalRequestCard(props: {
   request: PendingThreadServerRequest;
+  agentLabel?: string | undefined;
   onResolve: (response: unknown) => Promise<void>;
 }) {
-  const { request, onResolve } = props;
+  const { request, agentLabel, onResolve } = props;
   const [isSubmitting, setIsSubmitting] = useState(false);
   const params = parseCommandApprovalParams(request.params);
+  const agentLead = resolveAgentLead(agentLabel);
 
   const resolveWith = async (response: unknown) => {
     setIsSubmitting(true);
@@ -724,7 +733,7 @@ function ApprovalRequestCard(props: {
     return (
       <RequestShell
         title="Permissions requested"
-        description={params.reason ?? "Codex requested additional permissions."}
+        description={params.reason ?? `${agentLead} requested additional permissions.`}
         body={
           <pre className="overflow-x-auto rounded-xl border border-[color:var(--border)] bg-white/[0.03] p-3 text-xs text-muted">
             {formatJson(params.permissions ?? request.params)}
@@ -788,15 +797,15 @@ function ApprovalRequestCard(props: {
           }));
 
   return (
-    <RequestShell
-      title={
-        request.method === "item/fileChange/requestApproval" ||
-        request.method === "applyPatchApproval"
-          ? "File changes need approval"
-          : "Command needs approval"
-      }
-      description={params.reason ?? "Codex is waiting for approval before it can continue."}
-      details={commonDetails}
+      <RequestShell
+        title={
+          request.method === "item/fileChange/requestApproval" ||
+          request.method === "applyPatchApproval"
+            ? "File changes need approval"
+            : "Command needs approval"
+        }
+        description={params.reason ?? `${agentLead} is waiting for approval before it can continue.`}
+        details={commonDetails}
       body={
         params.permissions ? (
           <pre className="overflow-x-auto rounded-xl border border-[color:var(--border)] bg-white/[0.03] p-3 text-xs text-muted">
@@ -825,18 +834,20 @@ function ApprovalRequestCard(props: {
 
 export function ThreadServerRequestPanel(props: {
   request: PendingThreadServerRequest;
+  agentLabel?: string | undefined;
   onResolve: (input: {
     requestId: ThreadServerRequestId;
     method: string;
     response: unknown;
   }) => Promise<void>;
 }) {
-  const { request, onResolve } = props;
+  const { request, agentLabel, onResolve } = props;
   const userInputParams = parseUserInputRequestParams(request.params);
   if (request.method === "item/tool/requestUserInput" && userInputParams) {
     return (
       <UserInputRequestCard
         params={userInputParams}
+        agentLabel={agentLabel}
         onResolve={(response) =>
           onResolve({
             requestId: request.requestId,
@@ -867,6 +878,7 @@ export function ThreadServerRequestPanel(props: {
   return (
     <ApprovalRequestCard
       request={request}
+      agentLabel={agentLabel}
       onResolve={(response) =>
         onResolve({
           requestId: request.requestId,

@@ -198,9 +198,12 @@ function AppContent() {
   const projects = useAppStore((state) => state.projects);
   const threads = useAppStore((state) => state.threads);
   const pendingServerRequests = useAppStore((state) => state.pendingServerRequests);
+  const pendingThreadLaunches = useAppStore((state) => state.pendingThreadLaunches);
   const agentStatuses = useAppStore((state) => state.agentStatuses);
   const wslAgentStatuses = useAppStore((state) => state.wslAgentStatuses);
   const createThread = useAppStore((state) => state.createThread);
+  const queueThreadLaunch = useAppStore((state) => state.queueThreadLaunch);
+  const consumeThreadLaunch = useAppStore((state) => state.consumeThreadLaunch);
   const updateProjectDraftConfig = useAppStore((state) => state.updateProjectDraftConfig);
   const removeThreadServerRequest = useAppStore((state) => state.removeThreadServerRequest);
   const updateThreadConfig = useAppStore((state) => state.updateThreadConfig);
@@ -256,7 +259,11 @@ function AppContent() {
       wslAgentStatuses,
     );
     return (
-      <div className="relative h-full" onDragOver={handleSidebarDragOver} onDrop={handleSidebarDrop}>
+      <div
+        className="relative h-full"
+        onDragOver={handleSidebarDragOver}
+        onDrop={handleSidebarDrop}
+      >
         <ThreadDraftView
           project={project}
           agentStatuses={projectAgentStatuses}
@@ -277,24 +284,7 @@ function AppContent() {
               config,
               prompt,
             });
-
-            void readBridge()
-              .startThread({
-                threadId: thread.id,
-                projectLocation: project.location,
-                agentKind,
-                config,
-                prompt,
-              })
-              .catch(() => {
-                startTransition(() => {
-                  updateThreadRuntime(thread.id, {
-                    status: "error",
-                    attention: "error",
-                    canResumeWithConfig: false,
-                  });
-                });
-              });
+            queueThreadLaunch(thread.id, prompt);
           }}
         />
         {sidebarDragActive && (
@@ -338,8 +328,7 @@ function AppContent() {
               ? "replace"
               : sidebarDropTarget?.kind === "insert" && sidebarDropTarget.index === paneIndex
                 ? "insert-left"
-                : sidebarDropTarget?.kind === "insert" &&
-                    sidebarDropTarget.index === paneIndex + 1
+                : sidebarDropTarget?.kind === "insert" && sidebarDropTarget.index === paneIndex + 1
                   ? "insert-right"
                   : false;
 
@@ -425,6 +414,19 @@ function AppContent() {
             pendingServerRequests={pendingServerRequests.filter(
               (request) => request.threadId === thread.id,
             )}
+            projectLocation={project.location}
+            onLaunchConsumed={() => consumeThreadLaunch(thread.id)}
+            onLaunchFailed={() => {
+              startTransition(() => {
+                updateThreadRuntime(thread.id, {
+                  status: "error",
+                  attention: "error",
+                  ...(thread.sessionRef ? { sessionRef: thread.sessionRef } : {}),
+                  canResumeWithConfig:
+                    thread.canResumeWithConfig || thread.sessionRef !== undefined,
+                });
+              });
+            }}
             onResolveServerRequest={async ({ requestId, method, response }) => {
               await readBridge().resolveThreadServerRequest({
                 threadId: thread.id,
@@ -435,6 +437,9 @@ function AppContent() {
               removeThreadServerRequest(thread.id, requestId);
               touchThread(thread.id);
             }}
+            {...(pendingThreadLaunches[thread.id] !== undefined
+              ? { pendingLaunchPrompt: pendingThreadLaunches[thread.id] }
+              : {})}
             onSubmitInput={async (prompt) => {
               await readBridge().sendThreadInput({
                 threadId: thread.id,
@@ -496,6 +501,7 @@ export function App() {
   const renameThread = useAppStore((state) => state.renameThread);
   const deleteThread = useAppStore((state) => state.deleteThread);
   const deleteProject = useAppStore((state) => state.deleteProject);
+  const queueThreadLaunch = useAppStore((state) => state.queueThreadLaunch);
   const reconcileRuntimeSnapshots = useAppStore((state) => state.reconcileRuntimeSnapshots);
   const reorderProjects = useAppStore((state) => state.reorderProjects);
   const reorderThreads = useAppStore((state) => state.reorderThreads);
@@ -545,26 +551,7 @@ export function App() {
           canResumeWithConfig: thread.canResumeWithConfig || thread.sessionRef !== undefined,
         });
       });
-
-      void readBridge()
-        .startThread({
-          threadId: thread.id,
-          projectLocation: input.projectLocation,
-          agentKind: thread.agentKind,
-          config: thread.config,
-          prompt: "",
-          ...(thread.sessionRef ? { sessionRef: thread.sessionRef } : {}),
-        })
-        .catch(() => {
-          startTransition(() => {
-            updateThreadRuntime(thread.id, {
-              status: "error",
-              attention: "error",
-              ...(thread.sessionRef ? { sessionRef: thread.sessionRef } : {}),
-              canResumeWithConfig: thread.canResumeWithConfig || thread.sessionRef !== undefined,
-            });
-          });
-        });
+      queueThreadLaunch(thread.id, "");
     },
   );
 

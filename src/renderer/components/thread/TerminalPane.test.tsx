@@ -42,24 +42,16 @@ describe("TerminalPane", () => {
 
   // ── Reveal sequence (inactive → active) ───────────────────────
 
-  it("delays enabling the surface when transitioning from inactive to active", () => {
+  it("enables the surface immediately when transitioning from inactive to active", () => {
     const { rerender } = render(<TerminalPane threadId="t-1" status="inactive" />);
     expect(screen.getByTestId("xterm-surface")).toHaveAttribute("data-enabled", "false");
 
     rerender(<TerminalPane threadId="t-1" status="launching" />);
 
-    // Surface should still be disabled (waiting for 150ms delay)
-    expect(screen.getByTestId("xterm-surface")).toHaveAttribute("data-enabled", "false");
-
-    act(() => {
-      vi.advanceTimersByTime(150);
-    });
-
-    // After 150ms, surfaceEnabled → true
     expect(screen.getByTestId("xterm-surface")).toHaveAttribute("data-enabled", "true");
   });
 
-  it("reveals visibility after the surface is enabled", () => {
+  it("reveals visibility shortly after becoming active", () => {
     const { container, rerender } = render(<TerminalPane threadId="t-1" status="inactive" />);
 
     rerender(<TerminalPane threadId="t-1" status="launching" />);
@@ -68,11 +60,8 @@ describe("TerminalPane", () => {
     expect(container.firstElementChild!.className).toContain("opacity-0");
 
     act(() => {
-      vi.advanceTimersByTime(150);
-    }); // surfaceEnabled → true
-    act(() => {
       vi.advanceTimersByTime(50);
-    }); // isVisible → true
+    });
 
     expect(container.firstElementChild!.className).toContain("opacity-100");
   });

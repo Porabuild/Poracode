@@ -6,6 +6,7 @@ type HintEntry = {
   status: TerminalStatusHint["status"];
   attention: TerminalStatusHint["attention"];
   hasPrompt: boolean;
+  signal?: "primary" | "fallbackIdle";
 };
 
 const GEMINI_HINTS: HintEntry[] = [
@@ -34,9 +35,21 @@ const GEMINI_HINTS: HintEntry[] = [
   // Title bar: ready/idle indicator (◇ diamond + "Ready")
   { re: /◇\s+Ready/, status: "idle", attention: "none", hasPrompt: false },
   // TUI input prompt — "Type your message" or "* Type your message"
-  { re: /Type your message/, status: "idle", attention: "none", hasPrompt: false },
+  {
+    re: /Type your message/,
+    status: "idle",
+    attention: "none",
+    hasPrompt: false,
+    signal: "fallbackIdle",
+  },
   // TUI shortcuts hint — "? for shortcuts"
-  { re: /\?\s+for shortcuts/, status: "idle", attention: "none", hasPrompt: false },
+  {
+    re: /\?\s+for shortcuts/,
+    status: "idle",
+    attention: "none",
+    hasPrompt: false,
+    signal: "fallbackIdle",
+  },
 ];
 
 // Strip box-drawing and TUI decoration chars from a line
@@ -105,10 +118,13 @@ function parseGeminiPrompt(text: string): TerminalPrompt | undefined {
  * indicators and returns the match closest to the end of the buffer
  * (the most recent state).
  */
-export function detectGeminiTerminalStatus(text: string): TerminalStatusHint | null {
+function findBestMatch(
+  text: string,
+  entries: readonly HintEntry[],
+): { index: number; entry: HintEntry } | null {
   let best: { index: number; entry: HintEntry } | null = null;
 
-  for (const entry of GEMINI_HINTS) {
+  for (const entry of entries) {
     const globalRe = new RegExp(
       entry.re.source,
       entry.re.flags.includes("g") ? entry.re.flags : entry.re.flags + "g",
@@ -122,6 +138,20 @@ export function detectGeminiTerminalStatus(text: string): TerminalStatusHint | n
       best = { index: last.index, entry };
     }
   }
+
+  return best;
+}
+
+export function detectGeminiTerminalStatus(text: string): TerminalStatusHint | null {
+  const best =
+    findBestMatch(
+      text,
+      GEMINI_HINTS.filter((entry) => entry.signal !== "fallbackIdle"),
+    ) ??
+    findBestMatch(
+      text,
+      GEMINI_HINTS.filter((entry) => entry.signal === "fallbackIdle"),
+    );
 
   if (!best) return null;
 

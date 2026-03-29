@@ -2,7 +2,11 @@ import { describe, expect, it } from "vitest";
 import type { ProjectLocation, SessionRef, ThreadConfig } from "../../shared/contracts";
 import { buildWindowsCommand, getWslCommand } from "./base";
 import { createClaudeAdapter } from "./claude";
-import { CODEX_REMOTE_TUI_FEATURE, createCodexAdapter } from "./codex";
+import {
+  buildCodexAppServerCommand,
+  CODEX_REMOTE_TUI_FEATURE,
+  createCodexAdapter,
+} from "./codex";
 
 function decodePowerShellEncodedCommand(encoded: string): string {
   return Buffer.from(encoded, "base64").toString("utf16le");
@@ -66,6 +70,19 @@ describe("agent command builders", () => {
     expect(spec.args).toContain(CODEX_REMOTE_TUI_FEATURE);
     expect(spec.args).toContain("--remote");
     expect(spec.args).toContain("ws://127.0.0.1:43123");
+  });
+
+  it("builds a Codex app-server command accepted by codex 0.117+", () => {
+    const spec = buildCodexAppServerCommand(windowsProject, "ws://127.0.0.1:43123");
+
+    expect(spec.command).toBe("C:\\Windows\\System32\\cmd.exe");
+    expect(spec.args.slice(0, 4)).toEqual(["/d", "/s", "/c", "codex"]);
+    expect(spec.args).toContain("app-server");
+    expect(spec.args).toContain("--listen");
+    expect(spec.args).toContain("ws://127.0.0.1:43123");
+    expect(spec.args).toContain("--enable");
+    expect(spec.args).toContain(CODEX_REMOTE_TUI_FEATURE);
+    expect(spec.args).not.toContain("--session-source");
   });
 
   it("resumes the server thread when structured session provides a threadId", () => {

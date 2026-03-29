@@ -98,29 +98,45 @@ function FileRow(props: {
             {file.deletions > 0 && <span className="ml-0.5 text-danger">-{file.deletions}</span>}
           </span>
           <span className="absolute inset-0 flex items-center justify-end gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
-            <button
-              type="button"
+            <div
+              role="button"
+              tabIndex={0}
               className="rounded p-0.5 text-muted hover:text-foreground"
               title={file.staged ? "Unstage" : "Stage"}
               onClick={(e) => {
                 e.stopPropagation();
                 void handleStageToggle();
               }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  void handleStageToggle();
+                }
+              }}
             >
               {file.staged ? <Minus className="size-3" /> : <Plus className="size-3" />}
-            </button>
+            </div>
             {!file.staged && (
-              <button
-                type="button"
+              <div
+                role="button"
+                tabIndex={0}
                 className="rounded p-0.5 text-muted hover:text-danger"
                 title="Revert changes"
                 onClick={(e) => {
                   e.stopPropagation();
                   setRevertOpen(true);
                 }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setRevertOpen(true);
+                  }
+                }}
               >
                 <Undo2 className="size-3" />
-              </button>
+              </div>
             )}
           </span>
         </span>

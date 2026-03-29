@@ -60,6 +60,66 @@ describe("detectClaudeTerminalStatus", () => {
     expect(result?.prompt?.options).toHaveLength(2);
   });
 
+  it("keeps a split task menu together when Claude inserts divider rows", () => {
+    const text = [
+      "hi",
+      "User declined to answer questions",
+      "",
+      "hi",
+      "────────────────────────────────────",
+      "",
+      "[ Task ]",
+      "",
+      "What would you like to work on today?",
+      "",
+      "> 1. New feature",
+      "    Implement something new in the codebase",
+      "  2. Bug fix",
+      "    Diagnose and fix an existing issue",
+      "  3. Code review",
+      "    Review current changes or a PR",
+      "  4. Explore codebase",
+      "    Understand how something works.",
+      "  5. Type something.",
+      "",
+      "────────────────────────────────────",
+      "",
+      "  6. Chat about this",
+      "  7. Skip interview and plan immediately",
+      "",
+      "Enter to select · ↑/↓ to navigate · Esc to cancel",
+    ].join("\n");
+    const result = detectClaudeTerminalStatus(text);
+
+    expect(result?.status).toBe("needs_reply");
+    expect(result?.prompt?.title).toBe("What would you like to work on today?");
+    expect(result?.prompt?.options).toEqual([
+      {
+        key: "1",
+        label: "New feature",
+        description: "Implement something new in the codebase",
+      },
+      {
+        key: "2",
+        label: "Bug fix",
+        description: "Diagnose and fix an existing issue",
+      },
+      {
+        key: "3",
+        label: "Code review",
+        description: "Review current changes or a PR",
+      },
+      {
+        key: "4",
+        label: "Explore codebase",
+        description: "Understand how something works.",
+      },
+      { key: "5", label: "Type something.", isTextInput: true },
+      { key: "6", label: "Chat about this" },
+      { key: "7", label: "Skip interview and plan immediately" },
+    ]);
+  });
+
   it("detects plan approval prompt with ctrl-g footer", () => {
     const text = [
       "Claude has written up a plan and is ready to execute. Would you like to proceed?",

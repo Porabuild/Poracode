@@ -36,6 +36,7 @@ const capabilities: AgentCapability = {
   supportsResume: true,
   supportsDirectInput: true,
   liveInputMode: "terminal",
+  presentationMode: "terminal",
 };
 
 function buildGeminiArgs(config: ThreadConfig, prompt: string, resumeSessionId?: string): string[] {

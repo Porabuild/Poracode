@@ -1,19 +1,18 @@
 import { useEffect, useRef, useState } from "react";
-import type { ThreadStatus } from "../../../shared/contracts";
+import type { TerminalSize, ThreadStatus } from "../../../shared/contracts";
 import { XTermSurface } from "../terminal/XTermSurface";
 
-const INITIAL_REVEAL_DELAY_MS = 150;
 const POST_MOUNT_REVEAL_DELAY_MS = 50;
 
 export function TerminalPane(props: {
   threadId: string;
   status: ThreadStatus;
   readOnly?: boolean;
+  onTerminalResize?: (size: TerminalSize) => void;
 }) {
-  const { threadId, status, readOnly = false } = props;
+  const { threadId, status, readOnly = false, onTerminalResize } = props;
   const timerRef = useRef<number | null>(null);
   const [isVisible, setIsVisible] = useState(status !== "inactive");
-  const [surfaceEnabled, setSurfaceEnabled] = useState(status !== "inactive");
 
   function clearTimer(): void {
     if (timerRef.current !== null) {
@@ -22,38 +21,28 @@ export function TerminalPane(props: {
     }
   }
 
-  // When the terminal becomes active, delay enabling the surface so the
-  // container can settle its layout first. Once the surface is enabled
-  // (and xterm mounts + resizes), reveal it with a short additional delay.
+  // Keep xterm mounted as soon as the thread becomes active so launch-time
+  // resize information is available before the PTY starts.
   useEffect(() => {
     if (status === "inactive") {
       setIsVisible(false);
-      setSurfaceEnabled(false);
       return;
     }
 
-    if (isVisible) {
+    if (isVisible || timerRef.current !== null) {
       return;
     }
 
     clearTimer();
-
-    if (!surfaceEnabled) {
-      timerRef.current = window.setTimeout(() => {
-        timerRef.current = null;
-        setSurfaceEnabled(true);
-      }, INITIAL_REVEAL_DELAY_MS);
-    } else {
-      timerRef.current = window.setTimeout(() => {
-        timerRef.current = null;
-        setIsVisible(true);
-      }, POST_MOUNT_REVEAL_DELAY_MS);
-    }
+    timerRef.current = window.setTimeout(() => {
+      timerRef.current = null;
+      setIsVisible(true);
+    }, POST_MOUNT_REVEAL_DELAY_MS);
 
     return () => {
       clearTimer();
     };
-  }, [status, isVisible, surfaceEnabled]);
+  }, [status, isVisible]);
 
   const isTerminalActive = status !== "inactive";
 
@@ -66,11 +55,12 @@ export function TerminalPane(props: {
       <XTermSurface
         terminalId={threadId}
         readOnly={readOnly}
-        enabled={isTerminalActive && surfaceEnabled}
+        enabled={isTerminalActive}
         onReset={() => {
           clearTimer();
           setIsVisible(false);
         }}
+        {...(onTerminalResize ? { onTerminalResize } : {})}
       />
     </div>
   );

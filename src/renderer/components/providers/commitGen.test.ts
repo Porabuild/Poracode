@@ -26,6 +26,7 @@ const codexStatus: AgentStatus = {
     supportsResume: true,
     supportsDirectInput: true,
     liveInputMode: "server",
+    presentationMode: "terminal",
   },
 };
 
@@ -48,6 +49,7 @@ const claudeStatus: AgentStatus = {
     supportsResume: true,
     supportsDirectInput: true,
     liveInputMode: "terminal",
+    presentationMode: "terminal",
   },
 };
 

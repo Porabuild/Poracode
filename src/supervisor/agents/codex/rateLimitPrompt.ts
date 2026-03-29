@@ -12,19 +12,8 @@ const OPTION_RE = /^\W*[1-9]\.\s+(.+)/;
 
 /**
  * Detect a Codex TUI "Approaching rate limits" interactive prompt from
- * ANSI-stripped PTY output.  Returns structured info when the prompt is
+ * ANSI-stripped PTY output. Returns structured info when the prompt is
  * present, or `null` otherwise.
- *
- * The expected layout (after `stripAnsiPreservingLayout`):
- *
- *   Approaching rate limits
- *   Switch to gpt-5.1-codex-mini for lower credit usage?
- *
- *   > 1. Switch to gpt-5.1-codex-mini       Optimized for codex. ...
- *     2. Keep current model
- *     3. Keep current model (never show again)  Hide future ...
- *
- *   Press enter to confirm or esc to go back
  */
 export function detectRateLimitPrompt(text: string): RateLimitPromptInfo | null {
   if (!HEADER_RE.test(text)) {

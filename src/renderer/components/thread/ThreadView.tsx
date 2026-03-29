@@ -1,7 +1,9 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { ClipboardList, ShieldOff, Sparkles, TerminalSquare, X } from "lucide-react";
 import type {
   AgentStatus,
+  ProjectLocation,
+  TerminalSize,
   Thread,
   ThreadConfig,
   ThreadServerRequestId,
@@ -15,6 +17,8 @@ import { TerminalPane } from "./TerminalPane";
 import { ThreadComposer } from "./ThreadComposer";
 import { ThreadServerRequestPanel } from "./ThreadServerRequestPanel";
 import { formatCompactLabel, modelOptions } from "./threadComposerOptions";
+
+const DEFAULT_HIDDEN_TERMINAL_SIZE: TerminalSize = { cols: 120, rows: 30 };
 
 function buildControls(
   thread: Thread,
@@ -170,6 +174,8 @@ function buildControls(
 export function ThreadView(props: {
   thread: Thread;
   agentStatus: AgentStatus | undefined;
+  projectLocation: ProjectLocation;
+  pendingLaunchPrompt?: string;
   isWsl?: boolean;
   pendingServerRequests: PendingThreadServerRequest[];
   showCloseButton?: boolean;
@@ -180,9 +186,13 @@ export function ThreadView(props: {
   onClose?: (() => void) | undefined;
   onPaneDragStart?: (() => void) | undefined;
   onPaneDragEnd?: (() => void) | undefined;
-  onPaneDragOver?: ((zone: "left" | "center" | "right", event: React.DragEvent) => void) | undefined;
+  onPaneDragOver?:
+    | ((zone: "left" | "center" | "right", event: React.DragEvent) => void)
+    | undefined;
   onPaneDrop?: ((event: React.DragEvent) => void) | undefined;
   onConfigChange: (config: ThreadConfig) => void;
+  onLaunchConsumed?: (() => void) | undefined;
+  onLaunchFailed?: (() => void) | undefined;
   onResolveServerRequest: (input: {
     requestId: ThreadServerRequestId;
     method: string;
@@ -193,6 +203,8 @@ export function ThreadView(props: {
   const {
     thread,
     agentStatus,
+    projectLocation,
+    pendingLaunchPrompt,
     isWsl,
     pendingServerRequests,
     showCloseButton,
@@ -206,27 +218,41 @@ export function ThreadView(props: {
     onPaneDragOver,
     onPaneDrop,
     onConfigChange,
+    onLaunchConsumed,
+    onLaunchFailed,
     onResolveServerRequest,
     onSubmitInput,
   } = props;
   const [prompt, setPrompt] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [terminalSize, setTerminalSize] = useState<TerminalSize | null>(null);
+  const launchRequestRef = useRef<string | null>(null);
   const isServerControlled = agentStatus?.capabilities.liveInputMode === "server";
   const isTerminalInput = agentStatus?.capabilities.liveInputMode === "terminal";
+  const usesTerminalPresentation = (agentStatus?.capabilities.presentationMode ?? "terminal") === "terminal";
   const activeServerRequest = pendingServerRequests[0];
   const canSubmitServerInput =
     isServerControlled &&
     thread.sessionRef !== undefined &&
     (thread.status === "idle" || thread.status === "needs_reply");
   const canSubmitTerminalInput =
-    isTerminalInput && thread.status !== "inactive" && thread.status !== "launching";
+    usesTerminalPresentation &&
+    isTerminalInput &&
+    thread.status !== "inactive" &&
+    thread.status !== "launching";
   const showServerComposer =
     isServerControlled && thread.status !== "inactive" && thread.status !== "launching";
   const showTerminalComposer =
-    isTerminalInput && thread.status !== "inactive" && thread.status !== "launching";
+    usesTerminalPresentation &&
+    isTerminalInput &&
+    thread.status !== "inactive" &&
+    thread.status !== "launching";
+  const launchTerminalSize = usesTerminalPresentation ? terminalSize : DEFAULT_HIDDEN_TERMINAL_SIZE;
 
   const terminalPrompt =
-    thread.terminalPrompt && (thread.status === "needs_approval" || thread.status === "needs_reply")
+    usesTerminalPresentation &&
+    thread.terminalPrompt &&
+    (thread.status === "needs_approval" || thread.status === "needs_reply")
       ? thread.terminalPrompt
       : undefined;
 
@@ -235,6 +261,57 @@ export function ThreadView(props: {
   useEffect(() => {
     setPrompt("");
   }, [thread.id]);
+
+  useEffect(() => {
+    if (pendingLaunchPrompt === undefined) {
+      launchRequestRef.current = null;
+    }
+  }, [pendingLaunchPrompt, thread.id]);
+
+  useEffect(() => {
+    if (pendingLaunchPrompt === undefined || launchTerminalSize === null) {
+      return;
+    }
+
+    const launchKey = [
+      thread.id,
+      thread.sessionRef?.providerSessionId ?? "new",
+      pendingLaunchPrompt,
+      launchTerminalSize.cols,
+      launchTerminalSize.rows,
+    ].join(":");
+    if (launchRequestRef.current === launchKey) {
+      return;
+    }
+
+    launchRequestRef.current = launchKey;
+    onLaunchConsumed?.();
+
+    void readBridge()
+      .startThread({
+        threadId: thread.id,
+        projectLocation,
+        agentKind: thread.agentKind,
+        config: thread.config,
+        prompt: pendingLaunchPrompt,
+        initialSize: launchTerminalSize,
+        ...(thread.sessionRef ? { sessionRef: thread.sessionRef } : {}),
+      })
+      .catch(() => {
+        launchRequestRef.current = null;
+        onLaunchFailed?.();
+      });
+  }, [
+    onLaunchConsumed,
+    onLaunchFailed,
+    pendingLaunchPrompt,
+    projectLocation,
+    launchTerminalSize,
+    thread.agentKind,
+    thread.config,
+    thread.id,
+    thread.sessionRef,
+  ]);
 
   const writeTerminalData = (data: string) => {
     void readBridge().writeTerminal({ threadId: thread.id, data });
@@ -345,15 +422,19 @@ export function ThreadView(props: {
             className={`${alignClass} flex min-h-0 w-full max-w-[920px] flex-1 flex-col gap-2 pt-3`}
           >
             <div className="min-h-0 flex-1 overflow-hidden">
-              <TerminalPane
-                readOnly={isServerControlled}
-                status={thread.status}
-                threadId={thread.id}
-              />
+              {usesTerminalPresentation ? (
+                <TerminalPane
+                  onTerminalResize={setTerminalSize}
+                  readOnly={isServerControlled}
+                  status={thread.status}
+                  threadId={thread.id}
+                />
+              ) : null}
             </div>
 
             {activeServerRequest ? (
               <ThreadServerRequestPanel
+                agentLabel={agentStatus?.label}
                 request={activeServerRequest}
                 onResolve={onResolveServerRequest}
               />

@@ -1,6 +1,7 @@
 import { FitAddon } from "@xterm/addon-fit";
 import { Terminal } from "@xterm/xterm";
 import { useEffect, useRef, type RefObject } from "react";
+import type { TerminalSize } from "../../../shared/contracts";
 import { readBridge } from "../../bridge";
 import { useResolvedAppearance } from "../ui/provider";
 
@@ -37,6 +38,7 @@ export function XTermSurface(props: {
   onActivity?: () => void;
   onBell?: () => void;
   onTitleChange?: (title: string) => void;
+  onTerminalResize?: (size: TerminalSize) => void;
   className?: string;
 }) {
   const {
@@ -48,6 +50,7 @@ export function XTermSurface(props: {
     onActivity,
     onBell,
     onTitleChange,
+    onTerminalResize,
     className,
   } = props;
   const appearance = useResolvedAppearance();
@@ -62,6 +65,8 @@ export function XTermSurface(props: {
   onBellRef.current = onBell;
   const onTitleChangeRef: RefObject<typeof onTitleChange> = useRef(onTitleChange);
   onTitleChangeRef.current = onTitleChange;
+  const onTerminalResizeRef: RefObject<typeof onTerminalResize> = useRef(onTerminalResize);
+  onTerminalResizeRef.current = onTerminalResize;
 
   useEffect(() => {
     const mount = mountRef.current;
@@ -128,6 +133,10 @@ export function XTermSurface(props: {
 
         lastCols = terminal.cols;
         lastRows = terminal.rows;
+        onTerminalResizeRef.current?.({
+          cols: terminal.cols,
+          rows: terminal.rows,
+        });
 
         void readBridge()
           .resizeTerminal({

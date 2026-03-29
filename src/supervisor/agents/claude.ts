@@ -16,6 +16,7 @@ import {
   wrapWslCommand,
   type AgentEnvContext,
   type AgentAdapter,
+  type SyncConfigFromTerminalStateInput,
   type TerminalStatusHint,
 } from "./base";
 
@@ -33,6 +34,7 @@ const capabilities: AgentCapability = {
   supportsResume: true,
   supportsDirectInput: true,
   liveInputMode: "terminal",
+  presentationMode: "terminal",
 };
 
 function resolveClaudePermissionMode(config: ThreadConfig): string {
@@ -73,6 +75,23 @@ function buildClaudeArgs(
     args.push(prompt);
   }
   return args;
+}
+
+function syncClaudeConfigFromTerminalState(
+  input: SyncConfigFromTerminalStateInput,
+): ThreadConfig | undefined {
+  const planModeExited =
+    !input.hint.planMode &&
+    input.config.mode === "plan" &&
+    (input.hint.status === "idle" ||
+      (input.hint.status === "working" &&
+        (input.previousStatus === "needs_reply" || input.previousStatus === "needs_approval")));
+
+  if (!planModeExited) {
+    return undefined;
+  }
+
+  return { ...input.config, mode: undefined };
 }
 
 export function createClaudeAdapter(): AgentAdapter {
@@ -159,6 +178,7 @@ export function createClaudeAdapter(): AgentAdapter {
       return [prompt, "\r"];
     },
     detectTerminalStatus: detectClaudeTerminalStatus,
+    syncConfigFromTerminalState: syncClaudeConfigFromTerminalState,
     defaultOneShotModel: "haiku",
     buildOneShotCommand(model, effort) {
       const args = ["-p", "--model", model];
@@ -200,14 +220,16 @@ const CLAUDE_HINTS: HintEntry[] = [
 // Match numbered options: "1. Yes", "❯ 2. No", "> 3. Something"
 const OPTION_RE = /^[\s❯>]*(\d+)\.\s+(.+)/;
 const TEXT_INPUT_RE = /^type\s+(here|something)\b/i;
+const SEPARATOR_RE = /^[\s\-_=~\u2500-\u257f]+$/u;
 
 function parseTerminalPrompt(text: string): TerminalPrompt | undefined {
   const lines = text.split("\n");
 
-  // Track the most recent contiguous block of numbered options.
-  // A non-blank, non-option line between groups acts as a separator,
-  // so only the LAST group in the buffer is returned — stale numbered
-  // items from earlier output are discarded.
+  // Track the most recent logical block of numbered options.
+  // Non-option content starts a new group, but decorative divider rows
+  // are ignored so Claude menus that are visually split still surface
+  // as one prompt in the composer. Only the LAST real group in the
+  // buffer is returned, which discards stale numbered items above it.
   let currentOptions: TerminalPrompt["options"] = [];
   let currentTitle = "";
   let lastOptions: TerminalPrompt["options"] = [];
@@ -240,7 +262,7 @@ function parseTerminalPrompt(text: string): TerminalPrompt | undefined {
       });
     } else {
       const trimmed = lines[i]!.trim();
-      if (trimmed.length > 0) {
+      if (trimmed.length > 0 && !SEPARATOR_RE.test(trimmed)) {
         if (currentOptions.length > 0) {
           // Save completed group and start fresh
           lastOptions = currentOptions;

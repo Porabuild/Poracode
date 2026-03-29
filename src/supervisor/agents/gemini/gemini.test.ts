@@ -63,6 +63,42 @@ describe("detectGeminiTerminalStatus", () => {
     expect(detectGeminiTerminalStatus(text)?.status).toBe("needs_reply");
   });
 
+  it("keeps working when the input prompt is still visible below the spinner", () => {
+    const text = [
+      "0;✦  Working… (my-project)",
+      "⠋ Thinking... Moving Towards the Goal (esc to cancel, 4s)",
+      ">   Type your message or @path/to/file",
+      "? for shortcuts",
+    ].join("\n");
+
+    expect(detectGeminiTerminalStatus(text)).toEqual({
+      status: "working",
+      attention: "working",
+    });
+  });
+
+  it("returns to idle when Ready appears after earlier working output", () => {
+    const text = [
+      "⠋ Thinking... Moving Towards the Goal (esc to cancel, 4s)",
+      ">   Type your message or @path/to/file",
+      "0;◇  Ready (my-project)",
+      ">   Type your message or @path/to/file",
+    ].join("\n");
+
+    expect(detectGeminiTerminalStatus(text)).toEqual({
+      status: "idle",
+      attention: "none",
+    });
+  });
+
+  it("still uses the input prompt as an idle fallback when no stronger signal exists", () => {
+    const text = ">   Type your message or @path/to/file";
+    expect(detectGeminiTerminalStatus(text)).toEqual({
+      status: "idle",
+      attention: "none",
+    });
+  });
+
   it("parses numbered options from buffer with Action Required", () => {
     const text = [
       "Which modules would you like to update?",

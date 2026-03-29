@@ -9,6 +9,9 @@ export type AgentKind = z.infer<typeof agentKindSchema>;
 export const liveInputModeSchema = z.enum(["terminal", "server"]);
 export type LiveInputMode = z.infer<typeof liveInputModeSchema>;
 
+export const threadPresentationModeSchema = z.enum(["terminal", "gui"]);
+export type ThreadPresentationMode = z.infer<typeof threadPresentationModeSchema>;
+
 export const threadModeSchema = z.enum(["agent", "plan"]);
 export type ThreadMode = z.infer<typeof threadModeSchema>;
 
@@ -79,6 +82,7 @@ export const agentCapabilitySchema = z.object({
   supportsResume: z.boolean().default(false),
   supportsDirectInput: z.boolean().default(true),
   liveInputMode: liveInputModeSchema.default("terminal"),
+  presentationMode: threadPresentationModeSchema.default("terminal"),
 });
 export type AgentCapability = z.infer<typeof agentCapabilitySchema>;
 
@@ -119,6 +123,8 @@ export interface TerminalPromptOption {
   label: string;
   description?: string | undefined;
   isTextInput?: boolean | undefined;
+  submitInput?: string | undefined;
+  continueQueuedPrompt?: boolean | undefined;
 }
 
 export interface TerminalPrompt {
@@ -158,6 +164,12 @@ export interface ThreadHistorySnapshot {
   length: number;
 }
 
+export const terminalSizeSchema = z.object({
+  cols: z.number().int().min(20).max(400),
+  rows: z.number().int().min(5).max(200),
+});
+export type TerminalSize = z.infer<typeof terminalSizeSchema>;
+
 export const getAgentStatusesPayloadSchema = z.object({
   wslDistros: z.array(z.string().min(1)).default([]),
 });
@@ -169,6 +181,7 @@ export const startThreadPayloadSchema = z.object({
   agentKind: agentKindSchema,
   config: threadConfigSchema,
   prompt: z.string().default(""),
+  initialSize: terminalSizeSchema,
   sessionRef: sessionRefSchema.optional(),
 });
 export type StartThreadPayload = z.infer<typeof startThreadPayloadSchema>;
@@ -190,10 +203,8 @@ export const writeTerminalPayloadSchema = z.object({
 });
 export type WriteTerminalPayload = z.infer<typeof writeTerminalPayloadSchema>;
 
-export const resizeTerminalPayloadSchema = z.object({
+export const resizeTerminalPayloadSchema = terminalSizeSchema.extend({
   threadId: z.string().min(1),
-  cols: z.number().int().min(20).max(400),
-  rows: z.number().int().min(5).max(200),
 });
 export type ResizeTerminalPayload = z.infer<typeof resizeTerminalPayloadSchema>;
 

@@ -72,6 +72,7 @@ interface AppStoreState {
   projects: Project[];
   threads: Thread[];
   pendingServerRequests: PendingThreadServerRequest[];
+  pendingThreadLaunches: Record<string, string>;
   agentStatuses: AgentStatus[];
   wslAgentStatuses: AgentStatus[];
   view: AppView;
@@ -94,6 +95,8 @@ interface AppStoreState {
     config: ThreadConfig;
     prompt: string;
   }) => Thread;
+  queueThreadLaunch: (threadId: string, prompt: string) => void;
+  consumeThreadLaunch: (threadId: string) => void;
   deleteThread: (threadId: string) => void;
   renameThread: (threadId: string, title: string) => void;
   updateThreadConfig: (threadId: string, config: ThreadConfig) => void;
@@ -181,6 +184,7 @@ export const useAppStore = create<AppStoreState>()(
       projects: [],
       threads: [],
       pendingServerRequests: [],
+      pendingThreadLaunches: {},
       agentStatuses: [],
       wslAgentStatuses: [],
       view: { kind: "home" },
@@ -238,6 +242,11 @@ export const useAppStore = create<AppStoreState>()(
           const nextPendingServerRequests = state.pendingServerRequests.filter(
             (request) => !projectThreadIds.has(request.threadId),
           );
+          const nextPendingThreadLaunches = Object.fromEntries(
+            Object.entries(state.pendingThreadLaunches).filter(
+              ([threadId]) => !projectThreadIds.has(threadId),
+            ),
+          );
 
           let nextView = state.view;
           if (state.view.kind === "draft" && state.view.projectId === projectId) {
@@ -254,6 +263,7 @@ export const useAppStore = create<AppStoreState>()(
             projects: nextProjects,
             threads: nextThreads,
             pendingServerRequests: nextPendingServerRequests,
+            pendingThreadLaunches: nextPendingThreadLaunches,
             view: nextView,
           };
         }),
@@ -366,6 +376,22 @@ export const useAppStore = create<AppStoreState>()(
 
         return thread;
       },
+      queueThreadLaunch: (threadId, prompt) =>
+        set((state) => ({
+          pendingThreadLaunches: {
+            ...state.pendingThreadLaunches,
+            [threadId]: prompt,
+          },
+        })),
+      consumeThreadLaunch: (threadId) =>
+        set((state) => {
+          if (!(threadId in state.pendingThreadLaunches)) {
+            return {};
+          }
+
+          const { [threadId]: _removed, ...pendingThreadLaunches } = state.pendingThreadLaunches;
+          return { pendingThreadLaunches };
+        }),
       deleteThread: (threadId) =>
         set((state) => {
           const nextThreads = state.threads.filter((thread) => thread.id !== threadId);
@@ -387,6 +413,9 @@ export const useAppStore = create<AppStoreState>()(
             threads: nextThreads,
             pendingServerRequests: state.pendingServerRequests.filter(
               (request) => request.threadId !== threadId,
+            ),
+            pendingThreadLaunches: Object.fromEntries(
+              Object.entries(state.pendingThreadLaunches).filter(([id]) => id !== threadId),
             ),
             view: nextView,
           };

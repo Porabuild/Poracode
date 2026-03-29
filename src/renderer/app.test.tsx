@@ -67,7 +67,18 @@ vi.mock("./components/thread/ThreadDraftView", () => ({
 }));
 
 vi.mock("./components/thread/ThreadView", () => ({
-  ThreadView: (props: { thread: { title: string } }) => <div>{props.thread.title}</div>,
+  ThreadView: (props: {
+    thread: { id: string; title: string; status: string };
+    pendingLaunchPrompt?: string;
+  }) => (
+    <div
+      data-pending-launch={props.pendingLaunchPrompt ?? "__none__"}
+      data-status={props.thread.status}
+      data-testid={`thread-view-${props.thread.id}`}
+    >
+      {props.thread.title}
+    </div>
+  ),
 }));
 
 vi.mock("./state/sharedSettingsStore", () => ({
@@ -100,12 +111,13 @@ describe("App", () => {
       projects: [],
       threads: [],
       pendingServerRequests: [],
+      pendingThreadLaunches: {},
       agentStatuses: [],
       view: { kind: "home" },
     }));
   });
 
-  it("reopens the selected stored thread on launch even without a session ref", async () => {
+  it("queues launch for the selected stored thread on launch even without a session ref", async () => {
     useAppStore.persist.hasHydrated = vi.fn(() => true);
     useAppStore.persist.onHydrate = vi.fn(() => () => undefined);
     useAppStore.persist.onFinishHydration = vi.fn(() => () => undefined);
@@ -145,22 +157,16 @@ describe("App", () => {
     render(<App />);
 
     await waitFor(() => {
-      expect(bridge.startThread).toHaveBeenCalledWith({
-        threadId: "thread-1",
-        projectLocation: {
-          kind: "windows",
-          path: "C:\\repo",
-        },
-        agentKind: "codex",
-        config: {
-          model: "gpt-5.4",
-        },
-        prompt: "",
-      });
+      expect(screen.getByTestId("thread-view-thread-1")).toHaveAttribute(
+        "data-status",
+        "launching",
+      );
+      expect(screen.getByTestId("thread-view-thread-1")).toHaveAttribute("data-pending-launch", "");
     });
+    expect(bridge.startThread).not.toHaveBeenCalled();
   });
 
-  it("reopens the selected thread after persisted state hydrates", async () => {
+  it("queues launch for the selected thread after persisted state hydrates", async () => {
     let hydrated = false;
     let onHydrate: ((state: ReturnType<typeof useAppStore.getState>) => void) | undefined;
     let onFinishHydration: ((state: ReturnType<typeof useAppStore.getState>) => void) | undefined;
@@ -216,22 +222,16 @@ describe("App", () => {
     onFinishHydration?.(useAppStore.getState());
 
     await waitFor(() => {
-      expect(bridge.startThread).toHaveBeenCalledWith({
-        threadId: "thread-1",
-        projectLocation: {
-          kind: "windows",
-          path: "C:\\repo",
-        },
-        agentKind: "codex",
-        config: {
-          model: "gpt-5.4",
-        },
-        prompt: "",
-      });
+      expect(screen.getByTestId("thread-view-thread-1")).toHaveAttribute(
+        "data-status",
+        "launching",
+      );
+      expect(screen.getByTestId("thread-view-thread-1")).toHaveAttribute("data-pending-launch", "");
     });
+    expect(bridge.startThread).not.toHaveBeenCalled();
   });
 
-  it("initializes an inactive thread when the user selects it", async () => {
+  it("queues launch for an inactive thread when the user selects it", async () => {
     useAppStore.persist.hasHydrated = vi.fn(() => true);
     useAppStore.persist.onHydrate = vi.fn(() => () => undefined);
     useAppStore.persist.onFinishHydration = vi.fn(() => () => undefined);
@@ -272,18 +272,12 @@ describe("App", () => {
     fireEvent.click(await screen.findByText("open-thread-1"));
 
     await waitFor(() => {
-      expect(bridge.startThread).toHaveBeenCalledWith({
-        threadId: "thread-1",
-        projectLocation: {
-          kind: "windows",
-          path: "C:\\repo",
-        },
-        agentKind: "codex",
-        config: {
-          model: "gpt-5.4",
-        },
-        prompt: "",
-      });
+      expect(screen.getByTestId("thread-view-thread-1")).toHaveAttribute(
+        "data-status",
+        "launching",
+      );
+      expect(screen.getByTestId("thread-view-thread-1")).toHaveAttribute("data-pending-launch", "");
     });
+    expect(bridge.startThread).not.toHaveBeenCalled();
   });
 });
