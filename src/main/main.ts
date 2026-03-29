@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { fork, type ChildProcess } from "node:child_process";
 import { watch } from "node:fs";
 import { join } from "node:path";
-import { app, BrowserWindow, dialog, ipcMain } from "electron";
+import { app, BrowserWindow, dialog, ipcMain, screen } from "electron";
 import { autoUpdater } from "electron-updater";
 import {
   closeDatabase,
@@ -80,11 +80,54 @@ const pendingRequests = new Map<
   }
 >();
 
+interface WindowBounds {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  isMaximized: boolean;
+}
+
+function getSavedWindowBounds(): WindowBounds | null {
+  try {
+    const raw = dbGetState("window-bounds");
+    if (!raw) return null;
+    const bounds = JSON.parse(raw) as WindowBounds;
+    if (typeof bounds.width !== "number" || typeof bounds.height !== "number") return null;
+
+    // Validate that the saved position overlaps a visible display
+    if (typeof bounds.x === "number" && typeof bounds.y === "number") {
+      const rect = { x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height };
+      const display = screen.getDisplayMatching(rect);
+      const { x: dx, y: dy, width: dw, height: dh } = display.workArea;
+      const overlapX = Math.max(0, Math.min(rect.x + rect.width, dx + dw) - Math.max(rect.x, dx));
+      const overlapY = Math.max(0, Math.min(rect.y + rect.height, dy + dh) - Math.max(rect.y, dy));
+      if (overlapX < 50 || overlapY < 50) {
+        // Window would be mostly off-screen — discard position, keep size
+        return { ...bounds, x: undefined!, y: undefined! };
+      }
+    }
+
+    return bounds;
+  } catch {
+    return null;
+  }
+}
+
+function saveWindowBounds(win: BrowserWindow): void {
+  const isMaximized = win.isMaximized();
+  const { x, y, width, height } = win.getNormalBounds();
+  dbSetState("window-bounds", JSON.stringify({ x, y, width, height, isMaximized }));
+}
+
 function createWindow(): BrowserWindow {
+  const saved = getSavedWindowBounds();
   const supportsTitleBarOverlay = process.platform === "win32" || process.platform === "linux";
   const window = new BrowserWindow({
-    width: 1460,
-    height: 920,
+    show: false,
+    width: saved?.width ?? 1460,
+    height: saved?.height ?? 920,
+    ...(saved?.x != null && saved?.y != null ? { x: saved.x, y: saved.y } : {}),
     minWidth: 1080,
     minHeight: 720,
     backgroundColor: "#1c1f24",
@@ -107,12 +150,35 @@ function createWindow(): BrowserWindow {
     },
   });
 
+  // Show window only after it's fully ready — no size/position flicker
+  window.once("ready-to-show", () => {
+    if (saved?.isMaximized) window.maximize();
+    window.show();
+  });
+
   if (isDev) {
     void window.loadURL(process.env.VITE_DEV_SERVER_URL as string);
     window.webContents.openDevTools({ mode: "detach" });
   } else {
     void window.loadFile(join(__dirname, "../renderer/index.html"));
   }
+
+  // Debounced save on move/resize
+  let boundsTimer: ReturnType<typeof setTimeout> | null = null;
+  const debouncedSave = () => {
+    if (boundsTimer) clearTimeout(boundsTimer);
+    boundsTimer = setTimeout(() => saveWindowBounds(window), 500);
+  };
+  window.on("resize", debouncedSave);
+  window.on("move", debouncedSave);
+  window.on("maximize", debouncedSave);
+  window.on("unmaximize", debouncedSave);
+
+  // Final save on close (synchronous, no debounce)
+  window.on("close", () => {
+    if (boundsTimer) clearTimeout(boundsTimer);
+    saveWindowBounds(window);
+  });
 
   window.on("closed", () => {
     if (mainWindow === window) {
@@ -179,7 +245,8 @@ function callSupervisor<TRequest extends SupervisorRequest, TResult = unknown>(
   type: TRequest["type"],
   payload: TRequest["payload"],
 ): Promise<TResult> {
-  if (!supervisor) {
+  const child = supervisor;
+  if (!child || !child.connected) {
     return Promise.reject(new Error("Supervisor is not running."));
   }
 
@@ -195,7 +262,18 @@ function callSupervisor<TRequest extends SupervisorRequest, TResult = unknown>(
       resolve: (value) => resolve(value as TResult),
       reject,
     });
-    supervisor?.send(request);
+    try {
+      child.send(request, (error) => {
+        if (!error) {
+          return;
+        }
+        pendingRequests.delete(id);
+        reject(error);
+      });
+    } catch (error) {
+      pendingRequests.delete(id);
+      reject(error);
+    }
   });
 }
 
@@ -262,7 +340,9 @@ function registerIpcHandlers(): void {
     callSupervisor<SupervisorRequest, string[]>("listWslDistros", {}),
   );
 
-  ipcMain.handle(CHANNELS.getAgentStatuses, async () => callSupervisor("getAgentStatuses", {}));
+  ipcMain.handle(CHANNELS.getAgentStatuses, async (_event, payload) =>
+    callSupervisor("getAgentStatuses", payload ?? { wslDistros: [] }),
+  );
   ipcMain.handle(CHANNELS.getThreadSnapshots, async () => callSupervisor("getThreadSnapshots", {}));
 
   ipcMain.handle(CHANNELS.getThreadHistory, async (_event, threadId: string) =>

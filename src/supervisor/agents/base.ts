@@ -101,6 +101,9 @@ export interface AgentAdapter {
   createStructuredSession?(input: CreateStructuredSessionInput): Promise<StructuredSessionHandle>;
   buildDirectInput?(prompt: string): string[];
   detectTerminalStatus?(text: string): TerminalStatusHint | null;
+  detectInvalidSessionRef?(text: string): boolean;
+  /** Detect TUI prompts that should be auto-dismissed and return the key to send, or null. */
+  detectAutoResponse?(text: string): string | null;
   /** Discover the session ID after PTY spawn (e.g. by querying the CLI). */
   discoverSessionRef?(location: ProjectLocation): Promise<SessionRef | undefined>;
   /** Default model for lightweight one-shot tasks like commit message generation. */
@@ -109,7 +112,10 @@ export interface AgentAdapter {
    * Build a command for one-shot prompt→response (e.g. commit-msg gen).
    * Prompt is piped via stdin.
    */
-  buildOneShotCommand?(model: string, effort?: string): { command: string; args: string[] } | undefined;
+  buildOneShotCommand?(
+    model: string,
+    effort?: string,
+  ): { command: string; args: string[] } | undefined;
 }
 
 export interface TerminalStatusHint {
@@ -127,8 +133,17 @@ export function buildWindowsCmdCommand(cwd: string, command: string, args: strin
   };
 }
 
+export function getWslCommand(): string {
+  const systemRoot = process.env.SystemRoot ?? process.env.windir ?? "C:\\Windows";
+  return join(systemRoot, "System32", "wsl.exe");
+}
+
 function quotePowerShellLiteral(value: string): string {
   return `'${value.replaceAll("'", "''")}'`;
+}
+
+function quotePosixShellArg(value: string): string {
+  return `'${value.replaceAll("'", "'\\''")}'`;
 }
 
 function encodePowerShellCommand(script: string): string {
@@ -136,7 +151,9 @@ function encodePowerShellCommand(script: string): string {
 }
 
 /** Detect the best available shell. Returns a shell path on Windows (pwsh > powershell > cmd), or `true` on Unix (default shell). */
-export function detectShell(resolvePath: ResolveExecutablePath = resolveExecutablePath): string | true {
+export function detectShell(
+  resolvePath: ResolveExecutablePath = resolveExecutablePath,
+): string | true {
   if (process.platform !== "win32") return true;
   return (
     resolvePath("pwsh.exe") ??
@@ -183,23 +200,36 @@ export function wrapWslCommand(
     return buildWindowsCommand(cwd, command, args);
   }
 
-  const quoted = [command, ...args].map((a) => `'${a.replace(/'/g, "'\\''")}'`).join(" ");
-
-  // When the resolved executable path is known, prepend its directory to PATH
-  // and use a fast non-interactive login shell. This avoids the ~1s overhead
-  // of bash -lic while still ensuring node/npm binaries are reachable.
-  if (wslExecPath) {
-    const binDir = wslExecPath.replace(/\/[^/]+$/, "");
-    const script = `export PATH='${binDir}':"\\$PATH"; ${quoted}`;
+  if (!wslExecPath) {
+    const shellPath = resolveWslShellPath(location.distro);
+    const script = `exec ${[command, ...args].map(quotePosixShellArg).join(" ")}`;
     return {
-      command: "wsl.exe",
-      args: ["-d", location.distro, "--cd", location.linuxPath, "--", "bash", "-lc", script],
+      command: getWslCommand(),
+      args: [
+        "-d",
+        location.distro,
+        "--cd",
+        location.linuxPath,
+        "--",
+        shellPath,
+        "-l",
+        "-i",
+        "-c",
+        script,
+      ],
     };
   }
 
   return {
-    command: "wsl.exe",
-    args: ["-d", location.distro, "--cd", location.linuxPath, "--", "bash", "-lic", quoted],
+    command: getWslCommand(),
+    args: [
+      "-d",
+      location.distro,
+      "--cd",
+      location.linuxPath,
+      "--",
+      ...buildDirectWslCommandArgs(wslExecPath, args),
+    ],
   };
 }
 
@@ -234,6 +264,95 @@ export function readCommandOutput(
 }
 
 const WSL_BATCH_DELIMITER = "---LIGHTCODE_BATCH_SEP---";
+const DEFAULT_WSL_EXEC_PATH = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin";
+const wslShellPathCache = new Map<string, string>();
+
+function parseCommandOutputLine(stdout: string): string | undefined {
+  return stdout
+    .split(/\r?\n/g)
+    .map((line) => line.trim())
+    .findLast((line) => line.length > 0);
+}
+
+function buildDirectWslCommandArgs(command: string, args: string[]): string[] {
+  if (!command.startsWith("/")) {
+    return [command, ...args];
+  }
+
+  const slashIndex = command.lastIndexOf("/");
+  const binDir = slashIndex > 0 ? command.slice(0, slashIndex) : undefined;
+  const pathSegments = [binDir, DEFAULT_WSL_EXEC_PATH].filter((segment): segment is string =>
+    Boolean(segment),
+  );
+
+  return ["/usr/bin/env", `PATH=${pathSegments.join(":")}`, command, ...args];
+}
+
+export function resolveWslShellPath(distro: string): string {
+  const cached = wslShellPathCache.get(distro);
+  if (cached) {
+    return cached;
+  }
+
+  try {
+    const result = spawnSync(
+      getWslCommand(),
+      ["-d", distro, "--", "sh", "-lc", 'getent passwd "$(id -un)" | cut -d: -f7'],
+      {
+        encoding: "utf8",
+        shell: false,
+        windowsHide: true,
+        timeout: 5_000,
+      },
+    );
+    if (!result.error && result.status === 0) {
+      const shellPath = parseCommandOutputLine(`${result.stdout ?? ""}`);
+      if (shellPath) {
+        wslShellPathCache.set(distro, shellPath);
+        return shellPath;
+      }
+    }
+  } catch {
+    // Fall through to POSIX sh.
+  }
+
+  const fallback = "/bin/sh";
+  wslShellPathCache.set(distro, fallback);
+  return fallback;
+}
+
+export async function resolveWslShellPathAsync(distro: string): Promise<string> {
+  const cached = wslShellPathCache.get(distro);
+  if (cached) {
+    return cached;
+  }
+
+  try {
+    const { stdout } = await execFileAsync(
+      getWslCommand(),
+      ["-d", distro, "--", "sh", "-lc", 'getent passwd "$(id -un)" | cut -d: -f7'],
+      {
+        windowsHide: true,
+        timeout: 5_000,
+      },
+    );
+    const shellPath = parseCommandOutputLine(stdout ?? "");
+    if (shellPath) {
+      wslShellPathCache.set(distro, shellPath);
+      return shellPath;
+    }
+  } catch {
+    // Fall through to POSIX sh.
+  }
+
+  const fallback = "/bin/sh";
+  wslShellPathCache.set(distro, fallback);
+  return fallback;
+}
+
+export function buildBatchWslScript(commands: string[], sep = WSL_BATCH_DELIMITER): string {
+  return commands.map((cmd) => `(${cmd}) 2>/dev/null; echo "${sep}"`).join("\n");
+}
 
 /**
  * Run multiple commands in a single `wsl.exe` invocation, splitting output
@@ -245,13 +364,17 @@ export function batchWslCommands(
   commands: string[],
 ): { ok: boolean; stdout: string }[] {
   const sep = WSL_BATCH_DELIMITER;
-  const script = commands.map((cmd) => `(${cmd}) 2>/dev/null; echo "${sep}"`).join(" ");
-  const result = spawnSync("wsl.exe", ["-d", distro, "--", "bash", "-lic", script], {
-    encoding: "utf8",
-    shell: false,
-    windowsHide: true,
-    timeout: 15_000,
-  });
+  const script = buildBatchWslScript(commands, sep);
+  const result = spawnSync(
+    getWslCommand(),
+    ["-d", distro, "--", resolveWslShellPath(distro), "-l", "-i", "-c", script],
+    {
+      encoding: "utf8",
+      shell: false,
+      windowsHide: true,
+      timeout: 15_000,
+    },
+  );
   if (result.error || result.status !== 0) {
     return commands.map(() => ({ ok: false, stdout: "" }));
   }
@@ -263,18 +386,19 @@ export function batchWslCommands(
 }
 
 export function resolveWslExecutablePath(distro: string, command: string): string | undefined {
-  const result = spawnSync("wsl.exe", ["-d", distro, "--", "bash", "-lic", `which ${command}`], {
-    encoding: "utf8",
-    shell: false,
-    windowsHide: true,
-  });
+  const result = spawnSync(
+    getWslCommand(),
+    ["-d", distro, "--", resolveWslShellPath(distro), "-l", "-i", "-c", `command -v ${command}`],
+    {
+      encoding: "utf8",
+      shell: false,
+      windowsHide: true,
+    },
+  );
   if (result.error || result.status !== 0) {
     return undefined;
   }
-  return result.stdout
-    ?.split(/\r?\n/g)
-    .find((line) => line.trim().length > 0)
-    ?.trim();
+  return parseCommandOutputLine(`${result.stdout ?? ""}`);
 }
 
 export function readWslCommandOutput(
@@ -282,12 +406,15 @@ export function readWslCommandOutput(
   command: string,
   args: string[],
 ): { ok: boolean; stdout: string; stderr: string } {
-  const quoted = [command, ...args].map((a) => `'${a.replace(/'/g, "'\\''")}'`).join(" ");
-  const result = spawnSync("wsl.exe", ["-d", distro, "--", "bash", "-lic", quoted], {
-    encoding: "utf8",
-    shell: false,
-    windowsHide: true,
-  });
+  const result = spawnSync(
+    getWslCommand(),
+    ["-d", distro, "--", ...buildDirectWslCommandArgs(command, args)],
+    {
+      encoding: "utf8",
+      shell: false,
+      windowsHide: true,
+    },
+  );
   return {
     ok: result.status === 0,
     stdout: `${result.stdout ?? ""}`.trim(),
@@ -342,11 +469,12 @@ export async function batchWslCommandsAsync(
   commands: string[],
 ): Promise<{ ok: boolean; stdout: string }[]> {
   const sep = WSL_BATCH_DELIMITER;
-  const script = commands.map((cmd) => `(${cmd}) 2>/dev/null; echo "${sep}"`).join(" ");
+  const script = buildBatchWslScript(commands, sep);
   try {
+    const shellPath = await resolveWslShellPathAsync(distro);
     const { stdout } = await execFileAsync(
-      "wsl.exe",
-      ["-d", distro, "--", "bash", "-lic", script],
+      getWslCommand(),
+      ["-d", distro, "--", shellPath, "-l", "-i", "-c", script],
       { windowsHide: true, timeout: 15_000 },
     );
     const parts = (stdout ?? "").split(sep);
@@ -356,6 +484,38 @@ export async function batchWslCommandsAsync(
     });
   } catch {
     return commands.map(() => ({ ok: false, stdout: "" }));
+  }
+}
+
+export async function readWslCommandOutputAsync(
+  distro: string,
+  command: string,
+  args: string[],
+  options?: { cwd?: string },
+): Promise<{ ok: boolean; stdout: string; stderr: string }> {
+  try {
+    const { stdout, stderr } = await execFileAsync(
+      getWslCommand(),
+      [
+        "-d",
+        distro,
+        ...(options?.cwd ? ["--cd", options.cwd] : []),
+        "--",
+        ...buildDirectWslCommandArgs(command, args),
+      ],
+      {
+        windowsHide: true,
+        timeout: 10_000,
+      },
+    );
+    return { ok: true, stdout: (stdout ?? "").trim(), stderr: (stderr ?? "").trim() };
+  } catch (error: unknown) {
+    const err = error as { stdout?: string; stderr?: string } | undefined;
+    return {
+      ok: false,
+      stdout: (err?.stdout ?? "").trim(),
+      stderr: (err?.stderr ?? "").trim(),
+    };
   }
 }
 

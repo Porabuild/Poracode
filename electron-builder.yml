@@ -8,9 +8,26 @@ directories:
 
 files:
   - dist/**/*
+  - package.json
   - node_modules/node-pty/**/*
   - node_modules/better-sqlite3/**/*
-  - package.json
+  - node_modules/electron-updater/**/*
+  - node_modules/.pnpm/electron-updater@*/node_modules/**/*
+  - node_modules/.pnpm/builder-util-runtime@*/node_modules/**/*
+  - node_modules/.pnpm/debug@*/node_modules/**/*
+  - node_modules/.pnpm/ms@*/node_modules/**/*
+  - node_modules/.pnpm/sax@*/node_modules/**/*
+  - node_modules/.pnpm/fs-extra@*/node_modules/**/*
+  - node_modules/.pnpm/graceful-fs@*/node_modules/**/*
+  - node_modules/.pnpm/jsonfile@*/node_modules/**/*
+  - node_modules/.pnpm/universalify@*/node_modules/**/*
+  - node_modules/.pnpm/js-yaml@*/node_modules/**/*
+  - node_modules/.pnpm/argparse@*/node_modules/**/*
+  - node_modules/.pnpm/lazy-val@*/node_modules/**/*
+  - node_modules/.pnpm/lodash.escaperegexp@*/node_modules/**/*
+  - node_modules/.pnpm/lodash.isequal@*/node_modules/**/*
+  - node_modules/.pnpm/semver@*/node_modules/**/*
+  - node_modules/.pnpm/tiny-typed-emitter@*/node_modules/**/*
 
 extraMetadata:
   main: dist/main/main.cjs

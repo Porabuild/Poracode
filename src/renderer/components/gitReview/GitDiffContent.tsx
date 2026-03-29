@@ -301,7 +301,7 @@ function SingleFileDiff(props: {
     return () => {
       cancelled = true;
     };
-  }, [filePath, staged, project.id, project.location]);
+  }, [filePath, staged, project.id, project.location, diffMode]);
 
   // Re-parse on mode change
   const prevModeRef = useRef(diffMode);
@@ -420,7 +420,7 @@ export function GitDiffContent(props: {
     return () => {
       cancelled = true;
     };
-  }, [refreshKey, project.id, project.location]);
+  }, [refreshKey, project.id, project.location, diffMode]);
 
   // Re-parse diff lines when the view mode changes (no re-fetch needed)
   const prevModeRef = useRef(diffMode);

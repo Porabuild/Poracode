@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ClipboardList, ShieldOff, Sparkles, TerminalSquare } from "lucide-react";
 import type {
   AgentStatus,
@@ -9,6 +9,62 @@ import type {
 import { ProviderIcon } from "../providers";
 import { ThreadComposer } from "./ThreadComposer";
 import { formatCompactLabel, modelOptions } from "./threadComposerOptions";
+
+function resolvePreferredAgentKind(
+  installedAgents: AgentStatus[],
+  lastDraftConfig?: ProjectDraftConfig,
+): AgentStatus["kind"] | undefined {
+  if (lastDraftConfig) {
+    const savedAgent = installedAgents.find((agent) => agent.kind === lastDraftConfig.agentKind);
+    if (savedAgent) {
+      return savedAgent.kind;
+    }
+  }
+
+  return installedAgents[0]?.kind;
+}
+
+function resolveModelValue(agent: AgentStatus, preferred?: string): string {
+  const models = agent.capabilities.models;
+  return preferred && models.includes(preferred) ? preferred : (models[0] ?? "");
+}
+
+function resolveEffortValue(agent: AgentStatus, model: string, preferred?: string): string {
+  const efforts = agent.capabilities.modelEfforts?.[model] ?? agent.capabilities.efforts ?? [];
+  if (preferred && efforts.includes(preferred)) {
+    return preferred;
+  }
+
+  const fallback = agent.capabilities.defaultEffort;
+  if (fallback && efforts.includes(fallback)) {
+    return fallback;
+  }
+
+  return efforts[0] ?? "";
+}
+
+function resolveModeValue(agent: AgentStatus, preferred?: string): string {
+  const modes = agent.capabilities.modes;
+  return preferred && modes.includes(preferred as "agent" | "plan")
+    ? preferred
+    : (modes[0] ?? "agent");
+}
+
+function resolveApprovalPolicyValue(agent: AgentStatus, preferred?: string): string {
+  const policies = agent.capabilities.approvalPolicies;
+  return preferred && policies.includes(preferred) ? preferred : (policies[0] ?? "");
+}
+
+function resolveSandboxModeValue(agent: AgentStatus, preferred?: string): string {
+  const modes = agent.capabilities.sandboxModes;
+  return preferred && modes.includes(preferred) ? preferred : (modes[0] ?? "");
+}
+
+function formatAgentList(names: string[]): string {
+  if (names.length === 0) return "a supported coding agent";
+  if (names.length === 1) return names[0]!;
+  return `${names.slice(0, -1).join(", ")}, or ${names.at(-1)}`;
+}
 
 export function ThreadDraftView(props: {
   project: Project;
@@ -22,73 +78,93 @@ export function ThreadDraftView(props: {
 }) {
   const { project, agentStatuses, lastDraftConfig, onStart } = props;
   const installedAgents = agentStatuses.filter((status) => status.installed);
-  const defaultAgent = lastDraftConfig
-    ? (installedAgents.find((a) => a.kind === lastDraftConfig.agentKind) ?? installedAgents[0])
-    : installedAgents[0];
-  const [agentKind, setAgentKind] = useState<AgentStatus["kind"]>(defaultAgent?.kind ?? "codex");
+  const preferredAgentKind = resolvePreferredAgentKind(installedAgents, lastDraftConfig);
+  const [agentKind, setAgentKind] = useState<AgentStatus["kind"] | undefined>(preferredAgentKind);
+  const effectiveAgentKind = installedAgents.some((status) => status.kind === agentKind)
+    ? agentKind
+    : preferredAgentKind;
   const selectedAgent =
-    installedAgents.find((status) => status.kind === agentKind) ?? installedAgents[0];
-  const [model, setModel] = useState(() => {
-    const saved = lastDraftConfig?.model;
-    const models = selectedAgent?.capabilities.models ?? [];
-    return saved && models.includes(saved) ? saved : (models[0] ?? "");
-  });
-  const [effort, setEffort] = useState(() => {
-    const saved = lastDraftConfig?.effort;
-    const efforts = selectedAgent?.capabilities.efforts ?? [];
-    if (saved && efforts.includes(saved)) return saved;
-    const fallback = selectedAgent?.capabilities.defaultEffort;
-    return fallback && efforts.includes(fallback) ? fallback : (efforts[0] ?? "");
-  });
-  const [mode, setMode] = useState(() => {
-    const saved = lastDraftConfig?.mode;
-    const modes = selectedAgent?.capabilities.modes ?? [];
-    return saved && modes.includes(saved) ? saved : (modes[0] ?? "agent");
-  });
-  const [approvalPolicy, setApprovalPolicy] = useState(() => {
-    const saved = lastDraftConfig?.approvalPolicy;
-    const policies = selectedAgent?.capabilities.approvalPolicies ?? [];
-    return saved && policies.includes(saved) ? saved : (policies[0] ?? "");
-  });
-  const [sandboxMode, setSandboxMode] = useState(() => {
-    const saved = lastDraftConfig?.sandboxMode;
-    const modes = selectedAgent?.capabilities.sandboxModes ?? [];
-    return saved && modes.includes(saved) ? saved : (modes[0] ?? "");
-  });
+    installedAgents.find((status) => status.kind === effectiveAgentKind) ?? installedAgents[0];
+  const [model, setModel] = useState("");
+  const [effort, setEffort] = useState("");
+  const [mode, setMode] = useState<"agent" | "plan">("agent");
+  const [approvalPolicy, setApprovalPolicy] = useState("");
+  const [sandboxMode, setSandboxMode] = useState("");
   const [prompt, setPrompt] = useState("");
+  const lastAppliedAgentKindRef = useRef<AgentStatus["kind"] | undefined>(undefined);
 
   const availableEfforts =
     selectedAgent?.capabilities.modelEfforts?.[model] ?? selectedAgent?.capabilities.efforts ?? [];
 
-  const [lastResetAgentKind, setLastResetAgentKind] = useState(agentKind);
-  const [wasAgentResolved, setWasAgentResolved] = useState(!!selectedAgent);
-  const needsAgentReset =
-    selectedAgent && (agentKind !== lastResetAgentKind || (!wasAgentResolved && !lastDraftConfig));
-  if (needsAgentReset) {
-    setLastResetAgentKind(agentKind);
-    if (!wasAgentResolved) setWasAgentResolved(true);
-    setModel(selectedAgent.capabilities.models[0] ?? "");
-    setEffort(
-      selectedAgent.capabilities.defaultEffort ?? selectedAgent.capabilities.efforts[0] ?? "",
-    );
-    setMode(selectedAgent.capabilities.modes[0] ?? "agent");
-    setApprovalPolicy(selectedAgent.capabilities.approvalPolicies[0] ?? "");
-    setSandboxMode(selectedAgent.capabilities.sandboxModes[0] ?? "");
-  }
-
-  const [lastResetModel, setLastResetModel] = useState(model);
-  if (model !== lastResetModel) {
-    setLastResetModel(model);
-    if (availableEfforts.length > 0 && !availableEfforts.includes(effort)) {
-      setEffort(availableEfforts[0] ?? "");
+  useEffect(() => {
+    if (effectiveAgentKind && agentKind !== effectiveAgentKind) {
+      setAgentKind(effectiveAgentKind);
     }
-  }
+  }, [agentKind, effectiveAgentKind]);
+
+  useEffect(() => {
+    if (!selectedAgent || !effectiveAgentKind) {
+      return;
+    }
+
+    if (lastAppliedAgentKindRef.current === effectiveAgentKind) {
+      return;
+    }
+
+    const restoreSavedDraft =
+      lastAppliedAgentKindRef.current === undefined &&
+      lastDraftConfig?.agentKind === effectiveAgentKind;
+    const nextModel = resolveModelValue(
+      selectedAgent,
+      restoreSavedDraft ? lastDraftConfig?.model : undefined,
+    );
+
+    setModel(nextModel);
+    setEffort(
+      resolveEffortValue(
+        selectedAgent,
+        nextModel,
+        restoreSavedDraft ? lastDraftConfig?.effort : undefined,
+      ),
+    );
+    setMode(
+      resolveModeValue(selectedAgent, restoreSavedDraft ? lastDraftConfig?.mode : undefined) as
+        | "agent"
+        | "plan",
+    );
+    setApprovalPolicy(
+      resolveApprovalPolicyValue(
+        selectedAgent,
+        restoreSavedDraft ? lastDraftConfig?.approvalPolicy : undefined,
+      ),
+    );
+    setSandboxMode(
+      resolveSandboxModeValue(
+        selectedAgent,
+        restoreSavedDraft ? lastDraftConfig?.sandboxMode : undefined,
+      ),
+    );
+    lastAppliedAgentKindRef.current = effectiveAgentKind;
+  }, [effectiveAgentKind, lastDraftConfig, selectedAgent]);
+
+  useEffect(() => {
+    if (!selectedAgent) {
+      return;
+    }
+
+    const nextEffort = resolveEffortValue(selectedAgent, model, effort);
+    if (nextEffort !== effort) {
+      setEffort(nextEffort);
+    }
+  }, [effort, model, selectedAgent]);
 
   if (!selectedAgent) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-3 px-6 text-center">
         <h1 className="text-2xl font-semibold tracking-tight">No supported agents detected</h1>
-        <p className="text-muted">Install Codex or Claude Code to create a thread.</p>
+        <p className="text-muted">
+          Install {formatAgentList(props.agentStatuses.map((s) => s.label))} to create a thread.
+        </p>
       </div>
     );
   }
@@ -121,7 +197,11 @@ export function ThreadDraftView(props: {
                 controls={[
                   {
                     icon: (
-                      <ProviderIcon kind={agentKind} tone="inactive" className="size-4 shrink-0" />
+                      <ProviderIcon
+                        kind={selectedAgent.kind}
+                        tone="inactive"
+                        className="size-4 shrink-0"
+                      />
                     ),
                     options: installedAgents.map((agent) => ({
                       id: agent.kind,
@@ -134,11 +214,15 @@ export function ThreadDraftView(props: {
                         />
                       ),
                     })),
-                    value: agentKind,
+                    value: selectedAgent.kind,
                     onChange: (value) => setAgentKind(value as AgentStatus["kind"]),
                   },
                   {
-                    options: modelOptions(selectedAgent.capabilities.models, model, agentKind),
+                    options: modelOptions(
+                      selectedAgent.capabilities.models,
+                      model,
+                      selectedAgent.kind,
+                    ),
                     value: model,
                     onChange: setModel,
                   },
@@ -227,7 +311,7 @@ export function ThreadDraftView(props: {
                 onPromptChange={setPrompt}
                 onSubmit={() =>
                   onStart({
-                    agentKind,
+                    agentKind: selectedAgent.kind,
                     config: {
                       model,
                       ...(effort ? { effort } : {}),

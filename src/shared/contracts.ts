@@ -3,7 +3,7 @@ import { z } from "zod";
 export const themeModeSchema = z.enum(["system", "light", "dark"]);
 export type ThemeMode = z.infer<typeof themeModeSchema>;
 
-export const agentKindSchema = z.enum(["codex", "claude", "gemini"]);
+export const agentKindSchema = z.string().min(1);
 export type AgentKind = z.infer<typeof agentKindSchema>;
 
 export const liveInputModeSchema = z.enum(["terminal", "server"]);
@@ -157,6 +157,11 @@ export interface ThreadHistorySnapshot {
   history: string;
   length: number;
 }
+
+export const getAgentStatusesPayloadSchema = z.object({
+  wslDistros: z.array(z.string().min(1)).default([]),
+});
+export type GetAgentStatusesPayload = z.infer<typeof getAgentStatusesPayloadSchema>;
 
 export const startThreadPayloadSchema = z.object({
   threadId: z.string().min(1).optional(),

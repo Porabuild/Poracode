@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { deriveCodexStructuredState, parseCodexSocketMessage } from "./codex";
+import { deriveCodexStructuredState, detectCodexUpdatePrompt, parseCodexSocketMessage } from "./codex";
 
 describe("deriveCodexStructuredState", () => {
   it("maps active approval state to needs_approval", () => {
@@ -88,5 +88,35 @@ describe("deriveCodexStructuredState", () => {
         ok: true,
       },
     });
+  });
+});
+
+describe("detectCodexUpdatePrompt", () => {
+  const SAMPLE_TEXT = [
+    "🎉Update available! 0.116.0 -> 0.117.0",
+    "",
+    "Release notes: https://github.com/openai/codex/releases/latest",
+    "",
+    "> 1. Update now (runs `npm install -g @openai/codex`)",
+    "  2. Skip",
+    "  3. Skip until next version",
+    "",
+    "Press enter to continue",
+  ].join("\n");
+
+  it("detects the update prompt", () => {
+    expect(detectCodexUpdatePrompt(SAMPLE_TEXT)).toBe(true);
+  });
+
+  it("returns false for unrelated text", () => {
+    expect(detectCodexUpdatePrompt("hello world")).toBe(false);
+  });
+
+  it("returns false for empty text", () => {
+    expect(detectCodexUpdatePrompt("")).toBe(false);
+  });
+
+  it("detects without emoji prefix", () => {
+    expect(detectCodexUpdatePrompt("Update available! 0.116.0 -> 0.117.0")).toBe(true);
   });
 });

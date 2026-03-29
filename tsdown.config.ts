@@ -8,7 +8,9 @@ const shared = {
   sourcemap: true,
   dts: false,
   deps: {
-    neverBundle: ["electron", "node-pty", "better-sqlite3", "electron-updater"],
+    alwaysBundle: ["electron-updater", "simple-git"],
+    onlyBundle: false as const,
+    neverBundle: ["electron", "node-pty", "better-sqlite3"],
   },
 };
 

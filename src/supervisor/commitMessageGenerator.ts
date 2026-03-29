@@ -1,6 +1,11 @@
 import { spawn as spawnChild } from "node:child_process";
 import type { ProjectLocation } from "../shared/contracts";
-import { resolveExecutablePathAsync, type AgentAdapter } from "./agents/base";
+import {
+  resolveExecutablePathAsync,
+  wrapWslCommand,
+  type AgentAdapter,
+  type CommandSpec,
+} from "./agents/base";
 import { GitService } from "./git";
 
 const PROMPT =
@@ -23,25 +28,34 @@ function truncateDiff(diff: string): string {
   return diff.slice(0, MAX_DIFF_CHARS) + "\n\n[diff truncated]";
 }
 
-function getCommandCwd(location: ProjectLocation): string | undefined {
-  if (location.kind === "windows" || location.kind === "posix") {
-    return location.path;
-  }
-  return undefined;
-}
-
-function spawnAgent(
+function buildSpawnSpec(
+  location: ProjectLocation,
   command: string,
   args: string[],
-  input: string,
-  cwd?: string,
-): Promise<string> {
+  resolvedPath?: string,
+): CommandSpec {
+  if (location.kind === "wsl") {
+    return wrapWslCommand(location, command, args);
+  }
+
+  if (!resolvedPath) {
+    throw new Error(`Resolved path missing for ${command}`);
+  }
+
+  return {
+    command: resolvedPath,
+    args,
+    cwd: location.path,
+  };
+}
+
+function spawnAgent(spec: CommandSpec, input: string): Promise<string> {
   return new Promise((resolve, reject) => {
-    const child = spawnChild(command, args, {
+    const child = spawnChild(spec.command, spec.args, {
       stdio: ["pipe", "pipe", "pipe"],
       windowsHide: true,
       timeout: COMMIT_MESSAGE_TIMEOUT_MS,
-      ...(cwd ? { cwd } : {}),
+      ...(spec.cwd ? { cwd: spec.cwd } : {}),
     });
 
     let stdout = "";
@@ -89,12 +103,14 @@ export async function generateCommitMessage(
     throw new Error(`${adapter.label} does not support one-shot generation`);
   }
 
-  // Verify the CLI is reachable before spawning.
-  const resolvedPath = await resolveExecutablePathAsync(cmd.command);
-  if (!resolvedPath) {
+  const resolvedPath =
+    location.kind === "wsl" ? undefined : await resolveExecutablePathAsync(cmd.command);
+  if (location.kind !== "wsl" && !resolvedPath) {
     throw new Error(`${adapter.label} CLI not found: ${cmd.command}`);
   }
-  console.log(`[commit-gen] spawning: ${cmd.command} ${cmd.args.join(" ")}`);
+
+  const spawnSpec = buildSpawnSpec(location, cmd.command, cmd.args, resolvedPath);
+  console.log(`[commit-gen] spawning: ${spawnSpec.command} ${spawnSpec.args.join(" ")}`);
 
   const gitService = new GitService();
 
@@ -106,10 +122,5 @@ export async function generateCommitMessage(
     throw new Error("No changes to describe");
   }
 
-  return spawnAgent(
-    cmd.command,
-    cmd.args,
-    PROMPT + truncateDiff(diff),
-    getCommandCwd(location),
-  );
+  return spawnAgent(spawnSpec, PROMPT + truncateDiff(diff));
 }

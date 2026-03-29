@@ -10,6 +10,7 @@ import type {
   ThreadServerRequestId,
   ThreadStatus,
 } from "../../shared/contracts";
+import { detectRateLimitPrompt } from "../../shared/rateLimitPrompt";
 import { toWslUncPath } from "../../shared/wsl";
 import {
   batchWslCommandsAsync,
@@ -18,7 +19,9 @@ import {
   createKnownSessionRef,
   detectAuthFile,
   readCommandOutputAsync,
+  readWslCommandOutputAsync,
   resolveExecutablePathAsync,
+  resolveWslExecutablePath,
   wrapWslCommand,
   type AgentAdapter,
   type AgentEnvContext,
@@ -861,13 +864,38 @@ async function connectCodexAppServer(
   );
 }
 
+const CODEX_UPDATE_RE = /Update available!/;
+
+/**
+ * Detect a Codex TUI "Update available!" interactive prompt from
+ * ANSI-stripped PTY output.
+ */
+export function detectCodexUpdatePrompt(text: string): boolean {
+  return CODEX_UPDATE_RE.test(text);
+}
+
 function formatAppServerOutput(chunks: string[]): string {
   const text = chunks.join("").trim();
   return text ? ` Output: ${text}` : "";
 }
 
 export function createCodexAdapter(): AgentAdapter {
-  let detectedWslExecPath: string | undefined;
+  const detectedWslExecPaths = new Map<string, string | undefined>();
+
+  function resolveWslExecPath(location: ProjectLocation): string | undefined {
+    if (location.kind !== "wsl") {
+      return undefined;
+    }
+
+    const cached = detectedWslExecPaths.get(location.distro);
+    if (cached) {
+      return cached;
+    }
+
+    const resolved = resolveWslExecutablePath(location.distro, "codex");
+    detectedWslExecPaths.set(location.distro, resolved);
+    return resolved;
+  }
 
   return {
     kind: "codex",
@@ -877,12 +905,12 @@ export function createCodexAdapter(): AgentAdapter {
       const isWsl = ctx?.envKind === "wsl" && ctx.wslDistro;
 
       if (isWsl) {
-        const [whichResult, versionResult] = await batchWslCommandsAsync(ctx.wslDistro!, [
-          "which codex",
-          "codex --version",
-        ]);
+        const [whichResult] = await batchWslCommandsAsync(ctx.wslDistro!, ["command -v codex"]);
         const executablePath = whichResult?.ok ? whichResult.stdout : undefined;
-        detectedWslExecPath = executablePath;
+        detectedWslExecPaths.set(ctx.wslDistro!, executablePath);
+        const versionResult = executablePath
+          ? await readWslCommandOutputAsync(ctx.wslDistro!, executablePath, ["--version"])
+          : undefined;
         return {
           kind: "codex",
           label: "Codex",
@@ -910,19 +938,43 @@ export function createCodexAdapter(): AgentAdapter {
       };
     },
     buildLaunchCommand(location, config, prompt, sessionRef, launchOptions) {
-      return buildCommand(location, config, prompt, sessionRef, launchOptions, detectedWslExecPath);
+      return buildCommand(
+        location,
+        config,
+        prompt,
+        sessionRef,
+        launchOptions,
+        resolveWslExecPath(location),
+      );
     },
     buildResumeCommand(location, config, prompt, sessionRef, launchOptions) {
-      return buildCommand(location, config, prompt, sessionRef, launchOptions, detectedWslExecPath);
+      return buildCommand(
+        location,
+        config,
+        prompt,
+        sessionRef,
+        launchOptions,
+        resolveWslExecPath(location),
+      );
     },
     createInitialSessionRef() {
       return undefined;
     },
     async createStructuredSession(input) {
-      return CodexStructuredSession.create(input, detectedWslExecPath);
+      return CodexStructuredSession.create(
+        input,
+        input.projectLocation.kind === "wsl"
+          ? detectedWslExecPaths.get(input.projectLocation.distro)
+          : undefined,
+      );
     },
     buildDirectInput(prompt) {
       return [...prompt, "\r"];
+    },
+    detectAutoResponse(text) {
+      if (detectCodexUpdatePrompt(text)) return "2";
+      if (detectRateLimitPrompt(text)) return "2";
+      return null;
     },
     defaultOneShotModel: "gpt-5.4-mini",
     buildOneShotCommand(model, effort) {

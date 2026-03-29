@@ -14,6 +14,7 @@ import type {
   CloseThreadPayload,
   GenerateCommitMessagePayload,
   GenerateCommitMessageResult,
+  GetAgentStatusesPayload,
   GetGitDiffBatchPayload,
   GetGitDiffPayload,
   GetGitStatusPayload,
@@ -46,7 +47,6 @@ import type {
 } from "../shared/contracts";
 import type { SupervisorEvent } from "../shared/ipc";
 import { stripAnsiPreservingLayout } from "../shared/ansi";
-import { detectRateLimitPrompt } from "../shared/rateLimitPrompt";
 import { stripInternalHistoryMarkers } from "../shared/terminalHistory";
 import { normalizeWslListOutput } from "../shared/wsl";
 import { createAgentRegistry } from "./agents/registry";
@@ -55,6 +55,7 @@ import {
   type AgentEnvContext,
   type CommandSpec,
   type StructuredSessionHandle,
+  getWslCommand,
 } from "./agents/base";
 import { generateCommitMessage } from "./commitMessageGenerator";
 import { GitService } from "./git";
@@ -73,12 +74,14 @@ interface SessionRuntime {
   status: ThreadStatus;
   attention: ThreadAttention;
   canResumeWithConfig: boolean;
+  launchPrompt: string;
   logPath: string;
   outputLength: number;
   structuredSession?: StructuredSessionHandle;
   ignoreExit?: boolean;
+  invalidSessionRecoveryStarted?: boolean;
   ptyExited?: boolean;
-  rateLimitPromptEmitted?: boolean;
+  autoResponseEmitted?: boolean;
   sessionRefDiscoveryStarted?: boolean;
   terminalPrompt?: TerminalPrompt | undefined;
   prevChunk: string;
@@ -104,6 +107,43 @@ export async function writeSubmittedPrompt(
       await sleep(8);
     }
   }
+}
+
+export async function detectWslAgentStatuses(
+  adapters: Iterable<AgentAdapter>,
+  distros: readonly string[],
+): Promise<AgentStatus[]> {
+  const adapterList = [...adapters];
+  const statuses = await Promise.all(
+    distros.map(async (distro) => {
+      const ctx: AgentEnvContext = { envKind: "wsl", wslDistro: distro };
+      return Promise.all(
+        adapterList.map(async (adapter) => {
+          const status = await adapter.detectInstall(ctx);
+          return { ...status, envKind: "wsl" as const, envDistro: distro };
+        }),
+      );
+    }),
+  );
+
+  return statuses.flat();
+}
+
+function filterWslStatusesForDistros(
+  statuses: readonly AgentStatus[],
+  distros: readonly string[],
+): AgentStatus[] {
+  if (distros.length === 0) {
+    return [];
+  }
+
+  const distroSet = new Set(distros);
+  return statuses.filter((status) => {
+    if (status.envDistro === undefined) {
+      return true;
+    }
+    return distroSet.has(status.envDistro);
+  });
 }
 
 export class SupervisorRuntime {
@@ -133,7 +173,7 @@ export class SupervisorRuntime {
   async listWslDistros(): Promise<string[]> {
     const t0 = Date.now();
     try {
-      const { stdout } = await execFileAsync("wsl.exe", ["-l", "-q"], {
+      const { stdout } = await execFileAsync(getWslCommand(), ["-l", "-q"], {
         encoding: "utf8",
         windowsHide: true,
         timeout: 5_000,
@@ -146,17 +186,19 @@ export class SupervisorRuntime {
     }
   }
 
-  async getAgentStatuses(): Promise<AgentStatus[]> {
-    // Emit cached results from disk immediately (if available).
-    this.emitCachedStatuses();
+  async getAgentStatuses(payload: GetAgentStatusesPayload): Promise<AgentStatus[]> {
+    const wslDistros = [...new Set(payload.wslDistros)];
 
-    this.detectAllAgentStatusesBackground();
+    // Emit cached results from disk immediately (if available).
+    this.emitCachedStatuses(wslDistros);
+
+    this.detectAllAgentStatusesBackground(wslDistros);
 
     // Return empty — results arrive via events.
     return [];
   }
 
-  private emitCachedStatuses(): void {
+  private emitCachedStatuses(wslDistros: readonly string[]): void {
     try {
       if (!existsSync(this.statusCachePath)) return;
       const raw = readFileSync(this.statusCachePath, "utf8");
@@ -168,9 +210,10 @@ export class SupervisorRuntime {
         console.log("[supervisor] agent statuses: emitting from disk cache (windows)");
         this.emit({ type: "windows-agent-statuses", statuses: cache.windows });
       }
-      if (cache.wsl?.length) {
+      const filteredWsl = filterWslStatusesForDistros(cache.wsl ?? [], wslDistros);
+      if (filteredWsl.length > 0) {
         console.log("[supervisor] agent statuses: emitting from disk cache (wsl)");
-        this.emit({ type: "wsl-agent-statuses", statuses: cache.wsl });
+        this.emit({ type: "wsl-agent-statuses", statuses: filteredWsl });
       }
     } catch {
       // Cache corrupt or missing — ignore, fresh detection will run.
@@ -185,7 +228,7 @@ export class SupervisorRuntime {
     }
   }
 
-  private detectAllAgentStatusesBackground(): void {
+  private detectAllAgentStatusesBackground(wslDistros: readonly string[]): void {
     const t0 = Date.now();
 
     // Windows detection — fast (~500ms), but still non-blocking.
@@ -201,35 +244,37 @@ export class SupervisorRuntime {
         console.log(`[supervisor] windows agent statuses: done (${Date.now() - t0}ms)`);
         this.emit({ type: "windows-agent-statuses", statuses: windowsStatuses });
 
-        this.detectWslAndWriteCache(windowsStatuses);
+        this.detectWslAndWriteCache(windowsStatuses, wslDistros);
       })
       .catch(() => undefined);
   }
 
-  private detectWslAndWriteCache(windowsStatuses: AgentStatus[]): void {
+  private detectWslAndWriteCache(
+    windowsStatuses: AgentStatus[],
+    wslDistros: readonly string[],
+  ): void {
     const t0 = Date.now();
-    void this.listWslDistros()
-      .then(async (distros) => {
-        const defaultDistro = distros[0];
-        if (!defaultDistro) {
-          console.log(`[supervisor] wsl agent statuses: no distros (${Date.now() - t0}ms)`);
-          this.writeDiskCache(windowsStatuses, []);
-          return;
+    const distros = [...new Set(wslDistros)];
+    if (distros.length === 0) {
+      console.log(
+        `[supervisor] wsl agent statuses: skipped (no project distros) (${Date.now() - t0}ms)`,
+      );
+      this.emit({ type: "wsl-agent-statuses", statuses: [] });
+      this.writeDiskCache(windowsStatuses, []);
+      return;
+    }
+
+    void detectWslAgentStatuses(this.adapters.values(), distros)
+      .then((wslStatuses) => {
+        const installedByDistro = new Map<string, number>();
+        for (const status of wslStatuses) {
+          const distro = status.envDistro;
+          if (!distro || !status.installed) continue;
+          installedByDistro.set(distro, (installedByDistro.get(distro) ?? 0) + 1);
         }
-
-        const ctx: AgentEnvContext = { envKind: "wsl", wslDistro: defaultDistro };
-        const wslStatuses = await Promise.all(
-          [...this.adapters.values()].map(async (adapter) => {
-            const at = Date.now();
-            const status = await adapter.detectInstall(ctx);
-            console.log(
-              `[supervisor] detectInstall(${adapter.kind}, wsl/${defaultDistro}): ${Date.now() - at}ms`,
-            );
-            return { ...status, envKind: "wsl" as const, envDistro: defaultDistro };
-          }),
+        console.log(
+          `[supervisor] wsl agent statuses: done (${Date.now() - t0}ms) ${distros.join(", ")} ${JSON.stringify(Object.fromEntries(installedByDistro))}`,
         );
-
-        console.log(`[supervisor] wsl agent statuses: done (${Date.now() - t0}ms)`);
         this.emit({ type: "wsl-agent-statuses", statuses: wslStatuses });
         this.writeDiskCache(windowsStatuses, wslStatuses);
       })
@@ -373,6 +418,7 @@ export class SupervisorRuntime {
       agentKind: payload.agentKind,
       projectLocation: payload.projectLocation,
       config: effectiveConfig,
+      launchPrompt,
       command,
       ...(structuredSession ? { structuredSession } : {}),
       ...(resolvedSessionRef ? { sessionRef: resolvedSessionRef } : {}),
@@ -706,7 +752,7 @@ export class SupervisorRuntime {
     if (location.kind === "wsl") {
       // Use WSL's default shell directly — same speed as typing `wsl` in PowerShell.
       return {
-        command: "wsl.exe",
+        command: getWslCommand(),
         args: ["-d", location.distro, "--cd", location.linuxPath],
       };
     }
@@ -792,6 +838,7 @@ export class SupervisorRuntime {
     adapter: AgentAdapter;
     projectLocation: ProjectLocation;
     config: ThreadConfig;
+    launchPrompt: string;
     command: CommandSpec;
     structuredSession?: StructuredSessionHandle;
     sessionRef?: SessionRef;
@@ -825,6 +872,7 @@ export class SupervisorRuntime {
       pty,
       projectLocation: input.projectLocation,
       config: input.config,
+      launchPrompt: input.launchPrompt,
       ...(input.sessionRef ? { sessionRef: input.sessionRef } : {}),
       status: "launching",
       attention: "none",
@@ -925,17 +973,14 @@ export class SupervisorRuntime {
         this.updateState(session, "idle", "none");
       }
 
-      // Auto-dismiss the TUI "Approaching rate limits" prompt by selecting
-      // "Keep current model".  Model switching is handled via the GUI control
-      // bar and the structured session, not the TUI menu.
-      if (
-        session.adapter.capabilities.liveInputMode === "server" &&
-        !session.rateLimitPromptEmitted
-      ) {
+      // Let the adapter auto-dismiss TUI prompts it owns (e.g. update
+      // nags, rate-limit model-switch menus) so the runtime stays generic.
+      if (session.adapter.detectAutoResponse && !session.autoResponseEmitted) {
         const stripped = stripAnsiPreservingLayout(data);
-        if (detectRateLimitPrompt(stripped)) {
-          session.rateLimitPromptEmitted = true;
-          session.pty.write("2");
+        const key = session.adapter.detectAutoResponse(stripped);
+        if (key) {
+          session.autoResponseEmitted = true;
+          session.pty.write(key);
         }
       }
 
@@ -943,6 +988,14 @@ export class SupervisorRuntime {
         const combined = session.prevChunk + data;
         session.prevChunk = combined.length > 8192 ? combined.slice(-8192) : combined;
         const stripped = stripAnsiPreservingLayout(combined);
+        if (
+          session.status === "launching" &&
+          session.sessionRef &&
+          session.adapter.detectInvalidSessionRef?.(stripped)
+        ) {
+          this.recoverInvalidSessionRef(session);
+          return;
+        }
         const hint = session.adapter.detectTerminalStatus(stripped);
         const promptChanged =
           JSON.stringify(hint?.prompt) !== JSON.stringify(session.terminalPrompt);
@@ -1102,10 +1155,56 @@ export class SupervisorRuntime {
       adapter: session.adapter,
       projectLocation: session.projectLocation,
       config: effectiveConfig,
+      launchPrompt,
       command,
       ...(structuredSession ? { structuredSession } : {}),
       sessionRef: effectiveSessionRef,
     });
+  }
+
+  private recoverInvalidSessionRef(session: SessionRuntime): void {
+    if (session.invalidSessionRecoveryStarted || !session.sessionRef) {
+      return;
+    }
+
+    session.invalidSessionRecoveryStarted = true;
+    const staleSessionId = session.sessionRef.providerSessionId;
+    console.log(
+      `[supervisor] invalid session ref for ${session.agentKind}; relaunching without resume: ${staleSessionId}`,
+    );
+
+    void (async () => {
+      if (this.sessions.get(session.threadId)?.instanceId !== session.instanceId) {
+        return;
+      }
+
+      session.ignoreExit = true;
+      await session.structuredSession?.dispose();
+      if (session.structuredSession) {
+        await sleep(150);
+      }
+      this.safePtyKill(session);
+
+      if (this.sessions.get(session.threadId)?.instanceId !== session.instanceId) {
+        return;
+      }
+
+      const command = session.adapter.buildLaunchCommand(
+        session.projectLocation,
+        session.config,
+        session.launchPrompt,
+      );
+
+      this.spawnThread({
+        threadId: session.threadId,
+        agentKind: session.agentKind,
+        adapter: session.adapter,
+        projectLocation: session.projectLocation,
+        config: session.config,
+        launchPrompt: session.launchPrompt,
+        command,
+      });
+    })();
   }
 
   private handleStructuredSessionClosed(session: SessionRuntime): void {

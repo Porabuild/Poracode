@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { detectGeminiInvalidSessionRef } from "./adapter";
 import { detectGeminiTerminalStatus } from "./terminal";
 
 describe("detectGeminiTerminalStatus", () => {
@@ -118,5 +119,19 @@ describe("detectGeminiTerminalStatus", () => {
       label: "Type your feedback...",
       isTextInput: true,
     });
+  });
+});
+
+describe("detectGeminiInvalidSessionRef", () => {
+  it("detects Gemini invalid resume session errors", () => {
+    expect(
+      detectGeminiInvalidSessionRef(
+        'Error resuming session: Invalid session identifier "db8b5cb1-4cb6-46c1-abcb-71d35e18006a".',
+      ),
+    ).toBe(true);
+  });
+
+  it("ignores unrelated output", () => {
+    expect(detectGeminiInvalidSessionRef("Loaded cached credentials.")).toBe(false);
   });
 });

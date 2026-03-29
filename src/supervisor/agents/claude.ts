@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import type {
   AgentCapability,
   AgentStatus,
+  ProjectLocation,
   TerminalPrompt,
   ThreadConfig,
 } from "../../shared/contracts";
@@ -9,7 +10,9 @@ import {
   batchWslCommandsAsync,
   createKnownSessionRef,
   readCommandOutputAsync,
+  readWslCommandOutputAsync,
   resolveExecutablePathAsync,
+  resolveWslExecutablePath,
   wrapWslCommand,
   type AgentEnvContext,
   type AgentAdapter,
@@ -73,7 +76,22 @@ function buildClaudeArgs(
 }
 
 export function createClaudeAdapter(): AgentAdapter {
-  let detectedWslExecPath: string | undefined;
+  const detectedWslExecPaths = new Map<string, string | undefined>();
+
+  function resolveWslExecPath(location: ProjectLocation): string | undefined {
+    if (location.kind !== "wsl") {
+      return undefined;
+    }
+
+    const cached = detectedWslExecPaths.get(location.distro);
+    if (cached) {
+      return cached;
+    }
+
+    const resolved = resolveWslExecutablePath(location.distro, "claude");
+    detectedWslExecPaths.set(location.distro, resolved);
+    return resolved;
+  }
 
   return {
     kind: "claude",
@@ -83,12 +101,17 @@ export function createClaudeAdapter(): AgentAdapter {
       const isWsl = ctx?.envKind === "wsl" && ctx.wslDistro;
 
       if (isWsl) {
-        const [whichResult, versionResult, authResult] = await batchWslCommandsAsync(
-          ctx.wslDistro!,
-          ["which claude", "claude --version", "claude auth status"],
-        );
+        const [whichResult] = await batchWslCommandsAsync(ctx.wslDistro!, ["command -v claude"]);
         const executablePath = whichResult?.ok ? whichResult.stdout : undefined;
-        detectedWslExecPath = executablePath;
+        detectedWslExecPaths.set(ctx.wslDistro!, executablePath);
+        const [versionResult, authResult] = await Promise.all([
+          executablePath
+            ? readWslCommandOutputAsync(ctx.wslDistro!, executablePath, ["--version"])
+            : undefined,
+          executablePath
+            ? readWslCommandOutputAsync(ctx.wslDistro!, executablePath, ["auth", "status"])
+            : undefined,
+        ]);
         return {
           kind: "claude",
           label: "Claude Code",
@@ -121,13 +144,13 @@ export function createClaudeAdapter(): AgentAdapter {
     buildLaunchCommand(location, config, prompt, _sessionRef, _launchOptions) {
       const assignedId = randomUUID();
       const args = buildClaudeArgs(config, prompt, undefined, assignedId);
-      const spec = wrapWslCommand(location, "claude", args, detectedWslExecPath);
+      const spec = wrapWslCommand(location, "claude", args, resolveWslExecPath(location));
       spec.sessionRef = createKnownSessionRef(assignedId);
       return spec;
     },
     buildResumeCommand(location, config, prompt, sessionRef, _launchOptions) {
       const args = buildClaudeArgs(config, prompt, sessionRef.providerSessionId);
-      return wrapWslCommand(location, "claude", args, detectedWslExecPath);
+      return wrapWslCommand(location, "claude", args, resolveWslExecPath(location));
     },
     createInitialSessionRef() {
       return undefined;

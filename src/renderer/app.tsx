@@ -1,6 +1,7 @@
 import { lazy, startTransition, Suspense, useEffect, useEffectEvent, useState } from "react";
 import { ArrowRight, FolderOpen, Plus, TerminalSquare } from "lucide-react";
 import { Spinner } from "@heroui/react";
+import { getProjectAgentStatuses } from "../shared/agentStatus";
 import { parseWslUncPath } from "../shared/wsl";
 import { readBridge } from "./bridge";
 import { ProviderIcon, getStatusTone } from "./components/providers";
@@ -197,6 +198,7 @@ function AppContent() {
   const threads = useAppStore((state) => state.threads);
   const pendingServerRequests = useAppStore((state) => state.pendingServerRequests);
   const agentStatuses = useAppStore((state) => state.agentStatuses);
+  const wslAgentStatuses = useAppStore((state) => state.wslAgentStatuses);
   const createThread = useAppStore((state) => state.createThread);
   const updateProjectDraftConfig = useAppStore((state) => state.updateProjectDraftConfig);
   const removeThreadServerRequest = useAppStore((state) => state.removeThreadServerRequest);
@@ -212,10 +214,15 @@ function AppContent() {
     if (!project) {
       return <HomeView />;
     }
+    const projectAgentStatuses = getProjectAgentStatuses(
+      project.location,
+      agentStatuses,
+      wslAgentStatuses,
+    );
     return (
       <ThreadDraftView
         project={project}
-        agentStatuses={agentStatuses}
+        agentStatuses={projectAgentStatuses}
         {...(project.lastDraftConfig ? { lastDraftConfig: project.lastDraftConfig } : {})}
         onStart={({ agentKind, config, prompt }) => {
           updateProjectDraftConfig(project.id, {
@@ -265,7 +272,12 @@ function AppContent() {
         if (!thread) return null;
         const project = projects.find((item) => item.id === thread.projectId);
         if (!project) return null;
-        const agentStatus = agentStatuses.find((status) => status.kind === thread.agentKind);
+        const projectAgentStatuses = getProjectAgentStatuses(
+          project.location,
+          agentStatuses,
+          wslAgentStatuses,
+        );
+        const agentStatus = projectAgentStatuses.find((status) => status.kind === thread.agentKind);
         const paneAlign =
           paneCount <= 1
             ? ("center" as const)
@@ -364,10 +376,7 @@ export function App() {
   const projects = useAppStore((state) => state.projects);
   const threads = useAppStore((state) => state.threads);
   const view = useAppStore((state) => state.view);
-  const setAgentStatuses = useAppStore((state) => state.setAgentStatuses);
   const markThreadsInactiveOnLaunch = useAppStore((state) => state.markThreadsInactiveOnLaunch);
-  const wslAgentStatuses = useAppStore((state) => state.wslAgentStatuses);
-  const wslAvailable = wslAgentStatuses.length > 0;
   const addProject = useAppStore((state) => state.addProject);
   const openDraft = useAppStore((state) => state.openDraft);
   const openThread = useAppStore((state) => state.openThread);
@@ -396,6 +405,16 @@ export function App() {
   const [storeHydrated, setStoreHydrated] = useState(() => useAppStore.persist.hasHydrated());
   const [loadT0] = useState(() => Date.now());
   const [reopenAttempted] = useState(() => new Set<string>());
+  const [wslAvailable, setWslAvailable] = useState(false);
+  const wslProjectDistrosKey = [
+    ...new Set(
+      projects.flatMap((project) =>
+        project.location.kind === "wsl" ? [project.location.distro] : [],
+      ),
+    ),
+  ]
+    .sort()
+    .join("\0");
   const reopenStoredThread = useEffectEvent(
     (input: { threadId: string; projectLocation: (typeof projects)[number]["location"] }) => {
       const thread = threads.find((item) => item.id === input.threadId);
@@ -477,12 +496,6 @@ export function App() {
       setInitialLoading(false);
     });
 
-    // Fire-and-forget: triggers detection in the supervisor.
-    // Results arrive via events (windows-agent-statuses, wsl-agent-statuses).
-    void readBridge()
-      .getAgentStatuses()
-      .catch(() => undefined);
-
     // Reconcile thread snapshots in the background.
     void readBridge()
       .getThreadSnapshots()
@@ -513,7 +526,49 @@ export function App() {
     return () => {
       isActive = false;
     };
-  }, [markThreadsInactiveOnLaunch, reconcileRuntimeSnapshots, storeHydrated]);
+  }, [loadT0, markThreadsInactiveOnLaunch, reconcileRuntimeSnapshots, storeHydrated]);
+
+  useEffect(() => {
+    if (!storeHydrated) {
+      return;
+    }
+
+    let isActive = true;
+    void readBridge()
+      .listWslDistros()
+      .then((distros) => {
+        if (!isActive) {
+          return;
+        }
+        startTransition(() => {
+          setWslAvailable(distros.length > 0);
+        });
+      })
+      .catch(() => {
+        if (!isActive) {
+          return;
+        }
+        startTransition(() => {
+          setWslAvailable(false);
+        });
+      });
+
+    return () => {
+      isActive = false;
+    };
+  }, [storeHydrated]);
+
+  useEffect(() => {
+    if (!storeHydrated) {
+      return;
+    }
+
+    // Fire-and-forget: triggers detection in the supervisor.
+    // Results arrive via events (windows-agent-statuses, wsl-agent-statuses).
+    void readBridge()
+      .getAgentStatuses(wslProjectDistrosKey ? wslProjectDistrosKey.split("\0") : [])
+      .catch(() => undefined);
+  }, [storeHydrated, wslProjectDistrosKey]);
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {

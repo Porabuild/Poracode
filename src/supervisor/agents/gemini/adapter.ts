@@ -1,9 +1,16 @@
-import type { AgentCapability, AgentStatus, ThreadConfig } from "../../../shared/contracts";
+import type {
+  AgentCapability,
+  AgentStatus,
+  ProjectLocation,
+  ThreadConfig,
+} from "../../../shared/contracts";
 import {
   batchWslCommandsAsync,
   createKnownSessionRef,
   readCommandOutputAsync,
+  readWslCommandOutputAsync,
   resolveExecutablePathAsync,
+  resolveWslExecutablePath,
   wrapWslCommand,
   type AgentAdapter,
   type AgentEnvContext,
@@ -54,6 +61,7 @@ function buildGeminiArgs(config: ThreadConfig, prompt: string, resumeSessionId?:
 }
 
 const SESSION_UUID_RE = /\[([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\]/;
+const INVALID_SESSION_RE = /Error resuming session:\s+Invalid session identifier/i;
 
 function parseLatestSessionId(output: string): string | undefined {
   // Lines are numbered 1..N; the last numbered line is the most recent session.
@@ -62,9 +70,27 @@ function parseLatestSessionId(output: string): string | undefined {
   return last ? SESSION_UUID_RE.exec(last)?.[1] : undefined;
 }
 
+export function detectGeminiInvalidSessionRef(output: string): boolean {
+  return INVALID_SESSION_RE.test(output);
+}
+
 export function createGeminiAdapter(): AgentAdapter {
-  let detectedWslExecPath: string | undefined;
-  let detectedWslDistro: string | undefined;
+  const detectedWslExecPaths = new Map<string, string | undefined>();
+
+  function resolveWslExecPath(location: ProjectLocation): string | undefined {
+    if (location.kind !== "wsl") {
+      return undefined;
+    }
+
+    const cached = detectedWslExecPaths.get(location.distro);
+    if (cached) {
+      return cached;
+    }
+
+    const resolved = resolveWslExecutablePath(location.distro, "gemini");
+    detectedWslExecPaths.set(location.distro, resolved);
+    return resolved;
+  }
 
   return {
     kind: "gemini",
@@ -75,16 +101,15 @@ export function createGeminiAdapter(): AgentAdapter {
       const isWsl = ctx?.envKind === "wsl" && ctx.wslDistro;
 
       if (isWsl) {
-        const [whichResult, versionResult, apiKeyResult, configDirResult] =
-          await batchWslCommandsAsync(ctx.wslDistro!, [
-            "which gemini",
-            "gemini --version",
-            "echo $GEMINI_API_KEY",
-            "test -d ~/.gemini && echo yes",
-          ]);
+        const [whichResult, apiKeyResult, configDirResult] = await batchWslCommandsAsync(
+          ctx.wslDistro!,
+          ["command -v gemini", "echo $GEMINI_API_KEY", "test -d ~/.gemini && echo yes"],
+        );
         const executablePath = whichResult?.ok ? whichResult.stdout : undefined;
-        detectedWslExecPath = executablePath;
-        detectedWslDistro = ctx.wslDistro;
+        detectedWslExecPaths.set(ctx.wslDistro!, executablePath);
+        const versionResult = executablePath
+          ? await readWslCommandOutputAsync(ctx.wslDistro!, executablePath, ["--version"])
+          : undefined;
 
         const hasApiKey = apiKeyResult?.ok && apiKeyResult.stdout.trim().length > 0;
         const hasConfigDir = configDirResult?.ok && configDirResult.stdout.trim() === "yes";
@@ -127,12 +152,12 @@ export function createGeminiAdapter(): AgentAdapter {
 
     buildLaunchCommand(location, config, prompt) {
       const args = buildGeminiArgs(config, prompt);
-      return wrapWslCommand(location, "gemini", args, detectedWslExecPath);
+      return wrapWslCommand(location, "gemini", args, resolveWslExecPath(location));
     },
 
     buildResumeCommand(location, config, prompt, sessionRef) {
       const args = buildGeminiArgs(config, prompt, sessionRef.providerSessionId);
-      return wrapWslCommand(location, "gemini", args, detectedWslExecPath);
+      return wrapWslCommand(location, "gemini", args, resolveWslExecPath(location));
     },
 
     createInitialSessionRef() {
@@ -148,6 +173,7 @@ export function createGeminiAdapter(): AgentAdapter {
     },
 
     detectTerminalStatus: detectGeminiTerminalStatus,
+    detectInvalidSessionRef: detectGeminiInvalidSessionRef,
 
     defaultOneShotModel: "gemini-2.5-flash",
 
@@ -155,11 +181,17 @@ export function createGeminiAdapter(): AgentAdapter {
       try {
         let output: string | undefined;
 
-        if (location.kind === "wsl" && detectedWslDistro) {
-          const [result] = await batchWslCommandsAsync(detectedWslDistro, [
-            `cd ${location.linuxPath} && gemini --list-sessions`,
-          ]);
-          output = result?.ok ? result.stdout : undefined;
+        if (location.kind === "wsl") {
+          const executablePath = resolveWslExecPath(location) ?? "gemini";
+          const result = await readWslCommandOutputAsync(
+            location.distro,
+            executablePath,
+            ["--list-sessions"],
+            {
+              cwd: location.linuxPath,
+            },
+          );
+          output = result.ok ? result.stdout : undefined;
         } else if (location.kind === "windows") {
           const result = await readCommandOutputAsync("gemini", ["--list-sessions"], {
             cwd: location.path,

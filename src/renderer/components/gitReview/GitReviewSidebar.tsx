@@ -16,13 +16,14 @@ import {
 } from "lucide-react";
 import { AlertDialog, Button, ButtonGroup, Dropdown, Label, Spinner, Tooltip } from "@heroui/react";
 import type { Project, GitFileChange, GitStatusResult } from "../../../shared/contracts";
+import { getProjectAgentStatuses } from "../../../shared/agentStatus";
 import { readBridge } from "../../bridge";
 import { useAppStore } from "../../state/appStore";
 import { useSharedSettings } from "../../state/sharedSettingsStore";
 import { useGitStore } from "../../state/gitStore";
 import { SidebarButton, TextArea } from "../common";
 import { useSidebar } from "../layout/AppShell";
-import { resolveCommitGenConfig } from "../providers";
+import { generateCommitMessageWithFallback, getCommitGenCandidates } from "../providers";
 
 function FileStatusIcon(props: { status: string; className?: string }) {
   const cls = `size-3.5 ${props.className ?? ""}`;
@@ -76,21 +77,14 @@ function FileRow(props: {
 
   return (
     <>
-      <div
-        role="button"
-        tabIndex={0}
+      <button
+        type="button"
         className={`group flex w-full cursor-default items-center gap-1.5 rounded px-2 py-1 text-left text-xs transition-colors ${
           isSelected
             ? "bg-white/[0.08] text-foreground"
             : "text-muted hover:bg-white/[0.04] hover:text-foreground"
         }`}
         onClick={onSelect}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" || e.key === " ") {
-            e.preventDefault();
-            onSelect();
-          }
-        }}
       >
         <FileStatusIcon status={file.status} />
         <span className="min-w-0 flex-1 truncate" title={file.path}>
@@ -130,7 +124,7 @@ function FileRow(props: {
             )}
           </span>
         </span>
-      </div>
+      </button>
 
       <AlertDialog.Backdrop isOpen={revertOpen} onOpenChange={setRevertOpen}>
         <AlertDialog.Container>
@@ -295,6 +289,7 @@ export function GitReviewSidebar(props: {
   const { isCollapsed, collapse, expand } = useSidebar();
   const gitStatus = useGitStore((s) => s.statuses[project.id]) as GitStatusResult | undefined;
   const agentStatuses = useAppStore((s) => s.agentStatuses);
+  const wslAgentStatuses = useAppStore((s) => s.wslAgentStatuses);
   const commitGenProvider = useSharedSettings((s) => s.commitGenProvider);
   const commitGenModel = useSharedSettings((s) => s.commitGenModel);
   const commitGenEffort = useSharedSettings((s) => s.commitGenEffort);
@@ -304,13 +299,28 @@ export function GitReviewSidebar(props: {
   const [isGenerating, setIsGenerating] = useState(false);
   const [commitError, setCommitError] = useState<string | null>(null);
 
-  const canGenerateMessage = agentStatuses.some(
-    (a) => a.installed && a.authState === "authenticated",
+  const projectAgentStatuses = getProjectAgentStatuses(
+    project.location,
+    agentStatuses,
+    wslAgentStatuses,
   );
+  const canGenerateMessage =
+    getCommitGenCandidates(projectAgentStatuses, commitGenProvider).length > 0;
   const hasStagedChanges = (gitStatus?.staged.length ?? 0) > 0;
   const hasAnyChanges = hasStagedChanges || (gitStatus?.unstaged.length ?? 0) > 0;
   const canCommitStaged = hasAnyChanges && !isCommitting && !isGenerating;
   const canCommitAll = hasAnyChanges && !isCommitting && !isGenerating;
+
+  async function generateMessage(): Promise<string> {
+    return generateCommitMessageWithFallback({
+      projectLocation: project.location,
+      agentStatuses: projectAgentStatuses,
+      provider: commitGenProvider,
+      model: commitGenModel,
+      effort: commitGenEffort,
+      invoke: (payload) => readBridge().generateCommitMessage(payload),
+    });
+  }
 
   async function handleCommit(addAll: boolean) {
     setIsCommitting(true);
@@ -320,26 +330,7 @@ export function GitReviewSidebar(props: {
       if (!message && canGenerateMessage) {
         setIsGenerating(true);
         try {
-          const preferred =
-            commitGenProvider !== "auto"
-              ? agentStatuses.find(
-                  (a) =>
-                    a.kind === commitGenProvider && a.installed && a.authState === "authenticated",
-                )
-              : agentStatuses.find((a) => a.installed && a.authState === "authenticated");
-          if (!preferred) throw new Error("No agent available to generate commit message");
-          const resolvedCommitGen = resolveCommitGenConfig(
-            preferred,
-            commitGenModel,
-            commitGenEffort,
-          );
-          const result = await readBridge().generateCommitMessage({
-            projectLocation: project.location,
-            agentKind: preferred.kind,
-            ...(resolvedCommitGen.model ? { model: resolvedCommitGen.model } : {}),
-            ...(resolvedCommitGen.effort ? { effort: resolvedCommitGen.effort } : {}),
-          });
-          message = result.message;
+          message = await generateMessage();
           setCommitMessage(message);
         } finally {
           setIsGenerating(false);
@@ -364,21 +355,8 @@ export function GitReviewSidebar(props: {
     setIsGenerating(true);
     setCommitError(null);
     try {
-      const preferred =
-        commitGenProvider !== "auto"
-          ? agentStatuses.find(
-              (a) => a.kind === commitGenProvider && a.installed && a.authState === "authenticated",
-            )
-          : agentStatuses.find((a) => a.installed && a.authState === "authenticated");
-      if (!preferred) return;
-      const resolvedCommitGen = resolveCommitGenConfig(preferred, commitGenModel, commitGenEffort);
-      const result = await readBridge().generateCommitMessage({
-        projectLocation: project.location,
-        agentKind: preferred.kind,
-        ...(resolvedCommitGen.model ? { model: resolvedCommitGen.model } : {}),
-        ...(resolvedCommitGen.effort ? { effort: resolvedCommitGen.effort } : {}),
-      });
-      setCommitMessage(result.message);
+      const message = await generateMessage();
+      setCommitMessage(message);
     } catch (err) {
       setCommitError(err instanceof Error ? err.message : String(err));
     } finally {

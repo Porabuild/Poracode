@@ -41,12 +41,18 @@ function GitBadge(props: { projectId: string; projectName: string; onPress: () =
   return (
     <div
       role="button"
-      tabIndex={-1}
+      tabIndex={0}
       aria-label={`Git changes for ${props.projectName}`}
       className="shrink-0 cursor-default rounded px-1 py-0.5 transition-colors text-muted/60 hover:bg-white/[0.04] hover:text-foreground"
       onClick={(e) => {
         e.stopPropagation();
         props.onPress();
+      }}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.stopPropagation();
+          props.onPress();
+        }
       }}
     >
       <span className="flex items-center gap-0.5 text-[10px] font-medium">
@@ -539,7 +545,7 @@ export function Sidebar(props: {
                             />
                             <div
                               role="button"
-                              tabIndex={-1}
+                              tabIndex={0}
                               aria-label={`Terminal for ${project.name}`}
                               className={`shrink-0 cursor-default rounded p-0.5 transition-colors hover:bg-white/[0.04] hover:text-foreground ${
                                 activeTerminalProjectId === project.id
@@ -551,6 +557,12 @@ export function Sidebar(props: {
                               onClick={(event) => {
                                 event.stopPropagation();
                                 onOpenTerminal(project.id);
+                              }}
+                              onKeyDown={(event) => {
+                                if (event.key === "Enter" || event.key === " ") {
+                                  event.stopPropagation();
+                                  onOpenTerminal(project.id);
+                                }
                               }}
                             >
                               <TerminalSquare className="size-3.5" />
@@ -747,9 +759,9 @@ export function Sidebar(props: {
                                           {formatRelativeTime(thread.updatedAt)}
                                         </span>
                                         <div
-                                          aria-label={`Delete ${thread.title}`}
                                           role="button"
-                                          tabIndex={-1}
+                                          tabIndex={0}
+                                          aria-label={`Delete ${thread.title}`}
                                           className="absolute inset-0 flex items-center justify-center rounded text-muted/55 opacity-0 transition hover:text-danger group-hover:opacity-100"
                                           onClick={(event) => {
                                             event.stopPropagation();
@@ -766,10 +778,10 @@ export function Sidebar(props: {
                                         </div>
                                       </span>
                                       <div
+                                        role="button"
+                                        tabIndex={0}
                                         aria-grabbed={isDraggedThread}
                                         aria-label={`Reorder ${thread.title}`}
-                                        role="button"
-                                        tabIndex={-1}
                                         className="shrink-0 cursor-grab rounded text-muted/60 active:cursor-grabbing"
                                         draggable
                                         onDragEnd={() => {

@@ -21,7 +21,7 @@ function buildControls(
   agentStatus: AgentStatus | undefined,
   onConfigChange: (config: ThreadConfig) => void,
 ) {
-  const codexTone = getStatusTone(thread);
+  const statusTone = getStatusTone(thread);
   const hasPermissions =
     (agentStatus?.capabilities.approvalPolicies.length ?? 0) > 0 ||
     (agentStatus?.capabilities.sandboxModes.length ?? 0) > 0;
@@ -38,7 +38,7 @@ function buildControls(
       kind: "static" as const,
       value: agentStatus?.label ?? thread.agentKind,
       hideLabelOnWrap: true,
-      icon: <ProviderIcon kind={thread.agentKind} tone={codexTone} className="size-4 shrink-0" />,
+      icon: <ProviderIcon kind={thread.agentKind} tone={statusTone} className="size-4 shrink-0" />,
     },
     {
       options: modelOptions(
@@ -357,7 +357,7 @@ export function ThreadView(props: {
                 inputContent={promptInputContent}
                 placeholder={
                   isServerControlled
-                    ? "Ask Codex anything about this workspace"
+                    ? `Ask ${agentStatus?.label ?? "the agent"} anything about this workspace`
                     : isTerminalInput
                       ? "Send a message..."
                       : "Send a message..."

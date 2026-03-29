@@ -85,7 +85,7 @@ export function ContextMenu(props: ContextMenuProps) {
             >
               <Menu
                 aria-label="Context menu"
-                autoFocus="first"
+                autoFocus="first" // eslint-disable-line jsx-a11y/no-autofocus -- React Aria Menu prop, not HTML autofocus
                 disabledKeys={items.filter((item) => item.isDisabled).map((item) => item.id)}
                 onAction={(key) => {
                   setPosition(null);

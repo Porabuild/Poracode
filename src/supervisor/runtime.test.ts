@@ -15,7 +15,7 @@ vi.mock("node:child_process", async (importActual) => {
   };
 });
 
-import { SupervisorRuntime, writeSubmittedPrompt } from "./runtime";
+import { detectWslAgentStatuses, SupervisorRuntime, writeSubmittedPrompt } from "./runtime";
 
 function createRuntimeSession(overrides: Record<string, unknown> = {}) {
   return {
@@ -313,5 +313,62 @@ describe("writeSubmittedPrompt", () => {
       }),
     );
     expect(shell.pty.kill).not.toHaveBeenCalled();
+  });
+});
+
+describe("detectWslAgentStatuses", () => {
+  it("detects statuses for every adapter in every distro", async () => {
+    const detectInstall = vi.fn(
+      async (ctx?: { envKind: "windows" | "wsl"; wslDistro?: string }) => ({
+        kind: "codex" as const,
+        label: `Codex ${ctx?.wslDistro ?? "windows"}`,
+        installed: ctx?.wslDistro === "Ubuntu",
+        authState: "unknown" as const,
+        capabilities: {
+          models: [],
+          efforts: [],
+          modelEfforts: {},
+          modes: [],
+          approvalPolicies: [],
+          sandboxModes: [],
+          supportsResume: true,
+          supportsDirectInput: true,
+          liveInputMode: "server" as const,
+        },
+      }),
+    );
+
+    const statuses = await detectWslAgentStatuses(
+      [
+        {
+          kind: "codex",
+          label: "Codex",
+          capabilities: {
+            models: [],
+            efforts: [],
+            modelEfforts: {},
+            modes: [],
+            approvalPolicies: [],
+            sandboxModes: [],
+            supportsResume: true,
+            supportsDirectInput: true,
+            liveInputMode: "server",
+          },
+          detectInstall,
+          buildLaunchCommand: vi.fn(),
+          buildResumeCommand: vi.fn(),
+          createInitialSessionRef: vi.fn(),
+        },
+      ],
+      ["Ubuntu", "Debian"],
+    );
+
+    expect(detectInstall).toHaveBeenCalledTimes(2);
+    expect(detectInstall).toHaveBeenNthCalledWith(1, { envKind: "wsl", wslDistro: "Ubuntu" });
+    expect(detectInstall).toHaveBeenNthCalledWith(2, { envKind: "wsl", wslDistro: "Debian" });
+    expect(statuses).toEqual([
+      expect.objectContaining({ envKind: "wsl", envDistro: "Ubuntu", installed: true }),
+      expect.objectContaining({ envKind: "wsl", envDistro: "Debian", installed: false }),
+    ]);
   });
 });

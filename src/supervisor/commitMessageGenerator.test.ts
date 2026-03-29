@@ -5,6 +5,7 @@ import type { AgentAdapter } from "./agents/base";
 
 const spawnMock = vi.hoisted(() => vi.fn());
 const resolveExecutablePathAsyncMock = vi.hoisted(() => vi.fn());
+const wrapWslCommandMock = vi.hoisted(() => vi.fn());
 const getStagedDiffMock = vi.hoisted(() => vi.fn());
 const getAllDiffMock = vi.hoisted(() => vi.fn());
 
@@ -14,6 +15,7 @@ vi.mock("node:child_process", () => ({
 
 vi.mock("./agents/base", () => ({
   resolveExecutablePathAsync: resolveExecutablePathAsyncMock,
+  wrapWslCommand: wrapWslCommandMock,
 }));
 
 vi.mock("./git", () => ({
@@ -51,6 +53,13 @@ const windowsProject: ProjectLocation = {
   path: "C:\\Users\\demo\\project",
 };
 
+const wslProject: ProjectLocation = {
+  kind: "wsl",
+  distro: "Ubuntu",
+  linuxPath: "/home/demo/project",
+  uncPath: "\\\\wsl.localhost\\Ubuntu\\home\\demo\\project",
+};
+
 function createAdapter(): AgentAdapter {
   return {
     label: "Codex",
@@ -65,7 +74,13 @@ function createAdapter(): AgentAdapter {
 describe("generateCommitMessage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    resolveExecutablePathAsyncMock.mockResolvedValue("C:\\Users\\demo\\AppData\\Local\\Programs\\codex.exe");
+    resolveExecutablePathAsyncMock.mockResolvedValue(
+      "C:\\Users\\demo\\AppData\\Local\\Programs\\codex.cmd",
+    );
+    wrapWslCommandMock.mockImplementation((_location, command, args) => ({
+      command: "C:\\Windows\\System32\\wsl.exe",
+      args: ["-d", "Ubuntu", "--cd", "/home/demo/project", "--", command, ...args],
+    }));
     getStagedDiffMock.mockResolvedValue("diff --git a/file.ts b/file.ts");
     getAllDiffMock.mockResolvedValue("");
   });
@@ -78,7 +93,7 @@ describe("generateCommitMessage", () => {
     await flushPromises();
 
     expect(spawnMock).toHaveBeenCalledWith(
-      "codex",
+      "C:\\Users\\demo\\AppData\\Local\\Programs\\codex.cmd",
       ["exec", "-m", "gpt-5.4-mini", "-"],
       expect.objectContaining({
         cwd: windowsProject.path,
@@ -94,6 +109,45 @@ describe("generateCommitMessage", () => {
     child.emit("close", 0);
 
     await expect(pending).resolves.toBe("fix(git): restore Windows commit generation");
+  });
+
+  it("wraps WSL one-shot commands instead of spawning the Windows host directly", async () => {
+    const child = createMockChildProcess();
+    spawnMock.mockReturnValue(child);
+
+    const pending = generateCommitMessage(wslProject, createAdapter());
+    await flushPromises();
+
+    expect(resolveExecutablePathAsyncMock).not.toHaveBeenCalled();
+    expect(wrapWslCommandMock).toHaveBeenCalledWith(wslProject, "codex", [
+      "exec",
+      "-m",
+      "gpt-5.4-mini",
+      "-",
+    ]);
+    expect(spawnMock).toHaveBeenCalledWith(
+      "C:\\Windows\\System32\\wsl.exe",
+      [
+        "-d",
+        "Ubuntu",
+        "--cd",
+        "/home/demo/project",
+        "--",
+        "codex",
+        "exec",
+        "-m",
+        "gpt-5.4-mini",
+        "-",
+      ],
+      expect.objectContaining({
+        stdio: ["pipe", "pipe", "pipe"],
+      }),
+    );
+
+    child.stdout.emit("data", Buffer.from("fix(wsl): route commit generation through WSL"));
+    child.emit("close", 0);
+
+    await expect(pending).resolves.toBe("fix(wsl): route commit generation through WSL");
   });
 
   it("turns a killed child process into a timeout error", async () => {

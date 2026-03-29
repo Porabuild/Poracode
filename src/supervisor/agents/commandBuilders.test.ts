@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { ProjectLocation, SessionRef, ThreadConfig } from "../../shared/contracts";
-import { buildWindowsCommand } from "./base";
+import { buildWindowsCommand, getWslCommand } from "./base";
 import { createClaudeAdapter } from "./claude";
 import { CODEX_REMOTE_TUI_FEATURE, createCodexAdapter } from "./codex";
 
@@ -39,8 +39,15 @@ describe("agent command builders", () => {
 
   it("builds a WSL Codex launch command", () => {
     const spec = createCodexAdapter().buildLaunchCommand(wslProject, config, "hello");
-    expect(spec.command).toBe("wsl.exe");
+    expect(spec.command.toLowerCase()).toBe(getWslCommand().toLowerCase());
     expect(spec.args.slice(0, 5)).toEqual(["-d", "Ubuntu", "--cd", "/home/demo/project", "--"]);
+    expect(spec.args).toContain("--no-alt-screen");
+    expect(spec.args).toContain("-m");
+    expect(spec.args).toContain("gpt-5.4");
+    expect(spec.args).toContain("-a");
+    expect(spec.args).toContain("on-request");
+    expect(spec.args).toContain("workspace-write");
+    expect(spec.args).toContain("hello");
   });
 
   it("builds a remote Codex launch command with the TUI feature enabled", () => {

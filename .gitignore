@@ -1,9 +1,12 @@
 node_modules/
 dist/
+release/
 .vite/
 coverage/
 *.log
 *.tsbuildinfo
+build/icon-trimmed.png
+build/icons/
 # heroui-agents-md
 .heroui-docs/
 .tmp/

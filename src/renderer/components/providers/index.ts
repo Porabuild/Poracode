@@ -1,7 +1,15 @@
+// Shared utilities (provider-agnostic)
 export * from "./statusTone";
 export * from "./StatusIcon";
 export * from "./ProviderIcon";
 export * from "./commitGen";
+
+/**
+ * Provider registrations (renderer manifest).
+ * Each import triggers side-effect registration (icon, labels, commit-gen defaults).
+ * To add a provider: create its folder, add an export line below.
+ * To remove: delete its line and folder.
+ */
 export * from "./claude";
 export * from "./codex";
 export * from "./gemini";
