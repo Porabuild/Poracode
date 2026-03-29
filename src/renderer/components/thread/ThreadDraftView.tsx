@@ -8,7 +8,7 @@ import type {
 } from "../../../shared/contracts";
 import { ProviderIcon } from "../providers";
 import { useGitStore } from "../../state/gitStore";
-import { BranchSelector, generateWorktreeBranch } from "../common";
+import { BranchSelector, generateWorktreeBranch, type BranchSelection } from "../common";
 import { ThreadComposer } from "./ThreadComposer";
 import { formatCompactLabel, modelOptions } from "./threadComposerOptions";
 
@@ -76,6 +76,7 @@ export function ThreadDraftView(props: {
     agentKind: AgentStatus["kind"];
     config: ThreadConfig;
     prompt: string;
+    existingWorktreePath?: string;
     worktreeBranch?: string;
     worktreeBaseBranch?: string;
     worktreeIsNewBranch?: boolean;
@@ -98,12 +99,7 @@ export function ThreadDraftView(props: {
   const [sandboxMode, setSandboxMode] = useState("");
   const [prompt, setPrompt] = useState("");
   const [worktreeMode, setWorktreeMode] = useState(false);
-  const [branchSelection, setBranchSelection] = useState<{
-    branch: string;
-    baseBranch?: string;
-    isNew: boolean;
-    isWorktree: boolean;
-  } | null>(null);
+  const [branchSelection, setBranchSelection] = useState<BranchSelection | null>(null);
   const lastAppliedAgentKindRef = useRef<AgentStatus["kind"] | undefined>(undefined);
 
   const availableEfforts =
@@ -334,11 +330,18 @@ export function ThreadDraftView(props: {
                     },
                     prompt: prompt.trim(),
                     ...(branchSelection?.isWorktree
-                      ? {
-                          worktreeBranch: generateWorktreeBranch(),
-                          worktreeBaseBranch: branchSelection.baseBranch,
-                          worktreeIsNewBranch: true,
-                        }
+                      ? branchSelection.worktreePath
+                        ? {
+                            existingWorktreePath: branchSelection.worktreePath,
+                            worktreeBranch: branchSelection.branch,
+                          }
+                        : {
+                            worktreeBranch: generateWorktreeBranch(),
+                            ...(branchSelection.baseBranch
+                              ? { worktreeBaseBranch: branchSelection.baseBranch }
+                              : {}),
+                            worktreeIsNewBranch: true,
+                          }
                       : {}),
                   })
                 }

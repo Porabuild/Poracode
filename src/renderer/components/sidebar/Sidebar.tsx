@@ -798,8 +798,8 @@ export function Sidebar(props: {
                                           />
                                         </>
                                       )}
-                                      <span className="relative shrink-0">
-                                        <span className="text-[11px] text-muted group-hover:invisible">
+                                      <span className="relative w-[2.4ch] shrink-0">
+                                        <span className="block text-center font-mono text-[10px] tabular-nums text-muted group-hover:invisible">
                                           {formatRelativeTime(thread.updatedAt)}
                                         </span>
                                         <div

@@ -10,6 +10,7 @@ export interface BranchSelection {
   baseBranch?: string;
   isNew: boolean;
   isWorktree: boolean;
+  worktreePath?: string;
 }
 
 const ADJECTIVES = [
@@ -107,6 +108,9 @@ export function BranchSelector(props: BranchSelectorProps) {
   const createRef = useRef<HTMLInputElement>(null);
 
   const worktreeBranches = new Set(worktrees?.filter((w) => !w.isMain).map((w) => w.branch) ?? []);
+  const branchWorktreePath = new Map(
+    worktrees?.filter((w) => !w.isMain && w.branch).map((w) => [w.branch, w.path]) ?? [],
+  );
 
   // Deduplicate: prefer local over remote with same name
   const allBranches = branchData?.branches ?? [];
@@ -155,6 +159,19 @@ export function BranchSelector(props: BranchSelectorProps) {
         isNew: false,
         isWorktree: true,
       });
+    } else if (branchWorktreePath.has(branch)) {
+      const existingWorktreePath = branchWorktreePath.get(branch);
+      if (existingWorktreePath) {
+        onSelect({
+          branch,
+          baseBranch: branch,
+          isNew: false,
+          isWorktree: true,
+          worktreePath: existingWorktreePath,
+        });
+      } else {
+        onSelect({ branch, isNew: false, isWorktree: false });
+      }
     } else {
       onSelect({ branch, isNew: false, isWorktree: false });
     }
@@ -364,7 +381,18 @@ export function BranchSelector(props: BranchSelectorProps) {
                     onChange={(checked) => {
                       onWorktreeModeChange(checked);
                       if (!checked && isWorktree && baseBranch) {
-                        onSelect({ branch: baseBranch, isNew: false, isWorktree: false });
+                        const existingWorktreePath = branchWorktreePath.get(baseBranch);
+                        if (existingWorktreePath) {
+                          onSelect({
+                            branch: baseBranch,
+                            baseBranch,
+                            isNew: false,
+                            isWorktree: true,
+                            ...(existingWorktreePath ? { worktreePath: existingWorktreePath } : {}),
+                          });
+                        } else {
+                          onSelect({ branch: baseBranch, isNew: false, isWorktree: false });
+                        }
                       }
                     }}
                   >

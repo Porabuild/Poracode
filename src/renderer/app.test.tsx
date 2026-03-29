@@ -83,6 +83,7 @@ vi.mock("./components/thread/ThreadDraftView", () => ({
       agentKind: "codex";
       config: { model: string };
       prompt: string;
+      existingWorktreePath?: string;
       worktreeBranch?: string;
       worktreeBaseBranch?: string;
       worktreeIsNewBranch?: boolean;
@@ -104,6 +105,21 @@ vi.mock("./components/thread/ThreadDraftView", () => ({
         type="button"
       >
         start-worktree
+      </button>
+      <button
+        onClick={() =>
+          props.onStart({
+            agentKind: "codex",
+            config: { model: "gpt-5.4" },
+            prompt: "attach worktree",
+            existingWorktreePath:
+              "C:\\Users\\demo\\.lightcode\\worktrees\\repo-12345678\\feature-x",
+            worktreeBranch: "feature/x",
+          })
+        }
+        type="button"
+      >
+        attach-existing-worktree
       </button>
     </div>
   ),
@@ -363,5 +379,41 @@ describe("App", () => {
       "C:\\Users\\demo\\.lightcode\\worktrees\\repo-12345678\\feature-x",
     );
     expect(threads[0]?.worktreeBranch).toBe("feature/x");
+  });
+
+  it("attaches a new thread to an existing worktree without creating another one", async () => {
+    useAppStore.persist.hasHydrated = vi.fn(() => true);
+    useAppStore.persist.onHydrate = vi.fn(() => () => undefined);
+    useAppStore.persist.onFinishHydration = vi.fn(() => () => undefined);
+
+    useAppStore.setState((state) => ({
+      ...state,
+      projects: [
+        {
+          id: "project-1",
+          name: "Repo",
+          location: {
+            kind: "windows",
+            path: "C:\\repo",
+          },
+          createdAt: "2026-03-22T00:00:00.000Z",
+        },
+      ],
+      view: { kind: "draft", projectId: "project-1" },
+    }));
+
+    render(<App />);
+    fireEvent.click(screen.getByText("attach-existing-worktree"));
+
+    await waitFor(() => {
+      const threads = useAppStore.getState().threads;
+      expect(threads).toHaveLength(1);
+      expect(threads[0]?.worktreePath).toBe(
+        "C:\\Users\\demo\\.lightcode\\worktrees\\repo-12345678\\feature-x",
+      );
+      expect(threads[0]?.worktreeBranch).toBe("feature/x");
+    });
+
+    expect(bridge.gitAddWorktree).not.toHaveBeenCalled();
   });
 });

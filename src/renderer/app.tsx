@@ -176,7 +176,7 @@ function HomeView() {
                           {project ? (
                             <span className="shrink-0 text-xs text-muted">{project.name}</span>
                           ) : null}
-                          <span className="shrink-0 text-xs text-muted">
+                          <span className="w-[6ch] shrink-0 text-right font-mono text-xs tabular-nums text-muted">
                             {formatRelativeTime(thread.updatedAt)}
                           </span>
                           <ArrowRight className="size-3.5 shrink-0 text-muted opacity-0 transition-opacity group-hover:opacity-100" />
@@ -273,6 +273,7 @@ function AppContent() {
             agentKind,
             config,
             prompt,
+            existingWorktreePath,
             worktreeBranch,
             worktreeBaseBranch,
             worktreeIsNewBranch,
@@ -287,7 +288,9 @@ function AppContent() {
             });
 
             let worktreePath: string | undefined;
-            if (worktreeBranch) {
+            if (existingWorktreePath) {
+              worktreePath = existingWorktreePath;
+            } else if (worktreeBranch) {
               try {
                 const result = await readBridge().gitAddWorktree({
                   projectLocation: project.location,
