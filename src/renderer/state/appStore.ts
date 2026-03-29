@@ -86,6 +86,7 @@ interface AppStoreState {
   openThread: (threadId: string) => void;
   openThreadSideBySide: (threadId: string) => void;
   replaceSecondPane: (threadId: string) => void;
+  insertPaneAtIndex: (threadId: string, index: number) => void;
   closePane: (threadId: string) => void;
   createThread: (input: {
     projectId: string;
@@ -316,6 +317,19 @@ export const useAppStore = create<AppStoreState>()(
           return {
             view: { kind: "thread", panes: panes as [string, ...string[]] },
           };
+        }),
+      insertPaneAtIndex: (threadId, index) =>
+        set((state) => {
+          if (state.view.kind !== "thread") {
+            return { view: { kind: "thread", panes: [threadId] } };
+          }
+          const existing = state.view.panes;
+          if (existing.includes(threadId) || existing.length >= 3) {
+            return {};
+          }
+          const panes = [...existing];
+          panes.splice(Math.max(0, Math.min(panes.length, index)), 0, threadId);
+          return { view: { kind: "thread", panes: panes as [string, ...string[]] } };
         }),
       closePane: (threadId) =>
         set((state) => {

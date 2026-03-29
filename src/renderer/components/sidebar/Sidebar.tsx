@@ -791,6 +791,10 @@ export function Sidebar(props: {
                                         onDragStart={(event) => {
                                           event.dataTransfer.effectAllowed = "move";
                                           event.dataTransfer.setData("text/plain", thread.id);
+                                          event.dataTransfer.setData(
+                                            "application/x-lightcode-sidebar-thread",
+                                            thread.id,
+                                          );
                                           setDragItem({
                                             type: "thread",
                                             id: thread.id,

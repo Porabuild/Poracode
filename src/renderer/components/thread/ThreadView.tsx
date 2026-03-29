@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { ClipboardList, ShieldOff, Sparkles, TerminalSquare, X } from "lucide-react";
 import type {
   AgentStatus,
@@ -176,12 +176,12 @@ export function ThreadView(props: {
   paneAlign?: "left" | "center" | "right";
   isDragging?: boolean | undefined;
   paneDragActive?: boolean | undefined;
-  dropIndicator?: boolean | undefined;
+  dropIndicator?: false | "replace" | "insert-left" | "insert-right";
   onClose?: (() => void) | undefined;
   onPaneDragStart?: (() => void) | undefined;
   onPaneDragEnd?: (() => void) | undefined;
-  onPaneDragOver?: (() => void) | undefined;
-  onPaneDrop?: (() => void) | undefined;
+  onPaneDragOver?: ((zone: "left" | "center" | "right", event: React.DragEvent) => void) | undefined;
+  onPaneDrop?: ((event: React.DragEvent) => void) | undefined;
   onConfigChange: (config: ThreadConfig) => void;
   onResolveServerRequest: (input: {
     requestId: ThreadServerRequestId;
@@ -268,18 +268,33 @@ export function ThreadView(props: {
           onDragOver={(e) => {
             e.preventDefault();
             e.dataTransfer.dropEffect = "move";
-            onPaneDragOver?.();
+            const rect = e.currentTarget.getBoundingClientRect();
+            const fraction = (e.clientX - rect.left) / rect.width;
+            const zone = fraction < 0.25 ? "left" : fraction > 0.75 ? "right" : "center";
+            onPaneDragOver?.(zone, e);
           }}
           onDrop={(e) => {
             e.preventDefault();
-            onPaneDrop?.();
+            onPaneDrop?.(e);
           }}
         />
       )}
-      {dropIndicator && (
+      {dropIndicator === "replace" && (
         <div
           aria-hidden="true"
           className="pointer-events-none absolute inset-0 z-20 rounded-2xl bg-accent/10 ring-1 ring-inset ring-accent/30"
+        />
+      )}
+      {dropIndicator === "insert-left" && (
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-y-0 left-0 z-20 w-1 rounded-full bg-accent"
+        />
+      )}
+      {dropIndicator === "insert-right" && (
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-y-0 right-0 z-20 w-1 rounded-full bg-accent"
         />
       )}
       <div className={`flex h-full min-h-0 flex-col ${paddingClass} pt-1 pb-4`}>

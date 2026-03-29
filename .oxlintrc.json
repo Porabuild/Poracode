@@ -10,7 +10,8 @@
     "jsx-a11y/alt-text": "error",
     "react/jsx-key": "error",
     "react/react-in-jsx-scope": "off",
-    "react/no-unsafe": "off"
+    "react/no-unsafe": "off",
+    "jsx-a11y/prefer-tag-over-role": "off"
   },
   "ignorePatterns": ["dist", "node_modules"]
 }

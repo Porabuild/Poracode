@@ -1,4 +1,4 @@
-import { lazy, startTransition, Suspense, useEffect, useEffectEvent, useState } from "react";
+import React, { lazy, startTransition, Suspense, useEffect, useEffectEvent, useState } from "react";
 import { ArrowRight, FolderOpen, Plus, TerminalSquare } from "lucide-react";
 import { Spinner } from "@heroui/react";
 import { getProjectAgentStatuses } from "../shared/agentStatus";
@@ -87,6 +87,7 @@ readBridge().onUpdateStatus((status) => {
   }
 });
 
+const SIDEBAR_THREAD_MIME = "application/x-lightcode-sidebar-thread";
 const EMPTY_PANES: string[] = [];
 
 function formatRelativeTime(iso: string): string {
@@ -206,8 +207,43 @@ function AppContent() {
   const updateThreadRuntime = useAppStore((state) => state.updateThreadRuntime);
   const touchThread = useAppStore((state) => state.touchThread);
   const reorderPanes = useAppStore((state) => state.reorderPanes);
+  const openThread = useAppStore((state) => state.openThread);
+  const openThreadSideBySide = useAppStore((state) => state.openThreadSideBySide);
+  const replaceSecondPane = useAppStore((state) => state.replaceSecondPane);
+  const insertPaneAtIndex = useAppStore((state) => state.insertPaneAtIndex);
   const [paneDragSource, setPaneDragSource] = useState<string | undefined>();
   const [paneDropTarget, setPaneDropTarget] = useState<string | undefined>();
+  const [sidebarDragActive, setSidebarDragActive] = useState(false);
+  const [sidebarDropTarget, setSidebarDropTarget] = useState<
+    { kind: "replace"; paneIndex: number } | { kind: "insert"; index: number } | undefined
+  >();
+
+  useEffect(() => {
+    function onDragEnd() {
+      setSidebarDragActive(false);
+      setSidebarDropTarget(undefined);
+    }
+    document.addEventListener("dragend", onDragEnd);
+    return () => document.removeEventListener("dragend", onDragEnd);
+  }, []);
+
+  function handleSidebarDragOver(e: React.DragEvent) {
+    if (e.dataTransfer.types.includes(SIDEBAR_THREAD_MIME)) {
+      e.preventDefault();
+      if (!sidebarDragActive) setSidebarDragActive(true);
+    }
+  }
+
+  function handleSidebarDrop(e: React.DragEvent) {
+    if (!e.dataTransfer.types.includes(SIDEBAR_THREAD_MIME)) return;
+    e.preventDefault();
+    const threadId = e.dataTransfer.getData("text/plain");
+    if (threadId) {
+      startTransition(() => openThread(threadId));
+    }
+    setSidebarDragActive(false);
+    setSidebarDropTarget(undefined);
+  }
 
   if (view.kind === "draft") {
     const project = projects.find((item) => item.id === view.projectId);
@@ -220,46 +256,54 @@ function AppContent() {
       wslAgentStatuses,
     );
     return (
-      <ThreadDraftView
-        project={project}
-        agentStatuses={projectAgentStatuses}
-        {...(project.lastDraftConfig ? { lastDraftConfig: project.lastDraftConfig } : {})}
-        onStart={({ agentKind, config, prompt }) => {
-          updateProjectDraftConfig(project.id, {
-            agentKind,
-            model: config.model,
-            effort: config.effort,
-            mode: config.mode,
-            approvalPolicy: config.approvalPolicy,
-            sandboxMode: config.sandboxMode,
-          });
+      <div className="relative h-full" onDragOver={handleSidebarDragOver} onDrop={handleSidebarDrop}>
+        <ThreadDraftView
+          project={project}
+          agentStatuses={projectAgentStatuses}
+          {...(project.lastDraftConfig ? { lastDraftConfig: project.lastDraftConfig } : {})}
+          onStart={({ agentKind, config, prompt }) => {
+            updateProjectDraftConfig(project.id, {
+              agentKind,
+              model: config.model,
+              effort: config.effort,
+              mode: config.mode,
+              approvalPolicy: config.approvalPolicy,
+              sandboxMode: config.sandboxMode,
+            });
 
-          const thread = createThread({
-            projectId: project.id,
-            agentKind,
-            config,
-            prompt,
-          });
-
-          void readBridge()
-            .startThread({
-              threadId: thread.id,
-              projectLocation: project.location,
+            const thread = createThread({
+              projectId: project.id,
               agentKind,
               config,
               prompt,
-            })
-            .catch(() => {
-              startTransition(() => {
-                updateThreadRuntime(thread.id, {
-                  status: "error",
-                  attention: "error",
-                  canResumeWithConfig: false,
+            });
+
+            void readBridge()
+              .startThread({
+                threadId: thread.id,
+                projectLocation: project.location,
+                agentKind,
+                config,
+                prompt,
+              })
+              .catch(() => {
+                startTransition(() => {
+                  updateThreadRuntime(thread.id, {
+                    status: "error",
+                    attention: "error",
+                    canResumeWithConfig: false,
+                  });
                 });
               });
-            });
-        }}
-      />
+          }}
+        />
+        {sidebarDragActive && (
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-0 z-20 rounded-2xl bg-accent/10 ring-1 ring-inset ring-accent/30"
+          />
+        )}
+      </div>
     );
   }
 
@@ -286,6 +330,19 @@ function AppContent() {
               : paneIndex === paneCount - 1
                 ? ("left" as const)
                 : ("center" as const);
+
+        const dropIndicator: false | "replace" | "insert-left" | "insert-right" =
+          paneDropTarget === paneThreadId
+            ? "replace"
+            : sidebarDropTarget?.kind === "replace" && sidebarDropTarget.paneIndex === paneIndex
+              ? "replace"
+              : sidebarDropTarget?.kind === "insert" && sidebarDropTarget.index === paneIndex
+                ? "insert-left"
+                : sidebarDropTarget?.kind === "insert" &&
+                    sidebarDropTarget.index === paneIndex + 1
+                  ? "insert-right"
+                  : false;
+
         return (
           <ThreadView
             key={paneThreadId}
@@ -295,8 +352,8 @@ function AppContent() {
             showCloseButton={paneCount > 1}
             paneAlign={paneAlign}
             isDragging={paneDragSource === paneThreadId}
-            paneDragActive={paneDragSource !== undefined}
-            dropIndicator={paneDropTarget === paneThreadId}
+            paneDragActive={paneDragSource !== undefined || sidebarDragActive}
+            dropIndicator={dropIndicator}
             onPaneDragStart={
               paneCount > 1
                 ? () => {
@@ -313,27 +370,56 @@ function AppContent() {
                   }
                 : undefined
             }
-            onPaneDragOver={
-              paneCount > 1
-                ? () => {
-                    if (!paneDragSource || paneDragSource === paneThreadId) return;
-                    setPaneDropTarget(paneThreadId);
-                  }
-                : undefined
-            }
-            onPaneDrop={
-              paneCount > 1
-                ? () => {
-                    if (!paneDragSource || paneDragSource === paneThreadId) return;
-                    const sourceIdx = view.panes.indexOf(paneDragSource);
-                    const targetIdx = view.panes.indexOf(paneThreadId);
-                    const placement: ReorderPlacement = sourceIdx < targetIdx ? "after" : "before";
-                    startTransition(() => reorderPanes(paneDragSource, paneThreadId, placement));
-                    setPaneDragSource(undefined);
-                    setPaneDropTarget(undefined);
-                  }
-                : undefined
-            }
+            onPaneDragOver={(zone, event) => {
+              // Sidebar thread drag
+              if (event.dataTransfer.types.includes(SIDEBAR_THREAD_MIME)) {
+                if (zone === "center" || paneCount >= 3) {
+                  setSidebarDropTarget({ kind: "replace", paneIndex });
+                } else {
+                  setSidebarDropTarget({
+                    kind: "insert",
+                    index: zone === "left" ? paneIndex : paneIndex + 1,
+                  });
+                }
+                return;
+              }
+              // Pane-to-pane drag
+              if (paneDragSource && paneDragSource !== paneThreadId) {
+                setPaneDropTarget(paneThreadId);
+              }
+            }}
+            onPaneDrop={(event) => {
+              // Sidebar thread drag
+              if (event.dataTransfer.types.includes(SIDEBAR_THREAD_MIME)) {
+                const threadId = event.dataTransfer.getData("text/plain");
+                if (threadId && !view.panes.includes(threadId)) {
+                  const target = sidebarDropTarget;
+                  startTransition(() => {
+                    if (target?.kind === "replace") {
+                      if (target.paneIndex === 0) openThread(threadId);
+                      else if (target.paneIndex === 1) replaceSecondPane(threadId);
+                      else openThreadSideBySide(threadId);
+                    } else if (target?.kind === "insert") {
+                      insertPaneAtIndex(threadId, target.index);
+                    } else {
+                      openThreadSideBySide(threadId);
+                    }
+                  });
+                }
+                setSidebarDragActive(false);
+                setSidebarDropTarget(undefined);
+                return;
+              }
+              // Pane-to-pane drag
+              if (paneDragSource && paneDragSource !== paneThreadId) {
+                const sourceIdx = view.panes.indexOf(paneDragSource);
+                const targetIdx = view.panes.indexOf(paneThreadId);
+                const placement: ReorderPlacement = sourceIdx < targetIdx ? "after" : "before";
+                startTransition(() => reorderPanes(paneDragSource, paneThreadId, placement));
+                setPaneDragSource(undefined);
+                setPaneDropTarget(undefined);
+              }
+            }}
             onClose={() => closePane(paneThreadId)}
             onConfigChange={(config) => updateThreadConfig(thread.id, config)}
             pendingServerRequests={pendingServerRequests.filter(
@@ -363,13 +449,37 @@ function AppContent() {
       .filter(Boolean);
 
     if (paneElements.length === 0) {
-      return <HomeView />;
+      return (
+        <div className="h-full" onDragOver={handleSidebarDragOver} onDrop={handleSidebarDrop}>
+          <HomeView />
+          {sidebarDragActive && (
+            <div
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-0 z-20 rounded-2xl bg-accent/10 ring-1 ring-inset ring-accent/30"
+            />
+          )}
+        </div>
+      );
     }
 
-    return <SplitPaneContainer>{paneElements}</SplitPaneContainer>;
+    return (
+      <div className="h-full" onDragOver={handleSidebarDragOver}>
+        <SplitPaneContainer>{paneElements}</SplitPaneContainer>
+      </div>
+    );
   }
 
-  return <HomeView />;
+  return (
+    <div className="relative h-full" onDragOver={handleSidebarDragOver} onDrop={handleSidebarDrop}>
+      <HomeView />
+      {sidebarDragActive && (
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 z-20 rounded-2xl bg-accent/10 ring-1 ring-inset ring-accent/30"
+        />
+      )}
+    </div>
+  );
 }
 
 export function App() {
