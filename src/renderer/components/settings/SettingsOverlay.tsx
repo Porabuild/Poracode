@@ -3,7 +3,7 @@ import { startTransition, useState } from "react";
 import type { ThemeMode } from "../../../shared/contracts";
 import { useAppStore } from "../../state/appStore";
 import { useSharedSettings } from "../../state/sharedSettingsStore";
-import { getModelLabel, resolveCommitGenConfig } from "../providers";
+import { resolveCommitGenConfig } from "../providers";
 import { Select, SidebarButton } from "../common";
 import { AppShell, useSidebar } from "../layout/AppShell";
 
@@ -157,10 +157,7 @@ function GitSettings() {
   ];
 
   const modelOptions = selectedAgent
-    ? selectedAgent.capabilities.models.map((id) => ({
-        id,
-        label: getModelLabel(selectedAgent.kind, id) ?? id,
-      }))
+    ? [...selectedAgent.capabilities.models]
     : [];
 
   const effortOptions = selectedAgent

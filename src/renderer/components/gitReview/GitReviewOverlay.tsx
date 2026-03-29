@@ -181,6 +181,7 @@ export function GitReviewOverlay(props: {
           sidebar={
             <GitReviewSidebar
               project={effectiveProject}
+              gitStatus={gitStatus}
               selectedFile={selectedFile}
               selectedStaged={selectedStaged}
               onSelectFile={handleSelectFile}
@@ -191,6 +192,7 @@ export function GitReviewOverlay(props: {
           content={
             <GitDiffContent
               project={effectiveProject}
+              gitStatus={gitStatus}
               selectedFile={selectedFile}
               selectedStaged={selectedStaged}
               diffMode={diffMode}

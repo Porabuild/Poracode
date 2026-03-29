@@ -1,16 +1,15 @@
 import { useEffect, useRef, useState } from "react";
-import { ClipboardList, ShieldOff, Sparkles, TerminalSquare } from "lucide-react";
+import { TerminalSquare } from "lucide-react";
 import type {
   AgentStatus,
   Project,
   ProjectDraftConfig,
   ThreadConfig,
 } from "../../../shared/contracts";
-import { ProviderIcon } from "../providers";
+import { ProviderIcon, getComposerControls } from "../providers";
 import { useGitStore } from "../../state/gitStore";
 import { BranchSelector, generateWorktreeBranch, type BranchSelection } from "../common";
 import { ThreadComposer } from "./ThreadComposer";
-import { formatCompactLabel, modelOptions } from "./threadComposerOptions";
 
 function resolvePreferredAgentKind(
   installedAgents: AgentStatus[],
@@ -28,7 +27,7 @@ function resolvePreferredAgentKind(
 
 function resolveModelValue(agent: AgentStatus, preferred?: string): string {
   const models = agent.capabilities.models;
-  return preferred && models.includes(preferred) ? preferred : (models[0] ?? "");
+  return preferred && models.some((m) => m.id === preferred) ? preferred : (models[0]?.id ?? "");
 }
 
 function resolveEffortValue(agent: AgentStatus, model: string, preferred?: string): string {
@@ -54,12 +53,12 @@ function resolveModeValue(agent: AgentStatus, preferred?: string): string {
 
 function resolveApprovalPolicyValue(agent: AgentStatus, preferred?: string): string {
   const policies = agent.capabilities.approvalPolicies;
-  return preferred && policies.includes(preferred) ? preferred : (policies[0] ?? "");
+  return preferred && policies.some((p) => p.id === preferred) ? preferred : (policies[0]?.id ?? "");
 }
 
 function resolveSandboxModeValue(agent: AgentStatus, preferred?: string): string {
   const modes = agent.capabilities.sandboxModes;
-  return preferred && modes.includes(preferred) ? preferred : (modes[0] ?? "");
+  return preferred && modes.some((m) => m.id === preferred) ? preferred : (modes[0]?.id ?? "");
 }
 
 function formatAgentList(names: string[]): string {
@@ -101,9 +100,6 @@ export function ThreadDraftView(props: {
   const [worktreeMode, setWorktreeMode] = useState(false);
   const [branchSelection, setBranchSelection] = useState<BranchSelection | null>(null);
   const lastAppliedAgentKindRef = useRef<AgentStatus["kind"] | undefined>(undefined);
-
-  const availableEfforts =
-    selectedAgent?.capabilities.modelEfforts?.[model] ?? selectedAgent?.capabilities.efforts ?? [];
 
   useEffect(() => {
     if (effectiveAgentKind && agentKind !== effectiveAgentKind) {
@@ -178,10 +174,14 @@ export function ThreadDraftView(props: {
     );
   }
 
-  const hasPermissions =
-    selectedAgent.capabilities.approvalPolicies.length > 0 ||
-    selectedAgent.capabilities.sandboxModes.length > 0;
-  const isFullAccess = approvalPolicy === "never" && sandboxMode === "danger-full-access";
+  const factory = getComposerControls(selectedAgent.kind);
+  const onConfigPatch = (patch: Partial<ThreadConfig>) => {
+    if (patch.model !== undefined) setModel(patch.model);
+    if (patch.effort !== undefined) setEffort(patch.effort);
+    if (patch.mode !== undefined) setMode(patch.mode as "agent" | "plan");
+    if (patch.approvalPolicy !== undefined) setApprovalPolicy(patch.approvalPolicy);
+    if (patch.sandboxMode !== undefined) setSandboxMode(patch.sandboxMode);
+  };
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -226,92 +226,14 @@ export function ThreadDraftView(props: {
                     value: selectedAgent.kind,
                     onChange: (value) => setAgentKind(value as AgentStatus["kind"]),
                   },
-                  {
-                    options: modelOptions(
-                      selectedAgent.capabilities.models,
-                      model,
-                      selectedAgent.kind,
-                    ),
-                    value: model,
-                    onChange: setModel,
-                  },
-                  ...(availableEfforts.length > 0
-                    ? [
-                        {
-                          icon: <Sparkles className="size-4 text-muted" />,
-                          options: availableEfforts.map((value) => ({
-                            id: value,
-                            label: formatCompactLabel(value),
-                          })),
-                          value: effort,
-                          onChange: setEffort,
-                        },
-                      ]
+                  ...(factory
+                    ? factory({
+                        capabilities: selectedAgent.capabilities,
+                        config: { model, effort, mode, approvalPolicy, sandboxMode },
+                        isDisabled: false,
+                        onConfigChange: onConfigPatch,
+                      })
                     : []),
-                  ...(selectedAgent.capabilities.modes.length === 2
-                    ? [
-                        {
-                          kind: "toggle" as const,
-                          icon: <ClipboardList className="size-3.5" />,
-                          label: formatCompactLabel(
-                            selectedAgent.capabilities.modes.find((m) => m !== "agent") ?? "plan",
-                          ),
-                          isSelected: mode !== "agent",
-                          onChange: (isSelected: boolean) =>
-                            setMode(
-                              isSelected
-                                ? (selectedAgent.capabilities.modes.find((m) => m !== "agent") ??
-                                    "plan")
-                                : "agent",
-                            ),
-                        },
-                      ]
-                    : selectedAgent.capabilities.modes.length > 0
-                      ? [
-                          {
-                            icon: <TerminalSquare className="size-4 text-muted" />,
-                            options: selectedAgent.capabilities.modes.map((value) => ({
-                              id: value,
-                              label: formatCompactLabel(value),
-                            })),
-                            value: mode,
-                            onChange: (value: string) => setMode(value as "agent" | "plan"),
-                          },
-                        ]
-                      : []),
-                  ...(selectedAgent.capabilities.approvalPolicies.length > 2
-                    ? [
-                        {
-                          icon: <ShieldOff className="size-3.5" />,
-                          options: selectedAgent.capabilities.approvalPolicies.map((value) => ({
-                            id: value,
-                            label: formatCompactLabel(value),
-                          })),
-                          value: approvalPolicy,
-                          onChange: setApprovalPolicy,
-                        },
-                      ]
-                    : hasPermissions
-                      ? [
-                          {
-                            kind: "toggle" as const,
-                            icon: <ShieldOff className="size-3.5" />,
-                            label: "Full Access",
-                            isSelected: isFullAccess,
-                            onChange: (selected: boolean) => {
-                              if (selected) {
-                                setApprovalPolicy("never");
-                                setSandboxMode("danger-full-access");
-                              } else {
-                                setApprovalPolicy(
-                                  selectedAgent.capabilities.approvalPolicies[0] ?? "",
-                                );
-                                setSandboxMode(selectedAgent.capabilities.sandboxModes[0] ?? "");
-                              }
-                            },
-                          },
-                        ]
-                      : []),
                 ]}
                 placeholder="Ask LightCode anything, @ to add files, / for commands"
                 prompt={prompt}

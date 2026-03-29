@@ -22,18 +22,28 @@ export function ProviderIcon(props: { kind: string; tone?: StatusTone; className
   );
 }
 
-// --- Model label registry ---
+// --- Composer controls registry ---
 
-type ModelLabelFormatter = (modelId: string) => string;
+import type { ComposerControl } from "../thread/ThreadComposer";
+import type { AgentCapability, ThreadConfig } from "../../../shared/contracts";
 
-const MODEL_LABEL_REGISTRY = new Map<string, ModelLabelFormatter>();
-
-export function registerModelLabels(kind: string, formatter: ModelLabelFormatter) {
-  MODEL_LABEL_REGISTRY.set(kind, formatter);
+export interface ComposerControlsInput {
+  capabilities: AgentCapability;
+  config: ThreadConfig;
+  isDisabled: boolean;
+  onConfigChange: (patch: Partial<ThreadConfig>) => void;
 }
 
-export function getModelLabel(kind: string, modelId: string): string | undefined {
-  return MODEL_LABEL_REGISTRY.get(kind)?.(modelId);
+type ComposerControlsFactory = (input: ComposerControlsInput) => ComposerControl[];
+
+const COMPOSER_CONTROLS_REGISTRY = new Map<string, ComposerControlsFactory>();
+
+export function registerComposerControls(kind: string, factory: ComposerControlsFactory) {
+  COMPOSER_CONTROLS_REGISTRY.set(kind, factory);
+}
+
+export function getComposerControls(kind: string): ComposerControlsFactory | undefined {
+  return COMPOSER_CONTROLS_REGISTRY.get(kind);
 }
 
 // --- Commit generation defaults registry ---

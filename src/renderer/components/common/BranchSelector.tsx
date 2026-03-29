@@ -194,7 +194,7 @@ export function BranchSelector(props: BranchSelectorProps) {
   return (
     <div className="flex items-center gap-1">
       {isNew && !isWorktree && <span className="shrink-0 text-xs text-muted">new</span>}
-      {(isWorktree || worktreeMode) && (
+      {worktreeMode && (
         <span className="shrink-0 text-xs text-muted">from</span>
       )}
       <Popover isOpen={isOpen} onOpenChange={setIsOpen}>

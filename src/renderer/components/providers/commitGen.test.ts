@@ -14,15 +14,19 @@ const codexStatus: AgentStatus = {
   installed: true,
   authState: "authenticated",
   capabilities: {
-    models: ["gpt-5.4", "gpt-5.4-mini", "gpt-5.1-codex-mini"],
+    models: [
+      { id: "gpt-5.4", label: "5.4" },
+      { id: "gpt-5.4-mini", label: "5.4 Mini" },
+      { id: "gpt-5.1-codex-mini", label: "5.1 Codex Mini" },
+    ],
     efforts: ["low", "medium", "high", "xhigh"],
     defaultEffort: "high",
     modelEfforts: {
       "gpt-5.1-codex-mini": ["medium", "high"],
     },
     modes: ["agent", "plan"],
-    approvalPolicies: ["on-request"],
-    sandboxModes: ["workspace-write"],
+    approvalPolicies: [{ id: "on-request", label: "On Request" }],
+    sandboxModes: [{ id: "workspace-write", label: "Workspace Write" }],
     supportsResume: true,
     supportsDirectInput: true,
     liveInputMode: "server",
@@ -36,7 +40,11 @@ const claudeStatus: AgentStatus = {
   installed: true,
   authState: "authenticated",
   capabilities: {
-    models: ["claude-opus-4-6[1m]", "sonnet", "haiku"],
+    models: [
+      { id: "claude-opus-4-6[1m]", label: "Opus 1M" },
+      { id: "sonnet", label: "Sonnet" },
+      { id: "haiku", label: "Haiku" },
+    ],
     efforts: ["low", "medium", "high", "max"],
     defaultEffort: "high",
     modelEfforts: {
@@ -44,7 +52,10 @@ const claudeStatus: AgentStatus = {
       sonnet: ["low", "medium", "high"],
     },
     modes: ["agent", "plan"],
-    approvalPolicies: ["default", "auto"],
+    approvalPolicies: [
+      { id: "default", label: "Default" },
+      { id: "auto", label: "Auto" },
+    ],
     sandboxModes: [],
     supportsResume: true,
     supportsDirectInput: true,

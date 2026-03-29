@@ -71,14 +71,20 @@ export const sessionRefSchema = z.object({
 });
 export type SessionRef = z.infer<typeof sessionRefSchema>;
 
+export const labeledOptionSchema = z.object({
+  id: z.string().min(1),
+  label: z.string().min(1),
+});
+export type LabeledOption = z.infer<typeof labeledOptionSchema>;
+
 export const agentCapabilitySchema = z.object({
-  models: z.array(z.string().min(1)).default([]),
+  models: z.array(labeledOptionSchema).default([]),
   efforts: z.array(z.string().min(1)).default([]),
   defaultEffort: z.string().optional(),
   modelEfforts: z.record(z.string(), z.array(z.string().min(1))).default({}),
   modes: z.array(threadModeSchema).default([]),
-  approvalPolicies: z.array(z.string().min(1)).default([]),
-  sandboxModes: z.array(z.string().min(1)).default([]),
+  approvalPolicies: z.array(labeledOptionSchema).default([]),
+  sandboxModes: z.array(labeledOptionSchema).default([]),
   supportsResume: z.boolean().default(false),
   supportsDirectInput: z.boolean().default(true),
   liveInputMode: liveInputModeSchema.default("terminal"),

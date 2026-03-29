@@ -1,13 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import {
-  ClipboardList,
-  GitBranch,
-  GitFork,
-  ShieldOff,
-  Sparkles,
-  TerminalSquare,
-  X,
-} from "lucide-react";
+import { GitBranch, GitFork, X } from "lucide-react";
 import type {
   AgentStatus,
   ProjectLocation,
@@ -17,7 +9,7 @@ import type {
   ThreadServerRequestId,
 } from "../../../shared/contracts";
 
-import { ProviderIcon, getStatusTone } from "../providers";
+import { ProviderIcon, getComposerControls, getStatusTone } from "../providers";
 import type { PendingThreadServerRequest } from "../../state/appStore";
 import { useGitStore } from "../../state/gitStore";
 import { Button, PromptOptions, TuxIcon } from "../common";
@@ -25,7 +17,6 @@ import { readBridge } from "../../bridge";
 import { TerminalPane } from "./TerminalPane";
 import { ThreadComposer } from "./ThreadComposer";
 import { ThreadServerRequestPanel } from "./ThreadServerRequestPanel";
-import { formatCompactLabel, modelOptions } from "./threadComposerOptions";
 
 const DEFAULT_HIDDEN_TERMINAL_SIZE: TerminalSize = { cols: 120, rows: 30 };
 
@@ -35,16 +26,7 @@ function buildControls(
   onConfigChange: (config: ThreadConfig) => void,
 ) {
   const statusTone = getStatusTone(thread);
-  const hasPermissions =
-    (agentStatus?.capabilities.approvalPolicies.length ?? 0) > 0 ||
-    (agentStatus?.capabilities.sandboxModes.length ?? 0) > 0;
-  const isFullAccess =
-    thread.config.approvalPolicy === "never" && thread.config.sandboxMode === "danger-full-access";
-  const availableEfforts =
-    agentStatus?.capabilities.modelEfforts?.[thread.config.model ?? ""] ??
-    agentStatus?.capabilities.efforts ??
-    [];
-  const isDisabled = !thread.canResumeWithConfig;
+  const factory = getComposerControls(thread.agentKind);
 
   return [
     {
@@ -53,130 +35,14 @@ function buildControls(
       hideLabelOnWrap: true,
       icon: <ProviderIcon kind={thread.agentKind} tone={statusTone} className="size-4 shrink-0" />,
     },
-    {
-      options: modelOptions(
-        agentStatus?.capabilities.models ?? [],
-        thread.config.model,
-        thread.agentKind,
-      ),
-      value: thread.config.model,
-      isDisabled,
-      onChange: (value: string) => {
-        const nextEfforts =
-          agentStatus?.capabilities.modelEfforts?.[value] ??
-          agentStatus?.capabilities.efforts ??
-          [];
-        const effortValid = nextEfforts.includes(thread.config.effort ?? "");
-        onConfigChange({
-          ...thread.config,
-          model: value,
-          ...(!effortValid && nextEfforts.length > 0 ? { effort: nextEfforts[0] } : {}),
-        });
-      },
-    },
-    ...(availableEfforts.length
-      ? [
-          {
-            icon: <Sparkles className="size-4 text-muted" />,
-            options: availableEfforts.map((value) => ({
-              id: value,
-              label: formatCompactLabel(value),
-            })),
-            value: thread.config.effort ?? availableEfforts[0] ?? "",
-            isDisabled,
-            onChange: (value: string) =>
-              onConfigChange({
-                ...thread.config,
-                effort: value,
-              }),
-          },
-        ]
+    ...(factory && agentStatus
+      ? factory({
+          capabilities: agentStatus.capabilities,
+          config: thread.config,
+          isDisabled: !thread.canResumeWithConfig,
+          onConfigChange: (patch) => onConfigChange({ ...thread.config, ...patch }),
+        })
       : []),
-    ...(agentStatus?.capabilities.modes.length === 2
-      ? [
-          {
-            kind: "toggle" as const,
-            icon: <ClipboardList className="size-3.5" />,
-            label: formatCompactLabel(
-              agentStatus.capabilities.modes.find((m) => m !== "agent") ?? "plan",
-            ),
-            hideLabelOnWrap: true,
-            isSelected: (thread.config.mode ?? "agent") !== "agent",
-            isDisabled,
-            onChange: (isSelected: boolean) => {
-              const altMode = agentStatus.capabilities.modes.find((m) => m !== "agent") ?? "plan";
-              onConfigChange({
-                ...thread.config,
-                mode: (isSelected ? altMode : "agent") as Thread["config"]["mode"],
-              });
-            },
-          },
-        ]
-      : agentStatus?.capabilities.modes.length
-        ? [
-            {
-              icon: <TerminalSquare className="size-4 text-muted" />,
-              options: agentStatus.capabilities.modes.map((value) => ({
-                id: value,
-                label: formatCompactLabel(value),
-              })),
-              hideLabelOnWrap: true,
-              value: thread.config.mode ?? agentStatus.capabilities.modes[0] ?? "agent",
-              isDisabled,
-              onChange: (value: string) =>
-                onConfigChange({
-                  ...thread.config,
-                  mode: value as Thread["config"]["mode"],
-                }),
-            },
-          ]
-        : []),
-    ...((agentStatus?.capabilities.approvalPolicies.length ?? 0) > 2
-      ? [
-          {
-            icon: <ShieldOff className="size-3.5" />,
-            options: agentStatus!.capabilities.approvalPolicies.map((value) => ({
-              id: value,
-              label: formatCompactLabel(value),
-            })),
-            hideLabelOnWrap: true,
-            value:
-              thread.config.approvalPolicy ??
-              agentStatus!.capabilities.approvalPolicies[0] ??
-              "default",
-            isDisabled,
-            onChange: (value: string) =>
-              onConfigChange({ ...thread.config, approvalPolicy: value }),
-          },
-        ]
-      : hasPermissions
-        ? [
-            {
-              kind: "toggle" as const,
-              icon: <ShieldOff className="size-3.5" />,
-              label: "Full Access",
-              hideLabelOnWrap: true,
-              isSelected: isFullAccess,
-              isDisabled,
-              onChange: (selected: boolean) => {
-                if (selected) {
-                  onConfigChange({
-                    ...thread.config,
-                    approvalPolicy: "never",
-                    sandboxMode: "danger-full-access",
-                  });
-                } else {
-                  const { approvalPolicy: _a, sandboxMode: _s, ...rest } = thread.config;
-                  onConfigChange({
-                    ...rest,
-                    approvalPolicy: agentStatus?.capabilities.approvalPolicies[0],
-                    sandboxMode: agentStatus?.capabilities.sandboxModes[0],
-                  });
-                }
-              },
-            },
-          ]
-        : []),
   ];
 }
 

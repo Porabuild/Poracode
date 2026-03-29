@@ -13,7 +13,6 @@ import type { Project, GitStatusResult } from "../../../shared/contracts";
   };
 }
 import { readBridge } from "../../bridge";
-import { useGitStore } from "../../state/gitStore";
 import { useSharedSettings } from "../../state/sharedSettingsStore";
 
 function useDiffTheme(): "light" | "dark" {
@@ -340,14 +339,15 @@ export type DiffFilter = "changes" | "staged";
 
 export function GitDiffContent(props: {
   project: Project;
+  gitStatus: GitStatusResult | undefined;
   selectedFile: string | null;
   selectedStaged: boolean;
   diffMode: number;
   diffFilter: DiffFilter;
   refreshKey: number;
 }) {
-  const { project, selectedFile, selectedStaged, diffMode, diffFilter, refreshKey } = props;
-  const gitStatus = useGitStore((s) => s.statuses[project.id]) as GitStatusResult | undefined;
+  const { project, gitStatus, selectedFile, selectedStaged, diffMode, diffFilter, refreshKey } =
+    props;
   const theme = useDiffTheme();
   const [entries, setEntries] = useState<DiffEntry[]>([]);
   const [loading, setLoading] = useState(false);
@@ -360,8 +360,7 @@ export function GitDiffContent(props: {
     async function loadDiffs() {
       setLoading(true);
 
-      const status = useGitStore.getState().statuses[project.id];
-      if (!status?.isRepo) {
+      if (!gitStatus?.isRepo) {
         if (!cancelled) {
           setEntries([]);
           setLoading(false);
@@ -370,12 +369,16 @@ export function GitDiffContent(props: {
       }
 
       const skeletons = [
-        ...status.staged.map((f) => skeletonEntry(f.path, true, f.insertions, f.deletions)),
-        ...status.unstaged.map((f) => skeletonEntry(f.path, false, f.insertions, f.deletions)),
+        ...gitStatus.staged.map((f) => skeletonEntry(f.path, true, f.insertions, f.deletions)),
+        ...gitStatus.unstaged.map((f) =>
+          skeletonEntry(f.path, false, f.insertions, f.deletions)
+        ),
       ];
       if (!cancelled) setEntries(skeletons);
 
-      const untrackedPaths = status.unstaged.filter((f) => f.status === "?").map((f) => f.path);
+      const untrackedPaths = gitStatus.unstaged
+        .filter((f) => f.status === "?")
+        .map((f) => f.path);
 
       try {
         const batch = await readBridge().getGitDiffBatch({
@@ -385,7 +388,7 @@ export function GitDiffContent(props: {
         if (cancelled) return;
 
         const populated: DiffEntry[] = [
-          ...status.staged.map((f) =>
+          ...gitStatus.staged.map((f) =>
             buildEntry(
               f.path,
               true,
@@ -395,7 +398,7 @@ export function GitDiffContent(props: {
               diffMode,
             ),
           ),
-          ...status.unstaged.map((f) =>
+          ...gitStatus.unstaged.map((f) =>
             buildEntry(
               f.path,
               false,
@@ -420,7 +423,7 @@ export function GitDiffContent(props: {
     return () => {
       cancelled = true;
     };
-  }, [refreshKey, project.id, project.location, diffMode]);
+  }, [refreshKey, project.location, gitStatus, diffMode]);
 
   // Re-parse diff lines when the view mode changes (no re-fetch needed)
   const prevModeRef = useRef(diffMode);

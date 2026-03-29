@@ -20,7 +20,6 @@ import { getProjectAgentStatuses } from "../../../shared/agentStatus";
 import { readBridge } from "../../bridge";
 import { useAppStore } from "../../state/appStore";
 import { useSharedSettings } from "../../state/sharedSettingsStore";
-import { useGitStore } from "../../state/gitStore";
 import { SidebarButton, TextArea } from "../common";
 import { useSidebar } from "../layout/AppShell";
 import { generateCommitMessageWithFallback, getCommitGenCandidates } from "../providers";
@@ -295,15 +294,23 @@ function FileGroup(props: {
 
 export function GitReviewSidebar(props: {
   project: Project;
+  gitStatus: GitStatusResult | undefined;
   selectedFile: string | null;
   selectedStaged: boolean;
   onSelectFile: (path: string | null, staged: boolean) => void;
   onClose: () => void;
   onRefresh: () => void;
 }) {
-  const { project, selectedFile, selectedStaged, onSelectFile, onClose, onRefresh } = props;
+  const {
+    project,
+    gitStatus,
+    selectedFile,
+    selectedStaged,
+    onSelectFile,
+    onClose,
+    onRefresh,
+  } = props;
   const { isCollapsed, collapse, expand } = useSidebar();
-  const gitStatus = useGitStore((s) => s.statuses[project.id]) as GitStatusResult | undefined;
   const agentStatuses = useAppStore((s) => s.agentStatuses);
   const wslAgentStatuses = useAppStore((s) => s.wslAgentStatuses);
   const commitGenProvider = useSharedSettings((s) => s.commitGenProvider);

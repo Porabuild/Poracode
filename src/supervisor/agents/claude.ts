@@ -21,7 +21,11 @@ import {
 } from "./base";
 
 const capabilities: AgentCapability = {
-  models: ["claude-opus-4-6[1m]", "sonnet", "haiku"],
+  models: [
+    { id: "claude-opus-4-6[1m]", label: "Opus 1M" },
+    { id: "sonnet", label: "Sonnet" },
+    { id: "haiku", label: "Haiku" },
+  ],
   efforts: ["low", "medium", "high", "max"],
   defaultEffort: "high",
   modelEfforts: {
@@ -29,7 +33,13 @@ const capabilities: AgentCapability = {
     sonnet: ["low", "medium", "high"],
   },
   modes: ["agent", "plan"],
-  approvalPolicies: ["default", "auto", "acceptEdits", "bypassPermissions", "dontAsk"],
+  approvalPolicies: [
+    { id: "default", label: "Default" },
+    { id: "auto", label: "Auto" },
+    { id: "acceptEdits", label: "Accept Edits" },
+    { id: "dontAsk", label: "Don't Ask" },
+    { id: "bypassPermissions", label: "Bypass Permissions" },
+  ],
   sandboxModes: [],
   supportsResume: true,
   supportsDirectInput: true,

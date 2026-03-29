@@ -8,10 +8,10 @@ import { getCommitGenDefaults } from "./ProviderIcon";
 
 function resolveCommitGenModel(agent: AgentStatus): string {
   const defaults = getCommitGenDefaults(agent.kind);
-  if (defaults?.model && agent.capabilities.models.includes(defaults.model)) {
+  if (defaults?.model && agent.capabilities.models.some((m) => m.id === defaults.model)) {
     return defaults.model;
   }
-  return agent.capabilities.models[0] ?? "";
+  return agent.capabilities.models[0]?.id ?? "";
 }
 
 function resolveCommitGenEfforts(agent: AgentStatus, model: string): string[] {
@@ -47,7 +47,7 @@ export function resolveCommitGenConfig(
     };
   }
 
-  const nextModel = agent.capabilities.models.includes(model)
+  const nextModel = agent.capabilities.models.some((m) => m.id === model)
     ? model
     : resolveCommitGenModel(agent);
   const availableEfforts = resolveCommitGenEfforts(agent, nextModel);

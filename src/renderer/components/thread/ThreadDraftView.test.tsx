@@ -44,13 +44,21 @@ const codexStatus: AgentStatus = {
   installed: true,
   authState: "authenticated",
   capabilities: {
-    models: ["gpt-5.4", "gpt-5.4-mini"],
+    models: [{ id: "gpt-5.4", label: "5.4" }, { id: "gpt-5.4-mini", label: "5.4 Mini" }],
     efforts: ["low", "medium", "high", "xhigh"],
     defaultEffort: "high",
     modelEfforts: {},
     modes: ["agent", "plan"],
-    approvalPolicies: ["on-request", "never", "untrusted"],
-    sandboxModes: ["workspace-write", "read-only", "danger-full-access"],
+    approvalPolicies: [
+      { id: "on-request", label: "On Request" },
+      { id: "never", label: "Full Access" },
+      { id: "untrusted", label: "Untrusted" },
+    ],
+    sandboxModes: [
+      { id: "workspace-write", label: "Workspace Write" },
+      { id: "read-only", label: "Read Only" },
+      { id: "danger-full-access", label: "Full Access" },
+    ],
     supportsResume: true,
     supportsDirectInput: true,
     liveInputMode: "server",
@@ -64,11 +72,15 @@ const geminiStatus: AgentStatus = {
   installed: true,
   authState: "authenticated",
   capabilities: {
-    models: ["auto", "gemini-2.5-flash"],
+    models: [{ id: "auto", label: "Auto" }, { id: "gemini-2.5-flash", label: "2.5 Flash" }],
     efforts: [],
     modelEfforts: {},
     modes: ["agent", "plan"],
-    approvalPolicies: ["default", "auto_edit", "never"],
+    approvalPolicies: [
+      { id: "default", label: "Default" },
+      { id: "auto_edit", label: "Auto Edit" },
+      { id: "never", label: "Full Access" },
+    ],
     sandboxModes: [],
     supportsResume: true,
     supportsDirectInput: true,
@@ -112,7 +124,12 @@ describe("ThreadDraftView", () => {
       expect(props.controls[0]?.value).toBe("codex");
       expect(props.controls[1]?.value).toBe("gpt-5.4");
       expect(props.controls[2]?.value).toBe("high");
-      expect(props.controls.some((control) => control.value === "on-request")).toBe(true);
+      expect(
+        props.controls.some(
+          (control: { label?: string; isSelected?: boolean }) =>
+            control.label === "Full Access" && control.isSelected === false,
+        ),
+      ).toBe(true);
     });
 
     fireEvent.click(screen.getByText("set-prompt"));

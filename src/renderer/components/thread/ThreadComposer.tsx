@@ -3,9 +3,9 @@ import { ArrowUp } from "lucide-react";
 import { ToggleButton, Tooltip } from "@heroui/react";
 import { Button, OptionMenu, TextArea } from "../common";
 
-type OptionMenuOption = string | { id: string; label: string };
+export type OptionMenuOption = string | { id: string; label: string };
 
-type ComposerControl =
+export type ComposerControl =
   | {
       kind?: "menu";
       value: string;
@@ -71,8 +71,8 @@ export function ThreadComposer(props: {
   useEffect(() => {
     const check = () => {
       if (controlsRef.current && rulerRef.current) {
-        const containerWidth = controlsRef.current.clientWidth;
-        const preferredWidth = rulerRef.current.scrollWidth;
+        const containerWidth = controlsRef.current.getBoundingClientRect().width;
+        const preferredWidth = rulerRef.current.getBoundingClientRect().width;
         const shouldWrap = preferredWidth > containerWidth;
 
         if (shouldWrap !== isWrappingRef.current) {
@@ -96,8 +96,8 @@ export function ThreadComposer(props: {
   // but without recreating the observer.
   useEffect(() => {
     if (controlsRef.current && rulerRef.current) {
-      const containerWidth = controlsRef.current.clientWidth;
-      const preferredWidth = rulerRef.current.scrollWidth;
+      const containerWidth = controlsRef.current.getBoundingClientRect().width;
+      const preferredWidth = rulerRef.current.getBoundingClientRect().width;
       const shouldWrap = preferredWidth > containerWidth;
       if (shouldWrap !== isWrappingRef.current) {
         isWrappingRef.current = shouldWrap;
@@ -225,10 +225,13 @@ export function ThreadComposer(props: {
         {renderControlsList(true)}
       </div>
 
-      {/* Real Controls: wraps and respects isWrapping state */}
+      {/* Real Controls: wraps and respects isWrapping state.
+         Fixed height + overflow-hidden prevents a visible two-row blink
+         while labels collapse — wrapped items are clipped, not shown. */}
       <div
         ref={controlsRef}
-        className={`flex min-w-0 flex-wrap items-center gap-1 ${isWrapping ? "is-wrapping" : ""}`}
+        className={`flex min-w-0 flex-wrap items-center gap-1 overflow-hidden ${isWrapping ? "is-wrapping" : ""}`}
+        style={{ height: "2.25rem" }}
       >
         {renderControlsList()}
       </div>
