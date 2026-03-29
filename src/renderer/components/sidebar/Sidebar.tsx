@@ -485,6 +485,7 @@ export function Sidebar(props: {
                           </span>
                         }
                         tooltip={projectLocation}
+                        className={isDraggedProject ? "opacity-60" : ""}
                         onPress={() =>
                           setCollapsedProjects((current) => ({
                             ...current,
@@ -537,6 +538,18 @@ export function Sidebar(props: {
                           setDragItem(undefined);
                           setDropIndicator(undefined);
                         }}
+                        onDragStart={(event) => {
+                          event.dataTransfer.effectAllowed = "move";
+                          event.dataTransfer.setData("text/plain", project.id);
+                          setDragItem({ type: "project", id: project.id });
+                          setDropIndicator(undefined);
+                        }}
+                        onDragEnd={() => {
+                          setDragItem(undefined);
+                          setDropIndicator(undefined);
+                        }}
+                        isDragging={isDraggedProject}
+                        dragLabel={`Reorder ${project.name}`}
                         suffix={
                           <>
                             <GitBadge
@@ -567,24 +580,6 @@ export function Sidebar(props: {
                               }}
                             >
                               <TerminalSquare className="size-3.5" />
-                            </div>
-                            <div
-                              aria-grabbed={isDraggedProject}
-                              aria-label={`Reorder ${project.name}`}
-                              className="shrink-0 cursor-grab rounded text-muted/60 active:cursor-grabbing"
-                              draggable
-                              onDragEnd={() => {
-                                setDragItem(undefined);
-                                setDropIndicator(undefined);
-                              }}
-                              onDragStart={(event) => {
-                                event.dataTransfer.effectAllowed = "move";
-                                event.dataTransfer.setData("text/plain", project.id);
-                                setDragItem({ type: "project", id: project.id });
-                                setDropIndicator(undefined);
-                              }}
-                            >
-                              <GripVertical className="size-3.5" />
                             </div>
                           </>
                         }
@@ -761,6 +756,26 @@ export function Sidebar(props: {
                                     setDragItem(undefined);
                                     setDropIndicator(undefined);
                                   }}
+                                  onDragStart={(event) => {
+                                    event.dataTransfer.effectAllowed = "move";
+                                    event.dataTransfer.setData("text/plain", thread.id);
+                                    event.dataTransfer.setData(
+                                      "application/x-lightcode-sidebar-thread",
+                                      thread.id,
+                                    );
+                                    setDragItem({
+                                      type: "thread",
+                                      id: thread.id,
+                                      projectId: project.id,
+                                    });
+                                    setDropIndicator(undefined);
+                                  }}
+                                  onDragEnd={() => {
+                                    setDragItem(undefined);
+                                    setDropIndicator(undefined);
+                                  }}
+                                  isDragging={isDraggedThread}
+                                  dragLabel={`Reorder ${thread.title}`}
                                   suffix={
                                     <>
                                       <span className="relative shrink-0">
@@ -786,34 +801,6 @@ export function Sidebar(props: {
                                           <Trash2 className="size-3.5" />
                                         </div>
                                       </span>
-                                      <div
-                                        role="button"
-                                        tabIndex={0}
-                                        aria-grabbed={isDraggedThread}
-                                        aria-label={`Reorder ${thread.title}`}
-                                        className="shrink-0 cursor-grab rounded text-muted/60 active:cursor-grabbing"
-                                        draggable
-                                        onDragEnd={() => {
-                                          setDragItem(undefined);
-                                          setDropIndicator(undefined);
-                                        }}
-                                        onDragStart={(event) => {
-                                          event.dataTransfer.effectAllowed = "move";
-                                          event.dataTransfer.setData("text/plain", thread.id);
-                                          event.dataTransfer.setData(
-                                            "application/x-lightcode-sidebar-thread",
-                                            thread.id,
-                                          );
-                                          setDragItem({
-                                            type: "thread",
-                                            id: thread.id,
-                                            projectId: project.id,
-                                          });
-                                          setDropIndicator(undefined);
-                                        }}
-                                      >
-                                        <GripVertical className="size-3.5" />
-                                      </div>
                                     </>
                                   }
                                 />

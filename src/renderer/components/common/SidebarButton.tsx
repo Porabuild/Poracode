@@ -1,5 +1,6 @@
 import { useRef, useState, type DragEventHandler } from "react";
 import { Tooltip } from "@heroui/react";
+import { GripVertical } from "lucide-react";
 
 export function SidebarButton(props: {
   icon: React.ReactNode;
@@ -14,6 +15,10 @@ export function SidebarButton(props: {
   onDoubleClick?: () => void;
   onDragOver?: DragEventHandler<HTMLButtonElement>;
   onDrop?: DragEventHandler<HTMLButtonElement>;
+  onDragStart?: DragEventHandler<HTMLDivElement>;
+  onDragEnd?: DragEventHandler<HTMLDivElement>;
+  isDragging?: boolean;
+  dragLabel?: string;
 }) {
   const {
     icon,
@@ -28,6 +33,10 @@ export function SidebarButton(props: {
     onDoubleClick,
     onDragOver,
     onDrop,
+    onDragStart,
+    onDragEnd,
+    isDragging,
+    dragLabel,
   } = props;
 
   const stateClass = isDisabled
@@ -56,7 +65,7 @@ export function SidebarButton(props: {
 
   return (
     <button
-      className={`group flex w-full cursor-default items-center gap-2 rounded-3xl px-4 py-1.5 text-left text-sm transition-colors ${stateClass} ${className ?? ""}`}
+      className={`group relative flex w-full cursor-default items-center gap-2 rounded-3xl py-1.5 text-left text-sm transition-colors ${onDragStart ? "pl-4 pr-5" : "px-4"} ${stateClass} ${className ?? ""}`}
       disabled={isDisabled}
       onClick={onPress}
       onDoubleClick={onDoubleClick}
@@ -73,6 +82,21 @@ export function SidebarButton(props: {
         )}
       </div>
       {suffix && <div className="flex shrink-0 items-center gap-0.5">{suffix}</div>}
+      {onDragStart && (
+        <div
+          role="button"
+          tabIndex={0}
+          aria-grabbed={isDragging}
+          aria-label={dragLabel}
+          className="absolute right-1 opacity-0 transition-opacity pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto shrink-0 cursor-grab rounded text-muted/60 active:cursor-grabbing"
+          draggable
+          onDragEnd={onDragEnd}
+          onDragStart={onDragStart}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <GripVertical className="size-3.5" />
+        </div>
+      )}
     </button>
   );
 }
