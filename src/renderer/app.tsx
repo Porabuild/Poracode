@@ -90,6 +90,7 @@ readBridge().onUpdateStatus((status) => {
 
 const SIDEBAR_THREAD_MIME = "application/x-lightcode-sidebar-thread";
 const EMPTY_PANES: string[] = [];
+const GIT_POLL_INTERVAL_MS = 10_000;
 
 function formatRelativeTime(iso: string): string {
   const deltaMinutes = Math.max(1, Math.floor((Date.now() - new Date(iso).getTime()) / 60000));
@@ -536,14 +537,19 @@ export function App() {
   const reconcileRuntimeSnapshots = useAppStore((state) => state.reconcileRuntimeSnapshots);
   const reorderProjects = useAppStore((state) => state.reorderProjects);
   const reorderThreads = useAppStore((state) => state.reorderThreads);
+  const reorderThreadBlock = useAppStore((state) => state.reorderThreadBlock);
   const updateThreadRuntime = useAppStore((state) => state.updateThreadRuntime);
   const devTerminalOpen = useDevTerminalStore((s) => s.isOpen);
-  const devTerminalActiveProjectId = useDevTerminalStore((s) =>
-    s.isOpen ? s.activeProjectId : null,
-  );
+  const devTerminalActiveProjectId = useDevTerminalStore((s) => {
+    if (!s.isOpen || !s.activeProjectId) return null;
+    // Only highlight project icon if active tab is a project-level tab (not worktree)
+    const activeTab = s.tabs.find((t) => t.id === s.activeTabId);
+    if (activeTab?.worktreePath) return null;
+    return s.activeProjectId;
+  });
   const devTerminalTabs = useDevTerminalStore((s) => s.tabs);
   const terminalProjectIds = devTerminalTabs.reduce<string[]>((ids, t) => {
-    if (!ids.includes(t.projectId)) ids.push(t.projectId);
+    if (!t.worktreePath && !ids.includes(t.projectId)) ids.push(t.projectId);
     return ids;
   }, []);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -782,7 +788,7 @@ export function App() {
     }
 
     void pollGitStatus();
-    const intervalId = setInterval(() => void pollGitStatus(), 5000);
+    const intervalId = setInterval(() => void pollGitStatus(), GIT_POLL_INTERVAL_MS);
 
     return () => {
       isActive = false;
@@ -1013,8 +1019,40 @@ export function App() {
               const tab = store.addTab(projectId, project.name);
               store.setActiveTab(tab.id);
             }}
+            onOpenWorktreeTerminal={(projectId, worktreePath) => {
+              const project = projects.find((p) => p.id === projectId);
+              if (!project) return;
+
+              const store = useDevTerminalStore.getState();
+
+              // Open/switch to this project.
+              store.openPanel(projectId);
+
+              // If a tab for this worktree already exists, activate it.
+              const existingTab = store.tabs.find(
+                (t) => t.projectId === projectId && t.worktreePath === worktreePath,
+              );
+              if (existingTab) {
+                store.setActiveTab(existingTab.id);
+                return;
+              }
+
+              // Create a new tab with the worktree path.
+              const branchName = worktreePath.split(/[/\\]/).pop() ?? project.name;
+              const tab = store.addTab(projectId, branchName, worktreePath);
+              store.setActiveTab(tab.id);
+            }}
             terminalProjectIds={terminalProjectIds}
             activeTerminalProjectId={devTerminalActiveProjectId}
+            activeWorktreeTerminalPaths={devTerminalTabs
+              .filter((t) => t.worktreePath)
+              .map((t) => t.worktreePath!)}
+            activeWorktreeTerminalPath={(() => {
+              if (!devTerminalOpen) return null;
+              const activeTabId = useDevTerminalStore.getState().activeTabId;
+              const activeTab = devTerminalTabs.find((t) => t.id === activeTabId);
+              return activeTab?.worktreePath ?? null;
+            })()}
             onReorderProjects={(sourceProjectId, targetProjectId, placement) => {
               startTransition(() => {
                 reorderProjects(sourceProjectId, targetProjectId, placement);
@@ -1023,6 +1061,11 @@ export function App() {
             onReorderThreads={(sourceThreadId, targetThreadId, placement) => {
               startTransition(() => {
                 reorderThreads(sourceThreadId, targetThreadId, placement);
+              });
+            }}
+            onReorderThreadBlock={(blockIds, targetId, placement) => {
+              startTransition(() => {
+                reorderThreadBlock(blockIds, targetId, placement);
               });
             }}
           />

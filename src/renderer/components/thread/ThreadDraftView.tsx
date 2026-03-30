@@ -53,7 +53,9 @@ function resolveModeValue(agent: AgentStatus, preferred?: string): string {
 
 function resolveApprovalPolicyValue(agent: AgentStatus, preferred?: string): string {
   const policies = agent.capabilities.approvalPolicies;
-  return preferred && policies.some((p) => p.id === preferred) ? preferred : (policies[0]?.id ?? "");
+  return preferred && policies.some((p) => p.id === preferred)
+    ? preferred
+    : (policies[0]?.id ?? "");
 }
 
 function resolveSandboxModeValue(agent: AgentStatus, preferred?: string): string {

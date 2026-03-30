@@ -156,9 +156,7 @@ function GitSettings() {
     ...installedAgents.map((a) => ({ id: a.kind, label: a.label })),
   ];
 
-  const modelOptions = selectedAgent
-    ? [...selectedAgent.capabilities.models]
-    : [];
+  const modelOptions = selectedAgent ? [...selectedAgent.capabilities.models] : [];
 
   const effortOptions = selectedAgent
     ? resolvedCommitGen.availableEfforts.map((id) => ({

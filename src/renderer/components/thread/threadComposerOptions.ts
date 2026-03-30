@@ -11,4 +11,3 @@ export function withCurrentModel(
   }
   return [{ id: currentValue, label: DEFAULT_LABEL(currentValue) }, ...options];
 }
-

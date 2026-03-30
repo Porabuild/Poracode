@@ -50,6 +50,39 @@ export function reorderIds(
   return nextIds;
 }
 
+export function reorderThreadBlockInProject(
+  threads: Thread[],
+  blockIds: string[],
+  targetId: string,
+  placement: ReorderPlacement,
+): Thread[] {
+  if (blockIds.length === 0 || blockIds.includes(targetId)) return threads;
+
+  const blockSet = new Set(blockIds);
+  const firstBlock = threads.find((t) => blockSet.has(t.id));
+  const targetThread = threads.find((t) => t.id === targetId);
+  if (!firstBlock || !targetThread || firstBlock.projectId !== targetThread.projectId) {
+    return threads;
+  }
+
+  const projectId = firstBlock.projectId;
+  const projectThreads = threads.filter((t) => t.projectId === projectId);
+  const blockThreads = projectThreads.filter((t) => blockSet.has(t.id));
+  const remaining = projectThreads.filter((t) => !blockSet.has(t.id));
+
+  const targetIdx = remaining.findIndex((t) => t.id === targetId);
+  if (targetIdx === -1) return threads;
+
+  const insertIdx = placement === "before" ? targetIdx : targetIdx + 1;
+  remaining.splice(insertIdx, 0, ...blockThreads);
+
+  let orderedIdx = 0;
+  return threads.map((t) => {
+    if (t.projectId !== projectId) return t;
+    return remaining[orderedIdx++] ?? t;
+  });
+}
+
 export function reorderThreadsInProject(
   threads: Thread[],
   sourceId: string,

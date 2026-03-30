@@ -44,7 +44,10 @@ const codexStatus: AgentStatus = {
   installed: true,
   authState: "authenticated",
   capabilities: {
-    models: [{ id: "gpt-5.4", label: "5.4" }, { id: "gpt-5.4-mini", label: "5.4 Mini" }],
+    models: [
+      { id: "gpt-5.4", label: "5.4" },
+      { id: "gpt-5.4-mini", label: "5.4 Mini" },
+    ],
     efforts: ["low", "medium", "high", "xhigh"],
     defaultEffort: "high",
     modelEfforts: {},
@@ -72,7 +75,10 @@ const geminiStatus: AgentStatus = {
   installed: true,
   authState: "authenticated",
   capabilities: {
-    models: [{ id: "auto", label: "Auto" }, { id: "gemini-2.5-flash", label: "2.5 Flash" }],
+    models: [
+      { id: "auto", label: "Auto" },
+      { id: "gemini-2.5-flash", label: "2.5 Flash" },
+    ],
     efforts: [],
     modelEfforts: {},
     modes: ["agent", "plan"],

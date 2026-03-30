@@ -5,6 +5,7 @@ import type { Project } from "../../../shared/contracts";
 import { readBridge } from "../../bridge";
 import { useDevTerminalStore, type DevTerminalTab } from "../../state/devTerminalStore";
 import { XTermSurface } from "../terminal/XTermSurface";
+import { buildWorktreeLocation } from "../../../shared/worktree";
 
 export function DevTerminalPanel(props: { projects: Project[] }) {
   const { projects } = props;
@@ -31,8 +32,11 @@ export function DevTerminalPanel(props: { projects: Project[] }) {
       const project = projects.find((p) => p.id === tab.projectId);
       if (!project) continue;
       spawnedRef.current.add(tab.id);
+      const location = tab.worktreePath
+        ? buildWorktreeLocation(project.location, tab.worktreePath)
+        : project.location;
       void readBridge()
-        .startShell({ shellId: tab.id, projectLocation: project.location })
+        .startShell({ shellId: tab.id, projectLocation: location })
         .catch(() => undefined);
     }
   }, [tabs, projects]);

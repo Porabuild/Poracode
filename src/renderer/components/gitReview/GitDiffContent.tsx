@@ -42,6 +42,34 @@ interface DiffEntry {
   deletions: number;
 }
 
+function buildGitStatusKey(gitStatus: GitStatusResult | undefined): string {
+  if (!gitStatus?.isRepo) {
+    return "not-repo";
+  }
+
+  const serialize = (entries: GitStatusResult["staged"]) =>
+    entries
+      .map((entry) =>
+        [
+          entry.path,
+          entry.oldPath ?? "",
+          entry.status,
+          entry.staged ? "1" : "0",
+          entry.insertions,
+          entry.deletions,
+        ].join("|"),
+      )
+      .join("\n");
+
+  return [
+    gitStatus.branch,
+    gitStatus.totalInsertions,
+    gitStatus.totalDeletions,
+    serialize(gitStatus.staged),
+    serialize(gitStatus.unstaged),
+  ].join("\n---\n");
+}
+
 function parseDiffFile(raw: string, mode: number): DiffFile | null {
   if (!raw.trim()) return null;
 
@@ -275,6 +303,8 @@ function SingleFileDiff(props: {
   const theme = useDiffTheme();
   const [entry, setEntry] = useState<DiffEntry | null>(null);
   const [loading, setLoading] = useState(true);
+  const diffModeRef = useRef(diffMode);
+  diffModeRef.current = diffMode;
 
   useEffect(() => {
     let cancelled = false;
@@ -289,7 +319,7 @@ function SingleFileDiff(props: {
           staged,
         });
         if (cancelled) return;
-        setEntry(buildEntry(filePath, staged, result.diff, 0, 0, diffMode));
+        setEntry(buildEntry(filePath, staged, result.diff, 0, 0, diffModeRef.current));
       } catch {
         if (!cancelled) setEntry(null);
       }
@@ -300,7 +330,7 @@ function SingleFileDiff(props: {
     return () => {
       cancelled = true;
     };
-  }, [filePath, staged, project.id, project.location, diffMode]);
+  }, [filePath, staged, project.id, project.location]);
 
   // Re-parse on mode change
   const prevModeRef = useRef(diffMode);
@@ -352,6 +382,9 @@ export function GitDiffContent(props: {
   const [entries, setEntries] = useState<DiffEntry[]>([]);
   const [loading, setLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const statusKeyRef = useRef<string | null>(null);
+  const diffModeRef = useRef(diffMode);
+  diffModeRef.current = diffMode;
 
   // Load all-files batch diff (independent of selectedFile)
   useEffect(() => {
@@ -362,23 +395,27 @@ export function GitDiffContent(props: {
 
       if (!gitStatus?.isRepo) {
         if (!cancelled) {
+          statusKeyRef.current = buildGitStatusKey(gitStatus);
           setEntries([]);
           setLoading(false);
         }
         return;
       }
 
-      const skeletons = [
-        ...gitStatus.staged.map((f) => skeletonEntry(f.path, true, f.insertions, f.deletions)),
-        ...gitStatus.unstaged.map((f) =>
-          skeletonEntry(f.path, false, f.insertions, f.deletions)
-        ),
-      ];
-      if (!cancelled) setEntries(skeletons);
+      const statusKey = buildGitStatusKey(gitStatus);
+      const shouldShowSkeletons = statusKeyRef.current !== statusKey;
 
-      const untrackedPaths = gitStatus.unstaged
-        .filter((f) => f.status === "?")
-        .map((f) => f.path);
+      if (shouldShowSkeletons) {
+        const skeletons = [
+          ...gitStatus.staged.map((f) => skeletonEntry(f.path, true, f.insertions, f.deletions)),
+          ...gitStatus.unstaged.map((f) =>
+            skeletonEntry(f.path, false, f.insertions, f.deletions),
+          ),
+        ];
+        if (!cancelled) setEntries(skeletons);
+      }
+
+      const untrackedPaths = gitStatus.unstaged.filter((f) => f.status === "?").map((f) => f.path);
 
       try {
         const batch = await readBridge().getGitDiffBatch({
@@ -395,7 +432,7 @@ export function GitDiffContent(props: {
               batch.staged[f.path] ?? "",
               f.insertions,
               f.deletions,
-              diffMode,
+              diffModeRef.current,
             ),
           ),
           ...gitStatus.unstaged.map((f) =>
@@ -405,13 +442,16 @@ export function GitDiffContent(props: {
               batch.unstaged[f.path] ?? "",
               f.insertions,
               f.deletions,
-              diffMode,
+              diffModeRef.current,
             ),
           ),
         ];
-        if (!cancelled) setEntries(populated);
-      } catch {
         if (!cancelled) {
+          statusKeyRef.current = statusKey;
+          setEntries(populated);
+        }
+      } catch {
+        if (!cancelled && shouldShowSkeletons) {
           setEntries((prev) => prev.map((e) => ({ ...e, loading: false })));
         }
       }
@@ -423,7 +463,7 @@ export function GitDiffContent(props: {
     return () => {
       cancelled = true;
     };
-  }, [refreshKey, project.location, gitStatus, diffMode]);
+  }, [refreshKey, project.location, gitStatus]);
 
   // Re-parse diff lines when the view mode changes (no re-fetch needed)
   const prevModeRef = useRef(diffMode);

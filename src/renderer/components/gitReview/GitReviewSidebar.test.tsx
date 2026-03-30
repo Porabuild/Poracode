@@ -10,7 +10,9 @@ vi.mock("@heroui/react", () => {
   }) {
     return (
       <button disabled={props.isDisabled} type="button">
-        {typeof props.children === "function" ? props.children({ isPending: false }) : props.children}
+        {typeof props.children === "function"
+          ? props.children({ isPending: false })
+          : props.children}
       </button>
     );
   }
@@ -68,7 +70,10 @@ vi.mock("../../bridge", () => ({
 
 vi.mock("../../state/appStore", () => ({
   useAppStore: (
-    selector: (state: { agentStatuses: never[]; wslAgentStatuses: Record<string, never[]> }) => unknown,
+    selector: (state: {
+      agentStatuses: never[];
+      wslAgentStatuses: Record<string, never[]>;
+    }) => unknown,
   ) => selector({ agentStatuses: [], wslAgentStatuses: {} }),
 }));
 

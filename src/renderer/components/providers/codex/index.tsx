@@ -27,8 +27,7 @@ registerComposerControls("codex", ({ capabilities, config, isDisabled, onConfigC
       value: config.model,
       isDisabled,
       onChange: (value: string) => {
-        const nextEfforts =
-          capabilities.modelEfforts?.[value] ?? capabilities.efforts ?? [];
+        const nextEfforts = capabilities.modelEfforts?.[value] ?? capabilities.efforts ?? [];
         const effortValid = nextEfforts.includes(config.effort ?? "");
         onConfigChange({
           model: value,

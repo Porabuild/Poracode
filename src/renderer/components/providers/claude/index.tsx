@@ -23,8 +23,7 @@ registerComposerControls("claude", ({ capabilities, config, isDisabled, onConfig
       value: config.model,
       isDisabled,
       onChange: (value: string) => {
-        const nextEfforts =
-          capabilities.modelEfforts?.[value] ?? capabilities.efforts ?? [];
+        const nextEfforts = capabilities.modelEfforts?.[value] ?? capabilities.efforts ?? [];
         const effortValid = nextEfforts.includes(config.effort ?? "");
         onConfigChange({
           model: value,
@@ -69,8 +68,7 @@ registerComposerControls("claude", ({ capabilities, config, isDisabled, onConfig
             icon: <ShieldOff className="size-3.5" />,
             options: capabilities.approvalPolicies,
             hideLabelOnWrap: true,
-            value:
-              config.approvalPolicy ?? capabilities.approvalPolicies[0]?.id ?? "default",
+            value: config.approvalPolicy ?? capabilities.approvalPolicies[0]?.id ?? "default",
             isDisabled,
             onChange: (value: string) => onConfigChange({ approvalPolicy: value }),
           },

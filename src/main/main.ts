@@ -18,7 +18,11 @@ import {
   initDatabase,
 } from "./db";
 import { prepareLightcodeDataRoot } from "./lightcodeData";
-import { ensureSharedSettingsFile, readSharedSettingsFile, writeSharedSettingsFile } from "./sharedSettingsFile";
+import {
+  ensureSharedSettingsFile,
+  readSharedSettingsFile,
+  writeSharedSettingsFile,
+} from "./sharedSettingsFile";
 import type {
   SupervisorEvent,
   SupervisorReply,

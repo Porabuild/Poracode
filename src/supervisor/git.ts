@@ -77,10 +77,17 @@ export async function computeDefaultWorktreePath(
     return posix.join(homePath, ".lightcode", "worktrees", repoDir, branchDir);
   }
 
-  return join(resolveLightcodePaths(join(homedir(), ".lightcode")).worktreesDir, repoDir, branchDir);
+  return join(
+    resolveLightcodePaths(join(homedir(), ".lightcode")).worktreesDir,
+    repoDir,
+    branchDir,
+  );
 }
 
-async function ensureWorktreeParentExists(location: ProjectLocation, worktreePath: string): Promise<void> {
+async function ensureWorktreeParentExists(
+  location: ProjectLocation,
+  worktreePath: string,
+): Promise<void> {
   if (location.kind === "wsl") {
     const parentPath = posix.dirname(worktreePath);
     const result = await readWslCommandOutputAsync(location.distro, "mkdir", ["-p", parentPath]);
@@ -257,6 +264,22 @@ export class GitService {
 
   async revert(location: ProjectLocation, filePath: string): Promise<void> {
     const git = createGit(location);
+    const status = await git.status();
+    const entry = status.files.find(
+      (file) => file.path === filePath || file.path.replace(/\\/g, "/") === filePath.replace(/\\/g, "/"),
+    );
+
+    if (entry?.working_dir === "?") {
+      await git.clean("f", ["--", filePath]);
+      return;
+    }
+
+    if (entry?.working_dir === "R" && entry.from) {
+      await git.clean("f", ["--", filePath]);
+      await git.checkout(["--", entry.from]);
+      return;
+    }
+
     await git.checkout(["--", filePath]);
   }
 
@@ -424,7 +447,8 @@ export class GitService {
     startPoint?: string,
   ): Promise<GitAddWorktreeResult> {
     const git = createGit(location);
-    const resolvedPath = path ?? (branch ? await computeDefaultWorktreePath(location, branch) : undefined);
+    const resolvedPath =
+      path ?? (branch ? await computeDefaultWorktreePath(location, branch) : undefined);
     if (!resolvedPath) {
       throw new Error("Cannot create a default worktree path without a branch name.");
     }

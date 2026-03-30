@@ -301,15 +301,8 @@ export function GitReviewSidebar(props: {
   onClose: () => void;
   onRefresh: () => void;
 }) {
-  const {
-    project,
-    gitStatus,
-    selectedFile,
-    selectedStaged,
-    onSelectFile,
-    onClose,
-    onRefresh,
-  } = props;
+  const { project, gitStatus, selectedFile, selectedStaged, onSelectFile, onClose, onRefresh } =
+    props;
   const { isCollapsed, collapse, expand } = useSidebar();
   const agentStatuses = useAppStore((s) => s.agentStatuses);
   const wslAgentStatuses = useAppStore((s) => s.wslAgentStatuses);

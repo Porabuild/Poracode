@@ -27,6 +27,7 @@ registerCommitGenDefaults(kind, defaults)      — Default model/effort for comm
 Each provider directory (`claude/`, `codex/`, `gemini/`) contains its icon component and registration calls. The index file (`providers/index.ts`) re-exports all providers via side-effect imports.
 
 Shared provider utilities live at the `providers/` root:
+
 - `statusTone.ts` — Status → tone mapping
 - `StatusIcon.tsx` — Animated status indicator
 - `ProviderIcon.tsx` — Registry + lookup component
@@ -34,19 +35,19 @@ Shared provider utilities live at the `providers/` root:
 
 ## Code Organization (Renderer)
 
-| Directory | Purpose |
-|-----------|---------|
-| `components/thread/` | ThreadView, ThreadComposer, ThreadDraftView, TerminalPane, ThreadServerRequestPanel |
-| `components/terminal/` | XTermSurface (xterm.js integration) |
-| `components/devTerminal/` | DevTerminalPanel (shell session tabs) |
-| `components/providers/` | Per-provider icons/registration + shared provider utilities |
-| `components/common/` | Generic, provider-agnostic components (Button, Card, Input, TextArea, Select, OptionMenu, ContextMenu, PromptOptions, BranchSelector, SidebarButton, etc.) |
-| `components/layout/` | AppShell (sidebar + main + right panel), SplitPaneContainer (multi-pane) |
-| `components/sidebar/` | Sidebar with project/thread lists, drag-drop reordering, git status badges |
-| `components/gitReview/` | GitReviewOverlay, GitDiffContent (@git-diff-view/react), GitReviewSidebar (staging UI) |
-| `components/settings/` | SettingsOverlay (theme, commit gen config) |
-| `components/ui/` | AppProvider (HeroUI + theme setup) |
-| `state/` | Zustand stores (appStore, gitStore, devTerminalStore, sharedSettingsStore, updateStore) |
+| Directory                 | Purpose                                                                                                                                                    |
+| ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `components/thread/`      | ThreadView, ThreadComposer, ThreadDraftView, TerminalPane, ThreadServerRequestPanel                                                                        |
+| `components/terminal/`    | XTermSurface (xterm.js integration)                                                                                                                        |
+| `components/devTerminal/` | DevTerminalPanel (shell session tabs)                                                                                                                      |
+| `components/providers/`   | Per-provider icons/registration + shared provider utilities                                                                                                |
+| `components/common/`      | Generic, provider-agnostic components (Button, Card, Input, TextArea, Select, OptionMenu, ContextMenu, PromptOptions, BranchSelector, SidebarButton, etc.) |
+| `components/layout/`      | AppShell (sidebar + main + right panel), SplitPaneContainer (multi-pane)                                                                                   |
+| `components/sidebar/`     | Sidebar with project/thread lists, drag-drop reordering, git status badges                                                                                 |
+| `components/gitReview/`   | GitReviewOverlay, GitDiffContent (@git-diff-view/react), GitReviewSidebar (staging UI)                                                                     |
+| `components/settings/`    | SettingsOverlay (theme, commit gen config)                                                                                                                 |
+| `components/ui/`          | AppProvider (HeroUI + theme setup)                                                                                                                         |
+| `state/`                  | Zustand stores (appStore, gitStore, devTerminalStore, sharedSettingsStore, updateStore)                                                                    |
 
 ## Theme System
 

@@ -17,7 +17,12 @@ import type {
   ThreadStatus,
 } from "../../shared/contracts";
 import { getProjectName } from "../../shared/wsl";
-import { reorderIds, reorderThreadsInProject, type ReorderPlacement } from "./reorder";
+import {
+  reorderIds,
+  reorderThreadBlockInProject,
+  reorderThreadsInProject,
+  type ReorderPlacement,
+} from "./reorder";
 
 function makeThreadTitle(prompt: string): string {
   const normalized = prompt.trim().replace(/\s+/g, " ");
@@ -126,6 +131,7 @@ interface AppStoreState {
   reconcileRuntimeSnapshots: (snapshots: ThreadRuntimeSnapshot[]) => void;
   reorderProjects: (sourceId: string, targetId: string, placement: ReorderPlacement) => void;
   reorderThreads: (sourceId: string, targetId: string, placement: ReorderPlacement) => void;
+  reorderThreadBlock: (blockIds: string[], targetId: string, placement: ReorderPlacement) => void;
   reorderPanes: (sourceId: string, targetId: string, placement: ReorderPlacement) => void;
 }
 
@@ -634,6 +640,16 @@ export const useAppStore = create<AppStoreState>()(
       reorderThreads: (sourceId, targetId, placement) =>
         set((state) => {
           const threads = reorderThreadsInProject(state.threads, sourceId, targetId, placement);
+
+          if (threads === state.threads) {
+            return {};
+          }
+
+          return { threads };
+        }),
+      reorderThreadBlock: (blockIds, targetId, placement) =>
+        set((state) => {
+          const threads = reorderThreadBlockInProject(state.threads, blockIds, targetId, placement);
 
           if (threads === state.threads) {
             return {};

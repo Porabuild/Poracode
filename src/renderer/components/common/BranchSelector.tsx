@@ -194,9 +194,7 @@ export function BranchSelector(props: BranchSelectorProps) {
   return (
     <div className="flex items-center gap-1">
       {isNew && !isWorktree && <span className="shrink-0 text-xs text-muted">new</span>}
-      {worktreeMode && (
-        <span className="shrink-0 text-xs text-muted">from</span>
-      )}
+      {worktreeMode && <span className="shrink-0 text-xs text-muted">from</span>}
       <Popover isOpen={isOpen} onOpenChange={setIsOpen}>
         <Popover.Trigger>
           <Button
@@ -247,9 +245,7 @@ export function BranchSelector(props: BranchSelectorProps) {
                   aria-label="Branches"
                   className="p-1"
                   selectedKeys={
-                    isWorktree || worktreeMode
-                      ? new Set([baseBranch ?? value])
-                      : new Set([value])
+                    isWorktree || worktreeMode ? new Set([baseBranch ?? value]) : new Set([value])
                   }
                   selectionMode="single"
                   disallowEmptySelection

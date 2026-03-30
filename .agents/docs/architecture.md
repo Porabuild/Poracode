@@ -17,25 +17,25 @@ The preload bridge (`window.lightcode`) wraps all IPC into typed async methods d
 
 Five Zustand stores in `src/renderer/state/`:
 
-| Store | Persisted | Purpose |
-|-------|-----------|---------|
-| `appStore` | SQLite | Projects, threads, panes, agent statuses, pending server requests, draft config |
-| `gitStore` | No | Per-project git status, worktree info, branch lists |
-| `devTerminalStore` | SQLite | Shell session tabs, active project, activity tracking |
-| `sharedSettingsStore` | SQLite | Theme mode, commit generation provider/model/effort |
-| `updateStore` | No | Auto-update phase, version, download progress |
+| Store                 | Persisted | Purpose                                                                         |
+| --------------------- | --------- | ------------------------------------------------------------------------------- |
+| `appStore`            | SQLite    | Projects, threads, panes, agent statuses, pending server requests, draft config |
+| `gitStore`            | No        | Per-project git status, worktree info, branch lists                             |
+| `devTerminalStore`    | SQLite    | Shell session tabs, active project, activity tracking                           |
+| `sharedSettingsStore` | SQLite    | Theme mode, commit generation provider/model/effort                             |
+| `updateStore`         | No        | Auto-update phase, version, download progress                                   |
 
 Components connect to stores directly — avoid prop drilling.
 
 ## Build Pipeline
 
-| Target | Tool | Entry | Output | Format |
-|--------|------|-------|--------|--------|
-| Renderer | Vite 8 (Rolldown) | `src/renderer/main.tsx` | `dist/renderer/` | ESM, manual chunks (xterm, git-diff, ui, framework, vendor) |
-| Main process | tsdown | `src/main/main.ts` | `dist/main/main.cjs` | CJS, Node 24 |
-| Preload | tsdown | `src/main/preload.ts` | `dist/main/preload.cjs` | CJS, Node 24 |
-| Supervisor | tsdown | `src/supervisor/index.ts` | `dist/main/supervisor.cjs` | CJS, Node 24 |
-| Distribution | electron-builder | — | `release/` | NSIS (Win), AppImage+deb (Linux), DMG (macOS) |
+| Target       | Tool              | Entry                     | Output                     | Format                                                      |
+| ------------ | ----------------- | ------------------------- | -------------------------- | ----------------------------------------------------------- |
+| Renderer     | Vite 8 (Rolldown) | `src/renderer/main.tsx`   | `dist/renderer/`           | ESM, manual chunks (xterm, git-diff, ui, framework, vendor) |
+| Main process | tsdown            | `src/main/main.ts`        | `dist/main/main.cjs`       | CJS, Node 24                                                |
+| Preload      | tsdown            | `src/main/preload.ts`     | `dist/main/preload.cjs`    | CJS, Node 24                                                |
+| Supervisor   | tsdown            | `src/supervisor/index.ts` | `dist/main/supervisor.cjs` | CJS, Node 24                                                |
+| Distribution | electron-builder  | —                         | `release/`                 | NSIS (Win), AppImage+deb (Linux), DMG (macOS)               |
 
 Native modules (`node-pty`, `better-sqlite3`, `electron`) are excluded from bundling and unpacked from ASAR.
 

@@ -5,6 +5,7 @@ import { createDbStorage } from "./dbStorage";
 export interface DevTerminalTab {
   id: string;
   projectId: string;
+  worktreePath?: string;
   title: string;
   createdAt: string;
 }
@@ -23,7 +24,7 @@ interface DevTerminalActions {
   closePanel: () => void;
   togglePanel: (projectId?: string) => void;
   setActiveProject: (projectId: string) => void;
-  addTab: (projectId: string, projectName: string) => DevTerminalTab;
+  addTab: (projectId: string, projectName: string, worktreePath?: string) => DevTerminalTab;
   removeTab: (tabId: string) => void;
   setActiveTab: (tabId: string) => void;
   removeTabsForProject: (projectId: string) => string[];
@@ -59,12 +60,13 @@ export const useDevTerminalStore = create<DevTerminalState & DevTerminalActions>
         });
       },
 
-      addTab: (projectId, projectName) => {
+      addTab: (projectId, projectName, worktreePath?) => {
         const existing = get().tabs.filter((t) => t.projectId === projectId);
         const suffix = existing.length > 0 ? ` (${existing.length + 1})` : "";
         const tab: DevTerminalTab = {
           id: `shell:${crypto.randomUUID()}`,
           projectId,
+          ...(worktreePath ? { worktreePath } : {}),
           title: `${projectName}${suffix}`,
           createdAt: new Date().toISOString(),
         };

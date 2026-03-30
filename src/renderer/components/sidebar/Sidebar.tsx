@@ -23,56 +23,25 @@ import { Button, ContextMenu, SidebarButton } from "../common";
 import { useSidebar } from "../layout/AppShell";
 import { readBridge } from "../../bridge";
 import { useUpdateStore } from "../../state/updateStore";
-import { useGitStore } from "../../state/gitStore";
 import { ProviderIcon, getStatusTone } from "../providers";
+import { GitBadge } from "./GitBadge";
+import { groupThreadsByWorktree } from "./groupThreadsByWorktree";
+import { WorktreeGroupHeader } from "./WorktreeGroupHeader";
 
 type SidebarDragItem =
   | { type: "project"; id: string }
-  | { type: "thread"; id: string; projectId: string };
+  | { type: "thread"; id: string; projectId: string }
+  | { type: "worktree-group"; worktreePath: string; projectId: string; threadIds: string[] };
 
 type SidebarDropIndicator =
   | { type: "project"; id: string; placement: ReorderPlacement }
-  | { type: "thread"; id: string; projectId: string; placement: ReorderPlacement };
-
-function GitBadge(props: {
-  projectId: string;
-  projectName: string;
-  onPress: () => void;
-  worktreePath?: string;
-}) {
-  const gitStatus = useGitStore((s) =>
-    props.worktreePath ? s.worktreeStatuses[props.worktreePath] : s.statuses[props.projectId],
-  );
-  if (!gitStatus?.isRepo || (gitStatus.totalInsertions === 0 && gitStatus.totalDeletions === 0))
-    return null;
-  return (
-    <div
-      role="button"
-      tabIndex={0}
-      aria-label={`Git changes for ${props.projectName}`}
-      className="shrink-0 cursor-default rounded px-1 py-0.5 transition-colors text-muted/60 hover:bg-white/[0.04] hover:text-foreground"
-      onClick={(e) => {
-        e.stopPropagation();
-        props.onPress();
-      }}
-      onKeyDown={(e) => {
-        if (e.key === "Enter" || e.key === " ") {
-          e.stopPropagation();
-          props.onPress();
-        }
-      }}
-    >
-      <span className="flex items-center gap-0.5 text-[10px] font-medium">
-        {gitStatus.totalInsertions > 0 && (
-          <span className="text-success">+{gitStatus.totalInsertions}</span>
-        )}
-        {gitStatus.totalDeletions > 0 && (
-          <span className="text-danger">-{gitStatus.totalDeletions}</span>
-        )}
-      </span>
-    </div>
-  );
-}
+  | { type: "thread"; id: string; projectId: string; placement: ReorderPlacement }
+  | {
+      type: "worktree-group";
+      worktreePath: string;
+      projectId: string;
+      placement: ReorderPlacement;
+    };
 
 function formatProjectLocation(project: Project): string {
   if (project.location.kind === "wsl")
@@ -259,9 +228,12 @@ export function Sidebar(props: {
   onOpenHome: () => void;
   onOpenSettings: () => void;
   onOpenTerminal: (projectId: string) => void;
+  onOpenWorktreeTerminal: (projectId: string, worktreePath: string) => void;
   onOpenGitReview: (projectId: string, worktreePath?: string) => void;
   terminalProjectIds: string[];
   activeTerminalProjectId: string | null;
+  activeWorktreeTerminalPaths: string[];
+  activeWorktreeTerminalPath: string | null;
   onReorderProjects: (
     sourceProjectId: string,
     targetProjectId: string,
@@ -272,6 +244,7 @@ export function Sidebar(props: {
     targetThreadId: string,
     placement: ReorderPlacement,
   ) => void;
+  onReorderThreadBlock: (blockIds: string[], targetId: string, placement: ReorderPlacement) => void;
 }) {
   const {
     projects,
@@ -291,15 +264,20 @@ export function Sidebar(props: {
     onOpenHome,
     onOpenSettings,
     onOpenTerminal,
+    onOpenWorktreeTerminal,
     onOpenGitReview,
     terminalProjectIds,
     activeTerminalProjectId,
+    activeWorktreeTerminalPaths,
+    activeWorktreeTerminalPath,
     onReorderProjects,
     onReorderThreads,
+    onReorderThreadBlock,
   } = props;
 
   const { isCollapsed, collapse, expand } = useSidebar();
   const [collapsedProjects, setCollapsedProjects] = useState<Record<string, boolean>>({});
+  const [collapsedWorktrees, setCollapsedWorktrees] = useState<Record<string, boolean>>({});
   const [editingThreadId, setEditingThreadId] = useState<string | null>(null);
   const [dragItem, setDragItem] = useState<SidebarDragItem>();
   const [dropIndicator, setDropIndicator] = useState<SidebarDropIndicator>();
@@ -321,6 +299,20 @@ export function Sidebar(props: {
       };
     });
   }, [currentProjectId]);
+
+  // Auto-expand worktree group when active thread is inside a collapsed group
+  useEffect(() => {
+    for (const threadId of currentThreadIds) {
+      const thread = threads.find((t) => t.id === threadId);
+      if (thread?.worktreePath && collapsedWorktrees[thread.worktreePath]) {
+        setCollapsedWorktrees((prev) => ({
+          ...prev,
+          [thread.worktreePath!]: false,
+        }));
+        break;
+      }
+    }
+  }, [currentThreadIds, threads, collapsedWorktrees]);
 
   const activeThreads = threads.filter((thread) => thread.status !== "inactive");
 
@@ -603,168 +595,341 @@ export function Sidebar(props: {
                           onPress={() => onOpenNewThread(project.id)}
                         />
 
-                        {projectThreads.map((thread) => {
-                          const isCurrentThread = currentThreadIds.includes(thread.id);
-                          const isDraggedThread =
-                            dragItem?.type === "thread" && dragItem.id === thread.id;
-                          const statusTone = getStatusTone(thread);
-                          const threadIndicator =
-                            dropIndicator?.type === "thread" && dropIndicator.id === thread.id
-                              ? dropIndicator
-                              : undefined;
-                          const projectThreadIds = projectThreads.map(
-                            (projectThread) => projectThread.id,
-                          );
+                        {(() => {
+                          const entries = groupThreadsByWorktree(projectThreads);
+                          const allThreadIds = projectThreads.map((t) => t.id);
 
-                          return (
-                            <div key={thread.id} className="relative">
-                              {threadIndicator
-                                ? renderDropIndicator(threadIndicator.placement)
-                                : null}
+                          function handleThreadDragOver(
+                            thread: Thread,
+                            event: DragEvent<HTMLButtonElement>,
+                          ) {
+                            if (!dragItem || dragItem.type === "project") return;
+                            if (dragItem.projectId !== project.id) return;
 
-                              <ContextMenu
-                                items={[
-                                  {
-                                    id: "rename",
-                                    label: "Rename",
-                                    icon: <Pencil className="size-3.5" />,
-                                  },
-                                  ...(currentThreadIds.length >= 2
-                                    ? [
-                                        {
-                                          id: "replace-second",
-                                          label: "Replace 2nd",
-                                          icon: <Columns2 className="size-3.5" />,
-                                          isDisabled: currentThreadIds.includes(thread.id),
-                                        },
-                                      ]
-                                    : []),
-                                  {
-                                    id: "open-side",
-                                    label:
-                                      currentThreadIds.length >= 2
-                                        ? "Open 3rd"
-                                        : "Open Side by Side",
-                                    icon: <Columns2 className="size-3.5" />,
-                                    isDisabled:
-                                      currentThreadIds.includes(thread.id) ||
-                                      currentThreadIds.length >= 3,
-                                  },
-                                  {
-                                    id: "delete",
-                                    label: "Delete Thread",
-                                    icon: <Trash2 className="size-3.5" />,
-                                    variant: "danger",
-                                  },
-                                ]}
-                                onAction={(key) => {
-                                  if (key === "rename") setEditingThreadId(thread.id);
-                                  if (key === "replace-second") onReplaceSecondPane(thread.id);
-                                  if (key === "open-side") onOpenThreadSideBySide(thread.id);
-                                  if (key === "delete") onDeleteThread(thread.id);
-                                }}
-                              >
-                                <SidebarButton
-                                  icon={
-                                    <ProviderIcon
-                                      kind={thread.agentKind}
-                                      tone={statusTone}
-                                      className="size-3.5 shrink-0"
-                                    />
-                                  }
-                                  label={
-                                    editingThreadId === thread.id ? (
-                                      <InlineRenameInput
-                                        initialValue={thread.title}
-                                        onCommit={(newTitle) => {
-                                          onRenameThread(thread.id, newTitle);
-                                          setEditingThreadId(null);
-                                        }}
-                                        onCancel={() => setEditingThreadId(null)}
-                                      />
-                                    ) : (
-                                      thread.title
-                                    )
-                                  }
-                                  tooltip={editingThreadId === thread.id ? undefined : thread.title}
-                                  isActive={isCurrentThread}
-                                  className={isDraggedThread ? "opacity-60" : ""}
-                                  onPress={() => onOpenThread(thread.id)}
-                                  onDoubleClick={() => setEditingThreadId(thread.id)}
-                                  onDragOver={(event) => {
-                                    if (
-                                      !dragItem ||
-                                      dragItem.type !== "thread" ||
-                                      dragItem.projectId !== project.id ||
-                                      dragItem.id === thread.id
-                                    ) {
-                                      return;
-                                    }
+                            if (dragItem.type === "thread") {
+                              if (dragItem.id === thread.id) return;
+                              // Reject cross-worktree thread drag
+                              const sourceThread = threads.find((t) => t.id === dragItem.id);
+                              if (sourceThread?.worktreePath !== thread.worktreePath) return;
 
-                                    event.preventDefault();
-                                    event.dataTransfer.dropEffect = "move";
-                                    const placement = getDropPlacement(event);
+                              event.preventDefault();
+                              event.dataTransfer.dropEffect = "move";
+                              const placement = getDropPlacement(event);
+                              if (isReorderNoOp(allThreadIds, dragItem.id, thread.id, placement)) {
+                                setDropIndicator(undefined);
+                                return;
+                              }
+                              setDropIndicator({
+                                type: "thread",
+                                id: thread.id,
+                                projectId: project.id,
+                                placement,
+                              });
+                            } else if (dragItem.type === "worktree-group") {
+                              // Group dragged over an ungrouped thread
+                              if (dragItem.threadIds.includes(thread.id)) return;
+                              event.preventDefault();
+                              event.dataTransfer.dropEffect = "move";
+                              setDropIndicator({
+                                type: "thread",
+                                id: thread.id,
+                                projectId: project.id,
+                                placement: getDropPlacement(event),
+                              });
+                            }
+                          }
 
-                                    if (
-                                      isReorderNoOp(
-                                        projectThreadIds,
-                                        dragItem.id,
-                                        thread.id,
-                                        placement,
-                                      )
-                                    ) {
-                                      setDropIndicator(undefined);
-                                      return;
-                                    }
+                          function handleThreadDrop(
+                            thread: Thread,
+                            event: DragEvent<HTMLButtonElement>,
+                          ) {
+                            if (!dragItem || dragItem.type === "project") return;
+                            if (dragItem.projectId !== project.id) return;
 
-                                    setDropIndicator({
-                                      type: "thread",
-                                      id: thread.id,
-                                      projectId: project.id,
-                                      placement,
-                                    });
+                            if (dragItem.type === "thread") {
+                              if (dragItem.id === thread.id) return;
+                              const sourceThread = threads.find((t) => t.id === dragItem.id);
+                              if (sourceThread?.worktreePath !== thread.worktreePath) return;
+
+                              event.preventDefault();
+                              const placement = getDropPlacement(event);
+                              if (isReorderNoOp(allThreadIds, dragItem.id, thread.id, placement)) {
+                                setDragItem(undefined);
+                                setDropIndicator(undefined);
+                                return;
+                              }
+                              onReorderThreads(dragItem.id, thread.id, placement);
+                            } else if (dragItem.type === "worktree-group") {
+                              if (dragItem.threadIds.includes(thread.id)) return;
+                              event.preventDefault();
+                              onReorderThreadBlock(
+                                dragItem.threadIds,
+                                thread.id,
+                                getDropPlacement(event),
+                              );
+                            }
+
+                            setDragItem(undefined);
+                            setDropIndicator(undefined);
+                          }
+
+                          function renderThreadItem(thread: Thread, showWorktreeBadge: boolean) {
+                            const isCurrentThread = currentThreadIds.includes(thread.id);
+                            const isDraggedThread =
+                              dragItem?.type === "thread" && dragItem.id === thread.id;
+                            const statusTone = getStatusTone(thread);
+                            const threadIndicator =
+                              dropIndicator?.type === "thread" && dropIndicator.id === thread.id
+                                ? dropIndicator
+                                : undefined;
+
+                            return (
+                              <div key={thread.id} className="relative">
+                                {threadIndicator
+                                  ? renderDropIndicator(threadIndicator.placement)
+                                  : null}
+
+                                <ContextMenu
+                                  items={[
+                                    {
+                                      id: "rename",
+                                      label: "Rename",
+                                      icon: <Pencil className="size-3.5" />,
+                                    },
+                                    ...(currentThreadIds.length >= 2
+                                      ? [
+                                          {
+                                            id: "replace-second",
+                                            label: "Replace 2nd",
+                                            icon: <Columns2 className="size-3.5" />,
+                                            isDisabled: currentThreadIds.includes(thread.id),
+                                          },
+                                        ]
+                                      : []),
+                                    {
+                                      id: "open-side",
+                                      label:
+                                        currentThreadIds.length >= 2
+                                          ? "Open 3rd"
+                                          : "Open Side by Side",
+                                      icon: <Columns2 className="size-3.5" />,
+                                      isDisabled:
+                                        currentThreadIds.includes(thread.id) ||
+                                        currentThreadIds.length >= 3,
+                                    },
+                                    {
+                                      id: "delete",
+                                      label: "Delete Thread",
+                                      icon: <Trash2 className="size-3.5" />,
+                                      variant: "danger",
+                                    },
+                                  ]}
+                                  onAction={(key) => {
+                                    if (key === "rename") setEditingThreadId(thread.id);
+                                    if (key === "replace-second") onReplaceSecondPane(thread.id);
+                                    if (key === "open-side") onOpenThreadSideBySide(thread.id);
+                                    if (key === "delete") onDeleteThread(thread.id);
                                   }}
-                                  onDrop={(event) => {
-                                    if (
-                                      !dragItem ||
-                                      dragItem.type !== "thread" ||
-                                      dragItem.projectId !== project.id ||
-                                      dragItem.id === thread.id
-                                    ) {
-                                      return;
+                                >
+                                  <SidebarButton
+                                    icon={
+                                      <ProviderIcon
+                                        kind={thread.agentKind}
+                                        tone={statusTone}
+                                        className="size-3.5 shrink-0"
+                                      />
                                     }
-
-                                    event.preventDefault();
-                                    const placement = getDropPlacement(event);
-
-                                    if (
-                                      isReorderNoOp(
-                                        projectThreadIds,
-                                        dragItem.id,
-                                        thread.id,
-                                        placement,
+                                    label={
+                                      editingThreadId === thread.id ? (
+                                        <InlineRenameInput
+                                          initialValue={thread.title}
+                                          onCommit={(newTitle) => {
+                                            onRenameThread(thread.id, newTitle);
+                                            setEditingThreadId(null);
+                                          }}
+                                          onCancel={() => setEditingThreadId(null)}
+                                        />
+                                      ) : (
+                                        thread.title
                                       )
-                                    ) {
+                                    }
+                                    tooltip={
+                                      editingThreadId === thread.id ? undefined : thread.title
+                                    }
+                                    isActive={isCurrentThread}
+                                    className={isDraggedThread ? "opacity-60" : ""}
+                                    onPress={() => onOpenThread(thread.id)}
+                                    onDoubleClick={() => setEditingThreadId(thread.id)}
+                                    onDragOver={(event) => handleThreadDragOver(thread, event)}
+                                    onDrop={(event) => handleThreadDrop(thread, event)}
+                                    onDragStart={(event) => {
+                                      event.dataTransfer.effectAllowed = "move";
+                                      event.dataTransfer.setData("text/plain", thread.id);
+                                      event.dataTransfer.setData(
+                                        "application/x-lightcode-sidebar-thread",
+                                        thread.id,
+                                      );
+                                      setDragItem({
+                                        type: "thread",
+                                        id: thread.id,
+                                        projectId: project.id,
+                                      });
+                                      setDropIndicator(undefined);
+                                    }}
+                                    onDragEnd={() => {
                                       setDragItem(undefined);
                                       setDropIndicator(undefined);
-                                      return;
+                                    }}
+                                    isDragging={isDraggedThread}
+                                    dragLabel={`Reorder ${thread.title}`}
+                                    suffix={
+                                      <>
+                                        {showWorktreeBadge && thread.worktreePath && (
+                                          <>
+                                            <Tooltip delay={150}>
+                                              <Tooltip.Trigger>
+                                                <div className="flex shrink-0 items-center">
+                                                  <GitFork className="size-3 text-muted/60" />
+                                                </div>
+                                              </Tooltip.Trigger>
+                                              <Tooltip.Content placement="right">
+                                                Worktree: {thread.worktreeBranch}
+                                              </Tooltip.Content>
+                                            </Tooltip>
+                                            <GitBadge
+                                              projectId={thread.projectId}
+                                              projectName={thread.title}
+                                              worktreePath={thread.worktreePath}
+                                              onPress={() =>
+                                                onOpenGitReview(
+                                                  thread.projectId,
+                                                  thread.worktreePath,
+                                                )
+                                              }
+                                            />
+                                            <div
+                                              role="button"
+                                              tabIndex={0}
+                                              aria-label={`Terminal for ${thread.worktreeBranch}`}
+                                              className={`shrink-0 cursor-default rounded p-0.5 transition-colors hover:bg-white/[0.04] hover:text-foreground ${
+                                                activeWorktreeTerminalPath === thread.worktreePath
+                                                  ? "text-accent"
+                                                  : activeWorktreeTerminalPaths.includes(
+                                                        thread.worktreePath,
+                                                      )
+                                                    ? "text-foreground"
+                                                    : "text-muted/60"
+                                              }`}
+                                              onClick={(event) => {
+                                                event.stopPropagation();
+                                                onOpenWorktreeTerminal(
+                                                  thread.projectId,
+                                                  thread.worktreePath!,
+                                                );
+                                              }}
+                                              onKeyDown={(event) => {
+                                                if (event.key === "Enter" || event.key === " ") {
+                                                  event.stopPropagation();
+                                                  onOpenWorktreeTerminal(
+                                                    thread.projectId,
+                                                    thread.worktreePath!,
+                                                  );
+                                                }
+                                              }}
+                                            >
+                                              <TerminalSquare className="size-3.5" />
+                                            </div>
+                                          </>
+                                        )}
+                                        <span className="relative w-[2.4ch] shrink-0">
+                                          <span className="block text-center font-mono text-[10px] tabular-nums text-muted group-hover:invisible">
+                                            {formatRelativeTime(thread.updatedAt)}
+                                          </span>
+                                          <div
+                                            role="button"
+                                            tabIndex={0}
+                                            aria-label={`Delete ${thread.title}`}
+                                            className="absolute inset-0 flex items-center justify-center rounded text-muted/55 opacity-0 transition hover:text-danger group-hover:opacity-100"
+                                            onClick={(event) => {
+                                              event.stopPropagation();
+                                              onDeleteThread(thread.id);
+                                            }}
+                                            onKeyDown={(event) => {
+                                              if (event.key === "Enter" || event.key === " ") {
+                                                event.stopPropagation();
+                                                onDeleteThread(thread.id);
+                                              }
+                                            }}
+                                          >
+                                            <Trash2 className="size-3.5" />
+                                          </div>
+                                        </span>
+                                      </>
                                     }
+                                  />
+                                </ContextMenu>
+                              </div>
+                            );
+                          }
 
-                                    onReorderThreads(dragItem.id, thread.id, placement);
-                                    setDragItem(undefined);
-                                    setDropIndicator(undefined);
-                                  }}
+                          return entries.map((entry) => {
+                            if (entry.kind === "thread") {
+                              return renderThreadItem(entry.thread, true);
+                            }
+
+                            const { group } = entry;
+                            const isGroupCollapsed =
+                              collapsedWorktrees[group.worktreePath] ?? false;
+                            const isDraggedGroup =
+                              dragItem?.type === "worktree-group" &&
+                              dragItem.worktreePath === group.worktreePath;
+                            const groupIndicator =
+                              dropIndicator?.type === "worktree-group" &&
+                              dropIndicator.worktreePath === group.worktreePath
+                                ? dropIndicator
+                                : undefined;
+                            const groupThreadIds = group.threads.map((t) => t.id);
+
+                            return (
+                              <div
+                                key={group.worktreePath}
+                                className={`relative space-y-0.5 ${isDraggedGroup ? "opacity-60" : ""}`}
+                              >
+                                {groupIndicator
+                                  ? renderDropIndicator(groupIndicator.placement)
+                                  : null}
+                                <WorktreeGroupHeader
+                                  worktreePath={group.worktreePath}
+                                  worktreeBranch={group.worktreeBranch}
+                                  projectId={project.id}
+                                  isCollapsed={isGroupCollapsed}
+                                  hasTerminal={activeWorktreeTerminalPaths.includes(
+                                    group.worktreePath,
+                                  )}
+                                  isActiveTerminal={
+                                    activeWorktreeTerminalPath === group.worktreePath
+                                  }
+                                  onToggleCollapse={() =>
+                                    setCollapsedWorktrees((prev) => ({
+                                      ...prev,
+                                      [group.worktreePath]: !isGroupCollapsed,
+                                    }))
+                                  }
+                                  onOpenGitReview={() =>
+                                    onOpenGitReview(project.id, group.worktreePath)
+                                  }
+                                  onOpenTerminal={() =>
+                                    onOpenWorktreeTerminal(project.id, group.worktreePath)
+                                  }
+                                  isDragging={isDraggedGroup}
                                   onDragStart={(event) => {
                                     event.dataTransfer.effectAllowed = "move";
-                                    event.dataTransfer.setData("text/plain", thread.id);
-                                    event.dataTransfer.setData(
-                                      "application/x-lightcode-sidebar-thread",
-                                      thread.id,
-                                    );
+                                    event.dataTransfer.setData("text/plain", group.worktreePath);
                                     setDragItem({
-                                      type: "thread",
-                                      id: thread.id,
+                                      type: "worktree-group",
+                                      worktreePath: group.worktreePath,
                                       projectId: project.id,
+                                      threadIds: groupThreadIds,
                                     });
                                     setDropIndicator(undefined);
                                   }}
@@ -772,62 +937,54 @@ export function Sidebar(props: {
                                     setDragItem(undefined);
                                     setDropIndicator(undefined);
                                   }}
-                                  isDragging={isDraggedThread}
-                                  dragLabel={`Reorder ${thread.title}`}
-                                  suffix={
-                                    <>
-                                      {thread.worktreePath && (
-                                        <>
-                                          <Tooltip delay={150}>
-                                            <Tooltip.Trigger>
-                                              <div className="flex shrink-0 items-center">
-                                                <GitFork className="size-3 text-muted/60" />
-                                              </div>
-                                            </Tooltip.Trigger>
-                                            <Tooltip.Content placement="right">
-                                              Worktree: {thread.worktreeBranch}
-                                            </Tooltip.Content>
-                                          </Tooltip>
-                                          <GitBadge
-                                            projectId={thread.projectId}
-                                            projectName={thread.title}
-                                            worktreePath={thread.worktreePath}
-                                            onPress={() =>
-                                              onOpenGitReview(thread.projectId, thread.worktreePath)
-                                            }
-                                          />
-                                        </>
-                                      )}
-                                      <span className="relative w-[2.4ch] shrink-0">
-                                        <span className="block text-center font-mono text-[10px] tabular-nums text-muted group-hover:invisible">
-                                          {formatRelativeTime(thread.updatedAt)}
-                                        </span>
-                                        <div
-                                          role="button"
-                                          tabIndex={0}
-                                          aria-label={`Delete ${thread.title}`}
-                                          className="absolute inset-0 flex items-center justify-center rounded text-muted/55 opacity-0 transition hover:text-danger group-hover:opacity-100"
-                                          onClick={(event) => {
-                                            event.stopPropagation();
-                                            onDeleteThread(thread.id);
-                                          }}
-                                          onKeyDown={(event) => {
-                                            if (event.key === "Enter" || event.key === " ") {
-                                              event.stopPropagation();
-                                              onDeleteThread(thread.id);
-                                            }
-                                          }}
-                                        >
-                                          <Trash2 className="size-3.5" />
-                                        </div>
-                                      </span>
-                                    </>
-                                  }
+                                  onDragOver={(event) => {
+                                    if (!dragItem || dragItem.type === "project") return;
+                                    if (dragItem.projectId !== project.id) return;
+                                    if (
+                                      dragItem.type === "worktree-group" &&
+                                      dragItem.worktreePath === group.worktreePath
+                                    )
+                                      return;
+                                    // Reject thread drags onto group headers
+                                    // (threads reorder within their own scope)
+                                    if (dragItem.type === "thread") return;
+
+                                    event.preventDefault();
+                                    event.dataTransfer.dropEffect = "move";
+                                    setDropIndicator({
+                                      type: "worktree-group",
+                                      worktreePath: group.worktreePath,
+                                      projectId: project.id,
+                                      placement: getDropPlacement(event),
+                                    });
+                                  }}
+                                  onDrop={(event) => {
+                                    if (!dragItem || dragItem.type === "project") return;
+                                    if (dragItem.projectId !== project.id) return;
+                                    if (dragItem.type !== "worktree-group") return;
+                                    if (dragItem.worktreePath === group.worktreePath) return;
+
+                                    event.preventDefault();
+                                    const placement = getDropPlacement(event);
+                                    // Drop relative to first/last thread of target group
+                                    const anchorId =
+                                      placement === "before"
+                                        ? groupThreadIds[0]!
+                                        : groupThreadIds.at(-1)!;
+                                    onReorderThreadBlock(dragItem.threadIds, anchorId, placement);
+                                    setDragItem(undefined);
+                                    setDropIndicator(undefined);
+                                  }}
                                 />
-                              </ContextMenu>
-                            </div>
-                          );
-                        })}
+                                {!isGroupCollapsed && (
+                                  <div className="space-y-0.5 pl-3">
+                                    {group.threads.map((thread) => renderThreadItem(thread, false))}
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          });
+                        })()}
                       </div>
                     ) : null}
                   </section>

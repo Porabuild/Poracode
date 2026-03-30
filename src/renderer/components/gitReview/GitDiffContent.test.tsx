@@ -54,9 +54,7 @@ import { GitDiffContent } from "./GitDiffContent";
 describe("GitDiffContent", () => {
   beforeAll(() => {
     if (typeof globalThis.IntersectionObserver === "undefined") {
-      globalThis.IntersectionObserver = class IntersectionObserverStub
-        implements IntersectionObserver
-      {
+      globalThis.IntersectionObserver = class IntersectionObserverStub implements IntersectionObserver {
         readonly root = null;
         readonly rootMargin = "";
         readonly scrollMargin = "";
@@ -130,5 +128,64 @@ describe("GitDiffContent", () => {
     expect(screen.getByText("src/worktree-only.ts")).toBeInTheDocument();
     expect(screen.getByText("docs/untracked.md")).toBeInTheDocument();
     expect(screen.queryByText("src/main-only.ts")).not.toBeInTheDocument();
+  });
+
+  it("re-parses locally when the diff mode changes instead of refetching the batch", async () => {
+    const gitStatus: GitStatusResult = {
+      isRepo: true,
+      branch: "feature/worktree",
+      staged: [],
+      unstaged: [
+        {
+          path: "src/worktree-only.ts",
+          status: "M",
+          staged: false,
+          insertions: 1,
+          deletions: 1,
+        },
+      ],
+      totalInsertions: 1,
+      totalDeletions: 1,
+    };
+
+    const project: Project = {
+      id: "project-1",
+      name: "Lightcode",
+      createdAt: new Date().toISOString(),
+      location: { kind: "windows", path: "C:\\repo-worktree" },
+    };
+
+    const { rerender } = render(
+      <GitDiffContent
+        project={project}
+        gitStatus={gitStatus}
+        selectedFile={null}
+        selectedStaged={false}
+        diffMode={1}
+        diffFilter="changes"
+        refreshKey={0}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(bridge.getGitDiffBatch).toHaveBeenCalledTimes(1);
+    });
+
+    rerender(
+      <GitDiffContent
+        project={project}
+        gitStatus={gitStatus}
+        selectedFile={null}
+        selectedStaged={false}
+        diffMode={4}
+        diffFilter="changes"
+        refreshKey={0}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("src/worktree-only.ts")).toBeInTheDocument();
+    });
+    expect(bridge.getGitDiffBatch).toHaveBeenCalledTimes(1);
   });
 });
