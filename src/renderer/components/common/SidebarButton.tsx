@@ -65,7 +65,7 @@ export function SidebarButton(props: {
 
   return (
     <button
-      className={`group relative flex w-full cursor-default items-center gap-2 rounded-3xl py-1.5 text-left text-sm transition-colors ${onDragStart ? "pl-4 pr-5" : "px-4"} ${stateClass} ${className ?? ""}`}
+      className={`group relative flex w-full cursor-default items-center gap-2 rounded-3xl py-1.5 text-left text-sm transition-colors ${onDragStart ? "pl-3 pr-4" : "px-3"} ${stateClass} ${className ?? ""}`}
       disabled={isDisabled}
       onClick={onPress}
       onDoubleClick={onDoubleClick}

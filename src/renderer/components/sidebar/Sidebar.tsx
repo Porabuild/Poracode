@@ -172,7 +172,7 @@ function UpdateButtons(props: { iconOnly?: boolean }) {
     }
 
     return (
-      <div className="flex w-full items-center gap-2 rounded-3xl px-4 py-1.5 text-sm text-muted">
+      <div className="flex w-full items-center gap-2 rounded-3xl px-3 py-1.5 text-sm text-muted">
         <Download className="size-4 shrink-0 animate-pulse text-accent" />
         <div className="flex min-w-0 flex-1 flex-col gap-1">
           <span className="truncate">Downloading update…</span>
@@ -510,7 +510,7 @@ export function Sidebar(props: {
                     </ContextMenu>
 
                     {!isProjectCollapsed ? (
-                      <div className="space-y-0.5 pl-4">
+                      <div className="space-y-0.5 pl-3">
                         <SidebarButton
                           icon={<Plus className="size-4" />}
                           label="New thread"
@@ -902,7 +902,7 @@ export function Sidebar(props: {
                                   }}
                                 />
                                 {!isGroupCollapsed && (
-                                  <div className="space-y-0.5 pl-3">
+                                  <div className="space-y-0.5 pl-2">
                                     {group.threads.map((thread) => renderThreadItem(thread, false))}
                                   </div>
                                 )}
