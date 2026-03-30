@@ -366,6 +366,8 @@ export function GitReviewSidebar(props: {
         addAll,
       });
       setCommitMessage("");
+      // Fetch so ahead/behind counts are accurate after commit
+      await readBridge().gitFetch({ projectLocation: project.location, remote: "origin", prune: false }).catch(() => {});
       onRefresh();
     } catch (err) {
       setCommitError(err instanceof Error ? err.message : String(err));
