@@ -146,6 +146,8 @@ describe("GitReviewSidebar", () => {
     const gitStatus: GitStatusResult = {
       isRepo: true,
       branch: "feature/worktree",
+      tracking: "",
+      hasRemote: false,
       ahead: 0,
       behind: 0,
       staged: [],

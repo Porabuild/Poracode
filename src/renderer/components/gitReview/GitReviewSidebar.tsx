@@ -330,9 +330,11 @@ export function GitReviewSidebar(props: {
   const hasAnyChanges = hasStagedChanges || (gitStatus?.unstaged.length ?? 0) > 0;
   const canCommitStaged = hasAnyChanges && !isCommitting && !isGenerating;
   const canCommitAll = hasAnyChanges && !isCommitting && !isGenerating;
+  const hasRemote = gitStatus?.hasRemote ?? false;
+  const hasTracking = Boolean(gitStatus?.tracking);
   const ahead = gitStatus?.ahead ?? 0;
   const behind = gitStatus?.behind ?? 0;
-  const needsPush = ahead > 0 && behind === 0;
+  const needsPush = hasTracking ? ahead > 0 && behind === 0 : hasRemote;
 
   async function generateMessage(): Promise<string> {
     return generateCommitMessageWithFallback({
@@ -394,7 +396,10 @@ export function GitReviewSidebar(props: {
     setSyncError(null);
     try {
       if (needsPush) {
-        await readBridge().gitPush({ projectLocation: project.location });
+        await readBridge().gitPush({
+          projectLocation: project.location,
+          setUpstream: !hasTracking,
+        });
       } else {
         await readBridge().gitSync({ projectLocation: project.location });
       }
@@ -579,7 +584,7 @@ export function GitReviewSidebar(props: {
                 </p>
               )}
             </>
-          ) : (
+          ) : hasRemote ? (
             <>
               {syncError && (
                 <p className="truncate text-xs text-danger" title={syncError}>
@@ -603,7 +608,7 @@ export function GitReviewSidebar(props: {
                       <ArrowUpDown className="size-3.5" />
                     )}
                     {needsPush
-                      ? `Push ↑${ahead}`
+                      ? `Push${ahead > 0 ? ` ↑${ahead}` : ""}`
                       : behind > 0 || ahead > 0
                         ? `Sync${behind > 0 ? ` ↓${behind}` : ""}${ahead > 0 ? ` ↑${ahead}` : ""}`
                         : "Sync"}
@@ -611,7 +616,7 @@ export function GitReviewSidebar(props: {
                 )}
               </Button>
             </>
-          )}
+          ) : null}
         </div>
 
         <div className="space-y-1 border-t border-white/6 pt-2">

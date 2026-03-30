@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { ArrowUp, ArrowUpDown, TerminalSquare } from "lucide-react";
+import { TerminalSquare } from "lucide-react";
 import { Button, Spinner, Tooltip } from "@heroui/react";
 import type {
   AgentStatus,
@@ -88,6 +88,8 @@ export function ThreadDraftView(props: {
   const { project, agentStatuses, lastDraftConfig, onStart } = props;
   const gitStatus = useGitStore((s) => s.statuses[project.id]);
   const gitBranch = gitStatus?.branch;
+  const gitHasRemote = gitStatus?.hasRemote ?? false;
+  const gitHasTracking = Boolean(gitStatus?.tracking);
   const gitAhead = gitStatus?.ahead ?? 0;
   const gitBehind = gitStatus?.behind ?? 0;
   const [isSyncing, setIsSyncing] = useState(false);
@@ -289,7 +291,7 @@ export function ThreadDraftView(props: {
                         onWorktreeModeChange={setWorktreeMode}
                         onSelect={setBranchSelection}
                       />
-                      {!branchSelection?.isNew && (
+                      {!branchSelection?.isNew && gitHasRemote && (
                         <Tooltip delay={0}>
                           <Button
                             size="sm"
@@ -299,38 +301,36 @@ export function ThreadDraftView(props: {
                             isPending={isSyncing}
                             onPress={() => {
                               setIsSyncing(true);
-                              void readBridge()
-                                .gitSync({ projectLocation: project.location })
-                                .finally(() => setIsSyncing(false));
+                              const needsPush = gitHasTracking ? gitAhead > 0 && gitBehind === 0 : true;
+                              const op = needsPush
+                                ? readBridge().gitPush({
+                                    projectLocation: project.location,
+                                    setUpstream: !gitHasTracking,
+                                  })
+                                : readBridge().gitSync({ projectLocation: project.location });
+                              void op.finally(() => setIsSyncing(false));
                             }}
                           >
                             {({ isPending }) =>
                               isPending ? (
                                 <Spinner color="current" size="sm" />
                               ) : (
-                                <>
-                                  {gitAhead > 0 && gitBehind === 0 ? (
-                                    <ArrowUp className="size-3.5" />
-                                  ) : (
-                                    <ArrowUpDown className="size-3.5" />
-                                  )}
-                                  {(gitAhead > 0 || gitBehind > 0) && (
-                                    <span className="text-xs text-muted">
-                                      {gitBehind > 0 && `${gitBehind}↓`}
-                                      {gitBehind > 0 && gitAhead > 0 && " "}
-                                      {gitAhead > 0 && `${gitAhead}↑`}
-                                    </span>
-                                  )}
-                                </>
+                                <span className="text-sm">
+                                  {gitHasTracking
+                                    ? `${gitBehind}↓ ${gitAhead}↑`
+                                    : "↑"}
+                                </span>
                               )
                             }
                           </Button>
                           <Tooltip.Content>
-                            {gitAhead > 0 || gitBehind > 0
-                              ? gitBehind > 0
+                            {!gitHasTracking
+                              ? "Push"
+                              : gitBehind > 0
                                 ? `Sync (↓${gitBehind}${gitAhead > 0 ? ` ↑${gitAhead}` : ""})`
-                                : `Push ↑${gitAhead}`
-                              : "Sync"}
+                                : gitAhead > 0
+                                  ? `Push ↑${gitAhead}`
+                                  : "Sync"}
                           </Tooltip.Content>
                         </Tooltip>
                       )}

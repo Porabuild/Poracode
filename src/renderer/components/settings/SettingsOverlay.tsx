@@ -237,7 +237,7 @@ export function SettingsOverlay(props: { onClose: () => void }) {
   const [activeSection, setActiveSection] = useState<SettingsSection>("general");
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-background">
+    <>
       {/* Top header bar — drag region */}
       <div
         className="lightcode-git-header flex shrink-0 items-center gap-3 bg-[var(--content-background)] px-4"
@@ -268,6 +268,6 @@ export function SettingsOverlay(props: { onClose: () => void }) {
           }
         />
       </div>
-    </div>
+    </>
   );
 }

@@ -8,6 +8,7 @@ import { readBridge } from "./bridge";
 import { ProviderIcon, getStatusTone } from "./components/providers";
 import { DevTerminalPanel } from "./components/devTerminal/DevTerminalPanel";
 import { AppShell } from "./components/layout/AppShell";
+import { OverlayShell } from "./components/layout/OverlayShell";
 import { SplitPaneContainer } from "./components/layout/SplitPaneContainer";
 import { SettingsOverlay } from "./components/settings/SettingsOverlay";
 import { Sidebar } from "./components/sidebar/Sidebar";
@@ -1090,30 +1091,34 @@ export function App() {
         rightPanel={<DevTerminalPanel projects={projects} />}
         rightPanelOpen={devTerminalOpen}
       />
-      {settingsOpen ? <SettingsOverlay onClose={() => setSettingsOpen(false)} /> : null}
-      {gitReviewContext ? (
-        <Suspense
-          fallback={
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-background">
-              <Spinner size="lg" />
-            </div>
-          }
-        >
-          <GitReviewOverlay
-            project={projects.find((p) => p.id === gitReviewContext.projectId)!}
-            {...(gitReviewContext.worktreePath
-              ? {
-                  locationOverride: buildWorktreeLocation(
-                    projects.find((p) => p.id === gitReviewContext.projectId)!.location,
-                    gitReviewContext.worktreePath,
-                  ),
-                  statusKey: gitReviewContext.worktreePath,
-                }
-              : {})}
-            onClose={() => setGitReviewContext(null)}
-          />
-        </Suspense>
-      ) : null}
+      <OverlayShell open={settingsOpen}>
+        <SettingsOverlay onClose={() => setSettingsOpen(false)} />
+      </OverlayShell>
+      <OverlayShell open={!!gitReviewContext} onExited={() => setGitReviewContext(null)}>
+        {gitReviewContext && (
+          <Suspense
+            fallback={
+              <div className="flex flex-1 items-center justify-center">
+                <Spinner size="lg" />
+              </div>
+            }
+          >
+            <GitReviewOverlay
+              project={projects.find((p) => p.id === gitReviewContext.projectId)!}
+              {...(gitReviewContext.worktreePath
+                ? {
+                    locationOverride: buildWorktreeLocation(
+                      projects.find((p) => p.id === gitReviewContext.projectId)!.location,
+                      gitReviewContext.worktreePath,
+                    ),
+                    statusKey: gitReviewContext.worktreePath,
+                  }
+                : {})}
+              onClose={() => setGitReviewContext(null)}
+            />
+          </Suspense>
+        )}
+      </OverlayShell>
     </AppProvider>
   );
 }

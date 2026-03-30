@@ -254,6 +254,8 @@ export interface GitFileChange {
 export interface GitStatusResult {
   isRepo: boolean;
   branch: string;
+  tracking: string;
+  hasRemote: boolean;
   ahead: number;
   behind: number;
   staged: GitFileChange[];

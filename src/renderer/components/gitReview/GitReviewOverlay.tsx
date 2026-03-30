@@ -69,7 +69,7 @@ export function GitReviewOverlay(props: {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-background">
+    <>
       {/* Top header bar — IS the drag region; children opt out with no-drag */}
       <div
         className="lightcode-git-header flex shrink-0 items-center gap-3 bg-[var(--content-background)] px-4"
@@ -202,6 +202,6 @@ export function GitReviewOverlay(props: {
           }
         />
       </div>
-    </div>
+    </>
   );
 }

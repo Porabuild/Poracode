@@ -117,6 +117,8 @@ function mapFileStatus(file: FileStatusResult, staged: boolean): GitFileChange {
 const EMPTY_STATUS: GitStatusResult = {
   isRepo: false,
   branch: "",
+  tracking: "",
+  hasRemote: false,
   ahead: 0,
   behind: 0,
   staged: [],
@@ -136,7 +138,8 @@ export class GitService {
       return EMPTY_STATUS;
     }
 
-    const status = await git.status();
+    const [status, remotes] = await Promise.all([git.status(), git.getRemotes()]);
+    const hasRemote = remotes.length > 0;
 
     const staged: GitFileChange[] = status.files
       .filter((f) => f.index && f.index !== " " && f.index !== "?")
@@ -208,6 +211,8 @@ export class GitService {
     return {
       isRepo: true,
       branch: status.current ?? "",
+      tracking: status.tracking ?? "",
+      hasRemote,
       ahead: status.ahead,
       behind: status.behind,
       staged,
