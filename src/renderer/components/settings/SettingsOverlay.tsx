@@ -44,7 +44,6 @@ function SettingsSidebar(props: {
               onPress={() => onSectionChange("git")}
             />
           </div>
-
           <div className="space-y-1 border-t border-white/6 pt-2 pr-2">
             <SidebarButton
               iconOnly
@@ -66,10 +65,6 @@ function SettingsSidebar(props: {
       <div
         className={`flex h-full min-h-0 flex-col gap-3 px-3 pb-1 pt-0 transition-opacity duration-150 ${isCollapsed ? "invisible opacity-0" : "opacity-100 delay-100"}`}
       >
-        <div className="flex items-center justify-between px-1.5">
-          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted">Settings</p>
-        </div>
-
         <div className="min-h-0 flex-1 overflow-y-auto px-1 pr-0.5">
           <div className="space-y-0.5">
             <SidebarButton
@@ -242,23 +237,37 @@ export function SettingsOverlay(props: { onClose: () => void }) {
   const [activeSection, setActiveSection] = useState<SettingsSection>("general");
 
   return (
-    <div className="lightcode-overlay-shell fixed inset-0 z-50 bg-background">
-      <AppShell
-        sidebar={
-          <SettingsSidebar
-            activeSection={activeSection}
-            onSectionChange={setActiveSection}
-            onClose={onClose}
-          />
-        }
-        content={
-          activeSection === "general" ? (
-            <GeneralSettings />
-          ) : activeSection === "git" ? (
-            <GitSettings />
-          ) : null
-        }
-      />
+    <div className="fixed inset-0 z-50 flex flex-col bg-background">
+      {/* Top header bar — drag region */}
+      <div
+        className="lightcode-git-header flex shrink-0 items-center gap-3 bg-[var(--content-background)] px-4"
+        style={{ height: "env(titlebar-area-height, 32px)" }}
+      >
+        <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted">Settings</p>
+        <div className="flex-1" />
+        {/* Space for native window buttons */}
+        <div className="w-[8rem] shrink-0" />
+      </div>
+
+      {/* Body with sidebar + content */}
+      <div className="lightcode-git-body min-h-0 flex-1">
+        <AppShell
+          sidebar={
+            <SettingsSidebar
+              activeSection={activeSection}
+              onSectionChange={setActiveSection}
+              onClose={onClose}
+            />
+          }
+          content={
+            activeSection === "general" ? (
+              <GeneralSettings />
+            ) : activeSection === "git" ? (
+              <GitSettings />
+            ) : null
+          }
+        />
+      </div>
     </div>
   );
 }

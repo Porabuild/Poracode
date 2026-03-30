@@ -300,19 +300,21 @@ export function Sidebar(props: {
     });
   }, [currentProjectId]);
 
-  // Auto-expand worktree group when active thread is inside a collapsed group
+  // Auto-expand worktree group when a thread inside it becomes selected
   useEffect(() => {
     for (const threadId of currentThreadIds) {
       const thread = threads.find((t) => t.id === threadId);
-      if (thread?.worktreePath && collapsedWorktrees[thread.worktreePath]) {
-        setCollapsedWorktrees((prev) => ({
-          ...prev,
-          [thread.worktreePath!]: false,
-        }));
+      if (thread?.worktreePath) {
+        setCollapsedWorktrees((prev) =>
+          prev[thread.worktreePath!] ? { ...prev, [thread.worktreePath!]: false } : prev,
+        );
         break;
       }
     }
-  }, [currentThreadIds, threads, collapsedWorktrees]);
+    // Intentionally omitting collapsedWorktrees — only react to selection changes,
+    // not manual collapse actions.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentThreadIds, threads]);
 
   const activeThreads = threads.filter((thread) => thread.status !== "inactive");
 

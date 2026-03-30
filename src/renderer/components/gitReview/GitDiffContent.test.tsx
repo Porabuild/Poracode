@@ -78,6 +78,8 @@ describe("GitDiffContent", () => {
     const gitStatus: GitStatusResult = {
       isRepo: true,
       branch: "feature/worktree",
+      ahead: 0,
+      behind: 0,
       staged: [],
       unstaged: [
         {
@@ -134,6 +136,8 @@ describe("GitDiffContent", () => {
     const gitStatus: GitStatusResult = {
       isRepo: true,
       branch: "feature/worktree",
+      ahead: 0,
+      behind: 0,
       staged: [],
       unstaged: [
         {

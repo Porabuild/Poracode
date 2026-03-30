@@ -91,6 +91,7 @@ readBridge().onUpdateStatus((status) => {
 const SIDEBAR_THREAD_MIME = "application/x-lightcode-sidebar-thread";
 const EMPTY_PANES: string[] = [];
 const GIT_POLL_INTERVAL_MS = 10_000;
+const GIT_FETCH_INTERVAL_MS = 60_000;
 
 function formatRelativeTime(iso: string): string {
   const deltaMinutes = Math.max(1, Math.floor((Date.now() - new Date(iso).getTime()) / 60000));
@@ -723,13 +724,28 @@ export function App() {
     if (!storeHydrated || projects.length === 0) return;
 
     let isActive = true;
+    let lastFetchTime = 0;
 
     async function pollGitStatus() {
       const t0 = Date.now();
       const gitStoreActions = useGitStore.getState();
 
+      // Fetch from remote periodically so ahead/behind counts stay fresh
+      const shouldFetch = t0 - lastFetchTime >= GIT_FETCH_INTERVAL_MS;
+      if (shouldFetch) lastFetchTime = t0;
+
       for (const project of projects) {
         if (!isActive) return;
+
+        // Background fetch (best-effort, don't block status polling)
+        if (shouldFetch) {
+          try {
+            await readBridge().gitFetch({ projectLocation: project.location, remote: "origin", prune: false });
+          } catch {
+            // ignore — remote may be unreachable
+          }
+          if (!isActive) return;
+        }
 
         // Main project status
         try {

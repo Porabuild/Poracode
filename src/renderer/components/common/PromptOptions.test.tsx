@@ -43,4 +43,25 @@ describe("PromptOptions", () => {
 
     expect(onSelect).toHaveBeenCalledWith("1");
   });
+
+  it("uses the option's submitInput when selected by number shortcut", () => {
+    const onSelect = vi.fn();
+
+    render(
+      <PromptOptions
+        options={[
+          { key: "1", label: "One" },
+          { key: "2", label: "Two" },
+          { key: "3", label: "Three" },
+          { key: "4", label: "Four" },
+          { key: "5", label: "Chat about this", submitInput: "\x1b[B\x1b[B\x1b[B\x1b[B\r" },
+        ]}
+        onSelect={onSelect}
+      />,
+    );
+
+    fireEvent.keyDown(screen.getByRole("listbox"), { key: "5" });
+
+    expect(onSelect).toHaveBeenCalledWith("\x1b[B\x1b[B\x1b[B\x1b[B\r");
+  });
 });

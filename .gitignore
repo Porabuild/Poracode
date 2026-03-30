@@ -11,4 +11,5 @@ build/icons/
 .heroui-docs/
 .tmp/
 .agent/
+.spec-workflow/
 **/worktrees/

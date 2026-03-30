@@ -254,6 +254,8 @@ export interface GitFileChange {
 export interface GitStatusResult {
   isRepo: boolean;
   branch: string;
+  ahead: number;
+  behind: number;
   staged: GitFileChange[];
   unstaged: GitFileChange[];
   totalInsertions: number;
@@ -406,6 +408,31 @@ export const gitRemoveWorktreePayloadSchema = z.object({
   force: z.boolean().default(false),
 });
 export type GitRemoveWorktreePayload = z.infer<typeof gitRemoveWorktreePayloadSchema>;
+
+export const gitPullPayloadSchema = z.object({
+  projectLocation: projectLocationSchema,
+  remote: z.string().optional().default("origin"),
+});
+export type GitPullPayload = z.input<typeof gitPullPayloadSchema>;
+
+export const gitPushPayloadSchema = z.object({
+  projectLocation: projectLocationSchema,
+  remote: z.string().optional().default("origin"),
+  branch: z.string().optional(),
+  setUpstream: z.boolean().optional().default(false),
+});
+export type GitPushPayload = z.input<typeof gitPushPayloadSchema>;
+
+export const gitSyncPayloadSchema = z.object({
+  projectLocation: projectLocationSchema,
+  remote: z.string().optional().default("origin"),
+});
+export type GitSyncPayload = z.input<typeof gitSyncPayloadSchema>;
+
+export interface GitSyncResult {
+  pulled: boolean;
+  pushed: boolean;
+}
 
 export type AppView =
   | { kind: "home" }

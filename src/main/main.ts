@@ -62,6 +62,9 @@ const CHANNELS = {
   gitListWorktrees: "lightcode:git-list-worktrees",
   gitAddWorktree: "lightcode:git-add-worktree",
   gitRemoveWorktree: "lightcode:git-remove-worktree",
+  gitPull: "lightcode:git-pull",
+  gitPush: "lightcode:git-push",
+  gitSync: "lightcode:git-sync",
   getSharedSettings: "lightcode:get-shared-settings",
   setSharedSettings: "lightcode:set-shared-settings",
   setWindowChrome: "lightcode:set-window-chrome",
@@ -459,6 +462,12 @@ function registerIpcHandlers(): void {
   ipcMain.handle(CHANNELS.gitRemoveWorktree, async (_event, payload) =>
     callSupervisor("gitRemoveWorktree", payload),
   );
+
+  ipcMain.handle(CHANNELS.gitPull, async (_event, payload) => callSupervisor("gitPull", payload));
+
+  ipcMain.handle(CHANNELS.gitPush, async (_event, payload) => callSupervisor("gitPush", payload));
+
+  ipcMain.handle(CHANNELS.gitSync, async (_event, payload) => callSupervisor("gitSync", payload));
 
   ipcMain.handle(CHANNELS.getSharedSettings, () =>
     readSharedSettingsFile(requireLightcodePaths().settingsPath),

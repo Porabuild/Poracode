@@ -23,11 +23,15 @@ import type {
   GitCommitResult,
   GitDiffBatchResult,
   GitDiffResult,
+  GitPullPayload,
+  GitPushPayload,
   GitRevertAllPayload,
   GitRevertPayload,
   GitStageAllPayload,
   GitStagePayload,
   GitStatusResult,
+  GitSyncPayload,
+  GitSyncResult,
   GitAddWorktreePayload,
   GitBranchListResult,
   GitFetchPayload,
@@ -722,6 +726,45 @@ export class SupervisorRuntime {
 
   async gitRemoveWorktree(payload: GitRemoveWorktreePayload): Promise<void> {
     return this.gitService.removeWorktree(payload.projectLocation, payload.path, payload.force);
+  }
+
+  async gitPull(payload: GitPullPayload): Promise<void> {
+    return this.gitService.pull(payload.projectLocation, payload.remote ?? "origin");
+  }
+
+  async gitPush(payload: GitPushPayload): Promise<void> {
+    return this.gitService.push(
+      payload.projectLocation,
+      payload.remote ?? "origin",
+      payload.branch,
+      payload.setUpstream ?? false,
+    );
+  }
+
+  async gitSync(payload: GitSyncPayload): Promise<GitSyncResult> {
+    const location = payload.projectLocation;
+    const remote = payload.remote ?? "origin";
+
+    // Fetch first so ahead/behind counts are accurate
+    await this.gitService.fetch(location, remote, false);
+
+    const status = await this.gitService.getStatus(location);
+    let pulled = false;
+    let pushed = false;
+
+    if (status.behind > 0) {
+      await this.gitService.pull(location, remote);
+      pulled = true;
+    }
+
+    // Re-check after pull — ahead count may have changed
+    const afterPull = pulled ? await this.gitService.getStatus(location) : status;
+    if (afterPull.ahead > 0) {
+      await this.gitService.push(location, remote);
+      pushed = true;
+    }
+
+    return { pulled, pushed };
   }
 
   async resolveThreadServerRequest(payload: ResolveThreadServerRequestPayload): Promise<void> {

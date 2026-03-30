@@ -9,11 +9,14 @@ import type {
   GitCommitPayload,
   GitFetchPayload,
   GitListWorktreesPayload,
+  GitPullPayload,
+  GitPushPayload,
   GitRemoveWorktreePayload,
   GitRevertAllPayload,
   GitRevertPayload,
   GitStageAllPayload,
   GitStagePayload,
+  GitSyncPayload,
   GitUnstageAllPayload,
   GitUnstagePayload,
   ResizeTerminalPayload,
@@ -35,7 +38,10 @@ import {
   gitCommitPayloadSchema,
   gitFetchPayloadSchema,
   gitListWorktreesPayloadSchema,
+  gitPullPayloadSchema,
+  gitPushPayloadSchema,
   gitRemoveWorktreePayloadSchema,
+  gitSyncPayloadSchema,
   generateCommitMessagePayloadSchema,
   gitRevertAllPayloadSchema,
   gitRevertPayloadSchema,
@@ -152,6 +158,12 @@ async function handleRequest(request: SupervisorRequest): Promise<unknown> {
       return runtime.gitRemoveWorktree(
         gitRemoveWorktreePayloadSchema.parse(request.payload) as GitRemoveWorktreePayload,
       );
+    case "gitPull":
+      return runtime.gitPull(gitPullPayloadSchema.parse(request.payload) as GitPullPayload);
+    case "gitPush":
+      return runtime.gitPush(gitPushPayloadSchema.parse(request.payload) as GitPushPayload);
+    case "gitSync":
+      return runtime.gitSync(gitSyncPayloadSchema.parse(request.payload) as GitSyncPayload);
     default: {
       const exhaustive: never = request;
       return exhaustive;

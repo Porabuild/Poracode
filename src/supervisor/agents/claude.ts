@@ -35,7 +35,7 @@ const capabilities: AgentCapability = {
   modes: ["agent", "plan"],
   approvalPolicies: [
     { id: "default", label: "Default" },
-    { id: "auto", label: "Auto" },
+
     { id: "acceptEdits", label: "Accept Edits" },
     { id: "dontAsk", label: "Don't Ask" },
     { id: "bypassPermissions", label: "Bypass Permissions" },
@@ -46,13 +46,6 @@ const capabilities: AgentCapability = {
   liveInputMode: "terminal",
   presentationMode: "terminal",
 };
-
-function resolveClaudePermissionMode(config: ThreadConfig): string {
-  if (config.mode === "plan") {
-    return "plan";
-  }
-  return config.approvalPolicy ?? "default";
-}
 
 function buildClaudeArgs(
   config: ThreadConfig,
@@ -75,12 +68,11 @@ function buildClaudeArgs(
     args.push("--effort", config.effort);
   }
 
-  const permissionMode = resolveClaudePermissionMode(config);
-  if (permissionMode === "never") {
-    args.push("--dangerously-skip-permissions");
-  } else {
-    args.push("--permission-mode", permissionMode);
-  }
+  args.push("--allow-dangerously-skip-permissions");
+
+  const permissionMode = config.mode === "plan" ? "plan" : (config.approvalPolicy ?? "default");
+  args.push("--permission-mode", permissionMode);
+
   if (prompt.trim().length > 0) {
     args.push(prompt);
   }
@@ -231,22 +223,68 @@ const CLAUDE_HINTS: HintEntry[] = [
 const OPTION_RE = /^[\s❯>]*(\d+)\.\s+(.+)/;
 const TEXT_INPUT_RE = /^type\s+(here|something)\b/i;
 const SEPARATOR_RE = /^[\s\-_=~\u2500-\u257f]+$/u;
+const SELECTED_ROW_RE = /^\s*(?:❯|>)(?:\s|$)/;
+const FOOTER_HELP_RE = /^(Enter to select|Esc to cancel|ctrl-g to edit)\b/i;
+const NOTES_RE = /^Notes:/i;
+const PREVIEW_SUFFIX_RE = /\s{2,}[┌│└].*$/u;
+
+type ParsedPromptOption = {
+  explicitKey?: string;
+  label: string;
+  description?: string;
+  isTextInput?: true;
+  selected: boolean;
+};
+
+function cleanClaudePromptLine(raw: string): string {
+  return raw.replace(/\u00a0/g, " ").replace(PREVIEW_SUFFIX_RE, "").trimEnd();
+}
+
+function stripSelectedRowMarker(value: string): string {
+  return value.replace(/^\s*(?:❯|>)\s+/, "");
+}
+
+function buildFooterSubmitInput(delta: number): string {
+  if (delta === 0) {
+    return "\r";
+  }
+  const arrow = delta < 0 ? "\x1b[A" : "\x1b[B";
+  return `${arrow.repeat(Math.abs(delta))}\r`;
+}
+
+function buildPromptOptions(options: ParsedPromptOption[]): TerminalPrompt["options"] {
+  const selectedIndex = options.findIndex((option) => option.selected);
+  const currentIndex = selectedIndex >= 0 ? selectedIndex : 0;
+
+  return options.map((option, index) => {
+    const key = option.explicitKey ?? String(index + 1);
+    return {
+      key,
+      label: option.label,
+      ...(option.description ? { description: option.description } : {}),
+      ...(option.isTextInput ? { isTextInput: true } : {}),
+      ...(option.explicitKey ? {} : { submitInput: buildFooterSubmitInput(index - currentIndex) }),
+    };
+  });
+}
 
 function parseTerminalPrompt(text: string): TerminalPrompt | undefined {
-  const lines = text.split("\n");
+  const lines = text.split("\n").map(cleanClaudePromptLine);
 
   // Track the most recent logical block of numbered options.
   // Non-option content starts a new group, but decorative divider rows
   // are ignored so Claude menus that are visually split still surface
   // as one prompt in the composer. Only the LAST real group in the
   // buffer is returned, which discards stale numbered items above it.
-  let currentOptions: TerminalPrompt["options"] = [];
+  let currentOptions: ParsedPromptOption[] = [];
   let currentTitle = "";
-  let lastOptions: TerminalPrompt["options"] = [];
+  let lastOptions: ParsedPromptOption[] = [];
   let lastTitle = "";
+  let separatorAfterOptions = false;
 
   for (let i = 0; i < lines.length; i++) {
-    const optMatch = OPTION_RE.exec(lines[i]!);
+    const line = lines[i]!;
+    const optMatch = OPTION_RE.exec(line);
     if (optMatch) {
       const label = optMatch[2]!.trim();
 
@@ -255,7 +293,8 @@ function parseTerminalPrompt(text: string): TerminalPrompt | undefined {
       while (i + 1 < lines.length) {
         const next = lines[i + 1]!;
         if (OPTION_RE.test(next) || next.trim().length === 0) break;
-        if (/^\s{4,}/.test(next)) {
+        if (FOOTER_HELP_RE.test(next.trim()) || NOTES_RE.test(next.trim())) break;
+        if (/^\s{4,}/.test(next) && !SEPARATOR_RE.test(next.trim())) {
           descParts.push(next.trim());
           i++;
         } else {
@@ -265,23 +304,45 @@ function parseTerminalPrompt(text: string): TerminalPrompt | undefined {
       const description = descParts.length > 0 ? descParts.join(" ") : undefined;
 
       currentOptions.push({
-        key: optMatch[1]!,
+        explicitKey: optMatch[1]!,
         label,
         ...(description ? { description } : {}),
-        ...(TEXT_INPUT_RE.test(label) ? { isTextInput: true } : {}),
+        ...(TEXT_INPUT_RE.test(label) ? { isTextInput: true as const } : {}),
+        selected: SELECTED_ROW_RE.test(line),
       });
-    } else {
-      const trimmed = lines[i]!.trim();
-      if (trimmed.length > 0 && !SEPARATOR_RE.test(trimmed)) {
-        if (currentOptions.length > 0) {
-          // Save completed group and start fresh
-          lastOptions = currentOptions;
-          lastTitle = currentTitle;
-          currentOptions = [];
-        }
-        currentTitle = trimmed;
-      }
+      separatorAfterOptions = false;
+      continue;
     }
+
+    const trimmed = line.trim();
+    if (trimmed.length === 0) {
+      continue;
+    }
+    if (SEPARATOR_RE.test(trimmed)) {
+      if (currentOptions.length > 0) {
+        separatorAfterOptions = true;
+      }
+      continue;
+    }
+    if (FOOTER_HELP_RE.test(trimmed) || NOTES_RE.test(trimmed)) {
+      continue;
+    }
+    if (currentOptions.length > 0 && separatorAfterOptions) {
+      currentOptions.push({
+        label: stripSelectedRowMarker(trimmed),
+        selected: SELECTED_ROW_RE.test(line),
+      });
+      continue;
+    }
+
+    if (currentOptions.length > 0) {
+      // Save completed group and start fresh
+      lastOptions = currentOptions;
+      lastTitle = currentTitle;
+      currentOptions = [];
+      separatorAfterOptions = false;
+    }
+    currentTitle = trimmed;
   }
 
   const options = currentOptions.length > 0 ? currentOptions : lastOptions;
@@ -291,7 +352,7 @@ function parseTerminalPrompt(text: string): TerminalPrompt | undefined {
     return undefined;
   }
 
-  return { title, options };
+  return { title, options: buildPromptOptions(options) };
 }
 
 export function detectClaudeTerminalStatus(text: string): TerminalStatusHint | null {

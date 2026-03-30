@@ -453,12 +453,15 @@ body {
 }
 
 .lightcode-git-body aside,
-.lightcode-git-body .lightcode-resize-handle {
+.lightcode-git-body .lightcode-resize-handle,
+.lightcode-overlay-shell aside,
+.lightcode-overlay-shell .lightcode-resize-handle {
   margin-top: 0;
   height: calc(100% - 0.5rem);
 }
 
-.lightcode-git-body .lightcode-drag-region {
+.lightcode-git-body .lightcode-drag-region,
+.lightcode-overlay-shell .lightcode-drag-region {
   height: 0;
 }
 

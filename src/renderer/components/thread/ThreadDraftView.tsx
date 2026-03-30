@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState } from "react";
-import { TerminalSquare } from "lucide-react";
+import { ArrowUp, ArrowUpDown, TerminalSquare } from "lucide-react";
+import { Button, Spinner, Tooltip } from "@heroui/react";
 import type {
   AgentStatus,
   Project,
   ProjectDraftConfig,
   ThreadConfig,
 } from "../../../shared/contracts";
+import { readBridge } from "../../bridge";
 import { ProviderIcon, getComposerControls } from "../providers";
 import { useGitStore } from "../../state/gitStore";
 import { BranchSelector, generateWorktreeBranch, type BranchSelection } from "../common";
@@ -84,7 +86,11 @@ export function ThreadDraftView(props: {
   }) => void;
 }) {
   const { project, agentStatuses, lastDraftConfig, onStart } = props;
-  const gitBranch = useGitStore((s) => s.statuses[project.id]?.branch);
+  const gitStatus = useGitStore((s) => s.statuses[project.id]);
+  const gitBranch = gitStatus?.branch;
+  const gitAhead = gitStatus?.ahead ?? 0;
+  const gitBehind = gitStatus?.behind ?? 0;
+  const [isSyncing, setIsSyncing] = useState(false);
   const installedAgents = agentStatuses.filter((status) => status.installed);
   const preferredAgentKind = resolvePreferredAgentKind(installedAgents, lastDraftConfig);
   const [agentKind, setAgentKind] = useState<AgentStatus["kind"] | undefined>(preferredAgentKind);
@@ -271,17 +277,64 @@ export function ThreadDraftView(props: {
                 }
                 afterControls={
                   gitBranch ? (
-                    <BranchSelector
-                      projectId={project.id}
-                      currentBranch={gitBranch}
-                      value={branchSelection?.branch ?? gitBranch}
-                      isWorktree={branchSelection?.isWorktree}
-                      isNew={branchSelection?.isNew}
-                      baseBranch={branchSelection?.baseBranch}
-                      worktreeMode={worktreeMode}
-                      onWorktreeModeChange={setWorktreeMode}
-                      onSelect={setBranchSelection}
-                    />
+                    <div className="flex items-center gap-0.5">
+                      <BranchSelector
+                        projectId={project.id}
+                        currentBranch={gitBranch}
+                        value={branchSelection?.branch ?? gitBranch}
+                        isWorktree={branchSelection?.isWorktree}
+                        isNew={branchSelection?.isNew}
+                        baseBranch={branchSelection?.baseBranch}
+                        worktreeMode={worktreeMode}
+                        onWorktreeModeChange={setWorktreeMode}
+                        onSelect={setBranchSelection}
+                      />
+                      {!branchSelection?.isNew && (
+                        <Tooltip delay={0}>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="lightcode-composer-menu min-w-9 px-2"
+                            isDisabled={isSyncing}
+                            isPending={isSyncing}
+                            onPress={() => {
+                              setIsSyncing(true);
+                              void readBridge()
+                                .gitSync({ projectLocation: project.location })
+                                .finally(() => setIsSyncing(false));
+                            }}
+                          >
+                            {({ isPending }) =>
+                              isPending ? (
+                                <Spinner color="current" size="sm" />
+                              ) : (
+                                <>
+                                  {gitAhead > 0 && gitBehind === 0 ? (
+                                    <ArrowUp className="size-3.5" />
+                                  ) : (
+                                    <ArrowUpDown className="size-3.5" />
+                                  )}
+                                  {(gitAhead > 0 || gitBehind > 0) && (
+                                    <span className="text-xs text-muted">
+                                      {gitBehind > 0 && `${gitBehind}↓`}
+                                      {gitBehind > 0 && gitAhead > 0 && " "}
+                                      {gitAhead > 0 && `${gitAhead}↑`}
+                                    </span>
+                                  )}
+                                </>
+                              )
+                            }
+                          </Button>
+                          <Tooltip.Content>
+                            {gitAhead > 0 || gitBehind > 0
+                              ? gitBehind > 0
+                                ? `Sync (↓${gitBehind}${gitAhead > 0 ? ` ↑${gitAhead}` : ""})`
+                                : `Push ↑${gitAhead}`
+                              : "Sync"}
+                          </Tooltip.Content>
+                        </Tooltip>
+                      )}
+                    </div>
                   ) : undefined
                 }
               />

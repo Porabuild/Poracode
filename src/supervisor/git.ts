@@ -117,6 +117,8 @@ function mapFileStatus(file: FileStatusResult, staged: boolean): GitFileChange {
 const EMPTY_STATUS: GitStatusResult = {
   isRepo: false,
   branch: "",
+  ahead: 0,
+  behind: 0,
   staged: [],
   unstaged: [],
   totalInsertions: 0,
@@ -206,6 +208,8 @@ export class GitService {
     return {
       isRepo: true,
       branch: status.current ?? "",
+      ahead: status.ahead,
+      behind: status.behind,
       staged,
       unstaged,
       totalInsertions,
@@ -401,6 +405,23 @@ export class GitService {
   async fetch(location: ProjectLocation, remote: string, prune: boolean): Promise<void> {
     const git = createGit(location);
     await git.fetch(remote, ...(prune ? [["--prune"]] : []));
+  }
+
+  async pull(location: ProjectLocation, remote: string): Promise<void> {
+    const git = createGit(location);
+    await git.pull(remote);
+  }
+
+  async push(
+    location: ProjectLocation,
+    remote: string,
+    branch?: string,
+    setUpstream?: boolean,
+  ): Promise<void> {
+    const git = createGit(location);
+    const args: string[] = [];
+    if (setUpstream) args.push("--set-upstream");
+    await git.push(remote, branch, args);
   }
 
   async listWorktrees(location: ProjectLocation): Promise<GitWorktreeListResult> {

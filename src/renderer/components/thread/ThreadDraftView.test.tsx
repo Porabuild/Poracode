@@ -126,14 +126,15 @@ describe("ThreadDraftView", () => {
     render(<ThreadDraftView project={project} agentStatuses={[codexStatus]} onStart={onStart} />);
 
     await waitFor(() => {
-      const props = composerSpy.mock.lastCall?.[0] as { controls: Array<{ value?: string }> };
+      const props = composerSpy.mock.lastCall?.[0] as {
+        controls: Array<{ value?: string; label?: string; isSelected?: boolean }>;
+      };
       expect(props.controls[0]?.value).toBe("codex");
       expect(props.controls[1]?.value).toBe("gpt-5.4");
       expect(props.controls[2]?.value).toBe("high");
       expect(
         props.controls.some(
-          (control: { label?: string; isSelected?: boolean }) =>
-            control.label === "Full Access" && control.isSelected === false,
+          (control) => control.label === "Full Access" && control.isSelected === false,
         ),
       ).toBe(true);
     });

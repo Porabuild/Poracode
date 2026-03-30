@@ -120,6 +120,71 @@ describe("detectClaudeTerminalStatus", () => {
     ]);
   });
 
+  it("strips preview-pane content from Claude two-column menus and includes footer actions", () => {
+    const text = [
+      "────────────────────────────────────────────────────────────────────────────────────────────",
+      "Which title style do you prefer?",
+      "❯ 1. LLM Response Comparator      ┌──────────────────────────────────────────┐",
+      "  2. AI Provider Benchmark        │ LLM Response Comparator                  │",
+      "  3. LLM Web Interface Tester     └──────────────────────────────────────────┘",
+      "  4. AI Search Compare",
+      "Notes: press n to add notes",
+      "────────────────────────────────────────────────────────────────────────────────────────────",
+      "  Chat about this",
+      "  Skip interview and plan immediately",
+      "",
+      "Enter to select · ↑/↓ to navigate · n to add notes · Esc to cancel",
+    ].join("\n");
+
+    const result = detectClaudeTerminalStatus(text);
+
+    expect(result?.status).toBe("needs_reply");
+    expect(result?.prompt?.title).toBe("Which title style do you prefer?");
+    expect(result?.prompt?.options).toEqual([
+      { key: "1", label: "LLM Response Comparator" },
+      { key: "2", label: "AI Provider Benchmark" },
+      { key: "3", label: "LLM Web Interface Tester" },
+      { key: "4", label: "AI Search Compare" },
+      { key: "5", label: "Chat about this", submitInput: "\x1b[B\x1b[B\x1b[B\x1b[B\r" },
+      {
+        key: "6",
+        label: "Skip interview and plan immediately",
+        submitInput: "\x1b[B\x1b[B\x1b[B\x1b[B\x1b[B\r",
+      },
+    ]);
+  });
+
+  it("builds footer action submitInput from the live Claude selection row", () => {
+    const text = [
+      "Which title style do you prefer?",
+      "  1. LLM Response Comparator      ┌──────────────────────────────────────────┐",
+      "  2. AI Provider Benchmark        │ AI Provider Benchmark                    │",
+      "  3. LLM Web Interface Tester     └──────────────────────────────────────────┘",
+      "  4. AI Search Compare",
+      "Notes: press n to add notes",
+      "────────────────────────────────────────────────────────────────────────────────────────────",
+      "❯ Chat about this",
+      "  Skip interview and plan immediately",
+      "",
+      "Enter to select · ↑/↓ to navigate · n to add notes · Esc to cancel",
+    ].join("\n");
+
+    const result = detectClaudeTerminalStatus(text);
+
+    expect(result?.prompt?.options).toEqual([
+      { key: "1", label: "LLM Response Comparator" },
+      { key: "2", label: "AI Provider Benchmark" },
+      { key: "3", label: "LLM Web Interface Tester" },
+      { key: "4", label: "AI Search Compare" },
+      { key: "5", label: "Chat about this", submitInput: "\r" },
+      {
+        key: "6",
+        label: "Skip interview and plan immediately",
+        submitInput: "\x1b[B\r",
+      },
+    ]);
+  });
+
   it("detects plan approval prompt with ctrl-g footer", () => {
     const text = [
       "Claude has written up a plan and is ready to execute. Would you like to proceed?",

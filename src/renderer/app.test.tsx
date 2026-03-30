@@ -13,6 +13,8 @@ const { bridge } = vi.hoisted(() => ({
     getGitStatus: vi.fn().mockResolvedValue({
       isRepo: true,
       branch: "main",
+      ahead: 0,
+      behind: 0,
       staged: [],
       unstaged: [],
       totalInsertions: 0,

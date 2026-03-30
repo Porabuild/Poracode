@@ -17,12 +17,16 @@ import type {
   GitDiffResult,
   GitFetchPayload,
   GitListWorktreesPayload,
+  GitPullPayload,
+  GitPushPayload,
   GitRemoveWorktreePayload,
   GitRevertAllPayload,
   GitRevertPayload,
   GitStageAllPayload,
   GitStagePayload,
   GitStatusResult,
+  GitSyncPayload,
+  GitSyncResult,
   GitUnstageAllPayload,
   GitUnstagePayload,
   GitWorktreeListResult,
@@ -72,7 +76,10 @@ export type SupervisorRequest =
   | { id: string; type: "gitFetch"; payload: GitFetchPayload }
   | { id: string; type: "gitListWorktrees"; payload: GitListWorktreesPayload }
   | { id: string; type: "gitAddWorktree"; payload: GitAddWorktreePayload }
-  | { id: string; type: "gitRemoveWorktree"; payload: GitRemoveWorktreePayload };
+  | { id: string; type: "gitRemoveWorktree"; payload: GitRemoveWorktreePayload }
+  | { id: string; type: "gitPull"; payload: GitPullPayload }
+  | { id: string; type: "gitPush"; payload: GitPushPayload }
+  | { id: string; type: "gitSync"; payload: GitSyncPayload };
 
 export type SupervisorReply =
   | { replyTo: string; ok: true; data: unknown }
@@ -153,6 +160,9 @@ export interface LightcodeBridge {
   gitListWorktrees(payload: GitListWorktreesPayload): Promise<GitWorktreeListResult>;
   gitAddWorktree(payload: GitAddWorktreePayload): Promise<GitAddWorktreeResult>;
   gitRemoveWorktree(payload: GitRemoveWorktreePayload): Promise<void>;
+  gitPull(payload: GitPullPayload): Promise<void>;
+  gitPush(payload: GitPushPayload): Promise<void>;
+  gitSync(payload: GitSyncPayload): Promise<GitSyncResult>;
   getSharedSettings(): Promise<SharedSettings>;
   setSharedSettings(settings: SharedSettings): Promise<void>;
   setWindowChrome(payload: WindowChromePayload): Promise<void>;
