@@ -476,6 +476,7 @@ export function GitReviewSidebar(props: {
         </div>
 
         {/* Commit / Sync Panel */}
+        {(hasAnyChanges || hasRemote) && (
         <div className="space-y-2 border-t border-white/6 px-0.5 pt-2">
           {hasAnyChanges ? (
             <>
@@ -618,6 +619,7 @@ export function GitReviewSidebar(props: {
             </>
           ) : null}
         </div>
+        )}
 
         <div className="space-y-1 border-t border-white/6 pt-2">
           <SidebarButton
