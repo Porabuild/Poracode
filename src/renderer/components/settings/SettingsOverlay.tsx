@@ -5,8 +5,8 @@ import { useAppStore } from "../../state/appStore";
 import { useSharedSettings } from "../../state/sharedSettingsStore";
 import { resolveCommitGenConfig } from "../providers";
 import { Select, SidebarButton } from "../common";
-import { AppShell, useSidebar } from "../layout/AppShell";
-import { OverlayHeader } from "../layout/OverlayHeader";
+import { useSidebar } from "../layout/AppShell";
+import { PageLayout } from "../layout/PageLayout";
 
 const themeOptions = [
   { id: "system", label: "System" },
@@ -238,27 +238,22 @@ export function SettingsOverlay(props: { onClose: () => void }) {
   const [activeSection, setActiveSection] = useState<SettingsSection>("general");
 
   return (
-    <>
-      <OverlayHeader title="Settings" />
-
-      <div className="lightcode-overlay-body min-h-0 flex-1">
-        <AppShell
-          sidebar={
-            <SettingsSidebar
-              activeSection={activeSection}
-              onSectionChange={setActiveSection}
-              onClose={onClose}
-            />
-          }
-          content={
-            activeSection === "general" ? (
-              <GeneralSettings />
-            ) : activeSection === "git" ? (
-              <GitSettings />
-            ) : null
-          }
+    <PageLayout
+      title="Settings"
+      sidebar={
+        <SettingsSidebar
+          activeSection={activeSection}
+          onSectionChange={setActiveSection}
+          onClose={onClose}
         />
-      </div>
-    </>
+      }
+      content={
+        activeSection === "general" ? (
+          <GeneralSettings />
+        ) : activeSection === "git" ? (
+          <GitSettings />
+        ) : null
+      }
+    />
   );
 }

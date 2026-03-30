@@ -8,8 +8,7 @@ import { buildWorktreeLocation } from "../shared/worktree";
 import { readBridge } from "./bridge";
 import { ProviderIcon, getStatusTone } from "./components/providers";
 import { DevTerminalPanel } from "./components/devTerminal/DevTerminalPanel";
-import { AppShell } from "./components/layout/AppShell";
-import { OverlayHeader } from "./components/layout/OverlayHeader";
+import { PageLayout } from "./components/layout/PageLayout";
 import { OverlayShell } from "./components/layout/OverlayShell";
 import { SplitPaneContainer } from "./components/layout/SplitPaneContainer";
 import { SettingsOverlay } from "./components/settings/SettingsOverlay";
@@ -858,11 +857,10 @@ export function App() {
   console.log(`[renderer] +${Date.now() - loadT0}ms: rendering main UI`);
   return (
     <AppProvider>
-      <div className="flex h-full min-h-0 flex-col">
-        <OverlayHeader
-          title="Lightcode"
-          onTitleClick={() => startTransition(() => openHome())}
-        >
+      <PageLayout
+        title="Lightcode"
+        onTitleClick={() => startTransition(() => openHome())}
+        headerChildren={
           <div className="lightcode-overlay-header__controls">
             <Dropdown>
               <Button
@@ -932,9 +930,7 @@ export function App() {
               </Dropdown.Popover>
             </Dropdown>
           </div>
-        </OverlayHeader>
-        <div className="lightcode-overlay-body min-h-0 flex-1">
-      <AppShell
+        }
         sidebar={
           <Sidebar
             projects={projects}
@@ -1129,8 +1125,6 @@ export function App() {
         rightPanel={<DevTerminalPanel projects={projects} />}
         rightPanelOpen={devTerminalOpen}
       />
-        </div>
-      </div>
       <OverlayShell open={settingsOpen}>
         <SettingsOverlay onClose={() => setSettingsOpen(false)} />
       </OverlayShell>
