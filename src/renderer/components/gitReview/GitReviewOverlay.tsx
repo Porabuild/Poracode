@@ -6,6 +6,7 @@ import type { Project, ProjectLocation, GitStatusResult } from "../../../shared/
 import { readBridge } from "../../bridge";
 import { useGitStore } from "../../state/gitStore";
 import { AppShell } from "../layout/AppShell";
+import { OverlayHeader } from "../layout/OverlayHeader";
 import { GitReviewSidebar } from "./GitReviewSidebar";
 import { GitDiffContent, type DiffFilter } from "./GitDiffContent";
 
@@ -70,13 +71,7 @@ export function GitReviewOverlay(props: {
 
   return (
     <>
-      {/* Top header bar — IS the drag region; children opt out with no-drag */}
-      <div
-        className="lightcode-git-header flex shrink-0 items-center gap-3 bg-[var(--content-background)] px-4"
-        style={{ height: "env(titlebar-area-height, 32px)" }}
-      >
-        <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted">Git Review</p>
-
+      <OverlayHeader title="Git Review">
         {gitStatus?.branch && (
           <div className="flex items-center gap-1 text-xs text-muted">
             <GitBranch className="size-3" />
@@ -85,7 +80,7 @@ export function GitReviewOverlay(props: {
         )}
 
         {selectedFile && (
-          <div className="lightcode-git-header__controls flex items-center gap-3">
+          <div className="lightcode-overlay-header__controls flex items-center gap-3">
             <div className="h-3 w-px bg-border" />
             <button
               type="button"
@@ -104,7 +99,7 @@ export function GitReviewOverlay(props: {
         <div className="flex-1" />
 
         {!selectedFile && (
-          <div className="lightcode-git-header__controls">
+          <div className="lightcode-overlay-header__controls">
             <Dropdown>
               <Button variant="ghost" size="sm" className="h-5 px-1.5 text-xs text-muted">
                 {diffFilter === "changes"
@@ -140,7 +135,7 @@ export function GitReviewOverlay(props: {
           </div>
         )}
 
-        <div className="lightcode-git-header__controls flex items-center gap-1">
+        <div className="lightcode-overlay-header__controls flex items-center gap-1">
           <button
             type="button"
             className="rounded p-1 text-muted hover:text-foreground"
@@ -170,13 +165,9 @@ export function GitReviewOverlay(props: {
             <RefreshCw className="size-4" />
           </button>
         </div>
+      </OverlayHeader>
 
-        {/* Space for native window buttons (minimize, maximize, close) */}
-        <div className="w-[8rem] shrink-0" />
-      </div>
-
-      {/* Body with sidebar + content via AppShell — override shell titlebar padding */}
-      <div className="lightcode-git-body min-h-0 flex-1">
+      <div className="lightcode-overlay-body min-h-0 flex-1">
         <AppShell
           sidebar={
             <GitReviewSidebar

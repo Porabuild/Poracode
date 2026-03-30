@@ -1,11 +1,9 @@
-import { Dropdown, Label, Tooltip } from "@heroui/react";
+import { Tooltip } from "@heroui/react";
 import {
   ChevronRight,
   Columns2,
   Download,
-  FolderPlus,
   GitFork,
-  Monitor,
   PanelLeft,
   PanelLeftClose,
   Pencil,
@@ -19,7 +17,7 @@ import { TuxIcon } from "../common/TuxIcon";
 import { useEffect, useRef, useState, type DragEvent } from "react";
 import type { Project, Thread } from "../../../shared/contracts";
 import { isReorderNoOp, type ReorderPlacement } from "../../state/reorder";
-import { Button, ContextMenu, SidebarButton } from "../common";
+import { ContextMenu, SidebarButton } from "../common";
 import { useSidebar } from "../layout/AppShell";
 import { readBridge } from "../../bridge";
 import { useUpdateStore } from "../../state/updateStore";
@@ -215,17 +213,13 @@ export function Sidebar(props: {
   threads: Thread[];
   currentProjectId: string | undefined;
   currentThreadIds: string[];
-  wslAvailable: boolean;
   onOpenNewThread: (projectId?: string) => void;
-  onAddWindowsProject: () => void;
-  onAddWslProject: () => void;
   onOpenThread: (threadId: string) => void;
   onOpenThreadSideBySide: (threadId: string) => void;
   onReplaceSecondPane: (threadId: string) => void;
   onRenameThread: (threadId: string, title: string) => void;
   onDeleteThread: (threadId: string) => void;
   onDeleteProject: (projectId: string) => void;
-  onOpenHome: () => void;
   onOpenSettings: () => void;
   onOpenTerminal: (projectId: string) => void;
   onOpenWorktreeTerminal: (projectId: string, worktreePath: string) => void;
@@ -251,17 +245,13 @@ export function Sidebar(props: {
     threads,
     currentProjectId,
     currentThreadIds,
-    wslAvailable,
     onOpenNewThread,
-    onAddWindowsProject,
-    onAddWslProject,
     onOpenThread,
     onOpenThreadSideBySide,
     onReplaceSecondPane,
     onRenameThread,
     onDeleteThread,
     onDeleteProject,
-    onOpenHome,
     onOpenSettings,
     onOpenTerminal,
     onOpenWorktreeTerminal,
@@ -323,22 +313,6 @@ export function Sidebar(props: {
       {/* Collapsed icon rail overlay — width 48px, icons centered at 24px (pl-2 + w-8/2) */}
       {isCollapsed && (
         <div className="absolute inset-0 z-10 flex h-full min-h-0 flex-col items-start gap-3 pl-2 pb-1 pt-0">
-          {/* App icon — centered at 24px (pl-2 + w-8/2) */}
-          <Tooltip delay={150}>
-            <Tooltip.Trigger>
-              <button
-                className="flex h-11 w-8 cursor-default items-center justify-center transition-colors hover:bg-white/[0.04] rounded-3xl"
-                onClick={onOpenHome}
-                type="button"
-              >
-                <div className="flex size-6 items-center justify-center rounded-full border border-white/8 bg-white/[0.03]">
-                  <div className="size-2.5 rounded-full border border-white/70" />
-                </div>
-              </button>
-            </Tooltip.Trigger>
-            <Tooltip.Content placement="right">Lightcode</Tooltip.Content>
-          </Tooltip>
-
           {/* Thread icons — only active threads */}
           <div className="min-h-0 flex-1 space-y-0.5 overflow-y-auto">
             {activeThreads.map((thread) => (
@@ -376,57 +350,6 @@ export function Sidebar(props: {
       <div
         className={`flex h-full min-h-0 flex-col gap-3 px-3 pb-1 pt-0 transition-opacity duration-150 ${isCollapsed ? "invisible opacity-0" : "opacity-100 delay-100"}`}
       >
-        <div className="space-y-1">
-          <button
-            className="flex h-11 w-full cursor-default items-center gap-2.5 rounded-3xl px-3 text-left transition-colors hover:bg-white/[0.04]"
-            onClick={onOpenHome}
-            type="button"
-          >
-            <div className="flex size-6 items-center justify-center rounded-full border border-white/8 bg-white/[0.03]">
-              <div className="size-2.5 rounded-full border border-white/70" />
-            </div>
-            <div className="min-w-0">
-              <p className="truncate text-sm font-semibold tracking-tight text-foreground">
-                Lightcode
-              </p>
-              <p className="truncate text-xs text-muted leading-tight">Terminal-native threads</p>
-            </div>
-          </button>
-        </div>
-
-        <div className="flex items-center justify-between px-1.5 pr-0">
-          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted">Threads</p>
-          <Dropdown>
-            <Button
-              isIconOnly
-              aria-label="Add project"
-              className="rounded-3xl text-muted hover:bg-white/[0.05] hover:text-foreground"
-              size="sm"
-              variant="ghost"
-            >
-              <FolderPlus className="size-4" />
-            </Button>
-            <Dropdown.Popover>
-              <Dropdown.Menu
-                aria-label="Add project options"
-                onAction={(key) => {
-                  if (key === "windows") onAddWindowsProject();
-                  if (key === "wsl") onAddWslProject();
-                }}
-              >
-                <Dropdown.Item id="windows" textValue="Add Windows Project">
-                  <Monitor className="size-4 shrink-0 text-muted" />
-                  <Label>Add Windows Project</Label>
-                </Dropdown.Item>
-                <Dropdown.Item id="wsl" isDisabled={!wslAvailable} textValue="Add WSL Project">
-                  <TuxIcon className="size-4 shrink-0 text-muted" />
-                  <Label>Add WSL Project</Label>
-                </Dropdown.Item>
-              </Dropdown.Menu>
-            </Dropdown.Popover>
-          </Dropdown>
-        </div>
-
         <div className="min-h-0 flex-1 overflow-y-auto px-0 -mr-3 [scrollbar-gutter:stable]">
           {projects.length === 0 ? (
             <div className="rounded-3xl border border-dashed border-white/8 bg-white/[0.02] px-4 py-5">

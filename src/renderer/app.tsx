@@ -1,6 +1,7 @@
 import React, { lazy, startTransition, Suspense, useEffect, useEffectEvent, useState } from "react";
-import { ArrowRight, FolderOpen, Plus, TerminalSquare } from "lucide-react";
-import { Spinner } from "@heroui/react";
+import { ArrowRight, FolderOpen, FolderPlus, Monitor, Plus, TerminalSquare } from "lucide-react";
+import { Button, Dropdown, Label, Spinner } from "@heroui/react";
+import { TuxIcon } from "./components/common/TuxIcon";
 import { getProjectAgentStatuses } from "../shared/agentStatus";
 import { parseWslUncPath } from "../shared/wsl";
 import { buildWorktreeLocation } from "../shared/worktree";
@@ -8,6 +9,7 @@ import { readBridge } from "./bridge";
 import { ProviderIcon, getStatusTone } from "./components/providers";
 import { DevTerminalPanel } from "./components/devTerminal/DevTerminalPanel";
 import { AppShell } from "./components/layout/AppShell";
+import { OverlayHeader } from "./components/layout/OverlayHeader";
 import { OverlayShell } from "./components/layout/OverlayShell";
 import { SplitPaneContainer } from "./components/layout/SplitPaneContainer";
 import { SettingsOverlay } from "./components/settings/SettingsOverlay";
@@ -856,6 +858,82 @@ export function App() {
   console.log(`[renderer] +${Date.now() - loadT0}ms: rendering main UI`);
   return (
     <AppProvider>
+      <div className="flex h-full min-h-0 flex-col">
+        <OverlayHeader
+          title="Lightcode"
+          onTitleClick={() => startTransition(() => openHome())}
+        >
+          <div className="lightcode-overlay-header__controls">
+            <Dropdown>
+              <Button
+                isIconOnly
+                aria-label="Add project"
+                size="sm"
+                variant="ghost"
+                className="size-6 min-w-0 text-muted hover:text-foreground"
+              >
+                <FolderPlus className="size-3.5" />
+              </Button>
+              <Dropdown.Popover>
+                <Dropdown.Menu
+                  aria-label="Add project options"
+                  onAction={(key) => {
+                    if (key === "windows") {
+                      void readBridge()
+                        .pickFolder()
+                        .then((path) => {
+                          if (!path) return;
+                          startTransition(() => {
+                            const project = addProject({ kind: "windows", path });
+                            openDraft(project.id);
+                          });
+                        });
+                    }
+                    if (key === "wsl") {
+                      void readBridge()
+                        .listWslDistros()
+                        .then((distros) => {
+                          const distro = distros[0];
+                          const defaultPath = distro
+                            ? `\\\\wsl.localhost\\${distro}\\home`
+                            : undefined;
+                          return readBridge().pickFolder(defaultPath);
+                        })
+                        .then((selectedPath) => {
+                          if (!selectedPath) return;
+                          const parsed = parseWslUncPath(selectedPath);
+                          if (!parsed) return;
+                          startTransition(() => {
+                            const project = addProject({
+                              kind: "wsl",
+                              distro: parsed.distro,
+                              linuxPath: parsed.linuxPath,
+                              uncPath: selectedPath,
+                            });
+                            openDraft(project.id);
+                          });
+                        });
+                    }
+                  }}
+                >
+                  <Dropdown.Item id="windows" textValue="Add Windows Project">
+                    <Monitor className="size-4 shrink-0 text-muted" />
+                    <Label>Add Windows Project</Label>
+                  </Dropdown.Item>
+                  <Dropdown.Item
+                    id="wsl"
+                    isDisabled={!wslAvailable}
+                    textValue="Add WSL Project"
+                  >
+                    <TuxIcon className="size-4 shrink-0 text-muted" />
+                    <Label>Add WSL Project</Label>
+                  </Dropdown.Item>
+                </Dropdown.Menu>
+              </Dropdown.Popover>
+            </Dropdown>
+          </div>
+        </OverlayHeader>
+        <div className="lightcode-overlay-body min-h-0 flex-1">
       <AppShell
         sidebar={
           <Sidebar
@@ -863,7 +941,6 @@ export function App() {
             threads={threads}
             currentProjectId={currentProjectId}
             currentThreadIds={view.kind === "thread" ? view.panes : []}
-            wslAvailable={wslAvailable}
             onOpenNewThread={(projectId) => {
               const targetProjectId = projectId ?? currentProjectId ?? projects[0]?.id;
 
@@ -880,40 +957,6 @@ export function App() {
             onOpenGitReview={(projectId, worktreePath?) =>
               setGitReviewContext({ projectId, worktreePath })
             }
-            onAddWindowsProject={() => {
-              void readBridge()
-                .pickFolder()
-                .then((path) => {
-                  if (!path) return;
-                  startTransition(() => {
-                    const project = addProject({ kind: "windows", path });
-                    openDraft(project.id);
-                  });
-                });
-            }}
-            onAddWslProject={() => {
-              void readBridge()
-                .listWslDistros()
-                .then((distros) => {
-                  const distro = distros[0];
-                  const defaultPath = distro ? `\\\\wsl.localhost\\${distro}\\home` : undefined;
-                  return readBridge().pickFolder(defaultPath);
-                })
-                .then((selectedPath) => {
-                  if (!selectedPath) return;
-                  const parsed = parseWslUncPath(selectedPath);
-                  if (!parsed) return;
-                  startTransition(() => {
-                    const project = addProject({
-                      kind: "wsl",
-                      distro: parsed.distro,
-                      linuxPath: parsed.linuxPath,
-                      uncPath: selectedPath,
-                    });
-                    openDraft(project.id);
-                  });
-                });
-            }}
             onOpenThread={(threadId) => {
               const thread = threads.find((item) => item.id === threadId);
               const project = thread
@@ -1005,11 +1048,6 @@ export function App() {
                 setGitReviewContext(null);
               }
             }}
-            onOpenHome={() => {
-              startTransition(() => {
-                openHome();
-              });
-            }}
             onOpenTerminal={(projectId) => {
               const project = projects.find((p) => p.id === projectId);
               if (!project) return;
@@ -1091,6 +1129,8 @@ export function App() {
         rightPanel={<DevTerminalPanel projects={projects} />}
         rightPanelOpen={devTerminalOpen}
       />
+        </div>
+      </div>
       <OverlayShell open={settingsOpen}>
         <SettingsOverlay onClose={() => setSettingsOpen(false)} />
       </OverlayShell>

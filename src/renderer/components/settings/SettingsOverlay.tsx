@@ -6,6 +6,7 @@ import { useSharedSettings } from "../../state/sharedSettingsStore";
 import { resolveCommitGenConfig } from "../providers";
 import { Select, SidebarButton } from "../common";
 import { AppShell, useSidebar } from "../layout/AppShell";
+import { OverlayHeader } from "../layout/OverlayHeader";
 
 const themeOptions = [
   { id: "system", label: "System" },
@@ -238,19 +239,9 @@ export function SettingsOverlay(props: { onClose: () => void }) {
 
   return (
     <>
-      {/* Top header bar — drag region */}
-      <div
-        className="lightcode-git-header flex shrink-0 items-center gap-3 bg-[var(--content-background)] px-4"
-        style={{ height: "env(titlebar-area-height, 32px)" }}
-      >
-        <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted">Settings</p>
-        <div className="flex-1" />
-        {/* Space for native window buttons */}
-        <div className="w-[8rem] shrink-0" />
-      </div>
+      <OverlayHeader title="Settings" />
 
-      {/* Body with sidebar + content */}
-      <div className="lightcode-git-body min-h-0 flex-1">
+      <div className="lightcode-overlay-body min-h-0 flex-1">
         <AppShell
           sidebar={
             <SettingsSidebar
