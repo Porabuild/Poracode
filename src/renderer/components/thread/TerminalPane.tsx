@@ -5,10 +5,9 @@ import { XTermSurface } from "../terminal/XTermSurface";
 export function TerminalPane(props: {
   threadId: string;
   status: ThreadStatus;
-  readOnly?: boolean;
   onTerminalResize?: (size: TerminalSize) => void;
 }) {
-  const { threadId, status, readOnly = false, onTerminalResize } = props;
+  const { threadId, status, onTerminalResize } = props;
   const [isVisible, setIsVisible] = useState(status !== "inactive");
 
   useEffect(() => {
@@ -26,7 +25,6 @@ export function TerminalPane(props: {
     >
       <XTermSurface
         terminalId={threadId}
-        readOnly={readOnly}
         enabled={isTerminalActive}
         onReset={() => {
           setIsVisible(false);

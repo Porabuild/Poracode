@@ -50,7 +50,6 @@ import type {
   StartThreadPayload,
   StartThreadResult,
   TerminalSize,
-  TerminalPrompt,
   ThreadAttention,
   ThreadConfig,
   ThreadHistorySnapshot,
@@ -98,10 +97,7 @@ interface SessionRuntime {
   ptyExited?: boolean;
   autoResponseEmitted?: boolean;
   sessionRefDiscoveryStarted?: boolean;
-  terminalPrompt?: TerminalPrompt | undefined;
   pendingLaunchPrompt?: string | undefined;
-  startupPromptActive?: boolean;
-  continuePendingLaunchPromptOnStartupClear?: boolean;
   prevChunk: string;
 }
 
@@ -385,7 +381,7 @@ export class SupervisorRuntime {
       isServerControlled &&
       usesTerminalPresentation &&
       initialPrompt.length > 0 &&
-      (adapter.detectStartupPrompt !== undefined || adapter.isReadyForInitialPrompt !== undefined);
+      adapter.isReadyForInitialPrompt !== undefined;
     const structuredSession = await this.createStructuredSession(
       adapter,
       payload.threadId,
@@ -538,7 +534,6 @@ export class SupervisorRuntime {
       return;
     }
     const session = this.requireSession(payload.threadId);
-    this.noteStartupPromptSelection(session, payload.data);
     session.pty.write(payload.data);
   }
 
@@ -1081,18 +1076,6 @@ export class SupervisorRuntime {
           session.config = update.config;
         }
 
-        if (
-          session.startupPromptActive &&
-          update.status === "idle" &&
-          update.attention === "none" &&
-          update.errorMessage === undefined
-        ) {
-          if (configChanged) {
-            this.emitState(session);
-          }
-          return;
-        }
-
         this.updateState(session, update.status, update.attention, update.errorMessage);
         if (configChanged && !stateChanged && update.errorMessage === undefined) {
           this.emitState(session);
@@ -1137,8 +1120,7 @@ export class SupervisorRuntime {
 
       if (
         usesTerminalPresentation &&
-        (session.adapter.detectStartupPrompt ||
-          session.adapter.isReadyForInitialPrompt ||
+        (session.adapter.isReadyForInitialPrompt ||
           session.adapter.detectTerminalStatus)
       ) {
         const combined = session.prevChunk + data;
@@ -1153,20 +1135,8 @@ export class SupervisorRuntime {
           return;
         }
 
-        const startupPrompt = session.adapter.detectStartupPrompt?.(strippedData) ?? null;
-        if (startupPrompt) {
-          console.log("[supervisor] startupPrompt detected:", {
-            threadId: session.threadId,
-            title: startupPrompt.title,
-            optionsCount: startupPrompt.options.length,
-          });
-        }
-        const startupPromptHandled = this.syncStartupPrompt(session, startupPrompt);
-
         const hint = session.adapter.detectTerminalStatus?.(stripped) ?? null;
         if (hint) {
-          const promptChanged =
-            JSON.stringify(hint.prompt) !== JSON.stringify(session.terminalPrompt);
           const nextConfig = session.adapter.syncConfigFromTerminalState?.({
             config: session.config,
             previousStatus: session.status,
@@ -1182,7 +1152,6 @@ export class SupervisorRuntime {
           }
 
           if (session.status !== hint.status || session.attention !== hint.attention) {
-            session.terminalPrompt = hint.prompt;
             this.updateState(session, hint.status, hint.attention);
             // Trigger session ID discovery on the first real status detection —
             // the provider's terminal presentation is live, so the session file is guaranteed to exist.
@@ -1194,31 +1163,17 @@ export class SupervisorRuntime {
               session.sessionRefDiscoveryStarted = true;
               this.pollSessionRefDiscovery(session);
             }
-          } else if (promptChanged) {
-            session.terminalPrompt = hint.prompt;
-            this.emitState(session);
           } else if (configChanged) {
-            // Config changed but status/prompt didn't — force emit so renderer picks up the mode switch.
+            // Config changed but status didn't — force emit so renderer picks up the mode switch.
             this.emitState(session);
           }
           if (this.isDev) {
             this.writeHintLog(session, stripped, hint);
           }
-        } else if (startupPromptHandled && this.isDev) {
-          this.writeHintLog(session, stripped, null);
         }
 
         if (
           session.pendingLaunchPrompt &&
-          !startupPrompt &&
-          session.continuePendingLaunchPromptOnStartupClear &&
-          (hint == null || (hint.status === "idle" && hint.attention === "none"))
-        ) {
-          this.startQueuedLaunchPrompt(session);
-        } else if (
-          session.pendingLaunchPrompt &&
-          !startupPrompt &&
-          session.continuePendingLaunchPromptOnStartupClear === undefined &&
           session.adapter.isReadyForInitialPrompt?.(strippedData)
         ) {
           this.startQueuedLaunchPrompt(session);
@@ -1414,34 +1369,6 @@ export class SupervisorRuntime {
     setTimeout(() => this.safePtyKill(session), 150);
   }
 
-  private syncStartupPrompt(session: SessionRuntime, prompt: TerminalPrompt | null): boolean {
-    const hadStartupPrompt = session.startupPromptActive === true;
-    if (prompt) {
-      const promptChanged = JSON.stringify(prompt) !== JSON.stringify(session.terminalPrompt);
-      session.startupPromptActive = true;
-      session.terminalPrompt = prompt;
-      if (session.status !== "needs_reply" || session.attention !== "needs_reply") {
-        this.updateState(session, "needs_reply", "needs_reply");
-      } else if (promptChanged) {
-        this.emitState(session);
-      }
-      return true;
-    }
-
-    if (!hadStartupPrompt) {
-      return false;
-    }
-
-    session.startupPromptActive = false;
-    session.terminalPrompt = undefined;
-    if (session.status === "needs_reply" && session.attention === "needs_reply") {
-      this.updateState(session, "idle", "none");
-    } else {
-      this.emitState(session);
-    }
-    return true;
-  }
-
   private startQueuedLaunchPrompt(session: SessionRuntime): void {
     if (!session.pendingLaunchPrompt || !session.structuredSession?.startTurn) {
       return;
@@ -1449,9 +1376,6 @@ export class SupervisorRuntime {
 
     const prompt = session.pendingLaunchPrompt;
     session.pendingLaunchPrompt = undefined;
-    session.startupPromptActive = false;
-    session.continuePendingLaunchPromptOnStartupClear = false;
-    session.terminalPrompt = undefined;
     this.updateState(session, "working", "working");
     void session.structuredSession.startTurn(prompt, session.config).catch((error) => {
       if (this.sessions.get(session.threadId)?.instanceId !== session.instanceId) {
@@ -1465,21 +1389,6 @@ export class SupervisorRuntime {
         error instanceof Error ? error.message : String(error),
       );
     });
-  }
-
-  private noteStartupPromptSelection(session: SessionRuntime, data: string): void {
-    if (!session.startupPromptActive || !session.pendingLaunchPrompt || !session.terminalPrompt) {
-      return;
-    }
-
-    const matchedOption = session.terminalPrompt.options.find(
-      (option) => (option.submitInput ?? option.key) === data,
-    );
-    if (!matchedOption) {
-      return;
-    }
-
-    session.continuePendingLaunchPromptOnStartupClear = matchedOption.continueQueuedPrompt === true;
   }
 
   private updateState(
@@ -1511,7 +1420,6 @@ export class SupervisorRuntime {
       ...(session.sessionRef ? { sessionRef: session.sessionRef } : {}),
       canResumeWithConfig: session.canResumeWithConfig,
       ...(errorMessage ? { errorMessage } : {}),
-      ...(session.terminalPrompt ? { terminalPrompt: session.terminalPrompt } : {}),
     });
   }
 }

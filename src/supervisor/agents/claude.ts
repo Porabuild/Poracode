@@ -3,7 +3,6 @@ import type {
   AgentCapability,
   AgentStatus,
   ProjectLocation,
-  TerminalPrompt,
   ThreadConfig,
 } from "../../shared/contracts";
 import {
@@ -196,7 +195,6 @@ type HintEntry = {
   re: RegExp;
   status: TerminalStatusHint["status"];
   attention: TerminalStatusHint["attention"];
-  hasPrompt: boolean;
   planMode?: boolean;
 };
 
@@ -205,166 +203,20 @@ const CLAUDE_HINTS: HintEntry[] = [
     re: /Esc to cancel\s.*Tab to amend/i,
     status: "needs_approval",
     attention: "needs_approval",
-    hasPrompt: true,
   },
-  { re: /Enter to select/i, status: "needs_reply", attention: "needs_reply", hasPrompt: true },
-  { re: /esc to interrupt/i, status: "working", attention: "working", hasPrompt: false },
+  { re: /Enter to select/i, status: "needs_reply", attention: "needs_reply" },
+  { re: /esc to interrupt/i, status: "working", attention: "working" },
   // Animated spinner (✻✶✽✢*⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏) + text + ellipsis — universal working indicator
-  { re: /[✻✶✽✢*⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏]\s+\S.*(?:…|\.\.\.)/i, status: "working", attention: "working", hasPrompt: false },
+  { re: /[✻✶✽✢*⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏]\s+\S.*(?:…|\.\.\.)/i, status: "working", attention: "working" },
   // Plan approval prompt — "ctrl-g to edit in Vim · <plan path>"
-  { re: /ctrl-g to edit/i, status: "needs_reply", attention: "needs_reply", hasPrompt: true },
-  { re: /\?\s+for shortcuts/i, status: "idle", attention: "none", hasPrompt: false },
-  { re: /plan mode on/i, status: "idle", attention: "none", hasPrompt: false, planMode: true },
+  { re: /ctrl-g to edit/i, status: "needs_reply", attention: "needs_reply" },
+  { re: /\?\s+for shortcuts/i, status: "idle", attention: "none" },
+  { re: /plan mode on/i, status: "idle", attention: "none", planMode: true },
   // ❯ or > prompt cursor — universal idle/ready indicator
-  { re: /❯|^\s*>/, status: "idle", attention: "none", hasPrompt: false },
+  { re: /❯|^\s*>/, status: "idle", attention: "none" },
   // Type your message — idle indicator (fallback)
-  { re: /type your message/i, status: "idle", attention: "none", hasPrompt: false },
+  { re: /type your message/i, status: "idle", attention: "none" },
 ];
-
-// Match numbered options: "1. Yes", "❯ 2. No", "> 3. Something"
-const OPTION_RE = /^[\s❯>]*(\d+)\.\s+(.+)/;
-const TEXT_INPUT_RE = /^type\s+(here|something)\b/i;
-const SEPARATOR_RE = /^[\s\-_=~\u2500-\u257f]+$/u;
-const SELECTED_ROW_RE = /^\s*(?:❯|>)(?:\s|$)/;
-const FOOTER_HELP_RE = /^(Enter to select|Esc to cancel|ctrl-g to edit)\b/i;
-const NOTES_RE = /^Notes:/i;
-const PREVIEW_SUFFIX_RE = /\s{2,}[┌│└].*$/u;
-
-type ParsedPromptOption = {
-  explicitKey?: string;
-  label: string;
-  description?: string;
-  isTextInput?: true;
-  selected: boolean;
-};
-
-function cleanClaudePromptLine(raw: string): string {
-  return raw.replace(/\u00a0/g, " ").replace(PREVIEW_SUFFIX_RE, "").trimEnd();
-}
-
-function stripSelectedRowMarker(value: string): string {
-  return value.replace(/^\s*(?:❯|>)\s+/, "");
-}
-
-function buildFooterSubmitInput(delta: number): string {
-  if (delta === 0) {
-    return "\r";
-  }
-  const arrow = delta < 0 ? "\x1b[A" : "\x1b[B";
-  return `${arrow.repeat(Math.abs(delta))}\r`;
-}
-
-function buildPromptOptions(options: ParsedPromptOption[]): TerminalPrompt["options"] {
-  const selectedIndex = options.findIndex((option) => option.selected);
-  const currentIndex = selectedIndex >= 0 ? selectedIndex : 0;
-
-  return options.map((option, index) => {
-    const key = option.explicitKey ?? String(index + 1);
-    return {
-      key,
-      label: option.label,
-      ...(option.description ? { description: option.description } : {}),
-      ...(option.isTextInput ? { isTextInput: true } : {}),
-      ...(option.explicitKey ? {} : { submitInput: buildFooterSubmitInput(index - currentIndex) }),
-    };
-  });
-}
-
-function parseTerminalPrompt(text: string): TerminalPrompt | undefined {
-  const lines = text.split("\n").map(cleanClaudePromptLine);
-
-  // Require a known prompt indicator (footer help text) to avoid false positives
-  // from startup output or other numbered lists that aren't interactive prompts.
-  const hasPromptIndicator =
-    FOOTER_HELP_RE.test(text) || /Esc to cancel|Tab to amend|Enter to select|ctrl-g to edit/i.test(text);
-
-  if (!hasPromptIndicator) {
-    return undefined;
-  }
-
-  // Track the most recent logical block of numbered options.
-  // Non-option content starts a new group, but decorative divider rows
-  // are ignored so Claude menus that are visually split still surface
-  // as one prompt in the composer. Only the LAST real group in the
-  // buffer is returned, which discards stale numbered items above it.
-  let currentOptions: ParsedPromptOption[] = [];
-  let currentTitle = "";
-  let lastOptions: ParsedPromptOption[] = [];
-  let lastTitle = "";
-  let separatorAfterOptions = false;
-
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i]!;
-    const optMatch = OPTION_RE.exec(line);
-    if (optMatch) {
-      const label = optMatch[2]!.trim();
-
-      // Collect indented continuation lines as description
-      const descParts: string[] = [];
-      while (i + 1 < lines.length) {
-        const next = lines[i + 1]!;
-        if (OPTION_RE.test(next) || next.trim().length === 0) break;
-        if (FOOTER_HELP_RE.test(next.trim()) || NOTES_RE.test(next.trim())) break;
-        if (/^\s{4,}/.test(next) && !SEPARATOR_RE.test(next.trim())) {
-          descParts.push(next.trim());
-          i++;
-        } else {
-          break;
-        }
-      }
-      const description = descParts.length > 0 ? descParts.join(" ") : undefined;
-
-      currentOptions.push({
-        explicitKey: optMatch[1]!,
-        label,
-        ...(description ? { description } : {}),
-        ...(TEXT_INPUT_RE.test(label) ? { isTextInput: true as const } : {}),
-        selected: SELECTED_ROW_RE.test(line),
-      });
-      separatorAfterOptions = false;
-      continue;
-    }
-
-    const trimmed = line.trim();
-    if (trimmed.length === 0) {
-      continue;
-    }
-    if (SEPARATOR_RE.test(trimmed)) {
-      if (currentOptions.length > 0) {
-        separatorAfterOptions = true;
-      }
-      continue;
-    }
-    if (FOOTER_HELP_RE.test(trimmed) || NOTES_RE.test(trimmed)) {
-      continue;
-    }
-    if (currentOptions.length > 0 && separatorAfterOptions) {
-      currentOptions.push({
-        label: stripSelectedRowMarker(trimmed),
-        selected: SELECTED_ROW_RE.test(line),
-      });
-      continue;
-    }
-
-    if (currentOptions.length > 0) {
-      // Save completed group and start fresh
-      lastOptions = currentOptions;
-      lastTitle = currentTitle;
-      currentOptions = [];
-      separatorAfterOptions = false;
-    }
-    currentTitle = trimmed;
-  }
-
-  const options = currentOptions.length > 0 ? currentOptions : lastOptions;
-  const title = currentOptions.length > 0 ? currentTitle : lastTitle;
-
-  if (options.length === 0) {
-    return undefined;
-  }
-
-  return { title, options: buildPromptOptions(options) };
-}
 
 export function detectClaudeTerminalStatus(text: string): TerminalStatusHint | null {
   // Find whichever pattern appears closest to the end of the output —
@@ -396,10 +248,6 @@ export function detectClaudeTerminalStatus(text: string): TerminalStatusHint | n
     status: best.entry.status,
     attention: best.entry.attention,
   };
-
-  if (best.entry.hasPrompt) {
-    hint.prompt = parseTerminalPrompt(text);
-  }
 
   if (best.entry.planMode) {
     hint.planMode = true;

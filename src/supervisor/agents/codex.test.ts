@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import {
   deriveCodexStructuredState,
   detectCodexReadyForInitialPrompt,
-  detectCodexStartupPrompt,
   detectCodexUpdatePrompt,
   parseCodexSocketMessage,
 } from "./codex";
@@ -124,48 +123,6 @@ describe("detectCodexUpdatePrompt", () => {
 
   it("detects without emoji prefix", () => {
     expect(detectCodexUpdatePrompt("Update available! 0.116.0 -> 0.117.0")).toBe(true);
-  });
-});
-
-describe("detectCodexStartupPrompt", () => {
-  const SAMPLE_TEXT = [
-    "✨ Update available! 0.116.0 -> 0.117.0",
-    "",
-    "Release notes: https://github.com/openai/codex/releases/latest",
-    "",
-    "> 1. Update now (runs `npm install -g @openai/codex`)",
-    "  2. Skip",
-    "  3. Skip until next version",
-  ].join("\n");
-
-  it("returns prompt options with terminal submit input", () => {
-    expect(detectCodexStartupPrompt(SAMPLE_TEXT)).toEqual({
-      title: "Update available! 0.116.0 -> 0.117.0",
-      options: [
-        {
-          key: "1",
-          label: "Update now",
-          description: "Runs npm install -g @openai/codex",
-          submitInput: "1",
-        },
-        {
-          key: "2",
-          label: "Skip",
-          submitInput: "2",
-          continueQueuedPrompt: true,
-        },
-        {
-          key: "3",
-          label: "Skip until next version",
-          submitInput: "3",
-          continueQueuedPrompt: true,
-        },
-      ],
-    });
-  });
-
-  it("returns null for non-update output", () => {
-    expect(detectCodexStartupPrompt("OpenAI Codex")).toBeNull();
   });
 });
 

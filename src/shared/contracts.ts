@@ -124,20 +124,6 @@ export const projectSchema = z.object({
 });
 export type Project = z.infer<typeof projectSchema>;
 
-export interface TerminalPromptOption {
-  key: string;
-  label: string;
-  description?: string | undefined;
-  isTextInput?: boolean | undefined;
-  submitInput?: string | undefined;
-  continueQueuedPrompt?: boolean | undefined;
-}
-
-export interface TerminalPrompt {
-  title: string;
-  options: TerminalPromptOption[];
-}
-
 export const threadSchema = z.object({
   id: z.string().min(1),
   projectId: z.string().min(1),
@@ -148,7 +134,6 @@ export const threadSchema = z.object({
   attention: threadAttentionSchema,
   canResumeWithConfig: z.boolean().default(false),
   sessionRef: sessionRefSchema.optional(),
-  terminalPrompt: z.custom<TerminalPrompt>().optional(),
   worktreePath: z.string().optional(),
   worktreeBranch: z.string().optional(),
   createdAt: z.string().min(1),
@@ -164,7 +149,6 @@ export interface ThreadRuntimeSnapshot {
   sessionRef?: SessionRef;
   canResumeWithConfig: boolean;
   errorMessage?: string;
-  terminalPrompt?: TerminalPrompt;
 }
 
 export interface ThreadHistorySnapshot {

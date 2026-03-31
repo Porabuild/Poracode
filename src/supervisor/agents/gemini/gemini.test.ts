@@ -99,17 +99,13 @@ describe("detectGeminiTerminalStatus", () => {
     });
   });
 
-  it("parses numbered options from buffer with Action Required", () => {
+  it("detects needs_reply from Action Required with numbered options", () => {
     const text = [
       "Which modules would you like to update?",
       "",
       "● 1.  All npm modules",
-      "      Update all npm dependencies in all workspaces",
       "  2.  Specific packages",
-      "      I will provide the names of specific packages to update",
       "  3.  Other",
-      "      Other (please specify)",
-      "  4.  Enter a custom value",
       "",
       "Enter to select · ↑/↓ to navigate · Esc to cancel",
       "",
@@ -118,29 +114,15 @@ describe("detectGeminiTerminalStatus", () => {
 
     const result = detectGeminiTerminalStatus(text);
     expect(result?.status).toBe("needs_reply");
-    expect(result?.prompt).toBeDefined();
-    expect(result?.prompt?.options).toHaveLength(4);
-    expect(result?.prompt?.options[0]).toEqual({
-      key: "1",
-      label: "All npm modules",
-      description: "Update all npm dependencies in all workspaces",
-    });
-    expect(result?.prompt?.options[3]).toEqual({
-      key: "4",
-      label: "Enter a custom value",
-      isTextInput: true,
-    });
+    expect(result?.attention).toBe("needs_reply");
   });
 
-  it("parses plan approval options", () => {
+  it("detects needs_reply from plan approval with Action Required", () => {
     const text = [
       "Ready to start implementation?",
       "",
       "● 1.  Yes, automatically accept edits",
-      "      Approves plan and allows tools to run automatically",
       "  2.  Yes, manually accept edits",
-      "      Approves plan but requires confirmation for each tool",
-      "  3.  Type your feedback...",
       "",
       "Enter to select",
       "",
@@ -148,13 +130,8 @@ describe("detectGeminiTerminalStatus", () => {
     ].join("\n");
 
     const result = detectGeminiTerminalStatus(text);
-    expect(result?.prompt?.options).toHaveLength(3);
-    expect(result?.prompt?.title).toBe("Ready to start implementation?");
-    expect(result?.prompt?.options[2]).toEqual({
-      key: "3",
-      label: "Type your feedback...",
-      isTextInput: true,
-    });
+    expect(result?.status).toBe("needs_reply");
+    expect(result?.attention).toBe("needs_reply");
   });
 });
 

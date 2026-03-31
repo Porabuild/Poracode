@@ -14,9 +14,8 @@ Every supported agent implements the `AgentAdapter` interface (`src/supervisor/a
 
 ### Optional — Terminal Heuristics
 
-- `detectStartupPrompt?(text)` — Parse a TUI startup prompt into structured `TerminalPrompt` options.
 - `isReadyForInitialPrompt?(text)` — True when the TUI is ready to receive the first user prompt.
-- `detectTerminalStatus?(text)` — Derive `ThreadStatus` + `ThreadAttention` + optional `TerminalPrompt` from rolling terminal output (8192-char window, ANSI-stripped).
+- `detectTerminalStatus?(text)` — Derive `ThreadStatus` + `ThreadAttention` from rolling terminal output (8192-char window, ANSI-stripped).
 - `detectInvalidSessionRef?(text)` — True if the CLI reports a stale/invalid session ID.
 - `detectAutoResponse?(text)` — Returns input string to auto-dismiss known TUI prompts (e.g. rate-limit).
 - `discoverSessionRef?(location)` — Poll the CLI for its session ID after spawn (e.g. `gemini --list-sessions`).

@@ -37,7 +37,6 @@ import type {
   SessionRef,
   StartShellPayload,
   StartThreadPayload,
-  TerminalPrompt,
   StartThreadResult,
   ThreadServerRequestId,
   ThreadAttention,
@@ -104,7 +103,6 @@ export type SupervisorEvent =
       sessionRef?: SessionRef;
       canResumeWithConfig: boolean;
       errorMessage?: string;
-      terminalPrompt?: TerminalPrompt;
     }
   | { type: "thread-exited"; threadId: string; exitCode: number | null }
   | { type: "windows-agent-statuses"; statuses: AgentStatus[] }

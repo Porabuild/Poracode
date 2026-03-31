@@ -441,16 +441,6 @@ function AppContent() {
             }}
             onClose={() => closePane(paneThreadId)}
             onConfigChange={(config) => updateThreadConfig(thread.id, config)}
-            onPromptInteract={() => {
-              // Immediately clear the prompt when user interacts with it
-              // Omit terminalPrompt to clear it (undefined would not satisfy type)
-              updateThreadRuntime(thread.id, {
-                status: thread.status,
-                attention: thread.attention,
-                ...(thread.sessionRef ? { sessionRef: thread.sessionRef } : {}),
-                canResumeWithConfig: thread.canResumeWithConfig,
-              } as Parameters<typeof updateThreadRuntime>[1]);
-            }}
             pendingServerRequests={pendingServerRequests.filter(
               (request) => request.threadId === thread.id,
             )}

@@ -16,10 +16,9 @@ vi.mock("../../bridge", () => ({
 
 vi.mock("./TerminalPane", () => ({
   TerminalPane: (props: {
-    readOnly?: boolean;
     onTerminalResize?: (size: { cols: number; rows: number }) => void;
   }) => (
-    <div data-read-only={props.readOnly ? "true" : "false"}>
+    <div>
       terminal pane
       <button onClick={() => props.onTerminalResize?.({ cols: 120, rows: 40 })} type="button">
         report terminal size
@@ -165,7 +164,7 @@ describe("ThreadView", () => {
     expect(
       screen.getByPlaceholderText("Ask Codex anything about this workspace"),
     ).toBeInTheDocument();
-    expect(screen.getByText("terminal pane")).toHaveAttribute("data-read-only", "true");
+    expect(screen.getByText("terminal pane")).toBeInTheDocument();
   });
 
   it("disables the composer for inactive Codex threads", () => {
@@ -384,7 +383,7 @@ describe("ThreadView", () => {
     expect(
       screen.queryByPlaceholderText("Ask Codex anything about this workspace"),
     ).not.toBeInTheDocument();
-    expect(screen.getByText("terminal pane")).toHaveAttribute("data-read-only", "false");
+    expect(screen.getByText("terminal pane")).toBeInTheDocument();
   });
 
   it("hides the terminal pane for server-backed GUI presentation", () => {

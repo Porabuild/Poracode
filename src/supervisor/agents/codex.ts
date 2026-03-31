@@ -7,7 +7,6 @@ import type {
   AgentStatus,
   ProjectLocation,
   SessionRef,
-  TerminalPrompt,
   ThreadAttention,
   ThreadConfig,
   ThreadServerRequestId,
@@ -948,57 +947,6 @@ export function detectCodexUpdatePrompt(text: string): boolean {
   return CODEX_UPDATE_RE.test(normalized);
 }
 
-export function detectCodexStartupPrompt(text: string): TerminalPrompt | null {
-  if (!detectCodexUpdatePrompt(text)) {
-    return null;
-  }
-
-  // Extract version numbers with more flexible regex
-  // Handles: "0.106.0 -> 0.117.0", "0.106.0→0.117.0", etc.
-  const versionMatch =
-    /update\s+available[^0-9]*?([0-9.]+)\s*(?:→|->|\u2192)\s*([0-9.]+)/i.exec(text) ||
-    /(?:[✨⚡]\s*)?update\s+available[^0-9]*?([0-9.]+)\s*(?:→|->)\s*([0-9.]+)/i.exec(text);
-
-  const title = versionMatch
-    ? `Update available! ${versionMatch[1]} -> ${versionMatch[2]}`
-    : "Update available!";
-
-  // Detect platform-specific command from output for description
-  const isBrew = /brew\s+(?:upgrade|install)/i.test(text);
-  const isWindows = /winget|powershell/i.test(text);
-
-  let updateCommand = "npm install -g @openai/codex";
-  if (isBrew) {
-    updateCommand = "brew upgrade --cask codex";
-  } else if (isWindows) {
-    updateCommand = "winget upgrade OpenAI.Codex";
-  }
-
-  return {
-    title,
-    options: [
-      {
-        key: "1",
-        label: "Update now",
-        description: `Runs ${updateCommand}`,
-        submitInput: "1",
-      },
-      {
-        key: "2",
-        label: "Skip",
-        submitInput: "2",
-        continueQueuedPrompt: true,
-      },
-      {
-        key: "3",
-        label: "Skip until next version",
-        submitInput: "3",
-        continueQueuedPrompt: true,
-      },
-    ],
-  };
-}
-
 export function detectCodexReadyForInitialPrompt(text: string): boolean {
   // Early exit if update prompt is detected (takes precedence)
   if (detectCodexUpdatePrompt(text)) {
@@ -1112,9 +1060,6 @@ export function createCodexAdapter(): AgentAdapter {
     },
     buildDirectInput(prompt) {
       return [...prompt, "\r"];
-    },
-    detectStartupPrompt(text) {
-      return detectCodexStartupPrompt(text);
     },
     isReadyForInitialPrompt(text) {
       return detectCodexReadyForInitialPrompt(text);

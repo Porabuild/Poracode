@@ -12,7 +12,7 @@ import type {
 import { ProviderIcon, getComposerControls, getStatusTone } from "../providers";
 import type { PendingThreadServerRequest } from "../../state/appStore";
 import { useGitStore } from "../../state/gitStore";
-import { Button, PromptOptions, TuxIcon } from "../common";
+import { Button, TuxIcon } from "../common";
 import { readBridge } from "../../bridge";
 import { TerminalPane } from "./TerminalPane";
 import { ThreadComposer } from "./ThreadComposer";
@@ -66,7 +66,6 @@ export function ThreadView(props: {
     | undefined;
   onPaneDrop?: ((event: React.DragEvent) => void) | undefined;
   onConfigChange: (config: ThreadConfig) => void;
-  onPromptInteract?: (() => void) | undefined;
   onLaunchConsumed?: (() => void) | undefined;
   onLaunchFailed?: (() => void) | undefined;
   onResolveServerRequest: (input: {
@@ -125,13 +124,6 @@ export function ThreadView(props: {
     thread.status !== "inactive" &&
     thread.status !== "launching";
   const launchTerminalSize = usesTerminalPresentation ? terminalSize : DEFAULT_HIDDEN_TERMINAL_SIZE;
-
-  const terminalPrompt =
-    usesTerminalPresentation &&
-    thread.terminalPrompt &&
-    (thread.status === "needs_approval" || thread.status === "needs_reply")
-      ? thread.terminalPrompt
-      : undefined;
 
   const gitStatus = useGitStore((s) =>
     thread.worktreePath ? s.worktreeStatuses[thread.worktreePath] : s.statuses[thread.projectId],
@@ -194,35 +186,6 @@ export function ThreadView(props: {
     thread.id,
     thread.sessionRef,
   ]);
-
-  const writeTerminalData = (data: string) => {
-    void readBridge().writeTerminal({ threadId: thread.id, data });
-  };
-
-  const handlePromptInteract = () => {
-    props.onPromptInteract?.();
-  };
-
-  const promptInputContent = terminalPrompt ? (
-    <PromptOptions
-      title={terminalPrompt.title}
-      options={terminalPrompt.options}
-      onSelect={(key) => {
-        handlePromptInteract();
-        writeTerminalData(key);
-      }}
-      onSubmitText={(key, text) => {
-        handlePromptInteract();
-        writeTerminalData(key);
-        setTimeout(() => writeTerminalData(text), 150);
-        setTimeout(() => writeTerminalData("\r"), 300);
-      }}
-      onCancel={() => {
-        handlePromptInteract();
-        writeTerminalData("\x1b");
-      }}
-    />
-  ) : undefined;
 
   const alignClass =
     paneAlign === "right" ? "ml-auto" : paneAlign === "left" ? "mr-auto" : "mx-auto";
@@ -319,7 +282,6 @@ export function ThreadView(props: {
                 <TerminalPane
                   key={thread.id}
                   onTerminalResize={setTerminalSize}
-                  readOnly={isServerControlled}
                   status={thread.status}
                   threadId={thread.id}
                 />
@@ -344,7 +306,6 @@ export function ThreadView(props: {
                 autoFocus // eslint-disable-line jsx-a11y/no-autofocus -- desktop app, expected UX
                 compact
                 controls={controls}
-                inputContent={promptInputContent}
                 placeholder={
                   isServerControlled
                     ? `Ask ${agentStatus?.label ?? "the agent"} anything about this workspace`

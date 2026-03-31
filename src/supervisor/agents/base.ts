@@ -12,7 +12,6 @@ import type {
   AuthState,
   ProjectLocation,
   SessionRef,
-  TerminalPrompt,
   ThreadServerRequestId,
   ThreadAttention,
   ThreadConfig,
@@ -100,8 +99,6 @@ export interface AgentAdapter {
   createInitialSessionRef(): SessionRef | undefined;
   createStructuredSession?(input: CreateStructuredSessionInput): Promise<StructuredSessionHandle>;
   buildDirectInput?(prompt: string): string[];
-  /** Detect PTY startup prompts that should be surfaced in the composer UI. */
-  detectStartupPrompt?(text: string): TerminalPrompt | null;
   /** Detect when the PTY is ready to accept an initial queued launch prompt. */
   isReadyForInitialPrompt?(text: string): boolean;
   detectTerminalStatus?(text: string): TerminalStatusHint | null;
@@ -127,7 +124,6 @@ export interface AgentAdapter {
 export interface TerminalStatusHint {
   status: ThreadStatus;
   attention: ThreadAttention;
-  prompt?: TerminalPrompt | undefined;
   planMode?: boolean | undefined;
 }
 

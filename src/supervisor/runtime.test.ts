@@ -351,115 +351,7 @@ describe("writeSubmittedPrompt", () => {
     expect(shell.pty.kill).not.toHaveBeenCalled();
   });
 
-  it("surfaces a startup prompt and defers the queued Codex launch prompt", async () => {
-    const emitted: unknown[] = [];
-    const runtime = new SupervisorRuntime((event) => {
-      emitted.push(event);
-    });
-    const pty = createMockPty();
-    const startTurn = vi.fn().mockResolvedValue(undefined);
-
-    ptySpawnMock.mockReturnValueOnce(pty);
-
-    const session = (
-      runtime as unknown as {
-        spawnThread: (input: {
-          threadId: string;
-          agentKind: string;
-          adapter: Record<string, unknown>;
-          projectLocation: { kind: "windows"; path: string };
-          config: { model: string };
-          initialSize: { cols: number; rows: number };
-          launchPrompt: string;
-          command: { command: string; args: string[] };
-          structuredSession: Record<string, unknown>;
-          pendingLaunchPrompt: string;
-        }) => { status: string; terminalPrompt?: { title: string } };
-      }
-    ).spawnThread({
-      threadId: "thread-1",
-      agentKind: "codex",
-      adapter: {
-        kind: "codex",
-        label: "Codex",
-        capabilities: {
-          models: [{ id: "gpt-5.4", label: "5.4" }],
-          efforts: ["high"],
-          modelEfforts: {},
-          modes: ["agent"],
-          approvalPolicies: [{ id: "on-request", label: "On Request" }],
-          sandboxModes: [{ id: "workspace-write", label: "Workspace Write" }],
-          supportsResume: true,
-          supportsDirectInput: true,
-          liveInputMode: "server",
-          presentationMode: "terminal",
-        },
-        createInitialSessionRef: vi.fn(),
-        buildLaunchCommand: vi.fn(),
-        buildResumeCommand: vi.fn(),
-        detectStartupPrompt: (text: string) =>
-          text.includes("Update available!")
-            ? {
-                title: "Update available! 0.116.0 -> 0.117.0",
-                options: [
-                  { key: "2", label: "Skip", submitInput: "2", continueQueuedPrompt: true },
-                ],
-              }
-            : null,
-        isReadyForInitialPrompt: (text: string) =>
-          text.includes("OpenAI Codex") &&
-          text.includes("directory:") &&
-          text.includes("/model to change") &&
-          !text.includes("Update available!"),
-      },
-      projectLocation: {
-        kind: "windows",
-        path: "C:\\repo",
-      },
-      config: {
-        model: "gpt-5.4",
-      },
-      initialSize: {
-        cols: 120,
-        rows: 30,
-      },
-      launchPrompt: "",
-      command: {
-        command: "codex",
-        args: [],
-      },
-      structuredSession: {
-        launchOptions: {},
-        setListener: vi.fn(),
-        dispose: vi.fn().mockResolvedValue(undefined),
-        startTurn,
-      },
-      pendingLaunchPrompt: "hi",
-    });
-
-    pty.emitData(
-      [
-        "Update available! 0.116.0 -> 0.117.0",
-        "OpenAI Codex (v0.116.0)",
-        "model: gpt-5.4-mini high /model to change",
-        "directory: ~/work/site-search-ui",
-      ].join("\n"),
-    );
-
-    expect(startTurn).not.toHaveBeenCalled();
-    expect(session.status).toBe("needs_reply");
-    expect(session.terminalPrompt?.title).toBe("Update available! 0.116.0 -> 0.117.0");
-    expect(emitted).toContainEqual(
-      expect.objectContaining({
-        type: "thread-state",
-        threadId: "thread-1",
-        status: "needs_reply",
-        attention: "needs_reply",
-      }),
-    );
-  });
-
-  it("starts the queued Codex launch prompt after selecting skip", async () => {
+  it("starts the queued launch prompt when isReadyForInitialPrompt fires", async () => {
     const emitted: unknown[] = [];
     const runtime = new SupervisorRuntime((event) => {
       emitted.push(event);
@@ -505,27 +397,10 @@ describe("writeSubmittedPrompt", () => {
         createInitialSessionRef: vi.fn(),
         buildLaunchCommand: vi.fn(),
         buildResumeCommand: vi.fn(),
-        detectStartupPrompt: (text: string) =>
-          text.includes("Update available!")
-            ? {
-                title: "Update available! 0.116.0 -> 0.117.0",
-                options: [
-                  { key: "1", label: "Update now", submitInput: "1" },
-                  { key: "2", label: "Skip", submitInput: "2", continueQueuedPrompt: true },
-                  {
-                    key: "3",
-                    label: "Skip until next version",
-                    submitInput: "3",
-                    continueQueuedPrompt: true,
-                  },
-                ],
-              }
-            : null,
         isReadyForInitialPrompt: (text: string) =>
           text.includes("OpenAI Codex") &&
           text.includes("directory:") &&
-          text.includes("/model to change") &&
-          !text.includes("Update available!"),
+          text.includes("/model to change"),
       },
       projectLocation: {
         kind: "windows",
@@ -552,11 +427,6 @@ describe("writeSubmittedPrompt", () => {
       pendingLaunchPrompt: "hi",
     });
 
-    pty.emitData("Update available! 0.116.0 -> 0.117.0");
-    await runtime.writeTerminal({
-      threadId: "thread-2",
-      data: "2",
-    });
     pty.emitData(
       [
         "OpenAI Codex (v0.116.0)",
@@ -578,107 +448,6 @@ describe("writeSubmittedPrompt", () => {
         attention: "working",
       }),
     );
-  });
-
-  it("does not start the queued Codex launch prompt after selecting update now", async () => {
-    const runtime = new SupervisorRuntime(() => undefined);
-    const pty = createMockPty();
-    const startTurn = vi.fn().mockResolvedValue(undefined);
-
-    ptySpawnMock.mockReturnValueOnce(pty);
-
-    (
-      runtime as unknown as {
-        spawnThread: (input: {
-          threadId: string;
-          agentKind: string;
-          adapter: Record<string, unknown>;
-          projectLocation: { kind: "windows"; path: string };
-          config: { model: string };
-          initialSize: { cols: number; rows: number };
-          launchPrompt: string;
-          command: { command: string; args: string[] };
-          structuredSession: Record<string, unknown>;
-          pendingLaunchPrompt: string;
-        }) => unknown;
-      }
-    ).spawnThread({
-      threadId: "thread-update",
-      agentKind: "codex",
-      adapter: {
-        kind: "codex",
-        label: "Codex",
-        capabilities: {
-          models: [{ id: "gpt-5.4", label: "5.4" }],
-          efforts: ["high"],
-          modelEfforts: {},
-          modes: ["agent"],
-          approvalPolicies: [{ id: "on-request", label: "On Request" }],
-          sandboxModes: [{ id: "workspace-write", label: "Workspace Write" }],
-          supportsResume: true,
-          supportsDirectInput: true,
-          liveInputMode: "server",
-          presentationMode: "terminal",
-        },
-        createInitialSessionRef: vi.fn(),
-        buildLaunchCommand: vi.fn(),
-        buildResumeCommand: vi.fn(),
-        detectStartupPrompt: (text: string) =>
-          text.includes("Update available!")
-            ? {
-                title: "Update available! 0.116.0 -> 0.117.0",
-                options: [
-                  { key: "1", label: "Update now", submitInput: "1" },
-                  { key: "2", label: "Skip", submitInput: "2", continueQueuedPrompt: true },
-                ],
-              }
-            : null,
-        isReadyForInitialPrompt: (text: string) =>
-          text.includes("OpenAI Codex") &&
-          text.includes("directory:") &&
-          text.includes("/model to change") &&
-          !text.includes("Update available!"),
-      },
-      projectLocation: {
-        kind: "windows",
-        path: "C:\\repo",
-      },
-      config: {
-        model: "gpt-5.4",
-      },
-      initialSize: {
-        cols: 120,
-        rows: 30,
-      },
-      launchPrompt: "",
-      command: {
-        command: "codex",
-        args: [],
-      },
-      structuredSession: {
-        launchOptions: {},
-        setListener: vi.fn(),
-        dispose: vi.fn().mockResolvedValue(undefined),
-        startTurn,
-      },
-      pendingLaunchPrompt: "hi",
-    });
-
-    pty.emitData("Update available! 0.116.0 -> 0.117.0");
-    await runtime.writeTerminal({
-      threadId: "thread-update",
-      data: "1",
-    });
-    pty.emitData(
-      [
-        "OpenAI Codex (v0.116.0)",
-        "model: gpt-5.4-mini high /model to change",
-        "directory: ~/work/site-search-ui",
-      ].join("\n"),
-    );
-    await Promise.resolve();
-
-    expect(startTurn).not.toHaveBeenCalled();
   });
 
   it("does not eagerly start a queued Codex turn during thread startup", async () => {
@@ -722,7 +491,6 @@ describe("writeSubmittedPrompt", () => {
         setListener: vi.fn(),
         dispose: vi.fn().mockResolvedValue(undefined),
       }),
-      detectStartupPrompt: vi.fn(() => null),
       isReadyForInitialPrompt: vi.fn(() => false),
     };
 
@@ -767,7 +535,6 @@ describe("writeSubmittedPrompt", () => {
     const runtime = new SupervisorRuntime(() => undefined);
     const pty = createMockPty();
     const detectAutoResponse = vi.fn(() => null);
-    const detectStartupPrompt = vi.fn(() => null);
     const isReadyForInitialPrompt = vi.fn(() => false);
     const detectTerminalStatus = vi.fn(() => null);
 
@@ -808,7 +575,6 @@ describe("writeSubmittedPrompt", () => {
         buildLaunchCommand: vi.fn(),
         buildResumeCommand: vi.fn(),
         detectAutoResponse,
-        detectStartupPrompt,
         isReadyForInitialPrompt,
         detectTerminalStatus,
       },
@@ -833,7 +599,6 @@ describe("writeSubmittedPrompt", () => {
     pty.emitData("Update available!\nOpenAI Codex");
 
     expect(detectAutoResponse).not.toHaveBeenCalled();
-    expect(detectStartupPrompt).not.toHaveBeenCalled();
     expect(isReadyForInitialPrompt).not.toHaveBeenCalled();
     expect(detectTerminalStatus).not.toHaveBeenCalled();
   });

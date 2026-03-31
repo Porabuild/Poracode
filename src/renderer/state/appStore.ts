@@ -12,7 +12,6 @@ import type {
   ThreadAttention,
   ThreadConfig,
   ThreadServerRequestId,
-  TerminalPrompt,
   ThreadRuntimeSnapshot,
   ThreadStatus,
 } from "../../shared/contracts";
@@ -115,7 +114,6 @@ interface AppStoreState {
       config?: ThreadConfig;
       sessionRef?: SessionRef;
       canResumeWithConfig: boolean;
-      terminalPrompt?: TerminalPrompt;
     },
   ) => void;
   addThreadServerRequest: (input: {
@@ -482,7 +480,6 @@ export const useAppStore = create<AppStoreState>()(
               config: input.config ?? thread.config,
               canResumeWithConfig: input.canResumeWithConfig,
               ...(input.sessionRef ? { sessionRef: input.sessionRef } : {}),
-              terminalPrompt: input.terminalPrompt,
               ...(input.status === "working" && thread.status !== "working"
                 ? { updatedAt: new Date().toISOString() }
                 : {}),
