@@ -77,6 +77,11 @@ export function GitReviewOverlay(props: {
             <div className="flex items-center gap-1 text-xs text-muted">
               <GitBranch className="size-3" />
               <span className="truncate">{gitStatus.branch}</span>
+              {((gitStatus.behind ?? 0) > 0 || (gitStatus.ahead ?? 0) > 0) && (
+                <span className="text-muted/60">
+                  ↓{gitStatus.behind ?? 0} ↑{gitStatus.ahead ?? 0}
+                </span>
+              )}
             </div>
           )}
 

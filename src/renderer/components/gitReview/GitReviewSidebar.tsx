@@ -577,13 +577,6 @@ export function GitReviewSidebar(props: {
                 </Dropdown>
               </ButtonGroup>
 
-              {(ahead > 0 || behind > 0) && (
-                <p className="text-center text-[10px] text-muted/60">
-                  {behind > 0 && <span>{"↓"}{behind} behind</span>}
-                  {behind > 0 && ahead > 0 && <span> · </span>}
-                  {ahead > 0 && <span>{"↑"}{ahead} ahead</span>}
-                </p>
-              )}
             </>
           ) : hasRemote ? (
             <>
@@ -609,7 +602,7 @@ export function GitReviewSidebar(props: {
                       <ArrowUpDown className="size-3.5" />
                     )}
                     {needsPush
-                      ? `Push${ahead > 0 ? ` ↑${ahead}` : ""}`
+                      ? `Push${ahead > 0 ? ` ${ahead} commit${ahead === 1 ? "" : "s"}` : ""}`
                       : behind > 0 || ahead > 0
                         ? `Sync${behind > 0 ? ` ↓${behind}` : ""}${ahead > 0 ? ` ↑${ahead}` : ""}`
                         : "Sync"}
