@@ -51,17 +51,10 @@ describe("TerminalPane", () => {
     expect(screen.getByTestId("xterm-surface")).toHaveAttribute("data-enabled", "true");
   });
 
-  it("reveals visibility shortly after becoming active", () => {
+  it("reveals visibility immediately when becoming active", () => {
     const { container, rerender } = render(<TerminalPane threadId="t-1" status="inactive" />);
 
     rerender(<TerminalPane threadId="t-1" status="launching" />);
-
-    // Still invisible
-    expect(container.firstElementChild!.className).toContain("opacity-0");
-
-    act(() => {
-      vi.advanceTimersByTime(50);
-    });
 
     expect(container.firstElementChild!.className).toContain("opacity-100");
   });
@@ -82,7 +75,7 @@ describe("TerminalPane", () => {
     expect(screen.getByTestId("xterm-surface")).toHaveAttribute("data-enabled", "true");
   });
 
-  it("re-reveals visibility after onReset fires", () => {
+  it("hides visibility after onReset fires", () => {
     const { container } = render(<TerminalPane threadId="t-1" status="idle" />);
     expect(container.firstElementChild!.className).toContain("opacity-100");
 
@@ -90,13 +83,7 @@ describe("TerminalPane", () => {
       (latestProps.onReset as () => void)();
     });
 
-    // Should be invisible after reset
+    // Should be invisible after reset (restored when status changes)
     expect(container.firstElementChild!.className).toContain("opacity-0");
-
-    // After the POST_MOUNT_REVEAL_DELAY_MS (50ms), visibility restores
-    act(() => {
-      vi.advanceTimersByTime(50);
-    });
-    expect(container.firstElementChild!.className).toContain("opacity-100");
   });
 });

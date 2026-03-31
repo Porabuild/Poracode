@@ -17,6 +17,9 @@ export function OverlayHeader(props: {
       className="lightcode-overlay-header flex shrink-0 items-center gap-3 bg-[var(--content-background)] px-4"
       style={{ height: "env(titlebar-area-height, 32px)" }}
     >
+      {/* Space for macOS traffic lights */}
+      <div className="w-[60px] shrink-0" />
+
       {onTitleClick ? (
         <button
           type="button"
@@ -32,8 +35,6 @@ export function OverlayHeader(props: {
       {children}
 
       <div className="flex-1" />
-      {/* Space for native window buttons (minimize, maximize, close) */}
-      <div className="w-[8rem] shrink-0" />
     </div>
   );
 }

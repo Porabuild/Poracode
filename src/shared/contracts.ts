@@ -100,7 +100,7 @@ export const agentStatusSchema = z.object({
   version: z.string().optional(),
   authState: authStateSchema,
   capabilities: agentCapabilitySchema,
-  envKind: z.enum(["windows", "wsl"]).optional(),
+  envKind: z.enum(["windows", "wsl", "posix"]).optional(),
   envDistro: z.string().optional(),
 });
 export type AgentStatus = z.infer<typeof agentStatusSchema>;

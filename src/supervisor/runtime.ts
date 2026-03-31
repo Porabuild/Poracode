@@ -184,10 +184,18 @@ export class SupervisorRuntime {
     this.statusCachePath = paths.statusCachePath;
     mkdirSync(paths.cacheDir, { recursive: true });
     resetTerminalLogsDir(this.logsDir);
-    this.windowsShell = detectWindowsShell();
-    console.log(
-      `[supervisor] detected shell: ${this.windowsShell.kind} (${this.windowsShell.shell})`,
-    );
+
+    // Only detect Windows shell on Windows platform
+    if (process.platform === "win32") {
+      this.windowsShell = detectWindowsShell();
+      console.log(
+        `[supervisor] detected shell: ${this.windowsShell.kind} (${this.windowsShell.shell})`,
+      );
+    } else {
+      // Default value for non-Windows platforms (unused but TypeScript needs it)
+      this.windowsShell = { shell: "/bin/bash", kind: "cmd", args: [] };
+      console.log(`[supervisor] using default shell: ${process.env.SHELL || "/bin/bash"}`);
+    }
   }
 
   async listWslDistros(): Promise<string[]> {
@@ -251,20 +259,23 @@ export class SupervisorRuntime {
   private detectAllAgentStatusesBackground(wslDistros: readonly string[]): void {
     const t0 = Date.now();
 
-    // Windows detection — fast (~500ms), but still non-blocking.
+    // Detect native platform (Windows or POSIX/macOS/Linux) — fast (~500ms), but still non-blocking.
+    const nativePlatform = process.platform === "win32" ? ("windows" as const) : ("posix" as const);
+
     void Promise.all(
       [...this.adapters.values()].map(async (adapter) => {
         const at = Date.now();
         const status = await adapter.detectInstall();
-        console.log(`[supervisor] detectInstall(${adapter.kind}, windows): ${Date.now() - at}ms`);
-        return { ...status, envKind: "windows" as const };
+        console.log(`[supervisor] detectInstall(${adapter.kind}, ${nativePlatform}): ${Date.now() - at}ms`);
+        return { ...status, envKind: nativePlatform };
       }),
     )
-      .then((windowsStatuses) => {
-        console.log(`[supervisor] windows agent statuses: done (${Date.now() - t0}ms)`);
-        this.emit({ type: "windows-agent-statuses", statuses: windowsStatuses });
-
-        this.detectWslAndWriteCache(windowsStatuses, wslDistros);
+      .then((nativeStatuses) => {
+        console.log(`[supervisor] ${nativePlatform} agent statuses: done (${Date.now() - t0}ms)`);
+        if (nativePlatform === "windows") {
+          this.emit({ type: "windows-agent-statuses", statuses: nativeStatuses });
+        }
+        this.detectWslAndWriteCache(nativeStatuses, wslDistros);
       })
       .catch(() => undefined);
   }
@@ -865,10 +876,20 @@ export class SupervisorRuntime {
       };
     }
 
-    // Use the cached shell preference (detected once at startup).
+    if (process.platform === "win32") {
+      // Use the cached Windows shell preference (detected once at startup).
+      return {
+        command: this.windowsShell.shell,
+        args: [...this.windowsShell.args],
+        cwd: location.path,
+      };
+    }
+
+    // macOS/Linux: use the user's default shell from $SHELL, or fallback to /bin/bash
+    const shell = process.env.SHELL || "/bin/bash";
     return {
-      command: this.windowsShell.shell,
-      args: [...this.windowsShell.args],
+      command: shell,
+      args: ["-l"],
       cwd: location.path,
     };
   }
@@ -1133,6 +1154,13 @@ export class SupervisorRuntime {
         }
 
         const startupPrompt = session.adapter.detectStartupPrompt?.(strippedData) ?? null;
+        if (startupPrompt) {
+          console.log("[supervisor] startupPrompt detected:", {
+            threadId: session.threadId,
+            title: startupPrompt.title,
+            optionsCount: startupPrompt.options.length,
+          });
+        }
         const startupPromptHandled = this.syncStartupPrompt(session, startupPrompt);
 
         const hint = session.adapter.detectTerminalStatus?.(stripped) ?? null;

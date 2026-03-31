@@ -44,7 +44,6 @@ export function XTermSurface(props: {
   const {
     terminalId,
     readOnly = false,
-    enabled = true,
     onReset,
     onExited,
     onActivity,
@@ -55,6 +54,8 @@ export function XTermSurface(props: {
   } = props;
   const appearance = useResolvedAppearance();
   const mountRef = useRef<HTMLDivElement | null>(null);
+  const terminalRef = useRef<Terminal | null>(null);
+  const fitRef = useRef<FitAddon | null>(null);
   const onResetRef: RefObject<typeof onReset> = useRef(onReset);
   onResetRef.current = onReset;
   const onExitedRef: RefObject<typeof onExited> = useRef(onExited);
@@ -68,16 +69,22 @@ export function XTermSurface(props: {
   const onTerminalResizeRef: RefObject<typeof onTerminalResize> = useRef(onTerminalResize);
   onTerminalResizeRef.current = onTerminalResize;
 
+  // Terminal lifecycle: create ONCE when component mounts, destroy on unmount
+  // Independent of `enabled` prop - terminals stay alive as long as the component exists
   useEffect(() => {
     const mount = mountRef.current;
-    if (!mount || !enabled) {
+    if (!mount) {
       return;
     }
 
+
     let isActive = true;
-    let resizeFrame = 0;
     let lastCols = -1;
     let lastRows = -1;
+    let resizeFrame = 0;
+    let historyLoaded = false;
+    let historyLength = 0;
+    const pendingEvents: Array<{ data: string; outputLength: number }> = [];
 
     const terminal = new Terminal({
       cursorBlink: !readOnly,
@@ -90,12 +97,47 @@ export function XTermSurface(props: {
     });
     const fit = new FitAddon();
 
-    let retryTimer = 0;
+    terminalRef.current = terminal;
+    fitRef.current = fit;
 
-    const scheduleResize = () => {
-      if (!isActive) {
+    const doFit = () => {
+      if (!isActive || !mount) return;
+
+      const width = mount.clientWidth;
+      const height = mount.clientHeight;
+
+      if (width === 0 || height === 0) {
         return;
       }
+
+      fit.fit();
+
+      if (terminal.cols !== lastCols || terminal.rows !== lastRows) {
+        lastCols = terminal.cols;
+        lastRows = terminal.rows;
+
+
+        if (terminal.cols >= 20 && terminal.rows >= 5) {
+          onTerminalResizeRef.current?.({
+            cols: terminal.cols,
+            rows: terminal.rows,
+          });
+
+          void readBridge()
+            .resizeTerminal({
+              threadId: terminalId,
+              cols: terminal.cols,
+              rows: terminal.rows,
+            })
+            .catch(() => {
+              // Ignore errors.
+            });
+        }
+      }
+    };
+
+    const scheduleResize = () => {
+      if (!isActive) return;
 
       if (resizeFrame !== 0) {
         cancelAnimationFrame(resizeFrame);
@@ -103,50 +145,8 @@ export function XTermSurface(props: {
 
       resizeFrame = requestAnimationFrame(() => {
         resizeFrame = 0;
-        if (!isActive) {
-          return;
-        }
-
-        // Guard against zero-width/zero-height container — retry shortly.
-        if (mount.clientWidth === 0 || mount.clientHeight === 0) {
-          if (retryTimer === 0) {
-            retryTimer = window.setTimeout(() => {
-              retryTimer = 0;
-              scheduleResize();
-            }, 200);
-          }
-          return;
-        }
-
-        fit.fit();
-
-        if (terminal.cols === lastCols && terminal.rows === lastRows) {
-          return;
-        }
-
-        // The supervisor schema enforces cols >= 20 and rows >= 5.
-        // Skip the IPC call when the container is too small to avoid
-        // validation errors that spam the console.
-        if (terminal.cols < 20 || terminal.rows < 5) {
-          return;
-        }
-
-        lastCols = terminal.cols;
-        lastRows = terminal.rows;
-        onTerminalResizeRef.current?.({
-          cols: terminal.cols,
-          rows: terminal.rows,
-        });
-
-        void readBridge()
-          .resizeTerminal({
-            threadId: terminalId,
-            cols: terminal.cols,
-            rows: terminal.rows,
-          })
-          .catch(() => {
-            // Resize events can race with shutdown; ignore stale updates.
-          });
+        if (!isActive) return;
+        doFit();
       });
     };
 
@@ -180,6 +180,7 @@ export function XTermSurface(props: {
     });
     resizeObserver.observe(mount);
 
+    // Subscribe to supervisor events - this stays alive for the terminal's entire lifecycle
     const unsubscribe = readBridge().onSupervisorEvent((event) => {
       if (event.type === "thread-reset" && event.threadId === terminalId) {
         terminal.reset();
@@ -188,6 +189,10 @@ export function XTermSurface(props: {
       }
 
       if (event.type === "thread-output" && event.threadId === terminalId) {
+        if (!historyLoaded) {
+          pendingEvents.push({ data: event.data, outputLength: event.outputLength });
+          return;
+        }
         terminal.write(event.data);
         return;
       }
@@ -197,22 +202,63 @@ export function XTermSurface(props: {
       }
     });
 
-    // Initial fit after mount.
-    scheduleResize();
+    // Replay terminal history for warm threads, then fit
+    readBridge()
+      .getThreadHistory(terminalId)
+      .then((snapshot) => {
+        if (!isActive) return;
+        if (snapshot.history) {
+          terminal.write(snapshot.history);
+        }
+        historyLength = snapshot.length;
+        historyLoaded = true;
+
+        // Flush buffered events, dedup using outputLength
+        for (const evt of pendingEvents) {
+          const dataStart = evt.outputLength - evt.data.length;
+          if (dataStart >= historyLength) {
+            terminal.write(evt.data);
+          } else if (evt.outputLength > historyLength) {
+            terminal.write(evt.data.slice(historyLength - dataStart));
+          }
+        }
+        pendingEvents.length = 0;
+
+        // Double-rAF to ensure layout has settled before fitting
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            if (isActive) {
+              doFit();
+            }
+          });
+        });
+      })
+      .catch(() => {
+        if (!isActive) return;
+        historyLoaded = true;
+        for (const evt of pendingEvents) {
+          terminal.write(evt.data);
+        }
+        pendingEvents.length = 0;
+        requestAnimationFrame(() => {
+          if (isActive) {
+            doFit();
+          }
+        });
+      });
 
     return () => {
       isActive = false;
       if (resizeFrame !== 0) {
         cancelAnimationFrame(resizeFrame);
       }
-      if (retryTimer !== 0) {
-        window.clearTimeout(retryTimer);
-      }
       unsubscribe();
       resizeObserver.disconnect();
       terminal.dispose();
+      terminalRef.current = null;
+      fitRef.current = null;
     };
-  }, [appearance, readOnly, enabled, terminalId]);
+  }, []); // Empty deps = run once on mount, never re-run
 
   return (
     <div

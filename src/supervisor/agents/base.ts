@@ -27,7 +27,7 @@ export interface CommandSpec {
 }
 
 export interface AgentEnvContext {
-  envKind: "windows" | "wsl";
+  envKind: "windows" | "wsl" | "posix";
   wslDistro?: string;
 }
 
@@ -202,20 +202,56 @@ export function buildWindowsCommand(
   return buildWindowsCmdCommand(cwd, command, args);
 }
 
-export function wrapWslCommand(
+/**
+ * Build a command spec for POSIX systems (macOS/Linux).
+ * Uses the user's default shell from $SHELL, or falls back to /bin/bash.
+ */
+function buildPosixCommand(cwd: string, command: string, args: string[]): CommandSpec {
+  const shell = process.env.SHELL || "/bin/bash";
+  const script = `exec ${[command, ...args].map(quotePosixShellArg).join(" ")}`;
+  return {
+    command: shell,
+    args: ["-l", "-c", script],
+    cwd,
+  };
+}
+
+/**
+ * Build a command spec for an agent CLI across all platforms.
+ * Agent adapters should use this - no platform branching needed.
+ *
+ * Handles:
+ * - "windows" → PowerShell or cmd.exe
+ * - "wsl" → wsl.exe with Linux shell
+ * - "posix" → macOS/Linux with $SHELL or /bin/bash
+ */
+export function buildAgentCommand(
   location: ProjectLocation,
   command: string,
   args: string[],
   wslExecPath?: string,
 ): CommandSpec {
-  if (location.kind !== "wsl") {
-    const cwd = location.path;
-    return buildWindowsCommand(cwd, command, args);
-  }
+  if (location.kind === "wsl") {
+    if (!wslExecPath) {
+      const shellPath = resolveWslShellPath(location.distro);
+      const script = `exec ${[command, ...args].map(quotePosixShellArg).join(" ")}`;
+      return {
+        command: getWslCommand(),
+        args: [
+          "-d",
+          location.distro,
+          "--cd",
+          location.linuxPath,
+          "--",
+          shellPath,
+          "-l",
+          "-i",
+          "-c",
+          script,
+        ],
+      };
+    }
 
-  if (!wslExecPath) {
-    const shellPath = resolveWslShellPath(location.distro);
-    const script = `exec ${[command, ...args].map(quotePosixShellArg).join(" ")}`;
     return {
       command: getWslCommand(),
       args: [
@@ -224,26 +260,29 @@ export function wrapWslCommand(
         "--cd",
         location.linuxPath,
         "--",
-        shellPath,
-        "-l",
-        "-i",
-        "-c",
-        script,
+        ...buildDirectWslCommandArgs(wslExecPath, args),
       ],
     };
   }
 
-  return {
-    command: getWslCommand(),
-    args: [
-      "-d",
-      location.distro,
-      "--cd",
-      location.linuxPath,
-      "--",
-      ...buildDirectWslCommandArgs(wslExecPath, args),
-    ],
-  };
+  if (location.kind === "windows") {
+    return buildWindowsCommand(location.path, command, args);
+  }
+
+  // location.kind === "posix" (macOS/Linux)
+  return buildPosixCommand(location.path, command, args);
+}
+
+/**
+ * @deprecated Use buildAgentCommand() instead. This is kept for backward compatibility.
+ */
+export function wrapWslCommand(
+  location: ProjectLocation,
+  command: string,
+  args: string[],
+  wslExecPath?: string,
+): CommandSpec {
+  return buildAgentCommand(location, command, args, wslExecPath);
 }
 
 export function resolveExecutablePath(command: string): string | undefined {

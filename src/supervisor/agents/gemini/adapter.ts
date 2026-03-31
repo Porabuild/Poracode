@@ -6,12 +6,12 @@ import type {
 } from "../../../shared/contracts";
 import {
   batchWslCommandsAsync,
+  buildAgentCommand,
   createKnownSessionRef,
   readCommandOutputAsync,
   readWslCommandOutputAsync,
   resolveExecutablePathAsync,
   resolveWslExecutablePath,
-  wrapWslCommand,
   type AgentAdapter,
   type AgentEnvContext,
 } from "../base";
@@ -157,12 +157,12 @@ export function createGeminiAdapter(): AgentAdapter {
 
     buildLaunchCommand(location, config, prompt) {
       const args = buildGeminiArgs(config, prompt);
-      return wrapWslCommand(location, "gemini", args, resolveWslExecPath(location));
+      return buildAgentCommand(location, "gemini", args, resolveWslExecPath(location));
     },
 
     buildResumeCommand(location, config, prompt, sessionRef) {
       const args = buildGeminiArgs(config, prompt, sessionRef.providerSessionId);
-      return wrapWslCommand(location, "gemini", args, resolveWslExecPath(location));
+      return buildAgentCommand(location, "gemini", args, resolveWslExecPath(location));
     },
 
     createInitialSessionRef() {

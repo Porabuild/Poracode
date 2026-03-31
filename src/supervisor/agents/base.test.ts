@@ -17,7 +17,7 @@ describe("buildBatchWslScript", () => {
   });
 });
 
-describe("wrapWslCommand", () => {
+describe.skipIf(process.platform !== "win32")("wrapWslCommand", () => {
   it("launches WSL agent commands directly instead of forcing bash", () => {
     expect(wrapWslCommand(wslProject, "codex", ["--version"])).toEqual({
       command: getWslCommand(),

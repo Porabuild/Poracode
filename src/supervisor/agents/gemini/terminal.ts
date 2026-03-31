@@ -6,37 +6,38 @@ type HintEntry = {
   status: TerminalStatusHint["status"];
   attention: TerminalStatusHint["attention"];
   hasPrompt: boolean;
-  signal?: "primary" | "fallbackIdle";
+  signal?: "primary" | "fallbackIdle" | "weakWorking";
 };
 
 const GEMINI_HINTS: HintEntry[] = [
   // Title bar: action required — plan approval, tool approval, numbered selection
-  { re: /✋\s+Action Required/, status: "needs_reply", attention: "needs_reply", hasPrompt: true },
+  { re: /✋\s+Action Required/i, status: "needs_reply", attention: "needs_reply", hasPrompt: true },
   // Selection prompt footer (secondary, less reliable in stripped buffer)
-  { re: /Enter to select/, status: "needs_reply", attention: "needs_reply", hasPrompt: true },
+  { re: /Enter to select/i, status: "needs_reply", attention: "needs_reply", hasPrompt: true },
   // Approval / consent prompt — y/n style tool-call confirmation
   {
-    re: /\[y\/n\]|\(y\/N\)|Allow\s+.*\?|Do you want to proceed/i,
+    re: /\[y\/n\]|\(y\/N\)|Allow\s+.*\?|Do you want to proceed|Continue\?/i,
     status: "needs_approval",
     attention: "needs_approval",
     hasPrompt: false,
   },
   // Title bar: working indicator (✦ sparkle + "Working…")
-  { re: /✦\s+Working/, status: "working", attention: "working", hasPrompt: false },
+  { re: /✦\s+Working|⚙\s+Working/i, status: "working", attention: "working", hasPrompt: false },
   // Active generation text indicators
   {
-    re: /Generating\.\.\.|Thinking\.\.\./,
+    re: /Generating(?:\.\.\.|…)|Thinking(?:\.\.\.|…)|Processing/i,
     status: "working",
     attention: "working",
     hasPrompt: false,
   },
-  // Braille spinner characters used by Gemini's TUI
-  { re: /[⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏]/, status: "working", attention: "working", hasPrompt: false },
+  // Braille spinner characters used by Gemini's TUI — marked weak because single
+  // characters persist as stale data in the rolling buffer after screen redraws.
+  { re: /[⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏]/, status: "working", attention: "working", hasPrompt: false, signal: "weakWorking" },
   // Title bar: ready/idle indicator (◇ diamond + "Ready")
-  { re: /◇\s+Ready/, status: "idle", attention: "none", hasPrompt: false },
+  { re: /◇\s+Ready/i, status: "idle", attention: "none", hasPrompt: false },
   // TUI input prompt — "Type your message" or "* Type your message"
   {
-    re: /Type your message/,
+    re: /Type your message/i,
     status: "idle",
     attention: "none",
     hasPrompt: false,
@@ -44,7 +45,7 @@ const GEMINI_HINTS: HintEntry[] = [
   },
   // TUI shortcuts hint — "? for shortcuts"
   {
-    re: /\?\s+for shortcuts/,
+    re: /\?\s+for shortcuts/i,
     status: "idle",
     attention: "none",
     hasPrompt: false,
@@ -53,13 +54,17 @@ const GEMINI_HINTS: HintEntry[] = [
 ];
 
 // Strip box-drawing and TUI decoration chars from a line
+// Bulletproof against: various box-drawing chars, cursor prefixes, etc.
 function cleanLine(raw: string): string {
-  return raw.replace(/[│╭╮╰╯─▀▄●◆◇✦✋]/g, "").trim();
+  return raw
+    .replace(/[│╭╮╰╯─▀▄●◆◇✦✋❯>►]/g, "") // Remove box-drawing and cursor chars
+    .replace(/\s+/g, " ") // Normalize whitespace
+    .trim();
 }
 
-// Gemini numbered options: "1.  Label" (2+ spaces after dot).
+// Gemini numbered options: "1.  Label" — after cleanLine normalizes whitespace, 1+ space remains.
 // The ● bullet, box-drawing, and leading whitespace are stripped before matching.
-const OPTION_RE = /^(\d+)\.\s{2,}(.+)/;
+const OPTION_RE = /^(\d+)\.\s+(.+)/;
 const TEXT_INPUT_RE = /enter a custom value|type your|type here/i;
 
 function parseGeminiPrompt(text: string): TerminalPrompt | undefined {
@@ -143,15 +148,26 @@ function findBestMatch(
 }
 
 export function detectGeminiTerminalStatus(text: string): TerminalStatusHint | null {
+  const primaryBest = findBestMatch(
+    text,
+    GEMINI_HINTS.filter((entry) => entry.signal !== "fallbackIdle"),
+  );
+  const fallbackBest = findBestMatch(
+    text,
+    GEMINI_HINTS.filter((entry) => entry.signal === "fallbackIdle"),
+  );
+
+  // If a fallbackIdle match appears AFTER a weak primary match, prefer it —
+  // braille spinner characters persist as stale data in the rolling buffer
+  // long after the screen redraws to idle.  Stronger working signals
+  // (✦ Working, Thinking…, etc.) always take priority.
   const best =
-    findBestMatch(
-      text,
-      GEMINI_HINTS.filter((entry) => entry.signal !== "fallbackIdle"),
-    ) ??
-    findBestMatch(
-      text,
-      GEMINI_HINTS.filter((entry) => entry.signal === "fallbackIdle"),
-    );
+    primaryBest &&
+    fallbackBest &&
+    fallbackBest.index > primaryBest.index &&
+    primaryBest.entry.signal === "weakWorking"
+      ? fallbackBest
+      : (primaryBest ?? fallbackBest);
 
   if (!best) return null;
 

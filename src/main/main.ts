@@ -160,7 +160,9 @@ function createWindow(): BrowserWindow {
             height: WINDOW_CHROME_HEIGHT,
           },
         }
-      : {}),
+      : {
+          titleBarStyle: "hidden" as const,
+        }),
     webPreferences: {
       preload: join(__dirname, "preload.cjs"),
       contextIsolation: true,
@@ -478,15 +480,18 @@ function registerIpcHandlers(): void {
   });
 
   ipcMain.handle(CHANNELS.setWindowChrome, async (_event, payload: WindowChromePayload) => {
-    if (!mainWindow || (process.platform !== "win32" && process.platform !== "linux")) {
+    if (!mainWindow) {
       return;
     }
 
-    mainWindow.setTitleBarOverlay({
-      color: payload.backgroundColor,
-      symbolColor: payload.symbolColor,
-      height: WINDOW_CHROME_HEIGHT,
-    });
+    if (process.platform === "win32" || process.platform === "linux") {
+      mainWindow.setTitleBarOverlay({
+        color: payload.backgroundColor,
+        symbolColor: payload.symbolColor,
+        height: WINDOW_CHROME_HEIGHT,
+      });
+    }
+    // macOS doesn't support titleBarOverlay, but we handle it via hidden titleBarStyle
   });
 
   // ── Database IPC handlers ───────────────────────────────────────

@@ -105,7 +105,7 @@ function GeneralSettings() {
   const setThemeMode = useSharedSettings((state) => state.setThemeMode);
 
   return (
-    <div className="h-full min-h-0 overflow-y-auto px-6 py-8">
+    <div className="h-full min-h-0 overflow-y-auto px-6 pb-8">
       <div className="mx-auto max-w-[560px]">
         <h1 className="mb-6 text-lg font-semibold text-foreground">General</h1>
 
@@ -162,7 +162,7 @@ function GitSettings() {
     : [];
 
   return (
-    <div className="h-full min-h-0 overflow-y-auto px-6 py-8">
+    <div className="h-full min-h-0 overflow-y-auto px-6 pb-8">
       <div className="mx-auto max-w-[560px]">
         <h1 className="mb-6 text-lg font-semibold text-foreground">Git</h1>
 

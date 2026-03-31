@@ -10,6 +10,7 @@ const { state } = vi.hoisted(() => ({
     bridge: {
       writeTerminal: vi.fn().mockResolvedValue(undefined),
       resizeTerminal: vi.fn().mockResolvedValue(undefined),
+      getThreadHistory: vi.fn().mockResolvedValue({ history: "", length: 0 }),
       onSupervisorEvent: vi.fn(),
     },
   },
@@ -58,6 +59,13 @@ function emitEvent(event: SupervisorEvent) {
   for (const listener of [...state.eventListeners]) {
     listener(event);
   }
+}
+
+/** Flush the getThreadHistory promise so the component switches to direct-write mode. */
+async function flushHistory() {
+  await act(async () => {
+    await Promise.resolve();
+  });
 }
 
 type MockFn = ReturnType<typeof vi.fn>;
@@ -111,11 +119,6 @@ describe("XTermSurface", () => {
     expect(state.eventListeners).toHaveLength(1);
   });
 
-  it("does NOT create a terminal when enabled=false", () => {
-    render(<XTermSurface terminalId="test-1" enabled={false} />);
-    expect(state.terminal).toBeNull();
-  });
-
   it("disposes terminal and unsubscribes on unmount", () => {
     const { unmount } = render(<XTermSurface terminalId="test-1" />);
     const t = terminal();
@@ -128,8 +131,9 @@ describe("XTermSurface", () => {
 
   // ── Event handling ────────────────────────────────────────────
 
-  it("writes thread-output data to the terminal", () => {
+  it("writes thread-output data to the terminal", async () => {
     render(<XTermSurface terminalId="test-1" />);
+    await flushHistory();
 
     act(() => {
       emitEvent({
@@ -143,8 +147,9 @@ describe("XTermSurface", () => {
     expect(terminal().write).toHaveBeenCalledWith("hello world");
   });
 
-  it("ignores thread-output for a different terminal", () => {
+  it("ignores thread-output for a different terminal", async () => {
     render(<XTermSurface terminalId="test-1" />);
+    await flushHistory();
 
     act(() => {
       emitEvent({
@@ -158,9 +163,10 @@ describe("XTermSurface", () => {
     expect(terminal().write).not.toHaveBeenCalled();
   });
 
-  it("resets terminal and calls onReset on thread-reset", () => {
+  it("resets terminal and calls onReset on thread-reset", async () => {
     const onReset = vi.fn();
     render(<XTermSurface terminalId="test-1" onReset={onReset} />);
+    await flushHistory();
 
     act(() => {
       emitEvent({ type: "thread-reset", threadId: "test-1" });
@@ -170,9 +176,10 @@ describe("XTermSurface", () => {
     expect(onReset).toHaveBeenCalled();
   });
 
-  it("calls onExited on thread-exited", () => {
+  it("calls onExited on thread-exited", async () => {
     const onExited = vi.fn();
     render(<XTermSurface terminalId="test-1" onExited={onExited} />);
+    await flushHistory();
 
     act(() => {
       emitEvent({ type: "thread-exited", threadId: "test-1", exitCode: 0 });
@@ -183,8 +190,9 @@ describe("XTermSurface", () => {
 
   // ── Critical: output after reset ─────────────────────────────
 
-  it("still receives thread-output after a thread-reset", () => {
+  it("still receives thread-output after a thread-reset", async () => {
     render(<XTermSurface terminalId="test-1" />);
+    await flushHistory();
 
     act(() => {
       emitEvent({ type: "thread-reset", threadId: "test-1" });
@@ -200,42 +208,6 @@ describe("XTermSurface", () => {
     });
 
     expect(terminal().write).toHaveBeenCalledWith("after reset");
-  });
-
-  // ── Disable / re-enable cycle ─────────────────────────────────
-
-  it("disposes terminal when enabled transitions to false", () => {
-    const { rerender } = render(<XTermSurface terminalId="test-1" enabled={true} />);
-    const t = terminal();
-
-    rerender(<XTermSurface terminalId="test-1" enabled={false} />);
-    expect(t.dispose).toHaveBeenCalled();
-    expect(state.eventListeners).toHaveLength(0);
-  });
-
-  it("loses events while disabled after an enabled→disabled→enabled cycle", () => {
-    const { rerender } = render(<XTermSurface terminalId="test-1" enabled={true} />);
-
-    // Disable — terminal disposed, listener removed
-    rerender(<XTermSurface terminalId="test-1" enabled={false} />);
-    expect(state.eventListeners).toHaveLength(0);
-
-    // Event arrives while disabled — nobody is listening
-    act(() => {
-      emitEvent({
-        type: "thread-output",
-        threadId: "test-1",
-        data: "lost data",
-        outputLength: 9,
-      });
-    });
-
-    // Re-enable — new terminal created
-    rerender(<XTermSurface terminalId="test-1" enabled={true} />);
-    expect(terminal().open).toHaveBeenCalled();
-
-    // The "lost data" was never written to any terminal instance
-    expect(terminal().write).not.toHaveBeenCalledWith("lost data");
   });
 
   // ── Activity / bell / title callbacks ───────────────────────────

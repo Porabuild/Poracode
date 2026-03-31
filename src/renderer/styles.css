@@ -139,6 +139,13 @@ body {
     var(--content-background);
 }
 
+/* macOS: add padding for traffic lights when titlebar-area-height is not available */
+@supports not (env: titlebar-area-height) {
+  .lightcode-shell {
+    padding-top: 0;
+  }
+}
+
 .lightcode-drag-region {
   position: absolute;
   top: env(titlebar-area-y, 0px);
@@ -445,6 +452,9 @@ body {
   app-region: drag;
   user-select: none;
   z-index: 10;
+  border: none;
+  border-bottom: none;
+  box-shadow: none;
 }
 
 .lightcode-overlay-header__controls {

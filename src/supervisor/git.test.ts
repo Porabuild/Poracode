@@ -28,7 +28,7 @@ describe("computeDefaultWorktreePath", () => {
     simpleGitMock.mockReturnValue(gitMock);
   });
 
-  it("stores Windows worktrees under the user home .lightcode root", async () => {
+  it.skipIf(process.platform !== "win32")("stores Windows worktrees under the user home .lightcode root", async () => {
     const path = await computeDefaultWorktreePath(
       {
         kind: "windows",
@@ -44,7 +44,7 @@ describe("computeDefaultWorktreePath", () => {
     );
   });
 
-  it("separates same-named repos by hashing the canonical project path", async () => {
+  it.skipIf(process.platform !== "win32")("separates same-named repos by hashing the canonical project path", async () => {
     const first = await computeDefaultWorktreePath(
       {
         kind: "windows",

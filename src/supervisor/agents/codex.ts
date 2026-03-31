@@ -16,14 +16,13 @@ import type {
 import { toWslUncPath } from "../../shared/wsl";
 import {
   batchWslCommandsAsync,
-  buildWindowsCmdCommand,
+  buildAgentCommand,
   createKnownSessionRef,
   detectAuthFile,
   readCommandOutputAsync,
   readWslCommandOutputAsync,
   resolveExecutablePathAsync,
   resolveWslExecutablePath,
-  wrapWslCommand,
   type AgentAdapter,
   type AgentEnvContext,
   type AgentLaunchOptions,
@@ -158,10 +157,7 @@ function buildCommand(
           ...(prompt.trim().length > 0 ? [prompt] : []),
         ]
       : baseArgs;
-    if (location.kind === "windows") {
-      return buildWindowsCmdCommand(location.path, "codex", args);
-    }
-    return wrapWslCommand(location, "codex", args, wslExecPath);
+    return buildAgentCommand(location, "codex", args, wslExecPath);
   }
 
   const codexArgs = buildCodexArgs(config, prompt, launchOptions);
@@ -174,10 +170,7 @@ function buildCommand(
       ]
     : codexArgs;
 
-  if (location.kind === "windows") {
-    return buildWindowsCmdCommand(location.path, "codex", args);
-  }
-  return wrapWslCommand(location, "codex", args, wslExecPath);
+  return buildAgentCommand(location, "codex", args, wslExecPath);
 }
 
 export function buildCodexAppServerCommand(
@@ -186,11 +179,7 @@ export function buildCodexAppServerCommand(
   wslExecPath?: string,
 ): CommandSpec {
   const args = ["app-server", "--listen", remoteUrl, "--enable", CODEX_REMOTE_TUI_FEATURE];
-
-  if (location.kind === "windows") {
-    return buildWindowsCmdCommand(location.path, "codex", args);
-  }
-  return wrapWslCommand(location, "codex", args, wslExecPath);
+  return buildAgentCommand(location, "codex", args, wslExecPath);
 }
 
 function requireWebSocket(): typeof WebSocket {
@@ -929,17 +918,34 @@ async function connectCodexAppServer(
   );
 }
 
-const CODEX_UPDATE_RE = /Update available!/;
-const CODEX_READY_RE = /OpenAI Codex/;
-const CODEX_DIRECTORY_RE = /directory:/;
-const CODEX_MODEL_RE = /\/model to change/;
+// Bulletproof Codex detection patterns
+// - Case-insensitive matching
+// - Handles emoji prefixes (✨, etc.)
+// - Handles various whitespace and formatting
+// - Works across chunk boundaries
+
+const CODEX_UPDATE_RE = /(?:[✨⚡]\s*)?update\s+available/i;
+const CODEX_READY_RE = /openai\s+codex/i;
+const CODEX_DIRECTORY_RE = /directory\s*:/i;
+const CODEX_MODEL_RE = new RegExp("\\/model\\s+to\\s+change", "i");
 
 /**
  * Detect a Codex TUI "Update available!" interactive prompt from
  * ANSI-stripped PTY output.
+ *
+ * Bulletproof against:
+ * - Emoji prefixes (✨, ⚡, etc.)
+ * - Case variations
+ * - Extra whitespace
+ * - Partial matches across chunks
  */
 export function detectCodexUpdatePrompt(text: string): boolean {
-  return CODEX_UPDATE_RE.test(text);
+  // Normalize: remove emoji, normalize whitespace, make case-insensitive
+  const normalized = text
+    .replace(/[✨⚡💡]\s*/gu, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  return CODEX_UPDATE_RE.test(normalized);
 }
 
 export function detectCodexStartupPrompt(text: string): TerminalPrompt | null {
@@ -947,10 +953,26 @@ export function detectCodexStartupPrompt(text: string): TerminalPrompt | null {
     return null;
   }
 
-  const versionMatch = /Update available!\s*([0-9.]+)\s*->\s*([0-9.]+)/.exec(text);
+  // Extract version numbers with more flexible regex
+  // Handles: "0.106.0 -> 0.117.0", "0.106.0→0.117.0", etc.
+  const versionMatch =
+    /update\s+available[^0-9]*?([0-9.]+)\s*(?:→|->|\u2192)\s*([0-9.]+)/i.exec(text) ||
+    /(?:[✨⚡]\s*)?update\s+available[^0-9]*?([0-9.]+)\s*(?:→|->)\s*([0-9.]+)/i.exec(text);
+
   const title = versionMatch
     ? `Update available! ${versionMatch[1]} -> ${versionMatch[2]}`
     : "Update available!";
+
+  // Detect platform-specific command from output for description
+  const isBrew = /brew\s+(?:upgrade|install)/i.test(text);
+  const isWindows = /winget|powershell/i.test(text);
+
+  let updateCommand = "npm install -g @openai/codex";
+  if (isBrew) {
+    updateCommand = "brew upgrade --cask codex";
+  } else if (isWindows) {
+    updateCommand = "winget upgrade OpenAI.Codex";
+  }
 
   return {
     title,
@@ -958,7 +980,7 @@ export function detectCodexStartupPrompt(text: string): TerminalPrompt | null {
       {
         key: "1",
         label: "Update now",
-        description: "Runs npm install -g @openai/codex",
+        description: `Runs ${updateCommand}`,
         submitInput: "1",
       },
       {
@@ -978,11 +1000,20 @@ export function detectCodexStartupPrompt(text: string): TerminalPrompt | null {
 }
 
 export function detectCodexReadyForInitialPrompt(text: string): boolean {
+  // Early exit if update prompt is detected (takes precedence)
   if (detectCodexUpdatePrompt(text)) {
     return false;
   }
 
-  return CODEX_READY_RE.test(text) && CODEX_DIRECTORY_RE.test(text) && CODEX_MODEL_RE.test(text);
+  // Normalize for case-insensitive matching
+  const normalized = text.toLowerCase().replace(/\s+/g, " ");
+
+  // All three patterns must be present, but order doesn't matter
+  const hasReady = CODEX_READY_RE.test(normalized);
+  const hasDirectory = CODEX_DIRECTORY_RE.test(normalized);
+  const hasModel = CODEX_MODEL_RE.test(normalized);
+
+  return hasReady && hasDirectory && hasModel;
 }
 
 function formatAppServerOutput(chunks: string[]): string {

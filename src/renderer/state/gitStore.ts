@@ -17,16 +17,24 @@ interface GitActions {
   setBranches: (projectId: string, branches: GitBranchListResult) => void;
 }
 
-export const useGitStore = create<GitState & GitActions>()((set) => ({
+function shallowJsonEqual(a: unknown, b: unknown): boolean {
+  if (a === b) return true;
+  if (a == null || b == null) return false;
+  return JSON.stringify(a) === JSON.stringify(b);
+}
+
+export const useGitStore = create<GitState & GitActions>()((set, get) => ({
   statuses: {},
   worktreeStatuses: {},
   worktrees: {},
   branches: {},
 
-  setStatus: (projectId, status) =>
+  setStatus: (projectId, status) => {
+    if (shallowJsonEqual(get().statuses[projectId], status)) return;
     set((state) => ({
       statuses: { ...state.statuses, [projectId]: status },
-    })),
+    }));
+  },
 
   clearStatus: (projectId) =>
     set((state) => {
@@ -34,10 +42,12 @@ export const useGitStore = create<GitState & GitActions>()((set) => ({
       return { statuses: rest };
     }),
 
-  setWorktreeStatus: (worktreePath, status) =>
+  setWorktreeStatus: (worktreePath, status) => {
+    if (shallowJsonEqual(get().worktreeStatuses[worktreePath], status)) return;
     set((state) => ({
       worktreeStatuses: { ...state.worktreeStatuses, [worktreePath]: status },
-    })),
+    }));
+  },
 
   clearWorktreeStatus: (worktreePath) =>
     set((state) => {
@@ -45,13 +55,17 @@ export const useGitStore = create<GitState & GitActions>()((set) => ({
       return { worktreeStatuses: rest };
     }),
 
-  setWorktrees: (projectId, worktrees) =>
+  setWorktrees: (projectId, worktrees) => {
+    if (shallowJsonEqual(get().worktrees[projectId], worktrees)) return;
     set((state) => ({
       worktrees: { ...state.worktrees, [projectId]: worktrees },
-    })),
+    }));
+  },
 
-  setBranches: (projectId, branches) =>
+  setBranches: (projectId, branches) => {
+    if (shallowJsonEqual(get().branches[projectId], branches)) return;
     set((state) => ({
       branches: { ...state.branches, [projectId]: branches },
-    })),
+    }));
+  },
 }));

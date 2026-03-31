@@ -64,7 +64,7 @@ export function DevTerminalPanel(props: { projects: Project[] }) {
   }
 
   return (
-    <div className="flex h-full min-h-0 flex-col bg-[var(--content-background)] pt-5">
+    <div className="flex h-full min-h-0 flex-col bg-[var(--content-background)]">
       {/* Tab bar */}
       <div className="flex shrink-0 items-center gap-0 px-3">
         <Tabs
@@ -122,11 +122,11 @@ export function DevTerminalPanel(props: { projects: Project[] }) {
       </div>
 
       {/* Terminal surfaces — render ALL tabs (all projects) to keep them alive, only show active */}
-      <div className="relative min-h-0 flex-1 px-6 pt-1 pb-2">
+      <div className="relative min-h-0 flex-1 px-6 pb-2">
         {tabs.map((tab) => (
           <div
             key={tab.id}
-            className={`absolute inset-0 px-6 pt-1 pb-2 ${tab.id === selectedTabId ? "" : "invisible"}`}
+            className={`absolute inset-0 px-6 pb-2 ${tab.id === selectedTabId ? "" : "invisible"}`}
           >
             <XTermSurface
               terminalId={tab.id}

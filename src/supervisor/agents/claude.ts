@@ -8,12 +8,12 @@ import type {
 } from "../../shared/contracts";
 import {
   batchWslCommandsAsync,
+  buildAgentCommand,
   createKnownSessionRef,
   readCommandOutputAsync,
   readWslCommandOutputAsync,
   resolveExecutablePathAsync,
   resolveWslExecutablePath,
-  wrapWslCommand,
   type AgentEnvContext,
   type AgentAdapter,
   type SyncConfigFromTerminalStateInput,
@@ -165,13 +165,13 @@ export function createClaudeAdapter(): AgentAdapter {
     buildLaunchCommand(location, config, prompt, _sessionRef, _launchOptions) {
       const assignedId = randomUUID();
       const args = buildClaudeArgs(config, prompt, undefined, assignedId);
-      const spec = wrapWslCommand(location, "claude", args, resolveWslExecPath(location));
+      const spec = buildAgentCommand(location, "claude", args, resolveWslExecPath(location));
       spec.sessionRef = createKnownSessionRef(assignedId);
       return spec;
     },
     buildResumeCommand(location, config, prompt, sessionRef, _launchOptions) {
       const args = buildClaudeArgs(config, prompt, sessionRef.providerSessionId);
-      return wrapWslCommand(location, "claude", args, resolveWslExecPath(location));
+      return buildAgentCommand(location, "claude", args, resolveWslExecPath(location));
     },
     createInitialSessionRef() {
       return undefined;
@@ -202,21 +202,23 @@ type HintEntry = {
 
 const CLAUDE_HINTS: HintEntry[] = [
   {
-    re: /Esc to cancel\s.*Tab to amend/,
+    re: /Esc to cancel\s.*Tab to amend/i,
     status: "needs_approval",
     attention: "needs_approval",
     hasPrompt: true,
   },
-  { re: /Enter to select/, status: "needs_reply", attention: "needs_reply", hasPrompt: true },
-  { re: /esc to interrupt/, status: "working", attention: "working", hasPrompt: false },
-  // Animated spinner (✻✶✽✢*) + text + ellipsis — universal working indicator
-  { re: /[✻✶✽✢*]\s+\S.*…/, status: "working", attention: "working", hasPrompt: false },
+  { re: /Enter to select/i, status: "needs_reply", attention: "needs_reply", hasPrompt: true },
+  { re: /esc to interrupt/i, status: "working", attention: "working", hasPrompt: false },
+  // Animated spinner (✻✶✽✢*⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏) + text + ellipsis — universal working indicator
+  { re: /[✻✶✽✢*⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏]\s+\S.*(?:…|\.\.\.)/i, status: "working", attention: "working", hasPrompt: false },
   // Plan approval prompt — "ctrl-g to edit in Vim · <plan path>"
-  { re: /ctrl-g to edit/, status: "needs_reply", attention: "needs_reply", hasPrompt: true },
-  { re: /\?\s+for shortcuts/, status: "idle", attention: "none", hasPrompt: false },
-  { re: /plan mode on/, status: "idle", attention: "none", hasPrompt: false, planMode: true },
-  // ❯ prompt followed by separator line — universal idle indicator
-  { re: /❯/, status: "idle", attention: "none", hasPrompt: false },
+  { re: /ctrl-g to edit/i, status: "needs_reply", attention: "needs_reply", hasPrompt: true },
+  { re: /\?\s+for shortcuts/i, status: "idle", attention: "none", hasPrompt: false },
+  { re: /plan mode on/i, status: "idle", attention: "none", hasPrompt: false, planMode: true },
+  // ❯ or > prompt cursor — universal idle/ready indicator
+  { re: /❯|^\s*>/, status: "idle", attention: "none", hasPrompt: false },
+  // Type your message — idle indicator (fallback)
+  { re: /type your message/i, status: "idle", attention: "none", hasPrompt: false },
 ];
 
 // Match numbered options: "1. Yes", "❯ 2. No", "> 3. Something"
@@ -270,6 +272,15 @@ function buildPromptOptions(options: ParsedPromptOption[]): TerminalPrompt["opti
 
 function parseTerminalPrompt(text: string): TerminalPrompt | undefined {
   const lines = text.split("\n").map(cleanClaudePromptLine);
+
+  // Require a known prompt indicator (footer help text) to avoid false positives
+  // from startup output or other numbered lists that aren't interactive prompts.
+  const hasPromptIndicator =
+    FOOTER_HELP_RE.test(text) || /Esc to cancel|Tab to amend|Enter to select|ctrl-g to edit/i.test(text);
+
+  if (!hasPromptIndicator) {
+    return undefined;
+  }
 
   // Track the most recent logical block of numbered options.
   // Non-option content starts a new group, but decorative divider rows

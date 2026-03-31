@@ -403,17 +403,18 @@ export function GitDiffContent(props: {
       }
 
       const statusKey = buildGitStatusKey(gitStatus);
-      const shouldShowSkeletons = statusKeyRef.current !== statusKey;
-
-      if (shouldShowSkeletons) {
-        const skeletons = [
-          ...gitStatus.staged.map((f) => skeletonEntry(f.path, true, f.insertions, f.deletions)),
-          ...gitStatus.unstaged.map((f) =>
-            skeletonEntry(f.path, false, f.insertions, f.deletions),
-          ),
-        ];
-        if (!cancelled) setEntries(skeletons);
+      if (statusKeyRef.current === statusKey) {
+        setLoading(false);
+        return;
       }
+
+      const skeletons = [
+        ...gitStatus.staged.map((f) => skeletonEntry(f.path, true, f.insertions, f.deletions)),
+        ...gitStatus.unstaged.map((f) =>
+          skeletonEntry(f.path, false, f.insertions, f.deletions),
+        ),
+      ];
+      if (!cancelled) setEntries(skeletons);
 
       const untrackedPaths = gitStatus.unstaged.filter((f) => f.status === "?").map((f) => f.path);
 
@@ -451,7 +452,7 @@ export function GitDiffContent(props: {
           setEntries(populated);
         }
       } catch {
-        if (!cancelled && shouldShowSkeletons) {
+        if (!cancelled) {
           setEntries((prev) => prev.map((e) => ({ ...e, loading: false })));
         }
       }

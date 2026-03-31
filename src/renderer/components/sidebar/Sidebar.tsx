@@ -19,7 +19,7 @@ import type { Project, Thread } from "../../../shared/contracts";
 import { isReorderNoOp, type ReorderPlacement } from "../../state/reorder";
 import { ContextMenu, SidebarButton } from "../common";
 import { useSidebar } from "../layout/AppShell";
-import { readBridge } from "../../bridge";
+import { isWindows, readBridge } from "../../bridge";
 import { useUpdateStore } from "../../state/updateStore";
 import { ProviderIcon, getStatusTone } from "../providers";
 import { GitBadge } from "./GitBadge";
@@ -350,12 +350,10 @@ export function Sidebar(props: {
       <div
         className={`flex h-full min-h-0 flex-col gap-3 px-3 pb-1 pt-0 transition-opacity duration-150 ${isCollapsed ? "invisible opacity-0" : "opacity-100 delay-100"}`}
       >
-        <div className="min-h-0 flex-1 overflow-y-auto px-0 -mr-3 [scrollbar-gutter:stable]">
+        <div className={`min-h-0 flex-1 overflow-y-auto px-0 -mr-3 [scrollbar-gutter:stable] ${!isWindows() ? "pr-3" : ""}`}>
           {projects.length === 0 ? (
-            <div className="rounded-3xl border border-dashed border-white/8 bg-white/[0.02] px-4 py-5">
-              <p className="text-sm text-muted">
-                Add a project to start a real terminal-backed thread.
-              </p>
+            <div className="pt-4">
+              <p className="text-center text-sm text-muted">Add a project to start</p>
             </div>
           ) : (
             <div className="space-y-4">

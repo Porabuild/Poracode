@@ -5,7 +5,7 @@ import { TuxIcon } from "./components/common/TuxIcon";
 import { getProjectAgentStatuses } from "../shared/agentStatus";
 import { parseWslUncPath } from "../shared/wsl";
 import { buildWorktreeLocation } from "../shared/worktree";
-import { readBridge } from "./bridge";
+import { isWindows, readBridge } from "./bridge";
 import { ProviderIcon, getStatusTone } from "./components/providers";
 import { DevTerminalPanel } from "./components/devTerminal/DevTerminalPanel";
 import { PageLayout } from "./components/layout/PageLayout";
@@ -125,13 +125,11 @@ function HomeView() {
 
             <div className="mt-10 flex w-full flex-col gap-8">
               {/* Projects */}
+              {projects.length > 0 && (
               <section>
-                <h2 className="mb-3 text-xs font-semibold uppercase tracking-[0.12em] text-muted">
-                  Projects
-                </h2>
                 {projects.length === 0 ? (
                   <p className="text-sm text-muted">
-                    Add a project from the sidebar to get started.
+                    add a project to start
                   </p>
                 ) : (
                   <div className="flex flex-col gap-1">
@@ -152,6 +150,7 @@ function HomeView() {
                   </div>
                 )}
               </section>
+              )}
 
               {/* Recent threads */}
               {recentThreads.length > 0 ? (
@@ -442,6 +441,16 @@ function AppContent() {
             }}
             onClose={() => closePane(paneThreadId)}
             onConfigChange={(config) => updateThreadConfig(thread.id, config)}
+            onPromptInteract={() => {
+              // Immediately clear the prompt when user interacts with it
+              // Omit terminalPrompt to clear it (undefined would not satisfy type)
+              updateThreadRuntime(thread.id, {
+                status: thread.status,
+                attention: thread.attention,
+                ...(thread.sessionRef ? { sessionRef: thread.sessionRef } : {}),
+                canResumeWithConfig: thread.canResumeWithConfig,
+              } as Parameters<typeof updateThreadRuntime>[1]);
+            }}
             pendingServerRequests={pendingServerRequests.filter(
               (request) => request.threadId === thread.id,
             )}
@@ -736,72 +745,57 @@ export function App() {
       const shouldFetch = t0 - lastFetchTime >= GIT_FETCH_INTERVAL_MS;
       if (shouldFetch) lastFetchTime = t0;
 
-      for (const project of projects) {
-        if (!isActive) return;
-
-        // Background fetch (best-effort, don't block status polling)
-        if (shouldFetch) {
-          try {
-            await readBridge().gitFetch({ projectLocation: project.location, remote: "origin", prune: false });
-          } catch {
-            // ignore — remote may be unreachable
-          }
+      await Promise.all(
+        projects.map(async (project) => {
           if (!isActive) return;
-        }
 
-        // Main project status
-        try {
-          const pt = Date.now();
-          const status = await readBridge().getGitStatus({
-            projectLocation: project.location,
-          });
-          console.log(
-            `[renderer] git status ${project.name} (${project.location.kind}): ${Date.now() - pt}ms`,
-          );
-          if (!isActive) return;
-          gitStoreActions.setStatus(project.id, status);
-        } catch {
-          // Not a git repo or git not available
-        }
-
-        // Branches
-        try {
-          const branches = await readBridge().gitListBranches({
-            projectLocation: project.location,
-            includeRemote: true,
-          });
-          if (!isActive) return;
-          gitStoreActions.setBranches(project.id, branches);
-        } catch {
-          // ignore
-        }
-
-        // Worktrees
-        try {
-          const { worktrees } = await readBridge().gitListWorktrees({
-            projectLocation: project.location,
-          });
-          if (!isActive) return;
-          gitStoreActions.setWorktrees(project.id, worktrees);
-
-          // Poll status for each non-main worktree
-          for (const wt of worktrees) {
-            if (wt.isMain || !isActive) continue;
+          // Background fetch (best-effort, don't block status polling)
+          if (shouldFetch) {
             try {
-              const wtLocation = buildWorktreeLocation(project.location, wt.path);
-              const wtStatus = await readBridge().getGitStatus({
-                projectLocation: wtLocation,
-              });
-              if (!isActive) return;
-              gitStoreActions.setWorktreeStatus(wt.path, wtStatus);
+              await readBridge().gitFetch({ projectLocation: project.location, remote: "origin", prune: false });
             } catch {
-              // ignore
+              // ignore — remote may be unreachable
             }
+            if (!isActive) return;
           }
-        } catch {
-          // ignore
-        }
-      }
+
+          // Status, branches, and worktrees in parallel
+          const [statusResult, branchesResult, worktreesResult] = await Promise.allSettled([
+            readBridge().getGitStatus({ projectLocation: project.location }),
+            readBridge().gitListBranches({ projectLocation: project.location, includeRemote: true }),
+            readBridge().gitListWorktrees({ projectLocation: project.location }),
+          ]);
+          if (!isActive) return;
+
+          if (statusResult.status === "fulfilled") {
+            gitStoreActions.setStatus(project.id, statusResult.value);
+          }
+          if (branchesResult.status === "fulfilled") {
+            gitStoreActions.setBranches(project.id, branchesResult.value);
+          }
+          if (worktreesResult.status === "fulfilled") {
+            const { worktrees } = worktreesResult.value;
+            gitStoreActions.setWorktrees(project.id, worktrees);
+
+            // Poll status for each non-main worktree in parallel
+            await Promise.all(
+              worktrees
+                .filter((wt) => !wt.isMain)
+                .map(async (wt) => {
+                  if (!isActive) return;
+                  try {
+                    const wtLocation = buildWorktreeLocation(project.location, wt.path);
+                    const wtStatus = await readBridge().getGitStatus({ projectLocation: wtLocation });
+                    if (!isActive) return;
+                    gitStoreActions.setWorktreeStatus(wt.path, wtStatus);
+                  } catch {
+                    // ignore
+                  }
+                }),
+            );
+          }
+        }),
+      );
       console.log(`[renderer] git poll total: ${Date.now() - t0}ms (${projects.length} projects)`);
     }
 
@@ -862,73 +856,96 @@ export function App() {
         onTitleClick={() => startTransition(() => openHome())}
         headerChildren={
           <div className="lightcode-overlay-header__controls">
-            <Dropdown>
+            {isWindows() ? (
+              <Dropdown>
+                <Button
+                  isIconOnly
+                  aria-label="Add project"
+                  size="sm"
+                  variant="ghost"
+                  className="size-6 min-w-0 text-muted hover:text-foreground"
+                >
+                  <FolderPlus className="size-3.5" />
+                </Button>
+                <Dropdown.Popover>
+                  <Dropdown.Menu
+                    aria-label="Add project options"
+                    onAction={(key) => {
+                      if (key === "windows") {
+                        void readBridge()
+                          .pickFolder()
+                          .then((path) => {
+                            if (!path) return;
+                            startTransition(() => {
+                              const project = addProject({ kind: "windows", path });
+                              openDraft(project.id);
+                            });
+                          });
+                      }
+                      if (key === "wsl") {
+                        void readBridge()
+                          .listWslDistros()
+                          .then((distros) => {
+                            const distro = distros[0];
+                            const defaultPath = distro
+                              ? `\\\\wsl.localhost\\${distro}\\home`
+                              : undefined;
+                            return readBridge().pickFolder(defaultPath);
+                          })
+                          .then((selectedPath) => {
+                            if (!selectedPath) return;
+                            const parsed = parseWslUncPath(selectedPath);
+                            if (!parsed) return;
+                            startTransition(() => {
+                              const project = addProject({
+                                kind: "wsl",
+                                distro: parsed.distro,
+                                linuxPath: parsed.linuxPath,
+                                uncPath: selectedPath,
+                              });
+                              openDraft(project.id);
+                            });
+                          });
+                      }
+                    }}
+                  >
+                    <Dropdown.Item id="windows" textValue="Add Windows Project">
+                      <Monitor className="size-4 shrink-0 text-muted" />
+                      <Label>Add Windows Project</Label>
+                    </Dropdown.Item>
+                    <Dropdown.Item
+                      id="wsl"
+                      isDisabled={!wslAvailable}
+                      textValue="Add WSL Project"
+                    >
+                      <TuxIcon className="size-4 shrink-0 text-muted" />
+                      <Label>Add WSL Project</Label>
+                    </Dropdown.Item>
+                  </Dropdown.Menu>
+                </Dropdown.Popover>
+              </Dropdown>
+            ) : (
               <Button
                 isIconOnly
                 aria-label="Add project"
                 size="sm"
                 variant="ghost"
                 className="size-6 min-w-0 text-muted hover:text-foreground"
+                onPress={() => {
+                  void readBridge()
+                    .pickFolder()
+                    .then((path) => {
+                      if (!path) return;
+                      startTransition(() => {
+                        const project = addProject({ kind: "posix", path });
+                        openDraft(project.id);
+                      });
+                    });
+                }}
               >
                 <FolderPlus className="size-3.5" />
               </Button>
-              <Dropdown.Popover>
-                <Dropdown.Menu
-                  aria-label="Add project options"
-                  onAction={(key) => {
-                    if (key === "windows") {
-                      void readBridge()
-                        .pickFolder()
-                        .then((path) => {
-                          if (!path) return;
-                          startTransition(() => {
-                            const project = addProject({ kind: "windows", path });
-                            openDraft(project.id);
-                          });
-                        });
-                    }
-                    if (key === "wsl") {
-                      void readBridge()
-                        .listWslDistros()
-                        .then((distros) => {
-                          const distro = distros[0];
-                          const defaultPath = distro
-                            ? `\\\\wsl.localhost\\${distro}\\home`
-                            : undefined;
-                          return readBridge().pickFolder(defaultPath);
-                        })
-                        .then((selectedPath) => {
-                          if (!selectedPath) return;
-                          const parsed = parseWslUncPath(selectedPath);
-                          if (!parsed) return;
-                          startTransition(() => {
-                            const project = addProject({
-                              kind: "wsl",
-                              distro: parsed.distro,
-                              linuxPath: parsed.linuxPath,
-                              uncPath: selectedPath,
-                            });
-                            openDraft(project.id);
-                          });
-                        });
-                    }
-                  }}
-                >
-                  <Dropdown.Item id="windows" textValue="Add Windows Project">
-                    <Monitor className="size-4 shrink-0 text-muted" />
-                    <Label>Add Windows Project</Label>
-                  </Dropdown.Item>
-                  <Dropdown.Item
-                    id="wsl"
-                    isDisabled={!wslAvailable}
-                    textValue="Add WSL Project"
-                  >
-                    <TuxIcon className="size-4 shrink-0 text-muted" />
-                    <Label>Add WSL Project</Label>
-                  </Dropdown.Item>
-                </Dropdown.Menu>
-              </Dropdown.Popover>
-            </Dropdown>
+            )}
           </div>
         }
         sidebar={

@@ -66,6 +66,7 @@ export function ThreadView(props: {
     | undefined;
   onPaneDrop?: ((event: React.DragEvent) => void) | undefined;
   onConfigChange: (config: ThreadConfig) => void;
+  onPromptInteract?: (() => void) | undefined;
   onLaunchConsumed?: (() => void) | undefined;
   onLaunchFailed?: (() => void) | undefined;
   onResolveServerRequest: (input: {
@@ -198,17 +199,28 @@ export function ThreadView(props: {
     void readBridge().writeTerminal({ threadId: thread.id, data });
   };
 
+  const handlePromptInteract = () => {
+    props.onPromptInteract?.();
+  };
+
   const promptInputContent = terminalPrompt ? (
     <PromptOptions
       title={terminalPrompt.title}
       options={terminalPrompt.options}
-      onSelect={(key) => writeTerminalData(key)}
+      onSelect={(key) => {
+        handlePromptInteract();
+        writeTerminalData(key);
+      }}
       onSubmitText={(key, text) => {
+        handlePromptInteract();
         writeTerminalData(key);
         setTimeout(() => writeTerminalData(text), 150);
         setTimeout(() => writeTerminalData("\r"), 300);
       }}
-      onCancel={() => writeTerminalData("\x1b")}
+      onCancel={() => {
+        handlePromptInteract();
+        writeTerminalData("\x1b");
+      }}
     />
   ) : undefined;
 
@@ -305,6 +317,7 @@ export function ThreadView(props: {
             <div className="min-h-0 flex-1 overflow-hidden">
               {usesTerminalPresentation ? (
                 <TerminalPane
+                  key={thread.id}
                   onTerminalResize={setTerminalSize}
                   readOnly={isServerControlled}
                   status={thread.status}

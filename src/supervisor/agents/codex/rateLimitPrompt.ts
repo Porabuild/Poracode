@@ -3,9 +3,15 @@ export interface RateLimitPromptInfo {
   options: Array<{ index: number; label: string; description: string }>;
 }
 
-const HEADER_RE = /Approaching rate limits/;
-const MODEL_RE = /Switch to (\S+)/;
-// Match numbered options regardless of prefix (>, ❯, spaces, cursor artifacts).
+// Bulletproof rate limit prompt detection
+// - Case-insensitive matching
+// - Handles various whitespace and formatting
+// - Handles different cursor prefixes (>, ❯, →, etc.)
+// - Robust option parsing
+
+const HEADER_RE = /approaching\s+rate\s+limits/i;
+const MODEL_RE = /switch\s+to\s+(\S+)/i;
+// Match numbered options regardless of prefix (>, ❯, →, spaces, cursor artifacts).
 // \W* consumes any non-word prefix so word-starting lines (e.g. "Switch to gpt-5.1...")
 // won't false-match on the embedded "5." digit.
 const OPTION_RE = /^\W*[1-9]\.\s+(.+)/;
@@ -14,6 +20,12 @@ const OPTION_RE = /^\W*[1-9]\.\s+(.+)/;
  * Detect a Codex TUI "Approaching rate limits" interactive prompt from
  * ANSI-stripped PTY output. Returns structured info when the prompt is
  * present, or `null` otherwise.
+ *
+ * Bulletproof against:
+ * - Case variations
+ * - Different cursor prefixes (>, ❯, →, etc.)
+ * - Extra whitespace and formatting
+ * - Partial matches across chunks
  */
 export function detectRateLimitPrompt(text: string): RateLimitPromptInfo | null {
   if (!HEADER_RE.test(text)) {
