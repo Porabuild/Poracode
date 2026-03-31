@@ -77,31 +77,39 @@ function findBestMatch(
 }
 
 export function detectGeminiTerminalStatus(text: string): TerminalStatusHint | null {
-  const primaryBest = findBestMatch(
+  // Three-tier priority: strong signals are always authoritative, weak working
+  // signals (braille spinner) beat fallback idle, and fallback idle ("Type your
+  // message") is used only when nothing stronger exists.  The stale-spinner
+  // edge case (weak char lingering after a transition to idle) is handled by
+  // the runtime's temporal-stabilization layer instead of positional heuristics.
+
+  // Tier 1 — strong signals: title-bar indicators, explicit text like
+  // "Thinking…", approval prompts, "◇ Ready".
+  const strongBest = findBestMatch(
     text,
-    GEMINI_HINTS.filter((entry) => entry.signal !== "fallbackIdle"),
+    GEMINI_HINTS.filter((e) => e.signal !== "fallbackIdle" && e.signal !== "weakWorking"),
   );
+  if (strongBest) {
+    return { status: strongBest.entry.status, attention: strongBest.entry.attention };
+  }
+
+  // Tier 2 — weak working signals: braille spinner characters.
+  const weakBest = findBestMatch(
+    text,
+    GEMINI_HINTS.filter((e) => e.signal === "weakWorking"),
+  );
+  if (weakBest) {
+    return { status: weakBest.entry.status, attention: weakBest.entry.attention };
+  }
+
+  // Tier 3 — fallback idle: "Type your message", "? for shortcuts".
   const fallbackBest = findBestMatch(
     text,
-    GEMINI_HINTS.filter((entry) => entry.signal === "fallbackIdle"),
+    GEMINI_HINTS.filter((e) => e.signal === "fallbackIdle"),
   );
+  if (fallbackBest) {
+    return { status: fallbackBest.entry.status, attention: fallbackBest.entry.attention };
+  }
 
-  // If a fallbackIdle match appears AFTER a weak primary match, prefer it —
-  // braille spinner characters persist as stale data in the rolling buffer
-  // long after the screen redraws to idle.  Stronger working signals
-  // (✦ Working, Thinking…, etc.) always take priority.
-  const best =
-    primaryBest &&
-    fallbackBest &&
-    fallbackBest.index > primaryBest.index &&
-    primaryBest.entry.signal === "weakWorking"
-      ? fallbackBest
-      : (primaryBest ?? fallbackBest);
-
-  if (!best) return null;
-
-  return {
-    status: best.entry.status,
-    attention: best.entry.attention,
-  };
+  return null;
 }

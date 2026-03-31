@@ -68,6 +68,15 @@ async function flushHistory() {
   });
 }
 
+/** Flush the write-batching setTimeout (8 ms coalescing window). */
+async function flushWriteTimer() {
+  await act(async () => {
+    await new Promise<void>((resolve) => {
+      setTimeout(() => resolve(), 16);
+    });
+  });
+}
+
 type MockFn = ReturnType<typeof vi.fn>;
 
 interface MockTerminalShape {
@@ -143,6 +152,7 @@ describe("XTermSurface", () => {
         outputLength: 11,
       });
     });
+    await flushWriteTimer();
 
     expect(terminal().write).toHaveBeenCalledWith("hello world");
   });
@@ -159,6 +169,7 @@ describe("XTermSurface", () => {
         outputLength: 4,
       });
     });
+    await flushWriteTimer();
 
     expect(terminal().write).not.toHaveBeenCalled();
   });
@@ -206,6 +217,7 @@ describe("XTermSurface", () => {
         outputLength: 11,
       });
     });
+    await flushWriteTimer();
 
     expect(terminal().write).toHaveBeenCalledWith("after reset");
   });

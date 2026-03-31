@@ -16,6 +16,7 @@ import {
 import { TuxIcon } from "../common/TuxIcon";
 import { useEffect, useRef, useState, type DragEvent } from "react";
 import type { Project, Thread } from "../../../shared/contracts";
+import { useAppStore } from "../../state/appStore";
 import { isReorderNoOp, type ReorderPlacement } from "../../state/reorder";
 import { ContextMenu, SidebarButton } from "../common";
 import { useSidebar } from "../layout/AppShell";
@@ -210,7 +211,6 @@ function ThreadIcon(props: { thread: Thread }) {
 
 export function Sidebar(props: {
   projects: Project[];
-  threads: Thread[];
   currentProjectId: string | undefined;
   currentThreadIds: string[];
   onOpenNewThread: (projectId?: string) => void;
@@ -240,9 +240,9 @@ export function Sidebar(props: {
   ) => void;
   onReorderThreadBlock: (blockIds: string[], targetId: string, placement: ReorderPlacement) => void;
 }) {
+  const threads = useAppStore((state) => state.threads);
   const {
     projects,
-    threads,
     currentProjectId,
     currentThreadIds,
     onOpenNewThread,

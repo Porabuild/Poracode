@@ -91,6 +91,19 @@ describe("detectGeminiTerminalStatus", () => {
     });
   });
 
+  it("keeps working when spinner is present but no title bar signal exists", () => {
+    const text = [
+      "⠋ This is taking a bit longer, we're still on it. (esc to cancel, 2m 13s)",
+      ">   Type your message or @path/to/file",
+      "? for shortcuts",
+    ].join("\n");
+
+    expect(detectGeminiTerminalStatus(text)).toEqual({
+      status: "working",
+      attention: "working",
+    });
+  });
+
   it("still uses the input prompt as an idle fallback when no stronger signal exists", () => {
     const text = ">   Type your message or @path/to/file";
     expect(detectGeminiTerminalStatus(text)).toEqual({

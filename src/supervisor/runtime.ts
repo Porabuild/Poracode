@@ -75,6 +75,16 @@ import { GitService } from "./git";
 import { resetTerminalLogFile, resetTerminalLogsDir } from "./terminalLogs";
 import { detectWindowsShell, type WindowsShellPreference } from "./shellPreference";
 
+/**
+ * Stabilization delays (ms) for terminal-derived status transitions.
+ * High-priority statuses (needs_approval, needs_reply, error) are immediate.
+ * Lower-priority statuses wait to filter out TUI animation artifacts.
+ */
+const STATUS_STABILIZATION_DELAY: Partial<Record<ThreadStatus, number>> = {
+  working: 150,
+  idle: 300,
+};
+
 interface SessionRuntime {
   instanceId: string;
   threadId: string;
@@ -99,6 +109,12 @@ interface SessionRuntime {
   sessionRefDiscoveryStarted?: boolean;
   pendingLaunchPrompt?: string | undefined;
   prevChunk: string;
+  /** Pending status stabilization — delays low-risk transitions to filter TUI animation noise. */
+  pendingStatusHint?: {
+    status: ThreadStatus;
+    attention: ThreadAttention;
+    timer: ReturnType<typeof setTimeout>;
+  } | undefined;
 }
 
 interface ShellSessionRuntime {
@@ -569,6 +585,10 @@ export class SupervisorRuntime {
     }
 
     existing.ignoreExit = true;
+    if (existing.pendingStatusHint) {
+      clearTimeout(existing.pendingStatusHint.timer);
+      existing.pendingStatusHint = undefined;
+    }
     this.sessions.delete(payload.threadId);
     await existing.structuredSession?.dispose();
     // Yield so the PTY exit event can fire before we force-kill.
@@ -1152,7 +1172,38 @@ export class SupervisorRuntime {
           }
 
           if (session.status !== hint.status || session.attention !== hint.attention) {
-            this.updateState(session, hint.status, hint.attention);
+            const delay = STATUS_STABILIZATION_DELAY[hint.status] ?? 0;
+
+            if (delay === 0) {
+              // High-priority transition — emit immediately, cancel any pending stabilization.
+              if (session.pendingStatusHint) {
+                clearTimeout(session.pendingStatusHint.timer);
+                session.pendingStatusHint = undefined;
+              }
+              this.updateState(session, hint.status, hint.attention);
+            } else if (
+              session.pendingStatusHint &&
+              session.pendingStatusHint.status === hint.status &&
+              session.pendingStatusHint.attention === hint.attention
+            ) {
+              // Same status already pending — keep the existing timer (don't slide the window).
+            } else {
+              // Low-priority transition — require temporal stability before emitting.
+              if (session.pendingStatusHint) {
+                clearTimeout(session.pendingStatusHint.timer);
+              }
+              session.pendingStatusHint = {
+                status: hint.status,
+                attention: hint.attention,
+                timer: setTimeout(() => {
+                  session.pendingStatusHint = undefined;
+                  if (session.status !== hint.status || session.attention !== hint.attention) {
+                    this.updateState(session, hint.status, hint.attention);
+                  }
+                }, delay),
+              };
+            }
+
             // Trigger session ID discovery on the first real status detection —
             // the provider's terminal presentation is live, so the session file is guaranteed to exist.
             if (
@@ -1403,6 +1454,12 @@ export class SupervisorRuntime {
       errorMessage === undefined
     ) {
       return;
+    }
+
+    // Any concrete state transition cancels a pending stabilization.
+    if (session.pendingStatusHint) {
+      clearTimeout(session.pendingStatusHint.timer);
+      session.pendingStatusHint = undefined;
     }
 
     session.status = status;

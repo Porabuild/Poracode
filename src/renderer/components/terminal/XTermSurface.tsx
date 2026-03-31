@@ -86,6 +86,35 @@ export function XTermSurface(props: {
     let historyLength = 0;
     const pendingEvents: Array<{ data: string; outputLength: number }> = [];
 
+    // ── Write batching ───────────────────────────────────────────
+    // Full-screen TUIs (e.g. Gemini CLI) send screen redraws as
+    // multiple PTY chunks (clear + rewrite).  The chunks arrive as
+    // separate IPC events (macrotasks).  If a rAF callback fires
+    // between two related IPC events, the first chunk is flushed
+    // alone and xterm renders a partial screen state → flicker.
+    //
+    // Fix: use a short setTimeout (8 ms ≈ half a frame) instead of
+    // requestAnimationFrame.  This gives a consistent coalescing
+    // window: all IPC events that arrive within the timeout are
+    // guaranteed to be batched into a single `terminal.write()`.
+    // 8 ms is imperceptible but long enough to span the gap between
+    // closely-spaced PTY read events.
+    let writeBuf = "";
+    let writeTimer = 0;
+    const flushWrites = () => {
+      writeTimer = 0;
+      if (writeBuf) {
+        terminal.write(writeBuf);
+        writeBuf = "";
+      }
+    };
+    const queueWrite = (data: string) => {
+      writeBuf += data;
+      if (writeTimer === 0) {
+        writeTimer = window.setTimeout(flushWrites, 8) as unknown as number;
+      }
+    };
+
     const terminal = new Terminal({
       cursorBlink: !readOnly,
       cursorStyle: "bar",
@@ -193,7 +222,7 @@ export function XTermSurface(props: {
           pendingEvents.push({ data: event.data, outputLength: event.outputLength });
           return;
         }
-        terminal.write(event.data);
+        queueWrite(event.data);
         return;
       }
 
@@ -217,9 +246,9 @@ export function XTermSurface(props: {
         for (const evt of pendingEvents) {
           const dataStart = evt.outputLength - evt.data.length;
           if (dataStart >= historyLength) {
-            terminal.write(evt.data);
+            queueWrite(evt.data);
           } else if (evt.outputLength > historyLength) {
-            terminal.write(evt.data.slice(historyLength - dataStart));
+            queueWrite(evt.data.slice(historyLength - dataStart));
           }
         }
         pendingEvents.length = 0;
@@ -237,7 +266,7 @@ export function XTermSurface(props: {
         if (!isActive) return;
         historyLoaded = true;
         for (const evt of pendingEvents) {
-          terminal.write(evt.data);
+          queueWrite(evt.data);
         }
         pendingEvents.length = 0;
         requestAnimationFrame(() => {
@@ -251,6 +280,9 @@ export function XTermSurface(props: {
       isActive = false;
       if (resizeFrame !== 0) {
         cancelAnimationFrame(resizeFrame);
+      }
+      if (writeTimer !== 0) {
+        clearTimeout(writeTimer);
       }
       unsubscribe();
       resizeObserver.disconnect();
