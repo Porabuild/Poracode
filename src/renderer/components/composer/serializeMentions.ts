@@ -59,7 +59,10 @@ export function serializeToSegments(container: HTMLDivElement): PromptSegment[] 
 /** Flatten segments into a display string (for submitDisabled checks, etc.). */
 export function flattenSegments(segments: PromptSegment[]): string {
   return segments
-    .map((s) => (s.kind === "file" ? `@${s.path}` : s.content))
+    .map((s) => {
+      if (s.kind === "file" || s.kind === "attachment") return `@${s.path}`;
+      return s.content;
+    })
     .join("")
     .trim();
 }

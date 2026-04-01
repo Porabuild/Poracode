@@ -101,10 +101,19 @@ export const MentionInput = forwardRef<
     projectLocation: ProjectLocation | undefined;
     onTextChange: (hasText: boolean) => void;
     onSubmit: (segments: PromptSegment[]) => void;
+    onPasteImage?: (file: File) => void;
   }
 >(function MentionInput(props, ref) {
-  const { autoFocus, compact, disabled, placeholder, projectLocation, onTextChange, onSubmit } =
-    props;
+  const {
+    autoFocus,
+    compact,
+    disabled,
+    placeholder,
+    projectLocation,
+    onTextChange,
+    onSubmit,
+    onPasteImage,
+  } = props;
   const editorRef = useRef<HTMLDivElement>(null);
   const [mention, setMention] = useState<MentionState | null>(null);
   const [activeIndex, setActiveIndex] = useState(0);
@@ -263,6 +272,25 @@ export const MentionInput = forwardRef<
 
   // #7 fix: use Range-based insertion instead of deprecated document.execCommand
   function handlePaste(e: React.ClipboardEvent<HTMLDivElement>) {
+    // Detect pasted images from clipboard (screenshots, copied images)
+    const imageFile =
+      Array.from(e.clipboardData.files).find((f) => f.type.startsWith("image/")) ??
+      (() => {
+        // Fallback: check clipboardData.items for Windows compatibility
+        for (const item of e.clipboardData.items) {
+          if (item.type.startsWith("image/")) {
+            return item.getAsFile();
+          }
+        }
+        return null;
+      })();
+
+    if (imageFile && onPasteImage) {
+      e.preventDefault();
+      onPasteImage(imageFile);
+      return;
+    }
+
     e.preventDefault();
     const text = e.clipboardData.getData("text/plain");
     const sel = window.getSelection();

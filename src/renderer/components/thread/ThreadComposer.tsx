@@ -38,6 +38,7 @@ export function ThreadComposer(props: {
   prompt: string;
   placeholder: string;
   inputContent?: ReactNode;
+  attachmentBar?: ReactNode;
   promptDisabled?: boolean;
   submitLabel: string;
   submitDisabled: boolean;
@@ -52,6 +53,7 @@ export function ThreadComposer(props: {
     prompt,
     placeholder,
     inputContent,
+    attachmentBar,
     promptDisabled = false,
     submitLabel,
     submitDisabled,
@@ -277,6 +279,7 @@ export function ThreadComposer(props: {
   return (
     <div>
       <div className="lightcode-composer-shell overflow-hidden">
+        {attachmentBar}
         {renderEditor()}
         <div className={toolbarClassName}>
           {renderControls()}

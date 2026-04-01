@@ -3,6 +3,8 @@ import type { LightcodeBridge, SupervisorEvent, UpdateStatus } from "../shared/i
 
 const CHANNELS = {
   pickFolder: "lightcode:pick-folder",
+  pickFiles: "lightcode:pick-files",
+  saveClipboardImage: "lightcode:save-clipboard-image",
   listWslDistros: "lightcode:list-wsl-distros",
   getAgentStatuses: "lightcode:get-agent-statuses",
   getThreadSnapshots: "lightcode:get-thread-snapshots",
@@ -25,6 +27,7 @@ const CHANNELS = {
   gitRevertAll: "lightcode:git-revert-all",
   gitCommit: "lightcode:git-commit",
   generateCommitMessage: "lightcode:generate-commit-message",
+  generateTitle: "lightcode:generate-title",
   gitListBranches: "lightcode:git-list-branches",
   gitFetch: "lightcode:git-fetch",
   gitListWorktrees: "lightcode:git-list-worktrees",
@@ -57,6 +60,8 @@ const CHANNELS = {
 const bridge: LightcodeBridge = {
   platform: process.platform,
   pickFolder: (defaultPath?) => ipcRenderer.invoke(CHANNELS.pickFolder, defaultPath),
+  pickFiles: (options?) => ipcRenderer.invoke(CHANNELS.pickFiles, options),
+  saveClipboardImage: (payload) => ipcRenderer.invoke(CHANNELS.saveClipboardImage, payload),
   listWslDistros: () => ipcRenderer.invoke(CHANNELS.listWslDistros),
   getAgentStatuses: (wslDistros) =>
     ipcRenderer.invoke(CHANNELS.getAgentStatuses, { wslDistros: wslDistros ?? [] }),
@@ -81,6 +86,7 @@ const bridge: LightcodeBridge = {
   gitRevertAll: (payload) => ipcRenderer.invoke(CHANNELS.gitRevertAll, payload),
   gitCommit: (payload) => ipcRenderer.invoke(CHANNELS.gitCommit, payload),
   generateCommitMessage: (payload) => ipcRenderer.invoke(CHANNELS.generateCommitMessage, payload),
+  generateTitle: (payload) => ipcRenderer.invoke(CHANNELS.generateTitle, payload),
   gitListBranches: (payload) => ipcRenderer.invoke(CHANNELS.gitListBranches, payload),
   gitFetch: (payload) => ipcRenderer.invoke(CHANNELS.gitFetch, payload),
   gitListWorktrees: (payload) => ipcRenderer.invoke(CHANNELS.gitListWorktrees, payload),

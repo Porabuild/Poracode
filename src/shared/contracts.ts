@@ -170,6 +170,7 @@ export type TerminalSize = z.infer<typeof terminalSizeSchema>;
 export const promptSegmentSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("text"), content: z.string() }),
   z.object({ kind: z.literal("file"), path: z.string() }),
+  z.object({ kind: z.literal("attachment"), path: z.string(), mimeType: z.string().optional() }),
 ]);
 export type PromptSegment = z.infer<typeof promptSegmentSchema>;
 
@@ -343,6 +344,21 @@ export type GenerateCommitMessagePayload = z.infer<typeof generateCommitMessageP
 
 export interface GenerateCommitMessageResult {
   message: string;
+}
+
+// ── Title Generation ─────────────────────────────────────
+
+export const generateTitlePayloadSchema = z.object({
+  projectLocation: projectLocationSchema,
+  agentKind: agentKindSchema,
+  prompt: z.string().min(1),
+  model: z.string().min(1).optional(),
+  effort: z.string().min(1).optional(),
+});
+export type GenerateTitlePayload = z.infer<typeof generateTitlePayloadSchema>;
+
+export interface GenerateTitleResult {
+  title: string;
 }
 
 // ── Branch & Worktree ───────────────────────────────────

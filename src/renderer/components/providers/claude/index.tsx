@@ -6,11 +6,13 @@ import {
   registerCommitGenDefaults,
   registerComposerControls,
   registerProviderIcon,
+  registerTitleGenDefaults,
 } from "../ProviderIcon";
 import { withCurrentModel } from "../../thread/threadComposerOptions";
 
 registerProviderIcon("claude", ClaudeIcon);
 registerCommitGenDefaults("claude", { model: "haiku", effort: "" });
+registerTitleGenDefaults("claude", { model: "haiku", effort: "" });
 
 registerComposerControls("claude", ({ capabilities, config, isDisabled, onConfigChange }) => {
   const availableEfforts =

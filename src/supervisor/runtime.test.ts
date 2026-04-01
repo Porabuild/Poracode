@@ -144,9 +144,13 @@ describe("writeSubmittedPrompt", () => {
       },
     });
 
-    expect(session.structuredSession.startTurn).toHaveBeenCalledWith("hello", {
-      model: "gpt-5.4",
-    });
+    expect(session.structuredSession.startTurn).toHaveBeenCalledWith(
+      "hello",
+      {
+        model: "gpt-5.4",
+      },
+      undefined,
+    );
     expect(session.pty.write).not.toHaveBeenCalled();
     expect(emitted).toEqual([
       expect.objectContaining({
@@ -195,9 +199,13 @@ describe("writeSubmittedPrompt", () => {
       }),
     ).resolves.toBeUndefined();
 
-    expect(session.structuredSession.startTurn).toHaveBeenCalledWith("hello", {
-      model: "gpt-5.4",
-    });
+    expect(session.structuredSession.startTurn).toHaveBeenCalledWith(
+      "hello",
+      {
+        model: "gpt-5.4",
+      },
+      undefined,
+    );
     expect(emitted).toEqual([
       expect.objectContaining({
         type: "thread-state",

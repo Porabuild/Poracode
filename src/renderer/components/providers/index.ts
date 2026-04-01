@@ -3,6 +3,7 @@ export * from "./statusTone";
 export * from "./StatusIcon";
 export * from "./ProviderIcon";
 export * from "./commitGen";
+export * from "./titleGen";
 
 /**
  * Provider registrations (renderer manifest).

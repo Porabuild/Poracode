@@ -6,6 +6,7 @@ import type {
   AgentCapability,
   AgentStatus,
   ProjectLocation,
+  PromptSegment,
   SessionRef,
   ThreadAttention,
   ThreadConfig,
@@ -580,18 +581,41 @@ class CodexStructuredSession implements StructuredSessionHandle {
     }
   }
 
-  async startTurn(prompt: string, config: ThreadConfig): Promise<void> {
+  async startTurn(prompt: string, config: ThreadConfig, segments?: PromptSegment[]): Promise<void> {
     const threadId = await this.waitForRemoteThreadId();
+
+    // Build structured input using native Codex protocol types:
+    //   - "localImage" for image attachments (path-based)
+    //   - "mention"    for file reference segments (@-mentions)
+    //   - "text"       for the prompt text
+    const input: Record<string, unknown>[] = [];
+
+    for (const seg of segments ?? []) {
+      if (seg.kind === "attachment") {
+        const isImage = /\.(png|jpe?g|gif|webp|svg|bmp|ico|avif)$/i.test(seg.path);
+        if (isImage) {
+          input.push({ type: "localImage", path: seg.path });
+        } else {
+          input.push({
+            type: "mention",
+            path: seg.path,
+            name: seg.path.split(/[\\/]/).pop() ?? seg.path,
+          });
+        }
+      } else if (seg.kind === "file") {
+        input.push({
+          type: "mention",
+          path: seg.path,
+          name: seg.path.split(/[\\/]/).pop() ?? seg.path,
+        });
+      }
+    }
+
+    input.push({ type: "text", text: prompt, text_elements: [] });
 
     await this.request("turn/start", {
       threadId,
-      input: [
-        {
-          type: "text",
-          text: prompt,
-          text_elements: [],
-        },
-      ],
+      input,
       model: config.model,
       ...(config.effort ? { effort: config.effort } : {}),
       ...(config.approvalPolicy ? { approvalPolicy: config.approvalPolicy } : {}),

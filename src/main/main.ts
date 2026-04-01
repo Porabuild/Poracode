@@ -1,8 +1,8 @@
 import { randomUUID } from "node:crypto";
 import { fork, type ChildProcess } from "node:child_process";
-import { watch } from "node:fs";
+import { mkdirSync, rmSync, watch, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { app, BrowserWindow, dialog, ipcMain, screen } from "electron";
+import { app, BrowserWindow, dialog, ipcMain, net, protocol, screen } from "electron";
 import { autoUpdater } from "electron-updater";
 import {
   closeDatabase,
@@ -35,6 +35,8 @@ import type { LightcodePaths } from "../shared/lightcodePaths";
 
 const CHANNELS = {
   pickFolder: "lightcode:pick-folder",
+  pickFiles: "lightcode:pick-files",
+  saveClipboardImage: "lightcode:save-clipboard-image",
   listWslDistros: "lightcode:list-wsl-distros",
   getAgentStatuses: "lightcode:get-agent-statuses",
   getThreadSnapshots: "lightcode:get-thread-snapshots",
@@ -57,6 +59,7 @@ const CHANNELS = {
   gitRevertAll: "lightcode:git-revert-all",
   gitCommit: "lightcode:git-commit",
   generateCommitMessage: "lightcode:generate-commit-message",
+  generateTitle: "lightcode:generate-title",
   gitListBranches: "lightcode:git-list-branches",
   gitFetch: "lightcode:git-fetch",
   gitListWorktrees: "lightcode:git-list-worktrees",
@@ -366,6 +369,34 @@ function registerIpcHandlers(): void {
     return result.filePaths[0] ?? null;
   });
 
+  ipcMain.handle(
+    CHANNELS.pickFiles,
+    async (
+      _event,
+      options?: { title?: string; filters?: { name: string; extensions: string[] }[] },
+    ) => {
+      const result = await dialog.showOpenDialog(mainWindow!, {
+        properties: ["openFile", "multiSelections"],
+        title: options?.title ?? "Add files or photos",
+        filters: options?.filters ?? [{ name: "All Files", extensions: ["*"] }],
+      });
+      return result.canceled ? null : result.filePaths;
+    },
+  );
+
+  ipcMain.handle(
+    CHANNELS.saveClipboardImage,
+    async (_event, payload: { threadId: string; data: Uint8Array; extension: string }) => {
+      const paths = requireLightcodePaths();
+      const threadDir = join(paths.attachmentsDir, payload.threadId.slice(0, 12));
+      mkdirSync(threadDir, { recursive: true });
+      const fileName = `${randomUUID().slice(0, 8)}.${payload.extension || "png"}`;
+      const filePath = join(threadDir, fileName);
+      writeFileSync(filePath, Buffer.from(payload.data));
+      return filePath;
+    },
+  );
+
   ipcMain.handle(CHANNELS.listWslDistros, async () =>
     callSupervisor<SupervisorRequest, string[]>("listWslDistros", {}),
   );
@@ -449,6 +480,10 @@ function registerIpcHandlers(): void {
     callSupervisor("generateCommitMessage", payload),
   );
 
+  ipcMain.handle(CHANNELS.generateTitle, async (_event, payload) =>
+    callSupervisor("generateTitle", payload),
+  );
+
   ipcMain.handle(CHANNELS.gitListBranches, async (_event, payload) =>
     callSupervisor("gitListBranches", payload),
   );
@@ -516,7 +551,13 @@ function registerIpcHandlers(): void {
   ipcMain.handle(CHANNELS.dbUpsertThread, (_event, thread, sortOrder: number = 0) =>
     dbUpsertThread(thread, sortOrder),
   );
-  ipcMain.handle(CHANNELS.dbDeleteThread, (_event, threadId: string) => dbDeleteThread(threadId));
+  ipcMain.handle(CHANNELS.dbDeleteThread, (_event, threadId: string) => {
+    dbDeleteThread(threadId);
+    // Clean up thread-linked attachments
+    const paths = requireLightcodePaths();
+    const threadAttachDir = join(paths.attachmentsDir, threadId.slice(0, 12));
+    rmSync(threadAttachDir, { recursive: true, force: true });
+  });
   ipcMain.handle(CHANNELS.dbDeleteProject, (_event, projectId: string) =>
     dbDeleteProject(projectId),
   );
@@ -537,6 +578,15 @@ function registerIpcHandlers(): void {
   });
 }
 
+// Register custom protocol for loading local attachment files in the renderer.
+// Must be called before app "ready" event.
+protocol.registerSchemesAsPrivileged([
+  {
+    scheme: "lightcode-local",
+    privileges: { standard: false, secure: true, supportFetchAPI: true, stream: true },
+  },
+]);
+
 if (!hasSingleInstanceLock) {
   app.quit();
 } else {
@@ -552,6 +602,19 @@ if (!hasSingleInstanceLock) {
   });
 
   app.whenReady().then(() => {
+    // Serve local files via lightcode-local:// protocol (used for attachment thumbnails).
+    // Renderer encodes the absolute path as a URL path component, so we decode it
+    // and convert to a proper file:// URL using pathToFileURL to handle Windows paths.
+    protocol.handle("lightcode-local", (request) => {
+      const raw = decodeURIComponent(new URL(request.url).pathname);
+      // On Windows the pathname starts with /C:/... — pathToFileURL handles this correctly.
+      const { pathToFileURL } = require("node:url") as typeof import("node:url");
+      // Strip leading slash on Windows drive paths (e.g. /C:/... → C:/...)
+      const filePath =
+        process.platform === "win32" && /^\/[A-Za-z]:/.test(raw) ? raw.slice(1) : raw;
+      return net.fetch(pathToFileURL(filePath).href);
+    });
+
     lightcodePaths = prepareLightcodeDataRoot(app.getPath("userData"));
     initDatabase(lightcodePaths.dbPath);
     ensureSharedSettingsFile(lightcodePaths.settingsPath, dbGetState("lightcode-shared-settings"));

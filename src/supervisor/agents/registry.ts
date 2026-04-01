@@ -9,7 +9,7 @@ import { createCodexAdapter } from "./codex";
 import { createGeminiAdapter } from "./gemini";
 
 export function createAgentRegistry(): AgentAdapter[] {
-  const adapters = [createCodexAdapter(), createClaudeAdapter(), createGeminiAdapter()];
+  const adapters = [createClaudeAdapter(), createCodexAdapter(), createGeminiAdapter()];
   const kinds = new Set(adapters.map((a) => a.kind));
   if (kinds.size !== adapters.length) {
     throw new Error("Duplicate agent kind in registry");

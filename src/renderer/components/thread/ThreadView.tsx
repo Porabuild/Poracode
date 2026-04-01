@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { GitBranch, GitFork, X } from "lucide-react";
+import { GitBranch, GitFork, Paperclip, X } from "lucide-react";
 import type {
   AgentStatus,
   ProjectLocation,
@@ -15,7 +15,13 @@ import type { PendingThreadServerRequest } from "../../state/appStore";
 import { useGitStore } from "../../state/gitStore";
 import { Button, TuxIcon } from "../common";
 import { readBridge } from "../../bridge";
-import { MentionInput, type MentionInputHandle } from "../composer";
+import {
+  MentionInput,
+  type MentionInputHandle,
+  AttachmentBar,
+  ImageLightbox,
+  useAttachments,
+} from "../composer";
 import { TerminalPane } from "./TerminalPane";
 import { ThreadComposer } from "./ThreadComposer";
 import { ThreadServerRequestPanel } from "./ThreadServerRequestPanel";
@@ -107,6 +113,9 @@ export function ThreadView(props: {
   const mentionRef = useRef<MentionInputHandle>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [terminalSize, setTerminalSize] = useState<TerminalSize | null>(null);
+  const attachments = useAttachments();
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+  const imageAttachments = attachments.attachments.filter((a) => a.isImage);
   const launchRequestRef = useRef<string | null>(null);
   const isServerControlled = agentStatus?.capabilities.liveInputMode === "server";
   const isTerminalInput = agentStatus?.capabilities.liveInputMode === "terminal";
@@ -141,18 +150,25 @@ export function ThreadView(props: {
   const canSubmit = (canSubmitServerInput || canSubmitTerminalInput) && !isSubmitting;
 
   function submitPrompt(segments: PromptSegment[]) {
-    const flat = segments
-      .map((s) => (s.kind === "file" ? `@${s.path}` : s.content))
+    // Merge attachment segments with the editor segments
+    const attachmentSegments = attachments.toSegments();
+    const allSegments = [...attachmentSegments, ...segments];
+    const flat = allSegments
+      .map((s) => {
+        if (s.kind === "file" || s.kind === "attachment") return `@${s.path}`;
+        return s.content;
+      })
       .join("")
       .trim();
     if (flat.length === 0 || !canSubmit) return;
     setIsSubmitting(true);
-    void onSubmitInput(flat, segments.length > 0 ? segments : undefined)
+    void onSubmitInput(flat, allSegments.length > 0 ? allSegments : undefined)
       .then(() => {
         mentionRef.current?.clear();
         mentionRef.current?.focus();
         setPrompt("");
         setHasContent(false);
+        attachments.clearAll();
       })
       .catch(() => {
         // Leave the prompt intact so the user can retry.
@@ -347,6 +363,16 @@ export function ThreadView(props: {
               <ThreadComposer
                 autoFocus // eslint-disable-line jsx-a11y/no-autofocus -- desktop app, expected UX
                 compact
+                attachmentBar={
+                  <AttachmentBar
+                    attachments={attachments.attachments}
+                    onRemove={attachments.removeAttachment}
+                    onPreviewImage={(att) => {
+                      const idx = imageAttachments.findIndex((a) => a.id === att.id);
+                      if (idx >= 0) setLightboxIndex(idx);
+                    }}
+                  />
+                }
                 inputContent={
                   <MentionInput
                     ref={mentionRef}
@@ -363,6 +389,9 @@ export function ThreadView(props: {
                     projectLocation={projectLocation}
                     onTextChange={setHasContent}
                     onSubmit={submitPrompt}
+                    onPasteImage={(file) => {
+                      void attachments.addClipboardImage(file, thread.id);
+                    }}
                   />
                 }
                 controls={controls}
@@ -371,19 +400,37 @@ export function ThreadView(props: {
                 promptDisabled={
                   !(showServerComposer || showTerminalComposer) || thread.status === "launching"
                 }
-                submitDisabled={!hasContent || !canSubmit}
+                submitDisabled={!(hasContent || attachments.attachments.length > 0) || !canSubmit}
                 submitLabel="Send message"
                 afterControls={
-                  branchName ? (
-                    <div className="lightcode-composer-static min-w-0 px-2.5">
-                      {thread.worktreePath ? (
-                        <GitFork className="size-3.5 text-muted" />
-                      ) : (
-                        <GitBranch className="size-3.5 text-muted" />
-                      )}
-                      <span className="truncate">{branchName}</span>
-                    </div>
-                  ) : undefined
+                  <>
+                    <Button
+                      isIconOnly
+                      aria-label="Attach files"
+                      className="lightcode-composer-menu min-w-9 px-2"
+                      size="sm"
+                      variant="ghost"
+                      onPress={() => {
+                        void readBridge()
+                          .pickFiles()
+                          .then((paths) => {
+                            if (paths) attachments.addFiles(paths);
+                          });
+                      }}
+                    >
+                      <Paperclip className="size-4" />
+                    </Button>
+                    {branchName ? (
+                      <div className="lightcode-composer-static min-w-0 px-2.5">
+                        {thread.worktreePath ? (
+                          <GitFork className="size-3.5 text-muted" />
+                        ) : (
+                          <GitBranch className="size-3.5 text-muted" />
+                        )}
+                        <span className="truncate">{branchName}</span>
+                      </div>
+                    ) : null}
+                  </>
                 }
                 onPromptChange={setPrompt}
                 onSubmit={() => {
@@ -399,6 +446,13 @@ export function ThreadView(props: {
           </div>
         </div>
       </div>
+      {lightboxIndex !== null && imageAttachments.length > 0 ? (
+        <ImageLightbox
+          images={imageAttachments}
+          initialIndex={lightboxIndex}
+          onClose={() => setLightboxIndex(null)}
+        />
+      ) : null}
     </div>
   );
 }

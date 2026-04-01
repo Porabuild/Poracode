@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { homedir } from "node:os";
 import type {
   AgentCapability,
   AgentStatus,
@@ -180,8 +181,22 @@ export function createClaudeAdapter(): AgentAdapter {
       return [prompt, "\r"];
     },
     formatPromptSegments(segments: PromptSegment[]) {
-      // Claude CLI natively handles @path — pass file references as @path inline
-      return segments.map((s) => (s.kind === "file" ? `@${s.path}` : s.content)).join("");
+      // Claude CLI natively handles @path for files and images — pass as @path inline.
+      // Attachments are prepended so the agent sees them before the text prompt.
+      // Shorten absolute home-dir paths to ~/... for a cleaner prompt line.
+      const home = homedir();
+      const shorten = (p: string) => {
+        const normalized = p.replaceAll("\\", "/");
+        const homeNorm = home.replaceAll("\\", "/");
+        return normalized.startsWith(homeNorm + "/")
+          ? "~" + normalized.slice(homeNorm.length)
+          : normalized;
+      };
+      const attachments = segments.filter((s) => s.kind === "attachment");
+      const rest = segments.filter((s) => s.kind !== "attachment");
+      const attachmentLines = attachments.map((s) => `@${shorten(s.path)}`).join("\n");
+      const restStr = rest.map((s) => (s.kind === "file" ? `@${s.path}` : s.content)).join("");
+      return attachmentLines ? `${attachmentLines}\n${restStr}` : restStr;
     },
     detectTerminalStatus: detectClaudeTerminalStatus,
     syncConfigFromTerminalState: syncClaudeConfigFromTerminalState,

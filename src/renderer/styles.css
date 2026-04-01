@@ -530,6 +530,179 @@ body {
   display: inline-flex;
 }
 
+/* ── Attachment Bar (file/image chips above editor) ────────── */
+
+.lightcode-attachment-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  padding: 0.65rem 0.85rem 0;
+  max-height: 6.5rem;
+  overflow-y: auto;
+}
+
+.lightcode-attachment-chip {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.25em 0.45em;
+  border-radius: 0.4rem;
+  background: color-mix(in oklab, var(--accent) 12%, var(--surface));
+  color: var(--foreground);
+  font-size: 0.8125rem;
+  line-height: 1.4;
+  cursor: default;
+  user-select: none;
+  max-width: 12rem;
+}
+
+.lightcode-attachment-chip[role="button"] {
+  cursor: pointer;
+}
+
+.lightcode-attachment-chip__thumb {
+  width: 1.6em;
+  height: 1.6em;
+  border-radius: 0.2rem;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.lightcode-attachment-chip__icon {
+  width: 1.1em;
+  height: 1.1em;
+  flex-shrink: 0;
+}
+
+.lightcode-attachment-chip__name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 400;
+}
+
+.lightcode-attachment-chip__delete {
+  display: none;
+  position: absolute;
+  right: -0.3rem;
+  top: -0.3rem;
+  align-items: center;
+  justify-content: center;
+  width: 1rem;
+  height: 1rem;
+  padding: 0;
+  border-radius: 50%;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.lightcode-attachment-chip__delete:hover {
+  color: var(--foreground);
+  background: color-mix(in oklab, var(--accent) 20%, var(--surface));
+}
+
+.lightcode-attachment-chip:hover .lightcode-attachment-chip__delete {
+  display: inline-flex;
+}
+
+/* ── Image Lightbox ──────────────────────────────────────── */
+
+.lightcode-image-lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.82);
+  cursor: pointer;
+  animation: lightcode-lightbox-fade-in 150ms ease-out;
+}
+
+@keyframes lightcode-lightbox-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.lightcode-image-lightbox__image {
+  max-width: calc(100vw - 6rem);
+  max-height: calc(100vh - 6rem);
+  object-fit: contain;
+  border-radius: 0.5rem;
+  cursor: default;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+}
+
+.lightcode-image-lightbox__close {
+  position: absolute;
+  top: 1.5rem;
+  right: 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.12);
+  color: white;
+  cursor: pointer;
+  transition: background 150ms;
+}
+
+.lightcode-image-lightbox__close:hover {
+  background: rgba(255, 255, 255, 0.22);
+}
+
+.lightcode-image-lightbox__nav {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+  cursor: pointer;
+  transition: background 150ms;
+}
+
+.lightcode-image-lightbox__nav:hover {
+  background: rgba(255, 255, 255, 0.22);
+}
+
+.lightcode-image-lightbox__nav--prev {
+  left: 1.5rem;
+}
+
+.lightcode-image-lightbox__nav--next {
+  right: 1.5rem;
+}
+
+.lightcode-image-lightbox__counter {
+  position: absolute;
+  bottom: 1.5rem;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 0.3rem 0.75rem;
+  border-radius: 1rem;
+  background: rgba(0, 0, 0, 0.5);
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 0.8125rem;
+  user-select: none;
+}
+
 /* ── Mention Popover (file search dropdown) ──────────────── */
 
 .lightcode-mention-popover {

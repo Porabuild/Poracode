@@ -12,6 +12,7 @@ const STORAGE_KEY = "lightcode-shared-settings";
 interface SharedSettingsState extends SharedSettings {
   setThemeMode: (mode: ThemeMode) => void;
   setCommitGenConfig: (provider: string, model: string, effort: string) => void;
+  setTitleGenConfig: (provider: string, model: string, effort: string) => void;
 }
 
 function hasBridge(): boolean {
@@ -55,6 +56,10 @@ export const useSharedSettings = create<SharedSettingsState>()((set, get) => ({
     set({ commitGenProvider, commitGenModel, commitGenEffort });
     persistSettings(selectSharedSettings(get()));
   },
+  setTitleGenConfig: (titleGenProvider, titleGenModel, titleGenEffort) => {
+    set({ titleGenProvider, titleGenModel, titleGenEffort });
+    persistSettings(selectSharedSettings(get()));
+  },
 }));
 
 function selectSharedSettings(state: SharedSettingsState): SharedSettings {
@@ -63,6 +68,9 @@ function selectSharedSettings(state: SharedSettingsState): SharedSettings {
     commitGenProvider: state.commitGenProvider,
     commitGenModel: state.commitGenModel,
     commitGenEffort: state.commitGenEffort,
+    titleGenProvider: state.titleGenProvider,
+    titleGenModel: state.titleGenModel,
+    titleGenEffort: state.titleGenEffort,
   };
 }
 

@@ -1,6 +1,7 @@
 import type {
   CloseThreadPayload,
   GenerateCommitMessagePayload,
+  GenerateTitlePayload,
   GetGitBranchesPayload,
   GetGitDiffBatchPayload,
   GetGitDiffPayload,
@@ -47,6 +48,7 @@ import {
   gitSyncPayloadSchema,
   searchProjectFilesPayloadSchema,
   generateCommitMessagePayloadSchema,
+  generateTitlePayloadSchema,
   gitRevertAllPayloadSchema,
   gitRevertPayloadSchema,
   gitStageAllPayloadSchema,
@@ -143,6 +145,10 @@ async function handleRequest(request: SupervisorRequest): Promise<unknown> {
     case "generateCommitMessage":
       return runtime.generateCommitMessage(
         generateCommitMessagePayloadSchema.parse(request.payload) as GenerateCommitMessagePayload,
+      );
+    case "generateTitle":
+      return runtime.generateTitle(
+        generateTitlePayloadSchema.parse(request.payload) as GenerateTitlePayload,
       );
     case "gitListBranches":
       return runtime.gitListBranches(

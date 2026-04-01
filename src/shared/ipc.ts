@@ -3,6 +3,8 @@ import type {
   CloseThreadPayload,
   GenerateCommitMessagePayload,
   GenerateCommitMessageResult,
+  GenerateTitlePayload,
+  GenerateTitleResult,
   GetAgentStatusesPayload,
   GetGitBranchesPayload,
   GetGitDiffBatchPayload,
@@ -74,6 +76,7 @@ export type SupervisorRequest =
   | { id: string; type: "gitRevertAll"; payload: GitRevertAllPayload }
   | { id: string; type: "gitCommit"; payload: GitCommitPayload }
   | { id: string; type: "generateCommitMessage"; payload: GenerateCommitMessagePayload }
+  | { id: string; type: "generateTitle"; payload: GenerateTitlePayload }
   | { id: string; type: "gitListBranches"; payload: GetGitBranchesPayload }
   | { id: string; type: "gitFetch"; payload: GitFetchPayload }
   | { id: string; type: "gitListWorktrees"; payload: GitListWorktreesPayload }
@@ -135,6 +138,15 @@ export interface WindowChromePayload {
 export interface LightcodeBridge {
   platform: NodeJS.Platform;
   pickFolder(defaultPath?: string): Promise<string | null>;
+  pickFiles(options?: {
+    title?: string;
+    filters?: { name: string; extensions: string[] }[];
+  }): Promise<string[] | null>;
+  saveClipboardImage(payload: {
+    threadId: string;
+    data: Uint8Array;
+    extension: string;
+  }): Promise<string>;
   listWslDistros(): Promise<string[]>;
   getAgentStatuses(wslDistros?: string[]): Promise<AgentStatus[]>;
   getThreadSnapshots(): Promise<ThreadRuntimeSnapshot[]>;
@@ -159,6 +171,7 @@ export interface LightcodeBridge {
   generateCommitMessage(
     payload: GenerateCommitMessagePayload,
   ): Promise<GenerateCommitMessageResult>;
+  generateTitle(payload: GenerateTitlePayload): Promise<GenerateTitleResult>;
   gitListBranches(payload: GetGitBranchesPayload): Promise<GitBranchListResult>;
   gitFetch(payload: GitFetchPayload): Promise<void>;
   gitListWorktrees(payload: GitListWorktreesPayload): Promise<GitWorktreeListResult>;

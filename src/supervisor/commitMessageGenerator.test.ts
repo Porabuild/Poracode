@@ -4,8 +4,7 @@ import type { ProjectLocation } from "../shared/contracts";
 import type { AgentAdapter } from "./agents/base";
 
 const spawnMock = vi.hoisted(() => vi.fn());
-const resolveExecutablePathAsyncMock = vi.hoisted(() => vi.fn());
-const wrapWslCommandMock = vi.hoisted(() => vi.fn());
+const buildAgentCommandMock = vi.hoisted(() => vi.fn());
 const getStagedDiffMock = vi.hoisted(() => vi.fn());
 const getAllDiffMock = vi.hoisted(() => vi.fn());
 
@@ -14,8 +13,7 @@ vi.mock("node:child_process", () => ({
 }));
 
 vi.mock("./agents/base", () => ({
-  resolveExecutablePathAsync: resolveExecutablePathAsyncMock,
-  wrapWslCommand: wrapWslCommandMock,
+  buildAgentCommand: buildAgentCommandMock,
 }));
 
 vi.mock("./git", () => ({
@@ -82,64 +80,69 @@ describe("cleanCommitMessage", () => {
     );
   });
 
-  it("strips code fences with language tag", () => {
-    expect(cleanCommitMessage("```text\nchore: bump deps\n```")).toBe("chore: bump deps");
-  });
-
-  it("strips preamble before the conventional commit line", () => {
-    const input = "Here's the commit message:\n\nfeat(worktree): add deletion flow";
-    expect(cleanCommitMessage(input)).toBe("feat(worktree): add deletion flow");
-  });
-
   it("strips thinking tags", () => {
-    const input = "<think>reasoning here</think>\nrefactor: simplify logic";
-    expect(cleanCommitMessage(input)).toBe("refactor: simplify logic");
-  });
-
-  it("strips antThinking tags", () => {
-    const input = "<antThinking>long reasoning</antThinking>\nfix: patch bug";
-    expect(cleanCommitMessage(input)).toBe("fix: patch bug");
-  });
-
-  it("handles combined artifacts", () => {
-    const input = [
-      "<think>analyzing...</think>",
-      "This is a large changeset. Here's the commit message:",
-      "",
-      "```",
-      "feat(terminal): add copy/paste support",
-      "",
-      "- Ctrl+C/Cmd+C for copy",
-      "- Context menu integration",
-      "```",
-    ].join("\n");
-    expect(cleanCommitMessage(input)).toBe(
-      "feat(terminal): add copy/paste support\n\n- Ctrl+C/Cmd+C for copy\n- Context menu integration",
+    expect(cleanCommitMessage("<think>reasoning here</think>\nfeat: new feature")).toBe(
+      "feat: new feature",
     );
   });
 
-  it("preserves body and footers in multi-line messages", () => {
-    const input = [
-      "feat(auth)!: switch to OAuth2",
-      "",
-      "Replaces legacy token flow.",
-      "",
-      "BREAKING CHANGE: /api/login removed",
-    ].join("\n");
-    expect(cleanCommitMessage(input)).toBe(input);
+  it("strips antThinking tags", () => {
+    expect(cleanCommitMessage("<antThinking>analyzing</antThinking>\nfix: a bug")).toBe(
+      "fix: a bug",
+    );
+  });
+
+  it("drops preamble before the commit message", () => {
+    expect(
+      cleanCommitMessage("Here is your commit message:\n\nfeat(cli): add --verbose flag"),
+    ).toBe("feat(cli): add --verbose flag");
+  });
+
+  it("handles breaking changes with ! syntax", () => {
+    expect(cleanCommitMessage("feat(api)!: remove v1 endpoint")).toBe(
+      "feat(api)!: remove v1 endpoint",
+    );
+  });
+
+  it("returns preamble-only text when no conventional prefix found", () => {
+    expect(cleanCommitMessage("Update the code")).toBe("Update the code");
+  });
+
+  it("handles empty input", () => {
+    expect(cleanCommitMessage("")).toBe("");
+  });
+
+  it("handles fences with a language tag", () => {
+    expect(cleanCommitMessage("```text\nfix: typo\n```")).toBe("fix: typo");
+  });
+
+  it("preserves multi-line bodies after the subject", () => {
+    expect(
+      cleanCommitMessage(
+        "preamble\n\nrefactor(core): split runtime\n\n- Extract module\n- Update imports",
+      ),
+    ).toBe("refactor(core): split runtime\n\n- Extract module\n- Update imports");
+  });
+
+  it("strips both thinking and preamble together", () => {
+    expect(
+      cleanCommitMessage(
+        "<think>deep thought</think>\nSure:\n\nfix(platform): handle Windows paths",
+      ),
+    ).toBe("fix(platform): handle Windows paths");
   });
 });
 
 describe("generateCommitMessage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    resolveExecutablePathAsyncMock.mockResolvedValue(
-      "C:\\Users\\demo\\AppData\\Local\\Programs\\codex.cmd",
+    buildAgentCommandMock.mockImplementation(
+      (location: ProjectLocation, command: string, args: string[]) => ({
+        command,
+        args,
+        cwd: location.kind === "wsl" ? undefined : location.path,
+      }),
     );
-    wrapWslCommandMock.mockImplementation((_location, command, args) => ({
-      command: "C:\\Windows\\System32\\wsl.exe",
-      args: ["-d", "Ubuntu", "--cd", "/home/demo/project", "--", command, ...args],
-    }));
     getStagedDiffMock.mockResolvedValue("diff --git a/file.ts b/file.ts");
     getAllDiffMock.mockResolvedValue("");
   });
@@ -151,8 +154,14 @@ describe("generateCommitMessage", () => {
     const pending = generateCommitMessage(windowsProject, createAdapter());
     await flushPromises();
 
+    expect(buildAgentCommandMock).toHaveBeenCalledWith(windowsProject, "codex", [
+      "exec",
+      "-m",
+      "gpt-5.4-mini",
+      "-",
+    ]);
     expect(spawnMock).toHaveBeenCalledWith(
-      "C:\\Users\\demo\\AppData\\Local\\Programs\\codex.cmd",
+      "codex",
       ["exec", "-m", "gpt-5.4-mini", "-"],
       expect.objectContaining({
         cwd: windowsProject.path,
@@ -162,7 +171,6 @@ describe("generateCommitMessage", () => {
     expect(child.stdin.end).toHaveBeenCalledWith(
       expect.stringContaining("Generate a git commit message for the following diff"),
     );
-    expect(spawnMock.mock.calls[0]?.[1]).toEqual(["exec", "-m", "gpt-5.4-mini", "-"]);
 
     child.stdout.emit("data", Buffer.from("fix(git): restore Windows commit generation"));
     child.emit("close", 0);
@@ -170,38 +178,19 @@ describe("generateCommitMessage", () => {
     await expect(pending).resolves.toBe("fix(git): restore Windows commit generation");
   });
 
-  it("wraps WSL one-shot commands instead of spawning the Windows host directly", async () => {
+  it("delegates to buildAgentCommand for WSL projects", async () => {
     const child = createMockChildProcess();
     spawnMock.mockReturnValue(child);
 
     const pending = generateCommitMessage(wslProject, createAdapter());
     await flushPromises();
 
-    expect(resolveExecutablePathAsyncMock).not.toHaveBeenCalled();
-    expect(wrapWslCommandMock).toHaveBeenCalledWith(wslProject, "codex", [
+    expect(buildAgentCommandMock).toHaveBeenCalledWith(wslProject, "codex", [
       "exec",
       "-m",
       "gpt-5.4-mini",
       "-",
     ]);
-    expect(spawnMock).toHaveBeenCalledWith(
-      "C:\\Windows\\System32\\wsl.exe",
-      [
-        "-d",
-        "Ubuntu",
-        "--cd",
-        "/home/demo/project",
-        "--",
-        "codex",
-        "exec",
-        "-m",
-        "gpt-5.4-mini",
-        "-",
-      ],
-      expect.objectContaining({
-        stdio: ["pipe", "pipe", "pipe"],
-      }),
-    );
 
     child.stdout.emit("data", Buffer.from("fix(wsl): route commit generation through WSL"));
     child.emit("close", 0);
@@ -256,6 +245,6 @@ describe("generateCommitMessage", () => {
     child.killed = true;
     child.emit("close", null);
 
-    await expect(pending).rejects.toThrow("Agent timed out while generating commit message");
+    await expect(pending).rejects.toThrow("Agent timed out");
   });
 });

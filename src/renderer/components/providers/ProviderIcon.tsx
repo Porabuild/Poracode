@@ -62,3 +62,20 @@ export function registerCommitGenDefaults(kind: string, defaults: CommitGenDefau
 export function getCommitGenDefaults(kind: string): CommitGenDefaults | undefined {
   return COMMIT_GEN_REGISTRY.get(kind);
 }
+
+// --- Title generation defaults registry ---
+
+export interface TitleGenDefaults {
+  model: string;
+  effort: string;
+}
+
+const TITLE_GEN_REGISTRY = new Map<string, TitleGenDefaults>();
+
+export function registerTitleGenDefaults(kind: string, defaults: TitleGenDefaults) {
+  TITLE_GEN_REGISTRY.set(kind, defaults);
+}
+
+export function getTitleGenDefaults(kind: string): TitleGenDefaults | undefined {
+  return TITLE_GEN_REGISTRY.get(kind);
+}

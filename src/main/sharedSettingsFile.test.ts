@@ -46,6 +46,9 @@ describe("sharedSettingsFile", () => {
       commitGenProvider: "codex",
       commitGenModel: "gpt-5.4",
       commitGenEffort: "high",
+      titleGenProvider: "auto",
+      titleGenModel: "",
+      titleGenEffort: "",
     });
   });
 
@@ -56,6 +59,9 @@ describe("sharedSettingsFile", () => {
       commitGenProvider: "auto",
       commitGenModel: "",
       commitGenEffort: "",
+      titleGenProvider: "auto",
+      titleGenModel: "",
+      titleGenEffort: "",
     });
 
     expect(readSharedSettingsFile(settingsPath)).toEqual({
@@ -63,6 +69,9 @@ describe("sharedSettingsFile", () => {
       commitGenProvider: "auto",
       commitGenModel: "",
       commitGenEffort: "",
+      titleGenProvider: "auto",
+      titleGenModel: "",
+      titleGenEffort: "",
     });
     expect(readFileSync(settingsPath, "utf8")).toContain('"themeMode": "dark"');
   });
@@ -84,6 +93,9 @@ describe("sharedSettingsFile", () => {
       commitGenProvider: "gemini",
       commitGenModel: "",
       commitGenEffort: "",
+      titleGenProvider: "auto",
+      titleGenModel: "",
+      titleGenEffort: "",
     });
     expect(readSharedSettingsFile(settingsPath)).toEqual(settings);
   });

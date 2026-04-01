@@ -63,7 +63,7 @@ export interface StructuredSessionHandle {
   openThread?(config: ThreadConfig, sessionRef?: SessionRef): Promise<string>;
   ensureResumeArtifacts?(): Promise<void>;
   waitForRolloutFile?(timeoutMs?: number): Promise<void>;
-  startTurn?(prompt: string, config: ThreadConfig): Promise<void>;
+  startTurn?(prompt: string, config: ThreadConfig, segments?: PromptSegment[]): Promise<void>;
   resolveServerRequest?(requestId: ThreadServerRequestId, response: unknown): Promise<void>;
   setListener(listener: StructuredSessionListener): void;
   dispose(): Promise<void>;
@@ -567,7 +567,11 @@ export async function readWslCommandOutputAsync(
  * Used when an adapter doesn't implement `formatPromptSegments`.
  */
 export function defaultFormatPromptSegments(segments: PromptSegment[]): string {
-  return segments.map((s) => (s.kind === "file" ? `@${s.path}` : s.content)).join("");
+  const attachments = segments.filter((s) => s.kind === "attachment");
+  const rest = segments.filter((s) => s.kind !== "attachment");
+  const attachmentLines = attachments.map((s) => `@${s.path}`).join("\n");
+  const restStr = rest.map((s) => (s.kind === "file" ? `@${s.path}` : s.content)).join("");
+  return attachmentLines ? `${attachmentLines}\n${restStr}` : restStr;
 }
 
 export function detectAuthFile(filePath: string): AuthState {

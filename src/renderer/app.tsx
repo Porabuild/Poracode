@@ -2,13 +2,13 @@ import React, { lazy, startTransition, Suspense, useEffect, useEffectEvent, useS
 import { ArrowRight, FolderOpen, FolderPlus, Monitor, Plus, TerminalSquare } from "lucide-react";
 import { Button, Dropdown, Label, Spinner } from "@heroui/react";
 import { TuxIcon } from "./components/common/TuxIcon";
-import type { AgentStatus, Project, PromptSegment } from "../shared/contracts";
+import type { AgentStatus, Project, ProjectLocation, PromptSegment } from "../shared/contracts";
 import { getProjectAgentStatuses } from "../shared/agentStatus";
 import type { PendingThreadServerRequest } from "./state/appStore";
 import { parseWslUncPath } from "../shared/wsl";
 import { buildWorktreeLocation } from "../shared/worktree";
 import { isWindows, readBridge } from "./bridge";
-import { ProviderIcon, getStatusTone } from "./components/providers";
+import { ProviderIcon, getStatusTone, generateTitleWithFallback } from "./components/providers";
 import { DevTerminalPanel } from "./components/devTerminal/DevTerminalPanel";
 import { PageLayout } from "./components/layout/PageLayout";
 import { OverlayShell } from "./components/layout/OverlayShell";
@@ -27,7 +27,8 @@ import { AppProvider } from "./components/ui/provider";
 const GitReviewOverlay = lazy(() =>
   import("./components/gitReview/GitReviewOverlay").then((m) => ({ default: m.GitReviewOverlay })),
 );
-import { useAppStore } from "./state/appStore";
+import { useAppStore, makeThreadTitle } from "./state/appStore";
+import { useSharedSettings } from "./state/sharedSettingsStore";
 import { useThread } from "./state/useThread";
 import { useDevTerminalStore } from "./state/devTerminalStore";
 import { useGitStore } from "./state/gitStore";
@@ -98,6 +99,39 @@ readBridge().onUpdateStatus((status) => {
       break;
   }
 });
+
+// ── Async title generation ──────────────────────────────────
+// Fire-and-forget: generates an AI title and swaps it in if the user
+// hasn't manually renamed the thread in the meantime.
+function generateTitleAsync(
+  threadId: string,
+  projectLocation: ProjectLocation,
+  agentStatuses: readonly AgentStatus[],
+  prompt: string,
+): void {
+  const settings = useSharedSettings.getState();
+  if (settings.titleGenProvider === "disabled") return;
+
+  void generateTitleWithFallback({
+    projectLocation,
+    agentStatuses,
+    provider: settings.titleGenProvider,
+    model: settings.titleGenModel,
+    effort: settings.titleGenEffort,
+    prompt,
+    invoke: (payload) => readBridge().generateTitle(payload),
+  })
+    .then((title) => {
+      const store = useAppStore.getState();
+      const thread = store.threads.find((t) => t.id === threadId);
+      if (thread && thread.title === makeThreadTitle(prompt)) {
+        store.renameThread(threadId, title);
+      }
+    })
+    .catch((err) => {
+      console.warn("[title-gen] failed, keeping fallback title:", err);
+    });
+}
 
 const SIDEBAR_THREAD_MIME = "application/x-lightcode-sidebar-thread";
 const EMPTY_PANES: string[] = [];
@@ -452,6 +486,7 @@ function AppContent() {
               ...(worktreePath ? { worktreePath, worktreeBranch } : {}),
             });
             queueThreadLaunch(thread.id, prompt, segments);
+            generateTitleAsync(thread.id, project.location, projectAgentStatuses, prompt);
           }}
         />
         {sidebarDragActive && (

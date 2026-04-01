@@ -24,7 +24,7 @@ import {
   type ReorderPlacement,
 } from "./reorder";
 
-function makeThreadTitle(prompt: string): string {
+export function makeThreadTitle(prompt: string): string {
   const normalized = prompt.trim().replace(/\s+/g, " ");
   if (normalized.length <= 120) {
     return normalized;

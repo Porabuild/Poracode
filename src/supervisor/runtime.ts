@@ -14,6 +14,8 @@ import type {
   CloseThreadPayload,
   GenerateCommitMessagePayload,
   GenerateCommitMessageResult,
+  GenerateTitlePayload,
+  GenerateTitleResult,
   GetAgentStatusesPayload,
   GetGitDiffBatchPayload,
   GetGitDiffPayload,
@@ -75,6 +77,7 @@ import {
   getWslCommand,
 } from "./agents/base";
 import { generateCommitMessage } from "./commitMessageGenerator";
+import { generateTitle } from "./titleGenerator";
 import { GitService } from "./git";
 import { FileIndexService } from "./fileIndex";
 import { resetTerminalLogFile, resetTerminalLogsDir } from "./terminalLogs";
@@ -544,18 +547,20 @@ export class SupervisorRuntime {
       session.structuredSession?.startTurn
     ) {
       this.updateState(session, "working", "working");
-      void session.structuredSession.startTurn(prompt, payload.config).catch((error) => {
-        if (this.sessions.get(session.threadId)?.instanceId !== session.instanceId) {
-          return;
-        }
+      void session.structuredSession
+        .startTurn(prompt, payload.config, payload.segments)
+        .catch((error) => {
+          if (this.sessions.get(session.threadId)?.instanceId !== session.instanceId) {
+            return;
+          }
 
-        this.updateState(
-          session,
-          "error",
-          "error",
-          error instanceof Error ? error.message : String(error),
-        );
-      });
+          this.updateState(
+            session,
+            "error",
+            "error",
+            error instanceof Error ? error.message : String(error),
+          );
+        });
       return;
     }
 
@@ -747,6 +752,18 @@ export class SupervisorRuntime {
       payload.effort,
     );
     return { message };
+  }
+
+  async generateTitle(payload: GenerateTitlePayload): Promise<GenerateTitleResult> {
+    const adapter = this.requireAdapter(payload.agentKind);
+    const title = await generateTitle(
+      payload.projectLocation,
+      adapter,
+      payload.prompt,
+      payload.model,
+      payload.effort,
+    );
+    return { title };
   }
 
   // ── Branch & Worktree ───────────────────────────────────

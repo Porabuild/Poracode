@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { TerminalSquare } from "lucide-react";
+import { Paperclip, TerminalSquare } from "lucide-react";
 import { Button, Spinner, Tooltip } from "@heroui/react";
 import type {
   AgentStatus,
@@ -12,7 +12,13 @@ import { readBridge } from "../../bridge";
 import { ProviderIcon, getComposerControls } from "../providers";
 import { useGitStore } from "../../state/gitStore";
 import { BranchSelector, generateWorktreeBranch, type BranchSelection } from "../common";
-import { MentionInput, type MentionInputHandle } from "../composer";
+import {
+  MentionInput,
+  type MentionInputHandle,
+  AttachmentBar,
+  ImageLightbox,
+  useAttachments,
+} from "../composer";
 import { flattenSegments } from "../composer/serializeMentions";
 import { ThreadComposer } from "./ThreadComposer";
 
@@ -113,6 +119,9 @@ export function ThreadDraftView(props: {
   const [prompt, setPrompt] = useState("");
   const [hasContent, setHasContent] = useState(false);
   const mentionRef = useRef<MentionInputHandle>(null);
+  const attachments = useAttachments();
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+  const imageAttachments = attachments.attachments.filter((a) => a.isImage);
   const [worktreeMode, setWorktreeMode] = useState(false);
   const [branchSelection, setBranchSelection] = useState<BranchSelection | null>(null);
   const lastAppliedAgentKindRef = useRef<AgentStatus["kind"] | undefined>(undefined);
@@ -251,6 +260,16 @@ export function ThreadDraftView(props: {
                       })
                     : []),
                 ]}
+                attachmentBar={
+                  <AttachmentBar
+                    attachments={attachments.attachments}
+                    onRemove={attachments.removeAttachment}
+                    onPreviewImage={(att) => {
+                      const idx = imageAttachments.findIndex((a) => a.id === att.id);
+                      if (idx >= 0) setLightboxIndex(idx);
+                    }}
+                  />
+                }
                 inputContent={
                   <MentionInput
                     ref={mentionRef}
@@ -258,7 +277,12 @@ export function ThreadDraftView(props: {
                     placeholder="Ask LightCode anything, @ to add files, / for commands"
                     projectLocation={project.location}
                     onTextChange={setHasContent}
+                    onPasteImage={(file) => {
+                      // Draft view uses project.id as threadId for temp storage
+                      void attachments.addClipboardImage(file, `draft:${project.id}`);
+                    }}
                     onSubmit={(segments) => {
+                      const allSegments = [...attachments.toSegments(), ...segments];
                       onStart({
                         agentKind: selectedAgent.kind,
                         config: {
@@ -268,8 +292,8 @@ export function ThreadDraftView(props: {
                           ...(approvalPolicy ? { approvalPolicy } : {}),
                           ...(sandboxMode ? { sandboxMode } : {}),
                         },
-                        prompt: flattenSegments(segments),
-                        segments,
+                        prompt: flattenSegments(allSegments),
+                        segments: allSegments,
                         ...(branchSelection?.isWorktree
                           ? branchSelection.worktreePath
                             ? {
@@ -285,17 +309,19 @@ export function ThreadDraftView(props: {
                               }
                           : {}),
                       });
+                      attachments.clearAll();
                     }}
                   />
                 }
                 placeholder="Ask LightCode anything, @ to add files, / for commands"
                 prompt={prompt}
-                submitDisabled={!hasContent}
+                submitDisabled={!(hasContent || attachments.attachments.length > 0)}
                 submitLabel="Launch thread"
                 onPromptChange={setPrompt}
                 onSubmit={() => {
                   const segments = mentionRef.current?.serializeSegments() ?? [];
-                  const flatPrompt = flattenSegments(segments) || prompt.trim();
+                  const allSegments = [...attachments.toSegments(), ...segments];
+                  const flatPrompt = flattenSegments(allSegments) || prompt.trim();
                   if (flatPrompt.length === 0) return;
                   onStart({
                     agentKind: selectedAgent.kind,
@@ -307,7 +333,7 @@ export function ThreadDraftView(props: {
                       ...(sandboxMode ? { sandboxMode } : {}),
                     },
                     prompt: flatPrompt,
-                    ...(segments.length > 0 ? { segments } : {}),
+                    ...(allSegments.length > 0 ? { segments: allSegments } : {}),
                     ...(branchSelection?.isWorktree
                       ? branchSelection.worktreePath
                         ? {
@@ -323,72 +349,98 @@ export function ThreadDraftView(props: {
                           }
                       : {}),
                   });
+                  attachments.clearAll();
                 }}
                 afterControls={
-                  gitBranch ? (
-                    <div className="flex items-center gap-0.5">
-                      <BranchSelector
-                        projectId={project.id}
-                        currentBranch={gitBranch}
-                        value={branchSelection?.branch ?? gitBranch}
-                        isWorktree={branchSelection?.isWorktree}
-                        isNew={branchSelection?.isNew}
-                        baseBranch={branchSelection?.baseBranch}
-                        worktreeMode={worktreeMode}
-                        onWorktreeModeChange={setWorktreeMode}
-                        onSelect={setBranchSelection}
-                      />
-                      {!branchSelection?.isNew && gitHasRemote && (
-                        <Tooltip delay={0}>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="lightcode-composer-menu min-w-9 px-2"
-                            isDisabled={isSyncing}
-                            isPending={isSyncing}
-                            onPress={() => {
-                              setIsSyncing(true);
-                              const needsPush = gitHasTracking
-                                ? gitAhead > 0 && gitBehind === 0
-                                : true;
-                              const op = needsPush
-                                ? readBridge().gitPush({
-                                    projectLocation: project.location,
-                                    setUpstream: !gitHasTracking,
-                                  })
-                                : readBridge().gitSync({ projectLocation: project.location });
-                              void op.finally(() => setIsSyncing(false));
-                            }}
-                          >
-                            {({ isPending }) =>
-                              isPending ? (
-                                <Spinner color="current" size="sm" />
-                              ) : (
-                                <span className="text-sm">
-                                  {gitHasTracking ? `${gitBehind}↓ ${gitAhead}↑` : "↑"}
-                                </span>
-                              )
-                            }
-                          </Button>
-                          <Tooltip.Content>
-                            {!gitHasTracking
-                              ? "Push"
-                              : gitBehind > 0
-                                ? `Sync (↓${gitBehind}${gitAhead > 0 ? ` ↑${gitAhead}` : ""})`
-                                : gitAhead > 0
-                                  ? `Push ↑${gitAhead}`
-                                  : "Sync"}
-                          </Tooltip.Content>
-                        </Tooltip>
-                      )}
-                    </div>
-                  ) : undefined
+                  <>
+                    <Button
+                      isIconOnly
+                      aria-label="Attach files"
+                      className="lightcode-composer-menu min-w-9 px-2"
+                      size="sm"
+                      variant="ghost"
+                      onPress={() => {
+                        void readBridge()
+                          .pickFiles()
+                          .then((paths) => {
+                            if (paths) attachments.addFiles(paths);
+                          });
+                      }}
+                    >
+                      <Paperclip className="size-4" />
+                    </Button>
+                    {gitBranch ? (
+                      <div className="flex items-center gap-0.5">
+                        <BranchSelector
+                          projectId={project.id}
+                          currentBranch={gitBranch}
+                          value={branchSelection?.branch ?? gitBranch}
+                          isWorktree={branchSelection?.isWorktree}
+                          isNew={branchSelection?.isNew}
+                          baseBranch={branchSelection?.baseBranch}
+                          worktreeMode={worktreeMode}
+                          onWorktreeModeChange={setWorktreeMode}
+                          onSelect={setBranchSelection}
+                        />
+                        {!branchSelection?.isNew && gitHasRemote && (
+                          <Tooltip delay={0}>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="lightcode-composer-menu min-w-9 px-2"
+                              isDisabled={isSyncing}
+                              isPending={isSyncing}
+                              onPress={() => {
+                                setIsSyncing(true);
+                                const needsPush = gitHasTracking
+                                  ? gitAhead > 0 && gitBehind === 0
+                                  : true;
+                                const op = needsPush
+                                  ? readBridge().gitPush({
+                                      projectLocation: project.location,
+                                      setUpstream: !gitHasTracking,
+                                    })
+                                  : readBridge().gitSync({ projectLocation: project.location });
+                                void op.finally(() => setIsSyncing(false));
+                              }}
+                            >
+                              {({ isPending }) =>
+                                isPending ? (
+                                  <Spinner color="current" size="sm" />
+                                ) : (
+                                  <span className="text-sm">
+                                    {gitHasTracking ? `${gitBehind}↓ ${gitAhead}↑` : "↑"}
+                                  </span>
+                                )
+                              }
+                            </Button>
+                            <Tooltip.Content>
+                              {!gitHasTracking
+                                ? "Push"
+                                : gitBehind > 0
+                                  ? `Sync (↓${gitBehind}${gitAhead > 0 ? ` ↑${gitAhead}` : ""})`
+                                  : gitAhead > 0
+                                    ? `Push ↑${gitAhead}`
+                                    : "Sync"}
+                            </Tooltip.Content>
+                          </Tooltip>
+                        )}
+                      </div>
+                    ) : null}
+                  </>
                 }
               />
             </div>
           </div>
         </div>
       </div>
+      {lightboxIndex !== null && imageAttachments.length > 0 ? (
+        <ImageLightbox
+          images={imageAttachments}
+          initialIndex={lightboxIndex}
+          onClose={() => setLightboxIndex(null)}
+        />
+      ) : null}
     </div>
   );
 }
