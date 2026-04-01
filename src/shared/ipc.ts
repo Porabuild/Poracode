@@ -28,6 +28,8 @@ import type {
   GitStatusResult,
   GitSyncPayload,
   GitSyncResult,
+  SearchProjectFilesPayload,
+  SearchProjectFilesResult,
   GitUnstageAllPayload,
   GitUnstagePayload,
   GitWorktreeListResult,
@@ -80,7 +82,8 @@ export type SupervisorRequest =
   | { id: string; type: "gitDeleteBranch"; payload: GitDeleteBranchPayload }
   | { id: string; type: "gitPull"; payload: GitPullPayload }
   | { id: string; type: "gitPush"; payload: GitPushPayload }
-  | { id: string; type: "gitSync"; payload: GitSyncPayload };
+  | { id: string; type: "gitSync"; payload: GitSyncPayload }
+  | { id: string; type: "searchProjectFiles"; payload: SearchProjectFilesPayload };
 
 export type SupervisorReply =
   | { replyTo: string; ok: true; data: unknown }
@@ -165,6 +168,7 @@ export interface LightcodeBridge {
   gitPull(payload: GitPullPayload): Promise<void>;
   gitPush(payload: GitPushPayload): Promise<void>;
   gitSync(payload: GitSyncPayload): Promise<GitSyncResult>;
+  searchProjectFiles(payload: SearchProjectFilesPayload): Promise<SearchProjectFilesResult>;
   getSharedSettings(): Promise<SharedSettings>;
   setSharedSettings(settings: SharedSettings): Promise<void>;
   setWindowChrome(payload: WindowChromePayload): Promise<void>;

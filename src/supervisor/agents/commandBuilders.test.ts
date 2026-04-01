@@ -51,23 +51,26 @@ describe("agent command builders", () => {
     expect(cmdArgs).toContain("hello");
   });
 
-  it.skipIf(process.platform !== "win32")("builds a WSL Codex launch command via login shell", () => {
-    const spec = createCodexAdapter().buildLaunchCommand(wslProject, config, "hello");
-    expect(spec.command.toLowerCase()).toBe(getWslCommand().toLowerCase());
-    expect(spec.args.slice(0, 5)).toEqual(["-d", "Ubuntu", "--cd", "/home/demo/project", "--"]);
-    // After "--", the next args are: shellPath, "-l", "-i", "-c", script
-    expect(spec.args[6]).toBe("-l");
-    expect(spec.args[7]).toBe("-i");
-    expect(spec.args[8]).toBe("-c");
-    const script = spec.args[9]!;
-    expect(script).toContain("--no-alt-screen");
-    expect(script).toContain("-m");
-    expect(script).toContain("gpt-5.4");
-    expect(script).toContain("-a");
-    expect(script).toContain("on-request");
-    expect(script).toContain("workspace-write");
-    expect(script).toContain("hello");
-  });
+  it.skipIf(process.platform !== "win32")(
+    "builds a WSL Codex launch command via login shell",
+    () => {
+      const spec = createCodexAdapter().buildLaunchCommand(wslProject, config, "hello");
+      expect(spec.command.toLowerCase()).toBe(getWslCommand().toLowerCase());
+      expect(spec.args.slice(0, 5)).toEqual(["-d", "Ubuntu", "--cd", "/home/demo/project", "--"]);
+      // After "--", the next args are: shellPath, "-l", "-i", "-c", script
+      expect(spec.args[6]).toBe("-l");
+      expect(spec.args[7]).toBe("-i");
+      expect(spec.args[8]).toBe("-c");
+      const script = spec.args[9]!;
+      expect(script).toContain("--no-alt-screen");
+      expect(script).toContain("-m");
+      expect(script).toContain("gpt-5.4");
+      expect(script).toContain("-a");
+      expect(script).toContain("on-request");
+      expect(script).toContain("workspace-write");
+      expect(script).toContain("hello");
+    },
+  );
 
   it("builds a remote Codex launch command with the TUI feature enabled", () => {
     const spec = createCodexAdapter().buildLaunchCommand(
@@ -135,32 +138,38 @@ describe("agent command builders", () => {
     expect(cmdArgs).not.toContain("");
   });
 
-  it.skipIf(process.platform !== "win32")("builds a Claude launch command with a pre-assigned session id", () => {
-    const claudeConfig: ThreadConfig = {
-      model: "sonnet",
-      effort: "high",
-      mode: "agent",
-      approvalPolicy: "default",
-    };
-    const spec = createClaudeAdapter().buildLaunchCommand(windowsProject, claudeConfig, "hello");
-    const script = decodePowerShellEncodedCommand(spec.args[3] ?? "");
+  it.skipIf(process.platform !== "win32")(
+    "builds a Claude launch command with a pre-assigned session id",
+    () => {
+      const claudeConfig: ThreadConfig = {
+        model: "sonnet",
+        effort: "high",
+        mode: "agent",
+        approvalPolicy: "default",
+      };
+      const spec = createClaudeAdapter().buildLaunchCommand(windowsProject, claudeConfig, "hello");
+      const script = decodePowerShellEncodedCommand(spec.args[3] ?? "");
 
-    expect(script).toContain("--session-id");
-    expect(script).not.toContain("--resume");
-    expect(script).toContain("--model");
-    expect(script).toContain("sonnet");
-    expect(script).toContain("hello");
-    expect(spec.sessionRef).toBeDefined();
-    expect(spec.sessionRef!.providerSessionId).toBeTruthy();
-  });
+      expect(script).toContain("--session-id");
+      expect(script).not.toContain("--resume");
+      expect(script).toContain("--model");
+      expect(script).toContain("sonnet");
+      expect(script).toContain("hello");
+      expect(spec.sessionRef).toBeDefined();
+      expect(spec.sessionRef!.providerSessionId).toBeTruthy();
+    },
+  );
 
-  it.skipIf(process.platform !== "win32")("builds a Claude launch command without a trailing empty prompt", () => {
-    const spec = createClaudeAdapter().buildLaunchCommand(windowsProject, config, "");
-    const script = decodePowerShellEncodedCommand(spec.args[3] ?? "");
+  it.skipIf(process.platform !== "win32")(
+    "builds a Claude launch command without a trailing empty prompt",
+    () => {
+      const spec = createClaudeAdapter().buildLaunchCommand(windowsProject, config, "");
+      const script = decodePowerShellEncodedCommand(spec.args[3] ?? "");
 
-    expect(script).toContain("--session-id");
-    expect(script).not.toContain(", '')\n& $cmd");
-  });
+      expect(script).toContain("--session-id");
+      expect(script).not.toContain(", '')\n& $cmd");
+    },
+  );
 
   it.skipIf(process.platform !== "win32")("builds a Claude resume command", () => {
     const sessionRef: SessionRef = {
@@ -194,37 +203,44 @@ describe("agent command builders", () => {
     });
   });
 
-  it.skipIf(process.platform !== "win32")("prefers pwsh, then powershell, then cmd on Windows", () => {
-    expect(
-      buildWindowsCommand("C:\\Users\\demo\\project", "codex", ["hello"], (name) =>
-        name === "pwsh.exe" ? "C:\\Program Files\\PowerShell\\7\\pwsh.exe" : undefined,
-      ).command,
-    ).toBe("C:\\Program Files\\PowerShell\\7\\pwsh.exe");
+  it.skipIf(process.platform !== "win32")(
+    "prefers pwsh, then powershell, then cmd on Windows",
+    () => {
+      expect(
+        buildWindowsCommand("C:\\Users\\demo\\project", "codex", ["hello"], (name) =>
+          name === "pwsh.exe" ? "C:\\Program Files\\PowerShell\\7\\pwsh.exe" : undefined,
+        ).command,
+      ).toBe("C:\\Program Files\\PowerShell\\7\\pwsh.exe");
 
-    expect(
-      buildWindowsCommand("C:\\Users\\demo\\project", "codex", ["hello"], (name) =>
-        name === "powershell.exe"
-          ? "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe"
-          : undefined,
-      ).command,
-    ).toBe("C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe");
+      expect(
+        buildWindowsCommand("C:\\Users\\demo\\project", "codex", ["hello"], (name) =>
+          name === "powershell.exe"
+            ? "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe"
+            : undefined,
+        ).command,
+      ).toBe("C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe");
 
-    expect(
-      buildWindowsCommand("C:\\Users\\demo\\project", "codex", ["hello"], () => undefined).command,
-    ).toBe("C:\\Windows\\System32\\cmd.exe");
-  });
+      expect(
+        buildWindowsCommand("C:\\Users\\demo\\project", "codex", ["hello"], () => undefined)
+          .command,
+      ).toBe("C:\\Windows\\System32\\cmd.exe");
+    },
+  );
 
-  it.skipIf(process.platform !== "win32")("uses encoded PowerShell commands for prompts with special characters", () => {
-    const spec = buildWindowsCommand(
-      "C:\\Users\\demo\\project",
-      "codex",
-      ["say 'hello' & more"],
-      (name) => (name === "pwsh.exe" ? "C:\\Program Files\\PowerShell\\7\\pwsh.exe" : undefined),
-    );
+  it.skipIf(process.platform !== "win32")(
+    "uses encoded PowerShell commands for prompts with special characters",
+    () => {
+      const spec = buildWindowsCommand(
+        "C:\\Users\\demo\\project",
+        "codex",
+        ["say 'hello' & more"],
+        (name) => (name === "pwsh.exe" ? "C:\\Program Files\\PowerShell\\7\\pwsh.exe" : undefined),
+      );
 
-    expect(spec.args.slice(0, 3)).toEqual(["-NoLogo", "-NoProfile", "-EncodedCommand"]);
-    expect(spec.args[3]).toBeTruthy();
-  });
+      expect(spec.args.slice(0, 3)).toEqual(["-NoLogo", "-NoProfile", "-EncodedCommand"]);
+      expect(spec.args[3]).toBeTruthy();
+    },
+  );
 
   it.skipIf(process.platform !== "win32")("omits an empty prompt when reopening Claude", () => {
     const sessionRef: SessionRef = {

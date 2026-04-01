@@ -3,6 +3,7 @@ import { GitBranch, GitFork, X } from "lucide-react";
 import type {
   AgentStatus,
   ProjectLocation,
+  PromptSegment,
   TerminalSize,
   Thread,
   ThreadConfig,
@@ -14,6 +15,7 @@ import type { PendingThreadServerRequest } from "../../state/appStore";
 import { useGitStore } from "../../state/gitStore";
 import { Button, TuxIcon } from "../common";
 import { readBridge } from "../../bridge";
+import { MentionInput, type MentionInputHandle } from "../composer";
 import { TerminalPane } from "./TerminalPane";
 import { ThreadComposer } from "./ThreadComposer";
 import { ThreadServerRequestPanel } from "./ThreadServerRequestPanel";
@@ -51,6 +53,7 @@ export function ThreadView(props: {
   agentStatus: AgentStatus | undefined;
   projectLocation: ProjectLocation;
   pendingLaunchPrompt?: string;
+  pendingLaunchSegments?: PromptSegment[];
   isWsl?: boolean;
   pendingServerRequests: PendingThreadServerRequest[];
   showCloseButton?: boolean;
@@ -73,13 +76,14 @@ export function ThreadView(props: {
     method: string;
     response: unknown;
   }) => Promise<void>;
-  onSubmitInput: (prompt: string) => Promise<void>;
+  onSubmitInput: (prompt: string, segments?: PromptSegment[]) => Promise<void>;
 }) {
   const {
     thread,
     agentStatus,
     projectLocation,
     pendingLaunchPrompt,
+    pendingLaunchSegments,
     isWsl,
     pendingServerRequests,
     showCloseButton,
@@ -99,6 +103,8 @@ export function ThreadView(props: {
     onSubmitInput,
   } = props;
   const [prompt, setPrompt] = useState("");
+  const [hasContent, setHasContent] = useState(false);
+  const mentionRef = useRef<MentionInputHandle>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [terminalSize, setTerminalSize] = useState<TerminalSize | null>(null);
   const launchRequestRef = useRef<string | null>(null);
@@ -131,6 +137,30 @@ export function ThreadView(props: {
   const branchName = thread.worktreeBranch ?? gitStatus?.branch;
 
   const controls = buildControls(thread, agentStatus, onConfigChange);
+
+  const canSubmit = (canSubmitServerInput || canSubmitTerminalInput) && !isSubmitting;
+
+  function submitPrompt(segments: PromptSegment[]) {
+    const flat = segments
+      .map((s) => (s.kind === "file" ? `@${s.path}` : s.content))
+      .join("")
+      .trim();
+    if (flat.length === 0 || !canSubmit) return;
+    setIsSubmitting(true);
+    void onSubmitInput(flat, segments.length > 0 ? segments : undefined)
+      .then(() => {
+        mentionRef.current?.clear();
+        mentionRef.current?.focus();
+        setPrompt("");
+        setHasContent(false);
+      })
+      .catch(() => {
+        // Leave the prompt intact so the user can retry.
+      })
+      .finally(() => {
+        setIsSubmitting(false);
+      });
+  }
 
   useEffect(() => {
     setPrompt("");
@@ -178,6 +208,7 @@ export function ThreadView(props: {
         agentKind: thread.agentKind,
         config: thread.config,
         prompt: pendingLaunchPrompt,
+        ...(pendingLaunchSegments ? { segments: pendingLaunchSegments } : {}),
         initialSize: launchTerminalSize,
         ...(thread.sessionRef ? { sessionRef: thread.sessionRef } : {}),
       })
@@ -189,6 +220,7 @@ export function ThreadView(props: {
     onLaunchConsumed,
     onLaunchFailed,
     pendingLaunchPrompt,
+    pendingLaunchSegments,
     projectLocation,
     launchTerminalSize,
     thread.agentKind,
@@ -315,23 +347,31 @@ export function ThreadView(props: {
               <ThreadComposer
                 autoFocus // eslint-disable-line jsx-a11y/no-autofocus -- desktop app, expected UX
                 compact
-                controls={controls}
-                placeholder={
-                  isServerControlled
-                    ? `Ask ${agentStatus?.label ?? "the agent"} anything about this workspace`
-                    : isTerminalInput
-                      ? "Send a message..."
-                      : "Send a message..."
+                inputContent={
+                  <MentionInput
+                    ref={mentionRef}
+                    autoFocus // eslint-disable-line jsx-a11y/no-autofocus -- desktop app, expected UX
+                    compact
+                    disabled={
+                      !(showServerComposer || showTerminalComposer) || thread.status === "launching"
+                    }
+                    placeholder={
+                      isServerControlled
+                        ? `Ask ${agentStatus?.label ?? "the agent"} anything about this workspace`
+                        : "Send a message..."
+                    }
+                    projectLocation={projectLocation}
+                    onTextChange={setHasContent}
+                    onSubmit={submitPrompt}
+                  />
                 }
+                controls={controls}
+                placeholder="Send a message..."
                 prompt={prompt}
                 promptDisabled={
                   !(showServerComposer || showTerminalComposer) || thread.status === "launching"
                 }
-                submitDisabled={
-                  prompt.trim().length === 0 ||
-                  !(canSubmitServerInput || canSubmitTerminalInput) ||
-                  isSubmitting
-                }
+                submitDisabled={!hasContent || !canSubmit}
                 submitLabel="Send message"
                 afterControls={
                   branchName ? (
@@ -347,25 +387,12 @@ export function ThreadView(props: {
                 }
                 onPromptChange={setPrompt}
                 onSubmit={() => {
-                  if (
-                    prompt.trim().length === 0 ||
-                    !(canSubmitServerInput || canSubmitTerminalInput) ||
-                    isSubmitting
-                  ) {
-                    return;
-                  }
-
-                  setIsSubmitting(true);
-                  void onSubmitInput(prompt.trim())
-                    .then(() => {
-                      setPrompt("");
-                    })
-                    .catch(() => {
-                      // Leave the prompt intact so the user can retry.
-                    })
-                    .finally(() => {
-                      setIsSubmitting(false);
-                    });
+                  const segments = mentionRef.current?.serializeSegments();
+                  submitPrompt(
+                    segments && segments.length > 0
+                      ? segments
+                      : [{ kind: "text", content: prompt.trim() }],
+                  );
                 }}
               />
             </div>

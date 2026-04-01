@@ -162,6 +162,17 @@ export const terminalSizeSchema = z.object({
 });
 export type TerminalSize = z.infer<typeof terminalSizeSchema>;
 
+// ── Structured prompt segments ──────────────────────────────
+// The composer outputs structured segments so each agent adapter can format
+// file references in its own way (Claude: @path, Codex: structured API,
+// Gemini ACP: file attachments, etc.).
+
+export const promptSegmentSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("text"), content: z.string() }),
+  z.object({ kind: z.literal("file"), path: z.string() }),
+]);
+export type PromptSegment = z.infer<typeof promptSegmentSchema>;
+
 export const getAgentStatusesPayloadSchema = z.object({
   wslDistros: z.array(z.string().min(1)).default([]),
 });
@@ -173,6 +184,7 @@ export const startThreadPayloadSchema = z.object({
   agentKind: agentKindSchema,
   config: threadConfigSchema,
   prompt: z.string().default(""),
+  segments: z.array(promptSegmentSchema).optional(),
   initialSize: terminalSizeSchema,
   sessionRef: sessionRefSchema.optional(),
 });
@@ -185,6 +197,7 @@ export interface StartThreadResult {
 export const sendThreadInputPayloadSchema = z.object({
   threadId: z.string().min(1),
   prompt: z.string().min(1),
+  segments: z.array(promptSegmentSchema).optional(),
   config: threadConfigSchema,
 });
 export type SendThreadInputPayload = z.infer<typeof sendThreadInputPayloadSchema>;
@@ -426,6 +439,28 @@ export interface GitSyncResult {
   pulled: boolean;
   pushed: boolean;
 }
+
+// --- File Index types ---
+
+export interface FileEntry {
+  /** Repo-relative path, always forward-slashed (e.g. "src/main/main.ts") */
+  path: string;
+  /** Just the filename portion (e.g. "main.ts") */
+  name: string;
+  type: "file" | "directory";
+}
+
+export interface SearchProjectFilesResult {
+  entries: FileEntry[];
+  totalIndexed: number;
+}
+
+export const searchProjectFilesPayloadSchema = z.object({
+  projectLocation: projectLocationSchema,
+  query: z.string().default(""),
+  limit: z.number().int().min(1).max(200).default(50),
+});
+export type SearchProjectFilesPayload = z.infer<typeof searchProjectFilesPayloadSchema>;
 
 export type AppView =
   | { kind: "home" }

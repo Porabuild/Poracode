@@ -32,6 +32,8 @@ import type {
   GitStatusResult,
   GitSyncPayload,
   GitSyncResult,
+  SearchProjectFilesPayload,
+  SearchProjectFilesResult,
   GitAddWorktreePayload,
   GitBranchListResult,
   GitFetchPayload,
@@ -69,10 +71,12 @@ import {
   type AgentEnvContext,
   type CommandSpec,
   type StructuredSessionHandle,
+  defaultFormatPromptSegments,
   getWslCommand,
 } from "./agents/base";
 import { generateCommitMessage } from "./commitMessageGenerator";
 import { GitService } from "./git";
+import { FileIndexService } from "./fileIndex";
 import { resetTerminalLogFile, resetTerminalLogsDir } from "./terminalLogs";
 import { detectWindowsShell, type WindowsShellPreference } from "./shellPreference";
 
@@ -111,11 +115,13 @@ interface SessionRuntime {
   pendingLaunchPrompt?: string | undefined;
   prevChunk: string;
   /** Pending status stabilization — delays low-risk transitions to filter TUI animation noise. */
-  pendingStatusHint?: {
-    status: ThreadStatus;
-    attention: ThreadAttention;
-    timer: ReturnType<typeof setTimeout>;
-  } | undefined;
+  pendingStatusHint?:
+    | {
+        status: ThreadStatus;
+        attention: ThreadAttention;
+        timer: ReturnType<typeof setTimeout>;
+      }
+    | undefined;
 }
 
 interface ShellSessionRuntime {
@@ -181,6 +187,7 @@ export class SupervisorRuntime {
   private readonly isDev = Boolean(process.env.VITE_DEV_SERVER_URL);
   private readonly logsDir: string;
   private readonly gitService = new GitService();
+  private readonly fileIndexService = new FileIndexService();
   private readonly adapters = new Map(
     createAgentRegistry().map((adapter) => [adapter.kind, adapter]),
   );
@@ -279,7 +286,9 @@ export class SupervisorRuntime {
       [...this.adapters.values()].map(async (adapter) => {
         const at = Date.now();
         const status = await adapter.detectInstall();
-        console.log(`[supervisor] detectInstall(${adapter.kind}, ${nativePlatform}): ${Date.now() - at}ms`);
+        console.log(
+          `[supervisor] detectInstall(${adapter.kind}, ${nativePlatform}): ${Date.now() - at}ms`,
+        );
         return { ...status, envKind: nativePlatform };
       }),
     )
@@ -392,7 +401,12 @@ export class SupervisorRuntime {
     const usesTerminalPresentation = adapter.capabilities.presentationMode === "terminal";
     const effectiveConfig = payload.config;
     const effectiveSessionRef = payload.sessionRef;
-    const initialPrompt = payload.prompt.trim();
+    // Resolve structured segments for the initial prompt, same as sendThreadInput
+    const initialPrompt =
+      payload.segments && payload.segments.length > 0
+        ? (adapter.formatPromptSegments?.(payload.segments) ??
+          defaultFormatPromptSegments(payload.segments))
+        : payload.prompt.trim();
     const shouldQueueInitialPrompt =
       !effectiveSessionRef &&
       isServerControlled &&
@@ -497,6 +511,14 @@ export class SupervisorRuntime {
       throw new Error("This thread exited before a resumable session id was discovered.");
     }
 
+    // Resolve structured segments into a prompt string via the adapter.
+    // Each adapter formats file references its own way (Claude: @path, etc.).
+    const prompt =
+      payload.segments && payload.segments.length > 0
+        ? (session.adapter.formatPromptSegments?.(payload.segments) ??
+          defaultFormatPromptSegments(payload.segments))
+        : payload.prompt;
+
     const isServerControlled = session.adapter.capabilities.liveInputMode === "server";
 
     // If the supervisor auto-cleared plan mode from terminal detection but the renderer
@@ -512,7 +534,7 @@ export class SupervisorRuntime {
       JSON.stringify(session.config) !== JSON.stringify(effectiveConfig);
 
     if (shouldRelaunch && session.sessionRef) {
-      await this.restartThread(session, payload.prompt, effectiveConfig);
+      await this.restartThread(session, prompt, effectiveConfig);
       return;
     }
 
@@ -522,7 +544,7 @@ export class SupervisorRuntime {
       session.structuredSession?.startTurn
     ) {
       this.updateState(session, "working", "working");
-      void session.structuredSession.startTurn(payload.prompt, payload.config).catch((error) => {
+      void session.structuredSession.startTurn(prompt, payload.config).catch((error) => {
         if (this.sessions.get(session.threadId)?.instanceId !== session.instanceId) {
           return;
         }
@@ -540,7 +562,7 @@ export class SupervisorRuntime {
     this.updateState(session, "working", "working");
     await writeSubmittedPrompt(
       session.pty,
-      session.adapter.buildDirectInput?.(payload.prompt) ?? [payload.prompt, "\r"],
+      session.adapter.buildDirectInput?.(prompt) ?? [prompt, "\r"],
     );
   }
 
@@ -796,6 +818,10 @@ export class SupervisorRuntime {
     }
 
     return { pulled, pushed };
+  }
+
+  async searchProjectFiles(payload: SearchProjectFilesPayload): Promise<SearchProjectFilesResult> {
+    return this.fileIndexService.searchProjectFiles(payload);
   }
 
   async resolveThreadServerRequest(payload: ResolveThreadServerRequestPayload): Promise<void> {
@@ -1145,8 +1171,7 @@ export class SupervisorRuntime {
 
       if (
         usesTerminalPresentation &&
-        (session.adapter.isReadyForInitialPrompt ||
-          session.adapter.detectTerminalStatus)
+        (session.adapter.isReadyForInitialPrompt || session.adapter.detectTerminalStatus)
       ) {
         const combined = session.prevChunk + data;
         session.prevChunk = combined.length > 8192 ? combined.slice(-8192) : combined;

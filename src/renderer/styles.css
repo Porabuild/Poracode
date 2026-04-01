@@ -447,6 +447,128 @@ body {
   width: 2.25rem;
 }
 
+/* ── Mention Input (contentEditable) ──────────────────────── */
+
+.lightcode-mention-input {
+  min-height: 112px;
+  max-height: 320px;
+  overflow-y: auto;
+  padding: 0.95rem 1.1rem 0.35rem;
+  font-size: 1rem;
+  line-height: 1.55;
+  color: var(--foreground);
+  outline: none;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.lightcode-mention-input--compact {
+  /* 2 lines min, 6 lines max, then scroll */
+  min-height: calc(2lh + 0.75rem + 0.25rem);
+  max-height: calc(6lh + 0.75rem + 0.25rem);
+  padding: 0.75rem 0.75rem 0.25rem;
+  line-height: 1.35;
+}
+
+.lightcode-mention-input:empty::before {
+  content: attr(data-placeholder);
+  color: var(--muted);
+  pointer-events: none;
+}
+
+/* ── Mention Chip (inline in contentEditable) ────────────── */
+
+.lightcode-mention-chip {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  padding: 0.15em 0.3em;
+  margin: 0 2px;
+  border-radius: 0.3rem;
+  background: color-mix(in oklab, var(--accent) 15%, var(--surface));
+  color: var(--foreground);
+  font-size: 0.875em;
+  line-height: 1;
+  vertical-align: text-bottom;
+  user-select: none;
+  cursor: default;
+}
+
+.lightcode-mention-chip__icon {
+  width: 1.1em;
+  height: 1.1em;
+  vertical-align: middle;
+}
+
+.lightcode-mention-chip__name {
+  font-weight: 400;
+}
+
+.lightcode-mention-chip__delete {
+  display: none;
+  position: absolute;
+  right: -0.3rem;
+  top: -0.3rem;
+  align-items: center;
+  justify-content: center;
+  width: 1rem;
+  height: 1rem;
+  border-radius: 50%;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.lightcode-mention-chip__delete:hover {
+  color: var(--foreground);
+  background: color-mix(in oklab, var(--accent) 20%, var(--surface));
+}
+
+.lightcode-mention-chip:hover .lightcode-mention-chip__delete {
+  display: inline-flex;
+}
+
+/* ── Mention Popover (file search dropdown) ──────────────── */
+
+.lightcode-mention-popover {
+  width: 30rem;
+  max-height: 20rem;
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  background: var(--overlay);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+  overflow: hidden;
+}
+
+.lightcode-mention-popover__list {
+  overflow-y: auto;
+  max-height: 20rem;
+  padding: 0.25rem;
+}
+
+.lightcode-mention-popover__icon {
+  width: 1.125rem;
+  height: 1.125rem;
+  flex-shrink: 0;
+}
+
+.lightcode-mention-popover__item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.45rem 0.65rem;
+  border-radius: 0.5rem;
+  font-size: 0.8125rem;
+  cursor: pointer;
+  color: var(--foreground);
+}
+
+.lightcode-mention-popover__item--active {
+  background: color-mix(in oklab, var(--accent) 12%, var(--surface));
+}
+
 .lightcode-overlay-header {
   -webkit-app-region: drag;
   app-region: drag;

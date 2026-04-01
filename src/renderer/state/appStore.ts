@@ -7,6 +7,7 @@ import type {
   Project,
   ProjectDraftConfig,
   ProjectLocation,
+  PromptSegment,
   SessionRef,
   Thread,
   ThreadAttention,
@@ -77,6 +78,7 @@ interface AppStoreState {
   threads: Thread[];
   pendingServerRequests: PendingThreadServerRequest[];
   pendingThreadLaunches: Record<string, string>;
+  pendingLaunchSegments: Record<string, PromptSegment[]>;
   agentStatuses: AgentStatus[];
   wslAgentStatuses: AgentStatus[];
   view: AppView;
@@ -101,7 +103,7 @@ interface AppStoreState {
     worktreePath?: string;
     worktreeBranch?: string;
   }) => Thread;
-  queueThreadLaunch: (threadId: string, prompt: string) => void;
+  queueThreadLaunch: (threadId: string, prompt: string, segments?: PromptSegment[]) => void;
   consumeThreadLaunch: (threadId: string) => void;
   deleteThread: (threadId: string) => void;
   renameThread: (threadId: string, title: string) => void;
@@ -191,6 +193,7 @@ export const useAppStore = create<AppStoreState>()(
       threads: [],
       pendingServerRequests: [],
       pendingThreadLaunches: {},
+      pendingLaunchSegments: {},
       agentStatuses: [],
       wslAgentStatuses: [],
       view: { kind: "home" },
@@ -253,6 +256,11 @@ export const useAppStore = create<AppStoreState>()(
               ([threadId]) => !projectThreadIds.has(threadId),
             ),
           );
+          const nextPendingLaunchSegments = Object.fromEntries(
+            Object.entries(state.pendingLaunchSegments).filter(
+              ([threadId]) => !projectThreadIds.has(threadId),
+            ),
+          );
 
           let nextView = state.view;
           if (state.view.kind === "draft" && state.view.projectId === projectId) {
@@ -270,6 +278,7 @@ export const useAppStore = create<AppStoreState>()(
             threads: nextThreads,
             pendingServerRequests: nextPendingServerRequests,
             pendingThreadLaunches: nextPendingThreadLaunches,
+            pendingLaunchSegments: nextPendingLaunchSegments,
             view: nextView,
           };
         }),
@@ -384,12 +393,20 @@ export const useAppStore = create<AppStoreState>()(
 
         return thread;
       },
-      queueThreadLaunch: (threadId, prompt) =>
+      queueThreadLaunch: (threadId, prompt, segments) =>
         set((state) => ({
           pendingThreadLaunches: {
             ...state.pendingThreadLaunches,
             [threadId]: prompt,
           },
+          ...(segments
+            ? {
+                pendingLaunchSegments: {
+                  ...state.pendingLaunchSegments,
+                  [threadId]: segments,
+                },
+              }
+            : {}),
         })),
       consumeThreadLaunch: (threadId) =>
         set((state) => {
@@ -398,7 +415,8 @@ export const useAppStore = create<AppStoreState>()(
           }
 
           const { [threadId]: _removed, ...pendingThreadLaunches } = state.pendingThreadLaunches;
-          return { pendingThreadLaunches };
+          const { [threadId]: _removedSeg, ...pendingLaunchSegments } = state.pendingLaunchSegments;
+          return { pendingThreadLaunches, pendingLaunchSegments };
         }),
       deleteThread: (threadId) =>
         set((state) => {
@@ -424,6 +442,9 @@ export const useAppStore = create<AppStoreState>()(
             ),
             pendingThreadLaunches: Object.fromEntries(
               Object.entries(state.pendingThreadLaunches).filter(([id]) => id !== threadId),
+            ),
+            pendingLaunchSegments: Object.fromEntries(
+              Object.entries(state.pendingLaunchSegments).filter(([id]) => id !== threadId),
             ),
             view: nextView,
           };

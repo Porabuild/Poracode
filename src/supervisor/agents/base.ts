@@ -11,6 +11,7 @@ import type {
   AgentStatus,
   AuthState,
   ProjectLocation,
+  PromptSegment,
   SessionRef,
   ThreadServerRequestId,
   ThreadAttention,
@@ -99,6 +100,13 @@ export interface AgentAdapter {
   createInitialSessionRef(): SessionRef | undefined;
   createStructuredSession?(input: CreateStructuredSessionInput): Promise<StructuredSessionHandle>;
   buildDirectInput?(prompt: string): string[];
+  /**
+   * Format structured prompt segments into a prompt string for this agent.
+   * Each adapter decides how to represent file references (e.g. Claude: `@path`,
+   * Codex ACP: structured attachment, Gemini ACP: file part, etc.).
+   * If not implemented, the runtime uses a default `@path` flattening.
+   */
+  formatPromptSegments?(segments: PromptSegment[]): string;
   /** Detect when the PTY is ready to accept an initial queued launch prompt. */
   isReadyForInitialPrompt?(text: string): boolean;
   detectTerminalStatus?(text: string): TerminalStatusHint | null;
@@ -552,6 +560,14 @@ export async function readWslCommandOutputAsync(
       stderr: (err?.stderr ?? "").trim(),
     };
   }
+}
+
+/**
+ * Default segment formatter: file segments become `@path`, text segments pass through.
+ * Used when an adapter doesn't implement `formatPromptSegments`.
+ */
+export function defaultFormatPromptSegments(segments: PromptSegment[]): string {
+  return segments.map((s) => (s.kind === "file" ? `@${s.path}` : s.content)).join("");
 }
 
 export function detectAuthFile(filePath: string): AuthState {

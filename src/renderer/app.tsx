@@ -2,7 +2,7 @@ import React, { lazy, startTransition, Suspense, useEffect, useEffectEvent, useS
 import { ArrowRight, FolderOpen, FolderPlus, Monitor, Plus, TerminalSquare } from "lucide-react";
 import { Button, Dropdown, Label, Spinner } from "@heroui/react";
 import { TuxIcon } from "./components/common/TuxIcon";
-import type { AgentStatus, Project } from "../shared/contracts";
+import type { AgentStatus, Project, PromptSegment } from "../shared/contracts";
 import { getProjectAgentStatuses } from "../shared/agentStatus";
 import type { PendingThreadServerRequest } from "./state/appStore";
 import { parseWslUncPath } from "../shared/wsl";
@@ -135,30 +135,28 @@ function HomeView() {
             <div className="mt-10 flex w-full flex-col gap-8">
               {/* Projects */}
               {projects.length > 0 && (
-              <section>
-                {projects.length === 0 ? (
-                  <p className="text-sm text-muted">
-                    add a project to start
-                  </p>
-                ) : (
-                  <div className="flex flex-col gap-1">
-                    {projects.map((project) => (
-                      <button
-                        key={project.id}
-                        className="group flex items-center gap-3 rounded-2xl px-3 py-2 text-left transition-colors hover:bg-white/[0.04]"
-                        onClick={() => openDraft(project.id)}
-                        type="button"
-                      >
-                        <FolderOpen className="size-4 shrink-0 text-muted" />
-                        <p className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">
-                          {project.name}
-                        </p>
-                        <Plus className="size-4 shrink-0 text-muted opacity-0 transition-opacity group-hover:opacity-100" />
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </section>
+                <section>
+                  {projects.length === 0 ? (
+                    <p className="text-sm text-muted">add a project to start</p>
+                  ) : (
+                    <div className="flex flex-col gap-1">
+                      {projects.map((project) => (
+                        <button
+                          key={project.id}
+                          className="group flex items-center gap-3 rounded-2xl px-3 py-2 text-left transition-colors hover:bg-white/[0.04]"
+                          onClick={() => openDraft(project.id)}
+                          type="button"
+                        >
+                          <FolderOpen className="size-4 shrink-0 text-muted" />
+                          <p className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">
+                            {project.name}
+                          </p>
+                          <Plus className="size-4 shrink-0 text-muted opacity-0 transition-opacity group-hover:opacity-100" />
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </section>
               )}
 
               {/* Recent threads */}
@@ -215,10 +213,14 @@ function ThreadPane(props: {
   wslAgentStatuses: AgentStatus[];
   pendingServerRequests: PendingThreadServerRequest[];
   pendingLaunchPrompt: string | undefined;
+  pendingLaunchSegments: PromptSegment[] | undefined;
   paneDragSource: string | undefined;
   sidebarDragActive: boolean;
   paneDropTarget: string | undefined;
-  sidebarDropTarget: { kind: "replace"; paneIndex: number } | { kind: "insert"; index: number } | undefined;
+  sidebarDropTarget:
+    | { kind: "replace"; paneIndex: number }
+    | { kind: "insert"; index: number }
+    | undefined;
   onPaneDragStart: (() => void) | undefined;
   onPaneDragEnd: (() => void) | undefined;
   onPaneDragOver: (zone: "left" | "center" | "right", event: React.DragEvent) => void;
@@ -255,11 +257,14 @@ function ThreadPane(props: {
   const dropIndicator: false | "replace" | "insert-left" | "insert-right" =
     props.paneDropTarget === props.threadId
       ? "replace"
-      : props.sidebarDropTarget?.kind === "replace" && props.sidebarDropTarget.paneIndex === props.paneIndex
+      : props.sidebarDropTarget?.kind === "replace" &&
+          props.sidebarDropTarget.paneIndex === props.paneIndex
         ? "replace"
-        : props.sidebarDropTarget?.kind === "insert" && props.sidebarDropTarget.index === props.paneIndex
+        : props.sidebarDropTarget?.kind === "insert" &&
+            props.sidebarDropTarget.index === props.paneIndex
           ? "insert-left"
-          : props.sidebarDropTarget?.kind === "insert" && props.sidebarDropTarget.index === props.paneIndex + 1
+          : props.sidebarDropTarget?.kind === "insert" &&
+              props.sidebarDropTarget.index === props.paneIndex + 1
             ? "insert-right"
             : false;
 
@@ -295,8 +300,7 @@ function ThreadPane(props: {
             status: "error",
             attention: "error",
             ...(thread.sessionRef ? { sessionRef: thread.sessionRef } : {}),
-            canResumeWithConfig:
-              thread.canResumeWithConfig || thread.sessionRef !== undefined,
+            canResumeWithConfig: thread.canResumeWithConfig || thread.sessionRef !== undefined,
           });
         });
       }}
@@ -313,10 +317,14 @@ function ThreadPane(props: {
       {...(props.pendingLaunchPrompt !== undefined
         ? { pendingLaunchPrompt: props.pendingLaunchPrompt }
         : {})}
-      onSubmitInput={async (prompt) => {
+      {...(props.pendingLaunchSegments
+        ? { pendingLaunchSegments: props.pendingLaunchSegments }
+        : {})}
+      onSubmitInput={async (prompt, segments) => {
         await readBridge().sendThreadInput({
           threadId: thread.id,
           prompt,
+          ...(segments ? { segments } : {}),
           config: thread.config,
         });
         touchThread(thread.id);
@@ -330,6 +338,7 @@ function AppContent() {
   const projects = useAppStore((state) => state.projects);
   const pendingServerRequests = useAppStore((state) => state.pendingServerRequests);
   const pendingThreadLaunches = useAppStore((state) => state.pendingThreadLaunches);
+  const pendingLaunchSegments = useAppStore((state) => state.pendingLaunchSegments);
   const agentStatuses = useAppStore((state) => state.agentStatuses);
   const wslAgentStatuses = useAppStore((state) => state.wslAgentStatuses);
   const createThread = useAppStore((state) => state.createThread);
@@ -340,8 +349,9 @@ function AppContent() {
   const openThreadSideBySide = useAppStore((state) => state.openThreadSideBySide);
   const replaceSecondPane = useAppStore((state) => state.replaceSecondPane);
   const insertPaneAtIndex = useAppStore((state) => state.insertPaneAtIndex);
-  const hasValidPanes = useAppStore((s) =>
-    s.view.kind === "thread" && s.view.panes.some((id) => s.threads.some((t) => t.id === id)),
+  const hasValidPanes = useAppStore(
+    (s) =>
+      s.view.kind === "thread" && s.view.panes.some((id) => s.threads.some((t) => t.id === id)),
   );
   const [paneDragSource, setPaneDragSource] = useState<string | undefined>();
   const [paneDropTarget, setPaneDropTarget] = useState<string | undefined>();
@@ -401,6 +411,7 @@ function AppContent() {
             agentKind,
             config,
             prompt,
+            segments,
             existingWorktreePath,
             worktreeBranch,
             worktreeBaseBranch,
@@ -440,7 +451,7 @@ function AppContent() {
               prompt,
               ...(worktreePath ? { worktreePath, worktreeBranch } : {}),
             });
-            queueThreadLaunch(thread.id, prompt);
+            queueThreadLaunch(thread.id, prompt, segments);
           }}
         />
         {sidebarDragActive && (
@@ -482,6 +493,7 @@ function AppContent() {
         wslAgentStatuses={wslAgentStatuses}
         pendingServerRequests={pendingServerRequests}
         pendingLaunchPrompt={pendingThreadLaunches[paneThreadId]}
+        pendingLaunchSegments={pendingLaunchSegments[paneThreadId]}
         paneDragSource={paneDragSource}
         sidebarDragActive={sidebarDragActive}
         paneDropTarget={paneDropTarget}
@@ -681,7 +693,9 @@ export function App() {
   ) {
     const removedTabIds = useDevTerminalStore.getState().removeTabsForWorktree(worktreePath);
     for (const tabId of removedTabIds) {
-      void readBridge().closeThread({ threadId: tabId }).catch(() => undefined);
+      void readBridge()
+        .closeThread({ threadId: tabId })
+        .catch(() => undefined);
     }
 
     useGitStore.getState().clearWorktreeStatus(worktreePath);
@@ -883,7 +897,11 @@ export function App() {
           // Background fetch (best-effort, don't block status polling)
           if (shouldFetch) {
             try {
-              await readBridge().gitFetch({ projectLocation: project.location, remote: "origin", prune: false });
+              await readBridge().gitFetch({
+                projectLocation: project.location,
+                remote: "origin",
+                prune: false,
+              });
             } catch {
               // ignore — remote may be unreachable
             }
@@ -893,7 +911,10 @@ export function App() {
           // Status, branches, and worktrees in parallel
           const [statusResult, branchesResult, worktreesResult] = await Promise.allSettled([
             readBridge().getGitStatus({ projectLocation: project.location }),
-            readBridge().gitListBranches({ projectLocation: project.location, includeRemote: true }),
+            readBridge().gitListBranches({
+              projectLocation: project.location,
+              includeRemote: true,
+            }),
             readBridge().gitListWorktrees({ projectLocation: project.location }),
           ]);
           if (!isActive) return;
@@ -916,7 +937,9 @@ export function App() {
                   if (!isActive) return;
                   try {
                     const wtLocation = buildWorktreeLocation(project.location, wt.path);
-                    const wtStatus = await readBridge().getGitStatus({ projectLocation: wtLocation });
+                    const wtStatus = await readBridge().getGitStatus({
+                      projectLocation: wtLocation,
+                    });
                     if (!isActive) return;
                     gitStoreActions.setWorktreeStatus(wt.path, wtStatus);
                   } catch {
@@ -1048,11 +1071,7 @@ export function App() {
                       <Monitor className="size-4 shrink-0 text-muted" />
                       <Label>Add Windows Project</Label>
                     </Dropdown.Item>
-                    <Dropdown.Item
-                      id="wsl"
-                      isDisabled={!wslAvailable}
-                      textValue="Add WSL Project"
-                    >
+                    <Dropdown.Item id="wsl" isDisabled={!wslAvailable} textValue="Add WSL Project">
                       <TuxIcon className="size-4 shrink-0 text-muted" />
                       <Label>Add WSL Project</Label>
                     </Dropdown.Item>
@@ -1161,14 +1180,18 @@ export function App() {
             onDeleteThread={(threadId, worktreePath, projectId) => {
               if (!worktreePath) {
                 deleteThread(threadId);
-                void readBridge().closeThread({ threadId }).catch(() => undefined);
+                void readBridge()
+                  .closeThread({ threadId })
+                  .catch(() => undefined);
                 return;
               }
 
               const pref = readWorktreeDeletePref();
               if (pref === "thread-only") {
                 deleteThread(threadId);
-                void readBridge().closeThread({ threadId }).catch(() => undefined);
+                void readBridge()
+                  .closeThread({ threadId })
+                  .catch(() => undefined);
                 return;
               }
 
@@ -1180,10 +1203,14 @@ export function App() {
                   (t) => t.worktreePath === worktreePath && t.id !== threadId,
                 );
                 deleteThread(threadId);
-                void readBridge().closeThread({ threadId }).catch(() => undefined);
+                void readBridge()
+                  .closeThread({ threadId })
+                  .catch(() => undefined);
                 for (const t of siblings) {
                   deleteThread(t.id);
-                  void readBridge().closeThread({ threadId: t.id }).catch(() => undefined);
+                  void readBridge()
+                    .closeThread({ threadId: t.id })
+                    .catch(() => undefined);
                 }
 
                 const project = projects.find((p) => p.id === projectId);
@@ -1201,14 +1228,13 @@ export function App() {
                 projectId: projectId!,
                 worktreePath,
                 worktreeBranch:
-                  thread?.worktreeBranch ??
-                  worktreePath.split(/[/\\]/).pop() ??
-                  worktreePath,
+                  thread?.worktreeBranch ?? worktreePath.split(/[/\\]/).pop() ?? worktreePath,
               });
             }}
             onDeleteProject={(projectId) => {
-              const projectThreadIds = useAppStore.getState().threads
-                .filter((t) => t.projectId === projectId)
+              const projectThreadIds = useAppStore
+                .getState()
+                .threads.filter((t) => t.projectId === projectId)
                 .map((t) => t.id);
 
               deleteProject(projectId);
@@ -1247,7 +1273,9 @@ export function App() {
 
               for (const threadId of threadIds) {
                 deleteThread(threadId);
-                void readBridge().closeThread({ threadId }).catch(() => undefined);
+                void readBridge()
+                  .closeThread({ threadId })
+                  .catch(() => undefined);
               }
 
               void performWorktreeRemoval(project, worktreePath, sampleThread?.worktreeBranch);
@@ -1388,7 +1416,9 @@ export function App() {
               .catch(() => undefined);
             for (const t of siblings) {
               deleteThread(t.id);
-              void readBridge().closeThread({ threadId: t.id }).catch(() => undefined);
+              void readBridge()
+                .closeThread({ threadId: t.id })
+                .catch(() => undefined);
             }
 
             const project = projects.find((p) => p.id === worktreeDeleteDialog.projectId);
@@ -1451,9 +1481,7 @@ export function App() {
                       projectLocation: project.location,
                       includeRemote: true,
                     })
-                    .then((branches) =>
-                      useGitStore.getState().setBranches(project.id, branches),
-                    )
+                    .then((branches) => useGitStore.getState().setBranches(project.id, branches))
                     .catch(() => undefined);
                 }
               })();
@@ -1483,9 +1511,7 @@ export function App() {
                       projectLocation: project.location,
                       includeRemote: true,
                     })
-                    .then((branches) =>
-                      useGitStore.getState().setBranches(project.id, branches),
-                    )
+                    .then((branches) => useGitStore.getState().setBranches(project.id, branches))
                     .catch(() => undefined);
                 })
                 .catch(() => undefined);

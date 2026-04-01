@@ -381,7 +381,12 @@ export function BranchSelector(props: BranchSelectorProps) {
                       onWorktreeModeChange(checked);
                       if (checked) {
                         const base = baseBranch ?? value;
-                        onSelect({ branch: base, baseBranch: base, isNew: false, isWorktree: true });
+                        onSelect({
+                          branch: base,
+                          baseBranch: base,
+                          isNew: false,
+                          isWorktree: true,
+                        });
                       } else if (isWorktree && baseBranch) {
                         const existingWorktreePath = branchWorktreePath.get(baseBranch);
                         if (existingWorktreePath) {

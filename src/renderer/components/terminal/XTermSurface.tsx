@@ -79,7 +79,6 @@ export function XTermSurface(props: {
       return;
     }
 
-
     let isActive = true;
     let lastCols = -1;
     let lastRows = -1;
@@ -147,7 +146,6 @@ export function XTermSurface(props: {
         lastCols = terminal.cols;
         lastRows = terminal.rows;
 
-
         if (terminal.cols >= 20 && terminal.rows >= 5) {
           onTerminalResizeRef.current?.({
             cols: terminal.cols,
@@ -211,9 +209,7 @@ export function XTermSurface(props: {
       if (event.type !== "keydown" || event.code !== "KeyC" || event.shiftKey || event.altKey) {
         return true;
       }
-      const isCopyChord = mac
-        ? event.metaKey && !event.ctrlKey
-        : event.ctrlKey && !event.metaKey;
+      const isCopyChord = mac ? event.metaKey && !event.ctrlKey : event.ctrlKey && !event.metaKey;
       if (!isCopyChord) return true;
 
       if (terminal.hasSelection()) {

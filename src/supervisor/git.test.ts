@@ -28,42 +28,48 @@ describe("computeDefaultWorktreePath", () => {
     simpleGitMock.mockReturnValue(gitMock);
   });
 
-  it.skipIf(process.platform !== "win32")("stores Windows worktrees under the user home .lightcode root", async () => {
-    const path = await computeDefaultWorktreePath(
-      {
-        kind: "windows",
-        path: "C:\\Users\\demo\\work\\lightcode",
-      },
-      "feature/x",
-    );
+  it.skipIf(process.platform !== "win32")(
+    "stores Windows worktrees under the user home .lightcode root",
+    async () => {
+      const path = await computeDefaultWorktreePath(
+        {
+          kind: "windows",
+          path: "C:\\Users\\demo\\work\\lightcode",
+        },
+        "feature/x",
+      );
 
-    expect(path).toMatch(
-      new RegExp(
-        `^${join(homedir(), ".lightcode", "worktrees").replace(/\\/g, "\\\\")}\\\\lightcode-[a-f0-9]{8}\\\\feature-x$`,
-      ),
-    );
-  });
+      expect(path).toMatch(
+        new RegExp(
+          `^${join(homedir(), ".lightcode", "worktrees").replace(/\\/g, "\\\\")}\\\\lightcode-[a-f0-9]{8}\\\\feature-x$`,
+        ),
+      );
+    },
+  );
 
-  it.skipIf(process.platform !== "win32")("separates same-named repos by hashing the canonical project path", async () => {
-    const first = await computeDefaultWorktreePath(
-      {
-        kind: "windows",
-        path: "C:\\Users\\demo\\work\\lightcode",
-      },
-      "feature/x",
-    );
-    const second = await computeDefaultWorktreePath(
-      {
-        kind: "windows",
-        path: "D:\\src\\lightcode",
-      },
-      "feature/x",
-    );
+  it.skipIf(process.platform !== "win32")(
+    "separates same-named repos by hashing the canonical project path",
+    async () => {
+      const first = await computeDefaultWorktreePath(
+        {
+          kind: "windows",
+          path: "C:\\Users\\demo\\work\\lightcode",
+        },
+        "feature/x",
+      );
+      const second = await computeDefaultWorktreePath(
+        {
+          kind: "windows",
+          path: "D:\\src\\lightcode",
+        },
+        "feature/x",
+      );
 
-    expect(first).not.toBe(second);
-    expect(first).toContain(`${join(".lightcode", "worktrees")}\\lightcode-`);
-    expect(second).toContain(`${join(".lightcode", "worktrees")}\\lightcode-`);
-  });
+      expect(first).not.toBe(second);
+      expect(first).toContain(`${join(".lightcode", "worktrees")}\\lightcode-`);
+      expect(second).toContain(`${join(".lightcode", "worktrees")}\\lightcode-`);
+    },
+  );
 
   it("stores WSL worktrees under the distro home .lightcode root", async () => {
     readWslCommandOutputAsync.mockResolvedValue({

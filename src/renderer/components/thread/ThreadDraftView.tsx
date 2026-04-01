@@ -5,12 +5,15 @@ import type {
   AgentStatus,
   Project,
   ProjectDraftConfig,
+  PromptSegment,
   ThreadConfig,
 } from "../../../shared/contracts";
 import { readBridge } from "../../bridge";
 import { ProviderIcon, getComposerControls } from "../providers";
 import { useGitStore } from "../../state/gitStore";
 import { BranchSelector, generateWorktreeBranch, type BranchSelection } from "../common";
+import { MentionInput, type MentionInputHandle } from "../composer";
+import { flattenSegments } from "../composer/serializeMentions";
 import { ThreadComposer } from "./ThreadComposer";
 
 function resolvePreferredAgentKind(
@@ -79,6 +82,7 @@ export function ThreadDraftView(props: {
     agentKind: AgentStatus["kind"];
     config: ThreadConfig;
     prompt: string;
+    segments?: PromptSegment[];
     existingWorktreePath?: string;
     worktreeBranch?: string;
     worktreeBaseBranch?: string;
@@ -107,6 +111,8 @@ export function ThreadDraftView(props: {
   const [approvalPolicy, setApprovalPolicy] = useState("");
   const [sandboxMode, setSandboxMode] = useState("");
   const [prompt, setPrompt] = useState("");
+  const [hasContent, setHasContent] = useState(false);
+  const mentionRef = useRef<MentionInputHandle>(null);
   const [worktreeMode, setWorktreeMode] = useState(false);
   const [branchSelection, setBranchSelection] = useState<BranchSelection | null>(null);
   const lastAppliedAgentKindRef = useRef<AgentStatus["kind"] | undefined>(undefined);
@@ -245,12 +251,52 @@ export function ThreadDraftView(props: {
                       })
                     : []),
                 ]}
+                inputContent={
+                  <MentionInput
+                    ref={mentionRef}
+                    autoFocus // eslint-disable-line jsx-a11y/no-autofocus -- desktop app, expected UX
+                    placeholder="Ask LightCode anything, @ to add files, / for commands"
+                    projectLocation={project.location}
+                    onTextChange={setHasContent}
+                    onSubmit={(segments) => {
+                      onStart({
+                        agentKind: selectedAgent.kind,
+                        config: {
+                          model,
+                          ...(effort ? { effort } : {}),
+                          ...(mode ? { mode } : {}),
+                          ...(approvalPolicy ? { approvalPolicy } : {}),
+                          ...(sandboxMode ? { sandboxMode } : {}),
+                        },
+                        prompt: flattenSegments(segments),
+                        segments,
+                        ...(branchSelection?.isWorktree
+                          ? branchSelection.worktreePath
+                            ? {
+                                existingWorktreePath: branchSelection.worktreePath,
+                                worktreeBranch: branchSelection.branch,
+                              }
+                            : {
+                                worktreeBranch: generateWorktreeBranch(),
+                                ...(branchSelection.baseBranch
+                                  ? { worktreeBaseBranch: branchSelection.baseBranch }
+                                  : {}),
+                                worktreeIsNewBranch: true,
+                              }
+                          : {}),
+                      });
+                    }}
+                  />
+                }
                 placeholder="Ask LightCode anything, @ to add files, / for commands"
                 prompt={prompt}
-                submitDisabled={prompt.trim().length === 0}
+                submitDisabled={!hasContent}
                 submitLabel="Launch thread"
                 onPromptChange={setPrompt}
-                onSubmit={() =>
+                onSubmit={() => {
+                  const segments = mentionRef.current?.serializeSegments() ?? [];
+                  const flatPrompt = flattenSegments(segments) || prompt.trim();
+                  if (flatPrompt.length === 0) return;
                   onStart({
                     agentKind: selectedAgent.kind,
                     config: {
@@ -260,7 +306,8 @@ export function ThreadDraftView(props: {
                       ...(approvalPolicy ? { approvalPolicy } : {}),
                       ...(sandboxMode ? { sandboxMode } : {}),
                     },
-                    prompt: prompt.trim(),
+                    prompt: flatPrompt,
+                    ...(segments.length > 0 ? { segments } : {}),
                     ...(branchSelection?.isWorktree
                       ? branchSelection.worktreePath
                         ? {
@@ -275,8 +322,8 @@ export function ThreadDraftView(props: {
                             worktreeIsNewBranch: true,
                           }
                       : {}),
-                  })
-                }
+                  });
+                }}
                 afterControls={
                   gitBranch ? (
                     <div className="flex items-center gap-0.5">
@@ -301,7 +348,9 @@ export function ThreadDraftView(props: {
                             isPending={isSyncing}
                             onPress={() => {
                               setIsSyncing(true);
-                              const needsPush = gitHasTracking ? gitAhead > 0 && gitBehind === 0 : true;
+                              const needsPush = gitHasTracking
+                                ? gitAhead > 0 && gitBehind === 0
+                                : true;
                               const op = needsPush
                                 ? readBridge().gitPush({
                                     projectLocation: project.location,
@@ -316,9 +365,7 @@ export function ThreadDraftView(props: {
                                 <Spinner color="current" size="sm" />
                               ) : (
                                 <span className="text-sm">
-                                  {gitHasTracking
-                                    ? `${gitBehind}↓ ${gitAhead}↑`
-                                    : "↑"}
+                                  {gitHasTracking ? `${gitBehind}↓ ${gitAhead}↑` : "↑"}
                                 </span>
                               )
                             }

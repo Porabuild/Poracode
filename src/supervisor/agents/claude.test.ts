@@ -84,6 +84,18 @@ describe("detectClaudeTerminalStatus", () => {
     expect(result?.planMode).toBeUndefined();
   });
 
+  it("does not detect working from slash command menu with * selection marker", () => {
+    const text = [
+      "❯ /",
+      "",
+      "  /heroui-react                  HeroUI v3 React component library...",
+      "* /agent-md-refactor — Refactor bloated AGENTS.md, CLAUDE.md, or similar agent instruction files to follow progress...",
+      "  /review                        Review a pull request",
+    ].join("\n");
+    const result = detectClaudeTerminalStatus(text);
+    expect(result?.status).toBe("idle");
+  });
+
   it("returns null when no pattern matches", () => {
     expect(detectClaudeTerminalStatus("some random text")).toBeNull();
   });

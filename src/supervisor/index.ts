@@ -19,6 +19,7 @@ import type {
   GitStagePayload,
   GitSyncPayload,
   GitUnstageAllPayload,
+  SearchProjectFilesPayload,
   GitUnstagePayload,
   ResizeTerminalPayload,
   ResolveThreadServerRequestPayload,
@@ -44,6 +45,7 @@ import {
   gitDeleteBranchPayloadSchema,
   gitRemoveWorktreePayloadSchema,
   gitSyncPayloadSchema,
+  searchProjectFilesPayloadSchema,
   generateCommitMessagePayloadSchema,
   gitRevertAllPayloadSchema,
   gitRevertPayloadSchema,
@@ -170,6 +172,10 @@ async function handleRequest(request: SupervisorRequest): Promise<unknown> {
       return runtime.gitPush(gitPushPayloadSchema.parse(request.payload) as GitPushPayload);
     case "gitSync":
       return runtime.gitSync(gitSyncPayloadSchema.parse(request.payload) as GitSyncPayload);
+    case "searchProjectFiles":
+      return runtime.searchProjectFiles(
+        searchProjectFilesPayloadSchema.parse(request.payload) as SearchProjectFilesPayload,
+      );
     default: {
       const exhaustive: never = request;
       return exhaustive;

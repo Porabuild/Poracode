@@ -1,3 +1,4 @@
+import { resolve } from "node:path";
 import { defineConfig } from "vitest/config";
 
 export default defineConfig({
@@ -11,6 +12,11 @@ export default defineConfig({
     projects: [
       {
         extends: true,
+        resolve: {
+          alias: {
+            "~file-icons": resolve(__dirname, "node_modules/material-icon-theme/icons"),
+          },
+        },
         test: {
           name: "renderer",
           include: ["src/renderer/**/*.test.{ts,tsx}"],

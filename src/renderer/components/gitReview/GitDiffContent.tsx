@@ -410,9 +410,7 @@ export function GitDiffContent(props: {
 
       const skeletons = [
         ...gitStatus.staged.map((f) => skeletonEntry(f.path, true, f.insertions, f.deletions)),
-        ...gitStatus.unstaged.map((f) =>
-          skeletonEntry(f.path, false, f.insertions, f.deletions),
-        ),
+        ...gitStatus.unstaged.map((f) => skeletonEntry(f.path, false, f.insertions, f.deletions)),
       ];
       if (!cancelled) setEntries(skeletons);
 

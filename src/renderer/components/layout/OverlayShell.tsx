@@ -5,11 +5,7 @@ import { useEffect, useState, type ReactNode } from "react";
  * Renders children in a fixed full-screen container and animates
  * opacity on mount/unmount.
  */
-export function OverlayShell(props: {
-  open: boolean;
-  onExited?: () => void;
-  children: ReactNode;
-}) {
+export function OverlayShell(props: { open: boolean; onExited?: () => void; children: ReactNode }) {
   const { open, onExited, children } = props;
   const [mounted, setMounted] = useState(open);
   const [visible, setVisible] = useState(false);

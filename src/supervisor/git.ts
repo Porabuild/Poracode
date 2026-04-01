@@ -30,7 +30,7 @@ function toForwardSlashUnc(uncPath: string): string {
   return uncPath.replace(/\\/g, "/");
 }
 
-function createGit(location: ProjectLocation): SimpleGit {
+export function createGit(location: ProjectLocation): SimpleGit {
   if (location.kind === "wsl") {
     return simpleGit({
       baseDir: toForwardSlashUnc(location.uncPath),
@@ -40,7 +40,7 @@ function createGit(location: ProjectLocation): SimpleGit {
   return simpleGit(getRepoPath(location));
 }
 
-function getLocationIdentity(location: ProjectLocation): string {
+export function getLocationIdentity(location: ProjectLocation): string {
   if (location.kind === "wsl") {
     return `wsl:${location.distro}:${location.linuxPath}`;
   }
@@ -275,7 +275,8 @@ export class GitService {
     const git = createGit(location);
     const status = await git.status();
     const entry = status.files.find(
-      (file) => file.path === filePath || file.path.replace(/\\/g, "/") === filePath.replace(/\\/g, "/"),
+      (file) =>
+        file.path === filePath || file.path.replace(/\\/g, "/") === filePath.replace(/\\/g, "/"),
     );
 
     if (entry?.working_dir === "?") {

@@ -32,11 +32,11 @@ Lightcode gives you one window to manage multiple AI coding agents. Each agent r
 
 Download the latest release for your platform:
 
-| Platform | Format |
-|----------|--------|
+| Platform | Format                                                          |
+| -------- | --------------------------------------------------------------- |
 | Windows  | [NSIS installer](https://github.com/nicepkg/lightcode/releases) |
-| macOS    | DMG (Universal) |
-| Linux    | AppImage, .deb |
+| macOS    | DMG (Universal)                                                 |
+| Linux    | AppImage, .deb                                                  |
 
 ### Prerequisites
 
@@ -44,7 +44,7 @@ You need at least one AI agent CLI installed:
 
 - [Claude Code](https://docs.anthropic.com/en/docs/claude-code) — `npm install -g @anthropic-ai/claude-code`
 - [OpenAI Codex](https://github.com/openai/codex) — `npm install -g @openai/codex`
-- [Gemini CLI](https://github.com/google-gemini/gemini-cli) — `npm install -g @anthropic-ai/claude-code` *(follow Gemini's install docs)*
+- [Gemini CLI](https://github.com/google-gemini/gemini-cli) — `npm install -g @anthropic-ai/claude-code` _(follow Gemini's install docs)_
 
 ## Development
 
@@ -69,15 +69,15 @@ pnpm run dist:linux  # Linux
 
 ### Scripts
 
-| Command | Description |
-|---------|-------------|
-| `pnpm run dev` | Start in development mode |
-| `pnpm run build` | Production build |
-| `pnpm run dist` | Package for all platforms |
-| `pnpm run typecheck` | Type checking |
-| `pnpm run lint` | Linting |
-| `pnpm run fmt` | Code formatting |
-| `pnpm run test` | Run tests |
+| Command              | Description               |
+| -------------------- | ------------------------- |
+| `pnpm run dev`       | Start in development mode |
+| `pnpm run build`     | Production build          |
+| `pnpm run dist`      | Package for all platforms |
+| `pnpm run typecheck` | Type checking             |
+| `pnpm run lint`      | Linting                   |
+| `pnpm run fmt`       | Code formatting           |
+| `pnpm run test`      | Run tests                 |
 
 ## Tech Stack
 

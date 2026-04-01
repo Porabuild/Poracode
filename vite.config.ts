@@ -1,3 +1,4 @@
+import { resolve } from "node:path";
 import { defineConfig } from "vite";
 import babel from "@rolldown/plugin-babel";
 import react, { reactCompilerPreset } from "@vitejs/plugin-react";
@@ -18,6 +19,9 @@ export default defineConfig({
   base: "./",
   resolve: {
     tsconfigPaths: true,
+    alias: {
+      "~file-icons": resolve(__dirname, "node_modules/material-icon-theme/icons"),
+    },
   },
   build: {
     outDir: "dist/renderer",

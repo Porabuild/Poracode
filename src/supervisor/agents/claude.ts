@@ -3,6 +3,7 @@ import type {
   AgentCapability,
   AgentStatus,
   ProjectLocation,
+  PromptSegment,
   ThreadConfig,
 } from "../../shared/contracts";
 import {
@@ -178,6 +179,10 @@ export function createClaudeAdapter(): AgentAdapter {
     buildDirectInput(prompt) {
       return [prompt, "\r"];
     },
+    formatPromptSegments(segments: PromptSegment[]) {
+      // Claude CLI natively handles @path — pass file references as @path inline
+      return segments.map((s) => (s.kind === "file" ? `@${s.path}` : s.content)).join("");
+    },
     detectTerminalStatus: detectClaudeTerminalStatus,
     syncConfigFromTerminalState: syncClaudeConfigFromTerminalState,
     defaultOneShotModel: "haiku",
@@ -206,8 +211,9 @@ const CLAUDE_HINTS: HintEntry[] = [
   },
   { re: /Enter to select/i, status: "needs_reply", attention: "needs_reply" },
   { re: /esc to interrupt/i, status: "working", attention: "working" },
-  // Animated spinner (✻✶✽✢*⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏) + text + ellipsis — universal working indicator
-  { re: /[✻✶✽✢*⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏]\s+\S.*(?:…|\.\.\.)/i, status: "working", attention: "working" },
+  // Animated spinner (✻✶✽✢⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏) + text + ellipsis — universal working indicator
+  // NOTE: plain `*` excluded — Claude Code uses `*` as a selection marker in menus
+  { re: /[✻✶✽✢⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏]\s+\S.*(?:…|\.\.\.)/i, status: "working", attention: "working" },
   // Plan approval prompt — "ctrl-g to edit in Vim · <plan path>"
   { re: /ctrl-g to edit/i, status: "needs_reply", attention: "needs_reply" },
   { re: /\?\s+for shortcuts/i, status: "idle", attention: "none" },

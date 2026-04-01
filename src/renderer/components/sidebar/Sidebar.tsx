@@ -352,7 +352,9 @@ export function Sidebar(props: {
       <div
         className={`flex h-full min-h-0 flex-col gap-3 px-3 pb-1 pt-0 transition-opacity duration-150 ${isCollapsed ? "invisible opacity-0" : "opacity-100 delay-100"}`}
       >
-        <div className={`min-h-0 flex-1 overflow-y-auto px-0 -mr-3 [scrollbar-gutter:stable] ${!isWindows() ? "pr-3" : ""}`}>
+        <div
+          className={`min-h-0 flex-1 overflow-y-auto px-0 -mr-3 [scrollbar-gutter:stable] ${!isWindows() ? "pr-3" : ""}`}
+        >
           {projects.length === 0 ? (
             <div className="pt-4">
               <p className="text-center text-sm text-muted">Add a project to start</p>
@@ -653,7 +655,12 @@ export function Sidebar(props: {
                                     if (key === "rename") setEditingThreadId(thread.id);
                                     if (key === "replace-second") onReplaceSecondPane(thread.id);
                                     if (key === "open-side") onOpenThreadSideBySide(thread.id);
-                                    if (key === "delete") onDeleteThread(thread.id, thread.worktreePath, thread.projectId);
+                                    if (key === "delete")
+                                      onDeleteThread(
+                                        thread.id,
+                                        thread.worktreePath,
+                                        thread.projectId,
+                                      );
                                   }}
                                 >
                                   <SidebarButton
@@ -777,12 +784,20 @@ export function Sidebar(props: {
                                             className="absolute inset-0 flex items-center justify-center rounded text-muted/55 opacity-0 transition hover:text-danger group-hover:opacity-100"
                                             onClick={(event) => {
                                               event.stopPropagation();
-                                              onDeleteThread(thread.id, thread.worktreePath, thread.projectId);
+                                              onDeleteThread(
+                                                thread.id,
+                                                thread.worktreePath,
+                                                thread.projectId,
+                                              );
                                             }}
                                             onKeyDown={(event) => {
                                               if (event.key === "Enter" || event.key === " ") {
                                                 event.stopPropagation();
-                                                onDeleteThread(thread.id, thread.worktreePath, thread.projectId);
+                                                onDeleteThread(
+                                                  thread.id,
+                                                  thread.worktreePath,
+                                                  thread.projectId,
+                                                );
                                               }
                                             }}
                                           >
@@ -868,10 +883,7 @@ export function Sidebar(props: {
                                     isDragging={isDraggedGroup}
                                     onDragStart={(event) => {
                                       event.dataTransfer.effectAllowed = "move";
-                                      event.dataTransfer.setData(
-                                        "text/plain",
-                                        group.worktreePath,
-                                      );
+                                      event.dataTransfer.setData("text/plain", group.worktreePath);
                                       setDragItem({
                                         type: "worktree-group",
                                         worktreePath: group.worktreePath,
@@ -918,11 +930,7 @@ export function Sidebar(props: {
                                         placement === "before"
                                           ? groupThreadIds[0]!
                                           : groupThreadIds.at(-1)!;
-                                      onReorderThreadBlock(
-                                        dragItem.threadIds,
-                                        anchorId,
-                                        placement,
-                                      );
+                                      onReorderThreadBlock(dragItem.threadIds, anchorId, placement);
                                       setDragItem(undefined);
                                       setDropIndicator(undefined);
                                     }}

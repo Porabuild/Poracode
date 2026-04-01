@@ -219,7 +219,7 @@ describe("generateCommitMessage", () => {
     child.stdout.emit(
       "data",
       Buffer.from(
-        'Here\'s the commit message:\n\n```\nfeat(worktree): add worktree deletion\n\n- Add delete dialog\n- Handle force removal\n```\n',
+        "Here's the commit message:\n\n```\nfeat(worktree): add worktree deletion\n\n- Add delete dialog\n- Handle force removal\n```\n",
       ),
     );
     child.emit("close", 0);

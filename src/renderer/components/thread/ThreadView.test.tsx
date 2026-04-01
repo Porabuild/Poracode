@@ -7,6 +7,7 @@ const { bridge } = vi.hoisted(() => ({
   bridge: {
     startThread: vi.fn().mockResolvedValue(undefined),
     writeTerminal: vi.fn().mockResolvedValue(undefined),
+    searchProjectFiles: vi.fn().mockResolvedValue({ entries: [], totalIndexed: 0 }),
   },
 }));
 
@@ -15,9 +16,7 @@ vi.mock("../../bridge", () => ({
 }));
 
 vi.mock("./TerminalPane", () => ({
-  TerminalPane: (props: {
-    onTerminalResize?: (size: { cols: number; rows: number }) => void;
-  }) => (
+  TerminalPane: (props: { onTerminalResize?: (size: { cols: number; rows: number }) => void }) => (
     <div>
       terminal pane
       <button onClick={() => props.onTerminalResize?.({ cols: 120, rows: 40 })} type="button">
@@ -211,7 +210,10 @@ describe("ThreadView", () => {
       onSubmitInput: async () => undefined,
     });
 
-    expect(screen.getByPlaceholderText("Ask Codex anything about this workspace")).toBeDisabled();
+    expect(screen.getByPlaceholderText("Ask Codex anything about this workspace")).toHaveAttribute(
+      "aria-disabled",
+      "true",
+    );
   });
 
   it("shows a loading overlay on the composer while a Codex thread is launching", () => {
@@ -259,7 +261,10 @@ describe("ThreadView", () => {
     });
 
     expect(screen.getByText("Starting thread...")).toBeInTheDocument();
-    expect(screen.getByPlaceholderText("Ask Codex anything about this workspace")).toBeDisabled();
+    expect(screen.getByPlaceholderText("Ask Codex anything about this workspace")).toHaveAttribute(
+      "aria-disabled",
+      "true",
+    );
   });
 
   it("renders server request UI instead of the composer while Codex is waiting", () => {
@@ -488,9 +493,9 @@ describe("ThreadView", () => {
       onSubmitInput: async () => undefined,
     });
 
-    fireEvent.change(screen.getByPlaceholderText("Ask Codex anything about this workspace"), {
-      target: { value: "test" },
-    });
+    const input = screen.getByPlaceholderText("Ask Codex anything about this workspace");
+    input.textContent = "test";
+    fireEvent.input(input);
 
     expect(screen.getByLabelText("Send message")).toBeDisabled();
   });

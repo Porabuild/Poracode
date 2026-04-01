@@ -369,7 +369,9 @@ export function GitReviewSidebar(props: {
       });
       setCommitMessage("");
       // Fetch so ahead/behind counts are accurate after commit
-      await readBridge().gitFetch({ projectLocation: project.location, remote: "origin", prune: false }).catch(() => {});
+      await readBridge()
+        .gitFetch({ projectLocation: project.location, remote: "origin", prune: false })
+        .catch(() => {});
       onRefresh();
     } catch (err) {
       setCommitError(err instanceof Error ? err.message : String(err));
@@ -477,141 +479,140 @@ export function GitReviewSidebar(props: {
 
         {/* Commit / Sync Panel */}
         {(hasAnyChanges || hasRemote) && (
-        <div className="space-y-2 border-t border-white/6 px-0.5 pt-2">
-          {hasAnyChanges ? (
-            <>
-              <div className="relative">
-                <TextArea
-                  fullWidth
-                  autoSize
-                  maxRows={8}
-                  aria-label="Commit message"
-                  placeholder={`Message (Ctrl+Enter to commit on "${gitStatus?.branch ?? ""}")`}
-                  rows={1}
-                  value={commitMessage}
-                  className={canGenerateMessage ? "pr-8" : ""}
-                  variant="secondary"
-                  disabled={isCommitting}
-                  onChange={(e) => {
-                    setCommitMessage(e.target.value);
-                    setCommitError(null);
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
-                      e.preventDefault();
-                      if (canCommitStaged) void handleCommit(!hasStagedChanges);
-                    }
-                  }}
-                />
-                {canGenerateMessage && (
-                  <Tooltip delay={0}>
-                    <Button
-                      isIconOnly
-                      size="sm"
-                      variant="ghost"
-                      className="absolute top-1.5 right-1 size-6 min-w-0"
-                      isDisabled={isGenerating || !hasAnyChanges}
-                      isPending={isGenerating}
-                      onPress={() => void handleGenerateMessage()}
-                    >
-                      {({ isPending }) =>
-                        isPending ? (
+          <div className="space-y-2 border-t border-white/6 px-0.5 pt-2">
+            {hasAnyChanges ? (
+              <>
+                <div className="relative">
+                  <TextArea
+                    fullWidth
+                    autoSize
+                    maxRows={8}
+                    aria-label="Commit message"
+                    placeholder={`Message (Ctrl+Enter to commit on "${gitStatus?.branch ?? ""}")`}
+                    rows={1}
+                    value={commitMessage}
+                    className={canGenerateMessage ? "pr-8" : ""}
+                    variant="secondary"
+                    disabled={isCommitting}
+                    onChange={(e) => {
+                      setCommitMessage(e.target.value);
+                      setCommitError(null);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+                        e.preventDefault();
+                        if (canCommitStaged) void handleCommit(!hasStagedChanges);
+                      }
+                    }}
+                  />
+                  {canGenerateMessage && (
+                    <Tooltip delay={0}>
+                      <Button
+                        isIconOnly
+                        size="sm"
+                        variant="ghost"
+                        className="absolute top-1.5 right-1 size-6 min-w-0"
+                        isDisabled={isGenerating || !hasAnyChanges}
+                        isPending={isGenerating}
+                        onPress={() => void handleGenerateMessage()}
+                      >
+                        {({ isPending }) =>
+                          isPending ? (
+                            <Spinner color="current" size="sm" />
+                          ) : (
+                            <Sparkles className="size-3.5" />
+                          )
+                        }
+                      </Button>
+                      <Tooltip.Content>Generate commit message</Tooltip.Content>
+                    </Tooltip>
+                  )}
+                </div>
+
+                {commitError && (
+                  <p className="truncate text-xs text-danger" title={commitError}>
+                    {commitError}
+                  </p>
+                )}
+
+                <ButtonGroup className="w-full">
+                  <Button
+                    variant="tertiary"
+                    className="flex-1"
+                    isDisabled={!canCommitStaged}
+                    isPending={isCommitting}
+                    onPress={() => void handleCommit(!hasStagedChanges)}
+                  >
+                    {({ isPending }) => (
+                      <>
+                        {isPending ? (
                           <Spinner color="current" size="sm" />
                         ) : (
-                          <Sparkles className="size-3.5" />
-                        )
-                      }
+                          <Lock className="size-3.5" />
+                        )}
+                        Commit
+                      </>
+                    )}
+                  </Button>
+                  <Dropdown>
+                    <Button
+                      isIconOnly
+                      variant="tertiary"
+                      aria-label="More commit options"
+                      isDisabled={!canCommitAll}
+                    >
+                      <ButtonGroup.Separator />
+                      <ChevronDown className="size-3.5" />
                     </Button>
-                    <Tooltip.Content>Generate commit message</Tooltip.Content>
-                  </Tooltip>
+                    <Dropdown.Popover placement="top end">
+                      <Dropdown.Menu
+                        aria-label="Commit options"
+                        onAction={(key) => {
+                          if (key === "add-all-commit") void handleCommit(true);
+                        }}
+                      >
+                        <Dropdown.Item id="add-all-commit" textValue="Add all + commit">
+                          <Label>Add all + commit</Label>
+                        </Dropdown.Item>
+                      </Dropdown.Menu>
+                    </Dropdown.Popover>
+                  </Dropdown>
+                </ButtonGroup>
+              </>
+            ) : hasRemote ? (
+              <>
+                {syncError && (
+                  <p className="truncate text-xs text-danger" title={syncError}>
+                    {syncError}
+                  </p>
                 )}
-              </div>
-
-              {commitError && (
-                <p className="truncate text-xs text-danger" title={commitError}>
-                  {commitError}
-                </p>
-              )}
-
-              <ButtonGroup className="w-full">
                 <Button
                   variant="tertiary"
-                  className="flex-1"
-                  isDisabled={!canCommitStaged}
-                  isPending={isCommitting}
-                  onPress={() => void handleCommit(!hasStagedChanges)}
+                  className="w-full"
+                  isDisabled={isSyncing}
+                  isPending={isSyncing}
+                  onPress={() => void handleSyncOrPush()}
                 >
                   {({ isPending }) => (
                     <>
                       {isPending ? (
                         <Spinner color="current" size="sm" />
+                      ) : needsPush ? (
+                        <ArrowUp className="size-3.5" />
                       ) : (
-                        <Lock className="size-3.5" />
+                        <ArrowUpDown className="size-3.5" />
                       )}
-                      Commit
+                      {needsPush
+                        ? `Push${ahead > 0 ? ` ${ahead} commit${ahead === 1 ? "" : "s"}` : ""}`
+                        : behind > 0 || ahead > 0
+                          ? `Sync${behind > 0 ? ` ↓${behind}` : ""}${ahead > 0 ? ` ↑${ahead}` : ""}`
+                          : "Sync"}
                     </>
                   )}
                 </Button>
-                <Dropdown>
-                  <Button
-                    isIconOnly
-                    variant="tertiary"
-                    aria-label="More commit options"
-                    isDisabled={!canCommitAll}
-                  >
-                    <ButtonGroup.Separator />
-                    <ChevronDown className="size-3.5" />
-                  </Button>
-                  <Dropdown.Popover placement="top end">
-                    <Dropdown.Menu
-                      aria-label="Commit options"
-                      onAction={(key) => {
-                        if (key === "add-all-commit") void handleCommit(true);
-                      }}
-                    >
-                      <Dropdown.Item id="add-all-commit" textValue="Add all + commit">
-                        <Label>Add all + commit</Label>
-                      </Dropdown.Item>
-                    </Dropdown.Menu>
-                  </Dropdown.Popover>
-                </Dropdown>
-              </ButtonGroup>
-
-            </>
-          ) : hasRemote ? (
-            <>
-              {syncError && (
-                <p className="truncate text-xs text-danger" title={syncError}>
-                  {syncError}
-                </p>
-              )}
-              <Button
-                variant="tertiary"
-                className="w-full"
-                isDisabled={isSyncing}
-                isPending={isSyncing}
-                onPress={() => void handleSyncOrPush()}
-              >
-                {({ isPending }) => (
-                  <>
-                    {isPending ? (
-                      <Spinner color="current" size="sm" />
-                    ) : needsPush ? (
-                      <ArrowUp className="size-3.5" />
-                    ) : (
-                      <ArrowUpDown className="size-3.5" />
-                    )}
-                    {needsPush
-                      ? `Push${ahead > 0 ? ` ${ahead} commit${ahead === 1 ? "" : "s"}` : ""}`
-                      : behind > 0 || ahead > 0
-                        ? `Sync${behind > 0 ? ` ↓${behind}` : ""}${ahead > 0 ? ` ↑${ahead}` : ""}`
-                        : "Sync"}
-                  </>
-                )}
-              </Button>
-            </>
-          ) : null}
-        </div>
+              </>
+            ) : null}
+          </div>
         )}
 
         <div className="space-y-1 border-t border-white/6 pt-2">

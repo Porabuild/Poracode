@@ -66,6 +66,7 @@ const CHANNELS = {
   gitPull: "lightcode:git-pull",
   gitPush: "lightcode:git-push",
   gitSync: "lightcode:git-sync",
+  searchProjectFiles: "lightcode:search-project-files",
   getSharedSettings: "lightcode:get-shared-settings",
   setSharedSettings: "lightcode:set-shared-settings",
   setWindowChrome: "lightcode:set-window-chrome",
@@ -86,7 +87,7 @@ const CHANNELS = {
 } as const;
 
 const isDev = Boolean(process.env.VITE_DEV_SERVER_URL);
-const hasSingleInstanceLock = app.requestSingleInstanceLock();
+const hasSingleInstanceLock = isDev || app.requestSingleInstanceLock();
 const WINDOW_CHROME_HEIGHT = 32;
 
 let mainWindow: BrowserWindow | null = null;
@@ -475,6 +476,9 @@ function registerIpcHandlers(): void {
   ipcMain.handle(CHANNELS.gitPush, async (_event, payload) => callSupervisor("gitPush", payload));
 
   ipcMain.handle(CHANNELS.gitSync, async (_event, payload) => callSupervisor("gitSync", payload));
+  ipcMain.handle(CHANNELS.searchProjectFiles, async (_event, payload) =>
+    callSupervisor("searchProjectFiles", payload),
+  );
 
   ipcMain.handle(CHANNELS.getSharedSettings, () =>
     readSharedSettingsFile(requireLightcodePaths().settingsPath),
