@@ -8,6 +8,20 @@ function decodePowerShellEncodedCommand(encoded: string): string {
   return Buffer.from(encoded, "base64").toString("utf16le");
 }
 
+/** Parse the logical command and its arguments from a Windows CommandSpec (handles both PowerShell and cmd.exe). */
+function parseWindowsSpec(spec: { args: string[] }): { cmd: string; cmdArgs: string[] } {
+  if (spec.args[0] === "-NoLogo") {
+    const script = decodePowerShellEncodedCommand(spec.args[3]!);
+    const cmd = script.match(/\$cmd = '((?:[^']|'')*)'/)?.[1]?.replaceAll("''", "'") ?? "";
+    const argsStr = script.match(/\$args = @\((.*)\)/)?.[1] ?? "";
+    const cmdArgs = argsStr
+      ? argsStr.split(", ").map((a) => a.replace(/^'|'$/g, "").replaceAll("''", "'"))
+      : [];
+    return { cmd, cmdArgs };
+  }
+  return { cmd: spec.args[3]!, cmdArgs: spec.args.slice(4) };
+}
+
 const windowsProject: ProjectLocation = {
   kind: "windows",
   path: "C:\\Users\\demo\\project",
@@ -31,23 +45,28 @@ const config: ThreadConfig = {
 describe("agent command builders", () => {
   it("builds a Windows Codex launch command", () => {
     const spec = createCodexAdapter().buildLaunchCommand(windowsProject, config, "hello");
-    expect(spec.command).toBe("C:\\Windows\\System32\\cmd.exe");
     expect(spec.cwd).toBe("C:\\Users\\demo\\project");
-    expect(spec.args.slice(0, 4)).toEqual(["/d", "/s", "/c", "codex"]);
-    expect(spec.args).toContain("hello");
+    const { cmd, cmdArgs } = parseWindowsSpec(spec);
+    expect(cmd).toBe("codex");
+    expect(cmdArgs).toContain("hello");
   });
 
-  it.skipIf(process.platform !== "win32")("builds a WSL Codex launch command", () => {
+  it.skipIf(process.platform !== "win32")("builds a WSL Codex launch command via login shell", () => {
     const spec = createCodexAdapter().buildLaunchCommand(wslProject, config, "hello");
     expect(spec.command.toLowerCase()).toBe(getWslCommand().toLowerCase());
     expect(spec.args.slice(0, 5)).toEqual(["-d", "Ubuntu", "--cd", "/home/demo/project", "--"]);
-    expect(spec.args).toContain("--no-alt-screen");
-    expect(spec.args).toContain("-m");
-    expect(spec.args).toContain("gpt-5.4");
-    expect(spec.args).toContain("-a");
-    expect(spec.args).toContain("on-request");
-    expect(spec.args).toContain("workspace-write");
-    expect(spec.args).toContain("hello");
+    // After "--", the next args are: shellPath, "-l", "-i", "-c", script
+    expect(spec.args[6]).toBe("-l");
+    expect(spec.args[7]).toBe("-i");
+    expect(spec.args[8]).toBe("-c");
+    const script = spec.args[9]!;
+    expect(script).toContain("--no-alt-screen");
+    expect(script).toContain("-m");
+    expect(script).toContain("gpt-5.4");
+    expect(script).toContain("-a");
+    expect(script).toContain("on-request");
+    expect(script).toContain("workspace-write");
+    expect(script).toContain("hello");
   });
 
   it("builds a remote Codex launch command with the TUI feature enabled", () => {
@@ -62,23 +81,24 @@ describe("agent command builders", () => {
       },
     );
 
-    expect(spec.args).toContain("--enable");
-    expect(spec.args).toContain(CODEX_REMOTE_TUI_FEATURE);
-    expect(spec.args).toContain("--remote");
-    expect(spec.args).toContain("ws://127.0.0.1:43123");
+    const { cmdArgs } = parseWindowsSpec(spec);
+    expect(cmdArgs).toContain("--enable");
+    expect(cmdArgs).toContain(CODEX_REMOTE_TUI_FEATURE);
+    expect(cmdArgs).toContain("--remote");
+    expect(cmdArgs).toContain("ws://127.0.0.1:43123");
   });
 
   it("builds a Codex app-server command accepted by codex 0.117+", () => {
     const spec = buildCodexAppServerCommand(windowsProject, "ws://127.0.0.1:43123");
 
-    expect(spec.command).toBe("C:\\Windows\\System32\\cmd.exe");
-    expect(spec.args.slice(0, 4)).toEqual(["/d", "/s", "/c", "codex"]);
-    expect(spec.args).toContain("app-server");
-    expect(spec.args).toContain("--listen");
-    expect(spec.args).toContain("ws://127.0.0.1:43123");
-    expect(spec.args).toContain("--enable");
-    expect(spec.args).toContain(CODEX_REMOTE_TUI_FEATURE);
-    expect(spec.args).not.toContain("--session-source");
+    const { cmd, cmdArgs } = parseWindowsSpec(spec);
+    expect(cmd).toBe("codex");
+    expect(cmdArgs).toContain("app-server");
+    expect(cmdArgs).toContain("--listen");
+    expect(cmdArgs).toContain("ws://127.0.0.1:43123");
+    expect(cmdArgs).toContain("--enable");
+    expect(cmdArgs).toContain(CODEX_REMOTE_TUI_FEATURE);
+    expect(cmdArgs).not.toContain("--session-source");
   });
 
   it("resumes the server thread when structured session provides a threadId", () => {
@@ -89,14 +109,14 @@ describe("agent command builders", () => {
       resumeThreadId: "019d19c4-8050-7270-b8fc-589eee8136c2",
     });
 
-    const codexArgs = spec.args.slice(spec.args.indexOf("codex") + 1);
-    expect(codexArgs[0]).toBe("resume");
-    expect(codexArgs).toContain("--enable");
-    expect(codexArgs).toContain(CODEX_REMOTE_TUI_FEATURE);
-    expect(codexArgs).toContain("--remote");
-    expect(codexArgs).toContain("ws://127.0.0.1:43123");
-    expect(codexArgs).not.toContain("-m");
-    expect(codexArgs[codexArgs.length - 1]).toBe("019d19c4-8050-7270-b8fc-589eee8136c2");
+    const { cmdArgs } = parseWindowsSpec(spec);
+    expect(cmdArgs[0]).toBe("resume");
+    expect(cmdArgs).toContain("--enable");
+    expect(cmdArgs).toContain(CODEX_REMOTE_TUI_FEATURE);
+    expect(cmdArgs).toContain("--remote");
+    expect(cmdArgs).toContain("ws://127.0.0.1:43123");
+    expect(cmdArgs).not.toContain("-m");
+    expect(cmdArgs[cmdArgs.length - 1]).toBe("019d19c4-8050-7270-b8fc-589eee8136c2");
   });
 
   it("omits an empty prompt when reopening Codex", () => {
@@ -105,13 +125,14 @@ describe("agent command builders", () => {
       discoveredAt: new Date().toISOString(),
     };
     const spec = createCodexAdapter().buildResumeCommand(windowsProject, config, "", sessionRef);
-    const resumeIndex = spec.args.indexOf("resume");
+    const { cmdArgs } = parseWindowsSpec(spec);
+    const resumeIndex = cmdArgs.indexOf("resume");
 
     expect(resumeIndex).toBeGreaterThan(-1);
-    expect(spec.args[resumeIndex + 1]).toBe("--no-alt-screen");
-    expect(spec.args[resumeIndex + 2]).toBe("-m");
-    expect(spec.args).toContain("abc-123");
-    expect(spec.args).not.toContain("");
+    expect(cmdArgs[resumeIndex + 1]).toBe("--no-alt-screen");
+    expect(cmdArgs[resumeIndex + 2]).toBe("-m");
+    expect(cmdArgs).toContain("abc-123");
+    expect(cmdArgs).not.toContain("");
   });
 
   it.skipIf(process.platform !== "win32")("builds a Claude launch command with a pre-assigned session id", () => {

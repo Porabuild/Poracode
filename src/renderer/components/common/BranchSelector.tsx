@@ -361,7 +361,10 @@ export function BranchSelector(props: BranchSelectorProps) {
                   if (!isNew || isWorktree) {
                     const next = !worktreeMode;
                     onWorktreeModeChange(next);
-                    if (!next && isWorktree && baseBranch) {
+                    if (next) {
+                      const base = baseBranch ?? value;
+                      onSelect({ branch: base, baseBranch: base, isNew: false, isWorktree: true });
+                    } else if (isWorktree && baseBranch) {
                       onSelect({ branch: baseBranch, isNew: false, isWorktree: false });
                     }
                   }
@@ -376,7 +379,10 @@ export function BranchSelector(props: BranchSelectorProps) {
                     isSelected={worktreeMode}
                     onChange={(checked) => {
                       onWorktreeModeChange(checked);
-                      if (!checked && isWorktree && baseBranch) {
+                      if (checked) {
+                        const base = baseBranch ?? value;
+                        onSelect({ branch: base, baseBranch: base, isNew: false, isWorktree: true });
+                      } else if (isWorktree && baseBranch) {
                         const existingWorktreePath = branchWorktreePath.get(baseBranch);
                         if (existingWorktreePath) {
                           onSelect({

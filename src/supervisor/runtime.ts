@@ -36,6 +36,7 @@ import type {
   GitBranchListResult,
   GitFetchPayload,
   GitListWorktreesPayload,
+  GitDeleteBranchPayload,
   GitRemoveWorktreePayload,
   GitUnstageAllPayload,
   GitUnstagePayload,
@@ -752,6 +753,10 @@ export class SupervisorRuntime {
 
   async gitRemoveWorktree(payload: GitRemoveWorktreePayload): Promise<void> {
     return this.gitService.removeWorktree(payload.projectLocation, payload.path, payload.force);
+  }
+
+  async gitDeleteBranch(payload: GitDeleteBranchPayload): Promise<void> {
+    return this.gitService.deleteBranch(payload.projectLocation, payload.branch, payload.force);
   }
 
   async gitPull(payload: GitPullPayload): Promise<void> {

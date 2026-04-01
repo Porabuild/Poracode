@@ -1,8 +1,9 @@
 import { FitAddon } from "@xterm/addon-fit";
 import { Terminal } from "@xterm/xterm";
-import { useEffect, useRef, type RefObject } from "react";
+import { useEffect, useRef, useState, type RefObject } from "react";
 import type { TerminalSize } from "../../../shared/contracts";
-import { readBridge } from "../../bridge";
+import { isMac, readBridge } from "../../bridge";
+import { ContextMenu, type ContextMenuItem } from "../common";
 import { useResolvedAppearance } from "../ui/provider";
 
 function getTerminalTheme(appearance: "light" | "dark") {
@@ -68,6 +69,7 @@ export function XTermSurface(props: {
   onTitleChangeRef.current = onTitleChange;
   const onTerminalResizeRef: RefObject<typeof onTerminalResize> = useRef(onTerminalResize);
   onTerminalResizeRef.current = onTerminalResize;
+  const [hasSelection, setHasSelection] = useState(false);
 
   // Terminal lifecycle: create ONCE when component mounts, destroy on unmount
   // Independent of `enabled` prop - terminals stay alive as long as the component exists
@@ -194,6 +196,40 @@ export function XTermSurface(props: {
       onTitleChangeRef.current?.(title);
     });
 
+    // ── Selection tracking ───────────────────────────────────────
+    terminal.onSelectionChange(() => {
+      setHasSelection(terminal.hasSelection());
+    });
+
+    // ── Copy shortcut: Ctrl+C / Cmd+C ───────────────────────────
+    // Single Ctrl+C with selection → copy. Rapid Ctrl+C (within
+    // 500 ms of a copy) → pass through as SIGINT so agents can
+    // be interrupted with the usual double-Ctrl+C pattern.
+    const mac = isMac();
+    let lastCopyTime = 0;
+    terminal.attachCustomKeyEventHandler((event) => {
+      if (event.type !== "keydown" || event.code !== "KeyC" || event.shiftKey || event.altKey) {
+        return true;
+      }
+      const isCopyChord = mac
+        ? event.metaKey && !event.ctrlKey
+        : event.ctrlKey && !event.metaKey;
+      if (!isCopyChord) return true;
+
+      if (terminal.hasSelection()) {
+        const now = Date.now();
+        // On non-Mac, let rapid Ctrl+C through as SIGINT
+        if (!mac && now - lastCopyTime < 500) {
+          return true;
+        }
+        void navigator.clipboard.writeText(terminal.getSelection());
+        terminal.clearSelection();
+        lastCopyTime = now;
+        return false;
+      }
+      return true;
+    });
+
     if (!readOnly) {
       terminal.onData((data) => {
         void readBridge()
@@ -290,12 +326,33 @@ export function XTermSurface(props: {
       terminalRef.current = null;
       fitRef.current = null;
     };
-  }, []); // Empty deps = run once on mount, never re-run
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-once: terminal is created once, readOnly/terminalId/appearance are captured at init
+  }, []);
+
+  const contextMenuItems: ContextMenuItem[] = [
+    { id: "copy", label: "Copy", isDisabled: !hasSelection },
+    { id: "paste-in-input", label: "Paste in input", isDisabled: !hasSelection },
+  ];
+
+  function handleContextMenuAction(key: string) {
+    const terminal = terminalRef.current;
+    if (!terminal || !terminal.hasSelection()) return;
+    const text = terminal.getSelection();
+    if (key === "copy") {
+      void navigator.clipboard.writeText(text);
+      terminal.clearSelection();
+    } else if (key === "paste-in-input") {
+      window.dispatchEvent(new CustomEvent("lightcode:paste-to-composer", { detail: text }));
+      terminal.clearSelection();
+    }
+  }
 
   return (
-    <div
-      ref={mountRef}
-      className={`lightcode-terminal-pane h-full w-full overflow-hidden ${className ?? ""}`}
-    />
+    <ContextMenu items={contextMenuItems} onAction={handleContextMenuAction}>
+      <div
+        ref={mountRef}
+        className={`lightcode-terminal-pane h-full w-full overflow-hidden ${className ?? ""}`}
+      />
+    </ContextMenu>
   );
 }

@@ -19,6 +19,7 @@ import type {
   GitListWorktreesPayload,
   GitPullPayload,
   GitPushPayload,
+  GitDeleteBranchPayload,
   GitRemoveWorktreePayload,
   GitRevertAllPayload,
   GitRevertPayload,
@@ -76,6 +77,7 @@ export type SupervisorRequest =
   | { id: string; type: "gitListWorktrees"; payload: GitListWorktreesPayload }
   | { id: string; type: "gitAddWorktree"; payload: GitAddWorktreePayload }
   | { id: string; type: "gitRemoveWorktree"; payload: GitRemoveWorktreePayload }
+  | { id: string; type: "gitDeleteBranch"; payload: GitDeleteBranchPayload }
   | { id: string; type: "gitPull"; payload: GitPullPayload }
   | { id: string; type: "gitPush"; payload: GitPushPayload }
   | { id: string; type: "gitSync"; payload: GitSyncPayload };
@@ -128,6 +130,7 @@ export interface WindowChromePayload {
 }
 
 export interface LightcodeBridge {
+  platform: NodeJS.Platform;
   pickFolder(defaultPath?: string): Promise<string | null>;
   listWslDistros(): Promise<string[]>;
   getAgentStatuses(wslDistros?: string[]): Promise<AgentStatus[]>;
@@ -158,6 +161,7 @@ export interface LightcodeBridge {
   gitListWorktrees(payload: GitListWorktreesPayload): Promise<GitWorktreeListResult>;
   gitAddWorktree(payload: GitAddWorktreePayload): Promise<GitAddWorktreeResult>;
   gitRemoveWorktree(payload: GitRemoveWorktreePayload): Promise<void>;
+  gitDeleteBranch(payload: GitDeleteBranchPayload): Promise<void>;
   gitPull(payload: GitPullPayload): Promise<void>;
   gitPush(payload: GitPushPayload): Promise<void>;
   gitSync(payload: GitSyncPayload): Promise<GitSyncResult>;

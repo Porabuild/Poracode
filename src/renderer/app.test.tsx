@@ -48,6 +48,7 @@ const { bridge } = vi.hoisted(() => ({
 vi.mock("./bridge", () => ({
   readBridge: () => bridge,
   isWindows: () => false,
+  isMac: () => false,
 }));
 
 vi.mock("./components/ui/provider", () => ({

@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { isMac } from "../../bridge";
 
 /**
  * Shared header bar for overlay-style layouts (main app, git review, settings).
@@ -18,7 +19,7 @@ export function OverlayHeader(props: {
       style={{ height: "env(titlebar-area-height, 32px)" }}
     >
       {/* Space for macOS traffic lights */}
-      <div className="w-[60px] shrink-0" />
+      {isMac() && <div className="w-[60px] shrink-0" />}
 
       {onTitleClick ? (
         <button

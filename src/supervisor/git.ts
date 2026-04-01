@@ -494,4 +494,9 @@ export class GitService {
     const args = ["worktree", "remove", ...(force ? ["--force"] : []), path];
     await git.raw(args);
   }
+
+  async deleteBranch(location: ProjectLocation, branch: string, force: boolean): Promise<void> {
+    const git = createGit(location);
+    await git.deleteLocalBranch(branch, force);
+  }
 }

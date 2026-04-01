@@ -7,6 +7,7 @@ import type {
   GetGitStatusPayload,
   GitAddWorktreePayload,
   GitCommitPayload,
+  GitDeleteBranchPayload,
   GitFetchPayload,
   GitListWorktreesPayload,
   GitPullPayload,
@@ -40,6 +41,7 @@ import {
   gitListWorktreesPayloadSchema,
   gitPullPayloadSchema,
   gitPushPayloadSchema,
+  gitDeleteBranchPayloadSchema,
   gitRemoveWorktreePayloadSchema,
   gitSyncPayloadSchema,
   generateCommitMessagePayloadSchema,
@@ -157,6 +159,10 @@ async function handleRequest(request: SupervisorRequest): Promise<unknown> {
     case "gitRemoveWorktree":
       return runtime.gitRemoveWorktree(
         gitRemoveWorktreePayloadSchema.parse(request.payload) as GitRemoveWorktreePayload,
+      );
+    case "gitDeleteBranch":
+      return runtime.gitDeleteBranch(
+        gitDeleteBranchPayloadSchema.parse(request.payload) as GitDeleteBranchPayload,
       );
     case "gitPull":
       return runtime.gitPull(gitPullPayloadSchema.parse(request.payload) as GitPullPayload);

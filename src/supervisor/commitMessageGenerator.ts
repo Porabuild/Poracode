@@ -23,6 +23,31 @@ const PROMPT =
 const MAX_DIFF_CHARS = 8000;
 const COMMIT_MESSAGE_TIMEOUT_MS = 120_000;
 
+/**
+ * Strip LLM artifacts from raw output: thinking tags, code fences,
+ * preamble commentary ("Here's the commit message:"), and trailing prose.
+ */
+export function cleanCommitMessage(raw: string): string {
+  let text = raw;
+
+  // Strip <think>…</think> / <antThinking>…</antThinking> blocks
+  text = text.replace(/<(think|antThinking)>[\s\S]*?<\/\1>/g, "");
+
+  // Strip markdown code fences (``` optionally with language tag)
+  text = text.replace(/```[a-z]*\n?/g, "");
+
+  // Drop lines that look like preamble/commentary before the real message
+  const lines = text.split("\n");
+  const commitStart = lines.findIndex((l) =>
+    /^(feat|fix|docs|refactor|perf|test|build|ci|chore|revert)(\(.+?\))?!?:/.test(l.trim()),
+  );
+  if (commitStart > 0) {
+    text = lines.slice(commitStart).join("\n");
+  }
+
+  return text.trim();
+}
+
 function truncateDiff(diff: string): string {
   if (diff.length <= MAX_DIFF_CHARS) return diff;
   return diff.slice(0, MAX_DIFF_CHARS) + "\n\n[diff truncated]";
@@ -122,5 +147,6 @@ export async function generateCommitMessage(
     throw new Error("No changes to describe");
   }
 
-  return spawnAgent(spawnSpec, PROMPT + truncateDiff(diff));
+  const raw = await spawnAgent(spawnSpec, PROMPT + truncateDiff(diff));
+  return cleanCommitMessage(raw);
 }

@@ -36,7 +36,7 @@ describe.skipIf(process.platform !== "win32")("wrapWslCommand", () => {
     });
   });
 
-  it("uses the detected executable path directly when available", () => {
+  it("uses the detected executable path inside a login shell when available", () => {
     expect(
       wrapWslCommand(
         wslProject,
@@ -52,11 +52,11 @@ describe.skipIf(process.platform !== "win32")("wrapWslCommand", () => {
         "--cd",
         "/home/demo/project",
         "--",
-        "/usr/bin/env",
-        "PATH=/home/demo/.nvm/versions/node/v24/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
-        "/home/demo/.nvm/versions/node/v24/bin/codex",
-        "resume",
-        "session-1",
+        "/bin/bash",
+        "-l",
+        "-i",
+        "-c",
+        "exec '/home/demo/.nvm/versions/node/v24/bin/codex' 'resume' 'session-1'",
       ],
     });
   });

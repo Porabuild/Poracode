@@ -15,6 +15,12 @@ import { OverlayShell } from "./components/layout/OverlayShell";
 import { SplitPaneContainer } from "./components/layout/SplitPaneContainer";
 import { SettingsOverlay } from "./components/settings/SettingsOverlay";
 import { Sidebar } from "./components/sidebar/Sidebar";
+import {
+  DeleteWorktreeDialog,
+  readWorktreeDeletePref,
+} from "./components/sidebar/DeleteWorktreeDialog";
+import { ForceDeleteBranchDialog } from "./components/sidebar/ForceDeleteBranchDialog";
+import { ForceRemoveWorktreeDialog } from "./components/sidebar/ForceRemoveWorktreeDialog";
 import { ThreadDraftView } from "./components/thread/ThreadDraftView";
 import { ThreadView } from "./components/thread/ThreadView";
 import { AppProvider } from "./components/ui/provider";
@@ -423,6 +429,7 @@ function AppContent() {
                 worktreePath = result.path;
               } catch (err) {
                 console.error("[renderer] failed to create worktree:", err);
+                return;
               }
             }
 
@@ -606,6 +613,29 @@ export function App() {
     projectId: string;
     worktreePath?: string | undefined;
   } | null>(null);
+  const [worktreeDeleteDialog, setWorktreeDeleteDialog] = useState<
+    | {
+        kind: "single-thread";
+        threadId: string;
+        projectId: string;
+        worktreePath: string;
+        worktreeBranch: string;
+      }
+    | {
+        kind: "force-retry";
+        projectId: string;
+        worktreePath: string;
+        worktreeBranch: string;
+        error: string;
+      }
+    | {
+        kind: "branch-unmerged";
+        projectId: string;
+        worktreeBranch: string;
+        error: string;
+      }
+    | null
+  >(null);
   const [initialLoading, setInitialLoading] = useState(true);
   const [storeHydrated, setStoreHydrated] = useState(() => useAppStore.persist.hasHydrated());
   const [loadT0] = useState(() => Date.now());
@@ -643,6 +673,70 @@ export function App() {
       queueThreadLaunch(thread.id, "");
     },
   );
+
+  async function performWorktreeRemoval(
+    project: Project,
+    worktreePath: string,
+    worktreeBranch?: string,
+  ) {
+    const removedTabIds = useDevTerminalStore.getState().removeTabsForWorktree(worktreePath);
+    for (const tabId of removedTabIds) {
+      void readBridge().closeThread({ threadId: tabId }).catch(() => undefined);
+    }
+
+    useGitStore.getState().clearWorktreeStatus(worktreePath);
+
+    if (gitReviewContext?.worktreePath === worktreePath) {
+      setGitReviewContext(null);
+    }
+
+    try {
+      await readBridge().gitRemoveWorktree({
+        projectLocation: project.location,
+        path: worktreePath,
+        force: false,
+      });
+    } catch (err: unknown) {
+      const branch = worktreeBranch ?? worktreePath.split(/[/\\]/).pop() ?? worktreePath;
+      setWorktreeDeleteDialog({
+        kind: "force-retry",
+        projectId: project.id,
+        worktreePath,
+        worktreeBranch: branch,
+        error: err instanceof Error ? err.message : String(err),
+      });
+      return;
+    }
+
+    // Worktree removed — now clean up the branch
+    if (worktreeBranch) {
+      try {
+        await readBridge().gitDeleteBranch({
+          projectLocation: project.location,
+          branch: worktreeBranch,
+          force: false,
+        });
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
+        if (msg.includes("not fully merged")) {
+          setWorktreeDeleteDialog({
+            kind: "branch-unmerged",
+            projectId: project.id,
+            worktreeBranch,
+            error: msg,
+          });
+          return;
+        }
+        // Best-effort: branch may already be deleted or not exist
+        console.warn(`[renderer] failed to delete branch ${worktreeBranch}:`, msg);
+      }
+
+      void readBridge()
+        .gitListBranches({ projectLocation: project.location, includeRemote: true })
+        .then((branches) => useGitStore.getState().setBranches(project.id, branches))
+        .catch(() => undefined);
+    }
+  }
 
   useEffect(() => {
     const unsubscribeHydrate = useAppStore.persist.onHydrate(() => {
@@ -1064,11 +1158,53 @@ export function App() {
             onRenameThread={(threadId, title) => {
               renameThread(threadId, title);
             }}
-            onDeleteThread={(threadId) => {
-              deleteThread(threadId);
-              void readBridge()
-                .closeThread({ threadId })
-                .catch(() => undefined);
+            onDeleteThread={(threadId, worktreePath, projectId) => {
+              if (!worktreePath) {
+                deleteThread(threadId);
+                void readBridge().closeThread({ threadId }).catch(() => undefined);
+                return;
+              }
+
+              const pref = readWorktreeDeletePref();
+              if (pref === "thread-only") {
+                deleteThread(threadId);
+                void readBridge().closeThread({ threadId }).catch(() => undefined);
+                return;
+              }
+
+              if (pref === "thread-and-worktree") {
+                // Delete this thread + all siblings sharing the worktree
+                const allThreads = useAppStore.getState().threads;
+                const thread = allThreads.find((t) => t.id === threadId);
+                const siblings = allThreads.filter(
+                  (t) => t.worktreePath === worktreePath && t.id !== threadId,
+                );
+                deleteThread(threadId);
+                void readBridge().closeThread({ threadId }).catch(() => undefined);
+                for (const t of siblings) {
+                  deleteThread(t.id);
+                  void readBridge().closeThread({ threadId: t.id }).catch(() => undefined);
+                }
+
+                const project = projects.find((p) => p.id === projectId);
+                if (project) {
+                  void performWorktreeRemoval(project, worktreePath, thread?.worktreeBranch);
+                }
+                return;
+              }
+
+              // No preference — show dialog
+              const thread = useAppStore.getState().threads.find((t) => t.id === threadId);
+              setWorktreeDeleteDialog({
+                kind: "single-thread",
+                threadId,
+                projectId: projectId!,
+                worktreePath,
+                worktreeBranch:
+                  thread?.worktreeBranch ??
+                  worktreePath.split(/[/\\]/).pop() ??
+                  worktreePath,
+              });
             }}
             onDeleteProject={(projectId) => {
               const projectThreadIds = useAppStore.getState().threads
@@ -1100,6 +1236,21 @@ export function App() {
               if (gitReviewContext?.projectId === projectId) {
                 setGitReviewContext(null);
               }
+            }}
+            onDeleteWorktreeGroup={(projectId, worktreePath, threadIds) => {
+              const project = projects.find((p) => p.id === projectId);
+              if (!project) return;
+
+              const sampleThread = useAppStore
+                .getState()
+                .threads.find((t) => threadIds.includes(t.id) && t.worktreeBranch);
+
+              for (const threadId of threadIds) {
+                deleteThread(threadId);
+                void readBridge().closeThread({ threadId }).catch(() => undefined);
+              }
+
+              void performWorktreeRemoval(project, worktreePath, sampleThread?.worktreeBranch);
             }}
             onOpenTerminal={(projectId) => {
               const project = projects.find((p) => p.id === projectId);
@@ -1210,6 +1361,139 @@ export function App() {
           </Suspense>
         )}
       </OverlayShell>
+      {worktreeDeleteDialog?.kind === "single-thread" && (
+        <DeleteWorktreeDialog
+          isOpen
+          worktreeBranch={worktreeDeleteDialog.worktreeBranch}
+          onClose={() => setWorktreeDeleteDialog(null)}
+          onDeleteThreadOnly={() => {
+            deleteThread(worktreeDeleteDialog.threadId);
+            void readBridge()
+              .closeThread({ threadId: worktreeDeleteDialog.threadId })
+              .catch(() => undefined);
+            setWorktreeDeleteDialog(null);
+          }}
+          onDeleteThreadAndWorktree={() => {
+            // Delete this thread + all siblings sharing the worktree
+            const siblings = useAppStore
+              .getState()
+              .threads.filter(
+                (t) =>
+                  t.worktreePath === worktreeDeleteDialog.worktreePath &&
+                  t.id !== worktreeDeleteDialog.threadId,
+              );
+            deleteThread(worktreeDeleteDialog.threadId);
+            void readBridge()
+              .closeThread({ threadId: worktreeDeleteDialog.threadId })
+              .catch(() => undefined);
+            for (const t of siblings) {
+              deleteThread(t.id);
+              void readBridge().closeThread({ threadId: t.id }).catch(() => undefined);
+            }
+
+            const project = projects.find((p) => p.id === worktreeDeleteDialog.projectId);
+            if (project) {
+              void performWorktreeRemoval(
+                project,
+                worktreeDeleteDialog.worktreePath,
+                worktreeDeleteDialog.worktreeBranch,
+              );
+            }
+            setWorktreeDeleteDialog(null);
+          }}
+        />
+      )}
+      {worktreeDeleteDialog?.kind === "force-retry" && (
+        <ForceRemoveWorktreeDialog
+          isOpen
+          worktreeBranch={worktreeDeleteDialog.worktreeBranch}
+          errorMessage={worktreeDeleteDialog.error}
+          onClose={() => setWorktreeDeleteDialog(null)}
+          onForceRemove={() => {
+            const project = projects.find((p) => p.id === worktreeDeleteDialog.projectId);
+            const { worktreePath, worktreeBranch } = worktreeDeleteDialog;
+            setWorktreeDeleteDialog(null);
+            if (project) {
+              void (async () => {
+                try {
+                  await readBridge().gitRemoveWorktree({
+                    projectLocation: project.location,
+                    path: worktreePath,
+                    force: true,
+                  });
+                } catch {
+                  return;
+                }
+
+                // Worktree force-removed — now clean up the branch
+                if (worktreeBranch) {
+                  try {
+                    await readBridge().gitDeleteBranch({
+                      projectLocation: project.location,
+                      branch: worktreeBranch,
+                      force: false,
+                    });
+                  } catch (err: unknown) {
+                    const msg = err instanceof Error ? err.message : String(err);
+                    if (msg.includes("not fully merged")) {
+                      setWorktreeDeleteDialog({
+                        kind: "branch-unmerged",
+                        projectId: project.id,
+                        worktreeBranch,
+                        error: msg,
+                      });
+                      return;
+                    }
+                  }
+
+                  void readBridge()
+                    .gitListBranches({
+                      projectLocation: project.location,
+                      includeRemote: true,
+                    })
+                    .then((branches) =>
+                      useGitStore.getState().setBranches(project.id, branches),
+                    )
+                    .catch(() => undefined);
+                }
+              })();
+            }
+          }}
+        />
+      )}
+      {worktreeDeleteDialog?.kind === "branch-unmerged" && (
+        <ForceDeleteBranchDialog
+          isOpen
+          branch={worktreeDeleteDialog.worktreeBranch}
+          errorMessage={worktreeDeleteDialog.error}
+          onClose={() => setWorktreeDeleteDialog(null)}
+          onKeepBranch={() => setWorktreeDeleteDialog(null)}
+          onForceDelete={() => {
+            const project = projects.find((p) => p.id === worktreeDeleteDialog.projectId);
+            if (project) {
+              void readBridge()
+                .gitDeleteBranch({
+                  projectLocation: project.location,
+                  branch: worktreeDeleteDialog.worktreeBranch,
+                  force: true,
+                })
+                .then(() => {
+                  void readBridge()
+                    .gitListBranches({
+                      projectLocation: project.location,
+                      includeRemote: true,
+                    })
+                    .then((branches) =>
+                      useGitStore.getState().setBranches(project.id, branches),
+                    )
+                    .catch(() => undefined);
+                })
+                .catch(() => undefined);
+            }
+            setWorktreeDeleteDialog(null);
+          }}
+        />
+      )}
     </AppProvider>
   );
 }

@@ -25,7 +25,7 @@ vi.mock("./git", () => ({
   },
 }));
 
-import { generateCommitMessage } from "./commitMessageGenerator";
+import { cleanCommitMessage, generateCommitMessage } from "./commitMessageGenerator";
 
 type MockChildProcess = EventEmitter & {
   stdout: EventEmitter;
@@ -70,6 +70,65 @@ function createAdapter(): AgentAdapter {
     }),
   } as AgentAdapter;
 }
+
+describe("cleanCommitMessage", () => {
+  it("returns a clean message unchanged", () => {
+    expect(cleanCommitMessage("feat(ui): add sidebar")).toBe("feat(ui): add sidebar");
+  });
+
+  it("strips markdown code fences", () => {
+    expect(cleanCommitMessage("```\nfix(git): restore commit\n```")).toBe(
+      "fix(git): restore commit",
+    );
+  });
+
+  it("strips code fences with language tag", () => {
+    expect(cleanCommitMessage("```text\nchore: bump deps\n```")).toBe("chore: bump deps");
+  });
+
+  it("strips preamble before the conventional commit line", () => {
+    const input = "Here's the commit message:\n\nfeat(worktree): add deletion flow";
+    expect(cleanCommitMessage(input)).toBe("feat(worktree): add deletion flow");
+  });
+
+  it("strips thinking tags", () => {
+    const input = "<think>reasoning here</think>\nrefactor: simplify logic";
+    expect(cleanCommitMessage(input)).toBe("refactor: simplify logic");
+  });
+
+  it("strips antThinking tags", () => {
+    const input = "<antThinking>long reasoning</antThinking>\nfix: patch bug";
+    expect(cleanCommitMessage(input)).toBe("fix: patch bug");
+  });
+
+  it("handles combined artifacts", () => {
+    const input = [
+      "<think>analyzing...</think>",
+      "This is a large changeset. Here's the commit message:",
+      "",
+      "```",
+      "feat(terminal): add copy/paste support",
+      "",
+      "- Ctrl+C/Cmd+C for copy",
+      "- Context menu integration",
+      "```",
+    ].join("\n");
+    expect(cleanCommitMessage(input)).toBe(
+      "feat(terminal): add copy/paste support\n\n- Ctrl+C/Cmd+C for copy\n- Context menu integration",
+    );
+  });
+
+  it("preserves body and footers in multi-line messages", () => {
+    const input = [
+      "feat(auth)!: switch to OAuth2",
+      "",
+      "Replaces legacy token flow.",
+      "",
+      "BREAKING CHANGE: /api/login removed",
+    ].join("\n");
+    expect(cleanCommitMessage(input)).toBe(input);
+  });
+});
 
 describe("generateCommitMessage", () => {
   beforeEach(() => {
@@ -148,6 +207,44 @@ describe("generateCommitMessage", () => {
     child.emit("close", 0);
 
     await expect(pending).resolves.toBe("fix(wsl): route commit generation through WSL");
+  });
+
+  it("strips code fences and preamble from LLM output", async () => {
+    const child = createMockChildProcess();
+    spawnMock.mockReturnValue(child);
+
+    const pending = generateCommitMessage(windowsProject, createAdapter());
+    await flushPromises();
+
+    child.stdout.emit(
+      "data",
+      Buffer.from(
+        'Here\'s the commit message:\n\n```\nfeat(worktree): add worktree deletion\n\n- Add delete dialog\n- Handle force removal\n```\n',
+      ),
+    );
+    child.emit("close", 0);
+
+    await expect(pending).resolves.toBe(
+      "feat(worktree): add worktree deletion\n\n- Add delete dialog\n- Handle force removal",
+    );
+  });
+
+  it("strips thinking tags from LLM output", async () => {
+    const child = createMockChildProcess();
+    spawnMock.mockReturnValue(child);
+
+    const pending = generateCommitMessage(windowsProject, createAdapter());
+    await flushPromises();
+
+    child.stdout.emit(
+      "data",
+      Buffer.from(
+        "<think>This is a multi-concern changeset...</think>\nfix(platform): use bridge.platform for detection",
+      ),
+    );
+    child.emit("close", 0);
+
+    await expect(pending).resolves.toBe("fix(platform): use bridge.platform for detection");
   });
 
   it("turns a killed child process into a timeout error", async () => {

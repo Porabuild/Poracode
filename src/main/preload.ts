@@ -30,6 +30,7 @@ const CHANNELS = {
   gitListWorktrees: "lightcode:git-list-worktrees",
   gitAddWorktree: "lightcode:git-add-worktree",
   gitRemoveWorktree: "lightcode:git-remove-worktree",
+  gitDeleteBranch: "lightcode:git-delete-branch",
   gitPull: "lightcode:git-pull",
   gitPush: "lightcode:git-push",
   gitSync: "lightcode:git-sync",
@@ -53,6 +54,7 @@ const CHANNELS = {
 } as const;
 
 const bridge: LightcodeBridge = {
+  platform: process.platform,
   pickFolder: (defaultPath?) => ipcRenderer.invoke(CHANNELS.pickFolder, defaultPath),
   listWslDistros: () => ipcRenderer.invoke(CHANNELS.listWslDistros),
   getAgentStatuses: (wslDistros) =>
@@ -83,6 +85,7 @@ const bridge: LightcodeBridge = {
   gitListWorktrees: (payload) => ipcRenderer.invoke(CHANNELS.gitListWorktrees, payload),
   gitAddWorktree: (payload) => ipcRenderer.invoke(CHANNELS.gitAddWorktree, payload),
   gitRemoveWorktree: (payload) => ipcRenderer.invoke(CHANNELS.gitRemoveWorktree, payload),
+  gitDeleteBranch: (payload) => ipcRenderer.invoke(CHANNELS.gitDeleteBranch, payload),
   gitPull: (payload) => ipcRenderer.invoke(CHANNELS.gitPull, payload),
   gitPush: (payload) => ipcRenderer.invoke(CHANNELS.gitPush, payload),
   gitSync: (payload) => ipcRenderer.invoke(CHANNELS.gitSync, payload),

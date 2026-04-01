@@ -228,26 +228,9 @@ export function buildAgentCommand(
   wslExecPath?: string,
 ): CommandSpec {
   if (location.kind === "wsl") {
-    if (!wslExecPath) {
-      const shellPath = resolveWslShellPath(location.distro);
-      const script = `exec ${[command, ...args].map(quotePosixShellArg).join(" ")}`;
-      return {
-        command: getWslCommand(),
-        args: [
-          "-d",
-          location.distro,
-          "--cd",
-          location.linuxPath,
-          "--",
-          shellPath,
-          "-l",
-          "-i",
-          "-c",
-          script,
-        ],
-      };
-    }
-
+    const shellPath = resolveWslShellPath(location.distro);
+    const execCommand = wslExecPath ?? command;
+    const script = `exec ${[execCommand, ...args].map(quotePosixShellArg).join(" ")}`;
     return {
       command: getWslCommand(),
       args: [
@@ -256,7 +239,11 @@ export function buildAgentCommand(
         "--cd",
         location.linuxPath,
         "--",
-        ...buildDirectWslCommandArgs(wslExecPath, args),
+        shellPath,
+        "-l",
+        "-i",
+        "-c",
+        script,
       ],
     };
   }

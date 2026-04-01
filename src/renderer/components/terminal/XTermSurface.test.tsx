@@ -28,6 +28,11 @@ vi.mock("@xterm/xterm", () => ({
     onWriteParsed = vi.fn(() => ({ dispose: vi.fn() }));
     onBell = vi.fn(() => ({ dispose: vi.fn() }));
     onTitleChange = vi.fn(() => ({ dispose: vi.fn() }));
+    onSelectionChange = vi.fn(() => ({ dispose: vi.fn() }));
+    hasSelection = vi.fn(() => false);
+    getSelection = vi.fn(() => "");
+    clearSelection = vi.fn();
+    attachCustomKeyEventHandler = vi.fn();
     cols = 80;
     rows = 24;
     constructor() {
@@ -50,7 +55,7 @@ state.bridge.onSupervisorEvent.mockImplementation((listener: (e: SupervisorEvent
   };
 });
 
-vi.mock("../../bridge", () => ({ readBridge: () => state.bridge }));
+vi.mock("../../bridge", () => ({ readBridge: () => state.bridge, isMac: () => false }));
 vi.mock("../ui/provider", () => ({ useResolvedAppearance: () => "dark" }));
 
 import { XTermSurface } from "./XTermSurface";
@@ -89,6 +94,11 @@ interface MockTerminalShape {
   onWriteParsed: MockFn;
   onBell: MockFn;
   onTitleChange: MockFn;
+  onSelectionChange: MockFn;
+  hasSelection: MockFn;
+  getSelection: MockFn;
+  clearSelection: MockFn;
+  attachCustomKeyEventHandler: MockFn;
 }
 
 /** Return the most recently constructed mock Terminal instance (asserted non-null). */

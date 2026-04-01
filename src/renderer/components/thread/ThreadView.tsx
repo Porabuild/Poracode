@@ -136,6 +136,16 @@ export function ThreadView(props: {
     setPrompt("");
   }, [thread.id]);
 
+  // Listen for "Paste in input" from terminal context menu
+  useEffect(() => {
+    function handlePasteToComposer(e: Event) {
+      const text = (e as CustomEvent<string>).detail;
+      if (text) setPrompt((prev) => prev + text);
+    }
+    window.addEventListener("lightcode:paste-to-composer", handlePasteToComposer);
+    return () => window.removeEventListener("lightcode:paste-to-composer", handlePasteToComposer);
+  }, []);
+
   useEffect(() => {
     if (pendingLaunchPrompt === undefined) {
       launchRequestRef.current = null;

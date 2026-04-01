@@ -5,5 +5,9 @@ export function readBridge(): LightcodeBridge {
 }
 
 export function isWindows(): boolean {
-  return navigator.userAgent.includes("Windows");
+  return readBridge().platform === "win32";
+}
+
+export function isMac(): boolean {
+  return readBridge().platform === "darwin";
 }

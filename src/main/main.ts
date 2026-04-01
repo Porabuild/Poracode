@@ -62,6 +62,7 @@ const CHANNELS = {
   gitListWorktrees: "lightcode:git-list-worktrees",
   gitAddWorktree: "lightcode:git-add-worktree",
   gitRemoveWorktree: "lightcode:git-remove-worktree",
+  gitDeleteBranch: "lightcode:git-delete-branch",
   gitPull: "lightcode:git-pull",
   gitPush: "lightcode:git-push",
   gitSync: "lightcode:git-sync",
@@ -463,6 +464,10 @@ function registerIpcHandlers(): void {
 
   ipcMain.handle(CHANNELS.gitRemoveWorktree, async (_event, payload) =>
     callSupervisor("gitRemoveWorktree", payload),
+  );
+
+  ipcMain.handle(CHANNELS.gitDeleteBranch, async (_event, payload) =>
+    callSupervisor("gitDeleteBranch", payload),
   );
 
   ipcMain.handle(CHANNELS.gitPull, async (_event, payload) => callSupervisor("gitPull", payload));

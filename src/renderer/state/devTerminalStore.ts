@@ -28,6 +28,7 @@ interface DevTerminalActions {
   removeTab: (tabId: string) => void;
   setActiveTab: (tabId: string) => void;
   removeTabsForProject: (projectId: string) => string[];
+  removeTabsForWorktree: (worktreePath: string) => string[];
   markTabActive: (tabId: string) => void;
   clearTabActivity: (tabId: string) => void;
   updateTabTitle: (tabId: string, title: string) => void;
@@ -108,6 +109,25 @@ export const useDevTerminalStore = create<DevTerminalState & DevTerminalActions>
 
         set((state) => {
           const tabs = state.tabs.filter((t) => t.projectId !== projectId);
+          let { activeTabId } = state;
+          if (activeTabId && removed.includes(activeTabId)) {
+            activeTabId = tabs.at(-1)?.id ?? null;
+          }
+          const tabActivity = { ...state.tabActivity };
+          for (const id of removed) delete tabActivity[id];
+          return { tabs, activeTabId, tabActivity };
+        });
+        return removed;
+      },
+
+      removeTabsForWorktree: (worktreePath: string) => {
+        const removed = get()
+          .tabs.filter((t) => t.worktreePath === worktreePath)
+          .map((t) => t.id);
+        if (removed.length === 0) return removed;
+
+        set((state) => {
+          const tabs = state.tabs.filter((t) => t.worktreePath !== worktreePath);
           let { activeTabId } = state;
           if (activeTabId && removed.includes(activeTabId)) {
             activeTabId = tabs.at(-1)?.id ?? null;
