@@ -83,6 +83,9 @@
     "vitest": "^4.1.2",
     "wait-on": "^9.0.4"
   },
+  "electronmon": {
+    "patterns": ["!src/**", "!dist/renderer/**", "!build/**", "!release/**", "!.agents/**", "!.heroui-docs/**", "!scripts/**"]
+  },
   "engines": {
     "node": ">=24.10.0"
   },
