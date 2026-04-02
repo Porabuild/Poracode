@@ -308,9 +308,16 @@ export function GitReviewSidebar(props: {
   const { isCollapsed, collapse, expand } = useSidebar();
   const agentStatuses = useAppStore((s) => s.agentStatuses);
   const wslAgentStatuses = useAppStore((s) => s.wslAgentStatuses);
-  const commitGenProvider = useSharedSettings((s) => s.commitGenProvider);
-  const commitGenModel = useSharedSettings((s) => s.commitGenModel);
-  const commitGenEffort = useSharedSettings((s) => s.commitGenEffort);
+  const isWsl = project.location.kind === "wsl";
+  const commitGenProvider = useSharedSettings((s) =>
+    isWsl ? s.wslCommitGenProvider : s.commitGenProvider,
+  );
+  const commitGenModel = useSharedSettings((s) =>
+    isWsl ? s.wslCommitGenModel : s.commitGenModel,
+  );
+  const commitGenEffort = useSharedSettings((s) =>
+    isWsl ? s.wslCommitGenEffort : s.commitGenEffort,
+  );
 
   const [commitMessage, setCommitMessage] = useState("");
   const [isCommitting, setIsCommitting] = useState(false);

@@ -23,7 +23,7 @@ function resolveCommitGenEfforts(agent: AgentStatus, model: string): string[] {
 }
 
 function isCommitGenCandidate(agent: AgentStatus): boolean {
-  return agent.installed && agent.authState === "authenticated";
+  return agent.installed && agent.authState !== "missing";
 }
 
 function toErrorMessage(error: unknown): string {

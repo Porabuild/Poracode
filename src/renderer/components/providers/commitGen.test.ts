@@ -83,17 +83,21 @@ describe("resolveCommitGenConfig", () => {
 });
 
 describe("getCommitGenCandidates", () => {
-  it("returns only authenticated installed agents", () => {
+  it("returns installed agents with non-missing auth", () => {
     expect(
       getCommitGenCandidates(
         [
           codexStatus,
           { ...claudeStatus, installed: false },
-          { ...claudeStatus, kind: "gemini", label: "Gemini", authState: "unknown" },
+          { ...claudeStatus, kind: "gemini", label: "Gemini", authState: "missing" },
+          { ...claudeStatus, kind: "gemini", label: "Gemini WSL", authState: "unknown" },
         ],
         "auto",
       ),
-    ).toEqual([codexStatus]);
+    ).toEqual([
+      codexStatus,
+      { ...claudeStatus, kind: "gemini", label: "Gemini WSL", authState: "unknown" },
+    ]);
   });
 });
 

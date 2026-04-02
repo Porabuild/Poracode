@@ -1,10 +1,11 @@
-import { ArrowLeft, GitBranch, PanelLeft, PanelLeftClose, Settings2, Sparkles } from "lucide-react";
+import { ToggleButton, ToggleButtonGroup } from "@heroui/react";
+import { ArrowLeft, GitBranch, Monitor, PanelLeft, PanelLeftClose, Settings2, Sparkles } from "lucide-react";
 import { startTransition, useState } from "react";
-import type { TerminalPosition, ThemeMode } from "../../../shared/contracts";
+import type { AgentStatus, TerminalPosition, ThemeMode } from "../../../shared/contracts";
 import { useAppStore } from "../../state/appStore";
 import { useSharedSettings } from "../../state/sharedSettingsStore";
 import { resolveCommitGenConfig, resolveTitleGenConfig } from "../providers";
-import { Select, SidebarButton } from "../common";
+import { Select, SidebarButton, TuxIcon } from "../common";
 import { useSidebar } from "../layout/AppShell";
 import { PageLayout } from "../layout/PageLayout";
 
@@ -180,11 +181,12 @@ function GenConfigSection(props: {
   model: string;
   effort: string;
   resolve: (
-    agent: import("../../../shared/contracts").AgentStatus | undefined,
+    agent: AgentStatus | undefined,
     model: string,
     effort: string,
   ) => { model: string; effort: string; availableEfforts: string[] };
   allowDisabled?: boolean;
+  agentStatuses: AgentStatus[];
   onConfigChange: (provider: string, model: string, effort: string) => void;
 }) {
   const {
@@ -198,7 +200,7 @@ function GenConfigSection(props: {
     resolve,
     onConfigChange,
   } = props;
-  const agentStatuses = useAppStore((s) => s.agentStatuses);
+  const agentStatuses = props.agentStatuses;
   const installedAgents = agentStatuses.filter((a) => a.installed);
   const isDisabled = provider === "disabled";
   const selectedAgent =
@@ -286,20 +288,70 @@ function GenConfigSection(props: {
   );
 }
 
+type EnvKind = "windows" | "wsl";
+
 function AISettings() {
-  const titleGenProvider = useSharedSettings((s) => s.titleGenProvider);
-  const titleGenModel = useSharedSettings((s) => s.titleGenModel);
-  const titleGenEffort = useSharedSettings((s) => s.titleGenEffort);
-  const setTitleGenConfig = useSharedSettings((s) => s.setTitleGenConfig);
-  const commitGenProvider = useSharedSettings((s) => s.commitGenProvider);
-  const commitGenModel = useSharedSettings((s) => s.commitGenModel);
-  const commitGenEffort = useSharedSettings((s) => s.commitGenEffort);
-  const setCommitGenConfig = useSharedSettings((s) => s.setCommitGenConfig);
+  const [envKind, setEnvKind] = useState<EnvKind>("windows");
+
+  const agentStatuses = useAppStore((s) => s.agentStatuses);
+  const wslAgentStatuses = useAppStore((s) => s.wslAgentStatuses);
+  const hasWsl = wslAgentStatuses.length > 0;
+  const activeStatuses = envKind === "wsl" ? wslAgentStatuses : agentStatuses;
+
+  const titleGenProvider = useSharedSettings((s) =>
+    envKind === "wsl" ? s.wslTitleGenProvider : s.titleGenProvider,
+  );
+  const titleGenModel = useSharedSettings((s) =>
+    envKind === "wsl" ? s.wslTitleGenModel : s.titleGenModel,
+  );
+  const titleGenEffort = useSharedSettings((s) =>
+    envKind === "wsl" ? s.wslTitleGenEffort : s.titleGenEffort,
+  );
+  const setTitleGenConfig = useSharedSettings((s) =>
+    envKind === "wsl" ? s.setWslTitleGenConfig : s.setTitleGenConfig,
+  );
+
+  const commitGenProvider = useSharedSettings((s) =>
+    envKind === "wsl" ? s.wslCommitGenProvider : s.commitGenProvider,
+  );
+  const commitGenModel = useSharedSettings((s) =>
+    envKind === "wsl" ? s.wslCommitGenModel : s.commitGenModel,
+  );
+  const commitGenEffort = useSharedSettings((s) =>
+    envKind === "wsl" ? s.wslCommitGenEffort : s.commitGenEffort,
+  );
+  const setCommitGenConfig = useSharedSettings((s) =>
+    envKind === "wsl" ? s.setWslCommitGenConfig : s.setCommitGenConfig,
+  );
 
   return (
     <div className="h-full min-h-0 overflow-y-auto px-6 pb-8">
       <div className="mx-auto max-w-[560px]">
-        <h1 className="mb-6 text-lg font-semibold text-foreground">AI</h1>
+        <div className="mb-6 flex items-center justify-between">
+          <h1 className="text-lg font-semibold text-foreground">AI</h1>
+          {hasWsl ? (
+            <ToggleButtonGroup
+              aria-label="Environment"
+              className="h-7 [&_button]:h-7 [&_button]:min-h-0 [&_button]:min-w-0 [&_button]:px-2"
+              selectionMode="single"
+              disallowEmptySelection
+              size="sm"
+              selectedKeys={[envKind]}
+              onSelectionChange={(keys) => {
+                const next = [...keys][0] as EnvKind | undefined;
+                if (next) setEnvKind(next);
+              }}
+            >
+              <ToggleButton isIconOnly id="windows" aria-label="Windows">
+                <Monitor className="size-3.5" />
+              </ToggleButton>
+              <ToggleButton isIconOnly id="wsl" aria-label="WSL">
+                <ToggleButtonGroup.Separator />
+                <TuxIcon className="size-7" />
+              </ToggleButton>
+            </ToggleButtonGroup>
+          ) : null}
+        </div>
 
         <div className="space-y-8">
           <GenConfigSection
@@ -308,6 +360,7 @@ function AISettings() {
             providerLabel="Agent used to generate thread titles."
             modelLabel="Model for title generation."
             effortLabel="Reasoning effort for generation."
+            agentStatuses={activeStatuses}
             provider={titleGenProvider}
             model={titleGenModel}
             effort={titleGenEffort}
@@ -320,6 +373,7 @@ function AISettings() {
             providerLabel="Agent used to generate commit messages."
             modelLabel="Model for commit message generation."
             effortLabel="Reasoning effort for generation."
+            agentStatuses={activeStatuses}
             provider={commitGenProvider}
             model={commitGenModel}
             effort={commitGenEffort}

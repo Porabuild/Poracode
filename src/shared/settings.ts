@@ -10,6 +10,12 @@ export const sharedSettingsSchema = z.object({
   titleGenProvider: z.string(),
   titleGenModel: z.string(),
   titleGenEffort: z.string(),
+  wslCommitGenProvider: z.string(),
+  wslCommitGenModel: z.string(),
+  wslCommitGenEffort: z.string(),
+  wslTitleGenProvider: z.string(),
+  wslTitleGenModel: z.string(),
+  wslTitleGenEffort: z.string(),
 });
 export type SharedSettings = z.infer<typeof sharedSettingsSchema>;
 
@@ -22,6 +28,12 @@ export const defaultSharedSettings: SharedSettings = {
   titleGenProvider: "auto",
   titleGenModel: "",
   titleGenEffort: "",
+  wslCommitGenProvider: "auto",
+  wslCommitGenModel: "",
+  wslCommitGenEffort: "",
+  wslTitleGenProvider: "auto",
+  wslTitleGenModel: "",
+  wslTitleGenEffort: "",
 };
 
 const partialSharedSettingsSchema = sharedSettingsSchema.partial();
@@ -41,5 +53,13 @@ export function normalizeSharedSettings(value: unknown): SharedSettings {
     titleGenProvider: parsed.data.titleGenProvider ?? defaultSharedSettings.titleGenProvider,
     titleGenModel: parsed.data.titleGenModel ?? defaultSharedSettings.titleGenModel,
     titleGenEffort: parsed.data.titleGenEffort ?? defaultSharedSettings.titleGenEffort,
+    wslCommitGenProvider:
+      parsed.data.wslCommitGenProvider ?? defaultSharedSettings.wslCommitGenProvider,
+    wslCommitGenModel: parsed.data.wslCommitGenModel ?? defaultSharedSettings.wslCommitGenModel,
+    wslCommitGenEffort: parsed.data.wslCommitGenEffort ?? defaultSharedSettings.wslCommitGenEffort,
+    wslTitleGenProvider:
+      parsed.data.wslTitleGenProvider ?? defaultSharedSettings.wslTitleGenProvider,
+    wslTitleGenModel: parsed.data.wslTitleGenModel ?? defaultSharedSettings.wslTitleGenModel,
+    wslTitleGenEffort: parsed.data.wslTitleGenEffort ?? defaultSharedSettings.wslTitleGenEffort,
   };
 }

@@ -14,6 +14,8 @@ interface SharedSettingsState extends SharedSettings {
   setTerminalPosition: (position: TerminalPosition) => void;
   setCommitGenConfig: (provider: string, model: string, effort: string) => void;
   setTitleGenConfig: (provider: string, model: string, effort: string) => void;
+  setWslCommitGenConfig: (provider: string, model: string, effort: string) => void;
+  setWslTitleGenConfig: (provider: string, model: string, effort: string) => void;
 }
 
 function hasBridge(): boolean {
@@ -65,6 +67,14 @@ export const useSharedSettings = create<SharedSettingsState>()((set, get) => ({
     set({ titleGenProvider, titleGenModel, titleGenEffort });
     persistSettings(selectSharedSettings(get()));
   },
+  setWslCommitGenConfig: (wslCommitGenProvider, wslCommitGenModel, wslCommitGenEffort) => {
+    set({ wslCommitGenProvider, wslCommitGenModel, wslCommitGenEffort });
+    persistSettings(selectSharedSettings(get()));
+  },
+  setWslTitleGenConfig: (wslTitleGenProvider, wslTitleGenModel, wslTitleGenEffort) => {
+    set({ wslTitleGenProvider, wslTitleGenModel, wslTitleGenEffort });
+    persistSettings(selectSharedSettings(get()));
+  },
 }));
 
 function selectSharedSettings(state: SharedSettingsState): SharedSettings {
@@ -77,6 +87,12 @@ function selectSharedSettings(state: SharedSettingsState): SharedSettings {
     titleGenProvider: state.titleGenProvider,
     titleGenModel: state.titleGenModel,
     titleGenEffort: state.titleGenEffort,
+    wslCommitGenProvider: state.wslCommitGenProvider,
+    wslCommitGenModel: state.wslCommitGenModel,
+    wslCommitGenEffort: state.wslCommitGenEffort,
+    wslTitleGenProvider: state.wslTitleGenProvider,
+    wslTitleGenModel: state.wslTitleGenModel,
+    wslTitleGenEffort: state.wslTitleGenEffort,
   };
 }
 

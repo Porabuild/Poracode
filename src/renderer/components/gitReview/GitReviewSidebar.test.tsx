@@ -83,12 +83,18 @@ vi.mock("../../state/sharedSettingsStore", () => ({
       commitGenProvider: string;
       commitGenModel: string;
       commitGenEffort: string;
+      wslCommitGenProvider: string;
+      wslCommitGenModel: string;
+      wslCommitGenEffort: string;
     }) => unknown,
   ) =>
     selector({
       commitGenProvider: "codex",
       commitGenModel: "gpt-5.4",
       commitGenEffort: "medium",
+      wslCommitGenProvider: "auto",
+      wslCommitGenModel: "",
+      wslCommitGenEffort: "",
     }),
 }));
 

@@ -50,6 +50,12 @@ describe("sharedSettingsFile", () => {
       titleGenProvider: "auto",
       titleGenModel: "",
       titleGenEffort: "",
+      wslCommitGenProvider: "auto",
+      wslCommitGenModel: "",
+      wslCommitGenEffort: "",
+      wslTitleGenProvider: "auto",
+      wslTitleGenModel: "",
+      wslTitleGenEffort: "",
     });
   });
 
@@ -64,6 +70,12 @@ describe("sharedSettingsFile", () => {
       titleGenProvider: "auto",
       titleGenModel: "",
       titleGenEffort: "",
+      wslCommitGenProvider: "auto",
+      wslCommitGenModel: "",
+      wslCommitGenEffort: "",
+      wslTitleGenProvider: "auto",
+      wslTitleGenModel: "",
+      wslTitleGenEffort: "",
     });
 
     expect(readSharedSettingsFile(settingsPath)).toEqual({
@@ -75,6 +87,12 @@ describe("sharedSettingsFile", () => {
       titleGenProvider: "auto",
       titleGenModel: "",
       titleGenEffort: "",
+      wslCommitGenProvider: "auto",
+      wslCommitGenModel: "",
+      wslCommitGenEffort: "",
+      wslTitleGenProvider: "auto",
+      wslTitleGenModel: "",
+      wslTitleGenEffort: "",
     });
     expect(readFileSync(settingsPath, "utf8")).toContain('"themeMode": "dark"');
   });
@@ -100,6 +118,12 @@ describe("sharedSettingsFile", () => {
       titleGenProvider: "auto",
       titleGenModel: "",
       titleGenEffort: "",
+      wslCommitGenProvider: "auto",
+      wslCommitGenModel: "",
+      wslCommitGenEffort: "",
+      wslTitleGenProvider: "auto",
+      wslTitleGenModel: "",
+      wslTitleGenEffort: "",
     });
     expect(readSharedSettingsFile(settingsPath)).toEqual(settings);
   });

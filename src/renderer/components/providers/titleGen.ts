@@ -23,7 +23,7 @@ function resolveTitleGenEfforts(agent: AgentStatus, model: string): string[] {
 }
 
 function isTitleGenCandidate(agent: AgentStatus): boolean {
-  return agent.installed && agent.authState === "authenticated";
+  return agent.installed && agent.authState !== "missing";
 }
 
 function toErrorMessage(error: unknown): string {

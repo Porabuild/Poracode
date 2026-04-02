@@ -110,16 +110,27 @@ function generateTitleAsync(
   prompt: string,
 ): void {
   const settings = useSharedSettings.getState();
-  if (settings.titleGenProvider === "disabled") return;
+  const isWsl = projectLocation.kind === "wsl";
+  const provider = isWsl ? settings.wslTitleGenProvider : settings.titleGenProvider;
+  if (provider === "disabled") return;
+
+  const model = isWsl ? settings.wslTitleGenModel : settings.titleGenModel;
+  const effort = isWsl ? settings.wslTitleGenEffort : settings.titleGenEffort;
+  console.log(
+    `[title-gen] provider=${provider} model=${model || "(auto)"} effort=${effort || "(auto)"} env=${isWsl ? "wsl" : "windows"} candidates=${agentStatuses.filter((a) => a.installed).map((a) => `${a.kind}(${a.authState})`).join(",")}`,
+  );
 
   void generateTitleWithFallback({
     projectLocation,
     agentStatuses,
-    provider: settings.titleGenProvider,
-    model: settings.titleGenModel,
-    effort: settings.titleGenEffort,
+    provider,
+    model,
+    effort,
     prompt,
-    invoke: (payload) => readBridge().generateTitle(payload),
+    invoke: (payload) => {
+      console.log(`[title-gen] invoke: agent=${payload.agentKind} model=${payload.model ?? "(default)"} effort=${payload.effort ?? "(default)"}`);
+      return readBridge().generateTitle(payload);
+    },
   })
     .then((title) => {
       const store = useAppStore.getState();
