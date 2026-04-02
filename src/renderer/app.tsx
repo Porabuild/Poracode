@@ -478,15 +478,22 @@ function AppContent() {
               }
             }
 
+            const titlePrompt = segments
+              ? segments
+                  .filter((s) => s.kind !== "attachment")
+                  .map((s) => (s.kind === "file" ? `@${s.path}` : s.content))
+                  .join("")
+                  .trim() || prompt
+              : prompt;
             const thread = createThread({
               projectId: project.id,
               agentKind,
               config,
-              prompt,
+              prompt: titlePrompt,
               ...(worktreePath ? { worktreePath, worktreeBranch } : {}),
             });
             queueThreadLaunch(thread.id, prompt, segments);
-            generateTitleAsync(thread.id, project.location, projectAgentStatuses, prompt);
+            generateTitleAsync(thread.id, project.location, projectAgentStatuses, titlePrompt);
           }}
         />
         {sidebarDragActive && (

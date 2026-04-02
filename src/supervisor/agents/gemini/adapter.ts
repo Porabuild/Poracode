@@ -174,7 +174,7 @@ export function createGeminiAdapter(): AgentAdapter {
       // become input newlines instead of submit. Use empty spacer chunks to
       // add ~50ms delay between the text and the Enter key so the TUI
       // processes them as separate events (type → submit).
-      return [prompt, "", "", "", "", "", "\r"];
+      return [prompt, "@wait:40", "\r"];
     },
 
     detectTerminalStatus: detectGeminiTerminalStatus,

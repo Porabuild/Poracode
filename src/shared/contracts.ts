@@ -6,6 +6,9 @@ export type ThemeMode = z.infer<typeof themeModeSchema>;
 export const agentKindSchema = z.string().min(1);
 export type AgentKind = z.infer<typeof agentKindSchema>;
 
+export const terminalPositionSchema = z.enum(["right", "bottom"]);
+export type TerminalPosition = z.infer<typeof terminalPositionSchema>;
+
 export const liveInputModeSchema = z.enum(["terminal", "server"]);
 export type LiveInputMode = z.infer<typeof liveInputModeSchema>;
 

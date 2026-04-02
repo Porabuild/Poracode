@@ -1,8 +1,9 @@
 import { z } from "zod";
-import { themeModeSchema } from "./contracts";
+import { terminalPositionSchema, themeModeSchema } from "./contracts";
 
 export const sharedSettingsSchema = z.object({
   themeMode: themeModeSchema,
+  terminalPosition: terminalPositionSchema,
   commitGenProvider: z.string(),
   commitGenModel: z.string(),
   commitGenEffort: z.string(),
@@ -14,6 +15,7 @@ export type SharedSettings = z.infer<typeof sharedSettingsSchema>;
 
 export const defaultSharedSettings: SharedSettings = {
   themeMode: "system",
+  terminalPosition: "right",
   commitGenProvider: "auto",
   commitGenModel: "",
   commitGenEffort: "",
@@ -32,6 +34,7 @@ export function normalizeSharedSettings(value: unknown): SharedSettings {
 
   return {
     themeMode: parsed.data.themeMode ?? defaultSharedSettings.themeMode,
+    terminalPosition: parsed.data.terminalPosition ?? defaultSharedSettings.terminalPosition,
     commitGenProvider: parsed.data.commitGenProvider ?? defaultSharedSettings.commitGenProvider,
     commitGenModel: parsed.data.commitGenModel ?? defaultSharedSettings.commitGenModel,
     commitGenEffort: parsed.data.commitGenEffort ?? defaultSharedSettings.commitGenEffort,

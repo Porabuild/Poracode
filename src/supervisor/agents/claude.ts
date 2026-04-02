@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { homedir } from "node:os";
+
 import type {
   AgentCapability,
   AgentStatus,
@@ -19,6 +19,7 @@ import {
   type AgentAdapter,
   type SyncConfigFromTerminalStateInput,
   type TerminalStatusHint,
+  shortenHomePath,
 } from "./base";
 
 const capabilities: AgentCapability = {
@@ -177,26 +178,20 @@ export function createClaudeAdapter(): AgentAdapter {
     createInitialSessionRef() {
       return undefined;
     },
-    buildDirectInput(prompt) {
-      return [prompt, "\r"];
+    buildDirectInput(prompt, segments) {
+      const attachmentCount = segments?.filter((s) => s.kind === "attachment").length ?? 0;
+      const wait = attachmentCount > 0 ? 500 + (attachmentCount - 1) * 100 : 60;
+      return [prompt, `@wait:${wait}`, "\r"];
     },
     formatPromptSegments(segments: PromptSegment[]) {
       // Claude CLI natively handles @path for files and images — pass as @path inline.
-      // Attachments are prepended so the agent sees them before the text prompt.
+      // Attachments are appended so the text prompt leads (better for title generation).
       // Shorten absolute home-dir paths to ~/... for a cleaner prompt line.
-      const home = homedir();
-      const shorten = (p: string) => {
-        const normalized = p.replaceAll("\\", "/");
-        const homeNorm = home.replaceAll("\\", "/");
-        return normalized.startsWith(homeNorm + "/")
-          ? "~" + normalized.slice(homeNorm.length)
-          : normalized;
-      };
       const attachments = segments.filter((s) => s.kind === "attachment");
       const rest = segments.filter((s) => s.kind !== "attachment");
-      const attachmentLines = attachments.map((s) => `@${shorten(s.path)}`).join("\n");
+      const attachmentLines = attachments.map((s) => `@${shortenHomePath(s.path)}`).join(" ");
       const restStr = rest.map((s) => (s.kind === "file" ? `@${s.path}` : s.content)).join("");
-      return attachmentLines ? `${attachmentLines}\n${restStr}` : restStr;
+      return attachmentLines ? `${restStr}\n\n${attachmentLines} ` : restStr;
     },
     detectTerminalStatus: detectClaudeTerminalStatus,
     syncConfigFromTerminalState: syncClaudeConfigFromTerminalState,

@@ -22,6 +22,7 @@ import {
   ImageLightbox,
   useAttachments,
 } from "../composer";
+import { flattenSegments } from "../composer/serializeMentions";
 import { TerminalPane } from "./TerminalPane";
 import { ThreadComposer } from "./ThreadComposer";
 import { ThreadServerRequestPanel } from "./ThreadServerRequestPanel";
@@ -153,13 +154,7 @@ export function ThreadView(props: {
     // Merge attachment segments with the editor segments
     const attachmentSegments = attachments.toSegments();
     const allSegments = [...attachmentSegments, ...segments];
-    const flat = allSegments
-      .map((s) => {
-        if (s.kind === "file" || s.kind === "attachment") return `@${s.path}`;
-        return s.content;
-      })
-      .join("")
-      .trim();
+    const flat = flattenSegments(allSegments);
     if (flat.length === 0 || !canSubmit) return;
     setIsSubmitting(true);
     void onSubmitInput(flat, allSegments.length > 0 ? allSegments : undefined)

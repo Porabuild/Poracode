@@ -189,6 +189,33 @@ body {
   background: var(--accent);
 }
 
+.lightcode-resize-handle-horizontal {
+  height: 6px;
+  margin-top: -4px;
+  margin-bottom: -2px;
+  cursor: row-resize;
+  position: relative;
+  z-index: 20;
+  flex-shrink: 0;
+}
+
+.lightcode-resize-handle-horizontal::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 2px;
+  transform: translateY(-50%);
+  border-radius: 999px;
+  background: transparent;
+  transition: background 0.15s;
+}
+
+.lightcode-resize-handle-horizontal:hover::after {
+  background: var(--accent);
+}
+
 .lightcode-pane-divider {
   width: 8px;
   cursor: col-resize;

@@ -8,6 +8,9 @@ export interface DevTerminalTab {
   worktreePath?: string;
   title: string;
   createdAt: string;
+  /** When set, a second shell is shown side-by-side within this tab. */
+  splitId?: string;
+  splitTitle?: string;
 }
 
 interface DevTerminalState {
@@ -29,6 +32,10 @@ interface DevTerminalActions {
   setActiveTab: (tabId: string) => void;
   removeTabsForProject: (projectId: string) => string[];
   removeTabsForWorktree: (worktreePath: string) => string[];
+  /** Create a split shell on the given tab. Returns the split shell ID. */
+  splitTab: (tabId: string) => string;
+  /** Remove the split shell from the given tab. Returns the removed split ID if any. */
+  closeSplit: (tabId: string) => string | undefined;
   markTabActive: (tabId: string) => void;
   clearTabActivity: (tabId: string) => void;
   updateTabTitle: (tabId: string, title: string) => void;
@@ -62,13 +69,11 @@ export const useDevTerminalStore = create<DevTerminalState & DevTerminalActions>
       },
 
       addTab: (projectId, projectName, worktreePath?) => {
-        const existing = get().tabs.filter((t) => t.projectId === projectId);
-        const suffix = existing.length > 0 ? ` (${existing.length + 1})` : "";
         const tab: DevTerminalTab = {
           id: `shell:${crypto.randomUUID()}`,
           projectId,
           ...(worktreePath ? { worktreePath } : {}),
-          title: `${projectName}${suffix}`,
+          title: "",
           createdAt: new Date().toISOString(),
         };
         set((state) => ({ tabs: [...state.tabs, tab] }));
@@ -88,6 +93,7 @@ export const useDevTerminalStore = create<DevTerminalState & DevTerminalActions>
           }
           const tabActivity = { ...state.tabActivity };
           delete tabActivity[tabId];
+          if (removed?.splitId) delete tabActivity[removed.splitId];
           return { tabs, activeTabId, tabActivity };
         }),
 
@@ -102,10 +108,12 @@ export const useDevTerminalStore = create<DevTerminalState & DevTerminalActions>
       },
 
       removeTabsForProject: (projectId: string) => {
-        const removed = get()
-          .tabs.filter((t) => t.projectId === projectId)
-          .map((t) => t.id);
+        const removedTabs = get().tabs.filter((t) => t.projectId === projectId);
+        const removed = removedTabs.map((t) => t.id);
         if (removed.length === 0) return removed;
+
+        // Also collect split shell IDs for cleanup
+        const splitIds = removedTabs.filter((t) => t.splitId).map((t) => t.splitId!);
 
         set((state) => {
           const tabs = state.tabs.filter((t) => t.projectId !== projectId);
@@ -115,16 +123,18 @@ export const useDevTerminalStore = create<DevTerminalState & DevTerminalActions>
           }
           const tabActivity = { ...state.tabActivity };
           for (const id of removed) delete tabActivity[id];
+          for (const id of splitIds) delete tabActivity[id];
           return { tabs, activeTabId, tabActivity };
         });
-        return removed;
+        return [...removed, ...splitIds];
       },
 
       removeTabsForWorktree: (worktreePath: string) => {
-        const removed = get()
-          .tabs.filter((t) => t.worktreePath === worktreePath)
-          .map((t) => t.id);
+        const removedTabs = get().tabs.filter((t) => t.worktreePath === worktreePath);
+        const removed = removedTabs.map((t) => t.id);
         if (removed.length === 0) return removed;
+
+        const splitIds = removedTabs.filter((t) => t.splitId).map((t) => t.splitId!);
 
         set((state) => {
           const tabs = state.tabs.filter((t) => t.worktreePath !== worktreePath);
@@ -134,9 +144,35 @@ export const useDevTerminalStore = create<DevTerminalState & DevTerminalActions>
           }
           const tabActivity = { ...state.tabActivity };
           for (const id of removed) delete tabActivity[id];
+          for (const id of splitIds) delete tabActivity[id];
           return { tabs, activeTabId, tabActivity };
         });
-        return removed;
+        return [...removed, ...splitIds];
+      },
+
+      splitTab: (tabId) => {
+        const splitId = `shell:${crypto.randomUUID()}`;
+        set((state) => ({
+          tabs: state.tabs.map((t) => (t.id === tabId ? { ...t, splitId } : t)),
+        }));
+        return splitId;
+      },
+
+      closeSplit: (tabId) => {
+        const tab = get().tabs.find((t) => t.id === tabId);
+        const splitId = tab?.splitId;
+        if (!splitId) return undefined;
+        set((state) => {
+          const tabs: DevTerminalTab[] = state.tabs.map((t) => {
+            if (t.id !== tabId) return t;
+            const { splitId: _, ...rest } = t;
+            return rest;
+          });
+          const tabActivity = { ...state.tabActivity };
+          delete tabActivity[splitId];
+          return { tabs, tabActivity };
+        });
+        return splitId;
       },
 
       markTabActive: (tabId) => {
@@ -160,7 +196,11 @@ export const useDevTerminalStore = create<DevTerminalState & DevTerminalActions>
         const segment = rawTitle.split(/[/\\]/).pop() ?? rawTitle;
         const title = segment.replace(/\.[^.]+$/, "") || segment;
         set((state) => ({
-          tabs: state.tabs.map((t) => (t.id === tabId ? { ...t, title } : t)),
+          tabs: state.tabs.map((t) => {
+            if (t.id === tabId) return { ...t, title };
+            if (t.splitId === tabId) return { ...t, splitTitle: title };
+            return t;
+          }),
         }));
       },
     }),

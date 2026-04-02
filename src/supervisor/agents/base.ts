@@ -1,4 +1,5 @@
 import { existsSync } from "node:fs";
+import { homedir } from "node:os";
 import { join } from "node:path";
 import { randomUUID } from "node:crypto";
 import { execFile, spawnSync } from "node:child_process";
@@ -99,7 +100,7 @@ export interface AgentAdapter {
   ): CommandSpec;
   createInitialSessionRef(): SessionRef | undefined;
   createStructuredSession?(input: CreateStructuredSessionInput): Promise<StructuredSessionHandle>;
-  buildDirectInput?(prompt: string): string[];
+  buildDirectInput?(prompt: string, segments?: PromptSegment[]): string[];
   /**
    * Format structured prompt segments into a prompt string for this agent.
    * Each adapter decides how to represent file references (e.g. Claude: `@path`,
@@ -566,12 +567,20 @@ export async function readWslCommandOutputAsync(
  * Default segment formatter: file segments become `@path`, text segments pass through.
  * Used when an adapter doesn't implement `formatPromptSegments`.
  */
+export function shortenHomePath(p: string): string {
+  const normalized = p.replaceAll("\\", "/");
+  const homeNorm = homedir().replaceAll("\\", "/");
+  return normalized.startsWith(homeNorm + "/")
+    ? "~" + normalized.slice(homeNorm.length)
+    : normalized;
+}
+
 export function defaultFormatPromptSegments(segments: PromptSegment[]): string {
   const attachments = segments.filter((s) => s.kind === "attachment");
   const rest = segments.filter((s) => s.kind !== "attachment");
-  const attachmentLines = attachments.map((s) => `@${s.path}`).join("\n");
+  const attachmentLines = attachments.map((s) => `@${shortenHomePath(s.path)}`).join(" ");
   const restStr = rest.map((s) => (s.kind === "file" ? `@${s.path}` : s.content)).join("");
-  return attachmentLines ? `${attachmentLines}\n${restStr}` : restStr;
+  return attachmentLines ? `${restStr}\n\n${attachmentLines} ` : restStr;
 }
 
 export function detectAuthFile(filePath: string): AuthState {

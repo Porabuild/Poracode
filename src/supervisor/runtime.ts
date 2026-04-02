@@ -61,6 +61,7 @@ import type {
   ThreadRuntimeSnapshot,
   ThreadStatus,
   WriteTerminalPayload,
+  PromptSegment,
 } from "../shared/contracts";
 import type { SupervisorEvent } from "../shared/ipc";
 import { stripAnsiPreservingLayout } from "../shared/ansi";
@@ -116,6 +117,8 @@ interface SessionRuntime {
   autoResponseEmitted?: boolean;
   sessionRefDiscoveryStarted?: boolean;
   pendingLaunchPrompt?: string | undefined;
+  pendingTerminalPrompt?: string | undefined;
+  pendingTerminalSegments?: PromptSegment[] | undefined;
   prevChunk: string;
   /** Pending status stabilization — delays low-risk transitions to filter TUI animation noise. */
   pendingStatusHint?:
@@ -141,11 +144,15 @@ export async function writeSubmittedPrompt(
   pty: Pick<IPty, "write">,
   chunks: readonly string[],
 ): Promise<void> {
-  for (const [index, chunk] of chunks.entries()) {
-    pty.write(chunk);
-    if (index < chunks.length - 1) {
-      await sleep(8);
+  for (const chunk of chunks) {
+    // @wait:N — pause for N ms without writing anything to the PTY.
+    const waitMatch = chunk.match(/^@wait:(\d+)$/);
+    if (waitMatch) {
+      await sleep(Number(waitMatch[1]));
+      continue;
     }
+    pty.write(chunk);
+    await sleep(8);
   }
 }
 
@@ -467,7 +474,12 @@ export class SupervisorRuntime {
     }
 
     // Phase 2: spawn the PTY-backed presentation process with resume.
-    const launchPrompt = isServerControlled ? "" : payload.prompt;
+    // When attachments are present the formatted prompt contains @ paths
+    // that are unsafe as CLI args (PowerShell interprets @() as array).
+    // Defer to buildDirectInput after the TUI reaches idle.
+    const hasAttachments =
+      payload.segments?.some((s) => s.kind === "attachment") ?? false;
+    const launchPrompt = isServerControlled || hasAttachments ? "" : payload.prompt;
     const command = effectiveSessionRef
       ? adapter.buildResumeCommand(
           payload.projectLocation,
@@ -498,6 +510,7 @@ export class SupervisorRuntime {
       ...(structuredSession ? { structuredSession } : {}),
       ...(resolvedSessionRef ? { sessionRef: resolvedSessionRef } : {}),
       ...(shouldQueueInitialPrompt ? { pendingLaunchPrompt: initialPrompt } : {}),
+      ...(hasAttachments && !isServerControlled ? { pendingTerminalPrompt: initialPrompt, pendingTerminalSegments: payload.segments! } : {}),
     });
     console.log(`[supervisor] [${elapsed()}] PTY spawned`);
 
@@ -567,7 +580,7 @@ export class SupervisorRuntime {
     this.updateState(session, "working", "working");
     await writeSubmittedPrompt(
       session.pty,
-      session.adapter.buildDirectInput?.(prompt) ?? [prompt, "\r"],
+      session.adapter.buildDirectInput?.(prompt, payload.segments) ?? [prompt, "\r"],
     );
   }
 
@@ -1036,6 +1049,8 @@ export class SupervisorRuntime {
     structuredSession?: StructuredSessionHandle;
     sessionRef?: SessionRef;
     pendingLaunchPrompt?: string;
+    pendingTerminalPrompt?: string;
+    pendingTerminalSegments?: PromptSegment[];
   }): SessionRuntime {
     const logPath = this.resolveLogPath(input.threadId);
     resetTerminalLogFile(logPath);
@@ -1075,6 +1090,8 @@ export class SupervisorRuntime {
       logPath,
       outputLength: 0,
       pendingLaunchPrompt: input.pendingLaunchPrompt,
+      pendingTerminalPrompt: input.pendingTerminalPrompt,
+      pendingTerminalSegments: input.pendingTerminalSegments,
       prevChunk: "",
       ...(input.structuredSession ? { structuredSession: input.structuredSession } : {}),
     };
@@ -1218,7 +1235,13 @@ export class SupervisorRuntime {
             session.config = nextConfig!;
           }
 
-          if (session.status !== hint.status || session.attention !== hint.attention) {
+          // While waiting to send the initial prompt, suppress non-idle transitions
+          // so the UI stays in "launching" instead of flickering to "working" from
+          // startup animations.
+          const suppressHint =
+            session.pendingTerminalPrompt && hint.status !== "idle";
+
+          if (!suppressHint && (session.status !== hint.status || session.attention !== hint.attention)) {
             const delay = STATUS_STABILIZATION_DELAY[hint.status] ?? 0;
 
             if (delay === 0) {
@@ -1253,10 +1276,13 @@ export class SupervisorRuntime {
 
             // Trigger session ID discovery on the first real status detection —
             // the provider's terminal presentation is live, so the session file is guaranteed to exist.
+            // Skip if we're still waiting to send the initial prompt — the agent
+            // won't have created a session until it processes input.
             if (
               session.adapter.discoverSessionRef &&
               !session.sessionRef &&
-              !session.sessionRefDiscoveryStarted
+              !session.sessionRefDiscoveryStarted &&
+              !session.pendingTerminalPrompt
             ) {
               session.sessionRefDiscoveryStarted = true;
               this.pollSessionRefDiscovery(session);
@@ -1275,6 +1301,23 @@ export class SupervisorRuntime {
           session.adapter.isReadyForInitialPrompt?.(strippedData)
         ) {
           this.startQueuedLaunchPrompt(session);
+        }
+
+        // For terminal-controlled agents: send the formatted prompt once
+        // the TUI reaches idle (ready for input) after launch.
+        if (session.pendingTerminalPrompt && hint?.status === "idle") {
+          const prompt = session.pendingTerminalPrompt;
+          const segments = session.pendingTerminalSegments;
+          session.pendingTerminalPrompt = undefined;
+          session.pendingTerminalSegments = undefined;
+          // Give the TUI time to fully render its input field after
+          // the first idle indicator appears (title bar may update first).
+          void sleep(500).then(() =>
+            writeSubmittedPrompt(
+              session.pty,
+              session.adapter.buildDirectInput?.(prompt, segments) ?? [prompt, "\r"],
+            ),
+          );
         }
       }
     });

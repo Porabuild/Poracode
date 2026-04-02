@@ -43,6 +43,7 @@ describe("sharedSettingsFile", () => {
       ),
     ).toEqual({
       themeMode: "dark",
+      terminalPosition: "right",
       commitGenProvider: "codex",
       commitGenModel: "gpt-5.4",
       commitGenEffort: "high",
@@ -56,6 +57,7 @@ describe("sharedSettingsFile", () => {
     const settingsPath = join(makeTempDir(), "settings.json");
     writeSharedSettingsFile(settingsPath, {
       themeMode: "dark",
+      terminalPosition: "right",
       commitGenProvider: "auto",
       commitGenModel: "",
       commitGenEffort: "",
@@ -66,6 +68,7 @@ describe("sharedSettingsFile", () => {
 
     expect(readSharedSettingsFile(settingsPath)).toEqual({
       themeMode: "dark",
+      terminalPosition: "right",
       commitGenProvider: "auto",
       commitGenModel: "",
       commitGenEffort: "",
@@ -90,6 +93,7 @@ describe("sharedSettingsFile", () => {
 
     expect(settings).toEqual({
       themeMode: "light",
+      terminalPosition: "right",
       commitGenProvider: "gemini",
       commitGenModel: "",
       commitGenEffort: "",

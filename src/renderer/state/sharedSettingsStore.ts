@@ -5,12 +5,13 @@ import {
   normalizeSharedSettings,
   type SharedSettings,
 } from "../../shared/settings";
-import type { ThemeMode } from "../../shared/contracts";
+import type { TerminalPosition, ThemeMode } from "../../shared/contracts";
 
 const STORAGE_KEY = "lightcode-shared-settings";
 
 interface SharedSettingsState extends SharedSettings {
   setThemeMode: (mode: ThemeMode) => void;
+  setTerminalPosition: (position: TerminalPosition) => void;
   setCommitGenConfig: (provider: string, model: string, effort: string) => void;
   setTitleGenConfig: (provider: string, model: string, effort: string) => void;
 }
@@ -52,6 +53,10 @@ export const useSharedSettings = create<SharedSettingsState>()((set, get) => ({
     set({ themeMode });
     persistSettings(selectSharedSettings(get()));
   },
+  setTerminalPosition: (terminalPosition) => {
+    set({ terminalPosition });
+    persistSettings(selectSharedSettings(get()));
+  },
   setCommitGenConfig: (commitGenProvider, commitGenModel, commitGenEffort) => {
     set({ commitGenProvider, commitGenModel, commitGenEffort });
     persistSettings(selectSharedSettings(get()));
@@ -65,6 +70,7 @@ export const useSharedSettings = create<SharedSettingsState>()((set, get) => ({
 function selectSharedSettings(state: SharedSettingsState): SharedSettings {
   return {
     themeMode: state.themeMode,
+    terminalPosition: state.terminalPosition,
     commitGenProvider: state.commitGenProvider,
     commitGenModel: state.commitGenModel,
     commitGenEffort: state.commitGenEffort,

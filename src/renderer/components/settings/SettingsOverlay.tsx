@@ -1,6 +1,6 @@
 import { ArrowLeft, GitBranch, PanelLeft, PanelLeftClose, Settings2, Sparkles } from "lucide-react";
 import { startTransition, useState } from "react";
-import type { ThemeMode } from "../../../shared/contracts";
+import type { TerminalPosition, ThemeMode } from "../../../shared/contracts";
 import { useAppStore } from "../../state/appStore";
 import { useSharedSettings } from "../../state/sharedSettingsStore";
 import { resolveCommitGenConfig, resolveTitleGenConfig } from "../providers";
@@ -12,6 +12,11 @@ const themeOptions = [
   { id: "system", label: "System" },
   { id: "light", label: "Light" },
   { id: "dark", label: "Dark" },
+] as const;
+
+const terminalPositionOptions = [
+  { id: "right", label: "Right" },
+  { id: "bottom", label: "Bottom" },
 ] as const;
 
 type SettingsSection = "general" | "ai" | "git";
@@ -116,6 +121,8 @@ function SettingsSidebar(props: {
 function GeneralSettings() {
   const themeMode = useSharedSettings((state) => state.themeMode);
   const setThemeMode = useSharedSettings((state) => state.setThemeMode);
+  const terminalPosition = useSharedSettings((state) => state.terminalPosition);
+  const setTerminalPosition = useSharedSettings((state) => state.setTerminalPosition);
 
   return (
     <div className="h-full min-h-0 overflow-y-auto px-6 pb-8">
@@ -136,6 +143,24 @@ function GeneralSettings() {
               onChange={(value) => {
                 startTransition(() => {
                   setThemeMode(value as ThemeMode);
+                });
+              }}
+            />
+          </div>
+
+          <div className="flex items-center justify-between gap-4">
+            <div className="min-w-0">
+              <p className="text-sm font-medium text-foreground">Terminal position</p>
+              <p className="text-xs text-muted">Where the terminal panel appears.</p>
+            </div>
+            <Select
+              aria-label="Terminal position"
+              className="w-[160px] shrink-0"
+              options={terminalPositionOptions}
+              value={terminalPosition}
+              onChange={(value) => {
+                startTransition(() => {
+                  setTerminalPosition(value as TerminalPosition);
                 });
               }}
             />

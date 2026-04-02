@@ -1,4 +1,5 @@
 import { createContext, type ReactNode, useContext, useEffect, useRef, useState } from "react";
+import { useSharedSettings } from "../../state/sharedSettingsStore";
 
 const SIDEBAR_MIN_WIDTH = 220;
 const SIDEBAR_MAX_WIDTH = 500;
@@ -7,6 +8,9 @@ const SIDEBAR_COLLAPSED_WIDTH = 48;
 const PANEL_MIN_WIDTH = 320;
 const PANEL_MAX_WIDTH = 700;
 const PANEL_DEFAULT_WIDTH = 480;
+const PANEL_BOTTOM_MIN_HEIGHT = 200;
+const PANEL_BOTTOM_MAX_HEIGHT = 500;
+const PANEL_BOTTOM_DEFAULT_HEIGHT = 300;
 
 function readStoredNumber(key: string, fallback: number): number {
   try {
@@ -55,6 +59,7 @@ export function AppShell(props: {
   rightPanelOpen?: boolean;
 }) {
   const { sidebar, content, rightPanel, rightPanelOpen = false } = props;
+  const terminalPosition = useSharedSettings((s) => s.terminalPosition);
 
   const [sidebarWidth, setSidebarWidth] = useState(() =>
     readStoredNumber("lightcode-sidebar-width", SIDEBAR_DEFAULT_WIDTH),
@@ -62,11 +67,16 @@ export function AppShell(props: {
   const [panelWidth, setPanelWidth] = useState(() =>
     readStoredNumber("lightcode-panel-width", PANEL_DEFAULT_WIDTH),
   );
+  const [panelHeight, setPanelHeight] = useState(() =>
+    readStoredNumber("lightcode-panel-height", PANEL_BOTTOM_DEFAULT_HEIGHT),
+  );
   const [isCollapsed, setIsCollapsed] = useState(() =>
     readStoredBoolean("lightcode-sidebar-collapsed", false),
   );
-  const [resizeTarget, setResizeTarget] = useState<"sidebar" | "panel" | null>(null);
-  const resizeRef = useRef({ startX: 0, startWidth: 0 });
+  const [resizeTarget, setResizeTarget] = useState<
+    "sidebar" | "panel" | "panel-bottom" | null
+  >(null);
+  const resizeRef = useRef({ startX: 0, startY: 0, startWidth: 0, startHeight: 0 });
 
   useEffect(() => {
     localStorage.setItem("lightcode-sidebar-width", String(sidebarWidth));
@@ -75,6 +85,10 @@ export function AppShell(props: {
   useEffect(() => {
     localStorage.setItem("lightcode-panel-width", String(panelWidth));
   }, [panelWidth]);
+
+  useEffect(() => {
+    localStorage.setItem("lightcode-panel-height", String(panelHeight));
+  }, [panelHeight]);
 
   useEffect(() => {
     localStorage.setItem("lightcode-sidebar-collapsed", String(isCollapsed));
@@ -98,6 +112,13 @@ export function AppShell(props: {
           Math.max(PANEL_MIN_WIDTH, resizeRef.current.startWidth + delta),
         );
         setPanelWidth(next);
+      } else if (resizeTarget === "panel-bottom") {
+        const delta = resizeRef.current.startY - e.clientY;
+        const next = Math.min(
+          PANEL_BOTTOM_MAX_HEIGHT,
+          Math.max(PANEL_BOTTOM_MIN_HEIGHT, resizeRef.current.startHeight + delta),
+        );
+        setPanelHeight(next);
       }
     }
 
@@ -115,14 +136,20 @@ export function AppShell(props: {
 
   function handleSidebarResizeStart(e: React.MouseEvent) {
     e.preventDefault();
-    resizeRef.current = { startX: e.clientX, startWidth: sidebarWidth };
+    resizeRef.current = { startX: e.clientX, startY: 0, startWidth: sidebarWidth, startHeight: 0 };
     setResizeTarget("sidebar");
   }
 
   function handlePanelResizeStart(e: React.MouseEvent) {
     e.preventDefault();
-    resizeRef.current = { startX: e.clientX, startWidth: panelWidth };
+    resizeRef.current = { startX: e.clientX, startY: 0, startWidth: panelWidth, startHeight: 0 };
     setResizeTarget("panel");
+  }
+
+  function handlePanelBottomResizeStart(e: React.MouseEvent) {
+    e.preventDefault();
+    resizeRef.current = { startX: 0, startY: e.clientY, startWidth: 0, startHeight: panelHeight };
+    setResizeTarget("panel-bottom");
   }
 
   const collapse = () => setIsCollapsed(true);
@@ -130,6 +157,8 @@ export function AppShell(props: {
   const displayWidth = isCollapsed ? SIDEBAR_COLLAPSED_WIDTH : sidebarWidth;
   const isResizing = resizeTarget !== null;
   const panelDisplayWidth = rightPanelOpen ? panelWidth : 0;
+  const panelDisplayHeight = rightPanelOpen ? panelHeight : 0;
+  const isBottom = terminalPosition === "bottom";
 
   return (
     <SidebarContext.Provider value={{ isCollapsed, collapse, expand }}>
@@ -157,35 +186,69 @@ export function AppShell(props: {
           />
         )}
 
-        <main className="relative h-full min-h-0 min-w-0 flex-1 overflow-hidden">
-          <div className="relative h-full min-h-0">{content}</div>
-        </main>
+        {isBottom && rightPanel ? (
+          <div className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+            <main className="relative min-h-0 min-w-0 flex-1 overflow-hidden">
+              <div className="relative h-full min-h-0">{content}</div>
+            </main>
 
-        {rightPanel ? (
-          <>
             {rightPanelOpen && (
               <div
-                className="lightcode-resize-handle -mt-5 h-[calc(100%+0.75rem)]"
-                onMouseDown={handlePanelResizeStart}
+                className="lightcode-resize-handle-horizontal"
+                onMouseDown={handlePanelBottomResizeStart}
                 role="separator"
-                aria-orientation="vertical"
+                aria-orientation="horizontal"
                 aria-label="Resize terminal panel"
               />
             )}
             <aside
-              className={`relative min-h-0 border-l border-[color:var(--border)] -mt-5 h-[calc(100%+0.75rem)] overflow-hidden ${
-                !isResizing ? "transition-[width,min-width,opacity] duration-200" : ""
+              className={`relative min-w-0 border-t border-[color:var(--border)] overflow-hidden ${
+                !isResizing ? "transition-[height,min-height,opacity] duration-200" : ""
               } ${rightPanelOpen ? "opacity-100" : "opacity-0"}`}
-              style={{ width: panelDisplayWidth, minWidth: panelDisplayWidth }}
+              style={{ height: panelDisplayHeight, minHeight: panelDisplayHeight }}
             >
-              <div className="h-full" style={{ width: panelWidth }}>
+              <div className="h-full w-full" style={{ height: panelHeight }}>
                 {rightPanel}
               </div>
             </aside>
-          </>
-        ) : null}
+          </div>
+        ) : (
+          <>
+            <main className="relative h-full min-h-0 min-w-0 flex-1 overflow-hidden">
+              <div className="relative h-full min-h-0">{content}</div>
+            </main>
 
-        {isResizing && <div className="fixed inset-0 z-50 cursor-col-resize" />}
+            {rightPanel ? (
+              <>
+                {rightPanelOpen && (
+                  <div
+                    className="lightcode-resize-handle -mt-5 h-[calc(100%+0.75rem)]"
+                    onMouseDown={handlePanelResizeStart}
+                    role="separator"
+                    aria-orientation="vertical"
+                    aria-label="Resize terminal panel"
+                  />
+                )}
+                <aside
+                  className={`relative min-h-0 border-l border-[color:var(--border)] -mt-5 h-[calc(100%+0.75rem)] overflow-hidden ${
+                    !isResizing ? "transition-[width,min-width,opacity] duration-200" : ""
+                  } ${rightPanelOpen ? "opacity-100" : "opacity-0"}`}
+                  style={{ width: panelDisplayWidth, minWidth: panelDisplayWidth }}
+                >
+                  <div className="h-full" style={{ width: panelWidth }}>
+                    {rightPanel}
+                  </div>
+                </aside>
+              </>
+            ) : null}
+          </>
+        )}
+
+        {isResizing && (
+          <div
+            className={`fixed inset-0 z-50 ${resizeTarget === "panel-bottom" ? "cursor-row-resize" : "cursor-col-resize"}`}
+          />
+        )}
       </div>
     </SidebarContext.Provider>
   );
