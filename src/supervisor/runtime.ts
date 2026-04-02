@@ -1207,7 +1207,13 @@ export class SupervisorRuntime {
         usesTerminalPresentation &&
         (session.adapter.isReadyForInitialPrompt || session.adapter.detectTerminalStatus)
       ) {
-        const combined = session.prevChunk + data;
+        // Detect full-screen redraws: if the incoming chunk contains a
+        // cursor-home sequence (CUP → row 1, col 1), discard stale
+        // prevChunk content so artifacts from previous screen frames
+        // (e.g. braille spinners from "Resuming session…") don't linger
+        // in the buffer and mislead hint detection.
+        const lastHome = Math.max(data.lastIndexOf("\x1b[H"), data.lastIndexOf("\x1b[1;1H"));
+        const combined = lastHome >= 0 ? data.slice(lastHome) : session.prevChunk + data;
         session.prevChunk = combined.length > 8192 ? combined.slice(-8192) : combined;
         const stripped = stripAnsiPreservingLayout(combined);
         if (

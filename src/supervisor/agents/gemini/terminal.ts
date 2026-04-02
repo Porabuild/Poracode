@@ -4,10 +4,11 @@ type HintEntry = {
   re: RegExp;
   status: TerminalStatusHint["status"];
   attention: TerminalStatusHint["attention"];
-  signal?: "primary" | "fallbackIdle" | "weakWorking";
+  signal?: "primary" | "fallbackIdle";
 };
 
-const GEMINI_HINTS: HintEntry[] = [
+/** Strong signals — checked first, always authoritative. */
+const GEMINI_STRONG: HintEntry[] = [
   // Title bar: action required — plan approval, tool approval, numbered selection
   { re: /✋\s+Action Required/i, status: "needs_reply", attention: "needs_reply" },
   // Selection prompt footer (secondary, less reliable in stripped buffer)
@@ -20,31 +21,21 @@ const GEMINI_HINTS: HintEntry[] = [
   },
   // Title bar: working indicator (✦ sparkle + "Working…")
   { re: /✦\s+Working|⚙\s+Working/i, status: "working", attention: "working" },
-  // Active generation text indicators
-  {
-    re: /Generating(?:\.\.\.|…)|Thinking(?:\.\.\.|…)|Processing/i,
-    status: "working",
-    attention: "working",
-  },
-  // Braille spinner characters used by Gemini's TUI — marked weak because single
-  // characters persist as stale data in the rolling buffer after screen redraws.
-  { re: /[⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏]/, status: "working", attention: "working", signal: "weakWorking" },
+  // Active generation — spinner line always contains "(esc to cancel".
+  // This is the definitive working indicator; standalone braille characters
+  // are NOT matched because they persist as stale data in the rolling buffer
+  // after "Resuming session…" and similar loading screens.
+  { re: /\(esc to cancel/i, status: "working", attention: "working" },
   // Title bar: ready/idle indicator (◇ diamond + "Ready")
   { re: /◇\s+Ready/i, status: "idle", attention: "none" },
+];
+
+/** Fallback idle — used only when no strong signal exists. */
+const GEMINI_FALLBACK_IDLE: HintEntry[] = [
   // TUI input prompt — "Type your message" or "* Type your message"
-  {
-    re: /Type your message/i,
-    status: "idle",
-    attention: "none",
-    signal: "fallbackIdle",
-  },
+  { re: /Type your message/i, status: "idle", attention: "none", signal: "fallbackIdle" },
   // TUI shortcuts hint — "? for shortcuts"
-  {
-    re: /\?\s+for shortcuts/i,
-    status: "idle",
-    attention: "none",
-    signal: "fallbackIdle",
-  },
+  { re: /\?\s+for shortcuts/i, status: "idle", attention: "none", signal: "fallbackIdle" },
 ];
 
 /**
@@ -77,36 +68,18 @@ function findBestMatch(
 }
 
 export function detectGeminiTerminalStatus(text: string): TerminalStatusHint | null {
-  // Three-tier priority: strong signals are always authoritative, weak working
-  // signals (braille spinner) beat fallback idle, and fallback idle ("Type your
-  // message") is used only when nothing stronger exists.  The stale-spinner
-  // edge case (weak char lingering after a transition to idle) is handled by
-  // the runtime's temporal-stabilization layer instead of positional heuristics.
+  // Two-tier priority:
+  //   1. Strong signals — title-bar indicators, "(esc to cancel" working
+  //      prompt, approval prompts, "◇ Ready".  Always authoritative.
+  //   2. Fallback idle — "Type your message", "? for shortcuts".
+  //      Used only when no strong signal exists.
 
-  // Tier 1 — strong signals: title-bar indicators, explicit text like
-  // "Thinking…", approval prompts, "◇ Ready".
-  const strongBest = findBestMatch(
-    text,
-    GEMINI_HINTS.filter((e) => e.signal !== "fallbackIdle" && e.signal !== "weakWorking"),
-  );
+  const strongBest = findBestMatch(text, GEMINI_STRONG);
   if (strongBest) {
     return { status: strongBest.entry.status, attention: strongBest.entry.attention };
   }
 
-  // Tier 2 — weak working signals: braille spinner characters.
-  const weakBest = findBestMatch(
-    text,
-    GEMINI_HINTS.filter((e) => e.signal === "weakWorking"),
-  );
-  if (weakBest) {
-    return { status: weakBest.entry.status, attention: weakBest.entry.attention };
-  }
-
-  // Tier 3 — fallback idle: "Type your message", "? for shortcuts".
-  const fallbackBest = findBestMatch(
-    text,
-    GEMINI_HINTS.filter((e) => e.signal === "fallbackIdle"),
-  );
+  const fallbackBest = findBestMatch(text, GEMINI_FALLBACK_IDLE);
   if (fallbackBest) {
     return { status: fallbackBest.entry.status, attention: fallbackBest.entry.attention };
   }

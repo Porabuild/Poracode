@@ -33,11 +33,19 @@ describe("detectGeminiTerminalStatus", () => {
     expect(result?.attention).toBe("needs_reply");
   });
 
-  it("detects working from spinner characters", () => {
-    const text = "⠋ Thinking about your request...";
+  it("detects working from esc-to-cancel prompt", () => {
+    const text = "⠋ Thinking about your request... (esc to cancel, 2s)";
     expect(detectGeminiTerminalStatus(text)).toEqual({
       status: "working",
       attention: "working",
+    });
+  });
+
+  it("ignores stale spinner without esc-to-cancel context", () => {
+    const text = "⠋ Resuming session...\n>   Type your message or @path/to/file";
+    expect(detectGeminiTerminalStatus(text)).toEqual({
+      status: "idle",
+      attention: "none",
     });
   });
 

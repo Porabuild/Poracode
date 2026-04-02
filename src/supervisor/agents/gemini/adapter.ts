@@ -19,10 +19,9 @@ import { detectGeminiTerminalStatus } from "./terminal";
 
 const capabilities: AgentCapability = {
   models: [
-    { id: "auto", label: "Auto (Gemini 3)" },
+    { id: "auto-gemini-3", label: "Auto (Gemini 3)" },
     { id: "auto-gemini-2.5", label: "Auto (Gemini 2.5)" },
     { id: "gemini-3.1-pro-preview", label: "3.1 Pro Preview" },
-    { id: "gemini-3-pro-preview", label: "3 Pro Preview" },
     { id: "gemini-3-flash-preview", label: "3 Flash Preview" },
     { id: "gemini-2.5-pro", label: "2.5 Pro" },
     { id: "gemini-2.5-flash", label: "2.5 Flash" },
@@ -68,12 +67,15 @@ function buildGeminiArgs(config: ThreadConfig, prompt: string, resumeSessionId?:
 const SESSION_UUID_RE = /\[([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\]/;
 const INVALID_SESSION_RE = /Error resuming session:\s+Invalid session identifier/i;
 
-function parseLatestSessionId(output: string): string | undefined {
-  // Lines are numbered 1..N; the last numbered line is the most recent session.
-  const lines = output.split(/\r?\n/).filter((l) => /^\s*\d+\./.test(l));
-  const last = lines[lines.length - 1];
-  return last ? SESSION_UUID_RE.exec(last)?.[1] : undefined;
+function parseAllSessionIds(output: string): string[] {
+  const ids: string[] = [];
+  for (const line of output.split(/\r?\n/)) {
+    const match = SESSION_UUID_RE.exec(line);
+    if (match?.[1]) ids.push(match[1]);
+  }
+  return ids;
 }
+
 
 export function detectGeminiInvalidSessionRef(output: string): boolean {
   return INVALID_SESSION_RE.test(output);
@@ -81,6 +83,43 @@ export function detectGeminiInvalidSessionRef(output: string): boolean {
 
 export function createGeminiAdapter(): AgentAdapter {
   const detectedWslExecPaths = new Map<string, string | undefined>();
+  /** Latest session ID seen before the TUI spawned — used to detect the new one. */
+  let preSpawnLatestId: string | undefined;
+
+  async function queryLatestSessionId(location: ProjectLocation): Promise<string | undefined> {
+    let output: string | undefined;
+    if (location.kind === "wsl") {
+      const executablePath = resolveWslExecPath(location) ?? "gemini";
+      const result = await readWslCommandOutputAsync(
+        location.distro,
+        executablePath,
+        ["--list-sessions"],
+        { cwd: location.linuxPath },
+      );
+      if (!result.ok) console.log("[gemini] --list-sessions (wsl) failed: %s", result.stderr);
+      output = result.ok ? result.stdout : undefined;
+    } else if (location.kind === "windows" || location.kind === "posix") {
+      const cwd = location.path;
+      const { execFile } = await import("node:child_process");
+      const { promisify } = await import("node:util");
+      const execFileAsync = promisify(execFile);
+      try {
+        const { stdout } = await execFileAsync("gemini", ["--list-sessions"], {
+          cwd,
+          shell: true,
+          windowsHide: true,
+          timeout: 10_000,
+        });
+        output = (stdout ?? "").trim() || undefined;
+      } catch {
+        // Will retry on next poll
+      }
+    }
+    if (!output) return undefined;
+    // Last numbered line has the most recent session
+    const ids = parseAllSessionIds(output);
+    return ids[ids.length - 1];
+  }
 
   function resolveWslExecPath(location: ProjectLocation): string | undefined {
     if (location.kind !== "wsl") {
@@ -156,6 +195,10 @@ export function createGeminiAdapter(): AgentAdapter {
     },
 
     buildLaunchCommand(location, config, prompt) {
+      // Snapshot the latest session ID before TUI spawn so we can detect the new one
+      void queryLatestSessionId(location).then((id) => {
+        preSpawnLatestId = id;
+      });
       const args = buildGeminiArgs(config, prompt);
       return buildAgentCommand(location, "gemini", args, resolveWslExecPath(location));
     },
@@ -184,29 +227,9 @@ export function createGeminiAdapter(): AgentAdapter {
 
     async discoverSessionRef(location) {
       try {
-        let output: string | undefined;
-
-        if (location.kind === "wsl") {
-          const executablePath = resolveWslExecPath(location) ?? "gemini";
-          const result = await readWslCommandOutputAsync(
-            location.distro,
-            executablePath,
-            ["--list-sessions"],
-            {
-              cwd: location.linuxPath,
-            },
-          );
-          output = result.ok ? result.stdout : undefined;
-        } else if (location.kind === "windows") {
-          const result = await readCommandOutputAsync("gemini", ["--list-sessions"], {
-            cwd: location.path,
-          });
-          output = result.ok ? result.stdout : undefined;
-        }
-
-        if (!output) return undefined;
-        const sessionId = parseLatestSessionId(output);
-        return sessionId ? createKnownSessionRef(sessionId) : undefined;
+        const latestId = await queryLatestSessionId(location);
+        if (!latestId || latestId === preSpawnLatestId) return undefined;
+        return createKnownSessionRef(latestId);
       } catch {
         return undefined;
       }
