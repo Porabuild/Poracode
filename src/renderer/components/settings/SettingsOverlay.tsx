@@ -1,5 +1,13 @@
 import { ToggleButton, ToggleButtonGroup } from "@heroui/react";
-import { ArrowLeft, GitBranch, Monitor, PanelLeft, PanelLeftClose, Settings2, Sparkles } from "lucide-react";
+import {
+  ArrowLeft,
+  GitBranch,
+  Monitor,
+  PanelLeft,
+  PanelLeftClose,
+  Settings2,
+  Sparkles,
+} from "lucide-react";
 import { startTransition, useState } from "react";
 import type { AgentStatus, TerminalPosition, ThemeMode } from "../../../shared/contracts";
 import { useAppStore } from "../../state/appStore";

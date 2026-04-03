@@ -67,7 +67,6 @@ function parseAllSessionIds(output: string): string[] {
   return ids;
 }
 
-
 export function detectGeminiInvalidSessionRef(output: string): boolean {
   return INVALID_SESSION_RE.test(output);
 }
@@ -160,12 +159,10 @@ export function createGeminiAdapter(): AgentAdapter {
             ["--acp"],
             executablePath,
           );
-          const probeResult = await probeAcpCapabilities(
-            probeCmd.command,
-            probeCmd.args,
-            "/tmp",
-            { timeoutMs: 8_000, label: `gemini:wsl:${ctx.wslDistro}` },
-          );
+          const probeResult = await probeAcpCapabilities(probeCmd.command, probeCmd.args, "/tmp", {
+            timeoutMs: 8_000,
+            label: `gemini:wsl:${ctx.wslDistro}`,
+          });
           if (probeResult) {
             capabilities = {
               ...defaultCapabilities,
@@ -203,17 +200,13 @@ export function createGeminiAdapter(): AgentAdapter {
         executablePath === undefined ? "missing" : hasApiKey ? "authenticated" : "unknown";
 
       if (executablePath) {
-        const probeCmd = buildAgentCommand(
-          { kind: "windows", path: homedir() },
-          "gemini",
-          ["--acp"],
-        );
-        const probeResult = await probeAcpCapabilities(
-          probeCmd.command,
-          probeCmd.args,
-          homedir(),
-          { timeoutMs: 8_000, label: "gemini:windows" },
-        );
+        const probeCmd = buildAgentCommand({ kind: "windows", path: homedir() }, "gemini", [
+          "--acp",
+        ]);
+        const probeResult = await probeAcpCapabilities(probeCmd.command, probeCmd.args, homedir(), {
+          timeoutMs: 8_000,
+          label: "gemini:windows",
+        });
         if (probeResult) {
           capabilities = {
             ...defaultCapabilities,

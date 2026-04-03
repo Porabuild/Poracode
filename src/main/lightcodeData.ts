@@ -40,15 +40,10 @@ export function prepareLightcodeDataRoot(legacyUserDataDir: string): LightcodePa
  * Remove attachment subdirectories that don't belong to any known thread.
  * Call after the database is initialized.
  */
-export function cleanupOrphanedAttachments(
-  attachmentsDir: string,
-  validThreadIds: string[],
-): void {
+export function cleanupOrphanedAttachments(attachmentsDir: string, validThreadIds: string[]): void {
   if (!existsSync(attachmentsDir)) return;
 
-  const validDirNames = new Set(
-    validThreadIds.map((id) => id.replace(/:/g, "-").slice(0, 12)),
-  );
+  const validDirNames = new Set(validThreadIds.map((id) => id.replace(/:/g, "-").slice(0, 12)));
 
   let entries: string[];
   try {

@@ -90,6 +90,13 @@ const CHANNELS = {
 } as const;
 
 const isDev = Boolean(process.env.VITE_DEV_SERVER_URL);
+
+// Separate user-data directory so the dev instance doesn't fight the
+// production build over disk-cache, GPU-cache, or database lock files.
+if (isDev) {
+  app.setPath("userData", join(app.getPath("userData"), "Dev"));
+}
+
 const hasSingleInstanceLock = isDev || app.requestSingleInstanceLock();
 const WINDOW_CHROME_HEIGHT = 32;
 

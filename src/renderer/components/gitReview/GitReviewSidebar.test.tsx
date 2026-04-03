@@ -183,9 +183,7 @@ describe("GitReviewSidebar", () => {
     );
 
     expect(screen.getByText("worktree-only.ts")).toBeInTheDocument();
-    expect(
-      screen.getByPlaceholderText("Commit message (Ctrl+Enter)"),
-    ).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("Commit message (Ctrl+Enter)")).toBeInTheDocument();
     expect(screen.queryByText("main-only.ts")).not.toBeInTheDocument();
   });
 });

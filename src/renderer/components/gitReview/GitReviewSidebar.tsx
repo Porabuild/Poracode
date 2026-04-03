@@ -312,9 +312,7 @@ export function GitReviewSidebar(props: {
   const commitGenProvider = useSharedSettings((s) =>
     isWsl ? s.wslCommitGenProvider : s.commitGenProvider,
   );
-  const commitGenModel = useSharedSettings((s) =>
-    isWsl ? s.wslCommitGenModel : s.commitGenModel,
-  );
+  const commitGenModel = useSharedSettings((s) => (isWsl ? s.wslCommitGenModel : s.commitGenModel));
   const commitGenEffort = useSharedSettings((s) =>
     isWsl ? s.wslCommitGenEffort : s.commitGenEffort,
   );

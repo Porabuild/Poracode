@@ -215,7 +215,10 @@ export async function writeSubmittedPrompt(
       await sleep(Number(waitMatch[1]));
       continue;
     }
-    pty.write(chunk);
+    // Terminal input uses \r for line breaks. On Windows ConPTY, \n in the
+    // input stream gets translated to \r\n, which TUIs interpret as two
+    // newlines (double-spaced text). Normalize to \r to avoid extra blanks.
+    pty.write(chunk.replace(/\r?\n/g, "\r"));
     await sleep(8);
   }
 }
@@ -651,6 +654,7 @@ export class SupervisorRuntime {
     await writeSubmittedPrompt(
       session.pty,
       session.adapter.buildDirectInput?.(prompt, payload.segments) ?? [prompt, "\r"],
+      session.agentKind,
     );
   }
 
@@ -1392,6 +1396,7 @@ export class SupervisorRuntime {
             writeSubmittedPrompt(
               session.pty,
               session.adapter.buildDirectInput?.(prompt, segments) ?? [prompt, "\r"],
+              session.agentKind,
             ),
           );
         }

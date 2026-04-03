@@ -73,9 +73,9 @@ export function AppShell(props: {
   const [isCollapsed, setIsCollapsed] = useState(() =>
     readStoredBoolean("lightcode-sidebar-collapsed", false),
   );
-  const [resizeTarget, setResizeTarget] = useState<
-    "sidebar" | "panel" | "panel-bottom" | null
-  >(null);
+  const [resizeTarget, setResizeTarget] = useState<"sidebar" | "panel" | "panel-bottom" | null>(
+    null,
+  );
   const resizeRef = useRef({ startX: 0, startY: 0, startWidth: 0, startHeight: 0 });
 
   useEffect(() => {

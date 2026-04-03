@@ -50,9 +50,10 @@ const MODE_MAP: Record<string, { mode: ThreadMode; approvalPolicyId?: string }> 
  * Map ACP `SessionMode[]` to Lightcode modes and approval policies.
  * Labels are taken from ACP's `SessionMode.name`.
  */
-export function mapAcpModes(
-  availableModes: SessionMode[],
-): { modes: ThreadMode[]; approvalPolicies: Array<{ id: string; label: string }> } {
+export function mapAcpModes(availableModes: SessionMode[]): {
+  modes: ThreadMode[];
+  approvalPolicies: Array<{ id: string; label: string }>;
+} {
   const modes = new Set<ThreadMode>();
   const approvalPolicies: Array<{ id: string; label: string }> = [];
 
@@ -91,9 +92,7 @@ export function humanizeModelId(id: string): string {
  * If the agent returns `name` equal to `modelId`, we generate a
  * friendlier label from the ID.
  */
-export function mapAcpModels(
-  availableModels: ModelInfo[],
-): Array<{ id: string; label: string }> {
+export function mapAcpModels(availableModels: ModelInfo[]): Array<{ id: string; label: string }> {
   return availableModels.map((m) => ({
     id: m.modelId,
     label: m.name === m.modelId ? humanizeModelId(m.modelId) : m.name,

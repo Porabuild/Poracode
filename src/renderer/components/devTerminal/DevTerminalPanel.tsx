@@ -18,11 +18,17 @@ function readSplitPercent(): number {
     const raw = localStorage.getItem(SPLIT_STORAGE_KEY);
     if (raw !== null) {
       const parsed = Number(raw);
-      if (Number.isFinite(parsed) && parsed >= SPLIT_MIN_PERCENT && parsed <= 100 - SPLIT_MIN_PERCENT) {
+      if (
+        Number.isFinite(parsed) &&
+        parsed >= SPLIT_MIN_PERCENT &&
+        parsed <= 100 - SPLIT_MIN_PERCENT
+      ) {
         return parsed;
       }
     }
-  } catch { /* ignore */ }
+  } catch {
+    /* ignore */
+  }
   return SPLIT_DEFAULT_PERCENT;
 }
 
@@ -275,17 +281,18 @@ export function DevTerminalPanel(props: { projects: Project[] }) {
     setActiveTab(parentTab ? parentTab.id : id);
   }
 
-  const emptyState = projectTabs.length === 0 ? (
-    <div className="flex h-full items-center justify-center">
-      <button
-        className="cursor-default rounded-lg border border-dashed border-white/10 px-6 py-4 text-sm text-muted transition-colors hover:border-white/20 hover:text-foreground"
-        onClick={handleAddTab}
-        type="button"
-      >
-        Open a terminal
-      </button>
-    </div>
-  ) : null;
+  const emptyState =
+    projectTabs.length === 0 ? (
+      <div className="flex h-full items-center justify-center">
+        <button
+          className="cursor-default rounded-lg border border-dashed border-white/10 px-6 py-4 text-sm text-muted transition-colors hover:border-white/20 hover:text-foreground"
+          onClick={handleAddTab}
+          type="button"
+        >
+          Open a terminal
+        </button>
+      </div>
+    ) : null;
 
   if (isBottom) {
     // Bottom position: vertical tabs on the left, terminals on the right.
@@ -316,40 +323,41 @@ export function DevTerminalPanel(props: { projects: Project[] }) {
                 {tabRows.map(({ id, tab, isSplit }) => {
                   const parentSelected = selectedTabId === tab.id;
                   return (
-                  <Tabs.Tab
-                    key={id}
-                    id={id}
-                    className={`group w-full gap-0 pl-3 pr-1 text-xs ${isSplit && parentSelected ? "text-foreground" : ""}`}
-                  >
-                    <ContextMenu
-                      items={getTabContextItems(tab)}
-                      onAction={(key) => handleTabContextAction(tab, key)}
+                    <Tabs.Tab
+                      key={id}
+                      id={id}
+                      className={`group w-full gap-0 pl-3 pr-1 text-xs ${isSplit && parentSelected ? "text-foreground" : ""}`}
                     >
-                      <span className="flex min-w-0 flex-1 items-center gap-1">
-                        <span className="truncate" title={isSplit ? (tab.splitTitle ?? tab.title) : tab.title}>
-                          {isSplit ? (tab.splitTitle ?? tab.title) : tab.title}
+                      <ContextMenu
+                        items={getTabContextItems(tab)}
+                        onAction={(key) => handleTabContextAction(tab, key)}
+                      >
+                        <span className="flex min-w-0 flex-1 items-center gap-1">
+                          <span
+                            className="truncate"
+                            title={isSplit ? (tab.splitTitle ?? tab.title) : tab.title}
+                          >
+                            {isSplit ? (tab.splitTitle ?? tab.title) : tab.title}
+                          </span>
+                          {isSplit ? <Columns2 className="size-3 shrink-0 text-accent" /> : null}
                         </span>
-                        {isSplit ? (
-                          <Columns2 className="size-3 shrink-0 text-accent" />
-                        ) : null}
-                      </span>
-                    </ContextMenu>
-                    <button
-                      className="ml-auto flex size-4 shrink-0 items-center justify-center rounded opacity-0 transition hover:text-danger group-hover:opacity-100"
-                      onPointerDown={(e) => e.stopPropagation()}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        e.preventDefault();
-                        if (isSplit) handleCloseSplit(tab);
-                        else handleCloseTab(tab);
-                      }}
-                      tabIndex={-1}
-                      type="button"
-                    >
-                      <Trash2 className="size-3" />
-                    </button>
-                    <Tabs.Indicator />
-                  </Tabs.Tab>
+                      </ContextMenu>
+                      <button
+                        className="ml-auto flex size-4 shrink-0 items-center justify-center rounded opacity-0 transition hover:text-danger group-hover:opacity-100"
+                        onPointerDown={(e) => e.stopPropagation()}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          e.preventDefault();
+                          if (isSplit) handleCloseSplit(tab);
+                          else handleCloseTab(tab);
+                        }}
+                        tabIndex={-1}
+                        type="button"
+                      >
+                        <Trash2 className="size-3" />
+                      </button>
+                      <Tabs.Indicator />
+                    </Tabs.Tab>
                   );
                 })}
                 <Tabs.Tab id="__add__" className="min-w-8 max-w-8 px-0">

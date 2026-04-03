@@ -172,11 +172,7 @@ export class AcpStructuredSession implements StructuredSessionHandle {
   private sessionId: string | undefined;
   private isDisposed = false;
 
-  private constructor(
-    child: ChildProcess,
-    connection: ClientSideConnection,
-    cwd: string,
-  ) {
+  private constructor(child: ChildProcess, connection: ClientSideConnection, cwd: string) {
     this.child = child;
     this.connection = connection;
     this.cwd = cwd;
@@ -189,10 +185,7 @@ export class AcpStructuredSession implements StructuredSessionHandle {
    * The `command` should launch the CLI in ACP mode (e.g. `gemini --acp`).
    * The SDK communicates over stdin/stdout using newline-delimited JSON.
    */
-  static create(
-    command: CommandSpec,
-    projectLocation: ProjectLocation,
-  ): AcpStructuredSession {
+  static create(command: CommandSpec, projectLocation: ProjectLocation): AcpStructuredSession {
     const cwd = resolveCwd(projectLocation);
 
     const child = spawn(command.command, command.args, {
