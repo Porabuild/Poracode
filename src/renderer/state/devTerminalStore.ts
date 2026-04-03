@@ -16,6 +16,8 @@ export interface DevTerminalTab {
 interface DevTerminalState {
   isOpen: boolean;
   activeProjectId: string | null;
+  /** When set, the panel shows worktree tabs for this path; when null, project tabs. */
+  activeWorktreePath: string | null;
   tabs: DevTerminalTab[];
   activeTabId: string | null;
   /** Tab IDs with unseen output. Ephemeral — not persisted. */
@@ -24,6 +26,7 @@ interface DevTerminalState {
 
 interface DevTerminalActions {
   openPanel: (projectId: string) => void;
+  openWorktreePanel: (projectId: string, worktreePath: string) => void;
   closePanel: () => void;
   togglePanel: (projectId?: string) => void;
   setActiveProject: (projectId: string) => void;
@@ -46,16 +49,20 @@ export const useDevTerminalStore = create<DevTerminalState & DevTerminalActions>
     (set, get) => ({
       isOpen: false,
       activeProjectId: null,
+      activeWorktreePath: null,
       tabs: [],
       activeTabId: null,
       tabActivity: {},
 
-      openPanel: (projectId) => set({ isOpen: true, activeProjectId: projectId }),
-      closePanel: () => set({ isOpen: false, activeProjectId: null }),
+      openPanel: (projectId) =>
+        set({ isOpen: true, activeProjectId: projectId, activeWorktreePath: null }),
+      openWorktreePanel: (projectId, worktreePath) =>
+        set({ isOpen: true, activeProjectId: projectId, activeWorktreePath: worktreePath }),
+      closePanel: () => set({ isOpen: false, activeProjectId: null, activeWorktreePath: null }),
       togglePanel: (projectId) =>
         set((state) => {
           if (state.isOpen && state.activeProjectId === projectId) {
-            return { isOpen: false };
+            return { isOpen: false, activeWorktreePath: null };
           }
           return { isOpen: true, activeProjectId: projectId ?? state.activeProjectId };
         }),
@@ -211,6 +218,7 @@ export const useDevTerminalStore = create<DevTerminalState & DevTerminalActions>
       partialize: (state) => ({
         tabs: state.tabs,
         activeProjectId: state.activeProjectId,
+        activeWorktreePath: state.activeWorktreePath,
       }),
     },
   ),

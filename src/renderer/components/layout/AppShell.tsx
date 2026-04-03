@@ -186,41 +186,25 @@ export function AppShell(props: {
           />
         )}
 
-        {isBottom && rightPanel ? (
-          <div className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-            <main className="relative min-h-0 min-w-0 flex-1 overflow-hidden">
-              <div className="relative h-full min-h-0">{content}</div>
-            </main>
+        <div
+          className={`relative flex min-h-0 min-w-0 flex-1 overflow-hidden ${isBottom && rightPanel ? "flex-col" : ""}`}
+        >
+          <main className="relative h-full min-h-0 min-w-0 flex-1 overflow-hidden">
+            <div className="relative h-full min-h-0">{content}</div>
+          </main>
 
-            {rightPanelOpen && (
-              <div
-                className="lightcode-resize-handle-horizontal"
-                onMouseDown={handlePanelBottomResizeStart}
-                role="separator"
-                aria-orientation="horizontal"
-                aria-label="Resize terminal panel"
-              />
-            )}
-            <aside
-              className={`relative min-w-0 border-t border-[color:var(--border)] overflow-hidden ${
-                !isResizing ? "transition-[height,min-height,opacity] duration-200" : ""
-              } ${rightPanelOpen ? "opacity-100" : "opacity-0"}`}
-              style={{ height: panelDisplayHeight, minHeight: panelDisplayHeight }}
-            >
-              <div className="h-full w-full" style={{ height: panelHeight }}>
-                {rightPanel}
-              </div>
-            </aside>
-          </div>
-        ) : (
-          <>
-            <main className="relative h-full min-h-0 min-w-0 flex-1 overflow-hidden">
-              <div className="relative h-full min-h-0">{content}</div>
-            </main>
-
-            {rightPanel ? (
-              <>
-                {rightPanelOpen && (
+          {rightPanel ? (
+            <>
+              {rightPanelOpen &&
+                (isBottom ? (
+                  <div
+                    className="lightcode-resize-handle-horizontal"
+                    onMouseDown={handlePanelBottomResizeStart}
+                    role="separator"
+                    aria-orientation="horizontal"
+                    aria-label="Resize terminal panel"
+                  />
+                ) : (
                   <div
                     className="lightcode-resize-handle -mt-5 h-[calc(100%+0.75rem)]"
                     onMouseDown={handlePanelResizeStart}
@@ -228,21 +212,29 @@ export function AppShell(props: {
                     aria-orientation="vertical"
                     aria-label="Resize terminal panel"
                   />
-                )}
-                <aside
-                  className={`relative min-h-0 border-l border-[color:var(--border)] -mt-5 h-[calc(100%+0.75rem)] overflow-hidden ${
-                    !isResizing ? "transition-[width,min-width,opacity] duration-200" : ""
-                  } ${rightPanelOpen ? "opacity-100" : "opacity-0"}`}
-                  style={{ width: panelDisplayWidth, minWidth: panelDisplayWidth }}
+                ))}
+              <aside
+                className={`relative overflow-hidden ${
+                  isBottom
+                    ? `min-w-0 border-t border-[color:var(--border)] ${!isResizing ? "transition-[height,min-height,opacity] duration-200" : ""}`
+                    : `min-h-0 border-l border-[color:var(--border)] -mt-5 h-[calc(100%+0.75rem)] ${!isResizing ? "transition-[width,min-width,opacity] duration-200" : ""}`
+                } ${rightPanelOpen ? "opacity-100" : "opacity-0"}`}
+                style={
+                  isBottom
+                    ? { height: panelDisplayHeight, minHeight: panelDisplayHeight }
+                    : { width: panelDisplayWidth, minWidth: panelDisplayWidth }
+                }
+              >
+                <div
+                  className={isBottom ? "h-full w-full" : "h-full"}
+                  style={isBottom ? { height: panelHeight } : { width: panelWidth }}
                 >
-                  <div className="h-full" style={{ width: panelWidth }}>
-                    {rightPanel}
-                  </div>
-                </aside>
-              </>
-            ) : null}
-          </>
-        )}
+                  {rightPanel}
+                </div>
+              </aside>
+            </>
+          ) : null}
+        </div>
 
         {isResizing && (
           <div

@@ -158,6 +158,7 @@ export function DevTerminalPanel(props: { projects: Project[] }) {
   const { projects } = props;
   const tabs = useDevTerminalStore((s) => s.tabs);
   const activeProjectId = useDevTerminalStore((s) => s.activeProjectId);
+  const activeWorktreePath = useDevTerminalStore((s) => s.activeWorktreePath);
   const activeTabId = useDevTerminalStore((s) => s.activeTabId);
   const removeTab = useDevTerminalStore((s) => s.removeTab);
   const setActiveTab = useDevTerminalStore((s) => s.setActiveTab);
@@ -169,13 +170,41 @@ export function DevTerminalPanel(props: { projects: Project[] }) {
   const terminalPosition = useSharedSettings((s) => s.terminalPosition);
   const spawnedRef = useRef(new Set<string>());
 
-  const projectTabs = tabs.filter((t) => t.projectId === activeProjectId);
+  // Filter tabs to match the current panel context (project vs worktree).
+  const projectTabs = tabs.filter((t) => {
+    if (t.projectId !== activeProjectId) return false;
+    if (activeWorktreePath) return t.worktreePath === activeWorktreePath;
+    return !t.worktreePath;
+  });
   const activeProject = projects.find((p) => p.id === activeProjectId);
   const selectedTabId =
     projectTabs.find((tab) => tab.id === activeTabId)?.id ?? projectTabs.at(-1)?.id ?? "__add__";
   const activeTab = projectTabs.find((t) => t.id === selectedTabId);
 
   const isBottom = terminalPosition === "bottom";
+
+  // Cross-fade when switching between project and worktree contexts.
+  // Skip when panel is closing (activeProjectId becomes null) to let AppShell
+  // run its own close animation instead of snapping opacity to 0.
+  const isOpen = useDevTerminalStore((s) => s.isOpen);
+  const contextKey = `${activeProjectId}:${activeWorktreePath ?? ""}`;
+  const [fadeOpacity, setFadeOpacity] = useState(1);
+  const prevContextRef = useRef(contextKey);
+  useEffect(() => {
+    if (prevContextRef.current !== contextKey) {
+      prevContextRef.current = contextKey;
+      if (isOpen && activeProjectId) {
+        setFadeOpacity(0);
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => setFadeOpacity(1));
+        });
+      }
+    }
+  }, [contextKey, isOpen, activeProjectId]);
+  const fadeStyle = {
+    opacity: fadeOpacity,
+    transition: fadeOpacity < 1 ? "none" : "opacity 150ms ease-out",
+  } as const;
 
   // Re-spawn shells for persisted tabs and splits on mount.
   useEffect(() => {
@@ -216,15 +245,23 @@ export function DevTerminalPanel(props: { projects: Project[] }) {
       .catch(() => undefined);
     spawnedRef.current.delete(tab.id);
 
-    const remainingForProject = remaining.filter((t) => t.projectId === tab.projectId);
-    if (remainingForProject.length === 0) {
+    // Close panel when no tabs remain in the current context (project or worktree).
+    const remainingInContext = remaining.filter((t) => {
+      if (t.projectId !== tab.projectId) return false;
+      if (activeWorktreePath) return t.worktreePath === activeWorktreePath;
+      return !t.worktreePath;
+    });
+    if (remainingInContext.length === 0) {
       useDevTerminalStore.getState().closePanel();
     }
   }
 
   function handleAddTab() {
     if (!activeProject) return;
-    const tab = addTab(activeProject.id, activeProject.name);
+    const name = activeWorktreePath
+      ? (activeWorktreePath.split(/[/\\]/).pop() ?? activeProject.name)
+      : activeProject.name;
+    const tab = addTab(activeProject.id, name, activeWorktreePath ?? undefined);
     setActiveTab(tab.id);
   }
 
@@ -309,7 +346,7 @@ export function DevTerminalPanel(props: { projects: Project[] }) {
     }
 
     return (
-      <div className="flex h-full min-h-0 bg-[var(--content-background)]">
+      <div className="flex h-full min-h-0 bg-[var(--content-background)]" style={fadeStyle}>
         <div className="w-[140px] shrink-0 overflow-y-auto border-r border-[color:var(--border)] py-1">
           <Tabs
             className="w-full"
@@ -385,7 +422,7 @@ export function DevTerminalPanel(props: { projects: Project[] }) {
 
   // Right position: horizontal tabs on top, terminals below
   return (
-    <div className="flex h-full min-h-0 flex-col bg-[var(--content-background)]">
+    <div className="flex h-full min-h-0 flex-col bg-[var(--content-background)]" style={fadeStyle}>
       <div className="flex shrink-0 items-center gap-0 px-3">
         <Tabs
           className="min-w-0 flex-1 overflow-x-auto rounded-lg"

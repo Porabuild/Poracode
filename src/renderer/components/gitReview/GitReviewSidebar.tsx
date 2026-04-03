@@ -453,8 +453,8 @@ export function GitReviewSidebar(props: {
     }
   }
 
-  async function handleMergeAndRemove() {
-    if (!sourceBranch || !worktreeBranch || !worktreePath) return;
+  async function performMerge(): Promise<boolean> {
+    if (!sourceBranch || !worktreeBranch || !worktreePath) return false;
     setIsMerging(true);
     setMergeError(null);
     try {
@@ -479,15 +479,27 @@ export function GitReviewSidebar(props: {
           ? `\nConflicts:\n${result.conflictFiles.join("\n")}`
           : "";
         setMergeError((result.error ?? "Merge failed") + detail);
-        return;
+        return false;
       }
 
-      // Merge succeeded — trigger worktree removal flow
-      onMergeAndRemove?.();
+      return true;
     } catch (err) {
       setMergeError(err instanceof Error ? err.message : String(err));
+      return false;
     } finally {
       setIsMerging(false);
+    }
+  }
+
+  async function handleMergeOnly() {
+    if (await performMerge()) {
+      onRefresh();
+    }
+  }
+
+  async function handleMergeAndRemove() {
+    if (await performMerge()) {
+      onMergeAndRemove?.();
     }
   }
 
@@ -741,7 +753,7 @@ export function GitReviewSidebar(props: {
           </div>
         )}
 
-        {/* Merge & Remove Worktree */}
+        {/* Merge to Source */}
         {showMergeSection && (
           <div className="space-y-2 border-t border-white/6 px-0.5 pt-2">
             {sourceBranchLoading ? (
@@ -753,6 +765,24 @@ export function GitReviewSidebar(props: {
                 {mergeError && (
                   <p className="whitespace-pre-wrap text-xs text-danger">{mergeError}</p>
                 )}
+                <Button
+                  variant="tertiary"
+                  className="w-full"
+                  isDisabled={isMerging}
+                  isPending={isMerging}
+                  onPress={() => void handleMergeOnly()}
+                >
+                  {({ isPending }) => (
+                    <>
+                      {isPending ? (
+                        <Spinner color="current" size="sm" />
+                      ) : (
+                        <GitMerge className="size-3.5" />
+                      )}
+                      Merge to Source
+                    </>
+                  )}
+                </Button>
                 <Button
                   variant="tertiary"
                   className="w-full"

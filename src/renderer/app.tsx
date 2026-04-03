@@ -668,9 +668,8 @@ export function App() {
   const devTerminalOpen = useDevTerminalStore((s) => s.isOpen);
   const devTerminalActiveProjectId = useDevTerminalStore((s) => {
     if (!s.isOpen || !s.activeProjectId) return null;
-    // Only highlight project icon if active tab is a project-level tab (not worktree)
-    const activeTab = s.tabs.find((t) => t.id === s.activeTabId);
-    if (activeTab?.worktreePath) return null;
+    // Only highlight project icon when showing the project panel (not a worktree panel).
+    if (s.activeWorktreePath) return null;
     return s.activeProjectId;
   });
   const devTerminalTabs = useDevTerminalStore((s) => s.tabs);
@@ -1181,6 +1180,99 @@ export function App() {
             onOpenGitReview={(projectId, worktreePath?) =>
               setGitReviewContext({ projectId, worktreePath })
             }
+            onGitSync={(projectId, worktreePath?) => {
+              const project = projects.find((p) => p.id === projectId);
+              if (!project) return;
+              const location = worktreePath
+                ? buildWorktreeLocation(project.location, worktreePath)
+                : project.location;
+              void readBridge()
+                .gitSync({ projectLocation: location })
+                .catch(() => undefined);
+            }}
+            onGitMergeToSource={(projectId, worktreePath) => {
+              const project = projects.find((p) => p.id === projectId);
+              if (!project) return;
+              const thread = useAppStore
+                .getState()
+                .threads.find((t) => t.worktreePath === worktreePath && t.worktreeBranch);
+              if (!thread?.worktreeBranch) return;
+              void (async () => {
+                try {
+                  const { sourceBranch } = await readBridge().gitGetWorktreeSourceBranch({
+                    projectLocation: project.location,
+                    branch: thread.worktreeBranch!,
+                  });
+                  if (!sourceBranch) return;
+                  const worktreeLocation = buildWorktreeLocation(project.location, worktreePath);
+                  await readBridge().gitMergeToSource({
+                    projectLocation: project.location,
+                    worktreeLocation,
+                    worktreeBranch: thread.worktreeBranch!,
+                    sourceBranch,
+                  });
+                } catch {
+                  // ignored — user can open git review for details
+                }
+              })();
+            }}
+            onGitMergeAndRemove={(projectId, worktreePath) => {
+              const project = projects.find((p) => p.id === projectId);
+              if (!project) return;
+              const allThreads = useAppStore.getState().threads;
+              const thread = allThreads.find(
+                (t) => t.worktreePath === worktreePath && t.worktreeBranch,
+              );
+              if (!thread?.worktreeBranch) return;
+              void (async () => {
+                try {
+                  const { sourceBranch } = await readBridge().gitGetWorktreeSourceBranch({
+                    projectLocation: project.location,
+                    branch: thread.worktreeBranch!,
+                  });
+                  if (!sourceBranch) return;
+                  const worktreeLocation = buildWorktreeLocation(project.location, worktreePath);
+                  const result = await readBridge().gitMergeToSource({
+                    projectLocation: project.location,
+                    worktreeLocation,
+                    worktreeBranch: thread.worktreeBranch!,
+                    sourceBranch,
+                  });
+                  if (!result.merged) return;
+                  const siblings = allThreads.filter((t) => t.worktreePath === worktreePath);
+                  for (const sib of siblings) {
+                    deleteThread(sib.id);
+                    void readBridge()
+                      .closeThread({ threadId: sib.id })
+                      .catch(() => undefined);
+                  }
+                  void performWorktreeRemoval(project, worktreePath, thread.worktreeBranch);
+                } catch {
+                  // ignored — user can open git review for details
+                }
+              })();
+            }}
+            onGitPullFromSource={(projectId, worktreePath) => {
+              const project = projects.find((p) => p.id === projectId);
+              if (!project) return;
+              const thread = useAppStore
+                .getState()
+                .threads.find((t) => t.worktreePath === worktreePath && t.worktreeBranch);
+              if (!thread?.worktreeBranch) return;
+              void (async () => {
+                try {
+                  const { sourceBranch } = await readBridge().gitGetWorktreeSourceBranch({
+                    projectLocation: project.location,
+                    branch: thread.worktreeBranch!,
+                  });
+                  if (!sourceBranch) return;
+                  const worktreeLocation = buildWorktreeLocation(project.location, worktreePath);
+                  await readBridge().gitPullFromSource({ worktreeLocation, sourceBranch });
+                } catch {
+                  // ignored — user can open git review for details
+                }
+              })();
+            }}
             onOpenThread={(threadId) => {
               const thread = useAppStore.getState().threads.find((item) => item.id === threadId);
               const project = thread
@@ -1344,17 +1436,23 @@ export function App() {
 
               const store = useDevTerminalStore.getState();
 
-              // If panel is already open for this project, toggle it off.
-              if (store.isOpen && store.activeProjectId === projectId) {
+              // Toggle off if already showing project panel for this project.
+              if (
+                store.isOpen &&
+                store.activeProjectId === projectId &&
+                !store.activeWorktreePath
+              ) {
                 store.closePanel();
                 return;
               }
 
-              // Open/switch to this project.
+              // Open project panel (clears any worktree context).
               store.openPanel(projectId);
 
-              // If the project already has tabs, activate the first one.
-              const existingTab = store.tabs.find((t) => t.projectId === projectId);
+              // If the project already has a non-worktree tab, activate it.
+              const existingTab = store.tabs.find(
+                (t) => t.projectId === projectId && !t.worktreePath,
+              );
               if (existingTab) {
                 store.setActiveTab(existingTab.id);
                 return;
@@ -1370,8 +1468,18 @@ export function App() {
 
               const store = useDevTerminalStore.getState();
 
-              // Open/switch to this project.
-              store.openPanel(projectId);
+              // Toggle off if already showing this worktree's panel.
+              if (
+                store.isOpen &&
+                store.activeProjectId === projectId &&
+                store.activeWorktreePath === worktreePath
+              ) {
+                store.closePanel();
+                return;
+              }
+
+              // Open worktree panel (sets worktree context, separate from project panel).
+              store.openWorktreePanel(projectId, worktreePath);
 
               // If a tab for this worktree already exists, activate it.
               const existingTab = store.tabs.find(
@@ -1392,12 +1500,11 @@ export function App() {
             activeWorktreeTerminalPaths={devTerminalTabs
               .filter((t) => t.worktreePath)
               .map((t) => t.worktreePath!)}
-            activeWorktreeTerminalPath={(() => {
-              if (!devTerminalOpen) return null;
-              const activeTabId = useDevTerminalStore.getState().activeTabId;
-              const activeTab = devTerminalTabs.find((t) => t.id === activeTabId);
-              return activeTab?.worktreePath ?? null;
-            })()}
+            activeWorktreeTerminalPath={
+              devTerminalOpen
+                ? useDevTerminalStore.getState().activeWorktreePath
+                : null
+            }
             onReorderProjects={(sourceProjectId, targetProjectId, placement) => {
               startTransition(() => {
                 reorderProjects(sourceProjectId, targetProjectId, placement);

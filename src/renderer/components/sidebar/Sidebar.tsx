@@ -1,10 +1,12 @@
 import { Tooltip } from "@heroui/react";
 import {
+  ArrowDownToLine,
   ChevronRight,
   Columns2,
   Download,
   FileDiff,
   GitFork,
+  GitMerge,
   PanelLeft,
   PanelLeftClose,
   Pencil,
@@ -226,6 +228,10 @@ export function Sidebar(props: {
   onOpenTerminal: (projectId: string) => void;
   onOpenWorktreeTerminal: (projectId: string, worktreePath: string) => void;
   onOpenGitReview: (projectId: string, worktreePath?: string) => void;
+  onGitSync: (projectId: string, worktreePath?: string) => void;
+  onGitMergeToSource: (projectId: string, worktreePath: string) => void;
+  onGitMergeAndRemove: (projectId: string, worktreePath: string) => void;
+  onGitPullFromSource: (projectId: string, worktreePath: string) => void;
   terminalProjectIds: string[];
   activeTerminalProjectId: string | null;
   activeWorktreeTerminalPaths: string[];
@@ -259,6 +265,10 @@ export function Sidebar(props: {
     onOpenTerminal,
     onOpenWorktreeTerminal,
     onOpenGitReview,
+    onGitSync,
+    onGitMergeToSource,
+    onGitMergeAndRemove,
+    onGitPullFromSource,
     terminalProjectIds,
     activeTerminalProjectId,
     activeWorktreeTerminalPaths,
@@ -387,9 +397,29 @@ export function Sidebar(props: {
                           icon: <Trash2 className="size-3.5" />,
                           variant: "danger",
                         },
+                        {
+                          type: "submenu",
+                          id: "git",
+                          label: "Git",
+                          icon: <GitFork className="size-3.5" />,
+                          items: [
+                            {
+                              id: "git-review",
+                              label: "Git Review",
+                              icon: <FileDiff className="size-3.5" />,
+                            },
+                            {
+                              id: "git-sync",
+                              label: "Sync",
+                              icon: <RefreshCw className="size-3.5" />,
+                            },
+                          ],
+                        },
                       ]}
                       onAction={(key) => {
                         if (key === "remove-project") onDeleteProject(project.id);
+                        if (key === "git-review") onOpenGitReview(project.id);
+                        if (key === "git-sync") onGitSync(project.id);
                       }}
                     >
                       <SidebarButton
@@ -863,6 +893,34 @@ export function Sidebar(props: {
                                       icon: <Trash2 className="size-3.5" />,
                                       variant: "danger",
                                     },
+                                    {
+                                      type: "submenu",
+                                      id: "git",
+                                      label: "Git",
+                                      icon: <GitFork className="size-3.5" />,
+                                      items: [
+                                        {
+                                          id: "git-sync",
+                                          label: "Sync",
+                                          icon: <RefreshCw className="size-3.5" />,
+                                        },
+                                        {
+                                          id: "git-pull-from-source",
+                                          label: "Pull from Source",
+                                          icon: <ArrowDownToLine className="size-3.5" />,
+                                        },
+                                        {
+                                          id: "git-merge-to-source",
+                                          label: "Merge to Source",
+                                          icon: <GitMerge className="size-3.5" />,
+                                        },
+                                        {
+                                          id: "git-merge-and-remove",
+                                          label: "Merge & Remove Worktree",
+                                          icon: <GitMerge className="size-3.5" />,
+                                        },
+                                      ],
+                                    },
                                   ]}
                                   onAction={(key) => {
                                     if (key === "git-review") {
@@ -874,6 +932,18 @@ export function Sidebar(props: {
                                         group.worktreePath,
                                         groupThreadIds,
                                       );
+                                    }
+                                    if (key === "git-sync") {
+                                      onGitSync(project.id, group.worktreePath);
+                                    }
+                                    if (key === "git-pull-from-source") {
+                                      onGitPullFromSource(project.id, group.worktreePath);
+                                    }
+                                    if (key === "git-merge-to-source") {
+                                      onGitMergeToSource(project.id, group.worktreePath);
+                                    }
+                                    if (key === "git-merge-and-remove") {
+                                      onGitMergeAndRemove(project.id, group.worktreePath);
                                     }
                                   }}
                                 >

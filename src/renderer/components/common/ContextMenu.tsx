@@ -1,6 +1,6 @@
-import { type ReactNode, useEffect, useLayoutEffect, useRef, useState } from "react";
+import React, { type ReactNode, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { Label, Menu } from "@heroui/react";
+import { Dropdown, Label } from "@heroui/react";
 
 // Only one context menu can be open at a time.
 let closeActiveMenu: (() => void) | null = null;
@@ -13,16 +13,53 @@ export interface ContextMenuItem {
   isDisabled?: boolean;
 }
 
-export interface ContextMenuProps {
+export interface ContextMenuSubmenu {
+  type: "submenu";
+  id: string;
+  label: string;
+  icon?: ReactNode;
   items: ContextMenuItem[];
+}
+
+export type ContextMenuEntry = ContextMenuItem | ContextMenuSubmenu;
+
+export interface ContextMenuProps {
+  items: ContextMenuEntry[];
   onAction: (key: string) => void;
   children: ReactNode;
+}
+
+function isSubmenu(entry: ContextMenuEntry): entry is ContextMenuSubmenu {
+  return "type" in entry && entry.type === "submenu";
+}
+
+function collectAllItems(entries: ContextMenuEntry[]): ContextMenuItem[] {
+  return entries.flatMap((e) => (isSubmenu(e) ? e.items : [e]));
+}
+
+function renderDropdownItem(item: ContextMenuItem) {
+  return (
+    <Dropdown.Item
+      key={item.id}
+      id={item.id}
+      textValue={item.label}
+      variant={item.variant === "danger" ? "danger" : undefined}
+    >
+      {item.icon && (
+        <span
+          className={`size-4 shrink-0 ${item.variant === "danger" ? "text-danger" : "text-muted"}`}
+        >
+          {item.icon}
+        </span>
+      )}
+      <Label>{item.label}</Label>
+    </Dropdown.Item>
+  );
 }
 
 export function ContextMenu(props: ContextMenuProps) {
   const { items, onAction, children } = props;
   const [position, setPosition] = useState<{ x: number; y: number } | null>(null);
-  const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!position) return;
@@ -30,40 +67,10 @@ export function ContextMenu(props: ContextMenuProps) {
     const close = () => setPosition(null);
     closeActiveMenu = close;
 
-    function onMouseDown(e: MouseEvent) {
-      if (e.button === 2) {
-        close();
-        return;
-      }
-      if (menuRef.current?.contains(e.target as Node)) return;
-      close();
-    }
-
-    function onKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape") close();
-    }
-
-    document.addEventListener("mousedown", onMouseDown);
-    document.addEventListener("keydown", onKeyDown);
     return () => {
-      document.removeEventListener("mousedown", onMouseDown);
-      document.removeEventListener("keydown", onKeyDown);
       if (closeActiveMenu === close) closeActiveMenu = null;
     };
   }, [position]);
-
-  // Clamp to viewport so the menu never overflows off-screen.
-  useLayoutEffect(() => {
-    const menu = menuRef.current;
-    if (!menu || !position) return;
-    const rect = menu.getBoundingClientRect();
-    if (rect.right > window.innerWidth) {
-      menu.style.left = `${Math.max(4, window.innerWidth - rect.width - 4)}px`;
-    }
-    if (rect.bottom > window.innerHeight) {
-      menu.style.top = `${Math.max(4, window.innerHeight - rect.height - 4)}px`;
-    }
-  });
 
   function handleContextMenu(e: React.MouseEvent) {
     e.preventDefault();
@@ -78,39 +85,56 @@ export function ContextMenu(props: ContextMenuProps) {
       </div>
       {position
         ? createPortal(
-            <div
-              ref={menuRef}
-              className="dropdown__popover fixed z-50"
-              style={{ left: position.x, top: position.y }}
+            <Dropdown
+              isOpen
+              onOpenChange={(open) => {
+                if (!open) setPosition(null);
+              }}
             >
-              <Menu
-                aria-label="Context menu"
-                autoFocus="first" // eslint-disable-line jsx-a11y/no-autofocus -- React Aria Menu prop, not HTML autofocus
-                disabledKeys={items.filter((item) => item.isDisabled).map((item) => item.id)}
-                onAction={(key) => {
-                  setPosition(null);
-                  onAction(String(key));
-                }}
-              >
-                {items.map((item) => (
-                  <Menu.Item
-                    key={item.id}
-                    id={item.id}
-                    textValue={item.label}
-                    variant={item.variant === "danger" ? "danger" : undefined}
-                  >
-                    {item.icon && (
-                      <span
-                        className={`size-4 shrink-0 ${item.variant === "danger" ? "text-danger" : "text-muted"}`}
-                      >
-                        {item.icon}
-                      </span>
-                    )}
-                    <Label>{item.label}</Label>
-                  </Menu.Item>
-                ))}
-              </Menu>
-            </div>,
+              {/* Invisible anchor positioned at the right-click coordinates */}
+              <Dropdown.Trigger className="fixed" style={{ left: position.x, top: position.y }}>
+                <div className="size-0" />
+              </Dropdown.Trigger>
+              <Dropdown.Popover placement="bottom start">
+                <Dropdown.Menu
+                  autoFocus="first" // eslint-disable-line jsx-a11y/no-autofocus -- React Aria Menu prop, not HTML autofocus
+                  disabledKeys={collectAllItems(items)
+                    .filter((item) => item.isDisabled)
+                    .map((item) => item.id)}
+                  onAction={(key) => {
+                    setPosition(null);
+                    onAction(String(key));
+                  }}
+                >
+                  {items.map((entry) => {
+                    if (isSubmenu(entry)) {
+                      return (
+                        <Dropdown.SubmenuTrigger key={entry.id}>
+                          <Dropdown.Item id={entry.id} textValue={entry.label}>
+                            {entry.icon && (
+                              <span className="size-4 shrink-0 text-muted">{entry.icon}</span>
+                            )}
+                            <Label>{entry.label}</Label>
+                            <Dropdown.SubmenuIndicator />
+                          </Dropdown.Item>
+                          <Dropdown.Popover>
+                            <Dropdown.Menu
+                              onAction={(key) => {
+                                setPosition(null);
+                                onAction(String(key));
+                              }}
+                            >
+                              {entry.items.map((item) => renderDropdownItem(item))}
+                            </Dropdown.Menu>
+                          </Dropdown.Popover>
+                        </Dropdown.SubmenuTrigger>
+                      );
+                    }
+                    return renderDropdownItem(entry);
+                  })}
+                </Dropdown.Menu>
+              </Dropdown.Popover>
+            </Dropdown>,
             document.body,
           )
         : null}
