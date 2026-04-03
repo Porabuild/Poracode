@@ -59,9 +59,19 @@ describe("GitDiffContent", () => {
         readonly rootMargin = "";
         readonly scrollMargin = "";
         readonly thresholds = [];
+        private readonly callback: IntersectionObserverCallback;
+
+        constructor(callback: IntersectionObserverCallback) {
+          this.callback = callback;
+        }
 
         disconnect() {}
-        observe() {}
+        observe(target: Element) {
+          this.callback(
+            [{ isIntersecting: true, target } as IntersectionObserverEntry],
+            this as unknown as IntersectionObserver,
+          );
+        }
         takeRecords(): IntersectionObserverEntry[] {
           return [];
         }
@@ -195,5 +205,51 @@ describe("GitDiffContent", () => {
       expect(screen.getByText("src/worktree-only.ts")).toBeInTheDocument();
     });
     expect(bridge.getGitDiffBatch).toHaveBeenCalledTimes(1);
+  });
+
+  it("matches batch diffs when Windows status paths use backslashes", async () => {
+    const gitStatus: GitStatusResult = {
+      isRepo: true,
+      branch: "feature/worktree",
+      tracking: "",
+      hasRemote: false,
+      ahead: 0,
+      behind: 0,
+      staged: [],
+      unstaged: [
+        {
+          path: "src\\worktree-only.ts",
+          status: "M",
+          staged: false,
+          insertions: 1,
+          deletions: 1,
+        },
+      ],
+      totalInsertions: 1,
+      totalDeletions: 1,
+    };
+
+    const project: Project = {
+      id: "project-1",
+      name: "Lightcode",
+      createdAt: new Date().toISOString(),
+      location: { kind: "windows", path: "C:\\repo-worktree" },
+    };
+
+    render(
+      <GitDiffContent
+        project={project}
+        gitStatus={gitStatus}
+        selectedFile={null}
+        selectedStaged={false}
+        diffMode={1}
+        diffFilter="changes"
+        refreshKey={0}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("diff view")).toBeInTheDocument();
+    });
   });
 });

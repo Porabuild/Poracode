@@ -42,6 +42,14 @@ interface DiffEntry {
   deletions: number;
 }
 
+function normalizeDiffLookupPath(filePath: string): string {
+  return filePath.replace(/\\/g, "/");
+}
+
+function getBatchDiff(section: Record<string, string>, filePath: string): string {
+  return section[filePath] ?? section[normalizeDiffLookupPath(filePath)] ?? "";
+}
+
 function buildGitStatusKey(gitStatus: GitStatusResult | undefined): string {
   if (!gitStatus?.isRepo) {
     return "not-repo";
@@ -51,8 +59,8 @@ function buildGitStatusKey(gitStatus: GitStatusResult | undefined): string {
     entries
       .map((entry) =>
         [
-          entry.path,
-          entry.oldPath ?? "",
+          normalizeDiffLookupPath(entry.path),
+          entry.oldPath ? normalizeDiffLookupPath(entry.oldPath) : "",
           entry.status,
           entry.staged ? "1" : "0",
           entry.insertions,
@@ -428,7 +436,7 @@ export function GitDiffContent(props: {
             buildEntry(
               f.path,
               true,
-              batch.staged[f.path] ?? "",
+              getBatchDiff(batch.staged, f.path),
               f.insertions,
               f.deletions,
               diffModeRef.current,
@@ -438,7 +446,7 @@ export function GitDiffContent(props: {
             buildEntry(
               f.path,
               false,
-              batch.unstaged[f.path] ?? "",
+              getBatchDiff(batch.unstaged, f.path),
               f.insertions,
               f.deletions,
               diffModeRef.current,

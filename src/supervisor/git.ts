@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { mkdir, readFile } from "node:fs/promises";
 import { homedir } from "node:os";
-import { dirname, join, posix } from "node:path";
+import { dirname, join, normalize, posix } from "node:path";
 import { simpleGit, type SimpleGit, type FileStatusResult } from "simple-git";
 import type {
   ProjectLocation,
@@ -25,15 +25,15 @@ function getRepoPath(location: ProjectLocation): string {
   return location.path;
 }
 
-/** Convert backslash UNC path to forward-slash so Node/simple-git can resolve it. */
-function toForwardSlashUnc(uncPath: string): string {
-  return uncPath.replace(/\\/g, "/");
+/** Convert backslash paths to forward-slash (for UNC paths, git file paths, etc.). */
+function toForwardSlash(p: string): string {
+  return p.replace(/\\/g, "/");
 }
 
 export function createGit(location: ProjectLocation): SimpleGit {
   if (location.kind === "wsl") {
     return simpleGit({
-      baseDir: toForwardSlashUnc(location.uncPath),
+      baseDir: toForwardSlash(location.uncPath),
       binary: ["wsl", "git"],
     });
   }
@@ -105,8 +105,8 @@ async function ensureWorktreeParentExists(
 function mapFileStatus(file: FileStatusResult, staged: boolean): GitFileChange {
   const status = staged ? file.index : file.working_dir;
   return {
-    path: file.path,
-    ...(file.from ? { oldPath: file.from } : {}),
+    path: toForwardSlash(file.path),
+    ...(file.from ? { oldPath: toForwardSlash(file.from) } : {}),
     status: status || "?",
     staged,
     insertions: 0,
@@ -159,9 +159,8 @@ export class GitService {
       if (stagedSummary) {
         for (const diffFile of stagedSummary.files) {
           if (!("insertions" in diffFile)) continue;
-          const match = staged.find(
-            (f) => f.path === diffFile.file || f.path === diffFile.file.replace(/\\/g, "/"),
-          );
+          const diffPath = toForwardSlash(diffFile.file);
+          const match = staged.find((f) => f.path === diffPath);
           if (match) {
             match.insertions = diffFile.insertions;
             match.deletions = diffFile.deletions;
@@ -172,9 +171,8 @@ export class GitService {
       if (unstagedSummary) {
         for (const diffFile of unstagedSummary.files) {
           if (!("insertions" in diffFile)) continue;
-          const match = unstaged.find(
-            (f) => f.path === diffFile.file || f.path === diffFile.file.replace(/\\/g, "/"),
-          );
+          const diffPath = toForwardSlash(diffFile.file);
+          const match = unstaged.find((f) => f.path === diffPath);
           if (match) {
             match.insertions = diffFile.insertions;
             match.deletions = diffFile.deletions;
@@ -310,7 +308,7 @@ export class GitService {
       const headerMatch = chunk.match(/^diff --git (?:"a\/.+?"|a\/.+?) (?:"b\/(.+?)"|b\/(.+?))$/m);
       const matched = headerMatch?.[1] ?? headerMatch?.[2];
       if (!matched) continue;
-      const filePath = matched.replace(/\\/g, "/");
+      const filePath = toForwardSlash(matched);
       result[filePath] = chunk;
     }
 
@@ -441,15 +439,18 @@ export class GitService {
     //   HEAD abc123
     //   branch refs/heads/main
     // The first entry is always the main working tree.
-    for (const block of raw.split(/\n\n+/).filter(Boolean)) {
-      const lines = block.trim().split("\n");
+    for (const block of raw.split(/\r?\n\r?\n+/).filter(Boolean)) {
+      const lines = block.trim().split(/\r?\n/);
       let path = "";
       let commit = "";
       let branch = "";
 
       for (const line of lines) {
-        if (line.startsWith("worktree ")) path = line.slice(9);
-        else if (line.startsWith("HEAD ")) commit = line.slice(5);
+        if (line.startsWith("worktree ")) {
+          // Normalize slashes so the path matches addWorktree's join()-based
+          // output (backslashes on Windows). Git may output forward slashes.
+          path = location.kind === "wsl" ? line.slice(9) : normalize(line.slice(9));
+        } else if (line.startsWith("HEAD ")) commit = line.slice(5);
         else if (line.startsWith("branch ")) branch = line.slice(7).replace("refs/heads/", "");
       }
 

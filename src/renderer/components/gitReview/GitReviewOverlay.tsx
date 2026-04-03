@@ -32,6 +32,28 @@ export function GitReviewOverlay(props: {
     statusKey ? s.worktreeStatuses[statusKey] : s.statuses[project.id],
   ) as GitStatusResult | undefined;
 
+  async function fetchStatus() {
+    try {
+      const status = await readBridge().getGitStatus({
+        projectLocation: effectiveLocation,
+      });
+      if (statusKey) {
+        useGitStore.getState().setWorktreeStatus(statusKey, status);
+      } else {
+        useGitStore.getState().setStatus(project.id, status);
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  // Eagerly fetch status on mount when it's not yet in the store
+  // (e.g. worktree was just created and the poll cycle hasn't run yet)
+  useEffect(() => {
+    if (gitStatus) return;
+    void fetchStatus();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps -- one-shot on mount
+
   // Auto-switch when the current view becomes empty but the other has files
   useEffect(() => {
     if (!gitStatus) return;
@@ -53,18 +75,7 @@ export function GitReviewOverlay(props: {
   }
 
   async function handleRefresh() {
-    try {
-      const status = await readBridge().getGitStatus({
-        projectLocation: effectiveLocation,
-      });
-      if (statusKey) {
-        useGitStore.getState().setWorktreeStatus(statusKey, status);
-      } else {
-        useGitStore.getState().setStatus(project.id, status);
-      }
-    } catch {
-      // ignore
-    }
+    await fetchStatus();
     setRefreshKey((k) => k + 1);
   }
 
