@@ -37,8 +37,8 @@ registerComposerControls("gemini", ({ capabilities, config, isDisabled, onConfig
         },
       ]
     : []),
-  // Approval policy
-  ...(capabilities.approvalPolicies.length > 0
+  // Approval policy (hidden in plan mode — plan has its own approval semantics)
+  ...(capabilities.approvalPolicies.length > 0 && (config.mode ?? "agent") === "agent"
     ? [
         {
           icon: <ShieldOff className="size-3.5" />,

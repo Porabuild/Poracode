@@ -1,3 +1,4 @@
+import { homedir } from "node:os";
 import type {
   AgentCapability,
   AgentStatus,
@@ -16,26 +17,15 @@ import {
   type AgentAdapter,
   type AgentEnvContext,
 } from "../base";
+import { probeAcpCapabilities } from "../acp";
 import { detectGeminiTerminalStatus } from "./terminal";
 
-const capabilities: AgentCapability = {
-  models: [
-    { id: "auto-gemini-3", label: "Auto (Gemini 3)" },
-    { id: "auto-gemini-2.5", label: "Auto (Gemini 2.5)" },
-    { id: "gemini-3.1-pro-preview", label: "3.1 Pro Preview" },
-    { id: "gemini-3-flash-preview", label: "3 Flash Preview" },
-    { id: "gemini-2.5-pro", label: "2.5 Pro" },
-    { id: "gemini-2.5-flash", label: "2.5 Flash" },
-    { id: "gemini-2.5-flash-lite", label: "2.5 Flash Lite" },
-  ],
+const defaultCapabilities: AgentCapability = {
+  models: [],
   efforts: [],
   modelEfforts: {},
-  modes: ["agent", "plan"],
-  approvalPolicies: [
-    { id: "default", label: "Default" },
-    { id: "auto_edit", label: "Auto Edit" },
-    { id: "never", label: "Full Access" },
-  ],
+  modes: [],
+  approvalPolicies: [],
   sandboxModes: [],
   supportsResume: true,
   supportsDirectInput: true,
@@ -86,6 +76,7 @@ export function createGeminiAdapter(): AgentAdapter {
   const detectedWslExecPaths = new Map<string, string | undefined>();
   /** Latest session ID seen before the TUI spawned — used to detect the new one. */
   let preSpawnLatestId: string | undefined;
+  let capabilities: AgentCapability = defaultCapabilities;
 
   async function queryLatestSessionId(location: ProjectLocation): Promise<string | undefined> {
     let output: string | undefined;
@@ -140,7 +131,9 @@ export function createGeminiAdapter(): AgentAdapter {
   return {
     kind: "gemini",
     label: "Gemini",
-    capabilities,
+    get capabilities() {
+      return capabilities;
+    },
 
     async detectInstall(ctx?: AgentEnvContext): Promise<AgentStatus> {
       const isWsl = ctx?.envKind === "wsl" && ctx.wslDistro;
@@ -159,6 +152,31 @@ export function createGeminiAdapter(): AgentAdapter {
         const hasApiKey = apiKeyResult?.ok && apiKeyResult.stdout.trim().length > 0;
         const hasConfigDir = configDirResult?.ok && configDirResult.stdout.trim() === "yes";
         const authState = hasApiKey || hasConfigDir ? "authenticated" : "unknown";
+
+        if (executablePath) {
+          const probeCmd = buildAgentCommand(
+            { kind: "wsl", distro: ctx.wslDistro!, linuxPath: "/tmp", uncPath: "\\\\wsl$" },
+            "gemini",
+            ["--acp"],
+            executablePath,
+          );
+          const probeResult = await probeAcpCapabilities(
+            probeCmd.command,
+            probeCmd.args,
+            "/tmp",
+            { timeoutMs: 8_000, label: `gemini:wsl:${ctx.wslDistro}` },
+          );
+          if (probeResult) {
+            capabilities = {
+              ...defaultCapabilities,
+              ...(probeResult.models?.length ? { models: probeResult.models } : {}),
+              ...(probeResult.modes?.length ? { modes: probeResult.modes } : {}),
+              ...(probeResult.approvalPolicies?.length
+                ? { approvalPolicies: probeResult.approvalPolicies }
+                : {}),
+            };
+          }
+        }
 
         return {
           kind: "gemini",
@@ -183,6 +201,30 @@ export function createGeminiAdapter(): AgentAdapter {
         process.env.GEMINI_API_KEY.length > 0;
       const authState =
         executablePath === undefined ? "missing" : hasApiKey ? "authenticated" : "unknown";
+
+      if (executablePath) {
+        const probeCmd = buildAgentCommand(
+          { kind: "windows", path: homedir() },
+          "gemini",
+          ["--acp"],
+        );
+        const probeResult = await probeAcpCapabilities(
+          probeCmd.command,
+          probeCmd.args,
+          homedir(),
+          { timeoutMs: 8_000, label: "gemini:windows" },
+        );
+        if (probeResult) {
+          capabilities = {
+            ...defaultCapabilities,
+            ...(probeResult.models?.length ? { models: probeResult.models } : {}),
+            ...(probeResult.modes?.length ? { modes: probeResult.modes } : {}),
+            ...(probeResult.approvalPolicies?.length
+              ? { approvalPolicies: probeResult.approvalPolicies }
+              : {}),
+          };
+        }
+      }
 
       return {
         kind: "gemini",
