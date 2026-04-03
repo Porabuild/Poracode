@@ -44,7 +44,7 @@ You need at least one AI agent CLI installed:
 
 - [Claude Code](https://docs.anthropic.com/en/docs/claude-code) — `npm install -g @anthropic-ai/claude-code`
 - [OpenAI Codex](https://github.com/openai/codex) — `npm install -g @openai/codex`
-- [Gemini CLI](https://google-gemini.github.io/gemini-cli/) — `npm install -g @google/gemini-cli`
+- [Gemini CLI](https://github.com/google-gemini/gemini-cli) — `npm install -g @google/gemini-cli`
 
 ## Development
 
