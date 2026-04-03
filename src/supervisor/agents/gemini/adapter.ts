@@ -2,6 +2,7 @@ import type {
   AgentCapability,
   AgentStatus,
   ProjectLocation,
+  PromptSegment,
   ThreadConfig,
 } from "../../../shared/contracts";
 import {
@@ -220,6 +221,14 @@ export function createGeminiAdapter(): AgentAdapter {
       return [prompt, "@wait:40", "\r"];
     },
 
+    formatPromptSegments(segments: PromptSegment[]) {
+      // Gemini CLI's @ handler doesn't expand ~ — always use full absolute paths.
+      const attachments = segments.filter((s) => s.kind === "attachment");
+      const rest = segments.filter((s) => s.kind !== "attachment");
+      const attachmentLines = attachments.map((s) => `@${s.path}`).join(" ");
+      const restStr = rest.map((s) => (s.kind === "file" ? `@${s.path}` : s.content)).join("");
+      return attachmentLines ? `${restStr}\n\n${attachmentLines} ` : restStr;
+    },
     detectTerminalStatus: detectGeminiTerminalStatus,
     detectInvalidSessionRef: detectGeminiInvalidSessionRef,
 

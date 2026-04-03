@@ -570,9 +570,11 @@ export async function readWslCommandOutputAsync(
 export function shortenHomePath(p: string): string {
   const normalized = p.replaceAll("\\", "/");
   const homeNorm = homedir().replaceAll("\\", "/");
-  return normalized.startsWith(homeNorm + "/")
-    ? "~" + normalized.slice(homeNorm.length)
-    : normalized;
+  if (normalized.startsWith(homeNorm + "/")) {
+    return "~" + normalized.slice(homeNorm.length);
+  }
+  // Also shorten Linux home paths for WSL sessions
+  return normalized.replace(/^\/home\/[^/]+\//, "~/").replace(/^\/root\//, "~/");
 }
 
 export function defaultFormatPromptSegments(segments: PromptSegment[]): string {

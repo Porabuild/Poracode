@@ -1,4 +1,4 @@
-import { copyFileSync, cpSync, existsSync, mkdirSync } from "node:fs";
+import { copyFileSync, cpSync, existsSync, mkdirSync, readdirSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { resolveLightcodePaths, type LightcodePaths } from "../shared/lightcodePaths";
 
@@ -34,4 +34,32 @@ export function prepareLightcodeDataRoot(legacyUserDataDir: string): LightcodePa
   }
 
   return paths;
+}
+
+/**
+ * Remove attachment subdirectories that don't belong to any known thread.
+ * Call after the database is initialized.
+ */
+export function cleanupOrphanedAttachments(
+  attachmentsDir: string,
+  validThreadIds: string[],
+): void {
+  if (!existsSync(attachmentsDir)) return;
+
+  const validDirNames = new Set(
+    validThreadIds.map((id) => id.replace(/:/g, "-").slice(0, 12)),
+  );
+
+  let entries: string[];
+  try {
+    entries = readdirSync(attachmentsDir);
+  } catch {
+    return;
+  }
+
+  for (const entry of entries) {
+    if (!validDirNames.has(entry)) {
+      rmSync(join(attachmentsDir, entry), { recursive: true, force: true });
+    }
+  }
 }

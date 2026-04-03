@@ -17,7 +17,7 @@ import {
   dbUpsertThread,
   initDatabase,
 } from "./db";
-import { prepareLightcodeDataRoot } from "./lightcodeData";
+import { cleanupOrphanedAttachments, prepareLightcodeDataRoot } from "./lightcodeData";
 import {
   ensureSharedSettingsFile,
   readSharedSettingsFile,
@@ -555,7 +555,7 @@ function registerIpcHandlers(): void {
     dbDeleteThread(threadId);
     // Clean up thread-linked attachments
     const paths = requireLightcodePaths();
-    const threadAttachDir = join(paths.attachmentsDir, threadId.slice(0, 12));
+    const threadAttachDir = join(paths.attachmentsDir, threadId.replace(/:/g, "-").slice(0, 12));
     rmSync(threadAttachDir, { recursive: true, force: true });
   });
   ipcMain.handle(CHANNELS.dbDeleteProject, (_event, projectId: string) =>
@@ -617,6 +617,10 @@ if (!hasSingleInstanceLock) {
 
     lightcodePaths = prepareLightcodeDataRoot(app.getPath("userData"));
     initDatabase(lightcodePaths.dbPath);
+    cleanupOrphanedAttachments(
+      lightcodePaths.attachmentsDir,
+      dbGetThreads().map((t) => t.id),
+    );
     ensureSharedSettingsFile(lightcodePaths.settingsPath, dbGetState("lightcode-shared-settings"));
     registerIpcHandlers();
     startSupervisor(lightcodePaths.baseDir);

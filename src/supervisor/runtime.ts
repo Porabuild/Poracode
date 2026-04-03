@@ -1,4 +1,11 @@
-import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import {
+  appendFileSync,
+  copyFileSync,
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  writeFileSync,
+} from "node:fs";
 import { execFile, spawnSync } from "node:child_process";
 import { promisify } from "node:util";
 
@@ -6,7 +13,7 @@ const execFileAsync = promisify(execFile);
 import { randomUUID } from "node:crypto";
 import { setTimeout as sleep } from "node:timers/promises";
 import { homedir } from "node:os";
-import { join } from "node:path";
+import { basename, join } from "node:path";
 import { spawn, type IPty } from "node-pty";
 import type {
   AgentKind,
@@ -138,6 +145,63 @@ interface ShellSessionRuntime {
   outputLength: number;
   ptyExited?: boolean;
   ignoreExit?: boolean;
+}
+
+/**
+ * Resolve both the UNC and absolute Linux paths for ~/.lightcode/attachments
+ * inside a WSL distro. Cached per distro to avoid repeated wsl.exe spawns.
+ */
+const wslAttachmentDirCache = new Map<string, { uncDir: string; linuxDir: string }>();
+function resolveWslAttachmentDirs(distro: string): { uncDir: string; linuxDir: string } {
+  const cached = wslAttachmentDirCache.get(distro);
+  if (cached) return cached;
+
+  const result = spawnSync(
+    "wsl.exe",
+    ["-d", distro, "--", "sh", "-c", 'printf %s "$HOME/.lightcode/attachments"'],
+    { encoding: "utf8", timeout: 5000 },
+  );
+  const linuxDir = result.stdout?.trim();
+  if (!linuxDir) throw new Error(`Unable to resolve home for WSL distro "${distro}"`);
+
+  // Ensure the directory exists inside WSL
+  spawnSync("wsl.exe", ["-d", distro, "--", "mkdir", "-p", linuxDir], { timeout: 5000 });
+
+  const uncDir = `\\\\wsl.localhost\\${distro}${linuxDir.replace(/\//g, "\\")}`;
+  const entry = { uncDir, linuxDir };
+  wslAttachmentDirCache.set(distro, entry);
+  return entry;
+}
+
+/**
+ * For WSL sessions, copy attachment/file segments into ~/.lightcode/attachments
+ * inside the WSL distro so agents can access them.
+ * Returns segments with full absolute Linux paths (not ~, since not all CLIs expand it).
+ */
+function rewriteSegmentsForWsl(
+  segments: PromptSegment[],
+  location: ProjectLocation,
+): PromptSegment[] {
+  if (location.kind !== "wsl") return segments;
+
+  let dirs: { uncDir: string; linuxDir: string } | undefined;
+
+  return segments.map((seg) => {
+    if ((seg.kind !== "attachment" && seg.kind !== "file") || !seg.path) return seg;
+    if (!/^[A-Za-z]:[\\/]/.test(seg.path)) return seg;
+
+    dirs ??= resolveWslAttachmentDirs(location.distro);
+
+    const fileName = basename(seg.path);
+    const dest = join(dirs.uncDir, fileName);
+    try {
+      copyFileSync(seg.path, dest);
+    } catch (err) {
+      console.warn(`[wsl-attach] failed to copy ${seg.path} → ${dest}:`, err);
+      return seg;
+    }
+    return { ...seg, path: `${dirs.linuxDir}/${fileName}` };
+  });
 }
 
 export async function writeSubmittedPrompt(
@@ -412,10 +476,13 @@ export class SupervisorRuntime {
     const effectiveConfig = payload.config;
     const effectiveSessionRef = payload.sessionRef;
     // Resolve structured segments for the initial prompt, same as sendThreadInput
+    const effectiveSegments = payload.segments
+      ? rewriteSegmentsForWsl(payload.segments, payload.projectLocation)
+      : undefined;
     const initialPrompt =
-      payload.segments && payload.segments.length > 0
-        ? (adapter.formatPromptSegments?.(payload.segments) ??
-          defaultFormatPromptSegments(payload.segments))
+      effectiveSegments && effectiveSegments.length > 0
+        ? (adapter.formatPromptSegments?.(effectiveSegments) ??
+          defaultFormatPromptSegments(effectiveSegments))
         : payload.prompt.trim();
     const shouldQueueInitialPrompt =
       !effectiveSessionRef &&
@@ -529,10 +596,13 @@ export class SupervisorRuntime {
 
     // Resolve structured segments into a prompt string via the adapter.
     // Each adapter formats file references its own way (Claude: @path, etc.).
+    const effectiveSegments = payload.segments
+      ? rewriteSegmentsForWsl(payload.segments, session.projectLocation)
+      : undefined;
     const prompt =
-      payload.segments && payload.segments.length > 0
-        ? (session.adapter.formatPromptSegments?.(payload.segments) ??
-          defaultFormatPromptSegments(payload.segments))
+      effectiveSegments && effectiveSegments.length > 0
+        ? (session.adapter.formatPromptSegments?.(effectiveSegments) ??
+          defaultFormatPromptSegments(effectiveSegments))
         : payload.prompt;
 
     const isServerControlled = session.adapter.capabilities.liveInputMode === "server";
