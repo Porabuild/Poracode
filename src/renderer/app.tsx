@@ -1440,6 +1440,36 @@ export function App() {
                       gitReviewContext.worktreePath,
                     ),
                     statusKey: gitReviewContext.worktreePath,
+                    worktreePath: gitReviewContext.worktreePath,
+                    worktreeBranch:
+                      useAppStore
+                        .getState()
+                        .threads.find(
+                          (t) => t.worktreePath === gitReviewContext!.worktreePath,
+                        )?.worktreeBranch ?? undefined,
+                    onMergeAndRemove: () => {
+                      const allThreads = useAppStore.getState().threads;
+                      const reviewProject = projects.find(
+                        (p) => p.id === gitReviewContext!.projectId,
+                      );
+                      const wtPath = gitReviewContext!.worktreePath;
+                      const wtBranch = allThreads.find(
+                        (t) => t.worktreePath === wtPath,
+                      )?.worktreeBranch;
+                      setGitReviewContext(null);
+                      if (reviewProject && wtPath) {
+                        const siblings = allThreads.filter(
+                          (t) => t.worktreePath === wtPath,
+                        );
+                        for (const sib of siblings) {
+                          deleteThread(sib.id);
+                          void readBridge()
+                            .closeThread({ threadId: sib.id })
+                            .catch(() => undefined);
+                        }
+                        void performWorktreeRemoval(reviewProject, wtPath, wtBranch);
+                      }
+                    },
                   }
                 : {})}
               onClose={() => setGitReviewContext(null)}

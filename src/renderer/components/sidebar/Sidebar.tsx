@@ -3,6 +3,7 @@ import {
   ChevronRight,
   Columns2,
   Download,
+  FileDiff,
   GitFork,
   PanelLeft,
   PanelLeftClose,
@@ -618,6 +619,15 @@ export function Sidebar(props: {
 
                                 <ContextMenu
                                   items={[
+                                    ...(thread.worktreePath
+                                      ? [
+                                          {
+                                            id: "git-review",
+                                            label: "Git Review",
+                                            icon: <FileDiff className="size-3.5" />,
+                                          },
+                                        ]
+                                      : []),
                                     {
                                       id: "rename",
                                       label: "Rename",
@@ -652,6 +662,8 @@ export function Sidebar(props: {
                                     },
                                   ]}
                                   onAction={(key) => {
+                                    if (key === "git-review")
+                                      onOpenGitReview(thread.projectId, thread.worktreePath);
                                     if (key === "rename") setEditingThreadId(thread.id);
                                     if (key === "replace-second") onReplaceSecondPane(thread.id);
                                     if (key === "open-side") onOpenThreadSideBySide(thread.id);
@@ -841,6 +853,11 @@ export function Sidebar(props: {
                                 <ContextMenu
                                   items={[
                                     {
+                                      id: "git-review",
+                                      label: "Git Review",
+                                      icon: <FileDiff className="size-3.5" />,
+                                    },
+                                    {
                                       id: "delete-worktree",
                                       label: "Delete Worktree",
                                       icon: <Trash2 className="size-3.5" />,
@@ -848,6 +865,9 @@ export function Sidebar(props: {
                                     },
                                   ]}
                                   onAction={(key) => {
+                                    if (key === "git-review") {
+                                      onOpenGitReview(project.id, group.worktreePath);
+                                    }
                                     if (key === "delete-worktree") {
                                       onDeleteWorktreeGroup(
                                         project.id,

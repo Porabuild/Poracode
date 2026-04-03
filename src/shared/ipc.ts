@@ -22,6 +22,12 @@ import type {
   GitPullPayload,
   GitPushPayload,
   GitDeleteBranchPayload,
+  GitGetWorktreeSourceBranchPayload,
+  GitGetWorktreeSourceBranchResult,
+  GitMergeToSourcePayload,
+  GitMergeToSourceResult,
+  GitPullFromSourcePayload,
+  GitPullFromSourceResult,
   GitRemoveWorktreePayload,
   GitRevertAllPayload,
   GitRevertPayload,
@@ -86,6 +92,13 @@ export type SupervisorRequest =
   | { id: string; type: "gitPull"; payload: GitPullPayload }
   | { id: string; type: "gitPush"; payload: GitPushPayload }
   | { id: string; type: "gitSync"; payload: GitSyncPayload }
+  | {
+      id: string;
+      type: "gitGetWorktreeSourceBranch";
+      payload: GitGetWorktreeSourceBranchPayload;
+    }
+  | { id: string; type: "gitMergeToSource"; payload: GitMergeToSourcePayload }
+  | { id: string; type: "gitPullFromSource"; payload: GitPullFromSourcePayload }
   | { id: string; type: "searchProjectFiles"; payload: SearchProjectFilesPayload };
 
 export type SupervisorReply =
@@ -181,6 +194,11 @@ export interface LightcodeBridge {
   gitPull(payload: GitPullPayload): Promise<void>;
   gitPush(payload: GitPushPayload): Promise<void>;
   gitSync(payload: GitSyncPayload): Promise<GitSyncResult>;
+  gitGetWorktreeSourceBranch(
+    payload: GitGetWorktreeSourceBranchPayload,
+  ): Promise<GitGetWorktreeSourceBranchResult>;
+  gitMergeToSource(payload: GitMergeToSourcePayload): Promise<GitMergeToSourceResult>;
+  gitPullFromSource(payload: GitPullFromSourcePayload): Promise<GitPullFromSourceResult>;
   searchProjectFiles(payload: SearchProjectFilesPayload): Promise<SearchProjectFilesResult>;
   getSharedSettings(): Promise<SharedSettings>;
   setSharedSettings(settings: SharedSettings): Promise<void>;

@@ -48,6 +48,12 @@ import type {
   GitFetchPayload,
   GitListWorktreesPayload,
   GitDeleteBranchPayload,
+  GitGetWorktreeSourceBranchPayload,
+  GitGetWorktreeSourceBranchResult,
+  GitMergeToSourcePayload,
+  GitMergeToSourceResult,
+  GitPullFromSourcePayload,
+  GitPullFromSourceResult,
   GitRemoveWorktreePayload,
   GitUnstageAllPayload,
   GitUnstagePayload,
@@ -654,7 +660,6 @@ export class SupervisorRuntime {
     await writeSubmittedPrompt(
       session.pty,
       session.adapter.buildDirectInput?.(prompt, payload.segments) ?? [prompt, "\r"],
-      session.agentKind,
     );
   }
 
@@ -922,6 +927,25 @@ export class SupervisorRuntime {
     }
 
     return { pulled, pushed };
+  }
+
+  async gitGetWorktreeSourceBranch(
+    payload: GitGetWorktreeSourceBranchPayload,
+  ): Promise<GitGetWorktreeSourceBranchResult> {
+    return this.gitService.getWorktreeSourceBranch(payload.projectLocation, payload.branch);
+  }
+
+  async gitMergeToSource(payload: GitMergeToSourcePayload): Promise<GitMergeToSourceResult> {
+    return this.gitService.mergeToSource(
+      payload.projectLocation,
+      payload.worktreeLocation,
+      payload.worktreeBranch,
+      payload.sourceBranch,
+    );
+  }
+
+  async gitPullFromSource(payload: GitPullFromSourcePayload): Promise<GitPullFromSourceResult> {
+    return this.gitService.pullFromSource(payload.worktreeLocation, payload.sourceBranch);
   }
 
   async searchProjectFiles(payload: SearchProjectFilesPayload): Promise<SearchProjectFilesResult> {
@@ -1396,7 +1420,6 @@ export class SupervisorRuntime {
             writeSubmittedPrompt(
               session.pty,
               session.adapter.buildDirectInput?.(prompt, segments) ?? [prompt, "\r"],
-              session.agentKind,
             ),
           );
         }

@@ -69,6 +69,9 @@ const CHANNELS = {
   gitPull: "lightcode:git-pull",
   gitPush: "lightcode:git-push",
   gitSync: "lightcode:git-sync",
+  gitGetWorktreeSourceBranch: "lightcode:git-get-worktree-source-branch",
+  gitMergeToSource: "lightcode:git-merge-to-source",
+  gitPullFromSource: "lightcode:git-pull-from-source",
   searchProjectFiles: "lightcode:search-project-files",
   getSharedSettings: "lightcode:get-shared-settings",
   setSharedSettings: "lightcode:set-shared-settings",
@@ -518,6 +521,15 @@ function registerIpcHandlers(): void {
   ipcMain.handle(CHANNELS.gitPush, async (_event, payload) => callSupervisor("gitPush", payload));
 
   ipcMain.handle(CHANNELS.gitSync, async (_event, payload) => callSupervisor("gitSync", payload));
+  ipcMain.handle(CHANNELS.gitGetWorktreeSourceBranch, async (_event, payload) =>
+    callSupervisor("gitGetWorktreeSourceBranch", payload),
+  );
+  ipcMain.handle(CHANNELS.gitMergeToSource, async (_event, payload) =>
+    callSupervisor("gitMergeToSource", payload),
+  );
+  ipcMain.handle(CHANNELS.gitPullFromSource, async (_event, payload) =>
+    callSupervisor("gitPullFromSource", payload),
+  );
   ipcMain.handle(CHANNELS.searchProjectFiles, async (_event, payload) =>
     callSupervisor("searchProjectFiles", payload),
   );

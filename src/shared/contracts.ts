@@ -459,6 +459,49 @@ export interface GitSyncResult {
   pushed: boolean;
 }
 
+// --- Worktree merge types ---
+
+export const gitGetWorktreeSourceBranchPayloadSchema = z.object({
+  projectLocation: projectLocationSchema,
+  branch: z.string().min(1),
+});
+export type GitGetWorktreeSourceBranchPayload = z.infer<
+  typeof gitGetWorktreeSourceBranchPayloadSchema
+>;
+
+export interface GitGetWorktreeSourceBranchResult {
+  sourceBranch: string | null;
+}
+
+export const gitMergeToSourcePayloadSchema = z.object({
+  projectLocation: projectLocationSchema,
+  worktreeLocation: projectLocationSchema,
+  worktreeBranch: z.string().min(1),
+  sourceBranch: z.string().min(1),
+});
+export type GitMergeToSourcePayload = z.infer<typeof gitMergeToSourcePayloadSchema>;
+
+export interface GitMergeToSourceResult {
+  merged: boolean;
+  fastForward: boolean;
+  newSourceCommit: string;
+  error?: string;
+  conflictFiles?: string[];
+}
+
+export const gitPullFromSourcePayloadSchema = z.object({
+  worktreeLocation: projectLocationSchema,
+  sourceBranch: z.string().min(1),
+});
+export type GitPullFromSourcePayload = z.infer<typeof gitPullFromSourcePayloadSchema>;
+
+export interface GitPullFromSourceResult {
+  merged: boolean;
+  fastForward: boolean;
+  error?: string;
+  conflictFiles?: string[];
+}
+
 // --- File Index types ---
 
 export interface FileEntry {

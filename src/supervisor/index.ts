@@ -10,7 +10,10 @@ import type {
   GitCommitPayload,
   GitDeleteBranchPayload,
   GitFetchPayload,
+  GitGetWorktreeSourceBranchPayload,
   GitListWorktreesPayload,
+  GitMergeToSourcePayload,
+  GitPullFromSourcePayload,
   GitPullPayload,
   GitPushPayload,
   GitRemoveWorktreePayload,
@@ -44,6 +47,9 @@ import {
   gitPullPayloadSchema,
   gitPushPayloadSchema,
   gitDeleteBranchPayloadSchema,
+  gitGetWorktreeSourceBranchPayloadSchema,
+  gitMergeToSourcePayloadSchema,
+  gitPullFromSourcePayloadSchema,
   gitRemoveWorktreePayloadSchema,
   gitSyncPayloadSchema,
   searchProjectFilesPayloadSchema,
@@ -178,6 +184,20 @@ async function handleRequest(request: SupervisorRequest): Promise<unknown> {
       return runtime.gitPush(gitPushPayloadSchema.parse(request.payload) as GitPushPayload);
     case "gitSync":
       return runtime.gitSync(gitSyncPayloadSchema.parse(request.payload) as GitSyncPayload);
+    case "gitGetWorktreeSourceBranch":
+      return runtime.gitGetWorktreeSourceBranch(
+        gitGetWorktreeSourceBranchPayloadSchema.parse(
+          request.payload,
+        ) as GitGetWorktreeSourceBranchPayload,
+      );
+    case "gitMergeToSource":
+      return runtime.gitMergeToSource(
+        gitMergeToSourcePayloadSchema.parse(request.payload) as GitMergeToSourcePayload,
+      );
+    case "gitPullFromSource":
+      return runtime.gitPullFromSource(
+        gitPullFromSourcePayloadSchema.parse(request.payload) as GitPullFromSourcePayload,
+      );
     case "searchProjectFiles":
       return runtime.searchProjectFiles(
         searchProjectFilesPayloadSchema.parse(request.payload) as SearchProjectFilesPayload,

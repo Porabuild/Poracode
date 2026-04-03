@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
+  ArrowDown,
   ArrowLeft,
   ArrowUp,
   ArrowUpDown,
@@ -8,6 +9,7 @@ import {
   FileDiff,
   FileMinus2,
   FilePlus2,
+  GitMerge,
   Lock,
   Minus,
   PanelLeft,
@@ -17,7 +19,7 @@ import {
   Undo2,
 } from "lucide-react";
 import { AlertDialog, Button, ButtonGroup, Dropdown, Label, Spinner, Tooltip } from "@heroui/react";
-import type { Project, GitFileChange, GitStatusResult } from "../../../shared/contracts";
+import type { Project, GitFileChange, GitStatusResult, ProjectLocation } from "../../../shared/contracts";
 import { getProjectAgentStatuses } from "../../../shared/agentStatus";
 import { readBridge } from "../../bridge";
 import { useAppStore } from "../../state/appStore";
@@ -299,12 +301,25 @@ export function GitReviewSidebar(props: {
   gitStatus: GitStatusResult | undefined;
   selectedFile: string | null;
   selectedStaged: boolean;
+  worktreeBranch?: string | undefined;
+  worktreePath?: string | undefined;
+  onMergeAndRemove?: (() => void) | undefined;
   onSelectFile: (path: string | null, staged: boolean) => void;
   onClose: () => void;
   onRefresh: () => void;
 }) {
-  const { project, gitStatus, selectedFile, selectedStaged, onSelectFile, onClose, onRefresh } =
-    props;
+  const {
+    project,
+    gitStatus,
+    selectedFile,
+    selectedStaged,
+    worktreeBranch,
+    worktreePath,
+    onMergeAndRemove,
+    onSelectFile,
+    onClose,
+    onRefresh,
+  } = props;
   const { isCollapsed, collapse, expand } = useSidebar();
   const agentStatuses = useAppStore((s) => s.agentStatuses);
   const wslAgentStatuses = useAppStore((s) => s.wslAgentStatuses);
@@ -323,6 +338,26 @@ export function GitReviewSidebar(props: {
   const [commitError, setCommitError] = useState<string | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncError, setSyncError] = useState<string | null>(null);
+
+  // Source branch state
+  const [sourceBranch, setSourceBranch] = useState<string | null>(null);
+  const [sourceBranchLoading, setSourceBranchLoading] = useState(false);
+  // Merge & Remove state
+  const [isMerging, setIsMerging] = useState(false);
+  const [mergeError, setMergeError] = useState<string | null>(null);
+  // Pull from source state
+  const [isPullingFromSource, setIsPullingFromSource] = useState(false);
+  const [pullFromSourceError, setPullFromSourceError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!worktreeBranch) return;
+    setSourceBranchLoading(true);
+    readBridge()
+      .gitGetWorktreeSourceBranch({ projectLocation: project.location, branch: worktreeBranch })
+      .then((result) => setSourceBranch(result.sourceBranch))
+      .catch(() => setSourceBranch(null))
+      .finally(() => setSourceBranchLoading(false));
+  }, [worktreeBranch, project.location]);
 
   const projectAgentStatuses = getProjectAgentStatuses(
     project.location,
@@ -417,6 +452,78 @@ export function GitReviewSidebar(props: {
       setIsSyncing(false);
     }
   }
+
+  async function handleMergeAndRemove() {
+    if (!sourceBranch || !worktreeBranch || !worktreePath) return;
+    setIsMerging(true);
+    setMergeError(null);
+    try {
+      const worktreeLocation: ProjectLocation =
+        project.location.kind === "wsl"
+          ? {
+              ...project.location,
+              linuxPath: worktreePath,
+              uncPath: worktreePath,
+            }
+          : { ...project.location, path: worktreePath };
+
+      const result = await readBridge().gitMergeToSource({
+        projectLocation: project.location,
+        worktreeLocation,
+        worktreeBranch,
+        sourceBranch,
+      });
+
+      if (!result.merged) {
+        const detail = result.conflictFiles?.length
+          ? `\nConflicts:\n${result.conflictFiles.join("\n")}`
+          : "";
+        setMergeError((result.error ?? "Merge failed") + detail);
+        return;
+      }
+
+      // Merge succeeded — trigger worktree removal flow
+      onMergeAndRemove?.();
+    } catch (err) {
+      setMergeError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setIsMerging(false);
+    }
+  }
+
+  async function handlePullFromSource() {
+    if (!sourceBranch || !worktreePath) return;
+    setIsPullingFromSource(true);
+    setPullFromSourceError(null);
+    try {
+      const worktreeLocation: ProjectLocation =
+        project.location.kind === "wsl"
+          ? { ...project.location, linuxPath: worktreePath, uncPath: worktreePath }
+          : { ...project.location, path: worktreePath };
+
+      const result = await readBridge().gitPullFromSource({
+        worktreeLocation,
+        sourceBranch,
+      });
+
+      if (!result.merged) {
+        const detail = result.conflictFiles?.length
+          ? `\nConflicts:\n${result.conflictFiles.join("\n")}`
+          : "";
+        setPullFromSourceError((result.error ?? "Merge failed") + detail);
+        return;
+      }
+
+      onRefresh();
+    } catch (err) {
+      setPullFromSourceError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setIsPullingFromSource(false);
+    }
+  }
+
+  const showMergeSection = Boolean(worktreeBranch && worktreePath && !hasAnyChanges);
+  const showPullFromSource = Boolean(worktreeBranch && worktreePath && sourceBranch);
 
   return (
     <div className="relative h-full">
@@ -534,9 +641,12 @@ export function GitReviewSidebar(props: {
                   )}
                 </div>
 
-                {commitError && (
-                  <p className="truncate text-xs text-danger" title={commitError}>
-                    {commitError}
+                {(commitError || pullFromSourceError) && (
+                  <p
+                    className="truncate text-xs text-danger"
+                    title={commitError ?? pullFromSourceError ?? ""}
+                  >
+                    {commitError ?? pullFromSourceError}
                   </p>
                 )}
 
@@ -574,11 +684,22 @@ export function GitReviewSidebar(props: {
                         aria-label="Commit options"
                         onAction={(key) => {
                           if (key === "add-all-commit") void handleCommit(true);
+                          if (key === "pull-from-source") void handlePullFromSource();
                         }}
                       >
                         <Dropdown.Item id="add-all-commit" textValue="Add all + commit">
                           <Label>Add all + commit</Label>
                         </Dropdown.Item>
+                        {showPullFromSource ? (
+                          <Dropdown.Item
+                            id="pull-from-source"
+                            textValue={`Pull from ${sourceBranch}`}
+                            isDisabled={isPullingFromSource}
+                          >
+                            <ArrowDown className="size-3.5" />
+                            <Label>Pull from {sourceBranch}</Label>
+                          </Dropdown.Item>
+                        ) : null}
                       </Dropdown.Menu>
                     </Dropdown.Popover>
                   </Dropdown>
@@ -617,6 +738,48 @@ export function GitReviewSidebar(props: {
                 </Button>
               </>
             ) : null}
+          </div>
+        )}
+
+        {/* Merge & Remove Worktree */}
+        {showMergeSection && (
+          <div className="space-y-2 border-t border-white/6 px-0.5 pt-2">
+            {sourceBranchLoading ? (
+              <div className="flex items-center justify-center py-2">
+                <Spinner color="current" size="sm" />
+              </div>
+            ) : sourceBranch ? (
+              <>
+                {mergeError && (
+                  <p className="whitespace-pre-wrap text-xs text-danger">{mergeError}</p>
+                )}
+                <Button
+                  variant="tertiary"
+                  className="w-full"
+                  isDisabled={isMerging}
+                  isPending={isMerging}
+                  onPress={() => void handleMergeAndRemove()}
+                >
+                  {({ isPending }) => (
+                    <>
+                      {isPending ? (
+                        <Spinner color="current" size="sm" />
+                      ) : (
+                        <GitMerge className="size-3.5" />
+                      )}
+                      Merge & Remove Worktree
+                    </>
+                  )}
+                </Button>
+                <p className="text-center text-xs text-muted/60">
+                  {worktreeBranch} → {sourceBranch}
+                </p>
+              </>
+            ) : (
+              <p className="px-2 py-1 text-center text-xs text-muted/60">
+                Source branch unknown — merge manually
+              </p>
+            )}
           </div>
         )}
 

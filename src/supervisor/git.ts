@@ -14,6 +14,9 @@ import type {
   GitAddWorktreeResult,
   GitWorktreeInfo,
   GitWorktreeListResult,
+  GitMergeToSourceResult,
+  GitGetWorktreeSourceBranchResult,
+  GitPullFromSourceResult,
 } from "../shared/contracts";
 import { readWslCommandOutputAsync } from "./agents/base";
 import { resolveLightcodePaths } from "../shared/lightcodePaths";
@@ -488,6 +491,14 @@ export class GitService {
       args.push(resolvedPath, ...(branch ? [branch] : []));
     }
     await git.raw(args);
+
+    // Store the source branch in git config so we can merge back later
+    if (startPoint && branch) {
+      await git
+        .raw(["config", `branch.${branch}.lightcodeSource`, startPoint])
+        .catch(() => undefined);
+    }
+
     return { path: resolvedPath };
   }
 
@@ -500,5 +511,172 @@ export class GitService {
   async deleteBranch(location: ProjectLocation, branch: string, force: boolean): Promise<void> {
     const git = createGit(location);
     await git.deleteLocalBranch(branch, force);
+  }
+
+  // ── Worktree source branch ──────────────────────────────
+
+  async getWorktreeSourceBranch(
+    location: ProjectLocation,
+    branch: string,
+  ): Promise<GitGetWorktreeSourceBranchResult> {
+    const git = createGit(location);
+    try {
+      const result = await git.raw(["config", "--get", `branch.${branch}.lightcodeSource`]);
+      const sourceBranch = result.trim();
+      return { sourceBranch: sourceBranch || null };
+    } catch {
+      return { sourceBranch: null };
+    }
+  }
+
+  // ── Merge to source ─────────────────────────────────────
+
+  /**
+   * Find which worktree (if any) has `branch` checked out.
+   * Returns its location, or null if the branch is not checked out anywhere.
+   */
+  private async findWorktreeForBranch(
+    repoLocation: ProjectLocation,
+    branch: string,
+  ): Promise<ProjectLocation | null> {
+    const { worktrees } = await this.listWorktrees(repoLocation);
+    const match = worktrees.find((wt) => wt.branch === branch);
+    if (!match) return null;
+    if (repoLocation.kind === "wsl") {
+      return { ...repoLocation, linuxPath: match.path, uncPath: match.path };
+    }
+    return { ...repoLocation, path: match.path };
+  }
+
+  async mergeToSource(
+    repoLocation: ProjectLocation,
+    _worktreeLocation: ProjectLocation,
+    worktreeBranch: string,
+    sourceBranch: string,
+  ): Promise<GitMergeToSourceResult> {
+    const repoGit = createGit(repoLocation);
+
+    // Check if fast-forward is possible (source is ancestor of worktree tip)
+    let canFF = false;
+    try {
+      await repoGit.raw(["merge-base", "--is-ancestor", sourceBranch, worktreeBranch]);
+      canFF = true;
+    } catch {
+      // Not an ancestor — fast-forward not possible
+    }
+
+    if (canFF) {
+      // Find if source branch is checked out in a worktree — if so, use
+      // `git merge --ff-only` there so HEAD + index + working tree all update.
+      // Plain `update-ref` only moves the pointer, leaving the working tree stale.
+      const sourceLocation = await this.findWorktreeForBranch(repoLocation, sourceBranch);
+
+      if (sourceLocation) {
+        const sourceGit = createGit(sourceLocation);
+        await sourceGit.merge([worktreeBranch, "--ff-only"]);
+        const newCommit = (await sourceGit.revparse(["HEAD"])).trim();
+        return { merged: true, fastForward: true, newSourceCommit: newCommit };
+      }
+
+      // Source branch not checked out anywhere — safe to just move the ref
+      const worktreeTip = (await repoGit.revparse([worktreeBranch])).trim();
+      await repoGit.raw(["update-ref", `refs/heads/${sourceBranch}`, worktreeTip]);
+      return { merged: true, fastForward: true, newSourceCommit: worktreeTip };
+    }
+
+    // Non-fast-forward: merge via temporary worktree
+    const tempBranchDir = `_merge-temp-${Date.now()}`;
+    const tempPath = await computeDefaultWorktreePath(repoLocation, tempBranchDir);
+
+    try {
+      await ensureWorktreeParentExists(repoLocation, tempPath);
+      await repoGit.raw(["worktree", "add", "--detach", tempPath, sourceBranch]);
+
+      const tempGit = createGit(
+        repoLocation.kind === "wsl"
+          ? { ...repoLocation, linuxPath: tempPath, uncPath: tempPath }
+          : { ...repoLocation, path: tempPath },
+      );
+
+      // Checkout the source branch in the temp worktree
+      await tempGit.raw(["checkout", "-B", sourceBranch]);
+
+      try {
+        await tempGit.merge([worktreeBranch, "--no-edit"]);
+      } catch (mergeErr: unknown) {
+        const msg = mergeErr instanceof Error ? mergeErr.message : String(mergeErr);
+        if (msg.includes("CONFLICT") || msg.includes("Merge conflict")) {
+          const conflictFiles: string[] = [];
+          const conflictMatches = msg.matchAll(/CONFLICT.*?:\s*(?:Merge conflict in\s+)?(.+)/g);
+          for (const m of conflictMatches) {
+            if (m[1]) conflictFiles.push(m[1].trim());
+          }
+          await tempGit.merge(["--abort"]).catch(() => undefined);
+          return {
+            merged: false,
+            fastForward: false,
+            newSourceCommit: "",
+            error: "Merge conflicts detected",
+            conflictFiles,
+          };
+        }
+        throw mergeErr;
+      }
+
+      const newCommit = (await tempGit.revparse(["HEAD"])).trim();
+      return { merged: true, fastForward: false, newSourceCommit: newCommit };
+    } catch (err: unknown) {
+      if ((err as GitMergeToSourceResult).merged === false) {
+        return err as GitMergeToSourceResult;
+      }
+      return {
+        merged: false,
+        fastForward: false,
+        newSourceCommit: "",
+        error: err instanceof Error ? err.message : String(err),
+      };
+    } finally {
+      await repoGit.raw(["worktree", "remove", "--force", tempPath]).catch(() => undefined);
+    }
+  }
+
+  // ── Pull from source into worktree ──────────────────────
+
+  async pullFromSource(
+    worktreeLocation: ProjectLocation,
+    sourceBranch: string,
+  ): Promise<GitPullFromSourceResult> {
+    const git = createGit(worktreeLocation);
+
+    try {
+      await git.merge([sourceBranch, "--no-edit"]);
+    } catch (mergeErr: unknown) {
+      const msg = mergeErr instanceof Error ? mergeErr.message : String(mergeErr);
+      if (msg.includes("CONFLICT") || msg.includes("Merge conflict")) {
+        const conflictFiles: string[] = [];
+        const conflictMatches = msg.matchAll(/CONFLICT.*?:\s*(?:Merge conflict in\s+)?(.+)/g);
+        for (const m of conflictMatches) {
+          if (m[1]) conflictFiles.push(m[1].trim());
+        }
+        await git.merge(["--abort"]).catch(() => undefined);
+        return {
+          merged: false,
+          fastForward: false,
+          error: "Merge conflicts detected",
+          conflictFiles,
+        };
+      }
+      return {
+        merged: false,
+        fastForward: false,
+        error: msg,
+      };
+    }
+
+    // Check if it was a fast-forward
+    const log = await git.log(["-1", "--pretty=%s"]).catch(() => null);
+    const isFf = !log?.latest?.hash || !log.latest.message.startsWith("Merge ");
+
+    return { merged: true, fastForward: isFf };
   }
 }
