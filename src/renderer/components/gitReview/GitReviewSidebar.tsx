@@ -495,7 +495,7 @@ export function GitReviewSidebar(props: {
                     autoSize
                     maxRows={8}
                     aria-label="Commit message"
-                    placeholder={`Message (Ctrl+Enter to commit on "${gitStatus?.branch ?? ""}")`}
+                    placeholder="Commit message (Ctrl+Enter)"
                     rows={1}
                     value={commitMessage}
                     className={canGenerateMessage ? "pr-8" : ""}

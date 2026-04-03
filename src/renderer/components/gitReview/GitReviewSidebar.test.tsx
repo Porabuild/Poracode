@@ -184,7 +184,7 @@ describe("GitReviewSidebar", () => {
 
     expect(screen.getByText("worktree-only.ts")).toBeInTheDocument();
     expect(
-      screen.getByPlaceholderText('Message (Ctrl+Enter to commit on "feature/worktree")'),
+      screen.getByPlaceholderText("Commit message (Ctrl+Enter)"),
     ).toBeInTheDocument();
     expect(screen.queryByText("main-only.ts")).not.toBeInTheDocument();
   });
