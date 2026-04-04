@@ -692,6 +692,21 @@ export function Sidebar(props: {
                                           },
                                         ]
                                       : []),
+                                    ...(thread.worktreePath && project.scripts?.actions?.length
+                                      ? [
+                                          {
+                                            type: "submenu" as const,
+                                            id: "run-action",
+                                            label: "Run",
+                                            icon: <Play className="size-3.5" />,
+                                            items: project.scripts.actions.map((action) => ({
+                                              id: `action:${action.id}`,
+                                              label: action.name,
+                                              icon: resolveActionIcon(action.icon),
+                                            })),
+                                          },
+                                        ]
+                                      : []),
                                     {
                                       id: "rename",
                                       label: "Rename",
@@ -737,6 +752,13 @@ export function Sidebar(props: {
                                         thread.worktreePath,
                                         thread.projectId,
                                       );
+                                    if (key.startsWith("action:")) {
+                                      onRunProjectAction(
+                                        project.id,
+                                        key.slice("action:".length),
+                                        thread.worktreePath,
+                                      );
+                                    }
                                   }}
                                 >
                                   <SidebarButton
