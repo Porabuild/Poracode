@@ -69,6 +69,37 @@ describe("detectClaudeTerminalStatus", () => {
     expect(result?.attention).toBe("needs_reply");
   });
 
+  it("detects plan approval prompt with shift+tab footer", () => {
+    const text = [
+      "Claude has written up a plan and is ready to execute. Would you like to proceed?",
+      "",
+      "> 1  Yes, and bypass permissions",
+      "  2  Yes, making a question after each step",
+      "  3  No, refine with Ultrace on Claude Code or the web",
+      "",
+      "shift+tab to approve with this feedback",
+      "",
+      "ctrl-g to edit in Notepad  ~/.claude/plans/inbuilt-nesting-rout.md",
+    ].join("\n");
+    const result = detectClaudeTerminalStatus(text);
+    expect(result?.status).toBe("needs_reply");
+    expect(result?.attention).toBe("needs_reply");
+  });
+
+  it("detects plan question via shift+tab even without ctrl-g", () => {
+    const text = [
+      "Claude has written up a plan. Would you like to proceed?",
+      "",
+      "> 1  Yes, and bypass permissions",
+      "  2  No",
+      "",
+      "shift-tab to approve with this feedback",
+    ].join("\n");
+    const result = detectClaudeTerminalStatus(text);
+    expect(result?.status).toBe("needs_reply");
+    expect(result?.attention).toBe("needs_reply");
+  });
+
   it("sets planMode on 'plan mode on' hint", () => {
     const text =
       "● Plan mode\n❯ \n\nplan mode on                                       ○ high · /plan";

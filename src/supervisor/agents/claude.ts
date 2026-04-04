@@ -224,7 +224,8 @@ const CLAUDE_HINTS: HintEntry[] = [
   // Animated spinner (✻✶✽✢⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏) + text + ellipsis — universal working indicator
   // NOTE: plain `*` excluded — Claude Code uses `*` as a selection marker in menus
   { re: /[✻✶✽✢⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏]\s+\S.*(?:…|\.\.\.)/i, status: "working", attention: "working" },
-  // Plan approval prompt — "ctrl-g to edit in Vim · <plan path>"
+  // Plan approval prompt — "shift+tab to approve" / "ctrl-g to edit in Vim · <plan path>"
+  { re: /shift.tab to approve/i, status: "needs_reply", attention: "needs_reply" },
   { re: /ctrl-g to edit/i, status: "needs_reply", attention: "needs_reply" },
   { re: /\?\s+for shortcuts/i, status: "idle", attention: "none" },
   { re: /plan mode on/i, status: "idle", attention: "none", planMode: true },
