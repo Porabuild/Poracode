@@ -47,6 +47,7 @@ const capabilities: AgentCapability = {
   supportsDirectInput: true,
   liveInputMode: "terminal",
   presentationMode: "terminal",
+  bypassApprovalPolicy: "bypassPermissions",
 };
 
 function buildClaudeArgs(

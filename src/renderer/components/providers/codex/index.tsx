@@ -5,6 +5,7 @@ import { CodexStatusIcon } from "./CodexStatusIcon";
 import {
   registerCommitGenDefaults,
   registerComposerControls,
+  registerConflictResolverDefaults,
   registerProviderIcon,
   registerTitleGenDefaults,
 } from "../ProviderIcon";
@@ -13,6 +14,7 @@ import { withCurrentModel } from "../../thread/threadComposerOptions";
 registerProviderIcon("codex", CodexStatusIcon);
 registerCommitGenDefaults("codex", { model: "gpt-5.4-mini", effort: "low" });
 registerTitleGenDefaults("codex", { model: "gpt-5.4-mini", effort: "low" });
+registerConflictResolverDefaults("codex", { model: "gpt-5.4", effort: "" });
 
 registerComposerControls("codex", ({ capabilities, config, isDisabled, onConfigChange }) => {
   const availableEfforts =

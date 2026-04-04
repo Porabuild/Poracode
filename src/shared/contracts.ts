@@ -92,6 +92,8 @@ export const agentCapabilitySchema = z.object({
   supportsDirectInput: z.boolean().default(true),
   liveInputMode: liveInputModeSchema.default("terminal"),
   presentationMode: threadPresentationModeSchema.default("terminal"),
+  /** Approval policy value that grants the agent full autonomy (no permission prompts). */
+  bypassApprovalPolicy: z.string().optional(),
 });
 export type AgentCapability = z.infer<typeof agentCapabilitySchema>;
 
@@ -280,6 +282,10 @@ export interface GitStatusResult {
   unstaged: GitFileChange[];
   totalInsertions: number;
   totalDeletions: number;
+  /** True when the worktree is in a merge-in-progress state (MERGE_HEAD exists). */
+  mergeInProgress?: boolean;
+  /** Conflicted file paths during an active merge. */
+  conflictFiles?: string[];
 }
 
 export interface GitDiffResult {
@@ -517,8 +523,29 @@ export type GitPullFromSourcePayload = z.infer<typeof gitPullFromSourcePayloadSc
 export interface GitPullFromSourceResult {
   merged: boolean;
   fastForward: boolean;
+  /** True when merge stopped with unresolved conflicts (not aborted). */
+  conflicting?: boolean;
   error?: string;
   conflictFiles?: string[];
+}
+
+// --- Git conflict resolution types ---
+
+export const gitAbortMergePayloadSchema = z.object({
+  worktreeLocation: projectLocationSchema,
+});
+export type GitAbortMergePayload = z.infer<typeof gitAbortMergePayloadSchema>;
+
+export const gitRunMergetoolPayloadSchema = z.object({
+  worktreeLocation: projectLocationSchema,
+});
+export type GitRunMergetoolPayload = z.infer<typeof gitRunMergetoolPayloadSchema>;
+
+export interface GitRunMergetoolResult {
+  success: boolean;
+  /** True when all conflicts were resolved and merge commit was created. */
+  merged?: boolean;
+  error?: string;
 }
 
 // --- File Index types ---

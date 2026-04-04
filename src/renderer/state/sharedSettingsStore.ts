@@ -14,8 +14,10 @@ interface SharedSettingsState extends SharedSettings {
   setTerminalPosition: (position: TerminalPosition) => void;
   setCommitGenConfig: (provider: string, model: string, effort: string) => void;
   setTitleGenConfig: (provider: string, model: string, effort: string) => void;
+  setConflictResolverConfig: (provider: string, model: string, effort: string) => void;
   setWslCommitGenConfig: (provider: string, model: string, effort: string) => void;
   setWslTitleGenConfig: (provider: string, model: string, effort: string) => void;
+  setWslConflictResolverConfig: (provider: string, model: string, effort: string) => void;
 }
 
 function hasBridge(): boolean {
@@ -67,12 +69,28 @@ export const useSharedSettings = create<SharedSettingsState>()((set, get) => ({
     set({ titleGenProvider, titleGenModel, titleGenEffort });
     persistSettings(selectSharedSettings(get()));
   },
+  setConflictResolverConfig: (
+    conflictResolverProvider,
+    conflictResolverModel,
+    conflictResolverEffort,
+  ) => {
+    set({ conflictResolverProvider, conflictResolverModel, conflictResolverEffort });
+    persistSettings(selectSharedSettings(get()));
+  },
   setWslCommitGenConfig: (wslCommitGenProvider, wslCommitGenModel, wslCommitGenEffort) => {
     set({ wslCommitGenProvider, wslCommitGenModel, wslCommitGenEffort });
     persistSettings(selectSharedSettings(get()));
   },
   setWslTitleGenConfig: (wslTitleGenProvider, wslTitleGenModel, wslTitleGenEffort) => {
     set({ wslTitleGenProvider, wslTitleGenModel, wslTitleGenEffort });
+    persistSettings(selectSharedSettings(get()));
+  },
+  setWslConflictResolverConfig: (
+    wslConflictResolverProvider,
+    wslConflictResolverModel,
+    wslConflictResolverEffort,
+  ) => {
+    set({ wslConflictResolverProvider, wslConflictResolverModel, wslConflictResolverEffort });
     persistSettings(selectSharedSettings(get()));
   },
 }));
@@ -87,12 +105,18 @@ function selectSharedSettings(state: SharedSettingsState): SharedSettings {
     titleGenProvider: state.titleGenProvider,
     titleGenModel: state.titleGenModel,
     titleGenEffort: state.titleGenEffort,
+    conflictResolverProvider: state.conflictResolverProvider,
+    conflictResolverModel: state.conflictResolverModel,
+    conflictResolverEffort: state.conflictResolverEffort,
     wslCommitGenProvider: state.wslCommitGenProvider,
     wslCommitGenModel: state.wslCommitGenModel,
     wslCommitGenEffort: state.wslCommitGenEffort,
     wslTitleGenProvider: state.wslTitleGenProvider,
     wslTitleGenModel: state.wslTitleGenModel,
     wslTitleGenEffort: state.wslTitleGenEffort,
+    wslConflictResolverProvider: state.wslConflictResolverProvider,
+    wslConflictResolverModel: state.wslConflictResolverModel,
+    wslConflictResolverEffort: state.wslConflictResolverEffort,
   };
 }
 

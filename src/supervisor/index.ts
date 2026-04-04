@@ -14,6 +14,8 @@ import type {
   GitListWorktreesPayload,
   GitMergeToSourcePayload,
   GitPullFromSourcePayload,
+  GitAbortMergePayload,
+  GitRunMergetoolPayload,
   GitPullPayload,
   GitPushPayload,
   GitRemoveWorktreePayload,
@@ -51,6 +53,8 @@ import {
   gitGetWorktreeSourceBranchPayloadSchema,
   gitMergeToSourcePayloadSchema,
   gitPullFromSourcePayloadSchema,
+  gitAbortMergePayloadSchema,
+  gitRunMergetoolPayloadSchema,
   gitRemoveWorktreePayloadSchema,
   gitSyncPayloadSchema,
   detectSetupScriptPayloadSchema,
@@ -199,6 +203,14 @@ async function handleRequest(request: SupervisorRequest): Promise<unknown> {
     case "gitPullFromSource":
       return runtime.gitPullFromSource(
         gitPullFromSourcePayloadSchema.parse(request.payload) as GitPullFromSourcePayload,
+      );
+    case "gitAbortMerge":
+      return runtime.gitAbortMerge(
+        gitAbortMergePayloadSchema.parse(request.payload) as GitAbortMergePayload,
+      );
+    case "gitRunMergetool":
+      return runtime.gitRunMergetool(
+        gitRunMergetoolPayloadSchema.parse(request.payload) as GitRunMergetoolPayload,
       );
     case "searchProjectFiles":
       return runtime.searchProjectFiles(

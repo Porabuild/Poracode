@@ -5,6 +5,7 @@ import { GeminiIcon } from "./GeminiIcon";
 import {
   registerCommitGenDefaults,
   registerComposerControls,
+  registerConflictResolverDefaults,
   registerProviderIcon,
   registerTitleGenDefaults,
 } from "../ProviderIcon";
@@ -13,6 +14,7 @@ import { withCurrentModel } from "../../thread/threadComposerOptions";
 registerProviderIcon("gemini", GeminiIcon);
 registerCommitGenDefaults("gemini", { model: "gemini-2.5-flash", effort: "" });
 registerTitleGenDefaults("gemini", { model: "gemini-2.5-flash-lite", effort: "" });
+registerConflictResolverDefaults("gemini", { model: "", effort: "" });
 
 registerComposerControls("gemini", ({ capabilities, config, isDisabled, onConfigChange }) => [
   // Model

@@ -27,6 +27,7 @@ import { useSharedSettings } from "../../state/sharedSettingsStore";
 import { SidebarButton, TextArea } from "../common";
 import { useSidebar } from "../layout/AppShell";
 import { generateCommitMessageWithFallback, getCommitGenCandidates } from "../providers";
+import { getConflictResolverDefaults } from "../providers/ProviderIcon";
 
 function FileStatusIcon(props: { status: string; className?: string }) {
   const cls = `size-3.5 ${props.className ?? ""}`;
@@ -331,6 +332,15 @@ export function GitReviewSidebar(props: {
   const commitGenEffort = useSharedSettings((s) =>
     isWsl ? s.wslCommitGenEffort : s.commitGenEffort,
   );
+  const conflictResolverProvider = useSharedSettings((s) =>
+    isWsl ? s.wslConflictResolverProvider : s.conflictResolverProvider,
+  );
+  const conflictResolverModel = useSharedSettings((s) =>
+    isWsl ? s.wslConflictResolverModel : s.conflictResolverModel,
+  );
+  const conflictResolverEffort = useSharedSettings((s) =>
+    isWsl ? s.wslConflictResolverEffort : s.conflictResolverEffort,
+  );
 
   const [commitMessage, setCommitMessage] = useState("");
   const [isCommitting, setIsCommitting] = useState(false);
@@ -349,6 +359,11 @@ export function GitReviewSidebar(props: {
   // Pull from source state
   const [isPullingFromSource, setIsPullingFromSource] = useState(false);
   const [pullFromSourceError, setPullFromSourceError] = useState<string | null>(null);
+  // Merge conflict resolution state — synced from gitStatus on every refresh
+  const mergeConflicting = gitStatus?.mergeInProgress ?? false;
+  const mergeConflictFiles = gitStatus?.conflictFiles ?? [];
+  const [isRunningMergetool, setIsRunningMergetool] = useState(false);
+  const [isAbortingMerge, setIsAbortingMerge] = useState(false);
 
   useEffect(() => {
     if (!worktreeBranch) return;
@@ -462,18 +477,9 @@ export function GitReviewSidebar(props: {
     setIsMerging(true);
     setMergeError(null);
     try {
-      const worktreeLocation: ProjectLocation =
-        project.location.kind === "wsl"
-          ? {
-              ...project.location,
-              linuxPath: worktreePath,
-              uncPath: worktreePath,
-            }
-          : { ...project.location, path: worktreePath };
-
       const result = await readBridge().gitMergeToSource({
         projectLocation: project.location,
-        worktreeLocation,
+        worktreeLocation: getWorktreeLocation(),
         worktreeBranch,
         sourceBranch,
       });
@@ -507,26 +513,30 @@ export function GitReviewSidebar(props: {
     }
   }
 
+  function getWorktreeLocation(): ProjectLocation {
+    return project.location.kind === "wsl"
+      ? { ...project.location, linuxPath: worktreePath!, uncPath: worktreePath! }
+      : { ...project.location, path: worktreePath! };
+  }
+
   async function handlePullFromSource() {
     if (!sourceBranch || !worktreePath) return;
     setIsPullingFromSource(true);
     setPullFromSourceError(null);
     try {
-      const worktreeLocation: ProjectLocation =
-        project.location.kind === "wsl"
-          ? { ...project.location, linuxPath: worktreePath, uncPath: worktreePath }
-          : { ...project.location, path: worktreePath };
-
       const result = await readBridge().gitPullFromSource({
-        worktreeLocation,
+        worktreeLocation: getWorktreeLocation(),
         sourceBranch,
       });
 
+      if (result.conflicting) {
+        // gitStatus will pick up the merge-in-progress state on refresh
+        onRefresh();
+        return;
+      }
+
       if (!result.merged) {
-        const detail = result.conflictFiles?.length
-          ? `\nConflicts:\n${result.conflictFiles.join("\n")}`
-          : "";
-        setPullFromSourceError((result.error ?? "Merge failed") + detail);
+        setPullFromSourceError(result.error ?? "Merge failed");
         return;
       }
 
@@ -538,6 +548,89 @@ export function GitReviewSidebar(props: {
     }
   }
 
+  async function handleRunMergetool() {
+    if (!worktreePath) return;
+    setIsRunningMergetool(true);
+    setPullFromSourceError(null);
+    try {
+      const result = await readBridge().gitRunMergetool({
+        worktreeLocation: getWorktreeLocation(),
+      });
+      if (!result.success) {
+        setPullFromSourceError(result.error ?? "Mergetool failed");
+        return;
+      }
+      // onRefresh will update mergeConflicting from gitStatus
+      onRefresh();
+    } catch (err) {
+      setPullFromSourceError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setIsRunningMergetool(false);
+    }
+  }
+
+  function handleResolveWithAgent() {
+    if (!worktreePath || mergeConflictFiles.length === 0) return;
+
+    // Pick the best available agent for conflict resolution
+    const candidates = projectAgentStatuses.filter(
+      (a) => a.installed && a.authState !== "missing",
+    );
+    const provider = conflictResolverProvider === "auto"
+      ? candidates[0]
+      : candidates.find((a) => a.kind === conflictResolverProvider);
+    if (!provider) return;
+
+    const defaults = getConflictResolverDefaults(provider.kind);
+    const model = conflictResolverModel
+      || defaults?.model
+      || provider.capabilities.models[0]?.id
+      || "";
+    const effort = conflictResolverEffort || defaults?.effort || "";
+
+    const fileList = mergeConflictFiles.map((f) => `- ${f}`).join("\n");
+    const prompt =
+      `Resolve the merge conflicts in this worktree. The conflicted files are:\n${fileList}\n\n` +
+      `For each file, open it and resolve the conflict markers (<<<<<<< =======  >>>>>>>).`;
+
+    const store = useAppStore.getState();
+    const thread = store.createThread({
+      projectId: project.id,
+      agentKind: provider.kind,
+      config: {
+        model,
+        ...(effort ? { effort } : {}),
+        approvalPolicy: provider.capabilities.bypassApprovalPolicy ?? "bypassPermissions",
+      },
+      prompt,
+      worktreePath,
+      ...(worktreeBranch ? { worktreeBranch } : {}),
+    });
+    store.queueThreadLaunch(thread.id, prompt);
+  }
+
+  async function handleAbortMerge() {
+    if (!worktreePath) return;
+    setIsAbortingMerge(true);
+    try {
+      await readBridge().gitAbortMerge({
+        worktreeLocation: getWorktreeLocation(),
+      });
+      setPullFromSourceError(null);
+      onRefresh();
+    } catch (err) {
+      setPullFromSourceError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setIsAbortingMerge(false);
+    }
+  }
+
+  const canResolveWithAgent = projectAgentStatuses.some(
+    (a) =>
+      a.installed &&
+      a.authState !== "missing" &&
+      (conflictResolverProvider === "auto" || a.kind === conflictResolverProvider),
+  );
   const showMergeSection = Boolean(worktreeBranch && worktreePath && !hasAnyChanges);
   const showPullFromSource = Boolean(worktreeBranch && worktreePath && sourceBranch);
 
@@ -604,6 +697,69 @@ export function GitReviewSidebar(props: {
             <p className="px-2 py-4 text-center text-xs text-muted/60">No changes</p>
           )}
         </div>
+
+        {/* Merge Conflict Resolution */}
+        {mergeConflicting && (
+          <div className="space-y-2 border-t border-warning/30 bg-warning/5 px-2 pt-2 pb-2">
+            <p className="text-xs font-medium text-warning">
+              Merge conflicts ({mergeConflictFiles.length} file{mergeConflictFiles.length !== 1 ? "s" : ""})
+            </p>
+            {mergeConflictFiles.length > 0 && (
+              <ul className="max-h-24 space-y-0.5 overflow-y-auto text-xs text-muted">
+                {mergeConflictFiles.map((f) => (
+                  <li key={f} className="truncate" title={f}>
+                    {f}
+                  </li>
+                ))}
+              </ul>
+            )}
+            {pullFromSourceError && (
+              <p className="text-xs text-danger">{pullFromSourceError}</p>
+            )}
+            <div className="flex gap-1.5">
+              <Button
+                variant="tertiary"
+                size="sm"
+                className="flex-1"
+                isDisabled={!canResolveWithAgent || isRunningMergetool || isAbortingMerge}
+                onPress={handleResolveWithAgent}
+              >
+                <Sparkles className="size-3.5" />
+                Agent
+              </Button>
+              <Button
+                variant="tertiary"
+                size="sm"
+                className="flex-1"
+                isPending={isRunningMergetool}
+                isDisabled={isAbortingMerge}
+                onPress={() => void handleRunMergetool()}
+              >
+                {({ isPending }) => (
+                  <>
+                    {isPending ? <Spinner color="current" size="sm" /> : <GitMerge className="size-3.5" />}
+                    Mergetool
+                  </>
+                )}
+              </Button>
+            </div>
+            <Button
+              variant="tertiary"
+              size="sm"
+              className="w-full"
+              isPending={isAbortingMerge}
+              isDisabled={isRunningMergetool}
+              onPress={() => void handleAbortMerge()}
+            >
+              {({ isPending }) => (
+                <>
+                  {isPending && <Spinner color="current" size="sm" />}
+                  Abort Merge
+                </>
+              )}
+            </Button>
+          </div>
+        )}
 
         {/* Commit / Sync Panel */}
         {(hasAnyChanges || hasRemote) && (

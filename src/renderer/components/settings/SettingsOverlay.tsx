@@ -1,4 +1,4 @@
-import { ToggleButton, ToggleButtonGroup } from "@heroui/react";
+import { ToggleButton, ToggleButtonGroup, Tooltip } from "@heroui/react";
 import {
   ArrowLeft,
   GitBranch,
@@ -12,7 +12,7 @@ import { startTransition, useState } from "react";
 import type { AgentStatus, TerminalPosition, ThemeMode } from "../../../shared/contracts";
 import { useAppStore } from "../../state/appStore";
 import { useSharedSettings } from "../../state/sharedSettingsStore";
-import { resolveCommitGenConfig, resolveTitleGenConfig } from "../providers";
+import { resolveCommitGenConfig, resolveTitleGenConfig, resolveConflictResolverConfig } from "../providers";
 import { Select, SidebarButton, TuxIcon } from "../common";
 import { useSidebar } from "../layout/AppShell";
 import { PageLayout } from "../layout/PageLayout";
@@ -194,6 +194,8 @@ function GenConfigSection(props: {
     effort: string,
   ) => { model: string; effort: string; availableEfforts: string[] };
   allowDisabled?: boolean;
+  /** Tooltip hint showing default models per provider (shown on heading hover). */
+  defaultsHint?: string;
   agentStatuses: AgentStatus[];
   onConfigChange: (provider: string, model: string, effort: string) => void;
 }) {
@@ -234,7 +236,16 @@ function GenConfigSection(props: {
 
   return (
     <div className="space-y-4">
-      <h2 className="text-sm font-semibold text-muted">{heading}</h2>
+      {props.defaultsHint ? (
+        <Tooltip delay={300}>
+          <Tooltip.Trigger>
+            <h2 className="w-fit cursor-default text-sm font-semibold text-muted">{heading}</h2>
+          </Tooltip.Trigger>
+          <Tooltip.Content className="text-xs">{props.defaultsHint}</Tooltip.Content>
+        </Tooltip>
+      ) : (
+        <h2 className="text-sm font-semibold text-muted">{heading}</h2>
+      )}
 
       <div className="flex items-center justify-between gap-4">
         <div className="min-w-0">
@@ -332,6 +343,19 @@ function AISettings() {
     envKind === "wsl" ? s.setWslCommitGenConfig : s.setCommitGenConfig,
   );
 
+  const conflictResolverProvider = useSharedSettings((s) =>
+    envKind === "wsl" ? s.wslConflictResolverProvider : s.conflictResolverProvider,
+  );
+  const conflictResolverModel = useSharedSettings((s) =>
+    envKind === "wsl" ? s.wslConflictResolverModel : s.conflictResolverModel,
+  );
+  const conflictResolverEffort = useSharedSettings((s) =>
+    envKind === "wsl" ? s.wslConflictResolverEffort : s.conflictResolverEffort,
+  );
+  const setConflictResolverConfig = useSharedSettings((s) =>
+    envKind === "wsl" ? s.setWslConflictResolverConfig : s.setConflictResolverConfig,
+  );
+
   return (
     <div className="h-full min-h-0 overflow-y-auto px-6 pb-8">
       <div className="mx-auto max-w-[560px]">
@@ -368,6 +392,7 @@ function AISettings() {
             providerLabel="Agent used to generate thread titles."
             modelLabel="Model for title generation."
             effortLabel="Reasoning effort for generation."
+            defaultsHint="Defaults: Claude → Haiku, Codex → GPT-5.4 Mini, Gemini → Flash Lite"
             agentStatuses={activeStatuses}
             provider={titleGenProvider}
             model={titleGenModel}
@@ -381,12 +406,27 @@ function AISettings() {
             providerLabel="Agent used to generate commit messages."
             modelLabel="Model for commit message generation."
             effortLabel="Reasoning effort for generation."
+            defaultsHint="Defaults: Claude → Haiku, Codex → GPT-5.4 Mini, Gemini → Flash"
             agentStatuses={activeStatuses}
             provider={commitGenProvider}
             model={commitGenModel}
             effort={commitGenEffort}
             resolve={resolveCommitGenConfig}
             onConfigChange={setCommitGenConfig}
+          />
+
+          <GenConfigSection
+            heading="Conflict Resolver"
+            providerLabel="Agent used to resolve merge conflicts."
+            modelLabel="Model for conflict resolution."
+            effortLabel="Reasoning effort for resolution."
+            defaultsHint="Defaults: Claude → Opus, Codex → GPT-5.4, Gemini → Auto"
+            agentStatuses={activeStatuses}
+            provider={conflictResolverProvider}
+            model={conflictResolverModel}
+            effort={conflictResolverEffort}
+            resolve={resolveConflictResolverConfig}
+            onConfigChange={setConflictResolverConfig}
           />
         </div>
       </div>

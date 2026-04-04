@@ -209,6 +209,15 @@ export class GitService {
       staged.reduce((sum, f) => sum + f.deletions, 0) +
       unstaged.reduce((sum, f) => sum + f.deletions, 0);
 
+    // Detect merge-in-progress (MERGE_HEAD exists)
+    let mergeInProgress = false;
+    try {
+      await git.raw(["rev-parse", "--verify", "MERGE_HEAD"]);
+      mergeInProgress = true;
+    } catch {
+      // No MERGE_HEAD — not in a merge
+    }
+
     return {
       isRepo: true,
       branch: status.current ?? "",
@@ -220,6 +229,9 @@ export class GitService {
       unstaged,
       totalInsertions,
       totalDeletions,
+      ...(mergeInProgress
+        ? { mergeInProgress, conflictFiles: (status.conflicted ?? []).map(toForwardSlash) }
+        : {}),
     };
   }
 
@@ -613,7 +625,7 @@ export class GitService {
       await tempGit.raw(["checkout", "-B", sourceBranch]);
 
       try {
-        await tempGit.merge([worktreeBranch, "--no-edit"]);
+        await tempGit.merge([worktreeBranch, "--no-edit", "--no-ff"]);
       } catch (mergeErr: unknown) {
         const msg = mergeErr instanceof Error ? mergeErr.message : String(mergeErr);
         if (msg.includes("CONFLICT") || msg.includes("Merge conflict")) {
@@ -659,8 +671,31 @@ export class GitService {
   ): Promise<GitPullFromSourceResult> {
     const git = createGit(worktreeLocation);
 
+    // Check if fast-forward is possible (worktree HEAD is ancestor of sourceBranch)
+    let canFF = false;
     try {
-      await git.merge([sourceBranch, "--no-edit"]);
+      await git.raw(["merge-base", "--is-ancestor", "HEAD", sourceBranch]);
+      canFF = true;
+    } catch {
+      // Not an ancestor — fast-forward not possible
+    }
+
+    if (canFF) {
+      try {
+        await git.merge([sourceBranch, "--ff-only"]);
+        return { merged: true, fastForward: true };
+      } catch (err: unknown) {
+        return {
+          merged: false,
+          fastForward: false,
+          error: err instanceof Error ? err.message : String(err),
+        };
+      }
+    }
+
+    // Non-fast-forward merge — leave conflicts in working tree for resolution
+    try {
+      await git.merge([sourceBranch, "--no-ff", "--no-edit"]);
     } catch (mergeErr: unknown) {
       const msg = mergeErr instanceof Error ? mergeErr.message : String(mergeErr);
       if (msg.includes("CONFLICT") || msg.includes("Merge conflict")) {
@@ -669,10 +704,11 @@ export class GitService {
         for (const m of conflictMatches) {
           if (m[1]) conflictFiles.push(m[1].trim());
         }
-        await git.merge(["--abort"]).catch(() => undefined);
+        // Don't abort — leave conflict markers so the user can resolve via mergetool
         return {
           merged: false,
           fastForward: false,
+          conflicting: true,
           error: "Merge conflicts detected",
           conflictFiles,
         };
@@ -684,10 +720,36 @@ export class GitService {
       };
     }
 
-    // Check if it was a fast-forward
-    const log = await git.log(["-1", "--pretty=%s"]).catch(() => null);
-    const isFf = !log?.latest?.hash || !log.latest.message.startsWith("Merge ");
-
-    return { merged: true, fastForward: isFf };
+    return { merged: true, fastForward: false };
   }
+
+  // ── Conflict resolution helpers ──────────────────────
+
+  async abortMerge(worktreeLocation: ProjectLocation): Promise<void> {
+    const git = createGit(worktreeLocation);
+    await git.merge(["--abort"]);
+  }
+
+  async runMergetool(
+    worktreeLocation: ProjectLocation,
+  ): Promise<{ success: boolean; merged?: boolean; error?: string }> {
+    const git = createGit(worktreeLocation);
+    try {
+      await git.raw(["mergetool", "--no-prompt"]);
+      // Check for remaining conflicts
+      const status = await git.status();
+      if (status.conflicted.length > 0) {
+        return { success: true, merged: false };
+      }
+      // All resolved — auto-finish the merge
+      await git.commit([], { "--no-edit": null });
+      return { success: true, merged: true };
+    } catch (err: unknown) {
+      return {
+        success: false,
+        error: err instanceof Error ? err.message : String(err),
+      };
+    }
+  }
+
 }

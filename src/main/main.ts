@@ -72,6 +72,8 @@ const CHANNELS = {
   gitGetWorktreeSourceBranch: "lightcode:git-get-worktree-source-branch",
   gitMergeToSource: "lightcode:git-merge-to-source",
   gitPullFromSource: "lightcode:git-pull-from-source",
+  gitAbortMerge: "lightcode:git-abort-merge",
+  gitRunMergetool: "lightcode:git-run-mergetool",
   searchProjectFiles: "lightcode:search-project-files",
   detectSetupScript: "lightcode:detect-setup-script",
   getSharedSettings: "lightcode:get-shared-settings",
@@ -530,6 +532,12 @@ function registerIpcHandlers(): void {
   );
   ipcMain.handle(CHANNELS.gitPullFromSource, async (_event, payload) =>
     callSupervisor("gitPullFromSource", payload),
+  );
+  ipcMain.handle(CHANNELS.gitAbortMerge, async (_event, payload) =>
+    callSupervisor("gitAbortMerge", payload),
+  );
+  ipcMain.handle(CHANNELS.gitRunMergetool, async (_event, payload) =>
+    callSupervisor("gitRunMergetool", payload),
   );
   ipcMain.handle(CHANNELS.searchProjectFiles, async (_event, payload) =>
     callSupervisor("searchProjectFiles", payload),
