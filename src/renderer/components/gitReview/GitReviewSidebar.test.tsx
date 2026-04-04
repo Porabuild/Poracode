@@ -176,6 +176,7 @@ describe("GitReviewSidebar", () => {
         gitStatus={gitStatus}
         selectedFile={null}
         selectedStaged={false}
+        refreshKey={0}
         onSelectFile={() => undefined}
         onClose={() => undefined}
         onRefresh={() => undefined}
