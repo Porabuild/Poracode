@@ -341,6 +341,7 @@ export function GitReviewSidebar(props: {
 
   // Source branch state
   const [sourceBranch, setSourceBranch] = useState<string | null>(null);
+  const [commitsAhead, setCommitsAhead] = useState(0);
   const [sourceBranchLoading, setSourceBranchLoading] = useState(false);
   // Merge & Remove state
   const [isMerging, setIsMerging] = useState(false);
@@ -354,7 +355,10 @@ export function GitReviewSidebar(props: {
     setSourceBranchLoading(true);
     readBridge()
       .gitGetWorktreeSourceBranch({ projectLocation: project.location, branch: worktreeBranch })
-      .then((result) => setSourceBranch(result.sourceBranch))
+      .then((result) => {
+        setSourceBranch(result.sourceBranch);
+        setCommitsAhead(result.commitsAhead);
+      })
       .catch(() => setSourceBranch(null))
       .finally(() => setSourceBranchLoading(false));
   }, [worktreeBranch, project.location]);
@@ -765,44 +769,53 @@ export function GitReviewSidebar(props: {
                 {mergeError && (
                   <p className="whitespace-pre-wrap text-xs text-danger">{mergeError}</p>
                 )}
-                <Button
-                  variant="tertiary"
-                  className="w-full"
-                  isDisabled={isMerging}
-                  isPending={isMerging}
-                  onPress={() => void handleMergeOnly()}
-                >
-                  {({ isPending }) => (
-                    <>
-                      {isPending ? (
-                        <Spinner color="current" size="sm" />
-                      ) : (
-                        <GitMerge className="size-3.5" />
-                      )}
-                      Merge to Source
-                    </>
-                  )}
-                </Button>
-                <Button
-                  variant="tertiary"
-                  className="w-full"
-                  isDisabled={isMerging}
-                  isPending={isMerging}
-                  onPress={() => void handleMergeAndRemove()}
-                >
-                  {({ isPending }) => (
-                    <>
-                      {isPending ? (
-                        <Spinner color="current" size="sm" />
-                      ) : (
-                        <GitMerge className="size-3.5" />
-                      )}
-                      Merge & Remove Worktree
-                    </>
-                  )}
-                </Button>
+                <ButtonGroup className="w-full">
+                  <Button
+                    variant="tertiary"
+                    className="flex-1"
+                    isDisabled={isMerging || commitsAhead === 0}
+                    isPending={isMerging}
+                    onPress={() => void handleMergeAndRemove()}
+                  >
+                    {({ isPending }) => (
+                      <>
+                        {isPending ? (
+                          <Spinner color="current" size="sm" />
+                        ) : (
+                          <GitMerge className="size-3.5" />
+                        )}
+                        Merge & Remove Worktree
+                      </>
+                    )}
+                  </Button>
+                  <Dropdown>
+                    <Button
+                      isIconOnly
+                      variant="tertiary"
+                      aria-label="More merge options"
+                      isDisabled={isMerging || commitsAhead === 0}
+                    >
+                      <ButtonGroup.Separator />
+                      <ChevronDown className="size-3.5" />
+                    </Button>
+                    <Dropdown.Popover placement="top end">
+                      <Dropdown.Menu
+                        aria-label="Merge options"
+                        onAction={(key) => {
+                          if (key === "merge-only") void handleMergeOnly();
+                        }}
+                      >
+                        <Dropdown.Item id="merge-only" textValue="Merge Worktree">
+                          <GitMerge className="size-3.5" />
+                          <Label>Merge Worktree</Label>
+                        </Dropdown.Item>
+                      </Dropdown.Menu>
+                    </Dropdown.Popover>
+                  </Dropdown>
+                </ButtonGroup>
                 <p className="text-center text-xs text-muted/60">
                   {worktreeBranch} → {sourceBranch}
+                  {commitsAhead === 0 ? " · no new commits" : ` · ${commitsAhead} ahead`}
                 </p>
               </>
             ) : (

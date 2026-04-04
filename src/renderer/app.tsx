@@ -13,6 +13,7 @@ import { DevTerminalPanel } from "./components/devTerminal/DevTerminalPanel";
 import { PageLayout } from "./components/layout/PageLayout";
 import { OverlayShell } from "./components/layout/OverlayShell";
 import { SplitPaneContainer } from "./components/layout/SplitPaneContainer";
+import { ProjectSettingsOverlay } from "./components/settings/ProjectSettingsOverlay";
 import { SettingsOverlay } from "./components/settings/SettingsOverlay";
 import { Sidebar } from "./components/sidebar/Sidebar";
 import {
@@ -488,6 +489,18 @@ function AppContent() {
                   startPoint: worktreeBaseBranch,
                 });
                 worktreePath = result.path;
+
+                // Run setup script if configured
+                const setupScript = project.scripts?.setupScript;
+                if (setupScript) {
+                  const wtLocation = buildWorktreeLocation(project.location, result.path);
+                  const store = useDevTerminalStore.getState();
+                  const tab = store.addTab(project.id, "setup", result.path);
+                  store.openWorktreePanel(project.id, result.path);
+                  store.setActiveTab(tab.id);
+                  void readBridge().startShell({ shellId: tab.id, projectLocation: wtLocation });
+                  writeScriptToShell(tab.id, setupScript);
+                }
               } catch (err) {
                 console.error("[renderer] failed to create worktree:", err);
                 return;
@@ -646,6 +659,21 @@ function AppContent() {
   );
 }
 
+/** Write a script into a shell once the prompt is ready. Lines are joined with && for sequential execution. */
+function writeScriptToShell(shellId: string, script: string) {
+  const command = script
+    .split(/\r?\n/)
+    .map((l) => l.trim())
+    .filter((l) => l !== "" && !l.startsWith("#"))
+    .join(" && ");
+  const unsub = readBridge().onSupervisorEvent((event) => {
+    if (event.type === "thread-output" && event.threadId === shellId) {
+      unsub();
+      void readBridge().writeTerminal({ threadId: shellId, data: command + "\r" });
+    }
+  });
+}
+
 export function App() {
   const projects = useAppStore((state) => state.projects);
   const view = useAppStore((state) => state.view);
@@ -678,6 +706,7 @@ export function App() {
     return ids;
   }, []);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [projectSettingsId, setProjectSettingsId] = useState<string | null>(null);
   const [gitReviewContext, setGitReviewContext] = useState<{
     projectId: string;
     worktreePath?: string | undefined;
@@ -743,11 +772,60 @@ export function App() {
     },
   );
 
+  function autoDetectSetupScript(project: Project) {
+    void readBridge()
+      .detectSetupScript({ projectLocation: project.location })
+      .then((result) => {
+        if (result.setupScript) {
+          useAppStore.getState().updateProjectScripts(project.id, {
+            setupScript: result.setupScript,
+            actions: [],
+          });
+        }
+      })
+      .catch(() => undefined);
+  }
+
+  function runProjectAction(projectId: string, actionId: string, worktreePath?: string) {
+    const project = projects.find((p) => p.id === projectId);
+    if (!project) return;
+    const action = project.scripts?.actions?.find((a) => a.id === actionId);
+    if (!action) return;
+
+    const location = worktreePath
+      ? buildWorktreeLocation(project.location, worktreePath)
+      : project.location;
+
+    const store = useDevTerminalStore.getState();
+    const tabLabel = `${action.name}`;
+    const tab = store.addTab(projectId, tabLabel, worktreePath);
+
+    if (worktreePath) {
+      store.openWorktreePanel(projectId, worktreePath);
+    } else {
+      store.openPanel(projectId);
+    }
+    store.setActiveTab(tab.id);
+
+    void readBridge().startShell({ shellId: tab.id, projectLocation: location });
+    writeScriptToShell(tab.id, action.command);
+  }
+
   async function performWorktreeRemoval(
     project: Project,
     worktreePath: string,
     worktreeBranch?: string,
   ) {
+    // Run cleanup script if configured (best-effort, fire-and-forget)
+    const cleanupScript = project.scripts?.cleanupScript;
+    if (cleanupScript) {
+      const wtLocation = buildWorktreeLocation(project.location, worktreePath);
+      const store = useDevTerminalStore.getState();
+      const tab = store.addTab(project.id, "cleanup", worktreePath);
+      void readBridge().startShell({ shellId: tab.id, projectLocation: wtLocation });
+      writeScriptToShell(tab.id, cleanupScript);
+    }
+
     const removedTabIds = useDevTerminalStore.getState().removeTabsForWorktree(worktreePath);
     for (const tabId of removedTabIds) {
       void readBridge()
@@ -765,7 +843,7 @@ export function App() {
       await readBridge().gitRemoveWorktree({
         projectLocation: project.location,
         path: worktreePath,
-        force: false,
+        force: true,
       });
     } catch (err: unknown) {
       const branch = worktreeBranch ?? worktreePath.split(/[/\\]/).pop() ?? worktreePath;
@@ -1093,6 +1171,7 @@ export function App() {
                             if (!path) return;
                             startTransition(() => {
                               const project = addProject({ kind: "windows", path });
+                              autoDetectSetupScript(project);
                               openDraft(project.id);
                             });
                           });
@@ -1118,6 +1197,7 @@ export function App() {
                                 linuxPath: parsed.linuxPath,
                                 uncPath: selectedPath,
                               });
+                              autoDetectSetupScript(project);
                               openDraft(project.id);
                             });
                           });
@@ -1149,6 +1229,7 @@ export function App() {
                       if (!path) return;
                       startTransition(() => {
                         const project = addProject({ kind: "posix", path });
+                        autoDetectSetupScript(project);
                         openDraft(project.id);
                       });
                     });
@@ -1430,6 +1511,10 @@ export function App() {
 
               void performWorktreeRemoval(project, worktreePath, sampleThread?.worktreeBranch);
             }}
+            onOpenProjectSettings={(projectId) => setProjectSettingsId(projectId)}
+            onRunProjectAction={(projectId, actionId, worktreePath) => {
+              runProjectAction(projectId, actionId, worktreePath);
+            }}
             onOpenTerminal={(projectId) => {
               const project = projects.find((p) => p.id === projectId);
               if (!project) return;
@@ -1528,6 +1613,14 @@ export function App() {
       />
       <OverlayShell open={settingsOpen}>
         <SettingsOverlay onClose={() => setSettingsOpen(false)} />
+      </OverlayShell>
+      <OverlayShell open={!!projectSettingsId} onExited={() => setProjectSettingsId(null)}>
+        {projectSettingsId && (
+          <ProjectSettingsOverlay
+            projectId={projectSettingsId}
+            onClose={() => setProjectSettingsId(null)}
+          />
+        )}
       </OverlayShell>
       <OverlayShell open={!!gitReviewContext} onExited={() => setGitReviewContext(null)}>
         {gitReviewContext && (

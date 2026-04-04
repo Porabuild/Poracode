@@ -7,6 +7,7 @@ import type {
   Project,
   ProjectDraftConfig,
   ProjectLocation,
+  ProjectScripts,
   PromptSegment,
   SessionRef,
   Thread,
@@ -88,6 +89,8 @@ interface AppStoreState {
   addProject: (location: ProjectLocation, nameOverride?: string) => Project;
   deleteProject: (projectId: string) => void;
   updateProjectDraftConfig: (projectId: string, draftConfig: ProjectDraftConfig) => void;
+  updateProjectScripts: (projectId: string, scripts: ProjectScripts) => void;
+  renameProject: (projectId: string, name: string) => void;
   openDraft: (projectId: string) => void;
   openHome: () => void;
   openThread: (threadId: string) => void;
@@ -286,6 +289,18 @@ export const useAppStore = create<AppStoreState>()(
         set((state) => ({
           projects: state.projects.map((project) =>
             project.id === projectId ? { ...project, lastDraftConfig: draftConfig } : project,
+          ),
+        })),
+      updateProjectScripts: (projectId, scripts) =>
+        set((state) => ({
+          projects: state.projects.map((project) =>
+            project.id === projectId ? { ...project, scripts } : project,
+          ),
+        })),
+      renameProject: (projectId, name) =>
+        set((state) => ({
+          projects: state.projects.map((project) =>
+            project.id === projectId ? { ...project, name } : project,
           ),
         })),
       openDraft: (projectId) => set({ view: { kind: "draft", projectId } }),

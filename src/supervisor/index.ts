@@ -23,6 +23,7 @@ import type {
   GitStagePayload,
   GitSyncPayload,
   GitUnstageAllPayload,
+  DetectSetupScriptPayload,
   SearchProjectFilesPayload,
   GitUnstagePayload,
   ResizeTerminalPayload,
@@ -52,6 +53,7 @@ import {
   gitPullFromSourcePayloadSchema,
   gitRemoveWorktreePayloadSchema,
   gitSyncPayloadSchema,
+  detectSetupScriptPayloadSchema,
   searchProjectFilesPayloadSchema,
   generateCommitMessagePayloadSchema,
   generateTitlePayloadSchema,
@@ -201,6 +203,10 @@ async function handleRequest(request: SupervisorRequest): Promise<unknown> {
     case "searchProjectFiles":
       return runtime.searchProjectFiles(
         searchProjectFilesPayloadSchema.parse(request.payload) as SearchProjectFilesPayload,
+      );
+    case "detectSetupScript":
+      return runtime.detectSetupScript(
+        detectSetupScriptPayloadSchema.parse(request.payload) as DetectSetupScriptPayload,
       );
     default: {
       const exhaustive: never = request;

@@ -118,11 +118,27 @@ export const projectDraftConfigSchema = z.object({
 });
 export type ProjectDraftConfig = z.infer<typeof projectDraftConfigSchema>;
 
+export const projectActionSchema = z.object({
+  id: z.string().min(1),
+  name: z.string().min(1),
+  command: z.string().min(1),
+  icon: z.string().optional(),
+});
+export type ProjectAction = z.infer<typeof projectActionSchema>;
+
+export const projectScriptsSchema = z.object({
+  setupScript: z.string().optional(),
+  cleanupScript: z.string().optional(),
+  actions: z.array(projectActionSchema).default([]),
+});
+export type ProjectScripts = z.infer<typeof projectScriptsSchema>;
+
 export const projectSchema = z.object({
   id: z.string().min(1),
   name: z.string().min(1),
   location: projectLocationSchema,
   lastDraftConfig: projectDraftConfigSchema.optional(),
+  scripts: projectScriptsSchema.optional(),
   createdAt: z.string().min(1),
 });
 export type Project = z.infer<typeof projectSchema>;
@@ -471,6 +487,8 @@ export type GitGetWorktreeSourceBranchPayload = z.infer<
 
 export interface GitGetWorktreeSourceBranchResult {
   sourceBranch: string | null;
+  /** Number of commits worktree branch is ahead of source (0 = nothing to merge). */
+  commitsAhead: number;
 }
 
 export const gitMergeToSourcePayloadSchema = z.object({
@@ -523,6 +541,15 @@ export const searchProjectFilesPayloadSchema = z.object({
   limit: z.number().int().min(1).max(200).default(50),
 });
 export type SearchProjectFilesPayload = z.infer<typeof searchProjectFilesPayloadSchema>;
+
+export const detectSetupScriptPayloadSchema = z.object({
+  projectLocation: projectLocationSchema,
+});
+export type DetectSetupScriptPayload = z.infer<typeof detectSetupScriptPayloadSchema>;
+
+export interface DetectSetupScriptResult {
+  setupScript?: string;
+}
 
 export type AppView =
   | { kind: "home" }

@@ -520,13 +520,24 @@ export class GitService {
     branch: string,
   ): Promise<GitGetWorktreeSourceBranchResult> {
     const git = createGit(location);
+    let sourceBranch: string | null = null;
     try {
       const result = await git.raw(["config", "--get", `branch.${branch}.lightcodeSource`]);
-      const sourceBranch = result.trim();
-      return { sourceBranch: sourceBranch || null };
+      sourceBranch = result.trim() || null;
     } catch {
-      return { sourceBranch: null };
+      // no source branch configured
     }
+
+    let commitsAhead = 0;
+    if (sourceBranch) {
+      try {
+        const count = await git.raw(["rev-list", "--count", `${sourceBranch}..${branch}`]);
+        commitsAhead = parseInt(count.trim(), 10) || 0;
+      } catch {
+        // branches may not share history
+      }
+    }
+    return { sourceBranch, commitsAhead };
   }
 
   // ── Merge to source ─────────────────────────────────────

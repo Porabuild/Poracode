@@ -10,6 +10,7 @@ import {
   PanelLeft,
   PanelLeftClose,
   Pencil,
+  Play,
   Plus,
   RefreshCw,
   Settings2,
@@ -26,6 +27,7 @@ import { useSidebar } from "../layout/AppShell";
 import { isWindows, readBridge } from "../../bridge";
 import { useUpdateStore } from "../../state/updateStore";
 import { ProviderIcon, getStatusTone } from "../providers";
+import { resolveActionIcon } from "../settings/ProjectSettingsOverlay";
 import { GitBadge } from "./GitBadge";
 import { groupThreadsByWorktree } from "./groupThreadsByWorktree";
 import { WorktreeGroupHeader } from "./WorktreeGroupHeader";
@@ -232,6 +234,8 @@ export function Sidebar(props: {
   onGitMergeToSource: (projectId: string, worktreePath: string) => void;
   onGitMergeAndRemove: (projectId: string, worktreePath: string) => void;
   onGitPullFromSource: (projectId: string, worktreePath: string) => void;
+  onOpenProjectSettings: (projectId: string) => void;
+  onRunProjectAction: (projectId: string, actionId: string, worktreePath?: string) => void;
   terminalProjectIds: string[];
   activeTerminalProjectId: string | null;
   activeWorktreeTerminalPaths: string[];
@@ -269,6 +273,8 @@ export function Sidebar(props: {
     onGitMergeToSource,
     onGitMergeAndRemove,
     onGitPullFromSource,
+    onOpenProjectSettings,
+    onRunProjectAction,
     terminalProjectIds,
     activeTerminalProjectId,
     activeWorktreeTerminalPaths,
@@ -392,13 +398,12 @@ export function Sidebar(props: {
                     <ContextMenu
                       items={[
                         {
-                          id: "remove-project",
-                          label: "Remove Project",
-                          icon: <Trash2 className="size-3.5" />,
-                          variant: "danger",
+                          id: "project-settings",
+                          label: "Project Settings",
+                          icon: <Settings2 className="size-3.5" />,
                         },
                         {
-                          type: "submenu",
+                          type: "submenu" as const,
                           id: "git",
                           label: "Git",
                           icon: <GitFork className="size-3.5" />,
@@ -415,11 +420,36 @@ export function Sidebar(props: {
                             },
                           ],
                         },
+                        ...(project.scripts?.actions?.length
+                          ? [
+                              {
+                                type: "submenu" as const,
+                                id: "run-action",
+                                label: "Run",
+                                icon: <Play className="size-3.5" />,
+                                items: project.scripts.actions.map((action) => ({
+                                  id: `action:${action.id}`,
+                                  label: action.name,
+                                  icon: resolveActionIcon(action.icon),
+                                })),
+                              },
+                            ]
+                          : []),
+                        {
+                          id: "remove-project",
+                          label: "Remove Project",
+                          icon: <Trash2 className="size-3.5" />,
+                          variant: "danger" as const,
+                        },
                       ]}
                       onAction={(key) => {
+                        if (key === "project-settings") onOpenProjectSettings(project.id);
                         if (key === "remove-project") onDeleteProject(project.id);
                         if (key === "git-review") onOpenGitReview(project.id);
                         if (key === "git-sync") onGitSync(project.id);
+                        if (key.startsWith("action:")) {
+                          onRunProjectAction(project.id, key.slice("action:".length));
+                        }
                       }}
                     >
                       <SidebarButton
@@ -887,14 +917,29 @@ export function Sidebar(props: {
                                       label: "Git Review",
                                       icon: <FileDiff className="size-3.5" />,
                                     },
+                                    ...(project.scripts?.actions?.length
+                                      ? [
+                                          {
+                                            type: "submenu" as const,
+                                            id: "run-action",
+                                            label: "Run",
+                                            icon: <Play className="size-3.5" />,
+                                            items: project.scripts.actions.map((action) => ({
+                                              id: `action:${action.id}`,
+                                              label: action.name,
+                                              icon: resolveActionIcon(action.icon),
+                                            })),
+                                          },
+                                        ]
+                                      : []),
                                     {
                                       id: "delete-worktree",
                                       label: "Delete Worktree",
                                       icon: <Trash2 className="size-3.5" />,
-                                      variant: "danger",
+                                      variant: "danger" as const,
                                     },
                                     {
-                                      type: "submenu",
+                                      type: "submenu" as const,
                                       id: "git",
                                       label: "Git",
                                       icon: <GitFork className="size-3.5" />,
@@ -911,7 +956,7 @@ export function Sidebar(props: {
                                         },
                                         {
                                           id: "git-merge-to-source",
-                                          label: "Merge to Source",
+                                          label: "Merge Worktree",
                                           icon: <GitMerge className="size-3.5" />,
                                         },
                                         {
@@ -944,6 +989,13 @@ export function Sidebar(props: {
                                     }
                                     if (key === "git-merge-and-remove") {
                                       onGitMergeAndRemove(project.id, group.worktreePath);
+                                    }
+                                    if (key.startsWith("action:")) {
+                                      onRunProjectAction(
+                                        project.id,
+                                        key.slice("action:".length),
+                                        group.worktreePath,
+                                      );
                                     }
                                   }}
                                 >

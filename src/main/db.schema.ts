@@ -9,6 +9,7 @@ export const projects = sqliteTable("projects", {
   locationLinuxPath: text("location_linux_path"), // for wsl
   locationUncPath: text("location_unc_path"), // for wsl
   lastDraftConfig: text("last_draft_config"), // JSON
+  scripts: text("scripts"), // JSON
   sortOrder: integer("sort_order").notNull().default(0),
   createdAt: text("created_at").notNull(),
 });

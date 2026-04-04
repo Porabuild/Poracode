@@ -1,6 +1,8 @@
 import type {
   AgentStatus,
   CloseThreadPayload,
+  DetectSetupScriptPayload,
+  DetectSetupScriptResult,
   GenerateCommitMessagePayload,
   GenerateCommitMessageResult,
   GenerateTitlePayload,
@@ -99,7 +101,8 @@ export type SupervisorRequest =
     }
   | { id: string; type: "gitMergeToSource"; payload: GitMergeToSourcePayload }
   | { id: string; type: "gitPullFromSource"; payload: GitPullFromSourcePayload }
-  | { id: string; type: "searchProjectFiles"; payload: SearchProjectFilesPayload };
+  | { id: string; type: "searchProjectFiles"; payload: SearchProjectFilesPayload }
+  | { id: string; type: "detectSetupScript"; payload: DetectSetupScriptPayload };
 
 export type SupervisorReply =
   | { replyTo: string; ok: true; data: unknown }
@@ -200,6 +203,7 @@ export interface LightcodeBridge {
   gitMergeToSource(payload: GitMergeToSourcePayload): Promise<GitMergeToSourceResult>;
   gitPullFromSource(payload: GitPullFromSourcePayload): Promise<GitPullFromSourceResult>;
   searchProjectFiles(payload: SearchProjectFilesPayload): Promise<SearchProjectFilesResult>;
+  detectSetupScript(payload: DetectSetupScriptPayload): Promise<DetectSetupScriptResult>;
   getSharedSettings(): Promise<SharedSettings>;
   setSharedSettings(settings: SharedSettings): Promise<void>;
   setWindowChrome(payload: WindowChromePayload): Promise<void>;

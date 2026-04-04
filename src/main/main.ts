@@ -73,6 +73,7 @@ const CHANNELS = {
   gitMergeToSource: "lightcode:git-merge-to-source",
   gitPullFromSource: "lightcode:git-pull-from-source",
   searchProjectFiles: "lightcode:search-project-files",
+  detectSetupScript: "lightcode:detect-setup-script",
   getSharedSettings: "lightcode:get-shared-settings",
   setSharedSettings: "lightcode:set-shared-settings",
   setWindowChrome: "lightcode:set-window-chrome",
@@ -532,6 +533,9 @@ function registerIpcHandlers(): void {
   );
   ipcMain.handle(CHANNELS.searchProjectFiles, async (_event, payload) =>
     callSupervisor("searchProjectFiles", payload),
+  );
+  ipcMain.handle(CHANNELS.detectSetupScript, async (_event, payload) =>
+    callSupervisor("detectSetupScript", payload),
   );
 
   ipcMain.handle(CHANNELS.getSharedSettings, () =>

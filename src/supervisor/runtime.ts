@@ -41,6 +41,8 @@ import type {
   GitStatusResult,
   GitSyncPayload,
   GitSyncResult,
+  DetectSetupScriptPayload,
+  DetectSetupScriptResult,
   SearchProjectFilesPayload,
   SearchProjectFilesResult,
   GitAddWorktreePayload,
@@ -89,6 +91,7 @@ import {
   type StructuredSessionHandle,
   defaultFormatPromptSegments,
   getWslCommand,
+  readWslCommandOutputAsync,
 } from "./agents/base";
 import { generateCommitMessage } from "./commitMessageGenerator";
 import { generateTitle } from "./titleGenerator";
@@ -950,6 +953,49 @@ export class SupervisorRuntime {
 
   async searchProjectFiles(payload: SearchProjectFilesPayload): Promise<SearchProjectFilesResult> {
     return this.fileIndexService.searchProjectFiles(payload);
+  }
+
+  async detectSetupScript(payload: DetectSetupScriptPayload): Promise<DetectSetupScriptResult> {
+    // Lock files in priority order — first match wins.
+    const candidates: { file: string; command: string }[] = [
+      { file: "pnpm-lock.yaml", command: "pnpm install" },
+      { file: "bun.lockb", command: "bun install" },
+      { file: "bun.lock", command: "bun install" },
+      { file: "yarn.lock", command: "yarn install" },
+      { file: "package-lock.json", command: "npm install" },
+      { file: "poetry.lock", command: "poetry install" },
+      { file: "Pipfile.lock", command: "pipenv install" },
+      { file: "requirements.txt", command: "pip install -r requirements.txt" },
+      { file: "Cargo.lock", command: "cargo fetch" },
+      { file: "go.sum", command: "go mod download" },
+      { file: "Gemfile.lock", command: "bundle install" },
+      { file: "composer.lock", command: "composer install" },
+    ];
+
+    const location = payload.projectLocation;
+
+    if (location.kind === "wsl") {
+      // Check files via a single WSL command for efficiency.
+      const checks = candidates.map((c) => `test -f "${location.linuxPath}/${c.file}" && echo yes || echo no`);
+      const script = checks.join(" && echo '---' && ");
+      const result = await readWslCommandOutputAsync(location.distro, "sh", ["-c", script]);
+      if (result.ok) {
+        const answers = result.stdout.split("---").map((s) => s.trim());
+        for (let i = 0; i < candidates.length; i++) {
+          if (answers[i] === "yes") return { setupScript: candidates[i]!.command };
+        }
+      }
+      return {};
+    }
+
+    // Native filesystem check (Windows / POSIX).
+    const dir = location.path;
+    for (const candidate of candidates) {
+      if (existsSync(join(dir, candidate.file))) {
+        return { setupScript: candidate.command };
+      }
+    }
+    return {};
   }
 
   async resolveThreadServerRequest(payload: ResolveThreadServerRequestPayload): Promise<void> {

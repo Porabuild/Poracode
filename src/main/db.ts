@@ -65,6 +65,9 @@ export function initDatabase(dbPath: string) {
   if (!threadCols.some((c) => c.name === "worktree_branch")) {
     sqlite.exec("ALTER TABLE threads ADD COLUMN worktree_branch TEXT");
   }
+  if (!projectCols.some((c) => c.name === "scripts")) {
+    sqlite.exec("ALTER TABLE projects ADD COLUMN scripts TEXT");
+  }
 
   console.log("[db] initialized");
   return _db;
@@ -120,6 +123,7 @@ function rowToProject(row: typeof schema.projects.$inferSelect): Project {
     name: row.name,
     location: rowToLocation(row),
     ...(row.lastDraftConfig ? { lastDraftConfig: JSON.parse(row.lastDraftConfig) } : {}),
+    ...(row.scripts ? { scripts: JSON.parse(row.scripts) } : {}),
     createdAt: row.createdAt,
   };
 }
@@ -186,6 +190,7 @@ export function dbUpsertProject(project: Project, sortOrder: number): void {
       name: project.name,
       ...locationToRow(project.location),
       lastDraftConfig: project.lastDraftConfig ? JSON.stringify(project.lastDraftConfig) : null,
+      scripts: project.scripts ? JSON.stringify(project.scripts) : null,
       sortOrder,
       createdAt: project.createdAt,
     })
@@ -195,6 +200,7 @@ export function dbUpsertProject(project: Project, sortOrder: number): void {
         name: project.name,
         ...locationToRow(project.location),
         lastDraftConfig: project.lastDraftConfig ? JSON.stringify(project.lastDraftConfig) : null,
+        scripts: project.scripts ? JSON.stringify(project.scripts) : null,
         sortOrder,
       },
     })
