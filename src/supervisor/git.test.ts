@@ -2,7 +2,7 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { gitMock, readWslCommandOutputAsync, simpleGitMock } = vi.hoisted(() => ({
+const { gitMock, readWslCommandOutputAsync, rmMock, simpleGitMock } = vi.hoisted(() => ({
   gitMock: {
     add: vi.fn(),
     checkIsRepo: vi.fn(),
@@ -17,12 +17,21 @@ const { gitMock, readWslCommandOutputAsync, simpleGitMock } = vi.hoisted(() => (
     status: vi.fn(),
   },
   readWslCommandOutputAsync: vi.fn(),
+  rmMock: vi.fn(),
   simpleGitMock: vi.fn(),
 }));
 
 vi.mock("./agents/base", () => ({
   readWslCommandOutputAsync,
 }));
+
+vi.mock("node:fs/promises", async () => {
+  const actual = await vi.importActual<typeof import("node:fs/promises")>("node:fs/promises");
+  return {
+    ...actual,
+    rm: rmMock,
+  };
+});
 
 vi.mock("simple-git", () => ({
   simpleGit: simpleGitMock,
@@ -360,6 +369,53 @@ describe("GitService.mergeToSource (non-FF path)", () => {
 
     // The merge call on the temp worktree should include --no-ff
     expect(gitMock.merge).toHaveBeenCalledWith(["feature", "--no-edit", "--no-ff"]);
+  });
+});
+
+describe("GitService.removeWorktree", () => {
+  const location = {
+    kind: "windows" as const,
+    path: "C:\\Users\\demo\\work\\repo",
+  };
+  const worktreePath = "C:\\Users\\demo\\.lightcode\\worktrees\\repo-12345678\\feature-x";
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    simpleGitMock.mockReturnValue(gitMock);
+    rmMock.mockResolvedValue(undefined);
+  });
+
+  it("removes residual directories when git already detached the worktree", async () => {
+    gitMock.raw
+      .mockRejectedValueOnce(
+        new Error(`fatal: failed to delete '${worktreePath}': Directory not empty`),
+      )
+      .mockResolvedValueOnce(
+        `worktree ${location.path}\nHEAD abc123\nbranch refs/heads/main\n\n`,
+      );
+
+    await new GitService().removeWorktree(location, worktreePath, true);
+
+    expect(rmMock).toHaveBeenCalledWith(worktreePath, {
+      recursive: true,
+      force: true,
+      maxRetries: 5,
+      retryDelay: 150,
+    });
+  });
+
+  it("rethrows when git still reports the worktree as attached", async () => {
+    const error = new Error(`fatal: failed to delete '${worktreePath}': Directory not empty`);
+    gitMock.raw
+      .mockRejectedValueOnce(error)
+      .mockResolvedValueOnce(
+        `worktree ${location.path}\nHEAD abc123\nbranch refs/heads/main\n\nworktree ${worktreePath.replace(/\\/g, "/")}\nHEAD def456\nbranch refs/heads/feature-x\n\n`,
+      );
+
+    await expect(new GitService().removeWorktree(location, worktreePath, true)).rejects.toThrow(
+      error.message,
+    );
+    expect(rmMock).not.toHaveBeenCalled();
   });
 });
 

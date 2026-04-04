@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { mkdir, readFile } from "node:fs/promises";
+import { mkdir, readFile, rm } from "node:fs/promises";
 import { homedir } from "node:os";
 import { dirname, join, normalize, posix } from "node:path";
 import { simpleGit, type SimpleGit, type FileStatusResult } from "simple-git";
@@ -33,6 +33,10 @@ function getRepoPath(location: ProjectLocation): string {
 /** Convert backslash paths to forward-slash (for UNC paths, git file paths, etc.). */
 function toForwardSlash(p: string): string {
   return p.replace(/\\/g, "/");
+}
+
+function normalizeWorktreePath(location: ProjectLocation, path: string): string {
+  return location.kind === "wsl" ? path : normalize(path);
 }
 
 export function createGit(location: ProjectLocation): SimpleGit {
@@ -552,7 +556,15 @@ export class GitService {
   async removeWorktree(location: ProjectLocation, path: string, force: boolean): Promise<void> {
     const git = createGit(location);
     const args = ["worktree", "remove", ...(force ? ["--force"] : []), path];
-    await git.raw(args);
+    try {
+      await git.raw(args);
+    } catch (error) {
+      if (!(await this.shouldRetryResidualWorktreeCleanup(location, path, error))) {
+        throw error;
+      }
+
+      await this.removeResidualWorktreeDirectory(location, path, error);
+    }
   }
 
   async deleteBranch(location: ProjectLocation, branch: string, force: boolean): Promise<void> {
@@ -784,6 +796,50 @@ export class GitService {
         success: false,
         error: err instanceof Error ? err.message : String(err),
       };
+    }
+  }
+
+  private async shouldRetryResidualWorktreeCleanup(
+    location: ProjectLocation,
+    path: string,
+    error: unknown,
+  ): Promise<boolean> {
+    const message = error instanceof Error ? error.message : String(error);
+    const looksLikeDeleteFailure =
+      /failed to delete/i.test(message) ||
+      /directory not empty/i.test(message) ||
+      /access is denied/i.test(message) ||
+      /device or resource busy/i.test(message);
+    if (!looksLikeDeleteFailure) {
+      return false;
+    }
+
+    const targetPath = normalizeWorktreePath(location, path);
+    const { worktrees } = await this.listWorktrees(location);
+    return !worktrees.some((worktree) => normalizeWorktreePath(location, worktree.path) === targetPath);
+  }
+
+  private async removeResidualWorktreeDirectory(
+    location: ProjectLocation,
+    path: string,
+    originalError: unknown,
+  ): Promise<void> {
+    try {
+      if (location.kind === "wsl") {
+        const result = await readWslCommandOutputAsync(location.distro, "rm", ["-rf", "--", path]);
+        if (!result.ok) {
+          throw new Error(result.stderr || `Failed to remove residual worktree directory "${path}".`);
+        }
+        return;
+      }
+
+      await rm(path, { recursive: true, force: true, maxRetries: 5, retryDelay: 150 });
+    } catch (cleanupError) {
+      const originalMessage = originalError instanceof Error ? originalError.message : String(originalError);
+      const cleanupMessage = cleanupError instanceof Error ? cleanupError.message : String(cleanupError);
+      throw new Error(`${originalMessage}\nResidual cleanup failed: ${cleanupMessage}`, {
+        cause: cleanupError,
+      });
     }
   }
 

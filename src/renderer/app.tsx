@@ -157,10 +157,10 @@ const GIT_FETCH_INTERVAL_MS = 60_000;
 
 function formatRelativeTime(iso: string): string {
   const deltaMinutes = Math.max(1, Math.floor((Date.now() - new Date(iso).getTime()) / 60000));
-  if (deltaMinutes < 60) return `${deltaMinutes}m ago`;
+  if (deltaMinutes < 60) return `${deltaMinutes}m`;
   const deltaHours = Math.floor(deltaMinutes / 60);
-  if (deltaHours < 24) return `${deltaHours}h ago`;
-  return `${Math.floor(deltaHours / 24)}d ago`;
+  if (deltaHours < 24) return `${deltaHours}h`;
+  return `${Math.floor(deltaHours / 24)}d`;
 }
 
 function HomeView() {
@@ -235,9 +235,9 @@ function HomeView() {
                             {thread.title}
                           </p>
                           {project ? (
-                            <span className="shrink-0 text-xs text-muted">{project.name}</span>
+                            <span className="ml-3 shrink-0 text-xs text-muted">{project.name}</span>
                           ) : null}
-                          <span className="w-[6ch] shrink-0 text-right font-mono text-xs tabular-nums text-muted">
+                          <span className="ml-3 w-[3ch] shrink-0 text-right font-mono text-xs tabular-nums text-muted">
                             {formatRelativeTime(thread.updatedAt)}
                           </span>
                           <ArrowRight className="size-3.5 shrink-0 text-muted opacity-0 transition-opacity group-hover:opacity-100" />
@@ -660,19 +660,78 @@ function AppContent() {
   );
 }
 
-/** Write a script into a shell once the prompt is ready. Lines are joined with && for sequential execution. */
-function writeScriptToShell(shellId: string, script: string) {
-  const command = script
+/** Normalize multi-line shell snippets into a single sequential command string. */
+function normalizeShellScript(script: string): string {
+  return script
     .split(/\r?\n/)
     .map((l) => l.trim())
     .filter((l) => l !== "" && !l.startsWith("#"))
     .join(" && ");
+}
+
+/** Write a script into a shell once the prompt is ready. */
+function writeScriptToShell(shellId: string, script: string) {
+  const command = normalizeShellScript(script);
+  if (!command) return;
   const unsub = readBridge().onSupervisorEvent((event) => {
     if (event.type === "thread-output" && event.threadId === shellId) {
       unsub();
       void readBridge().writeTerminal({ threadId: shellId, data: command + "\r" });
     }
   });
+}
+
+async function runShellScriptToCompletion(
+  shellId: string,
+  projectLocation: ProjectLocation,
+  script: string,
+): Promise<void> {
+  const command = normalizeShellScript(script);
+  if (!command) return;
+
+  await readBridge().startShell({ shellId, projectLocation });
+
+  await new Promise<void>((resolve, reject) => {
+    let started = false;
+    let done = false;
+    let unsubscribe: () => void = () => undefined;
+    const timeout = window.setTimeout(() => {
+      if (done) return;
+      done = true;
+      unsubscribe();
+      void readBridge().closeThread({ threadId: shellId }).catch(() => undefined);
+      reject(new Error(`Timed out waiting for cleanup shell ${shellId}.`));
+    }, 30_000);
+    unsubscribe = readBridge().onSupervisorEvent((event) => {
+      if (done || !("threadId" in event) || event.threadId !== shellId) return;
+      if (event.type === "thread-output" && !started) {
+        started = true;
+        void readBridge()
+          .writeTerminal({ threadId: shellId, data: `${command}\rexit\r` })
+          .catch((error) => {
+            if (done) return;
+            done = true;
+            window.clearTimeout(timeout);
+            unsubscribe();
+            reject(error);
+          });
+        return;
+      }
+      if (event.type === "thread-exited") {
+        done = true;
+        window.clearTimeout(timeout);
+        unsubscribe();
+        resolve();
+      }
+    });
+  });
+}
+
+async function closeThreads(threadIds: readonly string[]): Promise<void> {
+  const uniqueThreadIds = [...new Set(threadIds.filter(Boolean))];
+  await Promise.allSettled(
+    uniqueThreadIds.map((threadId) => readBridge().closeThread({ threadId })),
+  );
 }
 
 export function App() {
@@ -817,22 +876,19 @@ export function App() {
     worktreePath: string,
     worktreeBranch?: string,
   ) {
-    // Run cleanup script if configured (best-effort, fire-and-forget)
+    // Run cleanup script before teardown so it can remove generated files
+    // without racing the worktree deletion itself.
     const cleanupScript = project.scripts?.cleanupScript;
     if (cleanupScript) {
       const wtLocation = buildWorktreeLocation(project.location, worktreePath);
-      const store = useDevTerminalStore.getState();
-      const tab = store.addTab(project.id, "cleanup", worktreePath);
-      void readBridge().startShell({ shellId: tab.id, projectLocation: wtLocation });
-      writeScriptToShell(tab.id, cleanupScript);
+      const cleanupShellId = `shell:${crypto.randomUUID()}`;
+      await runShellScriptToCompletion(cleanupShellId, wtLocation, cleanupScript).catch((error) => {
+        console.warn(`[renderer] cleanup script failed for ${worktreePath}:`, error);
+      });
     }
 
     const removedTabIds = useDevTerminalStore.getState().removeTabsForWorktree(worktreePath);
-    for (const tabId of removedTabIds) {
-      void readBridge()
-        .closeThread({ threadId: tabId })
-        .catch(() => undefined);
-    }
+    await closeThreads(removedTabIds);
 
     useGitStore.getState().clearWorktreeStatus(worktreePath);
 
@@ -1373,11 +1429,9 @@ export function App() {
                   const siblings = allThreads.filter((t) => t.worktreePath === worktreePath);
                   for (const sib of siblings) {
                     deleteThread(sib.id);
-                    void readBridge()
-                      .closeThread({ threadId: sib.id })
-                      .catch(() => undefined);
                   }
-                  void performWorktreeRemoval(project, worktreePath, thread.worktreeBranch);
+                  await closeThreads(siblings.map((sib) => sib.id));
+                  await performWorktreeRemoval(project, worktreePath, thread.worktreeBranch);
                 } catch {
                   // ignored — user can open git review for details
                 }
@@ -1488,19 +1542,16 @@ export function App() {
                   (t) => t.worktreePath === worktreePath && t.id !== threadId,
                 );
                 deleteThread(threadId);
-                void readBridge()
-                  .closeThread({ threadId })
-                  .catch(() => undefined);
                 for (const t of siblings) {
                   deleteThread(t.id);
-                  void readBridge()
-                    .closeThread({ threadId: t.id })
-                    .catch(() => undefined);
                 }
 
                 const project = projects.find((p) => p.id === projectId);
                 if (project) {
-                  void performWorktreeRemoval(project, worktreePath, thread?.worktreeBranch);
+                  void (async () => {
+                    await closeThreads([threadId, ...siblings.map((t) => t.id)]);
+                    await performWorktreeRemoval(project, worktreePath, thread?.worktreeBranch);
+                  })();
                 }
                 return;
               }
@@ -1558,12 +1609,12 @@ export function App() {
 
               for (const threadId of threadIds) {
                 deleteThread(threadId);
-                void readBridge()
-                  .closeThread({ threadId })
-                  .catch(() => undefined);
               }
 
-              void performWorktreeRemoval(project, worktreePath, sampleThread?.worktreeBranch);
+              void (async () => {
+                await closeThreads(threadIds);
+                await performWorktreeRemoval(project, worktreePath, sampleThread?.worktreeBranch);
+              })();
             }}
             onOpenProjectSettings={(projectId) => setProjectSettingsId(projectId)}
             onRunProjectAction={(projectId, actionId, worktreePath) => {
@@ -1717,11 +1768,11 @@ export function App() {
                         );
                         for (const sib of siblings) {
                           deleteThread(sib.id);
-                          void readBridge()
-                            .closeThread({ threadId: sib.id })
-                            .catch(() => undefined);
                         }
-                        void performWorktreeRemoval(reviewProject, wtPath, wtBranch);
+                        void (async () => {
+                          await closeThreads(siblings.map((sib) => sib.id));
+                          await performWorktreeRemoval(reviewProject, wtPath, wtBranch);
+                        })();
                       }
                     },
                   }
@@ -1753,23 +1804,23 @@ export function App() {
                   t.id !== worktreeDeleteDialog.threadId,
               );
             deleteThread(worktreeDeleteDialog.threadId);
-            void readBridge()
-              .closeThread({ threadId: worktreeDeleteDialog.threadId })
-              .catch(() => undefined);
             for (const t of siblings) {
               deleteThread(t.id);
-              void readBridge()
-                .closeThread({ threadId: t.id })
-                .catch(() => undefined);
             }
 
             const project = projects.find((p) => p.id === worktreeDeleteDialog.projectId);
             if (project) {
-              void performWorktreeRemoval(
-                project,
-                worktreeDeleteDialog.worktreePath,
-                worktreeDeleteDialog.worktreeBranch,
-              );
+              void (async () => {
+                await closeThreads([
+                  worktreeDeleteDialog.threadId,
+                  ...siblings.map((t) => t.id),
+                ]);
+                await performWorktreeRemoval(
+                  project,
+                  worktreeDeleteDialog.worktreePath,
+                  worktreeDeleteDialog.worktreeBranch,
+                );
+              })();
             }
             setWorktreeDeleteDialog(null);
           }}
