@@ -1,4 +1,5 @@
 import { useGitStore } from "../../state/gitStore";
+import { useShallow } from "zustand/shallow";
 
 export function GitBadge(props: {
   projectId: string;
@@ -6,10 +7,19 @@ export function GitBadge(props: {
   onPress: () => void;
   worktreePath?: string;
 }) {
-  const gitStatus = useGitStore((s) =>
-    props.worktreePath ? s.worktreeStatuses[props.worktreePath] : s.statuses[props.projectId],
+  const { isRepo, totalInsertions, totalDeletions } = useGitStore(
+    useShallow((s) => {
+      const gitStatus = props.worktreePath
+        ? s.worktreeStatuses[props.worktreePath]
+        : s.statuses[props.projectId];
+      return {
+        isRepo: gitStatus?.isRepo ?? false,
+        totalInsertions: gitStatus?.totalInsertions ?? 0,
+        totalDeletions: gitStatus?.totalDeletions ?? 0,
+      };
+    }),
   );
-  if (!gitStatus?.isRepo || (gitStatus.totalInsertions === 0 && gitStatus.totalDeletions === 0))
+  if (!isRepo || (totalInsertions === 0 && totalDeletions === 0))
     return null;
   return (
     <div
@@ -29,11 +39,11 @@ export function GitBadge(props: {
       }}
     >
       <span className="flex items-center gap-0.5 text-[10px] font-medium">
-        {gitStatus.totalInsertions > 0 && (
-          <span className="text-success">+{gitStatus.totalInsertions}</span>
+        {totalInsertions > 0 && (
+          <span className="text-success">+{totalInsertions}</span>
         )}
-        {gitStatus.totalDeletions > 0 && (
-          <span className="text-danger">-{gitStatus.totalDeletions}</span>
+        {totalDeletions > 0 && (
+          <span className="text-danger">-{totalDeletions}</span>
         )}
       </span>
     </div>
