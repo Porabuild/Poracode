@@ -1,6 +1,7 @@
-import { ToggleButton, ToggleButtonGroup, Tooltip } from "@heroui/react";
+import { Switch, ToggleButton, ToggleButtonGroup, Tooltip } from "@heroui/react";
 import {
   ArrowLeft,
+  Bot,
   GitBranch,
   Monitor,
   PanelLeft,
@@ -9,7 +10,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import { startTransition, useState } from "react";
-import type { AgentStatus, TerminalPosition, ThemeMode } from "../../../shared/contracts";
+import type { AgentSettingDef, AgentStatus, TerminalPosition, ThemeMode } from "../../../shared/contracts";
 import { useAppStore } from "../../state/appStore";
 import { useSharedSettings } from "../../state/sharedSettingsStore";
 import { resolveCommitGenConfig, resolveTitleGenConfig, resolveConflictResolverConfig } from "../providers";
@@ -28,7 +29,7 @@ const terminalPositionOptions = [
   { id: "bottom", label: "Bottom" },
 ] as const;
 
-type SettingsSection = "general" | "ai" | "git";
+type SettingsSection = "general" | "ai" | "agents" | "git";
 
 function SettingsSidebar(props: {
   activeSection: SettingsSection;
@@ -57,6 +58,13 @@ function SettingsSidebar(props: {
               label="AI"
               isActive={activeSection === "ai"}
               onPress={() => onSectionChange("ai")}
+            />
+            <SidebarButton
+              iconOnly
+              icon={<Bot className="size-4" />}
+              label="Agents"
+              isActive={activeSection === "agents"}
+              onPress={() => onSectionChange("agents")}
             />
             <SidebarButton
               iconOnly
@@ -100,6 +108,12 @@ function SettingsSidebar(props: {
               label="AI"
               isActive={activeSection === "ai"}
               onPress={() => onSectionChange("ai")}
+            />
+            <SidebarButton
+              icon={<Bot className="size-4" />}
+              label="Agents"
+              isActive={activeSection === "agents"}
+              onPress={() => onSectionChange("agents")}
             />
             <SidebarButton
               icon={<GitBranch className="size-4" />}
@@ -434,6 +448,83 @@ function AISettings() {
   );
 }
 
+function AgentSettingToggle(props: {
+  agentKind: string;
+  def: AgentSettingDef;
+}) {
+  const { agentKind, def } = props;
+  const value = useSharedSettings(
+    (s) => s.agentSettings[agentKind]?.[def.key] ?? def.default,
+  );
+  const setAgentSetting = useSharedSettings((s) => s.setAgentSetting);
+
+  return (
+    <div className="flex items-center justify-between gap-4">
+      <div className="min-w-0">
+        <p className="text-sm font-medium text-foreground">{def.label}</p>
+        <p className="text-xs text-muted">{def.description}</p>
+      </div>
+      <Switch
+        isSelected={value}
+        onChange={(selected) => {
+          startTransition(() => {
+            setAgentSetting(agentKind, def.key, selected);
+          });
+        }}
+      >
+        <Switch.Control>
+          <Switch.Thumb />
+        </Switch.Control>
+      </Switch>
+    </div>
+  );
+}
+
+function AgentSettings() {
+  const agentStatuses = useAppStore((s) => s.agentStatuses);
+  const platform = navigator.platform.toLowerCase().includes("win") ? "win32" : "posix";
+  const agentsWithSettings = agentStatuses.filter(
+    (a) =>
+      a.installed &&
+      a.capabilities.settingDefs &&
+      a.capabilities.settingDefs.some(
+        (def) => !def.platforms || def.platforms.includes(platform),
+      ),
+  );
+
+  return (
+    <div className="h-full min-h-0 overflow-y-auto px-6 pb-8">
+      <div className="mx-auto max-w-[560px]">
+        <h1 className="mb-6 text-lg font-semibold text-foreground">Agents</h1>
+
+        {agentsWithSettings.length === 0 ? (
+          <p className="text-sm text-muted">No agent-specific settings available.</p>
+        ) : (
+          <div className="space-y-8">
+            {agentsWithSettings.map((agent) => {
+              const defs = agent.capabilities.settingDefs!.filter(
+                (def) => !def.platforms || def.platforms.includes(platform),
+              );
+              return (
+                <div key={agent.kind} className="space-y-4">
+                  <h2 className="text-sm font-semibold text-muted">{agent.label}</h2>
+                  {defs.map((def) => (
+                    <AgentSettingToggle
+                      key={def.key}
+                      agentKind={agent.kind}
+                      def={def}
+                    />
+                  ))}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function GitSettings() {
   return (
     <div className="h-full min-h-0 overflow-y-auto px-6 pb-8">
@@ -465,6 +556,8 @@ export function SettingsOverlay(props: { onClose: () => void }) {
           <GeneralSettings />
         ) : activeSection === "ai" ? (
           <AISettings />
+        ) : activeSection === "agents" ? (
+          <AgentSettings />
         ) : activeSection === "git" ? (
           <GitSettings />
         ) : null

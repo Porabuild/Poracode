@@ -10,8 +10,8 @@ function ensureBaseDirectories(paths: LightcodePaths): void {
   mkdirSync(paths.cacheDir, { recursive: true });
 }
 
-export function prepareLightcodeDataRoot(legacyUserDataDir: string): LightcodePaths {
-  const paths = resolveLightcodePaths();
+export function prepareLightcodeDataRoot(legacyUserDataDir: string, baseDir?: string): LightcodePaths {
+  const paths = resolveLightcodePaths(baseDir);
   ensureBaseDirectories(paths);
 
   const legacyDbPath = join(legacyUserDataDir, "lightcode.db");

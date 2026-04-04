@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { fork, type ChildProcess } from "node:child_process";
 import { mkdirSync, rmSync, watch, writeFileSync } from "node:fs";
+import { homedir } from "node:os";
 import { join } from "node:path";
 import { app, BrowserWindow, dialog, ipcMain, net, protocol, screen, shell } from "electron";
 import { autoUpdater } from "electron-updater";
@@ -680,7 +681,10 @@ if (!hasSingleInstanceLock) {
       return net.fetch(pathToFileURL(filePath).href);
     });
 
-    lightcodePaths = prepareLightcodeDataRoot(app.getPath("userData"));
+    lightcodePaths = prepareLightcodeDataRoot(
+      app.getPath("userData"),
+      isDev ? join(homedir(), ".lightcode-dev") : undefined,
+    );
     initDatabase(lightcodePaths.dbPath);
     cleanupOrphanedAttachments(
       lightcodePaths.attachmentsDir,

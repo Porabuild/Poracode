@@ -65,6 +65,7 @@ const capabilities: AgentCapability = {
   liveInputMode: "server",
   presentationMode: "terminal",
   bypassApprovalPolicy: "full-auto",
+  settingDefs: [],
 };
 
 export const CODEX_REMOTE_TUI_FEATURE = "tui_app_server";

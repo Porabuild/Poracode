@@ -48,6 +48,23 @@ const capabilities: AgentCapability = {
   liveInputMode: "terminal",
   presentationMode: "terminal",
   bypassApprovalPolicy: "bypassPermissions",
+  settingDefs: [
+    {
+      key: "usePowershellTool",
+      envVar: "CLAUDE_CODE_USE_POWERSHELL_TOOL",
+      label: "Use PowerShell tool",
+      description: "Use PowerShell as the shell tool instead of Bash.",
+      default: false,
+      platforms: ["win32"],
+    },
+    {
+      key: "noFlicker",
+      envVar: "CLAUDE_CODE_NO_FLICKER",
+      label: "No flicker mode",
+      description: "Reduces terminal flicker in the Claude Code TUI.",
+      default: false,
+    },
+  ],
 };
 
 function buildClaudeArgs(

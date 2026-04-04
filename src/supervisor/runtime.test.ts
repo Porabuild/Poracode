@@ -631,6 +631,7 @@ describe("detectWslAgentStatuses", () => {
           supportsDirectInput: true,
           liveInputMode: "server" as const,
           presentationMode: "terminal" as const,
+          settingDefs: [],
         },
       }),
     );
@@ -651,6 +652,7 @@ describe("detectWslAgentStatuses", () => {
             supportsDirectInput: true,
             liveInputMode: "server",
             presentationMode: "terminal",
+            settingDefs: [],
           },
           detectInstall,
           buildLaunchCommand: vi.fn(),

@@ -13,6 +13,7 @@ const capabilities = {
   supportsDirectInput: true,
   liveInputMode: "terminal" as const,
   presentationMode: "terminal" as const,
+  settingDefs: [],
 };
 
 function makeStatus(kind: AgentStatus["kind"], input: Partial<AgentStatus> = {}): AgentStatus {

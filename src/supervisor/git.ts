@@ -569,7 +569,20 @@ export class GitService {
 
   async deleteBranch(location: ProjectLocation, branch: string, force: boolean): Promise<void> {
     const git = createGit(location);
-    await git.deleteLocalBranch(branch, force);
+    if (force) {
+      await git.deleteLocalBranch(branch, true);
+      return;
+    }
+
+    try {
+      await git.deleteLocalBranch(branch, false);
+    } catch (error) {
+      if (!(await this.canForceDeleteMergedWorktreeBranch(location, branch, error))) {
+        throw error;
+      }
+
+      await git.deleteLocalBranch(branch, true);
+    }
   }
 
   // ── Worktree source branch ──────────────────────────────
@@ -840,6 +853,43 @@ export class GitService {
       throw new Error(`${originalMessage}\nResidual cleanup failed: ${cleanupMessage}`, {
         cause: cleanupError,
       });
+    }
+  }
+
+  private async canForceDeleteMergedWorktreeBranch(
+    location: ProjectLocation,
+    branch: string,
+    error: unknown,
+  ): Promise<boolean> {
+    const message = error instanceof Error ? error.message : String(error);
+    if (!/not fully merged/i.test(message)) {
+      return false;
+    }
+
+    const sourceBranch = await this.readWorktreeSourceBranch(location, branch);
+    if (!sourceBranch) {
+      return false;
+    }
+
+    const git = createGit(location);
+    try {
+      await git.raw(["merge-base", "--is-ancestor", branch, sourceBranch]);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  private async readWorktreeSourceBranch(
+    location: ProjectLocation,
+    branch: string,
+  ): Promise<string | null> {
+    const git = createGit(location);
+    try {
+      const result = await git.raw(["config", "--get", `branch.${branch}.lightcodeSource`]);
+      return result.trim() || null;
+    } catch {
+      return null;
     }
   }
 

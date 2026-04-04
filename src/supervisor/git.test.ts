@@ -9,6 +9,7 @@ const { gitMock, readWslCommandOutputAsync, rmMock, simpleGitMock } = vi.hoisted
     checkout: vi.fn(),
     clean: vi.fn(),
     commit: vi.fn(),
+    deleteLocalBranch: vi.fn(),
     diffSummary: vi.fn(),
     getRemotes: vi.fn(),
     merge: vi.fn(),
@@ -416,6 +417,52 @@ describe("GitService.removeWorktree", () => {
       error.message,
     );
     expect(rmMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("GitService.deleteBranch", () => {
+  const location = {
+    kind: "windows" as const,
+    path: "C:\\Users\\demo\\work\\repo",
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    simpleGitMock.mockReturnValue(gitMock);
+  });
+
+  it("force-deletes a worktree branch that is merged into its configured source branch", async () => {
+    gitMock.deleteLocalBranch = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("error: The branch 'feature/x' is not fully merged."))
+      .mockResolvedValueOnce(undefined);
+    gitMock.raw.mockImplementation((args: string[]) => {
+      if (args[0] === "config") return Promise.resolve("main\n");
+      if (args[0] === "merge-base") return Promise.resolve("");
+      return Promise.resolve("");
+    });
+
+    await new GitService().deleteBranch(location, "feature/x", false);
+
+    expect(gitMock.deleteLocalBranch).toHaveBeenNthCalledWith(1, "feature/x", false);
+    expect(gitMock.raw).toHaveBeenCalledWith(["config", "--get", "branch.feature/x.lightcodeSource"]);
+    expect(gitMock.raw).toHaveBeenCalledWith(["merge-base", "--is-ancestor", "feature/x", "main"]);
+    expect(gitMock.deleteLocalBranch).toHaveBeenNthCalledWith(2, "feature/x", true);
+  });
+
+  it("preserves the not-fully-merged failure when the branch is not merged into its source branch", async () => {
+    const error = new Error("error: The branch 'feature/x' is not fully merged.");
+    gitMock.deleteLocalBranch = vi.fn().mockRejectedValue(error);
+    gitMock.raw.mockImplementation((args: string[]) => {
+      if (args[0] === "config") return Promise.resolve("main\n");
+      if (args[0] === "merge-base") return Promise.reject(new Error("not ancestor"));
+      return Promise.resolve("");
+    });
+
+    await expect(new GitService().deleteBranch(location, "feature/x", false)).rejects.toThrow(
+      error.message,
+    );
+    expect(gitMock.deleteLocalBranch).toHaveBeenCalledTimes(1);
   });
 });
 

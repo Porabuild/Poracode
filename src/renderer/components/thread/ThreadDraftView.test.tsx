@@ -66,6 +66,7 @@ const codexStatus: AgentStatus = {
     supportsDirectInput: true,
     liveInputMode: "server",
     presentationMode: "terminal",
+    settingDefs: [],
   },
 };
 
@@ -92,6 +93,7 @@ const geminiStatus: AgentStatus = {
     supportsDirectInput: true,
     liveInputMode: "terminal",
     presentationMode: "terminal",
+    settingDefs: [],
   },
 };
 

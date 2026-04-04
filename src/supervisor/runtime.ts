@@ -93,6 +93,7 @@ import type {
 import type { SupervisorEvent } from "../shared/ipc";
 import { stripAnsiPreservingLayout } from "../shared/ansi";
 import { resolveLightcodePaths } from "../shared/lightcodePaths";
+import { normalizeSharedSettings, defaultSharedSettings } from "../shared/settings";
 import { stripInternalHistoryMarkers } from "../shared/terminalHistory";
 import { normalizeWslListOutput } from "../shared/wsl";
 import { createAgentRegistry } from "./agents/registry";
@@ -285,6 +286,7 @@ function filterWslStatusesForDistros(
 export class SupervisorRuntime {
   private readonly isDev = Boolean(process.env.VITE_DEV_SERVER_URL);
   private readonly logsDir: string;
+  private readonly settingsPath: string;
   private readonly gitService = new GitService();
   private readonly githubService = new GitHubService();
   private readonly fileIndexService = new FileIndexService();
@@ -301,6 +303,7 @@ export class SupervisorRuntime {
     const baseDir = process.env.LIGHTCODE_DATA_DIR?.trim() || join(homedir(), ".lightcode");
     const paths = resolveLightcodePaths(baseDir);
     this.logsDir = paths.terminalLogsDir;
+    this.settingsPath = paths.settingsPath;
     this.statusCachePath = paths.statusCachePath;
     mkdirSync(paths.cacheDir, { recursive: true });
     resetTerminalLogsDir(this.logsDir);
@@ -1176,6 +1179,30 @@ export class SupervisorRuntime {
     return join(this.logsDir, `${threadId}.log`);
   }
 
+  private resolveAgentProcessEnv(adapter: AgentAdapter): Record<string, string> {
+    const settingDefs = adapter.capabilities.settingDefs ?? [];
+    if (settingDefs.length === 0) return {};
+
+    let settings = defaultSharedSettings;
+    try {
+      const raw = readFileSync(this.settingsPath, "utf8");
+      settings = normalizeSharedSettings(JSON.parse(raw));
+    } catch {
+      /* use defaults */
+    }
+
+    const agentValues = settings.agentSettings[adapter.kind] ?? {};
+    const env: Record<string, string> = {};
+    for (const def of settingDefs) {
+      if (def.platforms && !def.platforms.includes(process.platform)) continue;
+      const value = agentValues[def.key] ?? def.default;
+      if (value) {
+        env[def.envVar] = "1";
+      }
+    }
+    return env;
+  }
+
   private resolveHintLogPath(threadId: string): string {
     return join(this.logsDir, `${threadId}.hints.log`);
   }
@@ -1261,6 +1288,7 @@ export class SupervisorRuntime {
       threadId: input.threadId,
     });
 
+    const agentEnv = this.resolveAgentProcessEnv(input.adapter);
     console.log(
       `[supervisor] spawning PTY: ${input.command.command} ${input.command.args.join(" ")}`,
     );
@@ -1272,6 +1300,7 @@ export class SupervisorRuntime {
       env: {
         ...process.env,
         TERM: "xterm-256color",
+        ...agentEnv,
       },
     });
 

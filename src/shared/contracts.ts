@@ -80,6 +80,16 @@ export const labeledOptionSchema = z.object({
 });
 export type LabeledOption = z.infer<typeof labeledOptionSchema>;
 
+export const agentSettingDefSchema = z.object({
+  key: z.string().min(1),
+  envVar: z.string().min(1),
+  label: z.string().min(1),
+  description: z.string(),
+  default: z.boolean(),
+  platforms: z.array(z.string()).optional(),
+});
+export type AgentSettingDef = z.infer<typeof agentSettingDefSchema>;
+
 export const agentCapabilitySchema = z.object({
   models: z.array(labeledOptionSchema).default([]),
   efforts: z.array(z.string().min(1)).default([]),
@@ -94,6 +104,7 @@ export const agentCapabilitySchema = z.object({
   presentationMode: threadPresentationModeSchema.default("terminal"),
   /** Approval policy value that grants the agent full autonomy (no permission prompts). */
   bypassApprovalPolicy: z.string().optional(),
+  settingDefs: z.array(agentSettingDefSchema).default([]),
 });
 export type AgentCapability = z.infer<typeof agentCapabilitySchema>;
 

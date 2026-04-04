@@ -256,6 +256,7 @@ export function ThreadDraftView(props: {
                       ),
                     })),
                     value: selectedAgent.kind,
+                    hideLabelOnWrap: true,
                     onChange: (value) => setAgentKind(value as AgentStatus["kind"]),
                   },
                   ...(factory

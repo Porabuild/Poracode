@@ -133,7 +133,7 @@ function renderDropIndicator(position: ReorderPlacement) {
     <div
       aria-hidden="true"
       className={`pointer-events-none absolute inset-x-2 h-0.5 rounded-full bg-accent ${
-        position === "before" ? "top-0" : "bottom-0"
+        position === "before" ? "-top-px" : "-bottom-px"
       }`}
     />
   );

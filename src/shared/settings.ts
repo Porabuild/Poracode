@@ -22,6 +22,8 @@ export const sharedSettingsSchema = z.object({
   wslConflictResolverProvider: z.string(),
   wslConflictResolverModel: z.string(),
   wslConflictResolverEffort: z.string(),
+  /** Per-agent boolean settings keyed by agent kind, then setting key. */
+  agentSettings: z.record(z.string(), z.record(z.string(), z.boolean())),
 });
 export type SharedSettings = z.infer<typeof sharedSettingsSchema>;
 
@@ -46,6 +48,7 @@ export const defaultSharedSettings: SharedSettings = {
   wslConflictResolverProvider: "auto",
   wslConflictResolverModel: "",
   wslConflictResolverEffort: "",
+  agentSettings: {},
 };
 
 const partialSharedSettingsSchema = sharedSettingsSchema.partial();
@@ -85,5 +88,6 @@ export function normalizeSharedSettings(value: unknown): SharedSettings {
       parsed.data.wslConflictResolverModel ?? defaultSharedSettings.wslConflictResolverModel,
     wslConflictResolverEffort:
       parsed.data.wslConflictResolverEffort ?? defaultSharedSettings.wslConflictResolverEffort,
+    agentSettings: parsed.data.agentSettings ?? defaultSharedSettings.agentSettings,
   };
 }

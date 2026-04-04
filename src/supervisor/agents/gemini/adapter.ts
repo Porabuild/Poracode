@@ -32,6 +32,7 @@ const defaultCapabilities: AgentCapability = {
   liveInputMode: "terminal",
   presentationMode: "terminal",
   bypassApprovalPolicy: "yolo",
+  settingDefs: [],
 };
 
 function buildGeminiArgs(config: ThreadConfig, prompt: string, resumeSessionId?: string): string[] {

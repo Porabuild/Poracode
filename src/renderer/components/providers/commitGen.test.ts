@@ -31,6 +31,7 @@ const codexStatus: AgentStatus = {
     supportsDirectInput: true,
     liveInputMode: "server",
     presentationMode: "terminal",
+    settingDefs: [],
   },
 };
 
@@ -57,6 +58,7 @@ const claudeStatus: AgentStatus = {
       { id: "auto", label: "Auto" },
     ],
     sandboxModes: [],
+    settingDefs: [],
     supportsResume: true,
     supportsDirectInput: true,
     liveInputMode: "terminal",

@@ -49,6 +49,7 @@ registerComposerControls("codex", ({ capabilities, config, isDisabled, onConfigC
               label: value.charAt(0).toUpperCase() + value.slice(1),
             })),
             value: config.effort ?? availableEfforts[0] ?? "",
+            hideLabelOnWrap: true,
             isDisabled,
             onChange: (value: string) => onConfigChange({ effort: value }),
           },

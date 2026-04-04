@@ -18,6 +18,7 @@ interface SharedSettingsState extends SharedSettings {
   setWslCommitGenConfig: (provider: string, model: string, effort: string) => void;
   setWslTitleGenConfig: (provider: string, model: string, effort: string) => void;
   setWslConflictResolverConfig: (provider: string, model: string, effort: string) => void;
+  setAgentSetting: (agentKind: string, key: string, value: boolean) => void;
 }
 
 function hasBridge(): boolean {
@@ -93,6 +94,12 @@ export const useSharedSettings = create<SharedSettingsState>()((set, get) => ({
     set({ wslConflictResolverProvider, wslConflictResolverModel, wslConflictResolverEffort });
     persistSettings(selectSharedSettings(get()));
   },
+  setAgentSetting: (agentKind, key, value) => {
+    const current = get().agentSettings;
+    const agentValues = { ...current[agentKind], [key]: value };
+    set({ agentSettings: { ...current, [agentKind]: agentValues } });
+    persistSettings(selectSharedSettings(get()));
+  },
 }));
 
 function selectSharedSettings(state: SharedSettingsState): SharedSettings {
@@ -117,6 +124,7 @@ function selectSharedSettings(state: SharedSettingsState): SharedSettings {
     wslConflictResolverProvider: state.wslConflictResolverProvider,
     wslConflictResolverModel: state.wslConflictResolverModel,
     wslConflictResolverEffort: state.wslConflictResolverEffort,
+    agentSettings: state.agentSettings,
   };
 }
 

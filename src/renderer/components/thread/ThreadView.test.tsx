@@ -73,6 +73,7 @@ describe("ThreadView", () => {
           supportsDirectInput: true,
           liveInputMode: "server",
           presentationMode: "terminal",
+          settingDefs: [],
         },
       },
       projectLocation: {
@@ -148,6 +149,7 @@ describe("ThreadView", () => {
           supportsDirectInput: true,
           liveInputMode: "server",
           presentationMode: "terminal",
+          settingDefs: [],
         },
       },
       projectLocation: {
@@ -198,6 +200,7 @@ describe("ThreadView", () => {
           supportsDirectInput: true,
           liveInputMode: "server",
           presentationMode: "terminal",
+          settingDefs: [],
         },
       },
       projectLocation: {
@@ -248,6 +251,7 @@ describe("ThreadView", () => {
           supportsDirectInput: true,
           liveInputMode: "server",
           presentationMode: "terminal",
+          settingDefs: [],
         },
       },
       projectLocation: {
@@ -303,6 +307,7 @@ describe("ThreadView", () => {
           supportsDirectInput: true,
           liveInputMode: "server",
           presentationMode: "terminal",
+          settingDefs: [],
         },
       },
       projectLocation: {
@@ -373,6 +378,7 @@ describe("ThreadView", () => {
           supportsDirectInput: true,
           liveInputMode: "terminal",
           presentationMode: "terminal",
+          settingDefs: [],
         },
       },
       projectLocation: {
@@ -427,6 +433,7 @@ describe("ThreadView", () => {
           supportsDirectInput: true,
           liveInputMode: "server",
           presentationMode: "gui",
+          settingDefs: [],
         },
       },
       projectLocation: {
@@ -481,6 +488,7 @@ describe("ThreadView", () => {
           supportsDirectInput: true,
           liveInputMode: "server",
           presentationMode: "terminal",
+          settingDefs: [],
         },
       },
       projectLocation: {
