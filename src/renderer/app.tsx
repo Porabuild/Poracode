@@ -1349,7 +1349,11 @@ export function App() {
                   });
                   if (!sourceBranch) return;
                   const worktreeLocation = buildWorktreeLocation(project.location, worktreePath);
-                  await readBridge().gitPullFromSource({ worktreeLocation, sourceBranch });
+                  const result = await readBridge().gitPullFromSource({ worktreeLocation, sourceBranch });
+                  // Background sync — abort if conflicts, user resolves manually via git review
+                  if (result.conflicting) {
+                    await readBridge().gitAbortMerge({ worktreeLocation }).catch(() => undefined);
+                  }
                 } catch {
                   // ignored — user can open git review for details
                 }

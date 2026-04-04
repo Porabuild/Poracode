@@ -31,6 +31,7 @@ const defaultCapabilities: AgentCapability = {
   supportsDirectInput: true,
   liveInputMode: "terminal",
   presentationMode: "terminal",
+  bypassApprovalPolicy: "yolo",
 };
 
 function buildGeminiArgs(config: ThreadConfig, prompt: string, resumeSessionId?: string): string[] {
@@ -44,7 +45,7 @@ function buildGeminiArgs(config: ThreadConfig, prompt: string, resumeSessionId?:
   }
   if (config.mode === "plan") {
     args.push("--approval-mode=plan");
-  } else if (config.approvalPolicy === "never") {
+  } else if (config.approvalPolicy === "never" || config.approvalPolicy === "yolo") {
     args.push("--approval-mode=yolo");
   } else if (config.approvalPolicy === "auto_edit") {
     args.push("--approval-mode=auto_edit");

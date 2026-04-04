@@ -56,6 +56,9 @@ import type {
   GitMergeToSourceResult,
   GitPullFromSourcePayload,
   GitPullFromSourceResult,
+  GitAbortMergePayload,
+  GitRunMergetoolPayload,
+  GitRunMergetoolResult,
   GitRemoveWorktreePayload,
   GitUnstageAllPayload,
   GitUnstagePayload,
@@ -949,6 +952,14 @@ export class SupervisorRuntime {
 
   async gitPullFromSource(payload: GitPullFromSourcePayload): Promise<GitPullFromSourceResult> {
     return this.gitService.pullFromSource(payload.worktreeLocation, payload.sourceBranch);
+  }
+
+  async gitAbortMerge(payload: GitAbortMergePayload): Promise<void> {
+    return this.gitService.abortMerge(payload.worktreeLocation);
+  }
+
+  async gitRunMergetool(payload: GitRunMergetoolPayload): Promise<GitRunMergetoolResult> {
+    return this.gitService.runMergetool(payload.worktreeLocation);
   }
 
   async searchProjectFiles(payload: SearchProjectFilesPayload): Promise<SearchProjectFilesResult> {

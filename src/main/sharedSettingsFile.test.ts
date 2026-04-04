@@ -50,12 +50,18 @@ describe("sharedSettingsFile", () => {
       titleGenProvider: "auto",
       titleGenModel: "",
       titleGenEffort: "",
+      conflictResolverProvider: "auto",
+      conflictResolverModel: "",
+      conflictResolverEffort: "",
       wslCommitGenProvider: "auto",
       wslCommitGenModel: "",
       wslCommitGenEffort: "",
       wslTitleGenProvider: "auto",
       wslTitleGenModel: "",
       wslTitleGenEffort: "",
+      wslConflictResolverProvider: "auto",
+      wslConflictResolverModel: "",
+      wslConflictResolverEffort: "",
     });
   });
 
@@ -70,12 +76,18 @@ describe("sharedSettingsFile", () => {
       titleGenProvider: "auto",
       titleGenModel: "",
       titleGenEffort: "",
+      conflictResolverProvider: "auto",
+      conflictResolverModel: "",
+      conflictResolverEffort: "",
       wslCommitGenProvider: "auto",
       wslCommitGenModel: "",
       wslCommitGenEffort: "",
       wslTitleGenProvider: "auto",
       wslTitleGenModel: "",
       wslTitleGenEffort: "",
+      wslConflictResolverProvider: "auto",
+      wslConflictResolverModel: "",
+      wslConflictResolverEffort: "",
     });
 
     expect(readSharedSettingsFile(settingsPath)).toEqual({
@@ -87,12 +99,18 @@ describe("sharedSettingsFile", () => {
       titleGenProvider: "auto",
       titleGenModel: "",
       titleGenEffort: "",
+      conflictResolverProvider: "auto",
+      conflictResolverModel: "",
+      conflictResolverEffort: "",
       wslCommitGenProvider: "auto",
       wslCommitGenModel: "",
       wslCommitGenEffort: "",
       wslTitleGenProvider: "auto",
       wslTitleGenModel: "",
       wslTitleGenEffort: "",
+      wslConflictResolverProvider: "auto",
+      wslConflictResolverModel: "",
+      wslConflictResolverEffort: "",
     });
     expect(readFileSync(settingsPath, "utf8")).toContain('"themeMode": "dark"');
   });
@@ -118,12 +136,18 @@ describe("sharedSettingsFile", () => {
       titleGenProvider: "auto",
       titleGenModel: "",
       titleGenEffort: "",
+      conflictResolverProvider: "auto",
+      conflictResolverModel: "",
+      conflictResolverEffort: "",
       wslCommitGenProvider: "auto",
       wslCommitGenModel: "",
       wslCommitGenEffort: "",
       wslTitleGenProvider: "auto",
       wslTitleGenModel: "",
       wslTitleGenEffort: "",
+      wslConflictResolverProvider: "auto",
+      wslConflictResolverModel: "",
+      wslConflictResolverEffort: "",
     });
     expect(readSharedSettingsFile(settingsPath)).toEqual(settings);
   });

@@ -79,3 +79,45 @@ export function registerTitleGenDefaults(kind: string, defaults: TitleGenDefault
 export function getTitleGenDefaults(kind: string): TitleGenDefaults | undefined {
   return TITLE_GEN_REGISTRY.get(kind);
 }
+
+// --- Conflict resolver defaults registry ---
+
+export interface ConflictResolverDefaults {
+  model: string;
+  effort: string;
+}
+
+const CONFLICT_RESOLVER_REGISTRY = new Map<string, ConflictResolverDefaults>();
+
+export function registerConflictResolverDefaults(kind: string, defaults: ConflictResolverDefaults) {
+  CONFLICT_RESOLVER_REGISTRY.set(kind, defaults);
+}
+
+export function getConflictResolverDefaults(kind: string): ConflictResolverDefaults | undefined {
+  return CONFLICT_RESOLVER_REGISTRY.get(kind);
+}
+
+export function resolveConflictResolverConfig(
+  agent: { kind: string; capabilities: { models: { id: string }[]; efforts: string[]; modelEfforts: Record<string, string[]>; defaultEffort?: string | undefined } } | undefined,
+  model: string,
+  effort: string,
+): { model: string; effort: string; availableEfforts: string[] } {
+  if (!agent) return { model: "", effort: "", availableEfforts: [] };
+
+  const defaults = getConflictResolverDefaults(agent.kind);
+  const nextModel = agent.capabilities.models.some((m) => m.id === model)
+    ? model
+    : defaults?.model && agent.capabilities.models.some((m) => m.id === defaults.model)
+      ? defaults.model
+      : agent.capabilities.models[0]?.id ?? "";
+
+  const modelEfforts = agent.capabilities.modelEfforts[nextModel];
+  const availableEfforts = modelEfforts?.length ? modelEfforts : agent.capabilities.efforts;
+  if (availableEfforts.length === 0) return { model: nextModel, effort: "", availableEfforts };
+
+  if (availableEfforts.includes(effort)) return { model: nextModel, effort, availableEfforts };
+
+  const fallback = [defaults?.effort, agent.capabilities.defaultEffort, availableEfforts[0]]
+    .find((c) => c && availableEfforts.includes(c!));
+  return { model: nextModel, effort: fallback ?? "", availableEfforts };
+}

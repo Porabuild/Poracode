@@ -4,11 +4,16 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const { gitMock, readWslCommandOutputAsync, simpleGitMock } = vi.hoisted(() => ({
   gitMock: {
+    add: vi.fn(),
     checkIsRepo: vi.fn(),
     checkout: vi.fn(),
     clean: vi.fn(),
+    commit: vi.fn(),
     diffSummary: vi.fn(),
     getRemotes: vi.fn(),
+    merge: vi.fn(),
+    raw: vi.fn(),
+    revparse: vi.fn(),
     status: vi.fn(),
   },
   readWslCommandOutputAsync: vi.fn(),
@@ -176,6 +181,7 @@ describe("GitService.getStatus", () => {
     gitMock.checkIsRepo.mockResolvedValue(true);
     gitMock.getRemotes.mockResolvedValue([]);
     gitMock.diffSummary.mockResolvedValue({ files: [] });
+    gitMock.raw.mockRejectedValue(new Error("no MERGE_HEAD"));
   });
 
   it("normalizes Windows-style git paths before returning status", async () => {
@@ -184,6 +190,7 @@ describe("GitService.getStatus", () => {
       tracking: null,
       ahead: 0,
       behind: 0,
+      conflicted: [],
       files: [
         { path: "src\\staged.ts", index: "M", working_dir: " " },
         {
@@ -200,5 +207,141 @@ describe("GitService.getStatus", () => {
     expect(result.staged[0]?.path).toBe("src/staged.ts");
     expect(result.unstaged[0]?.path).toBe("docs/renamed-new.md");
     expect(result.unstaged[0]?.oldPath).toBe("docs/renamed-old.md");
+  });
+
+  it("reports mergeInProgress when MERGE_HEAD exists", async () => {
+    gitMock.status.mockResolvedValue({
+      current: "feature-a",
+      tracking: null,
+      ahead: 0,
+      behind: 0,
+      files: [],
+      conflicted: ["src/file.ts"],
+    });
+    gitMock.raw.mockResolvedValue("abc123");
+
+    const result = await new GitService().getStatus(location);
+
+    expect(result.mergeInProgress).toBe(true);
+    expect(result.conflictFiles).toEqual(["src/file.ts"]);
+    expect(gitMock.raw).toHaveBeenCalledWith(["rev-parse", "--verify", "MERGE_HEAD"]);
+  });
+
+  it("does not report mergeInProgress when MERGE_HEAD is absent", async () => {
+    gitMock.status.mockResolvedValue({
+      current: "main",
+      tracking: null,
+      ahead: 0,
+      behind: 0,
+      files: [],
+      conflicted: [],
+    });
+    gitMock.raw.mockRejectedValue(new Error("fatal: Needed a single revision"));
+
+    const result = await new GitService().getStatus(location);
+
+    expect(result.mergeInProgress).toBeUndefined();
+    expect(result.conflictFiles).toBeUndefined();
+  });
+});
+
+describe("GitService.pullFromSource", () => {
+  const location = {
+    kind: "windows" as const,
+    path: "C:\\Users\\demo\\work\\worktree",
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    simpleGitMock.mockReturnValue(gitMock);
+  });
+
+  it("fast-forwards when HEAD is ancestor of source branch", async () => {
+    gitMock.raw.mockResolvedValue(""); // merge-base --is-ancestor succeeds
+    gitMock.merge.mockResolvedValue(undefined);
+
+    const result = await new GitService().pullFromSource(location, "main");
+
+    expect(result).toEqual({ merged: true, fastForward: true });
+    expect(gitMock.merge).toHaveBeenCalledWith(["main", "--ff-only"]);
+  });
+
+  it("uses --no-ff when fast-forward is not possible", async () => {
+    gitMock.raw.mockRejectedValue(new Error("not ancestor")); // merge-base fails
+    gitMock.merge.mockResolvedValue(undefined);
+
+    const result = await new GitService().pullFromSource(location, "main");
+
+    expect(result).toEqual({ merged: true, fastForward: false });
+    expect(gitMock.merge).toHaveBeenCalledWith(["main", "--no-ff", "--no-edit"]);
+  });
+
+  it("returns conflicting: true without aborting when merge has conflicts", async () => {
+    gitMock.raw.mockRejectedValue(new Error("not ancestor"));
+    gitMock.merge.mockRejectedValue(
+      new Error("CONFLICT (content): Merge conflict in src/file.ts"),
+    );
+
+    const result = await new GitService().pullFromSource(location, "main");
+
+    expect(result.merged).toBe(false);
+    expect(result.conflicting).toBe(true);
+    expect(result.conflictFiles).toEqual(["src/file.ts"]);
+    // Should NOT abort — conflicts left for user resolution
+    expect(gitMock.merge).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("GitService.mergeToSource (non-FF path)", () => {
+  const repoLocation = {
+    kind: "windows" as const,
+    path: "C:\\Users\\demo\\work\\repo",
+  };
+  const worktreeLocation = {
+    kind: "windows" as const,
+    path: "C:\\Users\\demo\\work\\worktree",
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    simpleGitMock.mockReturnValue(gitMock);
+    // Make merge-base fail → non-FF path
+    gitMock.raw.mockImplementation((args: string[]) => {
+      if (args[0] === "merge-base") return Promise.reject(new Error("not ancestor"));
+      if (args[0] === "worktree" && args[1] === "add") return Promise.resolve("");
+      if (args[0] === "checkout") return Promise.resolve("");
+      if (args[0] === "rev-parse") return Promise.resolve("abc123");
+      if (args[0] === "worktree" && args[1] === "remove") return Promise.resolve("");
+      return Promise.resolve("");
+    });
+    gitMock.merge.mockResolvedValue(undefined);
+    gitMock.revparse.mockResolvedValue("abc123");
+  });
+
+  it("passes --no-ff flag in the non-fast-forward merge path", async () => {
+    await new GitService().mergeToSource(repoLocation, worktreeLocation, "feature", "main");
+
+    // The merge call on the temp worktree should include --no-ff
+    expect(gitMock.merge).toHaveBeenCalledWith(["feature", "--no-edit", "--no-ff"]);
+  });
+});
+
+describe("GitService.abortMerge", () => {
+  const location = {
+    kind: "windows" as const,
+    path: "C:\\Users\\demo\\work\\worktree",
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    simpleGitMock.mockReturnValue(gitMock);
+  });
+
+  it("runs git merge --abort", async () => {
+    gitMock.merge.mockResolvedValue(undefined);
+
+    await new GitService().abortMerge(location);
+
+    expect(gitMock.merge).toHaveBeenCalledWith(["--abort"]);
   });
 });

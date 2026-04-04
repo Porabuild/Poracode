@@ -30,6 +30,9 @@ import type {
   GitMergeToSourceResult,
   GitPullFromSourcePayload,
   GitPullFromSourceResult,
+  GitAbortMergePayload,
+  GitRunMergetoolPayload,
+  GitRunMergetoolResult,
   GitRemoveWorktreePayload,
   GitRevertAllPayload,
   GitRevertPayload,
@@ -101,6 +104,8 @@ export type SupervisorRequest =
     }
   | { id: string; type: "gitMergeToSource"; payload: GitMergeToSourcePayload }
   | { id: string; type: "gitPullFromSource"; payload: GitPullFromSourcePayload }
+  | { id: string; type: "gitAbortMerge"; payload: GitAbortMergePayload }
+  | { id: string; type: "gitRunMergetool"; payload: GitRunMergetoolPayload }
   | { id: string; type: "searchProjectFiles"; payload: SearchProjectFilesPayload }
   | { id: string; type: "detectSetupScript"; payload: DetectSetupScriptPayload };
 
@@ -202,6 +207,8 @@ export interface LightcodeBridge {
   ): Promise<GitGetWorktreeSourceBranchResult>;
   gitMergeToSource(payload: GitMergeToSourcePayload): Promise<GitMergeToSourceResult>;
   gitPullFromSource(payload: GitPullFromSourcePayload): Promise<GitPullFromSourceResult>;
+  gitAbortMerge(payload: GitAbortMergePayload): Promise<void>;
+  gitRunMergetool(payload: GitRunMergetoolPayload): Promise<GitRunMergetoolResult>;
   searchProjectFiles(payload: SearchProjectFilesPayload): Promise<SearchProjectFilesResult>;
   detectSetupScript(payload: DetectSetupScriptPayload): Promise<DetectSetupScriptResult>;
   getSharedSettings(): Promise<SharedSettings>;
