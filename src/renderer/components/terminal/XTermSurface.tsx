@@ -1,10 +1,14 @@
 import { FitAddon } from "@xterm/addon-fit";
 import { Terminal } from "@xterm/xterm";
-import { useEffect, useRef, useState, type RefObject } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useRef, useState, type RefObject } from "react";
 import type { TerminalSize } from "../../../shared/contracts";
 import { isMac, readBridge } from "../../bridge";
 import { ContextMenu, type ContextMenuItem } from "../common";
 import { useResolvedAppearance } from "../ui/provider";
+
+export interface XTermSurfaceHandle {
+  focus(): void;
+}
 
 function getTerminalTheme(appearance: "light" | "dark") {
   const rootStyles =
@@ -30,7 +34,7 @@ function getTerminalTheme(appearance: "light" | "dark") {
   };
 }
 
-export function XTermSurface(props: {
+export const XTermSurface = forwardRef<XTermSurfaceHandle, {
   terminalId: string;
   readOnly?: boolean;
   enabled?: boolean;
@@ -41,7 +45,7 @@ export function XTermSurface(props: {
   onTitleChange?: (title: string) => void;
   onTerminalResize?: (size: TerminalSize) => void;
   className?: string;
-}) {
+}>(function XTermSurface(props, ref) {
   const {
     terminalId,
     readOnly = false,
@@ -70,6 +74,12 @@ export function XTermSurface(props: {
   const onTerminalResizeRef: RefObject<typeof onTerminalResize> = useRef(onTerminalResize);
   onTerminalResizeRef.current = onTerminalResize;
   const [hasSelection, setHasSelection] = useState(false);
+
+  useImperativeHandle(ref, () => ({
+    focus() {
+      terminalRef.current?.focus();
+    },
+  }));
 
   // Terminal lifecycle: create ONCE when component mounts, destroy on unmount
   // Independent of `enabled` prop - terminals stay alive as long as the component exists
@@ -351,4 +361,4 @@ export function XTermSurface(props: {
       />
     </ContextMenu>
   );
-}
+});
