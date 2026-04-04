@@ -304,6 +304,7 @@ export function GitReviewSidebar(props: {
   worktreeBranch?: string | undefined;
   worktreePath?: string | undefined;
   onMergeAndRemove?: (() => void) | undefined;
+  refreshKey: number;
   onSelectFile: (path: string | null, staged: boolean) => void;
   onClose: () => void;
   onRefresh: () => void;
@@ -316,6 +317,7 @@ export function GitReviewSidebar(props: {
     worktreeBranch,
     worktreePath,
     onMergeAndRemove,
+    refreshKey,
     onSelectFile,
     onClose,
     onRefresh,
@@ -352,7 +354,7 @@ export function GitReviewSidebar(props: {
 
   useEffect(() => {
     if (!worktreeBranch) return;
-    setSourceBranchLoading(true);
+    if (!sourceBranch) setSourceBranchLoading(true);
     readBridge()
       .gitGetWorktreeSourceBranch({ projectLocation: project.location, branch: worktreeBranch })
       .then((result) => {
@@ -361,7 +363,7 @@ export function GitReviewSidebar(props: {
       })
       .catch(() => setSourceBranch(null))
       .finally(() => setSourceBranchLoading(false));
-  }, [worktreeBranch, project.location]);
+  }, [worktreeBranch, project.location, refreshKey]);
 
   const projectAgentStatuses = getProjectAgentStatuses(
     project.location,

@@ -198,6 +198,7 @@ export function GitReviewOverlay(props: {
           onMergeAndRemove={onMergeAndRemove}
           onSelectFile={handleSelectFile}
           onClose={onClose}
+          refreshKey={refreshKey}
           onRefresh={() => void handleRefresh()}
         />
       }
