@@ -28,7 +28,7 @@ vi.mock("simple-git", () => ({
   simpleGit: simpleGitMock,
 }));
 
-import { computeDefaultWorktreePath, GitService } from "./git";
+import { computeDefaultWorktreePath, GitService, parseRemoteUrl } from "./git";
 
 describe("computeDefaultWorktreePath", () => {
   beforeEach(() => {
@@ -243,6 +243,43 @@ describe("GitService.getStatus", () => {
     expect(result.mergeInProgress).toBeUndefined();
     expect(result.conflictFiles).toBeUndefined();
   });
+
+  it("includes remoteInfo when origin has a GitHub remote URL", async () => {
+    gitMock.status.mockResolvedValue({
+      current: "main",
+      tracking: "origin/main",
+      ahead: 0,
+      behind: 0,
+      files: [],
+    });
+    gitMock.getRemotes.mockResolvedValue([
+      { name: "origin", refs: { fetch: "https://github.com/owner/repo.git", push: "" } },
+    ]);
+
+    const result = await new GitService().getStatus(location);
+
+    expect(result.remoteInfo).toEqual({
+      url: "https://github.com/owner/repo.git",
+      platform: "github",
+      owner: "owner",
+      repo: "repo",
+    });
+  });
+
+  it("returns remoteInfo null when no remotes exist", async () => {
+    gitMock.status.mockResolvedValue({
+      current: "main",
+      tracking: null,
+      ahead: 0,
+      behind: 0,
+      files: [],
+    });
+    gitMock.getRemotes.mockResolvedValue([]);
+
+    const result = await new GitService().getStatus(location);
+
+    expect(result.remoteInfo).toBeNull();
+  });
 });
 
 describe("GitService.pullFromSource", () => {
@@ -343,5 +380,84 @@ describe("GitService.abortMerge", () => {
     await new GitService().abortMerge(location);
 
     expect(gitMock.merge).toHaveBeenCalledWith(["--abort"]);
+  });
+});
+
+describe("parseRemoteUrl", () => {
+  it("parses GitHub HTTPS URLs", () => {
+    const result = parseRemoteUrl("https://github.com/owner/repo.git");
+    expect(result).toEqual({
+      url: "https://github.com/owner/repo.git",
+      platform: "github",
+      owner: "owner",
+      repo: "repo",
+    });
+  });
+
+  it("parses GitHub HTTPS URLs without .git suffix", () => {
+    const result = parseRemoteUrl("https://github.com/owner/repo");
+    expect(result).toEqual({
+      url: "https://github.com/owner/repo",
+      platform: "github",
+      owner: "owner",
+      repo: "repo",
+    });
+  });
+
+  it("parses GitHub SSH URLs", () => {
+    const result = parseRemoteUrl("git@github.com:owner/repo.git");
+    expect(result).toEqual({
+      url: "git@github.com:owner/repo.git",
+      platform: "github",
+      owner: "owner",
+      repo: "repo",
+    });
+  });
+
+  it("parses GitHub SSH URLs without .git suffix", () => {
+    const result = parseRemoteUrl("git@github.com:owner/repo");
+    expect(result).toEqual({
+      url: "git@github.com:owner/repo",
+      platform: "github",
+      owner: "owner",
+      repo: "repo",
+    });
+  });
+
+  it("detects GitHub Enterprise by hostname", () => {
+    const result = parseRemoteUrl("https://github.mycompany.com/team/project.git");
+    expect(result).toEqual({
+      url: "https://github.mycompany.com/team/project.git",
+      platform: "github",
+      owner: "team",
+      repo: "project",
+    });
+  });
+
+  it("detects GitLab remotes", () => {
+    const result = parseRemoteUrl("https://gitlab.com/org/project.git");
+    expect(result?.platform).toBe("gitlab");
+    expect(result?.owner).toBe("org");
+    expect(result?.repo).toBe("project");
+  });
+
+  it("detects Bitbucket remotes", () => {
+    const result = parseRemoteUrl("git@bitbucket.org:team/repo.git");
+    expect(result?.platform).toBe("bitbucket");
+    expect(result?.owner).toBe("team");
+    expect(result?.repo).toBe("repo");
+  });
+
+  it("marks unknown hosts", () => {
+    const result = parseRemoteUrl("https://git.example.com/org/project.git");
+    expect(result?.platform).toBe("unknown");
+    expect(result?.owner).toBe("org");
+    expect(result?.repo).toBe("project");
+  });
+
+  it("returns null for malformed URLs", () => {
+    expect(parseRemoteUrl("")).toBeNull();
+    expect(parseRemoteUrl("not-a-url")).toBeNull();
+    expect(parseRemoteUrl("ftp://example.com/repo")).toBeNull();
   });
 });

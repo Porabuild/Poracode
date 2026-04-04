@@ -9,7 +9,9 @@ import {
   FileDiff,
   FileMinus2,
   FilePlus2,
+  ExternalLink,
   GitMerge,
+  GitPullRequest,
   Lock,
   Minus,
   PanelLeft,
@@ -19,10 +21,11 @@ import {
   Undo2,
 } from "lucide-react";
 import { AlertDialog, Button, ButtonGroup, Dropdown, Label, Spinner, Tooltip } from "@heroui/react";
-import type { Project, GitFileChange, GitStatusResult, ProjectLocation } from "../../../shared/contracts";
+import type { Project, GitFileChange, GitStatusResult, PrData, ProjectLocation } from "../../../shared/contracts";
 import { getProjectAgentStatuses } from "../../../shared/agentStatus";
 import { readBridge } from "../../bridge";
 import { useAppStore } from "../../state/appStore";
+import { useGitStore } from "../../state/gitStore";
 import { useSharedSettings } from "../../state/sharedSettingsStore";
 import { SidebarButton, TextArea } from "../common";
 import { useSidebar } from "../layout/AppShell";
@@ -367,6 +370,16 @@ export function GitReviewSidebar(props: {
   const [isRunningMergetool, setIsRunningMergetool] = useState(false);
   const [isAbortingMerge, setIsAbortingMerge] = useState(false);
 
+  // PR state
+  const isGitHub = gitStatus?.remoteInfo?.platform === "github";
+  const ghAvailable = useGitStore((s) => s.ghAvailable[project.id] ?? false);
+  const prData = useGitStore((s) => (worktreePath ? s.prData[worktreePath] : undefined)) as PrData | null | undefined;
+  const [prTitle, setPrTitle] = useState("");
+  const [prIsDraft, setPrIsDraft] = useState(false);
+  const [prLoading, setPrLoading] = useState(false);
+  const [prError, setPrError] = useState<string | null>(null);
+  const showPrSection = Boolean(isGitHub && worktreeBranch && worktreePath);
+
   useEffect(() => {
     if (!worktreeBranch) return;
     if (!sourceBranch) setSourceBranchLoading(true);
@@ -633,6 +646,70 @@ export function GitReviewSidebar(props: {
       a.authState !== "missing" &&
       (conflictResolverProvider === "auto" || a.kind === conflictResolverProvider),
   );
+
+  async function handleCreatePr() {
+    if (!worktreeBranch || !sourceBranch) return;
+    setPrLoading(true);
+    setPrError(null);
+    try {
+      const pr = await readBridge().ghCreatePr({
+        projectLocation: project.location,
+        branch: worktreeBranch,
+        baseBranch: sourceBranch,
+        title: prTitle.trim() || worktreeBranch,
+        body: "",
+        isDraft: prIsDraft,
+      });
+      if (worktreePath) {
+        useGitStore.getState().setPrData(worktreePath, pr);
+      }
+      setPrTitle("");
+    } catch (err) {
+      setPrError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setPrLoading(false);
+    }
+  }
+
+  async function handleMergePr(method: "merge" | "squash" | "rebase") {
+    if (!prData) return;
+    setPrLoading(true);
+    setPrError(null);
+    try {
+      await readBridge().ghMergePr({
+        projectLocation: project.location,
+        prNumber: prData.number,
+        method,
+      });
+      if (worktreePath) {
+        useGitStore.getState().setPrData(worktreePath, { ...prData, state: "merged" });
+      }
+      onRefresh();
+    } catch (err) {
+      setPrError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setPrLoading(false);
+    }
+  }
+
+  async function handleClosePr() {
+    if (!prData) return;
+    setPrLoading(true);
+    setPrError(null);
+    try {
+      await readBridge().ghClosePr({
+        projectLocation: project.location,
+        prNumber: prData.number,
+      });
+      if (worktreePath) {
+        useGitStore.getState().setPrData(worktreePath, { ...prData, state: "closed" });
+      }
+    } catch (err) {
+      setPrError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setPrLoading(false);
+    }
+  }
   const showMergeSection = Boolean(worktreeBranch && worktreePath && !hasAnyChanges);
   const showPullFromSource = Boolean(worktreeBranch && worktreePath && sourceBranch);
 
@@ -912,6 +989,158 @@ export function GitReviewSidebar(props: {
                 </Button>
               </>
             ) : null}
+          </div>
+        )}
+
+        {/* Pull Request */}
+        {showPrSection && (
+          <div className="space-y-2 border-t border-white/6 px-0.5 pt-2">
+            {!ghAvailable ? (
+              <p className="px-2 py-1 text-center text-xs text-muted/60">
+                Install <code className="text-muted/80">gh</code> CLI for PR management
+              </p>
+            ) : prData && prData.state !== "closed" ? (
+              <>
+                {prError && (
+                  <p className="truncate text-xs text-danger" title={prError}>
+                    {prError}
+                  </p>
+                )}
+                <div className="flex items-center gap-2 px-0.5">
+                  <span
+                    className={`size-2 shrink-0 rounded-full ${
+                      prData.state === "merged"
+                        ? "bg-purple-400"
+                        : prData.state === "draft"
+                          ? "bg-gray-400"
+                          : "bg-green-400"
+                    }`}
+                  />
+                  <span className="truncate text-xs text-foreground">
+                    PR #{prData.number} · {prData.state === "draft" ? "Draft" : prData.state === "merged" ? "Merged" : "Open"}
+                  </span>
+                </div>
+                <Button
+                  variant="tertiary"
+                  className="w-full"
+                  onPress={() => void readBridge().openExternal(prData.url)}
+                >
+                  <ExternalLink className="size-3.5" />
+                  Open in Browser
+                </Button>
+                {prData.state !== "merged" && (
+                  <ButtonGroup className="w-full">
+                    <Button
+                      variant="tertiary"
+                      className="flex-1"
+                      isDisabled={prLoading}
+                      isPending={prLoading}
+                      onPress={() => void handleMergePr("squash")}
+                    >
+                      {({ isPending }) => (
+                        <>
+                          {isPending ? (
+                            <Spinner color="current" size="sm" />
+                          ) : (
+                            <GitMerge className="size-3.5" />
+                          )}
+                          Merge PR
+                        </>
+                      )}
+                    </Button>
+                    <Dropdown>
+                      <Button
+                        isIconOnly
+                        variant="tertiary"
+                        aria-label="Merge options"
+                        isDisabled={prLoading}
+                      >
+                        <ButtonGroup.Separator />
+                        <ChevronDown className="size-3.5" />
+                      </Button>
+                      <Dropdown.Popover placement="top end">
+                        <Dropdown.Menu
+                          aria-label="Merge method"
+                          onAction={(key) => void handleMergePr(key as "merge" | "squash" | "rebase")}
+                        >
+                          <Dropdown.Item id="merge" textValue="Merge commit">
+                            <Label>Merge commit</Label>
+                          </Dropdown.Item>
+                          <Dropdown.Item id="squash" textValue="Squash and merge">
+                            <Label>Squash and merge</Label>
+                          </Dropdown.Item>
+                          <Dropdown.Item id="rebase" textValue="Rebase and merge">
+                            <Label>Rebase and merge</Label>
+                          </Dropdown.Item>
+                        </Dropdown.Menu>
+                      </Dropdown.Popover>
+                    </Dropdown>
+                  </ButtonGroup>
+                )}
+                {prData.state !== "merged" && (
+                  <Button
+                    variant="tertiary"
+                    className="w-full text-danger"
+                    isDisabled={prLoading}
+                    onPress={() => void handleClosePr()}
+                  >
+                    Close PR
+                  </Button>
+                )}
+              </>
+            ) : (
+              <>
+                {prError && (
+                  <p className="truncate text-xs text-danger" title={prError}>
+                    {prError}
+                  </p>
+                )}
+                <TextArea
+                  fullWidth
+                  autoSize
+                  placeholder="PR title"
+                  rows={1}
+                  maxRows={2}
+                  value={prTitle}
+                  variant="secondary"
+                  onChange={(e) => setPrTitle(e.target.value)}
+                />
+                <div className="flex items-center gap-2 px-0.5">
+                  <label className="flex items-center gap-1.5 text-xs text-muted">
+                    <input
+                      type="checkbox"
+                      checked={prIsDraft}
+                      onChange={(e) => setPrIsDraft(e.target.checked)}
+                      className="rounded"
+                    />
+                    Draft
+                  </label>
+                  {sourceBranch && (
+                    <span className="ml-auto truncate text-xs text-muted/60">
+                      → {sourceBranch}
+                    </span>
+                  )}
+                </div>
+                <Button
+                  variant="tertiary"
+                  className="w-full"
+                  isDisabled={prLoading || !hasTracking}
+                  isPending={prLoading}
+                  onPress={() => void handleCreatePr()}
+                >
+                  {({ isPending }) => (
+                    <>
+                      {isPending ? (
+                        <Spinner color="current" size="sm" />
+                      ) : (
+                        <GitPullRequest className="size-3.5" />
+                      )}
+                      {hasTracking ? "Create Pull Request" : "Push branch first"}
+                    </>
+                  )}
+                </Button>
+              </>
+            )}
           </div>
         )}
 

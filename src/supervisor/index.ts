@@ -28,6 +28,12 @@ import type {
   DetectSetupScriptPayload,
   SearchProjectFilesPayload,
   GitUnstagePayload,
+  GhCreatePrPayload,
+  GhGetPrForBranchPayload,
+  GhMergePrPayload,
+  GhClosePrPayload,
+  GhReopenPrPayload,
+  GhGetPrChecksPayload,
   ResizeTerminalPayload,
   ResolveThreadServerRequestPayload,
   SendThreadInputPayload,
@@ -59,6 +65,13 @@ import {
   gitSyncPayloadSchema,
   detectSetupScriptPayloadSchema,
   searchProjectFilesPayloadSchema,
+  ghCreatePrPayloadSchema,
+  ghGetPrForBranchPayloadSchema,
+  ghMergePrPayloadSchema,
+  ghClosePrPayloadSchema,
+  ghReopenPrPayloadSchema,
+  ghGetPrChecksPayloadSchema,
+  getGitStatusPayloadSchema as ghCheckAvailablePayloadSchema,
   generateCommitMessagePayloadSchema,
   generateTitlePayloadSchema,
   gitRevertAllPayloadSchema,
@@ -219,6 +232,34 @@ async function handleRequest(request: SupervisorRequest): Promise<unknown> {
     case "detectSetupScript":
       return runtime.detectSetupScript(
         detectSetupScriptPayloadSchema.parse(request.payload) as DetectSetupScriptPayload,
+      );
+    case "ghCheckAvailable":
+      return runtime.ghCheckAvailable(
+        ghCheckAvailablePayloadSchema.parse(request.payload) as GetGitStatusPayload,
+      );
+    case "ghCreatePr":
+      return runtime.ghCreatePr(
+        ghCreatePrPayloadSchema.parse(request.payload) as GhCreatePrPayload,
+      );
+    case "ghGetPrForBranch":
+      return runtime.ghGetPrForBranch(
+        ghGetPrForBranchPayloadSchema.parse(request.payload) as GhGetPrForBranchPayload,
+      );
+    case "ghMergePr":
+      return runtime.ghMergePr(
+        ghMergePrPayloadSchema.parse(request.payload) as GhMergePrPayload,
+      );
+    case "ghClosePr":
+      return runtime.ghClosePr(
+        ghClosePrPayloadSchema.parse(request.payload) as GhClosePrPayload,
+      );
+    case "ghReopenPr":
+      return runtime.ghReopenPr(
+        ghReopenPrPayloadSchema.parse(request.payload) as GhReopenPrPayload,
+      );
+    case "ghGetPrChecks":
+      return runtime.ghGetPrChecks(
+        ghGetPrChecksPayloadSchema.parse(request.payload) as GhGetPrChecksPayload,
       );
     default: {
       const exhaustive: never = request;

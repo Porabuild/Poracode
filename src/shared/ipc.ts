@@ -41,6 +41,15 @@ import type {
   GitStatusResult,
   GitSyncPayload,
   GitSyncResult,
+  GhCheckAvailableResult,
+  GhCreatePrPayload,
+  GhGetPrForBranchPayload,
+  GhMergePrPayload,
+  GhClosePrPayload,
+  GhReopenPrPayload,
+  GhGetPrChecksPayload,
+  GhGetPrChecksResult,
+  PrData,
   SearchProjectFilesPayload,
   SearchProjectFilesResult,
   GitUnstageAllPayload,
@@ -107,7 +116,14 @@ export type SupervisorRequest =
   | { id: string; type: "gitAbortMerge"; payload: GitAbortMergePayload }
   | { id: string; type: "gitRunMergetool"; payload: GitRunMergetoolPayload }
   | { id: string; type: "searchProjectFiles"; payload: SearchProjectFilesPayload }
-  | { id: string; type: "detectSetupScript"; payload: DetectSetupScriptPayload };
+  | { id: string; type: "detectSetupScript"; payload: DetectSetupScriptPayload }
+  | { id: string; type: "ghCheckAvailable"; payload: GetGitStatusPayload }
+  | { id: string; type: "ghCreatePr"; payload: GhCreatePrPayload }
+  | { id: string; type: "ghGetPrForBranch"; payload: GhGetPrForBranchPayload }
+  | { id: string; type: "ghMergePr"; payload: GhMergePrPayload }
+  | { id: string; type: "ghClosePr"; payload: GhClosePrPayload }
+  | { id: string; type: "ghReopenPr"; payload: GhReopenPrPayload }
+  | { id: string; type: "ghGetPrChecks"; payload: GhGetPrChecksPayload };
 
 export type SupervisorReply =
   | { replyTo: string; ok: true; data: unknown }
@@ -211,6 +227,15 @@ export interface LightcodeBridge {
   gitRunMergetool(payload: GitRunMergetoolPayload): Promise<GitRunMergetoolResult>;
   searchProjectFiles(payload: SearchProjectFilesPayload): Promise<SearchProjectFilesResult>;
   detectSetupScript(payload: DetectSetupScriptPayload): Promise<DetectSetupScriptResult>;
+  // GitHub PR
+  ghCheckAvailable(payload: GetGitStatusPayload): Promise<GhCheckAvailableResult>;
+  ghCreatePr(payload: GhCreatePrPayload): Promise<PrData>;
+  ghGetPrForBranch(payload: GhGetPrForBranchPayload): Promise<PrData | null>;
+  ghMergePr(payload: GhMergePrPayload): Promise<void>;
+  ghClosePr(payload: GhClosePrPayload): Promise<void>;
+  ghReopenPr(payload: GhReopenPrPayload): Promise<void>;
+  ghGetPrChecks(payload: GhGetPrChecksPayload): Promise<GhGetPrChecksResult>;
+  openExternal(url: string): Promise<void>;
   getSharedSettings(): Promise<SharedSettings>;
   setSharedSettings(settings: SharedSettings): Promise<void>;
   setWindowChrome(payload: WindowChromePayload): Promise<void>;

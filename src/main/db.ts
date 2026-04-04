@@ -65,6 +65,9 @@ export function initDatabase(dbPath: string) {
   if (!threadCols.some((c) => c.name === "worktree_branch")) {
     sqlite.exec("ALTER TABLE threads ADD COLUMN worktree_branch TEXT");
   }
+  if (!threadCols.some((c) => c.name === "pr_number")) {
+    sqlite.exec("ALTER TABLE threads ADD COLUMN pr_number INTEGER");
+  }
   if (!projectCols.some((c) => c.name === "scripts")) {
     sqlite.exec("ALTER TABLE projects ADD COLUMN scripts TEXT");
   }
@@ -141,6 +144,7 @@ function rowToThread(row: typeof schema.threads.$inferSelect): Thread {
     ...(row.sessionRef ? { sessionRef: JSON.parse(row.sessionRef) } : {}),
     ...(row.worktreePath ? { worktreePath: row.worktreePath } : {}),
     ...(row.worktreeBranch ? { worktreeBranch: row.worktreeBranch } : {}),
+    ...(row.prNumber != null ? { prNumber: row.prNumber } : {}),
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };
@@ -223,6 +227,7 @@ export function dbUpsertThread(thread: Thread, sortOrder: number): void {
       terminalPrompt: null,
       worktreePath: thread.worktreePath ?? null,
       worktreeBranch: thread.worktreeBranch ?? null,
+      prNumber: thread.prNumber ?? null,
       sortOrder,
       createdAt: thread.createdAt,
       updatedAt: thread.updatedAt,
@@ -239,6 +244,7 @@ export function dbUpsertThread(thread: Thread, sortOrder: number): void {
         terminalPrompt: null,
         worktreePath: thread.worktreePath ?? null,
         worktreeBranch: thread.worktreeBranch ?? null,
+        prNumber: thread.prNumber ?? null,
         sortOrder,
         updatedAt: thread.updatedAt,
       },

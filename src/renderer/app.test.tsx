@@ -15,6 +15,7 @@ const { bridge } = vi.hoisted(() => ({
       branch: "main",
       tracking: "",
       hasRemote: false,
+      remoteInfo: null,
       ahead: 0,
       behind: 0,
       staged: [],

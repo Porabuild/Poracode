@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { fork, type ChildProcess } from "node:child_process";
 import { mkdirSync, rmSync, watch, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { app, BrowserWindow, dialog, ipcMain, net, protocol, screen } from "electron";
+import { app, BrowserWindow, dialog, ipcMain, net, protocol, screen, shell } from "electron";
 import { autoUpdater } from "electron-updater";
 import {
   closeDatabase,
@@ -76,6 +76,14 @@ const CHANNELS = {
   gitRunMergetool: "lightcode:git-run-mergetool",
   searchProjectFiles: "lightcode:search-project-files",
   detectSetupScript: "lightcode:detect-setup-script",
+  ghCheckAvailable: "lightcode:gh-check-available",
+  ghCreatePr: "lightcode:gh-create-pr",
+  ghGetPrForBranch: "lightcode:gh-get-pr-for-branch",
+  ghMergePr: "lightcode:gh-merge-pr",
+  ghClosePr: "lightcode:gh-close-pr",
+  ghReopenPr: "lightcode:gh-reopen-pr",
+  ghGetPrChecks: "lightcode:gh-get-pr-checks",
+  openExternal: "lightcode:open-external",
   getSharedSettings: "lightcode:get-shared-settings",
   setSharedSettings: "lightcode:set-shared-settings",
   setWindowChrome: "lightcode:set-window-chrome",
@@ -545,6 +553,32 @@ function registerIpcHandlers(): void {
   ipcMain.handle(CHANNELS.detectSetupScript, async (_event, payload) =>
     callSupervisor("detectSetupScript", payload),
   );
+
+  // ── GitHub PR IPC handlers ──────────────────────────────────────
+  ipcMain.handle(CHANNELS.ghCheckAvailable, async (_event, payload) =>
+    callSupervisor("ghCheckAvailable", payload),
+  );
+  ipcMain.handle(CHANNELS.ghCreatePr, async (_event, payload) =>
+    callSupervisor("ghCreatePr", payload),
+  );
+  ipcMain.handle(CHANNELS.ghGetPrForBranch, async (_event, payload) =>
+    callSupervisor("ghGetPrForBranch", payload),
+  );
+  ipcMain.handle(CHANNELS.ghMergePr, async (_event, payload) =>
+    callSupervisor("ghMergePr", payload),
+  );
+  ipcMain.handle(CHANNELS.ghClosePr, async (_event, payload) =>
+    callSupervisor("ghClosePr", payload),
+  );
+  ipcMain.handle(CHANNELS.ghReopenPr, async (_event, payload) =>
+    callSupervisor("ghReopenPr", payload),
+  );
+  ipcMain.handle(CHANNELS.ghGetPrChecks, async (_event, payload) =>
+    callSupervisor("ghGetPrChecks", payload),
+  );
+  ipcMain.handle(CHANNELS.openExternal, async (_event, url: string) => {
+    await shell.openExternal(url);
+  });
 
   ipcMain.handle(CHANNELS.getSharedSettings, () =>
     readSharedSettingsFile(requireLightcodePaths().settingsPath),
