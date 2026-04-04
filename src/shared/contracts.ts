@@ -115,6 +115,7 @@ export const projectDraftConfigSchema = z.object({
   mode: threadModeSchema.optional(),
   approvalPolicy: z.string().optional(),
   sandboxMode: z.string().optional(),
+  worktreeMode: z.boolean().optional(),
 });
 export type ProjectDraftConfig = z.infer<typeof projectDraftConfigSchema>;
 

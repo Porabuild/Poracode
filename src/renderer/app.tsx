@@ -475,6 +475,7 @@ function AppContent() {
               mode: config.mode,
               approvalPolicy: config.approvalPolicy,
               sandboxMode: config.sandboxMode,
+              worktreeMode: Boolean(worktreeBranch || existingWorktreePath),
             });
 
             let worktreePath: string | undefined;

@@ -122,7 +122,7 @@ export function ThreadDraftView(props: {
   const attachments = useAttachments();
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const imageAttachments = attachments.attachments.filter((a) => a.isImage);
-  const [worktreeMode, setWorktreeMode] = useState(false);
+  const [worktreeMode, setWorktreeMode] = useState(lastDraftConfig?.worktreeMode ?? false);
   const [branchSelection, setBranchSelection] = useState<BranchSelection | null>(null);
   const lastAppliedAgentKindRef = useRef<AgentStatus["kind"] | undefined>(undefined);
 
