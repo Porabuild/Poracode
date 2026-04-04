@@ -1,3 +1,4 @@
+import { useShallow } from "zustand/shallow";
 import { useGitStore } from "./gitStore";
 
 export interface GitCapabilities {
@@ -29,14 +30,14 @@ function derive(
 }
 
 export function useProjectGitCapabilities(projectId: string): GitCapabilities {
-  const status = useGitStore((s) => s.statuses[projectId]);
-  return derive(status);
+  return useGitStore(useShallow((s) => derive(s.statuses[projectId])));
 }
 
 export function useWorktreeGitCapabilities(worktreePath: string | undefined, projectId: string): GitCapabilities {
-  const wtStatus = useGitStore((s) => worktreePath ? s.worktreeStatuses[worktreePath] : undefined);
-  const projectStatus = useGitStore((s) => s.statuses[projectId]);
-  // Worktree status for branch-level info, fall back to project status for remote info
-  const status = wtStatus ?? projectStatus;
-  return derive(status);
+  return useGitStore(
+    useShallow((s) => {
+      const status = (worktreePath ? s.worktreeStatuses[worktreePath] : undefined) ?? s.statuses[projectId];
+      return derive(status);
+    }),
+  );
 }

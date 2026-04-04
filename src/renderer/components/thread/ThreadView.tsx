@@ -141,10 +141,12 @@ export function ThreadView(props: {
     thread.status !== "launching";
   const launchTerminalSize = usesTerminalPresentation ? terminalSize : DEFAULT_HIDDEN_TERMINAL_SIZE;
 
-  const gitStatus = useGitStore((s) =>
-    thread.worktreePath ? s.worktreeStatuses[thread.worktreePath] : s.statuses[thread.projectId],
+  const branchName = useGitStore((s) =>
+    thread.worktreeBranch ??
+    (thread.worktreePath
+      ? s.worktreeStatuses[thread.worktreePath]?.branch
+      : s.statuses[thread.projectId]?.branch),
   );
-  const branchName = thread.worktreeBranch ?? gitStatus?.branch;
 
   const controls = buildControls(thread, agentStatus, onConfigChange);
 

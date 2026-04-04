@@ -382,7 +382,7 @@ export function GitReviewSidebar(props: {
 
   useEffect(() => {
     if (!worktreeBranch) return;
-    if (!sourceBranch) setSourceBranchLoading(true);
+    setSourceBranchLoading(true);
     readBridge()
       .gitGetWorktreeSourceBranch({ projectLocation: project.location, branch: worktreeBranch })
       .then((result) => {

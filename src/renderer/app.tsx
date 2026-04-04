@@ -2,7 +2,7 @@ import React, { lazy, startTransition, Suspense, useEffect, useEffectEvent, useS
 import { ArrowRight, FolderOpen, FolderPlus, Monitor, Plus, TerminalSquare } from "lucide-react";
 import { Button, Dropdown, Label, Spinner } from "@heroui/react";
 import { TuxIcon } from "./components/common/TuxIcon";
-import type { AgentStatus, Project, ProjectLocation, PromptSegment } from "../shared/contracts";
+import type { AgentStatus, PrData, Project, ProjectLocation, PromptSegment } from "../shared/contracts";
 import { getProjectAgentStatuses } from "../shared/agentStatus";
 import type { PendingThreadServerRequest } from "./state/appStore";
 import { parseWslUncPath } from "../shared/wsl";
@@ -1016,126 +1016,163 @@ export function App() {
     if (!storeHydrated || projects.length === 0) return;
 
     let isActive = true;
+    let isPolling = false;
     let lastFetchTime = 0;
 
     async function pollGitStatus() {
+      if (isPolling) {
+        return;
+      }
+      isPolling = true;
       const t0 = Date.now();
       const gitStoreActions = useGitStore.getState();
 
-      // Fetch from remote periodically so ahead/behind counts stay fresh
-      const shouldFetch = t0 - lastFetchTime >= GIT_FETCH_INTERVAL_MS;
-      if (shouldFetch) lastFetchTime = t0;
+      try {
+        // Fetch from remote periodically so ahead/behind counts stay fresh
+        const shouldFetch = t0 - lastFetchTime >= GIT_FETCH_INTERVAL_MS;
+        if (shouldFetch) lastFetchTime = t0;
 
-      await Promise.all(
-        projects.map(async (project) => {
-          if (!isActive) return;
-
-          // Background fetch (best-effort, don't block status polling)
-          if (shouldFetch) {
-            try {
-              await readBridge().gitFetch({
-                projectLocation: project.location,
-                remote: "origin",
-                prune: false,
-              });
-            } catch {
-              // ignore — remote may be unreachable
-            }
+        await Promise.all(
+          projects.map(async (project) => {
             if (!isActive) return;
-          }
 
-          // Status, branches, and worktrees in parallel
-          const [statusResult, branchesResult, worktreesResult] = await Promise.allSettled([
-            readBridge().getGitStatus({ projectLocation: project.location }),
-            readBridge().gitListBranches({
-              projectLocation: project.location,
-              includeRemote: true,
-            }),
-            readBridge().gitListWorktrees({ projectLocation: project.location }),
-          ]);
-          if (!isActive) return;
+            // Background fetch (best-effort, don't block status polling)
+            if (shouldFetch) {
+              try {
+                await readBridge().gitFetch({
+                  projectLocation: project.location,
+                  remote: "origin",
+                  prune: false,
+                });
+              } catch {
+                // ignore — remote may be unreachable
+              }
+              if (!isActive) return;
+            }
 
-          if (statusResult.status === "fulfilled") {
-            gitStoreActions.setStatus(project.id, statusResult.value);
-          }
-          if (branchesResult.status === "fulfilled") {
-            gitStoreActions.setBranches(project.id, branchesResult.value);
-          }
-          if (worktreesResult.status === "fulfilled") {
-            const { worktrees } = worktreesResult.value;
-            gitStoreActions.setWorktrees(project.id, worktrees);
+            // Status, branches, and worktrees in parallel
+            const [statusResult, branchesResult, worktreesResult] = await Promise.allSettled([
+              readBridge().getGitStatus({ projectLocation: project.location }),
+              readBridge().gitListBranches({
+                projectLocation: project.location,
+                includeRemote: true,
+              }),
+              readBridge().gitListWorktrees({ projectLocation: project.location }),
+            ]);
+            if (!isActive) return;
 
-            // Poll status for each non-main worktree in parallel
-            await Promise.all(
-              worktrees
-                .filter((wt) => !wt.isMain)
-                .map(async (wt) => {
-                  if (!isActive) return;
+            const status = statusResult.status === "fulfilled" ? statusResult.value : undefined;
+            const branches =
+              branchesResult.status === "fulfilled" ? branchesResult.value : undefined;
+            const worktrees =
+              worktreesResult.status === "fulfilled" ? worktreesResult.value.worktrees : undefined;
+            const ghAvailable = useGitStore.getState().ghAvailable[project.id];
+
+            gitStoreActions.setProjectSnapshot(project.id, {
+              ...(status ? { status } : {}),
+              ...(branches ? { branches } : {}),
+              ...(worktrees ? { worktrees } : {}),
+              ...(ghAvailable === undefined && status?.remoteInfo?.platform !== "github"
+                ? { ghAvailable: false }
+                : {}),
+            });
+
+            if (worktrees) {
+              const worktreeStatusEntries = await Promise.all(
+                worktrees
+                  .filter((wt) => !wt.isMain)
+                  .map(async (wt) => {
+                    if (!isActive) return undefined;
+                    try {
+                      const wtLocation = buildWorktreeLocation(project.location, wt.path);
+                      const wtStatus = await readBridge().getGitStatus({
+                        projectLocation: wtLocation,
+                      });
+                      if (!isActive) return undefined;
+                      return [wt.path, wtStatus] as const;
+                    } catch {
+                      return undefined;
+                    }
+                  }),
+              );
+              if (!isActive) return;
+
+              const nextWorktreeStatuses = Object.fromEntries(
+                worktreeStatusEntries.filter((entry) => entry !== undefined),
+              );
+              if (Object.keys(nextWorktreeStatuses).length > 0) {
+                gitStoreActions.setWorktreeStatuses(nextWorktreeStatuses);
+              }
+            }
+
+            // Check gh availability once (first poll where it's undefined)
+            if (ghAvailable === undefined) {
+              const isGitHub = status?.remoteInfo?.platform === "github";
+              if (isGitHub) {
+                readBridge()
+                  .ghCheckAvailable({ projectLocation: project.location })
+                  .then((r) => useGitStore.getState().setGhAvailable(project.id, r.available))
+                  .catch(() => useGitStore.getState().setGhAvailable(project.id, false));
+              }
+            }
+
+            // Poll PR data for worktree threads on GitHub projects
+            if (useGitStore.getState().ghAvailable[project.id]) {
+              const currentThreads = useAppStore.getState().threads;
+              const wtThreads = currentThreads.filter(
+                (t) => t.projectId === project.id && t.worktreeBranch && t.worktreePath,
+              );
+              const prUpdates: Record<string, PrData | null> = {};
+              const prNumberUpdates = new Map<string, number | undefined>();
+
+              await Promise.all(
+                wtThreads.map(async (t) => {
+                  if (!isActive || !t.worktreeBranch || !t.worktreePath) return;
                   try {
-                    const wtLocation = buildWorktreeLocation(project.location, wt.path);
-                    const wtStatus = await readBridge().getGitStatus({
-                      projectLocation: wtLocation,
+                    const pr = await readBridge().ghGetPrForBranch({
+                      projectLocation: project.location,
+                      branch: t.worktreeBranch,
                     });
                     if (!isActive) return;
-                    gitStoreActions.setWorktreeStatus(wt.path, wtStatus);
+                    prUpdates[t.worktreePath] = pr;
+                    const newPrNumber = pr?.number ?? undefined;
+                    if (newPrNumber !== t.prNumber) {
+                      prNumberUpdates.set(t.id, newPrNumber);
+                    }
                   } catch {
-                    // ignore
+                    // ignore — gh may not be authenticated
                   }
                 }),
-            );
-          }
+              );
+              if (!isActive) return;
 
-          // Check gh availability once (first poll where it's undefined)
-          if (gitStoreActions.ghAvailable[project.id] === undefined) {
-            const isGitHub =
-              statusResult.status === "fulfilled" &&
-              statusResult.value.remoteInfo?.platform === "github";
-            if (isGitHub) {
-              readBridge()
-                .ghCheckAvailable({ projectLocation: project.location })
-                .then((r) => gitStoreActions.setGhAvailable(project.id, r.available))
-                .catch(() => gitStoreActions.setGhAvailable(project.id, false));
-            } else {
-              gitStoreActions.setGhAvailable(project.id, false);
-            }
-          }
-
-          // Poll PR data for worktree threads on GitHub projects
-          if (gitStoreActions.ghAvailable[project.id]) {
-            const currentThreads = useAppStore.getState().threads;
-            const wtThreads = currentThreads.filter(
-              (t) => t.projectId === project.id && t.worktreeBranch,
-            );
-            await Promise.all(
-              wtThreads.map(async (t) => {
-                if (!isActive || !t.worktreeBranch) return;
-                try {
-                  const pr = await readBridge().ghGetPrForBranch({
-                    projectLocation: project.location,
-                    branch: t.worktreeBranch,
+              if (Object.keys(prUpdates).length > 0) {
+                gitStoreActions.setPrDataBatch(prUpdates);
+              }
+              if (prNumberUpdates.size > 0) {
+                useAppStore.setState((state) => {
+                  let changed = false;
+                  const nextThreads = state.threads.map((thread) => {
+                    if (!prNumberUpdates.has(thread.id)) {
+                      return thread;
+                    }
+                    const nextPrNumber = prNumberUpdates.get(thread.id);
+                    if (thread.prNumber === nextPrNumber) {
+                      return thread;
+                    }
+                    changed = true;
+                    return { ...thread, prNumber: nextPrNumber };
                   });
-                  if (!isActive) return;
-                  if (t.worktreePath) {
-                    gitStoreActions.setPrData(t.worktreePath, pr);
-                  }
-                  // Sync prNumber to thread if changed
-                  const newPrNumber = pr?.number ?? undefined;
-                  if (newPrNumber !== t.prNumber) {
-                    useAppStore.setState((state) => ({
-                      threads: state.threads.map((th) =>
-                        th.id === t.id ? { ...th, prNumber: newPrNumber } : th,
-                      ),
-                    }));
-                  }
-                } catch {
-                  // ignore — gh may not be authenticated
-                }
-              }),
-            );
-          }
-        }),
-      );
-      console.log(`[renderer] git poll total: ${Date.now() - t0}ms (${projects.length} projects)`);
+                  return changed ? { threads: nextThreads } : state;
+                });
+              }
+            }
+          }),
+        );
+      } finally {
+        isPolling = false;
+        console.log(`[renderer] git poll total: ${Date.now() - t0}ms (${projects.length} projects)`);
+      }
     }
 
     void pollGitStatus();

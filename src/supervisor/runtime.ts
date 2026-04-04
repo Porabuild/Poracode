@@ -999,7 +999,7 @@ export class SupervisorRuntime {
   }
 
   async ghGetPrChecks(payload: GhGetPrChecksPayload): Promise<GhGetPrChecksResult> {
-    return this.gitService.getPrChecks(payload.projectLocation, payload.branch);
+    return this.githubService.getPrChecks(payload.projectLocation, payload.branch);
   }
 
   async gitAbortMerge(payload: GitAbortMergePayload): Promise<void> {

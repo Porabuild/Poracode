@@ -32,7 +32,6 @@ import { ProviderIcon, getStatusTone } from "../providers";
 import { resolveActionIcon } from "../settings/ProjectSettingsOverlay";
 import { useGitStore } from "../../state/gitStore";
 import { GitBadge } from "./GitBadge";
-import { PrBadge } from "./PrBadge";
 import { groupThreadsByWorktree } from "./groupThreadsByWorktree";
 import { WorktreeGroupHeader } from "./WorktreeGroupHeader";
 

@@ -1,6 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { useGitStore } from "./gitStore";
-import { useProjectGitCapabilities, useWorktreeGitCapabilities } from "./useGitCapabilities";
 import type { GitStatusResult } from "../../shared/contracts";
 
 // For non-hook testing, access store state directly

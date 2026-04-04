@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Paperclip, TerminalSquare } from "lucide-react";
 import { Button, Spinner, Tooltip } from "@heroui/react";
+import { useShallow } from "zustand/shallow";
 import type {
   AgentStatus,
   Project,
@@ -96,12 +97,18 @@ export function ThreadDraftView(props: {
   }) => void;
 }) {
   const { project, agentStatuses, lastDraftConfig, onStart } = props;
-  const gitStatus = useGitStore((s) => s.statuses[project.id]);
-  const gitBranch = gitStatus?.branch;
-  const gitHasRemote = gitStatus?.hasRemote ?? false;
-  const gitHasTracking = Boolean(gitStatus?.tracking);
-  const gitAhead = gitStatus?.ahead ?? 0;
-  const gitBehind = gitStatus?.behind ?? 0;
+  const { gitBranch, gitHasRemote, gitHasTracking, gitAhead, gitBehind } = useGitStore(
+    useShallow((s) => {
+      const gitStatus = s.statuses[project.id];
+      return {
+        gitBranch: gitStatus?.branch,
+        gitHasRemote: gitStatus?.hasRemote ?? false,
+        gitHasTracking: Boolean(gitStatus?.tracking),
+        gitAhead: gitStatus?.ahead ?? 0,
+        gitBehind: gitStatus?.behind ?? 0,
+      };
+    }),
+  );
   const [isSyncing, setIsSyncing] = useState(false);
   const installedAgents = agentStatuses.filter((status) => status.installed);
   const preferredAgentKind = resolvePreferredAgentKind(installedAgents, lastDraftConfig);

@@ -224,7 +224,7 @@ describe("GitHubService", () => {
 
       await expect(
         new GitHubService().createPr(location, "feature/x", "main", "PR", "", false),
-      ).rejects.toThrow();
+      ).rejects.toThrow("gh pr create failed");
 
       expect(unlinkMock).toHaveBeenCalledTimes(1);
     });
