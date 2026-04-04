@@ -423,6 +423,9 @@ export function ThreadView(props: {
                           <GitBranch className="size-3.5 text-muted" />
                         )}
                         <span className="truncate">{branchName}</span>
+                        {thread.prNumber ? (
+                          <span className="text-muted/60">PR #{thread.prNumber}</span>
+                        ) : null}
                       </div>
                     ) : null}
                   </>

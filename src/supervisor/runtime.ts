@@ -43,6 +43,15 @@ import type {
   GitSyncResult,
   DetectSetupScriptPayload,
   DetectSetupScriptResult,
+  GhCheckAvailableResult,
+  GhCreatePrPayload,
+  GhGetPrForBranchPayload,
+  GhMergePrPayload,
+  GhClosePrPayload,
+  GhReopenPrPayload,
+  GhGetPrChecksPayload,
+  GhGetPrChecksResult,
+  PrData,
   SearchProjectFilesPayload,
   SearchProjectFilesResult,
   GitAddWorktreePayload,
@@ -96,6 +105,7 @@ import {
 import { generateCommitMessage } from "./commitMessageGenerator";
 import { generateTitle } from "./titleGenerator";
 import { GitService } from "./git";
+import { GitHubService } from "./github";
 import { FileIndexService } from "./fileIndex";
 import { resetTerminalLogFile, resetTerminalLogsDir } from "./terminalLogs";
 import { detectWindowsShell, type WindowsShellPreference } from "./shellPreference";
@@ -273,6 +283,7 @@ export class SupervisorRuntime {
   private readonly isDev = Boolean(process.env.VITE_DEV_SERVER_URL);
   private readonly logsDir: string;
   private readonly gitService = new GitService();
+  private readonly githubService = new GitHubService();
   private readonly fileIndexService = new FileIndexService();
   private readonly adapters = new Map(
     createAgentRegistry().map((adapter) => [adapter.kind, adapter]),
@@ -949,6 +960,43 @@ export class SupervisorRuntime {
 
   async gitPullFromSource(payload: GitPullFromSourcePayload): Promise<GitPullFromSourceResult> {
     return this.gitService.pullFromSource(payload.worktreeLocation, payload.sourceBranch);
+  }
+
+  // ── GitHub PR ──────────────────────────────────────────
+
+  async ghCheckAvailable(payload: GetGitStatusPayload): Promise<GhCheckAvailableResult> {
+    return this.githubService.checkGhAvailable(payload.projectLocation);
+  }
+
+  async ghCreatePr(payload: GhCreatePrPayload): Promise<PrData> {
+    return this.githubService.createPr(
+      payload.projectLocation,
+      payload.branch,
+      payload.baseBranch,
+      payload.title,
+      payload.body,
+      payload.isDraft,
+    );
+  }
+
+  async ghGetPrForBranch(payload: GhGetPrForBranchPayload): Promise<PrData | null> {
+    return this.githubService.getPrForBranch(payload.projectLocation, payload.branch);
+  }
+
+  async ghMergePr(payload: GhMergePrPayload): Promise<void> {
+    return this.githubService.mergePr(payload.projectLocation, payload.prNumber, payload.method);
+  }
+
+  async ghClosePr(payload: GhClosePrPayload): Promise<void> {
+    return this.githubService.closePr(payload.projectLocation, payload.prNumber);
+  }
+
+  async ghReopenPr(payload: GhReopenPrPayload): Promise<void> {
+    return this.githubService.reopenPr(payload.projectLocation, payload.prNumber);
+  }
+
+  async ghGetPrChecks(payload: GhGetPrChecksPayload): Promise<GhGetPrChecksResult> {
+    return this.githubService.getPrChecks(payload.projectLocation, payload.branch);
   }
 
   async searchProjectFiles(payload: SearchProjectFilesPayload): Promise<SearchProjectFilesResult> {

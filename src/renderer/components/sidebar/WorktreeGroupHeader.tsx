@@ -2,6 +2,7 @@ import { GitFork, TerminalSquare } from "lucide-react";
 import type { DragEventHandler } from "react";
 import { SidebarButton } from "../common";
 import { GitBadge } from "./GitBadge";
+import { PrBadge } from "./PrBadge";
 
 export function WorktreeGroupHeader(props: {
   worktreePath: string;
@@ -40,6 +41,7 @@ export function WorktreeGroupHeader(props: {
       dragLabel={`Reorder ${props.worktreeBranch}`}
       suffix={
         <>
+          <PrBadge worktreePath={props.worktreePath} />
           <GitBadge
             projectId={props.projectId}
             projectName={props.worktreeBranch}

@@ -5,8 +5,10 @@ import {
   Columns2,
   Download,
   FileDiff,
+  ExternalLink,
   GitFork,
   GitMerge,
+  GitPullRequest,
   PanelLeft,
   PanelLeftClose,
   Pencil,
@@ -28,7 +30,9 @@ import { isWindows, readBridge } from "../../bridge";
 import { useUpdateStore } from "../../state/updateStore";
 import { ProviderIcon, getStatusTone } from "../providers";
 import { resolveActionIcon } from "../settings/ProjectSettingsOverlay";
+import { useGitStore } from "../../state/gitStore";
 import { GitBadge } from "./GitBadge";
+import { PrBadge } from "./PrBadge";
 import { groupThreadsByWorktree } from "./groupThreadsByWorktree";
 import { WorktreeGroupHeader } from "./WorktreeGroupHeader";
 
@@ -964,6 +968,23 @@ export function Sidebar(props: {
                                           label: "Merge & Remove Worktree",
                                           icon: <GitMerge className="size-3.5" />,
                                         },
+                                        ...(() => {
+                                          const ghOk = useGitStore.getState().ghAvailable[project.id];
+                                          const pr = useGitStore.getState().prData[group.worktreePath];
+                                          if (!ghOk) return [];
+                                          if (pr && pr.state !== "closed") {
+                                            return [{
+                                              id: "open-pr",
+                                              label: `Open PR #${pr.number}`,
+                                              icon: <ExternalLink className="size-3.5" />,
+                                            }];
+                                          }
+                                          return [{
+                                            id: "create-pr",
+                                            label: "Create Pull Request",
+                                            icon: <GitPullRequest className="size-3.5" />,
+                                          }];
+                                        })(),
                                       ],
                                     },
                                   ]}
@@ -989,6 +1010,13 @@ export function Sidebar(props: {
                                     }
                                     if (key === "git-merge-and-remove") {
                                       onGitMergeAndRemove(project.id, group.worktreePath);
+                                    }
+                                    if (key === "open-pr") {
+                                      const pr = useGitStore.getState().prData[group.worktreePath];
+                                      if (pr?.url) void readBridge().openExternal(pr.url);
+                                    }
+                                    if (key === "create-pr") {
+                                      onOpenGitReview(project.id, group.worktreePath);
                                     }
                                     if (key.startsWith("action:")) {
                                       onRunProjectAction(

@@ -1,11 +1,13 @@
 import { create } from "zustand";
-import type { GitBranchListResult, GitStatusResult, GitWorktreeInfo } from "../../shared/contracts";
+import type { GitBranchListResult, GitStatusResult, GitWorktreeInfo, PrData } from "../../shared/contracts";
 
 interface GitState {
   statuses: Record<string, GitStatusResult>;
   worktreeStatuses: Record<string, GitStatusResult>;
   worktrees: Record<string, GitWorktreeInfo[]>;
   branches: Record<string, GitBranchListResult>;
+  ghAvailable: Record<string, boolean>;
+  prData: Record<string, PrData | null>;
 }
 
 interface GitActions {
@@ -15,6 +17,8 @@ interface GitActions {
   clearWorktreeStatus: (worktreePath: string) => void;
   setWorktrees: (projectId: string, worktrees: GitWorktreeInfo[]) => void;
   setBranches: (projectId: string, branches: GitBranchListResult) => void;
+  setGhAvailable: (projectId: string, available: boolean) => void;
+  setPrData: (worktreePath: string, pr: PrData | null) => void;
 }
 
 function shallowJsonEqual(a: unknown, b: unknown): boolean {
@@ -28,6 +32,8 @@ export const useGitStore = create<GitState & GitActions>()((set, get) => ({
   worktreeStatuses: {},
   worktrees: {},
   branches: {},
+  ghAvailable: {},
+  prData: {},
 
   setStatus: (projectId, status) => {
     if (shallowJsonEqual(get().statuses[projectId], status)) return;
@@ -66,6 +72,20 @@ export const useGitStore = create<GitState & GitActions>()((set, get) => ({
     if (shallowJsonEqual(get().branches[projectId], branches)) return;
     set((state) => ({
       branches: { ...state.branches, [projectId]: branches },
+    }));
+  },
+
+  setGhAvailable: (projectId, available) => {
+    if (get().ghAvailable[projectId] === available) return;
+    set((state) => ({
+      ghAvailable: { ...state.ghAvailable, [projectId]: available },
+    }));
+  },
+
+  setPrData: (worktreePath, pr) => {
+    if (shallowJsonEqual(get().prData[worktreePath], pr)) return;
+    set((state) => ({
+      prData: { ...state.prData, [worktreePath]: pr },
     }));
   },
 }));

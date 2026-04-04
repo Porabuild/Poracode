@@ -17,6 +17,8 @@ import type {
   GitMergeToSourceResult,
   GitGetWorktreeSourceBranchResult,
   GitPullFromSourceResult,
+  GitRemoteInfo,
+  RemoteHostPlatform,
 } from "../shared/contracts";
 import { readWslCommandOutputAsync } from "./agents/base";
 import { resolveLightcodePaths } from "../shared/lightcodePaths";
@@ -117,11 +119,39 @@ function mapFileStatus(file: FileStatusResult, staged: boolean): GitFileChange {
   };
 }
 
+function detectPlatform(hostname: string): RemoteHostPlatform {
+  const h = hostname.toLowerCase();
+  if (h === "github.com" || h.includes("github")) return "github";
+  if (h === "gitlab.com" || h.includes("gitlab")) return "gitlab";
+  if (h === "bitbucket.org" || h.includes("bitbucket")) return "bitbucket";
+  return "unknown";
+}
+
+/** Parse a git remote URL into structured info. Handles HTTPS, SSH, and GHE patterns. */
+export function parseRemoteUrl(url: string): GitRemoteInfo | null {
+  // HTTPS: https://github.com/owner/repo.git
+  const httpsMatch = url.match(/^https?:\/\/([^/]+)\/([^/]+)\/([^/]+?)(?:\.git)?$/);
+  if (httpsMatch) {
+    const [, hostname, owner, repo] = httpsMatch;
+    return { url, platform: detectPlatform(hostname!), owner: owner!, repo: repo! };
+  }
+
+  // SSH: git@github.com:owner/repo.git
+  const sshMatch = url.match(/^[^@]+@([^:]+):([^/]+)\/([^/]+?)(?:\.git)?$/);
+  if (sshMatch) {
+    const [, hostname, owner, repo] = sshMatch;
+    return { url, platform: detectPlatform(hostname!), owner: owner!, repo: repo! };
+  }
+
+  return null;
+}
+
 const EMPTY_STATUS: GitStatusResult = {
   isRepo: false,
   branch: "",
   tracking: "",
   hasRemote: false,
+  remoteInfo: null,
   ahead: 0,
   behind: 0,
   staged: [],
@@ -141,8 +171,12 @@ export class GitService {
       return EMPTY_STATUS;
     }
 
-    const [status, remotes] = await Promise.all([git.status(), git.getRemotes()]);
+    const [status, remotes] = await Promise.all([git.status(), git.getRemotes(true)]);
     const hasRemote = remotes.length > 0;
+
+    // Parse remote URL for platform detection
+    const origin = remotes.find((r) => r.name === "origin") ?? remotes[0];
+    const remoteInfo = origin?.refs?.fetch ? parseRemoteUrl(origin.refs.fetch) : null;
 
     const staged: GitFileChange[] = status.files
       .filter((f) => f.index && f.index !== " " && f.index !== "?")
@@ -214,6 +248,7 @@ export class GitService {
       branch: status.current ?? "",
       tracking: status.tracking ?? "",
       hasRemote,
+      remoteInfo,
       ahead: status.ahead,
       behind: status.behind,
       staged,

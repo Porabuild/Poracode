@@ -1083,6 +1083,55 @@ export function App() {
                 }),
             );
           }
+
+          // Check gh availability once (first poll where it's undefined)
+          if (gitStoreActions.ghAvailable[project.id] === undefined) {
+            const isGitHub =
+              statusResult.status === "fulfilled" &&
+              statusResult.value.remoteInfo?.platform === "github";
+            if (isGitHub) {
+              readBridge()
+                .ghCheckAvailable({ projectLocation: project.location })
+                .then((r) => gitStoreActions.setGhAvailable(project.id, r.available))
+                .catch(() => gitStoreActions.setGhAvailable(project.id, false));
+            } else {
+              gitStoreActions.setGhAvailable(project.id, false);
+            }
+          }
+
+          // Poll PR data for worktree threads on GitHub projects
+          if (gitStoreActions.ghAvailable[project.id]) {
+            const currentThreads = useAppStore.getState().threads;
+            const wtThreads = currentThreads.filter(
+              (t) => t.projectId === project.id && t.worktreeBranch,
+            );
+            await Promise.all(
+              wtThreads.map(async (t) => {
+                if (!isActive || !t.worktreeBranch) return;
+                try {
+                  const pr = await readBridge().ghGetPrForBranch({
+                    projectLocation: project.location,
+                    branch: t.worktreeBranch,
+                  });
+                  if (!isActive) return;
+                  if (t.worktreePath) {
+                    gitStoreActions.setPrData(t.worktreePath, pr);
+                  }
+                  // Sync prNumber to thread if changed
+                  const newPrNumber = pr?.number ?? undefined;
+                  if (newPrNumber !== t.prNumber) {
+                    useAppStore.setState((state) => ({
+                      threads: state.threads.map((th) =>
+                        th.id === t.id ? { ...th, prNumber: newPrNumber } : th,
+                      ),
+                    }));
+                  }
+                } catch {
+                  // ignore — gh may not be authenticated
+                }
+              }),
+            );
+          }
         }),
       );
       console.log(`[renderer] git poll total: ${Date.now() - t0}ms (${projects.length} projects)`);

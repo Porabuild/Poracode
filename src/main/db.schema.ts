@@ -31,6 +31,7 @@ export const threads = sqliteTable("threads", {
   terminalPrompt: text("terminal_prompt"), // JSON
   worktreePath: text("worktree_path"),
   worktreeBranch: text("worktree_branch"),
+  prNumber: integer("pr_number"),
   sortOrder: integer("sort_order").notNull().default(0),
   createdAt: text("created_at").notNull(),
   updatedAt: text("updated_at").notNull(),

@@ -1,6 +1,6 @@
 import React, { type ReactNode, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { Dropdown, Label } from "@heroui/react";
+import { Dropdown, Label, Tooltip } from "@heroui/react";
 
 // Only one context menu can be open at a time.
 let closeActiveMenu: (() => void) | null = null;
@@ -11,6 +11,7 @@ export interface ContextMenuItem {
   icon?: ReactNode;
   variant?: "default" | "danger";
   isDisabled?: boolean;
+  disabledReason?: string;
 }
 
 export interface ContextMenuSubmenu {
@@ -38,7 +39,7 @@ function collectAllItems(entries: ContextMenuEntry[]): ContextMenuItem[] {
 }
 
 function renderDropdownItem(item: ContextMenuItem) {
-  return (
+  const content = (
     <Dropdown.Item
       key={item.id}
       id={item.id}
@@ -55,6 +56,17 @@ function renderDropdownItem(item: ContextMenuItem) {
       <Label>{item.label}</Label>
     </Dropdown.Item>
   );
+
+  if (item.isDisabled && item.disabledReason) {
+    return (
+      <Tooltip key={item.id} delay={300}>
+        <Tooltip.Trigger>{content}</Tooltip.Trigger>
+        <Tooltip.Content placement="right">{item.disabledReason}</Tooltip.Content>
+      </Tooltip>
+    );
+  }
+
+  return content;
 }
 
 export function ContextMenu(props: ContextMenuProps) {
