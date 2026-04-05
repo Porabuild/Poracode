@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { GitBranch, GitFork, Paperclip, X } from "lucide-react";
 import type {
   AgentStatus,
@@ -65,16 +65,13 @@ export function ThreadView(props: {
   pendingServerRequests: PendingThreadServerRequest[];
   showCloseButton?: boolean;
   paneAlign?: "left" | "center" | "right";
-  isDragging?: boolean | undefined;
-  paneDragActive?: boolean | undefined;
+  isDragging?: boolean;
   dropIndicator?: false | "replace" | "insert-left" | "insert-right";
+  paneIndex?: number;
+  paneCount?: number;
+  dragHandleRef?: (element: Element | null) => void;
+  droppableRef?: React.RefObject<HTMLDivElement | null>;
   onClose?: (() => void) | undefined;
-  onPaneDragStart?: (() => void) | undefined;
-  onPaneDragEnd?: (() => void) | undefined;
-  onPaneDragOver?:
-    | ((zone: "left" | "center" | "right", event: React.DragEvent) => void)
-    | undefined;
-  onPaneDrop?: ((event: React.DragEvent) => void) | undefined;
   onConfigChange: (config: ThreadConfig) => void;
   onLaunchConsumed?: (() => void) | undefined;
   onLaunchFailed?: (() => void) | undefined;
@@ -96,13 +93,12 @@ export function ThreadView(props: {
     showCloseButton,
     paneAlign = "center",
     isDragging,
-    paneDragActive,
     dropIndicator,
+    paneIndex,
+    paneCount = 1,
+    dragHandleRef,
+    droppableRef,
     onClose,
-    onPaneDragStart,
-    onPaneDragEnd,
-    onPaneDragOver,
-    onPaneDrop,
     onConfigChange,
     onLaunchConsumed,
     onLaunchFailed,
@@ -245,63 +241,41 @@ export function ThreadView(props: {
   const alignClass =
     paneAlign === "right" ? "ml-auto" : paneAlign === "left" ? "mr-auto" : "mx-auto";
   const paddingClass =
-    paneAlign === "left" ? "pl-6 pr-10" : paneAlign === "right" ? "pl-6 pr-6" : "px-6";
+    "px-2";
 
   return (
-    <div className={`relative flex h-full min-h-0 flex-col ${isDragging ? "opacity-50" : ""}`}>
-      {paneDragActive && !isDragging && (
-        <div
-          aria-hidden="true"
-          className="absolute inset-0 z-10"
-          onDragOver={(e) => {
-            e.preventDefault();
-            e.dataTransfer.dropEffect = "move";
-            const rect = e.currentTarget.getBoundingClientRect();
-            const fraction = (e.clientX - rect.left) / rect.width;
-            const zone = fraction < 0.25 ? "left" : fraction > 0.75 ? "right" : "center";
-            onPaneDragOver?.(zone, e);
-          }}
-          onDrop={(e) => {
-            e.preventDefault();
-            onPaneDrop?.(e);
-          }}
-        />
-      )}
-      {dropIndicator === "replace" && (
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute inset-0 z-20 rounded-2xl bg-accent/10 ring-1 ring-inset ring-accent/30"
-        />
-      )}
-      {dropIndicator === "insert-left" && (
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute inset-y-0 left-0 z-20 w-1 rounded-full bg-accent"
-        />
-      )}
-      {dropIndicator === "insert-right" && (
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute inset-y-0 right-0 z-20 w-1 rounded-full bg-accent"
-        />
-      )}
-      <div className={`flex h-full min-h-0 flex-col ${paddingClass} pt-1 pb-4`}>
-        <div className={`${alignClass} flex h-full w-full max-w-[1040px] flex-col`}>
+    <div
+      className={`relative flex h-full min-h-0 flex-col ${paddingClass} pt-1 pb-4 ${isDragging ? "opacity-50" : ""}`}
+    >
+      <div
+        ref={droppableRef}
+        className={`${alignClass} relative flex h-full w-full max-w-[1040px] flex-col px-4`}
+      >
+        {dropIndicator === "replace" && (
           <div
-            className={`${alignClass} flex w-full max-w-[920px] items-start justify-between gap-4 ${onPaneDragStart ? "cursor-grab active:cursor-grabbing" : ""}`}
-            draggable={!!onPaneDragStart}
-            onDragStart={
-              onPaneDragStart
-                ? (e) => {
-                    e.dataTransfer.effectAllowed = "move";
-                    e.dataTransfer.setData("text/plain", thread.id);
-                    onPaneDragStart();
-                  }
-                : undefined
-            }
-            onDragEnd={onPaneDragEnd}
-          >
-            <div className="flex min-w-0 items-center gap-2">
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-0 z-20 rounded-2xl bg-accent/10 ring-1 ring-inset ring-accent/30"
+          />
+        )}
+        {dropIndicator === "insert-left" && paneIndex === 0 && (
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute top-0 bottom-0 -left-1 z-20 w-0.5 rounded-full bg-accent"
+          />
+        )}
+        {dropIndicator === "insert-right" && (paneIndex === undefined || paneIndex === paneCount - 1) && (
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute top-0 bottom-0 -right-1 z-20 w-0.5 rounded-full bg-accent"
+          />
+        )}
+        <div
+          className={`${alignClass} flex w-full max-w-[920px] items-start justify-between gap-4`}
+        >
+            <div
+              ref={dragHandleRef}
+              className={`flex min-w-0 flex-1 items-center gap-2 ${dragHandleRef ? "cursor-grab active:cursor-grabbing" : ""}`}
+            >
               <ProviderIcon
                 kind={thread.agentKind}
                 tone={getStatusTone(thread)}
@@ -445,7 +419,6 @@ export function ThreadView(props: {
             </div>
           </div>
         </div>
-      </div>
       {lightboxIndex !== null && imageAttachments.length > 0 ? (
         <ImageLightbox
           images={imageAttachments}

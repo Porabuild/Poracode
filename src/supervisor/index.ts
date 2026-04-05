@@ -30,6 +30,7 @@ import type {
   GitUnstagePayload,
   GitUnwatchProjectPayload,
   GitWatchProjectPayload,
+  GitWatchWorktreesPayload,
   GhCreatePrPayload,
   GhGetPrForBranchPayload,
   GhMergePrPayload,
@@ -66,6 +67,7 @@ import {
   gitRemoveWorktreePayloadSchema,
   gitSyncPayloadSchema,
   gitWatchProjectPayloadSchema,
+  gitWatchWorktreesPayloadSchema,
   gitUnwatchProjectPayloadSchema,
   detectSetupScriptPayloadSchema,
   searchProjectFilesPayloadSchema,
@@ -232,6 +234,10 @@ async function handleRequest(request: SupervisorRequest): Promise<unknown> {
     case "gitWatchProject":
       return runtime.gitWatchProject(
         gitWatchProjectPayloadSchema.parse(request.payload) as GitWatchProjectPayload,
+      );
+    case "gitWatchWorktrees":
+      return runtime.gitWatchWorktrees(
+        gitWatchWorktreesPayloadSchema.parse(request.payload) as GitWatchWorktreesPayload,
       );
     case "gitUnwatchProject":
       return runtime.gitUnwatchProject(

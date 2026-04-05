@@ -56,6 +56,7 @@ import type {
   GitUnstagePayload,
   GitUnwatchProjectPayload,
   GitWatchProjectPayload,
+  GitWatchWorktreesPayload,
   GitWorktreeListResult,
   ProjectLocation,
   ResizeTerminalPayload,
@@ -118,6 +119,7 @@ export type SupervisorRequest =
   | { id: string; type: "gitAbortMerge"; payload: GitAbortMergePayload }
   | { id: string; type: "gitRunMergetool"; payload: GitRunMergetoolPayload }
   | { id: string; type: "gitWatchProject"; payload: GitWatchProjectPayload }
+  | { id: string; type: "gitWatchWorktrees"; payload: GitWatchWorktreesPayload }
   | { id: string; type: "gitUnwatchProject"; payload: GitUnwatchProjectPayload }
   | { id: string; type: "searchProjectFiles"; payload: SearchProjectFilesPayload }
   | { id: string; type: "detectSetupScript"; payload: DetectSetupScriptPayload }
@@ -231,6 +233,7 @@ export interface LightcodeBridge {
   gitAbortMerge(payload: GitAbortMergePayload): Promise<void>;
   gitRunMergetool(payload: GitRunMergetoolPayload): Promise<GitRunMergetoolResult>;
   gitWatchProject(payload: GitWatchProjectPayload): Promise<void>;
+  gitWatchWorktrees(payload: GitWatchWorktreesPayload): Promise<void>;
   gitUnwatchProject(payload: GitUnwatchProjectPayload): Promise<void>;
   searchProjectFiles(payload: SearchProjectFilesPayload): Promise<SearchProjectFilesResult>;
   detectSetupScript(payload: DetectSetupScriptPayload): Promise<DetectSetupScriptResult>;

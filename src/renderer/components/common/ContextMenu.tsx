@@ -1,4 +1,4 @@
-import React, { type ReactNode, useEffect, useState } from "react";
+import React, { type MouseEventHandler, type ReactNode, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { Dropdown, Label, Tooltip } from "@heroui/react";
 
@@ -90,11 +90,22 @@ export function ContextMenu(props: ContextMenuProps) {
     setPosition({ x: e.clientX, y: e.clientY });
   }
 
+  const trigger = React.isValidElement<{ onContextMenu?: MouseEventHandler }>(children)
+    ? React.cloneElement(children, {
+        onContextMenu: (event) => {
+          children.props.onContextMenu?.(event);
+          if (!event.defaultPrevented) {
+            handleContextMenu(event);
+          }
+        },
+      })
+    : (
+        <div onContextMenu={handleContextMenu}>{children}</div>
+      );
+
   return (
     <>
-      <div style={{ display: "contents" }} onContextMenu={handleContextMenu}>
-        {children}
-      </div>
+      {trigger}
       {position
         ? createPortal(
             <Dropdown

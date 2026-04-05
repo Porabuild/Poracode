@@ -72,6 +72,7 @@ import type {
   GitUnstageAllPayload,
   GitUnwatchProjectPayload,
   GitWatchProjectPayload,
+  GitWatchWorktreesPayload,
   GitUnstagePayload,
   GitWorktreeListResult,
   GetGitBranchesPayload,
@@ -689,6 +690,13 @@ export class SupervisorRuntime {
       session.pty,
       session.adapter.buildDirectInput?.(prompt, payload.segments) ?? [prompt, "\r"],
     );
+
+    // Claude CLI may show a "[Pasted text" confirmation instead of submitting.
+    // Wait briefly, then re-send Enter if that prompt is detected.
+    await sleep(300);
+    if (session.prevChunk.includes("[Pasted text")) {
+      session.pty.write("\r");
+    }
   }
 
   async writeTerminal(payload: WriteTerminalPayload): Promise<void> {
@@ -1025,6 +1033,10 @@ export class SupervisorRuntime {
 
   async gitWatchProject(payload: GitWatchProjectPayload): Promise<void> {
     this.gitWatcher.watch(payload.projectId, payload.projectLocation);
+  }
+
+  async gitWatchWorktrees(payload: GitWatchWorktreesPayload): Promise<void> {
+    this.gitWatcher.watchWorktrees(payload.projectId, payload.worktreePaths);
   }
 
   async gitUnwatchProject(payload: GitUnwatchProjectPayload): Promise<void> {

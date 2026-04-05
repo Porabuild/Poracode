@@ -9,6 +9,17 @@ import { useGitStore } from "../../state/gitStore";
  */
 export type SyncAction = "push" | "pull" | "sync";
 
+export type GitMenuIcons = {
+  review: React.ReactNode;
+  sync: React.ReactNode;
+  push: React.ReactNode;
+  pull: React.ReactNode;
+  pullFromSource: React.ReactNode;
+  merge: React.ReactNode;
+  openPr: React.ReactNode;
+  createPr: React.ReactNode;
+};
+
 export interface WorktreeActionVisibility {
   syncAction: SyncAction;
   showMerge: boolean;
@@ -62,16 +73,7 @@ export interface GitMenuItem {
  */
 export function buildWorktreeGitItems(
   vis: WorktreeActionVisibility,
-  icons: {
-    review: React.ReactNode;
-    sync: React.ReactNode;
-    push: React.ReactNode;
-    pull: React.ReactNode;
-    pullFromSource: React.ReactNode;
-    merge: React.ReactNode;
-    openPr: React.ReactNode;
-    createPr: React.ReactNode;
-  },
+  icons: GitMenuIcons,
 ): GitMenuItem[] {
   const syncMap: Record<SyncAction, GitMenuItem> = {
     sync: { id: "git-sync", label: "Sync", icon: icons.sync },

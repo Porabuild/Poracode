@@ -8,7 +8,8 @@
       "Bash(gh repo:*)",
       "Bash(xargs grep:*)",
       "Bash(git stash:*)",
-      "Bash(npx electron-icon-builder:*)"
+      "Bash(npx electron-icon-builder:*)",
+      "WebFetch(domain:dndkit.com)"
     ]
   }
 }

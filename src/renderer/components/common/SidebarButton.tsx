@@ -1,8 +1,8 @@
-import { useRef, useState, type DragEventHandler } from "react";
+import { useRef, useState } from "react";
 import { Tooltip } from "@heroui/react";
-import { GripVertical } from "lucide-react";
 
 export function SidebarButton(props: {
+  ref?: React.Ref<HTMLDivElement>;
   icon: React.ReactNode;
   label: React.ReactNode;
   onPress?: () => void;
@@ -13,14 +13,10 @@ export function SidebarButton(props: {
   suffix?: React.ReactNode;
   className?: string;
   onDoubleClick?: () => void;
-  onDragOver?: DragEventHandler<HTMLButtonElement>;
-  onDrop?: DragEventHandler<HTMLButtonElement>;
-  onDragStart?: DragEventHandler<HTMLDivElement>;
-  onDragEnd?: DragEventHandler<HTMLDivElement>;
   isDragging?: boolean;
-  dragLabel?: string;
 }) {
   const {
+    ref,
     icon,
     label,
     onPress,
@@ -31,12 +27,7 @@ export function SidebarButton(props: {
     suffix,
     className,
     onDoubleClick,
-    onDragOver,
-    onDrop,
-    onDragStart,
-    onDragEnd,
     isDragging,
-    dragLabel,
   } = props;
 
   const stateClass = isDisabled
@@ -64,14 +55,21 @@ export function SidebarButton(props: {
   }
 
   return (
-    <button
-      className={`group relative flex w-full cursor-default items-center gap-2 rounded-3xl py-1.5 text-left text-sm transition-colors ${onDragStart ? "pl-3 pr-4" : "px-3"} ${stateClass} ${className ?? ""}`}
-      disabled={isDisabled}
-      onClick={onPress}
+    <div
+      ref={ref}
+      role="button"
+      tabIndex={isDisabled ? -1 : 0}
+      aria-disabled={isDisabled || undefined}
+      aria-grabbed={isDragging}
+      className={`group relative flex w-full cursor-default items-center gap-2 rounded-3xl px-3 py-1.5 text-left text-sm transition-colors ${stateClass} ${className ?? ""}`}
+      onClick={isDisabled ? undefined : onPress}
       onDoubleClick={onDoubleClick}
-      onDragOver={onDragOver}
-      onDrop={onDrop}
-      type="button"
+      onKeyDown={(e) => {
+        if ((e.key === "Enter" || e.key === " ") && !isDisabled) {
+          e.preventDefault();
+          onPress?.();
+        }
+      }}
     >
       {icon}
       <div className="min-w-0 flex-1">
@@ -82,28 +80,7 @@ export function SidebarButton(props: {
         )}
       </div>
       {suffix && <div className="flex shrink-0 items-center gap-1.5">{suffix}</div>}
-      {onDragStart && (
-        <div
-          role="button"
-          tabIndex={0}
-          aria-grabbed={isDragging}
-          aria-label={dragLabel}
-          className="absolute right-1 opacity-0 transition-opacity pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto shrink-0 cursor-grab rounded text-muted/60 active:cursor-grabbing"
-          draggable
-          onDragEnd={onDragEnd}
-          onDragStart={onDragStart}
-          onClick={(e) => e.stopPropagation()}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" || e.key === " ") {
-              e.preventDefault();
-              e.stopPropagation();
-            }
-          }}
-        >
-          <GripVertical className="size-3.5" />
-        </div>
-      )}
-    </button>
+    </div>
   );
 }
 

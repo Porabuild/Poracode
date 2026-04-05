@@ -580,6 +580,12 @@ export const gitWatchProjectPayloadSchema = z.object({
 });
 export type GitWatchProjectPayload = z.infer<typeof gitWatchProjectPayloadSchema>;
 
+export const gitWatchWorktreesPayloadSchema = z.object({
+  projectId: z.string().min(1),
+  worktreePaths: z.array(z.string()),
+});
+export type GitWatchWorktreesPayload = z.infer<typeof gitWatchWorktreesPayloadSchema>;
+
 export const gitUnwatchProjectPayloadSchema = z.object({
   projectId: z.string().min(1),
 });

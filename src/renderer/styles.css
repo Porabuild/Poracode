@@ -238,7 +238,8 @@ body {
     width 0.15s;
 }
 
-.lightcode-pane-divider:hover::after {
+.lightcode-pane-divider:hover::after,
+.lightcode-pane-divider.is-highlighted::after {
   width: 2px;
   background: var(--accent);
 }

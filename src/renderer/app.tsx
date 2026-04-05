@@ -1,4 +1,4 @@
-import React, { lazy, startTransition, Suspense, useEffect, useEffectEvent, useState } from "react";
+import { lazy, startTransition, Suspense, useEffect, useEffectEvent, useRef, useState } from "react";
 import { ArrowRight, FolderOpen, FolderPlus, Monitor, Plus, TerminalSquare } from "lucide-react";
 import { Button, Dropdown, Label, Spinner } from "@heroui/react";
 import { TuxIcon } from "./components/common/TuxIcon";
@@ -33,8 +33,9 @@ import { useSharedSettings } from "./state/sharedSettingsStore";
 import { useThread } from "./state/useThread";
 import { useDevTerminalStore } from "./state/devTerminalStore";
 import { useGitStore } from "./state/gitStore";
-import type { ReorderPlacement } from "./state/reorder";
 import { useUpdateStore } from "./state/updateStore";
+import { useDraggable, useDroppable } from "@dnd-kit/react";
+import { AppDndProvider, useDndContext, type DragSourceData, type PaneDropIndicator } from "./dnd";
 
 // ── Module-level IPC listener ───────────────────────────────────
 // Subscribes to supervisor events as soon as the module loads,
@@ -150,7 +151,6 @@ function generateTitleAsync(
     });
 }
 
-const SIDEBAR_THREAD_MIME = "application/x-lightcode-sidebar-thread";
 const EMPTY_PANES: string[] = [];
 const GIT_FETCH_INTERVAL_MS = 60_000;
 
@@ -363,17 +363,6 @@ function ThreadPane(props: {
   pendingServerRequests: PendingThreadServerRequest[];
   pendingLaunchPrompt: string | undefined;
   pendingLaunchSegments: PromptSegment[] | undefined;
-  paneDragSource: string | undefined;
-  sidebarDragActive: boolean;
-  paneDropTarget: string | undefined;
-  sidebarDropTarget:
-    | { kind: "replace"; paneIndex: number }
-    | { kind: "insert"; index: number }
-    | undefined;
-  onPaneDragStart: (() => void) | undefined;
-  onPaneDragEnd: (() => void) | undefined;
-  onPaneDragOver: (zone: "left" | "center" | "right", event: React.DragEvent) => void;
-  onPaneDrop: (event: React.DragEvent) => void;
   onClose: () => void;
 }) {
   const thread = useThread(props.threadId);
@@ -382,6 +371,35 @@ function ThreadPane(props: {
   const consumeThreadLaunch = useAppStore((s) => s.consumeThreadLaunch);
   const removeThreadServerRequest = useAppStore((s) => s.removeThreadServerRequest);
   const touchThread = useAppStore((s) => s.touchThread);
+
+  // Pane is draggable (title is the grab handle). Share element ref with droppable.
+  const paneElementRef = useRef<HTMLDivElement>(null);
+  const { handleRef } = useDraggable({
+    id: `pane:${props.threadId}`,
+    type: "pane",
+    data: { type: "pane", threadId: props.threadId } satisfies DragSourceData,
+    disabled: props.paneCount <= 1,
+    element: paneElementRef,
+  });
+  // Same element is also a drop target (for pane-to-pane and sidebar-to-pane)
+  useDroppable({
+    id: `pane-drop:${props.paneIndex}`,
+    accept: ["pane", "thread"],
+    data: { type: "pane-drop-zone", paneIndex: props.paneIndex },
+    element: paneElementRef,
+  });
+
+  const { source, paneIndicator } = useDndContext();
+  const isDragging = source?.type === "pane" && source.threadId === props.threadId;
+
+  const dropIndicator: false | "replace" | "insert-left" | "insert-right" =
+    paneIndicator?.kind === "replace" && paneIndicator.paneIndex === props.paneIndex
+      ? "replace"
+      : paneIndicator?.kind === "insert" && paneIndicator.index === props.paneIndex
+        ? "insert-left"
+        : paneIndicator?.kind === "insert" && paneIndicator.index === props.paneIndex + 1
+          ? "insert-right"
+          : false;
 
   if (!thread) return null;
 
@@ -403,20 +421,6 @@ function ThreadPane(props: {
           ? ("left" as const)
           : ("center" as const);
 
-  const dropIndicator: false | "replace" | "insert-left" | "insert-right" =
-    props.paneDropTarget === props.threadId
-      ? "replace"
-      : props.sidebarDropTarget?.kind === "replace" &&
-          props.sidebarDropTarget.paneIndex === props.paneIndex
-        ? "replace"
-        : props.sidebarDropTarget?.kind === "insert" &&
-            props.sidebarDropTarget.index === props.paneIndex
-          ? "insert-left"
-          : props.sidebarDropTarget?.kind === "insert" &&
-              props.sidebarDropTarget.index === props.paneIndex + 1
-            ? "insert-right"
-            : false;
-
   return (
     <ThreadView
       key={props.threadId}
@@ -425,13 +429,13 @@ function ThreadPane(props: {
       isWsl={project.location.kind === "wsl"}
       showCloseButton={props.paneCount > 1}
       paneAlign={paneAlign}
-      isDragging={props.paneDragSource === props.threadId}
-      paneDragActive={props.paneDragSource !== undefined || props.sidebarDragActive}
+      isDragging={isDragging}
       dropIndicator={dropIndicator}
-      onPaneDragStart={props.onPaneDragStart}
-      onPaneDragEnd={props.onPaneDragEnd}
-      onPaneDragOver={props.onPaneDragOver}
-      onPaneDrop={props.onPaneDrop}
+      paneIndex={props.paneIndex}
+      paneCount={props.paneCount}
+      {...(props.paneCount > 1 ? { dragHandleRef: handleRef } : {})}
+
+      droppableRef={paneElementRef}
       onClose={props.onClose}
       onConfigChange={(config) => updateThreadConfig(thread.id, config)}
       pendingServerRequests={props.pendingServerRequests.filter(
@@ -493,48 +497,14 @@ function AppContent() {
   const createThread = useAppStore((state) => state.createThread);
   const queueThreadLaunch = useAppStore((state) => state.queueThreadLaunch);
   const updateProjectDraftConfig = useAppStore((state) => state.updateProjectDraftConfig);
-  const reorderPanes = useAppStore((state) => state.reorderPanes);
-  const openThread = useAppStore((state) => state.openThread);
-  const openThreadSideBySide = useAppStore((state) => state.openThreadSideBySide);
-  const replaceSecondPane = useAppStore((state) => state.replaceSecondPane);
-  const insertPaneAtIndex = useAppStore((state) => state.insertPaneAtIndex);
   const hasValidPanes = useAppStore(
     (s) =>
       s.view.kind === "thread" && s.view.panes.some((id) => s.threads.some((t) => t.id === id)),
   );
-  const [paneDragSource, setPaneDragSource] = useState<string | undefined>();
-  const [paneDropTarget, setPaneDropTarget] = useState<string | undefined>();
-  const [sidebarDragActive, setSidebarDragActive] = useState(false);
-  const [sidebarDropTarget, setSidebarDropTarget] = useState<
-    { kind: "replace"; paneIndex: number } | { kind: "insert"; index: number } | undefined
-  >();
 
-  useEffect(() => {
-    function onDragEnd() {
-      setSidebarDragActive(false);
-      setSidebarDropTarget(undefined);
-    }
-    document.addEventListener("dragend", onDragEnd);
-    return () => document.removeEventListener("dragend", onDragEnd);
-  }, []);
-
-  function handleSidebarDragOver(e: React.DragEvent) {
-    if (e.dataTransfer.types.includes(SIDEBAR_THREAD_MIME)) {
-      e.preventDefault();
-      if (!sidebarDragActive) setSidebarDragActive(true);
-    }
-  }
-
-  function handleSidebarDrop(e: React.DragEvent) {
-    if (!e.dataTransfer.types.includes(SIDEBAR_THREAD_MIME)) return;
-    e.preventDefault();
-    const threadId = e.dataTransfer.getData("text/plain");
-    if (threadId) {
-      startTransition(() => openThread(threadId));
-    }
-    setSidebarDragActive(false);
-    setSidebarDropTarget(undefined);
-  }
+  // Show a sidebar-drag overlay when a thread is being dragged from the sidebar
+  const { source } = useDndContext();
+  const sidebarDragActive = source?.type === "thread";
 
   if (view.kind === "draft") {
     const project = projects.find((item) => item.id === view.projectId);
@@ -547,11 +517,7 @@ function AppContent() {
       wslAgentStatuses,
     );
     return (
-      <div
-        className="relative h-full"
-        onDragOver={handleSidebarDragOver}
-        onDrop={handleSidebarDrop}
-      >
+      <div className="relative h-full">
         <ThreadDraftView
           project={project}
           agentStatuses={projectAgentStatuses}
@@ -640,14 +606,8 @@ function AppContent() {
 
     if (!hasValidPanes) {
       return (
-        <div className="h-full" onDragOver={handleSidebarDragOver} onDrop={handleSidebarDrop}>
+        <div className="h-full">
           <HomeView />
-          {sidebarDragActive && (
-            <div
-              aria-hidden="true"
-              className="pointer-events-none absolute inset-0 z-20 rounded-2xl bg-accent/10 ring-1 ring-inset ring-accent/30"
-            />
-          )}
         </div>
       );
     }
@@ -664,96 +624,20 @@ function AppContent() {
         pendingServerRequests={pendingServerRequests}
         pendingLaunchPrompt={pendingThreadLaunches[paneThreadId]}
         pendingLaunchSegments={pendingLaunchSegments[paneThreadId]}
-        paneDragSource={paneDragSource}
-        sidebarDragActive={sidebarDragActive}
-        paneDropTarget={paneDropTarget}
-        sidebarDropTarget={sidebarDropTarget}
-        onPaneDragStart={
-          paneCount > 1
-            ? () => {
-                setPaneDragSource(paneThreadId);
-                setPaneDropTarget(undefined);
-              }
-            : undefined
-        }
-        onPaneDragEnd={
-          paneCount > 1
-            ? () => {
-                setPaneDragSource(undefined);
-                setPaneDropTarget(undefined);
-              }
-            : undefined
-        }
-        onPaneDragOver={(zone, event) => {
-          // Sidebar thread drag
-          if (event.dataTransfer.types.includes(SIDEBAR_THREAD_MIME)) {
-            if (zone === "center" || paneCount >= 3) {
-              setSidebarDropTarget({ kind: "replace", paneIndex });
-            } else {
-              setSidebarDropTarget({
-                kind: "insert",
-                index: zone === "left" ? paneIndex : paneIndex + 1,
-              });
-            }
-            return;
-          }
-          // Pane-to-pane drag
-          if (paneDragSource && paneDragSource !== paneThreadId) {
-            setPaneDropTarget(paneThreadId);
-          }
-        }}
-        onPaneDrop={(event) => {
-          // Sidebar thread drag
-          if (event.dataTransfer.types.includes(SIDEBAR_THREAD_MIME)) {
-            const threadId = event.dataTransfer.getData("text/plain");
-            if (threadId && !view.panes.includes(threadId)) {
-              const target = sidebarDropTarget;
-              startTransition(() => {
-                if (target?.kind === "replace") {
-                  if (target.paneIndex === 0) openThread(threadId);
-                  else if (target.paneIndex === 1) replaceSecondPane(threadId);
-                  else openThreadSideBySide(threadId);
-                } else if (target?.kind === "insert") {
-                  insertPaneAtIndex(threadId, target.index);
-                } else {
-                  openThreadSideBySide(threadId);
-                }
-              });
-            }
-            setSidebarDragActive(false);
-            setSidebarDropTarget(undefined);
-            return;
-          }
-          // Pane-to-pane drag
-          if (paneDragSource && paneDragSource !== paneThreadId) {
-            const sourceIdx = view.panes.indexOf(paneDragSource);
-            const targetIdx = view.panes.indexOf(paneThreadId);
-            const placement: ReorderPlacement = sourceIdx < targetIdx ? "after" : "before";
-            startTransition(() => reorderPanes(paneDragSource, paneThreadId, placement));
-            setPaneDragSource(undefined);
-            setPaneDropTarget(undefined);
-          }
-        }}
         onClose={() => closePane(paneThreadId)}
       />
     ));
 
     return (
-      <div className="h-full" onDragOver={handleSidebarDragOver}>
+      <div className="h-full">
         <SplitPaneContainer>{paneElements}</SplitPaneContainer>
       </div>
     );
   }
 
   return (
-    <div className="relative h-full" onDragOver={handleSidebarDragOver} onDrop={handleSidebarDrop}>
+    <div className="relative h-full">
       <HomeView />
-      {sidebarDragActive && (
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute inset-0 z-20 rounded-2xl bg-accent/10 ring-1 ring-inset ring-accent/30"
-        />
-      )}
     </div>
   );
 }
@@ -849,7 +733,9 @@ export function App() {
   const reconcileRuntimeSnapshots = useAppStore((state) => state.reconcileRuntimeSnapshots);
   const reorderProjects = useAppStore((state) => state.reorderProjects);
   const reorderThreads = useAppStore((state) => state.reorderThreads);
-  const reorderThreadBlock = useAppStore((state) => state.reorderThreadBlock);
+  const _reorderThreadBlock = useAppStore((state) => state.reorderThreadBlock);
+  const reorderPanes = useAppStore((state) => state.reorderPanes);
+  const insertPaneAtIndex = useAppStore((state) => state.insertPaneAtIndex);
   const updateThreadRuntime = useAppStore((state) => state.updateThreadRuntime);
   const devTerminalOpen = useDevTerminalStore((s) => s.isOpen);
   const devTerminalActiveProjectId = useDevTerminalStore((s) => {
@@ -1158,6 +1044,7 @@ export function App() {
 
     let isActive = true;
     const refreshingProjects = new Set<string>();
+    const watchedWorktreePaths = new Map<string, string>();
     let lastFetchTime = 0;
 
     async function refreshProject(project: { id: string; location: ProjectLocation }) {
@@ -1217,6 +1104,24 @@ export function App() {
           );
           if (Object.keys(nextWorktreeStatuses).length > 0) {
             useGitStore.getState().setWorktreeStatuses(nextWorktreeStatuses);
+          }
+
+          // Register file watchers for worktree directories (native projects only)
+          if (project.location.kind !== "wsl") {
+            const wtPaths = worktrees
+              .filter((wt) => !wt.isMain)
+              .map((wt) => wt.path)
+              .sort()
+              .join("\0");
+            if (wtPaths !== watchedWorktreePaths.get(project.id)) {
+              watchedWorktreePaths.set(project.id, wtPaths);
+              readBridge()
+                .gitWatchWorktrees({
+                  projectId: project.id,
+                  worktreePaths: worktrees.filter((wt) => !wt.isMain).map((wt) => wt.path),
+                })
+                .catch(() => undefined);
+            }
           }
 
           // Fetch source branch info for each worktree (for merge/PR visibility)
@@ -1418,9 +1323,75 @@ export function App() {
     );
   }
 
+  const paneThreadIds = view.kind === "thread" ? view.panes : EMPTY_PANES;
+
+  function handleSortEnd(
+    source: DragSourceData,
+    initialIndex: number,
+    finalIndex: number,
+    _initialGroup: string | undefined,
+    _finalGroup: string | undefined,
+  ) {
+    if (initialIndex === finalIndex) return;
+
+    if (source.type === "project") {
+      const projectId = source.projectId;
+      const projectIds = projects.map((p) => p.id);
+      const targetId = projectIds[finalIndex];
+      if (!targetId || targetId === projectId) return;
+      const placement = initialIndex < finalIndex ? "after" as const : "before" as const;
+      startTransition(() => reorderProjects(projectId, targetId, placement));
+    } else if (source.type === "thread") {
+      const allThreads = useAppStore.getState().threads;
+      const groupThreads = allThreads.filter(
+        (t) => t.projectId === source.projectId && (t.worktreePath ?? undefined) === source.worktreePath,
+      );
+      const targetThread = groupThreads[finalIndex];
+      if (!targetThread || targetThread.id === source.threadId) return;
+      const placement = initialIndex < finalIndex ? "after" as const : "before" as const;
+      startTransition(() => reorderThreads(source.threadId, targetThread.id, placement));
+    }
+  }
+
+  function handlePaneDrop(source: DragSourceData, target: PaneDropIndicator | null) {
+    if (!target) return;
+    const currentView = useAppStore.getState().view;
+    if (currentView.kind !== "thread") return;
+    const panes = currentView.panes;
+
+    if (source.type === "thread") {
+      // Sidebar thread → pane
+      const threadId = source.threadId;
+      if (panes.includes(threadId)) return;
+      startTransition(() => {
+        if (target.kind === "replace") {
+          if (target.paneIndex === 0) openThread(threadId);
+          else if (target.paneIndex === 1) replaceSecondPane(threadId);
+          else openThreadSideBySide(threadId);
+        } else if (target.kind === "insert") {
+          insertPaneAtIndex(threadId, target.index);
+        }
+      });
+    } else if (source.type === "pane" && target.kind === "replace") {
+      // Pane-to-pane reorder
+      const sourceThreadId = source.threadId;
+      const targetThreadId = panes[target.paneIndex];
+      if (!targetThreadId || sourceThreadId === targetThreadId) return;
+      const sourceIdx = panes.indexOf(sourceThreadId);
+      const targetIdx = target.paneIndex;
+      const placement = sourceIdx < targetIdx ? "after" as const : "before" as const;
+      startTransition(() => reorderPanes(sourceThreadId, targetThreadId, placement));
+    }
+  }
+
   console.log(`[renderer] +${Date.now() - loadT0}ms: rendering main UI`);
   return (
     <AppProvider>
+      <AppDndProvider
+        onSidebarSortEnd={handleSortEnd}
+        onPaneDrop={handlePaneDrop}
+        paneThreadIds={paneThreadIds}
+      >
       <PageLayout
         title="Lightcode"
         onTitleClick={() => startTransition(() => openHome())}
@@ -1891,27 +1862,13 @@ export function App() {
                 ? useDevTerminalStore.getState().activeWorktreePath
                 : null
             }
-            onReorderProjects={(sourceProjectId, targetProjectId, placement) => {
-              startTransition(() => {
-                reorderProjects(sourceProjectId, targetProjectId, placement);
-              });
-            }}
-            onReorderThreads={(sourceThreadId, targetThreadId, placement) => {
-              startTransition(() => {
-                reorderThreads(sourceThreadId, targetThreadId, placement);
-              });
-            }}
-            onReorderThreadBlock={(blockIds, targetId, placement) => {
-              startTransition(() => {
-                reorderThreadBlock(blockIds, targetId, placement);
-              });
-            }}
           />
         }
         content={<AppContent />}
         rightPanel={<DevTerminalPanel projects={projects} />}
         rightPanelOpen={devTerminalOpen}
       />
+      </AppDndProvider>
       <WelcomeOverlay />
       <OverlayShell open={settingsOpen}>
         <SettingsOverlay onClose={() => setSettingsOpen(false)} />

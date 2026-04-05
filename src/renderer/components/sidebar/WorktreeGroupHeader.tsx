@@ -1,10 +1,10 @@
 import { GitFork, TerminalSquare } from "lucide-react";
-import type { DragEventHandler } from "react";
 import { SidebarButton } from "../common";
+import { GitBadge } from "./GitBadge";
 import { PrBadge } from "./PrBadge";
-import { WorktreeGitMenu } from "./WorktreeGitMenu";
 
 export function WorktreeGroupHeader(props: {
+  ref?: React.Ref<HTMLDivElement>;
   worktreePath: string;
   worktreeBranch: string;
   projectId: string;
@@ -13,22 +13,12 @@ export function WorktreeGroupHeader(props: {
   isActiveTerminal: boolean;
   onToggleCollapse: () => void;
   onOpenGitReview: () => void;
-  onGitSync: () => void;
-  onGitPush: () => void;
-  onGitPull: () => void;
-  onGitPullFromSource: () => void;
-  onGitMergeToSource: () => void;
-  onGitMergeAndRemove: () => void;
-  onDeleteWorktree: () => void;
   onOpenTerminal: () => void;
-  isDragging: boolean;
-  onDragStart: DragEventHandler<HTMLDivElement>;
-  onDragEnd: DragEventHandler<HTMLDivElement>;
-  onDragOver: DragEventHandler<HTMLButtonElement>;
-  onDrop: DragEventHandler<HTMLButtonElement>;
+  isDragging?: boolean;
 }) {
   return (
     <SidebarButton
+      {...(props.ref != null ? { ref: props.ref } : {})}
       icon={
         <GitFork
           className={`size-3 shrink-0 transition-colors ${
@@ -40,12 +30,7 @@ export function WorktreeGroupHeader(props: {
       tooltip={`Worktree: ${props.worktreeBranch}`}
       className={props.isDragging ? "opacity-60" : ""}
       onPress={props.onToggleCollapse}
-      onDragStart={props.onDragStart}
-      onDragEnd={props.onDragEnd}
-      onDragOver={props.onDragOver}
-      onDrop={props.onDrop}
-      isDragging={props.isDragging}
-      dragLabel={`Reorder ${props.worktreeBranch}`}
+      {...(props.isDragging != null ? { isDragging: props.isDragging } : {})}
       suffix={
         <>
           <div
@@ -73,18 +58,11 @@ export function WorktreeGroupHeader(props: {
             <TerminalSquare className="size-3.5" />
           </div>
           <PrBadge worktreePath={props.worktreePath} />
-          <WorktreeGitMenu
+          <GitBadge
             projectId={props.projectId}
+            projectName={props.worktreeBranch}
             worktreePath={props.worktreePath}
-            worktreeBranch={props.worktreeBranch}
-            onOpenGitReview={props.onOpenGitReview}
-            onGitSync={props.onGitSync}
-            onGitPush={props.onGitPush}
-            onGitPull={props.onGitPull}
-            onGitPullFromSource={props.onGitPullFromSource}
-            onGitMergeToSource={props.onGitMergeToSource}
-            onGitMergeAndRemove={props.onGitMergeAndRemove}
-            onDeleteWorktree={props.onDeleteWorktree}
+            onPress={props.onOpenGitReview}
           />
         </>
       }

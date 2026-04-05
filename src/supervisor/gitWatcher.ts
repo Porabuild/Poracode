@@ -11,6 +11,27 @@ interface WatcherEntry {
   projectId: string;
 }
 
+interface WorktreeWatcherEntry {
+  watcher: FSWatcher | null;
+  debounceTimer: ReturnType<typeof setTimeout> | null;
+  projectId: string;
+}
+
+const IGNORED_PREFIXES = [
+  "node_modules/",
+  ".next/",
+  "dist/",
+  "build/",
+  ".turbo/",
+  "__pycache__/",
+  ".venv/",
+];
+
+function isIgnoredWorkTreeFile(name: string): boolean {
+  if (name === ".git" || name.startsWith(".git/")) return true;
+  return IGNORED_PREFIXES.some((p) => name.startsWith(p));
+}
+
 /**
  * Watches git repositories for changes and emits debounced notifications.
  *
@@ -18,10 +39,15 @@ interface WatcherEntry {
  * 1. `.git` directory — catches stage, commit, branch switch, fetch, merge
  * 2. Working tree — catches file edits, new files, deletions
  *
+ * Worktree directories get their own working-tree watchers. Git state changes
+ * for worktrees are stored in the main repo's `.git/worktrees/` directory,
+ * so the main `.git` watcher already catches those.
+ *
  * Both are debounced into a single callback per project.
  */
 export class GitWatcher {
   private readonly watchers = new Map<string, WatcherEntry>();
+  private readonly worktreeWatchers = new Map<string, WorktreeWatcherEntry>();
 
   constructor(private readonly onChanged: (projectId: string) => void) {}
 
@@ -85,20 +111,7 @@ export class GitWatcher {
       entry.workTreeWatcher = watch(repoPath, { recursive: true }, (_eventType, filename) => {
         if (filename) {
           const name = filename.replace(/\\/g, "/");
-          // Skip .git directory changes (handled by gitWatcher)
-          if (name === ".git" || name.startsWith(".git/")) return;
-          // Skip common large/noisy directories
-          if (
-            name.startsWith("node_modules/") ||
-            name.startsWith(".next/") ||
-            name.startsWith("dist/") ||
-            name.startsWith("build/") ||
-            name.startsWith(".turbo/") ||
-            name.startsWith("__pycache__/") ||
-            name.startsWith(".venv/")
-          ) {
-            return;
-          }
+          if (isIgnoredWorkTreeFile(name)) return;
         }
         scheduleNotify();
       });
@@ -113,15 +126,75 @@ export class GitWatcher {
     this.watchers.set(projectId, entry);
   }
 
-  /** Stop watching a project. */
+  /**
+   * Update the set of watched worktree directories for a project.
+   * Diffs against existing watchers — only adds/removes what changed.
+   * All worktree watchers emit the parent projectId.
+   */
+  watchWorktrees(projectId: string, worktreePaths: string[]): void {
+    const desired = new Set(worktreePaths);
+
+    // Remove stale worktree watchers for this project
+    for (const [path, entry] of this.worktreeWatchers) {
+      if (entry.projectId === projectId && !desired.has(path)) {
+        this.closeWorktreeWatcher(path);
+      }
+    }
+
+    // Add watchers for new paths
+    for (const wtPath of worktreePaths) {
+      if (this.worktreeWatchers.has(wtPath)) continue;
+
+      const entry: WorktreeWatcherEntry = {
+        watcher: null,
+        debounceTimer: null,
+        projectId,
+      };
+
+      const scheduleNotify = () => {
+        if (entry.debounceTimer) clearTimeout(entry.debounceTimer);
+        entry.debounceTimer = setTimeout(() => {
+          entry.debounceTimer = null;
+          this.onChanged(projectId);
+        }, DEBOUNCE_MS);
+      };
+
+      try {
+        entry.watcher = watch(wtPath, { recursive: true }, (_eventType, filename) => {
+          if (filename) {
+            const name = filename.replace(/\\/g, "/");
+            if (isIgnoredWorkTreeFile(name)) return;
+          }
+          scheduleNotify();
+        });
+        entry.watcher.on("error", () => {
+          entry.watcher?.close();
+          entry.watcher = null;
+        });
+      } catch {
+        // Worktree path may not exist or may not be watchable
+      }
+
+      this.worktreeWatchers.set(wtPath, entry);
+    }
+  }
+
+  /** Stop watching a project and its worktrees. */
   unwatch(projectId: string): void {
     const entry = this.watchers.get(projectId);
-    if (!entry) return;
+    if (entry) {
+      if (entry.debounceTimer) clearTimeout(entry.debounceTimer);
+      entry.gitWatcher?.close();
+      entry.workTreeWatcher?.close();
+      this.watchers.delete(projectId);
+    }
 
-    if (entry.debounceTimer) clearTimeout(entry.debounceTimer);
-    entry.gitWatcher?.close();
-    entry.workTreeWatcher?.close();
-    this.watchers.delete(projectId);
+    // Also clean up worktree watchers for this project
+    for (const [path, wtEntry] of this.worktreeWatchers) {
+      if (wtEntry.projectId === projectId) {
+        this.closeWorktreeWatcher(path);
+      }
+    }
   }
 
   /** Stop all watchers. */
@@ -129,5 +202,13 @@ export class GitWatcher {
     for (const [projectId] of this.watchers) {
       this.unwatch(projectId);
     }
+  }
+
+  private closeWorktreeWatcher(path: string): void {
+    const entry = this.worktreeWatchers.get(path);
+    if (!entry) return;
+    if (entry.debounceTimer) clearTimeout(entry.debounceTimer);
+    entry.watcher?.close();
+    this.worktreeWatchers.delete(path);
   }
 }

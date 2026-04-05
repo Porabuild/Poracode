@@ -1,4 +1,5 @@
 import React, { Children, type ReactNode, useEffect, useRef, useState } from "react";
+import { useDndContext } from "../../dnd";
 
 const MIN_PANE_PERCENT = 15;
 
@@ -72,6 +73,8 @@ export function SplitPaneContainer(props: { children: ReactNode }) {
     setResizingIndex(index);
   }
 
+  const { paneIndicator } = useDndContext();
+
   if (count <= 1) {
     return <>{items[0]}</>;
   }
@@ -82,23 +85,23 @@ export function SplitPaneContainer(props: { children: ReactNode }) {
       className={`flex h-full min-h-0 w-full ${resizingIndex !== null ? "select-none" : ""}`}
     >
       {items.map((child, i) => (
-        <div key={i} className="contents">
+        <React.Fragment key={i}>
           <div
             className="h-full min-h-0 min-w-0 overflow-hidden"
-            style={{ flexBasis: `${sizes[i]}%`, flexGrow: 0, flexShrink: 0 }}
+            style={{ flexBasis: `${sizes[i]}%`, flexGrow: 0, flexShrink: 1 }}
           >
             {child}
           </div>
           {i < count - 1 && (
             <div
-              className="lightcode-pane-divider"
+              className={`lightcode-pane-divider ${paneIndicator?.kind === "insert" && paneIndicator.index === i + 1 ? "is-highlighted" : ""}`}
               onMouseDown={(e) => handleResizeStart(e, i)}
               role="separator"
               aria-orientation="vertical"
               aria-label="Resize pane"
             />
           )}
-        </div>
+        </React.Fragment>
       ))}
       {resizingIndex !== null && <div className="fixed inset-0 z-50 cursor-col-resize" />}
     </div>
