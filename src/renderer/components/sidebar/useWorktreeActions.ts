@@ -13,6 +13,12 @@ export interface WorktreeActionVisibility {
   syncAction: SyncAction;
   showMerge: boolean;
   showPullFromSource: boolean;
+  /** Number of commits source branch is ahead (available to pull). */
+  sourceAhead: number;
+  /** Number of local commits ahead of remote (available to push). */
+  ahead: number;
+  /** Number of remote commits behind (available to pull). */
+  behind: number;
   showCreatePr: boolean;
   showOpenPr: boolean;
   prNumber: number | undefined;
@@ -69,15 +75,15 @@ export function buildWorktreeGitItems(
 ): GitMenuItem[] {
   const syncMap: Record<SyncAction, GitMenuItem> = {
     sync: { id: "git-sync", label: "Sync", icon: icons.sync },
-    push: { id: "git-push", label: "Push", icon: icons.push },
-    pull: { id: "git-pull", label: "Pull", icon: icons.pull },
+    push: { id: "git-push", label: vis.ahead > 0 ? `Push (${vis.ahead})` : "Push", icon: icons.push },
+    pull: { id: "git-pull", label: vis.behind > 0 ? `Pull (${vis.behind})` : "Pull", icon: icons.pull },
   };
 
   return [
     { id: "git-review", label: "Review Changes", icon: icons.review },
     syncMap[vis.syncAction],
     ...(vis.showPullFromSource
-      ? [{ id: "git-pull-from-source", label: "Pull from Source", icon: icons.pullFromSource }]
+      ? [{ id: "git-pull-from-source", label: `Pull from Source (${vis.sourceAhead})`, icon: icons.pullFromSource }]
       : []),
     ...(vis.showMerge
       ? [
@@ -121,6 +127,9 @@ function derive(
     syncAction: deriveSyncAction(hasTracking, ahead, behind),
     showMerge: (sourceInfo?.commitsAhead ?? 0) > 0,
     showPullFromSource: (sourceInfo?.sourceAhead ?? 0) > 0,
+    sourceAhead: sourceInfo?.sourceAhead ?? 0,
+    ahead,
+    behind,
     showCreatePr: ghOk && !hasPr && isPushed,
     showOpenPr: ghOk && hasPr,
     prNumber: hasPr ? pr!.number : undefined,

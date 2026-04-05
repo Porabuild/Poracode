@@ -13,13 +13,14 @@ import { GitBadge } from "./GitBadge";
 import { useWorktreeActionVisibility, type SyncAction } from "./useWorktreeActions";
 import { readBridge } from "../../bridge";
 
-const SYNC_ITEMS: Record<SyncAction, { id: string; label: string; icon: React.ReactNode }> = {
-  sync: { id: "sync", label: "Sync", icon: <RefreshCw className="size-3.5 text-muted" /> },
-  push: { id: "push", label: "Push", icon: <ArrowUpFromLine className="size-3.5 text-muted" /> },
-  pull: { id: "pull", label: "Pull", icon: <ArrowDownToLine className="size-3.5 text-muted" /> },
-};
-
-import type React from "react";
+function getSyncItem(action: SyncAction, ahead: number, behind: number) {
+  const items = {
+    sync: { id: "sync", label: "Sync", icon: <RefreshCw className="size-3.5 text-muted" /> },
+    push: { id: "push", label: ahead > 0 ? `Push (${ahead})` : "Push", icon: <ArrowUpFromLine className="size-3.5 text-muted" /> },
+    pull: { id: "pull", label: behind > 0 ? `Pull (${behind})` : "Pull", icon: <ArrowDownToLine className="size-3.5 text-muted" /> },
+  };
+  return items[action];
+}
 
 export function WorktreeGitMenu(props: {
   projectId: string;
@@ -34,10 +35,10 @@ export function WorktreeGitMenu(props: {
   onGitMergeAndRemove: () => void;
   onDeleteWorktree: () => void;
 }) {
-  const { syncAction, showMerge, showPullFromSource, showCreatePr, showOpenPr, prNumber, prUrl } =
+  const { syncAction, ahead, behind, showMerge, showPullFromSource, sourceAhead, showCreatePr, showOpenPr, prNumber, prUrl } =
     useWorktreeActionVisibility(props.projectId, props.worktreePath);
 
-  const syncItem = SYNC_ITEMS[syncAction];
+  const syncItem = getSyncItem(syncAction, ahead, behind);
 
   return (
     <Dropdown>
@@ -77,7 +78,7 @@ export function WorktreeGitMenu(props: {
           {showPullFromSource ? (
             <Dropdown.Item id="pull-source" textValue="Pull from Source">
               <ArrowDownToLine className="size-3.5 text-muted" />
-              <Label>Pull from Source</Label>
+              <Label>Pull from Source ({sourceAhead})</Label>
             </Dropdown.Item>
           ) : null}
           {showMerge ? (
