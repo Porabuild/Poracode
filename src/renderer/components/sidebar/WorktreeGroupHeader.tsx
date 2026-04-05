@@ -48,20 +48,6 @@ export function WorktreeGroupHeader(props: {
       dragLabel={`Reorder ${props.worktreeBranch}`}
       suffix={
         <>
-          <PrBadge worktreePath={props.worktreePath} />
-          <WorktreeGitMenu
-            projectId={props.projectId}
-            worktreePath={props.worktreePath}
-            worktreeBranch={props.worktreeBranch}
-            onOpenGitReview={props.onOpenGitReview}
-            onGitSync={props.onGitSync}
-            onGitPush={props.onGitPush}
-            onGitPull={props.onGitPull}
-            onGitPullFromSource={props.onGitPullFromSource}
-            onGitMergeToSource={props.onGitMergeToSource}
-            onGitMergeAndRemove={props.onGitMergeAndRemove}
-            onDeleteWorktree={props.onDeleteWorktree}
-          />
           <div
             role="button"
             tabIndex={0}
@@ -71,7 +57,7 @@ export function WorktreeGroupHeader(props: {
                 ? "text-accent"
                 : props.hasTerminal
                   ? "text-foreground"
-                  : "text-muted/60"
+                  : "text-muted/60 opacity-0 group-hover:opacity-100"
             }`}
             onClick={(event) => {
               event.stopPropagation();
@@ -86,6 +72,20 @@ export function WorktreeGroupHeader(props: {
           >
             <TerminalSquare className="size-3.5" />
           </div>
+          <PrBadge worktreePath={props.worktreePath} />
+          <WorktreeGitMenu
+            projectId={props.projectId}
+            worktreePath={props.worktreePath}
+            worktreeBranch={props.worktreeBranch}
+            onOpenGitReview={props.onOpenGitReview}
+            onGitSync={props.onGitSync}
+            onGitPush={props.onGitPush}
+            onGitPull={props.onGitPull}
+            onGitPullFromSource={props.onGitPullFromSource}
+            onGitMergeToSource={props.onGitMergeToSource}
+            onGitMergeAndRemove={props.onGitMergeAndRemove}
+            onDeleteWorktree={props.onDeleteWorktree}
+          />
         </>
       }
     />

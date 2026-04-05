@@ -291,6 +291,7 @@ export function ThreadDraftView(props: {
                     }}
                     onSubmit={(segments) => {
                       const allSegments = [...attachments.toSegments(), ...segments];
+                      const useWorktree = branchSelection?.isWorktree ?? worktreeMode;
                       onStart({
                         agentKind: selectedAgent.kind,
                         config: {
@@ -302,15 +303,15 @@ export function ThreadDraftView(props: {
                         },
                         prompt: flattenSegments(allSegments),
                         segments: allSegments,
-                        ...(branchSelection?.isWorktree
-                          ? branchSelection.worktreePath
+                        ...(useWorktree
+                          ? branchSelection?.worktreePath
                             ? {
                                 existingWorktreePath: branchSelection.worktreePath,
                                 worktreeBranch: branchSelection.branch,
                               }
                             : {
                                 worktreeBranch: generateWorktreeBranch(),
-                                ...(branchSelection.baseBranch
+                                ...(branchSelection?.baseBranch
                                   ? { worktreeBaseBranch: branchSelection.baseBranch }
                                   : {}),
                                 worktreeIsNewBranch: true,
@@ -331,6 +332,7 @@ export function ThreadDraftView(props: {
                   const allSegments = [...attachments.toSegments(), ...segments];
                   const flatPrompt = flattenSegments(allSegments) || prompt.trim();
                   if (flatPrompt.length === 0) return;
+                  const useWorktree = branchSelection?.isWorktree ?? worktreeMode;
                   onStart({
                     agentKind: selectedAgent.kind,
                     config: {
@@ -342,15 +344,15 @@ export function ThreadDraftView(props: {
                     },
                     prompt: flatPrompt,
                     ...(allSegments.length > 0 ? { segments: allSegments } : {}),
-                    ...(branchSelection?.isWorktree
-                      ? branchSelection.worktreePath
+                    ...(useWorktree
+                      ? branchSelection?.worktreePath
                         ? {
                             existingWorktreePath: branchSelection.worktreePath,
                             worktreeBranch: branchSelection.branch,
                           }
                         : {
                             worktreeBranch: generateWorktreeBranch(),
-                            ...(branchSelection.baseBranch
+                            ...(branchSelection?.baseBranch
                               ? { worktreeBaseBranch: branchSelection.baseBranch }
                               : {}),
                             worktreeIsNewBranch: true,

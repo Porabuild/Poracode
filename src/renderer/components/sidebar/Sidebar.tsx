@@ -559,11 +559,6 @@ export function Sidebar(props: {
                         dragLabel={`Reorder ${project.name}`}
                         suffix={
                           <>
-                            <GitBadge
-                              projectId={project.id}
-                              projectName={project.name}
-                              onPress={() => onOpenGitReview(project.id)}
-                            />
                             <div
                               role="button"
                               tabIndex={0}
@@ -573,7 +568,7 @@ export function Sidebar(props: {
                                   ? "text-accent"
                                   : terminalProjectIds.includes(project.id)
                                     ? "text-foreground"
-                                    : "text-muted/60"
+                                    : "text-muted/60 opacity-0 group-hover:opacity-100"
                               }`}
                               onClick={(event) => {
                                 event.stopPropagation();
@@ -588,6 +583,11 @@ export function Sidebar(props: {
                             >
                               <TerminalSquare className="size-3.5" />
                             </div>
+                            <GitBadge
+                              projectId={project.id}
+                              projectName={project.name}
+                              onPress={() => onOpenGitReview(project.id)}
+                            />
                           </>
                         }
                       />
@@ -856,6 +856,38 @@ export function Sidebar(props: {
                                       <>
                                         {showWorktreeBadge && thread.worktreePath && (
                                           <>
+                                            <div
+                                              role="button"
+                                              tabIndex={0}
+                                              aria-label={`Terminal for ${thread.worktreeBranch}`}
+                                              className={`shrink-0 cursor-default rounded p-0.5 transition-colors hover:bg-white/[0.04] hover:text-foreground ${
+                                                activeWorktreeTerminalPath === thread.worktreePath
+                                                  ? "text-accent"
+                                                  : activeWorktreeTerminalPaths.includes(
+                                                        thread.worktreePath,
+                                                      )
+                                                    ? "text-foreground"
+                                                    : "text-muted/60 opacity-0 group-hover:opacity-100"
+                                              }`}
+                                              onClick={(event) => {
+                                                event.stopPropagation();
+                                                onOpenWorktreeTerminal(
+                                                  thread.projectId,
+                                                  thread.worktreePath!,
+                                                );
+                                              }}
+                                              onKeyDown={(event) => {
+                                                if (event.key === "Enter" || event.key === " ") {
+                                                  event.stopPropagation();
+                                                  onOpenWorktreeTerminal(
+                                                    thread.projectId,
+                                                    thread.worktreePath!,
+                                                  );
+                                                }
+                                              }}
+                                            >
+                                              <TerminalSquare className="size-3.5" />
+                                            </div>
                                             <Tooltip delay={150}>
                                               <Tooltip.Trigger>
                                                 <div className="flex shrink-0 items-center">
@@ -895,38 +927,6 @@ export function Sidebar(props: {
                                                 onDeleteThread(thread.id, thread.worktreePath, thread.projectId)
                                               }
                                             />
-                                            <div
-                                              role="button"
-                                              tabIndex={0}
-                                              aria-label={`Terminal for ${thread.worktreeBranch}`}
-                                              className={`shrink-0 cursor-default rounded p-0.5 transition-colors hover:bg-white/[0.04] hover:text-foreground ${
-                                                activeWorktreeTerminalPath === thread.worktreePath
-                                                  ? "text-accent"
-                                                  : activeWorktreeTerminalPaths.includes(
-                                                        thread.worktreePath,
-                                                      )
-                                                    ? "text-foreground"
-                                                    : "text-muted/60"
-                                              }`}
-                                              onClick={(event) => {
-                                                event.stopPropagation();
-                                                onOpenWorktreeTerminal(
-                                                  thread.projectId,
-                                                  thread.worktreePath!,
-                                                );
-                                              }}
-                                              onKeyDown={(event) => {
-                                                if (event.key === "Enter" || event.key === " ") {
-                                                  event.stopPropagation();
-                                                  onOpenWorktreeTerminal(
-                                                    thread.projectId,
-                                                    thread.worktreePath!,
-                                                  );
-                                                }
-                                              }}
-                                            >
-                                              <TerminalSquare className="size-3.5" />
-                                            </div>
                                           </>
                                         )}
                                         <span className="relative w-[2.4ch] shrink-0">

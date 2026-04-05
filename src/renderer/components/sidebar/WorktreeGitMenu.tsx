@@ -43,13 +43,13 @@ export function WorktreeGitMenu(props: {
   return (
     <Dropdown>
       <Dropdown.Trigger>
-        <button type="button" onClick={(e) => e.stopPropagation()} className="contents">
+        <div role="button" tabIndex={0} onClick={(e) => e.stopPropagation()} className="contents">
           <GitBadge
             projectId={props.projectId}
             projectName={props.worktreeBranch}
             worktreePath={props.worktreePath}
           />
-        </button>
+        </div>
       </Dropdown.Trigger>
       <Dropdown.Popover placement="bottom end">
         <Dropdown.Menu
