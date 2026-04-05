@@ -514,9 +514,10 @@ function SortableWorktreeGroup(props: {
       type: "worktree-group",
       worktreePath: group.worktreePath,
       projectId: project.id,
-      threadIds: groupThreadIds,
+      threadIds: group.threads.map((t) => t.id),
     } satisfies DragSourceData,
   });
+
 
   const { source } = useDndContext();
   const isDragging =

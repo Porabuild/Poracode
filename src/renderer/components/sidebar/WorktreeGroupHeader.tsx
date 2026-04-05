@@ -15,10 +15,12 @@ export function WorktreeGroupHeader(props: {
   onOpenGitReview: () => void;
   onOpenTerminal: () => void;
   isDragging?: boolean;
+  onContextMenu?: React.MouseEventHandler | undefined;
 }) {
   return (
     <SidebarButton
       {...(props.ref != null ? { ref: props.ref } : {})}
+      onContextMenu={props.onContextMenu}
       icon={
         <GitFork
           className={`size-3 shrink-0 transition-colors ${

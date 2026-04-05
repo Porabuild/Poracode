@@ -63,16 +63,58 @@ function resolveModeValue(agent: AgentStatus, preferred?: string): string {
     : (modes[0] ?? "agent");
 }
 
+function normalizeOptionName(value: string): string {
+  return value.trim().toLowerCase();
+}
+
+function findDefaultApprovalPolicy(agent: AgentStatus): string | undefined {
+  const policies = agent.capabilities.approvalPolicies;
+  const configuredBypass = agent.capabilities.bypassApprovalPolicy;
+  if (configuredBypass && policies.some((policy) => policy.id === configuredBypass)) {
+    return configuredBypass;
+  }
+
+  const preferredIds = new Set(["never", "yolo", "bypassPermissions", "dontAsk"]);
+  const byId = policies.find((policy) => preferredIds.has(policy.id));
+  if (byId) {
+    return byId.id;
+  }
+
+  const preferredLabels = new Set([
+    "full access",
+    "yolo",
+    "bypass permissions",
+    "don't ask",
+    "dont ask",
+  ]);
+  const byLabel = policies.find((policy) => preferredLabels.has(normalizeOptionName(policy.label)));
+  return byLabel?.id;
+}
+
 function resolveApprovalPolicyValue(agent: AgentStatus, preferred?: string): string {
   const policies = agent.capabilities.approvalPolicies;
   return preferred && policies.some((p) => p.id === preferred)
     ? preferred
-    : (policies[0]?.id ?? "");
+    : (findDefaultApprovalPolicy(agent) ?? policies[0]?.id ?? "");
+}
+
+function findDefaultSandboxMode(agent: AgentStatus): string | undefined {
+  const modes = agent.capabilities.sandboxModes;
+  const preferredIds = new Set(["danger-full-access", "full-access"]);
+  const byId = modes.find((mode) => preferredIds.has(mode.id));
+  if (byId) {
+    return byId.id;
+  }
+
+  const byLabel = modes.find((mode) => normalizeOptionName(mode.label) === "full access");
+  return byLabel?.id;
 }
 
 function resolveSandboxModeValue(agent: AgentStatus, preferred?: string): string {
   const modes = agent.capabilities.sandboxModes;
-  return preferred && modes.some((m) => m.id === preferred) ? preferred : (modes[0]?.id ?? "");
+  return preferred && modes.some((m) => m.id === preferred)
+    ? preferred
+    : (findDefaultSandboxMode(agent) ?? modes[0]?.id ?? "");
 }
 
 function formatAgentList(names: string[]): string {

@@ -14,6 +14,7 @@ export function SidebarButton(props: {
   className?: string;
   onDoubleClick?: () => void;
   isDragging?: boolean;
+  onContextMenu?: React.MouseEventHandler | undefined;
 }) {
   const {
     ref,
@@ -28,6 +29,7 @@ export function SidebarButton(props: {
     className,
     onDoubleClick,
     isDragging,
+    onContextMenu,
   } = props;
 
   const stateClass = isDisabled
@@ -41,9 +43,11 @@ export function SidebarButton(props: {
       <Tooltip delay={150}>
         <Tooltip.Trigger>
           <button
+            ref={ref as React.Ref<HTMLButtonElement>}
             className={`flex h-8 w-8 shrink-0 cursor-default items-center justify-center rounded-3xl transition-colors ${stateClass} ${className ?? ""}`}
             disabled={isDisabled}
             onClick={onPress}
+            onContextMenu={onContextMenu}
             type="button"
           >
             {icon}
@@ -56,7 +60,7 @@ export function SidebarButton(props: {
 
   return (
     <div
-      ref={ref}
+      ref={ref as React.Ref<HTMLDivElement>}
       role="button"
       tabIndex={isDisabled ? -1 : 0}
       aria-disabled={isDisabled || undefined}
@@ -64,6 +68,7 @@ export function SidebarButton(props: {
       className={`group relative flex w-full cursor-default items-center gap-2 rounded-3xl px-3 py-1.5 text-left text-sm transition-colors ${stateClass} ${className ?? ""}`}
       onClick={isDisabled ? undefined : onPress}
       onDoubleClick={onDoubleClick}
+      onContextMenu={onContextMenu}
       onKeyDown={(e) => {
         if ((e.key === "Enter" || e.key === " ") && !isDisabled) {
           e.preventDefault();

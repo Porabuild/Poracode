@@ -1,5 +1,6 @@
-import { createContext, useContext, useEffect, useRef, useState } from "react";
-import { DragDropProvider } from "@dnd-kit/react";
+import { createContext, useContext, useEffect, useRef, useState, useMemo } from "react";
+import { DragDropProvider, PointerSensor, KeyboardSensor } from "@dnd-kit/react";
+import { PointerActivationConstraints } from "@dnd-kit/dom";
 import { isSortable } from "@dnd-kit/react/sortable";
 
 // ── Drag source types ──────────────────────────────────────────
@@ -113,10 +114,21 @@ export function AppDndProvider(props: {
     paneIndicatorRef.current = next;
   }
 
+  const sensors = useMemo(() => [
+    PointerSensor.configure({
+      activationConstraints: [
+        new PointerActivationConstraints.Distance({ value: 5 }),
+      ],
+    }),
+    KeyboardSensor,
+  ], []);
+
   return (
     <DndContext.Provider value={{ source, paneIndicator }}>
       <DragDropProvider
+        sensors={sensors}
         onDragStart={(event) => {
+
           const data = event.operation.source?.data as DragSourceData | undefined;
           if (data) setSource(data);
         }}

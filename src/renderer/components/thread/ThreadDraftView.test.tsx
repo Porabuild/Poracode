@@ -118,7 +118,7 @@ describe("ThreadDraftView", () => {
       const props = composerSpy.mock.lastCall?.[0] as { controls: Array<{ value?: string }> };
       expect(props.controls[0]?.value).toBe("gemini");
       expect(props.controls[1]?.value).toBe("auto");
-      expect(props.controls.some((control) => control.value === "default")).toBe(true);
+      expect(props.controls.some((control) => control.value === "never")).toBe(true);
     });
   });
 
@@ -136,7 +136,7 @@ describe("ThreadDraftView", () => {
       expect(props.controls[2]?.value).toBe("high");
       expect(
         props.controls.some(
-          (control) => control.label === "Full Access" && control.isSelected === false,
+          (control) => control.label === "Full Access" && control.isSelected === true,
         ),
       ).toBe(true);
     });
@@ -150,8 +150,8 @@ describe("ThreadDraftView", () => {
         model: "gpt-5.4",
         effort: "high",
         mode: "agent",
-        approvalPolicy: "on-request",
-        sandboxMode: "workspace-write",
+        approvalPolicy: "never",
+        sandboxMode: "danger-full-access",
       },
       prompt: "hello world",
     });

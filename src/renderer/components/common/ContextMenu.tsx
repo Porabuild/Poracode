@@ -79,8 +79,28 @@ export function ContextMenu(props: ContextMenuProps) {
     const close = () => setPosition(null);
     closeActiveMenu = close;
 
+    // Close on left-click anywhere. We use a capture listener to ensure we can catch it
+    // but the dropdown components might also handle it.
+    const onGlobalMouseDown = (e: MouseEvent) => {
+      if (e.button === 0) {
+        const target = e.target as Element;
+        // If clicking inside a menu, menu item, or dropdown trigger/popover, don't close manually.
+        // HeroUI components use these roles and attributes.
+        if (target.closest('[role="menu"], [role="menuitem"], [data-heroui-overlay]')) {
+          return;
+        }
+
+        // If it's a left click outside, close the menu.
+        // We wait a tick to allow onAction to fire first if clicking an item that isn't caught by the roles above.
+        setTimeout(close, 0);
+      }
+    };
+
+    window.addEventListener("mousedown", onGlobalMouseDown, true);
+
     return () => {
       if (closeActiveMenu === close) closeActiveMenu = null;
+      window.removeEventListener("mousedown", onGlobalMouseDown, true);
     };
   }, [position]);
 
@@ -118,7 +138,7 @@ export function ContextMenu(props: ContextMenuProps) {
               <Dropdown.Trigger className="fixed" style={{ left: position.x, top: position.y }}>
                 <div className="size-0" />
               </Dropdown.Trigger>
-              <Dropdown.Popover placement="bottom start">
+              <Dropdown.Popover placement="bottom start" isNonModal>
                 <Dropdown.Menu
                   autoFocus="first" // eslint-disable-line jsx-a11y/no-autofocus -- React Aria Menu prop, not HTML autofocus
                   disabledKeys={collectAllItems(items)
