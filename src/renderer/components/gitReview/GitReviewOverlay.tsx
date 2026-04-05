@@ -21,7 +21,15 @@ export function GitReviewOverlay(props: {
   onMergeAndRemove?: (() => void) | undefined;
   onClose: () => void;
 }) {
-  const { project, locationOverride, statusKey, worktreeBranch, worktreePath, onMergeAndRemove, onClose } = props;
+  const {
+    project,
+    locationOverride,
+    statusKey,
+    worktreeBranch,
+    worktreePath,
+    onMergeAndRemove,
+    onClose,
+  } = props;
   const effectiveLocation = locationOverride ?? project.location;
   // Create a project view with the effective location so child components
   // (GitReviewSidebar, GitDiffContent) use the right path for IPC calls.

@@ -44,9 +44,7 @@ export function useWorktreeActionVisibility(
   projectId: string,
   worktreePath: string,
 ): WorktreeActionVisibility {
-  return useGitStore(
-    useShallow((s) => derive(s, projectId, worktreePath)),
-  );
+  return useGitStore(useShallow((s) => derive(s, projectId, worktreePath)));
 }
 
 /**
@@ -77,15 +75,29 @@ export function buildWorktreeGitItems(
 ): GitMenuItem[] {
   const syncMap: Record<SyncAction, GitMenuItem> = {
     sync: { id: "git-sync", label: "Sync", icon: icons.sync },
-    push: { id: "git-push", label: vis.ahead > 0 ? `Push (${vis.ahead})` : "Push", icon: icons.push },
-    pull: { id: "git-pull", label: vis.behind > 0 ? `Pull (${vis.behind})` : "Pull", icon: icons.pull },
+    push: {
+      id: "git-push",
+      label: vis.ahead > 0 ? `Push (${vis.ahead})` : "Push",
+      icon: icons.push,
+    },
+    pull: {
+      id: "git-pull",
+      label: vis.behind > 0 ? `Pull (${vis.behind})` : "Pull",
+      icon: icons.pull,
+    },
   };
 
   return [
     { id: "git-review", label: "Review Changes", icon: icons.review },
     syncMap[vis.syncAction],
     ...(vis.showPullFromSource
-      ? [{ id: "git-pull-from-source", label: `Pull from Source (${vis.sourceAhead})`, icon: icons.pullFromSource }]
+      ? [
+          {
+            id: "git-pull-from-source",
+            label: `Pull from Source (${vis.sourceAhead})`,
+            icon: icons.pullFromSource,
+          },
+        ]
       : []),
     ...(vis.showMerge
       ? [

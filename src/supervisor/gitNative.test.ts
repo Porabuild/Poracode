@@ -20,10 +20,7 @@ describe("parseStatusPorcelainV2", () => {
   });
 
   it("parses branch with no upstream", () => {
-    const output = [
-      "# branch.oid abc123def456",
-      "# branch.head feature/new",
-    ].join("\n");
+    const output = ["# branch.oid abc123def456", "# branch.head feature/new"].join("\n");
 
     const result = parseStatusPorcelainV2(output);
     expect(result.branch).toBe("feature/new");
@@ -33,10 +30,7 @@ describe("parseStatusPorcelainV2", () => {
   });
 
   it("handles detached HEAD", () => {
-    const output = [
-      "# branch.oid abc123def456",
-      "# branch.head (detached)",
-    ].join("\n");
+    const output = ["# branch.oid abc123def456", "# branch.head (detached)"].join("\n");
 
     const result = parseStatusPorcelainV2(output);
     expect(result.branch).toBe("(detached)");

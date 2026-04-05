@@ -12,10 +12,27 @@ export interface GitCapabilities {
 }
 
 function derive(
-  status: { isRepo: boolean; hasRemote: boolean; remoteInfo: { platform: string; owner: string; repo: string } | null; tracking: string; ahead: number; branch: string } | undefined,
+  status:
+    | {
+        isRepo: boolean;
+        hasRemote: boolean;
+        remoteInfo: { platform: string; owner: string; repo: string } | null;
+        tracking: string;
+        ahead: number;
+        branch: string;
+      }
+    | undefined,
 ): GitCapabilities {
   if (!status) {
-    return { isRepo: false, hasRemote: false, isGitHub: false, remoteOwner: "", remoteRepo: "", hasBranch: false, isPushed: false };
+    return {
+      isRepo: false,
+      hasRemote: false,
+      isGitHub: false,
+      remoteOwner: "",
+      remoteRepo: "",
+      hasBranch: false,
+      isPushed: false,
+    };
   }
   const ri = status.remoteInfo;
   return {
@@ -33,10 +50,14 @@ export function useProjectGitCapabilities(projectId: string): GitCapabilities {
   return useGitStore(useShallow((s) => derive(s.statuses[projectId])));
 }
 
-export function useWorktreeGitCapabilities(worktreePath: string | undefined, projectId: string): GitCapabilities {
+export function useWorktreeGitCapabilities(
+  worktreePath: string | undefined,
+  projectId: string,
+): GitCapabilities {
   return useGitStore(
     useShallow((s) => {
-      const status = (worktreePath ? s.worktreeStatuses[worktreePath] : undefined) ?? s.statuses[projectId];
+      const status =
+        (worktreePath ? s.worktreeStatuses[worktreePath] : undefined) ?? s.statuses[projectId];
       return derive(status);
     }),
   );

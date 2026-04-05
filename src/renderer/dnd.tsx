@@ -67,7 +67,13 @@ function computePaneIndicator(
 // ── Provider component ─────────────────────────────────────────
 export function AppDndProvider(props: {
   children: React.ReactNode;
-  onSidebarSortEnd: (source: DragSourceData, initialIndex: number, finalIndex: number, initialGroup: string | undefined, finalGroup: string | undefined) => void;
+  onSidebarSortEnd: (
+    source: DragSourceData,
+    initialIndex: number,
+    finalIndex: number,
+    initialGroup: string | undefined,
+    finalGroup: string | undefined,
+  ) => void;
   onPaneDrop: (source: DragSourceData, target: PaneDropIndicator | null) => void;
   paneThreadIds: string[];
 }) {
@@ -114,21 +120,21 @@ export function AppDndProvider(props: {
     paneIndicatorRef.current = next;
   }
 
-  const sensors = useMemo(() => [
-    PointerSensor.configure({
-      activationConstraints: [
-        new PointerActivationConstraints.Distance({ value: 5 }),
-      ],
-    }),
-    KeyboardSensor,
-  ], []);
+  const sensors = useMemo(
+    () => [
+      PointerSensor.configure({
+        activationConstraints: [new PointerActivationConstraints.Distance({ value: 5 })],
+      }),
+      KeyboardSensor,
+    ],
+    [],
+  );
 
   return (
     <DndContext.Provider value={{ source, paneIndicator }}>
       <DragDropProvider
         sensors={sensors}
         onDragStart={(event) => {
-
           const data = event.operation.source?.data as DragSourceData | undefined;
           if (data) setSource(data);
         }}

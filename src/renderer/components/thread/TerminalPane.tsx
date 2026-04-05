@@ -16,10 +16,7 @@ export function TerminalPane(props: {
   useEffect(() => {
     const prev = prevStatusRef.current;
     prevStatusRef.current = status;
-    if (
-      (status === "needs_reply" || status === "needs_approval") &&
-      prev !== status
-    ) {
+    if ((status === "needs_reply" || status === "needs_approval") && prev !== status) {
       xtermRef.current?.focus();
     }
   }, [status]);

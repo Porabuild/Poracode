@@ -582,8 +582,7 @@ export class SupervisorRuntime {
     // When attachments are present the formatted prompt contains @ paths
     // that are unsafe as CLI args (PowerShell interprets @() as array).
     // Defer to buildDirectInput after the TUI reaches idle.
-    const hasAttachments =
-      payload.segments?.some((s) => s.kind === "attachment") ?? false;
+    const hasAttachments = payload.segments?.some((s) => s.kind === "attachment") ?? false;
     const launchPrompt = isServerControlled || hasAttachments ? "" : payload.prompt;
     const command = effectiveSessionRef
       ? adapter.buildResumeCommand(
@@ -615,7 +614,9 @@ export class SupervisorRuntime {
       ...(structuredSession ? { structuredSession } : {}),
       ...(resolvedSessionRef ? { sessionRef: resolvedSessionRef } : {}),
       ...(shouldQueueInitialPrompt ? { pendingLaunchPrompt: initialPrompt } : {}),
-      ...(hasAttachments && !isServerControlled ? { pendingTerminalPrompt: initialPrompt, pendingTerminalSegments: payload.segments! } : {}),
+      ...(hasAttachments && !isServerControlled
+        ? { pendingTerminalPrompt: initialPrompt, pendingTerminalSegments: payload.segments! }
+        : {}),
     });
     console.log(`[supervisor] [${elapsed()}] PTY spawned`);
 
@@ -1068,7 +1069,9 @@ export class SupervisorRuntime {
 
     if (location.kind === "wsl") {
       // Check files via a single WSL command for efficiency.
-      const checks = candidates.map((c) => `test -f "${location.linuxPath}/${c.file}" && echo yes || echo no`);
+      const checks = candidates.map(
+        (c) => `test -f "${location.linuxPath}/${c.file}" && echo yes || echo no`,
+      );
       const script = checks.join(" && echo '---' && ");
       const result = await readWslCommandOutputAsync(location.distro, "sh", ["-c", script]);
       if (result.ok) {
@@ -1506,10 +1509,12 @@ export class SupervisorRuntime {
           // While waiting to send the initial prompt, suppress non-idle transitions
           // so the UI stays in "launching" instead of flickering to "working" from
           // startup animations.
-          const suppressHint =
-            session.pendingTerminalPrompt && hint.status !== "idle";
+          const suppressHint = session.pendingTerminalPrompt && hint.status !== "idle";
 
-          if (!suppressHint && (session.status !== hint.status || session.attention !== hint.attention)) {
+          if (
+            !suppressHint &&
+            (session.status !== hint.status || session.attention !== hint.attention)
+          ) {
             const delay = STATUS_STABILIZATION_DELAY[hint.status] ?? 0;
 
             if (delay === 0) {

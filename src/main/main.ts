@@ -413,7 +413,10 @@ function registerIpcHandlers(): void {
     CHANNELS.saveClipboardImage,
     async (_event, payload: { threadId: string; data: Uint8Array; extension: string }) => {
       const paths = requireLightcodePaths();
-      const threadDir = join(paths.attachmentsDir, payload.threadId.replace(/:/g, "-").slice(0, 12));
+      const threadDir = join(
+        paths.attachmentsDir,
+        payload.threadId.replace(/:/g, "-").slice(0, 12),
+      );
       mkdirSync(threadDir, { recursive: true });
       const fileName = `${randomUUID().slice(0, 8)}.${payload.extension || "png"}`;
       const filePath = join(threadDir, fileName);

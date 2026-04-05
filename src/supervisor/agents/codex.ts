@@ -32,34 +32,16 @@ import {
   type StructuredSessionListener,
 } from "./base";
 import { detectRateLimitPrompt } from "./codex/rateLimitPrompt";
+import { probeCodexCapabilities, type CodexProbeResult } from "./codex/probe";
 import { codexAuthPath } from "./codex/sessionFiles";
 
-const capabilities: AgentCapability = {
-  models: [
-    { id: "gpt-5.4", label: "5.4" },
-    { id: "gpt-5.4-mini", label: "5.4 Mini" },
-    { id: "gpt-5.3-codex", label: "5.3 Codex" },
-    { id: "gpt-5.2-codex", label: "5.2 Codex" },
-    { id: "gpt-5.2", label: "5.2" },
-    { id: "gpt-5.1-codex-max", label: "5.1 Codex Max" },
-    { id: "gpt-5.1-codex-mini", label: "5.1 Codex Mini" },
-  ],
-  efforts: ["low", "medium", "high", "xhigh"],
-  defaultEffort: "high",
-  modelEfforts: {
-    "gpt-5.1-codex-mini": ["medium", "high"],
-  },
+const defaultCapabilities: AgentCapability = {
+  models: [],
+  efforts: [],
+  modelEfforts: {},
   modes: ["agent", "plan"],
-  approvalPolicies: [
-    { id: "on-request", label: "On Request" },
-    { id: "never", label: "Full Access" },
-    { id: "untrusted", label: "Untrusted" },
-  ],
-  sandboxModes: [
-    { id: "workspace-write", label: "Workspace Write" },
-    { id: "read-only", label: "Read Only" },
-    { id: "danger-full-access", label: "Full Access" },
-  ],
+  approvalPolicies: [],
+  sandboxModes: [],
   supportsResume: true,
   supportsDirectInput: true,
   liveInputMode: "server",
@@ -67,6 +49,18 @@ const capabilities: AgentCapability = {
   bypassApprovalPolicy: "full-auto",
   settingDefs: [],
 };
+
+function applyProbeResult(probe: CodexProbeResult): AgentCapability {
+  return {
+    ...defaultCapabilities,
+    ...(probe.models?.length ? { models: probe.models } : {}),
+    ...(probe.efforts?.length ? { efforts: probe.efforts } : {}),
+    ...(probe.defaultEffort ? { defaultEffort: probe.defaultEffort } : {}),
+    ...(probe.modelEfforts ? { modelEfforts: probe.modelEfforts } : {}),
+    ...(probe.approvalPolicies?.length ? { approvalPolicies: probe.approvalPolicies } : {}),
+    ...(probe.sandboxModes?.length ? { sandboxModes: probe.sandboxModes } : {}),
+  };
+}
 
 export const CODEX_REMOTE_TUI_FEATURE = "tui_app_server";
 
@@ -996,6 +990,7 @@ function formatAppServerOutput(chunks: string[]): string {
 }
 
 export function createCodexAdapter(): AgentAdapter {
+  let capabilities: AgentCapability = defaultCapabilities;
   const detectedWslExecPaths = new Map<string, string | undefined>();
 
   function resolveWslExecPath(location: ProjectLocation): string | undefined {
@@ -1016,7 +1011,9 @@ export function createCodexAdapter(): AgentAdapter {
   return {
     kind: "codex",
     label: "Codex",
-    capabilities,
+    get capabilities() {
+      return capabilities;
+    },
     async detectInstall(ctx?: AgentEnvContext): Promise<AgentStatus> {
       const isWsl = ctx?.envKind === "wsl" && ctx.wslDistro;
 
@@ -1027,6 +1024,24 @@ export function createCodexAdapter(): AgentAdapter {
         const versionResult = executablePath
           ? await readWslCommandOutputAsync(ctx.wslDistro!, executablePath, ["--version"])
           : undefined;
+
+        if (executablePath) {
+          const location: ProjectLocation = {
+            kind: "wsl",
+            distro: ctx.wslDistro!,
+            linuxPath: "/tmp",
+            uncPath: "\\\\wsl$",
+          };
+          const probeResult = await probeCodexCapabilities(location, {
+            wslExecPath: executablePath,
+            timeoutMs: 12_000,
+            label: `codex:wsl:${ctx.wslDistro}`,
+          });
+          if (probeResult) {
+            capabilities = applyProbeResult(probeResult);
+          }
+        }
+
         return {
           kind: "codex",
           label: "Codex",
@@ -1042,6 +1057,17 @@ export function createCodexAdapter(): AgentAdapter {
       const versionResult = executablePath
         ? await readCommandOutputAsync("codex", ["--version"])
         : undefined;
+
+      if (executablePath) {
+        const { homedir } = await import("node:os");
+        const probeResult = await probeCodexCapabilities(
+          { kind: "windows", path: homedir() },
+          { timeoutMs: 12_000, label: "codex:windows" },
+        );
+        if (probeResult) {
+          capabilities = applyProbeResult(probeResult);
+        }
+      }
 
       return {
         kind: "codex",

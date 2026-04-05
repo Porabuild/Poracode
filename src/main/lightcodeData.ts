@@ -10,7 +10,10 @@ function ensureBaseDirectories(paths: LightcodePaths): void {
   mkdirSync(paths.cacheDir, { recursive: true });
 }
 
-export function prepareLightcodeDataRoot(legacyUserDataDir: string, baseDir?: string): LightcodePaths {
+export function prepareLightcodeDataRoot(
+  legacyUserDataDir: string,
+  baseDir?: string,
+): LightcodePaths {
   const paths = resolveLightcodePaths(baseDir);
   ensureBaseDirectories(paths);
 

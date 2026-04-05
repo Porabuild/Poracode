@@ -645,7 +645,11 @@ export class GitService {
     location: ProjectLocation,
     includeRemote: boolean,
   ): Promise<GitBranchListResult> {
-    const args = ["branch", "--format=%(refname:short)\t%(objectname:short)\t%(HEAD)", "--sort=-HEAD"];
+    const args = [
+      "branch",
+      "--format=%(refname:short)\t%(objectname:short)\t%(HEAD)",
+      "--sort=-HEAD",
+    ];
     if (includeRemote) args.push("-a");
     const output = await execGit(location, args);
 
@@ -877,11 +881,7 @@ export class GitService {
 
       // Source branch not checked out — just move the ref
       const worktreeTip = (await execGit(repoLocation, ["rev-parse", worktreeBranch])).trim();
-      await execGit(repoLocation, [
-        "update-ref",
-        `refs/heads/${sourceBranch}`,
-        worktreeTip,
-      ]);
+      await execGit(repoLocation, ["update-ref", `refs/heads/${sourceBranch}`, worktreeTip]);
       return { merged: true, fastForward: true, newSourceCommit: worktreeTip };
     }
 

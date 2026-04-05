@@ -14,6 +14,7 @@ export function SidebarButton(props: {
   className?: string;
   onDoubleClick?: () => void;
   isDragging?: boolean;
+  isDraggingAnything?: boolean;
   onContextMenu?: React.MouseEventHandler | undefined;
 }) {
   const {
@@ -29,14 +30,16 @@ export function SidebarButton(props: {
     className,
     onDoubleClick,
     isDragging,
+    isDraggingAnything = false,
     onContextMenu,
   } = props;
 
-  const stateClass = isDisabled
-    ? "cursor-not-allowed text-muted/40"
-    : isActive
-      ? "bg-white/[0.08] text-foreground"
-      : "text-muted hover:bg-white/[0.04] hover:text-foreground";
+  const stateClass =
+    isDisabled || isDragging
+      ? "cursor-not-allowed text-muted/40"
+      : isActive && !isDraggingAnything
+        ? "bg-white/[0.08] text-foreground"
+        : `text-muted ${!isDraggingAnything ? "hover:bg-white/[0.04] hover:text-foreground" : ""}`;
 
   if (iconOnly) {
     return (

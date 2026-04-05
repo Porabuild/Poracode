@@ -264,13 +264,9 @@ async function handleRequest(request: SupervisorRequest): Promise<unknown> {
         ghGetPrForBranchPayloadSchema.parse(request.payload) as GhGetPrForBranchPayload,
       );
     case "ghMergePr":
-      return runtime.ghMergePr(
-        ghMergePrPayloadSchema.parse(request.payload) as GhMergePrPayload,
-      );
+      return runtime.ghMergePr(ghMergePrPayloadSchema.parse(request.payload) as GhMergePrPayload);
     case "ghClosePr":
-      return runtime.ghClosePr(
-        ghClosePrPayloadSchema.parse(request.payload) as GhClosePrPayload,
-      );
+      return runtime.ghClosePr(ghClosePrPayloadSchema.parse(request.payload) as GhClosePrPayload);
     case "ghReopenPr":
       return runtime.ghReopenPr(
         ghReopenPrPayloadSchema.parse(request.payload) as GhReopenPrPayload,

@@ -203,7 +203,6 @@ function GeneralSection(props: { projectId: string }) {
             <Input
               aria-label="Project name"
               className="w-[240px] shrink-0"
-
               value={name}
               onChange={(e) => setName(e.target.value)}
               onBlur={() => {
@@ -249,7 +248,8 @@ function ScriptsSection(props: { projectId: string }) {
             <div>
               <p className="text-sm font-medium text-foreground">Setup script</p>
               <p className="text-xs text-muted">
-                Runs in a terminal after a new worktree is created (e.g., <code>pnpm install</code>).
+                Runs in a terminal after a new worktree is created (e.g., <code>pnpm install</code>
+                ).
               </p>
             </div>
             <TextArea
@@ -423,7 +423,9 @@ function ActionsSection(props: { projectId: string }) {
 
 export function ProjectSettingsOverlay(props: { projectId: string; onClose: () => void }) {
   const { projectId, onClose } = props;
-  const projectName = useAppStore((s) => s.projects.find((p) => p.id === projectId)?.name ?? "Project");
+  const projectName = useAppStore(
+    (s) => s.projects.find((p) => p.id === projectId)?.name ?? "Project",
+  );
   const [activeSection, setActiveSection] = useState<Section>("general");
 
   return (

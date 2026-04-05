@@ -36,18 +36,13 @@ function classifyError(error: unknown, operation: string): Error {
     lower.includes("gh auth login") ||
     lower.includes("no oauth token")
   ) {
-    return new Error(
-      `GitHub CLI is not authenticated. Run "gh auth login" in the terminal.`,
-    );
+    return new Error(`GitHub CLI is not authenticated. Run "gh auth login" in the terminal.`);
   }
 
   return new Error(`gh ${operation} failed: ${msg}`);
 }
 
-async function runGh(
-  location: ProjectLocation,
-  args: string[],
-): Promise<string> {
+async function runGh(location: ProjectLocation, args: string[]): Promise<string> {
   const spec = buildAgentCommand(location, "gh", args);
   const { stdout } = await execFileAsync(spec.command, spec.args, {
     windowsHide: true,
@@ -104,13 +99,19 @@ export class GitHubService {
     try {
       await writeFile(bodyFile, body, "utf-8");
       const args = [
-        "pr", "create",
-        "--base", baseBranch,
-        "--head", branch,
-        "--title", title,
-        "--body-file", bodyFile,
+        "pr",
+        "create",
+        "--base",
+        baseBranch,
+        "--head",
+        branch,
+        "--title",
+        title,
+        "--body-file",
+        bodyFile,
         ...(isDraft ? ["--draft"] : []),
-        "--json", "number,url,state,title,baseRefName,isDraft,reviewDecision,updatedAt",
+        "--json",
+        "number,url,state,title,baseRefName,isDraft,reviewDecision,updatedAt",
       ];
       const stdout = await runGh(location, args);
       return mapPrData(JSON.parse(stdout));
@@ -121,17 +122,19 @@ export class GitHubService {
     }
   }
 
-  async getPrForBranch(
-    location: ProjectLocation,
-    branch: string,
-  ): Promise<PrData | null> {
+  async getPrForBranch(location: ProjectLocation, branch: string): Promise<PrData | null> {
     try {
       const stdout = await runGh(location, [
-        "pr", "list",
-        "--head", branch,
-        "--state", "all",
-        "--limit", "1",
-        "--json", "number,url,state,title,baseRefName,isDraft,reviewDecision,updatedAt",
+        "pr",
+        "list",
+        "--head",
+        branch,
+        "--state",
+        "all",
+        "--limit",
+        "1",
+        "--json",
+        "number,url,state,title,baseRefName,isDraft,reviewDecision,updatedAt",
       ]);
       const items = JSON.parse(stdout);
       if (!Array.isArray(items) || items.length === 0) return null;
@@ -147,11 +150,7 @@ export class GitHubService {
     method: "merge" | "squash" | "rebase",
   ): Promise<void> {
     try {
-      await runGh(location, [
-        "pr", "merge", String(prNumber),
-        `--${method}`,
-        "--delete-branch",
-      ]);
+      await runGh(location, ["pr", "merge", String(prNumber), `--${method}`, "--delete-branch"]);
     } catch (err) {
       throw classifyError(err, "pr merge");
     }
@@ -173,14 +172,14 @@ export class GitHubService {
     }
   }
 
-  async getPrChecks(
-    location: ProjectLocation,
-    branch: string,
-  ): Promise<GhGetPrChecksResult> {
+  async getPrChecks(location: ProjectLocation, branch: string): Promise<GhGetPrChecksResult> {
     try {
       const stdout = await runGh(location, [
-        "pr", "checks", branch,
-        "--json", "name,state,conclusion",
+        "pr",
+        "checks",
+        branch,
+        "--json",
+        "name,state,conclusion",
       ]);
       const items = JSON.parse(stdout);
       const checks: PrCheck[] = Array.isArray(items)

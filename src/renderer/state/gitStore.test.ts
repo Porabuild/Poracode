@@ -1,5 +1,10 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import type { GitBranchListResult, GitStatusResult, GitWorktreeInfo, PrData } from "../../shared/contracts";
+import type {
+  GitBranchListResult,
+  GitStatusResult,
+  GitWorktreeInfo,
+  PrData,
+} from "../../shared/contracts";
 import { useGitStore } from "./gitStore";
 
 const baseStatus: GitStatusResult = {
@@ -117,7 +122,9 @@ describe("gitStore batch updates", () => {
 
   it("batches PR updates without rewriting equal entries", () => {
     useGitStore.getState().setPrData("/wt/a", basePr);
-    useGitStore.getState().setPrData("/wt/b", { ...basePr, number: 43, updatedAt: "2026-04-04T01:00:00.000Z" });
+    useGitStore
+      .getState()
+      .setPrData("/wt/b", { ...basePr, number: 43, updatedAt: "2026-04-04T01:00:00.000Z" });
 
     const firstPrData = useGitStore.getState().prData;
     const preservedEntry = firstPrData["/wt/a"];

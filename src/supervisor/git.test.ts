@@ -185,7 +185,10 @@ describe("GitService.revert", () => {
 
   it("reverts unstaged renames by removing the new path and restoring the old one", async () => {
     mockGitCommands((args) => {
-      if (args[0] === "status") return { stdout: "2 .R N... 100644 100644 100644 a b R100 docs/new-name.md\tdocs/old-name.md" };
+      if (args[0] === "status")
+        return {
+          stdout: "2 .R N... 100644 100644 100644 a b R100 docs/new-name.md\tdocs/old-name.md",
+        };
       return { stdout: "" };
     });
 
@@ -268,10 +271,7 @@ describe("GitService.getStatus", () => {
       if (args[0] === "rev-parse") return { stdout: "true\n" };
       if (args[0] === "status") {
         return {
-          stdout: [
-            "# branch.oid abc123",
-            "# branch.head main",
-          ].join("\n"),
+          stdout: ["# branch.oid abc123", "# branch.head main"].join("\n"),
         };
       }
       if (args[0] === "remote") return { stdout: "" };
@@ -298,7 +298,11 @@ describe("GitService.getStatus", () => {
           ].join("\n"),
         };
       }
-      if (args[0] === "remote") return { stdout: "origin\thttps://github.com/owner/repo.git (fetch)\norigin\thttps://github.com/owner/repo.git (push)\n" };
+      if (args[0] === "remote")
+        return {
+          stdout:
+            "origin\thttps://github.com/owner/repo.git (fetch)\norigin\thttps://github.com/owner/repo.git (push)\n",
+        };
       if (args[0] === "diff") return { stdout: "" };
       return { stdout: "" };
     });
@@ -318,10 +322,7 @@ describe("GitService.getStatus", () => {
       if (args[0] === "rev-parse") return { stdout: "true\n" };
       if (args[0] === "status") {
         return {
-          stdout: [
-            "# branch.oid abc123",
-            "# branch.head main",
-          ].join("\n"),
+          stdout: ["# branch.oid abc123", "# branch.head main"].join("\n"),
         };
       }
       if (args[0] === "remote") return { stdout: "" };
@@ -380,7 +381,10 @@ describe("GitService.pullFromSource", () => {
   it("returns conflicting: true without aborting when merge has conflicts", async () => {
     mockGitCommands((args) => {
       if (args[0] === "merge-base") return { error: new Error("not ancestor") };
-      if (args[0] === "merge") return { error: new Error("git merge failed: CONFLICT (content): Merge conflict in src/file.ts") };
+      if (args[0] === "merge")
+        return {
+          error: new Error("git merge failed: CONFLICT (content): Merge conflict in src/file.ts"),
+        };
       return { stdout: "" };
     });
 
@@ -443,7 +447,9 @@ describe("GitService.removeWorktree", () => {
   it("removes residual directories when git already detached the worktree", async () => {
     mockGitCommands((args) => {
       if (args[0] === "worktree" && args[1] === "remove") {
-        return { error: new Error(`fatal: failed to delete '${worktreePath}': Directory not empty`) };
+        return {
+          error: new Error(`fatal: failed to delete '${worktreePath}': Directory not empty`),
+        };
       }
       if (args[0] === "worktree" && args[1] === "list") {
         return { stdout: `worktree ${location.path}\nHEAD abc123\nbranch refs/heads/main\n\n` };
@@ -464,7 +470,9 @@ describe("GitService.removeWorktree", () => {
   it("rethrows when git still reports the worktree as attached", async () => {
     mockGitCommands((args) => {
       if (args[0] === "worktree" && args[1] === "remove") {
-        return { error: new Error(`fatal: failed to delete '${worktreePath}': Directory not empty`) };
+        return {
+          error: new Error(`fatal: failed to delete '${worktreePath}': Directory not empty`),
+        };
       }
       if (args[0] === "worktree" && args[1] === "list") {
         return {
@@ -515,7 +523,8 @@ describe("GitService.deleteBranch", () => {
 
   it("preserves the not-fully-merged failure when the branch is not merged into its source branch", async () => {
     mockGitCommands((args) => {
-      if (args[0] === "branch") return { error: new Error("error: The branch 'feature/x' is not fully merged.") };
+      if (args[0] === "branch")
+        return { error: new Error("error: The branch 'feature/x' is not fully merged.") };
       if (args[0] === "config") return { stdout: "main\n" };
       if (args[0] === "merge-base") return { error: new Error("not ancestor") };
       return { stdout: "" };

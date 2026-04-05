@@ -19,8 +19,7 @@ export function GitBadge(props: {
       };
     }),
   );
-  if (!isRepo || (totalInsertions === 0 && totalDeletions === 0))
-    return null;
+  if (!isRepo || (totalInsertions === 0 && totalDeletions === 0)) return null;
   return (
     <div
       role="button"
@@ -39,12 +38,8 @@ export function GitBadge(props: {
       }}
     >
       <span className="flex items-center gap-0.5 text-[10px] font-medium">
-        {totalInsertions > 0 && (
-          <span className="text-success">+{totalInsertions}</span>
-        )}
-        {totalDeletions > 0 && (
-          <span className="text-danger">-{totalDeletions}</span>
-        )}
+        {totalInsertions > 0 && <span className="text-success">+{totalInsertions}</span>}
+        {totalDeletions > 0 && <span className="text-danger">-{totalDeletions}</span>}
       </span>
     </div>
   );

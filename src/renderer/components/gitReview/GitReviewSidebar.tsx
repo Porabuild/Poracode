@@ -20,8 +20,23 @@ import {
   Sparkles,
   Undo2,
 } from "lucide-react";
-import { AlertDialog, Button, ButtonGroup, Dropdown, Label, Modal, Spinner, Tooltip } from "@heroui/react";
-import type { Project, GitFileChange, GitStatusResult, PrData, ProjectLocation } from "../../../shared/contracts";
+import {
+  AlertDialog,
+  Button,
+  ButtonGroup,
+  Dropdown,
+  Label,
+  Modal,
+  Spinner,
+  Tooltip,
+} from "@heroui/react";
+import type {
+  Project,
+  GitFileChange,
+  GitStatusResult,
+  PrData,
+  ProjectLocation,
+} from "../../../shared/contracts";
 import { getProjectAgentStatuses } from "../../../shared/agentStatus";
 import { readBridge } from "../../bridge";
 import { useAppStore } from "../../state/appStore";
@@ -373,7 +388,10 @@ export function GitReviewSidebar(props: {
   // PR state
   const isGitHub = gitStatus?.remoteInfo?.platform === "github";
   const ghAvailable = useGitStore((s) => s.ghAvailable[project.id] ?? false);
-  const prData = useGitStore((s) => (worktreePath ? s.prData[worktreePath] : undefined)) as PrData | null | undefined;
+  const prData = useGitStore((s) => (worktreePath ? s.prData[worktreePath] : undefined)) as
+    | PrData
+    | null
+    | undefined;
   const [prTitle, setPrTitle] = useState("");
   const [prIsDraft, setPrIsDraft] = useState(false);
   const [prLoading, setPrLoading] = useState(false);
@@ -588,19 +606,16 @@ export function GitReviewSidebar(props: {
     if (!worktreePath || mergeConflictFiles.length === 0) return;
 
     // Pick the best available agent for conflict resolution
-    const candidates = projectAgentStatuses.filter(
-      (a) => a.installed && a.authState !== "missing",
-    );
-    const provider = conflictResolverProvider === "auto"
-      ? candidates[0]
-      : candidates.find((a) => a.kind === conflictResolverProvider);
+    const candidates = projectAgentStatuses.filter((a) => a.installed && a.authState !== "missing");
+    const provider =
+      conflictResolverProvider === "auto"
+        ? candidates[0]
+        : candidates.find((a) => a.kind === conflictResolverProvider);
     if (!provider) return;
 
     const defaults = getConflictResolverDefaults(provider.kind);
-    const model = conflictResolverModel
-      || defaults?.model
-      || provider.capabilities.models[0]?.id
-      || "";
+    const model =
+      conflictResolverModel || defaults?.model || provider.capabilities.models[0]?.id || "";
     const effort = conflictResolverEffort || defaults?.effort || "";
 
     const fileList = mergeConflictFiles.map((f) => `- ${f}`).join("\n");
@@ -710,10 +725,14 @@ export function GitReviewSidebar(props: {
       setPrLoading(false);
     }
   }
-  const showMergeSection = Boolean(worktreeBranch && worktreePath && !hasAnyChanges && commitsAhead > 0);
+  const showMergeSection = Boolean(
+    worktreeBranch && worktreePath && !hasAnyChanges && commitsAhead > 0,
+  );
   const showPullFromSource = Boolean(worktreeBranch && worktreePath && sourceBranch);
   const isPushed = hasTracking && ahead === 0;
-  const showCreatePrButton = Boolean(showPrSection && ghAvailable && isPushed && (!prData || prData.state === "closed"));
+  const showCreatePrButton = Boolean(
+    showPrSection && ghAvailable && isPushed && (!prData || prData.state === "closed"),
+  );
   const [createPrModalOpen, setCreatePrModalOpen] = useState(false);
 
   return (
@@ -784,7 +803,8 @@ export function GitReviewSidebar(props: {
         {mergeConflicting && (
           <div className="space-y-2 border-t border-warning/30 bg-warning/5 px-2 pt-2 pb-2">
             <p className="text-xs font-medium text-warning">
-              Merge conflicts ({mergeConflictFiles.length} file{mergeConflictFiles.length !== 1 ? "s" : ""})
+              Merge conflicts ({mergeConflictFiles.length} file
+              {mergeConflictFiles.length !== 1 ? "s" : ""})
             </p>
             {mergeConflictFiles.length > 0 && (
               <ul className="max-h-24 space-y-0.5 overflow-y-auto text-xs text-muted">
@@ -795,9 +815,7 @@ export function GitReviewSidebar(props: {
                 ))}
               </ul>
             )}
-            {pullFromSourceError && (
-              <p className="text-xs text-danger">{pullFromSourceError}</p>
-            )}
+            {pullFromSourceError && <p className="text-xs text-danger">{pullFromSourceError}</p>}
             <div className="flex gap-1.5">
               <Button
                 variant="tertiary"
@@ -819,7 +837,11 @@ export function GitReviewSidebar(props: {
               >
                 {({ isPending }) => (
                   <>
-                    {isPending ? <Spinner color="current" size="sm" /> : <GitMerge className="size-3.5" />}
+                    {isPending ? (
+                      <Spinner color="current" size="sm" />
+                    ) : (
+                      <GitMerge className="size-3.5" />
+                    )}
                     Mergetool
                   </>
                 )}
@@ -1014,7 +1036,8 @@ export function GitReviewSidebar(props: {
                 }`}
               />
               <span className="truncate text-xs text-foreground">
-                PR #{prData.number} · {prData.state === "draft" ? "Draft" : prData.state === "merged" ? "Merged" : "Open"}
+                PR #{prData.number} ·{" "}
+                {prData.state === "draft" ? "Draft" : prData.state === "merged" ? "Merged" : "Open"}
               </span>
             </div>
             <Button
@@ -1148,9 +1171,7 @@ export function GitReviewSidebar(props: {
                       </span>
                     )}
                   </div>
-                  {prError && (
-                    <p className="text-xs text-danger">{prError}</p>
-                  )}
+                  {prError && <p className="text-xs text-danger">{prError}</p>}
                 </div>
               </Modal.Body>
               <Modal.Footer>
@@ -1164,7 +1185,11 @@ export function GitReviewSidebar(props: {
                 >
                   {({ isPending }) => (
                     <>
-                      {isPending ? <Spinner color="current" size="sm" /> : <GitPullRequest className="size-3.5" />}
+                      {isPending ? (
+                        <Spinner color="current" size="sm" />
+                      ) : (
+                        <GitPullRequest className="size-3.5" />
+                      )}
                       Create
                     </>
                   )}

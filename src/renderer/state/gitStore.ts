@@ -1,5 +1,10 @@
 import { create } from "zustand";
-import type { GitBranchListResult, GitStatusResult, GitWorktreeInfo, PrData } from "../../shared/contracts";
+import type {
+  GitBranchListResult,
+  GitStatusResult,
+  GitWorktreeInfo,
+  PrData,
+} from "../../shared/contracts";
 
 export interface WorktreeSourceInfo {
   sourceBranch: string | null;
@@ -233,7 +238,10 @@ export const useGitStore = create<GitState & GitActions>()((set, get) => ({
         changed = true;
       }
 
-      if (snapshot.worktrees && !areWorktreesEqual(state.worktrees[projectId], snapshot.worktrees)) {
+      if (
+        snapshot.worktrees &&
+        !areWorktreesEqual(state.worktrees[projectId], snapshot.worktrees)
+      ) {
         nextWorktrees = { ...nextWorktrees, [projectId]: snapshot.worktrees };
         changed = true;
       }
@@ -289,7 +297,12 @@ export const useGitStore = create<GitState & GitActions>()((set, get) => ({
 
   setWorktreeSourceInfo: (worktreePath, info) => {
     const prev = get().worktreeSourceInfo[worktreePath];
-    if (prev && prev.sourceBranch === info.sourceBranch && prev.commitsAhead === info.commitsAhead && prev.sourceAhead === info.sourceAhead)
+    if (
+      prev &&
+      prev.sourceBranch === info.sourceBranch &&
+      prev.commitsAhead === info.commitsAhead &&
+      prev.sourceAhead === info.sourceAhead
+    )
       return;
     set((state) => ({
       worktreeSourceInfo: { ...state.worktreeSourceInfo, [worktreePath]: info },
@@ -302,7 +315,12 @@ export const useGitStore = create<GitState & GitActions>()((set, get) => ({
       let changed = false;
       for (const [worktreePath, info] of Object.entries(entries)) {
         const prev = next[worktreePath];
-        if (prev && prev.sourceBranch === info.sourceBranch && prev.commitsAhead === info.commitsAhead && prev.sourceAhead === info.sourceAhead)
+        if (
+          prev &&
+          prev.sourceBranch === info.sourceBranch &&
+          prev.commitsAhead === info.commitsAhead &&
+          prev.sourceAhead === info.sourceAhead
+        )
           continue;
         if (!changed) {
           next = { ...state.worktreeSourceInfo };

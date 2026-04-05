@@ -34,7 +34,11 @@ import { ProviderIcon, getStatusTone } from "../providers";
 import { resolveActionIcon } from "../settings/ProjectSettingsOverlay";
 import { useGitStore } from "../../state/gitStore";
 import { GitBadge } from "./GitBadge";
-import { buildWorktreeGitItems, getWorktreeActionVisibility, type GitMenuIcons } from "./useWorktreeActions";
+import {
+  buildWorktreeGitItems,
+  getWorktreeActionVisibility,
+  type GitMenuIcons,
+} from "./useWorktreeActions";
 import { groupThreadsByWorktree, type WorktreeThreadGroup } from "./groupThreadsByWorktree";
 import { WorktreeGroupHeader } from "./WorktreeGroupHeader";
 
@@ -289,14 +293,9 @@ function SortableThreadItem(props: {
             : []),
           {
             id: "open-side",
-            label:
-              currentThreadIds.length >= 2
-                ? "Open 3rd"
-                : "Open Side by Side",
+            label: currentThreadIds.length >= 2 ? "Open 3rd" : "Open Side by Side",
             icon: <Columns2 className="size-3.5" />,
-            isDisabled:
-              currentThreadIds.includes(thread.id) ||
-              currentThreadIds.length >= 3,
+            isDisabled: currentThreadIds.includes(thread.id) || currentThreadIds.length >= 3,
           },
           {
             id: "delete",
@@ -306,8 +305,7 @@ function SortableThreadItem(props: {
           },
         ]}
         onAction={(key) => {
-          if (key === "git-review")
-            props.onOpenGitReview(thread.projectId, thread.worktreePath);
+          if (key === "git-review") props.onOpenGitReview(thread.projectId, thread.worktreePath);
           if (key === "git-sync" && thread.worktreePath)
             props.onGitSync(thread.projectId, thread.worktreePath);
           if (key === "git-push" && thread.worktreePath)
@@ -324,34 +322,20 @@ function SortableThreadItem(props: {
             const pr = useGitStore.getState().prData[thread.worktreePath];
             if (pr?.url) void readBridge().openExternal(pr.url);
           }
-          if (key === "create-pr")
-            props.onOpenGitReview(thread.projectId, thread.worktreePath);
+          if (key === "create-pr") props.onOpenGitReview(thread.projectId, thread.worktreePath);
           if (key === "rename") props.setEditingThreadId(thread.id);
           if (key === "replace-second") props.onReplaceSecondPane(thread.id);
           if (key === "open-side") props.onOpenThreadSideBySide(thread.id);
           if (key === "delete")
-            props.onDeleteThread(
-              thread.id,
-              thread.worktreePath,
-              thread.projectId,
-            );
+            props.onDeleteThread(thread.id, thread.worktreePath, thread.projectId);
           if (key.startsWith("action:")) {
-            props.onRunProjectAction(
-              project.id,
-              key.slice("action:".length),
-              thread.worktreePath,
-            );
+            props.onRunProjectAction(project.id, key.slice("action:".length), thread.worktreePath);
           }
         }}
       >
         <SidebarButton
-
           icon={
-            <ProviderIcon
-              kind={thread.agentKind}
-              tone={statusTone}
-              className="size-3.5 shrink-0"
-            />
+            <ProviderIcon kind={thread.agentKind} tone={statusTone} className="size-3.5 shrink-0" />
           }
           label={
             editingThreadId === thread.id ? (
@@ -367,9 +351,7 @@ function SortableThreadItem(props: {
               thread.title
             )
           }
-          tooltip={
-            editingThreadId === thread.id ? undefined : thread.title
-          }
+          tooltip={editingThreadId === thread.id ? undefined : thread.title}
           isActive={isCurrentThread}
           className={isDragging ? "opacity-60" : ""}
           onPress={() => props.onOpenThread(thread.id)}
@@ -386,26 +368,18 @@ function SortableThreadItem(props: {
                     className={`shrink-0 cursor-default rounded p-0.5 transition-colors hover:bg-white/[0.04] hover:text-foreground ${
                       props.activeWorktreeTerminalPath === thread.worktreePath
                         ? "text-accent"
-                        : props.activeWorktreeTerminalPaths.includes(
-                              thread.worktreePath,
-                            )
+                        : props.activeWorktreeTerminalPaths.includes(thread.worktreePath)
                           ? "text-foreground"
                           : "text-muted/60 opacity-0 group-hover:opacity-100"
                     }`}
                     onClick={(event) => {
                       event.stopPropagation();
-                      props.onOpenWorktreeTerminal(
-                        thread.projectId,
-                        thread.worktreePath!,
-                      );
+                      props.onOpenWorktreeTerminal(thread.projectId, thread.worktreePath!);
                     }}
                     onKeyDown={(event) => {
                       if (event.key === "Enter" || event.key === " ") {
                         event.stopPropagation();
-                        props.onOpenWorktreeTerminal(
-                          thread.projectId,
-                          thread.worktreePath!,
-                        );
+                        props.onOpenWorktreeTerminal(thread.projectId, thread.worktreePath!);
                       }
                     }}
                   >
@@ -415,9 +389,7 @@ function SortableThreadItem(props: {
                     projectId={thread.projectId}
                     projectName={thread.worktreeBranch ?? ""}
                     worktreePath={thread.worktreePath}
-                    onPress={() =>
-                      props.onOpenGitReview(thread.projectId, thread.worktreePath)
-                    }
+                    onPress={() => props.onOpenGitReview(thread.projectId, thread.worktreePath)}
                   />
                   <Tooltip delay={150}>
                     <Tooltip.Trigger>
@@ -442,20 +414,12 @@ function SortableThreadItem(props: {
                   className="absolute inset-0 flex items-center justify-center rounded text-muted/55 opacity-0 transition hover:text-danger group-hover:opacity-100"
                   onClick={(event) => {
                     event.stopPropagation();
-                    props.onDeleteThread(
-                      thread.id,
-                      thread.worktreePath,
-                      thread.projectId,
-                    );
+                    props.onDeleteThread(thread.id, thread.worktreePath, thread.projectId);
                   }}
                   onKeyDown={(event) => {
                     if (event.key === "Enter" || event.key === " ") {
                       event.stopPropagation();
-                      props.onDeleteThread(
-                        thread.id,
-                        thread.worktreePath,
-                        thread.projectId,
-                      );
+                      props.onDeleteThread(thread.id, thread.worktreePath, thread.projectId);
                     }
                   }}
                 >
@@ -518,17 +482,13 @@ function SortableWorktreeGroup(props: {
     } satisfies DragSourceData,
   });
 
-
   const { source } = useDndContext();
   const isDragging =
     source?.type === "worktree-group" && source.worktreePath === group.worktreePath;
   const isGroupCollapsed = props.isCollapsed;
 
   return (
-    <div
-      ref={ref}
-      className={`relative space-y-0.5 ${isDragging ? "opacity-60" : ""}`}
-    >
+    <div ref={ref} className={`relative space-y-0.5 ${isDragging ? "opacity-60" : ""}`}>
       <ContextMenu
         items={[
           {
@@ -568,11 +528,7 @@ function SortableWorktreeGroup(props: {
             props.onOpenGitReview(project.id, group.worktreePath);
           }
           if (key === "delete-worktree") {
-            props.onDeleteWorktreeGroup(
-              project.id,
-              group.worktreePath,
-              groupThreadIds,
-            );
+            props.onDeleteWorktreeGroup(project.id, group.worktreePath, groupThreadIds);
           }
           if (key === "git-sync") {
             props.onGitSync(project.id, group.worktreePath);
@@ -600,11 +556,7 @@ function SortableWorktreeGroup(props: {
             props.onOpenGitReview(project.id, group.worktreePath);
           }
           if (key.startsWith("action:")) {
-            props.onRunProjectAction(
-              project.id,
-              key.slice("action:".length),
-              group.worktreePath,
-            );
+            props.onRunProjectAction(project.id, key.slice("action:".length), group.worktreePath);
           }
         }}
       >
@@ -613,25 +565,18 @@ function SortableWorktreeGroup(props: {
           worktreeBranch={group.worktreeBranch}
           projectId={project.id}
           isCollapsed={isGroupCollapsed}
-          hasTerminal={props.activeWorktreeTerminalPaths.includes(
-            group.worktreePath,
-          )}
-          isActiveTerminal={
-            props.activeWorktreeTerminalPath === group.worktreePath
-          }
+          hasTerminal={props.activeWorktreeTerminalPaths.includes(group.worktreePath)}
+          isActiveTerminal={props.activeWorktreeTerminalPath === group.worktreePath}
           onToggleCollapse={() =>
             props.setCollapsedWorktrees((prev) => ({
               ...prev,
               [group.worktreePath]: !isGroupCollapsed,
             }))
           }
-          onOpenGitReview={() =>
-            props.onOpenGitReview(project.id, group.worktreePath)
-          }
-          onOpenTerminal={() =>
-            props.onOpenWorktreeTerminal(project.id, group.worktreePath)
-          }
+          onOpenGitReview={() => props.onOpenGitReview(project.id, group.worktreePath)}
+          onOpenTerminal={() => props.onOpenWorktreeTerminal(project.id, group.worktreePath)}
           isDragging={isDragging}
+          isDraggingAnything={!!source}
         />
       </ContextMenu>
       {!isGroupCollapsed && (
@@ -786,7 +731,6 @@ function SortableProjectHeader(props: {
         }}
       >
         <SidebarButton
-
           icon={
             <ChevronRight
               className={`size-3.5 shrink-0 text-muted transition-transform ${
@@ -796,9 +740,7 @@ function SortableProjectHeader(props: {
           }
           label={
             <span className="flex items-center gap-1.5">
-              <span className="truncate font-semibold text-foreground">
-                {project.name}
-              </span>
+              <span className="truncate font-semibold text-foreground">{project.name}</span>
               {project.location.kind === "wsl" && (
                 <TuxIcon className="h-3 w-auto shrink-0 text-muted/60" />
               )}
@@ -854,9 +796,8 @@ function SortableProjectHeader(props: {
           <SidebarButton
             icon={<Plus className="size-4" />}
             label="New thread"
-            isActive={
-              props.currentProjectId === project.id && props.currentThreadIds.length === 0
-            }
+            isActive={props.currentProjectId === project.id && props.currentThreadIds.length === 0}
+            isDraggingAnything={!!source}
             onPress={() => props.onOpenNewThread(project.id)}
           />
 

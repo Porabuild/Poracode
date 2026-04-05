@@ -110,18 +110,18 @@ export function ContextMenu(props: ContextMenuProps) {
     setPosition({ x: e.clientX, y: e.clientY });
   }
 
-  const trigger = React.isValidElement<{ onContextMenu?: MouseEventHandler }>(children)
-    ? React.cloneElement(children, {
-        onContextMenu: (event) => {
-          children.props.onContextMenu?.(event);
-          if (!event.defaultPrevented) {
-            handleContextMenu(event);
-          }
-        },
-      })
-    : (
-        <div onContextMenu={handleContextMenu}>{children}</div>
-      );
+  const trigger = React.isValidElement<{ onContextMenu?: MouseEventHandler }>(children) ? (
+    React.cloneElement(children, {
+      onContextMenu: (event) => {
+        children.props.onContextMenu?.(event);
+        if (!event.defaultPrevented) {
+          handleContextMenu(event);
+        }
+      },
+    })
+  ) : (
+    <div onContextMenu={handleContextMenu}>{children}</div>
+  );
 
   return (
     <>

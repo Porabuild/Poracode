@@ -10,10 +10,19 @@ import {
   Sparkles,
 } from "lucide-react";
 import { startTransition, useState } from "react";
-import type { AgentSettingDef, AgentStatus, TerminalPosition, ThemeMode } from "../../../shared/contracts";
+import type {
+  AgentSettingDef,
+  AgentStatus,
+  TerminalPosition,
+  ThemeMode,
+} from "../../../shared/contracts";
 import { useAppStore } from "../../state/appStore";
 import { useSharedSettings } from "../../state/sharedSettingsStore";
-import { resolveCommitGenConfig, resolveTitleGenConfig, resolveConflictResolverConfig } from "../providers";
+import {
+  resolveCommitGenConfig,
+  resolveTitleGenConfig,
+  resolveConflictResolverConfig,
+} from "../providers";
 import { ProviderIcon } from "../providers/ProviderIcon";
 import { Select, SidebarButton, TuxIcon } from "../common";
 import { useSidebar } from "../layout/AppShell";
@@ -480,14 +489,9 @@ function AISettings() {
   );
 }
 
-function AgentSettingToggle(props: {
-  agentKind: string;
-  def: AgentSettingDef;
-}) {
+function AgentSettingToggle(props: { agentKind: string; def: AgentSettingDef }) {
   const { agentKind, def } = props;
-  const value = useSharedSettings(
-    (s) => s.agentSettings[agentKind]?.[def.key] ?? def.default,
-  );
+  const value = useSharedSettings((s) => s.agentSettings[agentKind]?.[def.key] ?? def.default);
   const setAgentSetting = useSharedSettings((s) => s.setAgentSetting);
 
   return (
@@ -542,11 +546,7 @@ function SingleAgentSettings(props: { agentKind: string }) {
         ) : (
           <div className="space-y-4">
             {defs.map((def) => (
-              <AgentSettingToggle
-                key={def.key}
-                agentKind={agent.kind}
-                def={def}
-              />
+              <AgentSettingToggle key={def.key} agentKind={agent.kind} def={def} />
             ))}
           </div>
         )}
@@ -584,9 +584,7 @@ export function SettingsOverlay(props: { onClose: () => void }) {
   const agentStatuses = useAppStore((s) => s.agentStatuses);
   const installedAgents = agentStatuses.filter((a) => a.installed);
 
-  const agentKind = activeSection.startsWith("agents:")
-    ? activeSection.slice(7)
-    : undefined;
+  const agentKind = activeSection.startsWith("agents:") ? activeSection.slice(7) : undefined;
 
   return (
     <PageLayout

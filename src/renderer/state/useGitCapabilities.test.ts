@@ -10,13 +10,22 @@ function getProjectCaps(projectId: string) {
 
 function getWorktreeCaps(worktreePath: string | undefined, projectId: string) {
   const state = useGitStore.getState();
-  const status = (worktreePath ? state.worktreeStatuses[worktreePath] : undefined) ?? state.statuses[projectId];
+  const status =
+    (worktreePath ? state.worktreeStatuses[worktreePath] : undefined) ?? state.statuses[projectId];
   return deriveCaps(status);
 }
 
 function deriveCaps(status: GitStatusResult | undefined) {
   if (!status) {
-    return { isRepo: false, hasRemote: false, isGitHub: false, remoteOwner: "", remoteRepo: "", hasBranch: false, isPushed: false };
+    return {
+      isRepo: false,
+      hasRemote: false,
+      isGitHub: false,
+      remoteOwner: "",
+      remoteRepo: "",
+      hasBranch: false,
+      isPushed: false,
+    };
   }
   const ri = status.remoteInfo;
   return {

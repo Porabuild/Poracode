@@ -1,6 +1,13 @@
 import { FitAddon } from "@xterm/addon-fit";
 import { Terminal } from "@xterm/xterm";
-import { forwardRef, useEffect, useImperativeHandle, useRef, useState, type RefObject } from "react";
+import {
+  forwardRef,
+  useEffect,
+  useImperativeHandle,
+  useRef,
+  useState,
+  type RefObject,
+} from "react";
 import type { TerminalSize } from "../../../shared/contracts";
 import { isMac, readBridge } from "../../bridge";
 import { ContextMenu, type ContextMenuItem } from "../common";
@@ -34,18 +41,21 @@ function getTerminalTheme(appearance: "light" | "dark") {
   };
 }
 
-export const XTermSurface = forwardRef<XTermSurfaceHandle, {
-  terminalId: string;
-  readOnly?: boolean;
-  enabled?: boolean;
-  onReset?: () => void;
-  onExited?: (exitCode: number | null) => void;
-  onActivity?: () => void;
-  onBell?: () => void;
-  onTitleChange?: (title: string) => void;
-  onTerminalResize?: (size: TerminalSize) => void;
-  className?: string;
-}>(function XTermSurface(props, ref) {
+export const XTermSurface = forwardRef<
+  XTermSurfaceHandle,
+  {
+    terminalId: string;
+    readOnly?: boolean;
+    enabled?: boolean;
+    onReset?: () => void;
+    onExited?: (exitCode: number | null) => void;
+    onActivity?: () => void;
+    onBell?: () => void;
+    onTitleChange?: (title: string) => void;
+    onTerminalResize?: (size: TerminalSize) => void;
+    className?: string;
+  }
+>(function XTermSurface(props, ref) {
   const {
     terminalId,
     readOnly = false,
@@ -377,7 +387,9 @@ export const XTermSurface = forwardRef<XTermSurfaceHandle, {
       });
     } else if (key === "paste-in-input") {
       if (!terminal.hasSelection()) return;
-      window.dispatchEvent(new CustomEvent("lightcode:paste-to-composer", { detail: terminal.getSelection() }));
+      window.dispatchEvent(
+        new CustomEvent("lightcode:paste-to-composer", { detail: terminal.getSelection() }),
+      );
       terminal.clearSelection();
     }
   }

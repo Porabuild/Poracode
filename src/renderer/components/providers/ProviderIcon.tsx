@@ -98,7 +98,17 @@ export function getConflictResolverDefaults(kind: string): ConflictResolverDefau
 }
 
 export function resolveConflictResolverConfig(
-  agent: { kind: string; capabilities: { models: { id: string }[]; efforts: string[]; modelEfforts: Record<string, string[]>; defaultEffort?: string | undefined } } | undefined,
+  agent:
+    | {
+        kind: string;
+        capabilities: {
+          models: { id: string }[];
+          efforts: string[];
+          modelEfforts: Record<string, string[]>;
+          defaultEffort?: string | undefined;
+        };
+      }
+    | undefined,
   model: string,
   effort: string,
 ): { model: string; effort: string; availableEfforts: string[] } {
@@ -109,7 +119,7 @@ export function resolveConflictResolverConfig(
     ? model
     : defaults?.model && agent.capabilities.models.some((m) => m.id === defaults.model)
       ? defaults.model
-      : agent.capabilities.models[0]?.id ?? "";
+      : (agent.capabilities.models[0]?.id ?? "");
 
   const modelEfforts = agent.capabilities.modelEfforts[nextModel];
   const availableEfforts = modelEfforts?.length ? modelEfforts : agent.capabilities.efforts;
@@ -117,7 +127,8 @@ export function resolveConflictResolverConfig(
 
   if (availableEfforts.includes(effort)) return { model: nextModel, effort, availableEfforts };
 
-  const fallback = [defaults?.effort, agent.capabilities.defaultEffort, availableEfforts[0]]
-    .find((c) => c && availableEfforts.includes(c!));
+  const fallback = [defaults?.effort, agent.capabilities.defaultEffort, availableEfforts[0]].find(
+    (c) => c && availableEfforts.includes(c!),
+  );
   return { model: nextModel, effort: fallback ?? "", availableEfforts };
 }

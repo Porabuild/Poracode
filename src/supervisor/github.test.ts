@@ -146,17 +146,17 @@ describe("GitHubService", () => {
     it("throws a classified error on auth failure", async () => {
       execFileAsyncMock.mockRejectedValue(new Error("not logged in to any GitHub hosts"));
 
-      await expect(
-        new GitHubService().getPrForBranch(location, "feature/x"),
-      ).rejects.toThrow("GitHub CLI is not authenticated");
+      await expect(new GitHubService().getPrForBranch(location, "feature/x")).rejects.toThrow(
+        "GitHub CLI is not authenticated",
+      );
     });
 
     it("throws a classified error when gh is not installed", async () => {
       execFileAsyncMock.mockRejectedValue(new Error("ENOENT: command not found"));
 
-      await expect(
-        new GitHubService().getPrForBranch(location, "feature/x"),
-      ).rejects.toThrow("GitHub CLI (gh) is not installed");
+      await expect(new GitHubService().getPrForBranch(location, "feature/x")).rejects.toThrow(
+        "GitHub CLI (gh) is not installed",
+      );
     });
   });
 
@@ -206,14 +206,7 @@ describe("GitHubService", () => {
         }),
       });
 
-      await new GitHubService().createPr(
-        location,
-        "feature/x",
-        "main",
-        "Draft PR",
-        "",
-        true,
-      );
+      await new GitHubService().createPr(location, "feature/x", "main", "Draft PR", "", true);
 
       const ghArgs = buildAgentCommandMock.mock.calls[0]![2] as string[];
       expect(ghArgs).toContain("--draft");

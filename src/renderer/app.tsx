@@ -1,8 +1,22 @@
-import { lazy, startTransition, Suspense, useEffect, useEffectEvent, useRef, useState } from "react";
+import {
+  lazy,
+  startTransition,
+  Suspense,
+  useEffect,
+  useEffectEvent,
+  useRef,
+  useState,
+} from "react";
 import { ArrowRight, FolderOpen, FolderPlus, Monitor, Plus, TerminalSquare } from "lucide-react";
 import { Button, Dropdown, Label, Spinner } from "@heroui/react";
 import { TuxIcon } from "./components/common/TuxIcon";
-import type { AgentStatus, PrData, Project, ProjectLocation, PromptSegment } from "../shared/contracts";
+import type {
+  AgentStatus,
+  PrData,
+  Project,
+  ProjectLocation,
+  PromptSegment,
+} from "../shared/contracts";
 import { getProjectAgentStatuses } from "../shared/agentStatus";
 import type { PendingThreadServerRequest } from "./state/appStore";
 import { parseWslUncPath } from "../shared/wsl";
@@ -221,9 +235,7 @@ function WelcomeOverlay() {
   return (
     <div
       className={`fixed inset-0 z-50 flex flex-col bg-background transition-opacity ${
-        visible
-          ? "opacity-100 duration-150"
-          : "opacity-0 duration-500"
+        visible ? "opacity-100 duration-150" : "opacity-0 duration-500"
       }`}
       onTransitionEnd={handleTransitionEnd}
     >
@@ -243,15 +255,9 @@ function WelcomeOverlay() {
             <TerminalSquare className="translate-y-[-0.04em] size-[0.48em] shrink-0 text-[color:color-mix(in_oklab,var(--accent)_58%,var(--foreground))] opacity-90" />
           </h1>
 
-          <p className="text-sm text-muted">
-            Start your experience by adding your first project
-          </p>
+          <p className="text-sm text-muted">Start your experience by adding your first project</p>
 
-          <Button
-            size="lg"
-            variant="primary"
-            onPress={handleStart}
-          >
+          <Button size="lg" variant="primary" onPress={handleStart}>
             <FolderPlus className="size-4" />
             Start
           </Button>
@@ -434,7 +440,6 @@ function ThreadPane(props: {
       paneIndex={props.paneIndex}
       paneCount={props.paneCount}
       {...(props.paneCount > 1 ? { dragHandleRef: handleRef } : {})}
-
       droppableRef={paneElementRef}
       onClose={props.onClose}
       onConfigChange={(config) => updateThreadConfig(thread.id, config)}
@@ -502,10 +507,6 @@ function AppContent() {
       s.view.kind === "thread" && s.view.panes.some((id) => s.threads.some((t) => t.id === id)),
   );
 
-  // Show a sidebar-drag overlay when a thread is being dragged from the sidebar
-  const { source } = useDndContext();
-  const sidebarDragActive = source?.type === "thread";
-
   if (view.kind === "draft") {
     const project = projects.find((item) => item.id === view.projectId);
     if (!project) {
@@ -517,7 +518,7 @@ function AppContent() {
       wslAgentStatuses,
     );
     return (
-      <div className="relative h-full">
+      <div className="h-full">
         <ThreadDraftView
           project={project}
           agentStatuses={projectAgentStatuses}
@@ -590,12 +591,6 @@ function AppContent() {
             generateTitleAsync(thread.id, project.location, projectAgentStatuses, titlePrompt);
           }}
         />
-        {sidebarDragActive && (
-          <div
-            aria-hidden="true"
-            className="pointer-events-none absolute inset-0 z-20 rounded-2xl bg-accent/10 ring-1 ring-inset ring-accent/30"
-          />
-        )}
       </div>
     );
   }
@@ -681,7 +676,9 @@ async function runShellScriptToCompletion(
       if (done) return;
       done = true;
       unsubscribe();
-      void readBridge().closeThread({ threadId: shellId }).catch(() => undefined);
+      void readBridge()
+        .closeThread({ threadId: shellId })
+        .catch(() => undefined);
       reject(new Error(`Timed out waiting for cleanup shell ${shellId}.`));
     }, 30_000);
     unsubscribe = readBridge().onSupervisorEvent((event) => {
@@ -1064,8 +1061,7 @@ export function App() {
         const gitStoreActions = useGitStore.getState();
 
         const status = statusResult.status === "fulfilled" ? statusResult.value : undefined;
-        const branches =
-          branchesResult.status === "fulfilled" ? branchesResult.value : undefined;
+        const branches = branchesResult.status === "fulfilled" ? branchesResult.value : undefined;
         const worktrees =
           worktreesResult.status === "fulfilled" ? worktreesResult.value.worktrees : undefined;
         const ghAvailable = gitStoreActions.ghAvailable[project.id];
@@ -1136,7 +1132,14 @@ export function App() {
                     branch: wt.branch,
                   });
                   if (!isActive) return undefined;
-                  return [wt.path, { sourceBranch: info.sourceBranch, commitsAhead: info.commitsAhead, sourceAhead: info.sourceAhead }] as const;
+                  return [
+                    wt.path,
+                    {
+                      sourceBranch: info.sourceBranch,
+                      commitsAhead: info.commitsAhead,
+                      sourceAhead: info.sourceAhead,
+                    },
+                  ] as const;
                 } catch {
                   return undefined;
                 }
@@ -1339,16 +1342,17 @@ export function App() {
       const projectIds = projects.map((p) => p.id);
       const targetId = projectIds[finalIndex];
       if (!targetId || targetId === projectId) return;
-      const placement = initialIndex < finalIndex ? "after" as const : "before" as const;
+      const placement = initialIndex < finalIndex ? ("after" as const) : ("before" as const);
       startTransition(() => reorderProjects(projectId, targetId, placement));
     } else if (source.type === "thread") {
       const allThreads = useAppStore.getState().threads;
       const groupThreads = allThreads.filter(
-        (t) => t.projectId === source.projectId && (t.worktreePath ?? undefined) === source.worktreePath,
+        (t) =>
+          t.projectId === source.projectId && (t.worktreePath ?? undefined) === source.worktreePath,
       );
       const targetThread = groupThreads[finalIndex];
       if (!targetThread || targetThread.id === source.threadId) return;
-      const placement = initialIndex < finalIndex ? "after" as const : "before" as const;
+      const placement = initialIndex < finalIndex ? ("after" as const) : ("before" as const);
       startTransition(() => reorderThreads(source.threadId, targetThread.id, placement));
     }
   }
@@ -1379,7 +1383,7 @@ export function App() {
       if (!targetThreadId || sourceThreadId === targetThreadId) return;
       const sourceIdx = panes.indexOf(sourceThreadId);
       const targetIdx = target.paneIndex;
-      const placement = sourceIdx < targetIdx ? "after" as const : "before" as const;
+      const placement = sourceIdx < targetIdx ? ("after" as const) : ("before" as const);
       startTransition(() => reorderPanes(sourceThreadId, targetThreadId, placement));
     }
   }
@@ -1392,482 +1396,491 @@ export function App() {
         onPaneDrop={handlePaneDrop}
         paneThreadIds={paneThreadIds}
       >
-      <PageLayout
-        title="Lightcode"
-        onTitleClick={() => startTransition(() => openHome())}
-        headerChildren={
-          <div className="lightcode-overlay-header__controls">
-            {isWindows() ? (
-              <Dropdown>
+        <PageLayout
+          title="Lightcode"
+          onTitleClick={() => startTransition(() => openHome())}
+          headerChildren={
+            <div className="lightcode-overlay-header__controls">
+              {isWindows() ? (
+                <Dropdown>
+                  <Button
+                    isIconOnly
+                    aria-label="Add project"
+                    size="sm"
+                    variant="ghost"
+                    className="size-6 min-w-0 text-muted hover:text-foreground"
+                  >
+                    <FolderPlus className="size-3.5" />
+                  </Button>
+                  <Dropdown.Popover>
+                    <Dropdown.Menu
+                      aria-label="Add project options"
+                      onAction={(key) => {
+                        if (key === "windows") {
+                          void readBridge()
+                            .pickFolder()
+                            .then((path) => {
+                              if (!path) return;
+                              startTransition(() => {
+                                const project = addProject({ kind: "windows", path });
+                                autoDetectSetupScript(project);
+                                openDraft(project.id);
+                              });
+                            });
+                        }
+                        if (key === "wsl") {
+                          void readBridge()
+                            .listWslDistros()
+                            .then((distros) => {
+                              const distro = distros[0];
+                              const defaultPath = distro
+                                ? `\\\\wsl.localhost\\${distro}\\home`
+                                : undefined;
+                              return readBridge().pickFolder(defaultPath);
+                            })
+                            .then((selectedPath) => {
+                              if (!selectedPath) return;
+                              const parsed = parseWslUncPath(selectedPath);
+                              if (!parsed) return;
+                              startTransition(() => {
+                                const project = addProject({
+                                  kind: "wsl",
+                                  distro: parsed.distro,
+                                  linuxPath: parsed.linuxPath,
+                                  uncPath: selectedPath,
+                                });
+                                autoDetectSetupScript(project);
+                                openDraft(project.id);
+                              });
+                            });
+                        }
+                      }}
+                    >
+                      <Dropdown.Item id="windows" textValue="Add Windows Project">
+                        <Monitor className="size-4 shrink-0 text-muted" />
+                        <Label>Add Windows Project</Label>
+                      </Dropdown.Item>
+                      <Dropdown.Item
+                        id="wsl"
+                        isDisabled={!wslAvailable}
+                        textValue="Add WSL Project"
+                      >
+                        <TuxIcon className="size-4 shrink-0 text-muted" />
+                        <Label>Add WSL Project</Label>
+                      </Dropdown.Item>
+                    </Dropdown.Menu>
+                  </Dropdown.Popover>
+                </Dropdown>
+              ) : (
                 <Button
                   isIconOnly
                   aria-label="Add project"
                   size="sm"
                   variant="ghost"
                   className="size-6 min-w-0 text-muted hover:text-foreground"
+                  onPress={() => {
+                    void readBridge()
+                      .pickFolder()
+                      .then((path) => {
+                        if (!path) return;
+                        startTransition(() => {
+                          const project = addProject({ kind: "posix", path });
+                          autoDetectSetupScript(project);
+                          openDraft(project.id);
+                        });
+                      });
+                  }}
                 >
                   <FolderPlus className="size-3.5" />
                 </Button>
-                <Dropdown.Popover>
-                  <Dropdown.Menu
-                    aria-label="Add project options"
-                    onAction={(key) => {
-                      if (key === "windows") {
-                        void readBridge()
-                          .pickFolder()
-                          .then((path) => {
-                            if (!path) return;
-                            startTransition(() => {
-                              const project = addProject({ kind: "windows", path });
-                              autoDetectSetupScript(project);
-                              openDraft(project.id);
-                            });
-                          });
-                      }
-                      if (key === "wsl") {
-                        void readBridge()
-                          .listWslDistros()
-                          .then((distros) => {
-                            const distro = distros[0];
-                            const defaultPath = distro
-                              ? `\\\\wsl.localhost\\${distro}\\home`
-                              : undefined;
-                            return readBridge().pickFolder(defaultPath);
-                          })
-                          .then((selectedPath) => {
-                            if (!selectedPath) return;
-                            const parsed = parseWslUncPath(selectedPath);
-                            if (!parsed) return;
-                            startTransition(() => {
-                              const project = addProject({
-                                kind: "wsl",
-                                distro: parsed.distro,
-                                linuxPath: parsed.linuxPath,
-                                uncPath: selectedPath,
-                              });
-                              autoDetectSetupScript(project);
-                              openDraft(project.id);
-                            });
-                          });
-                      }
-                    }}
-                  >
-                    <Dropdown.Item id="windows" textValue="Add Windows Project">
-                      <Monitor className="size-4 shrink-0 text-muted" />
-                      <Label>Add Windows Project</Label>
-                    </Dropdown.Item>
-                    <Dropdown.Item id="wsl" isDisabled={!wslAvailable} textValue="Add WSL Project">
-                      <TuxIcon className="size-4 shrink-0 text-muted" />
-                      <Label>Add WSL Project</Label>
-                    </Dropdown.Item>
-                  </Dropdown.Menu>
-                </Dropdown.Popover>
-              </Dropdown>
-            ) : (
-              <Button
-                isIconOnly
-                aria-label="Add project"
-                size="sm"
-                variant="ghost"
-                className="size-6 min-w-0 text-muted hover:text-foreground"
-                onPress={() => {
-                  void readBridge()
-                    .pickFolder()
-                    .then((path) => {
-                      if (!path) return;
-                      startTransition(() => {
-                        const project = addProject({ kind: "posix", path });
-                        autoDetectSetupScript(project);
-                        openDraft(project.id);
-                      });
-                    });
-                }}
-              >
-                <FolderPlus className="size-3.5" />
-              </Button>
-            )}
-          </div>
-        }
-        sidebar={
-          <Sidebar
-            projects={projects}
-            currentProjectId={currentProjectId}
-            currentThreadIds={view.kind === "thread" ? view.panes : []}
-            onOpenNewThread={(projectId) => {
-              const targetProjectId = projectId ?? currentProjectId ?? projects[0]?.id;
+              )}
+            </div>
+          }
+          sidebar={
+            <Sidebar
+              projects={projects}
+              currentProjectId={currentProjectId}
+              currentThreadIds={view.kind === "thread" ? view.panes : []}
+              onOpenNewThread={(projectId) => {
+                const targetProjectId = projectId ?? currentProjectId ?? projects[0]?.id;
 
-              startTransition(() => {
-                if (targetProjectId) {
-                  openDraft(targetProjectId);
+                startTransition(() => {
+                  if (targetProjectId) {
+                    openDraft(targetProjectId);
+                    return;
+                  }
+
+                  openHome();
+                });
+              }}
+              onOpenSettings={() => setSettingsOpen(true)}
+              onOpenGitReview={(projectId, worktreePath?) =>
+                setGitReviewContext({ projectId, worktreePath })
+              }
+              onGitSync={(projectId, worktreePath?) => {
+                const project = projects.find((p) => p.id === projectId);
+                if (!project) return;
+                const location = worktreePath
+                  ? buildWorktreeLocation(project.location, worktreePath)
+                  : project.location;
+                void readBridge()
+                  .gitSync({ projectLocation: location })
+                  .catch(() => undefined);
+              }}
+              onGitPush={(projectId, worktreePath) => {
+                const project = projects.find((p) => p.id === projectId);
+                if (!project) return;
+                const thread = useAppStore
+                  .getState()
+                  .threads.find((t) => t.worktreePath === worktreePath && t.worktreeBranch);
+                if (!thread?.worktreeBranch) return;
+                const worktreeLocation = buildWorktreeLocation(project.location, worktreePath);
+                void readBridge()
+                  .gitPush({
+                    projectLocation: worktreeLocation,
+                    remote: "origin",
+                    branch: thread.worktreeBranch,
+                    setUpstream: true,
+                  })
+                  .catch(() => undefined);
+              }}
+              onGitPull={(projectId, worktreePath) => {
+                const project = projects.find((p) => p.id === projectId);
+                if (!project) return;
+                const worktreeLocation = buildWorktreeLocation(project.location, worktreePath);
+                void readBridge()
+                  .gitPull({ projectLocation: worktreeLocation, remote: "origin" })
+                  .catch(() => undefined);
+              }}
+              onGitMergeToSource={(projectId, worktreePath) => {
+                const project = projects.find((p) => p.id === projectId);
+                if (!project) return;
+                const thread = useAppStore
+                  .getState()
+                  .threads.find((t) => t.worktreePath === worktreePath && t.worktreeBranch);
+                if (!thread?.worktreeBranch) return;
+                void (async () => {
+                  try {
+                    const { sourceBranch } = await readBridge().gitGetWorktreeSourceBranch({
+                      projectLocation: project.location,
+                      branch: thread.worktreeBranch!,
+                    });
+                    if (!sourceBranch) return;
+                    const worktreeLocation = buildWorktreeLocation(project.location, worktreePath);
+                    await readBridge().gitMergeToSource({
+                      projectLocation: project.location,
+                      worktreeLocation,
+                      worktreeBranch: thread.worktreeBranch!,
+                      sourceBranch,
+                    });
+                  } catch {
+                    // ignored — user can open git review for details
+                  }
+                })();
+              }}
+              onGitMergeAndRemove={(projectId, worktreePath) => {
+                const project = projects.find((p) => p.id === projectId);
+                if (!project) return;
+                const allThreads = useAppStore.getState().threads;
+                const thread = allThreads.find(
+                  (t) => t.worktreePath === worktreePath && t.worktreeBranch,
+                );
+                if (!thread?.worktreeBranch) return;
+                void (async () => {
+                  try {
+                    const { sourceBranch } = await readBridge().gitGetWorktreeSourceBranch({
+                      projectLocation: project.location,
+                      branch: thread.worktreeBranch!,
+                    });
+                    if (!sourceBranch) return;
+                    const worktreeLocation = buildWorktreeLocation(project.location, worktreePath);
+                    const result = await readBridge().gitMergeToSource({
+                      projectLocation: project.location,
+                      worktreeLocation,
+                      worktreeBranch: thread.worktreeBranch!,
+                      sourceBranch,
+                    });
+                    if (!result.merged) return;
+                    const siblings = allThreads.filter((t) => t.worktreePath === worktreePath);
+                    for (const sib of siblings) {
+                      deleteThread(sib.id);
+                    }
+                    await closeThreads(siblings.map((sib) => sib.id));
+                    await performWorktreeRemoval(project, worktreePath, thread.worktreeBranch);
+                  } catch {
+                    // ignored — user can open git review for details
+                  }
+                })();
+              }}
+              onGitPullFromSource={(projectId, worktreePath) => {
+                const project = projects.find((p) => p.id === projectId);
+                if (!project) return;
+                const thread = useAppStore
+                  .getState()
+                  .threads.find((t) => t.worktreePath === worktreePath && t.worktreeBranch);
+                if (!thread?.worktreeBranch) return;
+                void (async () => {
+                  try {
+                    const { sourceBranch } = await readBridge().gitGetWorktreeSourceBranch({
+                      projectLocation: project.location,
+                      branch: thread.worktreeBranch!,
+                    });
+                    if (!sourceBranch) return;
+                    const worktreeLocation = buildWorktreeLocation(project.location, worktreePath);
+                    const result = await readBridge().gitPullFromSource({
+                      worktreeLocation,
+                      sourceBranch,
+                    });
+                    // Background sync — abort if conflicts, user resolves manually via git review
+                    if (result.conflicting) {
+                      await readBridge()
+                        .gitAbortMerge({ worktreeLocation })
+                        .catch(() => undefined);
+                    }
+                  } catch {
+                    // ignored — user can open git review for details
+                  }
+                })();
+              }}
+              onOpenThread={(threadId) => {
+                const thread = useAppStore.getState().threads.find((item) => item.id === threadId);
+                const project = thread
+                  ? projects.find((item) => item.id === thread.projectId)
+                  : undefined;
+
+                startTransition(() => {
+                  openThread(threadId);
+                });
+
+                if (storeHydrated && thread?.status === "inactive" && project) {
+                  reopenStoredThread({
+                    threadId,
+                    projectLocation: project.location,
+                  });
+                }
+              }}
+              onOpenThreadSideBySide={(threadId) => {
+                const thread = useAppStore.getState().threads.find((item) => item.id === threadId);
+                const project = thread
+                  ? projects.find((item) => item.id === thread.projectId)
+                  : undefined;
+
+                startTransition(() => {
+                  openThreadSideBySide(threadId);
+                });
+
+                if (storeHydrated && thread?.status === "inactive" && project) {
+                  reopenStoredThread({
+                    threadId,
+                    projectLocation: project.location,
+                  });
+                }
+              }}
+              onReplaceSecondPane={(threadId) => {
+                const thread = useAppStore.getState().threads.find((item) => item.id === threadId);
+                const project = thread
+                  ? projects.find((item) => item.id === thread.projectId)
+                  : undefined;
+
+                startTransition(() => {
+                  replaceSecondPane(threadId);
+                });
+
+                if (storeHydrated && thread?.status === "inactive" && project) {
+                  reopenStoredThread({
+                    threadId,
+                    projectLocation: project.location,
+                  });
+                }
+              }}
+              onRenameThread={(threadId, title) => {
+                renameThread(threadId, title);
+              }}
+              onDeleteThread={(threadId, worktreePath, projectId) => {
+                if (!worktreePath) {
+                  deleteThread(threadId);
+                  void readBridge()
+                    .closeThread({ threadId })
+                    .catch(() => undefined);
                   return;
                 }
 
-                openHome();
-              });
-            }}
-            onOpenSettings={() => setSettingsOpen(true)}
-            onOpenGitReview={(projectId, worktreePath?) =>
-              setGitReviewContext({ projectId, worktreePath })
-            }
-            onGitSync={(projectId, worktreePath?) => {
-              const project = projects.find((p) => p.id === projectId);
-              if (!project) return;
-              const location = worktreePath
-                ? buildWorktreeLocation(project.location, worktreePath)
-                : project.location;
-              void readBridge()
-                .gitSync({ projectLocation: location })
-                .catch(() => undefined);
-            }}
-            onGitPush={(projectId, worktreePath) => {
-              const project = projects.find((p) => p.id === projectId);
-              if (!project) return;
-              const thread = useAppStore
-                .getState()
-                .threads.find((t) => t.worktreePath === worktreePath && t.worktreeBranch);
-              if (!thread?.worktreeBranch) return;
-              const worktreeLocation = buildWorktreeLocation(project.location, worktreePath);
-              void readBridge()
-                .gitPush({
-                  projectLocation: worktreeLocation,
-                  remote: "origin",
-                  branch: thread.worktreeBranch,
-                  setUpstream: true,
-                })
-                .catch(() => undefined);
-            }}
-            onGitPull={(projectId, worktreePath) => {
-              const project = projects.find((p) => p.id === projectId);
-              if (!project) return;
-              const worktreeLocation = buildWorktreeLocation(project.location, worktreePath);
-              void readBridge()
-                .gitPull({ projectLocation: worktreeLocation, remote: "origin" })
-                .catch(() => undefined);
-            }}
-            onGitMergeToSource={(projectId, worktreePath) => {
-              const project = projects.find((p) => p.id === projectId);
-              if (!project) return;
-              const thread = useAppStore
-                .getState()
-                .threads.find((t) => t.worktreePath === worktreePath && t.worktreeBranch);
-              if (!thread?.worktreeBranch) return;
-              void (async () => {
-                try {
-                  const { sourceBranch } = await readBridge().gitGetWorktreeSourceBranch({
-                    projectLocation: project.location,
-                    branch: thread.worktreeBranch!,
-                  });
-                  if (!sourceBranch) return;
-                  const worktreeLocation = buildWorktreeLocation(project.location, worktreePath);
-                  await readBridge().gitMergeToSource({
-                    projectLocation: project.location,
-                    worktreeLocation,
-                    worktreeBranch: thread.worktreeBranch!,
-                    sourceBranch,
-                  });
-                } catch {
-                  // ignored — user can open git review for details
+                const pref = readWorktreeDeletePref();
+                if (pref === "thread-only") {
+                  deleteThread(threadId);
+                  void readBridge()
+                    .closeThread({ threadId })
+                    .catch(() => undefined);
+                  return;
                 }
-              })();
-            }}
-            onGitMergeAndRemove={(projectId, worktreePath) => {
-              const project = projects.find((p) => p.id === projectId);
-              if (!project) return;
-              const allThreads = useAppStore.getState().threads;
-              const thread = allThreads.find(
-                (t) => t.worktreePath === worktreePath && t.worktreeBranch,
-              );
-              if (!thread?.worktreeBranch) return;
-              void (async () => {
-                try {
-                  const { sourceBranch } = await readBridge().gitGetWorktreeSourceBranch({
-                    projectLocation: project.location,
-                    branch: thread.worktreeBranch!,
-                  });
-                  if (!sourceBranch) return;
-                  const worktreeLocation = buildWorktreeLocation(project.location, worktreePath);
-                  const result = await readBridge().gitMergeToSource({
-                    projectLocation: project.location,
-                    worktreeLocation,
-                    worktreeBranch: thread.worktreeBranch!,
-                    sourceBranch,
-                  });
-                  if (!result.merged) return;
-                  const siblings = allThreads.filter((t) => t.worktreePath === worktreePath);
-                  for (const sib of siblings) {
-                    deleteThread(sib.id);
+
+                if (pref === "thread-and-worktree") {
+                  // Delete this thread + all siblings sharing the worktree
+                  const allThreads = useAppStore.getState().threads;
+                  const thread = allThreads.find((t) => t.id === threadId);
+                  const siblings = allThreads.filter(
+                    (t) => t.worktreePath === worktreePath && t.id !== threadId,
+                  );
+                  deleteThread(threadId);
+                  for (const t of siblings) {
+                    deleteThread(t.id);
                   }
-                  await closeThreads(siblings.map((sib) => sib.id));
-                  await performWorktreeRemoval(project, worktreePath, thread.worktreeBranch);
-                } catch {
-                  // ignored — user can open git review for details
-                }
-              })();
-            }}
-            onGitPullFromSource={(projectId, worktreePath) => {
-              const project = projects.find((p) => p.id === projectId);
-              if (!project) return;
-              const thread = useAppStore
-                .getState()
-                .threads.find((t) => t.worktreePath === worktreePath && t.worktreeBranch);
-              if (!thread?.worktreeBranch) return;
-              void (async () => {
-                try {
-                  const { sourceBranch } = await readBridge().gitGetWorktreeSourceBranch({
-                    projectLocation: project.location,
-                    branch: thread.worktreeBranch!,
-                  });
-                  if (!sourceBranch) return;
-                  const worktreeLocation = buildWorktreeLocation(project.location, worktreePath);
-                  const result = await readBridge().gitPullFromSource({ worktreeLocation, sourceBranch });
-                  // Background sync — abort if conflicts, user resolves manually via git review
-                  if (result.conflicting) {
-                    await readBridge().gitAbortMerge({ worktreeLocation }).catch(() => undefined);
+
+                  const project = projects.find((p) => p.id === projectId);
+                  if (project) {
+                    void (async () => {
+                      await closeThreads([threadId, ...siblings.map((t) => t.id)]);
+                      await performWorktreeRemoval(project, worktreePath, thread?.worktreeBranch);
+                    })();
                   }
-                } catch {
-                  // ignored — user can open git review for details
-                }
-              })();
-            }}
-            onOpenThread={(threadId) => {
-              const thread = useAppStore.getState().threads.find((item) => item.id === threadId);
-              const project = thread
-                ? projects.find((item) => item.id === thread.projectId)
-                : undefined;
-
-              startTransition(() => {
-                openThread(threadId);
-              });
-
-              if (storeHydrated && thread?.status === "inactive" && project) {
-                reopenStoredThread({
-                  threadId,
-                  projectLocation: project.location,
-                });
-              }
-            }}
-            onOpenThreadSideBySide={(threadId) => {
-              const thread = useAppStore.getState().threads.find((item) => item.id === threadId);
-              const project = thread
-                ? projects.find((item) => item.id === thread.projectId)
-                : undefined;
-
-              startTransition(() => {
-                openThreadSideBySide(threadId);
-              });
-
-              if (storeHydrated && thread?.status === "inactive" && project) {
-                reopenStoredThread({
-                  threadId,
-                  projectLocation: project.location,
-                });
-              }
-            }}
-            onReplaceSecondPane={(threadId) => {
-              const thread = useAppStore.getState().threads.find((item) => item.id === threadId);
-              const project = thread
-                ? projects.find((item) => item.id === thread.projectId)
-                : undefined;
-
-              startTransition(() => {
-                replaceSecondPane(threadId);
-              });
-
-              if (storeHydrated && thread?.status === "inactive" && project) {
-                reopenStoredThread({
-                  threadId,
-                  projectLocation: project.location,
-                });
-              }
-            }}
-            onRenameThread={(threadId, title) => {
-              renameThread(threadId, title);
-            }}
-            onDeleteThread={(threadId, worktreePath, projectId) => {
-              if (!worktreePath) {
-                deleteThread(threadId);
-                void readBridge()
-                  .closeThread({ threadId })
-                  .catch(() => undefined);
-                return;
-              }
-
-              const pref = readWorktreeDeletePref();
-              if (pref === "thread-only") {
-                deleteThread(threadId);
-                void readBridge()
-                  .closeThread({ threadId })
-                  .catch(() => undefined);
-                return;
-              }
-
-              if (pref === "thread-and-worktree") {
-                // Delete this thread + all siblings sharing the worktree
-                const allThreads = useAppStore.getState().threads;
-                const thread = allThreads.find((t) => t.id === threadId);
-                const siblings = allThreads.filter(
-                  (t) => t.worktreePath === worktreePath && t.id !== threadId,
-                );
-                deleteThread(threadId);
-                for (const t of siblings) {
-                  deleteThread(t.id);
+                  return;
                 }
 
+                // No preference — show dialog
+                const thread = useAppStore.getState().threads.find((t) => t.id === threadId);
+                setWorktreeDeleteDialog({
+                  kind: "single-thread",
+                  threadId,
+                  projectId: projectId!,
+                  worktreePath,
+                  worktreeBranch:
+                    thread?.worktreeBranch ?? worktreePath.split(/[/\\]/).pop() ?? worktreePath,
+                });
+              }}
+              onDeleteProject={(projectId) => {
+                const projectThreadIds = useAppStore
+                  .getState()
+                  .threads.filter((t) => t.projectId === projectId)
+                  .map((t) => t.id);
+
+                deleteProject(projectId);
+
+                for (const threadId of projectThreadIds) {
+                  void readBridge()
+                    .closeThread({ threadId })
+                    .catch(() => undefined);
+                }
+
+                const removedTabIds = useDevTerminalStore
+                  .getState()
+                  .removeTabsForProject(projectId);
+                for (const tabId of removedTabIds) {
+                  void readBridge()
+                    .closeThread({ threadId: tabId })
+                    .catch(() => undefined);
+                }
+
+                const termStore = useDevTerminalStore.getState();
+                if (termStore.isOpen && termStore.activeProjectId === projectId) {
+                  termStore.closePanel();
+                }
+
+                useGitStore.getState().clearStatus(projectId);
+
+                if (gitReviewContext?.projectId === projectId) {
+                  setGitReviewContext(null);
+                }
+              }}
+              onDeleteWorktreeGroup={(projectId, worktreePath, threadIds) => {
                 const project = projects.find((p) => p.id === projectId);
-                if (project) {
-                  void (async () => {
-                    await closeThreads([threadId, ...siblings.map((t) => t.id)]);
-                    await performWorktreeRemoval(project, worktreePath, thread?.worktreeBranch);
-                  })();
+                if (!project) return;
+
+                const sampleThread = useAppStore
+                  .getState()
+                  .threads.find((t) => threadIds.includes(t.id) && t.worktreeBranch);
+
+                for (const threadId of threadIds) {
+                  deleteThread(threadId);
                 }
-                return;
+
+                void (async () => {
+                  await closeThreads(threadIds);
+                  await performWorktreeRemoval(project, worktreePath, sampleThread?.worktreeBranch);
+                })();
+              }}
+              onOpenProjectSettings={(projectId) => setProjectSettingsId(projectId)}
+              onRunProjectAction={(projectId, actionId, worktreePath) => {
+                runProjectAction(projectId, actionId, worktreePath);
+              }}
+              onOpenTerminal={(projectId) => {
+                const project = projects.find((p) => p.id === projectId);
+                if (!project) return;
+
+                const store = useDevTerminalStore.getState();
+
+                // Toggle off if already showing project panel for this project.
+                if (
+                  store.isOpen &&
+                  store.activeProjectId === projectId &&
+                  !store.activeWorktreePath
+                ) {
+                  store.closePanel();
+                  return;
+                }
+
+                // Open project panel (clears any worktree context).
+                store.openPanel(projectId);
+
+                // If the project already has a non-worktree tab, activate it.
+                const existingTab = store.tabs.find(
+                  (t) => t.projectId === projectId && !t.worktreePath,
+                );
+                if (existingTab) {
+                  store.setActiveTab(existingTab.id);
+                  return;
+                }
+
+                // Otherwise create a new tab — DevTerminalPanel's effect handles spawning.
+                const tab = store.addTab(projectId, project.name);
+                store.setActiveTab(tab.id);
+              }}
+              onOpenWorktreeTerminal={(projectId, worktreePath) => {
+                const project = projects.find((p) => p.id === projectId);
+                if (!project) return;
+
+                const store = useDevTerminalStore.getState();
+
+                // Toggle off if already showing this worktree's panel.
+                if (
+                  store.isOpen &&
+                  store.activeProjectId === projectId &&
+                  store.activeWorktreePath === worktreePath
+                ) {
+                  store.closePanel();
+                  return;
+                }
+
+                // Open worktree panel (sets worktree context, separate from project panel).
+                store.openWorktreePanel(projectId, worktreePath);
+
+                // If a tab for this worktree already exists, activate it.
+                const existingTab = store.tabs.find(
+                  (t) => t.projectId === projectId && t.worktreePath === worktreePath,
+                );
+                if (existingTab) {
+                  store.setActiveTab(existingTab.id);
+                  return;
+                }
+
+                // Create a new tab with the worktree path.
+                const branchName = worktreePath.split(/[/\\]/).pop() ?? project.name;
+                const tab = store.addTab(projectId, branchName, worktreePath);
+                store.setActiveTab(tab.id);
+              }}
+              terminalProjectIds={terminalProjectIds}
+              activeTerminalProjectId={devTerminalActiveProjectId}
+              activeWorktreeTerminalPaths={devTerminalTabs
+                .filter((t) => t.worktreePath)
+                .map((t) => t.worktreePath!)}
+              activeWorktreeTerminalPath={
+                devTerminalOpen ? useDevTerminalStore.getState().activeWorktreePath : null
               }
-
-              // No preference — show dialog
-              const thread = useAppStore.getState().threads.find((t) => t.id === threadId);
-              setWorktreeDeleteDialog({
-                kind: "single-thread",
-                threadId,
-                projectId: projectId!,
-                worktreePath,
-                worktreeBranch:
-                  thread?.worktreeBranch ?? worktreePath.split(/[/\\]/).pop() ?? worktreePath,
-              });
-            }}
-            onDeleteProject={(projectId) => {
-              const projectThreadIds = useAppStore
-                .getState()
-                .threads.filter((t) => t.projectId === projectId)
-                .map((t) => t.id);
-
-              deleteProject(projectId);
-
-              for (const threadId of projectThreadIds) {
-                void readBridge()
-                  .closeThread({ threadId })
-                  .catch(() => undefined);
-              }
-
-              const removedTabIds = useDevTerminalStore.getState().removeTabsForProject(projectId);
-              for (const tabId of removedTabIds) {
-                void readBridge()
-                  .closeThread({ threadId: tabId })
-                  .catch(() => undefined);
-              }
-
-              const termStore = useDevTerminalStore.getState();
-              if (termStore.isOpen && termStore.activeProjectId === projectId) {
-                termStore.closePanel();
-              }
-
-              useGitStore.getState().clearStatus(projectId);
-
-              if (gitReviewContext?.projectId === projectId) {
-                setGitReviewContext(null);
-              }
-            }}
-            onDeleteWorktreeGroup={(projectId, worktreePath, threadIds) => {
-              const project = projects.find((p) => p.id === projectId);
-              if (!project) return;
-
-              const sampleThread = useAppStore
-                .getState()
-                .threads.find((t) => threadIds.includes(t.id) && t.worktreeBranch);
-
-              for (const threadId of threadIds) {
-                deleteThread(threadId);
-              }
-
-              void (async () => {
-                await closeThreads(threadIds);
-                await performWorktreeRemoval(project, worktreePath, sampleThread?.worktreeBranch);
-              })();
-            }}
-            onOpenProjectSettings={(projectId) => setProjectSettingsId(projectId)}
-            onRunProjectAction={(projectId, actionId, worktreePath) => {
-              runProjectAction(projectId, actionId, worktreePath);
-            }}
-            onOpenTerminal={(projectId) => {
-              const project = projects.find((p) => p.id === projectId);
-              if (!project) return;
-
-              const store = useDevTerminalStore.getState();
-
-              // Toggle off if already showing project panel for this project.
-              if (
-                store.isOpen &&
-                store.activeProjectId === projectId &&
-                !store.activeWorktreePath
-              ) {
-                store.closePanel();
-                return;
-              }
-
-              // Open project panel (clears any worktree context).
-              store.openPanel(projectId);
-
-              // If the project already has a non-worktree tab, activate it.
-              const existingTab = store.tabs.find(
-                (t) => t.projectId === projectId && !t.worktreePath,
-              );
-              if (existingTab) {
-                store.setActiveTab(existingTab.id);
-                return;
-              }
-
-              // Otherwise create a new tab — DevTerminalPanel's effect handles spawning.
-              const tab = store.addTab(projectId, project.name);
-              store.setActiveTab(tab.id);
-            }}
-            onOpenWorktreeTerminal={(projectId, worktreePath) => {
-              const project = projects.find((p) => p.id === projectId);
-              if (!project) return;
-
-              const store = useDevTerminalStore.getState();
-
-              // Toggle off if already showing this worktree's panel.
-              if (
-                store.isOpen &&
-                store.activeProjectId === projectId &&
-                store.activeWorktreePath === worktreePath
-              ) {
-                store.closePanel();
-                return;
-              }
-
-              // Open worktree panel (sets worktree context, separate from project panel).
-              store.openWorktreePanel(projectId, worktreePath);
-
-              // If a tab for this worktree already exists, activate it.
-              const existingTab = store.tabs.find(
-                (t) => t.projectId === projectId && t.worktreePath === worktreePath,
-              );
-              if (existingTab) {
-                store.setActiveTab(existingTab.id);
-                return;
-              }
-
-              // Create a new tab with the worktree path.
-              const branchName = worktreePath.split(/[/\\]/).pop() ?? project.name;
-              const tab = store.addTab(projectId, branchName, worktreePath);
-              store.setActiveTab(tab.id);
-            }}
-            terminalProjectIds={terminalProjectIds}
-            activeTerminalProjectId={devTerminalActiveProjectId}
-            activeWorktreeTerminalPaths={devTerminalTabs
-              .filter((t) => t.worktreePath)
-              .map((t) => t.worktreePath!)}
-            activeWorktreeTerminalPath={
-              devTerminalOpen
-                ? useDevTerminalStore.getState().activeWorktreePath
-                : null
-            }
-          />
-        }
-        content={<AppContent />}
-        rightPanel={<DevTerminalPanel projects={projects} />}
-        rightPanelOpen={devTerminalOpen}
-      />
+            />
+          }
+          content={<AppContent />}
+          rightPanel={<DevTerminalPanel projects={projects} />}
+          rightPanelOpen={devTerminalOpen}
+        />
       </AppDndProvider>
       <WelcomeOverlay />
       <OverlayShell open={settingsOpen}>
@@ -1903,9 +1916,8 @@ export function App() {
                     worktreeBranch:
                       useAppStore
                         .getState()
-                        .threads.find(
-                          (t) => t.worktreePath === gitReviewContext!.worktreePath,
-                        )?.worktreeBranch ?? undefined,
+                        .threads.find((t) => t.worktreePath === gitReviewContext!.worktreePath)
+                        ?.worktreeBranch ?? undefined,
                     onMergeAndRemove: () => {
                       const allThreads = useAppStore.getState().threads;
                       const reviewProject = projects.find(
@@ -1917,9 +1929,7 @@ export function App() {
                       )?.worktreeBranch;
                       setGitReviewContext(null);
                       if (reviewProject && wtPath) {
-                        const siblings = allThreads.filter(
-                          (t) => t.worktreePath === wtPath,
-                        );
+                        const siblings = allThreads.filter((t) => t.worktreePath === wtPath);
                         for (const sib of siblings) {
                           deleteThread(sib.id);
                         }
@@ -1965,10 +1975,7 @@ export function App() {
             const project = projects.find((p) => p.id === worktreeDeleteDialog.projectId);
             if (project) {
               void (async () => {
-                await closeThreads([
-                  worktreeDeleteDialog.threadId,
-                  ...siblings.map((t) => t.id),
-                ]);
+                await closeThreads([worktreeDeleteDialog.threadId, ...siblings.map((t) => t.id)]);
                 await performWorktreeRemoval(
                   project,
                   worktreeDeleteDialog.worktreePath,
