@@ -1,5 +1,5 @@
-import { act, render, screen } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { render, screen } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // Capture XTermSurface props across renders so we can inspect them.
 let latestProps: Record<string, unknown> = {};
@@ -15,12 +15,7 @@ import { TerminalPane } from "./TerminalPane";
 
 describe("TerminalPane", () => {
   beforeEach(() => {
-    vi.useFakeTimers();
     latestProps = {};
-  });
-
-  afterEach(() => {
-    vi.useRealTimers();
   });
 
   // ── Initial state ─────────────────────────────────────────────
@@ -59,31 +54,11 @@ describe("TerminalPane", () => {
     expect(container.firstElementChild!.className).toContain("opacity-100");
   });
 
-  // ── onReset behaviour ─────────────────────────────────────────
-
-  it("keeps the surface enabled after onReset fires", () => {
-    render(<TerminalPane threadId="t-1" status="idle" />);
-    expect(screen.getByTestId("xterm-surface")).toHaveAttribute("data-enabled", "true");
-
-    // Simulate the thread-reset callback from XTermSurface
-    act(() => {
-      (latestProps.onReset as () => void)();
-    });
-
-    // The surface MUST stay enabled — disposing it creates a gap
-    // where supervisor events are lost.
-    expect(screen.getByTestId("xterm-surface")).toHaveAttribute("data-enabled", "true");
-  });
-
-  it("hides visibility after onReset fires", () => {
+  it("does not hide visibility on reset", () => {
     const { container } = render(<TerminalPane threadId="t-1" status="idle" />);
     expect(container.firstElementChild!.className).toContain("opacity-100");
-
-    act(() => {
-      (latestProps.onReset as () => void)();
-    });
-
-    // Should be invisible after reset (restored when status changes)
-    expect(container.firstElementChild!.className).toContain("opacity-0");
+    expect(latestProps.onReset).toBeUndefined();
+    expect(screen.getByTestId("xterm-surface")).toHaveAttribute("data-enabled", "true");
+    expect(container.firstElementChild!.className).toContain("opacity-100");
   });
 });

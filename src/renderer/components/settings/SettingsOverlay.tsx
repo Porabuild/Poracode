@@ -14,6 +14,7 @@ import type { AgentSettingDef, AgentStatus, TerminalPosition, ThemeMode } from "
 import { useAppStore } from "../../state/appStore";
 import { useSharedSettings } from "../../state/sharedSettingsStore";
 import { resolveCommitGenConfig, resolveTitleGenConfig, resolveConflictResolverConfig } from "../providers";
+import { ProviderIcon } from "../providers/ProviderIcon";
 import { Select, SidebarButton, TuxIcon } from "../common";
 import { useSidebar } from "../layout/AppShell";
 import { PageLayout } from "../layout/PageLayout";
@@ -29,15 +30,22 @@ const terminalPositionOptions = [
   { id: "bottom", label: "Bottom" },
 ] as const;
 
-type SettingsSection = "general" | "ai" | "agents" | "git";
+type SettingsSection = "general" | "ai" | "agents" | "git" | `agents:${string}`;
 
 function SettingsSidebar(props: {
   activeSection: SettingsSection;
   onSectionChange: (section: SettingsSection) => void;
   onClose: () => void;
+  installedAgents: AgentStatus[];
 }) {
-  const { activeSection, onSectionChange, onClose } = props;
+  const { activeSection, onSectionChange, onClose, installedAgents } = props;
   const { isCollapsed, collapse, expand } = useSidebar();
+  const isAgentsActive = activeSection === "agents" || activeSection.startsWith("agents:");
+
+  const selectFirstAgent = () => {
+    const first = installedAgents[0];
+    onSectionChange(first ? `agents:${first.kind}` : "agents");
+  };
 
   return (
     <div className="relative h-full">
@@ -63,9 +71,20 @@ function SettingsSidebar(props: {
               iconOnly
               icon={<Bot className="size-4" />}
               label="Agents"
-              isActive={activeSection === "agents"}
-              onPress={() => onSectionChange("agents")}
+              isActive={isAgentsActive}
+              onPress={selectFirstAgent}
             />
+            {isAgentsActive &&
+              installedAgents.map((agent) => (
+                <SidebarButton
+                  key={agent.kind}
+                  iconOnly
+                  icon={<ProviderIcon kind={agent.kind} className="size-4" />}
+                  label={agent.label}
+                  isActive={activeSection === `agents:${agent.kind}`}
+                  onPress={() => onSectionChange(`agents:${agent.kind}`)}
+                />
+              ))}
             <SidebarButton
               iconOnly
               icon={<GitBranch className="size-4" />}
@@ -112,9 +131,22 @@ function SettingsSidebar(props: {
             <SidebarButton
               icon={<Bot className="size-4" />}
               label="Agents"
-              isActive={activeSection === "agents"}
-              onPress={() => onSectionChange("agents")}
+              isActive={isAgentsActive && !activeSection.startsWith("agents:")}
+              onPress={selectFirstAgent}
             />
+            {isAgentsActive && (
+              <div className="space-y-0.5 pl-4">
+                {installedAgents.map((agent) => (
+                  <SidebarButton
+                    key={agent.kind}
+                    icon={<ProviderIcon kind={agent.kind} className="size-4" />}
+                    label={agent.label}
+                    isActive={activeSection === `agents:${agent.kind}`}
+                    onPress={() => onSectionChange(`agents:${agent.kind}`)}
+                  />
+                ))}
+              </div>
+            )}
             <SidebarButton
               icon={<GitBranch className="size-4" />}
               label="Git"
@@ -480,46 +512,55 @@ function AgentSettingToggle(props: {
   );
 }
 
-function AgentSettings() {
+function SingleAgentSettings(props: { agentKind: string }) {
   const agentStatuses = useAppStore((s) => s.agentStatuses);
   const platform = navigator.platform.toLowerCase().includes("win") ? "win32" : "posix";
-  const agentsWithSettings = agentStatuses.filter(
-    (a) =>
-      a.installed &&
-      a.capabilities.settingDefs &&
-      a.capabilities.settingDefs.some(
-        (def) => !def.platforms || def.platforms.includes(platform),
-      ),
+  const agent = agentStatuses.find((a) => a.kind === props.agentKind && a.installed);
+
+  if (!agent) {
+    return (
+      <div className="h-full min-h-0 overflow-y-auto px-6 pb-8">
+        <div className="mx-auto max-w-[560px]">
+          <h1 className="mb-6 text-lg font-semibold text-foreground">Agent not found</h1>
+          <p className="text-sm text-muted">This agent is not installed.</p>
+        </div>
+      </div>
+    );
+  }
+
+  const defs = (agent.capabilities.settingDefs ?? []).filter(
+    (def) => !def.platforms || def.platforms.includes(platform),
   );
 
   return (
     <div className="h-full min-h-0 overflow-y-auto px-6 pb-8">
       <div className="mx-auto max-w-[560px]">
-        <h1 className="mb-6 text-lg font-semibold text-foreground">Agents</h1>
+        <h1 className="mb-6 text-lg font-semibold text-foreground">{agent.label}</h1>
 
-        {agentsWithSettings.length === 0 ? (
-          <p className="text-sm text-muted">No agent-specific settings available.</p>
+        {defs.length === 0 ? (
+          <p className="text-sm text-muted">No settings available for this agent.</p>
         ) : (
-          <div className="space-y-8">
-            {agentsWithSettings.map((agent) => {
-              const defs = agent.capabilities.settingDefs!.filter(
-                (def) => !def.platforms || def.platforms.includes(platform),
-              );
-              return (
-                <div key={agent.kind} className="space-y-4">
-                  <h2 className="text-sm font-semibold text-muted">{agent.label}</h2>
-                  {defs.map((def) => (
-                    <AgentSettingToggle
-                      key={def.key}
-                      agentKind={agent.kind}
-                      def={def}
-                    />
-                  ))}
-                </div>
-              );
-            })}
+          <div className="space-y-4">
+            {defs.map((def) => (
+              <AgentSettingToggle
+                key={def.key}
+                agentKind={agent.kind}
+                def={def}
+              />
+            ))}
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+function AgentSettingsEmpty() {
+  return (
+    <div className="h-full min-h-0 overflow-y-auto px-6 pb-8">
+      <div className="mx-auto max-w-[560px]">
+        <h1 className="mb-6 text-lg font-semibold text-foreground">Agents</h1>
+        <p className="text-sm text-muted">No agents installed.</p>
       </div>
     </div>
   );
@@ -540,6 +581,12 @@ function GitSettings() {
 export function SettingsOverlay(props: { onClose: () => void }) {
   const { onClose } = props;
   const [activeSection, setActiveSection] = useState<SettingsSection>("general");
+  const agentStatuses = useAppStore((s) => s.agentStatuses);
+  const installedAgents = agentStatuses.filter((a) => a.installed);
+
+  const agentKind = activeSection.startsWith("agents:")
+    ? activeSection.slice(7)
+    : undefined;
 
   return (
     <PageLayout
@@ -549,6 +596,7 @@ export function SettingsOverlay(props: { onClose: () => void }) {
           activeSection={activeSection}
           onSectionChange={setActiveSection}
           onClose={onClose}
+          installedAgents={installedAgents}
         />
       }
       content={
@@ -556,8 +604,10 @@ export function SettingsOverlay(props: { onClose: () => void }) {
           <GeneralSettings />
         ) : activeSection === "ai" ? (
           <AISettings />
+        ) : agentKind ? (
+          <SingleAgentSettings agentKind={agentKind} />
         ) : activeSection === "agents" ? (
-          <AgentSettings />
+          <AgentSettingsEmpty />
         ) : activeSection === "git" ? (
           <GitSettings />
         ) : null

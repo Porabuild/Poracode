@@ -54,7 +54,7 @@ const capabilities: AgentCapability = {
       envVar: "CLAUDE_CODE_USE_POWERSHELL_TOOL",
       label: "Use PowerShell tool",
       description: "Use PowerShell as the shell tool instead of Bash.",
-      default: false,
+      default: process.platform === "win32",
       platforms: ["win32"],
     },
     {
@@ -62,7 +62,7 @@ const capabilities: AgentCapability = {
       envVar: "CLAUDE_CODE_NO_FLICKER",
       label: "No flicker mode",
       description: "Reduces terminal flicker in the Claude Code TUI.",
-      default: false,
+      default: true,
     },
   ],
 };

@@ -110,12 +110,19 @@ export const XTermSurface = forwardRef<XTermSurfaceHandle, {
     // guaranteed to be batched into a single `terminal.write()`.
     // 8 ms is imperceptible but long enough to span the gap between
     // closely-spaced PTY read events.
+    //
+    // Each flush is wrapped in DEC synchronized output (mode 2026)
+    // so xterm buffers all rendering until the end marker.  This
+    // prevents the cursor from being visible at intermediate
+    // positions during TUI screen redraws.
+    const SYNC_START = "\x1b[?2026h";
+    const SYNC_END = "\x1b[?2026l";
     let writeBuf = "";
     let writeTimer = 0;
     const flushWrites = () => {
       writeTimer = 0;
       if (writeBuf) {
-        terminal.write(writeBuf);
+        terminal.write(SYNC_START + writeBuf + SYNC_END);
         writeBuf = "";
       }
     };
@@ -129,7 +136,6 @@ export const XTermSurface = forwardRef<XTermSurfaceHandle, {
     const terminal = new Terminal({
       cursorBlink: !readOnly,
       cursorStyle: "bar",
-      convertEol: true,
       scrollback: 5_000,
       fontSize: 13,
       fontFamily: "'JetBrains Mono', 'Cascadia Code', monospace",
@@ -216,23 +222,38 @@ export const XTermSurface = forwardRef<XTermSurfaceHandle, {
     const mac = isMac();
     let lastCopyTime = 0;
     terminal.attachCustomKeyEventHandler((event) => {
-      if (event.type !== "keydown" || event.code !== "KeyC" || event.shiftKey || event.altKey) {
+      if (event.type !== "keydown" || event.shiftKey || event.altKey) {
         return true;
       }
-      const isCopyChord = mac ? event.metaKey && !event.ctrlKey : event.ctrlKey && !event.metaKey;
-      if (!isCopyChord) return true;
 
-      if (terminal.hasSelection()) {
-        const now = Date.now();
-        // On non-Mac, let rapid Ctrl+C through as SIGINT
-        if (!mac && now - lastCopyTime < 500) {
-          return true;
-        }
-        void navigator.clipboard.writeText(terminal.getSelection());
-        terminal.clearSelection();
-        lastCopyTime = now;
+      const modKey = mac ? event.metaKey && !event.ctrlKey : event.ctrlKey && !event.metaKey;
+      if (!modKey) return true;
+
+      // ── Paste: Ctrl+V / Cmd+V ───────────────────────────────────
+      if (event.code === "KeyV" && !readOnly) {
+        void navigator.clipboard.readText().then((text) => {
+          if (text) {
+            terminal.paste(text);
+          }
+        });
         return false;
       }
+
+      // ── Copy: Ctrl+C / Cmd+C ───────────────────────────────────
+      if (event.code === "KeyC") {
+        if (terminal.hasSelection()) {
+          const now = Date.now();
+          // On non-Mac, let rapid Ctrl+C through as SIGINT
+          if (!mac && now - lastCopyTime < 500) {
+            return true;
+          }
+          void navigator.clipboard.writeText(terminal.getSelection());
+          terminal.clearSelection();
+          lastCopyTime = now;
+          return false;
+        }
+      }
+
       return true;
     });
 
@@ -337,18 +358,26 @@ export const XTermSurface = forwardRef<XTermSurfaceHandle, {
 
   const contextMenuItems: ContextMenuItem[] = [
     { id: "copy", label: "Copy", isDisabled: !hasSelection },
+    ...(!readOnly ? [{ id: "paste", label: "Paste" }] : []),
     { id: "paste-in-input", label: "Paste in input", isDisabled: !hasSelection },
   ];
 
   function handleContextMenuAction(key: string) {
     const terminal = terminalRef.current;
-    if (!terminal || !terminal.hasSelection()) return;
-    const text = terminal.getSelection();
+    if (!terminal) return;
     if (key === "copy") {
-      void navigator.clipboard.writeText(text);
+      if (!terminal.hasSelection()) return;
+      void navigator.clipboard.writeText(terminal.getSelection());
       terminal.clearSelection();
+    } else if (key === "paste") {
+      void navigator.clipboard.readText().then((text) => {
+        if (text) {
+          terminal.paste(text);
+        }
+      });
     } else if (key === "paste-in-input") {
-      window.dispatchEvent(new CustomEvent("lightcode:paste-to-composer", { detail: text }));
+      if (!terminal.hasSelection()) return;
+      window.dispatchEvent(new CustomEvent("lightcode:paste-to-composer", { detail: terminal.getSelection() }));
       terminal.clearSelection();
     }
   }
