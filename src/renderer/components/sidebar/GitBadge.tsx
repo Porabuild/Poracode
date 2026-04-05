@@ -4,7 +4,7 @@ import { useShallow } from "zustand/shallow";
 export function GitBadge(props: {
   projectId: string;
   projectName: string;
-  onPress: () => void;
+  onPress?: () => void;
   worktreePath?: string;
 }) {
   const { isRepo, totalInsertions, totalDeletions } = useGitStore(
@@ -29,12 +29,12 @@ export function GitBadge(props: {
       className="shrink-0 cursor-default rounded px-1 py-0.5 transition-colors text-muted/60 hover:bg-white/[0.04] hover:text-foreground"
       onClick={(e) => {
         e.stopPropagation();
-        props.onPress();
+        props.onPress?.();
       }}
       onKeyDown={(e) => {
         if (e.key === "Enter" || e.key === " ") {
           e.stopPropagation();
-          props.onPress();
+          props.onPress?.();
         }
       }}
     >

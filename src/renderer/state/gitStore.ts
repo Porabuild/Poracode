@@ -1,6 +1,12 @@
 import { create } from "zustand";
 import type { GitBranchListResult, GitStatusResult, GitWorktreeInfo, PrData } from "../../shared/contracts";
 
+export interface WorktreeSourceInfo {
+  sourceBranch: string | null;
+  commitsAhead: number;
+  sourceAhead: number;
+}
+
 interface GitState {
   statuses: Record<string, GitStatusResult>;
   worktreeStatuses: Record<string, GitStatusResult>;
@@ -8,6 +14,7 @@ interface GitState {
   branches: Record<string, GitBranchListResult>;
   ghAvailable: Record<string, boolean>;
   prData: Record<string, PrData | null>;
+  worktreeSourceInfo: Record<string, WorktreeSourceInfo>;
 }
 
 interface GitProjectSnapshot {
@@ -29,6 +36,8 @@ interface GitActions {
   setGhAvailable: (projectId: string, available: boolean) => void;
   setPrData: (worktreePath: string, pr: PrData | null) => void;
   setPrDataBatch: (entries: Record<string, PrData | null>) => void;
+  setWorktreeSourceInfo: (worktreePath: string, info: WorktreeSourceInfo) => void;
+  setWorktreeSourceInfoBatch: (entries: Record<string, WorktreeSourceInfo>) => void;
 }
 
 function areStringArraysEqual(a: readonly string[] | undefined, b: readonly string[] | undefined) {
@@ -147,6 +156,7 @@ export const useGitStore = create<GitState & GitActions>()((set, get) => ({
   branches: {},
   ghAvailable: {},
   prData: {},
+  worktreeSourceInfo: {},
 
   setStatus: (projectId, status) => {
     if (areGitStatusesEqual(get().statuses[projectId], status)) return;
@@ -275,5 +285,31 @@ export const useGitStore = create<GitState & GitActions>()((set, get) => ({
         nextPrData[worktreePath] = pr;
       }
       return changed ? { prData: nextPrData } : state;
+    }),
+
+  setWorktreeSourceInfo: (worktreePath, info) => {
+    const prev = get().worktreeSourceInfo[worktreePath];
+    if (prev && prev.sourceBranch === info.sourceBranch && prev.commitsAhead === info.commitsAhead && prev.sourceAhead === info.sourceAhead)
+      return;
+    set((state) => ({
+      worktreeSourceInfo: { ...state.worktreeSourceInfo, [worktreePath]: info },
+    }));
+  },
+
+  setWorktreeSourceInfoBatch: (entries) =>
+    set((state) => {
+      let next = state.worktreeSourceInfo;
+      let changed = false;
+      for (const [worktreePath, info] of Object.entries(entries)) {
+        const prev = next[worktreePath];
+        if (prev && prev.sourceBranch === info.sourceBranch && prev.commitsAhead === info.commitsAhead && prev.sourceAhead === info.sourceAhead)
+          continue;
+        if (!changed) {
+          next = { ...state.worktreeSourceInfo };
+          changed = true;
+        }
+        next[worktreePath] = info;
+      }
+      return changed ? { worktreeSourceInfo: next } : state;
     }),
 }));

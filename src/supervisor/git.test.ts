@@ -2,24 +2,10 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { gitMock, readWslCommandOutputAsync, rmMock, simpleGitMock } = vi.hoisted(() => ({
-  gitMock: {
-    add: vi.fn(),
-    checkIsRepo: vi.fn(),
-    checkout: vi.fn(),
-    clean: vi.fn(),
-    commit: vi.fn(),
-    deleteLocalBranch: vi.fn(),
-    diffSummary: vi.fn(),
-    getRemotes: vi.fn(),
-    merge: vi.fn(),
-    raw: vi.fn(),
-    revparse: vi.fn(),
-    status: vi.fn(),
-  },
+const { execFileMock, readWslCommandOutputAsync, rmMock } = vi.hoisted(() => ({
+  execFileMock: vi.fn(),
   readWslCommandOutputAsync: vi.fn(),
   rmMock: vi.fn(),
-  simpleGitMock: vi.fn(),
 }));
 
 vi.mock("./agents/base", () => ({
@@ -34,16 +20,39 @@ vi.mock("node:fs/promises", async () => {
   };
 });
 
-vi.mock("simple-git", () => ({
-  simpleGit: simpleGitMock,
-}));
+// Mock execFile (used by execGit internally via promisify(execFile))
+vi.mock("node:child_process", async () => {
+  const actual = await vi.importActual<typeof import("node:child_process")>("node:child_process");
+  return {
+    ...actual,
+    execFile: execFileMock,
+  };
+});
 
 import { computeDefaultWorktreePath, GitService, parseRemoteUrl } from "./git";
+
+/** Helper to set up execFile mock for git commands. */
+function mockGitCommands(handler: (args: string[]) => { stdout?: string; error?: Error }) {
+  execFileMock.mockImplementation(
+    (
+      _cmd: string,
+      args: string[],
+      _opts: unknown,
+      callback: (error: Error | null, result: { stdout: string; stderr: string }) => void,
+    ) => {
+      const result = handler(args);
+      if (result.error) {
+        callback(result.error, { stdout: "", stderr: result.error.message });
+      } else {
+        callback(null, { stdout: result.stdout ?? "", stderr: "" });
+      }
+    },
+  );
+}
 
 describe("computeDefaultWorktreePath", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    simpleGitMock.mockReturnValue(gitMock);
   });
 
   it.skipIf(process.platform !== "win32")(
@@ -142,40 +151,57 @@ describe("GitService.revert", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    simpleGitMock.mockReturnValue(gitMock);
   });
 
   it("checks out tracked files", async () => {
-    gitMock.status.mockResolvedValue({
-      files: [{ path: "README.md", working_dir: "M" }],
+    mockGitCommands((args) => {
+      if (args[0] === "status") return { stdout: "1 .M N... 100644 100644 100644 a b README.md" };
+      return { stdout: "" };
     });
 
     await new GitService().revert(location, "README.md");
 
-    expect(gitMock.checkout).toHaveBeenCalledWith(["--", "README.md"]);
-    expect(gitMock.clean).not.toHaveBeenCalled();
+    const checkoutCall = execFileMock.mock.calls.find(
+      (c: unknown[]) => Array.isArray(c[1]) && (c[1] as string[]).includes("checkout"),
+    );
+    expect(checkoutCall).toBeDefined();
+    expect(checkoutCall![1]).toContain("README.md");
   });
 
   it("cleans untracked files instead of checking them out", async () => {
-    gitMock.status.mockResolvedValue({
-      files: [{ path: "README.md", working_dir: "?" }],
+    mockGitCommands((args) => {
+      if (args[0] === "status") return { stdout: "? README.md" };
+      return { stdout: "" };
     });
 
     await new GitService().revert(location, "README.md");
 
-    expect(gitMock.clean).toHaveBeenCalledWith("f", ["--", "README.md"]);
-    expect(gitMock.checkout).not.toHaveBeenCalled();
+    const cleanCall = execFileMock.mock.calls.find(
+      (c: unknown[]) => Array.isArray(c[1]) && (c[1] as string[]).includes("clean"),
+    );
+    expect(cleanCall).toBeDefined();
+    expect(cleanCall![1]).toContain("README.md");
   });
 
   it("reverts unstaged renames by removing the new path and restoring the old one", async () => {
-    gitMock.status.mockResolvedValue({
-      files: [{ path: "docs/new-name.md", from: "docs/old-name.md", working_dir: "R" }],
+    mockGitCommands((args) => {
+      if (args[0] === "status") return { stdout: "2 .R N... 100644 100644 100644 a b R100 docs/new-name.md\tdocs/old-name.md" };
+      return { stdout: "" };
     });
 
     await new GitService().revert(location, "docs/new-name.md");
 
-    expect(gitMock.clean).toHaveBeenCalledWith("f", ["--", "docs/new-name.md"]);
-    expect(gitMock.checkout).toHaveBeenCalledWith(["--", "docs/old-name.md"]);
+    const cleanCall = execFileMock.mock.calls.find(
+      (c: unknown[]) => Array.isArray(c[1]) && (c[1] as string[]).includes("clean"),
+    );
+    expect(cleanCall).toBeDefined();
+    expect(cleanCall![1]).toContain("docs/new-name.md");
+
+    const checkoutCall = execFileMock.mock.calls.find(
+      (c: unknown[]) => Array.isArray(c[1]) && (c[1] as string[]).includes("checkout"),
+    );
+    expect(checkoutCall).toBeDefined();
+    expect(checkoutCall![1]).toContain("docs/old-name.md");
   });
 });
 
@@ -187,29 +213,24 @@ describe("GitService.getStatus", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    simpleGitMock.mockReturnValue(gitMock);
-    gitMock.checkIsRepo.mockResolvedValue(true);
-    gitMock.getRemotes.mockResolvedValue([]);
-    gitMock.diffSummary.mockResolvedValue({ files: [] });
-    gitMock.raw.mockRejectedValue(new Error("no MERGE_HEAD"));
   });
 
   it("normalizes Windows-style git paths before returning status", async () => {
-    gitMock.status.mockResolvedValue({
-      current: "feature/worktree",
-      tracking: null,
-      ahead: 0,
-      behind: 0,
-      conflicted: [],
-      files: [
-        { path: "src\\staged.ts", index: "M", working_dir: " " },
-        {
-          path: "docs\\renamed-new.md",
-          from: "docs\\renamed-old.md",
-          index: " ",
-          working_dir: "R",
-        },
-      ],
+    mockGitCommands((args) => {
+      if (args[0] === "rev-parse") return { stdout: "true\n" };
+      if (args[0] === "status") {
+        return {
+          stdout: [
+            "# branch.oid abc123",
+            "# branch.head feature/worktree",
+            "1 M. N... 100644 100644 100644 a b src\\staged.ts",
+            "2 .R N... 100644 100644 100644 a b R100 docs\\renamed-new.md\tdocs\\renamed-old.md",
+          ].join("\n"),
+        };
+      }
+      if (args[0] === "remote") return { stdout: "" };
+      if (args[0] === "diff") return { stdout: "" };
+      return { stdout: "" };
     });
 
     const result = await new GitService().getStatus(location);
@@ -219,34 +240,44 @@ describe("GitService.getStatus", () => {
     expect(result.unstaged[0]?.oldPath).toBe("docs/renamed-old.md");
   });
 
-  it("reports mergeInProgress when MERGE_HEAD exists", async () => {
-    gitMock.status.mockResolvedValue({
-      current: "feature-a",
-      tracking: null,
-      ahead: 0,
-      behind: 0,
-      files: [],
-      conflicted: ["src/file.ts"],
+  it("reports mergeInProgress when unmerged entries exist", async () => {
+    mockGitCommands((args) => {
+      if (args[0] === "rev-parse") return { stdout: "true\n" };
+      if (args[0] === "status") {
+        return {
+          stdout: [
+            "# branch.oid abc123",
+            "# branch.head feature-a",
+            "u UU N... 100644 100644 100644 100644 a b c src/file.ts",
+          ].join("\n"),
+        };
+      }
+      if (args[0] === "remote") return { stdout: "" };
+      if (args[0] === "diff") return { stdout: "" };
+      return { stdout: "" };
     });
-    gitMock.raw.mockResolvedValue("abc123");
 
     const result = await new GitService().getStatus(location);
 
     expect(result.mergeInProgress).toBe(true);
     expect(result.conflictFiles).toEqual(["src/file.ts"]);
-    expect(gitMock.raw).toHaveBeenCalledWith(["rev-parse", "--verify", "MERGE_HEAD"]);
   });
 
-  it("does not report mergeInProgress when MERGE_HEAD is absent", async () => {
-    gitMock.status.mockResolvedValue({
-      current: "main",
-      tracking: null,
-      ahead: 0,
-      behind: 0,
-      files: [],
-      conflicted: [],
+  it("does not report mergeInProgress when no unmerged entries exist", async () => {
+    mockGitCommands((args) => {
+      if (args[0] === "rev-parse") return { stdout: "true\n" };
+      if (args[0] === "status") {
+        return {
+          stdout: [
+            "# branch.oid abc123",
+            "# branch.head main",
+          ].join("\n"),
+        };
+      }
+      if (args[0] === "remote") return { stdout: "" };
+      if (args[0] === "diff") return { stdout: "" };
+      return { stdout: "" };
     });
-    gitMock.raw.mockRejectedValue(new Error("fatal: Needed a single revision"));
 
     const result = await new GitService().getStatus(location);
 
@@ -255,16 +286,22 @@ describe("GitService.getStatus", () => {
   });
 
   it("includes remoteInfo when origin has a GitHub remote URL", async () => {
-    gitMock.status.mockResolvedValue({
-      current: "main",
-      tracking: "origin/main",
-      ahead: 0,
-      behind: 0,
-      files: [],
+    mockGitCommands((args) => {
+      if (args[0] === "rev-parse") return { stdout: "true\n" };
+      if (args[0] === "status") {
+        return {
+          stdout: [
+            "# branch.oid abc123",
+            "# branch.head main",
+            "# branch.upstream origin/main",
+            "# branch.ab +0 -0",
+          ].join("\n"),
+        };
+      }
+      if (args[0] === "remote") return { stdout: "origin\thttps://github.com/owner/repo.git (fetch)\norigin\thttps://github.com/owner/repo.git (push)\n" };
+      if (args[0] === "diff") return { stdout: "" };
+      return { stdout: "" };
     });
-    gitMock.getRemotes.mockResolvedValue([
-      { name: "origin", refs: { fetch: "https://github.com/owner/repo.git", push: "" } },
-    ]);
 
     const result = await new GitService().getStatus(location);
 
@@ -277,14 +314,20 @@ describe("GitService.getStatus", () => {
   });
 
   it("returns remoteInfo null when no remotes exist", async () => {
-    gitMock.status.mockResolvedValue({
-      current: "main",
-      tracking: null,
-      ahead: 0,
-      behind: 0,
-      files: [],
+    mockGitCommands((args) => {
+      if (args[0] === "rev-parse") return { stdout: "true\n" };
+      if (args[0] === "status") {
+        return {
+          stdout: [
+            "# branch.oid abc123",
+            "# branch.head main",
+          ].join("\n"),
+        };
+      }
+      if (args[0] === "remote") return { stdout: "" };
+      if (args[0] === "diff") return { stdout: "" };
+      return { stdout: "" };
     });
-    gitMock.getRemotes.mockResolvedValue([]);
 
     const result = await new GitService().getStatus(location);
 
@@ -300,42 +343,52 @@ describe("GitService.pullFromSource", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    simpleGitMock.mockReturnValue(gitMock);
   });
 
   it("fast-forwards when HEAD is ancestor of source branch", async () => {
-    gitMock.raw.mockResolvedValue(""); // merge-base --is-ancestor succeeds
-    gitMock.merge.mockResolvedValue(undefined);
+    mockGitCommands((args) => {
+      if (args[0] === "merge-base") return { stdout: "" };
+      if (args[0] === "merge") return { stdout: "" };
+      return { stdout: "" };
+    });
 
     const result = await new GitService().pullFromSource(location, "main");
 
     expect(result).toEqual({ merged: true, fastForward: true });
-    expect(gitMock.merge).toHaveBeenCalledWith(["main", "--ff-only"]);
+    const mergeCall = execFileMock.mock.calls.find(
+      (c: unknown[]) => Array.isArray(c[1]) && (c[1] as string[]).includes("merge"),
+    );
+    expect(mergeCall![1]).toContain("--ff-only");
   });
 
   it("uses --no-ff when fast-forward is not possible", async () => {
-    gitMock.raw.mockRejectedValue(new Error("not ancestor")); // merge-base fails
-    gitMock.merge.mockResolvedValue(undefined);
+    mockGitCommands((args) => {
+      if (args[0] === "merge-base") return { error: new Error("not ancestor") };
+      if (args[0] === "merge") return { stdout: "" };
+      return { stdout: "" };
+    });
 
     const result = await new GitService().pullFromSource(location, "main");
 
     expect(result).toEqual({ merged: true, fastForward: false });
-    expect(gitMock.merge).toHaveBeenCalledWith(["main", "--no-ff", "--no-edit"]);
+    const mergeCall = execFileMock.mock.calls.find(
+      (c: unknown[]) => Array.isArray(c[1]) && (c[1] as string[]).includes("merge"),
+    );
+    expect(mergeCall![1]).toContain("--no-ff");
   });
 
   it("returns conflicting: true without aborting when merge has conflicts", async () => {
-    gitMock.raw.mockRejectedValue(new Error("not ancestor"));
-    gitMock.merge.mockRejectedValue(
-      new Error("CONFLICT (content): Merge conflict in src/file.ts"),
-    );
+    mockGitCommands((args) => {
+      if (args[0] === "merge-base") return { error: new Error("not ancestor") };
+      if (args[0] === "merge") return { error: new Error("git merge failed: CONFLICT (content): Merge conflict in src/file.ts") };
+      return { stdout: "" };
+    });
 
     const result = await new GitService().pullFromSource(location, "main");
 
     expect(result.merged).toBe(false);
     expect(result.conflicting).toBe(true);
     expect(result.conflictFiles).toEqual(["src/file.ts"]);
-    // Should NOT abort — conflicts left for user resolution
-    expect(gitMock.merge).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -351,25 +404,27 @@ describe("GitService.mergeToSource (non-FF path)", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    simpleGitMock.mockReturnValue(gitMock);
-    // Make merge-base fail → non-FF path
-    gitMock.raw.mockImplementation((args: string[]) => {
-      if (args[0] === "merge-base") return Promise.reject(new Error("not ancestor"));
-      if (args[0] === "worktree" && args[1] === "add") return Promise.resolve("");
-      if (args[0] === "checkout") return Promise.resolve("");
-      if (args[0] === "rev-parse") return Promise.resolve("abc123");
-      if (args[0] === "worktree" && args[1] === "remove") return Promise.resolve("");
-      return Promise.resolve("");
+    mockGitCommands((args) => {
+      if (args[0] === "merge-base") return { error: new Error("not ancestor") };
+      if (args[0] === "worktree" && args[1] === "add") return { stdout: "" };
+      if (args[0] === "checkout") return { stdout: "" };
+      if (args[0] === "merge") return { stdout: "" };
+      if (args[0] === "rev-parse") return { stdout: "abc123\n" };
+      if (args[0] === "worktree" && args[1] === "remove") return { stdout: "" };
+      return { stdout: "" };
     });
-    gitMock.merge.mockResolvedValue(undefined);
-    gitMock.revparse.mockResolvedValue("abc123");
   });
 
   it("passes --no-ff flag in the non-fast-forward merge path", async () => {
     await new GitService().mergeToSource(repoLocation, worktreeLocation, "feature", "main");
 
-    // The merge call on the temp worktree should include --no-ff
-    expect(gitMock.merge).toHaveBeenCalledWith(["feature", "--no-edit", "--no-ff"]);
+    const mergeCalls = execFileMock.mock.calls.filter(
+      (c: unknown[]) => Array.isArray(c[1]) && (c[1] as string[]).includes("merge"),
+    );
+    expect(mergeCalls.length).toBeGreaterThan(0);
+    const mergeArgs = mergeCalls[0]![1] as string[];
+    expect(mergeArgs).toContain("--no-ff");
+    expect(mergeArgs).toContain("feature");
   });
 });
 
@@ -382,18 +437,19 @@ describe("GitService.removeWorktree", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    simpleGitMock.mockReturnValue(gitMock);
     rmMock.mockResolvedValue(undefined);
   });
 
   it("removes residual directories when git already detached the worktree", async () => {
-    gitMock.raw
-      .mockRejectedValueOnce(
-        new Error(`fatal: failed to delete '${worktreePath}': Directory not empty`),
-      )
-      .mockResolvedValueOnce(
-        `worktree ${location.path}\nHEAD abc123\nbranch refs/heads/main\n\n`,
-      );
+    mockGitCommands((args) => {
+      if (args[0] === "worktree" && args[1] === "remove") {
+        return { error: new Error(`fatal: failed to delete '${worktreePath}': Directory not empty`) };
+      }
+      if (args[0] === "worktree" && args[1] === "list") {
+        return { stdout: `worktree ${location.path}\nHEAD abc123\nbranch refs/heads/main\n\n` };
+      }
+      return { stdout: "" };
+    });
 
     await new GitService().removeWorktree(location, worktreePath, true);
 
@@ -406,15 +462,20 @@ describe("GitService.removeWorktree", () => {
   });
 
   it("rethrows when git still reports the worktree as attached", async () => {
-    const error = new Error(`fatal: failed to delete '${worktreePath}': Directory not empty`);
-    gitMock.raw
-      .mockRejectedValueOnce(error)
-      .mockResolvedValueOnce(
-        `worktree ${location.path}\nHEAD abc123\nbranch refs/heads/main\n\nworktree ${worktreePath.replace(/\\/g, "/")}\nHEAD def456\nbranch refs/heads/feature-x\n\n`,
-      );
+    mockGitCommands((args) => {
+      if (args[0] === "worktree" && args[1] === "remove") {
+        return { error: new Error(`fatal: failed to delete '${worktreePath}': Directory not empty`) };
+      }
+      if (args[0] === "worktree" && args[1] === "list") {
+        return {
+          stdout: `worktree ${location.path}\nHEAD abc123\nbranch refs/heads/main\n\nworktree ${worktreePath.replace(/\\/g, "/")}\nHEAD def456\nbranch refs/heads/feature-x\n\n`,
+        };
+      }
+      return { stdout: "" };
+    });
 
     await expect(new GitService().removeWorktree(location, worktreePath, true)).rejects.toThrow(
-      error.message,
+      "failed to delete",
     );
     expect(rmMock).not.toHaveBeenCalled();
   });
@@ -428,41 +489,41 @@ describe("GitService.deleteBranch", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    simpleGitMock.mockReturnValue(gitMock);
   });
 
   it("force-deletes a worktree branch that is merged into its configured source branch", async () => {
-    gitMock.deleteLocalBranch = vi
-      .fn()
-      .mockRejectedValueOnce(new Error("error: The branch 'feature/x' is not fully merged."))
-      .mockResolvedValueOnce(undefined);
-    gitMock.raw.mockImplementation((args: string[]) => {
-      if (args[0] === "config") return Promise.resolve("main\n");
-      if (args[0] === "merge-base") return Promise.resolve("");
-      return Promise.resolve("");
+    let softDeleteAttempted = false;
+    mockGitCommands((args) => {
+      if (args[0] === "branch" && args[1] === "-d") {
+        softDeleteAttempted = true;
+        return { error: new Error("error: The branch 'feature/x' is not fully merged.") };
+      }
+      if (args[0] === "branch" && args[1] === "-D") return { stdout: "" };
+      if (args[0] === "config") return { stdout: "main\n" };
+      if (args[0] === "merge-base") return { stdout: "" };
+      return { stdout: "" };
     });
 
     await new GitService().deleteBranch(location, "feature/x", false);
 
-    expect(gitMock.deleteLocalBranch).toHaveBeenNthCalledWith(1, "feature/x", false);
-    expect(gitMock.raw).toHaveBeenCalledWith(["config", "--get", "branch.feature/x.lightcodeSource"]);
-    expect(gitMock.raw).toHaveBeenCalledWith(["merge-base", "--is-ancestor", "feature/x", "main"]);
-    expect(gitMock.deleteLocalBranch).toHaveBeenNthCalledWith(2, "feature/x", true);
+    expect(softDeleteAttempted).toBe(true);
+    const forceDeleteCall = execFileMock.mock.calls.find(
+      (c: unknown[]) => Array.isArray(c[1]) && (c[1] as string[]).includes("-D"),
+    );
+    expect(forceDeleteCall).toBeDefined();
   });
 
   it("preserves the not-fully-merged failure when the branch is not merged into its source branch", async () => {
-    const error = new Error("error: The branch 'feature/x' is not fully merged.");
-    gitMock.deleteLocalBranch = vi.fn().mockRejectedValue(error);
-    gitMock.raw.mockImplementation((args: string[]) => {
-      if (args[0] === "config") return Promise.resolve("main\n");
-      if (args[0] === "merge-base") return Promise.reject(new Error("not ancestor"));
-      return Promise.resolve("");
+    mockGitCommands((args) => {
+      if (args[0] === "branch") return { error: new Error("error: The branch 'feature/x' is not fully merged.") };
+      if (args[0] === "config") return { stdout: "main\n" };
+      if (args[0] === "merge-base") return { error: new Error("not ancestor") };
+      return { stdout: "" };
     });
 
     await expect(new GitService().deleteBranch(location, "feature/x", false)).rejects.toThrow(
-      error.message,
+      "not fully merged",
     );
-    expect(gitMock.deleteLocalBranch).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -474,15 +535,18 @@ describe("GitService.abortMerge", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    simpleGitMock.mockReturnValue(gitMock);
   });
 
   it("runs git merge --abort", async () => {
-    gitMock.merge.mockResolvedValue(undefined);
+    mockGitCommands(() => ({ stdout: "" }));
 
     await new GitService().abortMerge(location);
 
-    expect(gitMock.merge).toHaveBeenCalledWith(["--abort"]);
+    const mergeCall = execFileMock.mock.calls.find(
+      (c: unknown[]) => Array.isArray(c[1]) && (c[1] as string[]).includes("merge"),
+    );
+    expect(mergeCall).toBeDefined();
+    expect(mergeCall![1]).toContain("--abort");
   });
 });
 

@@ -1,6 +1,7 @@
 import { Tooltip } from "@heroui/react";
 import {
   ArrowDownToLine,
+  ArrowUpFromLine,
   ChevronRight,
   Columns2,
   Download,
@@ -32,6 +33,8 @@ import { ProviderIcon, getStatusTone } from "../providers";
 import { resolveActionIcon } from "../settings/ProjectSettingsOverlay";
 import { useGitStore } from "../../state/gitStore";
 import { GitBadge } from "./GitBadge";
+import { WorktreeGitMenu } from "./WorktreeGitMenu";
+import { buildWorktreeGitItems, getWorktreeActionVisibility } from "./useWorktreeActions";
 import { groupThreadsByWorktree } from "./groupThreadsByWorktree";
 import { WorktreeGroupHeader } from "./WorktreeGroupHeader";
 
@@ -234,6 +237,8 @@ export function Sidebar(props: {
   onOpenWorktreeTerminal: (projectId: string, worktreePath: string) => void;
   onOpenGitReview: (projectId: string, worktreePath?: string) => void;
   onGitSync: (projectId: string, worktreePath?: string) => void;
+  onGitPush: (projectId: string, worktreePath: string) => void;
+  onGitPull: (projectId: string, worktreePath: string) => void;
   onGitMergeToSource: (projectId: string, worktreePath: string) => void;
   onGitMergeAndRemove: (projectId: string, worktreePath: string) => void;
   onGitPullFromSource: (projectId: string, worktreePath: string) => void;
@@ -273,6 +278,8 @@ export function Sidebar(props: {
     onOpenWorktreeTerminal,
     onOpenGitReview,
     onGitSync,
+    onGitPush,
+    onGitPull,
     onGitMergeToSource,
     onGitMergeAndRemove,
     onGitPullFromSource,
@@ -286,6 +293,17 @@ export function Sidebar(props: {
     onReorderThreads,
     onReorderThreadBlock,
   } = props;
+
+  const gitMenuIcons = {
+    review: <FileDiff className="size-3.5" />,
+    sync: <RefreshCw className="size-3.5" />,
+    push: <ArrowUpFromLine className="size-3.5" />,
+    pull: <ArrowDownToLine className="size-3.5" />,
+    pullFromSource: <ArrowDownToLine className="size-3.5" />,
+    merge: <GitMerge className="size-3.5" />,
+    openPr: <ExternalLink className="size-3.5" />,
+    createPr: <GitPullRequest className="size-3.5" />,
+  };
 
   const { isCollapsed, collapse, expand } = useSidebar();
   const [collapsedProjects, setCollapsedProjects] = useState<Record<string, boolean>>({});
@@ -413,7 +431,7 @@ export function Sidebar(props: {
                           items: [
                             {
                               id: "git-review",
-                              label: "Git Review",
+                              label: "Review Changes",
                               icon: <FileDiff className="size-3.5" />,
                             },
                             {
@@ -685,9 +703,14 @@ export function Sidebar(props: {
                                     ...(thread.worktreePath
                                       ? [
                                           {
-                                            id: "git-review",
-                                            label: "Git Review",
-                                            icon: <FileDiff className="size-3.5" />,
+                                            type: "submenu" as const,
+                                            id: "git",
+                                            label: "Git",
+                                            icon: <GitFork className="size-3.5" />,
+                                            items: buildWorktreeGitItems(
+                                              getWorktreeActionVisibility(thread.projectId, thread.worktreePath!),
+                                              gitMenuIcons,
+                                            ),
                                           },
                                         ]
                                       : []),
@@ -741,6 +764,24 @@ export function Sidebar(props: {
                                   ]}
                                   onAction={(key) => {
                                     if (key === "git-review")
+                                      onOpenGitReview(thread.projectId, thread.worktreePath);
+                                    if (key === "git-sync" && thread.worktreePath)
+                                      onGitSync(thread.projectId, thread.worktreePath);
+                                    if (key === "git-push" && thread.worktreePath)
+                                      onGitPush(thread.projectId, thread.worktreePath);
+                                    if (key === "git-pull" && thread.worktreePath)
+                                      onGitPull(thread.projectId, thread.worktreePath);
+                                    if (key === "git-pull-from-source" && thread.worktreePath)
+                                      onGitPullFromSource(thread.projectId, thread.worktreePath);
+                                    if (key === "git-merge-to-source" && thread.worktreePath)
+                                      onGitMergeToSource(thread.projectId, thread.worktreePath);
+                                    if (key === "git-merge-and-remove" && thread.worktreePath)
+                                      onGitMergeAndRemove(thread.projectId, thread.worktreePath);
+                                    if (key === "open-pr" && thread.worktreePath) {
+                                      const pr = useGitStore.getState().prData[thread.worktreePath];
+                                      if (pr?.url) void readBridge().openExternal(pr.url);
+                                    }
+                                    if (key === "create-pr")
                                       onOpenGitReview(thread.projectId, thread.worktreePath);
                                     if (key === "rename") setEditingThreadId(thread.id);
                                     if (key === "replace-second") onReplaceSecondPane(thread.id);
@@ -825,15 +866,33 @@ export function Sidebar(props: {
                                                 Worktree: {thread.worktreeBranch}
                                               </Tooltip.Content>
                                             </Tooltip>
-                                            <GitBadge
+                                            <WorktreeGitMenu
                                               projectId={thread.projectId}
-                                              projectName={thread.title}
-                                              worktreePath={thread.worktreePath}
-                                              onPress={() =>
-                                                onOpenGitReview(
-                                                  thread.projectId,
-                                                  thread.worktreePath,
-                                                )
+                                              worktreePath={thread.worktreePath!}
+                                              worktreeBranch={thread.worktreeBranch ?? ""}
+                                              onOpenGitReview={() =>
+                                                onOpenGitReview(thread.projectId, thread.worktreePath)
+                                              }
+                                              onGitSync={() =>
+                                                onGitSync(thread.projectId, thread.worktreePath)
+                                              }
+                                              onGitPush={() =>
+                                                onGitPush(thread.projectId, thread.worktreePath!)
+                                              }
+                                              onGitPull={() =>
+                                                onGitPull(thread.projectId, thread.worktreePath!)
+                                              }
+                                              onGitPullFromSource={() =>
+                                                onGitPullFromSource(thread.projectId, thread.worktreePath!)
+                                              }
+                                              onGitMergeToSource={() =>
+                                                onGitMergeToSource(thread.projectId, thread.worktreePath!)
+                                              }
+                                              onGitMergeAndRemove={() =>
+                                                onGitMergeAndRemove(thread.projectId, thread.worktreePath!)
+                                              }
+                                              onDeleteWorktree={() =>
+                                                onDeleteThread(thread.id, thread.worktreePath, thread.projectId)
                                               }
                                             />
                                             <div
@@ -938,9 +997,14 @@ export function Sidebar(props: {
                                 <ContextMenu
                                   items={[
                                     {
-                                      id: "git-review",
-                                      label: "Git Review",
-                                      icon: <FileDiff className="size-3.5" />,
+                                      type: "submenu" as const,
+                                      id: "git",
+                                      label: "Git",
+                                      icon: <GitFork className="size-3.5" />,
+                                      items: buildWorktreeGitItems(
+                                        getWorktreeActionVisibility(project.id, group.worktreePath),
+                                        gitMenuIcons,
+                                      ),
                                     },
                                     ...(project.scripts?.actions?.length
                                       ? [
@@ -963,51 +1027,6 @@ export function Sidebar(props: {
                                       icon: <Trash2 className="size-3.5" />,
                                       variant: "danger" as const,
                                     },
-                                    {
-                                      type: "submenu" as const,
-                                      id: "git",
-                                      label: "Git",
-                                      icon: <GitFork className="size-3.5" />,
-                                      items: [
-                                        {
-                                          id: "git-sync",
-                                          label: "Sync",
-                                          icon: <RefreshCw className="size-3.5" />,
-                                        },
-                                        {
-                                          id: "git-pull-from-source",
-                                          label: "Pull from Source",
-                                          icon: <ArrowDownToLine className="size-3.5" />,
-                                        },
-                                        {
-                                          id: "git-merge-to-source",
-                                          label: "Merge Worktree",
-                                          icon: <GitMerge className="size-3.5" />,
-                                        },
-                                        {
-                                          id: "git-merge-and-remove",
-                                          label: "Merge & Remove Worktree",
-                                          icon: <GitMerge className="size-3.5" />,
-                                        },
-                                        ...(() => {
-                                          const ghOk = useGitStore.getState().ghAvailable[project.id];
-                                          const pr = useGitStore.getState().prData[group.worktreePath];
-                                          if (!ghOk) return [];
-                                          if (pr && pr.state !== "closed") {
-                                            return [{
-                                              id: "open-pr",
-                                              label: `Open PR #${pr.number}`,
-                                              icon: <ExternalLink className="size-3.5" />,
-                                            }];
-                                          }
-                                          return [{
-                                            id: "create-pr",
-                                            label: "Create Pull Request",
-                                            icon: <GitPullRequest className="size-3.5" />,
-                                          }];
-                                        })(),
-                                      ],
-                                    },
                                   ]}
                                   onAction={(key) => {
                                     if (key === "git-review") {
@@ -1022,6 +1041,12 @@ export function Sidebar(props: {
                                     }
                                     if (key === "git-sync") {
                                       onGitSync(project.id, group.worktreePath);
+                                    }
+                                    if (key === "git-push") {
+                                      onGitPush(project.id, group.worktreePath);
+                                    }
+                                    if (key === "git-pull") {
+                                      onGitPull(project.id, group.worktreePath);
                                     }
                                     if (key === "git-pull-from-source") {
                                       onGitPullFromSource(project.id, group.worktreePath);
@@ -1067,6 +1092,31 @@ export function Sidebar(props: {
                                     }
                                     onOpenGitReview={() =>
                                       onOpenGitReview(project.id, group.worktreePath)
+                                    }
+                                    onGitSync={() =>
+                                      onGitSync(project.id, group.worktreePath)
+                                    }
+                                    onGitPush={() =>
+                                      onGitPush(project.id, group.worktreePath)
+                                    }
+                                    onGitPull={() =>
+                                      onGitPull(project.id, group.worktreePath)
+                                    }
+                                    onGitPullFromSource={() =>
+                                      onGitPullFromSource(project.id, group.worktreePath)
+                                    }
+                                    onGitMergeToSource={() =>
+                                      onGitMergeToSource(project.id, group.worktreePath)
+                                    }
+                                    onGitMergeAndRemove={() =>
+                                      onGitMergeAndRemove(project.id, group.worktreePath)
+                                    }
+                                    onDeleteWorktree={() =>
+                                      onDeleteWorktreeGroup(
+                                        project.id,
+                                        group.worktreePath,
+                                        groupThreadIds,
+                                      )
                                     }
                                     onOpenTerminal={() =>
                                       onOpenWorktreeTerminal(project.id, group.worktreePath)

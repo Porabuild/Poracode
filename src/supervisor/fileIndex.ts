@@ -4,7 +4,7 @@ import type {
   SearchProjectFilesPayload,
   SearchProjectFilesResult,
 } from "../shared/contracts";
-import { createGit, getLocationIdentity } from "./git";
+import { execGit, getLocationIdentity } from "./git";
 
 const MAX_INDEX_SIZE = 25_000;
 const CACHE_TTL_MS = 15_000;
@@ -54,11 +54,9 @@ export class FileIndexService {
   }
 
   private async buildIndex(location: ProjectLocation): Promise<FileEntry[]> {
-    const git = createGit(location);
-
     let raw: string;
     try {
-      raw = await git.raw(["ls-files", "--cached", "--others", "--exclude-standard"]);
+      raw = await execGit(location, ["ls-files", "--cached", "--others", "--exclude-standard"]);
     } catch {
       // Not a git repo or git not available
       return [];

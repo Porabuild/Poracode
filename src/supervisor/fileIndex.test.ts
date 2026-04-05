@@ -1,13 +1,36 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 
-// Mock simple-git before importing FileIndexService
-const mockRaw = vi.fn();
-vi.mock("simple-git", () => ({
-  simpleGit: () => ({ raw: mockRaw }),
-}));
+// Mock child_process.execFile (used by execGit internally)
+const mockExecFile = vi.fn();
+vi.mock("node:child_process", async () => {
+  const actual = await vi.importActual<typeof import("node:child_process")>("node:child_process");
+  return {
+    ...actual,
+    execFile: mockExecFile,
+  };
+});
 
 // Must import after mock
 const { FileIndexService } = await import("./fileIndex");
+
+/** Helper to set up execFile mock responses based on git command args. */
+function mockGit(handler: (args: string[]) => string | Error) {
+  mockExecFile.mockImplementation(
+    (
+      _cmd: string,
+      args: string[],
+      _opts: unknown,
+      callback: (error: Error | null, result: { stdout: string; stderr: string }) => void,
+    ) => {
+      const result = handler(args);
+      if (result instanceof Error) {
+        callback(result, { stdout: "", stderr: result.message });
+      } else {
+        callback(null, { stdout: result, stderr: "" });
+      }
+    },
+  );
+}
 
 describe("FileIndexService", () => {
   let service: InstanceType<typeof FileIndexService>;
@@ -21,7 +44,7 @@ describe("FileIndexService", () => {
 
   describe("buildIndex", () => {
     it("parses git ls-files output into file and directory entries", async () => {
-      mockRaw.mockResolvedValue("src/main.ts\nsrc/utils/helper.ts\nREADME.md\n");
+      mockGit(() => "src/main.ts\nsrc/utils/helper.ts\nREADME.md\n");
 
       const result = await service.searchProjectFiles({
         projectLocation: location,
@@ -38,7 +61,7 @@ describe("FileIndexService", () => {
     });
 
     it("normalizes backslashes from Windows git output", async () => {
-      mockRaw.mockResolvedValue("src\\main.ts\nsrc\\utils\\helper.ts\n");
+      mockGit(() => "src\\main.ts\nsrc\\utils\\helper.ts\n");
 
       const result = await service.searchProjectFiles({
         projectLocation: location,
@@ -49,14 +72,13 @@ describe("FileIndexService", () => {
       const filePaths = result.entries.filter((e) => e.type === "file").map((e) => e.path);
       expect(filePaths).toContain("src/main.ts");
       expect(filePaths).toContain("src/utils/helper.ts");
-      // No backslashes
       for (const p of filePaths) {
         expect(p).not.toContain("\\");
       }
     });
 
     it("returns empty array for non-git repos", async () => {
-      mockRaw.mockRejectedValue(new Error("not a git repo"));
+      mockGit(() => new Error("not a git repo"));
 
       const result = await service.searchProjectFiles({
         projectLocation: location,
@@ -69,7 +91,7 @@ describe("FileIndexService", () => {
     });
 
     it("extracts name from path correctly", async () => {
-      mockRaw.mockResolvedValue("src/components/Button.tsx\n");
+      mockGit(() => "src/components/Button.tsx\n");
 
       const result = await service.searchProjectFiles({
         projectLocation: location,
@@ -86,7 +108,7 @@ describe("FileIndexService", () => {
 
     it("caps entries at 25000", async () => {
       const lines = Array.from({ length: 30000 }, (_, i) => `file${i}.ts`).join("\n");
-      mockRaw.mockResolvedValue(lines);
+      mockGit(() => lines);
 
       const result = await service.searchProjectFiles({
         projectLocation: location,
@@ -94,14 +116,13 @@ describe("FileIndexService", () => {
         limit: 50,
       });
 
-      // 25000 files, 0 directories (flat structure)
       expect(result.totalIndexed).toBe(25000);
     });
   });
 
   describe("search ranking", () => {
     beforeEach(() => {
-      mockRaw.mockResolvedValue(
+      mockGit(() =>
         [
           "src/main.ts",
           "src/maintenance/index.ts",
@@ -120,9 +141,6 @@ describe("FileIndexService", () => {
       });
 
       const names = result.entries.map((e) => e.name);
-      // "main.ts" and "main.ts" (in src/) start with "main" → tier 3
-      // "main-helper.ts", "main-guide.md" contain "main" → tier 2
-      // "maintenance" directory starts with "main" → tier 3
       const mainTsIdx = names.indexOf("main.ts");
       const helperIdx = names.indexOf("main-helper.ts");
       expect(mainTsIdx).toBeLessThan(helperIdx);
@@ -155,7 +173,6 @@ describe("FileIndexService", () => {
         limit: 20,
       });
 
-      // Find where first directory appears -- all entries before it should be files
       const firstDirIdx = result.entries.findIndex((e) => e.type === "directory");
       const filesBefore = firstDirIdx >= 0 ? result.entries.slice(0, firstDirIdx) : result.entries;
       expect(filesBefore.every((e) => e.type === "file")).toBe(true);
@@ -164,27 +181,26 @@ describe("FileIndexService", () => {
 
   describe("caching", () => {
     it("serves from cache on second call within TTL", async () => {
-      mockRaw.mockResolvedValue("file.ts\n");
+      mockGit(() => "file.ts\n");
 
       await service.searchProjectFiles({ projectLocation: location, query: "", limit: 10 });
       await service.searchProjectFiles({ projectLocation: location, query: "", limit: 10 });
 
-      expect(mockRaw).toHaveBeenCalledTimes(1);
+      expect(mockExecFile).toHaveBeenCalledTimes(1);
     });
 
     it("rebuilds after cache TTL expires", async () => {
-      mockRaw.mockResolvedValue("file.ts\n");
+      mockGit(() => "file.ts\n");
 
       await service.searchProjectFiles({ projectLocation: location, query: "", limit: 10 });
 
-      // Advance time past TTL
       vi.useFakeTimers();
       vi.advanceTimersByTime(16_000);
 
       await service.searchProjectFiles({ projectLocation: location, query: "", limit: 10 });
       vi.useRealTimers();
 
-      expect(mockRaw).toHaveBeenCalledTimes(2);
+      expect(mockExecFile).toHaveBeenCalledTimes(2);
     });
   });
 });

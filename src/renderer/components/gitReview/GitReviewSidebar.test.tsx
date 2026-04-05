@@ -33,6 +33,18 @@ vi.mock("@heroui/react", () => {
   const ButtonGroup = (props: { children: ReactNode }) => <div>{props.children}</div>;
   ButtonGroup.Separator = () => <span />;
 
+  const Modal = {
+    Backdrop: Wrapper,
+    Container: Wrapper,
+    Dialog: Wrapper,
+    Header: Wrapper,
+    Body: Wrapper,
+    Footer: Wrapper,
+    Icon: () => <span />,
+    Heading: (props: { children: ReactNode }) => <div>{props.children}</div>,
+    CloseTrigger: () => <span />,
+  };
+
   const AlertDialog = {
     Backdrop: Wrapper,
     Container: Wrapper,
@@ -42,10 +54,12 @@ vi.mock("@heroui/react", () => {
     Footer: Wrapper,
     Icon: () => <span />,
     Heading: (props: { children: ReactNode }) => <div>{props.children}</div>,
+    CloseTrigger: () => <span />,
   };
 
   return {
     AlertDialog,
+    Modal,
     Button,
     ButtonGroup,
     Dropdown,

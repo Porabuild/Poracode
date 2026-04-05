@@ -305,6 +305,10 @@ body {
   background: var(--content-background) !important;
 }
 
+.lightcode-terminal-pane .xterm .xterm-cursor-layer {
+  display: none !important;
+}
+
 .lightcode-composer-shell {
   border: 1px solid var(--border);
   border-radius: var(--radius-4xl);

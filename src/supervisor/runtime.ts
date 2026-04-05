@@ -70,6 +70,8 @@ import type {
   GitRunMergetoolResult,
   GitRemoveWorktreePayload,
   GitUnstageAllPayload,
+  GitUnwatchProjectPayload,
+  GitWatchProjectPayload,
   GitUnstagePayload,
   GitWorktreeListResult,
   GetGitBranchesPayload,
@@ -109,6 +111,7 @@ import {
 import { generateCommitMessage } from "./commitMessageGenerator";
 import { generateTitle } from "./titleGenerator";
 import { GitService } from "./git";
+import { GitWatcher } from "./gitWatcher";
 import { GitHubService } from "./github";
 import { FileIndexService } from "./fileIndex";
 import { resetTerminalLogFile, resetTerminalLogsDir } from "./terminalLogs";
@@ -288,6 +291,7 @@ export class SupervisorRuntime {
   private readonly logsDir: string;
   private readonly settingsPath: string;
   private readonly gitService = new GitService();
+  private readonly gitWatcher: GitWatcher;
   private readonly githubService = new GitHubService();
   private readonly fileIndexService = new FileIndexService();
   private readonly adapters = new Map(
@@ -300,6 +304,10 @@ export class SupervisorRuntime {
   private readonly statusCachePath: string;
 
   constructor(private readonly emit: (event: SupervisorEvent) => void) {
+    this.gitWatcher = new GitWatcher((projectId) => {
+      this.emit({ type: "git-changed", projectId });
+    });
+
     const baseDir = process.env.LIGHTCODE_DATA_DIR?.trim() || join(homedir(), ".lightcode");
     const paths = resolveLightcodePaths(baseDir);
     this.logsDir = paths.terminalLogsDir;
@@ -1012,6 +1020,17 @@ export class SupervisorRuntime {
   async gitRunMergetool(payload: GitRunMergetoolPayload): Promise<GitRunMergetoolResult> {
     return this.gitService.runMergetool(payload.worktreeLocation);
   }
+
+  // ── Git watcher ────────────────────────────────────────
+
+  async gitWatchProject(payload: GitWatchProjectPayload): Promise<void> {
+    this.gitWatcher.watch(payload.projectId, payload.projectLocation);
+  }
+
+  async gitUnwatchProject(payload: GitUnwatchProjectPayload): Promise<void> {
+    this.gitWatcher.unwatch(payload.projectId);
+  }
+
   async searchProjectFiles(payload: SearchProjectFilesPayload): Promise<SearchProjectFilesResult> {
     return this.fileIndexService.searchProjectFiles(payload);
   }

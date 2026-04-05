@@ -28,6 +28,8 @@ import type {
   DetectSetupScriptPayload,
   SearchProjectFilesPayload,
   GitUnstagePayload,
+  GitUnwatchProjectPayload,
+  GitWatchProjectPayload,
   GhCreatePrPayload,
   GhGetPrForBranchPayload,
   GhMergePrPayload,
@@ -63,6 +65,8 @@ import {
   gitRunMergetoolPayloadSchema,
   gitRemoveWorktreePayloadSchema,
   gitSyncPayloadSchema,
+  gitWatchProjectPayloadSchema,
+  gitUnwatchProjectPayloadSchema,
   detectSetupScriptPayloadSchema,
   searchProjectFilesPayloadSchema,
   ghCreatePrPayloadSchema,
@@ -224,6 +228,14 @@ async function handleRequest(request: SupervisorRequest): Promise<unknown> {
     case "gitRunMergetool":
       return runtime.gitRunMergetool(
         gitRunMergetoolPayloadSchema.parse(request.payload) as GitRunMergetoolPayload,
+      );
+    case "gitWatchProject":
+      return runtime.gitWatchProject(
+        gitWatchProjectPayloadSchema.parse(request.payload) as GitWatchProjectPayload,
+      );
+    case "gitUnwatchProject":
+      return runtime.gitUnwatchProject(
+        gitUnwatchProjectPayloadSchema.parse(request.payload) as GitUnwatchProjectPayload,
       );
     case "searchProjectFiles":
       return runtime.searchProjectFiles(

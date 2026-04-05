@@ -518,6 +518,8 @@ export interface GitGetWorktreeSourceBranchResult {
   sourceBranch: string | null;
   /** Number of commits worktree branch is ahead of source (0 = nothing to merge). */
   commitsAhead: number;
+  /** Number of commits source branch is ahead of worktree (0 = nothing to pull). */
+  sourceAhead: number;
 }
 
 export const gitMergeToSourcePayloadSchema = z.object({
@@ -569,6 +571,19 @@ export interface GitRunMergetoolResult {
   merged?: boolean;
   error?: string;
 }
+
+// --- Git watcher types ---
+
+export const gitWatchProjectPayloadSchema = z.object({
+  projectId: z.string().min(1),
+  projectLocation: projectLocationSchema,
+});
+export type GitWatchProjectPayload = z.infer<typeof gitWatchProjectPayloadSchema>;
+
+export const gitUnwatchProjectPayloadSchema = z.object({
+  projectId: z.string().min(1),
+});
+export type GitUnwatchProjectPayload = z.infer<typeof gitUnwatchProjectPayloadSchema>;
 
 // --- File Index types ---
 

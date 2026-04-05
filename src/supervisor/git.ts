@@ -1,8 +1,9 @@
 import { createHash } from "node:crypto";
+import { execFile } from "node:child_process";
 import { mkdir, readFile, rm } from "node:fs/promises";
 import { homedir } from "node:os";
 import { dirname, join, normalize, posix } from "node:path";
-import { simpleGit, type SimpleGit, type FileStatusResult } from "simple-git";
+import { promisify } from "node:util";
 import type {
   ProjectLocation,
   GitStatusResult,
@@ -25,6 +26,70 @@ import { resolveLightcodePaths } from "../shared/lightcodePaths";
 import { sanitizeWorktreeBranchName, sanitizeWorktreePathSegment } from "../shared/worktree";
 import { getProjectName } from "../shared/wsl";
 
+const execFileAsync = promisify(execFile);
+
+// ── Timeouts ─────────────────────────────────────────────
+
+const GIT_STATUS_TIMEOUT = 10_000;
+const GIT_DIFF_TIMEOUT = 15_000;
+const GIT_NETWORK_TIMEOUT = 30_000;
+const GIT_DEFAULT_TIMEOUT = 15_000;
+
+// ── Native git executor ──────────────────────────────────
+
+/**
+ * Execute a git command using native CLI.
+ * - Sets GIT_OPTIONAL_LOCKS=0 on every call to avoid index.lock contention.
+ * - Configurable per-command timeout.
+ * - Supports both Windows native paths and WSL via `wsl.exe git`.
+ *
+ * Returns stdout. Throws on non-zero exit (with stderr in message).
+ * Pass `allowNonZeroExit: true` to capture stdout even on exit code 1
+ * (useful for `git diff --no-index` which exits 1 when files differ).
+ */
+export async function execGit(
+  location: ProjectLocation,
+  args: string[],
+  options?: { timeout?: number; allowNonZeroExit?: boolean },
+): Promise<string> {
+  const timeout = options?.timeout ?? GIT_DEFAULT_TIMEOUT;
+  const env = { ...process.env, GIT_OPTIONAL_LOCKS: "0" };
+
+  let command: string;
+  let fullArgs: string[];
+  let cwd: string | undefined;
+
+  if (location.kind === "wsl") {
+    command = "wsl.exe";
+    fullArgs = ["-d", location.distro, "--cd", location.linuxPath, "--", "git", ...args];
+    cwd = undefined;
+  } else {
+    command = "git";
+    fullArgs = args;
+    cwd = location.path;
+  }
+
+  try {
+    const { stdout } = await execFileAsync(command, fullArgs, {
+      cwd,
+      env,
+      timeout,
+      maxBuffer: 50 * 1024 * 1024, // 50MB for large diffs
+      windowsHide: true,
+    });
+    return stdout;
+  } catch (err: unknown) {
+    if (options?.allowNonZeroExit && err && typeof err === "object" && "stdout" in err) {
+      const stdout = String((err as { stdout: unknown }).stdout);
+      if (stdout) return stdout;
+    }
+    const msg = err instanceof Error ? err.message : String(err);
+    throw new Error(`git ${args[0]} failed: ${msg}`, { cause: err });
+  }
+}
+
+// ── Helpers ──────────────────────────────────────────────
+
 function getRepoPath(location: ProjectLocation): string {
   if (location.kind === "wsl") return location.uncPath;
   return location.path;
@@ -37,16 +102,6 @@ function toForwardSlash(p: string): string {
 
 function normalizeWorktreePath(location: ProjectLocation, path: string): string {
   return location.kind === "wsl" ? path : normalize(path);
-}
-
-export function createGit(location: ProjectLocation): SimpleGit {
-  if (location.kind === "wsl") {
-    return simpleGit({
-      baseDir: toForwardSlash(location.uncPath),
-      binary: ["wsl", "git"],
-    });
-  }
-  return simpleGit(getRepoPath(location));
 }
 
 export function getLocationIdentity(location: ProjectLocation): string {
@@ -111,17 +166,7 @@ async function ensureWorktreeParentExists(
   await mkdir(dirname(worktreePath), { recursive: true });
 }
 
-function mapFileStatus(file: FileStatusResult, staged: boolean): GitFileChange {
-  const status = staged ? file.index : file.working_dir;
-  return {
-    path: toForwardSlash(file.path),
-    ...(file.from ? { oldPath: toForwardSlash(file.from) } : {}),
-    status: status || "?",
-    staged,
-    insertions: 0,
-    deletions: 0,
-  };
-}
+// ── Remote URL parsing ───────────────────────────────────
 
 function detectPlatform(hostname: string): RemoteHostPlatform {
   const h = hostname.toLowerCase();
@@ -150,6 +195,190 @@ export function parseRemoteUrl(url: string): GitRemoteInfo | null {
   return null;
 }
 
+// ── Porcelain v2 status parser ───────────────────────────
+
+interface ParsedPorcelainStatus {
+  branch: string;
+  tracking: string;
+  ahead: number;
+  behind: number;
+  staged: GitFileChange[];
+  unstaged: GitFileChange[];
+  conflictFiles: string[];
+  mergeInProgress: boolean;
+}
+
+/**
+ * Parse output of `git status --porcelain=v2 -b`.
+ *
+ * Format reference: https://git-scm.com/docs/git-status#_porcelain_format_version_2
+ *
+ * Header lines start with #:
+ *   # branch.oid <commit>
+ *   # branch.head <branch>
+ *   # branch.upstream <upstream>
+ *   # branch.ab +<ahead> -<behind>
+ *
+ * Changed entries (type 1):
+ *   1 <XY> <sub> <mH> <mI> <mW> <hH> <hI> <path>
+ *
+ * Renamed/copied entries (type 2):
+ *   2 <XY> <sub> <mH> <mI> <mW> <hH> <hI> <X><score> <path>\t<origPath>
+ *
+ * Unmerged entries:
+ *   u <XY> <sub> <m1> <m2> <m3> <mW> <h1> <h2> <h3> <path>
+ *
+ * Untracked:
+ *   ? <path>
+ *
+ * Ignored:
+ *   ! <path>
+ */
+export function parseStatusPorcelainV2(output: string): ParsedPorcelainStatus {
+  const result: ParsedPorcelainStatus = {
+    branch: "",
+    tracking: "",
+    ahead: 0,
+    behind: 0,
+    staged: [],
+    unstaged: [],
+    conflictFiles: [],
+    mergeInProgress: false,
+  };
+
+  if (!output.trim()) return result;
+
+  for (const line of output.split("\n")) {
+    if (!line) continue;
+
+    if (line.startsWith("# ")) {
+      // Header line
+      if (line.startsWith("# branch.head ")) {
+        result.branch = line.slice(14);
+      } else if (line.startsWith("# branch.upstream ")) {
+        result.tracking = line.slice(18);
+      } else if (line.startsWith("# branch.ab ")) {
+        const abMatch = line.match(/\+(\d+) -(\d+)/);
+        if (abMatch) {
+          result.ahead = parseInt(abMatch[1]!, 10);
+          result.behind = parseInt(abMatch[2]!, 10);
+        }
+      }
+    } else if (line.startsWith("1 ")) {
+      // Changed entry: 1 XY sub mH mI mW hH hI path
+      const parts = line.split(" ");
+      // parts: [1, XY, sub, mH, mI, mW, hH, hI, ...path]
+      const xy = parts[1]!;
+      const path = toForwardSlash(parts.slice(8).join(" "));
+      const indexStatus = xy[0]!;
+      const worktreeStatus = xy[1]!;
+
+      if (indexStatus !== ".") {
+        result.staged.push({
+          path,
+          status: indexStatus,
+          staged: true,
+          insertions: 0,
+          deletions: 0,
+        });
+      }
+      if (worktreeStatus !== ".") {
+        result.unstaged.push({
+          path,
+          status: worktreeStatus,
+          staged: false,
+          insertions: 0,
+          deletions: 0,
+        });
+      }
+    } else if (line.startsWith("2 ")) {
+      // Rename/copy entry: 2 XY sub mH mI mW hH hI Xscore path\torigPath
+      const parts = line.split(" ");
+      const xy = parts[1]!;
+      // parts[8] is Xscore (e.g. R100, C090)
+      const rest = parts.slice(9).join(" ");
+      const tabIndex = rest.indexOf("\t");
+      const path = toForwardSlash(tabIndex >= 0 ? rest.slice(0, tabIndex) : rest);
+      const origPath = tabIndex >= 0 ? toForwardSlash(rest.slice(tabIndex + 1)) : undefined;
+      const indexStatus = xy[0]!;
+      const worktreeStatus = xy[1]!;
+
+      if (indexStatus !== ".") {
+        result.staged.push({
+          path,
+          ...(origPath ? { oldPath: origPath } : {}),
+          status: indexStatus,
+          staged: true,
+          insertions: 0,
+          deletions: 0,
+        });
+      }
+      if (worktreeStatus !== ".") {
+        result.unstaged.push({
+          path,
+          ...(origPath ? { oldPath: origPath } : {}),
+          status: worktreeStatus,
+          staged: false,
+          insertions: 0,
+          deletions: 0,
+        });
+      }
+    } else if (line.startsWith("u ")) {
+      // Unmerged entry: u XY sub m1 m2 m3 mW h1 h2 h3 path
+      const parts = line.split(" ");
+      const path = toForwardSlash(parts.slice(10).join(" "));
+      result.conflictFiles.push(path);
+      result.mergeInProgress = true;
+    } else if (line.startsWith("? ")) {
+      // Untracked file
+      const path = toForwardSlash(line.slice(2));
+      result.unstaged.push({
+        path,
+        status: "?",
+        staged: false,
+        insertions: 0,
+        deletions: 0,
+      });
+    }
+  }
+
+  return result;
+}
+
+// ── Diff stat parser ─────────────────────────────────────
+
+interface DiffStatEntry {
+  path: string;
+  insertions: number;
+  deletions: number;
+}
+
+/**
+ * Parse `git diff --numstat` output into per-file insertion/deletion counts.
+ * Format: <insertions>\t<deletions>\t<path>
+ * Binary files show as: -\t-\t<path>
+ */
+function parseDiffNumstat(output: string): DiffStatEntry[] {
+  const entries: DiffStatEntry[] = [];
+  for (const line of output.split("\n")) {
+    if (!line) continue;
+    const parts = line.split("\t");
+    if (parts.length < 3) continue;
+    const ins = parts[0]!;
+    const del = parts[1]!;
+    const path = toForwardSlash(parts.slice(2).join("\t")); // path may contain tabs in theory
+    if (ins === "-" || del === "-") continue; // binary file
+    entries.push({
+      path,
+      insertions: parseInt(ins, 10) || 0,
+      deletions: parseInt(del, 10) || 0,
+    });
+  }
+  return entries;
+}
+
+// ── Constants ────────────────────────────────────────────
+
 const EMPTY_STATUS: GitStatusResult = {
   isRepo: false,
   branch: "",
@@ -164,69 +393,74 @@ const EMPTY_STATUS: GitStatusResult = {
   totalDeletions: 0,
 };
 
+// ── GitService ───────────────────────────────────────────
+
 export class GitService {
   async getStatus(location: ProjectLocation): Promise<GitStatusResult> {
-    const git = createGit(location);
-
+    // Check if this is a git repo
     try {
-      const isRepo = await git.checkIsRepo();
-      if (!isRepo) return EMPTY_STATUS;
+      await execGit(location, ["rev-parse", "--is-inside-work-tree"], {
+        timeout: GIT_STATUS_TIMEOUT,
+      });
     } catch {
       return EMPTY_STATUS;
     }
 
-    const [status, remotes] = await Promise.all([git.status(), git.getRemotes(true)]);
-    const hasRemote = remotes.length > 0;
+    // Run status + remote info + numstat in parallel (one porcelain command replaces 4+ calls)
+    const [statusOutput, remoteOutput, stagedNumstat, unstagedNumstat] = await Promise.all([
+      execGit(location, ["status", "--porcelain=v2", "-b"], {
+        timeout: GIT_STATUS_TIMEOUT,
+      }),
+      execGit(location, ["remote", "-v"], { timeout: GIT_STATUS_TIMEOUT }).catch(() => ""),
+      execGit(location, ["diff", "--cached", "--numstat"], { timeout: GIT_STATUS_TIMEOUT }).catch(
+        () => "",
+      ),
+      execGit(location, ["diff", "--numstat"], { timeout: GIT_STATUS_TIMEOUT }).catch(() => ""),
+    ]);
 
-    // Parse remote URL for platform detection
-    const origin = remotes.find((r) => r.name === "origin") ?? remotes[0];
-    const remoteInfo = origin?.refs?.fetch ? parseRemoteUrl(origin.refs.fetch) : null;
+    const parsed = parseStatusPorcelainV2(statusOutput);
 
-    const staged: GitFileChange[] = status.files
-      .filter((f) => f.index && f.index !== " " && f.index !== "?")
-      .map((f) => mapFileStatus(f, true));
+    // Parse remotes for platform detection
+    const remoteLines = remoteOutput.trim().split("\n").filter(Boolean);
+    const hasRemote = remoteLines.length > 0;
+    let remoteInfo: GitRemoteInfo | null = null;
 
-    const unstaged: GitFileChange[] = status.files
-      .filter((f) => f.working_dir && f.working_dir !== " ")
-      .map((f) => mapFileStatus(f, false));
-
-    // Get per-file line stats
-    try {
-      const [stagedSummary, unstagedSummary] = await Promise.all([
-        staged.length > 0 ? git.diffSummary(["--cached"]) : null,
-        unstaged.length > 0 ? git.diffSummary() : null,
-      ]);
-
-      if (stagedSummary) {
-        for (const diffFile of stagedSummary.files) {
-          if (!("insertions" in diffFile)) continue;
-          const diffPath = toForwardSlash(diffFile.file);
-          const match = staged.find((f) => f.path === diffPath);
-          if (match) {
-            match.insertions = diffFile.insertions;
-            match.deletions = diffFile.deletions;
-          }
+    if (hasRemote) {
+      // Find origin fetch URL, or fall back to first remote
+      const originLine =
+        remoteLines.find((l) => l.startsWith("origin\t") && l.includes("(fetch)")) ??
+        remoteLines.find((l) => l.includes("(fetch)"));
+      if (originLine) {
+        const urlMatch = originLine.match(/^\S+\t(\S+)/);
+        if (urlMatch) {
+          remoteInfo = parseRemoteUrl(urlMatch[1]!);
         }
       }
-
-      if (unstagedSummary) {
-        for (const diffFile of unstagedSummary.files) {
-          if (!("insertions" in diffFile)) continue;
-          const diffPath = toForwardSlash(diffFile.file);
-          const match = unstaged.find((f) => f.path === diffPath);
-          if (match) {
-            match.insertions = diffFile.insertions;
-            match.deletions = diffFile.deletions;
-          }
-        }
-      }
-    } catch {
-      // Line stats are best-effort
     }
 
-    // Count lines for untracked files (not covered by diffSummary)
+    // Apply numstat to staged files
+    const stagedStats = parseDiffNumstat(stagedNumstat);
+    for (const stat of stagedStats) {
+      const match = parsed.staged.find((f) => f.path === stat.path);
+      if (match) {
+        match.insertions = stat.insertions;
+        match.deletions = stat.deletions;
+      }
+    }
+
+    // Apply numstat to unstaged files
+    const unstagedStats = parseDiffNumstat(unstagedNumstat);
+    for (const stat of unstagedStats) {
+      const match = parsed.unstaged.find((f) => f.path === stat.path);
+      if (match) {
+        match.insertions = stat.insertions;
+        match.deletions = stat.deletions;
+      }
+    }
+
+    // Count lines for untracked files (not covered by numstat)
     const repoPath = getRepoPath(location);
-    const untrackedFiles = unstaged.filter((f) => f.status === "?" && f.insertions === 0);
+    const untrackedFiles = parsed.unstaged.filter((f) => f.status === "?" && f.insertions === 0);
     if (untrackedFiles.length > 0) {
       await Promise.all(
         untrackedFiles.map(async (f) => {
@@ -241,35 +475,26 @@ export class GitService {
     }
 
     const totalInsertions =
-      staged.reduce((sum, f) => sum + f.insertions, 0) +
-      unstaged.reduce((sum, f) => sum + f.insertions, 0);
+      parsed.staged.reduce((sum, f) => sum + f.insertions, 0) +
+      parsed.unstaged.reduce((sum, f) => sum + f.insertions, 0);
     const totalDeletions =
-      staged.reduce((sum, f) => sum + f.deletions, 0) +
-      unstaged.reduce((sum, f) => sum + f.deletions, 0);
-
-    // Detect merge-in-progress (MERGE_HEAD exists)
-    let mergeInProgress = false;
-    try {
-      await git.raw(["rev-parse", "--verify", "MERGE_HEAD"]);
-      mergeInProgress = true;
-    } catch {
-      // No MERGE_HEAD — not in a merge
-    }
+      parsed.staged.reduce((sum, f) => sum + f.deletions, 0) +
+      parsed.unstaged.reduce((sum, f) => sum + f.deletions, 0);
 
     return {
       isRepo: true,
-      branch: status.current ?? "",
-      tracking: status.tracking ?? "",
+      branch: parsed.branch,
+      tracking: parsed.tracking,
       hasRemote,
       remoteInfo,
-      ahead: status.ahead,
-      behind: status.behind,
-      staged,
-      unstaged,
+      ahead: parsed.ahead,
+      behind: parsed.behind,
+      staged: parsed.staged,
+      unstaged: parsed.unstaged,
       totalInsertions,
       totalDeletions,
-      ...(mergeInProgress
-        ? { mergeInProgress, conflictFiles: (status.conflicted ?? []).map(toForwardSlash) }
+      ...(parsed.mergeInProgress
+        ? { mergeInProgress: true, conflictFiles: parsed.conflictFiles }
         : {}),
     };
   }
@@ -279,70 +504,58 @@ export class GitService {
     filePath?: string,
     staged?: boolean,
   ): Promise<GitDiffResult> {
-    const git = createGit(location);
-    const args: string[] = [];
-
+    const args = ["diff"];
     if (staged) args.push("--cached");
     if (filePath) args.push("--", filePath);
 
-    let diff = await git.diff(args);
+    let diff = await execGit(location, args, { timeout: GIT_DIFF_TIMEOUT });
 
     // For untracked or newly added files, git diff returns empty.
     // Use --no-index to show full file content as additions.
+    // git diff --no-index exits with code 1 when files differ — that's expected.
     if (!diff.trim() && filePath) {
-      try {
-        diff = await git.diff(["--no-index", "--", "/dev/null", filePath]);
-      } catch {
-        // --no-index exits with code 1 when files differ, which simple-git
-        // treats as an error. Catch and extract the diff from the error.
-      }
-
-      if (!diff.trim()) {
-        // Fallback: raw command that captures stdout even on exit code 1
-        try {
-          diff = await git.raw(["diff", "--no-index", "--", "/dev/null", filePath]);
-        } catch (err: unknown) {
-          // simple-git wraps the output in the error for non-zero exits
-          if (err && typeof err === "object" && "stdout" in err) {
-            diff = String((err as { stdout: unknown }).stdout);
-          }
-        }
-      }
+      diff = await execGit(location, ["diff", "--no-index", "--", "/dev/null", filePath], {
+        timeout: GIT_DIFF_TIMEOUT,
+        allowNonZeroExit: true,
+      }).catch(() => "");
     }
 
     return { diff };
   }
 
   async stage(location: ProjectLocation, filePath: string): Promise<void> {
-    const git = createGit(location);
-    await git.add(filePath);
+    await execGit(location, ["add", "--", filePath]);
   }
 
   async unstage(location: ProjectLocation, filePath: string): Promise<void> {
-    const git = createGit(location);
-    await git.raw(["reset", "HEAD", "--", filePath]);
+    await execGit(location, ["reset", "HEAD", "--", filePath]);
   }
 
   async revert(location: ProjectLocation, filePath: string): Promise<void> {
-    const git = createGit(location);
-    const status = await git.status();
-    const entry = status.files.find(
-      (file) =>
-        file.path === filePath || file.path.replace(/\\/g, "/") === filePath.replace(/\\/g, "/"),
+    // Get file status to determine the right revert strategy
+    const statusOutput = await execGit(location, ["status", "--porcelain=v2", "--", filePath], {
+      timeout: GIT_STATUS_TIMEOUT,
+    });
+
+    const parsed = parseStatusPorcelainV2(statusOutput);
+    const unstagedEntry = parsed.unstaged.find(
+      (f) => toForwardSlash(f.path) === toForwardSlash(filePath),
     );
 
-    if (entry?.working_dir === "?") {
-      await git.clean("f", ["--", filePath]);
+    if (unstagedEntry?.status === "?") {
+      // Untracked file — clean it
+      await execGit(location, ["clean", "-f", "--", filePath]);
       return;
     }
 
-    if (entry?.working_dir === "R" && entry.from) {
-      await git.clean("f", ["--", filePath]);
-      await git.checkout(["--", entry.from]);
+    // Check for renamed file (type 2 entries)
+    if (unstagedEntry?.status === "R" && unstagedEntry.oldPath) {
+      await execGit(location, ["clean", "-f", "--", filePath]);
+      await execGit(location, ["checkout", "--", unstagedEntry.oldPath]);
       return;
     }
 
-    await git.checkout(["--", filePath]);
+    await execGit(location, ["checkout", "--", filePath]);
   }
 
   /**
@@ -352,13 +565,10 @@ export class GitService {
     if (!raw.trim()) return {};
 
     const result: Record<string, string> = {};
-    // Split on "diff --git " at the start of a line
     const chunks = raw.split(/(?=^diff --git )/m);
 
     for (const chunk of chunks) {
       if (!chunk.trim()) continue;
-      // Extract file path from "diff --git a/... b/..."
-      // Handles both quoted and unquoted paths
       const headerMatch = chunk.match(/^diff --git (?:"a\/.+?"|a\/.+?) (?:"b\/(.+?)"|b\/(.+?))$/m);
       const matched = headerMatch?.[1] ?? headerMatch?.[2];
       if (!matched) continue;
@@ -373,18 +583,14 @@ export class GitService {
     location: ProjectLocation,
     untrackedPaths: string[],
   ): Promise<GitDiffBatchResult> {
-    const git = createGit(location);
-
-    // Fetch all staged and unstaged diffs in 2 calls instead of N
     const [stagedRaw, unstagedRaw] = await Promise.all([
-      git.diff(["--cached"]).catch(() => ""),
-      git.diff().catch(() => ""),
+      execGit(location, ["diff", "--cached"], { timeout: GIT_DIFF_TIMEOUT }).catch(() => ""),
+      execGit(location, ["diff"], { timeout: GIT_DIFF_TIMEOUT }).catch(() => ""),
     ]);
 
     const staged = this.splitCombinedDiff(stagedRaw);
     const unstaged = this.splitCombinedDiff(unstagedRaw);
 
-    // Untracked files don't appear in git diff — fetch in parallel
     if (untrackedPaths.length > 0) {
       const untrackedResults = await Promise.all(
         untrackedPaths.map(async (filePath) => {
@@ -401,19 +607,16 @@ export class GitService {
   }
 
   async stageAll(location: ProjectLocation): Promise<void> {
-    const git = createGit(location);
-    await git.add(".");
+    await execGit(location, ["add", "."]);
   }
 
   async unstageAll(location: ProjectLocation): Promise<void> {
-    const git = createGit(location);
-    await git.reset(["HEAD"]);
+    await execGit(location, ["reset", "HEAD"]);
   }
 
   async revertAll(location: ProjectLocation): Promise<void> {
-    const git = createGit(location);
-    await git.checkout(["--", "."]);
-    await git.clean("f", ["-d"]);
+    await execGit(location, ["checkout", "--", "."]);
+    await execGit(location, ["clean", "-fd"]);
   }
 
   async commit(
@@ -421,20 +624,19 @@ export class GitService {
     message: string,
     addAll: boolean,
   ): Promise<{ hash: string }> {
-    const git = createGit(location);
-    if (addAll) await git.add(".");
-    const result = await git.commit(message);
-    return { hash: result.commit };
+    if (addAll) await execGit(location, ["add", "."]);
+    const output = await execGit(location, ["commit", "-m", message]);
+    // Extract hash from first line: "[branch hash] message"
+    const hashMatch = output.match(/\[.+?\s+([a-f0-9]+)\]/);
+    return { hash: hashMatch?.[1] ?? "" };
   }
 
   async getStagedDiff(location: ProjectLocation): Promise<string> {
-    const git = createGit(location);
-    return git.diff(["--cached"]);
+    return execGit(location, ["diff", "--cached"], { timeout: GIT_DIFF_TIMEOUT });
   }
 
   async getAllDiff(location: ProjectLocation): Promise<string> {
-    const git = createGit(location);
-    return git.diff();
+    return execGit(location, ["diff"], { timeout: GIT_DIFF_TIMEOUT });
   }
 
   // ── Branch & Worktree ───────────────────────────────────
@@ -443,31 +645,52 @@ export class GitService {
     location: ProjectLocation,
     includeRemote: boolean,
   ): Promise<GitBranchListResult> {
-    const git = createGit(location);
-    const summary = await git.branch(includeRemote ? ["-a"] : []);
+    const args = ["branch", "--format=%(refname:short)\t%(objectname:short)\t%(HEAD)", "--sort=-HEAD"];
+    if (includeRemote) args.push("-a");
+    const output = await execGit(location, args);
 
-    const branches: GitBranchInfo[] = Object.values(summary.branches).map((b) => {
-      const isRemote = b.name.startsWith("remotes/");
-      const displayName = isRemote ? b.name.replace(/^remotes\/[^/]+\//, "") : b.name;
-      return {
-        name: displayName,
-        current: b.current,
-        commit: b.commit,
-        isRemote,
-      };
-    });
+    let current = "";
+    const branches: GitBranchInfo[] = [];
 
-    return { current: summary.current, branches };
+    for (const line of output.trim().split("\n")) {
+      if (!line) continue;
+      const parts = line.split("\t");
+      const name = parts[0]!;
+      const commit = parts[1] ?? "";
+      const isCurrent = parts[2] === "*";
+
+      // For remote branches like "origin/main", strip the remote prefix for display
+      let displayName = name;
+      let isRemoteBranch = false;
+      if (name.startsWith("remotes/")) {
+        displayName = name.replace(/^remotes\/[^/]+\//, "");
+        isRemoteBranch = true;
+      } else if (includeRemote && name.includes("/") && !isCurrent) {
+        // Could be a remote ref from -a that doesn't start with remotes/
+        // We keep as-is if it looks like a local branch with slashes
+        isRemoteBranch = false;
+      }
+
+      if (isCurrent) current = name;
+      branches.push({
+        name: isRemoteBranch ? displayName : name,
+        current: isCurrent,
+        commit,
+        isRemote: isRemoteBranch,
+      });
+    }
+
+    return { current, branches };
   }
 
   async fetch(location: ProjectLocation, remote: string, prune: boolean): Promise<void> {
-    const git = createGit(location);
-    await git.fetch(remote, ...(prune ? [["--prune"]] : []));
+    const args = ["fetch", remote];
+    if (prune) args.push("--prune");
+    await execGit(location, args, { timeout: GIT_NETWORK_TIMEOUT });
   }
 
   async pull(location: ProjectLocation, remote: string): Promise<void> {
-    const git = createGit(location);
-    await git.pull(remote);
+    await execGit(location, ["pull", "--ff-only", remote], { timeout: GIT_NETWORK_TIMEOUT });
   }
 
   async push(
@@ -476,23 +699,17 @@ export class GitService {
     branch?: string,
     setUpstream?: boolean,
   ): Promise<void> {
-    const git = createGit(location);
-    const args: string[] = [];
+    const args = ["push"];
     if (setUpstream) args.push("--set-upstream");
-    await git.push(remote, branch, args);
+    args.push(remote);
+    if (branch) args.push(branch);
+    await execGit(location, args, { timeout: GIT_NETWORK_TIMEOUT });
   }
 
   async listWorktrees(location: ProjectLocation): Promise<GitWorktreeListResult> {
-    const git = createGit(location);
-    const raw = await git.raw(["worktree", "list", "--porcelain"]);
+    const raw = await execGit(location, ["worktree", "list", "--porcelain"]);
     const worktrees: GitWorktreeInfo[] = [];
 
-    // Porcelain output: blocks separated by blank lines.
-    // Each block has lines like:
-    //   worktree /path/to/dir
-    //   HEAD abc123
-    //   branch refs/heads/main
-    // The first entry is always the main working tree.
     for (const block of raw.split(/\r?\n\r?\n+/).filter(Boolean)) {
       const lines = block.trim().split(/\r?\n/);
       let path = "";
@@ -501,8 +718,6 @@ export class GitService {
 
       for (const line of lines) {
         if (line.startsWith("worktree ")) {
-          // Normalize slashes so the path matches addWorktree's join()-based
-          // output (backslashes on Windows). Git may output forward slashes.
           path = location.kind === "wsl" ? line.slice(9) : normalize(line.slice(9));
         } else if (line.startsWith("HEAD ")) commit = line.slice(5);
         else if (line.startsWith("branch ")) branch = line.slice(7).replace("refs/heads/", "");
@@ -528,7 +743,6 @@ export class GitService {
     createBranch?: boolean,
     startPoint?: string,
   ): Promise<GitAddWorktreeResult> {
-    const git = createGit(location);
     const resolvedPath =
       path ?? (branch ? await computeDefaultWorktreePath(location, branch) : undefined);
     if (!resolvedPath) {
@@ -541,23 +755,22 @@ export class GitService {
     } else {
       args.push(resolvedPath, ...(branch ? [branch] : []));
     }
-    await git.raw(args);
+    await execGit(location, args);
 
     // Store the source branch in git config so we can merge back later
     if (startPoint && branch) {
-      await git
-        .raw(["config", `branch.${branch}.lightcodeSource`, startPoint])
-        .catch(() => undefined);
+      await execGit(location, ["config", `branch.${branch}.lightcodeSource`, startPoint]).catch(
+        () => undefined,
+      );
     }
 
     return { path: resolvedPath };
   }
 
   async removeWorktree(location: ProjectLocation, path: string, force: boolean): Promise<void> {
-    const git = createGit(location);
     const args = ["worktree", "remove", ...(force ? ["--force"] : []), path];
     try {
-      await git.raw(args);
+      await execGit(location, args);
     } catch (error) {
       if (!(await this.shouldRetryResidualWorktreeCleanup(location, path, error))) {
         throw error;
@@ -568,20 +781,19 @@ export class GitService {
   }
 
   async deleteBranch(location: ProjectLocation, branch: string, force: boolean): Promise<void> {
-    const git = createGit(location);
     if (force) {
-      await git.deleteLocalBranch(branch, true);
+      await execGit(location, ["branch", "-D", branch]);
       return;
     }
 
     try {
-      await git.deleteLocalBranch(branch, false);
+      await execGit(location, ["branch", "-d", branch]);
     } catch (error) {
       if (!(await this.canForceDeleteMergedWorktreeBranch(location, branch, error))) {
         throw error;
       }
 
-      await git.deleteLocalBranch(branch, true);
+      await execGit(location, ["branch", "-D", branch]);
     }
   }
 
@@ -591,33 +803,41 @@ export class GitService {
     location: ProjectLocation,
     branch: string,
   ): Promise<GitGetWorktreeSourceBranchResult> {
-    const git = createGit(location);
     let sourceBranch: string | null = null;
     try {
-      const result = await git.raw(["config", "--get", `branch.${branch}.lightcodeSource`]);
+      const result = await execGit(location, [
+        "config",
+        "--get",
+        `branch.${branch}.lightcodeSource`,
+      ]);
       sourceBranch = result.trim() || null;
     } catch {
       // no source branch configured
     }
 
     let commitsAhead = 0;
+    let sourceAhead = 0;
     if (sourceBranch) {
       try {
-        const count = await git.raw(["rev-list", "--count", `${sourceBranch}..${branch}`]);
-        commitsAhead = parseInt(count.trim(), 10) || 0;
+        // rev-list --left-right --count sourceBranch...branch → "<behind>\t<ahead>"
+        const output = await execGit(location, [
+          "rev-list",
+          "--left-right",
+          "--count",
+          `${sourceBranch}...${branch}`,
+        ]);
+        const parts = output.trim().split(/\s+/);
+        sourceAhead = parseInt(parts[0]!, 10) || 0;
+        commitsAhead = parseInt(parts[1]!, 10) || 0;
       } catch {
         // branches may not share history
       }
     }
-    return { sourceBranch, commitsAhead };
+    return { sourceBranch, commitsAhead, sourceAhead };
   }
 
   // ── Merge to source ─────────────────────────────────────
 
-  /**
-   * Find which worktree (if any) has `branch` checked out.
-   * Returns its location, or null if the branch is not checked out anywhere.
-   */
   private async findWorktreeForBranch(
     repoLocation: ProjectLocation,
     branch: string,
@@ -637,33 +857,31 @@ export class GitService {
     worktreeBranch: string,
     sourceBranch: string,
   ): Promise<GitMergeToSourceResult> {
-    const repoGit = createGit(repoLocation);
-
-    // Check if fast-forward is possible (source is ancestor of worktree tip)
+    // Check if fast-forward is possible
     let canFF = false;
     try {
-      await repoGit.raw(["merge-base", "--is-ancestor", sourceBranch, worktreeBranch]);
+      await execGit(repoLocation, ["merge-base", "--is-ancestor", sourceBranch, worktreeBranch]);
       canFF = true;
     } catch {
-      // Not an ancestor — fast-forward not possible
+      // Not an ancestor
     }
 
     if (canFF) {
-      // Find if source branch is checked out in a worktree — if so, use
-      // `git merge --ff-only` there so HEAD + index + working tree all update.
-      // Plain `update-ref` only moves the pointer, leaving the working tree stale.
       const sourceLocation = await this.findWorktreeForBranch(repoLocation, sourceBranch);
 
       if (sourceLocation) {
-        const sourceGit = createGit(sourceLocation);
-        await sourceGit.merge([worktreeBranch, "--ff-only"]);
-        const newCommit = (await sourceGit.revparse(["HEAD"])).trim();
+        await execGit(sourceLocation, ["merge", "--ff-only", worktreeBranch]);
+        const newCommit = (await execGit(sourceLocation, ["rev-parse", "HEAD"])).trim();
         return { merged: true, fastForward: true, newSourceCommit: newCommit };
       }
 
-      // Source branch not checked out anywhere — safe to just move the ref
-      const worktreeTip = (await repoGit.revparse([worktreeBranch])).trim();
-      await repoGit.raw(["update-ref", `refs/heads/${sourceBranch}`, worktreeTip]);
+      // Source branch not checked out — just move the ref
+      const worktreeTip = (await execGit(repoLocation, ["rev-parse", worktreeBranch])).trim();
+      await execGit(repoLocation, [
+        "update-ref",
+        `refs/heads/${sourceBranch}`,
+        worktreeTip,
+      ]);
       return { merged: true, fastForward: true, newSourceCommit: worktreeTip };
     }
 
@@ -673,19 +891,17 @@ export class GitService {
 
     try {
       await ensureWorktreeParentExists(repoLocation, tempPath);
-      await repoGit.raw(["worktree", "add", "--detach", tempPath, sourceBranch]);
+      await execGit(repoLocation, ["worktree", "add", "--detach", tempPath, sourceBranch]);
 
-      const tempGit = createGit(
+      const tempLocation: ProjectLocation =
         repoLocation.kind === "wsl"
           ? { ...repoLocation, linuxPath: tempPath, uncPath: tempPath }
-          : { ...repoLocation, path: tempPath },
-      );
+          : { ...repoLocation, path: tempPath };
 
-      // Checkout the source branch in the temp worktree
-      await tempGit.raw(["checkout", "-B", sourceBranch]);
+      await execGit(tempLocation, ["checkout", "-B", sourceBranch]);
 
       try {
-        await tempGit.merge([worktreeBranch, "--no-edit", "--no-ff"]);
+        await execGit(tempLocation, ["merge", worktreeBranch, "--no-edit", "--no-ff"]);
       } catch (mergeErr: unknown) {
         const msg = mergeErr instanceof Error ? mergeErr.message : String(mergeErr);
         if (msg.includes("CONFLICT") || msg.includes("Merge conflict")) {
@@ -694,7 +910,7 @@ export class GitService {
           for (const m of conflictMatches) {
             if (m[1]) conflictFiles.push(m[1].trim());
           }
-          await tempGit.merge(["--abort"]).catch(() => undefined);
+          await execGit(tempLocation, ["merge", "--abort"]).catch(() => undefined);
           return {
             merged: false,
             fastForward: false,
@@ -706,7 +922,7 @@ export class GitService {
         throw mergeErr;
       }
 
-      const newCommit = (await tempGit.revparse(["HEAD"])).trim();
+      const newCommit = (await execGit(tempLocation, ["rev-parse", "HEAD"])).trim();
       return { merged: true, fastForward: false, newSourceCommit: newCommit };
     } catch (err: unknown) {
       if ((err as GitMergeToSourceResult).merged === false) {
@@ -719,7 +935,9 @@ export class GitService {
         error: err instanceof Error ? err.message : String(err),
       };
     } finally {
-      await repoGit.raw(["worktree", "remove", "--force", tempPath]).catch(() => undefined);
+      await execGit(repoLocation, ["worktree", "remove", "--force", tempPath]).catch(
+        () => undefined,
+      );
     }
   }
 
@@ -729,20 +947,17 @@ export class GitService {
     worktreeLocation: ProjectLocation,
     sourceBranch: string,
   ): Promise<GitPullFromSourceResult> {
-    const git = createGit(worktreeLocation);
-
-    // Check if fast-forward is possible (worktree HEAD is ancestor of sourceBranch)
     let canFF = false;
     try {
-      await git.raw(["merge-base", "--is-ancestor", "HEAD", sourceBranch]);
+      await execGit(worktreeLocation, ["merge-base", "--is-ancestor", "HEAD", sourceBranch]);
       canFF = true;
     } catch {
-      // Not an ancestor — fast-forward not possible
+      // Not an ancestor
     }
 
     if (canFF) {
       try {
-        await git.merge([sourceBranch, "--ff-only"]);
+        await execGit(worktreeLocation, ["merge", "--ff-only", sourceBranch]);
         return { merged: true, fastForward: true };
       } catch (err: unknown) {
         return {
@@ -753,9 +968,9 @@ export class GitService {
       }
     }
 
-    // Non-fast-forward merge — leave conflicts in working tree for resolution
+    // Non-fast-forward merge
     try {
-      await git.merge([sourceBranch, "--no-ff", "--no-edit"]);
+      await execGit(worktreeLocation, ["merge", sourceBranch, "--no-ff", "--no-edit"]);
     } catch (mergeErr: unknown) {
       const msg = mergeErr instanceof Error ? mergeErr.message : String(mergeErr);
       if (msg.includes("CONFLICT") || msg.includes("Merge conflict")) {
@@ -764,7 +979,6 @@ export class GitService {
         for (const m of conflictMatches) {
           if (m[1]) conflictFiles.push(m[1].trim());
         }
-        // Don't abort — leave conflict markers so the user can resolve via mergetool
         return {
           merged: false,
           fastForward: false,
@@ -786,23 +1000,24 @@ export class GitService {
   // ── Conflict resolution helpers ──────────────────────
 
   async abortMerge(worktreeLocation: ProjectLocation): Promise<void> {
-    const git = createGit(worktreeLocation);
-    await git.merge(["--abort"]);
+    await execGit(worktreeLocation, ["merge", "--abort"]);
   }
 
   async runMergetool(
     worktreeLocation: ProjectLocation,
   ): Promise<{ success: boolean; merged?: boolean; error?: string }> {
-    const git = createGit(worktreeLocation);
     try {
-      await git.raw(["mergetool", "--no-prompt"]);
-      // Check for remaining conflicts
-      const status = await git.status();
-      if (status.conflicted.length > 0) {
+      await execGit(worktreeLocation, ["mergetool", "--no-prompt"]);
+      // Check for remaining conflicts via porcelain v2
+      const statusOutput = await execGit(worktreeLocation, ["status", "--porcelain=v2", "-b"], {
+        timeout: GIT_STATUS_TIMEOUT,
+      });
+      const parsed = parseStatusPorcelainV2(statusOutput);
+      if (parsed.conflictFiles.length > 0) {
         return { success: true, merged: false };
       }
       // All resolved — auto-finish the merge
-      await git.commit([], { "--no-edit": null });
+      await execGit(worktreeLocation, ["commit", "--no-edit"]);
       return { success: true, merged: true };
     } catch (err: unknown) {
       return {
@@ -829,7 +1044,9 @@ export class GitService {
 
     const targetPath = normalizeWorktreePath(location, path);
     const { worktrees } = await this.listWorktrees(location);
-    return !worktrees.some((worktree) => normalizeWorktreePath(location, worktree.path) === targetPath);
+    return !worktrees.some(
+      (worktree) => normalizeWorktreePath(location, worktree.path) === targetPath,
+    );
   }
 
   private async removeResidualWorktreeDirectory(
@@ -841,15 +1058,19 @@ export class GitService {
       if (location.kind === "wsl") {
         const result = await readWslCommandOutputAsync(location.distro, "rm", ["-rf", "--", path]);
         if (!result.ok) {
-          throw new Error(result.stderr || `Failed to remove residual worktree directory "${path}".`);
+          throw new Error(
+            result.stderr || `Failed to remove residual worktree directory "${path}".`,
+          );
         }
         return;
       }
 
       await rm(path, { recursive: true, force: true, maxRetries: 5, retryDelay: 150 });
     } catch (cleanupError) {
-      const originalMessage = originalError instanceof Error ? originalError.message : String(originalError);
-      const cleanupMessage = cleanupError instanceof Error ? cleanupError.message : String(cleanupError);
+      const originalMessage =
+        originalError instanceof Error ? originalError.message : String(originalError);
+      const cleanupMessage =
+        cleanupError instanceof Error ? cleanupError.message : String(cleanupError);
       throw new Error(`${originalMessage}\nResidual cleanup failed: ${cleanupMessage}`, {
         cause: cleanupError,
       });
@@ -871,9 +1092,8 @@ export class GitService {
       return false;
     }
 
-    const git = createGit(location);
     try {
-      await git.raw(["merge-base", "--is-ancestor", branch, sourceBranch]);
+      await execGit(location, ["merge-base", "--is-ancestor", branch, sourceBranch]);
       return true;
     } catch {
       return false;
@@ -884,13 +1104,15 @@ export class GitService {
     location: ProjectLocation,
     branch: string,
   ): Promise<string | null> {
-    const git = createGit(location);
     try {
-      const result = await git.raw(["config", "--get", `branch.${branch}.lightcodeSource`]);
+      const result = await execGit(location, [
+        "config",
+        "--get",
+        `branch.${branch}.lightcodeSource`,
+      ]);
       return result.trim() || null;
     } catch {
       return null;
     }
   }
-
 }

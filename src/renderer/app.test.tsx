@@ -39,6 +39,8 @@ const { bridge } = vi.hoisted(() => ({
     setWindowChrome: vi.fn().mockResolvedValue(undefined),
     onSupervisorEvent: vi.fn(() => () => undefined),
     startShell: vi.fn().mockResolvedValue(undefined),
+    gitWatchProject: vi.fn().mockResolvedValue(undefined),
+    gitUnwatchProject: vi.fn().mockResolvedValue(undefined),
     checkForUpdate: vi.fn().mockResolvedValue(undefined),
     startUpdateDownload: vi.fn().mockResolvedValue(undefined),
     installUpdate: vi.fn().mockResolvedValue(undefined),

@@ -20,7 +20,7 @@ import {
   Sparkles,
   Undo2,
 } from "lucide-react";
-import { AlertDialog, Button, ButtonGroup, Dropdown, Label, Spinner, Tooltip } from "@heroui/react";
+import { AlertDialog, Button, ButtonGroup, Dropdown, Label, Modal, Spinner, Tooltip } from "@heroui/react";
 import type { Project, GitFileChange, GitStatusResult, PrData, ProjectLocation } from "../../../shared/contracts";
 import { getProjectAgentStatuses } from "../../../shared/agentStatus";
 import { readBridge } from "../../bridge";
@@ -710,8 +710,11 @@ export function GitReviewSidebar(props: {
       setPrLoading(false);
     }
   }
-  const showMergeSection = Boolean(worktreeBranch && worktreePath && !hasAnyChanges);
+  const showMergeSection = Boolean(worktreeBranch && worktreePath && !hasAnyChanges && commitsAhead > 0);
   const showPullFromSource = Boolean(worktreeBranch && worktreePath && sourceBranch);
+  const isPushed = hasTracking && ahead === 0;
+  const showCreatePrButton = Boolean(showPrSection && ghAvailable && isPushed && (!prData || prData.state === "closed"));
+  const [createPrModalOpen, setCreatePrModalOpen] = useState(false);
 
   return (
     <div className="relative h-full">
@@ -992,157 +995,184 @@ export function GitReviewSidebar(props: {
           </div>
         )}
 
-        {/* Pull Request */}
-        {showPrSection && (
+        {/* Pull Request — existing PR */}
+        {showPrSection && ghAvailable && prData && prData.state !== "closed" && (
           <div className="space-y-2 border-t border-white/6 px-0.5 pt-2">
-            {!ghAvailable ? (
-              <p className="px-2 py-1 text-center text-xs text-muted/60">
-                Install <code className="text-muted/80">gh</code> CLI for PR management
+            {prError && (
+              <p className="truncate text-xs text-danger" title={prError}>
+                {prError}
               </p>
-            ) : prData && prData.state !== "closed" ? (
-              <>
-                {prError && (
-                  <p className="truncate text-xs text-danger" title={prError}>
-                    {prError}
-                  </p>
-                )}
-                <div className="flex items-center gap-2 px-0.5">
-                  <span
-                    className={`size-2 shrink-0 rounded-full ${
-                      prData.state === "merged"
-                        ? "bg-purple-400"
-                        : prData.state === "draft"
-                          ? "bg-gray-400"
-                          : "bg-green-400"
-                    }`}
-                  />
-                  <span className="truncate text-xs text-foreground">
-                    PR #{prData.number} · {prData.state === "draft" ? "Draft" : prData.state === "merged" ? "Merged" : "Open"}
-                  </span>
-                </div>
+            )}
+            <div className="flex items-center gap-2 px-0.5">
+              <span
+                className={`size-2 shrink-0 rounded-full ${
+                  prData.state === "merged"
+                    ? "bg-purple-400"
+                    : prData.state === "draft"
+                      ? "bg-gray-400"
+                      : "bg-green-400"
+                }`}
+              />
+              <span className="truncate text-xs text-foreground">
+                PR #{prData.number} · {prData.state === "draft" ? "Draft" : prData.state === "merged" ? "Merged" : "Open"}
+              </span>
+            </div>
+            <Button
+              variant="tertiary"
+              className="w-full"
+              onPress={() => void readBridge().openExternal(prData.url)}
+            >
+              <ExternalLink className="size-3.5" />
+              Open in Browser
+            </Button>
+            {prData.state !== "merged" && (
+              <ButtonGroup className="w-full">
                 <Button
                   variant="tertiary"
-                  className="w-full"
-                  onPress={() => void readBridge().openExternal(prData.url)}
-                >
-                  <ExternalLink className="size-3.5" />
-                  Open in Browser
-                </Button>
-                {prData.state !== "merged" && (
-                  <ButtonGroup className="w-full">
-                    <Button
-                      variant="tertiary"
-                      className="flex-1"
-                      isDisabled={prLoading}
-                      isPending={prLoading}
-                      onPress={() => void handleMergePr("squash")}
-                    >
-                      {({ isPending }) => (
-                        <>
-                          {isPending ? (
-                            <Spinner color="current" size="sm" />
-                          ) : (
-                            <GitMerge className="size-3.5" />
-                          )}
-                          Merge PR
-                        </>
-                      )}
-                    </Button>
-                    <Dropdown>
-                      <Button
-                        isIconOnly
-                        variant="tertiary"
-                        aria-label="Merge options"
-                        isDisabled={prLoading}
-                      >
-                        <ButtonGroup.Separator />
-                        <ChevronDown className="size-3.5" />
-                      </Button>
-                      <Dropdown.Popover placement="top end">
-                        <Dropdown.Menu
-                          aria-label="Merge method"
-                          onAction={(key) => void handleMergePr(key as "merge" | "squash" | "rebase")}
-                        >
-                          <Dropdown.Item id="merge" textValue="Merge commit">
-                            <Label>Merge commit</Label>
-                          </Dropdown.Item>
-                          <Dropdown.Item id="squash" textValue="Squash and merge">
-                            <Label>Squash and merge</Label>
-                          </Dropdown.Item>
-                          <Dropdown.Item id="rebase" textValue="Rebase and merge">
-                            <Label>Rebase and merge</Label>
-                          </Dropdown.Item>
-                        </Dropdown.Menu>
-                      </Dropdown.Popover>
-                    </Dropdown>
-                  </ButtonGroup>
-                )}
-                {prData.state !== "merged" && (
-                  <Button
-                    variant="tertiary"
-                    className="w-full text-danger"
-                    isDisabled={prLoading}
-                    onPress={() => void handleClosePr()}
-                  >
-                    Close PR
-                  </Button>
-                )}
-              </>
-            ) : (
-              <>
-                {prError && (
-                  <p className="truncate text-xs text-danger" title={prError}>
-                    {prError}
-                  </p>
-                )}
-                <TextArea
-                  fullWidth
-                  autoSize
-                  placeholder="PR title"
-                  rows={1}
-                  maxRows={2}
-                  value={prTitle}
-                  variant="secondary"
-                  onChange={(e) => setPrTitle(e.target.value)}
-                />
-                <div className="flex items-center gap-2 px-0.5">
-                  <label className="flex items-center gap-1.5 text-xs text-muted">
-                    <input
-                      type="checkbox"
-                      checked={prIsDraft}
-                      onChange={(e) => setPrIsDraft(e.target.checked)}
-                      className="rounded"
-                    />
-                    Draft
-                  </label>
-                  {sourceBranch && (
-                    <span className="ml-auto truncate text-xs text-muted/60">
-                      → {sourceBranch}
-                    </span>
-                  )}
-                </div>
-                <Button
-                  variant="tertiary"
-                  className="w-full"
-                  isDisabled={prLoading || !hasTracking}
+                  className="flex-1"
+                  isDisabled={prLoading}
                   isPending={prLoading}
-                  onPress={() => void handleCreatePr()}
+                  onPress={() => void handleMergePr("squash")}
                 >
                   {({ isPending }) => (
                     <>
                       {isPending ? (
                         <Spinner color="current" size="sm" />
                       ) : (
-                        <GitPullRequest className="size-3.5" />
+                        <GitMerge className="size-3.5" />
                       )}
-                      {hasTracking ? "Create Pull Request" : "Push branch first"}
+                      Merge PR
                     </>
                   )}
                 </Button>
-              </>
+                <Dropdown>
+                  <Button
+                    isIconOnly
+                    variant="tertiary"
+                    aria-label="Merge options"
+                    isDisabled={prLoading}
+                  >
+                    <ButtonGroup.Separator />
+                    <ChevronDown className="size-3.5" />
+                  </Button>
+                  <Dropdown.Popover placement="top end">
+                    <Dropdown.Menu
+                      aria-label="Merge method"
+                      onAction={(key) => void handleMergePr(key as "merge" | "squash" | "rebase")}
+                    >
+                      <Dropdown.Item id="merge" textValue="Merge commit">
+                        <Label>Merge commit</Label>
+                      </Dropdown.Item>
+                      <Dropdown.Item id="squash" textValue="Squash and merge">
+                        <Label>Squash and merge</Label>
+                      </Dropdown.Item>
+                      <Dropdown.Item id="rebase" textValue="Rebase and merge">
+                        <Label>Rebase and merge</Label>
+                      </Dropdown.Item>
+                    </Dropdown.Menu>
+                  </Dropdown.Popover>
+                </Dropdown>
+              </ButtonGroup>
+            )}
+            {prData.state !== "merged" && (
+              <Button
+                variant="tertiary"
+                className="w-full text-danger"
+                isDisabled={prLoading}
+                onPress={() => void handleClosePr()}
+              >
+                Close PR
+              </Button>
             )}
           </div>
         )}
+
+        {/* Create PR button (only after push, no existing PR) */}
+        {showCreatePrButton && (
+          <div className="space-y-2 border-t border-white/6 px-0.5 pt-2">
+            {prError && (
+              <p className="truncate text-xs text-danger" title={prError}>
+                {prError}
+              </p>
+            )}
+            <Button
+              variant="tertiary"
+              className="w-full"
+              onPress={() => setCreatePrModalOpen(true)}
+            >
+              <GitPullRequest className="size-3.5" />
+              Create Pull Request
+            </Button>
+          </div>
+        )}
+
+        {/* Create PR modal */}
+        <Modal.Backdrop isOpen={createPrModalOpen} onOpenChange={setCreatePrModalOpen}>
+          <Modal.Container>
+            <Modal.Dialog className="sm:max-w-[400px]">
+              <Modal.CloseTrigger />
+              <Modal.Header>
+                <Modal.Heading>Create Pull Request</Modal.Heading>
+              </Modal.Header>
+              <Modal.Body>
+                <div className="space-y-3">
+                  <TextArea
+                    fullWidth
+                    autoSize
+                    placeholder="PR title"
+                    rows={1}
+                    maxRows={3}
+                    value={prTitle}
+                    variant="secondary"
+                    onChange={(e) => setPrTitle(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+                        e.preventDefault();
+                        void handleCreatePr().then(() => setCreatePrModalOpen(false));
+                      }
+                    }}
+                  />
+                  <div className="flex items-center gap-2">
+                    <label className="flex items-center gap-1.5 text-xs text-muted">
+                      <input
+                        type="checkbox"
+                        checked={prIsDraft}
+                        onChange={(e) => setPrIsDraft(e.target.checked)}
+                        className="rounded"
+                      />
+                      Draft
+                    </label>
+                    {sourceBranch && (
+                      <span className="ml-auto truncate text-xs text-muted/60">
+                        {worktreeBranch} → {sourceBranch}
+                      </span>
+                    )}
+                  </div>
+                  {prError && (
+                    <p className="text-xs text-danger">{prError}</p>
+                  )}
+                </div>
+              </Modal.Body>
+              <Modal.Footer>
+                <Button slot="close" variant="tertiary">
+                  Cancel
+                </Button>
+                <Button
+                  isDisabled={prLoading}
+                  isPending={prLoading}
+                  onPress={() => void handleCreatePr().then(() => setCreatePrModalOpen(false))}
+                >
+                  {({ isPending }) => (
+                    <>
+                      {isPending ? <Spinner color="current" size="sm" /> : <GitPullRequest className="size-3.5" />}
+                      Create
+                    </>
+                  )}
+                </Button>
+              </Modal.Footer>
+            </Modal.Dialog>
+          </Modal.Container>
+        </Modal.Backdrop>
 
         {/* Merge to Source */}
         {showMergeSection && (
@@ -1160,7 +1190,7 @@ export function GitReviewSidebar(props: {
                   <Button
                     variant="tertiary"
                     className="flex-1"
-                    isDisabled={isMerging || commitsAhead === 0}
+                    isDisabled={isMerging}
                     isPending={isMerging}
                     onPress={() => void handleMergeAndRemove()}
                   >
@@ -1180,7 +1210,7 @@ export function GitReviewSidebar(props: {
                       isIconOnly
                       variant="tertiary"
                       aria-label="More merge options"
-                      isDisabled={isMerging || commitsAhead === 0}
+                      isDisabled={isMerging}
                     >
                       <ButtonGroup.Separator />
                       <ChevronDown className="size-3.5" />
@@ -1201,8 +1231,7 @@ export function GitReviewSidebar(props: {
                   </Dropdown>
                 </ButtonGroup>
                 <p className="text-center text-xs text-muted/60">
-                  {worktreeBranch} → {sourceBranch}
-                  {commitsAhead === 0 ? " · no new commits" : ` · ${commitsAhead} ahead`}
+                  {worktreeBranch} → {sourceBranch} · {commitsAhead} ahead
                 </p>
               </>
             ) : (

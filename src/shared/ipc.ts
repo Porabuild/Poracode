@@ -54,6 +54,8 @@ import type {
   SearchProjectFilesResult,
   GitUnstageAllPayload,
   GitUnstagePayload,
+  GitUnwatchProjectPayload,
+  GitWatchProjectPayload,
   GitWorktreeListResult,
   ProjectLocation,
   ResizeTerminalPayload,
@@ -115,6 +117,8 @@ export type SupervisorRequest =
   | { id: string; type: "gitPullFromSource"; payload: GitPullFromSourcePayload }
   | { id: string; type: "gitAbortMerge"; payload: GitAbortMergePayload }
   | { id: string; type: "gitRunMergetool"; payload: GitRunMergetoolPayload }
+  | { id: string; type: "gitWatchProject"; payload: GitWatchProjectPayload }
+  | { id: string; type: "gitUnwatchProject"; payload: GitUnwatchProjectPayload }
   | { id: string; type: "searchProjectFiles"; payload: SearchProjectFilesPayload }
   | { id: string; type: "detectSetupScript"; payload: DetectSetupScriptPayload }
   | { id: string; type: "ghCheckAvailable"; payload: GetGitStatusPayload }
@@ -151,7 +155,8 @@ export type SupervisorEvent =
     }
   | { type: "thread-exited"; threadId: string; exitCode: number | null }
   | { type: "windows-agent-statuses"; statuses: AgentStatus[] }
-  | { type: "wsl-agent-statuses"; statuses: AgentStatus[] };
+  | { type: "wsl-agent-statuses"; statuses: AgentStatus[] }
+  | { type: "git-changed"; projectId: string };
 
 export type UpdateStatus =
   | { type: "checking" }
@@ -225,6 +230,8 @@ export interface LightcodeBridge {
   gitPullFromSource(payload: GitPullFromSourcePayload): Promise<GitPullFromSourceResult>;
   gitAbortMerge(payload: GitAbortMergePayload): Promise<void>;
   gitRunMergetool(payload: GitRunMergetoolPayload): Promise<GitRunMergetoolResult>;
+  gitWatchProject(payload: GitWatchProjectPayload): Promise<void>;
+  gitUnwatchProject(payload: GitUnwatchProjectPayload): Promise<void>;
   searchProjectFiles(payload: SearchProjectFilesPayload): Promise<SearchProjectFilesResult>;
   detectSetupScript(payload: DetectSetupScriptPayload): Promise<DetectSetupScriptResult>;
   // GitHub PR

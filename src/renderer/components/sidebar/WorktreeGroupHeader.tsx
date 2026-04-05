@@ -1,8 +1,8 @@
 import { GitFork, TerminalSquare } from "lucide-react";
 import type { DragEventHandler } from "react";
 import { SidebarButton } from "../common";
-import { GitBadge } from "./GitBadge";
 import { PrBadge } from "./PrBadge";
+import { WorktreeGitMenu } from "./WorktreeGitMenu";
 
 export function WorktreeGroupHeader(props: {
   worktreePath: string;
@@ -13,6 +13,13 @@ export function WorktreeGroupHeader(props: {
   isActiveTerminal: boolean;
   onToggleCollapse: () => void;
   onOpenGitReview: () => void;
+  onGitSync: () => void;
+  onGitPush: () => void;
+  onGitPull: () => void;
+  onGitPullFromSource: () => void;
+  onGitMergeToSource: () => void;
+  onGitMergeAndRemove: () => void;
+  onDeleteWorktree: () => void;
   onOpenTerminal: () => void;
   isDragging: boolean;
   onDragStart: DragEventHandler<HTMLDivElement>;
@@ -42,11 +49,18 @@ export function WorktreeGroupHeader(props: {
       suffix={
         <>
           <PrBadge worktreePath={props.worktreePath} />
-          <GitBadge
+          <WorktreeGitMenu
             projectId={props.projectId}
-            projectName={props.worktreeBranch}
             worktreePath={props.worktreePath}
-            onPress={props.onOpenGitReview}
+            worktreeBranch={props.worktreeBranch}
+            onOpenGitReview={props.onOpenGitReview}
+            onGitSync={props.onGitSync}
+            onGitPush={props.onGitPush}
+            onGitPull={props.onGitPull}
+            onGitPullFromSource={props.onGitPullFromSource}
+            onGitMergeToSource={props.onGitMergeToSource}
+            onGitMergeAndRemove={props.onGitMergeAndRemove}
+            onDeleteWorktree={props.onDeleteWorktree}
           />
           <div
             role="button"

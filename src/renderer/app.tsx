@@ -152,7 +152,6 @@ function generateTitleAsync(
 
 const SIDEBAR_THREAD_MIME = "application/x-lightcode-sidebar-thread";
 const EMPTY_PANES: string[] = [];
-const GIT_POLL_INTERVAL_MS = 10_000;
 const GIT_FETCH_INTERVAL_MS = 60_000;
 
 function formatRelativeTime(iso: string): string {
@@ -1152,176 +1151,226 @@ export function App() {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, []);
 
-  // Poll git status, branches, and worktrees for all projects
+  // Event-driven git status: file watcher in supervisor pushes "git-changed" events.
+  // We also do an initial fetch + periodic remote fetches (every 60s) for ahead/behind counts.
   useEffect(() => {
     if (!storeHydrated || projects.length === 0) return;
 
     let isActive = true;
-    let isPolling = false;
+    const refreshingProjects = new Set<string>();
     let lastFetchTime = 0;
 
-    async function pollGitStatus() {
-      if (isPolling) {
-        return;
-      }
-      isPolling = true;
-      const t0 = Date.now();
-      const gitStoreActions = useGitStore.getState();
-
+    async function refreshProject(project: { id: string; location: ProjectLocation }) {
+      if (!isActive || refreshingProjects.has(project.id)) return;
+      refreshingProjects.add(project.id);
       try {
-        // Fetch from remote periodically so ahead/behind counts stay fresh
-        const shouldFetch = t0 - lastFetchTime >= GIT_FETCH_INTERVAL_MS;
-        if (shouldFetch) lastFetchTime = t0;
-
-        await Promise.all(
-          projects.map(async (project) => {
-            if (!isActive) return;
-
-            // Background fetch (best-effort, don't block status polling)
-            if (shouldFetch) {
-              try {
-                await readBridge().gitFetch({
-                  projectLocation: project.location,
-                  remote: "origin",
-                  prune: false,
-                });
-              } catch {
-                // ignore — remote may be unreachable
-              }
-              if (!isActive) return;
-            }
-
-            // Status, branches, and worktrees in parallel
-            const [statusResult, branchesResult, worktreesResult] = await Promise.allSettled([
-              readBridge().getGitStatus({ projectLocation: project.location }),
-              readBridge().gitListBranches({
-                projectLocation: project.location,
-                includeRemote: true,
-              }),
-              readBridge().gitListWorktrees({ projectLocation: project.location }),
-            ]);
-            if (!isActive) return;
-
-            const status = statusResult.status === "fulfilled" ? statusResult.value : undefined;
-            const branches =
-              branchesResult.status === "fulfilled" ? branchesResult.value : undefined;
-            const worktrees =
-              worktreesResult.status === "fulfilled" ? worktreesResult.value.worktrees : undefined;
-            const ghAvailable = useGitStore.getState().ghAvailable[project.id];
-
-            gitStoreActions.setProjectSnapshot(project.id, {
-              ...(status ? { status } : {}),
-              ...(branches ? { branches } : {}),
-              ...(worktrees ? { worktrees } : {}),
-              ...(ghAvailable === undefined && status?.remoteInfo?.platform !== "github"
-                ? { ghAvailable: false }
-                : {}),
-            });
-
-            if (worktrees) {
-              const worktreeStatusEntries = await Promise.all(
-                worktrees
-                  .filter((wt) => !wt.isMain)
-                  .map(async (wt) => {
-                    if (!isActive) return undefined;
-                    try {
-                      const wtLocation = buildWorktreeLocation(project.location, wt.path);
-                      const wtStatus = await readBridge().getGitStatus({
-                        projectLocation: wtLocation,
-                      });
-                      if (!isActive) return undefined;
-                      return [wt.path, wtStatus] as const;
-                    } catch {
-                      return undefined;
-                    }
-                  }),
-              );
-              if (!isActive) return;
-
-              const nextWorktreeStatuses = Object.fromEntries(
-                worktreeStatusEntries.filter((entry) => entry !== undefined),
-              );
-              if (Object.keys(nextWorktreeStatuses).length > 0) {
-                gitStoreActions.setWorktreeStatuses(nextWorktreeStatuses);
-              }
-            }
-
-            // Check gh availability once (first poll where it's undefined)
-            if (ghAvailable === undefined) {
-              const isGitHub = status?.remoteInfo?.platform === "github";
-              if (isGitHub) {
-                readBridge()
-                  .ghCheckAvailable({ projectLocation: project.location })
-                  .then((r) => useGitStore.getState().setGhAvailable(project.id, r.available))
-                  .catch(() => useGitStore.getState().setGhAvailable(project.id, false));
-              }
-            }
-
-            // Poll PR data for worktree threads on GitHub projects
-            if (useGitStore.getState().ghAvailable[project.id]) {
-              const currentThreads = useAppStore.getState().threads;
-              const wtThreads = currentThreads.filter(
-                (t) => t.projectId === project.id && t.worktreeBranch && t.worktreePath,
-              );
-              const prUpdates: Record<string, PrData | null> = {};
-              const prNumberUpdates = new Map<string, number | undefined>();
-
-              await Promise.all(
-                wtThreads.map(async (t) => {
-                  if (!isActive || !t.worktreeBranch || !t.worktreePath) return;
-                  try {
-                    const pr = await readBridge().ghGetPrForBranch({
-                      projectLocation: project.location,
-                      branch: t.worktreeBranch,
-                    });
-                    if (!isActive) return;
-                    prUpdates[t.worktreePath] = pr;
-                    const newPrNumber = pr?.number ?? undefined;
-                    if (newPrNumber !== t.prNumber) {
-                      prNumberUpdates.set(t.id, newPrNumber);
-                    }
-                  } catch {
-                    // ignore — gh may not be authenticated
-                  }
-                }),
-              );
-              if (!isActive) return;
-
-              if (Object.keys(prUpdates).length > 0) {
-                gitStoreActions.setPrDataBatch(prUpdates);
-              }
-              if (prNumberUpdates.size > 0) {
-                useAppStore.setState((state) => {
-                  let changed = false;
-                  const nextThreads = state.threads.map((thread) => {
-                    if (!prNumberUpdates.has(thread.id)) {
-                      return thread;
-                    }
-                    const nextPrNumber = prNumberUpdates.get(thread.id);
-                    if (thread.prNumber === nextPrNumber) {
-                      return thread;
-                    }
-                    changed = true;
-                    return { ...thread, prNumber: nextPrNumber };
-                  });
-                  return changed ? { threads: nextThreads } : state;
-                });
-              }
-            }
+        const [statusResult, branchesResult, worktreesResult] = await Promise.allSettled([
+          readBridge().getGitStatus({ projectLocation: project.location }),
+          readBridge().gitListBranches({
+            projectLocation: project.location,
+            includeRemote: true,
           }),
-        );
+          readBridge().gitListWorktrees({ projectLocation: project.location }),
+        ]);
+        if (!isActive) return;
+
+        const gitStoreActions = useGitStore.getState();
+
+        const status = statusResult.status === "fulfilled" ? statusResult.value : undefined;
+        const branches =
+          branchesResult.status === "fulfilled" ? branchesResult.value : undefined;
+        const worktrees =
+          worktreesResult.status === "fulfilled" ? worktreesResult.value.worktrees : undefined;
+        const ghAvailable = gitStoreActions.ghAvailable[project.id];
+
+        gitStoreActions.setProjectSnapshot(project.id, {
+          ...(status ? { status } : {}),
+          ...(branches ? { branches } : {}),
+          ...(worktrees ? { worktrees } : {}),
+          ...(ghAvailable === undefined && status?.remoteInfo?.platform !== "github"
+            ? { ghAvailable: false }
+            : {}),
+        });
+
+        if (worktrees) {
+          const worktreeStatusEntries = await Promise.all(
+            worktrees
+              .filter((wt) => !wt.isMain)
+              .map(async (wt) => {
+                if (!isActive) return undefined;
+                try {
+                  const wtLocation = buildWorktreeLocation(project.location, wt.path);
+                  const wtStatus = await readBridge().getGitStatus({
+                    projectLocation: wtLocation,
+                  });
+                  if (!isActive) return undefined;
+                  return [wt.path, wtStatus] as const;
+                } catch {
+                  return undefined;
+                }
+              }),
+          );
+          if (!isActive) return;
+
+          const nextWorktreeStatuses = Object.fromEntries(
+            worktreeStatusEntries.filter((entry) => entry !== undefined),
+          );
+          if (Object.keys(nextWorktreeStatuses).length > 0) {
+            useGitStore.getState().setWorktreeStatuses(nextWorktreeStatuses);
+          }
+
+          // Fetch source branch info for each worktree (for merge/PR visibility)
+          const sourceInfoEntries = await Promise.all(
+            worktrees
+              .filter((wt) => !wt.isMain && wt.branch)
+              .map(async (wt) => {
+                if (!isActive) return undefined;
+                try {
+                  const info = await readBridge().gitGetWorktreeSourceBranch({
+                    projectLocation: project.location,
+                    branch: wt.branch,
+                  });
+                  if (!isActive) return undefined;
+                  return [wt.path, { sourceBranch: info.sourceBranch, commitsAhead: info.commitsAhead, sourceAhead: info.sourceAhead }] as const;
+                } catch {
+                  return undefined;
+                }
+              }),
+          );
+          if (!isActive) return;
+
+          const nextSourceInfo = Object.fromEntries(
+            sourceInfoEntries.filter((entry) => entry !== undefined),
+          );
+          if (Object.keys(nextSourceInfo).length > 0) {
+            useGitStore.getState().setWorktreeSourceInfoBatch(nextSourceInfo);
+          }
+        }
+
+        // Check gh availability once
+        if (ghAvailable === undefined) {
+          const isGitHub = status?.remoteInfo?.platform === "github";
+          if (isGitHub) {
+            readBridge()
+              .ghCheckAvailable({ projectLocation: project.location })
+              .then((r) => useGitStore.getState().setGhAvailable(project.id, r.available))
+              .catch(() => useGitStore.getState().setGhAvailable(project.id, false));
+          }
+        }
+
+        // Refresh PR data for worktree threads on GitHub projects
+        if (useGitStore.getState().ghAvailable[project.id]) {
+          const currentThreads = useAppStore.getState().threads;
+          const wtThreads = currentThreads.filter(
+            (t) => t.projectId === project.id && t.worktreeBranch && t.worktreePath,
+          );
+          const prUpdates: Record<string, PrData | null> = {};
+          const prNumberUpdates = new Map<string, number | undefined>();
+
+          await Promise.all(
+            wtThreads.map(async (t) => {
+              if (!isActive || !t.worktreeBranch || !t.worktreePath) return;
+              try {
+                const pr = await readBridge().ghGetPrForBranch({
+                  projectLocation: project.location,
+                  branch: t.worktreeBranch,
+                });
+                if (!isActive) return;
+                prUpdates[t.worktreePath] = pr;
+                const newPrNumber = pr?.number ?? undefined;
+                if (newPrNumber !== t.prNumber) {
+                  prNumberUpdates.set(t.id, newPrNumber);
+                }
+              } catch {
+                // ignore — gh may not be authenticated
+              }
+            }),
+          );
+          if (!isActive) return;
+
+          if (Object.keys(prUpdates).length > 0) {
+            useGitStore.getState().setPrDataBatch(prUpdates);
+          }
+          if (prNumberUpdates.size > 0) {
+            useAppStore.setState((state) => {
+              let changed = false;
+              const nextThreads = state.threads.map((thread) => {
+                if (!prNumberUpdates.has(thread.id)) {
+                  return thread;
+                }
+                const nextPrNumber = prNumberUpdates.get(thread.id);
+                if (thread.prNumber === nextPrNumber) {
+                  return thread;
+                }
+                changed = true;
+                return { ...thread, prNumber: nextPrNumber };
+              });
+              return changed ? { threads: nextThreads } : state;
+            });
+          }
+        }
       } finally {
-        isPolling = false;
-        console.log(`[renderer] git poll total: ${Date.now() - t0}ms (${projects.length} projects)`);
+        refreshingProjects.delete(project.id);
       }
     }
 
-    void pollGitStatus();
-    const intervalId = setInterval(() => void pollGitStatus(), GIT_POLL_INTERVAL_MS);
+    // Register file watchers in the supervisor for each project
+    for (const project of projects) {
+      readBridge()
+        .gitWatchProject({ projectId: project.id, projectLocation: project.location })
+        .catch(() => undefined);
+    }
+
+    // Listen for git-changed events from the file watcher
+    const unsubWatcher = readBridge().onSupervisorEvent((event) => {
+      if (event.type !== "git-changed") return;
+      const project = projects.find((p) => p.id === event.projectId);
+      if (project) void refreshProject(project);
+    });
+
+    // Initial refresh for all projects
+    for (const project of projects) {
+      void refreshProject(project);
+    }
+
+    // Periodic remote fetch (every 60s) to keep ahead/behind counts fresh.
+    // The file watcher can't detect remote changes — only a fetch can.
+    async function fetchRemotes() {
+      if (!isActive) return;
+      const now = Date.now();
+      if (now - lastFetchTime < GIT_FETCH_INTERVAL_MS) return;
+      lastFetchTime = now;
+
+      await Promise.all(
+        projects.map(async (project) => {
+          if (!isActive) return;
+          try {
+            await readBridge().gitFetch({
+              projectLocation: project.location,
+              remote: "origin",
+              prune: false,
+            });
+          } catch {
+            // ignore — remote may be unreachable
+          }
+          // After fetch, refresh to pick up new ahead/behind counts
+          if (isActive) void refreshProject(project);
+        }),
+      );
+    }
+
+    void fetchRemotes();
+    const fetchIntervalId = setInterval(() => void fetchRemotes(), GIT_FETCH_INTERVAL_MS);
 
     return () => {
       isActive = false;
-      clearInterval(intervalId);
+      clearInterval(fetchIntervalId);
+      unsubWatcher();
+      for (const project of projects) {
+        readBridge()
+          .gitUnwatchProject({ projectId: project.id })
+          .catch(() => undefined);
+      }
     };
   }, [storeHydrated, projects]);
 
@@ -1497,6 +1546,31 @@ export function App() {
                 : project.location;
               void readBridge()
                 .gitSync({ projectLocation: location })
+                .catch(() => undefined);
+            }}
+            onGitPush={(projectId, worktreePath) => {
+              const project = projects.find((p) => p.id === projectId);
+              if (!project) return;
+              const thread = useAppStore
+                .getState()
+                .threads.find((t) => t.worktreePath === worktreePath && t.worktreeBranch);
+              if (!thread?.worktreeBranch) return;
+              const worktreeLocation = buildWorktreeLocation(project.location, worktreePath);
+              void readBridge()
+                .gitPush({
+                  projectLocation: worktreeLocation,
+                  remote: "origin",
+                  branch: thread.worktreeBranch,
+                  setUpstream: true,
+                })
+                .catch(() => undefined);
+            }}
+            onGitPull={(projectId, worktreePath) => {
+              const project = projects.find((p) => p.id === projectId);
+              if (!project) return;
+              const worktreeLocation = buildWorktreeLocation(project.location, worktreePath);
+              void readBridge()
+                .gitPull({ projectLocation: worktreeLocation, remote: "origin" })
                 .catch(() => undefined);
             }}
             onGitMergeToSource={(projectId, worktreePath) => {
