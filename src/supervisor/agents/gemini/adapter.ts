@@ -1,4 +1,6 @@
+import { watch } from "node:fs";
 import { homedir } from "node:os";
+import { basename, join } from "node:path";
 import type {
   AgentCapability,
   AgentStatus,
@@ -11,6 +13,7 @@ import {
   buildAgentCommand,
   createKnownSessionRef,
   readCommandOutputAsync,
+  resolveWslHomeDirectory,
   readWslCommandOutputAsync,
   resolveExecutablePathAsync,
   resolveWslExecutablePath,
@@ -19,6 +22,7 @@ import {
 } from "../base";
 import { probeAcpCapabilities } from "../acp";
 import { detectGeminiTerminalStatus } from "./terminal";
+import { toWslUncPath } from "../../../shared/wsl";
 
 const defaultCapabilities: AgentCapability = {
   models: [],
@@ -127,6 +131,20 @@ export function createGeminiAdapter(): AgentAdapter {
     const resolved = resolveWslExecutablePath(location.distro, "gemini");
     detectedWslExecPaths.set(location.distro, resolved);
     return resolved;
+  }
+
+  function resolveGeminiWatchPath(location: ProjectLocation): string | undefined {
+    const projectName = basename(location.kind === "wsl" ? location.linuxPath : location.path);
+
+    if (location.kind === "wsl") {
+      const homeDir = resolveWslHomeDirectory(location.distro);
+      if (!homeDir) {
+        return undefined;
+      }
+      return toWslUncPath(location.distro, `${homeDir}/.gemini/tmp/${projectName}`);
+    }
+
+    return join(homedir(), ".gemini", "tmp", projectName);
   }
 
   return {
@@ -276,6 +294,33 @@ export function createGeminiAdapter(): AgentAdapter {
         const latestId = await queryLatestSessionId(location);
         if (!latestId || latestId === preSpawnLatestId) return undefined;
         return createKnownSessionRef(latestId);
+      } catch {
+        return undefined;
+      }
+    },
+    watchSessionRef(location, onChanged) {
+      const watchPath = resolveGeminiWatchPath(location);
+      if (!watchPath) {
+        return undefined;
+      }
+
+      try {
+        const watcher = watch(watchPath, { recursive: true }, () => onChanged());
+        watcher.on("error", () => {
+          try {
+            watcher.close();
+          } catch {
+            // Ignore watcher teardown races.
+          }
+        });
+        console.log("[gemini] session watcher active for %s at %s", location.kind, watchPath);
+        return () => {
+          try {
+            watcher.close();
+          } catch {
+            // Ignore watcher teardown races.
+          }
+        };
       } catch {
         return undefined;
       }

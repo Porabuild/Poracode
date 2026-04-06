@@ -107,6 +107,7 @@ import {
   type StructuredSessionHandle,
   defaultFormatPromptSegments,
   getWslCommand,
+  resolveWslHomeDirectory,
   readWslCommandOutputAsync,
 } from "./agents/base";
 import { generateCommitMessage } from "./commitMessageGenerator";
@@ -150,6 +151,7 @@ interface SessionRuntime {
   ptyExited?: boolean;
   autoResponseEmitted?: boolean;
   sessionRefDiscoveryStarted?: boolean;
+  stopSessionRefWatcher?: (() => void) | undefined;
   pendingLaunchPrompt?: string | undefined;
   pendingTerminalPrompt?: string | undefined;
   pendingTerminalSegments?: PromptSegment[] | undefined;
@@ -183,12 +185,8 @@ function resolveWslAttachmentDirs(distro: string): { uncDir: string; linuxDir: s
   const cached = wslAttachmentDirCache.get(distro);
   if (cached) return cached;
 
-  const result = spawnSync(
-    "wsl.exe",
-    ["-d", distro, "--", "sh", "-c", 'printf %s "$HOME/.lightcode/attachments"'],
-    { encoding: "utf8", timeout: 5000 },
-  );
-  const linuxDir = result.stdout?.trim();
+  const homeDir = resolveWslHomeDirectory(distro);
+  const linuxDir = homeDir ? `${homeDir}/.lightcode/attachments` : undefined;
   if (!linuxDir) throw new Error(`Unable to resolve home for WSL distro "${distro}"`);
 
   // Ensure the directory exists inside WSL
@@ -746,6 +744,8 @@ export class SupervisorRuntime {
       clearTimeout(existing.pendingStatusHint.timer);
       existing.pendingStatusHint = undefined;
     }
+    existing.stopSessionRefWatcher?.();
+    existing.stopSessionRefWatcher = undefined;
     this.sessions.delete(payload.threadId);
     await existing.structuredSession?.dispose();
     // Yield so the PTY exit event can fire before we force-kill.
@@ -1618,6 +1618,7 @@ export class SupervisorRuntime {
 
   private pollSessionRefDiscovery(session: SessionRuntime): void {
     let attempt = 0;
+    let polling = false;
     // Collect session IDs already assigned to other threads to avoid duplicates.
     const existingIds = new Set<string>();
     for (const s of this.sessions.values()) {
@@ -1627,23 +1628,62 @@ export class SupervisorRuntime {
     }
 
     const poll = async () => {
-      if (session.sessionRef || session.status === "inactive" || attempt >= 5) return;
+      if (polling || session.sessionRef || session.status === "inactive" || attempt >= 5) return;
+      polling = true;
       attempt++;
       try {
+        console.log(
+          "[supervisor] sessionRef discovery attempt %d for %s (%s) status=%s",
+          attempt,
+          session.threadId,
+          session.agentKind,
+          session.status,
+        );
         const ref = await session.adapter.discoverSessionRef?.(session.projectLocation);
         if (ref && !session.sessionRef && !existingIds.has(ref.providerSessionId)) {
           session.sessionRef = ref;
           session.canResumeWithConfig = true;
+          session.stopSessionRefWatcher?.();
+          session.stopSessionRefWatcher = undefined;
+          console.log(
+            "[supervisor] sessionRef discovered for %s: %s",
+            session.threadId,
+            ref.providerSessionId,
+          );
           this.emitState(session);
           return;
         }
+        if (ref && existingIds.has(ref.providerSessionId)) {
+          console.log(
+            "[supervisor] sessionRef candidate for %s ignored because it is already attached to another thread: %s",
+            session.threadId,
+            ref.providerSessionId,
+          );
+        }
+        if (!ref) {
+          console.log("[supervisor] no sessionRef discovered yet for %s", session.threadId);
+        }
       } catch {
         // Ignore — will retry
+      } finally {
+        polling = false;
       }
       setTimeout(() => void poll(), 3000);
     };
-    // No initial delay — triggered after the first status detection,
-    // so the terminal presentation is already live and the session file should exist.
+    session.stopSessionRefWatcher = session.adapter.watchSessionRef?.(
+      session.projectLocation,
+      () => void poll(),
+    );
+    const initialDelay = session.adapter.initialSessionRefDiscoveryDelayMs ?? 0;
+    if (initialDelay > 0) {
+      console.log(
+        "[supervisor] delaying first sessionRef discovery for %s by %dms",
+        session.threadId,
+        initialDelay,
+      );
+      setTimeout(() => void poll(), initialDelay);
+      return;
+    }
     void poll();
   }
 
@@ -1735,6 +1775,8 @@ export class SupervisorRuntime {
       }
 
       session.ignoreExit = true;
+      session.stopSessionRefWatcher?.();
+      session.stopSessionRefWatcher = undefined;
       await session.structuredSession?.dispose();
       if (session.structuredSession) {
         await sleep(150);
@@ -1777,6 +1819,8 @@ export class SupervisorRuntime {
     });
 
     session.ignoreExit = true;
+    session.stopSessionRefWatcher?.();
+    session.stopSessionRefWatcher = undefined;
     // Defer the kill so the PTY has time to exit naturally after the
     // structured session closes.  safePtyKill checks process liveness
     // before invoking node-pty's kill.

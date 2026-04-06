@@ -408,24 +408,6 @@ export async function probeCodexCapabilities(
         : undefined;
 
     if (modelData?.length) {
-      console.log(
-        "%s raw model/list (%d entries):\n%s",
-        tag,
-        modelData.length,
-        JSON.stringify(
-          modelData.map((m) => ({
-            id: m.id,
-            model: m.model,
-            displayName: m.displayName,
-            hidden: m.hidden,
-            isDefault: m.isDefault,
-            defaultReasoningEffort: m.defaultReasoningEffort,
-            supportedReasoningEfforts: m.supportedReasoningEfforts,
-          })),
-          null,
-          2,
-        ),
-      );
       Object.assign(probeResult, mapCodexModels(modelData));
     }
 
@@ -437,12 +419,6 @@ export async function probeCodexCapabilities(
         ? (result.requirementsResult as { requirements: CodexConfigRequirements | null })
             .requirements
         : undefined;
-
-    console.log(
-      "%s raw configRequirements/read: %s",
-      tag,
-      JSON.stringify(result.requirementsResult, null, 2),
-    );
 
     Object.assign(probeResult, mapCodexRequirements(requirements));
 

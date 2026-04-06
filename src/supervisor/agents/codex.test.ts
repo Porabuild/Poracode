@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   deriveCodexStructuredState,
   detectCodexReadyForInitialPrompt,
+  detectCodexTerminalStatus,
   detectCodexUpdatePrompt,
   parseCodexSocketMessage,
 } from "./codex";
@@ -146,5 +147,113 @@ describe("detectCodexReadyForInitialPrompt", () => {
     ].join("\n");
 
     expect(detectCodexReadyForInitialPrompt(text)).toBe(false);
+  });
+});
+
+describe("detectCodexTerminalStatus", () => {
+  it("treats the Codex home screen as idle", () => {
+    const text = [
+      "OpenAI Codex (v0.116.0)",
+      "model: gpt-5.4-mini high /model to change",
+      "directory: ~/work/site-search-ui",
+    ].join("\n");
+
+    expect(detectCodexTerminalStatus(text)).toEqual({
+      status: "idle",
+      attention: "none",
+    });
+  });
+
+  it("treats the update prompt as needs_reply", () => {
+    const text = [
+      "Update available! 0.116.0 -> 0.117.0",
+      "> 1. Update now",
+      "  2. Skip",
+      "Press enter to continue",
+    ].join("\n");
+
+    expect(detectCodexTerminalStatus(text)).toEqual({
+      status: "needs_reply",
+      attention: "needs_reply",
+    });
+  });
+
+  it("treats confirmation prompts as needs_approval", () => {
+    const text = "Allow codex to run this command? [y/n]";
+
+    expect(detectCodexTerminalStatus(text)).toEqual({
+      status: "needs_approval",
+      attention: "needs_approval",
+    });
+  });
+
+  it("detects working from the visible Codex status line", () => {
+    const text = [
+      "• Hi.",
+      "",
+      "• Working (1s • esc to interrupt)",
+      "",
+      "› Explain this codebase",
+      "",
+      "gpt-5.4 medium · ~\\work\\lightcode · master",
+    ].join("\n");
+
+    expect(detectCodexTerminalStatus(text)).toEqual({
+      status: "working",
+      attention: "working",
+    });
+  });
+
+  it("treats the prompt as idle when no strong Codex hint is present", () => {
+    const text = [
+      "• Here. What do you want to test?",
+      "",
+      "› Explain this codebase",
+      "",
+      "gpt-5.4 medium · ~\\work\\lightcode · master",
+    ].join("\n");
+
+    expect(detectCodexTerminalStatus(text)).toEqual({
+      status: "idle",
+      attention: "none",
+    });
+  });
+
+  it("prioritizes working over the prompt when both are visible", () => {
+    const text = [
+      "• Working (1s • esc to interrupt)",
+      "",
+      "› Explain this codebase",
+      "",
+      "gpt-5.4 medium · ~\\work\\lightcode · master",
+    ].join("\n");
+
+    expect(detectCodexTerminalStatus(text)).toEqual({
+      status: "working",
+      attention: "working",
+    });
+  });
+
+  it("detects idle after a plain title update and prompt redraw", () => {
+    const text = [
+      "• Fine. What do you need?",
+      "",
+      "• Working (2s • esc to interrupt)",
+      "",
+      "› Run /review on my current changes",
+      "",
+      "gpt-5.4 medium · ~\\work\\lightcode · master",
+      "",
+      "0;lightcode",
+      "",
+      "› Run /review on my current changes",
+      "",
+      "gpt-5.4 medium · ~\\work\\lightcode · master",
+    ].join("\n");
+
+    expect(detectCodexTerminalStatus(text)).toEqual({
+      status: "idle",
+      attention: "none",
+    });
   });
 });

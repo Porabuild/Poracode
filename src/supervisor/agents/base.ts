@@ -116,6 +116,10 @@ export interface AgentAdapter {
   detectAutoResponse?(text: string): string | null;
   /** Discover the session ID after PTY spawn (e.g. by querying the CLI). */
   discoverSessionRef?(location: ProjectLocation): Promise<SessionRef | undefined>;
+  /** Optional delay before the first session discovery attempt. */
+  initialSessionRefDiscoveryDelayMs?: number;
+  /** Optional fast-path watcher that triggers when session discovery should retry. */
+  watchSessionRef?(location: ProjectLocation, onChanged: () => void): (() => void) | undefined;
   /** Allow the adapter to reconcile config from TUI-derived state transitions it owns. */
   syncConfigFromTerminalState?(input: SyncConfigFromTerminalStateInput): ThreadConfig | undefined;
   /** Default model for lightweight one-shot tasks like commit message generation. */
@@ -318,6 +322,8 @@ function parseCommandOutputLine(stdout: string): string | undefined {
     .findLast((line) => line.length > 0);
 }
 
+const wslHomeCache = new Map<string, string>();
+
 function buildDirectWslCommandArgs(command: string, args: string[]): string[] {
   if (!command.startsWith("/")) {
     return [command, ...args];
@@ -445,6 +451,28 @@ export function resolveWslExecutablePath(distro: string, command: string): strin
   return parseCommandOutputLine(`${result.stdout ?? ""}`);
 }
 
+export function resolveWslHomeDirectory(distro: string): string | undefined {
+  const cached = wslHomeCache.get(distro);
+  if (cached) {
+    return cached;
+  }
+
+  const result = spawnSync(getWslCommand(), ["-d", distro, "--", "sh", "-lc", 'printf %s "$HOME"'], {
+    encoding: "utf8",
+    shell: false,
+    windowsHide: true,
+    timeout: 5_000,
+  });
+  if (result.error || result.status !== 0) {
+    return undefined;
+  }
+  const home = parseCommandOutputLine(`${result.stdout ?? ""}`);
+  if (home) {
+    wslHomeCache.set(distro, home);
+  }
+  return home;
+}
+
 export function readWslCommandOutput(
   distro: string,
   command: string,
@@ -561,6 +589,21 @@ export async function readWslCommandOutputAsync(
       stderr: (err?.stderr ?? "").trim(),
     };
   }
+}
+
+export async function resolveWslHomeDirectoryAsync(distro: string): Promise<string | undefined> {
+  const cached = wslHomeCache.get(distro);
+  if (cached) {
+    return cached;
+  }
+
+  const result = await readWslCommandOutputAsync(distro, "sh", ["-lc", 'printf %s "$HOME"']);
+  const home = result.ok ? result.stdout.trim() : "";
+  if (!home) {
+    return undefined;
+  }
+  wslHomeCache.set(distro, home);
+  return home;
 }
 
 /**

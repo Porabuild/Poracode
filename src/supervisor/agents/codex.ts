@@ -1,7 +1,8 @@
 import { createServer } from "node:net";
 import { spawn, type ChildProcess } from "node:child_process";
+import { watch } from "node:fs";
 import { mkdir, writeFile } from "node:fs/promises";
-import { dirname } from "node:path";
+import { dirname, join } from "node:path";
 import type {
   AgentCapability,
   AgentStatus,
@@ -20,6 +21,8 @@ import {
   createKnownSessionRef,
   detectAuthFile,
   readCommandOutputAsync,
+  resolveWslHomeDirectory,
+  readWslCommandOutput,
   readWslCommandOutputAsync,
   resolveExecutablePathAsync,
   resolveWslExecutablePath,
@@ -30,10 +33,18 @@ import {
   type CreateStructuredSessionInput,
   type StructuredSessionHandle,
   type StructuredSessionListener,
+  type TerminalStatusHint,
 } from "./base";
 import { detectRateLimitPrompt } from "./codex/rateLimitPrompt";
 import { probeCodexCapabilities, type CodexProbeResult } from "./codex/probe";
-import { codexAuthPath } from "./codex/sessionFiles";
+import {
+  type CodexRolloutMeta,
+  codexAuthPath,
+  parseCodexRolloutIdFromPath,
+  parseCodexRolloutMeta,
+  parseCodexSessionIndex,
+  readCodexSessionIndex,
+} from "./codex/sessionFiles";
 
 const defaultCapabilities: AgentCapability = {
   models: [],
@@ -44,7 +55,7 @@ const defaultCapabilities: AgentCapability = {
   sandboxModes: [],
   supportsResume: true,
   supportsDirectInput: true,
-  liveInputMode: "server",
+  liveInputMode: "terminal",
   presentationMode: "terminal",
   bypassApprovalPolicy: "full-auto",
   settingDefs: [],
@@ -405,7 +416,7 @@ class CodexStructuredSession implements StructuredSessionHandle {
     const appServerOutput: string[] = [];
     appServer.stdout?.on("data", (chunk) => {
       const text = String(chunk);
-      console.log("[codex app-server stdout]", text);
+
       appServerOutput.push(text);
       if (appServerOutput.length > 12) {
         appServerOutput.shift();
@@ -413,21 +424,21 @@ class CodexStructuredSession implements StructuredSessionHandle {
     });
     appServer.stderr?.on("data", (chunk) => {
       const text = String(chunk);
-      console.log("[codex app-server stderr]", text);
+
       appServerOutput.push(text);
       if (appServerOutput.length > 12) {
         appServerOutput.shift();
       }
     });
 
-    console.log("[codex app-server] connecting WebSocket to", remoteUrl);
+
     const socket = await connectCodexAppServer(
       remoteUrl,
       appServer,
       appServerOutput,
       WebSocketCtor,
     );
-    console.log("[codex app-server] WebSocket connected");
+
     const wslDistro =
       input.projectLocation.kind === "wsl" ? input.projectLocation.distro : undefined;
     const session = new CodexStructuredSession(remoteUrl, appServer, socket, wslDistro);
@@ -460,9 +471,7 @@ class CodexStructuredSession implements StructuredSessionHandle {
     }
     this.activated = true;
 
-    console.log("[codex app-server] sending initialize...");
     await this.initialize();
-    console.log("[codex app-server] initialize complete");
   }
 
   async openThread(config: ThreadConfig, sessionRef?: SessionRef): Promise<string> {
@@ -476,7 +485,7 @@ class CodexStructuredSession implements StructuredSessionHandle {
 
     let threadId: string;
     if (sessionRef) {
-      console.log("[codex app-server] thread/resume", sessionRef.providerSessionId);
+
       await this.request("thread/resume", {
         ...threadOverrides,
         threadId: sessionRef.providerSessionId,
@@ -484,7 +493,7 @@ class CodexStructuredSession implements StructuredSessionHandle {
       });
       threadId = sessionRef.providerSessionId;
     } else {
-      console.log("[codex app-server] thread/start");
+
       const result = await this.request("thread/start", {
         ...threadOverrides,
         experimentalRawEvents: false,
@@ -518,7 +527,7 @@ class CodexStructuredSession implements StructuredSessionHandle {
 
     this.remoteThreadId = threadId;
     this.launchOptions = { ...this.launchOptions, resumeThreadId: threadId };
-    console.log("[codex app-server] active thread:", threadId, this.rolloutPath ?? "");
+
     return threadId;
   }
 
@@ -530,12 +539,12 @@ class CodexStructuredSession implements StructuredSessionHandle {
     const deadline = Date.now() + timeoutMs;
     while (Date.now() < deadline) {
       if (existsSync(this.rolloutPath)) {
-        console.log("[codex app-server] rollout file ready:", this.rolloutPath);
+
         return;
       }
       await sleep(200);
     }
-    console.log("[codex app-server] rollout file not found after timeout, proceeding anyway");
+
   }
 
   async ensureResumeArtifacts(): Promise<void> {
@@ -569,7 +578,7 @@ class CodexStructuredSession implements StructuredSessionHandle {
         encoding: "utf8",
         flag: "wx",
       });
-      console.log("[codex app-server] seeded rollout file:", this.rolloutPath);
+
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code !== "EEXIST") {
         throw error;
@@ -658,7 +667,6 @@ class CodexStructuredSession implements StructuredSessionHandle {
         return;
       }
 
-      console.log("[codex app-server ws]", raw);
 
       let payload: unknown;
       try {
@@ -766,7 +774,7 @@ class CodexStructuredSession implements StructuredSessionHandle {
       }
 
       if (method === "account/rateLimits/updated" && params && "rateLimits" in params) {
-        console.log("[codex app-server] rate limits updated:", JSON.stringify(params.rateLimits));
+
         return;
       }
 
@@ -809,7 +817,7 @@ class CodexStructuredSession implements StructuredSessionHandle {
       jsonrpc: "2.0",
       method: "initialized",
     });
-    console.log("[codex app-server ws >>]", initializedNotification);
+
     this.socket.send(initializedNotification);
   }
 
@@ -884,7 +892,7 @@ class CodexStructuredSession implements StructuredSessionHandle {
       method,
       params,
     });
-    console.log("[codex app-server ws >>]", outgoing);
+
     this.socket.send(outgoing);
 
     return pending;
@@ -947,6 +955,25 @@ const CODEX_UPDATE_RE = /(?:[✨⚡]\s*)?update\s+available/i;
 const CODEX_READY_RE = /openai\s+codex/i;
 const CODEX_DIRECTORY_RE = /directory\s*:/i;
 const CODEX_MODEL_RE = new RegExp("\\/model\\s+to\\s+change", "i");
+const CODEX_PROMPT_RE = /(?:^|\n)›(?:\s|\u00a0).*/m;
+const CODEX_TITLE_RE = /0;([^\r\n]+)/g;
+
+type CodexHintEntry = {
+  re: RegExp;
+  status: TerminalStatusHint["status"];
+  attention: TerminalStatusHint["attention"];
+};
+
+const CODEX_STRONG_HINTS: CodexHintEntry[] = [
+  { re: /enter\s+to\s+select/i, status: "needs_reply", attention: "needs_reply" },
+  { re: /press enter to continue/i, status: "needs_reply", attention: "needs_reply" },
+  { re: /\[y\/n\]|\(y\/N\)|allow\s+.*\?/i, status: "needs_approval", attention: "needs_approval" },
+  { re: /•\s*working(?:\s*\(|…)?|esc\s+to\s+interrupt/i, status: "working", attention: "working" },
+];
+
+const CODEX_IDLE_HINTS: CodexHintEntry[] = [
+  { re: CODEX_PROMPT_RE, status: "idle", attention: "none" },
+];
 
 /**
  * Detect a Codex TUI "Update available!" interactive prompt from
@@ -984,6 +1011,75 @@ export function detectCodexReadyForInitialPrompt(text: string): boolean {
   return hasReady && hasDirectory && hasModel;
 }
 
+function findBestCodexHint(text: string, entries: readonly CodexHintEntry[]): CodexHintEntry | null {
+  let best: { index: number; entry: CodexHintEntry } | null = null;
+
+  for (const entry of entries) {
+    const globalRe = new RegExp(
+      entry.re.source,
+      entry.re.flags.includes("g") ? entry.re.flags : entry.re.flags + "g",
+    );
+    let last: RegExpExecArray | null = null;
+    let match: RegExpExecArray | null;
+    while ((match = globalRe.exec(text)) !== null) {
+      last = match;
+    }
+    if (last && (best === null || last.index > best.index)) {
+      best = { index: last.index, entry };
+    }
+  }
+
+  return best?.entry ?? null;
+}
+
+function findLastMatchIndex(text: string, re: RegExp): number {
+  const globalRe = new RegExp(re.source, re.flags.includes("g") ? re.flags : re.flags + "g");
+  let lastIndex = -1;
+  let match: RegExpExecArray | null;
+  while ((match = globalRe.exec(text)) !== null) {
+    lastIndex = match.index;
+  }
+  return lastIndex;
+}
+
+function findLastTitleIndex(text: string): number {
+  return findLastMatchIndex(text, CODEX_TITLE_RE);
+}
+
+export function detectCodexTerminalStatus(text: string): TerminalStatusHint | null {
+  const recent = text.slice(-1200);
+
+  if (detectCodexUpdatePrompt(recent) || detectRateLimitPrompt(recent)) {
+    return { status: "needs_reply", attention: "needs_reply" };
+  }
+
+  if (detectCodexReadyForInitialPrompt(recent) || detectCodexReadyForInitialPrompt(text)) {
+    return { status: "idle", attention: "none" };
+  }
+
+  const strongHint = findBestCodexHint(recent, CODEX_STRONG_HINTS);
+  if (strongHint) {
+    const lastWorkingIndex = findLastMatchIndex(recent, /•\s*working(?:\s*\(|…)?|esc\s+to\s+interrupt/i);
+    const lastTitleIndex = findLastTitleIndex(recent);
+    const lastPromptIndex = findLastMatchIndex(recent, CODEX_PROMPT_RE);
+    const hasIdleRedraw =
+      strongHint.status === "working" &&
+      lastTitleIndex > lastWorkingIndex &&
+      lastPromptIndex > lastTitleIndex;
+
+    if (!hasIdleRedraw) {
+      return { status: strongHint.status, attention: strongHint.attention };
+    }
+  }
+
+  const idleHint = findBestCodexHint(recent, CODEX_IDLE_HINTS);
+  if (idleHint) {
+    return { status: idleHint.status, attention: idleHint.attention };
+  }
+
+  return null;
+}
+
 function formatAppServerOutput(chunks: string[]): string {
   const text = chunks.join("").trim();
   return text ? ` Output: ${text}` : "";
@@ -992,6 +1088,7 @@ function formatAppServerOutput(chunks: string[]): string {
 export function createCodexAdapter(): AgentAdapter {
   let capabilities: AgentCapability = defaultCapabilities;
   const detectedWslExecPaths = new Map<string, string | undefined>();
+  let preSpawnRolloutIds = new Set<string>();
 
   function resolveWslExecPath(location: ProjectLocation): string | undefined {
     if (location.kind !== "wsl") {
@@ -1006,6 +1103,180 @@ export function createCodexAdapter(): AgentAdapter {
     const resolved = resolveWslExecutablePath(location.distro, "codex");
     detectedWslExecPaths.set(location.distro, resolved);
     return resolved;
+  }
+
+  function readCodexSessionIndexForLocation(location: ProjectLocation) {
+    if (location.kind === "wsl") {
+      const result = readWslCommandOutput(location.distro, "sh", [
+        "-lc",
+        "cat ~/.codex/session_index.jsonl 2>/dev/null || true",
+      ]);
+      if (!result.ok || result.stdout.length === 0) {
+        return [];
+      }
+      return parseCodexSessionIndex(result.stdout);
+    }
+
+    return readCodexSessionIndex();
+  }
+
+  function isInteractiveRollout(
+    rollout: CodexRolloutMeta,
+    location: ProjectLocation,
+  ): boolean {
+    if (rollout.originator !== "codex-tui" || rollout.source !== "cli") {
+      return false;
+    }
+
+    if (!rollout.cwd) {
+      return true;
+    }
+
+    switch (location.kind) {
+      case "windows":
+        return rollout.cwd === location.path;
+      case "posix":
+        return rollout.cwd === location.path;
+      case "wsl":
+        return rollout.cwd === location.linuxPath || rollout.cwd === location.uncPath;
+    }
+  }
+
+  function readCodexRolloutsForLocation(location: ProjectLocation): CodexRolloutMeta[] {
+    if (location.kind === "wsl") {
+      const result = readWslCommandOutput(location.distro, "bash", [
+        "-lc",
+        "find ~/.codex/sessions -type f -name 'rollout-*.jsonl' -printf '%T@\\t%p\\n' 2>/dev/null",
+      ]);
+      if (!result.ok || result.stdout.length === 0) {
+        console.log(
+          "[codex] WSL rollout scan returned no output for %s: %s",
+          describeLocation(location),
+          result.stderr || "(no stderr)",
+        );
+        return [];
+      }
+      return result.stdout
+        .split(/\r?\n/g)
+        .map((line) => line.trim())
+        .filter(Boolean)
+        .flatMap((line) => {
+          const [mtimeRaw, path] = line.split("\t");
+          if (!path) return [];
+          const updatedAt = Number.isFinite(Number(mtimeRaw))
+            ? Math.round(Number(mtimeRaw) * 1000)
+            : undefined;
+          const id = parseCodexRolloutIdFromPath(path);
+          if (!id) return [];
+          const parsed: CodexRolloutMeta = { id, path, ...(updatedAt !== undefined ? { updatedAt } : {}) };
+          return parsed ? [parsed] : [];
+        });
+    }
+
+    const { readdirSync, readFileSync, statSync } = require("node:fs") as typeof import("node:fs");
+    const { join } = require("node:path") as typeof import("node:path");
+    const root = join(require("node:os").homedir(), ".codex", "sessions");
+    const rollouts: CodexRolloutMeta[] = [];
+    const walk = (dir: string) => {
+      let entries: import("node:fs").Dirent[];
+      try {
+        entries = readdirSync(dir, { withFileTypes: true });
+      } catch {
+        return;
+      }
+      for (const entry of entries) {
+        const fullPath = join(dir, entry.name);
+        if (entry.isDirectory()) {
+          walk(fullPath);
+          continue;
+        }
+        if (!entry.isFile()) {
+          continue;
+        }
+        let stat: import("node:fs").Stats;
+        try {
+          stat = statSync(fullPath);
+        } catch {
+          continue;
+        }
+        const id = parseCodexRolloutIdFromPath(fullPath);
+        if (!id) {
+          continue;
+        }
+        let firstLine = "";
+        try {
+          firstLine = readFileSync(fullPath, "utf8").split(/\r?\n/g)[0] ?? "";
+        } catch {
+          // Ignore unreadable rollout files.
+        }
+        const parsed = parseCodexRolloutMeta(fullPath, firstLine, stat.mtimeMs);
+        if (parsed && isInteractiveRollout(parsed, location)) {
+          rollouts.push(parsed);
+        }
+      }
+    };
+    walk(root);
+    return rollouts;
+  }
+
+  function readCodexRolloutMetaForLocation(
+    location: ProjectLocation,
+    rollout: CodexRolloutMeta,
+  ): CodexRolloutMeta | undefined {
+    if (location.kind === "wsl") {
+      const result = readWslCommandOutput(location.distro, "head", [
+        "-n",
+        "1",
+        "--",
+        rollout.path,
+      ]);
+      if (!result.ok || result.stdout.length === 0) {
+        console.log(
+          "[codex] WSL rollout meta read failed for %s: path=%s stderr=%s",
+          describeLocation(location),
+          rollout.path,
+          result.stderr || "(no stderr)",
+        );
+        return rollout;
+      }
+      return parseCodexRolloutMeta(rollout.path, result.stdout, rollout.updatedAt) ?? rollout;
+    }
+
+    const { readFileSync } = require("node:fs") as typeof import("node:fs");
+    try {
+      const firstLine = readFileSync(rollout.path, "utf8").split(/\r?\n/g)[0] ?? "";
+      return parseCodexRolloutMeta(rollout.path, firstLine, rollout.updatedAt) ?? rollout;
+    } catch {
+      return rollout;
+    }
+  }
+
+  function describeLocation(location: ProjectLocation): string {
+    switch (location.kind) {
+      case "windows":
+        return `windows:${location.path}`;
+      case "wsl":
+        return `wsl:${location.distro}:${location.linuxPath}`;
+      case "posix":
+        return `posix:${location.path}`;
+    }
+  }
+
+  function resolveCodexSessionsWatchPath(location: ProjectLocation): string | undefined {
+    switch (location.kind) {
+      case "windows": {
+        const { homedir } = require("node:os") as typeof import("node:os");
+        return join(homedir(), ".codex", "sessions");
+      }
+      case "posix": {
+        const { homedir } = require("node:os") as typeof import("node:os");
+        return join(homedir(), ".codex", "sessions");
+      }
+      case "wsl": {
+        const homeDir = resolveWslHomeDirectory(location.distro);
+        return homeDir ? toWslUncPath(location.distro, `${homeDir}/.codex/sessions`) : undefined;
+      }
+    }
   }
 
   return {
@@ -1080,6 +1351,16 @@ export function createCodexAdapter(): AgentAdapter {
       };
     },
     buildLaunchCommand(location, config, prompt, sessionRef, launchOptions) {
+      const sessions = readCodexSessionIndexForLocation(location);
+      const rollouts = readCodexRolloutsForLocation(location);
+      preSpawnRolloutIds = new Set(rollouts.map((rollout) => rollout.id));
+      console.log(
+        "[codex] pre-spawn session snapshot (%s): sessionIndex=%d latestIndex=%s interactiveRollouts=%d",
+        describeLocation(location),
+        sessions.length,
+        sessions.at(-1)?.id ?? "(none)",
+        rollouts.length,
+      );
       return buildCommand(
         location,
         config,
@@ -1102,23 +1383,93 @@ export function createCodexAdapter(): AgentAdapter {
     createInitialSessionRef() {
       return undefined;
     },
-    async createStructuredSession(input) {
-      return CodexStructuredSession.create(
-        input,
-        input.projectLocation.kind === "wsl"
-          ? detectedWslExecPaths.get(input.projectLocation.distro)
-          : undefined,
-      );
-    },
     buildDirectInput(prompt) {
       return [...prompt, "\r"];
     },
     isReadyForInitialPrompt(text) {
       return detectCodexReadyForInitialPrompt(text);
     },
+    detectTerminalStatus(text) {
+      return detectCodexTerminalStatus(text);
+    },
     detectAutoResponse(text) {
       if (detectRateLimitPrompt(text)) return "2";
       return null;
+    },
+    initialSessionRefDiscoveryDelayMs: 1000,
+    watchSessionRef(location, onChanged) {
+      const watchPath = resolveCodexSessionsWatchPath(location);
+      if (!watchPath) {
+        return undefined;
+      }
+
+      try {
+        const watcher = watch(watchPath, { recursive: true }, () => onChanged());
+        watcher.on("error", () => {
+          try {
+            watcher.close();
+          } catch {
+            // Ignore watcher teardown races.
+          }
+        });
+        console.log("[codex] session watcher active for %s at %s", describeLocation(location), watchPath);
+        return () => {
+          try {
+            watcher.close();
+          } catch {
+            // Ignore watcher teardown races.
+          }
+        };
+      } catch (error) {
+        console.log(
+          "[codex] session watcher unavailable for %s at %s: %s",
+          describeLocation(location),
+          watchPath,
+          error instanceof Error ? error.message : String(error),
+        );
+        return undefined;
+      }
+    },
+    async discoverSessionRef(location) {
+      try {
+        const sessions = readCodexSessionIndexForLocation(location);
+        const rollouts = readCodexRolloutsForLocation(location);
+        const newRollouts = rollouts
+          .filter((rollout) => !preSpawnRolloutIds.has(rollout.id))
+          .sort((a, b) => (b.updatedAt ?? 0) - (a.updatedAt ?? 0));
+        let next: CodexRolloutMeta | undefined;
+        for (const candidate of newRollouts) {
+          const meta = readCodexRolloutMetaForLocation(location, candidate);
+          if (meta && isInteractiveRollout(meta, location)) {
+            next = meta;
+            break;
+          }
+        }
+        console.log(
+          "[codex] discoverSessionRef (%s): sessionIndex=%d interactiveRollouts=%d preSpawnRollouts=%d newRollouts=%d latestIndex=%s candidate=%s originator=%s source=%s",
+          describeLocation(location),
+          sessions.length,
+          rollouts.length,
+          preSpawnRolloutIds.size,
+          newRollouts.length,
+          sessions.at(-1)?.id ?? "(none)",
+          next?.id ?? "(none)",
+          next?.originator ?? "(none)",
+          next?.source ?? "(none)",
+        );
+        if (!next) {
+          return undefined;
+        }
+        console.log("[codex] discovered interactive session id from rollout file: %s", next.id);
+        return createKnownSessionRef(next.id);
+      } catch (error) {
+        console.log(
+          "[codex] discoverSessionRef failed (%s): %s",
+          describeLocation(location),
+          error instanceof Error ? error.message : String(error),
+        );
+        return undefined;
+      }
     },
     defaultOneShotModel: "gpt-5.4-mini",
     buildOneShotCommand(model, effort) {
