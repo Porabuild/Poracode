@@ -2,6 +2,7 @@ import { GitFork, TerminalSquare } from "lucide-react";
 import { SidebarButton } from "../common";
 import { GitBadge } from "./GitBadge";
 import { PrBadge } from "./PrBadge";
+import { SyncBadge } from "./SyncBadge";
 
 export function WorktreeGroupHeader(props: {
   ref?: React.Ref<HTMLDivElement>;
@@ -15,6 +16,7 @@ export function WorktreeGroupHeader(props: {
   onOpenGitReview: () => void;
   onOpenTerminal: () => void;
   isDragging?: boolean;
+  isDraggingAnything?: boolean;
   onContextMenu?: React.MouseEventHandler | undefined;
 }) {
   return (
@@ -33,6 +35,7 @@ export function WorktreeGroupHeader(props: {
       className={props.isDragging ? "opacity-60" : ""}
       onPress={props.onToggleCollapse}
       {...(props.isDragging != null ? { isDragging: props.isDragging } : {})}
+      {...(props.isDraggingAnything != null ? { isDraggingAnything: props.isDraggingAnything } : {})}
       suffix={
         <>
           <div
@@ -60,6 +63,7 @@ export function WorktreeGroupHeader(props: {
             <TerminalSquare className="size-3.5" />
           </div>
           <PrBadge worktreePath={props.worktreePath} />
+          <SyncBadge projectId={props.projectId} worktreePath={props.worktreePath} />
           <GitBadge
             projectId={props.projectId}
             projectName={props.worktreeBranch}

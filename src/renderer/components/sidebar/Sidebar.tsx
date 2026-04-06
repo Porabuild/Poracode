@@ -34,6 +34,7 @@ import { ProviderIcon, getStatusTone } from "../providers";
 import { resolveActionIcon } from "../settings/ProjectSettingsOverlay";
 import { useGitStore } from "../../state/gitStore";
 import { GitBadge } from "./GitBadge";
+import { SyncBadge } from "./SyncBadge";
 import {
   buildWorktreeGitItems,
   getWorktreeActionVisibility,
@@ -385,6 +386,7 @@ function SortableThreadItem(props: {
                   >
                     <TerminalSquare className="size-3.5" />
                   </div>
+                  <SyncBadge projectId={thread.projectId} worktreePath={thread.worktreePath} />
                   <GitBadge
                     projectId={thread.projectId}
                     projectName={thread.worktreeBranch ?? ""}
@@ -781,6 +783,7 @@ function SortableProjectHeader(props: {
               >
                 <TerminalSquare className="size-3.5" />
               </div>
+              <SyncBadge projectId={project.id} />
               <GitBadge
                 projectId={project.id}
                 projectName={project.name}

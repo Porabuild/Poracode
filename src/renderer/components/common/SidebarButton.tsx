@@ -87,7 +87,7 @@ export function SidebarButton(props: {
           <span className="block truncate">{label}</span>
         )}
       </div>
-      {suffix && <div className="flex shrink-0 items-center gap-1.5">{suffix}</div>}
+      {suffix && <div className="flex shrink-0 items-center gap-[3px]">{suffix}</div>}
     </div>
   );
 }
