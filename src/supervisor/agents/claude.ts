@@ -102,18 +102,42 @@ function buildClaudeArgs(
 function syncClaudeConfigFromTerminalState(
   input: SyncConfigFromTerminalStateInput,
 ): ThreadConfig | undefined {
-  const planModeExited =
+  let next: ThreadConfig | undefined;
+
+  // ── Plan mode transitions ──────────────────────────────
+  if (input.hint.planMode && input.config.mode !== "plan") {
+    // Enter plan mode when the TUI shows "plan mode on" but our config doesn't reflect it.
+    next = { ...(next ?? input.config), mode: "plan" };
+  } else if (
     !input.hint.planMode &&
     input.config.mode === "plan" &&
     (input.hint.status === "idle" ||
       (input.hint.status === "working" &&
-        (input.previousStatus === "needs_reply" || input.previousStatus === "needs_approval")));
-
-  if (!planModeExited) {
-    return undefined;
+        (input.previousStatus === "needs_reply" || input.previousStatus === "needs_approval")))
+  ) {
+    // Exit plan mode: TUI no longer shows "plan mode on" while config still has mode=plan.
+    next = { ...(next ?? input.config), mode: undefined };
   }
 
-  return { ...input.config, mode: undefined };
+  // ── Approval policy ───────────────────────────────────
+  if (input.hint.approvalPolicy !== undefined) {
+    const currentPolicy = input.config.approvalPolicy ?? "default";
+    if (input.hint.approvalPolicy !== currentPolicy) {
+      next = { ...(next ?? input.config), approvalPolicy: input.hint.approvalPolicy };
+    }
+  }
+
+  // ── Model ─────────────────────────────────────────────
+  if (input.hint.model !== undefined && input.hint.model !== input.config.model) {
+    next = { ...(next ?? input.config), model: input.hint.model };
+  }
+
+  // ── Effort ────────────────────────────────────────────
+  if (input.hint.effort !== undefined && input.hint.effort !== input.config.effort) {
+    next = { ...(next ?? input.config), effort: input.hint.effort };
+  }
+
+  return next;
 }
 
 export function createClaudeAdapter(): AgentAdapter {
@@ -229,6 +253,7 @@ type HintEntry = {
   status: TerminalStatusHint["status"];
   attention: TerminalStatusHint["attention"];
   planMode?: boolean;
+  approvalPolicy?: string;
 };
 
 const CLAUDE_HINTS: HintEntry[] = [
@@ -245,10 +270,15 @@ const CLAUDE_HINTS: HintEntry[] = [
   // Plan approval prompt — "shift+tab to approve" / "ctrl-g to edit in Vim · <plan path>"
   { re: /shift.tab to approve/i, status: "needs_reply", attention: "needs_reply" },
   { re: /ctrl-g to edit/i, status: "needs_reply", attention: "needs_reply" },
-  { re: /\?\s+for shortcuts/i, status: "idle", attention: "none" },
+  // "Exit plan mode?" confirmation — match the ❯ cursor on numbered choice at the end
+  { re: /exit plan mode\?/i, status: "needs_reply", attention: "needs_reply" },
+  { re: /\?\s+for shortcuts/i, status: "idle", attention: "none", approvalPolicy: "default" },
   { re: /plan mode on/i, status: "idle", attention: "none", planMode: true },
+  { re: /accept edits/i, status: "idle", attention: "none", approvalPolicy: "acceptEdits" },
+  { re: /bypass permissions/i, status: "idle", attention: "none", approvalPolicy: "bypassPermissions" },
   // ❯ or > prompt cursor — universal idle/ready indicator
-  { re: /❯|^\s*>/, status: "idle", attention: "none" },
+  // Exclude ❯ followed by a digit (numbered selection menu, not the input prompt)
+  { re: /❯(?!\s*\d)|^\s*>(?!\s*\d)/, status: "idle", attention: "none" },
   // Type your message — idle indicator (fallback)
   { re: /type your message/i, status: "idle", attention: "none" },
 ];
@@ -288,5 +318,57 @@ export function detectClaudeTerminalStatus(text: string): TerminalStatusHint | n
     hint.planMode = true;
   }
 
+  if (best.entry.approvalPolicy) {
+    hint.approvalPolicy = best.entry.approvalPolicy;
+  }
+
+  // Detect model/effort changes from "Set model to ..." messages
+  const modelEffort = detectClaudeModelEffort(text);
+  if (modelEffort?.model) hint.model = modelEffort.model;
+  if (modelEffort?.effort) hint.effort = modelEffort.effort;
+
   return hint;
+}
+
+// ── Model / effort detection from "Set model to …" messages ─────────
+
+const CLAUDE_MODEL_MAP: [RegExp, string][] = [
+  [/opus/i, "claude-opus-4-6[1m]"],
+  [/haiku/i, "haiku"],
+  [/sonnet/i, "sonnet"],
+];
+
+const KNOWN_EFFORTS = new Set(["low", "medium", "high", "max"]);
+
+export function detectClaudeModelEffort(
+  text: string,
+): { model?: string; effort?: string } | null {
+  const re = /Set model to (.+?)(?:\s+with (\w+) effort)?\s*$/gm;
+  let last: RegExpExecArray | null = null;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(text)) !== null) {
+    last = m;
+  }
+  if (!last) return null;
+
+  const rawModel = last[1]?.replace(/\s*\(default\)\s*$/, "").trim();
+  const rawEffort = last[2]?.toLowerCase();
+
+  let model: string | undefined;
+  if (rawModel) {
+    for (const [pattern, id] of CLAUDE_MODEL_MAP) {
+      if (pattern.test(rawModel)) {
+        model = id;
+        break;
+      }
+    }
+  }
+
+  const effort = rawEffort && KNOWN_EFFORTS.has(rawEffort) ? rawEffort : undefined;
+
+  if (!model && !effort) return null;
+  const result: { model?: string; effort?: string } = {};
+  if (model) result.model = model;
+  if (effort) result.effort = effort;
+  return result;
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { detectClaudeTerminalStatus } from "./claude";
+import { detectClaudeTerminalStatus, detectClaudeModelEffort } from "./claude";
 
 describe("detectClaudeTerminalStatus", () => {
   it("detects working state when 'esc to interrupt' is in the last lines", () => {
@@ -16,6 +16,7 @@ describe("detectClaudeTerminalStatus", () => {
     expect(detectClaudeTerminalStatus(text)).toEqual({
       status: "idle",
       attention: "none",
+      approvalPolicy: "default",
     });
   });
 
@@ -35,6 +36,7 @@ describe("detectClaudeTerminalStatus", () => {
     expect(detectClaudeTerminalStatus(lines.join("\n"))).toEqual({
       status: "idle",
       attention: "none",
+      approvalPolicy: "default",
     });
   });
 
@@ -100,6 +102,20 @@ describe("detectClaudeTerminalStatus", () => {
     expect(result?.attention).toBe("needs_reply");
   });
 
+  it("detects exit plan mode confirmation as needs_reply", () => {
+    const text = [
+      "Exit plan mode?",
+      "",
+      "  Claude wants to exit plan mode",
+      "",
+      "❯ 1. Yes",
+      "  2. No",
+    ].join("\n");
+    const result = detectClaudeTerminalStatus(text);
+    expect(result?.status).toBe("needs_reply");
+    expect(result?.attention).toBe("needs_reply");
+  });
+
   it("sets planMode on 'plan mode on' hint", () => {
     const text =
       "● Plan mode\n❯ \n\nplan mode on                                       ○ high · /plan";
@@ -134,5 +150,116 @@ describe("detectClaudeTerminalStatus", () => {
   it("prioritizes needs_approval over working", () => {
     const text = "esc to interrupt\nEsc to cancel · Tab to amend · ctrl+e to explain";
     expect(detectClaudeTerminalStatus(text)?.status).toBe("needs_approval");
+  });
+
+  // ── Approval policy detection ──────────────────────────
+
+  it("detects accept edits mode from status line", () => {
+    const text = "● Ready\n❯ \n\n▶▶ accept edits on (shift+tab to cycle)";
+    const result = detectClaudeTerminalStatus(text);
+    expect(result?.status).toBe("idle");
+    expect(result?.approvalPolicy).toBe("acceptEdits");
+  });
+
+  it("detects bypass permissions mode from status line", () => {
+    const text = "● Ready\n❯ \n\n▶▶ bypass permissions on (shift+tab to cycle)";
+    const result = detectClaudeTerminalStatus(text);
+    expect(result?.status).toBe("idle");
+    expect(result?.approvalPolicy).toBe("bypassPermissions");
+  });
+
+  it("detects default mode from '? for shortcuts'", () => {
+    const text = "● Ready\n❯ \n? for shortcuts";
+    expect(detectClaudeTerminalStatus(text)?.approvalPolicy).toBe("default");
+  });
+
+  it("does not set approvalPolicy on prompt cursor idle", () => {
+    const text = "❯ ";
+    expect(detectClaudeTerminalStatus(text)?.approvalPolicy).toBeUndefined();
+  });
+});
+
+// ── Model / effort detection ──────────────────────────────
+
+describe("detectClaudeModelEffort", () => {
+  it("detects Opus model with max effort", () => {
+    const text = "Set model to Opus 4.6 (1M context) (default) with max effort";
+    expect(detectClaudeModelEffort(text)).toEqual({
+      model: "claude-opus-4-6[1m]",
+      effort: "max",
+    });
+  });
+
+  it("detects Haiku model without effort", () => {
+    const text = "Set model to Haiku 4.5";
+    expect(detectClaudeModelEffort(text)).toEqual({ model: "haiku" });
+  });
+
+  it("detects Sonnet model without effort", () => {
+    const text = "Set model to Sonnet 4.6";
+    expect(detectClaudeModelEffort(text)).toEqual({ model: "sonnet" });
+  });
+
+  it("detects Sonnet model with medium effort", () => {
+    const text = "Set model to Sonnet 4.6 (1M context) with medium effort";
+    expect(detectClaudeModelEffort(text)).toEqual({
+      model: "sonnet",
+      effort: "medium",
+    });
+  });
+
+  it("uses last model line when multiple exist", () => {
+    const text = [
+      "Set model to Opus 4.6 (1M context) (default) with max effort",
+      "some output",
+      "Set model to Haiku 4.5",
+    ].join("\n");
+    expect(detectClaudeModelEffort(text)).toEqual({ model: "haiku" });
+  });
+
+  it("returns null when no model line present", () => {
+    expect(detectClaudeModelEffort("some random text")).toBeNull();
+  });
+
+  it("ignores unknown effort values", () => {
+    const text = "Set model to Sonnet 4.6 with extreme effort";
+    expect(detectClaudeModelEffort(text)).toEqual({ model: "sonnet" });
+  });
+
+  it("strips (default) from model name", () => {
+    const text = "Set model to Haiku 4.5 (default)";
+    expect(detectClaudeModelEffort(text)).toEqual({ model: "haiku" });
+  });
+});
+
+// ── Integration: status + model in combined buffer ────────
+
+describe("detectClaudeTerminalStatus with model/effort", () => {
+  it("includes model and effort from buffer alongside status", () => {
+    const text = [
+      "Set model to Sonnet 4.6 with medium effort",
+      "● Ready",
+      "❯ ",
+      "? for shortcuts",
+    ].join("\n");
+    const result = detectClaudeTerminalStatus(text);
+    expect(result?.status).toBe("idle");
+    expect(result?.approvalPolicy).toBe("default");
+    expect(result?.model).toBe("sonnet");
+    expect(result?.effort).toBe("medium");
+  });
+
+  it("includes model from buffer with accept edits mode", () => {
+    const text = [
+      "Set model to Opus 4.6 (1M context) (default) with max effort",
+      "● Ready",
+      "❯ ",
+      "▶▶ accept edits on (shift+tab to cycle)",
+    ].join("\n");
+    const result = detectClaudeTerminalStatus(text);
+    expect(result?.status).toBe("idle");
+    expect(result?.approvalPolicy).toBe("acceptEdits");
+    expect(result?.model).toBe("claude-opus-4-6[1m]");
+    expect(result?.effort).toBe("max");
   });
 });

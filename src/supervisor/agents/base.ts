@@ -138,6 +138,9 @@ export interface TerminalStatusHint {
   status: ThreadStatus;
   attention: ThreadAttention;
   planMode?: boolean | undefined;
+  approvalPolicy?: string | undefined;
+  model?: string | undefined;
+  effort?: string | undefined;
 }
 
 export interface SyncConfigFromTerminalStateInput {
