@@ -15,7 +15,7 @@ export type LiveInputMode = z.infer<typeof liveInputModeSchema>;
 export const threadPresentationModeSchema = z.enum(["terminal", "gui"]);
 export type ThreadPresentationMode = z.infer<typeof threadPresentationModeSchema>;
 
-export const threadModeSchema = z.enum(["agent", "plan"]);
+export const threadModeSchema = z.enum(["agent", "plan", "autopilot"]);
 export type ThreadMode = z.infer<typeof threadModeSchema>;
 
 export const threadStatusSchema = z.enum([

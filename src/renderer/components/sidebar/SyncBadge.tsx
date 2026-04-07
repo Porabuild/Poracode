@@ -77,6 +77,16 @@ export function SyncBadge(props: { projectId: string; worktreePath?: string }) {
       } else {
         await readBridge().gitSync({ projectLocation: location });
       }
+
+      // Eagerly refresh git status so the badge updates immediately.
+      // The file watcher is disabled for WSL projects, so without this
+      // the badge would stay stale until the next periodic fetch.
+      const newStatus = await readBridge().getGitStatus({ projectLocation: location });
+      if (props.worktreePath) {
+        useGitStore.getState().setWorktreeStatus(props.worktreePath, newStatus);
+      } else {
+        useGitStore.getState().setProjectSnapshot(props.projectId, { status: newStatus });
+      }
     } catch {
       // Errors will be visible via git status refresh
     } finally {

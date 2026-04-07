@@ -16,8 +16,17 @@ const PROMPT =
 const MAX_PROMPT_CHARS = 2000;
 const TITLE_GEN_TIMEOUT_MS = 30_000;
 
+function extractJsonResult(raw: string): string | undefined {
+  try {
+    const parsed = JSON.parse(raw) as { result?: unknown };
+    return typeof parsed?.result === "string" ? parsed.result : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 export function cleanTitle(raw: string): string {
-  let text = raw;
+  let text = extractJsonResult(raw) ?? raw;
 
   // Strip <think>…</think> / <antThinking>…</antThinking> blocks
   text = text.replace(/<(think|antThinking)>[\s\S]*?<\/\1>/g, "");
@@ -64,7 +73,8 @@ export async function generateTitle(
     throw new Error(`${adapter.label} does not support one-shot generation`);
   }
 
-  const cmd = adapter.buildOneShotCommand(effectiveModel, effort);
+  const finalPrompt = PROMPT + truncatePrompt(prompt);
+  const cmd = adapter.buildOneShotCommand(effectiveModel, effort, finalPrompt);
   if (!cmd) {
     throw new Error(`${adapter.label} does not support one-shot generation`);
   }
@@ -72,7 +82,7 @@ export async function generateTitle(
   const spawnSpec = buildOneShotSpec(location, cmd.command, cmd.args);
   console.log(`[title-gen] spawning: ${spawnSpec.command} ${spawnSpec.args.join(" ")}`);
 
-  const raw = await spawnAgent(spawnSpec, PROMPT + truncatePrompt(prompt), TITLE_GEN_TIMEOUT_MS);
+  const raw = await spawnAgent(spawnSpec, cmd.stdin ?? finalPrompt, TITLE_GEN_TIMEOUT_MS);
   const title = cleanTitle(raw);
   if (!title) {
     throw new Error("Title generation returned empty result");

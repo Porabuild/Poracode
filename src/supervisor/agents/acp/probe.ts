@@ -23,9 +23,28 @@ import type { ThreadMode } from "../../../shared/contracts";
 
 export interface AcpProbeResult {
   models?: Array<{ id: string; label: string }>;
+  efforts?: string[];
+  defaultEffort?: string;
+  modelEfforts?: Record<string, string[]>;
   modes?: ThreadMode[];
   approvalPolicies?: Array<{ id: string; label: string }>;
 }
+
+type AcpConfigOptionLike = {
+  category?: string | null;
+  type?: string;
+  currentValue?: string;
+  options?: unknown;
+};
+
+type AcpConfigSelectOptionLike = {
+  value?: string;
+  name?: string;
+};
+
+type AcpConfigSelectGroupLike = {
+  options?: unknown;
+};
 
 // ── Mode mapping ─────────────────────────────────────────────────
 
@@ -44,7 +63,14 @@ const MODE_MAP: Record<string, { mode: ThreadMode; approvalPolicyId?: string }> 
   autoEdit: { mode: "agent", approvalPolicyId: "auto_edit" },
   yolo: { mode: "agent", approvalPolicyId: "never" },
   plan: { mode: "plan" },
+  agent: { mode: "agent" },
+  autopilot: { mode: "agent", approvalPolicyId: "autopilot" },
 };
+
+export function normalizeAcpModeId(modeId: string): string {
+  const base = modeId.includes("#") ? modeId.split("#").at(-1) : modeId.split("/").at(-1);
+  return (base ?? modeId).trim();
+}
 
 /**
  * Map ACP `SessionMode[]` to Lightcode modes and approval policies.
@@ -58,7 +84,7 @@ export function mapAcpModes(availableModes: SessionMode[]): {
   const approvalPolicies: Array<{ id: string; label: string }> = [];
 
   for (const acpMode of availableModes) {
-    const mapped = MODE_MAP[acpMode.id];
+    const mapped = MODE_MAP[normalizeAcpModeId(acpMode.id)];
     if (!mapped) {
       console.log("[acp-probe] unknown mode ID, skipping:", acpMode.id);
       continue;
@@ -97,6 +123,61 @@ export function mapAcpModels(availableModels: ModelInfo[]): Array<{ id: string; 
     id: m.modelId,
     label: m.name === m.modelId ? humanizeModelId(m.modelId) : m.name,
   }));
+}
+
+function isSelectOption(value: unknown): value is AcpConfigSelectOptionLike {
+  return typeof value === "object" && value !== null && "value" in value;
+}
+
+function flattenSelectOptions(options: unknown): AcpConfigSelectOptionLike[] {
+  if (!Array.isArray(options)) {
+    return [];
+  }
+
+  return options.flatMap((entry) => {
+    if (isSelectOption(entry)) {
+      return [entry];
+    }
+    if (typeof entry === "object" && entry !== null && "options" in entry) {
+      return flattenSelectOptions((entry as AcpConfigSelectGroupLike).options);
+    }
+    return [];
+  });
+}
+
+export function mapAcpThoughtLevels(configOptions: unknown): {
+  efforts: string[];
+  defaultEffort?: string;
+} {
+  if (!Array.isArray(configOptions)) {
+    return { efforts: [] };
+  }
+
+  const option = configOptions.find((candidate) => {
+    if (typeof candidate !== "object" || candidate === null) {
+      return false;
+    }
+    const configOption = candidate as AcpConfigOptionLike;
+    return configOption.category === "thought_level" && configOption.type === "select";
+  }) as AcpConfigOptionLike | undefined;
+
+  if (!option) {
+    return { efforts: [] };
+  }
+
+  const efforts = flattenSelectOptions(option.options)
+    .map((entry) => entry.value)
+    .filter((value): value is string => typeof value === "string" && value.length > 0);
+
+  const defaultEffort =
+    typeof option.currentValue === "string" && option.currentValue.length > 0
+      ? option.currentValue
+      : undefined;
+
+  return {
+    efforts,
+    ...(defaultEffort ? { defaultEffort } : {}),
+  };
 }
 
 // ── Probe ────────────────────────────────────────────────────────
@@ -167,6 +248,15 @@ export async function probeAcpCapabilities(
     if (result.models?.availableModels?.length) {
       probeResult.models = mapAcpModels(result.models.availableModels);
     }
+    if (result.configOptions?.length) {
+      const thoughtLevels = mapAcpThoughtLevels(result.configOptions);
+      if (thoughtLevels.efforts.length > 0) {
+        probeResult.efforts = thoughtLevels.efforts;
+      }
+      if (thoughtLevels.defaultEffort) {
+        probeResult.defaultEffort = thoughtLevels.defaultEffort;
+      }
+    }
     if (result.modes?.availableModes?.length) {
       const mapped = mapAcpModes(result.modes.availableModes);
       if (mapped.modes.length) probeResult.modes = mapped.modes;
@@ -174,9 +264,11 @@ export async function probeAcpCapabilities(
     }
 
     console.log(
-      "%s success — models: %d, modes: %s, approvalPolicies: %s (raw ACP modes: %s)",
+      "%s success — models: %d, efforts: %s, defaultEffort: %s, modes: %s, approvalPolicies: %s (raw ACP modes: %s)",
       tag,
       probeResult.models?.length ?? 0,
+      probeResult.efforts?.join(", ") ?? "(none)",
+      probeResult.defaultEffort ?? "(none)",
       probeResult.modes?.join(", ") ?? "(none)",
       probeResult.approvalPolicies?.map((p) => p.id).join(", ") ?? "(none)",
       result.modes?.availableModes?.map((m) => m.id).join(", ") ?? "(none)",

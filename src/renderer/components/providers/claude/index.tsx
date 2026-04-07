@@ -12,9 +12,14 @@ import {
 import { withCurrentModel } from "../../thread/threadComposerOptions";
 
 registerProviderIcon("claude", ClaudeIcon);
-registerCommitGenDefaults("claude", { model: "haiku", effort: "" });
-registerTitleGenDefaults("claude", { model: "haiku", effort: "" });
-registerConflictResolverDefaults("claude", { model: "claude-opus-4-6[1m]", effort: "" });
+registerCommitGenDefaults("claude", { label: "Claude", hint: "Haiku", model: "haiku", effort: "" });
+registerTitleGenDefaults("claude", { label: "Claude", hint: "Haiku", model: "haiku", effort: "" });
+registerConflictResolverDefaults("claude", {
+  label: "Claude",
+  hint: "Opus",
+  model: "claude-opus-4-6[1m]",
+  effort: "",
+});
 
 registerComposerControls("claude", ({ capabilities, config, isDisabled, onConfigChange }) => {
   const availableEfforts =

@@ -306,3 +306,11 @@ process.on("disconnect", () => {
   runtime.dispose();
   process.exit(0);
 });
+
+process.on("uncaughtException", (error) => {
+  console.error("[supervisor] uncaught exception:", error);
+});
+
+process.on("unhandledRejection", (reason) => {
+  console.error("[supervisor] unhandled rejection:", reason);
+});

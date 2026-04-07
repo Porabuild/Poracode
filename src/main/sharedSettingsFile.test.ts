@@ -63,6 +63,8 @@ describe("sharedSettingsFile", () => {
       wslConflictResolverModel: "",
       wslConflictResolverEffort: "",
       agentSettings: {},
+      collapseTerminalComposer: false,
+      staleThreadUnloadMinutes: 20,
     });
   });
 
@@ -90,6 +92,8 @@ describe("sharedSettingsFile", () => {
       wslConflictResolverModel: "",
       wslConflictResolverEffort: "",
       agentSettings: {},
+      collapseTerminalComposer: false,
+      staleThreadUnloadMinutes: 20,
     });
 
     expect(readSharedSettingsFile(settingsPath)).toEqual({
@@ -114,6 +118,8 @@ describe("sharedSettingsFile", () => {
       wslConflictResolverModel: "",
       wslConflictResolverEffort: "",
       agentSettings: {},
+      collapseTerminalComposer: false,
+      staleThreadUnloadMinutes: 20,
     });
     expect(readFileSync(settingsPath, "utf8")).toContain('"themeMode": "dark"');
   });
@@ -152,6 +158,8 @@ describe("sharedSettingsFile", () => {
       wslConflictResolverModel: "",
       wslConflictResolverEffort: "",
       agentSettings: {},
+      collapseTerminalComposer: false,
+      staleThreadUnloadMinutes: 20,
     });
     expect(readSharedSettingsFile(settingsPath)).toEqual(settings);
   });

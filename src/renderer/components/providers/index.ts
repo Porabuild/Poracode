@@ -12,5 +12,7 @@ export * from "./titleGen";
  * To remove: delete its line and folder.
  */
 export * from "./claude";
+export * from "./copilot";
 export * from "./codex";
 export * from "./gemini";
+export * from "./cursor";

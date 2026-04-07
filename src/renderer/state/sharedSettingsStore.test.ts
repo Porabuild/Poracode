@@ -6,6 +6,7 @@ describe("sharedSettingsStore", () => {
     localStorage.clear();
     useSharedSettings.setState({
       themeMode: "system",
+      staleThreadUnloadMinutes: 20,
     });
   });
 
@@ -16,5 +17,10 @@ describe("sharedSettingsStore", () => {
   it("switches theme mode", () => {
     useSharedSettings.getState().setThemeMode("dark");
     expect(useSharedSettings.getState().themeMode).toBe("dark");
+  });
+
+  it("updates the stale thread unload timing", () => {
+    useSharedSettings.getState().setStaleThreadUnloadMinutes(30);
+    expect(useSharedSettings.getState().staleThreadUnloadMinutes).toBe(30);
   });
 });

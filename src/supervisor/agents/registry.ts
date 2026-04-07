@@ -5,11 +5,19 @@
  */
 import type { AgentAdapter } from "./base";
 import { createClaudeAdapter } from "./claude";
+import { createCopilotAdapter } from "./copilot";
 import { createCodexAdapter } from "./codex";
+import { createCursorAdapter } from "./cursor";
 import { createGeminiAdapter } from "./gemini";
 
 export function createAgentRegistry(): AgentAdapter[] {
-  const adapters = [createClaudeAdapter(), createCodexAdapter(), createGeminiAdapter()];
+  const adapters = [
+    createClaudeAdapter(),
+    createCopilotAdapter(),
+    createCodexAdapter(),
+    createGeminiAdapter(),
+    createCursorAdapter(),
+  ];
   const kinds = new Set(adapters.map((a) => a.kind));
   if (kinds.size !== adapters.length) {
     throw new Error("Duplicate agent kind in registry");

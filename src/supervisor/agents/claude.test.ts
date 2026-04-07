@@ -8,6 +8,7 @@ describe("detectClaudeTerminalStatus", () => {
     expect(detectClaudeTerminalStatus(text)).toEqual({
       status: "working",
       attention: "working",
+      corroborated: true,
     });
   });
 
@@ -17,6 +18,7 @@ describe("detectClaudeTerminalStatus", () => {
       status: "idle",
       attention: "none",
       approvalPolicy: "default",
+      corroborated: true,
     });
   });
 
@@ -37,6 +39,7 @@ describe("detectClaudeTerminalStatus", () => {
       status: "idle",
       attention: "none",
       approvalPolicy: "default",
+      corroborated: true,
     });
   });
 
@@ -122,6 +125,7 @@ describe("detectClaudeTerminalStatus", () => {
     const result = detectClaudeTerminalStatus(text);
     expect(result?.status).toBe("idle");
     expect(result?.planMode).toBe(true);
+    expect(result?.corroborated).toBe(true);
   });
 
   it("does not set planMode on normal idle hints", () => {
@@ -261,5 +265,91 @@ describe("detectClaudeTerminalStatus with model/effort", () => {
     expect(result?.approvalPolicy).toBe("acceptEdits");
     expect(result?.model).toBe("claude-opus-4-6[1m]");
     expect(result?.effort).toBe("max");
+  });
+});
+
+// ── Dual-pattern corroboration ──────────────────────────
+
+describe("detectClaudeTerminalStatus corroboration", () => {
+  it("marks strong idle patterns as corroborated", () => {
+    const text = "? for shortcuts";
+    expect(detectClaudeTerminalStatus(text)?.corroborated).toBe(true);
+  });
+
+  it("marks prompt-only idle as uncorroborated when no strong idle present", () => {
+    // Only the ❯ prompt cursor, no status bar indicator
+    const text = "❯ ";
+    const result = detectClaudeTerminalStatus(text);
+    expect(result?.status).toBe("idle");
+    expect(result?.corroborated).toBe(false);
+  });
+
+  it("marks prompt idle as corroborated when strong idle also present", () => {
+    // ❯ is the best match (closer to end), but "? for shortcuts" is also present
+    const text = "? for shortcuts\n\n\n❯ ";
+    const result = detectClaudeTerminalStatus(text);
+    expect(result?.status).toBe("idle");
+    expect(result?.corroborated).toBe(true);
+  });
+
+  it("marks 'type your message' as corroborated when status bar present", () => {
+    const text = "? for shortcuts\ntype your message";
+    const result = detectClaudeTerminalStatus(text);
+    expect(result?.status).toBe("idle");
+    expect(result?.corroborated).toBe(true);
+  });
+
+  it("marks 'type your message' alone as uncorroborated", () => {
+    const text = "type your message";
+    const result = detectClaudeTerminalStatus(text);
+    expect(result?.status).toBe("idle");
+    expect(result?.corroborated).toBe(false);
+  });
+
+  it("marks spinner-only working as uncorroborated", () => {
+    const text = "⠋ Reading files…";
+    const result = detectClaudeTerminalStatus(text);
+    expect(result?.status).toBe("working");
+    expect(result?.corroborated).toBe(false);
+  });
+
+  it("marks spinner working as corroborated when 'esc to interrupt' also present", () => {
+    const text = "esc to interrupt\n⠋ Reading files…";
+    const result = detectClaudeTerminalStatus(text);
+    expect(result?.status).toBe("working");
+    expect(result?.corroborated).toBe(true);
+  });
+
+  it("marks 'esc to interrupt' as self-corroborated", () => {
+    const text = "esc to interrupt";
+    expect(detectClaudeTerminalStatus(text)?.corroborated).toBe(true);
+  });
+
+  it("marks needs_approval as corroborated (specific multi-word pattern)", () => {
+    const text = "Esc to cancel · Tab to amend";
+    expect(detectClaudeTerminalStatus(text)?.corroborated).toBe(true);
+  });
+
+  it("marks needs_reply patterns as corroborated", () => {
+    const text = "Enter to select";
+    expect(detectClaudeTerminalStatus(text)?.corroborated).toBe(true);
+  });
+
+  it("ignores historical ❯ deep in chat scrollback during large screen repaints", () => {
+    // Simulates a large frame where a previous user message's ❯ prompt
+    // appears far from the end, while the status bar hasn't been painted yet.
+    // The ❯ from chat history should NOT trigger idle detection.
+    const chatHistory = "❯ do the thing please\n";
+    const codeOutput = "x".repeat(500) + "\n  function foo() {}\n";
+    const text = chatHistory + codeOutput;
+    // The historical ❯ is >500 chars from the end — should be ignored
+    expect(detectClaudeTerminalStatus(text)).toBeNull();
+  });
+
+  it("still detects ❯ prompt near the end of the buffer", () => {
+    // The real prompt cursor at the bottom of the screen
+    const text = "Some output\n" + "─".repeat(80) + "\n❯ \n" + "─".repeat(80) + "\n  ⏵⏵ bypass permissions on";
+    const result = detectClaudeTerminalStatus(text);
+    expect(result?.status).toBe("idle");
   });
 });

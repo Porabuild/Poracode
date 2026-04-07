@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { GitBranch, GitFork, Paperclip, X } from "lucide-react";
+import { ChevronDown, GitBranch, GitFork, Paperclip, X } from "lucide-react";
 import type {
   AgentStatus,
   ProjectLocation,
@@ -14,6 +14,7 @@ import { ProviderIcon, getComposerControls, getStatusTone } from "../providers";
 import type { PendingThreadServerRequest } from "../../state/appStore";
 import { useGitStore } from "../../state/gitStore";
 import { Button, TuxIcon } from "../common";
+import { useSharedSettings } from "../../state/sharedSettingsStore";
 import { readBridge } from "../../bridge";
 import {
   MentionInput,
@@ -41,7 +42,7 @@ function buildControls(
     {
       kind: "static" as const,
       value: agentStatus?.label ?? thread.agentKind,
-      hideLabelOnWrap: true,
+      iconOnly: true,
       icon: <ProviderIcon kind={thread.agentKind} tone={statusTone} className="size-4 shrink-0" />,
     },
     ...(factory && agentStatus
@@ -137,6 +138,13 @@ export function ThreadView(props: {
     thread.status !== "launching";
   const launchTerminalSize = usesTerminalPresentation ? terminalSize : DEFAULT_HIDDEN_TERMINAL_SIZE;
 
+  const collapseTerminalComposerSetting = useSharedSettings(
+    (s) => s.collapseTerminalComposer,
+  );
+  const [composerCollapsed, setComposerCollapsed] = useState(collapseTerminalComposerSetting);
+  const canCollapseComposer = showTerminalComposer;
+  const isComposerCollapsed = canCollapseComposer && composerCollapsed;
+
   const branchName = useGitStore(
     (s) =>
       thread.worktreeBranch ??
@@ -174,7 +182,8 @@ export function ThreadView(props: {
 
   useEffect(() => {
     setPrompt("");
-  }, [thread.id]);
+    setComposerCollapsed(collapseTerminalComposerSetting);
+  }, [thread.id, collapseTerminalComposerSetting]);
 
   // Listen for "Paste in input" from terminal context menu
   useEffect(() => {
@@ -326,97 +335,134 @@ export function ThreadView(props: {
             />
           ) : null}
 
-          <div className="relative">
-            {thread.status === "launching" ? (
-              <div className="absolute inset-0 z-10 flex items-center justify-center rounded-3xl bg-background/80">
-                <span className="text-sm text-muted">Starting thread...</span>
-              </div>
-            ) : null}
-            <ThreadComposer
-              autoFocus // eslint-disable-line jsx-a11y/no-autofocus -- desktop app, expected UX
-              compact
-              attachmentBar={
-                <AttachmentBar
-                  attachments={attachments.attachments}
-                  onRemove={attachments.removeAttachment}
-                  onPreviewImage={(att) => {
-                    const idx = imageAttachments.findIndex((a) => a.id === att.id);
-                    if (idx >= 0) setLightboxIndex(idx);
+          <div>
+            <div
+              className={`grid transition-[grid-template-rows] ease-[cubic-bezier(0.16,1,0.3,1)] ${isComposerCollapsed ? "duration-300" : "duration-200"}`}
+              style={{ gridTemplateRows: isComposerCollapsed ? "0fr" : "1fr" }}
+            >
+              <div className="overflow-hidden">
+                <div
+                  className={`relative ${isComposerCollapsed ? "pointer-events-none" : ""}`}
+                  style={{
+                    opacity: isComposerCollapsed ? 0 : 1,
+                    transition: isComposerCollapsed
+                      ? "opacity 150ms ease 50ms"
+                      : "opacity 200ms ease 100ms",
                   }}
-                />
-              }
-              inputContent={
-                <MentionInput
-                  ref={mentionRef}
-                  autoFocus // eslint-disable-line jsx-a11y/no-autofocus -- desktop app, expected UX
-                  compact
-                  disabled={
-                    !(showServerComposer || showTerminalComposer) || thread.status === "launching"
-                  }
-                  placeholder={
-                    isServerControlled
-                      ? `Ask ${agentStatus?.label ?? "the agent"} anything about this workspace`
-                      : "Send a message..."
-                  }
-                  projectLocation={projectLocation}
-                  onTextChange={setHasContent}
-                  onSubmit={submitPrompt}
-                  onPasteImage={(file) => {
-                    void attachments.addClipboardImage(file, thread.id);
-                  }}
-                />
-              }
-              controls={controls}
-              placeholder="Send a message..."
-              prompt={prompt}
-              promptDisabled={
-                !(showServerComposer || showTerminalComposer) || thread.status === "launching"
-              }
-              submitDisabled={!(hasContent || attachments.attachments.length > 0) || !canSubmit}
-              submitLabel="Send message"
-              afterControls={
-                <>
-                  <Button
-                    isIconOnly
-                    aria-label="Attach files"
-                    className="lightcode-composer-menu min-w-9 px-2"
-                    size="sm"
-                    variant="ghost"
-                    onPress={() => {
-                      void readBridge()
-                        .pickFiles()
-                        .then((paths) => {
-                          if (paths) attachments.addFiles(paths);
-                        });
-                    }}
-                  >
-                    <Paperclip className="size-4" />
-                  </Button>
-                  {branchName ? (
-                    <div className="lightcode-composer-static min-w-0 px-2.5">
-                      {thread.worktreePath ? (
-                        <GitFork className="size-3.5 text-muted" />
-                      ) : (
-                        <GitBranch className="size-3.5 text-muted" />
-                      )}
-                      <span className="truncate">{branchName}</span>
-                      {thread.prNumber ? (
-                        <span className="text-muted/60">PR #{thread.prNumber}</span>
-                      ) : null}
+                >
+                  {thread.status === "launching" ? (
+                    <div className="absolute inset-0 z-10 flex items-center justify-center rounded-3xl bg-background/80">
+                      <span className="text-sm text-muted">Starting thread...</span>
                     </div>
                   ) : null}
-                </>
-              }
-              onPromptChange={setPrompt}
-              onSubmit={() => {
-                const segments = mentionRef.current?.serializeSegments();
-                submitPrompt(
-                  segments && segments.length > 0
-                    ? segments
-                    : [{ kind: "text", content: prompt.trim() }],
-                );
-              }}
-            />
+                  <ThreadComposer
+                    autoFocus // eslint-disable-line jsx-a11y/no-autofocus -- desktop app, expected UX
+                    compact
+                    attachmentBar={
+                      <AttachmentBar
+                        attachments={attachments.attachments}
+                        onRemove={attachments.removeAttachment}
+                        onPreviewImage={(att) => {
+                          const idx = imageAttachments.findIndex((a) => a.id === att.id);
+                          if (idx >= 0) setLightboxIndex(idx);
+                        }}
+                      />
+                    }
+                    inputContent={
+                      <MentionInput
+                        ref={mentionRef}
+                        autoFocus // eslint-disable-line jsx-a11y/no-autofocus -- desktop app, expected UX
+                        compact
+                        disabled={
+                          !(showServerComposer || showTerminalComposer) ||
+                          thread.status === "launching"
+                        }
+                        placeholder={
+                          isServerControlled
+                            ? `Ask ${agentStatus?.label ?? "the agent"} anything about this workspace`
+                            : "Send a message..."
+                        }
+                        projectLocation={projectLocation}
+                        onTextChange={setHasContent}
+                        onSubmit={submitPrompt}
+                        onPasteImage={(file) => {
+                          void attachments.addClipboardImage(file, thread.id);
+                        }}
+                      />
+                    }
+                    controls={controls}
+                    placeholder="Send a message..."
+                    prompt={prompt}
+                    promptDisabled={
+                      !(showServerComposer || showTerminalComposer) ||
+                      thread.status === "launching"
+                    }
+                    submitDisabled={
+                      !(hasContent || attachments.attachments.length > 0) || !canSubmit
+                    }
+                    submitLabel="Send message"
+                    afterControls={
+                      <>
+                        <Button
+                          isIconOnly
+                          aria-label="Attach files"
+                          className="lightcode-composer-menu min-w-9 px-2"
+                          size="sm"
+                          variant="ghost"
+                          onPress={() => {
+                            void readBridge()
+                              .pickFiles()
+                              .then((paths) => {
+                                if (paths) attachments.addFiles(paths);
+                              });
+                          }}
+                        >
+                          <Paperclip className="size-4" />
+                        </Button>
+                        {branchName ? (
+                          <div className="lightcode-composer-static min-w-0 px-2.5">
+                            {thread.worktreePath ? (
+                              <GitFork className="size-3.5 text-muted" />
+                            ) : (
+                              <GitBranch className="size-3.5 text-muted" />
+                            )}
+                            <span className="truncate">{branchName}</span>
+                            {thread.prNumber ? (
+                              <span className="text-muted/60">PR #{thread.prNumber}</span>
+                            ) : null}
+                          </div>
+                        ) : null}
+                      </>
+                    }
+                    onPromptChange={setPrompt}
+                    onSubmit={() => {
+                      const segments = mentionRef.current?.serializeSegments();
+                      submitPrompt(
+                        segments && segments.length > 0
+                          ? segments
+                          : [{ kind: "text", content: prompt.trim() }],
+                      );
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
+            {canCollapseComposer ? (
+              <div
+                className={`relative z-10 flex justify-center transition-[margin] duration-150 ease-[cubic-bezier(0.16,1,0.3,1)] ${isComposerCollapsed ? "mt-0" : "-mt-3"}`}
+              >
+                <button
+                  type="button"
+                  aria-label={isComposerCollapsed ? "Show composer" : "Collapse composer"}
+                  className="cursor-pointer rounded-full border border-[var(--border)] bg-[var(--background)] px-3 py-0.5 text-muted transition-colors hover:text-foreground"
+                  onClick={() => setComposerCollapsed(!composerCollapsed)}
+                >
+                  <ChevronDown
+                    className={`size-4 transition-transform duration-150 ${isComposerCollapsed ? "rotate-180" : ""}`}
+                  />
+                </button>
+              </div>
+            ) : null}
           </div>
         </div>
       </div>

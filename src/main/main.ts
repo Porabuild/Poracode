@@ -288,12 +288,21 @@ function startSupervisor(baseDir: string): void {
     mainWindow?.webContents.send(CHANNELS.supervisorEvent, message);
   });
 
-  child.on("exit", () => {
+  child.on("exit", (code) => {
     if (supervisor === child) {
       supervisor = null;
       for (const [id, pending] of pendingRequests) {
         pending.reject(new Error("Supervisor exited unexpectedly."));
         pendingRequests.delete(id);
+      }
+
+      if (code !== 0 && lightcodePaths) {
+        console.error(`[lightcode] supervisor exited with code ${code}, restarting…`);
+        setTimeout(() => {
+          if (!supervisor && lightcodePaths) {
+            startSupervisor(lightcodePaths.baseDir);
+          }
+        }, 1000);
       }
     }
   });

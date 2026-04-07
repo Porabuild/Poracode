@@ -42,10 +42,12 @@ import {
   type StructuredSessionHandle,
   type StructuredSessionListener,
 } from "../base";
+import { normalizeAcpModeId } from "./probe";
 
 // ── Helpers ──────────────────────────────────────────────────────
 
-function resolveCwd(location: ProjectLocation): string {
+/** CWD to pass into the ACP session (the agent's working directory). */
+function resolveSessionCwd(location: ProjectLocation): string {
   switch (location.kind) {
     case "windows":
       return location.path;
@@ -54,6 +56,14 @@ function resolveCwd(location: ProjectLocation): string {
     case "posix":
       return location.path;
   }
+}
+
+/** CWD for the spawned process on the host OS (must be a valid native path). */
+function resolveSpawnCwd(location: ProjectLocation): string | undefined {
+  // WSL projects launch wsl.exe from Windows — the linux path doesn't exist
+  // on the host FS. wsl.exe receives its cwd via --cd, so no spawn cwd needed.
+  if (location.kind === "wsl") return undefined;
+  return location.path;
 }
 
 /**
@@ -135,28 +145,54 @@ function guessMimeType(path: string): string {
  * We pick the best match from the agent's advertised available modes.
  */
 function resolveAcpMode(config: ThreadConfig, availableModeIds: string[]): string | undefined {
-  const available = new Set(availableModeIds);
+  const available = new Map(
+    availableModeIds.map((modeId) => [normalizeAcpModeId(modeId).toLowerCase(), modeId]),
+  );
 
   if (config.mode === "plan") {
-    // Plan mode: prefer "plan", fall back to "architect"
-    if (available.has("plan")) return "plan";
-    if (available.has("architect")) return "architect";
+    if (available.has("plan")) return available.get("plan");
+    if (available.has("architect")) return available.get("architect");
     return undefined;
   }
 
   // Agent mode: pick based on approval policy
+  if (config.approvalPolicy === "autopilot") {
+    if (available.has("autopilot")) return available.get("autopilot");
+  }
   if (config.approvalPolicy === "never") {
-    if (available.has("yolo")) return "yolo";
+    if (available.has("yolo")) return available.get("yolo");
   }
   if (config.approvalPolicy === "auto_edit") {
-    if (available.has("autoEdit")) return "autoEdit";
+    if (available.has("autoedit")) return available.get("autoedit");
   }
 
   // Default agent mode
-  if (available.has("default")) return "default";
-  if (available.has("code")) return "code";
+  if (available.has("agent")) return available.get("agent");
+  if (available.has("default")) return available.get("default");
+  if (available.has("code")) return available.get("code");
 
   return undefined;
+}
+
+type AcpConfigOptionLike = {
+  id?: string;
+  category?: string | null;
+  type?: string;
+  currentValue?: string;
+};
+
+function findThoughtLevelConfig(configOptions: unknown): AcpConfigOptionLike | undefined {
+  if (!Array.isArray(configOptions)) {
+    return undefined;
+  }
+
+  return configOptions.find((candidate) => {
+    if (typeof candidate !== "object" || candidate === null) {
+      return false;
+    }
+    const option = candidate as AcpConfigOptionLike;
+    return option.category === "thought_level" && option.type === "select";
+  }) as AcpConfigOptionLike | undefined;
 }
 
 // ── Session ──────────────────────────────────────────────────────
@@ -171,12 +207,14 @@ export class AcpStructuredSession implements StructuredSessionHandle {
   private listener: StructuredSessionListener | undefined;
   private sessionId: string | undefined;
   private isDisposed = false;
+  private currentConfig: ThreadConfig | undefined;
+  private spawnReady: Promise<void> = Promise.resolve();
 
   private constructor(child: ChildProcess, connection: ClientSideConnection, cwd: string) {
     this.child = child;
     this.connection = connection;
     this.cwd = cwd;
-    this.launchOptions = {};
+    this.launchOptions = { suppressResumeConfigOverrides: true };
   }
 
   /**
@@ -186,14 +224,24 @@ export class AcpStructuredSession implements StructuredSessionHandle {
    * The SDK communicates over stdin/stdout using newline-delimited JSON.
    */
   static create(command: CommandSpec, projectLocation: ProjectLocation): AcpStructuredSession {
-    const cwd = resolveCwd(projectLocation);
+    const sessionCwd = resolveSessionCwd(projectLocation);
+    const spawnCwd = command.cwd ?? resolveSpawnCwd(projectLocation);
 
     const child = spawn(command.command, command.args, {
-      cwd: command.cwd ?? cwd,
+      ...(spawnCwd ? { cwd: spawnCwd } : {}),
       stdio: ["pipe", "pipe", "pipe"],
       env: { ...process.env, TERM: "xterm-256color" },
       shell: false,
       windowsHide: true,
+    });
+
+    // Track spawn outcome — activate() awaits this before writing to stdin.
+    const spawnReady = new Promise<void>((resolve, reject) => {
+      child.on("error", (err) => {
+        console.log("[acp] spawn error:", err.message);
+        reject(new Error(`ACP agent failed to start: ${err.message}`));
+      });
+      child.on("spawn", resolve);
     });
 
     // Collect stderr for error diagnostics
@@ -241,7 +289,8 @@ export class AcpStructuredSession implements StructuredSessionHandle {
       stream,
     );
 
-    session = new AcpStructuredSession(child, connection, cwd);
+    session = new AcpStructuredSession(child, connection, sessionCwd);
+    session.spawnReady = spawnReady;
     session.stderrChunks.push(...stderrChunks);
 
     // Handle connection close
@@ -281,6 +330,7 @@ export class AcpStructuredSession implements StructuredSessionHandle {
     if (this.isDisposed) {
       throw new Error("ACP session was disposed before activation.");
     }
+    await this.spawnReady;
 
     console.log("[acp] sending initialize...");
     const initResult = await this.connection.initialize({
@@ -319,6 +369,8 @@ export class AcpStructuredSession implements StructuredSessionHandle {
    */
   async openThread(config: ThreadConfig, sessionRef?: SessionRef): Promise<string> {
     let availableModeIds: string[] = [];
+    let configOptions: unknown[] = [];
+    this.currentConfig = config;
 
     if (sessionRef) {
       console.log("[acp] loading session:", sessionRef.providerSessionId);
@@ -329,6 +381,7 @@ export class AcpStructuredSession implements StructuredSessionHandle {
       });
       this.sessionId = sessionRef.providerSessionId;
       availableModeIds = result.modes?.availableModes?.map((m) => m.id) ?? [];
+      configOptions = result.configOptions ?? [];
     } else {
       console.log("[acp] creating new session in", this.cwd);
       const result = await this.connection.newSession({
@@ -337,6 +390,7 @@ export class AcpStructuredSession implements StructuredSessionHandle {
       });
       this.sessionId = result.sessionId;
       availableModeIds = result.modes?.availableModes?.map((m) => m.id) ?? [];
+      configOptions = result.configOptions ?? [];
       console.log("[acp] session created:", this.sessionId, "modes:", availableModeIds);
     }
 
@@ -369,7 +423,26 @@ export class AcpStructuredSession implements StructuredSessionHandle {
       }
     }
 
-    this.launchOptions = { resumeThreadId: this.sessionId };
+    const thoughtLevelConfig = findThoughtLevelConfig(configOptions);
+    if (
+      config.effort &&
+      this.sessionId &&
+      thoughtLevelConfig?.id &&
+      thoughtLevelConfig.currentValue !== config.effort
+    ) {
+      try {
+        await this.connection.setSessionConfigOption({
+          sessionId: this.sessionId,
+          configId: thoughtLevelConfig.id,
+          value: config.effort,
+        });
+        console.log("[acp] effort set to:", config.effort);
+      } catch {
+        // Agent may not support reasoning-effort config — that's fine
+      }
+    }
+
+    this.launchOptions = { ...this.launchOptions, resumeThreadId: this.sessionId };
     return this.sessionId!;
   }
 
@@ -552,11 +625,45 @@ export class AcpStructuredSession implements StructuredSessionHandle {
         break;
 
       case "current_mode_update":
-        // Agent switched modes — could map to config sync
+        if (
+          this.currentConfig &&
+          "currentModeId" in update &&
+          typeof update.currentModeId === "string"
+        ) {
+          const normalized = normalizeAcpModeId(update.currentModeId).toLowerCase();
+          const nextMode: ThreadConfig["mode"] =
+            normalized === "plan" ? "plan" : normalized === "autopilot" ? "autopilot" : "agent";
+          const nextConfig =
+            this.currentConfig.mode === nextMode
+              ? this.currentConfig
+              : { ...this.currentConfig, mode: nextMode };
+          this.currentConfig = nextConfig;
+          this.listener?.onUpdate({
+            status: "idle",
+            attention: "none",
+            config: nextConfig,
+            ...(this.sessionId ? { sessionRef: createKnownSessionRef(this.sessionId) } : {}),
+          });
+        }
         break;
 
       case "config_option_update":
-        // Config changed on the agent side
+        if (this.currentConfig && "configOptions" in update) {
+          const thoughtLevelConfig = findThoughtLevelConfig(update.configOptions);
+          if (
+            thoughtLevelConfig?.currentValue &&
+            thoughtLevelConfig.currentValue !== this.currentConfig.effort
+          ) {
+            const nextConfig = { ...this.currentConfig, effort: thoughtLevelConfig.currentValue };
+            this.currentConfig = nextConfig;
+            this.listener?.onUpdate({
+              status: "idle",
+              attention: "none",
+              config: nextConfig,
+              ...(this.sessionId ? { sessionRef: createKnownSessionRef(this.sessionId) } : {}),
+            });
+          }
+        }
         break;
 
       case "session_info_update": {

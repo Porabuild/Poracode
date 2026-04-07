@@ -356,6 +356,7 @@ export function parseCodexSocketMessage(payload: unknown): CodexSocketMessage {
 //   3. openThread()   → thread/resume with saved session ID
 //   4. (caller spawns TUI with resume)
 
+// eslint-disable-next-line no-unused-vars -- planned: structured SDK session support
 class CodexStructuredSession implements StructuredSessionHandle {
   launchOptions: AgentLaunchOptions;
 
@@ -1050,11 +1051,12 @@ export function detectCodexTerminalStatus(text: string): TerminalStatusHint | nu
   const recent = text.slice(-1200);
 
   if (detectCodexUpdatePrompt(recent) || detectRateLimitPrompt(recent)) {
-    return { status: "needs_reply", attention: "needs_reply" };
+    return { status: "needs_reply", attention: "needs_reply", corroborated: true };
   }
 
   if (detectCodexReadyForInitialPrompt(recent) || detectCodexReadyForInitialPrompt(text)) {
-    return { status: "idle", attention: "none" };
+    // Ready-for-initial-prompt requires three independent signals (ready + directory + model).
+    return { status: "idle", attention: "none", corroborated: true };
   }
 
   const strongHint = findBestCodexHint(recent, CODEX_STRONG_HINTS);
@@ -1068,13 +1070,14 @@ export function detectCodexTerminalStatus(text: string): TerminalStatusHint | nu
       lastPromptIndex > lastTitleIndex;
 
     if (!hasIdleRedraw) {
-      return { status: strongHint.status, attention: strongHint.attention };
+      return { status: strongHint.status, attention: strongHint.attention, corroborated: true };
     }
   }
 
   const idleHint = findBestCodexHint(recent, CODEX_IDLE_HINTS);
   if (idleHint) {
-    return { status: idleHint.status, attention: idleHint.attention };
+    // Prompt cursor alone is a weak idle signal — not corroborated.
+    return { status: idleHint.status, attention: idleHint.attention, corroborated: false };
   }
 
   return null;
@@ -1174,7 +1177,6 @@ export function createCodexAdapter(): AgentAdapter {
     }
 
     const { readdirSync, readFileSync, statSync } = require("node:fs") as typeof import("node:fs");
-    const { join } = require("node:path") as typeof import("node:path");
     const root = join(require("node:os").homedir(), ".codex", "sessions");
     const rollouts: CodexRolloutMeta[] = [];
     const walk = (dir: string) => {

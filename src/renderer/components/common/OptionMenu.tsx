@@ -6,7 +6,7 @@ import { Button, type ButtonProps } from "./Button";
 
 export interface OptionMenuProps {
   value: string;
-  options: readonly (string | { id: string; label: string; icon?: ReactNode })[];
+  options: readonly (string | { id: string; label: string; icon?: ReactNode; hint?: string })[];
   onChange: (value: string) => void;
   icon?: ReactNode;
   placeholder?: string;
@@ -14,6 +14,7 @@ export interface OptionMenuProps {
   className?: string;
   buttonVariant?: ButtonProps["variant"];
   hideLabelOnWrap?: boolean;
+  iconOnly?: boolean;
   tooltip?: string | undefined;
 }
 
@@ -28,13 +29,17 @@ export function OptionMenu(props: OptionMenuProps) {
     className,
     buttonVariant = "secondary",
     hideLabelOnWrap = false,
+    iconOnly = false,
     tooltip,
   } = props;
   const normalizedOptions = options.map((option) =>
-    typeof option === "string" ? { id: option, label: option, icon: undefined } : option,
+    typeof option === "string"
+      ? { id: option, label: option, icon: undefined, hint: undefined }
+      : option,
   );
   const currentValue =
     normalizedOptions.find((option) => option.id === value)?.label || value || placeholder;
+  const effectiveTooltip = tooltip ?? (iconOnly ? currentValue : undefined);
   const buttonProps = className ? { className } : {};
 
   const button = (
@@ -46,25 +51,29 @@ export function OptionMenu(props: OptionMenuProps) {
       {...buttonProps}
     >
       {icon}
-      <span className={hideLabelOnWrap ? "lightcode-composer-label-hideable truncate" : "truncate"}>
-        {currentValue}
-      </span>
-      <ChevronDown
-        className={
-          hideLabelOnWrap
-            ? "lightcode-composer-label-hideable size-3.5 text-muted"
-            : "size-3.5 text-muted"
-        }
-      />
+      {!iconOnly && (
+        <span className={hideLabelOnWrap ? "lightcode-composer-label-hideable truncate" : "truncate"}>
+          {currentValue}
+        </span>
+      )}
+      {!iconOnly && (
+        <ChevronDown
+          className={
+            hideLabelOnWrap
+              ? "lightcode-composer-label-hideable size-3.5 text-muted"
+              : "size-3.5 text-muted"
+          }
+        />
+      )}
     </Button>
   );
 
   return (
     <Dropdown>
-      {tooltip ? (
+      {effectiveTooltip ? (
         <Tooltip>
           {button}
-          <Tooltip.Content placement="top">{tooltip}</Tooltip.Content>
+          <Tooltip.Content placement="top">{effectiveTooltip}</Tooltip.Content>
         </Tooltip>
       ) : (
         button
@@ -87,6 +96,9 @@ export function OptionMenu(props: OptionMenuProps) {
               <Dropdown.ItemIndicator />
               {option.icon}
               <Label>{option.label}</Label>
+              {option.hint && (
+                <span className="ms-auto text-xs text-muted">{option.hint}</span>
+              )}
             </Dropdown.Item>
           ))}
         </Dropdown.Menu>

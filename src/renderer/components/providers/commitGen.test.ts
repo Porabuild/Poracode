@@ -1,12 +1,16 @@
 import { describe, expect, it, vi } from "vitest";
 import type { AgentStatus, GenerateCommitMessagePayload } from "../../../shared/contracts";
+import { getCommitGenDefaultsHint } from "./ProviderIcon";
 import {
   generateCommitMessageWithFallback,
   getCommitGenCandidates,
   resolveCommitGenConfig,
 } from "./commitGen";
 import "./claude";
+import "./copilot";
 import "./codex";
+import "./cursor";
+import "./gemini";
 
 const codexStatus: AgentStatus = {
   kind: "codex",
@@ -100,6 +104,14 @@ describe("getCommitGenCandidates", () => {
       codexStatus,
       { ...claudeStatus, kind: "gemini", label: "Gemini WSL", authState: "unknown" },
     ]);
+  });
+});
+
+describe("provider default hints", () => {
+  it("builds commit-generation hint text from provider registrations", () => {
+    expect(getCommitGenDefaultsHint()).toBe(
+      "Defaults: Claude -> Haiku, Codex -> GPT-5.4 Mini, Copilot -> first available model, Cursor -> Auto, Gemini -> Flash",
+    );
   });
 });
 

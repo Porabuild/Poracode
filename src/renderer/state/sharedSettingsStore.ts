@@ -19,6 +19,8 @@ interface SharedSettingsState extends SharedSettings {
   setWslTitleGenConfig: (provider: string, model: string, effort: string) => void;
   setWslConflictResolverConfig: (provider: string, model: string, effort: string) => void;
   setAgentSetting: (agentKind: string, key: string, value: boolean) => void;
+  setCollapseTerminalComposer: (value: boolean) => void;
+  setStaleThreadUnloadMinutes: (value: number) => void;
 }
 
 function hasBridge(): boolean {
@@ -100,6 +102,14 @@ export const useSharedSettings = create<SharedSettingsState>()((set, get) => ({
     set({ agentSettings: { ...current, [agentKind]: agentValues } });
     persistSettings(selectSharedSettings(get()));
   },
+  setCollapseTerminalComposer: (collapseTerminalComposer) => {
+    set({ collapseTerminalComposer });
+    persistSettings(selectSharedSettings(get()));
+  },
+  setStaleThreadUnloadMinutes: (staleThreadUnloadMinutes) => {
+    set({ staleThreadUnloadMinutes });
+    persistSettings(selectSharedSettings(get()));
+  },
 }));
 
 function selectSharedSettings(state: SharedSettingsState): SharedSettings {
@@ -125,6 +135,8 @@ function selectSharedSettings(state: SharedSettingsState): SharedSettings {
     wslConflictResolverModel: state.wslConflictResolverModel,
     wslConflictResolverEffort: state.wslConflictResolverEffort,
     agentSettings: state.agentSettings,
+    collapseTerminalComposer: state.collapseTerminalComposer,
+    staleThreadUnloadMinutes: state.staleThreadUnloadMinutes,
   };
 }
 

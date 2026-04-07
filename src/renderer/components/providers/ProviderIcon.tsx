@@ -49,6 +49,8 @@ export function getComposerControls(kind: string): ComposerControlsFactory | und
 // --- Commit generation defaults registry ---
 
 export interface CommitGenDefaults {
+  label?: string;
+  hint?: string;
   model: string;
   effort: string;
 }
@@ -63,9 +65,22 @@ export function getCommitGenDefaults(kind: string): CommitGenDefaults | undefine
   return COMMIT_GEN_REGISTRY.get(kind);
 }
 
+export function getCommitGenDefaultsHint(): string | undefined {
+  const entries = [...COMMIT_GEN_REGISTRY.values()]
+    .flatMap((defaults) =>
+      defaults.hint && defaults.label ? [`${defaults.label} -> ${defaults.hint}`] : [],
+    )
+    .sort()
+    .join(", ");
+
+  return entries ? `Defaults: ${entries}` : undefined;
+}
+
 // --- Title generation defaults registry ---
 
 export interface TitleGenDefaults {
+  label?: string;
+  hint?: string;
   model: string;
   effort: string;
 }
@@ -80,9 +95,22 @@ export function getTitleGenDefaults(kind: string): TitleGenDefaults | undefined 
   return TITLE_GEN_REGISTRY.get(kind);
 }
 
+export function getTitleGenDefaultsHint(): string | undefined {
+  const entries = [...TITLE_GEN_REGISTRY.values()]
+    .flatMap((defaults) =>
+      defaults.hint && defaults.label ? [`${defaults.label} -> ${defaults.hint}`] : [],
+    )
+    .sort()
+    .join(", ");
+
+  return entries ? `Defaults: ${entries}` : undefined;
+}
+
 // --- Conflict resolver defaults registry ---
 
 export interface ConflictResolverDefaults {
+  label?: string;
+  hint?: string;
   model: string;
   effort: string;
 }
@@ -95,6 +123,17 @@ export function registerConflictResolverDefaults(kind: string, defaults: Conflic
 
 export function getConflictResolverDefaults(kind: string): ConflictResolverDefaults | undefined {
   return CONFLICT_RESOLVER_REGISTRY.get(kind);
+}
+
+export function getConflictResolverDefaultsHint(): string | undefined {
+  const entries = [...CONFLICT_RESOLVER_REGISTRY.values()]
+    .flatMap((defaults) =>
+      defaults.hint && defaults.label ? [`${defaults.label} -> ${defaults.hint}`] : [],
+    )
+    .sort()
+    .join(", ");
+
+  return entries ? `Defaults: ${entries}` : undefined;
 }
 
 export function resolveConflictResolverConfig(

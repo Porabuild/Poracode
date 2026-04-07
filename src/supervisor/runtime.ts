@@ -95,6 +95,7 @@ import type {
 } from "../shared/contracts";
 import type { SupervisorEvent } from "../shared/ipc";
 import { stripAnsiPreservingLayout } from "../shared/ansi";
+import { extractOscNotifications } from "../shared/osc";
 import { resolveLightcodePaths } from "../shared/lightcodePaths";
 import { normalizeSharedSettings, defaultSharedSettings } from "../shared/settings";
 import { stripInternalHistoryMarkers } from "../shared/terminalHistory";
@@ -107,6 +108,7 @@ import {
   type StructuredSessionHandle,
   defaultFormatPromptSegments,
   getWslCommand,
+  injectWslEnv,
   resolveWslHomeDirectory,
   readWslCommandOutputAsync,
 } from "./agents/base";
@@ -127,6 +129,16 @@ import { detectWindowsShell, type WindowsShellPreference } from "./shellPreferen
 const STATUS_STABILIZATION_DELAY: Partial<Record<ThreadStatus, number>> = {
   working: 150,
   idle: 300,
+};
+
+/**
+ * Extra delay (ms) applied to uncorroborated status transitions.
+ * When a hint is NOT backed by multiple independent signals (dual-pattern
+ * validation), the runtime extends the stabilization window to guard against
+ * false positives from partial TUI redraws.
+ */
+const UNCORROBORATED_EXTRA_DELAY: Partial<Record<ThreadStatus, number>> = {
+  idle: 200, // 300 + 200 = 500ms total for uncorroborated idle
 };
 
 interface SessionRuntime {
@@ -599,6 +611,14 @@ export class SupervisorRuntime {
         );
     console.log(`[supervisor] [${elapsed()}] command built, spawning PTY…`);
 
+    // When the TUI owns all interaction (liveInputMode === "terminal"),
+    // the ACP session was only used for setup (create session, set mode/model/effort).
+    // Dispose it before spawning the PTY so both aren't connected simultaneously.
+    const keepStructuredSession = structuredSession && isServerControlled;
+    if (structuredSession && !keepStructuredSession) {
+      await structuredSession.dispose();
+    }
+
     const resolvedSessionRef = effectiveSessionRef ?? command.sessionRef;
     this.spawnThread({
       threadId: payload.threadId,
@@ -609,7 +629,7 @@ export class SupervisorRuntime {
       initialSize: payload.initialSize,
       launchPrompt,
       command,
-      ...(structuredSession ? { structuredSession } : {}),
+      ...(keepStructuredSession ? { structuredSession } : {}),
       ...(resolvedSessionRef ? { sessionRef: resolvedSessionRef } : {}),
       ...(shouldQueueInitialPrompt ? { pendingLaunchPrompt: initialPrompt } : {}),
       ...(hasAttachments && !isServerControlled
@@ -687,7 +707,7 @@ export class SupervisorRuntime {
     this.updateState(session, "working", "working");
     await writeSubmittedPrompt(
       session.pty,
-      session.adapter.buildDirectInput?.(prompt, payload.segments) ?? [prompt, "\r"],
+      session.adapter.buildDirectInput?.(prompt, payload.segments, session.config) ?? [prompt, "\r"],
     );
 
     // Claude CLI may show a "[Pasted text" confirmation instead of submitting.
@@ -1323,14 +1343,17 @@ export class SupervisorRuntime {
     });
 
     const agentEnv = this.resolveAgentProcessEnv(input.adapter);
+    // For WSL commands, env vars must be baked into the shell script as exports
+    // because wsl.exe does not forward Windows env vars into the Linux distro.
+    const command = injectWslEnv(input.command, input.projectLocation, agentEnv);
     console.log(
-      `[supervisor] spawning PTY: ${input.command.command} ${input.command.args.join(" ")}`,
+      `[supervisor] spawning PTY: ${command.command} ${command.args.join(" ")}`,
     );
-    const pty = spawn(input.command.command, input.command.args, {
+    const pty = spawn(command.command, command.args, {
       name: process.platform === "win32" ? "xterm-color" : "xterm-256color",
       cols: input.initialSize.cols,
       rows: input.initialSize.rows,
-      cwd: input.command.cwd ?? process.cwd(),
+      cwd: command.cwd ?? process.cwd(),
       env: {
         ...process.env,
         TERM: "xterm-256color",
@@ -1438,160 +1461,13 @@ export class SupervisorRuntime {
         return;
       }
 
-      appendFileSync(logPath, data);
-      session.outputLength += data.length;
-      this.emit({
-        type: "thread-output",
-        threadId: session.threadId,
-        data,
-        outputLength: session.outputLength,
-      });
-
-      if (session.status === "launching") {
-        this.updateState(session, "idle", "none");
-      }
-
-      const strippedData = stripAnsiPreservingLayout(data);
-      const usesTerminalPresentation = session.adapter.capabilities.presentationMode === "terminal";
-
-      // Let the adapter auto-dismiss TUI prompts it owns (e.g. update
-      // nags, rate-limit model-switch menus) so the runtime stays generic.
-      if (
-        usesTerminalPresentation &&
-        session.adapter.detectAutoResponse &&
-        !session.autoResponseEmitted
-      ) {
-        const key = session.adapter.detectAutoResponse(strippedData);
-        if (key) {
-          session.autoResponseEmitted = true;
-          session.pty.write(key);
-        }
-      }
-
-      if (
-        usesTerminalPresentation &&
-        (session.adapter.isReadyForInitialPrompt || session.adapter.detectTerminalStatus)
-      ) {
-        // Detect full-screen redraws: if the incoming chunk contains a
-        // cursor-home sequence (CUP → row 1, col 1), discard stale
-        // prevChunk content so artifacts from previous screen frames
-        // (e.g. braille spinners from "Resuming session…") don't linger
-        // in the buffer and mislead hint detection.
-        const lastHome = Math.max(data.lastIndexOf("\x1b[H"), data.lastIndexOf("\x1b[1;1H"));
-        const combined = lastHome >= 0 ? data.slice(lastHome) : session.prevChunk + data;
-        session.prevChunk = combined.length > 8192 ? combined.slice(-8192) : combined;
-        const stripped = stripAnsiPreservingLayout(combined);
-        if (
-          session.status === "launching" &&
-          session.sessionRef &&
-          session.adapter.detectInvalidSessionRef?.(stripped)
-        ) {
-          this.recoverInvalidSessionRef(session);
-          return;
-        }
-
-        const hint = session.adapter.detectTerminalStatus?.(stripped) ?? null;
-        if (hint) {
-          const nextConfig = session.adapter.syncConfigFromTerminalState?.({
-            config: session.config,
-            previousStatus: session.status,
-            previousAttention: session.attention,
-            hint,
-          });
-          const configChanged =
-            nextConfig !== undefined &&
-            JSON.stringify(nextConfig) !== JSON.stringify(session.config);
-
-          if (configChanged) {
-            session.config = nextConfig!;
-          }
-
-          // While waiting to send the initial prompt, suppress non-idle transitions
-          // so the UI stays in "launching" instead of flickering to "working" from
-          // startup animations.
-          const suppressHint = session.pendingTerminalPrompt && hint.status !== "idle";
-
-          if (
-            !suppressHint &&
-            (session.status !== hint.status || session.attention !== hint.attention)
-          ) {
-            const delay = STATUS_STABILIZATION_DELAY[hint.status] ?? 0;
-
-            if (delay === 0) {
-              // High-priority transition — emit immediately, cancel any pending stabilization.
-              if (session.pendingStatusHint) {
-                clearTimeout(session.pendingStatusHint.timer);
-                session.pendingStatusHint = undefined;
-              }
-              this.updateState(session, hint.status, hint.attention);
-            } else if (
-              session.pendingStatusHint &&
-              session.pendingStatusHint.status === hint.status &&
-              session.pendingStatusHint.attention === hint.attention
-            ) {
-              // Same status already pending — keep the existing timer (don't slide the window).
-            } else {
-              // Low-priority transition — require temporal stability before emitting.
-              if (session.pendingStatusHint) {
-                clearTimeout(session.pendingStatusHint.timer);
-              }
-              session.pendingStatusHint = {
-                status: hint.status,
-                attention: hint.attention,
-                timer: setTimeout(() => {
-                  session.pendingStatusHint = undefined;
-                  if (session.status !== hint.status || session.attention !== hint.attention) {
-                    this.updateState(session, hint.status, hint.attention);
-                  }
-                }, delay),
-              };
-            }
-
-            // Trigger session ID discovery on the first real status detection —
-            // the provider's terminal presentation is live, so the session file is guaranteed to exist.
-            // Skip if we're still waiting to send the initial prompt — the agent
-            // won't have created a session until it processes input.
-            if (
-              session.adapter.discoverSessionRef &&
-              !session.sessionRef &&
-              !session.sessionRefDiscoveryStarted &&
-              !session.pendingTerminalPrompt
-            ) {
-              session.sessionRefDiscoveryStarted = true;
-              this.pollSessionRefDiscovery(session);
-            }
-          } else if (configChanged) {
-            // Config changed but status didn't — force emit so renderer picks up the mode switch.
-            this.emitState(session);
-          }
-          if (this.isDev) {
-            this.writeHintLog(session, stripped, hint);
-          }
-        }
-
-        if (
-          session.pendingLaunchPrompt &&
-          session.adapter.isReadyForInitialPrompt?.(strippedData)
-        ) {
-          this.startQueuedLaunchPrompt(session);
-        }
-
-        // For terminal-controlled agents: send the formatted prompt once
-        // the TUI reaches idle (ready for input) after launch.
-        if (session.pendingTerminalPrompt && hint?.status === "idle") {
-          const prompt = session.pendingTerminalPrompt;
-          const segments = session.pendingTerminalSegments;
-          session.pendingTerminalPrompt = undefined;
-          session.pendingTerminalSegments = undefined;
-          // Give the TUI time to fully render its input field after
-          // the first idle indicator appears (title bar may update first).
-          void sleep(500).then(() =>
-            writeSubmittedPrompt(
-              session.pty,
-              session.adapter.buildDirectInput?.(prompt, segments) ?? [prompt, "\r"],
-            ),
-          );
-        }
+      try {
+        this.handlePtyData(session, logPath, data);
+      } catch (error) {
+        console.error(
+          `[supervisor] uncaught error in onData for thread ${session.threadId}:`,
+          error,
+        );
       }
     });
 
@@ -1744,6 +1620,11 @@ export class SupervisorRuntime {
       structuredSession?.launchOptions,
     );
 
+    const keepStructuredSession = structuredSession && isServerControlled;
+    if (structuredSession && !keepStructuredSession) {
+      await structuredSession.dispose();
+    }
+
     this.spawnThread({
       threadId: session.threadId,
       agentKind: session.agentKind,
@@ -1753,7 +1634,7 @@ export class SupervisorRuntime {
       initialSize: session.terminalSize,
       launchPrompt,
       command,
-      ...(structuredSession ? { structuredSession } : {}),
+      ...(keepStructuredSession ? { structuredSession } : {}),
       sessionRef: effectiveSessionRef,
     });
   }
@@ -1885,5 +1766,171 @@ export class SupervisorRuntime {
       canResumeWithConfig: session.canResumeWithConfig,
       ...(errorMessage ? { errorMessage } : {}),
     });
+  }
+
+  private handlePtyData(session: SessionRuntime, logPath: string, data: string): void {
+    try {
+      appendFileSync(logPath, data);
+    } catch {
+      // Disk full, permission error, etc. — don't crash the supervisor.
+    }
+    session.outputLength += data.length;
+    this.emit({
+      type: "thread-output",
+      threadId: session.threadId,
+      data,
+      outputLength: session.outputLength,
+    });
+
+    const { cleaned: dataAfterOsc, notifications } = extractOscNotifications(data);
+
+    for (const notification of notifications) {
+      this.emit({
+        type: "thread-osc-notification",
+        threadId: session.threadId,
+        title: notification.title,
+        body: notification.body,
+      });
+
+      const oscHint = session.adapter.handleOscNotification?.(notification);
+      if (oscHint) {
+        this.updateState(session, oscHint.status, oscHint.attention);
+      }
+    }
+
+    if (session.status === "launching") {
+      this.updateState(session, "idle", "none");
+    }
+
+    const strippedData = stripAnsiPreservingLayout(dataAfterOsc);
+    const usesTerminalPresentation = session.adapter.capabilities.presentationMode === "terminal";
+
+    if (
+      usesTerminalPresentation &&
+      session.adapter.detectAutoResponse &&
+      !session.autoResponseEmitted
+    ) {
+      const key = session.adapter.detectAutoResponse(strippedData);
+      if (key) {
+        session.autoResponseEmitted = true;
+        session.pty.write(key);
+      }
+    }
+
+    if (
+      usesTerminalPresentation &&
+      (session.adapter.isReadyForInitialPrompt || session.adapter.detectTerminalStatus)
+    ) {
+      const lastHome = Math.max(
+        dataAfterOsc.lastIndexOf("\x1b[H"),
+        dataAfterOsc.lastIndexOf("\x1b[1;1H"),
+      );
+      const combined =
+        lastHome >= 0 ? dataAfterOsc.slice(lastHome) : session.prevChunk + dataAfterOsc;
+      session.prevChunk = combined.length > 8192 ? combined.slice(-8192) : combined;
+      const stripped = stripAnsiPreservingLayout(combined);
+      if (
+        session.status === "launching" &&
+        session.sessionRef &&
+        session.adapter.detectInvalidSessionRef?.(stripped)
+      ) {
+        this.recoverInvalidSessionRef(session);
+        return;
+      }
+
+      const hint = session.adapter.detectTerminalStatus?.(stripped) ?? null;
+      if (hint) {
+        const nextConfig = session.adapter.syncConfigFromTerminalState?.({
+          config: session.config,
+          previousStatus: session.status,
+          previousAttention: session.attention,
+          hint,
+        });
+        const configChanged =
+          nextConfig !== undefined &&
+          JSON.stringify(nextConfig) !== JSON.stringify(session.config);
+
+        if (configChanged) {
+          session.config = nextConfig!;
+        }
+
+        const suppressHint = session.pendingTerminalPrompt && hint.status !== "idle";
+
+        if (
+          !suppressHint &&
+          (session.status !== hint.status || session.attention !== hint.attention)
+        ) {
+          const baseDelay = STATUS_STABILIZATION_DELAY[hint.status] ?? 0;
+          const extraDelay =
+            !hint.corroborated && baseDelay > 0
+              ? (UNCORROBORATED_EXTRA_DELAY[hint.status] ?? 0)
+              : 0;
+          const delay = baseDelay + extraDelay;
+
+          if (delay === 0) {
+            if (session.pendingStatusHint) {
+              clearTimeout(session.pendingStatusHint.timer);
+              session.pendingStatusHint = undefined;
+            }
+            this.updateState(session, hint.status, hint.attention);
+          } else if (
+            session.pendingStatusHint &&
+            session.pendingStatusHint.status === hint.status &&
+            session.pendingStatusHint.attention === hint.attention
+          ) {
+            // Same status already pending — keep the existing timer.
+          } else {
+            if (session.pendingStatusHint) {
+              clearTimeout(session.pendingStatusHint.timer);
+            }
+            session.pendingStatusHint = {
+              status: hint.status,
+              attention: hint.attention,
+              timer: setTimeout(() => {
+                session.pendingStatusHint = undefined;
+                if (session.status !== hint.status || session.attention !== hint.attention) {
+                  this.updateState(session, hint.status, hint.attention);
+                }
+              }, delay),
+            };
+          }
+
+          if (
+            session.adapter.discoverSessionRef &&
+            !session.sessionRef &&
+            !session.sessionRefDiscoveryStarted &&
+            !session.pendingTerminalPrompt
+          ) {
+            session.sessionRefDiscoveryStarted = true;
+            this.pollSessionRefDiscovery(session);
+          }
+        } else if (configChanged) {
+          this.emitState(session);
+        }
+        if (this.isDev) {
+          this.writeHintLog(session, stripped, hint);
+        }
+      }
+
+      if (
+        session.pendingLaunchPrompt &&
+        session.adapter.isReadyForInitialPrompt?.(strippedData)
+      ) {
+        this.startQueuedLaunchPrompt(session);
+      }
+
+      if (session.pendingTerminalPrompt && hint?.status === "idle") {
+        const prompt = session.pendingTerminalPrompt;
+        const segments = session.pendingTerminalSegments;
+        session.pendingTerminalPrompt = undefined;
+        session.pendingTerminalSegments = undefined;
+        void sleep(500).then(() =>
+          writeSubmittedPrompt(
+            session.pty,
+            session.adapter.buildDirectInput?.(prompt, segments, session.config) ?? [prompt, "\r"],
+          ),
+        );
+      }
+    }
   }
 }

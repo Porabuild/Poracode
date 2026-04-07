@@ -187,6 +187,8 @@ export function createGeminiAdapter(): AgentAdapter {
             capabilities = {
               ...defaultCapabilities,
               ...(probeResult.models?.length ? { models: probeResult.models } : {}),
+              ...(probeResult.efforts?.length ? { efforts: probeResult.efforts } : {}),
+              ...(probeResult.defaultEffort ? { defaultEffort: probeResult.defaultEffort } : {}),
               ...(probeResult.modes?.length ? { modes: probeResult.modes } : {}),
               ...(probeResult.approvalPolicies?.length
                 ? { approvalPolicies: probeResult.approvalPolicies }
@@ -231,6 +233,8 @@ export function createGeminiAdapter(): AgentAdapter {
           capabilities = {
             ...defaultCapabilities,
             ...(probeResult.models?.length ? { models: probeResult.models } : {}),
+            ...(probeResult.efforts?.length ? { efforts: probeResult.efforts } : {}),
+            ...(probeResult.defaultEffort ? { defaultEffort: probeResult.defaultEffort } : {}),
             ...(probeResult.modes?.length ? { modes: probeResult.modes } : {}),
             ...(probeResult.approvalPolicies?.length
               ? { approvalPolicies: probeResult.approvalPolicies }

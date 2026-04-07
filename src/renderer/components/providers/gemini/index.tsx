@@ -12,9 +12,24 @@ import {
 import { withCurrentModel } from "../../thread/threadComposerOptions";
 
 registerProviderIcon("gemini", GeminiIcon);
-registerCommitGenDefaults("gemini", { model: "gemini-2.5-flash", effort: "" });
-registerTitleGenDefaults("gemini", { model: "gemini-2.5-flash-lite", effort: "" });
-registerConflictResolverDefaults("gemini", { model: "", effort: "" });
+registerCommitGenDefaults("gemini", {
+  label: "Gemini",
+  hint: "Flash",
+  model: "gemini-2.5-flash",
+  effort: "",
+});
+registerTitleGenDefaults("gemini", {
+  label: "Gemini",
+  hint: "Flash Lite",
+  model: "gemini-2.5-flash-lite",
+  effort: "",
+});
+registerConflictResolverDefaults("gemini", {
+  label: "Gemini",
+  hint: "Auto",
+  model: "",
+  effort: "",
+});
 
 registerComposerControls("gemini", ({ capabilities, config, isDisabled, onConfigChange }) => [
   // Model

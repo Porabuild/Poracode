@@ -24,6 +24,10 @@ export const sharedSettingsSchema = z.object({
   wslConflictResolverEffort: z.string(),
   /** Per-agent boolean settings keyed by agent kind, then setting key. */
   agentSettings: z.record(z.string(), z.record(z.string(), z.boolean())),
+  /** When true, the composer in terminal-native threads starts collapsed. */
+  collapseTerminalComposer: z.boolean(),
+  /** Idle minutes before a hidden resumable thread is unloaded. 0 disables auto-unload. */
+  staleThreadUnloadMinutes: z.number().int().min(0),
 });
 export type SharedSettings = z.infer<typeof sharedSettingsSchema>;
 
@@ -49,6 +53,8 @@ export const defaultSharedSettings: SharedSettings = {
   wslConflictResolverModel: "",
   wslConflictResolverEffort: "",
   agentSettings: {},
+  collapseTerminalComposer: false,
+  staleThreadUnloadMinutes: 20,
 };
 
 const partialSharedSettingsSchema = sharedSettingsSchema.partial();
@@ -89,5 +95,9 @@ export function normalizeSharedSettings(value: unknown): SharedSettings {
     wslConflictResolverEffort:
       parsed.data.wslConflictResolverEffort ?? defaultSharedSettings.wslConflictResolverEffort,
     agentSettings: parsed.data.agentSettings ?? defaultSharedSettings.agentSettings,
+    collapseTerminalComposer:
+      parsed.data.collapseTerminalComposer ?? defaultSharedSettings.collapseTerminalComposer,
+    staleThreadUnloadMinutes:
+      parsed.data.staleThreadUnloadMinutes ?? defaultSharedSettings.staleThreadUnloadMinutes,
   };
 }

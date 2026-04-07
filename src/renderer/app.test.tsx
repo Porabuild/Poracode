@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useAppStore } from "./state/appStore";
 
@@ -40,6 +40,7 @@ const { bridge } = vi.hoisted(() => ({
     onSupervisorEvent: vi.fn(() => () => undefined),
     startShell: vi.fn().mockResolvedValue(undefined),
     gitWatchProject: vi.fn().mockResolvedValue(undefined),
+    gitWatchWorktrees: vi.fn().mockResolvedValue(undefined),
     gitUnwatchProject: vi.fn().mockResolvedValue(undefined),
     checkForUpdate: vi.fn().mockResolvedValue(undefined),
     startUpdateDownload: vi.fn().mockResolvedValue(undefined),
@@ -76,11 +77,15 @@ vi.mock("./components/sidebar/Sidebar", () => ({
   Sidebar: (props: {
     onOpenThread?: (threadId: string) => void;
     onOpenThreadSideBySide?: (threadId: string) => void;
+    onUnloadThread?: (threadId: string) => void;
   }) => (
     <div>
       sidebar
       <button onClick={() => props.onOpenThread?.("thread-1")} type="button">
         open-thread-1
+      </button>
+      <button onClick={() => props.onUnloadThread?.("thread-1")} type="button">
+        unload-thread-1
       </button>
     </div>
   ),
@@ -151,10 +156,12 @@ vi.mock("./components/thread/ThreadView", () => ({
 
 vi.mock("./state/sharedSettingsStore", () => ({
   useSharedSettings: Object.assign(
-    (selector: (s: Record<string, unknown>) => unknown) => selector({ themeMode: "system" }),
+    (selector: (s: Record<string, unknown>) => unknown) =>
+      selector({ themeMode: "system", staleThreadUnloadMinutes: 20 }),
     {
       getState: () => ({
         themeMode: "system",
+        staleThreadUnloadMinutes: 20,
         setThemeMode: () => undefined,
       }),
     },
@@ -170,7 +177,9 @@ describe("App", () => {
 
   beforeEach(() => {
     localStorage.clear();
+    vi.restoreAllMocks();
     vi.clearAllMocks();
+    vi.useRealTimers();
     useAppStore.persist.hasHydrated = originalHasHydrated;
     useAppStore.persist.onHydrate = originalOnHydrate;
     useAppStore.persist.onFinishHydration = originalOnFinishHydration;
@@ -180,7 +189,9 @@ describe("App", () => {
       threads: [],
       pendingServerRequests: [],
       pendingThreadLaunches: {},
+      pendingLaunchSegments: {},
       agentStatuses: [],
+      wslAgentStatuses: [],
       view: { kind: "home" },
     }));
   });
@@ -347,6 +358,200 @@ describe("App", () => {
       expect(screen.getByTestId("thread-view-thread-1")).toHaveAttribute("data-pending-launch", "");
     });
     expect(bridge.startThread).not.toHaveBeenCalled();
+  });
+
+  it("can unload a resumable thread and queue it again when reopened", async () => {
+    useAppStore.persist.hasHydrated = vi.fn(() => true);
+    useAppStore.persist.onHydrate = vi.fn(() => () => undefined);
+    useAppStore.persist.onFinishHydration = vi.fn(() => () => undefined);
+
+    useAppStore.setState((state) => ({
+      ...state,
+      projects: [
+        {
+          id: "project-1",
+          name: "Repo",
+          location: {
+            kind: "windows",
+            path: "C:\\repo",
+          },
+          createdAt: "2026-03-22T00:00:00.000Z",
+        },
+      ],
+      threads: [
+        {
+          id: "thread-1",
+          projectId: "project-1",
+          title: "Stored thread",
+          agentKind: "codex",
+          config: {
+            model: "gpt-5.4",
+          },
+          status: "inactive",
+          attention: "none",
+          canResumeWithConfig: true,
+          sessionRef: {
+            providerSessionId: "session-1",
+            discoveredAt: "2026-03-22T00:00:00.000Z",
+          },
+          createdAt: "2026-03-22T00:00:00.000Z",
+          updatedAt: "2026-03-22T00:00:00.000Z",
+        },
+      ],
+      view: { kind: "home" },
+    }));
+
+    render(<App />);
+    fireEvent.click(await screen.findByText("open-thread-1"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("thread-view-thread-1")).toHaveAttribute(
+        "data-status",
+        "launching",
+      );
+    });
+
+    await act(async () => {
+      useAppStore.setState((state) => ({
+        ...state,
+        pendingThreadLaunches: {},
+        threads: state.threads.map((thread) =>
+          thread.id === "thread-1"
+            ? {
+                ...thread,
+                status: "idle",
+                attention: "none",
+              }
+            : thread,
+        ),
+      }));
+    });
+
+    fireEvent.click(screen.getByText("unload-thread-1"));
+
+    await waitFor(() => {
+      expect(bridge.closeThread).toHaveBeenCalledWith({ threadId: "thread-1" });
+      expect(screen.getByTestId("thread-view-thread-1")).toHaveAttribute("data-status", "inactive");
+    });
+
+    fireEvent.click(screen.getByText("open-thread-1"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("thread-view-thread-1")).toHaveAttribute(
+        "data-status",
+        "launching",
+      );
+      expect(screen.getByTestId("thread-view-thread-1")).toHaveAttribute("data-pending-launch", "");
+    });
+  });
+
+  it("sweeps and unloads stale hidden idle threads every 5 minutes", async () => {
+    useAppStore.persist.hasHydrated = vi.fn(() => true);
+    useAppStore.persist.onHydrate = vi.fn(() => () => undefined);
+    useAppStore.persist.onFinishHydration = vi.fn(() => () => undefined);
+    vi.spyOn(Date, "now").mockReturnValue(new Date("2026-04-06T12:05:00.000Z").getTime());
+    const setIntervalSpy = vi.spyOn(globalThis, "setInterval");
+
+    render(<App />);
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    const sweepInterval = setIntervalSpy.mock.calls.find(
+      ([, delay]) => delay === 5 * 60_000,
+    )?.[0] as (() => void) | undefined;
+
+    expect(sweepInterval).toBeDefined();
+
+    await act(async () => {
+      useAppStore.setState((state) => ({
+        ...state,
+        projects: [
+          {
+            id: "project-1",
+            name: "Repo",
+            location: {
+              kind: "windows",
+              path: "C:\\repo",
+            },
+            createdAt: "2026-03-22T00:00:00.000Z",
+          },
+        ],
+        threads: [
+          {
+            id: "thread-1",
+            projectId: "project-1",
+            title: "Hidden thread",
+            agentKind: "codex",
+            config: {
+              model: "gpt-5.4",
+            },
+            status: "idle",
+            attention: "none",
+            canResumeWithConfig: true,
+            sessionRef: {
+              providerSessionId: "session-1",
+              discoveredAt: "2026-03-22T00:00:00.000Z",
+            },
+            createdAt: "2026-03-22T00:00:00.000Z",
+            updatedAt: "2026-04-06T11:39:00.000Z",
+          },
+          {
+            id: "thread-3",
+            projectId: "project-1",
+            title: "Fresh hidden thread",
+            agentKind: "codex",
+            config: {
+              model: "gpt-5.4",
+            },
+            status: "idle",
+            attention: "none",
+            canResumeWithConfig: true,
+            sessionRef: {
+              providerSessionId: "session-3",
+              discoveredAt: "2026-03-22T00:00:00.000Z",
+            },
+            createdAt: "2026-03-22T00:00:00.000Z",
+            updatedAt: "2026-04-06T11:50:00.000Z",
+          },
+          {
+            id: "thread-2",
+            projectId: "project-1",
+            title: "Visible thread",
+            agentKind: "codex",
+            config: {
+              model: "gpt-5.4",
+            },
+            status: "idle",
+            attention: "none",
+            canResumeWithConfig: true,
+            sessionRef: {
+              providerSessionId: "session-2",
+              discoveredAt: "2026-03-22T00:00:00.000Z",
+            },
+            createdAt: "2026-03-22T00:00:00.000Z",
+            updatedAt: "2026-03-22T00:00:00.000Z",
+          },
+        ],
+        view: { kind: "thread", panes: ["thread-2"] },
+      }));
+    });
+
+    expect(bridge.closeThread).not.toHaveBeenCalled();
+
+    await act(async () => {
+      sweepInterval?.();
+      await Promise.resolve();
+    });
+
+    expect(bridge.closeThread).toHaveBeenCalledWith({ threadId: "thread-1" });
+    expect(bridge.closeThread).toHaveBeenCalledTimes(1);
+    expect(useAppStore.getState().threads.find((thread) => thread.id === "thread-1")?.status).toBe(
+      "inactive",
+    );
+    expect(useAppStore.getState().threads.find((thread) => thread.id === "thread-3")?.status).toBe(
+      "idle",
+    );
   });
 
   it("uses the resolved worktree path returned by the supervisor when starting from a draft", async () => {

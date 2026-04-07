@@ -161,6 +161,7 @@ describe("detectCodexTerminalStatus", () => {
     expect(detectCodexTerminalStatus(text)).toEqual({
       status: "idle",
       attention: "none",
+      corroborated: true,
     });
   });
 
@@ -175,6 +176,7 @@ describe("detectCodexTerminalStatus", () => {
     expect(detectCodexTerminalStatus(text)).toEqual({
       status: "needs_reply",
       attention: "needs_reply",
+      corroborated: true,
     });
   });
 
@@ -184,6 +186,7 @@ describe("detectCodexTerminalStatus", () => {
     expect(detectCodexTerminalStatus(text)).toEqual({
       status: "needs_approval",
       attention: "needs_approval",
+      corroborated: true,
     });
   });
 
@@ -201,6 +204,7 @@ describe("detectCodexTerminalStatus", () => {
     expect(detectCodexTerminalStatus(text)).toEqual({
       status: "working",
       attention: "working",
+      corroborated: true,
     });
   });
 
@@ -216,6 +220,7 @@ describe("detectCodexTerminalStatus", () => {
     expect(detectCodexTerminalStatus(text)).toEqual({
       status: "idle",
       attention: "none",
+      corroborated: false,
     });
   });
 
@@ -231,6 +236,7 @@ describe("detectCodexTerminalStatus", () => {
     expect(detectCodexTerminalStatus(text)).toEqual({
       status: "working",
       attention: "working",
+      corroborated: true,
     });
   });
 
@@ -254,6 +260,7 @@ describe("detectCodexTerminalStatus", () => {
     expect(detectCodexTerminalStatus(text)).toEqual({
       status: "idle",
       attention: "none",
+      corroborated: false,
     });
   });
 });

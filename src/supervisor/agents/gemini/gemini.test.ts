@@ -8,6 +8,7 @@ describe("detectGeminiTerminalStatus", () => {
     expect(detectGeminiTerminalStatus(text)).toEqual({
       status: "idle",
       attention: "none",
+      corroborated: true,
     });
   });
 
@@ -16,6 +17,7 @@ describe("detectGeminiTerminalStatus", () => {
     expect(detectGeminiTerminalStatus(text)).toEqual({
       status: "working",
       attention: "working",
+      corroborated: true,
     });
   });
 
@@ -38,6 +40,7 @@ describe("detectGeminiTerminalStatus", () => {
     expect(detectGeminiTerminalStatus(text)).toEqual({
       status: "working",
       attention: "working",
+      corroborated: true,
     });
   });
 
@@ -46,6 +49,7 @@ describe("detectGeminiTerminalStatus", () => {
     expect(detectGeminiTerminalStatus(text)).toEqual({
       status: "idle",
       attention: "none",
+      corroborated: false,
     });
   });
 
@@ -54,6 +58,7 @@ describe("detectGeminiTerminalStatus", () => {
     expect(detectGeminiTerminalStatus(text)).toEqual({
       status: "needs_approval",
       attention: "needs_approval",
+      corroborated: true,
     });
   });
 
@@ -82,6 +87,7 @@ describe("detectGeminiTerminalStatus", () => {
     expect(detectGeminiTerminalStatus(text)).toEqual({
       status: "working",
       attention: "working",
+      corroborated: true,
     });
   });
 
@@ -96,6 +102,7 @@ describe("detectGeminiTerminalStatus", () => {
     expect(detectGeminiTerminalStatus(text)).toEqual({
       status: "idle",
       attention: "none",
+      corroborated: true,
     });
   });
 
@@ -109,6 +116,7 @@ describe("detectGeminiTerminalStatus", () => {
     expect(detectGeminiTerminalStatus(text)).toEqual({
       status: "working",
       attention: "working",
+      corroborated: true,
     });
   });
 
@@ -117,6 +125,7 @@ describe("detectGeminiTerminalStatus", () => {
     expect(detectGeminiTerminalStatus(text)).toEqual({
       status: "idle",
       attention: "none",
+      corroborated: false,
     });
   });
 

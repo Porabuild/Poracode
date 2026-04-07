@@ -19,6 +19,9 @@ import type {
 import { useAppStore } from "../../state/appStore";
 import { useSharedSettings } from "../../state/sharedSettingsStore";
 import {
+  getCommitGenDefaultsHint,
+  getConflictResolverDefaultsHint,
+  getTitleGenDefaultsHint,
   resolveCommitGenConfig,
   resolveTitleGenConfig,
   resolveConflictResolverConfig,
@@ -37,6 +40,14 @@ const themeOptions = [
 const terminalPositionOptions = [
   { id: "right", label: "Right" },
   { id: "bottom", label: "Bottom" },
+] as const;
+
+const staleThreadUnloadOptions = [
+  { id: "0", label: "Disabled" },
+  { id: "10", label: "10 minutes" },
+  { id: "20", label: "20 minutes" },
+  { id: "30", label: "30 minutes" },
+  { id: "60", label: "1 hour" },
 ] as const;
 
 type SettingsSection = "general" | "ai" | "agents" | "git" | `agents:${string}`;
@@ -187,6 +198,14 @@ function GeneralSettings() {
   const setThemeMode = useSharedSettings((state) => state.setThemeMode);
   const terminalPosition = useSharedSettings((state) => state.terminalPosition);
   const setTerminalPosition = useSharedSettings((state) => state.setTerminalPosition);
+  const collapseTerminalComposer = useSharedSettings((state) => state.collapseTerminalComposer);
+  const setCollapseTerminalComposer = useSharedSettings(
+    (state) => state.setCollapseTerminalComposer,
+  );
+  const staleThreadUnloadMinutes = useSharedSettings((state) => state.staleThreadUnloadMinutes);
+  const setStaleThreadUnloadMinutes = useSharedSettings(
+    (state) => state.setStaleThreadUnloadMinutes,
+  );
 
   return (
     <div className="h-full min-h-0 overflow-y-auto px-6 pb-8">
@@ -229,6 +248,47 @@ function GeneralSettings() {
               }}
             />
           </div>
+
+          <div className="flex items-center justify-between gap-4">
+            <div className="min-w-0">
+              <p className="text-sm font-medium text-foreground">Collapse terminal composer</p>
+              <p className="text-xs text-muted">
+                Hide the composer by default in terminal-native threads.
+              </p>
+            </div>
+            <Switch
+              isSelected={collapseTerminalComposer}
+              onChange={(selected) => {
+                startTransition(() => {
+                  setCollapseTerminalComposer(selected);
+                });
+              }}
+            >
+              <Switch.Control>
+                <Switch.Thumb />
+              </Switch.Control>
+            </Switch>
+          </div>
+
+          <div className="flex items-center justify-between gap-4">
+            <div className="min-w-0">
+              <p className="text-sm font-medium text-foreground">Unload idle threads after</p>
+              <p className="text-xs text-muted">
+                Hidden resumable threads are swept every 5 minutes and unloaded after this idle age.
+              </p>
+            </div>
+            <Select
+              aria-label="Unload idle threads after"
+              className="w-[160px] shrink-0"
+              options={staleThreadUnloadOptions}
+              value={String(staleThreadUnloadMinutes)}
+              onChange={(value) => {
+                startTransition(() => {
+                  setStaleThreadUnloadMinutes(Number.parseInt(value, 10) || 0);
+                });
+              }}
+            />
+          </div>
         </div>
       </div>
     </div>
@@ -250,7 +310,7 @@ function GenConfigSection(props: {
   ) => { model: string; effort: string; availableEfforts: string[] };
   allowDisabled?: boolean;
   /** Tooltip hint showing default models per provider (shown on heading hover). */
-  defaultsHint?: string;
+  defaultsHint?: string | undefined;
   agentStatuses: AgentStatus[];
   onConfigChange: (provider: string, model: string, effort: string) => void;
 }) {
@@ -447,7 +507,7 @@ function AISettings() {
             providerLabel="Agent used to generate thread titles."
             modelLabel="Model for title generation."
             effortLabel="Reasoning effort for generation."
-            defaultsHint="Defaults: Claude → Haiku, Codex → GPT-5.4 Mini, Gemini → Flash Lite"
+            defaultsHint={getTitleGenDefaultsHint()}
             agentStatuses={activeStatuses}
             provider={titleGenProvider}
             model={titleGenModel}
@@ -461,7 +521,7 @@ function AISettings() {
             providerLabel="Agent used to generate commit messages."
             modelLabel="Model for commit message generation."
             effortLabel="Reasoning effort for generation."
-            defaultsHint="Defaults: Claude → Haiku, Codex → GPT-5.4 Mini, Gemini → Flash"
+            defaultsHint={getCommitGenDefaultsHint()}
             agentStatuses={activeStatuses}
             provider={commitGenProvider}
             model={commitGenModel}
@@ -475,7 +535,7 @@ function AISettings() {
             providerLabel="Agent used to resolve merge conflicts."
             modelLabel="Model for conflict resolution."
             effortLabel="Reasoning effort for resolution."
-            defaultsHint="Defaults: Claude → Opus, Codex → GPT-5.4, Gemini → Auto"
+            defaultsHint={getConflictResolverDefaultsHint()}
             agentStatuses={activeStatuses}
             provider={conflictResolverProvider}
             model={conflictResolverModel}

@@ -6,6 +6,7 @@ import { execFile, spawnSync } from "node:child_process";
 import { promisify } from "node:util";
 
 const execFileAsync = promisify(execFile);
+import type { OscNotification } from "../../shared/osc";
 import type {
   AgentCapability,
   AgentKind,
@@ -25,6 +26,12 @@ export interface CommandSpec {
   args: string[];
   cwd?: string;
   sessionRef?: SessionRef;
+  /**
+   * Environment variables that should be set for the agent process.
+   * For WSL commands these are baked into the shell script as `export` statements
+   * because `wsl.exe` does not forward Windows env vars into the distro.
+   */
+  env?: Record<string, string>;
 }
 
 export interface AgentEnvContext {
@@ -99,8 +106,10 @@ export interface AgentAdapter {
     launchOptions?: AgentLaunchOptions,
   ): CommandSpec;
   createInitialSessionRef(): SessionRef | undefined;
-  createStructuredSession?(input: CreateStructuredSessionInput): Promise<StructuredSessionHandle>;
-  buildDirectInput?(prompt: string, segments?: PromptSegment[]): string[];
+  createStructuredSession?(
+    input: CreateStructuredSessionInput,
+  ): Promise<StructuredSessionHandle | undefined>;
+  buildDirectInput?(prompt: string, segments?: PromptSegment[], config?: ThreadConfig): string[];
   /**
    * Format structured prompt segments into a prompt string for this agent.
    * Each adapter decides how to represent file references (e.g. Claude: `@path`,
@@ -120,6 +129,12 @@ export interface AgentAdapter {
   initialSessionRefDiscoveryDelayMs?: number;
   /** Optional fast-path watcher that triggers when session discovery should retry. */
   watchSessionRef?(location: ProjectLocation, onChanged: () => void): (() => void) | undefined;
+  /**
+   * Handle an OSC notification extracted from the PTY stream.
+   * Return a status hint if the notification maps to a known agent state,
+   * or null to ignore it. Hints returned here are always treated as corroborated.
+   */
+  handleOscNotification?(notification: OscNotification): TerminalStatusHint | null;
   /** Allow the adapter to reconcile config from TUI-derived state transitions it owns. */
   syncConfigFromTerminalState?(input: SyncConfigFromTerminalStateInput): ThreadConfig | undefined;
   /** Default model for lightweight one-shot tasks like commit message generation. */
@@ -131,7 +146,8 @@ export interface AgentAdapter {
   buildOneShotCommand?(
     model: string,
     effort?: string,
-  ): { command: string; args: string[] } | undefined;
+    prompt?: string,
+  ): { command: string; args: string[]; stdin?: string } | undefined;
 }
 
 export interface TerminalStatusHint {
@@ -141,6 +157,13 @@ export interface TerminalStatusHint {
   approvalPolicy?: string | undefined;
   model?: string | undefined;
   effort?: string | undefined;
+  /**
+   * Whether multiple independent signals corroborate this status.
+   * When true, the runtime uses the standard stabilization delay.
+   * When false/undefined, idle/working transitions get an extra delay
+   * to guard against false positives from partial TUI redraws.
+   */
+  corroborated?: boolean | undefined;
 }
 
 export interface SyncConfigFromTerminalStateInput {
@@ -161,6 +184,46 @@ export function buildWindowsCmdCommand(cwd: string, command: string, args: strin
 export function getWslCommand(): string {
   const systemRoot = process.env.SystemRoot ?? process.env.windir ?? "C:\\Windows";
   return join(systemRoot, "System32", "wsl.exe");
+}
+
+/**
+ * Build a `export K=V; ` prefix string for injecting env vars into a POSIX shell script.
+ * Returns an empty string when there are no env vars to inject.
+ */
+function buildPosixExportPrefix(env: Record<string, string> | undefined): string {
+  if (!env) return "";
+  const entries = Object.entries(env);
+  if (entries.length === 0) return "";
+  return (
+    entries.map(([k, v]) => `export ${k}=${quotePosixShellArg(v)}`).join("; ") + "; "
+  );
+}
+
+/**
+ * Inject environment variables into an already-built WSL CommandSpec.
+ * The WSL command structure from `buildAgentCommand` always ends with
+ * `[..., shellPath, "-l", "-i", "-c", script]`, so we prepend `export`
+ * statements to the script string.
+ *
+ * For non-WSL commands, the env is stored on `CommandSpec.env` and merged
+ * into the PTY spawn options by the caller — no script rewriting needed.
+ */
+export function injectWslEnv(
+  spec: CommandSpec,
+  location: ProjectLocation,
+  env: Record<string, string>,
+): CommandSpec {
+  if (location.kind !== "wsl" || Object.keys(env).length === 0) return spec;
+
+  const prefix = buildPosixExportPrefix(env);
+  if (!prefix) return spec;
+
+  // The script is always the last arg after "-c"
+  const args = [...spec.args];
+  const scriptIdx = args.length - 1;
+  args[scriptIdx] = `${prefix}${args[scriptIdx]}`;
+
+  return { ...spec, args };
 }
 
 function quotePowerShellLiteral(value: string): string {
@@ -242,11 +305,13 @@ export function buildAgentCommand(
   command: string,
   args: string[],
   wslExecPath?: string,
+  env?: Record<string, string>,
 ): CommandSpec {
   if (location.kind === "wsl") {
     const shellPath = resolveWslShellPath(location.distro);
     const execCommand = wslExecPath ?? command;
-    const script = `exec ${[execCommand, ...args].map(quotePosixShellArg).join(" ")}`;
+    const exports = buildPosixExportPrefix(env);
+    const script = `${exports}exec ${[execCommand, ...args].map(quotePosixShellArg).join(" ")}`;
     return {
       command: getWslCommand(),
       args: [
@@ -265,11 +330,15 @@ export function buildAgentCommand(
   }
 
   if (location.kind === "windows") {
-    return buildWindowsCommand(location.path, command, args);
+    const spec = buildWindowsCommand(location.path, command, args);
+    if (env && Object.keys(env).length > 0) spec.env = env;
+    return spec;
   }
 
   // location.kind === "posix" (macOS/Linux)
-  return buildPosixCommand(location.path, command, args);
+  const spec = buildPosixCommand(location.path, command, args);
+  if (env && Object.keys(env).length > 0) spec.env = env;
+  return spec;
 }
 
 /**
@@ -280,8 +349,9 @@ export function wrapWslCommand(
   command: string,
   args: string[],
   wslExecPath?: string,
+  env?: Record<string, string>,
 ): CommandSpec {
-  return buildAgentCommand(location, command, args, wslExecPath);
+  return buildAgentCommand(location, command, args, wslExecPath, env);
 }
 
 export function resolveExecutablePath(command: string): string | undefined {
@@ -460,12 +530,16 @@ export function resolveWslHomeDirectory(distro: string): string | undefined {
     return cached;
   }
 
-  const result = spawnSync(getWslCommand(), ["-d", distro, "--", "sh", "-lc", 'printf %s "$HOME"'], {
-    encoding: "utf8",
-    shell: false,
-    windowsHide: true,
-    timeout: 5_000,
-  });
+  const result = spawnSync(
+    getWslCommand(),
+    ["-d", distro, "--", "sh", "-lc", 'printf %s "$HOME"'],
+    {
+      encoding: "utf8",
+      shell: false,
+      windowsHide: true,
+      timeout: 5_000,
+    },
+  );
   if (result.error || result.status !== 0) {
     return undefined;
   }

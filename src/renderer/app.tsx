@@ -167,6 +167,7 @@ function generateTitleAsync(
 
 const EMPTY_PANES: string[] = [];
 const GIT_FETCH_INTERVAL_MS = 60_000;
+const STALE_THREAD_SWEEP_INTERVAL_MS = 5 * 60_000;
 
 function formatRelativeTime(iso: string): string {
   const deltaMinutes = Math.max(1, Math.floor((Date.now() - new Date(iso).getTime()) / 60000));
@@ -717,6 +718,7 @@ export function App() {
   const projects = useAppStore((state) => state.projects);
   const view = useAppStore((state) => state.view);
   const markThreadsInactiveOnLaunch = useAppStore((state) => state.markThreadsInactiveOnLaunch);
+  const markThreadExited = useAppStore((state) => state.markThreadExited);
   const addProject = useAppStore((state) => state.addProject);
   const openDraft = useAppStore((state) => state.openDraft);
   const openThread = useAppStore((state) => state.openThread);
@@ -778,8 +780,8 @@ export function App() {
   const [initialLoading, setInitialLoading] = useState(true);
   const [storeHydrated, setStoreHydrated] = useState(() => useAppStore.persist.hasHydrated());
   const [loadT0] = useState(() => Date.now());
-  const [reopenAttempted] = useState(() => new Set<string>());
   const [wslAvailable, setWslAvailable] = useState(false);
+  const staleThreadUnloadMinutes = useSharedSettings((state) => state.staleThreadUnloadMinutes);
   const wslProjectDistrosKey = [
     ...new Set(
       projects.flatMap((project) =>
@@ -789,29 +791,67 @@ export function App() {
   ]
     .sort()
     .join("\0");
-  const reopenStoredThread = useEffectEvent(
-    (input: { threadId: string; projectLocation: (typeof projects)[number]["location"] }) => {
-      const thread = useAppStore.getState().threads.find((item) => item.id === input.threadId);
-      if (!thread) {
-        return;
-      }
+  const reopenStoredThread = useEffectEvent((threadId: string) => {
+    const store = useAppStore.getState();
+    const thread = store.threads.find((item) => item.id === threadId);
+    if (!thread) {
+      return;
+    }
 
-      if (reopenAttempted.has(thread.id)) {
-        return;
-      }
-      reopenAttempted.add(thread.id);
+    if (thread.status !== "inactive" || store.pendingThreadLaunches[thread.id] !== undefined) {
+      return;
+    }
 
-      startTransition(() => {
-        updateThreadRuntime(thread.id, {
-          status: "launching",
-          attention: "none",
-          ...(thread.sessionRef ? { sessionRef: thread.sessionRef } : {}),
-          canResumeWithConfig: thread.canResumeWithConfig || thread.sessionRef !== undefined,
-        });
+    startTransition(() => {
+      updateThreadRuntime(thread.id, {
+        status: "launching",
+        attention: "none",
+        ...(thread.sessionRef ? { sessionRef: thread.sessionRef } : {}),
+        canResumeWithConfig: thread.canResumeWithConfig || thread.sessionRef !== undefined,
       });
-      queueThreadLaunch(thread.id, "");
-    },
-  );
+    });
+    queueThreadLaunch(thread.id, "");
+  });
+
+  const unloadStoredThread = useEffectEvent(async (threadId: string) => {
+    const thread = useAppStore.getState().threads.find((item) => item.id === threadId);
+    if (
+      !thread ||
+      thread.status === "inactive" ||
+      thread.status === "launching" ||
+      !thread.sessionRef
+    ) {
+      return;
+    }
+
+    await readBridge().closeThread({ threadId });
+    startTransition(() => {
+      markThreadExited(threadId);
+    });
+  });
+
+  const sweepStaleThreads = useEffectEvent(() => {
+    if (staleThreadUnloadMinutes <= 0) {
+      return;
+    }
+
+    const store = useAppStore.getState();
+    const visibleThreadIds = new Set(store.view.kind === "thread" ? store.view.panes : []);
+    const staleBefore = Date.now() - staleThreadUnloadMinutes * 60_000;
+
+    for (const thread of store.threads) {
+      if (
+        visibleThreadIds.has(thread.id) ||
+        thread.status !== "idle" ||
+        !thread.sessionRef ||
+        new Date(thread.updatedAt).getTime() > staleBefore
+      ) {
+        continue;
+      }
+
+      void unloadStoredThread(thread.id).catch(() => undefined);
+    }
+  });
 
   function runProjectAction(projectId: string, actionId: string, worktreePath?: string) {
     const project = projects.find((p) => p.id === projectId);
@@ -1295,20 +1335,28 @@ export function App() {
   useEffect(() => {
     if (!storeHydrated) return;
 
-    const currentThreads = useAppStore.getState().threads;
-    const currentProjects = useAppStore.getState().projects;
     for (const paneId of currentPaneIds) {
-      const thread = currentThreads.find((t) => t.id === paneId);
+      const thread = useAppStore.getState().threads.find((t) => t.id === paneId);
       if (!thread || thread.status !== "inactive") continue;
-      const project = currentProjects.find((p) => p.id === thread.projectId);
-      if (!project) continue;
-      reopenStoredThread({
-        threadId: thread.id,
-        projectLocation: project.location,
-      });
+      reopenStoredThread(thread.id);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- reopenStoredThread is a useEffectEvent
   }, [currentPaneIds, storeHydrated]);
+
+  useEffect(() => {
+    if (!storeHydrated || staleThreadUnloadMinutes <= 0) {
+      return;
+    }
+
+    const intervalId = setInterval(() => {
+      sweepStaleThreads();
+    }, STALE_THREAD_SWEEP_INTERVAL_MS);
+
+    return () => {
+      clearInterval(intervalId);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- sweepStaleThreads is a useEffectEvent
+  }, [storeHydrated, staleThreadUnloadMinutes]);
 
   if (initialLoading) {
     console.log(
@@ -1653,10 +1701,7 @@ export function App() {
                 });
 
                 if (storeHydrated && thread?.status === "inactive" && project) {
-                  reopenStoredThread({
-                    threadId,
-                    projectLocation: project.location,
-                  });
+                  reopenStoredThread(threadId);
                 }
               }}
               onOpenThreadSideBySide={(threadId) => {
@@ -1670,10 +1715,7 @@ export function App() {
                 });
 
                 if (storeHydrated && thread?.status === "inactive" && project) {
-                  reopenStoredThread({
-                    threadId,
-                    projectLocation: project.location,
-                  });
+                  reopenStoredThread(threadId);
                 }
               }}
               onReplaceSecondPane={(threadId) => {
@@ -1687,11 +1729,11 @@ export function App() {
                 });
 
                 if (storeHydrated && thread?.status === "inactive" && project) {
-                  reopenStoredThread({
-                    threadId,
-                    projectLocation: project.location,
-                  });
+                  reopenStoredThread(threadId);
                 }
+              }}
+              onUnloadThread={(threadId) => {
+                void unloadStoredThread(threadId).catch(() => undefined);
               }}
               onRenameThread={(threadId, title) => {
                 renameThread(threadId, title);

@@ -76,12 +76,25 @@ export function detectGeminiTerminalStatus(text: string): TerminalStatusHint | n
 
   const strongBest = findBestMatch(text, GEMINI_STRONG);
   if (strongBest) {
-    return { status: strongBest.entry.status, attention: strongBest.entry.attention };
+    return {
+      status: strongBest.entry.status,
+      attention: strongBest.entry.attention,
+      corroborated: true,
+    };
   }
 
   const fallbackBest = findBestMatch(text, GEMINI_FALLBACK_IDLE);
   if (fallbackBest) {
-    return { status: fallbackBest.entry.status, attention: fallbackBest.entry.attention };
+    // Fallback idle: check if both "Type your message" and "? for shortcuts"
+    // are present for corroboration, otherwise mark as uncorroborated.
+    const bothPresent =
+      GEMINI_FALLBACK_IDLE.length >= 2 &&
+      GEMINI_FALLBACK_IDLE.every((entry) => entry.re.test(text));
+    return {
+      status: fallbackBest.entry.status,
+      attention: fallbackBest.entry.attention,
+      corroborated: bothPresent,
+    };
   }
 
   return null;

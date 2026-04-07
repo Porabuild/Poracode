@@ -236,6 +236,22 @@ describe("generateCommitMessage", () => {
     await expect(pending).resolves.toBe("fix(platform): use bridge.platform for detection");
   });
 
+  it("extracts the result field from Cursor JSON output", async () => {
+    const child = createMockChildProcess();
+    spawnMock.mockReturnValue(child);
+
+    const pending = generateCommitMessage(windowsProject, createAdapter());
+    await flushPromises();
+
+    child.stdout.emit(
+      "data",
+      Buffer.from(JSON.stringify({ result: "fix(cursor): add cursor-agent adapter" })),
+    );
+    child.emit("close", 0);
+
+    await expect(pending).resolves.toBe("fix(cursor): add cursor-agent adapter");
+  });
+
   it("turns a killed child process into a timeout error", async () => {
     const child = createMockChildProcess();
     spawnMock.mockReturnValue(child);

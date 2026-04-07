@@ -132,7 +132,11 @@ export const XTermSurface = forwardRef<
     const flushWrites = () => {
       writeTimer = 0;
       if (writeBuf) {
-        terminal.write(SYNC_START + writeBuf + SYNC_END);
+        try {
+          terminal.write(SYNC_START + writeBuf + SYNC_END);
+        } catch {
+          // Terminal may be disposed between timer set and fire.
+        }
         writeBuf = "";
       }
     };
@@ -241,6 +245,7 @@ export const XTermSurface = forwardRef<
 
       // ── Paste: Ctrl+V / Cmd+V ───────────────────────────────────
       if (event.code === "KeyV" && !readOnly) {
+        event.preventDefault();
         void navigator.clipboard.readText().then((text) => {
           if (text) {
             terminal.paste(text);

@@ -3,7 +3,7 @@ import { ArrowUp } from "lucide-react";
 import { ToggleButton, Tooltip } from "@heroui/react";
 import { Button, OptionMenu, TextArea } from "../common";
 
-export type OptionMenuOption = string | { id: string; label: string };
+export type OptionMenuOption = string | { id: string; label: string; hint?: string };
 
 export type ComposerControl =
   | {
@@ -12,6 +12,7 @@ export type ComposerControl =
       options: readonly OptionMenuOption[];
       onChange?: (value: string) => void;
       icon?: ReactNode;
+      iconOnly?: boolean;
       placeholder?: string;
       isDisabled?: boolean;
       hideLabelOnWrap?: boolean;
@@ -29,6 +30,7 @@ export type ComposerControl =
       kind: "static";
       value: string;
       icon?: ReactNode;
+      iconOnly?: boolean;
       hideLabelOnWrap?: boolean;
     };
 
@@ -121,25 +123,24 @@ export function ThreadComposer(props: {
   const renderControlsList = (forceShowLabels = false) =>
     controls.map((control, index) => {
       if (control.kind === "static") {
+        const hideLabel = control.iconOnly || (control.hideLabelOnWrap && !forceShowLabels);
         const content = (
           <div
             key={`${control.value}-${index}`}
             className="lightcode-composer-static min-w-0 px-2.5"
           >
             {control.icon}
-            <span
-              className={
-                control.hideLabelOnWrap && !forceShowLabels
-                  ? "lightcode-composer-label-hideable truncate"
-                  : "truncate"
-              }
-            >
-              {control.value}
-            </span>
+            {!control.iconOnly && (
+              <span
+                className={hideLabel ? "lightcode-composer-label-hideable truncate" : "truncate"}
+              >
+                {control.value}
+              </span>
+            )}
           </div>
         );
 
-        if (control.hideLabelOnWrap && !forceShowLabels && isWrapping) {
+        if (control.iconOnly || (hideLabel && isWrapping)) {
           return (
             <Tooltip key={`static-tooltip-${index}`}>
               {content}
@@ -155,7 +156,7 @@ export function ThreadComposer(props: {
         const toggle = (
           <ToggleButton
             key={`toggle-${index}`}
-            className="lightcode-composer-toggle min-w-0 px-2.5 text-xs"
+            className="lightcode-composer-toggle min-w-0 px-2.5"
             isDisabled={control.isDisabled ?? false}
             isSelected={control.isSelected}
             size="sm"
@@ -189,6 +190,7 @@ export function ThreadComposer(props: {
 
       const optionalProps = {
         ...(control.icon ? { icon: control.icon } : {}),
+        ...(control.iconOnly ? { iconOnly: control.iconOnly } : {}),
         ...(control.placeholder ? { placeholder: control.placeholder } : {}),
         ...(control.isDisabled !== undefined ? { isDisabled: control.isDisabled } : {}),
         ...(control.hideLabelOnWrap !== undefined

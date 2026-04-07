@@ -9,7 +9,9 @@ const { execFileMock, readWslCommandOutputAsync, rmMock } = vi.hoisted(() => ({
 }));
 
 vi.mock("./agents/base", () => ({
+  getWslCommand: () => "wsl.exe",
   readWslCommandOutputAsync,
+  resolveWslShellPathAsync: vi.fn().mockResolvedValue("/bin/bash"),
 }));
 
 vi.mock("node:fs/promises", async () => {
@@ -205,6 +207,54 @@ describe("GitService.revert", () => {
     );
     expect(checkoutCall).toBeDefined();
     expect(checkoutCall![1]).toContain("docs/old-name.md");
+  });
+});
+
+describe("GitService.commit", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("runs WSL commits through the login shell so multiline messages stay quoted", async () => {
+    mockGitCommands((args) => {
+      if (args[0] === "-d") {
+        return { stdout: "[main abc1234] feat(dashboard): add taxonomy filters\n" };
+      }
+      return { stdout: "" };
+    });
+
+    const result = await new GitService().commit(
+      {
+        kind: "wsl",
+        distro: "Ubuntu",
+        linuxPath: "/home/demo/work/repo",
+        uncPath: "\\\\wsl.localhost\\Ubuntu\\home\\demo\\work\\repo",
+      },
+      "feat(dashboard): add taxonomy filters\n\n- New `/api/taxonomy-values` endpoint",
+      false,
+    );
+
+    expect(result).toEqual({ hash: "abc1234" });
+    expect(execFileMock).toHaveBeenCalledWith(
+      "wsl.exe",
+      expect.arrayContaining([
+        "-d",
+        "Ubuntu",
+        "--cd",
+        "/home/demo/work/repo",
+        "--",
+        "/bin/bash",
+        "-l",
+        "-i",
+        "-c",
+        expect.stringContaining("`/api/taxonomy-values`"),
+      ]),
+      expect.objectContaining({
+        env: expect.objectContaining({ GIT_OPTIONAL_LOCKS: "0" }),
+        windowsHide: true,
+      }),
+      expect.any(Function),
+    );
   });
 });
 

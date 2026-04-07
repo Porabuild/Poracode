@@ -21,12 +21,16 @@ import type {
   GitRemoteInfo,
   RemoteHostPlatform,
 } from "../shared/contracts";
-import { readWslCommandOutputAsync } from "./agents/base";
+import { getWslCommand, readWslCommandOutputAsync, resolveWslShellPathAsync } from "./agents/base";
 import { resolveLightcodePaths } from "../shared/lightcodePaths";
 import { sanitizeWorktreeBranchName, sanitizeWorktreePathSegment } from "../shared/worktree";
 import { getProjectName } from "../shared/wsl";
 
 const execFileAsync = promisify(execFile);
+
+function quotePosixShellArg(value: string): string {
+  return `'${value.replaceAll("'", "'\\''")}'`;
+}
 
 // ── Timeouts ─────────────────────────────────────────────
 
@@ -625,10 +629,32 @@ export class GitService {
     addAll: boolean,
   ): Promise<{ hash: string }> {
     if (addAll) await execGit(location, ["add", "."]);
-    const output = await execGit(location, ["commit", "-m", message]);
+    const output =
+      location.kind === "wsl"
+        ? await this.execWslCommit(location, message)
+        : await execGit(location, ["commit", "-m", message]);
     // Extract hash from first line: "[branch hash] message"
     const hashMatch = output.match(/\[.+?\s+([a-f0-9]+)\]/);
     return { hash: hashMatch?.[1] ?? "" };
+  }
+
+  private async execWslCommit(
+    location: Extract<ProjectLocation, { kind: "wsl" }>,
+    message: string,
+  ): Promise<string> {
+    const shellPath = await resolveWslShellPathAsync(location.distro);
+    const script = `exec ${["git", "commit", "-m", message].map(quotePosixShellArg).join(" ")}`;
+    const { stdout } = await execFileAsync(
+      getWslCommand(),
+      ["-d", location.distro, "--cd", location.linuxPath, "--", shellPath, "-l", "-i", "-c", script],
+      {
+        env: { ...process.env, GIT_OPTIONAL_LOCKS: "0" },
+        timeout: GIT_DEFAULT_TIMEOUT,
+        maxBuffer: 50 * 1024 * 1024,
+        windowsHide: true,
+      },
+    );
+    return stdout;
   }
 
   async getStagedDiff(location: ProjectLocation): Promise<string> {

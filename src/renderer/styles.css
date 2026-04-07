@@ -2,6 +2,27 @@
 @import "@heroui/styles";
 @import "@xterm/xterm/css/xterm.css";
 
+/* HeroUI component overrides */
+.button--sm,
+.toggle-button--sm {
+  font-size: 0.75rem;
+}
+
+.menu-item {
+  min-height: 1.75rem;
+  gap: 0.5rem;
+  padding-block: 0.25rem;
+  font-size: 0.75rem;
+
+  [data-slot="label"] {
+    font-size: 0.75rem;
+  }
+}
+
+.dropdown__popover [data-slot="dropdown-menu"] {
+  padding: 0.25rem;
+}
+
 @layer base {
   :root {
     /* Intentional overrides from HeroUI defaults */

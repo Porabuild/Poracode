@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { ProjectLocation } from "../../shared/contracts";
-import { buildBatchWslScript, getWslCommand, wrapWslCommand } from "./base";
+import { buildBatchWslScript, getWslCommand, injectWslEnv, wrapWslCommand } from "./base";
 
 const wslProject: ProjectLocation = {
   kind: "wsl",
@@ -59,5 +59,46 @@ describe.skipIf(process.platform !== "win32")("wrapWslCommand", () => {
         "exec '/home/demo/.nvm/versions/node/v24/bin/codex' 'resume' 'session-1'",
       ],
     });
+  });
+
+  it("bakes env vars into the WSL shell script as exports", () => {
+    const spec = wrapWslCommand(wslProject, "claude", ["--print"], undefined, {
+      CLAUDE_CODE_NO_FLICKER: "1",
+    });
+    const script = spec.args[spec.args.length - 1]!;
+    expect(script).toBe(
+      "export CLAUDE_CODE_NO_FLICKER='1'; exec 'claude' '--print'",
+    );
+  });
+});
+
+describe("injectWslEnv", () => {
+  it("prepends export statements to the WSL script arg", () => {
+    const original = wrapWslCommand(wslProject, "claude", ["--version"]);
+    const patched = injectWslEnv(original, wslProject, {
+      CLAUDE_CODE_NO_FLICKER: "1",
+      ANOTHER_VAR: "hello",
+    });
+
+    // Original is unchanged
+    expect(original.args[original.args.length - 1]).toBe("exec 'claude' '--version'");
+
+    const script = patched.args[patched.args.length - 1]!;
+    expect(script).toContain("export CLAUDE_CODE_NO_FLICKER='1'");
+    expect(script).toContain("export ANOTHER_VAR='hello'");
+    expect(script).toContain("exec 'claude' '--version'");
+  });
+
+  it("returns the spec unchanged for non-WSL locations", () => {
+    const windowsProject: ProjectLocation = { kind: "windows", path: "C:\\project" };
+    const original = { command: "claude", args: ["--version"] };
+    const result = injectWslEnv(original, windowsProject, { FOO: "1" });
+    expect(result).toBe(original);
+  });
+
+  it("returns the spec unchanged when env is empty", () => {
+    const original = wrapWslCommand(wslProject, "claude", ["--version"]);
+    const result = injectWslEnv(original, wslProject, {});
+    expect(result).toBe(original);
   });
 });

@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { humanizeModelId, mapAcpModels, mapAcpModes } from "./probe";
+import {
+  humanizeModelId,
+  mapAcpModels,
+  mapAcpModes,
+  mapAcpThoughtLevels,
+  normalizeAcpModeId,
+} from "./probe";
 
 describe("humanizeModelId", () => {
   it("strips gemini- prefix and title-cases segments", () => {
@@ -96,4 +102,103 @@ describe("mapAcpModes", () => {
     expect(result.modes).toEqual(["plan"]);
     expect(result.approvalPolicies).toEqual([]);
   });
+
+  it("maps ACP URI mode ids — autopilot becomes an approval policy", () => {
+    const result = mapAcpModes([
+      {
+        id: "https://agentclientprotocol.com/protocol/session-modes#agent",
+        name: "Agent",
+      },
+      {
+        id: "https://agentclientprotocol.com/protocol/session-modes#plan",
+        name: "Plan",
+      },
+      {
+        id: "https://agentclientprotocol.com/protocol/session-modes#autopilot",
+        name: "Autopilot",
+      },
+    ]);
+    expect(result.modes).toEqual(["agent", "plan"]);
+    expect(result.approvalPolicies).toEqual([{ id: "autopilot", label: "Autopilot" }]);
+  });
 });
+
+describe("mapAcpThoughtLevels", () => {
+  it("extracts efforts and default effort from an ungrouped thought_level selector", () => {
+    const result = mapAcpThoughtLevels([
+      {
+        id: "reasoning",
+        name: "Reasoning",
+        category: "thought_level",
+        type: "select",
+        currentValue: "medium",
+        options: [
+          { value: "low", name: "Low" },
+          { value: "medium", name: "Medium" },
+          { value: "high", name: "High" },
+        ],
+      },
+    ]);
+
+    expect(result).toEqual({
+      efforts: ["low", "medium", "high"],
+      defaultEffort: "medium",
+    });
+  });
+
+  it("flattens grouped thought_level selectors", () => {
+    const result = mapAcpThoughtLevels([
+      {
+        id: "reasoning",
+        name: "Reasoning",
+        category: "thought_level",
+        type: "select",
+        currentValue: "high",
+        options: [
+          {
+            group: "standard",
+            name: "Standard",
+            options: [
+              { value: "low", name: "Low" },
+              { value: "medium", name: "Medium" },
+            ],
+          },
+          {
+            group: "extended",
+            name: "Extended",
+            options: [{ value: "high", name: "High" }],
+          },
+        ],
+      },
+    ]);
+
+    expect(result).toEqual({
+      efforts: ["low", "medium", "high"],
+      defaultEffort: "high",
+    });
+  });
+
+  it("returns empty efforts when no thought_level config exists", () => {
+    expect(
+      mapAcpThoughtLevels([
+        {
+          id: "mode",
+          name: "Mode",
+          category: "mode",
+          type: "select",
+          currentValue: "default",
+          options: [{ value: "default", name: "Default" }],
+        },
+      ]),
+    ).toEqual({ efforts: [] });
+  });
+});
+
+describe("normalizeAcpModeId", () => {
+  it("normalizes ACP uri mode ids to their suffix", () => {
+    expect(
+      normalizeAcpModeId("https://agentclientprotocol.com/protocol/session-modes#autopilot"),
+    ).toBe("autopilot");
+  });
+});
+

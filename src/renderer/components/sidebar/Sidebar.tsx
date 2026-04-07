@@ -206,6 +206,7 @@ function SortableThreadItem(props: {
   onOpenThread: (threadId: string) => void;
   onOpenThreadSideBySide: (threadId: string) => void;
   onReplaceSecondPane: (threadId: string) => void;
+  onUnloadThread: (threadId: string) => void;
   onRenameThread: (threadId: string, title: string) => void;
   onDeleteThread: (threadId: string, worktreePath?: string, projectId?: string) => void;
   onOpenGitReview: (projectId: string, worktreePath?: string) => void;
@@ -223,6 +224,14 @@ function SortableThreadItem(props: {
   group: string;
 }) {
   const { thread, project, showWorktreeBadge, currentThreadIds, editingThreadId } = props;
+  const unloadDisabledReason =
+    thread.status === "inactive"
+      ? "Thread is already unloaded."
+      : thread.status === "launching"
+        ? "Wait for the thread to finish starting."
+        : !thread.sessionRef
+          ? "This thread can't be resumed yet."
+          : undefined;
 
   const { ref } = useSortable({
     id: `thread:${thread.id}`,
@@ -282,6 +291,13 @@ function SortableThreadItem(props: {
             label: "Rename",
             icon: <Pencil className="size-3.5" />,
           },
+          {
+            id: "unload",
+            label: "Unload Thread",
+            icon: <ArrowDownToLine className="size-3.5" />,
+            isDisabled: unloadDisabledReason !== undefined,
+            ...(unloadDisabledReason ? { disabledReason: unloadDisabledReason } : {}),
+          },
           ...(currentThreadIds.length >= 2
             ? [
                 {
@@ -325,6 +341,7 @@ function SortableThreadItem(props: {
           }
           if (key === "create-pr") props.onOpenGitReview(thread.projectId, thread.worktreePath);
           if (key === "rename") props.setEditingThreadId(thread.id);
+          if (key === "unload") props.onUnloadThread(thread.id);
           if (key === "replace-second") props.onReplaceSecondPane(thread.id);
           if (key === "open-side") props.onOpenThreadSideBySide(thread.id);
           if (key === "delete")
@@ -450,6 +467,7 @@ function SortableWorktreeGroup(props: {
   onOpenThread: (threadId: string) => void;
   onOpenThreadSideBySide: (threadId: string) => void;
   onReplaceSecondPane: (threadId: string) => void;
+  onUnloadThread: (threadId: string) => void;
   onRenameThread: (threadId: string, title: string) => void;
   onDeleteThread: (threadId: string, worktreePath?: string, projectId?: string) => void;
   onDeleteWorktreeGroup: (projectId: string, worktreePath: string, threadIds: string[]) => void;
@@ -596,6 +614,7 @@ function SortableWorktreeGroup(props: {
               onOpenThread={props.onOpenThread}
               onOpenThreadSideBySide={props.onOpenThreadSideBySide}
               onReplaceSecondPane={props.onReplaceSecondPane}
+              onUnloadThread={props.onUnloadThread}
               onRenameThread={props.onRenameThread}
               onDeleteThread={props.onDeleteThread}
               onOpenGitReview={props.onOpenGitReview}
@@ -635,6 +654,7 @@ function SortableProjectHeader(props: {
   onOpenThread: (threadId: string) => void;
   onOpenThreadSideBySide: (threadId: string) => void;
   onReplaceSecondPane: (threadId: string) => void;
+  onUnloadThread: (threadId: string) => void;
   onRenameThread: (threadId: string, title: string) => void;
   onDeleteThread: (threadId: string, worktreePath?: string, projectId?: string) => void;
   onDeleteProject: (projectId: string) => void;
@@ -804,28 +824,66 @@ function SortableProjectHeader(props: {
             onPress={() => props.onOpenNewThread(project.id)}
           />
 
-          {(() => {
-            const entries = groupThreadsByWorktree(projectThreads);
-            let ungroupedIndex = 0;
+          <div className="max-h-80 space-y-0.5 overflow-y-auto">
+            {(() => {
+              const entries = groupThreadsByWorktree(projectThreads);
+              let ungroupedIndex = 0;
 
-            return entries.map((entry, entryIndex) => {
-              if (entry.kind === "thread") {
-                const idx = ungroupedIndex++;
+              return entries.map((entry, entryIndex) => {
+                if (entry.kind === "thread") {
+                  const idx = ungroupedIndex++;
+                  return (
+                    <SortableThreadItem
+                      key={entry.thread.id}
+                      thread={entry.thread}
+                      threadIndex={idx}
+                      project={project}
+                      showWorktreeBadge={true}
+                      currentThreadIds={props.currentThreadIds}
+                      editingThreadId={props.editingThreadId}
+                      setEditingThreadId={props.setEditingThreadId}
+                      onOpenThread={props.onOpenThread}
+                      onOpenThreadSideBySide={props.onOpenThreadSideBySide}
+                      onReplaceSecondPane={props.onReplaceSecondPane}
+                      onUnloadThread={props.onUnloadThread}
+                      onRenameThread={props.onRenameThread}
+                      onDeleteThread={props.onDeleteThread}
+                      onOpenGitReview={props.onOpenGitReview}
+                      onGitSync={props.onGitSync}
+                      onGitPush={props.onGitPush}
+                      onGitPull={props.onGitPull}
+                      onGitMergeToSource={props.onGitMergeToSource}
+                      onGitMergeAndRemove={props.onGitMergeAndRemove}
+                      onGitPullFromSource={props.onGitPullFromSource}
+                      onOpenWorktreeTerminal={props.onOpenWorktreeTerminal}
+                      onRunProjectAction={props.onRunProjectAction}
+                      activeWorktreeTerminalPaths={props.activeWorktreeTerminalPaths}
+                      activeWorktreeTerminalPath={props.activeWorktreeTerminalPath}
+                      gitMenuIcons={props.gitMenuIcons}
+                      group={`project-entries:${project.id}`}
+                    />
+                  );
+                }
+
                 return (
-                  <SortableThreadItem
-                    key={entry.thread.id}
-                    thread={entry.thread}
-                    threadIndex={idx}
+                  <SortableWorktreeGroup
+                    key={entry.group.worktreePath}
+                    group={entry.group}
+                    entryIndex={entryIndex}
                     project={project}
-                    showWorktreeBadge={true}
+                    isCollapsed={props.collapsedWorktrees[entry.group.worktreePath] ?? false}
+                    collapsedWorktrees={props.collapsedWorktrees}
+                    setCollapsedWorktrees={props.setCollapsedWorktrees}
                     currentThreadIds={props.currentThreadIds}
                     editingThreadId={props.editingThreadId}
                     setEditingThreadId={props.setEditingThreadId}
                     onOpenThread={props.onOpenThread}
                     onOpenThreadSideBySide={props.onOpenThreadSideBySide}
                     onReplaceSecondPane={props.onReplaceSecondPane}
+                    onUnloadThread={props.onUnloadThread}
                     onRenameThread={props.onRenameThread}
                     onDeleteThread={props.onDeleteThread}
+                    onDeleteWorktreeGroup={props.onDeleteWorktreeGroup}
                     onOpenGitReview={props.onOpenGitReview}
                     onGitSync={props.onGitSync}
                     onGitPush={props.onGitPush}
@@ -838,46 +896,12 @@ function SortableProjectHeader(props: {
                     activeWorktreeTerminalPaths={props.activeWorktreeTerminalPaths}
                     activeWorktreeTerminalPath={props.activeWorktreeTerminalPath}
                     gitMenuIcons={props.gitMenuIcons}
-                    group={`project-entries:${project.id}`}
+                    sortableGroup={`project-entries:${project.id}`}
                   />
                 );
-              }
-
-              return (
-                <SortableWorktreeGroup
-                  key={entry.group.worktreePath}
-                  group={entry.group}
-                  entryIndex={entryIndex}
-                  project={project}
-                  isCollapsed={props.collapsedWorktrees[entry.group.worktreePath] ?? false}
-                  collapsedWorktrees={props.collapsedWorktrees}
-                  setCollapsedWorktrees={props.setCollapsedWorktrees}
-                  currentThreadIds={props.currentThreadIds}
-                  editingThreadId={props.editingThreadId}
-                  setEditingThreadId={props.setEditingThreadId}
-                  onOpenThread={props.onOpenThread}
-                  onOpenThreadSideBySide={props.onOpenThreadSideBySide}
-                  onReplaceSecondPane={props.onReplaceSecondPane}
-                  onRenameThread={props.onRenameThread}
-                  onDeleteThread={props.onDeleteThread}
-                  onDeleteWorktreeGroup={props.onDeleteWorktreeGroup}
-                  onOpenGitReview={props.onOpenGitReview}
-                  onGitSync={props.onGitSync}
-                  onGitPush={props.onGitPush}
-                  onGitPull={props.onGitPull}
-                  onGitMergeToSource={props.onGitMergeToSource}
-                  onGitMergeAndRemove={props.onGitMergeAndRemove}
-                  onGitPullFromSource={props.onGitPullFromSource}
-                  onOpenWorktreeTerminal={props.onOpenWorktreeTerminal}
-                  onRunProjectAction={props.onRunProjectAction}
-                  activeWorktreeTerminalPaths={props.activeWorktreeTerminalPaths}
-                  activeWorktreeTerminalPath={props.activeWorktreeTerminalPath}
-                  gitMenuIcons={props.gitMenuIcons}
-                  sortableGroup={`project-entries:${project.id}`}
-                />
-              );
-            });
-          })()}
+              });
+            })()}
+          </div>
         </div>
       ) : null}
     </section>
@@ -893,6 +917,7 @@ export function Sidebar(props: {
   onOpenThread: (threadId: string) => void;
   onOpenThreadSideBySide: (threadId: string) => void;
   onReplaceSecondPane: (threadId: string) => void;
+  onUnloadThread: (threadId: string) => void;
   onRenameThread: (threadId: string, title: string) => void;
   onDeleteThread: (threadId: string, worktreePath?: string, projectId?: string) => void;
   onDeleteProject: (projectId: string) => void;
@@ -923,6 +948,7 @@ export function Sidebar(props: {
     onOpenThread,
     onOpenThreadSideBySide,
     onReplaceSecondPane,
+    onUnloadThread,
     onRenameThread,
     onDeleteThread,
     onDeleteProject,
@@ -1064,6 +1090,7 @@ export function Sidebar(props: {
                   onOpenThread={onOpenThread}
                   onOpenThreadSideBySide={onOpenThreadSideBySide}
                   onReplaceSecondPane={onReplaceSecondPane}
+                  onUnloadThread={onUnloadThread}
                   onRenameThread={onRenameThread}
                   onDeleteThread={onDeleteThread}
                   onDeleteProject={onDeleteProject}

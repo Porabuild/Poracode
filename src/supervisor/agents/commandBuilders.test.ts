@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 import type { ProjectLocation, SessionRef, ThreadConfig } from "../../shared/contracts";
 import { buildWindowsCommand, getWslCommand } from "./base";
 import { createClaudeAdapter } from "./claude";
+import { createCopilotAdapter } from "./copilot";
 import { buildCodexAppServerCommand, CODEX_REMOTE_TUI_FEATURE, createCodexAdapter } from "./codex";
+import { createCursorAdapter } from "./cursor";
 
 function decodePowerShellEncodedCommand(encoded: string): string {
   return Buffer.from(encoded, "base64").toString("utf16le");
@@ -201,6 +203,91 @@ describe("agent command builders", () => {
       command: "claude",
       args: ["-p", "--model", "haiku", "--effort", "low"],
     });
+
+    expect(
+      createCopilotAdapter().buildOneShotCommand?.("gpt-5", "low", "Summarize this diff"),
+    ).toEqual({
+      command: "copilot",
+      args: [
+        "-p",
+        "Summarize this diff",
+        "-s",
+        "--allow-all-tools",
+        "--model",
+        "gpt-5",
+        "--effort",
+        "low",
+      ],
+      stdin: "",
+    });
+  });
+
+  it("builds a Copilot launch command with a pre-assigned session id", () => {
+    const spec = createCopilotAdapter().buildLaunchCommand(
+      windowsProject,
+      { model: "gpt-5", effort: "high", approvalPolicy: "never" },
+      "hello",
+    );
+    const { cmd, cmdArgs } = parseWindowsSpec(spec);
+
+    expect(cmd).toBe("copilot");
+    expect(cmdArgs.some((arg) => arg.startsWith("--resume="))).toBe(true);
+    expect(cmdArgs).toContain("--model");
+    expect(cmdArgs).toContain("gpt-5");
+    expect(cmdArgs).toContain("--effort");
+    expect(cmdArgs).toContain("high");
+    expect(cmdArgs).toContain("--yolo");
+    expect(cmdArgs).not.toContain("--autopilot");
+    expect(cmdArgs).toContain("hello");
+    expect(spec.sessionRef).toBeDefined();
+  });
+
+  it("omits --yolo for default approval policy on Copilot", () => {
+    const spec = createCopilotAdapter().buildLaunchCommand(
+      windowsProject,
+      { model: "gpt-5", approvalPolicy: "default" },
+      "hello",
+    );
+    const { cmdArgs } = parseWindowsSpec(spec);
+
+    expect(cmdArgs).not.toContain("--yolo");
+    expect(cmdArgs).not.toContain("--autopilot");
+    expect(cmdArgs).not.toContain("--allow-all");
+  });
+
+  it("keeps Copilot model and effort flags when resuming an ACP-backed session", () => {
+    const spec = createCopilotAdapter().buildLaunchCommand(
+      windowsProject,
+      { model: "gpt-5.4", effort: "high", approvalPolicy: "never" },
+      "",
+      undefined,
+      {
+        suppressResumeConfigOverrides: true,
+        resumeThreadId: "019d19c4-8050-7270-b8fc-589eee8136c2",
+      },
+    );
+    const { cmd, cmdArgs } = parseWindowsSpec(spec);
+
+    expect(cmd).toBe("copilot");
+    expect(cmdArgs).toContain("--resume=019d19c4-8050-7270-b8fc-589eee8136c2");
+    expect(cmdArgs).toContain("--model");
+    expect(cmdArgs).toContain("gpt-5.4");
+    expect(cmdArgs).toContain("--effort");
+    expect(cmdArgs).toContain("high");
+  });
+
+  it("prefixes the initial Copilot interactive prompt with /plan in plan mode", () => {
+    const spec = createCopilotAdapter().buildLaunchCommand(
+      windowsProject,
+      { model: "claude-haiku-4.5", effort: "high", mode: "plan", approvalPolicy: "never" },
+      "hi",
+    );
+    const { cmd, cmdArgs } = parseWindowsSpec(spec);
+
+    expect(cmd).toBe("copilot");
+    expect(cmdArgs).toContain("-i");
+    expect(cmdArgs).toContain("/plan hi");
+    expect(cmdArgs).not.toContain("hi");
   });
 
   it.skipIf(process.platform !== "win32")(
@@ -253,5 +340,43 @@ describe("agent command builders", () => {
     expect(script).toContain("--resume");
     expect(script).toContain("abc-123");
     expect(script).not.toContain(", ''");
+  });
+
+  it("builds a Windows Cursor launch command", () => {
+    const spec = createCursorAdapter().buildLaunchCommand(
+      windowsProject,
+      { model: "auto" },
+      "hello",
+    );
+    expect(spec.cwd).toBe("C:\\Users\\demo\\project");
+    const { cmd, cmdArgs } = parseWindowsSpec(spec);
+    expect(cmd).toBe("cursor-agent");
+    expect(cmdArgs).toContain("hello");
+    expect(cmdArgs).not.toContain("--model");
+  });
+
+  it("builds a Cursor resume command with --resume", () => {
+    const sessionRef: SessionRef = {
+      providerSessionId: "chat_019d6099-45a3-7962-a595-2d7f59276118",
+      discoveredAt: new Date().toISOString(),
+    };
+    const spec = createCursorAdapter().buildResumeCommand(
+      windowsProject,
+      { model: "auto" },
+      "",
+      sessionRef,
+    );
+    const { cmdArgs } = parseWindowsSpec(spec);
+
+    expect(cmdArgs).toContain("--resume=chat_019d6099-45a3-7962-a595-2d7f59276118");
+    expect(cmdArgs).not.toContain("--model");
+    expect(cmdArgs).not.toContain("");
+  });
+
+  it("uses Cursor print mode for one-shot commands", () => {
+    expect(createCursorAdapter().buildOneShotCommand?.("auto")).toEqual({
+      command: "cursor-agent",
+      args: ["--print", "--force", "--output-format", "json"],
+    });
   });
 });

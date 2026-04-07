@@ -12,9 +12,24 @@ import {
 import { withCurrentModel } from "../../thread/threadComposerOptions";
 
 registerProviderIcon("codex", CodexStatusIcon);
-registerCommitGenDefaults("codex", { model: "gpt-5.4-mini", effort: "low" });
-registerTitleGenDefaults("codex", { model: "gpt-5.4-mini", effort: "low" });
-registerConflictResolverDefaults("codex", { model: "gpt-5.4", effort: "" });
+registerCommitGenDefaults("codex", {
+  label: "Codex",
+  hint: "GPT-5.4 Mini",
+  model: "gpt-5.4-mini",
+  effort: "low",
+});
+registerTitleGenDefaults("codex", {
+  label: "Codex",
+  hint: "GPT-5.4 Mini",
+  model: "gpt-5.4-mini",
+  effort: "low",
+});
+registerConflictResolverDefaults("codex", {
+  label: "Codex",
+  hint: "GPT-5.4",
+  model: "gpt-5.4",
+  effort: "",
+});
 
 registerComposerControls("codex", ({ capabilities, config, isDisabled, onConfigChange }) => {
   const availableEfforts =

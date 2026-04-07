@@ -254,6 +254,13 @@ type HintEntry = {
   attention: TerminalStatusHint["attention"];
   planMode?: boolean;
   approvalPolicy?: string;
+  /**
+   * Whether this pattern alone is a strong (self-corroborating) signal.
+   * Strong patterns are specific multi-word phrases unlikely to appear
+   * during transient TUI redraws. Weak patterns (prompt cursor, spinner)
+   * need a second independent signal to be corroborated.
+   */
+  strong?: boolean;
 };
 
 const CLAUDE_HINTS: HintEntry[] = [
@@ -261,25 +268,29 @@ const CLAUDE_HINTS: HintEntry[] = [
     re: /Esc to cancel\s.*Tab to amend/i,
     status: "needs_approval",
     attention: "needs_approval",
+    strong: true,
   },
-  { re: /Enter to select/i, status: "needs_reply", attention: "needs_reply" },
-  { re: /esc to interrupt/i, status: "working", attention: "working" },
+  { re: /Enter to select/i, status: "needs_reply", attention: "needs_reply", strong: true },
+  { re: /esc to interrupt/i, status: "working", attention: "working", strong: true },
   // Animated spinner (✻✶✽✢⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏) + text + ellipsis — universal working indicator
   // NOTE: plain `*` excluded — Claude Code uses `*` as a selection marker in menus
+  // Weak: spinners can linger as stale artifacts in the rolling buffer.
   { re: /[✻✶✽✢⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏]\s+\S.*(?:…|\.\.\.)/i, status: "working", attention: "working" },
   // Plan approval prompt — "shift+tab to approve" / "ctrl-g to edit in Vim · <plan path>"
-  { re: /shift.tab to approve/i, status: "needs_reply", attention: "needs_reply" },
-  { re: /ctrl-g to edit/i, status: "needs_reply", attention: "needs_reply" },
+  { re: /shift.tab to approve/i, status: "needs_reply", attention: "needs_reply", strong: true },
+  { re: /ctrl-g to edit/i, status: "needs_reply", attention: "needs_reply", strong: true },
   // "Exit plan mode?" confirmation — match the ❯ cursor on numbered choice at the end
-  { re: /exit plan mode\?/i, status: "needs_reply", attention: "needs_reply" },
-  { re: /\?\s+for shortcuts/i, status: "idle", attention: "none", approvalPolicy: "default" },
-  { re: /plan mode on/i, status: "idle", attention: "none", planMode: true },
-  { re: /accept edits/i, status: "idle", attention: "none", approvalPolicy: "acceptEdits" },
-  { re: /bypass permissions/i, status: "idle", attention: "none", approvalPolicy: "bypassPermissions" },
+  { re: /exit plan mode\?/i, status: "needs_reply", attention: "needs_reply", strong: true },
+  { re: /\?\s+for shortcuts/i, status: "idle", attention: "none", approvalPolicy: "default", strong: true },
+  { re: /plan mode on/i, status: "idle", attention: "none", planMode: true, strong: true },
+  { re: /accept edits/i, status: "idle", attention: "none", approvalPolicy: "acceptEdits", strong: true },
+  { re: /bypass permissions/i, status: "idle", attention: "none", approvalPolicy: "bypassPermissions", strong: true },
   // ❯ or > prompt cursor — universal idle/ready indicator
   // Exclude ❯ followed by a digit (numbered selection menu, not the input prompt)
+  // Weak: can flash during partial TUI redraws.
   { re: /❯(?!\s*\d)|^\s*>(?!\s*\d)/, status: "idle", attention: "none" },
   // Type your message — idle indicator (fallback)
+  // Weak: generic text that could appear in agent output.
   { re: /type your message/i, status: "idle", attention: "none" },
 ];
 
@@ -288,6 +299,15 @@ export function detectClaudeTerminalStatus(text: string): TerminalStatusHint | n
   // the TUI status indicator at the bottom is the current state.
   // We need the LAST match of each pattern, not the first, because the
   // accumulated buffer can contain stale matches from earlier states.
+  //
+  // Weak patterns (prompt cursor, spinner) are restricted to the tail of
+  // the buffer. Large screen repaints can include historical ❯ prompt
+  // markers from previous user messages deep in the chat scrollback;
+  // without the tail restriction these stale markers win the "last match"
+  // contest and cause false idle detections while the agent is working.
+  const WEAK_TAIL_WINDOW = 300;
+  const weakStart = text.length > WEAK_TAIL_WINDOW ? text.length - WEAK_TAIL_WINDOW : 0;
+
   let best: { index: number; entry: HintEntry } | null = null;
 
   for (const entry of CLAUDE_HINTS) {
@@ -298,7 +318,11 @@ export function detectClaudeTerminalStatus(text: string): TerminalStatusHint | n
     let last: RegExpExecArray | null = null;
     let m: RegExpExecArray | null;
     while ((m = globalRe.exec(text)) !== null) {
-      last = m;
+      // Weak patterns must match within the tail window to avoid
+      // picking up stale artifacts from chat history.
+      if (entry.strong || m.index >= weakStart) {
+        last = m;
+      }
     }
     if (last && (best === null || last.index > best.index)) {
       best = { index: last.index, entry };
@@ -320,6 +344,19 @@ export function detectClaudeTerminalStatus(text: string): TerminalStatusHint | n
 
   if (best.entry.approvalPolicy) {
     hint.approvalPolicy = best.entry.approvalPolicy;
+  }
+
+  // ── Dual-pattern corroboration ─────────────────────────────
+  // Strong patterns are self-corroborating. Weak patterns need
+  // a second independent signal of the same status in the buffer.
+  if (best.entry.strong) {
+    hint.corroborated = true;
+  } else {
+    // Check if any other strong entry of the same status is also present
+    hint.corroborated = CLAUDE_HINTS.some(
+      (entry) =>
+        entry.strong && entry.status === best!.entry.status && entry !== best!.entry && entry.re.test(text),
+    );
   }
 
   // Detect model/effort changes from "Set model to ..." messages

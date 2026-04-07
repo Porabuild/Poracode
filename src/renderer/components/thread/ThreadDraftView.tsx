@@ -58,7 +58,7 @@ function resolveEffortValue(agent: AgentStatus, model: string, preferred?: strin
 
 function resolveModeValue(agent: AgentStatus, preferred?: string): string {
   const modes = agent.capabilities.modes;
-  return preferred && modes.includes(preferred as "agent" | "plan")
+  return preferred && modes.includes(preferred as "agent" | "plan" | "autopilot")
     ? preferred
     : (modes[0] ?? "agent");
 }
@@ -162,7 +162,7 @@ export function ThreadDraftView(props: {
     installedAgents.find((status) => status.kind === effectiveAgentKind) ?? installedAgents[0];
   const [model, setModel] = useState("");
   const [effort, setEffort] = useState("");
-  const [mode, setMode] = useState<"agent" | "plan">("agent");
+  const [mode, setMode] = useState<"agent" | "plan" | "autopilot">("agent");
   const [approvalPolicy, setApprovalPolicy] = useState("");
   const [sandboxMode, setSandboxMode] = useState("");
   const [prompt, setPrompt] = useState("");
@@ -209,7 +209,8 @@ export function ThreadDraftView(props: {
     setMode(
       resolveModeValue(selectedAgent, restoreSavedDraft ? lastDraftConfig?.mode : undefined) as
         | "agent"
-        | "plan",
+        | "plan"
+        | "autopilot",
     );
     setApprovalPolicy(
       resolveApprovalPolicyValue(
@@ -252,7 +253,7 @@ export function ThreadDraftView(props: {
   const onConfigPatch = (patch: Partial<ThreadConfig>) => {
     if (patch.model !== undefined) setModel(patch.model);
     if (patch.effort !== undefined) setEffort(patch.effort);
-    if (patch.mode !== undefined) setMode(patch.mode as "agent" | "plan");
+    if (patch.mode !== undefined) setMode(patch.mode as "agent" | "plan" | "autopilot");
     if (patch.approvalPolicy !== undefined) setApprovalPolicy(patch.approvalPolicy);
     if (patch.sandboxMode !== undefined) setSandboxMode(patch.sandboxMode);
   };
@@ -298,7 +299,7 @@ export function ThreadDraftView(props: {
                       ),
                     })),
                     value: selectedAgent.kind,
-                    hideLabelOnWrap: true,
+                    iconOnly: true,
                     onChange: (value) => setAgentKind(value as AgentStatus["kind"]),
                   },
                   ...(factory

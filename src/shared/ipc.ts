@@ -156,6 +156,12 @@ export type SupervisorEvent =
       errorMessage?: string;
     }
   | { type: "thread-exited"; threadId: string; exitCode: number | null }
+  | {
+      type: "thread-osc-notification";
+      threadId: string;
+      title: string;
+      body: string;
+    }
   | { type: "windows-agent-statuses"; statuses: AgentStatus[] }
   | { type: "wsl-agent-statuses"; statuses: AgentStatus[] }
   | { type: "git-changed"; projectId: string };

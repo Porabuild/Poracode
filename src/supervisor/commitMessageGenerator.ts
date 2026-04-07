@@ -18,12 +18,21 @@ const PROMPT =
 const MAX_DIFF_CHARS = 8000;
 const COMMIT_MESSAGE_TIMEOUT_MS = 120_000;
 
+function extractJsonResult(raw: string): string | undefined {
+  try {
+    const parsed = JSON.parse(raw) as { result?: unknown };
+    return typeof parsed?.result === "string" ? parsed.result : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 /**
  * Strip LLM artifacts from raw output: thinking tags, code fences,
  * preamble commentary ("Here's the commit message:"), and trailing prose.
  */
 export function cleanCommitMessage(raw: string): string {
-  let text = raw;
+  let text = extractJsonResult(raw) ?? raw;
 
   // Strip <think>…</think> / <antThinking>…</antThinking> blocks
   text = text.replace(/<(think|antThinking)>[\s\S]*?<\/\1>/g, "");
@@ -63,14 +72,6 @@ export async function generateCommitMessage(
     throw new Error(`${adapter.label} does not support one-shot generation`);
   }
 
-  const cmd = adapter.buildOneShotCommand(effectiveModel, effort);
-  if (!cmd) {
-    throw new Error(`${adapter.label} does not support one-shot generation`);
-  }
-
-  const spawnSpec = buildOneShotSpec(location, cmd.command, cmd.args);
-  console.log(`[commit-gen] spawning: ${spawnSpec.command} ${spawnSpec.args.join(" ")}`);
-
   const gitService = new GitService();
 
   let diff = await gitService.getStagedDiff(location);
@@ -81,6 +82,15 @@ export async function generateCommitMessage(
     throw new Error("No changes to describe");
   }
 
-  const raw = await spawnAgent(spawnSpec, PROMPT + truncateDiff(diff), COMMIT_MESSAGE_TIMEOUT_MS);
+  const prompt = PROMPT + truncateDiff(diff);
+  const cmd = adapter.buildOneShotCommand(effectiveModel, effort, prompt);
+  if (!cmd) {
+    throw new Error(`${adapter.label} does not support one-shot generation`);
+  }
+
+  const spawnSpec = buildOneShotSpec(location, cmd.command, cmd.args);
+  console.log(`[commit-gen] spawning: ${spawnSpec.command} ${spawnSpec.args.join(" ")}`);
+
+  const raw = await spawnAgent(spawnSpec, cmd.stdin ?? prompt, COMMIT_MESSAGE_TIMEOUT_MS);
   return cleanCommitMessage(raw);
 }

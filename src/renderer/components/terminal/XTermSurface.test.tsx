@@ -164,7 +164,7 @@ describe("XTermSurface", () => {
     });
     await flushWriteTimer();
 
-    expect(terminal().write).toHaveBeenCalledWith("hello world");
+    expect(terminal().write).toHaveBeenCalledWith("\x1b[?2026hhello world\x1b[?2026l");
   });
 
   it("ignores thread-output for a different terminal", async () => {
@@ -229,7 +229,7 @@ describe("XTermSurface", () => {
     });
     await flushWriteTimer();
 
-    expect(terminal().write).toHaveBeenCalledWith("after reset");
+    expect(terminal().write).toHaveBeenCalledWith("\x1b[?2026hafter reset\x1b[?2026l");
   });
 
   // ── Activity / bell / title callbacks ───────────────────────────
