@@ -26,7 +26,7 @@ export function TerminalPane(props: {
   return (
     <div
       className={`h-full w-full overflow-hidden transition-opacity duration-300 ease-out ${
-        status === "inactive" ? "opacity-0" : "opacity-100"
+        status === "inactive" || status === "launching" ? "opacity-0" : "opacity-100"
       }`}
     >
       <XTermSurface

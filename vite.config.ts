@@ -28,6 +28,12 @@ export default defineConfig({
     emptyOutDir: true,
     rolldownOptions: {
       output: {
+        minify: {
+          compress: {
+            dropConsole: true,
+            dropDebugger: true,
+          },
+        },
         manualChunks(id) {
           if (!id.includes("node_modules")) {
             return;

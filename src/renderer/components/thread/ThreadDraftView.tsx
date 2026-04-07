@@ -21,6 +21,8 @@ import {
   useAttachments,
 } from "../composer";
 import { flattenSegments } from "../composer/serializeMentions";
+import { useSharedSettings } from "../../state/sharedSettingsStore";
+import { filterHiddenModels } from "./threadComposerOptions";
 import { ThreadComposer } from "./ThreadComposer";
 
 function resolvePreferredAgentKind(
@@ -238,6 +240,10 @@ export function ThreadDraftView(props: {
     }
   }, [effort, model, selectedAgent]);
 
+  const hiddenModelIds = useSharedSettings((s) =>
+    selectedAgent ? s.hiddenModels[selectedAgent.kind] : undefined,
+  );
+
   if (!selectedAgent) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-3 px-6 text-center">
@@ -304,7 +310,7 @@ export function ThreadDraftView(props: {
                   },
                   ...(factory
                     ? factory({
-                        capabilities: selectedAgent.capabilities,
+                        capabilities: filterHiddenModels(selectedAgent.capabilities, hiddenModelIds),
                         config: { model, effort, mode, approvalPolicy, sandboxMode },
                         isDisabled: false,
                         onConfigChange: onConfigPatch,

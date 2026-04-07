@@ -152,14 +152,7 @@ describe("writeSubmittedPrompt", () => {
       undefined,
     );
     expect(session.pty.write).not.toHaveBeenCalled();
-    expect(emitted).toEqual([
-      expect.objectContaining({
-        type: "thread-state",
-        threadId: session.threadId,
-        status: "working",
-        attention: "working",
-      }),
-    ]);
+    expect(emitted).toEqual([]);
   });
 
   it("returns immediately while server-controlled turn start continues in the background", async () => {
@@ -206,14 +199,7 @@ describe("writeSubmittedPrompt", () => {
       },
       undefined,
     );
-    expect(emitted).toEqual([
-      expect.objectContaining({
-        type: "thread-state",
-        threadId: session.threadId,
-        status: "working",
-        attention: "working",
-      }),
-    ]);
+    expect(emitted).toEqual([]);
 
     resolveStartTurn?.();
   });
@@ -249,12 +235,6 @@ describe("writeSubmittedPrompt", () => {
     await Promise.resolve();
 
     expect(emitted).toEqual([
-      expect.objectContaining({
-        type: "thread-state",
-        threadId: session.threadId,
-        status: "working",
-        attention: "working",
-      }),
       expect.objectContaining({
         type: "thread-state",
         threadId: session.threadId,
@@ -448,14 +428,6 @@ describe("writeSubmittedPrompt", () => {
     expect(startTurn).toHaveBeenCalledWith("hi", {
       model: "gpt-5.4",
     });
-    expect(emitted).toContainEqual(
-      expect.objectContaining({
-        type: "thread-state",
-        threadId: "thread-2",
-        status: "working",
-        attention: "working",
-      }),
-    );
   });
 
   it("does not eagerly start a queued Codex turn during thread startup", async () => {

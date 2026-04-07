@@ -1,4 +1,5 @@
-import { Switch, ToggleButton, ToggleButtonGroup, Tooltip } from "@heroui/react";
+import { Button, Dropdown, Label, Switch, ToggleButton, ToggleButtonGroup, Tooltip } from "@heroui/react";
+import type { Selection } from "@heroui/react";
 import {
   ArrowLeft,
   Bot,
@@ -49,6 +50,11 @@ const staleThreadUnloadOptions = [
   { id: "30", label: "30 minutes" },
   { id: "60", label: "1 hour" },
 ] as const;
+
+const scrollSpeedOptions = Array.from({ length: 10 }, (_, i) => ({
+  id: String(i + 1),
+  label: `${i + 1}x`,
+})) as readonly { id: string; label: string }[];
 
 type SettingsSection = "general" | "ai" | "agents" | "git" | `agents:${string}`;
 
@@ -206,6 +212,8 @@ function GeneralSettings() {
   const setStaleThreadUnloadMinutes = useSharedSettings(
     (state) => state.setStaleThreadUnloadMinutes,
   );
+  const scrollSpeed = useSharedSettings((state) => state.scrollSpeed);
+  const setScrollSpeed = useSharedSettings((state) => state.setScrollSpeed);
 
   return (
     <div className="h-full min-h-0 overflow-y-auto px-6 pb-8">
@@ -289,6 +297,27 @@ function GeneralSettings() {
               }}
             />
           </div>
+
+          <div className="flex items-center justify-between gap-4">
+            <div className="min-w-0">
+              <p className="text-sm font-medium text-foreground">Terminal scroll speed</p>
+              <p className="text-xs text-muted">
+                Scroll speed multiplier for the terminal scrollback buffer.
+              </p>
+            </div>
+            <Select
+              aria-label="Terminal scroll speed"
+              className="w-[160px] shrink-0"
+              options={scrollSpeedOptions}
+              value={String(scrollSpeed)}
+              onChange={(value) => {
+                startTransition(() => {
+                  setScrollSpeed(Number.parseInt(value, 10) || 2);
+                });
+              }}
+            />
+          </div>
+
         </div>
       </div>
     </div>
@@ -549,7 +578,7 @@ function AISettings() {
   );
 }
 
-function AgentSettingToggle(props: { agentKind: string; def: AgentSettingDef }) {
+function AgentSettingRow(props: { agentKind: string; def: AgentSettingDef }) {
   const { agentKind, def } = props;
   const value = useSharedSettings((s) => s.agentSettings[agentKind]?.[def.key] ?? def.default);
   const setAgentSetting = useSharedSettings((s) => s.setAgentSetting);
@@ -560,18 +589,80 @@ function AgentSettingToggle(props: { agentKind: string; def: AgentSettingDef }) 
         <p className="text-sm font-medium text-foreground">{def.label}</p>
         <p className="text-xs text-muted">{def.description}</p>
       </div>
-      <Switch
-        isSelected={value}
-        onChange={(selected) => {
-          startTransition(() => {
-            setAgentSetting(agentKind, def.key, selected);
-          });
-        }}
-      >
-        <Switch.Control>
-          <Switch.Thumb />
-        </Switch.Control>
-      </Switch>
+      {def.type === "toggle" ? (
+        <Switch
+          isSelected={value as boolean}
+          onChange={(selected) => {
+            startTransition(() => {
+              setAgentSetting(agentKind, def.key, selected);
+            });
+          }}
+        >
+          <Switch.Control>
+            <Switch.Thumb />
+          </Switch.Control>
+        </Switch>
+      ) : (
+        <Select
+          aria-label={def.label}
+          className="w-[160px] shrink-0"
+          options={def.options}
+          value={String(value)}
+          onChange={(v) => {
+            startTransition(() => {
+              setAgentSetting(agentKind, def.key, v);
+            });
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+function ModelVisibilityDropdown(props: {
+  agentKind: string;
+  models: readonly { id: string; label: string }[];
+}) {
+  const { agentKind, models } = props;
+  const hiddenIds = useSharedSettings((s) => s.hiddenModels[agentKind]);
+  const setHiddenModels = useSharedSettings((s) => s.setHiddenModels);
+
+  const hidden = hiddenIds ?? [];
+  const hiddenSet = new Set(hidden);
+  const visibleKeys: Selection = new Set(
+    models.filter((m) => !hiddenSet.has(m.id)).map((m) => m.id),
+  );
+  const hiddenCount = hidden.length;
+
+  return (
+    <div className="flex items-center justify-between gap-4">
+      <div className="min-w-0">
+        <p className="text-sm font-medium text-foreground">Visible models</p>
+        <p className="text-xs text-muted">Toggle models off to hide them from the selector.</p>
+      </div>
+      <Dropdown>
+        <Button variant="secondary" size="sm" className="min-w-[4.5rem] tabular-nums">
+          {models.length - hiddenCount} / {models.length}
+        </Button>
+        <Dropdown.Popover className="min-w-[280px]">
+          <Dropdown.Menu className="max-h-[400px] overflow-y-auto"
+            selectedKeys={visibleKeys}
+            selectionMode="multiple"
+            onSelectionChange={(keys) => {
+              const selected = keys === "all" ? new Set(models.map((m) => m.id)) : (keys as Set<string>);
+              const nextHidden = models.filter((m) => !selected.has(m.id)).map((m) => m.id);
+              setHiddenModels(agentKind, nextHidden);
+            }}
+          >
+            {models.map((m) => (
+              <Dropdown.Item key={m.id} id={m.id} textValue={m.label}>
+                <Dropdown.ItemIndicator />
+                <Label>{m.label}</Label>
+              </Dropdown.Item>
+            ))}
+          </Dropdown.Menu>
+        </Dropdown.Popover>
+      </Dropdown>
     </div>
   );
 }
@@ -595,20 +686,29 @@ function SingleAgentSettings(props: { agentKind: string }) {
   const defs = (agent.capabilities.settingDefs ?? []).filter(
     (def) => !def.platforms || def.platforms.includes(platform),
   );
+  const models = agent.capabilities.models.filter((m) => m.id !== "auto");
 
   return (
     <div className="h-full min-h-0 overflow-y-auto px-6 pb-8">
       <div className="mx-auto max-w-[560px]">
         <h1 className="mb-6 text-lg font-semibold text-foreground">{agent.label}</h1>
 
-        {defs.length === 0 ? (
-          <p className="text-sm text-muted">No settings available for this agent.</p>
-        ) : (
+        {defs.length > 0 && (
           <div className="space-y-4">
             {defs.map((def) => (
-              <AgentSettingToggle key={def.key} agentKind={agent.kind} def={def} />
+              <AgentSettingRow key={def.key} agentKind={agent.kind} def={def} />
             ))}
           </div>
+        )}
+
+        {models.length > 0 && (
+          <div className={defs.length > 0 ? "mt-8 space-y-4" : "space-y-4"}>
+            <ModelVisibilityDropdown agentKind={agent.kind} models={models} />
+          </div>
+        )}
+
+        {defs.length === 0 && models.length === 0 && (
+          <p className="text-sm text-muted">No settings available for this agent.</p>
         )}
       </div>
     </div>

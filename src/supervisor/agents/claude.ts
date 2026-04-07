@@ -51,7 +51,8 @@ const capabilities: AgentCapability = {
   settingDefs: [
     {
       key: "usePowershellTool",
-      envVar: "CLAUDE_CODE_USE_POWERSHELL_TOOL",
+      type: "toggle" as const,
+      env: { CLAUDE_CODE_USE_POWERSHELL_TOOL: "1" },
       label: "Use PowerShell tool",
       description: "Use PowerShell as the shell tool instead of Bash.",
       default: process.platform === "win32",
@@ -59,10 +60,23 @@ const capabilities: AgentCapability = {
     },
     {
       key: "noFlicker",
-      envVar: "CLAUDE_CODE_NO_FLICKER",
+      type: "toggle" as const,
+      env: { CLAUDE_CODE_NO_FLICKER: "1" },
       label: "No flicker mode",
       description: "Reduces terminal flicker in the Claude Code TUI.",
       default: true,
+    },
+    {
+      key: "scrollSpeed",
+      type: "select" as const,
+      envVar: "CLAUDE_CODE_SCROLL_SPEED",
+      label: "TUI scroll speed",
+      description: "Scroll speed inside the no-flicker TUI.",
+      default: "5",
+      options: Array.from({ length: 10 }, (_, i) => ({
+        id: String(i + 1),
+        label: `${i + 1}x`,
+      })),
     },
   ],
 };

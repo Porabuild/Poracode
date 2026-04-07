@@ -352,7 +352,7 @@ describe("agent command builders", () => {
     const { cmd, cmdArgs } = parseWindowsSpec(spec);
     expect(cmd).toBe("cursor-agent");
     expect(cmdArgs).toContain("hello");
-    expect(cmdArgs).not.toContain("--model");
+    expect(cmdArgs).toContain("auto");
   });
 
   it("builds a Cursor resume command with --resume", () => {
@@ -369,14 +369,50 @@ describe("agent command builders", () => {
     const { cmdArgs } = parseWindowsSpec(spec);
 
     expect(cmdArgs).toContain("--resume=chat_019d6099-45a3-7962-a595-2d7f59276118");
-    expect(cmdArgs).not.toContain("--model");
+    expect(cmdArgs).toContain("auto");
     expect(cmdArgs).not.toContain("");
   });
 
-  it("uses Cursor print mode for one-shot commands", () => {
+  it("builds a Cursor launch command with plan mode", () => {
+    const spec = createCursorAdapter().buildLaunchCommand(
+      windowsProject,
+      { model: "gpt-5.4-medium", mode: "plan" },
+      "analyze code",
+    );
+    const { cmd, cmdArgs } = parseWindowsSpec(spec);
+    expect(cmd).toBe("cursor-agent");
+    expect(cmdArgs).toContain("--model");
+    expect(cmdArgs).toContain("gpt-5.4-medium");
+    expect(cmdArgs).toContain("--mode");
+    expect(cmdArgs).toContain("plan");
+  });
+
+  it("builds a Cursor launch command with --yolo for bypass approvals", () => {
+    const spec = createCursorAdapter().buildLaunchCommand(
+      windowsProject,
+      { model: "auto", approvalPolicy: "never" },
+      "hello",
+    );
+    const { cmdArgs } = parseWindowsSpec(spec);
+    expect(cmdArgs).toContain("--yolo");
+    expect(cmdArgs).not.toContain("--force");
+    expect(cmdArgs).toContain("auto");
+  });
+
+  it("omits --yolo for default approval policy on Cursor", () => {
+    const spec = createCursorAdapter().buildLaunchCommand(
+      windowsProject,
+      { model: "auto", approvalPolicy: "default" },
+      "hello",
+    );
+    const { cmdArgs } = parseWindowsSpec(spec);
+    expect(cmdArgs).not.toContain("--yolo");
+  });
+
+  it("uses Cursor print mode with --trust for one-shot commands", () => {
     expect(createCursorAdapter().buildOneShotCommand?.("auto")).toEqual({
       command: "cursor-agent",
-      args: ["--print", "--force", "--output-format", "json"],
+      args: ["--print", "--force", "--trust", "--output-format", "json"],
     });
   });
 });

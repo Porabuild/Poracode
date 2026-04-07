@@ -22,12 +22,16 @@ export const sharedSettingsSchema = z.object({
   wslConflictResolverProvider: z.string(),
   wslConflictResolverModel: z.string(),
   wslConflictResolverEffort: z.string(),
-  /** Per-agent boolean settings keyed by agent kind, then setting key. */
-  agentSettings: z.record(z.string(), z.record(z.string(), z.boolean())),
+  /** Per-agent settings keyed by agent kind, then setting key. */
+  agentSettings: z.record(z.string(), z.record(z.string(), z.union([z.boolean(), z.string()]))),
+  /** Per-agent hidden model IDs keyed by agent kind. */
+  hiddenModels: z.record(z.string(), z.array(z.string())),
   /** When true, the composer in terminal-native threads starts collapsed. */
   collapseTerminalComposer: z.boolean(),
   /** Idle minutes before a hidden resumable thread is unloaded. 0 disables auto-unload. */
   staleThreadUnloadMinutes: z.number().int().min(0),
+  /** Terminal scrollback scroll speed multiplier. */
+  scrollSpeed: z.number().int().min(1).max(10),
 });
 export type SharedSettings = z.infer<typeof sharedSettingsSchema>;
 
@@ -53,8 +57,10 @@ export const defaultSharedSettings: SharedSettings = {
   wslConflictResolverModel: "",
   wslConflictResolverEffort: "",
   agentSettings: {},
+  hiddenModels: {},
   collapseTerminalComposer: false,
   staleThreadUnloadMinutes: 20,
+  scrollSpeed: 2,
 };
 
 const partialSharedSettingsSchema = sharedSettingsSchema.partial();
@@ -95,9 +101,11 @@ export function normalizeSharedSettings(value: unknown): SharedSettings {
     wslConflictResolverEffort:
       parsed.data.wslConflictResolverEffort ?? defaultSharedSettings.wslConflictResolverEffort,
     agentSettings: parsed.data.agentSettings ?? defaultSharedSettings.agentSettings,
+    hiddenModels: parsed.data.hiddenModels ?? defaultSharedSettings.hiddenModels,
     collapseTerminalComposer:
       parsed.data.collapseTerminalComposer ?? defaultSharedSettings.collapseTerminalComposer,
     staleThreadUnloadMinutes:
       parsed.data.staleThreadUnloadMinutes ?? defaultSharedSettings.staleThreadUnloadMinutes,
+    scrollSpeed: parsed.data.scrollSpeed ?? defaultSharedSettings.scrollSpeed,
   };
 }

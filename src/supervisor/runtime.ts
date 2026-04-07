@@ -165,6 +165,8 @@ interface SessionRuntime {
   sessionRefDiscoveryStarted?: boolean;
   stopSessionRefWatcher?: (() => void) | undefined;
   pendingLaunchPrompt?: string | undefined;
+  pendingTerminalPreInputs?: string[][] | undefined;
+  pendingTerminalWriteInFlight?: boolean | undefined;
   pendingTerminalPrompt?: string | undefined;
   pendingTerminalSegments?: PromptSegment[] | undefined;
   prevChunk: string;
@@ -593,7 +595,9 @@ export class SupervisorRuntime {
     // that are unsafe as CLI args (PowerShell interprets @() as array).
     // Defer to buildDirectInput after the TUI reaches idle.
     const hasAttachments = payload.segments?.some((s) => s.kind === "attachment") ?? false;
-    const launchPrompt = isServerControlled || hasAttachments ? "" : payload.prompt;
+    const deferToTerminal =
+      hasAttachments || (adapter.shouldDeferPromptToTerminal?.(effectiveConfig) ?? false);
+    const launchPrompt = isServerControlled || deferToTerminal ? "" : payload.prompt;
     const command = effectiveSessionRef
       ? adapter.buildResumeCommand(
           payload.projectLocation,
@@ -632,8 +636,15 @@ export class SupervisorRuntime {
       ...(keepStructuredSession ? { structuredSession } : {}),
       ...(resolvedSessionRef ? { sessionRef: resolvedSessionRef } : {}),
       ...(shouldQueueInitialPrompt ? { pendingLaunchPrompt: initialPrompt } : {}),
-      ...(hasAttachments && !isServerControlled
-        ? { pendingTerminalPrompt: initialPrompt, pendingTerminalSegments: payload.segments! }
+      ...(deferToTerminal && !isServerControlled
+        ? (() => {
+            const preInputs = adapter.buildTerminalPreInputs?.(effectiveConfig);
+            return {
+              ...(preInputs ? { pendingTerminalPreInputs: preInputs } : {}),
+              pendingTerminalPrompt: initialPrompt,
+              ...(payload.segments ? { pendingTerminalSegments: payload.segments } : {}),
+            };
+          })()
         : {}),
     });
     console.log(`[supervisor] [${elapsed()}] PTY spawned`);
@@ -686,7 +697,6 @@ export class SupervisorRuntime {
       session.adapter.capabilities.liveInputMode === "server" &&
       session.structuredSession?.startTurn
     ) {
-      this.updateState(session, "working", "working");
       void session.structuredSession
         .startTurn(prompt, payload.config, payload.segments)
         .catch((error) => {
@@ -704,7 +714,6 @@ export class SupervisorRuntime {
       return;
     }
 
-    this.updateState(session, "working", "working");
     await writeSubmittedPrompt(
       session.pty,
       session.adapter.buildDirectInput?.(prompt, payload.segments, session.config) ?? [prompt, "\r"],
@@ -1250,8 +1259,12 @@ export class SupervisorRuntime {
     for (const def of settingDefs) {
       if (def.platforms && !def.platforms.includes(process.platform)) continue;
       const value = agentValues[def.key] ?? def.default;
-      if (value) {
-        env[def.envVar] = "1";
+      if (def.type === "toggle") {
+        if (value) {
+          Object.assign(env, def.env);
+        }
+      } else if (def.type === "select") {
+        env[def.envVar] = String(value);
       }
     }
     return env;
@@ -1332,6 +1345,7 @@ export class SupervisorRuntime {
     structuredSession?: StructuredSessionHandle;
     sessionRef?: SessionRef;
     pendingLaunchPrompt?: string;
+    pendingTerminalPreInputs?: string[][];
     pendingTerminalPrompt?: string;
     pendingTerminalSegments?: PromptSegment[];
   }): SessionRuntime {
@@ -1378,6 +1392,7 @@ export class SupervisorRuntime {
       logPath,
       outputLength: 0,
       pendingLaunchPrompt: input.pendingLaunchPrompt,
+      pendingTerminalPreInputs: input.pendingTerminalPreInputs,
       pendingTerminalPrompt: input.pendingTerminalPrompt,
       pendingTerminalSegments: input.pendingTerminalSegments,
       prevChunk: "",
@@ -1715,7 +1730,6 @@ export class SupervisorRuntime {
 
     const prompt = session.pendingLaunchPrompt;
     session.pendingLaunchPrompt = undefined;
-    this.updateState(session, "working", "working");
     void session.structuredSession.startTurn(prompt, session.config).catch((error) => {
       if (this.sessions.get(session.threadId)?.instanceId !== session.instanceId) {
         return;
@@ -1919,7 +1933,16 @@ export class SupervisorRuntime {
         this.startQueuedLaunchPrompt(session);
       }
 
-      if (session.pendingTerminalPrompt && hint?.status === "idle") {
+      if (hint?.status === "idle" && session.pendingTerminalPreInputs?.length && !session.pendingTerminalWriteInFlight) {
+        const chunks = session.pendingTerminalPreInputs.shift()!;
+        if (!session.pendingTerminalPreInputs.length) {
+          session.pendingTerminalPreInputs = undefined;
+        }
+        session.pendingTerminalWriteInFlight = true;
+        void sleep(500)
+          .then(() => writeSubmittedPrompt(session.pty, chunks))
+          .then(() => { session.pendingTerminalWriteInFlight = false; });
+      } else if (session.pendingTerminalPrompt && hint?.status === "idle" && !session.pendingTerminalWriteInFlight) {
         const prompt = session.pendingTerminalPrompt;
         const segments = session.pendingTerminalSegments;
         session.pendingTerminalPrompt = undefined;

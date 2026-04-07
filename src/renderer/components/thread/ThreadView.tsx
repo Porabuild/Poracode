@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { Spinner } from "@heroui/react";
 import { ChevronDown, GitBranch, GitFork, Paperclip, X } from "lucide-react";
 import type {
   AgentStatus,
@@ -24,6 +25,7 @@ import {
   useAttachments,
 } from "../composer";
 import { flattenSegments } from "../composer/serializeMentions";
+import { filterHiddenModels } from "./threadComposerOptions";
 import { TerminalPane } from "./TerminalPane";
 import { ThreadComposer } from "./ThreadComposer";
 import { ThreadServerRequestPanel } from "./ThreadServerRequestPanel";
@@ -33,6 +35,7 @@ const DEFAULT_HIDDEN_TERMINAL_SIZE: TerminalSize = { cols: 120, rows: 30 };
 function buildControls(
   thread: Thread,
   agentStatus: AgentStatus | undefined,
+  hiddenModelIds: readonly string[] | undefined,
   onConfigChange: (config: ThreadConfig) => void,
 ) {
   const statusTone = getStatusTone(thread);
@@ -47,7 +50,7 @@ function buildControls(
     },
     ...(factory && agentStatus
       ? factory({
-          capabilities: agentStatus.capabilities,
+          capabilities: filterHiddenModels(agentStatus.capabilities, hiddenModelIds),
           config: thread.config,
           isDisabled: !thread.canResumeWithConfig,
           onConfigChange: (patch) => onConfigChange({ ...thread.config, ...patch }),
@@ -153,7 +156,8 @@ export function ThreadView(props: {
         : s.statuses[thread.projectId]?.branch),
   );
 
-  const controls = buildControls(thread, agentStatus, onConfigChange);
+  const hiddenModelIds = useSharedSettings((s) => s.hiddenModels[thread.agentKind]);
+  const controls = buildControls(thread, agentStatus, hiddenModelIds, onConfigChange);
 
   const canSubmit = (canSubmitServerInput || canSubmitTerminalInput) && !isSubmitting;
 
@@ -316,7 +320,7 @@ export function ThreadView(props: {
         <div
           className={`${alignClass} flex min-h-0 w-full max-w-[920px] flex-1 flex-col gap-2 pt-3`}
         >
-          <div className="min-h-0 flex-1 overflow-hidden">
+          <div className="relative min-h-0 flex-1 overflow-hidden">
             {usesTerminalPresentation ? (
               <TerminalPane
                 key={thread.id}
@@ -324,6 +328,14 @@ export function ThreadView(props: {
                 status={thread.status}
                 threadId={thread.id}
               />
+            ) : null}
+            {thread.status === "launching" ? (
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="flex items-center gap-2.5">
+                  <Spinner size="sm" />
+                  <span className="text-sm text-muted">Starting thread…</span>
+                </div>
+              </div>
             ) : null}
           </div>
 
@@ -335,6 +347,7 @@ export function ThreadView(props: {
             />
           ) : null}
 
+          {thread.status !== "launching" ? (
           <div>
             <div
               className={`grid transition-[grid-template-rows] ease-[cubic-bezier(0.16,1,0.3,1)] ${isComposerCollapsed ? "duration-300" : "duration-200"}`}
@@ -350,11 +363,6 @@ export function ThreadView(props: {
                       : "opacity 200ms ease 100ms",
                   }}
                 >
-                  {thread.status === "launching" ? (
-                    <div className="absolute inset-0 z-10 flex items-center justify-center rounded-3xl bg-background/80">
-                      <span className="text-sm text-muted">Starting thread...</span>
-                    </div>
-                  ) : null}
                   <ThreadComposer
                     autoFocus // eslint-disable-line jsx-a11y/no-autofocus -- desktop app, expected UX
                     compact
@@ -373,10 +381,7 @@ export function ThreadView(props: {
                         ref={mentionRef}
                         autoFocus // eslint-disable-line jsx-a11y/no-autofocus -- desktop app, expected UX
                         compact
-                        disabled={
-                          !(showServerComposer || showTerminalComposer) ||
-                          thread.status === "launching"
-                        }
+                        disabled={!(showServerComposer || showTerminalComposer)}
                         placeholder={
                           isServerControlled
                             ? `Ask ${agentStatus?.label ?? "the agent"} anything about this workspace`
@@ -393,10 +398,7 @@ export function ThreadView(props: {
                     controls={controls}
                     placeholder="Send a message..."
                     prompt={prompt}
-                    promptDisabled={
-                      !(showServerComposer || showTerminalComposer) ||
-                      thread.status === "launching"
-                    }
+                    promptDisabled={!(showServerComposer || showTerminalComposer)}
                     submitDisabled={
                       !(hasContent || attachments.attachments.length > 0) || !canSubmit
                     }
@@ -464,6 +466,7 @@ export function ThreadView(props: {
               </div>
             ) : null}
           </div>
+          ) : null}
         </div>
       </div>
       {lightboxIndex !== null && imageAttachments.length > 0 ? (

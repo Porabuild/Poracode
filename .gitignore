@@ -13,3 +13,4 @@ build/icons/
 .agent/
 .spec-workflow/
 **/worktrees/
+.cursor/

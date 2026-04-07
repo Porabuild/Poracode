@@ -18,9 +18,12 @@ interface SharedSettingsState extends SharedSettings {
   setWslCommitGenConfig: (provider: string, model: string, effort: string) => void;
   setWslTitleGenConfig: (provider: string, model: string, effort: string) => void;
   setWslConflictResolverConfig: (provider: string, model: string, effort: string) => void;
-  setAgentSetting: (agentKind: string, key: string, value: boolean) => void;
+  setAgentSetting: (agentKind: string, key: string, value: boolean | string) => void;
+  setModelHidden: (agentKind: string, modelId: string, hidden: boolean) => void;
+  setHiddenModels: (agentKind: string, hiddenIds: string[]) => void;
   setCollapseTerminalComposer: (value: boolean) => void;
   setStaleThreadUnloadMinutes: (value: number) => void;
+  setScrollSpeed: (value: number) => void;
 }
 
 function hasBridge(): boolean {
@@ -102,12 +105,28 @@ export const useSharedSettings = create<SharedSettingsState>()((set, get) => ({
     set({ agentSettings: { ...current, [agentKind]: agentValues } });
     persistSettings(selectSharedSettings(get()));
   },
+  setModelHidden: (agentKind, modelId, hidden) => {
+    const current = get().hiddenModels;
+    const list = current[agentKind] ?? [];
+    const next = hidden ? [...new Set([...list, modelId])] : list.filter((id) => id !== modelId);
+    set({ hiddenModels: { ...current, [agentKind]: next } });
+    persistSettings(selectSharedSettings(get()));
+  },
+  setHiddenModels: (agentKind, hiddenIds) => {
+    const current = get().hiddenModels;
+    set({ hiddenModels: { ...current, [agentKind]: hiddenIds } });
+    persistSettings(selectSharedSettings(get()));
+  },
   setCollapseTerminalComposer: (collapseTerminalComposer) => {
     set({ collapseTerminalComposer });
     persistSettings(selectSharedSettings(get()));
   },
   setStaleThreadUnloadMinutes: (staleThreadUnloadMinutes) => {
     set({ staleThreadUnloadMinutes });
+    persistSettings(selectSharedSettings(get()));
+  },
+  setScrollSpeed: (scrollSpeed) => {
+    set({ scrollSpeed });
     persistSettings(selectSharedSettings(get()));
   },
 }));
@@ -135,8 +154,10 @@ function selectSharedSettings(state: SharedSettingsState): SharedSettings {
     wslConflictResolverModel: state.wslConflictResolverModel,
     wslConflictResolverEffort: state.wslConflictResolverEffort,
     agentSettings: state.agentSettings,
+    hiddenModels: state.hiddenModels,
     collapseTerminalComposer: state.collapseTerminalComposer,
     staleThreadUnloadMinutes: state.staleThreadUnloadMinutes,
+    scrollSpeed: state.scrollSpeed,
   };
 }
 

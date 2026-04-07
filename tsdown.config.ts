@@ -1,5 +1,7 @@
 import { defineConfig } from "tsdown";
 
+const isProd = process.env.NODE_ENV === "production";
+
 const shared = {
   outDir: "dist/main",
   platform: "node" as const,
@@ -7,6 +9,9 @@ const shared = {
   target: "node24" as const,
   sourcemap: true,
   dts: false,
+  minify: isProd
+    ? ({ compress: { dropConsole: true, dropDebugger: true } } as const)
+    : false,
   deps: {
     alwaysBundle: ["electron-updater", "simple-git"],
     onlyBundle: false as const,

@@ -133,9 +133,6 @@ function buildCodexArgs(
     if (config.sandboxMode) {
       args.push("-s", config.sandboxMode);
     }
-    if (config.mode === "plan") {
-      args.push("--plan");
-    }
   }
 
   if (prompt.trim().length > 0) {
@@ -1385,8 +1382,17 @@ export function createCodexAdapter(): AgentAdapter {
     createInitialSessionRef() {
       return undefined;
     },
+    shouldDeferPromptToTerminal(config) {
+      return config.mode === "plan";
+    },
+    buildTerminalPreInputs(config) {
+      if (config.mode === "plan") {
+        return [["/plan", "@wait:80", "\r"]];
+      }
+      return undefined;
+    },
     buildDirectInput(prompt) {
-      return [...prompt, "\r"];
+      return [prompt, "@wait:80", "\r"];
     },
     isReadyForInitialPrompt(text) {
       return detectCodexReadyForInitialPrompt(text);

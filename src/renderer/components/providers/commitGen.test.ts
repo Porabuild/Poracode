@@ -110,7 +110,7 @@ describe("getCommitGenCandidates", () => {
 describe("provider default hints", () => {
   it("builds commit-generation hint text from provider registrations", () => {
     expect(getCommitGenDefaultsHint()).toBe(
-      "Defaults: Claude -> Haiku, Codex -> GPT-5.4 Mini, Copilot -> first available model, Cursor -> Auto, Gemini -> Flash",
+      "Defaults: Claude -> Haiku, Codex -> GPT-5.4 Mini, Copilot -> first available model, Cursor -> Composer 2 Fast, Gemini -> Flash",
     );
   });
 });

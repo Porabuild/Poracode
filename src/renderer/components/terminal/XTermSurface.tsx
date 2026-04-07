@@ -1,4 +1,10 @@
+import { ClipboardAddon } from "@xterm/addon-clipboard";
 import { FitAddon } from "@xterm/addon-fit";
+import { ImageAddon } from "@xterm/addon-image";
+import { SearchAddon } from "@xterm/addon-search";
+import { Unicode11Addon } from "@xterm/addon-unicode11";
+import { WebLinksAddon } from "@xterm/addon-web-links";
+import { WebglAddon } from "@xterm/addon-webgl";
 import { Terminal } from "@xterm/xterm";
 import {
   forwardRef,
@@ -9,12 +15,16 @@ import {
   type RefObject,
 } from "react";
 import type { TerminalSize } from "../../../shared/contracts";
+import { useSharedSettings } from "../../state/sharedSettingsStore";
 import { isMac, readBridge } from "../../bridge";
 import { ContextMenu, type ContextMenuItem } from "../common";
 import { useResolvedAppearance } from "../ui/provider";
 
 export interface XTermSurfaceHandle {
   focus(): void;
+  findNext(query: string): boolean;
+  findPrevious(query: string): boolean;
+  clearSearch(): void;
 }
 
 function getTerminalTheme(appearance: "light" | "dark") {
@@ -71,6 +81,7 @@ export const XTermSurface = forwardRef<
   const mountRef = useRef<HTMLDivElement | null>(null);
   const terminalRef = useRef<Terminal | null>(null);
   const fitRef = useRef<FitAddon | null>(null);
+  const searchRef = useRef<SearchAddon | null>(null);
   const onResetRef: RefObject<typeof onReset> = useRef(onReset);
   onResetRef.current = onReset;
   const onExitedRef: RefObject<typeof onExited> = useRef(onExited);
@@ -88,6 +99,15 @@ export const XTermSurface = forwardRef<
   useImperativeHandle(ref, () => ({
     focus() {
       terminalRef.current?.focus();
+    },
+    findNext(query: string) {
+      return searchRef.current?.findNext(query) ?? false;
+    },
+    findPrevious(query: string) {
+      return searchRef.current?.findPrevious(query) ?? false;
+    },
+    clearSearch() {
+      searchRef.current?.clearDecorations();
     },
   }));
 
@@ -148,9 +168,12 @@ export const XTermSurface = forwardRef<
     };
 
     const terminal = new Terminal({
-      cursorBlink: !readOnly,
+      allowProposedApi: true,
+      cursorBlink: false,
       cursorStyle: "bar",
       scrollback: 5_000,
+      scrollSensitivity: useSharedSettings.getState().scrollSpeed,
+      fastScrollSensitivity: 10,
       fontSize: 13,
       fontFamily: "'JetBrains Mono', 'Cascadia Code', monospace",
       theme: getTerminalTheme(appearance),
@@ -209,8 +232,33 @@ export const XTermSurface = forwardRef<
       });
     };
 
+    const search = new SearchAddon();
+    searchRef.current = search;
+
     terminal.loadAddon(fit);
+    terminal.loadAddon(search);
+    terminal.loadAddon(
+      new WebLinksAddon((_event, uri) => {
+        void readBridge().openExternal(uri);
+      }),
+    );
+
+    const unicode11 = new Unicode11Addon();
+    terminal.loadAddon(unicode11);
+    terminal.unicode.activeVersion = "11";
+
+    terminal.loadAddon(new ImageAddon());
+    terminal.loadAddon(new ClipboardAddon());
+
     terminal.open(mount);
+
+    try {
+      const webgl = new WebglAddon();
+      webgl.onContextLoss(() => webgl.dispose());
+      terminal.loadAddon(webgl);
+    } catch {
+      // WebGL unavailable — falls back to canvas renderer.
+    }
 
     terminal.onWriteParsed(() => {
       onActivityRef.current?.();
@@ -367,6 +415,7 @@ export const XTermSurface = forwardRef<
       terminal.dispose();
       terminalRef.current = null;
       fitRef.current = null;
+      searchRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-once: terminal is created once, readOnly/terminalId/appearance are captured at init
   }, []);

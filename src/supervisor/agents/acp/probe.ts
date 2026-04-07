@@ -231,11 +231,24 @@ export async function probeAcpCapabilities(
 
     const result = await Promise.race([
       (async () => {
-        await connection.initialize({
+        const initResult = await connection.initialize({
           protocolVersion: PROTOCOL_VERSION,
           clientInfo: { name: "lightcode-probe", version: "0.1.0" },
           clientCapabilities: {},
         });
+
+        // Authenticate if the agent advertises auth methods (e.g. Cursor's cursor_login).
+        const authMethods = initResult.authMethods;
+        if (authMethods && authMethods.length > 0) {
+          const firstMethod = authMethods[0]!;
+          const methodId =
+            "id" in firstMethod ? (firstMethod as { id: string }).id : undefined;
+          if (methodId) {
+            console.log("%s authenticating with method: %s", tag, methodId);
+            await connection.authenticate({ methodId });
+          }
+        }
+
         return connection.newSession({ cwd: sessionCwd, mcpServers: [] });
       })(),
       new Promise<never>((_, reject) =>

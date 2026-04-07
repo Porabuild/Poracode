@@ -80,14 +80,31 @@ export const labeledOptionSchema = z.object({
 });
 export type LabeledOption = z.infer<typeof labeledOptionSchema>;
 
-export const agentSettingDefSchema = z.object({
+const agentToggleSettingDefSchema = z.object({
   key: z.string().min(1),
-  envVar: z.string().min(1),
+  type: z.literal("toggle"),
+  env: z.record(z.string(), z.string()),
   label: z.string().min(1),
   description: z.string(),
   default: z.boolean(),
   platforms: z.array(z.string()).optional(),
 });
+
+const agentSelectSettingDefSchema = z.object({
+  key: z.string().min(1),
+  type: z.literal("select"),
+  envVar: z.string().min(1),
+  label: z.string().min(1),
+  description: z.string(),
+  default: z.string(),
+  options: z.array(labeledOptionSchema),
+  platforms: z.array(z.string()).optional(),
+});
+
+export const agentSettingDefSchema = z.discriminatedUnion("type", [
+  agentToggleSettingDefSchema,
+  agentSelectSettingDefSchema,
+]);
 export type AgentSettingDef = z.infer<typeof agentSettingDefSchema>;
 
 export const agentCapabilitySchema = z.object({

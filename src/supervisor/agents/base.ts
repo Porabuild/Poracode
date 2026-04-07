@@ -109,6 +109,18 @@ export interface AgentAdapter {
   createStructuredSession?(
     input: CreateStructuredSessionInput,
   ): Promise<StructuredSessionHandle | undefined>;
+  /**
+   * Return true when the initial prompt must be typed into the TUI after idle
+   * rather than passed as a CLI argument (e.g. Codex plan mode needs `/plan`
+   * sent first). The runtime will set pendingTerminalPrompt accordingly.
+   */
+  shouldDeferPromptToTerminal?(config: ThreadConfig): boolean;
+  /**
+   * Return chunk sequences that must be sent to the TUI (each waiting for idle)
+   * before the deferred prompt. E.g. `[["/plan", "\r"]]` sends `/plan↵` on the
+   * first idle, then the prompt on the next idle.
+   */
+  buildTerminalPreInputs?(config: ThreadConfig): string[][] | undefined;
   buildDirectInput?(prompt: string, segments?: PromptSegment[], config?: ThreadConfig): string[];
   /**
    * Format structured prompt segments into a prompt string for this agent.
