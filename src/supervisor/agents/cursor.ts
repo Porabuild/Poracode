@@ -387,14 +387,10 @@ export function createCursorAdapter(): AgentAdapter {
       }
 
       const executablePath = await resolveExecutablePathAsync("cursor-agent");
-      const location: ProjectLocation =
-        process.platform === "win32"
-          ? { kind: "windows", path: process.cwd() }
-          : { kind: "posix", path: process.cwd() };
       const [versionResult, statusResult, modelsResult] = await Promise.all([
         executablePath ? readCommandOutputAsync("cursor-agent", ["--version"]) : undefined,
         executablePath ? readCommandOutputAsync("cursor-agent", ["status"]) : undefined,
-        executablePath ? runCursorCommand(["--list-models"], location) : undefined,
+        executablePath ? readCommandOutputAsync("cursor-agent", ["--list-models"]) : undefined,
       ]);
 
       if (modelsResult?.ok) {
