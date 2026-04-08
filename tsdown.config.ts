@@ -9,9 +9,7 @@ const shared = {
   target: "node24" as const,
   sourcemap: true,
   dts: false,
-  minify: isProd
-    ? ({ compress: { dropConsole: true, dropDebugger: true } } as const)
-    : false,
+  minify: isProd ? ({ compress: { dropConsole: true, dropDebugger: true } } as const) : false,
   deps: {
     alwaysBundle: ["electron-updater", "simple-git"],
     onlyBundle: false as const,

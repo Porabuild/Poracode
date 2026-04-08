@@ -129,6 +129,9 @@ interface AppStoreState {
   }) => void;
   removeThreadServerRequest: (threadId: string, requestId: ThreadServerRequestId) => void;
   clearThreadServerRequests: (threadId: string) => void;
+  archiveThread: (threadId: string) => void;
+  unarchiveThread: (threadId: string) => void;
+  purgeStaleArchivedThreads: (maxAgeDays: number) => void;
   markThreadExited: (threadId: string) => void;
   touchThread: (threadId: string) => void;
   reconcileRuntimeSnapshots: (snapshots: ThreadRuntimeSnapshot[]) => void;
@@ -395,6 +398,7 @@ export const useAppStore = create<AppStoreState>()(
           status: "launching",
           attention: "none",
           canResumeWithConfig: false,
+          archived: false,
           ...(worktreePath ? { worktreePath } : {}),
           ...(worktreeBranch ? { worktreeBranch } : {}),
           createdAt: now,
@@ -555,6 +559,48 @@ export const useAppStore = create<AppStoreState>()(
             (request) => request.threadId !== threadId,
           ),
         })),
+      archiveThread: (threadId) =>
+        set((state) => {
+          const thread = state.threads.find((t) => t.id === threadId);
+          if (!thread || thread.archived) return {};
+
+          const threads = state.threads.map((t) =>
+            t.id === threadId ? { ...t, archived: true, updatedAt: new Date().toISOString() } : t,
+          );
+
+          let nextView = state.view;
+          if (state.view.kind === "thread") {
+            const remaining = state.view.panes.filter((id) => id !== threadId);
+            nextView =
+              remaining.length === 0
+                ? { kind: "home" as const }
+                : { kind: "thread" as const, panes: remaining as [string, ...string[]] };
+          }
+
+          return { threads, view: nextView };
+        }),
+      unarchiveThread: (threadId) =>
+        set((state) => {
+          const thread = state.threads.find((t) => t.id === threadId);
+          if (!thread || !thread.archived) return {};
+
+          return {
+            threads: state.threads.map((t) =>
+              t.id === threadId
+                ? { ...t, archived: false, updatedAt: new Date().toISOString() }
+                : t,
+            ),
+          };
+        }),
+      purgeStaleArchivedThreads: (maxAgeDays) =>
+        set((state) => {
+          const cutoff = Date.now() - maxAgeDays * 24 * 60 * 60 * 1000;
+          const nextThreads = state.threads.filter(
+            (t) => !t.archived || new Date(t.updatedAt).getTime() > cutoff,
+          );
+          if (nextThreads.length === state.threads.length) return {};
+          return { threads: nextThreads };
+        }),
       markThreadExited: (threadId) =>
         set((state) => {
           let changed = false;

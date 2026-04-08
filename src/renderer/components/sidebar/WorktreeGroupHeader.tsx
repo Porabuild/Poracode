@@ -35,7 +35,9 @@ export function WorktreeGroupHeader(props: {
       className={props.isDragging ? "opacity-60" : ""}
       onPress={props.onToggleCollapse}
       {...(props.isDragging != null ? { isDragging: props.isDragging } : {})}
-      {...(props.isDraggingAnything != null ? { isDraggingAnything: props.isDraggingAnything } : {})}
+      {...(props.isDraggingAnything != null
+        ? { isDraggingAnything: props.isDraggingAnything }
+        : {})}
       suffix={
         <>
           <div

@@ -238,11 +238,7 @@ export class GitWatcher {
    * Spawn a `wsl.exe` process running `inotifywait` (or a polling fallback)
    * inside the given WSL distro. Calls `onEvent` on each stdout line.
    */
-  private spawnWslWatcher(
-    distro: string,
-    linuxPath: string,
-    onEvent: () => void,
-  ): ChildProcess {
+  private spawnWslWatcher(distro: string, linuxPath: string, onEvent: () => void): ChildProcess {
     // Try inotifywait for native inotify events; fall back to 5s polling
     // if inotify-tools is not installed.
     const script = [
@@ -254,10 +250,14 @@ export class GitWatcher {
       "fi",
     ].join("\n");
 
-    const child = spawn(getWslCommand(), ["-d", distro, "--cd", linuxPath, "--", "bash", "-c", script], {
-      stdio: ["ignore", "pipe", "ignore"],
-      windowsHide: true,
-    });
+    const child = spawn(
+      getWslCommand(),
+      ["-d", distro, "--cd", linuxPath, "--", "bash", "-c", script],
+      {
+        stdio: ["ignore", "pipe", "ignore"],
+        windowsHide: true,
+      },
+    );
 
     let buf = "";
     child.stdout!.on("data", (chunk: Buffer) => {

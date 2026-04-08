@@ -1,6 +1,17 @@
-import { Button, Dropdown, Label, Switch, ToggleButton, ToggleButtonGroup, Tooltip } from "@heroui/react";
+import {
+  Button,
+  Dropdown,
+  Label,
+  Surface,
+  Switch,
+  ToggleButton,
+  ToggleButtonGroup,
+  Tooltip,
+} from "@heroui/react";
 import type { Selection } from "@heroui/react";
 import {
+  Archive,
+  ArchiveRestore,
   ArrowLeft,
   Bot,
   GitBranch,
@@ -9,6 +20,7 @@ import {
   PanelLeftClose,
   Settings2,
   Sparkles,
+  Trash2,
 } from "lucide-react";
 import { startTransition, useState } from "react";
 import type {
@@ -16,6 +28,7 @@ import type {
   AgentStatus,
   TerminalPosition,
   ThemeMode,
+  ThreadRemoveAction,
 } from "../../../shared/contracts";
 import { useAppStore } from "../../state/appStore";
 import { useSharedSettings } from "../../state/sharedSettingsStore";
@@ -51,12 +64,17 @@ const staleThreadUnloadOptions = [
   { id: "60", label: "1 hour" },
 ] as const;
 
+const threadRemoveActionOptions = [
+  { id: "archive", label: "Archive" },
+  { id: "delete", label: "Delete" },
+] as const;
+
 const scrollSpeedOptions = Array.from({ length: 10 }, (_, i) => ({
   id: String(i + 1),
   label: `${i + 1}x`,
 })) as readonly { id: string; label: string }[];
 
-type SettingsSection = "general" | "ai" | "agents" | "git" | `agents:${string}`;
+type SettingsSection = "general" | "ai" | "agents" | "git" | "archived" | `agents:${string}`;
 
 function SettingsSidebar(props: {
   activeSection: SettingsSection;
@@ -117,6 +135,13 @@ function SettingsSidebar(props: {
               label="Git"
               isActive={activeSection === "git"}
               onPress={() => onSectionChange("git")}
+            />
+            <SidebarButton
+              iconOnly
+              icon={<Archive className="size-4" />}
+              label="Archived Threads"
+              isActive={activeSection === "archived"}
+              onPress={() => onSectionChange("archived")}
             />
           </div>
           <div className="space-y-1 border-t border-white/6 pt-2 pr-2">
@@ -179,6 +204,12 @@ function SettingsSidebar(props: {
               isActive={activeSection === "git"}
               onPress={() => onSectionChange("git")}
             />
+            <SidebarButton
+              icon={<Archive className="size-4" />}
+              label="Archived Threads"
+              isActive={activeSection === "archived"}
+              onPress={() => onSectionChange("archived")}
+            />
           </div>
         </div>
 
@@ -220,6 +251,8 @@ function GeneralSettings() {
   const setPreventSleepWhileWorking = useSharedSettings(
     (state) => state.setPreventSleepWhileWorking,
   );
+  const threadRemoveAction = useSharedSettings((state) => state.threadRemoveAction);
+  const setThreadRemoveAction = useSharedSettings((state) => state.setThreadRemoveAction);
 
   return (
     <div className="h-full min-h-0 overflow-y-auto px-6 pb-8">
@@ -345,6 +378,25 @@ function GeneralSettings() {
             </Switch>
           </div>
 
+          <div className="flex items-center justify-between gap-4">
+            <div className="min-w-0">
+              <p className="text-sm font-medium text-foreground">Default thread removal</p>
+              <p className="text-xs text-muted">
+                Action for the quick-remove button on sidebar threads.
+              </p>
+            </div>
+            <Select
+              aria-label="Default thread removal"
+              className="w-[160px] shrink-0"
+              options={threadRemoveActionOptions}
+              value={threadRemoveAction}
+              onChange={(value) => {
+                startTransition(() => {
+                  setThreadRemoveAction(value as ThreadRemoveAction);
+                });
+              }}
+            />
+          </div>
         </div>
       </div>
     </div>
@@ -672,11 +724,13 @@ function ModelVisibilityDropdown(props: {
           {models.length - hiddenCount} / {models.length}
         </Button>
         <Dropdown.Popover className="min-w-[280px]">
-          <Dropdown.Menu className="max-h-[400px] overflow-y-auto"
+          <Dropdown.Menu
+            className="max-h-[400px] overflow-y-auto"
             selectedKeys={visibleKeys}
             selectionMode="multiple"
             onSelectionChange={(keys) => {
-              const selected = keys === "all" ? new Set(models.map((m) => m.id)) : (keys as Set<string>);
+              const selected =
+                keys === "all" ? new Set(models.map((m) => m.id)) : (keys as Set<string>);
               const nextHidden = models.filter((m) => !selected.has(m.id)).map((m) => m.id);
               setHiddenModels(agentKind, nextHidden);
             }}
@@ -765,6 +819,71 @@ function GitSettings() {
   );
 }
 
+function ArchivedThreadsSettings() {
+  const threads = useAppStore((s) => s.threads);
+  const projects = useAppStore((s) => s.projects);
+  const unarchiveThread = useAppStore((s) => s.unarchiveThread);
+  const deleteThread = useAppStore((s) => s.deleteThread);
+  const archivedThreads = threads.filter((t) => t.archived);
+
+  return (
+    <div className="h-full min-h-0 overflow-y-auto px-6 pb-8">
+      <div className="mx-auto max-w-[560px]">
+        <h1 className="mb-6 text-lg font-semibold text-foreground">Archived Threads</h1>
+
+        {archivedThreads.length === 0 ? (
+          <p className="text-sm text-muted">No archived threads.</p>
+        ) : (
+          <Surface variant="secondary" className="divide-y divide-white/6 rounded-xl">
+            {archivedThreads.map((thread) => {
+              const project = projects.find((p) => p.id === thread.projectId);
+              return (
+                <div key={thread.id} className="flex items-center gap-3 px-4 py-3">
+                  <ProviderIcon kind={thread.agentKind} className="size-4 shrink-0 text-muted" />
+                  <div className="flex min-w-0 flex-1 flex-col">
+                    <p className="truncate text-sm font-medium text-foreground">{thread.title}</p>
+                    {project && <p className="truncate text-xs text-muted">{project.name}</p>}
+                  </div>
+                  <div className="flex shrink-0 gap-1">
+                    <Tooltip delay={150}>
+                      <Tooltip.Trigger>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          isIconOnly
+                          aria-label="Restore thread"
+                          onPress={() => unarchiveThread(thread.id)}
+                        >
+                          <ArchiveRestore className="size-4" />
+                        </Button>
+                      </Tooltip.Trigger>
+                      <Tooltip.Content>Restore thread</Tooltip.Content>
+                    </Tooltip>
+                    <Tooltip delay={150}>
+                      <Tooltip.Trigger>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          isIconOnly
+                          aria-label="Delete thread"
+                          onPress={() => deleteThread(thread.id)}
+                        >
+                          <Trash2 className="size-4 text-danger" />
+                        </Button>
+                      </Tooltip.Trigger>
+                      <Tooltip.Content>Delete permanently</Tooltip.Content>
+                    </Tooltip>
+                  </div>
+                </div>
+              );
+            })}
+          </Surface>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export function SettingsOverlay(props: { onClose: () => void }) {
   const { onClose } = props;
   const [activeSection, setActiveSection] = useState<SettingsSection>("general");
@@ -795,6 +914,8 @@ export function SettingsOverlay(props: { onClose: () => void }) {
           <AgentSettingsEmpty />
         ) : activeSection === "git" ? (
           <GitSettings />
+        ) : activeSection === "archived" ? (
+          <ArchivedThreadsSettings />
         ) : null
       }
     />

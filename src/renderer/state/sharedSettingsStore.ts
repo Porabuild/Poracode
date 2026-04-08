@@ -5,7 +5,7 @@ import {
   normalizeSharedSettings,
   type SharedSettings,
 } from "../../shared/settings";
-import type { TerminalPosition, ThemeMode } from "../../shared/contracts";
+import type { TerminalPosition, ThemeMode, ThreadRemoveAction } from "../../shared/contracts";
 
 const STORAGE_KEY = "lightcode-shared-settings";
 
@@ -25,6 +25,7 @@ interface SharedSettingsState extends SharedSettings {
   setStaleThreadUnloadMinutes: (value: number) => void;
   setScrollSpeed: (value: number) => void;
   setPreventSleepWhileWorking: (value: boolean) => void;
+  setThreadRemoveAction: (value: ThreadRemoveAction) => void;
 }
 
 function hasBridge(): boolean {
@@ -134,6 +135,10 @@ export const useSharedSettings = create<SharedSettingsState>()((set, get) => ({
     set({ preventSleepWhileWorking });
     persistSettings(selectSharedSettings(get()));
   },
+  setThreadRemoveAction: (threadRemoveAction) => {
+    set({ threadRemoveAction });
+    persistSettings(selectSharedSettings(get()));
+  },
 }));
 
 function selectSharedSettings(state: SharedSettingsState): SharedSettings {
@@ -164,6 +169,7 @@ function selectSharedSettings(state: SharedSettingsState): SharedSettings {
     staleThreadUnloadMinutes: state.staleThreadUnloadMinutes,
     scrollSpeed: state.scrollSpeed,
     preventSleepWhileWorking: state.preventSleepWhileWorking,
+    threadRemoveAction: state.threadRemoveAction,
   };
 }
 

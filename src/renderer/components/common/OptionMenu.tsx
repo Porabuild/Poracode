@@ -52,7 +52,9 @@ export function OptionMenu(props: OptionMenuProps) {
     >
       {icon}
       {!iconOnly && (
-        <span className={hideLabelOnWrap ? "lightcode-composer-label-hideable truncate" : "truncate"}>
+        <span
+          className={hideLabelOnWrap ? "lightcode-composer-label-hideable truncate" : "truncate"}
+        >
           {currentValue}
         </span>
       )}
@@ -96,9 +98,7 @@ export function OptionMenu(props: OptionMenuProps) {
               <Dropdown.ItemIndicator />
               {option.icon}
               <Label>{option.label}</Label>
-              {option.hint && (
-                <span className="ms-auto text-xs text-muted">{option.hint}</span>
-              )}
+              {option.hint && <span className="ms-auto text-xs text-muted">{option.hint}</span>}
             </Dropdown.Item>
           ))}
         </Dropdown.Menu>

@@ -9,6 +9,9 @@ export type AgentKind = z.infer<typeof agentKindSchema>;
 export const terminalPositionSchema = z.enum(["right", "bottom"]);
 export type TerminalPosition = z.infer<typeof terminalPositionSchema>;
 
+export const threadRemoveActionSchema = z.enum(["archive", "delete"]);
+export type ThreadRemoveAction = z.infer<typeof threadRemoveActionSchema>;
+
 export const liveInputModeSchema = z.enum(["terminal", "server"]);
 export type LiveInputMode = z.infer<typeof liveInputModeSchema>;
 
@@ -187,6 +190,7 @@ export const threadSchema = z.object({
   worktreePath: z.string().optional(),
   worktreeBranch: z.string().optional(),
   prNumber: z.number().optional(),
+  archived: z.boolean().default(false),
   createdAt: z.string().min(1),
   updatedAt: z.string().min(1),
 });

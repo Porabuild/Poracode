@@ -2,8 +2,9 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { execFileMock, readWslCommandOutputAsync, rmMock } = vi.hoisted(() => ({
+const { execFileMock, mkdirMock, readWslCommandOutputAsync, rmMock } = vi.hoisted(() => ({
   execFileMock: vi.fn(),
+  mkdirMock: vi.fn(),
   readWslCommandOutputAsync: vi.fn(),
   rmMock: vi.fn(),
 }));
@@ -18,6 +19,7 @@ vi.mock("node:fs/promises", async () => {
   const actual = await vi.importActual<typeof import("node:fs/promises")>("node:fs/promises");
   return {
     ...actual,
+    mkdir: mkdirMock,
     rm: rmMock,
   };
 });
@@ -142,6 +144,43 @@ describe("computeDefaultWorktreePath", () => {
         "feature/x",
       ),
     ).rejects.toThrow('Unable to resolve home directory for WSL distro "Ubuntu".');
+  });
+});
+
+describe("GitService.addWorktree", () => {
+  const location = {
+    kind: "windows" as const,
+    path: "C:\\Users\\demo\\work\\lightcode",
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mkdirMock.mockResolvedValue(undefined);
+  });
+
+  it("stores the current branch as the source when no explicit start point is provided", async () => {
+    mockGitCommands((args) => {
+      if (args[0] === "worktree" && args[1] === "add") return { stdout: "" };
+      if (args[0] === "branch" && args[1] === "--show-current") return { stdout: "master\n" };
+      if (args[0] === "config") return { stdout: "" };
+      return { stdout: "" };
+    });
+
+    await new GitService().addWorktree(
+      location,
+      "C:\\Users\\demo\\.lightcode\\worktrees\\lightcode-12345678\\lightcode-brave-heron",
+      "lightcode/brave-heron",
+      true,
+    );
+
+    const configCall = execFileMock.mock.calls.find(
+      (call: unknown[]) =>
+        Array.isArray(call[1]) &&
+        (call[1] as string[])[0] === "config" &&
+        (call[1] as string[]).includes("branch.lightcode/brave-heron.lightcodeSource"),
+    );
+    expect(configCall).toBeDefined();
+    expect(configCall![1]).toContain("master");
   });
 });
 
@@ -482,6 +521,169 @@ describe("GitService.mergeToSource (non-FF path)", () => {
   });
 });
 
+describe("GitService.mergeToSource (source branch checked out elsewhere)", () => {
+  const repoLocation = {
+    kind: "windows" as const,
+    path: "C:\\Users\\demo\\work\\repo",
+  };
+  const worktreeLocation = {
+    kind: "windows" as const,
+    path: "C:\\Users\\demo\\work\\worktree",
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("merges in the checked-out source worktree instead of creating another checkout of that branch", async () => {
+    mockGitCommands((args) => {
+      if (args[0] === "merge-base") return { error: new Error("not ancestor") };
+      if (args[0] === "worktree" && args[1] === "list") {
+        return {
+          stdout: [
+            "worktree C:/Users/demo/work/repo",
+            "HEAD abc123",
+            "branch refs/heads/master",
+            "",
+            "worktree C:/Users/demo/work/worktree",
+            "HEAD def456",
+            "branch refs/heads/feature",
+            "",
+          ].join("\n"),
+        };
+      }
+      if (args[0] === "status" && args[1] === "--porcelain") return { stdout: "" };
+      if (args[0] === "merge") return { stdout: "" };
+      if (args[0] === "rev-parse") return { stdout: "abc123\n" };
+      return { stdout: "" };
+    });
+
+    const result = await new GitService().mergeToSource(
+      repoLocation,
+      worktreeLocation,
+      "feature",
+      "master",
+    );
+
+    expect(result).toEqual({
+      merged: true,
+      fastForward: false,
+      newSourceCommit: "abc123",
+    });
+
+    const worktreeAddCall = execFileMock.mock.calls.find(
+      (call: unknown[]) =>
+        Array.isArray(call[1]) &&
+        (call[1] as string[])[0] === "worktree" &&
+        (call[1] as string[])[1] === "add",
+    );
+    expect(worktreeAddCall).toBeUndefined();
+
+    const mergeCall = execFileMock.mock.calls.find(
+      (call: unknown[]) =>
+        Array.isArray(call[1]) &&
+        (call[1] as string[])[0] === "merge" &&
+        (call[2] as { cwd?: string }).cwd === repoLocation.path,
+    );
+    expect(mergeCall).toBeDefined();
+  });
+
+  it("fails with a clear error when the checked-out source worktree has local changes", async () => {
+    mockGitCommands((args) => {
+      if (args[0] === "merge-base") return { error: new Error("not ancestor") };
+      if (args[0] === "worktree" && args[1] === "list") {
+        return {
+          stdout: [
+            "worktree C:/Users/demo/work/repo",
+            "HEAD abc123",
+            "branch refs/heads/master",
+            "",
+            "worktree C:/Users/demo/work/worktree",
+            "HEAD def456",
+            "branch refs/heads/feature",
+            "",
+          ].join("\n"),
+        };
+      }
+      if (args[0] === "status" && args[1] === "--porcelain") return { stdout: " M README.md\n" };
+      return { stdout: "" };
+    });
+
+    const result = await new GitService().mergeToSource(
+      repoLocation,
+      worktreeLocation,
+      "feature",
+      "master",
+    );
+
+    expect(result.merged).toBe(false);
+    expect(result.error).toContain("has uncommitted changes");
+
+    const mergeCall = execFileMock.mock.calls.find(
+      (call: unknown[]) => Array.isArray(call[1]) && (call[1] as string[])[0] === "merge",
+    );
+    expect(mergeCall).toBeUndefined();
+  });
+});
+
+describe("GitService.getWorktreeSourceBranch", () => {
+  const location = {
+    kind: "windows" as const,
+    path: "C:\\Users\\demo\\work\\lightcode",
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("recovers a missing source branch from the main worktree branch", async () => {
+    mockGitCommands((args) => {
+      if (args[0] === "config" && args[1] === "--get") {
+        return { error: new Error("not found") };
+      }
+      if (args[0] === "worktree" && args[1] === "list") {
+        return {
+          stdout: [
+            "worktree C:/Users/demo/work/lightcode",
+            "HEAD abc123",
+            "branch refs/heads/master",
+            "",
+            "worktree C:/Users/demo/.lightcode/worktrees/lightcode-12345678/lightcode-brave-heron",
+            "HEAD def456",
+            "branch refs/heads/lightcode/brave-heron",
+            "",
+          ].join("\n"),
+        };
+      }
+      if (args[0] === "merge-base") return { stdout: "base123\n" };
+      if (args[0] === "config") return { stdout: "" };
+      if (args[0] === "rev-list") return { stdout: "1\t1\n" };
+      return { stdout: "" };
+    });
+
+    const result = await new GitService().getWorktreeSourceBranch(
+      location,
+      "lightcode/brave-heron",
+    );
+
+    expect(result).toEqual({
+      sourceBranch: "master",
+      commitsAhead: 1,
+      sourceAhead: 1,
+    });
+
+    const configCall = execFileMock.mock.calls.find(
+      (call: unknown[]) =>
+        Array.isArray(call[1]) &&
+        (call[1] as string[])[0] === "config" &&
+        (call[1] as string[])[1] !== "--get" &&
+        (call[1] as string[]).includes("branch.lightcode/brave-heron.lightcodeSource"),
+    );
+    expect(configCall).toBeDefined();
+    expect(configCall![1]).toContain("master");
+  });
+});
+
 describe("GitService.removeWorktree", () => {
   const location = {
     kind: "windows" as const,
@@ -569,6 +771,41 @@ describe("GitService.deleteBranch", () => {
       (c: unknown[]) => Array.isArray(c[1]) && (c[1] as string[]).includes("-D"),
     );
     expect(forceDeleteCall).toBeDefined();
+  });
+
+  it("prunes stale worktree metadata before retrying a force delete", async () => {
+    let forceDeleteAttempts = 0;
+    mockGitCommands((args) => {
+      if (args[0] === "branch" && args[1] === "-d") {
+        return { error: new Error("error: The branch 'feature/x' is not fully merged.") };
+      }
+      if (args[0] === "branch" && args[1] === "-D") {
+        forceDeleteAttempts += 1;
+        if (forceDeleteAttempts === 1) {
+          return {
+            error: new Error(
+              "fatal: cannot delete branch 'feature/x' used by worktree at 'C:/Users/demo/worktrees/feature-x'",
+            ),
+          };
+        }
+        return { stdout: "" };
+      }
+      if (args[0] === "config") return { stdout: "main\n" };
+      if (args[0] === "merge-base") return { stdout: "" };
+      if (args[0] === "worktree" && args[1] === "prune") return { stdout: "" };
+      return { stdout: "" };
+    });
+
+    await new GitService().deleteBranch(location, "feature/x", false);
+
+    expect(forceDeleteAttempts).toBe(2);
+    const pruneCall = execFileMock.mock.calls.find(
+      (c: unknown[]) =>
+        Array.isArray(c[1]) &&
+        (c[1] as string[])[0] === "worktree" &&
+        (c[1] as string[])[1] === "prune",
+    );
+    expect(pruneCall).toBeDefined();
   });
 
   it("preserves the not-fully-merged failure when the branch is not merged into its source branch", async () => {

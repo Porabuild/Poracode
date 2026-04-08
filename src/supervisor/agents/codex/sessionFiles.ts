@@ -2,9 +2,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { basename, join } from "node:path";
 
-export function parseCodexSessionIndex(
-  content: string,
-): Array<{
+export function parseCodexSessionIndex(content: string): Array<{
   id: string;
   updatedAt: number;
   threadName: string;
@@ -50,8 +48,7 @@ export function readCodexSessionIndex(): Array<{
 }
 
 export function parseCodexRolloutIdFromPath(path: string): string | undefined {
-  const match =
-    /^rollout-\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-(.+)\.jsonl$/i.exec(basename(path));
+  const match = /^rollout-\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-(.+)\.jsonl$/i.exec(basename(path));
   return match?.[1];
 }
 

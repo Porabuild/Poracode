@@ -716,7 +716,10 @@ export class SupervisorRuntime {
 
     await writeSubmittedPrompt(
       session.pty,
-      session.adapter.buildDirectInput?.(prompt, payload.segments, session.config) ?? [prompt, "\r"],
+      session.adapter.buildDirectInput?.(prompt, payload.segments, session.config) ?? [
+        prompt,
+        "\r",
+      ],
     );
 
     // Claude CLI may show a "[Pasted text" confirmation instead of submitting.
@@ -1360,9 +1363,7 @@ export class SupervisorRuntime {
     // For WSL commands, env vars must be baked into the shell script as exports
     // because wsl.exe does not forward Windows env vars into the Linux distro.
     const command = injectWslEnv(input.command, input.projectLocation, agentEnv);
-    console.log(
-      `[supervisor] spawning PTY: ${command.command} ${command.args.join(" ")}`,
-    );
+    console.log(`[supervisor] spawning PTY: ${command.command} ${command.args.join(" ")}`);
     const pty = spawn(command.command, command.args, {
       name: process.platform === "win32" ? "xterm-color" : "xterm-256color",
       cols: input.initialSize.cols,
@@ -1861,8 +1862,7 @@ export class SupervisorRuntime {
           hint,
         });
         const configChanged =
-          nextConfig !== undefined &&
-          JSON.stringify(nextConfig) !== JSON.stringify(session.config);
+          nextConfig !== undefined && JSON.stringify(nextConfig) !== JSON.stringify(session.config);
 
         if (configChanged) {
           session.config = nextConfig!;
@@ -1926,14 +1926,15 @@ export class SupervisorRuntime {
         }
       }
 
-      if (
-        session.pendingLaunchPrompt &&
-        session.adapter.isReadyForInitialPrompt?.(strippedData)
-      ) {
+      if (session.pendingLaunchPrompt && session.adapter.isReadyForInitialPrompt?.(strippedData)) {
         this.startQueuedLaunchPrompt(session);
       }
 
-      if (hint?.status === "idle" && session.pendingTerminalPreInputs?.length && !session.pendingTerminalWriteInFlight) {
+      if (
+        hint?.status === "idle" &&
+        session.pendingTerminalPreInputs?.length &&
+        !session.pendingTerminalWriteInFlight
+      ) {
         const chunks = session.pendingTerminalPreInputs.shift()!;
         if (!session.pendingTerminalPreInputs.length) {
           session.pendingTerminalPreInputs = undefined;
@@ -1941,8 +1942,14 @@ export class SupervisorRuntime {
         session.pendingTerminalWriteInFlight = true;
         void sleep(500)
           .then(() => writeSubmittedPrompt(session.pty, chunks))
-          .then(() => { session.pendingTerminalWriteInFlight = false; });
-      } else if (session.pendingTerminalPrompt && hint?.status === "idle" && !session.pendingTerminalWriteInFlight) {
+          .then(() => {
+            session.pendingTerminalWriteInFlight = false;
+          });
+      } else if (
+        session.pendingTerminalPrompt &&
+        hint?.status === "idle" &&
+        !session.pendingTerminalWriteInFlight
+      ) {
         const prompt = session.pendingTerminalPrompt;
         const segments = session.pendingTerminalSegments;
         session.pendingTerminalPrompt = undefined;

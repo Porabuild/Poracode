@@ -1,9 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  createCursorAdapter,
-  detectCursorTerminalStatus,
-  sortCursorModels,
-} from "./cursor";
+import { createCursorAdapter, detectCursorTerminalStatus, sortCursorModels } from "./cursor";
 
 describe("createCursorAdapter capabilities", () => {
   it("exposes non-empty approvalPolicies for the YOLO toggle", () => {
@@ -47,7 +43,7 @@ describe("detectCursorTerminalStatus", () => {
   it("detects attention from Run this command?", () => {
     expect(
       detectCursorTerminalStatus(
-        'Run this command?\nNot in allowlist: git status\n  → Run (once) (y)',
+        "Run this command?\nNot in allowlist: git status\n  → Run (once) (y)",
       ),
     ).toEqual({ status: "needs_approval", attention: "needs_approval", corroborated: true });
   });
@@ -235,4 +231,3 @@ describe("sortCursorModels", () => {
     ]);
   });
 });
-

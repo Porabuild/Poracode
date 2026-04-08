@@ -295,10 +295,28 @@ const CLAUDE_HINTS: HintEntry[] = [
   { re: /ctrl-g to edit/i, status: "needs_reply", attention: "needs_reply", strong: true },
   // "Exit plan mode?" confirmation — match the ❯ cursor on numbered choice at the end
   { re: /exit plan mode\?/i, status: "needs_reply", attention: "needs_reply", strong: true },
-  { re: /\?\s+for shortcuts/i, status: "idle", attention: "none", approvalPolicy: "default", strong: true },
+  {
+    re: /\?\s+for shortcuts/i,
+    status: "idle",
+    attention: "none",
+    approvalPolicy: "default",
+    strong: true,
+  },
   { re: /plan mode on/i, status: "idle", attention: "none", planMode: true, strong: true },
-  { re: /accept edits/i, status: "idle", attention: "none", approvalPolicy: "acceptEdits", strong: true },
-  { re: /bypass permissions/i, status: "idle", attention: "none", approvalPolicy: "bypassPermissions", strong: true },
+  {
+    re: /accept edits/i,
+    status: "idle",
+    attention: "none",
+    approvalPolicy: "acceptEdits",
+    strong: true,
+  },
+  {
+    re: /bypass permissions/i,
+    status: "idle",
+    attention: "none",
+    approvalPolicy: "bypassPermissions",
+    strong: true,
+  },
   // ❯ or > prompt cursor — universal idle/ready indicator
   // Exclude ❯ followed by a digit (numbered selection menu, not the input prompt)
   // Weak: can flash during partial TUI redraws.
@@ -369,7 +387,10 @@ export function detectClaudeTerminalStatus(text: string): TerminalStatusHint | n
     // Check if any other strong entry of the same status is also present
     hint.corroborated = CLAUDE_HINTS.some(
       (entry) =>
-        entry.strong && entry.status === best!.entry.status && entry !== best!.entry && entry.re.test(text),
+        entry.strong &&
+        entry.status === best!.entry.status &&
+        entry !== best!.entry &&
+        entry.re.test(text),
     );
   }
 
@@ -391,9 +412,7 @@ const CLAUDE_MODEL_MAP: [RegExp, string][] = [
 
 const KNOWN_EFFORTS = new Set(["low", "medium", "high", "max"]);
 
-export function detectClaudeModelEffort(
-  text: string,
-): { model?: string; effort?: string } | null {
+export function detectClaudeModelEffort(text: string): { model?: string; effort?: string } | null {
   const re = /Set model to (.+?)(?:\s+with (\w+) effort)?\s*$/gm;
   let last: RegExpExecArray | null = null;
   let m: RegExpExecArray | null;

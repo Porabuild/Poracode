@@ -5,7 +5,7 @@
 <h1 align="center">Lightcode</h1>
 
 <p align="center">
-  A desktop app for running AI coding agents — Claude, Codex, and Gemini — in real terminal sessions.
+  A desktop app for running AI coding agents — Claude and Gemini — in real terminal sessions.
 </p>
 
 <p align="center">
@@ -20,7 +20,7 @@ Lightcode gives you one window to manage multiple AI coding agents. Each agent r
 
 ## Features
 
-- **Multi-agent** — Run Claude Code, OpenAI Codex, and Gemini CLI side by side
+- **Multi-agent** — Run Claude Code and Gemini CLI side by side
 - **Real terminals** — Every agent session is a live PTY, not a simulated UI
 - **Git review** — View diffs, stage files, and commit without leaving the app
 - **Built-in shell** — Open terminal tabs alongside your agent sessions
@@ -43,7 +43,6 @@ Download the latest release for your platform:
 You need at least one AI agent CLI installed:
 
 - [Claude Code](https://docs.anthropic.com/en/docs/claude-code) — `npm install -g @anthropic-ai/claude-code`
-- [OpenAI Codex](https://github.com/openai/codex) — `npm install -g @openai/codex`
 - [Gemini CLI](https://github.com/google-gemini/gemini-cli) — `npm install -g @google/gemini-cli`
 
 ## Development
