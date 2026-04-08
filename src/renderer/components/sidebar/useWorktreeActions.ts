@@ -48,6 +48,18 @@ export function useWorktreeActionVisibility(
 }
 
 /**
+ * Hook variant that keeps a worktree git submenu in sync with store updates.
+ */
+export function useWorktreeGitItems(
+  projectId: string,
+  worktreePath: string,
+  icons: GitMenuIcons,
+): GitMenuItem[] {
+  const visibility = useWorktreeActionVisibility(projectId, worktreePath);
+  return buildWorktreeGitItems(visibility, icons);
+}
+
+/**
  * Non-hook version for use in context menu builders (called inside event handlers).
  * Reads directly from the store without subscribing.
  */

@@ -38,9 +38,8 @@ import { useGitStore } from "../../state/gitStore";
 import { GitBadge } from "./GitBadge";
 import { SyncBadge } from "./SyncBadge";
 import {
-  buildWorktreeGitItems,
-  getWorktreeActionVisibility,
   type GitMenuIcons,
+  useWorktreeGitItems,
 } from "./useWorktreeActions";
 import { groupThreadsByWorktree, type WorktreeThreadGroup } from "./groupThreadsByWorktree";
 import { WorktreeGroupHeader } from "./WorktreeGroupHeader";
@@ -227,6 +226,11 @@ function SortableThreadItem(props: {
   group: string;
 }) {
   const { thread, project, showWorktreeBadge, currentThreadIds, editingThreadId } = props;
+  const worktreeGitItems = useWorktreeGitItems(
+    thread.projectId,
+    thread.worktreePath ?? "",
+    props.gitMenuIcons,
+  );
   const threadRemoveAction = useSharedSettings((s) => s.threadRemoveAction);
   const unloadDisabledReason =
     thread.status === "inactive"
@@ -268,10 +272,7 @@ function SortableThreadItem(props: {
                   id: "git",
                   label: "Git",
                   icon: <GitFork className="size-3.5" />,
-                  items: buildWorktreeGitItems(
-                    getWorktreeActionVisibility(thread.projectId, thread.worktreePath!),
-                    props.gitMenuIcons,
-                  ),
+                  items: worktreeGitItems,
                 },
               ]
             : []),
@@ -515,6 +516,7 @@ function SortableWorktreeGroup(props: {
   sortableGroup: string;
 }) {
   const { group, project } = props;
+  const worktreeGitItems = useWorktreeGitItems(project.id, group.worktreePath, props.gitMenuIcons);
   const groupThreadIds = group.threads.map((t) => t.id);
 
   const { ref } = useSortable({
@@ -545,10 +547,7 @@ function SortableWorktreeGroup(props: {
             id: "git",
             label: "Git",
             icon: <GitFork className="size-3.5" />,
-            items: buildWorktreeGitItems(
-              getWorktreeActionVisibility(project.id, group.worktreePath),
-              props.gitMenuIcons,
-            ),
+            items: worktreeGitItems,
           },
           ...(project.scripts?.actions?.length
             ? [

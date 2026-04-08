@@ -799,10 +799,11 @@ export class GitService {
     await execGit(location, args);
 
     // Store the source branch in git config so we can merge back later
-    if (startPoint && branch) {
-      await execGit(location, ["config", `branch.${branch}.lightcodeSource`, startPoint]).catch(
-        () => undefined,
-      );
+    if (branch && createBranch) {
+      const sourceBranch = startPoint ?? (await this.getCurrentBranch(location));
+      if (sourceBranch && sourceBranch !== branch) {
+        await this.writeWorktreeSourceBranch(location, branch, sourceBranch);
+      }
     }
 
     return { path: resolvedPath };
@@ -823,18 +824,18 @@ export class GitService {
 
   async deleteBranch(location: ProjectLocation, branch: string, force: boolean): Promise<void> {
     if (force) {
-      await execGit(location, ["branch", "-D", branch]);
+      await this.deleteBranchWithPruneRetry(location, branch, true);
       return;
     }
 
     try {
-      await execGit(location, ["branch", "-d", branch]);
+      await this.deleteBranchWithPruneRetry(location, branch, false);
     } catch (error) {
       if (!(await this.canForceDeleteMergedWorktreeBranch(location, branch, error))) {
         throw error;
       }
 
-      await execGit(location, ["branch", "-D", branch]);
+      await this.deleteBranchWithPruneRetry(location, branch, true);
     }
   }
 
@@ -844,17 +845,7 @@ export class GitService {
     location: ProjectLocation,
     branch: string,
   ): Promise<GitGetWorktreeSourceBranchResult> {
-    let sourceBranch: string | null = null;
-    try {
-      const result = await execGit(location, [
-        "config",
-        "--get",
-        `branch.${branch}.lightcodeSource`,
-      ]);
-      sourceBranch = result.trim() || null;
-    } catch {
-      // no source branch configured
-    }
+    const sourceBranch = await this.readWorktreeSourceBranch(location, branch);
 
     let commitsAhead = 0;
     let sourceAhead = 0;
@@ -922,49 +913,37 @@ export class GitService {
       return { merged: true, fastForward: true, newSourceCommit: worktreeTip };
     }
 
+    const sourceLocation = await this.findWorktreeForBranch(repoLocation, sourceBranch);
+
+    if (sourceLocation) {
+      try {
+        await this.ensureWorktreeCleanForMerge(sourceLocation, sourceBranch);
+        return await this.mergeBranchIntoSourceLocation(sourceLocation, worktreeBranch);
+      } catch (err) {
+        return {
+          merged: false,
+          fastForward: false,
+          newSourceCommit: "",
+          error: err instanceof Error ? err.message : String(err),
+        };
+      }
+    }
+
     // Non-fast-forward: merge via temporary worktree
     const tempBranchDir = `_merge-temp-${Date.now()}`;
     const tempPath = await computeDefaultWorktreePath(repoLocation, tempBranchDir);
 
     try {
       await ensureWorktreeParentExists(repoLocation, tempPath);
-      await execGit(repoLocation, ["worktree", "add", "--detach", tempPath, sourceBranch]);
+      await execGit(repoLocation, ["worktree", "add", tempPath, sourceBranch]);
 
       const tempLocation: ProjectLocation =
         repoLocation.kind === "wsl"
           ? { ...repoLocation, linuxPath: tempPath, uncPath: tempPath }
           : { ...repoLocation, path: tempPath };
 
-      await execGit(tempLocation, ["checkout", "-B", sourceBranch]);
-
-      try {
-        await execGit(tempLocation, ["merge", worktreeBranch, "--no-edit", "--no-ff"]);
-      } catch (mergeErr: unknown) {
-        const msg = mergeErr instanceof Error ? mergeErr.message : String(mergeErr);
-        if (msg.includes("CONFLICT") || msg.includes("Merge conflict")) {
-          const conflictFiles: string[] = [];
-          const conflictMatches = msg.matchAll(/CONFLICT.*?:\s*(?:Merge conflict in\s+)?(.+)/g);
-          for (const m of conflictMatches) {
-            if (m[1]) conflictFiles.push(m[1].trim());
-          }
-          await execGit(tempLocation, ["merge", "--abort"]).catch(() => undefined);
-          return {
-            merged: false,
-            fastForward: false,
-            newSourceCommit: "",
-            error: "Merge conflicts detected",
-            conflictFiles,
-          };
-        }
-        throw mergeErr;
-      }
-
-      const newCommit = (await execGit(tempLocation, ["rev-parse", "HEAD"])).trim();
-      return { merged: true, fastForward: false, newSourceCommit: newCommit };
+      return await this.mergeBranchIntoSourceLocation(tempLocation, worktreeBranch);
     } catch (err: unknown) {
-      if ((err as GitMergeToSourceResult).merged === false) {
-        return err as GitMergeToSourceResult;
-      }
       return {
         merged: false,
         fastForward: false,
@@ -1137,6 +1116,73 @@ export class GitService {
     }
   }
 
+  private async deleteBranchWithPruneRetry(
+    location: ProjectLocation,
+    branch: string,
+    force: boolean,
+  ): Promise<void> {
+    const args = ["branch", force ? "-D" : "-d", branch];
+    try {
+      await execGit(location, args);
+    } catch (error) {
+      if (!this.shouldRetryBranchDeleteAfterPrune(error)) {
+        throw error;
+      }
+
+      await execGit(location, ["worktree", "prune"]);
+      await execGit(location, args);
+    }
+  }
+
+  private shouldRetryBranchDeleteAfterPrune(error: unknown): boolean {
+    const message = error instanceof Error ? error.message : String(error);
+    return /used by worktree|checked out at/i.test(message);
+  }
+
+  private async ensureWorktreeCleanForMerge(
+    location: ProjectLocation,
+    sourceBranch: string,
+  ): Promise<void> {
+    const status = await execGit(location, ["status", "--porcelain"]);
+    if (!status.trim()) {
+      return;
+    }
+
+    throw new Error(
+      `Source branch '${sourceBranch}' is checked out in worktree '${getRepoPath(location)}' and has uncommitted changes. Commit or stash them before merging.`,
+    );
+  }
+
+  private async mergeBranchIntoSourceLocation(
+    location: ProjectLocation,
+    worktreeBranch: string,
+  ): Promise<GitMergeToSourceResult> {
+    try {
+      await execGit(location, ["merge", worktreeBranch, "--no-edit", "--no-ff"]);
+    } catch (mergeErr: unknown) {
+      const msg = mergeErr instanceof Error ? mergeErr.message : String(mergeErr);
+      if (msg.includes("CONFLICT") || msg.includes("Merge conflict")) {
+        const conflictFiles: string[] = [];
+        const conflictMatches = msg.matchAll(/CONFLICT.*?:\s*(?:Merge conflict in\s+)?(.+)/g);
+        for (const m of conflictMatches) {
+          if (m[1]) conflictFiles.push(m[1].trim());
+        }
+        await execGit(location, ["merge", "--abort"]).catch(() => undefined);
+        return {
+          merged: false,
+          fastForward: false,
+          newSourceCommit: "",
+          error: "Merge conflicts detected",
+          conflictFiles,
+        };
+      }
+      throw mergeErr;
+    }
+
+    const newCommit = (await execGit(location, ["rev-parse", "HEAD"])).trim();
+    return { merged: true, fastForward: false, newSourceCommit: newCommit };
+  }
+
   private async readWorktreeSourceBranch(
     location: ProjectLocation,
     branch: string,
@@ -1147,9 +1193,52 @@ export class GitService {
         "--get",
         `branch.${branch}.lightcodeSource`,
       ]);
+      const sourceBranch = result.trim() || null;
+      if (sourceBranch) {
+        return sourceBranch;
+      }
+    } catch {
+      // no explicit source branch configured
+    }
+    return this.inferWorktreeSourceBranch(location, branch);
+  }
+
+  private async inferWorktreeSourceBranch(
+    location: ProjectLocation,
+    branch: string,
+  ): Promise<string | null> {
+    try {
+      const { worktrees } = await this.listWorktrees(location);
+      const mainWorktreeBranch = worktrees.find((worktree) => worktree.isMain)?.branch || null;
+      if (!mainWorktreeBranch || mainWorktreeBranch === branch) {
+        return null;
+      }
+
+      // Only recover a legacy source branch when the main branch shares history with the worktree.
+      await execGit(location, ["merge-base", mainWorktreeBranch, branch]);
+      await this.writeWorktreeSourceBranch(location, branch, mainWorktreeBranch);
+      return mainWorktreeBranch;
+    } catch {
+      return null;
+    }
+  }
+
+  private async getCurrentBranch(location: ProjectLocation): Promise<string | null> {
+    try {
+      const result = await execGit(location, ["branch", "--show-current"]);
       return result.trim() || null;
     } catch {
       return null;
     }
+  }
+
+  private async writeWorktreeSourceBranch(
+    location: ProjectLocation,
+    branch: string,
+    sourceBranch: string,
+  ): Promise<void> {
+    await execGit(location, ["config", `branch.${branch}.lightcodeSource`, sourceBranch]).catch(
+      () => undefined,
+    );
   }
 }

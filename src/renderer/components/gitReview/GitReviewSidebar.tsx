@@ -369,9 +369,6 @@ export function GitReviewSidebar(props: {
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncError, setSyncError] = useState<string | null>(null);
 
-  // Source branch state
-  const [sourceBranch, setSourceBranch] = useState<string | null>(null);
-  const [commitsAhead, setCommitsAhead] = useState(0);
   const [sourceBranchLoading, setSourceBranchLoading] = useState(false);
   // Merge & Remove state
   const [isMerging, setIsMerging] = useState(false);
@@ -392,24 +389,78 @@ export function GitReviewSidebar(props: {
     | PrData
     | null
     | undefined;
+  const sourceInfo = useGitStore((s) =>
+    worktreePath ? s.worktreeSourceInfo[worktreePath] : undefined,
+  );
+  const sourceBranch = sourceInfo?.sourceBranch ?? null;
+  const commitsAhead = sourceInfo?.commitsAhead ?? 0;
   const [prTitle, setPrTitle] = useState("");
   const [prIsDraft, setPrIsDraft] = useState(false);
   const [prLoading, setPrLoading] = useState(false);
   const [prError, setPrError] = useState<string | null>(null);
   const showPrSection = Boolean(isGitHub && worktreeBranch && worktreePath);
+  const projectLocationKind = project.location.kind;
+  const projectLocationPath =
+    project.location.kind === "wsl" ? project.location.linuxPath : project.location.path;
+  const projectLocationDistro = project.location.kind === "wsl" ? project.location.distro : null;
+  const projectLocationUncPath = project.location.kind === "wsl" ? project.location.uncPath : null;
 
   useEffect(() => {
-    if (!worktreeBranch) return;
+    if (!worktreeBranch || !worktreePath) {
+      setSourceBranchLoading(false);
+      return;
+    }
+    let isActive = true;
+    const sourceProjectLocation: ProjectLocation =
+      projectLocationKind === "wsl"
+        ? {
+            kind: "wsl",
+            distro: projectLocationDistro!,
+            linuxPath: projectLocationPath,
+            uncPath: projectLocationUncPath!,
+          }
+        : projectLocationKind === "posix"
+          ? { kind: "posix", path: projectLocationPath }
+          : { kind: "windows", path: projectLocationPath };
     setSourceBranchLoading(true);
     readBridge()
-      .gitGetWorktreeSourceBranch({ projectLocation: project.location, branch: worktreeBranch })
-      .then((result) => {
-        setSourceBranch(result.sourceBranch);
-        setCommitsAhead(result.commitsAhead);
+      .gitGetWorktreeSourceBranch({
+        projectLocation: sourceProjectLocation,
+        branch: worktreeBranch,
       })
-      .catch(() => setSourceBranch(null))
-      .finally(() => setSourceBranchLoading(false));
-  }, [worktreeBranch, project.location, refreshKey]);
+      .then((result) => {
+        if (!isActive) return;
+        useGitStore.getState().setWorktreeSourceInfo(worktreePath, {
+          sourceBranch: result.sourceBranch,
+          commitsAhead: result.commitsAhead,
+          sourceAhead: result.sourceAhead,
+        });
+      })
+      .catch(() => {
+        if (!isActive) return;
+        useGitStore.getState().setWorktreeSourceInfo(worktreePath, {
+          sourceBranch: null,
+          commitsAhead: 0,
+          sourceAhead: 0,
+        });
+      })
+      .finally(() => {
+        if (isActive) {
+          setSourceBranchLoading(false);
+        }
+      });
+    return () => {
+      isActive = false;
+    };
+  }, [
+    projectLocationDistro,
+    projectLocationKind,
+    projectLocationPath,
+    projectLocationUncPath,
+    refreshKey,
+    worktreeBranch,
+    worktreePath,
+  ]);
 
   const projectAgentStatuses = getProjectAgentStatuses(
     project.location,
@@ -726,7 +777,7 @@ export function GitReviewSidebar(props: {
     }
   }
   const showMergeSection = Boolean(
-    worktreeBranch && worktreePath && !hasAnyChanges && commitsAhead > 0,
+    worktreeBranch && worktreePath && !hasAnyChanges && (sourceBranchLoading || commitsAhead > 0),
   );
   const showPullFromSource = Boolean(worktreeBranch && worktreePath && sourceBranch);
   const isPushed = hasTracking && ahead === 0;

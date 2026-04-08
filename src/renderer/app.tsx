@@ -116,6 +116,32 @@ readBridge().onUpdateStatus((status) => {
   }
 });
 
+function resolveWorktreeBranch(
+  projectId: string,
+  worktreePath: string,
+  fallbackBranch?: string,
+): string | undefined {
+  if (fallbackBranch) {
+    return fallbackBranch;
+  }
+
+  const threadBranch = useAppStore
+    .getState()
+    .threads.find(
+      (thread) =>
+        thread.projectId === projectId &&
+        thread.worktreePath === worktreePath &&
+        thread.worktreeBranch,
+    )?.worktreeBranch;
+  if (threadBranch) {
+    return threadBranch;
+  }
+
+  return useGitStore
+    .getState()
+    .worktrees[projectId]?.find((worktree) => worktree.path === worktreePath)?.branch;
+}
+
 // ── Async title generation ──────────────────────────────────
 // Fire-and-forget: generates an AI title and swaps it in if the user
 // hasn't manually renamed the thread in the meantime.
@@ -885,6 +911,12 @@ export function App() {
     worktreePath: string,
     worktreeBranch?: string,
   ) {
+    const resolvedWorktreeBranch = resolveWorktreeBranch(
+      project.id,
+      worktreePath,
+      worktreeBranch,
+    );
+
     // Run cleanup script before teardown so it can remove generated files
     // without racing the worktree deletion itself.
     const cleanupScript = project.scripts?.cleanupScript;
@@ -912,7 +944,7 @@ export function App() {
         force: true,
       });
     } catch (err: unknown) {
-      const branch = worktreeBranch ?? worktreePath.split(/[/\\]/).pop() ?? worktreePath;
+      const branch = resolvedWorktreeBranch ?? worktreePath.split(/[/\\]/).pop() ?? worktreePath;
       setWorktreeDeleteDialog({
         kind: "force-retry",
         projectId: project.id,
@@ -924,11 +956,11 @@ export function App() {
     }
 
     // Worktree removed — now clean up the branch
-    if (worktreeBranch) {
+    if (resolvedWorktreeBranch) {
       try {
         await readBridge().gitDeleteBranch({
           projectLocation: project.location,
-          branch: worktreeBranch,
+          branch: resolvedWorktreeBranch,
           force: false,
         });
       } catch (err: unknown) {
@@ -937,13 +969,13 @@ export function App() {
           setWorktreeDeleteDialog({
             kind: "branch-unmerged",
             projectId: project.id,
-            worktreeBranch,
+            worktreeBranch: resolvedWorktreeBranch,
             error: msg,
           });
           return;
         }
         // Best-effort: branch may already be deleted or not exist
-        console.warn(`[renderer] failed to delete branch ${worktreeBranch}:`, msg);
+        console.warn(`[renderer] failed to delete branch ${resolvedWorktreeBranch}:`, msg);
       }
 
       void readBridge()
@@ -1587,16 +1619,14 @@ export function App() {
               onGitPush={(projectId, worktreePath) => {
                 const project = projects.find((p) => p.id === projectId);
                 if (!project) return;
-                const thread = useAppStore
-                  .getState()
-                  .threads.find((t) => t.worktreePath === worktreePath && t.worktreeBranch);
-                if (!thread?.worktreeBranch) return;
+                const worktreeBranch = resolveWorktreeBranch(projectId, worktreePath);
+                if (!worktreeBranch) return;
                 const worktreeLocation = buildWorktreeLocation(project.location, worktreePath);
                 void readBridge()
                   .gitPush({
                     projectLocation: worktreeLocation,
                     remote: "origin",
-                    branch: thread.worktreeBranch,
+                    branch: worktreeBranch,
                     setUpstream: true,
                   })
                   .catch(() => undefined);
@@ -1612,22 +1642,20 @@ export function App() {
               onGitMergeToSource={(projectId, worktreePath) => {
                 const project = projects.find((p) => p.id === projectId);
                 if (!project) return;
-                const thread = useAppStore
-                  .getState()
-                  .threads.find((t) => t.worktreePath === worktreePath && t.worktreeBranch);
-                if (!thread?.worktreeBranch) return;
+                const worktreeBranch = resolveWorktreeBranch(projectId, worktreePath);
+                if (!worktreeBranch) return;
                 void (async () => {
                   try {
                     const { sourceBranch } = await readBridge().gitGetWorktreeSourceBranch({
                       projectLocation: project.location,
-                      branch: thread.worktreeBranch!,
+                      branch: worktreeBranch,
                     });
                     if (!sourceBranch) return;
                     const worktreeLocation = buildWorktreeLocation(project.location, worktreePath);
                     await readBridge().gitMergeToSource({
                       projectLocation: project.location,
                       worktreeLocation,
-                      worktreeBranch: thread.worktreeBranch!,
+                      worktreeBranch,
                       sourceBranch,
                     });
                   } catch {
@@ -1639,22 +1667,20 @@ export function App() {
                 const project = projects.find((p) => p.id === projectId);
                 if (!project) return;
                 const allThreads = useAppStore.getState().threads;
-                const thread = allThreads.find(
-                  (t) => t.worktreePath === worktreePath && t.worktreeBranch,
-                );
-                if (!thread?.worktreeBranch) return;
+                const worktreeBranch = resolveWorktreeBranch(projectId, worktreePath);
+                if (!worktreeBranch) return;
                 void (async () => {
                   try {
                     const { sourceBranch } = await readBridge().gitGetWorktreeSourceBranch({
                       projectLocation: project.location,
-                      branch: thread.worktreeBranch!,
+                      branch: worktreeBranch,
                     });
                     if (!sourceBranch) return;
                     const worktreeLocation = buildWorktreeLocation(project.location, worktreePath);
                     const result = await readBridge().gitMergeToSource({
                       projectLocation: project.location,
                       worktreeLocation,
-                      worktreeBranch: thread.worktreeBranch!,
+                      worktreeBranch,
                       sourceBranch,
                     });
                     if (!result.merged) return;
@@ -1663,7 +1689,7 @@ export function App() {
                       deleteThread(sib.id);
                     }
                     await closeThreads(siblings.map((sib) => sib.id));
-                    await performWorktreeRemoval(project, worktreePath, thread.worktreeBranch);
+                    await performWorktreeRemoval(project, worktreePath, worktreeBranch);
                   } catch {
                     // ignored — user can open git review for details
                   }
@@ -1672,15 +1698,13 @@ export function App() {
               onGitPullFromSource={(projectId, worktreePath) => {
                 const project = projects.find((p) => p.id === projectId);
                 if (!project) return;
-                const thread = useAppStore
-                  .getState()
-                  .threads.find((t) => t.worktreePath === worktreePath && t.worktreeBranch);
-                if (!thread?.worktreeBranch) return;
+                const worktreeBranch = resolveWorktreeBranch(projectId, worktreePath);
+                if (!worktreeBranch) return;
                 void (async () => {
                   try {
                     const { sourceBranch } = await readBridge().gitGetWorktreeSourceBranch({
                       projectLocation: project.location,
-                      branch: thread.worktreeBranch!,
+                      branch: worktreeBranch,
                     });
                     if (!sourceBranch) return;
                     const worktreeLocation = buildWorktreeLocation(project.location, worktreePath);
@@ -1969,19 +1993,19 @@ export function App() {
                     statusKey: gitReviewContext.worktreePath,
                     worktreePath: gitReviewContext.worktreePath,
                     worktreeBranch:
-                      useAppStore
-                        .getState()
-                        .threads.find((t) => t.worktreePath === gitReviewContext!.worktreePath)
-                        ?.worktreeBranch ?? undefined,
+                      resolveWorktreeBranch(
+                        gitReviewContext.projectId,
+                        gitReviewContext.worktreePath,
+                      ) ?? undefined,
                     onMergeAndRemove: () => {
                       const allThreads = useAppStore.getState().threads;
                       const reviewProject = projects.find(
                         (p) => p.id === gitReviewContext!.projectId,
                       );
                       const wtPath = gitReviewContext!.worktreePath;
-                      const wtBranch = allThreads.find(
-                        (t) => t.worktreePath === wtPath,
-                      )?.worktreeBranch;
+                      const wtBranch = wtPath
+                        ? resolveWorktreeBranch(gitReviewContext!.projectId, wtPath)
+                        : undefined;
                       setGitReviewContext(null);
                       if (reviewProject && wtPath) {
                         const siblings = allThreads.filter((t) => t.worktreePath === wtPath);

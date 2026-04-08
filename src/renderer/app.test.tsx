@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useAppStore } from "./state/appStore";
+import { useGitStore } from "./state/gitStore";
 
 const { bridge } = vi.hoisted(() => ({
   bridge: {
@@ -26,10 +27,21 @@ const { bridge } = vi.hoisted(() => ({
     gitListBranches: vi.fn().mockResolvedValue({ current: "main", branches: [] }),
     gitFetch: vi.fn().mockResolvedValue(undefined),
     gitListWorktrees: vi.fn().mockResolvedValue({ worktrees: [] }),
+    gitGetWorktreeSourceBranch: vi.fn().mockResolvedValue({
+      sourceBranch: "master",
+      commitsAhead: 1,
+      sourceAhead: 0,
+    }),
+    gitMergeToSource: vi.fn().mockResolvedValue({
+      merged: true,
+      fastForward: false,
+      newSourceCommit: "abc123",
+    }),
     gitAddWorktree: vi.fn().mockResolvedValue({
       path: "C:\\Users\\demo\\.lightcode\\worktrees\\repo-12345678\\feature-x",
     }),
     gitRemoveWorktree: vi.fn().mockResolvedValue(undefined),
+    gitDeleteBranch: vi.fn().mockResolvedValue(undefined),
     startThread: vi.fn().mockResolvedValue(undefined),
     sendThreadInput: vi.fn().mockResolvedValue(undefined),
     writeTerminal: vi.fn().mockResolvedValue(undefined),
@@ -78,6 +90,7 @@ vi.mock("./components/sidebar/Sidebar", () => ({
     onOpenThread?: (threadId: string) => void;
     onOpenThreadSideBySide?: (threadId: string) => void;
     onUnloadThread?: (threadId: string) => void;
+    onGitMergeAndRemove?: (projectId: string, worktreePath: string) => void;
   }) => (
     <div>
       sidebar
@@ -86,6 +99,17 @@ vi.mock("./components/sidebar/Sidebar", () => ({
       </button>
       <button onClick={() => props.onUnloadThread?.("thread-1")} type="button">
         unload-thread-1
+      </button>
+      <button
+        onClick={() =>
+          props.onGitMergeAndRemove?.(
+            "project-1",
+            "C:\\Users\\demo\\.lightcode\\worktrees\\repo-12345678\\feature-x",
+          )
+        }
+        type="button"
+      >
+        merge-remove-worktree
       </button>
     </div>
   ),
@@ -194,6 +218,15 @@ describe("App", () => {
       wslAgentStatuses: [],
       view: { kind: "home" },
     }));
+    useGitStore.setState({
+      statuses: {},
+      worktreeStatuses: {},
+      worktrees: {},
+      branches: {},
+      ghAvailable: {},
+      prData: {},
+      worktreeSourceInfo: {},
+    });
   });
 
   it("queues launch for the selected stored thread on launch even without a session ref", async () => {
@@ -636,5 +669,85 @@ describe("App", () => {
     });
 
     expect(bridge.gitAddWorktree).not.toHaveBeenCalled();
+  });
+
+  it("uses a sibling thread branch when merge and remove is triggered from a worktree thread without branch metadata", async () => {
+    useAppStore.persist.hasHydrated = vi.fn(() => true);
+    useAppStore.persist.onHydrate = vi.fn(() => () => undefined);
+    useAppStore.persist.onFinishHydration = vi.fn(() => () => undefined);
+
+    useAppStore.setState((state) => ({
+      ...state,
+      projects: [
+        {
+          id: "project-1",
+          name: "Repo",
+          location: {
+            kind: "windows",
+            path: "C:\\repo",
+          },
+          createdAt: "2026-03-22T00:00:00.000Z",
+        },
+      ],
+      threads: [
+        {
+          id: "thread-1",
+          projectId: "project-1",
+          title: "Thread without branch",
+          agentKind: "codex",
+          config: { model: "gpt-5.4" },
+          status: "idle",
+          attention: "none",
+          canResumeWithConfig: false,
+          worktreePath: "C:\\Users\\demo\\.lightcode\\worktrees\\repo-12345678\\feature-x",
+          archived: false,
+          createdAt: "2026-03-22T00:00:00.000Z",
+          updatedAt: "2026-03-22T00:00:00.000Z",
+        },
+        {
+          id: "thread-2",
+          projectId: "project-1",
+          title: "Sibling thread with branch",
+          agentKind: "codex",
+          config: { model: "gpt-5.4" },
+          status: "idle",
+          attention: "none",
+          canResumeWithConfig: false,
+          worktreePath: "C:\\Users\\demo\\.lightcode\\worktrees\\repo-12345678\\feature-x",
+          worktreeBranch: "lightcode/brave-heron",
+          archived: false,
+          createdAt: "2026-03-22T00:00:00.000Z",
+          updatedAt: "2026-03-22T00:00:00.000Z",
+        },
+      ],
+      view: { kind: "home" },
+    }));
+
+    render(<App />);
+    fireEvent.click(screen.getByText("merge-remove-worktree"));
+
+    await waitFor(() => {
+      expect(bridge.gitGetWorktreeSourceBranch).toHaveBeenCalledWith({
+        projectLocation: { kind: "windows", path: "C:\\repo" },
+        branch: "lightcode/brave-heron",
+      });
+    });
+
+    await waitFor(() => {
+      expect(bridge.gitMergeToSource).toHaveBeenCalledWith({
+        projectLocation: { kind: "windows", path: "C:\\repo" },
+        worktreeLocation: {
+          kind: "windows",
+          path: "C:\\Users\\demo\\.lightcode\\worktrees\\repo-12345678\\feature-x",
+        },
+        worktreeBranch: "lightcode/brave-heron",
+        sourceBranch: "master",
+      });
+      expect(bridge.gitDeleteBranch).toHaveBeenCalledWith({
+        projectLocation: { kind: "windows", path: "C:\\repo" },
+        branch: "lightcode/brave-heron",
+        force: false,
+      });
+    });
   });
 });
