@@ -322,4 +322,128 @@ describe("GitReviewSidebar", () => {
 
     await waitFor(() => expect(screen.getByText("spinner")).toBeInTheDocument());
   });
+
+  it("hides pull from source when the worktree is already up to date with its source branch", async () => {
+    const project: Project = {
+      id: "project-1",
+      name: "Lightcode",
+      createdAt: new Date().toISOString(),
+      location: { kind: "windows", path: "C:\\repo-worktree" },
+    };
+
+    const gitStatus: GitStatusResult = {
+      isRepo: true,
+      branch: "feature/worktree",
+      tracking: "",
+      hasRemote: false,
+      remoteInfo: null,
+      ahead: 0,
+      behind: 0,
+      staged: [],
+      unstaged: [
+        {
+          path: "src/worktree-only.ts",
+          status: "M",
+          staged: false,
+          insertions: 1,
+          deletions: 0,
+        },
+      ],
+      totalInsertions: 1,
+      totalDeletions: 0,
+    };
+
+    bridgeMock.gitGetWorktreeSourceBranch.mockResolvedValue({
+      sourceBranch: "main",
+      commitsAhead: 0,
+      sourceAhead: 0,
+    });
+    const setWorktreeSourceInfo = vi.spyOn(useGitStore.getState(), "setWorktreeSourceInfo");
+
+    render(
+      <GitReviewSidebar
+        project={project}
+        gitStatus={gitStatus}
+        selectedFile={null}
+        selectedStaged={false}
+        worktreeBranch="feature/worktree"
+        worktreePath="C:\\repo-worktree"
+        refreshKey={1}
+        onSelectFile={() => undefined}
+        onClose={() => undefined}
+        onRefresh={() => undefined}
+      />,
+    );
+
+    await waitFor(() =>
+      expect(setWorktreeSourceInfo).toHaveBeenCalledWith(expect.stringContaining("repo-worktree"), {
+        sourceBranch: "main",
+        commitsAhead: 0,
+        sourceAhead: 0,
+      }),
+    );
+    expect(screen.queryByText("Pull from main (0)")).not.toBeInTheDocument();
+  });
+
+  it("shows pull from source when the source branch is ahead", async () => {
+    const project: Project = {
+      id: "project-1",
+      name: "Lightcode",
+      createdAt: new Date().toISOString(),
+      location: { kind: "windows", path: "C:\\repo-worktree" },
+    };
+
+    const gitStatus: GitStatusResult = {
+      isRepo: true,
+      branch: "feature/worktree",
+      tracking: "",
+      hasRemote: false,
+      remoteInfo: null,
+      ahead: 0,
+      behind: 0,
+      staged: [],
+      unstaged: [
+        {
+          path: "src/worktree-only.ts",
+          status: "M",
+          staged: false,
+          insertions: 1,
+          deletions: 0,
+        },
+      ],
+      totalInsertions: 1,
+      totalDeletions: 0,
+    };
+
+    bridgeMock.gitGetWorktreeSourceBranch.mockResolvedValue({
+      sourceBranch: "main",
+      commitsAhead: 0,
+      sourceAhead: 2,
+    });
+    const setWorktreeSourceInfo = vi.spyOn(useGitStore.getState(), "setWorktreeSourceInfo");
+
+    render(
+      <GitReviewSidebar
+        project={project}
+        gitStatus={gitStatus}
+        selectedFile={null}
+        selectedStaged={false}
+        worktreeBranch="feature/worktree"
+        worktreePath="C:\\repo-worktree"
+        refreshKey={1}
+        onSelectFile={() => undefined}
+        onClose={() => undefined}
+        onRefresh={() => undefined}
+      />,
+    );
+
+    await waitFor(() =>
+      expect(setWorktreeSourceInfo).toHaveBeenCalledWith(expect.stringContaining("repo-worktree"), {
+        sourceBranch: "main",
+        commitsAhead: 0,
+        sourceAhead: 2,
+      }),
+    );
+    expect(screen.getByText("Pull from main (2)")).toBeInTheDocument();
+  });
 });

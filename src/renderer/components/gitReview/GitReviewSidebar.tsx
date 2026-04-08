@@ -394,6 +394,7 @@ export function GitReviewSidebar(props: {
   );
   const sourceBranch = sourceInfo?.sourceBranch ?? null;
   const commitsAhead = sourceInfo?.commitsAhead ?? 0;
+  const sourceAhead = sourceInfo?.sourceAhead ?? 0;
   const [prTitle, setPrTitle] = useState("");
   const [prIsDraft, setPrIsDraft] = useState(false);
   const [prLoading, setPrLoading] = useState(false);
@@ -779,7 +780,7 @@ export function GitReviewSidebar(props: {
   const showMergeSection = Boolean(
     worktreeBranch && worktreePath && !hasAnyChanges && (sourceBranchLoading || commitsAhead > 0),
   );
-  const showPullFromSource = Boolean(worktreeBranch && worktreePath && sourceBranch);
+  const showPullFromSource = Boolean(worktreeBranch && worktreePath && sourceBranch && sourceAhead > 0);
   const isPushed = hasTracking && ahead === 0;
   const showCreatePrButton = Boolean(
     showPrSection && ghAvailable && isPushed && (!prData || prData.state === "closed"),
@@ -1020,11 +1021,13 @@ export function GitReviewSidebar(props: {
                         {showPullFromSource ? (
                           <Dropdown.Item
                             id="pull-from-source"
-                            textValue={`Pull from ${sourceBranch}`}
+                            textValue={`Pull from ${sourceBranch} (${sourceAhead})`}
                             isDisabled={isPullingFromSource}
                           >
                             <ArrowDown className="size-3.5" />
-                            <Label>Pull from {sourceBranch}</Label>
+                            <Label>
+                              Pull from {sourceBranch} ({sourceAhead})
+                            </Label>
                           </Dropdown.Item>
                         ) : null}
                       </Dropdown.Menu>

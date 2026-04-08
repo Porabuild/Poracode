@@ -59,4 +59,38 @@ describe("useWorktreeGitItems", () => {
     expect(screen.getByText("Merge to Source")).toBeInTheDocument();
     expect(screen.getByText("Merge & Remove")).toBeInTheDocument();
   });
+
+  it("shows pull from source with the source-ahead count", () => {
+    render(<WorktreeGitItemsProbe />);
+
+    expect(screen.queryByText("Pull from Source (3)")).not.toBeInTheDocument();
+
+    act(() => {
+      useGitStore.getState().setWorktreeSourceInfoBatch({
+        [WORKTREE_PATH]: {
+          sourceBranch: "master",
+          commitsAhead: 0,
+          sourceAhead: 3,
+        },
+      });
+    });
+
+    expect(screen.getByText("Pull from Source (3)")).toBeInTheDocument();
+  });
+
+  it("hides pull from source when the source branch is not ahead", () => {
+    render(<WorktreeGitItemsProbe />);
+
+    act(() => {
+      useGitStore.getState().setWorktreeSourceInfoBatch({
+        [WORKTREE_PATH]: {
+          sourceBranch: "master",
+          commitsAhead: 0,
+          sourceAhead: 0,
+        },
+      });
+    });
+
+    expect(screen.queryByText(/^Pull from Source/)).not.toBeInTheDocument();
+  });
 });
