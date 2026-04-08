@@ -68,6 +68,8 @@ import type {
   GitAbortMergePayload,
   GitRunMergetoolPayload,
   GitRunMergetoolResult,
+  GitFinishMergePayload,
+  GitFinishMergeResult,
   GitRemoveWorktreePayload,
   GitUnstageAllPayload,
   GitUnwatchProjectPayload,
@@ -1060,6 +1062,10 @@ export class SupervisorRuntime {
 
   async gitRunMergetool(payload: GitRunMergetoolPayload): Promise<GitRunMergetoolResult> {
     return this.gitService.runMergetool(payload.worktreeLocation);
+  }
+
+  async gitFinishMerge(payload: GitFinishMergePayload): Promise<GitFinishMergeResult> {
+    return this.gitService.finishMerge(payload.worktreeLocation);
   }
 
   // ── Git watcher ────────────────────────────────────────

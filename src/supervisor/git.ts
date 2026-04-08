@@ -1019,6 +1019,20 @@ export class GitService {
     await execGit(worktreeLocation, ["merge", "--abort"]);
   }
 
+  async finishMerge(
+    worktreeLocation: ProjectLocation,
+  ): Promise<{ success: boolean; error?: string }> {
+    try {
+      await execGit(worktreeLocation, ["commit", "--no-edit"]);
+      return { success: true };
+    } catch (err: unknown) {
+      return {
+        success: false,
+        error: err instanceof Error ? err.message : String(err),
+      };
+    }
+  }
+
   async runMergetool(
     worktreeLocation: ProjectLocation,
   ): Promise<{ success: boolean; merged?: boolean; error?: string }> {

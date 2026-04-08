@@ -1712,11 +1712,8 @@ export function App() {
                       worktreeLocation,
                       sourceBranch,
                     });
-                    // Background sync — abort if conflicts, user resolves manually via git review
                     if (result.conflicting) {
-                      await readBridge()
-                        .gitAbortMerge({ worktreeLocation })
-                        .catch(() => undefined);
+                      setGitReviewContext({ projectId, worktreePath });
                     }
                   } catch {
                     // ignored — user can open git review for details

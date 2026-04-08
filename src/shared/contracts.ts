@@ -593,6 +593,16 @@ export interface GitRunMergetoolResult {
   error?: string;
 }
 
+export const gitFinishMergePayloadSchema = z.object({
+  worktreeLocation: projectLocationSchema,
+});
+export type GitFinishMergePayload = z.infer<typeof gitFinishMergePayloadSchema>;
+
+export interface GitFinishMergeResult {
+  success: boolean;
+  error?: string;
+}
+
 // --- Git watcher types ---
 
 export const gitWatchProjectPayloadSchema = z.object({

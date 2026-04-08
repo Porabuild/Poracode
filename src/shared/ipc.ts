@@ -33,6 +33,8 @@ import type {
   GitAbortMergePayload,
   GitRunMergetoolPayload,
   GitRunMergetoolResult,
+  GitFinishMergePayload,
+  GitFinishMergeResult,
   GitRemoveWorktreePayload,
   GitRevertAllPayload,
   GitRevertPayload,
@@ -118,6 +120,7 @@ export type SupervisorRequest =
   | { id: string; type: "gitPullFromSource"; payload: GitPullFromSourcePayload }
   | { id: string; type: "gitAbortMerge"; payload: GitAbortMergePayload }
   | { id: string; type: "gitRunMergetool"; payload: GitRunMergetoolPayload }
+  | { id: string; type: "gitFinishMerge"; payload: GitFinishMergePayload }
   | { id: string; type: "gitWatchProject"; payload: GitWatchProjectPayload }
   | { id: string; type: "gitWatchWorktrees"; payload: GitWatchWorktreesPayload }
   | { id: string; type: "gitUnwatchProject"; payload: GitUnwatchProjectPayload }
@@ -238,6 +241,7 @@ export interface LightcodeBridge {
   gitPullFromSource(payload: GitPullFromSourcePayload): Promise<GitPullFromSourceResult>;
   gitAbortMerge(payload: GitAbortMergePayload): Promise<void>;
   gitRunMergetool(payload: GitRunMergetoolPayload): Promise<GitRunMergetoolResult>;
+  gitFinishMerge(payload: GitFinishMergePayload): Promise<GitFinishMergeResult>;
   gitWatchProject(payload: GitWatchProjectPayload): Promise<void>;
   gitWatchWorktrees(payload: GitWatchWorktreesPayload): Promise<void>;
   gitUnwatchProject(payload: GitUnwatchProjectPayload): Promise<void>;

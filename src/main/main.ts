@@ -85,6 +85,7 @@ const CHANNELS = {
   gitPullFromSource: "lightcode:git-pull-from-source",
   gitAbortMerge: "lightcode:git-abort-merge",
   gitRunMergetool: "lightcode:git-run-mergetool",
+  gitFinishMerge: "lightcode:git-finish-merge",
   gitWatchProject: "lightcode:git-watch-project",
   gitWatchWorktrees: "lightcode:git-watch-worktrees",
   gitUnwatchProject: "lightcode:git-unwatch-project",
@@ -612,6 +613,9 @@ function registerIpcHandlers(): void {
   );
   ipcMain.handle(CHANNELS.gitRunMergetool, async (_event, payload) =>
     callSupervisor("gitRunMergetool", payload),
+  );
+  ipcMain.handle(CHANNELS.gitFinishMerge, async (_event, payload) =>
+    callSupervisor("gitFinishMerge", payload),
   );
   ipcMain.handle(CHANNELS.gitWatchProject, async (_event, payload) =>
     callSupervisor("gitWatchProject", payload),

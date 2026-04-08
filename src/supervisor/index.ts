@@ -16,6 +16,7 @@ import type {
   GitPullFromSourcePayload,
   GitAbortMergePayload,
   GitRunMergetoolPayload,
+  GitFinishMergePayload,
   GitPullPayload,
   GitPushPayload,
   GitRemoveWorktreePayload,
@@ -64,6 +65,7 @@ import {
   gitPullFromSourcePayloadSchema,
   gitAbortMergePayloadSchema,
   gitRunMergetoolPayloadSchema,
+  gitFinishMergePayloadSchema,
   gitRemoveWorktreePayloadSchema,
   gitSyncPayloadSchema,
   gitWatchProjectPayloadSchema,
@@ -230,6 +232,10 @@ async function handleRequest(request: SupervisorRequest): Promise<unknown> {
     case "gitRunMergetool":
       return runtime.gitRunMergetool(
         gitRunMergetoolPayloadSchema.parse(request.payload) as GitRunMergetoolPayload,
+      );
+    case "gitFinishMerge":
+      return runtime.gitFinishMerge(
+        gitFinishMergePayloadSchema.parse(request.payload) as GitFinishMergePayload,
       );
     case "gitWatchProject":
       return runtime.gitWatchProject(

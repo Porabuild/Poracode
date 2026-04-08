@@ -4,6 +4,7 @@ import {
   ArrowLeft,
   ArrowUp,
   ArrowUpDown,
+  Check,
   ChevronDown,
   ChevronRight,
   FileDiff,
@@ -381,6 +382,7 @@ export function GitReviewSidebar(props: {
   const mergeConflictFiles = gitStatus?.conflictFiles ?? [];
   const [isRunningMergetool, setIsRunningMergetool] = useState(false);
   const [isAbortingMerge, setIsAbortingMerge] = useState(false);
+  const [isFinishingMerge, setIsFinishingMerge] = useState(false);
 
   // PR state
   const isGitHub = gitStatus?.remoteInfo?.platform === "github";
@@ -707,6 +709,26 @@ export function GitReviewSidebar(props: {
     }
   }
 
+  async function handleFinishMerge() {
+    if (!worktreePath) return;
+    setIsFinishingMerge(true);
+    setPullFromSourceError(null);
+    try {
+      const result = await readBridge().gitFinishMerge({
+        worktreeLocation: getWorktreeLocation(),
+      });
+      if (!result.success) {
+        setPullFromSourceError(result.error ?? "Failed to finish merge");
+        return;
+      }
+      onRefresh();
+    } catch (err) {
+      setPullFromSourceError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setIsFinishingMerge(false);
+    }
+  }
+
   const canResolveWithAgent = projectAgentStatuses.some(
     (a) =>
       a.installed &&
@@ -852,21 +874,19 @@ export function GitReviewSidebar(props: {
         </div>
 
         {/* Merge Conflict Resolution */}
-        {mergeConflicting && (
+        {mergeConflicting && mergeConflictFiles.length > 0 && (
           <div className="space-y-2 border-t border-warning/30 bg-warning/5 px-2 pt-2 pb-2">
             <p className="text-xs font-medium text-warning">
               Merge conflicts ({mergeConflictFiles.length} file
               {mergeConflictFiles.length !== 1 ? "s" : ""})
             </p>
-            {mergeConflictFiles.length > 0 && (
-              <ul className="max-h-24 space-y-0.5 overflow-y-auto text-xs text-muted">
-                {mergeConflictFiles.map((f) => (
-                  <li key={f} className="truncate" title={f}>
-                    {f}
-                  </li>
-                ))}
-              </ul>
-            )}
+            <ul className="max-h-24 space-y-0.5 overflow-y-auto text-xs text-muted">
+              {mergeConflictFiles.map((f) => (
+                <li key={f} className="truncate" title={f}>
+                  {f}
+                </li>
+              ))}
+            </ul>
             {pullFromSourceError && <p className="text-xs text-danger">{pullFromSourceError}</p>}
             <div className="flex gap-1.5">
               <Button
@@ -918,9 +938,55 @@ export function GitReviewSidebar(props: {
         )}
 
         {/* Commit / Sync Panel */}
-        {(hasAnyChanges || hasRemote) && (
+        {(hasAnyChanges || hasRemote || (mergeConflicting && mergeConflictFiles.length === 0)) && (
           <div className="space-y-2 border-t border-white/6 px-0.5 pt-2">
-            {hasAnyChanges ? (
+            {mergeConflicting && mergeConflictFiles.length === 0 ? (
+              <>
+                <p className="text-xs font-medium text-success">
+                  All conflicts resolved
+                </p>
+                {pullFromSourceError && (
+                  <p
+                    className="truncate text-xs text-danger"
+                    title={pullFromSourceError}
+                  >
+                    {pullFromSourceError}
+                  </p>
+                )}
+                <Button
+                  variant="primary"
+                  className="w-full"
+                  isPending={isFinishingMerge}
+                  isDisabled={isAbortingMerge}
+                  onPress={() => void handleFinishMerge()}
+                >
+                  {({ isPending }) => (
+                    <>
+                      {isPending ? (
+                        <Spinner color="current" size="sm" />
+                      ) : (
+                        <Check className="size-3.5" />
+                      )}
+                      Finish Merge
+                    </>
+                  )}
+                </Button>
+                <Button
+                  variant="tertiary"
+                  className="w-full"
+                  isPending={isAbortingMerge}
+                  isDisabled={isFinishingMerge}
+                  onPress={() => void handleAbortMerge()}
+                >
+                  {({ isPending }) => (
+                    <>
+                      {isPending && <Spinner color="current" size="sm" />}
+                      Abort Merge
+                    </>
+                  )}
+                </Button>
+              </>
+            ) : hasAnyChanges ? (
               <>
                 <div className="relative">
                   <TextArea
