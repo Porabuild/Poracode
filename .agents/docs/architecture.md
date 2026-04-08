@@ -49,4 +49,4 @@ SQLite via Drizzle ORM (`src/main/db.ts`). Tables: `projects`, `threads`, `appSt
 
 Commit message generation (`src/supervisor/commitMessageGenerator.ts`) spawns a one-shot agent CLI call with a conventional-commits prompt piped to stdin. Falls back across providers if the preferred one fails.
 
-Worktree paths are computed as siblings to the project directory (`<project>-<sanitized-branch>`) via `src/shared/worktree.ts`.
+Worktree paths are computed within a centralized directory (`~/.lightcode/worktrees/<repo-id>/<branch-id>`) via `src/supervisor/git.ts` and `src/shared/worktree.ts`.

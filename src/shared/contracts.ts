@@ -490,8 +490,15 @@ export const gitRemoveWorktreePayloadSchema = z.object({
   projectLocation: projectLocationSchema,
   path: z.string().min(1),
   force: z.boolean().default(false),
+  deleteBranch: z.boolean().default(false),
 });
 export type GitRemoveWorktreePayload = z.infer<typeof gitRemoveWorktreePayloadSchema>;
+
+export const gitPruneWorktreesPayloadSchema = z.object({
+  projectLocation: projectLocationSchema,
+  activeWorktreePaths: z.array(z.string()),
+});
+export type GitPruneWorktreesPayload = z.infer<typeof gitPruneWorktreesPayloadSchema>;
 
 export const gitDeleteBranchPayloadSchema = z.object({
   projectLocation: projectLocationSchema,

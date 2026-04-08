@@ -122,11 +122,7 @@ function resolveWorktreeBranch(
   worktreePath: string,
   fallbackBranch?: string,
 ): string | undefined {
-  if (fallbackBranch) {
-    return fallbackBranch;
-  }
-
-  const threadBranch = useAppStore
+  const storeBranch = useAppStore
     .getState()
     .threads.find(
       (thread) =>
@@ -134,13 +130,14 @@ function resolveWorktreeBranch(
         thread.worktreePath === worktreePath &&
         thread.worktreeBranch,
     )?.worktreeBranch;
-  if (threadBranch) {
-    return threadBranch;
-  }
+  if (storeBranch) return storeBranch;
 
-  return useGitStore
+  const gitBranch = useGitStore
     .getState()
     .worktrees[projectId]?.find((worktree) => worktree.path === worktreePath)?.branch;
+  if (gitBranch) return gitBranch;
+
+  return fallbackBranch;
 }
 
 // ── Async title generation ──────────────────────────────────
@@ -943,6 +940,7 @@ export function App() {
         projectLocation: project.location,
         path: worktreePath,
         force: true,
+        deleteBranch: true,
       });
     } catch (err: unknown) {
       const branch = resolvedWorktreeBranch ?? worktreePath.split(/[/\\]/).pop() ?? worktreePath;
@@ -956,7 +954,7 @@ export function App() {
       return;
     }
 
-    // Worktree removed — now clean up the branch
+    // Worktree removed — now clean up the branch if it wasn't already deleted by the supervisor
     if (resolvedWorktreeBranch) {
       try {
         await readBridge().gitDeleteBranch({
@@ -975,8 +973,10 @@ export function App() {
           });
           return;
         }
-        // Best-effort: branch may already be deleted or not exist
-        console.warn(`[renderer] failed to delete branch ${resolvedWorktreeBranch}:`, msg);
+        // Best-effort: branch may already be deleted (by supervisor) or not exist
+        if (!msg.toLowerCase().includes("not found")) {
+          console.warn(`[renderer] failed to delete branch ${resolvedWorktreeBranch}:`, msg);
+        }
       }
 
       void readBridge()
@@ -1821,9 +1821,10 @@ export function App() {
                   projectId: projectId!,
                   worktreePath,
                   worktreeBranch:
-                    thread?.worktreeBranch ?? worktreePath.split(/[/\\]/).pop() ?? worktreePath,
-                });
-              }}
+                    resolveWorktreeBranch(projectId!, worktreePath, thread?.worktreeBranch) ??
+                    worktreePath.split(/[/\\]/).pop() ??
+                    worktreePath,
+                });              }}
               onDeleteProject={(projectId) => {
                 const projectThreadIds = useAppStore
                   .getState()

@@ -55,6 +55,7 @@ import type {
   SearchProjectFilesPayload,
   SearchProjectFilesResult,
   GitAddWorktreePayload,
+  GitPruneWorktreesPayload,
   GitBranchListResult,
   GitFetchPayload,
   GitListWorktreesPayload,
@@ -954,7 +955,42 @@ export class SupervisorRuntime {
   }
 
   async gitRemoveWorktree(payload: GitRemoveWorktreePayload): Promise<void> {
-    return this.gitService.removeWorktree(payload.projectLocation, payload.path, payload.force);
+    const targetPath = payload.path;
+    const normalizedTarget = targetPath.replace(/\\/g, "/").toLowerCase();
+
+    // 1. Stop any active agent sessions running in this worktree
+    for (const [threadId, session] of this.sessions) {
+      const sessionPath = getRepoPath(session.projectLocation);
+      if (sessionPath.replace(/\\/g, "/").toLowerCase() === normalizedTarget) {
+        console.log(`[supervisor] stopping session for thread ${threadId} before worktree removal`);
+        await this.closeThread({ threadId }).catch(() => {});
+      }
+    }
+
+    // 2. Stop any shell sessions (tabs) running in this worktree
+    for (const [threadId, shell] of this.shellSessions) {
+      if (shell.worktreePath) {
+        const shellPath = shell.worktreePath.replace(/\\/g, "/").toLowerCase();
+        if (shellPath === normalizedTarget) {
+          console.log(`[supervisor] stopping shell for thread ${threadId} before worktree removal`);
+          await this.closeThread({ threadId }).catch(() => {});
+        }
+      }
+    }
+
+    // 3. Stop watcher before removal to release potential file locks
+    this.gitWatcher.unwatchWorktree(payload.path);
+
+    return this.gitService.removeWorktree(
+      payload.projectLocation,
+      payload.path,
+      payload.force,
+      payload.deleteBranch,
+    );
+  }
+
+  async gitPruneWorktrees(payload: GitPruneWorktreesPayload): Promise<void> {
+    return this.gitService.pruneWorktrees(payload.projectLocation, payload.activeWorktreePaths);
   }
 
   async gitDeleteBranch(payload: GitDeleteBranchPayload): Promise<void> {

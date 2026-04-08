@@ -94,7 +94,7 @@ export class GitHubService {
     body: string,
     isDraft: boolean,
   ): Promise<PrData> {
-    // Write body to temp file to avoid shell escaping issues (T3Code pattern)
+    // Write body to temp file to avoid shell escaping issues
     const bodyFile = join(tmpdir(), `lightcode-pr-body-${Date.now()}.md`);
     try {
       await writeFile(bodyFile, body, "utf-8");

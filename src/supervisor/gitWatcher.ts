@@ -218,6 +218,25 @@ export class GitWatcher {
     }
   }
 
+  /** Stop watching all project worktrees. */
+  unwatchAllWorktrees(projectId: string): void {
+    for (const [path, wtEntry] of this.worktreeWatchers) {
+      if (wtEntry.projectId === projectId) {
+        this.closeWorktreeWatcher(path);
+      }
+    }
+  }
+
+  /** Stop watching a specific worktree directory. */
+  unwatchWorktree(path: string): void {
+    const normalized = path.replace(/\\/g, "/").toLowerCase();
+    for (const [wtPath, entry] of this.worktreeWatchers) {
+      if (wtPath.replace(/\\/g, "/").toLowerCase() === normalized) {
+        this.closeWorktreeWatcher(wtPath);
+      }
+    }
+  }
+
   /** Stop all watchers. */
   dispose(): void {
     for (const [projectId] of this.watchers) {

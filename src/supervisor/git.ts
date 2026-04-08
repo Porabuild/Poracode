@@ -105,7 +105,9 @@ function toForwardSlash(p: string): string {
 }
 
 function normalizeWorktreePath(location: ProjectLocation, path: string): string {
-  return location.kind === "wsl" ? path : normalize(path);
+  if (location.kind === "wsl") return path;
+  // Use lower-case and forward slashes for stable comparison on Windows
+  return normalize(path).replace(/\\/g, "/").toLowerCase();
 }
 
 export function getLocationIdentity(location: ProjectLocation): string {
@@ -113,14 +115,14 @@ export function getLocationIdentity(location: ProjectLocation): string {
     return `wsl:${location.distro}:${location.linuxPath}`;
   }
   if (location.kind === "windows") {
-    return `windows:${location.path.replace(/\\/g, "/").toLowerCase()}`;
+    return `windows:${toForwardSlash(location.path).toLowerCase()}`;
   }
   return `posix:${location.path}`;
 }
 
 function getWorktreeRepoDirName(location: ProjectLocation): string {
   const repoName = sanitizeWorktreePathSegment(getProjectName(location));
-  const hash = createHash("sha256").update(getLocationIdentity(location)).digest("hex").slice(0, 8);
+  const hash = createHash("sha256").update(getLocationIdentity(location)).digest("hex").slice(0, 4);
   return `${repoName}-${hash}`;
 }
 
@@ -761,7 +763,10 @@ export class GitService {
         if (line.startsWith("worktree ")) {
           path = location.kind === "wsl" ? line.slice(9) : normalize(line.slice(9));
         } else if (line.startsWith("HEAD ")) commit = line.slice(5);
-        else if (line.startsWith("branch ")) branch = line.slice(7).replace("refs/heads/", "");
+        else if (line.startsWith("branch ")) {
+          const fullRef = line.slice(7);
+          branch = fullRef.startsWith("refs/heads/") ? fullRef.slice(11) : fullRef;
+        }
       }
 
       if (path) {
@@ -809,16 +814,66 @@ export class GitService {
     return { path: resolvedPath };
   }
 
-  async removeWorktree(location: ProjectLocation, path: string, force: boolean): Promise<void> {
+  async removeWorktree(
+    location: ProjectLocation,
+    path: string,
+    force: boolean,
+    deleteBranch?: boolean,
+  ): Promise<void> {
+    const targetPath = normalizeWorktreePath(location, path);
+    let branchToDelete: string | undefined;
+
+    if (deleteBranch) {
+      try {
+        // Run prune first to ensure worktree list is fresh
+        await execGit(location, ["worktree", "prune"]).catch(() => {});
+
+        const { worktrees } = await this.listWorktrees(location);
+        const wt = worktrees.find((w) => normalizeWorktreePath(location, w.path) === targetPath);
+
+        branchToDelete = wt?.branch;
+        if (branchToDelete === "detached") branchToDelete = undefined;
+
+        console.log(
+          `[supervisor] removeWorktree target=${targetPath} identifiedBranch=${branchToDelete || "(none)"}`,
+        );
+      } catch (err) {
+        console.error("[supervisor] failed to identify branch for worktree removal:", err);
+      }
+    }
+
     const args = ["worktree", "remove", ...(force ? ["--force"] : []), path];
+
     try {
       await execGit(location, args);
+      // If success, clean up the branch
+      if (branchToDelete) {
+        console.log(`[supervisor] worktree removed, now deleting branch ${branchToDelete}`);
+        await this.deleteBranch(location, branchToDelete, force).catch((err) => {
+          console.warn(`[supervisor] best-effort branch delete failed for ${branchToDelete}:`, err);
+        });
+      }
     } catch (error) {
-      if (!(await this.shouldRetryResidualWorktreeCleanup(location, path, error))) {
+      console.log(`[supervisor] git worktree remove failed for ${path}, checking if unregistered: ${error}`);
+      
+      if (await this.shouldRetryResidualWorktreeCleanup(location, path, error)) {
+        // Worktree is unregistered from Git, so we can clean up the branch now
+        if (branchToDelete) {
+          console.log(`[supervisor] worktree unregistered despite error, deleting branch ${branchToDelete}`);
+          await this.deleteBranch(location, branchToDelete, force).catch((err) => {
+            console.warn(`[supervisor] best-effort branch delete failed for ${branchToDelete}:`, err);
+          });
+        }
+
+        // Now try best-effort manual directory removal
+        console.log(`[supervisor] performing residual directory cleanup for ${path}`);
+        await this.removeResidualWorktreeDirectory(location, path, error).catch((cleanupErr) => {
+          console.warn(`[supervisor] residual directory cleanup failed for ${path}:`, cleanupErr);
+          // Don't throw here if we already managed to unregister the worktree and delete the branch
+        });
+      } else {
         throw error;
       }
-
-      await this.removeResidualWorktreeDirectory(location, path, error);
     }
   }
 
@@ -1139,18 +1194,27 @@ export class GitService {
     try {
       await execGit(location, args);
     } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
       if (!this.shouldRetryBranchDeleteAfterPrune(error)) {
+        console.log(`[supervisor] git branch delete failed (no retry): ${message}`);
         throw error;
       }
 
-      await execGit(location, ["worktree", "prune"]);
-      await execGit(location, args);
+      console.log(`[supervisor] git branch delete failed, pruning worktrees and retrying: ${message}`);
+      await execGit(location, ["worktree", "prune"]).catch(() => {});
+      try {
+        await execGit(location, args);
+      } catch (retryError) {
+        const retryMessage = retryError instanceof Error ? retryError.message : String(retryError);
+        console.log(`[supervisor] git branch delete retry failed: ${retryMessage}`);
+        throw retryError;
+      }
     }
   }
 
   private shouldRetryBranchDeleteAfterPrune(error: unknown): boolean {
     const message = error instanceof Error ? error.message : String(error);
-    return /used by worktree|checked out at/i.test(message);
+    return /used by worktree|checked out at|is already checked out|worktree/i.test(message);
   }
 
   private async ensureWorktreeCleanForMerge(
@@ -1246,7 +1310,7 @@ export class GitService {
     }
   }
 
-  private async writeWorktreeSourceBranch(
+  async writeWorktreeSourceBranch(
     location: ProjectLocation,
     branch: string,
     sourceBranch: string,
@@ -1254,5 +1318,32 @@ export class GitService {
     await execGit(location, ["config", `branch.${branch}.lightcodeSource`, sourceBranch]).catch(
       () => undefined,
     );
+  }
+
+  async pruneWorktrees(
+    location: ProjectLocation,
+    activeWorktreePaths: string[],
+  ): Promise<void> {
+    // 1. Git's internal prune for broken/missing worktrees
+    await execGit(location, ["worktree", "prune"]);
+
+    // 2. Identify worktrees to remove (those in our managed directory but not active in DB)
+    const { worktrees } = await this.listWorktrees(location);
+    const managedBase = resolveLightcodePaths(join(homedir(), ".lightcode")).worktreesDir;
+    const normalizedManagedBase = normalize(managedBase).toLowerCase();
+
+    for (const wt of worktrees) {
+      if (wt.isMain) continue;
+
+      const normalizedWtPath = normalize(wt.path);
+      const isManaged = normalizedWtPath.toLowerCase().startsWith(normalizedManagedBase);
+      const isActive = activeWorktreePaths.some(
+        (p) => normalize(p).toLowerCase() === normalizedWtPath.toLowerCase(),
+      );
+
+      if (isManaged && !isActive) {
+        await this.removeWorktree(location, wt.path, true).catch(() => {});
+      }
+    }
   }
 }

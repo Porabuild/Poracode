@@ -36,6 +36,7 @@ import type {
   GitFinishMergePayload,
   GitFinishMergeResult,
   GitRemoveWorktreePayload,
+  GitPruneWorktreesPayload,
   GitRevertAllPayload,
   GitRevertPayload,
   GitStageAllPayload,
@@ -107,6 +108,7 @@ export type SupervisorRequest =
   | { id: string; type: "gitListWorktrees"; payload: GitListWorktreesPayload }
   | { id: string; type: "gitAddWorktree"; payload: GitAddWorktreePayload }
   | { id: string; type: "gitRemoveWorktree"; payload: GitRemoveWorktreePayload }
+  | { id: string; type: "gitPruneWorktrees"; payload: GitPruneWorktreesPayload }
   | { id: string; type: "gitDeleteBranch"; payload: GitDeleteBranchPayload }
   | { id: string; type: "gitPull"; payload: GitPullPayload }
   | { id: string; type: "gitPush"; payload: GitPushPayload }
@@ -230,6 +232,7 @@ export interface LightcodeBridge {
   gitListWorktrees(payload: GitListWorktreesPayload): Promise<GitWorktreeListResult>;
   gitAddWorktree(payload: GitAddWorktreePayload): Promise<GitAddWorktreeResult>;
   gitRemoveWorktree(payload: GitRemoveWorktreePayload): Promise<void>;
+  gitPruneWorktrees(payload: GitPruneWorktreesPayload): Promise<void>;
   gitDeleteBranch(payload: GitDeleteBranchPayload): Promise<void>;
   gitPull(payload: GitPullPayload): Promise<void>;
   gitPush(payload: GitPushPayload): Promise<void>;
