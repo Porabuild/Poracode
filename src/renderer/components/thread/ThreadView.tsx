@@ -141,9 +141,7 @@ export function ThreadView(props: {
     thread.status !== "launching";
   const launchTerminalSize = usesTerminalPresentation ? terminalSize : DEFAULT_HIDDEN_TERMINAL_SIZE;
 
-  const collapseTerminalComposerSetting = useSharedSettings(
-    (s) => s.collapseTerminalComposer,
-  );
+  const collapseTerminalComposerSetting = useSharedSettings((s) => s.collapseTerminalComposer);
   const [composerCollapsed, setComposerCollapsed] = useState(collapseTerminalComposerSetting);
   const canCollapseComposer = showTerminalComposer;
   const isComposerCollapsed = canCollapseComposer && composerCollapsed;
@@ -348,124 +346,124 @@ export function ThreadView(props: {
           ) : null}
 
           {thread.status !== "launching" ? (
-          <div>
-            <div
-              className={`grid transition-[grid-template-rows] ease-[cubic-bezier(0.16,1,0.3,1)] ${isComposerCollapsed ? "duration-300" : "duration-200"}`}
-              style={{ gridTemplateRows: isComposerCollapsed ? "0fr" : "1fr" }}
-            >
-              <div className="overflow-hidden">
-                <div
-                  className={`relative ${isComposerCollapsed ? "pointer-events-none" : ""}`}
-                  style={{
-                    opacity: isComposerCollapsed ? 0 : 1,
-                    transition: isComposerCollapsed
-                      ? "opacity 150ms ease 50ms"
-                      : "opacity 200ms ease 100ms",
-                  }}
-                >
-                  <ThreadComposer
-                    autoFocus // eslint-disable-line jsx-a11y/no-autofocus -- desktop app, expected UX
-                    compact
-                    attachmentBar={
-                      <AttachmentBar
-                        attachments={attachments.attachments}
-                        onRemove={attachments.removeAttachment}
-                        onPreviewImage={(att) => {
-                          const idx = imageAttachments.findIndex((a) => a.id === att.id);
-                          if (idx >= 0) setLightboxIndex(idx);
-                        }}
-                      />
-                    }
-                    inputContent={
-                      <MentionInput
-                        ref={mentionRef}
-                        autoFocus // eslint-disable-line jsx-a11y/no-autofocus -- desktop app, expected UX
-                        compact
-                        disabled={!(showServerComposer || showTerminalComposer)}
-                        placeholder={
-                          isServerControlled
-                            ? `Ask ${agentStatus?.label ?? "the agent"} anything about this workspace`
-                            : "Send a message..."
-                        }
-                        projectLocation={projectLocation}
-                        onTextChange={setHasContent}
-                        onSubmit={submitPrompt}
-                        onPasteImage={(file) => {
-                          void attachments.addClipboardImage(file, thread.id);
-                        }}
-                      />
-                    }
-                    controls={controls}
-                    placeholder="Send a message..."
-                    prompt={prompt}
-                    promptDisabled={!(showServerComposer || showTerminalComposer)}
-                    submitDisabled={
-                      !(hasContent || attachments.attachments.length > 0) || !canSubmit
-                    }
-                    submitLabel="Send message"
-                    afterControls={
-                      <>
-                        <Button
-                          isIconOnly
-                          aria-label="Attach files"
-                          className="lightcode-composer-menu min-w-9 px-2"
-                          size="sm"
-                          variant="ghost"
-                          onPress={() => {
-                            void readBridge()
-                              .pickFiles()
-                              .then((paths) => {
-                                if (paths) attachments.addFiles(paths);
-                              });
-                          }}
-                        >
-                          <Paperclip className="size-4" />
-                        </Button>
-                        {branchName ? (
-                          <div className="lightcode-composer-static min-w-0 px-2.5">
-                            {thread.worktreePath ? (
-                              <GitFork className="size-3.5 text-muted" />
-                            ) : (
-                              <GitBranch className="size-3.5 text-muted" />
-                            )}
-                            <span className="truncate">{branchName}</span>
-                            {thread.prNumber ? (
-                              <span className="text-muted/60">PR #{thread.prNumber}</span>
-                            ) : null}
-                          </div>
-                        ) : null}
-                      </>
-                    }
-                    onPromptChange={setPrompt}
-                    onSubmit={() => {
-                      const segments = mentionRef.current?.serializeSegments();
-                      submitPrompt(
-                        segments && segments.length > 0
-                          ? segments
-                          : [{ kind: "text", content: prompt.trim() }],
-                      );
+            <div>
+              <div
+                className={`grid transition-[grid-template-rows] ease-[cubic-bezier(0.16,1,0.3,1)] ${isComposerCollapsed ? "duration-300" : "duration-200"}`}
+                style={{ gridTemplateRows: isComposerCollapsed ? "0fr" : "1fr" }}
+              >
+                <div className="overflow-hidden">
+                  <div
+                    className={`relative ${isComposerCollapsed ? "pointer-events-none" : ""}`}
+                    style={{
+                      opacity: isComposerCollapsed ? 0 : 1,
+                      transition: isComposerCollapsed
+                        ? "opacity 150ms ease 50ms"
+                        : "opacity 200ms ease 100ms",
                     }}
-                  />
+                  >
+                    <ThreadComposer
+                      autoFocus // eslint-disable-line jsx-a11y/no-autofocus -- desktop app, expected UX
+                      compact
+                      attachmentBar={
+                        <AttachmentBar
+                          attachments={attachments.attachments}
+                          onRemove={attachments.removeAttachment}
+                          onPreviewImage={(att) => {
+                            const idx = imageAttachments.findIndex((a) => a.id === att.id);
+                            if (idx >= 0) setLightboxIndex(idx);
+                          }}
+                        />
+                      }
+                      inputContent={
+                        <MentionInput
+                          ref={mentionRef}
+                          autoFocus // eslint-disable-line jsx-a11y/no-autofocus -- desktop app, expected UX
+                          compact
+                          disabled={!(showServerComposer || showTerminalComposer)}
+                          placeholder={
+                            isServerControlled
+                              ? `Ask ${agentStatus?.label ?? "the agent"} anything about this workspace`
+                              : "Send a message..."
+                          }
+                          projectLocation={projectLocation}
+                          onTextChange={setHasContent}
+                          onSubmit={submitPrompt}
+                          onPasteImage={(file) => {
+                            void attachments.addClipboardImage(file, thread.id);
+                          }}
+                        />
+                      }
+                      controls={controls}
+                      placeholder="Send a message..."
+                      prompt={prompt}
+                      promptDisabled={!(showServerComposer || showTerminalComposer)}
+                      submitDisabled={
+                        !(hasContent || attachments.attachments.length > 0) || !canSubmit
+                      }
+                      submitLabel="Send message"
+                      afterControls={
+                        <>
+                          <Button
+                            isIconOnly
+                            aria-label="Attach files"
+                            className="lightcode-composer-menu min-w-9 px-2"
+                            size="sm"
+                            variant="ghost"
+                            onPress={() => {
+                              void readBridge()
+                                .pickFiles()
+                                .then((paths) => {
+                                  if (paths) attachments.addFiles(paths);
+                                });
+                            }}
+                          >
+                            <Paperclip className="size-4" />
+                          </Button>
+                          {branchName ? (
+                            <div className="lightcode-composer-static min-w-0 px-2.5">
+                              {thread.worktreePath ? (
+                                <GitFork className="size-3.5 text-muted" />
+                              ) : (
+                                <GitBranch className="size-3.5 text-muted" />
+                              )}
+                              <span className="truncate">{branchName}</span>
+                              {thread.prNumber ? (
+                                <span className="text-muted/60">PR #{thread.prNumber}</span>
+                              ) : null}
+                            </div>
+                          ) : null}
+                        </>
+                      }
+                      onPromptChange={setPrompt}
+                      onSubmit={() => {
+                        const segments = mentionRef.current?.serializeSegments();
+                        submitPrompt(
+                          segments && segments.length > 0
+                            ? segments
+                            : [{ kind: "text", content: prompt.trim() }],
+                        );
+                      }}
+                    />
+                  </div>
                 </div>
               </div>
-            </div>
-            {canCollapseComposer ? (
-              <div
-                className={`relative z-10 flex justify-center transition-[margin] duration-150 ease-[cubic-bezier(0.16,1,0.3,1)] ${isComposerCollapsed ? "mt-0" : "-mt-3"}`}
-              >
-                <button
-                  type="button"
-                  aria-label={isComposerCollapsed ? "Show composer" : "Collapse composer"}
-                  className="cursor-pointer rounded-full border border-[var(--border)] bg-[var(--background)] px-3 py-0.5 text-muted transition-colors hover:text-foreground"
-                  onClick={() => setComposerCollapsed(!composerCollapsed)}
+              {canCollapseComposer ? (
+                <div
+                  className={`relative z-10 flex justify-center transition-[margin] duration-150 ease-[cubic-bezier(0.16,1,0.3,1)] ${isComposerCollapsed ? "mt-0" : "-mt-3"}`}
                 >
-                  <ChevronDown
-                    className={`size-4 transition-transform duration-150 ${isComposerCollapsed ? "rotate-180" : ""}`}
-                  />
-                </button>
-              </div>
-            ) : null}
-          </div>
+                  <button
+                    type="button"
+                    aria-label={isComposerCollapsed ? "Show composer" : "Collapse composer"}
+                    className="cursor-pointer rounded-full border border-[var(--border)] bg-[var(--background)] px-3 py-0.5 text-muted transition-colors hover:text-foreground"
+                    onClick={() => setComposerCollapsed(!composerCollapsed)}
+                  >
+                    <ChevronDown
+                      className={`size-4 transition-transform duration-150 ${isComposerCollapsed ? "rotate-180" : ""}`}
+                    />
+                  </button>
+                </div>
+              ) : null}
+            </div>
           ) : null}
         </div>
       </div>

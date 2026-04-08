@@ -23,10 +23,8 @@ import {
 } from "./base";
 import { stripAnsi } from "../../shared/ansi";
 
-const CURSOR_ATTENTION_RE =
-  /Run this command\?|Suggested Plan|Waiting for approval/i;
-const CURSOR_WORKING_RE =
-  /ctrl\+c to stop|\b(?:Generating|Reading|Globbing|Thinking)\b/i;
+const CURSOR_ATTENTION_RE = /Run this command\?|Suggested Plan|Waiting for approval/i;
+const CURSOR_WORKING_RE = /ctrl\+c to stop|\b(?:Generating|Reading|Globbing|Thinking)\b/i;
 const CURSOR_IDLE_RE = /Add a follow-up/i;
 
 export function detectCursorTerminalStatus(text: string): TerminalStatusHint | null {
@@ -69,11 +67,7 @@ export function detectCursorTerminalStatus(text: string): TerminalStatusHint | n
   return { status: best.status, attention: best.attention, corroborated: true };
 }
 
-function buildCursorArgs(
-  config: ThreadConfig,
-  prompt: string,
-  resumeSessionId?: string,
-): string[] {
+function buildCursorArgs(config: ThreadConfig, prompt: string, resumeSessionId?: string): string[] {
   const args: string[] = [];
 
   if (resumeSessionId) {
@@ -247,8 +241,9 @@ export function sortCursorModels(models: LabeledOption[]): LabeledOption[] {
   return [...auto, ...composers, ...sorted];
 }
 
-
-function resolveCursorAuthState(result: { ok: boolean; stdout: string; stderr: string } | undefined): AuthState {
+function resolveCursorAuthState(
+  result: { ok: boolean; stdout: string; stderr: string } | undefined,
+): AuthState {
   if (!result) {
     return "missing";
   }

@@ -1,5 +1,6 @@
 import { Tooltip } from "@heroui/react";
 import {
+  Archive,
   ArrowDownToLine,
   ArrowUpFromLine,
   ChevronRight,
@@ -30,6 +31,7 @@ import { ContextMenu, SidebarButton } from "../common";
 import { useSidebar } from "../layout/AppShell";
 import { isWindows, readBridge } from "../../bridge";
 import { useUpdateStore } from "../../state/updateStore";
+import { useSharedSettings } from "../../state/sharedSettingsStore";
 import { ProviderIcon, getStatusTone } from "../providers";
 import { resolveActionIcon } from "../settings/ProjectSettingsOverlay";
 import { useGitStore } from "../../state/gitStore";
@@ -208,6 +210,7 @@ function SortableThreadItem(props: {
   onReplaceSecondPane: (threadId: string) => void;
   onUnloadThread: (threadId: string) => void;
   onRenameThread: (threadId: string, title: string) => void;
+  onArchiveThread: (threadId: string) => void;
   onDeleteThread: (threadId: string, worktreePath?: string, projectId?: string) => void;
   onOpenGitReview: (projectId: string, worktreePath?: string) => void;
   onGitSync: (projectId: string, worktreePath?: string) => void;
@@ -224,6 +227,7 @@ function SortableThreadItem(props: {
   group: string;
 }) {
   const { thread, project, showWorktreeBadge, currentThreadIds, editingThreadId } = props;
+  const threadRemoveAction = useSharedSettings((s) => s.threadRemoveAction);
   const unloadDisabledReason =
     thread.status === "inactive"
       ? "Thread is already unloaded."
@@ -314,6 +318,13 @@ function SortableThreadItem(props: {
             icon: <Columns2 className="size-3.5" />,
             isDisabled: currentThreadIds.includes(thread.id) || currentThreadIds.length >= 3,
           },
+          { type: "separator" as const },
+          {
+            id: "archive",
+            label: "Archive Thread",
+            icon: <Archive className="size-3.5" />,
+            variant: "warning",
+          },
           {
             id: "delete",
             label: "Delete Thread",
@@ -340,6 +351,7 @@ function SortableThreadItem(props: {
             if (pr?.url) void readBridge().openExternal(pr.url);
           }
           if (key === "create-pr") props.onOpenGitReview(thread.projectId, thread.worktreePath);
+          if (key === "archive") props.onArchiveThread(thread.id);
           if (key === "rename") props.setEditingThreadId(thread.id);
           if (key === "unload") props.onUnloadThread(thread.id);
           if (key === "replace-second") props.onReplaceSecondPane(thread.id);
@@ -429,20 +441,36 @@ function SortableThreadItem(props: {
                 <div
                   role="button"
                   tabIndex={0}
-                  aria-label={`Delete ${thread.title}`}
-                  className="absolute inset-0 flex items-center justify-center rounded text-muted/55 opacity-0 transition hover:text-danger group-hover:opacity-100"
+                  aria-label={
+                    threadRemoveAction === "archive"
+                      ? `Archive ${thread.title}`
+                      : `Delete ${thread.title}`
+                  }
+                  className={`absolute inset-0 flex items-center justify-center rounded text-muted/55 opacity-0 transition group-hover:opacity-100 ${threadRemoveAction === "archive" ? "hover:text-warning" : "hover:text-danger"}`}
                   onClick={(event) => {
                     event.stopPropagation();
-                    props.onDeleteThread(thread.id, thread.worktreePath, thread.projectId);
+                    if (threadRemoveAction === "archive") {
+                      props.onArchiveThread(thread.id);
+                    } else {
+                      props.onDeleteThread(thread.id, thread.worktreePath, thread.projectId);
+                    }
                   }}
                   onKeyDown={(event) => {
                     if (event.key === "Enter" || event.key === " ") {
                       event.stopPropagation();
-                      props.onDeleteThread(thread.id, thread.worktreePath, thread.projectId);
+                      if (threadRemoveAction === "archive") {
+                        props.onArchiveThread(thread.id);
+                      } else {
+                        props.onDeleteThread(thread.id, thread.worktreePath, thread.projectId);
+                      }
                     }
                   }}
                 >
-                  <Trash2 className="size-3.5" />
+                  {threadRemoveAction === "archive" ? (
+                    <Archive className="size-3.5" />
+                  ) : (
+                    <Trash2 className="size-3.5" />
+                  )}
                 </div>
               </span>
             </>
@@ -468,6 +496,7 @@ function SortableWorktreeGroup(props: {
   onOpenThreadSideBySide: (threadId: string) => void;
   onReplaceSecondPane: (threadId: string) => void;
   onUnloadThread: (threadId: string) => void;
+  onArchiveThread: (threadId: string) => void;
   onRenameThread: (threadId: string, title: string) => void;
   onDeleteThread: (threadId: string, worktreePath?: string, projectId?: string) => void;
   onDeleteWorktreeGroup: (projectId: string, worktreePath: string, threadIds: string[]) => void;
@@ -615,6 +644,7 @@ function SortableWorktreeGroup(props: {
               onOpenThreadSideBySide={props.onOpenThreadSideBySide}
               onReplaceSecondPane={props.onReplaceSecondPane}
               onUnloadThread={props.onUnloadThread}
+              onArchiveThread={props.onArchiveThread}
               onRenameThread={props.onRenameThread}
               onDeleteThread={props.onDeleteThread}
               onOpenGitReview={props.onOpenGitReview}
@@ -655,6 +685,7 @@ function SortableProjectHeader(props: {
   onOpenThreadSideBySide: (threadId: string) => void;
   onReplaceSecondPane: (threadId: string) => void;
   onUnloadThread: (threadId: string) => void;
+  onArchiveThread: (threadId: string) => void;
   onRenameThread: (threadId: string, title: string) => void;
   onDeleteThread: (threadId: string, worktreePath?: string, projectId?: string) => void;
   onDeleteProject: (projectId: string) => void;
@@ -679,7 +710,9 @@ function SortableProjectHeader(props: {
 }) {
   const { project, isProjectCollapsed } = props;
   const threads = useAppStore((state) => state.threads);
-  const projectThreads = threads.filter((thread) => thread.projectId === project.id);
+  const projectThreads = threads.filter(
+    (thread) => thread.projectId === project.id && !thread.archived,
+  );
   const projectLocation = formatProjectLocation(project);
 
   const { ref } = useSortable({
@@ -846,6 +879,7 @@ function SortableProjectHeader(props: {
                       onOpenThreadSideBySide={props.onOpenThreadSideBySide}
                       onReplaceSecondPane={props.onReplaceSecondPane}
                       onUnloadThread={props.onUnloadThread}
+                      onArchiveThread={props.onArchiveThread}
                       onRenameThread={props.onRenameThread}
                       onDeleteThread={props.onDeleteThread}
                       onOpenGitReview={props.onOpenGitReview}
@@ -881,6 +915,7 @@ function SortableProjectHeader(props: {
                     onOpenThreadSideBySide={props.onOpenThreadSideBySide}
                     onReplaceSecondPane={props.onReplaceSecondPane}
                     onUnloadThread={props.onUnloadThread}
+                    onArchiveThread={props.onArchiveThread}
                     onRenameThread={props.onRenameThread}
                     onDeleteThread={props.onDeleteThread}
                     onDeleteWorktreeGroup={props.onDeleteWorktreeGroup}
@@ -918,6 +953,7 @@ export function Sidebar(props: {
   onOpenThreadSideBySide: (threadId: string) => void;
   onReplaceSecondPane: (threadId: string) => void;
   onUnloadThread: (threadId: string) => void;
+  onArchiveThread: (threadId: string) => void;
   onRenameThread: (threadId: string, title: string) => void;
   onDeleteThread: (threadId: string, worktreePath?: string, projectId?: string) => void;
   onDeleteProject: (projectId: string) => void;
@@ -949,6 +985,7 @@ export function Sidebar(props: {
     onOpenThreadSideBySide,
     onReplaceSecondPane,
     onUnloadThread,
+    onArchiveThread,
     onRenameThread,
     onDeleteThread,
     onDeleteProject,
@@ -1020,7 +1057,9 @@ export function Sidebar(props: {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentThreadIds, threads]);
 
-  const activeThreads = threads.filter((thread) => thread.status !== "inactive");
+  const activeThreads = threads.filter(
+    (thread) => thread.status !== "inactive" && !thread.archived,
+  );
 
   return (
     <div className="relative h-full">
@@ -1091,6 +1130,7 @@ export function Sidebar(props: {
                   onOpenThreadSideBySide={onOpenThreadSideBySide}
                   onReplaceSecondPane={onReplaceSecondPane}
                   onUnloadThread={onUnloadThread}
+                  onArchiveThread={onArchiveThread}
                   onRenameThread={onRenameThread}
                   onDeleteThread={onDeleteThread}
                   onDeleteProject={onDeleteProject}

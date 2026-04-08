@@ -310,7 +310,10 @@ export function ThreadDraftView(props: {
                   },
                   ...(factory
                     ? factory({
-                        capabilities: filterHiddenModels(selectedAgent.capabilities, hiddenModelIds),
+                        capabilities: filterHiddenModels(
+                          selectedAgent.capabilities,
+                          hiddenModelIds,
+                        ),
                         config: { model, effort, mode, approvalPolicy, sandboxMode },
                         isDisabled: false,
                         onConfigChange: onConfigPatch,

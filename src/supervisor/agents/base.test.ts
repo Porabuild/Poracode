@@ -66,9 +66,7 @@ describe.skipIf(process.platform !== "win32")("wrapWslCommand", () => {
       CLAUDE_CODE_NO_FLICKER: "1",
     });
     const script = spec.args[spec.args.length - 1]!;
-    expect(script).toBe(
-      "export CLAUDE_CODE_NO_FLICKER='1'; exec 'claude' '--print'",
-    );
+    expect(script).toBe("export CLAUDE_CODE_NO_FLICKER='1'; exec 'claude' '--print'");
   });
 });
 

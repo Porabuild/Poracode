@@ -429,7 +429,6 @@ class CodexStructuredSession implements StructuredSessionHandle {
       }
     });
 
-
     const socket = await connectCodexAppServer(
       remoteUrl,
       appServer,
@@ -483,7 +482,6 @@ class CodexStructuredSession implements StructuredSessionHandle {
 
     let threadId: string;
     if (sessionRef) {
-
       await this.request("thread/resume", {
         ...threadOverrides,
         threadId: sessionRef.providerSessionId,
@@ -491,7 +489,6 @@ class CodexStructuredSession implements StructuredSessionHandle {
       });
       threadId = sessionRef.providerSessionId;
     } else {
-
       const result = await this.request("thread/start", {
         ...threadOverrides,
         experimentalRawEvents: false,
@@ -537,12 +534,10 @@ class CodexStructuredSession implements StructuredSessionHandle {
     const deadline = Date.now() + timeoutMs;
     while (Date.now() < deadline) {
       if (existsSync(this.rolloutPath)) {
-
         return;
       }
       await sleep(200);
     }
-
   }
 
   async ensureResumeArtifacts(): Promise<void> {
@@ -576,7 +571,6 @@ class CodexStructuredSession implements StructuredSessionHandle {
         encoding: "utf8",
         flag: "wx",
       });
-
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code !== "EEXIST") {
         throw error;
@@ -664,7 +658,6 @@ class CodexStructuredSession implements StructuredSessionHandle {
       if (!raw) {
         return;
       }
-
 
       let payload: unknown;
       try {
@@ -772,7 +765,6 @@ class CodexStructuredSession implements StructuredSessionHandle {
       }
 
       if (method === "account/rateLimits/updated" && params && "rateLimits" in params) {
-
         return;
       }
 
@@ -1009,7 +1001,10 @@ export function detectCodexReadyForInitialPrompt(text: string): boolean {
   return hasReady && hasDirectory && hasModel;
 }
 
-function findBestCodexHint(text: string, entries: readonly CodexHintEntry[]): CodexHintEntry | null {
+function findBestCodexHint(
+  text: string,
+  entries: readonly CodexHintEntry[],
+): CodexHintEntry | null {
   let best: { index: number; entry: CodexHintEntry } | null = null;
 
   for (const entry of entries) {
@@ -1058,7 +1053,10 @@ export function detectCodexTerminalStatus(text: string): TerminalStatusHint | nu
 
   const strongHint = findBestCodexHint(recent, CODEX_STRONG_HINTS);
   if (strongHint) {
-    const lastWorkingIndex = findLastMatchIndex(recent, /•\s*working(?:\s*\(|…)?|esc\s+to\s+interrupt/i);
+    const lastWorkingIndex = findLastMatchIndex(
+      recent,
+      /•\s*working(?:\s*\(|…)?|esc\s+to\s+interrupt/i,
+    );
     const lastTitleIndex = findLastTitleIndex(recent);
     const lastPromptIndex = findLastMatchIndex(recent, CODEX_PROMPT_RE);
     const hasIdleRedraw =
@@ -1120,10 +1118,7 @@ export function createCodexAdapter(): AgentAdapter {
     return readCodexSessionIndex();
   }
 
-  function isInteractiveRollout(
-    rollout: CodexRolloutMeta,
-    location: ProjectLocation,
-  ): boolean {
+  function isInteractiveRollout(rollout: CodexRolloutMeta, location: ProjectLocation): boolean {
     if (rollout.originator !== "codex-tui" || rollout.source !== "cli") {
       return false;
     }
@@ -1168,7 +1163,11 @@ export function createCodexAdapter(): AgentAdapter {
             : undefined;
           const id = parseCodexRolloutIdFromPath(path);
           if (!id) return [];
-          const parsed: CodexRolloutMeta = { id, path, ...(updatedAt !== undefined ? { updatedAt } : {}) };
+          const parsed: CodexRolloutMeta = {
+            id,
+            path,
+            ...(updatedAt !== undefined ? { updatedAt } : {}),
+          };
           return parsed ? [parsed] : [];
         });
     }
@@ -1223,12 +1222,7 @@ export function createCodexAdapter(): AgentAdapter {
     rollout: CodexRolloutMeta,
   ): CodexRolloutMeta | undefined {
     if (location.kind === "wsl") {
-      const result = readWslCommandOutput(location.distro, "head", [
-        "-n",
-        "1",
-        "--",
-        rollout.path,
-      ]);
+      const result = readWslCommandOutput(location.distro, "head", ["-n", "1", "--", rollout.path]);
       if (!result.ok || result.stdout.length === 0) {
         console.log(
           "[codex] WSL rollout meta read failed for %s: path=%s stderr=%s",
@@ -1420,7 +1414,11 @@ export function createCodexAdapter(): AgentAdapter {
             // Ignore watcher teardown races.
           }
         });
-        console.log("[codex] session watcher active for %s at %s", describeLocation(location), watchPath);
+        console.log(
+          "[codex] session watcher active for %s at %s",
+          describeLocation(location),
+          watchPath,
+        );
         return () => {
           try {
             watcher.close();

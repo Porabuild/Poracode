@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { terminalPositionSchema, themeModeSchema } from "./contracts";
+import { terminalPositionSchema, themeModeSchema, threadRemoveActionSchema } from "./contracts";
 
 export const sharedSettingsSchema = z.object({
   themeMode: themeModeSchema,
@@ -32,6 +32,8 @@ export const sharedSettingsSchema = z.object({
   staleThreadUnloadMinutes: z.number().int().min(0),
   /** Terminal scrollback scroll speed multiplier. */
   scrollSpeed: z.number().int().min(1).max(10),
+  /** Default action for the thread remove button: archive or delete permanently. */
+  threadRemoveAction: threadRemoveActionSchema,
 });
 export type SharedSettings = z.infer<typeof sharedSettingsSchema>;
 
@@ -61,6 +63,7 @@ export const defaultSharedSettings: SharedSettings = {
   collapseTerminalComposer: false,
   staleThreadUnloadMinutes: 20,
   scrollSpeed: 2,
+  threadRemoveAction: "archive",
 };
 
 const partialSharedSettingsSchema = sharedSettingsSchema.partial();
@@ -107,5 +110,6 @@ export function normalizeSharedSettings(value: unknown): SharedSettings {
     staleThreadUnloadMinutes:
       parsed.data.staleThreadUnloadMinutes ?? defaultSharedSettings.staleThreadUnloadMinutes,
     scrollSpeed: parsed.data.scrollSpeed ?? defaultSharedSettings.scrollSpeed,
+    threadRemoveAction: parsed.data.threadRemoveAction ?? defaultSharedSettings.threadRemoveAction,
   };
 }

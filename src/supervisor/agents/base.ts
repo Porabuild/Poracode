@@ -206,9 +206,7 @@ function buildPosixExportPrefix(env: Record<string, string> | undefined): string
   if (!env) return "";
   const entries = Object.entries(env);
   if (entries.length === 0) return "";
-  return (
-    entries.map(([k, v]) => `export ${k}=${quotePosixShellArg(v)}`).join("; ") + "; "
-  );
+  return entries.map(([k, v]) => `export ${k}=${quotePosixShellArg(v)}`).join("; ") + "; ";
 }
 
 /**

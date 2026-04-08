@@ -226,6 +226,7 @@ describe("App", () => {
           status: "inactive",
           attention: "none",
           canResumeWithConfig: false,
+          archived: false,
           createdAt: "2026-03-22T00:00:00.000Z",
           updatedAt: "2026-03-22T00:00:00.000Z",
         },
@@ -289,6 +290,7 @@ describe("App", () => {
           status: "idle",
           attention: "none",
           canResumeWithConfig: false,
+          archived: false,
           createdAt: "2026-03-22T00:00:00.000Z",
           updatedAt: "2026-03-22T00:00:00.000Z",
         },
@@ -340,6 +342,7 @@ describe("App", () => {
           status: "inactive",
           attention: "none",
           canResumeWithConfig: false,
+          archived: false,
           createdAt: "2026-03-22T00:00:00.000Z",
           updatedAt: "2026-03-22T00:00:00.000Z",
         },
@@ -390,6 +393,7 @@ describe("App", () => {
           status: "inactive",
           attention: "none",
           canResumeWithConfig: true,
+          archived: false,
           sessionRef: {
             providerSessionId: "session-1",
             discoveredAt: "2026-03-22T00:00:00.000Z",
@@ -489,6 +493,7 @@ describe("App", () => {
             status: "idle",
             attention: "none",
             canResumeWithConfig: true,
+            archived: false,
             sessionRef: {
               providerSessionId: "session-1",
               discoveredAt: "2026-03-22T00:00:00.000Z",
@@ -507,6 +512,7 @@ describe("App", () => {
             status: "idle",
             attention: "none",
             canResumeWithConfig: true,
+            archived: false,
             sessionRef: {
               providerSessionId: "session-3",
               discoveredAt: "2026-03-22T00:00:00.000Z",
@@ -525,6 +531,7 @@ describe("App", () => {
             status: "idle",
             attention: "none",
             canResumeWithConfig: true,
+            archived: false,
             sessionRef: {
               providerSessionId: "session-2",
               discoveredAt: "2026-03-22T00:00:00.000Z",

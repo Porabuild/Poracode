@@ -54,6 +54,7 @@ describe("ThreadView", () => {
         status: "launching",
         attention: "none",
         canResumeWithConfig: false,
+        archived: false,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       },
@@ -126,6 +127,7 @@ describe("ThreadView", () => {
         status: "idle",
         attention: "none",
         canResumeWithConfig: true,
+        archived: false,
         sessionRef: {
           providerSessionId: "session-1",
           discoveredAt: new Date().toISOString(),
@@ -181,6 +183,7 @@ describe("ThreadView", () => {
         status: "inactive",
         attention: "none",
         canResumeWithConfig: false,
+        archived: false,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       },
@@ -232,6 +235,7 @@ describe("ThreadView", () => {
         status: "launching",
         attention: "none",
         canResumeWithConfig: false,
+        archived: false,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       },
@@ -284,6 +288,7 @@ describe("ThreadView", () => {
         status: "needs_reply",
         attention: "needs_reply",
         canResumeWithConfig: true,
+        archived: false,
         sessionRef: {
           providerSessionId: "session-1",
           discoveredAt: new Date().toISOString(),
@@ -355,6 +360,7 @@ describe("ThreadView", () => {
         status: "idle",
         attention: "none",
         canResumeWithConfig: true,
+        archived: false,
         sessionRef: {
           providerSessionId: "session-2",
           discoveredAt: new Date().toISOString(),
@@ -410,6 +416,7 @@ describe("ThreadView", () => {
         status: "idle",
         attention: "none",
         canResumeWithConfig: true,
+        archived: false,
         sessionRef: {
           providerSessionId: "session-gui",
           discoveredAt: new Date().toISOString(),
@@ -465,6 +472,7 @@ describe("ThreadView", () => {
         status: "working",
         attention: "none",
         canResumeWithConfig: true,
+        archived: false,
         sessionRef: {
           providerSessionId: "session-3",
           discoveredAt: new Date().toISOString(),

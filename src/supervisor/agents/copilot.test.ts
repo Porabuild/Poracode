@@ -356,14 +356,10 @@ describe("createCopilotAdapter", () => {
     const adapter = createCopilotAdapter();
 
     expect(
-      adapter.buildDirectInput?.(
-        "fix bug",
-        undefined,
-        {
-          model: "gpt-5.4",
-          mode: "plan",
-        },
-      ),
+      adapter.buildDirectInput?.("fix bug", undefined, {
+        model: "gpt-5.4",
+        mode: "plan",
+      }),
     ).toEqual(["/plan fix bug", "@wait:40", "\r"]);
   });
 
@@ -371,14 +367,10 @@ describe("createCopilotAdapter", () => {
     const adapter = createCopilotAdapter();
 
     expect(
-      adapter.buildDirectInput?.(
-        "/plan fix bug",
-        undefined,
-        {
-          model: "gpt-5.4",
-          mode: "plan",
-        },
-      ),
+      adapter.buildDirectInput?.("/plan fix bug", undefined, {
+        model: "gpt-5.4",
+        mode: "plan",
+      }),
     ).toEqual(["/plan fix bug", "@wait:40", "\r"]);
   });
 

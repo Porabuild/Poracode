@@ -646,7 +646,18 @@ export class GitService {
     const script = `exec ${["git", "commit", "-m", message].map(quotePosixShellArg).join(" ")}`;
     const { stdout } = await execFileAsync(
       getWslCommand(),
-      ["-d", location.distro, "--cd", location.linuxPath, "--", shellPath, "-l", "-i", "-c", script],
+      [
+        "-d",
+        location.distro,
+        "--cd",
+        location.linuxPath,
+        "--",
+        shellPath,
+        "-l",
+        "-i",
+        "-c",
+        script,
+      ],
       {
         env: { ...process.env, GIT_OPTIONAL_LOCKS: "0" },
         timeout: GIT_DEFAULT_TIMEOUT,

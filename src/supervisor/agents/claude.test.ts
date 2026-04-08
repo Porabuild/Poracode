@@ -348,7 +348,8 @@ describe("detectClaudeTerminalStatus corroboration", () => {
 
   it("still detects ❯ prompt near the end of the buffer", () => {
     // The real prompt cursor at the bottom of the screen
-    const text = "Some output\n" + "─".repeat(80) + "\n❯ \n" + "─".repeat(80) + "\n  ⏵⏵ bypass permissions on";
+    const text =
+      "Some output\n" + "─".repeat(80) + "\n❯ \n" + "─".repeat(80) + "\n  ⏵⏵ bypass permissions on";
     const result = detectClaudeTerminalStatus(text);
     expect(result?.status).toBe("idle");
   });

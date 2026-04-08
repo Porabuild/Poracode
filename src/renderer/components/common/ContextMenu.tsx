@@ -1,6 +1,6 @@
 import React, { type MouseEventHandler, type ReactNode, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { Dropdown, Label, Tooltip } from "@heroui/react";
+import { Dropdown, Label, Separator } from "@heroui/react";
 
 // Only one context menu can be open at a time.
 let closeActiveMenu: (() => void) | null = null;
@@ -9,7 +9,7 @@ export interface ContextMenuItem {
   id: string;
   label: string;
   icon?: ReactNode;
-  variant?: "default" | "danger";
+  variant?: "default" | "danger" | "warning";
   isDisabled?: boolean;
   disabledReason?: string;
 }
@@ -22,7 +22,11 @@ export interface ContextMenuSubmenu {
   items: ContextMenuItem[];
 }
 
-export type ContextMenuEntry = ContextMenuItem | ContextMenuSubmenu;
+export interface ContextMenuSeparator {
+  type: "separator";
+}
+
+export type ContextMenuEntry = ContextMenuItem | ContextMenuSubmenu | ContextMenuSeparator;
 
 export interface ContextMenuProps {
   items: ContextMenuEntry[];
@@ -34,12 +38,29 @@ function isSubmenu(entry: ContextMenuEntry): entry is ContextMenuSubmenu {
   return "type" in entry && entry.type === "submenu";
 }
 
+function isSeparator(entry: ContextMenuEntry): entry is ContextMenuSeparator {
+  return "type" in entry && entry.type === "separator";
+}
+
 function collectAllItems(entries: ContextMenuEntry[]): ContextMenuItem[] {
-  return entries.flatMap((e) => (isSubmenu(e) ? e.items : [e]));
+  return entries.flatMap((e) => (isSubmenu(e) ? e.items : isSeparator(e) ? [] : [e]));
+}
+
+/** Split entries at separator boundaries into groups. */
+function splitSections(entries: ContextMenuEntry[]): (ContextMenuItem | ContextMenuSubmenu)[][] {
+  const sections: (ContextMenuItem | ContextMenuSubmenu)[][] = [[]];
+  for (const entry of entries) {
+    if (isSeparator(entry)) {
+      sections.push([]);
+    } else {
+      sections[sections.length - 1]!.push(entry);
+    }
+  }
+  return sections.filter((s) => s.length > 0);
 }
 
 function renderDropdownItem(item: ContextMenuItem) {
-  const content = (
+  return (
     <Dropdown.Item
       key={item.id}
       id={item.id}
@@ -48,25 +69,45 @@ function renderDropdownItem(item: ContextMenuItem) {
     >
       {item.icon && (
         <span
-          className={`size-4 shrink-0 ${item.variant === "danger" ? "text-danger" : "text-muted"}`}
+          className={`size-4 shrink-0 ${item.variant === "danger" ? "text-danger" : item.variant === "warning" ? "text-warning" : "text-muted"}`}
         >
           {item.icon}
         </span>
       )}
-      <Label>{item.label}</Label>
+      <Label className={item.variant === "warning" ? "text-warning" : undefined}>
+        {item.label}
+      </Label>
     </Dropdown.Item>
   );
+}
 
-  if (item.isDisabled && item.disabledReason) {
+function renderEntry(
+  entry: ContextMenuItem | ContextMenuSubmenu,
+  setPosition: (pos: null) => void,
+  onAction: (key: string) => void,
+) {
+  if (isSubmenu(entry)) {
     return (
-      <Tooltip key={item.id} delay={300}>
-        <Tooltip.Trigger>{content}</Tooltip.Trigger>
-        <Tooltip.Content placement="right">{item.disabledReason}</Tooltip.Content>
-      </Tooltip>
+      <Dropdown.SubmenuTrigger key={entry.id}>
+        <Dropdown.Item id={entry.id} textValue={entry.label}>
+          {entry.icon && <span className="size-4 shrink-0 text-muted">{entry.icon}</span>}
+          <Label>{entry.label}</Label>
+          <Dropdown.SubmenuIndicator />
+        </Dropdown.Item>
+        <Dropdown.Popover>
+          <Dropdown.Menu
+            onAction={(key) => {
+              setPosition(null);
+              onAction(String(key));
+            }}
+          >
+            {entry.items.map((item) => renderDropdownItem(item))}
+          </Dropdown.Menu>
+        </Dropdown.Popover>
+      </Dropdown.SubmenuTrigger>
     );
   }
-
-  return content;
+  return renderDropdownItem(entry);
 }
 
 export function ContextMenu(props: ContextMenuProps) {
@@ -149,32 +190,24 @@ export function ContextMenu(props: ContextMenuProps) {
                     onAction(String(key));
                   }}
                 >
-                  {items.map((entry) => {
-                    if (isSubmenu(entry)) {
-                      return (
-                        <Dropdown.SubmenuTrigger key={entry.id}>
-                          <Dropdown.Item id={entry.id} textValue={entry.label}>
-                            {entry.icon && (
-                              <span className="size-4 shrink-0 text-muted">{entry.icon}</span>
-                            )}
-                            <Label>{entry.label}</Label>
-                            <Dropdown.SubmenuIndicator />
-                          </Dropdown.Item>
-                          <Dropdown.Popover>
-                            <Dropdown.Menu
-                              onAction={(key) => {
-                                setPosition(null);
-                                onAction(String(key));
-                              }}
-                            >
-                              {entry.items.map((item) => renderDropdownItem(item))}
-                            </Dropdown.Menu>
-                          </Dropdown.Popover>
-                        </Dropdown.SubmenuTrigger>
+                  {(() => {
+                    const sections = splitSections(items);
+                    if (sections.length <= 1) {
+                      return (sections[0] ?? []).map((entry) =>
+                        renderEntry(entry, setPosition, onAction),
                       );
                     }
-                    return renderDropdownItem(entry);
-                  })}
+                    return sections.flatMap((section, sIdx) => {
+                      const sectionEl = (
+                        <Dropdown.Section key={`section-${sIdx}`}>
+                          {section.map((entry) => renderEntry(entry, setPosition, onAction))}
+                        </Dropdown.Section>
+                      );
+                      return sIdx > 0
+                        ? [<Separator key={`sep-${sIdx}`} />, sectionEl]
+                        : [sectionEl];
+                    });
+                  })()}
                 </Dropdown.Menu>
               </Dropdown.Popover>
             </Dropdown>,

@@ -255,10 +255,7 @@ export function detectCopilotStatusLineModel(
  * Resolve a raw model display name against the adapter's dynamic capabilities.
  * Cascade: exact ID → exact label → substring contains → fallback to raw string.
  */
-function resolveModelId(
-  rawModel: string,
-  models: Array<{ id: string; label?: string }>,
-): string {
+function resolveModelId(rawModel: string, models: Array<{ id: string; label?: string }>): string {
   if (!models.length) return rawModel;
 
   const lower = rawModel.toLowerCase();
@@ -313,7 +310,8 @@ export function detectCopilotTerminalStatus(text: string): TerminalStatusHint | 
     hint.corroborated = true;
   } else {
     hint.corroborated = COPILOT_HINTS.some(
-      (entry) => entry.strong && entry.status === best.status && entry !== best && entry.re.test(text),
+      (entry) =>
+        entry.strong && entry.status === best.status && entry !== best && entry.re.test(text),
     );
   }
 
@@ -385,11 +383,7 @@ export function createCopilotAdapter(): AgentAdapter {
   let capabilities = defaultCapabilities;
   const detectedWslExecPaths = new Map<string, string | undefined>();
 
-  function buildCopilotCommand(
-    location: ProjectLocation,
-    args: string[],
-    wslExecPath?: string,
-  ) {
+  function buildCopilotCommand(location: ProjectLocation, args: string[], wslExecPath?: string) {
     return buildAgentCommand(location, "copilot", args, wslExecPath);
   }
 
@@ -583,9 +577,7 @@ export function createCopilotAdapter(): AgentAdapter {
     // Merge probe approval policies with defaults (probe labels take precedence,
     // new probe-only entries are appended). This is needed because Copilot's ACP
     // only exposes autopilot as a session mode — Default/Bypass are CLI-only flags.
-    const mergedPolicies = new Map(
-      defaultCapabilities.approvalPolicies.map((p) => [p.id, p]),
-    );
+    const mergedPolicies = new Map(defaultCapabilities.approvalPolicies.map((p) => [p.id, p]));
     for (const policy of probe?.approvalPolicies ?? []) {
       mergedPolicies.set(policy.id, policy);
     }

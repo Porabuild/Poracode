@@ -241,8 +241,7 @@ export async function probeAcpCapabilities(
         const authMethods = initResult.authMethods;
         if (authMethods && authMethods.length > 0) {
           const firstMethod = authMethods[0]!;
-          const methodId =
-            "id" in firstMethod ? (firstMethod as { id: string }).id : undefined;
+          const methodId = "id" in firstMethod ? (firstMethod as { id: string }).id : undefined;
           if (methodId) {
             console.log("%s authenticating with method: %s", tag, methodId);
             await connection.authenticate({ methodId });

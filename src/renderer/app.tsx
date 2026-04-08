@@ -718,6 +718,7 @@ export function App() {
   const projects = useAppStore((state) => state.projects);
   const view = useAppStore((state) => state.view);
   const markThreadsInactiveOnLaunch = useAppStore((state) => state.markThreadsInactiveOnLaunch);
+  const purgeStaleArchivedThreads = useAppStore((state) => state.purgeStaleArchivedThreads);
   const markThreadExited = useAppStore((state) => state.markThreadExited);
   const addProject = useAppStore((state) => state.addProject);
   const openDraft = useAppStore((state) => state.openDraft);
@@ -726,6 +727,7 @@ export function App() {
   const replaceSecondPane = useAppStore((state) => state.replaceSecondPane);
   const openHome = useAppStore((state) => state.openHome);
   const renameThread = useAppStore((state) => state.renameThread);
+  const archiveThread = useAppStore((state) => state.archiveThread);
   const deleteThread = useAppStore((state) => state.deleteThread);
   const deleteProject = useAppStore((state) => state.deleteProject);
   const queueThreadLaunch = useAppStore((state) => state.queueThreadLaunch);
@@ -983,6 +985,7 @@ export function App() {
 
     startTransition(() => {
       markThreadsInactiveOnLaunch();
+      purgeStaleArchivedThreads(30);
       // Clear spinner immediately — agent statuses and thread snapshots
       // arrive asynchronously and the UI updates reactively.
       console.log(`[renderer] +${Date.now() - loadT0}ms: initialLoading = false`);
@@ -1019,7 +1022,13 @@ export function App() {
     return () => {
       isActive = false;
     };
-  }, [loadT0, markThreadsInactiveOnLaunch, reconcileRuntimeSnapshots, storeHydrated]);
+  }, [
+    loadT0,
+    markThreadsInactiveOnLaunch,
+    purgeStaleArchivedThreads,
+    reconcileRuntimeSnapshots,
+    storeHydrated,
+  ]);
 
   useEffect(() => {
     if (!storeHydrated) {
@@ -1734,6 +1743,10 @@ export function App() {
               }}
               onUnloadThread={(threadId) => {
                 void unloadStoredThread(threadId).catch(() => undefined);
+              }}
+              onArchiveThread={(threadId) => {
+                void unloadStoredThread(threadId).catch(() => undefined);
+                archiveThread(threadId);
               }}
               onRenameThread={(threadId, title) => {
                 renameThread(threadId, title);

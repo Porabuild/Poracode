@@ -67,6 +67,7 @@ describe("sharedSettingsFile", () => {
       collapseTerminalComposer: false,
       staleThreadUnloadMinutes: 20,
       scrollSpeed: 2,
+      threadRemoveAction: "archive",
     });
   });
 
@@ -98,6 +99,7 @@ describe("sharedSettingsFile", () => {
       collapseTerminalComposer: false,
       staleThreadUnloadMinutes: 20,
       scrollSpeed: 2,
+      threadRemoveAction: "archive",
     });
 
     expect(readSharedSettingsFile(settingsPath)).toEqual({
@@ -126,6 +128,7 @@ describe("sharedSettingsFile", () => {
       collapseTerminalComposer: false,
       staleThreadUnloadMinutes: 20,
       scrollSpeed: 2,
+      threadRemoveAction: "archive",
     });
     expect(readFileSync(settingsPath, "utf8")).toContain('"themeMode": "dark"');
   });
@@ -168,6 +171,7 @@ describe("sharedSettingsFile", () => {
       collapseTerminalComposer: false,
       staleThreadUnloadMinutes: 20,
       scrollSpeed: 2,
+      threadRemoveAction: "archive",
     });
     expect(readSharedSettingsFile(settingsPath)).toEqual(settings);
   });

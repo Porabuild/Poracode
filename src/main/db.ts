@@ -71,6 +71,9 @@ export function initDatabase(dbPath: string) {
   if (!projectCols.some((c) => c.name === "scripts")) {
     sqlite.exec("ALTER TABLE projects ADD COLUMN scripts TEXT");
   }
+  if (!threadCols.some((c) => c.name === "archived")) {
+    sqlite.exec("ALTER TABLE threads ADD COLUMN archived INTEGER NOT NULL DEFAULT 0");
+  }
 
   console.log("[db] initialized");
   return _db;
@@ -145,6 +148,7 @@ function rowToThread(row: typeof schema.threads.$inferSelect): Thread {
     ...(row.worktreePath ? { worktreePath: row.worktreePath } : {}),
     ...(row.worktreeBranch ? { worktreeBranch: row.worktreeBranch } : {}),
     ...(row.prNumber != null ? { prNumber: row.prNumber } : {}),
+    archived: row.archived,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };
@@ -228,6 +232,7 @@ export function dbUpsertThread(thread: Thread, sortOrder: number): void {
       worktreePath: thread.worktreePath ?? null,
       worktreeBranch: thread.worktreeBranch ?? null,
       prNumber: thread.prNumber ?? null,
+      archived: thread.archived,
       sortOrder,
       createdAt: thread.createdAt,
       updatedAt: thread.updatedAt,
@@ -245,6 +250,7 @@ export function dbUpsertThread(thread: Thread, sortOrder: number): void {
         worktreePath: thread.worktreePath ?? null,
         worktreeBranch: thread.worktreeBranch ?? null,
         prNumber: thread.prNumber ?? null,
+        archived: thread.archived,
         sortOrder,
         updatedAt: thread.updatedAt,
       },
