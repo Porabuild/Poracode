@@ -122,7 +122,7 @@ function buildCopilotArgs(
   sessionId: string,
   _launchOptions?: { suppressResumeConfigOverrides?: boolean },
 ): string[] {
-  const args = [`--resume=${sessionId}`];
+  const args = [`--resume=${sessionId}`, "--allow-all-paths"];
   const formattedPrompt = formatCopilotInteractivePrompt(prompt, config);
 
   // Copilot's TUI only reflects the selected model/effort when the resume
