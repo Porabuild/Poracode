@@ -21,6 +21,7 @@ import { getProjectAgentStatuses } from "../shared/agentStatus";
 import type { PendingThreadServerRequest } from "./state/appStore";
 import { parseWslUncPath } from "../shared/wsl";
 import { buildWorktreeLocation } from "../shared/worktree";
+import { getAppName } from "../shared/appName";
 import { isWindows, readBridge } from "./bridge";
 import { ProviderIcon, getStatusTone, generateTitleWithFallback } from "./components/providers";
 import { DevTerminalPanel } from "./components/devTerminal/DevTerminalPanel";
@@ -1486,7 +1487,7 @@ export function App() {
         paneThreadIds={paneThreadIds}
       >
         <PageLayout
-          title="Lightcode"
+          title={getAppName(import.meta.env.DEV)}
           onTitleClick={() => startTransition(() => openHome())}
           headerChildren={
             <div className="lightcode-overlay-header__controls">

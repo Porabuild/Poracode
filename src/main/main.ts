@@ -43,6 +43,7 @@ import type {
 } from "../shared/ipc";
 import type { SharedSettings } from "../shared/settings";
 import type { LightcodePaths } from "../shared/lightcodePaths";
+import { getAppName } from "../shared/appName";
 
 const CHANNELS = {
   pickFolder: "lightcode:pick-folder",
@@ -220,6 +221,7 @@ function createWindow(): BrowserWindow {
   const saved = getSavedWindowBounds();
   const supportsTitleBarOverlay = process.platform === "win32" || process.platform === "linux";
   const window = new BrowserWindow({
+    title: getAppName(isDev),
     show: false,
     width: saved?.width ?? 1460,
     height: saved?.height ?? 920,
