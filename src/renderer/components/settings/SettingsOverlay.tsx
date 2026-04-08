@@ -214,6 +214,12 @@ function GeneralSettings() {
   );
   const scrollSpeed = useSharedSettings((state) => state.scrollSpeed);
   const setScrollSpeed = useSharedSettings((state) => state.setScrollSpeed);
+  const preventSleepWhileWorking = useSharedSettings(
+    (state) => state.preventSleepWhileWorking,
+  );
+  const setPreventSleepWhileWorking = useSharedSettings(
+    (state) => state.setPreventSleepWhileWorking,
+  );
 
   return (
     <div className="h-full min-h-0 overflow-y-auto px-6 pb-8">
@@ -316,6 +322,27 @@ function GeneralSettings() {
                 });
               }}
             />
+          </div>
+
+          <div className="flex items-center justify-between gap-4">
+            <div className="min-w-0">
+              <p className="text-sm font-medium text-foreground">Prevent sleep while working</p>
+              <p className="text-xs text-muted">
+                Keep the system awake while any thread is actively working.
+              </p>
+            </div>
+            <Switch
+              isSelected={preventSleepWhileWorking}
+              onChange={(selected) => {
+                startTransition(() => {
+                  setPreventSleepWhileWorking(selected);
+                });
+              }}
+            >
+              <Switch.Control>
+                <Switch.Thumb />
+              </Switch.Control>
+            </Switch>
           </div>
 
         </div>

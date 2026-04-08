@@ -24,6 +24,7 @@ interface SharedSettingsState extends SharedSettings {
   setCollapseTerminalComposer: (value: boolean) => void;
   setStaleThreadUnloadMinutes: (value: number) => void;
   setScrollSpeed: (value: number) => void;
+  setPreventSleepWhileWorking: (value: boolean) => void;
 }
 
 function hasBridge(): boolean {
@@ -129,6 +130,10 @@ export const useSharedSettings = create<SharedSettingsState>()((set, get) => ({
     set({ scrollSpeed });
     persistSettings(selectSharedSettings(get()));
   },
+  setPreventSleepWhileWorking: (preventSleepWhileWorking) => {
+    set({ preventSleepWhileWorking });
+    persistSettings(selectSharedSettings(get()));
+  },
 }));
 
 function selectSharedSettings(state: SharedSettingsState): SharedSettings {
@@ -158,6 +163,7 @@ function selectSharedSettings(state: SharedSettingsState): SharedSettings {
     collapseTerminalComposer: state.collapseTerminalComposer,
     staleThreadUnloadMinutes: state.staleThreadUnloadMinutes,
     scrollSpeed: state.scrollSpeed,
+    preventSleepWhileWorking: state.preventSleepWhileWorking,
   };
 }
 

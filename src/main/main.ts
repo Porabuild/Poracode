@@ -3,7 +3,17 @@ import { fork, type ChildProcess } from "node:child_process";
 import { mkdirSync, rmSync, watch, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
-import { app, BrowserWindow, dialog, ipcMain, net, protocol, screen, shell } from "electron";
+import {
+  app,
+  BrowserWindow,
+  dialog,
+  ipcMain,
+  net,
+  powerSaveBlocker,
+  protocol,
+  screen,
+  shell,
+} from "electron";
 import { autoUpdater } from "electron-updater";
 import {
   closeDatabase,
@@ -128,6 +138,42 @@ const pendingRequests = new Map<
     reject: (reason?: unknown) => void;
   }
 >();
+
+// ── Power save blocker (prevent sleep while threads are working) ──────
+let powerSaveBlockerId: number | null = null;
+const workingThreads = new Set<string>();
+
+function updatePowerSaveBlocker(): void {
+  const settings = lightcodePaths
+    ? readSharedSettingsFile(lightcodePaths.settingsPath)
+    : null;
+  const enabled = settings?.preventSleepWhileWorking ?? true;
+  const shouldBlock = enabled && workingThreads.size > 0;
+
+  if (shouldBlock && powerSaveBlockerId === null) {
+    powerSaveBlockerId = powerSaveBlocker.start("prevent-app-suspension");
+  } else if (!shouldBlock && powerSaveBlockerId !== null) {
+    if (powerSaveBlocker.isStarted(powerSaveBlockerId)) {
+      powerSaveBlocker.stop(powerSaveBlockerId);
+    }
+    powerSaveBlockerId = null;
+  }
+}
+
+function handleSupervisorEventForSleep(event: SupervisorEvent): void {
+  if (event.type === "thread-state") {
+    const active = event.status === "working" || event.status === "launching";
+    if (active) {
+      workingThreads.add(event.threadId);
+    } else {
+      workingThreads.delete(event.threadId);
+    }
+    updatePowerSaveBlocker();
+  } else if (event.type === "thread-exited") {
+    workingThreads.delete(event.threadId);
+    updatePowerSaveBlocker();
+  }
+}
 
 interface WindowBounds {
   x: number;
@@ -259,6 +305,9 @@ function startSupervisor(baseDir: string): void {
     pendingRequests.delete(id);
   }
 
+  workingThreads.clear();
+  updatePowerSaveBlocker();
+
   const child = fork(join(__dirname, "supervisor.cjs"), [], {
     stdio: ["inherit", "inherit", "inherit", "ipc"],
     env: {
@@ -285,6 +334,7 @@ function startSupervisor(baseDir: string): void {
       return;
     }
 
+    handleSupervisorEventForSleep(message);
     mainWindow?.webContents.send(CHANNELS.supervisorEvent, message);
   });
 
@@ -611,6 +661,7 @@ function registerIpcHandlers(): void {
 
   ipcMain.handle(CHANNELS.setSharedSettings, (_event, settings: SharedSettings) => {
     writeSharedSettingsFile(requireLightcodePaths().settingsPath, settings);
+    updatePowerSaveBlocker();
   });
 
   ipcMain.handle(CHANNELS.setWindowChrome, async (_event, payload: WindowChromePayload) => {
