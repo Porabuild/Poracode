@@ -6,6 +6,8 @@ import { Unicode11Addon } from "@xterm/addon-unicode11";
 import { WebLinksAddon } from "@xterm/addon-web-links";
 import { WebglAddon } from "@xterm/addon-webgl";
 import { Terminal } from "@xterm/xterm";
+import { Button } from "@heroui/react";
+import { ArrowDown } from "lucide-react";
 import {
   forwardRef,
   useEffect,
@@ -95,6 +97,7 @@ export const XTermSurface = forwardRef<
   const onTerminalResizeRef: RefObject<typeof onTerminalResize> = useRef(onTerminalResize);
   onTerminalResizeRef.current = onTerminalResize;
   const [hasSelection, setHasSelection] = useState(false);
+  const [showScrollDown, setShowScrollDown] = useState(false);
 
   useImperativeHandle(ref, () => ({
     focus() {
@@ -269,6 +272,18 @@ export const XTermSurface = forwardRef<
       onTitleChangeRef.current?.(title);
     });
 
+    // ── Scroll-to-bottom tracking ──────────────────────────────
+    const SCROLL_THRESHOLD = 15; // lines from bottom before showing button
+    const checkScrollPosition = () => {
+      const buf = terminal.buffer.active;
+      const distanceFromBottom = buf.baseY - buf.viewportY;
+      setShowScrollDown(distanceFromBottom > SCROLL_THRESHOLD);
+    };
+    terminal.onScroll(checkScrollPosition);
+    // Also recheck after new content is written (buffer may grow while
+    // the user is scrolled up).
+    terminal.onWriteParsed(checkScrollPosition);
+
     // ── Selection tracking ───────────────────────────────────────
     terminal.onSelectionChange(() => {
       setHasSelection(terminal.hasSelection());
@@ -407,10 +422,21 @@ export const XTermSurface = forwardRef<
 
   return (
     <ContextMenu items={contextMenuItems} onAction={handleContextMenuAction}>
-      <div
-        ref={mountRef}
-        className={`lightcode-terminal-pane h-full w-full overflow-hidden ${className ?? ""}`}
-      />
+      <div className={`relative h-full w-full overflow-hidden ${className ?? ""}`}>
+        <div ref={mountRef} className="lightcode-terminal-pane h-full w-full overflow-hidden" />
+        <Button
+          isIconOnly
+          variant="tertiary"
+          size="sm"
+          aria-label="Scroll to bottom"
+          onPress={() => terminalRef.current?.scrollToBottom()}
+          className={`absolute bottom-4 right-4 z-10 transition-opacity duration-200 ease-out ${
+            showScrollDown ? "opacity-80 hover:opacity-100" : "pointer-events-none opacity-0"
+          }`}
+        >
+          <ArrowDown className="size-3.5" strokeWidth={2.5} />
+        </Button>
+      </div>
     </ContextMenu>
   );
 });
