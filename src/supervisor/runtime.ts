@@ -284,11 +284,29 @@ export async function detectWslAgentStatuses(
   return statuses.flat();
 }
 
-/** Validate cached agent statuses through Zod, dropping entries that don't match the current schema. */
+/** Validate cached agent statuses through Zod, stripping stale fields that don't match the current schema. */
 function parseCachedStatuses(entries: unknown[] | undefined): AgentStatus[] {
   if (!entries) return [];
   const results: AgentStatus[] = [];
   for (const entry of entries) {
+    // Pre-filter settingDefs that lack a valid discriminator so the rest of
+    // the agent status can still pass Zod validation (stale cache entries).
+    if (entry != null && typeof entry === "object") {
+      const cap = (entry as Record<string, unknown>).capabilities;
+      if (cap != null && typeof cap === "object") {
+        const c = cap as Record<string, unknown>;
+        if (Array.isArray(c.settingDefs)) {
+          c.settingDefs = c.settingDefs.filter(
+            (d: unknown) =>
+              d != null &&
+              typeof d === "object" &&
+              "type" in d &&
+              ((d as Record<string, unknown>).type === "toggle" ||
+                (d as Record<string, unknown>).type === "select"),
+          );
+        }
+      }
+    }
     const parsed = agentStatusSchema.safeParse(entry);
     if (parsed.success) results.push(parsed.data);
   }

@@ -1,4 +1,8 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { resolveLightcodePaths } from "../shared/lightcodePaths";
 
 const taskkillSpawnSyncMock = vi.hoisted(() => vi.fn());
 const ptySpawnMock = vi.hoisted(() => vi.fn());
@@ -21,6 +25,22 @@ vi.mock("node-pty", () => ({
 }));
 
 import { detectWslAgentStatuses, SupervisorRuntime, writeSubmittedPrompt } from "./runtime";
+
+const tempDirs: string[] = [];
+const lightcodeDataDirBeforeTests = process.env.LIGHTCODE_DATA_DIR;
+
+function makeTempDir(): string {
+  const dir = mkdtempSync(join(tmpdir(), "lightcode-runtime-"));
+  tempDirs.push(dir);
+  return dir;
+}
+
+afterEach(() => {
+  process.env.LIGHTCODE_DATA_DIR = lightcodeDataDirBeforeTests;
+  for (const dir of tempDirs.splice(0)) {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
 
 function createMockPty() {
   let onDataHandler: ((data: string) => void) | undefined;
@@ -585,6 +605,109 @@ describe("writeSubmittedPrompt", () => {
 });
 
 describe("detectWslAgentStatuses", () => {
+  it("emits cached statuses after stripping stale setting definitions", () => {
+    const dataDir = makeTempDir();
+    process.env.LIGHTCODE_DATA_DIR = dataDir;
+
+    const { cacheDir, statusCachePath } = resolveLightcodePaths(dataDir);
+    mkdirSync(cacheDir, { recursive: true });
+    writeFileSync(
+      statusCachePath,
+      JSON.stringify({
+        windows: [
+          {
+            kind: "claude",
+            label: "Claude Code",
+            installed: true,
+            authState: "unknown",
+            capabilities: {
+              models: [{ id: "sonnet", label: "Sonnet" }],
+              efforts: [],
+              modelEfforts: {},
+              modes: [],
+              approvalPolicies: [],
+              sandboxModes: [],
+              supportsResume: true,
+              supportsDirectInput: true,
+              liveInputMode: "terminal",
+              presentationMode: "terminal",
+              settingDefs: [
+                {
+                  key: "legacy-toggle",
+                  envVar: "CLAUDE_LEGACY_TOGGLE",
+                  label: "Legacy toggle",
+                  description: "Stale cached field without a type discriminator",
+                  default: true,
+                },
+                {
+                  key: "verbose-logging",
+                  type: "toggle",
+                  env: {
+                    win32: "CLAUDE_VERBOSE_LOGGING",
+                    posix: "CLAUDE_VERBOSE_LOGGING",
+                  },
+                  label: "Verbose logging",
+                  description: "Enable extra CLI logging",
+                  default: false,
+                },
+              ],
+            },
+          },
+        ],
+      }),
+    );
+
+    const emitted: unknown[] = [];
+    const runtime = new SupervisorRuntime((event) => {
+      emitted.push(event);
+    });
+
+    (
+      runtime as unknown as {
+        emitCachedStatuses: (wslDistros: readonly string[]) => void;
+      }
+    ).emitCachedStatuses([]);
+
+    expect(emitted).toEqual([
+      {
+        type: "windows-agent-statuses",
+        statuses: [
+          {
+            kind: "claude",
+            label: "Claude Code",
+            installed: true,
+            authState: "unknown",
+            capabilities: {
+              models: [{ id: "sonnet", label: "Sonnet" }],
+              efforts: [],
+              modelEfforts: {},
+              modes: [],
+              approvalPolicies: [],
+              sandboxModes: [],
+              supportsResume: true,
+              supportsDirectInput: true,
+              liveInputMode: "terminal",
+              presentationMode: "terminal",
+              settingDefs: [
+                {
+                  key: "verbose-logging",
+                  type: "toggle",
+                  env: {
+                    win32: "CLAUDE_VERBOSE_LOGGING",
+                    posix: "CLAUDE_VERBOSE_LOGGING",
+                  },
+                  label: "Verbose logging",
+                  description: "Enable extra CLI logging",
+                  default: false,
+                },
+              ],
+            },
+          },
+        ],
+      },
+    ]);
+  });
+
   it("detects statuses for every adapter in every distro", async () => {
     const detectInstall = vi.fn(
       async (ctx?: { envKind: "windows" | "wsl"; wslDistro?: string }) => ({
