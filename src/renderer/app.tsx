@@ -1969,7 +1969,7 @@ export function App() {
         />
       </AppDndProvider>
       <WelcomeOverlay />
-      <OverlayShell open={settingsOpen}>
+      <OverlayShell open={settingsOpen} onExited={() => setSettingsOpen(false)}>
         <SettingsOverlay onClose={() => setSettingsOpen(false)} />
       </OverlayShell>
       <OverlayShell open={!!projectSettingsId} onExited={() => setProjectSettingsId(null)}>
