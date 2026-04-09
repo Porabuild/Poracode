@@ -662,6 +662,8 @@ function AgentSettingRow(props: { agentKind: string; def: AgentSettingDef }) {
   const value = useSharedSettings((s) => s.agentSettings[agentKind]?.[def.key] ?? def.default);
   const setAgentSetting = useSharedSettings((s) => s.setAgentSetting);
 
+  if (def.type !== "toggle" && def.type !== "select") return null;
+
   return (
     <div className="flex items-center justify-between gap-4">
       <div className="min-w-0">

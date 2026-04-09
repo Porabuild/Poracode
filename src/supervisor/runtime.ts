@@ -15,6 +15,9 @@ import { setTimeout as sleep } from "node:timers/promises";
 import { homedir } from "node:os";
 import { basename, join } from "node:path";
 import { spawn, type IPty } from "node-pty";
+import {
+  agentStatusSchema,
+} from "../shared/contracts";
 import type {
   AgentKind,
   AgentStatus,
@@ -281,6 +284,17 @@ export async function detectWslAgentStatuses(
   return statuses.flat();
 }
 
+/** Validate cached agent statuses through Zod, dropping entries that don't match the current schema. */
+function parseCachedStatuses(entries: unknown[] | undefined): AgentStatus[] {
+  if (!entries) return [];
+  const results: AgentStatus[] = [];
+  for (const entry of entries) {
+    const parsed = agentStatusSchema.safeParse(entry);
+    if (parsed.success) results.push(parsed.data);
+  }
+  return results;
+}
+
 function filterWslStatusesForDistros(
   statuses: readonly AgentStatus[],
   distros: readonly string[],
@@ -380,14 +394,16 @@ export class SupervisorRuntime {
       if (!existsSync(this.statusCachePath)) return;
       const raw = readFileSync(this.statusCachePath, "utf8");
       const cache = JSON.parse(raw) as {
-        windows?: AgentStatus[];
-        wsl?: AgentStatus[];
+        windows?: unknown[];
+        wsl?: unknown[];
       };
-      if (cache.windows?.length) {
+      const windows = parseCachedStatuses(cache.windows);
+      if (windows.length > 0) {
         console.log("[supervisor] agent statuses: emitting from disk cache (windows)");
-        this.emit({ type: "windows-agent-statuses", statuses: cache.windows });
+        this.emit({ type: "windows-agent-statuses", statuses: windows });
       }
-      const filteredWsl = filterWslStatusesForDistros(cache.wsl ?? [], wslDistros);
+      const wsl = parseCachedStatuses(cache.wsl);
+      const filteredWsl = filterWslStatusesForDistros(wsl, wslDistros);
       if (filteredWsl.length > 0) {
         console.log("[supervisor] agent statuses: emitting from disk cache (wsl)");
         this.emit({ type: "wsl-agent-statuses", statuses: filteredWsl });

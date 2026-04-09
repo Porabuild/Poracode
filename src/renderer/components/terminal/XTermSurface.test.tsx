@@ -27,12 +27,14 @@ vi.mock("@xterm/xterm", () => ({
     onWriteParsed = vi.fn(() => ({ dispose: vi.fn() }));
     onBell = vi.fn(() => ({ dispose: vi.fn() }));
     onTitleChange = vi.fn(() => ({ dispose: vi.fn() }));
+    onScroll = vi.fn(() => ({ dispose: vi.fn() }));
     onSelectionChange = vi.fn(() => ({ dispose: vi.fn() }));
     hasSelection = vi.fn(() => false);
     getSelection = vi.fn(() => "");
     clearSelection = vi.fn();
     attachCustomKeyEventHandler = vi.fn();
     unicode = { activeVersion: "6" };
+    buffer = { active: { baseY: 0, viewportY: 0 } };
     cols = 80;
     rows = 24;
     constructor() {
@@ -252,9 +254,10 @@ describe("XTermSurface", () => {
     const onActivity = vi.fn();
     render(<XTermSurface terminalId="test-1" onActivity={onActivity} />);
 
-    expect(terminal().onWriteParsed).toHaveBeenCalledTimes(1);
-    // Safe: we just asserted onWriteParsed was called exactly once above.
-    const handler = terminal().onWriteParsed.mock.lastCall![0] as unknown as () => void;
+    // onWriteParsed is called twice: once for activity tracking, once for scroll tracking.
+    expect(terminal().onWriteParsed).toHaveBeenCalledTimes(2);
+    // The activity handler is the first registration.
+    const handler = terminal().onWriteParsed.mock.calls[0]![0] as unknown as () => void;
 
     act(() => handler());
     expect(onActivity).toHaveBeenCalledTimes(1);
