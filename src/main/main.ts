@@ -51,7 +51,6 @@ const CHANNELS = {
   listWslDistros: "lightcode:list-wsl-distros",
   getAgentStatuses: "lightcode:get-agent-statuses",
   getThreadSnapshots: "lightcode:get-thread-snapshots",
-  getThreadHistory: "lightcode:get-thread-history",
   startThread: "lightcode:start-thread",
   sendThreadInput: "lightcode:send-thread-input",
   writeTerminal: "lightcode:write-terminal",
@@ -495,10 +494,6 @@ function registerIpcHandlers(): void {
     callSupervisor("getAgentStatuses", payload ?? { wslDistros: [] }),
   );
   ipcMain.handle(CHANNELS.getThreadSnapshots, async () => callSupervisor("getThreadSnapshots", {}));
-
-  ipcMain.handle(CHANNELS.getThreadHistory, async (_event, threadId: string) =>
-    callSupervisor("getThreadHistory", { threadId }),
-  );
 
   ipcMain.handle(CHANNELS.startThread, async (_event, payload) =>
     callSupervisor("startThread", payload),

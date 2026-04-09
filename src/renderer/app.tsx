@@ -1371,8 +1371,8 @@ export function App() {
       }
     };
   }, [storeHydrated, projects]);
-
   const currentPaneIds = view.kind === "thread" ? view.panes : EMPTY_PANES;
+
   const currentProjectId = useAppStore((s) => {
     const v = s.view;
     if (v.kind === "draft") return v.projectId;

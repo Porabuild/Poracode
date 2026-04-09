@@ -127,8 +127,6 @@ async function handleRequest(request: SupervisorRequest): Promise<unknown> {
       return runtime.resizeTerminal(
         resizeTerminalPayloadSchema.parse(request.payload) as ResizeTerminalPayload,
       );
-    case "getThreadHistory":
-      return runtime.getThreadHistory(request.payload.threadId);
     case "resolveThreadServerRequest":
       return runtime.resolveThreadServerRequest(
         resolveThreadServerRequestPayloadSchema.parse(

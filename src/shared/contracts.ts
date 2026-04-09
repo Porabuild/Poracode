@@ -206,11 +206,6 @@ export interface ThreadRuntimeSnapshot {
   errorMessage?: string;
 }
 
-export interface ThreadHistorySnapshot {
-  history: string;
-  length: number;
-}
-
 export const terminalSizeSchema = z.object({
   cols: z.number().int().min(20).max(400),
   rows: z.number().int().min(5).max(200),

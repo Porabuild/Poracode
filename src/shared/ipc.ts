@@ -72,7 +72,6 @@ import type {
   ThreadServerRequestId,
   ThreadAttention,
   ThreadConfig,
-  ThreadHistorySnapshot,
   ThreadRuntimeSnapshot,
   ThreadStatus,
   WriteTerminalPayload,
@@ -87,7 +86,6 @@ export type SupervisorRequest =
   | { id: string; type: "sendThreadInput"; payload: SendThreadInputPayload }
   | { id: string; type: "writeTerminal"; payload: WriteTerminalPayload }
   | { id: string; type: "resizeTerminal"; payload: ResizeTerminalPayload }
-  | { id: string; type: "getThreadHistory"; payload: { threadId: string } }
   | { id: string; type: "resolveThreadServerRequest"; payload: ResolveThreadServerRequestPayload }
   | { id: string; type: "closeThread"; payload: CloseThreadPayload }
   | { id: string; type: "startShell"; payload: StartShellPayload }
@@ -205,7 +203,6 @@ export interface LightcodeBridge {
   listWslDistros(): Promise<string[]>;
   getAgentStatuses(wslDistros?: string[]): Promise<AgentStatus[]>;
   getThreadSnapshots(): Promise<ThreadRuntimeSnapshot[]>;
-  getThreadHistory(threadId: string): Promise<ThreadHistorySnapshot>;
   startThread(payload: StartThreadPayload): Promise<StartThreadResult>;
   sendThreadInput(payload: SendThreadInputPayload): Promise<void>;
   writeTerminal(payload: WriteTerminalPayload): Promise<void>;

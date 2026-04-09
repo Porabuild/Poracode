@@ -10,7 +10,6 @@ const { bridge } = vi.hoisted(() => ({
     listWslDistros: vi.fn().mockResolvedValue([]),
     getAgentStatuses: vi.fn().mockResolvedValue([]),
     getThreadSnapshots: vi.fn().mockResolvedValue([]),
-    getThreadHistory: vi.fn().mockResolvedValue({ history: "", length: 0 }),
     getGitStatus: vi.fn().mockResolvedValue({
       isRepo: true,
       branch: "main",

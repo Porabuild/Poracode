@@ -123,9 +123,6 @@ export const XTermSurface = forwardRef<
     let lastCols = -1;
     let lastRows = -1;
     let resizeFrame = 0;
-    let historyLoaded = false;
-    let historyLength = 0;
-    const pendingEvents: Array<{ data: string; outputLength: number }> = [];
 
     // ── Write batching ───────────────────────────────────────────
     // Full-screen TUIs (e.g. Gemini CLI) send screen redraws as
@@ -344,10 +341,6 @@ export const XTermSurface = forwardRef<
       }
 
       if (event.type === "thread-output" && event.threadId === terminalId) {
-        if (!historyLoaded) {
-          pendingEvents.push({ data: event.data, outputLength: event.outputLength });
-          return;
-        }
         queueWrite(event.data);
         return;
       }
@@ -357,50 +350,14 @@ export const XTermSurface = forwardRef<
       }
     });
 
-    // Replay terminal history for warm threads, then fit
-    readBridge()
-      .getThreadHistory(terminalId)
-      .then((snapshot) => {
-        if (!isActive) return;
-        if (snapshot.history) {
-          terminal.write(snapshot.history);
+    // Double-rAF to ensure layout has settled before fitting
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        if (isActive) {
+          doFit();
         }
-        historyLength = snapshot.length;
-        historyLoaded = true;
-
-        // Flush buffered events, dedup using outputLength
-        for (const evt of pendingEvents) {
-          const dataStart = evt.outputLength - evt.data.length;
-          if (dataStart >= historyLength) {
-            queueWrite(evt.data);
-          } else if (evt.outputLength > historyLength) {
-            queueWrite(evt.data.slice(historyLength - dataStart));
-          }
-        }
-        pendingEvents.length = 0;
-
-        // Double-rAF to ensure layout has settled before fitting
-        requestAnimationFrame(() => {
-          requestAnimationFrame(() => {
-            if (isActive) {
-              doFit();
-            }
-          });
-        });
-      })
-      .catch(() => {
-        if (!isActive) return;
-        historyLoaded = true;
-        for (const evt of pendingEvents) {
-          queueWrite(evt.data);
-        }
-        pendingEvents.length = 0;
-        requestAnimationFrame(() => {
-          if (isActive) {
-            doFit();
-          }
-        });
       });
+    });
 
     return () => {
       isActive = false;

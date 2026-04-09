@@ -23,6 +23,11 @@ React Compiler is enabled in the renderer via Vite 8, `@vitejs/plugin-react`, `@
 - Use Vite 8 Rolldown-native config (e.g. `rolldownOptions`) over older Rollup-first patterns.
 - Manual chunks are defined for xterm, git-diff, ui (HeroUI + React Aria), framework (React + Zustand + Zod), and vendor.
 
+## Cleanup
+
+- Always fix all tests broken by your changes — never leave failing tests behind.
+- Remove all dead code introduced by your changes: unused imports, unreachable functions, orphaned types, stale test helpers, and dead modules/files.
+
 ## Linting & Formatting
 
 - **Linter**: oxlint (Rust-based, with plugins: import, react, jsx-a11y, node, vitest). Config: `.oxlintrc.json`.

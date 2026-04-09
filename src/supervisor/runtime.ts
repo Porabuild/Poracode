@@ -90,7 +90,6 @@ import type {
   TerminalSize,
   ThreadAttention,
   ThreadConfig,
-  ThreadHistorySnapshot,
   ThreadRuntimeSnapshot,
   ThreadStatus,
   WriteTerminalPayload,
@@ -101,7 +100,6 @@ import { stripAnsiPreservingLayout } from "../shared/ansi";
 import { extractOscNotifications } from "../shared/osc";
 import { resolveLightcodePaths } from "../shared/lightcodePaths";
 import { normalizeSharedSettings, defaultSharedSettings } from "../shared/settings";
-import { stripInternalHistoryMarkers } from "../shared/terminalHistory";
 import { normalizeWslListOutput } from "../shared/wsl";
 import { createAgentRegistry } from "./agents/registry";
 import {
@@ -121,7 +119,6 @@ import { GitService } from "./git";
 import { GitWatcher } from "./gitWatcher";
 import { GitHubService } from "./github";
 import { FileIndexService } from "./fileIndex";
-import { resetTerminalLogFile, resetTerminalLogsDir } from "./terminalLogs";
 import { detectWindowsShell, type WindowsShellPreference } from "./shellPreference";
 
 /**
@@ -158,7 +155,6 @@ interface SessionRuntime {
   canResumeWithConfig: boolean;
   terminalSize: TerminalSize;
   launchPrompt: string;
-  logPath: string;
   outputLength: number;
   structuredSession?: StructuredSessionHandle;
   ignoreExit?: boolean;
@@ -187,7 +183,6 @@ interface ShellSessionRuntime {
   instanceId: string;
   shellId: string;
   pty: IPty;
-  logPath: string;
   outputLength: number;
   worktreePath?: string;
   ptyExited?: boolean;
@@ -337,9 +332,7 @@ export class SupervisorRuntime {
     this.settingsPath = paths.settingsPath;
     this.statusCachePath = paths.statusCachePath;
     mkdirSync(paths.cacheDir, { recursive: true });
-
-    // Defer stale log cleanup — not needed until a thread is started.
-    setTimeout(() => resetTerminalLogsDir(this.logsDir), 0);
+    mkdirSync(this.logsDir, { recursive: true });
 
     // Only detect Windows shell on Windows platform
     if (process.platform === "win32") {
@@ -479,21 +472,6 @@ export class SupervisorRuntime {
       ...(session.sessionRef ? { sessionRef: session.sessionRef } : {}),
       canResumeWithConfig: session.canResumeWithConfig,
     }));
-  }
-
-  getThreadHistory(threadId: string): ThreadHistorySnapshot {
-    const logPath = this.resolveLogPath(threadId);
-    if (!existsSync(logPath)) {
-      return {
-        history: "",
-        length: 0,
-      };
-    }
-    const history = stripInternalHistoryMarkers(readFileSync(logPath, "utf8"));
-    return {
-      history,
-      length: history.length,
-    };
   }
 
   async startThread(payload: StartThreadPayload): Promise<StartThreadResult> {
@@ -809,10 +787,6 @@ export class SupervisorRuntime {
     }
 
     const shellCmd = this.buildShellCommand(payload.projectLocation);
-    const safeId = payload.shellId.replace(/:/g, "_");
-    const logPath = this.resolveLogPath(safeId);
-    resetTerminalLogFile(logPath);
-
     this.emit({ type: "thread-reset", threadId: payload.shellId });
 
     console.log(`[supervisor] spawning shell PTY: ${shellCmd.command} ${shellCmd.args.join(" ")}`);
@@ -831,7 +805,6 @@ export class SupervisorRuntime {
       instanceId: randomUUID(),
       shellId: payload.shellId,
       pty,
-      logPath,
       outputLength: 0,
       ...(payload.worktreePath ? { worktreePath: payload.worktreePath } : {}),
     };
@@ -843,10 +816,12 @@ export class SupervisorRuntime {
         return;
       }
       session.outputLength += data.length;
-      try {
-        appendFileSync(logPath, data);
-      } catch {
-        /* ignore */
+      if (this.isDev) {
+        try {
+          appendFileSync(this.resolveLogPath(payload.shellId.replace(/:/g, "_")), data);
+        } catch {
+          // best-effort debug log
+        }
       }
       this.emit({
         type: "thread-output",
@@ -1339,6 +1314,7 @@ export class SupervisorRuntime {
     stripped: string,
     hint: { status: string; attention: string } | null,
   ): void {
+    if (!this.isDev) return;
     const tail = stripped.slice(-300);
     const ts = new Date().toISOString();
     const entry = [
@@ -1409,8 +1385,6 @@ export class SupervisorRuntime {
     pendingTerminalPrompt?: string;
     pendingTerminalSegments?: PromptSegment[];
   }): SessionRuntime {
-    const logPath = this.resolveLogPath(input.threadId);
-    resetTerminalLogFile(logPath);
     this.emit({
       type: "thread-reset",
       threadId: input.threadId,
@@ -1447,7 +1421,6 @@ export class SupervisorRuntime {
       status: "launching",
       attention: "none",
       canResumeWithConfig: input.sessionRef !== undefined,
-      logPath,
       outputLength: 0,
       pendingLaunchPrompt: input.pendingLaunchPrompt,
       pendingTerminalPreInputs: input.pendingTerminalPreInputs,
@@ -1535,7 +1508,7 @@ export class SupervisorRuntime {
       }
 
       try {
-        this.handlePtyData(session, logPath, data);
+        this.handlePtyData(session, data);
       } catch (error) {
         console.error(
           `[supervisor] uncaught error in onData for thread ${session.threadId}:`,
@@ -1840,13 +1813,15 @@ export class SupervisorRuntime {
     });
   }
 
-  private handlePtyData(session: SessionRuntime, logPath: string, data: string): void {
-    try {
-      appendFileSync(logPath, data);
-    } catch {
-      // Disk full, permission error, etc. — don't crash the supervisor.
-    }
+  private handlePtyData(session: SessionRuntime, data: string): void {
     session.outputLength += data.length;
+    if (this.isDev) {
+      try {
+        appendFileSync(this.resolveLogPath(session.threadId), data);
+      } catch {
+        // best-effort debug log
+      }
+    }
     this.emit({
       type: "thread-output",
       threadId: session.threadId,
@@ -1978,9 +1953,7 @@ export class SupervisorRuntime {
         } else if (configChanged) {
           this.emitState(session);
         }
-        if (this.isDev) {
-          this.writeHintLog(session, stripped, hint);
-        }
+        this.writeHintLog(session, stripped, hint);
       }
 
       if (session.pendingLaunchPrompt && session.adapter.isReadyForInitialPrompt?.(strippedData)) {

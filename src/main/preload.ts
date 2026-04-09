@@ -8,7 +8,6 @@ const CHANNELS = {
   listWslDistros: "lightcode:list-wsl-distros",
   getAgentStatuses: "lightcode:get-agent-statuses",
   getThreadSnapshots: "lightcode:get-thread-snapshots",
-  getThreadHistory: "lightcode:get-thread-history",
   startThread: "lightcode:start-thread",
   sendThreadInput: "lightcode:send-thread-input",
   writeTerminal: "lightcode:write-terminal",
@@ -85,7 +84,6 @@ const bridge: LightcodeBridge = {
   getAgentStatuses: (wslDistros) =>
     ipcRenderer.invoke(CHANNELS.getAgentStatuses, { wslDistros: wslDistros ?? [] }),
   getThreadSnapshots: () => ipcRenderer.invoke(CHANNELS.getThreadSnapshots),
-  getThreadHistory: (threadId) => ipcRenderer.invoke(CHANNELS.getThreadHistory, threadId),
   startThread: (payload) => ipcRenderer.invoke(CHANNELS.startThread, payload),
   sendThreadInput: (payload) => ipcRenderer.invoke(CHANNELS.sendThreadInput, payload),
   writeTerminal: (payload) => ipcRenderer.invoke(CHANNELS.writeTerminal, payload),

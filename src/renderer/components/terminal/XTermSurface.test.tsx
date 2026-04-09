@@ -10,7 +10,6 @@ const { state } = vi.hoisted(() => ({
     bridge: {
       writeTerminal: vi.fn().mockResolvedValue(undefined),
       resizeTerminal: vi.fn().mockResolvedValue(undefined),
-      getThreadHistory: vi.fn().mockResolvedValue({ history: "", length: 0 }),
       onSupervisorEvent: vi.fn(),
     },
   },
@@ -93,13 +92,6 @@ function emitEvent(event: SupervisorEvent) {
   }
 }
 
-/** Flush the getThreadHistory promise so the component switches to direct-write mode. */
-async function flushHistory() {
-  await act(async () => {
-    await Promise.resolve();
-  });
-}
-
 /** Flush the write-batching setTimeout (8 ms coalescing window). */
 async function flushWriteTimer() {
   await act(async () => {
@@ -179,7 +171,6 @@ describe("XTermSurface", () => {
 
   it("writes thread-output data to the terminal", async () => {
     render(<XTermSurface terminalId="test-1" />);
-    await flushHistory();
 
     act(() => {
       emitEvent({
@@ -196,7 +187,6 @@ describe("XTermSurface", () => {
 
   it("ignores thread-output for a different terminal", async () => {
     render(<XTermSurface terminalId="test-1" />);
-    await flushHistory();
 
     act(() => {
       emitEvent({
@@ -214,7 +204,6 @@ describe("XTermSurface", () => {
   it("resets terminal and calls onReset on thread-reset", async () => {
     const onReset = vi.fn();
     render(<XTermSurface terminalId="test-1" onReset={onReset} />);
-    await flushHistory();
 
     act(() => {
       emitEvent({ type: "thread-reset", threadId: "test-1" });
@@ -227,7 +216,6 @@ describe("XTermSurface", () => {
   it("calls onExited on thread-exited", async () => {
     const onExited = vi.fn();
     render(<XTermSurface terminalId="test-1" onExited={onExited} />);
-    await flushHistory();
 
     act(() => {
       emitEvent({ type: "thread-exited", threadId: "test-1", exitCode: 0 });
@@ -240,7 +228,6 @@ describe("XTermSurface", () => {
 
   it("still receives thread-output after a thread-reset", async () => {
     render(<XTermSurface terminalId="test-1" />);
-    await flushHistory();
 
     act(() => {
       emitEvent({ type: "thread-reset", threadId: "test-1" });
