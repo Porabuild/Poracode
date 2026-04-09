@@ -605,7 +605,7 @@ describe("writeSubmittedPrompt", () => {
 });
 
 describe("detectWslAgentStatuses", () => {
-  it("emits cached statuses after stripping stale setting definitions", () => {
+  it("migrates stale cached settingDefs to current schema", () => {
     const dataDir = makeTempDir();
     process.env.LIGHTCODE_DATA_DIR = dataDir;
 
@@ -636,18 +636,15 @@ describe("detectWslAgentStatuses", () => {
                   key: "legacy-toggle",
                   envVar: "CLAUDE_LEGACY_TOGGLE",
                   label: "Legacy toggle",
-                  description: "Stale cached field without a type discriminator",
+                  description: "Old format: no type, envVar string",
                   default: true,
                 },
                 {
                   key: "verbose-logging",
                   type: "toggle",
-                  env: {
-                    win32: "CLAUDE_VERBOSE_LOGGING",
-                    posix: "CLAUDE_VERBOSE_LOGGING",
-                  },
+                  env: { CLAUDE_VERBOSE_LOGGING: "1" },
                   label: "Verbose logging",
-                  description: "Enable extra CLI logging",
+                  description: "Already current format",
                   default: false,
                 },
               ],
@@ -668,6 +665,8 @@ describe("detectWslAgentStatuses", () => {
       }
     ).emitCachedStatuses([]);
 
+    // Old-format entry is migrated (type: "toggle", envVar → env record).
+    // Already-valid entry passes through unchanged.
     expect(emitted).toEqual([
       {
         type: "windows-agent-statuses",
@@ -690,14 +689,19 @@ describe("detectWslAgentStatuses", () => {
               presentationMode: "terminal",
               settingDefs: [
                 {
+                  key: "legacy-toggle",
+                  type: "toggle",
+                  env: { CLAUDE_LEGACY_TOGGLE: "1" },
+                  label: "Legacy toggle",
+                  description: "Old format: no type, envVar string",
+                  default: true,
+                },
+                {
                   key: "verbose-logging",
                   type: "toggle",
-                  env: {
-                    win32: "CLAUDE_VERBOSE_LOGGING",
-                    posix: "CLAUDE_VERBOSE_LOGGING",
-                  },
+                  env: { CLAUDE_VERBOSE_LOGGING: "1" },
                   label: "Verbose logging",
-                  description: "Enable extra CLI logging",
+                  description: "Already current format",
                   default: false,
                 },
               ],

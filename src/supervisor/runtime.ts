@@ -17,7 +17,10 @@ import { basename, join } from "node:path";
 import { spawn, type IPty } from "node-pty";
 import {
   agentStatusSchema,
+  agentCapabilitySchema,
+  agentSettingDefSchema,
 } from "../shared/contracts";
+import { z } from "zod";
 import type {
   AgentKind,
   AgentStatus,
@@ -284,30 +287,55 @@ export async function detectWslAgentStatuses(
   return statuses.flat();
 }
 
-/** Validate cached agent statuses through Zod, stripping stale fields that don't match the current schema. */
+/**
+ * Migrate a single settingDef from the old cache format (no `type`, `envVar`
+ * string) to the current schema (`type: "toggle"`, `env` record).
+ */
+function migrateSettingDef(d: Record<string, unknown>): Record<string, unknown> {
+  if (d.type === "toggle" || d.type === "select") return d;
+  if (typeof d.default === "boolean") {
+    const env =
+      typeof d.envVar === "string"
+        ? { [d.envVar]: "1" }
+        : typeof d.env === "object" && d.env !== null
+          ? d.env
+          : {};
+    return { ...d, type: "toggle", env };
+  }
+  return d;
+}
+
+/**
+ * Lenient schema for reading cached agent statuses.
+ * Uses .catch([]) on settingDefs so entries that can't be migrated
+ * don't cause the entire agent to be dropped from the cache.
+ */
+const cachedAgentStatusSchema = agentStatusSchema.extend({
+  capabilities: agentCapabilitySchema.extend({
+    settingDefs: z
+      .array(agentSettingDefSchema)
+      .catch([]),
+  }),
+});
+
+/** Validate cached agent statuses through Zod, migrating stale fields first. */
 function parseCachedStatuses(entries: unknown[] | undefined): AgentStatus[] {
   if (!entries) return [];
   const results: AgentStatus[] = [];
   for (const entry of entries) {
-    // Pre-filter settingDefs that lack a valid discriminator so the rest of
-    // the agent status can still pass Zod validation (stale cache entries).
+    // Migrate stale settingDefs before Zod validation.
     if (entry != null && typeof entry === "object") {
       const cap = (entry as Record<string, unknown>).capabilities;
       if (cap != null && typeof cap === "object") {
         const c = cap as Record<string, unknown>;
         if (Array.isArray(c.settingDefs)) {
-          c.settingDefs = c.settingDefs.filter(
-            (d: unknown) =>
-              d != null &&
-              typeof d === "object" &&
-              "type" in d &&
-              ((d as Record<string, unknown>).type === "toggle" ||
-                (d as Record<string, unknown>).type === "select"),
+          c.settingDefs = c.settingDefs.map((d: unknown) =>
+            d != null && typeof d === "object" ? migrateSettingDef(d as Record<string, unknown>) : d,
           );
         }
       }
     }
-    const parsed = agentStatusSchema.safeParse(entry);
+    const parsed = cachedAgentStatusSchema.safeParse(entry);
     if (parsed.success) results.push(parsed.data);
   }
   return results;
