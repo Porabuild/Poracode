@@ -46,12 +46,12 @@ describe("TerminalPane", () => {
     expect(screen.getByTestId("xterm-surface")).toHaveAttribute("data-enabled", "true");
   });
 
-  it("reveals visibility immediately when becoming active", () => {
+  it("keeps opacity-0 during launching (spinner overlay is shown instead)", () => {
     const { container, rerender } = render(<TerminalPane threadId="t-1" status="inactive" />);
 
     rerender(<TerminalPane threadId="t-1" status="launching" />);
 
-    expect(container.firstElementChild!.className).toContain("opacity-100");
+    expect(container.firstElementChild!.className).toContain("opacity-0");
   });
 
   it("does not hide visibility on reset", () => {

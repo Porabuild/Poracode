@@ -589,7 +589,11 @@ function AppContent() {
                   const tab = store.addTab(project.id, "setup", result.path);
                   store.openWorktreePanel(project.id, result.path);
                   store.setActiveTab(tab.id);
-                  void readBridge().startShell({ shellId: tab.id, projectLocation: wtLocation });
+                  void readBridge().startShell({
+                    shellId: tab.id,
+                    projectLocation: wtLocation,
+                    worktreePath: result.path,
+                  });
                   writeScriptToShell(tab.id, setupScript);
                 }
               } catch (err) {
@@ -900,7 +904,11 @@ export function App() {
     }
     store.setActiveTab(tab.id);
 
-    void readBridge().startShell({ shellId: tab.id, projectLocation: location });
+    void readBridge().startShell({
+      shellId: tab.id,
+      projectLocation: location,
+      ...(worktreePath ? { worktreePath } : {}),
+    });
     writeScriptToShell(tab.id, action.command);
   }
 
@@ -2082,6 +2090,7 @@ export function App() {
                     projectLocation: project.location,
                     path: worktreePath,
                     force: true,
+                    deleteBranch: false,
                   });
                 } catch {
                   return;

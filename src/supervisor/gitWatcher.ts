@@ -230,7 +230,7 @@ export class GitWatcher {
   /** Stop watching a specific worktree directory. */
   unwatchWorktree(path: string): void {
     const normalized = path.replace(/\\/g, "/").toLowerCase();
-    for (const [wtPath, entry] of this.worktreeWatchers) {
+    for (const [wtPath] of this.worktreeWatchers) {
       if (wtPath.replace(/\\/g, "/").toLowerCase() === normalized) {
         this.closeWorktreeWatcher(wtPath);
       }

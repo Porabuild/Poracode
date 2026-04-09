@@ -28,6 +28,8 @@ export function initDatabase(dbPath: string) {
       location_linux_path TEXT,
       location_unc_path TEXT,
       last_draft_config TEXT,
+      scripts TEXT,
+      sort_order INTEGER NOT NULL DEFAULT 0,
       created_at TEXT NOT NULL
     );
     CREATE TABLE IF NOT EXISTS threads (
@@ -41,6 +43,11 @@ export function initDatabase(dbPath: string) {
       can_resume_with_config INTEGER NOT NULL DEFAULT 0,
       session_ref TEXT,
       terminal_prompt TEXT,
+      worktree_path TEXT,
+      worktree_branch TEXT,
+      pr_number INTEGER,
+      archived INTEGER NOT NULL DEFAULT 0,
+      sort_order INTEGER NOT NULL DEFAULT 0,
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL
     );
@@ -50,29 +57,20 @@ export function initDatabase(dbPath: string) {
     );
   `);
 
-  // Migrate: add sort_order columns if missing
-  const projectCols = sqlite.prepare("PRAGMA table_info(projects)").all() as { name: string }[];
-  if (!projectCols.some((c) => c.name === "sort_order")) {
-    sqlite.exec("ALTER TABLE projects ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0");
-  }
-  const threadCols = sqlite.prepare("PRAGMA table_info(threads)").all() as { name: string }[];
-  if (!threadCols.some((c) => c.name === "sort_order")) {
-    sqlite.exec("ALTER TABLE threads ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0");
-  }
-  if (!threadCols.some((c) => c.name === "worktree_path")) {
-    sqlite.exec("ALTER TABLE threads ADD COLUMN worktree_path TEXT");
-  }
-  if (!threadCols.some((c) => c.name === "worktree_branch")) {
-    sqlite.exec("ALTER TABLE threads ADD COLUMN worktree_branch TEXT");
-  }
-  if (!threadCols.some((c) => c.name === "pr_number")) {
-    sqlite.exec("ALTER TABLE threads ADD COLUMN pr_number INTEGER");
-  }
-  if (!projectCols.some((c) => c.name === "scripts")) {
-    sqlite.exec("ALTER TABLE projects ADD COLUMN scripts TEXT");
-  }
-  if (!threadCols.some((c) => c.name === "archived")) {
-    sqlite.exec("ALTER TABLE threads ADD COLUMN archived INTEGER NOT NULL DEFAULT 0");
+  // Baseline schema version for future DB migrations.
+  // New upgrade steps should live behind this gate when we need them.
+  const SCHEMA_VERSION = 1;
+
+  const storedVersion = sqlite
+    .prepare("SELECT value FROM app_state WHERE key = 'schema_version'")
+    .get() as { value: string } | undefined;
+
+  if (Number(storedVersion?.value ?? "0") < SCHEMA_VERSION) {
+    sqlite
+      .prepare(
+        "INSERT INTO app_state (key, value) VALUES ('schema_version', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+      )
+      .run(String(SCHEMA_VERSION));
   }
 
   console.log("[db] initialized");

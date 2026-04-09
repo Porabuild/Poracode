@@ -33,6 +33,7 @@ vi.mock("@xterm/xterm", () => ({
     getSelection = vi.fn(() => "");
     clearSelection = vi.fn();
     attachCustomKeyEventHandler = vi.fn();
+    unicode = { activeVersion: "6" };
     cols = 80;
     rows = 24;
     constructor() {
@@ -44,6 +45,32 @@ vi.mock("@xterm/xterm", () => ({
 vi.mock("@xterm/addon-fit", () => ({
   FitAddon: class MockFitAddon {
     fit = vi.fn();
+  },
+}));
+
+vi.mock("@xterm/addon-unicode11", () => ({
+  Unicode11Addon: class MockUnicode11Addon {},
+}));
+
+vi.mock("@xterm/addon-image", () => ({
+  ImageAddon: class MockImageAddon {},
+}));
+
+vi.mock("@xterm/addon-clipboard", () => ({
+  ClipboardAddon: class MockClipboardAddon {},
+}));
+
+vi.mock("@xterm/addon-search", () => ({
+  SearchAddon: class MockSearchAddon {},
+}));
+
+vi.mock("@xterm/addon-web-links", () => ({
+  WebLinksAddon: class MockWebLinksAddon {},
+}));
+
+vi.mock("@xterm/addon-webgl", () => ({
+  WebglAddon: class MockWebglAddon {
+    onContextLoss = vi.fn(() => ({ dispose: vi.fn() }));
   },
 }));
 

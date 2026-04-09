@@ -30,7 +30,6 @@ import {
 } from "./db";
 import { cleanupOrphanedAttachments, prepareLightcodeDataRoot } from "./lightcodeData";
 import {
-  ensureSharedSettingsFile,
   readSharedSettingsFile,
   writeSharedSettingsFile,
 } from "./sharedSettingsFile";
@@ -77,6 +76,7 @@ const CHANNELS = {
   gitListWorktrees: "lightcode:git-list-worktrees",
   gitAddWorktree: "lightcode:git-add-worktree",
   gitRemoveWorktree: "lightcode:git-remove-worktree",
+  gitPruneWorktrees: "lightcode:git-prune-worktrees",
   gitDeleteBranch: "lightcode:git-delete-branch",
   gitPull: "lightcode:git-pull",
   gitPush: "lightcode:git-push",
@@ -592,6 +592,10 @@ function registerIpcHandlers(): void {
     callSupervisor("gitRemoveWorktree", payload),
   );
 
+  ipcMain.handle(CHANNELS.gitPruneWorktrees, async (_event, payload) =>
+    callSupervisor("gitPruneWorktrees", payload),
+  );
+
   ipcMain.handle(CHANNELS.gitDeleteBranch, async (_event, payload) =>
     callSupervisor("gitDeleteBranch", payload),
   );
@@ -762,19 +766,22 @@ if (!hasSingleInstanceLock) {
       return net.fetch(pathToFileURL(filePath).href);
     });
 
-    lightcodePaths = prepareLightcodeDataRoot(
-      app.getPath("userData"),
-      isDev ? join(homedir(), ".lightcode-dev") : undefined,
-    );
+    lightcodePaths = prepareLightcodeDataRoot(isDev ? join(homedir(), ".lightcode-dev") : undefined);
     initDatabase(lightcodePaths.dbPath);
-    cleanupOrphanedAttachments(
-      lightcodePaths.attachmentsDir,
-      dbGetThreads().map((t) => t.id),
-    );
-    ensureSharedSettingsFile(lightcodePaths.settingsPath, dbGetState("lightcode-shared-settings"));
     registerIpcHandlers();
     startSupervisor(lightcodePaths.baseDir);
     mainWindow = createWindow();
+
+    // Defer non-critical housekeeping to after window is visible.
+    mainWindow.once("ready-to-show", () => {
+      setTimeout(() => {
+        const paths = requireLightcodePaths();
+        cleanupOrphanedAttachments(
+          paths.attachmentsDir,
+          dbGetThreads().map((t) => t.id),
+        );
+      }, 0);
+    });
 
     if (!isDev) {
       setupAutoUpdater();

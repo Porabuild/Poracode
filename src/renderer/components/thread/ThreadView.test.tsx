@@ -268,11 +268,11 @@ describe("ThreadView", () => {
       onSubmitInput: async () => undefined,
     });
 
-    expect(screen.getByText("Starting thread...")).toBeInTheDocument();
-    expect(screen.getByPlaceholderText("Ask Codex anything about this workspace")).toHaveAttribute(
-      "aria-disabled",
-      "true",
-    );
+    expect(screen.getByText("Starting thread\u2026")).toBeInTheDocument();
+    // Composer is not rendered during launching — only the spinner overlay is visible.
+    expect(
+      screen.queryByPlaceholderText("Ask Codex anything about this workspace"),
+    ).not.toBeInTheDocument();
   });
 
   it("renders server request UI instead of the composer while Codex is waiting", () => {

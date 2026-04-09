@@ -290,6 +290,7 @@ export type ResolveThreadServerRequestPayload = z.infer<
 export const startShellPayloadSchema = z.object({
   shellId: z.string().min(1),
   projectLocation: projectLocationSchema,
+  worktreePath: z.string().min(1).optional(),
 });
 export type StartShellPayload = z.infer<typeof startShellPayloadSchema>;
 

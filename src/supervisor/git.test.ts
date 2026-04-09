@@ -72,7 +72,7 @@ describe("computeDefaultWorktreePath", () => {
 
       expect(path).toMatch(
         new RegExp(
-          `^${join(homedir(), ".lightcode", "worktrees").replace(/\\/g, "\\\\")}\\\\lightcode-[a-f0-9]{8}\\\\feature-x$`,
+          `^${join(homedir(), ".lightcode", "worktrees").replace(/\\/g, "\\\\")}\\\\lightcode-[a-f0-9]{4}\\\\feature-x$`,
         ),
       );
     },
@@ -119,7 +119,7 @@ describe("computeDefaultWorktreePath", () => {
       "feature/x",
     );
 
-    expect(path).toMatch(/^\/home\/demo\/.lightcode\/worktrees\/lightcode-[a-f0-9]{8}\/feature-x$/);
+    expect(path).toMatch(/^\/home\/demo\/.lightcode\/worktrees\/lightcode-[a-f0-9]{4}\/feature-x$/);
     expect(readWslCommandOutputAsync).toHaveBeenCalledWith("Ubuntu", "sh", [
       "-lc",
       'printf %s "$HOME"',

@@ -127,7 +127,7 @@ describe("extractOscNotifications", () => {
 
   describe("multiple notifications", () => {
     it("extracts multiple OSC sequences from a single data chunk", () => {
-      const data = "line1\x1b]777;notify;A;First\x07" + "line2\x1b]9;Second\x07" + "line3";
+      const data = "line1\x1b]777;notify;A;First\x07line2\x1b]9;Second\x07line3";
       const result = extractOscNotifications(data);
       expect(result.notifications).toHaveLength(2);
       expect(result.notifications[0]!.code).toBe(777);

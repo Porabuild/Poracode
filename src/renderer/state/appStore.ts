@@ -45,27 +45,6 @@ function normalizeStoredThreadStatus(thread: Thread): Thread {
   };
 }
 
-function migrateThreadStatus(thread: Thread | (Thread & { status: string })): Thread {
-  const legacyStatus = String(thread.status);
-
-  if (legacyStatus === "exited") {
-    return {
-      ...thread,
-      status: "inactive",
-      attention: "none",
-    };
-  }
-
-  if (legacyStatus === "running") {
-    return {
-      ...thread,
-      status: "working",
-    };
-  }
-
-  return thread;
-}
-
 export interface PendingThreadServerRequest {
   threadId: string;
   requestId: ThreadServerRequestId;
@@ -139,57 +118,6 @@ interface AppStoreState {
   reorderThreads: (sourceId: string, targetId: string, placement: ReorderPlacement) => void;
   reorderThreadBlock: (blockIds: string[], targetId: string, placement: ReorderPlacement) => void;
   reorderPanes: (sourceId: string, targetId: string, placement: ReorderPlacement) => void;
-}
-
-/**
- * One-time migration: if SQLite is empty (first run after upgrade), read
- * legacy localStorage data and seed the DB via the Zustand merge callback.
- * Returns the legacy state or undefined if nothing to migrate.
- */
-function readLegacyLocalStorage(): Partial<AppStoreState> | undefined {
-  const parse = (raw: string | null) => {
-    if (!raw) return undefined;
-    try {
-      const parsed = JSON.parse(raw) as { state?: Partial<AppStoreState> };
-      return parsed?.state;
-    } catch {
-      return undefined;
-    }
-  };
-
-  const win =
-    parse(localStorage.getItem("lightcode-app-v2")) ??
-    parse(localStorage.getItem("lightcode-env-windows")) ??
-    parse(localStorage.getItem("lightcode-app-state"));
-  const wsl = parse(localStorage.getItem("lightcode-env-wsl"));
-
-  if (!win && !wsl) return undefined;
-
-  const seenProjects = new Set<string>();
-  const seenThreads = new Set<string>();
-  const projects: Project[] = [];
-  const threads: Thread[] = [];
-
-  for (const source of [win, wsl]) {
-    if (!source) continue;
-    for (const p of (source.projects as Project[] | undefined) ?? []) {
-      if (!seenProjects.has(p.id)) {
-        seenProjects.add(p.id);
-        projects.push(p);
-      }
-    }
-    for (const t of (source.threads as Thread[] | undefined) ?? []) {
-      if (!seenThreads.has(t.id)) {
-        seenThreads.add(t.id);
-        threads.push(t);
-      }
-    }
-  }
-
-  if (projects.length === 0 && threads.length === 0) return undefined;
-
-  const view = win?.view ?? wsl?.view ?? { kind: "home" };
-  return { projects, threads, view } as Partial<AppStoreState>;
 }
 
 export const useAppStore = create<AppStoreState>()(
@@ -748,32 +676,10 @@ export const useAppStore = create<AppStoreState>()(
       name: "lightcode-app-v2",
       version: 4,
       storage: createDbStorage(),
-      migrate: (persistedState) => {
-        const state = persistedState as Partial<AppStoreState> & {
-          threads?: Thread[];
-          view?: AppView | { kind: "thread"; threadId: string };
-        };
-
-        let view = state.view as AppView | undefined;
-        if (view && view.kind === "thread" && "threadId" in view && !("panes" in view)) {
-          view = {
-            kind: "thread",
-            panes: [(view as unknown as { threadId: string }).threadId],
-          };
-        }
-
-        return {
-          ...state,
-          threads: (state.threads ?? []).map(migrateThreadStatus),
-          view,
-        };
-      },
       merge: (persistedState, currentState) => {
-        // If SQLite returned nothing, try localStorage migration.
         const state =
-          (persistedState != null
-            ? (persistedState as Partial<AppStoreState> & { threads?: Thread[] })
-            : readLegacyLocalStorage()) ?? ({} as Partial<AppStoreState>);
+          (persistedState as Partial<AppStoreState> & { threads?: Thread[] } | undefined) ??
+          ({} as Partial<AppStoreState>);
 
         return {
           ...currentState,

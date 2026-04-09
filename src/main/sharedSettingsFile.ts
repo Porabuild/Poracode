@@ -26,31 +26,3 @@ export function writeSharedSettingsFile(settingsPath: string, settings: SharedSe
   mkdirSync(dirname(settingsPath), { recursive: true });
   writeFileSync(settingsPath, serializeSharedSettings(settings), "utf8");
 }
-
-export function extractLegacySharedSettings(raw: string | null): SharedSettings | null {
-  if (!raw) {
-    return null;
-  }
-
-  try {
-    const parsed = JSON.parse(raw) as { state?: unknown } | null;
-    return normalizeSharedSettings(parsed?.state ?? parsed);
-  } catch {
-    return null;
-  }
-}
-
-export function ensureSharedSettingsFile(
-  settingsPath: string,
-  legacyRaw: string | null,
-): SharedSettings {
-  if (existsSync(settingsPath)) {
-    const normalized = readSharedSettingsFile(settingsPath);
-    writeSharedSettingsFile(settingsPath, normalized);
-    return normalized;
-  }
-
-  const settings = extractLegacySharedSettings(legacyRaw) ?? { ...defaultSharedSettings };
-  writeSharedSettingsFile(settingsPath, settings);
-  return settings;
-}

@@ -7,8 +7,7 @@ import type {
   PromptSegment,
   ThreadConfig,
 } from "../../shared/contracts";
-import { execFile, spawnSync } from "node:child_process";
-import { promisify } from "node:util";
+import { spawnSync } from "node:child_process";
 import {
   batchWslCommandsAsync,
   buildAgentCommand,
@@ -275,26 +274,6 @@ export function createCursorAdapter(): AgentAdapter {
     bypassApprovalPolicy: "never",
     settingDefs: [],
   };
-
-  const execFileAsync = promisify(execFile);
-
-  async function runCursorCommand(
-    args: string[],
-    location: ProjectLocation,
-    wslExecPath?: string,
-  ): Promise<{ ok: boolean; stdout: string }> {
-    const spec = buildAgentCommand(location, "cursor-agent", args, wslExecPath);
-    try {
-      const { stdout } = await execFileAsync(spec.command, spec.args, {
-        ...(spec.cwd ? { cwd: spec.cwd } : {}),
-        windowsHide: true,
-        timeout: 15_000,
-      });
-      return { ok: true, stdout: (stdout ?? "").trim() };
-    } catch {
-      return { ok: false, stdout: "" };
-    }
-  }
 
   function resolveWslExecPath(location: ProjectLocation): string | undefined {
     if (location.kind !== "wsl") {

@@ -189,6 +189,7 @@ interface ShellSessionRuntime {
   pty: IPty;
   logPath: string;
   outputLength: number;
+  worktreePath?: string;
   ptyExited?: boolean;
   ignoreExit?: boolean;
 }
@@ -307,7 +308,7 @@ export class SupervisorRuntime {
   private readonly logsDir: string;
   private readonly settingsPath: string;
   private readonly gitService = new GitService();
-  private readonly gitWatcher: GitWatcher;
+  private _gitWatcher: GitWatcher | undefined;
   private readonly githubService = new GitHubService();
   private readonly fileIndexService = new FileIndexService();
   private readonly adapters = new Map(
@@ -319,18 +320,26 @@ export class SupervisorRuntime {
   private readonly windowsShell: WindowsShellPreference;
   private readonly statusCachePath: string;
 
-  constructor(private readonly emit: (event: SupervisorEvent) => void) {
-    this.gitWatcher = new GitWatcher((projectId) => {
-      this.emit({ type: "git-changed", projectId });
-    });
+  /** Lazy-initialized on first watch request — no cost if git features aren't used during startup. */
+  private get gitWatcher(): GitWatcher {
+    if (!this._gitWatcher) {
+      this._gitWatcher = new GitWatcher((projectId) => {
+        this.emit({ type: "git-changed", projectId });
+      });
+    }
+    return this._gitWatcher;
+  }
 
+  constructor(private readonly emit: (event: SupervisorEvent) => void) {
     const baseDir = process.env.LIGHTCODE_DATA_DIR?.trim() || join(homedir(), ".lightcode");
     const paths = resolveLightcodePaths(baseDir);
     this.logsDir = paths.terminalLogsDir;
     this.settingsPath = paths.settingsPath;
     this.statusCachePath = paths.statusCachePath;
     mkdirSync(paths.cacheDir, { recursive: true });
-    resetTerminalLogsDir(this.logsDir);
+
+    // Defer stale log cleanup — not needed until a thread is started.
+    setTimeout(() => resetTerminalLogsDir(this.logsDir), 0);
 
     // Only detect Windows shell on Windows platform
     if (process.platform === "win32") {
@@ -824,6 +833,7 @@ export class SupervisorRuntime {
       pty,
       logPath,
       outputLength: 0,
+      ...(payload.worktreePath ? { worktreePath: payload.worktreePath } : {}),
     };
 
     this.shellSessions.set(payload.shellId, session);
@@ -960,7 +970,10 @@ export class SupervisorRuntime {
 
     // 1. Stop any active agent sessions running in this worktree
     for (const [threadId, session] of this.sessions) {
-      const sessionPath = getRepoPath(session.projectLocation);
+      const sessionPath =
+        session.projectLocation.kind === "wsl"
+          ? session.projectLocation.uncPath
+          : session.projectLocation.path;
       if (sessionPath.replace(/\\/g, "/").toLowerCase() === normalizedTarget) {
         console.log(`[supervisor] stopping session for thread ${threadId} before worktree removal`);
         await this.closeThread({ threadId }).catch(() => {});
@@ -1177,6 +1190,8 @@ export class SupervisorRuntime {
   }
 
   dispose(): void {
+    this._gitWatcher?.dispose();
+
     for (const session of this.sessions.values()) {
       session.ignoreExit = true;
       void session.structuredSession?.dispose();

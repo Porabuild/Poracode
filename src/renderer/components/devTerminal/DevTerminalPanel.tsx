@@ -218,14 +218,22 @@ export function DevTerminalPanel(props: { projects: Project[] }) {
       if (!spawnedRef.current.has(tab.id)) {
         spawnedRef.current.add(tab.id);
         void readBridge()
-          .startShell({ shellId: tab.id, projectLocation: location })
+          .startShell({
+            shellId: tab.id,
+            projectLocation: location,
+            ...(tab.worktreePath ? { worktreePath: tab.worktreePath } : {}),
+          })
           .catch(() => undefined);
       }
 
       if (tab.splitId && !spawnedRef.current.has(tab.splitId)) {
         spawnedRef.current.add(tab.splitId);
         void readBridge()
-          .startShell({ shellId: tab.splitId, projectLocation: location })
+          .startShell({
+            shellId: tab.splitId,
+            projectLocation: location,
+            ...(tab.worktreePath ? { worktreePath: tab.worktreePath } : {}),
+          })
           .catch(() => undefined);
       }
     }
@@ -275,7 +283,11 @@ export function DevTerminalPanel(props: { projects: Project[] }) {
       ? buildWorktreeLocation(project.location, tab.worktreePath)
       : project.location;
     void readBridge()
-      .startShell({ shellId: splitId, projectLocation: location })
+      .startShell({
+        shellId: splitId,
+        projectLocation: location,
+        ...(tab.worktreePath ? { worktreePath: tab.worktreePath } : {}),
+      })
       .catch(() => undefined);
     spawnedRef.current.add(splitId);
   }
