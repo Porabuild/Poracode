@@ -1,6 +1,7 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
 import type { FileEntry, ProjectLocation, PromptSegment } from "../../../shared/contracts";
 import { createChipElement, type FileMentionData } from "./FileMentionChip";
+import { fileNameFromPath } from "./useAttachments";
 import { MentionPopover } from "./MentionPopover";
 import { useDebouncedFileSearch } from "./useDebouncedFileSearch";
 import { serializeToSegments, flattenSegments } from "./serializeMentions";
@@ -10,6 +11,8 @@ export interface MentionInputHandle {
   serializeSegments(): PromptSegment[];
   /** Flatten to a display string (convenience). */
   serialize(): string;
+  /** Rebuild the editor content from previously serialized segments. */
+  restoreFromSegments(segments: PromptSegment[]): void;
   focus(): void;
   clear(): void;
 }
@@ -132,6 +135,29 @@ export const MentionInput = forwardRef<
     serialize() {
       if (!editorRef.current) return "";
       return flattenSegments(serializeToSegments(editorRef.current));
+    },
+    restoreFromSegments(segments: PromptSegment[]) {
+      const editor = editorRef.current;
+      if (!editor) return;
+      editor.innerHTML = "";
+      for (const seg of segments) {
+        if (seg.kind === "text") {
+          const lines = seg.content.split("\n");
+          for (let i = 0; i < lines.length; i++) {
+            if (i > 0) editor.appendChild(document.createElement("br"));
+            const line = lines[i]!;
+            if (line) editor.appendChild(document.createTextNode(line));
+          }
+        } else if (seg.kind === "file") {
+          const chip = createChipElement({
+            path: seg.path,
+            name: fileNameFromPath(seg.path),
+            isDirectory: false,
+          });
+          editor.appendChild(chip);
+        }
+      }
+      onTextChange(hasEditorContent(editor));
     },
     focus() {
       editorRef.current?.focus();

@@ -61,7 +61,7 @@ function isImageExtension(name: string): boolean {
   return IMAGE_EXTENSIONS.has(getExtension(name));
 }
 
-function fileNameFromPath(path: string): string {
+export function fileNameFromPath(path: string): string {
   const sep = path.lastIndexOf("/");
   const bsep = path.lastIndexOf("\\");
   const lastSep = Math.max(sep, bsep);
@@ -132,5 +132,9 @@ export function useAttachments() {
     }));
   }
 
-  return { attachments, addFiles, addClipboardImage, removeAttachment, clearAll, toSegments };
+  function restore(saved: Attachment[]) {
+    setAttachments(saved);
+  }
+
+  return { attachments, addFiles, addClipboardImage, removeAttachment, clearAll, toSegments, restore };
 }

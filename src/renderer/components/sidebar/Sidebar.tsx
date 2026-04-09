@@ -712,6 +712,7 @@ function SortableProjectHeader(props: {
   const projectThreads = threads.filter(
     (thread) => thread.projectId === project.id && !thread.archived,
   );
+  const hasDraft = useAppStore((s) => project.id in s.draftContents);
   const projectLocation = formatProjectLocation(project);
 
   const { ref } = useSortable({
@@ -850,10 +851,15 @@ function SortableProjectHeader(props: {
         <div className="space-y-0.5 pl-3">
           <SidebarButton
             icon={<Plus className="size-4" />}
-            label="New thread"
+            label={hasDraft ? "New thread (draft)" : "New thread"}
             isActive={props.currentProjectId === project.id && props.currentThreadIds.length === 0}
             isDraggingAnything={!!source}
             onPress={() => props.onOpenNewThread(project.id)}
+            suffix={
+              hasDraft ? (
+                <span className="size-1.5 shrink-0 rounded-full bg-accent" />
+              ) : undefined
+            }
           />
 
           <div className="max-h-80 space-y-0.5 overflow-y-auto">

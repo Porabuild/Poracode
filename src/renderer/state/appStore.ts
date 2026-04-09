@@ -17,6 +17,7 @@ import type {
   ThreadRuntimeSnapshot,
   ThreadStatus,
 } from "../../shared/contracts";
+import type { Attachment } from "../components/composer/useAttachments";
 import { getProjectName } from "../../shared/wsl";
 import {
   reorderIds,
@@ -53,12 +54,18 @@ export interface PendingThreadServerRequest {
   receivedAt: string;
 }
 
+export interface DraftContent {
+  segments: PromptSegment[];
+  attachments: Attachment[];
+}
+
 interface AppStoreState {
   projects: Project[];
   threads: Thread[];
   pendingServerRequests: PendingThreadServerRequest[];
   pendingThreadLaunches: Record<string, string>;
   pendingLaunchSegments: Record<string, PromptSegment[]>;
+  draftContents: Record<string, DraftContent>;
   agentStatuses: AgentStatus[];
   wslAgentStatuses: AgentStatus[];
   view: AppView;
@@ -118,6 +125,8 @@ interface AppStoreState {
   reorderThreads: (sourceId: string, targetId: string, placement: ReorderPlacement) => void;
   reorderThreadBlock: (blockIds: string[], targetId: string, placement: ReorderPlacement) => void;
   reorderPanes: (sourceId: string, targetId: string, placement: ReorderPlacement) => void;
+  saveDraftContent: (projectId: string, content: DraftContent) => void;
+  clearDraftContent: (projectId: string) => void;
 }
 
 export const useAppStore = create<AppStoreState>()(
@@ -128,6 +137,7 @@ export const useAppStore = create<AppStoreState>()(
       pendingServerRequests: [],
       pendingThreadLaunches: {},
       pendingLaunchSegments: {},
+      draftContents: {},
       agentStatuses: [],
       wslAgentStatuses: [],
       view: { kind: "home" },
@@ -196,6 +206,8 @@ export const useAppStore = create<AppStoreState>()(
             ),
           );
 
+          const { [projectId]: _draft, ...nextDraftContents } = state.draftContents;
+
           let nextView = state.view;
           if (state.view.kind === "draft" && state.view.projectId === projectId) {
             nextView = { kind: "home" };
@@ -213,6 +225,7 @@ export const useAppStore = create<AppStoreState>()(
             pendingServerRequests: nextPendingServerRequests,
             pendingThreadLaunches: nextPendingThreadLaunches,
             pendingLaunchSegments: nextPendingLaunchSegments,
+            draftContents: nextDraftContents,
             view: nextView,
           };
         }),
@@ -670,6 +683,16 @@ export const useAppStore = create<AppStoreState>()(
           const reordered = reorderIds(state.view.panes, sourceId, targetId, placement);
           if (reordered === state.view.panes) return {};
           return { view: { kind: "thread", panes: reordered as [string, ...string[]] } };
+        }),
+      saveDraftContent: (projectId, content) =>
+        set((state) => ({
+          draftContents: { ...state.draftContents, [projectId]: content },
+        })),
+      clearDraftContent: (projectId) =>
+        set((state) => {
+          if (!(projectId in state.draftContents)) return {};
+          const { [projectId]: _, ...rest } = state.draftContents;
+          return { draftContents: rest };
         }),
     }),
     {

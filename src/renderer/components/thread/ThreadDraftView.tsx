@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Paperclip, TerminalSquare } from "lucide-react";
 import { Button, Spinner, Tooltip } from "@heroui/react";
 import { useShallow } from "zustand/shallow";
@@ -22,6 +22,7 @@ import {
 } from "../composer";
 import { flattenSegments } from "../composer/serializeMentions";
 import { useSharedSettings } from "../../state/sharedSettingsStore";
+import { useAppStore } from "../../state/appStore";
 import { filterHiddenModels } from "./threadComposerOptions";
 import { ThreadComposer } from "./ThreadComposer";
 
@@ -176,6 +177,50 @@ export function ThreadDraftView(props: {
   const [worktreeMode, setWorktreeMode] = useState(lastDraftConfig?.worktreeMode ?? false);
   const [branchSelection, setBranchSelection] = useState<BranchSelection | null>(null);
   const lastAppliedAgentKindRef = useRef<AgentStatus["kind"] | undefined>(undefined);
+
+  // --- Draft preservation: save on unmount, restore on mount ---
+  const saveDraftContent = useAppStore((s) => s.saveDraftContent);
+  const clearDraftContent = useAppStore((s) => s.clearDraftContent);
+
+  // Refs capture the latest values so the unmount cleanup can read
+  // them after the contentEditable DOM has been torn down.
+  const latestSegmentsRef = useRef<PromptSegment[]>([]);
+  const attachmentsRef = useRef(attachments.attachments);
+  attachmentsRef.current = attachments.attachments;
+
+  function resetDraftRefs() {
+    latestSegmentsRef.current = [];
+    attachmentsRef.current = [];
+  }
+
+  const initialDraftRef = useRef(useAppStore.getState().draftContents[project.id]);
+
+  useLayoutEffect(() => {
+    const saved = initialDraftRef.current;
+    if (!saved) return;
+    if (saved.segments.length > 0) {
+      mentionRef.current?.restoreFromSegments(saved.segments);
+      latestSegmentsRef.current = saved.segments;
+    }
+    if (saved.attachments.length > 0) {
+      attachments.restore(saved.attachments);
+    }
+    clearDraftContent(project.id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- one-time mount restore
+  }, []);
+
+  // Save draft content + config when the component unmounts.
+  useEffect(() => {
+    const pid = project.id;
+    return () => {
+      const segments = latestSegmentsRef.current;
+      const atts = attachmentsRef.current;
+      if (segments.length > 0 || atts.length > 0) {
+        saveDraftContent(pid, { segments, attachments: atts });
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- cleanup-only effect keyed on project
+  }, [project.id, saveDraftContent]);
 
   useEffect(() => {
     if (effectiveAgentKind && agentKind !== effectiveAgentKind) {
@@ -336,7 +381,11 @@ export function ThreadDraftView(props: {
                     autoFocus // eslint-disable-line jsx-a11y/no-autofocus -- desktop app, expected UX
                     placeholder="Ask LightCode anything, @ to add files, / for commands"
                     projectLocation={project.location}
-                    onTextChange={setHasContent}
+                    onTextChange={(hasText) => {
+                      setHasContent(hasText);
+                      latestSegmentsRef.current =
+                        mentionRef.current?.serializeSegments() ?? [];
+                    }}
                     onPasteImage={(file) => {
                       // Draft view uses project.id as threadId for temp storage
                       void attachments.addClipboardImage(file, `draft:${project.id}`);
@@ -344,6 +393,7 @@ export function ThreadDraftView(props: {
                     onSubmit={(segments) => {
                       const allSegments = [...attachments.toSegments(), ...segments];
                       const useWorktree = branchSelection?.isWorktree ?? worktreeMode;
+                      resetDraftRefs();
                       onStart({
                         agentKind: selectedAgent.kind,
                         config: {
@@ -384,6 +434,9 @@ export function ThreadDraftView(props: {
                   const allSegments = [...attachments.toSegments(), ...segments];
                   const flatPrompt = flattenSegments(allSegments) || prompt.trim();
                   if (flatPrompt.length === 0) return;
+                  // Clear refs so unmount effect won't re-save a stale draft.
+                  latestSegmentsRef.current = [];
+                  attachmentsRef.current = [];
                   const useWorktree = branchSelection?.isWorktree ?? worktreeMode;
                   onStart({
                     agentKind: selectedAgent.kind,
