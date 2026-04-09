@@ -449,16 +449,16 @@ export function ThreadView(props: {
               </div>
               {canCollapseComposer ? (
                 <div
-                  className={`relative z-10 flex justify-center transition-[margin] duration-150 ease-[cubic-bezier(0.16,1,0.3,1)] ${isComposerCollapsed ? "mt-0" : "-mt-3"}`}
+                  className={`relative z-10 flex justify-center transition-[margin] duration-150 ease-[cubic-bezier(0.16,1,0.3,1)] ${isComposerCollapsed ? "mt-0" : "-mt-[9px]"}`}
                 >
                   <button
                     type="button"
                     aria-label={isComposerCollapsed ? "Show composer" : "Collapse composer"}
-                    className="cursor-pointer rounded-full border border-[var(--border)] bg-[var(--background)] px-3 py-0.5 text-muted transition-colors hover:text-foreground"
+                    className="flex items-center rounded-full border border-[var(--border)] bg-[var(--background)] px-2 py-0 text-muted transition-colors hover:text-foreground"
                     onClick={() => setComposerCollapsed(!composerCollapsed)}
                   >
                     <ChevronDown
-                      className={`size-4 transition-transform duration-150 ${isComposerCollapsed ? "rotate-180" : ""}`}
+                      className={`size-3.5 transition-transform duration-150 ${isComposerCollapsed ? "rotate-180" : ""}`}
                     />
                   </button>
                 </div>

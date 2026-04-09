@@ -1,6 +1,4 @@
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
-import { createDbStorage } from "./dbStorage";
 
 export interface DevTerminalTab {
   id: string;
@@ -45,7 +43,6 @@ interface DevTerminalActions {
 }
 
 export const useDevTerminalStore = create<DevTerminalState & DevTerminalActions>()(
-  persist(
     (set, get) => ({
       isOpen: false,
       activeProjectId: null,
@@ -211,15 +208,4 @@ export const useDevTerminalStore = create<DevTerminalState & DevTerminalActions>
         }));
       },
     }),
-    {
-      name: "lightcode-dev-terminals",
-      version: 1,
-      storage: createDbStorage(),
-      partialize: (state) => ({
-        tabs: state.tabs,
-        activeProjectId: state.activeProjectId,
-        activeWorktreePath: state.activeWorktreePath,
-      }),
-    },
-  ),
 );

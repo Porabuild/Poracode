@@ -40,6 +40,7 @@
     --window-overlay-background: rgba(0, 0, 0, 0);
     --terminal-surface: var(--surface);
     --composer-surface: var(--surface);
+    --interactive-cursor: default;
   }
 
   .light,
@@ -131,6 +132,7 @@
 
 * {
   box-sizing: border-box;
+  cursor: var(--interactive-cursor);
 }
 
 html,
@@ -471,7 +473,6 @@ body {
   border-radius: var(--field-radius);
   background: transparent;
   color: var(--muted);
-  cursor: pointer;
 }
 
 .lightcode-composer-send {
@@ -571,7 +572,7 @@ body {
   background: var(--surface);
   border: 1px solid var(--border);
   color: var(--muted);
-  cursor: pointer;
+  cursor: var(--interactive-cursor);
 }
 
 .lightcode-mention-chip__delete:hover {
@@ -611,7 +612,7 @@ body {
 }
 
 .lightcode-attachment-chip[role="button"] {
-  cursor: pointer;
+  cursor: var(--interactive-cursor);
 }
 
 .lightcode-attachment-chip__thumb {
@@ -649,7 +650,7 @@ body {
   background: var(--surface);
   border: 1px solid var(--border);
   color: var(--muted);
-  cursor: pointer;
+  cursor: var(--interactive-cursor);
 }
 
 .lightcode-attachment-chip__delete:hover {
@@ -671,7 +672,7 @@ body {
   align-items: center;
   justify-content: center;
   background: rgba(0, 0, 0, 0.82);
-  cursor: pointer;
+  cursor: var(--interactive-cursor);
   animation: lightcode-lightbox-fade-in 150ms ease-out;
 }
 
@@ -706,7 +707,7 @@ body {
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.12);
   color: white;
-  cursor: pointer;
+  cursor: var(--interactive-cursor);
   transition: background 150ms;
 }
 
@@ -727,7 +728,7 @@ body {
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.1);
   color: white;
-  cursor: pointer;
+  cursor: var(--interactive-cursor);
   transition: background 150ms;
 }
 
@@ -787,7 +788,7 @@ body {
   padding: 0.45rem 0.65rem;
   border-radius: 0.5rem;
   font-size: 0.8125rem;
-  cursor: pointer;
+  cursor: var(--interactive-cursor);
   color: var(--foreground);
 }
 
