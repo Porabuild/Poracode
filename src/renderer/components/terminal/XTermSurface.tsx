@@ -273,15 +273,22 @@ export const XTermSurface = forwardRef<
     });
 
     // ── Scroll-to-bottom tracking ──────────────────────────────
-    const SCROLL_THRESHOLD = 15; // lines from bottom before showing button
+    const SCROLL_THRESHOLD = 15;
+    let wasScrolledUp = false;
+    let scrollCheckPending = false;
     const checkScrollPosition = () => {
-      const buf = terminal.buffer.active;
-      const distanceFromBottom = buf.baseY - buf.viewportY;
-      setShowScrollDown(distanceFromBottom > SCROLL_THRESHOLD);
+      if (scrollCheckPending) return;
+      scrollCheckPending = true;
+      requestAnimationFrame(() => {
+        scrollCheckPending = false;
+        const scrolledUp = terminal.buffer.active.baseY - terminal.buffer.active.viewportY > SCROLL_THRESHOLD;
+        if (scrolledUp !== wasScrolledUp) {
+          wasScrolledUp = scrolledUp;
+          setShowScrollDown(scrolledUp);
+        }
+      });
     };
     terminal.onScroll(checkScrollPosition);
-    // Also recheck after new content is written (buffer may grow while
-    // the user is scrolled up).
     terminal.onWriteParsed(checkScrollPosition);
 
     // ── Selection tracking ───────────────────────────────────────
