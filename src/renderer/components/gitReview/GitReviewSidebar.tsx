@@ -300,7 +300,15 @@ function FileGroup(props: {
       )}
       {expanded && (
         <div className="space-y-px">
-          {files.map((file) => (
+          {files.toSorted((a, b) => {
+            const aDir = a.path.substring(0, a.path.lastIndexOf("/"));
+            const bDir = b.path.substring(0, b.path.lastIndexOf("/"));
+            const dirCmp = aDir.localeCompare(bDir, undefined, { sensitivity: "base" });
+            if (dirCmp !== 0) return dirCmp;
+            const aName = a.path.substring(a.path.lastIndexOf("/") + 1);
+            const bName = b.path.substring(b.path.lastIndexOf("/") + 1);
+            return aName.localeCompare(bName, undefined, { sensitivity: "base" });
+          }).map((file) => (
             <FileRow
               key={`${file.staged ? "s" : "u"}:${file.path}`}
               file={file}

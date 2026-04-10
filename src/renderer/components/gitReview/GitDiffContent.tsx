@@ -399,8 +399,6 @@ export function GitDiffContent(props: {
     let cancelled = false;
 
     async function loadDiffs() {
-      setLoading(true);
-
       if (!gitStatus?.isRepo) {
         if (!cancelled) {
           statusKeyRef.current = buildGitStatusKey(gitStatus);
@@ -412,15 +410,23 @@ export function GitDiffContent(props: {
 
       const statusKey = buildGitStatusKey(gitStatus);
       if (statusKeyRef.current === statusKey) {
-        setLoading(false);
         return;
       }
 
-      const skeletons = [
-        ...gitStatus.staged.map((f) => skeletonEntry(f.path, true, f.insertions, f.deletions)),
-        ...gitStatus.unstaged.map((f) => skeletonEntry(f.path, false, f.insertions, f.deletions)),
-      ];
-      if (!cancelled) setEntries(skeletons);
+      // Only show skeleton loading on the very first load (no entries yet).
+      // On subsequent refreshes, keep existing entries visible while fetching
+      // to avoid a loading flash on every poll cycle.
+      const isFirstLoad = statusKeyRef.current === null;
+      if (isFirstLoad) {
+        setLoading(true);
+        const skeletons = [
+          ...gitStatus.staged.map((f) => skeletonEntry(f.path, true, f.insertions, f.deletions)),
+          ...gitStatus.unstaged.map((f) =>
+            skeletonEntry(f.path, false, f.insertions, f.deletions),
+          ),
+        ];
+        if (!cancelled) setEntries(skeletons);
+      }
 
       const untrackedPaths = gitStatus.unstaged.filter((f) => f.status === "?").map((f) => f.path);
 
@@ -463,7 +469,7 @@ export function GitDiffContent(props: {
         }
       }
 
-      if (!cancelled) setLoading(false);
+      if (!cancelled && isFirstLoad) setLoading(false);
     }
 
     void loadDiffs();

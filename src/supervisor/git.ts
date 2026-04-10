@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { execFile } from "node:child_process";
-import { mkdir, readFile, rm } from "node:fs/promises";
+import { mkdir, readdir, readFile, rm, stat } from "node:fs/promises";
 import { homedir } from "node:os";
 import { dirname, join, normalize, posix } from "node:path";
 import { promisify } from "node:util";
@@ -464,20 +464,56 @@ export class GitService {
       }
     }
 
-    // Count lines for untracked files (not covered by numstat)
+    // Count lines for untracked files (not covered by numstat).
+    // Directories are reported as single "?" entries by porcelain v2 — expand them
+    // into individual file entries so the UI matches VS Code behavior.
     const repoPath = getRepoPath(location);
     const untrackedFiles = parsed.unstaged.filter((f) => f.status === "?" && f.insertions === 0);
     if (untrackedFiles.length > 0) {
+      const toRemove = new Set<string>();
+      const toAdd: GitFileChange[] = [];
       await Promise.all(
         untrackedFiles.map(async (f) => {
           try {
-            const content = await readFile(join(repoPath, f.path), "utf-8");
+            const fullPath = join(repoPath, f.path);
+            const st = await stat(fullPath);
+            if (st.isDirectory()) {
+              toRemove.add(f.path);
+              const entries = await readdir(fullPath, { recursive: true });
+              await Promise.all(
+                entries.map(async (entry) => {
+                  const filePath = join(fullPath, entry);
+                  try {
+                    const entryStat = await stat(filePath);
+                    if (!entryStat.isFile()) return;
+                    const content = await readFile(filePath, "utf-8");
+                    toAdd.push({
+                      path: toForwardSlash(join(f.path, entry)),
+                      status: "?",
+                      staged: false,
+                      insertions: content.split("\n").length,
+                      deletions: 0,
+                    });
+                  } catch {
+                    // skip binary / unreadable files
+                  }
+                }),
+              );
+              return;
+            }
+            const content = await readFile(fullPath, "utf-8");
             f.insertions = content.split("\n").length;
           } catch {
             // best-effort
           }
         }),
       );
+      if (toRemove.size > 0) {
+        parsed.unstaged = parsed.unstaged.filter((f) => !toRemove.has(f.path));
+      }
+      if (toAdd.length > 0) {
+        parsed.unstaged.push(...toAdd);
+      }
     }
 
     const totalInsertions =
