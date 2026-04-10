@@ -354,6 +354,18 @@ export const getGitDiffBatchPayloadSchema = z.object({
 });
 export type GetGitDiffBatchPayload = z.infer<typeof getGitDiffBatchPayloadSchema>;
 
+export interface GitFileContentResult {
+  oldContent: string;
+  newContent: string;
+}
+
+export const getGitFileContentPayloadSchema = z.object({
+  projectLocation: projectLocationSchema,
+  filePath: z.string().min(1),
+  staged: z.boolean(),
+});
+export type GetGitFileContentPayload = z.infer<typeof getGitFileContentPayloadSchema>;
+
 export const gitStagePayloadSchema = z.object({
   projectLocation: projectLocationSchema,
   filePath: z.string().min(1),

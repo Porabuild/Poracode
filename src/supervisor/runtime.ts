@@ -32,12 +32,14 @@ import type {
   GetAgentStatusesPayload,
   GetGitDiffBatchPayload,
   GetGitDiffPayload,
+  GetGitFileContentPayload,
   GetGitStatusPayload,
   GitAddWorktreeResult,
   GitCommitPayload,
   GitCommitResult,
   GitDiffBatchResult,
   GitDiffResult,
+  GitFileContentResult,
   GitPullPayload,
   GitPushPayload,
   GitRevertAllPayload,
@@ -917,6 +919,14 @@ export class SupervisorRuntime {
 
   async getGitDiffBatch(payload: GetGitDiffBatchPayload): Promise<GitDiffBatchResult> {
     return this.gitService.getDiffBatch(payload.projectLocation, payload.untrackedPaths);
+  }
+
+  async getGitFileContent(payload: GetGitFileContentPayload): Promise<GitFileContentResult> {
+    return this.gitService.getFileContent(
+      payload.projectLocation,
+      payload.filePath,
+      payload.staged,
+    );
   }
 
   async gitStage(payload: GitStagePayload): Promise<void> {

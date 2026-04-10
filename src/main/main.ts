@@ -61,6 +61,7 @@ const CHANNELS = {
   getGitStatus: "lightcode:get-git-status",
   getGitDiff: "lightcode:get-git-diff",
   getGitDiffBatch: "lightcode:get-git-diff-batch",
+  getGitFileContent: "lightcode:get-git-file-content",
   gitStage: "lightcode:git-stage",
   gitUnstage: "lightcode:git-unstage",
   gitRevert: "lightcode:git-revert",
@@ -533,6 +534,10 @@ function registerIpcHandlers(): void {
 
   ipcMain.handle(CHANNELS.getGitDiffBatch, async (_event, payload) =>
     callSupervisor("getGitDiffBatch", payload),
+  );
+
+  ipcMain.handle(CHANNELS.getGitFileContent, async (_event, payload) =>
+    callSupervisor("getGitFileContent", payload),
   );
 
   ipcMain.handle(CHANNELS.gitStage, async (_event, payload) => callSupervisor("gitStage", payload));

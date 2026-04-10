@@ -5,6 +5,7 @@ import type {
   GetGitBranchesPayload,
   GetGitDiffBatchPayload,
   GetGitDiffPayload,
+  GetGitFileContentPayload,
   GetGitStatusPayload,
   GitAddWorktreePayload,
   GitCommitPayload,
@@ -53,6 +54,7 @@ import {
   getGitBranchesPayloadSchema,
   getGitDiffBatchPayloadSchema,
   getGitDiffPayloadSchema,
+  getGitFileContentPayloadSchema,
   getGitStatusPayloadSchema,
   gitAddWorktreePayloadSchema,
   gitCommitPayloadSchema,
@@ -152,6 +154,10 @@ async function handleRequest(request: SupervisorRequest): Promise<unknown> {
     case "getGitDiffBatch":
       return runtime.getGitDiffBatch(
         getGitDiffBatchPayloadSchema.parse(request.payload) as GetGitDiffBatchPayload,
+      );
+    case "getGitFileContent":
+      return runtime.getGitFileContent(
+        getGitFileContentPayloadSchema.parse(request.payload) as GetGitFileContentPayload,
       );
     case "gitStage":
       return runtime.gitStage(gitStagePayloadSchema.parse(request.payload) as GitStagePayload);

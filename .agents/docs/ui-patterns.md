@@ -59,6 +59,26 @@ Three modes: light, dark, system. Resolved via `useResolvedAppearance()` hook in
 - **SplitPaneContainer**: Horizontal multi-pane for side-by-side threads (1-3 panes, equal initial distribution, 15% minimum each).
 - Resizable panels use **local state only** (not Zustand) to avoid resize lag.
 
+## Module Loading
+
+Vite 8 (Rolldown) splits renderer output into manual chunks: `xterm`, `git-diff`, `ui`, `framework`, `vendor`. Heavy chunks that are not needed at startup should be lazy-loaded and preloaded:
+
+1. **`React.lazy()`** for route-level code splitting — wrap the component in `lazy()` + `<Suspense>`. Example: `GitReviewOverlay` is lazy-loaded because it pulls in the `git-diff` chunk.
+2. **`requestIdleCallback` preloading** — after the lazy declaration, fire a top-level `import()` inside `requestIdleCallback` so the chunk downloads during idle time, before the user navigates to it. This eliminates the spinner on first open.
+3. **Static imports within lazy boundaries** — child modules (e.g. `GitDiffContent` inside `GitReviewOverlay`) use normal static imports. They load automatically when the parent chunk loads.
+
+Pattern in `app.tsx`:
+```tsx
+const MyOverlay = lazy(() => import("./MyOverlay").then(m => ({ default: m.MyOverlay })));
+
+// Preload during idle so it's ready when needed
+if (typeof requestIdleCallback === "function") {
+  requestIdleCallback(() => { import("./MyOverlay"); });
+} else {
+  setTimeout(() => { import("./MyOverlay"); }, 1000);
+}
+```
+
 ## Drag-and-Drop
 
 - Sidebar supports reordering projects and threads via native drag API.

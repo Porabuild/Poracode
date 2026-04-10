@@ -5,6 +5,7 @@ import type { GitStatusResult, Project } from "../../../shared/contracts";
 const { bridge } = vi.hoisted(() => ({
   bridge: {
     getGitDiff: vi.fn().mockResolvedValue({ diff: "" }),
+    getGitFileContent: vi.fn().mockResolvedValue({ oldContent: "", newContent: "" }),
     getGitDiffBatch: vi.fn().mockResolvedValue({
       staged: {},
       unstaged: {
@@ -27,15 +28,25 @@ new file mode 100644
   },
 }));
 
+const mockBundle = { __mock: true };
+const mockDiffFile = {
+  init: () => undefined,
+  initTheme: () => undefined,
+  initRaw: () => undefined,
+  initSyntax: () => undefined,
+  buildSplitDiffLines: () => undefined,
+  buildUnifiedDiffLines: () => undefined,
+  _getFullBundle: () => mockBundle,
+  clear: () => undefined,
+};
 vi.mock("@git-diff-view/react", () => ({
   DiffView: () => <div>diff view</div>,
   DiffFile: {
-    createInstance: () => ({
-      init: () => undefined,
-      buildUnifiedDiffLines: () => undefined,
-      buildSplitDiffLines: () => undefined,
-    }),
+    createInstance: () => mockDiffFile,
   },
+  highlighter: {},
+  setEnableFastDiffTemplate: () => undefined,
+  getLang: (fileName: string) => fileName.split(".").pop() ?? "",
 }));
 
 vi.mock("@git-diff-view/react/styles/diff-view.css", () => ({}));
@@ -252,7 +263,7 @@ describe("GitDiffContent", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText("diff view")).toBeInTheDocument();
+      expect(screen.getByText("src\\worktree-only.ts")).toBeInTheDocument();
     });
   });
 });

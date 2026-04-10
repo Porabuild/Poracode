@@ -9,6 +9,7 @@ import type {
   GitStatusResult,
   GitDiffResult,
   GitDiffBatchResult,
+  GitFileContentResult,
   GitFileChange,
   GitBranchInfo,
   GitBranchListResult,
@@ -646,6 +647,33 @@ export class GitService {
     }
 
     return { staged, unstaged };
+  }
+
+  async getFileContent(
+    location: ProjectLocation,
+    filePath: string,
+    staged: boolean,
+  ): Promise<GitFileContentResult> {
+    if (staged) {
+      // Staged diff: old = HEAD version, new = index version
+      const [oldContent, newContent] = await Promise.all([
+        execGit(location, ["show", `HEAD:${filePath}`], { timeout: GIT_DIFF_TIMEOUT }).catch(
+          () => "",
+        ),
+        execGit(location, ["show", `:${filePath}`], { timeout: GIT_DIFF_TIMEOUT }).catch(
+          () => "",
+        ),
+      ]);
+      return { oldContent, newContent };
+    }
+
+    // Unstaged diff: old = index version, new = working tree
+    const repoPath = getRepoPath(location);
+    const [oldContent, newContent] = await Promise.all([
+      execGit(location, ["show", `:${filePath}`], { timeout: GIT_DIFF_TIMEOUT }).catch(() => ""),
+      readFile(join(repoPath, filePath), "utf-8").catch(() => ""),
+    ]);
+    return { oldContent, newContent };
   }
 
   async stageAll(location: ProjectLocation): Promise<void> {

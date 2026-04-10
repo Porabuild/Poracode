@@ -11,6 +11,7 @@ import type {
   GetGitBranchesPayload,
   GetGitDiffBatchPayload,
   GetGitDiffPayload,
+  GetGitFileContentPayload,
   GetGitStatusPayload,
   GitAddWorktreeResult,
   GitAddWorktreePayload,
@@ -19,6 +20,7 @@ import type {
   GitCommitResult,
   GitDiffBatchResult,
   GitDiffResult,
+  GitFileContentResult,
   GitFetchPayload,
   GitListWorktreesPayload,
   GitPullPayload,
@@ -92,6 +94,7 @@ export type SupervisorRequest =
   | { id: string; type: "getGitStatus"; payload: GetGitStatusPayload }
   | { id: string; type: "getGitDiff"; payload: GetGitDiffPayload }
   | { id: string; type: "getGitDiffBatch"; payload: GetGitDiffBatchPayload }
+  | { id: string; type: "getGitFileContent"; payload: GetGitFileContentPayload }
   | { id: string; type: "gitStage"; payload: GitStagePayload }
   | { id: string; type: "gitUnstage"; payload: GitUnstagePayload }
   | { id: string; type: "gitRevert"; payload: GitRevertPayload }
@@ -213,6 +216,7 @@ export interface LightcodeBridge {
   getGitStatus(payload: GetGitStatusPayload): Promise<GitStatusResult>;
   getGitDiff(payload: GetGitDiffPayload): Promise<GitDiffResult>;
   getGitDiffBatch(payload: GetGitDiffBatchPayload): Promise<GitDiffBatchResult>;
+  getGitFileContent(payload: GetGitFileContentPayload): Promise<GitFileContentResult>;
   gitStage(payload: GitStagePayload): Promise<void>;
   gitUnstage(payload: GitUnstagePayload): Promise<void>;
   gitRevert(payload: GitRevertPayload): Promise<void>;

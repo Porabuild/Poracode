@@ -43,6 +43,19 @@ import { AppProvider } from "./components/ui/provider";
 const GitReviewOverlay = lazy(() =>
   import("./components/gitReview/GitReviewOverlay").then((m) => ({ default: m.GitReviewOverlay })),
 );
+
+// Preload heavy chunks after app start so they're ready when needed.
+// GitReviewOverlay pulls in @git-diff-view/react + highlight.js (~300KB).
+if (typeof requestIdleCallback === "function") {
+  requestIdleCallback(() => {
+    import("./components/gitReview/GitReviewOverlay");
+  });
+} else {
+  setTimeout(() => {
+    import("./components/gitReview/GitReviewOverlay");
+  }, 1000);
+}
+
 import { useAppStore, makeThreadTitle } from "./state/appStore";
 import { useSharedSettings } from "./state/sharedSettingsStore";
 import { useThread } from "./state/useThread";
