@@ -1025,7 +1025,15 @@ export function Sidebar(props: {
   };
 
   const { isCollapsed, collapse, expand } = useSidebar();
-  const [collapsedProjects, setCollapsedProjects] = useState<Record<string, boolean>>({});
+  const [collapsedProjects, setCollapsedProjects] = useState<Record<string, boolean>>(() => {
+    try {
+      const raw = localStorage.getItem("lightcode-collapsed-projects");
+      if (raw) return JSON.parse(raw) as Record<string, boolean>;
+    } catch {
+      /* ignore */
+    }
+    return {};
+  });
   const [collapsedWorktrees, setCollapsedWorktrees] = useState<Record<string, boolean>>({});
   const [editingThreadId, setEditingThreadId] = useState<string | null>(null);
 
@@ -1061,6 +1069,10 @@ export function Sidebar(props: {
     // not manual collapse actions.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentThreadIds, threads]);
+
+  useEffect(() => {
+    localStorage.setItem("lightcode-collapsed-projects", JSON.stringify(collapsedProjects));
+  }, [collapsedProjects]);
 
   const activeThreads = threads.filter(
     (thread) => thread.status !== "inactive" && !thread.archived,
