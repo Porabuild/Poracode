@@ -6,6 +6,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { Toast } from "@heroui/react";
 import { resolveThemeMode } from "../../../shared/themeMode";
 import { readBridge } from "../../bridge";
 import { useSharedSettings } from "../../state/sharedSettingsStore";
@@ -77,5 +78,10 @@ export function AppProvider(props: { children: ReactNode }) {
       });
   }, [appearance]);
 
-  return <AppearanceContext.Provider value={appearance}>{children}</AppearanceContext.Provider>;
+  return (
+    <AppearanceContext.Provider value={appearance}>
+      <Toast.Provider placement="bottom end" maxVisibleToasts={5} />
+      {children}
+    </AppearanceContext.Provider>
+  );
 }

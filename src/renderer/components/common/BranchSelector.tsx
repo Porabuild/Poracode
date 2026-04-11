@@ -1,7 +1,9 @@
-import { useEffect, useRef, useState } from "react";
-import { Check, ChevronDown, GitBranch, GitFork, Plus, Search } from "lucide-react";
-import { Checkbox, Header, Label, ListBox, Popover } from "@heroui/react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Check, ChevronDown, GitBranch, GitFork, Globe, Loader2, Plus, Search, Trash2 } from "lucide-react";
+import { Checkbox, Header, Label, ListBox, ListLayout, Popover, Virtualizer } from "@heroui/react";
 import type { GitBranchInfo } from "../../../shared/contracts";
+import { readBridge } from "../../bridge";
+import { useAppStore } from "../../state/appStore";
 import { useGitStore } from "../../state/gitStore";
 import { Button } from "./Button";
 
@@ -82,6 +84,7 @@ export interface BranchSelectorProps {
   worktreeMode: boolean;
   onWorktreeModeChange: (value: boolean) => void;
   onSelect: (selection: BranchSelection) => void;
+  onSwitchBranch?: (branch: string, isNew: boolean) => void;
   isDisabled?: boolean;
 }
 
@@ -96,17 +99,28 @@ export function BranchSelector(props: BranchSelectorProps) {
     worktreeMode,
     onWorktreeModeChange,
     onSelect,
+    onSwitchBranch,
     isDisabled,
   } = props;
   const branchData = useGitStore((s) => s.branches[projectId]);
   const worktrees = useGitStore((s) => s.worktrees[projectId]);
+  const projectLocation = useAppStore(
+    (s) => s.projects.find((p) => p.id === projectId)?.location,
+  );
+  const threads = useAppStore((s) => s.threads);
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [isCreating, setIsCreating] = useState(false);
   const [newBranchName, setNewBranchName] = useState("");
+  const [deletingBranch, setDeletingBranch] = useState<string | null>(null);
   const searchRef = useRef<HTMLInputElement>(null);
   const createRef = useRef<HTMLInputElement>(null);
 
+  const activeWorktreeBranches = new Set(
+    threads
+      .filter((t) => t.projectId === projectId && !t.archived && t.worktreeBranch)
+      .map((t) => t.worktreeBranch!),
+  );
   const worktreeBranches = new Set(worktrees?.filter((w) => !w.isMain).map((w) => w.branch) ?? []);
   const branchWorktreePath = new Map(
     worktrees?.filter((w) => !w.isMain && w.branch).map((w) => [w.branch, w.path]) ?? [],
@@ -133,8 +147,26 @@ export function BranchSelector(props: BranchSelectorProps) {
     ? deduped.filter((b) => b.name.toLowerCase().includes(search.toLowerCase()))
     : deduped;
 
-  const localBranches = filtered.filter((b) => !b.isRemote);
-  const remoteBranches = filtered.filter((b) => b.isRemote);
+  const allLocal = filtered.filter((b) => !b.isRemote);
+  const allRemote = filtered.filter((b) => b.isRemote);
+  const hasLocal = allLocal.length > 0;
+  const hasRemote = allRemote.length > 0;
+
+  const items = useMemo(() => {
+    const list: (
+      | { type: "header"; id: string; name: string }
+      | { type: "branch"; id: string; branch: GitBranchInfo }
+    )[] = [];
+    if (hasLocal) {
+      list.push({ type: "header", id: "header-local", name: "Local" });
+      allLocal.forEach((b) => list.push({ type: "branch", id: b.name, branch: b }));
+    }
+    if (hasRemote) {
+      list.push({ type: "header", id: "header-remote", name: "Remote" });
+      allRemote.forEach((b) => list.push({ type: "branch", id: b.name, branch: b }));
+    }
+    return list;
+  }, [allLocal, allRemote, hasLocal, hasRemote]);
 
   useEffect(() => {
     if (isOpen) {
@@ -172,6 +204,8 @@ export function BranchSelector(props: BranchSelectorProps) {
       } else {
         onSelect({ branch, isNew: false, isWorktree: false });
       }
+    } else if (branch !== currentBranch && onSwitchBranch) {
+      onSwitchBranch(branch, false);
     } else {
       onSelect({ branch, isNew: false, isWorktree: false });
     }
@@ -182,14 +216,51 @@ export function BranchSelector(props: BranchSelectorProps) {
     const name = newBranchName.trim();
     if (!name) return;
     onWorktreeModeChange(false);
+    if (onSwitchBranch) {
+      onSwitchBranch(name, true);
+    }
     onSelect({ branch: name, isNew: true, isWorktree: false });
     setIsOpen(false);
     setIsCreating(false);
     setNewBranchName("");
   }
 
-  const hasLocal = localBranches.length > 0;
-  const hasRemote = remoteBranches.length > 0;
+  async function handleDeleteBranch(branch: GitBranchInfo) {
+    if (!projectLocation) return;
+    setDeletingBranch(branch.name);
+    try {
+      const wtPath = branchWorktreePath.get(branch.name);
+      if (wtPath) {
+        await readBridge().gitRemoveWorktree({
+          projectLocation,
+          path: wtPath,
+          force: true,
+          deleteBranch: false,
+        });
+      }
+      await readBridge().gitDeleteBranch({
+        projectLocation,
+        branch: branch.name,
+        force: true,
+        ...(branch.remote ? { remote: branch.remote } : {}),
+      });
+    } catch {
+      // best-effort — branch may already be deleted by removeWorktree
+    }
+    try {
+      const [branches, wts] = await Promise.all([
+        readBridge().gitListBranches({ projectLocation, includeRemote: true }),
+        readBridge().gitListWorktrees({ projectLocation }),
+      ]);
+      const store = useGitStore.getState();
+      store.setBranches(projectId, branches);
+      store.setWorktrees(projectId, wts.worktrees);
+    } catch {
+      // ignore refresh errors
+    } finally {
+      setDeletingBranch(null);
+    }
+  }
 
   return (
     <div className="flex items-center gap-1">
@@ -214,7 +285,7 @@ export function BranchSelector(props: BranchSelectorProps) {
           </Button>
         </Popover.Trigger>
         <Popover.Content placement="top" className="w-96 p-0">
-          <Popover.Dialog className="flex max-h-80 flex-col overflow-hidden">
+          <Popover.Dialog className="flex max-h-[28rem] flex-col overflow-hidden">
             {/* Search */}
             <div className="flex items-center gap-2 border-b border-border px-3 py-2">
               <Search className="size-3.5 shrink-0 text-muted" />
@@ -239,60 +310,111 @@ export function BranchSelector(props: BranchSelectorProps) {
             </div>
 
             {/* Branch list */}
-            <div className="flex-1 overflow-y-auto">
-              {(hasLocal || hasRemote) && (
-                <ListBox
-                  aria-label="Branches"
-                  className="p-1"
-                  selectedKeys={
-                    isWorktree || worktreeMode ? new Set([baseBranch ?? value]) : new Set([value])
-                  }
-                  selectionMode="single"
-                  disallowEmptySelection
-                  onSelectionChange={(keys) => {
-                    if (keys === "all") return;
-                    const selected = [...keys][0];
-                    if (selected !== undefined) handleSelectBranch(String(selected));
-                  }}
-                >
-                  {hasLocal ? (
-                    <ListBox.Section>
-                      <Header>Branches</Header>
-                      {localBranches.map((branch) => (
-                        <ListBox.Item key={branch.name} id={branch.name} textValue={branch.name}>
-                          <ListBox.ItemIndicator />
-                          <GitBranch className="size-3.5 shrink-0 text-muted" />
+            <div className="flex-1 overflow-hidden">
+              {hasLocal || hasRemote ? (
+                <Virtualizer layout={ListLayout} layoutOptions={{ rowHeight: 32 }}>
+                  <ListBox
+                    aria-label="Branches"
+                    className="h-72 overflow-y-auto p-1 pl-0 [&_.list-box-item]:min-h-8 [&_.list-box-item]:py-1"
+                    items={items}
+                    selectedKeys={
+                      isWorktree || worktreeMode ? new Set([baseBranch ?? value]) : new Set([value])
+                    }
+                    selectionMode="single"
+                    disallowEmptySelection
+                    onSelectionChange={(keys) => {
+                      if (keys === "all") return;
+                      const selected = [...keys][0];
+                      if (selected !== undefined) {
+                        const item = items.find((i) => i.id === selected);
+                        if (item?.type === "branch") {
+                          handleSelectBranch(item.branch.name);
+                        }
+                      }
+                    }}
+                  >
+                    {(item) => {
+                      if (item.type === "header") {
+                        return (
+                          <ListBox.Item
+                            id={item.id}
+                            isDisabled
+                            className="!bg-transparent !cursor-default !opacity-100 !p-0 h-8 flex items-center"
+                            textValue={item.name}
+                          >
+                            <Header className="px-2 text-[10px] font-bold uppercase tracking-wider text-muted/80">
+                              {item.name}
+                            </Header>
+                          </ListBox.Item>
+                        );
+                      }
+                      const { branch } = item;
+                      const canDelete =
+                        branch.name !== currentBranch &&
+                        !activeWorktreeBranches.has(branch.name);
+                      return (
+                        <ListBox.Item
+                          key={branch.name}
+                          id={branch.name}
+                          textValue={branch.name}
+                          className="group"
+                        >
+                          <ListBox.ItemIndicator>
+                            {({ isSelected }) => {
+                              const isDeleting = deletingBranch === branch.name;
+                              if (isDeleting) {
+                                return <Loader2 className="size-3.5 animate-spin text-muted" />;
+                              }
+                              return canDelete ? (
+                                <>
+                                  {isSelected && (
+                                    <Check className="size-3 group-hover:hidden" />
+                                  )}
+                                  <div
+                                    role="button"
+                                    tabIndex={0}
+                                    aria-label={`Delete ${branch.name}`}
+                                    className={`items-center justify-center rounded text-muted/55 transition hover:text-danger ${isSelected ? "hidden group-hover:flex" : "opacity-0 group-hover:opacity-100 flex"}`}
+                                    onPointerDown={(e) => e.stopPropagation()}
+                                    onPointerUp={(e) => e.stopPropagation()}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      void handleDeleteBranch(branch);
+                                    }}
+                                    onKeyDown={(e) => {
+                                      if (e.key === "Enter" || e.key === " ") {
+                                        e.stopPropagation();
+                                        void handleDeleteBranch(branch);
+                                      }
+                                    }}
+                                  >
+                                    <Trash2 className="size-3.5" />
+                                  </div>
+                                </>
+                              ) : isSelected ? (
+                                <Check className="size-3" />
+                              ) : null;
+                            }}
+                          </ListBox.ItemIndicator>
+                          {branch.isRemote ? (
+                            <Globe className="size-3.5 shrink-0 text-muted" />
+                          ) : (
+                            <GitBranch className="size-3.5 shrink-0 text-muted" />
+                          )}
                           <Label className="flex-1 truncate">{branch.name}</Label>
                           {branch.name === currentBranch && (
                             <span className="text-[10px] text-muted">current</span>
                           )}
-                          {worktreeBranches.has(branch.name) && branch.name !== currentBranch && (
-                            <span className="text-[10px] text-muted">worktree</span>
-                          )}
+                          {worktreeBranches.has(branch.name) &&
+                            branch.name !== currentBranch && (
+                              <span className="text-[10px] text-muted">worktree</span>
+                            )}
                         </ListBox.Item>
-                      ))}
-                    </ListBox.Section>
-                  ) : null}
-                  {hasRemote ? (
-                    <ListBox.Section>
-                      <Header>Remote</Header>
-                      {remoteBranches.map((branch) => (
-                        <ListBox.Item
-                          key={`remote-${branch.name}`}
-                          id={branch.name}
-                          textValue={branch.name}
-                        >
-                          <ListBox.ItemIndicator />
-                          <GitBranch className="size-3.5 shrink-0 text-muted" />
-                          <Label className="flex-1 truncate">{branch.name}</Label>
-                        </ListBox.Item>
-                      ))}
-                    </ListBox.Section>
-                  ) : null}
-                </ListBox>
-              )}
-
-              {filtered.length === 0 && (
+                      );
+                    }}
+                  </ListBox>
+                </Virtualizer>
+              ) : (
                 <div className="px-3 py-3 text-center text-sm text-muted">No branches found</div>
               )}
             </div>
@@ -324,6 +446,10 @@ export function BranchSelector(props: BranchSelectorProps) {
                         value={newBranchName}
                         onClick={(e) => e.stopPropagation()}
                         onChange={(e) => setNewBranchName(e.target.value)}
+                        onBlur={() => {
+                          setIsCreating(false);
+                          setNewBranchName("");
+                        }}
                         onKeyDown={(e) => {
                           e.stopPropagation();
                           if (e.key === "Enter") handleCreateBranch();

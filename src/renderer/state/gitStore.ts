@@ -112,7 +112,8 @@ function areBranchListsEqual(a: GitBranchListResult | undefined, b: GitBranchLis
       left.name !== right.name ||
       left.current !== right.current ||
       left.commit !== right.commit ||
-      left.isRemote !== right.isRemote
+      left.isRemote !== right.isRemote ||
+      left.remote !== right.remote
     ) {
       return false;
     }

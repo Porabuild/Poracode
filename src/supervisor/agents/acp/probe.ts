@@ -194,7 +194,7 @@ export async function probeAcpCapabilities(
   sessionCwd: string,
   options?: { processCwd?: string; timeoutMs?: number; label?: string },
 ): Promise<AcpProbeResult | undefined> {
-  const timeoutMs = options?.timeoutMs ?? 8_000;
+  const timeoutMs = options?.timeoutMs ?? 15_000;
   const tag = options?.label ? `[acp-probe:${options.label}]` : "[acp-probe]";
   let child: ReturnType<typeof spawn> | undefined;
 
@@ -292,6 +292,13 @@ export async function probeAcpCapabilities(
     return undefined;
   } finally {
     if (child && !child.killed) {
+      // Destroy stdin before killing to prevent the ACP SDK from writing
+      // to a dead pipe (which causes noisy "ACP write error" logs).
+      try {
+        child.stdin?.destroy();
+      } catch {
+        /* ignore */
+      }
       child.kill();
     }
   }

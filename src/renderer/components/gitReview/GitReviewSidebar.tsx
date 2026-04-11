@@ -29,6 +29,7 @@ import {
   Label,
   Modal,
   Spinner,
+  toast,
   Tooltip,
 } from "@heroui/react";
 import type {
@@ -43,10 +44,12 @@ import { readBridge } from "../../bridge";
 import { useAppStore } from "../../state/appStore";
 import { useGitStore } from "../../state/gitStore";
 import { useSharedSettings } from "../../state/sharedSettingsStore";
+import { isLockFile } from "../../../shared/gitUtils";
 import { SidebarButton, TextArea } from "../common";
 import { useSidebar } from "../layout/AppShell";
 import { generateCommitMessageWithFallback, getCommitGenCandidates } from "../providers";
 import { getConflictResolverDefaults } from "../providers/ProviderIcon";
+import { msg, friendlyError } from "../../../shared/messages";
 
 function FileStatusIcon(props: { status: string; className?: string }) {
   const cls = `size-3.5 ${props.className ?? ""}`;
@@ -112,6 +115,9 @@ function FileRow(props: {
         <FileStatusIcon status={file.status} />
         <span className="min-w-0 flex-1 truncate" title={file.path}>
           <span className="text-foreground">{basename}</span>
+          {isLockFile(file.path) && (
+            <Lock className="ml-1 inline-block size-2 text-muted/40" />
+          )}
           {dir && <span className="ml-1 text-muted/60">{dir}</span>}
         </span>
 
@@ -374,17 +380,13 @@ export function GitReviewSidebar(props: {
   const [commitMessage, setCommitMessage] = useState("");
   const [isCommitting, setIsCommitting] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
-  const [commitError, setCommitError] = useState<string | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
-  const [syncError, setSyncError] = useState<string | null>(null);
 
   const [sourceBranchLoading, setSourceBranchLoading] = useState(false);
   // Merge & Remove state
   const [isMerging, setIsMerging] = useState(false);
-  const [mergeError, setMergeError] = useState<string | null>(null);
   // Pull from source state
   const [isPullingFromSource, setIsPullingFromSource] = useState(false);
-  const [pullFromSourceError, setPullFromSourceError] = useState<string | null>(null);
   // Merge conflict resolution state — synced from gitStatus on every refresh
   const mergeConflicting = gitStatus?.mergeInProgress ?? false;
   const mergeConflictFiles = gitStatus?.conflictFiles ?? [];
@@ -408,7 +410,6 @@ export function GitReviewSidebar(props: {
   const [prTitle, setPrTitle] = useState("");
   const [prIsDraft, setPrIsDraft] = useState(false);
   const [prLoading, setPrLoading] = useState(false);
-  const [prError, setPrError] = useState<string | null>(null);
   const showPrSection = Boolean(isGitHub && worktreeBranch && worktreePath);
   const projectLocationKind = project.location.kind;
   const projectLocationPath =
@@ -503,7 +504,6 @@ export function GitReviewSidebar(props: {
 
   async function handleCommit(addAll: boolean) {
     setIsCommitting(true);
-    setCommitError(null);
     try {
       let message = commitMessage.trim();
       if (!message && canGenerateMessage) {
@@ -528,7 +528,8 @@ export function GitReviewSidebar(props: {
         .catch(() => {});
       onRefresh();
     } catch (err) {
-      setCommitError(err instanceof Error ? err.message : String(err));
+      console.error("[git] commit failed", err);
+      toast.danger(friendlyError(err));
     } finally {
       setIsCommitting(false);
     }
@@ -536,12 +537,12 @@ export function GitReviewSidebar(props: {
 
   async function handleGenerateMessage() {
     setIsGenerating(true);
-    setCommitError(null);
     try {
       const message = await generateMessage();
       setCommitMessage(message);
     } catch (err) {
-      setCommitError(err instanceof Error ? err.message : String(err));
+      console.error("[git] generate message failed", err);
+      toast.danger(friendlyError(err));
     } finally {
       setIsGenerating(false);
     }
@@ -549,7 +550,6 @@ export function GitReviewSidebar(props: {
 
   async function handleSyncOrPush() {
     setIsSyncing(true);
-    setSyncError(null);
     try {
       if (needsPush) {
         await readBridge().gitPush({
@@ -561,7 +561,8 @@ export function GitReviewSidebar(props: {
       }
       onRefresh();
     } catch (err) {
-      setSyncError(err instanceof Error ? err.message : String(err));
+      console.error("[git] sync/push failed", err);
+      toast.danger(friendlyError(err));
     } finally {
       setIsSyncing(false);
     }
@@ -570,7 +571,6 @@ export function GitReviewSidebar(props: {
   async function performMerge(): Promise<boolean> {
     if (!sourceBranch || !worktreeBranch || !worktreePath) return false;
     setIsMerging(true);
-    setMergeError(null);
     try {
       const result = await readBridge().gitMergeToSource({
         projectLocation: project.location,
@@ -583,13 +583,14 @@ export function GitReviewSidebar(props: {
         const detail = result.conflictFiles?.length
           ? `\nConflicts:\n${result.conflictFiles.join("\n")}`
           : "";
-        setMergeError((result.error ?? "Merge failed") + detail);
+        toast.danger((result.error ?? msg("git.merge.failed")) + detail);
         return false;
       }
 
       return true;
     } catch (err) {
-      setMergeError(err instanceof Error ? err.message : String(err));
+      console.error("[git] merge failed", err);
+      toast.danger(friendlyError(err));
       return false;
     } finally {
       setIsMerging(false);
@@ -617,7 +618,6 @@ export function GitReviewSidebar(props: {
   async function handlePullFromSource() {
     if (!sourceBranch || !worktreePath) return;
     setIsPullingFromSource(true);
-    setPullFromSourceError(null);
     try {
       const result = await readBridge().gitPullFromSource({
         worktreeLocation: getWorktreeLocation(),
@@ -631,13 +631,14 @@ export function GitReviewSidebar(props: {
       }
 
       if (!result.merged) {
-        setPullFromSourceError(result.error ?? "Merge failed");
+        toast.danger(result.error ?? msg("git.merge.failed"));
         return;
       }
 
       onRefresh();
     } catch (err) {
-      setPullFromSourceError(err instanceof Error ? err.message : String(err));
+      console.error("[git] pull from source failed", err);
+      toast.danger(friendlyError(err));
     } finally {
       setIsPullingFromSource(false);
     }
@@ -646,19 +647,19 @@ export function GitReviewSidebar(props: {
   async function handleRunMergetool() {
     if (!worktreePath) return;
     setIsRunningMergetool(true);
-    setPullFromSourceError(null);
     try {
       const result = await readBridge().gitRunMergetool({
         worktreeLocation: getWorktreeLocation(),
       });
       if (!result.success) {
-        setPullFromSourceError(result.error ?? "Mergetool failed");
+        toast.danger(result.error ?? msg("git.mergetool.failed"));
         return;
       }
       // onRefresh will update mergeConflicting from gitStatus
       onRefresh();
     } catch (err) {
-      setPullFromSourceError(err instanceof Error ? err.message : String(err));
+      console.error("[git] mergetool failed", err);
+      toast.danger(friendlyError(err));
     } finally {
       setIsRunningMergetool(false);
     }
@@ -708,10 +709,10 @@ export function GitReviewSidebar(props: {
       await readBridge().gitAbortMerge({
         worktreeLocation: getWorktreeLocation(),
       });
-      setPullFromSourceError(null);
       onRefresh();
     } catch (err) {
-      setPullFromSourceError(err instanceof Error ? err.message : String(err));
+      console.error("[git] abort merge failed", err);
+      toast.danger(friendlyError(err));
     } finally {
       setIsAbortingMerge(false);
     }
@@ -720,18 +721,18 @@ export function GitReviewSidebar(props: {
   async function handleFinishMerge() {
     if (!worktreePath) return;
     setIsFinishingMerge(true);
-    setPullFromSourceError(null);
     try {
       const result = await readBridge().gitFinishMerge({
         worktreeLocation: getWorktreeLocation(),
       });
       if (!result.success) {
-        setPullFromSourceError(result.error ?? "Failed to finish merge");
+        toast.danger(result.error ?? msg("git.merge.finishFailed"));
         return;
       }
       onRefresh();
     } catch (err) {
-      setPullFromSourceError(err instanceof Error ? err.message : String(err));
+      console.error("[git] finish merge failed", err);
+      toast.danger(friendlyError(err));
     } finally {
       setIsFinishingMerge(false);
     }
@@ -747,7 +748,6 @@ export function GitReviewSidebar(props: {
   async function handleCreatePr() {
     if (!worktreeBranch || !sourceBranch) return;
     setPrLoading(true);
-    setPrError(null);
     try {
       const pr = await readBridge().ghCreatePr({
         projectLocation: project.location,
@@ -762,7 +762,8 @@ export function GitReviewSidebar(props: {
       }
       setPrTitle("");
     } catch (err) {
-      setPrError(err instanceof Error ? err.message : String(err));
+      console.error("[git] create PR failed", err);
+      toast.danger(friendlyError(err));
     } finally {
       setPrLoading(false);
     }
@@ -771,7 +772,6 @@ export function GitReviewSidebar(props: {
   async function handleMergePr(method: "merge" | "squash" | "rebase") {
     if (!prData) return;
     setPrLoading(true);
-    setPrError(null);
     try {
       await readBridge().ghMergePr({
         projectLocation: project.location,
@@ -783,7 +783,8 @@ export function GitReviewSidebar(props: {
       }
       onRefresh();
     } catch (err) {
-      setPrError(err instanceof Error ? err.message : String(err));
+      console.error("[git] merge PR failed", err);
+      toast.danger(friendlyError(err));
     } finally {
       setPrLoading(false);
     }
@@ -792,7 +793,6 @@ export function GitReviewSidebar(props: {
   async function handleClosePr() {
     if (!prData) return;
     setPrLoading(true);
-    setPrError(null);
     try {
       await readBridge().ghClosePr({
         projectLocation: project.location,
@@ -802,7 +802,8 @@ export function GitReviewSidebar(props: {
         useGitStore.getState().setPrData(worktreePath, { ...prData, state: "closed" });
       }
     } catch (err) {
-      setPrError(err instanceof Error ? err.message : String(err));
+      console.error("[git] close PR failed", err);
+      toast.danger(friendlyError(err));
     } finally {
       setPrLoading(false);
     }
@@ -895,7 +896,6 @@ export function GitReviewSidebar(props: {
                 </li>
               ))}
             </ul>
-            {pullFromSourceError && <p className="text-xs text-danger">{pullFromSourceError}</p>}
             <div className="flex gap-1.5">
               <Button
                 variant="tertiary"
@@ -953,14 +953,6 @@ export function GitReviewSidebar(props: {
                 <p className="text-xs font-medium text-success">
                   All conflicts resolved
                 </p>
-                {pullFromSourceError && (
-                  <p
-                    className="truncate text-xs text-danger"
-                    title={pullFromSourceError}
-                  >
-                    {pullFromSourceError}
-                  </p>
-                )}
                 <Button
                   variant="primary"
                   className="w-full"
@@ -1010,7 +1002,6 @@ export function GitReviewSidebar(props: {
                     disabled={isCommitting}
                     onChange={(e) => {
                       setCommitMessage(e.target.value);
-                      setCommitError(null);
                     }}
                     onKeyDown={(e) => {
                       if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
@@ -1042,15 +1033,6 @@ export function GitReviewSidebar(props: {
                     </Tooltip>
                   )}
                 </div>
-
-                {(commitError || pullFromSourceError) && (
-                  <p
-                    className="truncate text-xs text-danger"
-                    title={commitError ?? pullFromSourceError ?? ""}
-                  >
-                    {commitError ?? pullFromSourceError}
-                  </p>
-                )}
 
                 <ButtonGroup className="w-full">
                   <Button
@@ -1111,11 +1093,6 @@ export function GitReviewSidebar(props: {
               </>
             ) : hasRemote ? (
               <>
-                {syncError && (
-                  <p className="truncate text-xs text-danger" title={syncError}>
-                    {syncError}
-                  </p>
-                )}
                 <Button
                   variant="tertiary"
                   className="w-full"
@@ -1148,11 +1125,6 @@ export function GitReviewSidebar(props: {
         {/* Pull Request — existing PR */}
         {showPrSection && ghAvailable && prData && prData.state !== "closed" && (
           <div className="space-y-2 border-t border-white/6 px-0.5 pt-2">
-            {prError && (
-              <p className="truncate text-xs text-danger" title={prError}>
-                {prError}
-              </p>
-            )}
             <div className="flex items-center gap-2 px-0.5">
               <span
                 className={`size-2 shrink-0 rounded-full ${
@@ -1241,11 +1213,6 @@ export function GitReviewSidebar(props: {
         {/* Create PR button (only after push, no existing PR) */}
         {showCreatePrButton && (
           <div className="space-y-2 border-t border-white/6 px-0.5 pt-2">
-            {prError && (
-              <p className="truncate text-xs text-danger" title={prError}>
-                {prError}
-              </p>
-            )}
             <Button
               variant="tertiary"
               className="w-full"
@@ -1299,7 +1266,6 @@ export function GitReviewSidebar(props: {
                       </span>
                     )}
                   </div>
-                  {prError && <p className="text-xs text-danger">{prError}</p>}
                 </div>
               </Modal.Body>
               <Modal.Footer>
@@ -1336,9 +1302,6 @@ export function GitReviewSidebar(props: {
               </div>
             ) : sourceBranch ? (
               <>
-                {mergeError && (
-                  <p className="whitespace-pre-wrap text-xs text-danger">{mergeError}</p>
-                )}
                 <ButtonGroup className="w-full">
                   <Button
                     variant="tertiary"

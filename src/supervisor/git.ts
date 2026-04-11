@@ -26,6 +26,7 @@ import { getWslCommand, readWslCommandOutputAsync, resolveWslShellPathAsync } fr
 import { resolveLightcodePaths } from "../shared/lightcodePaths";
 import { sanitizeWorktreeBranchName, sanitizeWorktreePathSegment } from "../shared/worktree";
 import { getProjectName } from "../shared/wsl";
+import { msg, errorDetail } from "../shared/messages";
 
 const execFileAsync = promisify(execFile);
 
@@ -88,8 +89,8 @@ export async function execGit(
       const stdout = String((err as { stdout: unknown }).stdout);
       if (stdout) return stdout;
     }
-    const msg = err instanceof Error ? err.message : String(err);
-    throw new Error(`git ${args[0]} failed: ${msg}`, { cause: err });
+    const detail = errorDetail(err);
+    throw new Error(msg("git.commandFailed", { command: args[0]!, detail }), { cause: err });
   }
 }
 
@@ -131,7 +132,7 @@ async function resolveWslHomeDirectory(distro: string): Promise<string> {
   const result = await readWslCommandOutputAsync(distro, "sh", ["-lc", 'printf %s "$HOME"']);
   const homePath = result.stdout.trim();
   if (!result.ok || !homePath) {
-    throw new Error(`Unable to resolve home directory for WSL distro "${distro}".`);
+    throw new Error(msg("git.wsl.homeNotFound", { distro }));
   }
   return homePath;
 }
@@ -164,7 +165,7 @@ async function ensureWorktreeParentExists(
     const result = await readWslCommandOutputAsync(location.distro, "mkdir", ["-p", parentPath]);
     if (!result.ok) {
       throw new Error(
-        result.stderr || `Unable to create WSL worktree directory parent "${parentPath}".`,
+        result.stderr || msg("git.wsl.mkdirFailed", { path: parentPath }),
       );
     }
     return;
@@ -447,21 +448,21 @@ export class GitService {
 
     // Apply numstat to staged files
     const stagedStats = parseDiffNumstat(stagedNumstat);
-    for (const stat of stagedStats) {
-      const match = parsed.staged.find((f) => f.path === stat.path);
+    for (const entry of stagedStats) {
+      const match = parsed.staged.find((f) => f.path === entry.path);
       if (match) {
-        match.insertions = stat.insertions;
-        match.deletions = stat.deletions;
+        match.insertions = entry.insertions;
+        match.deletions = entry.deletions;
       }
     }
 
     // Apply numstat to unstaged files
     const unstagedStats = parseDiffNumstat(unstagedNumstat);
-    for (const stat of unstagedStats) {
-      const match = parsed.unstaged.find((f) => f.path === stat.path);
+    for (const entry of unstagedStats) {
+      const match = parsed.unstaged.find((f) => f.path === entry.path);
       if (match) {
-        match.insertions = stat.insertions;
-        match.deletions = stat.deletions;
+        match.insertions = entry.insertions;
+        match.deletions = entry.deletions;
       }
     }
 
@@ -750,7 +751,7 @@ export class GitService {
   ): Promise<GitBranchListResult> {
     const args = [
       "branch",
-      "--format=%(refname:short)\t%(objectname:short)\t%(HEAD)",
+      "--format=%(refname)\t%(objectname:short)\t%(HEAD)",
       "--sort=-HEAD",
     ];
     if (includeRemote) args.push("-a");
@@ -762,28 +763,31 @@ export class GitService {
     for (const line of output.trim().split("\n")) {
       if (!line) continue;
       const parts = line.split("\t");
-      const name = parts[0]!;
+      const ref = parts[0]!;
       const commit = parts[1] ?? "";
       const isCurrent = parts[2] === "*";
 
-      // For remote branches like "origin/main", strip the remote prefix for display
-      let displayName = name;
-      let isRemoteBranch = false;
-      if (name.startsWith("remotes/")) {
-        displayName = name.replace(/^remotes\/[^/]+\//, "");
-        isRemoteBranch = true;
-      } else if (includeRemote && name.includes("/") && !isCurrent) {
-        // Could be a remote ref from -a that doesn't start with remotes/
-        // We keep as-is if it looks like a local branch with slashes
-        isRemoteBranch = false;
-      }
+      // Skip symbolic refs like refs/remotes/origin/HEAD
+      if (ref.endsWith("/HEAD")) continue;
+
+      const isRemoteBranch = ref.startsWith("refs/remotes/");
+      // Strip refs/heads/ for local, refs/remotes/<remote>/ for remote
+      let remoteName: string | undefined;
+      const name = isRemoteBranch
+        ? (() => {
+            const match = ref.match(/^refs\/remotes\/([^/]+)\/(.*)/);
+            remoteName = match?.[1];
+            return match?.[2] ?? ref;
+          })()
+        : ref.replace(/^refs\/heads\//, "");
 
       if (isCurrent) current = name;
       branches.push({
-        name: isRemoteBranch ? displayName : name,
+        name,
         current: isCurrent,
         commit,
         isRemote: isRemoteBranch,
+        ...(remoteName ? { remote: remoteName } : {}),
       });
     }
 
@@ -856,7 +860,7 @@ export class GitService {
     const resolvedPath =
       path ?? (branch ? await computeDefaultWorktreePath(location, branch) : undefined);
     if (!resolvedPath) {
-      throw new Error("Cannot create a default worktree path without a branch name.");
+      throw new Error(msg("git.worktree.noBranch"));
     }
     await ensureWorktreeParentExists(location, resolvedPath);
     const args = ["worktree", "add"];
@@ -941,6 +945,10 @@ export class GitService {
     }
   }
 
+  async deleteRemoteBranch(location: ProjectLocation, remote: string, branch: string): Promise<void> {
+    await execGit(location, ["push", remote, "--delete", branch], { timeout: GIT_NETWORK_TIMEOUT });
+  }
+
   async deleteBranch(location: ProjectLocation, branch: string, force: boolean): Promise<void> {
     if (force) {
       await this.deleteBranchWithPruneRetry(location, branch, true);
@@ -956,6 +964,36 @@ export class GitService {
 
       await this.deleteBranchWithPruneRetry(location, branch, true);
     }
+  }
+
+  async switchBranch(
+    location: ProjectLocation,
+    branch: string,
+    createNew: boolean,
+  ): Promise<{ branch: string; created: boolean; tracking: string; ahead: number; behind: number; branches: GitBranchListResult }> {
+    const args = ["switch"];
+    if (createNew) {
+      args.push("-c", branch);
+    } else {
+      args.push(branch);
+    }
+    await execGit(location, args);
+
+    // Quick status + branch list in parallel — avoids the expensive
+    // diff/numstat/untracked-file expansion that full getStatus does.
+    const [statusOutput, branchList] = await Promise.all([
+      execGit(location, ["status", "--porcelain=v2", "-b"], { timeout: GIT_STATUS_TIMEOUT }),
+      this.listBranches(location, true),
+    ]);
+    const parsed = parseStatusPorcelainV2(statusOutput);
+    return {
+      branch,
+      created: createNew,
+      tracking: parsed.tracking,
+      ahead: parsed.ahead,
+      behind: parsed.behind,
+      branches: branchList,
+    };
   }
 
   // ── Worktree source branch ──────────────────────────────
@@ -1107,10 +1145,10 @@ export class GitService {
     try {
       await execGit(worktreeLocation, ["merge", sourceBranch, "--no-ff", "--no-edit"]);
     } catch (mergeErr: unknown) {
-      const msg = mergeErr instanceof Error ? mergeErr.message : String(mergeErr);
-      if (msg.includes("CONFLICT") || msg.includes("Merge conflict")) {
+      const detail = errorDetail(mergeErr);
+      if (detail.includes("CONFLICT") || detail.includes("Merge conflict")) {
         const conflictFiles: string[] = [];
-        const conflictMatches = msg.matchAll(/CONFLICT.*?:\s*(?:Merge conflict in\s+)?(.+)/g);
+        const conflictMatches = detail.matchAll(/CONFLICT.*?:\s*(?:Merge conflict in\s+)?(.+)/g);
         for (const m of conflictMatches) {
           if (m[1]) conflictFiles.push(m[1].trim());
         }
@@ -1118,14 +1156,14 @@ export class GitService {
           merged: false,
           fastForward: false,
           conflicting: true,
-          error: "Merge conflicts detected",
+          error: msg("git.merge.conflicts"),
           conflictFiles,
         };
       }
       return {
         merged: false,
         fastForward: false,
-        error: msg,
+        error: detail,
       };
     }
 
@@ -1147,7 +1185,7 @@ export class GitService {
     } catch (err: unknown) {
       return {
         success: false,
-        error: err instanceof Error ? err.message : String(err),
+        error: errorDetail(err),
       };
     }
   }
@@ -1171,7 +1209,7 @@ export class GitService {
     } catch (err: unknown) {
       return {
         success: false,
-        error: err instanceof Error ? err.message : String(err),
+        error: errorDetail(err),
       };
     }
   }
@@ -1216,13 +1254,13 @@ export class GitService {
 
       await rm(path, { recursive: true, force: true, maxRetries: 5, retryDelay: 150 });
     } catch (cleanupError) {
-      const originalMessage =
-        originalError instanceof Error ? originalError.message : String(originalError);
-      const cleanupMessage =
-        cleanupError instanceof Error ? cleanupError.message : String(cleanupError);
-      throw new Error(`${originalMessage}\nResidual cleanup failed: ${cleanupMessage}`, {
-        cause: cleanupError,
-      });
+      throw new Error(
+        msg("git.worktree.cleanupFailed", {
+          original: errorDetail(originalError),
+          cleanup: errorDetail(cleanupError),
+        }),
+        { cause: cleanupError },
+      );
     }
   }
 
@@ -1291,7 +1329,7 @@ export class GitService {
     }
 
     throw new Error(
-      `Source branch '${sourceBranch}' is checked out in worktree '${getRepoPath(location)}' and has uncommitted changes. Commit or stash them before merging.`,
+      msg("git.worktree.dirtySource", { branch: sourceBranch, path: getRepoPath(location) }),
     );
   }
 
@@ -1302,10 +1340,10 @@ export class GitService {
     try {
       await execGit(location, ["merge", worktreeBranch, "--no-edit", "--no-ff"]);
     } catch (mergeErr: unknown) {
-      const msg = mergeErr instanceof Error ? mergeErr.message : String(mergeErr);
-      if (msg.includes("CONFLICT") || msg.includes("Merge conflict")) {
+      const detail = errorDetail(mergeErr);
+      if (detail.includes("CONFLICT") || detail.includes("Merge conflict")) {
         const conflictFiles: string[] = [];
-        const conflictMatches = msg.matchAll(/CONFLICT.*?:\s*(?:Merge conflict in\s+)?(.+)/g);
+        const conflictMatches = detail.matchAll(/CONFLICT.*?:\s*(?:Merge conflict in\s+)?(.+)/g);
         for (const m of conflictMatches) {
           if (m[1]) conflictFiles.push(m[1].trim());
         }
@@ -1314,7 +1352,7 @@ export class GitService {
           merged: false,
           fastForward: false,
           newSourceCommit: "",
-          error: "Merge conflicts detected",
+          error: msg("git.merge.conflicts"),
           conflictFiles,
         };
       }

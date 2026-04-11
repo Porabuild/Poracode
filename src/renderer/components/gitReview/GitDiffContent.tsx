@@ -97,7 +97,7 @@ function useDiffTheme(): "light" | "dark" {
 }
 
 /** Skip rendering diffs larger than this many lines changed */
-const LARGE_DIFF_THRESHOLD = 5000;
+const LARGE_DIFF_THRESHOLD = 500;
 
 interface DiffEntry {
   filePath: string;
@@ -258,26 +258,27 @@ function DiffSection(props: {
   mountDelay: number;
   onMounted?: () => void;
 }) {
-  const { entry, mode, theme, projectLocation, mountDelay, onMounted } = props;
+  const { entry, mode: rawMode, theme, projectLocation, mountDelay, onMounted } = props;
+  // New files have no old side — force unified mode so content renders full-width
+  const isNewFile = entry.deletions === 0 && (!entry.oldName || entry.oldName === "/dev/null");
+  const mode = isNewFile ? 4 : rawMode; // 4 = Unified
   const [collapsed, setCollapsed] = useState(false);
   const onToggleCollapse = () => setCollapsed((c) => !c);
 
   // Stagger DiffView mount so files render progressively behind the loader
   const [mounted, setMounted] = useState(mountDelay === 0);
   useEffect(() => {
-    if (mounted) {
-      onMounted?.();
-      return;
+    if (!mounted) {
+      const id = setTimeout(() => setMounted(true), mountDelay);
+      return () => clearTimeout(id);
     }
-    const id = setTimeout(() => setMounted(true), mountDelay);
-    return () => clearTimeout(id);
-  }, [mounted, mountDelay, onMounted]);
+  }, [mounted, mountDelay]);
 
   // DiffFile with full file content (enables hunk expand buttons)
   const [contentDiffFile, setContentDiffFile] = useState<DiffFile | null>(null);
   const activeDiffFile = contentDiffFile ?? entry.diffFile;
 
-  // Load file content once expanded, build DiffFile with content in worker
+  // Load file content once mounted, build DiffFile with content in worker
   useEffect(() => {
     if (!mounted || entry.loading || entry.tooLarge || !entry.rawDiff.trim()) return;
     let cancelled = false;
@@ -307,11 +308,21 @@ function DiffSection(props: {
         const r = results[0];
         if (r?.bundle) setContentDiffFile(diffFileFromBundle(r.data, r.bundle));
       })
-      .catch(() => {});
+      .catch(() => {
+        if (!cancelled) setContentDiffFile(entry.diffFile);
+      });
     return () => {
       cancelled = true;
     };
-  }, [mounted, entry.filePath, entry.staged, entry.loading, entry.tooLarge, entry.rawDiff, entry.oldName, entry.newName, entry.fileLang, projectLocation]);
+  }, [mounted, entry.diffFile, entry.filePath, entry.staged, entry.loading, entry.tooLarge, entry.rawDiff, entry.oldName, entry.newName, entry.fileLang, projectLocation]);
+
+  // Signal ready after content DiffFile is loaded (expand buttons ready, no layout shift).
+  // For entries without a diff (tooLarge, loading, empty), signal immediately when mounted.
+  const hasRenderable = !entry.loading && !entry.tooLarge && entry.rawDiff.trim();
+  useEffect(() => {
+    if (!mounted) return;
+    if (!hasRenderable || contentDiffFile) onMounted?.();
+  }, [mounted, hasRenderable, contentDiffFile, onMounted]);
 
   if (entry.loading) {
     return (
@@ -330,8 +341,7 @@ function DiffSection(props: {
         <FileHeader entry={entry} collapsed={collapsed} onToggleCollapse={onToggleCollapse} />
         {!collapsed && (
           <div className="px-4 py-3 text-xs text-muted">
-            Large diff not rendered ({(entry.insertions + entry.deletions).toLocaleString()} lines
-            changed)
+            {`File too large to display (${(entry.insertions + entry.deletions).toLocaleString()} lines changed)`}
           </div>
         )}
       </div>
@@ -350,7 +360,10 @@ function DiffSection(props: {
     <div className="rounded border border-border">
       <FileHeader entry={entry} collapsed={collapsed} onToggleCollapse={onToggleCollapse} />
       {mounted ? (
-        <div style={collapsed ? { display: "none" } : undefined}>
+        <div
+          className={isNewFile ? "diff-new-file" : undefined}
+          style={collapsed ? { display: "none" } : undefined}
+        >
           <DiffView
             diffFile={activeDiffFile}
             diffViewMode={mode}
@@ -386,6 +399,7 @@ function SingleFileDiff(props: {
 
   useEffect(() => {
     let cancelled = false;
+
     setLoading(true);
     setDiffFile(null);
 
@@ -585,7 +599,7 @@ export function GitDiffContent(props: {
   const onSectionMounted = () => {
     mountedCountRef.current++;
     if (mountedCountRef.current >= expectedCountRef.current) {
-      setTimeout(() => setPanelReady(true), 50);
+      setPanelReady(true);
     }
   };
 

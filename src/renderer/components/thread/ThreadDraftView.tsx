@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Paperclip, TerminalSquare } from "lucide-react";
-import { Button, Spinner, Tooltip } from "@heroui/react";
+import { Button, Spinner, toast, Tooltip } from "@heroui/react";
 import { useShallow } from "zustand/shallow";
 import type {
   AgentStatus,
@@ -24,6 +24,7 @@ import { flattenSegments } from "../composer/serializeMentions";
 import { useSharedSettings } from "../../state/sharedSettingsStore";
 import { useAppStore } from "../../state/appStore";
 import { filterHiddenModels } from "./threadComposerOptions";
+import { friendlyError } from "../../../shared/messages";
 import { ThreadComposer } from "./ThreadComposer";
 
 function resolvePreferredAgentKind(
@@ -191,6 +192,35 @@ export function ThreadDraftView(props: {
   function resetDraftRefs() {
     latestSegmentsRef.current = [];
     attachmentsRef.current = [];
+  }
+
+  function handleSwitchBranch(branch: string, isNew: boolean) {
+    readBridge()
+      .gitSwitchBranch({
+        projectLocation: project.location,
+        branch,
+        createNew: isNew,
+      })
+      .then((result) => {
+        // Immediately patch the store so the UI updates without waiting
+        // for the file-watcher → refreshProject cascade.
+        const store = useGitStore.getState();
+        const status = store.statuses[project.id];
+        if (status) {
+          store.setStatus(project.id, {
+            ...status,
+            branch: result.branch,
+            tracking: result.tracking,
+            ahead: result.ahead,
+            behind: result.behind,
+          });
+        }
+        store.setBranches(project.id, result.branches);
+      })
+      .catch((err: unknown) => {
+        console.error("[git] switch branch failed", err);
+        toast.danger(friendlyError(err));
+      });
   }
 
   const initialDraftRef = useRef(useAppStore.getState().draftContents[project.id]);
@@ -496,6 +526,7 @@ export function ThreadDraftView(props: {
                           worktreeMode={worktreeMode}
                           onWorktreeModeChange={setWorktreeMode}
                           onSelect={setBranchSelection}
+                          onSwitchBranch={handleSwitchBranch}
                         />
                         {!branchSelection?.isNew && gitHasRemote && (
                           <Tooltip delay={0}>

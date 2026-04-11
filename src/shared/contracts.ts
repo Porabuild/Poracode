@@ -445,6 +445,7 @@ export interface GitBranchInfo {
   current: boolean;
   commit: string;
   isRemote: boolean;
+  remote?: string;
 }
 
 export interface GitBranchListResult {
@@ -512,8 +513,25 @@ export const gitDeleteBranchPayloadSchema = z.object({
   projectLocation: projectLocationSchema,
   branch: z.string().min(1),
   force: z.boolean().default(false),
+  remote: z.string().optional(),
 });
 export type GitDeleteBranchPayload = z.infer<typeof gitDeleteBranchPayloadSchema>;
+
+export const gitSwitchBranchPayloadSchema = z.object({
+  projectLocation: projectLocationSchema,
+  branch: z.string().min(1),
+  createNew: z.boolean().default(false),
+});
+export type GitSwitchBranchPayload = z.infer<typeof gitSwitchBranchPayloadSchema>;
+
+export interface GitSwitchBranchResult {
+  branch: string;
+  created: boolean;
+  tracking: string;
+  ahead: number;
+  behind: number;
+  branches: GitBranchListResult;
+}
 
 export const gitPullPayloadSchema = z.object({
   projectLocation: projectLocationSchema,

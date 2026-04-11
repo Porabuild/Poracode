@@ -180,7 +180,7 @@ export function createGeminiAdapter(): AgentAdapter {
             executablePath,
           );
           const probeResult = await probeAcpCapabilities(probeCmd.command, probeCmd.args, "/tmp", {
-            timeoutMs: 8_000,
+            timeoutMs: 15_000,
             label: `gemini:wsl:${ctx.wslDistro}`,
           });
           if (probeResult) {
@@ -226,7 +226,7 @@ export function createGeminiAdapter(): AgentAdapter {
           "--acp",
         ]);
         const probeResult = await probeAcpCapabilities(probeCmd.command, probeCmd.args, homedir(), {
-          timeoutMs: 8_000,
+          timeoutMs: 15_000,
           label: "gemini:windows",
         });
         if (probeResult) {

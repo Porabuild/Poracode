@@ -43,6 +43,7 @@ import type {
 import type { SharedSettings } from "../shared/settings";
 import type { LightcodePaths } from "../shared/lightcodePaths";
 import { getAppName } from "../shared/appName";
+import { msg } from "../shared/messages";
 
 const CHANNELS = {
   pickFolder: "lightcode:pick-folder",
@@ -78,6 +79,7 @@ const CHANNELS = {
   gitRemoveWorktree: "lightcode:git-remove-worktree",
   gitPruneWorktrees: "lightcode:git-prune-worktrees",
   gitDeleteBranch: "lightcode:git-delete-branch",
+  gitSwitchBranch: "lightcode:git-switch-branch",
   gitPull: "lightcode:git-pull",
   gitPush: "lightcode:git-push",
   gitSync: "lightcode:git-sync",
@@ -304,7 +306,7 @@ function startSupervisor(baseDir: string): void {
   supervisor?.kill();
 
   for (const [id, pending] of pendingRequests) {
-    pending.reject(new Error("Supervisor restarted."));
+    pending.reject(new Error(msg("supervisor.restarted")));
     pendingRequests.delete(id);
   }
 
@@ -345,7 +347,7 @@ function startSupervisor(baseDir: string): void {
     if (supervisor === child) {
       supervisor = null;
       for (const [id, pending] of pendingRequests) {
-        pending.reject(new Error("Supervisor exited unexpectedly."));
+        pending.reject(new Error(msg("supervisor.exited")));
         pendingRequests.delete(id);
       }
 
@@ -367,7 +369,7 @@ function callSupervisor<TRequest extends SupervisorRequest, TResult = unknown>(
 ): Promise<TResult> {
   const child = supervisor;
   if (!child || !child.connected) {
-    return Promise.reject(new Error("Supervisor is not running."));
+    return Promise.reject(new Error(msg("supervisor.notRunning")));
   }
 
   const id = randomUUID();
@@ -598,6 +600,10 @@ function registerIpcHandlers(): void {
 
   ipcMain.handle(CHANNELS.gitDeleteBranch, async (_event, payload) =>
     callSupervisor("gitDeleteBranch", payload),
+  );
+
+  ipcMain.handle(CHANNELS.gitSwitchBranch, async (_event, payload) =>
+    callSupervisor("gitSwitchBranch", payload),
   );
 
   ipcMain.handle(CHANNELS.gitPull, async (_event, payload) => callSupervisor("gitPull", payload));

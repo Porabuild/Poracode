@@ -68,6 +68,8 @@ import type {
   GitFetchPayload,
   GitListWorktreesPayload,
   GitDeleteBranchPayload,
+  GitSwitchBranchPayload,
+  GitSwitchBranchResult,
   GitGetWorktreeSourceBranchPayload,
   GitGetWorktreeSourceBranchResult,
   GitMergeToSourcePayload,
@@ -1054,7 +1056,18 @@ export class SupervisorRuntime {
   }
 
   async gitDeleteBranch(payload: GitDeleteBranchPayload): Promise<void> {
+    if (payload.remote) {
+      return this.gitService.deleteRemoteBranch(payload.projectLocation, payload.remote, payload.branch);
+    }
     return this.gitService.deleteBranch(payload.projectLocation, payload.branch, payload.force);
+  }
+
+  async gitSwitchBranch(payload: GitSwitchBranchPayload): Promise<GitSwitchBranchResult> {
+    return this.gitService.switchBranch(
+      payload.projectLocation,
+      payload.branch,
+      payload.createNew,
+    );
   }
 
   async gitPull(payload: GitPullPayload): Promise<void> {

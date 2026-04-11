@@ -8,7 +8,7 @@ import {
   useState,
 } from "react";
 import { ArrowRight, FolderOpen, FolderPlus, Monitor, Plus, TerminalSquare } from "lucide-react";
-import { Button, Dropdown, Label, Spinner } from "@heroui/react";
+import { Button, Dropdown, Label, Spinner, toast } from "@heroui/react";
 import { TuxIcon } from "./components/common/TuxIcon";
 import type {
   AgentStatus,
@@ -22,6 +22,7 @@ import type { PendingThreadServerRequest } from "./state/appStore";
 import { parseWslUncPath } from "../shared/wsl";
 import { buildWorktreeLocation } from "../shared/worktree";
 import { getAppName } from "../shared/appName";
+import { msg, errorDetail } from "../shared/messages";
 import { isWindows, readBridge } from "./bridge";
 import { ProviderIcon, getStatusTone, generateTitleWithFallback } from "./components/providers";
 import { DevTerminalPanel } from "./components/devTerminal/DevTerminalPanel";
@@ -126,6 +127,7 @@ readBridge().onUpdateStatus((status) => {
       break;
     case "error":
       store.setError(status.message);
+      toast.danger(msg("update.error", { detail: status.message }));
       break;
   }
 });
@@ -984,19 +986,19 @@ export function App() {
           force: false,
         });
       } catch (err: unknown) {
-        const msg = err instanceof Error ? err.message : String(err);
-        if (msg.includes("not fully merged")) {
+        const detail = errorDetail(err);
+        if (detail.includes("not fully merged")) {
           setWorktreeDeleteDialog({
             kind: "branch-unmerged",
             projectId: project.id,
             worktreeBranch: resolvedWorktreeBranch,
-            error: msg,
+            error: detail,
           });
           return;
         }
         // Best-effort: branch may already be deleted (by supervisor) or not exist
-        if (!msg.toLowerCase().includes("not found")) {
-          console.warn(`[renderer] failed to delete branch ${resolvedWorktreeBranch}:`, msg);
+        if (!detail.toLowerCase().includes("not found")) {
+          console.warn(`[renderer] failed to delete branch ${resolvedWorktreeBranch}:`, detail);
         }
       }
 
@@ -2118,13 +2120,13 @@ export function App() {
                       force: false,
                     });
                   } catch (err: unknown) {
-                    const msg = err instanceof Error ? err.message : String(err);
-                    if (msg.includes("not fully merged")) {
+                    const detail = errorDetail(err);
+                    if (detail.includes("not fully merged")) {
                       setWorktreeDeleteDialog({
                         kind: "branch-unmerged",
                         projectId: project.id,
                         worktreeBranch,
-                        error: msg,
+                        error: detail,
                       });
                       return;
                     }

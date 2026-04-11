@@ -3,6 +3,10 @@
 @import "@xterm/xterm/css/xterm.css";
 
 /* HeroUI component overrides */
+[data-react-aria-pressable] {
+  cursor: default;
+}
+
 .button--sm,
 .toggle-button--sm {
   font-size: 0.75rem;
@@ -844,4 +848,11 @@ body {
 .xterm-viewport,
 .xterm-screen {
   height: 100% !important;
+}
+
+/* New files: neutralize green add-line highlight */
+.diff-new-file {
+  --diff-add-content--: transparent;
+  --diff-add-lineNumber--: transparent;
+  --diff-add-content-highlight--: transparent;
 }

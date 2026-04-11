@@ -98,7 +98,7 @@
   "engines": {
     "node": ">=24.10.0"
   },
-  "packageManager": "pnpm@11.0.0-beta.8+sha512.b404a644e28e27f3b75d20ea5fd0e429a4ed6f0ef526e72881de877d79aebb6fcf1422335a86957f208fbb6c04f9e476c3730461d9b0eb990ad305dcc667ecb4",
+  "packageManager": "pnpm@10.5.0+sha512.11106a5916c7406fe4b8cb8e3067974b8728f47308a4f5ac5e850304afa6f57e2847d7950dfe78877d8d36bfb401d381c4215db3a4c3547ffa63c14333a6fa51",
   "electronmon": {
     "patterns": [
       "!src/**",
