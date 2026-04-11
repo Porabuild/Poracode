@@ -161,8 +161,8 @@ describe("GitHubService", () => {
   });
 
   describe("createPr", () => {
-    it("creates a PR using body-file and returns data", async () => {
-      const prJson = JSON.stringify({
+    it("creates a PR using body-file and returns data from pr view", async () => {
+      const viewJson = JSON.stringify({
         number: 50,
         url: "https://github.com/owner/repo/pull/50",
         state: "OPEN",
@@ -171,7 +171,10 @@ describe("GitHubService", () => {
         isDraft: false,
         updatedAt: "2026-04-03T10:00:00Z",
       });
-      execFileAsyncMock.mockResolvedValue({ stdout: prJson });
+      // First call: pr create (returns URL text), second call: pr view (returns JSON)
+      execFileAsyncMock
+        .mockResolvedValueOnce({ stdout: "https://github.com/owner/repo/pull/50\n" })
+        .mockResolvedValueOnce({ stdout: viewJson });
 
       const result = await new GitHubService().createPr(
         location,
@@ -186,30 +189,38 @@ describe("GitHubService", () => {
       expect(result.state).toBe("open");
       expect(writeFileMock).toHaveBeenCalledTimes(1);
       expect(unlinkMock).toHaveBeenCalledTimes(1);
-      // Verify buildAgentCommand was called with pr create args
-      const ghArgs = buildAgentCommandMock.mock.calls[0]![2] as string[];
-      expect(ghArgs).toContain("pr");
-      expect(ghArgs).toContain("create");
-      expect(ghArgs).toContain("--body-file");
+      // First call: pr create
+      const createArgs = buildAgentCommandMock.mock.calls[0]![2] as string[];
+      expect(createArgs).toContain("pr");
+      expect(createArgs).toContain("create");
+      expect(createArgs).toContain("--body-file");
+      expect(createArgs).not.toContain("--json");
+      // Second call: pr view
+      const viewArgs = buildAgentCommandMock.mock.calls[1]![2] as string[];
+      expect(viewArgs).toContain("pr");
+      expect(viewArgs).toContain("view");
+      expect(viewArgs).toContain("--json");
     });
 
     it("includes --draft flag when isDraft is true", async () => {
-      execFileAsyncMock.mockResolvedValue({
-        stdout: JSON.stringify({
-          number: 51,
-          url: "https://github.com/owner/repo/pull/51",
-          state: "OPEN",
-          title: "Draft PR",
-          baseRefName: "main",
-          isDraft: true,
-          updatedAt: "2026-04-03T10:00:00Z",
-        }),
-      });
+      execFileAsyncMock
+        .mockResolvedValueOnce({ stdout: "https://github.com/owner/repo/pull/51\n" })
+        .mockResolvedValueOnce({
+          stdout: JSON.stringify({
+            number: 51,
+            url: "https://github.com/owner/repo/pull/51",
+            state: "OPEN",
+            title: "Draft PR",
+            baseRefName: "main",
+            isDraft: true,
+            updatedAt: "2026-04-03T10:00:00Z",
+          }),
+        });
 
       await new GitHubService().createPr(location, "feature/x", "main", "Draft PR", "", true);
 
-      const ghArgs = buildAgentCommandMock.mock.calls[0]![2] as string[];
-      expect(ghArgs).toContain("--draft");
+      const createArgs = buildAgentCommandMock.mock.calls[0]![2] as string[];
+      expect(createArgs).toContain("--draft");
     });
 
     it("cleans up body file even on failure", async () => {
