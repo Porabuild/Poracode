@@ -10,7 +10,6 @@ import { Button } from "./Button";
 export interface BranchSelection {
   branch: string;
   baseBranch?: string;
-  isNew: boolean;
   isWorktree: boolean;
   worktreePath?: string;
 }
@@ -79,12 +78,11 @@ export interface BranchSelectorProps {
   currentBranch: string;
   value: string;
   isWorktree?: boolean | undefined;
-  isNew?: boolean | undefined;
   baseBranch?: string | undefined;
   worktreeMode: boolean;
   onWorktreeModeChange: (value: boolean) => void;
   onSelect: (selection: BranchSelection) => void;
-  onSwitchBranch?: (branch: string, isNew: boolean) => void;
+  onSwitchBranch?: (branch: string, createNew: boolean) => void;
   isDisabled?: boolean;
 }
 
@@ -94,7 +92,6 @@ export function BranchSelector(props: BranchSelectorProps) {
     currentBranch,
     value,
     isWorktree,
-    isNew,
     baseBranch,
     worktreeMode,
     onWorktreeModeChange,
@@ -188,7 +185,6 @@ export function BranchSelector(props: BranchSelectorProps) {
       onSelect({
         branch,
         baseBranch: branch,
-        isNew: false,
         isWorktree: true,
       });
     } else if (branchWorktreePath.has(branch)) {
@@ -197,17 +193,17 @@ export function BranchSelector(props: BranchSelectorProps) {
         onSelect({
           branch,
           baseBranch: branch,
-          isNew: false,
           isWorktree: true,
           worktreePath: existingWorktreePath,
         });
       } else {
-        onSelect({ branch, isNew: false, isWorktree: false });
+        onSelect({ branch, isWorktree: false });
       }
     } else if (branch !== currentBranch && onSwitchBranch) {
       onSwitchBranch(branch, false);
+      onSelect({ branch, isWorktree: false });
     } else {
-      onSelect({ branch, isNew: false, isWorktree: false });
+      onSelect({ branch, isWorktree: false });
     }
     setIsOpen(false);
   }
@@ -219,7 +215,7 @@ export function BranchSelector(props: BranchSelectorProps) {
     if (onSwitchBranch) {
       onSwitchBranch(name, true);
     }
-    onSelect({ branch: name, isNew: true, isWorktree: false });
+    onSelect({ branch: name, isWorktree: false });
     setIsOpen(false);
     setIsCreating(false);
     setNewBranchName("");
@@ -264,7 +260,6 @@ export function BranchSelector(props: BranchSelectorProps) {
 
   return (
     <div className="flex items-center gap-1">
-      {isNew && !isWorktree && <span className="shrink-0 text-xs text-muted">new</span>}
       {worktreeMode && <span className="shrink-0 text-xs text-muted">from</span>}
       <Popover isOpen={isOpen} onOpenChange={setIsOpen}>
         <Popover.Trigger>
@@ -428,7 +423,7 @@ export function BranchSelector(props: BranchSelectorProps) {
                 selectionMode="none"
                 onAction={() => {
                   setIsCreating(true);
-                  setNewBranchName(isNew ? value : "");
+                  setNewBranchName("");
                 }}
               >
                 <ListBox.Item
@@ -461,13 +456,6 @@ export function BranchSelector(props: BranchSelectorProps) {
                         }}
                       />
                     </>
-                  ) : isNew && !isWorktree ? (
-                    <>
-                      <Plus className="size-3.5 shrink-0 text-muted" />
-                      <Label className="flex-1 truncate">{value}</Label>
-                      <span className="text-[10px] text-muted">new</span>
-                      <Check className="size-3 shrink-0 text-default-foreground" />
-                    </>
                   ) : (
                     <>
                       <Plus className="size-3.5 shrink-0 text-muted" />
@@ -482,17 +470,14 @@ export function BranchSelector(props: BranchSelectorProps) {
                 aria-label="Options"
                 className="p-1"
                 selectionMode="none"
-                disabledKeys={isNew && !isWorktree ? ["worktree"] : []}
                 onAction={() => {
-                  if (!isNew || isWorktree) {
-                    const next = !worktreeMode;
-                    onWorktreeModeChange(next);
-                    if (next) {
-                      const base = baseBranch ?? value;
-                      onSelect({ branch: base, baseBranch: base, isNew: false, isWorktree: true });
-                    } else if (isWorktree && baseBranch) {
-                      onSelect({ branch: baseBranch, isNew: false, isWorktree: false });
-                    }
+                  const next = !worktreeMode;
+                  onWorktreeModeChange(next);
+                  if (next) {
+                    const base = baseBranch ?? value;
+                    onSelect({ branch: base, baseBranch: base, isWorktree: true });
+                  } else if (isWorktree && baseBranch) {
+                    onSelect({ branch: baseBranch, isWorktree: false });
                   }
                 }}
               >
@@ -501,7 +486,6 @@ export function BranchSelector(props: BranchSelectorProps) {
                   <Label className="flex-1">New worktree</Label>
                   <Checkbox
                     slot={null}
-                    isDisabled={!!isNew && !isWorktree}
                     isSelected={worktreeMode}
                     onChange={(checked) => {
                       onWorktreeModeChange(checked);
@@ -510,7 +494,6 @@ export function BranchSelector(props: BranchSelectorProps) {
                         onSelect({
                           branch: base,
                           baseBranch: base,
-                          isNew: false,
                           isWorktree: true,
                         });
                       } else if (isWorktree && baseBranch) {
@@ -519,12 +502,11 @@ export function BranchSelector(props: BranchSelectorProps) {
                           onSelect({
                             branch: baseBranch,
                             baseBranch,
-                            isNew: false,
                             isWorktree: true,
                             ...(existingWorktreePath ? { worktreePath: existingWorktreePath } : {}),
                           });
                         } else {
-                          onSelect({ branch: baseBranch, isNew: false, isWorktree: false });
+                          onSelect({ branch: baseBranch, isWorktree: false });
                         }
                       }
                     }}

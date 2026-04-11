@@ -256,11 +256,42 @@ export function ThreadView(props: {
 
   return (
     <div
-      className={`relative flex h-full min-h-0 flex-col ${paddingClass} pt-1 pb-4 ${isDragging ? "opacity-50" : ""}`}
+      ref={droppableRef}
+      className={`relative flex h-full min-h-0 flex-col ${isDragging ? "opacity-50" : ""}`}
     >
+      {/* Header bar */}
+      <div className={`${paddingClass} px-4`}>
+        <div
+          ref={dragHandleRef}
+          className={`${alignClass} flex w-full max-w-[920px] items-center gap-2 py-1.5 ${dragHandleRef ? "cursor-grab active:cursor-grabbing" : ""}`}
+        >
+          <ProviderIcon
+            kind={thread.agentKind}
+            tone={getStatusTone(thread)}
+            className="size-3.5 shrink-0"
+          />
+          <span className="flex-1 truncate text-sm font-medium text-foreground">
+            {thread.title}
+          </span>
+          {isWsl ? <TuxIcon className="h-3 w-auto shrink-0 text-muted/60" /> : null}
+          {showCloseButton ? (
+            <button
+              type="button"
+              aria-label="Close pane"
+              className="shrink-0 rounded p-0.5 text-muted/60 transition-colors hover:bg-white/[0.06] hover:text-foreground"
+              onClick={(e) => {
+                e.stopPropagation();
+                onClose?.();
+              }}
+            >
+              <X className="size-3.5" />
+            </button>
+          ) : null}
+        </div>
+      </div>
+
       <div
-        ref={droppableRef}
-        className={`${alignClass} relative flex h-full w-full max-w-[1040px] flex-col px-4`}
+        className={`${alignClass} relative flex h-full min-h-0 w-full max-w-[1040px] flex-col ${paddingClass} px-4 pb-4`}
       >
         {dropIndicator === "replace" && (
           <div
@@ -281,42 +312,9 @@ export function ThreadView(props: {
               className="pointer-events-none absolute top-0 bottom-0 -right-1 z-20 w-0.5 rounded-full bg-accent"
             />
           )}
-        <div
-          className={`${alignClass} flex w-full max-w-[920px] items-start justify-between gap-4`}
-        >
-          <div
-            ref={dragHandleRef}
-            className={`flex min-w-0 flex-1 items-center gap-2 ${dragHandleRef ? "cursor-grab active:cursor-grabbing" : ""}`}
-          >
-            <ProviderIcon
-              kind={thread.agentKind}
-              tone={getStatusTone(thread)}
-              className="size-4 shrink-0"
-            />
-            <h1 className="truncate text-sm font-semibold tracking-tight text-foreground">
-              {thread.title}
-            </h1>
-            {isWsl ? <TuxIcon className="h-3 w-auto shrink-0 text-muted/60" /> : null}
-          </div>
-
-          <div className="flex flex-wrap items-center justify-end gap-2">
-            {showCloseButton ? (
-              <Button
-                isIconOnly
-                aria-label="Close pane"
-                className="rounded-3xl text-muted hover:bg-white/[0.05] hover:text-foreground"
-                onPress={() => onClose?.()}
-                size="sm"
-                variant="ghost"
-              >
-                <X className="size-4" />
-              </Button>
-            ) : null}
-          </div>
-        </div>
 
         <div
-          className={`${alignClass} flex min-h-0 w-full max-w-[920px] flex-1 flex-col gap-2 pt-3`}
+          className={`${alignClass} flex min-h-0 w-full max-w-[920px] flex-1 flex-col gap-2 pt-2`}
         >
           <div className="relative min-h-0 flex-1 overflow-hidden">
             {usesTerminalPresentation ? (
@@ -448,13 +446,11 @@ export function ThreadView(props: {
                 </div>
               </div>
               {canCollapseComposer ? (
-                <div
-                  className={`relative z-10 flex justify-center transition-[margin] duration-150 ease-[cubic-bezier(0.16,1,0.3,1)] ${isComposerCollapsed ? "mt-0" : "-mt-[9px]"}`}
-                >
+                <div className="relative z-10 flex h-0 justify-center">
                   <button
                     type="button"
                     aria-label={isComposerCollapsed ? "Show composer" : "Collapse composer"}
-                    className="flex items-center rounded-full border border-[var(--border)] bg-[var(--background)] px-2 py-0 text-muted transition-colors hover:text-foreground"
+                    className="absolute -top-[9px] flex items-center rounded-full border border-[var(--border)] bg-[var(--background)] px-2 py-0 text-muted transition-colors hover:text-foreground"
                     onClick={() => setComposerCollapsed(!composerCollapsed)}
                   >
                     <ChevronDown

@@ -12,6 +12,9 @@ export type TerminalPosition = z.infer<typeof terminalPositionSchema>;
 export const threadRemoveActionSchema = z.enum(["archive", "delete"]);
 export type ThreadRemoveAction = z.infer<typeof threadRemoveActionSchema>;
 
+export const newThreadModeSchema = z.enum(["page", "panel"]);
+export type NewThreadMode = z.infer<typeof newThreadModeSchema>;
+
 export const liveInputModeSchema = z.enum(["terminal", "server"]);
 export type LiveInputMode = z.infer<typeof liveInputModeSchema>;
 

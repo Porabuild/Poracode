@@ -26,6 +26,7 @@ import { startTransition, useState } from "react";
 import type {
   AgentSettingDef,
   AgentStatus,
+  NewThreadMode,
   TerminalPosition,
   ThemeMode,
   ThreadRemoveAction,
@@ -67,6 +68,11 @@ const staleThreadUnloadOptions = [
 const threadRemoveActionOptions = [
   { id: "archive", label: "Archive" },
   { id: "delete", label: "Delete" },
+] as const;
+
+const newThreadModeOptions = [
+  { id: "page", label: "Page" },
+  { id: "panel", label: "Panel" },
 ] as const;
 
 const scrollSpeedOptions = Array.from({ length: 10 }, (_, i) => ({
@@ -253,6 +259,8 @@ function GeneralSettings() {
   );
   const threadRemoveAction = useSharedSettings((state) => state.threadRemoveAction);
   const setThreadRemoveAction = useSharedSettings((state) => state.setThreadRemoveAction);
+  const newThreadMode = useSharedSettings((state) => state.newThreadMode);
+  const setNewThreadMode = useSharedSettings((state) => state.setNewThreadMode);
 
   return (
     <div className="h-full min-h-0 overflow-y-auto px-6 pb-8">
@@ -393,6 +401,26 @@ function GeneralSettings() {
               onChange={(value) => {
                 startTransition(() => {
                   setThreadRemoveAction(value as ThreadRemoveAction);
+                });
+              }}
+            />
+          </div>
+
+          <div className="flex items-center justify-between gap-4">
+            <div className="min-w-0">
+              <p className="text-sm font-medium text-foreground">Default new thread</p>
+              <p className="text-xs text-muted">
+                Open new threads as a full page or a side-by-side panel.
+              </p>
+            </div>
+            <Select
+              aria-label="Default new thread"
+              className="w-[160px] shrink-0"
+              options={newThreadModeOptions}
+              value={newThreadMode}
+              onChange={(value) => {
+                startTransition(() => {
+                  setNewThreadMode(value as NewThreadMode);
                 });
               }}
             />

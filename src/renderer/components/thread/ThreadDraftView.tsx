@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { Paperclip, TerminalSquare } from "lucide-react";
+import { Paperclip, TerminalSquare, X } from "lucide-react";
 import { Button, Spinner, toast, Tooltip } from "@heroui/react";
 import { useShallow } from "zustand/shallow";
 import type {
@@ -131,6 +131,16 @@ export function ThreadDraftView(props: {
   project: Project;
   agentStatuses: AgentStatus[];
   lastDraftConfig?: ProjectDraftConfig;
+  compact?: boolean;
+  paneAlign?: "left" | "center" | "right";
+  showCloseButton?: boolean;
+  isDragging?: boolean;
+  dropIndicator?: false | "replace" | "insert-left" | "insert-right";
+  paneIndex?: number;
+  paneCount?: number;
+  droppableRef?: React.RefObject<HTMLDivElement | null>;
+  onClose?: () => void;
+  dragHandleRef?: React.RefCallback<Element>;
   onStart: (input: {
     agentKind: AgentStatus["kind"];
     config: ThreadConfig;
@@ -194,12 +204,12 @@ export function ThreadDraftView(props: {
     attachmentsRef.current = [];
   }
 
-  function handleSwitchBranch(branch: string, isNew: boolean) {
+  function handleSwitchBranch(branch: string, createNew: boolean) {
     readBridge()
       .gitSwitchBranch({
         projectLocation: project.location,
         branch,
-        createNew: isNew,
+        createNew,
       })
       .then((result) => {
         // Immediately patch the store so the UI updates without waiting
@@ -339,26 +349,83 @@ export function ThreadDraftView(props: {
     if (patch.sandboxMode !== undefined) setSandboxMode(patch.sandboxMode);
   };
 
+  const alignClass =
+    props.paneAlign === "right" ? "ml-auto" : props.paneAlign === "left" ? "mr-auto" : "mx-auto";
+  const paddingClass = "px-2";
+
   return (
-    <div className="flex h-full min-h-0 flex-col">
-      <div className="flex h-full min-h-0 flex-col px-8 py-8">
-        <div className="mx-auto flex h-full w-full max-w-[1040px] flex-col">
+    <div
+      ref={props.droppableRef}
+      className={`relative flex h-full min-h-0 flex-col ${props.isDragging ? "opacity-50" : ""}`}
+    >
+      {props.compact && (
+        <div className={`${paddingClass} px-4`}>
+          <div
+            ref={props.dragHandleRef}
+            className={`${alignClass} flex w-full max-w-[920px] items-center gap-2 py-1.5 ${props.dragHandleRef ? "cursor-grab active:cursor-grabbing" : ""}`}
+          >
+            <TerminalSquare className="size-3.5 shrink-0 text-muted/60" />
+            <span className="flex-1 truncate text-sm font-medium text-muted">
+              New thread — {project.name}
+            </span>
+            {props.showCloseButton && props.onClose && (
+              <button
+                type="button"
+                className="shrink-0 rounded p-0.5 text-muted/60 transition-colors hover:bg-white/[0.06] hover:text-foreground"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  props.onClose?.();
+                }}
+              >
+                <X className="size-3.5" />
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+      <div
+        className={`${props.compact ? alignClass : "mx-auto"} relative flex h-full min-h-0 w-full max-w-[1040px] flex-col ${paddingClass} px-4 ${props.compact ? "pb-4" : "py-8"}`}
+      >
+        {props.dropIndicator === "replace" && (
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-0 z-20 rounded-2xl bg-accent/10 ring-1 ring-inset ring-accent/30"
+          />
+        )}
+        {props.dropIndicator === "insert-left" && props.paneIndex === 0 && (
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute top-0 bottom-0 -left-1 z-20 w-0.5 rounded-full bg-accent"
+          />
+        )}
+        {props.dropIndicator === "insert-right" &&
+          (props.paneIndex === undefined ||
+            props.paneIndex === (props.paneCount ?? 1) - 1) && (
+            <div
+              aria-hidden="true"
+              className="pointer-events-none absolute top-0 bottom-0 -right-1 z-20 w-0.5 rounded-full bg-accent"
+            />
+          )}
+          {/* Center area — logo */}
           <div className="flex flex-1 flex-col items-center justify-center">
             <div className="w-full max-w-[920px] overflow-visible pb-[0.32em] text-center">
-              <h1 className="inline-flex items-baseline gap-3 text-[clamp(3.25rem,8vw,6.25rem)] leading-[1.22] font-semibold tracking-[-0.06em]">
+              <h1 className={`inline-flex items-baseline gap-3 leading-[1.22] font-semibold tracking-[-0.06em] ${props.compact ? "text-[clamp(1.75rem,5vw,3rem)]" : "text-[clamp(3.25rem,8vw,6.25rem)]"}`}>
                 <span className="pr-[0.04em] pb-[0.04em] text-transparent [background-image:linear-gradient(135deg,var(--foreground)_0%,color-mix(in_oklab,var(--accent)_60%,var(--foreground))_52%,var(--muted)_100%)] [background-size:100%_100%] bg-clip-text">
                   Lightcode
                 </span>
                 <TerminalSquare className="translate-y-[-0.04em] size-[0.48em] shrink-0 text-[color:color-mix(in_oklab,var(--accent)_58%,var(--foreground))] opacity-90" />
               </h1>
-              <p className="mx-auto mt-1 max-w-full truncate text-[clamp(1.25rem,3vw,2rem)] leading-snug font-medium tracking-tight text-transparent [background-image:linear-gradient(135deg,var(--muted)_0%,color-mix(in_oklab,var(--accent)_30%,var(--muted))_100%)] [background-size:100%_100%] bg-clip-text font-mono">
+              <p className={`mx-auto mt-1 max-w-full truncate leading-snug font-medium tracking-tight text-transparent [background-image:linear-gradient(135deg,var(--muted)_0%,color-mix(in_oklab,var(--accent)_30%,var(--muted))_100%)] [background-size:100%_100%] bg-clip-text font-mono ${props.compact ? "text-[clamp(0.75rem,2vw,1.125rem)]" : "text-[clamp(1.25rem,3vw,2rem)]"}`}>
                 {project.name}
               </p>
             </div>
+          </div>
 
-            <div className="mt-36 w-full max-w-[920px]">
+          {/* Composer at bottom */}
+          <div className={`${props.compact ? alignClass : "mx-auto"} w-full max-w-[920px]`}>
               <ThreadComposer
                 autoFocus // eslint-disable-line jsx-a11y/no-autofocus -- desktop app, expected UX
+                compact={props.compact ?? false}
                 controls={[
                   {
                     icon: (
@@ -409,6 +476,7 @@ export function ThreadDraftView(props: {
                   <MentionInput
                     ref={mentionRef}
                     autoFocus // eslint-disable-line jsx-a11y/no-autofocus -- desktop app, expected UX
+                    compact={props.compact ?? false}
                     placeholder="Ask LightCode anything, @ to add files, / for commands"
                     projectLocation={project.location}
                     onTextChange={(hasText) => {
@@ -521,14 +589,13 @@ export function ThreadDraftView(props: {
                           currentBranch={gitBranch}
                           value={branchSelection?.branch ?? gitBranch}
                           isWorktree={branchSelection?.isWorktree}
-                          isNew={branchSelection?.isNew}
                           baseBranch={branchSelection?.baseBranch}
                           worktreeMode={worktreeMode}
                           onWorktreeModeChange={setWorktreeMode}
                           onSelect={setBranchSelection}
                           onSwitchBranch={handleSwitchBranch}
                         />
-                        {!branchSelection?.isNew && gitHasRemote && (
+                        {gitHasRemote && (
                           <Tooltip delay={0}>
                             <Button
                               size="sm"
@@ -578,8 +645,6 @@ export function ThreadDraftView(props: {
               />
             </div>
           </div>
-        </div>
-      </div>
       {lightboxIndex !== null && imageAttachments.length > 0 ? (
         <ImageLightbox
           images={imageAttachments}

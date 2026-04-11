@@ -1,5 +1,10 @@
 import { z } from "zod";
-import { terminalPositionSchema, themeModeSchema, threadRemoveActionSchema } from "./contracts";
+import {
+  newThreadModeSchema,
+  terminalPositionSchema,
+  themeModeSchema,
+  threadRemoveActionSchema,
+} from "./contracts";
 
 export const sharedSettingsSchema = z.object({
   themeMode: themeModeSchema,
@@ -36,6 +41,8 @@ export const sharedSettingsSchema = z.object({
   preventSleepWhileWorking: z.boolean(),
   /** Default action for the thread remove button: archive or delete permanently. */
   threadRemoveAction: threadRemoveActionSchema,
+  /** Default new-thread behaviour: full page or side-by-side panel. */
+  newThreadMode: newThreadModeSchema,
 });
 export type SharedSettings = z.infer<typeof sharedSettingsSchema>;
 
@@ -67,6 +74,7 @@ export const defaultSharedSettings: SharedSettings = {
   scrollSpeed: 2,
   preventSleepWhileWorking: true,
   threadRemoveAction: "archive",
+  newThreadMode: "page",
 };
 
 const partialSharedSettingsSchema = sharedSettingsSchema.partial();
@@ -116,5 +124,6 @@ export function normalizeSharedSettings(value: unknown): SharedSettings {
     preventSleepWhileWorking:
       parsed.data.preventSleepWhileWorking ?? defaultSharedSettings.preventSleepWhileWorking,
     threadRemoveAction: parsed.data.threadRemoveAction ?? defaultSharedSettings.threadRemoveAction,
+    newThreadMode: parsed.data.newThreadMode ?? defaultSharedSettings.newThreadMode,
   };
 }

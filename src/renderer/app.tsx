@@ -22,6 +22,7 @@ import type { PendingThreadServerRequest } from "./state/appStore";
 import { parseWslUncPath } from "../shared/wsl";
 import { buildWorktreeLocation } from "../shared/worktree";
 import { getAppName } from "../shared/appName";
+import { isDraftPaneId, makeDraftPaneId, parseDraftProjectId } from "../shared/paneId";
 import { msg, errorDetail } from "../shared/messages";
 import { isWindows, readBridge } from "./bridge";
 import { ProviderIcon, getStatusTone, generateTitleWithFallback } from "./components/providers";
@@ -423,7 +424,7 @@ function ThreadPane(props: {
   const { handleRef } = useDraggable({
     id: `pane:${props.threadId}`,
     type: "pane",
-    data: { type: "pane", threadId: props.threadId } satisfies DragSourceData,
+    data: { type: "pane", paneId: props.threadId } satisfies DragSourceData,
     disabled: props.paneCount <= 1,
     element: paneElementRef,
   });
@@ -436,7 +437,7 @@ function ThreadPane(props: {
   });
 
   const { source, paneIndicator } = useDndContext();
-  const isDragging = source?.type === "pane" && source.threadId === props.threadId;
+  const isDragging = source?.type === "pane" && source.paneId === props.threadId;
 
   const dropIndicator: false | "replace" | "insert-left" | "insert-right" =
     paneIndicator?.kind === "replace" && paneIndicator.paneIndex === props.paneIndex
@@ -531,6 +532,94 @@ function ThreadPane(props: {
   );
 }
 
+function DraftPane(props: {
+  paneId: string;
+  projectId: string;
+  paneIndex: number;
+  paneCount: number;
+  projects: Project[];
+  agentStatuses: AgentStatus[];
+  wslAgentStatuses: AgentStatus[];
+  onClose: () => void;
+  onStart: (
+    project: Project,
+    input: {
+      agentKind: AgentStatus["kind"];
+      config: import("../shared/contracts").ThreadConfig;
+      prompt: string;
+      segments?: PromptSegment[];
+      existingWorktreePath?: string;
+      worktreeBranch?: string;
+      worktreeBaseBranch?: string;
+      worktreeIsNewBranch?: boolean;
+    },
+  ) => void;
+}) {
+  const project = props.projects.find((item) => item.id === props.projectId);
+
+  const paneElementRef = useRef<HTMLDivElement>(null);
+  const { handleRef } = useDraggable({
+    id: `pane:${props.paneId}`,
+    type: "pane",
+    data: { type: "pane", paneId: props.paneId } satisfies DragSourceData,
+    disabled: props.paneCount <= 1,
+    element: paneElementRef,
+  });
+  useDroppable({
+    id: `pane-drop:${props.paneIndex}`,
+    accept: ["pane", "thread", "new-thread"],
+    data: { type: "pane-drop-zone", paneIndex: props.paneIndex },
+    element: paneElementRef,
+  });
+
+  const { source, paneIndicator } = useDndContext();
+  const isDragging = source?.type === "pane" && source.paneId === props.paneId;
+
+  const dropIndicator: false | "replace" | "insert-left" | "insert-right" =
+    paneIndicator?.kind === "replace" && paneIndicator.paneIndex === props.paneIndex
+      ? "replace"
+      : paneIndicator?.kind === "insert" && paneIndicator.index === props.paneIndex
+        ? "insert-left"
+        : paneIndicator?.kind === "insert" && paneIndicator.index === props.paneIndex + 1
+          ? "insert-right"
+          : false;
+
+  if (!project) return null;
+
+  const projectAgentStatuses = getProjectAgentStatuses(
+    project.location,
+    props.agentStatuses,
+    props.wslAgentStatuses,
+  );
+  const paneAlign =
+    props.paneCount <= 1
+      ? ("center" as const)
+      : props.paneIndex === 0
+        ? ("right" as const)
+        : props.paneIndex === props.paneCount - 1
+          ? ("left" as const)
+          : ("center" as const);
+
+  return (
+    <ThreadDraftView
+      project={project}
+      agentStatuses={projectAgentStatuses}
+      compact
+      paneAlign={paneAlign}
+      showCloseButton={props.paneCount > 1}
+      isDragging={isDragging}
+      dropIndicator={dropIndicator}
+      paneIndex={props.paneIndex}
+      paneCount={props.paneCount}
+      droppableRef={paneElementRef}
+      onClose={props.onClose}
+      {...(props.paneCount > 1 ? { dragHandleRef: handleRef } : {})}
+      {...(project.lastDraftConfig ? { lastDraftConfig: project.lastDraftConfig } : {})}
+      onStart={(input) => props.onStart(project, input)}
+    />
+  );
+}
+
 function AppContent() {
   const view = useAppStore((state) => state.view);
   const projects = useAppStore((state) => state.projects);
@@ -544,8 +633,105 @@ function AppContent() {
   const updateProjectDraftConfig = useAppStore((state) => state.updateProjectDraftConfig);
   const hasValidPanes = useAppStore(
     (s) =>
-      s.view.kind === "thread" && s.view.panes.some((id) => s.threads.some((t) => t.id === id)),
+      s.view.kind === "thread" &&
+      s.view.panes.some((id) =>
+        isDraftPaneId(id)
+          ? s.projects.some((p) => p.id === parseDraftProjectId(id))
+          : s.threads.some((t) => t.id === id),
+      ),
   );
+
+  async function handleDraftStart(
+    project: Project,
+    input: {
+      agentKind: AgentStatus["kind"];
+      config: import("../shared/contracts").ThreadConfig;
+      prompt: string;
+      segments?: PromptSegment[];
+      existingWorktreePath?: string;
+      worktreeBranch?: string;
+      worktreeBaseBranch?: string;
+      worktreeIsNewBranch?: boolean;
+    },
+    replacePaneIdParam?: string,
+  ) {
+    const {
+      agentKind,
+      config,
+      prompt,
+      segments,
+      existingWorktreePath,
+      worktreeBranch,
+      worktreeBaseBranch,
+      worktreeIsNewBranch,
+    } = input;
+
+    updateProjectDraftConfig(project.id, {
+      agentKind,
+      model: config.model,
+      effort: config.effort,
+      mode: config.mode,
+      approvalPolicy: config.approvalPolicy,
+      sandboxMode: config.sandboxMode,
+      worktreeMode: Boolean(worktreeBranch || existingWorktreePath),
+    });
+
+    let worktreePath: string | undefined;
+    if (existingWorktreePath) {
+      worktreePath = existingWorktreePath;
+    } else if (worktreeBranch) {
+      try {
+        const result = await readBridge().gitAddWorktree({
+          projectLocation: project.location,
+          branch: worktreeBranch,
+          createBranch: worktreeIsNewBranch ?? false,
+          startPoint: worktreeBaseBranch,
+        });
+        worktreePath = result.path;
+
+        const setupScript = project.scripts?.setupScript;
+        if (setupScript) {
+          const wtLocation = buildWorktreeLocation(project.location, result.path);
+          const store = useDevTerminalStore.getState();
+          const tab = store.addTab(project.id, "setup", result.path);
+          store.openWorktreePanel(project.id, result.path);
+          store.setActiveTab(tab.id);
+          void readBridge().startShell({
+            shellId: tab.id,
+            projectLocation: wtLocation,
+            worktreePath: result.path,
+          });
+          writeScriptToShell(tab.id, setupScript);
+        }
+      } catch (err) {
+        console.error("[renderer] failed to create worktree:", err);
+        return;
+      }
+    }
+
+    const projectAgentStatuses = getProjectAgentStatuses(
+      project.location,
+      agentStatuses,
+      wslAgentStatuses,
+    );
+    const titlePrompt = segments
+      ? segments
+          .filter((s) => s.kind !== "attachment")
+          .map((s) => (s.kind === "file" ? `@${s.path}` : s.content))
+          .join("")
+          .trim() || prompt
+      : prompt;
+    const thread = createThread({
+      projectId: project.id,
+      agentKind,
+      config,
+      prompt: titlePrompt,
+      ...(worktreePath ? { worktreePath, worktreeBranch } : {}),
+      ...(replacePaneIdParam ? { replacePaneId: replacePaneIdParam } : {}),
+    });
+    queueThreadLaunch(thread.id, prompt, segments);
+    generateTitleAsync(thread.id, project.location, projectAgentStatuses, titlePrompt);
+  }
 
   if (view.kind === "draft") {
     const project = projects.find((item) => item.id === view.projectId);
@@ -563,77 +749,7 @@ function AppContent() {
           project={project}
           agentStatuses={projectAgentStatuses}
           {...(project.lastDraftConfig ? { lastDraftConfig: project.lastDraftConfig } : {})}
-          onStart={async ({
-            agentKind,
-            config,
-            prompt,
-            segments,
-            existingWorktreePath,
-            worktreeBranch,
-            worktreeBaseBranch,
-            worktreeIsNewBranch,
-          }) => {
-            updateProjectDraftConfig(project.id, {
-              agentKind,
-              model: config.model,
-              effort: config.effort,
-              mode: config.mode,
-              approvalPolicy: config.approvalPolicy,
-              sandboxMode: config.sandboxMode,
-              worktreeMode: Boolean(worktreeBranch || existingWorktreePath),
-            });
-
-            let worktreePath: string | undefined;
-            if (existingWorktreePath) {
-              worktreePath = existingWorktreePath;
-            } else if (worktreeBranch) {
-              try {
-                const result = await readBridge().gitAddWorktree({
-                  projectLocation: project.location,
-                  branch: worktreeBranch,
-                  createBranch: worktreeIsNewBranch ?? false,
-                  startPoint: worktreeBaseBranch,
-                });
-                worktreePath = result.path;
-
-                // Run setup script if configured
-                const setupScript = project.scripts?.setupScript;
-                if (setupScript) {
-                  const wtLocation = buildWorktreeLocation(project.location, result.path);
-                  const store = useDevTerminalStore.getState();
-                  const tab = store.addTab(project.id, "setup", result.path);
-                  store.openWorktreePanel(project.id, result.path);
-                  store.setActiveTab(tab.id);
-                  void readBridge().startShell({
-                    shellId: tab.id,
-                    projectLocation: wtLocation,
-                    worktreePath: result.path,
-                  });
-                  writeScriptToShell(tab.id, setupScript);
-                }
-              } catch (err) {
-                console.error("[renderer] failed to create worktree:", err);
-                return;
-              }
-            }
-
-            const titlePrompt = segments
-              ? segments
-                  .filter((s) => s.kind !== "attachment")
-                  .map((s) => (s.kind === "file" ? `@${s.path}` : s.content))
-                  .join("")
-                  .trim() || prompt
-              : prompt;
-            const thread = createThread({
-              projectId: project.id,
-              agentKind,
-              config,
-              prompt: titlePrompt,
-              ...(worktreePath ? { worktreePath, worktreeBranch } : {}),
-            });
-            queueThreadLaunch(thread.id, prompt, segments);
-            generateTitleAsync(thread.id, project.location, projectAgentStatuses, titlePrompt);
-          }}
+          onStart={(input) => void handleDraftStart(project, input)}
         />
       </div>
     );
@@ -651,21 +767,42 @@ function AppContent() {
       );
     }
 
-    const paneElements = view.panes.map((paneThreadId, paneIndex) => (
-      <ThreadPane
-        key={paneThreadId}
-        threadId={paneThreadId}
-        paneIndex={paneIndex}
-        paneCount={paneCount}
-        projects={projects}
-        agentStatuses={agentStatuses}
-        wslAgentStatuses={wslAgentStatuses}
-        pendingServerRequests={pendingServerRequests}
-        pendingLaunchPrompt={pendingThreadLaunches[paneThreadId]}
-        pendingLaunchSegments={pendingLaunchSegments[paneThreadId]}
-        onClose={() => closePane(paneThreadId)}
-      />
-    ));
+    const paneElements = view.panes.map((paneId, paneIndex) => {
+      const draftProjectId = parseDraftProjectId(paneId);
+      if (draftProjectId) {
+        return (
+          <DraftPane
+            key={paneId}
+            paneId={paneId}
+            projectId={draftProjectId}
+            paneIndex={paneIndex}
+            paneCount={paneCount}
+            projects={projects}
+            agentStatuses={agentStatuses}
+            wslAgentStatuses={wslAgentStatuses}
+            onClose={() => closePane(paneId)}
+            onStart={(project, input) =>
+              void handleDraftStart(project, input, paneId)
+            }
+          />
+        );
+      }
+      return (
+        <ThreadPane
+          key={paneId}
+          threadId={paneId}
+          paneIndex={paneIndex}
+          paneCount={paneCount}
+          projects={projects}
+          agentStatuses={agentStatuses}
+          wslAgentStatuses={wslAgentStatuses}
+          pendingServerRequests={pendingServerRequests}
+          pendingLaunchPrompt={pendingThreadLaunches[paneId]}
+          pendingLaunchSegments={pendingLaunchSegments[paneId]}
+          onClose={() => closePane(paneId)}
+        />
+      );
+    });
 
     return (
       <div className="h-full">
@@ -765,6 +902,7 @@ export function App() {
   const markThreadExited = useAppStore((state) => state.markThreadExited);
   const addProject = useAppStore((state) => state.addProject);
   const openDraft = useAppStore((state) => state.openDraft);
+  const openDraftSideBySide = useAppStore((state) => state.openDraftSideBySide);
   const openThread = useAppStore((state) => state.openThread);
   const openThreadSideBySide = useAppStore((state) => state.openThreadSideBySide);
   const replaceSecondPane = useAppStore((state) => state.replaceSecondPane);
@@ -1392,7 +1530,10 @@ export function App() {
     const v = s.view;
     if (v.kind === "draft") return v.projectId;
     if (v.kind === "thread") {
-      return s.threads.find((t) => t.id === v.panes[0])?.projectId;
+      const firstPaneId = v.panes[0];
+      const draftProjectId = parseDraftProjectId(firstPaneId);
+      if (draftProjectId) return draftProjectId;
+      return s.threads.find((t) => t.id === firstPaneId)?.projectId;
     }
     return undefined;
   });
@@ -1401,6 +1542,7 @@ export function App() {
     if (!storeHydrated) return;
 
     for (const paneId of currentPaneIds) {
+      if (isDraftPaneId(paneId)) continue;
       const thread = useAppStore.getState().threads.find((t) => t.id === paneId);
       if (!thread || thread.status !== "inactive") continue;
       reopenStoredThread(thread.id);
@@ -1491,13 +1633,24 @@ export function App() {
       });
     } else if (source.type === "pane" && target.kind === "replace") {
       // Pane-to-pane reorder
-      const sourceThreadId = source.threadId;
-      const targetThreadId = panes[target.paneIndex];
-      if (!targetThreadId || sourceThreadId === targetThreadId) return;
-      const sourceIdx = panes.indexOf(sourceThreadId);
+      const sourcePaneId = source.paneId;
+      const targetPaneId = panes[target.paneIndex];
+      if (!targetPaneId || sourcePaneId === targetPaneId) return;
+      const sourceIdx = panes.indexOf(sourcePaneId);
       const targetIdx = target.paneIndex;
       const placement = sourceIdx < targetIdx ? ("after" as const) : ("before" as const);
-      startTransition(() => reorderPanes(sourceThreadId, targetThreadId, placement));
+      startTransition(() => reorderPanes(sourcePaneId, targetPaneId, placement));
+    } else if (source.type === "new-thread") {
+      // Sidebar "New thread" → pane
+      const draftPaneId = makeDraftPaneId(source.projectId);
+      if (panes.includes(draftPaneId)) return;
+      startTransition(() => {
+        if (target.kind === "insert") {
+          insertPaneAtIndex(draftPaneId, target.index);
+        } else {
+          openDraftSideBySide(source.projectId);
+        }
+      });
     }
   }
 
@@ -1616,14 +1769,22 @@ export function App() {
               currentThreadIds={view.kind === "thread" ? view.panes : []}
               onOpenNewThread={(projectId) => {
                 const targetProjectId = projectId ?? currentProjectId ?? projects[0]?.id;
-
                 startTransition(() => {
-                  if (targetProjectId) {
-                    openDraft(targetProjectId);
+                  if (!targetProjectId) {
+                    openHome();
                     return;
                   }
-
-                  openHome();
+                  const mode = useSharedSettings.getState().newThreadMode;
+                  if (mode === "panel" && view.kind === "thread" && view.panes.length > 0) {
+                    openDraftSideBySide(targetProjectId);
+                  } else {
+                    openDraft(targetProjectId);
+                  }
+                });
+              }}
+              onOpenNewThreadSideBySide={(projectId) => {
+                startTransition(() => {
+                  openDraftSideBySide(projectId);
                 });
               }}
               onOpenSettings={() => setSettingsOpen(true)}

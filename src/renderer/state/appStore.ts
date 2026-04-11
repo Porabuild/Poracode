@@ -18,6 +18,7 @@ import type {
   ThreadStatus,
 } from "../../shared/contracts";
 import type { Attachment } from "../components/composer/useAttachments";
+import { isDraftPaneId, makeDraftPaneId, parseDraftProjectId } from "../../shared/paneId";
 import { getProjectName } from "../../shared/wsl";
 import {
   reorderIds,
@@ -78,12 +79,14 @@ interface AppStoreState {
   updateProjectScripts: (projectId: string, scripts: ProjectScripts) => void;
   renameProject: (projectId: string, name: string) => void;
   openDraft: (projectId: string) => void;
+  openDraftSideBySide: (projectId: string) => void;
   openHome: () => void;
   openThread: (threadId: string) => void;
   openThreadSideBySide: (threadId: string) => void;
   replaceSecondPane: (threadId: string) => void;
   insertPaneAtIndex: (threadId: string, index: number) => void;
   closePane: (threadId: string) => void;
+  replacePaneId: (oldId: string, newId: string) => void;
   createThread: (input: {
     projectId: string;
     agentKind: Thread["agentKind"];
@@ -91,6 +94,7 @@ interface AppStoreState {
     prompt: string;
     worktreePath?: string;
     worktreeBranch?: string;
+    replacePaneId?: string;
   }) => Thread;
   queueThreadLaunch: (threadId: string, prompt: string, segments?: PromptSegment[]) => void;
   consumeThreadLaunch: (threadId: string) => void;
@@ -212,7 +216,12 @@ export const useAppStore = create<AppStoreState>()(
           if (state.view.kind === "draft" && state.view.projectId === projectId) {
             nextView = { kind: "home" };
           } else if (state.view.kind === "thread") {
-            const remaining = state.view.panes.filter((id) => !projectThreadIds.has(id));
+            const remaining = state.view.panes.filter(
+              (id) =>
+                isDraftPaneId(id)
+                  ? parseDraftProjectId(id) !== projectId
+                  : !projectThreadIds.has(id),
+            );
             nextView =
               remaining.length === 0
                 ? { kind: "home" as const }
@@ -248,6 +257,31 @@ export const useAppStore = create<AppStoreState>()(
           ),
         })),
       openDraft: (projectId) => set({ view: { kind: "draft", projectId } }),
+      openDraftSideBySide: (projectId) =>
+        set((state) => {
+          if (state.view.kind !== "thread") {
+            return { view: { kind: "draft", projectId } };
+          }
+          const draftPaneId = makeDraftPaneId(projectId);
+          const existing = state.view.panes;
+          if (existing.includes(draftPaneId)) {
+            return {};
+          }
+          if (existing.length >= 3) {
+            return {
+              view: {
+                kind: "thread",
+                panes: [existing[0]!, existing[1]!, draftPaneId],
+              },
+            };
+          }
+          return {
+            view: {
+              kind: "thread",
+              panes: [...existing, draftPaneId] as [string, ...string[]],
+            },
+          };
+        }),
       openHome: () => set({ view: { kind: "home" } }),
       openThread: (threadId) =>
         set((state) => {
@@ -328,7 +362,26 @@ export const useAppStore = create<AppStoreState>()(
             view: { kind: "thread", panes: remaining as [string, ...string[]] },
           };
         }),
-      createThread: ({ projectId, agentKind, config, prompt, worktreePath, worktreeBranch }) => {
+      replacePaneId: (oldId, newId) =>
+        set((state) => {
+          if (state.view.kind !== "thread") {
+            return {};
+          }
+          const idx = state.view.panes.indexOf(oldId);
+          if (idx === -1) return {};
+          const panes = [...state.view.panes];
+          panes[idx] = newId;
+          return { view: { kind: "thread", panes: panes as [string, ...string[]] } };
+        }),
+      createThread: ({
+        projectId,
+        agentKind,
+        config,
+        prompt,
+        worktreePath,
+        worktreeBranch,
+        replacePaneId: replacePaneIdParam,
+      }) => {
         const now = new Date().toISOString();
         const thread: Thread = {
           id: crypto.randomUUID(),
@@ -346,10 +399,22 @@ export const useAppStore = create<AppStoreState>()(
           updatedAt: now,
         };
 
-        set((state) => ({
-          threads: [thread, ...state.threads],
-          view: { kind: "thread", panes: [thread.id] },
-        }));
+        set((state) => {
+          let nextView: AppView;
+          if (replacePaneIdParam && state.view.kind === "thread") {
+            const idx = state.view.panes.indexOf(replacePaneIdParam);
+            if (idx !== -1) {
+              const panes = [...state.view.panes];
+              panes[idx] = thread.id;
+              nextView = { kind: "thread", panes: panes as [string, ...string[]] };
+            } else {
+              nextView = { kind: "thread", panes: [thread.id] };
+            }
+          } else {
+            nextView = { kind: "thread", panes: [thread.id] };
+          }
+          return { threads: [thread, ...state.threads], view: nextView };
+        });
 
         return thread;
       },

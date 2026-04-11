@@ -111,12 +111,12 @@ function OverflowTooltip(props: { tooltip: React.ReactNode; children: React.Reac
         }
       }}
     >
-      <Tooltip.Trigger>
+      <Tooltip.Trigger className="block">
         <span ref={labelRef} className="block truncate">
           {props.children}
         </span>
       </Tooltip.Trigger>
-      <Tooltip.Content showArrow className="max-w-[28rem] break-all text-xs">
+      <Tooltip.Content placement="right" showArrow className="max-w-[28rem] break-all text-xs">
         {props.tooltip}
       </Tooltip.Content>
     </Tooltip>

@@ -8,7 +8,8 @@ export type DragSourceData =
   | { type: "project"; projectId: string }
   | { type: "thread"; threadId: string; projectId: string; worktreePath?: string }
   | { type: "worktree-group"; worktreePath: string; projectId: string; threadIds: string[] }
-  | { type: "pane"; threadId: string };
+  | { type: "pane"; paneId: string }
+  | { type: "new-thread"; projectId: string };
 
 // ── Pane drop indicator ────────────────────────────────────────
 export type PaneDropIndicator =
@@ -157,15 +158,24 @@ export function AppDndProvider(props: {
           const targetData = target.data as Record<string, unknown> | undefined;
           const targetType = targetData?.type as string | undefined;
 
-          if (targetType === "pane-drop-zone" && (data.type === "thread" || data.type === "pane")) {
+          if (
+            targetType === "pane-drop-zone" &&
+            (data.type === "thread" || data.type === "pane" || data.type === "new-thread")
+          ) {
             const paneIndex = targetData?.paneIndex as number;
             const el = target.element;
             if (el) {
+              const sourceThreadId =
+                data.type === "thread"
+                  ? data.threadId
+                  : data.type === "pane"
+                    ? data.paneId
+                    : undefined;
               activePaneTarget.current = {
                 paneIndex,
                 element: el,
                 sourceType: data.type,
-                sourceThreadId: data.threadId,
+                ...(sourceThreadId !== undefined ? { sourceThreadId } : {}),
               };
               updatePaneIndicator();
             }
@@ -182,7 +192,10 @@ export function AppDndProvider(props: {
           const data = src?.data as DragSourceData | undefined;
 
           if (!event.canceled && data) {
-            if ((data.type === "pane" || data.type === "thread") && paneIndicatorRef.current) {
+            if (
+              (data.type === "pane" || data.type === "thread" || data.type === "new-thread") &&
+              paneIndicatorRef.current
+            ) {
               props.onPaneDrop(data, paneIndicatorRef.current);
             } else if (src && isSortable(src) && data.type !== "pane") {
               props.onSidebarSortEnd(

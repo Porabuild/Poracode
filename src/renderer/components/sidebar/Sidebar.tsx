@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import { TuxIcon } from "../common/TuxIcon";
 import { useEffect, useRef, useState } from "react";
+import { useDraggable } from "@dnd-kit/react";
 import { useSortable } from "@dnd-kit/react/sortable";
 import type { Project, Thread } from "../../../shared/contracts";
 import { useAppStore } from "../../state/appStore";
@@ -667,6 +668,55 @@ function SortableWorktreeGroup(props: {
   );
 }
 
+// ── New thread button with context menu & drag ────────────────
+function NewThreadButton(props: {
+  projectId: string;
+  hasDraft: boolean;
+  isActive: boolean;
+  isDraggingAnything: boolean;
+  canOpenAsPanel: boolean;
+  onPress: () => void;
+  onOpenAsPanel: () => void;
+}) {
+  const newThreadRef = useRef<HTMLDivElement>(null);
+  useDraggable({
+    id: `new-thread:${props.projectId}`,
+    type: "new-thread",
+    data: { type: "new-thread", projectId: props.projectId } satisfies DragSourceData,
+    element: newThreadRef,
+  });
+
+  return (
+    <ContextMenu
+      items={[
+        {
+          id: "open-as-panel",
+          label: "Open as Panel",
+          icon: <Columns2 className="size-3.5" />,
+          isDisabled: !props.canOpenAsPanel,
+        },
+      ]}
+      onAction={(key) => {
+        if (key === "open-as-panel") props.onOpenAsPanel();
+      }}
+    >
+      <SidebarButton
+        ref={newThreadRef}
+        icon={<Plus className="size-4" />}
+        label={props.hasDraft ? "New thread (draft)" : "New thread"}
+        isActive={props.isActive}
+        isDraggingAnything={props.isDraggingAnything}
+        onPress={props.onPress}
+        suffix={
+          props.hasDraft ? (
+            <span className="size-1.5 shrink-0 rounded-full bg-accent" />
+          ) : undefined
+        }
+      />
+    </ContextMenu>
+  );
+}
+
 // ── Sortable project header ─────────────────────────────────────
 function SortableProjectHeader(props: {
   project: Project;
@@ -680,6 +730,7 @@ function SortableProjectHeader(props: {
   editingThreadId: string | null;
   setEditingThreadId: (id: string | null) => void;
   onOpenNewThread: (projectId?: string) => void;
+  onOpenNewThreadSideBySide: (projectId: string) => void;
   onOpenThread: (threadId: string) => void;
   onOpenThreadSideBySide: (threadId: string) => void;
   onReplaceSecondPane: (threadId: string) => void;
@@ -849,17 +900,14 @@ function SortableProjectHeader(props: {
 
       {!isProjectCollapsed ? (
         <div className="space-y-0.5 pl-3">
-          <SidebarButton
-            icon={<Plus className="size-4" />}
-            label={hasDraft ? "New thread (draft)" : "New thread"}
+          <NewThreadButton
+            projectId={project.id}
+            hasDraft={hasDraft}
             isActive={props.currentProjectId === project.id && props.currentThreadIds.length === 0}
             isDraggingAnything={!!source}
+            canOpenAsPanel={props.currentThreadIds.length > 0 && props.currentThreadIds.length < 3}
             onPress={() => props.onOpenNewThread(project.id)}
-            suffix={
-              hasDraft ? (
-                <span className="size-1.5 shrink-0 rounded-full bg-accent" />
-              ) : undefined
-            }
+            onOpenAsPanel={() => props.onOpenNewThreadSideBySide(project.id)}
           />
 
           <div className="max-h-80 space-y-0.5 overflow-y-auto">
@@ -954,6 +1002,7 @@ export function Sidebar(props: {
   currentProjectId: string | undefined;
   currentThreadIds: string[];
   onOpenNewThread: (projectId?: string) => void;
+  onOpenNewThreadSideBySide: (projectId: string) => void;
   onOpenThread: (threadId: string) => void;
   onOpenThreadSideBySide: (threadId: string) => void;
   onReplaceSecondPane: (threadId: string) => void;
@@ -986,6 +1035,7 @@ export function Sidebar(props: {
     currentProjectId,
     currentThreadIds,
     onOpenNewThread,
+    onOpenNewThreadSideBySide,
     onOpenThread,
     onOpenThreadSideBySide,
     onReplaceSecondPane,
@@ -1143,6 +1193,7 @@ export function Sidebar(props: {
                   editingThreadId={editingThreadId}
                   setEditingThreadId={setEditingThreadId}
                   onOpenNewThread={onOpenNewThread}
+                  onOpenNewThreadSideBySide={onOpenNewThreadSideBySide}
                   onOpenThread={onOpenThread}
                   onOpenThreadSideBySide={onOpenThreadSideBySide}
                   onReplaceSecondPane={onReplaceSecondPane}

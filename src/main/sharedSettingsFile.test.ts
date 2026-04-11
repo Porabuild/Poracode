@@ -53,6 +53,7 @@ describe("sharedSettingsFile", () => {
       scrollSpeed: 2,
       preventSleepWhileWorking: true,
       threadRemoveAction: "archive",
+      newThreadMode: "page",
     });
 
     expect(readSharedSettingsFile(settingsPath)).toEqual({
@@ -83,6 +84,7 @@ describe("sharedSettingsFile", () => {
       scrollSpeed: 2,
       preventSleepWhileWorking: true,
       threadRemoveAction: "archive",
+      newThreadMode: "page",
     });
     expect(readFileSync(settingsPath, "utf8")).toContain('"themeMode": "dark"');
   });
