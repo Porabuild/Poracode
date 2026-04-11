@@ -385,6 +385,7 @@ function SortableThreadItem(props: {
           }
           tooltip={editingThreadId === thread.id ? undefined : thread.title}
           isActive={isCurrentThread}
+          liveText={statusTone !== "inactive"}
           className={isDragging ? "opacity-60" : ""}
           onPress={() => props.onOpenThread(thread.id)}
           onDoubleClick={() => props.setEditingThreadId(thread.id)}

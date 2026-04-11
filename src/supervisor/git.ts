@@ -743,6 +743,24 @@ export class GitService {
     return execGit(location, ["diff"], { timeout: GIT_DIFF_TIMEOUT });
   }
 
+  async getLogRange(
+    location: ProjectLocation,
+    base: string,
+    head: string,
+  ): Promise<string> {
+    return execGit(location, ["log", "--oneline", `${base}..${head}`], {
+      timeout: GIT_DIFF_TIMEOUT,
+    });
+  }
+
+  async getDiffRange(
+    location: ProjectLocation,
+    base: string,
+    head: string,
+  ): Promise<string> {
+    return execGit(location, ["diff", `${base}...${head}`], { timeout: GIT_DIFF_TIMEOUT });
+  }
+
   // ── Branch & Worktree ───────────────────────────────────
 
   async listBranches(
@@ -1387,20 +1405,55 @@ export class GitService {
     location: ProjectLocation,
     branch: string,
   ): Promise<string | null> {
+    // 1) Try worktree-based inference: use the main worktree's branch as the source.
     try {
       const { worktrees } = await this.listWorktrees(location);
       const mainWorktreeBranch = worktrees.find((worktree) => worktree.isMain)?.branch || null;
-      if (!mainWorktreeBranch || mainWorktreeBranch === branch) {
-        return null;
+      if (mainWorktreeBranch && mainWorktreeBranch !== branch) {
+        // Only recover a legacy source branch when the main branch shares history with the worktree.
+        await execGit(location, ["merge-base", mainWorktreeBranch, branch]);
+        await this.writeWorktreeSourceBranch(location, branch, mainWorktreeBranch);
+        return mainWorktreeBranch;
       }
-
-      // Only recover a legacy source branch when the main branch shares history with the worktree.
-      await execGit(location, ["merge-base", mainWorktreeBranch, branch]);
-      await this.writeWorktreeSourceBranch(location, branch, mainWorktreeBranch);
-      return mainWorktreeBranch;
     } catch {
-      return null;
+      // worktree approach failed
     }
+
+    // 2) Check the reflog for the branch creation entry to find the actual parent branch.
+    //    `git checkout -b feature stage` records "branch: Created from refs/heads/stage".
+    try {
+      const reflog = await execGit(location, ["reflog", "show", branch, "--format=%gs"]);
+      const creationLine = reflog
+        .split("\n")
+        .find((line) => line.startsWith("branch: Created from"));
+      if (creationLine) {
+        const source = creationLine
+          .replace("branch: Created from refs/heads/", "")
+          .replace("branch: Created from ", "")
+          .trim();
+        // Only use if it names a real branch (not "HEAD" or a raw commit hash)
+        if (source && source !== "HEAD" && source !== branch && !/^[0-9a-f]+$/i.test(source)) {
+          await execGit(location, ["rev-parse", "--verify", `refs/heads/${source}`]);
+          return source;
+        }
+      }
+    } catch {
+      // reflog not available or branch no longer exists
+    }
+
+    // 3) Fall back to the remote's default branch (refs/remotes/origin/HEAD).
+    try {
+      const ref = await execGit(location, ["symbolic-ref", "refs/remotes/origin/HEAD"]);
+      const defaultBranch = ref.trim().replace(/^refs\/remotes\/origin\//, "");
+      if (defaultBranch && defaultBranch !== branch) {
+        await execGit(location, ["merge-base", defaultBranch, branch]);
+        return defaultBranch;
+      }
+    } catch {
+      // remote HEAD not configured
+    }
+
+    return null;
   }
 
   private async getCurrentBranch(location: ProjectLocation): Promise<string | null> {

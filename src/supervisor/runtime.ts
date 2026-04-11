@@ -29,6 +29,8 @@ import type {
   GenerateCommitMessageResult,
   GenerateTitlePayload,
   GenerateTitleResult,
+  GeneratePrSummaryPayload,
+  GeneratePrSummaryResult,
   GetAgentStatusesPayload,
   GetGitDiffBatchPayload,
   GetGitDiffPayload,
@@ -125,6 +127,7 @@ import {
 } from "./agents/base";
 import { generateCommitMessage } from "./commitMessageGenerator";
 import { generateTitle } from "./titleGenerator";
+import { generatePrSummary } from "./prSummaryGenerator";
 import { GitService } from "./git";
 import { GitWatcher } from "./gitWatcher";
 import { GitHubService } from "./github";
@@ -987,6 +990,20 @@ export class SupervisorRuntime {
       payload.effort,
     );
     return { title };
+  }
+
+  async generatePrSummary(
+    payload: GeneratePrSummaryPayload,
+  ): Promise<GeneratePrSummaryResult> {
+    const adapter = this.requireAdapter(payload.agentKind);
+    return generatePrSummary(
+      payload.projectLocation,
+      adapter,
+      payload.branch,
+      payload.baseBranch,
+      payload.model,
+      payload.effort,
+    );
   }
 
   // ── Branch & Worktree ───────────────────────────────────

@@ -27,13 +27,17 @@ import {
   ButtonGroup,
   Dropdown,
   Label,
+  ListBox,
   Modal,
+  Select,
   Spinner,
+  Surface,
   toast,
   Tooltip,
 } from "@heroui/react";
 import type {
   Project,
+  GitBranchInfo,
   GitFileChange,
   GitStatusResult,
   PrData,
@@ -47,9 +51,15 @@ import { useSharedSettings } from "../../state/sharedSettingsStore";
 import { isLockFile } from "../../../shared/gitUtils";
 import { SidebarButton, TextArea } from "../common";
 import { useSidebar } from "../layout/AppShell";
-import { generateCommitMessageWithFallback, getCommitGenCandidates } from "../providers";
+import {
+  generateCommitMessageWithFallback,
+  getCommitGenCandidates,
+  resolveCommitGenConfig,
+} from "../providers";
 import { getConflictResolverDefaults } from "../providers/ProviderIcon";
 import { msg, friendlyError } from "../../../shared/messages";
+
+const EMPTY_BRANCHES: readonly GitBranchInfo[] = [];
 
 function FileStatusIcon(props: { status: string; className?: string }) {
   const cls = `size-3.5 ${props.className ?? ""}`;
@@ -394,23 +404,28 @@ export function GitReviewSidebar(props: {
   const [isAbortingMerge, setIsAbortingMerge] = useState(false);
   const [isFinishingMerge, setIsFinishingMerge] = useState(false);
 
-  // PR state
+  // PR state — derive effective branch/key for both worktree and non-worktree modes
   const isGitHub = gitStatus?.remoteInfo?.platform === "github";
   const ghAvailable = useGitStore((s) => s.ghAvailable[project.id] ?? false);
-  const prData = useGitStore((s) => (worktreePath ? s.prData[worktreePath] : undefined)) as
+  const branchList = useGitStore((s) => s.branches[project.id]?.branches) ?? EMPTY_BRANCHES;
+  const effectiveBranch = worktreeBranch ?? gitStatus?.branch;
+  const effectivePrKey = worktreePath ?? (gitStatus?.branch ? `__branch:${project.id}` : undefined);
+  const prData = useGitStore((s) => (effectivePrKey ? s.prData[effectivePrKey] : undefined)) as
     | PrData
     | null
     | undefined;
   const sourceInfo = useGitStore((s) =>
-    worktreePath ? s.worktreeSourceInfo[worktreePath] : undefined,
+    effectivePrKey ? s.worktreeSourceInfo[effectivePrKey] : undefined,
   );
   const sourceBranch = sourceInfo?.sourceBranch ?? null;
   const commitsAhead = sourceInfo?.commitsAhead ?? 0;
   const sourceAhead = sourceInfo?.sourceAhead ?? 0;
   const [prTitle, setPrTitle] = useState("");
-  const [prIsDraft, setPrIsDraft] = useState(false);
+  const [prBody, setPrBody] = useState("");
+  const [prTargetBranch, setPrTargetBranch] = useState<string | null>(null);
   const [prLoading, setPrLoading] = useState(false);
-  const showPrSection = Boolean(isGitHub && worktreeBranch && worktreePath);
+  const [isGeneratingPr, setIsGeneratingPr] = useState(false);
+  const showPrSection = Boolean(isGitHub && effectiveBranch);
   const projectLocationKind = project.location.kind;
   const projectLocationPath =
     project.location.kind === "wsl" ? project.location.linuxPath : project.location.path;
@@ -418,7 +433,7 @@ export function GitReviewSidebar(props: {
   const projectLocationUncPath = project.location.kind === "wsl" ? project.location.uncPath : null;
 
   useEffect(() => {
-    if (!worktreeBranch || !worktreePath) {
+    if (!effectiveBranch || !effectivePrKey) {
       setSourceBranchLoading(false);
       return;
     }
@@ -438,11 +453,11 @@ export function GitReviewSidebar(props: {
     readBridge()
       .gitGetWorktreeSourceBranch({
         projectLocation: sourceProjectLocation,
-        branch: worktreeBranch,
+        branch: effectiveBranch,
       })
       .then((result) => {
         if (!isActive) return;
-        useGitStore.getState().setWorktreeSourceInfo(worktreePath, {
+        useGitStore.getState().setWorktreeSourceInfo(effectivePrKey, {
           sourceBranch: result.sourceBranch,
           commitsAhead: result.commitsAhead,
           sourceAhead: result.sourceAhead,
@@ -450,7 +465,7 @@ export function GitReviewSidebar(props: {
       })
       .catch(() => {
         if (!isActive) return;
-        useGitStore.getState().setWorktreeSourceInfo(worktreePath, {
+        useGitStore.getState().setWorktreeSourceInfo(effectivePrKey, {
           sourceBranch: null,
           commitsAhead: 0,
           sourceAhead: 0,
@@ -465,14 +480,30 @@ export function GitReviewSidebar(props: {
       isActive = false;
     };
   }, [
+    effectiveBranch,
+    effectivePrKey,
     projectLocationDistro,
     projectLocationKind,
     projectLocationPath,
     projectLocationUncPath,
     refreshKey,
-    worktreeBranch,
-    worktreePath,
   ]);
+
+  // Fetch PR data for non-worktree mode (worktree PR data is polled in app.tsx)
+  useEffect(() => {
+    if (worktreePath || !isGitHub || !ghAvailable || !effectiveBranch || !effectivePrKey) return;
+    let isActive = true;
+    readBridge()
+      .ghGetPrForBranch({ projectLocation: project.location, branch: effectiveBranch })
+      .then((pr) => {
+        if (!isActive) return;
+        useGitStore.getState().setPrData(effectivePrKey, pr);
+      })
+      .catch(() => {});
+    return () => {
+      isActive = false;
+    };
+  }, [worktreePath, isGitHub, ghAvailable, effectiveBranch, effectivePrKey, project.location, refreshKey]);
 
   const projectAgentStatuses = getProjectAgentStatuses(
     project.location,
@@ -745,22 +776,24 @@ export function GitReviewSidebar(props: {
       (conflictResolverProvider === "auto" || a.kind === conflictResolverProvider),
   );
 
-  async function handleCreatePr() {
-    if (!worktreeBranch || !sourceBranch) return;
+  async function handleCreatePr(isDraft: boolean) {
+    const targetBranch = prTargetBranch || sourceBranch;
+    if (!effectiveBranch || !targetBranch) return;
     setPrLoading(true);
     try {
       const pr = await readBridge().ghCreatePr({
         projectLocation: project.location,
-        branch: worktreeBranch,
-        baseBranch: sourceBranch,
-        title: prTitle.trim() || worktreeBranch,
-        body: "",
-        isDraft: prIsDraft,
+        branch: effectiveBranch,
+        baseBranch: targetBranch,
+        title: prTitle.trim() || effectiveBranch,
+        body: prBody.trim(),
+        isDraft,
       });
-      if (worktreePath) {
-        useGitStore.getState().setPrData(worktreePath, pr);
+      if (effectivePrKey) {
+        useGitStore.getState().setPrData(effectivePrKey, pr);
       }
       setPrTitle("");
+      setPrBody("");
     } catch (err) {
       console.error("[git] create PR failed", err);
       toast.danger(friendlyError(err));
@@ -778,8 +811,8 @@ export function GitReviewSidebar(props: {
         prNumber: prData.number,
         method,
       });
-      if (worktreePath) {
-        useGitStore.getState().setPrData(worktreePath, { ...prData, state: "merged" });
+      if (effectivePrKey) {
+        useGitStore.getState().setPrData(effectivePrKey, { ...prData, state: "merged" });
       }
       onRefresh();
     } catch (err) {
@@ -798,8 +831,8 @@ export function GitReviewSidebar(props: {
         projectLocation: project.location,
         prNumber: prData.number,
       });
-      if (worktreePath) {
-        useGitStore.getState().setPrData(worktreePath, { ...prData, state: "closed" });
+      if (effectivePrKey) {
+        useGitStore.getState().setPrData(effectivePrKey, { ...prData, state: "closed" });
       }
     } catch (err) {
       console.error("[git] close PR failed", err);
@@ -808,6 +841,43 @@ export function GitReviewSidebar(props: {
       setPrLoading(false);
     }
   }
+
+  async function handleGeneratePrSummary() {
+    const targetBranch = prTargetBranch || sourceBranch;
+    if (!effectiveBranch || !targetBranch) return;
+
+    const candidates = getCommitGenCandidates(projectAgentStatuses, commitGenProvider);
+    if (candidates.length === 0) {
+      toast.danger("No agent available to generate PR summary");
+      return;
+    }
+
+    setIsGeneratingPr(true);
+    for (const candidate of candidates) {
+      const resolved = resolveCommitGenConfig(candidate, commitGenModel, commitGenEffort);
+      try {
+        const result = await readBridge().generatePrSummary({
+          projectLocation: project.location,
+          agentKind: candidate.kind,
+          branch: effectiveBranch,
+          baseBranch: targetBranch,
+          ...(resolved.model ? { model: resolved.model } : {}),
+          ...(resolved.effort ? { effort: resolved.effort } : {}),
+        });
+        setPrTitle(result.title);
+        setPrBody(result.description);
+        break;
+      } catch (err) {
+        if (commitGenProvider !== "auto") {
+          console.error("[git] generate PR summary failed", err);
+          toast.danger(friendlyError(err));
+          break;
+        }
+      }
+    }
+    setIsGeneratingPr(false);
+  }
+
   const showMergeSection = Boolean(
     worktreeBranch && worktreePath && !hasAnyChanges && (sourceBranchLoading || commitsAhead > 0),
   );
@@ -1227,67 +1297,135 @@ export function GitReviewSidebar(props: {
         {/* Create PR modal */}
         <Modal.Backdrop isOpen={createPrModalOpen} onOpenChange={setCreatePrModalOpen}>
           <Modal.Container>
-            <Modal.Dialog className="sm:max-w-[400px]">
+            <Modal.Dialog className="sm:max-w-[600px]">
               <Modal.CloseTrigger />
               <Modal.Header>
                 <Modal.Heading>Create Pull Request</Modal.Heading>
+                <div className="mt-1 flex items-center gap-1.5 text-xs text-muted">
+                  <span className="truncate">{effectiveBranch}</span>
+                  <span className="shrink-0">→</span>
+                  <Dropdown>
+                    <Button variant="tertiary" className="h-5 min-w-0 px-1.5 text-xs">
+                      {prTargetBranch || sourceBranch || "..."}
+                      <ChevronDown className="size-3 text-muted/60" />
+                    </Button>
+                    <Dropdown.Popover placement="bottom start" className="max-h-60">
+                      <Dropdown.Menu
+                        aria-label="Target branch"
+                        selectionMode="single"
+                        selectedKeys={new Set([prTargetBranch || sourceBranch || ""])}
+                        onSelectionChange={(keys) => {
+                          const key = Array.from(keys)[0] as string;
+                          setPrTargetBranch(key === sourceBranch ? null : key);
+                        }}
+                      >
+                        {branchList
+                          .filter((b) => !b.isRemote && b.name !== effectiveBranch)
+                          .map((b) => (
+                            <Dropdown.Item key={b.name} id={b.name} textValue={b.name}>
+                              <Label>{b.name}</Label>
+                            </Dropdown.Item>
+                          ))}
+                      </Dropdown.Menu>
+                    </Dropdown.Popover>
+                  </Dropdown>
+                </div>
               </Modal.Header>
-              <Modal.Body>
-                <div className="space-y-3">
+              <Modal.Body className="p-4">
+                <div className="flex flex-col gap-3">
+                  <div className="flex items-start gap-2">
+                    <TextArea
+                      fullWidth
+                      autoSize
+                      placeholder="PR title *"
+                      rows={1}
+                      maxRows={3}
+                      value={prTitle}
+                      onChange={(e) => setPrTitle(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+                          e.preventDefault();
+                          void handleCreatePr(false).then(() => setCreatePrModalOpen(false));
+                        }
+                      }}
+                    />
+                    <Tooltip delay={0}>
+                      <Button
+                        isIconOnly
+                        variant="tertiary"
+                        aria-label="Generate PR summary"
+                        isDisabled={isGeneratingPr || !canGenerateMessage}
+                        isPending={isGeneratingPr}
+                        onPress={() => void handleGeneratePrSummary()}
+                        className="mt-0.5 shrink-0"
+                      >
+                        {isGeneratingPr ? (
+                          <Spinner color="current" size="sm" />
+                        ) : (
+                          <Sparkles className="size-3.5" />
+                        )}
+                      </Button>
+                      <Tooltip.Content>Generate with AI</Tooltip.Content>
+                    </Tooltip>
+                  </div>
                   <TextArea
                     fullWidth
-                    autoSize
-                    placeholder="PR title"
-                    rows={1}
-                    maxRows={3}
-                    value={prTitle}
-                    variant="secondary"
-                    onChange={(e) => setPrTitle(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
-                        e.preventDefault();
-                        void handleCreatePr().then(() => setCreatePrModalOpen(false));
-                      }
-                    }}
+                    placeholder="Description (optional)"
+                    rows={8}
+                    value={prBody}
+                    onChange={(e) => setPrBody(e.target.value)}
                   />
-                  <div className="flex items-center gap-2">
-                    <label className="flex items-center gap-1.5 text-xs text-muted">
-                      <input
-                        type="checkbox"
-                        checked={prIsDraft}
-                        onChange={(e) => setPrIsDraft(e.target.checked)}
-                        className="rounded"
-                      />
-                      Draft
-                    </label>
-                    {sourceBranch && (
-                      <span className="ml-auto truncate text-xs text-muted/60">
-                        {worktreeBranch} → {sourceBranch}
-                      </span>
-                    )}
-                  </div>
                 </div>
               </Modal.Body>
               <Modal.Footer>
                 <Button slot="close" variant="tertiary">
                   Cancel
                 </Button>
-                <Button
-                  isDisabled={prLoading}
-                  isPending={prLoading}
-                  onPress={() => void handleCreatePr().then(() => setCreatePrModalOpen(false))}
-                >
-                  {({ isPending }) => (
-                    <>
-                      {isPending ? (
-                        <Spinner color="current" size="sm" />
-                      ) : (
-                        <GitPullRequest className="size-3.5" />
-                      )}
-                      Create
-                    </>
-                  )}
-                </Button>
+                <ButtonGroup>
+                  <Button
+                    isDisabled={prLoading || !prTitle.trim()}
+                    isPending={prLoading}
+                    onPress={() =>
+                      void handleCreatePr(false).then(() => setCreatePrModalOpen(false))
+                    }
+                  >
+                    {({ isPending }) => (
+                      <>
+                        {isPending ? (
+                          <Spinner color="current" size="sm" />
+                        ) : (
+                          <GitPullRequest className="size-3.5" />
+                        )}
+                        Create PR
+                      </>
+                    )}
+                  </Button>
+                  <Dropdown>
+                    <Button
+                      isIconOnly
+                      aria-label="More PR options"
+                      isDisabled={prLoading || !prTitle.trim()}
+                    >
+                      <ButtonGroup.Separator />
+                      <ChevronDown className="size-3.5" />
+                    </Button>
+                    <Dropdown.Popover placement="top end">
+                      <Dropdown.Menu
+                        aria-label="PR options"
+                        onAction={(key) => {
+                          if (key === "draft") {
+                            void handleCreatePr(true).then(() => setCreatePrModalOpen(false));
+                          }
+                        }}
+                      >
+                        <Dropdown.Item id="draft" textValue="Create Draft PR">
+                          <GitPullRequest className="size-3.5 opacity-60" />
+                          <Label>Create Draft PR</Label>
+                        </Dropdown.Item>
+                      </Dropdown.Menu>
+                    </Dropdown.Popover>
+                  </Dropdown>
+                </ButtonGroup>
               </Modal.Footer>
             </Modal.Dialog>
           </Modal.Container>

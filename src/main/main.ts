@@ -72,6 +72,7 @@ const CHANNELS = {
   gitCommit: "lightcode:git-commit",
   generateCommitMessage: "lightcode:generate-commit-message",
   generateTitle: "lightcode:generate-title",
+  generatePrSummary: "lightcode:generate-pr-summary",
   gitListBranches: "lightcode:git-list-branches",
   gitFetch: "lightcode:git-fetch",
   gitListWorktrees: "lightcode:git-list-worktrees",
@@ -574,6 +575,10 @@ function registerIpcHandlers(): void {
 
   ipcMain.handle(CHANNELS.generateTitle, async (_event, payload) =>
     callSupervisor("generateTitle", payload),
+  );
+
+  ipcMain.handle(CHANNELS.generatePrSummary, async (_event, payload) =>
+    callSupervisor("generatePrSummary", payload),
   );
 
   ipcMain.handle(CHANNELS.gitListBranches, async (_event, payload) =>

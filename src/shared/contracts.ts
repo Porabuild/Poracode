@@ -29,6 +29,7 @@ export const threadStatusSchema = z.enum([
   "launching",
   "working",
   "idle",
+  "finished",
   "needs_approval",
   "needs_reply",
   "error",
@@ -439,6 +440,23 @@ export type GenerateTitlePayload = z.infer<typeof generateTitlePayloadSchema>;
 
 export interface GenerateTitleResult {
   title: string;
+}
+
+// ── PR Summary Generation ───────────────────────────────
+
+export const generatePrSummaryPayloadSchema = z.object({
+  projectLocation: projectLocationSchema,
+  agentKind: agentKindSchema,
+  branch: z.string().min(1),
+  baseBranch: z.string().min(1),
+  model: z.string().min(1).optional(),
+  effort: z.string().min(1).optional(),
+});
+export type GeneratePrSummaryPayload = z.infer<typeof generatePrSummaryPayloadSchema>;
+
+export interface GeneratePrSummaryResult {
+  title: string;
+  description: string;
 }
 
 // ── Branch & Worktree ───────────────────────────────────

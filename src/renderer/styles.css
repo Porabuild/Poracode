@@ -329,6 +329,27 @@ body {
   filter: drop-shadow(0 0 0.45rem color-mix(in oklab, var(--warning) 48%, transparent));
 }
 
+.lightcode-provider-icon--finished {
+  color: oklch(0.82 0.12 260);
+  filter: drop-shadow(0 0 0.4rem oklch(0.82 0.12 260 / 0.5))
+    drop-shadow(0 0 1.2rem oklch(0.82 0.12 260 / 0.2));
+  animation: lightcode-finished-pulse 1.8s ease-in-out infinite;
+}
+
+@keyframes lightcode-finished-pulse {
+  0%,
+  100% {
+    opacity: 0.55;
+    filter: drop-shadow(0 0 0.2rem oklch(0.82 0.12 260 / 0.25))
+      drop-shadow(0 0 0.6rem oklch(0.82 0.12 260 / 0.1));
+  }
+  50% {
+    opacity: 1;
+    filter: drop-shadow(0 0 0.5rem oklch(0.82 0.12 260 / 0.7))
+      drop-shadow(0 0 1.6rem oklch(0.82 0.12 260 / 0.35));
+  }
+}
+
 .lightcode-terminal-pane,
 .lightcode-terminal-pane .xterm,
 .lightcode-terminal-pane .xterm-viewport,

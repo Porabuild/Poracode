@@ -47,6 +47,22 @@ function normalizeStoredThreadStatus(thread: Thread): Thread {
   };
 }
 
+/**
+ * Transition any "finished" threads that are now visible in panes back to "idle".
+ * Returns updated array if any thread changed, or null if nothing changed.
+ */
+function clearFinished(threads: Thread[], panes: string[]): Thread[] | null {
+  let changed = false;
+  const result = threads.map((t) => {
+    if (t.status === "finished" && panes.includes(t.id)) {
+      changed = true;
+      return { ...t, status: "idle" as ThreadStatus };
+    }
+    return t;
+  });
+  return changed ? result : null;
+}
+
 export interface PendingThreadServerRequest {
   threadId: string;
   requestId: ThreadServerRequestId;
@@ -287,40 +303,38 @@ export const useAppStore = create<AppStoreState>()(
         set((state) => {
           if (state.view.kind === "thread") {
             if (state.view.panes.includes(threadId)) {
-              return {};
+              const cleared = clearFinished(state.threads, [threadId]);
+              return cleared ? { threads: cleared } : {};
             }
-            return {
-              view: {
-                kind: "thread",
-                panes: [threadId, ...state.view.panes.slice(1)] as [string, ...string[]],
-              },
-            };
+            const nextPanes = [threadId, ...state.view.panes.slice(1)] as [string, ...string[]];
+            const nextView: AppView = { kind: "thread", panes: nextPanes };
+            const cleared = clearFinished(state.threads, nextPanes);
+            return cleared ? { view: nextView, threads: cleared } : { view: nextView };
           }
-          return { view: { kind: "thread", panes: [threadId] } };
+          const nextView: AppView = { kind: "thread", panes: [threadId] };
+          const cleared = clearFinished(state.threads, [threadId]);
+          return cleared ? { view: nextView, threads: cleared } : { view: nextView };
         }),
       openThreadSideBySide: (threadId) =>
         set((state) => {
+          let nextPanes: [string, ...string[]];
           if (state.view.kind !== "thread") {
-            return { view: { kind: "thread", panes: [threadId] } };
+            nextPanes = [threadId];
+          } else {
+            const existing = state.view.panes;
+            if (existing.includes(threadId)) {
+              const cleared = clearFinished(state.threads, [threadId]);
+              return cleared ? { threads: cleared } : {};
+            }
+            if (existing.length >= 3) {
+              nextPanes = [existing[0]!, existing[1]!, threadId];
+            } else {
+              nextPanes = [...existing, threadId] as [string, ...string[]];
+            }
           }
-          const existing = state.view.panes;
-          if (existing.includes(threadId)) {
-            return {};
-          }
-          if (existing.length >= 3) {
-            return {
-              view: {
-                kind: "thread",
-                panes: [existing[0]!, existing[1]!, threadId],
-              },
-            };
-          }
-          return {
-            view: {
-              kind: "thread",
-              panes: [...existing, threadId] as [string, ...string[]],
-            },
-          };
+          const nextView: AppView = { kind: "thread", panes: nextPanes };
+          const cleared = clearFinished(state.threads, nextPanes);
+          return cleared ? { view: nextView, threads: cleared } : { view: nextView };
         }),
       replaceSecondPane: (threadId) =>
         set((state) => {
@@ -330,24 +344,28 @@ export const useAppStore = create<AppStoreState>()(
           if (state.view.panes.includes(threadId)) {
             return {};
           }
-          const panes = [...state.view.panes];
-          panes[1] = threadId;
-          return {
-            view: { kind: "thread", panes: panes as [string, ...string[]] },
-          };
+          const nextPanes = [...state.view.panes] as [string, ...string[]];
+          nextPanes[1] = threadId;
+          const nextView: AppView = { kind: "thread", panes: nextPanes };
+          const cleared = clearFinished(state.threads, nextPanes);
+          return cleared ? { view: nextView, threads: cleared } : { view: nextView };
         }),
       insertPaneAtIndex: (threadId, index) =>
         set((state) => {
           if (state.view.kind !== "thread") {
-            return { view: { kind: "thread", panes: [threadId] } };
+            const nextView: AppView = { kind: "thread", panes: [threadId] };
+            const cleared = clearFinished(state.threads, [threadId]);
+            return cleared ? { view: nextView, threads: cleared } : { view: nextView };
           }
           const existing = state.view.panes;
           if (existing.includes(threadId) || existing.length >= 3) {
             return {};
           }
-          const panes = [...existing];
-          panes.splice(Math.max(0, Math.min(panes.length, index)), 0, threadId);
-          return { view: { kind: "thread", panes: panes as [string, ...string[]] } };
+          const nextPanes = [...existing];
+          nextPanes.splice(Math.max(0, Math.min(nextPanes.length, index)), 0, threadId);
+          const nextView: AppView = { kind: "thread", panes: nextPanes as [string, ...string[]] };
+          const cleared = clearFinished(state.threads, nextPanes);
+          return cleared ? { view: nextView, threads: cleared } : { view: nextView };
         }),
       closePane: (threadId) =>
         set((state) => {
@@ -369,9 +387,11 @@ export const useAppStore = create<AppStoreState>()(
           }
           const idx = state.view.panes.indexOf(oldId);
           if (idx === -1) return {};
-          const panes = [...state.view.panes];
-          panes[idx] = newId;
-          return { view: { kind: "thread", panes: panes as [string, ...string[]] } };
+          const nextPanes = [...state.view.panes] as [string, ...string[]];
+          nextPanes[idx] = newId;
+          const nextView: AppView = { kind: "thread", panes: nextPanes };
+          const cleared = clearFinished(state.threads, nextPanes);
+          return cleared ? { view: nextView, threads: cleared } : { view: nextView };
         }),
       createThread: ({
         projectId,
@@ -497,10 +517,24 @@ export const useAppStore = create<AppStoreState>()(
       updateThreadRuntime: (threadId, input) =>
         set((state) => {
           let changed = false;
+          const isVisible =
+            state.view.kind === "thread" && state.view.panes.includes(threadId);
 
           const threads: Thread[] = state.threads.map((thread): Thread => {
             if (thread.id !== threadId) {
               return thread;
+            }
+
+            // Promote idle → finished for non-visible threads that just
+            // finished working. Also preserve "finished" when the supervisor
+            // re-emits idle (it doesn't know about the finished status).
+            let effectiveStatus = input.status;
+            if (
+              input.status === "idle" &&
+              (thread.status === "working" || thread.status === "finished") &&
+              !isVisible
+            ) {
+              effectiveStatus = "finished";
             }
 
             const sessionRefChanged =
@@ -509,7 +543,7 @@ export const useAppStore = create<AppStoreState>()(
                 thread.sessionRef?.discoveredAt !== input.sessionRef.discoveredAt);
 
             if (
-              thread.status === input.status &&
+              thread.status === effectiveStatus &&
               thread.attention === input.attention &&
               JSON.stringify(thread.config) === JSON.stringify(input.config ?? thread.config) &&
               thread.canResumeWithConfig === input.canResumeWithConfig &&
@@ -521,7 +555,7 @@ export const useAppStore = create<AppStoreState>()(
             changed = true;
             return {
               ...thread,
-              status: input.status,
+              status: effectiveStatus,
               attention: input.attention,
               config: input.config ?? thread.config,
               canResumeWithConfig: input.canResumeWithConfig,

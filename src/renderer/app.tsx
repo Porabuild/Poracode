@@ -1025,7 +1025,7 @@ export function App() {
     for (const thread of store.threads) {
       if (
         visibleThreadIds.has(thread.id) ||
-        thread.status !== "idle" ||
+        (thread.status !== "idle" && thread.status !== "finished") ||
         !thread.sessionRef ||
         new Date(thread.updatedAt).getTime() > staleBefore
       ) {

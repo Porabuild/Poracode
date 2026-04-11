@@ -294,6 +294,129 @@ describe("appStore runtime config sync", () => {
     expect(useAppStore.getState().view).toEqual({ kind: "thread", panes: [t2.id] });
   });
 
+  it("working→idle on non-visible thread sets finished", () => {
+    const project = useAppStore.getState().addProject({
+      kind: "windows",
+      path: "C:\\repo",
+    });
+    const t1 = useAppStore.getState().createThread({
+      projectId: project.id,
+      agentKind: "codex",
+      config: { model: "m" },
+      prompt: "a",
+    });
+
+    // Switch view away from t1
+    useAppStore.setState((s) => ({ ...s, view: { kind: "home" } }));
+
+    // Simulate working → idle
+    useAppStore.getState().updateThreadRuntime(t1.id, {
+      status: "working",
+      attention: "working",
+      canResumeWithConfig: false,
+    });
+    expect(useAppStore.getState().threads[0]?.status).toBe("working");
+
+    useAppStore.getState().updateThreadRuntime(t1.id, {
+      status: "idle",
+      attention: "none",
+      canResumeWithConfig: true,
+    });
+    expect(useAppStore.getState().threads[0]?.status).toBe("finished");
+  });
+
+  it("working→idle on visible thread stays idle", () => {
+    const project = useAppStore.getState().addProject({
+      kind: "windows",
+      path: "C:\\repo",
+    });
+    const t1 = useAppStore.getState().createThread({
+      projectId: project.id,
+      agentKind: "codex",
+      config: { model: "m" },
+      prompt: "a",
+    });
+
+    // t1 is visible (createThread sets view to its pane)
+    useAppStore.getState().updateThreadRuntime(t1.id, {
+      status: "working",
+      attention: "working",
+      canResumeWithConfig: false,
+    });
+    useAppStore.getState().updateThreadRuntime(t1.id, {
+      status: "idle",
+      attention: "none",
+      canResumeWithConfig: true,
+    });
+    expect(useAppStore.getState().threads[0]?.status).toBe("idle");
+  });
+
+  it("openThread on finished thread transitions to idle", () => {
+    const project = useAppStore.getState().addProject({
+      kind: "windows",
+      path: "C:\\repo",
+    });
+    const t1 = useAppStore.getState().createThread({
+      projectId: project.id,
+      agentKind: "codex",
+      config: { model: "m" },
+      prompt: "a",
+    });
+
+    // Make finished: switch away, then working→idle
+    useAppStore.setState((s) => ({ ...s, view: { kind: "home" } }));
+    useAppStore.getState().updateThreadRuntime(t1.id, {
+      status: "working",
+      attention: "working",
+      canResumeWithConfig: false,
+    });
+    useAppStore.getState().updateThreadRuntime(t1.id, {
+      status: "idle",
+      attention: "none",
+      canResumeWithConfig: true,
+    });
+    expect(useAppStore.getState().threads[0]?.status).toBe("finished");
+
+    // Open the thread — should transition to idle
+    useAppStore.getState().openThread(t1.id);
+    expect(useAppStore.getState().threads[0]?.status).toBe("idle");
+  });
+
+  it("supervisor re-emit of idle preserves finished for non-visible thread", () => {
+    const project = useAppStore.getState().addProject({
+      kind: "windows",
+      path: "C:\\repo",
+    });
+    const t1 = useAppStore.getState().createThread({
+      projectId: project.id,
+      agentKind: "codex",
+      config: { model: "m" },
+      prompt: "a",
+    });
+
+    // Make finished
+    useAppStore.setState((s) => ({ ...s, view: { kind: "home" } }));
+    useAppStore.getState().updateThreadRuntime(t1.id, {
+      status: "working",
+      attention: "working",
+      canResumeWithConfig: false,
+    });
+    useAppStore.getState().updateThreadRuntime(t1.id, {
+      status: "idle",
+      attention: "none",
+      canResumeWithConfig: true,
+    });
+    expect(useAppStore.getState().threads[0]?.status).toBe("finished");
+
+    // Supervisor re-emits idle — should stay finished
+    useAppStore.getState().updateThreadRuntime(t1.id, {
+      status: "idle",
+      attention: "none",
+      canResumeWithConfig: true,
+    });
+    expect(useAppStore.getState().threads[0]?.status).toBe("finished");
+  });
+
   it("tracks and clears non-persisted thread server requests", () => {
     const project = useAppStore.getState().addProject({
       kind: "windows",

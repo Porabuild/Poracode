@@ -1,6 +1,6 @@
 import type { Thread } from "../../../shared/contracts";
 
-export type StatusTone = "inactive" | "active" | "working" | "error" | "attention";
+export type StatusTone = "inactive" | "active" | "working" | "finished" | "error" | "attention";
 
 export function getStatusTone(thread: Pick<Thread, "status">): StatusTone {
   if (thread.status === "error") {
@@ -13,6 +13,10 @@ export function getStatusTone(thread: Pick<Thread, "status">): StatusTone {
 
   if (thread.status === "working") {
     return "working";
+  }
+
+  if (thread.status === "finished") {
+    return "finished";
   }
 
   if (thread.status === "idle") {

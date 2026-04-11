@@ -70,6 +70,16 @@ vi.mock("@heroui/react", () => {
     CloseTrigger: () => <span />,
   };
 
+  const Select = (props: { children: ReactNode }) => <div>{props.children}</div>;
+  Select.Trigger = (props: { children: ReactNode }) => <div>{props.children}</div>;
+  Select.Value = () => <span />;
+  Select.Indicator = () => <span />;
+  Select.Popover = (props: { children: ReactNode }) => <div>{props.children}</div>;
+
+  const ListBox = (props: { children: ReactNode }) => <div>{props.children}</div>;
+  ListBox.Item = (props: { children: ReactNode }) => <div>{props.children}</div>;
+  ListBox.ItemIndicator = () => <span />;
+
   return {
     AlertDialog,
     Modal,
@@ -77,8 +87,12 @@ vi.mock("@heroui/react", () => {
     ButtonGroup,
     Dropdown,
     Label: (props: { children: ReactNode }) => <span>{props.children}</span>,
+    ListBox,
+    Select,
     Spinner: () => <span>spinner</span>,
+    Surface: Wrapper,
     Tooltip,
+    toast: { danger: vi.fn() },
   };
 });
 
@@ -150,6 +164,7 @@ vi.mock("../layout/AppShell", () => ({
 vi.mock("../providers", () => ({
   generateCommitMessageWithFallback: vi.fn(),
   getCommitGenCandidates: vi.fn().mockReturnValue([]),
+  resolveCommitGenConfig: vi.fn().mockReturnValue({ model: "", effort: "", availableEfforts: [] }),
 }));
 
 import { useGitStore } from "../../state/gitStore";

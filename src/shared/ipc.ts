@@ -7,6 +7,8 @@ import type {
   GenerateCommitMessageResult,
   GenerateTitlePayload,
   GenerateTitleResult,
+  GeneratePrSummaryPayload,
+  GeneratePrSummaryResult,
   GetAgentStatusesPayload,
   GetGitBranchesPayload,
   GetGitDiffBatchPayload,
@@ -106,6 +108,7 @@ export type SupervisorRequest =
   | { id: string; type: "gitCommit"; payload: GitCommitPayload }
   | { id: string; type: "generateCommitMessage"; payload: GenerateCommitMessagePayload }
   | { id: string; type: "generateTitle"; payload: GenerateTitlePayload }
+  | { id: string; type: "generatePrSummary"; payload: GeneratePrSummaryPayload }
   | { id: string; type: "gitListBranches"; payload: GetGitBranchesPayload }
   | { id: string; type: "gitFetch"; payload: GitFetchPayload }
   | { id: string; type: "gitListWorktrees"; payload: GitListWorktreesPayload }
@@ -231,6 +234,7 @@ export interface LightcodeBridge {
     payload: GenerateCommitMessagePayload,
   ): Promise<GenerateCommitMessageResult>;
   generateTitle(payload: GenerateTitlePayload): Promise<GenerateTitleResult>;
+  generatePrSummary(payload: GeneratePrSummaryPayload): Promise<GeneratePrSummaryResult>;
   gitListBranches(payload: GetGitBranchesPayload): Promise<GitBranchListResult>;
   gitFetch(payload: GitFetchPayload): Promise<void>;
   gitListWorktrees(payload: GitListWorktreesPayload): Promise<GitWorktreeListResult>;

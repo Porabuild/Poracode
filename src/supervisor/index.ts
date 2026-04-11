@@ -2,6 +2,7 @@ import type {
   CloseThreadPayload,
   GenerateCommitMessagePayload,
   GenerateTitlePayload,
+  GeneratePrSummaryPayload,
   GetGitBranchesPayload,
   GetGitDiffBatchPayload,
   GetGitDiffPayload,
@@ -88,6 +89,7 @@ import {
   getGitStatusPayloadSchema as ghCheckAvailablePayloadSchema,
   generateCommitMessagePayloadSchema,
   generateTitlePayloadSchema,
+  generatePrSummaryPayloadSchema,
   gitRevertAllPayloadSchema,
   gitRevertPayloadSchema,
   gitStageAllPayloadSchema,
@@ -190,6 +192,10 @@ async function handleRequest(request: SupervisorRequest): Promise<unknown> {
     case "generateTitle":
       return runtime.generateTitle(
         generateTitlePayloadSchema.parse(request.payload) as GenerateTitlePayload,
+      );
+    case "generatePrSummary":
+      return runtime.generatePrSummary(
+        generatePrSummaryPayloadSchema.parse(request.payload) as GeneratePrSummaryPayload,
       );
     case "gitListBranches":
       return runtime.gitListBranches(
