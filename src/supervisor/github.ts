@@ -98,7 +98,7 @@ export class GitHubService {
     const bodyFile = join(tmpdir(), `lightcode-pr-body-${Date.now()}.md`);
     try {
       await writeFile(bodyFile, body, "utf-8");
-      const args = [
+      const createArgs = [
         "pr",
         "create",
         "--base",
@@ -110,11 +110,18 @@ export class GitHubService {
         "--body-file",
         bodyFile,
         ...(isDraft ? ["--draft"] : []),
+      ];
+      await runGh(location, createArgs);
+
+      // gh pr create doesn't support --json; fetch the new PR via gh pr view
+      const viewStdout = await runGh(location, [
+        "pr",
+        "view",
+        branch,
         "--json",
         "number,url,state,title,baseRefName,isDraft,reviewDecision,updatedAt",
-      ];
-      const stdout = await runGh(location, args);
-      return mapPrData(JSON.parse(stdout));
+      ]);
+      return mapPrData(JSON.parse(viewStdout));
     } catch (err) {
       throw classifyError(err, "pr create");
     } finally {
