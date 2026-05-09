@@ -28,3 +28,24 @@ Terminal-native AI agent orchestrator — Electron desktop app managing Claude, 
 - [Agent Adapter Rules](.agents/docs/agent-adapters.md)
 - [UI Patterns & Component Reuse](.agents/docs/ui-patterns.md)
 - [Editing & React Patterns](.agents/docs/editing-rules.md)
+
+## Cursor Cloud specific instructions
+
+### Environment
+
+- **Node.js 24.15+** is required (`engines.node` in `package.json` is `>=24.10.0`). Use `nvm` to install/activate: `nvm use 24` (the update script handles this).
+- **pnpm 10.33.0** is the package manager (declared via `packageManager` field). Activated through `corepack enable && corepack prepare pnpm@10.33.0 --activate`.
+- After `pnpm install`, the `postinstall` script automatically runs `electron-rebuild --only better-sqlite3` and `scripts/ensure-native-deps.mjs` to compile native addons (`better-sqlite3`, `node-pty`).
+
+### Running the app
+
+- `pnpm run dev` launches three concurrent processes (Vite renderer on port 3100, tsdown --watch for main/supervisor, and electronmon for hot-reloading Electron). The app requires `DISPLAY` to be set (Xvfb is fine).
+- D-Bus errors in the console are harmless in headless/container environments.
+- WSL/codex/cursor hook install failures are expected on Linux — those are Windows-only features.
+- The app stores its SQLite database at `~/.lightcode-dev/state.sqlite` in dev mode.
+
+### Testing caveats
+
+- 4 tests in `base.windows-path.test.ts` and `acp/session.test.ts` fail on Linux because they test Windows-specific path normalization. These are pre-existing and expected on non-Windows.
+- `pnpm run test` runs vitest; `pnpm run lint` runs oxlint; `pnpm run typecheck` runs tsgo.
+- The pre-commit hook runs `pnpm run lint:fix && pnpm run typecheck && git add -u`.
