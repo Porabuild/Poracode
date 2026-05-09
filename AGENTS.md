@@ -44,6 +44,12 @@ Terminal-native AI agent orchestrator — Electron desktop app managing Claude, 
 - WSL/codex/cursor hook install failures are expected on Linux — those are Windows-only features.
 - The app stores its SQLite database at `~/.lightcode-dev/state.sqlite` in dev mode.
 
+### Agent CLIs
+
+- For full end-to-end testing, install agent CLIs globally: `npm install -g @anthropic-ai/claude-code @google/gemini-cli`.
+- The supervisor detects agents via `command -v <binary>` in a login shell. Binary names: `claude`, `gemini`, `codex`, `copilot`, `cursor-agent`, `opencode`.
+- Gemini requires OAuth (a browser sign-in window opens on first detection). Claude requires `ANTHROPIC_API_KEY` for authenticated use but launches successfully without it.
+
 ### Testing caveats
 
 - 4 tests in `base.windows-path.test.ts` and `acp/session.test.ts` fail on Linux because they test Windows-specific path normalization. These are pre-existing and expected on non-Windows.
