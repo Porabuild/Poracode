@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Ask a question or start a discussion
+    url: https://github.com/SDSLeon/lightcode/discussions
+    about: Use Discussions for questions, ideas, and open-ended topics.
+  - name: Lightcode website
+    url: https://www.lightcodeapp.com
+    about: Learn more about Lightcode.
