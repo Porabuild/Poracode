@@ -1,7 +1,6 @@
 import { FolderOpen, GitFork, TerminalSquare } from "lucide-react";
 import { SidebarButton } from "@/renderer/components/common";
 import { GitBadge } from "./GitBadge";
-import { PrBadge } from "./PrBadge";
 import { SidebarPanelDragButton } from "./SidebarPanelDragButton";
 import { SyncBadge } from "./SyncBadge";
 
@@ -75,7 +74,6 @@ export function WorktreeGroupHeader(props: {
           >
             <TerminalSquare className="size-3.5" />
           </SidebarPanelDragButton>
-          <PrBadge worktreePath={props.worktreePath} />
           <SyncBadge projectId={props.projectId} worktreePath={props.worktreePath} />
           <GitBadge
             projectId={props.projectId}
