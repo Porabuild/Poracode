@@ -1,0 +1,66 @@
+name: Bug report
+description: Tell us what broke and how to reproduce it.
+title: "bug: "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug. Clear repro steps help us fix it faster.
+  - type: input
+    id: os
+    attributes:
+      label: OS
+      description: Which OS and version are you using?
+      placeholder: macOS 15.5, Windows 11, Ubuntu 24.04, etc.
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Lightcode version
+      description: Paste the app version, commit, or build you are running.
+      placeholder: v1.0.0
+    validations:
+      required: true
+  - type: input
+    id: agents
+    attributes:
+      label: Agents involved
+      description: Which providers or agents were active?
+      placeholder: Claude Code, Codex, OpenCode, Gemini, Cursor, Copilot, etc.
+    validations:
+      required: false
+  - type: textarea
+    id: repro
+    attributes:
+      label: Reproduction steps
+      description: What should we do to see the bug?
+      placeholder: |
+        1. Open ...
+        2. Click ...
+        3. See ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: What did you expect to happen?
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: What happened instead?
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs or screenshots
+      description: Paste relevant logs, terminal output, screenshots, or screen recordings if you can.
+      render: shell
+    validations:
+      required: false
