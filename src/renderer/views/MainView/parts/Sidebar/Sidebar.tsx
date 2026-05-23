@@ -8,6 +8,7 @@ import {
   RefreshCw,
   Search,
   Settings2,
+  TerminalSquare,
 } from "lucide-react";
 import { startTransition, useEffect } from "react";
 import { useShallow } from "zustand/shallow";
@@ -24,14 +25,18 @@ import {
 } from "@/renderer/components/layout/sidebarChrome";
 import { useSidebar } from "@/renderer/views/MainView/parts/AppShell/AppShell";
 import { SIDEBAR_MIN_WIDTH } from "@/renderer/views/MainView/parts/AppShell/parts/useResizablePanels";
+import { SidebarPanelDragButton } from "@/renderer/views/MainView/parts/Sidebar/parts/SidebarPanelDragButton";
 import { SidebarProjectSection } from "@/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectSection";
 import { readBridge } from "@/renderer/bridge";
 import { openSettings } from "@/renderer/actions/panelActions";
+import { openTerminal } from "@/renderer/actions/terminalActions";
 import { openThread } from "@/renderer/actions/threadActions";
 import {
   useCurrentProjectId,
   useCurrentThreadIds,
   useCurrentWorktreePath,
+  useIsProjectTerminalActive,
+  useIsProjectTerminalOpen,
 } from "@/renderer/hooks/uiSelectors";
 import { useScrollFade } from "@/renderer/hooks/useScrollFade";
 import { useAppStore } from "@/renderer/state/appStore";
@@ -109,6 +114,28 @@ function UpdateButtons(props: { iconOnly?: boolean }) {
       label={updateVersion ? `Install v${updateVersion}` : "Install update"}
       onPress={() => void readBridge().installUpdate()}
     />
+  );
+}
+
+function HomeTerminalButton(props: { projectId: string; projectName: string }) {
+  const hasTerminal = useIsProjectTerminalOpen(props.projectId);
+  const isActiveTerminal = useIsProjectTerminalActive(props.projectId);
+  return (
+    <SidebarPanelDragButton
+      panel="terminal"
+      projectId={props.projectId}
+      ariaLabel={`Terminal for ${props.projectName}`}
+      className={`shrink-0 cursor-grab rounded p-0.5 transition-colors hover:bg-white/[0.04] hover:text-foreground active:cursor-grabbing ${
+        isActiveTerminal
+          ? "text-accent"
+          : hasTerminal
+            ? "text-foreground"
+            : "text-muted/60 opacity-0 group-hover:opacity-100"
+      }`}
+      onPress={() => openTerminal(props.projectId)}
+    >
+      <TerminalSquare className="size-3.5" />
+    </SidebarPanelDragButton>
   );
 }
 
@@ -274,6 +301,12 @@ export function Sidebar() {
                     }
                     className="lightcode-sidebar-project-nudge !pl-1"
                     onPress={() => toggleProjectCollapsed(homeProject.id)}
+                    suffix={
+                      <HomeTerminalButton
+                        projectId={homeProject.id}
+                        projectName={homeProject.name}
+                      />
+                    }
                   />
                   {isHomeProjectCollapsed ? null : (
                     <SidebarProjectThreadList project={homeProject} sortMode={sortMode} />

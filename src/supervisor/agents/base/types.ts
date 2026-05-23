@@ -47,6 +47,7 @@ export interface AgentEnvContext {
 export interface AgentLaunchOptions {
   suppressResumeConfigOverrides?: boolean;
   resumeThreadId?: string;
+  agentSettings?: Record<string, boolean | string>;
 }
 
 export interface StructuredSessionUpdate {
@@ -107,6 +108,7 @@ export interface CreateStructuredSessionInput {
   threadId: string;
   projectLocation: ProjectLocation;
   config: ThreadConfig;
+  agentSettings?: Record<string, boolean | string>;
   sessionRef?: SessionRef;
   presentationMode?: ThreadPresentationMode;
   loadSessionErrorRewriter?: (error: unknown, sessionId: string) => Error;

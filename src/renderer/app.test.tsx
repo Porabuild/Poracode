@@ -326,6 +326,7 @@ describe("App", () => {
       threads: [],
       pendingThreadLaunches: {},
       pendingLaunchSegments: {},
+      lastViewedAtByThreadId: {},
       view: { kind: "home" },
     }));
     useGitStore.setState({
@@ -626,7 +627,10 @@ describe("App", () => {
     fireEvent.click(await screen.findByText("open-thread-1"));
 
     await waitFor(() => {
-      expect(screen.getByTestId("thread-view-thread-1")).toHaveAttribute("data-status", "inactive");
+      expect(screen.getByTestId("thread-view-thread-1")).toHaveAttribute(
+        "data-status",
+        "launching",
+      );
       expect(screen.getByTestId("thread-view-thread-1")).toHaveAttribute("data-pending-launch", "");
     });
     expect(bridge.startThread).not.toHaveBeenCalled();

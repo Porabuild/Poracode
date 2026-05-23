@@ -1,10 +1,9 @@
 import { buildWorktreeLocation } from "@/shared/worktree";
-import { readBridge } from "@/renderer/bridge";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useDevTerminalStore } from "@/renderer/state/devTerminalStore";
 import { usePanelStore } from "@/renderer/state/panelStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
-import { writeScriptToShell } from "@/renderer/utils/shellUtils";
+import { startShellWithToast, writeScriptToShell } from "@/renderer/utils/shellUtils";
 import { closeAllPanels } from "./panelActions";
 
 function applyTerminalPanel(
@@ -86,10 +85,13 @@ export function runProjectAction(projectId: string, actionId: string, worktreePa
   }
   store.setActiveTab(tab.id);
 
-  void readBridge().startShell({
-    shellId: tab.id,
-    projectLocation: location,
-    ...(worktreePath ? { worktreePath } : {}),
-  });
+  startShellWithToast(
+    {
+      shellId: tab.id,
+      projectLocation: location,
+      ...(worktreePath ? { worktreePath } : {}),
+    },
+    tabLabel,
+  );
   writeScriptToShell(tab.id, action.command);
 }

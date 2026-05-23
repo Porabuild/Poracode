@@ -1,4 +1,3 @@
-import { useId } from "react";
 import type { StatusTone } from "./statusTone";
 
 export function StatusIcon(props: {
@@ -15,17 +14,20 @@ export function StatusIcon(props: {
    * a single fill would lose the brand's tonal contrast.
    */
   secondaryPath?: string | undefined;
+  /**
+   * Inline `mask-image` data URL of the primary brand path, baked by
+   * `createProviderIcon` once per provider. Used to clip the working-state
+   * shine overlay to the brand outline. Optional so direct callers without a
+   * factory still render (they just won't show a shine in `working`).
+   */
+  maskUrl?: string | undefined;
 }) {
-  const { tone, path, viewBox, fillRule, cssPrefix, className, title, secondaryPath } = props;
-  const baseId = `status-icon-${useId().replace(/[^A-Za-z0-9_-]/g, "")}`;
-  const clipId = `${baseId}-clip`;
-  const gradientId = `${baseId}-gradient`;
+  const { tone, path, viewBox, fillRule, cssPrefix, className, title, secondaryPath, maskUrl } =
+    props;
 
   const [, , vbW, vbH] = viewBox.split(" ").map(Number);
   const viewBoxWidth = vbW ?? 16;
   const viewBoxHeight = vbH ?? 16;
-  const scanWidth = viewBoxWidth * 2;
-  const scanHeight = viewBoxHeight + 4;
 
   const pathProps = fillRule ? ({ clipRule: fillRule, fillRule } as const) : {};
 
@@ -40,20 +42,6 @@ export function StatusIcon(props: {
         viewBox={viewBox}
       >
         {title ? <title>{title}</title> : null}
-        {tone === "working" ? (
-          <defs>
-            <clipPath id={clipId}>
-              <path d={path} {...pathProps} />
-            </clipPath>
-            <linearGradient id={gradientId} x1="0%" x2="100%" y1="0%" y2="0%">
-              <stop offset="0%" stopColor="white" stopOpacity="0" />
-              <stop offset="40%" stopColor="white" stopOpacity="0" />
-              <stop offset="52%" stopColor="white" stopOpacity="0.98" />
-              <stop offset="64%" stopColor="white" stopOpacity="0" />
-              <stop offset="100%" stopColor="white" stopOpacity="0" />
-            </linearGradient>
-          </defs>
-        ) : null}
         {tone === "working" ? (
           <path className="lightcode-provider-icon__shell" d={path} {...pathProps} />
         ) : null}
@@ -84,26 +72,14 @@ export function StatusIcon(props: {
             />
           </svg>
         ) : null}
-        {tone === "working" ? (
-          <rect
-            className="lightcode-provider-icon__scan"
-            clipPath={`url(#${clipId})`}
-            fill={`url(#${gradientId})`}
-            height={scanHeight}
-            width={scanWidth}
-            x={-scanWidth}
-            y={-2}
-          >
-            <animate
-              attributeName="x"
-              dur="1.45s"
-              from={-scanWidth}
-              repeatCount="indefinite"
-              to={viewBoxWidth}
-            />
-          </rect>
-        ) : null}
       </svg>
+      {tone === "working" && maskUrl ? (
+        <span
+          className="lightcode-provider-icon__mask-scan"
+          aria-hidden="true"
+          style={{ WebkitMaskImage: maskUrl, maskImage: maskUrl }}
+        />
+      ) : null}
     </span>
   );
 }

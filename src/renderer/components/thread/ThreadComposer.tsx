@@ -580,6 +580,7 @@ export function ThreadComposer(props: {
   return (
     <div>
       <div className={shellClassName}>
+        {variant === "draft" && <div className="lightcode-composer-border-glow" />}
         {fixedContent}
         {attachmentBar}
         <div ref={editorHostRef}>{renderEditor()}</div>

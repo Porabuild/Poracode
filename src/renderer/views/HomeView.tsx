@@ -30,13 +30,7 @@ export function HomeView() {
       <div className="flex h-full min-h-0 flex-col px-8 py-8">
         <div className="mx-auto flex h-full w-full max-w-[560px] flex-col">
           <div className="flex flex-1 flex-col justify-center">
-            <h1 className="flex items-baseline gap-3 overflow-visible pr-[0.22em] pb-[0.2em] text-[clamp(3.25rem,8vw,6.25rem)] leading-[1.28] font-semibold tracking-normal">
-              <span className="inline-block pr-[0.04em] pb-[0.12em] text-transparent [background-image:linear-gradient(135deg,var(--foreground)_0%,color-mix(in_oklab,var(--accent)_60%,var(--foreground))_52%,var(--muted)_100%)] [background-size:100%_100%] bg-clip-text">
-                Lightcode
-              </span>
-            </h1>
-
-            <div className="mt-10 flex w-full flex-col gap-8">
+            <div className="flex w-full flex-col gap-8">
               {(homeScopeEnabled && homeProject) || projects.length > 0 ? (
                 <section>
                   <div className="flex flex-col gap-1">

@@ -188,7 +188,7 @@ export function WelcomeOverlay() {
                 className="lightcode-welcome-comet absolute left-1/2 top-0 size-1 -translate-x-1/2 -translate-y-1/2 rounded-full"
               />
             </span>
-            <span className="lightcode-welcome-ring absolute inset-0 rounded-[2rem]" />
+            <span className="lightcode-welcome-ring absolute inset-[5px] rounded-[1.85rem]" />
             <span className="lightcode-welcome-reveal lightcode-welcome-icon-glass absolute inset-2 rounded-[1.65rem]" />
             <img
               src={appIconUrl}

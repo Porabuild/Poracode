@@ -552,6 +552,42 @@ describe("sdkCanonicalMapping — tool parts", () => {
     });
   });
 
+  it("maps OpenCode local search tools as canonical search tool calls", () => {
+    const state = createOpenCodeMapperState("thread-1");
+    const args = {
+      pattern: String.raw`\"document\"|\"image\"|\"other\"`,
+      include: "*.ts",
+      path: "/repo/src",
+    };
+    const events = mapOpenCodeEvent(
+      toolPartUpdatedEvent({
+        id: "prt_search",
+        sessionID: "ses_test",
+        messageID: "msg_1",
+        type: "tool",
+        tool: "search",
+        callID: "call_search",
+        state: {
+          status: "running",
+          input: args,
+          time: { start: 0 },
+        },
+      }),
+      state,
+    );
+
+    expect(events.find((e) => e.type === "item.started")).toMatchObject({
+      itemType: "tool_call",
+      payload: {
+        kind: "search",
+        title: `"${args.pattern}" in /repo/src`,
+        locations: [{ path: "/repo/src" }],
+        args,
+        status: "running",
+      },
+    });
+  });
+
   it("maps OpenCode task tools to sub-agent tool calls", () => {
     const state = createOpenCodeMapperState("thread-1");
     const events = mapOpenCodeEvent(
@@ -1048,6 +1084,91 @@ describe("sdkCanonicalMapping — tool parts", () => {
         path: "src/foo.ts",
         diffSummary: { added: 1, removed: 1 },
         result: "Success. Updated the following files:\nM src/foo.ts",
+      },
+    });
+  });
+
+  it("normalizes completed apply_patch metadata files into canonical changes", () => {
+    const state = createOpenCodeMapperState("thread-1");
+    const patch = [
+      "Index: /Users/serhiivecherenko/work/site-search-ui/README.md",
+      "===================================================================",
+      "--- /Users/serhiivecherenko/work/site-search-ui/README.md",
+      "+++ /Users/serhiivecherenko/work/site-search-ui/README.md",
+      "@@ -1,7 +1,7 @@",
+      "-Preact-based embeddable widget that renders AI-powered, streaming search answers.",
+      "+Preact-based embeddable search widget that renders AI-powered, streaming answers.",
+      "@@ -24,9 +24,9 @@",
+      "-The simplest integration uses a single script tag with query parameters:",
+      "+The simplest integration uses one script tag with query parameters:",
+      "@@ -201,5 +201,5 @@",
+      "-Common env vars are described in `AGENTS.md`.",
+      "+Common environment variables are described in `AGENTS.md`.",
+      "",
+    ].join("\n");
+    const args = {
+      patchText: [
+        "*** Begin Patch",
+        "*** Update File: /Users/serhiivecherenko/work/site-search-ui/README.md",
+        "@@",
+        "-Preact-based embeddable widget that renders AI-powered, streaming search answers.",
+        "+Preact-based embeddable search widget that renders AI-powered, streaming answers.",
+        "@@",
+        "-The simplest integration uses a single script tag with query parameters:",
+        "+The simplest integration uses one script tag with query parameters:",
+        "@@",
+        "-Common env vars are described in `AGENTS.md`.",
+        "+Common environment variables are described in `AGENTS.md`.",
+        "*** End Patch",
+      ].join("\n"),
+    };
+
+    const events = mapOpenCodeEvent(
+      toolPartUpdatedEvent({
+        id: "prt_apply_patch_files",
+        sessionID: "ses_test",
+        messageID: "msg_1",
+        type: "tool",
+        tool: "apply_patch",
+        callID: "call_apply_patch_files",
+        state: {
+          status: "completed",
+          title: "Success. Updated the following files:\nM README.md",
+          input: args,
+          output: "Success. Updated the following files:\nM README.md",
+          metadata: {
+            files: [
+              {
+                filePath: "/Users/serhiivecherenko/work/site-search-ui/README.md",
+                relativePath: "README.md",
+                type: "update",
+                patch,
+                additions: 3,
+                deletions: 3,
+              },
+            ],
+          },
+          time: { start: 0, end: 20 },
+        },
+      }),
+      state,
+    );
+
+    expect(events.find((e) => e.type === "item.started")).toMatchObject({
+      itemType: "file_change",
+      payload: {
+        name: "apply_patch",
+        path: "README.md",
+        diffSummary: { added: 3, removed: 3 },
+        metadata: {
+          changes: [
+            {
+              path: "README.md",
+              kind: { type: "update", move_path: null },
+              diff: patch.trim(),
+            },
+          ],
+        },
       },
     });
   });

@@ -270,9 +270,9 @@ interface StructuredFileChange {
 function readStructuredFileChanges(payload: unknown): StructuredFileChange[] {
   if (!payload || typeof payload !== "object") return [];
   const p = payload as Record<string, unknown>;
-  // OpenCode reports the precise per-edit diff at `metadata.changes[].diff` on
-  // completion; preferring it over `args.changes`/synthesis keeps the unified
-  // diff's context lines intact for InlineDiffView.
+  // Providers report precise per-edit diffs at `metadata.changes[].diff` on
+  // completion; preferring them over args/synthesis keeps true hunk ranges and
+  // context lines intact for InlineDiffView.
   const containers = [p, p.args, p.result, p.metadata];
   for (const container of containers) {
     if (!container || typeof container !== "object" || Array.isArray(container)) continue;
@@ -338,6 +338,7 @@ function synthesizeStructuredFileChangesDiff(payload: unknown): string | undefin
       parts.push(change.diff.trimEnd());
       continue;
     }
+    const body = extractUnifiedDiffBody(change.diff);
     const isCreate = change.kindType === "add" || change.kindType === "create";
     const isDelete = change.kindType === "delete" || change.kindType === "remove";
     parts.push(
@@ -345,11 +346,17 @@ function synthesizeStructuredFileChangesDiff(payload: unknown): string | undefin
         `diff --git a/${path} b/${path}`,
         isCreate ? "--- /dev/null" : `--- a/${path}`,
         isDelete ? "+++ /dev/null" : `+++ b/${path}`,
-        change.diff.trimEnd(),
+        body.trimEnd(),
       ].join("\n"),
     );
   }
   return parts.length > 0 ? `${parts.join("\n")}\n` : undefined;
+}
+
+function extractUnifiedDiffBody(diff: string): string {
+  const lines = diff.split(/\r?\n/);
+  const start = lines.findIndex((line) => line.startsWith("@@"));
+  return start >= 0 ? lines.slice(start).join("\n") : diff;
 }
 
 interface ApplyPatchSection {

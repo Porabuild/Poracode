@@ -14,7 +14,8 @@
  *    `session.promptAsync`; `interruptTurn` calls `session.abort`.
  */
 
-import { pathToFileURL } from "node:url";
+import { readFile } from "node:fs/promises";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { posix, win32 } from "node:path";
 import type { Event, PermissionRule } from "@opencode-ai/sdk/v2";
 import type {
@@ -29,6 +30,7 @@ import type {
   ThreadStatus,
 } from "@/shared/contracts";
 import { areAgentSlashCommandsEqual } from "@/shared/contracts";
+import { isOpenCodeBrowserMcpEnabled } from "@/shared/opencodeSettings";
 import {
   createKnownSessionRef,
   type AgentLaunchOptions,
@@ -45,8 +47,9 @@ import {
   type QuestionAnswerSourceQuestion,
 } from "../questionAnswerEvents";
 import { mapOpenCodeSlashCommands } from "./detection";
-import { classifyOpenCodeError } from "./opencodeErrors";
+import { classifyOpenCodeError, readOpenCodeErrorText } from "./opencodeErrors";
 import { buildOpenCodePermissionRules } from "./permissionRules";
+import { syncOpenCodeBrowserMcpConfigFile } from "./plugin/install";
 import {
   acquireOpenCodeServer,
   resolveOpenCodeSessionDirectory,
@@ -87,6 +90,7 @@ type OpenCodePromptPart =
   | { type: "file"; mime: string; filename?: string; url: string };
 
 const OCTET_STREAM_MIME = "application/octet-stream";
+const FALLBACK_TEXT_FILE_MAX_BYTES = 128 * 1024;
 
 const TEXT_FILE_EXTENSIONS = new Set([
   "bash",
@@ -185,9 +189,8 @@ function inferMimeFromPath(path: string): string {
       return "application/pdf";
     case "md":
     case "markdown":
-      return "text/markdown";
     case "json":
-      return "application/json";
+      return "text/plain";
     default:
       return ext && TEXT_FILE_EXTENSIONS.has(ext) ? "text/plain" : OCTET_STREAM_MIME;
   }
@@ -195,9 +198,12 @@ function inferMimeFromPath(path: string): string {
 
 function mimeForSegment(seg: PromptSegment, absolutePath: string): string {
   const inferred = inferMimeFromPath(absolutePath);
-  if (seg.kind !== "attachment") return inferred;
-  if (!seg.mimeType || seg.mimeType === OCTET_STREAM_MIME) return inferred;
-  return seg.mimeType;
+  const mime =
+    seg.kind === "attachment" && seg.mimeType && seg.mimeType !== OCTET_STREAM_MIME
+      ? seg.mimeType
+      : inferred;
+  if (mime.startsWith("text/") || mime === "application/json") return "text/plain";
+  return mime;
 }
 
 function shouldSendFilePart(mime: string): boolean {
@@ -208,6 +214,48 @@ function shouldSendFilePart(mime: string): boolean {
     mime === "application/json" ||
     mime === "application/pdf"
   );
+}
+
+function hasFilePart(parts: OpenCodePromptPart[]): boolean {
+  return parts.some((part) => part.type === "file");
+}
+
+function shouldRetryWithTextFallback(cause: unknown, parts: OpenCodePromptPart[]): boolean {
+  if (!hasFilePart(parts)) return false;
+  const text = readOpenCodeErrorText(cause);
+  return /file part media type/.test(text) && /not supported|functionality/.test(text);
+}
+
+async function filePartToFallbackText(
+  part: Extract<OpenCodePromptPart, { type: "file" }>,
+): Promise<string> {
+  const name = part.filename ?? part.url;
+  if (!part.url.startsWith("file:")) return `Attached file could not be sent: ${name}`;
+
+  try {
+    const path = fileURLToPath(part.url);
+    if (part.mime !== "text/plain") return `Attached file could not be sent: ${path}`;
+
+    const data = await readFile(path);
+    const truncated = data.byteLength > FALLBACK_TEXT_FILE_MAX_BYTES;
+    const content = data.subarray(0, FALLBACK_TEXT_FILE_MAX_BYTES).toString("utf8");
+    const suffix = truncated ? "\n\n[File truncated during attachment fallback.]" : "";
+    return `Attached file: ${path}\n\n${content}${suffix}`;
+  } catch {
+    return `Attached file could not be read during fallback: ${name}`;
+  }
+}
+
+async function buildTextFallbackParts(parts: OpenCodePromptPart[]): Promise<OpenCodePromptPart[]> {
+  const fallback: OpenCodePromptPart[] = [];
+  for (const part of parts) {
+    if (part.type === "text") {
+      fallback.push(part);
+      continue;
+    }
+    fallback.push({ type: "text", text: await filePartToFallbackText(part) });
+  }
+  return fallback;
 }
 
 function segmentsToParts(
@@ -351,8 +399,11 @@ export class OpencodeSdkSession implements StructuredSessionHandle {
     this.activated = true;
 
     try {
+      const browserMcpEnabled = isOpenCodeBrowserMcpEnabled(this.input.agentSettings);
+      syncOpenCodeBrowserMcpConfigFile(this.input.projectLocation, browserMcpEnabled);
       this.acquired = await acquireOpenCodeServer({
         projectLocation: this.input.projectLocation,
+        browserMcpEnabled,
       });
     } catch (cause) {
       // Surface server-startup failures (sandbox blocks, ENOENT, port races,
@@ -444,16 +495,25 @@ export class OpencodeSdkSession implements StructuredSessionHandle {
     // as "model default", so only forward truthy values.
     const variant = config.effort && config.effort.length > 0 ? config.effort : undefined;
 
-    try {
-      await this.syncSessionPermissions(config);
+    const sendParts = async (promptParts: OpenCodePromptPart[]): Promise<void> => {
       await acquired.client.session.promptAsync({
         directory: this.sdkDirectory,
         sessionID,
         ...(model ? { model } : {}),
         ...(agent ? { agent } : {}),
         ...(variant ? { variant } : {}),
-        ...(parts.length > 0 ? { parts } : {}),
+        ...(promptParts.length > 0 ? { parts: promptParts } : {}),
       });
+    };
+
+    try {
+      await this.syncSessionPermissions(config);
+      try {
+        await sendParts(parts);
+      } catch (cause) {
+        if (!shouldRetryWithTextFallback(cause, parts)) throw cause;
+        await sendParts(await buildTextFallbackParts(parts));
+      }
     } catch (cause) {
       throw new Error(classifyOpenCodeError({ cause, operation: "session.promptAsync" }), {
         cause,

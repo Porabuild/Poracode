@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { Eye, Pencil, SearchCode, Terminal } from "lucide-react";
+import { Eye, ImageIcon, Pencil, SearchCode, Terminal } from "lucide-react";
 import type { ToolCallPayload } from "@/shared/contracts";
 import { deriveToolDisplay, isSubAgentTool } from "./toolDisplay";
 
@@ -78,7 +78,7 @@ describe("deriveToolDisplay", () => {
     expect(display.Icon).toBe(Pencil);
   });
 
-  it("labels ACP local search tools with the query and scope", () => {
+  it("labels ACP local search tools with only the query", () => {
     const display = deriveToolDisplay(
       makePayload({
         name: "'attachment' in src/renderer/**",
@@ -88,12 +88,37 @@ describe("deriveToolDisplay", () => {
       }),
     );
 
-    expect(display.title).toBe('Search: "attachment" in src/renderer/**');
-    expect(display.parts).toEqual({
-      prefix: 'Search: "attachment" in ',
-      path: "src/renderer/**",
-    });
+    expect(display.title).toBe('Search: "attachment"');
+    expect(display.parts).toBeUndefined();
     expect(display.Icon).toBe(SearchCode);
+  });
+
+  it("does not treat search patterns containing image as image tools", () => {
+    const display = deriveToolDisplay(
+      makePayload({
+        name: String.raw`\"document\"|\"image\"|\"other\" in src`,
+        title: String.raw`\"document\"|\"image\"|\"other\" in src`,
+        kind: "search",
+        args: { pattern: String.raw`\"document\"|\"image\"|\"other\"`, path: "src" },
+      }),
+    );
+
+    expect(display.title).toBe(String.raw`Search: "\"document\"|\"image\"|\"other\""`);
+    expect(display.parts).toBeUndefined();
+    expect(display.Icon).toBe(SearchCode);
+  });
+
+  it("still labels explicit image tools as image rows", () => {
+    const display = deriveToolDisplay(
+      makePayload({
+        name: "ViewImage",
+        args: { path: "screen.png" },
+      }),
+    );
+
+    expect(display.title).toBe("Image: screen.png");
+    expect(display.parts).toEqual({ prefix: "Image: ", path: "screen.png", filePath: true });
+    expect(display.Icon).toBe(ImageIcon);
   });
 
   it("normalizes Claude raw read tools to view file displays", () => {

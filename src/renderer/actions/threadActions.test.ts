@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { waitFor } from "@testing-library/react";
 import type { Thread } from "@/shared/contracts";
 import { useAppStore } from "@/renderer/state/appStore";
-import { openThread, toggleMarkThreadDone } from "./threadActions";
+import { openThread, reopenStoredThread, toggleMarkThreadDone } from "./threadActions";
 
 const { bridge } = vi.hoisted(() => ({
   bridge: {
@@ -124,6 +124,25 @@ describe("threadActions", () => {
         activeGroupId: "group-1",
       });
     });
+  });
+
+  it("marks inactive GUI threads launching when reopening", () => {
+    const thread = makeThread({
+      presentationMode: "gui",
+      status: "inactive",
+      sessionRef: {
+        providerSessionId: "session-1",
+        discoveredAt: "2026-03-22T00:00:00.000Z",
+      },
+    });
+    useAppStore.setState((state) => ({ ...state, threads: [thread] }));
+
+    reopenStoredThread(thread.id);
+
+    const reopened = useAppStore.getState().threads[0];
+    expect(reopened?.status).toBe("launching");
+    expect(reopened?.attention).toBe("none");
+    expect(useAppStore.getState().pendingThreadLaunches[thread.id]).toBe("");
   });
 
   it("closes a live CLI thread when marking done even before a session ref is known", async () => {

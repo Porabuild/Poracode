@@ -17,7 +17,7 @@ import { useDevTerminalStore } from "@/renderer/state/devTerminalStore";
 import { useFileEditorStore } from "@/renderer/state/fileEditorStore";
 import { usePanelStore } from "@/renderer/state/panelStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
-import { writeScriptToShell } from "@/renderer/utils/shellUtils";
+import { startShellWithToast, writeScriptToShell } from "@/renderer/utils/shellUtils";
 import { useCommandPaletteStore } from "./commandPaletteStore";
 import type { CommandWhenContext } from "./when";
 import { evaluateWhenClause } from "./when";
@@ -321,11 +321,14 @@ function runTerminalCommand(args: unknown): void {
   }
   terminal.setActiveTab(tab.id);
 
-  void readBridge().startShell({
-    shellId: tab.id,
-    projectLocation: location,
-    ...(worktreePath ? { worktreePath } : {}),
-  });
+  startShellWithToast(
+    {
+      shellId: tab.id,
+      projectLocation: location,
+      ...(worktreePath ? { worktreePath } : {}),
+    },
+    title,
+  );
   writeScriptToShell(tab.id, command);
 }
 

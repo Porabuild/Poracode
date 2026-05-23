@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { isIgnorableWindowError, isResizeObserverLoopError } from "./rendererGlobalErrors";
+import {
+  isIgnorableRejection,
+  isIgnorableWindowError,
+  isResizeObserverLoopError,
+  isViewTransitionSkippedError,
+} from "./rendererGlobalErrors";
 
 describe("rendererGlobalErrors", () => {
   it("recognizes browser ResizeObserver loop diagnostics", () => {
@@ -21,5 +26,22 @@ describe("rendererGlobalErrors", () => {
     });
 
     expect(isIgnorableWindowError(event)).toBe(true);
+  });
+
+  it("recognizes view-transition skipped AbortError rejections", () => {
+    const abort = new DOMException("Transition was skipped", "AbortError");
+    expect(isViewTransitionSkippedError(abort)).toBe(true);
+    expect(isIgnorableRejection(abort)).toBe(true);
+  });
+
+  it("does not ignore unrelated AbortErrors", () => {
+    const abort = new DOMException("Fetch aborted", "AbortError");
+    expect(isViewTransitionSkippedError(abort)).toBe(false);
+    expect(isIgnorableRejection(abort)).toBe(false);
+  });
+
+  it("does not ignore non-AbortError rejections with similar messages", () => {
+    expect(isIgnorableRejection(new Error("Transition was skipped"))).toBe(false);
+    expect(isIgnorableRejection("Transition was skipped")).toBe(false);
   });
 });

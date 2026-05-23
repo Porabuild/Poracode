@@ -407,6 +407,8 @@ asarUnpack:
   - dist/main/claudeSdkProbeWorker.mjs
   - node_modules/@anthropic-ai/claude-agent-sdk/**/*
 
+afterPack: build/after-pack.cjs
+
 publish:
   provider: github
   owner: SDSLeon

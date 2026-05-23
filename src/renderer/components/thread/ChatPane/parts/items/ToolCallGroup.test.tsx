@@ -164,6 +164,21 @@ describe("ToolCallGroup", () => {
     expect(screen.queryByText("result")).not.toBeInTheDocument();
   });
 
+  it("renders read tool-call results as highlighted file content", async () => {
+    const threadId = "thread-1";
+    const item = makeReadToolItem("tool-read");
+    seedThread(threadId, [item]);
+
+    renderToolCallGroup(threadId, [item.id]);
+    fireEvent.click(screen.getByText("source.ts"));
+
+    await waitFor(() => {
+      expect(document.body).toHaveTextContent(/export const value = 1/);
+    });
+    expect(screen.queryByText("args")).not.toBeInTheDocument();
+    expect(screen.queryByText("result")).not.toBeInTheDocument();
+  });
+
   it("renders changes-array creates as highlighted file content", async () => {
     const threadId = "thread-1";
     const item = makeChangesArrayFileChangeItem("file-changes-array-create", "create");
@@ -200,9 +215,7 @@ describe("ToolCallGroup", () => {
     );
 
     expect(document.body).toHaveTextContent("View 1:24: src/supervisor/runtime.test.ts");
-    expect(
-      screen.getByText('Search files: "vitest.mjs" in node_modules/.pnpm'),
-    ).toBeInTheDocument();
+    expect(screen.getByText('Search: "vitest.mjs"')).toBeInTheDocument();
     expect(screen.getByText("Git: git diff -- src/supervisor/runtime.ts")).toBeInTheDocument();
     expect(screen.getByText("Check: pnpm run test")).toBeInTheDocument();
     expect(screen.getByText("Install packages: pnpm install")).toBeInTheDocument();
@@ -373,6 +386,24 @@ function makeApplyPatchToolItem(id: string): RuntimeChatItem {
       },
       result:
         "Success. Updated the following files:\nM src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts",
+    },
+    streams: {},
+  };
+}
+
+function makeReadToolItem(id: string): RuntimeChatItem {
+  return {
+    id,
+    type: "tool_call",
+    state: "completed",
+    payload: {
+      name: "src/source.ts",
+      title: "src/source.ts",
+      kind: "read",
+      locations: [{ path: "src/source.ts" }],
+      args: { filePath: "src/source.ts" },
+      result: "export const value = 1;\n",
+      status: "success",
     },
     streams: {},
   };

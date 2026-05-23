@@ -1,18 +1,46 @@
 import type { ReactNode } from "react";
+import { Tooltip } from "@heroui/react";
 import { Globe, X } from "lucide-react";
 import { getEntryIconUrl } from "@/renderer/components/common/fileIcons";
 import { toLocalFileUrl } from "@/shared/promptContent";
 import type { Attachment } from "./useAttachments";
 
-export function BrowserChip(props: { onRemove?: (() => void) | undefined }) {
-  const { onRemove } = props;
+export function BrowserChip(props: {
+  onRemove?: (() => void) | undefined;
+  title?: string;
+  variant?: "chip" | "header";
+}) {
+  const { onRemove, title = "Browser MCP enabled for this thread", variant = "chip" } = props;
+  if (variant === "header") {
+    // Same structure as the other header buttons (CircleCheck / ArrowRightLeft
+    // / Bug / X) so the indicator slots into the row without alignment drift.
+    // Non-interactive — mid-thread browserMcp changes can't reconfigure the
+    // running session — but rendering as <button> keeps it consistent with the
+    // sibling status icon, which is also a no-op button.
+    return (
+      <Tooltip delay={0}>
+        <Tooltip.Trigger>
+          <button
+            type="button"
+            className="lightcode-overlay-header__controls shrink-0 rounded p-1 text-muted/60 transition-colors hover:bg-white/[0.06] hover:text-foreground"
+            aria-label={title}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <Globe className="size-3.5" aria-hidden="true" />
+          </button>
+        </Tooltip.Trigger>
+        <Tooltip.Content>{title}</Tooltip.Content>
+      </Tooltip>
+    );
+  }
   return (
     <div
       className="lightcode-attachment-chip lightcode-browser-chip"
-      title="Browser MCP enabled for this thread"
+      title={title}
+      aria-label={title}
+      role={onRemove ? "group" : "img"}
     >
-      <Globe className="size-3 text-muted" />
-      <span className="lightcode-attachment-chip__name">Browser</span>
+      <Globe className="size-3 text-muted" aria-hidden="true" />
       {onRemove ? (
         <button
           type="button"

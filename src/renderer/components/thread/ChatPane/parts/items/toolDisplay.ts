@@ -133,12 +133,13 @@ function mapClaudeRawTool(
       return { title: titleWithValue("Task output", args, "id"), Icon: Terminal };
     case "TaskStop":
       return { title: titleWithValue("Stop task", args, "id"), Icon: Trash2 };
+    case "ViewImage":
+    case "Image":
+      return withPath("Image", args, ["path", "file_path", "image_path", "source"], ImageIcon, {
+        filePath: true,
+      });
     default:
-      return name.toLowerCase().includes("image")
-        ? withPath("Image", args, ["path", "file_path", "image_path", "source"], ImageIcon, {
-            filePath: true,
-          })
-        : null;
+      return null;
   }
 }
 
@@ -391,14 +392,6 @@ function formatAcpSearchDisplay(
   const pattern = readStr(args, "pattern");
   const scope = readScope(args) ?? locationPath;
   const searchTerm = query ?? pattern;
-  if (searchTerm && scope) {
-    const prefix = `Search: "${searchTerm}" in `;
-    return {
-      title: `${prefix}${scope}`,
-      Icon: SearchCode,
-      parts: { prefix, path: scope },
-    };
-  }
   if (searchTerm) return { title: `Search: "${searchTerm}"`, Icon: SearchCode };
   if (scope) return withTarget("Search", scope, SearchCode);
   return title.toLowerCase().startsWith("search")

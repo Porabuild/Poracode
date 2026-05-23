@@ -1,7 +1,9 @@
 import type { OpencodeClient } from "@opencode-ai/sdk/v2/client";
 import type { ProjectLocation } from "@/shared/contracts";
 import { resolveAgentBinaryPath } from "../binaryResolver";
+import { BROWSER_MCP_SERVER_NAME } from "../browserMcp";
 import { buildOpenCodeServerCommand } from "./argv";
+import { buildOpenCodeBrowserMcp } from "./mcpBrowser";
 import { spawnOpenCodeServer, type OpenCodeServerHandle } from "./sdkServer";
 
 /** Agent-side cwd that the SDK passes through to the server's session config. */
@@ -97,6 +99,7 @@ async function spawnAndWire(projectLocation: ProjectLocation): Promise<ServerSna
  */
 export interface AcquireOpenCodeServerInput {
   projectLocation: ProjectLocation;
+  browserMcpEnabled?: boolean;
   /**
    * If set, the server stays alive for this many milliseconds after the last
    * release before being torn down. A re-acquire within the window reuses the
@@ -104,6 +107,29 @@ export interface AcquireOpenCodeServerInput {
    * immediate teardown (the TUI and GUI thread flows) leave this unset.
    */
   idleCloseDelayMs?: number;
+}
+
+async function syncBrowserMcp(
+  input: Pick<AcquireOpenCodeServerInput, "projectLocation" | "browserMcpEnabled">,
+  client: OpencodeClient,
+): Promise<void> {
+  const directory = resolveOpenCodeSessionDirectory(input.projectLocation);
+  if (input.browserMcpEnabled === undefined) return;
+  if (!input.browserMcpEnabled) {
+    await client.mcp
+      .disconnect({ directory, name: BROWSER_MCP_SERVER_NAME })
+      .catch(() => undefined);
+    return;
+  }
+
+  const servers = buildOpenCodeBrowserMcp(input.projectLocation);
+  const browser = servers?.[BROWSER_MCP_SERVER_NAME];
+  if (!browser) return;
+
+  await client.mcp
+    .add({ directory, name: BROWSER_MCP_SERVER_NAME, config: browser })
+    .catch(() => undefined);
+  await client.mcp.connect({ directory, name: BROWSER_MCP_SERVER_NAME });
 }
 
 export async function acquireOpenCodeServer(
@@ -153,6 +179,10 @@ export async function acquireOpenCodeServer(
 
   let released = false;
   const idleCloseDelayMs = input.idleCloseDelayMs;
+  await syncBrowserMcp(input, snapshot.client).catch((error) => {
+    console.warn("[opencode] failed to sync Browser MCP:", error);
+  });
+
   return {
     client: snapshot.client,
     baseUrl: snapshot.baseUrl,

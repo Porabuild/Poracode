@@ -121,7 +121,9 @@ export const Reasoning = memo(function Reasoning({ item }: ReasoningProps) {
       <div className="flex min-w-0 flex-col gap-1.5 text-[length:var(--lc-chat-font-size-meta)] text-foreground-muted">
         <div className="inline-flex items-center gap-1.5">
           <Brain className="lightcode-brain-thinking size-3 shrink-0" aria-label="Thinking" />
-          <span className="lightcode-thinking-text">Thinking</span>
+          <span className="lightcode-thinking-text" data-lightcode-shimmer-text="Thinking">
+            Thinking
+          </span>
         </div>
         {hasText ? (
           <div ref={scrollRef} className="max-h-64 overflow-y-auto pl-4 [scrollbar-gutter:stable]">

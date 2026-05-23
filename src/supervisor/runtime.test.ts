@@ -1,30 +1,14 @@
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { AgentStatus, RuntimeEvent } from "@/shared/contracts";
-import { resolveLightcodePaths } from "@/shared/lightcodePaths";
-import { defaultSharedSettings } from "@/shared/settings";
+import type { RuntimeEvent } from "@/shared/contracts";
 import type { SessionRuntime } from "./runtime/sessionTypes";
 
 const taskkillSpawnSyncMock = vi.hoisted(() => vi.fn<(...args: unknown[]) => unknown>());
-const terminfoSpawnSyncMock = vi.hoisted(() => vi.fn<(...args: unknown[]) => unknown>());
 const ptySpawnMock = vi.hoisted(() => vi.fn<(...args: unknown[]) => unknown>());
 const appendFileMock = vi.hoisted(() =>
   vi.fn<(path: string, data: string, encoding: string) => Promise<void>>(),
-);
-const dispatchAcpAuthenticateMock = vi.hoisted(() =>
-  vi.fn<
-    (input: {
-      adapter: unknown;
-      methodId: string;
-      envKind?: "windows" | "wsl";
-      wslDistro?: string;
-    }) => Promise<void>
-  >(),
-);
-const verifyAcpGenericAuthenticationMock = vi.hoisted(() =>
-  vi.fn<(instance: unknown, ctx?: unknown) => Promise<boolean>>(),
 );
 
 vi.mock("node:child_process", async (importActual) => {
@@ -35,20 +19,8 @@ vi.mock("node:child_process", async (importActual) => {
       if (command === "taskkill") {
         return taskkillSpawnSyncMock(command, args, options);
       }
-      const argv = Array.isArray(args) ? args.join(" ") : "";
-      if (command === "infocmp" || argv.includes("infocmp -x xterm-ghostty")) {
-        return terminfoSpawnSyncMock(command, args, options) ?? { status: 1 };
-      }
       return actual.spawnSync(command, args, options);
     }) as typeof actual.spawnSync,
-  };
-});
-
-vi.mock("node:fs/promises", async (importActual) => {
-  const actual = await importActual<typeof import("node:fs/promises")>();
-  return {
-    ...actual,
-    appendFile: appendFileMock,
   };
 });
 
@@ -78,28 +50,12 @@ vi.mock("./agents/binaryResolver", async (importActual) => {
   };
 });
 
-vi.mock("./agents/acp", async (importActual) => {
-  const actual = await importActual<typeof import("./agents/acp")>();
-  return {
-    ...actual,
-    dispatchAcpAuthenticate: dispatchAcpAuthenticateMock,
-  };
-});
-
-vi.mock("./agents/acp-generic", async (importActual) => {
-  const actual = await importActual<typeof import("./agents/acp-generic")>();
-  return {
-    ...actual,
-    verifyAcpGenericAuthentication: verifyAcpGenericAuthenticationMock,
-  };
-});
-
 // Suppress supervisor [supervisor] console output during tests so vitest's
 // onUserConsoleLog RPC does not remain pending at worker teardown.
 vi.spyOn(console, "warn").mockImplementation(() => {});
 vi.spyOn(console, "log").mockImplementation(() => {});
 
-import { detectWslAgentStatuses, SupervisorRuntime, writeSubmittedPrompt } from "./runtime";
+import { SupervisorRuntime } from "./runtime";
 
 const tempDirs: string[] = [];
 const runtimesToDispose: SupervisorRuntime[] = [];
@@ -142,12 +98,9 @@ afterEach(() => {
   } else {
     process.env.LIGHTCODE_DATA_DIR = lightcodeDataDirBeforeTests;
   }
-  terminfoSpawnSyncMock.mockReset();
   taskkillSpawnSyncMock.mockReset();
   ptySpawnMock.mockReset();
   appendFileMock.mockReset();
-  dispatchAcpAuthenticateMock.mockReset();
-  verifyAcpGenericAuthenticationMock.mockReset();
   for (const dir of tempDirs.splice(0)) {
     rmSync(dir, { recursive: true, force: true });
   }
@@ -243,149 +196,12 @@ function createRuntimeSession(overrides: Record<string, unknown> = {}) {
   };
 }
 
-function writeGenericAcpSettings(
-  dataDir: string,
-  authAcknowledged?: { native?: boolean; wsl?: Record<string, boolean> },
-): string {
-  const { settingsPath } = resolveLightcodePaths(dataDir);
-  writeFileSync(
-    settingsPath,
-    JSON.stringify(
-      {
-        ...defaultSharedSettings,
-        agentInstances: {
-          "my-acp": {
-            id: "my-acp",
-            driver: "acp-generic",
-            displayName: "My ACP",
-            ...(authAcknowledged ? { authAcknowledged } : {}),
-            config: {
-              binary: "my-acp",
-              args: ["--stdio"],
-              cwd: "project",
-              authMode: "none",
-            },
-          },
-        },
-      },
-      null,
-      2,
-    ),
-    "utf8",
-  );
-  return settingsPath;
-}
-
-describe("authenticateAcpAgent", () => {
-  it("persists generic ACP auth only after verification succeeds", async () => {
-    const dataDir = makeTempDir();
-    process.env.LIGHTCODE_DATA_DIR = dataDir;
-    const settingsPath = writeGenericAcpSettings(dataDir);
-    dispatchAcpAuthenticateMock.mockResolvedValue(undefined);
-    verifyAcpGenericAuthenticationMock.mockResolvedValueOnce(true);
-
-    const runtime = makeRuntime(() => {});
-    await runtime.authenticateAcpAgent({
-      agentKind: "acp-generic:my-acp",
-      methodId: "browser-login",
-    });
-
-    expect(dispatchAcpAuthenticateMock).toHaveBeenCalledWith(
-      expect.objectContaining({ methodId: "browser-login" }),
-    );
-    expect(verifyAcpGenericAuthenticationMock).toHaveBeenCalledWith(
-      expect.objectContaining({ id: "my-acp" }),
-      undefined,
-    );
-    const settings = JSON.parse(readFileSync(settingsPath, "utf8")) as {
-      agentInstances: Record<string, { authAcknowledged?: { native?: boolean } }>;
-    };
-    expect(settings.agentInstances["my-acp"]?.authAcknowledged?.native).toBe(true);
-  });
-
-  it("clears generic ACP auth when browser login does not complete", async () => {
-    const dataDir = makeTempDir();
-    process.env.LIGHTCODE_DATA_DIR = dataDir;
-    const settingsPath = writeGenericAcpSettings(dataDir, { native: true });
-    dispatchAcpAuthenticateMock.mockResolvedValue(undefined);
-    verifyAcpGenericAuthenticationMock.mockResolvedValueOnce(false);
-
-    const runtime = makeRuntime(() => {});
-    await expect(
-      runtime.authenticateAcpAgent({
-        agentKind: "acp-generic:my-acp",
-        methodId: "browser-login",
-      }),
-    ).rejects.toThrow("ACP authentication was not completed.");
-
-    const settings = JSON.parse(readFileSync(settingsPath, "utf8")) as {
-      agentInstances: Record<string, { authAcknowledged?: { native?: boolean } }>;
-    };
-    expect(settings.agentInstances["my-acp"]?.authAcknowledged).toBeUndefined();
-  });
-});
-
-describe("writeSubmittedPrompt", () => {
+describe("SupervisorRuntime thread input", () => {
   beforeEach(() => {
     vi.useRealTimers();
     taskkillSpawnSyncMock.mockReset();
     ptySpawnMock.mockReset();
     appendFileMock.mockReset();
-  });
-
-  it("writes direct-input chunks sequentially with delays between them", async () => {
-    vi.useFakeTimers();
-    const write = vi.fn<(data: string) => void>();
-
-    const pending = writeSubmittedPrompt({ write }, ["h", "i", "\r"], {
-      kind: "posix",
-      path: "/tmp/project",
-    });
-
-    expect(write).toHaveBeenCalledTimes(1);
-    expect(write).toHaveBeenNthCalledWith(1, "h");
-
-    await vi.runAllTimersAsync();
-    await pending;
-
-    expect(write).toHaveBeenCalledTimes(3);
-    expect(write).toHaveBeenNthCalledWith(2, "i");
-    expect(write).toHaveBeenNthCalledWith(3, "\r");
-    vi.useRealTimers();
-  });
-
-  it("preserves inner newlines on posix so the prompt is not submitted mid-stream", async () => {
-    vi.useFakeTimers();
-    const write = vi.fn<(data: string) => void>();
-
-    const pending = writeSubmittedPrompt({ write }, ["hi\n\n@/tmp/file ", "\r"], {
-      kind: "posix",
-      path: "/tmp/project",
-    });
-
-    await vi.runAllTimersAsync();
-    await pending;
-
-    expect(write).toHaveBeenNthCalledWith(1, "hi\n\n@/tmp/file ");
-    expect(write).toHaveBeenNthCalledWith(2, "\r");
-    vi.useRealTimers();
-  });
-
-  it("passes chunks through unchanged on Windows (no global newline rewrite)", async () => {
-    vi.useFakeTimers();
-    const write = vi.fn<(data: string) => void>();
-
-    const pending = writeSubmittedPrompt({ write }, ["hi\n\n@C:/tmp/file ", "\r"], {
-      kind: "windows",
-      path: "C:/tmp/project",
-    });
-
-    await vi.runAllTimersAsync();
-    await pending;
-
-    expect(write).toHaveBeenNthCalledWith(1, "hi\n\n@C:/tmp/file ");
-    expect(write).toHaveBeenNthCalledWith(2, "\r");
-    vi.useRealTimers();
   });
 
   it("routes server-controlled thread input through structured turn start", async () => {
@@ -1341,386 +1157,6 @@ describe("writeSubmittedPrompt", () => {
     });
   });
 
-  it("spoofs an iTerm terminal for Claude when running on L2", () => {
-    const dataDir = makeTempDir();
-    process.env.LIGHTCODE_DATA_DIR = dataDir;
-    writeFileSync(resolveLightcodePaths(dataDir).settingsPath, JSON.stringify({}), "utf8");
-
-    const runtime = makeRuntime(() => undefined);
-    const pty = createMockPty();
-    ptySpawnMock.mockReturnValueOnce(pty);
-
-    (
-      runtime as unknown as {
-        spawnThread: (input: {
-          threadId: string;
-          agentKind: string;
-          adapter: Record<string, unknown>;
-          projectLocation: { kind: "windows"; path: string };
-          config: { model: string };
-          initialSize: { cols: number; rows: number };
-          launchPrompt: string;
-          command: { command: string; args: string[] };
-        }) => unknown;
-      }
-    ).spawnThread({
-      threadId: "thread-claude-l2",
-      agentKind: "claude",
-      adapter: {
-        kind: "claude",
-        label: "Claude Code",
-        capabilities: {
-          models: [{ id: "sonnet", label: "Sonnet" }],
-          efforts: ["medium"],
-          modelEfforts: {},
-          modes: ["agent"],
-          approvalPolicies: [{ id: "default", label: "Default" }],
-          sandboxModes: [],
-          supportsResume: true,
-          supportsDirectInput: true,
-          liveInputMode: "terminal",
-          presentationMode: "terminal",
-        },
-        createInitialSessionRef: vi.fn<() => undefined>().mockReturnValue(undefined),
-        buildLaunchArgv: vi.fn<() => void>(),
-        buildResumeArgv: vi.fn<() => void>(),
-      },
-      projectLocation: {
-        kind: "windows",
-        path: "C:\\repo",
-      },
-      config: {
-        model: "sonnet",
-      },
-      initialSize: {
-        cols: 120,
-        rows: 30,
-      },
-      launchPrompt: "",
-      command: {
-        command: "claude",
-        args: [],
-      },
-    });
-
-    const [, , spawnOpts] = ptySpawnMock.mock.calls[0] as [
-      string,
-      string[],
-      { env: Record<string, string> },
-    ];
-    expect(spawnOpts.env.TERM).toBe("xterm-256color");
-    expect(spawnOpts.env.COLORTERM).toBe("truecolor");
-    expect(spawnOpts.env.TERM_PROGRAM).toBe("iTerm.app");
-    expect(spawnOpts.env.TERM_PROGRAM_VERSION).toBe("3.6.6");
-  });
-
-  it("uses xterm-ghostty when the terminfo entry is available", () => {
-    terminfoSpawnSyncMock.mockReturnValue({ status: 0 });
-    const dataDir = makeTempDir();
-    process.env.LIGHTCODE_DATA_DIR = dataDir;
-    writeFileSync(resolveLightcodePaths(dataDir).settingsPath, JSON.stringify({}), "utf8");
-
-    const runtime = makeRuntime(() => undefined);
-    const pty = createMockPty();
-    ptySpawnMock.mockReturnValueOnce(pty);
-
-    (
-      runtime as unknown as {
-        spawnThread: (input: {
-          threadId: string;
-          agentKind: string;
-          adapter: Record<string, unknown>;
-          projectLocation: { kind: "posix"; path: string };
-          config: { model: string };
-          initialSize: { cols: number; rows: number };
-          launchPrompt: string;
-          command: { command: string; args: string[] };
-        }) => unknown;
-      }
-    ).spawnThread({
-      threadId: "thread-ghostty-term",
-      agentKind: "codex",
-      adapter: {
-        kind: "codex",
-        label: "Codex",
-        capabilities: {
-          models: [{ id: "gpt-5.5", label: "GPT-5.5" }],
-          efforts: ["medium"],
-          modelEfforts: {},
-          modes: ["agent"],
-          approvalPolicies: [{ id: "default", label: "Default" }],
-          sandboxModes: [],
-          supportsResume: true,
-          supportsDirectInput: true,
-          liveInputMode: "terminal",
-          presentationMode: "terminal",
-        },
-        createInitialSessionRef: vi.fn<() => undefined>().mockReturnValue(undefined),
-        buildLaunchArgv: vi.fn<() => void>(),
-        buildResumeArgv: vi.fn<() => void>(),
-      },
-      projectLocation: {
-        kind: "posix",
-        path: "/repo",
-      },
-      config: {
-        model: "gpt-5.5",
-      },
-      initialSize: {
-        cols: 120,
-        rows: 30,
-      },
-      launchPrompt: "",
-      command: {
-        command: "codex",
-        args: [],
-      },
-    });
-
-    const [, , spawnOpts] = ptySpawnMock.mock.calls[0] as [
-      string,
-      string[],
-      { name: string; env: Record<string, string> },
-    ];
-    const expectedTerm = process.platform === "win32" ? "xterm-256color" : "xterm-ghostty";
-    const expectedPtyName = process.platform === "win32" ? "xterm-color" : expectedTerm;
-    expect(spawnOpts.name).toBe(expectedPtyName);
-    expect(spawnOpts.env.TERM).toBe(expectedTerm);
-    expect(spawnOpts.env.COLORTERM).toBe("truecolor");
-  });
-
-  it("does not spoof an iTerm terminal for Claude while hooks are active", () => {
-    const dataDir = makeTempDir();
-    process.env.LIGHTCODE_DATA_DIR = dataDir;
-    writeFileSync(resolveLightcodePaths(dataDir).settingsPath, JSON.stringify({}), "utf8");
-
-    const runtime = makeRuntime(() => undefined);
-    const pty = createMockPty();
-    ptySpawnMock.mockReturnValueOnce(pty);
-
-    (
-      runtime as unknown as {
-        spawnThread: (input: {
-          threadId: string;
-          agentKind: string;
-          adapter: Record<string, unknown>;
-          projectLocation: { kind: "windows"; path: string };
-          config: { model: string };
-          initialSize: { cols: number; rows: number };
-          launchPrompt: string;
-          command: { command: string; args: string[] };
-          extraEnv: Record<string, string>;
-        }) => unknown;
-      }
-    ).spawnThread({
-      threadId: "thread-claude-hooks",
-      agentKind: "claude",
-      adapter: {
-        kind: "claude",
-        label: "Claude Code",
-        capabilities: {
-          models: [{ id: "sonnet", label: "Sonnet" }],
-          efforts: ["medium"],
-          modelEfforts: {},
-          modes: ["agent"],
-          approvalPolicies: [{ id: "default", label: "Default" }],
-          sandboxModes: [],
-          supportsResume: true,
-          supportsDirectInput: true,
-          liveInputMode: "terminal",
-          presentationMode: "terminal",
-        },
-        createInitialSessionRef: vi.fn<() => undefined>().mockReturnValue(undefined),
-        buildLaunchArgv: vi.fn<() => void>(),
-        buildResumeArgv: vi.fn<() => void>(),
-      },
-      projectLocation: {
-        kind: "windows",
-        path: "C:\\repo",
-      },
-      config: {
-        model: "sonnet",
-      },
-      initialSize: {
-        cols: 120,
-        rows: 30,
-      },
-      launchPrompt: "",
-      command: {
-        command: "claude",
-        args: [],
-      },
-      extraEnv: {
-        LIGHTCODE_HOOK_URL: "http://127.0.0.1:43123/v1/agent-event",
-      },
-    });
-
-    const [, , spawnOpts] = ptySpawnMock.mock.calls[0] as [
-      string,
-      string[],
-      { env: Record<string, string> },
-    ];
-    expect(spawnOpts.env.TERM_PROGRAM).toBeUndefined();
-    expect(spawnOpts.env.TERM_PROGRAM_VERSION).toBeUndefined();
-  });
-
-  it("spoofs an iTerm terminal for Claude when hooks are injected but L1 is disabled", () => {
-    const dataDir = makeTempDir();
-    process.env.LIGHTCODE_DATA_DIR = dataDir;
-    writeFileSync(
-      resolveLightcodePaths(dataDir).settingsPath,
-      JSON.stringify({ disableCliHookPlugin: true }),
-      "utf8",
-    );
-
-    const runtime = makeRuntime(() => undefined);
-    const pty = createMockPty();
-    ptySpawnMock.mockReturnValueOnce(pty);
-
-    (
-      runtime as unknown as {
-        spawnThread: (input: {
-          threadId: string;
-          agentKind: string;
-          adapter: Record<string, unknown>;
-          projectLocation: { kind: "windows"; path: string };
-          config: { model: string };
-          initialSize: { cols: number; rows: number };
-          launchPrompt: string;
-          command: { command: string; args: string[] };
-          extraEnv: Record<string, string>;
-        }) => unknown;
-      }
-    ).spawnThread({
-      threadId: "thread-claude-l2-with-hooks",
-      agentKind: "claude",
-      adapter: {
-        kind: "claude",
-        label: "Claude Code",
-        capabilities: {
-          models: [{ id: "sonnet", label: "Sonnet" }],
-          efforts: ["medium"],
-          modelEfforts: {},
-          modes: ["agent"],
-          approvalPolicies: [{ id: "default", label: "Default" }],
-          sandboxModes: [],
-          supportsResume: true,
-          supportsDirectInput: true,
-          liveInputMode: "terminal",
-          presentationMode: "terminal",
-        },
-        createInitialSessionRef: vi.fn<() => undefined>().mockReturnValue(undefined),
-        buildLaunchArgv: vi.fn<() => void>(),
-        buildResumeArgv: vi.fn<() => void>(),
-      },
-      projectLocation: {
-        kind: "windows",
-        path: "C:\\repo",
-      },
-      config: {
-        model: "sonnet",
-      },
-      initialSize: {
-        cols: 120,
-        rows: 30,
-      },
-      launchPrompt: "",
-      command: {
-        command: "claude",
-        args: [],
-      },
-      extraEnv: {
-        LIGHTCODE_HOOK_URL: "http://127.0.0.1:43123/v1/agent-event",
-      },
-    });
-
-    const [, , spawnOpts] = ptySpawnMock.mock.calls[0] as [
-      string,
-      string[],
-      { env: Record<string, string> },
-    ];
-    expect(spawnOpts.env.TERM_PROGRAM).toBe("iTerm.app");
-    expect(spawnOpts.env.TERM_PROGRAM_VERSION).toBe("3.6.6");
-  });
-
-  it("spoofs an iTerm terminal for Claude in WSL L2 sessions", () => {
-    const dataDir = makeTempDir();
-    process.env.LIGHTCODE_DATA_DIR = dataDir;
-    writeFileSync(resolveLightcodePaths(dataDir).settingsPath, JSON.stringify({}), "utf8");
-
-    const runtime = makeRuntime(() => undefined);
-    const pty = createMockPty();
-    ptySpawnMock.mockReturnValueOnce(pty);
-
-    (
-      runtime as unknown as {
-        spawnThread: (input: {
-          threadId: string;
-          agentKind: string;
-          adapter: Record<string, unknown>;
-          projectLocation: {
-            kind: "wsl";
-            distro: string;
-            linuxPath: string;
-            uncPath: string;
-          };
-          config: { model: string };
-          initialSize: { cols: number; rows: number };
-          launchPrompt: string;
-          command: { command: string; args: string[] };
-        }) => unknown;
-      }
-    ).spawnThread({
-      threadId: "thread-claude-wsl-l2",
-      agentKind: "claude",
-      adapter: {
-        kind: "claude",
-        label: "Claude Code",
-        capabilities: {
-          models: [{ id: "sonnet", label: "Sonnet" }],
-          efforts: ["medium"],
-          modelEfforts: {},
-          modes: ["agent"],
-          approvalPolicies: [{ id: "default", label: "Default" }],
-          sandboxModes: [],
-          supportsResume: true,
-          supportsDirectInput: true,
-          liveInputMode: "terminal",
-          presentationMode: "terminal",
-        },
-        createInitialSessionRef: vi.fn<() => undefined>().mockReturnValue(undefined),
-        buildLaunchArgv: vi.fn<() => void>(),
-        buildResumeArgv: vi.fn<() => void>(),
-      },
-      projectLocation: {
-        kind: "wsl",
-        distro: "Ubuntu",
-        linuxPath: "/home/demo/repo",
-        uncPath: "\\\\wsl.localhost\\Ubuntu\\home\\demo\\repo",
-      },
-      config: {
-        model: "sonnet",
-      },
-      initialSize: {
-        cols: 120,
-        rows: 30,
-      },
-      launchPrompt: "",
-      command: {
-        command: "C:\\Windows\\System32\\wsl.exe",
-        args: ["-d", "Ubuntu", "--cd", "/home/demo/repo"],
-      },
-    });
-
-    const [, , spawnOpts] = ptySpawnMock.mock.calls[0] as [
-      string,
-      string[],
-      { env: Record<string, string> },
-    ];
-    expect(spawnOpts.env.TERM_PROGRAM).toBe("iTerm.app");
-    expect(spawnOpts.env.TERM_PROGRAM_VERSION).toBe("3.6.6");
-  });
-
   it.skipIf(process.platform !== "win32")(
     "does not eagerly start a queued Codex turn during thread startup",
     async () => {
@@ -2123,6 +1559,7 @@ describe("writeSubmittedPrompt", () => {
 
     emitted.length = 0;
     await runtime.interruptThread({ threadId: "thread-gui-pre-session-stop" });
+    const dispose = vi.fn<() => Promise<void>>().mockResolvedValue(undefined);
 
     expect(emitted).toContainEqual(
       expect.objectContaining({
@@ -2141,11 +1578,12 @@ describe("writeSubmittedPrompt", () => {
       startTurn,
       interruptTurn,
       setListener,
-      dispose: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+      dispose,
     });
     await startPromise;
 
-    expect(setListener).toHaveBeenCalledTimes(1);
+    expect(dispose).toHaveBeenCalledTimes(1);
+    expect(setListener).not.toHaveBeenCalled();
     expect(startTurn).not.toHaveBeenCalled();
     expect(interruptTurn).not.toHaveBeenCalled();
     expect(emitted).toContainEqual(
@@ -2733,271 +2171,4 @@ describe("writeSubmittedPrompt", () => {
       expect(command).toContain("@/tmp/Image 1.png");
     },
   );
-});
-
-describe("detectWslAgentStatuses", () => {
-  it("migrates stale cached settingDefs to current schema", () => {
-    const dataDir = makeTempDir();
-    process.env.LIGHTCODE_DATA_DIR = dataDir;
-
-    const { cacheDir, statusCachePath } = resolveLightcodePaths(dataDir);
-    mkdirSync(cacheDir, { recursive: true });
-    writeFileSync(
-      statusCachePath,
-      JSON.stringify({
-        windows: [
-          {
-            kind: "claude",
-            label: "Claude Code",
-            installed: true,
-            authState: "unknown",
-            providerMetadata: {
-              connectedProviders: [{ label: 123 }],
-            },
-            capabilities: {
-              models: [{ id: "sonnet", label: "Sonnet" }],
-              efforts: [],
-              modelEfforts: {},
-              modes: [],
-              approvalPolicies: [],
-              sandboxModes: [],
-              supportsResume: true,
-              supportsDirectInput: true,
-              liveInputMode: "terminal",
-              presentationMode: "terminal",
-              settingDefs: [
-                {
-                  key: "legacy-toggle",
-                  envVar: "CLAUDE_LEGACY_TOGGLE",
-                  label: "Legacy toggle",
-                  description: "Old format: no type, envVar string",
-                  default: true,
-                },
-                {
-                  key: "verbose-logging",
-                  type: "toggle",
-                  env: { CLAUDE_VERBOSE_LOGGING: "1" },
-                  label: "Verbose logging",
-                  description: "Already current format",
-                  default: false,
-                },
-              ],
-            },
-          },
-        ],
-      }),
-    );
-
-    const emitted: unknown[] = [];
-    const runtime = makeRuntime((event) => {
-      emitted.push(event);
-    });
-
-    const cached = (
-      runtime as unknown as {
-        readCachedStatuses: (wslDistros: readonly string[]) => {
-          windows: unknown[];
-          wsl: unknown[];
-          fromCache: boolean;
-        };
-      }
-    ).readCachedStatuses([]);
-
-    // Old-format entry is migrated (type: "toggle", envVar → env record).
-    // Already-valid entry passes through unchanged.
-    // Cache is returned from the RPC instead of emitted as an event, so the
-    // renderer can hydrate synchronously on resolve.
-    expect(emitted).toEqual([]);
-    expect(cached).toEqual({
-      fromCache: true,
-      windows: [
-        {
-          kind: "claude",
-          label: "Claude Code",
-          installed: true,
-          authState: "unknown",
-          update: {
-            npm: "@anthropic-ai/claude-code",
-            winget: "Anthropic.ClaudeCode",
-            brew: "claude",
-            builtIn: {
-              binary: "claude",
-              args: ["update"],
-            },
-          },
-          capabilities: {
-            models: [{ id: "sonnet", label: "Sonnet" }],
-            efforts: [],
-            modelEfforts: {},
-            modes: [],
-            approvalPolicies: [],
-            sandboxModes: [],
-            supportsResume: true,
-            supportsDirectInput: true,
-            liveInputMode: "terminal",
-            presentationMode: "terminal",
-            settingDefs: [
-              {
-                key: "legacy-toggle",
-                type: "toggle",
-                env: { CLAUDE_LEGACY_TOGGLE: "1" },
-                label: "Legacy toggle",
-                description: "Old format: no type, envVar string",
-                default: true,
-              },
-              {
-                key: "verbose-logging",
-                type: "toggle",
-                env: { CLAUDE_VERBOSE_LOGGING: "1" },
-                label: "Verbose logging",
-                description: "Already current format",
-                default: false,
-              },
-            ],
-            slashCommands: [
-              {
-                id: "goal",
-                label: "goal — Set a goal — keep working until the condition is met",
-                description: "Set a goal — keep working until the condition is met",
-              },
-            ],
-          },
-        },
-      ],
-      wsl: [],
-    });
-  });
-
-  it("adds adapter default slash commands to stale cached statuses", () => {
-    const dataDir = makeTempDir();
-    process.env.LIGHTCODE_DATA_DIR = dataDir;
-
-    const { cacheDir, statusCachePath } = resolveLightcodePaths(dataDir);
-    mkdirSync(cacheDir, { recursive: true });
-    writeFileSync(
-      statusCachePath,
-      JSON.stringify({
-        windows: [
-          {
-            kind: "codex",
-            label: "Codex",
-            installed: true,
-            authState: "authenticated",
-            capabilities: {
-              models: [{ id: "gpt-5.5", label: "5.5" }],
-              efforts: ["low", "medium"],
-              modelEfforts: {},
-              modes: ["agent", "plan"],
-              approvalPolicies: [],
-              sandboxModes: [],
-              supportsResume: true,
-              supportsDirectInput: true,
-              liveInputMode: "terminal",
-              presentationMode: "terminal",
-              presentationModes: ["terminal", "gui"],
-              settingDefs: [],
-            },
-          },
-        ],
-      }),
-    );
-
-    const runtime = makeRuntime(() => {});
-    const cached = (
-      runtime as unknown as {
-        readCachedStatuses: (wslDistros: readonly string[]) => {
-          windows: AgentStatus[];
-          wsl: AgentStatus[];
-          fromCache: boolean;
-        };
-      }
-    ).readCachedStatuses([]);
-
-    expect(cached.windows[0]?.capabilities.slashCommands?.map((command) => command.id)).toEqual(
-      expect.arrayContaining(["status", "model", "review", "compact", "permissions"]),
-    );
-  });
-
-  it("detects statuses for every adapter in every distro", async () => {
-    const detectInstall = vi.fn<
-      (ctx?: { envKind: "windows" | "wsl"; wslDistro?: string }) => Promise<{
-        kind: "codex";
-        label: string;
-        installed: boolean;
-        authState: "unknown";
-        capabilities: {
-          models: [];
-          efforts: [];
-          modelEfforts: {};
-          modes: [];
-          approvalPolicies: [];
-          sandboxModes: [];
-          supportsResume: true;
-          supportsDirectInput: true;
-          liveInputMode: "server";
-          presentationMode: "terminal";
-          settingDefs: [];
-        };
-      }>
-    >(async (ctx?: { envKind: "windows" | "wsl"; wslDistro?: string }) => ({
-      kind: "codex" as const,
-      label: `Codex ${ctx?.wslDistro ?? "windows"}`,
-      installed: ctx?.wslDistro === "Ubuntu",
-      authState: "unknown" as const,
-      capabilities: {
-        models: [],
-        efforts: [],
-        modelEfforts: {},
-        modes: [],
-        approvalPolicies: [],
-        sandboxModes: [],
-        supportsResume: true,
-        supportsDirectInput: true,
-        liveInputMode: "server" as const,
-        presentationMode: "terminal" as const,
-        settingDefs: [],
-      },
-    }));
-
-    const statuses = await detectWslAgentStatuses(
-      [
-        {
-          kind: "codex",
-          label: "Codex",
-          capabilities: {
-            models: [],
-            efforts: [],
-            modelEfforts: {},
-            modes: [],
-            approvalPolicies: [],
-            sandboxModes: [],
-            supportsResume: true,
-            supportsDirectInput: true,
-            liveInputMode: "server",
-            presentationMode: "terminal",
-            settingDefs: [],
-          },
-          detectInstall,
-          buildLaunchArgv: vi
-            .fn<() => { binary: string; args: string[] }>()
-            .mockReturnValue({ binary: "codex", args: [] }),
-          buildResumeArgv: vi
-            .fn<() => { binary: string; args: string[] }>()
-            .mockReturnValue({ binary: "codex", args: [] }),
-          createInitialSessionRef: vi
-            .fn<() => { providerSessionId: string; discoveredAt: string } | undefined>()
-            .mockReturnValue(undefined),
-        },
-      ],
-      ["Ubuntu", "Debian"],
-    );
-
-    expect(detectInstall).toHaveBeenCalledTimes(2);
-    expect(detectInstall).toHaveBeenNthCalledWith(1, { envKind: "wsl", wslDistro: "Ubuntu" });
-    expect(detectInstall).toHaveBeenNthCalledWith(2, { envKind: "wsl", wslDistro: "Debian" });
-    expect(statuses).toEqual([
-      expect.objectContaining({ envKind: "wsl", envDistro: "Ubuntu", installed: true }),
-      expect.objectContaining({ envKind: "wsl", envDistro: "Debian", installed: false }),
-    ]);
-  });
 });

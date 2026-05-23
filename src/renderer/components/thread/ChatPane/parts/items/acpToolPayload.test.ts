@@ -213,4 +213,61 @@ describe("acpToolPayload", () => {
       language: "diff",
     });
   });
+
+  it("prefers normalized metadata changes over range-less apply_patch text", () => {
+    const patch = [
+      "Index: /Users/serhiivecherenko/work/site-search-ui/README.md",
+      "===================================================================",
+      "--- /Users/serhiivecherenko/work/site-search-ui/README.md",
+      "+++ /Users/serhiivecherenko/work/site-search-ui/README.md",
+      "@@ -1,7 +1,7 @@",
+      "-Preact-based embeddable widget that renders AI-powered, streaming search answers.",
+      "+Preact-based embeddable search widget that renders AI-powered, streaming answers.",
+      "@@ -24,9 +24,9 @@",
+      "-The simplest integration uses a single script tag with query parameters:",
+      "+The simplest integration uses one script tag with query parameters:",
+      "@@ -201,5 +201,5 @@",
+      "-Common env vars are described in `AGENTS.md`.",
+      "+Common environment variables are described in `AGENTS.md`.",
+      "",
+    ].join("\n");
+    const payload = {
+      path: "/Users/serhiivecherenko/work/site-search-ui/README.md",
+      args: {
+        patchText: [
+          "*** Begin Patch",
+          "*** Update File: /Users/serhiivecherenko/work/site-search-ui/README.md",
+          "@@",
+          "-Preact-based embeddable widget that renders AI-powered, streaming search answers.",
+          "+Preact-based embeddable search widget that renders AI-powered, streaming answers.",
+          "@@",
+          "-The simplest integration uses a single script tag with query parameters:",
+          "+The simplest integration uses one script tag with query parameters:",
+          "@@",
+          "-Common env vars are described in `AGENTS.md`.",
+          "+Common environment variables are described in `AGENTS.md`.",
+          "*** End Patch",
+        ].join("\n"),
+      },
+      metadata: {
+        changes: [
+          {
+            path: "README.md",
+            kind: { type: "update", move_path: null },
+            diff: patch,
+          },
+        ],
+      },
+    };
+
+    const part = extractAcpDiffResultPart(payload);
+
+    expect(part.language).toBe("diff");
+    expect(part.text).toContain("diff --git a/README.md b/README.md");
+    expect(part.text).toContain("@@ -1,7 +1,7 @@");
+    expect(part.text).toContain("@@ -24,9 +24,9 @@");
+    expect(part.text).toContain("@@ -201,5 +201,5 @@");
+    expect(part.text).not.toContain("@@ -1 +1 @@");
+    expect(extractAcpDiffSummary(payload)).toEqual({ added: 3, removed: 3 });
+  });
 });

@@ -38,6 +38,31 @@ export const agentHookSupportEntrySchema = z.object({
 });
 export type AgentHookSupportEntry = z.infer<typeof agentHookSupportEntrySchema>;
 
+export const browserLinkOpenTargetSchema = z.enum(["internal", "system"]);
+export type BrowserLinkOpenTarget = z.infer<typeof browserLinkOpenTargetSchema>;
+
+export const browserLinkPresentationModeSchema = z.enum(["panel", "overlay"]);
+export type BrowserLinkPresentationMode = z.infer<typeof browserLinkPresentationModeSchema>;
+
+const browserSettingsSchema = z.object({
+  /**
+   * Gate for the MCP `eval` tool. When false (default) the tool
+   * returns a "disabled" error to the agent. Off-by-default because eval
+   * gives the agent arbitrary script execution in the embedded page.
+   */
+  allowEval: z.boolean().default(false),
+  /**
+   * Gate for the MCP `cookies` / `storage` tools. When
+   * false (default) those tools refuse to operate. Off-by-default because
+   * cookies can include session tokens; storage can include auth state.
+   */
+  allowDataAccess: z.boolean().default(false),
+  /** Where target=_blank / popup links from the embedded browser are opened. */
+  linkOpenTarget: browserLinkOpenTargetSchema.default("internal"),
+  /** Where to reveal the embedded browser when opening links internally. */
+  linkPresentationMode: browserLinkPresentationModeSchema.default("panel"),
+});
+
 export const sharedSettingsSchema = z.object({
   themeMode: themeModeSchema,
   terminalPosition: terminalPositionSchema,
@@ -167,20 +192,7 @@ export const sharedSettingsSchema = z.object({
    * is controlled via the composer "+" menu (sets `thread.config.browserMcp`),
    * not a global toggle.
    */
-  browser: z.object({
-    /**
-     * Gate for the MCP `eval` tool. When false (default) the tool
-     * returns a "disabled" error to the agent. Off-by-default because eval
-     * gives the agent arbitrary script execution in the embedded page.
-     */
-    allowEval: z.boolean(),
-    /**
-     * Gate for the MCP `cookies` / `storage` tools. When
-     * false (default) those tools refuse to operate. Off-by-default because
-     * cookies can include session tokens; storage can include auth state.
-     */
-    allowDataAccess: z.boolean(),
-  }),
+  browser: browserSettingsSchema,
 });
 export type SharedSettings = z.infer<typeof sharedSettingsSchema>;
 
@@ -251,6 +263,8 @@ export const defaultSharedSettings: SharedSettings = {
   browser: {
     allowEval: false,
     allowDataAccess: false,
+    linkOpenTarget: "internal",
+    linkPresentationMode: "panel",
   },
 };
 

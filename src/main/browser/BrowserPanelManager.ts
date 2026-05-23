@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { BrowserWindow } from "electron";
+import { BrowserWindow, shell } from "electron";
 import type {
   BrowserEvent,
   BrowserState,
@@ -7,7 +7,9 @@ import type {
   BrowserTabInfo,
 } from "@/shared/ipc";
 import type { LightcodePaths } from "@/shared/lightcodePaths";
+import type { BrowserLinkOpenTarget, BrowserLinkPresentationMode } from "@/shared/settings";
 import { dbGetState, dbSetState } from "../db";
+import { readSharedSettingsFile } from "../sharedSettingsFile";
 import { saveClipboardImageFile } from "../attachments/localFiles";
 import { IPC_EVENT_CHANNELS } from "@/shared/ipc";
 import { BrowserTab, resolveWebContentsById } from "./BrowserTab";
@@ -17,6 +19,8 @@ import { buildPickerScript } from "./picker/pickerScript";
 const PERSIST_KEY = "browser-panel-tabs-v1";
 const PERSIST_DEBOUNCE_MS = 750;
 const ATTACH_TIMEOUT_MS = 8000;
+const INTERNAL_BROWSER_PROTOCOLS = new Set(["http:", "https:"]);
+const SYSTEM_BROWSER_PROTOCOLS = new Set(["http:", "https:", "mailto:"]);
 
 interface PersistedTabsState {
   tabs: Array<{ url: string; title: string }>;
@@ -161,6 +165,51 @@ export class BrowserPanelManager {
     this.emit({ type: "open-panel" });
   }
 
+  private readLinkSettings(): {
+    linkOpenTarget: BrowserLinkOpenTarget;
+    linkPresentationMode: BrowserLinkPresentationMode;
+  } {
+    try {
+      const browser = readSharedSettingsFile(this.paths.settingsPath).browser;
+      return {
+        linkOpenTarget: browser.linkOpenTarget,
+        linkPresentationMode: browser.linkPresentationMode,
+      };
+    } catch {
+      return { linkOpenTarget: "internal", linkPresentationMode: "panel" };
+    }
+  }
+
+  private async openSystemBrowser(rawUrl: string): Promise<boolean> {
+    let url: URL;
+    try {
+      url = new URL(rawUrl);
+    } catch {
+      return false;
+    }
+    if (!SYSTEM_BROWSER_PROTOCOLS.has(url.protocol)) return false;
+    await shell.openExternal(url.toString());
+    return true;
+  }
+
+  async openLink(rawUrl: string): Promise<boolean> {
+    let url: URL;
+    try {
+      url = new URL(rawUrl);
+    } catch {
+      return false;
+    }
+
+    const settings = this.readLinkSettings();
+    if (settings.linkOpenTarget === "system" || !INTERNAL_BROWSER_PROTOCOLS.has(url.protocol)) {
+      return this.openSystemBrowser(url.toString());
+    }
+
+    this.emit({ type: "open-panel", mode: settings.linkPresentationMode });
+    void this.createTab({ url: url.toString(), activate: true }).catch(() => {});
+    return true;
+  }
+
   private toInfo(t: BrowserTab): BrowserTabInfo {
     const s = t.snapshot();
     return {
@@ -206,10 +255,8 @@ export class BrowserPanelManager {
       onAttention: (id) => {
         this.emit({ type: "tab-attention", tabId: id });
       },
-      onPopup: (sourceTabId, popupUrl) => {
-        void this.createTab({ url: popupUrl, activate: false }).then((info) => {
-          if (sourceTabId) this.emit({ type: "tab-attention", tabId: info.tabId });
-        });
+      onPopup: (_sourceTabId, popupUrl) => {
+        void this.openLink(popupUrl).catch(() => {});
       },
     });
     this.tabs.push(tab);

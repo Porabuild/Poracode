@@ -1,6 +1,6 @@
 import { memo } from "react";
 import { Surface } from "@heroui/react";
-import { ListChecks } from "lucide-react";
+import { AnimatingPlanIcon } from "@/renderer/components/common";
 import type { ToolCallPayload } from "@/shared/contracts";
 import type { RuntimeChatItem } from "@/renderer/state/slices/runtimeEventSlice";
 import { ItemMarkdown } from "./ItemMarkdown";
@@ -33,10 +33,15 @@ export const PlanProposal = memo(function PlanProposal({ item }: PlanProposalPro
     <Surface variant="transparent" className={chatMessageSurfaceClass}>
       <div className="flex min-w-0 flex-col gap-1">
         <div className="inline-flex items-center gap-1.5 text-[length:var(--lc-chat-font-size-meta)] text-foreground-muted">
-          <ListChecks
+          <AnimatingPlanIcon
             className={`size-3 shrink-0 ${isStreaming ? "lightcode-plan-proposal-icon" : ""}`}
           />
-          <span className={isStreaming ? "lightcode-thinking-text" : ""}>Proposed plan</span>
+          <span
+            className={isStreaming ? "lightcode-thinking-text" : ""}
+            {...(isStreaming ? { "data-lightcode-shimmer-text": "Proposed plan" } : {})}
+          >
+            Proposed plan
+          </span>
         </div>
         {plan ? <ItemMarkdown text={plan} /> : null}
         {planFilePath ? (

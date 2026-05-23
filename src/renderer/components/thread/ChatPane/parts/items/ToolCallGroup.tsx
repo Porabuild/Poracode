@@ -360,10 +360,21 @@ function getToolCallRow(item: RuntimeChatItem, isExpanded: boolean): InlineRow |
   const diffPart = isEditLikeToolPayload(payload) ? extractAcpDiffResultPart(payload) : undefined;
   const diffText = diffPart?.text || undefined;
   const lazyReadPath = pickLazyReadPath(payload);
+  const readText = payload.kind === "read" && !lazyReadPath ? extractAcpResultText(payload) : "";
+  const readPath =
+    payload.kind === "read"
+      ? display.parts?.filePath
+        ? display.parts.path
+        : pickFirstLocationPath(payload)
+      : undefined;
   const hasDetails =
-    payload.args !== undefined || payload.result !== undefined || !!diffText || !!lazyReadPath;
+    payload.args !== undefined ||
+    payload.result !== undefined ||
+    !!diffText ||
+    !!lazyReadPath ||
+    readText.length > 0;
   const sections: ToolCallSection[] =
-    isExpanded && hasDetails && !diffText && !lazyReadPath
+    isExpanded && hasDetails && !diffText && !lazyReadPath && readText.length === 0
       ? [
           { label: "args", part: extractAcpArgsPart(payload) },
           { label: "result", part: extractAcpResultPart(payload) },
@@ -387,9 +398,10 @@ function getToolCallRow(item: RuntimeChatItem, isExpanded: boolean): InlineRow |
     rightLabelClassName: isError ? "text-danger" : "text-[color:var(--muted)]",
     hasDetails,
     sections,
-    bodyText: isExpanded ? diffText : undefined,
+    bodyText: isExpanded ? (diffText ?? (readText.length > 0 ? readText : undefined)) : undefined,
+    bodyLanguage: readPath ? detectLanguageFromPath(readPath) : undefined,
     bodyKind: diffText ? "diff" : "text",
-    bodyFilePath: display.parts?.filePath ? display.parts.path : undefined,
+    bodyFilePath: display.parts?.filePath ? display.parts.path : readPath,
     fetchPath: lazyReadPath,
   };
 }
@@ -403,6 +415,10 @@ function getToolCallRow(item: RuntimeChatItem, isExpanded: boolean): InlineRow |
 function pickLazyReadPath(payload: ToolCallPayload): string | undefined {
   if (payload.kind !== "read") return undefined;
   if (payload.result !== undefined) return undefined;
+  return payload.locations?.find((location) => location.path.length > 0)?.path;
+}
+
+function pickFirstLocationPath(payload: ToolCallPayload): string | undefined {
   return payload.locations?.find((location) => location.path.length > 0)?.path;
 }
 

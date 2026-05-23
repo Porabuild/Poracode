@@ -8,6 +8,7 @@ import {
   GitBranch,
   FileCode2,
   Monitor,
+  Globe,
   Trophy,
   Layers,
   History,
@@ -259,19 +260,24 @@ export function HomeContent({ release }: { release: ReleaseInfo }) {
                   viewBox: "0 0 24 24",
                 },
                 {
+                  name: "OpenCode",
+                  path: "M0 0 H240 V300 H0 Z M60 60 H180 V240 H60 Z M60 120 H180 V240 H60 Z",
+                  viewBox: "0 0 240 300",
+                },
+                {
                   name: "Gemini",
                   path: "M32.447 0c.68 0 1.273.465 1.439 1.125a38.904 38.904 0 001.999 5.905c2.152 5 5.105 9.376 8.854 13.125 3.751 3.75 8.126 6.703 13.125 8.855a38.98 38.98 0 005.906 1.999c.66.166 1.124.758 1.124 1.438 0 .68-.464 1.273-1.125 1.439a38.902 38.902 0 00-5.905 1.999c-5 2.152-9.375 5.105-13.125 8.854-3.749 3.751-6.702 8.126-8.854 13.125a38.973 38.973 0 00-2 5.906 1.485 1.485 0 01-1.438 1.124c-.68 0-1.272-.464-1.438-1.125a38.913 38.913 0 00-2-5.905c-2.151-5-5.103-9.375-8.854-13.125-3.75-3.749-8.125-6.702-13.125-8.854a38.973 38.973 0 00-5.905-2A1.485 1.485 0 010 32.448c0-.68.465-1.272 1.125-1.438a38.903 38.903 0 005.905-2c5-2.151 9.376-5.104 13.125-8.854 3.75-3.749 6.703-8.125 8.855-13.125a38.972 38.972 0 001.999-5.905A1.485 1.485 0 0132.447 0z",
                   viewBox: "0 0 65 65",
                 },
                 {
-                  name: "Cursor",
-                  path: "M22.106 5.68L12.5.135a.998.998 0 00-.998 0L1.893 5.68a.84.84 0 00-.419.726v11.186c0 .3.16.577.42.727l9.607 5.547a.999.999 0 00.998 0l9.608-5.547a.84.84 0 00.42-.727V6.407a.84.84 0 00-.42-.726zm-.603 1.176L12.228 22.92c-.063.108-.228.064-.228-.061V12.34a.59.59 0 00-.295-.51l-9.11-5.26c-.107-.062-.063-.228.062-.228h18.55c.264 0 .428.286.296.514z",
+                  name: "Antigravity",
+                  path: "M21.751 22.607c1.34 1.005 3.35.335 1.508-1.508C17.73 15.74 18.904 1 12.037 1 5.17 1 6.342 15.74.815 21.1c-2.01 2.009.167 2.511 1.507 1.506 5.192-3.517 4.857-9.714 9.715-9.714 4.857 0 4.522 6.197 9.714 9.715z",
                   viewBox: "0 0 24 24",
                 },
                 {
-                  name: "OpenCode",
-                  path: "M0 0 H240 V300 H0 Z M60 60 H180 V240 H60 Z M60 120 H180 V240 H60 Z",
-                  viewBox: "0 0 240 300",
+                  name: "Cursor",
+                  path: "M22.106 5.68L12.5.135a.998.998 0 00-.998 0L1.893 5.68a.84.84 0 00-.419.726v11.186c0 .3.16.577.42.727l9.607 5.547a.999.999 0 00.998 0l9.608-5.547a.84.84 0 00.42-.727V6.407a.84.84 0 00-.42-.726zm-.603 1.176L12.228 22.92c-.063.108-.228.064-.228-.061V12.34a.59.59 0 00-.295-.51l-9.11-5.26c-.107-.062-.063-.228.062-.228h18.55c.264 0 .428.286.296.514z",
+                  viewBox: "0 0 24 24",
                 },
                 {
                   name: "Copilot",
@@ -294,8 +300,8 @@ export function HomeContent({ release }: { release: ReleaseInfo }) {
                 onClick={scrollToAcpRegistry}
                 className="flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/5 border border-white/10 text-sm font-medium text-gray-300 transition hover:bg-white/10 hover:border-white/20 cursor-pointer"
               >
-                <Boxes className="w-4 h-4 text-gray-300 opacity-80" />+ {ACP_REGISTRY_AGENTS.length}{" "}
-                via ACP Registry
+                <Boxes className="w-4 h-4 text-gray-300 opacity-80" />
+                ~30 via ACP Registry
               </button>
             </div>
           </motion.div>
@@ -376,19 +382,9 @@ export function HomeContent({ release }: { release: ReleaseInfo }) {
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             <FeatureCard
-              icon={<Zap className="w-6 h-6" />}
-              title="Built for Speed"
-              description="Ultra-low latency orchestration for Claude, Codex, Gemini, Cursor, and Copilot. Fast, native, and lightweight."
-            />
-            <FeatureCard
               icon={<Layout className="w-6 h-6" />}
               title="Infinite Threads & Layouts"
               description="Mix TUI and GUI agents in any configuration. Support for infinite threads with complete layout freedom."
-            />
-            <FeatureCard
-              icon={<History className="w-6 h-6" />}
-              title="Save & Resume Sessions"
-              description="Persistence built-in for all CLI agent sessions. Save your progress and resume exactly where you left off."
             />
             <FeatureCard
               icon={<Layers className="w-6 h-6" />}
@@ -396,9 +392,29 @@ export function HomeContent({ release }: { release: ReleaseInfo }) {
               description="A consistent, premium GUI for both ACP and SDK agents. Seamless orchestration regardless of provider."
             />
             <FeatureCard
+              icon={<Terminal className="w-6 h-6" />}
+              title="Terminal Fidelity"
+              description="Run CLI agents in real terminal sessions, with the same output and controls you expect from your own shell."
+            />
+            <FeatureCard
+              icon={<Zap className="w-6 h-6" />}
+              title="Built for Speed"
+              description="Optimized to stay fast and responsive, even when you have lots of agent sessions running side by side."
+            />
+            <FeatureCard
+              icon={<History className="w-6 h-6" />}
+              title="Session Persistence"
+              description="Sessions are saved automatically, so you can close Lightcode and pick up right where you left off."
+            />
+            <FeatureCard
+              icon={<Globe className="w-6 h-6" />}
+              title="Built-in Browser"
+              description="Open web pages, attach browser context to agents, and keep research in the same workspace."
+            />
+            <FeatureCard
               icon={<GitBranch className="w-6 h-6" />}
-              title="Advanced Git Workflow"
-              description="View diffs, stage changes, generate AI commits, and manage GitHub PRs without leaving the app."
+              title="In-App GitHub PRs"
+              description="View diffs, stage changes, generate AI commits, and manage GitHub PRs directly inside Lightcode."
             />
             <FeatureCard
               icon={<FileCode2 className="w-6 h-6" />}
@@ -407,13 +423,13 @@ export function HomeContent({ release }: { release: ReleaseInfo }) {
             />
             <FeatureCard
               icon={<Monitor className="w-6 h-6" />}
-              title="Windows + WSL"
-              description="Mix Windows and WSL workspaces in the same context. Universal cross-platform support."
+              title="Cross-Platform Desktop"
+              description="Runs on macOS, Windows, and Linux, with a polished interface that feels at home on both Mac and Windows."
             />
             <FeatureCard
               icon={<Terminal className="w-6 h-6" />}
-              title="Terminal Fidelity"
-              description="Real terminal sessions backed by a live PTY. No abstractions, just raw terminal power."
+              title="WSL Support"
+              description="Use Windows and WSL projects side by side, with agent commands routed through the right environment automatically."
             />
           </div>
         </div>
@@ -434,8 +450,9 @@ export function HomeContent({ release }: { release: ReleaseInfo }) {
               <span className="text-gray-500">agent ecosystem.</span>
             </h2>
             <p className="text-gray-400 max-w-2xl mx-auto">
-              Lightcode installs and runs every agent published to the Agent Client Protocol
-              registry — one workspace, unified credentials, native UI.
+              Bring ACP registry agents into the workspace where your coding already happens. Chats,
+              terminals, browser context, and Git changes stay close by, so you can follow the work
+              without bouncing between tools.
             </p>
           </div>
 
@@ -463,19 +480,6 @@ export function HomeContent({ release }: { release: ReleaseInfo }) {
               </div>
             ))}
           </motion.div>
-
-          <p className="text-center text-xs text-gray-600 mt-10">
-            List sourced from{" "}
-            <a
-              href="https://agentclientprotocol.com"
-              target="_blank"
-              rel="noreferrer"
-              className="underline underline-offset-4 hover:text-gray-400"
-            >
-              agentclientprotocol.com
-            </a>
-            .
-          </p>
         </div>
       </section>
 

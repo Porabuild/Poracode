@@ -1,6 +1,5 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "installCommand": "pnpm install --frozen-lockfile",
-  "buildCommand": "node node_modules/next/dist/bin/next build --webpack",
+  "buildCommand": "VERCEL_PREVIEW_COMMENTS_ENABLED=0 node node_modules/next/dist/bin/next build --webpack",
   "outputDirectory": ".next"
 }

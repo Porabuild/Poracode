@@ -35,6 +35,13 @@ export interface ThreadSlice {
    * the runtime as authoritative.
    */
   lastRuntimeConfigByThreadId: Record<string, ThreadConfig>;
+  /**
+   * Ephemeral timestamp (ms) of the last time each thread was visible in a
+   * pane. Used by `sweepStaleThreads` so that opening an old thread resets its
+   * unload clock without bumping `updatedAt` (which would reshuffle sidebar
+   * sort). Not persisted — recreated as the user navigates after launch.
+   */
+  lastViewedAtByThreadId: Record<string, number>;
   markThreadsInactiveOnLaunch: () => void;
   createThread: (input: {
     projectId: string;
@@ -75,6 +82,8 @@ export interface ThreadSlice {
   archiveOldDoneThreads: (maxAgeDays: number) => void;
   markThreadExited: (threadId: string) => void;
   touchThread: (threadId: string) => void;
+  markThreadViewed: (threadId: string) => void;
+  markThreadsViewed: (threadIds: readonly string[]) => void;
   reconcileRuntimeSnapshots: (snapshots: ThreadRuntimeSnapshot[]) => void;
   reorderThreads: (sourceId: string, targetId: string, placement: ReorderPlacement) => void;
   reorderThreadBlock: (blockIds: string[], targetId: string, placement: ReorderPlacement) => void;
@@ -193,6 +202,7 @@ function deriveTurnTiming(
 export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
   threads: [],
   lastRuntimeConfigByThreadId: {},
+  lastViewedAtByThreadId: {},
   markThreadsInactiveOnLaunch: () =>
     set((state) => {
       let changed = false;
@@ -301,6 +311,8 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
         state.runtimeCompletedTurnsByThread;
       const { [threadId]: _droppedRuntimeConfig, ...lastRuntimeConfigByThreadId } =
         state.lastRuntimeConfigByThreadId;
+      const { [threadId]: _droppedLastViewed, ...lastViewedAtByThreadId } =
+        state.lastViewedAtByThreadId;
       return {
         threads: nextThreads,
         pendingThreadLaunches: Object.fromEntries(
@@ -316,6 +328,7 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
         runtimeStructuralVersionByThread,
         runtimeCompletedTurnsByThread,
         lastRuntimeConfigByThreadId,
+        lastViewedAtByThreadId,
         view: nextView,
       };
     }),
@@ -634,6 +647,33 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
         thread.id === threadId ? { ...thread, updatedAt: new Date().toISOString() } : thread,
       ),
     })),
+  markThreadViewed: (threadId) =>
+    set((state) => {
+      const now = Date.now();
+      if (state.lastViewedAtByThreadId[threadId] === now) return {};
+      return {
+        lastViewedAtByThreadId: {
+          ...state.lastViewedAtByThreadId,
+          [threadId]: now,
+        },
+      };
+    }),
+  markThreadsViewed: (threadIds) =>
+    set((state) => {
+      if (threadIds.length === 0) return {};
+      const now = Date.now();
+      let changed = false;
+      let next = state.lastViewedAtByThreadId;
+      for (const threadId of threadIds) {
+        if (next[threadId] === now) continue;
+        if (!changed) {
+          next = { ...next };
+          changed = true;
+        }
+        next[threadId] = now;
+      }
+      return changed ? { lastViewedAtByThreadId: next } : {};
+    }),
   reconcileRuntimeSnapshots: (snapshots) =>
     set((state) => {
       const snapshotsById = new Map(snapshots.map((snapshot) => [snapshot.threadId, snapshot]));

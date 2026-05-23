@@ -3,7 +3,9 @@ import type { RefObject } from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { readStoredNumber } from "@/renderer/utils/localStorage";
 
-export const SIDEBAR_MIN_WIDTH = 220;
+// Wide enough to fit a Home-row suffix button (terminal icon) plus a few
+// characters of an active thread title without truncating to ellipses.
+export const SIDEBAR_MIN_WIDTH = 240;
 const SIDEBAR_MAX_WIDTH = 500;
 const SIDEBAR_DEFAULT_WIDTH = 350;
 const PANEL_MIN_WIDTH = 320;

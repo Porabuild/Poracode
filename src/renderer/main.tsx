@@ -10,7 +10,7 @@ import {
   type RendererCrashKind,
   type RendererCrashReport,
 } from "./RendererCrashScreen";
-import { isIgnorableWindowError } from "./rendererGlobalErrors";
+import { isIgnorableRejection, isIgnorableWindowError } from "./rendererGlobalErrors";
 
 if (import.meta.env.DEV) {
   const warn = console.warn.bind(console);
@@ -110,6 +110,10 @@ window.addEventListener("error", (event) => {
 });
 
 window.addEventListener("unhandledrejection", (event) => {
+  if (isIgnorableRejection(event.reason)) {
+    event.preventDefault();
+    return;
+  }
   // Sentry's Electron renderer integration already captures global rejections; this only swaps UI.
   showCrash("unhandled-rejection", event.reason, undefined, { capture: false });
 });

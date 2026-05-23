@@ -6,7 +6,7 @@
 
 <p align="center">
   <strong>One window for all your AI coding agents.</strong><br />
-  Run Claude, Codex, Gemini, Cursor, OpenCode, and Copilot side-by-side. Terminal and chat, any layout.
+  Run Claude, Codex, OpenCode, Gemini, Antigravity, Cursor, and Copilot side-by-side. Terminal and chat, any layout.
 </p>
 
 <p align="center">
@@ -25,39 +25,51 @@
 
 ## Supported Agents
 
-**Claude** · **Codex** · **Gemini** · **Cursor** · **OpenCode** · **Copilot** and any agent from the [ACP registry](https://agentclientprotocol.com).
+**Claude** · **Codex** · **OpenCode** · **Gemini** · **Antigravity** · **Cursor** · **Copilot** and any agent from the [ACP registry](https://agentclientprotocol.com).
 
 ## Why Lightcode?
 
 If you use more than one AI coding agent, you know the pain: separate terminals, separate apps, no shared context. Lightcode puts them all in one place.
 
-### Split & Tile
+### Infinite Threads & Layouts
 
 Open as many agent threads as you need and arrange them in horizontal and vertical splits. Resize, stack, and rearrange freely. The layout stays fast no matter how many threads you have running.
 
-### Real Terminals
-
-CLI agents run in actual PTY sessions. The same output you'd see in your own terminal, nothing reformatted or abstracted away.
-
-### Chat UI for SDK & ACP Agents
+### Unified Protocol GUI
 
 Agents that support structured APIs (like ACP or provider SDKs) get a proper chat interface with markdown, syntax highlighting, and tool call displays.
 
-### Save & Resume
+### Terminal Fidelity
 
-CLI agent sessions persist to disk. Close the app, reopen it, and pick up where you left off.
+Run CLI agents in real terminal sessions, with the same output and controls you expect from your own shell.
 
-### Git Review
+### Built for Speed
 
-View diffs, stage files, generate commit messages with AI, and review GitHub PRs. All built in.
+Optimized to stay fast and responsive, even when you have lots of agent sessions running side by side.
+
+### Session Persistence
+
+Sessions are saved automatically, so you can close Lightcode and pick up right where you left off.
+
+### Built-in Browser
+
+Open web pages, attach browser context to agents, and keep research in the same workspace.
+
+### In-App GitHub PRs
+
+View diffs, stage files, generate commit messages with AI, and review GitHub PRs directly inside Lightcode.
 
 ### Code Editor
 
 Monaco-based editor with LSP support for quick edits without switching to your IDE.
 
-### Windows + WSL
+### Cross-Platform Desktop
 
-Use Windows and WSL projects in the same workspace. Lightcode routes agent commands through the right environment automatically.
+Run Lightcode on macOS, Windows, and Linux, with a polished interface that feels at home on both Mac and Windows.
+
+### WSL Support
+
+Use Windows and WSL projects side by side, with agent commands routed through the right environment automatically.
 
 ### ACP Registry
 

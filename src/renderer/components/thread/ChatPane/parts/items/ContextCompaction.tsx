@@ -18,7 +18,12 @@ export const ContextCompaction = memo(function ContextCompaction({ item }: Conte
       <Surface variant="transparent" className={chatMessageSurfaceClass}>
         <div className="inline-flex min-w-0 items-center gap-1.5 text-[length:var(--lc-chat-font-size-meta)] text-foreground-muted">
           <Layers className="size-3 shrink-0 lightcode-compacting-icon" />
-          <span className="lightcode-thinking-text">Compacting context</span>
+          <span
+            className="lightcode-thinking-text"
+            data-lightcode-shimmer-text="Compacting context"
+          >
+            Compacting context
+          </span>
         </div>
       </Surface>
     );

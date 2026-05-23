@@ -1,20 +1,22 @@
 import { startTransition } from "react";
-import { ChevronDown, FolderOpen, Monitor } from "lucide-react";
+import { ChevronDown, FolderOpen, House, Monitor } from "lucide-react";
 import { Dropdown, Label } from "@heroui/react";
 import { useShallow } from "zustand/shallow";
 import type { Project } from "@/shared/contracts";
+import { HOME_PROJECT_NAME, isHomeProject, isHomeProjectId } from "@/shared/homeScope";
 import { makeDraftPaneId } from "@/shared/paneId";
 import { useAppStore } from "@/renderer/state/appStore";
 import { TuxIcon } from "@/renderer/components/common/TuxIcon";
 
-function LocationIcon(props: { kind: Project["location"]["kind"] }) {
+function LocationIcon(props: { kind: Project["location"]["kind"]; className?: string }) {
+  const className = `${props.className ?? "size-4"} shrink-0 text-muted`;
   if (props.kind === "wsl") {
-    return <TuxIcon className="size-4 shrink-0 text-muted" />;
+    return <TuxIcon className={className} />;
   }
   if (props.kind === "windows") {
-    return <Monitor className="size-4 shrink-0 text-muted" />;
+    return <Monitor className={className} />;
   }
-  return <FolderOpen className="size-4 shrink-0 text-muted" />;
+  return <FolderOpen className={className} />;
 }
 
 export function ProjectSwitchMenu(props: {
@@ -24,12 +26,24 @@ export function ProjectSwitchMenu(props: {
   paneId?: string;
 }) {
   const { currentProjectId, variant, paneId } = props;
-  const projects = useAppStore(useShallow((state) => state.projects.filter((p) => !p.disabled)));
+  // Show every selectable project. Home is intentionally stored with
+  // `disabled: true` as an internal marker (it's not a user-disabled
+  // project), so we let it through the filter and only exclude
+  // user-disabled regular projects.
+  const projects = useAppStore(
+    useShallow((state) => state.projects.filter((p) => isHomeProject(p) || !p.disabled)),
+  );
   const openDraft = useAppStore((state) => state.openDraft);
   const replacePaneId = useAppStore((state) => state.replacePaneId);
 
   const current = projects.find((p) => p.id === currentProjectId);
-  const label = current?.name ?? "Select project";
+  const isHomeCurrent = isHomeProjectId(currentProjectId);
+  const label = isHomeCurrent ? HOME_PROJECT_NAME : (current?.name ?? "Select project");
+  const triggerIcon = isHomeCurrent ? (
+    <House className="size-3.5 shrink-0 text-muted" />
+  ) : current ? (
+    <LocationIcon kind={current.location.kind} className="size-3.5" />
+  ) : null;
   const isDisabled = projects.length <= 1;
 
   function handleSelect(nextProjectId: string) {
@@ -51,12 +65,20 @@ export function ProjectSwitchMenu(props: {
       onAction={(key) => handleSelect(String(key))}
       className="lightcode-menu min-w-56"
     >
-      {projects.map((project) => (
-        <Dropdown.Item key={project.id} id={project.id} textValue={project.name}>
-          <LocationIcon kind={project.location.kind} />
-          <Label>{project.name}</Label>
-        </Dropdown.Item>
-      ))}
+      {projects.map((project) => {
+        const isHome = isHomeProject(project);
+        const itemLabel = isHome ? HOME_PROJECT_NAME : project.name;
+        return (
+          <Dropdown.Item key={project.id} id={project.id} textValue={itemLabel}>
+            {isHome ? (
+              <House className="size-4 shrink-0 text-muted" />
+            ) : (
+              <LocationIcon kind={project.location.kind} />
+            )}
+            <Label>{itemLabel}</Label>
+          </Dropdown.Item>
+        );
+      })}
     </Dropdown.Menu>
   );
 
@@ -87,6 +109,7 @@ export function ProjectSwitchMenu(props: {
         isDisabled={isDisabled}
         className="group inline-flex min-w-0 max-w-full items-center gap-1 rounded px-1 py-0.5 text-sm leading-tight text-muted/60 outline-none transition-colors hover:bg-white/[0.04] hover:text-foreground focus-visible:bg-white/[0.04] disabled:cursor-default disabled:hover:bg-transparent disabled:hover:text-muted/60"
       >
+        {triggerIcon}
         <span className="min-w-0 truncate">{label}</span>
         {!isDisabled ? (
           <ChevronDown className="size-3 shrink-0 opacity-60 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100" />

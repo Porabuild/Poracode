@@ -19,7 +19,15 @@ export function useBrowserSync(): void {
       } else if (event.type === "tab-attention") {
         setAttention(event.tabId);
       } else if (event.type === "open-panel") {
-        usePanelStore.getState().openBrowserPanel();
+        const panel = usePanelStore.getState();
+        if (event.mode === "overlay") {
+          panel.setBrowserOverlayOpen(true);
+        } else {
+          if (event.mode === "panel") {
+            panel.setBrowserOverlayOpen(false);
+          }
+          panel.openBrowserPanel();
+        }
       } else if (event.type === "picker-cancelled") {
         setPickerActive(false);
       }

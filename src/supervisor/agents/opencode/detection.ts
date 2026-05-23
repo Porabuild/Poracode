@@ -2,6 +2,10 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import { stripAnsi } from "@/shared/ansi";
 import {
+  OPENCODE_BROWSER_MCP_DEFAULT,
+  OPENCODE_BROWSER_MCP_SETTING_KEY,
+} from "@/shared/opencodeSettings";
+import {
   type AgentSlashCommand,
   compactAgentProviderMetadata,
   type AgentCapability,
@@ -56,7 +60,16 @@ export const opencodeDefaultCapabilities: AgentCapability = {
   // the same SDK helper for one-shot session-id allocation.
   presentationModes: ["terminal", "gui"],
   bypassApprovalPolicy: "yolo",
-  settingDefs: [],
+  settingDefs: [
+    {
+      key: OPENCODE_BROWSER_MCP_SETTING_KEY,
+      type: "toggle",
+      env: {},
+      label: "Use Browser",
+      description: "Expose Lightcode's internal browser to OpenCode via MCP.",
+      default: OPENCODE_BROWSER_MCP_DEFAULT,
+    },
+  ],
 };
 
 /**

@@ -669,7 +669,9 @@ function WorkingFor({ turn, isPaused }: { turn: TurnTiming; isPaused: boolean })
       if (!node) return;
       if (turn.endedAt !== null) {
         const elapsedSeconds = Math.max(0, Math.floor((turn.endedAt - turn.startedAt) / 1000));
-        node.textContent = elapsedSeconds < 1 ? "" : `Worked for ${formatElapsed(elapsedSeconds)}`;
+        const text = elapsedSeconds < 1 ? "" : `Worked for ${formatElapsed(elapsedSeconds)}`;
+        node.textContent = text;
+        node.dataset.lightcodeShimmerText = text;
         return;
       }
       const pauseState = pauseStateRef.current;
@@ -678,7 +680,9 @@ function WorkingFor({ turn, isPaused }: { turn: TurnTiming; isPaused: boolean })
         pauseState.pausedSinceMs !== null ? Math.max(0, now - pauseState.pausedSinceMs) : 0;
       const elapsedMs = now - turn.startedAt - pauseState.accumulatedPauseMs - currentPauseMs;
       const elapsedSeconds = Math.max(0, Math.floor(elapsedMs / 1000));
-      node.textContent = elapsedSeconds < 1 ? "" : `Working for ${formatElapsed(elapsedSeconds)}`;
+      const text = elapsedSeconds < 1 ? "" : `Working for ${formatElapsed(elapsedSeconds)}`;
+      node.textContent = text;
+      node.dataset.lightcodeShimmerText = text;
     };
 
     if (isPaused) {

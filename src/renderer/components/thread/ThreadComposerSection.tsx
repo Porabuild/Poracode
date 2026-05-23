@@ -18,7 +18,6 @@ import {
   MentionInput,
   useAttachments,
 } from "../composer";
-import { getBrowserMcpScope } from "../composer/browserMcpScope";
 import type { MentionInputHandle } from "../composer";
 import { flattenSegments } from "../composer/serializeMentions";
 import { getComposerControls } from "../providers";
@@ -332,8 +331,11 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
   const presentationMode =
     thread.presentationMode ?? agentStatus?.capabilities.presentationMode ?? "terminal";
   const usesTerminalPresentation = presentationMode === "terminal";
-  const browserMcpScope = getBrowserMcpScope(thread.agentKind, presentationMode);
-  const browserMcpToggleableHere = browserMcpScope === "always";
+  // Browser MCP is bound at session-create time for every provider, so a
+  // mid-thread toggle would not actually attach (or detach) the MCP server in
+  // the running agent process. The toggle is hidden in the active-thread
+  // composer; users set it in the draft composer before launch.
+  const browserMcpToggleableHere = false;
   const availableCommands = resolveAvailableSlashCommands(
     thread.slashCommands,
     agentStatus?.capabilities.slashCommands,

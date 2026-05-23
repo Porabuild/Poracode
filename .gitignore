@@ -16,6 +16,7 @@ lightcode-diff.patch
 .spec-workflow/
 **/worktrees/
 .cursor/
+.antigravitycli/
 .recovery/
 resources/wsl-helpers/watcher.node
 resources/wsl-helpers/bridge.mjs

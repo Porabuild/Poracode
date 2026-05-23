@@ -636,7 +636,7 @@ describe("OpencodeSdkSession", () => {
     );
   });
 
-  it("sends migrated handoff context attachments as Markdown", async () => {
+  it("sends text-like attachments as text/plain file parts", async () => {
     const promptAsync = vi
       .fn<(input: unknown) => Promise<{ data: unknown }>>()
       .mockResolvedValue({ data: {} });
@@ -667,7 +667,9 @@ describe("OpencodeSdkSession", () => {
     await session.openThread(config);
     await session.startTurn("Finish refactoring", config, [
       { kind: "text", content: "Use the attached context file.\n\n" },
-      { kind: "attachment", path: "/tmp/handoff-context.md" },
+      { kind: "file", path: "README.md" },
+      { kind: "attachment", path: "/tmp/handoff-context.md", mimeType: "text/markdown" },
+      { kind: "attachment", path: "/tmp/package.json", mimeType: "application/json" },
       { kind: "text", content: "\n\nFinish refactoring" },
     ]);
 
@@ -676,11 +678,75 @@ describe("OpencodeSdkSession", () => {
         parts: expect.arrayContaining([
           {
             type: "file",
-            mime: "text/markdown",
+            mime: "text/plain",
+            filename: "README.md",
+            url: "file:///repo/README.md",
+          },
+          {
+            type: "file",
+            mime: "text/plain",
             filename: "handoff-context.md",
             url: "file:///tmp/handoff-context.md",
           },
+          {
+            type: "file",
+            mime: "text/plain",
+            filename: "package.json",
+            url: "file:///tmp/package.json",
+          },
         ]),
+      }),
+    );
+  });
+
+  it("retries media-type rejections with text fallback without surfacing the first error", async () => {
+    const promptAsync = vi.fn<(input: unknown) => Promise<{ data: unknown }>>();
+    promptAsync
+      .mockRejectedValueOnce(
+        new Error("file part media type image/bmp functionality not supported"),
+      )
+      .mockResolvedValue({ data: {} });
+
+    mocks.acquireOpenCodeServer.mockResolvedValue({
+      client: {
+        command: { list: vi.fn<() => Promise<{ data: [] }>>().mockResolvedValue({ data: [] }) },
+        session: {
+          create: vi
+            .fn<(input: unknown) => Promise<{ data: { id: string } }>>()
+            .mockResolvedValue({ data: { id: "ses_test" } }),
+          promptAsync,
+        },
+      },
+      baseUrl: "http://127.0.0.1:0",
+      handle: {},
+      dispose: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+    });
+
+    const session = await OpencodeSdkSession.create({
+      threadId: "thread-opencode",
+      projectLocation,
+      config,
+      presentationMode: "terminal",
+    });
+
+    await session.activate();
+    await session.openThread(config);
+
+    await expect(
+      session.startTurn("inspect image", config, [
+        { kind: "text", content: "inspect " },
+        { kind: "attachment", path: "/tmp/screenshot.bmp", mimeType: "image/bmp" },
+      ]),
+    ).resolves.toBeUndefined();
+
+    expect(promptAsync).toHaveBeenCalledTimes(2);
+    expect(promptAsync).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        parts: [
+          { type: "text", text: "inspect " },
+          { type: "text", text: "Attached file could not be sent: /tmp/screenshot.bmp" },
+        ],
       }),
     );
   });

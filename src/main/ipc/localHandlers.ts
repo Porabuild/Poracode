@@ -92,7 +92,12 @@ export function createLocalIpcHandlers(
     saveHandoffContext: (payload) =>
       saveHandoffContextFile(options.requireLightcodePaths(), payload),
     openExternal: async (url) => {
-      await shell.openExternal(assertSafeExternalUrl(url));
+      const safeUrl = assertSafeExternalUrl(url);
+      const browserPanel = options.getBrowserPanelManager();
+      if (browserPanel && (await browserPanel.openLink(safeUrl))) {
+        return;
+      }
+      await shell.openExternal(safeUrl);
     },
     focusWindow: () => {
       const win = options.getMainWindow();

@@ -1,4 +1,5 @@
 import type { AgentCapability, PromptSegment } from "@/shared/contracts";
+import { isOpenCodeBrowserMcpEnabled } from "@/shared/opencodeSettings";
 import { EXTRACTION_PROMPT } from "@/supervisor/contextExtractor";
 import {
   createKnownSessionRef,
@@ -17,6 +18,7 @@ import {
   installOpenCodePlugin,
   isOpenCodePluginInstalled,
   readBundledOpenCodePluginVersion,
+  syncOpenCodeBrowserMcpConfigFile,
   uninstallOpenCodePlugin,
 } from "./plugin/install";
 import { runOpenCodeOneShot } from "./sdkOneShot";
@@ -105,6 +107,10 @@ export function createOpenCodeAdapter(): AgentAdapter {
     // so the supervisor knows the providerSessionId synchronously instead of
     // polling `opencode session list` after spawn.
     buildLaunchArgv(_location, config, prompt, _sessionRef, launchOptions) {
+      syncOpenCodeBrowserMcpConfigFile(
+        _location,
+        isOpenCodeBrowserMcpEnabled(launchOptions?.agentSettings),
+      );
       const sessionId = launchOptions?.resumeThreadId;
       const args = buildOpenCodeArgs(config, prompt, sessionId);
       return {
@@ -113,7 +119,11 @@ export function createOpenCodeAdapter(): AgentAdapter {
         ...(sessionId ? { sessionRef: createKnownSessionRef(sessionId) } : {}),
       };
     },
-    buildResumeArgv(_location, config, prompt, sessionRef) {
+    buildResumeArgv(_location, config, prompt, sessionRef, launchOptions) {
+      syncOpenCodeBrowserMcpConfigFile(
+        _location,
+        isOpenCodeBrowserMcpEnabled(launchOptions?.agentSettings),
+      );
       return {
         binary: "opencode",
         args: buildOpenCodeArgs(config, prompt, sessionRef.providerSessionId),

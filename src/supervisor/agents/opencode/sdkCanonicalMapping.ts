@@ -33,6 +33,7 @@ import {
   usageFromTokenCounts,
 } from "../contextUsage";
 
+import { normalizeOpenCodeFileChangeMetadata } from "./sdkCanonicalFileChangeMetadata";
 import {
   createOpenCodeMapperState,
   isOpenCodeChildSession,
@@ -78,7 +79,7 @@ function classifyToolItemType(toolName: string): CanonicalItemType {
   if (/(^|[_-])(create|edit|write|patch|multiedit)($|[_-])/.test(n)) {
     return "file_change";
   }
-  if (/(^|[_-])(webfetch|websearch|search)($|[_-])/.test(n)) {
+  if (/(^|[_-])(webfetch|websearch)($|[_-])/.test(n)) {
     return "web_search";
   }
   return "tool_call";
@@ -172,6 +173,7 @@ function openCodeToolKind(
       return "read";
     case "glob":
     case "grep":
+    case "search":
       return "search";
     case "webfetch":
       return "fetch";
@@ -199,11 +201,12 @@ function openCodeToolTitle(
       return readOpenCodePath(input) ?? "Read";
     case "glob":
       return readStringField(input, "pattern", "glob") ?? "Glob";
+    case "search":
     case "grep": {
       const pattern = readStringField(input, "pattern", "query", "needle");
-      const scope = readStringField(input, "path", "glob");
+      const scope = readStringField(input, "path", "glob", "include");
       if (pattern && scope) return `"${pattern}" in ${scope}`;
-      return pattern ?? "Grep";
+      return pattern ?? (normalizeToolName(toolName) === "search" ? "Search" : "Grep");
     }
     case "webfetch":
       return readStringField(input, "url") ?? "Fetch";
@@ -225,7 +228,7 @@ function openCodeToolLocations(
     const path = readOpenCodePath(input);
     return path ? [{ path }] : undefined;
   }
-  if (n === "grep") {
+  if (n === "grep" || n === "search") {
     const path = readStringField(input, "path");
     return path ? [{ path }] : undefined;
   }
@@ -362,10 +365,13 @@ function toolPayload(
     };
   }
   if (itemType === "file_change") {
-    const path = readFileChangePath(input, result, metadata, partMetadata, title) ?? "";
-    const diffSummary = readDiffSummary(input, result, metadata, partMetadata);
+    const fileChangeMetadata = normalizeOpenCodeFileChangeMetadata(metadata);
+    const path =
+      readFileChangePath(fileChangeMetadata, input, result, metadata, partMetadata, title) ?? "";
+    const diffSummary = readDiffSummary(fileChangeMetadata, input, result, metadata, partMetadata);
     return {
       ...base,
+      ...(fileChangeMetadata ? { metadata: fileChangeMetadata } : {}),
       // OpenCode's edit/write tools overwrite `state.title` on completion
       // with the human-readable result message ("Success. Updated the
       // following files: M src/foo.ts"). The path is extracted separately
@@ -373,7 +379,14 @@ function toolPayload(
       // instead of the polluted title.
       name: toolName,
       path,
-      changeKind: inferFileChangeKind(toolName, input, result, metadata, partMetadata),
+      changeKind: inferFileChangeKind(
+        toolName,
+        input,
+        result,
+        fileChangeMetadata,
+        metadata,
+        partMetadata,
+      ),
       ...(diffSummary ? { diffSummary } : {}),
     };
   }

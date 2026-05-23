@@ -1,5 +1,20 @@
+import { toast } from "@heroui/react";
 import type { ProjectLocation } from "@/shared/contracts";
 import { readBridge } from "@/renderer/bridge";
+
+interface StartShellPayload {
+  shellId: string;
+  projectLocation: ProjectLocation;
+  worktreePath?: string;
+}
+
+export function startShellWithToast(payload: StartShellPayload, label: string): void {
+  void readBridge()
+    .startShell(payload)
+    .catch((error) =>
+      toast.danger(error instanceof Error ? error.message : `Unable to start ${label}.`),
+    );
+}
 
 export function normalizeShellScript(script: string): string {
   return script

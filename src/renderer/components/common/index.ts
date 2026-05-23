@@ -17,3 +17,4 @@ export * from "./Select";
 export * from "./SidebarButton";
 export * from "./TextArea";
 export * from "./TuxIcon";
+export * from "./AnimatingPlanIcon";

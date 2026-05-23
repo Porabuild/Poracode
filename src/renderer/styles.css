@@ -2,27 +2,30 @@
 @import "@heroui/styles";
 @import "@xterm/xterm/css/xterm.css";
 
-@property --composer-border-angle {
-  syntax: "<angle>";
-  initial-value: 0deg;
-  inherits: false;
-}
-
 @property --lc-chat-bottom-mask-end-alpha {
   syntax: "<number>";
   initial-value: 0;
   inherits: false;
 }
 
-@property --lc-goal-shine-angle {
+@property --ring-angle-1 {
+  syntax: "<angle>";
+  initial-value: 0deg;
+  inherits: false;
+}
+
+@property --ring-angle-2 {
   syntax: "<angle>";
   initial-value: 0deg;
   inherits: false;
 }
 
 @keyframes lightcode-composer-border-spin {
+  from {
+    transform: translate(-50%, -50%) rotate(0deg);
+  }
   to {
-    --composer-border-angle: 360deg;
+    transform: translate(-50%, -50%) rotate(360deg);
   }
 }
 
@@ -37,9 +40,44 @@
   }
 }
 
-@keyframes lightcode-welcome-ring-spin {
+@keyframes lightcode-ring-spin-1 {
+  from {
+    --ring-angle-1: 0deg;
+  }
   to {
-    transform: rotate(360deg);
+    --ring-angle-1: 360deg;
+  }
+}
+
+@keyframes lightcode-ring-spin-2 {
+  from {
+    --ring-angle-2: 360deg;
+  }
+  to {
+    --ring-angle-2: 0deg;
+  }
+}
+
+@keyframes lightcode-lightning-glow {
+  0%,
+  100% {
+    box-shadow:
+      0 0 0 1px color-mix(in oklab, var(--accent) 38%, transparent),
+      0 0 18px color-mix(in oklab, var(--accent) 22%, transparent),
+      0 0 32px color-mix(in oklab, var(--accent) 10%, transparent);
+  }
+  33% {
+    box-shadow:
+      0 0 0 1px color-mix(in oklab, var(--accent) 55%, transparent),
+      0 0 24px color-mix(in oklab, var(--accent) 30%, transparent),
+      0 0 40px color-mix(in oklab, var(--accent) 15%, transparent),
+      0 0 8px color-mix(in oklab, #fff 20%, transparent);
+  }
+  66% {
+    box-shadow:
+      0 0 0 1px color-mix(in oklab, var(--accent) 45%, transparent),
+      0 0 14px color-mix(in oklab, var(--accent) 24%, transparent),
+      0 0 28px color-mix(in oklab, var(--accent) 12%, transparent);
   }
 }
 
@@ -126,21 +164,67 @@
 }
 
 .lightcode-welcome-ring {
-  background:
-    linear-gradient(135deg, rgba(255, 255, 255, 0.16), transparent 42%),
-    conic-gradient(
-      from 90deg,
-      transparent 0deg,
-      color-mix(in oklab, var(--accent) 82%, white) 58deg,
-      transparent 132deg,
-      transparent 360deg
-    );
+  box-shadow:
+    0 0 0 1px color-mix(in oklab, var(--accent) 38%, transparent),
+    0 0 18px color-mix(in oklab, var(--accent) 22%, transparent);
   animation:
     lightcode-welcome-reveal 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) both,
-    lightcode-welcome-ring-spin 5.5s linear infinite;
-  animation-delay: 2s, 0s;
-  opacity: 0.74;
+    lightcode-lightning-glow 4s ease-in-out infinite;
+  animation-delay: 2s, 2.8s;
   transform: translateZ(0);
+}
+
+.lightcode-welcome-ring::before,
+.lightcode-welcome-ring::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  padding: 2px;
+  border-radius: inherit;
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  mix-blend-mode: screen;
+  pointer-events: none;
+}
+
+.lightcode-welcome-ring::before {
+  background: conic-gradient(
+    from var(--ring-angle-1) at center,
+    transparent 0deg,
+    transparent 180deg,
+    color-mix(in oklab, var(--accent) 15%, transparent) 220deg,
+    var(--accent) 270deg,
+    #ffffff 295deg,
+    var(--accent) 320deg,
+    color-mix(in oklab, var(--accent) 15%, transparent) 350deg,
+    transparent 360deg
+  );
+  filter: blur(0.5px);
+  animation: lightcode-ring-spin-1 6s linear infinite;
+  will-change: transform;
+}
+
+.lightcode-welcome-ring::after {
+  background: conic-gradient(
+    from var(--ring-angle-2) at center,
+    transparent 0deg,
+    transparent 120deg,
+    color-mix(in oklab, var(--accent) 15%, transparent) 160deg,
+    var(--accent) 220deg,
+    #ffffff 250deg,
+    var(--accent) 280deg,
+    color-mix(in oklab, var(--accent) 15%, transparent) 320deg,
+    transparent 360deg
+  );
+  filter: blur(0.6px);
+  animation: lightcode-ring-spin-2 4s linear infinite;
+  will-change: transform;
 }
 
 .lightcode-welcome-light {
@@ -297,21 +381,31 @@
 /* Goal dock active indicator — rotates a soft accent arc around the
    target icon to suggest work in progress. The icon itself is already a
    bullseye, so a thin ring traveling around it reads as "shining in
-   circle". A gentle outer drop-shadow pulse adds depth without competing
-   with the rotating shine. */
+   circle". A gentle outer halo pulse adds depth without competing with
+   the rotating shine.
+
+   Both animations are compositor-only: the shine rotates via `transform`
+   (not a CSS-var-driven conic gradient, which would repaint every frame)
+   and the halo pulses via opacity on a separate `::after` (not via the
+   parent's `filter: drop-shadow()`, which would re-rasterize every frame).
+   Both pseudos are layer-promoted so the work stays out of ancestor
+   paint layers. */
 @keyframes lightcode-goal-shine-spin {
+  from {
+    transform: translate3d(0, 0, 0) rotate(0deg);
+  }
   to {
-    --lc-goal-shine-angle: 360deg;
+    transform: translate3d(0, 0, 0) rotate(360deg);
   }
 }
 
 @keyframes lightcode-goal-active-pulse {
   0%,
   100% {
-    filter: drop-shadow(0 0 0.15rem color-mix(in oklab, var(--snow, white) 45%, transparent));
+    opacity: 0.45;
   }
   50% {
-    filter: drop-shadow(0 0 0.45rem color-mix(in oklab, var(--snow, white) 85%, transparent));
+    opacity: 1;
   }
 }
 
@@ -321,33 +415,65 @@
   align-items: center;
   justify-content: center;
   border-radius: 50%;
-  animation: lightcode-goal-active-pulse 2.4s ease-in-out infinite;
+  /* Keep the icon's paint contained so the halo/shine animations don't drag
+     the parent goal-dock surface into per-frame repaints. `isolation` makes
+     the icon a stacking context; `will-change` + `transform` promote it to
+     its own compositor layer so the pseudos' transforms/opacity animate
+     entirely on the GPU and don't invalidate the surface's paint layer. */
+  isolation: isolate;
+  will-change: transform;
+  transform: translateZ(0);
 }
 
-.lightcode-goal-active-icon::before {
-  content: "";
+.lightcode-goal-active-icon__ring {
   position: absolute;
-  /* Orbit just outside the icon's bounding box so the full Target icon stays
-     visible and the light appears to circle around it. */
   inset: -3px;
   border-radius: 50%;
-  background: conic-gradient(
-    from var(--lc-goal-shine-angle),
-    transparent 0deg,
-    var(--snow, white) 60deg,
-    var(--snow, white) 90deg,
-    transparent 140deg,
-    transparent 360deg
-  );
   -webkit-mask: radial-gradient(
     closest-side,
     transparent calc(100% - 1.5px),
     #000 calc(100% - 1.5px)
   );
   mask: radial-gradient(closest-side, transparent calc(100% - 1.5px), #000 calc(100% - 1.5px));
-  filter: drop-shadow(0 0 2px var(--snow, white))
-    drop-shadow(0 0 4px color-mix(in oklab, var(--snow, white) 60%, transparent));
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.lightcode-goal-active-icon__ring::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: conic-gradient(
+    from 0deg,
+    transparent 0deg,
+    var(--snow, white) 60deg,
+    var(--snow, white) 90deg,
+    transparent 140deg,
+    transparent 360deg
+  );
   animation: lightcode-goal-shine-spin 1.6s linear infinite;
+  will-change: transform;
+  transform: translate3d(0, 0, 0);
+}
+
+/* Outer halo pulse. Replaces the parent's animated `filter: drop-shadow()`
+   with an opacity-animated radial-gradient sphere — same soft glow, but
+   only `opacity` changes (compositor-friendly, no per-frame paint). */
+.lightcode-goal-active-icon::after {
+  content: "";
+  position: absolute;
+  inset: -6px;
+  border-radius: 50%;
+  background: radial-gradient(
+    closest-side,
+    color-mix(in oklab, var(--snow, white) 70%, transparent) 0%,
+    color-mix(in oklab, var(--snow, white) 35%, transparent) 45%,
+    transparent 80%
+  );
+  z-index: -1;
+  animation: lightcode-goal-active-pulse 2.4s ease-in-out infinite;
+  will-change: opacity;
   pointer-events: none;
 }
 
@@ -930,12 +1056,18 @@ html[data-platform="darwin"] .lightcode-content-over-drag-region--drag {
   justify-content: center;
   color: color-mix(in oklab, var(--muted) 80%, var(--foreground));
   vertical-align: middle;
+  /* Stacking context so the scan overlay composites cleanly above the SVG
+     without joining the parent sidebar row's paint layer. (Doesn't clip,
+     unlike `contain: paint` — the working drop-shadow can still bleed out.) */
+  isolation: isolate;
 }
 
 .lightcode-provider-icon__svg {
   width: 100%;
   height: 100%;
   overflow: visible;
+  will-change: filter, transform;
+  transform: translate3d(0, 0, 0);
 }
 
 .lightcode-provider-icon__fill {
@@ -952,6 +1084,13 @@ html[data-platform="darwin"] .lightcode-content-over-drag-region--drag {
   -webkit-mask-position: center;
   -webkit-mask-repeat: no-repeat;
   -webkit-mask-size: contain;
+  will-change: filter, transform;
+  transform: translate3d(0, 0, 0);
+}
+
+.lightcode-provider-icon svg {
+  will-change: filter, transform;
+  transform: translate3d(0, 0, 0);
 }
 
 .lightcode-provider-icon--external .lightcode-provider-icon__mask {
@@ -959,20 +1098,46 @@ html[data-platform="darwin"] .lightcode-content-over-drag-region--drag {
   height: 88%;
 }
 
+/* Working-state shine overlay. The element is clipped to the brand shape via
+   `mask-image` (set inline from the provider's path data or icon URL). An
+   inner `__mask-scan-band` carries the gradient and animates `transform`, so
+   the shine runs entirely on the compositor — no paint per frame. */
 .lightcode-provider-icon__mask-scan {
   position: absolute;
   inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  opacity: 0.95;
+  mask-position: center;
+  mask-repeat: no-repeat;
+  mask-size: contain;
+  -webkit-mask-position: center;
+  -webkit-mask-repeat: no-repeat;
+  -webkit-mask-size: contain;
+  will-change: transform;
+  transform: translate3d(0, 0, 0);
+}
+
+.lightcode-provider-icon__mask-scan::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  /* Band stretches 3× the parent so the gradient peak can start fully off the
+     left edge and end fully off the right — matches the original SMIL sweep. */
+  left: -100%;
+  width: 300%;
   background: linear-gradient(
     90deg,
     transparent 0%,
     transparent 40%,
-    rgba(255, 255, 255, 0.98) 52%,
-    transparent 64%,
+    rgba(255, 255, 255, 0.98) 50%,
+    transparent 60%,
     transparent 100%
   );
-  background-size: 220% 100%;
-  opacity: 0.95;
+  transform: translate3d(-33.333%, 0, 0);
   animation: lightcode-provider-icon-mask-scan 1.45s linear infinite;
+  will-change: transform;
 }
 
 .lightcode-provider-icon--external .lightcode-provider-icon__mask-scan {
@@ -996,10 +1161,10 @@ html[data-platform="darwin"] .lightcode-content-over-drag-region--drag {
 
 @keyframes lightcode-provider-icon-mask-scan {
   from {
-    background-position: 170% 0;
+    transform: translate3d(-33.333%, 0, 0);
   }
   to {
-    background-position: -70% 0;
+    transform: translate3d(33.333%, 0, 0);
   }
 }
 
@@ -1024,6 +1189,11 @@ html[data-platform="darwin"] .lightcode-content-over-drag-region--drag {
 
 .lightcode-provider-icon--working {
   color: color-mix(in oklab, var(--working-tone) 92%, var(--white));
+}
+
+.lightcode-provider-icon--working .lightcode-provider-icon__svg,
+.lightcode-provider-icon--working
+  .lightcode-provider-icon__mask:not(.lightcode-provider-icon__mask-scan) {
   filter: drop-shadow(0 0 0.25rem color-mix(in oklab, var(--working-tone) 45%, transparent))
     drop-shadow(0 0 0.5rem color-mix(in oklab, var(--working-tone) 22%, transparent));
 }
@@ -1035,42 +1205,44 @@ html[data-platform="darwin"] .lightcode-content-over-drag-region--drag {
 
 .lightcode-provider-icon--attention {
   color: var(--warning);
-  filter: drop-shadow(0 0 0.3rem color-mix(in oklab, var(--warning) 48%, transparent));
   animation: lightcode-attention-pulse 1.8s ease-in-out infinite;
+  will-change: opacity, transform;
+  transform: translate3d(0, 0, 0);
+}
+
+.lightcode-provider-icon--attention svg {
+  filter: drop-shadow(0 0 0.35rem color-mix(in oklab, var(--warning) 55%, transparent));
 }
 
 @keyframes lightcode-attention-pulse {
   0%,
   100% {
     opacity: 0.55;
-    filter: drop-shadow(0 0 0.1rem color-mix(in oklab, var(--warning) 25%, transparent))
-      drop-shadow(0 0 0.2rem color-mix(in oklab, var(--warning) 10%, transparent));
   }
   50% {
     opacity: 1;
-    filter: drop-shadow(0 0 0.2rem color-mix(in oklab, var(--warning) 70%, transparent))
-      drop-shadow(0 0 0.4rem color-mix(in oklab, var(--warning) 35%, transparent));
   }
 }
 
 .lightcode-provider-icon--finished {
   color: oklch(0.82 0.12 260);
-  filter: drop-shadow(0 0 0.3rem oklch(0.82 0.12 260 / 0.5))
-    drop-shadow(0 0 0.6rem oklch(0.82 0.12 260 / 0.2));
   animation: lightcode-finished-pulse 1.8s ease-in-out infinite;
+  will-change: opacity, transform;
+  transform: translate3d(0, 0, 0);
+}
+
+.lightcode-provider-icon--finished svg {
+  filter: drop-shadow(0 0 0.35rem oklch(0.82 0.12 260 / 0.55))
+    drop-shadow(0 0 0.7rem oklch(0.82 0.12 260 / 0.25));
 }
 
 @keyframes lightcode-finished-pulse {
   0%,
   100% {
     opacity: 0.55;
-    filter: drop-shadow(0 0 0.1rem oklch(0.82 0.12 260 / 0.25))
-      drop-shadow(0 0 0.2rem oklch(0.82 0.12 260 / 0.1));
   }
   50% {
     opacity: 1;
-    filter: drop-shadow(0 0 0.2rem oklch(0.82 0.12 260 / 0.7))
-      drop-shadow(0 0 0.4rem oklch(0.82 0.12 260 / 0.35));
   }
 }
 
@@ -1087,82 +1259,57 @@ html[data-platform="darwin"] .lightcode-content-over-drag-region--drag {
   pointer-events: none;
 }
 
-/* Streaming-reasoning brain icon: individual SVG paths flicker out of phase to
-   suggest neurons firing inside the brain, while the whole icon carries a
-   softer drop-shadow glow. Pure-CSS so it costs nothing per frame compared to
-   the PixelLoader it replaces. The lucide Brain icon is composed of multiple
-   `<path>` children — we stagger their animation-delay with irregular offsets
-   to avoid a marching-band cadence. */
-.lightcode-brain-thinking {
-  animation: lightcode-brain-glow 2.4s ease-in-out infinite;
-}
-
-.lightcode-brain-thinking path {
-  animation: lightcode-brain-spark 1.4s ease-in-out infinite;
-}
-
-.lightcode-brain-thinking path:nth-child(1) {
-  animation-delay: 0s;
-}
-.lightcode-brain-thinking path:nth-child(2) {
-  animation-delay: 0.42s;
-}
-.lightcode-brain-thinking path:nth-child(3) {
-  animation-delay: 0.18s;
-}
-.lightcode-brain-thinking path:nth-child(4) {
-  animation-delay: 0.66s;
-}
-.lightcode-brain-thinking path:nth-child(5) {
-  animation-delay: 0.34s;
-}
-.lightcode-brain-thinking path:nth-child(6) {
-  animation-delay: 0.9s;
-}
-.lightcode-brain-thinking path:nth-child(7) {
-  animation-delay: 0.56s;
-}
-.lightcode-brain-thinking path:nth-child(8) {
-  animation-delay: 1.08s;
-}
-.lightcode-brain-thinking path:nth-child(9) {
-  animation-delay: 0.24s;
-}
-.lightcode-brain-thinking path:nth-child(10) {
-  animation-delay: 0.78s;
-}
-.lightcode-brain-thinking path:nth-child(11) {
-  animation-delay: 1.2s;
-}
-
-@keyframes lightcode-brain-glow {
-  0%,
-  100% {
-    filter: drop-shadow(0 0 0.05rem color-mix(in oklab, currentColor 20%, transparent));
-  }
-  50% {
-    filter: drop-shadow(0 0 0.2rem color-mix(in oklab, currentColor 55%, transparent));
-  }
-}
-
-@keyframes lightcode-brain-spark {
+@keyframes lightcode-brain-firing {
   0%,
   100% {
     opacity: 0.45;
   }
-  25% {
+  50% {
     opacity: 1;
-  }
-  55% {
-    opacity: 0.55;
   }
 }
 
-/* "Thinking" label that pairs with the brain — a soft highlight sweeps across
-   the letters left-to-right while the rest of the word sits at the muted
-   foreground tone, in sync with the brain's outer glow. background-clip:text
-   confines the gradient to the glyphs. */
+.lightcode-brain-thinking {
+  filter: drop-shadow(0 0 0.1rem color-mix(in oklab, currentColor 32%, transparent));
+  will-change: transform;
+  transform: translateZ(0);
+}
+
+.lightcode-brain-thinking path {
+  opacity: 0.55;
+  will-change: opacity;
+}
+
+.lightcode-brain-thinking path:nth-child(3n + 1) {
+  animation: lightcode-brain-firing 1.8s ease-in-out infinite;
+  animation-delay: 0s;
+}
+
+.lightcode-brain-thinking path:nth-child(3n + 2) {
+  animation: lightcode-brain-firing 1.8s ease-in-out infinite;
+  animation-delay: 0.6s;
+}
+
+.lightcode-brain-thinking path:nth-child(3n) {
+  animation: lightcode-brain-firing 1.8s ease-in-out infinite;
+  animation-delay: 1.2s;
+}
+
+@keyframes lightcode-text-shimmer {
+  0% {
+    background-position: 0% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+/* "Thinking" label that pairs with the brain. The highlight shimmers in
+   a continuous, smooth 60fps compositor sweep. */
 .lightcode-thinking-text {
+  position: relative;
+  display: inline-block;
+  contain: paint;
   background-image: linear-gradient(
     90deg,
     var(--muted) 0%,
@@ -1171,42 +1318,59 @@ html[data-platform="darwin"] .lightcode-content-over-drag-region--drag {
     var(--muted) 65%,
     var(--muted) 100%
   );
-  background-size: 250% 100%;
-  background-repeat: no-repeat;
+  background-size: 200% 100%;
+  background-repeat: repeat-x;
+  background-position: 0% 0;
   background-clip: text;
   -webkit-background-clip: text;
   color: transparent;
   -webkit-text-fill-color: transparent;
-  animation: lightcode-thinking-shimmer 1.92s linear infinite;
+  animation: lightcode-text-shimmer 2.2s linear infinite;
+  will-change: background-position;
+}
+
+@keyframes lightcode-plan-check-1-anim {
+  0%,
+  15% {
+    opacity: 0;
+  }
+  25%,
+  80% {
+    opacity: 1;
+  }
+  90%,
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes lightcode-plan-check-2-anim {
+  0%,
+  45% {
+    opacity: 0;
+  }
+  55%,
+  80% {
+    opacity: 1;
+  }
+  90%,
+  100% {
+    opacity: 0;
+  }
 }
 
 .lightcode-plan-proposal-icon {
   color: var(--foreground);
-  transform-origin: center;
-  animation: lightcode-plan-proposal-icon 1.7s ease-in-out infinite;
 }
 
-@keyframes lightcode-thinking-shimmer {
-  0% {
-    background-position: 100% 0;
-  }
-  100% {
-    background-position: 0% 0;
-  }
+.lightcode-plan-proposal-icon .lightcode-plan-check-1 {
+  animation: lightcode-plan-check-1-anim 2.2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  will-change: opacity;
 }
 
-@keyframes lightcode-plan-proposal-icon {
-  0%,
-  100% {
-    opacity: 0.55;
-    transform: translateY(0) scale(1);
-    filter: drop-shadow(0 0 0.05rem color-mix(in oklab, currentColor 22%, transparent));
-  }
-  50% {
-    opacity: 1;
-    transform: translateY(-0.05rem) scale(1.08);
-    filter: drop-shadow(0 0 0.18rem color-mix(in oklab, currentColor 50%, transparent));
-  }
+.lightcode-plan-proposal-icon .lightcode-plan-check-2 {
+  animation: lightcode-plan-check-2-anim 2.2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  will-change: opacity;
 }
 
 /* Monaco editor — opaque backgrounds for overlaid elements (sticky scroll, etc.)
@@ -1248,22 +1412,22 @@ html[data-platform="darwin"] .lightcode-content-over-drag-region--drag {
   transition: border-color 0.15s ease;
 }
 
-.lightcode-composer-shell--draft::before {
-  content: "";
+/* Animated 1px border ring around the draft composer. The mask-composite cutout
+   keeps the inside of the shell fully transparent (so the underlying composer
+   surface shows through unchanged). The rotation is driven by `transform` on a
+   child disc — not by an `@property` CSS variable — so the conic gradient is
+   rasterized once and the animation stays on the compositor. The disc is sized
+   2× the shell's width as a square; that guarantees full coverage of the
+   wide-and-short shell shape under any rotation, so the ring never breaks. */
+.lightcode-composer-border-glow {
   position: absolute;
   inset: 0;
   border-radius: inherit;
   padding: 1px;
-  background: conic-gradient(
-    from var(--composer-border-angle),
-    transparent 0%,
-    var(--foreground) 15%,
-    var(--foreground) 35%,
-    transparent 50%,
-    var(--foreground) 65%,
-    var(--foreground) 85%,
-    transparent 100%
-  );
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.5s ease;
+  overflow: hidden;
   -webkit-mask:
     linear-gradient(#fff 0 0) content-box,
     linear-gradient(#fff 0 0);
@@ -1272,16 +1436,37 @@ html[data-platform="darwin"] .lightcode-content-over-drag-region--drag {
     linear-gradient(#fff 0 0);
   -webkit-mask-composite: xor;
   mask-composite: exclude;
-  pointer-events: none;
-  opacity: 0;
-  transition: opacity 0.5s ease;
-  animation: lightcode-composer-border-spin 6s linear infinite;
-  animation-play-state: paused;
+  will-change: opacity;
 }
 
-.lightcode-composer-shell--draft:focus-within::before {
+.lightcode-composer-border-glow::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 200%;
+  aspect-ratio: 1 / 1;
+  transform: translate(-50%, -50%);
+  background: conic-gradient(
+    transparent 0%,
+    var(--foreground) 15%,
+    var(--foreground) 35%,
+    transparent 50%,
+    var(--foreground) 65%,
+    var(--foreground) 85%,
+    transparent 100%
+  );
+  animation: lightcode-composer-border-spin 6s linear infinite;
+  animation-play-state: paused;
+  will-change: transform;
+}
+
+.lightcode-composer-shell--draft:focus-within .lightcode-composer-border-glow {
   opacity: 0.7;
   transition: opacity 0.3s ease;
+}
+
+.lightcode-composer-shell--draft:focus-within .lightcode-composer-border-glow::before {
   animation-play-state: running;
 }
 
@@ -1796,8 +1981,11 @@ html[data-platform="darwin"] .lightcode-content-over-drag-region--drag {
 }
 
 .lightcode-browser-chip {
-  gap: 0.25rem;
-  padding: 0.12rem 0.38rem;
+  justify-content: center;
+  width: 1.35rem;
+  height: 1.35rem;
+  gap: 0;
+  padding: 0;
   border-radius: 0.35rem;
   font-size: 0.6875rem;
   line-height: 1.25;
@@ -2385,49 +2573,26 @@ html[data-platform="darwin"] .lightcode-sidebar-project-nudge {
   animation: lightcode-tool-call-enter 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .lightcode-composer-shell--draft::before {
-    transition: none;
-    animation: none;
-  }
-  .lightcode-composer-shell--draft:focus-within::before {
-    animation: none;
-  }
-  .agent-discovery-item,
-  .agent-discovery-item .agent-discovery-item__icon {
-    transition: none;
-  }
-  .agent-discovery-item[data-found="true"] .agent-discovery-item__icon {
-    animation: none;
-  }
-  .lightcode-goal-active-icon {
-    animation: none;
-  }
-  .lightcode-goal-active-icon::before {
-    animation: none;
-    display: none;
-  }
-  .lightcode-plan-proposal-icon {
-    animation: none;
-  }
-}
-
-/* Context Compaction - Deck Icon Squeeze Animation */
-@keyframes lightcode-compacting-deck {
+@keyframes lightcode-compacting-squeeze {
   0%,
   100% {
-    transform: scaleY(1) translateY(0);
+    transform: scaleY(0.9) translateY(0);
+    opacity: 0.75;
   }
-  30% {
+  33% {
     transform: scaleY(0.75) translateY(10%);
+    opacity: 1;
   }
-  70% {
+  66% {
     transform: scaleY(1.1) translateY(-5%);
+    opacity: 1;
   }
 }
 
 .lightcode-compacting-icon {
-  animation: lightcode-compacting-deck 1.5s ease-in-out infinite;
+  transform-origin: center;
+  will-change: transform, opacity;
+  animation: lightcode-compacting-squeeze 1.6s ease-in-out infinite;
 }
 
 .lightcode-compacted-icon {
@@ -2439,4 +2604,47 @@ html[data-platform="darwin"] .lightcode-sidebar-project-nudge {
    drag is active. */
 html[data-lightcode-drag-active="true"] [data-lightcode-chat-scroller="true"] {
   overflow: hidden !important;
+}
+
+/* PixelLoader — stepped via pure CSS keyframe animations.
+   1. Per-pattern data-frame selectors are injected at module load.
+   2. Opacity is animated purely on the GPU compositor lanes via keyframes.
+   3. Visual identity is fully restored using native SVG viewBox scaling and a
+      volumetric double-blur filter that scales proportionally. */
+.lightcode-pixel-loader {
+  aspect-ratio: 1 / 1;
+  transform: translate3d(0, 0, 0);
+  will-change: transform;
+}
+
+.lightcode-pixel-loader.size-3 {
+  width: 0.75rem;
+  height: 0.75rem;
+}
+.lightcode-pixel-loader.size-3\.5 {
+  width: 0.875rem;
+  height: 0.875rem;
+}
+.lightcode-pixel-loader.size-4 {
+  width: 1rem;
+  height: 1rem;
+}
+.lightcode-pixel-loader.size-6 {
+  width: 1.5rem;
+  height: 1.5rem;
+}
+.lightcode-pixel-loader.size-8 {
+  width: 2rem;
+  height: 2rem;
+}
+
+.lightcode-pixel-loader__cell {
+  opacity: 0;
+  fill: var(--pixel-loader-color, currentColor);
+  transition: opacity 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.lightcode-pixel-loader--animated .lightcode-pixel-loader__cell {
+  /* Prevent keyframe animation from thrashing with the CSS transition */
+  transition: none !important;
 }

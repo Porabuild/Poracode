@@ -83,7 +83,12 @@ describe("sharedSettingsFile", () => {
       favoriteModels: [],
       recentModels: [],
       agentHookSupport: {},
-      browser: { allowEval: false, allowDataAccess: false },
+      browser: {
+        allowEval: false,
+        allowDataAccess: false,
+        linkOpenTarget: "internal",
+        linkPresentationMode: "panel",
+      },
     });
 
     expect(readSharedSettingsFile(settingsPath)).toEqual({
@@ -143,7 +148,12 @@ describe("sharedSettingsFile", () => {
       favoriteModels: [],
       recentModels: [],
       agentHookSupport: {},
-      browser: { allowEval: false, allowDataAccess: false },
+      browser: {
+        allowEval: false,
+        allowDataAccess: false,
+        linkOpenTarget: "internal",
+        linkPresentationMode: "panel",
+      },
     });
     expect(readFileSync(settingsPath, "utf8")).toContain('"themeMode": "dark"');
   });
@@ -213,6 +223,24 @@ describe("sharedSettingsFile", () => {
       terminalPosition: "right",
       autoShowTerminalPanel: false,
       providerConfigs: {},
+    });
+  });
+
+  it("normalizes older browser settings without dropping existing flags", () => {
+    const settingsPath = join(makeTempDir(), "settings.json");
+    writeFileSync(
+      settingsPath,
+      JSON.stringify({
+        browser: { allowEval: true, allowDataAccess: true },
+      }),
+      "utf8",
+    );
+
+    expect(readSharedSettingsFile(settingsPath).browser).toEqual({
+      allowEval: true,
+      allowDataAccess: true,
+      linkOpenTarget: "internal",
+      linkPresentationMode: "panel",
     });
   });
 });

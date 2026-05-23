@@ -29,6 +29,11 @@ export function LightballTabs<K extends string>(props: {
   equalWidth?: boolean;
   /** Delay text-color flip to match ball arrival (~80ms). */
   delayActiveText?: boolean;
+  /** Container/tab corner shape. Defaults to a full pill. */
+  shape?: "pill" | "rounded";
+  /** Drop the container background and border; useful when embedding into
+   *  a parent surface that already provides chrome. */
+  transparent?: boolean;
 }) {
   const {
     tabs,
@@ -38,7 +43,14 @@ export function LightballTabs<K extends string>(props: {
     className,
     equalWidth = false,
     delayActiveText = false,
+    shape = "pill",
+    transparent = false,
   } = props;
+  const containerRadiusClass = shape === "rounded" ? "rounded-xl" : "rounded-full";
+  const tabRadiusClass = shape === "rounded" ? "rounded-lg" : "rounded-full";
+  const containerChromeClass = transparent
+    ? ""
+    : "border border-border/15 bg-surface-tertiary/40 backdrop-blur-md";
 
   const listRef = useRef<HTMLDivElement>(null);
   const buttonRefs = useRef<Partial<Record<K, HTMLButtonElement | null>>>({});
@@ -103,7 +115,7 @@ export function LightballTabs<K extends string>(props: {
       role="tablist"
       aria-label={ariaLabel}
       onKeyDown={handleKey}
-      className={`relative inline-flex h-7 items-center rounded-full border border-border/15 bg-surface-tertiary/40 p-0.5 backdrop-blur-md ${className ?? ""}`}
+      className={`relative inline-flex h-7 items-center ${containerRadiusClass} ${containerChromeClass} p-0.5 ${className ?? ""}`}
     >
       <FlyingLightball
         containerRef={listRef}
@@ -128,7 +140,7 @@ export function LightballTabs<K extends string>(props: {
               tabIndex={isActive ? 0 : -1}
               disabled={tab.disabled}
               onClick={() => selectTab(tab.id)}
-              className={`relative ${equalWidth ? "flex-1" : ""} flex h-full items-center justify-center gap-1.5 rounded-full px-3 text-[11px] font-semibold tracking-tight outline-none transition-colors disabled:cursor-not-allowed disabled:opacity-50 focus-visible:ring-2 focus-visible:ring-focus/50 ${
+              className={`relative ${equalWidth ? "flex-1" : ""} flex h-full items-center justify-center gap-1.5 ${tabRadiusClass} px-3 text-[11px] font-semibold tracking-tight outline-none transition-colors disabled:cursor-not-allowed disabled:opacity-50 focus-visible:ring-2 focus-visible:ring-focus/50 ${
                 litText ? "text-foreground" : "text-muted/60"
               }`}
             >

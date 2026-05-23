@@ -1,6 +1,13 @@
-import { readFileSync } from "node:fs";
+import {
+  accessSync,
+  chmodSync,
+  constants as fsConstants,
+  existsSync,
+  readFileSync,
+  statSync,
+} from "node:fs";
 import { randomUUID } from "node:crypto";
-import { join } from "node:path";
+import { dirname, join, resolve as resolvePath } from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
 import { spawn } from "node-pty";
 import type { SupervisorEvent } from "@/shared/ipc";
@@ -33,6 +40,7 @@ import { buildPromptContentBlocks } from "@/shared/promptContent";
 import { terminateProcessTree } from "@/shared/processTree";
 import {
   type AgentAdapter,
+  type AgentLaunchOptions,
   type CommandSpec,
   type StructuredSessionHandle,
   createKnownSessionRef,
@@ -105,9 +113,11 @@ export class ThreadSessionManager {
   readonly sessionsBySessionId = new Map<string, SessionRuntime>();
   private readonly startLocks = new Map<string, Promise<void>>();
   private readonly pendingStartInterrupts = new Set<string>();
+  private readonly pendingStartAborts = new Set<string>();
   private readonly logWriter = new BufferedLogWriter();
   private readonly outputPipeline: ThreadOutputPipeline;
   private readonly runtimeEventRouter: RuntimeEventRouter;
+  private disposed = false;
 
   constructor(private readonly options: ThreadSessionManagerOptions) {
     this.runtimeEventRouter = new RuntimeEventRouter(options.emit);
@@ -262,6 +272,9 @@ export class ThreadSessionManager {
   }
 
   async startThread(payload: StartThreadPayload): Promise<StartThreadResult> {
+    if (this.disposed) {
+      throw new Error("ThreadSessionManager is disposed.");
+    }
     const threadId = payload.threadId ?? randomUUID();
     const pending = this.startLocks.get(threadId);
     if (pending) {
@@ -282,6 +295,7 @@ export class ThreadSessionManager {
       this.startLocks.delete(threadId);
       if (!this.sessions.has(threadId)) {
         this.pendingStartInterrupts.delete(threadId);
+        this.pendingStartAborts.delete(threadId);
       }
     }
   }
@@ -370,6 +384,7 @@ export class ThreadSessionManager {
     if (!session) {
       if (this.startLocks.has(payload.threadId)) {
         this.pendingStartInterrupts.add(payload.threadId);
+        this.pendingStartAborts.add(payload.threadId);
         this.options.emit({
           type: "thread-state",
           threadId: payload.threadId,
@@ -616,6 +631,9 @@ export class ThreadSessionManager {
 
     const existing = this.sessions.get(payload.threadId);
     if (!existing) {
+      if (this.startLocks.has(payload.threadId)) {
+        this.pendingStartAborts.add(payload.threadId);
+      }
       return;
     }
 
@@ -636,6 +654,7 @@ export class ThreadSessionManager {
   }
 
   async startShell(payload: StartShellPayload): Promise<void> {
+    ensureNodePtySpawnHelperExecutable();
     const existing = this.shellSessions.get(payload.shellId);
     if (existing) {
       existing.ignoreExit = true;
@@ -654,8 +673,11 @@ export class ThreadSessionManager {
     this.options.emit({ type: "thread-reset", threadId: payload.shellId });
     const terminalEnv = resolveTerminalColorEnv(payload.projectLocation);
 
+    // node-pty's C binding expects every env value to be a string. process.env
+    // is typed `Record<string, string | undefined>` and spreading can carry
+    // undefined holes that surface as opaque "posix_spawnp failed" errors.
     const shellEnv: Record<string, string> = {
-      ...(process.env as Record<string, string>),
+      ...sanitizedProcessEnv,
       ...terminalEnv,
     };
     if (payload.projectLocation.kind === "wsl") {
@@ -674,13 +696,18 @@ export class ThreadSessionManager {
     // the actual viewport — those lines are emitted before any resize IPC
     // can land, and xterm never reflows pre-wrapped scrollback. Fall back to
     // 120×30 only if the renderer hasn't measured yet.
-    const pty = spawn(shellCommand.command, shellCommand.args, {
-      name: process.platform === "win32" ? "xterm-color" : terminalEnv.TERM,
-      cols: payload.initialSize?.cols ?? 120,
-      rows: payload.initialSize?.rows ?? 30,
-      ...(shellCommand.cwd ? { cwd: shellCommand.cwd } : {}),
-      env: shellEnv,
-    });
+    let pty;
+    try {
+      pty = spawn(shellCommand.command, shellCommand.args, {
+        name: process.platform === "win32" ? "xterm-color" : terminalEnv.TERM,
+        cols: payload.initialSize?.cols ?? 120,
+        rows: payload.initialSize?.rows ?? 30,
+        ...(shellCommand.cwd ? { cwd: shellCommand.cwd } : {}),
+        env: shellEnv,
+      });
+    } catch (error) {
+      throw new Error(describeShellSpawnFailure(shellCommand, shellEnv, error), { cause: error });
+    }
 
     const session: ShellSessionRuntime = {
       instanceId: randomUUID(),
@@ -738,6 +765,11 @@ export class ThreadSessionManager {
   }
 
   dispose(): void {
+    this.disposed = true;
+    for (const threadId of this.startLocks.keys()) {
+      this.pendingStartAborts.add(threadId);
+    }
+
     this.flushRuntimeEvents();
     for (const session of this.sessions.values()) {
       session.ignoreExit = true;
@@ -769,6 +801,10 @@ export class ThreadSessionManager {
       throw new Error(`Unknown thread session: ${threadId}`);
     }
     return session;
+  }
+
+  private isCurrentSession(session: SessionRuntime): boolean {
+    return this.sessions.get(session.threadId)?.instanceId === session.instanceId;
   }
 
   /**
@@ -950,6 +986,10 @@ export class ThreadSessionManager {
     payload: StartThreadPayload & { threadId: string },
   ): Promise<StartThreadResult> {
     await this.closeThread({ threadId: payload.threadId });
+    if (this.pendingStartAborts.delete(payload.threadId)) {
+      this.pendingStartInterrupts.delete(payload.threadId);
+      return { threadId: payload.threadId };
+    }
 
     const adapter = this.requireAdapter(payload.agentKind);
     const isServerControlled = adapter.capabilities.liveInputMode === "server";
@@ -1010,6 +1050,9 @@ export class ThreadSessionManager {
       payload.sessionRef,
       requestedPresentation,
     );
+    if (await this.abortPendingStart(payload.threadId, structuredSession)) {
+      return { threadId: payload.threadId };
+    }
 
     if (structuredSession?.activate) {
       try {
@@ -1021,6 +1064,9 @@ export class ThreadSessionManager {
         }
         throw error;
       }
+    }
+    if (await this.abortPendingStart(payload.threadId, structuredSession)) {
+      return { threadId: payload.threadId };
     }
 
     let openedStructuredThreadId: string | undefined;
@@ -1037,6 +1083,9 @@ export class ThreadSessionManager {
         }
         throw error;
       }
+    }
+    if (await this.abortPendingStart(payload.threadId, structuredSession)) {
+      return { threadId: payload.threadId };
     }
 
     if (!usesTerminalPresentation) {
@@ -1122,20 +1171,24 @@ export class ThreadSessionManager {
     // and WSL path rewriting) so attachments hand off cleanly as the launch
     // arg instead of being staged for a deferred PTY-write.
     const launchPrompt = useStructuredFlow || deferToTerminal ? "" : initialPrompt;
+    const launchOptions = this.launchOptionsWithAgentSettings(
+      adapter,
+      structuredSession?.launchOptions,
+    );
     const argv = payload.sessionRef
       ? adapter.buildResumeArgv(
           payload.projectLocation,
           payload.config,
           launchPrompt,
           payload.sessionRef,
-          structuredSession?.launchOptions,
+          launchOptions,
         )
       : adapter.buildLaunchArgv(
           payload.projectLocation,
           payload.config,
           launchPrompt,
           payload.sessionRef,
-          structuredSession?.launchOptions,
+          launchOptions,
         );
 
     // Append CLI hook plugin args (e.g. Claude `--settings <path>`); env vars
@@ -1167,6 +1220,13 @@ export class ThreadSessionManager {
     const keepStructuredSession = structuredSession && useStructuredFlow;
     if (structuredSession && !keepStructuredSession) {
       await structuredSession.dispose();
+    }
+    if (this.pendingStartAborts.delete(payload.threadId)) {
+      this.pendingStartInterrupts.delete(payload.threadId);
+      if (structuredSession && keepStructuredSession) {
+        await structuredSession.dispose();
+      }
+      return { threadId: payload.threadId };
     }
 
     const resolvedSessionRef = payload.sessionRef ?? command.sessionRef;
@@ -1216,6 +1276,7 @@ export class ThreadSessionManager {
         threadId,
         projectLocation,
         config,
+        agentSettings: this.resolveAgentSettings(adapter),
         ...(sessionRef ? { sessionRef } : {}),
         ...(presentationMode ? { presentationMode } : {}),
       });
@@ -1227,6 +1288,18 @@ export class ThreadSessionManager {
       });
       return undefined;
     }
+  }
+
+  private async abortPendingStart(
+    threadId: string,
+    structuredSession: StructuredSessionHandle | undefined,
+  ): Promise<boolean> {
+    if (!this.pendingStartAborts.delete(threadId)) {
+      return false;
+    }
+    this.pendingStartInterrupts.delete(threadId);
+    await structuredSession?.dispose();
+    return true;
   }
 
   private spawnThread(input: {
@@ -1583,12 +1656,18 @@ export class ThreadSessionManager {
       await sleep(150);
     }
     this.safePtyKill(session);
+    if (!this.isCurrentSession(session)) {
+      return;
+    }
 
     // Prime the user's interactive-shell env before respawning. See the same
     // call in `startThreadInner` — must run before the structured-session
     // spawn so the child inherits the project-pinned PATH, not launchd's.
     if (shouldPrimeNativeProjectShellEnv(session.projectLocation)) {
       await primeProjectShellEnv(session.projectLocation.path);
+    }
+    if (!this.isCurrentSession(session)) {
+      return;
     }
 
     const structuredSession = await this.createStructuredSession(
@@ -1600,6 +1679,10 @@ export class ThreadSessionManager {
       session.sessionRef,
       session.presentationMode,
     );
+    if (!this.isCurrentSession(session)) {
+      await structuredSession?.dispose();
+      return;
+    }
 
     if (structuredSession?.activate) {
       try {
@@ -1609,6 +1692,10 @@ export class ThreadSessionManager {
         throw error;
       }
     }
+    if (!this.isCurrentSession(session)) {
+      await structuredSession?.dispose();
+      return;
+    }
 
     if (structuredSession?.openThread) {
       try {
@@ -1617,6 +1704,10 @@ export class ThreadSessionManager {
         await structuredSession.dispose();
         throw error;
       }
+    }
+    if (!this.isCurrentSession(session)) {
+      await structuredSession?.dispose();
+      return;
     }
 
     if (!usesTerminalPresentation) {
@@ -1655,12 +1746,16 @@ export class ThreadSessionManager {
       session.agentKind,
       session.projectLocation,
     );
+    if (!this.isCurrentSession(session)) {
+      await structuredSession?.dispose();
+      return;
+    }
     const argv = session.adapter.buildResumeArgv(
       session.projectLocation,
       config,
       launchPrompt,
       session.sessionRef,
-      structuredSession?.launchOptions,
+      this.launchOptionsWithAgentSettings(session.adapter, structuredSession?.launchOptions),
     );
     if (cliHookExtras.extraArgs.length > 0) {
       argv.args = this.mergeCliHookExtraArgs(
@@ -1674,11 +1769,21 @@ export class ThreadSessionManager {
     if (shouldPrimeNativeProjectShellEnv(session.projectLocation)) {
       await primeProjectShellEnv(session.projectLocation.path);
     }
+    if (!this.isCurrentSession(session)) {
+      await structuredSession?.dispose();
+      return;
+    }
     const command = resolveLaunchSpec(session.projectLocation, argv);
 
     const keepStructuredSession = structuredSession && useStructuredFlow;
     if (structuredSession && !keepStructuredSession) {
       await structuredSession.dispose();
+    }
+    if (!this.isCurrentSession(session)) {
+      if (structuredSession && keepStructuredSession) {
+        await structuredSession.dispose();
+      }
+      return;
     }
 
     this.spawnThread({
@@ -1725,10 +1830,15 @@ export class ThreadSessionManager {
         session.agentKind,
         session.projectLocation,
       );
+      if (!this.isCurrentSession(session)) {
+        return;
+      }
       const argv = session.adapter.buildLaunchArgv(
         session.projectLocation,
         session.config,
         session.launchPrompt,
+        undefined,
+        this.launchOptionsWithAgentSettings(session.adapter),
       );
       if (cliHookExtras.extraArgs.length > 0) {
         argv.args = this.mergeCliHookExtraArgs(
@@ -1740,6 +1850,9 @@ export class ThreadSessionManager {
       }
       if (shouldPrimeNativeProjectShellEnv(session.projectLocation)) {
         await primeProjectShellEnv(session.projectLocation.path);
+      }
+      if (!this.isCurrentSession(session)) {
+        return;
       }
       const command = resolveLaunchSpec(session.projectLocation, argv);
 
@@ -1858,12 +1971,7 @@ export class ThreadSessionManager {
     return join(this.options.logsDir, `${threadId}.hints.log`);
   }
 
-  private resolveAgentProcessEnv(adapter: AgentAdapter): Record<string, string> {
-    const settingDefs = adapter.capabilities.settingDefs ?? [];
-    if (settingDefs.length === 0) {
-      return {};
-    }
-
+  private resolveAgentSettings(adapter: AgentAdapter): Record<string, boolean | string> {
     let settings = defaultSharedSettings;
     try {
       const raw = readFileSync(this.options.settingsPath, "utf8");
@@ -1871,8 +1979,26 @@ export class ThreadSessionManager {
     } catch {
       // use defaults
     }
+    return settings.agentSettings[adapter.kind] ?? {};
+  }
 
-    const agentValues = settings.agentSettings[adapter.kind] ?? {};
+  private launchOptionsWithAgentSettings(
+    adapter: AgentAdapter,
+    launchOptions?: AgentLaunchOptions,
+  ): AgentLaunchOptions {
+    return {
+      ...(launchOptions ?? {}),
+      agentSettings: this.resolveAgentSettings(adapter),
+    };
+  }
+
+  private resolveAgentProcessEnv(adapter: AgentAdapter): Record<string, string> {
+    const settingDefs = adapter.capabilities.settingDefs ?? [];
+    if (settingDefs.length === 0) {
+      return {};
+    }
+
+    const agentValues = this.resolveAgentSettings(adapter);
     const env: Record<string, string> = {};
     for (const definition of settingDefs) {
       if (definition.platforms && !definition.platforms.includes(process.platform)) {
@@ -1889,4 +2015,147 @@ export class ThreadSessionManager {
     }
     return env;
   }
+}
+
+function describeShellSpawnFailure(
+  shellCommand: { command: string; args: string[]; cwd?: string },
+  env: Record<string, string>,
+  error: unknown,
+): string {
+  const base = error instanceof Error ? error.message : String(error);
+
+  if (shellCommand.cwd) {
+    const cwdDiagnosis = diagnoseCwd(shellCommand.cwd);
+    if (cwdDiagnosis) return cwdDiagnosis;
+  }
+
+  // Absolute shell paths (the common case for $SHELL on macOS/Linux) can be
+  // probed; relative names like "bash" rely on PATH lookup and we leave the
+  // raw error in that case.
+  if (shellCommand.command.startsWith("/")) {
+    const shellDiagnosis = diagnoseShellBinary(shellCommand.command);
+    if (shellDiagnosis) return shellDiagnosis;
+  }
+
+  // posix_spawn returns E2BIG when env+argv exceed ARG_MAX (~256KB on macOS).
+  const envBytes = measureEnvBytes(env);
+  const argvBytes = measureArgvBytes(shellCommand.command, shellCommand.args);
+  // Leave headroom — ARG_MAX includes pointer overhead and string terminators.
+  if (envBytes + argvBytes > 200_000) {
+    return `Failed to spawn shell (${shellCommand.command}): environment is too large (${Math.round((envBytes + argvBytes) / 1024)} KB). This usually means a parent process leaked variables into the launch env.`;
+  }
+
+  return `Failed to spawn shell (${shellCommand.command}): ${base}`;
+}
+
+let spawnHelperChmodAttempted = false;
+
+// node-pty ships a `spawn-helper` binary that posix_spawn invokes to set up
+// the pty before exec. When the package is shipped under app.asar.unpacked
+// the copy can land without the executable bit, and posix_spawnp rejects
+// with the opaque "posix_spawnp failed." message. Heal the mode at runtime
+// so existing installs recover on first shell launch.
+function ensureNodePtySpawnHelperExecutable(): void {
+  if (spawnHelperChmodAttempted) return;
+  if (process.platform !== "darwin" && process.platform !== "linux") {
+    spawnHelperChmodAttempted = true;
+    return;
+  }
+  try {
+    const ptyPkg = require.resolve("node-pty/package.json");
+    const prebuildsDir = resolvePath(dirname(ptyPkg), "prebuilds");
+    const candidate = resolvePath(
+      prebuildsDir,
+      `${process.platform}-${process.arch}`,
+      "spawn-helper",
+    );
+    const unpackedCandidate = candidate.replace(`${"app.asar"}/`, `${"app.asar.unpacked"}/`);
+    for (const path of new Set([unpackedCandidate, candidate])) {
+      if (!existsSync(path)) continue;
+      const stat = statSync(path);
+      if ((stat.mode & 0o111) !== 0o111) {
+        chmodSync(path, stat.mode | 0o111);
+      }
+    }
+    spawnHelperChmodAttempted = true;
+  } catch (err) {
+    console.warn("[supervisor] failed to ensure spawn-helper +x:", err);
+  }
+}
+
+function sanitizeEnv(source: NodeJS.ProcessEnv): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const [key, value] of Object.entries(source)) {
+    if (typeof value !== "string") continue;
+    // posix_spawn treats embedded NULs as terminators and rejects the env.
+    if (value.indexOf("\0") !== -1) continue;
+    out[key] = value;
+  }
+  return out;
+}
+
+// process.env is effectively static after supervisor boot — sanitize once
+// instead of re-scanning ~150–300 entries on every startShell call.
+const sanitizedProcessEnv = sanitizeEnv(process.env);
+
+function measureEnvBytes(env: Record<string, string>): number {
+  let total = 0;
+  for (const [key, value] of Object.entries(env)) {
+    total += Buffer.byteLength(key) + Buffer.byteLength(value) + 2; // '=' and NUL
+  }
+  return total;
+}
+
+function measureArgvBytes(command: string, args: readonly string[]): number {
+  let total = Buffer.byteLength(command) + 1;
+  for (const arg of args) {
+    total += Buffer.byteLength(arg) + 1;
+  }
+  return total;
+}
+
+function diagnoseCwd(cwd: string): string | undefined {
+  let stat;
+  try {
+    stat = statSync(cwd);
+  } catch (err) {
+    const code = (err as NodeJS.ErrnoException).code;
+    if (code === "ENOENT") {
+      return `Cannot start shell: working directory does not exist (${cwd}).`;
+    }
+    if (code === "EACCES") {
+      return `Cannot start shell: working directory is not accessible (${cwd}).`;
+    }
+    return `Cannot start shell: working directory (${cwd}) error: ${(err as Error).message}`;
+  }
+  if (!stat.isDirectory()) {
+    return `Cannot start shell: working directory path is not a directory (${cwd}).`;
+  }
+  try {
+    accessSync(cwd, fsConstants.X_OK | fsConstants.R_OK);
+  } catch {
+    return `Cannot start shell: working directory lacks read/execute permission (${cwd}).`;
+  }
+  return undefined;
+}
+
+function diagnoseShellBinary(command: string): string | undefined {
+  if (!existsSync(command)) {
+    return `Cannot start shell: ${command} not found. Check $SHELL.`;
+  }
+  let stat;
+  try {
+    stat = statSync(command);
+  } catch {
+    return undefined;
+  }
+  if (!stat.isFile()) {
+    return `Cannot start shell: ${command} is not an executable file.`;
+  }
+  try {
+    accessSync(command, fsConstants.X_OK);
+  } catch {
+    return `Cannot start shell: ${command} is not executable (no +x permission).`;
+  }
+  return undefined;
 }

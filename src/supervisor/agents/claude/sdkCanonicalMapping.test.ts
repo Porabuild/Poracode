@@ -67,31 +67,39 @@ describe("sdkCanonicalMapping — prompt content", () => {
 
   it("surfaces a Claude /goal command as a shared goal chat item", () => {
     const state = createClaudeMapperState("thread-1");
+    vi.useFakeTimers();
+    try {
+      vi.setSystemTime(new Date("2026-05-12T10:00:00Z"));
 
-    const events = startClaudeTurn(
-      state,
-      "turn-goal",
-      "/goal ship unified GUI goal support",
-      undefined,
-      "user-goal",
-    );
+      const events = startClaudeTurn(
+        state,
+        "turn-goal",
+        "/goal ship unified GUI goal support",
+        undefined,
+        "user-goal",
+      );
 
-    expect(events).toContainEqual({
-      type: "item.started",
-      threadId: "thread-1",
-      itemId: "goal-turn-goal",
-      itemType: "goal",
-      payload: {
-        action: "set",
-        objective: "ship unified GUI goal support",
-        status: "active",
-      },
-    });
-    expect(events).toContainEqual({
-      type: "item.completed",
-      threadId: "thread-1",
-      itemId: "goal-turn-goal",
-    });
+      expect(events).toContainEqual({
+        type: "item.started",
+        threadId: "thread-1",
+        itemId: "goal-turn-goal",
+        itemType: "goal",
+        payload: {
+          action: "set",
+          objective: "ship unified GUI goal support",
+          status: "active",
+          timeUsedSeconds: 0,
+          updatedAt: Date.parse("2026-05-12T10:00:00Z") / 1000,
+        },
+      });
+      expect(events).toContainEqual({
+        type: "item.completed",
+        threadId: "thread-1",
+        itemId: "goal-turn-goal",
+      });
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("marks an active /goal complete with tokens and elapsed time when the turn result arrives", () => {

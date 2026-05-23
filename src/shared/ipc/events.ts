@@ -11,6 +11,7 @@ import type {
   ThreadStatusSource,
 } from "../contracts";
 import type { BrowserState, BrowserTabInfo } from "./procedures/browser";
+import type { BrowserLinkPresentationMode } from "../settings";
 import type { IpcProcedurePayload, SupervisorProcedureName } from "./procedureMap";
 
 export type SupervisorRequest = {
@@ -83,7 +84,7 @@ export type BrowserEvent =
   | { type: "state"; state: BrowserState }
   | { type: "tab-updated"; tab: BrowserTabInfo }
   | { type: "tab-attention"; tabId: string }
-  | { type: "open-panel" }
+  | { type: "open-panel"; mode?: BrowserLinkPresentationMode }
   | { type: "picker-cancelled" };
 
 export type UpdateStatus =

@@ -41,5 +41,10 @@ export function getThreadErrorDockStateForItem(item: RuntimeChatItem): ThreadErr
   const payload = getRuntimeItemPayload<ErrorItemPayload>(item, "error");
   const message = payload?.message?.trim();
   if (!message) return null;
+  if (isAbortOnlyErrorMessage(message)) return null;
   return { sourceItemId: item.id, message };
+}
+
+function isAbortOnlyErrorMessage(message: string): boolean {
+  return /^(?:error:\s*)?(?:aborterror:\s*)?aborted\.?$/i.test(message.trim());
 }

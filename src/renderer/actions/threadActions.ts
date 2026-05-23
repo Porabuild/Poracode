@@ -117,16 +117,14 @@ export function reopenStoredThread(threadId: string): void {
     return;
   }
 
-  if (thread.presentationMode !== "gui") {
-    startTransition(() => {
-      store.updateThreadRuntime(thread.id, {
-        status: "launching",
-        attention: "none",
-        ...(thread.sessionRef ? { sessionRef: thread.sessionRef } : {}),
-        canResumeWithConfig: thread.canResumeWithConfig || thread.sessionRef !== undefined,
-      });
+  startTransition(() => {
+    store.updateThreadRuntime(thread.id, {
+      status: "launching",
+      attention: "none",
+      ...(thread.sessionRef ? { sessionRef: thread.sessionRef } : {}),
+      canResumeWithConfig: thread.canResumeWithConfig || thread.sessionRef !== undefined,
     });
-  }
+  });
   store.queueThreadLaunch(thread.id, "");
 }
 
@@ -166,9 +164,14 @@ export function sweepStaleThreads(): void {
     if (
       visibleThreadIds.has(thread.id) ||
       (thread.status !== "idle" && thread.status !== "finished") ||
-      !thread.sessionRef ||
-      new Date(thread.updatedAt).getTime() > staleBefore
+      !thread.sessionRef
     ) {
+      continue;
+    }
+    const updatedAtMs = new Date(thread.updatedAt).getTime();
+    const lastViewedAtMs = store.lastViewedAtByThreadId[thread.id] ?? 0;
+    const lastActiveMs = Math.max(updatedAtMs, lastViewedAtMs);
+    if (lastActiveMs > staleBefore) {
       continue;
     }
 

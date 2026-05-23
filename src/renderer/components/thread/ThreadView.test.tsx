@@ -60,7 +60,7 @@ describe("ThreadView", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     localStorage.clear();
-    useSharedSettings.setState({ collapseTerminalComposer: false });
+    useSharedSettings.setState({ agentSettings: {}, collapseTerminalComposer: false });
     useThreadTodoDockStore.setState({
       defaultPlacement: "composer",
       defaultCollapsed: false,
@@ -73,7 +73,10 @@ describe("ThreadView", () => {
     });
   });
 
-  it("renders Browser MCP as a removable header chip", () => {
+  it("renders Browser MCP as a read-only header icon in active threads", () => {
+    // Mid-thread toggles can't re-attach an MCP server to a running session,
+    // so the active-thread chip is informational only. The toggle lives in
+    // the draft composer.
     const onConfigChange = vi.fn<(config: ThreadConfig) => void>();
 
     renderThreadView({
@@ -123,18 +126,66 @@ describe("ThreadView", () => {
       onSubmitInput: async () => undefined,
     });
 
-    const browserLabels = screen.getAllByText("Browser");
-    expect(browserLabels).toHaveLength(1);
-    expect(
-      hasAncestorWithClassFragment(browserLabels[0]!, "lightcode-overlay-header__controls"),
-    ).toBe(true);
+    const browserIcon = screen.getByLabelText("Browser MCP enabled for this thread");
+    expect(hasAncestorWithClassFragment(browserIcon, "lightcode-overlay-header__controls")).toBe(
+      true,
+    );
+    expect(screen.queryByLabelText("Disable Browser MCP")).toBeNull();
+    expect(onConfigChange).not.toHaveBeenCalled();
+  });
 
-    fireEvent.click(screen.getByLabelText("Disable Browser MCP"));
+  it("renders OpenCode Browser MCP as a read-only header icon when provider setting is enabled", () => {
+    const onConfigChange = vi.fn<(config: ThreadConfig) => void>();
 
-    expect(onConfigChange).toHaveBeenCalledWith({
-      model: "gpt-5.4",
-      browserMcp: false,
+    renderThreadView({
+      thread: {
+        id: "thread-opencode-browser-mcp",
+        projectId: "project-1",
+        title: "OpenCode browser thread",
+        agentKind: "opencode",
+        config: {
+          model: "opencode/big-pickle",
+        },
+        status: "idle",
+        attention: "none",
+        canResumeWithConfig: true,
+        archived: false,
+        done: false,
+        starred: false,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      },
+      agentStatus: {
+        kind: "opencode",
+        label: "OpenCode",
+        installed: true,
+        authState: "authenticated",
+        capabilities: {
+          models: [{ id: "opencode/big-pickle", label: "Big Pickle" }],
+          efforts: [],
+          modelEfforts: {},
+          modes: ["agent"],
+          approvalPolicies: [{ id: "default", label: "Default" }],
+          sandboxModes: [],
+          supportsResume: true,
+          supportsDirectInput: true,
+          liveInputMode: "server",
+          presentationMode: "gui",
+          settingDefs: [],
+        },
+      },
+      projectLocation: {
+        kind: "windows",
+        path: "C:\\repo",
+      },
+      onConfigChange,
+      onResolveServerRequest: async () => undefined,
+      onSubmitInput: async () => undefined,
     });
+
+    expect(screen.getByLabelText("Browser MCP enabled for OpenCode")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Disable Browser MCP")).toBeNull();
+    expect(onConfigChange).not.toHaveBeenCalled();
   });
 
   it("starts a queued launch after the terminal reports its first size", async () => {

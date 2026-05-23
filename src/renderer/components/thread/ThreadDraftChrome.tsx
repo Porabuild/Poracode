@@ -99,12 +99,7 @@ export function ThreadDraftDropIndicators(props: {
   );
 }
 
-export function ThreadDraftHero(props: {
-  compact?: boolean | undefined;
-  projectId: string;
-  scopeLabel?: string | undefined;
-  paneId?: string | undefined;
-}) {
+export function ThreadDraftHero(props: { compact?: boolean | undefined }) {
   return (
     <div className="flex flex-1 flex-col items-center justify-center">
       <div className="w-full max-w-[920px] overflow-visible pb-3 text-center">
@@ -115,21 +110,6 @@ export function ThreadDraftHero(props: {
             Lightcode
           </span>
         </h1>
-        <div
-          className={`mt-1.5 flex justify-center ${props.compact ? "text-[clamp(0.6875rem,1.05vw,0.8125rem)]" : "text-[clamp(0.75rem,1.35vw,0.9375rem)]"}`}
-        >
-          {props.scopeLabel ? (
-            <span className="min-w-0 truncate pb-[0.08em] leading-snug font-medium tracking-normal text-transparent [background-image:linear-gradient(135deg,var(--muted)_0%,color-mix(in_oklab,var(--accent)_30%,var(--muted))_100%)] [background-size:100%_100%] bg-clip-text font-mono">
-              {props.scopeLabel}
-            </span>
-          ) : (
-            <ProjectSwitchMenu
-              currentProjectId={props.projectId}
-              variant="hero"
-              {...(props.paneId ? { paneId: props.paneId } : {})}
-            />
-          )}
-        </div>
       </div>
     </div>
   );

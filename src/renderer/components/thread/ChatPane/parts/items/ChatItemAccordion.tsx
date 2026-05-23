@@ -115,12 +115,14 @@ export function ChatItemAccordion({
   );
 
   const titleNode = (
-    <Tooltip delay={300} isDisabled={!isOverflowing || !titleString}>
-      <Tooltip.Trigger className="min-w-0 flex-1">{titleContent}</Tooltip.Trigger>
-      <Tooltip.Content placement="top" className="max-w-[80vw] break-all">
-        {titleString}
-      </Tooltip.Content>
-    </Tooltip>
+    <span className="min-w-0 flex-1">
+      <Tooltip delay={300} isDisabled={!isOverflowing || !titleString}>
+        <Tooltip.Trigger className="block min-w-0 w-full">{titleContent}</Tooltip.Trigger>
+        <Tooltip.Content placement="top" className="max-w-[80vw] break-all">
+          {titleString}
+        </Tooltip.Content>
+      </Tooltip>
+    </span>
   );
 
   if (!hasBody) {

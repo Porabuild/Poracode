@@ -145,4 +145,34 @@ describe("ThreadGoalDock", () => {
 
     expect(screen.getByText("13s")).toBeInTheDocument();
   });
+
+  it("keeps active goal elapsed time across dock remounts without a server timestamp", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-05-12T10:00:00Z"));
+    const state = {
+      sourceItemId: "goal-remount-no-timestamp",
+      itemState: "completed" as const,
+      objective: "Ship goal dock",
+      status: "active" as const,
+      action: "set" as const,
+      timeUsedSeconds: 0,
+    };
+
+    const first = render(
+      <AppProvider>
+        <ThreadGoalDock state={state} onDismiss={() => undefined} />
+      </AppProvider>,
+    );
+
+    vi.setSystemTime(new Date("2026-05-12T10:01:10Z"));
+    first.unmount();
+
+    render(
+      <AppProvider>
+        <ThreadGoalDock state={state} onDismiss={() => undefined} />
+      </AppProvider>,
+    );
+
+    expect(screen.getByText("1m 10s")).toBeInTheDocument();
+  });
 });

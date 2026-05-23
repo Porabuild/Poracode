@@ -31,7 +31,7 @@ import { useDevTerminalStore } from "@/renderer/state/devTerminalStore";
 import { SplitPaneContainer, type Rect } from "@/renderer/components/layout/SplitPaneContainer";
 import { macosTrafficLightPadClass } from "@/renderer/components/layout/sidebarChrome";
 import { ThreadDraftView } from "@/renderer/components/thread/ThreadDraftView";
-import { writeScriptToShell } from "@/renderer/utils/shellUtils";
+import { startShellWithToast, writeScriptToShell } from "@/renderer/utils/shellUtils";
 import { generateTitleAsync } from "@/renderer/utils/titleGen";
 import { HomeView } from "@/renderer/views/HomeView";
 import { buildProjectDraftConfig } from "./draftConfig";
@@ -114,11 +114,14 @@ export function AppContent() {
             store.openWorktreePanel(project.id, result.path);
           }
           store.setActiveTab(tab.id);
-          void readBridge().startShell({
-            shellId: tab.id,
-            projectLocation: wtLocation,
-            worktreePath: result.path,
-          });
+          startShellWithToast(
+            {
+              shellId: tab.id,
+              projectLocation: wtLocation,
+              worktreePath: result.path,
+            },
+            "setup shell",
+          );
           writeScriptToShell(tab.id, setupScript);
         }
       } catch (err) {

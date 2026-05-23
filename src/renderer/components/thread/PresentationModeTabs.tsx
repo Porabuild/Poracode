@@ -40,6 +40,8 @@ export function PresentationModeTabs(props: PresentationModeTabsProps) {
         className="w-[140px]"
         equalWidth
         delayActiveText
+        shape="rounded"
+        transparent
       />
     </div>
   );

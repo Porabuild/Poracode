@@ -46,13 +46,14 @@ export function startGoalItemEvents(
   itemId: string,
   payload: GoalItemPayload,
 ): RuntimeEvent[] {
+  const startedPayload = withActiveGoalStartTiming(payload);
   return [
     {
       type: "item.started",
       threadId,
       itemId,
       itemType: "goal",
-      payload,
+      payload: startedPayload,
     },
     { type: "item.completed", threadId, itemId },
   ];
@@ -63,13 +64,32 @@ export function updateGoalItemEvents(
   itemId: string,
   payload: GoalItemPayload,
 ): RuntimeEvent[] {
+  const updatedPayload = withActiveGoalUpdateTiming(payload);
   return [
     {
       type: "item.updated",
       threadId,
       itemId,
-      payload,
+      payload: updatedPayload,
     },
     { type: "item.completed", threadId, itemId },
   ];
+}
+
+function withActiveGoalStartTiming(payload: GoalItemPayload): GoalItemPayload {
+  if (payload.status !== "active") return payload;
+  if (payload.updatedAt !== undefined && payload.timeUsedSeconds !== undefined) return payload;
+  return {
+    ...payload,
+    timeUsedSeconds: payload.timeUsedSeconds ?? 0,
+    updatedAt: payload.updatedAt ?? Date.now() / 1000,
+  };
+}
+
+function withActiveGoalUpdateTiming(payload: GoalItemPayload): GoalItemPayload {
+  if (payload.status !== "active" || payload.updatedAt !== undefined) return payload;
+  return {
+    ...payload,
+    updatedAt: Date.now() / 1000,
+  };
 }

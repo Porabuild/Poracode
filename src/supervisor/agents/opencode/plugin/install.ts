@@ -10,6 +10,7 @@ import {
 import { homedir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import type { ProjectLocation } from "@/shared/contracts";
 import { toWslUncPath } from "@/shared/wsl";
 import type { AgentEnvContext } from "../../base";
 import { resolveWslHomeDirectory } from "../../base";
@@ -233,11 +234,10 @@ export function installOpenCodePlugin(
   }
 
   // Best-effort: scrub the dead `file://...` entry older lightcode versions
-  // wrote into opencode.json, and merge the browser MCP entry in one
-  // read/write cycle. Failure here doesn't block install — the plugin is
-  // already loadable via auto-discovery.
+  // wrote into opencode.json. Browser MCP is synced at OpenCode launch time so
+  // it can honor the user's provider setting.
   const nativeConfigPath = join(resolveOpenCodeNativeConfigDir(), OPENCODE_CONFIG_FILE_NAME);
-  updateOpenCodeConfigFile(nativeConfigPath, buildOpenCodeBrowserMcp({ kind: "windows" }));
+  updateOpenCodeConfigFile(nativeConfigPath, undefined);
 
   console.log(
     `[supervisor] OpenCode hook plugin staged v${manifest.version} at ${pluginDir} ` +
@@ -286,11 +286,12 @@ function installOpenCodePluginWsl(
     };
   }
 
-  // Same scrub on the WSL-side opencode.json — in one read/write cycle.
+  // Same scrub on the WSL-side opencode.json. Browser MCP is synced at launch
+  // time so it can honor the user's provider setting.
   const cfgDir = resolveOpenCodeWslConfigDir(distro);
   if (cfgDir) {
     const wslConfigPath = `${cfgDir.uncDir}\\${OPENCODE_CONFIG_FILE_NAME}`;
-    updateOpenCodeConfigFile(wslConfigPath, buildOpenCodeBrowserMcp({ kind: "wsl", distro }));
+    updateOpenCodeConfigFile(wslConfigPath, undefined);
   }
 
   console.log(
@@ -467,6 +468,26 @@ function updateOpenCodeConfigFile(configPath: string, servers: BrowserMcpServers
   } catch {
     // best-effort
   }
+}
+
+export function syncOpenCodeBrowserMcpConfigFile(
+  location: ProjectLocation,
+  enabled: boolean,
+): void {
+  if (location.kind === "wsl") {
+    const cfgDir = resolveOpenCodeWslConfigDir(location.distro);
+    if (!cfgDir) return;
+    updateOpenCodeConfigFile(
+      `${cfgDir.uncDir}\\${OPENCODE_CONFIG_FILE_NAME}`,
+      enabled ? buildOpenCodeBrowserMcp(location) : undefined,
+    );
+    return;
+  }
+
+  updateOpenCodeConfigFile(
+    join(resolveOpenCodeNativeConfigDir(), OPENCODE_CONFIG_FILE_NAME),
+    enabled ? buildOpenCodeBrowserMcp(location) : undefined,
+  );
 }
 
 /**

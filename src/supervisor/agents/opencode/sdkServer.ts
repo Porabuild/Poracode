@@ -8,6 +8,9 @@ const URL_REGEX = /on\s+(https?:\/\/[^\s]+)/;
 const READY_TIMEOUT_MS = 15_000;
 const POSIX_TERM_GRACE_MS = 1_000;
 
+const activeServerChildren = new Set<ChildProcess>();
+let processExitCleanupRegistered = false;
+
 export interface OpenCodeServerHandle {
   readonly child: ChildProcess;
   readonly baseUrl: Promise<string>;
@@ -21,7 +24,41 @@ interface PendingResolve {
   reject(err: Error): void;
 }
 
+function terminateOpenCodeServerChildNow(child: ChildProcess): void {
+  if (typeof child.pid !== "number") return;
+  if (child.exitCode !== null || child.killed) return;
+
+  if (process.platform === "win32") {
+    terminateChildProcessTree(child);
+    return;
+  }
+
+  try {
+    process.kill(-child.pid, "SIGKILL");
+  } catch {
+    try {
+      process.kill(child.pid, "SIGKILL");
+    } catch {
+      // Already gone.
+    }
+  }
+}
+
+export function disposeOpenCodeServerHandlesForShutdown(): void {
+  for (const child of activeServerChildren) {
+    terminateOpenCodeServerChildNow(child);
+  }
+  activeServerChildren.clear();
+}
+
+function registerProcessExitCleanup(): void {
+  if (processExitCleanupRegistered) return;
+  processExitCleanupRegistered = true;
+  process.once("exit", disposeOpenCodeServerHandlesForShutdown);
+}
+
 export function spawnOpenCodeServer(commandSpec: CommandSpec): OpenCodeServerHandle {
+  registerProcessExitCleanup();
   const isWin = process.platform === "win32";
   const child = spawn(commandSpec.command, commandSpec.args, {
     cwd: commandSpec.cwd,
@@ -37,6 +74,7 @@ export function spawnOpenCodeServer(commandSpec: CommandSpec): OpenCodeServerHan
     // Windows has no process groups; taskkill /T handles the tree.
     detached: !isWin,
   });
+  activeServerChildren.add(child);
 
   let stdoutBuf = "";
   let stderrBuf = "";
@@ -54,6 +92,7 @@ export function spawnOpenCodeServer(commandSpec: CommandSpec): OpenCodeServerHan
     );
   });
   child.once("exit", (code, signal) => {
+    activeServerChildren.delete(child);
     if (!baseUrl) {
       const detail = formatOutput();
       const exitMessage = `opencode serve exited before ready (code=${code} signal=${signal}).${detail}`;

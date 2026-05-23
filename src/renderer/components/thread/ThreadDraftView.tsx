@@ -35,6 +35,7 @@ import {
 } from "./threadDraftViewHelpers";
 import { friendlyError } from "@/shared/messages";
 import { PresentationModeTabs } from "./PresentationModeTabs";
+import { ProjectSwitchMenu } from "./ProjectSwitchMenu";
 import { ThreadDraftComposerArea, type DraftStartInput } from "./ThreadDraftComposerArea";
 import type { ComposerControl } from "./ThreadComposer";
 import { AgentDiscoveryScreen } from "./AgentDiscoveryScreen";
@@ -803,6 +804,42 @@ export function ThreadDraftView(props: {
     props.paneAlign === "right" ? "ml-auto" : props.paneAlign === "left" ? "mr-auto" : "mx-auto";
   const paddingClass = "px-2";
 
+  const handlePresentationChange = (next: ThreadPresentationMode) => {
+    // If the active provider can't serve this surface, swap to another
+    // installed provider that can — the provider-switch effect will then
+    // reload the per-provider config snapshot.
+    if (!supportedPresentationModes.includes(next)) {
+      const fallback = installedAgents.find((agent) => {
+        const modes = agent.capabilities.presentationModes ?? [agent.capabilities.presentationMode];
+        return modes.includes(next);
+      });
+      if (!fallback) return;
+      setPresentationMode(next);
+      setAgentKind(fallback.kind);
+      return;
+    }
+    setPresentationMode(next);
+    // Drop config values that the new presentation surface doesn't
+    // support (e.g. Codex plan mode is ACP-only).
+    const normalizer = effectiveAgentKind ? getConfigNormalizer(effectiveAgentKind) : undefined;
+    if (!normalizer) return;
+    const patch = normalizer({
+      capabilities: capabilitiesForPresentation(selectedAgent.capabilities, next),
+      config: {
+        model,
+        effort,
+        ...(contextSize ? { contextSize } : {}),
+        ...(fast ? { fast } : {}),
+        ...(thinking ? { thinking } : {}),
+        mode,
+        approvalPolicy,
+        sandboxMode,
+      },
+      presentationMode: next,
+    });
+    if (Object.keys(patch).length > 0) onConfigPatch(patch);
+  };
+
   return (
     <div
       ref={props.droppableRef}
@@ -821,64 +858,26 @@ export function ThreadDraftView(props: {
         />
       )}
       <div
-        className={`${props.compact ? alignClass : "mx-auto"} relative flex h-full min-h-0 w-full max-w-[1040px] flex-col ${paddingClass} px-3 pb-2 ${props.compact ? "" : "pt-2"}`}
+        className={`${props.compact ? alignClass : "mx-auto justify-center"} relative flex h-full min-h-0 w-full max-w-[1040px] flex-col ${paddingClass} px-3 pb-2 ${props.compact ? "" : "pt-2"}`}
       >
         <ThreadDraftDropIndicators dropIndicator={props.dropIndicator} />
-        <ThreadDraftHero
-          compact={props.compact}
-          projectId={project.id}
-          {...(scopeLabel ? { scopeLabel } : {})}
-          {...(props.paneId ? { paneId: props.paneId } : {})}
-        />
-
-        <PresentationModeTabs
-          presentationMode={presentationMode}
-          supportsTerminal={supportsTerminalMode}
-          supportsGui={supportsGuiMode}
-          className={`${props.compact ? alignClass : "mx-auto"} mb-1 w-full max-w-[920px]`}
-          onChange={(next) => {
-            // If the active provider can't serve this surface, swap to
-            // another installed provider that can — the provider-switch
-            // effect will then reload the per-provider config snapshot.
-            if (!supportedPresentationModes.includes(next)) {
-              const fallback = installedAgents.find((agent) => {
-                const modes = agent.capabilities.presentationModes ?? [
-                  agent.capabilities.presentationMode,
-                ];
-                return modes.includes(next);
-              });
-              if (!fallback) return;
-              setPresentationMode(next);
-              setAgentKind(fallback.kind);
-              return;
-            }
-            setPresentationMode(next);
-            // Drop config values that the new presentation surface
-            // doesn't support (e.g. Codex plan mode is ACP-only).
-            const normalizer = effectiveAgentKind
-              ? getConfigNormalizer(effectiveAgentKind)
-              : undefined;
-            if (!normalizer) return;
-            const patch = normalizer({
-              capabilities: capabilitiesForPresentation(selectedAgent.capabilities, next),
-              config: {
-                model,
-                effort,
-                ...(contextSize ? { contextSize } : {}),
-                ...(fast ? { fast } : {}),
-                ...(thinking ? { thinking } : {}),
-                mode,
-                approvalPolicy,
-                sandboxMode,
-              },
-              presentationMode: next,
-            });
-            if (Object.keys(patch).length > 0) onConfigPatch(patch);
-          }}
-        />
+        {props.compact ? <ThreadDraftHero compact={props.compact} /> : null}
 
         {/* Composer at bottom */}
-        <div className={`${props.compact ? alignClass : "mx-auto"} w-full max-w-[920px]`}>
+        <div className={`${props.compact ? alignClass : "mx-auto"} w-full max-w-[720px]`}>
+          <div className="mb-1 flex items-center justify-between gap-2">
+            <ProjectSwitchMenu
+              currentProjectId={project.id}
+              variant="compact"
+              {...(props.paneId ? { paneId: props.paneId } : {})}
+            />
+            <PresentationModeTabs
+              presentationMode={presentationMode}
+              supportsTerminal={supportsTerminalMode}
+              supportsGui={supportsGuiMode}
+              onChange={handlePresentationChange}
+            />
+          </div>
           <ThreadDraftComposerArea
             project={project}
             {...(props.paneId ? { paneId: props.paneId } : {})}

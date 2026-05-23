@@ -10,17 +10,24 @@ interface ThreadGoalDockProps {
   onDismiss: () => void;
 }
 
+const localGoalTimingByItemId = new Map<
+  string,
+  { timeUsedSeconds: number; anchorSeconds: number }
+>();
+
 export function ThreadGoalDock({ state, onDismiss }: ThreadGoalDockProps) {
-  const [localAnchorSeconds, setLocalAnchorSeconds] = useState(() => Date.now() / 1000);
+  const [localAnchorSeconds, setLocalAnchorSeconds] = useState(() =>
+    resolveLocalGoalAnchorSeconds(state, Date.now() / 1000),
+  );
   const [nowSeconds, setNowSeconds] = useState(() => Date.now() / 1000);
   const isActive = state.status === "active";
   const isComplete = state.status === "complete";
 
   useEffect(() => {
     const now = Date.now() / 1000;
-    setLocalAnchorSeconds(now);
+    setLocalAnchorSeconds(resolveLocalGoalAnchorSeconds(state, now));
     setNowSeconds(now);
-  }, [state.sourceItemId, state.timeUsedSeconds, state.updatedAt]);
+  }, [state]);
 
   useEffect(() => {
     if (!isActive) return;
@@ -44,6 +51,7 @@ export function ThreadGoalDock({ state, onDismiss }: ThreadGoalDockProps) {
       <div className="flex min-w-0 items-center gap-2 leading-5">
         {isActive ? (
           <span className="lightcode-goal-active-icon shrink-0" aria-hidden="true">
+            <span className="lightcode-goal-active-icon__ring" />
             <StatusIcon className={`size-3.5 ${statusIconClass}`} />
           </span>
         ) : (
@@ -167,4 +175,19 @@ function resolveGoalElapsedSeconds(
 function normalizeTimestampSeconds(timestamp: number | undefined): number | undefined {
   if (timestamp === undefined) return undefined;
   return timestamp > 1_000_000_000_000 ? timestamp / 1000 : timestamp;
+}
+
+function resolveLocalGoalAnchorSeconds(state: ThreadGoalDockState, nowSeconds: number): number {
+  if (state.status !== "active" || state.updatedAt !== undefined) return nowSeconds;
+
+  const timeUsedSeconds = state.timeUsedSeconds ?? 0;
+  const cached = localGoalTimingByItemId.get(state.sourceItemId);
+  if (cached?.timeUsedSeconds === timeUsedSeconds) {
+    return cached.anchorSeconds;
+  }
+
+  const anchorSeconds = nowSeconds;
+  if (localGoalTimingByItemId.size > 200) localGoalTimingByItemId.clear();
+  localGoalTimingByItemId.set(state.sourceItemId, { timeUsedSeconds, anchorSeconds });
+  return anchorSeconds;
 }
