@@ -28,6 +28,7 @@ export interface BranchSelectorProps {
   popoverPlacement?: "top" | "bottom";
   forceHideLabel?: boolean;
   iconOnly?: boolean;
+  className?: string;
 }
 
 export function BranchSelector(props: BranchSelectorProps) {
@@ -161,10 +162,10 @@ export function BranchSelector(props: BranchSelectorProps) {
   }
 
   return (
-    <div className="flex items-center gap-1">
+    <div className={`flex items-center gap-1 ${props.className ?? ""}`}>
       {worktreeMode && <span className="shrink-0 text-xs text-muted">from</span>}
       <Popover isOpen={isOpen} onOpenChange={setIsOpen}>
-        <Popover.Trigger>
+        <Popover.Trigger className="flex flex-1 min-w-0 items-center">
           {trigger ?? (
             <Tooltip delay={0}>
               <Button

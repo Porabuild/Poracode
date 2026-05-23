@@ -152,24 +152,21 @@ export function GitReviewPanel(props: {
         {/* Header — full when standalone, slim git-actions-only bar when parent provides its own header */}
         {hideHeader ? (
           <div className="flex h-7 shrink-0 items-center gap-1.5 border-b border-[color:var(--border)] pl-1.5 pr-3 text-xs leading-tight">
-            {gitStatus?.branch && (
+            {gitStatus?.branch ? (
               <>
                 {statusKey ? (
-                  <>
+                  <div className="flex min-w-0 flex-1 items-center gap-1.5">
                     <GitBranch className="size-3 shrink-0 text-muted/50" />
-                    <div className="min-w-0">
-                      <Tooltip delay={300}>
-                        <Tooltip.Trigger tabIndex={-1} role="none">
-                          <div className="max-w-[100px] truncate text-muted">
-                            {gitStatus.branch}
-                          </div>
-                        </Tooltip.Trigger>
-                        <Tooltip.Content placement="bottom">{gitStatus.branch}</Tooltip.Content>
-                      </Tooltip>
-                    </div>
-                  </>
+                    <Tooltip delay={300}>
+                      <Tooltip.Trigger className="min-w-0 flex-1" tabIndex={-1} role="none">
+                        <span className="block truncate text-muted">{gitStatus.branch}</span>
+                      </Tooltip.Trigger>
+                      <Tooltip.Content placement="bottom">{gitStatus.branch}</Tooltip.Content>
+                    </Tooltip>
+                  </div>
                 ) : (
                   <BranchSelector
+                    className="min-w-0 flex-1"
                     projectId={project.id}
                     currentBranch={gitStatus.branch}
                     value={gitStatus.branch}
@@ -179,11 +176,11 @@ export function GitReviewPanel(props: {
                     trigger={
                       <button
                         type="button"
-                        className="flex min-w-0 cursor-pointer items-center gap-1 rounded px-1.5 py-1 hover:bg-foreground/5"
+                        className="flex min-w-0 flex-1 cursor-pointer items-center gap-1 rounded px-1.5 py-1 hover:bg-foreground/5"
                         aria-label="Switch branch"
                       >
                         <GitBranch className="size-3 shrink-0 text-muted/50" />
-                        <span className="max-w-[200px] truncate text-muted">
+                        <span className="block flex-1 truncate text-left text-muted">
                           {gitStatus.branch}
                         </span>
                       </button>
@@ -196,8 +193,9 @@ export function GitReviewPanel(props: {
                   </span>
                 )}
               </>
+            ) : (
+              <div className="flex-1" />
             )}
-            <div className="flex-1" />
             {onRemove && (
               <button
                 type="button"
@@ -259,6 +257,7 @@ export function GitReviewPanel(props: {
                   </>
                 ) : (
                   <BranchSelector
+                    className="min-w-0 flex-1"
                     projectId={project.id}
                     currentBranch={gitStatus.branch}
                     value={gitStatus.branch}
