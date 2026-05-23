@@ -26,7 +26,7 @@ export const claudeCapabilities: AgentCapability = {
   modelEfforts: {
     "claude-opus-4-6": ["low", "medium", "high", "max"],
     haiku: [],
-    sonnet: ["low", "medium", "high"],
+    sonnet: ["low", "medium", "high", "max"],
   },
   contextSizes: [
     { id: "200k", label: "200k" },

@@ -1365,7 +1365,7 @@ export class ThreadSessionManager {
     let pty;
     if (command) {
       const ptyEnv = {
-        ...process.env,
+        ...sanitizedProcessEnv,
         ...(command.env ?? {}),
         ...agentEnv,
         ...terminalEnv,
