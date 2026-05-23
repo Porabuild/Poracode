@@ -32,21 +32,22 @@ export const ToolCall = memo(function ToolCall({ item }: ToolCallProps) {
       ? { path: lazyReadPath, projectLocation: paneActions.projectLocation }
       : null;
   const fetched = useReadAbsoluteFile(isExpanded ? fetchTarget : null);
+  const readResultPart =
+    payload?.kind === "read" && !lazyReadPath ? extractReadFileResultPart(payload) : undefined;
+  const hasReadResult = !!readResultPart && readResultPart.text.length > 0;
   const sections = useMemo<ToolCallSection[]>(() => {
     if (!isExpanded || !payload) return [];
-    if (lazyReadPath) return [];
+    if (lazyReadPath || hasReadResult) return [];
     const isSkill = isSkillTool(payload);
-    const resultPart =
-      payload.kind === "read" ? extractReadFileResultPart(payload) : extractAcpResultPart(payload);
     return [
       { label: "args", part: extractAcpArgsPart(payload) },
       {
         label: "result",
-        part: resultPart,
+        part: extractAcpResultPart(payload),
         ...(isSkill ? { renderAsMarkdown: true } : {}),
       },
     ];
-  }, [isExpanded, payload, lazyReadPath]);
+  }, [isExpanded, payload, lazyReadPath, hasReadResult]);
   if (!payload?.name) return null;
   if (isContextCompactionToolCall(item)) return <ContextCompaction item={item} />;
   if (isPlanProposalToolCall(item)) return <PlanProposal item={item} />;
@@ -76,6 +77,8 @@ export const ToolCall = memo(function ToolCall({ item }: ToolCallProps) {
         ) : (
           <FileContentPlaceholder state={fetched.state} reason={fetched.reason} />
         )
+      ) : readResultPart && hasReadResult ? (
+        <CommandOutputViewport text={readResultPart.text} language={readResultPart.language} />
       ) : (
         <ToolCallSections sections={sections} />
       )}

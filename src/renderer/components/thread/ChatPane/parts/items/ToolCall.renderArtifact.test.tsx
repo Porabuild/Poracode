@@ -51,14 +51,11 @@ describe.skipIf(!enabled)("ToolCall — render artifact", () => {
     fireEvent.click(trigger);
 
     const viewport = await waitFor(() => {
-      const headers = Array.from(document.querySelectorAll("div")).filter(
-        (el) => el.textContent?.trim() === "result",
-      );
-      const header = headers[0];
-      if (!header) throw new Error("result header not found");
-      const sibling = header.nextElementSibling;
+      const body = document.querySelector('[data-slot="disclosure-body"]');
+      if (!(body instanceof HTMLElement)) throw new Error("disclosure body not found");
+      const sibling = body.querySelector(".lc-shiki, pre");
       if (!(sibling instanceof HTMLElement) || !sibling.classList.contains("lc-shiki")) {
-        throw new Error("result viewport not yet highlighted");
+        throw new Error("read viewport not yet highlighted");
       }
       return sibling;
     });

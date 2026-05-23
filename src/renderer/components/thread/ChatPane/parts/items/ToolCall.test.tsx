@@ -5,7 +5,7 @@ import type { RuntimeChatItem } from "@/renderer/state/slices/runtimeEventSlice"
 import { ToolCall } from "./ToolCall";
 
 describe("ToolCall — Claude View (Read) rich rendering", () => {
-  it("syntax-highlights the file body and strips the LLM line-number prefixes", async () => {
+  it("renders the rich file body directly without args/result labels", async () => {
     const item: RuntimeChatItem = {
       id: "toolu_read",
       type: "tool_call",
@@ -29,12 +29,16 @@ describe("ToolCall — Claude View (Read) rich rendering", () => {
     fireEvent.click(getDisclosureTrigger());
 
     const resultViewport = await waitFor(() => {
-      const viewport = getSectionViewport("result");
+      const viewport = findRichViewport();
       if (!viewport.classList.contains("lc-shiki")) {
-        throw new Error("result viewport not yet highlighted");
+        throw new Error("read viewport not yet highlighted");
       }
       return viewport;
     });
+
+    // No labeled args/result headers — only the rich view of the file body.
+    expect(findSectionHeader("args")).toBeNull();
+    expect(findSectionHeader("result")).toBeNull();
 
     // The "1: " / "2: " line-number prefixes that the read tool emits should
     // be stripped before highlighting.
@@ -72,16 +76,19 @@ describe("ToolCall — Claude View (Read) rich rendering", () => {
     fireEvent.click(getDisclosureTrigger());
 
     const resultViewport = await waitFor(() => {
-      const viewport = getSectionViewport("result");
+      const viewport = findRichViewport();
       if (!viewport.textContent?.includes("plain note body")) {
-        throw new Error("result viewport not populated yet");
+        throw new Error("read viewport not populated yet");
       }
       return viewport;
     });
 
-    // Result viewport for an unknown language stays in a plain <pre>, not the
-    // Shiki container. The args section (JSON) may still be highlighted —
-    // that's expected and irrelevant to this assertion.
+    // No labeled args/result headers — only the rich view of the file body.
+    expect(findSectionHeader("args")).toBeNull();
+    expect(findSectionHeader("result")).toBeNull();
+
+    // A read result with an unknown language renders in a plain <pre>, not the
+    // Shiki container.
     expect(resultViewport.tagName.toLowerCase()).toBe("pre");
     expect(resultViewport.classList.contains("lc-shiki")).toBe(false);
   });
@@ -95,17 +102,17 @@ function getDisclosureTrigger(): HTMLElement {
   return trigger;
 }
 
-function getSectionViewport(label: string): HTMLElement {
-  const headers = Array.from(document.querySelectorAll("div")).filter(
-    (el) => el.textContent?.trim() === label,
+function findSectionHeader(label: string): HTMLElement | null {
+  return (
+    Array.from(document.querySelectorAll("div")).find((el) => el.textContent?.trim() === label) ??
+    null
   );
-  const header = headers[0];
-  if (!header) {
-    throw new Error(`section label "${label}" not found`);
-  }
-  const viewport = header.nextElementSibling;
-  if (!(viewport instanceof HTMLElement)) {
-    throw new Error(`viewport sibling for section "${label}" not found`);
-  }
+}
+
+function findRichViewport(): HTMLElement {
+  const body = document.querySelector('[data-slot="disclosure-body"]');
+  if (!(body instanceof HTMLElement)) throw new Error("disclosure body not found");
+  const viewport = body.querySelector(".lc-shiki, pre");
+  if (!(viewport instanceof HTMLElement)) throw new Error("rich viewport not found");
   return viewport;
 }
