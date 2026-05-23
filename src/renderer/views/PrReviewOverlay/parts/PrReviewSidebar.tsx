@@ -29,6 +29,8 @@ export function PrReviewSidebar(props: {
   projectId: string;
   projectLocation: ProjectLocation;
   prKey: string;
+  cacheKey: string;
+  branch?: string | undefined;
   worktreePath?: string | undefined;
   onSelectFile: (path: string) => void;
   onClose: () => void;
@@ -41,6 +43,8 @@ export function PrReviewSidebar(props: {
     projectId,
     projectLocation,
     prKey,
+    cacheKey,
+    branch,
     worktreePath,
     onSelectFile,
     onClose,
@@ -146,7 +150,10 @@ export function PrReviewSidebar(props: {
           <PrSection
             prKey={prKey}
             projectId={projectId}
+            projectLocation={projectLocation}
+            branch={branch}
             worktreePath={worktreePath}
+            cacheKey={cacheKey}
             prLoading={prLoading}
             handleMergePr={handleMergePr}
             handleClosePr={handleClosePr}

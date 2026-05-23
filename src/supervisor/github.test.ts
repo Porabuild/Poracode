@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const execFileAsyncMock = vi.hoisted(() =>
   vi.fn<(...args: unknown[]) => Promise<{ stdout: string }>>(),
@@ -58,6 +58,10 @@ describe("GitHubService", () => {
     mkdtempMock.mockImplementation(async (prefix) => `${prefix}abc123`);
     rmMock.mockResolvedValue(undefined);
     writeFileMock.mockResolvedValue(undefined);
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   describe("checkGhAvailable", () => {
@@ -195,11 +199,13 @@ describe("GitHubService", () => {
         title: "My PR",
         baseRefName: "main",
         isDraft: false,
+        statusCheckRollup: [{ status: "COMPLETED", conclusion: "SUCCESS" }],
         updatedAt: "2026-04-03T10:00:00Z",
       });
-      // First call: pr create (returns URL text), second call: pr view (returns JSON)
+      // First call: pr create, second call: viewer login, third call: pr view.
       execFileAsyncMock
         .mockResolvedValueOnce({ stdout: "https://github.com/owner/repo/pull/50\n" })
+        .mockResolvedValueOnce({ stdout: "demo\n" })
         .mockResolvedValueOnce({ stdout: viewJson });
 
       const result = await new GitHubService().createPr(
@@ -213,6 +219,7 @@ describe("GitHubService", () => {
 
       expect(result.number).toBe(50);
       expect(result.state).toBe("open");
+      expect(result.checksStatus).toBe("SUCCESS");
       expect(mkdtempMock).toHaveBeenCalledTimes(1);
       expect(writeFileMock).toHaveBeenCalledTimes(1);
       expect(rmMock).toHaveBeenCalledTimes(1);
@@ -222,8 +229,10 @@ describe("GitHubService", () => {
       expect(createArgs).toContain("create");
       expect(createArgs).toContain("--body-file");
       expect(createArgs).not.toContain("--json");
-      // Second call: pr view
-      const viewArgs = buildAgentCommandMock.mock.calls[1]![2] as string[];
+      const viewCall = buildAgentCommandMock.mock.calls.find((call) =>
+        (call[2] as string[]).includes("view"),
+      );
+      const viewArgs = viewCall![2] as string[];
       expect(viewArgs).toContain("pr");
       expect(viewArgs).toContain("view");
       expect(viewArgs).toContain("--json");
@@ -232,6 +241,7 @@ describe("GitHubService", () => {
     it("includes --draft flag when isDraft is true", async () => {
       execFileAsyncMock
         .mockResolvedValueOnce({ stdout: "https://github.com/owner/repo/pull/51\n" })
+        .mockResolvedValueOnce({ stdout: "demo\n" })
         .mockResolvedValueOnce({
           stdout: JSON.stringify({
             number: 51,
@@ -248,6 +258,54 @@ describe("GitHubService", () => {
 
       const createArgs = buildAgentCommandMock.mock.calls[0]![2] as string[];
       expect(createArgs).toContain("--draft");
+    });
+
+    it("polls briefly when the created PR has no checks yet", async () => {
+      vi.useFakeTimers();
+      execFileAsyncMock
+        .mockResolvedValueOnce({ stdout: "https://github.com/owner/repo/pull/52\n" })
+        .mockResolvedValueOnce({ stdout: "demo\n" })
+        .mockResolvedValueOnce({
+          stdout: JSON.stringify({
+            number: 52,
+            url: "https://github.com/owner/repo/pull/52",
+            state: "OPEN",
+            title: "Queued PR",
+            baseRefName: "main",
+            isDraft: false,
+            updatedAt: "2026-04-03T10:00:00Z",
+            statusCheckRollup: [],
+          }),
+        })
+        .mockResolvedValueOnce({
+          stdout: JSON.stringify({
+            number: 52,
+            url: "https://github.com/owner/repo/pull/52",
+            state: "OPEN",
+            title: "Queued PR",
+            baseRefName: "main",
+            isDraft: false,
+            updatedAt: "2026-04-03T10:00:05Z",
+            statusCheckRollup: [{ status: "QUEUED", conclusion: "" }],
+          }),
+        });
+
+      const resultPromise = new GitHubService().createPr(
+        location,
+        "feature/x",
+        "main",
+        "Queued PR",
+        "",
+        false,
+      );
+      await vi.advanceTimersByTimeAsync(1_000);
+      const result = await resultPromise;
+
+      expect(result.checksStatus).toBe("PENDING");
+      const viewCalls = buildAgentCommandMock.mock.calls.filter((call) =>
+        (call[2] as string[]).includes("view"),
+      );
+      expect(viewCalls).toHaveLength(2);
     });
 
     it("cleans up body file even on failure", async () => {

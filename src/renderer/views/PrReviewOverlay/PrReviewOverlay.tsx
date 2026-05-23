@@ -195,6 +195,8 @@ export function PrReviewOverlay(props: {
           projectId={project.id}
           projectLocation={effectiveLocation}
           prKey={prKey}
+          cacheKey={cacheKey}
+          branch={details?.headBranch}
           worktreePath={worktreePath}
           onSelectFile={(path) => {
             setActiveTab("changes");

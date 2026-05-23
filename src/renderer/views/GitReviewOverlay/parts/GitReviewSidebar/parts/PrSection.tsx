@@ -30,9 +30,11 @@ import {
   usePrTitle,
   usePrUrl,
 } from "@/renderer/state/gitSelectors";
+import { usePendingPrRefresh } from "@/renderer/hooks/usePendingPrRefresh";
 import { usePanelStore } from "@/renderer/state/panelStore";
 import { getPrStatusTone, PR_TONE_BG_CLASS } from "@/renderer/utils/prStatus";
 import { GitReviewSection } from "./GitReviewSection";
+import type { ProjectLocation } from "@/shared/contracts";
 
 const BLOCK_REASON: Record<string, string> = {
   BLOCKED: "Required reviews, conversations, or status checks not met.",
@@ -45,7 +47,10 @@ const BLOCK_REASON: Record<string, string> = {
 export function PrSection(props: {
   prKey: string;
   projectId: string;
+  projectLocation: ProjectLocation;
+  branch?: string | undefined;
   worktreePath?: string | undefined;
+  cacheKey?: string | undefined;
   prLoading: boolean;
   handleMergePr: (method: "merge" | "squash" | "rebase", admin?: boolean) => Promise<void>;
   handleClosePr: () => Promise<void>;
@@ -55,7 +60,10 @@ export function PrSection(props: {
   const {
     prKey,
     projectId,
+    projectLocation,
+    branch,
     worktreePath,
+    cacheKey,
     prLoading,
     handleMergePr,
     handleClosePr,
@@ -70,6 +78,8 @@ export function PrSection(props: {
   const mergeStateStatus = usePrMergeStateStatus(prKey);
   const mergeable = usePrMergeable(prKey);
   const [bypass, setBypass] = useState(false);
+
+  usePendingPrRefresh({ prKey, projectLocation, branch, ...(cacheKey ? { cacheKey } : {}) });
 
   const indicatorColor = PR_TONE_BG_CLASS[getPrStatusTone(state, checksStatus)];
 

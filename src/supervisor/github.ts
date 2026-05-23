@@ -28,6 +28,14 @@ import { buildAgentCommand, parallelWslCommandsAsync, quotePosixShellArg } from 
 
 const execFileAsync = promisify(execFile);
 const GH_TIMEOUT = 30_000;
+const CREATE_PR_STATUS_WAIT_MS = 8_000;
+const CREATE_PR_STATUS_POLL_MS = 1_000;
+const PR_VIEW_FIELDS =
+  "number,url,state,title,baseRefName,isDraft,reviewDecision,statusCheckRollup,updatedAt,mergeable,mergeStateStatus,author";
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
 // `gh` reports an unreachable remote with the GraphQL message
 // "Could not resolve to a Repository with the name '<owner>/<name>'". This
@@ -349,6 +357,37 @@ export class GitHubService {
     }
   }
 
+  private async viewPrData(
+    location: ProjectLocation,
+    branch: string,
+    viewerLogin?: string,
+  ): Promise<PrData> {
+    const stdout = await runGh(location, ["pr", "view", branch, "--json", PR_VIEW_FIELDS]);
+    return mapPrData(JSON.parse(stdout), viewerLogin);
+  }
+
+  private async waitForCreatedPrStatus(
+    location: ProjectLocation,
+    branch: string,
+    viewerLogin?: string,
+  ): Promise<PrData> {
+    const deadline = Date.now() + CREATE_PR_STATUS_WAIT_MS;
+    let latest = await this.viewPrData(location, branch, viewerLogin);
+    while (
+      !latest.isDraft &&
+      latest.state === "open" &&
+      !latest.checksStatus &&
+      Date.now() < deadline
+    ) {
+      await delay(CREATE_PR_STATUS_POLL_MS);
+      latest = await this.viewPrData(location, branch, viewerLogin);
+    }
+    if (!latest.isDraft && latest.state === "open" && !latest.checksStatus) {
+      return { ...latest, checksStatus: "PENDING" };
+    }
+    return latest;
+  }
+
   async createPr(
     location: ProjectLocation,
     branch: string,
@@ -377,18 +416,11 @@ export class GitHubService {
       ];
       await runGh(location, createArgs);
 
-      // gh pr create doesn't support --json; fetch the new PR via gh pr view
-      const [viewStdout, viewerLogin] = await Promise.all([
-        runGh(location, [
-          "pr",
-          "view",
-          branch,
-          "--json",
-          "number,url,state,title,baseRefName,isDraft,reviewDecision,statusCheckRollup,updatedAt,mergeable,mergeStateStatus,author",
-        ]),
-        this.getViewerLogin(location),
-      ]);
-      return mapPrData(JSON.parse(viewStdout), viewerLogin);
+      // `gh pr create` doesn't support --json. GitHub can return an empty
+      // statusCheckRollup for a few seconds before Actions queues checks, so
+      // wait briefly before handing the new PR to the renderer.
+      const viewerLogin = await this.getViewerLogin(location);
+      return await this.waitForCreatedPrStatus(location, branch, viewerLogin);
     } catch (err) {
       throw classifyError(err, "pr create");
     } finally {
@@ -407,7 +439,7 @@ export class GitHubService {
       "--limit",
       "1",
       "--json",
-      "number,url,state,title,baseRefName,isDraft,reviewDecision,statusCheckRollup,updatedAt,mergeable,mergeStateStatus,author",
+      PR_VIEW_FIELDS,
     ];
 
     // WSL: collapse `gh pr list` + `gh api user` (for viewerDidAuthor) into a
