@@ -98,16 +98,18 @@ function resolveModeValue(
     : (capabilities.modes[0] ?? undefined);
 }
 
-function resolveApprovalPolicyValue(capabilities: AgentCapability, preferred?: string): string {
-  const policies = capabilities.approvalPolicies;
-  return preferred && policies.some((p) => p.id === preferred)
-    ? preferred
-    : (capabilities.bypassApprovalPolicy ?? policies[0]?.id ?? "");
-}
-
-function resolveSandboxModeValue(capabilities: AgentCapability, preferred?: string): string {
-  const modes = capabilities.sandboxModes;
-  return preferred && modes.some((m) => m.id === preferred) ? preferred : (modes[0]?.id ?? "");
+function resolveLabeledOptionValue(
+  options: ReadonlyArray<{ id: string }>,
+  preferred: string | undefined,
+  bypass: string | undefined,
+): string {
+  if (preferred !== undefined) {
+    return options.some((o) => o.id === preferred) ? preferred : "";
+  }
+  if (bypass && options.some((o) => o.id === bypass)) {
+    return bypass;
+  }
+  return options[0]?.id ?? "";
 }
 
 function resolveDefaultConfig(
@@ -124,8 +126,16 @@ function resolveDefaultConfig(
     ? preferred?.thinking === true
     : false;
   const mode = resolveModeValue(capabilities, preferred?.mode);
-  const approvalPolicy = resolveApprovalPolicyValue(capabilities, preferred?.approvalPolicy);
-  const sandboxMode = resolveSandboxModeValue(capabilities, preferred?.sandboxMode);
+  const approvalPolicy = resolveLabeledOptionValue(
+    capabilities.approvalPolicies,
+    preferred?.approvalPolicy,
+    capabilities.bypassPermissions?.approvalPolicy,
+  );
+  const sandboxMode = resolveLabeledOptionValue(
+    capabilities.sandboxModes,
+    preferred?.sandboxMode,
+    capabilities.bypassPermissions?.sandboxMode,
+  );
 
   return {
     model,

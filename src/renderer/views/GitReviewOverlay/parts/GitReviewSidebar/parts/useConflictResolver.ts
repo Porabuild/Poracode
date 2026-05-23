@@ -77,6 +77,7 @@ export function useConflictResolver(params: {
       provider.capabilities,
     );
 
+    const bypass = provider.capabilities.bypassPermissions;
     const store = useAppStore.getState();
     const thread = store.createThread({
       projectId: project.id,
@@ -84,7 +85,8 @@ export function useConflictResolver(params: {
       config: {
         model,
         ...(effort ? { effort } : {}),
-        approvalPolicy: provider.capabilities.bypassApprovalPolicy ?? "bypassPermissions",
+        approvalPolicy: bypass?.approvalPolicy ?? "bypassPermissions",
+        ...(bypass?.sandboxMode ? { sandboxMode: bypass.sandboxMode } : {}),
       },
       prompt,
       presentationMode,

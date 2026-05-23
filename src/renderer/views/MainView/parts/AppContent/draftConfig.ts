@@ -15,8 +15,11 @@ export function buildProjectDraftConfig(input: {
     ...(config.fast === true ? { fast: true } : {}),
     ...(config.thinking === true ? { thinking: true } : {}),
     ...(config.mode ? { mode: config.mode } : {}),
-    ...(config.approvalPolicy ? { approvalPolicy: config.approvalPolicy } : {}),
-    ...(config.sandboxMode ? { sandboxMode: config.sandboxMode } : {}),
+    // Preserve explicit empty strings — "" means "use provider defaults"
+    // (e.g. Codex "Default permissions"). Stripping it would make reload
+    // fall through to the bypass fallback and silently flip to Full access.
+    ...(config.approvalPolicy !== undefined ? { approvalPolicy: config.approvalPolicy } : {}),
+    ...(config.sandboxMode !== undefined ? { sandboxMode: config.sandboxMode } : {}),
     worktreeMode,
   };
 }

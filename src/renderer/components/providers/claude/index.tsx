@@ -52,7 +52,7 @@ registerComposerControls("claude", ({ capabilities, config, isDisabled, onConfig
             hideLabelOnWrap: true,
             value:
               config.approvalPolicy ??
-              capabilities.bypassApprovalPolicy ??
+              capabilities.bypassPermissions?.approvalPolicy ??
               capabilities.approvalPolicies[0]?.id ??
               "default",
             isDisabled,

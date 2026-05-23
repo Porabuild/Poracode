@@ -2,7 +2,8 @@ export * from "./CodexStatusIcon";
 
 import type { ComposerControl } from "@/renderer/components/thread/ThreadComposer";
 import { CodexStatusIcon } from "./CodexStatusIcon";
-import { fullAccessToggle, planWorkToggle } from "../composerControlBuilders";
+import { planWorkToggle } from "../composerControlBuilders";
+import type { AgentCapability, ThreadConfig } from "@/shared/contracts";
 import {
   registerCommitGenDefaults,
   registerComposerControls,
@@ -96,8 +97,8 @@ const CODEX_PERMISSION_PRESETS = [
   {
     id: "auto-review",
     label: "Auto-review",
-    hint: "Review failures",
-    approvalPolicies: ["on-failure"],
+    hint: "Review on request",
+    approvalPolicies: ["on-request"],
     sandboxModes: ["workspace-write"],
   },
   {
@@ -137,8 +138,45 @@ function isCodexPermissionPresetSelected(
   );
 }
 
+function buildCodexPermissionControl(
+  capabilities: AgentCapability,
+  config: ThreadConfig,
+  isDisabled: boolean,
+  onConfigChange: (patch: Partial<ThreadConfig>) => void,
+): ComposerControl | null {
+  const approvalIds = new Set(capabilities.approvalPolicies.map((policy) => policy.id));
+  const sandboxIds = new Set(capabilities.sandboxModes.map((mode) => mode.id));
+  const permissionPresets = CODEX_PERMISSION_PRESETS.flatMap((preset) => {
+    const resolved = resolveCodexPermissionPreset(preset, approvalIds, sandboxIds);
+    return resolved ? [{ ...preset, ...resolved }] : [];
+  });
+  if (permissionPresets.length === 0) return null;
+  const current =
+    permissionPresets.find((preset) => isCodexPermissionPresetSelected(preset, config)) ??
+    permissionPresets[0]!;
+  return {
+    iconKind: "permission",
+    options: permissionPresets.map((preset) => ({
+      id: preset.id,
+      label: preset.label,
+      hint: preset.hint,
+    })),
+    hideLabelOnWrap: true,
+    value: current.id,
+    isDisabled,
+    onChange: (value: string) => {
+      const preset = permissionPresets.find((option) => option.id === value);
+      if (!preset) return;
+      onConfigChange({
+        approvalPolicy: preset.approvalPolicy,
+        sandboxMode: preset.sandboxMode,
+      });
+    },
+  };
+}
+
 registerComposerControls("codex", {
-  // ACP exposes plan mode and the coupled approval/sandbox preset selector.
+  // ACP exposes plan mode in addition to the preset selector.
   gui: ({ capabilities, config, isDisabled, onConfigChange }) => {
     const isPlanMode = (config.mode ?? "agent") !== "agent";
     const controls: ComposerControl[] = [
@@ -148,59 +186,24 @@ registerComposerControls("codex", {
         onChange: (isSelected) => onConfigChange({ mode: isSelected ? "plan" : "agent" }),
       }),
     ];
-
-    const approvalIds = new Set(capabilities.approvalPolicies.map((policy) => policy.id));
-    const sandboxIds = new Set(capabilities.sandboxModes.map((mode) => mode.id));
-    const permissionPresets = CODEX_PERMISSION_PRESETS.flatMap((preset) => {
-      const resolved = resolveCodexPermissionPreset(preset, approvalIds, sandboxIds);
-      return resolved ? [{ ...preset, ...resolved }] : [];
-    });
-    if (permissionPresets.length > 0) {
-      const currentPermissionPreset =
-        permissionPresets.find((preset) => isCodexPermissionPresetSelected(preset, config)) ??
-        permissionPresets[0]!;
-      controls.push({
-        iconKind: "permission",
-        options: permissionPresets.map((preset) => ({
-          id: preset.id,
-          label: preset.label,
-          hint: preset.hint,
-        })),
-        hideLabelOnWrap: true,
-        value: currentPermissionPreset.id,
-        isDisabled,
-        onChange: (value) => {
-          const preset = permissionPresets.find((option) => option.id === value);
-          if (!preset) return;
-          onConfigChange({
-            approvalPolicy: preset.approvalPolicy,
-            sandboxMode: preset.sandboxMode,
-          });
-        },
-      });
-    }
+    const permission = buildCodexPermissionControl(
+      capabilities,
+      config,
+      isDisabled,
+      onConfigChange,
+    );
+    if (permission) controls.push(permission);
     return controls;
   },
-  // Terminal CLI ignores `mode: "plan"` and exposes a single Full Access
-  // toggle instead of the paired approval/sandbox selector.
+  // Terminal CLI ignores `mode: "plan"` but uses the same preset selector
+  // as GUI for permissions so both surfaces stay in lockstep.
   terminal: ({ capabilities, config, isDisabled, onConfigChange }) => {
-    const hasPermissions =
-      capabilities.approvalPolicies.length > 0 || capabilities.sandboxModes.length > 0;
-    if (!hasPermissions) return [];
-    const isFullAccess =
-      config.approvalPolicy === "never" && config.sandboxMode === "danger-full-access";
-    return [
-      fullAccessToggle({
-        isFullAccess,
-        isDisabled,
-        onChange: (selected) => {
-          if (selected) {
-            onConfigChange({ approvalPolicy: "never", sandboxMode: "danger-full-access" });
-          } else {
-            onConfigChange({ approvalPolicy: "", sandboxMode: "" });
-          }
-        },
-      }),
-    ];
+    const permission = buildCodexPermissionControl(
+      capabilities,
+      config,
+      isDisabled,
+      onConfigChange,
+    );
+    return permission ? [permission] : [];
   },
 });

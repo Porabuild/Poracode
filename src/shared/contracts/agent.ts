@@ -113,6 +113,16 @@ export const agentSettingDefSchema = z.discriminatedUnion("type", [
 ]);
 export type AgentSettingDef = z.infer<typeof agentSettingDefSchema>;
 
+/**
+ * Provider-agnostic "Full Access" preset. Shared UI (conflict resolver,
+ * handoff dialog, bypass toggles) applies these fields together so codex
+ * and similar providers that need a sandbox override are bypassed correctly.
+ */
+const bypassPermissionsSchema = z.object({
+  approvalPolicy: z.string().optional(),
+  sandboxMode: z.string().optional(),
+});
+
 const agentPresentationCapabilityOverrideSchema = z
   .object({
     models: z.array(labeledOptionSchema),
@@ -129,13 +139,15 @@ const agentPresentationCapabilityOverrideSchema = z
     modes: z.array(threadModeSchema),
     approvalPolicies: z.array(labeledOptionSchema),
     sandboxModes: z.array(labeledOptionSchema),
+    defaultApprovalPolicy: z.string().optional(),
+    defaultSandboxMode: z.string().optional(),
     supportsResume: z.boolean(),
     supportsDirectInput: z.boolean(),
     liveInputMode: liveInputModeSchema,
     presentationMode: threadPresentationModeSchema,
     presentationModes: z.array(threadPresentationModeSchema).optional(),
     requiresTerminalFocusBeforeInput: z.boolean().optional(),
-    bypassApprovalPolicy: z.string().optional(),
+    bypassPermissions: bypassPermissionsSchema.optional(),
     settingDefs: z.array(agentSettingDefSchema),
     slashCommands: z.array(agentSlashCommandSchema).optional(),
   })
@@ -163,6 +175,10 @@ export const agentCapabilitySchema = z.object({
   modes: z.array(threadModeSchema).default([]),
   approvalPolicies: z.array(labeledOptionSchema).default([]),
   sandboxModes: z.array(labeledOptionSchema).default([]),
+  /** First-draft approval policy when the user has no saved preference. Falls back to the first entry in `approvalPolicies` if unset. */
+  defaultApprovalPolicy: z.string().optional(),
+  /** First-draft sandbox mode when the user has no saved preference. Falls back to the first entry in `sandboxModes` if unset. */
+  defaultSandboxMode: z.string().optional(),
   supportsResume: z.boolean().default(false),
   supportsDirectInput: z.boolean().default(true),
   liveInputMode: liveInputModeSchema.default("terminal"),
@@ -174,7 +190,7 @@ export const agentCapabilitySchema = z.object({
    */
   presentationModes: z.array(threadPresentationModeSchema).optional(),
   requiresTerminalFocusBeforeInput: z.boolean().optional(),
-  bypassApprovalPolicy: z.string().optional(),
+  bypassPermissions: bypassPermissionsSchema.optional(),
   settingDefs: z.array(agentSettingDefSchema).default([]),
   /** Populated when the Claude Agent SDK init probe succeeds (install detection). */
   slashCommands: z.array(agentSlashCommandSchema).optional(),

@@ -732,6 +732,7 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
             isThreadConfigEqual(thread.config, nextConfig) &&
             thread.canResumeWithConfig === snapshot.canResumeWithConfig &&
             thread.threadStatusSource === snapshot.threadStatusSource &&
+            thread.errorMessage === snapshot.errorMessage &&
             thread.activeTurnStartedAt === nextTurnTiming.activeTurnStartedAt &&
             thread.lastTurnStartedAt === nextTurnTiming.lastTurnStartedAt &&
             thread.lastTurnEndedAt === nextTurnTiming.lastTurnEndedAt &&
@@ -758,6 +759,7 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
             ...(snapshot.threadStatusSource !== undefined
               ? { threadStatusSource: snapshot.threadStatusSource }
               : {}),
+            ...(snapshot.errorMessage !== undefined ? { errorMessage: snapshot.errorMessage } : {}),
             ...(snapshot.sessionRef ? { sessionRef: snapshot.sessionRef } : {}),
             ...(snapshot.slashCommands !== undefined
               ? { slashCommands: snapshot.slashCommands }

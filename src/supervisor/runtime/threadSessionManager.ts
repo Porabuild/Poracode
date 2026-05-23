@@ -706,7 +706,9 @@ export class ThreadSessionManager {
         env: shellEnv,
       });
     } catch (error) {
-      throw new Error(describeShellSpawnFailure(shellCommand, shellEnv, error), { cause: error });
+      throw new Error(describeSpawnFailure("shell", shellCommand, shellEnv, error), {
+        cause: error,
+      });
     }
 
     const session: ShellSessionRuntime = {
@@ -1366,20 +1368,38 @@ export class ThreadSessionManager {
     const command = input.command
       ? injectWslEnv(input.command, input.projectLocation, terminalAgentEnv)
       : undefined;
-    const pty = command
-      ? spawn(command.command, command.args, {
+    let pty;
+    if (command) {
+      const ptyEnv = {
+        ...process.env,
+        ...(command.env ?? {}),
+        ...agentEnv,
+        ...terminalEnv,
+      };
+      try {
+        pty = spawn(command.command, command.args, {
           name: process.platform === "win32" ? "xterm-color" : terminalEnv.TERM,
           cols: input.initialSize.cols,
           rows: input.initialSize.rows,
           cwd: command.cwd ?? process.cwd(),
-          env: {
-            ...process.env,
-            ...(command.env ?? {}),
-            ...agentEnv,
-            ...terminalEnv,
-          },
-        })
-      : undefined;
+          env: ptyEnv,
+        });
+      } catch (error) {
+        throw new Error(
+          describeSpawnFailure(
+            "agent",
+            {
+              command: command.command,
+              args: command.args,
+              ...(command.cwd ? { cwd: command.cwd } : {}),
+            },
+            sanitizeEnv(ptyEnv),
+            error,
+          ),
+          { cause: error },
+        );
+      }
+    }
     const session: SessionRuntime = {
       instanceId: randomUUID(),
       threadId: input.threadId,
@@ -2017,35 +2037,58 @@ export class ThreadSessionManager {
   }
 }
 
-function describeShellSpawnFailure(
-  shellCommand: { command: string; args: string[]; cwd?: string },
+function describeSpawnFailure(
+  kind: "shell" | "agent",
+  cmd: { command: string; args: string[]; cwd?: string },
   env: Record<string, string>,
   error: unknown,
 ): string {
   const base = error instanceof Error ? error.message : String(error);
+  const prefix = `Failed to spawn ${kind} (${cmd.command})`;
 
-  if (shellCommand.cwd) {
-    const cwdDiagnosis = diagnoseCwd(shellCommand.cwd);
+  if (cmd.cwd) {
+    const cwdDiagnosis = diagnoseCwd(cmd.cwd);
     if (cwdDiagnosis) return cwdDiagnosis;
   }
 
-  // Absolute shell paths (the common case for $SHELL on macOS/Linux) can be
-  // probed; relative names like "bash" rely on PATH lookup and we leave the
-  // raw error in that case.
-  if (shellCommand.command.startsWith("/")) {
-    const shellDiagnosis = diagnoseShellBinary(shellCommand.command);
-    if (shellDiagnosis) return shellDiagnosis;
+  if (cmd.command.startsWith("/")) {
+    const binaryDiagnosis = diagnoseShellBinary(cmd.command);
+    if (binaryDiagnosis) return binaryDiagnosis;
+  } else {
+    // node-pty surfaces a bare "posix_spawnp failed." for PATH-lookup misses.
+    // Do the lookup ourselves against the env actually handed to the child so
+    // the user sees whether the binary was missing vs found-but-unspawnable.
+    const lookup = diagnoseRelativeBinary(cmd.command, env);
+    if (lookup) return `${prefix}: ${lookup}`;
   }
 
   // posix_spawn returns E2BIG when env+argv exceed ARG_MAX (~256KB on macOS).
   const envBytes = measureEnvBytes(env);
-  const argvBytes = measureArgvBytes(shellCommand.command, shellCommand.args);
+  const argvBytes = measureArgvBytes(cmd.command, cmd.args);
   // Leave headroom — ARG_MAX includes pointer overhead and string terminators.
   if (envBytes + argvBytes > 200_000) {
-    return `Failed to spawn shell (${shellCommand.command}): environment is too large (${Math.round((envBytes + argvBytes) / 1024)} KB). This usually means a parent process leaked variables into the launch env.`;
+    return `${prefix}: environment is too large (${Math.round((envBytes + argvBytes) / 1024)} KB). This usually means a parent process leaked variables into the launch env.`;
   }
 
-  return `Failed to spawn shell (${shellCommand.command}): ${base}`;
+  return `${prefix}: ${base}`;
+}
+
+function diagnoseRelativeBinary(command: string, env: Record<string, string>): string | undefined {
+  const pathValue = env.PATH ?? "";
+  const entries = pathValue.split(":").filter((entry) => entry.length > 0);
+  for (const entry of entries) {
+    const candidate = resolvePath(entry, command);
+    try {
+      const stat = statSync(candidate);
+      if (stat.isFile() && (stat.mode & 0o111) !== 0) return undefined;
+    } catch {
+      // continue
+    }
+  }
+  if (entries.length === 0) {
+    return `'${command}' could not be resolved — PATH is empty.`;
+  }
+  return `'${command}' was not found on PATH (${entries.length} entries searched). Check that the binary is installed and visible to the app's environment.`;
 }
 
 let spawnHelperChmodAttempted = false;

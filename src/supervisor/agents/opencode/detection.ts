@@ -59,7 +59,8 @@ export const opencodeDefaultCapabilities: AgentCapability = {
   // `opencode serve` + SDK SSE stream); terminal stays the default and uses
   // the same SDK helper for one-shot session-id allocation.
   presentationModes: ["terminal", "gui"],
-  bypassApprovalPolicy: "yolo",
+  defaultApprovalPolicy: "yolo",
+  bypassPermissions: { approvalPolicy: "yolo" },
   settingDefs: [
     {
       key: OPENCODE_BROWSER_MCP_SETTING_KEY,
