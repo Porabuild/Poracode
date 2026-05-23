@@ -1605,8 +1605,9 @@ html[data-platform="darwin"] .lightcode-content-over-drag-region--drag {
   align-items: center;
   gap: 0.35rem;
   color: var(--foreground);
-  font-size: 0.875rem;
-  font-weight: 600;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  white-space: nowrap;
 }
 
 .lightcode-context-indicator {
