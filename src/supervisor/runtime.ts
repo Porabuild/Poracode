@@ -1009,7 +1009,11 @@ export class SupervisorRuntime {
   }
 
   async gitPullFromSource(payload: GitPullFromSourcePayload): Promise<GitPullFromSourceResult> {
-    return this.gitService.pullFromSource(payload.worktreeLocation, payload.sourceBranch);
+    return this.gitService.pullFromSource(
+      payload.worktreeLocation,
+      payload.sourceBranch,
+      payload.preserveLocalChanges,
+    );
   }
 
   async ghCheckAvailable(payload: GetGitStatusPayload): Promise<GhCheckAvailableResult> {

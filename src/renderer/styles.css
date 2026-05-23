@@ -2,6 +2,15 @@
 @import "@heroui/styles";
 @import "@xterm/xterm/css/xterm.css";
 
+:root {
+  --lightcode-modal-radius: 0.7rem;
+}
+
+.modal__dialog:not(.modal__dialog--cover):not(.modal__dialog--full),
+.alert-dialog__dialog:not(.alert-dialog__dialog--cover) {
+  border-radius: var(--lightcode-modal-radius);
+}
+
 @property --lc-chat-bottom-mask-end-alpha {
   syntax: "<number>";
   initial-value: 0;

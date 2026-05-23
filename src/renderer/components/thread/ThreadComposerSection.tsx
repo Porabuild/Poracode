@@ -163,14 +163,11 @@ function buildControls(
           ? nextEfforts.includes(effectiveConfig.effort)
           : true;
         const nextContextIds = filteredCaps.modelContextSizes?.[model];
-        const contextValid =
-          !effectiveConfig.contextSize ||
-          (nextContextIds ? nextContextIds.includes(effectiveConfig.contextSize) : false);
         const nextContextDefault = nextContextIds?.[0] ?? filteredCaps.defaultContextSize;
         onPatch({
           model,
           ...(!effortValid && nextEfforts.length > 0 ? { effort: nextEfforts[0] } : {}),
-          ...(!contextValid && nextContextDefault ? { contextSize: nextContextDefault } : {}),
+          ...(nextContextDefault ? { contextSize: nextContextDefault } : {}),
           ...(filteredCaps.fastModels?.includes(model) ? {} : { fast: false }),
           ...(filteredCaps.thinkingModels?.includes(model) ? {} : { thinking: false }),
         });

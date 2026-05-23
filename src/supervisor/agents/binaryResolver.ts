@@ -1,3 +1,4 @@
+import { statSync } from "node:fs";
 import type { ProjectLocation } from "@/shared/contracts";
 import { getCachedExecutablePath, resolveExecutablePath, resolveWslExecutablePath } from "./base";
 
@@ -39,8 +40,20 @@ export function resolveAgentBinaryPath(
     return resolved;
   }
   // posix: piggy-back on the shared exec-path cache populated by
-  // primeExecutablePathCache during agent detection.
-  return getCachedExecutablePath(binary);
+  // primeExecutablePathCache during agent detection. The cached path may come
+  // from a temporary login shell (e.g. fnm multishell) that has since been
+  // cleaned up — verify the file still exists so node-pty doesn't get a stale
+  // absolute path and fail with opaque "posix_spawnp failed".
+  const cached = getCachedExecutablePath(binary);
+  if (cached) {
+    try {
+      const s = statSync(cached);
+      if (!s.isFile() || (s.mode & 0o111) === 0) return undefined;
+    } catch {
+      return undefined;
+    }
+  }
+  return cached;
 }
 
 /**

@@ -8,6 +8,7 @@ import { readBridge } from "@/renderer/bridge";
 import { captureProductEvent } from "@/renderer/analytics/posthog";
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
 import { useGitStore } from "@/renderer/state/gitStore";
+import { usePullFromSourceDialogStore } from "@/renderer/state/pullFromSourceDialogStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import {
   generateCommitMessageWithFallback,
@@ -357,7 +358,17 @@ export function useGitReviewActions(args: UseGitReviewActionsArgs) {
       const result = await readBridge().gitPullFromSource({
         worktreeLocation: getWorktreeLocation(),
         sourceBranch,
+        preserveLocalChanges: false,
       });
+      if (result.needsStash && worktreePath) {
+        usePullFromSourceDialogStore.getState().setDialog({
+          projectId: project.id,
+          worktreePath,
+          sourceBranch,
+          onComplete: onRefresh,
+        });
+        return;
+      }
       if (result.conflicting) {
         onRefresh();
         return;

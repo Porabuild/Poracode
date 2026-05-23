@@ -86,6 +86,26 @@ export class GitMergeService {
   async pullFromSource(
     worktreeLocation: ProjectLocation,
     sourceBranch: string,
+    preserveLocalChanges = false,
+  ): Promise<GitPullFromSourceResult> {
+    if (await this.hasLocalChanges(worktreeLocation)) {
+      if (!preserveLocalChanges) {
+        return {
+          merged: false,
+          fastForward: false,
+          needsStash: true,
+          error: msg("git.pull.localChanges", { branch: sourceBranch }),
+        };
+      }
+      return this.pullFromSourceWithStash(worktreeLocation, sourceBranch);
+    }
+
+    return this.pullFromSourceClean(worktreeLocation, sourceBranch);
+  }
+
+  private async pullFromSourceClean(
+    worktreeLocation: ProjectLocation,
+    sourceBranch: string,
   ): Promise<GitPullFromSourceResult> {
     let canFastForward = false;
     try {
@@ -115,16 +135,12 @@ export class GitMergeService {
     } catch (mergeError: unknown) {
       const detail = errorDetail(mergeError);
       if (detail.includes("CONFLICT") || detail.includes("Merge conflict")) {
-        const conflictFiles: string[] = [];
-        for (const match of detail.matchAll(/CONFLICT.*?:\s*(?:Merge conflict in\s+)?(.+)/g)) {
-          if (match[1]) conflictFiles.push(match[1].trim());
-        }
         return {
           merged: false,
           fastForward: false,
           conflicting: true,
           error: msg("git.merge.conflicts"),
-          conflictFiles,
+          conflictFiles: this.extractConflictFiles(detail),
         };
       }
       return {
@@ -135,6 +151,44 @@ export class GitMergeService {
     }
 
     return { merged: true, fastForward: false };
+  }
+
+  private async pullFromSourceWithStash(
+    worktreeLocation: ProjectLocation,
+    sourceBranch: string,
+  ): Promise<GitPullFromSourceResult> {
+    await execGit(worktreeLocation, [
+      "stash",
+      "push",
+      "-u",
+      "-m",
+      `Lightcode: before pull from ${sourceBranch}`,
+    ]);
+
+    const result = await this.pullFromSourceClean(worktreeLocation, sourceBranch);
+    if (!result.merged) {
+      return {
+        ...result,
+        stashPreserved: true,
+        error: result.error ?? msg("git.pull.stashPreserved"),
+      };
+    }
+
+    try {
+      await execGit(worktreeLocation, ["stash", "pop"], { timeout: GIT_HOOK_TIMEOUT });
+    } catch (stashPopError: unknown) {
+      return {
+        merged: false,
+        fastForward: result.fastForward,
+        conflicting: true,
+        reapplyConflicting: true,
+        stashPreserved: true,
+        error: msg("git.pull.reapplyConflicts"),
+        conflictFiles: this.extractConflictFiles(errorDetail(stashPopError)),
+      };
+    }
+
+    return result;
   }
 
   async abortMerge(worktreeLocation: ProjectLocation): Promise<void> {
@@ -176,6 +230,19 @@ export class GitMergeService {
     );
   }
 
+  private async hasLocalChanges(location: ProjectLocation): Promise<boolean> {
+    const status = await execGit(location, ["status", "--porcelain"]);
+    return status.trim().length > 0;
+  }
+
+  private extractConflictFiles(detail: string): string[] {
+    const conflictFiles: string[] = [];
+    for (const match of detail.matchAll(/CONFLICT.*?:\s*(?:Merge conflict in\s+)?(.+)/g)) {
+      if (match[1]) conflictFiles.push(match[1].trim());
+    }
+    return conflictFiles;
+  }
+
   private async mergeBranchIntoSourceLocation(
     location: ProjectLocation,
     worktreeBranch: string,
@@ -187,17 +254,13 @@ export class GitMergeService {
     } catch (mergeError: unknown) {
       const detail = errorDetail(mergeError);
       if (detail.includes("CONFLICT") || detail.includes("Merge conflict")) {
-        const conflictFiles: string[] = [];
-        for (const match of detail.matchAll(/CONFLICT.*?:\s*(?:Merge conflict in\s+)?(.+)/g)) {
-          if (match[1]) conflictFiles.push(match[1].trim());
-        }
         await execGit(location, ["merge", "--abort"]).catch(() => undefined);
         return {
           merged: false,
           fastForward: false,
           newSourceCommit: "",
           error: msg("git.merge.conflicts"),
-          conflictFiles,
+          conflictFiles: this.extractConflictFiles(detail),
         };
       }
       throw mergeError;

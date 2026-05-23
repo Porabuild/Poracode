@@ -20,7 +20,7 @@ const BUILTIN_MODELS: AgentCapability["models"] = [
 const BUILTIN_MODEL_EFFORTS: AgentCapability["modelEfforts"] = {
   "claude-opus-4-6": ["low", "medium", "high", "max"],
   haiku: [],
-  sonnet: ["low", "medium", "high"],
+  sonnet: ["low", "medium", "high", "max"],
 };
 
 function parseSemverTriplet(version: string): [number, number, number] | null {

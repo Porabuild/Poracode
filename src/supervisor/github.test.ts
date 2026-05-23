@@ -320,7 +320,7 @@ describe("GitHubService", () => {
   });
 
   describe("mergePr", () => {
-    it("merges with the specified method and deletes branch", async () => {
+    it("merges with the specified method without deleting branches", async () => {
       execFileAsyncMock.mockResolvedValue({ stdout: "" });
 
       await new GitHubService().mergePr(location, 42, "squash");
@@ -330,7 +330,7 @@ describe("GitHubService", () => {
       expect(ghArgs).toContain("merge");
       expect(ghArgs).toContain("42");
       expect(ghArgs).toContain("--squash");
-      expect(ghArgs).toContain("--delete-branch");
+      expect(ghArgs).not.toContain("--delete-branch");
       expect(ghArgs).not.toContain("--admin");
     });
 

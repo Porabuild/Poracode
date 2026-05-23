@@ -71,6 +71,7 @@ import {
   type AcpMapperState,
 } from "./canonicalMapping";
 import { terminateChildProcessTree } from "@/shared/processTree";
+import { ensureNodePtySpawnHelperExecutable } from "@/supervisor/nodePty";
 import {
   buildPosixExportPrefix,
   createKnownSessionRef,
@@ -1234,6 +1235,7 @@ export class AcpStructuredSession implements StructuredSessionHandle {
       return { terminalId };
     }
 
+    ensureNodePtySpawnHelperExecutable();
     const pty = spawnPty(launch.command, launch.args, {
       ...(launch.cwd ? { cwd: launch.cwd } : {}),
       env: launch.env,

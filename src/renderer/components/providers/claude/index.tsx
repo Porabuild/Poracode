@@ -34,6 +34,26 @@ registerConflictResolverDefaults("claude", {
 
 registerComposerControls("claude", ({ capabilities, config, isDisabled, onConfigChange }) => {
   const isPlanMode = (config.mode ?? "agent") !== "agent";
+
+  // Auto mode is only supported for Sonnet 4.6+, Opus 4.6, and Opus 4.7.
+  // Filter it out for Haiku and other models that don't support it.
+  const AUTO_CAPABLE_MODELS = new Set(["sonnet", "claude-opus-4-6", "claude-opus-4-7"]);
+  const modelSupportsAuto = !config.model || AUTO_CAPABLE_MODELS.has(config.model);
+  const filteredPolicies = modelSupportsAuto
+    ? capabilities.approvalPolicies
+    : capabilities.approvalPolicies.filter((p) => p.id !== "auto");
+
+  const currentPolicy =
+    config.approvalPolicy ??
+    capabilities.bypassPermissions?.approvalPolicy ??
+    capabilities.approvalPolicies[0]?.id ??
+    "default";
+  // If the current policy is not available for this model, fall back to
+  // bypassPermissions since auto mode was the reason it was filtered.
+  const effectivePolicy = filteredPolicies.some((p) => p.id === currentPolicy)
+    ? currentPolicy
+    : "bypassPermissions";
+
   return [
     ...(capabilities.modes.length === 2
       ? [
@@ -44,17 +64,13 @@ registerComposerControls("claude", ({ capabilities, config, isDisabled, onConfig
           }),
         ]
       : []),
-    ...(capabilities.approvalPolicies.length > 0
+    ...(filteredPolicies.length > 0
       ? [
           {
             iconKind: "permission" as const,
-            options: capabilities.approvalPolicies,
+            options: filteredPolicies,
             hideLabelOnWrap: true,
-            value:
-              config.approvalPolicy ??
-              capabilities.bypassPermissions?.approvalPolicy ??
-              capabilities.approvalPolicies[0]?.id ??
-              "default",
+            value: effectivePolicy,
             isDisabled,
             onChange: (value: string) => onConfigChange({ approvalPolicy: value }),
           },

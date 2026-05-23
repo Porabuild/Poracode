@@ -329,8 +329,9 @@ export class GitService {
   async pullFromSource(
     worktreeLocation: ProjectLocation,
     sourceBranch: string,
+    preserveLocalChanges = false,
   ): Promise<GitPullFromSourceResult> {
-    return this.mergeService.pullFromSource(worktreeLocation, sourceBranch);
+    return this.mergeService.pullFromSource(worktreeLocation, sourceBranch, preserveLocalChanges);
   }
 
   async abortMerge(worktreeLocation: ProjectLocation): Promise<void> {
