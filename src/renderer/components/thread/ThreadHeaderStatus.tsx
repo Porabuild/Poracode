@@ -60,6 +60,7 @@ export function ThreadHeaderStatusTooltipBody(props: { thread: Thread }) {
   const runtime = threadRuntimeStatusLabel(thread);
   const source = thread.threadStatusSource;
   const isServer = source === "server";
+  const errorMessage = thread.status === "error" ? thread.errorMessage?.trim() : undefined;
 
   return (
     <div className="w-[min(22rem,calc(100vw-2rem))] space-y-3 py-3 pl-2 pr-5 [overflow-wrap:break-word] [word-break:normal] hyphens-none">
@@ -79,9 +80,15 @@ export function ThreadHeaderStatusTooltipBody(props: { thread: Thread }) {
           </p>
         )}
       </div>
-      <p className="border-t border-border/60 pt-2.5 text-xs leading-snug text-muted [overflow-wrap:break-word] [word-break:normal] hyphens-none">
-        {threadStatusSupportDetail(source)}
-      </p>
+      {errorMessage ? (
+        <p className="max-h-32 overflow-y-auto whitespace-pre-wrap break-words border-t border-border/60 pt-2.5 text-xs leading-snug text-danger">
+          {errorMessage}
+        </p>
+      ) : (
+        <p className="border-t border-border/60 pt-2.5 text-xs leading-snug text-muted [overflow-wrap:break-word] [word-break:normal] hyphens-none">
+          {threadStatusSupportDetail(source)}
+        </p>
+      )}
     </div>
   );
 }

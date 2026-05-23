@@ -305,7 +305,15 @@ describe("agent command builders", () => {
   it("passes reasoning effort through one-shot commit generation commands", () => {
     expect(createCodexAdapter().buildOneShotCommand?.("gpt-5.4-mini", "low")).toEqual({
       command: "codex",
-      args: ["exec", "-m", "gpt-5.4-mini", "-c", 'model_reasoning_effort="low"', "-"],
+      args: [
+        "exec",
+        "--skip-git-repo-check",
+        "-m",
+        "gpt-5.4-mini",
+        "-c",
+        'model_reasoning_effort="low"',
+        "-",
+      ],
     });
 
     expect(

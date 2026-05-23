@@ -260,9 +260,7 @@ export function ThreadDraftView(props: {
       lastDraftConfig,
       isHomeScope ? {} : providerConfigsRef.current,
     );
-    const resolved = resolveProviderDraftConfig(selectedAgentForConfig, saved, {
-      preferUnrestrictedPermissions: isHomeScope,
-    });
+    const resolved = resolveProviderDraftConfig(selectedAgentForConfig, saved);
     const nextModel = resolved.model;
     const nextEffort = resolved.effort ?? "";
     const nextContext = resolved.contextSize;
@@ -527,20 +525,16 @@ export function ThreadDraftView(props: {
     }
     if (!selectedAgentForConfig) return;
     hasLocalConfigEditRef.current = true;
-    const resolved = resolveProviderDraftConfig(
-      selectedAgentForConfig,
-      {
-        model: patch.model ?? model,
-        effort: patch.effort ?? effort,
-        ...(patch.contextSize !== undefined ? { contextSize: patch.contextSize } : { contextSize }),
-        ...(patch.fast !== undefined ? { fast: patch.fast } : { fast }),
-        ...(patch.thinking !== undefined ? { thinking: patch.thinking } : { thinking }),
-        mode: patch.mode ?? mode,
-        approvalPolicy: patch.approvalPolicy ?? approvalPolicy,
-        sandboxMode: patch.sandboxMode ?? sandboxMode,
-      },
-      { preferUnrestrictedPermissions: isHomeScope },
-    );
+    const resolved = resolveProviderDraftConfig(selectedAgentForConfig, {
+      model: patch.model ?? model,
+      effort: patch.effort ?? effort,
+      ...(patch.contextSize !== undefined ? { contextSize: patch.contextSize } : { contextSize }),
+      ...(patch.fast !== undefined ? { fast: patch.fast } : { fast }),
+      ...(patch.thinking !== undefined ? { thinking: patch.thinking } : { thinking }),
+      mode: patch.mode ?? mode,
+      approvalPolicy: patch.approvalPolicy ?? approvalPolicy,
+      sandboxMode: patch.sandboxMode ?? sandboxMode,
+    });
 
     setModel(resolved.model);
     setEffort(resolved.effort ?? "");
@@ -604,14 +598,10 @@ export function ThreadDraftView(props: {
         persistProviderConfig(effectiveAgentKind, snapshot);
       }
       const targetSaved = isHomeScope ? undefined : providerConfigsRef.current[nextKind];
-      const resolved = resolveProviderDraftConfig(
-        targetAgentForConfig,
-        {
-          ...(targetSaved ?? {}),
-          model: nextModel,
-        },
-        { preferUnrestrictedPermissions: isHomeScope },
-      );
+      const resolved = resolveProviderDraftConfig(targetAgentForConfig, {
+        ...(targetSaved ?? {}),
+        model: nextModel,
+      });
       persistProviderConfig(nextKind, resolved);
       setModel(resolved.model);
       setEffort(resolved.effort ?? "");

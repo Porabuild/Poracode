@@ -48,6 +48,8 @@ export const threadSchema = z.object({
   lastTurnEndedAt: z.string().min(1).optional(),
   /** Set by supervisor `thread-state`; not user-editable. */
   threadStatusSource: threadStatusSourceSchema.optional(),
+  /** Latest error reason from the runtime, present when `status === "error"`. */
+  errorMessage: z.string().optional(),
   slashCommands: z.array(agentSlashCommandSchema).optional(),
 });
 export type Thread = z.infer<typeof threadSchema>;

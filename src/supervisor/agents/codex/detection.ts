@@ -194,7 +194,9 @@ export const codexDefaultCapabilities: AgentCapability = {
   liveInputMode: "terminal",
   presentationMode: "terminal",
   presentationModes: ["terminal", "gui"],
-  bypassApprovalPolicy: "full-auto",
+  defaultApprovalPolicy: "on-request",
+  defaultSandboxMode: "workspace-write",
+  bypassPermissions: { approvalPolicy: "never", sandboxMode: "danger-full-access" },
   settingDefs: [],
   slashCommands: CODEX_BUILT_IN_SLASH_COMMANDS,
 };

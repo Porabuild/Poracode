@@ -88,6 +88,8 @@ const codexStatus: AgentStatus = {
       { id: "read-only", label: "Read Only" },
       { id: "danger-full-access", label: "Full Access" },
     ],
+    defaultApprovalPolicy: "on-request",
+    defaultSandboxMode: "workspace-write",
     supportsResume: true,
     supportsDirectInput: true,
     liveInputMode: "server",
@@ -127,6 +129,7 @@ const geminiStatus: AgentStatus = {
     supportsDirectInput: true,
     liveInputMode: "terminal",
     presentationMode: "terminal",
+    defaultApprovalPolicy: "never",
     settingDefs: [],
   },
 };
@@ -151,7 +154,7 @@ const antigravityStatus: AgentStatus = {
     liveInputMode: "terminal",
     presentationMode: "terminal",
     presentationModes: ["terminal"],
-    bypassApprovalPolicy: "yolo",
+    bypassPermissions: { approvalPolicy: "yolo" },
     settingDefs: [],
   },
 };
@@ -178,7 +181,8 @@ const claudeStatus: AgentStatus = {
     supportsDirectInput: true,
     liveInputMode: "terminal",
     presentationMode: "terminal",
-    bypassApprovalPolicy: "auto",
+    defaultApprovalPolicy: "auto",
+    bypassPermissions: { approvalPolicy: "auto" },
     settingDefs: [],
   },
 };
@@ -402,7 +406,7 @@ describe("ThreadDraftView", () => {
       expect(providerModel?.currentModel).toBe("gpt-5.4");
       const effortContext = props.controls.find((c) => c.kind === "effort-context");
       expect(effortContext?.effortValue).toBe("high");
-      expect(props.controls.some((control) => control.value === "default-permissions")).toBe(true);
+      expect(props.controls.some((control) => control.value === "auto-review")).toBe(true);
     });
 
     fireEvent.click(screen.getByText("set-prompt"));
@@ -414,13 +418,15 @@ describe("ThreadDraftView", () => {
         model: "gpt-5.4",
         effort: "high",
         mode: "agent",
+        approvalPolicy: "on-request",
+        sandboxMode: "workspace-write",
       },
       presentationMode: "gui",
       prompt: "hello world",
     });
   });
 
-  it("defaults Home Codex drafts to full access without changing project defaults", async () => {
+  it("defaults Home Codex drafts to provider defaults, same as any other project", async () => {
     const onStart = vi.fn<(input: unknown) => void>();
     useSharedSettings.setState({
       providerConfigs: {
@@ -454,7 +460,7 @@ describe("ThreadDraftView", () => {
       const providerModel = props.controls.find((c) => c.kind === "provider-model");
       expect(providerModel?.currentAgentKind).toBe("codex");
       expect(providerModel?.currentModel).toBe("gpt-5.4");
-      expect(props.controls.some((control) => control.value === "full-access")).toBe(true);
+      expect(props.controls.some((control) => control.value === "auto-review")).toBe(true);
     });
 
     fireEvent.click(screen.getByText("set-prompt"));
@@ -466,14 +472,12 @@ describe("ThreadDraftView", () => {
         model: "gpt-5.4",
         effort: "high",
         mode: "agent",
-        approvalPolicy: "never",
-        sandboxMode: "danger-full-access",
+        approvalPolicy: "on-request",
+        sandboxMode: "workspace-write",
       },
       presentationMode: "gui",
       prompt: "hello world",
     });
-    expect(useSharedSettings.getState().providerConfigs.codex?.approvalPolicy).toBe("");
-    expect(useSharedSettings.getState().providerConfigs.codex?.sandboxMode).toBe("");
   });
 
   it("defaults synthetic generic ACP permissions to supervised", async () => {

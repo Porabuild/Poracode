@@ -259,7 +259,11 @@ export function createCodexAdapter(): AgentAdapter {
     },
     defaultOneShotModel: "gpt-5.5",
     buildOneShotCommand(model, effort) {
-      const args = ["exec", "-m", model];
+      // `--skip-git-repo-check` lets `codex exec` run from worktrees or other
+      // directories not on codex's trust list. Title generation only reads
+      // the user's prompt from stdin and emits a short string — it never
+      // touches the repo, so the trust gate is just noise here.
+      const args = ["exec", "--skip-git-repo-check", "-m", model];
       if (effort) {
         args.push("-c", `model_reasoning_effort="${effort}"`);
       }

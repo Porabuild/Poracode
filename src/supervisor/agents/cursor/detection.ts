@@ -37,7 +37,8 @@ export const cursorDefaultCapabilities: AgentCapability = {
   liveInputMode: "terminal",
   presentationMode: "terminal",
   presentationModes: ["terminal", "gui"],
-  bypassApprovalPolicy: "never",
+  defaultApprovalPolicy: "never",
+  bypassPermissions: { approvalPolicy: "never" },
   settingDefs: [],
 };
 

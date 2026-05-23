@@ -47,7 +47,8 @@ export const defaultGeminiCapabilities: AgentCapability = {
   liveInputMode: "terminal",
   presentationMode: "terminal",
   presentationModes: ["terminal", "gui"],
-  bypassApprovalPolicy: "yolo",
+  defaultApprovalPolicy: "never",
+  bypassPermissions: { approvalPolicy: "never" },
   settingDefs: [],
 };
 

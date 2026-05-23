@@ -33,7 +33,8 @@ export const copilotDefaultCapabilities: AgentCapability = {
   presentationMode: "terminal",
   presentationModes: ["terminal", "gui"],
   requiresTerminalFocusBeforeInput: true,
-  bypassApprovalPolicy: "never",
+  defaultApprovalPolicy: "never",
+  bypassPermissions: { approvalPolicy: "never" },
   settingDefs: [],
 };
 

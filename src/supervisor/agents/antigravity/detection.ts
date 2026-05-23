@@ -28,7 +28,8 @@ export const defaultAntigravityCapabilities: AgentCapability = {
   liveInputMode: "terminal",
   presentationMode: "terminal",
   presentationModes: ["terminal"],
-  bypassApprovalPolicy: "yolo",
+  defaultApprovalPolicy: "yolo",
+  bypassPermissions: { approvalPolicy: "yolo" },
   settingDefs: [],
 };
 
