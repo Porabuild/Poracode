@@ -1,13 +1,6 @@
-import {
-  accessSync,
-  chmodSync,
-  constants as fsConstants,
-  existsSync,
-  readFileSync,
-  statSync,
-} from "node:fs";
+import { accessSync, constants as fsConstants, existsSync, readFileSync, statSync } from "node:fs";
 import { randomUUID } from "node:crypto";
-import { dirname, join, resolve as resolvePath } from "node:path";
+import { join, resolve as resolvePath } from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
 import { spawn } from "node-pty";
 import type { SupervisorEvent } from "@/shared/ipc";
@@ -51,6 +44,7 @@ import {
   resolveLaunchSpec,
 } from "../agents/base";
 import { captureSupervisorException } from "../diagnostics/sentry";
+import { ensureNodePtySpawnHelperExecutable } from "../nodePty";
 import type { WindowsShellPreference } from "../shellPreference";
 import { BufferedLogWriter } from "./bufferedLogWriter";
 import { hookDebugSpawn } from "./hookDebug";
@@ -2089,41 +2083,6 @@ function diagnoseRelativeBinary(command: string, env: Record<string, string>): s
     return `'${command}' could not be resolved — PATH is empty.`;
   }
   return `'${command}' was not found on PATH (${entries.length} entries searched). Check that the binary is installed and visible to the app's environment.`;
-}
-
-let spawnHelperChmodAttempted = false;
-
-// node-pty ships a `spawn-helper` binary that posix_spawn invokes to set up
-// the pty before exec. When the package is shipped under app.asar.unpacked
-// the copy can land without the executable bit, and posix_spawnp rejects
-// with the opaque "posix_spawnp failed." message. Heal the mode at runtime
-// so existing installs recover on first shell launch.
-function ensureNodePtySpawnHelperExecutable(): void {
-  if (spawnHelperChmodAttempted) return;
-  if (process.platform !== "darwin" && process.platform !== "linux") {
-    spawnHelperChmodAttempted = true;
-    return;
-  }
-  try {
-    const ptyPkg = require.resolve("node-pty/package.json");
-    const prebuildsDir = resolvePath(dirname(ptyPkg), "prebuilds");
-    const candidate = resolvePath(
-      prebuildsDir,
-      `${process.platform}-${process.arch}`,
-      "spawn-helper",
-    );
-    const unpackedCandidate = candidate.replace(`${"app.asar"}/`, `${"app.asar.unpacked"}/`);
-    for (const path of new Set([unpackedCandidate, candidate])) {
-      if (!existsSync(path)) continue;
-      const stat = statSync(path);
-      if ((stat.mode & 0o111) !== 0o111) {
-        chmodSync(path, stat.mode | 0o111);
-      }
-    }
-    spawnHelperChmodAttempted = true;
-  } catch (err) {
-    console.warn("[supervisor] failed to ensure spawn-helper +x:", err);
-  }
 }
 
 function sanitizeEnv(source: NodeJS.ProcessEnv): Record<string, string> {

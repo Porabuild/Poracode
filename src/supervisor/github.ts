@@ -465,7 +465,7 @@ export class GitHubService {
     admin = false,
   ): Promise<void> {
     try {
-      const args = ["pr", "merge", String(prNumber), `--${method}`, "--delete-branch"];
+      const args = ["pr", "merge", String(prNumber), `--${method}`];
       if (admin) args.push("--admin");
       await runGh(location, args);
     } catch (err) {

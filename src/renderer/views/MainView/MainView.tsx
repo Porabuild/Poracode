@@ -19,6 +19,7 @@ import { useBrowserSync } from "@/renderer/views/MainView/parts/RightPanel/parts
 
 import { AppOverlays } from "@/renderer/views/MainView/parts/AppOverlays";
 import { WorktreeDeleteDialogs } from "@/renderer/views/MainView/parts/WorktreeDeleteDialogs";
+import { PullFromSourceDialog } from "@/renderer/views/MainView/parts/PullFromSourceDialog";
 import { MainPageLayout, StalePanelCleanup } from "@/renderer/views/MainView/parts/MainPageLayout";
 import { ThreadSearchOverlayHost } from "@/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay";
 
@@ -113,6 +114,7 @@ export function MainView(props: { storeHydrated: boolean; loadT0: number }) {
       <StalePanelCleanup />
       <AppOverlays />
       <WorktreeDeleteDialogs />
+      <PullFromSourceDialog />
     </>
   );
 }

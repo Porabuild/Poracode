@@ -419,12 +419,16 @@ export interface GitMergeToSourceResult {
 export const gitPullFromSourcePayloadSchema = z.object({
   worktreeLocation: projectLocationSchema,
   sourceBranch: z.string().min(1),
+  preserveLocalChanges: z.boolean().default(false),
 });
 export type GitPullFromSourcePayload = z.infer<typeof gitPullFromSourcePayloadSchema>;
 
 export interface GitPullFromSourceResult {
   merged: boolean;
   fastForward: boolean;
+  needsStash?: boolean;
+  reapplyConflicting?: boolean;
+  stashPreserved?: boolean;
   conflicting?: boolean;
   error?: string;
   conflictFiles?: string[];

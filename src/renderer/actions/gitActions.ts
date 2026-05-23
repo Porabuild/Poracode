@@ -3,6 +3,7 @@ import { readBridge } from "@/renderer/bridge";
 import { captureRendererException } from "@/renderer/diagnostics/sentry";
 import { useAppStore } from "@/renderer/state/appStore";
 import { usePanelStore } from "@/renderer/state/panelStore";
+import { usePullFromSourceDialogStore } from "@/renderer/state/pullFromSourceDialogStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { resolveWorktreeBranch } from "@/renderer/utils/gitHelpers";
 import { closeThreads } from "@/renderer/utils/shellUtils";
@@ -10,6 +11,17 @@ import { performWorktreeRemoval } from "./worktreeActions";
 
 function captureGitActionError(error: unknown): void {
   captureRendererException(error, { featureArea: "git" });
+}
+
+export function openGitReviewForWorktree(projectId: string, worktreePath: string): void {
+  const mode = useSharedSettings.getState().gitReviewMode;
+  const panelStore = usePanelStore.getState();
+  panelStore.setGitReviewContext({ projectId, worktreePath });
+  if (mode === "panel") {
+    panelStore.setGitReviewAsPanel(true);
+  } else {
+    panelStore.setGitOverlayOpen(true);
+  }
 }
 
 export function gitSync(projectId: string, worktreePath?: string): void {
@@ -141,16 +153,18 @@ export function gitPullFromSource(projectId: string, worktreePath: string): void
       const result = await readBridge().gitPullFromSource({
         worktreeLocation,
         sourceBranch,
+        preserveLocalChanges: false,
       });
+      if (result.needsStash) {
+        usePullFromSourceDialogStore.getState().setDialog({
+          projectId,
+          worktreePath,
+          sourceBranch,
+        });
+        return;
+      }
       if (result.conflicting) {
-        const mode = useSharedSettings.getState().gitReviewMode;
-        const panelStore = usePanelStore.getState();
-        panelStore.setGitReviewContext({ projectId, worktreePath });
-        if (mode === "panel") {
-          panelStore.setGitReviewAsPanel(true);
-        } else {
-          panelStore.setGitOverlayOpen(true);
-        }
+        openGitReviewForWorktree(projectId, worktreePath);
       }
     } catch (error) {
       captureGitActionError(error);

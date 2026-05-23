@@ -560,6 +560,57 @@ describe("GitService.pullFromSource", () => {
     expect(result.conflicting).toBe(true);
     expect(result.conflictFiles).toEqual(["src/file.ts"]);
   });
+
+  it("asks the renderer to confirm stashing before pulling with local changes", async () => {
+    mockGitCommands((args) => {
+      if (args[0] === "status") return { stdout: " M src/file.ts\n" };
+      return { stdout: "" };
+    });
+
+    const result = await new GitService().pullFromSource(location, "main");
+
+    expect(result).toMatchObject({ merged: false, fastForward: false, needsStash: true });
+    expect(
+      execFileMock.mock.calls.some(
+        (c: unknown[]) => Array.isArray(c[1]) && (c[1] as string[])[0] === "merge",
+      ),
+    ).toBe(false);
+  });
+
+  it("stashes local changes, pulls from source, and reapplies the stash when requested", async () => {
+    mockGitCommands((args) => {
+      if (args[0] === "status") return { stdout: " M src/file.ts\n" };
+      return { stdout: "" };
+    });
+
+    const result = await new GitService().pullFromSource(location, "main", true);
+
+    expect(result).toEqual({ merged: true, fastForward: true });
+    const commands = execFileMock.mock.calls.map((c: unknown[]) => (c[1] as string[]).join(" "));
+    expect(commands).toContain("stash push -u -m Lightcode: before pull from main");
+    expect(commands).toContain("merge --ff-only main");
+    expect(commands).toContain("stash pop");
+  });
+
+  it("reports conflicts from re-applying stashed local changes", async () => {
+    mockGitCommands((args) => {
+      if (args[0] === "status") return { stdout: " M src/file.ts\n" };
+      if (args[0] === "stash" && args[1] === "pop") {
+        return { error: new Error("CONFLICT (content): Merge conflict in src/file.ts") };
+      }
+      return { stdout: "" };
+    });
+
+    const result = await new GitService().pullFromSource(location, "main", true);
+
+    expect(result).toMatchObject({
+      merged: false,
+      fastForward: true,
+      conflicting: true,
+      reapplyConflicting: true,
+      conflictFiles: ["src/file.ts"],
+    });
+  });
 });
 
 describe("GitService.mergeToSource (non-FF path)", () => {
