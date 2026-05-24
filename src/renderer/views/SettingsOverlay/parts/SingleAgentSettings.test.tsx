@@ -191,9 +191,15 @@ vi.mock("@/renderer/state/appStore", () => ({
 }));
 
 vi.mock("@/renderer/state/agentStatusesStore", () => ({
-  useAgentStatusesStore: (
-    selector: (state: { agentStatuses: AgentStatus[]; wslAgentStatuses: AgentStatus[] }) => unknown,
-  ) => selector(statusesState),
+  useAgentStatusesStore: Object.assign(
+    (
+      selector: (state: {
+        agentStatuses: AgentStatus[];
+        wslAgentStatuses: AgentStatus[];
+      }) => unknown,
+    ) => selector(statusesState),
+    { getState: () => statusesState },
+  ),
 }));
 
 vi.mock("@/renderer/state/sharedSettingsStore", () => ({
@@ -969,6 +975,43 @@ describe("SingleAgentSettings", () => {
       wslDistro: "Ubuntu",
     });
     platformSpy.mockRestore();
+  });
+
+  it("reports the new version in the toast after a successful update", async () => {
+    statusesState.agentStatuses = [
+      makeStatus("claude", { label: "Claude Code", version: "1.0.0" }),
+    ];
+    getLatestAgentVersionMock.mockResolvedValueOnce({ version: "1.1.0", source: "npm" });
+    refreshAgentStatusesMock.mockImplementation(async () => {
+      statusesState.agentStatuses = [
+        makeStatus("claude", { label: "Claude Code", version: "1.1.0" }),
+      ];
+    });
+
+    render(<SingleAgentSettings agentKind="claude" />);
+    fireEvent.click(
+      await screen.findByRole("button", { name: /Update to v1\.1\.0 for Claude Code/ }),
+    );
+
+    await waitFor(() =>
+      expect(toastMock.success).toHaveBeenCalledWith("Claude Code updated to v1.1.0."),
+    );
+  });
+
+  it("reports up-to-date when the update command leaves the version unchanged", async () => {
+    statusesState.agentStatuses = [
+      makeStatus("claude", { label: "Claude Code", version: "1.0.0" }),
+    ];
+    getLatestAgentVersionMock.mockResolvedValueOnce({ version: "1.1.0", source: "npm" });
+
+    render(<SingleAgentSettings agentKind="claude" />);
+    fireEvent.click(
+      await screen.findByRole("button", { name: /Update to v1\.1\.0 for Claude Code/ }),
+    );
+
+    await waitFor(() =>
+      expect(toastMock.success).toHaveBeenCalledWith("Claude Code is already up to date."),
+    );
   });
 
   it("shows an error toast when ACP agent-owned auth fails", async () => {

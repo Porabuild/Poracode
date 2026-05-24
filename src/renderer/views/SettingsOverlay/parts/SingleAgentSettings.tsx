@@ -605,7 +605,6 @@ export function SingleAgentSettings(props: { agentKind: string }) {
     latestNpmEntry && latestNpmEntry.agentKind === props.agentKind
       ? latestNpmEntry.version
       : undefined;
-  const latestVersionProbeDone = latestNpmEntry?.agentKind === props.agentKind;
   const newestInstalledVersion = installedStatuses.reduce<string | undefined>((latest, status) => {
     const version = status.version;
     if (!version) return latest;
@@ -936,6 +935,7 @@ export function SingleAgentSettings(props: { agentKind: string }) {
     const scope = statusUpdateScope(status);
     const envKey = statusEnvKey(status);
     const envSuffix = envLabel(status) ? ` (${envLabel(status)})` : "";
+    const previousVersion = status.version;
     setBinaryUpdatePendingEnvKey(envKey);
     readBridge()
       .updateAgentBinary({
@@ -945,8 +945,6 @@ export function SingleAgentSettings(props: { agentKind: string }) {
       })
       .then(async (result) => {
         if (result.ok) {
-          const targetSuffix = latestNpmVersion ? ` to v${latestNpmVersion}` : "";
-          toast.success(`${agent.label}${envSuffix} updated${targetSuffix}.`);
           // Switch the row to a loader while we wait for the supervisor to
           // re-detect the new installed version. The store updates via the
           // `agent-status-updated` events emitted during refresh; once the row
@@ -959,6 +957,24 @@ export function SingleAgentSettings(props: { agentKind: string }) {
             });
           } finally {
             setRedetectingEnvKey(undefined);
+          }
+          // Many built-in updaters exit 0 even when there's nothing to do.
+          // Compare the freshly-detected version to the pre-update value so
+          // the toast reflects what actually happened.
+          const store = useAgentStatusesStore.getState();
+          const pool = status.envKind === "wsl" ? store.wslAgentStatuses : store.agentStatuses;
+          const newVersion = pool.find(
+            (entry) =>
+              entry.kind === props.agentKind &&
+              entry.envKind === status.envKind &&
+              entry.envDistro === status.envDistro,
+          )?.version;
+          if (newVersion && newVersion === previousVersion) {
+            toast.success(`${agent.label}${envSuffix} is already up to date.`);
+          } else if (newVersion) {
+            toast.success(`${agent.label}${envSuffix} updated to v${newVersion}.`);
+          } else {
+            toast.success(`${agent.label}${envSuffix} updated.`);
           }
           return;
         }
@@ -1022,17 +1038,12 @@ export function SingleAgentSettings(props: { agentKind: string }) {
                     ? newestInstalledVersion
                     : undefined;
                 const targetVersion = registryTargetVersion ?? peerTargetVersion;
-                const updateLabel = targetVersion
-                  ? `Update to v${targetVersion}`
-                  : "Check for updates";
+                const updateLabel = targetVersion ? `Update to v${targetVersion}` : "";
                 const showUpdateButton =
                   !isRedetecting &&
                   acpInstanceId === undefined &&
                   row.status.installed &&
-                  (targetVersion !== undefined ||
-                    (row.status.update?.builtIn !== undefined &&
-                      latestVersionProbeDone &&
-                      latestNpmVersion === undefined));
+                  targetVersion !== undefined;
                 // Resolve the update command client-side from the same shared
                 // module the supervisor uses, so the tooltip always has the
                 // exact command we're about to run — no extra IPC roundtrip
@@ -1094,9 +1105,7 @@ export function SingleAgentSettings(props: { agentKind: string }) {
                             </div>
                           ) : (
                             <span className="text-[11px]">
-                              {targetVersion
-                                ? `Update ${agent.label} to v${targetVersion}`
-                                : `Check ${agent.label} for updates`}
+                              Update {agent.label} to v{targetVersion}
                             </span>
                           )}
                         </Tooltip.Content>
