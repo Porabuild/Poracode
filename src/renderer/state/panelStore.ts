@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import type { ThreadSortMode } from "@/renderer/views/MainView/parts/Sidebar/parts/sortMode";
+import { useFileEditorStore } from "./fileEditorStore";
 
 export interface GitReviewContext {
   projectId: string;
@@ -30,6 +31,8 @@ interface PanelState {
   rightPanelTab: RightPanelTab;
   browserPanelOpen: boolean;
   browserOverlayOpen: boolean;
+  browserOverlayMaximized: boolean;
+  browserOverlayDrawerWidth: number;
   settingsOpen: boolean;
   projectSettingsId: string | null;
   threadSortMode: ThreadSortMode;
@@ -43,6 +46,8 @@ interface PanelState {
   setRightPanelTab: (tab: RightPanelTab) => void;
   setBrowserPanelOpen: (v: boolean) => void;
   setBrowserOverlayOpen: (v: boolean) => void;
+  setBrowserOverlayMaximized: (v: boolean) => void;
+  setBrowserOverlayDrawerWidth: (v: number) => void;
   openBrowserPanel: () => void;
   openSettings: () => void;
   closeSettings: () => void;
@@ -54,6 +59,10 @@ interface PanelState {
 }
 
 const STORAGE_KEY = "lightcode-git-panel-context";
+const DRAWER_WIDTH_STORAGE_KEY = "lightcode-browser-drawer-width";
+const DEFAULT_DRAWER_WIDTH = 640;
+const MIN_DRAWER_WIDTH = 420;
+const MAX_DRAWER_WIDTH = 1400;
 
 function loadInitialGitContext(): GitReviewContext | null {
   try {
@@ -61,6 +70,22 @@ function loadInitialGitContext(): GitReviewContext | null {
     return raw ? JSON.parse(raw) : null;
   } catch {
     return null;
+  }
+}
+
+function clampDrawerWidth(v: number): number {
+  if (!Number.isFinite(v)) return DEFAULT_DRAWER_WIDTH;
+  return Math.max(MIN_DRAWER_WIDTH, Math.min(MAX_DRAWER_WIDTH, Math.round(v)));
+}
+
+function loadInitialDrawerWidth(): number {
+  try {
+    const raw = localStorage.getItem(DRAWER_WIDTH_STORAGE_KEY);
+    if (raw === null) return DEFAULT_DRAWER_WIDTH;
+    const parsed = Number.parseInt(raw, 10);
+    return clampDrawerWidth(parsed);
+  } catch {
+    return DEFAULT_DRAWER_WIDTH;
   }
 }
 
@@ -73,6 +98,8 @@ export const usePanelStore = create<PanelState>((set) => ({
   rightPanelTab: "git",
   browserPanelOpen: false,
   browserOverlayOpen: false,
+  browserOverlayMaximized: false,
+  browserOverlayDrawerWidth: loadInitialDrawerWidth(),
   settingsOpen: false,
   projectSettingsId: null,
   threadSortMode: "updated",
@@ -137,17 +164,37 @@ export const usePanelStore = create<PanelState>((set) => ({
     set((state) =>
       state.browserPanelOpen === v && (v || !state.browserOverlayOpen)
         ? {}
-        : { browserPanelOpen: v, ...(v ? {} : { browserOverlayOpen: false }) },
+        : {
+            browserPanelOpen: v,
+            ...(v ? {} : { browserOverlayOpen: false, browserOverlayMaximized: false }),
+          },
     ),
+  // NOTE: overlay state is intentionally independent of the right-panel
+  // browser. Opening the overlay does NOT enable the right-panel browser tab,
+  // and closing the overlay leaves the right panel in whatever state the user
+  // had it. Maximized resets on close so the next open lands in drawer mode.
   setBrowserOverlayOpen: (v) =>
     set((state) =>
       state.browserOverlayOpen === v
         ? {}
         : {
             browserOverlayOpen: v,
-            ...(v ? { browserPanelOpen: true, rightPanelTab: "browser" as const } : {}),
+            ...(v ? {} : { browserOverlayMaximized: false }),
           },
     ),
+  setBrowserOverlayMaximized: (v) =>
+    set((state) => (state.browserOverlayMaximized === v ? {} : { browserOverlayMaximized: v })),
+  setBrowserOverlayDrawerWidth: (v) =>
+    set((state) => {
+      const clamped = clampDrawerWidth(v);
+      if (state.browserOverlayDrawerWidth === clamped) return {};
+      try {
+        localStorage.setItem(DRAWER_WIDTH_STORAGE_KEY, String(clamped));
+      } catch {
+        // localStorage may be unavailable (private mode, sandbox); fall back to in-memory.
+      }
+      return { browserOverlayDrawerWidth: clamped };
+    }),
   openBrowserPanel: () =>
     set((state) =>
       state.browserPanelOpen && state.rightPanelTab === "browser"
@@ -173,7 +220,8 @@ export const usePanelStore = create<PanelState>((set) => ({
         state.gitReviewContext === null &&
         state.filesPanelContext === null &&
         !state.browserPanelOpen &&
-        !state.browserOverlayOpen
+        !state.browserOverlayOpen &&
+        !state.browserOverlayMaximized
       ) {
         return {};
       }
@@ -182,10 +230,30 @@ export const usePanelStore = create<PanelState>((set) => ({
         filesPanelContext: null,
         browserPanelOpen: false,
         browserOverlayOpen: false,
+        browserOverlayMaximized: false,
       };
     });
   },
 }));
+
+// Returns true when any full-window overlay (z-50) is currently rendered above
+// the right panel (z-10). Used by the browser sync layer to force the in-app
+// browser into overlay mode (z-80) when a link is opened from within one of
+// those overlays — otherwise the navigated page would render in the right
+// panel, hidden behind the active overlay. Add new obstructing overlays here.
+export function selectAnyObstructingOverlayOpen(): boolean {
+  const p = usePanelStore.getState();
+  if (
+    p.settingsOpen ||
+    p.projectSettingsId !== null ||
+    p.gitOverlayOpen ||
+    p.prReviewContext !== null ||
+    p.threadSearchOpen
+  ) {
+    return true;
+  }
+  return useFileEditorStore.getState().overlayMode === "fullscreen";
+}
 
 // Narrow selectors — primitive returns, stable under Object.is.
 export function useGitReviewProjectId(): string | undefined {

@@ -80,8 +80,9 @@ export function LoginTerminalOverlay() {
   // (Gemini's auth picker, oauth-personal cancel, etc.). The X button is the
   // only way to dismiss this overlay.
 
-  function handleTransitionEnd() {
+  function handleTransitionEnd(event: React.TransitionEvent<HTMLDivElement>) {
     if (visible) return;
+    if (event.propertyName !== "transform") return;
     if (renderedSession) {
       // Animation finished out — release the xterm. The shell, if still alive,
       // is closed by closeSession; this only happens when the store cleared
@@ -93,7 +94,13 @@ export function LoginTerminalOverlay() {
   if (!renderedSession) return null;
 
   return (
-    <div className="pointer-events-none fixed inset-0 z-[60]">
+    <div className="fixed inset-0 z-[60]">
+      <div
+        className="absolute inset-0 bg-black/40 transition-opacity duration-200"
+        style={{ opacity: visible ? 1 : 0 }}
+        onClick={closeSession}
+        aria-hidden
+      />
       <div
         data-overlay-surface="login-terminal"
         className="pointer-events-auto fixed bottom-8 right-8 top-8 flex w-[640px] max-w-[calc(100vw-4rem)] flex-col overflow-hidden rounded-3xl border border-border bg-background shadow-2xl will-change-transform"

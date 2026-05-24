@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { pushEscapeHandler } from "./overlayEscapeStack";
 
 export type OverlayShellMode = "fixed" | "absolute";
 
@@ -38,20 +39,16 @@ export function OverlayShell(props: {
     setVisible(false);
   }, [open]);
 
-  // Close on Escape key — triggers fade-out, then onExited resets parent state
+  // Close on Escape via the overlay escape stack — only the topmost overlay
+  // dismisses, so a transient overlay floating above this one (e.g. the
+  // browser drawer at z-60 above Settings at z-50) consumes Escape first.
   useEffect(() => {
     if (!open || !onExited) return;
-    function onKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape") {
-        e.preventDefault();
-        e.stopPropagation();
-        escapeClosingRef.current = true;
-        setVisible(false);
-        (document.activeElement as HTMLElement | null)?.blur();
-      }
-    }
-    window.addEventListener("keydown", onKeyDown, { capture: true });
-    return () => window.removeEventListener("keydown", onKeyDown, { capture: true });
+    return pushEscapeHandler(() => {
+      escapeClosingRef.current = true;
+      setVisible(false);
+      (document.activeElement as HTMLElement | null)?.blur();
+    });
   }, [open, onExited]);
 
   // Unmount after fade-out transition completes
