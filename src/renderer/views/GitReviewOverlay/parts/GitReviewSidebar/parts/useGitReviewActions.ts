@@ -16,6 +16,14 @@ import {
   resolveCommitGenConfig,
 } from "@/renderer/components/providers";
 import { usePrWriteActions } from "@/renderer/hooks/usePrWriteActions";
+import {
+  runGitMergeToSource,
+  runGitPullFromSource,
+  runGitSyncCommand,
+  showGitActionError,
+  showGitOperationFailure,
+  type GitSyncCommand,
+} from "@/renderer/actions/gitCommandRunner";
 
 export interface UseGitReviewActionsArgs {
   project: Project;
@@ -174,7 +182,8 @@ export function useGitReviewActions(args: UseGitReviewActionsArgs) {
       if (pushAfter && hasRemote) {
         setIsSyncing(true);
         try {
-          await readBridge().gitPush({
+          await runGitSyncCommand({
+            command: "push",
             projectLocation: project.location,
             setUpstream: !hasTracking,
           });
@@ -245,7 +254,8 @@ export function useGitReviewActions(args: UseGitReviewActionsArgs) {
           has_tracking: hasTracking,
           has_worktree: Boolean(worktreePath),
         });
-        await readBridge().gitPush({
+        await runGitSyncCommand({
+          command: "push",
           projectLocation: project.location,
           setUpstream: !hasTracking,
         });
@@ -263,20 +273,17 @@ export function useGitReviewActions(args: UseGitReviewActionsArgs) {
           has_tracking: hasTracking,
           has_worktree: Boolean(worktreePath),
         });
-        await readBridge().gitSync({ projectLocation: project.location });
+        await runGitSyncCommand({ command: "sync", projectLocation: project.location });
         onRefresh();
       }
     } catch (err) {
-      console.error("[git] sync/push failed", err);
-      toast.danger(friendlyError(err));
+      showGitActionError(err, { logPrefix: "[git] sync/push failed" });
     } finally {
       setIsSyncing(false);
     }
   }
 
-  async function handleSyncAction(
-    key: "pull" | "pullRebase" | "push" | "sync" | "syncRebase",
-  ): Promise<void> {
+  async function handleSyncAction(key: GitSyncCommand): Promise<void> {
     setIsSyncing(true);
     try {
       captureProductEvent("git.sync_action", {
@@ -285,32 +292,19 @@ export function useGitReviewActions(args: UseGitReviewActionsArgs) {
         has_tracking: hasTracking,
         has_worktree: Boolean(worktreePath),
       });
-      switch (key) {
-        case "pull":
-          await readBridge().gitPull({ projectLocation: project.location });
-          break;
-        case "pullRebase":
-          await readBridge().gitPullRebase({ projectLocation: project.location });
-          break;
-        case "push":
-          await readBridge().gitPush({
-            projectLocation: project.location,
-            setUpstream: !hasTracking,
-          });
-          applyStatusOptimistic((s) => ({ ...s, ahead: 0 }));
-          setTimeout(() => onRefresh(), 1500);
-          return;
-        case "sync":
-          await readBridge().gitSync({ projectLocation: project.location });
-          break;
-        case "syncRebase":
-          await readBridge().gitSyncRebase({ projectLocation: project.location });
-          break;
+      await runGitSyncCommand({
+        command: key,
+        projectLocation: project.location,
+        ...(key === "push" ? { setUpstream: !hasTracking } : {}),
+      });
+      if (key === "push") {
+        applyStatusOptimistic((s) => ({ ...s, ahead: 0 }));
+        setTimeout(() => onRefresh(), 1500);
+        return;
       }
       onRefresh();
     } catch (err) {
-      console.error("[git] sync action failed", err);
-      toast.danger(friendlyError(err));
+      showGitActionError(err, { logPrefix: "[git] sync action failed" });
     } finally {
       setIsSyncing(false);
     }
@@ -320,7 +314,7 @@ export function useGitReviewActions(args: UseGitReviewActionsArgs) {
     if (!sourceBranch || !worktreeBranch || !worktreePath) return false;
     setIsMerging(true);
     try {
-      const result = await readBridge().gitMergeToSource({
+      const result = await runGitMergeToSource({
         projectLocation: project.location,
         worktreeLocation: getWorktreeLocation(),
         worktreeBranch,
@@ -335,8 +329,7 @@ export function useGitReviewActions(args: UseGitReviewActionsArgs) {
       }
       return true;
     } catch (err) {
-      console.error("[git] merge failed", err);
-      toast.danger(friendlyError(err));
+      showGitActionError(err, { logPrefix: "[git] merge failed" });
       return false;
     } finally {
       setIsMerging(false);
@@ -355,7 +348,7 @@ export function useGitReviewActions(args: UseGitReviewActionsArgs) {
     if (!sourceBranch) return;
     setIsPullingFromSource(true);
     try {
-      const result = await readBridge().gitPullFromSource({
+      const result = await runGitPullFromSource({
         worktreeLocation: getWorktreeLocation(),
         sourceBranch,
         preserveLocalChanges: false,
@@ -374,13 +367,12 @@ export function useGitReviewActions(args: UseGitReviewActionsArgs) {
         return;
       }
       if (!result.merged) {
-        toast.danger(result.error ?? msg("git.merge.failed"));
+        showGitOperationFailure(result);
         return;
       }
       onRefresh();
     } catch (err) {
-      console.error("[git] pull from source failed", err);
-      toast.danger(friendlyError(err));
+      showGitActionError(err, { logPrefix: "[git] pull from source failed" });
     } finally {
       setIsPullingFromSource(false);
     }

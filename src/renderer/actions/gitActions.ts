@@ -1,16 +1,22 @@
 import { buildWorktreeLocation } from "@/shared/worktree";
 import { readBridge } from "@/renderer/bridge";
-import { captureRendererException } from "@/renderer/diagnostics/sentry";
 import { useAppStore } from "@/renderer/state/appStore";
 import { usePanelStore } from "@/renderer/state/panelStore";
 import { usePullFromSourceDialogStore } from "@/renderer/state/pullFromSourceDialogStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { resolveWorktreeBranch } from "@/renderer/utils/gitHelpers";
 import { closeThreads } from "@/renderer/utils/shellUtils";
+import {
+  runGitMergeToSource,
+  runGitPullFromSource,
+  runGitSyncCommand,
+  showGitActionError,
+  showGitOperationFailure,
+} from "./gitCommandRunner";
 import { performWorktreeRemoval } from "./worktreeActions";
 
 function captureGitActionError(error: unknown): void {
-  captureRendererException(error, { featureArea: "git" });
+  showGitActionError(error, { capture: true });
 }
 
 export function openGitReviewForWorktree(projectId: string, worktreePath: string): void {
@@ -30,7 +36,9 @@ export function gitSync(projectId: string, worktreePath?: string): void {
   const location = worktreePath
     ? buildWorktreeLocation(project.location, worktreePath)
     : project.location;
-  void readBridge().gitSync({ projectLocation: location }).catch(captureGitActionError);
+  void runGitSyncCommand({ command: "sync", projectLocation: location }).catch(
+    captureGitActionError,
+  );
 }
 
 export function gitSyncRebase(projectId: string, worktreePath?: string): void {
@@ -39,7 +47,9 @@ export function gitSyncRebase(projectId: string, worktreePath?: string): void {
   const location = worktreePath
     ? buildWorktreeLocation(project.location, worktreePath)
     : project.location;
-  void readBridge().gitSyncRebase({ projectLocation: location }).catch(captureGitActionError);
+  void runGitSyncCommand({ command: "syncRebase", projectLocation: location }).catch(
+    captureGitActionError,
+  );
 }
 
 export function gitPush(projectId: string, worktreePath: string): void {
@@ -48,32 +58,35 @@ export function gitPush(projectId: string, worktreePath: string): void {
   const worktreeBranch = resolveWorktreeBranch(projectId, worktreePath);
   if (!worktreeBranch) return;
   const worktreeLocation = buildWorktreeLocation(project.location, worktreePath);
-  void readBridge()
-    .gitPush({
-      projectLocation: worktreeLocation,
-      remote: "origin",
-      branch: worktreeBranch,
-      setUpstream: true,
-    })
-    .catch(captureGitActionError);
+  void runGitSyncCommand({
+    command: "push",
+    projectLocation: worktreeLocation,
+    remote: "origin",
+    branch: worktreeBranch,
+    setUpstream: true,
+  }).catch(captureGitActionError);
 }
 
 export function gitPull(projectId: string, worktreePath: string): void {
   const project = useAppStore.getState().projects.find((p) => p.id === projectId);
   if (!project) return;
   const worktreeLocation = buildWorktreeLocation(project.location, worktreePath);
-  void readBridge()
-    .gitPull({ projectLocation: worktreeLocation, remote: "origin" })
-    .catch(captureGitActionError);
+  void runGitSyncCommand({
+    command: "pull",
+    projectLocation: worktreeLocation,
+    remote: "origin",
+  }).catch(captureGitActionError);
 }
 
 export function gitPullRebase(projectId: string, worktreePath: string): void {
   const project = useAppStore.getState().projects.find((p) => p.id === projectId);
   if (!project) return;
   const worktreeLocation = buildWorktreeLocation(project.location, worktreePath);
-  void readBridge()
-    .gitPullRebase({ projectLocation: worktreeLocation, remote: "origin" })
-    .catch(captureGitActionError);
+  void runGitSyncCommand({
+    command: "pullRebase",
+    projectLocation: worktreeLocation,
+    remote: "origin",
+  }).catch(captureGitActionError);
 }
 
 export function gitMergeToSource(projectId: string, worktreePath: string): void {
@@ -89,7 +102,7 @@ export function gitMergeToSource(projectId: string, worktreePath: string): void 
       });
       if (!sourceBranch) return;
       const worktreeLocation = buildWorktreeLocation(project.location, worktreePath);
-      await readBridge().gitMergeToSource({
+      await runGitMergeToSource({
         projectLocation: project.location,
         worktreeLocation,
         worktreeBranch,
@@ -115,7 +128,7 @@ export function gitMergeAndRemove(projectId: string, worktreePath: string): void
       });
       if (!sourceBranch) return;
       const worktreeLocation = buildWorktreeLocation(project.location, worktreePath);
-      const result = await readBridge().gitMergeToSource({
+      const result = await runGitMergeToSource({
         projectLocation: project.location,
         worktreeLocation,
         worktreeBranch,
@@ -150,7 +163,7 @@ export function gitPullFromSource(projectId: string, worktreePath: string): void
       });
       if (!sourceBranch) return;
       const worktreeLocation = buildWorktreeLocation(project.location, worktreePath);
-      const result = await readBridge().gitPullFromSource({
+      const result = await runGitPullFromSource({
         worktreeLocation,
         sourceBranch,
         preserveLocalChanges: false,
@@ -165,10 +178,13 @@ export function gitPullFromSource(projectId: string, worktreePath: string): void
       }
       if (result.conflicting) {
         openGitReviewForWorktree(projectId, worktreePath);
+        return;
+      }
+      if (!result.merged) {
+        showGitOperationFailure(result);
       }
     } catch (error) {
       captureGitActionError(error);
-      // ignored — user can open git review for details
     }
   })();
 }

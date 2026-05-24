@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { AlertDialog, toast } from "@heroui/react";
 import { buildWorktreeLocation } from "@/shared/worktree";
-import { friendlyError, msg } from "@/shared/messages";
-import { readBridge } from "@/renderer/bridge";
+import { msg } from "@/shared/messages";
 import { openGitReviewForWorktree } from "@/renderer/actions/gitActions";
+import { runGitPullFromSource, showGitActionError } from "@/renderer/actions/gitCommandRunner";
 import { Button } from "@/renderer/components/common/Button";
 import { useAppStore } from "@/renderer/state/appStore";
 import { usePullFromSourceDialogStore } from "@/renderer/state/pullFromSourceDialogStore";
@@ -27,7 +27,7 @@ export function PullFromSourceDialog() {
     setIsPulling(true);
     try {
       const stashPreservedMessage = msg("git.pull.stashPreserved");
-      const result = await readBridge().gitPullFromSource({
+      const result = await runGitPullFromSource({
         worktreeLocation: buildWorktreeLocation(activeProject.location, activeDialog.worktreePath),
         sourceBranch: activeDialog.sourceBranch,
         preserveLocalChanges: true,
@@ -55,8 +55,7 @@ export function PullFromSourceDialog() {
       }
       activeDialog.onComplete?.();
     } catch (error) {
-      console.error("[git] stash pull from source failed", error);
-      toast.danger(friendlyError(error));
+      showGitActionError(error, { logPrefix: "[git] stash pull from source failed" });
     } finally {
       setIsPulling(false);
     }

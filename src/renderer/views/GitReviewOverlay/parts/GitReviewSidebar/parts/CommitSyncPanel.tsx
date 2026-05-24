@@ -1,6 +1,7 @@
 import { ArrowDown, ArrowUp, ArrowUpDown, ChevronDown, Lock, Sparkles } from "lucide-react";
 import { Button, ButtonGroup, Dropdown, Label, Tooltip } from "@heroui/react";
 import { PixelLoader, TextArea } from "@/renderer/components/common";
+import type { GitSyncCommand } from "@/renderer/actions/gitCommandRunner";
 import { GitReviewSection } from "./GitReviewSection";
 
 export function CommitSyncPanel(props: {
@@ -25,7 +26,7 @@ export function CommitSyncPanel(props: {
   handleCommit: (addAll: boolean, pushAfter?: boolean) => Promise<void>;
   handleGenerateMessage: () => Promise<void>;
   handleSyncOrPush: () => Promise<void>;
-  handleSyncAction: (key: "pull" | "pullRebase" | "push" | "sync" | "syncRebase") => Promise<void>;
+  handleSyncAction: (key: GitSyncCommand) => Promise<void>;
   handlePullFromSource: () => Promise<void>;
 }) {
   const {
@@ -257,9 +258,7 @@ export function CommitSyncPanel(props: {
                         void handlePullFromSource();
                         return;
                       }
-                      void handleSyncAction(
-                        key as "pull" | "pullRebase" | "push" | "sync" | "syncRebase",
-                      );
+                      void handleSyncAction(key as GitSyncCommand);
                     }}
                   >
                     {showPull ? (
