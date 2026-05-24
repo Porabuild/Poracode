@@ -131,6 +131,18 @@ describe("createClaudeAdapter structured sessions", () => {
   });
 });
 
+describe("createClaudeAdapter buildAcpLogoutCommand", () => {
+  it("returns `claude auth logout` so the Settings logout button can drive it", async () => {
+    const adapter = createClaudeAdapter();
+    const command = await adapter.buildAcpLogoutCommand?.();
+    expect(command).toBeDefined();
+    // `buildAgentCommand` wraps the argv in a login shell (`sh -c "exec
+    // 'claude' 'auth' 'logout'"`) on posix and in `wsl.exe -d <distro> --` on
+    // WSL — assert on the substring so both platforms pass.
+    expect(command?.args.join(" ")).toContain("'claude' 'auth' 'logout'");
+  });
+});
+
 describe("parseClaudeAuthStatusJson", () => {
   it("extracts account metadata from Claude's auth-status JSON", () => {
     expect(

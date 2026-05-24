@@ -2,7 +2,12 @@ import { existsSync, readFileSync, watch as fsWatch } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import { toWslUncPath } from "@/shared/wsl";
-import type { AgentStatus, AuthState, ProjectLocation } from "@/shared/contracts";
+import type {
+  AgentProviderMetadata,
+  AgentStatus,
+  AuthState,
+  ProjectLocation,
+} from "@/shared/contracts";
 import { primeAgentBinaryPath, resolveAgentBinaryPath } from "../binaryResolver";
 import {
   batchWslCommandsAsync,
@@ -98,6 +103,7 @@ export * from "./terminalHints";
 export * from "./promptSession";
 export * from "./processRuntime";
 export * from "./shellBasics";
+export * from "./sessionFs";
 export function buildWindowsCmdCommand(cwd: string, command: string, args: string[]): CommandSpec {
   return {
     command: "C:\\Windows\\System32\\cmd.exe",
@@ -395,6 +401,22 @@ export function detectProbeLocation(ctx: AgentEnvContext | undefined): ProjectLo
   return { kind: "posix", path: homedir() };
 }
 
+/**
+ * Adapter helper for CLIs that expose logout as a shell subcommand
+ * (`claude auth logout`, `codex logout`, `cursor-agent logout`). Delegates
+ * to `buildAgentCommand` so posix, Windows, and WSL share the same shell
+ * wrapping the agent uses in production.
+ */
+export function buildAgentLogoutCommand(
+  binary: string,
+  args: string[],
+): (ctx?: AgentEnvContext) => Promise<CommandSpec> {
+  return async (ctx) => {
+    const location = detectProbeLocation(ctx);
+    return buildAgentCommand(location, binary, args, resolveAgentBinaryPath(location, binary));
+  };
+}
+
 async function resolveDetectedBinary(
   ctx: AgentEnvContext | undefined,
   binary: string,
@@ -566,6 +588,7 @@ export async function detectAgentInstall(
   let probedAuthMethods: AgentStatus["authMethods"];
   let probedAuthLogoutSupported: boolean | undefined;
   let probedAuthState: AuthState | undefined;
+  let probedProviderMetadata: AgentProviderMetadata | undefined;
   if (executablePath) {
     const probeCtx: DetectProbeCtx = { location, executablePath, version };
     const [capabilityPartial, nextStatusProbeResult] = await Promise.all([
@@ -577,6 +600,7 @@ export async function detectAgentInstall(
         authMethods: probeAuthMethods,
         authLogoutSupported: probeAuthLogoutSupported,
         authState: probeAuthStateValue,
+        providerMetadata: probeProviderMetadata,
         ...capabilityRest
       } = capabilityPartial;
       capabilities = { ...capabilities, ...capabilityRest };
@@ -588,6 +612,9 @@ export async function detectAgentInstall(
       }
       if (probeAuthStateValue !== undefined) {
         probedAuthState = probeAuthStateValue;
+      }
+      if (probeProviderMetadata) {
+        probedProviderMetadata = probeProviderMetadata;
       }
     }
     statusProbeResult = nextStatusProbeResult;
@@ -620,6 +647,8 @@ export async function detectAgentInstall(
     }
   }
 
+  const providerMetadata = statusProbeResult?.providerMetadata ?? probedProviderMetadata;
+
   return {
     kind: spec.kind,
     label: spec.label,
@@ -629,9 +658,7 @@ export async function detectAgentInstall(
     ...(version ? { version } : {}),
     ...(spec.update ? { update: spec.update } : {}),
     authState,
-    ...(statusProbeResult?.providerMetadata
-      ? { providerMetadata: statusProbeResult.providerMetadata }
-      : {}),
+    ...(providerMetadata ? { providerMetadata } : {}),
     ...(probedAuthMethods ? { authMethods: probedAuthMethods } : {}),
     ...(probedAuthLogoutSupported ? { authLogoutSupported: true } : {}),
     capabilities,

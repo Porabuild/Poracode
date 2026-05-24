@@ -665,6 +665,16 @@ export class ThreadOutputPipeline {
         this.options.onStartQueuedLaunchPrompt(session);
       }
 
+      // Mirror the hook-owned fallback (lines 461-466): adapters without
+      // `detectTerminalStatus` (e.g. grok) rely on `isReadyForInitialPrompt`
+      // to flush the deferred initial prompt, otherwise it sits unsent.
+      if (
+        session.pendingTerminalPrompt &&
+        session.adapter.isReadyForInitialPrompt?.(strippedData)
+      ) {
+        this.flushPendingTerminalWritesIfIdle(session);
+      }
+
       if (hint?.status === "idle") {
         this.flushPendingTerminalWritesIfIdle(session);
       }

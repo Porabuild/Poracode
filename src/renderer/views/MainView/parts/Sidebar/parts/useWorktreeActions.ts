@@ -1,13 +1,6 @@
 import { useShallow } from "zustand/shallow";
 import { useGitStore } from "@/renderer/state/gitStore";
-
-/**
- * Which remote action to show in the git menu:
- * - "push"  — no tracking branch yet (first push with --set-upstream), OR tracked but only ahead
- * - "pull"  — tracked and only behind
- * - "sync"  — tracked and both ahead+behind, or tracked and up-to-date (nothing to do, but Sync is the safe default)
- */
-export type SyncAction = "push" | "pull" | "sync";
+import { deriveSyncAction, type SyncAction } from "@/renderer/actions/gitCommandRunner";
 
 export type GitMenuIcons = {
   review: React.ReactNode;
@@ -126,13 +119,6 @@ export function buildWorktreeGitItems(
 }
 
 // ── Internal ─────────────────────────────────────────────
-
-function deriveSyncAction(hasTracking: boolean, ahead: number, behind: number): SyncAction {
-  if (!hasTracking) return "push";
-  if (ahead > 0 && behind === 0) return "push";
-  if (behind > 0 && ahead === 0) return "pull";
-  return "sync";
-}
 
 function derive(
   s: ReturnType<typeof useGitStore.getState>,

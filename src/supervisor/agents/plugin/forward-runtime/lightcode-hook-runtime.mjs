@@ -16,12 +16,15 @@
  */
 
 import { readFileSync } from "node:fs";
+import { request as httpRequest } from "node:http";
+import { request as httpsRequest } from "node:https";
 import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
 import { setTimeout as sleep } from "node:timers/promises";
+import { fileURLToPath } from "node:url";
 
 const PROTOCOL_VERSION = 1;
 const MAX_STDIN_CHARS = 2 * 1024 * 1024;
+const POST_TIMEOUT_MS = 2_000;
 
 export function readPluginVersionFromManifest(importMetaUrl) {
   try {
@@ -76,16 +79,60 @@ export async function readStdin() {
   return readJsonFromStream(process.stdin);
 }
 
+/**
+ * POST `body` to `url` once, returning `{ ok, status }`. Uses the bare
+ * `node:http(s)` modules to avoid the per-process undici (fetch) cold-init
+ * cost, which lands ~20–30 ms on every spawn. The supervisor's hook ingress
+ * runs on `127.0.0.1`, so the loopback path is fast (~3–8 ms) once the
+ * connection is open.
+ */
+function postOnce(url, headers, body) {
+  return new Promise((resolveResult) => {
+    let parsed;
+    try {
+      parsed = new URL(url);
+    } catch (error) {
+      resolveResult({ ok: false, error });
+      return;
+    }
+    const transport = parsed.protocol === "https:" ? httpsRequest : httpRequest;
+    const req = transport(
+      {
+        hostname: parsed.hostname,
+        port: parsed.port || (parsed.protocol === "https:" ? 443 : 80),
+        path: `${parsed.pathname}${parsed.search}`,
+        method: "POST",
+        headers: { ...headers, "content-length": Buffer.byteLength(body) },
+      },
+      (res) => {
+        res.resume();
+        res.on("end", () => {
+          const status = res.statusCode ?? 0;
+          if (status >= 200 && status < 300) {
+            resolveResult({ ok: true, status });
+          } else if (status === 426) {
+            resolveResult({ ok: true, status });
+          } else {
+            resolveResult({ ok: false, status, error: new Error(`HTTP ${status}`) });
+          }
+        });
+      },
+    );
+    req.setTimeout(POST_TIMEOUT_MS, () => {
+      req.destroy(new Error("hook POST timeout"));
+    });
+    req.on("error", (error) => resolveResult({ ok: false, error }));
+    req.write(body);
+    req.end();
+  });
+}
+
 export async function postWithRetry(url, headers, body, attempts = 2) {
   let lastError;
   for (let i = 0; i < attempts; i += 1) {
-    try {
-      const response = await fetch(url, { method: "POST", headers, body });
-      if (response.ok || response.status === 426) return;
-      lastError = new Error(`HTTP ${response.status}`);
-    } catch (error) {
-      lastError = error;
-    }
+    const result = await postOnce(url, headers, body);
+    if (result.ok) return;
+    lastError = result.error ?? new Error(`HTTP ${result.status ?? 0}`);
     if (i + 1 < attempts) await sleep(50);
   }
   if (lastError && hookDebugEnabled()) {

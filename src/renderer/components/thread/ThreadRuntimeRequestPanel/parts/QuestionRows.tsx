@@ -62,6 +62,7 @@ export function QuestionRows(props: {
           isDisabled={isDisabled || selectedIds.length === 0}
           size="sm"
           variant="secondary"
+          className="text-white"
           onPress={() => onSubmit(selectedIds)}
         >
           Submit

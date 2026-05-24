@@ -163,7 +163,12 @@ import {
   updateAcpRegistryAgent as updateAcpRegistryAgentFromRegistry,
 } from "./agents/acpRegistry";
 import { prefetchNativeNodeRuntime } from "./runtime/prefetchNativeNode";
-import { readWslCommandOutputAsync, type AgentAdapter, type AgentEnvContext } from "./agents/base";
+import {
+  readWslCommandOutputAsync,
+  setSessionFsBridgeClient,
+  type AgentAdapter,
+  type AgentEnvContext,
+} from "./agents/base";
 import { getLatestVersionForAdapter, runUpdateCommandWithFallback } from "./agents/updateAgent";
 import { clearAgentBinaryPathCache } from "./agents/binaryResolver";
 import { generateCommitMessage } from "./commitMessageGenerator";
@@ -360,6 +365,7 @@ export class SupervisorRuntime {
       this.gitCheckpointService.setWslClient(client);
       this.projectTreeService.setWslClient(client);
       this._projectWatcher?.setWslClient(client);
+      setSessionFsBridgeClient(client);
     }
 
     this.cliHookPluginCoordinator.startIngress();

@@ -22,6 +22,17 @@ async function refreshAgentStatus(status: AgentStatus): Promise<void> {
   });
 }
 
+/**
+ * Keep focus on whatever the user had focused before they mouse-clicked the
+ * dock's action button. Without this, clicking the button takes focus, the
+ * `isDisabled` swap during the in-flight action then releases focus, and
+ * react-aria restores focus to the composer for one frame before the dock
+ * finally unmounts — producing a visible border blink on the composer.
+ */
+function preventFocusSteal(event: React.MouseEvent<HTMLElement>): void {
+  event.preventDefault();
+}
+
 export function ThreadAuthRequiredDock(props: { agentStatus: AgentStatus; project?: Project }) {
   const { agentStatus, project } = props;
   const [pendingAction, setPendingAction] = useState<"login" | "refresh" | undefined>();
@@ -60,12 +71,28 @@ export function ThreadAuthRequiredDock(props: { agentStatus: AgentStatus; projec
     }
 
     if (agentStatus.loginCommand) {
-      runAgentLoginCommand({
+      setPendingAction("login");
+      const opened = runAgentLoginCommand({
         label: agentStatus.label,
         command: agentStatus.loginCommand,
         ...(terminalAuthMethod?.env ? { env: terminalAuthMethod.env } : {}),
         ...(project ? { project } : {}),
+        onCommandComplete: (exitCode) => {
+          void refreshAgentStatus(agentStatus)
+            .then(() => {
+              if (exitCode === 0) toast.success(`${agentStatus.label} authenticated.`);
+            })
+            .catch((error: unknown) => {
+              toast.danger(
+                error instanceof Error
+                  ? error.message
+                  : `Unable to refresh ${agentStatus.label} status.`,
+              );
+            })
+            .finally(() => setPendingAction(undefined));
+        },
       });
+      if (!opened) setPendingAction(undefined);
     }
   }
 
@@ -94,10 +121,11 @@ export function ThreadAuthRequiredDock(props: { agentStatus: AgentStatus; projec
             {hasDirectLogin ? (
               <Button
                 size="sm"
-                variant="secondary"
-                className="h-6 min-w-0 px-2 text-xs"
+                variant="ghost"
+                className="h-6 min-w-0 px-2 text-xs text-foreground"
                 isDisabled={pendingAction !== undefined}
                 isPending={pendingAction === "login"}
+                onMouseDown={preventFocusSteal}
                 onPress={() => void handleLogin()}
               >
                 <LogIn className="size-3.5" />
@@ -106,8 +134,9 @@ export function ThreadAuthRequiredDock(props: { agentStatus: AgentStatus; projec
             ) : (
               <Button
                 size="sm"
-                variant="secondary"
-                className="h-6 min-w-0 px-2 text-xs"
+                variant="ghost"
+                className="h-6 min-w-0 px-2 text-xs text-foreground"
+                onMouseDown={preventFocusSteal}
                 onPress={openSettings}
               >
                 <Settings className="size-3.5" />
@@ -122,6 +151,7 @@ export function ThreadAuthRequiredDock(props: { agentStatus: AgentStatus; projec
               className="h-6 w-6 min-w-0 text-muted"
               isDisabled={pendingAction !== undefined}
               isPending={pendingAction === "refresh"}
+              onMouseDown={preventFocusSteal}
               onPress={() => void handleRefresh()}
             >
               <RefreshCw className="size-3.5" />

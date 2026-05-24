@@ -1071,6 +1071,30 @@ export function nonDiagnosticErrors(message: SDKMessage): string[] {
   );
 }
 
+/**
+ * claude.exe can emit subtype "success" while still surfacing an upstream API
+ * failure (e.g. 401/429) via `is_error: true` and `api_error_status`. Treat
+ * those as failures so the turn doesn't quietly resolve to idle.
+ */
+export function isApiErrorResult(message: SDKMessage): boolean {
+  if (message.type !== "result") return false;
+  const m = message as { is_error?: unknown; api_error_status?: unknown };
+  if (m.is_error === true) return true;
+  return typeof m.api_error_status === "number" && m.api_error_status >= 400;
+}
+
+export function extractResultErrorMessage(message: SDKMessage): string | undefined {
+  if (message.type !== "result") return undefined;
+  const fromErrors = nonDiagnosticErrors(message)[0];
+  if (fromErrors) return fromErrors;
+  const result = (message as { result?: unknown }).result;
+  if (typeof result === "string") {
+    const trimmed = result.trim();
+    if (trimmed.length > 0) return trimmed;
+  }
+  return undefined;
+}
+
 function completeActiveGoalEvents(
   state: ClaudeMapperState,
   message: Extract<SDKMessage, { type: "result" }>,
@@ -1114,6 +1138,7 @@ function readClaudeResultUsage(
 }
 
 function mapResultState(message: Extract<SDKMessage, { type: "result" }>): TurnState {
+  if (isApiErrorResult(message)) return "failed";
   if (message.subtype === "success") return "completed";
   const filtered = nonDiagnosticErrors(message);
   // All errors were diagnostics — claude.exe was interrupted before producing
@@ -1435,8 +1460,7 @@ function mapClaudeSdkMessageInner(message: SDKMessage, state: ClaudeMapperState)
     const stateValue = mapResultState(message);
     events.push(...closeClaudeOpenItems(state));
     if (stateValue === "failed") {
-      const remaining = nonDiagnosticErrors(message);
-      const msg = remaining[0] ?? "Claude turn failed.";
+      const msg = extractResultErrorMessage(message) ?? "Claude turn failed.";
       events.push({ type: "error", threadId: state.threadId, message: msg });
     }
     events.push(...completeActiveGoalEvents(state, message));

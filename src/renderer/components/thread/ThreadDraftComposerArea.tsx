@@ -75,6 +75,7 @@ export function ThreadDraftComposerArea(props: {
   // launched agent would race with the still-running install and could pick up
   // either binary, which is a confusing state to debug.
   const [agentUpdating, setAgentUpdating] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const mentionRef = useRef<MentionInputHandle>(null);
   const attachments = useAttachments();
   const inboxKey = props.paneId ?? `draft:${props.project.id}`;
@@ -111,6 +112,7 @@ export function ThreadDraftComposerArea(props: {
   const latestSegmentsRef = useRef<PromptSegment[]>([]);
   const attachmentsRef = useRef(attachments.attachments);
   attachmentsRef.current = attachments.attachments;
+  const submittedRef = useRef(false);
   const initialDraftRef = useRef(useAppStore.getState().draftContents[props.project.id]);
   const availableCommands = resolveAvailableSlashCommands(
     undefined,
@@ -210,6 +212,8 @@ export function ThreadDraftComposerArea(props: {
     }
 
     resetDraftRefs();
+    submittedRef.current = true;
+    setIsSubmitting(true);
     const useWorktree = branchSelection?.isWorktree ?? props.worktreeMode;
     if (props.supportsModePicker) {
       props.onRememberPresentationMode();
@@ -235,7 +239,6 @@ export function ThreadDraftComposerArea(props: {
             }
         : {}),
     });
-    attachments.clearAll();
   }
 
   useLayoutEffect(() => {
@@ -257,6 +260,7 @@ export function ThreadDraftComposerArea(props: {
   useEffect(() => {
     const pid = props.project.id;
     return () => {
+      if (submittedRef.current) return;
       const segments = latestSegmentsRef.current;
       const atts = attachmentsRef.current;
       if (segments.length > 0 || atts.length > 0) {
@@ -382,8 +386,12 @@ export function ThreadDraftComposerArea(props: {
         placeholder="Send a message..."
         prompt={prompt}
         submitDisabled={
-          authRequired || agentUpdating || !(hasContent || attachments.attachments.length > 0)
+          authRequired ||
+          agentUpdating ||
+          isSubmitting ||
+          !(hasContent || attachments.attachments.length > 0)
         }
+        submitPending={isSubmitting}
         submitLabel="Launch thread"
         onPromptChange={setPrompt}
         onSubmit={() => {

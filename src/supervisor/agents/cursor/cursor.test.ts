@@ -562,6 +562,13 @@ describe("parseCursor account output", () => {
     });
   });
 
+  // Sibling of the Codex regression — a confirmed "not logged in" whoami must
+  // map to `missing` so the composer Sign-in dock can appear without waiting
+  // for a runtime auth error.
+  it("reports missing when whoami says the user is not logged in", () => {
+    expect(parseCursorWhoamiOutput("Not logged in")).toEqual({ authState: "missing" });
+  });
+
   it("extracts plan and email from about output", () => {
     expect(
       parseCursorAboutOutput(`About Cursor CLI

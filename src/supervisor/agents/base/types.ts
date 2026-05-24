@@ -163,6 +163,7 @@ export type CapabilitiesProbeResult = Partial<AgentCapability> & {
   authMethods?: AgentAuthMethod[];
   authLogoutSupported?: boolean;
   authState?: AuthState;
+  providerMetadata?: AgentProviderMetadata;
 };
 
 export interface DetectionSpec {

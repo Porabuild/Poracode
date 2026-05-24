@@ -2,6 +2,7 @@ import type { AgentCapability, PromptSegment } from "@/shared/contracts";
 import { createAcpStructuredSession } from "../acp";
 import {
   buildAgentCommand,
+  buildAgentLogoutCommand,
   createKnownSessionRef,
   detectAgentInstall,
   detectProbeLocation,
@@ -136,15 +137,7 @@ export function createCursorAdapter(): AgentAdapter {
         resolveAgentBinaryPath(location, "cursor-agent"),
       );
     },
-    async buildAcpLogoutCommand(ctx?: AgentEnvContext) {
-      const location = detectProbeLocation(ctx);
-      return buildAgentCommand(
-        location,
-        "cursor-agent",
-        ["logout"],
-        resolveAgentBinaryPath(location, "cursor-agent"),
-      );
-    },
+    buildAcpLogoutCommand: buildAgentLogoutCommand("cursor-agent", ["logout"]),
     buildDirectInput(prompt, _segments, _config, projectLocation) {
       // Cursor's TUI debounces fast incoming bytes as a paste burst. With
       // less than ~120ms between the text and Enter, the agent submits but

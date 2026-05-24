@@ -1,7 +1,8 @@
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
+import { homedir } from "node:os";
 import { join } from "node:path";
 import type { ProjectLocation } from "@/shared/contracts";
-import { resolveAgentHomeSubpath } from "../base";
+import { resolveAgentHomeSubpath, resolveWslHomeDirectory } from "../base";
 
 const INVALID_SESSION_RE = /not\s+found|invalid\s+conversation|no\s+such\s+conversation/i;
 
@@ -20,10 +21,6 @@ export function resolveAntigravityConversationsDir(location: ProjectLocation): s
 
 export function resolveAntigravityConfigDir(location: ProjectLocation): string | undefined {
   return resolveAgentHomeSubpath(location, ANTIGRAVITY_CONFIG_SUBPATH);
-}
-
-function resolveAntigravityParentDir(location: ProjectLocation): string | undefined {
-  return resolveAgentHomeSubpath(location, ANTIGRAVITY_PARENT_SUBPATH);
 }
 
 export function antigravityConfigDirExists(location: ProjectLocation): boolean {
@@ -91,14 +88,26 @@ export function locationCwd(location: ProjectLocation): string {
   return location.kind === "wsl" ? location.linuxPath : location.path;
 }
 
-// Watch the config root because `agy` stores cwd -> conversation mappings in
-// cache/last_conversations.json and conversation payloads under conversations/.
-export function resolveAntigravityWatchPath(location: ProjectLocation): string | undefined {
-  const configDir = resolveAntigravityConfigDir(location);
-  if (configDir && existsSync(configDir)) return configDir;
-  const parentDir = resolveAntigravityParentDir(location);
-  if (parentDir && existsSync(parentDir)) return parentDir;
-  return undefined;
+/**
+ * Absolute paths to watch for new/changed `agy` conversations. Native paths
+ * for windows/posix; Linux paths inside the distro for WSL (consumed by the
+ * in-distro bridge watch subscription, NOT UNC `\\wsl.localhost\…`).
+ *
+ * Watching the config root catches both cache/last_conversations.json
+ * writes (cwd → conversation map) and conversations/ writes (payloads).
+ */
+export function resolveAntigravityWatchPaths(location: ProjectLocation): string[] {
+  if (location.kind === "wsl") {
+    const home = resolveWslHomeDirectory(location.distro);
+    if (!home) return [];
+    return [`${home}/${ANTIGRAVITY_CONFIG_SUBPATH}`, `${home}/${ANTIGRAVITY_PARENT_SUBPATH}`];
+  }
+  const home = homedir();
+  const paths = [
+    join(home, ...ANTIGRAVITY_CONFIG_SUBPATH.split("/")),
+    join(home, ANTIGRAVITY_PARENT_SUBPATH),
+  ];
+  return paths.filter((p) => existsSync(p));
 }
 
 export function describeAntigravityLocation(location: ProjectLocation): string {

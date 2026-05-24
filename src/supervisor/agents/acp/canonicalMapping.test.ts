@@ -1029,4 +1029,49 @@ describe("mapAcpPermissionRequest", () => {
       },
     });
   });
+
+  it("classifies generic tool-call approvals as tool_call_approval with structured details", () => {
+    const state = createAcpMapperState("t-perm-tool");
+
+    const event = mapAcpPermissionRequest(
+      {
+        sessionId: "s1",
+        toolCall: {
+          title: "browser__new_tab",
+          kind: "other",
+          rawInput: {
+            variant: "UseTool",
+            tool_name: "browser__new_tab",
+            tool_input: { url: "https://www.bing.com", activate: true },
+          },
+        },
+        options: [
+          { optionId: "always-allow", name: "always allow", kind: "allow_always" },
+          { optionId: "allow-once", name: "allow once", kind: "allow_once" },
+          { optionId: "reject-once", name: "reject once", kind: "reject_once" },
+        ],
+      } as Parameters<typeof mapAcpPermissionRequest>[0],
+      state,
+      "acp-perm-tool-0",
+    );
+
+    expect(event).toEqual({
+      type: "request.opened",
+      threadId: "t-perm-tool",
+      requestId: "acp-perm-tool-0",
+      requestType: "tool_call_approval",
+      payload: {
+        summary: "browser__new_tab",
+        details: {
+          toolName: "browser__new_tab",
+          input: { url: "https://www.bing.com", activate: true },
+        },
+        options: [
+          { optionId: "always-allow", label: "always allow", description: undefined },
+          { optionId: "allow-once", label: "allow once", description: undefined },
+          { optionId: "reject-once", label: "reject once", description: undefined },
+        ],
+      },
+    });
+  });
 });

@@ -45,6 +45,7 @@
     "fmt:check": "oxfmt --check .",
     "test": "vitest run",
     "test:perf:cli-hook": "vitest run src/supervisor/runtime/cliHookEventChain.perf.test.ts",
+    "test:integration:providers": "vitest run --config vitest.integration.config.ts",
     "update-server": "node scripts/update-server.mjs",
     "db:clone": "node scripts/clone-db.mjs",
     "prepare": "husky"

@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { readBridge } from "@/renderer/bridge";
 import { useBrowserPanelStore } from "@/renderer/state/browserPanelStore";
-import { usePanelStore } from "@/renderer/state/panelStore";
+import { selectAnyObstructingOverlayOpen, usePanelStore } from "@/renderer/state/panelStore";
 
 export function useBrowserSync(): void {
   const setState = useBrowserPanelStore((s) => s.setState);
@@ -20,7 +20,12 @@ export function useBrowserSync(): void {
         setAttention(event.tabId);
       } else if (event.type === "open-panel") {
         const panel = usePanelStore.getState();
-        if (event.mode === "overlay") {
+        const wantsFullscreen = event.mode === "overlay";
+        if (wantsFullscreen || selectAnyObstructingOverlayOpen()) {
+          // Float the overlay above any active z-50 surface. Fullscreen when the
+          // user explicitly chose "overlay" presentation, drawer (z-60) when
+          // forced because an obstructing overlay would otherwise hide the page.
+          panel.setBrowserOverlayMaximized(wantsFullscreen);
           panel.setBrowserOverlayOpen(true);
         } else {
           if (event.mode === "panel") {

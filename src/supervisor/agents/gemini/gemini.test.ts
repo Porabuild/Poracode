@@ -292,7 +292,7 @@ describe("createGeminiAdapter hook plugin support", () => {
     expect(adapter.capabilities.presentationModes).toEqual(["terminal", "gui"]);
     expect(adapter.createStructuredSession).toBeTypeOf("function");
     expect(adapter.pluginId).toBe("lightcode-status@gemini");
-    expect(adapter.pluginVersion).toBe("1.2.2");
+    expect(adapter.pluginVersion).toBe("1.2.3");
     expect(adapter.minProtocolVersion).toBe(1);
 
     const extras = await adapter.pluginLaunchExtras?.({

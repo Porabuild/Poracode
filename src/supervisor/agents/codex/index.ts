@@ -3,10 +3,11 @@ import type { OscNotification } from "@/shared/osc";
 import {
   batchWslCommandsAsync,
   brailleSpinnerOscTitleHint,
+  buildAgentLogoutCommand,
   createKnownSessionRef,
-  createRecursiveDirWatcher,
   detectAgentInstall,
   getOscNotificationText,
+  watchSessionPaths,
   type AgentAdapter,
   type CreateStructuredSessionInput,
   type TerminalStatusHint,
@@ -31,10 +32,12 @@ import {
 import {
   describeCodexLocation,
   isInteractiveCodexRollout,
-  readCodexRolloutMetaForLocation,
+  readCodexRolloutMetaForLocationAsync,
   readCodexRolloutsForLocation,
+  readCodexRolloutsForLocationAsync,
   readCodexSessionIndexForLocation,
-  resolveCodexSessionsWatchPath,
+  readCodexSessionIndexForLocationAsync,
+  resolveCodexSessionWatchPaths,
 } from "./session";
 import type { CodexRolloutMeta } from "./sessionFiles";
 import { detectCodexReadyForInitialPrompt } from "./terminal";
@@ -195,6 +198,7 @@ export function createCodexAdapter(): AgentAdapter {
       const wslExecPath = resolveAgentBinaryPath(input.projectLocation, "codex");
       return CodexStructuredSession.create(input, wslExecPath);
     },
+    buildAcpLogoutCommand: buildAgentLogoutCommand("codex", ["logout"]),
     buildDirectInput(prompt) {
       return [prompt, "@wait:160", "\r"];
     },
@@ -207,24 +211,27 @@ export function createCodexAdapter(): AgentAdapter {
     },
     initialSessionRefDiscoveryDelayMs: 1000,
     watchSessionRef(location, onChanged) {
-      const watchPath = resolveCodexSessionsWatchPath(location);
-      if (!watchPath) return undefined;
-      return createRecursiveDirWatcher(
-        watchPath,
+      const paths = resolveCodexSessionWatchPaths(location);
+      if (paths.length === 0) return undefined;
+      return watchSessionPaths(
+        location,
+        paths,
         onChanged,
         `codex:${describeCodexLocation(location)}`,
       );
     },
     async discoverSessionRef(location) {
       try {
-        const sessions = readCodexSessionIndexForLocation(location);
-        const rollouts = readCodexRolloutsForLocation(location);
+        const [sessions, rollouts] = await Promise.all([
+          readCodexSessionIndexForLocationAsync(location),
+          readCodexRolloutsForLocationAsync(location),
+        ]);
         const newRollouts = rollouts
           .filter((rollout) => !preSpawnRolloutIds.has(rollout.id))
           .sort((a, b) => (b.updatedAt ?? 0) - (a.updatedAt ?? 0));
         let next: CodexRolloutMeta | undefined;
         for (const candidate of newRollouts) {
-          const meta = readCodexRolloutMetaForLocation(location, candidate);
+          const meta = await readCodexRolloutMetaForLocationAsync(location, candidate);
           if (meta && isInteractiveCodexRollout(meta, location)) {
             next = meta;
             break;

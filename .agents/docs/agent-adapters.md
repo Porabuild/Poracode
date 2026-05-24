@@ -56,6 +56,7 @@ Opening two provider folders side-by-side answers "what does this provider do di
 | Gemini   | auto, gemini-3.1-pro-preview, gemini-2.5-pro/flash/flash-lite, etc. | (none)                   | terminal              | No                     |
 | Copilot  | (probed via ACP)                                                    | low, medium, high, xhigh | terminal              | Yes (ACP)              |
 | Cursor   | auto, composer-\*, GPT/Opus/Sonnet variants                         | (embedded in model name) | terminal              | No                     |
+| Grok     | grok-build (probed via ACP)                                         | (none)                   | terminal              | Yes (ACP)              |
 
 ## Plugin Architecture
 

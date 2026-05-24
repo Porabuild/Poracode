@@ -1065,7 +1065,9 @@ export function mapAcpPermissionRequest(
   const details =
     requestType === "command_execution_approval" && command
       ? buildCommandPermissionDetails(toolCall.rawInput, kind)
-      : toolCall.rawInput;
+      : requestType === "tool_call_approval"
+        ? buildToolCallPermissionDetails(toolCall.rawInput, title, kind)
+        : toolCall.rawInput;
   const options = req.options.map((opt) => ({
     optionId: opt.optionId,
     label: opt.name,
@@ -1097,6 +1099,23 @@ function buildCommandPermissionDetails(
       command,
       ...(cwd ? { cwd } : {}),
     },
+  };
+}
+
+function buildToolCallPermissionDetails(
+  rawInput: unknown,
+  title: string | undefined,
+  kind: string | undefined,
+): PermissionRequestDetails {
+  const toolName = readStringField(rawInput, "tool_name") ?? title ?? kind ?? "tool";
+  const toolInput =
+    rawInput && typeof rawInput === "object" && "tool_input" in rawInput
+      ? (rawInput as { tool_input: unknown }).tool_input
+      : rawInput;
+  return {
+    toolName,
+    ...(title && title !== toolName ? { displayName: title } : {}),
+    input: toolInput,
   };
 }
 
@@ -1146,5 +1165,5 @@ function classifyApprovalRequestType(
   }
   if (k === "edit" || /\b(edit|patch)\b/.test(t)) return "apply_patch_approval";
   if (k === "write" || /\bwrite\b/.test(t)) return "file_change_approval";
-  return "tool_user_input";
+  return "tool_call_approval";
 }

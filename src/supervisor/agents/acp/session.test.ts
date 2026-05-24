@@ -1136,6 +1136,71 @@ describe("ACP permission request handling", () => {
     expect(listener.onRuntimeEvent).not.toHaveBeenCalled();
   });
 
+  it("auto-approves bypassPermissions policy when no native ACP mode exists", async () => {
+    const { listener, session } = makeConfigSyncSession({
+      availableModeIds: ["agent"],
+      currentConfig: {
+        model: "model-a",
+        effort: "low",
+        mode: "agent",
+        approvalPolicy: "bypassPermissions",
+      },
+    });
+
+    const response = await invokePermission(session, [
+      { optionId: "once", name: "Allow once", kind: "allow_once" },
+      { optionId: "always", name: "Allow always", kind: "allow_always" },
+    ]);
+
+    expect(response).toEqual({ outcome: { outcome: "selected", optionId: "always" } });
+    expect(listener.onUpdate).not.toHaveBeenCalledWith({
+      status: "needs_approval",
+      attention: "needs_approval",
+    });
+    expect(listener.onRuntimeEvent).not.toHaveBeenCalled();
+  });
+
+  it("auto-approves 'yolo' policy when no native ACP mode exists", async () => {
+    const { session } = makeConfigSyncSession({
+      availableModeIds: ["agent"],
+      currentConfig: {
+        model: "model-a",
+        effort: "low",
+        mode: "agent",
+        approvalPolicy: "yolo",
+      },
+    });
+
+    const response = await invokePermission(session, [
+      { optionId: "once", name: "Allow once", kind: "allow_once" },
+      { optionId: "always", name: "Allow always", kind: "allow_always" },
+    ]);
+
+    expect(response).toEqual({ outcome: { outcome: "selected", optionId: "always" } });
+  });
+
+  it("does not auto-approve non-bypass policies", async () => {
+    const { listener, session } = makeConfigSyncSession({
+      availableModeIds: ["agent"],
+      currentConfig: {
+        model: "model-a",
+        effort: "low",
+        mode: "agent",
+        approvalPolicy: "default",
+      },
+    });
+
+    void invokePermission(session, [
+      { optionId: "always", name: "Allow always", kind: "allow_always" },
+    ]);
+    await Promise.resolve();
+
+    expect(listener.onUpdate).toHaveBeenCalledWith({
+      status: "needs_approval",
+      attention: "needs_approval",
+    });
+  });
+
   it("does not auto-approve prompts when a native ACP permission mode exists", async () => {
     const { listener, session } = makeConfigSyncSession({
       availableModeIds: ["agent", "yolo"],

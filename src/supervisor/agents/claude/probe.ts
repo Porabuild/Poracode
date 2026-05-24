@@ -1,8 +1,19 @@
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import type { AgentCapability } from "@/shared/contracts";
+import type { AgentAuthMethod, AgentCapability } from "@/shared/contracts";
 import type { SDKUserMessage, SlashCommand } from "@anthropic-ai/claude-agent-sdk";
-import { readWslLoginShellCommandOutputAsync, type DetectProbeCtx } from "../base";
+import {
+  readWslLoginShellCommandOutputAsync,
+  type CapabilitiesProbeResult,
+  type DetectProbeCtx,
+} from "../base";
+
+const CLAUDE_TERMINAL_AUTH_METHOD: AgentAuthMethod = {
+  type: "terminal",
+  id: "claude-login",
+  name: "Claude login",
+  args: ["auth", "login"],
+};
 
 const MIN_CLAUDE_OPUS_47_CLI = [2, 1, 111] as const;
 const OPUS_47_MODEL_ID = "claude-opus-4-7";
@@ -198,7 +209,7 @@ async function probeClaudeSdkPartialWsl(
 
 export async function probeClaudeCapabilities(
   ctx: DetectProbeCtx,
-): Promise<Partial<AgentCapability> | undefined> {
+): Promise<CapabilitiesProbeResult | undefined> {
   if (!ctx.executablePath) return undefined;
 
   const timeoutMs = process.platform === "win32" ? 12_000 : 10_000;
@@ -209,6 +220,14 @@ export async function probeClaudeCapabilities(
 
   const versionPartial = claudeCapabilitiesFromCliVersion(ctx.version);
 
-  if (!sdkPartial && !versionPartial) return undefined;
-  return { ...(sdkPartial ?? {}), ...(versionPartial ?? {}) };
+  // Always advertise the terminal login + `claude auth logout` capabilities
+  // when the binary is installed — the Settings UI gates the Login/Logout
+  // controls on these fields, and the supervisor's logout dispatcher uses
+  // the adapter's `buildAcpLogoutCommand` to invoke `claude auth logout`.
+  return {
+    ...(sdkPartial ?? {}),
+    ...(versionPartial ?? {}),
+    authMethods: [CLAUDE_TERMINAL_AUTH_METHOD],
+    authLogoutSupported: true,
+  };
 }

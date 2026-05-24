@@ -7,14 +7,11 @@ import { useAppStore } from "@/renderer/state/appStore";
 import { readBridge } from "@/renderer/bridge";
 import { buildWorktreeLocation } from "@/shared/worktree";
 import { handleKeyActivate } from "@/renderer/utils/a11y";
-import type { SyncAction } from "./useWorktreeActions";
-
-function deriveSyncAction(hasTracking: boolean, ahead: number, behind: number): SyncAction {
-  if (!hasTracking) return "push";
-  if (ahead > 0 && behind === 0) return "push";
-  if (behind > 0 && ahead === 0) return "pull";
-  return "sync";
-}
+import {
+  deriveSyncAction,
+  runGitSyncCommand,
+  showGitActionError,
+} from "@/renderer/actions/gitCommandRunner";
 
 export function SyncBadge(props: { projectId: string; worktreePath?: string }) {
   const { ahead, behind, hasTracking, hasRemote } = useGitStore(
@@ -61,22 +58,24 @@ export function SyncBadge(props: { projectId: string; worktreePath?: string }) {
           const thread = useAppStore
             .getState()
             .threads.find((t) => t.worktreePath === props.worktreePath && t.worktreeBranch);
-          await readBridge().gitPush({
+          await runGitSyncCommand({
+            command: "push",
             projectLocation: location,
             remote: "origin",
-            branch: thread?.worktreeBranch ?? undefined,
+            ...(thread?.worktreeBranch ? { branch: thread.worktreeBranch } : {}),
             setUpstream: true,
           });
         } else {
-          await readBridge().gitPush({
+          await runGitSyncCommand({
+            command: "push",
             projectLocation: location,
             setUpstream: !hasTracking,
           });
         }
       } else if (syncAction === "pull") {
-        await readBridge().gitPull({ projectLocation: location });
+        await runGitSyncCommand({ command: "pull", projectLocation: location });
       } else {
-        await readBridge().gitSync({ projectLocation: location });
+        await runGitSyncCommand({ command: "sync", projectLocation: location });
       }
 
       // Eagerly refresh git status so the badge updates immediately.
@@ -88,8 +87,8 @@ export function SyncBadge(props: { projectId: string; worktreePath?: string }) {
       } else {
         useGitStore.getState().setProjectSnapshot(props.projectId, { status: newStatus });
       }
-    } catch {
-      // Errors will be visible via git status refresh
+    } catch (error) {
+      showGitActionError(error, { logPrefix: "[git] sidebar sync failed" });
     } finally {
       setIsSyncing(false);
     }

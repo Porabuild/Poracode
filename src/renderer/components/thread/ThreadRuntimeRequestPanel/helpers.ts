@@ -30,6 +30,7 @@ const APPROVAL_REQUEST_TYPES = new Set<CanonicalRequestType>([
   "file_read_approval",
   "file_change_approval",
   "apply_patch_approval",
+  "tool_call_approval",
 ]);
 
 export function getApprovalDenyOption(request: OpenRuntimeRequest): UserInputOption | undefined {

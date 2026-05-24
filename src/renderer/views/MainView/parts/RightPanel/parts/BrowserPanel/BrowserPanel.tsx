@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Minimize2 } from "lucide-react";
+import { Maximize2, Minimize2, X } from "lucide-react";
 import { isMac, readBridge } from "@/renderer/bridge";
 import { useBrowserPanelStore } from "@/renderer/state/browserPanelStore";
 import { usePanelStore } from "@/renderer/state/panelStore";
@@ -19,7 +19,9 @@ export function BrowserPanel(props: { visible: boolean }) {
   const tabs = useBrowserPanelStore((s) => s.tabs);
   const activeTabId = useBrowserPanelStore((s) => s.activeTabId);
   const browserOverlayOpen = usePanelStore((s) => s.browserOverlayOpen);
+  const browserOverlayMaximized = usePanelStore((s) => s.browserOverlayMaximized);
   const setBrowserOverlayOpen = usePanelStore((s) => s.setBrowserOverlayOpen);
+  const setBrowserOverlayMaximized = usePanelStore((s) => s.setBrowserOverlayMaximized);
   const visible = props.visible || browserOverlayOpen;
   const [menuPreviewDataUrl, setMenuPreviewDataUrl] = useState<string | null>(null);
   const {
@@ -61,29 +63,55 @@ export function BrowserPanel(props: { visible: boolean }) {
     return () => clearTimeout(timer);
   }, [createTab, visible, tabs.length]);
 
+  const isFullscreenOverlay = browserOverlayOpen && browserOverlayMaximized;
+  const headerButtonClass = `${
+    isFullscreenOverlay ? "lightcode-overlay-header__controls " : ""
+  }${panelHeaderIconButtonClass}`;
   return (
-    <div
-      className={
-        browserOverlayOpen
-          ? "fixed inset-0 z-[80] flex min-h-0 flex-col bg-[var(--content-background)]"
-          : "flex h-full min-h-0 flex-col bg-[var(--content-background)]"
-      }
-    >
+    <div className="flex h-full min-h-0 flex-col bg-[var(--content-background)]">
       {browserOverlayOpen ? (
         <div
-          className="lightcode-overlay-header flex shrink-0 items-center gap-1.5 border-b border-[color:var(--border)] bg-[var(--content-background)] px-2"
-          style={overlayHeaderStyle()}
+          className={`${
+            isFullscreenOverlay
+              ? "lightcode-overlay-header"
+              : "lightcode-overlay-header lightcode-overlay-header--no-drag"
+          } flex shrink-0 items-center gap-1.5 border-b border-[color:var(--border)] bg-[var(--content-background)] px-2`}
+          style={isFullscreenOverlay ? overlayHeaderStyle() : { height: "32px" }}
         >
-          {isMac() ? <div className={macosTrafficLightGutterClass} aria-hidden /> : null}
+          {isMac() && isFullscreenOverlay ? (
+            <div className={macosTrafficLightGutterClass} aria-hidden />
+          ) : null}
           <div className="text-xs font-medium text-foreground">Browser</div>
           <div className="flex-1" />
+          {browserOverlayMaximized ? (
+            <button
+              type="button"
+              className={headerButtonClass}
+              title="Restore"
+              aria-label="Restore browser"
+              onClick={() => setBrowserOverlayMaximized(false)}
+            >
+              <Minimize2 className="size-3.5" />
+            </button>
+          ) : (
+            <button
+              type="button"
+              className={headerButtonClass}
+              title="Maximize"
+              aria-label="Maximize browser"
+              onClick={() => setBrowserOverlayMaximized(true)}
+            >
+              <Maximize2 className="size-3.5" />
+            </button>
+          )}
           <button
             type="button"
-            className={`lightcode-overlay-header__controls ${panelHeaderIconButtonClass}`}
-            title="Collapse browser"
+            className={headerButtonClass}
+            title="Close"
+            aria-label="Close browser"
             onClick={() => setBrowserOverlayOpen(false)}
           >
-            <Minimize2 className="size-3.5" />
+            <X className="size-3.5" />
           </button>
         </div>
       ) : null}

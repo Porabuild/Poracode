@@ -60,6 +60,14 @@ export interface AcpProbeResult {
   authState?: AuthState;
   models?: Array<{ id: string; label: string; description?: string; tooltipDescription?: string }>;
   modelMetadata?: Record<string, Record<string, unknown>>;
+  /**
+   * Raw `_meta` collected during the probe handshake, merged across the
+   * `initialize`, `authenticate`, and `newSession` responses (later sources
+   * win on key conflicts). Provider-specific — Grok returns identity fields
+   * (`email`, `auth_mode`, `subscription_tier`) on its `authenticate`
+   * response. Adapters translate this into `AgentProviderMetadata`.
+   */
+  acpMeta?: Record<string, unknown>;
   efforts?: string[];
   defaultEffort?: string;
   modelEfforts?: Record<string, string[]>;
@@ -337,6 +345,15 @@ export async function probeAcpCapabilities(
     timeoutMs?: number;
     label?: string;
     env?: Record<string, string>;
+    /**
+     * Auth method IDs to call `authenticate` with (in order) after `initialize`
+     * but before `newSession`. Stops at the first one advertised by the agent.
+     * Used to retrieve identity metadata from agents that return it via the
+     * authenticate response (e.g. Grok returns email/plan in `_meta` there).
+     * Only safe for non-interactive flows like `cached_token` — never pass IDs
+     * that trigger browser OAuth.
+     */
+    authenticateMethodIds?: readonly string[];
   },
 ): Promise<AcpProbeResult | undefined> {
   const timeoutMs = options?.timeoutMs ?? 15_000;
@@ -401,6 +418,7 @@ export async function probeAcpCapabilities(
           }
           return Promise.resolve();
         },
+        extNotification: () => Promise.resolve(),
       }),
       stream,
     );
@@ -418,12 +436,40 @@ export async function probeAcpCapabilities(
         if (initResult.agentCapabilities?.auth?.logout !== undefined) {
           probeResult.authLogoutSupported = true;
         }
+        if (initResult._meta && typeof initResult._meta === "object") {
+          probeResult.acpMeta = initResult._meta as Record<string, unknown>;
+        }
 
         // Non-spec compatibility fallback for agents that still expose
         // commands during initialize instead of session/update.
         const rawCommands = (initResult as { commands?: AcpAvailableCommandLike[] }).commands;
         if (Array.isArray(rawCommands) && rawCommands.length > 0) {
           latestSlashCommands = mapAcpSlashCommands(rawCommands);
+        }
+
+        const preferredAuthMethodId = options?.authenticateMethodIds?.find((id) =>
+          initResult.authMethods?.some((method) => method.id === id),
+        );
+        if (preferredAuthMethodId) {
+          try {
+            const authResult = (await connection.authenticate({
+              methodId: preferredAuthMethodId,
+            })) as { _meta?: unknown } | undefined;
+            const authMeta = authResult?._meta;
+            if (authMeta && typeof authMeta === "object") {
+              probeResult.acpMeta = {
+                ...(probeResult.acpMeta ?? {}),
+                ...(authMeta as Record<string, unknown>),
+              };
+            }
+          } catch (err) {
+            console.log(
+              "%s authenticate(%s) failed: %s",
+              tag,
+              preferredAuthMethodId,
+              err instanceof Error ? err.message : String(err),
+            );
+          }
         }
 
         try {
@@ -456,6 +502,13 @@ export async function probeAcpCapabilities(
 
     probeResult.sessionEstablished = true;
     probeResult.authState = "authenticated";
+    const newSessionMeta = (result as { _meta?: unknown })._meta;
+    if (newSessionMeta && typeof newSessionMeta === "object") {
+      probeResult.acpMeta = {
+        ...(probeResult.acpMeta ?? {}),
+        ...(newSessionMeta as Record<string, unknown>),
+      };
+    }
     if (result.models?.availableModels?.length) {
       probeResult.models = mapAcpModels(result.models.availableModels);
       const modelMetadata = mapAcpModelMetadata(result.models.availableModels);
@@ -590,6 +643,9 @@ export async function authenticateAcpAgent(
             sessionUpdate() {
               return Promise.resolve();
             },
+            extNotification() {
+              return Promise.resolve();
+            },
           }),
           ndJsonStream(toAgent, fromAgent),
         );
@@ -662,6 +718,9 @@ export async function logoutAcpAgent(
               throw new Error("ACP logout did not request permission support.");
             },
             sessionUpdate() {
+              return Promise.resolve();
+            },
+            extNotification() {
               return Promise.resolve();
             },
           }),

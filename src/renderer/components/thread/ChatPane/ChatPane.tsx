@@ -217,9 +217,13 @@ export function ChatPane(props: ChatPaneProps) {
   const showTailLoader = isLive || completedTurnCanRenderInTail;
   // The agent is not actually working while it waits for a user answer, so the
   // tail loader keeps rendering but its elapsed-time counter freezes for the
-  // duration of the wait and resumes once the thread flips back to working.
-  const isTurnPaused =
-    status === "needs_reply" || status === "needs_approval" || hasOpenRuntimeRequest;
+  // duration of the wait and resumes once the user submits a response. Anchor
+  // on `hasOpenRuntimeRequest` (cleared optimistically by the request panel)
+  // rather than `thread.status`, which only flips back to `working` after the
+  // supervisor's round-trip — for plan approvals the agent often opens a new
+  // request before that round-trip completes, leaving status stuck at
+  // `needs_approval` even though the user has already answered.
+  const isTurnPaused = hasOpenRuntimeRequest;
   const showEmptyHint = isEmpty && !isLive;
   // The tail loader displays the most recent completed turn's frozen elapsed
   // time when the thread is idle and no newer timeline row exists. Once an

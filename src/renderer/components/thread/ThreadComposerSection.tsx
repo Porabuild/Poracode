@@ -52,7 +52,7 @@ import {
   resolveLocalSlashCommandAction,
 } from "./threadSlashCommands";
 import { handleComposerControlShortcut } from "./threadComposerShortcuts";
-import type { ThreadErrorDockState } from "./threadErrorState";
+import { isAuthErrorMessage, type ThreadErrorDockState } from "./threadErrorState";
 import type { ThreadGoalDockState } from "./threadGoalState";
 import type { ThreadTodoDockState } from "./threadTodoState";
 import type { TerminalPaneHandle } from "./TerminalPane";
@@ -350,7 +350,14 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
   );
   const filteredCommands = filterSlashCommands(availableCommands, slashQuery);
   const showCommandPanel = filteredCommands.length > 0;
-  const authRequired = agentStatus?.authState === "missing";
+  // A stale runtime auth error (e.g. a 401 from before the user signed in)
+  // must not keep the auth dock visible once detection confirms the agent is
+  // authenticated again — otherwise the dock sticks until the user sends a
+  // new message and the error item scrolls off `selectThreadLatestErrorItem`.
+  const isAgentAuthenticated = agentStatus?.authState === "authenticated";
+  const hasRuntimeAuthError =
+    !isAgentAuthenticated && errorDockState !== null && isAuthErrorMessage(errorDockState.message);
+  const authRequired = agentStatus?.authState === "missing" || hasRuntimeAuthError;
   const isServerControlled =
     agentStatus?.capabilities.liveInputMode === "server" || !usesTerminalPresentation;
   const isTerminalInput = agentStatus?.capabilities.liveInputMode === "terminal";
@@ -381,7 +388,8 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
   const showTodoInComposer =
     !usesTerminalPresentation && todoDockState !== null && todoDockPlacement === "composer";
   const showGoalInComposer = !usesTerminalPresentation && goalDockState !== null;
-  const showErrorInComposer = !usesTerminalPresentation && errorDockState !== null;
+  const showErrorInComposer =
+    !usesTerminalPresentation && errorDockState !== null && !hasRuntimeAuthError;
   const hasActiveSubAgent = useAppStore(
     (s) => !usesTerminalPresentation && selectActiveSubAgentParentItemIds(s, thread.id).length > 0,
   );

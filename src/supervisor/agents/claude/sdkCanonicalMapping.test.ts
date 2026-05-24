@@ -1340,6 +1340,35 @@ describe("sdkCanonicalMapping — turn completion", () => {
       { type: "turn.completed", threadId: "thread-1", turnId: "turn-1", state: "completed" },
     ]);
   });
+
+  it("maps a success-subtype result with is_error to a failed turn and surfaces the API message", () => {
+    const state = createClaudeMapperState("thread-1");
+    startClaudeTurn(state, "turn-auth", "hi", undefined);
+
+    const events = mapClaudeSdkMessage(
+      {
+        type: "result",
+        subtype: "success",
+        is_error: true,
+        api_error_status: 401,
+        result: "Failed to authenticate. API Error: 401 Invalid authentication credentials",
+        session_id: "claude-session",
+      } as unknown as SDKMessage,
+      state,
+    );
+
+    expect(events).toContainEqual({
+      type: "error",
+      threadId: "thread-1",
+      message: "Failed to authenticate. API Error: 401 Invalid authentication credentials",
+    });
+    expect(events).toContainEqual({
+      type: "turn.completed",
+      threadId: "thread-1",
+      turnId: "turn-auth",
+      state: "failed",
+    });
+  });
 });
 
 describe("sdkCanonicalMapping — requests", () => {
