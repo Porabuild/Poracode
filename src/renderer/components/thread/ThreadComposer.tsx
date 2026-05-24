@@ -155,6 +155,7 @@ export function ThreadComposer(props: {
   hideSubmitButton?: boolean;
   submitLabel: string;
   submitDisabled: boolean;
+  submitPending?: boolean;
   stopPending?: boolean;
   preserveDisabledControlStyle?: boolean;
   onPromptChange: (value: string) => void;
@@ -178,6 +179,7 @@ export function ThreadComposer(props: {
     hideSubmitButton = false,
     submitLabel,
     submitDisabled,
+    submitPending = false,
     stopPending = false,
     preserveDisabledControlStyle = false,
     onPromptChange,
@@ -569,10 +571,13 @@ export function ThreadComposer(props: {
         aria-label={submitLabel}
         className="lightcode-composer-send"
         isDisabled={submitDisabled || promptDisabled}
+        isPending={submitPending}
         onPress={onSubmit}
         size="sm"
       >
-        <ArrowUp className="size-4" />
+        {({ isPending }) =>
+          isPending ? <PixelLoader size="xs" /> : <ArrowUp className="size-4" />
+        }
       </Button>
     );
   };
