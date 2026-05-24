@@ -437,25 +437,26 @@ function supportsAcpLogoutStatus(status: AgentStatus, acpInstanceId: string | un
 
 function AcpAgentAuthEnvRow(props: {
   status: AgentStatus;
-  authMethod: AgentOwnedAuthMethod | AgentTerminalAuthMethod | undefined;
+  authMethods: ReadonlyArray<AgentOwnedAuthMethod | AgentTerminalAuthMethod>;
   canLogout: boolean;
   authPending: boolean;
   pendingMessage: string | undefined;
   showEnvironmentLabel: boolean;
-  onLogin: () => void;
+  onLogin: (method: AgentOwnedAuthMethod | AgentTerminalAuthMethod) => void;
   onLogout: () => void;
 }) {
-  const { status, authMethod, showEnvironmentLabel } = props;
+  const { status, authMethods, showEnvironmentLabel } = props;
+  const hasAnyMethod = authMethods.length > 0;
   const isAuthenticated = status.authState === "authenticated";
   const isMissing =
-    status.authState === "missing" || (status.authState === "unknown" && authMethod !== undefined);
+    status.authState === "missing" || (status.authState === "unknown" && hasAnyMethod);
   const env = envLabel(status);
   const envSuffix = showEnvironmentLabel && env ? ` ${env}` : "";
   const envScope = env ? ` for ${env}` : "";
   const envSubject = env || "Agent";
   const canLogout = isAuthenticated && props.canLogout;
-  const canReLogin = isAuthenticated && !canLogout && authMethod !== undefined;
-  const canLogin = (isMissing || canReLogin) && authMethod !== undefined;
+  const canReLogin = isAuthenticated && !canLogout && hasAnyMethod;
+  const canLogin = (isMissing || canReLogin) && hasAnyMethod;
   const loginLabel = canReLogin ? "Re-login" : "Login";
   const pendingLabel = canLogout ? "Logging out" : "Logging in";
   const headerLabel = isMissing
@@ -464,10 +465,14 @@ function AcpAgentAuthEnvRow(props: {
       ? "Signed in"
       : "Authentication";
   const headerPrefix = env ? `${env} · ` : "";
+  const hasMultipleMethods = authMethods.length > 1;
+  const singleMethod = !hasMultipleMethods ? authMethods[0] : undefined;
   const description = isMissing
-    ? authMethod
-      ? `Complete ${authMethod.name} sign-in${envScope}.`
-      : `${envSubject} needs authentication.`
+    ? hasMultipleMethods
+      ? `Choose how to sign in${envScope}.`
+      : singleMethod
+        ? `Complete ${singleMethod.name} sign-in${envScope}.`
+        : `${envSubject} needs authentication.`
     : isAuthenticated
       ? `${envSubject} credentials are configured.`
       : "";
@@ -501,13 +506,27 @@ function AcpAgentAuthEnvRow(props: {
             </div>
           ) : (
             <>
-              {canLogin ? (
+              {canLogin && hasMultipleMethods
+                ? authMethods.map((method) => (
+                    <Button
+                      key={method.id}
+                      size="sm"
+                      variant="tertiary"
+                      aria-label={`${loginLabel} ${method.name}${envSuffix}`}
+                      onPress={() => props.onLogin(method)}
+                    >
+                      <LogIn className="size-4" />
+                      {method.name}
+                    </Button>
+                  ))
+                : null}
+              {canLogin && !hasMultipleMethods && singleMethod ? (
                 <Button
                   size="sm"
                   variant="tertiary"
                   isIconOnly
                   aria-label={`${loginLabel}${envSuffix}`}
-                  onPress={props.onLogin}
+                  onPress={() => props.onLogin(singleMethod)}
                 >
                   <LogIn className="size-4" />
                 </Button>
@@ -1198,32 +1217,34 @@ export function SingleAgentSettings(props: { agentKind: string }) {
               ) : null}
               {installedStatuses.map((status) => {
                 const envKey = statusEnvKey(status);
-                const agentMethod =
-                  status.authMethods?.find(isAgentAuthMethod) ?? sharedAgentAuthMethod;
+                const agentMethods =
+                  status.authMethods?.filter(isAgentAuthMethod) ??
+                  (sharedAgentAuthMethod ? [sharedAgentAuthMethod] : []);
                 const terminalMethod =
                   findTerminalAuthMethodForStatus(status) ?? sharedTerminalAuthMethod;
-                const method = agentMethod ?? terminalMethod;
+                const methods: Array<AgentOwnedAuthMethod | AgentTerminalAuthMethod> =
+                  agentMethods.length > 0 ? agentMethods : terminalMethod ? [terminalMethod] : [];
                 const isAuthenticated = status.authState === "authenticated";
                 const needsInteractiveRow =
                   isAuthenticated ||
                   status.authState === "missing" ||
-                  (status.authState === "unknown" && method !== undefined);
+                  (status.authState === "unknown" && methods.length > 0);
                 if (!needsInteractiveRow) return null;
                 return (
                   <AcpAgentAuthEnvRow
                     key={`${status.kind}-${envKey}-auth-row`}
                     status={status}
-                    authMethod={method}
+                    authMethods={methods}
                     canLogout={supportsAcpLogoutStatus(status, acpInstanceId)}
                     authPending={authPendingEnvKey === envKey}
                     pendingMessage={authPendingEnvKey === envKey ? authPendingMessage : undefined}
                     showEnvironmentLabel={showAuthEnvironmentLabels}
-                    onLogin={() => {
-                      if (agentMethod) {
-                        authenticateAgent({ status, method: agentMethod });
+                    onLogin={(method) => {
+                      if (isAgentAuthMethod(method)) {
+                        authenticateAgent({ status, method });
                         return;
                       }
-                      runTerminalLogin(status, terminalMethod);
+                      runTerminalLogin(status, method);
                     }}
                     onLogout={() => logoutAgent(status)}
                   />

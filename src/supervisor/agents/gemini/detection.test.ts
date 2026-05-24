@@ -42,12 +42,16 @@ describe("geminiDetectionSpec", () => {
   it("uses the native project location and resolved executable for non-WSL probes", async () => {
     const location: ProjectLocation = { kind: "posix", path: "/Users/demo/project" };
 
+    // Even when the ACP probe fails, Gemini surfaces a terminal auth method
+    // so the Login button stays in the settings UI.
     await expect(
       geminiDetectionSpec.capabilitiesProbe?.({
         location,
         executablePath: "/Users/demo/.local/bin/gemini",
       }),
-    ).resolves.toBeUndefined();
+    ).resolves.toEqual({
+      authMethods: [{ id: "gemini-terminal-login", name: "Login", type: "terminal" }],
+    });
 
     expect(buildAgentCommandMock).toHaveBeenCalledWith(location, "/Users/demo/.local/bin/gemini", [
       "--acp",

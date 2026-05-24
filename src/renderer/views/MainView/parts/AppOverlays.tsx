@@ -31,6 +31,7 @@ import { performWorktreeRemoval } from "@/renderer/actions/worktreeActions";
 
 import { WelcomeOverlay } from "@/renderer/views/WelcomeOverlay";
 import { BrowserOverlay } from "@/renderer/views/MainView/parts/BrowserOverlay";
+import { LoginTerminalOverlay } from "@/renderer/views/LoginTerminalOverlay/LoginTerminalOverlay";
 
 export function AppOverlays() {
   const projects = useAppStore((s) => s.projects);
@@ -168,6 +169,7 @@ export function AppOverlays() {
         ) : null}
       </OverlayShell>
       <BrowserOverlay open={browserOverlayOpen} />
+      <LoginTerminalOverlay />
     </>
   );
 }

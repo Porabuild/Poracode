@@ -385,6 +385,14 @@ function completeAcpTerminal(record: AcpTerminalRecord, status: TerminalExitStat
   }
 }
 
+function looksLikeAcpSessionNotification(params: unknown): params is SessionNotification {
+  if (!params || typeof params !== "object") return false;
+  const p = params as { sessionId?: unknown; update?: unknown };
+  if (typeof p.sessionId !== "string") return false;
+  if (!p.update || typeof p.update !== "object") return false;
+  return typeof (p.update as { sessionUpdate?: unknown }).sessionUpdate === "string";
+}
+
 function childExitStatus(code: number | null, signal: NodeJS.Signals | null): TerminalExitStatus {
   return {
     ...(typeof code === "number" ? { exitCode: code } : {}),
@@ -510,7 +518,12 @@ export class AcpStructuredSession implements StructuredSessionHandle {
   private shouldAutoApproveSyntheticPermissionRequest(): boolean {
     const config = this.currentConfig;
     const policy = config?.approvalPolicy;
-    if (!config || config.mode === "plan" || policy !== "never") return false;
+    if (!config || config.mode === "plan" || !policy) return false;
+    // Bypass-style policy ids across adapters: legacy "never"/"yolo" and the
+    // adapter-agnostic "bypassPermissions" used by Claude, Grok, etc. When the
+    // agent has no native ACP mode for the requested policy we resolve the
+    // synthetic request ourselves instead of prompting the user.
+    if (policy !== "never" && policy !== "yolo" && policy !== "bypassPermissions") return false;
     return !hasNativeAcpPermissionMode(policy, this.availableModeIds);
   }
 
@@ -777,6 +790,10 @@ export class AcpStructuredSession implements StructuredSessionHandle {
         async killTerminal(params: KillTerminalRequest) {
           session.handleKillTerminal(params);
           return {};
+        },
+        extNotification(method: string, params: Record<string, unknown>) {
+          session.handleExtNotification(method, params);
+          return Promise.resolve();
         },
       }),
       stream,
@@ -1492,6 +1509,28 @@ export class AcpStructuredSession implements StructuredSessionHandle {
         },
       ]);
     }
+  }
+
+  /**
+   * Handle vendor-extension JSON-RPC notifications (methods outside the ACP
+   * spec). The SDK routes anything that isn't `session/update` or
+   * `session/elicitation_complete` here; without a handler the connection
+   * throws `methodNotFound` and logs every notification as an error.
+   *
+   * Grok's `_x.ai/session_notification` carries the same `{ sessionId, update }`
+   * shape as a standard `session/update`, just with extension-only
+   * `sessionUpdate` discriminators (`hook_execution`, etc.). Forward it to the
+   * normal handler — the canonical mapper falls through to its `default` arm
+   * on unrecognized discriminators, so unknown extensions are swallowed
+   * without polluting the chat stream.
+   */
+  private handleExtNotification(method: string, params: Record<string, unknown>): void {
+    if (looksLikeAcpSessionNotification(params)) {
+      console.log("[acp] forwarding extension notification to session/update:", method);
+      this.handleSessionUpdate(params as unknown as SessionNotification);
+      return;
+    }
+    console.log("[acp] ignoring extension notification:", method);
   }
 
   /**

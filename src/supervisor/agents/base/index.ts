@@ -2,7 +2,12 @@ import { existsSync, readFileSync, watch as fsWatch } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import { toWslUncPath } from "@/shared/wsl";
-import type { AgentStatus, AuthState, ProjectLocation } from "@/shared/contracts";
+import type {
+  AgentProviderMetadata,
+  AgentStatus,
+  AuthState,
+  ProjectLocation,
+} from "@/shared/contracts";
 import { primeAgentBinaryPath, resolveAgentBinaryPath } from "../binaryResolver";
 import {
   batchWslCommandsAsync,
@@ -98,6 +103,7 @@ export * from "./terminalHints";
 export * from "./promptSession";
 export * from "./processRuntime";
 export * from "./shellBasics";
+export * from "./sessionFs";
 export function buildWindowsCmdCommand(cwd: string, command: string, args: string[]): CommandSpec {
   return {
     command: "C:\\Windows\\System32\\cmd.exe",
@@ -582,6 +588,7 @@ export async function detectAgentInstall(
   let probedAuthMethods: AgentStatus["authMethods"];
   let probedAuthLogoutSupported: boolean | undefined;
   let probedAuthState: AuthState | undefined;
+  let probedProviderMetadata: AgentProviderMetadata | undefined;
   if (executablePath) {
     const probeCtx: DetectProbeCtx = { location, executablePath, version };
     const [capabilityPartial, nextStatusProbeResult] = await Promise.all([
@@ -593,6 +600,7 @@ export async function detectAgentInstall(
         authMethods: probeAuthMethods,
         authLogoutSupported: probeAuthLogoutSupported,
         authState: probeAuthStateValue,
+        providerMetadata: probeProviderMetadata,
         ...capabilityRest
       } = capabilityPartial;
       capabilities = { ...capabilities, ...capabilityRest };
@@ -604,6 +612,9 @@ export async function detectAgentInstall(
       }
       if (probeAuthStateValue !== undefined) {
         probedAuthState = probeAuthStateValue;
+      }
+      if (probeProviderMetadata) {
+        probedProviderMetadata = probeProviderMetadata;
       }
     }
     statusProbeResult = nextStatusProbeResult;
@@ -636,6 +647,8 @@ export async function detectAgentInstall(
     }
   }
 
+  const providerMetadata = statusProbeResult?.providerMetadata ?? probedProviderMetadata;
+
   return {
     kind: spec.kind,
     label: spec.label,
@@ -645,9 +658,7 @@ export async function detectAgentInstall(
     ...(version ? { version } : {}),
     ...(spec.update ? { update: spec.update } : {}),
     authState,
-    ...(statusProbeResult?.providerMetadata
-      ? { providerMetadata: statusProbeResult.providerMetadata }
-      : {}),
+    ...(providerMetadata ? { providerMetadata } : {}),
     ...(probedAuthMethods ? { authMethods: probedAuthMethods } : {}),
     ...(probedAuthLogoutSupported ? { authLogoutSupported: true } : {}),
     capabilities,

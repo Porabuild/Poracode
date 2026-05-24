@@ -1,8 +1,8 @@
 import type { AgentCapability, PromptSegment, ProjectLocation } from "@/shared/contracts";
 import {
   createKnownSessionRef,
-  createRecursiveDirWatcher,
   detectAgentInstall,
+  watchSessionPaths,
   type AgentAdapter,
 } from "../base";
 import { buildAntigravityArgs } from "./argv";
@@ -18,7 +18,7 @@ import {
   readAntigravityConversationIds,
   readAntigravityLastConversationForCwd,
   readNewestAntigravityConversationId,
-  resolveAntigravityWatchPath,
+  resolveAntigravityWatchPaths,
 } from "./session";
 import { detectAntigravityTerminalStatus } from "./terminal";
 
@@ -87,10 +87,11 @@ export function createAntigravityAdapter(): AgentAdapter {
     },
 
     watchSessionRef(location, onChanged) {
-      const watchPath = resolveAntigravityWatchPath(location);
-      if (!watchPath) return undefined;
-      return createRecursiveDirWatcher(
-        watchPath,
+      const paths = resolveAntigravityWatchPaths(location);
+      if (paths.length === 0) return undefined;
+      return watchSessionPaths(
+        location,
+        paths,
         onChanged,
         `antigravity:${describeAntigravityLocation(location)}`,
       );

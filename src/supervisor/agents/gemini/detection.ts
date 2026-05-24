@@ -1,9 +1,9 @@
 import { existsSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
-import type { AgentCapability } from "@/shared/contracts";
+import type { AgentCapability, AgentTerminalAuthMethod } from "@/shared/contracts";
 import { compactAgentProviderMetadata } from "@/shared/contracts";
-import { dedupeAcpAuthMethods, probeAcpCapabilities } from "../acp";
+import { probeAcpCapabilities } from "../acp";
 import {
   batchWslCommandsAsync,
   buildAgentCommand,
@@ -129,7 +129,7 @@ export const geminiDetectionSpec: DetectionSpec = {
   kind: "gemini",
   label: "Gemini",
   binary: "gemini",
-  loginCommand: "gemini auth login",
+  loginCommand: "gemini /auth",
   capabilities: defaultGeminiCapabilities,
   update: {
     npm: "@google/gemini-cli",
@@ -154,15 +154,27 @@ export const geminiDetectionSpec: DetectionSpec = {
           ? `gemini:wsl:${ctx.location.distro}`
           : `gemini:${ctx.location.kind}`,
     });
-    if (!probeResult) return undefined;
+    // Gemini's ACP authMethods are mostly non-functional over the protocol —
+    // only `oauth-personal` works via `authenticate()`; the API-key/Vertex/
+    // Gateway methods require env vars set before agent spawn and fail
+    // silently when invoked through ACP. Synthesize one terminal method that
+    // opens Gemini's own TUI auth picker (via the loginCommand), which
+    // handles every flow correctly. Returned unconditionally so the settings
+    // Login button stays present even when the ACP probe transiently fails
+    // (e.g. right after the user force-closes an in-flight /auth session).
+    const terminalAuthMethod: AgentTerminalAuthMethod = {
+      id: "gemini-terminal-login",
+      name: "Login",
+      type: "terminal",
+    };
+    if (!probeResult) {
+      return { authMethods: [terminalAuthMethod] };
+    }
     const modelTokens = new Map<string, number>();
     for (const model of probeResult.models ?? []) {
       const tokens = geminiModelContextTokens(model.id);
       if (tokens !== undefined) modelTokens.set(model.id, tokens);
     }
-    const dedupedAuthMethods = probeResult.authMethods?.length
-      ? dedupeAcpAuthMethods(probeResult.authMethods)
-      : undefined;
     return {
       ...(probeResult.models?.length ? { models: probeResult.models } : {}),
       ...(probeResult.efforts?.length ? { efforts: probeResult.efforts } : {}),
@@ -173,7 +185,7 @@ export const geminiDetectionSpec: DetectionSpec = {
         : {}),
       ...(probeResult.slashCommands?.length ? { slashCommands: probeResult.slashCommands } : {}),
       ...buildContextSizeCapabilities(modelTokens),
-      ...(dedupedAuthMethods?.length ? { authMethods: dedupedAuthMethods } : {}),
+      authMethods: [terminalAuthMethod],
       ...(probeResult.authLogoutSupported ? { authLogoutSupported: true } : {}),
       ...(probeResult.authState ? { authState: probeResult.authState } : {}),
     };

@@ -3,6 +3,7 @@ import type { Project } from "@/shared/contracts";
 import { readBridge } from "@/renderer/bridge";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useDevTerminalStore } from "@/renderer/state/devTerminalStore";
+import { useLoginTerminalStore } from "@/renderer/state/loginTerminalStore";
 import { usePanelStore } from "@/renderer/state/panelStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { writeScriptToShell } from "@/renderer/utils/shellUtils";
@@ -98,16 +99,70 @@ export function runAgentLoginCommand(input: {
   onCommandComplete?: (exitCode: number) => void;
   project?: Project;
 }): boolean {
-  return runAgentTerminalCommand({
-    label: input.label,
-    command: input.command,
-    ...(input.env ? { env: input.env } : {}),
-    ...(input.onCommandComplete ? { onCommandComplete: input.onCommandComplete } : {}),
-    ...(input.project ? { project: input.project } : {}),
+  const project = input.project ?? resolveLoginProject();
+  if (!project) {
+    toast.warning("Add a project before signing in.");
+    return false;
+  }
+
+  // Replace any active login session — only one terminal panel at a time.
+  const previous = useLoginTerminalStore.getState().active;
+  if (previous) {
+    previous.onForceClose?.();
+    void readBridge()
+      .closeThread({ threadId: previous.shellId })
+      .catch(() => undefined);
+  }
+
+  const shellId = `login:${crypto.randomUUID()}`;
+  // Wipe the bash prompt + echoed script line that briefly appear before the
+  // TUI takes over. `clear` (POSIX) / `Clear-Host` (PowerShell) gives the
+  // overlay a clean canvas so the user only sees the agent's own UI.
+  const cleared =
+    project.location.kind === "windows"
+      ? `Clear-Host; ${input.command}`
+      : `clear; ${input.command}`;
+  const command = buildTerminalCommand({
+    command: cleared,
+    env: input.env,
     openUrlsInNativeBrowser: true,
-    tabPurpose: "login",
-    toastPurpose: "login",
+    project,
   });
+  const completionToken = createCompletionToken();
+  const script = appendCompletionSignal(command, project, completionToken);
+
+  let fired = false;
+  const fireOnce = (exitCode: number) => {
+    if (fired) return;
+    fired = true;
+    input.onCommandComplete?.(exitCode);
+  };
+
+  const stopWatching = watchCommandCompletion(shellId, completionToken, (exitCode) => {
+    fireOnce(exitCode);
+    // Auto-dismiss the overlay shortly after the command exits so the user
+    // can read any final success line before it slides away.
+    window.setTimeout(() => useLoginTerminalStore.getState().close(), 1200);
+  });
+
+  useLoginTerminalStore.getState().open({
+    shellId,
+    label: input.label,
+    projectLocation: project.location,
+    onForceClose: () => {
+      stopWatching();
+      fireOnce(-1);
+    },
+  });
+
+  void readBridge()
+    .startShell({ shellId, projectLocation: project.location })
+    .catch((error) => {
+      toast.danger(error instanceof Error ? error.message : `Unable to open ${input.label} login.`);
+      useLoginTerminalStore.getState().close();
+    });
+  writeScriptToShell(shellId, script);
+  return true;
 }
 
 function quotePosixShellArg(value: string): string {
@@ -165,7 +220,7 @@ function watchCommandCompletion(
   shellId: string,
   token: string,
   onCommandComplete: (exitCode: number) => void,
-): void {
+): () => void {
   const marker = completionMarker(token);
   let buffer = "";
   let done = false;
@@ -188,4 +243,10 @@ function watchCommandCompletion(
     unsubscribe();
     onCommandComplete(Number(match[1]));
   });
+  return () => {
+    if (done) return;
+    done = true;
+    window.clearTimeout(timeout);
+    unsubscribe();
+  };
 }

@@ -17,6 +17,7 @@
  *   - cursor: plugin.json, forward.mjs
  *   - gemini: plugin.json, forward.mjs
  *   - copilot: plugin.json, forward.mjs
+ *   - grok: plugin.json, forward.mjs
  *   - opencode: plugin.json, lightcode-status.mjs (in-process plugin, no forward.mjs)
  *
  * Plus a shared forwarder runtime under `_runtime/lightcode-hook-runtime.mjs`
@@ -62,6 +63,11 @@ const PLUGINS = [
     kind: "copilot",
     assets: ["plugin.json", "forward.mjs"],
     srcDir: join(repoRoot, "src", "supervisor", "agents", "copilot", "plugin"),
+  },
+  {
+    kind: "grok",
+    assets: ["plugin.json", "forward.mjs"],
+    srcDir: join(repoRoot, "src", "supervisor", "agents", "grok", "plugin"),
   },
   {
     kind: "opencode",

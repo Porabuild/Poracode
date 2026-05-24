@@ -47,8 +47,8 @@ interface ThreadRuntimeRequestPanelProps {
  *
  * Renders two flavors based on `request.requestType`:
  *  - `tool_user_input` → vertical list of menu rows; click submits.
- *  - approval requests → primary action with chevron-dropdown for alternates,
- *    and negative options as ghost buttons.
+ *  - approval requests (incl. `tool_call_approval`) → primary action with
+ *    chevron-dropdown for alternates, and negative options as ghost buttons.
  *
  * Resolves through `resolveThreadServerRequest` with `method: "requestPermission"`,
  * matching the existing renderer<->supervisor contract.

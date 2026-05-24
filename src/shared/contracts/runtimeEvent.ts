@@ -34,6 +34,7 @@ export const canonicalRequestTypeSchema = z.enum([
   "file_read_approval",
   "file_change_approval",
   "apply_patch_approval",
+  "tool_call_approval",
   "tool_user_input",
   "auth_refresh",
 ]);

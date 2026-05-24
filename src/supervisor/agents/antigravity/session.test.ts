@@ -55,9 +55,9 @@ describe("Antigravity session files", () => {
     const configDir = join(home, ".gemini", "antigravity-cli");
     mkdirSync(join(configDir, "conversations"), { recursive: true });
 
-    const { resolveAntigravityWatchPath } = await loadSessionModule(home);
+    const { resolveAntigravityWatchPaths } = await loadSessionModule(home);
 
-    expect(resolveAntigravityWatchPath(location)).toBe(configDir);
+    expect(resolveAntigravityWatchPaths(location)).toEqual([configDir, join(home, ".gemini")]);
   });
 
   it("reads the cwd mapping and newest new conversation id", async () => {

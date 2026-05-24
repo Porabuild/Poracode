@@ -1,5 +1,5 @@
 {
   "name": "lightcode-status-gemini",
-  "version": "1.2.2",
+  "version": "1.2.3",
   "description": "Gemini CLI lifecycle hook forwarder for Lightcode thread status"
 }
