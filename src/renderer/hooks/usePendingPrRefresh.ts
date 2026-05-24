@@ -2,8 +2,9 @@ import { useEffect } from "react";
 import type { ProjectLocation } from "@/shared/contracts";
 import { readBridge } from "@/renderer/bridge";
 import { useGitStore } from "@/renderer/state/gitStore";
-import { usePrChecksStatus, usePrNumber, usePrState } from "@/renderer/state/gitSelectors";
+import { usePrNumber, usePrState } from "@/renderer/state/gitSelectors";
 import { getPrStatusTone } from "@/renderer/utils/prStatus";
+import { usePrCombinedChecksStatus } from "./usePrCombinedChecksStatus";
 
 export const PR_PENDING_REFRESH_INTERVAL_MS = 30_000;
 
@@ -16,15 +17,18 @@ export function usePendingPrRefresh(params: {
   const { prKey, projectLocation, branch, cacheKey } = params;
   const state = usePrState(prKey);
   const number = usePrNumber(prKey);
-  const checksStatus = usePrChecksStatus(prKey);
+  const details = useGitStore((s) => (cacheKey ? s.prDetails[cacheKey] : undefined));
+  const effectiveChecksStatus = usePrCombinedChecksStatus(prKey, cacheKey);
+  const prNumber = number ?? details?.number;
 
   useEffect(() => {
-    if (!prKey || getPrStatusTone(state, checksStatus) !== "warning") return;
+    if (!prKey || getPrStatusTone(state, effectiveChecksStatus) !== "warning") return;
 
     const targetPrKey = prKey;
     const targetBranch = branch;
     const detailsCacheKey = cacheKey;
-    const detailsPrNumber = number;
+    const detailsPrNumber = prNumber;
+    if (!targetBranch && (!detailsCacheKey || !detailsPrNumber)) return;
     let cancelled = false;
     let inFlight = false;
 
@@ -44,11 +48,11 @@ export function usePendingPrRefresh(params: {
                 .ghGetPrDetails({ projectLocation, prNumber: detailsPrNumber })
                 .catch(() => undefined)
             : Promise.resolve(undefined);
-        const [pr, details] = await Promise.all([prPromise, detailsPromise]);
+        const [pr, refreshedDetails] = await Promise.all([prPromise, detailsPromise]);
         if (cancelled) return;
         if (pr !== undefined) useGitStore.getState().setPrData(targetPrKey, pr);
-        if (detailsCacheKey && details) {
-          useGitStore.getState().setPrDetails(detailsCacheKey, details.details);
+        if (detailsCacheKey && refreshedDetails) {
+          useGitStore.getState().setPrDetails(detailsCacheKey, refreshedDetails.details);
         }
       } finally {
         inFlight = false;
@@ -64,5 +68,5 @@ export function usePendingPrRefresh(params: {
       cancelled = true;
       window.clearInterval(intervalId);
     };
-  }, [branch, cacheKey, checksStatus, number, prKey, projectLocation, state]);
+  }, [branch, cacheKey, effectiveChecksStatus, prKey, prNumber, projectLocation, state]);
 }

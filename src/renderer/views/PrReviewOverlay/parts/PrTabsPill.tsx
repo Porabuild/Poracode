@@ -1,5 +1,10 @@
 import { FileDiff, GitCommit, MessageSquare, ShieldCheck } from "lucide-react";
 import { LightballTabs, type LightballTab } from "@/renderer/components/common";
+import {
+  getChecksStatusTone,
+  type PrChecksStatus,
+  type PrChecksTone,
+} from "@/renderer/utils/prStatus";
 
 export type PrTabKey = "conversation" | "commits" | "checks" | "changes";
 
@@ -21,6 +26,12 @@ const TAB_DEFS: ReadonlyArray<{
   { id: "changes", label: "Changes", icon: FileDiff },
 ];
 
+const CHECKS_ICON_TONE_CLASS: Record<PrChecksTone, string> = {
+  success: "text-success",
+  warning: "text-warning",
+  danger: "text-danger",
+};
+
 function CountChip(props: { value: number; active: boolean }) {
   return (
     <span
@@ -37,17 +48,22 @@ export function PrTabsPill(props: {
   active: PrTabKey;
   onChange: (key: PrTabKey) => void;
   counts: PrTabCounts;
+  checksStatus?: PrChecksStatus | undefined;
   className?: string;
 }) {
-  const { active, onChange, counts, className } = props;
+  const { active, onChange, counts, checksStatus, className } = props;
+  const checksTone = getChecksStatusTone(checksStatus);
 
   const tabs: ReadonlyArray<LightballTab<PrTabKey>> = TAB_DEFS.map((def) => {
     const count = counts[def.id];
     const Icon = def.icon;
+    const iconToneClass =
+      def.id === "checks" && checksTone ? CHECKS_ICON_TONE_CLASS[checksTone] : "";
+    const iconClassName = `size-3${iconToneClass ? ` ${iconToneClass}` : ""}`;
     return {
       id: def.id,
       label: def.label,
-      icon: <Icon className="size-3" />,
+      icon: <Icon className={iconClassName} />,
       ...(count > 0
         ? { trailing: (isActive: boolean) => <CountChip value={count} active={isActive} /> }
         : {}),

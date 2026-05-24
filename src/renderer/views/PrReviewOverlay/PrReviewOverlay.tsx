@@ -5,6 +5,8 @@ import type { Project, ProjectLocation } from "@/shared/contracts";
 import { friendlyError } from "@/shared/messages";
 import { readBridge } from "@/renderer/bridge";
 import { useGitStore } from "@/renderer/state/gitStore";
+import { usePendingPrRefresh } from "@/renderer/hooks/usePendingPrRefresh";
+import { usePrCombinedChecksStatus } from "@/renderer/hooks/usePrCombinedChecksStatus";
 import { PageLayout } from "@/renderer/components/layout/PageLayout";
 import { usePrTitle, usePrUrl, usePrViewerDidAuthor } from "@/renderer/state/gitSelectors";
 import { PrReviewSidebar } from "./parts/PrReviewSidebar";
@@ -36,6 +38,7 @@ export function PrReviewOverlay(props: {
   const files = useGitStore((s) => s.prFiles[cacheKey]);
   const rawDiff = useGitStore((s) => s.prDiffs[cacheKey]);
   const details = useGitStore((s) => s.prDetails[cacheKey]);
+  const combinedChecksStatus = usePrCombinedChecksStatus(prKey, cacheKey);
   const prTitleFromData = usePrTitle(prKey);
   const prTitle = prTitleFromData || details?.title || "";
   const prUrl = usePrUrl(prKey);
@@ -45,6 +48,13 @@ export function PrReviewOverlay(props: {
   const [diffMode, setDiffMode] = useState<number>(DIFF_MODE.Split);
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<PrTabKey>("conversation");
+
+  usePendingPrRefresh({
+    prKey,
+    projectLocation: effectiveLocation,
+    branch: details?.headBranch,
+    ...(details ? { cacheKey } : {}),
+  });
 
   // Track content width to decide if the meta row fits inline in the content
   // header or should overflow into a row above the tabs. Above ~880px the
@@ -230,6 +240,7 @@ export function PrReviewOverlay(props: {
                 active={activeTab}
                 onChange={setActiveTab}
                 counts={counts}
+                checksStatus={combinedChecksStatus}
                 pillInHeaderBreakpoint="never"
                 conversationPanel={
                   <PrConversationTab

@@ -142,4 +142,30 @@ describe("usePendingPrRefresh", () => {
     expect(ghGetPrForBranchMock).not.toHaveBeenCalled();
     expect(ghGetPrDetailsMock).not.toHaveBeenCalled();
   });
+
+  it("refetches when cached PR details still have pending checks", async () => {
+    useGitStore.getState().setPrData("pr-key", { ...basePr, checksStatus: "SUCCESS" });
+    useGitStore.getState().setPrDetails("p1#42", baseDetails);
+    ghGetPrDetailsMock.mockResolvedValueOnce({
+      details: {
+        ...baseDetails,
+        checks: [{ name: "CI", state: "COMPLETED", conclusion: "SUCCESS" }],
+      },
+    });
+
+    renderHook(() =>
+      usePendingPrRefresh({
+        prKey: "pr-key",
+        projectLocation: location,
+        branch: undefined,
+        cacheKey: "p1#42",
+      }),
+    );
+
+    await act(async () => {});
+
+    expect(ghGetPrForBranchMock).not.toHaveBeenCalled();
+    expect(ghGetPrDetailsMock).toHaveBeenCalledWith({ projectLocation: location, prNumber: 42 });
+    expect(useGitStore.getState().prDetails["p1#42"]?.checks[0]?.conclusion).toBe("SUCCESS");
+  });
 });

@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import type { PrChecksStatus } from "@/renderer/utils/prStatus";
 import { PrTabsPill, type PrTabCounts, type PrTabKey } from "./PrTabsPill";
 
 export type { PrTabKey } from "./PrTabsPill";
@@ -7,6 +8,7 @@ export function PrTabs(props: {
   active: PrTabKey;
   onChange: (key: PrTabKey) => void;
   counts: PrTabCounts;
+  checksStatus?: PrChecksStatus | undefined;
   conversationPanel: ReactNode;
   commitsPanel: ReactNode;
   checksPanel: ReactNode;
@@ -18,6 +20,7 @@ export function PrTabs(props: {
     active,
     onChange,
     counts,
+    checksStatus,
     conversationPanel,
     commitsPanel,
     checksPanel,
@@ -50,7 +53,12 @@ export function PrTabs(props: {
   return (
     <div className="@container flex h-full min-h-0 w-full flex-col">
       <div className={`shrink-0 justify-center px-5 py-1 ${standaloneVisibility}`}>
-        <PrTabsPill active={active} onChange={onChange} counts={counts} />
+        <PrTabsPill
+          active={active}
+          onChange={onChange}
+          counts={counts}
+          checksStatus={checksStatus}
+        />
       </div>
       <div className="min-h-0 flex-1 overflow-hidden" role="tabpanel">
         {panel}
