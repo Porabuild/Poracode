@@ -659,7 +659,7 @@ export function parseCursorWhoamiOutput(output: string): {
   }
 
   if (/not\s+logged\s+in|login required|sign in/i.test(text)) {
-    return { authState: "unknown" };
+    return { authState: "missing" };
   }
 
   return {};

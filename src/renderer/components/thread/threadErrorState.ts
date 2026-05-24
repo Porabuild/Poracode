@@ -48,3 +48,27 @@ export function getThreadErrorDockStateForItem(item: RuntimeChatItem): ThreadErr
 function isAbortOnlyErrorMessage(message: string): boolean {
   return /^(?:error:\s*)?(?:aborterror:\s*)?aborted\.?$/i.test(message.trim());
 }
+
+/**
+ * Heuristic for runtime errors that indicate the agent is unauthenticated.
+ * Covers strings emitted by the Claude binary ("Failed to authenticate. API
+ * Error: 401 …", "Please run /login", "Session expired …") and the
+ * Anthropic-SDK error codes the agent SDK surfaces ("authentication_failed",
+ * "oauth_org_not_allowed"). When this returns true, the composer should
+ * render the auth-required dock (with its Login button) rather than the
+ * generic error dock — `/login` itself isn't reachable through the SDK
+ * transport, so the user needs the terminal-login affordance.
+ */
+export function isAuthErrorMessage(message: string): boolean {
+  const m = message.toLowerCase();
+  return (
+    m.includes("failed to authenticate") ||
+    m.includes("invalid authentication credentials") ||
+    m.includes("api error: 401") ||
+    m.includes("please run /login") ||
+    m.includes("session expired") ||
+    m.includes("authentication_failed") ||
+    m.includes("oauth_org_not_allowed") ||
+    /\bnot logged in\b/.test(m)
+  );
+}

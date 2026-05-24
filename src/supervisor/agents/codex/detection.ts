@@ -1,4 +1,8 @@
-import { compactAgentProviderMetadata, type AgentCapability } from "@/shared/contracts";
+import {
+  compactAgentProviderMetadata,
+  type AgentAuthMethod,
+  type AgentCapability,
+} from "@/shared/contracts";
 import {
   configFileAuthProbe,
   readAgentCommandOutput,
@@ -232,7 +236,7 @@ export function parseCodexLoginStatusOutput(output: string): StatusProbeResult |
   }
 
   if (/not\s+logged\s+in|login required|sign in/i.test(trimmed)) {
-    return { authState: "unknown" };
+    return { authState: "missing" };
   }
 
   return undefined;
@@ -316,6 +320,13 @@ async function probeCodexStatus(ctx: Parameters<NonNullable<DetectionSpec["statu
   return result.ok ? { authState: "authenticated" as const } : { authState: "unknown" as const };
 }
 
+const CODEX_TERMINAL_AUTH_METHOD: AgentAuthMethod = {
+  type: "terminal",
+  id: "codex-login",
+  name: "Codex login",
+  args: ["login"],
+};
+
 export const codexDetectionSpec: DetectionSpec = {
   kind: "codex",
   label: "Codex",
@@ -342,6 +353,14 @@ export const codexDetectionSpec: DetectionSpec = {
           ? `codex:wsl:${ctx.location.distro}`
           : `codex:${ctx.location.kind}`,
     });
-    return probe ? probeResultToCapabilityPartial(probe) : undefined;
+    // Always advertise the terminal login + `codex logout` capabilities when
+    // the binary is installed — the Settings UI gates Login/Logout on these
+    // fields, and the supervisor's logout dispatcher uses the adapter's
+    // `buildAcpLogoutCommand` to invoke `codex logout`. Mirrors Claude.
+    return {
+      ...(probe ? probeResultToCapabilityPartial(probe) : {}),
+      authMethods: [CODEX_TERMINAL_AUTH_METHOD],
+      authLogoutSupported: true,
+    };
   },
 };

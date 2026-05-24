@@ -3,6 +3,7 @@ import {
   isIgnorableRejection,
   isIgnorableWindowError,
   isResizeObserverLoopError,
+  isViewTransitionInvalidStateError,
   isViewTransitionSkippedError,
 } from "./rendererGlobalErrors";
 
@@ -43,5 +44,20 @@ describe("rendererGlobalErrors", () => {
   it("does not ignore non-AbortError rejections with similar messages", () => {
     expect(isIgnorableRejection(new Error("Transition was skipped"))).toBe(false);
     expect(isIgnorableRejection("Transition was skipped")).toBe(false);
+  });
+
+  it("recognizes view-transition invalid-state InvalidStateError rejections", () => {
+    const err = new DOMException(
+      "Transition was aborted because of invalid state",
+      "InvalidStateError",
+    );
+    expect(isViewTransitionInvalidStateError(err)).toBe(true);
+    expect(isIgnorableRejection(err)).toBe(true);
+  });
+
+  it("does not ignore unrelated InvalidStateErrors", () => {
+    const err = new DOMException("IndexedDB transaction inactive", "InvalidStateError");
+    expect(isViewTransitionInvalidStateError(err)).toBe(false);
+    expect(isIgnorableRejection(err)).toBe(false);
   });
 });

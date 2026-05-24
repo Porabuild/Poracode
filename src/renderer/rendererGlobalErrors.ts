@@ -41,10 +41,24 @@ export function isViewTransitionSkippedError(error: unknown): boolean {
   return message === "Transition was skipped";
 }
 
+// Sibling of `isViewTransitionSkippedError`: when the document state changes
+// in a way that invalidates the snapshot mid-transition (e.g. the Settings
+// overlay closes while a button-press transition is mid-flight, or the
+// terminal panel opens and reflows the tree), Chromium rejects the
+// ViewTransition promises with InvalidStateError "Transition was aborted
+// because of invalid state" instead of the AbortError variant. Same root
+// cause, same benign treatment — the DOM update still completed.
+export function isViewTransitionInvalidStateError(error: unknown): boolean {
+  const name = readErrorName(error);
+  if (name !== "InvalidStateError") return false;
+  const message = readErrorMessage(error);
+  return message === "Transition was aborted because of invalid state";
+}
+
 export function isIgnorableWindowError(event: ErrorEvent): boolean {
   return isResizeObserverLoopError(event.error) || isResizeObserverLoopError(event.message);
 }
 
 export function isIgnorableRejection(reason: unknown): boolean {
-  return isViewTransitionSkippedError(reason);
+  return isViewTransitionSkippedError(reason) || isViewTransitionInvalidStateError(reason);
 }

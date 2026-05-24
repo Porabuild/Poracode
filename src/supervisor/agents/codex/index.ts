@@ -3,6 +3,7 @@ import type { OscNotification } from "@/shared/osc";
 import {
   batchWslCommandsAsync,
   brailleSpinnerOscTitleHint,
+  buildAgentLogoutCommand,
   createKnownSessionRef,
   createRecursiveDirWatcher,
   detectAgentInstall,
@@ -195,6 +196,7 @@ export function createCodexAdapter(): AgentAdapter {
       const wslExecPath = resolveAgentBinaryPath(input.projectLocation, "codex");
       return CodexStructuredSession.create(input, wslExecPath);
     },
+    buildAcpLogoutCommand: buildAgentLogoutCommand("codex", ["logout"]),
     buildDirectInput(prompt) {
       return [prompt, "@wait:160", "\r"];
     },

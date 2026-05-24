@@ -395,6 +395,22 @@ export function detectProbeLocation(ctx: AgentEnvContext | undefined): ProjectLo
   return { kind: "posix", path: homedir() };
 }
 
+/**
+ * Adapter helper for CLIs that expose logout as a shell subcommand
+ * (`claude auth logout`, `codex logout`, `cursor-agent logout`). Delegates
+ * to `buildAgentCommand` so posix, Windows, and WSL share the same shell
+ * wrapping the agent uses in production.
+ */
+export function buildAgentLogoutCommand(
+  binary: string,
+  args: string[],
+): (ctx?: AgentEnvContext) => Promise<CommandSpec> {
+  return async (ctx) => {
+    const location = detectProbeLocation(ctx);
+    return buildAgentCommand(location, binary, args, resolveAgentBinaryPath(location, binary));
+  };
+}
+
 async function resolveDetectedBinary(
   ctx: AgentEnvContext | undefined,
   binary: string,

@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import type { PromptSegment } from "@/shared/contracts";
 import {
   brailleSpinnerOscTitleHint,
+  buildAgentLogoutCommand,
   createKnownSessionRef,
   detectAgentInstall,
   iterm2ProgressOscHint,
@@ -87,6 +88,7 @@ export function createClaudeAdapter(): AgentAdapter {
       if (input.presentationMode !== "gui") return undefined;
       return ClaudeSdkSession.create(input);
     },
+    buildAcpLogoutCommand: buildAgentLogoutCommand("claude", ["auth", "logout"]),
     buildDirectInput(prompt, segments) {
       const attachmentCount = segments?.filter((s) => s.kind === "attachment").length ?? 0;
       const wait = attachmentCount > 0 ? 800 + (attachmentCount - 1) * 150 : 60;

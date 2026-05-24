@@ -572,6 +572,26 @@ describe("parseCodexLoginStatusOutput", () => {
       },
     });
   });
+
+  // A confirmed "Not logged in" CLI message must report `missing`, not
+  // `unknown` — the composer's Sign-in dock gate is `authState === "missing"`,
+  // so reporting `unknown` here would hide the dock until the user hit a
+  // runtime 401.
+  it("reports missing when Codex explicitly says the user is not logged in", () => {
+    expect(parseCodexLoginStatusOutput("Not logged in")).toEqual({ authState: "missing" });
+  });
+});
+
+describe("createCodexAdapter buildAcpLogoutCommand", () => {
+  it("returns `codex logout` so the Settings logout button can drive it", async () => {
+    const adapter = createCodexAdapter();
+    const command = await adapter.buildAcpLogoutCommand?.();
+    expect(command).toBeDefined();
+    // `buildAgentCommand` wraps the argv in a login shell (`sh -c "exec
+    // 'codex' 'logout'"`) on posix and in `wsl.exe -d <distro> --` on WSL —
+    // assert on the substring so both platforms pass.
+    expect(command?.args.join(" ")).toContain("'codex' 'logout'");
+  });
 });
 
 describe("formatCodexPlanLabel", () => {
