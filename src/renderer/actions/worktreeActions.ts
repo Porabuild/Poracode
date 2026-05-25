@@ -27,8 +27,13 @@ export async function performWorktreeRemoval(
     });
   }
 
-  const removedTabIds = useDevTerminalStore.getState().removeTabsForWorktree(worktreePath);
+  const termStore = useDevTerminalStore.getState();
+  const removedTabIds = termStore.removeTabsForWorktree(worktreePath);
   await closeThreads(removedTabIds);
+
+  if (termStore.isOpen && termStore.activeWorktreePath === worktreePath) {
+    termStore.closePanel();
+  }
 
   useGitStore.getState().clearWorktreeStatus(worktreePath);
 
