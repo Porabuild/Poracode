@@ -1,5 +1,6 @@
 import { toast } from "@heroui/react";
 import type { Project } from "@/shared/contracts";
+import { stripAnsi } from "@/shared/ansi";
 import { readBridge } from "@/renderer/bridge";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useDevTerminalStore } from "@/renderer/state/devTerminalStore";
@@ -74,15 +75,19 @@ export function runAgentTerminalCommand(input: {
           : `Unable to open ${input.label} ${input.toastPurpose ?? purpose}.`,
       ),
     );
+  const interceptWslUrls =
+    project.location.kind === "wsl" && input.openUrlsInNativeBrowser === true;
   const command = buildTerminalCommand({
     command: typeof input.command === "function" ? input.command(project) : input.command,
-    env: input.env,
-    openUrlsInNativeBrowser: input.openUrlsInNativeBrowser === true,
-    project,
+    env: interceptWslUrls ? { BROWSER: "/bin/true", ...(input.env ?? {}) } : input.env,
   });
+  const stopOpeningUrls = interceptWslUrls ? watchUrlsInNativeBrowser(tab.id) : undefined;
   const completionToken = input.onCommandComplete ? createCompletionToken() : undefined;
   if (completionToken && input.onCommandComplete) {
-    watchCommandCompletion(tab.id, completionToken, input.onCommandComplete);
+    watchCommandCompletion(tab.id, completionToken, (exitCode) => {
+      stopOpeningUrls?.(true);
+      input.onCommandComplete?.(exitCode);
+    });
   }
   writeScriptToShell(
     tab.id,
@@ -115,19 +120,21 @@ export function runAgentLoginCommand(input: {
   }
 
   const shellId = `login:${crypto.randomUUID()}`;
+  // On WSL the agent CLI can't reach the Windows browser on its own, so we
+  // suppress its opener (BROWSER=/bin/true) and watch stdout for auth URLs to
+  // hand off via the Windows shell. Native macOS / Windows CLIs already open
+  // their own browser, so a renderer-side watcher would just double-launch.
+  const interceptWslUrls = project.location.kind === "wsl";
   // Wipe the bash prompt + echoed script line that briefly appear before the
   // TUI takes over. `clear` (POSIX) / `Clear-Host` (PowerShell) gives the
   // overlay a clean canvas so the user only sees the agent's own UI.
-  const cleared =
-    project.location.kind === "windows"
-      ? `Clear-Host; ${input.command}`
-      : `clear; ${input.command}`;
-  const command = buildTerminalCommand({
-    command: cleared,
-    env: input.env,
-    openUrlsInNativeBrowser: true,
-    project,
+  const loginCommand = buildTerminalCommand({
+    command: input.command,
+    env: interceptWslUrls ? { BROWSER: "/bin/true", ...(input.env ?? {}) } : input.env,
   });
+  const command =
+    project.location.kind === "windows" ? `Clear-Host; ${loginCommand}` : `clear; ${loginCommand}`;
+  const stopOpeningUrls = interceptWslUrls ? watchUrlsInNativeBrowser(shellId) : undefined;
   const completionToken = createCompletionToken();
   const script = appendCompletionSignal(command, project, completionToken);
 
@@ -139,10 +146,15 @@ export function runAgentLoginCommand(input: {
   };
 
   const stopWatching = watchCommandCompletion(shellId, completionToken, (exitCode) => {
+    stopOpeningUrls?.(true);
     fireOnce(exitCode);
-    // Auto-dismiss the overlay shortly after the command exits so the user
-    // can read any final success line before it slides away.
-    window.setTimeout(() => useLoginTerminalStore.getState().close(), 1200);
+    if (exitCode === 0) {
+      // Auto-dismiss the overlay shortly after the command exits so the user
+      // can read any final success line before it slides away.
+      window.setTimeout(() => useLoginTerminalStore.getState().close(), 1200);
+    } else {
+      toast.danger(`${input.label} login exited with code ${exitCode}.`);
+    }
   });
 
   useLoginTerminalStore.getState().open({
@@ -151,6 +163,7 @@ export function runAgentLoginCommand(input: {
     projectLocation: project.location,
     onForceClose: () => {
       stopWatching();
+      stopOpeningUrls?.();
       fireOnce(-1);
     },
   });
@@ -177,28 +190,102 @@ function shellEnvPrefix(env: Record<string, string> | undefined): string {
     .join(" ");
 }
 
-function openWslUrlsInNativeBrowser(command: string): string {
-  const script = [
-    `${command} 2>&1 | while IFS= read -r line; do`,
-    'printf "%s\\n" "$line";',
-    'url=$(printf "%s\\n" "$line" | sed -n "s/.*\\(https\\?:\\/\\/[^[:space:]]*\\).*/\\1/p" | head -n 1);',
-    'cmd_url=$(printf "%s" "$url" | sed "s/&/^\\\\&/g");',
-    'if [ -n "$cmd_url" ]; then cmd.exe /c start "" "$cmd_url" >/dev/null 2>&1 || true; fi;',
-    "done",
-  ].join(" ");
-  return `sh -lc ${quotePosixShellArg(script)}`;
-}
-
 function buildTerminalCommand(input: {
   command: string;
   env: Record<string, string> | undefined;
-  openUrlsInNativeBrowser: boolean;
-  project: Project;
 }): string {
   const envPrefix = shellEnvPrefix(input.env);
-  const command = envPrefix ? `${envPrefix} ${input.command}` : input.command;
-  if (input.project.location.kind !== "wsl" || !input.openUrlsInNativeBrowser) return command;
-  return openWslUrlsInNativeBrowser(command);
+  return envPrefix ? `${envPrefix} ${input.command}` : input.command;
+}
+
+function isCompleteLoginUrl(text: string): boolean {
+  try {
+    const url = new URL(text);
+    if (url.pathname.includes("/authorize") && url.searchParams.has("response_type")) {
+      return url.searchParams.has("client_id") && url.searchParams.has("redirect_uri");
+    }
+    // Device-code flow: provider prints a code-entry URL the user opens manually.
+    if (url.pathname.includes("/device") && url.searchParams.has("user_code")) return true;
+    return false;
+  } catch {
+    return false;
+  }
+}
+
+function normalizeLoginUrl(text: string): string {
+  try {
+    const url = new URL(text);
+    if (url.hostname === "accounts.x.ai" && url.pathname === "/oauth2/device") {
+      const code = url.searchParams.get("user_code");
+      const match = code ? /^([A-Z0-9]{4}-[A-Z0-9]{4})/u.exec(code) : null;
+      const normalizedCode = match?.[1];
+      if (normalizedCode) {
+        url.searchParams.set("user_code", normalizedCode);
+        return url.toString();
+      }
+    }
+  } catch {
+    return text;
+  }
+  return text;
+}
+
+function watchUrlsInNativeBrowser(shellId: string): (flushPending?: boolean) => void {
+  let buffer = "";
+  let done = false;
+  let flushTimer = 0;
+  let unsubscribe: () => void = () => undefined;
+  const opened = new Set<string>();
+
+  const openUrl = (url: string) => {
+    const normalizedUrl = normalizeLoginUrl(url);
+    if (opened.has(normalizedUrl) || !isCompleteLoginUrl(normalizedUrl)) return;
+    opened.add(normalizedUrl);
+    void readBridge()
+      .openExternalNative(normalizedUrl)
+      .catch(() => undefined);
+  };
+
+  const scan = () => {
+    const text = buffer.replace(/\s+(?=[/?#&=])/gu, "");
+    for (const match of text.matchAll(/https?:\/\/[^\s"'<>`]+/giu)) {
+      openUrl(match[0].replace(/[),.;:!?]+$/u, ""));
+    }
+  };
+
+  const flush = () => {
+    flushTimer = 0;
+    scan();
+  };
+
+  const scheduleFlush = () => {
+    if (flushTimer !== 0) window.clearTimeout(flushTimer);
+    flushTimer = window.setTimeout(flush, 250);
+  };
+
+  const timeout = window.setTimeout(() => {
+    if (done) return;
+    done = true;
+    if (flushTimer !== 0) window.clearTimeout(flushTimer);
+    unsubscribe();
+  }, 10 * 60_000);
+
+  unsubscribe = readBridge().onSupervisorEvent((event) => {
+    if (done || event.type !== "thread-output" || event.threadId !== shellId) return;
+    buffer = `${buffer}${stripAnsi(event.data).replace(/\r\n?/gu, "\n")}`.slice(-8192);
+    scheduleFlush();
+  });
+
+  return (flushPending = false) => {
+    if (done) return;
+    if (flushPending) {
+      flush();
+    }
+    done = true;
+    window.clearTimeout(timeout);
+    if (flushTimer !== 0) window.clearTimeout(flushTimer);
+    unsubscribe();
+  };
 }
 
 function createCompletionToken(): string {

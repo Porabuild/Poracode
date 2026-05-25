@@ -52,6 +52,7 @@ export const MAIN_LOCAL_PROCEDURE_NAMES = [
   "saveClipboardImage",
   "saveHandoffContext",
   "openExternal",
+  "openExternalNative",
   "focusWindow",
   "getHomeScopeLocation",
   "getKeybindings",

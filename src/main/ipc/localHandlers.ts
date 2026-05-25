@@ -99,6 +99,9 @@ export function createLocalIpcHandlers(
       }
       await shell.openExternal(safeUrl);
     },
+    openExternalNative: async (url) => {
+      await shell.openExternal(assertSafeExternalUrl(url));
+    },
     focusWindow: () => {
       const win = options.getMainWindow();
       if (!win) return;

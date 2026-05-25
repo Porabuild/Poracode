@@ -170,7 +170,7 @@ export interface DetectionSpec {
   kind: AgentKind;
   label: string;
   binary: string;
-  loginCommand?: string;
+  loginCommand?: string | ((ctx: DetectProbeCtx) => string | undefined);
   capabilities: AgentCapability;
   update?: AgentUpdateInfo;
   versionArgs?: string[];

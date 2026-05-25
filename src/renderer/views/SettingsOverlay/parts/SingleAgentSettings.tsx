@@ -1229,10 +1229,16 @@ export function SingleAgentSettings(props: { agentKind: string }) {
                 const agentMethods =
                   status.authMethods?.filter(isAgentAuthMethod) ??
                   (sharedAgentAuthMethod ? [sharedAgentAuthMethod] : []);
-                const terminalMethod =
-                  findTerminalAuthMethodForStatus(status) ?? sharedTerminalAuthMethod;
+                const terminalMethod = status.loginCommand
+                  ? (findTerminalAuthMethodForStatus(status) ??
+                    sharedTerminalAuthMethod ?? {
+                      id: "terminal-login",
+                      name: "Login",
+                      type: "terminal" as const,
+                    })
+                  : undefined;
                 const methods: Array<AgentOwnedAuthMethod | AgentTerminalAuthMethod> =
-                  agentMethods.length > 0 ? agentMethods : terminalMethod ? [terminalMethod] : [];
+                  terminalMethod ? [terminalMethod] : agentMethods;
                 const isAuthenticated = status.authState === "authenticated";
                 const needsInteractiveRow =
                   isAuthenticated ||

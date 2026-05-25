@@ -41,6 +41,12 @@ export const appProcedures = {
     openExternalPayloadSchema,
     (url) => openExternalPayloadSchema.parse(url),
   ),
+  openExternalNative: defineIpcProcedure<[string], string, void, "main-local">(
+    "openExternalNative",
+    "main-local",
+    openExternalPayloadSchema,
+    (url) => openExternalPayloadSchema.parse(url),
+  ),
   focusWindow: defineNoArgProcedure<void, "main-local">("focusWindow", "main-local"),
   getHomeScopeLocation: defineNoArgProcedure<ProjectLocation, "main-local">(
     "getHomeScopeLocation",

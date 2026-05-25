@@ -618,6 +618,28 @@ describe("SingleAgentSettings", () => {
     expect(toastMock.success).toHaveBeenCalledWith("SSO Agent authenticated.");
   });
 
+  it("prefers terminal login when an agent also advertises ACP auth", async () => {
+    statusesState.agentStatuses = [
+      makeStatus("grok", {
+        label: "Grok Build",
+        authState: "missing",
+        loginCommand: "grok login",
+        authMethods: [{ id: "grok.com", name: "Grok" }],
+      }),
+    ];
+
+    render(<SingleAgentSettings agentKind="grok" />);
+
+    fireEvent.click(screen.getByRole("button", { name: /login/i }));
+
+    expect(runAgentLoginCommandMock).toHaveBeenCalledWith({
+      label: "Grok Build",
+      command: "grok login",
+      onCommandComplete: expect.any(Function),
+    });
+    expect(authenticateAcpAgentMock).not.toHaveBeenCalled();
+  });
+
   it("keeps browser login available when an ACP agent also advertises API key auth", async () => {
     statusesState.agentStatuses = [
       makeStatus("acp-generic:factory-droid", {

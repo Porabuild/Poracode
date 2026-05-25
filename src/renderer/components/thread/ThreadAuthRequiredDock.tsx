@@ -41,34 +41,14 @@ export function ThreadAuthRequiredDock(props: { agentStatus: AgentStatus; projec
   const canUseAgentAuth = agentAuthMethod !== undefined;
   const canUseTerminalLogin = Boolean(agentStatus.loginCommand);
   const hasDirectLogin = canUseAgentAuth || canUseTerminalLogin;
-  const description = agentAuthMethod
-    ? `Complete ${agentAuthMethod.name} sign-in before this thread can run.`
-    : agentStatus.loginCommand
-      ? `Run ${agentStatus.loginCommand} before this thread can run.`
+  const description = agentStatus.loginCommand
+    ? `Run ${agentStatus.loginCommand} before this thread can run.`
+    : agentAuthMethod
+      ? `Complete ${agentAuthMethod.name} sign-in before this thread can run.`
       : "Add credentials before this thread can run.";
 
   async function handleLogin() {
     if (pendingAction) return;
-    if (canUseAgentAuth) {
-      setPendingAction("login");
-      try {
-        await readBridge().authenticateAcpAgent({
-          agentKind: agentStatus.kind,
-          methodId: agentAuthMethod.id,
-          ...agentAuthTarget(agentStatus),
-        });
-        void readBridge().focusWindow();
-        await refreshAgentStatus(agentStatus);
-        toast.success(`${agentStatus.label} authenticated.`);
-      } catch (error) {
-        toast.danger(
-          error instanceof Error ? error.message : `Unable to authenticate ${agentStatus.label}.`,
-        );
-      } finally {
-        setPendingAction(undefined);
-      }
-      return;
-    }
 
     if (agentStatus.loginCommand) {
       setPendingAction("login");
@@ -93,6 +73,28 @@ export function ThreadAuthRequiredDock(props: { agentStatus: AgentStatus; projec
         },
       });
       if (!opened) setPendingAction(undefined);
+      return;
+    }
+
+    if (canUseAgentAuth) {
+      setPendingAction("login");
+      try {
+        await readBridge().authenticateAcpAgent({
+          agentKind: agentStatus.kind,
+          methodId: agentAuthMethod.id,
+          ...agentAuthTarget(agentStatus),
+        });
+        void readBridge().focusWindow();
+        await refreshAgentStatus(agentStatus);
+        toast.success(`${agentStatus.label} authenticated.`);
+      } catch (error) {
+        toast.danger(
+          error instanceof Error ? error.message : `Unable to authenticate ${agentStatus.label}.`,
+        );
+      } finally {
+        setPendingAction(undefined);
+      }
+      return;
     }
   }
 

@@ -620,6 +620,8 @@ export async function detectAgentInstall(
     statusProbeResult = nextStatusProbeResult;
   }
 
+  const probeCtx: DetectProbeCtx = { location, executablePath, version };
+
   let authState: AuthState;
   if (!executablePath) {
     authState = "missing";
@@ -632,7 +634,6 @@ export async function detectAgentInstall(
     authState = probedAuthState;
   } else {
     authState = statusProbeResult?.authState ?? "unknown";
-    const probeCtx: DetectProbeCtx = { location, executablePath, version };
     if (authState !== "authenticated") {
       for (const probe of spec.authProbes ?? []) {
         const result = await probe(probeCtx);
@@ -649,11 +650,14 @@ export async function detectAgentInstall(
 
   const providerMetadata = statusProbeResult?.providerMetadata ?? probedProviderMetadata;
 
+  const loginCommand =
+    typeof spec.loginCommand === "function" ? spec.loginCommand(probeCtx) : spec.loginCommand;
+
   return {
     kind: spec.kind,
     label: spec.label,
     installed: executablePath !== undefined,
-    ...(spec.loginCommand ? { loginCommand: spec.loginCommand } : {}),
+    ...(loginCommand ? { loginCommand } : {}),
     ...(executablePath ? { executablePath } : {}),
     ...(version ? { version } : {}),
     ...(spec.update ? { update: spec.update } : {}),

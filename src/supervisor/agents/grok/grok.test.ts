@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { OscNotification, OscTitle } from "@/shared/osc";
+import { grokDetectionSpec } from "./detection";
 import { createGrokAdapter } from "./index";
 
 function oscTitle(text: string, code: 0 | 1 | 2 = 0): OscTitle {
@@ -76,6 +77,38 @@ describe("createGrokAdapter OSC plumbing", () => {
   it("keeps OSC parsing active alongside the L1 hook plugin", () => {
     const adapter = createGrokAdapter();
     expect(adapter.oscHintsDeferToHookPlugin).toBeUndefined();
+  });
+});
+
+describe("grokDetectionSpec", () => {
+  it("uses device auth for WSL login to avoid localhost callback nonce mismatches", () => {
+    expect(typeof grokDetectionSpec.loginCommand).toBe("function");
+    const loginCommand =
+      typeof grokDetectionSpec.loginCommand === "function"
+        ? grokDetectionSpec.loginCommand({
+            location: {
+              kind: "wsl",
+              distro: "Ubuntu",
+              linuxPath: "/home/demo/project",
+              uncPath: "\\\\wsl.localhost\\Ubuntu\\home\\demo\\project",
+            },
+            executablePath: "grok",
+          })
+        : grokDetectionSpec.loginCommand;
+
+    expect(loginCommand).toBe("grok login --device-auth");
+  });
+
+  it("keeps normal OAuth login for native Windows", () => {
+    const loginCommand =
+      typeof grokDetectionSpec.loginCommand === "function"
+        ? grokDetectionSpec.loginCommand({
+            location: { kind: "windows", path: "C:\\repo" },
+            executablePath: "grok",
+          })
+        : grokDetectionSpec.loginCommand;
+
+    expect(loginCommand).toBe("grok login");
   });
 });
 

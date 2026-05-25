@@ -1,0 +1,276 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { Project } from "@/shared/contracts";
+import type { SupervisorEvent } from "@/shared/ipc";
+
+const bridge = vi.hoisted(() => ({
+  startShell: vi.fn<() => Promise<void>>(),
+  closeThread: vi.fn<() => Promise<void>>(),
+  onSupervisorEvent: vi.fn<(handler: (event: SupervisorEvent) => void) => () => void>(),
+  openExternal: vi.fn<(url: string) => Promise<void>>(),
+  openExternalNative: vi.fn<(url: string) => Promise<void>>(),
+}));
+
+const supervisorHandlers = vi.hoisted(() => [] as Array<(event: SupervisorEvent) => void>);
+const loginTerminalStore = vi.hoisted(() => ({
+  open: vi.fn<(input: { shellId: string }) => void>(),
+  close: vi.fn<() => void>(),
+  active: undefined as { onForceClose?: () => void; shellId: string } | undefined,
+}));
+const writeScriptToShellMock = vi.hoisted(() => vi.fn<(shellId: string, script: string) => void>());
+
+vi.mock("@heroui/react", () => ({
+  toast: {
+    danger: vi.fn<(message: string) => void>(),
+    success: vi.fn<(message: string) => void>(),
+    warning: vi.fn<(message: string) => void>(),
+  },
+}));
+
+vi.mock("@/renderer/bridge", () => ({
+  readBridge: () => bridge,
+}));
+
+vi.mock("@/renderer/state/appStore", () => ({
+  useAppStore: {
+    getState: () => ({ projects: [], threads: [], view: { kind: "draft", projectId: "project" } }),
+  },
+}));
+
+vi.mock("@/renderer/state/devTerminalStore", () => ({
+  useDevTerminalStore: {
+    getState: () => ({ activeProjectId: undefined }),
+  },
+}));
+
+vi.mock("@/renderer/state/loginTerminalStore", () => ({
+  useLoginTerminalStore: {
+    getState: () => loginTerminalStore,
+  },
+}));
+
+vi.mock("@/renderer/state/panelStore", () => ({
+  usePanelStore: {
+    getState: () => ({ setRightPanelTab: vi.fn<(tab: string) => void>() }),
+  },
+}));
+
+vi.mock("@/renderer/state/sharedSettingsStore", () => ({
+  useSharedSettings: {
+    getState: () => ({ terminalPosition: "bottom" }),
+  },
+}));
+
+vi.mock("@/renderer/utils/shellUtils", () => ({
+  writeScriptToShell: writeScriptToShellMock,
+}));
+
+import { toast } from "@heroui/react";
+import { runAgentLoginCommand } from "./agentLoginActions";
+
+const wslProject: Project = {
+  id: "project",
+  name: "Project",
+  location: {
+    kind: "wsl",
+    distro: "Ubuntu",
+    linuxPath: "/home/demo/project",
+    uncPath: "\\\\wsl.localhost\\Ubuntu\\home\\demo\\project",
+  },
+  createdAt: new Date(0).toISOString(),
+};
+
+const windowsProject: Project = {
+  id: "windows-project",
+  name: "Windows Project",
+  location: {
+    kind: "windows",
+    path: "C:\\repo",
+  },
+  createdAt: new Date(0).toISOString(),
+};
+
+function emit(event: SupervisorEvent) {
+  for (const handler of supervisorHandlers) handler(event);
+}
+
+describe("runAgentLoginCommand", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    supervisorHandlers.length = 0;
+    bridge.startShell.mockReset().mockResolvedValue(undefined);
+    bridge.closeThread.mockReset().mockResolvedValue(undefined);
+    bridge.openExternal.mockReset().mockResolvedValue(undefined);
+    bridge.openExternalNative.mockReset().mockResolvedValue(undefined);
+    bridge.onSupervisorEvent.mockReset().mockImplementation((handler) => {
+      supervisorHandlers.push(handler);
+      return () => {
+        const index = supervisorHandlers.indexOf(handler);
+        if (index >= 0) supervisorHandlers.splice(index, 1);
+      };
+    });
+    loginTerminalStore.open.mockReset();
+    loginTerminalStore.close.mockReset();
+    loginTerminalStore.active = undefined;
+    writeScriptToShellMock.mockReset();
+  });
+
+  it("opens hard-wrapped WSL auth URLs in the native browser", () => {
+    runAgentLoginCommand({
+      label: "Grok",
+      command: "grok login",
+      project: wslProject,
+    });
+
+    const shellId = loginTerminalStore.open.mock.calls[0]?.[0].shellId;
+    expect(shellId).toBeTruthy();
+    const script = writeScriptToShellMock.mock.calls[0]?.[1] ?? "";
+    expect(script).not.toContain("cmd.exe /c start");
+    expect(script).toContain("clear; BROWSER='/bin/true' grok login");
+
+    emit({
+      type: "thread-output",
+      threadId: shellId!,
+      data: "Open https://auth.x.ai/oauth2/authorize?response_type=code\n",
+      outputLength: 0,
+    });
+    vi.advanceTimersByTime(250);
+    expect(bridge.openExternalNative).not.toHaveBeenCalled();
+
+    emit({
+      type: "thread-output",
+      threadId: shellId!,
+      data: "&client_id=grok-build\n&redirect_uri=http%3A%2F%2F127.0.0.1%3A3000%2Fcallback\n",
+      outputLength: 0,
+    });
+    vi.advanceTimersByTime(250);
+
+    expect(bridge.openExternalNative).toHaveBeenCalledWith(
+      "https://auth.x.ai/oauth2/authorize?response_type=code&client_id=grok-build&redirect_uri=http%3A%2F%2F127.0.0.1%3A3000%2Fcallback",
+    );
+  });
+
+  it("opens complete long WSL auth URLs after suppressing the agent browser", () => {
+    runAgentLoginCommand({
+      label: "Grok",
+      command: "grok login",
+      project: wslProject,
+    });
+
+    const shellId = loginTerminalStore.open.mock.calls[0]?.[0].shellId;
+    const url =
+      "https://auth.x.ai/oauth2/authorize?response_type=code&client_id=b1a00492-073a-47ea-816f-4c329264a828&redirect_uri=http%3A%2F%2F127.0.0.1%3A45417%2Fcallback&scope=openid%20profile%20email%20offline_access%20grok-cli%3Aaccess%20api%3Aaccess&code_challenge=MDPixKrsA5K4QIgvDtSEPlQniofqpd2Rr8wT5HEzo5I&code_challenge_method=S256&state=019e5ddb-3198-7542-8504-714899198f01&nonce=019e5ddb-3198-7542-8504-7154a7bf6c98";
+
+    expect(writeScriptToShellMock.mock.calls[0]?.[1] ?? "").toContain(
+      "clear; BROWSER='/bin/true' grok login",
+    );
+
+    emit({
+      type: "thread-output",
+      threadId: shellId!,
+      data: `Open this URL to sign in:\n  ${url}\n`,
+      outputLength: 0,
+    });
+    vi.advanceTimersByTime(250);
+
+    expect(bridge.openExternalNative).toHaveBeenCalledWith(url);
+  });
+
+  it("does not intercept login URLs on native Windows so the CLI's own browser opener wins", () => {
+    runAgentLoginCommand({
+      label: "Grok",
+      command: "grok login",
+      project: windowsProject,
+    });
+
+    const shellId = loginTerminalStore.open.mock.calls[0]?.[0].shellId;
+    const url =
+      "https://auth.x.ai/oauth2/authorize?response_type=code&client_id=b1a00492-073a-47ea-816f-4c329264a828&redirect_uri=http%3A%2F%2F127.0.0.1%3A37155%2Fcallback&scope=openid%20profile%20email%20offline_access%20grok-cli%3Aaccess%20api%3Aaccess&code_challenge=XZGsVbiV8w8TRiC3gHnWDKL8TsuK2tFNeVR9md4tA34&code_challenge_method=S256&state=019e5e1e-040a-78c1-bbd6-1585cd381488&nonce=019e5e1e-040a-78c1-bbd6-159774c2afa3";
+
+    // BROWSER override is WSL-only; Clear-Host runs as-is on native Windows.
+    expect(writeScriptToShellMock.mock.calls[0]?.[1] ?? "").toContain("Clear-Host; grok login");
+
+    emit({
+      type: "thread-output",
+      threadId: shellId!,
+      data: `\r\nSigning in with Grok...\r\n\r\nOpen this URL to sign in:\r\n  ${url}\r\n\r\nPaste the URL here if it doesn't connect:\r\n`,
+      outputLength: 0,
+    });
+    vi.advanceTimersByTime(250);
+
+    expect(bridge.openExternalNative).not.toHaveBeenCalled();
+  });
+
+  it("does not append following prompt text to xAI device auth URLs", () => {
+    runAgentLoginCommand({
+      label: "Grok",
+      command: "grok login --device-auth",
+      project: wslProject,
+    });
+
+    const shellId = loginTerminalStore.open.mock.calls[0]?.[0].shellId;
+
+    emit({
+      type: "thread-output",
+      threadId: shellId!,
+      data: [
+        "To sign in, open this URL in your browser:\n\n",
+        "  https://accounts.x.ai/oauth2/device?user_code=E9YP-N7CQIf prompted, confirm this code:\n\n",
+        "  E9YP-N7CQ\n",
+      ].join(""),
+      outputLength: 0,
+    });
+    vi.advanceTimersByTime(250);
+
+    expect(bridge.openExternalNative).toHaveBeenCalledWith(
+      "https://accounts.x.ai/oauth2/device?user_code=E9YP-N7CQ",
+    );
+  });
+
+  it("keeps the login overlay open when the command exits unsuccessfully", () => {
+    runAgentLoginCommand({
+      label: "Grok",
+      command: "grok login",
+      project: wslProject,
+    });
+
+    const shellId = loginTerminalStore.open.mock.calls[0]?.[0].shellId;
+    const script = writeScriptToShellMock.mock.calls[0]?.[1] ?? "";
+    const token = /lightcode-login-complete=([^:]+):/u.exec(script)?.[1];
+    expect(token).toBeTruthy();
+
+    emit({
+      type: "thread-output",
+      threadId: shellId!,
+      data: `\u001B]777;lightcode-login-complete=${token}:1\u0007`,
+      outputLength: 0,
+    });
+    vi.advanceTimersByTime(1200);
+
+    expect(loginTerminalStore.close).not.toHaveBeenCalled();
+    expect(toast.danger).toHaveBeenCalledWith("Grok login exited with code 1.");
+  });
+
+  it("auto-closes the login overlay after a successful command exit", () => {
+    runAgentLoginCommand({
+      label: "Grok",
+      command: "grok login",
+      project: wslProject,
+    });
+
+    const shellId = loginTerminalStore.open.mock.calls[0]?.[0].shellId;
+    const script = writeScriptToShellMock.mock.calls[0]?.[1] ?? "";
+    const token = /lightcode-login-complete=([^:]+):/u.exec(script)?.[1];
+    expect(token).toBeTruthy();
+
+    emit({
+      type: "thread-output",
+      threadId: shellId!,
+      data: `\u001B]777;lightcode-login-complete=${token}:0\u0007`,
+      outputLength: 0,
+    });
+
+    expect(loginTerminalStore.close).not.toHaveBeenCalled();
+    vi.advanceTimersByTime(1200);
+    expect(loginTerminalStore.close).toHaveBeenCalledTimes(1);
+  });
+});

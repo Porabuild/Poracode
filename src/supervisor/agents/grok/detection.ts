@@ -137,21 +137,20 @@ function formatGrokAuthMode(mode: string): string {
 }
 
 /**
- * Grok stores auth in ~/.grok/auth.json (or the dir presence after login).
+ * Grok stores auth in ~/.grok/auth.json.
  */
-async function grokConfigDirAuthProbe(
+async function grokAuthFileProbe(
   ctx: Parameters<NonNullable<DetectionSpec["statusProbe"]>>[0],
 ): Promise<"authenticated" | "unknown"> {
   const check = (home: string) => {
     if (existsSync(join(home, ".grok", "auth.json"))) return "authenticated";
-    if (existsSync(join(home, ".grok"))) return "authenticated";
     return "unknown";
   };
   if (ctx.location.kind !== "wsl") {
     return check(homedir());
   }
   const [r] = await batchWslCommandsAsync(ctx.location.distro, [
-    "test -f ~/.grok/auth.json && echo yes || test -d ~/.grok && echo yes || echo no",
+    "test -f ~/.grok/auth.json && echo yes || echo no",
   ]);
   return r?.ok && r.stdout.trim() === "yes" ? "authenticated" : "unknown";
 }
@@ -160,7 +159,8 @@ export const grokDetectionSpec: DetectionSpec = {
   kind: "grok",
   label: "Grok Build",
   binary: "grok",
-  loginCommand: "grok login",
+  loginCommand: ({ location }) =>
+    location.kind === "wsl" ? "grok login --device-auth" : "grok login",
   capabilities: grokDefaultCapabilities,
   update: {
     builtIn: { binary: "grok", args: ["update"] },
@@ -168,7 +168,7 @@ export const grokDetectionSpec: DetectionSpec = {
   // Auth detection prefers XAI_API_KEY / GROK_API_KEY (for "xai.api_key" ACP method)
   // then falls back to ~/.grok/auth.json (populated by `grok login` → "cached_token").
   // See https://docs.x.ai/build/enterprise#authentication
-  authProbes: [envVarAuthProbe(["GROK_API_KEY", "XAI_API_KEY"]), grokConfigDirAuthProbe],
+  authProbes: [envVarAuthProbe(["GROK_API_KEY", "XAI_API_KEY"]), grokAuthFileProbe],
   async capabilitiesProbe(ctx) {
     if (!ctx.executablePath) return undefined;
     return probeCapabilities(ctx.location, ctx.executablePath);
