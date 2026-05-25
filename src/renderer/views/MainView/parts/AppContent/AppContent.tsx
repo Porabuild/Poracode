@@ -21,6 +21,7 @@ import {
   useAgentStatusesStore,
 } from "@/renderer/state/agentStatusesStore";
 import { useAppStore } from "@/renderer/state/appStore";
+import { refreshGitProject } from "@/renderer/state/gitRefresh";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import {
   useInitialProjectDraftConfig,
@@ -104,6 +105,14 @@ export function AppContent() {
           startPoint: worktreeBaseBranch,
         });
         worktreePath = result.path;
+
+        // Full refresh so the new worktree enters the cache and gets a file
+        // watcher (status-mode refreshes only walk cached worktrees), and so
+        // any new branch from createBranch shows up in BranchSelectors and
+        // worktreeSourceInfo without lagging a refresh cycle. Without this,
+        // the sidebar diff badge stays empty until the Git review panel
+        // mounts and runs its own one-shot fetch.
+        void refreshGitProject({ id: project.id, location: project.location }, "manual", "full");
 
         const setupScript = project.scripts?.setupScript;
         if (setupScript) {
