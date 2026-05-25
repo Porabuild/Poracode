@@ -7,7 +7,7 @@ import { productNameFor } from "@/shared/channel";
 import { formatBytes } from "@/shared/formatBytes";
 import appIconUrl from "../../../../../build/icon.png";
 
-const GITHUB_REPO = "https://github.com/nicepkg/lightcode";
+const GITHUB_REPO = "https://github.com/SDSLeon/lightcode";
 const WEBSITE_URL = "https://www.lightcodeapp.com/";
 
 function AboutLink(props: { href: string; children: React.ReactNode }) {
