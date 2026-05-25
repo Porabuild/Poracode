@@ -46,6 +46,7 @@ describe("agent status cache", () => {
     writeFileSync(
       statusCachePath,
       JSON.stringify({
+        version: 2,
         windows: [
           {
             kind: "claude",
@@ -174,6 +175,7 @@ describe("agent status cache", () => {
     writeFileSync(
       statusCachePath,
       JSON.stringify({
+        version: 2,
         windows: [
           {
             kind: "codex",
