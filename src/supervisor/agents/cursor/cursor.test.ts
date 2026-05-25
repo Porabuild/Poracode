@@ -506,6 +506,17 @@ Options:
     ).toBe(true);
   });
 
+  it("detects the cursor-agent logout command help", () => {
+    expect(
+      parseCursorLogoutHelpOutput(`Usage: cursor-agent logout [options]
+
+Sign out of Cursor
+
+Options:
+  -h, --help  Display help for command`),
+    ).toBe(true);
+  });
+
   it("does not treat root help as logout command support", () => {
     expect(
       parseCursorLogoutHelpOutput(`Usage: agent [options] [command]

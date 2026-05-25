@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { AgentStatus, Project } from "@/shared/contracts";
@@ -266,6 +266,14 @@ function makeProject(input: { id: string; name: string; location: Project["locat
   };
 }
 
+function envRow(label: string): HTMLElement {
+  const row = screen.getByText(label).closest('[class*="group/env"]');
+  if (!(row instanceof HTMLElement)) {
+    throw new Error(`Unable to find ${label} environment row`);
+  }
+  return row;
+}
+
 describe("SingleAgentSettings", () => {
   beforeEach(() => {
     statusesState.agentStatuses = [];
@@ -306,7 +314,9 @@ describe("SingleAgentSettings", () => {
 
     render(<SingleAgentSettings agentKind="claude" />);
 
-    expect(screen.getByText("user@example.com · Yieldmo · Team Subscription")).toBeInTheDocument();
+    expect(screen.getByText(/user@example.com/)).toBeInTheDocument();
+    expect(screen.getByText(/Yieldmo/)).toBeInTheDocument();
+    expect(screen.getByText(/Team Subscription/)).toBeInTheDocument();
     // Auth method is intentionally omitted from the summary when richer
     // identity fields are available.
     expect(screen.queryByText("Auth method")).not.toBeInTheDocument();
@@ -328,7 +338,8 @@ describe("SingleAgentSettings", () => {
 
     render(<SingleAgentSettings agentKind="opencode" />);
 
-    expect(screen.getByText("2 providers · Copilot, OpenAI")).toBeInTheDocument();
+    expect(screen.getByText(/2 providers/)).toBeInTheDocument();
+    expect(screen.getByText(/Copilot, OpenAI/)).toBeInTheDocument();
   });
 
   it("falls back to the auth method when no identity is available", () => {
@@ -344,7 +355,7 @@ describe("SingleAgentSettings", () => {
     expect(screen.getByText("via ChatGPT")).toBeInTheDocument();
   });
 
-  it("shows a login action when the agent reports missing auth", () => {
+  it("shows a login action when the agent reports missing auth", async () => {
     statusesState.agentStatuses = [
       makeStatus("gemini", {
         label: "Gemini",
@@ -355,7 +366,7 @@ describe("SingleAgentSettings", () => {
 
     render(<SingleAgentSettings agentKind="gemini" />);
 
-    expect(screen.getByText("Login required")).toBeInTheDocument();
+    expect(screen.getAllByText("Login required").length).toBeGreaterThan(0);
     fireEvent.click(screen.getByRole("button", { name: /login/i }));
     expect(runAgentLoginCommandMock).toHaveBeenCalledWith({
       label: "Gemini",
@@ -364,7 +375,7 @@ describe("SingleAgentSettings", () => {
     });
   });
 
-  it("opens WSL login actions in the matching project distro", () => {
+  it("opens WSL login actions in the matching project distro", async () => {
     const wslProject = makeProject({
       id: "wsl-project",
       name: "WSL Project",
@@ -452,11 +463,13 @@ describe("SingleAgentSettings", () => {
 
     render(<SingleAgentSettings agentKind="cursor" />);
 
-    expect(screen.getByRole("button", { name: /login windows/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /login wsl \(ubuntu\)/i })).toBeInTheDocument();
+    const windowsRow = envRow("Windows");
+    const wslRow = envRow("WSL (Ubuntu)");
+    expect(within(windowsRow).getByRole("button", { name: /login/i })).toBeInTheDocument();
+    expect(within(wslRow).getByRole("button", { name: /login/i })).toBeInTheDocument();
     expect(screen.queryByText(/Windows, WSL \(Ubuntu\) needs authentication/u)).toBeNull();
 
-    fireEvent.click(screen.getByRole("button", { name: /login wsl \(ubuntu\)/i }));
+    fireEvent.click(within(wslRow).getByRole("button", { name: /login/i }));
 
     const loginInput = runAgentLoginCommandMock.mock.calls[0]?.[0];
     expect(loginInput).toEqual({
@@ -536,7 +549,7 @@ describe("SingleAgentSettings", () => {
 
     render(<SingleAgentSettings agentKind="acp-generic:glm-acp-agent" />);
 
-    expect(screen.getByText("Authentication")).toBeInTheDocument();
+    expect(screen.getByText("Z.AI API key")).toBeInTheDocument();
     const input = screen.getByLabelText("Z.AI API key");
     expect(input).toHaveValue("***********");
     expect(input).toHaveAttribute("type", "text");
@@ -626,7 +639,8 @@ describe("SingleAgentSettings", () => {
 
     render(<SingleAgentSettings agentKind="acp-generic:sso-agent" />);
 
-    fireEvent.click(screen.getByRole("button", { name: /login/i }));
+    const row = envRow("Default");
+    fireEvent.click(within(row).getByRole("button", { name: /login/i }));
 
     expect(authenticateAcpAgentMock).toHaveBeenCalledWith({
       agentKind: "acp-generic:sso-agent",
@@ -649,7 +663,8 @@ describe("SingleAgentSettings", () => {
 
     render(<SingleAgentSettings agentKind="grok" />);
 
-    fireEvent.click(screen.getByRole("button", { name: /login/i }));
+    const row = envRow("Default");
+    fireEvent.click(within(row).getByRole("button", { name: /login/i }));
 
     expect(runAgentLoginCommandMock).toHaveBeenCalledWith({
       label: "Grok Build",
@@ -671,7 +686,8 @@ describe("SingleAgentSettings", () => {
 
     render(<SingleAgentSettings agentKind="acp-generic:sso-agent" />);
 
-    fireEvent.click(screen.getByRole("button", { name: /login/i }));
+    const row = envRow("Default");
+    fireEvent.click(within(row).getByRole("button", { name: /login/i }));
 
     expect(authenticateAcpAgentMock).toHaveBeenCalledWith({
       agentKind: "acp-generic:sso-agent",
@@ -700,7 +716,8 @@ describe("SingleAgentSettings", () => {
 
     expect(screen.queryByLabelText("Factory API Key")).toBeNull();
     expect(screen.queryByRole("button", { name: "Factory API Key" })).toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: "Login" }));
+    const row = envRow("Default");
+    fireEvent.click(within(row).getByRole("button", { name: "Login" }));
 
     expect(authenticateAcpAgentMock).toHaveBeenCalledWith({
       agentKind: "acp-generic:factory-droid",
@@ -728,7 +745,8 @@ describe("SingleAgentSettings", () => {
 
     expect(screen.queryByLabelText("Factory API Key")).toBeNull();
     expect(screen.queryByRole("button", { name: "Factory API Key" })).toBeNull();
-    expect(screen.getByRole("button", { name: "Login" })).toBeInTheDocument();
+    const row = envRow("Default");
+    expect(within(row).getByRole("button", { name: "Login" })).toBeInTheDocument();
   });
 
   it("offers logout (not re-login) for an authenticated ACP agent env", async () => {
@@ -743,7 +761,8 @@ describe("SingleAgentSettings", () => {
     render(<SingleAgentSettings agentKind="acp-generic:sso-agent" />);
 
     expect(screen.queryByRole("button", { name: /re-login/i })).toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: /logout/i }));
+    const row = envRow("Default");
+    fireEvent.click(within(row).getByRole("button", { name: /logout/i }));
 
     expect(logoutAcpAgentMock).toHaveBeenCalledWith({ agentKind: "acp-generic:sso-agent" });
   });
@@ -769,7 +788,8 @@ describe("SingleAgentSettings", () => {
 
     render(<SingleAgentSettings agentKind="acp-generic:sso-agent" />);
 
-    fireEvent.click(screen.getByRole("button", { name: /login wsl \(ubuntu\)/i }));
+    const row = envRow("WSL (Ubuntu)");
+    fireEvent.click(within(row).getByRole("button", { name: /login/i }));
 
     expect(authenticateAcpAgentMock).toHaveBeenCalledWith({
       agentKind: "acp-generic:sso-agent",
@@ -798,7 +818,8 @@ describe("SingleAgentSettings", () => {
 
     render(<SingleAgentSettings agentKind="acp-generic:factory-droid" />);
 
-    fireEvent.click(screen.getByRole("button", { name: /login/i }));
+    const row = envRow("WSL (Ubuntu)");
+    fireEvent.click(within(row).getByRole("button", { name: /login/i }));
 
     expect(
       screen.getByText(/Waiting for WSL \(Ubuntu\) Login authentication/u),
@@ -828,10 +849,12 @@ describe("SingleAgentSettings", () => {
 
     render(<SingleAgentSettings agentKind="acp-generic:factory-droid" />);
 
-    expect(screen.getByText(/Windows · Login required/u)).toBeInTheDocument();
+    expect(screen.getByText("Windows")).toBeInTheDocument();
+    expect(screen.getAllByText("Login required").length).toBeGreaterThan(0);
     expect(screen.getByText(/Complete Login sign-in for Windows\./u)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /login windows/i })).toBeInTheDocument();
-    expect(screen.getByText(/WSL \(Ubuntu\) · Signed in/u)).toBeInTheDocument();
+    const windowsRow = envRow("Windows");
+    expect(within(windowsRow).getByRole("button", { name: /login/i })).toBeInTheDocument();
+    expect(screen.getByText("WSL (Ubuntu)")).toBeInTheDocument();
     expect(screen.queryByText(/Windows · Authentication/u)).toBeNull();
   });
 
@@ -858,11 +881,13 @@ describe("SingleAgentSettings", () => {
 
     // Per-env rows: Windows env gets its own logout action, WSL env gets
     // its own login action. No combined Re-login button across envs.
-    expect(screen.getByRole("button", { name: /logout windows/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /login wsl \(ubuntu\)/i })).toBeInTheDocument();
+    const windowsRow = envRow("Windows");
+    const wslRow = envRow("WSL (Ubuntu)");
+    expect(within(windowsRow).getByRole("button", { name: /logout/i })).toBeInTheDocument();
+    expect(within(wslRow).getByRole("button", { name: /login/i })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /re-login/i })).toBeNull();
     expect(screen.getByText(/Complete Login sign-in for WSL \(Ubuntu\)\./u)).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: /login wsl \(ubuntu\)/i }));
+    fireEvent.click(within(wslRow).getByRole("button", { name: /login/i }));
 
     expect(authenticateAcpAgentMock).toHaveBeenCalledWith({
       agentKind: "acp-generic:factory-droid",
@@ -900,7 +925,8 @@ describe("SingleAgentSettings", () => {
 
     render(<SingleAgentSettings agentKind="acp-generic:factory-droid" />);
 
-    fireEvent.click(screen.getByRole("button", { name: /logout windows/i }));
+    const windowsRow = envRow("Windows");
+    fireEvent.click(within(windowsRow).getByRole("button", { name: /logout/i }));
 
     expect(screen.getByRole("status", { name: /logging out/i })).toBeInTheDocument();
     expect(logoutAcpAgentMock).toHaveBeenCalledWith({
@@ -938,7 +964,8 @@ describe("SingleAgentSettings", () => {
 
     render(<SingleAgentSettings agentKind="copilot" />);
 
-    fireEvent.click(screen.getByRole("button", { name: /^re-login$/i }));
+    const row = envRow("Windows");
+    fireEvent.click(within(row).getByRole("button", { name: /re-login/i }));
 
     expect(authenticateAcpAgentMock).toHaveBeenCalledWith({
       agentKind: "copilot",
@@ -960,7 +987,8 @@ describe("SingleAgentSettings", () => {
 
     render(<SingleAgentSettings agentKind="gemini" />);
 
-    fireEvent.click(screen.getByRole("button", { name: /^login$/i }));
+    const row = envRow("Windows");
+    fireEvent.click(within(row).getByRole("button", { name: /login/i }));
 
     expect(authenticateAcpAgentMock).toHaveBeenCalledWith({
       agentKind: "gemini",
@@ -983,7 +1011,8 @@ describe("SingleAgentSettings", () => {
 
     render(<SingleAgentSettings agentKind="gemini" />);
 
-    fireEvent.click(screen.getByRole("button", { name: /^logout$/i }));
+    const row = envRow("Windows");
+    fireEvent.click(within(row).getByRole("button", { name: /logout/i }));
 
     expect(logoutAcpAgentMock).toHaveBeenCalledWith({
       agentKind: "gemini",
@@ -1018,18 +1047,20 @@ describe("SingleAgentSettings", () => {
 
     render(<SingleAgentSettings agentKind="cursor" />);
 
+    const wslRow = envRow("WSL (Ubuntu)");
     await waitFor(() =>
       expect(
-        screen.getByRole("button", {
-          name: "Update to v2026.05.16-0338208 for Cursor (WSL (Ubuntu))",
+        within(wslRow).getByRole("button", {
+          name: /Update to v2026\.05\.16-0338208/i,
         }),
       ).toBeInTheDocument(),
     );
-    expect(screen.queryByRole("button", { name: /for Cursor \(Windows\)/ })).toBeNull();
+    const windowsRow = envRow("Windows");
+    expect(within(windowsRow).queryByRole("button", { name: /Update to v/i })).toBeNull();
 
     fireEvent.click(
-      screen.getByRole("button", {
-        name: "Update to v2026.05.16-0338208 for Cursor (WSL (Ubuntu))",
+      within(wslRow).getByRole("button", {
+        name: /Update to v2026\.05\.16-0338208/i,
       }),
     );
 
@@ -1053,9 +1084,8 @@ describe("SingleAgentSettings", () => {
     });
 
     render(<SingleAgentSettings agentKind="claude" />);
-    fireEvent.click(
-      await screen.findByRole("button", { name: /Update to v1\.1\.0 for Claude Code/ }),
-    );
+    const row = envRow("Default");
+    fireEvent.click(await within(row).findByRole("button", { name: /Update to v1\.1\.0/i }));
 
     await waitFor(() =>
       expect(toastMock.success).toHaveBeenCalledWith("Claude Code updated to v1.1.0."),
@@ -1069,9 +1099,8 @@ describe("SingleAgentSettings", () => {
     getLatestAgentVersionMock.mockResolvedValueOnce({ version: "1.1.0", source: "npm" });
 
     render(<SingleAgentSettings agentKind="claude" />);
-    fireEvent.click(
-      await screen.findByRole("button", { name: /Update to v1\.1\.0 for Claude Code/ }),
-    );
+    const row = envRow("Default");
+    fireEvent.click(await within(row).findByRole("button", { name: /Update to v1\.1\.0/i }));
 
     await waitFor(() =>
       expect(toastMock.success).toHaveBeenCalledWith("Claude Code is already up to date."),

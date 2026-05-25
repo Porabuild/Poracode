@@ -4,7 +4,6 @@ import {
   AlertTriangle,
   ArrowUpCircle,
   Check,
-  Download,
   LogIn,
   LogOut,
   Minus,
@@ -62,14 +61,17 @@ function AgentSettingRow(props: { agentKind: string; def: AgentSettingDef }) {
   if (def.type !== "toggle" && def.type !== "select") return null;
 
   return (
-    <div className="flex items-center justify-between gap-4">
-      <div className="min-w-0">
+    <div className="flex items-center justify-between gap-4 py-2 border-b border-border/10 last:border-0 group">
+      <div className="flex flex-col min-w-0 flex-1">
         <p className="text-sm font-medium text-foreground">{def.label}</p>
-        <p className="text-xs text-muted">{def.description}</p>
+        <p className="text-[11px] text-muted line-clamp-1 group-hover:line-clamp-none transition-all">
+          {def.description}
+        </p>
       </div>
       {def.type === "toggle" ? (
         <Switch
           isSelected={value as boolean}
+          size="sm"
           onChange={(selected) => {
             startTransition(() => {
               setAgentSetting(agentKind, def.key, selected);
@@ -83,7 +85,7 @@ function AgentSettingRow(props: { agentKind: string; def: AgentSettingDef }) {
       ) : (
         <Select
           aria-label={def.label}
-          className="w-[160px] shrink-0"
+          className="w-[140px] shrink-0"
           options={def.options}
           value={String(value)}
           onChange={(v) => {
@@ -172,10 +174,12 @@ function ModelVisibilityDropdown(props: {
   }
 
   return (
-    <div className="flex items-center justify-between gap-4">
-      <div className="min-w-0">
+    <div className="flex items-center justify-between gap-4 py-2 border-b border-border/10 last:border-0 group">
+      <div className="flex flex-col min-w-0 flex-1">
         <p className="text-sm font-medium text-foreground">Visible models</p>
-        <p className="text-xs text-muted">Toggle models off to hide them from the selector.</p>
+        <p className="text-[11px] text-muted line-clamp-1 group-hover:line-clamp-none transition-all">
+          Toggle models off to hide them from the selector.
+        </p>
       </div>
       <Popover isOpen={isOpen} onOpenChange={setIsOpen}>
         <Popover.Trigger>
@@ -381,19 +385,6 @@ function formatAgentMetadataSummary(
   return undefined;
 }
 
-function AgentMetadataLine(props: {
-  status: AgentStatus;
-  showEnvironmentLabel: boolean;
-  includeAuthFallback: boolean;
-}) {
-  const summary = formatAgentMetadataSummary(props.status, {
-    includeAuthFallback: props.includeAuthFallback,
-  });
-  if (!summary) return null;
-  const prefix = props.showEnvironmentLabel ? `${envLabel(props.status)} · ` : "";
-  return <p className="truncate text-xs text-muted">{`${prefix}${summary}`}</p>;
-}
-
 function formatStatusList(statuses: readonly AgentStatus[]): string {
   return statuses
     .map((status) => envLabel(status))
@@ -439,68 +430,137 @@ function shouldPreferTerminalLogin(status: AgentStatus): boolean {
   return status.kind === "grok" && Boolean(status.loginCommand);
 }
 
-function AcpAgentAuthEnvRow(props: {
+function AgentEnvironmentRow(props: {
+  agentLabel: string;
   status: AgentStatus;
   authMethods: ReadonlyArray<AgentOwnedAuthMethod | AgentTerminalAuthMethod>;
   canLogout: boolean;
   authPending: boolean;
   pendingMessage: string | undefined;
-  showEnvironmentLabel: boolean;
   onLogin: (method: AgentOwnedAuthMethod | AgentTerminalAuthMethod) => void;
   onLogout: () => void;
+
+  latestNpmVersion: string | undefined;
+  newestInstalledVersion: string | undefined;
+  binaryUpdatePending: boolean;
+  isRedetecting: boolean;
+  onUpdate: (status: AgentStatus) => void;
+
+  includeAuthFallback: boolean;
+  acpInstanceId: string | undefined;
 }) {
-  const { status, authMethods, showEnvironmentLabel } = props;
+  const { status, authMethods } = props;
   const hasAnyMethod = authMethods.length > 0;
   const isAuthenticated = status.authState === "authenticated";
   const isMissing =
     status.authState === "missing" || (status.authState === "unknown" && hasAnyMethod);
   const env = envLabel(status);
-  const envSuffix = showEnvironmentLabel && env ? ` ${env}` : "";
-  const envScope = env ? ` for ${env}` : "";
-  const envSubject = env || "Agent";
+  const envSuffix = env ? ` ${env}` : "";
   const canLogout = isAuthenticated && props.canLogout;
   const canReLogin = isAuthenticated && !canLogout && hasAnyMethod;
   const canLogin = (isMissing || canReLogin) && hasAnyMethod;
   const loginLabel = canReLogin ? "Re-login" : "Login";
   const pendingLabel = canLogout ? "Logging out" : "Logging in";
-  const headerLabel = isMissing
-    ? "Login required"
-    : isAuthenticated
-      ? "Signed in"
-      : "Authentication";
-  const headerPrefix = env ? `${env} · ` : "";
+
   const hasMultipleMethods = authMethods.length > 1;
   const singleMethod = !hasMultipleMethods ? authMethods[0] : undefined;
+
+  const metadataSummary = formatAgentMetadataSummary(status, {
+    includeAuthFallback: props.includeAuthFallback,
+  });
+
+  const installedVer = status.version;
+  const registryTargetVersion =
+    props.latestNpmVersion !== undefined &&
+    installedVer !== undefined &&
+    isNewerVersion(props.latestNpmVersion, installedVer)
+      ? props.latestNpmVersion
+      : undefined;
+  const peerTargetVersion =
+    props.newestInstalledVersion !== undefined &&
+    installedVer !== undefined &&
+    isNewerVersion(props.newestInstalledVersion, installedVer)
+      ? props.newestInstalledVersion
+      : undefined;
+  const targetVersion = registryTargetVersion ?? peerTargetVersion;
+  const updateLabel = targetVersion ? `v${targetVersion}` : "";
+  const showUpdateButton =
+    !props.isRedetecting &&
+    props.acpInstanceId === undefined &&
+    status.installed &&
+    targetVersion !== undefined;
+
+  const previewScope = statusUpdateScope(status);
+  const previewCommand = showUpdateButton
+    ? resolveSharedUpdateCommand({
+        update: status.update,
+        executablePath: status.executablePath,
+        envKind: previewScope.envKind,
+      })
+    : undefined;
+  const previewCommandLine = previewCommand ? formatUpdateCommandLine(previewCommand) : undefined;
+
   const description = isMissing
     ? hasMultipleMethods
-      ? `Choose how to sign in${envScope}.`
+      ? `Choose how to sign in${env ? ` for ${env}` : ""}.`
       : singleMethod
-        ? `Complete ${singleMethod.name} sign-in${envScope}.`
-        : `${envSubject} needs authentication.`
-    : isAuthenticated
-      ? `${envSubject} credentials are configured.`
-      : "";
-  const detail = props.pendingMessage ?? description;
+        ? `Complete ${singleMethod.name} sign-in${env ? ` for ${env}` : ""}.`
+        : `${env || "Agent"} needs authentication.`
+    : "";
 
   return (
-    <div className="flex items-start justify-between gap-4">
-      <div className="flex min-w-0 items-start gap-2">
-        <div className="min-w-0 flex-1">
-          <p className={`text-sm font-medium ${isMissing ? "text-warning" : ""}`}>
-            {isMissing ? (
-              <AlertTriangle className="mr-1.5 inline size-4 -translate-y-px text-warning" />
-            ) : null}
-            {headerPrefix}
-            {headerLabel}
-          </p>
-          {detail ? <p className="text-xs text-muted">{detail}</p> : null}
+    <div className="flex flex-col py-1.5 px-2 -mx-2 hover:bg-surface-secondary/40 rounded-lg transition-colors group/env">
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex min-w-0 items-center gap-2 text-sm font-medium">
+          <span className="shrink-0 text-foreground/90">{env || "Default"}</span>
+          {props.isRedetecting ? (
+            <PixelLoader size="xs" />
+          ) : (
+            <span className="shrink-0 tabular-nums text-muted/60 font-normal text-xs">
+              {installedVer ? `v${installedVer}` : "—"}
+            </span>
+          )}
+          {showUpdateButton && (
+            <Tooltip delay={0}>
+              <Tooltip.Trigger>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-5 min-h-5 gap-1 px-1.5 py-0 text-[10px] text-muted hover:text-foreground"
+                  aria-label={`Update to ${updateLabel} for ${props.agentLabel}${env ? ` (${env})` : ""}`}
+                  onPress={() => props.onUpdate(status)}
+                >
+                  <ArrowUpCircle className="size-3" />
+                  Update to {updateLabel}
+                </Button>
+              </Tooltip.Trigger>
+              <Tooltip.Content placement="right" className="max-w-[440px]">
+                {previewCommandLine ? (
+                  <div className="flex flex-col gap-0.5">
+                    <span className="text-[11px] text-muted">
+                      Will run in {env || "this environment"}:
+                    </span>
+                    <code className="font-mono text-[11px]">{previewCommandLine}</code>
+                  </div>
+                ) : (
+                  <span className="text-[11px]">
+                    Update {props.agentLabel} to {updateLabel}
+                  </span>
+                )}
+              </Tooltip.Content>
+            </Tooltip>
+          )}
+          {isMissing && (
+            <span className="text-warning flex items-center gap-1.5 whitespace-nowrap text-[11px] font-normal">
+              <AlertTriangle className="size-3" />
+              Login required
+            </span>
+          )}
         </div>
-      </div>
-      {canLogin || canLogout ? (
-        <div className="flex shrink-0 flex-row items-center gap-2">
-          {props.authPending ? (
+        <div className="flex shrink-0 items-center gap-2">
+          {props.authPending || props.binaryUpdatePending ? (
             <div
-              className="flex h-8 w-8 items-center justify-center"
+              className="flex h-6 w-6 items-center justify-center"
               role="status"
               aria-label={pendingLabel}
             >
@@ -514,10 +574,10 @@ function AcpAgentAuthEnvRow(props: {
                       key={method.id}
                       size="sm"
                       variant="tertiary"
+                      className="h-6 min-h-6 px-2 py-0 text-[10px] text-muted-foreground hover:text-foreground"
                       aria-label={`${loginLabel} ${method.name}${envSuffix}`}
                       onPress={() => props.onLogin(method)}
                     >
-                      <LogIn className="size-4" />
                       {method.name}
                     </Button>
                   ))
@@ -526,28 +586,41 @@ function AcpAgentAuthEnvRow(props: {
                 <Button
                   size="sm"
                   variant="tertiary"
-                  isIconOnly
+                  className="h-6 min-h-6 px-2 py-0 text-[10px] text-muted-foreground hover:text-foreground"
                   aria-label={`${loginLabel}${envSuffix}`}
                   onPress={() => props.onLogin(singleMethod)}
                 >
-                  <LogIn className="size-4" />
+                  {loginLabel}
                 </Button>
               ) : null}
               {canLogout ? (
                 <Button
                   size="sm"
                   variant="tertiary"
-                  isIconOnly
+                  className="h-6 min-h-6 px-2 py-0 text-[10px] text-muted-foreground hover:text-foreground"
                   aria-label={`Logout${envSuffix}`}
                   onPress={props.onLogout}
                 >
-                  <LogOut className="size-4 text-danger" />
+                  Logout
                 </Button>
               ) : null}
             </>
           )}
         </div>
-      ) : null}
+      </div>
+      <div className="flex flex-col min-w-0 h-4 justify-center">
+        {props.pendingMessage ? (
+          <span className="min-w-0 truncate text-[11px] font-normal text-muted/60 italic">
+            {props.pendingMessage}
+          </span>
+        ) : metadataSummary ? (
+          <span className="min-w-0 truncate text-[11px] font-normal text-muted/60 group-hover/env:text-muted/80 transition-colors">
+            {metadataSummary}
+          </span>
+        ) : description ? (
+          <p className="text-[10px] text-muted/50 truncate">{description}</p>
+        ) : null}
+      </div>
     </div>
   );
 }
@@ -682,7 +755,6 @@ export function SingleAgentSettings(props: { agentKind: string }) {
     for (const s of installedHere)
       versionRows.push({ label: envLabel(s) || "Installed", status: s });
   }
-  const showEnvironmentMetadataLabels = installedStatuses.length > 1;
   const missingAuthStatuses = installedStatuses.filter((status) => status.authState === "missing");
   const envVarAuthMethod =
     findEnvVarAuthMethod(installedStatuses) ?? findEnvVarAuthMethod(missingAuthStatuses);
@@ -871,18 +943,11 @@ export function SingleAgentSettings(props: { agentKind: string }) {
     logoutStatuses.length > 0 ||
     hasAdvertisedAuthMethods;
   const includeAuthFallbackMetadata = !hasAuthSettings;
-  const metadataStatuses = installedStatuses.filter(
-    (status) =>
-      formatAgentMetadataSummary(status, {
-        includeAuthFallback: includeAuthFallbackMetadata,
-      }) !== undefined,
-  );
   const authMissing =
     missingAuthStatuses.length > 0 ||
     (hasAdvertisedAuthMethods &&
       !installedStatuses.some((status) => status.authState === "authenticated"));
   const missingAuthLabel = formatStatusList(missingAuthStatuses);
-  const showAuthEnvironmentLabels = installedStatuses.length > 1;
   const showEnvVarOnly = envVarAuthMethod !== undefined && !authMissing;
   // Interactive auth (browser/CLI sign-in) is per-env — Windows and each WSL
   // distro hold their own sessions. We split the auth panel into one row per
@@ -956,10 +1021,6 @@ export function SingleAgentSettings(props: { agentKind: string }) {
       })
       .then(async (result) => {
         if (result.ok) {
-          // Switch the row to a loader while we wait for the supervisor to
-          // re-detect the new installed version. The store updates via the
-          // `agent-status-updated` events emitted during refresh; once the row
-          // re-renders with the fresh version, we clear the loader.
           setRedetectingEnvKey(envKey);
           try {
             await readBridge().refreshAgentStatuses(wslDistros, {
@@ -969,9 +1030,6 @@ export function SingleAgentSettings(props: { agentKind: string }) {
           } finally {
             setRedetectingEnvKey(undefined);
           }
-          // Many built-in updaters exit 0 even when there's nothing to do.
-          // Compare the freshly-detected version to the pre-update value so
-          // the toast reflects what actually happened.
           const store = useAgentStatusesStore.getState();
           const pool = status.envKind === "wsl" ? store.wslAgentStatuses : store.agentStatuses;
           const newVersion = pool.find(
@@ -1008,143 +1066,114 @@ export function SingleAgentSettings(props: { agentKind: string }) {
     <div className="h-full min-h-0 overflow-y-auto px-6 pb-8 pt-4">
       <div className="mx-auto max-w-[720px]">
         <div className="mb-6">
-          <div className="flex items-center gap-2">
-            <ProviderIcon
-              kind={agent.kind}
-              icon={agent.icon}
-              fallbackLabel={agent.label}
-              className="size-5"
-            />
-            <h1 className="text-lg font-semibold text-foreground">{agent.label}</h1>
-            {updateAvailable ? (
-              <Button
+          <div className="flex items-center justify-between gap-4 mb-4">
+            <div className="flex items-center gap-3">
+              <ProviderIcon
+                kind={agent.kind}
+                icon={agent.icon}
+                fallbackLabel={agent.label}
+                className="size-8"
+              />
+              <div className="flex flex-col">
+                <h1 className="text-lg font-semibold text-foreground leading-tight">
+                  {agent.label}
+                </h1>
+                <p className="text-[11px] text-muted">
+                  {isDisabled ? "Agent is currently disabled" : "Agent is active and ready"}
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              {updateAvailable && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-7 min-h-7 gap-1 px-2 text-[11px]"
+                  isPending={updatePending}
+                  onPress={performUpdate}
+                >
+                  <ArrowUpCircle className="size-3" />
+                  Update to v{latestRegistryVersion}
+                </Button>
+              )}
+              <Switch
+                isSelected={!isDisabled}
                 size="sm"
-                variant="ghost"
-                className="h-6 min-h-6 gap-1 px-2 text-[11px]"
-                isPending={updatePending}
-                onPress={performUpdate}
+                aria-label="Enabled"
+                onChange={(selected) => {
+                  startTransition(() => {
+                    setAgentDisabled(agent.kind, !selected);
+                  });
+                  if (selected) {
+                    void readBridge()
+                      .refreshAgentStatuses(wslDistros, { agentKinds: [agent.kind] })
+                      .catch(() => undefined);
+                  }
+                }}
               >
-                <ArrowUpCircle className="size-3" />
-                Update to v{latestRegistryVersion}
-              </Button>
-            ) : null}
+                <Switch.Control>
+                  <Switch.Thumb />
+                </Switch.Control>
+              </Switch>
+            </div>
           </div>
-          {versionRows.length > 0 ? (
-            <div className="mt-1 space-y-0.5">
-              {versionRows.map((row, i) => {
-                const envKey = statusEnvKey(row.status);
-                const isPending = binaryUpdatePendingEnvKey === envKey;
-                const installedVer = row.status.version;
-                const isRedetecting = redetectingEnvKey === envKey;
-                const registryTargetVersion =
-                  latestNpmVersion !== undefined &&
-                  installedVer !== undefined &&
-                  isNewerVersion(latestNpmVersion, installedVer)
-                    ? latestNpmVersion
-                    : undefined;
-                const peerTargetVersion =
-                  newestInstalledVersion !== undefined &&
-                  installedVer !== undefined &&
-                  isNewerVersion(newestInstalledVersion, installedVer)
-                    ? newestInstalledVersion
-                    : undefined;
-                const targetVersion = registryTargetVersion ?? peerTargetVersion;
-                const updateLabel = targetVersion ? `Update to v${targetVersion}` : "";
-                const showUpdateButton =
-                  !isRedetecting &&
-                  acpInstanceId === undefined &&
-                  row.status.installed &&
-                  targetVersion !== undefined;
-                // Resolve the update command client-side from the same shared
-                // module the supervisor uses, so the tooltip always has the
-                // exact command we're about to run — no extra IPC roundtrip
-                // and no stale-supervisor edge case.
-                const previewScope = statusUpdateScope(row.status);
-                const previewCommand = showUpdateButton
-                  ? resolveSharedUpdateCommand({
-                      update: row.status.update,
-                      executablePath: row.status.executablePath,
-                      envKind: previewScope.envKind,
-                    })
-                  : undefined;
-                const previewCommandLine = previewCommand
-                  ? formatUpdateCommandLine(previewCommand)
-                  : undefined;
-                return (
-                  <div
-                    key={`${row.label}-${i}`}
-                    // Fixed row height so the per-env Update button can appear
-                    // without shifting siblings down. Height matches the
-                    // button's `h-5` so the row looks identical whether the
-                    // button is present or not.
-                    className="flex h-5 items-center gap-2 text-xs text-muted"
-                  >
-                    <span className="w-[120px] shrink-0">{row.label}</span>
-                    {isRedetecting ? (
-                      <PixelLoader size="xs" />
-                    ) : (
-                      <span className="tabular-nums">
-                        {installedVer ? `v${installedVer}` : "—"}
-                      </span>
-                    )}
-                    {showUpdateButton ? (
-                      <Tooltip delay={0}>
-                        <Tooltip.Trigger>
-                          <Button
-                            size="sm"
-                            variant="tertiary"
-                            className="ml-1 h-5 min-h-5 gap-1 px-2 py-0 text-[11px] leading-none"
-                            aria-label={`${updateLabel} for ${agent.label}${row.label ? ` (${row.label})` : ""}`}
-                            isPending={isPending}
-                            isDisabled={
-                              binaryUpdatePendingEnvKey !== undefined &&
-                              binaryUpdatePendingEnvKey !== envKey
-                            }
-                            onPress={() => performBinaryUpdate(row.status)}
-                          >
-                            <Download className="size-3" />
-                            {updateLabel}
-                          </Button>
-                        </Tooltip.Trigger>
-                        <Tooltip.Content placement="right" className="max-w-[440px]">
-                          {previewCommandLine ? (
-                            <div className="flex flex-col gap-0.5">
-                              <span className="text-[11px] text-muted">
-                                Will run in {row.label || "this environment"}:
-                              </span>
-                              <code className="font-mono text-[11px]">{previewCommandLine}</code>
-                            </div>
-                          ) : (
-                            <span className="text-[11px]">
-                              Update {agent.label} to v{targetVersion}
-                            </span>
-                          )}
-                        </Tooltip.Content>
-                      </Tooltip>
-                    ) : null}
-                  </div>
-                );
-              })}
-            </div>
-          ) : (
-            agent.version && <p className="mt-0.5 text-xs text-muted">v{agent.version}</p>
-          )}
-          {metadataStatuses.length > 0 ? (
-            <div className="mt-1 space-y-0.5">
-              {metadataStatuses.map((status, index) => (
-                <AgentMetadataLine
-                  key={`${status.kind}-${status.envKind ?? "native"}-${status.envDistro ?? index}`}
-                  status={status}
-                  showEnvironmentLabel={showEnvironmentMetadataLabels}
+
+          <div className="space-y-0.5 border-t border-border/10 pt-3">
+            {installedStatuses.map((status) => {
+              const envKey = statusEnvKey(status);
+              const agentMethods =
+                status.authMethods?.filter(isAgentAuthMethod) ??
+                (sharedAgentAuthMethod ? [sharedAgentAuthMethod] : []);
+              const terminalMethod = status.loginCommand
+                ? (findTerminalAuthMethodForStatus(status) ??
+                  sharedTerminalAuthMethod ?? {
+                    id: "terminal-login",
+                    name: "Login",
+                    type: "terminal" as const,
+                  })
+                : undefined;
+              const methods: Array<AgentOwnedAuthMethod | AgentTerminalAuthMethod> =
+                usePerEnvAuthRows
+                  ? shouldPreferTerminalLogin(status) && terminalMethod
+                    ? [terminalMethod]
+                    : agentMethods.length > 0
+                      ? agentMethods
+                      : terminalMethod
+                        ? [terminalMethod]
+                        : []
+                  : [];
+              return (
+                <AgentEnvironmentRow
+                  key={`${status.kind}-${envKey}`}
+                  acpInstanceId={acpInstanceId}
+                  agentLabel={agent.label}
+                  authMethods={methods}
+                  authPending={authPendingEnvKey === envKey}
+                  binaryUpdatePending={binaryUpdatePendingEnvKey === envKey}
+                  canLogout={supportsAcpLogoutStatus(status, acpInstanceId)}
                   includeAuthFallback={includeAuthFallbackMetadata}
+                  isRedetecting={redetectingEnvKey === envKey}
+                  latestNpmVersion={latestNpmVersion}
+                  newestInstalledVersion={newestInstalledVersion}
+                  pendingMessage={authPendingEnvKey === envKey ? authPendingMessage : undefined}
+                  status={status}
+                  onLogin={(method) => {
+                    if (isAgentAuthMethod(method)) {
+                      authenticateAgent({ status, method });
+                      return;
+                    }
+                    runTerminalLogin(status, method);
+                  }}
+                  onLogout={() => logoutAgent(status)}
+                  onUpdate={() => performBinaryUpdate(status)}
                 />
-              ))}
-            </div>
-          ) : null}
+              );
+            })}
+          </div>
         </div>
 
         <div className="space-y-4">
-          {hasAuthSettings && usePerEnvAuthRows ? (
+          {hasAuthSettings && (
             <div className="space-y-2">
               {envVarAuthMethod && acpInstanceId ? (
                 <div className="flex items-start justify-between gap-4 rounded-xl border border-border bg-surface-secondary px-3 py-2 text-foreground">
@@ -1232,148 +1261,78 @@ export function SingleAgentSettings(props: { agentKind: string }) {
                     >
                       <Save className="size-4" />
                     </Button>
-                  </div>
-                </div>
-              ) : null}
-              {installedStatuses.map((status) => {
-                const envKey = statusEnvKey(status);
-                const agentMethods =
-                  status.authMethods?.filter(isAgentAuthMethod) ??
-                  (sharedAgentAuthMethod ? [sharedAgentAuthMethod] : []);
-                const terminalMethod = status.loginCommand
-                  ? (findTerminalAuthMethodForStatus(status) ??
-                    sharedTerminalAuthMethod ?? {
-                      id: "terminal-login",
-                      name: "Login",
-                      type: "terminal" as const,
-                    })
-                  : undefined;
-                const methods: Array<AgentOwnedAuthMethod | AgentTerminalAuthMethod> =
-                  shouldPreferTerminalLogin(status) && terminalMethod
-                    ? [terminalMethod]
-                    : agentMethods.length > 0
-                      ? agentMethods
-                      : terminalMethod
-                        ? [terminalMethod]
-                        : [];
-                const isAuthenticated = status.authState === "authenticated";
-                const needsInteractiveRow =
-                  isAuthenticated ||
-                  status.authState === "missing" ||
-                  (status.authState === "unknown" && methods.length > 0);
-                if (!needsInteractiveRow) return null;
-                return (
-                  <AcpAgentAuthEnvRow
-                    key={`${status.kind}-${envKey}-auth-row`}
-                    status={status}
-                    authMethods={methods}
-                    canLogout={supportsAcpLogoutStatus(status, acpInstanceId)}
-                    authPending={authPendingEnvKey === envKey}
-                    pendingMessage={authPendingEnvKey === envKey ? authPendingMessage : undefined}
-                    showEnvironmentLabel={showAuthEnvironmentLabels}
-                    onLogin={(method) => {
-                      if (isAgentAuthMethod(method)) {
-                        authenticateAgent({ status, method });
-                        return;
-                      }
-                      runTerminalLogin(status, method);
-                    }}
-                    onLogout={() => logoutAgent(status)}
-                  />
-                );
-              })}
-            </div>
-          ) : hasAuthSettings ? (
-            <div className="space-y-3">
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex min-w-0 items-start gap-2">
-                  <div className="min-w-0 flex-1">
-                    <p className={`text-sm font-medium ${authMissing ? "text-warning" : ""}`}>
-                      {authMissing ? (
-                        <AlertTriangle className="mr-1.5 inline size-4 -translate-y-px text-warning" />
-                      ) : null}
-                      {authMissing ? "Login required" : "Authentication"}
-                    </p>
-                    <p className="text-xs text-muted">
-                      {authPendingMessage ??
-                        (authMissing
-                          ? `${missingAuthLabel ? `${missingAuthLabel} needs authentication. ` : ""}${
-                              envVarAuthMethod
-                                ? agentAuth
-                                  ? `Complete ${agentAuth.method.name} sign-in or save ${envVarAuthMethod.name} credentials, then detected agents will refresh.`
-                                  : `Save ${envVarAuthMethod.name} credentials, then detected agents will refresh.`
-                                : agentAuth
-                                  ? `Complete ${agentAuth.method.name} sign-in, then detected agents will refresh.`
-                                  : loginCommand
-                                    ? `Run ${loginCommand} to sign in.`
-                                    : "Sign in with the agent CLI, then refresh detected agents."
-                            }`
-                          : envVarAuthMethod
-                            ? `Saved ${envVarAuthMethod.name} credentials are configured. Enter a new value to replace them.`
-                            : agentAuth
-                              ? `Sign in again with ${agentAuth.method.name}.`
-                              : loginCommand
-                                ? `Run ${loginCommand} again to refresh credentials.`
-                                : "Credentials are configured.")}
-                    </p>
-                  </div>
-                </div>
-                {showEnvVarOnly && acpInstanceId ? (
-                  <div className="flex shrink-0 flex-row items-center gap-2">
-                    <Button
-                      size="sm"
-                      variant="tertiary"
-                      isIconOnly
-                      aria-label="Save"
-                      isDisabled={!canSaveEnvAuth}
-                      isPending={authPending}
-                      data-acp-auth-save=""
-                      onPress={saveEnvAuth}
-                    >
-                      <Save className="size-4" />
-                    </Button>
-                    {/* Env-var credentials are shared across envs — a single
-                      "Logout" clears them for all environments. */}
-                    <Button
-                      size="sm"
-                      variant="tertiary"
-                      isIconOnly
-                      aria-label="Logout"
-                      isPending={authPending}
-                      onPress={clearEnvVarCredentials}
-                    >
-                      <LogOut className="size-4 text-danger" />
-                    </Button>
-                  </div>
-                ) : agentAuth && supportsAcpAgentAuth ? (
-                  <div className="flex shrink-0 flex-col items-end gap-2">
-                    {(agentAuthEntries.length > 0 ? agentAuthEntries : [agentAuth]).map(
-                      (entry, index) => (
-                        <Button
-                          key={`${entry.status.kind}-${entry.status.envKind ?? "native"}-${entry.status.envDistro ?? index}`}
-                          size="sm"
-                          variant="tertiary"
-                          isPending={authPending}
-                          onPress={() => authenticateAgent(entry)}
-                        >
-                          <LogIn className="size-4" />
-                          {authMissing ? "Login" : "Re-login"}
-                          {showAuthEnvironmentLabels ? ` ${envLabel(entry.status)}` : ""}
-                        </Button>
-                      ),
-                    )}
-                    {envVarAuthMethod ? (
+                    {!usePerEnvAuthRows && (
                       <Button
                         size="sm"
                         variant="tertiary"
                         isIconOnly
-                        aria-label="Save"
-                        isDisabled={!canSaveEnvAuth}
+                        aria-label="Logout"
                         isPending={authPending}
-                        data-acp-auth-save=""
-                        onPress={saveEnvAuth}
+                        onPress={clearEnvVarCredentials}
                       >
-                        <Save className="size-4" />
+                        <LogOut className="size-4 text-danger" />
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              ) : null}
+
+              {!usePerEnvAuthRows &&
+              !showEnvVarOnly &&
+              (agentAuth || loginStatus || logoutStatuses.length > 0) ? (
+                <div className="flex items-start justify-between gap-4 py-1">
+                  <div className="flex min-w-0 items-start gap-2">
+                    <div className="min-w-0 flex-1">
+                      <p className={`text-sm font-medium ${authMissing ? "text-warning" : ""}`}>
+                        {authMissing ? (
+                          <AlertTriangle className="mr-1.5 inline size-4 -translate-y-px text-warning" />
+                        ) : null}
+                        {authMissing ? "Login required" : "Authentication"}
+                      </p>
+                      <p className="text-xs text-muted truncate">
+                        {authPendingMessage ??
+                          (authMissing
+                            ? `${missingAuthLabel ? `${missingAuthLabel} needs authentication. ` : ""}${
+                                envVarAuthMethod
+                                  ? agentAuth
+                                    ? `Complete ${agentAuth.method.name} sign-in or save ${envVarAuthMethod.name} credentials.`
+                                    : `Save ${envVarAuthMethod.name} credentials.`
+                                  : agentAuth
+                                    ? `Complete ${agentAuth.method.name} sign-in.`
+                                    : loginCommand
+                                      ? `Run ${loginCommand} to sign in.`
+                                      : "Sign in with the agent CLI."
+                              }`
+                            : "Credentials are configured.")}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex shrink-0 flex-col items-end gap-2">
+                    {agentAuth && supportsAcpAgentAuth ? (
+                      (agentAuthEntries.length > 0 ? agentAuthEntries : [agentAuth]).map(
+                        (entry, index) => (
+                          <Button
+                            key={`${entry.status.kind}-${entry.status.envKind ?? "native"}-${entry.status.envDistro ?? index}`}
+                            size="sm"
+                            variant="tertiary"
+                            className="h-7 min-h-7 gap-1 px-2 text-[11px]"
+                            isPending={authPending}
+                            onPress={() => authenticateAgent(entry)}
+                          >
+                            <LogIn className="size-3" />
+                            {authMissing ? "Login" : "Re-login"}
+                          </Button>
+                        ),
+                      )
+                    ) : loginStatus && loginCommand ? (
+                      <Button
+                        size="sm"
+                        variant="tertiary"
+                        className="h-7 min-h-7 gap-1 px-2 text-[11px]"
+                        onPress={() => runTerminalLogin(loginStatus, terminalLoginMethod)}
+                      >
+                        <LogIn className="size-3" />
+                        {authMissing ? "Login" : "Re-login"}
                       </Button>
                     ) : null}
                     {logoutStatuses.map((status, index) => (
@@ -1381,176 +1340,24 @@ export function SingleAgentSettings(props: { agentKind: string }) {
                         key={`${status.kind}-${status.envKind ?? "native"}-${status.envDistro ?? index}-logout`}
                         size="sm"
                         variant="tertiary"
+                        className="h-7 min-h-7 gap-1 px-2 text-[11px]"
                         isPending={authPending}
                         onPress={() => logoutAgent(status)}
                       >
-                        <LogOut className="size-4" />
+                        <LogOut className="size-3 text-danger" />
                         Logout
-                        {showAuthEnvironmentLabels ? ` ${envLabel(status)}` : ""}
                       </Button>
                     ))}
                   </div>
-                ) : envVarAuthMethod && acpInstanceId ? (
-                  <div className="flex shrink-0 flex-col items-end gap-2">
-                    <Button
-                      size="sm"
-                      variant="tertiary"
-                      isIconOnly
-                      aria-label="Save"
-                      isDisabled={!canSaveEnvAuth}
-                      isPending={authPending}
-                      data-acp-auth-save=""
-                      onPress={saveEnvAuth}
-                    >
-                      <Save className="size-4" />
-                    </Button>
-                    {logoutStatuses.map((status, index) => (
-                      <Button
-                        key={`${status.kind}-${status.envKind ?? "native"}-${status.envDistro ?? index}-logout`}
-                        size="sm"
-                        variant="tertiary"
-                        isPending={authPending}
-                        onPress={() => logoutAgent(status)}
-                      >
-                        <LogOut className="size-4" />
-                        Logout
-                        {showAuthEnvironmentLabels ? ` ${envLabel(status)}` : ""}
-                      </Button>
-                    ))}
-                  </div>
-                ) : loginStatus && loginCommand ? (
-                  <div className="flex shrink-0 flex-col items-end gap-2">
-                    <Button
-                      size="sm"
-                      variant="tertiary"
-                      onPress={() => runTerminalLogin(loginStatus, terminalLoginMethod)}
-                    >
-                      <LogIn className="size-4" />
-                      {authMissing ? "Login" : "Re-login"}
-                    </Button>
-                    {logoutStatuses.map((status, index) => (
-                      <Button
-                        key={`${status.kind}-${status.envKind ?? "native"}-${status.envDistro ?? index}-logout`}
-                        size="sm"
-                        variant="tertiary"
-                        isPending={authPending}
-                        onPress={() => logoutAgent(status)}
-                      >
-                        <LogOut className="size-4" />
-                        Logout
-                        {showAuthEnvironmentLabels ? ` ${envLabel(status)}` : ""}
-                      </Button>
-                    ))}
-                  </div>
-                ) : logoutStatuses.length > 0 ? (
-                  <div className="flex shrink-0 flex-col items-end gap-2">
-                    {logoutStatuses.map((status, index) => (
-                      <Button
-                        key={`${status.kind}-${status.envKind ?? "native"}-${status.envDistro ?? index}-logout`}
-                        size="sm"
-                        variant="tertiary"
-                        isPending={authPending}
-                        onPress={() => logoutAgent(status)}
-                      >
-                        <LogOut className="size-4" />
-                        Logout
-                        {showAuthEnvironmentLabels ? ` ${envLabel(status)}` : ""}
-                      </Button>
-                    ))}
-                  </div>
-                ) : null}
-              </div>
-              {envVarAuthMethod && acpInstanceId ? (
-                <div className="flex flex-col gap-2">
-                  {envVarAuthMethod.vars.map((variable) => {
-                    const hasAuthValue = Object.prototype.hasOwnProperty.call(
-                      authValues,
-                      variable.name,
-                    );
-                    return (
-                      <Input
-                        key={variable.name}
-                        aria-label={variable.label ?? variable.name}
-                        className="w-full"
-                        placeholder={variable.label ?? variable.name}
-                        type={
-                          variable.secret === false || (!hasAuthValue && !authMissing)
-                            ? "text"
-                            : "password"
-                        }
-                        value={
-                          hasAuthValue
-                            ? (authValues[variable.name] ?? "")
-                            : authMissing
-                              ? ""
-                              : SAVED_SECRET_MASK
-                        }
-                        onFocus={() => {
-                          if (!authMissing && !hasAuthValue) {
-                            setAuthValues((current) => ({ ...current, [variable.name]: "" }));
-                          }
-                        }}
-                        onBlur={(event) => {
-                          if (authMissing) return;
-                          if (
-                            event.relatedTarget instanceof HTMLElement &&
-                            event.relatedTarget.closest("[data-acp-auth-save]")
-                          ) {
-                            return;
-                          }
-                          setAuthValues((current) => {
-                            if (!Object.prototype.hasOwnProperty.call(current, variable.name)) {
-                              return current;
-                            }
-                            const next = { ...current };
-                            delete next[variable.name];
-                            return next;
-                          });
-                        }}
-                        onChange={(event) =>
-                          setAuthValues((current) => ({
-                            ...current,
-                            [variable.name]: event.target.value,
-                          }))
-                        }
-                      />
-                    );
-                  })}
                 </div>
               ) : null}
             </div>
-          ) : null}
-
-          <div className="flex items-center justify-between gap-4">
-            <div className="min-w-0">
-              <p className="text-sm font-medium text-foreground">Enabled</p>
-              <p className="text-xs text-muted">
-                Show this agent in the agent picker when creating threads.
-              </p>
-            </div>
-            <Switch
-              isSelected={!isDisabled}
-              onChange={(selected) => {
-                startTransition(() => {
-                  setAgentDisabled(agent.kind, !selected);
-                });
-                if (selected) {
-                  void readBridge()
-                    .refreshAgentStatuses(wslDistros, { agentKinds: [agent.kind] })
-                    .catch(() => undefined);
-                }
-              }}
-            >
-              <Switch.Control>
-                <Switch.Thumb />
-              </Switch.Control>
-            </Switch>
-          </div>
+          )}
         </div>
 
         <div className={`transition-opacity ${isDisabled ? "pointer-events-none opacity-40" : ""}`}>
           {defs.length > 0 && (
-            <div className="mt-8 space-y-4">
+            <div className="mt-6">
               {defs.map((def) => (
                 <AgentSettingRow key={def.key} agentKind={agent.kind} def={def} />
               ))}
@@ -1558,7 +1365,7 @@ export function SingleAgentSettings(props: { agentKind: string }) {
           )}
 
           {hasSelectableModels && (
-            <div className="mt-8 space-y-4">
+            <div className="mt-6">
               <ModelVisibilityDropdown agentKind={agent.kind} provider={menuProvider} />
             </div>
           )}

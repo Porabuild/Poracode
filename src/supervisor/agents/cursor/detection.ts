@@ -97,7 +97,10 @@ async function readCursorProbeOutputAsync(
 
 export function parseCursorLogoutHelpOutput(output: string): boolean {
   const text = stripAnsi(output);
-  return /Usage:\s+agent\s+logout\b/i.test(text) && /clear stored authentication/i.test(text);
+  return (
+    /Usage:\s+(?:agent|cursor-agent)\s+logout\b/i.test(text) &&
+    /(?:clear stored authentication|sign out)/i.test(text)
+  );
 }
 
 async function probeCursorLogoutSupport(
