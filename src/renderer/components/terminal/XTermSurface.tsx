@@ -430,11 +430,16 @@ export const XTermSurface = forwardRef<
       // ── Paste: Ctrl+V / Cmd+V ───────────────────────────────────
       if (event.code === "KeyV" && !readOnly) {
         event.preventDefault();
-        void navigator.clipboard.readText().then((text) => {
-          if (text) {
-            terminal.paste(text);
-          }
-        });
+        navigator.clipboard.readText().then(
+          (text) => {
+            if (text) {
+              terminal.paste(text);
+            }
+          },
+          // Swallow NotAllowedError (e.g. window not focused) — paste is a
+          // best-effort UX action; failure must not crash the renderer.
+          () => {},
+        );
         return false;
       }
 
@@ -550,11 +555,15 @@ export const XTermSurface = forwardRef<
       void navigator.clipboard.writeText(terminal.getSelection());
       terminal.clearSelection();
     } else if (key === "paste") {
-      void navigator.clipboard.readText().then((text) => {
-        if (text) {
-          terminal.paste(text);
-        }
-      });
+      navigator.clipboard.readText().then(
+        (text) => {
+          if (text) {
+            terminal.paste(text);
+          }
+        },
+        // See keydown handler above — silent failure is intentional.
+        () => {},
+      );
     } else if (key === "paste-in-input") {
       if (!terminal.hasSelection()) return;
       window.dispatchEvent(

@@ -1,6 +1,10 @@
 import type { WebContents, Session } from "electron";
 
-const ALLOWED_PERMISSIONS = new Set<string>(["clipboard-sanitized-write", "fullscreen"]);
+const ALLOWED_PERMISSIONS = new Set<string>([
+  "clipboard-read",
+  "clipboard-sanitized-write",
+  "fullscreen",
+]);
 
 const BLOCKED_NAVIGATION_PROTOCOLS = new Set<string>([
   "file:",
