@@ -107,7 +107,8 @@ jobs:
         run: pnpm run clean:sourcemaps
         shell: bash
 
-      - name: Package
+      - name: Package Windows/Linux
+        if: matrix.os != 'macos-latest'
         run: |
           pnpm run prepare:package-assets
           node scripts/build-desktop-artifact.mjs --platform "${{ matrix.platform }}" --skip-build
@@ -115,8 +116,18 @@ jobs:
         env:
           LIGHTCODE_CHANNEL: ${{ inputs.channel }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CSC_IDENTITY_AUTO_DISCOVERY: false
+
+      - name: Package macOS
+        if: matrix.os == 'macos-latest'
+        run: |
+          pnpm run prepare:package-assets
+          node scripts/build-desktop-artifact.mjs --platform mac --skip-build
+        shell: bash
+        env:
+          LIGHTCODE_CHANNEL: ${{ inputs.channel }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # macOS Developer ID signing (base64-encoded .p12 + password).
-          # No-op on Windows/Linux runners.
           CSC_LINK: ${{ secrets.MAC_CSC_LINK }}
           CSC_KEY_PASSWORD: ${{ secrets.MAC_CSC_KEY_PASSWORD }}
           # macOS notarization via Apple ID + app-specific password.
