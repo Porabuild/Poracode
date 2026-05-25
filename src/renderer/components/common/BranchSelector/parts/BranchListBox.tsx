@@ -46,7 +46,7 @@ export function BranchListBox(props: {
   return (
     <Virtualizer
       layout={ListLayout}
-      layoutOptions={{ rowHeight: COMPACT_DROPDOWN_ROW_HEIGHT, padding: 6 }}
+      layoutOptions={{ rowHeight: COMPACT_DROPDOWN_ROW_HEIGHT, padding: 8 }}
     >
       <ListBox
         aria-label="Branches"

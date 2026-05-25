@@ -39,11 +39,11 @@ export function BranchFooterActions(props: {
   } = props;
 
   return (
-    <div className="border-t border-border">
+    <div className="border-t border-border px-1.5 pt-1.5">
       {/* Create new branch */}
       <ListBox
         aria-label="Actions"
-        className="lightcode-menu px-1.5 py-1.5"
+        className="lightcode-menu"
         selectionMode="none"
         onAction={() => {
           setIsCreating(true);
@@ -93,7 +93,7 @@ export function BranchFooterActions(props: {
       {!hideWorktreeToggle && (
         <ListBox
           aria-label="Options"
-          className="lightcode-menu px-1.5 py-1.5"
+          className="lightcode-menu"
           selectionMode="none"
           onAction={() => {
             const next = !worktreeMode;
