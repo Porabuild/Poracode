@@ -5,6 +5,7 @@ import { ContextMenu } from "@/renderer/components/common";
 import { useDragSource, useIsDraggingWorktreeGroup, type DragSourceData } from "@/renderer/dnd";
 import {
   useIsWorktreeFilesPanelActive,
+  useIsWorktreeGitPanelActive,
   useIsWorktreeTerminalActive,
   useIsWorktreeTerminalOpen,
 } from "@/renderer/hooks/uiSelectors";
@@ -42,6 +43,7 @@ export function SidebarWorktreeGroup(props: {
   const hasTerminal = useIsWorktreeTerminalOpen(group.worktreePath);
   const isActiveTerminal = useIsWorktreeTerminalActive(group.worktreePath);
   const isActiveFiles = useIsWorktreeFilesPanelActive(group.worktreePath);
+  const isActiveGit = useIsWorktreeGitPanelActive(group.worktreePath);
   const groupThreadIds = group.threads.map((t) => t.id);
 
   const { ref } = useSortable({
@@ -122,6 +124,7 @@ export function SidebarWorktreeGroup(props: {
           hasTerminal={hasTerminal}
           isActiveTerminal={isActiveTerminal}
           isActiveFiles={isActiveFiles}
+          isActiveGit={isActiveGit}
           onToggleCollapse={() => toggleWorktreeCollapsed(group.worktreePath)}
           onOpenFiles={() => openFilesPanel(project.id, group.worktreePath)}
           onOpenGitReview={() => openGitReview(project.id, group.worktreePath)}

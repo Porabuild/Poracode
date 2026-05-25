@@ -13,6 +13,7 @@ export function WorktreeGroupHeader(props: {
   hasTerminal: boolean;
   isActiveTerminal: boolean;
   isActiveFiles?: boolean;
+  isActiveGit: boolean;
   onToggleCollapse: () => void;
   onOpenFiles: () => void;
   onOpenGitReview: () => void;
@@ -80,6 +81,7 @@ export function WorktreeGroupHeader(props: {
             projectName={props.worktreeBranch}
             worktreePath={props.worktreePath}
             onPress={props.onOpenGitReview}
+            isActive={props.isActiveGit}
           />
         </>
       }
