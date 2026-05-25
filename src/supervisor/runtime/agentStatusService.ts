@@ -31,7 +31,7 @@ const execFileAsync = promisify(execFile);
  * coincides with `DetectionSpec.loginCommand` becoming a function that depends
  * on the project location (e.g. `grok login --device-auth` on WSL).
  */
-const STATUS_CACHE_VERSION = 2;
+const STATUS_CACHE_VERSION = 3;
 
 function migrateSettingDef(definition: Record<string, unknown>): Record<string, unknown> {
   if (definition.type === "toggle" || definition.type === "select") {

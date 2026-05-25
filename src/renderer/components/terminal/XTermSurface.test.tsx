@@ -13,6 +13,8 @@ const { state } = vi.hoisted(() => ({
       readTerminalScrollback: vi.fn<() => Promise<string>>().mockResolvedValue(""),
       writeTerminal: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
       resizeTerminal: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+      openExternal: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+      openExternalNative: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
       onSupervisorEvent: vi.fn<(listener: (e: SupervisorEvent) => void) => () => void>(),
     },
   },
@@ -186,6 +188,20 @@ describe("XTermSurface", () => {
     render(<XTermSurface terminalId="test-1" />);
     expect(state.bridge.onSupervisorEvent).toHaveBeenCalled();
     expect(state.eventListeners).toHaveLength(1);
+  });
+
+  it("opens login terminal links in the native browser when requested", () => {
+    render(<XTermSurface terminalId="test-1" openLinksInNativeBrowser />);
+
+    const linkHandler = state.terminalOptions?.linkHandler as
+      | { activate: (event: MouseEvent, uri: string) => void }
+      | undefined;
+    linkHandler?.activate(new MouseEvent("click"), "https://auth.openai.com/codex/device");
+
+    expect(state.bridge.openExternalNative).toHaveBeenCalledWith(
+      "https://auth.openai.com/codex/device",
+    );
+    expect(state.bridge.openExternal).not.toHaveBeenCalled();
   });
 
   it("hydrates the terminal from supervisor scrollback on mount", async () => {

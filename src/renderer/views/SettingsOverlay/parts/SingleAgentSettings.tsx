@@ -435,6 +435,10 @@ function supportsAcpLogoutStatus(status: AgentStatus, acpInstanceId: string | un
   return status.authLogoutSupported === true || acpInstanceId !== undefined;
 }
 
+function shouldPreferTerminalLogin(status: AgentStatus): boolean {
+  return status.kind === "grok" && Boolean(status.loginCommand);
+}
+
 function AcpAgentAuthEnvRow(props: {
   status: AgentStatus;
   authMethods: ReadonlyArray<AgentOwnedAuthMethod | AgentTerminalAuthMethod>;
@@ -1245,7 +1249,13 @@ export function SingleAgentSettings(props: { agentKind: string }) {
                     })
                   : undefined;
                 const methods: Array<AgentOwnedAuthMethod | AgentTerminalAuthMethod> =
-                  terminalMethod ? [terminalMethod] : agentMethods;
+                  shouldPreferTerminalLogin(status) && terminalMethod
+                    ? [terminalMethod]
+                    : agentMethods.length > 0
+                      ? agentMethods
+                      : terminalMethod
+                        ? [terminalMethod]
+                        : [];
                 const isAuthenticated = status.authState === "authenticated";
                 const needsInteractiveRow =
                   isAuthenticated ||

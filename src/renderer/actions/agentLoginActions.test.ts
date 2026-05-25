@@ -228,6 +228,49 @@ describe("runAgentLoginCommand", () => {
     );
   });
 
+  it("normalizes Codex device auth URLs when auto-opening from WSL output", () => {
+    runAgentLoginCommand({
+      label: "Codex",
+      command: "codex login --device-auth",
+      project: wslProject,
+    });
+
+    const shellId = loginTerminalStore.open.mock.calls[0]?.[0].shellId;
+
+    emit({
+      type: "thread-output",
+      threadId: shellId!,
+      data: "1. Open this link in your browser and sign in to your account\n   https://auth.openai.com/codex/device2. Enter this one-time code\n",
+      outputLength: 0,
+    });
+    vi.advanceTimersByTime(250);
+
+    expect(bridge.openExternalNative).toHaveBeenCalledWith("https://auth.openai.com/codex/device");
+  });
+
+  it("does not auto-open Codex's local callback server URL", () => {
+    runAgentLoginCommand({
+      label: "Codex",
+      command: "codex login",
+      project: wslProject,
+    });
+
+    const shellId = loginTerminalStore.open.mock.calls[0]?.[0].shellId;
+    const authUrl =
+      "https://auth.openai.com/oauth/authorize?response_type=code&client_id=app&redirect_uri=http%3A%2F%2Flocalhost%3A1455%2Fauth%2Fcallback";
+
+    emit({
+      type: "thread-output",
+      threadId: shellId!,
+      data: `Starting local login server on http://localhost:1455.\nIf your browser did not open, navigate to this URL to authenticate:\n\n${authUrl}\n`,
+      outputLength: 0,
+    });
+    vi.advanceTimersByTime(250);
+
+    expect(bridge.openExternalNative).toHaveBeenCalledTimes(1);
+    expect(bridge.openExternalNative).toHaveBeenCalledWith(authUrl);
+  });
+
   it("opens Cursor WSL browser login URLs", () => {
     runAgentLoginCommand({
       label: "Cursor",

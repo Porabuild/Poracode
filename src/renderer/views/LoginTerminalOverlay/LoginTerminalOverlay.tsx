@@ -145,6 +145,7 @@ export function LoginTerminalOverlay() {
             ref={xtermRef}
             terminalId={renderedSession.shellId}
             className="h-full"
+            openLinksInNativeBrowser
           />
         </div>
       </div>

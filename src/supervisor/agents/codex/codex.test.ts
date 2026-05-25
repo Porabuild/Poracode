@@ -587,10 +587,12 @@ describe("createCodexAdapter buildAcpLogoutCommand", () => {
     const adapter = createCodexAdapter();
     const command = await adapter.buildAcpLogoutCommand?.();
     expect(command).toBeDefined();
-    // `buildAgentCommand` wraps the argv in a login shell (`sh -c "exec
-    // 'codex' 'logout'"`) on posix and in `wsl.exe -d <distro> --` on WSL —
-    // assert on the substring so both platforms pass.
-    expect(command?.args.join(" ")).toContain("'codex' 'logout'");
+    const args = command?.args ?? [];
+    const rendered = args.includes("-EncodedCommand")
+      ? Buffer.from(args.at(-1) ?? "", "base64").toString("utf16le")
+      : args.join(" ");
+    expect(rendered).toMatch(/codex/i);
+    expect(rendered).toContain("logout");
   });
 });
 

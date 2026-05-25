@@ -33,6 +33,10 @@ function preventFocusSteal(event: React.MouseEvent<HTMLElement>): void {
   event.preventDefault();
 }
 
+function shouldPreferTerminalLogin(status: AgentStatus): boolean {
+  return status.kind === "grok" && Boolean(status.loginCommand);
+}
+
 export function ThreadAuthRequiredDock(props: { agentStatus: AgentStatus; project?: Project }) {
   const { agentStatus, project } = props;
   const [pendingAction, setPendingAction] = useState<"login" | "refresh" | undefined>();
@@ -41,7 +45,9 @@ export function ThreadAuthRequiredDock(props: { agentStatus: AgentStatus; projec
   const canUseAgentAuth = agentAuthMethod !== undefined;
   const canUseTerminalLogin = Boolean(agentStatus.loginCommand);
   const hasDirectLogin = canUseAgentAuth || canUseTerminalLogin;
-  const description = agentStatus.loginCommand
+  const preferTerminalLogin = shouldPreferTerminalLogin(agentStatus);
+  const useTerminalLogin = canUseTerminalLogin && (preferTerminalLogin || !canUseAgentAuth);
+  const description = useTerminalLogin
     ? `Run ${agentStatus.loginCommand} before this thread can run.`
     : agentAuthMethod
       ? `Complete ${agentAuthMethod.name} sign-in before this thread can run.`
@@ -50,7 +56,7 @@ export function ThreadAuthRequiredDock(props: { agentStatus: AgentStatus; projec
   async function handleLogin() {
     if (pendingAction) return;
 
-    if (agentStatus.loginCommand) {
+    if (useTerminalLogin && agentStatus.loginCommand) {
       setPendingAction("login");
       const opened = runAgentLoginCommand({
         label: agentStatus.label,

@@ -226,10 +226,23 @@ function normalizeLoginUrl(text: string): string {
         return url.toString();
       }
     }
+    if (url.hostname === "auth.openai.com" && /^\/codex\/device\d+$/u.test(url.pathname)) {
+      url.pathname = "/codex/device";
+      return url.toString();
+    }
   } catch {
     return text;
   }
   return text;
+}
+
+function isLoopbackUrl(text: string): boolean {
+  try {
+    const { hostname } = new URL(text);
+    return hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1";
+  } catch {
+    return false;
+  }
 }
 
 function watchUrlsInNativeBrowser(shellId: string): (flushPending?: boolean) => void {
@@ -240,6 +253,7 @@ function watchUrlsInNativeBrowser(shellId: string): (flushPending?: boolean) => 
   const opened = new Set<string>();
 
   const openUrl = (url: string) => {
+    if (isLoopbackUrl(url)) return;
     const normalizedUrl = normalizeLoginUrl(url);
     if (opened.has(normalizedUrl) || !isCompleteLoginUrl(normalizedUrl)) return;
     opened.add(normalizedUrl);

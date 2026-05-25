@@ -637,7 +637,7 @@ describe("SingleAgentSettings", () => {
     expect(toastMock.success).toHaveBeenCalledWith("SSO Agent authenticated.");
   });
 
-  it("prefers terminal login when an agent advertises both ACP and a loginCommand", async () => {
+  it("prefers terminal login for Grok when it advertises both ACP and a loginCommand", async () => {
     statusesState.agentStatuses = [
       makeStatus("grok", {
         label: "Grok Build",
@@ -657,6 +657,27 @@ describe("SingleAgentSettings", () => {
       onCommandComplete: expect.any(Function),
     });
     expect(authenticateAcpAgentMock).not.toHaveBeenCalled();
+  });
+
+  it("keeps ACP auth preferred for non-Grok agents that also expose loginCommand", async () => {
+    statusesState.agentStatuses = [
+      makeStatus("acp-generic:sso-agent", {
+        label: "SSO Agent",
+        authState: "missing",
+        loginCommand: "sso-agent login",
+        authMethods: [{ id: "browser-login", name: "Browser login" }],
+      }),
+    ];
+
+    render(<SingleAgentSettings agentKind="acp-generic:sso-agent" />);
+
+    fireEvent.click(screen.getByRole("button", { name: /login/i }));
+
+    expect(authenticateAcpAgentMock).toHaveBeenCalledWith({
+      agentKind: "acp-generic:sso-agent",
+      methodId: "browser-login",
+    });
+    expect(runAgentLoginCommandMock).not.toHaveBeenCalled();
   });
 
   it("hides malformed ACP API key methods while keeping browser login available", async () => {

@@ -132,6 +132,7 @@ export class TerminalLinkProvider implements ILinkProvider {
 
       content = stripAnsi(nextLine.translateToString(true));
       if (!content || /^\s/.test(content)) break;
+      if (/^\d+[.)]\s/u.test(content)) break;
 
       // Take only the URL-legal prefix of the continuation line.
       const continuationMatch = URL_LEGAL_TAIL.exec(content.split(/\s/)[0] ?? "");

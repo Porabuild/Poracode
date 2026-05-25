@@ -73,6 +73,7 @@ export const XTermSurface = forwardRef<
     onTerminalResize?: (size: TerminalSize) => void;
     className?: string;
     baseFontSize?: number;
+    openLinksInNativeBrowser?: boolean;
   }
 >(function XTermSurface(props, ref) {
   const {
@@ -86,6 +87,7 @@ export const XTermSurface = forwardRef<
     onTerminalResize,
     className,
     baseFontSize = 12,
+    openLinksInNativeBrowser = false,
   } = props;
   const appearance = useResolvedAppearance();
   const mountRef = useRef<HTMLDivElement | null>(null);
@@ -108,6 +110,10 @@ export const XTermSurface = forwardRef<
   const baseFontSizeRef = useRef(baseFontSize);
   baseFontSizeRef.current = baseFontSize;
   const requestRefitRef = useRef<(() => void) | null>(null);
+  const openLink = (uri: string) => {
+    const bridge = readBridge();
+    void (openLinksInNativeBrowser ? bridge.openExternalNative(uri) : bridge.openExternal(uri));
+  };
   const [hasSelection, setHasSelection] = useState(false);
   const [showScrollDown, setShowScrollDown] = useState(false);
   const [scrollbar, setScrollbar] = useState({
@@ -228,7 +234,7 @@ export const XTermSurface = forwardRef<
       // back to a browser confirm() dialog; we route to the default browser.
       linkHandler: {
         activate: (_event, uri) => {
-          void readBridge().openExternal(uri);
+          openLink(uri);
         },
       },
     });
@@ -319,7 +325,7 @@ export const XTermSurface = forwardRef<
     terminal.loadAddon(search);
     const linkDisposable = terminal.registerLinkProvider(
       new TerminalLinkProvider(terminal, (_event, uri) => {
-        void readBridge().openExternal(uri);
+        openLink(uri);
       }),
     );
 
