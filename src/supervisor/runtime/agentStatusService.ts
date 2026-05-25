@@ -25,6 +25,14 @@ import {
 
 const execFileAsync = promisify(execFile);
 
+/**
+ * Bump whenever a cached `AgentStatus` field's shape or derivation changes so
+ * that previously-saved caches are invalidated and a fresh detection runs. v2
+ * coincides with `DetectionSpec.loginCommand` becoming a function that depends
+ * on the project location (e.g. `grok login --device-auth` on WSL).
+ */
+const STATUS_CACHE_VERSION = 2;
+
 function migrateSettingDef(definition: Record<string, unknown>): Record<string, unknown> {
   if (definition.type === "toggle" || definition.type === "select") {
     return definition;
@@ -365,9 +373,19 @@ export class AgentStatusService {
     try {
       const raw = readFileSync(this.options.statusCachePath, "utf8");
       const cache = JSON.parse(raw) as {
+        version?: number;
         windows?: unknown[];
         wsl?: unknown[];
       };
+
+      // Cache version is bumped whenever derived fields like `loginCommand`
+      // change shape (e.g. when an adapter's static string becomes a function
+      // that depends on the project location). Stale caches would otherwise
+      // hand back pre-bump values that no longer match what fresh detection
+      // would compute.
+      if (cache.version !== STATUS_CACHE_VERSION) {
+        return { windows: [], wsl: [], fromCache: false };
+      }
 
       const windows = parseCachedStatuses(cache.windows)
         .filter((status) => status.envKind !== "wsl")
@@ -408,7 +426,12 @@ export class AgentStatusService {
     try {
       writeFileSync(
         this.options.statusCachePath,
-        JSON.stringify({ windows, wsl, savedAt: new Date().toISOString() }),
+        JSON.stringify({
+          version: STATUS_CACHE_VERSION,
+          windows,
+          wsl,
+          savedAt: new Date().toISOString(),
+        }),
         "utf8",
       );
     } catch {

@@ -153,7 +153,9 @@ export function runAgentLoginCommand(input: {
       // can read any final success line before it slides away.
       window.setTimeout(() => useLoginTerminalStore.getState().close(), 1200);
     } else {
-      toast.danger(`${input.label} login exited with code ${exitCode}.`);
+      // Leave the overlay open so the user can read the failure output, but
+      // flag the session so the header switches to a failed state.
+      useLoginTerminalStore.getState().markFailed(shellId, exitCode);
     }
   });
 
@@ -206,7 +208,7 @@ function isCompleteLoginUrl(text: string): boolean {
     }
     // Device-code flow: provider prints a code-entry URL the user opens manually.
     if (url.pathname.includes("/device") && url.searchParams.has("user_code")) return true;
-    return false;
+    return true;
   } catch {
     return false;
   }

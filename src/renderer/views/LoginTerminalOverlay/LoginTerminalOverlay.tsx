@@ -115,11 +115,18 @@ export function LoginTerminalOverlay() {
       >
         <div className="flex items-center justify-between border-b border-border px-4 py-2">
           <div className="min-w-0">
-            <p className="truncate text-sm font-medium text-foreground">
+            <p
+              className={`truncate text-sm font-medium ${
+                renderedSession.failedExitCode !== undefined ? "text-danger" : "text-foreground"
+              }`}
+            >
               {renderedSession.label} login
+              {renderedSession.failedExitCode !== undefined ? " failed" : ""}
             </p>
             <p className="text-xs text-muted">
-              Complete the prompts in this terminal. Closes when finished.
+              {renderedSession.failedExitCode !== undefined
+                ? `Exited with code ${renderedSession.failedExitCode}. Close to retry.`
+                : "Complete the prompts in this terminal. Closes when finished."}
             </p>
           </div>
           <Button

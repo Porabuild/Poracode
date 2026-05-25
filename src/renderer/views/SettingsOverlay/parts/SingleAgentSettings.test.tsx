@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { AgentStatus, Project } from "@/shared/contracts";
@@ -397,7 +397,13 @@ describe("SingleAgentSettings", () => {
     });
   });
 
-  it("shows terminal auth login actions per environment", () => {
+  it("shows terminal auth login actions per environment", async () => {
+    let resolveRefresh!: () => void;
+    refreshAgentStatusesMock.mockReturnValueOnce(
+      new Promise<void>((resolve) => {
+        resolveRefresh = resolve;
+      }),
+    );
     const windowsProject = makeProject({
       id: "windows-project",
       name: "Windows Project",
@@ -462,11 +468,24 @@ describe("SingleAgentSettings", () => {
     });
     expect(screen.getByRole("status", { name: /logging in/i })).toBeInTheDocument();
 
-    loginInput?.onCommandComplete?.(0);
+    await act(async () => {
+      loginInput?.onCommandComplete?.(0);
+    });
+    expect(screen.getByRole("status", { name: /logging in/i })).toBeInTheDocument();
+    expect(
+      screen.getByText("Refreshing WSL (Ubuntu) Cursor authentication status."),
+    ).toBeInTheDocument();
     expect(refreshAgentStatusesMock).toHaveBeenCalledWith(["Ubuntu"], {
       agentKinds: ["cursor"],
       envs: [{ kind: "wsl", distro: "Ubuntu" }],
     });
+    await act(async () => {
+      resolveRefresh();
+      await Promise.resolve();
+    });
+    await waitFor(() =>
+      expect(screen.queryByRole("status", { name: /logging in/i })).not.toBeInTheDocument(),
+    );
   });
 
   it("saves ACP env-var auth through the supervisor and refreshes detection", async () => {
@@ -618,12 +637,12 @@ describe("SingleAgentSettings", () => {
     expect(toastMock.success).toHaveBeenCalledWith("SSO Agent authenticated.");
   });
 
-  it("prefers terminal login when an agent also advertises ACP auth", async () => {
+  it("prefers terminal login when an agent advertises both ACP and a loginCommand", async () => {
     statusesState.agentStatuses = [
       makeStatus("grok", {
         label: "Grok Build",
         authState: "missing",
-        loginCommand: "grok login",
+        loginCommand: "grok login --device-auth",
         authMethods: [{ id: "grok.com", name: "Grok" }],
       }),
     ];
@@ -634,13 +653,13 @@ describe("SingleAgentSettings", () => {
 
     expect(runAgentLoginCommandMock).toHaveBeenCalledWith({
       label: "Grok Build",
-      command: "grok login",
+      command: "grok login --device-auth",
       onCommandComplete: expect.any(Function),
     });
     expect(authenticateAcpAgentMock).not.toHaveBeenCalled();
   });
 
-  it("keeps browser login available when an ACP agent also advertises API key auth", async () => {
+  it("hides malformed ACP API key methods while keeping browser login available", async () => {
     statusesState.agentStatuses = [
       makeStatus("acp-generic:factory-droid", {
         label: "Factory Droid",
@@ -658,7 +677,8 @@ describe("SingleAgentSettings", () => {
 
     render(<SingleAgentSettings agentKind="acp-generic:factory-droid" />);
 
-    expect(screen.getByLabelText("Factory API Key")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Factory API Key")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Factory API Key" })).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Login" }));
 
     expect(authenticateAcpAgentMock).toHaveBeenCalledWith({
@@ -685,7 +705,8 @@ describe("SingleAgentSettings", () => {
 
     render(<SingleAgentSettings agentKind="acp-generic:factory-droid" />);
 
-    expect(screen.getByLabelText("Factory API Key")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Factory API Key")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Factory API Key" })).toBeNull();
     expect(screen.getByRole("button", { name: "Login" })).toBeInTheDocument();
   });
 

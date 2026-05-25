@@ -230,7 +230,7 @@ describe("createAcpGenericAdapter", () => {
     expect(status.providerMetadata?.authMethod).toBe("Example API key");
   });
 
-  it("does not report agent-owned login methods as provider metadata", async () => {
+  it("drops malformed env-var auth methods without showing them as login methods", async () => {
     vi.mocked(probeAcpCapabilities).mockResolvedValue({
       authMethods: [
         { id: "login", name: "Login" },
@@ -243,7 +243,8 @@ describe("createAcpGenericAdapter", () => {
     });
     const adapter = createAcpGenericAdapter(baseInstance);
     const status = await adapter.detectInstall();
-    expect(status.providerMetadata?.authMethod).toBe("Factory API Key");
+    expect(status.authMethods).toEqual([{ id: "login", name: "Login" }]);
+    expect(status.providerMetadata?.authMethod).toBeUndefined();
   });
 
   it("reports ACP terminal auth as missing until a session probe succeeds", async () => {

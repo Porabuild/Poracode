@@ -24,16 +24,19 @@ export function registryAdapterKind(agentId: string): string {
 export function isEnvVarAuthMethod(
   method: StatusAuthMethod | undefined,
 ): method is AgentEnvVarAuthMethod {
-  return (
-    method !== undefined &&
-    (method.type === "env_var" || ("vars" in method && Array.isArray(method.vars)))
-  );
+  return method !== undefined && method.type === "env_var";
 }
 
 export function isAgentAuthMethod(
   method: StatusAuthMethod | undefined,
 ): method is AgentOwnedAuthMethod {
-  return method !== undefined && !isEnvVarAuthMethod(method) && method.type !== "terminal";
+  return (
+    method !== undefined &&
+    !isEnvVarAuthMethod(method) &&
+    method.type !== "terminal" &&
+    !("vars" in method) &&
+    !/\b(api[-_\s]*key|token|secret)\b/iu.test(`${method.id} ${method.name}`)
+  );
 }
 
 export function isTerminalAuthMethod(

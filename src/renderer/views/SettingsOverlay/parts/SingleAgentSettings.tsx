@@ -476,6 +476,7 @@ function AcpAgentAuthEnvRow(props: {
     : isAuthenticated
       ? `${envSubject} credentials are configured.`
       : "";
+  const detail = props.pendingMessage ?? description;
 
   return (
     <div className="flex items-start justify-between gap-4">
@@ -488,10 +489,7 @@ function AcpAgentAuthEnvRow(props: {
             {headerPrefix}
             {headerLabel}
           </p>
-          {description ? <p className="text-xs text-muted">{description}</p> : null}
-          {props.pendingMessage ? (
-            <p className="mt-1 text-xs text-muted">{props.pendingMessage}</p>
-          ) : null}
+          {detail ? <p className="text-xs text-muted">{detail}</p> : null}
         </div>
       </div>
       {canLogin || canLogout ? (
@@ -793,7 +791,16 @@ export function SingleAgentSettings(props: { agentKind: string }) {
       command: status.loginCommand,
       ...(method?.env ? { env: method.env } : {}),
       ...(project ? { project } : {}),
-      onCommandComplete: () => {
+      onCommandComplete: (exitCode) => {
+        if (exitCode !== 0) {
+          setAuthPending(false);
+          setAuthPendingMessage(undefined);
+          setAuthPendingEnvKey(undefined);
+          return;
+        }
+        setAuthPendingMessage(
+          `Refreshing ${env ? `${env} ` : ""}${status.label} authentication status.`,
+        );
         void readBridge()
           .refreshAgentStatuses(wslDistros, {
             agentKinds: [props.agentKind],
@@ -1278,29 +1285,27 @@ export function SingleAgentSettings(props: { agentKind: string }) {
                       {authMissing ? "Login required" : "Authentication"}
                     </p>
                     <p className="text-xs text-muted">
-                      {authMissing
-                        ? `${missingAuthLabel ? `${missingAuthLabel} needs authentication. ` : ""}${
-                            envVarAuthMethod
-                              ? agentAuth
-                                ? `Complete ${agentAuth.method.name} sign-in or save ${envVarAuthMethod.name} credentials, then detected agents will refresh.`
-                                : `Save ${envVarAuthMethod.name} credentials, then detected agents will refresh.`
-                              : agentAuth
-                                ? `Complete ${agentAuth.method.name} sign-in, then detected agents will refresh.`
-                                : loginCommand
-                                  ? `Run ${loginCommand} to sign in.`
-                                  : "Sign in with the agent CLI, then refresh detected agents."
-                          }`
-                        : envVarAuthMethod
-                          ? `Saved ${envVarAuthMethod.name} credentials are configured. Enter a new value to replace them.`
-                          : agentAuth
-                            ? `Sign in again with ${agentAuth.method.name}.`
-                            : loginCommand
-                              ? `Run ${loginCommand} again to refresh credentials.`
-                              : "Credentials are configured."}
+                      {authPendingMessage ??
+                        (authMissing
+                          ? `${missingAuthLabel ? `${missingAuthLabel} needs authentication. ` : ""}${
+                              envVarAuthMethod
+                                ? agentAuth
+                                  ? `Complete ${agentAuth.method.name} sign-in or save ${envVarAuthMethod.name} credentials, then detected agents will refresh.`
+                                  : `Save ${envVarAuthMethod.name} credentials, then detected agents will refresh.`
+                                : agentAuth
+                                  ? `Complete ${agentAuth.method.name} sign-in, then detected agents will refresh.`
+                                  : loginCommand
+                                    ? `Run ${loginCommand} to sign in.`
+                                    : "Sign in with the agent CLI, then refresh detected agents."
+                            }`
+                          : envVarAuthMethod
+                            ? `Saved ${envVarAuthMethod.name} credentials are configured. Enter a new value to replace them.`
+                            : agentAuth
+                              ? `Sign in again with ${agentAuth.method.name}.`
+                              : loginCommand
+                                ? `Run ${loginCommand} again to refresh credentials.`
+                                : "Credentials are configured.")}
                     </p>
-                    {authPendingMessage ? (
-                      <p className="mt-1 text-xs text-muted">{authPendingMessage}</p>
-                    ) : null}
                   </div>
                 </div>
                 {showEnvVarOnly && acpInstanceId ? (

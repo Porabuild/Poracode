@@ -14,6 +14,7 @@ const supervisorHandlers = vi.hoisted(() => [] as Array<(event: SupervisorEvent)
 const loginTerminalStore = vi.hoisted(() => ({
   open: vi.fn<(input: { shellId: string }) => void>(),
   close: vi.fn<() => void>(),
+  markFailed: vi.fn<(shellId: string, exitCode: number) => void>(),
   active: undefined as { onForceClose?: () => void; shellId: string } | undefined,
 }));
 const writeScriptToShellMock = vi.hoisted(() => vi.fn<(shellId: string, script: string) => void>());
@@ -110,6 +111,7 @@ describe("runAgentLoginCommand", () => {
     });
     loginTerminalStore.open.mockReset();
     loginTerminalStore.close.mockReset();
+    loginTerminalStore.markFailed.mockReset();
     loginTerminalStore.active = undefined;
     writeScriptToShellMock.mockReset();
   });
@@ -226,7 +228,30 @@ describe("runAgentLoginCommand", () => {
     );
   });
 
-  it("keeps the login overlay open when the command exits unsuccessfully", () => {
+  it("opens Cursor WSL browser login URLs", () => {
+    runAgentLoginCommand({
+      label: "Cursor",
+      command: "cursor-agent login",
+      env: { NO_OPEN_BROWSER: "1" },
+      project: wslProject,
+    });
+
+    const shellId = loginTerminalStore.open.mock.calls[0]?.[0].shellId;
+    const url =
+      "https://cursor.com/loginDeepControl?challenge=C_7tIakH9LsaJ5eBDQVlz6IYoQvg93TP5qmAkdBFFY&uuid=801340c1-2708-4d80-afaa-197f054a7e58&mode=login&redirectTarget=cli";
+
+    emit({
+      type: "thread-output",
+      threadId: shellId!,
+      data: `Open a browser and navigate to this link: ${url}\n`,
+      outputLength: 0,
+    });
+    vi.advanceTimersByTime(250);
+
+    expect(bridge.openExternalNative).toHaveBeenCalledWith(url);
+  });
+
+  it("marks the login overlay as failed when the command exits unsuccessfully", () => {
     runAgentLoginCommand({
       label: "Grok",
       command: "grok login",
@@ -247,7 +272,8 @@ describe("runAgentLoginCommand", () => {
     vi.advanceTimersByTime(1200);
 
     expect(loginTerminalStore.close).not.toHaveBeenCalled();
-    expect(toast.danger).toHaveBeenCalledWith("Grok login exited with code 1.");
+    expect(loginTerminalStore.markFailed).toHaveBeenCalledWith(shellId, 1);
+    expect(toast.danger).not.toHaveBeenCalled();
   });
 
   it("auto-closes the login overlay after a successful command exit", () => {

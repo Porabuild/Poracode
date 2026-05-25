@@ -13,7 +13,7 @@ type AcpTerminalAuthMethod = Extract<AcpAuthMethod, { type: "terminal" }>;
 type AcpAgentAuthMethod = Exclude<AcpAuthMethod, AcpEnvVarAuthMethod | AcpTerminalAuthMethod>;
 
 export function isAcpEnvVarAuthMethod(method: AcpAuthMethod): method is AcpEnvVarAuthMethod {
-  return ("type" in method && method.type === "env_var") || "vars" in method;
+  return "type" in method && method.type === "env_var";
 }
 
 export function isAcpTerminalAuthMethod(method: AcpAuthMethod): method is AcpTerminalAuthMethod {
@@ -21,7 +21,16 @@ export function isAcpTerminalAuthMethod(method: AcpAuthMethod): method is AcpTer
 }
 
 export function isAcpAgentAuthMethod(method: AcpAuthMethod): method is AcpAgentAuthMethod {
-  return !isAcpEnvVarAuthMethod(method) && !isAcpTerminalAuthMethod(method);
+  return !isAcpEnvVarAuthMethod(method) && !isAcpTerminalAuthMethod(method) && !hasVars(method);
+}
+
+function hasVars(method: AcpAuthMethod): boolean {
+  return "vars" in method;
+}
+
+function isKeyLikeAgentMethod(method: AcpAuthMethod): boolean {
+  if (!isAcpAgentAuthMethod(method)) return false;
+  return /\b(api[-_\s]*key|token|secret)\b/iu.test(`${method.id} ${method.name}`);
 }
 
 /**
@@ -33,6 +42,9 @@ export function isAcpAgentAuthMethod(method: AcpAuthMethod): method is AcpAgentA
 export function dedupeAcpAuthMethods(methods: readonly AcpAuthMethod[]): AcpAuthMethod[] {
   const envVarNames = new Set(methods.filter(isAcpEnvVarAuthMethod).map((method) => method.name));
   return methods.filter(
-    (method) => !(isAcpAgentAuthMethod(method) && envVarNames.has(method.name)),
+    (method) =>
+      (isAcpEnvVarAuthMethod(method) || !hasVars(method)) &&
+      !isKeyLikeAgentMethod(method) &&
+      !(isAcpAgentAuthMethod(method) && envVarNames.has(method.name)),
   );
 }

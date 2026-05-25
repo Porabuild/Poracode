@@ -16,16 +16,25 @@ export interface LoginTerminalSession {
   label: string;
   projectLocation: ProjectLocation;
   onForceClose?: () => void;
+  /** Set when the login command exits non-zero so the overlay can render a failed state. */
+  failedExitCode?: number;
 }
 
 interface LoginTerminalState {
   active: LoginTerminalSession | null;
   open: (session: LoginTerminalSession) => void;
   close: () => void;
+  markFailed: (shellId: string, exitCode: number) => void;
 }
 
 export const useLoginTerminalStore = create<LoginTerminalState>((set) => ({
   active: null,
   open: (session) => set({ active: session }),
   close: () => set((state) => (state.active === null ? {} : { active: null })),
+  markFailed: (shellId, exitCode) =>
+    set((state) =>
+      state.active && state.active.shellId === shellId
+        ? { active: { ...state.active, failedExitCode: exitCode } }
+        : state,
+    ),
 }));

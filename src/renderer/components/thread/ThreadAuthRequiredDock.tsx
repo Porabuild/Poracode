@@ -58,6 +58,9 @@ export function ThreadAuthRequiredDock(props: { agentStatus: AgentStatus; projec
         ...(terminalAuthMethod?.env ? { env: terminalAuthMethod.env } : {}),
         ...(project ? { project } : {}),
         onCommandComplete: (exitCode) => {
+          // Unlock the button as soon as the command exits so the user can
+          // retry without waiting for the (post-exit) status refresh.
+          setPendingAction(undefined);
           void refreshAgentStatus(agentStatus)
             .then(() => {
               if (exitCode === 0) toast.success(`${agentStatus.label} authenticated.`);
@@ -68,8 +71,7 @@ export function ThreadAuthRequiredDock(props: { agentStatus: AgentStatus; projec
                   ? error.message
                   : `Unable to refresh ${agentStatus.label} status.`,
               );
-            })
-            .finally(() => setPendingAction(undefined));
+            });
         },
       });
       if (!opened) setPendingAction(undefined);
