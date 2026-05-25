@@ -325,18 +325,16 @@ export function HomeContent({ release }: { release: ReleaseInfo }) {
               Download for {platform.label}
             </a>
             <a
-              href="https://github.com/SDSLeon/lightcode"
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex h-12 w-full items-center justify-center rounded-sm border border-white/20 px-8 font-medium text-white transition-colors hover:bg-white/5 sm:w-auto"
-            >
-              View on GitHub
-            </a>
-            <a
               href="/download"
               className="text-sm text-gray-500 hover:text-gray-300 transition-colors underline underline-offset-4"
             >
               Other platforms
+            </a>
+            <a
+              href="/nightly"
+              className="text-sm text-gray-500 hover:text-amber-300/90 transition-colors underline underline-offset-4"
+            >
+              Nightly builds
             </a>
           </motion.div>
         </div>

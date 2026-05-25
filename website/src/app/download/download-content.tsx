@@ -1,6 +1,6 @@
 "use client";
 
-import { Download, ArrowLeft, Monitor, Apple, Terminal } from "lucide-react";
+import { Download, ArrowLeft, Monitor, Apple, Terminal, Moon } from "lucide-react";
 import { motion } from "framer-motion";
 import Link from "next/link";
 import { downloadUrlFor, type ReleaseInfo } from "@/lib/releases";
@@ -45,6 +45,13 @@ export function DownloadContent({ release }: { release: ReleaseInfo }) {
         >
           <ArrowLeft className="w-4 h-4" />
           <span className="text-sm font-medium">Back to home</span>
+        </Link>
+        <Link
+          href="/nightly"
+          className="inline-flex items-center gap-2 text-sm font-medium text-gray-400 hover:text-amber-300 transition-colors"
+        >
+          <Moon className="w-3.5 h-3.5 text-amber-300/80" />
+          <span>Nightly builds →</span>
         </Link>
       </nav>
 

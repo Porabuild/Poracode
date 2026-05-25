@@ -5,7 +5,8 @@ import { PixelLoader } from "@/renderer/components/common";
 import { useUpdateStore } from "@/renderer/state/updateStore";
 import { productNameFor } from "@/shared/channel";
 import { formatBytes } from "@/shared/formatBytes";
-import appIconUrl from "../../../../../build/icon.png";
+import appIconStableUrl from "../../../../../build/icon.png";
+import appIconNightlyUrl from "../../../../../build/icon-nightly.png";
 
 const GITHUB_REPO = "https://github.com/nicepkg/lightcode";
 const WEBSITE_URL = "https://www.lightcodeapp.com/";
@@ -88,6 +89,7 @@ function UpdateButton() {
 export function AboutSettings() {
   const bridge = readBridge();
   const productName = productNameFor(bridge.channel);
+  const appIconUrl = bridge.channel === "nightly" ? appIconNightlyUrl : appIconStableUrl;
 
   return (
     <div className="h-full min-h-0 overflow-y-auto px-6 pb-8 pt-4">

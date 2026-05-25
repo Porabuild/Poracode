@@ -135,6 +135,7 @@ jobs:
             release/Lightcode-*.AppImage
             release/Lightcode-*.deb
             release/latest*.yml
+            release/nightly*.yml
             release/*.blockmap
           if-no-files-found: error
           retention-days: 7
