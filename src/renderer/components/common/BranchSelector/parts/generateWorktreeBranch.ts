@@ -23,6 +23,18 @@ const ADJECTIVES = [
   "clear",
   "fresh",
   "grand",
+  "bright",
+  "clever",
+  "cosmic",
+  "crisp",
+  "golden",
+  "honest",
+  "nimble",
+  "quick",
+  "silver",
+  "steady",
+  "sunny",
+  "tidy",
 ];
 const NOUNS = [
   "albatross",
@@ -49,6 +61,16 @@ const NOUNS = [
   "wren",
   "yak",
   "zebra",
+  "beacon",
+  "comet",
+  "ember",
+  "harbor",
+  "lantern",
+  "meteor",
+  "meadow",
+  "pixel",
+  "summit",
+  "willow",
 ];
 
 export function generateWorktreeBranch(): string {
