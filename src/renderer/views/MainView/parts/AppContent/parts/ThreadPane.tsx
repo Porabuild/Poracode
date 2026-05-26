@@ -149,6 +149,7 @@ export function ThreadPane(props: {
         // dropped by the renderer's per-id dedupe in `applyRuntimeEvent`.
         const presentation = thread.presentationMode ?? "terminal";
         let optimisticUserMessageItemId: string | undefined;
+        let markedWorking = false;
         if (presentation === "gui" && prompt.length > 0) {
           optimisticUserMessageItemId = `user-${crypto.randomUUID()}`;
           useAppStore.getState().applyRuntimeEvent(thread.id, {
@@ -163,23 +164,43 @@ export function ThreadPane(props: {
             threadId: thread.id,
             itemId: optimisticUserMessageItemId,
           });
+          updateThreadRuntime(thread.id, {
+            status: "working",
+            attention: "working",
+            canResumeWithConfig: thread.canResumeWithConfig,
+            ...(thread.sessionRef ? { sessionRef: thread.sessionRef } : {}),
+          });
+          markedWorking = true;
           if (!isHomeProjectId(thread.projectId)) {
-            void captureFileCheckpoint({
+            await captureFileCheckpoint({
               threadId: thread.id,
               checkpointItemId: optimisticUserMessageItemId,
               projectLocation,
             });
           }
         }
-        await readBridge().sendThreadInput({
-          threadId: thread.id,
-          prompt,
-          ...(segments ? { segments } : {}),
-          config: thread.config,
-          ...(optimisticUserMessageItemId
-            ? { userMessageItemId: optimisticUserMessageItemId }
-            : {}),
-        });
+        try {
+          await readBridge().sendThreadInput({
+            threadId: thread.id,
+            prompt,
+            ...(segments ? { segments } : {}),
+            config: thread.config,
+            ...(optimisticUserMessageItemId
+              ? { userMessageItemId: optimisticUserMessageItemId }
+              : {}),
+          });
+        } catch (error) {
+          if (markedWorking) {
+            updateThreadRuntime(thread.id, {
+              status: thread.status,
+              attention: thread.attention,
+              canResumeWithConfig: thread.canResumeWithConfig,
+              forceCloseActiveTurn: true,
+              ...(thread.sessionRef ? { sessionRef: thread.sessionRef } : {}),
+            });
+          }
+          throw error;
+        }
         captureThreadInputSubmitted(thread, segments);
         touchThread(thread.id);
       }}

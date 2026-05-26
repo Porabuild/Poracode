@@ -89,4 +89,18 @@ describe.skipIf(!hasGit())("GitCheckpointService", () => {
       "?? new.txt",
     ]);
   }, 15_000);
+
+  it("reports a missing base checkpoint without surfacing raw git ref errors", async () => {
+    const { location } = makeRepo();
+    const service = new GitCheckpointService();
+
+    await expect(
+      service.finalize({
+        threadId: "thread-1",
+        checkpointItemId: "assistant-1",
+        baseCheckpointItemId: "user-1",
+        projectLocation: location,
+      }),
+    ).rejects.toThrow("No file checkpoint exists for item user-1.");
+  });
 });

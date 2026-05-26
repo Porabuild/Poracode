@@ -108,6 +108,7 @@ import {
   guessMimeType,
   resolveAcpHostFsPath,
   resolveAcpProjectPath,
+  resolveAcpReadableHostFsPath,
   resolveAcpResourcePath,
   resolveSessionCwd,
   resolveSpawnCwd,
@@ -115,7 +116,7 @@ import {
   toAcpResourceUri,
 } from "./sessionPaths";
 
-export { resolveAcpResourcePath, toAcpResourceUri };
+export { resolveAcpReadableHostFsPath, resolveAcpResourcePath, toAcpResourceUri };
 
 /**
  * Convert Lightcode `PromptSegment[]` + prompt text into ACP `ContentBlock[]`.
@@ -1208,7 +1209,7 @@ export class AcpStructuredSession implements StructuredSessionHandle {
 
   private async handleReadTextFile(params: ReadTextFileRequest): Promise<ReadTextFileResponse> {
     this.assertRequestSession(params.sessionId);
-    const path = resolveAcpHostFsPath(this.projectLocation, params.path);
+    const path = resolveAcpReadableHostFsPath(this.projectLocation, params.path);
     const fullContent = await readFile(path, "utf8");
     const content = sliceTextFileContent(fullContent, params.line, params.limit);
     return { content };

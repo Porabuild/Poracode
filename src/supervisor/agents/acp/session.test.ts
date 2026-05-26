@@ -7,6 +7,7 @@ import type { CreateStructuredSessionInput } from "../base";
 import type { ThreadConfig } from "@/shared/contracts";
 import {
   AcpStructuredSession,
+  resolveAcpReadableHostFsPath,
   resolveAcpResourcePath,
   rewriteLoadSessionError,
   shouldSpawnAcpSession,
@@ -307,6 +308,34 @@ describe("ACP resource path helpers", () => {
         ".agents/docs/ui patterns.md",
       ),
     ).toBe("file:///home/me/repo/.agents/docs/ui%20patterns.md");
+  });
+
+  it("allows read-only access to user agent skill files outside a WSL project", () => {
+    expect(
+      resolveAcpReadableHostFsPath(
+        {
+          kind: "wsl",
+          distro: "Ubuntu",
+          linuxPath: "/home/me/repo",
+          uncPath: "\\\\wsl.localhost\\Ubuntu\\home\\me\\repo",
+        },
+        "/home/me/.agents/skills/agent-browser/SKILL.md",
+      ),
+    ).toBe("\\\\wsl.localhost\\Ubuntu\\home\\me\\.agents\\skills\\agent-browser\\SKILL.md");
+  });
+
+  it("rejects user agent skill paths that escape through parent segments", () => {
+    expect(() =>
+      resolveAcpReadableHostFsPath(
+        {
+          kind: "wsl",
+          distro: "Ubuntu",
+          linuxPath: "/home/me/repo",
+          uncPath: "\\\\wsl.localhost\\Ubuntu\\home\\me\\repo",
+        },
+        "/home/me/.agents/skills/../secret.txt",
+      ),
+    ).toThrow("Invalid params");
   });
 });
 

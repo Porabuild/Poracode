@@ -67,6 +67,7 @@ vi.mock("../binaryResolver", () => ({
 function createFakeQuery(initCommands: Array<Record<string, string>> = []) {
   let closed = false;
   let resolveNext: ((result: IteratorResult<SDKMessage>) => void) | undefined;
+  const queuedMessages: SDKMessage[] = [];
   const setModel = vi.fn<(model?: string) => Promise<void>>().mockResolvedValue(undefined);
   const setPermissionMode = vi
     .fn<(mode: PermissionMode) => Promise<void>>()
@@ -91,6 +92,8 @@ function createFakeQuery(initCommands: Array<Record<string, string>> = []) {
   const runtime = {
     async next(): Promise<IteratorResult<SDKMessage>> {
       if (closed) return { done: true, value: undefined };
+      const queued = queuedMessages.shift();
+      if (queued) return { done: false, value: queued };
       return new Promise<IteratorResult<SDKMessage>>((resolve) => {
         resolveNext = resolve;
       });
@@ -132,7 +135,11 @@ function createFakeQuery(initCommands: Array<Record<string, string>> = []) {
     emitMessage(message: SDKMessage): void {
       const resolve = resolveNext;
       resolveNext = undefined;
-      resolve?.({ done: false, value: message });
+      if (resolve) {
+        resolve({ done: false, value: message });
+      } else {
+        queuedMessages.push(message);
+      }
     },
   };
 }
@@ -152,6 +159,28 @@ function sdkSystemMessage(
     uuid: `uuid-${subtype}`,
     session_id: sessionId,
     ...extra,
+  } as unknown as SDKMessage;
+}
+
+function sdkAssistantMessage(sessionId: string, uuid: string, text: string): SDKMessage {
+  return {
+    type: "assistant",
+    uuid,
+    session_id: sessionId,
+    parent_tool_use_id: null,
+    message: {
+      id: uuid,
+      role: "assistant",
+      content: [{ type: "text", text }],
+    },
+  } as unknown as SDKMessage;
+}
+
+function sdkSuccessResult(sessionId: string): SDKMessage {
+  return {
+    type: "result",
+    subtype: "success",
+    session_id: sessionId,
   } as unknown as SDKMessage;
 }
 
@@ -453,6 +482,56 @@ describe("ClaudeSdkSession", () => {
       );
     });
     expect(updates.some((update) => update.status === "working")).toBe(false);
+
+    await session.dispose();
+  });
+
+  it("rolls back SDK sessions by reopening Claude at the target assistant UUID", async () => {
+    mockSdk.query.mockClear();
+    const firstQuery = createFakeQuery();
+    const resumedQuery = createFakeQuery();
+    mockSdk.query.mockReturnValueOnce(firstQuery.runtime).mockReturnValueOnce(resumedQuery.runtime);
+    const session = await ClaudeSdkSession.create({
+      threadId: "thread-claude-rollback",
+      projectLocation,
+      config,
+      presentationMode: "gui",
+    });
+    session.setListener({
+      onRuntimeEvent: () => {},
+      onUpdate: () => {},
+      onError: () => {},
+      onClose: () => {},
+    });
+
+    const openedSessionId = await session.openThread(config);
+    await flushAsyncWork();
+
+    await session.startTurn("first", config);
+    firstQuery.emitMessage(sdkAssistantMessage(openedSessionId, "assistant-uuid-1", "first"));
+    await flushAsyncWork();
+    firstQuery.emitMessage(sdkSuccessResult(openedSessionId));
+    await flushAsyncWork();
+
+    await session.startTurn("second", config);
+    firstQuery.emitMessage(sdkAssistantMessage(openedSessionId, "assistant-uuid-2", "second"));
+    await flushAsyncWork();
+    firstQuery.emitMessage(sdkSuccessResult(openedSessionId));
+    await flushAsyncWork();
+
+    await expect(session.rollbackThread(1)).resolves.toEqual({
+      providerSessionId: openedSessionId,
+      messages: [],
+    });
+
+    expect(firstQuery.runtime.close).toHaveBeenCalledTimes(1);
+    expect(mockSdk.query).toHaveBeenCalledTimes(2);
+    const queryInput = mockSdk.query.mock.calls[1]?.[0] as { options?: Record<string, unknown> };
+    expect(queryInput.options).toMatchObject({
+      resume: openedSessionId,
+      resumeSessionAt: "assistant-uuid-1",
+    });
+    expect(queryInput.options).not.toHaveProperty("sessionId");
 
     await session.dispose();
   });

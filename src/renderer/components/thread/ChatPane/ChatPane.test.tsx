@@ -673,6 +673,24 @@ describe("ChatPane", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("copies user message text from the inline action", async () => {
+    const thread = makeThread();
+    seedUserMessage(thread.id, "Copy this prompt");
+    const writeText = vi.fn<(text: string) => Promise<void>>().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: { writeText },
+    });
+
+    renderChatPane(thread);
+    await waitFor(() => expect(hydrateThreadRuntimeItems).toHaveBeenCalledWith(thread.id));
+
+    fireEvent.click(screen.getByRole("button", { name: "Copy message" }));
+
+    expect(writeText).toHaveBeenCalledWith("Copy this prompt");
+    await screen.findByRole("button", { name: "Copied" });
+  });
+
   it("updates user message collapse state when resize changes visual overflow", async () => {
     const thread = makeThread();
     seedUserMessage(thread.id, "Resize can wrap this prompt into more visual rows.");
@@ -868,8 +886,53 @@ describe("ChatPane", () => {
     expect(text.indexOf("Worked for 1m 15s")).toBeLessThan(text.indexOf("Follow-up prompt"));
   });
 
+  it("waits for a base file checkpoint before finalizing a completed turn", async () => {
+    const thread = { ...makeThread(), status: "idle" as const };
+    useAppStore.setState({ projects: [project] });
+    seedUserMessage(thread.id, "Initial prompt", "user-1");
+    seedAssistantMessage(thread.id, "First answer", "assistant-1");
+    useAppStore.getState().hydrateThreadCompletedTurns(thread.id, [
+      {
+        startedAt: new Date("2026-05-01T12:00:00.000Z").getTime(),
+        endedAt: new Date("2026-05-01T12:00:05.000Z").getTime(),
+        anchorItemId: "assistant-1",
+      },
+    ]);
+
+    renderChatPane(thread);
+    await waitFor(() => expect(hydrateThreadRuntimeItems).toHaveBeenCalledWith(thread.id));
+
+    expect(finalizeFileCheckpoint).not.toHaveBeenCalled();
+
+    act(() => {
+      useAppStore.getState().upsertThreadFileCheckpoint(thread.id, {
+        threadId: thread.id,
+        checkpointItemId: "user-1",
+        ref: "refs/lightcode/checkpoints/thread/user-1",
+        commit: "abc123",
+        capturedAt: "2026-05-01T12:00:00.000Z",
+      });
+    });
+
+    await waitFor(() =>
+      expect(finalizeFileCheckpoint).toHaveBeenCalledWith({
+        threadId: thread.id,
+        checkpointItemId: "assistant-1",
+        baseCheckpointItemId: "user-1",
+        projectLocation: project.location,
+      }),
+    );
+  });
+
   it("shows checkpoint buttons on later user messages and reverts to before that prompt", async () => {
     const thread = { ...makeThread(), status: "idle" as const };
+    const rollbackThreadConversation = vi.fn<() => Promise<void>>().mockResolvedValue(undefined);
+    Object.assign(window, {
+      lightcode: {
+        rollbackThreadConversation,
+        setWindowChrome: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+      },
+    });
     seedUserMessage(thread.id, "Initial prompt", "user-1");
     seedAssistantMessage(thread.id, "First answer", "assistant-1");
     seedUserMessage(thread.id, "Follow-up prompt", "user-2");
@@ -884,13 +947,90 @@ describe("ChatPane", () => {
 
     fireEvent.click(buttons[0]!);
     expect(await screen.findByText("Revert to checkpoint?")).toBeInTheDocument();
-    expect(screen.getByText(/Workspace files are not changed/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/restores files when a checkpoint snapshot is available/),
+    ).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Revert" }));
 
+    await waitFor(() =>
+      expect(rollbackThreadConversation).toHaveBeenCalledWith({
+        threadId: thread.id,
+        numTurns: 1,
+      }),
+    );
     await waitFor(() => expect(screen.queryByText("Follow-up prompt")).not.toBeInTheDocument());
     expect(screen.getByText("Initial prompt")).toBeInTheDocument();
     expect(screen.getByText("First answer")).toBeInTheDocument();
+    expect(screen.queryByText("Second answer")).not.toBeInTheDocument();
+  });
+
+  it("rolls back provider by completed turns instead of assistant message count", async () => {
+    const thread = { ...makeThread(), status: "idle" as const };
+    const rollbackThreadConversation = vi.fn<() => Promise<void>>().mockResolvedValue(undefined);
+    Object.assign(window, {
+      lightcode: {
+        rollbackThreadConversation,
+        setWindowChrome: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+      },
+    });
+    seedUserMessage(thread.id, "Initial prompt", "user-1");
+    seedAssistantMessage(thread.id, "First answer", "assistant-1");
+    seedUserMessage(thread.id, "Follow-up prompt", "user-2");
+    seedAssistantMessage(thread.id, "Second answer part one", "assistant-2a");
+    seedAssistantMessage(thread.id, "Second answer part two", "assistant-2b");
+    useAppStore.getState().hydrateThreadCompletedTurns(thread.id, [
+      {
+        startedAt: new Date("2026-05-01T12:00:00.000Z").getTime(),
+        endedAt: new Date("2026-05-01T12:00:05.000Z").getTime(),
+        anchorItemId: "assistant-1",
+      },
+      {
+        startedAt: new Date("2026-05-01T12:01:00.000Z").getTime(),
+        endedAt: new Date("2026-05-01T12:01:05.000Z").getTime(),
+        anchorItemId: "assistant-2b",
+      },
+    ]);
+
+    renderChatPane(thread);
+    await waitFor(() => expect(hydrateThreadRuntimeItems).toHaveBeenCalledWith(thread.id));
+
+    fireEvent.click(screen.getByRole("button", { name: "Revert to this checkpoint" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Revert" }));
+
+    await waitFor(() =>
+      expect(rollbackThreadConversation).toHaveBeenCalledWith({
+        threadId: thread.id,
+        numTurns: 1,
+      }),
+    );
+  });
+
+  it("continues local checkpoint revert when provider rollback fails", async () => {
+    const thread = { ...makeThread(), status: "idle" as const };
+    Object.assign(window, {
+      lightcode: {
+        rollbackThreadConversation: vi
+          .fn<() => Promise<void>>()
+          .mockRejectedValue(new Error("Codex does not support checkpoint rollback.")),
+        setWindowChrome: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+      },
+    });
+    seedUserMessage(thread.id, "Initial prompt", "user-1");
+    seedAssistantMessage(thread.id, "First answer", "assistant-1");
+    seedUserMessage(thread.id, "Follow-up prompt", "user-2");
+    seedAssistantMessage(thread.id, "Second answer", "assistant-2");
+
+    renderChatPane(thread);
+    await waitFor(() => expect(hydrateThreadRuntimeItems).toHaveBeenCalledWith(thread.id));
+
+    fireEvent.click(screen.getByRole("button", { name: "Revert to this checkpoint" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Revert" }));
+
+    await waitFor(() => expect(screen.queryByText("Follow-up prompt")).not.toBeInTheDocument());
+    expect(
+      screen.queryByText("Codex does not support checkpoint rollback."),
+    ).not.toBeInTheDocument();
     expect(screen.queryByText("Second answer")).not.toBeInTheDocument();
   });
 
@@ -912,8 +1052,9 @@ describe("ChatPane", () => {
 
     fireEvent.click(screen.getAllByRole("button", { name: "Revert to this checkpoint" })[0]!);
 
-    expect(await screen.findByText("Chat only")).toBeInTheDocument();
-    expect(screen.getByText("Chat and files")).toBeInTheDocument();
+    expect(await screen.findByText("Revert to checkpoint?")).toBeInTheDocument();
+    expect(screen.queryByText("Chat only")).not.toBeInTheDocument();
+    expect(screen.queryByText("Chat and files")).not.toBeInTheDocument();
     expect(screen.getByText(/No file checkpoint is stored/)).toBeInTheDocument();
     expect(screen.getByText(/Another chat uses this same tree/)).toBeInTheDocument();
   });

@@ -14,6 +14,7 @@ export interface ProjectWatcherCallbacks {
 }
 
 type WslUnsubscribe = () => Promise<void>;
+type WslSchedule = { onGit: () => void; onTree: () => void };
 
 interface WatcherEntry {
   gitWatcher: FSWatcher | null;
@@ -23,6 +24,7 @@ interface WatcherEntry {
   treeDebounceTimer: ReturnType<typeof setTimeout> | null;
   projectId: string;
   location: ProjectLocation;
+  wslSchedule?: WslSchedule;
 }
 
 interface WorktreeWatcherEntry {
@@ -31,6 +33,9 @@ interface WorktreeWatcherEntry {
   gitDebounceTimer: ReturnType<typeof setTimeout> | null;
   treeDebounceTimer: ReturnType<typeof setTimeout> | null;
   projectId: string;
+  wslLocation?: WslLocation;
+  wslLinuxPath?: string;
+  wslSchedule?: WslSchedule;
 }
 
 const IGNORED_PREFIXES = [
@@ -167,11 +172,9 @@ export class ProjectWatcher {
     };
 
     if (location.kind === "wsl") {
+      entry.wslSchedule = { onGit: scheduleGitNotify, onTree: scheduleTreeNotify };
       this.watchers.set(projectId, entry);
-      void this.startWslSubscription(entry, location, location.linuxPath, {
-        onGit: scheduleGitNotify,
-        onTree: scheduleTreeNotify,
-      });
+      void this.startWslSubscription(entry, location, location.linuxPath, entry.wslSchedule);
       return;
     }
 
@@ -258,11 +261,11 @@ export class ProjectWatcher {
       };
 
       if (location?.kind === "wsl") {
+        entry.wslLocation = location;
+        entry.wslLinuxPath = wtPath;
+        entry.wslSchedule = { onGit: scheduleGitNotify, onTree: scheduleTreeNotify };
         this.worktreeWatchers.set(wtPath, entry);
-        void this.startWslWorktreeSubscription(entry, location, wtPath, {
-          onGit: scheduleGitNotify,
-          onTree: scheduleTreeNotify,
-        });
+        void this.startWslWorktreeSubscription(entry, location, wtPath, entry.wslSchedule);
         continue;
       }
 
@@ -330,6 +333,34 @@ export class ProjectWatcher {
   async dispose(): Promise<void> {
     for (const [projectId] of this.watchers) {
       await this.unwatch(projectId);
+    }
+  }
+
+  handleWslBridgeExit(distro: string): void {
+    for (const entry of this.watchers.values()) {
+      if (entry.location.kind !== "wsl" || entry.location.distro !== distro || !entry.wslSchedule) {
+        continue;
+      }
+      entry.wslUnsubscribe = null;
+      void this.startWslSubscription(
+        entry,
+        entry.location,
+        entry.location.linuxPath,
+        entry.wslSchedule,
+      );
+    }
+
+    for (const entry of this.worktreeWatchers.values()) {
+      if (entry.wslLocation?.distro !== distro || !entry.wslLinuxPath || !entry.wslSchedule) {
+        continue;
+      }
+      entry.wslUnsubscribe = null;
+      void this.startWslWorktreeSubscription(
+        entry,
+        entry.wslLocation,
+        entry.wslLinuxPath,
+        entry.wslSchedule,
+      );
     }
   }
 

@@ -275,11 +275,17 @@ export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
         threadId: thread.id,
         itemId: optimisticUserMessageItemId,
       });
+      useAppStore.getState().updateThreadRuntime(thread.id, {
+        status: "working",
+        attention: "working",
+        canResumeWithConfig: thread.canResumeWithConfig,
+        ...(thread.sessionRef ? { sessionRef: thread.sessionRef } : {}),
+      });
     }
 
     void (async () => {
       if (optimisticUserMessageItemId && !isHomeProjectId(thread.projectId)) {
-        void captureFileCheckpoint({
+        await captureFileCheckpoint({
           threadId: thread.id,
           checkpointItemId: optimisticUserMessageItemId,
           projectLocation,
@@ -321,6 +327,7 @@ export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
     launchTerminalSize,
     thread.agentKind,
     thread.agentInstanceId,
+    thread.canResumeWithConfig,
     thread.config,
     thread.id,
     thread.presentationMode,

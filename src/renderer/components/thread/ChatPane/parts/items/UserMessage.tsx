@@ -1,6 +1,6 @@
 import { memo, type ReactNode, useEffectEvent, useLayoutEffect, useRef, useState } from "react";
 import { Surface, Tooltip } from "@heroui/react";
-import { ChevronDown, ChevronUp } from "lucide-react";
+import { ChevronDown, ChevronUp, Copy } from "lucide-react";
 import type { CanonicalContentBlock, MessageItemPayload } from "@/shared/contracts";
 import { AttachmentBar, ImageLightbox, type Attachment } from "@/renderer/components/composer";
 import { fileNameFromPath } from "@/shared/promptContent";
@@ -88,7 +88,7 @@ export const UserMessage = memo(function UserMessage({
     : isCollapsible
       ? "max-h-[50vh] overflow-y-auto"
       : "";
-  const baseBodyClass = `min-w-0 leading-snug ${checkpointRevertControl ? "pr-7" : ""} ${collapseClass}`;
+  const baseBodyClass = `min-w-0 leading-snug ${checkpointRevertControl ? "pr-12" : "pr-7"} ${collapseClass}`;
   const inlineBodyClass = `${baseBodyClass} lightcode-user-message-inline-content whitespace-pre-wrap break-words text-[length:var(--lc-chat-font-size)] text-foreground`;
 
   let bodyContent: ReactNode = null;
@@ -151,7 +151,10 @@ export const UserMessage = memo(function UserMessage({
           </Tooltip>
         </>
       ) : null}
-      {checkpointRevertControl}
+      <div className="absolute right-2 top-1/2 z-10 flex -translate-y-1/2 items-center gap-0.5 opacity-0 transition-opacity group-hover/checkpoint:opacity-100 focus-within:opacity-100">
+        {checkpointRevertControl}
+        <CopyUserMessageButton text={rawText} />
+      </div>
       {lightboxIndex !== null ? (
         <ImageLightbox
           images={imageAttachments}
@@ -162,6 +165,62 @@ export const UserMessage = memo(function UserMessage({
     </Surface>
   );
 });
+
+function CopyUserMessageButton({ text }: { text: string }) {
+  const [copyState, setCopyState] = useState<"idle" | "copied">("idle");
+  const [isTooltipOpen, setIsTooltipOpen] = useState(false);
+  const resetTimerRef = useRef<number | null>(null);
+  const labelResetTimerRef = useRef<number | null>(null);
+
+  useLayoutEffect(
+    () => () => {
+      if (resetTimerRef.current !== null) window.clearTimeout(resetTimerRef.current);
+      if (labelResetTimerRef.current !== null) window.clearTimeout(labelResetTimerRef.current);
+    },
+    [],
+  );
+
+  return (
+    <Tooltip delay={300} isOpen={isTooltipOpen} onOpenChange={setIsTooltipOpen}>
+      <Tooltip.Trigger>
+        <button
+          type="button"
+          aria-label={copyState === "copied" ? "Copied" : "Copy message"}
+          className="flex size-5 items-center justify-center rounded text-muted/70 transition-colors hover:bg-foreground/5 hover:text-foreground"
+          onClick={(event) => {
+            event.stopPropagation();
+            navigator.clipboard
+              .writeText(text)
+              .then(() => {
+                setCopyState("copied");
+                setIsTooltipOpen(true);
+                if (resetTimerRef.current !== null) {
+                  window.clearTimeout(resetTimerRef.current);
+                }
+                if (labelResetTimerRef.current !== null) {
+                  window.clearTimeout(labelResetTimerRef.current);
+                }
+                resetTimerRef.current = window.setTimeout(() => {
+                  setIsTooltipOpen(false);
+                  resetTimerRef.current = null;
+                  labelResetTimerRef.current = window.setTimeout(() => {
+                    setCopyState("idle");
+                    labelResetTimerRef.current = null;
+                  }, 200);
+                }, 1200);
+              })
+              .catch(() => {});
+          }}
+        >
+          <Copy className="size-3" />
+        </button>
+      </Tooltip.Trigger>
+      <Tooltip.Content placement="top">
+        {copyState === "copied" ? "Copied" : "Copy message"}
+      </Tooltip.Content>
+    </Tooltip>
+  );
+}
 
 const LEADING_SLASH_COMMAND_RE = /^\/([A-Za-z][A-Za-z0-9_-]*)(\s+|$)/;
 
