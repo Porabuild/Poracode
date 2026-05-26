@@ -54,5 +54,8 @@ const NOUNS = [
 export function generateWorktreeBranch(): string {
   const adj = ADJECTIVES[Math.floor(Math.random() * ADJECTIVES.length)]!;
   const noun = NOUNS[Math.floor(Math.random() * NOUNS.length)]!;
-  return `lightcode/${adj}-${noun}`;
+  const bytes = new Uint8Array(4);
+  crypto.getRandomValues(bytes);
+  const hash = Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
+  return `lightcode/${adj}-${noun}-${hash}`;
 }
