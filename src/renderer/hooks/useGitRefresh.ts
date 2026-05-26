@@ -5,7 +5,13 @@ import { readBridge } from "@/renderer/bridge";
 import { useAppStore } from "@/renderer/state/appStore";
 import { buildActiveProjectsKey } from "@/renderer/state/projectKeys";
 import { useFileEditorStore } from "@/renderer/state/fileEditorStore";
-import { cleanupGitRefreshProjects, refreshGitProject } from "@/renderer/state/gitRefresh";
+import { useGitStore } from "@/renderer/state/gitStore";
+import {
+  cleanupGitRefreshProjects,
+  refreshGitProject,
+  stopPendingPrRefresh,
+  syncPendingPrRefreshProjects,
+} from "@/renderer/state/gitRefresh";
 import {
   GIT_FETCH_PRIORITY_INTERVAL_MS,
   GIT_FETCH_BACKGROUND_INTERVAL_MS,
@@ -101,6 +107,22 @@ export function useGitRefresh(storeHydrated: boolean) {
     for (const project of activeProjects) {
       void refreshGitProject(project, "initial", "full", { isActive: isActiveCheck });
     }
+    syncPendingPrRefreshProjects(activeProjects);
+    const unsubPendingPrRefresh = useGitStore.subscribe((state, prev) => {
+      if (
+        state.statuses !== prev.statuses ||
+        state.prData !== prev.prData ||
+        state.prDetails !== prev.prDetails
+      ) {
+        syncPendingPrRefreshProjects(activeProjects);
+      }
+    });
+    const unsubPendingPrThreadRefresh = useAppStore.subscribe(
+      (state) => state.threads,
+      () => {
+        syncPendingPrRefreshProjects(activeProjects);
+      },
+    );
 
     async function fetchRemotes() {
       if (!isActive) return;
@@ -180,6 +202,9 @@ export function useGitRefresh(storeHydrated: boolean) {
       clearInterval(wslStatusPollIntervalId);
       for (const timer of watcherDebounceTimers.values()) clearTimeout(timer);
       watcherDebounceTimers.clear();
+      unsubPendingPrRefresh();
+      unsubPendingPrThreadRefresh();
+      stopPendingPrRefresh();
       unsubWatcher();
       for (const project of activeProjects) {
         readBridge()

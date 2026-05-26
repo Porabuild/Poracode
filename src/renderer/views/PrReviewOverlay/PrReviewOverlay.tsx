@@ -5,7 +5,6 @@ import type { Project, ProjectLocation } from "@/shared/contracts";
 import { friendlyError } from "@/shared/messages";
 import { readBridge } from "@/renderer/bridge";
 import { useGitStore } from "@/renderer/state/gitStore";
-import { usePendingPrRefresh } from "@/renderer/hooks/usePendingPrRefresh";
 import { usePrCombinedChecksStatus } from "@/renderer/hooks/usePrCombinedChecksStatus";
 import { PageLayout } from "@/renderer/components/layout/PageLayout";
 import { usePrTitle, usePrUrl, usePrViewerDidAuthor } from "@/renderer/state/gitSelectors";
@@ -48,13 +47,6 @@ export function PrReviewOverlay(props: {
   const [diffMode, setDiffMode] = useState<number>(DIFF_MODE.Split);
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<PrTabKey>("conversation");
-
-  usePendingPrRefresh({
-    prKey,
-    projectLocation: effectiveLocation,
-    branch: details?.headBranch,
-    ...(details ? { cacheKey } : {}),
-  });
 
   // Track content width to decide if the meta row fits inline in the content
   // header or should overflow into a row above the tabs. Above ~880px the
@@ -205,8 +197,6 @@ export function PrReviewOverlay(props: {
           projectId={project.id}
           projectLocation={effectiveLocation}
           prKey={prKey}
-          cacheKey={cacheKey}
-          branch={details?.headBranch}
           worktreePath={worktreePath}
           onSelectFile={(path) => {
             setActiveTab("changes");

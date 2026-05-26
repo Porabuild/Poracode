@@ -1,8 +1,19 @@
-import { act, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { PrData, PrDetails, ProjectLocation } from "@/shared/contracts";
-import { useGitStore } from "@/renderer/state/gitStore";
-import { PR_PENDING_REFRESH_INTERVAL_MS, usePendingPrRefresh } from "./usePendingPrRefresh";
+import type {
+  GitStatusResult,
+  PrData,
+  PrDetails,
+  ProjectLocation,
+  Thread,
+} from "@/shared/contracts";
+import { useAppStore } from "./appStore";
+import { useGitStore } from "./gitStore";
+import { buildBranchPrKey } from "./gitSelectors";
+import {
+  PR_PENDING_REFRESH_INTERVAL_MS,
+  stopPendingPrRefresh,
+  syncPendingPrRefreshProjects,
+} from "./gitRefresh";
 
 const ghGetPrForBranchMock =
   vi.fn<
@@ -17,6 +28,25 @@ const ghGetPrDetailsMock =
   >();
 
 const location: ProjectLocation = { kind: "posix", path: "/repo" };
+
+const status: GitStatusResult = {
+  isRepo: true,
+  branch: "feature/pr-checks",
+  tracking: "origin/feature/pr-checks",
+  hasRemote: true,
+  remoteInfo: {
+    url: "https://github.com/owner/repo",
+    platform: "github",
+    owner: "owner",
+    repo: "repo",
+  },
+  ahead: 0,
+  behind: 0,
+  staged: [],
+  unstaged: [],
+  totalInsertions: 0,
+  totalDeletions: 0,
+};
 
 const basePr: PrData = {
   number: 42,
@@ -47,7 +77,25 @@ const baseDetails: PrDetails = {
   checks: [{ name: "CI", state: "PENDING", conclusion: "" }],
 };
 
-describe("usePendingPrRefresh", () => {
+const worktreeThread: Thread = {
+  id: "t1",
+  projectId: "p1",
+  title: "Worktree thread",
+  agentKind: "codex",
+  config: { model: "gpt-5" },
+  status: "idle",
+  attention: "none",
+  canResumeWithConfig: false,
+  worktreePath: "/repo-wt",
+  worktreeBranch: "feature/wt",
+  archived: false,
+  done: false,
+  starred: false,
+  createdAt: "2026-04-04T00:00:00.000Z",
+  updatedAt: "2026-04-04T00:00:00.000Z",
+};
+
+describe("pending PR refresh", () => {
   beforeEach(() => {
     vi.useFakeTimers();
     ghGetPrForBranchMock.mockReset();
@@ -72,14 +120,18 @@ describe("usePendingPrRefresh", () => {
       prFiles: {},
       prDiffs: {},
     });
+    useAppStore.setState({ threads: [] });
   });
 
   afterEach(() => {
+    stopPendingPrRefresh();
     vi.useRealTimers();
   });
 
-  it("refetches pending PR status immediately, then every 30 seconds until it leaves pending", async () => {
-    useGitStore.getState().setPrData("pr-key", basePr);
+  it("refetches pending PR status until it leaves pending", async () => {
+    const prKey = buildBranchPrKey("p1");
+    useGitStore.getState().setStatus("p1", status);
+    useGitStore.getState().setPrData(prKey, basePr);
     useGitStore.getState().setPrDetails("p1#42", baseDetails);
     ghGetPrForBranchMock
       .mockResolvedValueOnce({
@@ -99,73 +151,62 @@ describe("usePendingPrRefresh", () => {
       },
     });
 
-    renderHook(() =>
-      usePendingPrRefresh({
-        prKey: "pr-key",
-        projectLocation: location,
-        branch: "feature/pr-checks",
-        cacheKey: "p1#42",
-      }),
-    );
-
-    await act(async () => {});
-
-    expect(ghGetPrForBranchMock).toHaveBeenCalledTimes(1);
-    expect(ghGetPrForBranchMock).toHaveBeenLastCalledWith({
-      projectLocation: location,
-      branch: "feature/pr-checks",
-    });
-    expect(ghGetPrDetailsMock).toHaveBeenCalledTimes(1);
-    expect(useGitStore.getState().prData["pr-key"]?.checksStatus).toBe("PENDING");
-
-    ghGetPrForBranchMock.mockClear();
-    ghGetPrDetailsMock.mockClear();
-
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(PR_PENDING_REFRESH_INTERVAL_MS);
-    });
+    syncPendingPrRefreshProjects([{ id: "p1", location }]);
 
     expect(ghGetPrForBranchMock).toHaveBeenCalledWith({
       projectLocation: location,
       branch: "feature/pr-checks",
     });
     expect(ghGetPrDetailsMock).toHaveBeenCalledWith({ projectLocation: location, prNumber: 42 });
-    expect(useGitStore.getState().prData["pr-key"]?.checksStatus).toBe("SUCCESS");
+
+    ghGetPrForBranchMock.mockClear();
+    ghGetPrDetailsMock.mockClear();
+
+    await vi.advanceTimersByTimeAsync(PR_PENDING_REFRESH_INTERVAL_MS);
+
+    expect(ghGetPrForBranchMock).toHaveBeenCalledWith({
+      projectLocation: location,
+      branch: "feature/pr-checks",
+    });
+    expect(ghGetPrDetailsMock).toHaveBeenCalledWith({ projectLocation: location, prNumber: 42 });
+    expect(useGitStore.getState().prData[prKey]?.checksStatus).toBe("SUCCESS");
     expect(useGitStore.getState().prDetails["p1#42"]?.checks[0]?.conclusion).toBe("SUCCESS");
 
     ghGetPrForBranchMock.mockClear();
     ghGetPrDetailsMock.mockClear();
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(PR_PENDING_REFRESH_INTERVAL_MS);
-    });
+    await vi.advanceTimersByTimeAsync(PR_PENDING_REFRESH_INTERVAL_MS);
 
     expect(ghGetPrForBranchMock).not.toHaveBeenCalled();
     expect(ghGetPrDetailsMock).not.toHaveBeenCalled();
   });
 
-  it("refetches when cached PR details still have pending checks", async () => {
-    useGitStore.getState().setPrData("pr-key", { ...basePr, checksStatus: "SUCCESS" });
-    useGitStore.getState().setPrDetails("p1#42", baseDetails);
-    ghGetPrDetailsMock.mockResolvedValueOnce({
-      details: {
-        ...baseDetails,
-        checks: [{ name: "CI", state: "COMPLETED", conclusion: "SUCCESS" }],
-      },
+  it("stops polling when the worktree thread is removed", async () => {
+    useAppStore.setState({ threads: [worktreeThread] });
+    useGitStore.getState().setPrData("/repo-wt", basePr);
+    ghGetPrForBranchMock.mockResolvedValue({ ...basePr, checksStatus: "PENDING" });
+    ghGetPrDetailsMock.mockResolvedValue({ details: baseDetails });
+
+    syncPendingPrRefreshProjects([{ id: "p1", location }]);
+
+    expect(ghGetPrForBranchMock).toHaveBeenCalledWith({
+      projectLocation: location,
+      branch: "feature/wt",
     });
 
-    renderHook(() =>
-      usePendingPrRefresh({
-        prKey: "pr-key",
-        projectLocation: location,
-        branch: undefined,
-        cacheKey: "p1#42",
-      }),
-    );
-
-    await act(async () => {});
+    ghGetPrForBranchMock.mockClear();
+    useAppStore.setState({ threads: [] });
+    syncPendingPrRefreshProjects([{ id: "p1", location }]);
+    await vi.advanceTimersByTimeAsync(PR_PENDING_REFRESH_INTERVAL_MS);
 
     expect(ghGetPrForBranchMock).not.toHaveBeenCalled();
-    expect(ghGetPrDetailsMock).toHaveBeenCalledWith({ projectLocation: location, prNumber: 42 });
-    expect(useGitStore.getState().prDetails["p1#42"]?.checks[0]?.conclusion).toBe("SUCCESS");
+  });
+
+  it("does not poll orphaned pending PR details", async () => {
+    useGitStore.getState().setPrDetails("p1#42", baseDetails);
+
+    syncPendingPrRefreshProjects([{ id: "p1", location }]);
+
+    expect(ghGetPrForBranchMock).not.toHaveBeenCalled();
+    expect(ghGetPrDetailsMock).not.toHaveBeenCalled();
   });
 });

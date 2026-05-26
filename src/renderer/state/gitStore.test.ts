@@ -4,6 +4,7 @@ import type {
   GitStatusResult,
   GitWorktreeInfo,
   PrData,
+  PrDetails,
 } from "@/shared/contracts";
 import { useGitStore } from "./gitStore";
 
@@ -59,6 +60,49 @@ const basePr: PrData = {
   updatedAt: "2026-04-04T00:00:00.000Z",
 };
 
+const basePrDetails: PrDetails = {
+  number: 42,
+  title: "Improve git polling",
+  body: "Body",
+  author: { login: "author", avatarUrl: "https://example.com/a.png" },
+  baseBranch: "main",
+  headBranch: "feature/git-polling",
+  additions: 1,
+  deletions: 2,
+  changedFiles: 1,
+  createdAt: "2026-04-04T00:00:00.000Z",
+  mergedAt: null,
+  mergedBy: null,
+  closedAt: null,
+  commits: [
+    {
+      oid: "abc123",
+      abbreviatedOid: "abc123",
+      messageHeadline: "Improve git polling",
+      authoredDate: "2026-04-04T00:00:00.000Z",
+      author: { login: "author" },
+    },
+  ],
+  comments: [
+    {
+      id: "comment-1",
+      author: { login: "reviewer" },
+      body: "Looks good",
+      createdAt: "2026-04-04T00:05:00.000Z",
+    },
+  ],
+  reviews: [
+    {
+      id: "review-1",
+      author: { login: "reviewer" },
+      state: "APPROVED",
+      body: "",
+      submittedAt: "2026-04-04T00:10:00.000Z",
+    },
+  ],
+  checks: [{ name: "CI", state: "IN_PROGRESS", conclusion: "", workflowName: "CI" }],
+};
+
 describe("gitStore batch updates", () => {
   beforeEach(() => {
     useGitStore.setState({
@@ -68,6 +112,7 @@ describe("gitStore batch updates", () => {
       branches: {},
       ghAvailable: {},
       prData: {},
+      prDetails: {},
     });
   });
 
@@ -235,5 +280,46 @@ describe("gitStore batch updates", () => {
     expect(secondPrData).not.toBe(firstPrData);
     expect(secondPrData["/wt/a"]).toBe(preservedEntry);
     expect(secondPrData["/wt/b"]?.updatedAt).toBe("2026-04-04T02:00:00.000Z");
+  });
+
+  it("skips replacing unchanged PR details", () => {
+    useGitStore.getState().setPrDetails("p1#42", basePrDetails);
+    const firstDetails = useGitStore.getState().prDetails;
+    const firstEntry = firstDetails["p1#42"];
+
+    useGitStore.getState().setPrDetails("p1#42", {
+      ...basePrDetails,
+      ...(basePrDetails.author ? { author: { ...basePrDetails.author } } : {}),
+      commits: basePrDetails.commits.map((commit) => ({
+        ...commit,
+        ...(commit.author ? { author: { ...commit.author } } : {}),
+      })),
+      comments: basePrDetails.comments.map((comment) => ({
+        ...comment,
+        author: { ...comment.author },
+      })),
+      reviews: basePrDetails.reviews.map((review) => ({
+        ...review,
+        author: { ...review.author },
+      })),
+      checks: basePrDetails.checks.map((check) => ({ ...check })),
+    });
+
+    expect(useGitStore.getState().prDetails).toBe(firstDetails);
+    expect(useGitStore.getState().prDetails["p1#42"]).toBe(firstEntry);
+  });
+
+  it("replaces PR details when check status changes", () => {
+    useGitStore.getState().setPrDetails("p1#42", basePrDetails);
+    const firstDetails = useGitStore.getState().prDetails;
+
+    useGitStore.getState().setPrDetails("p1#42", {
+      ...basePrDetails,
+      checks: [{ ...basePrDetails.checks[0]!, state: "COMPLETED", conclusion: "SUCCESS" }],
+    });
+
+    const secondDetails = useGitStore.getState().prDetails;
+    expect(secondDetails).not.toBe(firstDetails);
+    expect(secondDetails["p1#42"]?.checks[0]?.conclusion).toBe("SUCCESS");
   });
 });
