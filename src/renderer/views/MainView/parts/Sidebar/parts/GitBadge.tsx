@@ -47,8 +47,10 @@ export function GitBadge(props: {
     }),
   );
   const hasChanges = totalInsertions > 0 || totalDeletions > 0;
-  const hasOpenPr = prState !== undefined && prState !== "closed" && prState !== "merged";
-  if (!isRepo || (!hasChanges && !hasOpenPr)) return null;
+  const isWorktree = props.worktreePath !== undefined;
+  const hasVisiblePr =
+    prState !== undefined && prState !== "closed" && (prState !== "merged" || isWorktree);
+  if (!isRepo || (!hasChanges && !hasVisiblePr)) return null;
   const prIconColor = PR_TONE_TEXT_CLASS[getPrStatusTone(prState, checksStatus)];
   return (
     <div
@@ -66,7 +68,7 @@ export function GitBadge(props: {
       onKeyDown={(e) => handleKeyActivate(e, () => props.onPress?.(), { stopPropagation: true })}
     >
       <span className="flex items-center gap-1 text-[10px] font-medium">
-        {hasOpenPr && <GitPullRequest className={`size-3 ${prIconColor}`} />}
+        {hasVisiblePr && <GitPullRequest className={`size-3 ${prIconColor}`} />}
         {hasChanges && (
           <span className="flex items-center gap-0.5">
             {totalInsertions > 0 && <span className="text-success">+{totalInsertions}</span>}
