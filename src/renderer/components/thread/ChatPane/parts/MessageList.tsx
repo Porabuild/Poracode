@@ -11,7 +11,6 @@ import {
   DEFAULT_CHECKPOINT_GUARD,
   RevertCheckpointDialog,
   type CheckpointGuard,
-  type RevertScope,
 } from "./CheckpointRevertControls";
 import { formatElapsed } from "../formatElapsed";
 import {
@@ -71,7 +70,7 @@ export function MessageList({
   const [measureEpoch, setMeasureEpoch] = useState(0);
   const [pendingRevertItemId, setPendingRevertItemId] = useState<string | null>(null);
   const [dontAskAgain, setDontAskAgain] = useState(false);
-  const [revertScope, setRevertScope] = useState<RevertScope>("transcript");
+  const [revertError, setRevertError] = useState<string | null>(null);
   const virtualizer = useVirtualizer({
     count: entries.length,
     getScrollElement: useCallback(() => scrollElement, [scrollElement]),
@@ -192,15 +191,37 @@ export function MessageList({
   );
 
   const performRevert = useCallback(
-    async (itemId: string, scope: RevertScope) => {
-      if (scope === "files" && projectLocation) {
+    async (itemId: string) => {
+      const state = useAppStore.getState();
+      const itemIds = state.runtimeItemIdsByThread[threadId];
+      const itemsById = state.runtimeItemsByIdByThread[threadId];
+      const completedTurns = state.runtimeCompletedTurnsByThread[threadId] ?? [];
+      const checkpoint = state.fileCheckpointsByThread[threadId]?.[itemId];
+      const rollbackTurns =
+        itemIds && itemsById
+          ? countRollbackTurnsAfterCheckpoint(itemIds, itemsById, completedTurns, itemId)
+          : 0;
+      if (rollbackTurns > 0) {
+        try {
+          await readBridge().rollbackThreadConversation({
+            threadId,
+            numTurns: rollbackTurns,
+          });
+        } catch (error) {
+          console.warn(
+            "[checkpoint] provider rollback failed; continuing with local revert",
+            error,
+          );
+        }
+      }
+      if (projectLocation && checkpoint) {
         await readBridge().restoreFileCheckpoint({
           threadId,
           checkpointItemId: itemId,
           projectLocation,
         });
       }
-      useAppStore.getState().truncateThreadRuntimeAfter(threadId, itemId);
+      state.truncateThreadRuntimeAfter(threadId, itemId);
       parentActions?.onContentHeightChange();
     },
     [parentActions, projectLocation, threadId],
@@ -209,11 +230,13 @@ export function MessageList({
   const requestRevert = useCallback(
     (itemId: string) => {
       if (localStorage.getItem(SKIP_REVERT_CONFIRM_PREF_KEY) === "1") {
-        void performRevert(itemId, "transcript");
+        void performRevert(itemId).catch((error) => {
+          console.warn("[checkpoint] failed to revert checkpoint", error);
+        });
         return;
       }
       setDontAskAgain(false);
-      setRevertScope("transcript");
+      setRevertError(null);
       setPendingRevertItemId(itemId);
     },
     [performRevert],
@@ -221,14 +244,20 @@ export function MessageList({
 
   const confirmRevert = useCallback(() => {
     if (!pendingRevertItemId) return;
-    if (dontAskAgain) {
-      localStorage.setItem(SKIP_REVERT_CONFIRM_PREF_KEY, "1");
-    }
-    void performRevert(pendingRevertItemId, revertScope);
-    setPendingRevertItemId(null);
-    setDontAskAgain(false);
-    setRevertScope("transcript");
-  }, [dontAskAgain, pendingRevertItemId, performRevert, revertScope]);
+    setRevertError(null);
+    void performRevert(pendingRevertItemId)
+      .then(() => {
+        if (dontAskAgain) {
+          localStorage.setItem(SKIP_REVERT_CONFIRM_PREF_KEY, "1");
+        }
+        setPendingRevertItemId(null);
+        setDontAskAgain(false);
+      })
+      .catch((error) => {
+        console.warn("[checkpoint] failed to revert checkpoint", error);
+        setRevertError(error instanceof Error ? error.message : String(error));
+      });
+  }, [dontAskAgain, pendingRevertItemId, performRevert]);
 
   const pendingCheckpoint = useAppStore((state) =>
     pendingRevertItemId
@@ -301,16 +330,14 @@ export function MessageList({
       <RevertCheckpointDialog
         isOpen={pendingRevertItemId !== null}
         dontAskAgain={dontAskAgain}
-        revertScope={revertScope}
         checkpointGuard={checkpointGuard ?? DEFAULT_CHECKPOINT_GUARD}
-        fileCheckpoint={pendingCheckpoint}
         canRestoreFiles={projectLocation !== undefined && pendingCheckpoint !== undefined}
+        errorMessage={revertError ?? undefined}
         onDontAskAgainChange={setDontAskAgain}
-        onRevertScopeChange={setRevertScope}
         onClose={() => {
           setPendingRevertItemId(null);
           setDontAskAgain(false);
-          setRevertScope("transcript");
+          setRevertError(null);
         }}
         onConfirm={confirmRevert}
       />
@@ -528,4 +555,30 @@ function findCheckpointBeforeUserMessage(
   }
 
   return null;
+}
+
+function countRollbackTurnsAfterCheckpoint(
+  itemIds: readonly string[],
+  itemsById: ReturnType<typeof useAppStore.getState>["runtimeItemsByIdByThread"][string],
+  completedTurns: ReadonlyArray<CompletedTurnRecord>,
+  checkpointItemId: string,
+): number {
+  const checkpointIndex = itemIds.indexOf(checkpointItemId);
+  if (checkpointIndex < 0) return 0;
+
+  if (completedTurns.length > 0) {
+    let count = 0;
+    for (const turn of completedTurns) {
+      if (!turn.anchorItemId) continue;
+      if (itemIds.indexOf(turn.anchorItemId) > checkpointIndex) count += 1;
+    }
+    return count;
+  }
+
+  let count = 0;
+  for (let idx = checkpointIndex + 1; idx < itemIds.length; idx += 1) {
+    const itemId = itemIds[idx]!;
+    if (itemsById[itemId]?.type === "assistant_message") count += 1;
+  }
+  return count;
 }

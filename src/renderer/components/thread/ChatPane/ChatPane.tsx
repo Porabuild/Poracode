@@ -58,6 +58,9 @@ const EMPTY_ITEM_IDS: readonly string[] = [];
 const EMPTY_FILE_CHECKPOINT_TURNS: NonNullable<
   ReturnType<typeof useAppStore.getState>["fileCheckpointTurnsByThread"][string]
 > = {};
+const EMPTY_FILE_CHECKPOINTS: NonNullable<
+  ReturnType<typeof useAppStore.getState>["fileCheckpointsByThread"][string]
+> = {};
 
 /**
  * Renderer-native chat surface for `presentationMode === "gui"` threads.
@@ -163,6 +166,9 @@ export function ChatPane(props: ChatPaneProps) {
   const fileCheckpointTurns = useAppStore(
     (s) => s.fileCheckpointTurnsByThread[threadId] ?? EMPTY_FILE_CHECKPOINT_TURNS,
   );
+  const fileCheckpoints = useAppStore(
+    (s) => s.fileCheckpointsByThread[threadId] ?? EMPTY_FILE_CHECKPOINTS,
+  );
   const finalizingFileCheckpointIdsRef = useRef(new Set<string>());
 
   useEffect(() => {
@@ -181,6 +187,7 @@ export function ChatPane(props: ChatPaneProps) {
         checkpointItemId,
       );
       if (!baseCheckpointItemId) continue;
+      if (!fileCheckpoints[baseCheckpointItemId]) continue;
       finalizingFileCheckpointIdsRef.current.add(checkpointItemId);
       void finalizeFileCheckpoint({
         threadId,
@@ -191,7 +198,7 @@ export function ChatPane(props: ChatPaneProps) {
         finalizingFileCheckpointIdsRef.current.delete(checkpointItemId);
       });
     }
-  }, [completedTurns, fileCheckpointTurns, isHomeScope, targetContext, threadId]);
+  }, [completedTurns, fileCheckpoints, fileCheckpointTurns, isHomeScope, targetContext, threadId]);
 
   const isEmpty = timelineEntries.length === 0 && !hasSupplementaryContent;
   const isLive = isThreadTurnActive(status);

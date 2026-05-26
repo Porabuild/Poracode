@@ -15,6 +15,8 @@ export interface WslBridgeServerOptions {
   onEvent: HookEventReceiver;
   /** Optional logger; defaults to no-op. */
   onError?: (message: string, error?: unknown) => void;
+  /** Called when a booted bridge child exits and callers should recreate subscriptions. */
+  onBridgeExit?: (distro: string) => void;
   /** Bearer secret shared with the Windows-side `HookIngress`. */
   secret: string;
   /** Supervisor's max protocol version, exposed to the in-WSL bridge. */
@@ -68,6 +70,10 @@ const DEFAULT_BOOT_TIMEOUT_MS = 10_000;
 export type WatchScope = "git" | "worktree" | "unknown";
 
 export type WatchEventListener = (event: WatchEvent) => void;
+interface WatchListenerEntry {
+  distro: string;
+  listener: WatchEventListener;
+}
 
 export interface WatchEvent {
   subscriptionId: string;
@@ -96,7 +102,7 @@ export class WslBridgeServer {
   private readonly inFlight = new Map<string, Promise<BridgeHandle | undefined>>();
   private readonly disposed = new WeakSet<BridgeState>();
   private readonly bootTimeoutMs: number;
-  private readonly watchListeners = new Map<string, WatchEventListener>();
+  private readonly watchListeners = new Map<string, WatchListenerEntry>();
   private isDisposed = false;
 
   constructor(private readonly options: WslBridgeServerOptions) {
@@ -107,12 +113,22 @@ export class WslBridgeServer {
    * Register a listener for a future `subscriptionId`. Must be called
    * BEFORE the HTTP subscribe call so the first event cannot race in.
    */
-  registerWatchListener(subscriptionId: string, listener: WatchEventListener): void {
-    this.watchListeners.set(subscriptionId, listener);
+  registerWatchListener(
+    subscriptionId: string,
+    distro: string,
+    listener: WatchEventListener,
+  ): void {
+    this.watchListeners.set(subscriptionId, { distro, listener });
   }
 
   unregisterWatchListener(subscriptionId: string): void {
     this.watchListeners.delete(subscriptionId);
+  }
+
+  private unregisterWatchListenersForDistro(distro: string): void {
+    for (const [subscriptionId, entry] of this.watchListeners) {
+      if (entry.distro === distro) this.watchListeners.delete(subscriptionId);
+    }
   }
 
   /**
@@ -154,6 +170,7 @@ export class WslBridgeServer {
       if (!state) continue;
       this.bridges.delete(distro);
       this.disposed.add(state);
+      this.unregisterWatchListenersForDistro(distro);
       try {
         terminateChildProcessTree(state.child);
       } catch {
@@ -292,15 +309,15 @@ export class WslBridgeServer {
         return;
       }
       if (type === "watch" && typeof message.subscriptionId === "string") {
-        const listener = this.watchListeners.get(message.subscriptionId);
-        if (listener) {
+        const entry = this.watchListeners.get(message.subscriptionId);
+        if (entry) {
           const scope: WatchScope =
             message.scope === "git" || message.scope === "worktree" ? message.scope : "unknown";
           const paths = Array.isArray(message.paths)
             ? (message.paths.filter((v): v is string => typeof v === "string") as string[])
             : [];
           try {
-            listener({ subscriptionId: message.subscriptionId, scope, paths });
+            entry.listener({ subscriptionId: message.subscriptionId, scope, paths });
           } catch (error) {
             this.options.onError?.("wsl bridge watch: listener threw", error);
           }
@@ -352,6 +369,7 @@ export class WslBridgeServer {
       if (state && state.child === child) {
         this.bridges.delete(distro);
       }
+      this.unregisterWatchListenersForDistro(distro);
       if (booted && isLightcodeHookDebug()) {
         console.log(
           "[supervisor] hook-debug: WSL bridge child exited (will respawn on next ensure)",
@@ -362,6 +380,8 @@ export class WslBridgeServer {
       }
       if (!booted) {
         rejectBoot(new Error(`wsl hook bridge[${distro}] exited before boot`));
+      } else if (!this.isDisposed) {
+        this.options.onBridgeExit?.(distro);
       }
     };
     child.once("exit", onExit);

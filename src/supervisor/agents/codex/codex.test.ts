@@ -319,6 +319,21 @@ describe("CodexStructuredSession", () => {
     });
   });
 
+  it("rolls back Codex app-server threads with thread/rollback", async () => {
+    const requests: Array<{ method: string; params: Record<string, unknown> }> = [];
+    const structuredSession = makeStructuredSession(requests);
+
+    await structuredSession.rollbackThread(2);
+
+    expect(requests[0]).toEqual({
+      method: "thread/rollback",
+      params: {
+        threadId: "provider-thread",
+        numTurns: 2,
+      },
+    });
+  });
+
   it("requests Codex reasoning summaries for GUI turns", async () => {
     const requests: Array<{ method: string; params: Record<string, unknown> }> = [];
     const structuredSession = makeStructuredSession(requests);

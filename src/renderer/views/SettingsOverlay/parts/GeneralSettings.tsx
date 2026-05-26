@@ -21,14 +21,6 @@ const terminalPositionOptions = [
   { id: "bottom", label: "Bottom" },
 ] as const;
 
-const staleThreadUnloadOptions = [
-  { id: "0", label: "Disabled" },
-  { id: "10", label: "10 minutes" },
-  { id: "20", label: "20 minutes" },
-  { id: "30", label: "30 minutes" },
-  { id: "60", label: "1 hour" },
-] as const;
-
 const threadRemoveActionOptions = [
   { id: "archive", label: "Archive" },
   { id: "delete", label: "Delete" },
@@ -189,17 +181,25 @@ export function GeneralSettings() {
                 Hidden resumable threads are swept every 5 minutes and unloaded after this idle age.
               </p>
             </div>
-            <Select
-              aria-label="Unload idle threads after"
+            <NumberField
+              aria-label="Unload idle threads after (minutes)"
               className="w-[160px] shrink-0"
-              options={staleThreadUnloadOptions}
-              value={String(staleThreadUnloadMinutes)}
+              minValue={0}
+              step={10}
+              value={staleThreadUnloadMinutes}
               onChange={(value) => {
+                if (value === undefined || Number.isNaN(value)) return;
                 startTransition(() => {
-                  setStaleThreadUnloadMinutes(Number.parseInt(value, 10) || 0);
+                  setStaleThreadUnloadMinutes(Math.max(0, Math.floor(value)));
                 });
               }}
-            />
+            >
+              <NumberField.Group>
+                <NumberField.DecrementButton />
+                <NumberField.Input />
+                <NumberField.IncrementButton />
+              </NumberField.Group>
+            </NumberField>
           </div>
 
           <div className="flex items-center justify-between gap-4">

@@ -33,6 +33,15 @@ export function readOpenCodeErrorText(cause: unknown): string {
   return String(cause ?? "").toLowerCase();
 }
 
+export function isOpenCodeConnectionLoss(cause: unknown): boolean {
+  const text = readOpenCodeErrorText(cause);
+  return (
+    /(econnrefused|connection refused|fetch failed|networkerror|socket hang up|aborted)/.test(
+      text,
+    ) && !/aborted by user/.test(text)
+  );
+}
+
 /**
  * Convert a raw failure into a user-facing summary. The original message is
  * still appended after a colon when no classification matched, so power users

@@ -283,6 +283,8 @@ function synthesizeEditDiff(payload: unknown): string | undefined {
   if (changesDiff) return changesDiff;
   const applyPatchDiff = synthesizeApplyPatchDiff(payload);
   if (applyPatchDiff) return applyPatchDiff;
+  const createDiff = synthesizeCreateContentDiff(payload);
+  if (createDiff) return createDiff;
 
   const args = p.args;
   if (!args || typeof args !== "object" || Array.isArray(args)) return undefined;
@@ -306,6 +308,18 @@ function synthesizeEditDiff(payload: unknown): string | undefined {
     ...newLines.map((line) => `+${line}`),
     "",
   ].join("\n");
+}
+
+function synthesizeCreateContentDiff(payload: unknown): string | undefined {
+  const content = readCreateContent(payload);
+  if (content === undefined) return undefined;
+  const path =
+    readAcpStringField(payload, "filePath") ??
+    readAcpStringField(payload, "file_path") ??
+    readAcpStringField(payload, "path") ??
+    readPayloadString(payload, "path");
+  if (!path) return undefined;
+  return buildLineUnifiedDiff(path, "", content);
 }
 
 interface StructuredFileChange {
@@ -559,6 +573,18 @@ function summarizeDiffText(diff: string): DiffSummary | undefined {
     }
   }
   return sawLine ? { added, removed } : undefined;
+}
+
+function readCreateContent(payload: unknown): string | undefined {
+  if (!payload || typeof payload !== "object") return undefined;
+  const record = payload as Record<string, unknown>;
+  const changeKind = (readString(record.changeKind) ?? "").toLowerCase();
+  const toolName = (readString(record.name) ?? "").toLowerCase();
+  const args = record.args;
+  if (!args || typeof args !== "object" || Array.isArray(args)) return undefined;
+  const content = readString((args as Record<string, unknown>).content);
+  if (content === undefined) return undefined;
+  return changeKind === "create" || toolName === "write" ? content : undefined;
 }
 
 function readPayloadString(payload: unknown, key: string): string | undefined {

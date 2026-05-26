@@ -2,6 +2,7 @@ import { posix, win32 } from "node:path";
 import { pathToFileURL } from "node:url";
 import { RequestError } from "@agentclientprotocol/sdk";
 import type { ProjectLocation } from "@/shared/contracts";
+import { toWslUncPath } from "@/shared/wsl";
 
 /** CWD to pass into the ACP session (the agent's working directory). */
 export function resolveSessionCwd(location: ProjectLocation): string {
@@ -87,6 +88,21 @@ export function resolveAcpHostFsPath(location: ProjectLocation, rawPath: string)
     : win32.join(location.uncPath, ...relative.split("/").filter(Boolean));
 }
 
+export function resolveAcpReadableHostFsPath(location: ProjectLocation, rawPath: string): string {
+  const absolutePath = resolveAcpResourcePath(location, rawPath);
+  if (isProjectRelativePath(location, absolutePath)) {
+    return resolveAcpHostFsPath(location, rawPath);
+  }
+  const normalizedPath = normalizeAcpPath(location, absolutePath);
+  if (!isAgentSkillReadPath(location, normalizedPath)) {
+    throw RequestError.invalidParams({ message: `Path is outside the project: ${rawPath}` });
+  }
+  if (location.kind === "wsl" && !isWindowsAbsolutePath(normalizedPath)) {
+    return toWslUncPath(location.distro, normalizedPath);
+  }
+  return normalizedPath;
+}
+
 export function toAcpResourceUri(location: ProjectLocation, rawPath: string): string {
   const absolutePath = resolveAcpResourcePath(location, rawPath);
   if (isWindowsAbsolutePath(absolutePath)) {
@@ -141,4 +157,36 @@ export function sliceTextFileContent(
     maxLines === undefined ? undefined : startLine - 1 + maxLines,
   );
   return selected.join("\n");
+}
+
+function isAgentSkillReadPath(location: ProjectLocation, absolutePath: string): boolean {
+  switch (location.kind) {
+    case "windows": {
+      const match =
+        /^([A-Za-z]:[\\/]Users[\\/][^\\/]+[\\/]\\.agents[\\/]skills)(?:[\\/].*)?$/i.exec(
+          absolutePath,
+        );
+      if (!match) return false;
+      const root = match[1]!;
+      const relative = win32.relative(root, absolutePath);
+      return relative !== "" && !relative.startsWith("..") && !win32.isAbsolute(relative);
+    }
+    case "wsl":
+    case "posix": {
+      const match = /^(\/(?:home\/[^/]+|Users\/[^/]+|root)\/\.agents\/skills)(?:\/.*)?$/.exec(
+        absolutePath,
+      );
+      if (!match) return false;
+      const root = match[1]!;
+      const relative = posix.relative(root, absolutePath);
+      return relative !== "" && !relative.startsWith("..") && !posix.isAbsolute(relative);
+    }
+  }
+}
+
+function normalizeAcpPath(location: ProjectLocation, absolutePath: string): string {
+  if (isWindowsAbsolutePath(absolutePath)) return win32.normalize(absolutePath);
+  return location.kind === "windows"
+    ? win32.normalize(absolutePath)
+    : posix.normalize(absolutePath);
 }

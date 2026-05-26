@@ -193,7 +193,7 @@ export class WslBridgeClient {
     onEvent: (event: WatchEvent) => void,
   ): Promise<{ subscriptionId: string; unsubscribe: () => Promise<void> }> {
     const subscriptionId = randomUUID();
-    this.server.registerWatchListener(subscriptionId, onEvent);
+    this.server.registerWatchListener(subscriptionId, location.distro, onEvent);
     try {
       await this.call(location, "/v1/watch/subscribe", {
         projectRoot: location.linuxPath,

@@ -270,6 +270,32 @@ describe("acpToolPayload", () => {
     });
   });
 
+  it("synthesizes diffs and summaries from create content args", () => {
+    const payload = {
+      name: "Write",
+      path: "src/app.js",
+      changeKind: "create",
+      args: {
+        file_path: "src/app.js",
+        content: "const root = document.querySelector('#app');\nroot.textContent = 'hi';\n",
+      },
+    };
+
+    expect(extractAcpDiffSummary(payload)).toEqual({ added: 2, removed: 0 });
+    expect(extractAcpDiffResultPart(payload)).toEqual({
+      text: [
+        "diff --git a/src/app.js b/src/app.js",
+        "--- /dev/null",
+        "+++ b/src/app.js",
+        "@@ -0,0 +1,2 @@",
+        "+const root = document.querySelector('#app');",
+        "+root.textContent = 'hi';",
+        "",
+      ].join("\n"),
+      language: "diff",
+    });
+  });
+
   it("prefers normalized metadata changes over range-less apply_patch text", () => {
     const patch = [
       "Index: /Users/serhiivecherenko/work/site-search-ui/README.md",

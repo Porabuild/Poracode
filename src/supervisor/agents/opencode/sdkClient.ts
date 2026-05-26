@@ -4,6 +4,7 @@ import { resolveAgentBinaryPath } from "../binaryResolver";
 import { BROWSER_MCP_SERVER_NAME } from "../browserMcp";
 import { buildOpenCodeServerCommand } from "./argv";
 import { buildOpenCodeBrowserMcp } from "./mcpBrowser";
+import { isOpenCodeConnectionLoss } from "./opencodeErrors";
 import { spawnOpenCodeServer, type OpenCodeServerHandle } from "./sdkServer";
 
 /** Agent-side cwd that the SDK passes through to the server's session config. */
@@ -128,12 +129,21 @@ async function syncBrowserMcp(
 
   await client.mcp
     .add({ directory, name: BROWSER_MCP_SERVER_NAME, config: browser })
-    .catch(() => undefined);
+    .catch((err) => {
+      if (isOpenCodeConnectionLoss(err)) throw err;
+    });
   await client.mcp.connect({ directory, name: BROWSER_MCP_SERVER_NAME });
 }
 
 export async function acquireOpenCodeServer(
   input: AcquireOpenCodeServerInput,
+): Promise<AcquiredOpenCodeServer> {
+  return acquireOpenCodeServerInner(input, true);
+}
+
+async function acquireOpenCodeServerInner(
+  input: AcquireOpenCodeServerInput,
+  retryMcpConnectionLoss: boolean,
 ): Promise<AcquiredOpenCodeServer> {
   const key = poolKey(input.projectLocation);
   let entry = pool.get(key);
@@ -179,9 +189,19 @@ export async function acquireOpenCodeServer(
 
   let released = false;
   const idleCloseDelayMs = input.idleCloseDelayMs;
-  await syncBrowserMcp(input, snapshot.client).catch((error) => {
-    console.warn("[opencode] failed to sync Browser MCP:", error);
-  });
+  try {
+    await syncBrowserMcp(input, snapshot.client);
+  } catch (error) {
+    if (!retryMcpConnectionLoss || !isOpenCodeConnectionLoss(error)) {
+      console.warn("[opencode] failed to sync Browser MCP:", error);
+    } else {
+      released = true;
+      acquiringEntry.refCount -= 1;
+      if (pool.get(key) === acquiringEntry) pool.delete(key);
+      await snapshot.handle.dispose().catch(() => undefined);
+      return acquireOpenCodeServerInner(input, false);
+    }
+  }
 
   return {
     client: snapshot.client,

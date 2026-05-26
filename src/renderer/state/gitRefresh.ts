@@ -4,7 +4,7 @@ import { useAppStore } from "@/renderer/state/appStore";
 import { useGitStore } from "@/renderer/state/gitStore";
 import { buildBranchPrKey } from "@/renderer/state/gitSelectors";
 
-export type GitRefreshReason = "initial" | "watcher" | "fetch" | "manual";
+export type GitRefreshReason = "initial" | "watcher" | "fetch" | "manual" | "poll";
 export type GitRefreshMode = "status" | "full";
 
 export interface GitRefreshOptions {

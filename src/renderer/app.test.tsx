@@ -800,6 +800,27 @@ describe("App", () => {
             updatedAt: "2026-04-06T11:50:00.000Z",
           },
           {
+            id: "thread-4",
+            projectId: "project-1",
+            title: "Unchecked finished thread",
+            agentKind: "codex",
+            config: {
+              model: "gpt-5.4",
+            },
+            status: "finished",
+            attention: "none",
+            canResumeWithConfig: true,
+            archived: false,
+            done: false,
+            starred: false,
+            sessionRef: {
+              providerSessionId: "session-4",
+              discoveredAt: "2026-03-22T00:00:00.000Z",
+            },
+            createdAt: "2026-03-22T00:00:00.000Z",
+            updatedAt: "2026-04-06T11:00:00.000Z",
+          },
+          {
             id: "thread-2",
             projectId: "project-1",
             title: "Visible thread",
@@ -839,6 +860,9 @@ describe("App", () => {
     );
     expect(useAppStore.getState().threads.find((thread) => thread.id === "thread-3")?.status).toBe(
       "idle",
+    );
+    expect(useAppStore.getState().threads.find((thread) => thread.id === "thread-4")?.status).toBe(
+      "finished",
     );
   });
 

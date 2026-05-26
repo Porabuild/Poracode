@@ -233,7 +233,7 @@ export const defaultSharedSettings: SharedSettings = {
   acpRegistryInstalledAgents: {},
   agentInstances: {},
   collapseTerminalComposer: false,
-  staleThreadUnloadMinutes: 20,
+  staleThreadUnloadMinutes: 60,
   autoArchiveDoneAfterDays: 7,
   scrollSpeed: 2,
   agentTerminalFontSize: 12,

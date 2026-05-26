@@ -55,7 +55,11 @@ export function QuestionAnswer({ item, checkpointRevertControl }: QuestionAnswer
           </div>
         ))}
       </div>
-      {checkpointRevertControl}
+      {checkpointRevertControl ? (
+        <div className="absolute right-2 top-1/2 z-10 -translate-y-1/2 opacity-0 transition-opacity group-hover/checkpoint:opacity-100 focus-within:opacity-100">
+          {checkpointRevertControl}
+        </div>
+      ) : null}
     </Surface>
   );
 }
