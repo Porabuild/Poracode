@@ -9,6 +9,7 @@ const statusesState = {
 };
 
 const resetDiscoveredAgentsMock = vi.fn<() => void>();
+const beginFirstLaunchDiscoveryMock = vi.fn<(scope?: unknown) => void>();
 const refreshAgentStatusesMock = vi.fn<(wslDistros?: string[]) => Promise<void>>();
 
 const appState = {
@@ -20,14 +21,17 @@ vi.mock("@/renderer/state/agentStatusesStore", () => {
     selector: (state: {
       agentStatuses: AgentStatus[];
       wslAgentStatuses: AgentStatus[];
+      beginFirstLaunchDiscovery: (scope?: unknown) => void;
       resetDiscoveredAgents: () => void;
     }) => unknown,
   ) =>
     selector({
       ...statusesState,
+      beginFirstLaunchDiscovery: beginFirstLaunchDiscoveryMock,
       resetDiscoveredAgents: resetDiscoveredAgentsMock,
     });
   useAgentStatusesStore.getState = () => ({
+    beginFirstLaunchDiscovery: beginFirstLaunchDiscoveryMock,
     resetDiscoveredAgents: resetDiscoveredAgentsMock,
   });
   return { useAgentStatusesStore };
@@ -90,7 +94,16 @@ vi.mock("@/renderer/bridge", () => ({
 }));
 
 vi.mock("@/renderer/components/thread/AgentDiscoveryScreen", () => ({
-  AgentDiscoveryScreen: () => <div>Discovering coding agents…</div>,
+  AgentDiscoveryScreen: (props: { onCancel?: () => void }) => (
+    <div>
+      Discovering coding agents…
+      {props.onCancel ? (
+        <button type="button" onClick={props.onCancel}>
+          Cancel
+        </button>
+      ) : null}
+    </div>
+  ),
 }));
 
 vi.mock("./parts/GeneralSettings", () => ({
@@ -162,6 +175,7 @@ describe("SettingsOverlay", () => {
     statusesState.agentStatuses = [];
     statusesState.wslAgentStatuses = [];
     appState.projects = [];
+    beginFirstLaunchDiscoveryMock.mockReset();
     resetDiscoveredAgentsMock.mockReset();
     refreshAgentStatusesMock.mockReset();
     refreshAgentStatusesMock.mockResolvedValue(undefined);
@@ -262,7 +276,11 @@ describe("SettingsOverlay", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Refresh detected agents" }));
 
-    expect(resetDiscoveredAgentsMock).toHaveBeenCalledTimes(1);
+    expect(beginFirstLaunchDiscoveryMock).toHaveBeenCalledWith({
+      kind: "all",
+      wslDistros: ["Ubuntu"],
+    });
+    expect(resetDiscoveredAgentsMock).not.toHaveBeenCalled();
     expect(refreshAgentStatusesMock).toHaveBeenCalledWith(["Ubuntu"]);
     expect(screen.getByText("Discovering coding agents…")).toBeInTheDocument();
 
@@ -274,5 +292,20 @@ describe("SettingsOverlay", () => {
       },
       { timeout: 2500 },
     );
+    expect(resetDiscoveredAgentsMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("cancels the visible agent refresh overlay", () => {
+    refreshAgentStatusesMock.mockReturnValueOnce(new Promise<void>(() => undefined));
+
+    render(<SettingsOverlay onClose={() => undefined} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Refresh detected agents" }));
+    expect(screen.getByText("Discovering coding agents…")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+
+    expect(screen.queryByText("Discovering coding agents…")).not.toBeInTheDocument();
+    expect(resetDiscoveredAgentsMock).toHaveBeenCalledTimes(1);
   });
 });

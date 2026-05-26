@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { AgentStatus } from "@/shared/contracts";
 import { resolveLightcodePaths } from "@/shared/lightcodePaths";
+import type { AgentAdapter } from "../agents/base";
 import { detectWslAgentStatuses, SupervisorRuntime } from "../runtime";
 
 const tempDirs: string[] = [];
@@ -31,6 +32,7 @@ afterEach(() => {
   } else {
     process.env.LIGHTCODE_DATA_DIR = lightcodeDataDirBeforeTests;
   }
+  vi.useRealTimers();
   for (const dir of tempDirs.splice(0)) {
     rmSync(dir, { recursive: true, force: true });
   }
@@ -219,6 +221,20 @@ describe("agent status cache", () => {
 });
 
 describe("detectWslAgentStatuses", () => {
+  const capabilities: AgentStatus["capabilities"] = {
+    models: [],
+    efforts: [],
+    modelEfforts: {},
+    modes: [],
+    approvalPolicies: [],
+    sandboxModes: [],
+    supportsResume: true,
+    supportsDirectInput: true,
+    liveInputMode: "server",
+    presentationMode: "terminal",
+    settingDefs: [],
+  };
+
   it("detects statuses for every adapter in every distro", async () => {
     const detectInstall = vi.fn<
       (ctx?: { envKind: "windows" | "wsl"; wslDistro?: string }) => Promise<{
@@ -300,5 +316,65 @@ describe("detectWslAgentStatuses", () => {
       expect.objectContaining({ envKind: "wsl", envDistro: "Ubuntu", installed: true }),
       expect.objectContaining({ envKind: "wsl", envDistro: "Debian", installed: false }),
     ]);
+  });
+
+  it("times out a stalled WSL adapter without blocking the status batch", async () => {
+    vi.useFakeTimers();
+    const stalledDetect = vi.fn<AgentAdapter["detectInstall"]>(
+      () => new Promise<AgentStatus>(() => {}),
+    );
+    const readyDetect = vi.fn<AgentAdapter["detectInstall"]>().mockResolvedValue({
+      kind: "codex",
+      label: "Codex",
+      installed: true,
+      authState: "authenticated",
+      capabilities,
+    });
+    const onStatus = vi.fn<(status: AgentStatus) => void>();
+
+    const statusesPromise = detectWslAgentStatuses(
+      [
+        {
+          kind: "opencode",
+          label: "OpenCode",
+          capabilities,
+          detectInstall: stalledDetect,
+          buildLaunchArgv: vi.fn<AgentAdapter["buildLaunchArgv"]>(),
+          buildResumeArgv: vi.fn<AgentAdapter["buildResumeArgv"]>(),
+          createInitialSessionRef: vi.fn<AgentAdapter["createInitialSessionRef"]>(),
+        } as AgentAdapter,
+        {
+          kind: "codex",
+          label: "Codex",
+          capabilities,
+          detectInstall: readyDetect,
+          buildLaunchArgv: vi.fn<AgentAdapter["buildLaunchArgv"]>(),
+          buildResumeArgv: vi.fn<AgentAdapter["buildResumeArgv"]>(),
+          createInitialSessionRef: vi.fn<AgentAdapter["createInitialSessionRef"]>(),
+        } as AgentAdapter,
+      ],
+      ["Ubuntu"],
+      undefined,
+      onStatus,
+    );
+
+    await vi.advanceTimersByTimeAsync(60_000);
+
+    const statuses = await statusesPromise;
+    expect(statuses).toEqual([
+      expect.objectContaining({
+        kind: "opencode",
+        envKind: "wsl",
+        envDistro: "Ubuntu",
+        installed: false,
+      }),
+      expect.objectContaining({
+        kind: "codex",
+        envKind: "wsl",
+        envDistro: "Ubuntu",
+        installed: true,
+      }),
+    ]);
+    expect(onStatus).toHaveBeenCalledTimes(2);
   });
 });

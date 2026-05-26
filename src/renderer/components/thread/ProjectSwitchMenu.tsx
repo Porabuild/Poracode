@@ -9,10 +9,14 @@ import { useAppStore } from "@/renderer/state/appStore";
 import { TuxIcon } from "@/renderer/components/common/TuxIcon";
 
 function LocationIcon(props: { kind: Project["location"]["kind"]; className?: string }) {
-  const className = `${props.className ?? "size-4"} shrink-0 text-muted`;
   if (props.kind === "wsl") {
-    return <TuxIcon className={className} />;
+    return (
+      <span className={`${props.className ?? "size-3.5"} relative shrink-0 text-muted`}>
+        <TuxIcon className="absolute left-1/2 top-1/2 h-3.5 w-6 -translate-x-1/2 -translate-y-1/2" />
+      </span>
+    );
   }
+  const className = `${props.className ?? "size-4"} shrink-0 text-muted`;
   if (props.kind === "windows") {
     return <Monitor className={className} />;
   }

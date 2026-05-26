@@ -80,9 +80,11 @@ export function extractAcpResultPart(payload: unknown): ExtractedPart {
  * Falls back to {@link extractAcpResultPart} for shapes we don't recognise.
  */
 export function extractReadFileResultPart(payload: unknown): ExtractedPart {
-  const base = extractAcpResultPart(payload);
+  const structured = extractStructuredReadResult(payload);
+  const base = structured ? asPart(structured.text) : extractAcpResultPart(payload);
   if (base.text.length === 0) return base;
   const pathFromPayload =
+    structured?.path ??
     readPayloadString(payload, "path") ??
     readAcpStringField(payload, "filePath") ??
     readAcpStringField(payload, "file_path") ??
@@ -95,6 +97,51 @@ export function extractReadFileResultPart(payload: unknown): ExtractedPart {
   const stripped = stripLineNumberPrefix(text);
   const language = detectLanguageFromPath(path);
   return { text: stripped, language };
+}
+
+function extractStructuredReadResult(
+  payload: unknown,
+): { path: string | undefined; text: string } | undefined {
+  if (!payload || typeof payload !== "object") return undefined;
+  const result = (payload as Record<string, unknown>).result;
+  if (!result || typeof result !== "object" || Array.isArray(result)) return undefined;
+  const record = result as Record<string, unknown>;
+  const nested =
+    readNestedReadText(record.file) ??
+    readNestedReadText(record.output) ??
+    readNestedReadText(record.FileContent) ??
+    readNestedReadText(record.fileContent);
+  const text =
+    nested?.text ??
+    readString(record.content) ??
+    readString(record.text) ??
+    readString(record.tool_output_for_prompt);
+  if (text === undefined) return undefined;
+  const path =
+    nested?.path ??
+    readString(record.path) ??
+    readString(record.file_path) ??
+    readString(record.filePath) ??
+    readString(record.absolute_path) ??
+    readString(record.absolutePath);
+  return { path, text };
+}
+
+function readNestedReadText(
+  value: unknown,
+): { path: string | undefined; text: string } | undefined {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
+  const record = value as Record<string, unknown>;
+  const text =
+    readString(record.raw_output) ?? readString(record.content) ?? readString(record.text);
+  if (text === undefined) return undefined;
+  const path =
+    readString(record.path) ??
+    readString(record.file_path) ??
+    readString(record.filePath) ??
+    readString(record.absolute_path) ??
+    readString(record.absolutePath);
+  return { path, text };
 }
 
 function unwrapReadFileWrapper(
@@ -121,7 +168,7 @@ function stripLineNumberPrefix(text: string): string {
   for (const line of lines) {
     const trimmed = line.trim();
     if (trimmed.length > 0) nonEmpty += 1;
-    const match = /^\s*\d+:\s?(.*)$/.exec(line);
+    const match = /^\s*\d+(?::|>|→)\s?(.*)$/.exec(line);
     if (match) {
       prefixed += 1;
       out.push(match[1] ?? "");

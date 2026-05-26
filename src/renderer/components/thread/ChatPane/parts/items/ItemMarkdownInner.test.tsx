@@ -78,6 +78,18 @@ describe("ItemMarkdownInner", () => {
     expect(container.querySelector("pre > code")).toHaveTextContent("plain block");
   });
 
+  it("treats range/path fence info as a code fence header, not visible body text", () => {
+    const { container } = render(
+      <AppProvider>
+        <ItemMarkdownInner text={"```1:30:AGENTS.md\n# AGENTS.md\n\nBody\n```"} />
+      </AppProvider>,
+    );
+
+    expect(screen.getByTestId("code-block")).toHaveAttribute("data-lang", "markdown");
+    expect(screen.getByTestId("code-block")).toHaveTextContent("# AGENTS.md Body");
+    expect(container).not.toHaveTextContent("1:30:AGENTS.md");
+  });
+
   it("hides browser selector metadata fences", () => {
     const payload = JSON.stringify({
       selector: "svg.lnXdpd > path",

@@ -975,6 +975,46 @@ describe("SingleAgentSettings", () => {
     await waitFor(() => expect(focusWindowMock).toHaveBeenCalled());
   });
 
+  it("runs terminal re-login for authenticated native ACP terminal auth agents", () => {
+    const windowsProject = makeProject({
+      id: "windows-project",
+      name: "Windows Project",
+      location: { kind: "windows", path: "C:\\project" },
+    });
+    appState.projects = [windowsProject];
+    runAgentLoginCommandMock.mockReturnValue(true);
+    statusesState.agentStatuses = [
+      makeStatus("copilot", {
+        label: "GitHub Copilot",
+        authState: "authenticated",
+        loginCommand: "copilot login",
+        authMethods: [
+          {
+            type: "terminal",
+            id: "copilot-login",
+            name: "Log in with Copilot CLI",
+            args: ["login"],
+          },
+        ],
+        envKind: "windows",
+      }),
+    ];
+
+    render(<SingleAgentSettings agentKind="copilot" />);
+
+    const row = envRow("Windows");
+    fireEvent.click(within(row).getByRole("button", { name: /re-login/i }));
+
+    expect(authenticateAcpAgentMock).not.toHaveBeenCalled();
+    expect(runAgentLoginCommandMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        label: "GitHub Copilot",
+        command: "copilot login",
+        project: windowsProject,
+      }),
+    );
+  });
+
   it("runs native ACP agent-owned auth in the selected environment", async () => {
     statusesState.agentStatuses = [
       makeStatus("gemini", {

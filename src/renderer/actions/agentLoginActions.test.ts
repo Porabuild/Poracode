@@ -294,6 +294,29 @@ describe("runAgentLoginCommand", () => {
     expect(bridge.openExternalNative).toHaveBeenCalledWith(url);
   });
 
+  it("does not auto-open Gemini WSL login links", () => {
+    runAgentLoginCommand({
+      label: "Gemini",
+      command: "gemini /auth",
+      project: wslProject,
+    });
+
+    const shellId = loginTerminalStore.open.mock.calls[0]?.[0].shellId;
+    expect(writeScriptToShellMock.mock.calls[0]?.[1] ?? "").toContain(
+      "clear; BROWSER='/bin/true' gemini /auth",
+    );
+
+    emit({
+      type: "thread-output",
+      threadId: shellId!,
+      data: "https://geminicli.com/docs/resources/tos-privacy/%E2%94%82\n",
+      outputLength: 0,
+    });
+    vi.advanceTimersByTime(250);
+
+    expect(bridge.openExternalNative).not.toHaveBeenCalled();
+  });
+
   it("marks the login overlay as failed when the command exits unsuccessfully", () => {
     runAgentLoginCommand({
       label: "Grok",

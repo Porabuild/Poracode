@@ -12,9 +12,14 @@ import { PlanProposal, isPlanProposalToolCall } from "./PlanProposal";
 import { ToolCallSections, type ToolCallSection } from "./ToolCallSections";
 import {
   extractAcpArgsPart,
+  extractAcpDiffResultPart,
+  extractAcpDiffSummary,
   extractAcpResultPart,
   extractReadFileResultPart,
+  readAcpContentEditTexts,
 } from "./acpToolPayload";
+import { formatDiffSummaryLabel } from "./FileChange";
+import { InlineDiffView } from "./InlineDiffView";
 import { deriveToolDisplay, isSkillTool } from "./toolDisplay";
 import { FileContentPlaceholder, useReadAbsoluteFile } from "./useReadAbsoluteFile";
 
@@ -33,11 +38,17 @@ export const ToolCall = memo(function ToolCall({ item }: ToolCallProps) {
       : null;
   const fetched = useReadAbsoluteFile(isExpanded ? fetchTarget : null);
   const readResultPart =
-    payload?.kind === "read" && !lazyReadPath ? extractReadFileResultPart(payload) : undefined;
+    payload && isReadLikeToolPayload(payload) && !lazyReadPath
+      ? extractReadFileResultPart(payload)
+      : undefined;
   const hasReadResult = !!readResultPart && readResultPart.text.length > 0;
+  const diffPart =
+    payload && isEditLikeToolPayload(payload) ? extractAcpDiffResultPart(payload) : undefined;
+  const diffText = diffPart?.text ? diffPart.text : undefined;
+  const contentEdit = readAcpContentEditTexts(payload);
   const sections = useMemo<ToolCallSection[]>(() => {
     if (!isExpanded || !payload) return [];
-    if (lazyReadPath || hasReadResult) return [];
+    if (lazyReadPath || hasReadResult || diffText !== undefined) return [];
     const isSkill = isSkillTool(payload);
     return [
       { label: "args", part: extractAcpArgsPart(payload) },
@@ -47,15 +58,23 @@ export const ToolCall = memo(function ToolCall({ item }: ToolCallProps) {
         ...(isSkill ? { renderAsMarkdown: true } : {}),
       },
     ];
-  }, [isExpanded, payload, lazyReadPath, hasReadResult]);
+  }, [isExpanded, payload, lazyReadPath, hasReadResult, diffText]);
   if (!payload?.name) return null;
   if (isContextCompactionToolCall(item)) return <ContextCompaction item={item} />;
   if (isPlanProposalToolCall(item)) return <PlanProposal item={item} />;
   const hasDetails =
-    payload.args !== undefined || payload.result !== undefined || fetchTarget !== null;
+    payload.args !== undefined ||
+    payload.result !== undefined ||
+    fetchTarget !== null ||
+    diffText !== undefined ||
+    hasReadResult;
   const display = deriveToolDisplay(payload);
   const Icon = display.Icon;
-  const status = resolveToolStatus(item, payload);
+  const status = resolveToolStatus(
+    item,
+    payload,
+    diffText ? extractAcpDiffSummary(payload) : undefined,
+  );
 
   return (
     <ChatItemAccordion
@@ -79,6 +98,12 @@ export const ToolCall = memo(function ToolCall({ item }: ToolCallProps) {
         )
       ) : readResultPart && hasReadResult ? (
         <CommandOutputViewport text={readResultPart.text} language={readResultPart.language} />
+      ) : diffText !== undefined ? (
+        <InlineDiffView
+          diffText={diffText}
+          filePath={display.parts?.filePath ? display.parts.path : ""}
+          {...(contentEdit ? { oldText: contentEdit.oldText, newText: contentEdit.newText } : {})}
+        />
       ) : (
         <ToolCallSections sections={sections} />
       )}
@@ -94,7 +119,7 @@ export const ToolCall = memo(function ToolCall({ item }: ToolCallProps) {
  * read-file result extractor instead.
  */
 function pickLazyReadPath(payload: ToolCallPayload | undefined): string | undefined {
-  if (!payload || payload.kind !== "read") return undefined;
+  if (!payload || !isReadLikeToolPayload(payload)) return undefined;
   if (payload.result !== undefined) return undefined;
   return payload.locations?.find((location) => location.path.length > 0)?.path;
 }
@@ -104,7 +129,11 @@ interface ToolStatusDisplay {
   rightLabelClassName: string;
 }
 
-function resolveToolStatus(item: RuntimeChatItem, payload: ToolCallPayload): ToolStatusDisplay {
+function resolveToolStatus(
+  item: RuntimeChatItem,
+  payload: ToolCallPayload,
+  diffSummary?: ReturnType<typeof extractAcpDiffSummary>,
+): ToolStatusDisplay {
   const isRunning = item.state !== "completed" || payload.status === "running";
   if (isRunning) {
     return {
@@ -118,5 +147,32 @@ function resolveToolStatus(item: RuntimeChatItem, payload: ToolCallPayload): Too
       rightLabelClassName: "text-danger",
     };
   }
+  if (diffSummary) {
+    return {
+      rightLabel: formatDiffSummaryLabel(diffSummary),
+      rightLabelClassName: "!text-[color:var(--muted)]",
+    };
+  }
   return { rightLabel: null, rightLabelClassName: "!text-[color:var(--muted)]" };
+}
+
+function isReadLikeToolPayload(payload: ToolCallPayload): boolean {
+  if (payload.kind === "read") return true;
+  if (payload.name === "Read" || payload.name === "NotebookRead") return true;
+  const title = payload.title?.trim() || payload.name.trim();
+  return /^(?:view|read)(?:ing)?(?:\s|:|$)/i.test(title);
+}
+
+function isEditLikeToolPayload(payload: ToolCallPayload): boolean {
+  switch (payload.kind) {
+    case "edit":
+    case "delete":
+    case "move":
+      return true;
+  }
+  if (["Edit", "Write", "MultiEdit", "NotebookEdit", "Patch"].includes(payload.name)) return true;
+  const title = payload.title?.trim() || payload.name.trim();
+  return /^(?:edit|editing|write|writing|patch|patching|create|creating|delete|deleting|remove|removing)(?:\s|:|$)/i.test(
+    title,
+  );
 }

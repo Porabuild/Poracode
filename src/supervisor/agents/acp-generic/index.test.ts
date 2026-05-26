@@ -264,6 +264,34 @@ describe("createAcpGenericAdapter", () => {
     expect(status.loginCommand).toBe("my-acp --stdio login");
   });
 
+  it("treats ACP terminal-auth metadata as terminal auth", async () => {
+    vi.mocked(probeAcpCapabilities).mockResolvedValue({
+      authMethods: [
+        {
+          id: "copilot-login",
+          name: "Log in with Copilot CLI",
+          _meta: {
+            "terminal-auth": {
+              args: ["login"],
+              env: { BROWSER: "/bin/true" },
+            },
+          },
+        },
+      ],
+    });
+    const adapter = createAcpGenericAdapter(baseInstance);
+    const status = await adapter.detectInstall();
+    expect(status.authState).toBe("missing");
+    expect(status.loginCommand).toBe("my-acp --stdio login");
+    expect(status.authMethods?.[0]).toMatchObject({
+      type: "terminal",
+      id: "copilot-login",
+      name: "Log in with Copilot CLI",
+      args: ["login"],
+      env: { BROWSER: "/bin/true" },
+    });
+  });
+
   it("drops agent-owned methods that duplicate an env-var method name", async () => {
     // Some agents advertise both an agent-typed stub and the real env_var
     // method under the same display name. The stub's authenticate() just acks,

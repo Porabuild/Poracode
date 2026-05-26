@@ -92,6 +92,46 @@ describe("ToolCall — Claude View (Read) rich rendering", () => {
     expect(resultViewport.tagName.toLowerCase()).toBe("pre");
     expect(resultViewport.classList.contains("lc-shiki")).toBe(false);
   });
+
+  it("renders standalone Grok edit tool calls as rich diffs with counts", async () => {
+    const item: RuntimeChatItem = {
+      id: "toolu_grok_edit",
+      type: "tool_call",
+      state: "completed",
+      payload: {
+        name: "Edit: src/App.tsx",
+        status: "success",
+        args: {
+          file_path: "src/App.tsx",
+          old_string: "const title = 'old';",
+          new_string: "const title = 'new';",
+        },
+        result: {
+          type: "SearchReplace",
+          tool_output_for_prompt: "The file src/App.tsx has been updated successfully.",
+        },
+      },
+      streams: {},
+    };
+
+    render(
+      <AppProvider>
+        <ToolCall item={item} />
+      </AppProvider>,
+    );
+
+    expect(document.body).toHaveTextContent("+1");
+    expect(document.body).toHaveTextContent("-1");
+
+    fireEvent.click(getDisclosureTrigger());
+
+    await waitFor(() => {
+      expect(document.body).toHaveTextContent(/const title = 'old'/);
+      expect(document.body).toHaveTextContent(/const title = 'new'/);
+    });
+    expect(findSectionHeader("args")).toBeNull();
+    expect(findSectionHeader("result")).toBeNull();
+  });
 });
 
 function getDisclosureTrigger(): HTMLElement {

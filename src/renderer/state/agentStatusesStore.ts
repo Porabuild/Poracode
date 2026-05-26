@@ -6,7 +6,10 @@ import {
   type ProjectLocation,
 } from "@/shared/contracts";
 
-export type AgentDiscoveryScope = { kind: "native" } | { kind: "wsl"; distro: string };
+export type AgentDiscoveryScope =
+  | { kind: "native" }
+  | { kind: "wsl"; distro: string }
+  | { kind: "all"; wslDistros: string[] };
 
 interface AgentStatusesStore {
   agentStatuses: AgentStatus[];
@@ -85,6 +88,9 @@ function isStatusInDiscoveryScope(
   status: AgentStatus,
   scope: AgentDiscoveryScope | undefined,
 ): boolean {
+  if (scope?.kind === "all") {
+    return status.envKind !== "wsl" || scope.wslDistros.includes(status.envDistro ?? "");
+  }
   if (scope?.kind === "wsl") {
     return status.envKind === "wsl" && status.envDistro === scope.distro;
   }
@@ -102,7 +108,9 @@ function buildStatusUpdatePatch(
   const equal = statusesEqual(currentList, incoming);
   const endsDiscovery =
     prev.inFirstLaunchDiscovery &&
-    (isWsl ? prev.discoveryScope?.kind === "wsl" : prev.discoveryScope?.kind !== "wsl");
+    (isWsl
+      ? prev.discoveryScope?.kind === "wsl"
+      : prev.discoveryScope?.kind === undefined || prev.discoveryScope.kind === "native");
   const discoveryPatch: Partial<AgentStatusesStore> = endsDiscovery
     ? { inFirstLaunchDiscovery: false, discoveryScope: undefined }
     : {};
@@ -165,7 +173,14 @@ export const useAgentStatusesStore = create<AgentStatusesStore>()((set) => ({
       if (!isStatusInDiscoveryScope(status, prev.discoveryScope)) {
         return prev;
       }
-      if (prev.discoveredAgents.some((existing) => existing.kind === status.kind)) {
+      if (
+        prev.discoveredAgents.some(
+          (existing) =>
+            existing.kind === status.kind &&
+            existing.envKind === status.envKind &&
+            existing.envDistro === status.envDistro,
+        )
+      ) {
         return prev;
       }
       return { discoveredAgents: [...prev.discoveredAgents, status] };
@@ -211,6 +226,7 @@ export function isDiscoveryActiveForLocation(
   location: ProjectLocation,
 ): boolean {
   if (!state.inFirstLaunchDiscovery) return false;
+  if (state.discoveryScope?.kind === "all") return true;
   if (location.kind === "wsl") {
     return state.discoveryScope?.kind === "wsl" && state.discoveryScope.distro === location.distro;
   }

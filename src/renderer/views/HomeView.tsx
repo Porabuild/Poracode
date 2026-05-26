@@ -18,7 +18,9 @@ export function HomeView() {
   const recentThreads = useAppStore(
     useShallow((state) =>
       state.threads
-        .filter((t) => !t.done && (homeScopeEnabled || !isHomeProjectId(t.projectId)))
+        .filter(
+          (t) => !t.done && !t.archived && (homeScopeEnabled || !isHomeProjectId(t.projectId)),
+        )
         .toSorted((a, b) => b.updatedAt.localeCompare(a.updatedAt))
         .slice(0, 8),
     ),

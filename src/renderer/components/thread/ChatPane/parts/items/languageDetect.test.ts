@@ -7,6 +7,8 @@ describe("normalizeHighlightLanguage", () => {
     expect(normalizeHighlightLanguage("language-js")).toBe("javascript");
     expect(normalizeHighlightLanguage("lang-yml")).toBe("yaml");
     expect(normalizeHighlightLanguage("foo language-tsx")).toBe("tsx");
+    expect(normalizeHighlightLanguage("language-1:30:AGENTS.md")).toBe("markdown");
+    expect(normalizeHighlightLanguage("language-src/App.tsx")).toBe("tsx");
   });
 
   it("returns null for empty and unsupported language tokens", () => {

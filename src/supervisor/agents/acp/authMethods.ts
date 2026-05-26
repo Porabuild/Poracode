@@ -24,6 +24,40 @@ export function isAcpAgentAuthMethod(method: AcpAuthMethod): method is AcpAgentA
   return !isAcpEnvVarAuthMethod(method) && !isAcpTerminalAuthMethod(method) && !hasVars(method);
 }
 
+function terminalAuthMeta(
+  method: AcpAuthMethod,
+): Pick<AcpTerminalAuthMethod, "args" | "env"> | undefined {
+  const terminalAuth = method._meta?.["terminal-auth"];
+  if (typeof terminalAuth !== "object" || terminalAuth === null) return undefined;
+  const candidate = terminalAuth as { args?: unknown; env?: unknown };
+  const args = Array.isArray(candidate.args)
+    ? candidate.args.filter((arg): arg is string => typeof arg === "string")
+    : undefined;
+  const env =
+    typeof candidate.env === "object" && candidate.env !== null && !Array.isArray(candidate.env)
+      ? Object.fromEntries(
+          Object.entries(candidate.env).filter(
+            (entry): entry is [string, string] => typeof entry[1] === "string",
+          ),
+        )
+      : undefined;
+  return {
+    ...(args?.length ? { args } : {}),
+    ...(env && Object.keys(env).length > 0 ? { env } : {}),
+  };
+}
+
+function normalizeAcpAuthMethod(method: AcpAuthMethod): AcpAuthMethod {
+  if (isAcpTerminalAuthMethod(method)) return method;
+  const terminalMeta = terminalAuthMeta(method);
+  if (!terminalMeta) return method;
+  return {
+    ...method,
+    ...terminalMeta,
+    type: "terminal",
+  };
+}
+
 function hasVars(method: AcpAuthMethod): boolean {
   return "vars" in method;
 }
@@ -40,8 +74,11 @@ function isKeyLikeAgentMethod(method: AcpAuthMethod): boolean {
  * real flow.
  */
 export function dedupeAcpAuthMethods(methods: readonly AcpAuthMethod[]): AcpAuthMethod[] {
-  const envVarNames = new Set(methods.filter(isAcpEnvVarAuthMethod).map((method) => method.name));
-  return methods.filter(
+  const normalized = methods.map(normalizeAcpAuthMethod);
+  const envVarNames = new Set(
+    normalized.filter(isAcpEnvVarAuthMethod).map((method) => method.name),
+  );
+  return normalized.filter(
     (method) =>
       (isAcpEnvVarAuthMethod(method) || !hasVars(method)) &&
       !isKeyLikeAgentMethod(method) &&

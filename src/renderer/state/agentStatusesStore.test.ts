@@ -158,6 +158,16 @@ describe("beginFirstLaunchDiscovery", () => {
     expect(state.discoveryScope).toEqual({ kind: "wsl", distro: "Ubuntu" });
     expect(state.wslLoaded).toBe(false);
   });
+
+  it("can start combined discovery after statuses are already loaded", () => {
+    useAgentStatusesStore.setState({ windowsLoaded: true, wslLoaded: true });
+    useAgentStatusesStore
+      .getState()
+      .beginFirstLaunchDiscovery({ kind: "all", wslDistros: ["Ubuntu"] });
+    const state = useAgentStatusesStore.getState();
+    expect(state.inFirstLaunchDiscovery).toBe(true);
+    expect(state.discoveryScope).toEqual({ kind: "all", wslDistros: ["Ubuntu"] });
+  });
 });
 
 describe("pushDiscoveredAgent", () => {
@@ -186,6 +196,22 @@ describe("pushDiscoveredAgent", () => {
     expect(useAgentStatusesStore.getState().discoveredAgents.map((status) => status.kind)).toEqual([
       "gemini",
     ]);
+  });
+
+  it("appends native and matching WSL agents during combined discovery", () => {
+    useAgentStatusesStore
+      .getState()
+      .beginFirstLaunchDiscovery({ kind: "all", wslDistros: ["Ubuntu"] });
+    useAgentStatusesStore.getState().pushDiscoveredAgent(makeStatus({ kind: "codex" }));
+    useAgentStatusesStore
+      .getState()
+      .pushDiscoveredAgent(makeStatus({ kind: "codex", envKind: "wsl", envDistro: "Ubuntu" }));
+    useAgentStatusesStore
+      .getState()
+      .pushDiscoveredAgent(makeStatus({ kind: "gemini", envKind: "wsl", envDistro: "Debian" }));
+    expect(
+      useAgentStatusesStore.getState().discoveredAgents.map((status) => status.envKind),
+    ).toEqual([undefined, "wsl"]);
   });
 });
 
@@ -305,5 +331,15 @@ describe("isDiscoveryActiveForLocation", () => {
         loc,
       ),
     ).toBe(false);
+  });
+
+  it("matches combined discovery to every project location", () => {
+    const loc: ProjectLocation = { kind: "windows", path: "C:\\tmp" };
+    expect(
+      isDiscoveryActiveForLocation(
+        { inFirstLaunchDiscovery: true, discoveryScope: { kind: "all", wslDistros: ["Ubuntu"] } },
+        loc,
+      ),
+    ).toBe(true);
   });
 });

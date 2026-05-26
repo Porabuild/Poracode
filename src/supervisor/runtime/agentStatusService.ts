@@ -32,6 +32,7 @@ const execFileAsync = promisify(execFile);
  * on the project location (e.g. `grok login --device-auth` on WSL).
  */
 const STATUS_CACHE_VERSION = 2;
+const WSL_AGENT_DETECTION_TIMEOUT_MS = 60_000;
 
 function migrateSettingDef(definition: Record<string, unknown>): Record<string, unknown> {
   if (definition.type === "toggle" || definition.type === "select") {
@@ -158,7 +159,22 @@ export async function detectWslAgentStatuses(
             };
           } else {
             try {
-              const detected = await adapter.detectInstall(ctx);
+              let timeout: NodeJS.Timeout | undefined;
+              const detected = await Promise.race([
+                adapter.detectInstall(ctx),
+                new Promise<never>((_, reject) => {
+                  timeout = setTimeout(() => {
+                    reject(
+                      new Error(
+                        `detectInstall(${adapter.kind}, wsl:${distro}) timed out after ${WSL_AGENT_DETECTION_TIMEOUT_MS}ms`,
+                      ),
+                    );
+                  }, WSL_AGENT_DETECTION_TIMEOUT_MS);
+                  if (typeof timeout.unref === "function") timeout.unref();
+                }),
+              ]).finally(() => {
+                if (timeout) clearTimeout(timeout);
+              });
               status = { ...detected, envKind: "wsl" as const, envDistro: distro };
             } catch (error) {
               console.error(

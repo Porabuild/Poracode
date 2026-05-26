@@ -393,6 +393,28 @@ function looksLikeAcpSessionNotification(params: unknown): params is SessionNoti
   return typeof (p.update as { sessionUpdate?: unknown }).sessionUpdate === "string";
 }
 
+function filterAcpInboundNoise(
+  stream: ReturnType<typeof ndJsonStream>,
+): ReturnType<typeof ndJsonStream> {
+  return {
+    writable: stream.writable,
+    readable: stream.readable.pipeThrough(
+      new TransformStream({
+        transform(message, controller) {
+          if (isStraySkillsReloadResponse(message)) return;
+          controller.enqueue(message);
+        },
+      }),
+    ) as ReturnType<typeof ndJsonStream>["readable"],
+  };
+}
+
+function isStraySkillsReloadResponse(message: unknown): boolean {
+  if (!message || typeof message !== "object") return false;
+  const record = message as Record<string, unknown>;
+  return !("method" in record) && record.id === "skills-reload";
+}
+
 function childExitStatus(code: number | null, signal: NodeJS.Signals | null): TerminalExitStatus {
   return {
     ...(typeof code === "number" ? { exitCode: code } : {}),
@@ -748,7 +770,7 @@ export class AcpStructuredSession implements StructuredSessionHandle {
     // tsgo's strict generics require explicit casts.
     const toAgent = Writable.toWeb(child.stdin!) as WritableStream<Uint8Array>;
     const fromAgent = Readable.toWeb(child.stdout!) as ReadableStream<Uint8Array>;
-    const stream = ndJsonStream(toAgent, fromAgent);
+    const stream = filterAcpInboundNoise(ndJsonStream(toAgent, fromAgent));
 
     let session: AcpStructuredSession;
 
@@ -1526,11 +1548,9 @@ export class AcpStructuredSession implements StructuredSessionHandle {
    */
   private handleExtNotification(method: string, params: Record<string, unknown>): void {
     if (looksLikeAcpSessionNotification(params)) {
-      console.log("[acp] forwarding extension notification to session/update:", method);
       this.handleSessionUpdate(params as unknown as SessionNotification);
       return;
     }
-    console.log("[acp] ignoring extension notification:", method);
   }
 
   /**

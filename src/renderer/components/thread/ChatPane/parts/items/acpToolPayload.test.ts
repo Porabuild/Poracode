@@ -155,6 +155,62 @@ describe("acpToolPayload", () => {
         language: "plain",
       });
     });
+
+    it("unwraps structured Grok read results", () => {
+      expect(
+        extractReadFileResultPart({
+          kind: "read",
+          result: {
+            type: "ReadFile",
+            file: {
+              path: "src/App.tsx",
+              content: "1: export function App() {\n2:   return null;\n3: }",
+            },
+          },
+        }),
+      ).toEqual({
+        text: "export function App() {\n  return null;\n}",
+        language: "tsx",
+      });
+    });
+
+    it("unwraps Grok ReadFile FileContent results", () => {
+      expect(
+        extractReadFileResultPart({
+          kind: "read",
+          result: {
+            type: "ReadFile",
+            FileContent: {
+              content: "1→prefixed content should not win",
+              content_concise: "1→prefixed content should not win",
+              absolute_path: "/home/sdsleon/work/todo-app/js/main.js",
+              raw_output: "import { FILTERS } from './constants.js';\nexport function init() {}",
+            },
+          },
+        }),
+      ).toEqual({
+        text: "import { FILTERS } from './constants.js';\nexport function init() {}",
+        language: "javascript",
+      });
+    });
+
+    it("strips Grok arrow line prefixes when raw output is absent", () => {
+      expect(
+        extractReadFileResultPart({
+          kind: "read",
+          result: {
+            type: "ReadFile",
+            FileContent: {
+              content: "1→const a = 1;\n2→const b = 2;",
+              absolute_path: "/home/sdsleon/work/todo-app/js/main.js",
+            },
+          },
+        }),
+      ).toEqual({
+        text: "const a = 1;\nconst b = 2;",
+        language: "javascript",
+      });
+    });
   });
 
   it("prefers OpenCode's metadata.changes diff over synthesizing from oldString/newString", () => {

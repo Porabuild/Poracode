@@ -39,6 +39,7 @@ import {
   readAcpContentEditTexts,
   extractAcpResultPart,
   extractAcpResultText,
+  extractReadFileResultPart,
   readAcpStringField,
 } from "./acpToolPayload";
 import { commandIntentDisplay } from "./commandSummary";
@@ -360,13 +361,16 @@ function getToolCallRow(item: RuntimeChatItem, isExpanded: boolean): InlineRow |
   const diffPart = isEditLikeToolPayload(payload) ? extractAcpDiffResultPart(payload) : undefined;
   const diffText = diffPart?.text || undefined;
   const lazyReadPath = pickLazyReadPath(payload);
-  const readText = payload.kind === "read" && !lazyReadPath ? extractAcpResultText(payload) : "";
-  const readPath =
-    payload.kind === "read"
-      ? display.parts?.filePath
-        ? display.parts.path
-        : pickFirstLocationPath(payload)
+  const readPart =
+    isReadLikeToolPayload(payload) && !lazyReadPath
+      ? extractReadFileResultPart(payload)
       : undefined;
+  const readText = readPart?.text ?? "";
+  const readPath = isReadLikeToolPayload(payload)
+    ? display.parts?.filePath
+      ? display.parts.path
+      : pickFirstLocationPath(payload)
+    : undefined;
   const hasDetails =
     payload.args !== undefined ||
     payload.result !== undefined ||
@@ -399,7 +403,7 @@ function getToolCallRow(item: RuntimeChatItem, isExpanded: boolean): InlineRow |
     hasDetails,
     sections,
     bodyText: isExpanded ? (diffText ?? (readText.length > 0 ? readText : undefined)) : undefined,
-    bodyLanguage: readPath ? detectLanguageFromPath(readPath) : undefined,
+    bodyLanguage: readPart?.language ?? (readPath ? detectLanguageFromPath(readPath) : undefined),
     bodyKind: diffText ? "diff" : "text",
     bodyFilePath: display.parts?.filePath ? display.parts.path : readPath,
     fetchPath: lazyReadPath,
@@ -413,7 +417,7 @@ function getToolCallRow(item: RuntimeChatItem, isExpanded: boolean): InlineRow |
  * the payload already contains a result — those use the existing result path.
  */
 function pickLazyReadPath(payload: ToolCallPayload): string | undefined {
-  if (payload.kind !== "read") return undefined;
+  if (!isReadLikeToolPayload(payload)) return undefined;
   if (payload.result !== undefined) return undefined;
   return payload.locations?.find((location) => location.path.length > 0)?.path;
 }
@@ -430,6 +434,15 @@ function isEditLikeToolPayload(payload: ToolCallPayload): boolean {
       return true;
   }
   return categorizeToolName(payload.name) === "edited";
+}
+
+function isReadLikeToolPayload(payload: ToolCallPayload): boolean {
+  const kind = payload.kind?.trim().toLowerCase();
+  if (kind === "read" || kind === "readfile") return true;
+  if (payload.name === "Read" || payload.name === "NotebookRead" || payload.name === "ReadFile")
+    return true;
+  const title = payload.title?.trim() || payload.name.trim();
+  return /^(?:view|read)(?:ing)?(?:\s|:|$)/i.test(title);
 }
 
 function ErrorIcon() {

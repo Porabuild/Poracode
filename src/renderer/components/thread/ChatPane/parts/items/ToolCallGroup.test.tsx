@@ -179,6 +179,28 @@ describe("ToolCallGroup", () => {
     expect(screen.queryByText("result")).not.toBeInTheDocument();
   });
 
+  it("renders Grok structured read results as highlighted file content", async () => {
+    const threadId = "thread-1";
+    const item = makeGrokReadToolItem("tool-grok-read");
+    seedThread(threadId, [item]);
+
+    renderToolCallGroup(threadId, [item.id]);
+    fireEvent.click(screen.getByText("store.js"));
+
+    const viewport = await waitFor(() => {
+      const rich = findRichViewport();
+      if (!rich.textContent?.includes("export function subscribe")) {
+        throw new Error("read viewport not populated yet");
+      }
+      return rich;
+    });
+
+    expect(viewport.textContent).toContain("let todos = [];");
+    expect(viewport.textContent).not.toContain('"type": "ReadFile"');
+    expect(screen.queryByText("args")).not.toBeInTheDocument();
+    expect(screen.queryByText("result")).not.toBeInTheDocument();
+  });
+
   it("renders changes-array creates as highlighted file content", async () => {
     const threadId = "thread-1";
     const item = makeChangesArrayFileChangeItem("file-changes-array-create", "create");
@@ -409,6 +431,34 @@ function makeReadToolItem(id: string): RuntimeChatItem {
   };
 }
 
+function makeGrokReadToolItem(id: string): RuntimeChatItem {
+  return {
+    id,
+    type: "tool_call",
+    state: "completed",
+    payload: {
+      name: "View 1:80: store.js",
+      title: "View 1:80: store.js",
+      kind: "read",
+      args: { file_path: "/home/sdsleon/work/todo-app/js/store.js", offset: 1, limit: 80 },
+      result: {
+        type: "ReadFile",
+        content: [
+          "1: import { STORAGE_KEY } from './constants.js';",
+          "2: let todos = [];",
+          "3: export function subscribe(fn) {",
+          "4:   return () => {};",
+          "5: }",
+        ].join("\n"),
+        content_concise: "1: import { STORAGE_KEY } from './constants.js';",
+        absolute_path: "/home/sdsleon/work/todo-app/js/store.js",
+      },
+      status: "success",
+    },
+    streams: {},
+  };
+}
+
 function makeFileChangeItem(
   id: string,
   diffSummary: { added: number; removed: number } = { added: 1, removed: 1 },
@@ -533,4 +583,10 @@ function getViewport(container: HTMLElement): HTMLDivElement {
     throw new Error("missing tool call group viewport");
   }
   return element;
+}
+
+function findRichViewport(): HTMLElement {
+  const viewport = document.querySelector(".lc-shiki, pre");
+  if (!(viewport instanceof HTMLElement)) throw new Error("rich viewport not found");
+  return viewport;
 }

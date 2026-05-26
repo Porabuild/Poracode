@@ -80,8 +80,18 @@ export function normalizeHighlightLanguage(
     if (token.length === 0) continue;
     const language = LANGUAGE_ALIASES[token];
     if (language) return language;
+    const pathLanguage = inferLanguageFromFencePath(token);
+    if (pathLanguage) return pathLanguage;
   }
   return null;
+}
+
+function inferLanguageFromFencePath(token: string): HighlightLanguage | null {
+  const path = token.replace(/^\d+(?::\d+)?:/, "");
+  const dot = path.lastIndexOf(".");
+  if (dot < 0) return null;
+  const ext = path.slice(dot + 1).toLowerCase();
+  return LANGUAGE_ALIASES[ext] ?? null;
 }
 
 export function detectLanguageFromPath(path: string | undefined): ViewportLanguage {

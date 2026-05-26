@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useRef, useState, type ReactNode } from "react";
 import { AgentDiscoveryScreen } from "@/renderer/components/thread/AgentDiscoveryScreen";
 import { readBridge } from "@/renderer/bridge";
 import { useAppStore } from "@/renderer/state/appStore";
@@ -52,6 +52,7 @@ export function SettingsOverlay(props: { onClose: () => void }) {
   const { onClose } = props;
   const [activeSection, setActiveSection] = useState<SettingsSection>("general");
   const [isRefreshingAgents, setIsRefreshingAgents] = useState(false);
+  const refreshRunRef = useRef(0);
   const agentStatuses = useAgentStatusesStore((s) => s.agentStatuses);
   const wslAgentStatuses = useAgentStatusesStore((s) => s.wslAgentStatuses);
   const wslProjectDistrosKey = useAppStore((state) => buildWslProjectDistrosKey(state.projects));
@@ -75,16 +76,28 @@ export function SettingsOverlay(props: { onClose: () => void }) {
       const firstInstalled = installedAgents[0];
       return firstInstalled ? `agents:${firstInstalled.kind}` : "agents";
     });
-    useAgentStatusesStore.getState().resetDiscoveredAgents();
+    const refreshRun = refreshRunRef.current + 1;
+    refreshRunRef.current = refreshRun;
+    useAgentStatusesStore.getState().beginFirstLaunchDiscovery({ kind: "all", wslDistros });
     setIsRefreshingAgents(true);
     void readBridge()
       .refreshAgentStatuses(wslDistros)
       .catch(() => undefined)
       .finally(() => {
         setTimeout(() => {
+          if (refreshRunRef.current !== refreshRun) {
+            return;
+          }
           setIsRefreshingAgents(false);
+          useAgentStatusesStore.getState().resetDiscoveredAgents();
         }, 1000);
       });
+  };
+
+  const cancelRefreshAgents = () => {
+    refreshRunRef.current += 1;
+    setIsRefreshingAgents(false);
+    useAgentStatusesStore.getState().resetDiscoveredAgents();
   };
 
   return (
@@ -106,7 +119,7 @@ export function SettingsOverlay(props: { onClose: () => void }) {
           {renderSection(activeSection, setActiveSection)}
           {isAgentsSectionActive && isRefreshingAgents ? (
             <div className="absolute inset-0 z-20 bg-background/90 backdrop-blur-sm">
-              <AgentDiscoveryScreen />
+              <AgentDiscoveryScreen wslDistros={wslDistros} onCancel={cancelRefreshAgents} />
             </div>
           ) : null}
         </div>
