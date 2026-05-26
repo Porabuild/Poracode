@@ -1,5 +1,6 @@
 import { execFileSync, spawn, type ChildProcess } from "node:child_process";
 import {
+  chmodSync,
   mkdtempSync,
   mkdirSync,
   readFileSync,
@@ -229,6 +230,66 @@ describeOnPosix("bridge.mjs fs endpoints", () => {
     expect(
       readdirSync(join(projectRoot, ".git")).some((name) => name.startsWith("index.lightcode-")),
     ).toBe(false);
+  });
+
+  it("runs structured git batches without a shell", async () => {
+    git(projectRoot, "init");
+    git(projectRoot, "config", "user.email", "test@example.com");
+    git(projectRoot, "config", "user.name", "Lightcode Test");
+
+    const { status, body } = await post(`${bridge.baseUrl}/v1/git/batch`, {
+      timeoutMs: 10_000,
+      commands: [
+        { cwd: projectRoot, args: ["rev-parse", "--is-inside-work-tree"] },
+        { cwd: projectRoot, args: ["status", "--porcelain=v2", "-b"] },
+      ],
+    });
+
+    expect(status).toBe(200);
+    const envelope = body as {
+      ok: boolean;
+      data: { results: Array<{ ok: boolean; stdout: string; exitCode: number }> };
+    };
+    expect(envelope.ok).toBe(true);
+    expect(envelope.data.results[0]).toMatchObject({ ok: true, stdout: "true\n", exitCode: 0 });
+    expect(envelope.data.results[1]?.stdout).toContain("# branch.head");
+  });
+
+  it("runs login-env git execs without exposing the bridge secret to hooks", async () => {
+    git(projectRoot, "init");
+    git(projectRoot, "config", "user.email", "test@example.com");
+    git(projectRoot, "config", "user.name", "Lightcode Test");
+    mkdirSync(join(projectRoot, ".githooks"));
+    const hookPath = join(projectRoot, ".githooks", "pre-commit");
+    writeFileSync(
+      hookPath,
+      [
+        "#!/bin/sh",
+        'printf "%s" "${LIGHTCODE_HOOK_SECRET:-missing}" > "$PWD/hook-env.txt"',
+        'printf ":%s" "${LIGHTCODE_HOOK_PROTOCOL_VERSION:-missing}" >> "$PWD/hook-env.txt"',
+        "",
+      ].join("\n"),
+    );
+    chmodSync(hookPath, 0o755);
+    git(projectRoot, "config", "core.hooksPath", ".githooks");
+    writeFileSync(join(projectRoot, "README.md"), "after");
+    git(projectRoot, "add", "README.md");
+
+    const { status, body } = await post(`${bridge.baseUrl}/v1/git/exec`, {
+      cwd: projectRoot,
+      args: ["commit", "-m", "with hook"],
+      loginEnv: true,
+      timeoutMs: 10_000,
+    });
+
+    expect(status).toBe(200);
+    const envelope = body as {
+      ok: boolean;
+      data: { ok: boolean; stdout: string; exitCode: number };
+    };
+    expect(envelope.ok).toBe(true);
+    expect(envelope.data).toMatchObject({ ok: true, exitCode: 0 });
+    expect(readFileSync(join(projectRoot, "hook-env.txt"), "utf8")).toBe("missing:missing");
   });
 });
 

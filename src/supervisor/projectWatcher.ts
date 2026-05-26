@@ -1,6 +1,7 @@
 import { watch, type FSWatcher } from "node:fs";
 import { join } from "node:path";
 import type { ProjectLocation } from "@/shared/contracts";
+import { toWslUncPath } from "@/shared/wsl";
 import type { WslBridgeClient, WslLocation } from "./wsl/bridge/client";
 
 const DEBOUNCE_MS = 300;
@@ -366,7 +367,13 @@ export class ProjectWatcher {
     linuxPath: string,
     schedule: { onGit: () => void; onTree: () => void },
   ): Promise<void> {
-    const subscription = await this.subscribeWsl(location, linuxPath, schedule);
+    const worktreeLocation: WslLocation = {
+      kind: "wsl",
+      distro: location.distro,
+      linuxPath,
+      uncPath: toWslUncPath(location.distro, linuxPath),
+    };
+    const subscription = await this.subscribeWsl(worktreeLocation, linuxPath, schedule);
     if (!subscription) return;
     let stillActive = false;
     for (const [, wtEntry] of this.worktreeWatchers) {
@@ -391,27 +398,34 @@ export class ProjectWatcher {
     if (!client) return null;
     const gitignoreDirs = await readGitignoreTopLevelDirs(client, location, linuxPath);
     const ignore = [...WSL_IGNORE_DIRS, ...gitignoreDirs];
+    const gitPath = `${linuxPath}/.git`;
+    const paths: { path: string; scope: "git" | "worktree" }[] = [
+      { path: linuxPath, scope: "worktree" },
+    ];
+    const gitStat = await client.stat(location, [gitPath], { follow: true }).catch(() => null);
+    if (gitStat?.stats[0]?.isDirectory) {
+      paths.push({ path: gitPath, scope: "git" });
+    }
     try {
       return await client.watch(
         location,
         {
-          paths: [
-            { path: linuxPath, scope: "worktree" },
-            { path: `${linuxPath}/.git`, scope: "git" },
-          ],
+          paths,
           ignore,
         },
         (event) => {
-          // Empty path arrays carry no actionable info and historically slip
-          // through filters — drop them.
-          if (event.paths.length === 0) return;
           if (event.scope === "git") {
+            if (event.paths.length === 0) return;
             const onlyNoise = event.paths.every((p) => isKnownGitNoisePath(p));
             if (onlyNoise) return;
             schedule.onGit();
             return;
           }
           if (event.scope === "worktree") {
+            if (event.paths.length === 0) {
+              schedule.onTree();
+              return;
+            }
             // `.git/...` writes (e.g. our own `git status` creating
             // `.git/index.lock`) leak into worktree-scope events because the
             // worktree path is the parent of `.git`. Those are already covered

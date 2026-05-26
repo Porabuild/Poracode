@@ -20,6 +20,7 @@ import {
   GIT_NETWORK_TIMEOUT,
   GIT_STATUS_TIMEOUT,
   normalizeWorktreePath,
+  removeWslPathViaBridge,
 } from "./exec";
 import { parseStatusPorcelainV2 } from "./statusService";
 
@@ -108,6 +109,9 @@ export class GitWorktreeService {
   }
 
   async fetch(location: ProjectLocation, remote: string, prune: boolean): Promise<void> {
+    const remotes = await execGit(location, ["remote"], { timeout: GIT_STATUS_TIMEOUT });
+    if (!remotes.split(/\r?\n/).includes(remote)) return;
+
     const args = ["fetch", remote];
     if (prune) args.push("--prune");
     await execGit(location, args, { timeout: GIT_NETWORK_TIMEOUT });
@@ -348,6 +352,9 @@ export class GitWorktreeService {
   ): Promise<void> {
     try {
       if (location.kind === "wsl") {
+        if (await removeWslPathViaBridge(location, path, { recursive: true, force: true })) {
+          return;
+        }
         const result = await readWslCommandOutputAsync(location.distro, "rm", ["-rf", "--", path]);
         if (!result.ok) {
           throw new Error(

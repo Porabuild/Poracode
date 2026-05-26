@@ -180,20 +180,18 @@ export async function refreshGitProject(
           if (!isRefreshCurrent(project.id, refreshToken, isActive)) return;
           const childWorktrees = worktrees.filter((wt) => !wt.isMain);
 
-          if (project.location.kind !== "wsl") {
-            const wtPaths = childWorktrees
-              .map((wt) => wt.path)
-              .sort()
-              .join("\0");
-            if (wtPaths !== watchedWorktreePaths.get(project.id)) {
-              watchedWorktreePaths.set(project.id, wtPaths);
-              readBridge()
-                .gitWatchWorktrees({
-                  projectId: project.id,
-                  worktreePaths: childWorktrees.map((wt) => wt.path),
-                })
-                .catch(() => undefined);
-            }
+          const wtPaths = childWorktrees
+            .map((wt) => wt.path)
+            .sort()
+            .join("\0");
+          if (wtPaths !== watchedWorktreePaths.get(project.id)) {
+            watchedWorktreePaths.set(project.id, wtPaths);
+            readBridge()
+              .gitWatchWorktrees({
+                projectId: project.id,
+                worktreePaths: childWorktrees.map((wt) => wt.path),
+              })
+              .catch(() => undefined);
           }
 
           const statusesPromise = readBridge()

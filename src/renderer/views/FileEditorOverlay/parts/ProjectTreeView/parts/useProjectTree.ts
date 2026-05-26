@@ -39,18 +39,27 @@ export function useProjectTree(props: {
   const rootKey = `${props.rootContext.projectId}:${props.rootContext.worktreePath ?? ""}`;
 
   const reloadPaths = useEffectEvent(async (paths: string[]) => {
-    const uniquePaths = [...new Set(paths)];
+    const uniquePaths = [...new Set(paths.flatMap((path) => [getParentPath(path), path]))];
     const treeStore = useProjectTreeStore.getState();
     for (const path of uniquePaths) treeStore.setLoading(path, true);
 
     const results = await Promise.all(
-      uniquePaths.map(async (path) => ({
-        path,
-        result: await readBridge().listProjectTree({
-          projectLocation: props.rootContext.projectLocation,
-          directoryPath: path,
-        }),
-      })),
+      uniquePaths.map(async (path) => {
+        try {
+          return {
+            path,
+            result: await readBridge().listProjectTree({
+              projectLocation: props.rootContext.projectLocation,
+              directoryPath: path,
+            }),
+          };
+        } catch (error) {
+          if (path && isMissingPathError(error)) {
+            return { path, result: { directoryPath: path, entries: [] } };
+          }
+          throw error;
+        }
+      }),
     ).catch((error: unknown) => {
       toast.danger(error instanceof Error ? error.message : String(error));
       return [];
@@ -192,11 +201,19 @@ export function useProjectTree(props: {
 
   async function handleDeleteEntry(entry: ProjectTreeEntry) {
     if (!window.confirm(`Delete ${entry.path}?`)) return;
-    await readBridge().deleteProjectEntry({
-      projectLocation: props.rootContext.projectLocation,
-      path: entry.path,
-    });
+    await readBridge()
+      .deleteProjectEntry({
+        projectLocation: props.rootContext.projectLocation,
+        path: entry.path,
+      })
+      .catch((error: unknown) => {
+        if (!isMissingPathError(error)) throw error;
+      });
     useFileEditorStore.getState().removePath(entry.path);
+    if (entry.type === "directory") {
+      useProjectTreeStore.getState().setDirectoryEntries({ [entry.path]: [] });
+    }
+    await reloadPaths([getParentPath(entry.path)]);
   }
 
   async function handleMovePath(sourcePath: string, nextParentPath: string) {
@@ -346,4 +363,16 @@ export function useProjectTree(props: {
     handleRootAction,
     openSearchResult,
   };
+}
+
+function getParentPath(path: string): string {
+  return path.includes("/") ? path.slice(0, path.lastIndexOf("/")) : "";
+}
+
+function isMissingPathError(error: unknown): boolean {
+  if (typeof error === "object" && error !== null && "code" in error) {
+    const code = (error as { code?: unknown }).code;
+    if (code === "ENOENT") return true;
+  }
+  return error instanceof Error && /\bENOENT\b/.test(error.message);
 }

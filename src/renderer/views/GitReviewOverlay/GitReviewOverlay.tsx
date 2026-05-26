@@ -121,6 +121,16 @@ export function GitReviewOverlay(props: {
   async function handleRefresh() {
     setRefreshing(true);
     try {
+      if (statusKey && effectiveLocation !== project.location) {
+        await readBridge()
+          .gitFetch({ projectLocation: effectiveLocation, remote: "origin", prune: false })
+          .catch(() => undefined);
+        const status = await readBridge()
+          .getGitStatus({ projectLocation: effectiveLocation })
+          .catch(() => undefined);
+        if (status) useGitStore.getState().setWorktreeStatus(statusKey, status);
+        return;
+      }
       // Manual refresh runs a full sync: git fetch + project snapshot
       // (status, branches, worktrees, gh check) + per-worktree status +
       // source-branch info + PR data. Matches the periodic fetchRemotes path
@@ -128,12 +138,6 @@ export function GitReviewOverlay(props: {
       await refreshGitProject({ id: project.id, location: project.location }, "manual", "full", {
         fetchRemote: true,
       });
-      if (statusKey && effectiveLocation !== project.location) {
-        const status = await readBridge()
-          .getGitStatus({ projectLocation: effectiveLocation })
-          .catch(() => undefined);
-        if (status) useGitStore.getState().setWorktreeStatus(statusKey, status);
-      }
     } finally {
       setRefreshing(false);
       setRefreshKey((k) => k + 1);

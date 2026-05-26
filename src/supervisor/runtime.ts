@@ -362,6 +362,7 @@ export class SupervisorRuntime {
       this.cliHookPluginCoordinator.setWslHookBridge(bridge);
       const client = new WslBridgeClient(bridge);
       this.wslBridgeClient = client;
+      this.gitService.setWslClient(client);
       this.gitCheckpointService.setWslClient(client);
       this.projectTreeService.setWslClient(client);
       this._projectWatcher?.setWslClient(client);

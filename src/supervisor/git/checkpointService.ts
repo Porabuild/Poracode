@@ -9,7 +9,7 @@ import type {
 } from "@/shared/contracts";
 import { readWslCommandOutputAsync } from "../agents/base";
 import type { WslBridgeClient } from "../wsl/bridge/client";
-import { execGit } from "./exec";
+import { execGit, removeWslPathViaBridge } from "./exec";
 
 const EMPTY_TREE = "4b825dc642cb6eb9a060e54bf8d69288fbee4904";
 const REF_ROOT = "refs/lightcode/checkpoints";
@@ -229,6 +229,9 @@ async function createTempIndexPath(projectLocation: ProjectLocation): Promise<st
 
 async function removeTempIndex(projectLocation: ProjectLocation, tempIndex: string): Promise<void> {
   if (projectLocation.kind === "wsl") {
+    if (await removeWslPathViaBridge(projectLocation, tempIndex, { force: true })) {
+      return;
+    }
     await readWslCommandOutputAsync(projectLocation.distro, "rm", ["-f", tempIndex]);
     return;
   }

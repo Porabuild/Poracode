@@ -187,4 +187,88 @@ describe("WslBridgeClient", () => {
       metadata: { threadId: "thread", checkpointItemId: "item" },
     });
   });
+
+  it("gitBatch forwards structured git commands without project-root path rewriting", async () => {
+    fake.server.on("request", (req, res) => {
+      let raw = "";
+      req.on("data", (chunk) => (raw += chunk.toString("utf8")));
+      req.on("end", () => {
+        fake.lastRequest = {
+          url: req.url,
+          body: raw ? JSON.parse(raw) : undefined,
+          auth: req.headers["authorization"] as string | undefined,
+        };
+        res.statusCode = 200;
+        res.setHeader("content-type", "application/json");
+        res.end(
+          JSON.stringify({
+            ok: true,
+            data: { results: [{ ok: true, stdout: "main\n", stderr: "", exitCode: 0 }] },
+          }),
+        );
+      });
+    });
+
+    const client = new WslBridgeClient(mockServer);
+    const result = await client.gitBatch(makeLocation(), {
+      commands: [
+        {
+          cwd: "/home/user/.lightcode/worktrees/repo/feature",
+          args: ["branch"],
+          loginEnv: true,
+        },
+      ],
+      timeoutMs: 10_000,
+    });
+
+    expect(result.results[0]?.stdout).toBe("main\n");
+    expect(fake.lastRequest.url).toBe("/v1/git/batch");
+    expect(fake.lastRequest.body).toEqual({
+      commands: [
+        {
+          cwd: "/home/user/.lightcode/worktrees/repo/feature",
+          args: ["branch"],
+          loginEnv: true,
+        },
+      ],
+      timeoutMs: 10_000,
+    });
+  });
+
+  it("ghVersion forwards a structured availability check", async () => {
+    fake.server.on("request", (req, res) => {
+      let raw = "";
+      req.on("data", (chunk) => (raw += chunk.toString("utf8")));
+      req.on("end", () => {
+        fake.lastRequest = {
+          url: req.url,
+          body: raw ? JSON.parse(raw) : undefined,
+          auth: req.headers["authorization"] as string | undefined,
+        };
+        res.statusCode = 200;
+        res.setHeader("content-type", "application/json");
+        res.end(
+          JSON.stringify({
+            ok: true,
+            data: { ok: true, stdout: "gh version 2.0.0\n", stderr: "", exitCode: 0 },
+          }),
+        );
+      });
+    });
+
+    const client = new WslBridgeClient(mockServer);
+    const result = await client.ghVersion(makeLocation(), {
+      cwd: "/home/user/proj",
+      loginEnv: true,
+      timeoutMs: 10_000,
+    });
+
+    expect(result.ok).toBe(true);
+    expect(fake.lastRequest.url).toBe("/v1/gh/version");
+    expect(fake.lastRequest.body).toEqual({
+      cwd: "/home/user/proj",
+      loginEnv: true,
+      timeoutMs: 10_000,
+    });
+  });
 });

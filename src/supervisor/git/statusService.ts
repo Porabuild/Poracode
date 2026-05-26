@@ -9,10 +9,11 @@ import {
   type GitStatusResult,
   type ProjectLocation,
 } from "@/shared/contracts";
-import { getProjectFsPath } from "@/shared/wsl";
+import { getProjectFsPath, toWslUncPath } from "@/shared/wsl";
 import { parallelWslCommandsAsync } from "../agents/base";
 import {
   execGit,
+  execGitBatchWslBridge,
   GIT_DIFF_TIMEOUT,
   GIT_STATUS_TIMEOUT,
   getLocationIdentity,
@@ -195,8 +196,8 @@ function countTextLines(buffer: Buffer): number {
 /**
  * Assemble a {@link GitStatusResult} from raw git outputs collected by
  * `git status --porcelain=v2 -b`, `git remote -v`, `git diff --cached --numstat`,
- * and `git diff --numstat`. Lets the snapshot orchestrator batch all four
- * commands into one wsl.exe spawn and feed the outputs through here.
+ * and `git diff --numstat`. Lets snapshot orchestrators batch the raw command
+ * outputs and feed them through one parser.
  */
 export function buildGitStatusResultFromOutputs(args: {
   isRepo: boolean;
@@ -408,17 +409,30 @@ export class GitStatusService {
     location: ProjectLocation & { kind: "wsl" },
   ): Promise<GitStatusResult> {
     const cwd = location.linuxPath;
-    const results = await parallelWslCommandsAsync(
-      location.distro,
+    const bridgeResults = await execGitBatchWslBridge(
+      location,
       [
-        { cwd, cmd: "git rev-parse --is-inside-work-tree" },
-        { cwd, cmd: "git status --porcelain=v2 -b" },
-        { cwd, cmd: "git remote -v" },
-        { cwd, cmd: "git diff --cached --numstat" },
-        { cwd, cmd: "git diff --numstat" },
+        { cwd, args: ["rev-parse", "--is-inside-work-tree"] },
+        { cwd, args: ["status", "--porcelain=v2", "-b"] },
+        { cwd, args: ["remote", "-v"] },
+        { cwd, args: ["diff", "--cached", "--numstat"] },
+        { cwd, args: ["diff", "--numstat"] },
       ],
-      { timeoutMs: GIT_STATUS_TIMEOUT },
+      GIT_STATUS_TIMEOUT,
     );
+    const results =
+      bridgeResults ??
+      (await parallelWslCommandsAsync(
+        location.distro,
+        [
+          { cwd, cmd: "git rev-parse --is-inside-work-tree" },
+          { cwd, cmd: "git status --porcelain=v2 -b" },
+          { cwd, cmd: "git remote -v" },
+          { cwd, cmd: "git diff --cached --numstat" },
+          { cwd, cmd: "git diff --numstat" },
+        ],
+        { timeoutMs: GIT_STATUS_TIMEOUT },
+      ));
     const isRepo = results[0]!.ok;
     const base = buildGitStatusResultFromOutputs({
       isRepo,
@@ -434,11 +448,8 @@ export class GitStatusService {
 
   /**
    * Run `rev-parse + status + remote + diff --cached + diff` for each of N
-   * worktree paths inside a single `wsl.exe` parallel batch — collapses what
-   * was N×wsl.exe invocations (one per worktree) into 1. Untracked-file
-   * enrichment + conflict detection are then done sequentially per worktree
-   * but they only fire when a status actually had untracked/conflict markers,
-   * so the typical refresh path costs 1 wsl.exe spawn total.
+   * worktree paths through the in-distro bridge when available. Falls back to
+   * the older single `wsl.exe` parallel batch when the bridge is unavailable.
    */
   async getWorktreeStatusBatchWsl(
     location: ProjectLocation & { kind: "wsl" },
@@ -447,8 +458,16 @@ export class GitStatusService {
     if (worktreePaths.length === 0) return {};
 
     const PER_WORKTREE_CMDS = 5;
+    const bridgeCommands: { cwd: string; args: string[] }[] = [];
     const commands: { cwd: string; cmd: string }[] = [];
     for (const cwd of worktreePaths) {
+      bridgeCommands.push(
+        { cwd, args: ["rev-parse", "--is-inside-work-tree"] },
+        { cwd, args: ["status", "--porcelain=v2", "-b"] },
+        { cwd, args: ["remote", "-v"] },
+        { cwd, args: ["diff", "--cached", "--numstat"] },
+        { cwd, args: ["diff", "--numstat"] },
+      );
       commands.push(
         { cwd, cmd: "git rev-parse --is-inside-work-tree" },
         { cwd, cmd: "git status --porcelain=v2 -b" },
@@ -457,9 +476,12 @@ export class GitStatusService {
         { cwd, cmd: "git diff --numstat" },
       );
     }
-    const results = await parallelWslCommandsAsync(location.distro, commands, {
-      timeoutMs: GIT_STATUS_TIMEOUT,
-    });
+    const bridgeResults = await execGitBatchWslBridge(location, bridgeCommands, GIT_STATUS_TIMEOUT);
+    const results =
+      bridgeResults ??
+      (await parallelWslCommandsAsync(location.distro, commands, {
+        timeoutMs: GIT_STATUS_TIMEOUT,
+      }));
 
     const out: Record<string, GitStatusResult> = {};
     await Promise.all(
@@ -482,7 +504,7 @@ export class GitStatusService {
           kind: "wsl",
           distro: location.distro,
           linuxPath: path,
-          uncPath: location.uncPath,
+          uncPath: toWslUncPath(location.distro, path),
         };
         try {
           const enriched = await this.enrichStatusInternal(wtLocation, base);

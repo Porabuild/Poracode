@@ -150,6 +150,24 @@ export class WslBridgeClient {
     });
   }
 
+  async gitExec(location: WslLocation, input: WslGitExecInput): Promise<WslGitExecResult> {
+    return this.call<WslGitExecResult>(location, "/v1/git/exec", input);
+  }
+
+  async gitBatch(
+    location: WslLocation,
+    input: { commands: WslGitExecInput[]; timeoutMs?: number },
+  ): Promise<{ results: WslGitExecResult[] }> {
+    return this.call<{ results: WslGitExecResult[] }>(location, "/v1/git/batch", input);
+  }
+
+  async ghVersion(
+    location: WslLocation,
+    input: Pick<WslGitExecInput, "cwd" | "loginEnv" | "timeoutMs">,
+  ): Promise<WslGitExecResult> {
+    return this.call<WslGitExecResult>(location, "/v1/gh/version", input);
+  }
+
   /** Rename/move a path. Both sides must live inside `location`. */
   async rename(location: WslLocation, fromAbsolute: string, toAbsolute: string): Promise<void> {
     await this.call(location, "/v1/fs/rename", {
@@ -274,6 +292,24 @@ export type WslReadFileResult =
 export interface WslWriteFileResult {
   mtimeMs: number;
   size: number;
+}
+
+export interface WslGitExecInput {
+  cwd: string;
+  args: string[];
+  env?: Record<string, string>;
+  loginEnv?: boolean;
+  timeoutMs?: number;
+}
+
+export interface WslGitExecResult {
+  ok: boolean;
+  stdout: string;
+  stderr: string;
+  exitCode: number;
+  signal?: string;
+  error?: string;
+  timedOut?: boolean;
 }
 
 function asNodeErr(code: string, message: string): NodeJS.ErrnoException {

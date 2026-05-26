@@ -95,6 +95,16 @@ export function GitReviewPanel(props: {
   async function handleRefresh() {
     setRefreshing(true);
     try {
+      if (statusKey && effectiveLocation !== project.location) {
+        await readBridge()
+          .gitFetch({ projectLocation: effectiveLocation, remote: "origin", prune: false })
+          .catch(() => undefined);
+        const status = await readBridge()
+          .getGitStatus({ projectLocation: effectiveLocation })
+          .catch(() => undefined);
+        if (status) useGitStore.getState().setWorktreeStatus(statusKey, status);
+        return;
+      }
       // Manual refresh runs a full sync: git fetch + snapshot (status,
       // branches, worktrees, gh check) + per-worktree status + source-branch
       // info + PR data. Matches the periodic fetchRemotes path in
@@ -103,15 +113,6 @@ export function GitReviewPanel(props: {
       await refreshGitProject({ id: project.id, location: project.location }, "manual", "full", {
         fetchRemote: true,
       });
-      if (statusKey && effectiveLocation !== project.location) {
-        // Worktree panel: refresh its own status separately since the
-        // project snapshot covered the project root, and the worktree's
-        // status may differ from any cached batch entry.
-        const status = await readBridge()
-          .getGitStatus({ projectLocation: effectiveLocation })
-          .catch(() => undefined);
-        if (status) useGitStore.getState().setWorktreeStatus(statusKey, status);
-      }
     } finally {
       setRefreshing(false);
       setRefreshKey((k) => k + 1);

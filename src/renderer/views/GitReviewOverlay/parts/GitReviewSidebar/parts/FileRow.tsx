@@ -64,8 +64,17 @@ export function FileRow(props: {
       projectLocation: project.location,
       filePath: path,
     });
+    const status = await readBridge()
+      .getGitStatus({ projectLocation: project.location })
+      .catch(() => undefined);
+    if (status) {
+      const store = useGitStore.getState();
+      if (isWorktree) store.setWorktreeStatus(storeKey, status);
+      else store.setStatus(storeKey, status);
+    } else {
+      onRefresh();
+    }
     setRevertOpen(false);
-    onRefresh();
   }
 
   function handleOpenInEditor() {

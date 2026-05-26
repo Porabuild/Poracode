@@ -64,8 +64,17 @@ export function FileGroup(props: {
 
   async function handleRevertAll() {
     await readBridge().gitRevertAll({ projectLocation: project.location });
+    const status = await readBridge()
+      .getGitStatus({ projectLocation: project.location })
+      .catch(() => undefined);
+    if (status) {
+      const store = useGitStore.getState();
+      if (isWorktree) store.setWorktreeStatus(storeKey, status);
+      else store.setStatus(storeKey, status);
+    } else {
+      onRefresh();
+    }
     setRevertAllOpen(false);
-    onRefresh();
   }
 
   const sorted = files.toSorted(compareFilesByDirThenName);

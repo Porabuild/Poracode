@@ -9,6 +9,7 @@ import { attachErrorDetails, errorDetail, msg } from "@/shared/messages";
 import { getProjectName } from "@/shared/wsl";
 import { sanitizeWorktreeBranchName, sanitizeWorktreePathSegment } from "@/shared/worktree";
 import { buildAgentCommand, readWslCommandOutputAsync } from "../agents/base";
+import type { WslBridgeClient, WslGitExecResult } from "../wsl/bridge/client";
 import { mkdir } from "node:fs/promises";
 
 const execFileAsync = promisify(execFile);
@@ -21,6 +22,57 @@ export const GIT_DEFAULT_TIMEOUT = 15_000;
 // Generous bound so common hook chains complete; still finite so a hung hook can't pin the UI forever.
 export const GIT_HOOK_TIMEOUT = 300_000;
 
+let wslGitBridgeClient: WslBridgeClient | undefined;
+
+export function setWslGitBridgeClient(client: WslBridgeClient | undefined): void {
+  wslGitBridgeClient = client;
+}
+
+export interface WslGitBatchCommand {
+  cwd: string;
+  args: string[];
+  env?: Record<string, string>;
+  loginEnv?: boolean;
+}
+
+export async function execGitBatchWslBridge(
+  location: ProjectLocation & { kind: "wsl" },
+  commands: WslGitBatchCommand[],
+  timeoutMs: number,
+): Promise<WslGitExecResult[] | undefined> {
+  const client = wslGitBridgeClient;
+  if (!client) return undefined;
+  try {
+    const result = await client.gitBatch(location, {
+      commands: commands.map((command) =>
+        command.loginEnv === undefined ? { ...command, loginEnv: true } : command,
+      ),
+      timeoutMs,
+    });
+    return result.results;
+  } catch {
+    return undefined;
+  }
+}
+
+export async function ghVersionWslBridge(
+  location: ProjectLocation & { kind: "wsl" },
+  timeoutMs: number,
+): Promise<boolean | undefined> {
+  const client = wslGitBridgeClient;
+  if (!client) return undefined;
+  try {
+    const result = await client.ghVersion(location, {
+      cwd: location.linuxPath,
+      loginEnv: true,
+      timeoutMs,
+    });
+    return result.ok;
+  } catch {
+    return undefined;
+  }
+}
+
 export async function execGit(
   location: ProjectLocation,
   args: string[],
@@ -31,6 +83,13 @@ export async function execGit(
 
   try {
     if (location.kind === "wsl") {
+      const bridgeResult = await execGitWslBridge(location, args, timeout, options?.env);
+      if (bridgeResult) {
+        if (bridgeResult.ok) return bridgeResult.stdout;
+        if (options?.allowNonZeroExit && bridgeResult.stdout) return bridgeResult.stdout;
+        throw gitBridgeResultToError(bridgeResult);
+      }
+
       const spec = buildAgentCommand(location, "git", args, undefined, {
         GIT_OPTIONAL_LOCKS: "0",
         ...(options?.env ?? {}),
@@ -61,6 +120,43 @@ export async function execGit(
     }
     throw buildGitCommandError(args[0]!, error);
   }
+}
+
+async function execGitWslBridge(
+  location: ProjectLocation & { kind: "wsl" },
+  args: string[],
+  timeoutMs: number,
+  env: Record<string, string> | undefined,
+): Promise<WslGitExecResult | undefined> {
+  const client = wslGitBridgeClient;
+  if (!client) return undefined;
+  try {
+    return await client.gitExec(location, {
+      cwd: location.linuxPath,
+      args,
+      loginEnv: true,
+      timeoutMs,
+      ...(env ? { env } : {}),
+    });
+  } catch {
+    return undefined;
+  }
+}
+
+function gitBridgeResultToError(result: WslGitExecResult): Error {
+  const error = new Error(
+    result.error || result.stderr || `git exited ${result.exitCode}`,
+  ) as Error & {
+    stdout?: string;
+    stderr?: string;
+    code?: number;
+    signal?: string;
+  };
+  error.stdout = result.stdout;
+  error.stderr = result.stderr;
+  error.code = result.exitCode;
+  if (result.signal) error.signal = result.signal;
+  return error;
 }
 
 /**
@@ -142,6 +238,16 @@ export async function ensureWorktreeParentExists(
 ): Promise<void> {
   if (location.kind === "wsl") {
     const parentPath = posix.dirname(worktreePath);
+    if (wslGitBridgeClient) {
+      try {
+        await wslGitBridgeClient.mkdir({ ...location, linuxPath: parentPath }, parentPath, {
+          recursive: true,
+        });
+        return;
+      } catch {
+        // fall back to wsl.exe below
+      }
+    }
     const result = await readWslCommandOutputAsync(location.distro, "mkdir", ["-p", parentPath]);
     if (!result.ok) {
       throw new Error(result.stderr || msg("git.wsl.mkdirFailed", { path: parentPath }));
@@ -150,6 +256,20 @@ export async function ensureWorktreeParentExists(
   }
 
   await mkdir(dirname(worktreePath), { recursive: true });
+}
+
+export async function removeWslPathViaBridge(
+  location: ProjectLocation & { kind: "wsl" },
+  path: string,
+  options: { recursive?: boolean; force?: boolean },
+): Promise<boolean> {
+  if (!wslGitBridgeClient) return false;
+  try {
+    await wslGitBridgeClient.rm({ ...location, linuxPath: posix.dirname(path) }, path, options);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 function detectPlatform(hostname: string): RemoteHostPlatform {

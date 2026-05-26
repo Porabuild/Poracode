@@ -950,7 +950,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                           thread.worktreePath ? (
                             <Tooltip delay={0}>
                               <Tooltip.Trigger tabIndex={-1} role="none">
-                                <div className="lightcode-composer-static min-w-0 max-w-48 px-2.5">
+                                <div className="lightcode-composer-static lightcode-composer-worktree min-w-0 max-w-48 px-2.5">
                                   <GitFork className="size-3.5 text-muted" />
                                   {level < 3 && <span className="truncate">{branchName}</span>}
                                   {level < 3 && thread.prNumber ? (
