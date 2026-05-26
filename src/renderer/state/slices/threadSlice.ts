@@ -127,6 +127,7 @@ function appendCompletedTurnIfClosed(
   const startedAt = parseTurnIso(nextTurnTiming.lastTurnStartedAt);
   const endedAt = parseTurnIso(nextTurnTiming.lastTurnEndedAt);
   if (startedAt === null || endedAt === null) return unchanged;
+  if (endedAt - startedAt < 1000) return unchanged;
   if (
     prevThread.lastTurnStartedAt === nextTurnTiming.lastTurnStartedAt &&
     prevThread.lastTurnEndedAt === nextTurnTiming.lastTurnEndedAt
@@ -392,6 +393,8 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
           thread.presentationMode === "gui" &&
           isThreadLiveStatus(thread.status) &&
           input.forceCloseActiveTurn !== true &&
+          (isVisible ||
+            Object.prototype.hasOwnProperty.call(state.runtimeItemIdsByThread, thread.id)) &&
           resolveCompletedTurnAnchorItemId(state, thread.id) === null
         ) {
           effectiveStatus = thread.status;

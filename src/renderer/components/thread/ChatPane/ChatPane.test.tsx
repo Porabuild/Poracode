@@ -868,6 +868,34 @@ describe("ChatPane", () => {
     expect(text.indexOf("Worked for 1m 15s")).toBeLessThan(text.indexOf("Follow-up prompt"));
   });
 
+  it("ignores sub-second duplicate completed turns when rendering a rehydrated footer", () => {
+    const thread = {
+      ...makeThread(),
+      status: "idle" as const,
+      activeTurnStartedAt: undefined,
+      lastTurnStartedAt: "2026-05-01T12:10:00.000Z",
+      lastTurnEndedAt: "2026-05-01T12:10:00.700Z",
+    };
+    seedAssistantMessage(thread.id, "Final answer");
+    useAppStore.getState().hydrateThreadCompletedTurns(thread.id, [
+      {
+        startedAt: new Date("2026-05-01T12:00:00.000Z").getTime(),
+        endedAt: new Date("2026-05-01T12:07:50.000Z").getTime(),
+        anchorItemId: ASSISTANT_ITEM_ID,
+      },
+      {
+        startedAt: new Date("2026-05-01T12:10:00.000Z").getTime(),
+        endedAt: new Date("2026-05-01T12:10:00.700Z").getTime(),
+        anchorItemId: ASSISTANT_ITEM_ID,
+      },
+    ]);
+
+    renderChatPane(thread);
+
+    expect(screen.getAllByText("Worked for 7m 50s")).toHaveLength(1);
+    expect(screen.queryByText("Worked for 0s")).not.toBeInTheDocument();
+  });
+
   it("shows checkpoint buttons on later user messages and reverts to before that prompt", async () => {
     const thread = { ...makeThread(), status: "idle" as const };
     seedUserMessage(thread.id, "Initial prompt", "user-1");

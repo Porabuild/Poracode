@@ -117,9 +117,10 @@ export function reopenStoredThread(threadId: string): void {
     return;
   }
 
+  const isGuiReconnect = thread.presentationMode === "gui" && thread.sessionRef !== undefined;
   startTransition(() => {
     store.updateThreadRuntime(thread.id, {
-      status: "launching",
+      status: isGuiReconnect ? "idle" : "launching",
       attention: "none",
       ...(thread.sessionRef ? { sessionRef: thread.sessionRef } : {}),
       canResumeWithConfig: thread.canResumeWithConfig || thread.sessionRef !== undefined,

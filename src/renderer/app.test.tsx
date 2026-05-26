@@ -578,7 +578,7 @@ describe("App", () => {
     expect(bridge.startThread).not.toHaveBeenCalled();
   });
 
-  it("queues reconnect for an inactive GUI thread without marking it as working", async () => {
+  it("queues reconnect for an inactive GUI thread without marking it as launching", async () => {
     useAppStore.persist.hasHydrated = vi.fn<() => boolean>().mockReturnValue(true);
     useAppStore.persist.onHydrate = vi.fn<() => () => void>(() => () => undefined);
     useAppStore.persist.onFinishHydration = vi.fn<() => () => void>(() => () => undefined);
@@ -627,10 +627,7 @@ describe("App", () => {
     fireEvent.click(await screen.findByText("open-thread-1"));
 
     await waitFor(() => {
-      expect(screen.getByTestId("thread-view-thread-1")).toHaveAttribute(
-        "data-status",
-        "launching",
-      );
+      expect(screen.getByTestId("thread-view-thread-1")).toHaveAttribute("data-status", "idle");
       expect(screen.getByTestId("thread-view-thread-1")).toHaveAttribute("data-pending-launch", "");
     });
     expect(bridge.startThread).not.toHaveBeenCalled();

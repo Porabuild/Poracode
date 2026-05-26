@@ -553,6 +553,34 @@ describe("ACP client protocol helpers", () => {
     expect(connection.loadSession).not.toHaveBeenCalled();
   });
 
+  it("does not surface session/resume history replay as new work", async () => {
+    const { connection, listener, session } = makeConfigSyncSession();
+    (session as unknown as Record<string, unknown>)["agentSessionCapabilities"] = { resume: {} };
+    const sessionRef = {
+      providerSessionId: "session-resume",
+      discoveredAt: new Date().toISOString(),
+    };
+    connection.resumeSession.mockImplementationOnce(async () => {
+      session.handleSessionUpdate({
+        update: {
+          sessionUpdate: "tool_call",
+          toolCallId: "tc-1",
+          title: "Read file",
+          kind: "read",
+        },
+      });
+      return { modes: { availableModes: [] }, configOptions: [] };
+    });
+
+    await session.openThread({ model: "model-a" }, sessionRef);
+
+    expect(listener.onUpdate).not.toHaveBeenCalledWith({
+      status: "working",
+      attention: "working",
+    });
+    expect(listener.onRuntimeEvent).not.toHaveBeenCalled();
+  });
+
   it("falls back to session/load for known sessions when resume is not advertised", async () => {
     const { connection, session } = makeConfigSyncSession();
     const sessionRef = {

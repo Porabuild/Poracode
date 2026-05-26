@@ -393,7 +393,9 @@ export function selectCompletedTurnsByAnchorItem(
   if (cached) return cached;
   const map = new Map<string, CompletedTurnRecord>();
   for (const record of records) {
-    if (record.anchorItemId) map.set(record.anchorItemId, record);
+    if (record.anchorItemId && record.endedAt - record.startedAt >= 1000) {
+      map.set(record.anchorItemId, record);
+    }
   }
   completedTurnsByAnchorCache.set(records, map);
   return map;
