@@ -101,6 +101,7 @@ function shouldPrimeNativeProjectShellEnv(
 }
 
 export class ThreadSessionManager {
+  private static readonly PTY_CLOSE_TIMEOUT_MS = 2_000;
   readonly sessions = new Map<string, SessionRuntime>();
   readonly shellSessions = new Map<string, ShellSessionRuntime>();
   /** Reverse index: agent-native session id → SessionRuntime, for CLI hook routing fallback. */
@@ -108,6 +109,8 @@ export class ThreadSessionManager {
   private readonly startLocks = new Map<string, Promise<void>>();
   private readonly pendingStartInterrupts = new Set<string>();
   private readonly pendingStartAborts = new Set<string>();
+  private readonly ptyExitPromises = new WeakMap<object, Promise<void>>();
+  private readonly ptyExitResolvers = new WeakMap<object, () => void>();
   private readonly logWriter = new BufferedLogWriter();
   private readonly outputPipeline: ThreadOutputPipeline;
   private readonly runtimeEventRouter: RuntimeEventRouter;
@@ -620,6 +623,7 @@ export class ThreadSessionManager {
       shell.ignoreExit = true;
       this.shellSessions.delete(payload.threadId);
       this.safeShellPtyKill(shell);
+      await this.waitForPtyExit(shell);
       return;
     }
 
@@ -645,6 +649,7 @@ export class ThreadSessionManager {
       await sleep(150);
     }
     this.safePtyKill(existing);
+    await this.waitForPtyExit(existing);
   }
 
   async startShell(payload: StartShellPayload): Promise<void> {
@@ -714,6 +719,7 @@ export class ThreadSessionManager {
     };
 
     this.shellSessions.set(payload.shellId, session);
+    this.trackPtyExit(session);
     pty.onData((data) => {
       if (this.shellSessions.get(payload.shellId)?.instanceId !== session.instanceId) {
         return;
@@ -731,7 +737,7 @@ export class ThreadSessionManager {
     });
 
     pty.onExit(({ exitCode }) => {
-      session.ptyExited = true;
+      this.resolvePtyExit(session);
       if (session.ignoreExit) {
         return;
       }
@@ -1423,6 +1429,9 @@ export class ThreadSessionManager {
     };
 
     this.sessions.set(input.threadId, session);
+    if (session.pty) {
+      this.trackPtyExit(session);
+    }
     if (session.sessionRef?.providerSessionId) {
       this.sessionsBySessionId.set(session.sessionRef.providerSessionId, session);
     }
@@ -1567,7 +1576,7 @@ export class ThreadSessionManager {
     });
 
     pty?.onExit((event) => {
-      session.ptyExited = true;
+      this.resolvePtyExit(session);
       if (session.ignoreExit) {
         return;
       }
@@ -1912,6 +1921,39 @@ export class ThreadSessionManager {
       }
       this.failStructuredSession(session, error);
     });
+  }
+
+  private trackPtyExit(session: SessionRuntime | ShellSessionRuntime): void {
+    if (session.ptyExited || this.ptyExitPromises.has(session)) {
+      return;
+    }
+    let resolve!: () => void;
+    const promise = new Promise<void>((done) => {
+      resolve = done;
+    });
+    this.ptyExitPromises.set(session, promise);
+    this.ptyExitResolvers.set(session, resolve);
+  }
+
+  private resolvePtyExit(session: SessionRuntime | ShellSessionRuntime): void {
+    session.ptyExited = true;
+    this.ptyExitResolvers.get(session)?.();
+    this.ptyExitResolvers.delete(session);
+    this.ptyExitPromises.delete(session);
+  }
+
+  private async waitForPtyExit(session: SessionRuntime | ShellSessionRuntime): Promise<void> {
+    if (session.ptyExited) {
+      return;
+    }
+    const exitPromise = this.ptyExitPromises.get(session);
+    if (!exitPromise) {
+      return;
+    }
+    await Promise.race([
+      exitPromise,
+      sleep(ThreadSessionManager.PTY_CLOSE_TIMEOUT_MS).then(() => undefined),
+    ]);
   }
 
   private safePtyKill(session: SessionRuntime): void {

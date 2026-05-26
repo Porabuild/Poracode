@@ -1,8 +1,6 @@
-import { errorDetail } from "@/shared/messages";
 import { readBridge } from "@/renderer/bridge";
 import { DeleteWorktreeDialog } from "@/renderer/views/MainView/parts/Sidebar/parts/DeleteWorktreeDialog";
 import { ForceDeleteBranchDialog } from "@/renderer/views/MainView/parts/Sidebar/parts/ForceDeleteBranchDialog";
-import { ForceRemoveWorktreeDialog } from "@/renderer/views/MainView/parts/Sidebar/parts/ForceRemoveWorktreeDialog";
 
 import { useAppStore } from "@/renderer/state/appStore";
 import { useGitStore } from "@/renderer/state/gitStore";
@@ -15,7 +13,6 @@ export type { WorktreeDeleteDialogState } from "@/renderer/state/worktreeDeleteS
 
 export function WorktreeDeleteDialogs() {
   const worktreeDeleteDialog = useWorktreeDeleteStore((s) => s.dialog);
-  const setWorktreeDeleteDialog = useWorktreeDeleteStore((s) => s.setDialog);
   const closeDialog = useWorktreeDeleteStore((s) => s.closeDialog);
 
   return (
@@ -62,65 +59,6 @@ export function WorktreeDeleteDialogs() {
               })();
             }
             closeDialog();
-          }}
-        />
-      )}
-      {worktreeDeleteDialog?.kind === "force-retry" && (
-        <ForceRemoveWorktreeDialog
-          isOpen
-          worktreeBranch={worktreeDeleteDialog.worktreeBranch}
-          errorMessage={worktreeDeleteDialog.error}
-          onClose={closeDialog}
-          onForceRemove={() => {
-            const project = useAppStore
-              .getState()
-              .projects.find((p) => p.id === worktreeDeleteDialog.projectId);
-            const { worktreePath, worktreeBranch } = worktreeDeleteDialog;
-            closeDialog();
-            if (project) {
-              void (async () => {
-                try {
-                  await readBridge().gitRemoveWorktree({
-                    projectLocation: project.location,
-                    path: worktreePath,
-                    force: true,
-                    deleteBranch: false,
-                  });
-                } catch {
-                  return;
-                }
-
-                // Worktree force-removed — now clean up the branch
-                if (worktreeBranch) {
-                  try {
-                    await readBridge().gitDeleteBranch({
-                      projectLocation: project.location,
-                      branch: worktreeBranch,
-                      force: false,
-                    });
-                  } catch (err: unknown) {
-                    const detail = errorDetail(err);
-                    if (detail.includes("not fully merged")) {
-                      setWorktreeDeleteDialog({
-                        kind: "branch-unmerged",
-                        projectId: project.id,
-                        worktreeBranch,
-                        error: detail,
-                      });
-                      return;
-                    }
-                  }
-
-                  void readBridge()
-                    .gitListBranches({
-                      projectLocation: project.location,
-                      includeRemote: true,
-                    })
-                    .then((branches) => useGitStore.getState().setBranches(project.id, branches))
-                    .catch(() => undefined);
-                }
-              })();
-            }
           }}
         />
       )}

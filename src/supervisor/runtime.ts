@@ -885,7 +885,7 @@ export class SupervisorRuntime {
       }
     }
 
-    this.projectWatcher.unwatchWorktree(payload.path);
+    await this.projectWatcher.unwatchWorktree(payload.path);
     return this.gitService.removeWorktree(
       payload.projectLocation,
       payload.path,

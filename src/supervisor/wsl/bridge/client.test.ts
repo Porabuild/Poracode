@@ -102,6 +102,30 @@ describe("WslBridgeClient", () => {
     });
   });
 
+  it("home calls the bridge home endpoint", async () => {
+    fake.server.on("request", (req, res) => {
+      let raw = "";
+      req.on("data", (chunk) => (raw += chunk.toString("utf8")));
+      req.on("end", () => {
+        fake.lastRequest = {
+          url: req.url,
+          body: raw ? JSON.parse(raw) : undefined,
+          auth: req.headers["authorization"] as string | undefined,
+        };
+        res.statusCode = 200;
+        res.setHeader("content-type", "application/json");
+        res.end(JSON.stringify({ ok: true, data: { home: "/home/user" } }));
+      });
+    });
+
+    const client = new WslBridgeClient(mockServer);
+    const result = await client.home(makeLocation());
+
+    expect(result).toEqual({ home: "/home/user" });
+    expect(fake.lastRequest.url).toBe("/v1/fs/home");
+    expect(fake.lastRequest.body).toEqual({});
+  });
+
   it("maps bridge error envelopes to Node-style errors with `.code`", async () => {
     fake.server.on("request", (_req, res) => {
       res.statusCode = 404;

@@ -207,6 +207,19 @@ function getWorktreeRepoDirName(location: ProjectLocation): string {
 }
 
 async function resolveWslHomeDirectory(distro: string): Promise<string> {
+  if (wslGitBridgeClient) {
+    try {
+      const result = await wslGitBridgeClient.home({
+        kind: "wsl",
+        distro,
+        linuxPath: "/",
+        uncPath: `\\\\wsl.localhost\\${distro}\\`,
+      });
+      if (result.home) return result.home;
+    } catch {
+      // fall back to wsl.exe below
+    }
+  }
   const result = await readWslCommandOutputAsync(distro, "sh", ["-lc", 'printf %s "$HOME"']);
   const homePath = result.stdout.trim();
   if (!result.ok || !homePath) {

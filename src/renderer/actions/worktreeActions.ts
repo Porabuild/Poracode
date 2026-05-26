@@ -1,3 +1,4 @@
+import { toast } from "@heroui/react";
 import { buildWorktreeLocation } from "@/shared/worktree";
 import { errorDetail } from "@/shared/messages";
 import type { Project } from "@/shared/contracts";
@@ -56,14 +57,9 @@ export async function performWorktreeRemoval(
       deleteBranch: false,
     });
   } catch (err: unknown) {
-    const branch = resolvedWorktreeBranch ?? worktreePath.split(/[/\\]/).pop() ?? worktreePath;
-    useWorktreeDeleteStore.getState().setDialog({
-      kind: "force-retry",
-      projectId: project.id,
-      worktreePath,
-      worktreeBranch: branch,
-      error: err instanceof Error ? err.message : String(err),
-    });
+    const detail = errorDetail(err);
+    console.warn(`[renderer] failed to remove worktree ${worktreePath}:`, detail);
+    toast.danger(detail || "Unable to remove worktree.");
     return;
   }
 

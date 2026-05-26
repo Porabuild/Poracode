@@ -31,6 +31,7 @@
 import { createServer } from "node:http";
 import { execFile, execFileSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
+import { homedir } from "node:os";
 import {
   mkdirSync,
   opendirSync,
@@ -50,7 +51,7 @@ import { isAbsolute, normalize, resolve as resolvePath } from "node:path/posix";
 import { createRequire } from "node:module";
 
 // Bumped on every behavioural change. Windows side reads this via regex.
-const BRIDGE_VERSION = "2.8.1";
+const BRIDGE_VERSION = "2.8.2";
 
 /**
  * Lazily loads `@parcel/watcher` (staged next to this script as
@@ -470,6 +471,14 @@ function renameHandler(req, body) {
   return { status: 200, data: {} };
 }
 
+function homeHandler() {
+  const home = homedir();
+  if (!home || !isAbsolute(home)) {
+    return { status: 500, code: "EIO", message: "unable to resolve home directory" };
+  }
+  return { status: 200, data: { home } };
+}
+
 function writeNewFileHandler(req, body) {
   const target = resolveSafePath(body.projectRoot, body.path);
   if (!target) return { status: 400, code: "ESCAPE", message: "path escapes projectRoot" };
@@ -762,6 +771,7 @@ const FS_ROUTES = new Map([
   ["/v1/fs/mkdir", mkdirHandler],
   ["/v1/fs/rm", rmHandler],
   ["/v1/fs/rename", renameHandler],
+  ["/v1/fs/home", homeHandler],
 ]);
 
 const GIT_ROUTES = new Map([

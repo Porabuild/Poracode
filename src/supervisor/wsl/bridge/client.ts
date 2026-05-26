@@ -139,6 +139,10 @@ export class WslBridgeClient {
     });
   }
 
+  async home(location: WslLocation): Promise<{ home: string }> {
+    return this.call<{ home: string }>(location, "/v1/fs/home", {});
+  }
+
   async createGitCheckpointSnapshot(
     location: WslLocation,
     input: { ref: string; metadata: unknown },

@@ -1,4 +1,3 @@
-import { rm } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join, normalize, posix as posixPath, win32 as win32Path } from "node:path";
 import {
@@ -10,9 +9,8 @@ import {
   type GitWorktreeListResult,
   type ProjectLocation,
 } from "@/shared/contracts";
-import { errorDetail, msg } from "@/shared/messages";
+import { msg } from "@/shared/messages";
 import { resolveLightcodePaths } from "@/shared/lightcodePaths";
-import { readWslCommandOutputAsync } from "../agents/base";
 import {
   computeDefaultWorktreePath,
   ensureWorktreeParentExists,
@@ -20,7 +18,6 @@ import {
   GIT_NETWORK_TIMEOUT,
   GIT_STATUS_TIMEOUT,
   normalizeWorktreePath,
-  removeWslPathViaBridge,
 } from "./exec";
 import { parseStatusPorcelainV2 } from "./statusService";
 
@@ -185,37 +182,55 @@ export class GitWorktreeService {
   ): Promise<void> {
     const targetPath = normalizeWorktreePath(location, path);
     let branchToDelete: string | undefined;
+    let registeredWorktree: GitWorktreeInfo | undefined;
+    let listedWorktrees = false;
 
-    if (deleteBranch) {
-      try {
-        await execGit(location, ["worktree", "prune"]).catch(() => undefined);
-        const { worktrees } = await this.listWorktrees(location);
-        const worktree = worktrees.find(
-          (entry) => normalizeWorktreePath(location, entry.path) === targetPath,
-        );
-        branchToDelete = worktree?.branch;
-        if (branchToDelete === "detached") {
-          branchToDelete = undefined;
-        }
-      } catch (error) {
+    try {
+      const { worktrees } = await this.listWorktrees(location);
+      listedWorktrees = true;
+      registeredWorktree = worktrees.find(
+        (entry) => normalizeWorktreePath(location, entry.path) === targetPath,
+      );
+      if (registeredWorktree?.isMain) {
+        throw new Error("Cannot remove the main worktree.");
+      }
+      if (deleteBranch) {
+        branchToDelete = registeredWorktree?.branch;
+        if (branchToDelete === "detached") branchToDelete = undefined;
+      }
+    } catch (error) {
+      if (deleteBranch) {
         console.error("[supervisor] failed to identify branch for worktree removal:", error);
+      } else {
+        throw error;
       }
     }
 
+    if (force && listedWorktrees && !registeredWorktree) {
+      await execGit(location, ["worktree", "prune"]);
+      return;
+    }
+
+    const removeArgs = ["worktree", "remove", ...(force ? ["--force", "--force"] : []), path];
     try {
-      await execGit(location, ["worktree", "remove", ...(force ? ["--force"] : []), path]);
+      await execGit(location, removeArgs);
       if (branchToDelete) {
         await this.deleteBranch(location, branchToDelete, force).catch(() => undefined);
       }
     } catch (error) {
-      if (await this.shouldRetryResidualWorktreeCleanup(location, path, error)) {
-        if (branchToDelete) {
-          await this.deleteBranch(location, branchToDelete, force).catch(() => undefined);
-        }
-        await this.removeResidualWorktreeDirectory(location, path, error).catch(() => undefined);
-        return;
+      if (!force || registeredWorktree?.isMain) {
+        throw error;
       }
-      throw error;
+      await execGit(location, ["worktree", "prune"]);
+      const { worktrees } = await this.listWorktrees(location);
+      if (
+        worktrees.some((worktree) => normalizeWorktreePath(location, worktree.path) === targetPath)
+      ) {
+        throw error;
+      }
+      if (branchToDelete) {
+        await this.deleteBranch(location, branchToDelete, force).catch(() => undefined);
+      }
     }
   }
 
@@ -321,57 +336,6 @@ export class GitWorktreeService {
       if (isManaged && !isActive) {
         await this.removeWorktree(location, worktree.path, true).catch(() => undefined);
       }
-    }
-  }
-
-  private async shouldRetryResidualWorktreeCleanup(
-    location: ProjectLocation,
-    path: string,
-    error: unknown,
-  ): Promise<boolean> {
-    const message = error instanceof Error ? error.message : String(error);
-    const looksLikeDeleteFailure =
-      /failed to delete/i.test(message) ||
-      /directory not empty/i.test(message) ||
-      /access is denied/i.test(message) ||
-      /device or resource busy/i.test(message);
-    if (!looksLikeDeleteFailure) {
-      return false;
-    }
-    const targetPath = normalizeWorktreePath(location, path);
-    const { worktrees } = await this.listWorktrees(location);
-    return !worktrees.some(
-      (worktree) => normalizeWorktreePath(location, worktree.path) === targetPath,
-    );
-  }
-
-  private async removeResidualWorktreeDirectory(
-    location: ProjectLocation,
-    path: string,
-    originalError: unknown,
-  ): Promise<void> {
-    try {
-      if (location.kind === "wsl") {
-        if (await removeWslPathViaBridge(location, path, { recursive: true, force: true })) {
-          return;
-        }
-        const result = await readWslCommandOutputAsync(location.distro, "rm", ["-rf", "--", path]);
-        if (!result.ok) {
-          throw new Error(
-            result.stderr || `Failed to remove residual worktree directory "${path}".`,
-          );
-        }
-        return;
-      }
-      await rm(path, { recursive: true, force: true, maxRetries: 5, retryDelay: 150 });
-    } catch (cleanupError) {
-      throw new Error(
-        msg("git.worktree.cleanupFailed", {
-          original: errorDetail(originalError),
-          cleanup: errorDetail(cleanupError),
-        }),
-        { cause: cleanupError },
-      );
     }
   }
 

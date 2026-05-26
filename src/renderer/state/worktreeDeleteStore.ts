@@ -9,13 +9,6 @@ export type WorktreeDeleteDialogState =
       worktreeBranch: string;
     }
   | {
-      kind: "force-retry";
-      projectId: string;
-      worktreePath: string;
-      worktreeBranch: string;
-      error: string;
-    }
-  | {
       kind: "branch-unmerged";
       projectId: string;
       worktreeBranch: string;

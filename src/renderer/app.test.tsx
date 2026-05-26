@@ -878,12 +878,23 @@ describe("App", () => {
       });
     });
 
+    await waitFor(() => expect(useAppStore.getState().threads).toHaveLength(1));
     const threads = useAppStore.getState().threads;
     expect(threads).toHaveLength(1);
     expect(threads[0]?.worktreePath).toBe(
       "C:\\Users\\demo\\.lightcode\\worktrees\\repo-12345678\\feature-x",
     );
     expect(threads[0]?.worktreeBranch).toBe("feature/x");
+    expect(bridge.gitWatchWorktrees).toHaveBeenCalledWith({
+      projectId: "project-1",
+      worktreePaths: ["C:\\Users\\demo\\.lightcode\\worktrees\\repo-12345678\\feature-x"],
+    });
+    expect(bridge.getGitStatus).toHaveBeenCalledWith({
+      projectLocation: {
+        kind: "windows",
+        path: "C:\\Users\\demo\\.lightcode\\worktrees\\repo-12345678\\feature-x",
+      },
+    });
   });
 
   it("attaches a new thread to an existing worktree without creating another one", async () => {

@@ -22,6 +22,7 @@ import {
 } from "@/renderer/state/agentStatusesStore";
 import { useAppStore } from "@/renderer/state/appStore";
 import { refreshGitProject } from "@/renderer/state/gitRefresh";
+import { useGitStore } from "@/renderer/state/gitStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import {
   useInitialProjectDraftConfig,
@@ -96,6 +97,7 @@ export function AppContent() {
       worktreePath = undefined;
     } else if (existingWorktreePath) {
       worktreePath = existingWorktreePath;
+      await primeWorktreeGitState(project, existingWorktreePath);
     } else if (worktreeBranch) {
       try {
         const result = await readBridge().gitAddWorktree({
@@ -105,6 +107,7 @@ export function AppContent() {
           startPoint: worktreeBaseBranch,
         });
         worktreePath = result.path;
+        await primeWorktreeGitState(project, result.path);
 
         // Full refresh so the new worktree enters the cache and gets a file
         // watcher (status-mode refreshes only walk cached worktrees), and so
@@ -382,6 +385,24 @@ export function AppContent() {
       <HomeView />
     </div>
   );
+}
+
+async function primeWorktreeGitState(project: Project, worktreePath: string): Promise<void> {
+  const cachedWorktreePaths =
+    useGitStore
+      .getState()
+      .worktrees[project.id]?.filter((worktree) => !worktree.isMain)
+      .map((worktree) => worktree.path) ?? [];
+  const worktreePaths = [...new Set([...cachedWorktreePaths, worktreePath])];
+  const watchWorktrees = readBridge()
+    .gitWatchWorktrees({ projectId: project.id, worktreePaths })
+    .catch(() => undefined);
+  if (project.location.kind === "wsl") return;
+  await watchWorktrees;
+  void readBridge()
+    .getGitStatus({ projectLocation: buildWorktreeLocation(project.location, worktreePath) })
+    .then((status) => useGitStore.getState().setWorktreeStatus(worktreePath, status))
+    .catch(() => undefined);
 }
 
 /**
