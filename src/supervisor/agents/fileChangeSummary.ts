@@ -1,5 +1,6 @@
 import type { FileChangePayload } from "@/shared/contracts";
 import { extractLeadingPath } from "@/shared/extractLeadingPath";
+import { countLineChangeStats } from "@/shared/lineUnifiedDiff";
 
 type DiffSummary = NonNullable<FileChangePayload["diffSummary"]>;
 
@@ -21,6 +22,7 @@ function readDiffSummaryInner(source: unknown): DiffSummary | undefined {
     readDiffSummaryRecord(record.diffSummary) ??
     readDiffSummaryRecord(record.diff_summary) ??
     readStructuredChangesDiffSummary(record.changes) ??
+    readCreatedContentDiffSummary(record) ??
     readPatchTextDiffSummary(record.patchText) ??
     readPatchTextDiffSummary(record.patch_text) ??
     readPatchTextDiffSummary(record.patch) ??
@@ -72,6 +74,9 @@ function readFileChangePathInner(source: unknown): string | undefined {
   const patchPath = /^\*\*\*\s+(?:Add|Update|Delete)\s+File:\s+(.+?)\s*$/m.exec(source);
   if (patchPath?.[1]) return patchPath[1].trim();
 
+  const diffPath = readUnifiedDiffPath(source);
+  if (diffPath) return diffPath;
+
   const leading = extractLeadingPath(source);
   if (leading) return leading;
 
@@ -98,6 +103,22 @@ function readPatchTextPath(source: unknown): string | undefined {
     .filter((path): path is string => !!path);
   const uniquePaths = new Set(paths);
   return uniquePaths.size === 1 ? paths[0] : undefined;
+}
+
+function readUnifiedDiffPath(source: string): string | undefined {
+  const newPath = /^\+\+\+\s+b\/(.+?)\s*$/m.exec(source)?.[1];
+  if (newPath && newPath !== "/dev/null") return stripDiffPathQuotes(newPath);
+  const oldPath = /^---\s+a\/(.+?)\s*$/m.exec(source)?.[1];
+  if (oldPath && oldPath !== "/dev/null") return stripDiffPathQuotes(oldPath);
+  const header = /^diff --git\s+(?:"a\/(.+?)"|a\/(\S+))\s+(?:"b\/(.+?)"|b\/(\S+))\s*$/m.exec(
+    source,
+  );
+  return stripDiffPathQuotes(header?.[3] ?? header?.[4] ?? header?.[1] ?? header?.[2]);
+}
+
+function stripDiffPathQuotes(path: string | undefined): string | undefined {
+  if (!path) return undefined;
+  return path.replace(/^"|"$/g, "").trim();
 }
 
 function readPathField(record: Record<string, unknown>): string | undefined {
@@ -158,6 +179,14 @@ function readStructuredChangesDiffSummary(changes: unknown): DiffSummary | undef
     }
   }
   return sawDiff ? { added, removed } : undefined;
+}
+
+function readCreatedContentDiffSummary(record: Record<string, unknown>): DiffSummary | undefined {
+  if (!readPathField(record)) return undefined;
+  const content = record.content;
+  if (typeof content !== "string") return undefined;
+  const { added } = countLineChangeStats("", content);
+  return added > 0 ? { added, removed: 0 } : undefined;
 }
 
 function readPatchTextDiffSummary(source: unknown): DiffSummary | undefined {

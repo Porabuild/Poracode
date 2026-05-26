@@ -869,6 +869,38 @@ describe("sdkCanonicalMapping — tool use", () => {
     ]);
   });
 
+  it("counts Claude Write content lines as create diff summary", () => {
+    const state = createClaudeMapperState("thread-1");
+    const args = {
+      file_path: "src/app.js",
+      content: "const root = document.querySelector('#app');\nroot.textContent = 'hi';\n",
+    };
+
+    const events = mapClaudeSdkMessage(
+      streamEvent({
+        type: "content_block_start",
+        index: 0,
+        content_block: {
+          type: "tool_use",
+          id: "toolu_write",
+          name: "Write",
+          input: args,
+        },
+      }),
+      state,
+    );
+
+    expect(events[0]).toMatchObject({
+      type: "item.started",
+      itemType: "file_change",
+      payload: {
+        path: "src/app.js",
+        changeKind: "create",
+        diffSummary: { added: 2, removed: 0 },
+      },
+    });
+  });
+
   // TodoWrite, TaskCreate, TaskUpdate, and TaskStop are routed through the
   // plan aggregator (see dedicated tests above) — their underlying tool_use
   // rows never produce a standalone chat item, so they're excluded from this
