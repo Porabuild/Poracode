@@ -88,6 +88,63 @@ describe("OpencodeSdkSession", () => {
     expect(dispose).toHaveBeenCalledTimes(1);
   });
 
+  it("restarts the OpenCode server once when session.create loses its connection", async () => {
+    const firstDispose = vi.fn<() => Promise<void>>().mockResolvedValue(undefined);
+    const secondDispose = vi.fn<() => Promise<void>>().mockResolvedValue(undefined);
+    const firstCreate = vi
+      .fn<() => Promise<unknown>>()
+      .mockRejectedValue(new Error("fetch failed"));
+    const secondCreate = vi
+      .fn<() => Promise<{ data: { id: string } }>>()
+      .mockResolvedValue({ data: { id: "ses_retry" } });
+    const commandList = vi.fn<() => Promise<{ data: [] }>>().mockResolvedValue({ data: [] });
+    mocks.acquireOpenCodeServer
+      .mockResolvedValueOnce({
+        client: {
+          global: { event: vi.fn<() => Promise<{ stream: AsyncGenerator<Event> }>>() },
+          command: { list: commandList },
+          session: { create: firstCreate },
+        },
+        baseUrl: "http://127.0.0.1:1",
+        handle: { formatOutput: () => "first server output" },
+        dispose: firstDispose,
+      })
+      .mockResolvedValueOnce({
+        client: {
+          global: { event: vi.fn<() => Promise<{ stream: AsyncGenerator<Event> }>>() },
+          command: { list: commandList },
+          session: { create: secondCreate },
+        },
+        baseUrl: "http://127.0.0.1:2",
+        handle: { formatOutput: () => "" },
+        dispose: secondDispose,
+      });
+
+    const session = await OpencodeSdkSession.create({
+      threadId: "thread-opencode",
+      projectLocation,
+      config,
+      presentationMode: "terminal",
+    });
+    session.setListener({
+      onClose: () => {},
+      onError: () => {},
+      onUpdate: () => {},
+      onRuntimeEvent: () => {},
+    });
+
+    await session.activate();
+    await expect(session.openThread(config)).resolves.toBe("ses_retry");
+
+    expect(mocks.acquireOpenCodeServer).toHaveBeenCalledTimes(2);
+    expect(firstDispose).toHaveBeenCalledTimes(1);
+    expect(firstCreate).toHaveBeenCalledTimes(1);
+    expect(secondCreate).toHaveBeenCalledTimes(1);
+
+    await session.dispose();
+    expect(secondDispose).toHaveBeenCalledTimes(1);
+  });
+
   it("unwraps global payload events and ignores sync duplicates", async () => {
     const updates: StructuredSessionUpdate[] = [];
     const runtimeEvents: RuntimeEvent[] = [];

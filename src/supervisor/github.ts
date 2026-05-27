@@ -33,6 +33,16 @@ const CREATE_PR_STATUS_POLL_MS = 1_000;
 const PR_VIEW_FIELDS =
   "number,url,state,title,baseRefName,isDraft,reviewDecision,statusCheckRollup,updatedAt,mergeable,mergeStateStatus,author";
 
+function selectLatestPr(items: unknown[]): Record<string, unknown> | null {
+  return items.reduce<Record<string, unknown> | null>((latest, item) => {
+    if (!item || typeof item !== "object") return latest;
+    const pr = item as Record<string, unknown>;
+    const number = typeof pr.number === "number" ? pr.number : 0;
+    const latestNumber = typeof latest?.number === "number" ? latest.number : 0;
+    return number > latestNumber ? pr : latest;
+  }, null);
+}
+
 function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -437,7 +447,7 @@ export class GitHubService {
       "--state",
       "all",
       "--limit",
-      "1",
+      "20",
       "--json",
       PR_VIEW_FIELDS,
     ];
@@ -469,7 +479,8 @@ export class GitHubService {
         }
         const items = JSON.parse(prResult.stdout);
         if (!Array.isArray(items) || items.length === 0) return null;
-        return mapPrData(items[0], viewerLogin);
+        const latest = selectLatestPr(items);
+        return latest ? mapPrData(latest, viewerLogin) : null;
       } catch (err) {
         throw classifyError(err, "pr list");
       }
@@ -483,7 +494,8 @@ export class GitHubService {
       ]);
       const items = JSON.parse(stdout);
       if (!Array.isArray(items) || items.length === 0) return null;
-      return mapPrData(items[0], viewerLogin);
+      const latest = selectLatestPr(items);
+      return latest ? mapPrData(latest, viewerLogin) : null;
     } catch (err) {
       if (isRepoNotFoundError(err)) return null;
       throw classifyError(err, "pr list");

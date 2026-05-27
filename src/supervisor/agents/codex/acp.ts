@@ -23,6 +23,7 @@ import {
   type StartTurnOptions,
   type StructuredSessionHandle,
   type StructuredSessionListener,
+  type ThreadHistory,
 } from "../base";
 import { buildCodexAppServerCommand } from "./argv";
 import {
@@ -532,6 +533,24 @@ export class CodexStructuredSession implements StructuredSessionHandle {
       threadId,
       turnId: this.activeTurnId,
     });
+  }
+
+  async rollbackThread(numTurns: number): Promise<ThreadHistory> {
+    if (!Number.isInteger(numTurns) || numTurns <= 0) {
+      throw new Error(`rollbackThread: numTurns must be a positive integer (got ${numTurns}).`);
+    }
+    const threadId = await this.waitForRemoteThreadId();
+    await this.request("thread/rollback", {
+      threadId,
+      numTurns,
+    });
+    this.pendingTurnInterrupt = false;
+    this.activeTurnId = undefined;
+    await this.syncRemoteThreadState(threadId, toSessionRef(threadId));
+    return {
+      providerSessionId: threadId,
+      messages: [],
+    };
   }
 
   async resolveServerRequest(requestId: ThreadServerRequestId, response: unknown): Promise<void> {

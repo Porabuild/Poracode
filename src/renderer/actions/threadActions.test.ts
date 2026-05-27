@@ -126,7 +126,25 @@ describe("threadActions", () => {
     });
   });
 
-  it("marks inactive GUI threads launching when reopening", () => {
+  it("queues terminal reconnects as launching when reopening", () => {
+    const thread = makeThread({
+      status: "inactive",
+      sessionRef: {
+        providerSessionId: "session-1",
+        discoveredAt: "2026-03-22T00:00:00.000Z",
+      },
+    });
+    useAppStore.setState((state) => ({ ...state, threads: [thread] }));
+
+    reopenStoredThread(thread.id);
+
+    const reopened = useAppStore.getState().threads[0];
+    expect(reopened?.status).toBe("launching");
+    expect(reopened?.attention).toBe("none");
+    expect(useAppStore.getState().pendingThreadLaunches[thread.id]).toBe("");
+  });
+
+  it("queues inactive GUI reconnects without marking them launching", () => {
     const thread = makeThread({
       presentationMode: "gui",
       status: "inactive",
@@ -140,7 +158,7 @@ describe("threadActions", () => {
     reopenStoredThread(thread.id);
 
     const reopened = useAppStore.getState().threads[0];
-    expect(reopened?.status).toBe("launching");
+    expect(reopened?.status).toBe("idle");
     expect(reopened?.attention).toBe("none");
     expect(useAppStore.getState().pendingThreadLaunches[thread.id]).toBe("");
   });

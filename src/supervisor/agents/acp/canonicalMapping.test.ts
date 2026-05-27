@@ -444,6 +444,66 @@ describe("mapAcpSessionUpdate", () => {
     expect(started.payload.result).toContain("+const x = 2;");
   });
 
+  it("classifies empty-old-text ACP content diffs as creates", () => {
+    const state = createAcpMapperState("t-fc-content-create");
+    const events = mapAcpSessionUpdate(
+      note({
+        sessionUpdate: "tool_call",
+        toolCallId: "tc-fc-content-create",
+        title: "Edit File",
+        kind: "edit",
+        status: "completed",
+        rawInput: {},
+        content: [
+          {
+            type: "diff",
+            path: "index.html",
+            oldText: "",
+            newText: "<!DOCTYPE html>\n<html></html>\n",
+          },
+        ],
+      } as Parameters<typeof mapAcpSessionUpdate>[0]["update"]),
+      state,
+    );
+    const started = events[0] as { itemType: string; payload: Record<string, unknown> };
+    expect(started.itemType).toBe("file_change");
+    expect(started.payload).toMatchObject({
+      path: "index.html",
+      changeKind: "create",
+      diffSummary: { added: 2, removed: 0 },
+    });
+  });
+
+  it("drops fake removed-line counts from ACP content creates", () => {
+    const state = createAcpMapperState("t-fc-content-create-blank-old");
+    const events = mapAcpSessionUpdate(
+      note({
+        sessionUpdate: "tool_call",
+        toolCallId: "tc-fc-content-create-blank-old",
+        title: "Create file",
+        kind: "edit",
+        status: "completed",
+        rawInput: {},
+        content: [
+          {
+            type: "diff",
+            path: "index.html",
+            oldText: "\n",
+            newText: "<!DOCTYPE html>\n<html></html>\n",
+          },
+        ],
+      } as Parameters<typeof mapAcpSessionUpdate>[0]["update"]),
+      state,
+    );
+    const started = events[0] as { itemType: string; payload: Record<string, unknown> };
+    expect(started.itemType).toBe("file_change");
+    expect(started.payload).toMatchObject({
+      path: "index.html",
+      changeKind: "create",
+      diffSummary: { added: 2, removed: 0 },
+    });
+  });
+
   it("extracts file_change path from apply_patch text args", () => {
     const state = createAcpMapperState("t-fc");
     const events = mapAcpSessionUpdate(
@@ -461,6 +521,33 @@ describe("mapAcpSessionUpdate", () => {
     expect(started.itemType).toBe("file_change");
     expect(started.payload.path).toBe("src/foo.ts");
     expect(started.payload.changeKind).toBe("edit");
+  });
+
+  it("classifies ACP write content payloads as creates", () => {
+    const state = createAcpMapperState("t-fc-write-create");
+    const rawInput = {
+      filePath: "index.html",
+      content: "<!DOCTYPE html>\n<html></html>\n",
+    };
+    const events = mapAcpSessionUpdate(
+      note({
+        sessionUpdate: "tool_call",
+        toolCallId: "tc-fc-write-create",
+        title: "Write `index.html`",
+        kind: "edit",
+        status: "completed",
+        rawInput,
+      } as Parameters<typeof mapAcpSessionUpdate>[0]["update"]),
+      state,
+    );
+    const started = events[0] as { itemType: string; payload: Record<string, unknown> };
+    expect(started.itemType).toBe("file_change");
+    expect(started.payload).toMatchObject({
+      path: "index.html",
+      changeKind: "create",
+      diffSummary: { added: 2, removed: 0 },
+      args: rawInput,
+    });
   });
 
   it("extracts file_change metadata from file_path and changes arrays", () => {
@@ -808,6 +895,7 @@ describe("mapAcpSessionUpdate", () => {
     expect(terminal.type).toBe("item.completed");
     expect(terminal.payload).toMatchObject({
       path: "src/foo.ts",
+      changeKind: "edit",
       diffSummary: { added: 1, removed: 1 },
       result: {
         changes: [
@@ -818,6 +906,95 @@ describe("mapAcpSessionUpdate", () => {
           },
         ],
       },
+    });
+  });
+
+  it("keeps line removals inside an existing file as edits", () => {
+    const state = createAcpMapperState("t-fc-line-delete");
+    mapAcpSessionUpdate(
+      note({
+        sessionUpdate: "tool_call",
+        toolCallId: "tc-fc-line-delete",
+        title: "Delete line",
+        kind: "delete",
+        status: "in_progress",
+        rawInput: {},
+      } as Parameters<typeof mapAcpSessionUpdate>[0]["update"]),
+      state,
+    );
+
+    const diff = [
+      "diff --git a/index.html b/index.html",
+      "--- a/index.html",
+      "+++ b/index.html",
+      "@@ -51,7 +51,6 @@",
+      "     <span>${task.text}</span>",
+      "-    <button>bad</button>",
+      "   </li>",
+      "",
+    ].join("\n");
+    const completed = mapAcpSessionUpdate(
+      note({
+        sessionUpdate: "tool_call_update",
+        toolCallId: "tc-fc-line-delete",
+        kind: "delete",
+        rawOutput: diff,
+        status: "completed",
+      } as Parameters<typeof mapAcpSessionUpdate>[0]["update"]),
+      state,
+    );
+
+    const terminal = completed[0] as { type: string; payload: Record<string, unknown> };
+    expect(terminal.type).toBe("item.completed");
+    expect(terminal.payload).toMatchObject({
+      path: "index.html",
+      changeKind: "edit",
+      diffSummary: { added: 0, removed: 1 },
+      result: diff,
+    });
+  });
+
+  it("uses update new-file diffs to heal file_change kind", () => {
+    const state = createAcpMapperState("t-fc-update-create-diff");
+    mapAcpSessionUpdate(
+      note({
+        sessionUpdate: "tool_call",
+        toolCallId: "tc-fc-update-create-diff",
+        title: "Edit File",
+        kind: "edit",
+        status: "in_progress",
+        rawInput: {},
+      } as Parameters<typeof mapAcpSessionUpdate>[0]["update"]),
+      state,
+    );
+
+    const diff = [
+      "diff --git a/index.html b/index.html",
+      "new file mode 100644",
+      "--- /dev/null",
+      "+++ b/index.html",
+      "@@ -0,0 +1,2 @@",
+      "+<!DOCTYPE html>",
+      "+<html></html>",
+      "",
+    ].join("\n");
+    const completed = mapAcpSessionUpdate(
+      note({
+        sessionUpdate: "tool_call_update",
+        toolCallId: "tc-fc-update-create-diff",
+        rawOutput: diff,
+        status: "completed",
+      } as Parameters<typeof mapAcpSessionUpdate>[0]["update"]),
+      state,
+    );
+
+    const terminal = completed[0] as { type: string; payload: Record<string, unknown> };
+    expect(terminal.type).toBe("item.completed");
+    expect(terminal.payload).toMatchObject({
+      path: "index.html",
+      changeKind: "create",
+      diffSummary: { added: 2, removed: 0 },
+      result: diff,
     });
   });
 

@@ -1,13 +1,13 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { ThreadConfig, ThreadServerRequestId } from "@/shared/contracts";
+import type { Thread, ThreadConfig, ThreadServerRequestId } from "@/shared/contracts";
 import { AppProvider } from "@/renderer/components/ui/provider";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useThreadTodoDockStore } from "@/renderer/state/threadTodoDockStore";
 import { ThreadView } from "./ThreadView";
 
-const { bridge } = vi.hoisted(() => ({
+const { bridge, captureFileCheckpoint } = vi.hoisted(() => ({
   bridge: {
     startThread: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
     interruptThread: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
@@ -18,12 +18,21 @@ const { bridge } = vi.hoisted(() => ({
       .fn<() => Promise<{ entries: unknown[]; totalIndexed: number }>>()
       .mockResolvedValue({ entries: [], totalIndexed: 0 }),
     dbGetThreadRuntimeItems: vi.fn<() => Promise<unknown[]>>().mockResolvedValue([]),
+    dbGetThreadCompletedTurns: vi.fn<() => Promise<unknown[]>>().mockResolvedValue([]),
+    dbGetThreadContextUsage: vi.fn<() => Promise<unknown | null>>().mockResolvedValue(null),
   },
+  captureFileCheckpoint: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
 }));
 
 vi.mock("../../bridge", () => ({
   readBridge: () => bridge,
   isDevApp: () => false,
+}));
+
+vi.mock("@/renderer/state/fileCheckpointActions", () => ({
+  captureFileCheckpoint,
+  hydrateFileCheckpoints: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+  finalizeFileCheckpoint: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
 }));
 
 vi.mock("./TerminalPane", () => ({
@@ -262,6 +271,79 @@ describe("ThreadView", () => {
         },
       });
     });
+  });
+
+  it("renders a GUI launch prompt and marks working before awaiting the file checkpoint", async () => {
+    let resolveCapture!: () => void;
+    captureFileCheckpoint.mockReturnValueOnce(
+      new Promise<void>((resolve) => {
+        resolveCapture = resolve;
+      }),
+    );
+    const thread: Thread = {
+      id: "thread-gui-launch",
+      projectId: "project-1",
+      title: "Queued chat thread",
+      agentKind: "codex",
+      config: {
+        model: "gpt-5.4",
+      },
+      status: "launching",
+      attention: "none",
+      canResumeWithConfig: false,
+      archived: false,
+      done: false,
+      starred: false,
+      presentationMode: "gui",
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    useAppStore.setState({ threads: [thread] });
+
+    renderThreadView({
+      thread,
+      agentStatus: {
+        kind: "codex",
+        label: "Codex",
+        installed: true,
+        authState: "authenticated",
+        capabilities: {
+          models: [{ id: "gpt-5.4", label: "5.4" }],
+          efforts: ["low"],
+          modelEfforts: {},
+          modes: ["agent"],
+          approvalPolicies: [{ id: "on-request", label: "On Request" }],
+          sandboxModes: [{ id: "read-only", label: "Read Only" }],
+          supportsResume: true,
+          supportsDirectInput: true,
+          liveInputMode: "server",
+          presentationMode: "gui",
+          settingDefs: [],
+        },
+      },
+      projectLocation: {
+        kind: "windows",
+        path: "C:\\repo",
+      },
+      pendingLaunchPrompt: "hi",
+      onConfigChange: () => undefined,
+      onLaunchConsumed: () => undefined,
+      onResolveServerRequest: async () => undefined,
+      onSubmitInput: async () => undefined,
+    });
+
+    await waitFor(() => expect(captureFileCheckpoint).toHaveBeenCalled());
+
+    const optimisticItemId = useAppStore.getState().runtimeItemIdsByThread[thread.id]?.[0];
+    expect(optimisticItemId).toEqual(expect.stringMatching(/^user-/));
+    expect(useAppStore.getState().threads.find((item) => item.id === thread.id)?.status).toBe(
+      "working",
+    );
+    expect(bridge.startThread).not.toHaveBeenCalled();
+
+    resolveCapture();
+
+    await waitFor(() => expect(bridge.startThread).toHaveBeenCalled());
   });
 
   it("forwards launch rejection messages to the launch failure callback", async () => {

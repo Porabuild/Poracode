@@ -91,4 +91,39 @@ describe("ProjectWatcher WSL worktrees", () => {
     await vi.waitFor(() => expect(onTreeChanged).toHaveBeenCalledWith("project-1"));
     await watcher.dispose();
   });
+
+  it("resubscribes WSL project watchers after the bridge exits", async () => {
+    const unsubscribe = vi.fn<() => Promise<void>>(async () => undefined);
+    let subscriptionCount = 0;
+    const watch = vi.fn<WslBridgeClient["watch"]>(async () => ({
+      subscriptionId: `sub-${subscriptionCount++}`,
+      unsubscribe,
+    }));
+    const client = {
+      readFile: vi.fn<WslBridgeClient["readFile"]>(async () => {
+        throw new Error("missing");
+      }),
+      stat: vi.fn<WslBridgeClient["stat"]>(async () => ({ stats: [] })),
+      watch,
+    } as unknown as WslBridgeClient;
+    const watcher = new ProjectWatcher({
+      onGitChanged: vi.fn<(projectId: string) => void>(),
+      onTreeChanged: vi.fn<(projectId: string) => void>(),
+    });
+    watcher.setWslClient(client);
+
+    watcher.watch("project-1", makeLocation("/home/demo/work/repo"));
+
+    await vi.waitFor(() => expect(watch).toHaveBeenCalledTimes(1));
+    watcher.handleWslBridgeExit("Ubuntu");
+
+    await vi.waitFor(() => expect(watch).toHaveBeenCalledTimes(2));
+    expect(watch.mock.calls[1]?.[1]).toEqual(
+      expect.objectContaining({
+        paths: [{ path: "/home/demo/work/repo", scope: "worktree" }],
+      }),
+    );
+    expect(unsubscribe).not.toHaveBeenCalled();
+    await watcher.dispose();
+  });
 });

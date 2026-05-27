@@ -783,6 +783,44 @@ describe("appStore runtime config sync", () => {
     expect(useAppStore.getState().threads[0]?.activeTurnStartedAt).toBe("2026-05-01T12:00:00.000Z");
   });
 
+  it("closes an offscreen GUI thread when the transcript has not been hydrated", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-05-01T12:00:00.000Z"));
+    const project = useAppStore.getState().addProject({
+      kind: "windows",
+      path: "C:\\repo",
+    });
+    const thread = useAppStore.getState().createThread({
+      projectId: project.id,
+      agentKind: "codex",
+      config: { model: "m" },
+      prompt: "a",
+      presentationMode: "gui",
+    });
+
+    useAppStore.setState((state) => ({ ...state, view: { kind: "home" } }));
+    useAppStore.getState().updateThreadRuntime(thread.id, {
+      status: "working",
+      attention: "working",
+      canResumeWithConfig: false,
+    });
+
+    vi.setSystemTime(new Date("2026-05-01T12:00:05.000Z"));
+    useAppStore.getState().updateThreadRuntime(thread.id, {
+      status: "idle",
+      attention: "none",
+      canResumeWithConfig: true,
+    });
+
+    expect(useAppStore.getState().threads[0]).toMatchObject({
+      status: "finished",
+      attention: "none",
+      activeTurnStartedAt: undefined,
+      lastTurnStartedAt: "2026-05-01T12:00:00.000Z",
+      lastTurnEndedAt: "2026-05-01T12:00:05.000Z",
+    });
+  });
+
   it("lets a forced GUI idle close an interrupted turn before assistant output", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-05-01T12:00:00.000Z"));
@@ -875,6 +913,38 @@ describe("appStore runtime config sync", () => {
     expect(useAppStore.getState().runtimeCompletedTurnsByThread[thread.id]?.[0]).toMatchObject({
       anchorItemId: "assistant-1",
     });
+  });
+
+  it("does not add sub-second completed turns", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-05-01T12:00:00.000Z"));
+    const project = useAppStore.getState().addProject({
+      kind: "windows",
+      path: "C:\\repo",
+    });
+    const thread = useAppStore.getState().createThread({
+      projectId: project.id,
+      agentKind: "codex",
+      config: { model: "m" },
+      prompt: "a",
+      presentationMode: "gui",
+    });
+    useAppStore.getState().applyRuntimeEvent(thread.id, {
+      type: "item.started",
+      threadId: thread.id,
+      itemId: "assistant-1",
+      itemType: "assistant_message",
+    });
+
+    vi.setSystemTime(new Date("2026-05-01T12:00:00.700Z"));
+    useAppStore.getState().updateThreadRuntime(thread.id, {
+      status: "idle",
+      attention: "none",
+      canResumeWithConfig: true,
+    });
+
+    expect(useAppStore.getState().threads[0]?.status).toBe("idle");
+    expect(useAppStore.getState().runtimeCompletedTurnsByThread[thread.id]).toBeUndefined();
   });
 });
 

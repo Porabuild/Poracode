@@ -186,9 +186,14 @@ export class GitCheckpointService {
     projectLocation: ProjectLocation,
     ref: string,
   ): Promise<CheckpointMetadata | null> {
-    const commit = (
-      await execGit(projectLocation, ["rev-parse", "--verify", `${ref}^{commit}`])
-    ).trim();
+    let commit: string;
+    try {
+      commit = (
+        await execGit(projectLocation, ["rev-parse", "--verify", `${ref}^{commit}`])
+      ).trim();
+    } catch {
+      return null;
+    }
     const body = await execGit(projectLocation, ["log", "-1", "--format=%B", ref]);
     const jsonLine = body
       .split(/\r?\n/)

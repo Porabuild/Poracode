@@ -47,7 +47,11 @@ import {
   type QuestionAnswerSourceQuestion,
 } from "../questionAnswerEvents";
 import { mapOpenCodeSlashCommands } from "./detection";
-import { classifyOpenCodeError, readOpenCodeErrorText } from "./opencodeErrors";
+import {
+  classifyOpenCodeError,
+  isOpenCodeConnectionLoss,
+  readOpenCodeErrorText,
+} from "./opencodeErrors";
 import { buildOpenCodePermissionRules } from "./permissionRules";
 import { syncOpenCodeBrowserMcpConfigFile } from "./plugin/install";
 import {
@@ -355,6 +359,7 @@ export class OpencodeSdkSession implements StructuredSessionHandle {
   private disposed = false;
   private pendingRequests = new Map<ThreadServerRequestId, PendingRequest>();
   private currentSlashCommands: AgentSlashCommand[] | undefined;
+  private browserMcpEnabled = false;
 
   private constructor(input: CreateStructuredSessionInput) {
     this.input = input;
@@ -404,15 +409,15 @@ export class OpencodeSdkSession implements StructuredSessionHandle {
     this.activated = true;
 
     try {
-      const browserMcpEnabled = isOpenCodeBrowserMcpEnabled(this.input.agentSettings);
+      this.browserMcpEnabled = isOpenCodeBrowserMcpEnabled(this.input.agentSettings);
       syncOpenCodeBrowserMcpConfigFile(
         this.input.projectLocation,
-        browserMcpEnabled,
+        this.browserMcpEnabled,
         this.input.browserMcp,
       );
       this.acquired = await acquireOpenCodeServer({
         projectLocation: this.input.projectLocation,
-        browserMcpEnabled,
+        browserMcpEnabled: this.browserMcpEnabled,
         ...(this.input.browserMcp !== undefined ? { browserMcp: this.input.browserMcp } : {}),
       });
     } catch (cause) {
@@ -465,7 +470,22 @@ export class OpencodeSdkSession implements StructuredSessionHandle {
         ...(permission ? { permission } : {}),
       });
     } catch (cause) {
-      throw new Error(classifyOpenCodeError({ cause, operation: "session.create" }), { cause });
+      if (!isOpenCodeConnectionLoss(cause)) {
+        throw new Error(this.classifyOpenCodeError(cause, "session.create"), { cause });
+      }
+      await this.reacquireOpenCodeServer();
+      const retryAcquired = this.requireAcquired();
+      try {
+        created = await retryAcquired.client.session.create({
+          directory: this.sdkDirectory,
+          title: `lightcode/${this.threadId.slice(0, 8)}`,
+          ...(permission ? { permission } : {}),
+        });
+      } catch (retryCause) {
+        throw new Error(this.classifyOpenCodeError(retryCause, "session.create"), {
+          cause: retryCause,
+        });
+      }
     }
     const id = created.data?.id;
     if (!id) throw new Error("opencode session.create returned no id");
@@ -833,6 +853,30 @@ export class OpencodeSdkSession implements StructuredSessionHandle {
         ]);
       }
     })();
+  }
+
+  private async reacquireOpenCodeServer(): Promise<void> {
+    const previous = this.acquired;
+    this.sseAbort?.abort();
+    this.sseAbort = undefined;
+    this.acquired = undefined;
+    await previous?.dispose().catch(() => undefined);
+    this.acquired = await acquireOpenCodeServer({
+      projectLocation: this.input.projectLocation,
+      browserMcpEnabled: this.browserMcpEnabled,
+      ...(this.input.browserMcp !== undefined ? { browserMcp: this.input.browserMcp } : {}),
+    });
+    if (this.isGui) this.startEventStream();
+  }
+
+  private classifyOpenCodeError(cause: unknown, operation: string): string {
+    const message = classifyOpenCodeError({
+      cause,
+      operation,
+      serverUrl: this.acquired?.baseUrl,
+    });
+    const output = this.acquired?.handle.formatOutput().trim();
+    return output ? `${message}\n${output}` : message;
   }
 
   private handleSseEvent(event: Event): void {

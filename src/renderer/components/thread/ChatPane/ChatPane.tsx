@@ -58,6 +58,9 @@ const EMPTY_ITEM_IDS: readonly string[] = [];
 const EMPTY_FILE_CHECKPOINT_TURNS: NonNullable<
   ReturnType<typeof useAppStore.getState>["fileCheckpointTurnsByThread"][string]
 > = {};
+const EMPTY_FILE_CHECKPOINTS: NonNullable<
+  ReturnType<typeof useAppStore.getState>["fileCheckpointsByThread"][string]
+> = {};
 
 /**
  * Renderer-native chat surface for `presentationMode === "gui"` threads.
@@ -163,6 +166,9 @@ export function ChatPane(props: ChatPaneProps) {
   const fileCheckpointTurns = useAppStore(
     (s) => s.fileCheckpointTurnsByThread[threadId] ?? EMPTY_FILE_CHECKPOINT_TURNS,
   );
+  const fileCheckpoints = useAppStore(
+    (s) => s.fileCheckpointsByThread[threadId] ?? EMPTY_FILE_CHECKPOINTS,
+  );
   const finalizingFileCheckpointIdsRef = useRef(new Set<string>());
 
   useEffect(() => {
@@ -181,6 +187,7 @@ export function ChatPane(props: ChatPaneProps) {
         checkpointItemId,
       );
       if (!baseCheckpointItemId) continue;
+      if (!fileCheckpoints[baseCheckpointItemId]) continue;
       finalizingFileCheckpointIdsRef.current.add(checkpointItemId);
       void finalizeFileCheckpoint({
         threadId,
@@ -191,7 +198,7 @@ export function ChatPane(props: ChatPaneProps) {
         finalizingFileCheckpointIdsRef.current.delete(checkpointItemId);
       });
     }
-  }, [completedTurns, fileCheckpointTurns, isHomeScope, targetContext, threadId]);
+  }, [completedTurns, fileCheckpoints, fileCheckpointTurns, isHomeScope, targetContext, threadId]);
 
   const isEmpty = timelineEntries.length === 0 && !hasSupplementaryContent;
   const isLive = isThreadTurnActive(status);
@@ -203,17 +210,20 @@ export function ChatPane(props: ChatPaneProps) {
   // `item.started` arriving, even though the runtime was still working the
   // turn.
   const turn = resolveTurnTiming(thread);
-  const mostRecentCompletedTurnAnchor = useAppStore((s) => {
-    if (isLive || turn?.endedAt == null) return null;
-    const records = s.runtimeCompletedTurnsByThread[threadId];
-    return records && records.length > 0
-      ? (records[records.length - 1]?.anchorItemId ?? null)
-      : null;
-  });
+  const mostRecentDisplayableCompletedTurn = useAppStore((s) =>
+    isLive
+      ? null
+      : selectMostRecentDisplayableCompletedTurn(s.runtimeCompletedTurnsByThread[threadId]),
+  );
+  const mostRecentCompletedTurnAnchor = mostRecentDisplayableCompletedTurn?.anchorItemId ?? null;
   const completedTurnCanRenderInTail =
     !isLive &&
-    turn?.endedAt != null &&
+    (turn?.endedAt != null || mostRecentDisplayableCompletedTurn !== null) &&
     isCompletedTurnAnchorAtTimelineTail(mostRecentCompletedTurnAnchor, timelineEntries);
+  const tailTurn =
+    completedTurnCanRenderInTail && mostRecentDisplayableCompletedTurn
+      ? mostRecentDisplayableCompletedTurn
+      : turn;
   const showTailLoader = isLive || completedTurnCanRenderInTail;
   // The agent is not actually working while it waits for a user answer, so the
   // tail loader keeps rendering but its elapsed-time counter freezes for the
@@ -289,8 +299,8 @@ export function ChatPane(props: ChatPaneProps) {
                     checkpointGuard={checkpointGuard}
                     projectLocation={isHomeScope ? undefined : targetContext?.projectLocation}
                   />
-                  {showTailLoader && turn ? (
-                    <ChatTailLoader turn={turn} isPaused={isTurnPaused} />
+                  {showTailLoader && tailTurn ? (
+                    <ChatTailLoader turn={tailTurn} isPaused={isTurnPaused} />
                   ) : null}
                 </>
               )}
@@ -604,6 +614,11 @@ interface TurnTiming {
   endedAt: number | null;
 }
 
+interface CompletedTurnTiming extends TurnTiming {
+  anchorItemId: string | null;
+  endedAt: number;
+}
+
 function parseTurnTimestamp(iso: string | undefined): number | null {
   if (!iso) return null;
   const ms = new Date(iso).getTime();
@@ -632,6 +647,17 @@ function resolveTurnTiming(thread: Thread): TurnTiming | null {
     startedAt,
     endedAt: Math.max(startedAt, endedAt),
   };
+}
+
+function selectMostRecentDisplayableCompletedTurn(
+  records: readonly CompletedTurnTiming[] | undefined,
+): CompletedTurnTiming | null {
+  if (!records) return null;
+  for (let index = records.length - 1; index >= 0; index -= 1) {
+    const record = records[index]!;
+    if (record.endedAt - record.startedAt >= 1000) return record;
+  }
+  return null;
 }
 
 function ChatTailLoader({ turn, isPaused }: { turn: TurnTiming; isPaused: boolean }) {

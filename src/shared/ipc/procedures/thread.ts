@@ -10,6 +10,7 @@ import {
   removeAcpRegistryAgentPayloadSchema,
   resizeTerminalPayloadSchema,
   resolveThreadServerRequestPayloadSchema,
+  rollbackThreadConversationPayloadSchema,
   sendThreadInputPayloadSchema,
   setAcpRegistryAgentAuthPayloadSchema,
   setPendingSteerPayloadSchema,
@@ -37,6 +38,7 @@ import type {
   RemoveAcpRegistryAgentPayload,
   ResizeTerminalPayload,
   ResolveThreadServerRequestPayload,
+  RollbackThreadConversationPayload,
   SendThreadInputPayload,
   SetAcpRegistryAgentAuthPayload,
   SetPendingSteerPayload,
@@ -142,6 +144,11 @@ export const threadProcedures = {
     "supervisor",
     interruptThreadPayloadSchema,
   ),
+  rollbackThreadConversation: definePayloadProcedure<
+    RollbackThreadConversationPayload,
+    void,
+    "supervisor"
+  >("rollbackThreadConversation", "supervisor", rollbackThreadConversationPayloadSchema),
   setPendingSteer: definePayloadProcedure<SetPendingSteerPayload, void, "supervisor">(
     "setPendingSteer",
     "supervisor",

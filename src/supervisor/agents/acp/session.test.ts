@@ -7,6 +7,7 @@ import type { CreateStructuredSessionInput } from "../base";
 import type { ThreadConfig } from "@/shared/contracts";
 import {
   AcpStructuredSession,
+  resolveAcpReadableHostFsPath,
   resolveAcpResourcePath,
   rewriteLoadSessionError,
   shouldSpawnAcpSession,
@@ -308,6 +309,34 @@ describe("ACP resource path helpers", () => {
       ),
     ).toBe("file:///home/me/repo/.agents/docs/ui%20patterns.md");
   });
+
+  it("allows read-only access to user agent skill files outside a WSL project", () => {
+    expect(
+      resolveAcpReadableHostFsPath(
+        {
+          kind: "wsl",
+          distro: "Ubuntu",
+          linuxPath: "/home/me/repo",
+          uncPath: "\\\\wsl.localhost\\Ubuntu\\home\\me\\repo",
+        },
+        "/home/me/.agents/skills/agent-browser/SKILL.md",
+      ),
+    ).toBe("\\\\wsl.localhost\\Ubuntu\\home\\me\\.agents\\skills\\agent-browser\\SKILL.md");
+  });
+
+  it("rejects user agent skill paths that escape through parent segments", () => {
+    expect(() =>
+      resolveAcpReadableHostFsPath(
+        {
+          kind: "wsl",
+          distro: "Ubuntu",
+          linuxPath: "/home/me/repo",
+          uncPath: "\\\\wsl.localhost\\Ubuntu\\home\\me\\repo",
+        },
+        "/home/me/.agents/skills/../secret.txt",
+      ),
+    ).toThrow("Invalid params");
+  });
 });
 
 describe("ACP client protocol helpers", () => {
@@ -551,6 +580,34 @@ describe("ACP client protocol helpers", () => {
       mcpServers: [],
     });
     expect(connection.loadSession).not.toHaveBeenCalled();
+  });
+
+  it("does not surface session/resume history replay as new work", async () => {
+    const { connection, listener, session } = makeConfigSyncSession();
+    (session as unknown as Record<string, unknown>)["agentSessionCapabilities"] = { resume: {} };
+    const sessionRef = {
+      providerSessionId: "session-resume",
+      discoveredAt: new Date().toISOString(),
+    };
+    connection.resumeSession.mockImplementationOnce(async () => {
+      session.handleSessionUpdate({
+        update: {
+          sessionUpdate: "tool_call",
+          toolCallId: "tc-1",
+          title: "Read file",
+          kind: "read",
+        },
+      });
+      return { modes: { availableModes: [] }, configOptions: [] };
+    });
+
+    await session.openThread({ model: "model-a" }, sessionRef);
+
+    expect(listener.onUpdate).not.toHaveBeenCalledWith({
+      status: "working",
+      attention: "working",
+    });
+    expect(listener.onRuntimeEvent).not.toHaveBeenCalled();
   });
 
   it("falls back to session/load for known sessions when resume is not advertised", async () => {

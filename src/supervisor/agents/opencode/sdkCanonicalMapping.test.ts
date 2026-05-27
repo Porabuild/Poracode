@@ -1024,6 +1024,7 @@ describe("sdkCanonicalMapping — tool parts", () => {
         name: "create",
         path: "src/new-file.ts",
         changeKind: "create",
+        diffSummary: { added: 1, removed: 0 },
         args,
         status: "running",
       },

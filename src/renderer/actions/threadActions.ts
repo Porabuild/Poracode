@@ -117,9 +117,10 @@ export function reopenStoredThread(threadId: string): void {
     return;
   }
 
+  const isGuiReconnect = thread.presentationMode === "gui" && thread.sessionRef !== undefined;
   startTransition(() => {
     store.updateThreadRuntime(thread.id, {
-      status: "launching",
+      status: isGuiReconnect ? "idle" : "launching",
       attention: "none",
       ...(thread.sessionRef ? { sessionRef: thread.sessionRef } : {}),
       canResumeWithConfig: thread.canResumeWithConfig || thread.sessionRef !== undefined,
@@ -161,11 +162,7 @@ export function sweepStaleThreads(): void {
   const staleBefore = Date.now() - staleThreadUnloadMinutes * 60_000;
 
   for (const thread of store.threads) {
-    if (
-      visibleThreadIds.has(thread.id) ||
-      (thread.status !== "idle" && thread.status !== "finished") ||
-      !thread.sessionRef
-    ) {
+    if (visibleThreadIds.has(thread.id) || thread.status !== "idle" || !thread.sessionRef) {
       continue;
     }
     const updatedAtMs = new Date(thread.updatedAt).getTime();

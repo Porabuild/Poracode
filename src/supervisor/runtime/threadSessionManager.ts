@@ -15,6 +15,7 @@ import {
   type ProjectLocation,
   type ResizeTerminalPayload,
   type ResolveThreadServerRequestPayload,
+  type RollbackThreadConversationPayload,
   type SendThreadInputPayload,
   type SessionRef,
   type SetPendingSteerPayload,
@@ -404,6 +405,29 @@ export class ThreadSessionManager {
       throw new Error(`Unknown thread session: ${payload.threadId}`);
     }
     await this.interruptStructuredTurn(session);
+  }
+
+  async rollbackThreadConversation(payload: RollbackThreadConversationPayload): Promise<void> {
+    if (payload.numTurns === 0) return;
+    const session = this.requireSession(payload.threadId);
+    if (session.status === "working") {
+      throw new Error("Cannot roll back a thread while the agent is working.");
+    }
+    if (!session.structuredSession?.rollbackThread) {
+      throw new Error(`${session.adapter.label} does not support checkpoint rollback.`);
+    }
+
+    const previousSessionId = session.sessionRef?.providerSessionId;
+    const history = await session.structuredSession.rollbackThread(payload.numTurns);
+    if (
+      history.providerSessionId &&
+      history.providerSessionId !== session.sessionRef?.providerSessionId
+    ) {
+      session.sessionRef = createKnownSessionRef(history.providerSessionId);
+      session.canResumeWithConfig = true;
+      this.indexSessionRef(session, previousSessionId);
+      this.outputPipeline.emitState(session);
+    }
   }
 
   async writeTerminal(payload: WriteTerminalPayload): Promise<void> {

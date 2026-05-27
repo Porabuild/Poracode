@@ -41,6 +41,7 @@ import {
   type StructuredSessionHandle,
   type StructuredSessionListener,
   type StructuredSessionUpdate,
+  type ThreadHistory,
 } from "../base";
 import { captureSupervisorException } from "../../diagnostics/sentry";
 import { resolveAgentBinaryPath } from "../binaryResolver";
@@ -87,6 +88,10 @@ type PendingQuestion = {
 };
 
 type PendingRequest = PendingPermission | PendingQuestion;
+
+type CompletedClaudeTurn = {
+  resumeSessionAt: string | undefined;
+};
 
 class AsyncPromptQueue implements AsyncIterable<SDKUserMessage> {
   private items: SDKUserMessage[] = [];
@@ -415,6 +420,9 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
   private currentAttention: ThreadAttention = "none";
   private currentSlashCommands: AgentSlashCommand[] | undefined;
   private pendingRequests = new Map<ThreadServerRequestId, PendingRequest>();
+  private completedTurns: CompletedClaudeTurn[] = [];
+  private currentTurnAssistantUuid: string | undefined;
+  private currentTurnInFlight = false;
   // openThread() fires `startQuery` as a fire-and-forget IIFE and returns
   // synchronously, but the runtime calls `setListener` only afterwards from
   // `spawnThread`. Anything emitted in that window — early SDK system/stream
@@ -530,6 +538,8 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
     if (this.disposed) return;
     this.currentConfig = config;
     const turnId = `turn-${randomUUID()}`;
+    this.currentTurnAssistantUuid = undefined;
+    this.currentTurnInFlight = true;
     this.emitRuntimeEvents(
       startClaudeTurn(this.mapperState, turnId, prompt, segments, options?.userMessageItemId),
     );
@@ -557,6 +567,47 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
 
     const message = await buildSdkUserMessage(prompt, segments);
     this.promptQueue.push(message);
+  }
+
+  async rollbackThread(numTurns: number): Promise<ThreadHistory> {
+    if (!Number.isInteger(numTurns) || numTurns <= 0) {
+      throw new Error(`rollbackThread: numTurns must be a positive integer (got ${numTurns}).`);
+    }
+    if (this.currentStatus === "working" || this.currentAttention === "working") {
+      throw new Error("Claude SDK rollback is unavailable while a turn is running.");
+    }
+    if (this.pendingRequests.size > 0) {
+      throw new Error("Claude SDK rollback is unavailable while a request is pending.");
+    }
+    if (!this.sessionId) {
+      throw new Error("Claude SDK rollback requires an open session.");
+    }
+    if (numTurns > this.completedTurns.length) {
+      throw new Error("Claude SDK rollback only supports turns completed in this runtime.");
+    }
+
+    const nextTurns = this.completedTurns.slice(0, this.completedTurns.length - numTurns);
+    const resumeSessionAt = nextTurns.at(-1)?.resumeSessionAt;
+    if (!resumeSessionAt) {
+      throw new Error("Claude SDK rollback requires an assistant resume point.");
+    }
+
+    this.completedTurns = nextTurns;
+    this.currentTurnAssistantUuid = undefined;
+    this.currentTurnInFlight = false;
+    this.openedResumeSessionId = this.sessionId;
+    this.promptQueue.close();
+    this.queryRuntime?.close();
+    this.promptQueue = new AsyncPromptQueue();
+    this.queryRuntime = undefined;
+    this.queryReady = undefined;
+    this.streamStarted = false;
+    this.appliedModel = undefined;
+    this.appliedPermissionMode = undefined;
+    this.startQuery(this.sessionId, resumeSessionAt);
+    await this.requireQuery();
+
+    return { providerSessionId: this.sessionId, messages: [] };
   }
 
   async interruptTurn(): Promise<void> {
@@ -692,7 +743,7 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
     return this.queryReady;
   }
 
-  private startQuery(resumeSessionId: string | undefined): void {
+  private startQuery(resumeSessionId: string | undefined, resumeSessionAt?: string): void {
     if (this.streamStarted) return;
     this.streamStarted = true;
 
@@ -786,6 +837,7 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
           ? { allowDangerouslySkipPermissions: true }
           : {}),
         ...(resumeSessionId ? { resume: resumeSessionId } : {}),
+        ...(resumeSessionAt ? { resumeSessionAt } : {}),
         ...(!resumeSessionId && this.sessionId ? { sessionId: this.sessionId } : {}),
         includePartialMessages: true,
         forwardSubagentText: true,
@@ -932,11 +984,16 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
       this.emitUpdate(mapped);
     }
 
+    if (message.type === "assistant") {
+      this.currentTurnAssistantUuid = message.uuid;
+    }
+
     const events = mapClaudeSdkMessage(message, this.mapperState);
     this.emitRuntimeEvents(events);
     if (message.type === "result") {
       void this.refreshContextUsage();
-      const wasInterrupted = this.interruptInFlight || isInterruptedResult(message);
+      const wasInterrupted =
+        this.interruptInFlight || (message.subtype !== "success" && isInterruptedResult(message));
       this.interruptInFlight = false;
       const remaining = nonDiagnosticErrors(message);
       // claude.exe surfaces upstream API failures (e.g. 401 auth, 429 rate
@@ -954,6 +1011,11 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
       const errorMessage = failed
         ? (extractResultErrorMessage(message) ?? "Claude turn failed.")
         : undefined;
+      if (this.currentTurnInFlight && !failed && !wasInterrupted) {
+        this.completedTurns.push({ resumeSessionAt: this.currentTurnAssistantUuid });
+      }
+      this.currentTurnAssistantUuid = undefined;
+      this.currentTurnInFlight = false;
       this.emitUpdate({
         status: failed ? "error" : "idle",
         attention: failed ? "error" : "none",

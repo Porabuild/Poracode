@@ -109,6 +109,7 @@ import {
   guessMimeType,
   resolveAcpHostFsPath,
   resolveAcpProjectPath,
+  resolveAcpReadableHostFsPath,
   resolveAcpResourcePath,
   resolveSessionCwd,
   resolveSpawnCwd,
@@ -116,7 +117,7 @@ import {
   toAcpResourceUri,
 } from "./sessionPaths";
 
-export { resolveAcpResourcePath, toAcpResourceUri };
+export { resolveAcpReadableHostFsPath, resolveAcpResourcePath, toAcpResourceUri };
 
 /**
  * Convert Lightcode `PromptSegment[]` + prompt text into ACP `ContentBlock[]`.
@@ -936,6 +937,8 @@ export class AcpStructuredSession implements StructuredSessionHandle {
     if (sessionRef) {
       if (this.agentSessionCapabilities?.resume !== undefined) {
         console.log("[acp] resuming session:", sessionRef.providerSessionId);
+        this.isReplayingHistory = true;
+        this.replayHistoryUntil = Infinity;
         try {
           const result = await this.connection.resumeSession({
             sessionId: sessionRef.providerSessionId,
@@ -947,6 +950,9 @@ export class AcpStructuredSession implements StructuredSessionHandle {
           configOptions = result.configOptions ?? [];
         } catch (error) {
           throw this.loadSessionErrorRewriter(error, sessionRef.providerSessionId);
+        } finally {
+          this.isReplayingHistory = false;
+          this.replayHistoryUntil = Date.now() + 500;
         }
       } else {
         console.log("[acp] loading session:", sessionRef.providerSessionId);
@@ -1217,7 +1223,7 @@ export class AcpStructuredSession implements StructuredSessionHandle {
 
   private async handleReadTextFile(params: ReadTextFileRequest): Promise<ReadTextFileResponse> {
     this.assertRequestSession(params.sessionId);
-    const path = resolveAcpHostFsPath(this.projectLocation, params.path);
+    const path = resolveAcpReadableHostFsPath(this.projectLocation, params.path);
     const fullContent = await readFile(path, "utf8");
     const content = sliceTextFileContent(fullContent, params.line, params.limit);
     return { content };
@@ -1585,7 +1591,7 @@ export class AcpStructuredSession implements StructuredSessionHandle {
     // path below stays in place — terminal-mode threads still get all the
     // existing behaviour, and the canonical channel runs in parallel.
     //
-    // During `loadSession` the agent replays persisted history as
+    // During session resume/load the agent may replay persisted history as
     // `session/update` notifications. Lightcode already has those messages
     // in its own DB, so we skip canonical mapping for the replay window to
     // avoid duplicating every message in the chat pane.

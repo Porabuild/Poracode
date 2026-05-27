@@ -114,6 +114,35 @@ describe("GitHubService", () => {
       });
     });
 
+    it("returns the latest PR when multiple PRs match a branch", async () => {
+      const prJson = JSON.stringify([
+        {
+          number: 42,
+          url: "https://github.com/owner/repo/pull/42",
+          state: "MERGED",
+          title: "Old PR",
+          baseRefName: "main",
+          isDraft: false,
+          updatedAt: "2026-04-03T10:00:00Z",
+        },
+        {
+          number: 45,
+          url: "https://github.com/owner/repo/pull/45",
+          state: "CLOSED",
+          title: "Latest PR",
+          baseRefName: "main",
+          isDraft: false,
+          updatedAt: "2026-04-02T10:00:00Z",
+        },
+      ]);
+      execFileAsyncMock.mockResolvedValue({ stdout: prJson });
+
+      const result = await new GitHubService().getPrForBranch(location, "feature/x");
+
+      expect(result?.number).toBe(45);
+      expect(result?.state).toBe("closed");
+    });
+
     it("returns null when no PRs match", async () => {
       execFileAsyncMock.mockResolvedValue({ stdout: "[]" });
 
@@ -539,6 +568,15 @@ describe("GitHubService", () => {
       const jsonIdx = ghArgs.indexOf("--json");
       expect(jsonIdx).toBeGreaterThan(-1);
       expect(ghArgs[jsonIdx + 1]).toContain("statusCheckRollup");
+    });
+
+    it("fetches enough branch PRs to choose the latest one locally", async () => {
+      execFileAsyncMock.mockResolvedValue({ stdout: "[]" });
+
+      await new GitHubService().getPrForBranch(location, "feature/x");
+
+      const ghArgs = buildAgentCommandMock.mock.calls[0]![2] as string[];
+      expect(ghArgs).toContain("20");
     });
   });
 

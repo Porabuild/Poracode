@@ -119,6 +119,14 @@ export const interruptThreadPayloadSchema = z.object({
 });
 export type InterruptThreadPayload = z.infer<typeof interruptThreadPayloadSchema>;
 
+export const rollbackThreadConversationPayloadSchema = z.object({
+  threadId: z.string().min(1),
+  numTurns: z.number().int().min(0),
+});
+export type RollbackThreadConversationPayload = z.infer<
+  typeof rollbackThreadConversationPayloadSchema
+>;
+
 export const setPendingSteerPayloadSchema = z.object({
   threadId: z.string().min(1),
   prompt: z.string().min(1),

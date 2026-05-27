@@ -120,6 +120,7 @@ import type {
   ResizeTerminalPayload,
   ResolveThreadServerRequestPayload,
   RestoreFileCheckpointPayload,
+  RollbackThreadConversationPayload,
   SearchProjectFilesPayload,
   SearchProjectFilesResult,
   SearchProjectTreePayload,
@@ -350,6 +351,7 @@ export class SupervisorRuntime {
     if (process.platform === "win32" && resolveWslHelpersDir()) {
       const bridge = new WslBridgeServer({
         onEvent: (envelope) => runHookDispatch(envelope, "wsl-bridge"),
+        onBridgeExit: (distro) => this._projectWatcher?.handleWslBridgeExit(distro),
         onError: (message, error) => {
           if (isLightcodeHookDebug()) {
             console.warn(`[supervisor] hook-debug: ${message}`, error);
@@ -635,6 +637,10 @@ export class SupervisorRuntime {
 
   async interruptThread(payload: InterruptThreadPayload): Promise<void> {
     return this.threadSessionManager.interruptThread(payload);
+  }
+
+  async rollbackThreadConversation(payload: RollbackThreadConversationPayload): Promise<void> {
+    return this.threadSessionManager.rollbackThreadConversation(payload);
   }
 
   async setPendingSteer(payload: SetPendingSteerPayload): Promise<void> {

@@ -617,6 +617,35 @@ describe("mapCodexNotification — item lifecycle (item/started, item/completed)
     );
   });
 
+  it("counts create content args as file_change diff summary", () => {
+    const state = createCodexMapperState("t-codex");
+    const args = {
+      path: "src/new-file.ts",
+      content: "export const value = 1;\nexport const other = 2;\n",
+    };
+    const events = mapCodexNotification(
+      "item/started",
+      {
+        threadId: "x",
+        itemId: "fc-create",
+        item: {
+          id: "fc-create",
+          type: "fileChange",
+          changeKind: "create",
+          args,
+        },
+      },
+      state,
+    );
+
+    expect((events[0] as { payload: Record<string, unknown> }).payload).toMatchObject({
+      path: "src/new-file.ts",
+      changeKind: "create",
+      diffSummary: { added: 2, removed: 0 },
+      args,
+    });
+  });
+
   it("extracts file_change metadata from real Codex app-server changes arrays", () => {
     const state = createCodexMapperState("t-codex");
     const events = mapCodexNotification(

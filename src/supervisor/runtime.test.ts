@@ -327,6 +327,49 @@ describe("SupervisorRuntime thread input", () => {
     ]);
   });
 
+  it("rolls back provider conversation through the structured session", async () => {
+    const runtime = makeRuntime(() => undefined);
+    const rollbackThread = vi
+      .fn<(numTurns: number) => Promise<{ providerSessionId: string; messages: [] }>>()
+      .mockResolvedValue({ providerSessionId: "provider-session-1", messages: [] });
+    const session = createRuntimeSession({
+      sessionRef: { providerSessionId: "provider-session-1" },
+      structuredSession: {
+        launchOptions: {},
+        activate: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+        startTurn: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+        rollbackThread,
+        resolveServerRequest: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+        setListener: vi.fn<(listener: unknown) => void>(),
+        dispose: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+      },
+    });
+
+    (runtime as unknown as { sessions: Map<string, typeof session> }).sessions.set(
+      session.threadId,
+      session,
+    );
+
+    await runtime.rollbackThreadConversation({ threadId: session.threadId, numTurns: 2 });
+
+    expect(rollbackThread).toHaveBeenCalledWith(2);
+  });
+
+  it("rejects checkpoint rollback when the provider does not support it", async () => {
+    const runtime = makeRuntime(() => undefined);
+    const session = createRuntimeSession();
+
+    (runtime as unknown as { sessions: Map<string, typeof session> }).sessions.set(
+      session.threadId,
+      session,
+    );
+
+    await expect(
+      runtime.rollbackThreadConversation({ threadId: session.threadId, numTurns: 1 }),
+    ).rejects.toThrow("Codex does not support checkpoint rollback.");
+    expect(session.structuredSession.startTurn).not.toHaveBeenCalled();
+  });
+
   it("stages GUI submit-while-working as a single pending steer with replace-latest, interrupts once, and drains the latest on idle", async () => {
     const runtime = makeRuntime(() => undefined);
     const startTurn = vi.fn<() => Promise<void>>().mockResolvedValue(undefined);
