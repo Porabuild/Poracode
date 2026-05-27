@@ -1035,7 +1035,7 @@ describe("App", () => {
       expect(bridge.gitDeleteBranch).toHaveBeenCalledWith({
         projectLocation: { kind: "windows", path: "C:\\repo" },
         branch: "lightcode/brave-heron",
-        force: false,
+        force: true,
       });
     });
   });

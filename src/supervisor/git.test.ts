@@ -1378,34 +1378,28 @@ describe("GitService.deleteBranch", () => {
     vi.clearAllMocks();
   });
 
-  it("force-deletes a worktree branch that is merged into its configured source branch", async () => {
-    let softDeleteAttempted = false;
+  it("force-deletes a branch with -D when force is requested", async () => {
+    let forceDeleteAttempted = false;
     mockGitCommands((args) => {
-      if (args[0] === "branch" && args[1] === "-d") {
-        softDeleteAttempted = true;
-        return { error: new Error("error: The branch 'feature/x' is not fully merged.") };
+      if (args[0] === "branch" && args[1] === "-D") {
+        forceDeleteAttempted = true;
+        return { stdout: "" };
       }
-      if (args[0] === "branch" && args[1] === "-D") return { stdout: "" };
-      if (args[0] === "config") return { stdout: "main\n" };
-      if (args[0] === "merge-base") return { stdout: "" };
       return { stdout: "" };
     });
 
-    await new GitService().deleteBranch(location, "feature/x", false);
+    await new GitService().deleteBranch(location, "feature/x", true);
 
-    expect(softDeleteAttempted).toBe(true);
-    const forceDeleteCall = execFileMock.mock.calls.find(
-      (c: unknown[]) => Array.isArray(c[1]) && (c[1] as string[]).includes("-D"),
+    expect(forceDeleteAttempted).toBe(true);
+    const softDeleteCall = execFileMock.mock.calls.find(
+      (c: unknown[]) => Array.isArray(c[1]) && (c[1] as string[]).includes("-d"),
     );
-    expect(forceDeleteCall).toBeDefined();
+    expect(softDeleteCall).toBeUndefined();
   });
 
   it("prunes stale worktree metadata before retrying a force delete", async () => {
     let forceDeleteAttempts = 0;
     mockGitCommands((args) => {
-      if (args[0] === "branch" && args[1] === "-d") {
-        return { error: new Error("error: The branch 'feature/x' is not fully merged.") };
-      }
       if (args[0] === "branch" && args[1] === "-D") {
         forceDeleteAttempts += 1;
         if (forceDeleteAttempts === 1) {
@@ -1417,13 +1411,11 @@ describe("GitService.deleteBranch", () => {
         }
         return { stdout: "" };
       }
-      if (args[0] === "config") return { stdout: "main\n" };
-      if (args[0] === "merge-base") return { stdout: "" };
       if (args[0] === "worktree" && args[1] === "prune") return { stdout: "" };
       return { stdout: "" };
     });
 
-    await new GitService().deleteBranch(location, "feature/x", false);
+    await new GitService().deleteBranch(location, "feature/x", true);
 
     expect(forceDeleteAttempts).toBe(2);
     const pruneCall = execFileMock.mock.calls.find(
@@ -1435,18 +1427,21 @@ describe("GitService.deleteBranch", () => {
     expect(pruneCall).toBeDefined();
   });
 
-  it("preserves the not-fully-merged failure when the branch is not merged into its source branch", async () => {
+  it("surfaces the not-fully-merged failure on a soft delete without escalating", async () => {
     mockGitCommands((args) => {
-      if (args[0] === "branch")
+      if (args[0] === "branch" && args[1] === "-d") {
         return { error: new Error("error: The branch 'feature/x' is not fully merged.") };
-      if (args[0] === "config") return { stdout: "main\n" };
-      if (args[0] === "merge-base") return { error: new Error("not ancestor") };
+      }
       return { stdout: "" };
     });
 
     await expect(new GitService().deleteBranch(location, "feature/x", false)).rejects.toThrow(
       "not fully merged",
     );
+    const forceDeleteCall = execFileMock.mock.calls.find(
+      (c: unknown[]) => Array.isArray(c[1]) && (c[1] as string[]).includes("-D"),
+    );
+    expect(forceDeleteCall).toBeUndefined();
   });
 });
 

@@ -246,19 +246,10 @@ export class GitWorktreeService {
   }
 
   async deleteBranch(location: ProjectLocation, branch: string, force: boolean): Promise<void> {
-    if (force) {
-      await this.deleteBranchWithPruneRetry(location, branch, true);
-      return;
-    }
-
-    try {
-      await this.deleteBranchWithPruneRetry(location, branch, false);
-    } catch (error) {
-      if (!(await this.canForceDeleteMergedWorktreeBranch(location, branch, error))) {
-        throw error;
-      }
-      await this.deleteBranchWithPruneRetry(location, branch, true);
-    }
+    // The caller decides whether a force delete is safe (e.g. the PR is merged).
+    // We intentionally don't second-guess that here: a soft delete simply
+    // surfaces git's "not fully merged" error so the UI can offer a force option.
+    await this.deleteBranchWithPruneRetry(location, branch, force);
   }
 
   async switchBranch(
@@ -353,27 +344,6 @@ export class GitWorktreeService {
       if (isManaged && !isActive) {
         await this.removeWorktree(location, worktree.path, true).catch(() => undefined);
       }
-    }
-  }
-
-  private async canForceDeleteMergedWorktreeBranch(
-    location: ProjectLocation,
-    branch: string,
-    error: unknown,
-  ): Promise<boolean> {
-    const message = error instanceof Error ? error.message : String(error);
-    if (!/not fully merged/i.test(message)) {
-      return false;
-    }
-    const sourceBranch = await this.readWorktreeSourceBranch(location, branch);
-    if (!sourceBranch) {
-      return false;
-    }
-    try {
-      await execGit(location, ["merge-base", "--is-ancestor", branch, sourceBranch]);
-      return true;
-    } catch {
-      return false;
     }
   }
 

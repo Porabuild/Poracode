@@ -64,11 +64,19 @@ export async function performWorktreeRemoval(
   }
 
   if (resolvedWorktreeBranch) {
+    // Force-delete unless an unmerged PR exists. A merged PR (the purple badge)
+    // is safe to drop even when git's local history doesn't show it as merged
+    // (squash/rebase merges), and a branch with no PR at all shouldn't nag the
+    // user with a "not fully merged" error. Only an open/draft/closed PR -- work
+    // that was meant to land but hasn't -- soft-deletes so the user is prompted
+    // before discarding it.
+    const prState = useGitStore.getState().prData[worktreePath]?.state;
+    const hasUnmergedPr = prState !== undefined && prState !== "merged";
     try {
       await readBridge().gitDeleteBranch({
         projectLocation: project.location,
         branch: resolvedWorktreeBranch,
-        force: false,
+        force: !hasUnmergedPr,
       });
     } catch (err: unknown) {
       const detail = errorDetail(err);
