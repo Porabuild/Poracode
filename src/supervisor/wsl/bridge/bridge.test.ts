@@ -117,10 +117,10 @@ describe("bridge.mjs Browser MCP proxy", () => {
       });
     });
     upstreamBaseUrl = await new Promise<string>((resolve) => {
-      upstream.listen(0, "127.0.0.1", () => {
+      upstream.listen(0, "127.0.0.2", () => {
         const address = upstream.address();
         if (!address || typeof address === "string") throw new Error("unexpected address");
-        resolve(`http://127.0.0.1:${address.port}`);
+        resolve(`http://127.0.0.2:${address.port}`);
       });
     });
     bridge = await startBridge({
