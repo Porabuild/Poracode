@@ -520,7 +520,15 @@ function AgentEnvironmentRow(props: {
               {installedVer ? `v${installedVer}` : "—"}
             </span>
           )}
-          {showUpdateButton && (
+          {props.binaryUpdatePending && !props.isRedetecting ? (
+            <div
+              className="flex h-5 min-h-5 items-center"
+              role="status"
+              aria-label={`Updating ${props.agentLabel}${env ? ` (${env})` : ""}`}
+            >
+              <PixelLoader size="xs" />
+            </div>
+          ) : showUpdateButton ? (
             <Tooltip delay={0}>
               <Tooltip.Trigger>
                 <Button
@@ -549,7 +557,7 @@ function AgentEnvironmentRow(props: {
                 )}
               </Tooltip.Content>
             </Tooltip>
-          )}
+          ) : null}
           {isMissing && (
             <span className="text-warning flex items-center gap-1.5 whitespace-nowrap text-[11px] font-normal">
               <AlertTriangle className="size-3" />
@@ -558,7 +566,7 @@ function AgentEnvironmentRow(props: {
           )}
         </div>
         <div className="flex shrink-0 items-center gap-2">
-          {props.authPending || props.binaryUpdatePending ? (
+          {props.authPending ? (
             <div
               className="flex h-6 w-6 items-center justify-center"
               role="status"
@@ -1098,6 +1106,7 @@ export function SingleAgentSettings(props: { agentKind: string }) {
               )}
               <Switch
                 isSelected={!isDisabled}
+                isDisabled={binaryUpdatePendingEnvKey !== undefined}
                 size="sm"
                 aria-label="Enabled"
                 onChange={(selected) => {
