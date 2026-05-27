@@ -46,7 +46,7 @@ const bridge = {
   openExternal: vi.fn<(url: string) => Promise<void>>(),
 };
 
-const runAgentTerminalCommandMock = vi.hoisted(() => vi.fn<(input: unknown) => void>());
+const runAgentInstallCommandMock = vi.hoisted(() => vi.fn<(input: unknown) => void>());
 const runAgentLoginCommandMock = vi.hoisted(() => vi.fn<(input: unknown) => void>());
 const resetDiscoveredAgentsMock = vi.hoisted(() => vi.fn<() => void>());
 
@@ -82,7 +82,7 @@ vi.mock("@/renderer/bridge", () => ({
 
 vi.mock("@/renderer/actions/agentLoginActions", () => ({
   runAgentLoginCommand: runAgentLoginCommandMock,
-  runAgentTerminalCommand: runAgentTerminalCommandMock,
+  runAgentInstallCommand: runAgentInstallCommandMock,
 }));
 
 vi.mock("@/renderer/components/common", () => ({
@@ -192,7 +192,7 @@ describe("AcpRegistrySettings", () => {
     bridge.focusWindow.mockReset().mockResolvedValue(undefined);
     bridge.openExternal.mockReset().mockResolvedValue(undefined);
     runAgentLoginCommandMock.mockReset();
-    runAgentTerminalCommandMock.mockReset();
+    runAgentInstallCommandMock.mockReset();
     resetDiscoveredAgentsMock.mockReset();
     settingsState.syncAcpRegistryInstalledAgents.mockReset().mockImplementation((installed) => {
       settingsState.acpRegistryInstalledAgents = Object.fromEntries(
@@ -244,10 +244,9 @@ describe("AcpRegistrySettings", () => {
     fireEvent.click(within(codexCard as HTMLElement).getByRole("button", { name: "Install" }));
 
     await waitFor(() => {
-      expect(runAgentTerminalCommandMock).toHaveBeenCalledWith(
+      expect(runAgentInstallCommandMock).toHaveBeenCalledWith(
         expect.objectContaining({
           label: "Codex",
-          tabPurpose: "install",
         }),
       );
     });
@@ -367,11 +366,10 @@ describe("AcpRegistrySettings", () => {
     );
 
     await waitFor(() => {
-      expect(runAgentTerminalCommandMock).toHaveBeenCalledWith(
+      expect(runAgentInstallCommandMock).toHaveBeenCalledWith(
         expect.objectContaining({
           label: "Codex",
           project: wslProject,
-          tabPurpose: "install",
         }),
       );
     });
@@ -486,11 +484,14 @@ describe("AcpRegistrySettings", () => {
 
     fireEvent.click(within(codexCard as HTMLElement).getByRole("button", { name: "Login" }));
 
-    expect(runAgentLoginCommandMock).toHaveBeenCalledWith({
-      label: "Codex WSL",
-      command: "codex login",
-      project: wslProject,
-    });
+    expect(runAgentLoginCommandMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        label: "Codex WSL",
+        command: "codex login",
+        project: wslProject,
+        onCommandComplete: expect.any(Function),
+      }),
+    );
   });
 
   it("runs ACP agent-owned auth from registry cards", async () => {

@@ -5,8 +5,6 @@ import { readBridge } from "@/renderer/bridge";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useDevTerminalStore } from "@/renderer/state/devTerminalStore";
 import { useLoginTerminalStore } from "@/renderer/state/loginTerminalStore";
-import { usePanelStore } from "@/renderer/state/panelStore";
-import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { writeScriptToShell } from "@/renderer/utils/shellUtils";
 
 function resolveLoginProject(): Project | undefined {
@@ -36,65 +34,6 @@ function resolveLoginProject(): Project | undefined {
   }
 
   return app.projects[0];
-}
-
-export function runAgentTerminalCommand(input: {
-  label: string;
-  command: string | ((project: Project) => string);
-  env?: Record<string, string>;
-  onCommandComplete?: (exitCode: number) => void;
-  openUrlsInNativeBrowser?: boolean;
-  project?: Project;
-  tabPurpose?: string;
-  toastPurpose?: string;
-}): boolean {
-  const project = input.project ?? resolveLoginProject();
-  if (!project) {
-    toast.warning("Add a project before opening an agent terminal.");
-    return false;
-  }
-
-  const terminal = useDevTerminalStore.getState();
-  const purpose = input.tabPurpose ?? "login";
-  const tab = terminal.addTab(project.id, `${input.label} ${purpose}`);
-  terminal.openPanel(project.id);
-  terminal.setActiveTab(tab.id);
-  if (useSharedSettings.getState().terminalPosition !== "bottom") {
-    usePanelStore.getState().setRightPanelTab("terminal");
-  }
-
-  void readBridge()
-    .startShell({
-      shellId: tab.id,
-      projectLocation: project.location,
-    })
-    .catch((error) =>
-      toast.danger(
-        error instanceof Error
-          ? error.message
-          : `Unable to open ${input.label} ${input.toastPurpose ?? purpose}.`,
-      ),
-    );
-  const interceptWslUrls =
-    project.location.kind === "wsl" && input.openUrlsInNativeBrowser === true;
-  const command = buildTerminalCommand({
-    command: typeof input.command === "function" ? input.command(project) : input.command,
-    env: interceptWslUrls ? { BROWSER: "/bin/true", ...(input.env ?? {}) } : input.env,
-  });
-  const stopOpeningUrls = interceptWslUrls ? watchUrlsInNativeBrowser(tab.id) : undefined;
-  const completionToken = input.onCommandComplete ? createCompletionToken() : undefined;
-  if (completionToken && input.onCommandComplete) {
-    watchCommandCompletion(tab.id, completionToken, (exitCode) => {
-      stopOpeningUrls?.(true);
-      input.onCommandComplete?.(exitCode);
-    });
-  }
-  writeScriptToShell(
-    tab.id,
-    completionToken ? appendCompletionSignal(command, project, completionToken) : command,
-  );
-  toast.success(`Opened ${input.label} ${input.toastPurpose ?? purpose} in terminal.`);
-  return true;
 }
 
 export function runAgentLoginCommand(input: {
@@ -172,9 +111,95 @@ export function runAgentLoginCommand(input: {
   });
 
   void readBridge()
-    .startShell({ shellId, projectLocation: project.location })
+    // Auth is global (writes to ~/.<agent>), so run login in the user's home
+    // directory rather than the (possibly ephemeral) project worktree.
+    .startShell({ shellId, projectLocation: project.location, startInHome: true })
     .catch((error) => {
+      // The shell never started, so the completion watcher would otherwise leak
+      // (and leave callers' pending UI stuck). Tear it down and report failure.
+      stopWatching();
+      fireOnce(-1);
       toast.danger(error instanceof Error ? error.message : `Unable to open ${input.label} login.`);
+      useLoginTerminalStore.getState().close();
+    });
+  writeScriptToShell(shellId, script);
+  return true;
+}
+
+/**
+ * Run an agent installer inside the transient terminal overlay (the same
+ * surface as {@link runAgentLoginCommand}) rather than a dev-terminal tab.
+ *
+ * Shows no success toast: progress is visible in the overlay, which auto-closes
+ * on success and stays open on failure. Callers drive their own pending UI via
+ * `onCommandComplete`.
+ */
+export function runAgentInstallCommand(input: {
+  label: string;
+  command: string | ((project: Project) => string);
+  env?: Record<string, string>;
+  onCommandComplete?: (exitCode: number) => void;
+  project?: Project;
+}): boolean {
+  const project = input.project ?? resolveLoginProject();
+  if (!project) {
+    toast.warning("Add a project before installing an agent.");
+    return false;
+  }
+
+  // Replace any active overlay session — only one terminal overlay at a time.
+  const previous = useLoginTerminalStore.getState().active;
+  if (previous) {
+    previous.onForceClose?.();
+    void readBridge()
+      .closeThread({ threadId: previous.shellId })
+      .catch(() => undefined);
+  }
+
+  const shellId = `install:${crypto.randomUUID()}`;
+  const command = buildTerminalCommand({
+    command: typeof input.command === "function" ? input.command(project) : input.command,
+    env: input.env,
+  });
+  const completionToken = createCompletionToken();
+  const script = appendCompletionSignal(command, project, completionToken);
+
+  let fired = false;
+  const fireOnce = (exitCode: number) => {
+    if (fired) return;
+    fired = true;
+    input.onCommandComplete?.(exitCode);
+  };
+
+  const stopWatching = watchCommandCompletion(shellId, completionToken, (exitCode) => {
+    fireOnce(exitCode);
+    if (exitCode === 0) {
+      // Let the user read the final success line before the overlay slides away.
+      window.setTimeout(() => useLoginTerminalStore.getState().close(), 1200);
+    } else {
+      useLoginTerminalStore.getState().markFailed(shellId, exitCode);
+    }
+  });
+
+  useLoginTerminalStore.getState().open({
+    shellId,
+    label: input.label,
+    projectLocation: project.location,
+    purpose: "install",
+    onForceClose: () => {
+      stopWatching();
+      fireOnce(-1);
+    },
+  });
+
+  void readBridge()
+    // Installers shouldn't run inside the (possibly ephemeral) project
+    // worktree — launch the shell in the user's home directory instead.
+    .startShell({ shellId, projectLocation: project.location, startInHome: true })
+    .catch((error) => {
+      stopWatching();
+      fireOnce(-1);
+      toast.danger(error instanceof Error ? error.message : `Unable to install ${input.label}.`);
       useLoginTerminalStore.getState().close();
     });
   writeScriptToShell(shellId, script);

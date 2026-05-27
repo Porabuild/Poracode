@@ -93,6 +93,9 @@ export function LoginTerminalOverlay() {
 
   if (!renderedSession) return null;
 
+  const isInstall = renderedSession.purpose === "install";
+  const purposeNoun = isInstall ? "install" : "login";
+
   return (
     <div className="fixed inset-0 z-[60]">
       <div
@@ -120,20 +123,22 @@ export function LoginTerminalOverlay() {
                 renderedSession.failedExitCode !== undefined ? "text-danger" : "text-foreground"
               }`}
             >
-              {renderedSession.label} login
+              {renderedSession.label} {purposeNoun}
               {renderedSession.failedExitCode !== undefined ? " failed" : ""}
             </p>
             <p className="text-xs text-muted">
               {renderedSession.failedExitCode !== undefined
                 ? `Exited with code ${renderedSession.failedExitCode}. Close to retry.`
-                : "Complete the prompts in this terminal. Closes when finished."}
+                : isInstall
+                  ? "Installing in this terminal. Closes when finished."
+                  : "Complete the prompts in this terminal. Closes when finished."}
             </p>
           </div>
           <Button
             size="sm"
             variant="ghost"
             isIconOnly
-            aria-label="Close login terminal"
+            aria-label={`Close ${purposeNoun} terminal`}
             onPress={closeSession}
           >
             <X className="size-4" />

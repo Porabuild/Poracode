@@ -6,6 +6,12 @@ export interface NativeAgentRegistryEntry {
   description: string;
   installCommand: (project: Project) => string;
   docsUrl: string;
+  /**
+   * Whether the agent can be installed on native Windows. Defaults to `true`.
+   * When `false`, native Windows installs are hidden (only WSL/macOS/Linux are
+   * offered) since the upstream installer does not support Windows yet.
+   */
+  supportsWindows?: boolean;
 }
 
 const POSIX_MISSING_NPM_MESSAGE =
@@ -63,6 +69,18 @@ export const NATIVE_AGENT_REGISTRY_ENTRIES: NativeAgentRegistryEntry[] = [
           "; fi",
         "if (Get-Command npm -ErrorAction SilentlyContinue) { npm install -g opencode-ai } elseif (Get-Command choco -ErrorAction SilentlyContinue) { choco install opencode } elseif (Get-Command scoop -ErrorAction SilentlyContinue) { scoop install opencode } else { Write-Host 'No supported installer found. Install Node.js/npm, Chocolatey, or Scoop first, then refresh detected agents.' }",
       ),
+  },
+  {
+    id: "grok",
+    label: "Grok Build",
+    description: "First-class Grok Build CLI integration using Lightcode's native runtime.",
+    docsUrl: "https://x.ai/cli",
+    // Grok Build only ships a macOS/Linux installer; native Windows is unsupported.
+    // On Windows the install button is hidden and WSL targets are offered instead.
+    supportsWindows: false,
+    installCommand: () =>
+      "if command -v curl >/dev/null 2>&1; then curl -fsSL https://x.ai/cli/install.sh | bash; " +
+      "else printf 'curl is required to install Grok Build. Install curl, then refresh detected agents.\\n'; fi",
   },
 ];
 

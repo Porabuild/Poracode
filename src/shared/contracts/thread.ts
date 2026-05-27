@@ -190,5 +190,11 @@ export const startShellPayloadSchema = z.object({
   projectLocation: projectLocationSchema,
   worktreePath: z.string().min(1).optional(),
   initialSize: terminalSizeSchema.optional(),
+  /**
+   * Start the shell in the user's home directory instead of the project path.
+   * Used by one-shot installers that shouldn't run inside a (possibly
+   * ephemeral) worktree.
+   */
+  startInHome: z.boolean().optional(),
 });
 export type StartShellPayload = z.infer<typeof startShellPayloadSchema>;

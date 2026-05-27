@@ -21,10 +21,7 @@ import type {
   RefreshAgentScope,
 } from "@/shared/contracts";
 import { isWindows, readBridge } from "@/renderer/bridge";
-import {
-  runAgentLoginCommand,
-  runAgentTerminalCommand,
-} from "@/renderer/actions/agentLoginActions";
+import { runAgentInstallCommand, runAgentLoginCommand } from "@/renderer/actions/agentLoginActions";
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
 import { useAppStore } from "@/renderer/state/appStore";
 import { buildWslProjectDistrosKey } from "@/renderer/state/projectKeys";
@@ -288,6 +285,41 @@ export function AcpRegistrySettings(props: { onOpenAgentSettings?: (kind: string
       .finally(() => setPendingAuthAgentId(undefined));
   };
 
+  // Terminal-based login (CLI `login` command run in the overlay). Unlike the
+  // ACP method auth above, the CLI exit doesn't update detection on its own, so
+  // we re-probe the scoped agent on success — matching the Agent Settings login
+  // flow — and keep the button pending through the probe.
+  const runTerminalLogin = (input: {
+    agentKind: string;
+    agentId: string;
+    status: AgentStatus;
+    loginCommand: string;
+    env?: Record<string, string>;
+    project?: Project;
+  }) => {
+    setError(undefined);
+    setPendingAuthAgentId(input.agentId);
+    const clearPending = () =>
+      setPendingAuthAgentId((current) => (current === input.agentId ? undefined : current));
+    const opened = runAgentLoginCommand({
+      label: input.status.label ?? input.agentId,
+      command: input.loginCommand,
+      ...(input.env ? { env: input.env } : {}),
+      ...(input.project ? { project: input.project } : {}),
+      onCommandComplete: (exitCode) => {
+        if (exitCode !== 0) {
+          clearPending();
+          return;
+        }
+        void refreshStatuses({
+          reset: false,
+          scope: { agentKinds: [input.agentKind], envs: [scopeEnvForStatus(input.status)] },
+        }).finally(clearPending);
+      },
+    });
+    if (!opened) clearPending();
+  };
+
   const renderTag = (label: string) => (
     <span className="rounded border border-border px-1.5 py-0.5 text-[11px] font-medium text-muted">
       {label}
@@ -347,10 +379,11 @@ export function AcpRegistrySettings(props: { onOpenAgentSettings?: (kind: string
     const loginCommand = missingAuthStatus?.loginCommand;
     const terminalAuthMethod = findTerminalAuthMethodForStatus(missingAuthStatus);
     const loginProject = projectForStatus(missingAuthStatus);
+    const supportsNativeWindows = agent.supportsWindows !== false;
     const installTargets: InstallTarget[] = [];
     const shouldOfferWslTargets = isWindowsPlatform && wslProjectsByDistro.size > 0;
     if (shouldOfferWslTargets) {
-      if (!nativeStatus && firstWindowsProject) {
+      if (supportsNativeWindows && !nativeStatus && firstWindowsProject) {
         installTargets.push({
           id: "windows",
           label: "Install on Windows",
@@ -365,38 +398,72 @@ export function AcpRegistrySettings(props: { onOpenAgentSettings?: (kind: string
           project,
         });
       }
-    } else if (!nativeStatus) {
+    } else if (!nativeStatus && (supportsNativeWindows || !isWindowsPlatform)) {
       installTargets.push({ id: "default", label: "Install" });
     }
+    // Native Windows without WSL available, for an agent that has no Windows
+    // installer (e.g. Grok Build): nothing to install here yet.
+    const showWindowsUnsupportedNotice =
+      !isInstalled && !supportsNativeWindows && isWindowsPlatform && installTargets.length === 0;
 
     const runInstallTarget = (target: InstallTarget | undefined) => {
-      runAgentTerminalCommand({
+      setError(undefined);
+      setPendingAgentId(agent.id);
+      runAgentInstallCommand({
         label: agent.label,
         command: agent.installCommand,
         ...(target?.project ? { project: target.project } : {}),
-        tabPurpose: "install",
-        toastPurpose: "install",
+        // Re-detect once the installer exits so the card flips to "Detected"
+        // without the user manually refreshing, mirroring the ACP install flow.
+        // Keep the loader on through the probe so it doesn't flicker back to
+        // "Install" before detection confirms the binary.
+        onCommandComplete: (exitCode) => {
+          const clearPending = () =>
+            setPendingAgentId((current) => (current === agent.id ? undefined : current));
+          if (exitCode === 0) {
+            void refreshStatuses({ reset: false, scope: { agentKinds: [agent.id] } }).finally(
+              clearPending,
+            );
+          } else {
+            clearPending();
+          }
+        },
       });
     };
+
+    const isNativePending = pendingAgentId === agent.id;
 
     const renderInstallControl = () => {
       if (installTargets.length === 0) return null;
       if (installTargets.length === 1) {
         const target = installTargets[0];
         return (
-          <Button size="sm" variant="tertiary" onPress={() => runInstallTarget(target)}>
-            <Download className="size-4" />
-            {target?.label ?? "Install"}
+          <Button
+            size="sm"
+            variant="tertiary"
+            isPending={isNativePending}
+            onPress={() => runInstallTarget(target)}
+          >
+            {({ isPending }) => (
+              <>
+                {isPending ? <PixelLoader size="xs" /> : <Download className="size-4" />}
+                {isPending ? "Installing" : (target?.label ?? "Install")}
+              </>
+            )}
           </Button>
         );
       }
       const targetsById = new Map(installTargets.map((target) => [target.id, target]));
       return (
         <Dropdown>
-          <Button size="sm" variant="tertiary">
-            <Download className="size-4" />
-            Install
-            <ChevronDown className="size-3.5" />
+          <Button size="sm" variant="tertiary" isPending={isNativePending}>
+            {({ isPending }) => (
+              <>
+                {isPending ? <PixelLoader size="xs" /> : <Download className="size-4" />}
+                {isPending ? "Installing" : "Install"}
+                {isPending ? null : <ChevronDown className="size-3.5" />}
+              </>
+            )}
           </Button>
           <Dropdown.Popover placement="bottom end">
             <Dropdown.Menu
@@ -464,9 +531,14 @@ export function AcpRegistrySettings(props: { onOpenAgentSettings?: (kind: string
                   </div>
                 ) : null}
                 {renderInstallControl()}
+                {showWindowsUnsupportedNotice ? (
+                  <span className="max-w-[13rem] text-right text-xs text-muted">
+                    Windows is not supported yet. Install inside WSL or on macOS/Linux.
+                  </span>
+                ) : null}
                 {isInstalled && missingAuthStatus ? (
-                  <div className="flex max-w-[13rem] flex-col items-end gap-1 text-right text-xs text-warning">
-                    <span className="inline-flex items-center gap-1">
+                  <div className="flex items-center gap-2 text-xs text-warning">
+                    <span className="inline-flex items-center gap-1 whitespace-nowrap">
                       <AlertTriangle className="size-3.5" />
                       Sign in required
                     </span>
@@ -474,17 +546,24 @@ export function AcpRegistrySettings(props: { onOpenAgentSettings?: (kind: string
                       <Button
                         size="sm"
                         variant="tertiary"
+                        isPending={pendingAuthAgentId === agent.id}
                         onPress={() =>
-                          runAgentLoginCommand({
-                            label: missingAuthStatus.label ?? agent.label,
-                            command: loginCommand,
+                          runTerminalLogin({
+                            agentKind: agent.id,
+                            agentId: agent.id,
+                            status: missingAuthStatus,
+                            loginCommand,
                             ...(terminalAuthMethod?.env ? { env: terminalAuthMethod.env } : {}),
                             ...(loginProject ? { project: loginProject } : {}),
                           })
                         }
                       >
-                        <LogIn className="size-3.5" />
-                        Login
+                        {({ isPending }) => (
+                          <>
+                            {isPending ? <PixelLoader size="xs" /> : <LogIn className="size-3.5" />}
+                            {isPending ? "Signing in" : "Login"}
+                          </>
+                        )}
                       </Button>
                     ) : null}
                   </div>
@@ -659,21 +738,28 @@ export function AcpRegistrySettings(props: { onOpenAgentSettings?: (kind: string
                           </Button>
                         ))}
                       </div>
-                    ) : loginCommand ? (
+                    ) : loginCommand && localStatus ? (
                       <Button
                         size="sm"
                         variant="tertiary"
+                        isPending={pendingAuthAgentId === agent.id}
                         onPress={() =>
-                          runAgentLoginCommand({
-                            label: localStatus?.label ?? agent.name,
-                            command: loginCommand,
+                          runTerminalLogin({
+                            agentKind: adapterKind,
+                            agentId: agent.id,
+                            status: localStatus,
+                            loginCommand,
                             ...(terminalAuthMethod?.env ? { env: terminalAuthMethod.env } : {}),
                             ...(loginProject ? { project: loginProject } : {}),
                           })
                         }
                       >
-                        <LogIn className="size-3.5" />
-                        Login
+                        {({ isPending }) => (
+                          <>
+                            {isPending ? <PixelLoader size="xs" /> : <LogIn className="size-3.5" />}
+                            {isPending ? "Signing in" : "Login"}
+                          </>
+                        )}
                       </Button>
                     ) : null}
                   </div>
