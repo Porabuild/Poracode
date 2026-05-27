@@ -116,6 +116,7 @@ export function useGitReviewActions(args: UseGitReviewActionsArgs) {
 
   const writeActions = usePrWriteActions({
     projectLocation: project.location,
+    localSyncLocation: getWorktreeLocation(),
     prKey: effectivePrKey,
     onRefresh,
   });

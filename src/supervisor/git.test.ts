@@ -857,6 +857,7 @@ describe("GitService.pullFromSource", () => {
 
   it("fast-forwards when HEAD is ancestor of source branch", async () => {
     mockGitCommands((args) => {
+      if (args[0] === "remote") return { stdout: "origin\n" };
       if (args[0] === "merge-base") return { stdout: "" };
       if (args[0] === "merge") return { stdout: "" };
       return { stdout: "" };
@@ -869,6 +870,13 @@ describe("GitService.pullFromSource", () => {
       (c: unknown[]) => Array.isArray(c[1]) && (c[1] as string[]).includes("merge"),
     );
     expect(mergeCall![1]).toContain("--ff-only");
+    expect(mergeCall![1]).toContain("origin/main");
+    expect(
+      execFileMock.mock.calls.some(
+        (c: unknown[]) =>
+          Array.isArray(c[1]) && (c[1] as string[]).join(" ") === "fetch origin --prune",
+      ),
+    ).toBe(true);
   });
 
   it("uses --no-ff when fast-forward is not possible", async () => {
@@ -885,6 +893,21 @@ describe("GitService.pullFromSource", () => {
       (c: unknown[]) => Array.isArray(c[1]) && (c[1] as string[]).includes("merge"),
     );
     expect(mergeCall![1]).toContain("--no-ff");
+  });
+
+  it("does not merge a stale source branch when fetch fails", async () => {
+    mockGitCommands((args) => {
+      if (args[0] === "remote") return { stdout: "origin\n" };
+      if (args[0] === "fetch") return { error: new Error("fetch failed") };
+      return { stdout: "" };
+    });
+
+    await expect(new GitService().pullFromSource(location, "main")).rejects.toThrow("fetch failed");
+    expect(
+      execFileMock.mock.calls.some(
+        (c: unknown[]) => Array.isArray(c[1]) && (c[1] as string[])[0] === "merge",
+      ),
+    ).toBe(false);
   });
 
   it("returns conflicting: true without aborting when merge has conflicts", async () => {
@@ -931,7 +954,7 @@ describe("GitService.pullFromSource", () => {
     expect(result).toEqual({ merged: true, fastForward: true });
     const commands = execFileMock.mock.calls.map((c: unknown[]) => (c[1] as string[]).join(" "));
     expect(commands).toContain("stash push -u -m Lightcode: before pull from main");
-    expect(commands).toContain("merge --ff-only main");
+    expect(commands).toContain("merge --ff-only origin/main");
     expect(commands).toContain("stash pop");
   });
 
@@ -1129,6 +1152,7 @@ describe("GitService.getWorktreeSourceBranch", () => {
       if (args[0] === "merge-base") return { stdout: "base123\n" };
       if (args[0] === "config") return { stdout: "" };
       if (args[0] === "rev-list") return { stdout: "1\t1\n" };
+      if (args[0] === "remote") return { stdout: "origin\n" };
       return { stdout: "" };
     });
 
@@ -1152,6 +1176,10 @@ describe("GitService.getWorktreeSourceBranch", () => {
     );
     expect(configCall).toBeDefined();
     expect(configCall![1]).toContain("master");
+    const revListCall = execFileMock.mock.calls.find(
+      (call: unknown[]) => Array.isArray(call[1]) && (call[1] as string[])[0] === "rev-list",
+    );
+    expect(revListCall![1]).toContain("origin/master...lightcode/brave-heron");
   });
 });
 

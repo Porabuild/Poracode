@@ -297,11 +297,12 @@ export class GitWorktreeService {
     let sourceAhead = 0;
     if (sourceBranch) {
       try {
+        const sourceRef = await this.resolveFetchedSourceRef(location, sourceBranch);
         const output = await execGit(location, [
           "rev-list",
           "--left-right",
           "--count",
-          `${sourceBranch}...${branch}`,
+          `${sourceRef}...${branch}`,
         ]);
         const parts = output.trim().split(/\s+/);
         sourceAhead = parseInt(parts[0]!, 10) || 0;
@@ -311,6 +312,19 @@ export class GitWorktreeService {
       }
     }
     return { sourceBranch, commitsAhead, sourceAhead };
+  }
+
+  async resolveFetchedSourceRef(location: ProjectLocation, sourceBranch: string): Promise<string> {
+    await this.fetch(location, "origin", true);
+    if (sourceBranch.startsWith("origin/")) return sourceBranch;
+
+    const remoteRef = `origin/${sourceBranch}`;
+    try {
+      await execGit(location, ["rev-parse", "--verify", "--quiet", `refs/remotes/${remoteRef}`]);
+      return remoteRef;
+    } catch {
+      return sourceBranch;
+    }
   }
 
   async writeWorktreeSourceBranch(

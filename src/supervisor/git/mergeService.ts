@@ -107,9 +107,13 @@ export class GitMergeService {
     worktreeLocation: ProjectLocation,
     sourceBranch: string,
   ): Promise<GitPullFromSourceResult> {
+    const sourceRef = await this.worktreeService.resolveFetchedSourceRef(
+      worktreeLocation,
+      sourceBranch,
+    );
     let canFastForward = false;
     try {
-      await execGit(worktreeLocation, ["merge-base", "--is-ancestor", "HEAD", sourceBranch]);
+      await execGit(worktreeLocation, ["merge-base", "--is-ancestor", "HEAD", sourceRef]);
       canFastForward = true;
     } catch {
       // not an ancestor
@@ -117,7 +121,7 @@ export class GitMergeService {
 
     if (canFastForward) {
       try {
-        await execGit(worktreeLocation, ["merge", "--ff-only", sourceBranch]);
+        await execGit(worktreeLocation, ["merge", "--ff-only", sourceRef]);
         return { merged: true, fastForward: true };
       } catch (error: unknown) {
         return {
@@ -129,7 +133,7 @@ export class GitMergeService {
     }
 
     try {
-      await execGit(worktreeLocation, ["merge", sourceBranch, "--no-ff", "--no-edit"], {
+      await execGit(worktreeLocation, ["merge", sourceRef, "--no-ff", "--no-edit"], {
         timeout: GIT_HOOK_TIMEOUT,
       });
     } catch (mergeError: unknown) {

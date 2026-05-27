@@ -9,6 +9,7 @@ const ADMIN_BYPASS_RX = /--admin|base branch policy|not mergeable/i;
 
 export interface UsePrWriteActionsArgs {
   projectLocation: ProjectLocation;
+  localSyncLocation?: ProjectLocation | undefined;
   prKey: string | undefined;
   onRefresh: () => void;
 }
@@ -28,7 +29,7 @@ export interface UsePrWriteActionsResult {
  * stay in lockstep across surfaces.
  */
 export function usePrWriteActions(args: UsePrWriteActionsArgs): UsePrWriteActionsResult {
-  const { projectLocation, prKey, onRefresh } = args;
+  const { projectLocation, localSyncLocation, prKey, onRefresh } = args;
   const [prLoading, setPrLoading] = useState(false);
 
   function getCurrentPrData() {
@@ -120,6 +121,12 @@ export function usePrWriteActions(args: UsePrWriteActionsArgs): UsePrWriteAction
         prNumber: prData.number,
         rebase,
       });
+      const syncPayload = {
+        projectLocation: localSyncLocation ?? projectLocation,
+        remote: "origin",
+      };
+      if (rebase) await readBridge().gitPullRebase(syncPayload);
+      else await readBridge().gitPull(syncPayload);
       onRefresh();
     } catch (err) {
       console.error("[git] update PR branch failed", err);
