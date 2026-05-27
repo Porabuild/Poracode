@@ -1205,6 +1205,87 @@ describe("ThreadView", () => {
     expect(screen.queryByText("No messages yet")).not.toBeInTheDocument();
   });
 
+  it("keeps a completed GUI goal in the composer dock", () => {
+    useAppStore.setState({
+      runtimeItemIdsByThread: {
+        "thread-gui-goal-complete": ["goal-1"],
+      },
+      runtimeItemsByIdByThread: {
+        "thread-gui-goal-complete": {
+          "goal-1": {
+            id: "goal-1",
+            type: "goal",
+            state: "completed",
+            payload: {
+              action: "updated",
+              objective: "Ship completed GUI goal dock",
+              status: "complete",
+              tokensUsed: 120,
+              timeUsedSeconds: 5,
+              updatedAt: Date.now() / 1000,
+            },
+            streams: {},
+          },
+        },
+      },
+    });
+
+    renderThreadView({
+      thread: {
+        id: "thread-gui-goal-complete",
+        projectId: "project-1",
+        title: "GUI completed goal thread",
+        agentKind: "claude",
+        config: {
+          model: "sonnet",
+        },
+        status: "idle",
+        attention: "none",
+        canResumeWithConfig: true,
+        archived: false,
+        done: false,
+        starred: false,
+        presentationMode: "gui",
+        sessionRef: {
+          providerSessionId: "session-gui-goal-complete",
+          discoveredAt: new Date().toISOString(),
+        },
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      },
+      agentStatus: {
+        kind: "claude",
+        label: "Claude Code",
+        installed: true,
+        authState: "authenticated",
+        capabilities: {
+          models: [{ id: "sonnet", label: "Sonnet" }],
+          efforts: ["low"],
+          modelEfforts: {},
+          modes: ["agent"],
+          approvalPolicies: [{ id: "default", label: "Default" }],
+          sandboxModes: [],
+          supportsResume: true,
+          supportsDirectInput: true,
+          liveInputMode: "server",
+          presentationMode: "gui",
+          settingDefs: [],
+        },
+      },
+      projectLocation: {
+        kind: "windows",
+        path: "C:\\repo",
+      },
+      onConfigChange: () => undefined,
+      onResolveServerRequest: async () => undefined,
+      onSubmitInput: async () => undefined,
+    });
+
+    expect(screen.getByLabelText("Thread goal dock")).toHaveAttribute("data-placement", "composer");
+    expect(screen.getByText("Ship completed GUI goal dock")).toBeInTheDocument();
+    expect(screen.getByText("Complete · 120 tokens")).toBeInTheDocument();
+  });
+
   it("moves the pinned todo dock to the right rail and supports collapse", () => {
     useAppStore.setState({
       runtimeItemIdsByThread: {

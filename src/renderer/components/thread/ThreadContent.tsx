@@ -130,18 +130,6 @@ export function GuiThreadContent(
     lastGoalItemRef.current = goalItem;
   }, [dismissedGoalItemId, goalItem]);
 
-  // Track goals seen as non-complete during this mount so completed-in-session
-  // goals keep showing their "Complete" state, but a thread reopened with an
-  // already-complete goal hides the dock.
-  const seenActiveGoalIdsRef = useRef<Set<string>>(new Set());
-  useEffect(() => {
-    if (goalDockState && goalDockState.status !== "complete") {
-      seenActiveGoalIdsRef.current.add(goalDockState.sourceItemId);
-    }
-  }, [goalDockState]);
-  const goalWasActiveThisMount =
-    goalDockState !== null && seenActiveGoalIdsRef.current.has(goalDockState.sourceItemId);
-
   const errorItem = useAppStore((s) => selectThreadLatestErrorItem(s, props.threadId));
   const [dismissedErrorItemId, setDismissedErrorItemId] = useState<string | null>(null);
   const errorDockState =
@@ -149,10 +137,7 @@ export function GuiThreadContent(
       ? getThreadErrorDockStateForItem(errorItem)
       : null;
   const showTodoDock = todoDockState !== null && todoDockState.sourceItemId !== retiredSourceItemId;
-  const showGoalDock =
-    goalDockState !== null &&
-    goalDockState.sourceItemId !== dismissedGoalItemId &&
-    (goalDockState.status !== "complete" || goalWasActiveThisMount);
+  const showGoalDock = goalDockState !== null && goalDockState.sourceItemId !== dismissedGoalItemId;
   const showTodoInRightRail = showTodoDock && todoDockPlacement === "right";
   const showThreadSideRail = runtimeDebugOpen || showTodoInRightRail;
   const hiddenRuntimeItemId = showTodoDock ? todoDockState?.sourceItemId : undefined;
