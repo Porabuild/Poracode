@@ -8,6 +8,7 @@ import {
   GitFork,
   Pencil,
   Play,
+  Plus,
   Star,
   Trash2,
 } from "lucide-react";
@@ -47,8 +48,10 @@ import {
   deleteThread,
   renameThread,
   continueInProvider,
+  openNewThreadInWorktree,
 } from "@/renderer/actions/threadActions";
 import { runProjectAction } from "@/renderer/actions/terminalActions";
+import { resolveWorktreeBranch } from "@/renderer/utils/gitHelpers";
 
 export function SortableThreadItem(props: {
   thread: Thread;
@@ -121,6 +124,11 @@ export function SortableThreadItem(props: {
         items={[
           ...(thread.worktreePath
             ? [
+                {
+                  id: "new-thread-in-worktree",
+                  label: "New Thread in Worktree",
+                  icon: <Plus className="size-3.5" />,
+                },
                 {
                   type: "submenu" as const,
                   id: "git",
@@ -215,6 +223,17 @@ export function SortableThreadItem(props: {
           },
         ]}
         onAction={(key) => {
+          if (key === "new-thread-in-worktree" && thread.worktreePath)
+            openNewThreadInWorktree({
+              projectId: thread.projectId,
+              worktreePath: thread.worktreePath,
+              worktreeBranch:
+                resolveWorktreeBranch(
+                  thread.projectId,
+                  thread.worktreePath,
+                  thread.worktreeBranch,
+                ) ?? thread.worktreePath,
+            });
           if (key === "git-review") openGitReview(thread.projectId, thread.worktreePath);
           if (key === "git-sync" && thread.worktreePath)
             gitSync(thread.projectId, thread.worktreePath);

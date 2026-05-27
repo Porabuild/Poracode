@@ -7,6 +7,13 @@ export interface DraftContent {
   attachments: Attachment[];
 }
 
+export interface PendingDraftWorktreeSelection {
+  branch: string;
+  baseBranch: string;
+  isWorktree: true;
+  worktreePath: string;
+}
+
 export interface SavedGroupLayout {
   panes: string[];
   paneLayout?: PaneLayout;

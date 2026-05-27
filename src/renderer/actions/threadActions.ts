@@ -51,6 +51,30 @@ export function openNewThreadSideBySide(projectId: string): void {
   });
 }
 
+export function openNewThreadInWorktree(input: {
+  projectId: string;
+  worktreePath: string;
+  worktreeBranch: string;
+}): void {
+  openThreadRequestId += 1;
+  startTransition(() => {
+    const store = useAppStore.getState();
+    store.setPendingDraftWorktreeSelection(input.projectId, {
+      branch: input.worktreeBranch,
+      baseBranch: input.worktreeBranch,
+      isWorktree: true,
+      worktreePath: input.worktreePath,
+    });
+    const mode = useSharedSettings.getState().newThreadMode;
+    const view = useAppStore.getState().view;
+    if (mode === "panel" && view.kind === "thread" && view.panes.length > 0) {
+      useAppStore.getState().openDraftSideBySide(input.projectId);
+    } else {
+      useAppStore.getState().openDraft(input.projectId);
+    }
+  });
+}
+
 export function openThread(threadId: string, options?: { focusComposer?: boolean }): void {
   const thread = useAppStore.getState().threads.find((item) => item.id === threadId);
   const requestId = ++openThreadRequestId;
