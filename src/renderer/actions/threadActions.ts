@@ -3,6 +3,7 @@ import { isHomeProject } from "@/shared/homeScope";
 import { isDraftPaneId } from "@/shared/paneId";
 import { readBridge } from "@/renderer/bridge";
 import { useAppStore } from "@/renderer/state/appStore";
+import { useDevTerminalStore } from "@/renderer/state/devTerminalStore";
 import {
   hasHydratedThreadRuntimeItems,
   hydrateThreadRuntimeItems,
@@ -193,6 +194,15 @@ export function toggleMarkThreadDone(threadId: string): void {
     store.unmarkThreadDone(threadId);
   } else {
     void unloadStoredThread(threadId, { keepSidePanels: true }).catch(() => undefined);
+    const worktreePath = thread.worktreePath;
+    if (worktreePath) {
+      const termStore = useDevTerminalStore.getState();
+      const removedTabIds = termStore.removeTabsForWorktree(worktreePath);
+      void closeThreads(removedTabIds);
+      if (termStore.isOpen && termStore.activeWorktreePath === worktreePath) {
+        termStore.closePanel();
+      }
+    }
     store.markThreadDone(threadId);
   }
 }
