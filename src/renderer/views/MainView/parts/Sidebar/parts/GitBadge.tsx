@@ -1,5 +1,6 @@
 import { useId, useRef } from "react";
-import { GitPullRequest } from "lucide-react";
+import { GitFork, GitPullRequest } from "lucide-react";
+import { Tooltip } from "@heroui/react";
 import { useDraggable } from "@dnd-kit/react";
 import { useGitStore } from "@/renderer/state/gitStore";
 import { buildBranchPrKey } from "@/renderer/state/gitSelectors";
@@ -19,6 +20,13 @@ export function GitBadge(props: {
   onPress?: () => void;
   worktreePath?: string;
   isActive?: boolean;
+  /**
+   * When set, a worktree with no PR (and no PR to create) falls back to a
+   * `GitFork` marker in this slot instead of rendering nothing, so the row keeps
+   * a single git glyph that reflects state (PR icon when a PR exists, fork
+   * otherwise). The `projectName` is used as the branch name in its tooltip.
+   */
+  fallbackToWorktreeIcon?: boolean;
 }) {
   const elementRef = useRef<HTMLDivElement>(null);
   const dragId = useId();
@@ -67,7 +75,8 @@ export function GitBadge(props: {
   const hasVisiblePr =
     prState !== undefined && prState !== "closed" && (prState !== "merged" || isWorktree);
   const showPrIcon = hasVisiblePr || canCreatePr;
-  if (!isRepo || (!hasChanges && !showPrIcon)) return null;
+  const showWorktreeFork = (props.fallbackToWorktreeIcon ?? false) && isWorktree && !showPrIcon;
+  if (!isRepo || (!hasChanges && !showPrIcon && !showWorktreeFork)) return null;
   const prIconColor = canCreatePr
     ? "text-muted/60"
     : PR_TONE_TEXT_CLASS[getPrStatusTone(prState, checksStatus)];
@@ -88,6 +97,16 @@ export function GitBadge(props: {
     >
       <span className="flex items-center gap-1 text-[10px] font-medium">
         {showPrIcon && <GitPullRequest className={`size-3 ${prIconColor}`} />}
+        {showWorktreeFork && (
+          <Tooltip delay={150}>
+            <Tooltip.Trigger tabIndex={-1} role="none">
+              <span className="flex items-center">
+                <GitFork className="size-3" />
+              </span>
+            </Tooltip.Trigger>
+            <Tooltip.Content placement="right">Worktree: {props.projectName}</Tooltip.Content>
+          </Tooltip>
+        )}
         {hasChanges && (
           <span className="flex items-center gap-0.5">
             {totalInsertions > 0 && <span className="text-success">+{totalInsertions}</span>}

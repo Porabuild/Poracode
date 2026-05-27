@@ -1,5 +1,4 @@
-import { Tooltip } from "@heroui/react";
-import { Archive, FolderOpen, GitFork, Star, TerminalSquare, Trash2 } from "lucide-react";
+import { Archive, FolderOpen, Star, TerminalSquare, Trash2 } from "lucide-react";
 import type { Thread } from "@/shared/contracts";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { GitBadge } from "@/renderer/views/MainView/parts/Sidebar/parts/GitBadge";
@@ -70,15 +69,8 @@ export function ThreadItemSuffix(props: {
             worktreePath={thread.worktreePath}
             onPress={() => openGitReview(thread.projectId, thread.worktreePath)}
             isActive={isGitActive}
+            fallbackToWorktreeIcon
           />
-          <Tooltip delay={150}>
-            <Tooltip.Trigger tabIndex={-1} role="none">
-              <div className="flex shrink-0 items-center">
-                <GitFork className="size-3 text-muted/60" />
-              </div>
-            </Tooltip.Trigger>
-            <Tooltip.Content placement="right">Worktree: {thread.worktreeBranch}</Tooltip.Content>
-          </Tooltip>
         </>
       )}
       <span className="relative w-[2.4ch] shrink-0">
