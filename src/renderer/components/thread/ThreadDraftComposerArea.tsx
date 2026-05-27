@@ -99,7 +99,9 @@ export function ThreadDraftComposerArea(props: {
     }
   }, [pendingPickedAttachments, inboxKey]);
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
-  const [branchSelection, setBranchSelection] = useState<BranchSelection | null>(null);
+  const [branchSelection, setBranchSelection] = useState<BranchSelection | null>(
+    () => useAppStore.getState().pendingDraftWorktreeSelections[props.project.id] ?? null,
+  );
   const [slashQuery, setSlashQuery] = useState<string | null>(null);
   const [slashActiveIndex, setSlashActiveIndex] = useState(0);
   const [controlOpenRequest, setControlOpenRequest] = useState<{
@@ -256,6 +258,10 @@ export function ThreadDraftComposerArea(props: {
     clearDraftContent(props.project.id);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- one-time mount restore
   }, []);
+
+  useEffect(() => {
+    useAppStore.getState().clearPendingDraftWorktreeSelection(props.project.id);
+  }, [props.project.id]);
 
   useEffect(() => {
     const pid = props.project.id;

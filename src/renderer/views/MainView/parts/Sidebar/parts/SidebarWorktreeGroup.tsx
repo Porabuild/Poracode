@@ -1,4 +1,4 @@
-import { GitFork, Play, Trash2 } from "lucide-react";
+import { GitFork, Play, Plus, Trash2 } from "lucide-react";
 import { useSortable } from "@dnd-kit/react/sortable";
 import type { Project } from "@/shared/contracts";
 import { ContextMenu } from "@/renderer/components/common";
@@ -20,10 +20,12 @@ import {
 import { openFilesPanel, openGitReview } from "@/renderer/actions/panelActions";
 import { openWorktreeTerminal, runProjectAction } from "@/renderer/actions/terminalActions";
 import { deleteWorktreeGroup } from "@/renderer/actions/worktreeActions";
+import { openNewThreadInWorktree } from "@/renderer/actions/threadActions";
 import { readBridge } from "@/renderer/bridge";
 import { useGitStore } from "@/renderer/state/gitStore";
 import { useIsWorktreeCollapsed, useSidebarUiStore } from "@/renderer/state/sidebarUiStore";
 import { resolveActionIcon } from "@/renderer/utils/actionIcons";
+import { resolveWorktreeBranch } from "@/renderer/utils/gitHelpers";
 import { gitMenuIcons } from "./gitMenuIcons";
 import type { WorktreeThreadGroup } from "./groupThreads";
 import { useWorktreeGitItems } from "./useWorktreeActions";
@@ -69,6 +71,11 @@ export function SidebarWorktreeGroup(props: {
       <ContextMenu
         items={[
           {
+            id: "new-thread-in-worktree",
+            label: "New Thread in Worktree",
+            icon: <Plus className="size-3.5" />,
+          },
+          {
             type: "submenu" as const,
             id: "git",
             label: "Git",
@@ -98,6 +105,14 @@ export function SidebarWorktreeGroup(props: {
           },
         ]}
         onAction={(key) => {
+          if (key === "new-thread-in-worktree")
+            openNewThreadInWorktree({
+              projectId: project.id,
+              worktreePath: group.worktreePath,
+              worktreeBranch:
+                resolveWorktreeBranch(project.id, group.worktreePath, group.worktreeBranch) ??
+                group.worktreeBranch,
+            });
           if (key === "git-review") openGitReview(project.id, group.worktreePath);
           if (key === "delete-worktree")
             deleteWorktreeGroup(project.id, group.worktreePath, groupThreadIds);
