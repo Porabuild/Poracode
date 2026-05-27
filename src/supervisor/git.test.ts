@@ -1422,6 +1422,28 @@ describe("GitService.deleteBranch", () => {
   });
 });
 
+describe("GitService.deleteRemoteBranch", () => {
+  const location = {
+    kind: "windows" as const,
+    path: "C:\\Users\\demo\\work\\repo",
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("deletes the remote branch and removes the local remote-tracking ref", async () => {
+    mockGitCommands(() => ({ stdout: "" }));
+
+    await new GitService().deleteRemoteBranch(location, "origin", "feature/x");
+
+    expect(execFileMock.mock.calls.map((call) => call[1])).toEqual([
+      ["push", "origin", "--delete", "feature/x"],
+      ["update-ref", "-d", "refs/remotes/origin/feature/x"],
+    ]);
+  });
+});
+
 describe("GitService.abortMerge", () => {
   const location = {
     kind: "windows" as const,

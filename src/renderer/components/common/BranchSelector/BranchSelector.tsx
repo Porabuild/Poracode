@@ -1,7 +1,8 @@
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { ChevronDown, GitBranch, GitFork, Search } from "lucide-react";
-import { Popover, Tooltip } from "@heroui/react";
+import { Popover, toast, Tooltip } from "@heroui/react";
 import type { GitBranchInfo } from "@/shared/contracts";
+import { friendlyError } from "@/shared/messages";
 import { readBridge } from "@/renderer/bridge";
 import { useGitStore } from "@/renderer/state/gitStore";
 import { Button } from "../Button";
@@ -128,14 +129,16 @@ export function BranchSelector(props: BranchSelectorProps) {
     if (!projectLocation) return;
     setDeletingBranch(branch.name);
     try {
-      const wtPath = branchWorktreePath.get(branch.name);
-      if (wtPath) {
-        await readBridge().gitRemoveWorktree({
-          projectLocation,
-          path: wtPath,
-          force: true,
-          deleteBranch: false,
-        });
+      if (!branch.isRemote) {
+        const wtPath = branchWorktreePath.get(branch.name);
+        if (wtPath) {
+          await readBridge().gitRemoveWorktree({
+            projectLocation,
+            path: wtPath,
+            force: true,
+            deleteBranch: false,
+          });
+        }
       }
       await readBridge().gitDeleteBranch({
         projectLocation,
@@ -143,8 +146,8 @@ export function BranchSelector(props: BranchSelectorProps) {
         force: true,
         ...(branch.remote ? { remote: branch.remote } : {}),
       });
-    } catch {
-      // best-effort — branch may already be deleted by removeWorktree
+    } catch (error) {
+      toast.danger(friendlyError(error));
     }
     try {
       const [branches, wts] = await Promise.all([
