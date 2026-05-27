@@ -102,6 +102,9 @@ export function ThreadDraftComposerArea(props: {
   const [branchSelection, setBranchSelection] = useState<BranchSelection | null>(
     () => useAppStore.getState().pendingDraftWorktreeSelections[props.project.id] ?? null,
   );
+  const pendingWorktreeSelection = useAppStore(
+    (s) => s.pendingDraftWorktreeSelections[props.project.id],
+  );
   const [slashQuery, setSlashQuery] = useState<string | null>(null);
   const [slashActiveIndex, setSlashActiveIndex] = useState(0);
   const [controlOpenRequest, setControlOpenRequest] = useState<{
@@ -259,9 +262,21 @@ export function ThreadDraftComposerArea(props: {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- one-time mount restore
   }, []);
 
+  // A pending selection from "New thread in worktree" targets an existing
+  // worktree (carries worktreePath). Apply it to the branch selection and
+  // clear the "New worktree" checkbox so submit reuses that worktree instead
+  // of falling through to generating a fresh one. Subscribing to the store
+  // (rather than relying on the mount-time lazy init above) covers the case
+  // where this composer is already mounted for the project, so openDraft does
+  // not remount it and the lazy init never re-runs.
+  const projectId = props.project.id;
+  const onWorktreeModeChange = props.onWorktreeModeChange;
   useEffect(() => {
-    useAppStore.getState().clearPendingDraftWorktreeSelection(props.project.id);
-  }, [props.project.id]);
+    if (!pendingWorktreeSelection) return;
+    setBranchSelection(pendingWorktreeSelection);
+    onWorktreeModeChange(!pendingWorktreeSelection.worktreePath);
+    useAppStore.getState().clearPendingDraftWorktreeSelection(projectId);
+  }, [pendingWorktreeSelection, projectId, onWorktreeModeChange]);
 
   useEffect(() => {
     const pid = props.project.id;
