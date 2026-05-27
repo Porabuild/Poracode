@@ -29,29 +29,41 @@ export function GitBadge(props: {
     element: elementRef,
   });
 
-  const { isRepo, totalInsertions, totalDeletions, prState, checksStatus } = useGitStore(
-    useShallow((s) => {
-      const gitStatus = props.worktreePath
-        ? s.worktreeStatuses[props.worktreePath]
-        : s.statuses[props.projectId];
-      const pr = props.worktreePath
-        ? s.prData[props.worktreePath]
-        : s.prData[buildBranchPrKey(props.projectId)];
-      return {
-        isRepo: gitStatus?.isRepo ?? false,
-        totalInsertions: gitStatus?.totalInsertions ?? 0,
-        totalDeletions: gitStatus?.totalDeletions ?? 0,
-        prState: pr?.state,
-        checksStatus: pr?.checksStatus,
-      };
-    }),
-  );
+  const { isRepo, totalInsertions, totalDeletions, prState, checksStatus, canCreatePr } =
+    useGitStore(
+      useShallow((s) => {
+        const gitStatus = props.worktreePath
+          ? s.worktreeStatuses[props.worktreePath]
+          : s.statuses[props.projectId];
+        const pr = props.worktreePath
+          ? s.prData[props.worktreePath]
+          : s.prData[buildBranchPrKey(props.projectId)];
+        const isWorktree = props.worktreePath !== undefined;
+        const hasPr = pr !== undefined && pr !== null && pr.state !== "closed";
+        return {
+          isRepo: gitStatus?.isRepo ?? false,
+          totalInsertions: gitStatus?.totalInsertions ?? 0,
+          totalDeletions: gitStatus?.totalDeletions ?? 0,
+          prState: pr?.state,
+          checksStatus: pr?.checksStatus,
+          canCreatePr:
+            isWorktree &&
+            (s.ghAvailable[props.projectId] ?? false) &&
+            !hasPr &&
+            Boolean(gitStatus?.tracking) &&
+            (gitStatus?.ahead ?? 0) === 0,
+        };
+      }),
+    );
   const hasChanges = totalInsertions > 0 || totalDeletions > 0;
   const isWorktree = props.worktreePath !== undefined;
   const hasVisiblePr =
     prState !== undefined && prState !== "closed" && (prState !== "merged" || isWorktree);
-  if (!isRepo || (!hasChanges && !hasVisiblePr)) return null;
-  const prIconColor = PR_TONE_TEXT_CLASS[getPrStatusTone(prState, checksStatus)];
+  const showPrIcon = hasVisiblePr || canCreatePr;
+  if (!isRepo || (!hasChanges && !showPrIcon)) return null;
+  const prIconColor = canCreatePr
+    ? "text-muted/60"
+    : PR_TONE_TEXT_CLASS[getPrStatusTone(prState, checksStatus)];
   return (
     <div
       ref={elementRef}
@@ -68,7 +80,7 @@ export function GitBadge(props: {
       onKeyDown={(e) => handleKeyActivate(e, () => props.onPress?.(), { stopPropagation: true })}
     >
       <span className="flex items-center gap-1 text-[10px] font-medium">
-        {hasVisiblePr && <GitPullRequest className={`size-3 ${prIconColor}`} />}
+        {showPrIcon && <GitPullRequest className={`size-3 ${prIconColor}`} />}
         {hasChanges && (
           <span className="flex items-center gap-0.5">
             {totalInsertions > 0 && <span className="text-success">+{totalInsertions}</span>}
