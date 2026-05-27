@@ -83,8 +83,12 @@ jobs:
     # Unit tests run via vitest in node/jsdom and never launch the Electron
     # runtime, so skip the flaky Chromium binary download. Native node modules
     # (better-sqlite3, node-pty) are still built by the install scripts below.
+    # ELECTRON_OVERRIDE_DIST_PATH lets `require("electron")` resolve to a path
+    # string without the binary present, so suites that import the module (but
+    # never spawn it) load instead of throwing from electron/index.js.
     env:
       ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
+      ELECTRON_OVERRIDE_DIST_PATH: node_modules/electron/dist
     steps:
       - name: Checkout
         uses: actions/checkout@v6
