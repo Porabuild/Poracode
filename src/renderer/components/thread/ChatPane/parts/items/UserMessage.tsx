@@ -1,8 +1,9 @@
 import { memo, type ReactNode, useEffectEvent, useLayoutEffect, useRef, useState } from "react";
-import { Surface, Tooltip } from "@heroui/react";
+import { Link, Surface, Tooltip } from "@heroui/react";
 import { ChevronDown, ChevronUp, Copy } from "lucide-react";
 import type { CanonicalContentBlock, MessageItemPayload } from "@/shared/contracts";
 import { AttachmentBar, ImageLightbox, type Attachment } from "@/renderer/components/composer";
+import { readBridge } from "@/renderer/bridge";
 import { fileNameFromPath } from "@/shared/promptContent";
 import {
   getRuntimeItemPayload,
@@ -256,7 +257,7 @@ function renderUserMessageInlineContent(
       }
       const text = remainingSkip > 0 ? block.text.slice(remainingSkip) : block.text;
       remainingSkip = 0;
-      if (text.length > 0) nodes.push(<span key={`text-${index}`}>{text}</span>);
+      if (text.length > 0) nodes.push(...renderUserMessageText(text, `text-${index}`));
       return;
     }
 
@@ -281,6 +282,48 @@ function renderUserMessageInlineContent(
   });
 
   return nodes;
+}
+
+const USER_MESSAGE_URL_RE = /https?:\/\/[^\s<>"']+/g;
+
+function renderUserMessageText(text: string, keyPrefix: string): ReactNode[] {
+  USER_MESSAGE_URL_RE.lastIndex = 0;
+  const nodes: ReactNode[] = [];
+  let cursor = 0;
+  let match: RegExpExecArray | null;
+  while ((match = USER_MESSAGE_URL_RE.exec(text)) !== null) {
+    const href = trimTrailingUrlPunctuation(match[0]);
+    if (href.length === 0) continue;
+    if (match.index > cursor) {
+      nodes.push(
+        <span key={`${keyPrefix}-text-${cursor}`}>{text.slice(cursor, match.index)}</span>,
+      );
+    }
+    nodes.push(
+      <Link
+        key={`${keyPrefix}-url-${match.index}`}
+        href={href}
+        rel="noreferrer noopener"
+        className="text-[length:inherit] text-foreground no-underline hover:underline hover:decoration-1 underline-offset-2 [display:inline] [width:auto] [overflow-wrap:anywhere] [word-break:break-word]"
+        onClick={(event) => {
+          event.preventDefault();
+          void readBridge().openExternal(href);
+        }}
+      >
+        {href}
+      </Link>,
+    );
+    cursor = match.index + href.length;
+  }
+  if (cursor === 0) return [<span key={`${keyPrefix}-text`}>{text}</span>];
+  if (cursor < text.length) {
+    nodes.push(<span key={`${keyPrefix}-text-${cursor}`}>{text.slice(cursor)}</span>);
+  }
+  return nodes;
+}
+
+function trimTrailingUrlPunctuation(url: string): string {
+  return url.replace(/[),.;:!?]+$/, "");
 }
 
 function enrichWithSelectorPayloads(

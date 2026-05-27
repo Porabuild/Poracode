@@ -240,6 +240,9 @@ export class GitWorktreeService {
     branch: string,
   ): Promise<void> {
     await execGit(location, ["push", remote, "--delete", branch], { timeout: GIT_NETWORK_TIMEOUT });
+    await execGit(location, ["update-ref", "-d", `refs/remotes/${remote}/${branch}`]).catch(
+      () => undefined,
+    );
   }
 
   async deleteBranch(location: ProjectLocation, branch: string, force: boolean): Promise<void> {

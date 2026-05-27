@@ -48,8 +48,8 @@ export function combineChecksStatus(
 ): PrChecksStatus | undefined {
   const normalizedDetails = normalizeChecksStatus(detailsStatus);
   const normalizedPr = normalizeChecksStatus(prStatus);
-  if (normalizedDetails === "FAILURE" || normalizedPr === "FAILURE") return "FAILURE";
   if (normalizedDetails === "PENDING" || normalizedPr === "PENDING") return "PENDING";
+  if (normalizedDetails === "FAILURE" || normalizedPr === "FAILURE") return "FAILURE";
   if (normalizedDetails === "SUCCESS" || normalizedPr === "SUCCESS") return "SUCCESS";
   return undefined;
 }

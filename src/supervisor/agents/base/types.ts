@@ -18,6 +18,7 @@ import type {
   ThreadStatus,
 } from "@/shared/contracts";
 import type { OscNotification, OscShellEvent, OscTitle } from "@/shared/osc";
+import type { BrowserMcpHttpConfig } from "@/supervisor/agents/browserMcp";
 
 export interface CommandSpec {
   command: string;
@@ -42,12 +43,15 @@ export interface AgentEnvContext {
    * into the distro's `$HOME/.lightcode/` via `resolveWslHomeDirectory`.
    */
   baseDir?: string;
+  browserMcpEnabled?: boolean;
+  browserMcp?: BrowserMcpHttpConfig;
 }
 
 export interface AgentLaunchOptions {
   suppressResumeConfigOverrides?: boolean;
   resumeThreadId?: string;
   agentSettings?: Record<string, boolean | string>;
+  browserMcp?: BrowserMcpHttpConfig;
 }
 
 export interface StructuredSessionUpdate {
@@ -109,6 +113,7 @@ export interface CreateStructuredSessionInput {
   projectLocation: ProjectLocation;
   config: ThreadConfig;
   agentSettings?: Record<string, boolean | string>;
+  browserMcp?: BrowserMcpHttpConfig;
   sessionRef?: SessionRef;
   presentationMode?: ThreadPresentationMode;
   loadSessionErrorRewriter?: (error: unknown, sessionId: string) => Error;

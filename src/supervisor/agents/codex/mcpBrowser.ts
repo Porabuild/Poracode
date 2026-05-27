@@ -1,8 +1,11 @@
 import {
   BROWSER_MCP_SERVER_NAME,
   resolveBrowserMcpHttpConfig,
+  type BrowserMcpHttpConfig,
   type BrowserMcpLocation,
 } from "@/supervisor/agents/browserMcp";
+
+export const CODEX_BROWSER_MCP_TOKEN_ENV = "LIGHTCODE_BROWSER_MCP_TOKEN";
 
 /**
  * Codex CLI accepts inline TOML overrides via `-c key.path=value`. Build the
@@ -19,9 +22,14 @@ import {
  *
  * Returns an empty array if MCP is disabled.
  */
-export function buildCodexBrowserMcpArgs(location: BrowserMcpLocation, enabled: boolean): string[] {
+export function buildCodexBrowserMcpArgs(
+  location: BrowserMcpLocation,
+  enabled: boolean,
+  browserMcp?: BrowserMcpHttpConfig,
+): string[] {
   if (!enabled) return [];
-  const cfg = resolveBrowserMcpHttpConfig(location);
+  if (location.kind === "wsl" && !browserMcp) return [];
+  const cfg = browserMcp ?? resolveBrowserMcpHttpConfig(location);
   if (!cfg) return [];
 
   const name = BROWSER_MCP_SERVER_NAME;
@@ -32,6 +40,12 @@ export function buildCodexBrowserMcpArgs(location: BrowserMcpLocation, enabled: 
     "-c",
     `mcp_servers.${name}.url=${JSON.stringify(cfg.url)}`,
     "-c",
-    `mcp_servers.${name}.bearer_token_env_var="LIGHTCODE_BROWSER_MCP_TOKEN"`,
+    `mcp_servers.${name}.bearer_token_env_var="${CODEX_BROWSER_MCP_TOKEN_ENV}"`,
   ];
+}
+
+export function buildCodexBrowserMcpEnv(
+  browserMcp: BrowserMcpHttpConfig | undefined,
+): Record<string, string> | undefined {
+  return browserMcp ? { [CODEX_BROWSER_MCP_TOKEN_ENV]: browserMcp.token } : undefined;
 }

@@ -1,6 +1,7 @@
 import {
   BROWSER_MCP_SERVER_NAME,
   resolveBrowserMcpHttpConfig,
+  type BrowserMcpHttpConfig,
   type BrowserMcpLocation,
 } from "@/supervisor/agents/browserMcp";
 
@@ -19,9 +20,11 @@ interface ClaudeMcpServers {
 export function buildClaudeBrowserMcpServers(
   location: BrowserMcpLocation,
   enabled: boolean,
+  browserMcp?: BrowserMcpHttpConfig,
 ): ClaudeMcpServers | undefined {
   if (!enabled) return undefined;
-  const cfg = resolveBrowserMcpHttpConfig(location);
+  if (location.kind === "wsl" && !browserMcp) return undefined;
+  const cfg = browserMcp ?? resolveBrowserMcpHttpConfig(location);
   if (!cfg) return undefined;
   return {
     [BROWSER_MCP_SERVER_NAME]: {

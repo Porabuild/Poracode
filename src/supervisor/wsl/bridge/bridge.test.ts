@@ -1,4 +1,5 @@
 import { execFileSync, spawn, type ChildProcess } from "node:child_process";
+import { createServer, type Server } from "node:http";
 import {
   chmodSync,
   mkdtempSync,
@@ -31,9 +32,9 @@ interface RunningBridge {
   dispose: () => Promise<void>;
 }
 
-async function startBridge(): Promise<RunningBridge> {
+async function startBridge(extraEnv: Record<string, string> = {}): Promise<RunningBridge> {
   const child = spawn(process.execPath, [BRIDGE_SCRIPT], {
-    env: { ...process.env, LIGHTCODE_HOOK_SECRET: SECRET },
+    env: { ...process.env, LIGHTCODE_HOOK_SECRET: SECRET, ...extraEnv },
     stdio: ["ignore", "pipe", "ignore"],
   });
 
@@ -66,6 +67,10 @@ async function startBridge(): Promise<RunningBridge> {
   };
 }
 
+function closeServer(server: Server): Promise<void> {
+  return new Promise((resolve) => server.close(() => resolve()));
+}
+
 async function post(url: string, body: unknown): Promise<{ status: number; body: unknown }> {
   const response = await fetch(url, {
     method: "POST",
@@ -76,6 +81,96 @@ async function post(url: string, body: unknown): Promise<{ status: number; body:
   const parsed = text ? JSON.parse(text) : null;
   return { status: response.status, body: parsed };
 }
+
+describe("bridge.mjs Browser MCP proxy", () => {
+  let upstream: Server;
+  let upstreamBaseUrl: string;
+  let bridge: RunningBridge;
+  let received:
+    | {
+        url: string | undefined;
+        authorization: string | undefined;
+        sessionId: string | undefined;
+        body: string;
+      }
+    | undefined;
+
+  beforeEach(async () => {
+    received = undefined;
+    upstream = createServer((req, res) => {
+      const chunks: Buffer[] = [];
+      req.on("data", (chunk: Buffer) => chunks.push(chunk));
+      req.on("end", () => {
+        received = {
+          url: req.url,
+          authorization: req.headers.authorization,
+          sessionId:
+            typeof req.headers["mcp-session-id"] === "string"
+              ? req.headers["mcp-session-id"]
+              : undefined,
+          body: Buffer.concat(chunks).toString("utf8"),
+        };
+        res.statusCode = 200;
+        res.setHeader("content-type", "application/json");
+        res.setHeader("mcp-session-id", "upstream-session");
+        res.end(JSON.stringify({ jsonrpc: "2.0", id: 1, result: { ok: true } }));
+      });
+    });
+    upstreamBaseUrl = await new Promise<string>((resolve) => {
+      upstream.listen(0, "127.0.0.2", () => {
+        const address = upstream.address();
+        if (!address || typeof address === "string") throw new Error("unexpected address");
+        resolve(`http://127.0.0.2:${address.port}`);
+      });
+    });
+    bridge = await startBridge({
+      LIGHTCODE_BROWSER_MCP_URL: upstreamBaseUrl,
+      LIGHTCODE_BROWSER_MCP_TOKEN: "upstream-token",
+    });
+  });
+
+  afterEach(async () => {
+    await bridge.dispose();
+    await closeServer(upstream);
+  });
+
+  it("serves a WSL-local MCP endpoint that proxies to the host browser MCP", async () => {
+    const response = await fetch(`${bridge.baseUrl}/mcp`, {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${SECRET}`,
+        "content-type": "application/json",
+        "mcp-session-id": "agent-session",
+      },
+      body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "initialize", params: {} }),
+    });
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("mcp-session-id")).toBe("upstream-session");
+    await expect(response.json()).resolves.toEqual({
+      jsonrpc: "2.0",
+      id: 1,
+      result: { ok: true },
+    });
+    expect(received).toEqual({
+      url: "/mcp",
+      authorization: "Bearer upstream-token",
+      sessionId: "agent-session",
+      body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "initialize", params: {} }),
+    });
+  });
+
+  it("matches the host MCP endpoint when clients probe SSE with GET", async () => {
+    const response = await fetch(`${bridge.baseUrl}/mcp`, {
+      method: "GET",
+      headers: { authorization: `Bearer ${SECRET}` },
+    });
+
+    expect(response.status).toBe(405);
+    expect(response.headers.get("allow")).toBe("POST");
+    expect(received).toBeUndefined();
+  });
+});
 
 describeOnPosix("bridge.mjs fs endpoints", () => {
   let bridge: RunningBridge;

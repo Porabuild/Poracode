@@ -45,6 +45,10 @@ export interface BrowserMcpHttpConfig {
   headers: Record<string, string>;
 }
 
+export interface BrowserMcpBridge {
+  ensureBridge(distro: string): Promise<{ baseUrl: string; secret: string } | undefined>;
+}
+
 /**
  * Resolve an HTTP MCP server config suitable for the given project location.
  * For native (windows/posix) projects, the loopback URL is returned as-is.
@@ -68,4 +72,26 @@ export function resolveBrowserMcpHttpConfig(
     token: env.token,
     headers: { Authorization: `Bearer ${env.token}` },
   };
+}
+
+export async function resolveBrowserMcpHttpConfigForLaunch(
+  location: BrowserMcpLocation,
+  enabled: boolean,
+  bridge?: BrowserMcpBridge,
+): Promise<BrowserMcpHttpConfig | undefined> {
+  if (!enabled) return undefined;
+  if (location.kind === "wsl") {
+    if (!bridge) return undefined;
+    const env = readBrowserMcpEnv();
+    if (!env) return undefined;
+    const handle = await bridge.ensureBridge(location.distro);
+    if (!handle) return undefined;
+    const url = `${handle.baseUrl.replace(/\/$/, "")}/mcp`;
+    return {
+      url,
+      token: handle.secret,
+      headers: { Authorization: `Bearer ${handle.secret}` },
+    };
+  }
+  return resolveBrowserMcpHttpConfig(location) ?? undefined;
 }

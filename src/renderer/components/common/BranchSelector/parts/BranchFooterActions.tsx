@@ -102,7 +102,17 @@ export function BranchFooterActions(props: {
               const base = baseBranch ?? value;
               onSelect?.({ branch: base, baseBranch: base, isWorktree: true });
             } else if (isWorktree && baseBranch) {
-              onSelect?.({ branch: baseBranch, isWorktree: false });
+              const existingWorktreePath = branchWorktreePath.get(baseBranch);
+              if (existingWorktreePath) {
+                onSelect?.({
+                  branch: baseBranch,
+                  baseBranch,
+                  isWorktree: true,
+                  worktreePath: existingWorktreePath,
+                });
+              } else {
+                onSelect?.({ branch: baseBranch, isWorktree: false });
+              }
             }
           }}
         >

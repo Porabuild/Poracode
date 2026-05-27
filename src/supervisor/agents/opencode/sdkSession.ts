@@ -410,10 +410,15 @@ export class OpencodeSdkSession implements StructuredSessionHandle {
 
     try {
       this.browserMcpEnabled = isOpenCodeBrowserMcpEnabled(this.input.agentSettings);
-      syncOpenCodeBrowserMcpConfigFile(this.input.projectLocation, this.browserMcpEnabled);
+      syncOpenCodeBrowserMcpConfigFile(
+        this.input.projectLocation,
+        this.browserMcpEnabled,
+        this.input.browserMcp,
+      );
       this.acquired = await acquireOpenCodeServer({
         projectLocation: this.input.projectLocation,
         browserMcpEnabled: this.browserMcpEnabled,
+        ...(this.input.browserMcp !== undefined ? { browserMcp: this.input.browserMcp } : {}),
       });
     } catch (cause) {
       // Surface server-startup failures (sandbox blocks, ENOENT, port races,
@@ -859,6 +864,7 @@ export class OpencodeSdkSession implements StructuredSessionHandle {
     this.acquired = await acquireOpenCodeServer({
       projectLocation: this.input.projectLocation,
       browserMcpEnabled: this.browserMcpEnabled,
+      ...(this.input.browserMcp !== undefined ? { browserMcp: this.input.browserMcp } : {}),
     });
     if (this.isGui) this.startEventStream();
   }

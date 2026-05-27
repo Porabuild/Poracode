@@ -1,6 +1,5 @@
 import { Check, GitBranch, Globe, Trash2 } from "lucide-react";
 import { Header, Label, ListBox, ListLayout, Virtualizer } from "@heroui/react";
-import { handleKeyActivate } from "@/renderer/utils/a11y";
 import {
   COMPACT_DROPDOWN_ROW_HEIGHT,
   VIRTUALIZED_COMPACT_DROPDOWN_ITEM_CLASS,
@@ -86,6 +85,7 @@ export function BranchListBox(props: {
           const { branch } = item;
           const canDelete =
             branch.name !== currentBranch && !activeWorktreeBranches.has(branch.name);
+          const isDeleting = deletingBranch === branch.name;
           return (
             <ListBox.Item
               key={branch.name}
@@ -95,34 +95,10 @@ export function BranchListBox(props: {
             >
               <ListBox.ItemIndicator>
                 {({ isSelected }) => {
-                  const isDeleting = deletingBranch === branch.name;
                   if (isDeleting) {
                     return <PixelLoader size="xs" className="text-muted" />;
                   }
-                  return canDelete ? (
-                    <>
-                      {isSelected && <Check className="size-3 group-hover:hidden" />}
-                      <div
-                        role="button"
-                        tabIndex={0}
-                        aria-label={`Delete ${branch.name}`}
-                        className={`items-center justify-center rounded text-muted/55 transition hover:text-danger ${isSelected ? "hidden group-hover:flex" : "opacity-0 group-hover:opacity-100 flex"}`}
-                        onPointerDown={(e) => e.stopPropagation()}
-                        onPointerUp={(e) => e.stopPropagation()}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onDelete(branch);
-                        }}
-                        onKeyDown={(e) =>
-                          handleKeyActivate(e, () => onDelete(branch), { stopPropagation: true })
-                        }
-                      >
-                        <Trash2 className="size-3.5" />
-                      </div>
-                    </>
-                  ) : isSelected ? (
-                    <Check className="size-3" />
-                  ) : null;
+                  return isSelected ? <Check className="size-3" /> : null;
                 }}
               </ListBox.ItemIndicator>
               {branch.isRemote ? (
@@ -136,6 +112,21 @@ export function BranchListBox(props: {
               )}
               {worktreeBranches.has(branch.name) && branch.name !== currentBranch && (
                 <span className="text-[10px] text-muted">worktree</span>
+              )}
+              {canDelete && !isDeleting && (
+                <button
+                  type="button"
+                  aria-label={`Delete ${branch.name}`}
+                  className="ms-auto flex items-center justify-center rounded border-0 bg-transparent p-0 text-muted/55 opacity-0 transition hover:text-danger group-hover:opacity-100"
+                  onPointerDown={(e) => e.stopPropagation()}
+                  onPointerUp={(e) => e.stopPropagation()}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDelete(branch);
+                  }}
+                >
+                  <Trash2 className="size-3.5" />
+                </button>
               )}
             </ListBox.Item>
           );

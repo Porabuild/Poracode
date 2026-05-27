@@ -5,7 +5,12 @@ import { useGitStore } from "@/renderer/state/gitStore";
 import { buildBranchPrKey } from "@/renderer/state/gitSelectors";
 import { useShallow } from "zustand/shallow";
 import { handleKeyActivate } from "@/renderer/utils/a11y";
-import { getPrStatusTone, PR_TONE_TEXT_CLASS } from "@/renderer/utils/prStatus";
+import {
+  aggregatePrChecksStatus,
+  combineChecksStatus,
+  getPrStatusTone,
+  PR_TONE_TEXT_CLASS,
+} from "@/renderer/utils/prStatus";
 import type { DragSourceData } from "@/renderer/dnd";
 
 export function GitBadge(props: {
@@ -38,6 +43,8 @@ export function GitBadge(props: {
         const pr = props.worktreePath
           ? s.prData[props.worktreePath]
           : s.prData[buildBranchPrKey(props.projectId)];
+        const details = pr?.number ? s.prDetails[`${props.projectId}#${pr.number}`] : undefined;
+        const detailsStatus = aggregatePrChecksStatus(details?.checks);
         const isWorktree = props.worktreePath !== undefined;
         const hasPr = pr !== undefined && pr !== null && pr.state !== "closed";
         return {
@@ -45,7 +52,7 @@ export function GitBadge(props: {
           totalInsertions: gitStatus?.totalInsertions ?? 0,
           totalDeletions: gitStatus?.totalDeletions ?? 0,
           prState: pr?.state,
-          checksStatus: pr?.checksStatus,
+          checksStatus: combineChecksStatus(detailsStatus, pr?.checksStatus),
           canCreatePr:
             isWorktree &&
             (s.ghAvailable[props.projectId] ?? false) &&

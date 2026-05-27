@@ -22,7 +22,6 @@ import {
 import { readBridge } from "@/renderer/bridge";
 import { PixelLoader } from "@/renderer/components/common";
 import {
-  usePrChecksStatus,
   usePrMergeStateStatus,
   usePrMergeable,
   usePrNumber,
@@ -31,6 +30,7 @@ import {
   usePrUrl,
 } from "@/renderer/state/gitSelectors";
 import { usePanelStore } from "@/renderer/state/panelStore";
+import { usePrCombinedChecksStatus } from "@/renderer/hooks/usePrCombinedChecksStatus";
 import { getPrStatusTone, PR_TONE_BG_CLASS } from "@/renderer/utils/prStatus";
 import { GitReviewSection } from "./GitReviewSection";
 
@@ -66,12 +66,13 @@ export function PrSection(props: {
   const number = usePrNumber(prKey);
   const title = usePrTitle(prKey);
   const url = usePrUrl(prKey);
-  const checksStatus = usePrChecksStatus(prKey);
+  const cacheKey = number !== undefined ? `${projectId}#${number}` : undefined;
+  const combinedChecksStatus = usePrCombinedChecksStatus(prKey, cacheKey);
   const mergeStateStatus = usePrMergeStateStatus(prKey);
   const mergeable = usePrMergeable(prKey);
   const [bypass, setBypass] = useState(false);
 
-  const indicatorColor = PR_TONE_BG_CLASS[getPrStatusTone(state, checksStatus)];
+  const indicatorColor = PR_TONE_BG_CLASS[getPrStatusTone(state, combinedChecksStatus)];
 
   const reasonKey = mergeable === "CONFLICTING" ? "DIRTY" : mergeStateStatus;
   const isBlocked =

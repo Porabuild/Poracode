@@ -628,6 +628,89 @@ describe("ACP client protocol helpers", () => {
     });
     expect(connection.resumeSession).not.toHaveBeenCalled();
   });
+
+  it("passes selected Browser MCP to ACP session open calls", async () => {
+    process.env.LIGHTCODE_BROWSER_MCP_URL = "http://127.0.0.1:9123";
+    process.env.LIGHTCODE_BROWSER_MCP_TOKEN = "secret-token";
+    const mcpServers = [
+      {
+        type: "http",
+        name: "browser",
+        url: "http://127.0.0.1:9123/mcp",
+        headers: [{ name: "Authorization", value: "Bearer secret-token" }],
+      },
+    ];
+
+    const newCase = makeConfigSyncSession();
+    await expect(newCase.session.openThread({ model: "model-a", browserMcp: true })).resolves.toBe(
+      "session-1",
+    );
+    expect(newCase.connection.newSession).toHaveBeenCalledWith({
+      cwd: "C:\\repo",
+      mcpServers,
+    });
+
+    const resumeCase = makeConfigSyncSession();
+    (resumeCase.session as unknown as Record<string, unknown>)["agentSessionCapabilities"] = {
+      resume: {},
+    };
+    await expect(
+      resumeCase.session.openThread(
+        { model: "model-a", browserMcp: true },
+        { providerSessionId: "session-resume", discoveredAt: new Date().toISOString() },
+      ),
+    ).resolves.toBe("session-resume");
+    expect(resumeCase.connection.resumeSession).toHaveBeenCalledWith({
+      sessionId: "session-resume",
+      cwd: "C:\\repo",
+      mcpServers,
+    });
+
+    const loadCase = makeConfigSyncSession();
+    await expect(
+      loadCase.session.openThread(
+        { model: "model-a", browserMcp: true },
+        { providerSessionId: "session-load", discoveredAt: new Date().toISOString() },
+      ),
+    ).resolves.toBe("session-load");
+    expect(loadCase.connection.loadSession).toHaveBeenCalledWith({
+      sessionId: "session-load",
+      cwd: "C:\\repo",
+      mcpServers,
+    });
+  });
+
+  it("passes WSL Browser MCP through the in-distro bridge", async () => {
+    const { connection, session } = makeConfigSyncSession();
+    (session as unknown as Record<string, unknown>)["projectLocation"] = {
+      kind: "wsl",
+      distro: "Ubuntu",
+      linuxPath: "/home/me/repo",
+      uncPath: "\\\\wsl.localhost\\Ubuntu\\home\\me\\repo",
+    };
+    (session as unknown as Record<string, unknown>)["cwd"] = "/home/me/repo";
+    (session as unknown as Record<string, unknown>)["browserMcp"] = {
+      url: "http://127.0.0.1:45678/mcp",
+      token: "bridge-secret",
+      headers: { Authorization: "Bearer bridge-secret" },
+    };
+
+    await expect(session.openThread({ model: "model-a", browserMcp: true })).resolves.toBe(
+      "session-1",
+    );
+
+    expect(connection.newSession).toHaveBeenCalledWith({
+      cwd: "/home/me/repo",
+      mcpServers: [
+        {
+          type: "http",
+          name: "browser",
+          url: "http://127.0.0.1:45678/mcp",
+          headers: [{ name: "Authorization", value: "Bearer bridge-secret" }],
+        },
+      ],
+    });
+  });
 });
 
 describe("ACP turn config sync", () => {

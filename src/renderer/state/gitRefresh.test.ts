@@ -190,6 +190,23 @@ describe("pending PR refresh", () => {
     expect(ghGetPrDetailsMock).not.toHaveBeenCalled();
   });
 
+  it("polls when the PR summary is stale failed but loaded check details are pending", async () => {
+    const prKey = buildBranchPrKey("p1");
+    useGitStore.getState().setStatus("p1", status);
+    useGitStore.getState().setPrData(prKey, { ...basePr, checksStatus: "FAILURE" });
+    useGitStore.getState().setPrDetails("p1#42", baseDetails);
+    ghGetPrForBranchMock.mockResolvedValue({ ...basePr, checksStatus: "PENDING" });
+    ghGetPrDetailsMock.mockResolvedValue({ details: baseDetails });
+
+    syncPendingPrRefreshProjects([{ id: "p1", location }]);
+
+    expect(ghGetPrForBranchMock).toHaveBeenCalledWith({
+      projectLocation: location,
+      branch: "feature/pr-checks",
+    });
+    expect(ghGetPrDetailsMock).toHaveBeenCalledWith({ projectLocation: location, prNumber: 42 });
+  });
+
   it("stops polling when the worktree thread is removed", async () => {
     useAppStore.setState({ threads: [worktreeThread] });
     useGitStore.getState().setPrData("/repo-wt", basePr);

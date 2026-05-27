@@ -691,6 +691,17 @@ describe("ChatPane", () => {
     await screen.findByRole("button", { name: "Copied" });
   });
 
+  it("renders links in slash command user messages as links", async () => {
+    const thread = makeThread();
+    const url = "https://tanstack.com/blog/tanstack-virtual-chat";
+    seedUserMessage(thread.id, `/goal implement new chat\n${url}`);
+
+    renderChatPane(thread);
+    await waitFor(() => expect(hydrateThreadRuntimeItems).toHaveBeenCalledWith(thread.id));
+
+    expect(screen.getByRole("link", { name: url })).toHaveAttribute("href", url);
+  });
+
   it("updates user message collapse state when resize changes visual overflow", async () => {
     const thread = makeThread();
     seedUserMessage(thread.id, "Resize can wrap this prompt into more visual rows.");

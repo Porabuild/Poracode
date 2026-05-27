@@ -88,7 +88,7 @@ export function AppContent() {
       buildProjectDraftConfig({
         agentKind,
         config,
-        worktreeMode: !isHomeScope && Boolean(worktreeBranch || existingWorktreePath),
+        worktreeMode: !isHomeScope && worktreeIsNewBranch === true,
       }),
     );
 
