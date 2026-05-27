@@ -292,6 +292,21 @@ describe("ToolCallGroup", () => {
     expect(screen.getByText("Tool search: deploy")).toBeInTheDocument();
   });
 
+  it("keeps web searches visible when Codex omits the query", () => {
+    const threadId = "thread-1";
+    const item = makeWebSearchItem("web-search-1", {
+      query: "",
+      name: "WebSearch",
+      args: { type: "other" },
+      status: "success",
+    });
+    seedThread(threadId, [item]);
+
+    renderToolCallGroup(threadId, [item.id]);
+
+    expect(screen.getByText("Web search")).toBeInTheDocument();
+  });
+
   it("categorizes sub-agent tools as commands", () => {
     const threadId = "thread-1";
     const items = [makeAgentItem("agent-1")];
@@ -366,6 +381,16 @@ function makeSemanticToolItem(
   return {
     id,
     type,
+    state: "completed",
+    payload,
+    streams: {},
+  };
+}
+
+function makeWebSearchItem(id: string, payload: RuntimeChatItem["payload"]): RuntimeChatItem {
+  return {
+    id,
+    type: "web_search",
     state: "completed",
     payload,
     streams: {},

@@ -23,7 +23,8 @@ export const WebSearchItem = memo(function WebSearchItem({ item }: WebSearchItem
       { label: "results", part: extractAcpResultPart(payload) },
     ];
   }, [isExpanded, payload]);
-  if (!payload?.query) return null;
+  if (!payload) return null;
+  const title = payload.query || formatWebSearchName(readPayloadString(payload, "name"));
   const hasDetails = hasAuxFields(payload);
   const resultCount = payload.resultCount ?? deriveResultCount(payload);
   const right =
@@ -32,7 +33,7 @@ export const WebSearchItem = memo(function WebSearchItem({ item }: WebSearchItem
   return (
     <ChatItemAccordion
       icon={<Globe className="size-3" />}
-      title={payload.query}
+      title={title}
       rightLabel={right}
       hasBody={hasDetails}
       isExpanded={isExpanded}
@@ -47,6 +48,16 @@ function hasAuxFields(payload: unknown): boolean {
   if (!payload || typeof payload !== "object") return false;
   const p = payload as Record<string, unknown>;
   return p.args !== undefined || p.result !== undefined;
+}
+
+function readPayloadString(payload: unknown, key: string): string | undefined {
+  if (!payload || typeof payload !== "object") return undefined;
+  const v = (payload as Record<string, unknown>)[key];
+  return typeof v === "string" && v.length > 0 ? v : undefined;
+}
+
+function formatWebSearchName(name: string | undefined): string {
+  return name === "WebSearch" || !name ? "Web search" : name;
 }
 
 /**

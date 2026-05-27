@@ -544,7 +544,8 @@ function getFileChangeRow(item: RuntimeChatItem, isExpanded: boolean): InlineRow
 
 function getWebSearchRow(item: RuntimeChatItem, isExpanded: boolean): InlineRow | null {
   const payload = getRuntimeItemPayload<WebSearchPayload>(item, "web_search");
-  if (!payload?.query) return null;
+  if (!payload) return null;
+  const title = payload.query || formatWebSearchName(readPayloadString(payload, "name"));
   const sections: ToolCallSection[] =
     isExpanded && hasAuxFields(payload)
       ? [
@@ -561,12 +562,16 @@ function getWebSearchRow(item: RuntimeChatItem, isExpanded: boolean): InlineRow 
   ) : undefined;
   return {
     Icon: Globe,
-    title: payload.query,
+    title,
     rightLabel,
     rightLabelClassName: "text-[color:var(--muted)]",
     hasDetails: hasAuxFields(payload),
     sections,
   };
+}
+
+function formatWebSearchName(name: string | undefined): string {
+  return name === "WebSearch" || !name ? "Web search" : name;
 }
 
 type GroupCategory = "viewed" | "searched" | "edited" | "executed" | "other";
