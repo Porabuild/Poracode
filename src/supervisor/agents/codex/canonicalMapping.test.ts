@@ -281,6 +281,64 @@ describe("mapCodexNotification — goals", () => {
       { type: "item.completed", threadId: "t-codex", itemId: goalItemId },
     ]);
   });
+
+  it("starts a new Codex goal item when the provider reports a new goal", () => {
+    const state = createCodexMapperState("t-codex");
+    const first = mapCodexNotification(
+      "thread/goal/updated",
+      {
+        threadId: "provider-thread",
+        goal: {
+          objective: "ship initial goal",
+          status: "active",
+          tokensUsed: 120,
+          timeUsedSeconds: 30,
+          createdAt: 1778570000,
+          updatedAt: 1778570030,
+        },
+      },
+      state,
+    );
+    const firstGoalItemId = first[0]?.type === "item.started" ? first[0].itemId : "";
+
+    const next = mapCodexNotification(
+      "thread/goal/updated",
+      {
+        threadId: "provider-thread",
+        goal: {
+          objective: "ship next goal",
+          status: "active",
+          tokenBudget: null,
+          tokensUsed: 0,
+          timeUsedSeconds: 0,
+          createdAt: 1778570100,
+          updatedAt: 1778570100,
+        },
+      },
+      state,
+    );
+    const nextGoalItemId = next[0]?.type === "item.started" ? next[0].itemId : "";
+
+    expect(next).toEqual([
+      {
+        type: "item.started",
+        threadId: "t-codex",
+        itemId: expect.stringMatching(/^goal-/u),
+        itemType: "goal",
+        payload: {
+          action: "set",
+          objective: "ship next goal",
+          status: "active",
+          tokenBudget: null,
+          tokensUsed: 0,
+          timeUsedSeconds: 0,
+          updatedAt: 1778570100,
+        },
+      },
+      { type: "item.completed", threadId: "t-codex", itemId: nextGoalItemId },
+    ]);
+    expect(nextGoalItemId).not.toBe(firstGoalItemId);
+  });
 });
 
 describe("mapCodexNotification — plan updates", () => {

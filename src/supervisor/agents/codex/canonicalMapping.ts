@@ -328,6 +328,7 @@ function readCodexGoal(params: Record<string, unknown> | undefined): ProviderGoa
     ...(typeof record.timeUsedSeconds === "number"
       ? { timeUsedSeconds: record.timeUsedSeconds }
       : {}),
+    ...(typeof record.createdAt === "number" ? { createdAt: record.createdAt } : {}),
     ...(typeof record.updatedAt === "number" ? { updatedAt: record.updatedAt } : {}),
   };
 }
@@ -343,6 +344,22 @@ function readCodexGoalStatus(status: unknown): ProviderGoalState["status"] | und
     default:
       return undefined;
   }
+}
+
+function isNewCodexGoal(goal: ProviderGoalState, state: CodexMapperState): boolean {
+  if (goal.createdAt !== undefined && state.goalCreatedAt !== undefined) {
+    return goal.createdAt !== state.goalCreatedAt;
+  }
+  return (
+    goal.objective !== undefined &&
+    state.goalObjective !== undefined &&
+    goal.objective !== state.goalObjective
+  );
+}
+
+function updateCodexGoalIdentity(goal: ProviderGoalState, state: CodexMapperState): void {
+  if (goal.createdAt !== undefined) state.goalCreatedAt = goal.createdAt;
+  if (goal.objective !== undefined) state.goalObjective = goal.objective;
 }
 
 export function mapCodexNotification(
@@ -447,14 +464,16 @@ export function mapCodexNotification(
   if (method === "thread/goal/updated") {
     const goal = readCodexGoal(params);
     if (!goal) return [];
-    if (!state.goalItemId) {
+    if (!state.goalItemId || isNewCodexGoal(goal, state)) {
       state.goalItemId = newItemId("goal");
+      updateCodexGoalIdentity(goal, state);
       const payload = goalPayloadFromProviderState(
         goal,
         goal.status === "active" ? "set" : "updated",
       );
       return startGoalItemEvents(threadId, state.goalItemId, payload);
     }
+    updateCodexGoalIdentity(goal, state);
     const payload = goalPayloadFromProviderState(goal, "updated");
     return updateGoalItemEvents(threadId, state.goalItemId, payload);
   }
@@ -471,6 +490,8 @@ export function mapCodexNotification(
       "cleared",
     );
     delete state.goalItemId;
+    delete state.goalCreatedAt;
+    delete state.goalObjective;
     if (existingGoalItemId) return updateGoalItemEvents(threadId, goalItemId, payload);
     return startGoalItemEvents(threadId, goalItemId, payload);
   }

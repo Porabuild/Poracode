@@ -7,6 +7,7 @@ export interface ProviderGoalState {
   tokenBudget?: number | null;
   tokensUsed?: number;
   timeUsedSeconds?: number;
+  createdAt?: number;
   updatedAt?: number;
 }
 

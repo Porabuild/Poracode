@@ -19,6 +19,10 @@ export interface CodexMapperState {
   fileChangePathMap: Map<string, string>;
   /** Current chat item that mirrors the provider's active goal state. */
   goalItemId?: string;
+  /** Provider-created timestamp for the current goal, when reported. */
+  goalCreatedAt?: number;
+  /** Objective for the current goal, used as a fallback identity. */
+  goalObjective?: string;
   /** Current plan item sourced from `turn/plan/updated` notifications. */
   turnPlanItemId?: string;
 }
