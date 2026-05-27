@@ -3,6 +3,7 @@ import type {
   GitStatusResult,
   PrData,
   PrDetails,
+  Project,
   ProjectLocation,
   Thread,
 } from "@/shared/contracts";
@@ -11,7 +12,9 @@ import { useGitStore } from "./gitStore";
 import { buildBranchPrKey } from "./gitSelectors";
 import {
   PR_PENDING_REFRESH_INTERVAL_MS,
+  PR_POST_PUSH_STATUS_POLL_MS,
   stopPendingPrRefresh,
+  startPostPushPrStatusRefresh,
   syncPendingPrRefreshProjects,
 } from "./gitRefresh";
 
@@ -28,6 +31,13 @@ const ghGetPrDetailsMock =
   >();
 
 const location: ProjectLocation = { kind: "posix", path: "/repo" };
+
+const project: Project = {
+  id: "p1",
+  name: "Repo",
+  location,
+  createdAt: "2026-04-04T00:00:00.000Z",
+};
 
 const status: GitStatusResult = {
   isRepo: true,
@@ -120,7 +130,7 @@ describe("pending PR refresh", () => {
       prFiles: {},
       prDiffs: {},
     });
-    useAppStore.setState({ threads: [] });
+    useAppStore.setState({ projects: [project], threads: [] });
   });
 
   afterEach(() => {
@@ -208,5 +218,83 @@ describe("pending PR refresh", () => {
 
     expect(ghGetPrForBranchMock).not.toHaveBeenCalled();
     expect(ghGetPrDetailsMock).not.toHaveBeenCalled();
+  });
+
+  it("checks pushed open PR for pending status during the post-push grace period", async () => {
+    const prKey = buildBranchPrKey("p1");
+    useGitStore.getState().setStatus("p1", status);
+    useGitStore.getState().setPrData(prKey, { ...basePr, checksStatus: "SUCCESS" });
+    ghGetPrForBranchMock
+      .mockResolvedValueOnce({
+        ...basePr,
+        checksStatus: "SUCCESS",
+        updatedAt: "2026-04-04T00:00:30.000Z",
+      })
+      .mockResolvedValueOnce({
+        ...basePr,
+        checksStatus: "PENDING",
+        updatedAt: "2026-04-04T00:01:00.000Z",
+      });
+
+    startPostPushPrStatusRefresh({
+      projectId: "p1",
+      projectLocation: location,
+      prKey,
+      branch: "feature/pr-checks",
+    });
+
+    expect(ghGetPrForBranchMock).not.toHaveBeenCalled();
+
+    await vi.advanceTimersByTimeAsync(PR_POST_PUSH_STATUS_POLL_MS);
+
+    expect(ghGetPrForBranchMock).toHaveBeenCalledTimes(1);
+    expect(useGitStore.getState().prData[prKey]?.checksStatus).toBe("SUCCESS");
+
+    await vi.advanceTimersByTimeAsync(PR_POST_PUSH_STATUS_POLL_MS);
+
+    expect(ghGetPrForBranchMock).toHaveBeenCalledTimes(2);
+    expect(useGitStore.getState().prData[prKey]?.checksStatus).toBe("PENDING");
+
+    await vi.advanceTimersByTimeAsync(PR_POST_PUSH_STATUS_POLL_MS);
+
+    expect(ghGetPrForBranchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("keeps checking pushed green or red PRs for 15 seconds before stopping", async () => {
+    const prKey = buildBranchPrKey("p1");
+    useGitStore.getState().setStatus("p1", status);
+    useGitStore.getState().setPrData(prKey, { ...basePr, checksStatus: "FAILURE" });
+    ghGetPrForBranchMock
+      .mockResolvedValueOnce({
+        ...basePr,
+        checksStatus: "FAILURE",
+        updatedAt: "2026-04-04T00:00:30.000Z",
+      })
+      .mockResolvedValueOnce({
+        ...basePr,
+        checksStatus: "SUCCESS",
+        updatedAt: "2026-04-04T00:01:00.000Z",
+      })
+      .mockResolvedValueOnce({
+        ...basePr,
+        checksStatus: "SUCCESS",
+        updatedAt: "2026-04-04T00:01:30.000Z",
+      });
+
+    startPostPushPrStatusRefresh({
+      projectId: "p1",
+      projectLocation: location,
+      prKey,
+      branch: "feature/pr-checks",
+    });
+
+    await vi.advanceTimersByTimeAsync(PR_POST_PUSH_STATUS_POLL_MS * 3);
+
+    expect(ghGetPrForBranchMock).toHaveBeenCalledTimes(3);
+    expect(useGitStore.getState().prData[prKey]?.checksStatus).toBe("SUCCESS");
+
+    await vi.advanceTimersByTimeAsync(PR_POST_PUSH_STATUS_POLL_MS);
+
+    expect(ghGetPrForBranchMock).toHaveBeenCalledTimes(3);
   });
 });

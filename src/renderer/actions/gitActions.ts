@@ -1,6 +1,7 @@
 import { buildWorktreeLocation } from "@/shared/worktree";
 import { readBridge } from "@/renderer/bridge";
 import { useAppStore } from "@/renderer/state/appStore";
+import { startPostPushPrStatusRefresh } from "@/renderer/state/gitRefresh";
 import { usePanelStore } from "@/renderer/state/panelStore";
 import { usePullFromSourceDialogStore } from "@/renderer/state/pullFromSourceDialogStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
@@ -64,7 +65,16 @@ export function gitPush(projectId: string, worktreePath: string): void {
     remote: "origin",
     branch: worktreeBranch,
     setUpstream: true,
-  }).catch(captureGitActionError);
+  })
+    .then(() => {
+      startPostPushPrStatusRefresh({
+        projectId,
+        projectLocation: project.location,
+        prKey: worktreePath,
+        branch: worktreeBranch,
+      });
+    })
+    .catch(captureGitActionError);
 }
 
 export function gitPull(projectId: string, worktreePath: string): void {

@@ -21,6 +21,8 @@ const watchedWorktreePaths = new Map<string, string>();
 const activeRefreshTokens = new Map<string, symbol>();
 const GIT_REFRESH_TIMEOUT_MS = 30_000;
 export const PR_PENDING_REFRESH_INTERVAL_MS = 30_000;
+export const PR_POST_PUSH_STATUS_WAIT_MS = 15_000;
+export const PR_POST_PUSH_STATUS_POLL_MS = 5_000;
 
 const alwaysActive = () => true;
 
@@ -42,6 +44,22 @@ interface PendingPrRefreshEntry {
 
 const pendingPrRefreshEntries = new Map<string, PendingPrRefreshEntry>();
 let pendingPrRefreshActiveProjects: readonly ActiveGitProject[] = [];
+
+interface PostPushPrRefreshTarget {
+  projectId: string;
+  projectLocation: ProjectLocation;
+  prKey: string;
+  branch: string;
+}
+
+interface PostPushPrRefreshEntry {
+  target: PostPushPrRefreshTarget;
+  timeoutId: ReturnType<typeof setTimeout>;
+  attempts: number;
+  latest: PrData | null | undefined;
+}
+
+const postPushPrRefreshEntries = new Map<string, PostPushPrRefreshEntry>();
 
 function isRefreshCurrent(projectId: string, token: symbol, isActive: () => boolean): boolean {
   return isActive() && activeRefreshTokens.get(projectId) === token;
@@ -143,6 +161,79 @@ async function refreshPendingPr(key: string): Promise<void> {
   }
 }
 
+function isPostPushPrRefreshTargetActive(target: PostPushPrRefreshTarget): boolean {
+  const gitState = useGitStore.getState();
+  const pr = gitState.prData[target.prKey];
+  if (!pr || pr.state !== "open") return false;
+  const appState = useAppStore.getState();
+  if (appState.projects.length > 0 && !appState.projects.some((p) => p.id === target.projectId)) {
+    return false;
+  }
+  if (target.prKey === buildBranchPrKey(target.projectId)) {
+    return gitState.statuses[target.projectId]?.branch === target.branch;
+  }
+  return appState.threads.some(
+    (thread) =>
+      thread.projectId === target.projectId &&
+      thread.worktreePath === target.prKey &&
+      thread.worktreeBranch === target.branch,
+  );
+}
+
+async function refreshPostPushPr(key: string): Promise<void> {
+  const entry = postPushPrRefreshEntries.get(key);
+  if (!entry) return;
+  if (!isPostPushPrRefreshTargetActive(entry.target)) {
+    clearTimeout(entry.timeoutId);
+    postPushPrRefreshEntries.delete(key);
+    return;
+  }
+
+  entry.attempts += 1;
+  const pr = await readBridge()
+    .ghGetPrForBranch({
+      projectLocation: entry.target.projectLocation,
+      branch: entry.target.branch,
+    })
+    .catch(() => undefined);
+  if (postPushPrRefreshEntries.get(key) !== entry) return;
+  if (!isPostPushPrRefreshTargetActive(entry.target)) {
+    postPushPrRefreshEntries.delete(key);
+    return;
+  }
+  if (pr !== undefined) {
+    entry.latest = pr;
+    if (pr?.state === "open" && pr.checksStatus === "PENDING") {
+      useGitStore.getState().setPrData(entry.target.prKey, pr);
+      postPushPrRefreshEntries.delete(key);
+      return;
+    }
+  }
+
+  if (entry.attempts * PR_POST_PUSH_STATUS_POLL_MS >= PR_POST_PUSH_STATUS_WAIT_MS) {
+    if (entry.latest !== undefined) {
+      useGitStore.getState().setPrData(entry.target.prKey, entry.latest);
+    }
+    postPushPrRefreshEntries.delete(key);
+    return;
+  }
+
+  entry.timeoutId = setTimeout(() => void refreshPostPushPr(key), PR_POST_PUSH_STATUS_POLL_MS);
+}
+
+export function startPostPushPrStatusRefresh(target: PostPushPrRefreshTarget): void {
+  const currentPr = useGitStore.getState().prData[target.prKey];
+  if (!currentPr || currentPr.state !== "open") return;
+  const existing = postPushPrRefreshEntries.get(target.prKey);
+  if (existing) clearTimeout(existing.timeoutId);
+  postPushPrRefreshEntries.set(target.prKey, {
+    target,
+    timeoutId: setTimeout(() => void refreshPostPushPr(target.prKey), PR_POST_PUSH_STATUS_POLL_MS),
+    attempts: 0,
+    latest: undefined,
+  });
+}
+
 export function syncPendingPrRefreshProjects(activeProjects: readonly ActiveGitProject[]): void {
   pendingPrRefreshActiveProjects = activeProjects;
   const targets = buildPendingPrRefreshTargets(activeProjects);
@@ -172,6 +263,10 @@ export function stopPendingPrRefresh(): void {
     clearInterval(entry.intervalId);
   }
   pendingPrRefreshEntries.clear();
+  for (const entry of postPushPrRefreshEntries.values()) {
+    clearTimeout(entry.timeoutId);
+  }
+  postPushPrRefreshEntries.clear();
 }
 
 export function cleanupGitRefreshProjects(activeProjectIds: ReadonlySet<string>): void {
@@ -186,6 +281,11 @@ export function cleanupGitRefreshProjects(activeProjectIds: ReadonlySet<string>)
   }
   for (const projectId of activeRefreshTokens.keys()) {
     if (!activeProjectIds.has(projectId)) activeRefreshTokens.delete(projectId);
+  }
+  for (const [key, entry] of postPushPrRefreshEntries) {
+    if (activeProjectIds.has(entry.target.projectId)) continue;
+    clearTimeout(entry.timeoutId);
+    postPushPrRefreshEntries.delete(key);
   }
 }
 
