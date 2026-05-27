@@ -57,6 +57,9 @@ function makeStubbedManager(opts: {
   bootPort?: number;
   child?: FakeChild;
   spawnsRef?: { count: number };
+  onSpawn?: (
+    opts: Parameters<NonNullable<ConstructorParameters<typeof WslBridgeServer>[0]["spawn"]>>[0],
+  ) => void;
 }): { manager: WslBridgeServer; child: FakeChild } {
   const child = opts.child ?? new FakeChild();
   const bootPort = opts.bootPort ?? 54321;
@@ -71,7 +74,8 @@ function makeStubbedManager(opts: {
       source: "user-installed",
     }),
     deploy: () => ({ home: "/home/me", linuxBaseDir: "/home/me/.lightcode" }),
-    spawn: () => {
+    spawn: (childOpts) => {
+      opts.onSpawn?.(childOpts);
       if (opts.spawnsRef) opts.spawnsRef.count += 1;
       // Emit boot AFTER spawn returns so attachLineSplitter has wired the
       // listener — without this the listener would miss the chunk.
@@ -147,6 +151,42 @@ describe("WslBridgeServer", () => {
     expect(second?.hookUrl).toBe("http://127.0.0.1:1/v1/agent-event");
 
     await manager.dispose();
+  });
+
+  it("forwards Browser MCP upstream env into the in-WSL bridge", async () => {
+    const oldUrl = process.env.LIGHTCODE_BROWSER_MCP_URL;
+    const oldToken = process.env.LIGHTCODE_BROWSER_MCP_TOKEN;
+    process.env.LIGHTCODE_BROWSER_MCP_URL = "http://127.0.0.1:65093";
+    process.env.LIGHTCODE_BROWSER_MCP_TOKEN = "browser-token";
+    const helpersDir = makeHelpersDir();
+    let capturedEnv: Record<string, string> | undefined;
+    try {
+      const { manager } = makeStubbedManager({
+        helpersDir,
+        onEvent: () => undefined,
+        onSpawn: (opts) => {
+          capturedEnv = opts.env;
+        },
+      });
+
+      await manager.ensureBridge("Ubuntu");
+
+      expect(capturedEnv).toMatchObject({
+        LIGHTCODE_BROWSER_MCP_URL: "http://127.0.0.1:65093",
+        LIGHTCODE_BROWSER_MCP_TOKEN: "browser-token",
+      });
+    } finally {
+      if (oldUrl === undefined) {
+        delete process.env.LIGHTCODE_BROWSER_MCP_URL;
+      } else {
+        process.env.LIGHTCODE_BROWSER_MCP_URL = oldUrl;
+      }
+      if (oldToken === undefined) {
+        delete process.env.LIGHTCODE_BROWSER_MCP_TOKEN;
+      } else {
+        process.env.LIGHTCODE_BROWSER_MCP_TOKEN = oldToken;
+      }
+    }
   });
 
   it("returns undefined when no node runtime is available in the distro", async () => {
@@ -281,6 +321,50 @@ describe("WslBridgeServer", () => {
     const handle = await manager.ensureBridge("Ubuntu");
     expect(children).toHaveLength(2);
     expect(handle?.hookUrl).toBe("http://127.0.0.1:9002/v1/agent-event");
+
+    await manager.dispose();
+  });
+
+  it("replaces a cached bridge when the bundled helper version changes", async () => {
+    const helpersDir = mkdtempSync(join(tmpdir(), "lc-bridge-helpers-"));
+    tempDirs.push(helpersDir);
+    writeFileSync(join(helpersDir, "bridge.mjs"), `const BRIDGE_VERSION = "2.0.0";\n`, "utf8");
+
+    const children: FakeChild[] = [];
+    const manager = new WslBridgeServer({
+      helpersDir,
+      onEvent: () => undefined,
+      onError: () => undefined,
+      secret: "s",
+      protocolVersion: 1,
+      resolveNode: async () => ({
+        nodePath: "/usr/bin/node",
+        nodeVersion: "22.11.0",
+        source: "user-installed",
+      }),
+      deploy: () => ({ home: "/h", linuxBaseDir: "/h/.lightcode" }),
+      spawn: () => {
+        const child = new FakeChild();
+        const version = children.length === 0 ? "2.0.0" : "2.0.1";
+        const port = children.length === 0 ? 9100 : 9101;
+        children.push(child);
+        setImmediate(() => {
+          child.stdout.emit(
+            "data",
+            Buffer.from(JSON.stringify({ type: "boot", port, version }) + "\n"),
+          );
+        });
+        return child as never;
+      },
+    });
+
+    const first = await manager.ensureBridge("Ubuntu");
+    writeFileSync(join(helpersDir, "bridge.mjs"), `const BRIDGE_VERSION = "2.0.1";\n`, "utf8");
+    const second = await manager.ensureBridge("Ubuntu");
+
+    expect(children).toHaveLength(2);
+    expect(first?.hookUrl).toBe("http://127.0.0.1:9100/v1/agent-event");
+    expect(second?.hookUrl).toBe("http://127.0.0.1:9101/v1/agent-event");
 
     await manager.dispose();
   });

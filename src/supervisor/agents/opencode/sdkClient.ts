@@ -1,5 +1,6 @@
 import type { OpencodeClient } from "@opencode-ai/sdk/v2/client";
 import type { ProjectLocation } from "@/shared/contracts";
+import type { BrowserMcpHttpConfig } from "@/supervisor/agents/browserMcp";
 import { resolveAgentBinaryPath } from "../binaryResolver";
 import { BROWSER_MCP_SERVER_NAME } from "../browserMcp";
 import { buildOpenCodeServerCommand } from "./argv";
@@ -100,6 +101,7 @@ async function spawnAndWire(projectLocation: ProjectLocation): Promise<ServerSna
 export interface AcquireOpenCodeServerInput {
   projectLocation: ProjectLocation;
   browserMcpEnabled?: boolean;
+  browserMcp?: BrowserMcpHttpConfig;
   /**
    * If set, the server stays alive for this many milliseconds after the last
    * release before being torn down. A re-acquire within the window reuses the
@@ -110,7 +112,7 @@ export interface AcquireOpenCodeServerInput {
 }
 
 async function syncBrowserMcp(
-  input: Pick<AcquireOpenCodeServerInput, "projectLocation" | "browserMcpEnabled">,
+  input: Pick<AcquireOpenCodeServerInput, "projectLocation" | "browserMcpEnabled" | "browserMcp">,
   client: OpencodeClient,
 ): Promise<void> {
   const directory = resolveOpenCodeSessionDirectory(input.projectLocation);
@@ -122,7 +124,7 @@ async function syncBrowserMcp(
     return;
   }
 
-  const servers = buildOpenCodeBrowserMcp(input.projectLocation);
+  const servers = buildOpenCodeBrowserMcp(input.projectLocation, input.browserMcp);
   const browser = servers?.[BROWSER_MCP_SERVER_NAME];
   if (!browser) return;
 

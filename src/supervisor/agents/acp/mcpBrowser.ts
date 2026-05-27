@@ -1,6 +1,7 @@
 import {
   BROWSER_MCP_SERVER_NAME,
   resolveBrowserMcpHttpConfig,
+  type BrowserMcpHttpConfig,
   type BrowserMcpLocation,
 } from "@/supervisor/agents/browserMcp";
 
@@ -27,9 +28,11 @@ export interface AcpHttpMcpServer {
 export function buildAcpBrowserMcpServers(
   location: BrowserMcpLocation,
   enabled: boolean,
+  browserMcp?: BrowserMcpHttpConfig,
 ): AcpHttpMcpServer[] {
   if (!enabled) return [];
-  const cfg = resolveBrowserMcpHttpConfig(location);
+  if (location.kind === "wsl" && !browserMcp) return [];
+  const cfg = browserMcp ?? resolveBrowserMcpHttpConfig(location);
   if (!cfg) return [];
   return [
     {

@@ -1,4 +1,5 @@
 import { dirname as posixDirname } from "node:path/posix";
+import type { BrowserMcpHttpConfig } from "@/supervisor/agents/browserMcp";
 import type { ProjectLocation, SessionRef, ThreadConfig } from "@/shared/contracts";
 import {
   batchWslCommands,
@@ -14,7 +15,7 @@ import {
   parseCodexVersionLine,
   probeCodexCliSemver,
 } from "./plugin/install";
-import { buildCodexBrowserMcpArgs } from "./mcpBrowser";
+import { buildCodexBrowserMcpArgs, buildCodexBrowserMcpEnv } from "./mcpBrowser";
 
 const DEFAULT_WSL_EXEC_PATH = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin";
 const CODEX_GOALS_FEATURE_FLAG = "goals";
@@ -48,7 +49,9 @@ function buildCodexArgs(opts: BuildCodexArgsOptions): string[] {
   );
 
   if (location) {
-    args.push(...buildCodexBrowserMcpArgs(location, config.browserMcp === true));
+    args.push(
+      ...buildCodexBrowserMcpArgs(location, config.browserMcp === true, launchOptions?.browserMcp),
+    );
   }
 
   if (!launchOptions?.suppressResumeConfigOverrides) {
@@ -83,6 +86,7 @@ export function buildCodexArgvFor(
   sessionRef?: SessionRef,
   launchOptions?: AgentLaunchOptions,
 ): AgentArgvSpec {
+  const browserMcpEnv = buildCodexBrowserMcpEnv(launchOptions?.browserMcp);
   const enableGoals = isCodexGoalsSupported(location);
   const baseArgsOptions: BuildCodexArgsOptions = {
     config,
@@ -103,7 +107,11 @@ export function buildCodexArgvFor(
           ...(prompt.trim().length > 0 ? [prompt] : []),
         ]
       : baseArgs;
-    return { binary: "codex", args };
+    return {
+      binary: "codex",
+      args,
+      ...(browserMcpEnv ? { env: browserMcpEnv } : {}),
+    };
   }
 
   const codexArgs = buildCodexArgs({ ...baseArgsOptions, prompt });
@@ -116,7 +124,11 @@ export function buildCodexArgvFor(
       ]
     : codexArgs;
 
-  return { binary: "codex", args };
+  return {
+    binary: "codex",
+    args,
+    ...(browserMcpEnv ? { env: browserMcpEnv } : {}),
+  };
 }
 
 export function buildCodexAppServerCommand(
@@ -125,11 +137,17 @@ export function buildCodexAppServerCommand(
     wslExecPath?: string;
     wslNodePath?: string;
     browserMcpEnabled?: boolean;
+    browserMcp?: BrowserMcpHttpConfig;
   },
 ): CommandSpec {
   const wslExecPath = options?.wslExecPath;
   const wslNodePath = options?.wslNodePath;
-  const browserMcpArgs = buildCodexBrowserMcpArgs(location, options?.browserMcpEnabled === true);
+  const browserMcpArgs = buildCodexBrowserMcpArgs(
+    location,
+    options?.browserMcpEnabled === true,
+    options?.browserMcp,
+  );
+  const browserMcpEnv = buildCodexBrowserMcpEnv(options?.browserMcp);
   const args = [
     ...(isCodexGoalsSupported(location, wslExecPath) ? ["--enable", CODEX_GOALS_FEATURE_FLAG] : []),
     ...browserMcpArgs,
@@ -151,12 +169,15 @@ export function buildCodexAppServerCommand(
         "--",
         "/usr/bin/env",
         `PATH=${pathSegments.join(":")}`,
+        ...(browserMcpEnv
+          ? Object.entries(browserMcpEnv).map(([name, value]) => `${name}=${value}`)
+          : []),
         wslExecPath ?? "codex",
         ...args,
       ],
     };
   }
-  return buildAgentCommand(location, "codex", args, wslExecPath);
+  return buildAgentCommand(location, "codex", args, wslExecPath, browserMcpEnv);
 }
 
 function isCodexGoalsSupported(location: ProjectLocation, executablePath?: string): boolean {

@@ -22,6 +22,7 @@ import {
   installGeminiPlugin,
   isGeminiPluginInstalled,
   readBundledGeminiPluginVersion,
+  syncGeminiBrowserMcpSettings,
 } from "./plugin/install";
 import { detectGeminiInvalidSessionRef } from "./session";
 import { detectGeminiTerminalStatus } from "./terminal";
@@ -77,6 +78,7 @@ export function createGeminiAdapter(): AgentAdapter {
       return { ok: true, version: result.version };
     },
     async pluginLaunchExtras(ctx) {
+      syncGeminiBrowserMcpSettings(ctx, ctx.browserMcp);
       const paths = getGeminiPluginPaths(ctx);
       return { env: { GEMINI_CLI_SYSTEM_SETTINGS_PATH: paths.settingsPath } };
     },

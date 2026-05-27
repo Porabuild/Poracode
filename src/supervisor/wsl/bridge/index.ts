@@ -61,6 +61,7 @@ export interface BridgeHandle {
 interface BridgeState {
   child: ChildProcess;
   handle: BridgeHandle;
+  version?: string;
 }
 
 const DEFAULT_BOOT_TIMEOUT_MS = 10_000;
@@ -124,13 +125,34 @@ export class WslBridgeServer {
     if (this.isDisposed) return undefined;
     const existing = this.bridges.get(distro);
     if (existing) {
-      if (isLightcodeHookDebug()) {
-        console.log("[supervisor] hook-debug: WSL bridge (cached)", {
-          distro,
-          baseUrl: existing.handle.baseUrl,
-        });
+      const helpersDir = this.options.helpersDir ?? resolveWslHelpersDir();
+      const expectedVersion = helpersDir
+        ? readBundledHelperVersion("bridge.mjs", "BRIDGE_VERSION", helpersDir)
+        : undefined;
+      if (expectedVersion && existing.version && existing.version !== expectedVersion) {
+        if (isLightcodeHookDebug()) {
+          console.log("[supervisor] hook-debug: WSL bridge cached version mismatch, restarting", {
+            distro,
+            expected: expectedVersion,
+            actual: existing.version,
+          });
+        }
+        this.bridges.delete(distro);
+        this.disposed.add(existing);
+        try {
+          terminateChildProcessTree(existing.child);
+        } catch {
+          // best effort
+        }
+      } else {
+        if (isLightcodeHookDebug()) {
+          console.log("[supervisor] hook-debug: WSL bridge (cached)", {
+            distro,
+            baseUrl: existing.handle.baseUrl,
+          });
+        }
+        return existing.handle;
       }
-      return existing.handle;
     }
     const inFlight = this.inFlight.get(distro);
     if (inFlight) return inFlight;
@@ -323,6 +345,12 @@ export class WslBridgeServer {
       env: {
         LIGHTCODE_HOOK_SECRET: this.options.secret,
         LIGHTCODE_HOOK_PROTOCOL_VERSION: String(this.options.protocolVersion),
+        ...(process.env.LIGHTCODE_BROWSER_MCP_URL
+          ? { LIGHTCODE_BROWSER_MCP_URL: process.env.LIGHTCODE_BROWSER_MCP_URL }
+          : {}),
+        ...(process.env.LIGHTCODE_BROWSER_MCP_TOKEN
+          ? { LIGHTCODE_BROWSER_MCP_TOKEN: process.env.LIGHTCODE_BROWSER_MCP_TOKEN }
+          : {}),
       },
       stderr: "ignore",
       onLine,
@@ -432,7 +460,11 @@ export class WslBridgeServer {
         actual: reportedVersion,
       });
     }
-    this.bridges.set(distro, { child, handle });
+    this.bridges.set(distro, {
+      child,
+      handle,
+      ...(reportedVersion ? { version: reportedVersion } : {}),
+    });
     return handle;
   }
 }

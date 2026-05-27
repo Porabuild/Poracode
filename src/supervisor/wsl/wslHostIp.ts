@@ -1,15 +1,16 @@
+import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
+import { getWslCommand } from "@/supervisor/agents/base/shellBasics";
 
 /**
  * Resolve the Windows-host IP as seen from inside the given WSL distro.
  *
- * WSL2 puts the host's loopback behind a gateway: the distro's
- * `/etc/resolv.conf` first nameserver line is the gateway IP. We read that
- * via the `\\wsl.localhost\<distro>\etc\resolv.conf` UNC path (Node's `fs`
- * reads UNC paths natively — no `wsl.exe` round-trip needed).
+ * WSL2 puts the host's loopback behind the distro's default gateway. Prefer
+ * the route table because DNS tunneling can put a non-routable resolver in
+ * `/etc/resolv.conf`; fall back to the first nameserver for older setups.
  *
  * Returns null when the distro is unreachable, resolv.conf is missing, or
- * the file doesn't expose a usable nameserver. Callers should fall back to
+ * neither source exposes a usable address. Callers should fall back to
  * `127.0.0.1` (which still works for native projects).
  */
 const cache = new Map<
@@ -18,28 +19,52 @@ const cache = new Map<
 >();
 const CACHE_TTL_MS = 5 * 60 * 1000;
 
+function isUsableHostAddress(value: string | undefined): value is string {
+  return Boolean(value && value !== "127.0.0.1" && value !== "::1");
+}
+
+function resolveWslDefaultGateway(distro: string): string | null {
+  const result = spawnSync(
+    getWslCommand(),
+    ["-d", distro, "--", "ip", "route", "show", "default"],
+    {
+      encoding: "utf8",
+      shell: false,
+      windowsHide: true,
+      timeout: 3000,
+    },
+  );
+  if (result.status !== 0) return null;
+  for (const line of `${result.stdout ?? ""}`.split(/\r?\n/)) {
+    const m = line.match(/^\s*default\s+via\s+(\S+)\s/u);
+    if (isUsableHostAddress(m?.[1])) return m[1];
+  }
+  return null;
+}
+
+function resolveWslNameserver(distro: string): string | null {
+  let raw: string;
+  try {
+    raw = readFileSync(`\\\\wsl.localhost\\${distro}\\etc\\resolv.conf`, "utf8");
+  } catch {
+    return null;
+  }
+  for (const line of raw.split(/\r?\n/)) {
+    const m = line.match(/^\s*nameserver\s+(\S+)\s*$/u);
+    if (isUsableHostAddress(m?.[1])) return m[1];
+  }
+  return null;
+}
+
 export function resolveWslHostIp(distro: string): string | null {
   if (!distro) return null;
   const cached = cache.get(distro);
   if (cached && Date.now() - cached.capturedAt < CACHE_TTL_MS) {
     return cached.ip;
   }
-  let raw: string;
-  try {
-    raw = readFileSync(`\\\\wsl.localhost\\${distro}\\etc\\resolv.conf`, "utf8");
-  } catch {
-    cache.set(distro, { ip: null, capturedAt: Date.now() });
-    return null;
-  }
-  for (const line of raw.split(/\r?\n/)) {
-    const m = line.match(/^\s*nameserver\s+(\S+)\s*$/);
-    if (m && m[1] && m[1] !== "127.0.0.1" && m[1] !== "::1") {
-      cache.set(distro, { ip: m[1], capturedAt: Date.now() });
-      return m[1];
-    }
-  }
-  cache.set(distro, { ip: null, capturedAt: Date.now() });
-  return null;
+  const ip = resolveWslDefaultGateway(distro) ?? resolveWslNameserver(distro);
+  cache.set(distro, { ip, capturedAt: Date.now() });
+  return ip;
 }
 
 export function rewriteUrlForWsl(url: string, distro: string): string {

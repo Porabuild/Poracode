@@ -405,10 +405,15 @@ export class OpencodeSdkSession implements StructuredSessionHandle {
 
     try {
       const browserMcpEnabled = isOpenCodeBrowserMcpEnabled(this.input.agentSettings);
-      syncOpenCodeBrowserMcpConfigFile(this.input.projectLocation, browserMcpEnabled);
+      syncOpenCodeBrowserMcpConfigFile(
+        this.input.projectLocation,
+        browserMcpEnabled,
+        this.input.browserMcp,
+      );
       this.acquired = await acquireOpenCodeServer({
         projectLocation: this.input.projectLocation,
         browserMcpEnabled,
+        ...(this.input.browserMcp !== undefined ? { browserMcp: this.input.browserMcp } : {}),
       });
     } catch (cause) {
       // Surface server-startup failures (sandbox blocks, ENOENT, port races,

@@ -60,6 +60,7 @@ import type {
   ThreadServerRequestId,
   ThreadStatus,
 } from "@/shared/contracts";
+import type { BrowserMcpHttpConfig } from "@/supervisor/agents/browserMcp";
 import { areAgentSlashCommandsEqual, isThreadConfigEqual } from "@/shared/contracts";
 import { buildPromptContentBlocks } from "@/shared/promptContent";
 import {
@@ -439,6 +440,7 @@ export interface AcpStructuredSessionOptions {
    * provider-agnostic.
    */
   sessionUpdateTransform?: (notification: SessionNotification) => SessionNotification;
+  browserMcp?: BrowserMcpHttpConfig;
 }
 
 export class AcpStructuredSession implements StructuredSessionHandle {
@@ -453,6 +455,7 @@ export class AcpStructuredSession implements StructuredSessionHandle {
   private readonly connection: ClientSideConnection;
   private readonly cwd: string;
   private readonly projectLocation: ProjectLocation;
+  private readonly browserMcp: BrowserMcpHttpConfig | undefined;
   /** Lightcode thread id (stable identifier we report in RuntimeEvents). */
   private readonly threadId: string;
   private readonly stderrChunks: string[] = [];
@@ -535,6 +538,7 @@ export class AcpStructuredSession implements StructuredSessionHandle {
     if (options?.sessionUpdateTransform) {
       this.sessionUpdateTransform = options.sessionUpdateTransform;
     }
+    this.browserMcp = options?.browserMcp;
   }
 
   private shouldAutoApproveSyntheticPermissionRequest(): boolean {
@@ -923,6 +927,11 @@ export class AcpStructuredSession implements StructuredSessionHandle {
     let configOptions: unknown[] = [];
     this.currentConfig = undefined;
     this.currentSlashCommands = undefined;
+    const mcpServers = await buildAcpBrowserMcpServers(
+      this.projectLocation,
+      config.browserMcp === true,
+      this.browserMcp,
+    );
 
     if (sessionRef) {
       if (this.agentSessionCapabilities?.resume !== undefined) {
@@ -931,7 +940,7 @@ export class AcpStructuredSession implements StructuredSessionHandle {
           const result = await this.connection.resumeSession({
             sessionId: sessionRef.providerSessionId,
             cwd: this.cwd,
-            mcpServers: buildAcpBrowserMcpServers(this.projectLocation, config.browserMcp === true),
+            mcpServers,
           });
           this.adoptSessionRef(sessionRef);
           availableModeIds = result.modes?.availableModes?.map((m) => m.id) ?? [];
@@ -947,7 +956,7 @@ export class AcpStructuredSession implements StructuredSessionHandle {
           const result = await this.connection.loadSession({
             sessionId: sessionRef.providerSessionId,
             cwd: this.cwd,
-            mcpServers: buildAcpBrowserMcpServers(this.projectLocation, config.browserMcp === true),
+            mcpServers,
           });
           this.adoptSessionRef(sessionRef);
           availableModeIds = result.modes?.availableModes?.map((m) => m.id) ?? [];
@@ -963,7 +972,7 @@ export class AcpStructuredSession implements StructuredSessionHandle {
       console.log("[acp] creating new session in", this.cwd);
       const result = await this.connection.newSession({
         cwd: this.cwd,
-        mcpServers: buildAcpBrowserMcpServers(this.projectLocation, config.browserMcp === true),
+        mcpServers,
       });
       this.sessionId = result.sessionId;
       this.stableSessionRef = createKnownSessionRef(result.sessionId);
@@ -1755,6 +1764,7 @@ export function createAcpStructuredSession(
     ...(input.acpSessionUpdateTransform
       ? { sessionUpdateTransform: input.acpSessionUpdateTransform }
       : {}),
+    ...(input.browserMcp !== undefined ? { browserMcp: input.browserMcp } : {}),
   });
 }
 

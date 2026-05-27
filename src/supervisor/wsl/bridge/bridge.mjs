@@ -51,7 +51,7 @@ import { isAbsolute, normalize, resolve as resolvePath } from "node:path/posix";
 import { createRequire } from "node:module";
 
 // Bumped on every behavioural change. Windows side reads this via regex.
-const BRIDGE_VERSION = "2.8.2";
+const BRIDGE_VERSION = "2.9.1";
 
 /**
  * Lazily loads `@parcel/watcher` (staged next to this script as
@@ -78,10 +78,12 @@ function loadParcelWatcher() {
 const PROTOCOL_VERSION = Number(process.env.LIGHTCODE_HOOK_PROTOCOL_VERSION ?? "1") || 1;
 const SECRET = process.env.LIGHTCODE_HOOK_SECRET;
 const HOOK_PATH = "/v1/agent-event";
+const MCP_PATH = "/mcp";
 const MAX_HOOK_BODY_BYTES = 64 * 1024;
 // Large enough for a ~1MB editable file after base64 expansion (+33%) plus
 // JSON framing. Hard cap — anything larger should use a streaming transport.
 const MAX_FS_BODY_BYTES = 2 * 1024 * 1024;
+const MAX_MCP_BODY_BYTES = 1024 * 1024;
 const MAX_FIND_ENTRIES = 50_000;
 const MAX_GIT_COMMANDS = 256;
 const MAX_GIT_TIMEOUT_MS = 300_000;
@@ -147,6 +149,39 @@ function readBody(req, maxBytes) {
     });
     req.on("error", reject);
   });
+}
+
+function resolveDefaultGateway() {
+  try {
+    const out = execFileSync("ip", ["route", "show", "default"], {
+      encoding: "utf8",
+      timeout: 3000,
+    });
+    for (const line of String(out ?? "").split(/\r?\n/)) {
+      const m = line.match(/^\s*default\s+via\s+(\S+)\s/u);
+      if (m?.[1] && m[1] !== "127.0.0.1" && m[1] !== "::1") return m[1];
+    }
+  } catch {
+    // fall through
+  }
+  return null;
+}
+
+function resolveBrowserMcpUpstreamUrl() {
+  const raw = process.env.LIGHTCODE_BROWSER_MCP_URL;
+  if (!raw) return null;
+  let parsed;
+  try {
+    parsed = new URL(raw);
+  } catch {
+    return null;
+  }
+  if (parsed.hostname === "127.0.0.1" || parsed.hostname === "localhost") {
+    const gateway = resolveDefaultGateway();
+    if (gateway) parsed.hostname = gateway;
+  }
+  parsed.pathname = `${parsed.pathname.replace(/\/$/, "")}/mcp`;
+  return parsed.toString();
 }
 
 function validateEnvelope(json) {
@@ -979,6 +1014,91 @@ async function handleHook(req, res) {
   emit({ type: "event", payload: envelope });
 }
 
+async function handleMcpProxy(req, res) {
+  if (req.method === "OPTIONS") {
+    res.statusCode = 204;
+    res.setHeader(
+      "Access-Control-Allow-Headers",
+      "Authorization, X-Lightcode-Token, Content-Type, Mcp-Session-Id",
+    );
+    res.setHeader("Access-Control-Allow-Methods", "POST, GET, OPTIONS");
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.end();
+    return;
+  }
+  if (req.method === "GET") {
+    res.statusCode = 405;
+    res.setHeader("Allow", "POST");
+    res.end();
+    return;
+  }
+  if (req.method !== "POST") {
+    respond(res, 405, { error: "method not allowed" });
+    return;
+  }
+
+  const upstreamUrl = resolveBrowserMcpUpstreamUrl();
+  const upstreamToken = process.env.LIGHTCODE_BROWSER_MCP_TOKEN;
+  if (!upstreamUrl || !upstreamToken) {
+    respond(res, 503, {
+      jsonrpc: "2.0",
+      id: null,
+      error: { code: -32000, message: "browser MCP upstream unavailable" },
+    });
+    return;
+  }
+
+  let body;
+  try {
+    body = await readBody(req, MAX_MCP_BODY_BYTES);
+  } catch (err) {
+    respond(res, String(err?.message ?? err) === "payload_too_large" ? 413 : 500, {
+      jsonrpc: "2.0",
+      id: null,
+      error: { code: -32000, message: "browser MCP proxy request failed" },
+    });
+    return;
+  }
+
+  const headers = {
+    authorization: `Bearer ${upstreamToken}`,
+    "content-type": req.headers["content-type"] ?? "application/json",
+  };
+  const sessionId = req.headers["mcp-session-id"];
+  if (typeof sessionId === "string") {
+    headers["mcp-session-id"] = sessionId;
+  } else if (Array.isArray(sessionId) && typeof sessionId[0] === "string") {
+    headers["mcp-session-id"] = sessionId[0];
+  }
+
+  let upstream;
+  try {
+    upstream = await fetch(upstreamUrl, {
+      method: "POST",
+      headers,
+      body,
+    });
+  } catch (err) {
+    respond(res, 502, {
+      jsonrpc: "2.0",
+      id: null,
+      error: {
+        code: -32000,
+        message: `browser MCP upstream request failed: ${String(err?.message ?? err)}`,
+      },
+    });
+    return;
+  }
+
+  res.statusCode = upstream.status;
+  for (const name of ["content-type", "cache-control", "mcp-session-id"]) {
+    const value = upstream.headers.get(name);
+    if (value) res.setHeader(name, value);
+  }
+  const buffer = Buffer.from(await upstream.arrayBuffer());
+  res.end(buffer);
+}
+
 async function handleFs(req, res, handler) {
   let body;
   try {
@@ -1009,6 +1129,17 @@ async function handleFs(req, res, handler) {
 }
 
 const server = createServer(async (req, res) => {
+  const url = req.url ?? "";
+  const pathOnly = url.split("?")[0];
+  if (pathOnly === MCP_PATH || pathOnly === `${MCP_PATH}/`) {
+    const auth = req.headers["authorization"];
+    if (req.method !== "OPTIONS" && (typeof auth !== "string" || auth !== `Bearer ${SECRET}`)) {
+      respondErr(res, 401, "EAUTH", "unauthorized");
+      return;
+    }
+    await handleMcpProxy(req, res);
+    return;
+  }
   if (req.method !== "POST") {
     respondErr(res, 405, "EMETHOD", "method_not_allowed");
     return;
@@ -1018,12 +1149,10 @@ const server = createServer(async (req, res) => {
     respondErr(res, 401, "EAUTH", "unauthorized");
     return;
   }
-  const url = req.url ?? "";
   if (url.startsWith(HOOK_PATH)) {
     await handleHook(req, res);
     return;
   }
-  const pathOnly = url.split("?")[0];
   const fsHandler = FS_ROUTES.get(pathOnly);
   if (fsHandler) {
     await handleFs(req, res, fsHandler);

@@ -2,6 +2,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { toWslUncPath } from "@/shared/wsl";
+import type { BrowserMcpHttpConfig } from "@/supervisor/agents/browserMcp";
 import { buildGeminiBrowserMcpServers } from "../mcpBrowser";
 import type { AgentEnvContext } from "../../base";
 import {
@@ -133,6 +134,37 @@ export function getGeminiPluginPaths(ctx?: AgentEnvContext): GeminiPluginPaths {
   return geminiPluginPathsMemo.call(ctx);
 }
 
+function resolveSettingsWritePath(ctx: AgentEnvContext | undefined, settingsPath: string): string {
+  return isWslPluginContext(ctx) ? toWslUncPath(ctx.wslDistro, settingsPath) : settingsPath;
+}
+
+export function syncGeminiBrowserMcpSettings(
+  ctx: AgentEnvContext | undefined,
+  browserMcp?: BrowserMcpHttpConfig,
+): void {
+  if (ctx?.browserMcpEnabled === undefined) return;
+  const paths = getGeminiPluginPaths(ctx);
+  if (!paths.settingsPath) return;
+  const settingsPath = resolveSettingsWritePath(ctx, paths.settingsPath);
+  try {
+    const settings = JSON.parse(readFileSync(settingsPath, "utf8")) as GeminiSettings;
+    if (ctx.browserMcpEnabled && browserMcp) {
+      const location = isWslPluginContext(ctx)
+        ? ({ kind: "wsl", distro: ctx.wslDistro } as const)
+        : process.platform === "win32"
+          ? ({ kind: "windows" } as const)
+          : ({ kind: "posix" } as const);
+      const servers = buildGeminiBrowserMcpServers(location, browserMcp);
+      if (servers) settings.mcpServers = servers;
+    } else {
+      delete settings.mcpServers;
+    }
+    writeFileSync(settingsPath, `${JSON.stringify(settings, null, 2)}\n`, "utf8");
+  } catch {
+    // Best-effort; stale settings should not block thread launch.
+  }
+}
+
 export interface InstallGeminiPluginOptions {
   /**
    * Absolute path to the Node binary the staged hook command should use.
@@ -171,7 +203,13 @@ export function installGeminiPlugin(
           "WSL Gemini plugin install requires a resolved node path; the adapter must call resolveNodeForDistro before installing.",
       };
     }
-    return installGeminiPluginWsl(ctx.wslDistro, sourceDir, manifest, options.resolvedNodePath);
+    return installGeminiPluginWsl(
+      ctx.wslDistro,
+      sourceDir,
+      manifest,
+      options.resolvedNodePath,
+      ctx.browserMcp,
+    );
   }
 
   const pluginDir = getNativePluginBaseDir("gemini", ctx?.baseDir);
@@ -184,7 +222,7 @@ export function installGeminiPlugin(
 
   const settingsPath = join(pluginDir, "settings.json");
   const nativeCommands = buildNativeHookCommandHeads(wrapperPath);
-  const browserMcpServers = buildGeminiBrowserMcpServers({ kind: "windows" });
+  const browserMcpServers = buildGeminiBrowserMcpServers({ kind: "windows" }, ctx?.browserMcp);
   const settings = renderGeminiSettings({
     headExpression: nativeCommands.command,
     ...(browserMcpServers ? { mcpServers: browserMcpServers } : {}),
@@ -207,6 +245,7 @@ function installGeminiPluginWsl(
   sourceDir: string,
   manifest: PluginManifest,
   resolvedNodePath: string,
+  browserMcp?: BrowserMcpHttpConfig,
 ): { ok: true; paths: GeminiPluginPaths; version: string } | { ok: false; reason: string } {
   const staged = stagePluginAssetsToWsl(distro, sourceDir, "gemini", {
     includeForwardRuntime: true,
@@ -221,7 +260,7 @@ function installGeminiPluginWsl(
 
   try {
     mkdirSync(dirname(uncSettingsPath), { recursive: true });
-    const browserMcpServers = buildGeminiBrowserMcpServers({ kind: "wsl", distro });
+    const browserMcpServers = buildGeminiBrowserMcpServers({ kind: "wsl", distro }, browserMcp);
     const settings = renderGeminiSettings({
       headExpression,
       ...(browserMcpServers ? { mcpServers: browserMcpServers } : {}),

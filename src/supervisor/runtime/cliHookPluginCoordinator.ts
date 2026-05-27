@@ -11,6 +11,7 @@ import {
   type AgentEnvContext,
   type AgentCliHookPluginSupport,
 } from "../agents/base";
+import type { BrowserMcpHttpConfig } from "../agents/browserMcp";
 import type { WslBridgeServer } from "../wsl/bridge";
 import { isLightcodeHookDebug } from "./hookDebug";
 import { HookIngress, type HookIngressBootInfo } from "./hookIngress";
@@ -178,6 +179,8 @@ export class CliHookPluginCoordinator {
     threadId: string;
     agentKind: AgentKind;
     projectLocation?: ProjectLocation;
+    browserMcpEnabled?: boolean;
+    browserMcp?: BrowserMcpHttpConfig;
   }): Promise<{ env: Record<string, string>; extraArgs: string[] } | undefined> {
     // The `disableCliHookPlugin` dev toggle is handled in the supervisor's
     // hook dispatcher (envelopes are dropped on receive). Install, launch
@@ -199,6 +202,8 @@ export class CliHookPluginCoordinator {
     }
 
     const ctx = this.envContext(input.agentKind, input.projectLocation);
+    if (input.browserMcpEnabled !== undefined) ctx.browserMcpEnabled = input.browserMcpEnabled;
+    if (input.browserMcp) ctx.browserMcp = input.browserMcp;
     const outcome = await this.ensureInstalled(adapter, slice, ctx);
     if (!outcome.ok) {
       return undefined;

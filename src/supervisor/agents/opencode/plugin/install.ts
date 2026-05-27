@@ -12,8 +12,10 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { ProjectLocation } from "@/shared/contracts";
 import { toWslUncPath } from "@/shared/wsl";
+import type { BrowserMcpHttpConfig } from "@/supervisor/agents/browserMcp";
 import type { AgentEnvContext } from "../../base";
 import { resolveWslHomeDirectory } from "../../base";
+import { BROWSER_MCP_SERVER_NAME } from "../../browserMcp";
 import {
   copyPluginAssetsIfStale,
   createPluginSourceResolver,
@@ -26,7 +28,6 @@ import {
   type PluginManifest,
 } from "../../plugin/installerBase";
 import { buildOpenCodeBrowserMcp } from "../mcpBrowser";
-import { BROWSER_MCP_SERVER_NAME } from "../../browserMcp";
 
 /**
  * OpenCode plugin installer.
@@ -473,20 +474,21 @@ function updateOpenCodeConfigFile(configPath: string, servers: BrowserMcpServers
 export function syncOpenCodeBrowserMcpConfigFile(
   location: ProjectLocation,
   enabled: boolean,
+  browserMcp?: BrowserMcpHttpConfig,
 ): void {
   if (location.kind === "wsl") {
     const cfgDir = resolveOpenCodeWslConfigDir(location.distro);
     if (!cfgDir) return;
     updateOpenCodeConfigFile(
       `${cfgDir.uncDir}\\${OPENCODE_CONFIG_FILE_NAME}`,
-      enabled ? buildOpenCodeBrowserMcp(location) : undefined,
+      enabled ? buildOpenCodeBrowserMcp(location, browserMcp) : undefined,
     );
     return;
   }
 
   updateOpenCodeConfigFile(
     join(resolveOpenCodeNativeConfigDir(), OPENCODE_CONFIG_FILE_NAME),
-    enabled ? buildOpenCodeBrowserMcp(location) : undefined,
+    enabled ? buildOpenCodeBrowserMcp(location, browserMcp) : undefined,
   );
 }
 

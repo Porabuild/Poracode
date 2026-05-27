@@ -380,6 +380,7 @@ export class SupervisorRuntime {
       readDisableCliHookPlugin: () => this.sharedSettingsCache.read().disableCliHookPlugin,
       adapters: this.adapters,
       windowsShell: this.windowsShell,
+      ...(this.wslHookBridge ? { wslBridge: this.wslHookBridge } : {}),
       resolvePluginEnvForSpawn: (input) =>
         this.cliHookPluginCoordinator.resolvePluginEnvForSpawn(input),
     });

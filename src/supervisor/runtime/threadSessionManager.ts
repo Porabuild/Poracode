@@ -32,6 +32,10 @@ import {
 import { buildPromptContentBlocks } from "@/shared/promptContent";
 import { terminateProcessTree } from "@/shared/processTree";
 import {
+  resolveBrowserMcpHttpConfigForLaunch,
+  type BrowserMcpHttpConfig,
+} from "@/supervisor/agents/browserMcp";
+import {
   type AgentAdapter,
   type AgentLaunchOptions,
   type CommandSpec,
@@ -91,7 +95,12 @@ export interface ThreadSessionManagerOptions {
     threadId: string;
     agentKind: AgentKind;
     projectLocation: ProjectLocation;
+    browserMcpEnabled?: boolean;
+    browserMcp?: BrowserMcpHttpConfig;
   }): Promise<{ env: Record<string, string>; extraArgs: string[] } | undefined>;
+  wslBridge?: {
+    ensureBridge(distro: string): Promise<{ baseUrl: string; secret: string } | undefined>;
+  };
 }
 
 function shouldPrimeNativeProjectShellEnv(
@@ -855,6 +864,8 @@ export class ThreadSessionManager {
     threadId: string,
     agentKind: AgentKind,
     projectLocation: ProjectLocation,
+    config: ThreadConfig,
+    browserMcp: BrowserMcpHttpConfig | undefined,
   ): Promise<{ env: Record<string, string>; extraArgs: string[] }> {
     const adapter = this.options.adapters.get(agentKind);
     const liveInputMode = adapter?.capabilities.liveInputMode ?? "terminal";
@@ -875,6 +886,8 @@ export class ThreadSessionManager {
         threadId,
         agentKind,
         projectLocation,
+        browserMcpEnabled: this.isBrowserMcpEnabledForLaunch(adapter, config),
+        ...(browserMcp !== undefined ? { browserMcp } : {}),
       });
       const merged = resolved ?? { env: {}, extraArgs: [] };
       const hookUrl = merged.env.LIGHTCODE_HOOK_URL;
@@ -1043,12 +1056,18 @@ export class ThreadSessionManager {
       await primeProjectShellEnv(payload.projectLocation.path);
     }
 
+    const browserMcp = await this.resolveBrowserMcpForLaunch(
+      adapter,
+      payload.projectLocation,
+      payload.config,
+    );
     const structuredSession = await this.createStructuredSession(
       adapter,
       payload.threadId,
       payload.agentKind,
       payload.projectLocation,
       payload.config,
+      browserMcp,
       payload.sessionRef,
       requestedPresentation,
     );
@@ -1177,20 +1196,21 @@ export class ThreadSessionManager {
       adapter,
       structuredSession?.launchOptions,
     );
+    const launchOptionsWithBrowserMcp = this.launchOptionsWithBrowserMcp(launchOptions, browserMcp);
     const argv = payload.sessionRef
       ? adapter.buildResumeArgv(
           payload.projectLocation,
           payload.config,
           launchPrompt,
           payload.sessionRef,
-          launchOptions,
+          launchOptionsWithBrowserMcp,
         )
       : adapter.buildLaunchArgv(
           payload.projectLocation,
           payload.config,
           launchPrompt,
           payload.sessionRef,
-          launchOptions,
+          launchOptionsWithBrowserMcp,
         );
 
     // Append CLI hook plugin args (e.g. Claude `--settings <path>`); env vars
@@ -1204,6 +1224,8 @@ export class ThreadSessionManager {
       payload.threadId,
       payload.agentKind,
       payload.projectLocation,
+      payload.config,
+      browserMcp,
     );
     if (cliHookExtras.extraArgs.length > 0) {
       argv.args = this.mergeCliHookExtraArgs(
@@ -1267,6 +1289,7 @@ export class ThreadSessionManager {
     agentKind: AgentKind,
     projectLocation: ProjectLocation,
     config: ThreadConfig,
+    browserMcp: BrowserMcpHttpConfig | undefined,
     sessionRef?: SessionRef,
     presentationMode?: import("@/shared/contracts").ThreadPresentationMode,
   ): Promise<StructuredSessionHandle | undefined> {
@@ -1279,6 +1302,7 @@ export class ThreadSessionManager {
         projectLocation,
         config,
         agentSettings: this.resolveAgentSettings(adapter),
+        ...(browserMcp ? { browserMcp } : {}),
         ...(sessionRef ? { sessionRef } : {}),
         ...(presentationMode ? { presentationMode } : {}),
       });
@@ -1693,12 +1717,18 @@ export class ThreadSessionManager {
       return;
     }
 
+    const browserMcp = await this.resolveBrowserMcpForLaunch(
+      session.adapter,
+      session.projectLocation,
+      config,
+    );
     const structuredSession = await this.createStructuredSession(
       session.adapter,
       session.threadId,
       session.agentKind,
       session.projectLocation,
       config,
+      browserMcp,
       session.sessionRef,
       session.presentationMode,
     );
@@ -1768,6 +1798,8 @@ export class ThreadSessionManager {
       session.threadId,
       session.agentKind,
       session.projectLocation,
+      config,
+      browserMcp,
     );
     if (!this.isCurrentSession(session)) {
       await structuredSession?.dispose();
@@ -1778,7 +1810,10 @@ export class ThreadSessionManager {
       config,
       launchPrompt,
       session.sessionRef,
-      this.launchOptionsWithAgentSettings(session.adapter, structuredSession?.launchOptions),
+      this.launchOptionsWithBrowserMcp(
+        this.launchOptionsWithAgentSettings(session.adapter, structuredSession?.launchOptions),
+        browserMcp,
+      ),
     );
     if (cliHookExtras.extraArgs.length > 0) {
       argv.args = this.mergeCliHookExtraArgs(
@@ -1848,10 +1883,17 @@ export class ThreadSessionManager {
         return;
       }
 
+      const browserMcp = await this.resolveBrowserMcpForLaunch(
+        session.adapter,
+        session.projectLocation,
+        session.config,
+      );
       const cliHookExtras = await this.resolveCliHookPluginExtras(
         session.threadId,
         session.agentKind,
         session.projectLocation,
+        session.config,
+        browserMcp,
       );
       if (!this.isCurrentSession(session)) {
         return;
@@ -1861,7 +1903,10 @@ export class ThreadSessionManager {
         session.config,
         session.launchPrompt,
         undefined,
-        this.launchOptionsWithAgentSettings(session.adapter),
+        this.launchOptionsWithBrowserMcp(
+          this.launchOptionsWithAgentSettings(session.adapter),
+          browserMcp,
+        ),
       );
       if (cliHookExtras.extraArgs.length > 0) {
         argv.args = this.mergeCliHookExtraArgs(
@@ -2046,6 +2091,40 @@ export class ThreadSessionManager {
       ...(launchOptions ?? {}),
       agentSettings: this.resolveAgentSettings(adapter),
     };
+  }
+
+  private launchOptionsWithBrowserMcp(
+    launchOptions: AgentLaunchOptions,
+    browserMcp: BrowserMcpHttpConfig | undefined,
+  ): AgentLaunchOptions {
+    return {
+      ...launchOptions,
+      ...(browserMcp !== undefined ? { browserMcp } : {}),
+    };
+  }
+
+  private isBrowserMcpEnabledForLaunch(
+    adapter: AgentAdapter | undefined,
+    config: ThreadConfig,
+  ): boolean {
+    if (config.browserMcp === true) return true;
+    if (!adapter) return false;
+    return this.resolveAgentSettings(adapter).browserMcp === true;
+  }
+
+  private async resolveBrowserMcpForLaunch(
+    adapter: AgentAdapter,
+    location: ProjectLocation,
+    config: ThreadConfig,
+  ): Promise<BrowserMcpHttpConfig | undefined> {
+    const enabled = this.isBrowserMcpEnabledForLaunch(adapter, config);
+    if (!enabled) return undefined;
+    const cfg = await resolveBrowserMcpHttpConfigForLaunch(
+      location,
+      enabled,
+      this.options.wslBridge,
+    );
+    return cfg;
   }
 
   private resolveAgentProcessEnv(adapter: AgentAdapter): Record<string, string> {
