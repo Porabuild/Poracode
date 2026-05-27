@@ -80,6 +80,11 @@ jobs:
   test:
     name: Test
     runs-on: ubuntu-latest
+    # Unit tests run via vitest in node/jsdom and never launch the Electron
+    # runtime, so skip the flaky Chromium binary download. Native node modules
+    # (better-sqlite3, node-pty) are still built by the install scripts below.
+    env:
+      ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -92,14 +97,6 @@ jobs:
         with:
           node-version: "24"
           cache: pnpm
-
-      - name: Cache Electron binary
-        uses: actions/cache@v5
-        with:
-          path: ~/.cache/electron
-          key: electron-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
-          restore-keys: |
-            electron-${{ runner.os }}-
 
       - name: Install dependencies
         run: |

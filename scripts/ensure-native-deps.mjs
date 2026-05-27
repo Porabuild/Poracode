@@ -23,6 +23,15 @@ function hasElectronBinary(electronDir, pathFile) {
 }
 
 function ensureElectronBinary() {
+  // Respect an explicit opt-out. Unit-test CI jobs run vitest in node/jsdom and
+  // never launch the Electron runtime, so the Chromium binary download is dead
+  // weight there and its flakiness shouldn't fail the build. App-running flows
+  // (local dev, packaging) leave this unset and still get the enforced download.
+  if (process.env.ELECTRON_SKIP_BINARY_DOWNLOAD) {
+    console.log("[lightcode] ELECTRON_SKIP_BINARY_DOWNLOAD set; skipping Electron binary check");
+    return;
+  }
+
   const electronPackageJsonPath = require.resolve("electron/package.json");
   const electronDir = dirname(electronPackageJsonPath);
   const pathFile = join(electronDir, "path.txt");
