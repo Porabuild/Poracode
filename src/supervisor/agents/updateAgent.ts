@@ -213,6 +213,34 @@ async function fetchHomebrewCaskLatestVersion(cask: string): Promise<string | un
   }
 }
 
+async function fetchLatestVersionFromUrls(urls: readonly string[]): Promise<string | undefined> {
+  for (const url of urls) {
+    let timer: NodeJS.Timeout | undefined;
+    try {
+      const controller = new AbortController();
+      timer = setTimeout(() => controller.abort(), 8000);
+      const response = await fetch(url, {
+        signal: controller.signal,
+        headers: { accept: "text/plain" },
+      });
+      if (!response.ok) {
+        console.warn(`[updateAgent] version URL probe failed for ${url}: HTTP ${response.status}`);
+        continue;
+      }
+      const version = (await response.text()).trim();
+      if (version) return version;
+      console.warn(`[updateAgent] version URL probe for ${url} returned no version`);
+    } catch (error) {
+      console.warn(
+        `[updateAgent] version URL probe for ${url} threw: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    } finally {
+      if (timer) clearTimeout(timer);
+    }
+  }
+  return undefined;
+}
+
 /**
  * Resolve the latest published version for an agent kind. Used by the UI to
  * decide whether to surface the update button. Cached for `LATEST_VERSION_TTL_MS`
@@ -233,7 +261,12 @@ export async function getLatestVersionForAdapter(
 
   const npmName = getNpmPackageNameForUpdate(adapter.update);
   let result: GetLatestAgentVersionResult = { source: "unknown" };
-  if (adapter.update?.homebrewCask) {
+  if (adapter.update?.latestVersionUrls?.length) {
+    const version = await fetchLatestVersionFromUrls(adapter.update.latestVersionUrls);
+    if (version) {
+      result = { version, source: "version-url" };
+    }
+  } else if (adapter.update?.homebrewCask) {
     const version = await fetchHomebrewCaskLatestVersion(adapter.update.homebrewCask);
     if (version) {
       result = { version, source: "homebrew-cask" };

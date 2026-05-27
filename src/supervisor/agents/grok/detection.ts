@@ -164,6 +164,10 @@ export const grokDetectionSpec: DetectionSpec = {
   capabilities: grokDefaultCapabilities,
   update: {
     builtIn: { binary: "grok", args: ["update"] },
+    latestVersionUrls: [
+      "https://x.ai/cli/stable",
+      "https://storage.googleapis.com/grok-build-public-artifacts/cli/stable",
+    ],
   },
   // Auth detection prefers XAI_API_KEY / GROK_API_KEY (for "xai.api_key" ACP method)
   // then falls back to ~/.grok/auth.json (populated by `grok login` → "cached_token").

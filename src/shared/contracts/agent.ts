@@ -64,6 +64,7 @@ export const agentUpdateInfoSchema = z.object({
   homebrewCask: z.string().min(1).optional(),
   brew: z.string().min(1).optional(),
   winget: z.string().min(1).optional(),
+  latestVersionUrls: z.array(z.string().url()).optional(),
 });
 export type AgentUpdateInfo = z.infer<typeof agentUpdateInfoSchema>;
 
@@ -382,7 +383,7 @@ export const getLatestAgentVersionResultSchema = z.object({
   /** Latest published version reported by the upstream registry, undefined when probing failed. */
   version: z.string().min(1).optional(),
   /** Where the version came from, surfaced for telemetry / debug. */
-  source: z.enum(["npm", "homebrew-cask", "unknown"]).optional(),
+  source: z.enum(["npm", "homebrew-cask", "version-url", "unknown"]).optional(),
 });
 export type GetLatestAgentVersionResult = z.infer<typeof getLatestAgentVersionResultSchema>;
 

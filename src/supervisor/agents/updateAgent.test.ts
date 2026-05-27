@@ -29,6 +29,13 @@ const updateByKind: Record<string, AgentAdapter["update"]> = {
     builtIn: { binary: "cursor-agent", args: ["update"] },
     homebrewCask: "cursor-cli",
   },
+  grok: {
+    builtIn: { binary: "grok", args: ["update"] },
+    latestVersionUrls: [
+      "https://x.ai/cli/stable",
+      "https://storage.googleapis.com/grok-build-public-artifacts/cli/stable",
+    ],
+  },
 };
 
 function makeStatus(overrides: Partial<AgentStatus>): AgentStatus {
@@ -228,6 +235,35 @@ describe("getLatestVersionForAdapter", () => {
     const callUrl = fetchSpy.mock.calls[0]?.[0] as string;
     expect(callUrl).toContain("raw.githubusercontent.com/Homebrew/homebrew-cask");
     expect(callUrl).toContain("Casks/c/cursor-cli.rb");
+  });
+
+  it("fetches the latest version from provider version URLs", async () => {
+    const fetchSpy = vi.fn<typeof fetch>().mockResolvedValue({
+      ok: true,
+      text: async () => "0.2.3\n",
+    } as Response);
+    globalThis.fetch = fetchSpy as unknown as typeof fetch;
+
+    const result = await getLatestVersionForAdapter(makeAdapter("grok"));
+    expect(result).toEqual({ version: "0.2.3", source: "version-url" });
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    expect(fetchSpy.mock.calls[0]?.[0]).toBe("https://x.ai/cli/stable");
+  });
+
+  it("falls back to the next provider version URL", async () => {
+    const fetchSpy = vi.fn<typeof fetch>();
+    fetchSpy.mockResolvedValueOnce({ ok: false, status: 404 } as Response).mockResolvedValueOnce({
+      ok: true,
+      text: async () => "0.2.4",
+    } as Response);
+    globalThis.fetch = fetchSpy as unknown as typeof fetch;
+
+    const result = await getLatestVersionForAdapter(makeAdapter("grok"));
+    expect(result).toEqual({ version: "0.2.4", source: "version-url" });
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+    expect(fetchSpy.mock.calls[1]?.[0]).toBe(
+      "https://storage.googleapis.com/grok-build-public-artifacts/cli/stable",
+    );
   });
 
   it("returns version: undefined for adapters without update metadata", async () => {
