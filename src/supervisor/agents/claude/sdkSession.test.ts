@@ -713,4 +713,52 @@ describe("ClaudeSdkSession", () => {
 
     await session.dispose();
   });
+
+  it("treats a steered/interrupted turn as idle rather than a failed turn", async () => {
+    const fake = createFakeQuery();
+    mockSdk.query.mockReturnValue(fake.runtime);
+    const updates: StructuredSessionUpdate[] = [];
+    const session = await ClaudeSdkSession.create({
+      threadId: "thread-claude-steer",
+      projectLocation,
+      config,
+      presentationMode: "gui",
+    });
+    session.setListener({
+      onRuntimeEvent: () => {},
+      onUpdate: (update) => updates.push(update),
+      onError: () => {},
+      onClose: () => {},
+    });
+
+    const openedSessionId = await session.openThread(config);
+    await flushAsyncWork();
+
+    await session.startTurn("do the thing", config);
+    // The user steers → the runtime fires interruptTurn() before the turn settles.
+    await session.interruptTurn();
+    expect(
+      (fake.runtime as unknown as { interrupt: ReturnType<typeof vi.fn> }).interrupt,
+    ).toHaveBeenCalledTimes(1);
+
+    // claude.exe reports an interrupted turn as `error_during_execution` with
+    // `is_error: true` and only a `[ede_diagnostic]` line. This must resolve to
+    // idle — surfacing "Claude turn failed." on every steer is the bug.
+    fake.emitMessage({
+      type: "result",
+      subtype: "error_during_execution",
+      is_error: true,
+      errors: ["[ede_diagnostic] turn interrupted before assistant content"],
+      session_id: openedSessionId,
+    } as unknown as SDKMessage);
+    await flushAsyncWork();
+
+    const resultUpdate = updates.at(-1);
+    expect(resultUpdate?.status).toBe("idle");
+    expect(resultUpdate?.attention).toBe("none");
+    expect(resultUpdate?.errorMessage).toBeUndefined();
+    expect(updates.some((update) => update.status === "error")).toBe(false);
+
+    await session.dispose();
+  });
 });

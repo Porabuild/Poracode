@@ -998,16 +998,19 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
       const remaining = nonDiagnosticErrors(message);
       // claude.exe surfaces upstream API failures (e.g. 401 auth, 429 rate
       // limit) as subtype "success" with `is_error: true` / `api_error_status`
-      // set — the failure text lives in `result`, not `errors[]`. Treat those
-      // as failures regardless of subtype/interrupt state so the composer can
-      // show the error and stop the spinner.
+      // set — the failure text lives in `result`, not `errors[]`.
       const apiErrored = isApiErrorResult(message);
-      // Only diagnostic lines remained → treat as interrupted, matching
-      // `mapResultState`. claude.exe emits `[ede_diagnostic] ...` whenever a
-      // turn ends before the assistant produced content, including external
-      // (in-CLI) Esc interrupts where `interruptInFlight` is false.
+      // An interrupt always wins. A steered/aborted turn comes back as
+      // `error_during_execution` with `is_error: true` and only
+      // `[ede_diagnostic]` lines — that would otherwise trip both the API-error
+      // and non-success checks below and surface a spurious "Claude turn
+      // failed." every time the user steers. Genuine API failures (401/429)
+      // arrive with `wasInterrupted` false, so they still surface. The
+      // diagnostic-only case is itself treated as an interrupt via
+      // `isInterruptedResult`, covering external (in-CLI) Esc interrupts where
+      // `interruptInFlight` is false.
       const failed =
-        apiErrored || (message.subtype !== "success" && !wasInterrupted && remaining.length > 0);
+        !wasInterrupted && (apiErrored || (message.subtype !== "success" && remaining.length > 0));
       const errorMessage = failed
         ? (extractResultErrorMessage(message) ?? "Claude turn failed.")
         : undefined;

@@ -1401,6 +1401,31 @@ describe("sdkCanonicalMapping — turn completion", () => {
       state: "failed",
     });
   });
+
+  it("maps an interrupted turn (error_during_execution + is_error) to interrupted, not failed", () => {
+    const state = createClaudeMapperState("thread-1");
+    startClaudeTurn(state, "turn-stop", "do the thing", undefined);
+
+    const events = mapClaudeSdkMessage(
+      {
+        type: "result",
+        subtype: "error_during_execution",
+        is_error: true,
+        errors: ["[ede_diagnostic] turn interrupted before assistant content"],
+        session_id: "claude-session",
+      } as unknown as SDKMessage,
+      state,
+    );
+
+    // Pressing stop (or steering) must not surface a spurious error event.
+    expect(events.some((event) => event.type === "error")).toBe(false);
+    expect(events).toContainEqual({
+      type: "turn.completed",
+      threadId: "thread-1",
+      turnId: "turn-stop",
+      state: "interrupted",
+    });
+  });
 });
 
 describe("sdkCanonicalMapping — requests", () => {

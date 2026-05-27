@@ -25,6 +25,7 @@ import {
   type TerminalSize,
   type ThreadConfig,
   type ThreadRuntimeSnapshot,
+  type ThreadStatus,
   type WriteTerminalPayload,
   type RuntimeEvent,
   areAgentSlashCommandsEqual,
@@ -535,11 +536,21 @@ export class ThreadSessionManager {
     });
   }
 
+  /**
+   * Stopped states a staged steer can drain from. A failed turn ("error") still
+   * leaves the structured session alive and ready for a new turn, so the steer
+   * must flush there too — a turn that errors never reaches "idle"/"needs_reply",
+   * so without this the strip sticks on "waiting for agent to stop" forever.
+   */
+  private static isSteerDrainableStatus(status: ThreadStatus): boolean {
+    return status === "idle" || status === "needs_reply" || status === "error";
+  }
+
   private maybeDrainPendingSteer(session: SessionRuntime): void {
     if (session.presentationMode !== "gui") {
       return;
     }
-    if (session.status !== "idle" && session.status !== "needs_reply") {
+    if (!ThreadSessionManager.isSteerDrainableStatus(session.status)) {
       return;
     }
     const slot = session.pendingSteer;
@@ -1576,7 +1587,7 @@ export class ThreadSessionManager {
         if (
           session.presentationMode === "gui" &&
           (wasWorking || hadInterruptRequest) &&
-          (update.status === "idle" || update.status === "needs_reply")
+          ThreadSessionManager.isSteerDrainableStatus(update.status)
         ) {
           this.maybeDrainPendingSteer(session);
         }

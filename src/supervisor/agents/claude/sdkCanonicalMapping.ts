@@ -1075,12 +1075,19 @@ export function nonDiagnosticErrors(message: SDKMessage): string[] {
  * claude.exe can emit subtype "success" while still surfacing an upstream API
  * failure (e.g. 401/429) via `is_error: true` and `api_error_status`. Treat
  * those as failures so the turn doesn't quietly resolve to idle.
+ *
+ * `is_error: true` alone is NOT sufficient — an interrupted/aborted turn is
+ * reported as `error_during_execution` with `is_error: true` and only a
+ * `[ede_diagnostic]` line, and must not be misread as an API failure (that
+ * surfaced a spurious "Claude turn failed." on every stop/steer). So the
+ * `is_error` signal is scoped to the documented subtype-"success" quirk; an
+ * explicit `api_error_status >= 400` remains unambiguous on its own.
  */
 export function isApiErrorResult(message: SDKMessage): boolean {
   if (message.type !== "result") return false;
-  const m = message as { is_error?: unknown; api_error_status?: unknown };
-  if (m.is_error === true) return true;
-  return typeof m.api_error_status === "number" && m.api_error_status >= 400;
+  const m = message as { is_error?: unknown; api_error_status?: unknown; subtype?: unknown };
+  if (typeof m.api_error_status === "number" && m.api_error_status >= 400) return true;
+  return m.is_error === true && m.subtype === "success";
 }
 
 export function extractResultErrorMessage(message: SDKMessage): string | undefined {

@@ -492,6 +492,150 @@ describe("SupervisorRuntime thread input", () => {
     );
   });
 
+  it("drains a pending steer when the working turn fails with error status", async () => {
+    const runtime = makeRuntime(() => undefined);
+    const startTurn = vi.fn<() => Promise<void>>().mockResolvedValue(undefined);
+    const interruptTurn = vi.fn<() => Promise<void>>().mockResolvedValue(undefined);
+
+    (
+      runtime as unknown as {
+        spawnThread: (input: Record<string, unknown>) => { status: string };
+      }
+    ).spawnThread({
+      threadId: "thread-gui-error",
+      agentKind: "codex",
+      adapter: {
+        kind: "codex",
+        label: "Codex",
+        capabilities: {
+          models: [{ id: "gpt-5.4", label: "5.4" }],
+          efforts: ["low"],
+          modelEfforts: {},
+          modes: ["agent"],
+          approvalPolicies: [{ id: "on-request", label: "On Request" }],
+          sandboxModes: [{ id: "read-only", label: "Read Only" }],
+          supportsResume: true,
+          supportsDirectInput: true,
+          liveInputMode: "server",
+          presentationMode: "gui",
+        },
+      },
+      projectLocation: { kind: "windows", path: "C:\\repo" },
+      config: { model: "gpt-5.4" },
+      initialSize: { cols: 120, rows: 30 },
+      launchPrompt: "",
+      structuredSession: {
+        launchOptions: {},
+        setListener: vi.fn<(listener: unknown) => void>(),
+        dispose: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+        startTurn,
+        interruptTurn,
+      },
+      presentationMode: "gui",
+    });
+
+    (
+      runtime as unknown as {
+        sessions: Map<string, { status: string }>;
+      }
+    ).sessions.get("thread-gui-error")!.status = "working";
+
+    await runtime.sendThreadInput({
+      threadId: "thread-gui-error",
+      prompt: "redirect",
+      config: { model: "gpt-5.4" },
+      userMessageItemId: "user-redirect",
+    });
+
+    expect(interruptTurn).toHaveBeenCalledTimes(1);
+    expect(startTurn).not.toHaveBeenCalled();
+
+    const listener = (
+      (
+        runtime as unknown as {
+          sessions: Map<string, { structuredSession: { setListener: ReturnType<typeof vi.fn> } }>;
+        }
+      ).sessions.get("thread-gui-error")!.structuredSession.setListener as ReturnType<typeof vi.fn>
+    ).mock.calls[0]?.[0] as {
+      onUpdate: (update: { status: string; attention: string; errorMessage?: string }) => void;
+    };
+
+    // The turn fails instead of reaching idle. The steer must still drain —
+    // otherwise the strip sticks on "waiting for agent to stop" forever.
+    listener.onUpdate({ status: "error", attention: "error", errorMessage: "Claude turn failed." });
+    await Promise.resolve();
+
+    expect(startTurn).toHaveBeenCalledTimes(1);
+    expect(startTurn).toHaveBeenCalledWith("redirect", { model: "gpt-5.4" }, undefined, {
+      userMessageItemId: "user-redirect",
+    });
+  });
+
+  it("drains a steer staged after the turn already errored", async () => {
+    const runtime = makeRuntime(() => undefined);
+    const startTurn = vi.fn<() => Promise<void>>().mockResolvedValue(undefined);
+    const interruptTurn = vi.fn<() => Promise<void>>().mockResolvedValue(undefined);
+
+    (
+      runtime as unknown as {
+        spawnThread: (input: Record<string, unknown>) => { status: string };
+      }
+    ).spawnThread({
+      threadId: "thread-gui-post-error",
+      agentKind: "codex",
+      adapter: {
+        kind: "codex",
+        label: "Codex",
+        capabilities: {
+          models: [{ id: "gpt-5.4", label: "5.4" }],
+          efforts: ["low"],
+          modelEfforts: {},
+          modes: ["agent"],
+          approvalPolicies: [{ id: "on-request", label: "On Request" }],
+          sandboxModes: [{ id: "read-only", label: "Read Only" }],
+          supportsResume: true,
+          supportsDirectInput: true,
+          liveInputMode: "server",
+          presentationMode: "gui",
+        },
+      },
+      projectLocation: { kind: "windows", path: "C:\\repo" },
+      config: { model: "gpt-5.4" },
+      initialSize: { cols: 120, rows: 30 },
+      launchPrompt: "",
+      structuredSession: {
+        launchOptions: {},
+        setListener: vi.fn<(listener: unknown) => void>(),
+        dispose: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+        startTurn,
+        interruptTurn,
+      },
+      presentationMode: "gui",
+    });
+
+    // The turn already failed before the user types their steer.
+    (
+      runtime as unknown as {
+        sessions: Map<string, { status: string }>;
+      }
+    ).sessions.get("thread-gui-post-error")!.status = "error";
+
+    await runtime.sendThreadInput({
+      threadId: "thread-gui-post-error",
+      prompt: "retry this",
+      config: { model: "gpt-5.4" },
+      userMessageItemId: "user-retry",
+    });
+
+    // Nothing to interrupt — the agent already stopped — so the steer drains
+    // immediately into a fresh turn rather than waiting on a stop that never comes.
+    expect(interruptTurn).not.toHaveBeenCalled();
+    expect(startTurn).toHaveBeenCalledTimes(1);
+    expect(startTurn).toHaveBeenCalledWith("retry this", { model: "gpt-5.4" }, undefined, {
+      userMessageItemId: "user-retry",
+    });
+  });
+
   it("does not emit runtime status updates for raw terminal writes", async () => {
     const emitted: unknown[] = [];
     const runtime = makeRuntime((event) => {
