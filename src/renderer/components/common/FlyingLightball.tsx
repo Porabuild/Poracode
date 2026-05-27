@@ -40,13 +40,17 @@ export function FlyingLightball(props: {
   }
 
   useLayoutEffect(() => {
+    // Consume the initial-mount skip as soon as the effect first runs, even if
+    // the target isn't measurable yet (e.g. tabs mounted inside a modal/panel
+    // that hasn't laid out). Otherwise a null measurement on mount leaves the
+    // flag set, and the user's first selection gets swallowed instead — the
+    // glow would only flare from the second selection onward.
+    const wasInitialMount = isInitialMount.current;
+    isInitialMount.current = false;
     const next = measure();
     if (!next) return;
     setPosition(next);
-    if (isInitialMount.current) {
-      isInitialMount.current = false;
-      return;
-    }
+    if (wasInitialMount) return;
     setAnimating(true);
     const t = setTimeout(() => setAnimating(false), 80);
     return () => clearTimeout(t);
