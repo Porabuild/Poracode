@@ -45,6 +45,7 @@ export function SidebarWorktreeGroup(props: {
   const isActiveFiles = useIsWorktreeFilesPanelActive(group.worktreePath);
   const isActiveGit = useIsWorktreeGitPanelActive(group.worktreePath);
   const groupThreadIds = group.threads.map((t) => t.id);
+  const isDone = group.threads.every((t) => t.done);
 
   const { ref } = useSortable({
     id: `wt:${group.worktreePath}`,
@@ -131,6 +132,7 @@ export function SidebarWorktreeGroup(props: {
           onOpenTerminal={() => openWorktreeTerminal(project.id, group.worktreePath)}
           isDragging={isDragging}
           isDraggingAnything={!!source}
+          isDone={isDone}
         />
       </ContextMenu>
     </div>

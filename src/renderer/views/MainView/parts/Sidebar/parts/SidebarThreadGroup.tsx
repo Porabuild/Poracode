@@ -1,5 +1,5 @@
 import { Tooltip } from "@heroui/react";
-import { Archive, ChevronRight, CircleCheck, Columns2, Pencil } from "lucide-react";
+import { Archive, Check, ChevronRight, CircleCheck, Columns2, Pencil } from "lucide-react";
 import type { Project } from "@/shared/contracts";
 import { ContextMenu } from "@/renderer/components/common";
 import { archiveThread, toggleMarkThreadDone } from "@/renderer/actions/threadActions";
@@ -20,6 +20,7 @@ export function SidebarThreadGroup(props: {
   const isGroupCollapsed = useIsWorktreeCollapsed(collapseKey);
   const toggleWorktreeCollapsed = useSidebarUiStore((s) => s.toggleWorktreeCollapsed);
   const activeThreads = entry.group.threads.filter((t) => !t.done);
+  const isDone = activeThreads.length === 0;
   const isRenamingGroup = editingThreadId === collapseKey;
 
   return (
@@ -86,6 +87,7 @@ export function SidebarThreadGroup(props: {
                 isGroupCollapsed ? "" : "rotate-90"
               }`}
             />
+            {isDone && <Check className="size-3.5 shrink-0 text-success" strokeWidth={4} />}
             {isRenamingGroup ? (
               <InlineRenameInput
                 initialValue={entry.group.groupName}
@@ -101,8 +103,12 @@ export function SidebarThreadGroup(props: {
               />
             ) : (
               <>
-                <span className="truncate">{entry.group.groupName}</span>
-                <span className="shrink-0 text-muted/60">{entry.group.threads.length}</span>
+                <span className={`truncate ${isDone ? "opacity-50 line-through" : ""}`}>
+                  {entry.group.groupName}
+                </span>
+                <span className={`shrink-0 text-muted/60 ${isDone ? "opacity-50" : ""}`}>
+                  {entry.group.threads.length}
+                </span>
               </>
             )}
           </button>

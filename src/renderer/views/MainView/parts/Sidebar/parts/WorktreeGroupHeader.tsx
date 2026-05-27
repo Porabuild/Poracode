@@ -1,4 +1,4 @@
-import { FolderOpen, GitFork, TerminalSquare } from "lucide-react";
+import { Check, FolderOpen, GitFork, TerminalSquare } from "lucide-react";
 import { SidebarButton } from "@/renderer/components/common";
 import { GitBadge } from "./GitBadge";
 import { SidebarPanelDragButton } from "./SidebarPanelDragButton";
@@ -20,6 +20,7 @@ export function WorktreeGroupHeader(props: {
   onOpenTerminal: () => void;
   isDragging?: boolean;
   isDraggingAnything?: boolean;
+  isDone?: boolean;
   onContextMenu?: React.MouseEventHandler | undefined;
 }) {
   return (
@@ -27,13 +28,29 @@ export function WorktreeGroupHeader(props: {
       {...(props.ref != null ? { ref: props.ref } : {})}
       onContextMenu={props.onContextMenu}
       icon={
-        <GitFork
-          className={`size-3 shrink-0 transition-colors ${
-            props.isCollapsed ? "text-muted/60" : "text-foreground"
-          }`}
-        />
+        props.isDone ? (
+          <span className="relative size-3.5 shrink-0 text-muted">
+            <GitFork className="size-3.5 opacity-40" />
+            <Check
+              className="absolute left-[15%] top-[15%] size-[70%] text-success"
+              strokeWidth={4}
+            />
+          </span>
+        ) : (
+          <GitFork
+            className={`size-3 shrink-0 transition-colors ${
+              props.isCollapsed ? "text-muted/60" : "text-foreground"
+            }`}
+          />
+        )
       }
-      label={<span className="font-medium text-foreground/80">{props.worktreeBranch}</span>}
+      label={
+        <span
+          className={`font-medium ${props.isDone ? "opacity-50 line-through" : "text-foreground/80"}`}
+        >
+          {props.worktreeBranch}
+        </span>
+      }
       tooltip={`Worktree: ${props.worktreeBranch}`}
       size="xs"
       liveText
