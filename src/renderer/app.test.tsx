@@ -906,6 +906,7 @@ describe("App", () => {
       "C:\\Users\\demo\\.lightcode\\worktrees\\repo-12345678\\feature-x",
     );
     expect(threads[0]?.worktreeBranch).toBe("feature/x");
+    expect(useAppStore.getState().projects[0]?.lastDraftConfig?.worktreeMode).toBe(true);
     expect(bridge.gitWatchWorktrees).toHaveBeenCalledWith({
       projectId: "project-1",
       worktreePaths: ["C:\\Users\\demo\\.lightcode\\worktrees\\repo-12345678\\feature-x"],
@@ -952,6 +953,7 @@ describe("App", () => {
     });
 
     expect(bridge.gitAddWorktree).not.toHaveBeenCalled();
+    expect(useAppStore.getState().projects[0]?.lastDraftConfig?.worktreeMode).toBe(false);
   });
 
   it("uses a sibling thread branch when merge and remove is triggered from a worktree thread without branch metadata", async () => {
