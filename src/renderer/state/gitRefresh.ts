@@ -3,6 +3,7 @@ import { readBridge } from "@/renderer/bridge";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useGitStore } from "@/renderer/state/gitStore";
 import { buildBranchPrKey } from "@/renderer/state/gitSelectors";
+import { aggregatePrChecksStatus, combineChecksStatus } from "@/renderer/utils/prStatus";
 
 export type GitRefreshReason = "initial" | "watcher" | "fetch" | "manual" | "poll";
 export type GitRefreshMode = "status" | "full";
@@ -19,8 +20,46 @@ const pendingWatcherRefreshProjects = new Set<string>();
 const watchedWorktreePaths = new Map<string, string>();
 const activeRefreshTokens = new Map<string, symbol>();
 const GIT_REFRESH_TIMEOUT_MS = 30_000;
+export const PR_PENDING_REFRESH_INTERVAL_MS = 30_000;
+export const PR_POST_PUSH_STATUS_WAIT_MS = 15_000;
+export const PR_POST_PUSH_STATUS_POLL_MS = 5_000;
 
 const alwaysActive = () => true;
+
+type ActiveGitProject = { id: string; location: ProjectLocation };
+
+interface PendingPrRefreshTarget {
+  projectLocation: ProjectLocation;
+  prKey: string;
+  branch: string;
+  detailsCacheKey?: string;
+  prNumber?: number;
+}
+
+interface PendingPrRefreshEntry {
+  target: PendingPrRefreshTarget;
+  intervalId: ReturnType<typeof setInterval>;
+  inFlight: boolean;
+}
+
+const pendingPrRefreshEntries = new Map<string, PendingPrRefreshEntry>();
+let pendingPrRefreshActiveProjects: readonly ActiveGitProject[] = [];
+
+interface PostPushPrRefreshTarget {
+  projectId: string;
+  projectLocation: ProjectLocation;
+  prKey: string;
+  branch: string;
+}
+
+interface PostPushPrRefreshEntry {
+  target: PostPushPrRefreshTarget;
+  timeoutId: ReturnType<typeof setTimeout>;
+  attempts: number;
+  latest: PrData | null | undefined;
+}
+
+const postPushPrRefreshEntries = new Map<string, PostPushPrRefreshEntry>();
 
 function isRefreshCurrent(projectId: string, token: symbol, isActive: () => boolean): boolean {
   return isActive() && activeRefreshTokens.get(projectId) === token;
@@ -47,6 +86,189 @@ async function withRefreshTimeout<T>(
   }
 }
 
+function buildPendingPrRefreshTargets(
+  activeProjects: readonly ActiveGitProject[],
+): Map<string, PendingPrRefreshTarget> {
+  const targets = new Map<string, PendingPrRefreshTarget>();
+  const gitState = useGitStore.getState();
+  const appState = useAppStore.getState();
+
+  function visitBranchPr(project: ActiveGitProject, prKey: string, branch: string) {
+    const pr = gitState.prData[prKey];
+    if (!pr) return;
+    const detailsCacheKey = pr.number ? `${project.id}#${pr.number}` : undefined;
+    const details = detailsCacheKey ? gitState.prDetails[detailsCacheKey] : undefined;
+    const detailsStatus = aggregatePrChecksStatus(details?.checks);
+    const checksStatus = combineChecksStatus(detailsStatus, pr.checksStatus);
+    if (pr.state !== "open" || checksStatus !== "PENDING") return;
+    targets.set(detailsCacheKey ?? prKey, {
+      projectLocation: project.location,
+      prKey,
+      branch,
+      ...(detailsCacheKey ? { detailsCacheKey } : {}),
+      ...(pr.number ? { prNumber: pr.number } : {}),
+    });
+  }
+
+  for (const project of activeProjects) {
+    const status = gitState.statuses[project.id];
+    if (status?.branch) {
+      visitBranchPr(project, buildBranchPrKey(project.id), status.branch);
+    }
+    for (const thread of appState.threads) {
+      if (thread.projectId !== project.id || !thread.worktreePath || !thread.worktreeBranch) {
+        continue;
+      }
+      visitBranchPr(project, thread.worktreePath, thread.worktreeBranch);
+    }
+  }
+
+  return targets;
+}
+
+async function refreshPendingPr(key: string): Promise<void> {
+  const entry = pendingPrRefreshEntries.get(key);
+  if (!entry || entry.inFlight) return;
+  entry.inFlight = true;
+  try {
+    const { target } = entry;
+    const bridge = readBridge();
+    const prPromise = bridge
+      .ghGetPrForBranch({ projectLocation: target.projectLocation, branch: target.branch })
+      .catch(() => undefined);
+    const detailsPromise =
+      target.detailsCacheKey && target.prNumber
+        ? bridge
+            .ghGetPrDetails({
+              projectLocation: target.projectLocation,
+              prNumber: target.prNumber,
+            })
+            .catch(() => undefined)
+        : Promise.resolve(undefined);
+    const [pr, details] = await Promise.all([prPromise, detailsPromise]);
+    if (pr !== undefined) {
+      useGitStore.getState().setPrData(target.prKey, pr);
+    }
+    if (target.detailsCacheKey && details) {
+      useGitStore.getState().setPrDetails(target.detailsCacheKey, details.details);
+    }
+  } finally {
+    const current = pendingPrRefreshEntries.get(key);
+    if (current) current.inFlight = false;
+    if (pendingPrRefreshActiveProjects.length > 0) {
+      syncPendingPrRefreshProjects(pendingPrRefreshActiveProjects);
+    }
+  }
+}
+
+function isPostPushPrRefreshTargetActive(target: PostPushPrRefreshTarget): boolean {
+  const gitState = useGitStore.getState();
+  const pr = gitState.prData[target.prKey];
+  if (!pr || pr.state !== "open") return false;
+  const appState = useAppStore.getState();
+  if (appState.projects.length > 0 && !appState.projects.some((p) => p.id === target.projectId)) {
+    return false;
+  }
+  if (target.prKey === buildBranchPrKey(target.projectId)) {
+    return gitState.statuses[target.projectId]?.branch === target.branch;
+  }
+  return appState.threads.some(
+    (thread) =>
+      thread.projectId === target.projectId &&
+      thread.worktreePath === target.prKey &&
+      thread.worktreeBranch === target.branch,
+  );
+}
+
+async function refreshPostPushPr(key: string): Promise<void> {
+  const entry = postPushPrRefreshEntries.get(key);
+  if (!entry) return;
+  if (!isPostPushPrRefreshTargetActive(entry.target)) {
+    clearTimeout(entry.timeoutId);
+    postPushPrRefreshEntries.delete(key);
+    return;
+  }
+
+  entry.attempts += 1;
+  const pr = await readBridge()
+    .ghGetPrForBranch({
+      projectLocation: entry.target.projectLocation,
+      branch: entry.target.branch,
+    })
+    .catch(() => undefined);
+  if (postPushPrRefreshEntries.get(key) !== entry) return;
+  if (!isPostPushPrRefreshTargetActive(entry.target)) {
+    postPushPrRefreshEntries.delete(key);
+    return;
+  }
+  if (pr !== undefined) {
+    entry.latest = pr;
+    if (pr?.state === "open" && pr.checksStatus === "PENDING") {
+      useGitStore.getState().setPrData(entry.target.prKey, pr);
+      postPushPrRefreshEntries.delete(key);
+      return;
+    }
+  }
+
+  if (entry.attempts * PR_POST_PUSH_STATUS_POLL_MS >= PR_POST_PUSH_STATUS_WAIT_MS) {
+    if (entry.latest !== undefined) {
+      useGitStore.getState().setPrData(entry.target.prKey, entry.latest);
+    }
+    postPushPrRefreshEntries.delete(key);
+    return;
+  }
+
+  entry.timeoutId = setTimeout(() => void refreshPostPushPr(key), PR_POST_PUSH_STATUS_POLL_MS);
+}
+
+export function startPostPushPrStatusRefresh(target: PostPushPrRefreshTarget): void {
+  const currentPr = useGitStore.getState().prData[target.prKey];
+  if (!currentPr || currentPr.state !== "open") return;
+  const existing = postPushPrRefreshEntries.get(target.prKey);
+  if (existing) clearTimeout(existing.timeoutId);
+  postPushPrRefreshEntries.set(target.prKey, {
+    target,
+    timeoutId: setTimeout(() => void refreshPostPushPr(target.prKey), PR_POST_PUSH_STATUS_POLL_MS),
+    attempts: 0,
+    latest: undefined,
+  });
+}
+
+export function syncPendingPrRefreshProjects(activeProjects: readonly ActiveGitProject[]): void {
+  pendingPrRefreshActiveProjects = activeProjects;
+  const targets = buildPendingPrRefreshTargets(activeProjects);
+  for (const [key, entry] of pendingPrRefreshEntries) {
+    const target = targets.get(key);
+    if (!target) {
+      clearInterval(entry.intervalId);
+      pendingPrRefreshEntries.delete(key);
+      continue;
+    }
+    entry.target = target;
+  }
+  for (const [key, target] of targets) {
+    if (pendingPrRefreshEntries.has(key)) continue;
+    pendingPrRefreshEntries.set(key, {
+      target,
+      intervalId: setInterval(() => void refreshPendingPr(key), PR_PENDING_REFRESH_INTERVAL_MS),
+      inFlight: false,
+    });
+    void refreshPendingPr(key);
+  }
+}
+
+export function stopPendingPrRefresh(): void {
+  pendingPrRefreshActiveProjects = [];
+  for (const entry of pendingPrRefreshEntries.values()) {
+    clearInterval(entry.intervalId);
+  }
+  pendingPrRefreshEntries.clear();
+  for (const entry of postPushPrRefreshEntries.values()) {
+    clearTimeout(entry.timeoutId);
+  }
+  postPushPrRefreshEntries.clear();
+}
+
 export function cleanupGitRefreshProjects(activeProjectIds: ReadonlySet<string>): void {
   for (const projectId of refreshingProjects) {
     if (!activeProjectIds.has(projectId)) refreshingProjects.delete(projectId);
@@ -59,6 +281,11 @@ export function cleanupGitRefreshProjects(activeProjectIds: ReadonlySet<string>)
   }
   for (const projectId of activeRefreshTokens.keys()) {
     if (!activeProjectIds.has(projectId)) activeRefreshTokens.delete(projectId);
+  }
+  for (const [key, entry] of postPushPrRefreshEntries) {
+    if (activeProjectIds.has(entry.target.projectId)) continue;
+    clearTimeout(entry.timeoutId);
+    postPushPrRefreshEntries.delete(key);
   }
 }
 

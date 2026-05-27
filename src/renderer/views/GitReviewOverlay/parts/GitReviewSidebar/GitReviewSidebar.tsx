@@ -350,8 +350,6 @@ export function GitReviewSidebar(props: {
             <PrSection
               prKey={effectivePrKey}
               projectId={project.id}
-              projectLocation={project.location}
-              branch={effectiveBranch}
               worktreePath={worktreePath}
               prLoading={prLoading}
               handleMergePr={handleMergePr}

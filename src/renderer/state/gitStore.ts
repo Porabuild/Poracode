@@ -4,9 +4,13 @@ import type {
   GitStatusResult,
   GitWorktreeInfo,
   PrComment,
+  PrAuthor,
+  PrCheck,
+  PrCommitSummary,
   PrData,
   PrDetails,
   PrFile,
+  PrReviewSummary,
 } from "@/shared/contracts";
 
 export interface WorktreeSourceInfo {
@@ -189,6 +193,92 @@ function arePrDataEqual(a: PrData | null | undefined, b: PrData | null) {
     a.mergeStateStatus === b.mergeStateStatus &&
     a.viewerDidAuthor === b.viewerDidAuthor &&
     a.updatedAt === b.updatedAt
+  );
+}
+
+function areAuthorsEqual(a: PrAuthor | null | undefined, b: PrAuthor | null | undefined): boolean {
+  if (a === b) return true;
+  if (!a || !b) return false;
+  return a.login === b.login && a.avatarUrl === b.avatarUrl;
+}
+
+function areArraysEqual<T>(
+  a: readonly T[],
+  b: readonly T[],
+  compare: (left: T, right: T) => boolean,
+): boolean {
+  if (a === b) return true;
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i += 1) {
+    if (!compare(a[i]!, b[i]!)) return false;
+  }
+  return true;
+}
+
+function arePrCommitsEqual(a: PrCommitSummary, b: PrCommitSummary): boolean {
+  return (
+    a.oid === b.oid &&
+    a.abbreviatedOid === b.abbreviatedOid &&
+    a.messageHeadline === b.messageHeadline &&
+    a.messageBody === b.messageBody &&
+    a.authoredDate === b.authoredDate &&
+    a.url === b.url &&
+    areAuthorsEqual(a.author, b.author)
+  );
+}
+
+function arePrCommentsEqual(a: PrComment, b: PrComment): boolean {
+  return (
+    a.id === b.id &&
+    a.body === b.body &&
+    a.createdAt === b.createdAt &&
+    a.url === b.url &&
+    areAuthorsEqual(a.author, b.author)
+  );
+}
+
+function arePrReviewsEqual(a: PrReviewSummary, b: PrReviewSummary): boolean {
+  return (
+    a.id === b.id &&
+    a.state === b.state &&
+    a.body === b.body &&
+    a.submittedAt === b.submittedAt &&
+    a.url === b.url &&
+    areAuthorsEqual(a.author, b.author)
+  );
+}
+
+function arePrChecksEqual(a: PrCheck, b: PrCheck): boolean {
+  return (
+    a.name === b.name &&
+    a.state === b.state &&
+    a.conclusion === b.conclusion &&
+    a.url === b.url &&
+    a.workflowName === b.workflowName
+  );
+}
+
+function arePrDetailsEqual(a: PrDetails | undefined, b: PrDetails): boolean {
+  if (a === b) return true;
+  if (!a) return false;
+  return (
+    a.number === b.number &&
+    a.title === b.title &&
+    a.body === b.body &&
+    a.baseBranch === b.baseBranch &&
+    a.headBranch === b.headBranch &&
+    a.additions === b.additions &&
+    a.deletions === b.deletions &&
+    a.changedFiles === b.changedFiles &&
+    a.createdAt === b.createdAt &&
+    a.mergedAt === b.mergedAt &&
+    a.closedAt === b.closedAt &&
+    areAuthorsEqual(a.author, b.author) &&
+    areAuthorsEqual(a.mergedBy, b.mergedBy) &&
+    areArraysEqual(a.commits, b.commits, arePrCommitsEqual) &&
+    areArraysEqual(a.comments, b.comments, arePrCommentsEqual) &&
+    areArraysEqual(a.reviews, b.reviews, arePrReviewsEqual) &&
+    areArraysEqual(a.checks, b.checks, arePrChecksEqual)
   );
 }
 
@@ -521,8 +611,10 @@ export const useGitStore = create<GitState & GitActions>()((set, get) => ({
 
   setPrDiff: (key, diff) => set((state) => ({ prDiffs: { ...state.prDiffs, [key]: diff } })),
 
-  setPrDetails: (key, details) =>
-    set((state) => ({ prDetails: { ...state.prDetails, [key]: details } })),
+  setPrDetails: (key, details) => {
+    if (arePrDetailsEqual(get().prDetails[key], details)) return;
+    set((state) => ({ prDetails: { ...state.prDetails, [key]: details } }));
+  },
 
   appendPrComment: (key, comment) =>
     set((state) => {

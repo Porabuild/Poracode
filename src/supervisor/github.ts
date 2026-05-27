@@ -28,8 +28,8 @@ import { buildAgentCommand, parallelWslCommandsAsync, quotePosixShellArg } from 
 
 const execFileAsync = promisify(execFile);
 const GH_TIMEOUT = 30_000;
-const CREATE_PR_STATUS_WAIT_MS = 8_000;
-const CREATE_PR_STATUS_POLL_MS = 1_000;
+const CREATE_PR_STATUS_WAIT_MS = 15_000;
+const CREATE_PR_STATUS_POLL_MS = 5_000;
 const PR_VIEW_FIELDS =
   "number,url,state,title,baseRefName,isDraft,reviewDecision,statusCheckRollup,updatedAt,mergeable,mergeStateStatus,author";
 
@@ -386,7 +386,8 @@ export class GitHubService {
     while (
       !latest.isDraft &&
       latest.state === "open" &&
-      !latest.checksStatus &&
+      latest.checksStatus !== "PENDING" &&
+      latest.checksStatus !== "FAILURE" &&
       Date.now() < deadline
     ) {
       await delay(CREATE_PR_STATUS_POLL_MS);
@@ -426,8 +427,8 @@ export class GitHubService {
       ];
       await runGh(location, createArgs);
 
-      // `gh pr create` doesn't support --json. GitHub can return an empty
-      // statusCheckRollup for a few seconds before Actions queues checks, so
+      // `gh pr create` doesn't support --json. GitHub can briefly return an
+      // empty or incomplete statusCheckRollup before Actions queues checks, so
       // wait briefly before handing the new PR to the renderer.
       const viewerLogin = await this.getViewerLogin(location);
       return await this.waitForCreatedPrStatus(location, branch, viewerLogin);

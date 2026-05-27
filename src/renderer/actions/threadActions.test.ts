@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { waitFor } from "@testing-library/react";
 import type { Thread } from "@/shared/contracts";
 import { useAppStore } from "@/renderer/state/appStore";
+import { useDevTerminalStore } from "@/renderer/state/devTerminalStore";
 import { openThread, reopenStoredThread, toggleMarkThreadDone } from "./threadActions";
 
 const { bridge } = vi.hoisted(() => ({
@@ -39,6 +40,15 @@ describe("threadActions", () => {
       runtimeItemsByIdByThread: {},
       runtimeCompletedTurnsByThread: {},
     }));
+    useDevTerminalStore.setState({
+      isOpen: false,
+      activeProjectId: null,
+      activeWorktreePath: null,
+      tabs: [],
+      activeTabId: null,
+      focusRequestId: 0,
+      tabActivity: {},
+    });
   });
 
   it("hydrates a persisted GUI thread before opening the pane", async () => {
@@ -188,6 +198,62 @@ describe("threadActions", () => {
     await Promise.resolve();
 
     expect(useAppStore.getState().threads[0]?.status).toBe("inactive");
+  });
+
+  it("closes worktree dev terminals when marking a worktree thread done", () => {
+    const worktreePath = "/repo/.worktrees/feature";
+    const project = useAppStore.getState().addProject({
+      kind: "posix",
+      path: "/repo",
+    });
+    const thread = useAppStore.getState().createThread({
+      projectId: project.id,
+      agentKind: "codex",
+      config: { model: "gpt-5.4" },
+      prompt: "hello",
+      worktreePath,
+    });
+    useDevTerminalStore.setState({
+      isOpen: true,
+      activeProjectId: project.id,
+      activeWorktreePath: worktreePath,
+      tabs: [
+        {
+          id: "shell:worktree",
+          projectId: project.id,
+          worktreePath,
+          title: "feature",
+          createdAt: "2026-03-22T00:00:00.000Z",
+          splitId: "shell:worktree-split",
+        },
+        {
+          id: "shell:other",
+          projectId: project.id,
+          worktreePath: "/repo/.worktrees/other",
+          title: "other",
+          createdAt: "2026-03-22T00:00:00.000Z",
+        },
+      ],
+      activeTabId: "shell:worktree",
+      tabActivity: {
+        "shell:worktree": true,
+        "shell:worktree-split": true,
+        "shell:other": true,
+      },
+    });
+
+    toggleMarkThreadDone(thread.id);
+
+    const termState = useDevTerminalStore.getState();
+    expect(termState.isOpen).toBe(false);
+    expect(termState.activeProjectId).toBeNull();
+    expect(termState.activeWorktreePath).toBeNull();
+    expect(termState.tabs.map((tab) => tab.id)).toEqual(["shell:other"]);
+    expect(termState.activeTabId).toBe("shell:other");
+    expect(termState.tabActivity).toEqual({ "shell:other": true });
+    expect(bridge.closeThread).toHaveBeenCalledWith({ threadId: thread.id });
+    expect(bridge.closeThread).toHaveBeenCalledWith({ threadId: "shell:worktree" });
+    expect(bridge.closeThread).toHaveBeenCalledWith({ threadId: "shell:worktree-split" });
   });
 });
 

@@ -8,6 +8,7 @@ import { readBridge } from "@/renderer/bridge";
 import { captureProductEvent } from "@/renderer/analytics/posthog";
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
 import { useGitStore } from "@/renderer/state/gitStore";
+import { startPostPushPrStatusRefresh } from "@/renderer/state/gitRefresh";
 import { usePullFromSourceDialogStore } from "@/renderer/state/pullFromSourceDialogStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import {
@@ -133,6 +134,16 @@ export function useGitReviewActions(args: UseGitReviewActionsArgs) {
     return buildWorktreeLocation(project.location, worktreePath);
   }
 
+  function refreshPrAfterPush(): void {
+    if (!effectivePrKey || !effectiveBranch) return;
+    startPostPushPrStatusRefresh({
+      projectId: project.id,
+      projectLocation: project.location,
+      prKey: effectivePrKey,
+      branch: effectiveBranch,
+    });
+  }
+
   async function generateMessage(): Promise<string> {
     return generateCommitMessageWithFallback({
       projectLocation: project.location,
@@ -187,6 +198,7 @@ export function useGitReviewActions(args: UseGitReviewActionsArgs) {
             projectLocation: project.location,
             setUpstream: !hasTracking,
           });
+          refreshPrAfterPush();
           applyStatusOptimistic((s) => ({ ...s, ahead: 0 }));
           // GitHub takes a beat to register the new commits — refreshing
           // immediately fetches a stale PR snapshot. Delay so the post-push
@@ -259,6 +271,7 @@ export function useGitReviewActions(args: UseGitReviewActionsArgs) {
           projectLocation: project.location,
           setUpstream: !hasTracking,
         });
+        refreshPrAfterPush();
         // Optimistic: a successful push clears `ahead`. The refresh below
         // confirms it a moment later.
         applyStatusOptimistic((s) => ({ ...s, ahead: 0 }));
@@ -298,6 +311,7 @@ export function useGitReviewActions(args: UseGitReviewActionsArgs) {
         ...(key === "push" ? { setUpstream: !hasTracking } : {}),
       });
       if (key === "push") {
+        refreshPrAfterPush();
         applyStatusOptimistic((s) => ({ ...s, ahead: 0 }));
         setTimeout(() => onRefresh(), 1500);
         return;

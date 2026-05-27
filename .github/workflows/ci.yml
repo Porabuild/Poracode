@@ -113,5 +113,8 @@ jobs:
           echo "::error::pnpm install failed after 3 attempts"
           exit 1
 
+      - name: Ensure native dependencies
+        run: node scripts/ensure-native-deps.mjs
+
       - name: Test
         run: pnpm run test
