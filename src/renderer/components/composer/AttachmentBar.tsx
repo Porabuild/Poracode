@@ -41,6 +41,7 @@ export function BrowserChip(props: {
       role={onRemove ? "group" : "img"}
     >
       <Globe className="size-3 text-muted" aria-hidden="true" />
+      <span className="lightcode-attachment-chip__name">Browser</span>
       {onRemove ? (
         <button
           type="button"

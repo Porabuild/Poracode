@@ -182,6 +182,18 @@ export class BrowserTab {
     wc.on("will-prevent-unload", onWillPreventUnload);
     this.wcCleanups.push(() => wc.removeListener("will-prevent-unload", onWillPreventUnload));
 
+    const onBeforeInputEvent = (event: Electron.Event, input: Electron.Input) => {
+      if (!isBrowserReloadKeyDown(input)) return;
+      event.preventDefault();
+      if (isBrowserHardReloadKeyDown(input)) {
+        this.hardReload();
+        return;
+      }
+      wc.reload();
+    };
+    wc.on("before-input-event", onBeforeInputEvent);
+    this.wcCleanups.push(() => wc.removeListener("before-input-event", onBeforeInputEvent));
+
     const onConsoleMessage = (
       event: Electron.Event<Electron.WebContentsConsoleMessageEventParams>,
     ) => {
@@ -410,4 +422,14 @@ function snapshotsEqual(a: BrowserTabSnapshot, b: BrowserTabSnapshot): boolean {
     a.devToolsOpen === b.devToolsOpen &&
     a.faviconUrl === b.faviconUrl
   );
+}
+
+function isBrowserReloadKeyDown(input: Electron.Input): boolean {
+  if (input.type !== "keyDown") return false;
+  if (input.key === "F5" || input.code === "F5") return true;
+  return (input.control || input.meta) && input.key.toLowerCase() === "r";
+}
+
+function isBrowserHardReloadKeyDown(input: Electron.Input): boolean {
+  return isBrowserReloadKeyDown(input) && input.shift === true;
 }

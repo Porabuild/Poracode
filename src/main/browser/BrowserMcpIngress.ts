@@ -2,11 +2,13 @@ import { createServer, type IncomingMessage, type Server, type ServerResponse } 
 import { randomBytes, randomUUID } from "node:crypto";
 import type { BrowserPanelManager } from "./BrowserPanelManager";
 import {
+  BROWSER_MCP_INSTRUCTIONS,
   TOOLS,
   dispatchTool,
   formatToolResult,
   isKnownToolName,
   type McpToolResult,
+  normalizeToolName,
   type ToolContext,
 } from "./mcp/toolRegistry";
 
@@ -18,6 +20,7 @@ export interface BrowserMcpIngressInfo {
 
 const MAX_BODY = 1024 * 1024;
 const MCP_PROTOCOL_VERSION = "2025-03-26";
+const PASSIVE_TOOLS = new Set(["api", "list_tabs", "get_url", "get_title"]);
 
 interface JsonRpcRequest {
   jsonrpc: "2.0";
@@ -248,6 +251,7 @@ export class BrowserMcpIngress {
             protocolVersion: MCP_PROTOCOL_VERSION,
             capabilities: { tools: {} },
             serverInfo: { name: "browser", version: "2.0.0" },
+            instructions: BROWSER_MCP_INSTRUCTIONS,
           },
         };
       }
@@ -285,7 +289,9 @@ export class BrowserMcpIngress {
             },
           };
         }
-        ctx.manager.revealPanel();
+        if (shouldRevealPanelForTool(name)) {
+          ctx.manager.revealPanel();
+        }
         let raw: unknown;
         try {
           raw = await dispatchTool(name, args, ctx);
@@ -324,4 +330,8 @@ function isJsonRpcRequest(value: unknown): value is JsonRpcRequest {
     (value as { jsonrpc?: unknown }).jsonrpc === "2.0" &&
     typeof (value as { method?: unknown }).method === "string"
   );
+}
+
+function shouldRevealPanelForTool(name: string): boolean {
+  return !PASSIVE_TOOLS.has(normalizeToolName(name));
 }

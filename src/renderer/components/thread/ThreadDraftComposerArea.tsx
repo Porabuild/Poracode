@@ -367,8 +367,11 @@ export function ThreadDraftComposerArea(props: {
             {...(!isHomeScope ? { projectId: props.project.id } : {})}
             onTextChange={(hasText) => {
               setHasContent(hasText);
-              latestSegmentsRef.current = mentionRef.current?.serializeSegments() ?? [];
+              const segments = mentionRef.current?.serializeSegments() ?? [];
+              latestSegmentsRef.current = segments;
             }}
+            showBrowserMention={browserMcpScope !== "none" && props.config.browserMcp !== true}
+            onBrowserMentionSelect={() => props.onConfigChange({ browserMcp: true })}
             onPasteImage={(file) => {
               void attachments.addClipboardImage(file, `draft:${props.project.id}`);
             }}

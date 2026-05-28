@@ -3,9 +3,22 @@ import type { FileEntry, ProjectLocation, PromptSegment } from "@/shared/contrac
 import { fileNameFromPath } from "@/shared/promptContent";
 import { createChipElement, type FileMentionData } from "./FileMentionChip";
 import { createSlashCommandChipElement } from "./SlashCommandChip";
-import { MentionPopover } from "./MentionPopover";
+import { MentionPopover, type MentionEntry } from "./MentionPopover";
 import { useDebouncedFileSearch } from "./useDebouncedFileSearch";
 import { serializeToSegments, flattenSegments } from "./serializeMentions";
+
+const BROWSER_MENTION_ENTRY: MentionEntry = { type: "browser", path: "browser", name: "Browser" };
+
+export function buildMentionResults(
+  fileResults: FileEntry[],
+  query: string,
+  showBrowserMention: boolean,
+): MentionEntry[] {
+  const q = query.trim().toLowerCase();
+  const browserResults =
+    showBrowserMention && "browser".startsWith(q) ? [BROWSER_MENTION_ENTRY] : [];
+  return [...browserResults, ...fileResults];
+}
 
 export interface MentionInputHandle {
   /** Get structured segments (text + file mentions) for the adapter pipeline. */
@@ -131,6 +144,8 @@ export const MentionInput = forwardRef<
     onTextChange: (hasText: boolean) => void;
     onSubmit: (segments: PromptSegment[]) => void;
     onPasteImage?: (file: File) => void;
+    showBrowserMention?: boolean;
+    onBrowserMentionSelect?: () => void;
     onSlashCommandChange?: (query: string | null) => void;
     /**
      * Called before MentionInput's own key handling (after the mention popover
@@ -150,6 +165,8 @@ export const MentionInput = forwardRef<
     onTextChange,
     onSubmit,
     onPasteImage,
+    showBrowserMention,
+    onBrowserMentionSelect,
     onSlashCommandChange,
     onInterceptKey,
   } = props;
@@ -158,16 +175,21 @@ export const MentionInput = forwardRef<
   const [mention, setMention] = useState<MentionState | null>(null);
   const [activeIndex, setActiveIndex] = useState(0);
 
-  const results = useDebouncedFileSearch(
+  const fileResults = useDebouncedFileSearch(
     projectLocation,
     mention?.query ?? "",
     mention !== null,
     projectId,
   );
+  const results = buildMentionResults(
+    fileResults,
+    mention?.query ?? "",
+    showBrowserMention === true,
+  );
 
   useEffect(() => {
     setActiveIndex(0);
-  }, [results]);
+  }, [mention?.query, fileResults, showBrowserMention]);
 
   useImperativeHandle(ref, () => ({
     serializeSegments() {
@@ -299,11 +321,23 @@ export const MentionInput = forwardRef<
     onTextChange(hasEditorContent(editor));
   }
 
-  function insertMention(entry: FileEntry) {
+  function insertMention(entry: MentionEntry) {
     if (!editorRef.current) return;
 
     const range = detectTriggerRange("@");
     if (!range) return;
+
+    if (entry.type === "browser") {
+      const sel = window.getSelection();
+      if (!sel) return;
+      sel.removeAllRanges();
+      sel.addRange(range);
+      range.deleteContents();
+      setMention(null);
+      onBrowserMentionSelect?.();
+      notifyTextChange();
+      return;
+    }
 
     const mentionData: FileMentionData = {
       path: entry.path,

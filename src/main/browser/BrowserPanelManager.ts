@@ -238,8 +238,10 @@ export class BrowserPanelManager {
   attachWebContents(tabId: string, webContentsId: number): void {
     const tab = this.findTab(tabId);
     if (!tab) return;
+    if (this.host?.webContents.id === webContentsId) return;
     const wc = resolveWebContentsById(webContentsId);
     if (!wc) return;
+    if (this.host?.webContents === wc) return;
     tab.attach(wc);
   }
 

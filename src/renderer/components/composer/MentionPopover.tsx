@@ -1,7 +1,16 @@
 import { useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
+import { Globe } from "lucide-react";
 import type { FileEntry } from "@/shared/contracts";
 import { getEntryIconUrl } from "@/renderer/components/common/fileIcons";
+
+export type BrowserMentionEntry = {
+  type: "browser";
+  path: "browser";
+  name: "Browser";
+};
+
+export type MentionEntry = FileEntry | BrowserMentionEntry;
 
 function getParentDir(path: string): string {
   const lastSlash = path.lastIndexOf("/");
@@ -9,11 +18,11 @@ function getParentDir(path: string): string {
 }
 
 export function MentionPopover(props: {
-  results: FileEntry[];
+  results: MentionEntry[];
   activeIndex: number;
   editorEl: HTMLDivElement | null;
   mentionRange: Range;
-  onSelect: (entry: FileEntry) => void;
+  onSelect: (entry: MentionEntry) => void;
   onActiveIndexChange: (index: number) => void;
 }) {
   const { results, activeIndex, editorEl, mentionRange, onSelect, onActiveIndexChange } = props;
@@ -52,6 +61,7 @@ export function MentionPopover(props: {
         {results.map((entry, index) => {
           const dir = getParentDir(entry.path);
           const isActive = index === activeIndex;
+          const isBrowser = entry.type === "browser";
           return (
             <div
               key={`${entry.type}:${entry.path}`}
@@ -64,14 +74,26 @@ export function MentionPopover(props: {
                 onSelect(entry);
               }}
             >
-              <img
-                className="lightcode-mention-popover__icon"
-                src={getEntryIconUrl(entry.name, entry.type === "directory")}
-                alt=""
-                draggable={false}
-              />
-              <span className="truncate">{entry.name}</span>
-              {dir && <span className="ml-auto shrink-0 text-xs text-[var(--muted)]">{dir}</span>}
+              {isBrowser ? (
+                <Globe className="lightcode-mention-popover__icon text-muted" aria-hidden="true" />
+              ) : (
+                <img
+                  className="lightcode-mention-popover__icon"
+                  src={getEntryIconUrl(entry.name, entry.type === "directory")}
+                  alt=""
+                  draggable={false}
+                />
+              )}
+              <span className="lightcode-mention-popover__label truncate">{entry.name}</span>
+              {isBrowser ? (
+                <span className="lightcode-mention-popover__detail ml-auto shrink-0 text-xs text-[var(--muted)]">
+                  Browser MCP
+                </span>
+              ) : dir ? (
+                <span className="lightcode-mention-popover__detail ml-auto shrink-0 text-xs text-[var(--muted)]">
+                  {dir}
+                </span>
+              ) : null}
             </div>
           );
         })}

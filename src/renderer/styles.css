@@ -1995,11 +1995,9 @@ html[data-platform="darwin"] .lightcode-content-over-drag-region--drag {
 }
 
 .lightcode-browser-chip {
-  justify-content: center;
-  width: 1.35rem;
+  padding: 0.25em 0.45em;
   height: 1.35rem;
-  gap: 0;
-  padding: 0;
+  gap: 0.3rem;
   border-radius: 0.35rem;
   font-size: 0.6875rem;
   line-height: 1.25;
@@ -2222,8 +2220,17 @@ html[data-platform="darwin"] .lightcode-content-over-drag-region--drag {
   padding: 0.45rem 0.65rem;
   border-radius: 0.5rem;
   font-size: 0.8125rem;
+  line-height: 1.125rem;
   cursor: var(--interactive-cursor);
   color: var(--foreground);
+}
+
+.lightcode-mention-popover__label,
+.lightcode-mention-popover__detail {
+  display: flex;
+  align-items: center;
+  min-height: 1.125rem;
+  transform: translateY(-1px);
 }
 
 .lightcode-mention-popover__item--active {

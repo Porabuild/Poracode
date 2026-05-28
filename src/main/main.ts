@@ -1,7 +1,7 @@
 import { watch } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
-import { app, BrowserWindow } from "electron";
+import { app, BrowserWindow, Menu } from "electron";
 import { closeDatabase, dbGetThreads, initDatabase } from "./db";
 import { cleanupOrphanedAttachments, prepareLightcodeDataRoot } from "./lightcodeData";
 import { createLocalIpcHandlers } from "./ipc/localHandlers";
@@ -146,6 +146,8 @@ if (!hasSingleInstanceLock) {
   });
 
   app.whenReady().then(async () => {
+    Menu.setApplicationMenu(null);
+
     installLocalFileProtocolHandler();
     installPickerProtocolHandler();
 

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { Maximize2, Minimize2, X } from "lucide-react";
 import { isMac, readBridge } from "@/renderer/bridge";
 import { useBrowserPanelStore } from "@/renderer/state/browserPanelStore";
@@ -41,6 +41,18 @@ export function BrowserPanel(props: { visible: boolean }) {
     } catch {}
   }, []);
 
+  const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (!activeTabId || !isBrowserReloadShortcut(event)) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const bridge = readBridge();
+    if (event.shiftKey) {
+      bridge.browserHardReload({ tabId: activeTabId }).catch(() => {});
+      return;
+    }
+    bridge.browserReload({ tabId: activeTabId }).catch(() => {});
+  };
+
   const onPick = useCallback(() => {
     void startPicker();
   }, [startPicker]);
@@ -68,7 +80,12 @@ export function BrowserPanel(props: { visible: boolean }) {
     isFullscreenOverlay ? "lightcode-overlay-header__controls " : ""
   }${panelHeaderIconButtonClass}`;
   return (
-    <div className="flex h-full min-h-0 flex-col bg-[var(--content-background)]">
+    <div
+      role="group"
+      aria-label="Browser"
+      className="flex h-full min-h-0 flex-col bg-[var(--content-background)]"
+      onKeyDown={onKeyDown}
+    >
       {browserOverlayOpen ? (
         <div
           className={`${
@@ -191,10 +208,16 @@ function BrowserTabWebview(props: { tabId: string; initialSrc: string; visible: 
     <webview
       ref={ref}
       data-tab-id={props.tabId}
+      partition="persist:lightcode-browser"
       src={initialSrcRef.current || "about:blank"}
       allowpopups={true}
       className="absolute inset-0 size-full"
       style={{ display: props.visible ? "flex" : "none" }}
     />
   );
+}
+
+function isBrowserReloadShortcut(event: KeyboardEvent): boolean {
+  if (event.key === "F5") return true;
+  return (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "r";
 }

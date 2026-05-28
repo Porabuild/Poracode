@@ -57,14 +57,21 @@ export async function captureScreenshotPng(
   options: {
     fullPage?: boolean;
     clip?: { x: number; y: number; width: number; height: number };
+    format?: "png" | "jpeg";
+    quality?: number;
+    scale?: number;
     /** When true, allow the clip to reference document coordinates outside the
      *  current viewport so capture can happen without scrolling the page. */
     captureBeyondViewport?: boolean;
   },
 ): Promise<Buffer> {
-  const params: Record<string, unknown> = { format: "png" };
+  const params: Record<string, unknown> = { format: options.format ?? "png" };
+  if (options.format === "jpeg" && typeof options.quality === "number") {
+    params.quality = Math.max(1, Math.min(100, Math.floor(options.quality)));
+  }
+  const scale = Math.max(0.1, Math.min(1, options.scale ?? 1));
   if (options.clip) {
-    params.clip = { ...options.clip, scale: 1 };
+    params.clip = { ...options.clip, scale };
     if (options.captureBeyondViewport) {
       params.captureBeyondViewport = true;
     }
@@ -81,7 +88,7 @@ export async function captureScreenshotPng(
         y: Math.floor(size.y),
         width: Math.max(1, Math.ceil(size.width)),
         height: Math.max(1, Math.ceil(size.height)),
-        scale: 1,
+        scale,
       };
     }
     params.captureBeyondViewport = true;
@@ -125,51 +132,6 @@ export async function queryFirstDocumentRect(
   return await evalJs<{ x: number; y: number; width: number; height: number } | null>(cdp, expr);
 }
 
-export async function clickSelector(cdp: CdpClient, selector: string): Promise<void> {
-  const rect = await queryFirstRect(cdp, selector);
-  if (!rect || rect.width === 0 || rect.height === 0) {
-    throw new Error(`Selector not found or has zero size: ${selector}`);
-  }
-  const x = rect.x + rect.width / 2;
-  const y = rect.y + rect.height / 2;
-  await cdp.send("Input.dispatchMouseEvent", {
-    type: "mouseMoved",
-    x,
-    y,
-  });
-  await cdp.send("Input.dispatchMouseEvent", {
-    type: "mousePressed",
-    x,
-    y,
-    button: "left",
-    clickCount: 1,
-  });
-  await cdp.send("Input.dispatchMouseEvent", {
-    type: "mouseReleased",
-    x,
-    y,
-    button: "left",
-    clickCount: 1,
-  });
-}
-
-export async function typeIntoSelector(
-  cdp: CdpClient,
-  selector: string,
-  text: string,
-  submit: boolean,
-): Promise<void> {
-  await evalJs(
-    cdp,
-    `(() => { const el = document.querySelector(${JSON.stringify(selector)}); if (el && el.focus) el.focus(); })()`,
-  );
-  await cdp.send("Input.insertText", { text });
-  if (submit) {
-    await cdp.send("Input.dispatchKeyEvent", { type: "keyDown", key: "Enter", code: "Enter" });
-    await cdp.send("Input.dispatchKeyEvent", { type: "keyUp", key: "Enter", code: "Enter" });
-  }
-}
-
 export async function waitForSelector(
   cdp: CdpClient,
   selector: string,
@@ -195,11 +157,25 @@ export async function waitForSelector(
  */
 export async function pageSnapshot(
   cdp: CdpClient,
-  options: { maxNodes?: number; includeHidden?: boolean } = {},
+  options: {
+    maxNodes?: number;
+    offset?: number;
+    mode?: "full" | "compact" | "summary";
+    maxTextLength?: number;
+    includeHidden?: boolean;
+    interactiveOnly?: boolean;
+    includeUrls?: boolean;
+    selector?: string;
+  } = {},
 ): Promise<{
   url: string;
   title: string;
   viewport: { width: number; height: number; scrollX: number; scrollY: number };
+  total: number;
+  offset: number;
+  limit: number;
+  nextOffset: number | null;
+  mode: "full" | "compact" | "summary";
   nodes: Array<{
     ref: string;
     tag: string;
@@ -212,11 +188,27 @@ export async function pageSnapshot(
     rect: { x: number; y: number; width: number; height: number };
   }>;
 }> {
-  const maxNodes = options.maxNodes ?? 200;
+  const maxNodes = Math.max(1, Math.min(500, options.maxNodes ?? 120));
+  const offset = Math.max(0, options.offset ?? 0);
+  const mode = options.mode === "compact" || options.mode === "summary" ? options.mode : "full";
+  const maxTextLength = Math.max(
+    20,
+    Math.min(1000, options.maxTextLength ?? (mode === "full" ? 200 : 80)),
+  );
   const includeHidden = options.includeHidden === true;
+  const interactiveOnly = options.interactiveOnly !== false;
+  const includeUrls = options.includeUrls === true;
   const expr = `(() => {
-    const out = { url: location.href, title: document.title || "", viewport: { width: innerWidth, height: innerHeight, scrollX: scrollX, scrollY: scrollY }, nodes: [] };
+    const mode = ${JSON.stringify(mode)};
+    const maxTextLength = ${maxTextLength};
+    const out = { url: location.href, title: document.title || "", viewport: { width: innerWidth, height: innerHeight, scrollX: scrollX, scrollY: scrollY }, total: 0, offset: ${offset}, limit: ${maxNodes}, nextOffset: null, mode, nodes: [] };
+    const root = ${JSON.stringify(options.selector ?? "")}
+      ? document.querySelector(${JSON.stringify(options.selector ?? "")})
+      : document;
+    if (!root) return out;
     const VALID = new Set(["a","button","input","textarea","select","option","label","h1","h2","h3","h4","h5","h6","li","summary","details","form","img","nav","main","section","article","aside","footer","header","dialog","menu","menuitem"]);
+    const STRUCTURAL = new Set(["h1","h2","h3","h4","h5","h6","li","form","nav","main","section","article","aside","footer","header"]);
+    const SUMMARY = new Set(["h1","h2","h3","h4","h5","h6","form","nav","main","section","article","aside","footer","header","dialog","summary","details"]);
     const isInteractive = (el) => {
       const tag = el.tagName.toLowerCase();
       if (VALID.has(tag)) return true;
@@ -252,16 +244,24 @@ export async function pageSnapshot(
       const text = (el.textContent || "").trim();
       return text.length > 0 && text.length < 120 ? text : "";
     };
-    const trim = (s) => s && s.length > 200 ? s.slice(0, 200) + "\\u2026" : s;
+    const trim = (s) => s && s.length > maxTextLength ? s.slice(0, maxTextLength) + "\\u2026" : s;
     const refs = (window.__lcRefs = window.__lcRefs || new Map());
     let counter = (window.__lcRefSeq = (window.__lcRefSeq || 0)) + 1;
-    const all = document.querySelectorAll("*");
+    const all = root === document
+      ? document.querySelectorAll("*")
+      : [root, ...root.querySelectorAll("*")];
     const include = ${includeHidden ? "() => true" : "isVisible"};
     for (const el of all) {
-      if (out.nodes.length >= ${maxNodes}) break;
-      if (!isInteractive(el) && el.tagName !== "BODY") continue;
+      const tag = el.tagName.toLowerCase();
+      if (tag === "body" && mode !== "full") continue;
+      if (mode === "summary") {
+        if (!isInteractive(el) && !SUMMARY.has(tag)) continue;
+      } else if (!isInteractive(el) && (${interactiveOnly ? "true" : "!STRUCTURAL.has(tag)"}) && el.tagName !== "BODY") continue;
       if (!include(el)) continue;
-      const ref = "node-" + (counter++);
+      const matchIndex = out.total++;
+      if (matchIndex < ${offset}) continue;
+      if (out.nodes.length >= ${maxNodes}) continue;
+      const ref = "@e" + (counter++);
       refs.set(ref, el);
       const r = el.getBoundingClientRect();
       const node = {
@@ -269,42 +269,20 @@ export async function pageSnapshot(
         tag: el.tagName.toLowerCase(),
         role: el.getAttribute("role") || undefined,
         name: trim(accessibleName(el)) || undefined,
-        text: trim((el.textContent || "").trim()) || undefined,
         visible: isVisible(el),
         rect: { x: r.left, y: r.top, width: r.width, height: r.height },
       };
+      const text = trim((el.textContent || "").trim());
+      if (text && !(mode === "compact" && tag === "body")) node.text = text;
       if ("value" in el && typeof el.value === "string") node.value = trim(el.value);
-      if (el.tagName === "A" && el.href) node.href = el.href;
+      if (${includeUrls ? "true" : "false"} && el.tagName === "A" && el.href) node.href = el.href;
       out.nodes.push(node);
     }
+    if (${offset} + out.nodes.length < out.total) out.nextOffset = ${offset} + out.nodes.length;
     window.__lcRefSeq = counter;
     return out;
   })()`;
   return await evalJs(cdp, expr);
-}
-
-export async function resolveRefToSelector(cdp: CdpClient, ref: string): Promise<string | null> {
-  return await evalJs<string | null>(
-    cdp,
-    `(() => {
-      const el = (window.__lcRefs || new Map()).get(${JSON.stringify(ref)});
-      if (!el) return null;
-      if (el.id && !/^\\d/.test(el.id)) return "#" + CSS.escape(el.id);
-      const path = [];
-      let n = el;
-      while (n && n.nodeType === 1 && n.tagName !== "HTML") {
-        let part = n.tagName.toLowerCase();
-        const p = n.parentElement;
-        if (p) {
-          const sibs = Array.from(p.children).filter((c) => c.tagName === n.tagName);
-          if (sibs.length > 1) part += ":nth-of-type(" + (sibs.indexOf(n) + 1) + ")";
-        }
-        path.unshift(part);
-        n = p;
-      }
-      return path.join(" > ");
-    })()`,
-  );
 }
 
 export async function getElementInfo(
@@ -365,33 +343,6 @@ export async function getElementState(
       return { exists: true, visible, enabled, checked, focused };
     })()`,
   );
-}
-
-export async function hoverSelector(cdp: CdpClient, selector: string): Promise<void> {
-  const rect = await queryFirstRect(cdp, selector);
-  if (!rect) throw new Error(`Selector not found: ${selector}`);
-  const x = rect.x + rect.width / 2;
-  const y = rect.y + rect.height / 2;
-  await cdp.send("Input.dispatchMouseEvent", { type: "mouseMoved", x, y });
-}
-
-export async function pressKey(cdp: CdpClient, key: string): Promise<void> {
-  await cdp.send("Input.dispatchKeyEvent", { type: "keyDown", key, code: key });
-  await cdp.send("Input.dispatchKeyEvent", { type: "keyUp", key, code: key });
-}
-
-export async function scrollPage(
-  cdp: CdpClient,
-  options: { selector?: string; x?: number; y?: number },
-): Promise<void> {
-  if (options.selector) {
-    await evalJs(
-      cdp,
-      `(() => { const el = document.querySelector(${JSON.stringify(options.selector)}); if (el) el.scrollIntoView({ block: "center", inline: "center" }); })()`,
-    );
-    return;
-  }
-  await evalJs(cdp, `(() => { window.scrollBy(${options.x ?? 0}, ${options.y ?? 0}); })()`);
 }
 
 export async function waitForJs(
@@ -460,6 +411,10 @@ export async function findByA11y(
     text?: string;
     testid?: string;
     nth?: number;
+    limit?: number;
+    visibleOnly?: boolean;
+    interactiveOnly?: boolean;
+    within?: string;
   },
 ): Promise<{
   found: boolean;
@@ -468,7 +423,22 @@ export async function findByA11y(
     selector: string;
     rect: { x: number; y: number; width: number; height: number };
     ref: string;
+    score: number;
+    reason: string[];
+    role?: string;
+    name?: string;
+    text?: string;
   };
+  candidates?: Array<{
+    selector: string;
+    rect: { x: number; y: number; width: number; height: number };
+    ref: string;
+    score: number;
+    reason: string[];
+    role?: string;
+    name?: string;
+    text?: string;
+  }>;
 }> {
   const expr = `(() => {
     const q = ${JSON.stringify(query)};
@@ -477,54 +447,176 @@ export async function findByA11y(
       const v = el.getAttribute(name);
       return v != null && (value ? v === value : true);
     };
-    const accName = (el) => (el.getAttribute("aria-label") || el.getAttribute("title") || el.getAttribute("alt") || (el.textContent || "").trim()).toLowerCase();
-    const all = document.querySelectorAll("*");
-    for (const el of all) {
-      if (q.testid && !matchAttr(el, "data-testid", q.testid)) continue;
-      if (q.role && (el.getAttribute("role") || el.tagName.toLowerCase()) !== q.role) continue;
-      if (q.placeholder && el.getAttribute("placeholder") !== q.placeholder) continue;
-      if (q.label) {
-        const labelText = (el.getAttribute("aria-label") || "").toLowerCase();
-        if (!labelText.includes(q.label.toLowerCase())) continue;
+    const isVisible = (el) => {
+      const style = getComputedStyle(el);
+      const r = el.getBoundingClientRect();
+      return style.display !== "none" && style.visibility !== "hidden" && style.opacity !== "0" && r.width > 0 && r.height > 0;
+    };
+    const implicitRole = (el) => {
+      const tag = el.tagName.toLowerCase();
+      if (tag === "button") return "button";
+      if (tag === "a" && el.hasAttribute("href")) return "link";
+      if (tag === "select") return "combobox";
+      if (tag === "textarea") return "textbox";
+      if (tag === "input") {
+        const type = (el.getAttribute("type") || "text").toLowerCase();
+        if (type === "checkbox") return "checkbox";
+        if (type === "radio") return "radio";
+        if (type === "button" || type === "submit" || type === "reset") return "button";
+        return "textbox";
+      }
+      return tag;
+    };
+    const isInteractive = (el) => {
+      const tag = el.tagName.toLowerCase();
+      if (["a","button","input","textarea","select"].includes(tag)) return true;
+      if (el.getAttribute("role")) return true;
+      if (el.tabIndex >= 0) return true;
+      if (el.onclick || el.getAttribute("onclick")) return true;
+      return false;
+    };
+    const labelText = (el) => {
+      if (el.id) {
+        const lab = document.querySelector(\`label[for="\${CSS.escape(el.id)}"]\`);
+        if (lab) return (lab.textContent || "").trim();
+      }
+      const wrapping = el.closest("label");
+      return wrapping ? (wrapping.textContent || "").trim() : "";
+    };
+    const accName = (el) => (
+      el.getAttribute("aria-label") ||
+      el.getAttribute("title") ||
+      el.getAttribute("alt") ||
+      el.getAttribute("placeholder") ||
+      labelText(el) ||
+      (el.value && (el.tagName === "INPUT" || el.tagName === "BUTTON") ? String(el.value) : "") ||
+      (el.textContent || "").trim()
+    ).trim();
+    const trim = (s, n) => s && s.length > n ? s.slice(0, n) + "\\u2026" : s;
+    const selectorFor = (el) => {
+      const path = [];
+      let n = el;
+      while (n && n.nodeType === 1 && n.tagName !== "HTML") {
+        let part = n.tagName.toLowerCase();
+        const p = n.parentElement;
+        if (p) {
+          const sibs = Array.from(p.children).filter((c) => c.tagName === n.tagName);
+          if (sibs.length > 1) part += ":nth-of-type(" + (sibs.indexOf(n) + 1) + ")";
+        }
+        path.unshift(part);
+        n = p;
+      }
+      return path.join(" > ");
+    };
+    const score = (el) => {
+      let s = 0;
+      const reason = [];
+      const role = (el.getAttribute("role") || implicitRole(el)).toLowerCase();
+      const name = accName(el).toLowerCase();
+      const text = (el.textContent || "").trim().toLowerCase();
+      const childCount = el.children.length;
+      if (q.role && role === q.role.toLowerCase()) {
+        s += 80;
+        reason.push("role");
+      }
+      if (q.testid && matchAttr(el, "data-testid", q.testid)) {
+        s += 90;
+        reason.push("testid");
+      }
+      if (q.placeholder && el.getAttribute("placeholder") === q.placeholder) {
+        s += 70;
+        reason.push("placeholder");
+      }
+      if (q.label && labelText(el).toLowerCase().includes(q.label.toLowerCase())) {
+        s += 70;
+        reason.push("label");
       }
       if (q.name) {
-        if (!accName(el).includes(q.name.toLowerCase())) continue;
+        const needle = q.name.toLowerCase();
+        if (name === needle) {
+          s += 100;
+          reason.push("exact name");
+        } else if (name.includes(needle)) {
+          s += 60;
+          reason.push("name");
+        }
+      }
+      if (q.text) {
+        const needle = q.text.toLowerCase();
+        if (text === needle) {
+          s += 60;
+          reason.push("exact text");
+        } else if (text.includes(needle)) {
+          s += Math.max(5, 45 - childCount * 2);
+          reason.push("text");
+        }
+      }
+      if (["button","a","input","textarea","select"].includes(el.tagName.toLowerCase())) {
+        s += 15;
+        reason.push("native interactive");
+      }
+      if (el.tabIndex >= 0) {
+        s += 10;
+        reason.push("focusable");
+      }
+      if (["BODY","HTML","MAIN"].includes(el.tagName)) s -= 200;
+      if (text.length > 600 || childCount > 30) s -= 80;
+      return { score: s, reason };
+    };
+    const root = q.within ? document.querySelector(q.within) : document;
+    if (!root) return { found: false, count: 0 };
+    const all = root.querySelectorAll("*");
+    for (const el of all) {
+      if (q.visibleOnly !== false && !isVisible(el)) continue;
+      if (q.interactiveOnly === true && !isInteractive(el)) continue;
+      if (["SCRIPT","STYLE","NOSCRIPT","HTML","BODY"].includes(el.tagName)) continue;
+      const role = (el.getAttribute("role") || implicitRole(el)).toLowerCase();
+      if (q.testid && !matchAttr(el, "data-testid", q.testid)) continue;
+      if (q.role && role !== q.role.toLowerCase()) continue;
+      if (q.placeholder && el.getAttribute("placeholder") !== q.placeholder) continue;
+      if (q.label) {
+        const text = labelText(el).toLowerCase();
+        if (!text.includes(q.label.toLowerCase())) continue;
+      }
+      if (q.name) {
+        if (!accName(el).toLowerCase().includes(q.name.toLowerCase())) continue;
       }
       if (q.text) {
         const t = (el.textContent || "").toLowerCase();
         if (!t.includes(q.text.toLowerCase())) continue;
       }
-      candidates.push(el);
+      const scored = score(el);
+      if (scored.score <= 0) continue;
+      candidates.push({ el, score: scored.score, reason: scored.reason, role, name: accName(el), text: trim((el.textContent || "").trim(), 120) });
     }
+    candidates.sort((a, b) => b.score - a.score);
     const refs = (window.__lcRefs = window.__lcRefs || new Map());
     let seq = (window.__lcRefSeq = (window.__lcRefSeq || 0));
     const idx = typeof q.nth === "number" ? q.nth : 0;
-    const el = candidates[idx];
-    if (!el) return { found: false, count: candidates.length };
-    const ref = "node-" + (++seq);
+    const limit = Math.max(idx + 1, Math.min(20, Math.max(1, typeof q.limit === "number" ? q.limit : 5)));
+    const results = candidates.slice(0, limit).map((candidate) => {
+      const ref = "@e" + (++seq);
+      refs.set(ref, candidate.el);
+      const r = candidate.el.getBoundingClientRect();
+      return {
+        selector: selectorFor(candidate.el),
+        ref,
+        score: candidate.score,
+        reason: candidate.reason,
+        role: candidate.role || undefined,
+        name: candidate.name || undefined,
+        text: candidate.text || undefined,
+        rect: { x: r.left, y: r.top, width: r.width, height: r.height },
+      };
+    });
     window.__lcRefSeq = seq;
-    refs.set(ref, el);
-    const path = [];
-    let n = el;
-    while (n && n.nodeType === 1 && n.tagName !== "HTML") {
-      let part = n.tagName.toLowerCase();
-      const p = n.parentElement;
-      if (p) {
-        const sibs = Array.from(p.children).filter((c) => c.tagName === n.tagName);
-        if (sibs.length > 1) part += ":nth-of-type(" + (sibs.indexOf(n) + 1) + ")";
-      }
-      path.unshift(part);
-      n = p;
-    }
-    const r = el.getBoundingClientRect();
+    const match = results[idx];
+    if (!match) return { found: false, count: candidates.length, candidates: results };
     return {
       found: true,
       count: candidates.length,
-      match: {
-        selector: path.join(" > "),
-        ref,
-        rect: { x: r.left, y: r.top, width: r.width, height: r.height },
-      },
+      match,
+      candidates: results,
     };
   })()`;
   return await evalJs(cdp, expr);
@@ -534,21 +626,30 @@ export async function querySelectorAllSnapshot(
   cdp: CdpClient,
   selector: string,
   limit: number = 20,
+  offset: number = 0,
 ): Promise<{
   count: number;
+  offset: number;
+  limit: number;
+  nextOffset: number | null;
   texts: string[];
   outerHtmls: string[];
   bounds: Array<{ x: number; y: number; width: number; height: number }>;
 }> {
   const expr = `(() => {
     const all = Array.from(document.querySelectorAll(${JSON.stringify(selector)}));
-    const lim = ${limit};
+    const off = ${Math.max(0, offset)};
+    const lim = ${Math.max(1, Math.min(100, limit))};
+    const slice = all.slice(off, off + lim);
     const truncate = (s, n) => s && s.length > n ? s.slice(0, n) + '\\u2026' : s;
     return {
       count: all.length,
-      texts: all.slice(0, lim).map((e) => truncate((e.textContent || '').trim(), 240)),
-      outerHtmls: all.slice(0, lim).map((e) => truncate(e.outerHTML || '', 1200)),
-      bounds: all.slice(0, lim).map((e) => {
+      offset: off,
+      limit: lim,
+      nextOffset: off + slice.length < all.length ? off + slice.length : null,
+      texts: slice.map((e) => truncate((e.textContent || '').trim(), 240)),
+      outerHtmls: slice.map((e) => truncate(e.outerHTML || '', 1200)),
+      bounds: slice.map((e) => {
         const r = e.getBoundingClientRect();
         return { x: r.left, y: r.top, width: r.width, height: r.height };
       }),

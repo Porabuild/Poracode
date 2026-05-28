@@ -1,3 +1,4 @@
+import type { NativeImage } from "electron";
 import type { BrowserPanelManager } from "../BrowserPanelManager";
 import {
   addInitScript,
@@ -5,7 +6,6 @@ import {
   back,
   captureScreenshotPng,
   clearCookies,
-  clickSelector,
   evalJs,
   evaluateOneShotStyle,
   findByA11y,
@@ -14,29 +14,41 @@ import {
   getElementInfo,
   getElementState,
   getFrameTree,
-  hoverSelector,
   pageSnapshot,
-  pressKey,
   queryFirstDocumentRect,
   querySelectorAllSnapshot,
-  reload,
   removeInitScript,
-  resolveRefToSelector,
-  scrollPage,
   setCookie,
   storageClear,
   storageGet,
   storageGetAll,
   storageRemove,
   storageSet,
-  typeIntoSelector,
   waitForJs,
   waitForSelector,
   waitForText,
   waitForUrl,
 } from "../cdp/tools";
+import {
+  clickSelector,
+  doubleClickSelector,
+  fillSelector,
+  focusSelector,
+  hoverSelector,
+  pressKey,
+  resolveRefToSelector,
+  scrollPage,
+  selectOption,
+  setCheckedSelector,
+  typeIntoSelector,
+} from "../pageDriver";
 
 const MAX_EVAL_RESULT = 64 * 1024;
+const MAX_SCREENSHOT_BYTES = 6 * 1024 * 1024;
+const MAX_SCREENSHOT_DIMENSION = 2200;
+const SCREENSHOT_TIMEOUT_MS = 800;
+
+type ScreenshotFormat = "png" | "jpeg";
 
 export interface ToolContext {
   manager: BrowserPanelManager;
@@ -50,7 +62,16 @@ export interface ToolSpec {
   inputSchema: Record<string, unknown>;
 }
 
+export const BROWSER_MCP_INSTRUCTIONS =
+  "Use the browser MCP server for browsing, inspecting, clicking, typing, screenshots, network/console checks, and local web app verification inside Lightcode. Prefer browser.snapshot or browser.find before browser.click/fill/type, use @e refs from snapshots when possible, and call browser.api when you need the complete API map.";
+
 export const TOOLS: ToolSpec[] = [
+  {
+    name: "api",
+    description:
+      "Return the complete Browser MCP API, recommended workflows, and current tabs. Call this first if you need to browse, inspect, click, type, screenshot, or verify a web page.",
+    inputSchema: { type: "object", properties: {} },
+  },
   {
     name: "list_tabs",
     description: "List open tabs in the Lightcode in-app browser panel.",
@@ -130,24 +151,46 @@ export const TOOLS: ToolSpec[] = [
   },
   {
     name: "screenshot",
-    description: "Take a PNG screenshot of the tab (full page, viewport, or a CSS selector clip).",
+    description: "Take a screenshot of the tab (full page, viewport, or a CSS selector clip).",
     inputSchema: {
       type: "object",
       properties: {
         tabId: { type: "string" },
         selector: { type: "string", description: "If set, clip to this element." },
         fullPage: { type: "boolean", description: "Capture beyond the viewport." },
+        format: {
+          type: "string",
+          enum: ["png", "jpeg"],
+          description:
+            "Preferred image format. Defaults to png; may fall back to jpeg for maxBytes.",
+        },
+        quality: { type: "number", description: "JPEG quality, 1-100. Default 80." },
+        maxBytes: {
+          type: "number",
+          description: "Maximum image bytes before downscaling/returning an error.",
+        },
+        maxDimension: { type: "number", description: "Maximum width/height before downscaling." },
+        timeoutMs: { type: "number", description: "Capture timeout. Default 800ms." },
+        failOnTimeout: {
+          type: "boolean",
+          description: "Throw on timeout instead of returning { timedOut: true }.",
+        },
       },
     },
   },
   {
     name: "query",
     description:
-      "Run document.querySelectorAll and return up to 20 elements' text, outerHTML (truncated), and bounds.",
+      "Run document.querySelectorAll and return paginated elements' text, outerHTML (truncated), and bounds.",
     inputSchema: {
       type: "object",
       required: ["selector"],
-      properties: { tabId: { type: "string" }, selector: { type: "string" } },
+      properties: {
+        tabId: { type: "string" },
+        selector: { type: "string" },
+        limit: { type: "number" },
+        offset: { type: "number" },
+      },
     },
   },
   {
@@ -165,24 +208,107 @@ export const TOOLS: ToolSpec[] = [
   },
   {
     name: "click",
-    description: "Click the first element matching the selector.",
+    description: "Click an element matching a selector or @e ref.",
     inputSchema: {
       type: "object",
-      required: ["selector"],
-      properties: { tabId: { type: "string" }, selector: { type: "string" } },
+      properties: {
+        tabId: { type: "string" },
+        selector: { type: "string" },
+        ref: { type: "string" },
+      },
+    },
+  },
+  {
+    name: "dblclick",
+    description: "Double-click an element matching a selector or @e ref.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        tabId: { type: "string" },
+        selector: { type: "string" },
+        ref: { type: "string" },
+      },
+    },
+  },
+  {
+    name: "focus",
+    description: "Focus an element matching a selector or @e ref.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        tabId: { type: "string" },
+        selector: { type: "string" },
+        ref: { type: "string" },
+      },
     },
   },
   {
     name: "type",
-    description: "Focus a selector and type text. submit=true presses Enter at the end.",
+    description:
+      "Focus an element and append text using browser text insertion. submit=true presses Enter at the end. Use fill to clear existing text first.",
     inputSchema: {
       type: "object",
-      required: ["selector", "text"],
+      required: ["text"],
       properties: {
         tabId: { type: "string" },
         selector: { type: "string" },
+        ref: { type: "string" },
         text: { type: "string" },
         submit: { type: "boolean" },
+      },
+    },
+  },
+  {
+    name: "fill",
+    description:
+      "Clear and fill an input, textarea, or contenteditable element. submit=true presses Enter at the end.",
+    inputSchema: {
+      type: "object",
+      required: ["text"],
+      properties: {
+        tabId: { type: "string" },
+        selector: { type: "string" },
+        ref: { type: "string" },
+        text: { type: "string" },
+        submit: { type: "boolean" },
+      },
+    },
+  },
+  {
+    name: "check",
+    description: "Check a checkbox or radio input matching a selector or @e ref.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        tabId: { type: "string" },
+        selector: { type: "string" },
+        ref: { type: "string" },
+      },
+    },
+  },
+  {
+    name: "uncheck",
+    description: "Uncheck a checkbox input matching a selector or @e ref.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        tabId: { type: "string" },
+        selector: { type: "string" },
+        ref: { type: "string" },
+      },
+    },
+  },
+  {
+    name: "select",
+    description: "Select an option in a <select> by option value or visible text.",
+    inputSchema: {
+      type: "object",
+      required: ["value"],
+      properties: {
+        tabId: { type: "string" },
+        selector: { type: "string" },
+        ref: { type: "string" },
+        value: { type: "string" },
       },
     },
   },
@@ -205,7 +331,16 @@ export const TOOLS: ToolSpec[] = [
       properties: {
         tabId: { type: "string" },
         maxNodes: { type: "number" },
+        offset: { type: "number" },
+        mode: { type: "string", enum: ["full", "compact", "summary"] },
+        maxTextLength: { type: "number" },
         includeHidden: { type: "boolean" },
+        interactiveOnly: {
+          type: "boolean",
+          description: "Default true. Set false to include headings/sections/lists.",
+        },
+        includeUrls: { type: "boolean", description: "Include href values for links." },
+        selector: { type: "string", description: "Scope the snapshot to part of the page." },
       },
     },
   },
@@ -218,6 +353,9 @@ export const TOOLS: ToolSpec[] = [
       properties: {
         tabId: { type: "string" },
         maxNodes: { type: "number" },
+        offset: { type: "number" },
+        mode: { type: "string", enum: ["full", "compact", "summary"] },
+        maxTextLength: { type: "number" },
         includeHidden: { type: "boolean" },
       },
     },
@@ -265,6 +403,10 @@ export const TOOLS: ToolSpec[] = [
         text: { type: "string" },
         testid: { type: "string" },
         nth: { type: "number" },
+        limit: { type: "number" },
+        visibleOnly: { type: "boolean" },
+        interactiveOnly: { type: "boolean" },
+        within: { type: "string", description: "CSS selector to scope the search." },
       },
     },
   },
@@ -282,11 +424,35 @@ export const TOOLS: ToolSpec[] = [
   },
   {
     name: "press",
-    description: "Press a key (Enter, Tab, Escape, ArrowDown, etc.) globally on the page.",
+    description:
+      "Press a key (Enter, Tab, Escape, ArrowDown, etc.) on the page active element, or on a selector/ref when provided. Pass shift:true for Shift+Tab traversal.",
     inputSchema: {
       type: "object",
       required: ["key"],
-      properties: { tabId: { type: "string" }, key: { type: "string" } },
+      properties: {
+        tabId: { type: "string" },
+        selector: { type: "string" },
+        ref: { type: "string" },
+        key: { type: "string" },
+        shift: { type: "boolean" },
+      },
+    },
+  },
+  {
+    name: "wait",
+    description:
+      "Wait for one condition: selector, text, url, js, or ms. Use this instead of guessing sleeps.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        tabId: { type: "string" },
+        selector: { type: "string" },
+        text: { type: "string" },
+        url: { type: "string", description: "Substring or /regex/ URL pattern." },
+        js: { type: "string", description: "JS expression; requires eval to be enabled." },
+        ms: { type: "number", description: "Plain delay in milliseconds." },
+        timeoutMs: { type: "number" },
+      },
     },
   },
   {
@@ -352,6 +518,7 @@ export const TOOLS: ToolSpec[] = [
       properties: {
         tabId: { type: "string" },
         limit: { type: "number" },
+        offset: { type: "number" },
         level: {
           type: "string",
           enum: ["log", "warn", "error", "info", "debug", "exception"],
@@ -370,6 +537,7 @@ export const TOOLS: ToolSpec[] = [
         tabId: { type: "string" },
         filter: { type: "string" },
         limit: { type: "number" },
+        offset: { type: "number" },
         clear: { type: "boolean" },
       },
     },
@@ -483,7 +651,10 @@ export const TOOL_NAMES = new Set(TOOLS.map((t) => t.name));
 
 const TOOL_ALIASES = new Map([
   ["open", "navigate"],
+  ["goto", "navigate"],
   ["inspect", "snapshot"],
+  ["key", "press"],
+  ["keyboard_type", "type"],
 ]);
 
 export function normalizeToolName(name: string): string {
@@ -492,6 +663,230 @@ export function normalizeToolName(name: string): string {
 
 export function isKnownToolName(name: string): boolean {
   return TOOL_NAMES.has(normalizeToolName(name));
+}
+
+function compactToolSpec(tool: ToolSpec): { name: string; description: string; args: string } {
+  const schema = tool.inputSchema as {
+    required?: unknown;
+    properties?: unknown;
+  };
+  const required = new Set(
+    Array.isArray(schema.required)
+      ? schema.required.filter((key): key is string => typeof key === "string")
+      : [],
+  );
+  const properties =
+    schema.properties && typeof schema.properties === "object"
+      ? Object.keys(schema.properties)
+      : [];
+  return {
+    name: tool.name,
+    description: tool.description,
+    args: properties.length
+      ? `{ ${properties.map((key) => `${key}${required.has(key) ? "" : "?"}`).join(", ")} }`
+      : "{}",
+  };
+}
+
+function clampInteger(value: unknown, fallback: number, min: number, max: number): number {
+  if (typeof value !== "number" || !Number.isFinite(value)) return fallback;
+  return Math.max(min, Math.min(max, Math.floor(value)));
+}
+
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function requestedMaxScreenshotBytes(payload: Record<string, unknown>): number {
+  return clampInteger(payload.maxBytes, MAX_SCREENSHOT_BYTES, 1024, 20 * 1024 * 1024);
+}
+
+function requestedScreenshotFormat(payload: Record<string, unknown>): ScreenshotFormat {
+  return payload.format === "jpeg" ? "jpeg" : "png";
+}
+
+function requestedScreenshotQuality(payload: Record<string, unknown>): number {
+  return clampInteger(payload.quality, 80, 1, 100);
+}
+
+function requestedMaxScreenshotDimension(payload: Record<string, unknown>): number {
+  return clampInteger(payload.maxDimension, MAX_SCREENSHOT_DIMENSION, 320, 5000);
+}
+
+function requestedScreenshotTimeoutMs(payload: Record<string, unknown>): number {
+  return clampInteger(payload.timeoutMs, SCREENSHOT_TIMEOUT_MS, 200, 30_000);
+}
+
+class ScreenshotTimeoutError extends Error {
+  constructor(
+    message: string,
+    readonly operation: string,
+    readonly timeoutMs: number,
+  ) {
+    super(message);
+    this.name = "ScreenshotTimeoutError";
+  }
+}
+
+async function withScreenshotTimeout<T>(
+  promise: Promise<T>,
+  timeoutMs: number,
+  operation: string,
+): Promise<T> {
+  let timeout: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<never>((_, reject) => {
+        timeout = setTimeout(
+          () =>
+            reject(
+              new ScreenshotTimeoutError(
+                `${operation} timed out after ${timeoutMs}ms`,
+                operation,
+                timeoutMs,
+              ),
+            ),
+          timeoutMs,
+        );
+      }),
+    ]);
+  } finally {
+    if (timeout) clearTimeout(timeout);
+  }
+}
+
+function screenshotTimeoutResult(error: ScreenshotTimeoutError): Record<string, unknown> {
+  return {
+    timedOut: true,
+    reason: "timeout",
+    operation: error.operation,
+    timeoutMs: error.timeoutMs,
+    message: error.message,
+    hint: "Retry with a larger timeoutMs, selector clip, smaller maxDimension, or failOnTimeout:true when a hard failure is preferred.",
+  };
+}
+
+function oversizedScreenshotError(
+  bytes: number,
+  maxBytes: number,
+  format: ScreenshotFormat,
+  size?: { width: number; height: number },
+): Record<string, unknown> {
+  return {
+    error: `screenshot is ${formatBytes(bytes)}, above maxBytes ${formatBytes(
+      maxBytes,
+    )}; retry with selector/fullPage:false or a higher maxBytes.`,
+    bytes,
+    maxBytes,
+    format,
+    ...(size ? { width: size.width, height: size.height } : {}),
+  };
+}
+
+function encodeNativeImage(image: NativeImage, format: ScreenshotFormat, quality: number): Buffer {
+  return format === "jpeg" ? image.toJPEG(quality) : image.toPNG();
+}
+
+function screenshotResultFromNativeImage(
+  image: NativeImage,
+  options: {
+    format: ScreenshotFormat;
+    quality: number;
+    maxBytes: number;
+    maxDimension: number;
+    allowJpegFallback: boolean;
+  },
+): Record<string, unknown> {
+  let current = image;
+  let format = options.format;
+  let quality = options.quality;
+  let bytes = encodeNativeImage(current, format, quality);
+  let size = current.getSize();
+  let downscaled = false;
+  let usedFallback = false;
+
+  while (
+    (bytes.length > options.maxBytes ||
+      size.width > options.maxDimension ||
+      size.height > options.maxDimension) &&
+    size.width > 1 &&
+    size.height > 1
+  ) {
+    const byteScale =
+      bytes.length > options.maxBytes ? Math.sqrt(options.maxBytes / bytes.length) * 0.92 : 1;
+    const dimensionScale = Math.min(1, options.maxDimension / Math.max(size.width, size.height));
+    const scale = Math.max(0.25, Math.min(0.9, byteScale, dimensionScale));
+    const width = Math.max(1, Math.floor(size.width * scale));
+    const height = Math.max(1, Math.floor(size.height * scale));
+    if (width === size.width && height === size.height) break;
+    current = current.resize({ width, height });
+    bytes = encodeNativeImage(current, format, quality);
+    size = current.getSize();
+    downscaled = true;
+  }
+
+  if (bytes.length > options.maxBytes && format === "png" && options.allowJpegFallback) {
+    format = "jpeg";
+    quality = Math.min(quality, 80);
+    bytes = encodeNativeImage(current, format, quality);
+    usedFallback = true;
+  }
+
+  if (format === "jpeg") {
+    while (bytes.length > options.maxBytes && quality > 35) {
+      quality = Math.max(35, quality - 10);
+      bytes = encodeNativeImage(current, format, quality);
+    }
+  }
+
+  while (bytes.length > options.maxBytes && size.width > 1 && size.height > 1) {
+    const scale = Math.max(0.25, Math.min(0.85, Math.sqrt(options.maxBytes / bytes.length) * 0.9));
+    const width = Math.max(1, Math.floor(size.width * scale));
+    const height = Math.max(1, Math.floor(size.height * scale));
+    if (width === size.width && height === size.height) break;
+    current = current.resize({ width, height });
+    bytes = encodeNativeImage(current, format, quality);
+    size = current.getSize();
+    downscaled = true;
+  }
+
+  if (bytes.length > options.maxBytes) {
+    return oversizedScreenshotError(bytes.length, options.maxBytes, format, size);
+  }
+  return {
+    mimeType: format === "jpeg" ? "image/jpeg" : "image/png",
+    base64: bytes.toString("base64"),
+    bytes: bytes.length,
+    format,
+    timedOut: false,
+    reason: "complete",
+    width: size.width,
+    height: size.height,
+    ...(format === "jpeg" ? { quality } : {}),
+    ...(downscaled ? { downscaled: true } : {}),
+    ...(usedFallback ? { fallback: true } : {}),
+  };
+}
+
+function screenshotResultFromBuffer(
+  bytes: Buffer,
+  maxBytes: number,
+  format: ScreenshotFormat,
+  quality?: number,
+): Record<string, unknown> {
+  if (bytes.length > maxBytes) return oversizedScreenshotError(bytes.length, maxBytes, format);
+  return {
+    mimeType: format === "jpeg" ? "image/jpeg" : "image/png",
+    base64: bytes.toString("base64"),
+    bytes: bytes.length,
+    format,
+    timedOut: false,
+    reason: "complete",
+    ...(format === "jpeg" && quality != null ? { quality } : {}),
+  };
 }
 
 async function resolveTabId(ctx: ToolContext, payload: Record<string, unknown>): Promise<string> {
@@ -513,8 +908,7 @@ async function resolveSelectorArg(
     return payload.selector;
   }
   if (typeof payload.ref === "string" && payload.ref.length > 0) {
-    await tab.cdp.attach();
-    return await resolveRefToSelector(tab.cdp, payload.ref);
+    return await resolveRefToSelector(tab.webContents, payload.ref);
   }
   return null;
 }
@@ -527,6 +921,54 @@ export async function dispatchTool(
   ctx: ToolContext,
 ): Promise<unknown> {
   switch (normalizeToolName(name)) {
+    case "api":
+      return {
+        server: "browser",
+        description:
+          "Controls the Lightcode in-app browser panel through tabs, navigation, inspection, input, screenshots, console, network, dialogs, cookies, and storage.",
+        guidance: [
+          "Prefer this MCP server over shell-driven browser automation when a page is visible in Lightcode.",
+          "Start with snapshot or find to identify @e refs before click, fill, type, hover, get, is, or scroll.",
+          "Use fill for form fields when replacing text; use type only when appending text to the current value.",
+          "Use wait after navigation or mutations instead of fixed sleeps unless a plain ms delay is intentional.",
+          "Use requests and console after actions to verify web app behavior and diagnose failures.",
+          "Use eval, cookies, and storage only when the corresponding Lightcode setting allows it.",
+        ],
+        workflows: {
+          inspect: ["list_tabs", "snapshot", "find", "get", "is"],
+          navigate: ["new_tab", "open", "navigate", "back", "forward", "reload"],
+          interact: [
+            "click",
+            "dblclick",
+            "focus",
+            "fill",
+            "type",
+            "check",
+            "uncheck",
+            "select",
+            "press",
+            "hover",
+            "scroll",
+            "wait",
+          ],
+          verify: ["screenshot", "console", "requests", "wait_for_url", "frames"],
+          advanced: ["dialog", "addscript", "addstyle", "eval", "cookies", "storage"],
+        },
+        conventions: {
+          refs: "snapshot/find return @e refs. Prefer passing ref over fragile CSS selectors.",
+          aliases: {
+            open: "navigate",
+            goto: "navigate",
+            inspect: "snapshot",
+            key: "press",
+            keyboard_type: "type",
+          },
+          snapshot:
+            "Use interactiveOnly/includeUrls/selector to reduce output before handing page state to the model.",
+        },
+        tools: TOOLS.filter((tool) => tool.name !== "api").map(compactToolSpec),
+        tabs: ctx.manager.snapshot(),
+      };
     case "list_tabs":
       return ctx.manager.snapshot();
     case "new_tab": {
@@ -562,9 +1004,8 @@ export async function dispatchTool(
       return { ok: true };
     }
     case "reload": {
-      const { tab } = await requireTab(ctx, payload);
-      await tab.cdp.attach();
-      await reload(tab.cdp);
+      const tabId = await resolveTabId(ctx, payload);
+      await ctx.manager.reload(tabId);
       return { ok: true };
     }
     case "get_url": {
@@ -580,21 +1021,35 @@ export async function dispatchTool(
       await tab.cdp.attach();
       const selector = typeof payload.selector === "string" ? payload.selector : undefined;
       const fullPage = payload.fullPage === true;
+      const maxBytes = requestedMaxScreenshotBytes(payload);
+      const format = requestedScreenshotFormat(payload);
+      const quality = requestedScreenshotQuality(payload);
+      const maxDimension = requestedMaxScreenshotDimension(payload);
+      const timeoutMs = requestedScreenshotTimeoutMs(payload);
+      const failOnTimeout = payload.failOnTimeout === true;
+      const screenshotOptions = {
+        format,
+        quality,
+        maxBytes,
+        maxDimension,
+        allowJpegFallback: payload.format !== "png",
+      };
 
-      // Prefer `webContents.capturePage` for in-viewport captures — it reads
-      // the renderer's already-painted bitmap without resizing the page, so
-      // the user sees no jump. Fall back to CDP `captureBeyondViewport` only
-      // for `fullPage` or off-viewport selector captures (those genuinely
-      // need the page to be re-laid out beyond its current viewport).
-      if (selector && !fullPage) {
-        const viewport = await evalJs<{
-          rect: { x: number; y: number; width: number; height: number } | null;
-          inView: boolean;
-          vw: number;
-          vh: number;
-        }>(
-          tab.cdp,
-          `(() => {
+      try {
+        // Prefer `webContents.capturePage` for in-viewport captures — it reads
+        // the renderer's already-painted bitmap without resizing the page, so
+        // the user sees no jump. Fall back to CDP `captureBeyondViewport` only
+        // for `fullPage` or off-viewport selector captures (those genuinely
+        // need the page to be re-laid out beyond its current viewport).
+        if (selector && !fullPage) {
+          const viewport = await evalJs<{
+            rect: { x: number; y: number; width: number; height: number } | null;
+            inView: boolean;
+            vw: number;
+            vh: number;
+          }>(
+            tab.cdp,
+            `(() => {
             const el = document.querySelector(${JSON.stringify(selector)});
             const vw = window.innerWidth || document.documentElement.clientWidth || 0;
             const vh = window.innerHeight || document.documentElement.clientHeight || 0;
@@ -611,47 +1066,108 @@ export async function dispatchTool(
               vh,
             };
           })()`,
-        );
-        if (!viewport.rect) throw new Error(`selector not found: ${selector}`);
-        if (viewport.inView) {
-          const img = await tab.webContents.capturePage({
-            x: Math.max(0, Math.floor(viewport.rect.x)),
-            y: Math.max(0, Math.floor(viewport.rect.y)),
-            width: Math.max(1, Math.ceil(viewport.rect.width)),
-            height: Math.max(1, Math.ceil(viewport.rect.height)),
-          });
-          return { mimeType: "image/png", base64: img.toPNG().toString("base64") };
+          );
+          if (!viewport.rect) throw new Error(`selector not found: ${selector}`);
+          if (viewport.inView) {
+            const img = await withScreenshotTimeout(
+              tab.webContents.capturePage({
+                x: Math.max(0, Math.floor(viewport.rect.x)),
+                y: Math.max(0, Math.floor(viewport.rect.y)),
+                width: Math.max(1, Math.ceil(viewport.rect.width)),
+                height: Math.max(1, Math.ceil(viewport.rect.height)),
+              }),
+              timeoutMs,
+              "viewport selector screenshot",
+            );
+            return screenshotResultFromNativeImage(img, screenshotOptions);
+          }
+        } else if (!selector && !fullPage) {
+          const img = await withScreenshotTimeout(
+            tab.webContents.capturePage(),
+            timeoutMs,
+            "viewport screenshot",
+          );
+          return screenshotResultFromNativeImage(img, screenshotOptions);
         }
-      } else if (!selector && !fullPage) {
-        const img = await tab.webContents.capturePage();
-        return { mimeType: "image/png", base64: img.toPNG().toString("base64") };
-      }
 
-      // Off-viewport selector or fullPage — must use CDP, which will visibly
-      // re-lay out the page to capture content outside the current viewport.
-      let clip: { x: number; y: number; width: number; height: number } | undefined;
-      if (selector) {
-        const rect = await queryFirstDocumentRect(tab.cdp, selector);
-        if (!rect) throw new Error(`selector not found: ${selector}`);
-        clip = {
-          x: Math.max(0, Math.floor(rect.x)),
-          y: Math.max(0, Math.floor(rect.y)),
-          width: Math.max(1, Math.ceil(rect.width)),
-          height: Math.max(1, Math.ceil(rect.height)),
-        };
+        // Off-viewport selector or fullPage — must use CDP, which will visibly
+        // re-lay out the page to capture content outside the current viewport.
+        let clip: { x: number; y: number; width: number; height: number } | undefined;
+        if (selector) {
+          const rect = await queryFirstDocumentRect(tab.cdp, selector);
+          if (!rect) throw new Error(`selector not found: ${selector}`);
+          clip = {
+            x: Math.max(0, Math.floor(rect.x)),
+            y: Math.max(0, Math.floor(rect.y)),
+            width: Math.max(1, Math.ceil(rect.width)),
+            height: Math.max(1, Math.ceil(rect.height)),
+          };
+        }
+        const bytes = await withScreenshotTimeout(
+          captureScreenshotPng(tab.cdp, {
+            fullPage,
+            format,
+            quality,
+            ...(clip ? { clip, captureBeyondViewport: true } : {}),
+          }),
+          timeoutMs,
+          "cdp screenshot",
+        );
+        if (bytes.length <= maxBytes || payload.format === "png") {
+          return screenshotResultFromBuffer(
+            bytes,
+            maxBytes,
+            format,
+            format === "jpeg" ? quality : undefined,
+          );
+        }
+        for (const next of [
+          { format: "jpeg" as const, quality: Math.min(quality, 80), scale: 1 },
+          { format: "jpeg" as const, quality: 70, scale: 0.8 },
+          { format: "jpeg" as const, quality: 60, scale: 0.65 },
+          { format: "jpeg" as const, quality: 50, scale: 0.5 },
+          { format: "jpeg" as const, quality: 40, scale: 0.35 },
+        ]) {
+          const retry = await withScreenshotTimeout(
+            captureScreenshotPng(tab.cdp, {
+              fullPage,
+              format: next.format,
+              quality: next.quality,
+              scale: next.scale,
+              ...(clip ? { clip, captureBeyondViewport: true } : {}),
+            }),
+            timeoutMs,
+            "cdp screenshot retry",
+          );
+          if (retry.length <= maxBytes) {
+            return {
+              ...screenshotResultFromBuffer(retry, maxBytes, next.format, next.quality),
+              fallback: true,
+              downscaled: next.scale < 1,
+            };
+          }
+        }
+        return screenshotResultFromBuffer(
+          bytes,
+          maxBytes,
+          format,
+          format === "jpeg" ? quality : undefined,
+        );
+      } catch (err) {
+        if (err instanceof ScreenshotTimeoutError && !failOnTimeout) {
+          return screenshotTimeoutResult(err);
+        }
+        throw err;
       }
-      const bytes = await captureScreenshotPng(tab.cdp, {
-        fullPage,
-        ...(clip ? { clip, captureBeyondViewport: true } : {}),
-      });
-      return { mimeType: "image/png", base64: bytes.toString("base64") };
     }
     case "query": {
       const { tab } = await requireTab(ctx, payload);
       const selector = String(payload.selector ?? "");
       if (!selector) throw new Error("selector required");
       await tab.cdp.attach();
-      return await querySelectorAllSnapshot(tab.cdp, selector, 20);
+      const limit = clampInteger(payload.limit, 20, 1, 100);
+      const offset = clampInteger(payload.offset, 0, 0, Number.MAX_SAFE_INTEGER);
+      return await querySelectorAllSnapshot(tab.cdp, selector, limit, offset);
     }
     case "wait_for": {
       const { tab } = await requireTab(ctx, payload);
@@ -664,20 +1180,64 @@ export async function dispatchTool(
     }
     case "click": {
       const { tab } = await requireTab(ctx, payload);
-      const selector = String(payload.selector ?? "");
-      if (!selector) throw new Error("selector required");
-      await tab.cdp.attach();
-      await clickSelector(tab.cdp, selector);
+      const selector = await resolveSelectorArg(tab, payload);
+      if (!selector) throw new Error("selector or ref required");
+      await clickSelector(tab.webContents, selector);
+      return { ok: true };
+    }
+    case "dblclick": {
+      const { tab } = await requireTab(ctx, payload);
+      const selector = await resolveSelectorArg(tab, payload);
+      if (!selector) throw new Error("selector or ref required");
+      await doubleClickSelector(tab.webContents, selector);
+      return { ok: true };
+    }
+    case "focus": {
+      const { tab } = await requireTab(ctx, payload);
+      const selector = await resolveSelectorArg(tab, payload);
+      if (!selector) throw new Error("selector or ref required");
+      await focusSelector(tab.webContents, selector);
       return { ok: true };
     }
     case "type": {
       const { tab } = await requireTab(ctx, payload);
-      const selector = String(payload.selector ?? "");
       const text = String(payload.text ?? "");
       const submit = payload.submit === true;
-      if (!selector) throw new Error("selector required");
-      await tab.cdp.attach();
-      await typeIntoSelector(tab.cdp, selector, text, submit);
+      const selector = await resolveSelectorArg(tab, payload);
+      if (!selector) throw new Error("selector or ref required");
+      await typeIntoSelector(tab.webContents, selector, text, submit);
+      return { ok: true };
+    }
+    case "fill": {
+      const { tab } = await requireTab(ctx, payload);
+      const text = String(payload.text ?? "");
+      const submit = payload.submit === true;
+      const selector = await resolveSelectorArg(tab, payload);
+      if (!selector) throw new Error("selector or ref required");
+      await fillSelector(tab.webContents, selector, text, submit);
+      return { ok: true };
+    }
+    case "check": {
+      const { tab } = await requireTab(ctx, payload);
+      const selector = await resolveSelectorArg(tab, payload);
+      if (!selector) throw new Error("selector or ref required");
+      await setCheckedSelector(tab.webContents, selector, true);
+      return { ok: true };
+    }
+    case "uncheck": {
+      const { tab } = await requireTab(ctx, payload);
+      const selector = await resolveSelectorArg(tab, payload);
+      if (!selector) throw new Error("selector or ref required");
+      await setCheckedSelector(tab.webContents, selector, false);
+      return { ok: true };
+    }
+    case "select": {
+      const { tab } = await requireTab(ctx, payload);
+      const value = String(payload.value ?? "");
+      if (!value) throw new Error("value required");
+      const selector = await resolveSelectorArg(tab, payload);
+      if (!selector) throw new Error("selector or ref required");
+      await selectOption(tab.webContents, selector, value);
       return { ok: true };
     }
     case "eval": {
@@ -702,9 +1262,24 @@ export async function dispatchTool(
     case "snapshot": {
       const { tab } = await requireTab(ctx, payload);
       await tab.cdp.attach();
-      const maxNodes = typeof payload.maxNodes === "number" ? payload.maxNodes : 200;
+      const maxNodes = clampInteger(payload.maxNodes, 120, 1, 500);
+      const offset = clampInteger(payload.offset, 0, 0, Number.MAX_SAFE_INTEGER);
+      const mode = payload.mode === "compact" || payload.mode === "summary" ? payload.mode : "full";
+      const maxTextLength =
+        typeof payload.maxTextLength === "number"
+          ? clampInteger(payload.maxTextLength, mode === "full" ? 200 : 80, 20, 1000)
+          : undefined;
       const includeHidden = payload.includeHidden === true;
-      return await pageSnapshot(tab.cdp, { maxNodes, includeHidden });
+      return await pageSnapshot(tab.cdp, {
+        maxNodes,
+        offset,
+        mode,
+        ...(maxTextLength != null ? { maxTextLength } : {}),
+        includeHidden,
+        ...(payload.interactiveOnly === false ? { interactiveOnly: false } : {}),
+        ...(payload.includeUrls === true ? { includeUrls: true } : {}),
+        ...(typeof payload.selector === "string" ? { selector: payload.selector } : {}),
+      });
     }
     case "get": {
       const { tab } = await requireTab(ctx, payload);
@@ -738,32 +1313,70 @@ export async function dispatchTool(
         ...(typeof payload.text === "string" ? { text: payload.text } : {}),
         ...(typeof payload.testid === "string" ? { testid: payload.testid } : {}),
         ...(typeof payload.nth === "number" ? { nth: payload.nth } : {}),
+        ...(typeof payload.limit === "number" ? { limit: payload.limit } : {}),
+        ...(typeof payload.visibleOnly === "boolean" ? { visibleOnly: payload.visibleOnly } : {}),
+        ...(typeof payload.interactiveOnly === "boolean"
+          ? { interactiveOnly: payload.interactiveOnly }
+          : {}),
+        ...(typeof payload.within === "string" ? { within: payload.within } : {}),
       });
     }
     case "hover": {
       const { tab } = await requireTab(ctx, payload);
-      await tab.cdp.attach();
       const selector = await resolveSelectorArg(tab, payload);
       if (!selector) throw new Error("selector or ref required");
-      await hoverSelector(tab.cdp, selector);
+      await hoverSelector(tab.webContents, selector);
       return { ok: true };
     }
     case "press": {
       const { tab } = await requireTab(ctx, payload);
       const key = String(payload.key ?? "");
       if (!key) throw new Error("key required");
-      await tab.cdp.attach();
-      await pressKey(tab.cdp, key);
+      const hasTarget = typeof payload.selector === "string" || typeof payload.ref === "string";
+      const selector = hasTarget ? await resolveSelectorArg(tab, payload) : undefined;
+      if (hasTarget && !selector) throw new Error("selector or ref required");
+      const shift = payload.shift === true;
+      await pressKey(tab.webContents, key, selector ?? undefined, { shift });
       return { ok: true };
+    }
+    case "wait": {
+      const timeoutMs = typeof payload.timeoutMs === "number" ? payload.timeoutMs : 5000;
+      if (typeof payload.ms === "number") {
+        await new Promise((resolve) =>
+          setTimeout(resolve, Math.max(0, Math.min(60_000, payload.ms as number))),
+        );
+        return { ok: true };
+      }
+      const { tab } = await requireTab(ctx, payload);
+      await tab.cdp.attach();
+      if (typeof payload.selector === "string" && payload.selector.length > 0) {
+        const found = await waitForSelector(tab.cdp, payload.selector, timeoutMs);
+        return { found };
+      }
+      if (typeof payload.text === "string" && payload.text.length > 0) {
+        await waitForText(tab.cdp, payload.text, timeoutMs);
+        return { ok: true };
+      }
+      if (typeof payload.url === "string" && payload.url.length > 0) {
+        const url = await waitForUrl(tab.cdp, payload.url, timeoutMs);
+        return { url };
+      }
+      if (typeof payload.js === "string" && payload.js.length > 0) {
+        if (!ctx.allowEval) {
+          return { error: "wait.js requires eval to be enabled in settings" };
+        }
+        const result = await waitForJs(tab.cdp, payload.js, timeoutMs);
+        return { result };
+      }
+      throw new Error("wait requires selector, text, url, js, or ms");
     }
     case "scroll": {
       const { tab } = await requireTab(ctx, payload);
-      await tab.cdp.attach();
       const selector =
         typeof payload.selector === "string" || typeof payload.ref === "string"
           ? await resolveSelectorArg(tab, payload)
           : undefined;
-      await scrollPage(tab.cdp, {
+      await scrollPage(tab.webContents, {
         ...(selector ? { selector } : {}),
         ...(typeof payload.x === "number" ? { x: payload.x } : {}),
         ...(typeof payload.y === "number" ? { y: payload.y } : {}),
@@ -802,15 +1415,23 @@ export async function dispatchTool(
     }
     case "console": {
       const { tab } = await requireTab(ctx, payload);
-      const limit = typeof payload.limit === "number" ? payload.limit : 50;
+      const limit = clampInteger(payload.limit, 50, 1, 100);
+      const offset = clampInteger(payload.offset, 0, 0, Number.MAX_SAFE_INTEGER);
       const level =
         typeof payload.level === "string"
           ? (payload.level as "log" | "warn" | "error" | "info" | "debug" | "exception")
           : undefined;
-      let entries = tab.getConsoleEntries(limit);
+      let entries = tab.getConsoleEntries();
       if (level) entries = entries.filter((e) => e.level === level);
+      const page = entries.slice(offset, offset + limit);
       if (payload.clear === true) tab.clearConsole();
-      return { entries };
+      return {
+        count: entries.length,
+        offset,
+        limit,
+        nextOffset: offset + page.length < entries.length ? offset + page.length : null,
+        entries: page,
+      };
     }
     case "requests": {
       const { tab } = await requireTab(ctx, payload);
@@ -819,10 +1440,18 @@ export async function dispatchTool(
         await tab.network.enable(tab.cdp);
       }
       const filter = typeof payload.filter === "string" ? payload.filter : undefined;
-      const limit = typeof payload.limit === "number" ? payload.limit : 100;
-      const entries = tab.network.list({ ...(filter ? { filter } : {}), limit });
+      const limit = clampInteger(payload.limit, 50, 1, 100);
+      const offset = clampInteger(payload.offset, 0, 0, Number.MAX_SAFE_INTEGER);
+      const entries = tab.network.list({ ...(filter ? { filter } : {}), limit: 500 });
+      const page = entries.slice(offset, offset + limit);
       if (payload.clear === true) tab.network.clear();
-      return { count: entries.length, requests: entries };
+      return {
+        count: entries.length,
+        offset,
+        limit,
+        nextOffset: offset + page.length < entries.length ? offset + page.length : null,
+        requests: page,
+      };
     }
     case "cookies": {
       if (!ctx.allowDataAccess) {
@@ -1010,8 +1639,14 @@ export function formatToolResult(name: string, result: unknown): McpToolResult {
     "base64" in result
   ) {
     const r = result as { base64: string; mimeType?: string };
+    const metadata = { ...(result as Record<string, unknown>) };
+    delete metadata.base64;
     return {
       content: [
+        {
+          type: "text",
+          text: JSON.stringify(metadata, null, 2),
+        },
         {
           type: "image",
           data: r.base64,
