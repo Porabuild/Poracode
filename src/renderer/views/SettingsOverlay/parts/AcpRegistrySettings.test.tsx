@@ -94,6 +94,7 @@ vi.mock("@/renderer/components/providers/ProviderIcon", () => ({
 }));
 
 import { AcpRegistrySettings } from "./AcpRegistrySettings";
+import { NATIVE_AGENT_REGISTRY_ENTRIES } from "./agentRegistryNative";
 
 const baseCapabilities = {
   models: [],
@@ -128,6 +129,16 @@ function makeProject(input: { id: string; name: string; location: Project["locat
     createdAt: new Date(0).toISOString(),
     location: input.location,
   };
+}
+
+function withProcessPlatform<T>(platform: NodeJS.Platform, run: () => T): T {
+  const descriptor = Object.getOwnPropertyDescriptor(process, "platform");
+  Object.defineProperty(process, "platform", { value: platform });
+  try {
+    return run();
+  } finally {
+    if (descriptor) Object.defineProperty(process, "platform", descriptor);
+  }
 }
 
 const registry: AcpRegistryListResult = {
@@ -248,6 +259,98 @@ describe("AcpRegistrySettings", () => {
         expect.objectContaining({
           label: "Codex",
         }),
+      );
+    });
+  });
+
+  it("offers Antigravity as a native install", async () => {
+    render(<AcpRegistrySettings />);
+
+    await screen.findByRole("heading", { name: "Agent Registry" });
+    const antigravityCard = screen
+      .getByText(/First-class Antigravity CLI integration/u)
+      .closest(".rounded-lg");
+    expect(antigravityCard).toBeTruthy();
+
+    fireEvent.click(
+      within(antigravityCard as HTMLElement).getByRole("button", { name: "Install" }),
+    );
+
+    await waitFor(() => {
+      expect(runAgentInstallCommandMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          label: "Antigravity",
+        }),
+      );
+    });
+    const installInput = runAgentInstallCommandMock.mock.calls[0]?.[0] as
+      | { command: (project: Project) => string }
+      | undefined;
+    expect(
+      installInput?.command(
+        makeProject({
+          id: "wsl-project",
+          name: "WSL Project",
+          location: {
+            kind: "wsl",
+            distro: "Ubuntu",
+            linuxPath: "/home/demo/project",
+            uncPath: "\\\\wsl.localhost\\Ubuntu\\home\\demo\\project",
+          },
+        }),
+      ),
+    ).toContain("https://antigravity.google/cli/install.sh");
+  });
+
+  it("keeps brew install commands mac-only", () => {
+    const wslProject = makeProject({
+      id: "wsl-project",
+      name: "WSL Project",
+      location: {
+        kind: "wsl",
+        distro: "Ubuntu",
+        linuxPath: "/home/demo/project",
+        uncPath: "\\\\wsl.localhost\\Ubuntu\\home\\demo\\project",
+      },
+    });
+    const macProject = makeProject({
+      id: "mac-project",
+      name: "Mac Project",
+      location: { kind: "posix", path: "/Users/demo/project" },
+    });
+    const entries = new Map(NATIVE_AGENT_REGISTRY_ENTRIES.map((entry) => [entry.id, entry]));
+
+    expect(entries.get("codex")?.installCommand(wslProject)).toContain(
+      "curl -fsSL https://chatgpt.com/codex/install.sh | sh",
+    );
+    expect(entries.get("codex")?.installCommand(wslProject)).not.toContain("brew install");
+    expect(entries.get("codex")?.installCommand(wslProject)).toContain(
+      "npm install -g @openai/codex",
+    );
+    expect(entries.get("claude")?.installCommand(wslProject)).toContain(
+      "curl -fsSL https://claude.ai/install.sh | bash",
+    );
+    expect(entries.get("claude")?.installCommand(wslProject)).not.toContain("brew install");
+    expect(entries.get("opencode")?.installCommand(wslProject)).toContain(
+      "curl -fsSL https://opencode.ai/install | bash",
+    );
+    expect(entries.get("opencode")?.installCommand(wslProject)).not.toContain("brew install");
+    expect(entries.get("opencode")?.installCommand(wslProject)).toContain(
+      "npm install -g opencode-ai",
+    );
+    expect(entries.get("antigravity")?.installCommand(wslProject)).toContain(
+      "curl -fsSL https://antigravity.google/cli/install.sh | bash",
+    );
+
+    withProcessPlatform("darwin", () => {
+      expect(entries.get("codex")?.installCommand(macProject)).toContain(
+        "brew install --cask codex",
+      );
+      expect(entries.get("claude")?.installCommand(macProject)).toContain(
+        "brew install --cask claude-code",
+      );
+      expect(entries.get("opencode")?.installCommand(macProject)).toContain(
+        "brew install anomalyco/tap/opencode",
       );
     });
   });
