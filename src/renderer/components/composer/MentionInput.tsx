@@ -2,7 +2,7 @@ import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "re
 import type { FileEntry, ProjectLocation, PromptSegment } from "@/shared/contracts";
 import { fileNameFromPath } from "@/shared/promptContent";
 import { createChipElement, type FileMentionData } from "./FileMentionChip";
-import { createSlashCommandChipElement } from "./SlashCommandChip";
+import { createSlashCommandChipElement, createTriggerWordChipElement } from "./SlashCommandChip";
 import { MentionPopover, type MentionEntry } from "./MentionPopover";
 import { useDebouncedFileSearch } from "./useDebouncedFileSearch";
 import { serializeToSegments, flattenSegments } from "./serializeMentions";
@@ -119,8 +119,77 @@ function detectTriggerRange(triggerChar: string): Range | null {
   return range;
 }
 
+const WORKFLOW_WORD = "workflow";
+const WORKFLOW_WORD_LEN = WORKFLOW_WORD.length;
+/** Matches "workflow" as a standalone word at/near the cursor end of text. */
+const WORKFLOW_AT_CURSOR_RE = /(?:^|[\s(])(workflow)\s*$/i;
+
+function replaceWorkflowTriggerWord(): boolean {
+  const sel = window.getSelection();
+  if (!sel || !sel.isCollapsed || !sel.anchorNode) return false;
+  if (sel.anchorNode.nodeType !== Node.TEXT_NODE) return false;
+
+  const textNode = sel.anchorNode as Text;
+  // Don't replace inside an existing chip
+  if (textNode.parentElement?.closest("[data-trigger-word]")) return false;
+
+  const text = textNode.textContent ?? "";
+  const cursor = sel.anchorOffset;
+  const before = text.substring(0, cursor);
+  const match = WORKFLOW_AT_CURSOR_RE.exec(before);
+  if (!match) return false;
+
+  // Compute the start offset of "workflow" within the text node.
+  // match[0] includes the leading boundary char (space/paren/start), so
+  // the "workflow" word itself starts at match.index + (match[0].length - WORKFLOW_WORD_LEN).
+  const wordStart = match.index + match[0].length - WORKFLOW_WORD_LEN;
+
+  const range = document.createRange();
+  range.setStart(textNode, wordStart);
+  range.setEnd(textNode, wordStart + WORKFLOW_WORD_LEN);
+  range.deleteContents();
+
+  const chip = createTriggerWordChipElement(WORKFLOW_WORD);
+  range.insertNode(chip);
+
+  const nextRange = document.createRange();
+  nextRange.setStartAfter(chip);
+  nextRange.collapse(true);
+  sel.removeAllRanges();
+  sel.addRange(nextRange);
+  return true;
+}
+
+/** Walk all text nodes and convert any remaining "workflow" words to chips. */
+function replaceAllWorkflowTriggerWords(editor: HTMLDivElement): void {
+  const textNodes: Text[] = [];
+  const walker = document.createTreeWalker(editor, NodeFilter.SHOW_TEXT);
+  let node: Text | null;
+  while ((node = walker.nextNode() as Text | null)) {
+    if (node.parentElement?.closest("[data-trigger-word]")) continue;
+    if (/\bworkflow\b/i.test(node.textContent ?? "")) textNodes.push(node);
+  }
+
+  // Process in reverse so earlier DOM mutations don't shift later offsets.
+  for (let i = textNodes.length - 1; i >= 0; i--) {
+    const tn = textNodes[i]!;
+    const text = tn.textContent ?? "";
+    const matches = [...text.matchAll(/\bworkflow\b/gi)].reverse();
+    for (const m of matches) {
+      if (m.index == null) continue;
+      const range = document.createRange();
+      range.setStart(tn, m.index);
+      range.setEnd(tn, m.index + WORKFLOW_WORD_LEN);
+      range.deleteContents();
+      const chip = createTriggerWordChipElement(WORKFLOW_WORD);
+      range.insertNode(chip);
+    }
+  }
+}
+
 function hasEditorContent(editor: HTMLDivElement): boolean {
-  if (editor.querySelector("[data-mention-path], [data-slash-command]")) return true;
+  if (editor.querySelector("[data-mention-path], [data-slash-command], [data-trigger-word]"))
+    return true;
   return (editor.textContent ?? "").trim().length > 0;
 }
 
@@ -499,6 +568,7 @@ export const MentionInput = forwardRef<
   }
 
   function handleInput() {
+    if (editorRef.current) replaceWorkflowTriggerWord();
     checkMentionState();
     notifyTextChange();
   }
@@ -535,6 +605,8 @@ export const MentionInput = forwardRef<
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       if (!editorRef.current) return;
+      // Convert any remaining "workflow" words before serializing.
+      replaceAllWorkflowTriggerWords(editorRef.current);
       const segments = serializeToSegments(editorRef.current);
       if (flattenSegments(segments).length > 0) {
         onSubmit(segments);
@@ -551,7 +623,11 @@ export const MentionInput = forwardRef<
 
         if (node.nodeType === Node.TEXT_NODE && offset === 0) {
           const prev = node.previousSibling as HTMLElement | null;
-          if (prev?.dataset?.mentionPath || prev?.dataset?.slashCommand) {
+          if (
+            prev?.dataset?.mentionPath ||
+            prev?.dataset?.slashCommand ||
+            prev?.dataset?.triggerWord
+          ) {
             e.preventDefault();
             prev.remove();
             notifyTextChange();
@@ -561,7 +637,11 @@ export const MentionInput = forwardRef<
 
         if (node.nodeType === Node.ELEMENT_NODE && offset > 0) {
           const child = node.childNodes[offset - 1] as HTMLElement | undefined;
-          if (child?.dataset?.mentionPath || child?.dataset?.slashCommand) {
+          if (
+            child?.dataset?.mentionPath ||
+            child?.dataset?.slashCommand ||
+            child?.dataset?.triggerWord
+          ) {
             e.preventDefault();
             child.remove();
             notifyTextChange();

@@ -55,6 +55,10 @@ export function claudeIntentFor(
       }
       return undefined;
     }
+    case "TaskCreated":
+      return "session.turn_started";
+    case "TaskCompleted":
+      return "session.turn_finished";
     case "Stop":
       return "session.turn_finished";
     case "StopFailure":

@@ -96,6 +96,11 @@ export function serializeToSegments(container: HTMLDivElement): PromptSegment[] 
       return;
     }
 
+    if (el.dataset.triggerWord) {
+      textBuffer += el.dataset.triggerWord;
+      return;
+    }
+
     if (el.tagName === "BR") {
       textBuffer += "\n";
       return;

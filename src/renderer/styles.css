@@ -1839,6 +1839,8 @@ html[data-platform="darwin"] .lightcode-content-over-drag-region--drag {
 
 .lightcode-mention-chip__name {
   font-weight: 400;
+  position: relative;
+  top: -1.5px;
 }
 
 .lightcode-mention-chip__delete {

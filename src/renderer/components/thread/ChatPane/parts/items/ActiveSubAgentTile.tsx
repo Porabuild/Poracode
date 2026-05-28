@@ -1,5 +1,5 @@
 import { Tooltip } from "@heroui/react";
-import { Bot, Check, X } from "lucide-react";
+import { Bot, Check, GitBranch, X } from "lucide-react";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useThreadSubAgentDockStore } from "@/renderer/state/threadSubAgentDockStore";
 import {
@@ -9,7 +9,7 @@ import {
 } from "../../chatPaneSelectors";
 import { getRuntimeItemPayload } from "@/renderer/state/slices/runtimeEventSlice";
 import type { ToolCallPayload } from "@/shared/contracts";
-import { deriveToolDisplay } from "./toolDisplay";
+import { deriveToolDisplay, isWorkflowTool } from "./toolDisplay";
 import { PixelLoader } from "@/renderer/components/common/PixelLoader";
 import { ThreadDockHeader, ThreadDockList, ThreadDockSection } from "../../../ThreadDockUI";
 
@@ -33,14 +33,29 @@ export function ActiveSubAgentTile({ threadId }: ActiveSubAgentTileProps) {
         return item.state === "completed" && payload?.status !== "running";
       }).length,
   );
+  const workflowCount = useAppStore(
+    (s) =>
+      visibleIds.filter((id) => {
+        const item = getRuntimeItemStoreSelector(threadId, id)(s);
+        if (!item) return false;
+        return isWorkflowTool(getRuntimeItemPayload<ToolCallPayload>(item, "tool_call"));
+      }).length,
+  );
 
   if (visibleIds.length === 0) return null;
+  const title =
+    workflowCount === visibleIds.length
+      ? "Workflows"
+      : workflowCount > 0
+        ? "Background tasks"
+        : "Subagents";
+  const HeaderIcon = workflowCount === visibleIds.length ? GitBranch : Bot;
 
   return (
     <ThreadDockSection placement="composer" collapsed={false}>
       <ThreadDockHeader
-        icon={Bot}
-        title="Subagents"
+        icon={HeaderIcon}
+        title={title}
         countLabel={`${completedCount}/${visibleIds.length}`}
         actions={
           <Tooltip delay={0}>

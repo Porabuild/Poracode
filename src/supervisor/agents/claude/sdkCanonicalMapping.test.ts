@@ -444,6 +444,38 @@ describe("sdkCanonicalMapping — tool use", () => {
     });
   });
 
+  it("maps Claude Workflow tool calls as subagent-like tool_call items", () => {
+    const state = createClaudeMapperState("thread-1");
+    const events = mapClaudeSdkMessage(
+      streamEvent({
+        type: "content_block_start",
+        index: 0,
+        content_block: {
+          type: "tool_use",
+          id: "toolu_workflow",
+          name: "Workflow",
+          input: { description: "Run release checks" },
+        },
+      }),
+      state,
+    );
+
+    expect(events).toEqual([
+      {
+        type: "item.started",
+        threadId: "thread-1",
+        itemId: "toolu_workflow",
+        itemType: "tool_call",
+        payload: {
+          name: "Workflow",
+          args: { description: "Run release checks" },
+          status: "running",
+          isSubAgent: true,
+        },
+      },
+    ]);
+  });
+
   it.each([["Read"], ["NotebookRead"]] as const)(
     "tags %s tool_use payloads with kind: read so the renderer applies syntax highlighting",
     (toolName) => {

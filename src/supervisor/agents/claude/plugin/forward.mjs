@@ -48,6 +48,10 @@ function intentFor(eventName, payload) {
     }
     case "Notification":
       return payload?.matcher === "idle_prompt" ? "session.needs_reply" : undefined;
+    case "TaskCreated":
+      return "session.turn_started";
+    case "TaskCompleted":
+      return "session.turn_finished";
     case "Stop":
       return "session.turn_finished";
     case "StopFailure":

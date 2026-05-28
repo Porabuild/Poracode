@@ -16,12 +16,15 @@ const CLAUDE_TERMINAL_AUTH_METHOD: AgentAuthMethod = {
 };
 
 const MIN_CLAUDE_OPUS_47_CLI = [2, 1, 111] as const;
+const MIN_CLAUDE_OPUS_48_CLI = [2, 1, 154] as const;
+const OPUS_48_MODEL_ID = "claude-opus-4-8";
 const OPUS_47_MODEL_ID = "claude-opus-4-7";
 
 const CLAUDE_SEMVER_RE = /(\d+)\.(\d+)\.(\d+)/;
 
 /** Built-in catalog (CLI `--model` ids) merged with semver gate + SDK slash commands. */
 const BUILTIN_MODELS: AgentCapability["models"] = [
+  { id: OPUS_48_MODEL_ID, label: "Opus 4.8" },
   { id: OPUS_47_MODEL_ID, label: "Opus 4.7" },
   { id: "claude-opus-4-6", label: "Opus 4.6" },
   { id: "sonnet", label: "Sonnet" },
@@ -46,18 +49,24 @@ function semverGte(a: [number, number, number], b: readonly [number, number, num
   return a[2] >= b[2];
 }
 
-/** Hide Opus 4.7 when the installed CLI is older than Anthropic's minimum for that model. */
+/** Hide Opus releases when the installed CLI is older than Anthropic's minimum for that model. */
 export function claudeCapabilitiesFromCliVersion(
   version: string | undefined,
 ): Partial<AgentCapability> | undefined {
   if (!version) return undefined;
   const triplet = parseSemverTriplet(version);
   if (!triplet) return undefined;
-  if (semverGte(triplet, MIN_CLAUDE_OPUS_47_CLI)) return undefined;
 
-  const models = BUILTIN_MODELS.filter((m) => m.id !== OPUS_47_MODEL_ID);
+  const hiddenModelIds = new Set<string>();
+  if (!semverGte(triplet, MIN_CLAUDE_OPUS_48_CLI)) hiddenModelIds.add(OPUS_48_MODEL_ID);
+  if (!semverGte(triplet, MIN_CLAUDE_OPUS_47_CLI)) hiddenModelIds.add(OPUS_47_MODEL_ID);
+  if (hiddenModelIds.size === 0) return undefined;
+
+  const models = BUILTIN_MODELS.filter((m) => !hiddenModelIds.has(m.id));
   const modelEfforts = { ...BUILTIN_MODEL_EFFORTS };
-  delete modelEfforts[OPUS_47_MODEL_ID];
+  for (const modelId of hiddenModelIds) {
+    delete modelEfforts[modelId];
+  }
   return { models, modelEfforts };
 }
 

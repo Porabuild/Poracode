@@ -1,6 +1,6 @@
 import { memo, type ReactNode, useEffectEvent, useLayoutEffect, useRef, useState } from "react";
 import { Link, Surface, Tooltip } from "@heroui/react";
-import { ChevronDown, ChevronUp, Copy } from "lucide-react";
+import { ChevronDown, ChevronUp, Copy, GitBranch } from "lucide-react";
 import type { CanonicalContentBlock, MessageItemPayload } from "@/shared/contracts";
 import { AttachmentBar, ImageLightbox, type Attachment } from "@/renderer/components/composer";
 import { readBridge } from "@/renderer/bridge";
@@ -42,7 +42,7 @@ export const UserMessage = memo(function UserMessage({
   const rawText = buildUserPromptText(content);
   const { slashCommand, body } = extractLeadingSlashCommand(rawText);
   const text = body;
-  const slashCommandPrefixLength = slashCommand ? rawText.length - body.length : 0;
+  const commandPrefixLength = slashCommand ? rawText.length - body.length : 0;
   const hasInlineFileMentions = content.some(
     (block) => block.kind === "file" && block.source !== "attachment",
   );
@@ -102,7 +102,7 @@ export const UserMessage = memo(function UserMessage({
           <span className="lightcode-slash-chip__slash">/</span>
           <span className="lightcode-slash-chip__name">{slashCommand}</span>
         </span>
-        {renderUserMessageInlineContent(content, slashCommandPrefixLength, actions)}
+        {renderUserMessageInlineContent(content, commandPrefixLength, actions)}
       </>
     );
   } else if (hasInlineFileMentions) {
@@ -224,6 +224,8 @@ function CopyUserMessageButton({ text }: { text: string }) {
 }
 
 const LEADING_SLASH_COMMAND_RE = /^\/([A-Za-z][A-Za-z0-9_-]*)(\s+|$)/;
+/** Matches "workflow" as a standalone word anywhere in text. */
+const TRIGGER_WORD_RE = /(\bworkflow\b)/gi;
 
 function extractLeadingSlashCommand(text: string): { slashCommand: string | null; body: string } {
   const match = text.match(LEADING_SLASH_COMMAND_RE);
@@ -287,6 +289,30 @@ function renderUserMessageInlineContent(
 const USER_MESSAGE_URL_RE = /https?:\/\/[^\s<>"']+/g;
 
 function renderUserMessageText(text: string, keyPrefix: string): ReactNode[] {
+  // Split by trigger words first; delimiters (odd indices) are "workflow" matches.
+  const parts = text.split(TRIGGER_WORD_RE);
+  if (parts.length > 1) {
+    const nodes: ReactNode[] = [];
+    for (let i = 0; i < parts.length; i++) {
+      const part = parts[i]!;
+      if (part.length === 0) continue;
+      if (i % 2 === 1) {
+        nodes.push(
+          <span key={`${keyPrefix}-trigger-${i}`} className="lightcode-inline-path-chip">
+            <GitBranch className="lightcode-inline-path-chip__icon" />
+            <span className="lightcode-inline-path-chip__name">{part}</span>
+          </span>,
+        );
+      } else {
+        nodes.push(...renderUserMessageUrls(part, `${keyPrefix}-${i}`));
+      }
+    }
+    return nodes;
+  }
+  return renderUserMessageUrls(text, keyPrefix);
+}
+
+function renderUserMessageUrls(text: string, keyPrefix: string): ReactNode[] {
   USER_MESSAGE_URL_RE.lastIndex = 0;
   const nodes: ReactNode[] = [];
   let cursor = 0;

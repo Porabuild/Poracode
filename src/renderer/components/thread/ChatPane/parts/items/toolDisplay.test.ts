@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { Eye, ImageIcon, Pencil, SearchCode, Terminal } from "lucide-react";
+import { Eye, GitBranch, ImageIcon, Pencil, SearchCode, Terminal } from "lucide-react";
 import type { ToolCallPayload } from "@/shared/contracts";
 import { deriveToolDisplay, isSubAgentTool } from "./toolDisplay";
 
@@ -180,5 +180,17 @@ describe("deriveToolDisplay", () => {
 
     expect(isSubAgentTool(payload)).toBe(true);
     expect(deriveToolDisplay(payload).title).toBe("Agent (rubber-duck): Critiquing path fixes");
+  });
+
+  it("recognizes Claude Workflow tool calls as background work", () => {
+    const payload = makePayload({
+      name: "Workflow",
+      args: { description: "Run the release checklist" },
+    });
+
+    expect(isSubAgentTool(payload)).toBe(true);
+    const display = deriveToolDisplay(payload);
+    expect(display.title).toBe("Workflow: Run the release checklist");
+    expect(display.Icon).toBe(GitBranch);
   });
 });

@@ -4,6 +4,7 @@ import {
   Eye,
   FilePlus,
   FolderSearch,
+  GitBranch,
   Globe,
   ImageIcon,
   Pencil,
@@ -53,7 +54,15 @@ type AcpLocation = NonNullable<ToolCallPayload["locations"]>[number];
  */
 export function isSubAgentTool(payload: ToolCallPayload | undefined): boolean {
   if (!payload) return false;
-  return payload.isSubAgent === true || readSubAgentType(readArgsObject(payload)) !== undefined;
+  return (
+    payload.isSubAgent === true ||
+    isWorkflowTool(payload) ||
+    readSubAgentType(readArgsObject(payload)) !== undefined
+  );
+}
+
+export function isWorkflowTool(payload: ToolCallPayload | undefined): boolean {
+  return payload?.name === "Workflow";
 }
 
 export function deriveToolDisplay(payload: ToolCallPayload): ToolDisplay {
@@ -106,6 +115,8 @@ function mapClaudeRawTool(
     case "Task":
     case "Agent":
       return { title: formatAgentTitle(args), Icon: Bot };
+    case "Workflow":
+      return { title: formatWorkflowTitle(args), Icon: GitBranch };
     case "BashOutput":
       return { title: titleWithValue("Bash output", args, "bash_id"), Icon: Terminal };
     case "KillBash":
@@ -259,6 +270,20 @@ function formatAgentTitle(
     return subagent ? `Agent (${subagent}): ${description}` : `Agent: ${description}`;
   }
   return subagent ? `Agent: ${subagent}` : "Agent";
+}
+
+function formatWorkflowTitle(args: Record<string, unknown> | undefined): string {
+  const description = readStr(
+    args,
+    "description",
+    "workflow",
+    "workflow_name",
+    "workflowName",
+    "name",
+    "task",
+    "prompt",
+  );
+  return description ? `Workflow: ${description}` : "Workflow";
 }
 
 function readSubAgentType(args: Record<string, unknown> | undefined): string | undefined {

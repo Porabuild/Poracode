@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { AppStoreState } from "@/renderer/state/appStore";
 import {
+  selectActiveSubAgentParentItemIds,
   selectVisibleThreadRuntimeItemIds,
   selectVisibleThreadTimelineEntries,
 } from "./chatPaneSelectors";
@@ -157,6 +158,46 @@ describe("chatPaneSelectors", () => {
       },
       { kind: "item", id: "assistant-2" },
       { kind: "item", id: "tool-3" },
+    ]);
+  });
+
+  it("keeps active Workflow tool calls as standalone background items", () => {
+    const state = {
+      runtimeItemIdsByThread: {
+        t1: ["tool-1", "workflow-1", "tool-2"],
+      },
+      runtimeItemsByIdByThread: {
+        t1: {
+          "tool-1": {
+            id: "tool-1",
+            type: "tool_call",
+            state: "completed",
+            payload: { name: "Read", status: "success" },
+            streams: {},
+          },
+          "workflow-1": {
+            id: "workflow-1",
+            type: "tool_call",
+            state: "started",
+            payload: { name: "Workflow", status: "running" },
+            streams: {},
+          },
+          "tool-2": {
+            id: "tool-2",
+            type: "tool_call",
+            state: "completed",
+            payload: { name: "Glob", status: "success" },
+            streams: {},
+          },
+        },
+      },
+    } as unknown as AppStoreState;
+
+    expect(selectActiveSubAgentParentItemIds(state, "t1")).toEqual(["workflow-1"]);
+    expect(selectVisibleThreadTimelineEntries(state, "t1")).toEqual([
+      { kind: "item", id: "tool-1" },
+      { kind: "item", id: "workflow-1" },
+      { kind: "item", id: "tool-2" },
     ]);
   });
 

@@ -60,6 +60,15 @@ describe("serializeComposerContent", () => {
     expect(serializeComposerContent(container)).toBe("check @src/main.ts please");
   });
 
+  it("serializes trigger word chips as plain trigger text", () => {
+    const chip = document.createElement("span");
+    chip.dataset.triggerWord = "workflow";
+    container.appendChild(chip);
+    container.appendChild(document.createTextNode(" run release checks"));
+
+    expect(serializeComposerContent(container)).toBe("workflow run release checks");
+  });
+
   it("serializes BR as newline", () => {
     container.appendChild(document.createTextNode("line one"));
     container.appendChild(document.createElement("br"));

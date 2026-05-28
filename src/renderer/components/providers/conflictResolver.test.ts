@@ -9,6 +9,7 @@ const claudeStatus = {
   kind: "claude",
   capabilities: {
     models: [
+      { id: "claude-opus-4-8", label: "Opus 4.8" },
       { id: "claude-opus-4-7", label: "Opus 4.7" },
       { id: "claude-opus-4-6", label: "Opus 4.6" },
       { id: "sonnet", label: "Sonnet" },
@@ -59,7 +60,7 @@ const cursorStatus = {
 describe("resolveConflictResolverConfig", () => {
   it("falls back to registered defaults (Claude → Opus)", () => {
     const result = resolveConflictResolverConfig(claudeStatus, "", "");
-    expect(result.model).toBe("claude-opus-4-7");
+    expect(result.model).toBe("claude-opus-4-8");
   });
 
   it("falls back to registered defaults (Codex → GPT-5.5)", () => {
@@ -74,7 +75,7 @@ describe("resolveConflictResolverConfig", () => {
 
   it("falls back to default when user-selected model is not in capabilities", () => {
     const result = resolveConflictResolverConfig(claudeStatus, "nonexistent", "");
-    expect(result.model).toBe("claude-opus-4-7");
+    expect(result.model).toBe("claude-opus-4-8");
   });
 
   it("returns empty for undefined agent", () => {

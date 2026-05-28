@@ -231,6 +231,7 @@ function classifyToolItemType(toolName: string): CanonicalItemType {
   if (name === "todowrite" || name.includes("todo")) return "plan";
   if (
     name === "task" ||
+    name === "workflow" ||
     name === "agent" ||
     name.includes("subagent") ||
     name.includes("sub-agent")
@@ -760,6 +761,7 @@ function toolPayload(
     result,
     status,
     ...(tool.progress ? { progress: tool.progress } : {}),
+    ...(tool.toolName === "Workflow" ? { isSubAgent: true } : {}),
   };
 }
 

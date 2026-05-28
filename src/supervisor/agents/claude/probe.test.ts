@@ -2,14 +2,23 @@ import { describe, expect, it } from "vitest";
 import { claudeCapabilitiesFromCliVersion, win32PathToWslMount } from "./probe";
 
 describe("claudeCapabilitiesFromCliVersion", () => {
-  it("hides Opus 4.7 when CLI is below 2.1.111", () => {
+  it("hides Opus 4.7 and 4.8 when CLI is below 2.1.111", () => {
     const p = claudeCapabilitiesFromCliVersion("2.1.110");
     expect(p?.models?.map((m) => m.id)).not.toContain("claude-opus-4-7");
+    expect(p?.models?.map((m) => m.id)).not.toContain("claude-opus-4-8");
     expect(p?.modelEfforts && "claude-opus-4-7" in p.modelEfforts).toBe(false);
+    expect(p?.models?.map((m) => m.id)).toContain("claude-opus-4-6");
   });
 
-  it("returns undefined when CLI supports Opus 4.7", () => {
-    expect(claudeCapabilitiesFromCliVersion("2.1.111")).toBeUndefined();
+  it("hides only Opus 4.8 when CLI supports Opus 4.7 but not 4.8", () => {
+    const p = claudeCapabilitiesFromCliVersion("2.1.153");
+    expect(p?.models?.map((m) => m.id)).toContain("claude-opus-4-7");
+    expect(p?.models?.map((m) => m.id)).toContain("claude-opus-4-6");
+    expect(p?.models?.map((m) => m.id)).not.toContain("claude-opus-4-8");
+  });
+
+  it("returns undefined when CLI supports Opus 4.8", () => {
+    expect(claudeCapabilitiesFromCliVersion("2.1.154")).toBeUndefined();
     expect(claudeCapabilitiesFromCliVersion("3.0.0")).toBeUndefined();
   });
 

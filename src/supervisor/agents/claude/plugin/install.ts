@@ -306,6 +306,8 @@ interface ClaudeSettings {
  *   - deny (where Claude recovers) → `PostToolUseFailure` → back to `working`
  *   - Esc / hard interrupt → no hook (Claude Code gap); `Stop` itself
  *     explicitly does not fire on user interrupts.
+ *   - workflows / background agent teams → `TaskCreated` / `TaskCompleted`
+ *     so dynamic workflows can drive active/finished status transitions.
  * `matcher: "*"` is required for tool-style events.
  */
 const CLAUDE_HOOK_SPECS_MINIMAL: ReadonlyArray<{ event: string; matcher?: string }> = [
@@ -317,6 +319,8 @@ const CLAUDE_HOOK_SPECS_MINIMAL: ReadonlyArray<{ event: string; matcher?: string
   { event: "PostToolUseFailure", matcher: "*" },
   { event: "ElicitationResult", matcher: "*" },
   { event: "Notification" },
+  { event: "TaskCreated" },
+  { event: "TaskCompleted" },
   { event: "Stop" },
   { event: "StopFailure" },
 ];
@@ -332,8 +336,6 @@ const CLAUDE_HOOK_SPECS_FULL: ReadonlyArray<{ event: string; matcher?: string }>
   { event: "PreToolUse", matcher: "*" },
   { event: "SubagentStart", matcher: "*" },
   { event: "SubagentStop", matcher: "*" },
-  { event: "TaskCreated" },
-  { event: "TaskCompleted" },
   { event: "TeammateIdle" },
   { event: "InstructionsLoaded", matcher: "*" },
   { event: "ConfigChange", matcher: "*" },

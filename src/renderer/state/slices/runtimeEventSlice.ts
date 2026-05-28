@@ -759,7 +759,7 @@ function completedTurnKey(turn: CompletedTurnRecord): string {
 function isStaleSubAgentItem(item: RuntimeChatItem): boolean {
   if (item.type !== "tool_call") return false;
   const payload = item.payload as ToolCallPayload | undefined;
-  if (payload?.isSubAgent !== true) return false;
+  if (payload?.isSubAgent !== true && payload?.name !== "Workflow") return false;
   return item.state !== "completed" || payload?.status === "running";
 }
 

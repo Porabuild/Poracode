@@ -27,17 +27,22 @@ registerTitleGenDefaults("claude", {
 });
 registerConflictResolverDefaults("claude", {
   label: "Claude",
-  hint: "Opus 4.7 high",
-  model: "claude-opus-4-7",
+  hint: "Opus 4.8 high",
+  model: "claude-opus-4-8",
   effort: "high",
 });
 
 registerComposerControls("claude", ({ capabilities, config, isDisabled, onConfigChange }) => {
   const isPlanMode = (config.mode ?? "agent") !== "agent";
 
-  // Auto mode is only supported for Sonnet 4.6+, Opus 4.6, and Opus 4.7.
+  // Auto mode is only supported for Sonnet 4.6+ and Opus 4.6+.
   // Filter it out for Haiku and other models that don't support it.
-  const AUTO_CAPABLE_MODELS = new Set(["sonnet", "claude-opus-4-6", "claude-opus-4-7"]);
+  const AUTO_CAPABLE_MODELS = new Set([
+    "sonnet",
+    "claude-opus-4-6",
+    "claude-opus-4-7",
+    "claude-opus-4-8",
+  ]);
   const modelSupportsAuto = !config.model || AUTO_CAPABLE_MODELS.has(config.model);
   const filteredPolicies = modelSupportsAuto
     ? capabilities.approvalPolicies
