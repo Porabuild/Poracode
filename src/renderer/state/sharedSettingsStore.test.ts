@@ -8,6 +8,7 @@ describe("sharedSettingsStore", () => {
       themeMode: "dark",
       staleThreadUnloadMinutes: 20,
       audio: {
+        showVoiceInputButton: true,
         microphoneDeviceId: "",
         transcriptionLanguage: "en",
         transcriptionModel: "tiny",

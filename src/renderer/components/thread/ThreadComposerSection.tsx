@@ -297,6 +297,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
   } = props;
   const [prompt, setPrompt] = useState("");
   const [hasContent, setHasContent] = useState(false);
+  const showVoiceInputButton = useSharedSettings((s) => s.audio.showVoiceInputButton);
   const mentionRef = useRef<MentionInputHandle>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isInterrupting, setIsInterrupting] = useState(false);
@@ -978,24 +979,25 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                         ) : null}
                       </>
                     );
-                    const renderVoiceInput = () => (
-                      <VoiceInputButton
-                        isDisabled={
-                          authRequired ||
-                          isSubmitting ||
-                          !(showServerComposer || showTerminalComposer)
-                        }
-                        onTranscript={(text) => {
-                          mentionRef.current?.commitVoiceTranscript(text);
-                        }}
-                        onTranscriptPreview={(text) => {
-                          mentionRef.current?.previewVoiceTranscript(text);
-                        }}
-                        onTranscriptCancel={() => {
-                          mentionRef.current?.clearVoiceTranscriptPreview();
-                        }}
-                      />
-                    );
+                    const renderVoiceInput = () =>
+                      showVoiceInputButton ? (
+                        <VoiceInputButton
+                          isDisabled={
+                            authRequired ||
+                            isSubmitting ||
+                            !(showServerComposer || showTerminalComposer)
+                          }
+                          onTranscript={(text) => {
+                            mentionRef.current?.commitVoiceTranscript(text);
+                          }}
+                          onTranscriptPreview={(text) => {
+                            mentionRef.current?.previewVoiceTranscript(text);
+                          }}
+                          onTranscriptCancel={() => {
+                            mentionRef.current?.clearVoiceTranscriptPreview();
+                          }}
+                        />
+                      ) : null;
                     return isCliThread
                       ? { leadingControls: renderExtras, afterControls: renderVoiceInput }
                       : {

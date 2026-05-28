@@ -71,6 +71,8 @@ export const audioTranscriptionModelSchema = z.preprocess(
 export type AudioTranscriptionModel = z.infer<typeof audioTranscriptionModelSchema>;
 
 const audioSettingsSchema = z.object({
+  /** Show the composer microphone button. */
+  showVoiceInputButton: z.boolean().default(true),
   /** Empty string means the OS/browser default microphone. */
   microphoneDeviceId: z.string().default(""),
   /** Speech-to-text language code, for example "en", "es", or "fr". */
@@ -287,6 +289,7 @@ export const defaultSharedSettings: SharedSettings = {
     linkPresentationMode: "panel",
   },
   audio: {
+    showVoiceInputButton: true,
     microphoneDeviceId: "",
     transcriptionLanguage: "en",
     transcriptionModel: "tiny",

@@ -66,6 +66,7 @@ export function AudioSettings() {
     { id: SYSTEM_MICROPHONE_ID, label: "System default" },
   ]);
   const microphoneDeviceId = useSharedSettings((s) => s.audio.microphoneDeviceId);
+  const showVoiceInputButton = useSharedSettings((s) => s.audio.showVoiceInputButton);
   const transcriptionLanguage = useSharedSettings((s) => s.audio.transcriptionLanguage);
   const transcriptionModel = useSharedSettings((s) => s.audio.transcriptionModel);
   const useWebGpu = useSharedSettings((s) => s.audio.useWebGpu);
@@ -98,6 +99,23 @@ export function AudioSettings() {
         <h1 className="mb-6 text-lg font-semibold text-foreground">Audio</h1>
 
         <div className="space-y-5">
+          <SettingRow
+            title="Show voice input button"
+            description="Show the microphone button in the composer."
+          >
+            <Switch
+              isSelected={showVoiceInputButton}
+              onChange={(selected) => {
+                startTransition(() => {
+                  setAudioSetting("showVoiceInputButton", selected);
+                });
+              }}
+            >
+              <Switch.Control>
+                <Switch.Thumb />
+              </Switch.Control>
+            </Switch>
+          </SettingRow>
           <SettingRow
             title="Microphone"
             description="Device used by the composer voice input button."

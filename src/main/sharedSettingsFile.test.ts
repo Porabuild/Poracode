@@ -90,6 +90,7 @@ describe("sharedSettingsFile", () => {
         linkPresentationMode: "panel",
       },
       audio: {
+        showVoiceInputButton: true,
         microphoneDeviceId: "",
         transcriptionLanguage: "en",
         transcriptionModel: "tiny",
@@ -161,6 +162,7 @@ describe("sharedSettingsFile", () => {
         linkPresentationMode: "panel",
       },
       audio: {
+        showVoiceInputButton: true,
         microphoneDeviceId: "",
         transcriptionLanguage: "en",
         transcriptionModel: "tiny",
@@ -267,6 +269,7 @@ describe("sharedSettingsFile", () => {
     );
 
     expect(readSharedSettingsFile(settingsPath).audio).toEqual({
+      showVoiceInputButton: true,
       microphoneDeviceId: "mic-1",
       transcriptionLanguage: "en",
       transcriptionModel: "tiny",
@@ -289,6 +292,7 @@ describe("sharedSettingsFile", () => {
     );
 
     expect(readSharedSettingsFile(settingsPath).audio).toEqual({
+      showVoiceInputButton: true,
       microphoneDeviceId: "mic-1",
       transcriptionLanguage: "es",
       transcriptionModel: "tiny",
