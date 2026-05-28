@@ -16,6 +16,10 @@ export interface MentionInputHandle {
   restoreFromSegments(segments: PromptSegment[]): void;
   focus(): void;
   clear(): void;
+  insertText(text: string): void;
+  previewVoiceTranscript(text: string): void;
+  commitVoiceTranscript(text: string): void;
+  clearVoiceTranscriptPreview(): void;
   insertSlashCommand(id: string): void;
 }
 
@@ -119,6 +123,17 @@ function normalizeEmptyEditor(editor: HTMLDivElement): void {
   editor.innerHTML = "";
 }
 
+function placeCaretAtEnd(editor: HTMLDivElement): Range | null {
+  const sel = window.getSelection();
+  if (!sel) return null;
+  const range = document.createRange();
+  range.selectNodeContents(editor);
+  range.collapse(false);
+  sel.removeAllRanges();
+  sel.addRange(range);
+  return range;
+}
+
 export const MentionInput = forwardRef<
   MentionInputHandle,
   {
@@ -155,6 +170,7 @@ export const MentionInput = forwardRef<
   } = props;
   const editorRef = useRef<HTMLDivElement>(null);
   const lastSlashQueryRef = useRef<string | null>(null);
+  const voicePreviewRef = useRef<HTMLSpanElement | null>(null);
   const [mention, setMention] = useState<MentionState | null>(null);
   const [activeIndex, setActiveIndex] = useState(0);
 
@@ -169,6 +185,43 @@ export const MentionInput = forwardRef<
     setActiveIndex(0);
   }, [results]);
 
+  function insertPlainText(text: string) {
+    const editor = editorRef.current;
+    const trimmed = text.trim();
+    if (!editor || !trimmed) return;
+
+    editor.focus();
+    const sel = window.getSelection();
+    const selectionInsideEditor =
+      sel?.rangeCount && sel.anchorNode ? editor.contains(sel.anchorNode) : false;
+    const range = selectionInsideEditor ? sel!.getRangeAt(0) : placeCaretAtEnd(editor);
+    if (!range) return;
+
+    const precedingRange = document.createRange();
+    precedingRange.selectNodeContents(editor);
+    precedingRange.setEnd(range.startContainer, range.startOffset);
+    const prefix =
+      precedingRange.toString().length > 0 && !/\s$/.test(precedingRange.toString()) ? " " : "";
+    const node = document.createTextNode(prefix + trimmed);
+    range.deleteContents();
+    range.insertNode(node);
+    range.setStartAfter(node);
+    range.collapse(true);
+    sel?.removeAllRanges();
+    sel?.addRange(range);
+    checkMentionState();
+    notifyTextChange();
+  }
+
+  function clearVoicePreviewNode() {
+    const preview = voicePreviewRef.current;
+    if (preview?.isConnected) {
+      preview.remove();
+    }
+    voicePreviewRef.current = null;
+    notifyTextChange();
+  }
+
   useImperativeHandle(ref, () => ({
     serializeSegments() {
       if (!editorRef.current) return [];
@@ -181,6 +234,7 @@ export const MentionInput = forwardRef<
     restoreFromSegments(segments: PromptSegment[]) {
       const editor = editorRef.current;
       if (!editor) return;
+      voicePreviewRef.current = null;
       editor.innerHTML = "";
       for (const seg of segments) {
         if (seg.kind === "text") {
@@ -206,6 +260,7 @@ export const MentionInput = forwardRef<
     },
     clear() {
       if (editorRef.current) {
+        voicePreviewRef.current = null;
         editorRef.current.innerHTML = "";
         setMention(null);
         if (lastSlashQueryRef.current !== null) {
@@ -213,6 +268,79 @@ export const MentionInput = forwardRef<
           onSlashCommandChange?.(null);
         }
       }
+    },
+    insertText(text: string) {
+      insertPlainText(text);
+    },
+    previewVoiceTranscript(text: string) {
+      const editor = editorRef.current;
+      const trimmed = text.trim();
+      if (!editor) return;
+      if (!trimmed) {
+        clearVoicePreviewNode();
+        return;
+      }
+
+      const existing = voicePreviewRef.current;
+      if (existing?.isConnected) {
+        existing.textContent = `${existing.dataset.voicePrefix ?? ""}${trimmed}`;
+        notifyTextChange();
+        return;
+      }
+
+      editor.focus();
+      const sel = window.getSelection();
+      const selectionInsideEditor =
+        sel?.rangeCount && sel.anchorNode ? editor.contains(sel.anchorNode) : false;
+      const range = selectionInsideEditor ? sel!.getRangeAt(0) : placeCaretAtEnd(editor);
+      if (!range) return;
+
+      const precedingRange = document.createRange();
+      precedingRange.selectNodeContents(editor);
+      precedingRange.setEnd(range.startContainer, range.startOffset);
+      const prefix =
+        precedingRange.toString().length > 0 && !/\s$/.test(precedingRange.toString()) ? " " : "";
+      const node = document.createElement("span");
+      node.dataset.voiceTranscriptPreview = "true";
+      node.dataset.voicePrefix = prefix;
+      node.textContent = prefix + trimmed;
+      range.deleteContents();
+      range.insertNode(node);
+      range.setStartAfter(node);
+      range.collapse(true);
+      sel?.removeAllRanges();
+      sel?.addRange(range);
+      voicePreviewRef.current = node;
+      checkMentionState();
+      notifyTextChange();
+    },
+    commitVoiceTranscript(text: string) {
+      const trimmed = text.trim();
+      const preview = voicePreviewRef.current;
+      if (!preview?.isConnected) {
+        insertPlainText(trimmed);
+        return;
+      }
+
+      if (!trimmed) {
+        clearVoicePreviewNode();
+        return;
+      }
+
+      const node = document.createTextNode(`${preview.dataset.voicePrefix ?? ""}${trimmed}`);
+      preview.replaceWith(node);
+      voicePreviewRef.current = null;
+      const sel = window.getSelection();
+      const range = document.createRange();
+      range.setStartAfter(node);
+      range.collapse(true);
+      sel?.removeAllRanges();
+      sel?.addRange(range);
+      checkMentionState();
+      notifyTextChange();
+    },
+    clearVoiceTranscriptPreview() {
+      clearVoicePreviewNode();
     },
     insertSlashCommand(id: string) {
       const editor = editorRef.current;

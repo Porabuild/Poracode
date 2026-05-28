@@ -8,6 +8,7 @@ import {
   FlaskConical,
   Globe,
   Info,
+  Mic,
   PanelLeft,
   PanelLeftClose,
   RefreshCw,
@@ -73,6 +74,13 @@ export function SettingsSidebar(props: {
               label="General"
               isActive={activeSection === "general"}
               onPress={() => onSectionChange("general")}
+            />
+            <SidebarButton
+              iconOnly
+              icon={<Mic className="size-4" />}
+              label="Audio"
+              isActive={activeSection === "audio"}
+              onPress={() => onSectionChange("audio")}
             />
             <SidebarButton
               iconOnly
@@ -215,6 +223,12 @@ export function SettingsSidebar(props: {
               label="General"
               isActive={activeSection === "general"}
               onPress={() => onSectionChange("general")}
+            />
+            <SidebarButton
+              icon={<Mic className="size-4" />}
+              label="Audio"
+              isActive={activeSection === "audio"}
+              onPress={() => onSectionChange("audio")}
             />
             <SidebarButton
               icon={<Bell className="size-4" />}

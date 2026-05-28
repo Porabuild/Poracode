@@ -25,11 +25,20 @@ export function isNavigationUrlAllowed(url: string): boolean {
   }
 }
 
+function isPermissionAllowed(webContents: WebContents | null, permission: string): boolean {
+  if (permission === "media") {
+    return webContents?.getType() === "window";
+  }
+  return ALLOWED_PERMISSIONS.has(permission);
+}
+
 export function installSessionPermissions(session: Session): void {
-  session.setPermissionRequestHandler((_wc, permission, callback) => {
-    callback(ALLOWED_PERMISSIONS.has(permission));
+  session.setPermissionRequestHandler((webContents, permission, callback) => {
+    callback(isPermissionAllowed(webContents, permission));
   });
-  session.setPermissionCheckHandler((_wc, permission) => ALLOWED_PERMISSIONS.has(permission));
+  session.setPermissionCheckHandler((webContents, permission) =>
+    isPermissionAllowed(webContents, permission),
+  );
 }
 
 export function installNavigationGuards(

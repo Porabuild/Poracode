@@ -14,6 +14,7 @@ import {
   ComposerAddMenu,
   ImageLightbox,
   MentionInput,
+  VoiceInputButton,
   type MentionInputHandle,
   useAttachments,
 } from "@/renderer/components/composer";
@@ -433,6 +434,18 @@ export function ThreadDraftComposerArea(props: {
                 iconOnly={level >= 3}
               />
             ) : null}
+            <VoiceInputButton
+              isDisabled={authRequired || agentUpdating || isSubmitting}
+              onTranscript={(text) => {
+                mentionRef.current?.commitVoiceTranscript(text);
+              }}
+              onTranscriptPreview={(text) => {
+                mentionRef.current?.previewVoiceTranscript(text);
+              }}
+              onTranscriptCancel={() => {
+                mentionRef.current?.clearVoiceTranscriptPreview();
+              }}
+            />
           </>
         )}
       />

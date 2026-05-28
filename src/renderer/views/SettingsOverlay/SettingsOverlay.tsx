@@ -7,6 +7,7 @@ import { buildWslProjectDistrosKey } from "@/renderer/state/projectKeys";
 import { PageLayout } from "@/renderer/components/layout/PageLayout";
 import { getSettingsInstalledAgents } from "@/shared/agentStatus";
 import { BrowserSettings } from "./parts/BrowserSettings";
+import { AudioSettings } from "./parts/AudioSettings";
 import { GeneralSettings } from "./parts/GeneralSettings";
 import { NotificationSettings } from "./parts/NotificationSettings";
 import { AISettings } from "./parts/AISettings";
@@ -22,6 +23,7 @@ import type { SettingsSection } from "./parts/types";
 
 const SECTION_VIEWS: Partial<Record<SettingsSection, () => ReactNode>> = {
   general: () => <GeneralSettings />,
+  audio: () => <AudioSettings />,
   notifications: () => <NotificationSettings />,
   ai: () => <AISettings />,
   search: () => <SearchSettings />,

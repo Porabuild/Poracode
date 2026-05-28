@@ -1,5 +1,6 @@
 export type SettingsSection =
   | "general"
+  | "audio"
   | "notifications"
   | "ai"
   | "acpRegistry"

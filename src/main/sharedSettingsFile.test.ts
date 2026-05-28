@@ -89,6 +89,12 @@ describe("sharedSettingsFile", () => {
         linkOpenTarget: "internal",
         linkPresentationMode: "panel",
       },
+      audio: {
+        microphoneDeviceId: "",
+        transcriptionLanguage: "en",
+        transcriptionModel: "tiny",
+        useWebGpu: true,
+      },
     });
 
     expect(readSharedSettingsFile(settingsPath)).toEqual({
@@ -153,6 +159,12 @@ describe("sharedSettingsFile", () => {
         allowDataAccess: false,
         linkOpenTarget: "internal",
         linkPresentationMode: "panel",
+      },
+      audio: {
+        microphoneDeviceId: "",
+        transcriptionLanguage: "en",
+        transcriptionModel: "tiny",
+        useWebGpu: true,
       },
     });
     expect(readFileSync(settingsPath, "utf8")).toContain('"themeMode": "dark"');
@@ -241,6 +253,46 @@ describe("sharedSettingsFile", () => {
       allowDataAccess: true,
       linkOpenTarget: "internal",
       linkPresentationMode: "panel",
+    });
+  });
+
+  it("normalizes older audio settings without dropping existing values", () => {
+    const settingsPath = join(makeTempDir(), "settings.json");
+    writeFileSync(
+      settingsPath,
+      JSON.stringify({
+        audio: { microphoneDeviceId: "mic-1" },
+      }),
+      "utf8",
+    );
+
+    expect(readSharedSettingsFile(settingsPath).audio).toEqual({
+      microphoneDeviceId: "mic-1",
+      transcriptionLanguage: "en",
+      transcriptionModel: "tiny",
+      useWebGpu: true,
+    });
+  });
+
+  it("normalizes removed audio models without dropping existing values", () => {
+    const settingsPath = join(makeTempDir(), "settings.json");
+    writeFileSync(
+      settingsPath,
+      JSON.stringify({
+        audio: {
+          microphoneDeviceId: "mic-1",
+          transcriptionLanguage: "es",
+          transcriptionModel: "small",
+        },
+      }),
+      "utf8",
+    );
+
+    expect(readSharedSettingsFile(settingsPath).audio).toEqual({
+      microphoneDeviceId: "mic-1",
+      transcriptionLanguage: "es",
+      transcriptionModel: "tiny",
+      useWebGpu: true,
     });
   });
 });

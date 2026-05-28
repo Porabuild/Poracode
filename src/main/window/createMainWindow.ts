@@ -1,6 +1,7 @@
 import { dbGetState, dbSetState } from "../db";
 import { BrowserWindow, screen, type RenderProcessGoneDetails } from "electron";
 import type { LightcodeChannel } from "@/shared/channel";
+import { installSessionPermissions } from "../browser/permissions";
 
 interface WindowBounds {
   x?: number;
@@ -109,6 +110,7 @@ export function createMainWindow(options: CreateMainWindowOptions): BrowserWindo
       ],
     },
   });
+  installSessionPermissions(window.webContents.session);
 
   window.once("ready-to-show", () => {
     if (saved?.isMaximized) {

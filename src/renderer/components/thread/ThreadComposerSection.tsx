@@ -16,6 +16,7 @@ import {
   ComposerAddMenu,
   ImageLightbox,
   MentionInput,
+  VoiceInputButton,
   useAttachments,
 } from "../composer";
 import type { MentionInputHandle } from "../composer";
@@ -977,9 +978,34 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                         ) : null}
                       </>
                     );
+                    const renderVoiceInput = () => (
+                      <VoiceInputButton
+                        isDisabled={
+                          authRequired ||
+                          isSubmitting ||
+                          !(showServerComposer || showTerminalComposer)
+                        }
+                        onTranscript={(text) => {
+                          mentionRef.current?.commitVoiceTranscript(text);
+                        }}
+                        onTranscriptPreview={(text) => {
+                          mentionRef.current?.previewVoiceTranscript(text);
+                        }}
+                        onTranscriptCancel={() => {
+                          mentionRef.current?.clearVoiceTranscriptPreview();
+                        }}
+                      />
+                    );
                     return isCliThread
-                      ? { leadingControls: renderExtras }
-                      : { afterControls: renderExtras };
+                      ? { leadingControls: renderExtras, afterControls: renderVoiceInput }
+                      : {
+                          afterControls: (level: number) => (
+                            <>
+                              {renderExtras(level)}
+                              {renderVoiceInput()}
+                            </>
+                          ),
+                        };
                   })()}
                   onPromptChange={setPrompt}
                   onSubmit={() => {

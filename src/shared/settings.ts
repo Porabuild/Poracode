@@ -63,6 +63,24 @@ const browserSettingsSchema = z.object({
   linkPresentationMode: browserLinkPresentationModeSchema.default("panel"),
 });
 
+export const audioTranscriptionModelSchema = z.preprocess(
+  (value) =>
+    value === "small" || value === "moonshine-tiny" || value === "moonshine-base" ? "tiny" : value,
+  z.enum(["tiny", "base"]),
+);
+export type AudioTranscriptionModel = z.infer<typeof audioTranscriptionModelSchema>;
+
+const audioSettingsSchema = z.object({
+  /** Empty string means the OS/browser default microphone. */
+  microphoneDeviceId: z.string().default(""),
+  /** Speech-to-text language code, for example "en", "es", or "fr". */
+  transcriptionLanguage: z.string().default("en"),
+  /** Model used for local composer dictation. */
+  transcriptionModel: audioTranscriptionModelSchema.default("tiny"),
+  /** Prefer WebGPU acceleration for local speech-to-text when available. */
+  useWebGpu: z.boolean().default(true),
+});
+
 export const sharedSettingsSchema = z.object({
   themeMode: themeModeSchema,
   terminalPosition: terminalPositionSchema,
@@ -193,6 +211,8 @@ export const sharedSettingsSchema = z.object({
    * not a global toggle.
    */
   browser: browserSettingsSchema,
+  /** Local audio capture and speech-to-text settings. */
+  audio: audioSettingsSchema,
 });
 export type SharedSettings = z.infer<typeof sharedSettingsSchema>;
 
@@ -265,6 +285,12 @@ export const defaultSharedSettings: SharedSettings = {
     allowDataAccess: false,
     linkOpenTarget: "internal",
     linkPresentationMode: "panel",
+  },
+  audio: {
+    microphoneDeviceId: "",
+    transcriptionLanguage: "en",
+    transcriptionModel: "tiny",
+    useWebGpu: true,
   },
 };
 

@@ -457,6 +457,8 @@ mac:
   artifactName: ${prefix}-\${version}-\${arch}.\${ext}
   hardenedRuntime: true
   gatekeeperAssess: false
+  extendInfo:
+    NSMicrophoneUsageDescription: Lightcode uses the microphone for local voice input in the composer.
   entitlements: build/entitlements.mac.plist
   entitlementsInherit: build/entitlements.mac.plist
   notarize: true

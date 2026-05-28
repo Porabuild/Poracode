@@ -9,6 +9,8 @@ allowBuilds:
   electron-winstaller: true
   esbuild: true
   node-pty: true
+  onnxruntime-node: false
+  protobufjs: false
   sharp: true
 onlyBuiltDependencies:
   - "@sentry/cli"

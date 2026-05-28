@@ -59,6 +59,10 @@ interface SharedSettingsState extends SharedSettings {
     key: K,
     value: SharedSettings["browser"][K],
   ) => void;
+  setAudioSetting: <K extends keyof SharedSettings["audio"]>(
+    key: K,
+    value: SharedSettings["audio"][K],
+  ) => void;
   setProviderConfig: (agentKind: string, config: ProviderDraftConfig) => void;
   setLastPresentationMode: (agentKind: string, mode: ThreadPresentationMode) => void;
   setNotificationsEnabled: (value: boolean) => void;
@@ -314,6 +318,12 @@ export const useSharedSettings = create<SharedSettingsState>()((set, get) => ({
     set({ browser: { ...current, [key]: value } });
     persistSettings(selectSharedSettings(get()));
   },
+  setAudioSetting: (key, value) => {
+    const current = get().audio;
+    if (current[key] === value) return;
+    set({ audio: { ...current, [key]: value } });
+    persistSettings(selectSharedSettings(get()));
+  },
   setProviderConfig: (agentKind, config) => {
     if (!config.model.trim()) {
       return;
@@ -492,6 +502,7 @@ function selectSharedSettings(state: SharedSettingsState): SharedSettingsInput {
     favoriteModels: state.favoriteModels,
     recentModels: state.recentModels,
     browser: state.browser,
+    audio: state.audio,
   };
 }
 
