@@ -7,6 +7,7 @@ import {
   useIsWorktreeFilesPanelActive,
   useIsWorktreeGitPanelActive,
   useIsWorktreeTerminalActive,
+  useIsWorktreeTerminalBusy,
   useIsWorktreeTerminalOpen,
 } from "@/renderer/hooks/uiSelectors";
 import {
@@ -44,6 +45,7 @@ export function SidebarWorktreeGroup(props: {
   const worktreeGitItems = useWorktreeGitItems(project.id, group.worktreePath, gitMenuIcons);
   const hasTerminal = useIsWorktreeTerminalOpen(group.worktreePath);
   const isActiveTerminal = useIsWorktreeTerminalActive(group.worktreePath);
+  const isBusyTerminal = useIsWorktreeTerminalBusy(group.worktreePath);
   const isActiveFiles = useIsWorktreeFilesPanelActive(group.worktreePath);
   const isActiveGit = useIsWorktreeGitPanelActive(group.worktreePath);
   const groupThreadIds = group.threads.map((t) => t.id);
@@ -139,6 +141,7 @@ export function SidebarWorktreeGroup(props: {
           isCollapsed={isGroupCollapsed}
           hasTerminal={hasTerminal}
           isActiveTerminal={isActiveTerminal}
+          isBusyTerminal={isBusyTerminal}
           isActiveFiles={isActiveFiles}
           isActiveGit={isActiveGit}
           onToggleCollapse={() => toggleWorktreeCollapsed(group.worktreePath)}

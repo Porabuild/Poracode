@@ -10,6 +10,7 @@ import {
 } from "./notifications";
 
 import { useAppStore } from "./state/appStore";
+import { useDevTerminalStore } from "./state/devTerminalStore";
 import { useAgentStatusesStore } from "./state/agentStatusesStore";
 import { useUpdateStore } from "./state/updateStore";
 import { installRuntimeItemsPersister } from "./state/chatRuntimePersister";
@@ -81,6 +82,9 @@ function flushPendingRuntimeEventsSync(): void {
 
 const unsubSupervisor = readBridge().onSupervisorEvent((event) => {
   if ("threadId" in event && event.threadId.startsWith("shell:")) {
+    if (event.type === "thread-output") {
+      useDevTerminalStore.getState().noteShellOutput(event.threadId);
+    }
     return;
   }
 

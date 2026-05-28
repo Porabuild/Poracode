@@ -114,6 +114,28 @@ export function useIsWorktreeTerminalOpen(worktreePath: string | null | undefine
   });
 }
 
+export function useIsProjectTerminalBusy(projectId: string): boolean {
+  return useDevTerminalStore((s) =>
+    s.tabs.some(
+      (t) =>
+        t.projectId === projectId &&
+        !t.worktreePath &&
+        (s.streamingTabs[t.id] || (t.splitId ? s.streamingTabs[t.splitId] : false)),
+    ),
+  );
+}
+
+export function useIsWorktreeTerminalBusy(worktreePath: string | null | undefined): boolean {
+  return useDevTerminalStore((s) => {
+    if (!worktreePath) return false;
+    return s.tabs.some(
+      (t) =>
+        t.worktreePath === worktreePath &&
+        (s.streamingTabs[t.id] || (t.splitId ? s.streamingTabs[t.splitId] : false)),
+    );
+  });
+}
+
 export function useIsProjectGitPanelActive(projectId: string): boolean {
   const terminalPosition = useSharedSettings((s) => s.terminalPosition);
   return usePanelStore((s) => {

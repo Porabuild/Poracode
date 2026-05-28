@@ -21,6 +21,11 @@ interface DevTerminalState {
   focusRequestId: number;
   /** Tab IDs with unseen output. Ephemeral — not persisted. */
   tabActivity: Record<string, true>;
+  /**
+   * Shell IDs (tab `id` or `splitId`) currently streaming output. Set on PTY
+   * output, cleared after a short idle debounce. Ephemeral — not persisted.
+   */
+  streamingTabs: Record<string, true>;
 }
 
 interface DevTerminalActions {
@@ -40,7 +45,24 @@ interface DevTerminalActions {
   closeSplit: (tabId: string) => string | undefined;
   markTabActive: (tabId: string) => void;
   clearTabActivity: (tabId: string) => void;
+  /** Note PTY output for a shell, flagging it as streaming until output idles. */
+  noteShellOutput: (shellId: string) => void;
   updateTabTitle: (tabId: string, title: string) => void;
+}
+
+/** Idle window after the last PTY output before a shell is considered quiet. */
+const STREAMING_IDLE_MS = 700;
+
+/** Per-shell debounce timers backing `noteShellOutput`. Module-level so they
+ * never trigger store re-renders and survive across `set` calls. */
+const streamingTimers = new Map<string, ReturnType<typeof setTimeout>>();
+
+function clearStreaming(ids: string[]): void {
+  for (const id of ids) {
+    const timer = streamingTimers.get(id);
+    if (timer) clearTimeout(timer);
+    streamingTimers.delete(id);
+  }
 }
 
 export const useDevTerminalStore = create<DevTerminalState & DevTerminalActions>()((set, get) => ({
@@ -51,6 +73,7 @@ export const useDevTerminalStore = create<DevTerminalState & DevTerminalActions>
   activeTabId: null,
   focusRequestId: 0,
   tabActivity: {},
+  streamingTabs: {},
 
   openPanel: (projectId) =>
     set((state) => ({
@@ -111,7 +134,11 @@ export const useDevTerminalStore = create<DevTerminalState & DevTerminalActions>
       const tabActivity = { ...state.tabActivity };
       delete tabActivity[tabId];
       if (removed?.splitId) delete tabActivity[removed.splitId];
-      return { tabs, activeTabId, tabActivity };
+      const streamingTabs = { ...state.streamingTabs };
+      delete streamingTabs[tabId];
+      if (removed?.splitId) delete streamingTabs[removed.splitId];
+      clearStreaming(removed?.splitId ? [tabId, removed.splitId] : [tabId]);
+      return { tabs, activeTabId, tabActivity, streamingTabs };
     }),
 
   setActiveTab: (tabId) => {
@@ -139,9 +166,17 @@ export const useDevTerminalStore = create<DevTerminalState & DevTerminalActions>
         activeTabId = tabs.at(-1)?.id ?? null;
       }
       const tabActivity = { ...state.tabActivity };
-      for (const id of removed) delete tabActivity[id];
-      for (const id of splitIds) delete tabActivity[id];
-      return { tabs, activeTabId, tabActivity };
+      const streamingTabs = { ...state.streamingTabs };
+      for (const id of removed) {
+        delete tabActivity[id];
+        delete streamingTabs[id];
+      }
+      for (const id of splitIds) {
+        delete tabActivity[id];
+        delete streamingTabs[id];
+      }
+      clearStreaming([...removed, ...splitIds]);
+      return { tabs, activeTabId, tabActivity, streamingTabs };
     });
     return [...removed, ...splitIds];
   },
@@ -160,9 +195,17 @@ export const useDevTerminalStore = create<DevTerminalState & DevTerminalActions>
         activeTabId = tabs.at(-1)?.id ?? null;
       }
       const tabActivity = { ...state.tabActivity };
-      for (const id of removed) delete tabActivity[id];
-      for (const id of splitIds) delete tabActivity[id];
-      return { tabs, activeTabId, tabActivity };
+      const streamingTabs = { ...state.streamingTabs };
+      for (const id of removed) {
+        delete tabActivity[id];
+        delete streamingTabs[id];
+      }
+      for (const id of splitIds) {
+        delete tabActivity[id];
+        delete streamingTabs[id];
+      }
+      clearStreaming([...removed, ...splitIds]);
+      return { tabs, activeTabId, tabActivity, streamingTabs };
     });
     return [...removed, ...splitIds];
   },
@@ -187,7 +230,10 @@ export const useDevTerminalStore = create<DevTerminalState & DevTerminalActions>
       });
       const tabActivity = { ...state.tabActivity };
       delete tabActivity[splitId];
-      return { tabs, tabActivity };
+      const streamingTabs = { ...state.streamingTabs };
+      delete streamingTabs[splitId];
+      clearStreaming([splitId]);
+      return { tabs, tabActivity, streamingTabs };
     });
     return splitId;
   },
@@ -205,6 +251,24 @@ export const useDevTerminalStore = create<DevTerminalState & DevTerminalActions>
     const next = { ...tabActivity };
     delete next[tabId];
     set({ tabActivity: next });
+  },
+
+  noteShellOutput: (shellId) => {
+    const existing = streamingTimers.get(shellId);
+    if (existing) clearTimeout(existing);
+    streamingTimers.set(
+      shellId,
+      setTimeout(() => {
+        streamingTimers.delete(shellId);
+        const { streamingTabs } = get();
+        if (!streamingTabs[shellId]) return;
+        const next = { ...streamingTabs };
+        delete next[shellId];
+        set({ streamingTabs: next });
+      }, STREAMING_IDLE_MS),
+    );
+    if (get().streamingTabs[shellId]) return;
+    set((state) => ({ streamingTabs: { ...state.streamingTabs, [shellId]: true } }));
   },
 
   updateTabTitle: (tabId, rawTitle) => {
