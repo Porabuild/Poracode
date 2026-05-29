@@ -304,18 +304,26 @@ function readSubAgentType(args: Record<string, unknown> | undefined): string | u
   return readStr(args, "subagent_type", "agent_type", "agentType");
 }
 
+/** Recognise Droid/Codex `ApplyPatch`, `apply_patch`, `apply-patch` tool names. */
+function isApplyPatchToolName(name: string): boolean {
+  return /^(apply[_-]?patch)$/i.test(name.trim());
+}
+
 function mapAcpTool(
   payload: ToolCallPayload,
   args: Record<string, unknown> | undefined,
 ): ToolDisplay | null {
   const kind = payload.kind?.trim().toLowerCase();
   const title = payload.title?.trim() || payload.name.trim();
+  const isEditByName = isApplyPatchToolName(payload.name) || isApplyPatchToolName(title);
   const locations = payload.locations ?? [];
   const locationPath = pickAcpLocationPath(kind, locations);
   const titlePath = extractLeadingPath(title);
   const argsPath = readPathArg(args);
   const patchPath =
-    kind === "edit" || kind === "delete" ? extractAcpPatchTargetPath(payload) : undefined;
+    kind === "edit" || kind === "delete" || isEditByName
+      ? extractAcpPatchTargetPath(payload)
+      : undefined;
   const path = locationPath ?? argsPath ?? patchPath ?? titlePath;
 
   switch (kind) {
@@ -340,8 +348,10 @@ function mapAcpTool(
       };
     case "think":
     case "other":
+      if (isEditByName) return formatAcpPathDisplay("Edit", path, title, Pencil);
       return title ? { title, Icon: pickIconByVerbPrefix(title) } : null;
     default:
+      if (isEditByName) return formatAcpPathDisplay("Edit", path, title, Pencil);
       return null;
   }
 }

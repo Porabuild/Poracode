@@ -193,4 +193,32 @@ describe("deriveToolDisplay", () => {
     expect(display.title).toBe("Workflow: Run the release checklist");
     expect(display.Icon).toBe(GitBranch);
   });
+
+  it("labels Droid ApplyPatch as edit even when kind is other", () => {
+    const display = deriveToolDisplay(
+      makePayload({
+        name: "ApplyPatch",
+        title: "ApplyPatch",
+        kind: "other",
+        args: {
+          patch: [
+            "*** Begin Patch",
+            "*** Update File: src/renderer/notifications.ts",
+            "@@",
+            "-before",
+            "+after",
+            "*** End Patch",
+          ].join("\n"),
+        },
+      }),
+    );
+
+    expect(display.title).toBe("Edit: src/renderer/notifications.ts");
+    expect(display.parts).toEqual({
+      prefix: "Edit: ",
+      path: "src/renderer/notifications.ts",
+      filePath: true,
+    });
+    expect(display.Icon).toBe(Pencil);
+  });
 });

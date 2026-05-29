@@ -782,6 +782,8 @@ function categorizeToolName(name: string): GroupCategory {
     case "MultiEdit":
     case "NotebookEdit":
     case "Patch":
+    case "ApplyPatch":
+    case "apply_patch":
       return "edited";
     case "Bash":
     case "BashOutput":

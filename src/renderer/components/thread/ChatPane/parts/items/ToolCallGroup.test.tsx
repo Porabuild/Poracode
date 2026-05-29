@@ -164,6 +164,25 @@ describe("ToolCallGroup", () => {
     expect(screen.queryByText("result")).not.toBeInTheDocument();
   });
 
+  it("renders Droid ApplyPatch tool-call edits with diff counts and rich diff body", async () => {
+    const threadId = "thread-1";
+    const item = makeDroidApplyPatchToolItem("tool-droid-applypatch");
+    seedThread(threadId, [item]);
+
+    renderToolCallGroup(threadId, [item.id]);
+
+    expect(screen.getByText("+1")).toHaveClass("text-success");
+    expect(screen.getByText("-1")).toHaveClass("text-danger");
+    fireEvent.click(screen.getByText("droidFile.ts"));
+
+    await waitFor(() => {
+      expect(document.body).toHaveTextContent(/old droid/);
+      expect(document.body).toHaveTextContent(/new droid/);
+    });
+    expect(screen.queryByText("args")).not.toBeInTheDocument();
+    expect(screen.queryByText("result")).not.toBeInTheDocument();
+  });
+
   it("renders read tool-call results as highlighted file content", async () => {
     const threadId = "thread-1";
     const item = makeReadToolItem("tool-read");
@@ -259,6 +278,22 @@ describe("ToolCallGroup", () => {
 
     expect(screen.getByText("2 commands")).toBeInTheDocument();
     expect(screen.getByText("1 edit")).toBeInTheDocument();
+  });
+
+  it("categorizes ApplyPatch tool calls as edits in the group heading", () => {
+    const threadId = "thread-1";
+    const items = [
+      makeDroidApplyPatchToolItem("droid-patch-1", "src/alpha.ts"),
+      makeDroidApplyPatchToolItem("droid-patch-2", "src/beta.ts"),
+    ];
+    seedThread(threadId, items);
+
+    renderToolCallGroup(
+      threadId,
+      items.map((item) => item.id),
+    );
+
+    expect(screen.getByText("2 edits")).toBeInTheDocument();
   });
 
   it("renders semantic tool-like item buckets as tool rows", () => {
@@ -433,6 +468,33 @@ function makeApplyPatchToolItem(id: string): RuntimeChatItem {
       },
       result:
         "Success. Updated the following files:\nM src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts",
+    },
+    streams: {},
+  };
+}
+
+function makeDroidApplyPatchToolItem(id: string, filePath?: string): RuntimeChatItem {
+  const path = filePath ?? "src/renderer/components/thread/ChatPane/parts/items/droidFile.ts";
+  return {
+    id,
+    type: "tool_call",
+    state: "completed",
+    payload: {
+      name: "ApplyPatch",
+      title: "ApplyPatch",
+      kind: "other",
+      status: "success",
+      args: {
+        patch: [
+          "*** Begin Patch",
+          `*** Update File: ${path}`,
+          "@@",
+          "-old droid",
+          "+new droid",
+          "*** End Patch",
+        ].join("\n"),
+      },
+      result: `Success. Updated the following files:\nM ${path}`,
     },
     streams: {},
   };

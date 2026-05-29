@@ -1110,6 +1110,11 @@ function readStringAllowEmpty(input: Record<string, unknown>, key: string): stri
   return typeof value === "string" ? value : undefined;
 }
 
+/** Recognise Droid/Codex `ApplyPatch`, `apply_patch`, `apply-patch` tool names. */
+function isApplyPatchToolName(name: string): boolean {
+  return /^(apply[_-]?patch)$/i.test(name.trim());
+}
+
 /**
  * Classify ACP tool kind/title into a canonical item type for richer rendering.
  * - command-style tool calls → command_execution
@@ -1129,7 +1134,9 @@ function classifyToolCallItemType(
     k === "edit" ||
     k === "delete" ||
     k === "move" ||
-    /\b(edit|write|create|delete|patch|move|rename)\b/.test(t)
+    isApplyPatchToolName(k) ||
+    /\b(edit|write|create|delete|patch|move|rename)\b/.test(t) ||
+    isApplyPatchToolName(t)
   ) {
     return "file_change";
   }
@@ -1272,7 +1279,13 @@ function classifyApprovalRequestType(
   if (k === "execute" || k === "shell" || /^(run|exec|shell)\b/.test(t)) {
     return "command_execution_approval";
   }
-  if (k === "edit" || /\b(edit|patch)\b/.test(t)) return "apply_patch_approval";
+  if (
+    k === "edit" ||
+    isApplyPatchToolName(k) ||
+    /\b(edit|patch)\b/.test(t) ||
+    isApplyPatchToolName(t)
+  )
+    return "apply_patch_approval";
   if (k === "write" || /\bwrite\b/.test(t)) return "file_change_approval";
   return "tool_call_approval";
 }
