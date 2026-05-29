@@ -3,7 +3,7 @@ import { Mic, Square } from "lucide-react";
 import { toast, Tooltip } from "@heroui/react";
 import { Button, PixelLoader } from "@/renderer/components/common";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
-import { friendlyError } from "@/shared/messages";
+import { formatVoiceError, showVoiceCaptureError } from "./voiceError";
 import {
   prepareVoiceAudio,
   subscribeVoiceTranscriptionProgress,
@@ -36,18 +36,6 @@ function createAudioContext(): AudioContext {
     throw new Error("Voice input requires audio support.");
   }
   return new AudioContextCtor();
-}
-
-function formatVoiceError(error: unknown): string {
-  if (error instanceof DOMException) {
-    if (error.name === "NotAllowedError" || error.name === "SecurityError") {
-      return "Microphone permission was denied.";
-    }
-    if (error.name === "NotFoundError" || error.name === "DevicesNotFoundError") {
-      return "No microphone found.";
-    }
-  }
-  return friendlyError(error);
 }
 
 function formatDownloadProgress(progress: VoiceTranscriptionProgress): string {
@@ -226,7 +214,7 @@ export function VoiceInputButton(props: {
       stream?.getTracks().forEach((track) => track.stop());
       void context?.close();
       setState("idle");
-      toast.danger(formatVoiceError(error));
+      showVoiceCaptureError(error);
     }
   }
 

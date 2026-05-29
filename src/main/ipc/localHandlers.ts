@@ -1,6 +1,7 @@
 import { homedir } from "node:os";
 import { clipboard, dialog, nativeImage, shell, type BrowserWindow } from "electron";
 import type { BrowserPanelManager } from "../browser";
+import { openMicrophoneSettings } from "../browser/permissions";
 import {
   dbDeleteProject,
   dbDeleteThread,
@@ -102,6 +103,7 @@ export function createLocalIpcHandlers(
     openExternalNative: async (url) => {
       await shell.openExternal(assertSafeExternalUrl(url));
     },
+    openMicrophoneSettings: () => openMicrophoneSettings(),
     focusWindow: () => {
       const win = options.getMainWindow();
       if (!win) return;

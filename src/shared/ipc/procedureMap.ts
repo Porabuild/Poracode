@@ -53,6 +53,7 @@ export const MAIN_LOCAL_PROCEDURE_NAMES = [
   "saveHandoffContext",
   "openExternal",
   "openExternalNative",
+  "openMicrophoneSettings",
   "focusWindow",
   "getHomeScopeLocation",
   "getKeybindings",

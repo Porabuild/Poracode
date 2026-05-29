@@ -47,6 +47,10 @@ export const appProcedures = {
     openExternalPayloadSchema,
     (url) => openExternalPayloadSchema.parse(url),
   ),
+  openMicrophoneSettings: defineNoArgProcedure<void, "main-local">(
+    "openMicrophoneSettings",
+    "main-local",
+  ),
   focusWindow: defineNoArgProcedure<void, "main-local">("focusWindow", "main-local"),
   getHomeScopeLocation: defineNoArgProcedure<ProjectLocation, "main-local">(
     "getHomeScopeLocation",
