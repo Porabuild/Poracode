@@ -249,10 +249,14 @@ export class ProjectTreeService {
   }
 
   /**
-   * Read a file inside the project's root from the project's location context.
-   * Used by the chat UI to surface a just-created file's content when the
-   * agent didn't stream it. Native FS for Windows/POSIX projects; the WSL
-   * bridge for WSL projects.
+   * Read a file from the project's location context. Used by the chat UI to
+   * surface a just-created file's content when the agent didn't stream it.
+   * Native FS for Windows/POSIX projects; the WSL bridge for WSL projects.
+   *
+   * Relative paths resolve against the project root for convenience. Absolute
+   * paths are read as-is, even outside the project root — the user/agent may
+   * reference any file (e.g. a plan in a `~/.lightcode/worktrees` worktree),
+   * and the editor must be able to open it.
    *
    * Returns `{ status: "missing" }` for ENOENT instead of throwing, since the
    * file may have been deleted between the agent run and the renderer fetch
@@ -261,16 +265,21 @@ export class ProjectTreeService {
   async readAbsoluteFile(payload: ReadAbsoluteFilePayload): Promise<ReadAbsoluteFileResult> {
     let raw: RawFileRead;
     try {
-      raw =
-        payload.projectLocation.kind === "wsl" && this.wslClient
-          ? await this.readAbsoluteFileBufferWsl(
-              payload.projectLocation,
-              this.resolveProjectLinuxReadPath(payload.projectLocation, payload.absolutePath),
-              this.wslClient,
-            )
-          : await this.readAbsoluteFileBufferNative(
-              this.resolveProjectNativeReadPath(payload.projectLocation, payload.absolutePath),
-            );
+      if (payload.projectLocation.kind === "wsl" && this.wslClient) {
+        const linuxPath = this.resolveProjectLinuxReadPath(
+          payload.projectLocation,
+          payload.absolutePath,
+        );
+        raw = await this.readAbsoluteFileBufferWsl(
+          this.externalWslLocation(payload.projectLocation, linuxPath),
+          linuxPath,
+          this.wslClient,
+        );
+      } else {
+        raw = await this.readAbsoluteFileBufferNative(
+          this.resolveProjectNativeReadPath(payload.projectLocation, payload.absolutePath),
+        );
+      }
     } catch (err: unknown) {
       if ((err as NodeJS.ErrnoException).code === "ENOENT") return { status: "missing" };
       throw err;
@@ -312,7 +321,7 @@ export class ProjectTreeService {
       raw =
         payload.projectLocation.kind === "wsl" && this.wslClient
           ? await this.readAbsoluteFileBufferWsl(
-              payload.projectLocation,
+              this.externalWslLocation(payload.projectLocation, payload.absolutePath),
               payload.absolutePath,
               this.wslClient,
             )
@@ -392,7 +401,8 @@ export class ProjectTreeService {
     payload: WriteExternalFilePayload,
     wslClient: WslBridgeClient,
   ): Promise<WriteExternalFileResult> {
-    const existing = await wslClient.readFile(location, payload.absolutePath, {
+    const externalLocation = this.externalWslLocation(location, payload.absolutePath);
+    const existing = await wslClient.readFile(externalLocation, payload.absolutePath, {
       maxBytes: MAX_EDITABLE_FILE_SIZE,
     });
     if (existing.tooLarge) {
@@ -406,35 +416,53 @@ export class ProjectTreeService {
       throw new Error("Binary files cannot be saved from the editor.");
     }
     const nextBuffer = buildWriteBuffer(existingBuffer, payload.content);
-    const result = await wslClient.writeFile(location, payload.absolutePath, nextBuffer, {
+    const result = await wslClient.writeFile(externalLocation, payload.absolutePath, nextBuffer, {
       expectedMtimeMs: existing.mtimeMs,
     });
     return { modifiedAtMs: result.mtimeMs };
   }
 
+  /**
+   * External reads/writes are intentionally NOT confined to the project root,
+   * but the WSL bridge still requires every target to sit within a declared
+   * `projectRoot`. Anchor that root at the file's own parent directory so the
+   * bridge's path-safety check passes for exactly this file — siblings and
+   * ancestors stay out of scope. Without this, opening an out-of-root path on
+   * WSL (e.g. a plan in a `~/.lightcode/worktrees` worktree, or `/etc/hosts`)
+   * fails with "path escapes projectRoot". Mirrors the `{ ...location,
+   * linuxPath }` idiom used for out-of-root git operations in `git/exec.ts`.
+   */
+  private externalWslLocation(
+    location: Extract<ProjectLocation, { kind: "wsl" }>,
+    absolutePath: string,
+  ): Extract<ProjectLocation, { kind: "wsl" }> {
+    return { ...location, linuxPath: posix.dirname(absolutePath) };
+  }
+
+  /**
+   * Resolve a path for a native read. Relative paths resolve against the
+   * project root (and may not traverse out via `..`); absolute paths are
+   * returned as-is so files outside the project root can be opened.
+   */
   private resolveProjectNativeReadPath(location: ProjectLocation, path: string): string {
     if (!isAbsolute(path)) {
       return this.resolveEntryPath(location, path);
     }
-    const rootPath = resolve(getProjectFsPath(location));
-    const candidatePath = resolve(path);
-    const relativePath = relative(rootPath, candidatePath);
-    if (relativePath.startsWith("..") || relativePath === ".." || isAbsolute(relativePath)) {
-      throw new Error("Path escapes the project root.");
-    }
-    return candidatePath;
+    return resolve(path);
   }
 
+  /**
+   * Resolve a path for a WSL read. Relative paths resolve against the project
+   * root; absolute paths are returned as-is so files outside the project root
+   * can be opened. The bridge's own path-safety check is satisfied by anchoring
+   * `projectRoot` to the file's directory (see {@link externalWslLocation}).
+   */
   private resolveProjectLinuxReadPath(
     location: Extract<ProjectLocation, { kind: "wsl" }>,
     path: string,
   ): string {
     const root = posix.resolve(location.linuxPath);
-    const linuxPath = path.startsWith("/") ? posix.resolve(path) : posix.resolve(root, path);
-    if (linuxPath !== root && !linuxPath.startsWith(`${root}/`)) {
-      throw new Error("Path escapes the project root.");
-    }
-    return linuxPath;
+    return path.startsWith("/") ? posix.resolve(path) : posix.resolve(root, path);
   }
 
   private async readAbsoluteFileBufferNative(absolutePath: string): Promise<RawFileRead> {

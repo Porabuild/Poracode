@@ -88,8 +88,8 @@ export interface ReadAbsoluteFileResult {
 }
 
 /**
- * Read a file inside the project root through the project's location context
- * (native FS for Windows/POSIX projects; the WSL bridge for WSL projects).
+ * Read a file through the project's location context (native FS for
+ * Windows/POSIX projects; the WSL bridge for WSL projects).
  *
  * Used by the chat UI to surface a just-created file's content even when the
  * agent didn't stream it. Path resolution:
@@ -97,8 +97,10 @@ export interface ReadAbsoluteFileResult {
  * - Windows projects: pass an absolute Windows path.
  * - POSIX projects: pass an absolute POSIX path.
  *
- * Relative paths are resolved against the project root for convenience. Absolute
- * paths are rejected unless they remain inside the same project root.
+ * Relative paths are resolved against the project root for convenience.
+ * Absolute paths are read as-is, including paths outside the project root
+ * (e.g. a plan in a git worktree) — the editor must be able to open any file
+ * the user or agent references.
  */
 export const readAbsoluteFilePayloadSchema = z.object({
   projectLocation: projectLocationSchema,

@@ -1,5 +1,9 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { useFileEditorStore } from "./fileEditorStore";
+import {
+  useFileEditorStore,
+  type FileEditorRootContext,
+  resolvePathForFileOpen,
+} from "./fileEditorStore";
 
 function makeBuffer(path: string) {
   return {
@@ -270,5 +274,56 @@ describe("fileEditorStore preview tabs", () => {
     expect(useFileEditorStore.getState().previewTab).toBeNull();
     expect(useFileEditorStore.getState().markdownPreviewPath).toBeNull();
     expect(useFileEditorStore.getState().tabs).toEqual(["other.ts"]);
+  });
+});
+
+describe("resolvePathForFileOpen (worktree-relative traversal regression)", () => {
+  const posixWorktreeLocation = {
+    kind: "posix" as const,
+    path: "/Users/me/code/main-repo/.git/worktrees/feature-x",
+  };
+
+  const posixMainRepoLocation = {
+    kind: "posix" as const,
+    path: "/Users/me/code/main-repo",
+  };
+
+  const worktreeContext: FileEditorRootContext = {
+    projectId: "proj-1",
+    projectName: "main-repo",
+    projectLocation: posixWorktreeLocation,
+    rootLabel: "feature-x",
+    worktreePath: "/Users/me/code/main-repo/.git/worktrees/feature-x",
+  };
+
+  const mainRepoContext: FileEditorRootContext = {
+    projectId: "proj-1",
+    projectName: "main-repo",
+    projectLocation: posixMainRepoLocation,
+    rootLabel: "main-repo",
+  };
+
+  it("resolves a worktree-rooted relative path with .. against the worktree (not the main repo)", () => {
+    const result = resolvePathForFileOpen(worktreeContext, "../sibling/file.txt");
+    expect(result).toBe("/Users/me/code/main-repo/.git/worktrees/feature-x/../sibling/file.txt");
+  });
+
+  it("resolves an escaping relative under main repo context against the main root", () => {
+    const result = resolvePathForFileOpen(mainRepoContext, "../outside.txt");
+    expect(result).toBe("/Users/me/code/main-repo/../outside.txt");
+  });
+
+  it("leaves normal project-relative paths unchanged", () => {
+    expect(resolvePathForFileOpen(worktreeContext, "src/app.ts")).toBe("src/app.ts");
+    expect(resolvePathForFileOpen(mainRepoContext, "README.md")).toBe("README.md");
+  });
+
+  it("leaves already-absolute paths unchanged", () => {
+    expect(resolvePathForFileOpen(worktreeContext, "/etc/hosts")).toBe("/etc/hosts");
+    expect(resolvePathForFileOpen(mainRepoContext, "/tmp/x.txt")).toBe("/tmp/x.txt");
+  });
+
+  it("returns raw path when no rootContext", () => {
+    expect(resolvePathForFileOpen(null, "../foo")).toBe("../foo");
   });
 });

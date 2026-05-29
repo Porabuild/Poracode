@@ -10,15 +10,39 @@ import { captureProductEvent } from "../analytics/posthog";
 import { captureRendererException } from "../diagnostics/sentry";
 import { hasUnresolvedConflicts } from "@/renderer/utils/mergeConflicts";
 import { useGitStore } from "./gitStore";
+import { resolveAbsolutePath } from "@/renderer/utils/resolveAbsolutePath";
 
 /**
  * Paths in the file editor are either project-relative (e.g. `src/foo.ts`)
- * or absolute when the user opens an out-of-project file from chat
- * (e.g. `/etc/hosts`). Absolute paths skip the project-relative IPC and
- * route through the external-file IPC instead.
+ * or absolute (including paths resolved from worktree-relative ".." traversals)
+ * when the user opens a file outside the active root from chat or commands.
+ * Absolute paths skip the project-relative IPC and route through the
+ * external-file IPC instead (which has no containment restriction).
  */
 function isExternalPath(path: string): boolean {
   return path.startsWith("/") || /^[A-Za-z]:[\\/]/.test(path);
+}
+
+function containsPathTraversal(path: string): boolean {
+  const normalized = path.replace(/\\/g, "/");
+  return /(^|\/)\.\.($|\/)/.test(normalized);
+}
+
+/**
+ * For user-initiated file opens, turn a relative path containing ".." traversal
+ * into an absolute path resolved against the active worktree (or project) root.
+ * This lets users open sibling directories or files outside the worktree
+ * (e.g. from agent chat output) without weakening the strict
+ * normalizeRelativePath guard used by the project tree browser and search.
+ */
+export function resolvePathForFileOpen(
+  rootContext: FileEditorRootContext | null,
+  rawPath: string,
+): string {
+  if (!rootContext) return rawPath;
+  if (isExternalPath(rawPath)) return rawPath;
+  if (!containsPathTraversal(rawPath)) return rawPath;
+  return resolveAbsolutePath(rootContext.projectLocation, rawPath);
 }
 
 function externalReadAsProjectResult(result: ReadExternalFileResult): ReadProjectFileResult {
@@ -292,30 +316,38 @@ export const useFileEditorStore = create<FileEditorStoreState>((set, get) => ({
       state.pendingReveal && state.pendingReveal.token === token ? { pendingReveal: null } : {},
     ),
   async openFile(path, mode = "modal", preview = false, options) {
-    const lineNumber = options?.lineNumber;
-    const markdownPreviewPath = options?.markdownPreview ? path : null;
-    const reveal: FileEditorPendingReveal | null =
-      lineNumber !== undefined && Number.isFinite(lineNumber) && lineNumber > 0
-        ? { path, lineNumber, token: ++revealTokenCounter }
-        : null;
     const rootContext = get().rootContext;
     if (!rootContext) {
       throw new Error("No file editor context is active.");
     }
 
-    const existing = get().buffers[path];
+    // User-initiated opens of relative paths containing ".." (e.g. "../sibling/file"
+    // from a worktree) are resolved to absolute against the active worktree root
+    // so they route through the unrestricted external read path. This does not
+    // affect the strict project-tree browser/search which continues to use
+    // normalizeRelativePath on the supervisor.
+    const openPath = resolvePathForFileOpen(rootContext, path);
+
+    const lineNumber = options?.lineNumber;
+    const markdownPreviewPath = options?.markdownPreview ? openPath : null;
+    const reveal: FileEditorPendingReveal | null =
+      lineNumber !== undefined && Number.isFinite(lineNumber) && lineNumber > 0
+        ? { path: openPath, lineNumber, token: ++revealTokenCounter }
+        : null;
+
+    const existing = get().buffers[openPath];
     if (existing && !existing.isLoading) {
       set((state) => {
-        const changes = computeTabOpen(state, path, mode, preview);
+        const changes = computeTabOpen(state, openPath, mode, preview);
         return {
           ...changes,
-          activePath: path,
+          activePath: openPath,
           markdownPreviewPath,
           ...(reveal ? { pendingReveal: reveal } : {}),
         };
       });
       const cachedResult = {
-        path,
+        path: openPath,
         status: existing.status,
         modifiedAtMs: existing.modifiedAtMs,
         ...(existing.status === "ready"
@@ -330,16 +362,16 @@ export const useFileEditorStore = create<FileEditorStoreState>((set, get) => ({
     }
 
     set((state) => {
-      const changes = computeTabOpen(state, path, mode, preview);
+      const changes = computeTabOpen(state, openPath, mode, preview);
       return {
         ...changes,
-        activePath: path,
+        activePath: openPath,
         markdownPreviewPath,
         ...(reveal ? { pendingReveal: reveal } : {}),
         buffers: {
           ...changes.buffers,
-          [path]: {
-            path,
+          [openPath]: {
+            path: openPath,
             status: "ready",
             modifiedAtMs: 0,
             content: "",
@@ -354,41 +386,41 @@ export const useFileEditorStore = create<FileEditorStoreState>((set, get) => ({
     });
 
     try {
-      const result = isExternalPath(path)
+      const result = isExternalPath(openPath)
         ? externalReadAsProjectResult(
             await readBridge().readExternalFile({
               projectLocation: rootContext.projectLocation,
-              absolutePath: path,
+              absolutePath: openPath,
             }),
           )
         : await readBridge().readProjectFile({
             projectLocation: rootContext.projectLocation,
-            path,
+            path: openPath,
           });
       set((state) => ({
         buffers: {
           ...state.buffers,
-          [path]: buildBuffer(result),
+          [openPath]: buildBuffer(result),
         },
       }));
       captureProductEvent("file.opened", {
         overlay_mode: mode ?? "unchanged",
-        source: isExternalPath(path) ? "external" : "project",
+        source: isExternalPath(openPath) ? "external" : "project",
       });
       return result;
     } catch (error) {
       set((state) => {
-        const { [path]: _, ...rest } = state.buffers;
+        const { [openPath]: _, ...rest } = state.buffers;
         return {
           buffers: rest,
-          tabs: state.tabs.filter((tabPath) => tabPath !== path),
+          tabs: state.tabs.filter((tabPath) => tabPath !== openPath),
           activePath:
-            state.activePath === path
-              ? (state.tabs.find((tabPath) => tabPath !== path) ?? null)
+            state.activePath === openPath
+              ? (state.tabs.find((tabPath) => tabPath !== openPath) ?? null)
               : state.activePath,
-          previewTab: state.previewTab === path ? null : state.previewTab,
+          previewTab: state.previewTab === openPath ? null : state.previewTab,
           markdownPreviewPath:
-            state.markdownPreviewPath === path ? null : state.markdownPreviewPath,
+            state.markdownPreviewPath === openPath ? null : state.markdownPreviewPath,
         };
       });
       throw error;
