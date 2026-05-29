@@ -6,7 +6,11 @@ import { BROWSER_MCP_SERVER_NAME } from "../browserMcp";
 import { buildOpenCodeServerCommand } from "./argv";
 import { buildOpenCodeBrowserMcp } from "./mcpBrowser";
 import { isOpenCodeConnectionLoss } from "./opencodeErrors";
-import { spawnOpenCodeServer, type OpenCodeServerHandle } from "./sdkServer";
+import {
+  disposeSpawnedOpenCodeServerHandles,
+  spawnOpenCodeServer,
+  type OpenCodeServerHandle,
+} from "./sdkServer";
 
 /** Agent-side cwd that the SDK passes through to the server's session config. */
 export function resolveOpenCodeSessionDirectory(location: ProjectLocation): string {
@@ -239,4 +243,21 @@ async function acquireOpenCodeServerInner(
       }
     },
   };
+}
+
+/**
+ * Supervisor shutdown helper. Releases pool bookkeeping, then terminates
+ * only Lightcode-spawned `opencode serve` processes still tracked in
+ * {@link disposeSpawnedOpenCodeServerHandles}. Does not touch unrelated
+ * `opencode.exe` processes the user started outside the app.
+ */
+export function shutdownSpawnedOpenCodeServers(): void {
+  for (const entry of pool.values()) {
+    if (entry.idleCloseTimer) {
+      clearTimeout(entry.idleCloseTimer);
+      entry.idleCloseTimer = undefined;
+    }
+  }
+  pool.clear();
+  disposeSpawnedOpenCodeServerHandles();
 }

@@ -44,17 +44,21 @@ function terminateOpenCodeServerChildNow(child: ChildProcess): void {
   }
 }
 
-export function disposeOpenCodeServerHandlesForShutdown(): void {
+/** Terminate only `opencode serve` children spawned through {@link spawnOpenCodeServer}. */
+export function disposeSpawnedOpenCodeServerHandles(): void {
   for (const child of activeServerChildren) {
     terminateOpenCodeServerChildNow(child);
   }
   activeServerChildren.clear();
 }
 
+/** @deprecated Use {@link disposeSpawnedOpenCodeServerHandles}. */
+export const disposeOpenCodeServerHandlesForShutdown = disposeSpawnedOpenCodeServerHandles;
+
 function registerProcessExitCleanup(): void {
   if (processExitCleanupRegistered) return;
   processExitCleanupRegistered = true;
-  process.once("exit", disposeOpenCodeServerHandlesForShutdown);
+  process.once("exit", disposeSpawnedOpenCodeServerHandles);
 }
 
 export function spawnOpenCodeServer(commandSpec: CommandSpec): OpenCodeServerHandle {

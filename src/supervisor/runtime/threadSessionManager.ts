@@ -814,18 +814,20 @@ export class ThreadSessionManager {
     this.outputPipeline.handlePtyData(session, data);
   }
 
-  dispose(): void {
+  async dispose(): Promise<void> {
     this.disposed = true;
     for (const threadId of this.startLocks.keys()) {
       this.pendingStartAborts.add(threadId);
     }
 
     this.flushRuntimeEvents();
-    for (const session of this.sessions.values()) {
-      session.ignoreExit = true;
-      void session.structuredSession?.dispose();
-      this.safePtyKill(session);
-    }
+    await Promise.allSettled(
+      [...this.sessions.values()].map(async (session) => {
+        session.ignoreExit = true;
+        await session.structuredSession?.dispose();
+        this.safePtyKill(session);
+      }),
+    );
     this.sessions.clear();
     this.sessionsBySessionId.clear();
 

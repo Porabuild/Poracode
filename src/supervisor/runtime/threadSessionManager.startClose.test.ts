@@ -145,9 +145,9 @@ const guardedStructuredProviders = ["codex", "opencode"] as const;
 const managersToDispose: ThreadSessionManager[] = [];
 const tempDirs: string[] = [];
 
-afterEach(() => {
+afterEach(async () => {
   for (const manager of managersToDispose.splice(0)) {
-    manager.dispose();
+    await manager.dispose();
   }
   for (const dir of tempDirs.splice(0)) {
     rmSync(dir, { recursive: true, force: true });

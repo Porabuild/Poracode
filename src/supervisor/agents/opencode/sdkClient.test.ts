@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => ({
   createOpencodeClient: vi.fn<() => unknown>(),
   resolveAgentBinaryPath: vi.fn<() => string>(),
   spawnOpenCodeServer: vi.fn<() => OpenCodeServerHandle>(),
+  disposeSpawnedOpenCodeServerHandles: vi.fn<() => void>(),
 }));
 
 vi.mock("../binaryResolver", () => ({
@@ -21,6 +22,7 @@ vi.mock("./argv", () => ({
 
 vi.mock("./sdkServer", () => ({
   spawnOpenCodeServer: mocks.spawnOpenCodeServer,
+  disposeSpawnedOpenCodeServerHandles: mocks.disposeSpawnedOpenCodeServerHandles,
 }));
 
 vi.mock("@opencode-ai/sdk/v2/client", () => ({
@@ -104,5 +106,30 @@ describe("acquireOpenCodeServer", () => {
 
     await acquired.dispose();
     expect(secondHandle.dispose).toHaveBeenCalledTimes(1);
+  });
+
+  it("shutdownSpawnedOpenCodeServers clears pool bookkeeping and disposes tracked spawns only", async () => {
+    const { acquireOpenCodeServer, shutdownSpawnedOpenCodeServers } = await import("./sdkClient");
+    const handle = makeHandle("http://127.0.0.1:4096");
+    mocks.spawnOpenCodeServer.mockReturnValue(handle);
+
+    const acquired = await acquireOpenCodeServer({
+      projectLocation: { kind: "windows", path: "C:\\repo" },
+      browserMcpEnabled: false,
+    });
+    expect(acquired.baseUrl).toBe("http://127.0.0.1:4096");
+
+    shutdownSpawnedOpenCodeServers();
+
+    expect(mocks.disposeSpawnedOpenCodeServerHandles).toHaveBeenCalledTimes(1);
+    expect(handle.dispose).not.toHaveBeenCalled();
+
+    await expect(
+      acquireOpenCodeServer({
+        projectLocation: { kind: "windows", path: "C:\\repo" },
+        browserMcpEnabled: false,
+      }),
+    ).resolves.toBeDefined();
+    expect(mocks.spawnOpenCodeServer).toHaveBeenCalledTimes(2);
   });
 });

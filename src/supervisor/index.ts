@@ -22,14 +22,21 @@ const runtime = new SupervisorRuntime((event) => {
 const handlers = createSupervisorIpcHandlers(runtime);
 
 let isShuttingDown = false;
+const SUPERVISOR_SHUTDOWN_TIMEOUT_MS = 5_000;
 
-function shutdownSupervisor(exitCode = 0): void {
+async function shutdownSupervisor(exitCode = 0): Promise<void> {
   if (isShuttingDown) {
     return;
   }
   isShuttingDown = true;
-  runtime.dispose();
-  process.exit(exitCode);
+  try {
+    await Promise.race([
+      runtime.disposeAsync(),
+      new Promise<void>((resolve) => setTimeout(resolve, SUPERVISOR_SHUTDOWN_TIMEOUT_MS)),
+    ]);
+  } finally {
+    process.exit(exitCode);
+  }
 }
 
 async function handleRequest(request: SupervisorRequest): Promise<unknown> {
@@ -59,15 +66,15 @@ process.on("message", async (message: SupervisorRequest) => {
 });
 
 process.on("disconnect", () => {
-  shutdownSupervisor(0);
+  void shutdownSupervisor(0);
 });
 
 process.on("SIGINT", () => {
-  shutdownSupervisor(0);
+  void shutdownSupervisor(0);
 });
 
 process.on("SIGTERM", () => {
-  shutdownSupervisor(0);
+  void shutdownSupervisor(0);
 });
 
 process.on("uncaughtException", (error) => {

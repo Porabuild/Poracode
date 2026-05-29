@@ -1277,11 +1277,17 @@ export class SupervisorRuntime {
   }
 
   dispose(): void {
+    void this.disposeAsync();
+  }
+
+  async disposeAsync(): Promise<void> {
     this.lspManager.dispose();
-    this._projectWatcher?.dispose();
-    this.threadSessionManager.dispose();
+    await this._projectWatcher?.dispose();
+    await this.threadSessionManager.dispose();
     this.sharedSettingsCache.dispose();
-    void this.cliHookPluginCoordinator.dispose();
+    await this.cliHookPluginCoordinator.dispose().catch(() => undefined);
+    const { shutdownSpawnedOpenCodeServers } = await import("./agents/opencode/sdkClient");
+    shutdownSpawnedOpenCodeServers();
   }
 
   private requireAdapter(kind: AgentKind) {
