@@ -5,6 +5,7 @@ import { PixelLoader } from "@/renderer/components/common";
 import { useUpdateStore } from "@/renderer/state/updateStore";
 import { productNameFor } from "@/shared/channel";
 import { formatBytes } from "@/shared/formatBytes";
+import { SettingsPage } from "./SettingsForm";
 import appIconStableUrl from "../../../../../build/icon.png";
 import appIconNightlyUrl from "../../../../../build/icon-nightly.png";
 
@@ -92,63 +93,59 @@ export function AboutSettings() {
   const appIconUrl = bridge.channel === "nightly" ? appIconNightlyUrl : appIconStableUrl;
 
   return (
-    <div className="h-full min-h-0 overflow-y-auto px-6 pb-8 pt-4">
-      <div className="mx-auto max-w-[720px]">
-        <h1 className="mb-6 text-lg font-semibold text-foreground">About</h1>
-
-        <div className="mb-8 flex items-center gap-4">
-          <img src={appIconUrl} alt={productName} className="size-12 shrink-0 rounded-lg" />
-          <div>
-            <p className="text-lg font-semibold text-foreground">{productName}</p>
-            <p className="text-xs text-muted">
-              AI agent orchestrator — manage coding agents via Terminal and Native ACP.
-            </p>
-          </div>
+    <SettingsPage title="About" bodyClassName="">
+      <div className="mb-8 flex items-center gap-4">
+        <img src={appIconUrl} alt={productName} className="size-12 shrink-0 rounded-lg" />
+        <div>
+          <p className="text-lg font-semibold text-foreground">{productName}</p>
+          <p className="text-xs text-muted">
+            AI agent orchestrator — manage coding agents via Terminal and Native ACP.
+          </p>
         </div>
-
-        <div className="space-y-4">
-          <div className="flex items-start justify-between gap-4">
-            <div className="min-w-0">
-              <p className="text-sm font-medium text-foreground">Version</p>
-              <p className="text-xs text-muted">{bridge.appVersion}</p>
-            </div>
-            <div className="shrink-0">
-              <UpdateButton />
-            </div>
-          </div>
-
-          <div className="flex items-center justify-between gap-4">
-            <p className="text-sm font-medium text-foreground">Channel</p>
-            <p className="text-sm text-muted capitalize">{bridge.channel}</p>
-          </div>
-
-          <div className="flex items-center justify-between gap-4">
-            <p className="text-sm font-medium text-foreground">Electron</p>
-            <p className="text-sm text-muted">{bridge.electronVersion}</p>
-          </div>
-
-          <div className="flex items-center justify-between gap-4">
-            <p className="text-sm font-medium text-foreground">License</p>
-            <p className="text-sm text-muted">Apache-2.0</p>
-          </div>
-        </div>
-
-        <div className="mt-8 space-y-3 border-t border-white/6 pt-6">
-          <AboutLink href={WEBSITE_URL}>Website</AboutLink>
-          <br />
-          <AboutLink href={GITHUB_REPO}>GitHub Repository</AboutLink>
-          <br />
-          <AboutLink href={`${GITHUB_REPO}/releases`}>Changelog</AboutLink>
-          <br />
-          <AboutLink href={`${GITHUB_REPO}/issues`}>Report an Issue</AboutLink>
-          <br />
-          <AboutLink href={`${GITHUB_REPO}/blob/master/LICENSE`}>License</AboutLink>
-        </div>
-
-        <p className="mt-8 text-xs text-muted">
-          &copy; {new Date().getFullYear()} Serhii Vecherenko. All rights reserved.
-        </p>
       </div>
-    </div>
+
+      <div className="space-y-4">
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0">
+            <p className="text-sm font-medium text-foreground">Version</p>
+            <p className="text-xs text-muted">{bridge.appVersion}</p>
+          </div>
+          <div className="shrink-0">
+            <UpdateButton />
+          </div>
+        </div>
+
+        <div className="flex items-center justify-between gap-4">
+          <p className="text-sm font-medium text-foreground">Channel</p>
+          <p className="text-sm text-muted capitalize">{bridge.channel}</p>
+        </div>
+
+        <div className="flex items-center justify-between gap-4">
+          <p className="text-sm font-medium text-foreground">Electron</p>
+          <p className="text-sm text-muted">{bridge.electronVersion}</p>
+        </div>
+
+        <div className="flex items-center justify-between gap-4">
+          <p className="text-sm font-medium text-foreground">License</p>
+          <p className="text-sm text-muted">Apache-2.0</p>
+        </div>
+      </div>
+
+      <div className="mt-8 space-y-3 border-t border-white/6 pt-6">
+        <AboutLink href={WEBSITE_URL}>Website</AboutLink>
+        <br />
+        <AboutLink href={GITHUB_REPO}>GitHub Repository</AboutLink>
+        <br />
+        <AboutLink href={`${GITHUB_REPO}/releases`}>Changelog</AboutLink>
+        <br />
+        <AboutLink href={`${GITHUB_REPO}/issues`}>Report an Issue</AboutLink>
+        <br />
+        <AboutLink href={`${GITHUB_REPO}/blob/master/LICENSE`}>License</AboutLink>
+      </div>
+
+      <p className="mt-8 text-xs text-muted">
+        &copy; {new Date().getFullYear()} Serhii Vecherenko. All rights reserved.
+      </p>
+    </SettingsPage>
   );
 }

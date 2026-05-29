@@ -6,15 +6,19 @@ import {
   Bot,
   Boxes,
   FlaskConical,
+  GitFork,
   Globe,
   Info,
   Mic,
+  MessageSquare,
   PanelLeft,
   PanelLeftClose,
+  Palette,
   RefreshCw,
   Search,
   Settings2,
   Sparkles,
+  TerminalSquare,
 } from "lucide-react";
 import type { AgentStatus } from "@/shared/contracts";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
@@ -58,9 +62,12 @@ export function SettingsSidebar(props: {
     activeSection.startsWith("agents:");
   const devMode = isDevApp();
 
-  const selectFirstAgent = () => {
-    const first = installedAgents[0];
-    onSectionChange(first ? `agents:${first.kind}` : "agents");
+  const openAgents = () => {
+    if (isAgentsActive) {
+      onSectionChange("general");
+      return;
+    }
+    onSectionChange(installedAgents.length > 0 ? "agentsGeneral" : "agents");
   };
 
   return (
@@ -81,6 +88,34 @@ export function SettingsSidebar(props: {
               label="Audio"
               isActive={activeSection === "audio"}
               onPress={() => onSectionChange("audio")}
+            />
+            <SidebarButton
+              iconOnly
+              icon={<Palette className="size-4" />}
+              label="Appearance"
+              isActive={activeSection === "appearance"}
+              onPress={() => onSectionChange("appearance")}
+            />
+            <SidebarButton
+              iconOnly
+              icon={<TerminalSquare className="size-4" />}
+              label="Terminal"
+              isActive={activeSection === "terminal"}
+              onPress={() => onSectionChange("terminal")}
+            />
+            <SidebarButton
+              iconOnly
+              icon={<MessageSquare className="size-4" />}
+              label="Threads"
+              isActive={activeSection === "threads"}
+              onPress={() => onSectionChange("threads")}
+            />
+            <SidebarButton
+              iconOnly
+              icon={<GitFork className="size-4" />}
+              label="Git"
+              isActive={activeSection === "git"}
+              onPress={() => onSectionChange("git")}
             />
             <SidebarButton
               iconOnly
@@ -108,7 +143,7 @@ export function SettingsSidebar(props: {
               icon={<Bot className="size-4" />}
               label="Agents"
               isActive={isAgentsActive}
-              onPress={selectFirstAgent}
+              onPress={openAgents}
             />
             {isAgentsActive && (
               <SidebarButton
@@ -231,6 +266,30 @@ export function SettingsSidebar(props: {
               onPress={() => onSectionChange("audio")}
             />
             <SidebarButton
+              icon={<Palette className="size-4" />}
+              label="Appearance"
+              isActive={activeSection === "appearance"}
+              onPress={() => onSectionChange("appearance")}
+            />
+            <SidebarButton
+              icon={<TerminalSquare className="size-4" />}
+              label="Terminal"
+              isActive={activeSection === "terminal"}
+              onPress={() => onSectionChange("terminal")}
+            />
+            <SidebarButton
+              icon={<MessageSquare className="size-4" />}
+              label="Threads"
+              isActive={activeSection === "threads"}
+              onPress={() => onSectionChange("threads")}
+            />
+            <SidebarButton
+              icon={<GitFork className="size-4" />}
+              label="Git"
+              isActive={activeSection === "git"}
+              onPress={() => onSectionChange("git")}
+            />
+            <SidebarButton
               icon={<Bell className="size-4" />}
               label="Notifications"
               isActive={activeSection === "notifications"}
@@ -252,7 +311,7 @@ export function SettingsSidebar(props: {
               icon={<Bot className="size-4" />}
               label="Agents"
               isActive={activeSection === "agents"}
-              onPress={selectFirstAgent}
+              onPress={openAgents}
               suffix={
                 <button
                   type="button"

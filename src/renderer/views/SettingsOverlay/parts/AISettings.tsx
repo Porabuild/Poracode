@@ -23,6 +23,7 @@ import {
   sortByAutoPreference,
 } from "@/renderer/components/providers";
 import { TuxIcon } from "@/renderer/components/common";
+import { SettingsPage } from "./SettingsForm";
 
 type EnvKind = "windows" | "wsl";
 type Mode = "auto" | "custom" | "disabled";
@@ -280,84 +281,81 @@ export function AISettings() {
   );
 
   return (
-    <div className="h-full min-h-0 overflow-y-auto px-6 pb-8 pt-4">
-      <div className="mx-auto max-w-[720px]">
-        <div className="mb-6 flex items-center justify-between">
-          <h1 className="text-lg font-semibold text-foreground">AI</h1>
-          {hasWsl ? (
-            <ToggleButtonGroup
-              aria-label="Environment"
-              className="h-7 [&_button]:h-7 [&_button]:min-h-0 [&_button]:min-w-0 [&_button]:px-2"
-              selectionMode="single"
-              disallowEmptySelection
-              size="sm"
-              selectedKeys={[envKind]}
-              onSelectionChange={(keys) => {
-                const next = [...keys][0] as EnvKind | undefined;
-                if (next) setEnvKind(next);
-              }}
-            >
-              <ToggleButton isIconOnly id="windows" aria-label="Windows">
-                <Monitor className="size-3.5" />
-              </ToggleButton>
-              <ToggleButton isIconOnly id="wsl" aria-label="WSL">
-                <ToggleButtonGroup.Separator />
-                <TuxIcon className="size-7" />
-              </ToggleButton>
-            </ToggleButtonGroup>
-          ) : null}
-        </div>
+    <SettingsPage
+      title="AI"
+      bodyClassName="space-y-8"
+      actions={
+        hasWsl ? (
+          <ToggleButtonGroup
+            aria-label="Environment"
+            className="h-7 [&_button]:h-7 [&_button]:min-h-0 [&_button]:min-w-0 [&_button]:px-2"
+            selectionMode="single"
+            disallowEmptySelection
+            size="sm"
+            selectedKeys={[envKind]}
+            onSelectionChange={(keys) => {
+              const next = [...keys][0] as EnvKind | undefined;
+              if (next) setEnvKind(next);
+            }}
+          >
+            <ToggleButton isIconOnly id="windows" aria-label="Windows">
+              <Monitor className="size-3.5" />
+            </ToggleButton>
+            <ToggleButton isIconOnly id="wsl" aria-label="WSL">
+              <ToggleButtonGroup.Separator />
+              <TuxIcon className="size-7" />
+            </ToggleButton>
+          </ToggleButtonGroup>
+        ) : null
+      }
+    >
+      <GenConfigSection
+        heading="Title Generation"
+        allowDisabled
+        description="Generates short titles for new threads."
+        defaultsHint={getTitleGenDefaultsHint()}
+        agentStatuses={activeStatuses}
+        provider={titleGenProvider}
+        model={titleGenModel}
+        effort={titleGenEffort}
+        resolve={resolveTitleGenConfig}
+        getCandidates={getTitleGenCandidates}
+        onConfigChange={setTitleGenConfig}
+      />
 
-        <div className="space-y-8">
-          <GenConfigSection
-            heading="Title Generation"
-            allowDisabled
-            description="Generates short titles for new threads."
-            defaultsHint={getTitleGenDefaultsHint()}
-            agentStatuses={activeStatuses}
-            provider={titleGenProvider}
-            model={titleGenModel}
-            effort={titleGenEffort}
-            resolve={resolveTitleGenConfig}
-            getCandidates={getTitleGenCandidates}
-            onConfigChange={setTitleGenConfig}
-          />
+      <GenConfigSection
+        heading="Commit Message Generation"
+        description="Generates commit messages from staged changes."
+        defaultsHint={getCommitGenDefaultsHint()}
+        agentStatuses={activeStatuses}
+        provider={commitGenProvider}
+        model={commitGenModel}
+        effort={commitGenEffort}
+        resolve={resolveCommitGenConfig}
+        getCandidates={getCommitGenCandidates}
+        onConfigChange={setCommitGenConfig}
+      />
 
-          <GenConfigSection
-            heading="Commit Message Generation"
-            description="Generates commit messages from staged changes."
-            defaultsHint={getCommitGenDefaultsHint()}
-            agentStatuses={activeStatuses}
-            provider={commitGenProvider}
-            model={commitGenModel}
-            effort={commitGenEffort}
-            resolve={resolveCommitGenConfig}
-            getCandidates={getCommitGenCandidates}
-            onConfigChange={setCommitGenConfig}
+      <GenConfigSection
+        heading="Conflict Resolver"
+        description="Resolves merge conflicts during rebase or merge."
+        defaultsHint={getConflictResolverDefaultsHint()}
+        agentStatuses={activeStatuses}
+        provider={conflictResolverProvider}
+        model={conflictResolverModel}
+        effort={conflictResolverEffort}
+        resolve={resolveConflictResolverConfig}
+        getCandidates={getConflictResolverCandidates}
+        onConfigChange={setConflictResolverConfig}
+        presentationMode={conflictResolverPresentationMode}
+        extraControls={
+          <PresentationModeToggle
+            ariaLabel="Open conflict resolver in"
+            value={conflictResolverPresentationMode}
+            onChange={setConflictResolverPresentationMode}
           />
-
-          <GenConfigSection
-            heading="Conflict Resolver"
-            description="Resolves merge conflicts during rebase or merge."
-            defaultsHint={getConflictResolverDefaultsHint()}
-            agentStatuses={activeStatuses}
-            provider={conflictResolverProvider}
-            model={conflictResolverModel}
-            effort={conflictResolverEffort}
-            resolve={resolveConflictResolverConfig}
-            getCandidates={getConflictResolverCandidates}
-            onConfigChange={setConflictResolverConfig}
-            presentationMode={conflictResolverPresentationMode}
-            extraControls={
-              <PresentationModeToggle
-                ariaLabel="Open conflict resolver in"
-                value={conflictResolverPresentationMode}
-                onChange={setConflictResolverPresentationMode}
-              />
-            }
-          />
-        </div>
-      </div>
-    </div>
+        }
+      />
+    </SettingsPage>
   );
 }

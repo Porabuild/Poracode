@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { AgentStatus, Project } from "@/shared/contracts";
@@ -110,6 +110,22 @@ vi.mock("./parts/GeneralSettings", () => ({
   GeneralSettings: () => <div>General</div>,
 }));
 
+vi.mock("./parts/AppearanceSettings", () => ({
+  AppearanceSettings: () => <div>Appearance</div>,
+}));
+
+vi.mock("./parts/TerminalSettings", () => ({
+  TerminalSettings: () => <div>Terminal</div>,
+}));
+
+vi.mock("./parts/ThreadSettings", () => ({
+  ThreadSettings: () => <div>Threads</div>,
+}));
+
+vi.mock("./parts/GitSettings", () => ({
+  GitSettings: () => <div>Git</div>,
+}));
+
 vi.mock("./parts/NotificationSettings", () => ({
   NotificationSettings: () => <div>Notifications</div>,
 }));
@@ -120,6 +136,10 @@ vi.mock("./parts/AISettings", () => ({
 
 vi.mock("./parts/AcpRegistrySettings", () => ({
   AcpRegistrySettings: () => <div>Agent Registry Settings</div>,
+}));
+
+vi.mock("./parts/AgentsGeneralSettings", () => ({
+  AgentsGeneralSettings: () => <div>Agents General Settings</div>,
 }));
 
 vi.mock("./parts/SearchSettings", () => ({
@@ -194,7 +214,9 @@ describe("SettingsOverlay", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Agents" }));
 
-    expect(screen.getByRole("button", { name: "Gemini" })).toBeInTheDocument();
+    const geminiButton = screen.getByRole("button", { name: "Gemini" });
+    expect(geminiButton).toBeInTheDocument();
+    fireEvent.click(geminiButton);
     expect(screen.getByText("Agent gemini")).toBeInTheDocument();
   });
 
@@ -224,6 +246,36 @@ describe("SettingsOverlay", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Agent Registry" }));
     expect(screen.getByText("Agent Registry Settings")).toBeInTheDocument();
+  });
+
+  it("opens Agents on General and toggles closed on a second click", () => {
+    statusesState.agentStatuses = [
+      makeStatus("claude", {
+        label: "Claude Code",
+        envKind: "posix",
+      }),
+    ];
+
+    render(<SettingsOverlay onClose={() => undefined} />);
+
+    const agentsButton = screen.getByRole("button", { name: "Agents" });
+    fireEvent.click(agentsButton);
+    expect(
+      within(screen.getByRole("main")).getByText("Agents General Settings"),
+    ).toBeInTheDocument();
+
+    fireEvent.click(agentsButton);
+    expect(within(screen.getByRole("main")).getByText("General")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Agent Registry" })).not.toBeInTheDocument();
+  });
+
+  it("routes split general sections from the sidebar", () => {
+    render(<SettingsOverlay onClose={() => undefined} />);
+
+    for (const section of ["Appearance", "Terminal", "Threads", "Git"]) {
+      fireEvent.click(screen.getByRole("button", { name: section }));
+      expect(within(screen.getByRole("main")).getByText(section)).toBeInTheDocument();
+    }
   });
 
   it("marks agents that need attention in the sidebar", () => {

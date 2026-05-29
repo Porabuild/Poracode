@@ -44,6 +44,7 @@ import {
 } from "@/renderer/utils/acpRegistryAuth";
 import { Input, PixelLoader, Select } from "@/renderer/components/common";
 import { ProviderIcon } from "@/renderer/components/providers/ProviderIcon";
+import { SettingsPage } from "./SettingsForm";
 import {
   buildProviderModelItems,
   statusToMenuProvider,
@@ -740,12 +741,9 @@ export function SingleAgentSettings(props: { agentKind: string }) {
 
   if (!agent) {
     return (
-      <div className="h-full min-h-0 overflow-y-auto px-6 pb-8 pt-4">
-        <div className="mx-auto max-w-[720px]">
-          <h1 className="mb-6 text-lg font-semibold text-foreground">Agent not found</h1>
-          <p className="text-sm text-muted">This agent is not installed.</p>
-        </div>
-      </div>
+      <SettingsPage title="Agent not found" bodyClassName="">
+        <p className="text-sm text-muted">This agent is not installed.</p>
+      </SettingsPage>
     );
   }
 
@@ -1386,11 +1384,8 @@ export function SingleAgentSettings(props: { agentKind: string }) {
 
 export function AgentSettingsEmpty() {
   return (
-    <div className="h-full min-h-0 overflow-y-auto px-6 pb-8 pt-4">
-      <div className="mx-auto max-w-[720px]">
-        <h1 className="mb-6 text-lg font-semibold text-foreground">Agents</h1>
-        <p className="text-sm text-muted">No agents installed.</p>
-      </div>
-    </div>
+    <SettingsPage title="Agents" bodyClassName="">
+      <p className="text-sm text-muted">No agents installed.</p>
+    </SettingsPage>
   );
 }
