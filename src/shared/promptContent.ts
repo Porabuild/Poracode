@@ -43,7 +43,16 @@ export function isImagePath(path: string, mimeType?: string): boolean {
 
 export function toLocalFileUrl(absolutePath: string): string {
   const normalized = absolutePath.replaceAll("\\", "/");
-  return `lightcode-local:///${normalized}`;
+  // The `lightcode-local` scheme is registered as `standard: true` (so cached
+  // ACP registry icons can load as CSS mask-image sources). Standard/special
+  // schemes parse with WHATWG "special authority ignore slashes": leading
+  // slashes collapse and the first path segment becomes the host. Anchoring the
+  // path to a constant `local` host keeps the real path intact in the URL's
+  // `pathname` — without it, `/Users/…` (macOS) or the drive letter (Windows)
+  // would be eaten as the host and the protocol handler would resolve the wrong
+  // file. See src/main/attachments/localFiles.ts.
+  const path = normalized.startsWith("/") ? normalized : `/${normalized}`;
+  return `lightcode-local://local${path}`;
 }
 
 export function buildPromptContentBlocks(
