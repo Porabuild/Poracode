@@ -127,7 +127,7 @@ describe("getCommitGenCandidates", () => {
 describe("provider default hints", () => {
   it("builds commit-generation hint text from provider registrations", () => {
     expect(getCommitGenDefaultsHint()).toBe(
-      "Defaults: Claude -> Sonnet high, Codex -> GPT-5.4 Mini xhigh, Copilot -> auto, Cursor -> Composer 2 Fast, Gemini -> 3 Flash",
+      "Defaults: Claude -> Sonnet high, Codex -> GPT-5.4 Mini xhigh, Copilot -> auto, Cursor -> Composer 2.5, Gemini -> 3 Flash",
     );
   });
 });
