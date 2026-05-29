@@ -1,4 +1,18 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+
+// Logout command tests only assert argv wrapping; skip WSL PATH probes that
+// hang when the full suite spawns many wsl.exe processes in parallel.
+vi.mock("../binaryResolver", () => ({
+  resolveAgentBinaryPath: () => undefined,
+}));
+
+vi.mock("../base/processRuntime", async (importActual) => {
+  const actual = await importActual<typeof import("../base/processRuntime")>();
+  return {
+    ...actual,
+    resolveWslShellPath: () => "/bin/bash",
+  };
+});
 import {
   buildCursorTerminalAuthMethod,
   isCursorSemverSupportedForHooks,

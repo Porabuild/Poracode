@@ -77,6 +77,7 @@ describe("ACP registry family mapping", () => {
         agentId: "codex-acp",
         baseDir: dir,
         settingsPath,
+        iconsDir: join(dir, "acp-icons"),
       });
 
       expect(installed).toMatchObject([
@@ -104,9 +105,10 @@ describe("ACP registry family mapping", () => {
     }
   });
 
-  it("backfills registry icons into existing generic installs", () => {
+  it("backfills registry icons into existing generic installs and caches them locally", async () => {
     const dir = mkdtempSync(join(tmpdir(), "lightcode-acp-registry-"));
     const settingsPath = join(dir, "settings.json");
+    const iconsDir = join(dir, "acp-icons");
     writeFileSync(
       settingsPath,
       JSON.stringify({
@@ -150,16 +152,39 @@ describe("ACP registry family mapping", () => {
       ],
     };
 
-    expect(backfillAcpRegistryAgentIcons({ registry, settingsPath })).toBe(true);
-    const settings = JSON.parse(readFileSync(settingsPath, "utf8")) as {
-      acpRegistryInstalledAgents: Record<string, { icon?: string; version?: string }>;
-      agentInstances: Record<string, { icon?: string; version?: string }>;
-    };
+    const fetchMock = vi.fn<(url: string) => Promise<Response>>(async (url: string) => {
+      if (url.endsWith(".svg")) {
+        return new Response("<svg/>", {
+          status: 200,
+          headers: { "content-type": "image/svg+xml" },
+        });
+      }
+      throw new Error(`unexpected fetch ${url}`);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    try {
+      await expect(
+        backfillAcpRegistryAgentIcons({ registry, settingsPath, iconsDir }),
+      ).resolves.toBe(true);
+      const settings = JSON.parse(readFileSync(settingsPath, "utf8")) as {
+        acpRegistryInstalledAgents: Record<string, { icon?: string; version?: string }>;
+        agentInstances: Record<string, { icon?: string; version?: string }>;
+      };
 
-    expect(settings.acpRegistryInstalledAgents["glm-acp-agent"]?.icon).toBe(
-      registry.agents[0]!.icon,
-    );
-    expect(settings.agentInstances["glm-acp-agent"]?.icon).toBe(registry.agents[0]!.icon);
+      const installedIcon = settings.acpRegistryInstalledAgents["glm-acp-agent"]?.icon;
+      const instanceIcon = settings.agentInstances["glm-acp-agent"]?.icon;
+      expect(installedIcon).toMatch(/^lightcode-local:\/\//);
+      expect(installedIcon).toContain("glm-acp-agent.svg");
+      expect(instanceIcon).toBe(installedIcon);
+
+      // Calling backfill again with the same registry should be a no-op
+      // because the cached entry already resolves to the stored local URL.
+      await expect(
+        backfillAcpRegistryAgentIcons({ registry, settingsPath, iconsDir }),
+      ).resolves.toBe(false);
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 
   it("stores ACP registry auth env vars on the installed generic instance", () => {
@@ -250,7 +275,12 @@ describe("ACP registry family mapping", () => {
     fetchMock.mockResolvedValueOnce({ ok: true, json: async () => updatedRegistry });
     vi.stubGlobal("fetch", fetchMock);
     try {
-      await installAcpRegistryAgent({ agentId: "codex-acp", baseDir: dir, settingsPath });
+      await installAcpRegistryAgent({
+        agentId: "codex-acp",
+        baseDir: dir,
+        settingsPath,
+        iconsDir: join(dir, "acp-icons"),
+      });
       setAcpRegistryAgentAuth({
         agentId: "codex-acp",
         environment: { OPENAI_API_KEY: "sk-secret" },
@@ -261,6 +291,7 @@ describe("ACP registry family mapping", () => {
         agentId: "codex-acp",
         baseDir: dir,
         settingsPath,
+        iconsDir: join(dir, "acp-icons"),
       });
       expect(installed).toMatchObject([{ id: "codex-acp", version: "1.1.0" }]);
 
@@ -282,7 +313,12 @@ describe("ACP registry family mapping", () => {
     const dir = mkdtempSync(join(tmpdir(), "lightcode-acp-registry-"));
     const settingsPath = join(dir, "settings.json");
     await expect(
-      updateAcpRegistryAgent({ agentId: "codex-acp", baseDir: dir, settingsPath }),
+      updateAcpRegistryAgent({
+        agentId: "codex-acp",
+        baseDir: dir,
+        settingsPath,
+        iconsDir: join(dir, "acp-icons"),
+      }),
     ).rejects.toThrow(/not installed/i);
   });
 
@@ -337,6 +373,7 @@ describe("ACP registry family mapping", () => {
       registry,
       baseDir: dir,
       settingsPath,
+      iconsDir: join(dir, "acp-icons"),
     });
     expect(result.updated).toEqual(["codex-acp"]);
     expect(result.failed).toEqual([]);
@@ -400,6 +437,7 @@ describe("ACP registry family mapping", () => {
       registry,
       baseDir: dir,
       settingsPath,
+      iconsDir: join(dir, "acp-icons"),
     });
     expect(result.updated).toEqual([]);
     expect(result.failed).toEqual([]);

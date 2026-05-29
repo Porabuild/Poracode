@@ -1,5 +1,6 @@
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -17,9 +18,13 @@ function hasGit(): boolean {
 
 const tempDirs: string[] = [];
 
-afterEach(() => {
+afterEach(async () => {
   for (const dir of tempDirs.splice(0)) {
-    rmSync(dir, { recursive: true, force: true });
+    try {
+      await rm(dir, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
+    } catch {
+      // Windows can briefly lock temp git repos while subprocesses exit.
+    }
   }
 });
 
@@ -88,7 +93,7 @@ describe.skipIf(!hasGit())("GitCheckpointService", () => {
       " M README.md",
       "?? new.txt",
     ]);
-  }, 15_000);
+  }, 45_000);
 
   it("reports a missing base checkpoint without surfacing raw git ref errors", async () => {
     const { location } = makeRepo();

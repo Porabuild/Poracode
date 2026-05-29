@@ -14,6 +14,13 @@ export interface LightcodePaths {
   cacheDir: string;
   statusCachePath: string;
   agentPluginsDir: string;
+  /**
+   * Cache directory for ACP registry agent icons. Icons are downloaded once
+   * at install/backfill time, served from disk via the `lightcode-local://`
+   * protocol so the renderer paints them synchronously on app start instead
+   * of fetching the CDN URL on every mount.
+   */
+  acpIconsDir: string;
 }
 
 export function resolveLightcodeBaseDir(
@@ -38,5 +45,6 @@ export function resolveLightcodePaths(baseDir: string = resolveLightcodeBaseDir(
     cacheDir,
     statusCachePath: join(cacheDir, "agent-status-cache.json"),
     agentPluginsDir: join(baseDir, "agent-plugins"),
+    acpIconsDir: join(cacheDir, "acp-icons"),
   };
 }

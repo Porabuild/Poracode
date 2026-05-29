@@ -184,6 +184,44 @@ describe("ItemMarkdownInner", () => {
     expect(rawParagraph).toBeUndefined();
   });
 
+  it("renders a markdown table with thead, tbody, th and td elements", () => {
+    const mdTable = [
+      "| Name | Role |",
+      "|------|------|",
+      "| Alice | Engineer |",
+      "| Bob | Designer |",
+      "",
+    ].join("\n");
+
+    const { container } = render(
+      <AppProvider>
+        <ItemMarkdownInner text={mdTable} />
+      </AppProvider>,
+    );
+
+    const table = container.querySelector("table");
+    expect(table).not.toBeNull();
+
+    const thead = table!.querySelector("thead");
+    expect(thead).not.toBeNull();
+
+    const ths = thead!.querySelectorAll("th");
+    expect(ths).toHaveLength(2);
+    expect(ths[0]).toHaveTextContent("Name");
+    expect(ths[1]).toHaveTextContent("Role");
+
+    const tbody = table!.querySelector("tbody");
+    expect(tbody).not.toBeNull();
+
+    const rows = tbody!.querySelectorAll("tr");
+    expect(rows).toHaveLength(2);
+
+    const firstRowCells = rows[0]!.querySelectorAll("td");
+    expect(firstRowCells).toHaveLength(2);
+    expect(firstRowCells[0]).toHaveTextContent("Alice");
+    expect(firstRowCells[1]).toHaveTextContent("Engineer");
+  });
+
   it("does not render incomplete absolute markdown hrefs as browser links", () => {
     const { container } = render(
       <AppProvider>

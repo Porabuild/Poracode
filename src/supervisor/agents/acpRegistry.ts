@@ -32,6 +32,7 @@ import {
   probeAcpGenericInstance,
   REGISTRY_INSTALL_PROBE_TIMEOUT_MS,
 } from "./acp-generic";
+import { cacheAcpRegistryIcon } from "./acpRegistryIcons";
 import {
   buildNpxPrefetchArgs,
   clearNpxExecutionCache,
@@ -66,30 +67,54 @@ export async function fetchAcpRegistry(): Promise<AcpRegistryListResult> {
   return acpRegistryListResultSchema.parse(await response.json());
 }
 
-export function backfillAcpRegistryAgentIcons(input: {
+export async function backfillAcpRegistryAgentIcons(input: {
   registry: AcpRegistryListResult;
   settingsPath: string;
-}): boolean {
+  iconsDir: string;
+}): Promise<boolean> {
   const settings = readAcpRegistrySettings(input.settingsPath);
   const agentsById = new Map(input.registry.agents.map((agent) => [agent.id, agent]));
+
+  // Resolve the cached URL for every agent that has an icon in the registry,
+  // up front and in parallel. Without this, N installed agents become N
+  // serial CDN fetches; with it, total wall-clock is one round-trip.
+  const iconsToResolve: { agentId: string; iconUrl: string }[] = [];
+  for (const id of Object.keys(settings.acpRegistryInstalledAgents)) {
+    const url = agentsById.get(id)?.icon;
+    if (url) iconsToResolve.push({ agentId: id, iconUrl: url });
+  }
+  for (const [id, instance] of Object.entries(settings.agentInstances)) {
+    if (instance.driver !== "acp-generic") continue;
+    if (iconsToResolve.some((entry) => entry.agentId === id)) continue;
+    const url = agentsById.get(id)?.icon;
+    if (url) iconsToResolve.push({ agentId: id, iconUrl: url });
+  }
+  const resolvedIconByAgentId = new Map<string, string>();
+  await Promise.all(
+    iconsToResolve.map(async ({ agentId, iconUrl }) => {
+      resolvedIconByAgentId.set(
+        agentId,
+        await cacheAcpRegistryIcon({ iconUrl, agentId, iconsDir: input.iconsDir }),
+      );
+    }),
+  );
+
   let changed = false;
 
   const installedAgents = { ...settings.acpRegistryInstalledAgents };
   for (const [id, record] of Object.entries(installedAgents)) {
-    const agent = agentsById.get(id);
-    if (!agent?.icon) continue;
-    if (record.icon === agent.icon) continue;
-    installedAgents[id] = { ...record, icon: agent.icon };
+    const cachedUrl = resolvedIconByAgentId.get(id);
+    if (!cachedUrl || record.icon === cachedUrl) continue;
+    installedAgents[id] = { ...record, icon: cachedUrl };
     changed = true;
   }
 
   const instances = { ...settings.agentInstances };
   for (const [id, instance] of Object.entries(instances)) {
     if (instance.driver !== "acp-generic") continue;
-    const agent = agentsById.get(id);
-    if (!agent?.icon) continue;
-    if (instance.icon === agent.icon) continue;
-    instances[id] = { ...instance, icon: agent.icon };
+    const cachedUrl = resolvedIconByAgentId.get(id);
+    if (!cachedUrl || instance.icon === cachedUrl) continue;
+    instances[id] = { ...instance, icon: cachedUrl };
     changed = true;
   }
 
@@ -386,6 +411,7 @@ export async function installAcpRegistryAgent(input: {
   agentId: string;
   baseDir: string;
   settingsPath: string;
+  iconsDir: string;
   registry?: AcpRegistryListResult;
 }): Promise<InstalledAcpRegistryAgent[]> {
   const registry = input.registry ?? (await fetchAcpRegistry());
@@ -394,13 +420,25 @@ export async function installAcpRegistryAgent(input: {
     throw new Error(`ACP registry agent not found: ${input.agentId}`);
   }
 
+  // Cache the icon to disk so settings stores a `lightcode-local://` URL
+  // rather than the upstream CDN URL — the renderer can then paint the icon
+  // synchronously on every app start.
+  const cachedIcon = agent.icon
+    ? await cacheAcpRegistryIcon({
+        iconUrl: agent.icon,
+        agentId: agent.id,
+        iconsDir: input.iconsDir,
+      })
+    : undefined;
+  const cachedAgent: AcpRegistryAgent = { ...agent, ...(cachedIcon ? { icon: cachedIcon } : {}) };
+
   const settings = readAcpRegistrySettings(input.settingsPath);
-  const built = await genericInstance(agent, input.baseDir);
+  const built = await genericInstance(cachedAgent, input.baseDir);
   const instance = mergeRegistryInstance(built, settings.agentInstances[agent.id]);
   settings.agentInstances = { ...settings.agentInstances, [agent.id]: instance };
   settings.acpRegistryInstalledAgents = {
     ...settings.acpRegistryInstalledAgents,
-    [agent.id]: registryInstallRecord(agent, acpGenericKind(agent.id), "generic"),
+    [agent.id]: registryInstallRecord(cachedAgent, acpGenericKind(agent.id), "generic"),
   };
   writeAcpRegistrySettings(input.settingsPath, settings);
   await warmRegistryInstall(agent, instance);
@@ -411,6 +449,7 @@ export async function updateAcpRegistryAgent(input: {
   agentId: string;
   baseDir: string;
   settingsPath: string;
+  iconsDir: string;
   registry?: AcpRegistryListResult;
 }): Promise<InstalledAcpRegistryAgent[]> {
   const settings = readAcpRegistrySettings(input.settingsPath);
@@ -430,6 +469,7 @@ export async function autoUpdateAcpRegistryAgents(input: {
   registry: AcpRegistryListResult;
   baseDir: string;
   settingsPath: string;
+  iconsDir: string;
 }): Promise<{ updated: string[]; failed: { id: string; error: string }[] }> {
   const settings = readAcpRegistrySettings(input.settingsPath);
   const agentsById = new Map(input.registry.agents.map((agent) => [agent.id, agent]));
@@ -444,6 +484,7 @@ export async function autoUpdateAcpRegistryAgents(input: {
         agentId: id,
         baseDir: input.baseDir,
         settingsPath: input.settingsPath,
+        iconsDir: input.iconsDir,
         registry: input.registry,
       });
       updated.push(id);

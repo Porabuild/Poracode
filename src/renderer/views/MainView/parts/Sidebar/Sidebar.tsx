@@ -8,10 +8,10 @@ import {
   RefreshCw,
   Search,
   Settings2,
-  TerminalSquare,
 } from "lucide-react";
 import { startTransition, useEffect } from "react";
 import { useShallow } from "zustand/shallow";
+import { AnimatedTerminalIcon } from "@/renderer/components/common/AnimatedTerminalIcon";
 import { getAppName } from "@/shared/appName";
 import type { Thread } from "@/shared/contracts";
 import { formatBytes } from "@/shared/formatBytes";
@@ -36,6 +36,7 @@ import {
   useCurrentThreadIds,
   useCurrentWorktreePath,
   useIsProjectTerminalActive,
+  useIsProjectTerminalBusy,
   useIsProjectTerminalOpen,
 } from "@/renderer/hooks/uiSelectors";
 import { useScrollFade } from "@/renderer/hooks/useScrollFade";
@@ -120,6 +121,7 @@ function UpdateButtons(props: { iconOnly?: boolean }) {
 function HomeTerminalButton(props: { projectId: string; projectName: string }) {
   const hasTerminal = useIsProjectTerminalOpen(props.projectId);
   const isActiveTerminal = useIsProjectTerminalActive(props.projectId);
+  const isBusy = useIsProjectTerminalBusy(props.projectId);
   return (
     <SidebarPanelDragButton
       panel="terminal"
@@ -134,7 +136,7 @@ function HomeTerminalButton(props: { projectId: string; projectName: string }) {
       }`}
       onPress={() => openTerminal(props.projectId)}
     >
-      <TerminalSquare className="size-3.5" />
+      <AnimatedTerminalIcon className="size-3.5" isBusy={isBusy} />
     </SidebarPanelDragButton>
   );
 }

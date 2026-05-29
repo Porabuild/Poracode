@@ -5,6 +5,17 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { AgentKind } from "@/shared/contracts";
 import type { AgentAdapter, StructuredSessionHandle } from "../agents/base";
 import type { SessionRuntime } from "./sessionTypes";
+
+vi.mock("../agents/base", async (importActual) => {
+  const actual = await importActual<typeof import("../agents/base")>();
+  return {
+    ...actual,
+    primeProjectShellEnv: vi.fn<(cwd: string) => Promise<Record<string, string> | undefined>>(() =>
+      Promise.resolve(undefined),
+    ),
+  };
+});
+
 import { ThreadSessionManager } from "./threadSessionManager";
 
 vi.mock("node-pty", () => ({

@@ -1,5 +1,6 @@
-import { Check, FolderOpen, GitFork, TerminalSquare } from "lucide-react";
+import { Check, FolderOpen, GitFork } from "lucide-react";
 import { SidebarButton } from "@/renderer/components/common";
+import { AnimatedTerminalIcon } from "@/renderer/components/common/AnimatedTerminalIcon";
 import { GitBadge } from "./GitBadge";
 import { SidebarPanelDragButton } from "./SidebarPanelDragButton";
 import { SyncBadge } from "./SyncBadge";
@@ -12,6 +13,7 @@ export function WorktreeGroupHeader(props: {
   isCollapsed: boolean;
   hasTerminal: boolean;
   isActiveTerminal: boolean;
+  isBusyTerminal?: boolean;
   isActiveFiles?: boolean;
   isActiveGit: boolean;
   onToggleCollapse: () => void;
@@ -90,7 +92,7 @@ export function WorktreeGroupHeader(props: {
             }`}
             onPress={props.onOpenTerminal}
           >
-            <TerminalSquare className="size-3.5" />
+            <AnimatedTerminalIcon className="size-3.5" isBusy={props.isBusyTerminal} />
           </SidebarPanelDragButton>
           <SyncBadge projectId={props.projectId} worktreePath={props.worktreePath} />
           <GitBadge

@@ -8,7 +8,6 @@ import {
   PowerOff,
   RefreshCw,
   Settings2,
-  TerminalSquare,
   Trash2,
 } from "lucide-react";
 import type { Project } from "@/shared/contracts";
@@ -26,11 +25,13 @@ import {
   useIsProjectFilesPanelActive,
   useIsProjectGitPanelActive,
   useIsProjectTerminalActive,
+  useIsProjectTerminalBusy,
   useIsProjectTerminalOpen,
 } from "@/renderer/hooks/uiSelectors";
 import { useSidebarUiStore } from "@/renderer/state/sidebarUiStore";
 import { resolveActionIcon } from "@/renderer/utils/actionIcons";
 import { formatProjectLocation } from "./formatProjectLocation";
+import { AnimatedTerminalIcon } from "@/renderer/components/common/AnimatedTerminalIcon";
 import { GitBadge } from "./GitBadge";
 import { SidebarPanelDragButton } from "./SidebarPanelDragButton";
 import { SyncBadge } from "./SyncBadge";
@@ -44,6 +45,7 @@ export function SidebarProjectHeader(props: {
   const toggleProjectCollapsed = useSidebarUiStore((s) => s.toggleProjectCollapsed);
   const hasTerminal = useIsProjectTerminalOpen(project.id);
   const isActiveTerminal = useIsProjectTerminalActive(project.id);
+  const isBusyTerminal = useIsProjectTerminalBusy(project.id);
   const isActiveGitPanel = useIsProjectGitPanelActive(project.id);
   const isActiveFilesPanel = useIsProjectFilesPanelActive(project.id);
   const projectLocation = formatProjectLocation(project);
@@ -172,7 +174,7 @@ export function SidebarProjectHeader(props: {
                 }`}
                 onPress={() => openTerminal(project.id)}
               >
-                <TerminalSquare className="size-3.5" />
+                <AnimatedTerminalIcon isBusy={isBusyTerminal} className="size-3.5" />
               </SidebarPanelDragButton>
               <SyncBadge projectId={project.id} />
               <GitBadge

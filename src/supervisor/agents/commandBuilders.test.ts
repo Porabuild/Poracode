@@ -20,17 +20,25 @@ vi.mock("./codex/plugin/install", async (importOriginal) => {
   };
 });
 
-// Skip the slow $SHELL -l -c probe on non-Windows hosts. The tests using
-// `windowsProject` only exercise argv-shaping logic; resolving the binary
-// against the host PATH is irrelevant and adds 1-2s per cold call on macOS.
+// Skip slow PATH / WSL probes. These tests only exercise argv-shaping logic;
+// resolving the binary against the host or distro PATH is irrelevant and
+// flakes under parallel load when many suites spawn wsl.exe at once.
 vi.mock("./binaryResolver", async (importActual) => {
   const actual = await importActual<typeof import("./binaryResolver")>();
   return {
     ...actual,
     resolveAgentBinaryPath: (location: { kind: string }, binary: string) =>
-      location.kind === "windows"
-        ? undefined
-        : actual.resolveAgentBinaryPath(location as never, binary),
+      location.kind === "posix"
+        ? actual.resolveAgentBinaryPath(location as never, binary)
+        : undefined,
+  };
+});
+
+vi.mock("./base/processRuntime", async (importActual) => {
+  const actual = await importActual<typeof import("./base/processRuntime")>();
+  return {
+    ...actual,
+    resolveWslShellPath: () => "/bin/bash",
   };
 });
 

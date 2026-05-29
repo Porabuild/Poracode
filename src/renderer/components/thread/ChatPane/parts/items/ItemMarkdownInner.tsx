@@ -1,4 +1,4 @@
-import { Link, Table } from "@heroui/react";
+import { Link } from "@heroui/react";
 import { ExternalLink } from "lucide-react";
 import {
   Children,
@@ -131,8 +131,37 @@ const MD_COMPONENTS: StreamdownComponents = {
   a({ href, children }) {
     return <MdAnchor href={href ?? ""}>{children}</MdAnchor>;
   },
+  // Render a clean native table with HeroUI-themed styling. Override
+  // Streamdown's default wrapper (which includes copy/download/fullscreen
+  // controls) and replace its memoized sub-components with native HTML
+  // elements so `<thead>`, `<tr>`, etc. compose correctly.
   table({ children }) {
-    return <MdTable>{children}</MdTable>;
+    return (
+      <div className="not-prose my-4 min-w-0 max-w-full overflow-x-auto rounded-2xl border border-border bg-[var(--surface-secondary)]/50">
+        <table className="w-full border-collapse text-[length:var(--lc-chat-font-size)] leading-snug">
+          {children}
+        </table>
+      </div>
+    );
+  },
+  thead({ children }) {
+    return <thead className="[&_th]:border-b [&_th]:border-foreground/10">{children}</thead>;
+  },
+  tbody({ children }) {
+    return (
+      <tbody className="[&_tr:not(:last-child)_td]:border-b [&_tr:not(:last-child)_td]:border-foreground/5">
+        {children}
+      </tbody>
+    );
+  },
+  tr({ children }) {
+    return <tr>{children}</tr>;
+  },
+  th({ children }) {
+    return <th className="px-4 py-1 text-left font-medium text-muted">{children}</th>;
+  },
+  td({ children }) {
+    return <td className="px-4 py-1 align-middle text-foreground">{children}</td>;
   },
 };
 
@@ -337,111 +366,6 @@ function renderPathChip(
       onShowInExplorer={actions.showProjectEntryInExplorer}
     />
   );
-}
-
-function MdTable({ children }: { children?: ReactNode }) {
-  const { headerCells, bodyRows } = extractTableParts(children);
-  if (headerCells.length === 0 && bodyRows.length === 0) {
-    return null;
-  }
-  // React Aria's Table is strict: every Row must have exactly one Cell per
-  // Column. Malformed markdown (mismatched separator dash count, ragged rows,
-  // partial streaming chunks) routinely produces rows whose lengths drift from
-  // the header. Normalize everything to the widest row so the table renders
-  // instead of falling over.
-  const columnCount = Math.max(headerCells.length, ...bodyRows.map((r) => r.length), 1);
-  const paddedHeader: ReactNode[] = Array.from(
-    { length: columnCount },
-    (_, i) => headerCells[i] ?? "",
-  );
-  const paddedRows: ReactNode[][] = bodyRows.map((row) =>
-    Array.from({ length: columnCount }, (_, i) => row[i] ?? ""),
-  );
-  return (
-    <div className="not-prose my-2 min-w-0 max-w-full overflow-hidden">
-      <Table className="min-w-0 max-w-full">
-        <Table.ScrollContainer className="min-w-0 max-w-full overflow-x-auto">
-          <Table.Content
-            aria-label="Table"
-            className="text-[length:var(--lc-chat-font-size-command)]"
-          >
-            <Table.Header>
-              {paddedHeader.map((cell, i) => (
-                <Table.Column key={`col-${i}`} id={`col-${i}`} isRowHeader={i === 0}>
-                  {cell}
-                </Table.Column>
-              ))}
-            </Table.Header>
-            <Table.Body>
-              {paddedRows.map((row, ri) => (
-                <Table.Row key={`row-${ri}`} id={`row-${ri}`}>
-                  {row.map((cell, ci) => (
-                    <Table.Cell key={`cell-${ri}-${ci}`}>{cell}</Table.Cell>
-                  ))}
-                </Table.Row>
-              ))}
-            </Table.Body>
-          </Table.Content>
-        </Table.ScrollContainer>
-      </Table>
-    </div>
-  );
-}
-
-export function extractTableParts(children: ReactNode): {
-  headerCells: ReactNode[];
-  bodyRows: ReactNode[][];
-} {
-  let headerCells: ReactNode[] = [];
-  const bodyRows: ReactNode[][] = [];
-  Children.forEach(children, (child) => {
-    if (!isValidElement(child)) return;
-    if (child.type === "thead") {
-      headerCells = collectCellsFromFirstRow(getElementChildren(child), "th");
-    } else if (child.type === "tbody") {
-      collectRowsInto(bodyRows, getElementChildren(child));
-    } else if (child.type === "tr") {
-      collectRowsInto(bodyRows, [child]);
-    }
-  });
-  return { headerCells, bodyRows };
-}
-
-function collectRowsInto(target: ReactNode[][], nodes: ReactNode) {
-  Children.forEach(nodes, (child) => {
-    if (!isValidElement(child) || child.type !== "tr") return;
-    const cells: ReactNode[] = [];
-    Children.forEach(getElementChildren(child), (cellNode) => {
-      if (!isValidElement(cellNode)) return;
-      if (cellNode.type === "td" || cellNode.type === "th") {
-        cells.push(getElementChildren(cellNode));
-      }
-    });
-    if (cells.length > 0) target.push(cells);
-  });
-}
-
-function collectCellsFromFirstRow(nodes: ReactNode, cellTag: "th" | "td"): ReactNode[] {
-  const cells: ReactNode[] = [];
-  let firstTr: ReactElement | undefined;
-  Children.forEach(nodes, (child) => {
-    if (!firstTr && isValidElement(child) && child.type === "tr") {
-      firstTr = child;
-    }
-  });
-  if (!firstTr) return cells;
-  Children.forEach(getElementChildren(firstTr), (cellNode) => {
-    if (!isValidElement(cellNode)) return;
-    if (cellNode.type === cellTag || cellNode.type === "td" || cellNode.type === "th") {
-      cells.push(getElementChildren(cellNode));
-    }
-  });
-  return cells;
-}
-
-function getElementChildren(element: ReactElement): ReactNode {
-  const props = element.props as { children?: ReactNode };
-  return props.children;
 }
 
 function flattenMdChildren(node: ReactNode): string {

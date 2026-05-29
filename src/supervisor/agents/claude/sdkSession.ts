@@ -234,6 +234,17 @@ function spawnClaudeInWsl(location: ProjectLocation, options: SpawnOptions): Spa
   }) as unknown as SpawnedProcess;
 }
 
+function spawnClaudeNative(location: ProjectLocation, options: SpawnOptions): SpawnedProcess {
+  const command = options.command || resolveAgentBinaryPath(location, "claude") || "claude";
+  return spawn(command, options.args, {
+    env: options.env,
+    signal: options.signal,
+    stdio: ["pipe", "pipe", "pipe"],
+    windowsHide: true,
+    ...(options.cwd ? { cwd: options.cwd } : {}),
+  }) as unknown as SpawnedProcess;
+}
+
 function isImageAttachment(segment: PromptSegment): boolean {
   return (
     segment.kind === "attachment" &&
@@ -855,7 +866,12 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
               spawnClaudeCodeProcess: (spawnOptions) =>
                 spawnClaudeInWsl(this.input.projectLocation, spawnOptions),
             }
-          : {}),
+          : this.input.projectLocation.kind === "windows"
+            ? {
+                spawnClaudeCodeProcess: (spawnOptions) =>
+                  spawnClaudeNative(this.input.projectLocation, spawnOptions),
+              }
+            : {}),
       };
 
       this.queryRuntime = query({ prompt: this.promptQueue, options });

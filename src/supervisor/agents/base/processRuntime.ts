@@ -323,6 +323,7 @@ export function resolveWslExecutablePath(distro: string, command: string): strin
       encoding: "utf8",
       shell: false,
       windowsHide: true,
+      timeout: 5_000,
     },
   );
   if (result.error || result.status !== 0) {

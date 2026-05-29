@@ -1,4 +1,4 @@
-import { Archive, FolderOpen, Star, TerminalSquare, Trash2 } from "lucide-react";
+import { Archive, FolderOpen, Star, Trash2 } from "lucide-react";
 import type { Thread } from "@/shared/contracts";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { GitBadge } from "@/renderer/views/MainView/parts/Sidebar/parts/GitBadge";
@@ -6,10 +6,12 @@ import { SyncBadge } from "@/renderer/views/MainView/parts/Sidebar/parts/SyncBad
 import { archiveThread, deleteThread } from "@/renderer/actions/threadActions";
 import { openFilesPanel, openGitReview } from "@/renderer/actions/panelActions";
 import { openWorktreeTerminal } from "@/renderer/actions/terminalActions";
+import { AnimatedTerminalIcon } from "@/renderer/components/common/AnimatedTerminalIcon";
 import {
   useIsWorktreeFilesPanelActive,
   useIsWorktreeGitPanelActive,
   useIsWorktreeTerminalActive,
+  useIsWorktreeTerminalBusy,
   useIsWorktreeTerminalOpen,
 } from "@/renderer/hooks/uiSelectors";
 import { RelativeTime } from "@/renderer/components/common/RelativeTime";
@@ -26,6 +28,7 @@ export function ThreadItemSuffix(props: {
   const isGitActive = useIsWorktreeGitPanelActive(thread.worktreePath);
   const isTerminalActive = useIsWorktreeTerminalActive(thread.worktreePath);
   const isTerminalOpen = useIsWorktreeTerminalOpen(thread.worktreePath);
+  const isTerminalBusy = useIsWorktreeTerminalBusy(thread.worktreePath);
 
   return (
     <>
@@ -60,7 +63,7 @@ export function ThreadItemSuffix(props: {
             }`}
             onPress={() => openWorktreeTerminal(thread.projectId, thread.worktreePath!)}
           >
-            <TerminalSquare className="size-3.5" />
+            <AnimatedTerminalIcon className="size-3.5" isBusy={isTerminalBusy} />
           </SidebarPanelDragButton>
           <SyncBadge projectId={thread.projectId} worktreePath={thread.worktreePath} />
           <GitBadge

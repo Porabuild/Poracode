@@ -205,6 +205,7 @@ export class SupervisorRuntime {
   private readonly baseDir: string;
   private readonly logsDir: string;
   private readonly settingsPath: string;
+  private readonly acpIconsDir: string;
   private readonly sharedSettingsCache: SupervisorSharedSettingsCache;
   private readonly gitService = new GitService();
   private readonly gitCheckpointService = new GitCheckpointService();
@@ -257,6 +258,7 @@ export class SupervisorRuntime {
     const paths = resolveLightcodePaths(baseDir);
     this.logsDir = paths.terminalLogsDir;
     this.settingsPath = paths.settingsPath;
+    this.acpIconsDir = paths.acpIconsDir;
     this.sharedSettingsCache = new SupervisorSharedSettingsCache(this.settingsPath);
     this.refreshAgentRegistryAdapters();
     mkdirSync(paths.cacheDir, { recursive: true });
@@ -430,11 +432,16 @@ export class SupervisorRuntime {
 
   async listAcpRegistry(): Promise<AcpRegistryListResult> {
     const registry = await fetchAcpRegistry();
-    let changed = backfillAcpRegistryAgentIcons({ registry, settingsPath: this.settingsPath });
+    let changed = await backfillAcpRegistryAgentIcons({
+      registry,
+      settingsPath: this.settingsPath,
+      iconsDir: this.acpIconsDir,
+    });
     const autoUpdate = await autoUpdateAcpRegistryAgents({
       registry,
       baseDir: this.baseDir,
       settingsPath: this.settingsPath,
+      iconsDir: this.acpIconsDir,
     });
     if (autoUpdate.updated.length > 0) changed = true;
     if (changed) {
@@ -451,6 +458,7 @@ export class SupervisorRuntime {
       agentId: payload.agentId,
       baseDir: this.baseDir,
       settingsPath: this.settingsPath,
+      iconsDir: this.acpIconsDir,
     });
     this.sharedSettingsCache.invalidate();
     this.refreshAgentRegistryAdapters();
@@ -465,6 +473,7 @@ export class SupervisorRuntime {
       agentId: payload.agentId,
       baseDir: this.baseDir,
       settingsPath: this.settingsPath,
+      iconsDir: this.acpIconsDir,
     });
     this.sharedSettingsCache.invalidate();
     this.refreshAgentRegistryAdapters();
