@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -18,6 +18,7 @@ import {
   memoByCtx,
   readBundledPluginVersion,
   readPluginManifest,
+  removeStagedPluginDir,
   stagePluginAssetsToWsl,
   verifyStagedPluginAt,
   writeNativeHookWrapper,
@@ -302,6 +303,21 @@ export function isCopilotPluginInstalled(ctx?: AgentEnvContext): {
     assets: COPILOT_VERIFY_ASSETS,
     extraCheck: () => existsSync(hookFile),
   });
+}
+
+export function uninstallCopilotPlugin(ctx?: AgentEnvContext): void {
+  const hookFile = isWslPluginContext(ctx)
+    ? toWslUncPath(
+        ctx.wslDistro,
+        `${wslGlobalCopilotDir(ctx.wslDistro)}/${GLOBAL_HOOK_DIR_NAME}/${GLOBAL_HOOK_FILENAME}`,
+      )
+    : join(nativeGlobalCopilotDir(), GLOBAL_HOOK_DIR_NAME, GLOBAL_HOOK_FILENAME);
+  try {
+    if (existsSync(hookFile)) unlinkSync(hookFile);
+  } catch {
+    // best-effort uninstall
+  }
+  removeStagedPluginDir("copilot", ctx);
 }
 
 // ── Hook config rendering / write ─────────────────────────────────────────

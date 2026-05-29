@@ -20,6 +20,7 @@ import {
   installClaudePlugin,
   isClaudePluginInstalled,
   readBundledClaudePluginVersion,
+  uninstallClaudePlugin,
 } from "./plugin/install";
 
 // Semver comes only from plugin/plugin.json (forward.mjs reads that file too).
@@ -63,6 +64,9 @@ export function createClaudeAdapter(): AgentAdapter {
       const result = installClaudePlugin(ctx, { resolvedNodePath: node.nodePath });
       if (!result.ok) return result;
       return { ok: true, version: result.version };
+    },
+    async uninstallPlugin(ctx) {
+      uninstallClaudePlugin(ctx);
     },
     async pluginLaunchExtras(ctx) {
       const paths = getClaudePluginPaths(ctx);

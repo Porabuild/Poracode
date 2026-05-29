@@ -3,6 +3,9 @@ import { homedir } from "node:os";
 import { isAbsolute, join } from "node:path";
 import type {
   AgentKind,
+  AgentHookPluginMutationResult,
+  AgentHookPluginPayload,
+  AgentHookPluginStatus,
   AgentStatusesResponse,
   AcpRegistryListResult,
   AcpRegistryMutationResult,
@@ -24,6 +27,7 @@ import type {
   GenerateTitlePayload,
   GenerateTitleResult,
   GetAgentStatusesPayload,
+  GetAgentHookPluginStatusesPayload,
   GetGitBranchesPayload,
   GetGitDiffBatchPayload,
   GetGitDiffPayload,
@@ -374,7 +378,6 @@ export class SupervisorRuntime {
     }
 
     this.cliHookPluginCoordinator.startIngress();
-    void this.cliHookPluginCoordinator.installAll();
 
     this.threadSessionManager = new ThreadSessionManager({
       emit,
@@ -428,6 +431,24 @@ export class SupervisorRuntime {
 
   async refreshAgentStatuses(payload: GetAgentStatusesPayload): Promise<AgentStatusesResponse> {
     return this.agentStatusService.refreshAgentStatuses(payload);
+  }
+
+  async getAgentHookPluginStatuses(
+    payload: GetAgentHookPluginStatusesPayload,
+  ): Promise<AgentHookPluginStatus[]> {
+    return this.cliHookPluginCoordinator.getStatuses(payload);
+  }
+
+  async installAgentHookPlugin(
+    payload: AgentHookPluginPayload,
+  ): Promise<AgentHookPluginMutationResult> {
+    return this.cliHookPluginCoordinator.installPlugin(payload);
+  }
+
+  async uninstallAgentHookPlugin(
+    payload: AgentHookPluginPayload,
+  ): Promise<AgentHookPluginMutationResult> {
+    return this.cliHookPluginCoordinator.uninstallPlugin(payload);
   }
 
   async listAcpRegistry(): Promise<AcpRegistryListResult> {

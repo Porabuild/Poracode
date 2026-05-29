@@ -55,6 +55,7 @@ interface SharedSettingsState extends SharedSettings {
   setSearchUseIgnoreFiles: (value: boolean) => void;
   setSearchExclude: (value: Record<string, boolean>) => void;
   setDisableCliHookPlugin: (value: boolean) => void;
+  dismissHookInstallProposal: (key: string) => void;
   setBrowserSetting: <K extends keyof SharedSettings["browser"]>(
     key: K,
     value: SharedSettings["browser"][K],
@@ -312,6 +313,12 @@ export const useSharedSettings = create<SharedSettingsState>()((set, get) => ({
     set({ disableCliHookPlugin });
     persistSettings(selectSharedSettings(get()));
   },
+  dismissHookInstallProposal: (key) => {
+    const current = get().dismissedHookInstallProposals;
+    if (current[key]) return;
+    set({ dismissedHookInstallProposals: { ...current, [key]: true } });
+    persistSettings(selectSharedSettings(get()));
+  },
   setBrowserSetting: (key, value) => {
     const current = get().browser;
     if (current[key] === value) return;
@@ -494,6 +501,7 @@ function selectSharedSettings(state: SharedSettingsState): SharedSettingsInput {
     searchUseIgnoreFiles: state.searchUseIgnoreFiles,
     searchExclude: state.searchExclude,
     disableCliHookPlugin: state.disableCliHookPlugin,
+    dismissedHookInstallProposals: state.dismissedHookInstallProposals,
     notificationsEnabled: state.notificationsEnabled,
     notificationSound: state.notificationSound,
     notificationFilter: state.notificationFilter,

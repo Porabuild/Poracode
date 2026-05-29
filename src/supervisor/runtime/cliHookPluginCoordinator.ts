@@ -5,7 +5,14 @@ import {
   defaultSharedSettings,
   normalizeSharedSettings,
 } from "@/shared/settings";
-import type { AgentKind, ProjectLocation } from "@/shared/contracts";
+import type {
+  AgentKind,
+  AgentHookPluginEnv,
+  AgentHookPluginMutationResult,
+  AgentHookPluginStatus,
+  GetAgentHookPluginStatusesPayload,
+  ProjectLocation,
+} from "@/shared/contracts";
 import {
   type AgentAdapter,
   type AgentEnvContext,
@@ -204,7 +211,7 @@ export class CliHookPluginCoordinator {
     const ctx = this.envContext(input.agentKind, input.projectLocation);
     if (input.browserMcpEnabled !== undefined) ctx.browserMcpEnabled = input.browserMcpEnabled;
     if (input.browserMcp) ctx.browserMcp = input.browserMcp;
-    const outcome = await this.ensureInstalled(adapter, slice, ctx);
+    const outcome = await this.ensureInstalledOrUpdated(adapter, slice, ctx);
     if (!outcome.ok) {
       return undefined;
     }
@@ -242,9 +249,64 @@ export class CliHookPluginCoordinator {
       // wasted I/O because the runtime never injects the env/args for them.
       if (!isTerminalLiveInput(adapter)) return;
       const ctx = this.envContext(adapter.kind);
-      await this.ensureInstalled(adapter, slice, ctx);
+      await this.ensureInstalledOrUpdated(adapter, slice, ctx);
     });
     await Promise.allSettled(tasks);
+  }
+
+  async getStatuses(input: GetAgentHookPluginStatusesPayload): Promise<AgentHookPluginStatus[]> {
+    return Promise.all(input.envs.map((env) => this.getStatus(input.agentKind, env)));
+  }
+
+  async installPlugin(input: {
+    agentKind: AgentKind;
+    env: AgentHookPluginEnv;
+  }): Promise<AgentHookPluginMutationResult> {
+    const adapter = this.options.adapters.get(input.agentKind);
+    const slice = adapter ? toCliHookPluginSlice(adapter) : undefined;
+    if (!adapter || !slice || !isTerminalLiveInput(adapter)) {
+      throw new Error(`CLI hook plugin is not supported for ${input.agentKind}.`);
+    }
+    const ctx = this.contextForEnv(input.env);
+    const supported = (await slice.isPluginSupported?.(ctx)) ?? true;
+    if (!supported) {
+      throw new Error(`CLI hook plugin is not supported in this environment.`);
+    }
+    const result = await slice.installPlugin(ctx);
+    if (!result.ok) {
+      throw new Error(result.reason);
+    }
+    const cacheKey = composeCacheKey(input.agentKind, ctx);
+    this.installPromises.delete(cacheKey);
+    this.writeCacheEntry(cacheKey, {
+      agentBinaryVersion: "n/a",
+      pluginVersion: result.version,
+      protocolVersion: slice.minProtocolVersion,
+      platform: process.platform,
+      verifiedAt: new Date().toISOString(),
+      supportsL1: true,
+    });
+    return { status: await this.getStatus(input.agentKind, input.env) };
+  }
+
+  async uninstallPlugin(input: {
+    agentKind: AgentKind;
+    env: AgentHookPluginEnv;
+  }): Promise<AgentHookPluginMutationResult> {
+    const adapter = this.options.adapters.get(input.agentKind);
+    const slice = adapter ? toCliHookPluginSlice(adapter) : undefined;
+    if (!adapter || !slice || !isTerminalLiveInput(adapter)) {
+      throw new Error(`CLI hook plugin is not supported for ${input.agentKind}.`);
+    }
+    if (!slice.uninstallPlugin) {
+      throw new Error(`${adapter.label} does not support hook plugin uninstall.`);
+    }
+    const ctx = this.contextForEnv(input.env);
+    await slice.uninstallPlugin(ctx);
+    const cacheKey = composeCacheKey(input.agentKind, ctx);
+    this.installPromises.delete(cacheKey);
+    this.deleteCacheEntry(cacheKey);
+    return { status: await this.getStatus(input.agentKind, input.env) };
   }
 
   private async resolveTransport(
@@ -262,7 +324,7 @@ export class CliHookPluginCoordinator {
     return { url: info.url, secret: info.secret, protocolVersion: info.protocolVersion };
   }
 
-  private async ensureInstalled(
+  private async ensureInstalledOrUpdated(
     adapter: AgentAdapter,
     slice: AgentCliHookPluginSupport,
     ctx: AgentEnvContext,
@@ -314,6 +376,22 @@ export class CliHookPluginCoordinator {
       // ~/.lightcode/agent-plugins/ and the provider's generated hook config
       // out of band.
       if (installed.installed) {
+        if (installed.version !== undefined && installed.version !== slice.pluginVersion) {
+          const result = await slice.installPlugin(ctx);
+          if (!result.ok) {
+            this.writeNegativeCacheEntry(cacheKey, slice, result.reason);
+            return result;
+          }
+          this.writeCacheEntry(cacheKey, {
+            agentBinaryVersion: "n/a",
+            pluginVersion: result.version,
+            protocolVersion: slice.minProtocolVersion,
+            platform: process.platform,
+            verifiedAt: new Date().toISOString(),
+            supportsL1: true,
+          });
+          return { ok: true, version: result.version };
+        }
         if (!cached.supportsL1) {
           this.writeCacheEntry(cacheKey, {
             agentBinaryVersion: "n/a",
@@ -329,8 +407,12 @@ export class CliHookPluginCoordinator {
     }
 
     const installed = await slice.isPluginInstalled(ctx);
+    if (!installed.installed) {
+      return { ok: false, reason: "not installed" };
+    }
+
     let installedVersion = installed.version;
-    if (!installed.installed || installedVersion !== slice.pluginVersion) {
+    if (installedVersion !== slice.pluginVersion) {
       const result = await slice.installPlugin(ctx);
       if (!result.ok) {
         this.writeNegativeCacheEntry(cacheKey, slice, result.reason);
@@ -394,6 +476,87 @@ export class CliHookPluginCoordinator {
     } catch (error) {
       console.warn("[supervisor] failed to persist agentHookSupport cache:", error);
     }
+  }
+
+  private deleteCacheEntry(cacheKey: string): void {
+    const settings = readSharedSettings(this.options.settingsPath);
+    const nextSupport = { ...settings.agentHookSupport };
+    delete nextSupport[cacheKey];
+    try {
+      mkdirSync(dirname(this.options.settingsPath), { recursive: true });
+      writeFileSync(
+        this.options.settingsPath,
+        JSON.stringify({ ...settings, agentHookSupport: nextSupport }, null, 2),
+        "utf8",
+      );
+    } catch (error) {
+      console.warn("[supervisor] failed to remove agentHookSupport cache:", error);
+    }
+  }
+
+  private contextForEnv(env: AgentHookPluginEnv): AgentEnvContext {
+    const nativeKind = process.platform === "win32" ? "windows" : "posix";
+    const ctx: AgentEnvContext =
+      env.kind === "wsl" ? { envKind: "wsl", wslDistro: env.distro } : { envKind: nativeKind };
+    const baseDir = this.options.baseDir;
+    if (ctx.baseDir !== undefined || baseDir === undefined) return ctx;
+    return { ...ctx, baseDir };
+  }
+
+  private async getStatus(
+    agentKind: AgentKind,
+    env: AgentHookPluginEnv,
+  ): Promise<AgentHookPluginStatus> {
+    const adapter = this.options.adapters.get(agentKind);
+    const slice = adapter ? toCliHookPluginSlice(adapter) : undefined;
+    if (!adapter || !slice || !isTerminalLiveInput(adapter)) {
+      return {
+        agentKind,
+        env,
+        supported: false,
+        installed: false,
+        bundledVersion: "0.0.0",
+        canUninstall: false,
+        reason: "unsupported provider",
+      };
+    }
+    const ctx = this.contextForEnv(env);
+    // Probe support and install state in parallel — they have no data
+    // dependency and each can incur a WSL round trip when env.kind === "wsl".
+    const [supportedResult, installedResult] = await Promise.all([
+      Promise.resolve(slice.isPluginSupported?.(ctx) ?? true).then(
+        (value) => ({ ok: true as const, value }),
+        (error: unknown) => ({ ok: false as const, error }),
+      ),
+      slice.isPluginInstalled(ctx).then(
+        (value) => ({ ok: true as const, value }),
+        (error: unknown) => ({ ok: false as const, error }),
+      ),
+    ]);
+    let supported = true;
+    let reason: string | undefined;
+    if (supportedResult.ok) {
+      supported = supportedResult.value;
+      if (!supported) reason = "unsupported environment";
+    } else {
+      supported = false;
+      reason = errorMessage(supportedResult.error);
+    }
+    const installed: Awaited<ReturnType<AgentCliHookPluginSupport["isPluginInstalled"]>> =
+      installedResult.ok ? installedResult.value : { installed: false };
+    if (!installedResult.ok) {
+      reason = errorMessage(installedResult.error);
+    }
+    return {
+      agentKind,
+      env,
+      supported,
+      installed: installed.installed,
+      ...(installed.version ? { version: installed.version } : {}),
+      bundledVersion: slice.pluginVersion,
+      canUninstall: Boolean(slice.uninstallPlugin),
+      ...(reason ? { reason } : {}),
+    };
   }
 }
 

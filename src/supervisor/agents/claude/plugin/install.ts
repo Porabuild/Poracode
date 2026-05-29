@@ -19,6 +19,7 @@ import {
   memoByCtx,
   readBundledPluginVersion,
   readPluginManifest,
+  removeStagedPluginDir,
   stagePluginAssetsToWsl,
   writeNativeHookWrapper,
   type PluginManifest,
@@ -261,6 +262,10 @@ export function isClaudePluginInstalled(ctx?: AgentEnvContext): {
     return verifyClaudeInstallAt(wsl.uncBase, "wsl");
   }
   return verifyClaudeInstallAt(getNativePluginBaseDir("claude", ctx?.baseDir), "native");
+}
+
+export function uninstallClaudePlugin(ctx?: AgentEnvContext): void {
+  removeStagedPluginDir("claude", ctx);
 }
 
 function verifyClaudeInstallAt(

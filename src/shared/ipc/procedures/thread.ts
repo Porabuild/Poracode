@@ -3,6 +3,8 @@ import {
   clearPendingSteerPayloadSchema,
   closeThreadPayloadSchema,
   extractContextPayloadSchema,
+  agentHookPluginPayloadSchema,
+  getAgentHookPluginStatusesPayloadSchema,
   getAgentStatusesPayloadSchema,
   installAcpRegistryAgentPayloadSchema,
   interruptThreadPayloadSchema,
@@ -24,12 +26,16 @@ import {
 import type {
   AcpRegistryListResult,
   AcpRegistryMutationResult,
+  AgentHookPluginMutationResult,
+  AgentHookPluginPayload,
+  AgentHookPluginStatus,
   AgentStatusesResponse,
   AuthenticateAcpAgentPayload,
   ClearPendingSteerPayload,
   CloseThreadPayload,
   ExtractContextPayload,
   ExtractContextResult,
+  GetAgentHookPluginStatusesPayload,
   GetAgentStatusesPayload,
   InstallAcpRegistryAgentPayload,
   InterruptThreadPayload,
@@ -84,6 +90,21 @@ export const threadProcedures = {
       ...(scope ? { scope } : {}),
     }),
   ),
+  getAgentHookPluginStatuses: definePayloadProcedure<
+    GetAgentHookPluginStatusesPayload,
+    AgentHookPluginStatus[],
+    "supervisor"
+  >("getAgentHookPluginStatuses", "supervisor", getAgentHookPluginStatusesPayloadSchema),
+  installAgentHookPlugin: definePayloadProcedure<
+    AgentHookPluginPayload,
+    AgentHookPluginMutationResult,
+    "supervisor"
+  >("installAgentHookPlugin", "supervisor", agentHookPluginPayloadSchema),
+  uninstallAgentHookPlugin: definePayloadProcedure<
+    AgentHookPluginPayload,
+    AgentHookPluginMutationResult,
+    "supervisor"
+  >("uninstallAgentHookPlugin", "supervisor", agentHookPluginPayloadSchema),
   listAcpRegistry: defineNoArgProcedure<AcpRegistryListResult, "supervisor">(
     "listAcpRegistry",
     "supervisor",

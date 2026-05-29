@@ -28,6 +28,7 @@ import {
   parseCodexVersionLine,
   probeCodexCliSemver,
   readBundledCodexPluginVersion,
+  uninstallCodexPlugin,
 } from "./plugin/install";
 import {
   describeCodexLocation,
@@ -149,6 +150,9 @@ export function createCodexAdapter(): AgentAdapter {
       const result = installCodexPlugin(ctx, { resolvedNodePath: node.nodePath });
       if (!result.ok) return result;
       return { ok: true, version: result.version };
+    },
+    async uninstallPlugin(ctx) {
+      uninstallCodexPlugin(ctx);
     },
     async pluginLaunchExtras(ctx) {
       const paths = getCodexPluginPaths(ctx);

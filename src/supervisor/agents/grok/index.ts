@@ -18,6 +18,7 @@ import {
   installGrokPlugin,
   isGrokPluginInstalled,
   readBundledGrokPluginVersion,
+  uninstallGrokPlugin,
 } from "./plugin/install";
 import {
   makeGrokDiscoverSessionRef,
@@ -74,6 +75,9 @@ export function createGrokAdapter(): AgentAdapter {
       const result = installGrokPlugin(ctx, { resolvedNodePath: node.nodePath });
       if (!result.ok) return result;
       return { ok: true, version: result.version };
+    },
+    async uninstallPlugin(ctx) {
+      uninstallGrokPlugin(ctx);
     },
     // No `pluginLaunchExtras` env/args needed — Grok auto-loads
     // `~/.grok/hooks/lightcode-status.json` written at install time, and

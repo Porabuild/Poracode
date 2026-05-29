@@ -20,6 +20,7 @@ import {
   parseExistingHooksJson,
   readBundledPluginVersion,
   readPluginManifest,
+  removeStagedPluginDir,
   stagePluginAssetsToWsl,
   verifyStagedPluginAt,
   writeHooksJsonFile,
@@ -155,6 +156,30 @@ export function mergeCursorHooksDocument(
     const pruned = pruneLightcodeEntries(prev);
     pruned.push(buildLightcodeEntry(spec, commandHead));
     hooksRoot[spec.event] = pruned;
+  }
+
+  return { version: 1, hooks: hooksRoot as Record<string, unknown[]> };
+}
+
+function removeCursorHooksDocument(existingParsed: unknown): {
+  version: number;
+  hooks: Record<string, unknown[]>;
+} {
+  let hooksRoot: Record<string, unknown> = {};
+  if (
+    existingParsed &&
+    typeof existingParsed === "object" &&
+    "hooks" in existingParsed &&
+    existingParsed.hooks &&
+    typeof existingParsed.hooks === "object"
+  ) {
+    hooksRoot = { ...(existingParsed.hooks as Record<string, unknown>) };
+  }
+
+  for (const spec of CURSOR_HOOK_SPECS) {
+    const pruned = pruneLightcodeEntries(hooksRoot[spec.event]);
+    if (pruned.length > 0) hooksRoot[spec.event] = pruned;
+    else delete hooksRoot[spec.event];
   }
 
   return { version: 1, hooks: hooksRoot as Record<string, unknown[]> };
@@ -317,6 +342,17 @@ export function isCursorPluginInstalled(
   return Promise.resolve(
     verifyCursorInstallAt(getNativePluginBaseDir("cursor", ctx?.baseDir), "native", hooksPath),
   );
+}
+
+export function uninstallCursorPlugin(ctx?: AgentEnvContext): void {
+  const hooksPath = isWslPluginContext(ctx)
+    ? toWslUncPath(ctx.wslDistro, wslGlobalCursorHooksPath(ctx.wslDistro))
+    : join(nativeGlobalCursorDir(), "hooks.json");
+  const existing = parseExistingHooksJson(hooksPath);
+  if (existing !== null || existsSync(hooksPath)) {
+    writeHooksJsonFile(hooksPath, removeCursorHooksDocument(existing));
+  }
+  removeStagedPluginDir("cursor", ctx);
 }
 
 function hooksJsonHasLightcodeEntry(hooksPath: string): boolean {

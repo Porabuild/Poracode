@@ -23,6 +23,7 @@ import {
   isGeminiPluginInstalled,
   readBundledGeminiPluginVersion,
   syncGeminiBrowserMcpSettings,
+  uninstallGeminiPlugin,
 } from "./plugin/install";
 import { detectGeminiInvalidSessionRef } from "./session";
 import { detectGeminiTerminalStatus } from "./terminal";
@@ -76,6 +77,9 @@ export function createGeminiAdapter(): AgentAdapter {
       const result = installGeminiPlugin(ctx, { resolvedNodePath: node.nodePath });
       if (!result.ok) return result;
       return { ok: true, version: result.version };
+    },
+    async uninstallPlugin(ctx) {
+      uninstallGeminiPlugin(ctx);
     },
     async pluginLaunchExtras(ctx) {
       syncGeminiBrowserMcpSettings(ctx, ctx.browserMcp);

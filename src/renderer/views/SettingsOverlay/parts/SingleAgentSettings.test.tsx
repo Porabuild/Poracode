@@ -156,6 +156,15 @@ const updateAgentBinaryMock = vi.hoisted(() =>
     >()
     .mockResolvedValue({ ok: true }),
 );
+const getAgentHookPluginStatusesMock = vi.hoisted(() =>
+  vi.fn<() => Promise<unknown[]>>().mockResolvedValue([]),
+);
+const installAgentHookPluginMock = vi.hoisted(() =>
+  vi.fn<() => Promise<unknown>>().mockResolvedValue({}),
+);
+const uninstallAgentHookPluginMock = vi.hoisted(() =>
+  vi.fn<() => Promise<unknown>>().mockResolvedValue({}),
+);
 
 vi.mock("@/renderer/bridge", () => ({
   readBridge: () => ({
@@ -167,6 +176,9 @@ vi.mock("@/renderer/bridge", () => ({
     listAcpRegistry: listAcpRegistryMock,
     getLatestAgentVersion: getLatestAgentVersionMock,
     updateAgentBinary: updateAgentBinaryMock,
+    getAgentHookPluginStatuses: getAgentHookPluginStatusesMock,
+    installAgentHookPlugin: installAgentHookPluginMock,
+    uninstallAgentHookPlugin: uninstallAgentHookPluginMock,
   }),
 }));
 

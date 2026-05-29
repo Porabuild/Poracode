@@ -13,12 +13,11 @@ import { CliHookPluginCoordinator } from "./cliHookPluginCoordinator";
 
 /**
  * Tests cover the cache lifecycle of `CliHookPluginCoordinator`:
- *   - First spawn → install runs once, entry written to settings
- *   - Second spawn (cache hit, files present) → install does NOT re-run
- *   - Cache invalidation when the plugin version changes
- *   - Cache invalidation when the platform changes
- *   - Failed install → cache stores supportsL1=false and short-circuits later
- *   - resolvePluginEnvForSpawn returns undefined when the cache is "no support"
+ *   - Missing plugins are not auto-installed from boot or spawn
+ *   - Explicit install/uninstall updates the per-environment cache
+ *   - Installed stale plugins are auto-updated
+ *   - Cached entries are rechecked against the provider's on-disk install
+ *   - resolvePluginEnvForSpawn returns undefined when hooks are unavailable
  */
 
 const tempDirs: string[] = [];
@@ -32,6 +31,7 @@ function makeTempSettings(): string {
 interface PluginAdapterStub {
   adapter: AgentAdapter;
   installPlugin: ReturnType<typeof vi.fn>;
+  uninstallPlugin: ReturnType<typeof vi.fn>;
   isPluginInstalled: ReturnType<typeof vi.fn>;
   isPluginSupported: ReturnType<typeof vi.fn>;
 }
@@ -48,6 +48,7 @@ function makeStubAdapter(
   const isPluginInstalled = vi.fn<() => Promise<{ installed: boolean; version?: string }>>(
     async () => ({ installed: false }),
   );
+  const uninstallPlugin = vi.fn<() => Promise<void>>(async () => undefined);
   const isPluginSupported = vi.fn<() => Promise<boolean>>(async () => true);
 
   const { liveInputMode, ...sliceOverrides } = overrides;
@@ -68,13 +69,15 @@ function makeStubAdapter(
     isPluginSupported,
     isPluginInstalled,
     installPlugin,
+    uninstallPlugin,
     pluginLaunchExtras: async () => ({ args: [`--${kind}-marker`] }),
     ...sliceOverrides,
   } as unknown as AgentAdapter;
-  return { adapter, installPlugin, isPluginInstalled, isPluginSupported };
+  return { adapter, installPlugin, uninstallPlugin, isPluginInstalled, isPluginSupported };
 }
 
 function readCache(path: string): Record<string, unknown> {
+  if (!existsSync(path)) return {};
   const data = JSON.parse(readFileSync(path, "utf8")) as {
     agentHookSupport?: Record<string, unknown>;
   };
@@ -105,20 +108,9 @@ describe("CliHookPluginCoordinator install cache", () => {
     }
   });
 
-  it("runs installPlugin once per agent and writes a cache entry", async () => {
+  it("does not auto-install missing plugins from boot or spawn", async () => {
     const stub = makeStubAdapter("claude");
-    // After install completes, the next call should observe the plugin as
-    // installed — model that with a counter so the second pass takes the
-    // cache hit path.
-    let installCalls = 0;
-    stub.isPluginInstalled.mockImplementation(async () => ({
-      installed: installCalls > 0,
-      version: "1.0.0",
-    }));
-    stub.installPlugin.mockImplementation(async () => {
-      installCalls += 1;
-      return { ok: true as const, version: "1.0.0" };
-    });
+    stub.isPluginInstalled.mockResolvedValue({ installed: false });
 
     coordinator = new CliHookPluginCoordinator(
       {
@@ -131,14 +123,13 @@ describe("CliHookPluginCoordinator install cache", () => {
     coordinator.startIngress();
     await coordinator.installAll();
 
-    expect(stub.installPlugin).toHaveBeenCalledTimes(1);
-    const entry = readCache(settingsPath)["claude"] as Record<string, unknown>;
-    expect(entry).toMatchObject({
-      pluginVersion: "1.0.0",
-      protocolVersion: 1,
-      platform: process.platform,
-      supportsL1: true,
+    const resolved = await coordinator.resolvePluginEnvForSpawn({
+      threadId: "t1",
+      agentKind: "claude",
     });
+    expect(resolved).toBeUndefined();
+    expect(stub.installPlugin).not.toHaveBeenCalled();
+    expect(readCache(settingsPath)).toEqual({});
   });
 
   it("skips installPlugin on cache hit (same version, fresh, files present)", async () => {
@@ -195,6 +186,7 @@ describe("CliHookPluginCoordinator install cache", () => {
     );
 
     const stub = makeStubAdapter("claude", { pluginVersion: "1.0.0" });
+    stub.isPluginInstalled.mockResolvedValue({ installed: true, version: "0.9.0" });
 
     coordinator = new CliHookPluginCoordinator(
       {
@@ -211,7 +203,7 @@ describe("CliHookPluginCoordinator install cache", () => {
     expect(entry.pluginVersion).toBe("1.0.0");
   });
 
-  it("re-runs installPlugin when the cached platform doesn't match", async () => {
+  it("refreshes cache when the cached platform doesn't match and plugin is installed", async () => {
     writeFileSync(
       settingsPath,
       JSON.stringify({
@@ -230,6 +222,7 @@ describe("CliHookPluginCoordinator install cache", () => {
     );
 
     const stub = makeStubAdapter("claude");
+    stub.isPluginInstalled.mockResolvedValue({ installed: true, version: "1.0.0" });
 
     coordinator = new CliHookPluginCoordinator(
       {
@@ -241,15 +234,14 @@ describe("CliHookPluginCoordinator install cache", () => {
     );
     await coordinator.installAll();
 
-    expect(stub.installPlugin).toHaveBeenCalled();
+    expect(stub.installPlugin).not.toHaveBeenCalled();
+    const entry = readCache(settingsPath)["claude"] as { platform: string };
+    expect(entry.platform).toBe(process.platform);
   });
 
-  it("records supportsL1=false on install failure and short-circuits next time", async () => {
+  it("does not persist a negative cache entry when the plugin is missing", async () => {
     const stub = makeStubAdapter("claude");
-    stub.installPlugin.mockResolvedValue({
-      ok: false as const,
-      reason: "no node runtime",
-    });
+    stub.isPluginInstalled.mockResolvedValue({ installed: false });
 
     coordinator = new CliHookPluginCoordinator(
       {
@@ -259,19 +251,14 @@ describe("CliHookPluginCoordinator install cache", () => {
       },
       () => undefined,
     );
-    await coordinator.installAll();
-
-    const entry = readCache(settingsPath)["claude"] as { supportsL1: boolean };
-    expect(entry.supportsL1).toBe(false);
-
-    // resolvePluginEnvForSpawn should now return undefined so the spawner
-    // silently falls back to L2.
     coordinator.startIngress();
     const resolved = await coordinator.resolvePluginEnvForSpawn({
       threadId: "t1",
       agentKind: "claude",
     });
     expect(resolved).toBeUndefined();
+    expect(stub.installPlugin).not.toHaveBeenCalled();
+    expect(readCache(settingsPath)).toEqual({});
   });
 
   it("recovers from cached unsupported when the plugin is now installed", async () => {
@@ -318,7 +305,7 @@ describe("CliHookPluginCoordinator install cache", () => {
     });
   });
 
-  it("retries install when cached unsupported becomes supported later", async () => {
+  it("explicitly installs WSL plugins and writes a per-distro cache entry", async () => {
     writeFileSync(
       settingsPath,
       JSON.stringify({
@@ -337,8 +324,8 @@ describe("CliHookPluginCoordinator install cache", () => {
     );
 
     const stub = makeStubAdapter("codex");
-    stub.isPluginInstalled.mockResolvedValue({ installed: false });
     stub.installPlugin.mockResolvedValue({ ok: true as const, version: "1.0.0" });
+    stub.isPluginInstalled.mockResolvedValue({ installed: true, version: "1.0.0" });
 
     coordinator = new CliHookPluginCoordinator(
       {
@@ -348,40 +335,31 @@ describe("CliHookPluginCoordinator install cache", () => {
       },
       () => undefined,
     );
-    coordinator.startIngress();
 
-    const resolved = await coordinator.resolvePluginEnvForSpawn({
-      threadId: "thread-codex-wsl-recovered",
+    const result = await coordinator.installPlugin({
       agentKind: "codex",
-      projectLocation: {
+      env: {
         kind: "wsl",
         distro: "Ubuntu",
-        linuxPath: "/home/u/x",
-        uncPath: "\\\\wsl$\\Ubuntu\\home\\u\\x",
       },
     });
 
     expect(stub.installPlugin).toHaveBeenCalledTimes(1);
-    expect(resolved).toBeUndefined();
+    expect(result.status.installed).toBe(true);
     expect(readCache(settingsPath)["codex::wsl::Ubuntu"]).toMatchObject({
       pluginVersion: "1.0.0",
       supportsL1: true,
     });
   });
 
-  it("drops a stale failed in-memory promise when the persisted cache is later repaired", async () => {
+  it("drops a stale failed in-memory auto-update promise when the persisted cache is later repaired", async () => {
     const stub = makeStubAdapter("codex");
-    let installAttempt = 0;
+    let installedVersion = "0.9.0";
     stub.isPluginInstalled.mockImplementation(async () => ({
-      installed: installAttempt > 0,
-      version: "1.0.0",
+      installed: true,
+      version: installedVersion,
     }));
-    stub.installPlugin.mockImplementation(async () => {
-      installAttempt += 1;
-      return installAttempt === 1
-        ? { ok: false as const, reason: "transient install error" }
-        : { ok: true as const, version: "1.0.0" };
-    });
+    stub.installPlugin.mockResolvedValue({ ok: false as const, reason: "transient install error" });
 
     coordinator = new CliHookPluginCoordinator(
       {
@@ -416,6 +394,7 @@ describe("CliHookPluginCoordinator install cache", () => {
       }),
       "utf8",
     );
+    installedVersion = "1.0.0";
 
     const second = await coordinator.resolvePluginEnvForSpawn({
       threadId: "t2",
@@ -429,7 +408,7 @@ describe("CliHookPluginCoordinator install cache", () => {
     });
   });
 
-  it("retries support/install after a failed attempt when the environment changes in-session", async () => {
+  it("retries support detection after a failed attempt when the environment changes in-session", async () => {
     const stub = makeStubAdapter("codex");
     let supported = false;
     let installed = false;
@@ -438,10 +417,6 @@ describe("CliHookPluginCoordinator install cache", () => {
       installed,
       version: installed ? "1.0.0" : undefined,
     }));
-    stub.installPlugin.mockImplementation(async () => {
-      installed = true;
-      return { ok: true as const, version: "1.0.0" };
-    });
 
     coordinator = new CliHookPluginCoordinator(
       {
@@ -467,6 +442,7 @@ describe("CliHookPluginCoordinator install cache", () => {
     expect(stub.installPlugin).not.toHaveBeenCalled();
 
     supported = true;
+    installed = true;
 
     const second = await coordinator.resolvePluginEnvForSpawn({
       threadId: "t2",
@@ -478,7 +454,7 @@ describe("CliHookPluginCoordinator install cache", () => {
         uncPath: "\\\\wsl$\\Ubuntu\\home\\u\\x",
       },
     });
-    expect(stub.installPlugin).toHaveBeenCalledTimes(1);
+    expect(stub.installPlugin).not.toHaveBeenCalled();
     expect(second).toBeUndefined();
     expect(readCache(settingsPath)["codex::wsl::Ubuntu"]).toMatchObject({
       supportsL1: true,
@@ -517,7 +493,7 @@ describe("CliHookPluginCoordinator install cache", () => {
 
   it("uses a per-distro cache key in WSL so distros don't shadow each other", async () => {
     // Pre-seed cache for one WSL distro and verify a second distro still
-    // gets a fresh install probe.
+    // gets a fresh install probe without auto-installing.
     writeFileSync(
       settingsPath,
       JSON.stringify({
@@ -537,7 +513,7 @@ describe("CliHookPluginCoordinator install cache", () => {
 
     const stub = makeStubAdapter("claude");
     // Track install state per distro so the cached distro short-circuits
-    // while the uncached one drives install.
+    // while the uncached one is detected as missing.
     const installedPerDistro = new Map<string | undefined, boolean>([
       ["Ubuntu", true],
       ["Debian", false],
@@ -546,10 +522,6 @@ describe("CliHookPluginCoordinator install cache", () => {
       installed: installedPerDistro.get(ctx.wslDistro) ?? false,
       version: "1.0.0",
     }));
-    stub.installPlugin.mockImplementation(async (ctx: AgentEnvContext) => {
-      installedPerDistro.set(ctx.wslDistro, true);
-      return { ok: true as const, version: "1.0.0" };
-    });
 
     coordinator = new CliHookPluginCoordinator(
       {
@@ -576,8 +548,8 @@ describe("CliHookPluginCoordinator install cache", () => {
     });
     expect(stub.installPlugin).not.toHaveBeenCalled();
 
-    // New distro: install MUST run because cache key differs.
-    await coordinator.resolvePluginEnvForSpawn({
+    // New distro: cache key differs, but a missing plugin still stays opt-in.
+    const debianResolved = await coordinator.resolvePluginEnvForSpawn({
       threadId: "t-debian",
       agentKind: "claude",
       projectLocation: {
@@ -587,15 +559,12 @@ describe("CliHookPluginCoordinator install cache", () => {
         uncPath: "\\\\wsl$\\Debian\\home\\u\\y",
       },
     });
-    expect(stub.installPlugin).toHaveBeenCalledTimes(1);
-    expect(stub.installPlugin.mock.calls[0]?.[0]).toMatchObject({
-      envKind: "wsl",
-      wslDistro: "Debian",
-    });
+    expect(debianResolved).toBeUndefined();
+    expect(stub.installPlugin).not.toHaveBeenCalled();
 
     const cache = readCache(settingsPath);
     expect(cache).toHaveProperty("claude::wsl::Ubuntu");
-    expect(cache).toHaveProperty("claude::wsl::Debian");
+    expect(cache).not.toHaveProperty("claude::wsl::Debian");
     // Native key MUST stay untouched.
     expect(cache).not.toHaveProperty("claude");
   });
@@ -746,17 +715,9 @@ describe("CliHookPluginCoordinator install cache", () => {
     expect(resolved).toBeUndefined();
   });
 
-  it("runs installPlugin once for codex and writes a cache entry", async () => {
+  it("explicitly installs codex and writes a cache entry", async () => {
     const stub = makeStubAdapter("codex");
-    let installCalls = 0;
-    stub.isPluginInstalled.mockImplementation(async () => ({
-      installed: installCalls > 0,
-      version: "1.0.0",
-    }));
-    stub.installPlugin.mockImplementation(async () => {
-      installCalls += 1;
-      return { ok: true as const, version: "1.0.0" };
-    });
+    stub.isPluginInstalled.mockResolvedValue({ installed: true, version: "1.0.0" });
 
     coordinator = new CliHookPluginCoordinator(
       {
@@ -766,10 +727,19 @@ describe("CliHookPluginCoordinator install cache", () => {
       },
       () => undefined,
     );
-    coordinator.startIngress();
-    await coordinator.installAll();
+    const result = await coordinator.installPlugin({
+      agentKind: "codex",
+      env: { kind: "native" },
+    });
 
     expect(stub.installPlugin).toHaveBeenCalledTimes(1);
+    expect(result.status).toMatchObject({
+      agentKind: "codex",
+      installed: true,
+      version: "1.0.0",
+      bundledVersion: "1.0.0",
+      canUninstall: true,
+    });
     const entry = readCache(settingsPath)["codex"] as Record<string, unknown>;
     expect(entry).toMatchObject({
       pluginVersion: "1.0.0",
@@ -777,6 +747,45 @@ describe("CliHookPluginCoordinator install cache", () => {
       platform: process.platform,
       supportsL1: true,
     });
+  });
+
+  it("explicitly uninstalls codex and clears its cache entry", async () => {
+    writeFileSync(
+      settingsPath,
+      JSON.stringify({
+        agentHookSupport: {
+          codex: {
+            agentBinaryVersion: "n/a",
+            pluginVersion: "1.0.0",
+            protocolVersion: 1,
+            platform: process.platform,
+            verifiedAt: new Date().toISOString(),
+            supportsL1: true,
+          },
+        },
+      }),
+      "utf8",
+    );
+
+    const stub = makeStubAdapter("codex");
+    stub.isPluginInstalled.mockResolvedValue({ installed: false });
+
+    coordinator = new CliHookPluginCoordinator(
+      {
+        adapters: new Map([["codex", stub.adapter]]),
+        settingsPath,
+        envContext: () => ({ envKind: "posix" }) as AgentEnvContext,
+      },
+      () => undefined,
+    );
+    const result = await coordinator.uninstallPlugin({
+      agentKind: "codex",
+      env: { kind: "native" },
+    });
+
+    expect(stub.uninstallPlugin).toHaveBeenCalledTimes(1);
+    expect(result.status.installed).toBe(false);
+    expect(readCache(settingsPath)).not.toHaveProperty("codex");
   });
 
   it("resolves Codex spawn env with LIGHTCODE_AGENT_KIND=codex", async () => {
@@ -863,23 +872,16 @@ describe("CliHookPluginCoordinator install cache", () => {
     );
     await coordinator.installAll();
 
+    expect(stub.installPlugin).not.toHaveBeenCalled();
     const cacheForAssertion = existsSync(settingsPath) ? readCache(settingsPath) : {};
     expect(cacheForAssertion["codex"]).toBeUndefined();
   });
 
-  it("retries install on the next spawn when a prior attempt failed and cache is empty", async () => {
+  it("does not retry auto-install on the next spawn when cache is empty", async () => {
     // Self-heal scenario: the first attempt hit the 0.0.0 sentinel (no cache
     // write), then the manifest became resolvable (e.g. tsdown rebuild). The
-    // next spawn must NOT return the stale in-memory failure — it must rerun
-    // install so hooks activate without a supervisor restart.
+    // next spawn must still leave hook activation to the explicit install path.
     const stub = makeStubAdapter("codex", { pluginVersion: "0.0.0" });
-    let attempt = 0;
-    stub.installPlugin.mockImplementation(async () => {
-      attempt += 1;
-      return attempt === 1
-        ? { ok: false as const, reason: "codex plugin source dir not found" }
-        : { ok: true as const, version: "1.0.0" };
-    });
     stub.isPluginInstalled.mockResolvedValue({ installed: false });
 
     coordinator = new CliHookPluginCoordinator(
@@ -892,29 +894,22 @@ describe("CliHookPluginCoordinator install cache", () => {
     );
     coordinator.startIngress();
 
-    // Boot-time install: hits the sentinel skip → no cache write, in-memory
-    // promise resolves to { ok: false }.
     await coordinator.installAll();
-    expect(stub.installPlugin).toHaveBeenCalledTimes(1);
     const afterBoot = existsSync(settingsPath) ? readCache(settingsPath) : {};
     expect(afterBoot["codex"]).toBeUndefined();
 
-    // Subsequent spawn: cache is still empty → coordinator drops the stale
-    // failed promise and retries. This attempt succeeds.
     const resolved = await coordinator.resolvePluginEnvForSpawn({
       threadId: "thread-codex-retry",
       agentKind: "codex",
     });
-    expect(stub.installPlugin).toHaveBeenCalledTimes(2);
-    expect(resolved).toBeDefined();
-    expect(resolved!.env.LIGHTCODE_HOOK_URL).toMatch(/^http:\/\//);
+    expect(stub.installPlugin).not.toHaveBeenCalled();
+    expect(resolved).toBeUndefined();
   });
 
-  it("treats cached 0.0.0 entries as stale and re-runs installPlugin", async () => {
+  it("treats cached 0.0.0 entries as stale and updates installed plugins", async () => {
     // A prior session wrote a poisoned cache entry with the sentinel version
     // (e.g. plugin.json wasn't resolvable at that moment). On next boot with
-    // the same sentinel, the entry must NOT satisfy the cache hit check; the
-    // coordinator must attempt install again instead of short-circuiting.
+    // the same sentinel, the entry must NOT satisfy the cache hit check.
     writeFileSync(
       settingsPath,
       JSON.stringify({
@@ -934,7 +929,7 @@ describe("CliHookPluginCoordinator install cache", () => {
 
     const stub = makeStubAdapter("codex", { pluginVersion: "0.0.0" });
     stub.installPlugin.mockResolvedValue({ ok: true as const, version: "1.0.0" });
-    stub.isPluginInstalled.mockResolvedValue({ installed: false });
+    stub.isPluginInstalled.mockResolvedValue({ installed: true, version: "0.9.0" });
 
     coordinator = new CliHookPluginCoordinator(
       {

@@ -21,6 +21,7 @@ import {
   memoByCtx,
   readBundledPluginVersion,
   readPluginManifest,
+  removeStagedPluginDir,
   stagePluginAssetsToWsl,
   writeNativeHookWrapper,
   type PluginManifest,
@@ -300,6 +301,10 @@ export function isGeminiPluginInstalled(ctx?: AgentEnvContext): {
     return verifyGeminiInstallAt(wsl.uncBase, "wsl");
   }
   return verifyGeminiInstallAt(getNativePluginBaseDir("gemini", ctx?.baseDir), "native");
+}
+
+export function uninstallGeminiPlugin(ctx?: AgentEnvContext): void {
+  removeStagedPluginDir("gemini", ctx);
 }
 
 function verifyGeminiInstallAt(

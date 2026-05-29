@@ -28,6 +28,7 @@ import {
   parseExistingHooksJson,
   readBundledPluginVersion,
   readPluginManifest,
+  removeStagedPluginDir,
   stagePluginAssetsToWsl,
   writeHooksJsonFile,
   writeNativeHookWrapper,
@@ -468,6 +469,10 @@ export function isCodexPluginInstalled(
   return Promise.resolve(
     verifyCodexInstallAt(getNativePluginBaseDir("codex", ctx?.baseDir), "native"),
   );
+}
+
+export function uninstallCodexPlugin(ctx?: AgentEnvContext): void {
+  removeStagedPluginDir("codex", ctx);
 }
 
 function verifyCodexInstallAt(
