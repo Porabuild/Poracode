@@ -10,30 +10,46 @@ export interface ThreadErrorDockState {
   message: string;
 }
 
-export function selectThreadErrorDockState(
-  state: AppStoreState,
-  threadId: string,
-): ThreadErrorDockState | null {
-  const item = selectThreadLatestErrorItem(state, threadId);
-  return item ? getThreadErrorDockStateForItem(item) : null;
-}
+const EMPTY_ERROR_DOCK_STATES: ThreadErrorDockState[] = [];
 
-export function selectThreadLatestErrorItem(
+const errorDockStatesCache = new Map<
+  string,
+  {
+    itemIds: readonly string[] | undefined;
+    result: ThreadErrorDockState[];
+  }
+>();
+
+const errorDockStateByItem = new WeakMap<RuntimeChatItem, ThreadErrorDockState>();
+
+/** Errors since the latest user message, oldest → newest (composer order). */
+export function selectThreadErrorDockStates(
   state: AppStoreState,
   threadId: string,
-): RuntimeChatItem | null {
+): ThreadErrorDockState[] {
   const itemIds = state.runtimeItemIdsByThread[threadId];
-  if (!itemIds?.length) return null;
+  const cached = errorDockStatesCache.get(threadId);
+  if (cached && cached.itemIds === itemIds) {
+    return cached.result;
+  }
+
+  if (!itemIds?.length) {
+    errorDockStatesCache.set(threadId, { itemIds, result: EMPTY_ERROR_DOCK_STATES });
+    return EMPTY_ERROR_DOCK_STATES;
+  }
+
   const itemsById = state.runtimeItemsByIdByThread[threadId];
-  // Walk newest → oldest. If we hit a user_message before any error, the user
-  // has already retried since the last error, so suppress the dock.
+  const sinceLastUser: ThreadErrorDockState[] = [];
   for (let index = itemIds.length - 1; index >= 0; index -= 1) {
     const item = itemsById?.[itemIds[index]!];
     if (!item) continue;
-    if (item.type === "user_message") return null;
-    if (item.type === "error" && getThreadErrorDockStateForItem(item)) return item;
+    if (item.type === "user_message") break;
+    const dock = item.type === "error" ? getThreadErrorDockStateForItem(item) : null;
+    if (dock) sinceLastUser.push(dock);
   }
-  return null;
+  const result = sinceLastUser.length === 0 ? EMPTY_ERROR_DOCK_STATES : sinceLastUser.reverse();
+  errorDockStatesCache.set(threadId, { itemIds, result });
+  return result;
 }
 
 export function getThreadErrorDockStateForItem(item: RuntimeChatItem): ThreadErrorDockState | null {
@@ -42,7 +58,11 @@ export function getThreadErrorDockStateForItem(item: RuntimeChatItem): ThreadErr
   const message = payload?.message?.trim();
   if (!message) return null;
   if (isAbortOnlyErrorMessage(message)) return null;
-  return { sourceItemId: item.id, message };
+  const cached = errorDockStateByItem.get(item);
+  if (cached && cached.message === message) return cached;
+  const dock = { sourceItemId: item.id, message };
+  errorDockStateByItem.set(item, dock);
+  return dock;
 }
 
 function isAbortOnlyErrorMessage(message: string): boolean {

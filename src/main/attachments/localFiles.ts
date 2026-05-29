@@ -56,7 +56,17 @@ export function registerLocalFileProtocolScheme(): void {
   protocol.registerSchemesAsPrivileged([
     {
       scheme: "lightcode-local",
-      privileges: { standard: false, secure: true, supportFetchAPI: true, stream: true },
+      // `standard: true` is required so Chromium can load cached ACP registry
+      // icons in CSS `mask-image` (ProviderIcon external glyphs). With
+      // `standard: false` the scheme behaves like `file://` and mask sources
+      // fail cross-origin from the renderer document.
+      privileges: {
+        standard: true,
+        secure: true,
+        corsEnabled: true,
+        supportFetchAPI: true,
+        stream: true,
+      },
     },
   ]);
 }

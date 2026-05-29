@@ -4,6 +4,7 @@ release/
 .vite/
 coverage/
 *.log
+logs/
 *.tsbuildinfo
 build/icon-trimmed.png
 build/icons/

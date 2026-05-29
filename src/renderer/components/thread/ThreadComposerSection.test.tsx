@@ -113,7 +113,7 @@ describe("ThreadComposerSection", () => {
         todoDockPlacement="composer"
         todoDockState={null}
         goalDockState={null}
-        errorDockState={null}
+        errorDockStates={[]}
         onGoalDockDismiss={() => undefined}
         onDismissError={() => undefined}
         onConfigChange={() => undefined}
@@ -159,7 +159,7 @@ describe("ThreadComposerSection", () => {
         todoDockPlacement="composer"
         todoDockState={null}
         goalDockState={null}
-        errorDockState={null}
+        errorDockStates={[]}
         onGoalDockDismiss={() => undefined}
         onDismissError={() => undefined}
         onConfigChange={() => undefined}
@@ -223,7 +223,7 @@ describe("ThreadComposerSection", () => {
         todoDockPlacement="composer"
         todoDockState={null}
         goalDockState={null}
-        errorDockState={null}
+        errorDockStates={[]}
         onGoalDockDismiss={() => undefined}
         onDismissError={() => undefined}
         onConfigChange={() => undefined}
@@ -314,7 +314,7 @@ describe("ThreadComposerSection", () => {
         todoDockPlacement="composer"
         todoDockState={null}
         goalDockState={null}
-        errorDockState={null}
+        errorDockStates={[]}
         onGoalDockDismiss={() => undefined}
         onDismissError={() => undefined}
         onConfigChange={() => undefined}
@@ -391,7 +391,7 @@ describe("ThreadComposerSection", () => {
         todoDockPlacement="composer"
         todoDockState={null}
         goalDockState={null}
-        errorDockState={null}
+        errorDockStates={[]}
         onGoalDockDismiss={() => undefined}
         onDismissError={() => undefined}
         onConfigChange={() => undefined}
@@ -460,7 +460,7 @@ describe("ThreadComposerSection", () => {
         todoDockPlacement="composer"
         todoDockState={null}
         goalDockState={null}
-        errorDockState={null}
+        errorDockStates={[]}
         onGoalDockDismiss={() => undefined}
         onDismissError={() => undefined}
         onConfigChange={() => undefined}
@@ -543,7 +543,7 @@ describe("ThreadComposerSection", () => {
         todoDockPlacement="composer"
         todoDockState={null}
         goalDockState={null}
-        errorDockState={null}
+        errorDockStates={[]}
         onGoalDockDismiss={() => undefined}
         onDismissError={() => undefined}
         onConfigChange={() => undefined}

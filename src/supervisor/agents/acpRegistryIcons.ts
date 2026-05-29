@@ -7,8 +7,10 @@
  * where ACP agent tiles render with no glyph until the network round-trip completes.
  *
  * This helper downloads the SVG once at install / backfill time and returns a
- * `lightcode-local://` URL pointing at the cached file. The renderer can then paint
- * the icon synchronously on every subsequent app start.
+ * `lightcode-local://` URL pointing at the cached file. The renderer paints the
+ * icon via CSS `mask-image` in `ProviderIcon`; the `lightcode-local` scheme must
+ * be registered as a standard+cors-enabled protocol in the main process for those
+ * masks to load.
  */
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
@@ -69,6 +71,18 @@ export function isRemoteIconUrl(url: string): boolean {
   return /^https?:\/\//i.test(url);
 }
 
+/** Registry SVGs use `fill="currentColor"`; standalone mask sources need opaque alpha. */
+function normalizeSvgForMask(filePath: string): void {
+  if (!filePath.endsWith(".svg")) return;
+  try {
+    const raw = readFileSync(filePath, "utf8");
+    if (!/currentColor/i.test(raw)) return;
+    writeFileSync(filePath, raw.replaceAll(/currentColor/gi, "#000"), "utf8");
+  } catch {
+    // Best-effort; a broken SVG still falls back to the remote URL on cache miss.
+  }
+}
+
 /**
  * Cache a remote ACP registry icon to disk and return a `lightcode-local://`
  * URL pointing at the cached file. Reuses an existing cache entry when the
@@ -90,11 +104,13 @@ export async function cacheAcpRegistryIcon(input: {
   const fileName = iconFileName(input.agentId, input.iconUrl);
   const filePath = join(input.iconsDir, fileName);
   if (index.entries[input.agentId] === input.iconUrl && existsSync(filePath)) {
+    normalizeSvgForMask(filePath);
     return toLocalFileUrl(filePath);
   }
   try {
     mkdirSync(input.iconsDir, { recursive: true });
     await downloadToFile(input.iconUrl, filePath);
+    normalizeSvgForMask(filePath);
   } catch (error) {
     console.warn(
       `[acp-registry] icon cache failed for ${input.agentId}:`,

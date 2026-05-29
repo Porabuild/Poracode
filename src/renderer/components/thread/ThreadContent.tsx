@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState, type RefObject } from "react";
+import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
+import { useShallow } from "zustand/react/shallow";
 import type {
   AgentStatus,
   ProjectLocation,
@@ -18,7 +19,7 @@ import { guiChatFontCssVars } from "./ChatPane/chatFontVars";
 import { TerminalPane, type TerminalPaneHandle } from "./TerminalPane";
 import { ThreadComposerSection } from "./ThreadComposerSection";
 import { ThreadTodoDock } from "./ThreadTodoDock";
-import { getThreadErrorDockStateForItem, selectThreadLatestErrorItem } from "./threadErrorState";
+import { selectThreadErrorDockStates } from "./threadErrorState";
 import { selectThreadGoalDockItem, selectThreadGoalDockState } from "./threadGoalState";
 import { selectThreadTodoDockItem, selectThreadTodoDockState } from "./threadTodoState";
 
@@ -43,7 +44,7 @@ const emptyTodoComposerProps = {
   todoDockPlacement: "composer" as const,
   todoDockState: null,
   goalDockState: null,
-  errorDockState: null,
+  errorDockStates: [],
   onGoalDockDismiss: () => undefined,
   onTodoDockCollapsedChange: () => undefined,
   onTodoDockPlacementChange: () => undefined,
@@ -130,12 +131,19 @@ export function GuiThreadContent(
     lastGoalItemRef.current = goalItem;
   }, [dismissedGoalItemId, goalItem]);
 
-  const errorItem = useAppStore((s) => selectThreadLatestErrorItem(s, props.threadId));
-  const [dismissedErrorItemId, setDismissedErrorItemId] = useState<string | null>(null);
-  const errorDockState =
-    errorItem && errorItem.id !== dismissedErrorItemId
-      ? getThreadErrorDockStateForItem(errorItem)
-      : null;
+  const errorDockStatesRaw = useAppStore(
+    useShallow((s) => selectThreadErrorDockStates(s, props.threadId)),
+  );
+  const [dismissedErrorItemIds, setDismissedErrorItemIds] = useState<ReadonlySet<string>>(
+    () => new Set(),
+  );
+  useEffect(() => {
+    setDismissedErrorItemIds(new Set());
+  }, [props.threadId]);
+  const errorDockStates = useMemo(
+    () => errorDockStatesRaw.filter((state) => !dismissedErrorItemIds.has(state.sourceItemId)),
+    [dismissedErrorItemIds, errorDockStatesRaw],
+  );
   const showTodoDock = todoDockState !== null && todoDockState.sourceItemId !== retiredSourceItemId;
   const showGoalDock = goalDockState !== null && goalDockState.sourceItemId !== dismissedGoalItemId;
   const showTodoInRightRail = showTodoDock && todoDockPlacement === "right";
@@ -202,11 +210,13 @@ export function GuiThreadContent(
         todoDockPlacement={todoDockPlacement}
         todoDockState={showTodoDock ? todoDockState : null}
         goalDockState={showGoalDock ? goalDockState : null}
-        errorDockState={errorDockState}
+        errorDockStates={errorDockStates}
         onGoalDockDismiss={() =>
           goalDockState && setDismissedGoalItemId(goalDockState.sourceItemId)
         }
-        onDismissError={() => errorItem && setDismissedErrorItemId(errorItem.id)}
+        onDismissError={(sourceItemId) =>
+          setDismissedErrorItemIds((prev) => new Set([...prev, sourceItemId]))
+        }
         onTodoDockCollapsedChange={(collapsed) => setTodoDockCollapsed(thread.id, collapsed)}
         onTodoDockPlacementChange={(placement) => setTodoDockPlacement(thread.id, placement)}
         onTodoDockRetire={() =>

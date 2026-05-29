@@ -13,6 +13,7 @@ import {
   shouldSpawnAcpSession,
   toAcpResourceUri,
 } from "./session";
+import { resolveAcpPromptFailureMessage, shouldEmitAcpPromptRpcErrorItem } from "./sessionErrors";
 
 function makeInput(
   overrides: Partial<CreateStructuredSessionInput> = {},
@@ -207,6 +208,36 @@ describe("shouldSpawnAcpSession — shared resume/presentation gate for all ACP 
     expect(shouldSpawnAcpSession(makeInput({ presentationMode: "gui" }))).toBe(true);
     expect(shouldSpawnAcpSession(makeInput({ presentationMode: "terminal" }))).toBe(true);
     expect(shouldSpawnAcpSession(makeInput())).toBe(true);
+  });
+});
+
+describe("resolveAcpPromptFailureMessage — prompt rejection after agent-surfaced errors", () => {
+  it("prefers the usage-limit detail streamed in agent_message_chunk", () => {
+    const usage =
+      "You've reached your weekly standard usage limit (resets in 2 days).\nSwitch to Droid Core or enable Extra Usage to continue.";
+    const out = resolveAcpPromptFailureMessage(
+      RequestError.internalError({ details: "Internal error: Agent error" }),
+      usage,
+    );
+    expect(out).toBe(usage);
+  });
+
+  it("falls back to the JSON-RPC error when no agent-surfaced message exists", () => {
+    expect(
+      resolveAcpPromptFailureMessage(RequestError.internalError({ details: "Agent error" })),
+    ).toBe("Internal error");
+  });
+
+  it("suppresses a generic Internal error row when usage detail was already streamed", () => {
+    const usage = "Usage limit reached.";
+    const transport = RequestError.internalError({ details: "Internal error: Agent error" });
+    expect(shouldEmitAcpPromptRpcErrorItem(transport, usage)).toBe(false);
+    expect(resolveAcpPromptFailureMessage(transport, usage)).toBe(usage);
+  });
+
+  it("still emits the RPC error row when no agent-surfaced message exists", () => {
+    const transport = RequestError.internalError({ details: "Agent error" });
+    expect(shouldEmitAcpPromptRpcErrorItem(transport, undefined)).toBe(true);
   });
 });
 

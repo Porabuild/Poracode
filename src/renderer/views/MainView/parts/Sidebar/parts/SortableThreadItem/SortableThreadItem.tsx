@@ -27,8 +27,8 @@ import { InlineRenameInput } from "../InlineRenameInput";
 import { ThreadItemSuffix } from "./parts/ThreadItemSuffix";
 import {
   useCurrentThreadIdsCount,
-  useInstalledAgents,
   useIsCurrentThread,
+  useProjectAgentStatuses,
 } from "@/renderer/hooks/uiSelectors";
 import { openGitReview } from "@/renderer/actions/panelActions";
 import {
@@ -77,8 +77,8 @@ export function SortableThreadItem(props: {
   } = props;
   const isCurrentThread = useIsCurrentThread(thread.id);
   const currentThreadCount = useCurrentThreadIdsCount();
-  const installedAgents = useInstalledAgents();
-  const threadAgent = installedAgents.find((agent) => agent.kind === thread.agentKind);
+  const projectAgents = useProjectAgentStatuses(project.location);
+  const threadAgent = projectAgents.find((agent) => agent.kind === thread.agentKind);
   const worktreeGitItems = useWorktreeGitItems(
     thread.projectId,
     thread.worktreePath ?? "",
@@ -181,9 +181,9 @@ export function SortableThreadItem(props: {
             icon: <ArrowRightLeft className="size-3.5" />,
             isDisabled:
               !thread.sessionRef ||
-              installedAgents.filter((a) => a.kind !== thread.agentKind).length === 0,
+              projectAgents.filter((a) => a.kind !== thread.agentKind).length === 0,
             ...(!thread.sessionRef ||
-            installedAgents.filter((a) => a.kind !== thread.agentKind).length === 0
+            projectAgents.filter((a) => a.kind !== thread.agentKind).length === 0
               ? {
                   disabledReason: !thread.sessionRef
                     ? "No active session"

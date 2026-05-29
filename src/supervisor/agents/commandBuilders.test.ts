@@ -36,9 +36,15 @@ vi.mock("./binaryResolver", async (importActual) => {
 
 vi.mock("./base/processRuntime", async (importActual) => {
   const actual = await importActual<typeof import("./base/processRuntime")>();
+  const shellBinaries = new Set(["pwsh.exe", "pwsh", "powershell.exe", "powershell"]);
   return {
     ...actual,
     resolveWslShellPath: () => "/bin/bash",
+    // Keep shell detection real, but skip PATH resolution for agent CLIs so
+    // Windows tests assert argv shaping (`codex`, `copilot`) instead of fnm
+    // node.exe / .cmd shim expansion on the host machine.
+    resolveExecutablePath: (binary: string) =>
+      shellBinaries.has(binary) ? actual.resolveExecutablePath(binary) : undefined,
   };
 });
 

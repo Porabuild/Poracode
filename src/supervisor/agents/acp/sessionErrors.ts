@@ -67,6 +67,59 @@ export function appendInterruptAckTextTail(current: string, next: string): strin
   return combined.slice(-INTERRUPT_ACK_TEXT_TAIL_LIMIT);
 }
 
+/**
+ * Factory Droid streams a user-visible `agent_message_chunk` (402/403 detail),
+ * then `session/prompt` rejects with JSON-RPC -32603 "Internal error". Prefer
+ * the message we already parsed from the chunk.
+ */
+export function resolveAcpPromptFailureMessage(
+  error: unknown,
+  agentSurfacedMessage?: string,
+): string {
+  if (agentSurfacedMessage) return agentSurfacedMessage;
+  return resolveAcpPromptRpcErrorMessage(error);
+}
+
+/**
+ * After Factory Droid streams a specific `agent_message_chunk` error, `prompt()`
+ * often rejects with JSON-RPC -32603 / "Internal error". Skip that redundant
+ * composer row when we already have the real message.
+ */
+export function shouldEmitAcpPromptRpcErrorItem(
+  error: unknown,
+  agentSurfacedMessage?: string,
+): boolean {
+  if (!agentSurfacedMessage) return true;
+  if (isGenericAcpPromptTransportError(error)) return false;
+  const rpcMessage = resolveAcpPromptRpcErrorMessage(error);
+  return rpcMessage !== agentSurfacedMessage && !isGenericAcpPromptRpcErrorMessage(rpcMessage);
+}
+
+function isGenericAcpPromptTransportError(error: unknown): boolean {
+  if (error instanceof RequestError && error.code === -32603) return true;
+  return isGenericAcpPromptRpcErrorMessage(resolveAcpPromptRpcErrorMessage(error));
+}
+
+function isGenericAcpPromptRpcErrorMessage(message: string): boolean {
+  const normalized = message.trim().toLowerCase();
+  return normalized === "internal error" || normalized.startsWith("internal error:");
+}
+
+/** JSON-RPC error from `session/prompt` — may follow a separate agent_message_chunk. */
+export function resolveAcpPromptRpcErrorMessage(error: unknown): string {
+  if (error instanceof RequestError) {
+    if (error.message.trim().length > 0) return error.message;
+    const data = error.data as { details?: unknown; detail?: unknown } | undefined;
+    if (typeof data?.details === "string" && data.details.trim().length > 0) {
+      return data.details.trim();
+    }
+    if (typeof data?.detail === "string" && data.detail.trim().length > 0) {
+      return data.detail.trim();
+    }
+  }
+  return error instanceof Error ? error.message : String(error);
+}
+
 export function normalizeAcpStopReason(
   stopReason: string,
   input: { interruptRequested: boolean; recentAgentText?: string },

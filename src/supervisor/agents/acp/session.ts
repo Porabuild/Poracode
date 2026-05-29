@@ -187,7 +187,10 @@ import {
   appendInterruptAckTextTail,
   createAcpPromptUsageEvent,
   normalizeAcpStopReason,
+  resolveAcpPromptFailureMessage,
+  resolveAcpPromptRpcErrorMessage,
   rewriteLoadSessionError,
+  shouldEmitAcpPromptRpcErrorItem,
 } from "./sessionErrors";
 import {
   buildAcpElicitationAnswerEvents,
@@ -482,6 +485,8 @@ export class AcpStructuredSession implements StructuredSessionHandle {
   private pendingPromptInterrupt = false;
   private currentTurnInterruptRequested = false;
   private recentInterruptAckTextTail = "";
+  /** User-visible error text from an `agent_message_chunk` before `prompt()` settles. */
+  private agentSurfacedErrorMessage: string | undefined;
   private availableModeIds: string[] = [];
   private currentConfigOptions: unknown[] = [];
   private modeConfigId: string | undefined;
@@ -1014,6 +1019,7 @@ export class AcpStructuredSession implements StructuredSessionHandle {
     }
     this.currentTurnInterruptRequested = false;
     this.recentInterruptAckTextTail = "";
+    this.agentSurfacedErrorMessage = undefined;
 
     await this.applyTurnConfig(config);
 
@@ -1070,44 +1076,24 @@ export class AcpStructuredSession implements StructuredSessionHandle {
         interruptRequested: this.currentTurnInterruptRequested,
         recentAgentText: this.recentInterruptAckTextTail,
       });
-      const { status, attention } = this.mapStopReason(normalizedStopReason);
-      this.emitListenerUpdate({ status, attention });
-
-      // Close any items still open at end-of-turn and emit turn.completed.
-      const mapperState = this.ensureMapperState();
-      this.emitRuntimeEvents([
-        ...closeOpenTurnItems(mapperState),
-        {
-          type: "turn.completed",
-          threadId: this.threadId,
-          turnId: this.currentTurnId,
-          state: normalizedStopReason === "cancelled" ? "cancelled" : "completed",
-        },
-      ]);
+      this.emitTurnStatusAfterPrompt(normalizedStopReason);
+      this.completeTurn(
+        this.ensureMapperState(),
+        this.agentSurfacedErrorMessage
+          ? "failed"
+          : normalizedStopReason === "cancelled"
+            ? "cancelled"
+            : "completed",
+      );
     } catch (error) {
       if (this.isDisposed) return;
-      const message = error instanceof Error ? error.message : String(error);
-      this.emitListenerUpdate({ status: "error", attention: "error", errorMessage: message });
-      const mapperState = this.ensureMapperState();
-      this.emitRuntimeEvents([
-        ...closeOpenTurnItems(mapperState),
-        { type: "error", threadId: this.threadId, message },
-        ...(this.currentTurnId
-          ? ([
-              {
-                type: "turn.completed",
-                threadId: this.threadId,
-                turnId: this.currentTurnId,
-                state: "failed",
-              },
-            ] as RuntimeEvent[])
-          : []),
-      ]);
+      this.emitPromptFailure(error);
     } finally {
       this.promptInFlight = false;
       this.pendingPromptInterrupt = false;
       this.currentTurnInterruptRequested = false;
       this.recentInterruptAckTextTail = "";
+      this.agentSurfacedErrorMessage = undefined;
       // The mapper's per-turn item state has been cleared via
       // `closeOpenTurnItems`, so any output snapshots from terminals that
       // belonged to this turn are no longer reachable. Drop them so the cache
@@ -1597,7 +1583,10 @@ export class AcpStructuredSession implements StructuredSessionHandle {
     // avoid duplicating every message in the chat pane.
     if (!this.isReplayingHistory && Date.now() >= (this.replayHistoryUntil || 0)) {
       const events = mapAcpSessionUpdate(params, this.ensureMapperState());
-      if (events.length > 0) this.emitRuntimeEvents(events);
+      if (events.length > 0) {
+        this.recordAgentSurfacedError(events);
+        this.emitRuntimeEvents(events);
+      }
     } else {
       return;
     }
@@ -1690,6 +1679,72 @@ export class AcpStructuredSession implements StructuredSessionHandle {
       default:
         break;
     }
+  }
+
+  private recordAgentSurfacedError(events: RuntimeEvent[]): void {
+    for (const event of events) {
+      if (event.type !== "error") continue;
+      this.agentSurfacedErrorMessage = event.message;
+      this.emitListenerUpdate({
+        status: "error",
+        attention: "error",
+        errorMessage: event.message,
+      });
+      return;
+    }
+  }
+
+  private emitTurnStatusAfterPrompt(normalizedStopReason: string): void {
+    if (this.agentSurfacedErrorMessage) {
+      this.emitListenerUpdate({
+        status: "error",
+        attention: "error",
+        errorMessage: this.agentSurfacedErrorMessage,
+      });
+      return;
+    }
+    const { status, attention } = this.mapStopReason(normalizedStopReason);
+    this.emitListenerUpdate({ status, attention });
+  }
+
+  private completeTurn(
+    mapperState: AcpMapperState,
+    turnState: "completed" | "cancelled" | "failed",
+  ): void {
+    if (!this.currentTurnId) return;
+    this.emitRuntimeEvents([
+      ...closeOpenTurnItems(mapperState),
+      {
+        type: "turn.completed",
+        threadId: this.threadId,
+        turnId: this.currentTurnId,
+        state: turnState,
+      },
+    ]);
+  }
+
+  private emitPromptFailure(error: unknown): void {
+    const headerMessage = resolveAcpPromptFailureMessage(error, this.agentSurfacedErrorMessage);
+    const rpcMessage = resolveAcpPromptRpcErrorMessage(error);
+    this.emitListenerUpdate({
+      status: "error",
+      attention: "error",
+      errorMessage: headerMessage,
+    });
+    const mapperState = this.ensureMapperState();
+    const events: RuntimeEvent[] = [...closeOpenTurnItems(mapperState)];
+    if (shouldEmitAcpPromptRpcErrorItem(error, this.agentSurfacedErrorMessage)) {
+      events.push({ type: "error", threadId: this.threadId, message: rpcMessage });
+    }
+    if (this.currentTurnId) {
+      events.push({
+        type: "turn.completed",
+        threadId: this.threadId,
+        turnId: this.currentTurnId,
+        state: "failed",
+      });
+    }
+    this.emitRuntimeEvents(events);
   }
 
   private mapStopReason(stopReason: string): { status: ThreadStatus; attention: ThreadAttention } {

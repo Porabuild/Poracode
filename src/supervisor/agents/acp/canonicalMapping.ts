@@ -38,6 +38,7 @@ import {
   readNonNegativeInteger,
   usageFromTokenCounts,
 } from "../contextUsage";
+import { parseAcpAgentMessageApiError } from "./acpUserVisibleErrors";
 
 interface AcpToolCallItemState {
   itemId: string;
@@ -216,6 +217,14 @@ export function mapAcpSessionUpdate(
         /^\[MODE_UPDATE\]/.test(content.text)
       ) {
         break;
+      }
+      if (content?.type === "text") {
+        const apiError = parseAcpAgentMessageApiError(content.text);
+        if (apiError) {
+          events.push(...closeOpenContentItems(state));
+          events.push({ type: "error", threadId, message: apiError });
+          break;
+        }
       }
       // Open an assistant item on first chunk; emit deltas thereafter.
       if (!state.openAssistantItemId) {

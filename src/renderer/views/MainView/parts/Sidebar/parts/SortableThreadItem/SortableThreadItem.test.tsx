@@ -38,7 +38,7 @@ vi.mock("@/renderer/components/providers", () => ({
 
 vi.mock("@/renderer/hooks/uiSelectors", () => ({
   useCurrentThreadIdsCount: () => 1,
-  useInstalledAgents: () => [],
+  useProjectAgentStatuses: () => [],
   useIsCurrentThread: () => false,
 }));
 

@@ -447,6 +447,21 @@ export class SupervisorRuntime {
     if (changed) {
       this.sharedSettingsCache.invalidate();
       this.refreshAgentRegistryAdapters();
+      const settings = readAcpRegistrySettings(this.settingsPath);
+      const acpKinds = Object.entries(settings.agentInstances)
+        .filter(([, instance]) => instance.driver === "acp-generic")
+        .map(([id]) => acpGenericKind(id));
+      if (acpKinds.length > 0) {
+        try {
+          const wslDistros = await this.agentStatusService.listWslDistros();
+          await this.agentStatusService.refreshAgentStatuses({
+            wslDistros,
+            scope: { agentKinds: acpKinds },
+          });
+        } catch (error) {
+          console.warn("[supervisor] refresh after ACP icon backfill failed", error);
+        }
+      }
     }
     return registry;
   }

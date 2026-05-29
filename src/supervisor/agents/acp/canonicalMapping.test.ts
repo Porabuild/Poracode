@@ -46,6 +46,40 @@ describe("mapAcpSessionUpdate", () => {
     expect((second[0] as { delta: string }).delta).toBe(" world");
   });
 
+  it("maps Factory Droid API failures in agent_message_chunk to runtime errors", () => {
+    const state = createAcpMapperState("t-droid-limit");
+    const text =
+      'Error: 402 {"detail":"Usage limit reached.","status":402,"title":"Payment Required","displayToUser":true}';
+    const events = mapAcpSessionUpdate(
+      note({ sessionUpdate: "agent_message_chunk", content: { type: "text", text } }),
+      state,
+    );
+    expect(events).toEqual([
+      { type: "error", threadId: "t-droid-limit", message: "Usage limit reached." },
+    ]);
+    expect(state.openAssistantItemId).toBeUndefined();
+  });
+
+  it("maps plain HTTP no-body agent errors to runtime errors", () => {
+    const state = createAcpMapperState("t-droid-403");
+    const events = mapAcpSessionUpdate(
+      note({
+        sessionUpdate: "agent_message_chunk",
+        content: { type: "text", text: "Error: 403 status code (no body)" },
+      }),
+      state,
+    );
+    expect(events).toEqual([
+      {
+        type: "error",
+        threadId: "t-droid-403",
+        message:
+          "Access denied (HTTP 403). Your Factory account may lack permission for this model or workspace.",
+      },
+    ]);
+    expect(state.openAssistantItemId).toBeUndefined();
+  });
+
   it("drops [MODE_UPDATE] agent text echoes — mode is chosen in the launcher, not chat", () => {
     // Gemini's ACP server emits `[MODE_UPDATE] <mode>` as a fresh
     // agent_message_chunk every time a session starts (or switches) into a

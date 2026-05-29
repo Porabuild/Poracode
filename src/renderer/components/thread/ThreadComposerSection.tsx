@@ -264,9 +264,9 @@ type ThreadComposerSectionProps = {
   todoDockPlacement: "composer" | "right";
   todoDockState: ThreadTodoDockState | null;
   goalDockState: ThreadGoalDockState | null;
-  errorDockState: ThreadErrorDockState | null;
+  errorDockStates: ThreadErrorDockState[];
   onGoalDockDismiss: () => void;
-  onDismissError: () => void;
+  onDismissError: (sourceItemId: string) => void;
   onConfigChange: (config: ThreadConfig) => void;
   onResolveServerRequest: (input: {
     requestId: ThreadServerRequestId;
@@ -294,7 +294,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
     todoDockPlacement,
     todoDockState,
     goalDockState,
-    errorDockState,
+    errorDockStates,
   } = props;
   const [prompt, setPrompt] = useState("");
   const [hasContent, setHasContent] = useState(false);
@@ -355,11 +355,10 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
   const showCommandPanel = filteredCommands.length > 0;
   // A stale runtime auth error (e.g. a 401 from before the user signed in)
   // must not keep the auth dock visible once detection confirms the agent is
-  // authenticated again — otherwise the dock sticks until the user sends a
-  // new message and the error item scrolls off `selectThreadLatestErrorItem`.
+  // authenticated again — otherwise the dock sticks until the user retries.
   const isAgentAuthenticated = agentStatus?.authState === "authenticated";
   const hasRuntimeAuthError =
-    !isAgentAuthenticated && errorDockState !== null && isAuthErrorMessage(errorDockState.message);
+    !isAgentAuthenticated && errorDockStates.some((state) => isAuthErrorMessage(state.message));
   const authRequired = agentStatus?.authState === "missing" || hasRuntimeAuthError;
   const isServerControlled =
     agentStatus?.capabilities.liveInputMode === "server" || !usesTerminalPresentation;
@@ -392,7 +391,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
     !usesTerminalPresentation && todoDockState !== null && todoDockPlacement === "composer";
   const showGoalInComposer = !usesTerminalPresentation && goalDockState !== null;
   const showErrorInComposer =
-    !usesTerminalPresentation && errorDockState !== null && !hasRuntimeAuthError;
+    !usesTerminalPresentation && errorDockStates.length > 0 && !hasRuntimeAuthError;
   const hasActiveSubAgent = useAppStore(
     (s) => !usesTerminalPresentation && selectActiveSubAgentParentItemIds(s, thread.id).length > 0,
   );
@@ -749,12 +748,15 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                             onClose={() => setContextDockOpen(false)}
                           />
                         ) : null}
-                        {showErrorInComposer ? (
-                          <ThreadErrorDock
-                            state={errorDockState!}
-                            onDismiss={props.onDismissError}
-                          />
-                        ) : null}
+                        {showErrorInComposer
+                          ? errorDockStates.map((state) => (
+                              <ThreadErrorDock
+                                key={state.sourceItemId}
+                                state={state}
+                                onDismiss={() => props.onDismissError(state.sourceItemId)}
+                              />
+                            ))
+                          : null}
                         {showGoalInComposer ? (
                           <ThreadGoalDock
                             state={goalDockState!}
