@@ -6,14 +6,18 @@ import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
 import { buildWslProjectDistrosKey } from "@/renderer/state/projectKeys";
 import { PageLayout } from "@/renderer/components/layout/PageLayout";
 import { getSettingsInstalledAgents } from "@/shared/agentStatus";
+import { AppearanceSettings } from "./parts/AppearanceSettings";
 import { BrowserSettings } from "./parts/BrowserSettings";
 import { AudioSettings } from "./parts/AudioSettings";
 import { GeneralSettings } from "./parts/GeneralSettings";
+import { GitSettings } from "./parts/GitSettings";
 import { NotificationSettings } from "./parts/NotificationSettings";
 import { AISettings } from "./parts/AISettings";
 import { AcpRegistrySettings } from "./parts/AcpRegistrySettings";
 import { AgentsGeneralSettings } from "./parts/AgentsGeneralSettings";
 import { SearchSettings } from "./parts/SearchSettings";
+import { TerminalSettings } from "./parts/TerminalSettings";
+import { ThreadSettings } from "./parts/ThreadSettings";
 import { ArchivedThreadsSettings } from "./parts/ArchivedThreadsSettings";
 import { AboutSettings } from "./parts/AboutSettings";
 import { DevSettings } from "./parts/DevSettings";
@@ -24,6 +28,10 @@ import type { SettingsSection } from "./parts/types";
 const SECTION_VIEWS: Partial<Record<SettingsSection, () => ReactNode>> = {
   general: () => <GeneralSettings />,
   audio: () => <AudioSettings />,
+  appearance: () => <AppearanceSettings />,
+  terminal: () => <TerminalSettings />,
+  threads: () => <ThreadSettings />,
+  git: () => <GitSettings />,
   notifications: () => <NotificationSettings />,
   ai: () => <AISettings />,
   search: () => <SearchSettings />,

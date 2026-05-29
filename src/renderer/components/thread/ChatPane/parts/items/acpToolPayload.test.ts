@@ -33,6 +33,13 @@ describe("acpToolPayload", () => {
     });
   });
 
+  it("unwraps markdown text fields from ACP result objects", () => {
+    expect(extractAcpResultPart({ result: { text: "# Report\n\n- done" } })).toEqual({
+      text: "# Report\n\n- done",
+      language: "plain",
+    });
+  });
+
   it("synthesizes a unified diff from replacement-style edit args", () => {
     expect(
       extractAcpDiffResultPart({

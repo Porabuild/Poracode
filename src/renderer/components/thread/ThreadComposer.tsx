@@ -165,6 +165,8 @@ export function ThreadComposer(props: {
   leadingControls?: ReactNode | ((wrapLevel: number) => ReactNode);
   afterControls?: ReactNode | ((wrapLevel: number) => ReactNode);
   toolbarLayoutKey?: string;
+  /** Render only the composer toolbar (no prompt shell). Used by utility settings surfaces. */
+  toolbarOnly?: boolean;
 }) {
   const {
     autoFocus = false,
@@ -189,6 +191,7 @@ export function ThreadComposer(props: {
     leadingControls,
     afterControls,
     toolbarLayoutKey,
+    toolbarOnly = false,
   } = props;
 
   const [wrapLevel, setWrapLevel] = useState(0);
@@ -582,6 +585,27 @@ export function ThreadComposer(props: {
     );
   };
 
+  const toolbar = (
+    <div className={toolbarClassName}>
+      {leadingControls && (
+        <div className="flex shrink-0 items-end gap-2">
+          {typeof leadingControls === "function" ? leadingControls(wrapLevel) : leadingControls}
+        </div>
+      )}
+      {renderControls()}
+      <div className="flex shrink-0 items-end gap-2">
+        {typeof afterControls === "function" ? afterControls(wrapLevel) : afterControls}
+        {renderSendButton()}
+      </div>
+      {/* Probes: invisible, each represents a collapse level for the entire toolbar layout. */}
+      {probeContent}
+    </div>
+  );
+
+  if (toolbarOnly) {
+    return toolbar;
+  }
+
   return (
     <div>
       <div className={shellClassName}>
@@ -589,20 +613,7 @@ export function ThreadComposer(props: {
         {fixedContent}
         {attachmentBar}
         <div ref={editorHostRef}>{renderEditor()}</div>
-        <div className={toolbarClassName}>
-          {leadingControls && (
-            <div className="flex shrink-0 items-end gap-2">
-              {typeof leadingControls === "function" ? leadingControls(wrapLevel) : leadingControls}
-            </div>
-          )}
-          {renderControls()}
-          <div className="flex shrink-0 items-end gap-2">
-            {typeof afterControls === "function" ? afterControls(wrapLevel) : afterControls}
-            {renderSendButton()}
-          </div>
-          {/* Probes: invisible, each represents a collapse level for the entire toolbar layout. */}
-          {probeContent}
-        </div>
+        {toolbar}
       </div>
     </div>
   );

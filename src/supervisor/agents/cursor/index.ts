@@ -24,6 +24,7 @@ import {
   installCursorPlugin,
   isCursorPluginInstalled,
   readBundledCursorPluginVersion,
+  uninstallCursorPlugin,
 } from "./plugin/install";
 import { createCursorChatSync } from "./session";
 import { CURSOR_IDLE_RE, CURSOR_WORKING_RE, detectCursorTerminalStatus } from "./terminal";
@@ -92,6 +93,9 @@ export function createCursorAdapter(): AgentAdapter {
       const result = installCursorPlugin(ctx, { resolvedNodePath: node.nodePath });
       if (!result.ok) return result;
       return { ok: true, version: result.version };
+    },
+    async uninstallPlugin(ctx) {
+      uninstallCursorPlugin(ctx);
     },
 
     detectInstall: async (ctx) => {
@@ -165,7 +169,7 @@ export function createCursorAdapter(): AgentAdapter {
       return detectCursorTerminalStatus(text);
     },
     shouldApplyTerminalStatusWhileHookActive: cursorHookActiveTerminalFallback,
-    defaultOneShotModel: "composer-2-fast",
+    defaultOneShotModel: "composer-2.5",
     buildOneShotCommand(model) {
       const args = ["--print", "--force", "--trust", "--output-format", "json"];
       if (model && model !== "auto") {

@@ -21,6 +21,7 @@ import {
   installCopilotPlugin,
   isCopilotPluginInstalled,
   readBundledCopilotPluginVersion,
+  uninstallCopilotPlugin,
 } from "./plugin/install";
 import {
   detectCopilotInvalidSessionRef,
@@ -80,6 +81,9 @@ export function createCopilotAdapter(): AgentAdapter {
       const result = installCopilotPlugin(ctx, { resolvedNodePath: node.nodePath });
       if (!result.ok) return result;
       return { ok: true, version: result.version };
+    },
+    async uninstallPlugin(ctx) {
+      uninstallCopilotPlugin(ctx);
     },
     // No `pluginLaunchExtras` needed — Copilot CLI auto-loads
     // `${COPILOT_HOME ?? ~/.copilot}/hooks/lightcode-status.json` written at

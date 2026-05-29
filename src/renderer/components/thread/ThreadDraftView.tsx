@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Zap } from "lucide-react";
 import { toast } from "@heroui/react";
 import type {
   AgentStatus,
@@ -11,18 +10,20 @@ import type {
 } from "@/shared/contracts";
 import { HOME_PROJECT_NAME, isHomeProjectId } from "@/shared/homeScope";
 import { readBridge } from "@/renderer/bridge";
-import { getComposerControls } from "@/renderer/components/providers";
 import { getConfigNormalizer } from "@/renderer/components/providers/ProviderIcon";
-import { EffortIcon } from "@/renderer/components/providers/EffortIcon";
 import { useGitStore } from "@/renderer/state/gitStore";
 import { PixelLoader } from "@/renderer/components/common";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useAppStore } from "@/renderer/state/appStore";
 import { capabilitiesForPresentation, filterHiddenModels } from "./threadComposerOptions";
 import {
+  appendProviderComposerControls,
+  buildModelPickerControls,
+  buildProviderModelMenuProviders,
+} from "./buildModelPickerControls";
+import {
   agentWithCapabilities,
   formatAgentList,
-  formatEffortLabel,
   resolveContextSizeValue,
   resolveEffortValue,
   resolveFastValue,
@@ -37,7 +38,6 @@ import { friendlyError } from "@/shared/messages";
 import { PresentationModeTabs } from "./PresentationModeTabs";
 import { ProjectSwitchMenu } from "./ProjectSwitchMenu";
 import { ThreadDraftComposerArea, type DraftStartInput } from "./ThreadDraftComposerArea";
-import type { ComposerControl } from "./ThreadComposer";
 import { AgentDiscoveryScreen } from "./AgentDiscoveryScreen";
 import {
   isDiscoveryActiveForLocation,
@@ -487,30 +487,18 @@ export function ThreadDraftView(props: {
   );
   const providerModelProviders = useMemo(
     () =>
-      installedAgents.map((agent) => {
-        const supported = agent.capabilities.presentationModes ?? [
-          agent.capabilities.presentationMode,
-        ];
-        const agentPresentationMode = supported.includes(presentationMode)
-          ? presentationMode
-          : resolveInitialPresentationMode(agent, lastPresentationModeByAgent);
-        return {
-          kind: agent.kind,
-          label: agent.label,
-          ...(agent.icon ? { icon: agent.icon } : {}),
-          presentationMode: agentPresentationMode,
-          capabilities: filterHiddenModels(
-            capabilitiesForPresentation(agent.capabilities, agentPresentationMode),
-            allHiddenModels[agent.kind],
-          ),
-        };
+      buildProviderModelMenuProviders(installedAgents, {
+        resolvePresentationMode: (agent) => {
+          const supported = agent.capabilities.presentationModes ?? [
+            agent.capabilities.presentationMode,
+          ];
+          return supported.includes(presentationMode)
+            ? presentationMode
+            : resolveInitialPresentationMode(agent, lastPresentationModeByAgent);
+        },
+        hiddenModelsByAgent: allHiddenModels,
       }),
     [installedAgents, presentationMode, lastPresentationModeByAgent, allHiddenModels],
-  );
-  const selectedAgentKind = selectedAgent?.kind;
-  const factory = useMemo(
-    () => (selectedAgentKind ? getComposerControls(selectedAgentKind) : undefined),
-    [selectedAgentKind],
   );
   const latestConfigPatchRef = useRef<(patch: Partial<ThreadConfig>) => void>(() => undefined);
   const latestProviderModelChangeRef = useRef<
@@ -633,70 +621,19 @@ export function ThreadDraftView(props: {
   const baseDraftControls = useMemo(() => {
     if (!selectedAgent || !selectedAgentForConfig) return [];
     const filteredCaps = selectedAgentFilteredCapabilities ?? selectedAgentForConfig.capabilities;
-    const providers = providerModelProviders;
-    const currentEfforts = (filteredCaps.modelEfforts?.[model] ?? filteredCaps.efforts ?? []).map(
-      (id) => ({
-        id,
-        label: formatEffortLabel(id),
-      }),
-    );
-    const selectableEfforts = currentEfforts.length > 1 ? currentEfforts : [];
-    const currentContextIds = filteredCaps.modelContextSizes?.[model];
-    const currentContextSizes = currentContextIds
-      ? (filteredCaps.contextSizes?.filter((c) => currentContextIds.includes(c.id)) ?? [])
-      : [];
-    const selectableContextSizes = currentContextSizes.length > 1 ? currentContextSizes : [];
-    const supportsFast = filteredCaps.fastModels?.includes(model) ?? false;
-    const supportsThinking = filteredCaps.thinkingModels?.includes(model) ?? false;
-    const ctrls: ComposerControl[] = [
-      {
-        kind: "provider-model",
-        providers,
-        currentAgentKind: selectedAgent.kind,
-        currentModel: model,
-        presentationMode,
-        hideLabelOnWrap: true,
-        tier: 5,
-        onChange: (next) => latestProviderModelChangeRef.current(next),
-      },
-    ];
-    if (selectableEfforts.length > 0 || selectableContextSizes.length > 0 || supportsThinking) {
-      ctrls.push({
-        kind: "effort-context",
-        efforts: selectableEfforts,
-        ...(selectableEfforts.length > 0 && effort ? { effortValue: effort } : {}),
-        onEffortChange: (value) => latestConfigPatchRef.current({ effort: value }),
-        contextSizes: selectableContextSizes,
-        ...(selectableContextSizes.length > 0 && contextSize ? { contextValue: contextSize } : {}),
-        onContextChange: (value) => latestConfigPatchRef.current({ contextSize: value }),
-        thinkingSupported: supportsThinking,
-        thinkingValue: thinking,
-        onThinkingChange: (value) => latestConfigPatchRef.current({ thinking: value }),
-        hideLabelOnWrap: true,
-        tier: 4,
-        icon:
-          selectableEfforts.length > 0 ? (
-            <EffortIcon
-              className="size-4 text-foreground"
-              effort={effort}
-              efforts={selectableEfforts.map((e) => e.id)}
-            />
-          ) : undefined,
-      });
-    }
-    if (supportsFast) {
-      ctrls.push({
-        kind: "toggle",
-        label: "Fast",
-        icon: <Zap className="size-3.5" />,
-        iconOnly: true,
-        fillIconOnSelect: true,
-        tier: 3,
-        isSelected: fast,
-        onChange: (selected) => latestConfigPatchRef.current({ fast: selected }),
-      });
-    }
-    return ctrls;
+    return buildModelPickerControls({
+      providers: providerModelProviders,
+      selectedAgentKind: selectedAgent.kind,
+      model,
+      effort,
+      ...(contextSize ? { contextSize } : {}),
+      fast,
+      thinking,
+      capabilities: filteredCaps,
+      presentationMode,
+      onProviderModelChange: (next) => latestProviderModelChangeRef.current(next),
+      onConfigPatch: (patch) => latestConfigPatchRef.current(patch),
+    });
   }, [
     selectedAgent,
     selectedAgentForConfig,
@@ -711,9 +648,10 @@ export function ThreadDraftView(props: {
   ]);
 
   const providerDraftControls = useMemo(() => {
-    if (!selectedAgent || !selectedAgentForConfig || !factory) return [];
+    if (!selectedAgent || !selectedAgentForConfig) return [];
     const filteredCaps = selectedAgentFilteredCapabilities ?? selectedAgentForConfig.capabilities;
-    const controls = factory({
+    return appendProviderComposerControls([], {
+      agentKind: selectedAgent.kind,
       capabilities: filteredCaps,
       config: {
         model,
@@ -725,29 +663,14 @@ export function ThreadDraftView(props: {
         approvalPolicy,
         sandboxMode,
       },
+      presentationMode,
       isDisabled: false,
       onConfigChange: (patch) => latestConfigPatchRef.current(patch),
-      presentationMode,
-    }).map((control) => {
-      let tier = control.tier;
-      if (tier === undefined) {
-        if (control.kind === "toggle" && (control.label === "Plan" || control.label === "Work")) {
-          tier = 2;
-        } else if (
-          (control.kind === undefined || control.kind === "toggle" || control.kind === "menu") &&
-          control.iconKind === "permission"
-        ) {
-          tier = 1;
-        }
-      }
-      return { ...control, tier };
     });
-    return controls;
   }, [
     selectedAgent,
     selectedAgentForConfig,
     selectedAgentFilteredCapabilities,
-    factory,
     model,
     effort,
     contextSize,

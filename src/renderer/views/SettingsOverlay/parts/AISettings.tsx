@@ -4,6 +4,12 @@ import { Monitor } from "lucide-react";
 import type { AgentStatus, ThreadPresentationMode } from "@/shared/contracts";
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
+import { capabilitiesForPresentation } from "@/renderer/components/thread/threadComposerOptions";
+import {
+  buildModelPickerControls,
+  buildProviderModelMenuProviders,
+} from "@/renderer/components/thread/buildModelPickerControls";
+import { ThreadComposer } from "@/renderer/components/thread/ThreadComposer";
 import {
   getCommitGenCandidates,
   getCommitGenDefaultsHint,
@@ -16,12 +22,8 @@ import {
   resolveConflictResolverConfig,
   sortByAutoPreference,
 } from "@/renderer/components/providers";
-import {
-  EffortContextMenu,
-  ProviderModelMenu,
-  TuxIcon,
-  type ProviderModelMenuProvider,
-} from "@/renderer/components/common";
+import { TuxIcon } from "@/renderer/components/common";
+import { SettingsPage } from "./SettingsForm";
 
 type EnvKind = "windows" | "wsl";
 type Mode = "auto" | "custom" | "disabled";
@@ -50,6 +52,8 @@ function GenConfigSection(props: {
   onConfigChange: (provider: string, model: string, effort: string) => void;
   /** Extra controls rendered below the model/effort toolbar (e.g. presentation mode picker). */
   extraControls?: ReactNode;
+  /** When set, model lists mirror the selected thread presentation surface (CLI vs Chat/ACP). */
+  presentationMode?: ThreadPresentationMode;
 }) {
   const {
     heading,
@@ -61,6 +65,7 @@ function GenConfigSection(props: {
     getCandidates,
     agentStatuses,
     onConfigChange,
+    presentationMode,
   } = props;
 
   const installedAgents = agentStatuses.filter((a) => a.installed);
@@ -72,22 +77,25 @@ function GenConfigSection(props: {
   // rule that's evaluated independently per section.
   const autoAgent = mode === "auto" ? getCandidates(agentStatuses, "auto")[0] : undefined;
   const displayAgent = customAgent ?? autoAgent;
-  const displayResolved = displayAgent
-    ? resolve(displayAgent, mode === "custom" ? model : "", mode === "custom" ? effort : "")
+  function agentForPresentation(agent: AgentStatus | undefined): AgentStatus | undefined {
+    if (!agent) return undefined;
+    if (!presentationMode) return agent;
+    return {
+      ...agent,
+      capabilities: capabilitiesForPresentation(agent.capabilities, presentationMode),
+    };
+  }
+  const displayResolved = agentForPresentation(displayAgent)
+    ? resolve(
+        agentForPresentation(displayAgent),
+        mode === "custom" ? model : "",
+        mode === "custom" ? effort : "",
+      )
     : undefined;
 
-  const providers: ProviderModelMenuProvider[] = installedAgents.map((a) => ({
-    kind: a.kind,
-    label: a.label,
-    ...(a.icon ? { icon: a.icon } : {}),
-    capabilities: a.capabilities,
-  }));
-
-  const efforts =
-    displayResolved?.availableEfforts.map((id) => ({
-      id,
-      label: id.charAt(0).toUpperCase() + id.slice(1),
-    })) ?? [];
+  const providers = buildProviderModelMenuProviders(installedAgents, {
+    ...(presentationMode ? { presentationMode } : {}),
+  });
 
   function changeMode(next: Mode) {
     if (next === mode) return;
@@ -101,23 +109,36 @@ function GenConfigSection(props: {
     }
     const first = sortByAutoPreference(installedAgents)[0];
     if (!first) return;
-    const r = resolve(first, "", "");
+    const r = resolve(agentForPresentation(first), "", "");
     onConfigChange(first.kind, r.model, r.effort);
-  }
-
-  function handleProviderModel(next: { agentKind: string; model: string }) {
-    const nextAgent = installedAgents.find((a) => a.kind === next.agentKind);
-    const r = resolve(nextAgent, next.model, effort);
-    onConfigChange(next.agentKind, r.model, r.effort);
-  }
-
-  function handleEffort(value: string) {
-    if (!customAgent || !displayResolved) return;
-    onConfigChange(provider, displayResolved.model, value);
   }
 
   const showToolbar = (mode === "custom" || mode === "auto") && displayAgent && displayResolved;
   const isReadOnly = mode === "auto";
+
+  const modelPickerControls =
+    showToolbar && displayAgent && displayResolved
+      ? buildModelPickerControls({
+          providers,
+          selectedAgentKind: displayAgent.kind,
+          model: displayResolved.model,
+          effort: displayResolved.effort,
+          capabilities:
+            agentForPresentation(displayAgent)?.capabilities ?? displayAgent.capabilities,
+          ...(presentationMode ? { presentationMode } : {}),
+          isDisabled: isReadOnly,
+          includeFastToggle: false,
+          onProviderModelChange: (next) => {
+            const nextAgent = installedAgents.find((a) => a.kind === next.agentKind);
+            const r = resolve(agentForPresentation(nextAgent), next.model, effort);
+            onConfigChange(next.agentKind, r.model, r.effort);
+          },
+          onConfigPatch: (patch) => {
+            if (!customAgent || !displayResolved || patch.effort === undefined) return;
+            onConfigChange(provider, displayResolved.model, patch.effort);
+          },
+        })
+      : [];
 
   const heading2 = props.defaultsHint ? (
     <Tooltip delay={300}>
@@ -161,25 +182,20 @@ function GenConfigSection(props: {
         </div>
       </div>
 
-      {showToolbar && displayAgent && displayResolved ? (
-        <div className="lightcode-composer-toolbar flex flex-wrap items-center gap-1">
-          <ProviderModelMenu
-            providers={providers}
-            currentAgentKind={displayAgent.kind}
-            currentModel={displayResolved.model}
-            isDisabled={isReadOnly}
-            onChange={handleProviderModel}
-          />
-          {efforts.length > 0 ? (
-            <EffortContextMenu
-              efforts={efforts}
-              effortValue={displayResolved.effort}
-              isDisabled={isReadOnly}
-              onEffortChange={handleEffort}
-              contextSizes={[]}
-            />
-          ) : null}
-        </div>
+      {showToolbar && modelPickerControls.length > 0 ? (
+        <ThreadComposer
+          compact
+          toolbarOnly
+          hideSubmitButton
+          preserveDisabledControlStyle={isReadOnly}
+          controls={modelPickerControls}
+          placeholder=""
+          prompt=""
+          submitDisabled
+          submitLabel=""
+          onPromptChange={() => undefined}
+          onSubmit={() => undefined}
+        />
       ) : null}
     </section>
   );
@@ -265,83 +281,81 @@ export function AISettings() {
   );
 
   return (
-    <div className="h-full min-h-0 overflow-y-auto px-6 pb-8 pt-4">
-      <div className="mx-auto max-w-[720px]">
-        <div className="mb-6 flex items-center justify-between">
-          <h1 className="text-lg font-semibold text-foreground">AI</h1>
-          {hasWsl ? (
-            <ToggleButtonGroup
-              aria-label="Environment"
-              className="h-7 [&_button]:h-7 [&_button]:min-h-0 [&_button]:min-w-0 [&_button]:px-2"
-              selectionMode="single"
-              disallowEmptySelection
-              size="sm"
-              selectedKeys={[envKind]}
-              onSelectionChange={(keys) => {
-                const next = [...keys][0] as EnvKind | undefined;
-                if (next) setEnvKind(next);
-              }}
-            >
-              <ToggleButton isIconOnly id="windows" aria-label="Windows">
-                <Monitor className="size-3.5" />
-              </ToggleButton>
-              <ToggleButton isIconOnly id="wsl" aria-label="WSL">
-                <ToggleButtonGroup.Separator />
-                <TuxIcon className="size-7" />
-              </ToggleButton>
-            </ToggleButtonGroup>
-          ) : null}
-        </div>
+    <SettingsPage
+      title="AI"
+      bodyClassName="space-y-8"
+      actions={
+        hasWsl ? (
+          <ToggleButtonGroup
+            aria-label="Environment"
+            className="h-7 [&_button]:h-7 [&_button]:min-h-0 [&_button]:min-w-0 [&_button]:px-2"
+            selectionMode="single"
+            disallowEmptySelection
+            size="sm"
+            selectedKeys={[envKind]}
+            onSelectionChange={(keys) => {
+              const next = [...keys][0] as EnvKind | undefined;
+              if (next) setEnvKind(next);
+            }}
+          >
+            <ToggleButton isIconOnly id="windows" aria-label="Windows">
+              <Monitor className="size-3.5" />
+            </ToggleButton>
+            <ToggleButton isIconOnly id="wsl" aria-label="WSL">
+              <ToggleButtonGroup.Separator />
+              <TuxIcon className="size-7" />
+            </ToggleButton>
+          </ToggleButtonGroup>
+        ) : null
+      }
+    >
+      <GenConfigSection
+        heading="Title Generation"
+        allowDisabled
+        description="Generates short titles for new threads."
+        defaultsHint={getTitleGenDefaultsHint()}
+        agentStatuses={activeStatuses}
+        provider={titleGenProvider}
+        model={titleGenModel}
+        effort={titleGenEffort}
+        resolve={resolveTitleGenConfig}
+        getCandidates={getTitleGenCandidates}
+        onConfigChange={setTitleGenConfig}
+      />
 
-        <div className="space-y-8">
-          <GenConfigSection
-            heading="Title Generation"
-            allowDisabled
-            description="Generates short titles for new threads."
-            defaultsHint={getTitleGenDefaultsHint()}
-            agentStatuses={activeStatuses}
-            provider={titleGenProvider}
-            model={titleGenModel}
-            effort={titleGenEffort}
-            resolve={resolveTitleGenConfig}
-            getCandidates={getTitleGenCandidates}
-            onConfigChange={setTitleGenConfig}
-          />
+      <GenConfigSection
+        heading="Commit Message Generation"
+        description="Generates commit messages from staged changes."
+        defaultsHint={getCommitGenDefaultsHint()}
+        agentStatuses={activeStatuses}
+        provider={commitGenProvider}
+        model={commitGenModel}
+        effort={commitGenEffort}
+        resolve={resolveCommitGenConfig}
+        getCandidates={getCommitGenCandidates}
+        onConfigChange={setCommitGenConfig}
+      />
 
-          <GenConfigSection
-            heading="Commit Message Generation"
-            description="Generates commit messages from staged changes."
-            defaultsHint={getCommitGenDefaultsHint()}
-            agentStatuses={activeStatuses}
-            provider={commitGenProvider}
-            model={commitGenModel}
-            effort={commitGenEffort}
-            resolve={resolveCommitGenConfig}
-            getCandidates={getCommitGenCandidates}
-            onConfigChange={setCommitGenConfig}
+      <GenConfigSection
+        heading="Conflict Resolver"
+        description="Resolves merge conflicts during rebase or merge."
+        defaultsHint={getConflictResolverDefaultsHint()}
+        agentStatuses={activeStatuses}
+        provider={conflictResolverProvider}
+        model={conflictResolverModel}
+        effort={conflictResolverEffort}
+        resolve={resolveConflictResolverConfig}
+        getCandidates={getConflictResolverCandidates}
+        onConfigChange={setConflictResolverConfig}
+        presentationMode={conflictResolverPresentationMode}
+        extraControls={
+          <PresentationModeToggle
+            ariaLabel="Open conflict resolver in"
+            value={conflictResolverPresentationMode}
+            onChange={setConflictResolverPresentationMode}
           />
-
-          <GenConfigSection
-            heading="Conflict Resolver"
-            description="Resolves merge conflicts during rebase or merge."
-            defaultsHint={getConflictResolverDefaultsHint()}
-            agentStatuses={activeStatuses}
-            provider={conflictResolverProvider}
-            model={conflictResolverModel}
-            effort={conflictResolverEffort}
-            resolve={resolveConflictResolverConfig}
-            getCandidates={getConflictResolverCandidates}
-            onConfigChange={setConflictResolverConfig}
-            extraControls={
-              <PresentationModeToggle
-                ariaLabel="Open conflict resolver in"
-                value={conflictResolverPresentationMode}
-                onChange={setConflictResolverPresentationMode}
-              />
-            }
-          />
-        </div>
-      </div>
-    </div>
+        }
+      />
+    </SettingsPage>
   );
 }

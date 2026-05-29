@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -18,6 +18,7 @@ import {
   memoByCtx,
   readBundledPluginVersion,
   readPluginManifest,
+  removeStagedPluginDir,
   stagePluginAssetsToWsl,
   verifyStagedPluginAt,
   writeNativeHookWrapper,
@@ -279,6 +280,21 @@ export function isGrokPluginInstalled(ctx?: AgentEnvContext): {
     assets: GROK_VERIFY_ASSETS,
     extraCheck: () => hookFileMatchesLightcode(hookFile),
   });
+}
+
+export function uninstallGrokPlugin(ctx?: AgentEnvContext): void {
+  const hookFile = isWslPluginContext(ctx)
+    ? toWslUncPath(
+        ctx.wslDistro,
+        `${wslGlobalGrokDir(ctx.wslDistro)}/${GLOBAL_HOOK_DIR_NAME}/${GLOBAL_HOOK_FILENAME}`,
+      )
+    : join(nativeGlobalGrokDir(), GLOBAL_HOOK_DIR_NAME, GLOBAL_HOOK_FILENAME);
+  try {
+    if (hookFileMatchesLightcode(hookFile)) unlinkSync(hookFile);
+  } catch {
+    // best-effort uninstall
+  }
+  removeStagedPluginDir("grok", ctx);
 }
 
 /**

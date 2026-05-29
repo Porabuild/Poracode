@@ -7,8 +7,11 @@ import {
   lstatSync,
   mkdirSync,
   readFileSync,
+  readdirSync,
+  rmdirSync,
   statSync,
   symlinkSync,
+  unlinkSync,
   writeFileSync,
 } from "node:fs";
 import { dirname, join, resolve } from "node:path";
@@ -245,6 +248,54 @@ export function getWslPluginBaseDirs(distro: string, kind: string): WslPluginBas
 export function getNativePluginBaseDir(kind: string, baseDir?: string): string {
   const paths = resolveLightcodePaths(baseDir);
   return join(paths.agentPluginsDir, kind);
+}
+
+export function removeStagedPluginDir(kind: string, ctx?: AgentEnvContext): void {
+  const dir = isWslPluginContext(ctx)
+    ? getWslPluginBaseDirs(ctx.wslDistro, kind)?.uncBase
+    : getNativePluginBaseDir(kind, ctx?.baseDir);
+  if (!dir) return;
+  removeWithoutFollowingSymlinks(dir);
+}
+
+// `fs.rmSync({ recursive: true, force: true })` is unreliable here because
+// codex stages a `home/` subdir whose contents are Windows junctions (e.g.
+// `sessions/ → ~/.codex/sessions`) and POSIX symlinks (over WSL UNC). On
+// Windows the recursive remover can either follow the junction and EPERM
+// inside the user's real `~/.codex/`, or leave the symlink behind so the
+// parent dir reports ENOTEMPTY. Walk the tree ourselves, lstat every entry,
+// and remove links via their own inode without ever following them.
+function removeWithoutFollowingSymlinks(target: string): void {
+  let stat;
+  try {
+    stat = lstatSync(target);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return;
+    throw error;
+  }
+  if (stat.isSymbolicLink()) {
+    try {
+      unlinkSync(target);
+    } catch (error) {
+      // Windows directory junctions can report ENOENT on unlink yet need
+      // rmdir to be removed; EPERM/EISDIR is the other shape Node returns.
+      const code = (error as NodeJS.ErrnoException).code;
+      if (code === "EPERM" || code === "EISDIR") {
+        rmdirSync(target);
+        return;
+      }
+      throw error;
+    }
+    return;
+  }
+  if (stat.isDirectory()) {
+    for (const entry of readdirSync(target)) {
+      removeWithoutFollowingSymlinks(join(target, entry));
+    }
+    rmdirSync(target);
+    return;
+  }
+  unlinkSync(target);
 }
 
 /**

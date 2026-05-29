@@ -1,6 +1,10 @@
 export type SettingsSection =
   | "general"
   | "audio"
+  | "appearance"
+  | "terminal"
+  | "threads"
+  | "git"
   | "notifications"
   | "ai"
   | "acpRegistry"

@@ -205,6 +205,8 @@ export const sharedSettingsSchema = z.object({
    * the field is always present so the supervisor can read it unconditionally.
    */
   disableCliHookPlugin: z.boolean(),
+  /** Draft composer hook-install proposals dismissed by provider/env key. */
+  dismissedHookInstallProposals: z.record(z.string(), z.boolean()),
   /** Per-agent CLI hook plugin support cache. Keyed by AgentKind (and WSL distro when applicable). */
   agentHookSupport: z.record(z.string(), agentHookSupportEntrySchema),
   /**
@@ -281,6 +283,7 @@ export const defaultSharedSettings: SharedSettings = {
   favoriteModels: [],
   recentModels: [],
   disableCliHookPlugin: false,
+  dismissedHookInstallProposals: {},
   agentHookSupport: {},
   browser: {
     allowEval: false,

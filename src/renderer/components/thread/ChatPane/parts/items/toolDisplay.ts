@@ -93,7 +93,9 @@ export function deriveToolDisplay(payload: ToolCallPayload): ToolDisplay {
 
   if (payload.isSubAgent === true) {
     return {
-      title: formatAgentTitle(args, payload.title?.trim() || payload.name.trim()),
+      title: formatAgentTitle(args, payload.title?.trim() || payload.name.trim(), {
+        preferFallback: payload.title !== undefined,
+      }),
       Icon: Bot,
     };
   }
@@ -291,8 +293,12 @@ function formatGrepDisplay(args: Record<string, unknown> | undefined): ToolDispl
 function formatAgentTitle(
   args: Record<string, unknown> | undefined,
   fallbackDescription?: string,
+  options?: { preferFallback?: boolean },
 ): string {
-  const description = readStr(args, "description") ?? fallbackDescription;
+  const argsDescription = readStr(args, "description");
+  const description = options?.preferFallback
+    ? (fallbackDescription ?? argsDescription)
+    : (argsDescription ?? fallbackDescription);
   const subagent = readSubAgentType(args);
   if (description) {
     return subagent ? `Agent (${subagent}): ${description}` : `Agent: ${description}`;
@@ -304,18 +310,26 @@ function readSubAgentType(args: Record<string, unknown> | undefined): string | u
   return readStr(args, "subagent_type", "agent_type", "agentType");
 }
 
+/** Recognise Droid/Codex `ApplyPatch`, `apply_patch`, `apply-patch` tool names. */
+function isApplyPatchToolName(name: string): boolean {
+  return /^(apply[_-]?patch)$/i.test(name.trim());
+}
+
 function mapAcpTool(
   payload: ToolCallPayload,
   args: Record<string, unknown> | undefined,
 ): ToolDisplay | null {
   const kind = payload.kind?.trim().toLowerCase();
   const title = payload.title?.trim() || payload.name.trim();
+  const isEditByName = isApplyPatchToolName(payload.name) || isApplyPatchToolName(title);
   const locations = payload.locations ?? [];
   const locationPath = pickAcpLocationPath(kind, locations);
   const titlePath = extractLeadingPath(title);
   const argsPath = readPathArg(args);
   const patchPath =
-    kind === "edit" || kind === "delete" ? extractAcpPatchTargetPath(payload) : undefined;
+    kind === "edit" || kind === "delete" || isEditByName
+      ? extractAcpPatchTargetPath(payload)
+      : undefined;
   const path = locationPath ?? argsPath ?? patchPath ?? titlePath;
 
   switch (kind) {
@@ -340,8 +354,10 @@ function mapAcpTool(
       };
     case "think":
     case "other":
+      if (isEditByName) return formatAcpPathDisplay("Edit", path, title, Pencil);
       return title ? { title, Icon: pickIconByVerbPrefix(title) } : null;
     default:
+      if (isEditByName) return formatAcpPathDisplay("Edit", path, title, Pencil);
       return null;
   }
 }

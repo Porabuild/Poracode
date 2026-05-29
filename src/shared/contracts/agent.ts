@@ -354,6 +354,43 @@ export const updateAgentBinaryPayloadSchema = z.object({
 });
 export type UpdateAgentBinaryPayload = z.infer<typeof updateAgentBinaryPayloadSchema>;
 
+export const agentHookPluginEnvSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("native") }),
+  z.object({ kind: z.literal("wsl"), distro: z.string().min(1) }),
+]);
+export type AgentHookPluginEnv = z.infer<typeof agentHookPluginEnvSchema>;
+
+export const agentHookPluginPayloadSchema = z.object({
+  agentKind: agentKindSchema,
+  env: agentHookPluginEnvSchema,
+});
+export type AgentHookPluginPayload = z.infer<typeof agentHookPluginPayloadSchema>;
+
+export const agentHookPluginStatusSchema = z.object({
+  agentKind: agentKindSchema,
+  env: agentHookPluginEnvSchema,
+  supported: z.boolean(),
+  installed: z.boolean(),
+  version: z.string().optional(),
+  bundledVersion: z.string(),
+  canUninstall: z.boolean(),
+  reason: z.string().optional(),
+});
+export type AgentHookPluginStatus = z.infer<typeof agentHookPluginStatusSchema>;
+
+export const getAgentHookPluginStatusesPayloadSchema = z.object({
+  agentKind: agentKindSchema,
+  envs: z.array(agentHookPluginEnvSchema),
+});
+export type GetAgentHookPluginStatusesPayload = z.infer<
+  typeof getAgentHookPluginStatusesPayloadSchema
+>;
+
+export const agentHookPluginMutationResultSchema = z.object({
+  status: agentHookPluginStatusSchema,
+});
+export type AgentHookPluginMutationResult = z.infer<typeof agentHookPluginMutationResultSchema>;
+
 export const updateAgentBinaryResultSchema = z.object({
   ok: z.boolean(),
   /** Updater output captured from stdout/stderr (last ~4KB), for surfacing in the UI on failure. */

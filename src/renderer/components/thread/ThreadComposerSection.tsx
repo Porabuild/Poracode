@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type RefObject } from "react";
 import { Tooltip } from "@heroui/react";
-import { ChevronDown, GitFork, Zap } from "lucide-react";
+import { ChevronDown, GitFork } from "lucide-react";
 import type {
   AgentStatus,
   ProjectLocation,
@@ -21,8 +21,6 @@ import {
 } from "../composer";
 import type { MentionInputHandle } from "../composer";
 import { flattenSegments } from "../composer/serializeMentions";
-import { getComposerControls } from "../providers";
-import { EffortIcon } from "../providers/EffortIcon";
 import { readBridge } from "@/renderer/bridge";
 import { captureProductEvent, threadProductProperties } from "@/renderer/analytics/posthog";
 import { useAppStore } from "@/renderer/state/appStore";
@@ -46,6 +44,11 @@ import { ThreadAuthRequiredDock } from "./ThreadAuthRequiredDock";
 import { ThreadTodoDock } from "./ThreadTodoDock";
 import { hasReportedContextUsage, resolveThreadContextUsageSummary } from "./threadContextUsage";
 import { capabilitiesForPresentation, filterHiddenModels } from "./threadComposerOptions";
+import {
+  appendProviderComposerControls,
+  buildModelPickerControls,
+  patchConfigForModelChange,
+} from "./buildModelPickerControls";
 import {
   filterSlashCommands,
   handleSlashCommandPanelKeyDown,
@@ -92,12 +95,6 @@ function normalizeCursorComposerConfig(
   };
 }
 
-function formatEffortLabel(id: string): string {
-  if (id === "xhigh" || id === "xHigh") return "Extra High";
-  if (id === "ultracode") return "Ultracode";
-  return id.charAt(0).toUpperCase() + id.slice(1);
-}
-
 function buildControls(
   thread: Thread,
   agentStatus: AgentStatus | undefined,
@@ -130,127 +127,40 @@ function buildControls(
     capabilities: filteredCaps,
   };
 
-  const efforts = (
-    filteredCaps.modelEfforts?.[effectiveConfig.model] ??
-    filteredCaps.efforts ??
-    []
-  ).map((id) => ({
-    id,
-    label: formatEffortLabel(id),
-  }));
-  const selectableEfforts = efforts.length > 1 ? efforts : [];
-  const modelContext = filteredCaps.modelContextSizes?.[effectiveConfig.model];
-  const contextSizes =
-    (modelContext
-      ? filteredCaps.contextSizes?.filter((c) => modelContext.includes(c.id))
-      : undefined) ?? [];
-  const selectableContextSizes = contextSizes.length > 1 ? contextSizes : [];
-  const supportsFast = filteredCaps.fastModels?.includes(effectiveConfig.model) ?? false;
-  const supportsThinking = filteredCaps.thinkingModels?.includes(effectiveConfig.model) ?? false;
-
-  const controls: ComposerControl[] = [
-    {
-      kind: "provider-model",
+  return appendProviderComposerControls(
+    buildModelPickerControls({
       providers: [provider],
-      currentAgentKind: thread.agentKind,
-      currentModel: effectiveConfig.model,
+      selectedAgentKind: thread.agentKind,
+      model: effectiveConfig.model,
+      ...(effectiveConfig.effort ? { effort: effectiveConfig.effort } : {}),
+      ...(effectiveConfig.contextSize ? { contextSize: effectiveConfig.contextSize } : {}),
+      ...(effectiveConfig.fast ? { fast: effectiveConfig.fast } : {}),
+      ...(effectiveConfig.thinking ? { thinking: effectiveConfig.thinking } : {}),
+      capabilities: filteredCaps,
       lockedAgentKind: thread.agentKind,
       presentationMode,
       isDisabled,
-      hideLabelOnWrap: true,
-      tier: 5,
-      onChange: ({ model }) => {
-        const nextEfforts = filteredCaps.modelEfforts?.[model] ?? filteredCaps.efforts ?? [];
-        const effortValid = effectiveConfig.effort
-          ? nextEfforts.includes(effectiveConfig.effort)
-          : true;
-        const nextContextIds = filteredCaps.modelContextSizes?.[model];
-        const nextContextDefault = nextContextIds?.[0] ?? filteredCaps.defaultContextSize;
-        onPatch({
-          model,
-          ...(!effortValid && nextEfforts.length > 0 ? { effort: nextEfforts[0] } : {}),
-          ...(nextContextDefault ? { contextSize: nextContextDefault } : {}),
-          ...(filteredCaps.fastModels?.includes(model) ? {} : { fast: false }),
-          ...(filteredCaps.thinkingModels?.includes(model) ? {} : { thinking: false }),
-        });
+      onProviderModelChange: ({ model }) => {
+        onPatch(
+          patchConfigForModelChange(filteredCaps, model, {
+            ...(effectiveConfig.effort ? { effort: effectiveConfig.effort } : {}),
+            ...(effectiveConfig.contextSize ? { contextSize: effectiveConfig.contextSize } : {}),
+            ...(effectiveConfig.fast ? { fast: effectiveConfig.fast } : {}),
+            ...(effectiveConfig.thinking ? { thinking: effectiveConfig.thinking } : {}),
+          }),
+        );
       },
-    },
-  ];
-
-  if (selectableEfforts.length > 0 || selectableContextSizes.length > 0 || supportsThinking) {
-    controls.push({
-      kind: "effort-context",
-      efforts: selectableEfforts,
-      ...(selectableEfforts.length > 0 && effectiveConfig.effort
-        ? { effortValue: effectiveConfig.effort }
-        : {}),
-      onEffortChange: (value) => onPatch({ effort: value }),
-      contextSizes: selectableContextSizes,
-      ...(selectableContextSizes.length > 0 && effectiveConfig.contextSize
-        ? { contextValue: effectiveConfig.contextSize }
-        : {}),
-      onContextChange: (value) => onPatch({ contextSize: value }),
-      thinkingSupported: supportsThinking,
-      thinkingValue: effectiveConfig.thinking === true,
-      onThinkingChange: (value) => onPatch({ thinking: value }),
-      isDisabled,
-      hideLabelOnWrap: true,
-      tier: 4,
-      icon:
-        selectableEfforts.length > 0 ? (
-          <EffortIcon
-            className="size-4 text-foreground"
-            effort={effectiveConfig.effort ?? ""}
-            efforts={selectableEfforts.map((e) => e.id)}
-          />
-        ) : undefined,
-    });
-  }
-
-  if (supportsFast) {
-    controls.push({
-      kind: "toggle",
-      label: "Fast",
-      icon: <Zap className="size-3.5" />,
-      iconOnly: true,
-      fillIconOnSelect: true,
-      isSelected: effectiveConfig.fast === true,
-      isDisabled,
-      tier: 3,
-      onChange: (selected) => onPatch({ fast: selected }),
-    });
-  }
-
-  const factory = getComposerControls(thread.agentKind);
-  if (factory) {
-    const providerControls = factory({
+      onConfigPatch: onPatch,
+    }),
+    {
+      agentKind: thread.agentKind,
       capabilities: filteredCaps,
       config: thread.config,
+      presentationMode,
       isDisabled,
       onConfigChange: onPatch,
-      presentationMode,
-    });
-
-    controls.push(
-      ...providerControls.map((c) => {
-        // Assign tiers to provider-specific controls
-        let tier = c.tier;
-        if (tier === undefined) {
-          if (c.kind === "toggle" && (c.label === "Plan" || c.label === "Work")) {
-            tier = 2;
-          } else if (
-            (c.kind === undefined || c.kind === "toggle" || c.kind === "menu") &&
-            c.iconKind === "permission"
-          ) {
-            tier = 1;
-          }
-        }
-        return { ...c, tier };
-      }),
-    );
-  }
-
-  return controls;
+    },
+  );
 }
 
 type ThreadComposerSectionProps = {

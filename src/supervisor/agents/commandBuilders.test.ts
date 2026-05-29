@@ -569,5 +569,9 @@ describe("agent command builders", () => {
       command: "cursor-agent",
       args: ["--print", "--force", "--trust", "--output-format", "json"],
     });
+    expect(createCursorAdapter().buildOneShotCommand?.("composer-2.5")).toEqual({
+      command: "cursor-agent",
+      args: ["--print", "--force", "--trust", "--output-format", "json", "--model", "composer-2.5"],
+    });
   });
 });

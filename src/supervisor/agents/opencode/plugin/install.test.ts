@@ -206,7 +206,7 @@ describe("installOpenCodePlugin", () => {
 });
 
 describe("uninstallOpenCodePlugin", () => {
-  it("removes both dropped files and any opencode.json entry, leaves staging intact", () => {
+  it("removes dropped files, staging dir, and the opencode.json entry", () => {
     const baseDir = makeBaseDir();
     const opencodeDir = makeBaseDir();
     process.env.OPENCODE_CONFIG_DIR = opencodeDir;
@@ -233,8 +233,7 @@ describe("uninstallOpenCodePlugin", () => {
 
     expect(existsSync(result.paths.opencodePluginFile)).toBe(false);
     expect(existsSync(join(opencodeDir, "plugins", "lightcode-status.plugin.json"))).toBe(false);
-    expect(existsSync(join(result.paths.pluginDir, "plugin.json"))).toBe(true);
-    expect(existsSync(join(result.paths.pluginDir, "lightcode-status.mjs"))).toBe(true);
+    expect(existsSync(result.paths.pluginDir)).toBe(false);
 
     const config = JSON.parse(readFileSync(configPath, "utf8")) as Record<string, unknown>;
     expect(config.plugin).toEqual(["@user/other-plugin"]);

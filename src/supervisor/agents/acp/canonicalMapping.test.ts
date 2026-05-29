@@ -557,6 +557,31 @@ describe("mapAcpSessionUpdate", () => {
     expect(started.payload.changeKind).toBe("edit");
   });
 
+  it("classifies Droid ApplyPatch as file_change even when kind is not edit", () => {
+    // Droid's ACP adapter emits `ApplyPatch` (camelCase, no underscore) as the
+    // tool title/name. The word-boundary regex `\bpatch\b` does NOT match
+    // "ApplyPatch" because there is no boundary between "Apply" and "Patch",
+    // so the mapper must recognise the name explicitly.
+    const state = createAcpMapperState("t-fc-droid-applypatch");
+    const events = mapAcpSessionUpdate(
+      note({
+        sessionUpdate: "tool_call",
+        toolCallId: "tc-fc-droid",
+        title: "ApplyPatch",
+        kind: "other",
+        status: "in_progress",
+        rawInput: {
+          patch: "*** Begin Patch\n*** Update File: src/bar.ts\n@@\n-old\n+new\n*** End Patch",
+        },
+      } as Parameters<typeof mapAcpSessionUpdate>[0]["update"]),
+      state,
+    );
+    const started = events[0] as { itemType: string; payload: Record<string, unknown> };
+    expect(started.itemType).toBe("file_change");
+    expect(started.payload.path).toBe("src/bar.ts");
+    expect(started.payload.changeKind).toBe("edit");
+  });
+
   it("classifies ACP write content payloads as creates", () => {
     const state = createAcpMapperState("t-fc-write-create");
     const rawInput = {
@@ -751,6 +776,78 @@ describe("mapAcpSessionUpdate", () => {
           isSubAgent: true,
           progress: { stepCount: 1 },
           status: "running",
+        },
+      },
+    ]);
+  });
+
+  it("surfaces ACP subagent tool_call_update progress as title metadata and child markdown", () => {
+    const state = createAcpMapperState("t-subagent-progress");
+    const started = mapAcpSessionUpdate(
+      note({
+        sessionUpdate: "tool_call",
+        toolCallId: "tc-subagent-progress",
+        title: "Explore worktree watcher",
+        status: "in_progress",
+        rawInput: {
+          description: "Explore worktree watcher",
+          subagent_type: "worker",
+          prompt: "Trace watcher flow",
+        },
+      } as Parameters<typeof mapAcpSessionUpdate>[0]["update"]),
+      state,
+    );
+    const parentItemId = (started[0] as { itemId: string }).itemId;
+
+    const update = mapAcpSessionUpdate(
+      note({
+        sessionUpdate: "tool_call_update",
+        toolCallId: "tc-subagent-progress",
+        title: "Reading README.md",
+        status: "in_progress",
+        rawOutput: {
+          text: "Reading README.md\n\nFound the watcher initialization path.",
+        },
+      } as Parameters<typeof mapAcpSessionUpdate>[0]["update"]),
+      state,
+    );
+
+    expect(update).toMatchObject([
+      {
+        type: "item.updated",
+        threadId: "t-subagent-progress",
+        itemId: parentItemId,
+        payload: {
+          title: "Reading README.md",
+          isSubAgent: true,
+          progress: {
+            description: "Reading README.md",
+            summary: "Reading README.md",
+          },
+        },
+      },
+      {
+        type: "item.started",
+        threadId: "t-subagent-progress",
+        itemType: "assistant_message",
+        parentItemId,
+      },
+      {
+        type: "content.delta",
+        threadId: "t-subagent-progress",
+        stream: "assistant_text",
+        delta: "Reading README.md\n\nFound the watcher initialization path.",
+      },
+      {
+        type: "item.updated",
+        threadId: "t-subagent-progress",
+        itemId: parentItemId,
+        payload: {
+          isSubAgent: true,
+          progress: {
+            description: "Reading README.md",
+            stepCount: 1,
+          },
         },
       },
     ]);
@@ -1284,5 +1381,30 @@ describe("mapAcpPermissionRequest", () => {
         ],
       },
     });
+  });
+
+  it("classifies Droid ApplyPatch approvals as apply_patch_approval", () => {
+    const state = createAcpMapperState("t-perm-applypatch");
+
+    const event = mapAcpPermissionRequest(
+      {
+        sessionId: "s1",
+        toolCall: {
+          title: "ApplyPatch",
+          kind: "other",
+          rawInput: {
+            patch: "*** Begin Patch\n*** Update File: src/foo.ts\n@@\n-old\n+new\n*** End Patch",
+          },
+        },
+        options: [
+          { optionId: "allow", name: "Allow", kind: "allow_once" },
+          { optionId: "reject", name: "Reject", kind: "reject_once" },
+        ],
+      } as Parameters<typeof mapAcpPermissionRequest>[0],
+      state,
+      "acp-perm-applypatch-0",
+    );
+
+    expect(event).toMatchObject({ requestType: "apply_patch_approval" });
   });
 });

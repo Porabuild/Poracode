@@ -1,5 +1,11 @@
 import type { AgentCapability, AgentStatus, ThreadPresentationMode } from "@/shared/contracts";
 import { deriveSubProvider, listSubProviderOrder } from "./deriveSubProvider";
+import {
+  formatShortcutFallbackLabel,
+  formatShortcutModelLabel,
+  modelLookupAliases,
+  stripBracketParams,
+} from "./modelShortcutLabel";
 import type { ProviderModelItem } from "./types";
 
 export interface ProviderModelMenuProvider {
@@ -250,6 +256,22 @@ interface VisibleProvider {
   searchText: string;
 }
 
+function findModelEntry(cache: ProviderModelCache, modelId: string): ModelEntry | undefined {
+  for (const alias of modelLookupAliases(modelId)) {
+    const direct = cache.modelById.get(alias);
+    if (direct) return direct;
+  }
+
+  const baseId = stripBracketParams(modelId);
+  for (const candidate of cache.models) {
+    if (modelLookupAliases(candidate.id).includes(baseId)) {
+      return candidate;
+    }
+  }
+
+  return undefined;
+}
+
 function resolveModelRef(
   ref: ModelRef,
   providersByKind: ReadonlyMap<string, VisibleProvider>,
@@ -258,11 +280,15 @@ function resolveModelRef(
   if (!visibleProvider) return undefined;
   const { provider, cache } = visibleProvider;
   const model =
-    cache.modelById.get(ref.modelId) ??
-    makeModelEntry(ref.modelId, DEFAULT_LABEL(ref.modelId), provider.capabilities);
+    findModelEntry(cache, ref.modelId) ??
+    makeModelEntry(
+      ref.modelId,
+      formatShortcutFallbackLabel(ref.agentKind, ref.modelId),
+      provider.capabilities,
+    );
   const resolved: ResolvedModelRef = {
     ref,
-    label: model.label,
+    label: formatShortcutModelLabel(ref.agentKind, ref.modelId, model.label),
     providerLabel: provider.label,
     searchText: model.searchText,
     providerSearchText: visibleProvider.searchText,

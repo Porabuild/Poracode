@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { Paperclip, Zap } from "lucide-react";
+import { Paperclip } from "lucide-react";
 import { Modal } from "@heroui/react";
 import type {
   AgentCapability,
@@ -13,11 +13,14 @@ import type {
   ThreadPresentationMode,
 } from "@/shared/contracts";
 import { Button, PixelLoader } from "@/renderer/components/common";
-import { getComposerControls } from "@/renderer/components/providers";
-import { EffortIcon } from "@/renderer/components/providers/EffortIcon";
 import { readBridge } from "@/renderer/bridge";
 import type { ComposerControl } from "./ThreadComposer";
 import { ThreadComposer } from "./ThreadComposer";
+import {
+  appendProviderComposerControls,
+  buildModelPickerControls,
+  buildProviderModelMenuProviders,
+} from "./buildModelPickerControls";
 import { AttachmentBar, ImageLightbox, MentionInput, useAttachments } from "../composer";
 import type { MentionInputHandle } from "../composer";
 import { flattenSegments } from "../composer/serializeMentions";
@@ -32,12 +35,6 @@ type PendingSubmission = { prompt: string; segments?: PromptSegment[] };
 const MAX_TRANSCRIPT_CONTEXT_CHARS = 50_000;
 const DEFAULT_HANDOFF_PROMPT =
   "Continue from the transferred context and pick up where the previous provider left off.";
-
-function formatEffortLabel(id: string): string {
-  if (id === "xhigh" || id === "xHigh") return "Extra High";
-  if (id === "ultracode") return "Ultracode";
-  return id.charAt(0).toUpperCase() + id.slice(1);
-}
 
 function supportedPresentationModes(agent: AgentStatus): ThreadPresentationMode[] {
   return agent.capabilities.presentationModes ?? [agent.capabilities.presentationMode];
@@ -152,20 +149,6 @@ function resolveDefaultConfig(
 
 function savedConfigForAgent(agent: AgentStatus, savedConfig?: ProjectDraftConfig) {
   return savedConfig?.agentKind === agent.kind ? savedConfig : undefined;
-}
-
-function applyDefaultControlTiers(control: ComposerControl): ComposerControl {
-  if (control.tier !== undefined) return control;
-  if (control.kind === "toggle" && (control.label === "Plan" || control.label === "Work")) {
-    return { ...control, tier: 2 };
-  }
-  if (
-    (control.kind === undefined || control.kind === "toggle" || control.kind === "menu") &&
-    control.iconKind === "permission"
-  ) {
-    return { ...control, tier: 1 };
-  }
-  return control;
 }
 
 function asRecord(value: unknown): Record<string, unknown> | null {
@@ -371,103 +354,36 @@ export function ContinueInProviderDialog(props: {
         allHiddenModels[selectedAgent.kind],
       )
     : undefined;
-  const providerModelProviders = otherAgents
-    .filter((agent) => supportsPresentation(agent, targetPresentationMode))
-    .map((agent) => ({
-      kind: agent.kind,
-      label: agent.label,
-      capabilities: filterHiddenModels(
-        capabilitiesForPresentation(agent.capabilities, targetPresentationMode),
-        allHiddenModels[agent.kind],
-      ),
-    }));
-  const targetEfforts = (
-    selectedTargetCapabilities?.modelEfforts?.[targetConfig.model] ??
-    selectedTargetCapabilities?.efforts ??
-    []
-  ).map((id) => ({ id, label: formatEffortLabel(id) }));
-  const selectableTargetEfforts = targetEfforts.length > 1 ? targetEfforts : [];
-  const targetContextIds = selectedTargetCapabilities?.modelContextSizes?.[targetConfig.model];
-  const targetContextSizes =
-    (targetContextIds
-      ? selectedTargetCapabilities?.contextSizes?.filter((c) => targetContextIds.includes(c.id))
-      : undefined) ?? [];
-  const selectableTargetContextSizes = targetContextSizes.length > 1 ? targetContextSizes : [];
-  const targetSupportsFast =
-    selectedTargetCapabilities?.fastModels?.includes(targetConfig.model) ?? false;
-  const targetSupportsThinking =
-    selectedTargetCapabilities?.thinkingModels?.includes(targetConfig.model) ?? false;
+  const providerModelProviders = buildProviderModelMenuProviders(otherAgents, {
+    presentationMode: targetPresentationMode,
+    hiddenModelsByAgent: allHiddenModels,
+    filterAgent: (agent) => supportsPresentation(agent, targetPresentationMode),
+  });
   const targetControls: ComposerControl[] = selectedAgent
-    ? [
-        {
-          kind: "provider-model",
+    ? appendProviderComposerControls(
+        buildModelPickerControls({
           providers: providerModelProviders,
-          currentAgentKind: selectedKind,
-          currentModel: targetConfig.model,
+          selectedAgentKind: selectedKind,
+          model: targetConfig.model,
+          ...(targetConfig.effort ? { effort: targetConfig.effort } : {}),
+          ...(targetConfig.contextSize ? { contextSize: targetConfig.contextSize } : {}),
+          ...(targetConfig.fast ? { fast: targetConfig.fast } : {}),
+          ...(targetConfig.thinking ? { thinking: targetConfig.thinking } : {}),
+          capabilities: selectedTargetCapabilities ?? selectedAgent.capabilities,
           presentationMode: targetPresentationMode,
-          hideLabelOnWrap: true,
-          tier: 5,
-          onChange: (next) => handleProviderChange(next.agentKind, { model: next.model }),
+          onProviderModelChange: (next) =>
+            handleProviderChange(next.agentKind, { model: next.model }),
+          onConfigPatch: handleTargetConfigPatch,
+        }),
+        {
+          agentKind: selectedKind,
+          capabilities: selectedTargetCapabilities ?? selectedAgent.capabilities,
+          config: targetConfig,
+          presentationMode: targetPresentationMode,
+          isDisabled: false,
+          onConfigChange: handleTargetConfigPatch,
         },
-        ...(selectableTargetEfforts.length > 0 ||
-        selectableTargetContextSizes.length > 0 ||
-        targetSupportsThinking
-          ? [
-              {
-                kind: "effort-context" as const,
-                efforts: selectableTargetEfforts,
-                ...(selectableTargetEfforts.length > 0 && targetConfig.effort
-                  ? { effortValue: targetConfig.effort }
-                  : {}),
-                onEffortChange: (value: string) => handleTargetConfigPatch({ effort: value }),
-                contextSizes: selectableTargetContextSizes,
-                ...(selectableTargetContextSizes.length > 0 && targetConfig.contextSize
-                  ? { contextValue: targetConfig.contextSize }
-                  : {}),
-                onContextChange: (value: string) => handleTargetConfigPatch({ contextSize: value }),
-                thinkingSupported: targetSupportsThinking,
-                thinkingValue: targetConfig.thinking === true,
-                onThinkingChange: (value: boolean) => handleTargetConfigPatch({ thinking: value }),
-                hideLabelOnWrap: true,
-                tier: 4,
-                ...(selectableTargetEfforts.length > 0 && targetConfig.effort
-                  ? {
-                      icon: (
-                        <EffortIcon
-                          className="size-4 text-foreground"
-                          effort={targetConfig.effort}
-                          efforts={selectableTargetEfforts.map((e) => e.id)}
-                        />
-                      ),
-                    }
-                  : {}),
-              },
-            ]
-          : []),
-        ...(targetSupportsFast
-          ? [
-              {
-                kind: "toggle" as const,
-                label: "Fast",
-                icon: <Zap className="size-3.5" />,
-                iconOnly: true,
-                fillIconOnSelect: true,
-                isSelected: targetConfig.fast === true,
-                onChange: (selected: boolean) => handleTargetConfigPatch({ fast: selected }),
-                tier: 3,
-              },
-            ]
-          : []),
-        ...(
-          getComposerControls(selectedKind)?.({
-            capabilities: selectedTargetCapabilities ?? selectedAgent.capabilities,
-            config: targetConfig,
-            isDisabled: false,
-            onConfigChange: handleTargetConfigPatch,
-            presentationMode: targetPresentationMode,
-          }) ?? []
-        ).map(applyDefaultControlTiers),
-      ]
+      )
     : [];
   const supportsTargetTerminalMode = otherAgents.some((agent) =>
     supportsPresentation(agent, "terminal"),

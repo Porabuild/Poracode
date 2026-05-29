@@ -1,12 +1,13 @@
 import type { GitFileChange, Project, ThreadPresentationMode } from "@/shared/contracts";
 import { getProjectAgentStatuses } from "@/shared/agentStatus";
+import {
+  getConflictResolverCandidatesForLaunch,
+  readConflictResolverSettingsForProject,
+  resolveConflictResolverLaunchConfig,
+} from "@/renderer/components/providers/conflictResolver";
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
-import {
-  getConflictResolverCandidates,
-  getConflictResolverDefaults,
-} from "@/renderer/components/providers/ProviderIcon";
 
 function resolvePresentationMode(
   preferred: ThreadPresentationMode,
@@ -29,18 +30,20 @@ export function useConflictResolver(params: {
 
   const agentStatuses = useAgentStatusesStore((s) => s.agentStatuses);
   const wslAgentStatuses = useAgentStatusesStore((s) => s.wslAgentStatuses);
-  const isWsl = project.location.kind === "wsl";
-  const conflictResolverProvider = useSharedSettings((s) =>
-    isWsl ? s.wslConflictResolverProvider : s.conflictResolverProvider,
-  );
-  const conflictResolverModel = useSharedSettings((s) =>
-    isWsl ? s.wslConflictResolverModel : s.conflictResolverModel,
-  );
-  const conflictResolverEffort = useSharedSettings((s) =>
-    isWsl ? s.wslConflictResolverEffort : s.conflictResolverEffort,
-  );
-  const conflictResolverPresentationMode = useSharedSettings((s) =>
-    isWsl ? s.wslConflictResolverPresentationMode : s.conflictResolverPresentationMode,
+  const sharedSettings = useSharedSettings((s) => ({
+    conflictResolverProvider: s.conflictResolverProvider,
+    conflictResolverModel: s.conflictResolverModel,
+    conflictResolverEffort: s.conflictResolverEffort,
+    conflictResolverPresentationMode: s.conflictResolverPresentationMode,
+    wslConflictResolverProvider: s.wslConflictResolverProvider,
+    wslConflictResolverModel: s.wslConflictResolverModel,
+    wslConflictResolverEffort: s.wslConflictResolverEffort,
+    wslConflictResolverPresentationMode: s.wslConflictResolverPresentationMode,
+  }));
+
+  const conflictResolverSettings = readConflictResolverSettingsForProject(
+    project.location.kind,
+    sharedSettings,
   );
 
   const projectAgentStatuses = getProjectAgentStatuses(
@@ -50,22 +53,29 @@ export function useConflictResolver(params: {
   );
 
   const canResolveWithAgent =
-    getConflictResolverCandidates(projectAgentStatuses, conflictResolverProvider).length > 0;
+    getConflictResolverCandidatesForLaunch(projectAgentStatuses, conflictResolverSettings.provider)
+      .length > 0;
 
   function handleResolveWithAgent() {
     if (mergeConflictFiles.length === 0) return;
 
-    const candidates = getConflictResolverCandidates(
+    const liveSettings = readConflictResolverSettingsForProject(
+      project.location.kind,
+      useSharedSettings.getState(),
+    );
+    const candidates = getConflictResolverCandidatesForLaunch(
       projectAgentStatuses,
-      conflictResolverProvider,
+      liveSettings.provider,
     );
     const provider = candidates[0];
     if (!provider) return;
 
-    const defaults = getConflictResolverDefaults(provider.kind);
-    const model =
-      conflictResolverModel || defaults?.model || provider.capabilities.models[0]?.id || "";
-    const effort = conflictResolverEffort || defaults?.effort || "";
+    const { model, effort } = resolveConflictResolverLaunchConfig(
+      liveSettings.provider,
+      provider,
+      liveSettings.model,
+      liveSettings.effort,
+    );
 
     const fileList = mergeConflictFiles.map((f) => `- ${f.path}`).join("\n");
     const prompt =
@@ -73,7 +83,7 @@ export function useConflictResolver(params: {
       `For each file, open it and resolve the conflict markers (<<<<<<< =======  >>>>>>>).`;
 
     const presentationMode = resolvePresentationMode(
-      conflictResolverPresentationMode,
+      liveSettings.presentationMode,
       provider.capabilities,
     );
 

@@ -16,20 +16,20 @@ registerProviderIcon("cursor", CursorIcon);
 registerProviderLabel("cursor", "Cursor");
 registerCommitGenDefaults("cursor", {
   label: "Cursor",
-  hint: "Composer 2 Fast",
-  model: "composer-2-fast",
+  hint: "Composer 2.5",
+  model: "composer-2.5",
   effort: "",
 });
 registerTitleGenDefaults("cursor", {
   label: "Cursor",
-  hint: "Composer 2 Fast",
-  model: "composer-2-fast",
+  hint: "Composer 2.5",
+  model: "composer-2.5",
   effort: "",
 });
 registerConflictResolverDefaults("cursor", {
   label: "Cursor",
-  hint: "Composer 2 Fast",
-  model: "composer-2-fast",
+  hint: "Composer 2.5",
+  model: "composer-2.5",
   effort: "",
 });
 

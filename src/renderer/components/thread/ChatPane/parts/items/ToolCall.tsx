@@ -170,7 +170,12 @@ function isEditLikeToolPayload(payload: ToolCallPayload): boolean {
     case "move":
       return true;
   }
-  if (["Edit", "Write", "MultiEdit", "NotebookEdit", "Patch"].includes(payload.name)) return true;
+  if (
+    ["Edit", "Write", "MultiEdit", "NotebookEdit", "Patch", "ApplyPatch", "apply_patch"].includes(
+      payload.name,
+    )
+  )
+    return true;
   const title = payload.title?.trim() || payload.name.trim();
   return /^(?:edit|editing|write|writing|patch|patching|create|creating|delete|deleting|remove|removing)(?:\s|:|$)/i.test(
     title,

@@ -24,6 +24,7 @@ import {
   isWslPluginContext,
   readBundledPluginVersion,
   readPluginManifest,
+  removeStagedPluginDir,
   stagePluginAssetsToWsl,
   type PluginManifest,
 } from "../../plugin/installerBase";
@@ -510,6 +511,7 @@ export function uninstallOpenCodePlugin(ctx?: AgentEnvContext): void {
     if (cfgDir) {
       updateOpenCodeConfigFile(`${cfgDir.uncDir}\\${OPENCODE_CONFIG_FILE_NAME}`, undefined);
     }
+    removeStagedPluginDir("opencode", ctx);
     return;
   }
   const pluginsDir = resolveOpenCodeNativePluginsDir();
@@ -520,6 +522,7 @@ export function uninstallOpenCodePlugin(ctx?: AgentEnvContext): void {
     join(resolveOpenCodeNativeConfigDir(), OPENCODE_CONFIG_FILE_NAME),
     undefined,
   );
+  removeStagedPluginDir("opencode", ctx);
 }
 
 function removeIfPresent(path: string): void {

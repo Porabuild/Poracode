@@ -1,11 +1,15 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { Button, toast } from "@heroui/react";
+import { Download, X } from "lucide-react";
 import type {
+  AgentHookPluginStatus,
   AgentStatus,
   Project,
   PromptSegment,
   ThreadConfig,
   ThreadPresentationMode,
 } from "@/shared/contracts";
+import { hookEnvForProject, hookEnvKey } from "@/shared/agentHookPluginEnv";
 import { isHomeProjectId } from "@/shared/homeScope";
 import { readBridge } from "@/renderer/bridge";
 import {
@@ -51,6 +55,110 @@ export type DraftStartInput = {
   worktreeIsNewBranch?: boolean;
   presentationMode?: ThreadPresentationMode;
 };
+
+function HookInstallProposal(props: {
+  project: Project;
+  selectedAgent: AgentStatus;
+  presentationMode: ThreadPresentationMode;
+}) {
+  const env = hookEnvForProject(props.project);
+  const envKey = hookEnvKey(env);
+  const agentKind = props.selectedAgent.kind;
+  const proposalKey = `${agentKind}:${envKey}`;
+  const dismissed = useSharedSettings((s) => s.dismissedHookInstallProposals[proposalKey] === true);
+  const dismissHookInstallProposal = useSharedSettings((s) => s.dismissHookInstallProposal);
+  const [status, setStatus] = useState<AgentHookPluginStatus | undefined>(undefined);
+  const [pending, setPending] = useState(false);
+
+  useEffect(() => {
+    if (
+      props.presentationMode !== "terminal" ||
+      dismissed ||
+      typeof window === "undefined" ||
+      !window.lightcode?.getAgentHookPluginStatuses
+    ) {
+      setStatus(undefined);
+      return;
+    }
+    const requestEnv = env;
+    let cancelled = false;
+    readBridge()
+      .getAgentHookPluginStatuses({ agentKind, envs: [requestEnv] })
+      .then((statuses) => {
+        if (!cancelled) setStatus(statuses[0]);
+      })
+      .catch(() => {
+        if (!cancelled) setStatus(undefined);
+      });
+    return () => {
+      cancelled = true;
+    };
+    // `env` is keyed by `envKey` (a string) — depend on the key, not the
+    // freshly-built env object, to avoid re-firing the IPC on every render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dismissed, props.presentationMode, agentKind, envKey]);
+
+  if (
+    dismissed ||
+    props.presentationMode !== "terminal" ||
+    !status ||
+    !status.supported ||
+    status.installed
+  ) {
+    return null;
+  }
+
+  const install = () => {
+    setPending(true);
+    readBridge()
+      .installAgentHookPlugin({ agentKind: props.selectedAgent.kind, env })
+      .then((result) => {
+        setStatus(result.status);
+        toast.success(`${props.selectedAgent.label} hooks installed.`);
+      })
+      .catch((error) =>
+        toast.danger(
+          error instanceof Error
+            ? error.message
+            : `Unable to install ${props.selectedAgent.label} hooks.`,
+        ),
+      )
+      .finally(() => setPending(false));
+  };
+
+  return (
+    <div className="flex items-center justify-between gap-3 border-b border-border/40 px-3 py-2 text-sm">
+      <div className="min-w-0">
+        <p className="font-medium text-foreground">Install CLI hooks for better status updates</p>
+        <p className="truncate text-xs text-muted">
+          Hooks are optional and install only when you choose them.
+        </p>
+      </div>
+      <div className="flex shrink-0 items-center gap-1.5">
+        <Button
+          size="sm"
+          variant="secondary"
+          className="h-7 min-h-7 gap-1 px-2 text-[11px]"
+          isPending={pending}
+          onPress={install}
+        >
+          <Download className="size-3" />
+          Install
+        </Button>
+        <Button
+          size="sm"
+          variant="tertiary"
+          isIconOnly
+          aria-label="Don't show hook install proposal"
+          className="h-7 min-h-7 w-7"
+          onPress={() => dismissHookInstallProposal(proposalKey)}
+        >
+          <X className="size-3" />
+        </Button>
+      </div>
+    </div>
+  );
+}
 
 export function ThreadDraftComposerArea(props: {
   project: Project;
@@ -331,6 +439,11 @@ export function ThreadDraftComposerArea(props: {
             <ThreadAgentUpdateDock
               agentStatus={props.selectedAgent}
               onUpdatingChange={setAgentUpdating}
+            />
+            <HookInstallProposal
+              project={props.project}
+              selectedAgent={props.selectedAgent}
+              presentationMode={props.presentationMode}
             />
             {showCommandPanel ? (
               <ThreadCommandPanel
