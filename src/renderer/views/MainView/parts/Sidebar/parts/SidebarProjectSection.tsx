@@ -10,6 +10,7 @@ export function SidebarProjectSection(props: {
   projectId: string;
   projectIndex: number;
   sortMode: ThreadSortMode;
+  growableProjectId: string | null;
 }) {
   const project = useProject(props.projectId);
   const isProjectCollapsed = useIsProjectCollapsed(props.projectId);
@@ -34,7 +35,13 @@ export function SidebarProjectSection(props: {
         isCollapsed={isProjectCollapsed}
         isDragging={isDragging}
       />
-      {showBody ? <SidebarProjectThreadList project={project} sortMode={props.sortMode} /> : null}
+      {showBody ? (
+        <SidebarProjectThreadList
+          project={project}
+          sortMode={props.sortMode}
+          growableProjectId={props.growableProjectId}
+        />
+      ) : null}
     </section>
   );
 }
