@@ -1,6 +1,11 @@
 import { z } from "zod";
-import type { RuntimeEvent } from "../contracts";
-import { projectSchema, threadContextUsageSchema, threadSchema } from "../contracts";
+import type { RuntimeEvent, WorkflowRun } from "../contracts";
+import {
+  projectLocationSchema,
+  projectSchema,
+  threadContextUsageSchema,
+  threadSchema,
+} from "../contracts";
 
 export const pickFilesOptionsSchema = z
   .object({
@@ -38,6 +43,19 @@ export const subAgentSubscribePayloadSchema = z.object({
 export type SubAgentSubscribePayload = z.infer<typeof subAgentSubscribePayloadSchema>;
 export interface SubAgentSubscribeResult {
   history: RuntimeEvent[];
+}
+
+export const workflowGetRunPayloadSchema = z.object({
+  manifestPath: z.string().min(1),
+  /** Used to scan for in-flight `agent-*.meta.json` files before the manifest exists. */
+  transcriptDir: z.string().min(1).optional(),
+  location: projectLocationSchema,
+});
+export type WorkflowGetRunPayload = z.infer<typeof workflowGetRunPayloadSchema>;
+export interface WorkflowGetRunResult {
+  /** `null` when the manifest doesn't exist yet — caller should keep polling. */
+  run: WorkflowRun | null;
+  mtimeMs?: number;
 }
 
 export const dbStateKeySchema = z.string().min(1);

@@ -694,6 +694,21 @@ export class SupervisorRuntime {
     this.threadSessionManager.subagentUnsubscribe(payload);
   }
 
+  async workflowGetRun(
+    payload: import("@/shared/ipc").WorkflowGetRunPayload,
+  ): Promise<import("@/shared/ipc").WorkflowGetRunResult> {
+    const { readWorkflowRun } = await import("./workflows/transcriptReader");
+    // `run` is null when the manifest hasn't been written yet (normal for the
+    // first few seconds after a workflow launches). Pass it through verbatim
+    // so the renderer keeps the row in a "starting…" state while polling.
+    const run = await readWorkflowRun({
+      manifestPath: payload.manifestPath,
+      location: payload.location,
+      ...(payload.transcriptDir ? { transcriptDir: payload.transcriptDir } : {}),
+    });
+    return { run };
+  }
+
   async getGitStatus(payload: GetGitStatusPayload): Promise<GitStatusResult> {
     return this.gitService.getStatus(payload.projectLocation);
   }

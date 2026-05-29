@@ -22,9 +22,11 @@ export const claudeCapabilities: AgentCapability = {
     { id: "sonnet", label: "Sonnet" },
     { id: "haiku", label: "Haiku" },
   ],
-  efforts: ["low", "medium", "high", "xHigh", "max"],
+  efforts: ["low", "medium", "high", "xHigh", "max", "ultracode"],
   defaultEffort: "high",
   modelEfforts: {
+    "claude-opus-4-8": ["low", "medium", "high", "xHigh", "max", "ultracode"],
+    "claude-opus-4-7": ["low", "medium", "high", "xHigh", "max", "ultracode"],
     "claude-opus-4-6": ["low", "medium", "high", "max"],
     haiku: [],
     sonnet: ["low", "medium", "high", "max"],

@@ -50,6 +50,7 @@ import {
   primeProjectShellEnv,
   resolveLaunchSpec,
 } from "../agents/base";
+import { prepareClaudeUltracodeSettingsFile } from "../agents/claude/ultracodeSettings";
 import { captureSupervisorException } from "../diagnostics/sentry";
 import { ensureNodePtySpawnHelperExecutable } from "../nodePty";
 import type { WindowsShellPreference } from "../shellPreference";
@@ -861,6 +862,31 @@ export class ThreadSessionManager {
    * them after positional session ids / prompts makes Codex treat
    * `--enable <hooks-feature>` as trailing user input instead of a real flag.
    */
+  /**
+   * Swap the hook plugin's `--settings <path>` for an ultracode-merged
+   * sibling file when the user picked `effort: "ultracode"`. Claude's CLI
+   * keeps only the first `--settings` it sees and silently drops the rest,
+   * so the inline `{"ultracode":true}` and the plugin's hooks file can't
+   * coexist as separate flags — they have to be one file.
+   */
+  private async applyClaudeUltracodeSettingsRewrite(
+    adapter: AgentAdapter,
+    args: string[],
+    config: ThreadConfig,
+    projectLocation: ProjectLocation,
+  ): Promise<string[]> {
+    if (adapter.kind !== "claude" || config.effort !== "ultracode") return args;
+    const idx = args.findIndex((arg, i) => arg === "--settings" && i + 1 < args.length);
+    if (idx < 0) return args;
+    const originalPath = args[idx + 1];
+    if (!originalPath) return args;
+    const rewritten = await prepareClaudeUltracodeSettingsFile(originalPath, projectLocation);
+    if (!rewritten) return args;
+    const out = [...args];
+    out[idx + 1] = rewritten;
+    return out;
+  }
+
   private mergeCliHookExtraArgs(
     adapter: AgentAdapter,
     args: string[],
@@ -1274,6 +1300,12 @@ export class ThreadSessionManager {
         payload.sessionRef,
       );
     }
+    argv.args = await this.applyClaudeUltracodeSettingsRewrite(
+      adapter,
+      argv.args,
+      payload.config,
+      payload.projectLocation,
+    );
     if (shouldPrimeNativeProjectShellEnv(payload.projectLocation)) {
       await primeProjectShellEnv(payload.projectLocation.path);
     }
@@ -1862,6 +1894,12 @@ export class ThreadSessionManager {
         session.sessionRef,
       );
     }
+    argv.args = await this.applyClaudeUltracodeSettingsRewrite(
+      session.adapter,
+      argv.args,
+      config,
+      session.projectLocation,
+    );
     if (shouldPrimeNativeProjectShellEnv(session.projectLocation)) {
       await primeProjectShellEnv(session.projectLocation.path);
     }
@@ -1954,6 +1992,12 @@ export class ThreadSessionManager {
           session.launchPrompt,
         );
       }
+      argv.args = await this.applyClaudeUltracodeSettingsRewrite(
+        session.adapter,
+        argv.args,
+        session.config,
+        session.projectLocation,
+      );
       if (shouldPrimeNativeProjectShellEnv(session.projectLocation)) {
         await primeProjectShellEnv(session.projectLocation.path);
       }

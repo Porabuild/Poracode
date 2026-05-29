@@ -46,6 +46,7 @@ export const UserMessage = memo(function UserMessage({
   const hasInlineFileMentions = content.some(
     (block) => block.kind === "file" && block.source !== "attachment",
   );
+  const hasTriggerWord = /\bworkflow\b/i.test(text);
   const attachments = enrichWithSelectorPayloads(
     buildUserPromptAttachments(content),
     extractSelectorPayloads(rawText),
@@ -105,7 +106,7 @@ export const UserMessage = memo(function UserMessage({
         {renderUserMessageInlineContent(content, commandPrefixLength, actions)}
       </>
     );
-  } else if (hasInlineFileMentions) {
+  } else if (hasInlineFileMentions || hasTriggerWord) {
     bodyClass = inlineBodyClass;
     bodyContent = renderUserMessageInlineContent(content, 0, actions);
   } else if (text.length > 0) {

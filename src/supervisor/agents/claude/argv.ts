@@ -30,7 +30,12 @@ export function buildClaudeArgs(
     args.push("--model", applyClaudeContextSuffix(config.model, config.contextSize));
   }
   if (config.effort) {
-    args.push("--effort", config.effort);
+    // `ultracode` is a Claude Code setting (xhigh reasoning + dynamic
+    // workflows), not an `--effort` value. Send `xhigh` to the model; the
+    // dynamic-workflow toggle rides on the `--settings` file — wired via
+    // applyFlagSettings on the SDK path and via the ultracode-merged
+    // settings.json rewrite on the PTY path.
+    args.push("--effort", config.effort === "ultracode" ? "xhigh" : config.effort);
   }
 
   args.push("--allow-dangerously-skip-permissions");

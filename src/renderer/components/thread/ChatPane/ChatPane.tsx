@@ -318,7 +318,10 @@ export function ChatPane(props: ChatPaneProps) {
             virtualScrollToBottomRef={virtualScrollToBottomRef}
             onInitialScrollSettled={() => setInitialScrollSettledThreadId(threadId)}
           />
-          <SubAgentOverlay threadId={threadId} />
+          <SubAgentOverlay
+            threadId={threadId}
+            {...(project ? { projectLocation: project.location } : {})}
+          />
         </div>
       </div>
     </ChatPaneActionsContext.Provider>

@@ -26,6 +26,7 @@ describe("lightcodePaths", () => {
       cacheDir: join(baseDir, "cache"),
       statusCachePath: join(baseDir, "cache", "agent-status-cache.json"),
       agentPluginsDir: join(baseDir, "agent-plugins"),
+      acpIconsDir: join(baseDir, "cache", "acp-icons"),
     });
   });
 });

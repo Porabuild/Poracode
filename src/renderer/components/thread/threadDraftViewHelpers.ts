@@ -85,7 +85,8 @@ export function resolveModeValue(agent: AgentStatus, preferred?: string): string
 }
 
 export function formatEffortLabel(id: string): string {
-  if (id === "xhigh") return "Extra High";
+  if (id === "xhigh" || id === "xHigh") return "Extra High";
+  if (id === "ultracode") return "Ultracode";
   return id.charAt(0).toUpperCase() + id.slice(1);
 }
 

@@ -680,6 +680,14 @@ export const MentionInput = forwardRef<
     range.collapse(false);
     sel.removeAllRanges();
     sel.addRange(range);
+    // Promote any "workflow" tokens inside the pasted text to trigger-word
+    // chips, matching the live-typing behavior. The caret is restored to the
+    // end of the paste afterwards so the user keeps typing where they left
+    // off rather than jumping back into the chip.
+    if (editorRef.current && /\bworkflow\b/i.test(text)) {
+      replaceAllWorkflowTriggerWords(editorRef.current);
+      placeCaretAtEnd(editorRef.current);
+    }
     notifyTextChange();
   }
 

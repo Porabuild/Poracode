@@ -34,7 +34,8 @@ const DEFAULT_HANDOFF_PROMPT =
   "Continue from the transferred context and pick up where the previous provider left off.";
 
 function formatEffortLabel(id: string): string {
-  if (id === "xhigh") return "Extra High";
+  if (id === "xhigh" || id === "xHigh") return "Extra High";
+  if (id === "ultracode") return "Ultracode";
   return id.charAt(0).toUpperCase() + id.slice(1);
 }
 

@@ -1,0 +1,429 @@
+import { useMemo, useState } from "react";
+import { Bot, Check, CircleAlert } from "lucide-react";
+import type {
+  ProjectLocation,
+  WorkflowAgent,
+  WorkflowAgentState,
+  WorkflowPhase,
+  WorkflowRun,
+  WorkflowRunStatus,
+} from "@/shared/contracts";
+import { LightballTabs, PixelLoader, type LightballTab } from "@/renderer/components/common";
+import { ThreadDockRow } from "@/renderer/components/thread/ThreadDockUI";
+import { useWorkflowRun } from "@/renderer/state/useWorkflowRun";
+import type { WorkflowInfo } from "./workflowDisplay";
+
+/**
+ * 3-pane workflow viewer:
+ *   header (name + summary + totals) → phases tabs → agents list → agent detail.
+ *
+ * Data comes from `<sessionDir>/workflows/<runId>.json`, which the workflow
+ * runtime updates incrementally while the run is in flight. We poll while
+ * the parent tool item is still running (1.5s) and stop once it completes.
+ */
+
+interface WorkflowOverlayBodyProps {
+  itemId: string;
+  workflow: WorkflowInfo;
+  isRunning: boolean;
+  projectLocation: ProjectLocation | undefined;
+}
+
+export function WorkflowOverlayBody({
+  itemId,
+  workflow,
+  isRunning,
+  projectLocation,
+}: WorkflowOverlayBodyProps) {
+  // isRunning unused now — the shared store polls until the manifest reports
+  // a terminal status, regardless of what the parent SDK item reports.
+  void isRunning;
+  const { run, error } = useWorkflowRun(
+    workflow.manifestPath ? itemId : null,
+    workflow.manifestPath ?? null,
+    projectLocation ?? null,
+    workflow.transcriptDir ?? null,
+  );
+
+  const [activePhase, setActivePhase] = useState<string | null>(null);
+  const [activeAgentId, setActiveAgentId] = useState<string | null>(null);
+
+  const phases = run?.phases ?? phasesFromInfo(workflow);
+  const resolvedActivePhase = activePhase ?? phases[0]?.title ?? null;
+  const phase = phases.find((p) => p.title === resolvedActivePhase) ?? phases[0] ?? emptyPhase();
+
+  const unphased = run?.unphasedAgents ?? [];
+  const showUnphasedAtTop = !run && phase.agents.length === 0 && unphased.length === 0;
+
+  const selectedAgent = useMemo(() => {
+    if (!activeAgentId) return null;
+    return phase.agents.find((a) => a.agentId === activeAgentId) ?? null;
+  }, [activeAgentId, phase]);
+
+  return (
+    <div className="flex h-full min-h-0 flex-col">
+      <WorkflowToolbar
+        phases={phases}
+        activeTitle={resolvedActivePhase}
+        onSelectPhase={(title) => {
+          setActivePhase(title);
+          setActiveAgentId(null);
+        }}
+        run={run}
+        error={error}
+      />
+      <div className="grid min-h-0 flex-1 grid-cols-1 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)]">
+        <AgentsColumn
+          agents={phase.agents}
+          phaseTitle={phase.title}
+          activeAgentId={activeAgentId}
+          onSelect={setActiveAgentId}
+          loading={!run && !error && !!workflow.manifestPath}
+          emptyHint={
+            showUnphasedAtTop
+              ? "Waiting for workflow to spawn agents…"
+              : phases.length === 0
+                ? "No phases yet."
+                : "No agents in this phase."
+          }
+        />
+        <AgentDetail agent={selectedAgent} phaseTitle={phase.title} />
+      </div>
+      {unphased.length > 0 ? (
+        <UnphasedAgents agents={unphased} onSelect={setActiveAgentId} />
+      ) : null}
+    </div>
+  );
+}
+
+/**
+ * Single toolbar that combines phase tabs (left) and run-level stats (right).
+ * Originally two stacked rows separated by thin borders — the stack read as
+ * "ugly 3-line header" alongside the Shell title, so we collapsed it into one
+ * line with no internal divider. The single border below this row separates
+ * the toolbar from the agents/detail grid.
+ */
+function WorkflowToolbar({
+  phases,
+  activeTitle,
+  onSelectPhase,
+  run,
+  error,
+}: {
+  phases: WorkflowPhase[];
+  activeTitle: string | null;
+  onSelectPhase: (title: string) => void;
+  run: WorkflowRun | null;
+  error: string | null;
+}) {
+  const status = run?.status ?? "unknown";
+  const completed = run ? countCompletedAgents(run) : 0;
+  const total = run?.agentCount ?? 0;
+  const tokens = run?.totalTokens;
+  const tools = run?.totalToolCalls;
+  const duration = run?.durationMs;
+
+  const statParts: string[] = [];
+  if (total > 0) statParts.push(`${completed}/${total} agents`);
+  if (duration !== undefined) statParts.push(formatDuration(duration));
+  if (tokens !== undefined) statParts.push(`${formatTokens(tokens)} tok`);
+  if (tools !== undefined) statParts.push(`${tools} tools`);
+
+  const hasStats = statParts.length > 0 || status !== "unknown";
+  if (phases.length === 0 && !hasStats && !error) return null;
+
+  const phaseTabs: ReadonlyArray<LightballTab<string>> = phases.map((phase) => {
+    const phaseDone = phase.agents.filter(isAgentDone).length;
+    const phaseTotal = phase.agents.length;
+    const tab: LightballTab<string> = { id: phase.title, label: phase.title };
+    if (phaseTotal > 0) {
+      tab.trailing = (
+        <span className="tabular-nums opacity-70">
+          {phaseDone}/{phaseTotal}
+        </span>
+      );
+    }
+    return tab;
+  });
+
+  return (
+    <div className="shrink-0 border-b border-[color:var(--border)]">
+      <div className="flex min-w-0 items-center gap-2 px-3 py-1">
+        {phaseTabs.length > 0 && activeTitle ? (
+          <LightballTabs
+            tabs={phaseTabs}
+            active={activeTitle}
+            onChange={onSelectPhase}
+            ariaLabel="Workflow phases"
+            shape="rounded"
+            transparent
+          />
+        ) : null}
+        <div className="flex-1" />
+        {hasStats ? (
+          <span className="flex shrink-0 items-baseline gap-1.5 whitespace-nowrap text-[length:var(--lc-chat-font-size-meta)] tabular-nums text-foreground-muted">
+            {statParts.map((part, i) => (
+              <span key={`stat-${i}-${part}`}>
+                {i > 0 ? <span className="pr-1.5 opacity-50">·</span> : null}
+                {part}
+              </span>
+            ))}
+            <StatusBadge status={status} />
+          </span>
+        ) : null}
+      </div>
+      {error ? (
+        <p className="flex items-center gap-1.5 px-3 pb-1 text-[length:var(--lc-chat-font-size-meta)] text-danger">
+          <CircleAlert className="size-3 shrink-0" /> {error}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+function AgentsColumn({
+  agents,
+  phaseTitle,
+  activeAgentId,
+  onSelect,
+  loading,
+  emptyHint,
+}: {
+  agents: WorkflowAgent[];
+  phaseTitle: string;
+  activeAgentId: string | null;
+  onSelect: (agentId: string) => void;
+  loading: boolean;
+  emptyHint: string;
+}) {
+  return (
+    <div className="min-h-0 overflow-y-auto border-r border-[color:var(--border)] [scrollbar-gutter:stable]">
+      {agents.length === 0 ? (
+        <p className="px-3 py-3 text-[length:var(--lc-chat-font-size-meta)] text-foreground-muted">
+          {loading ? "Loading…" : emptyHint}
+        </p>
+      ) : (
+        <ul className="flex flex-col">
+          {agents.map((agent) => (
+            <AgentRow
+              key={agent.agentId}
+              agent={agent}
+              phaseTitle={phaseTitle}
+              isActive={agent.agentId === activeAgentId}
+              onSelect={onSelect}
+            />
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+function AgentRow({
+  agent,
+  phaseTitle,
+  isActive,
+  onSelect,
+}: {
+  agent: WorkflowAgent;
+  phaseTitle: string;
+  isActive: boolean;
+  onSelect: (agentId: string) => void;
+}) {
+  const done = isAgentDone(agent);
+  const labelDisplay = stripPhasePrefix(agent.label, phaseTitle);
+  const stats: string[] = [];
+  if (agent.tokens !== undefined) stats.push(`${formatTokens(agent.tokens)} tok`);
+  if (agent.toolCalls !== undefined) stats.push(`${agent.toolCalls} tools`);
+  if (done && agent.durationMs !== undefined) stats.push(formatDuration(agent.durationMs));
+  return (
+    <ThreadDockRow
+      isActive={isActive}
+      isDone={done}
+      title={agent.label}
+      onClick={() => onSelect(agent.agentId)}
+    >
+      <AgentStateIcon state={agent.state} />
+      <code className="min-w-0 flex-1 truncate font-mono text-[length:var(--lc-chat-font-size-meta)] text-foreground">
+        {labelDisplay}
+      </code>
+      {stats.length > 0 ? (
+        <span className="shrink-0 tabular-nums text-[length:var(--lc-chat-font-size-meta)] text-foreground-muted">
+          {stats.join(" · ")}
+        </span>
+      ) : null}
+    </ThreadDockRow>
+  );
+}
+
+function AgentDetail({ agent, phaseTitle }: { agent: WorkflowAgent | null; phaseTitle: string }) {
+  if (!agent) {
+    return (
+      <div className="hidden min-h-0 overflow-y-auto px-3 py-3 sm:block">
+        <p className="text-[length:var(--lc-chat-font-size-meta)] text-foreground-muted">
+          Select an agent to see its prompt and outcome.
+        </p>
+      </div>
+    );
+  }
+  const labelDisplay = stripPhasePrefix(agent.label, phaseTitle);
+  return (
+    <div className="min-h-0 overflow-y-auto px-3 py-3 [scrollbar-gutter:stable]">
+      <div className="flex items-center gap-2 pb-2">
+        <Bot className="size-3.5 shrink-0 text-foreground-muted" />
+        <code className="min-w-0 flex-1 truncate font-mono text-[length:var(--lc-chat-font-size-command)] font-medium text-foreground">
+          {labelDisplay}
+        </code>
+        <AgentStateIcon state={agent.state} />
+      </div>
+      <p className="text-[length:var(--lc-chat-font-size-meta)] text-foreground-muted">
+        {[
+          agent.model,
+          agent.tokens !== undefined ? `${formatTokens(agent.tokens)} tok` : null,
+          agent.toolCalls !== undefined ? `${agent.toolCalls} tool calls` : null,
+          agent.durationMs !== undefined ? formatDuration(agent.durationMs) : null,
+        ]
+          .filter(Boolean)
+          .join(" · ")}
+      </p>
+      {agent.lastToolName ? (
+        <p className="pt-1 text-[length:var(--lc-chat-font-size-meta)] text-foreground-muted">
+          Last tool: <span className="font-mono">{agent.lastToolName}</span>
+        </p>
+      ) : null}
+      {agent.promptPreview ? (
+        <section className="pt-3">
+          <h3 className="pb-1 text-[length:var(--lc-chat-font-size-meta)] font-medium text-foreground">
+            Prompt
+          </h3>
+          <pre className="whitespace-pre-wrap break-words rounded border border-[color:var(--border)] bg-[var(--composer-surface)] px-2 py-1.5 font-mono text-[length:var(--lc-chat-font-size-meta)] text-foreground/90">
+            {agent.promptPreview}
+          </pre>
+        </section>
+      ) : null}
+      {agent.resultPreview ? (
+        <section className="pt-3">
+          <h3 className="pb-1 text-[length:var(--lc-chat-font-size-meta)] font-medium text-foreground">
+            Outcome
+          </h3>
+          <pre className="whitespace-pre-wrap break-words rounded border border-[color:var(--border)] bg-[var(--composer-surface)] px-2 py-1.5 font-mono text-[length:var(--lc-chat-font-size-meta)] text-foreground/90">
+            {agent.resultPreview}
+          </pre>
+        </section>
+      ) : null}
+    </div>
+  );
+}
+
+function UnphasedAgents({
+  agents,
+  onSelect,
+}: {
+  agents: WorkflowAgent[];
+  onSelect: (id: string) => void;
+}) {
+  return (
+    <div className="shrink-0 border-t border-dashed border-[color:var(--border)] px-3 py-1 text-[length:var(--lc-chat-font-size-meta)] text-foreground-muted">
+      <span className="pr-2 font-medium">Unphased:</span>
+      {agents.map((agent) => (
+        <button
+          type="button"
+          key={agent.agentId}
+          onClick={() => onSelect(agent.agentId)}
+          className="mr-2 inline-flex items-center gap-1 rounded px-1 py-0.5 hover:bg-foreground/5"
+        >
+          <AgentStateIcon state={agent.state} />
+          <code className="font-mono">{agent.label}</code>
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function AgentStateIcon({ state }: { state: WorkflowAgentState | undefined }) {
+  if (state === "done") {
+    return <Check aria-label="done" className="size-3 shrink-0 text-foreground-muted" />;
+  }
+  if (state === "failed" || state === "cancelled") {
+    return <CircleAlert aria-label={state} className="size-3 shrink-0 text-danger" />;
+  }
+  return (
+    <span className="inline-flex size-3 shrink-0 items-center justify-center">
+      <PixelLoader size="xxs" className="text-foreground-muted" />
+    </span>
+  );
+}
+
+function StatusBadge({ status }: { status: WorkflowRunStatus }) {
+  const label =
+    status === "running"
+      ? "running"
+      : status === "completed"
+        ? "done"
+        : status === "failed"
+          ? "failed"
+          : status === "cancelled"
+            ? "cancelled"
+            : null;
+  if (!label) return null;
+  const className =
+    status === "failed" || status === "cancelled"
+      ? "text-danger"
+      : status === "running"
+        ? "text-foreground"
+        : "text-foreground-muted";
+  return <span className={`pl-1 ${className}`}>· {label}</span>;
+}
+
+function phasesFromInfo(info: WorkflowInfo): WorkflowPhase[] {
+  return info.phases.map((phase) => {
+    const out: WorkflowPhase = { title: phase.title, agents: [] };
+    if (phase.detail) out.detail = phase.detail;
+    return out;
+  });
+}
+
+function emptyPhase(): WorkflowPhase {
+  return { title: "", agents: [] };
+}
+
+function countCompletedAgents(run: WorkflowRun): number {
+  let total = 0;
+  for (const phase of run.phases) total += phase.agents.filter(isAgentDone).length;
+  for (const agent of run.unphasedAgents) if (isAgentDone(agent)) total += 1;
+  return total;
+}
+
+function isAgentDone(agent: WorkflowAgent): boolean {
+  return agent.state === "done" || agent.state === "failed" || agent.state === "cancelled";
+}
+
+/**
+ * Strip the phase prefix from an agent label. Workflow scripts conventionally
+ * name agents `<phase>:<detail>` (e.g. `verify:security`); inside a phase tab
+ * the prefix is redundant since the active phase is already shown above. We
+ * only strip when the prefix matches the active phase title (case-insensitive)
+ * to avoid over-trimming labels that happen to contain a colon.
+ */
+function stripPhasePrefix(label: string, phaseTitle: string): string {
+  if (!phaseTitle) return label;
+  const prefix = `${phaseTitle.toLowerCase()}:`;
+  if (label.toLowerCase().startsWith(prefix)) {
+    const rest = label.slice(prefix.length).trim();
+    return rest.length > 0 ? rest : label;
+  }
+  return label;
+}
+
+function formatTokens(n: number): string {
+  if (n >= 1000) return `${(n / 1000).toFixed(1).replace(/\.0$/, "")}k`;
+  return String(n);
+}
+
+function formatDuration(ms: number): string {
+  const totalSeconds = Math.round(ms / 1000);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  if (minutes === 0) return `${seconds}s`;
+  return `${minutes}m${seconds.toString().padStart(2, "0")}s`;
+}

@@ -427,6 +427,7 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
   private currentConfig: ThreadConfig;
   private appliedModel: string | undefined;
   private appliedPermissionMode: PermissionMode | undefined;
+  private appliedUltracode = false;
   private currentStatus: ThreadStatus = "idle";
   private currentAttention: ThreadAttention = "none";
   private currentSlashCommands: AgentSlashCommand[] | undefined;
@@ -576,8 +577,31 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
       }
     }
 
+    await this.syncUltracodeFlag(query);
+
     const message = await buildSdkUserMessage(prompt, segments);
     this.promptQueue.push(message);
+  }
+
+  /**
+   * `ultracode` is not a model-level effort: it's a Claude Code session flag
+   * that sends `xhigh` to the model and enables dynamic-workflow orchestration.
+   * It lives in the flag-settings layer (CLI: `--settings '{"ultracode":true}'`;
+   * SDK: applyFlagSettings). Cast through `unknown` because the SDK type
+   * definitions for `Settings` (v0.3.142) don't yet declare `ultracode`, but
+   * the underlying CLI (2.1.154+) recognizes the key.
+   */
+  private async syncUltracodeFlag(runtime: Query): Promise<void> {
+    const wantUltracode = this.currentConfig.effort === "ultracode";
+    if (wantUltracode === this.appliedUltracode) return;
+    try {
+      await runtime.applyFlagSettings({
+        ultracode: wantUltracode ? true : null,
+      } as unknown as Parameters<Query["applyFlagSettings"]>[0]);
+      this.appliedUltracode = wantUltracode;
+    } catch {
+      // Older CLIs ignore the unknown flag; effort still degrades to xhigh.
+    }
   }
 
   async rollbackThread(numTurns: number): Promise<ThreadHistory> {
@@ -615,6 +639,7 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
     this.streamStarted = false;
     this.appliedModel = undefined;
     this.appliedPermissionMode = undefined;
+    this.appliedUltracode = false;
     this.startQuery(this.sessionId, resumeSessionAt);
     await this.requireQuery();
 
@@ -855,7 +880,15 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
         canUseTool: this.canUseTool,
         env,
         ...(this.currentConfig.effort
-          ? { effort: this.currentConfig.effort as NonNullable<ClaudeQueryOptions["effort"]> }
+          ? {
+              // `ultracode` is not a model-level effort value — the CLI rejects
+              // it on `--effort`. It maps to `xhigh` reasoning + dynamic
+              // workflows, where the workflows toggle is sent below via
+              // applyFlagSettings after the query starts.
+              effort: (this.currentConfig.effort === "ultracode"
+                ? "xhigh"
+                : this.currentConfig.effort) as NonNullable<ClaudeQueryOptions["effort"]>,
+            }
           : {}),
         ...(claudeExecutablePath ? { pathToClaudeCodeExecutable: claudeExecutablePath } : {}),
         ...(browserMcpServers
@@ -878,6 +911,7 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
       this.appliedModel = model;
       this.appliedPermissionMode = permissionMode;
       void this.refreshSlashCommands(this.queryRuntime);
+      void this.syncUltracodeFlag(this.queryRuntime);
       return this.queryRuntime;
     })();
 

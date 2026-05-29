@@ -1,23 +1,27 @@
+import { useEffect } from "react";
 import { Tooltip } from "@heroui/react";
 import { Bot, Check, GitBranch, X } from "lucide-react";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useThreadSubAgentDockStore } from "@/renderer/state/threadSubAgentDockStore";
+import { useWorkflowRun } from "@/renderer/state/useWorkflowRun";
 import {
   getChildItemIdsStoreSelector,
   getRuntimeItemStoreSelector,
   selectActiveSubAgentParentItemIds,
 } from "../../chatPaneSelectors";
 import { getRuntimeItemPayload } from "@/renderer/state/slices/runtimeEventSlice";
-import type { ToolCallPayload } from "@/shared/contracts";
+import type { ProjectLocation, ToolCallPayload, WorkflowRun } from "@/shared/contracts";
 import { deriveToolDisplay, isWorkflowTool } from "./toolDisplay";
 import { PixelLoader } from "@/renderer/components/common/PixelLoader";
 import { ThreadDockHeader, ThreadDockList, ThreadDockSection } from "../../../ThreadDockUI";
+import { parseWorkflowInfo } from "./workflowDisplay";
 
 interface ActiveSubAgentTileProps {
   threadId: string;
+  projectLocation?: ProjectLocation;
 }
 
-export function ActiveSubAgentTile({ threadId }: ActiveSubAgentTileProps) {
+export function ActiveSubAgentTile({ threadId, projectLocation }: ActiveSubAgentTileProps) {
   const ids = useAppStore((s) => selectActiveSubAgentParentItemIds(s, threadId));
   const dismissed = useThreadSubAgentDockStore((s) => s.dismissedByThread[threadId]);
   const dismissMany = useThreadSubAgentDockStore((s) => s.dismissMany);
@@ -75,25 +79,65 @@ export function ActiveSubAgentTile({ threadId }: ActiveSubAgentTileProps) {
       />
       <ThreadDockList placement="composer" collapsed={false} gap="1">
         {visibleIds.map((id) => (
-          <ActiveSubAgentRow key={id} threadId={threadId} itemId={id} />
+          <ActiveSubAgentRow
+            key={id}
+            threadId={threadId}
+            itemId={id}
+            {...(projectLocation ? { projectLocation } : {})}
+          />
         ))}
       </ThreadDockList>
     </ThreadDockSection>
   );
 }
 
-function ActiveSubAgentRow({ threadId, itemId }: { threadId: string; itemId: string }) {
+function ActiveSubAgentRow({
+  threadId,
+  itemId,
+  projectLocation,
+}: {
+  threadId: string;
+  itemId: string;
+  projectLocation?: ProjectLocation;
+}) {
   const item = useAppStore(getRuntimeItemStoreSelector(threadId, itemId));
   const childCount = useAppStore(getChildItemIdsStoreSelector(threadId, itemId)).length;
   const openSubAgent = useAppStore((s) => s.openSubAgent);
   const dismiss = useThreadSubAgentDockStore((s) => s.dismiss);
 
-  if (!item) return null;
-  const payload = getRuntimeItemPayload<ToolCallPayload>(item, "tool_call");
-  if (!payload?.name) return null;
+  const payload = item ? getRuntimeItemPayload<ToolCallPayload>(item, "tool_call") : undefined;
+  const workflow = payload && isWorkflowTool(payload) ? parseWorkflowInfo(payload) : null;
+  const workflowRunResult = useWorkflowRun(
+    workflow?.manifestPath ? itemId : null,
+    workflow?.manifestPath ?? null,
+    projectLocation ?? null,
+    workflow?.transcriptDir ?? null,
+  );
+  const workflowRun = workflowRunResult.run;
+  // A background workflow is "live" from the moment the SDK reports its
+  // launch tool call as completed (because the work is in flight in a
+  // separate process). The manifest takes a few seconds to appear on disk,
+  // during which `workflowRun` is null — we MUST NOT flip the row to done
+  // in that gap, otherwise the composer dock shows ✓ while the chat row
+  // still says "starting…".
+  const workflowIsBackground = workflow !== null && !!workflow.manifestPath;
+  const workflowIsTerminal = workflowRun !== null && !isLiveWorkflowStatus(workflowRun.status);
+  const workflowIsLive = workflowIsBackground && !workflowIsTerminal;
+
+  // Auto-dismiss workflows once their manifest reports a terminal status. We
+  // intentionally leave the row visible for one render cycle so the user
+  // sees the final stats before the dock collapses.
+  useEffect(() => {
+    if (!workflow) return;
+    if (!workflowIsTerminal) return;
+    const timer = setTimeout(() => dismiss(threadId, itemId), 1500);
+    return () => clearTimeout(timer);
+  }, [workflow, workflowIsTerminal, dismiss, threadId, itemId]);
+
+  if (!item || !payload?.name) return null;
 
   const display = deriveToolDisplay(payload);
-  const isRunning = item.state !== "completed" || payload?.status === "running";
+  const isRunning = item.state !== "completed" || payload?.status === "running" || workflowIsLive;
   const isDone = !isRunning;
   const progress = payload?.progress;
   const stepCount = progress?.stepCount ?? childCount;
@@ -123,7 +167,11 @@ function ActiveSubAgentRow({ threadId, itemId }: { threadId: string; itemId: str
         >
           {display.title}
         </span>
-        {isRunning && (
+        {workflow && workflowRun ? (
+          <WorkflowDockStats run={workflowRun} />
+        ) : workflowIsLive ? (
+          <span className="shrink-0 text-foreground-muted opacity-80">starting…</span>
+        ) : isRunning ? (
           <span className="shrink-0 tabular-nums text-foreground-muted opacity-80">
             {progress?.lastToolName || progress?.description ? (
               <span className="mr-1.5 max-w-[20ch] truncate inline-block align-bottom">
@@ -134,7 +182,7 @@ function ActiveSubAgentRow({ threadId, itemId }: { threadId: string; itemId: str
               {stepCount} step{stepCount === 1 ? "" : "s"}
             </span>
           </span>
-        )}
+        ) : null}
       </button>
       <button
         type="button"
@@ -150,4 +198,51 @@ function ActiveSubAgentRow({ threadId, itemId }: { threadId: string; itemId: str
       </button>
     </li>
   );
+}
+
+function WorkflowDockStats({ run }: { run: WorkflowRun }) {
+  const completed = countDoneWorkflowAgents(run);
+  const parts: string[] = [];
+  if (run.agentCount > 0) parts.push(`${completed}/${run.agentCount}`);
+  if (run.totalTokens !== undefined) parts.push(`${formatDockTokens(run.totalTokens)} tok`);
+  if (run.durationMs !== undefined) parts.push(formatDockDuration(run.durationMs));
+  return (
+    <span className="shrink-0 tabular-nums text-foreground-muted opacity-80">
+      {parts.join(" · ")}
+    </span>
+  );
+}
+
+function isLiveWorkflowStatus(status: WorkflowRun["status"]): boolean {
+  return status === "running" || status === "unknown";
+}
+
+function countDoneWorkflowAgents(run: WorkflowRun): number {
+  let total = 0;
+  for (const phase of run.phases) {
+    for (const agent of phase.agents) {
+      if (agent.state === "done" || agent.state === "failed" || agent.state === "cancelled") {
+        total += 1;
+      }
+    }
+  }
+  for (const agent of run.unphasedAgents) {
+    if (agent.state === "done" || agent.state === "failed" || agent.state === "cancelled") {
+      total += 1;
+    }
+  }
+  return total;
+}
+
+function formatDockTokens(n: number): string {
+  if (n >= 1000) return `${(n / 1000).toFixed(1).replace(/\.0$/, "")}k`;
+  return String(n);
+}
+
+function formatDockDuration(ms: number): string {
+  const totalSeconds = Math.round(ms / 1000);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  if (minutes === 0) return `${seconds}s`;
+  return `${minutes}m${seconds.toString().padStart(2, "0")}s`;
 }

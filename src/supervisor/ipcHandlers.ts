@@ -34,6 +34,7 @@ export function createSupervisorIpcHandlers(runtime: SupervisorRuntime): Supervi
     subagentUnsubscribe: async (payload) => {
       runtime.subagentUnsubscribe(payload);
     },
+    workflowGetRun: (payload) => runtime.workflowGetRun(payload),
     createFileCheckpoint: (payload) => runtime.createFileCheckpoint(payload),
     finalizeFileCheckpoint: (payload) => runtime.finalizeFileCheckpoint(payload),
     listFileCheckpoints: (payload) => runtime.listFileCheckpoints(payload),

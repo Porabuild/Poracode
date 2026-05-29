@@ -93,7 +93,8 @@ function normalizeCursorComposerConfig(
 }
 
 function formatEffortLabel(id: string): string {
-  if (id === "xhigh") return "Extra High";
+  if (id === "xhigh" || id === "xHigh") return "Extra High";
+  if (id === "ultracode") return "Ultracode";
   return id.charAt(0).toUpperCase() + id.slice(1);
 }
 
@@ -736,7 +737,12 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                     activeRuntimeRequest ||
                     showCommandPanel ? (
                       <>
-                        {hasActiveSubAgent ? <ActiveSubAgentTile threadId={thread.id} /> : null}
+                        {hasActiveSubAgent ? (
+                          <ActiveSubAgentTile
+                            threadId={thread.id}
+                            projectLocation={projectLocation}
+                          />
+                        ) : null}
                         {showContextInComposer ? (
                           <ThreadContextDock
                             summary={contextSummary}

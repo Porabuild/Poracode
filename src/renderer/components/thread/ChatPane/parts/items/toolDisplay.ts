@@ -1,5 +1,6 @@
 import {
   Bot,
+  Clock,
   Download,
   Eye,
   FilePlus,
@@ -19,6 +20,7 @@ import {
 import type { ToolCallPayload } from "@/shared/contracts";
 import { extractLeadingPath } from "@/shared/extractLeadingPath";
 import { extractAcpPatchTargetPath } from "./acpToolPayload";
+import { parseWorkflowInfo } from "./workflowDisplay";
 
 export interface ToolDisplay {
   title: string;
@@ -81,6 +83,11 @@ export function deriveToolDisplay(payload: ToolCallPayload): ToolDisplay {
   const summary = mapPersistedToolSummary(payload.name);
   if (summary) return summary;
 
+  if (isWorkflowTool(payload)) {
+    const { description } = parseWorkflowInfo(payload);
+    return { title: description ? `Workflow: ${description}` : "Workflow", Icon: GitBranch };
+  }
+
   const claude = mapClaudeRawTool(payload.name, args);
   if (claude) return claude;
 
@@ -115,8 +122,6 @@ function mapClaudeRawTool(
     case "Task":
     case "Agent":
       return { title: formatAgentTitle(args), Icon: Bot };
-    case "Workflow":
-      return { title: formatWorkflowTitle(args), Icon: GitBranch };
     case "BashOutput":
       return { title: titleWithValue("Bash output", args, "bash_id"), Icon: Terminal };
     case "KillBash":
@@ -132,6 +137,8 @@ function mapClaudeRawTool(
       return { title: titleWithValue("Web search", args, "query"), Icon: Globe };
     case "ToolSearch":
       return { title: titleWithValue("Tool search", args, "query"), Icon: SearchCode };
+    case "ScheduleWakeup":
+      return formatScheduleWakeupDisplay(args);
     case "TaskCreate":
       return { title: titleWithValue("Create task", args, "description"), Icon: FilePlus };
     case "TaskList":
@@ -245,6 +252,27 @@ function titleWithValue(
   return value ? `${verb}: ${value}` : verb;
 }
 
+function formatScheduleWakeupDisplay(args: Record<string, unknown> | undefined): ToolDisplay {
+  const seconds = readInt(args, "delaySeconds");
+  const reason = readStr(args, "reason");
+  const interval = seconds !== undefined ? formatDelaySeconds(seconds) : undefined;
+  if (interval && reason) {
+    return { title: `Wake up in ${interval}: ${reason}`, Icon: Clock };
+  }
+  if (interval) return { title: `Wake up in ${interval}`, Icon: Clock };
+  if (reason) return { title: `Wake up: ${reason}`, Icon: Clock };
+  return { title: "Wake up", Icon: Clock };
+}
+
+function formatDelaySeconds(seconds: number): string {
+  if (seconds < 60) return `${seconds}s`;
+  const minutes = Math.round(seconds / 60);
+  if (minutes < 60) return `${minutes}m`;
+  const hours = Math.floor(minutes / 60);
+  const rem = minutes % 60;
+  return rem ? `${hours}h${rem}m` : `${hours}h`;
+}
+
 function formatGrepDisplay(args: Record<string, unknown> | undefined): ToolDisplay {
   const pattern = readStr(args, "pattern");
   if (!pattern) return { title: "Grep", Icon: SearchCode };
@@ -270,20 +298,6 @@ function formatAgentTitle(
     return subagent ? `Agent (${subagent}): ${description}` : `Agent: ${description}`;
   }
   return subagent ? `Agent: ${subagent}` : "Agent";
-}
-
-function formatWorkflowTitle(args: Record<string, unknown> | undefined): string {
-  const description = readStr(
-    args,
-    "description",
-    "workflow",
-    "workflow_name",
-    "workflowName",
-    "name",
-    "task",
-    "prompt",
-  );
-  return description ? `Workflow: ${description}` : "Workflow";
 }
 
 function readSubAgentType(args: Record<string, unknown> | undefined): string | undefined {

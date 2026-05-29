@@ -12,8 +12,8 @@ importers:
         specifier: ^0.21.1
         version: 0.21.1(zod@4.4.2)
       '@anthropic-ai/claude-agent-sdk':
-        specifier: ^0.3.142
-        version: 0.3.142(zod@4.4.2)
+        specifier: ^0.3.154
+        version: 0.3.154(@anthropic-ai/sdk@0.93.0(zod@4.4.2))(@modelcontextprotocol/sdk@1.29.0(zod@4.4.2))(zod@4.4.2)
       '@chenglou/pretext':
         specifier: ^0.0.6
         version: 0.0.6
@@ -254,13 +254,13 @@ importers:
     dependencies:
       '@heroui/react':
         specifier: latest
-        version: 3.0.5(@react-spectrum/provider@3.11.0(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(@types/react-dom@19.2.3(@types/react@19.2.15))(@types/react@19.2.15)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(tailwindcss@4.3.0)
+        version: 3.1.0(@react-spectrum/provider@3.11.0(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(@types/react-dom@19.2.3(@types/react@19.2.15))(@types/react@19.2.15)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(tailwindcss@4.3.0)
       '@heroui/styles':
         specifier: latest
-        version: 3.0.5(tailwind-merge@3.4.0)(tailwindcss@4.3.0)
+        version: 3.1.0(tailwind-merge@3.4.0)(tailwindcss@4.3.0)
       framer-motion:
         specifier: latest
-        version: 12.39.0(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
+        version: 12.40.0(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
       lucide-react:
         specifier: latest
         version: 1.16.0(react@19.2.6)
@@ -331,54 +331,56 @@ packages:
   '@antfu/install-pkg@1.1.0':
     resolution: {integrity: sha512-MGQsmw10ZyI+EJo45CdSER4zEb+p31LpDAFp2Z3gkSd1yqVZGi0Ebx++YTEMonJy4oChEMLsxZ64j8FH6sSqtQ==}
 
-  '@anthropic-ai/claude-agent-sdk-darwin-arm64@0.3.142':
-    resolution: {integrity: sha512-yBHOiRqJ8JcD9OAMGJALbypaD3u3K8hyUmcnZ+91AHJtymzWxuMkVi4IY1qp8L5jzkKeTnvYfCspzkbiHLuYWg==}
+  '@anthropic-ai/claude-agent-sdk-darwin-arm64@0.3.154':
+    resolution: {integrity: sha512-oFW3LD5lYrKAU+AKu27Z8hrzqkrh362qQrwi/i3DxGcud9BXUycsXYjShpDj3D3JZu169UzZuSPhx1Wajmbiwg==}
     cpu: [arm64]
     os: [darwin]
 
-  '@anthropic-ai/claude-agent-sdk-darwin-x64@0.3.142':
-    resolution: {integrity: sha512-/a/bVMjvAl3gNzWiPIgynYktTYckTcp4YAacV/2F4Jd8XeCV0+DMQW7OFeR+3fnPcBg/8kcOAVYfLZXDExqO1w==}
+  '@anthropic-ai/claude-agent-sdk-darwin-x64@0.3.154':
+    resolution: {integrity: sha512-5BgWEueP+cqoctWjZYhCbyltuaV/N2DmKDXD3/69cKaVmJp8XL9OCzlq/HEirA/+Ssjskx6hDUBaOcpuZ3iwQA==}
     cpu: [x64]
     os: [darwin]
 
-  '@anthropic-ai/claude-agent-sdk-linux-arm64-musl@0.3.142':
-    resolution: {integrity: sha512-KZuwSupNJovnMJ7MZxjp1Qq0yu7rAmbzO4Zlmr3jtKDU95t2kgs3c6j4evzQDCgTQMlwH8QTSV4mItDGxlYEbg==}
+  '@anthropic-ai/claude-agent-sdk-linux-arm64-musl@0.3.154':
+    resolution: {integrity: sha512-o2bCQN4Xn3UqCLErC5m4T7u0yYArJYmgFCUFnA6K96DdW2RERvx+gTKXxWuHEBkDO+eMoHLHLxk0u2jGES00Ng==}
     cpu: [arm64]
     os: [linux]
     libc: [musl]
 
-  '@anthropic-ai/claude-agent-sdk-linux-arm64@0.3.142':
-    resolution: {integrity: sha512-QKG553PSbIcQ5KLvnl2ekfy5lTyU3dW/X5fDQlRLv4YHNHnqf2o7scJ6eUdfaVTQdIZ+Pa7SNN3bsvVs4bNjQw==}
+  '@anthropic-ai/claude-agent-sdk-linux-arm64@0.3.154':
+    resolution: {integrity: sha512-rRkW4SBL3W7zQvKscCIfIGlmoeuTbMV6dXFbPdmpRGvmYZIs79RpzO6xrGBnnhmm+B7znQ9oHAnffi/2FBgJbA==}
     cpu: [arm64]
     os: [linux]
     libc: [glibc]
 
-  '@anthropic-ai/claude-agent-sdk-linux-x64-musl@0.3.142':
-    resolution: {integrity: sha512-QkDwLMsdYO7n/i1zPCt5YZIet5u+Eo07UpF9UX5yD7bnwRZKDe22L6LVVwiLLjeTO0fTz+uNY7w9/XOYQMlxUQ==}
+  '@anthropic-ai/claude-agent-sdk-linux-x64-musl@0.3.154':
+    resolution: {integrity: sha512-zA7S8Lm6O4QBsUpbhiOht8BgiXHOBBFUIo8ZLK6r5wAatK3Q44syWVxICeyCnR6wqfnkf3cugCw27ycS6vVgaA==}
     cpu: [x64]
     os: [linux]
     libc: [musl]
 
-  '@anthropic-ai/claude-agent-sdk-linux-x64@0.3.142':
-    resolution: {integrity: sha512-o1QZmCNRL5BFTc14KEvT23Fxm1jNv0aa0e9T0OZUjua0oW8DRpri3HKvDEM36qEGWUOANBG7h6Ca/KNqxaTnYg==}
+  '@anthropic-ai/claude-agent-sdk-linux-x64@0.3.154':
+    resolution: {integrity: sha512-GpiFF8Ez6PbM3m0gqtCo/FKM346qyRdP7VhbmJzdnbNKTiiUZ66vDQyEUPZPCG24ZkrG4m96KpRIUwY08rHiNg==}
     cpu: [x64]
     os: [linux]
     libc: [glibc]
 
-  '@anthropic-ai/claude-agent-sdk-win32-arm64@0.3.142':
-    resolution: {integrity: sha512-x8lbY1m7E/BiFF0Gu/Mx9lkD/zW3vBr3viw0GYNuqY9GYHfLOX9+l9H8C+INeGzB4+ibG8+xD2pnRhWdQxuvUg==}
+  '@anthropic-ai/claude-agent-sdk-win32-arm64@0.3.154':
+    resolution: {integrity: sha512-cDW1YFbU/PJFlrGXhlAGcbkXt80sEO6WtnH8nN8YHXLn5NWduy2q7o/qC6i8XozgvRGf6t/eMoH7IasGIEDhDw==}
     cpu: [arm64]
     os: [win32]
 
-  '@anthropic-ai/claude-agent-sdk-win32-x64@0.3.142':
-    resolution: {integrity: sha512-NpNxdiCEUNjjwvBltpDnkgdjVQ+nRsALpfM1Pe4GhnYiOkTk/TvjMZUuA2qGh0F8KyF0FbqzUsi0uXIgojJT5w==}
+  '@anthropic-ai/claude-agent-sdk-win32-x64@0.3.154':
+    resolution: {integrity: sha512-tSKaIIpL72OPg3WfzZTCIl8OJgcbq4qieu8/fDWjsdeQuari9gQMIuEflFphk9HqNsxpSmDqKi8Sm5mW2V566Q==}
     cpu: [x64]
     os: [win32]
 
-  '@anthropic-ai/claude-agent-sdk@0.3.142':
-    resolution: {integrity: sha512-k1xBon6ov0PT/vZNf+Z+SuAqmylGJU/+a+h/k04MW5cBbzOIwiVcGFRTGJ/qbY5pcboJbLtts/yBwSu9AvSipg==}
+  '@anthropic-ai/claude-agent-sdk@0.3.154':
+    resolution: {integrity: sha512-iEn25urI2QrMPFIhId3h7v/7EG5gsmF7ooe+6EvsAosePeLmpVVerp5nXtHnlmBkMinLecurcPA+OddKw76jYw==}
     engines: {node: '>=18.0.0'}
     peerDependencies:
+      '@anthropic-ai/sdk': '>=0.93.0'
+      '@modelcontextprotocol/sdk': ^1.29.0
       zod: ^4.0.0
 
   '@anthropic-ai/sdk@0.93.0':
@@ -875,8 +877,8 @@ packages:
       react-dom: '>=19.0.0'
       tailwindcss: '>=4.0.0'
 
-  '@heroui/react@3.0.5':
-    resolution: {integrity: sha512-kBb3aUcSAJOraPOb2MbOS1yNUcSCc6vnl0zTtzuWvJZabWgSff5Y9FNyXNjk/d56vm2ermfXa/gfBYqTUtRTzA==}
+  '@heroui/react@3.1.0':
+    resolution: {integrity: sha512-q+K3Kz5h2ceOEMPuNORLGX1Pqh4McN30y31eykzZZjLbmta4nwi4sDMVAv7/w8QWnWVDOucusXz5x9s5N656nA==}
     peerDependencies:
       react: '>=19.0.0'
       react-dom: '>=19.0.0'
@@ -887,8 +889,8 @@ packages:
     peerDependencies:
       tailwindcss: '>=4.0.0'
 
-  '@heroui/styles@3.0.5':
-    resolution: {integrity: sha512-5DI5sa7GGe1Uw8PCBhooAIGoqZbcR0ilamPjzgv94qVgolGs9+FqbeNp2bcbyoHJn9+HLKQMYiIa44LwH0VLww==}
+  '@heroui/styles@3.1.0':
+    resolution: {integrity: sha512-euZtlV5hk9qOWhkSbTaJIrdnm0bGxvu1FEN6nnLGt7PM7AdL40z4C3ZYQ+cW+ObSsqsWHzQRsuhmLHVt1uTS4w==}
     peerDependencies:
       tailwindcss: '>=4.0.0'
 
@@ -3885,8 +3887,8 @@ packages:
     resolution: {integrity: sha512-buRG0fpBtRHSTCOASe6hD258tEubFoRLb4ZNA6NxMVHNw2gOcwHo9wyablzMzOA5z9xA9L1KNjk/Nt6MT9aYow==}
     engines: {node: '>= 0.6'}
 
-  framer-motion@12.39.0:
-    resolution: {integrity: sha512-+vnLfzrv0MzjLzNl+nvNvR7jdg3q4cxxjz/YvzfifHl0TREtL00cs1RoMTxs+1PzLiEqZGV6gYsBY0oEAYZ24w==}
+  framer-motion@12.40.0:
+    resolution: {integrity: sha512-uaBd3qC1v3KQqBEjwTUd183K6PbS+j0yR9w9VmEOLWA/tnUcSn8Xa3uck7t4dgpDoUss8xQTcj8W2L07lrnLFg==}
     peerDependencies:
       '@emotion/is-prop-valid': '*'
       react: ^18.0.0 || ^19.0.0
@@ -4727,8 +4729,8 @@ packages:
   monaco-editor@0.55.1:
     resolution: {integrity: sha512-jz4x+TJNFHwHtwuV9vA9rMujcZRb0CEilTEwG2rRSpe/A7Jdkuj8xPKttCgOh+v/lkHy7HsZ64oj+q3xoAFl9A==}
 
-  motion-dom@12.39.0:
-    resolution: {integrity: sha512-Xn7aAcGDhco/JZTXOub64UmaYn73C6J1Po7Fk+8EvkJsNGTqfhon6UJY53vJKXW5v5Zl8HrYsVxv6oPXeGoGLQ==}
+  motion-dom@12.40.0:
+    resolution: {integrity: sha512-HxU3ZaBwNPVQUBQf1xxgq+7JrPNZvjLVxgbpEZL7RrWJnsxOf0/OM+yrHG9ogLQ31Do/r57Oz2gQWPK+6q62mg==}
 
   motion-utils@12.39.0:
     resolution: {integrity: sha512-8nadJAJjTtqRkmRF36FoJTrywK9nnFmnPwnSMyxaOCU7GDjN9RTMJIxx9De8ErM+vpPhMccr/6fo5WciyQLnMQ==}
@@ -6124,47 +6126,44 @@ snapshots:
       package-manager-detector: 1.6.0
       tinyexec: 1.1.2
 
-  '@anthropic-ai/claude-agent-sdk-darwin-arm64@0.3.142':
+  '@anthropic-ai/claude-agent-sdk-darwin-arm64@0.3.154':
     optional: true
 
-  '@anthropic-ai/claude-agent-sdk-darwin-x64@0.3.142':
+  '@anthropic-ai/claude-agent-sdk-darwin-x64@0.3.154':
     optional: true
 
-  '@anthropic-ai/claude-agent-sdk-linux-arm64-musl@0.3.142':
+  '@anthropic-ai/claude-agent-sdk-linux-arm64-musl@0.3.154':
     optional: true
 
-  '@anthropic-ai/claude-agent-sdk-linux-arm64@0.3.142':
+  '@anthropic-ai/claude-agent-sdk-linux-arm64@0.3.154':
     optional: true
 
-  '@anthropic-ai/claude-agent-sdk-linux-x64-musl@0.3.142':
+  '@anthropic-ai/claude-agent-sdk-linux-x64-musl@0.3.154':
     optional: true
 
-  '@anthropic-ai/claude-agent-sdk-linux-x64@0.3.142':
+  '@anthropic-ai/claude-agent-sdk-linux-x64@0.3.154':
     optional: true
 
-  '@anthropic-ai/claude-agent-sdk-win32-arm64@0.3.142':
+  '@anthropic-ai/claude-agent-sdk-win32-arm64@0.3.154':
     optional: true
 
-  '@anthropic-ai/claude-agent-sdk-win32-x64@0.3.142':
+  '@anthropic-ai/claude-agent-sdk-win32-x64@0.3.154':
     optional: true
 
-  '@anthropic-ai/claude-agent-sdk@0.3.142(zod@4.4.2)':
+  '@anthropic-ai/claude-agent-sdk@0.3.154(@anthropic-ai/sdk@0.93.0(zod@4.4.2))(@modelcontextprotocol/sdk@1.29.0(zod@4.4.2))(zod@4.4.2)':
     dependencies:
       '@anthropic-ai/sdk': 0.93.0(zod@4.4.2)
       '@modelcontextprotocol/sdk': 1.29.0(zod@4.4.2)
       zod: 4.4.2
     optionalDependencies:
-      '@anthropic-ai/claude-agent-sdk-darwin-arm64': 0.3.142
-      '@anthropic-ai/claude-agent-sdk-darwin-x64': 0.3.142
-      '@anthropic-ai/claude-agent-sdk-linux-arm64': 0.3.142
-      '@anthropic-ai/claude-agent-sdk-linux-arm64-musl': 0.3.142
-      '@anthropic-ai/claude-agent-sdk-linux-x64': 0.3.142
-      '@anthropic-ai/claude-agent-sdk-linux-x64-musl': 0.3.142
-      '@anthropic-ai/claude-agent-sdk-win32-arm64': 0.3.142
-      '@anthropic-ai/claude-agent-sdk-win32-x64': 0.3.142
-    transitivePeerDependencies:
-      - '@cfworker/json-schema'
-      - supports-color
+      '@anthropic-ai/claude-agent-sdk-darwin-arm64': 0.3.154
+      '@anthropic-ai/claude-agent-sdk-darwin-x64': 0.3.154
+      '@anthropic-ai/claude-agent-sdk-linux-arm64': 0.3.154
+      '@anthropic-ai/claude-agent-sdk-linux-arm64-musl': 0.3.154
+      '@anthropic-ai/claude-agent-sdk-linux-x64': 0.3.154
+      '@anthropic-ai/claude-agent-sdk-linux-x64-musl': 0.3.154
+      '@anthropic-ai/claude-agent-sdk-win32-arm64': 0.3.154
+      '@anthropic-ai/claude-agent-sdk-win32-x64': 0.3.154
 
   '@anthropic-ai/sdk@0.93.0(zod@4.4.2)':
     dependencies:
@@ -6710,9 +6709,9 @@ snapshots:
       - '@types/react'
       - '@types/react-dom'
 
-  '@heroui/react@3.0.5(@react-spectrum/provider@3.11.0(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(@types/react-dom@19.2.3(@types/react@19.2.15))(@types/react@19.2.15)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(tailwindcss@4.3.0)':
+  '@heroui/react@3.1.0(@react-spectrum/provider@3.11.0(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(@types/react-dom@19.2.3(@types/react@19.2.15))(@types/react@19.2.15)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(tailwindcss@4.3.0)':
     dependencies:
-      '@heroui/styles': 3.0.5(tailwind-merge@3.4.0)(tailwindcss@4.3.0)
+      '@heroui/styles': 3.1.0(tailwind-merge@3.4.0)(tailwindcss@4.3.0)
       '@radix-ui/react-avatar': 1.1.11(@types/react-dom@19.2.3(@types/react@19.2.15))(@types/react@19.2.15)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
       '@react-aria/i18n': 3.13.0(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
       '@react-aria/ssr': 3.10.0(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
@@ -6740,7 +6739,7 @@ snapshots:
     transitivePeerDependencies:
       - tailwind-merge
 
-  '@heroui/styles@3.0.5(tailwind-merge@3.4.0)(tailwindcss@4.3.0)':
+  '@heroui/styles@3.1.0(tailwind-merge@3.4.0)(tailwindcss@4.3.0)':
     dependencies:
       tailwind-variants: 3.2.2(tailwind-merge@3.4.0)(tailwindcss@4.3.0)
       tailwindcss: 4.3.0
@@ -9661,9 +9660,9 @@ snapshots:
 
   forwarded@0.2.0: {}
 
-  framer-motion@12.39.0(react-dom@19.2.6(react@19.2.6))(react@19.2.6):
+  framer-motion@12.40.0(react-dom@19.2.6(react@19.2.6))(react@19.2.6):
     dependencies:
-      motion-dom: 12.39.0
+      motion-dom: 12.40.0
       motion-utils: 12.39.0
       tslib: 2.8.1
     optionalDependencies:
@@ -10773,7 +10772,7 @@ snapshots:
       dompurify: 3.2.7
       marked: 14.0.0
 
-  motion-dom@12.39.0:
+  motion-dom@12.40.0:
     dependencies:
       motion-utils: 12.39.0
 

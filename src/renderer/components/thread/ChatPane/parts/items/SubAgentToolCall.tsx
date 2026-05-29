@@ -1,17 +1,21 @@
 import { memo, useState, type ReactNode } from "react";
+import { Tooltip } from "@heroui/react";
 import { Bot, ChevronDown, ChevronRight, CircleAlert, type LucideIcon } from "lucide-react";
-import type { ToolCallPayload } from "@/shared/contracts";
+import type { ToolCallPayload, WorkflowRun } from "@/shared/contracts";
 import { PathDisplay, PixelLoader } from "@/renderer/components/common";
 import { useAppStore } from "@/renderer/state/appStore";
 import {
   getRuntimeItemPayload,
   type RuntimeChatItem,
 } from "@/renderer/state/slices/runtimeEventSlice";
+import { useWorkflowRun } from "@/renderer/state/useWorkflowRun";
 import { useChatPaneActions } from "../../chatPaneActionsContext";
 import { getChildItemIdsStoreSelector } from "../../chatPaneSelectors";
 import { extractAcpResultPart } from "./acpToolPayload";
 import { ItemMarkdown } from "./ItemMarkdown";
-import { deriveToolDisplay } from "./toolDisplay";
+import { deriveToolDisplay, isWorkflowTool } from "./toolDisplay";
+import { parseWorkflowInfo } from "./workflowDisplay";
+import { WorkflowResultGroup } from "./WorkflowResultGroup";
 
 interface SubAgentToolCallProps {
   threadId: string;
@@ -26,12 +30,52 @@ export const SubAgentToolCall = memo(function SubAgentToolCall({
   const childCount = useAppStore(getChildItemIdsStoreSelector(threadId, item.id)).length;
   const openSubAgent = useAppStore((s) => s.openSubAgent);
 
+  const actions = useChatPaneActions();
+  const projectLocation = actions?.projectLocation;
+  const workflow = payload && isWorkflowTool(payload) ? parseWorkflowInfo(payload) : null;
+  // Subscribe to the live workflow manifest while this row is mounted so the
+  // right-hand label shows `n/n agents · time · tokens · tools` instead of
+  // the stale `done` — Claude SDK reports the tool as completed the moment
+  // the workflow launches, but the actual work may run for minutes. Hook
+  // must run unconditionally (before any early return) — `useWorkflowRun`
+  // no-ops cleanly when its inputs are null.
+  const workflowRun = useWorkflowRun(
+    workflow?.manifestPath ? item.id : null,
+    workflow?.manifestPath ?? null,
+    projectLocation ?? null,
+    workflow?.transcriptDir ?? null,
+  );
+
   if (!payload?.name) return null;
   const display = deriveToolDisplay(payload);
   const Icon: LucideIcon = display.Icon;
-  const status = resolveStatus(item, payload, childCount);
   const isCompleted = item.state === "completed" && payload.status !== "running";
-  const resultText = isCompleted ? extractAcpResultPart(payload).text.trim() : "";
+  const completedResultText = isCompleted ? extractAcpResultPart(payload).text.trim() : "";
+  const workflowResultText = workflow ? completedResultText : "";
+  const resultText = workflow ? "" : completedResultText;
+  // Surface tool_use_error inline (without XML tags) as a tooltip on the
+  // error icon — the user explicitly does not want an inline error banner.
+  const workflowErrorText =
+    workflow && payload.status === "error"
+      ? (extractToolUseErrorText(completedResultText) ?? completedResultText)
+      : "";
+  // A workflow with a manifestPath is a *background* run — the parent SDK
+  // marks the tool completed instantly but the actual work continues. Treat
+  // the row as live until the manifest itself reports a terminal status;
+  // a missing manifest file (ENOENT) is normal in the first ~second after
+  // launch and must NOT collapse the row to "done".
+  const workflowIsBackground = workflow !== null && !!workflow.manifestPath;
+  const workflowIsLive =
+    workflowIsBackground &&
+    (workflowRun.run === null || isLiveWorkflowStatus(workflowRun.run.status));
+  const status = resolveStatus(
+    item,
+    payload,
+    childCount,
+    workflowErrorText,
+    workflow ? workflowRun.run : null,
+    workflowIsLive,
+  );
 
   return (
     <div className="flex w-full min-w-0 flex-col gap-1">
@@ -70,10 +114,18 @@ export const SubAgentToolCall = memo(function SubAgentToolCall({
         ) : null}
         <ChevronRight className="size-3.5 shrink-0 text-[color:var(--muted)] opacity-60 transition-opacity group-hover:opacity-100" />
       </button>
+      {workflowResultText ? <WorkflowResultGroup resultText={workflowResultText} /> : null}
       {resultText ? <SubAgentResultDisclosure text={resultText} /> : null}
     </div>
   );
 });
+
+function extractToolUseErrorText(text: string): string | null {
+  const match = /<tool_use_error>([\s\S]*?)<\/tool_use_error>/i.exec(text);
+  if (!match) return null;
+  const inner = (match[1] ?? "").trim();
+  return inner.length > 0 ? inner : null;
+}
 
 function SubAgentResultDisclosure({ text }: { text: string }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -113,14 +165,37 @@ function resolveStatus(
   item: RuntimeChatItem,
   payload: ToolCallPayload | undefined,
   childCount: number,
+  errorTooltipText: string,
+  workflowRun: WorkflowRun | null,
+  workflowIsLive: boolean,
 ): SubAgentStatus {
-  const isRunning = item.state !== "completed" || payload?.status === "running";
+  const isRunning = item.state !== "completed" || payload?.status === "running" || workflowIsLive;
   const progress = payload?.progress;
   const liveLabel = progress?.lastToolName ?? progress?.description;
   // Prefer the supervisor-reported counter — it survives child-event gating
   // (overlay closed); fall back to local children count when the supervisor
   // hasn't populated stepCount yet.
   const stepCount = progress?.stepCount ?? childCount;
+
+  // Workflow takes precedence over the generic running label so we always
+  // see N/N agents instead of "0 steps" when the manifest data is in.
+  if (workflowRun) {
+    return {
+      rightLabel: <WorkflowRunStats run={workflowRun} />,
+      rightLabelClassName: "!text-[color:var(--muted)]",
+    };
+  }
+  if (workflowIsLive) {
+    return {
+      rightLabel: (
+        <span className="inline-flex min-w-0 items-center gap-1.5 text-[color:var(--muted)]">
+          <span>starting…</span>
+          <PixelLoader size="xxs" className="text-[color:var(--muted)]" />
+        </span>
+      ),
+      rightLabelClassName: "!text-[color:var(--muted)]",
+    };
+  }
 
   if (isRunning) {
     const stepLabel = `${stepCount} step${stepCount === 1 ? "" : "s"}`;
@@ -140,8 +215,20 @@ function resolveStatus(
     };
   }
   if (payload?.status === "error") {
+    const icon = <CircleAlert className="size-3 text-danger" aria-label="error" />;
     return {
-      rightLabel: <CircleAlert className="size-3 text-danger" aria-label="error" />,
+      rightLabel: errorTooltipText ? (
+        <Tooltip delay={0}>
+          <Tooltip.Trigger>
+            <span className="inline-flex items-center">{icon}</span>
+          </Tooltip.Trigger>
+          <Tooltip.Content className="max-w-[420px] whitespace-pre-wrap break-words text-left">
+            {errorTooltipText}
+          </Tooltip.Content>
+        </Tooltip>
+      ) : (
+        icon
+      ),
       rightLabelClassName: "text-danger",
     };
   }
@@ -149,4 +236,81 @@ function resolveStatus(
     rightLabel: <span className="text-[color:var(--muted)]">done</span>,
     rightLabelClassName: "!text-[color:var(--muted)]",
   };
+}
+
+function isLiveWorkflowStatus(status: WorkflowRun["status"]): boolean {
+  return status === "running" || status === "unknown";
+}
+
+function WorkflowRunStats({ run }: { run: WorkflowRun }) {
+  const completed = countDoneAgents(run);
+  // Workflow runtime only records agents in `workflowProgress` once they
+  // complete, so mid-run `agentCount` can be 0 even though work is in
+  // flight. Fall back to the highest agent count we've observed (sum of
+  // agents tracked in phases + unphased) so the label never collapses to
+  // an empty `0/0 agents` while the workflow is genuinely running.
+  const trackedAgents = sumTrackedAgents(run);
+  const total = Math.max(run.agentCount, trackedAgents);
+  const isLive = run.status === "running" || run.status === "unknown";
+  const parts: string[] = [];
+  if (total > 0) {
+    parts.push(`${completed}/${total} agents`);
+  } else if (isLive) {
+    // No agents have completed yet and the manifest hasn't pre-declared
+    // a count — surface a generic "running" so the row isn't blank.
+    parts.push("running");
+  }
+  if (run.durationMs !== undefined && run.durationMs > 0) {
+    parts.push(formatWorkflowDuration(run.durationMs));
+  }
+  if (run.totalTokens !== undefined && run.totalTokens > 0) {
+    parts.push(`${formatWorkflowTokens(run.totalTokens)} tok`);
+  }
+  if (run.totalToolCalls !== undefined && run.totalToolCalls > 0) {
+    parts.push(`${run.totalToolCalls} tools`);
+  }
+  return (
+    <span className="inline-flex min-w-0 items-center gap-1.5 text-[color:var(--muted)]">
+      <span className="tabular-nums">
+        {parts.length > 0 ? parts.join(" · ") : isLive ? "running" : "done"}
+      </span>
+      {isLive ? <PixelLoader size="xxs" className="text-[color:var(--muted)]" /> : null}
+    </span>
+  );
+}
+
+function countDoneAgents(run: WorkflowRun): number {
+  let total = 0;
+  for (const phase of run.phases) {
+    for (const agent of phase.agents) {
+      if (agent.state === "done" || agent.state === "failed" || agent.state === "cancelled") {
+        total += 1;
+      }
+    }
+  }
+  for (const agent of run.unphasedAgents) {
+    if (agent.state === "done" || agent.state === "failed" || agent.state === "cancelled") {
+      total += 1;
+    }
+  }
+  return total;
+}
+
+function sumTrackedAgents(run: WorkflowRun): number {
+  let total = run.unphasedAgents.length;
+  for (const phase of run.phases) total += phase.agents.length;
+  return total;
+}
+
+function formatWorkflowTokens(n: number): string {
+  if (n >= 1000) return `${(n / 1000).toFixed(1).replace(/\.0$/, "")}k`;
+  return String(n);
+}
+
+function formatWorkflowDuration(ms: number): string {
+  const totalSeconds = Math.round(ms / 1000);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  if (minutes === 0) return `${seconds}s`;
+  return `${minutes}m${seconds.toString().padStart(2, "0")}s`;
 }

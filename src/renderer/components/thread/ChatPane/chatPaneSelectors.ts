@@ -7,7 +7,7 @@ import type { ToolCallPayload } from "@/shared/contracts";
 import { canShareRuntimeToolGroup } from "@/renderer/state/runtimeToolGrouping";
 import { isContextCompactionToolCall } from "./parts/items/ContextCompaction";
 import { isPlanProposalToolCall } from "./parts/items/PlanProposal";
-import { isSubAgentTool } from "./parts/items/toolDisplay";
+import { isSubAgentTool, isWorkflowTool } from "./parts/items/toolDisplay";
 
 export const EMPTY_THREAD_ITEM_IDS = Object.freeze([]) as readonly string[];
 export const EMPTY_THREAD_TIMELINE_ENTRIES = Object.freeze([]) as readonly ChatTimelineEntry[];
@@ -233,6 +233,12 @@ function isActiveSubAgentParent(item: RuntimeChatItem): boolean {
   if (item.type !== "tool_call") return false;
   const payload = item.payload as ToolCallPayload | undefined;
   if (!isSubAgentTool(payload)) return false;
+  // Workflow tools complete on the parent SDK stream the moment they're
+  // launched (background), but the real work continues for minutes. Keep
+  // them in the active list as long as the SDK didn't reject the launch —
+  // ActiveSubAgentTile subscribes to the manifest and auto-dismisses once
+  // it sees a terminal status.
+  if (isWorkflowTool(payload)) return payload?.status !== "error";
   if (item.state === "completed" && payload?.status !== "running") return false;
   return true;
 }
