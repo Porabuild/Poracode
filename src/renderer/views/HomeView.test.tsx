@@ -1,7 +1,8 @@
 import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it } from "vitest";
-import type { Project, Thread } from "@/shared/contracts";
+import type { AgentStatus, Project, Thread } from "@/shared/contracts";
 import { useAppStore } from "@/renderer/state/appStore";
+import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { HomeView } from "./HomeView";
 
@@ -15,6 +16,15 @@ describe("HomeView", () => {
       threads: [],
       view: { kind: "home" },
     }));
+    useAgentStatusesStore.setState({
+      agentStatuses: [],
+      wslAgentStatuses: [],
+      windowsLoaded: false,
+      wslLoaded: false,
+      inFirstLaunchDiscovery: false,
+      discoveryScope: undefined,
+      discoveredAgents: [],
+    });
   });
 
   it("does not show archived threads in recent threads", () => {
@@ -29,6 +39,32 @@ describe("HomeView", () => {
 
     expect(screen.getByText("Keep me visible")).toBeInTheDocument();
     expect(screen.queryByText("Archived thread")).not.toBeInTheDocument();
+  });
+
+  it("uses the installed ACP agent icon in recent threads", () => {
+    useAgentStatusesStore.setState({
+      agentStatuses: [
+        makeAgentStatus({
+          kind: "acp-generic:factory-droid",
+          label: "Factory Droid",
+          icon: "https://example.com/factory-droid.svg",
+        }),
+      ],
+    });
+    useAppStore.setState({
+      threads: [
+        makeThread({
+          title: "ACP thread",
+          agentKind: "acp-generic:factory-droid",
+        }),
+      ],
+    });
+
+    const { container } = render(<HomeView />);
+
+    expect(screen.getByText("ACP thread")).toBeInTheDocument();
+    expect(container.querySelector(".lightcode-provider-icon--external")).toBeInTheDocument();
+    expect(container.querySelector(".lightcode-provider-icon__generic")).not.toBeInTheDocument();
   });
 });
 
@@ -56,6 +92,29 @@ function makeThread(overrides: Partial<Thread>): Thread {
     starred: false,
     createdAt: "2026-05-26T00:00:00.000Z",
     updatedAt: "2026-05-26T00:00:00.000Z",
+    ...overrides,
+  };
+}
+
+function makeAgentStatus(overrides: Partial<AgentStatus>): AgentStatus {
+  return {
+    kind: "codex",
+    label: "Codex",
+    installed: true,
+    authState: "authenticated",
+    capabilities: {
+      models: [{ id: "gpt-5", label: "GPT-5" }],
+      efforts: [],
+      modelEfforts: {},
+      modes: ["agent"],
+      approvalPolicies: [],
+      sandboxModes: [],
+      supportsResume: true,
+      supportsDirectInput: true,
+      liveInputMode: "terminal",
+      presentationMode: "terminal",
+      settingDefs: [],
+    },
     ...overrides,
   };
 }
