@@ -93,7 +93,9 @@ export function deriveToolDisplay(payload: ToolCallPayload): ToolDisplay {
 
   if (payload.isSubAgent === true) {
     return {
-      title: formatAgentTitle(args, payload.title?.trim() || payload.name.trim()),
+      title: formatAgentTitle(args, payload.title?.trim() || payload.name.trim(), {
+        preferFallback: payload.title !== undefined,
+      }),
       Icon: Bot,
     };
   }
@@ -291,8 +293,12 @@ function formatGrepDisplay(args: Record<string, unknown> | undefined): ToolDispl
 function formatAgentTitle(
   args: Record<string, unknown> | undefined,
   fallbackDescription?: string,
+  options?: { preferFallback?: boolean },
 ): string {
-  const description = readStr(args, "description") ?? fallbackDescription;
+  const argsDescription = readStr(args, "description");
+  const description = options?.preferFallback
+    ? (fallbackDescription ?? argsDescription)
+    : (argsDescription ?? fallbackDescription);
   const subagent = readSubAgentType(args);
   if (description) {
     return subagent ? `Agent (${subagent}): ${description}` : `Agent: ${description}`;

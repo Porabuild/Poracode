@@ -781,6 +781,78 @@ describe("mapAcpSessionUpdate", () => {
     ]);
   });
 
+  it("surfaces ACP subagent tool_call_update progress as title metadata and child markdown", () => {
+    const state = createAcpMapperState("t-subagent-progress");
+    const started = mapAcpSessionUpdate(
+      note({
+        sessionUpdate: "tool_call",
+        toolCallId: "tc-subagent-progress",
+        title: "Explore worktree watcher",
+        status: "in_progress",
+        rawInput: {
+          description: "Explore worktree watcher",
+          subagent_type: "worker",
+          prompt: "Trace watcher flow",
+        },
+      } as Parameters<typeof mapAcpSessionUpdate>[0]["update"]),
+      state,
+    );
+    const parentItemId = (started[0] as { itemId: string }).itemId;
+
+    const update = mapAcpSessionUpdate(
+      note({
+        sessionUpdate: "tool_call_update",
+        toolCallId: "tc-subagent-progress",
+        title: "Reading README.md",
+        status: "in_progress",
+        rawOutput: {
+          text: "Reading README.md\n\nFound the watcher initialization path.",
+        },
+      } as Parameters<typeof mapAcpSessionUpdate>[0]["update"]),
+      state,
+    );
+
+    expect(update).toMatchObject([
+      {
+        type: "item.updated",
+        threadId: "t-subagent-progress",
+        itemId: parentItemId,
+        payload: {
+          title: "Reading README.md",
+          isSubAgent: true,
+          progress: {
+            description: "Reading README.md",
+            summary: "Reading README.md",
+          },
+        },
+      },
+      {
+        type: "item.started",
+        threadId: "t-subagent-progress",
+        itemType: "assistant_message",
+        parentItemId,
+      },
+      {
+        type: "content.delta",
+        threadId: "t-subagent-progress",
+        stream: "assistant_text",
+        delta: "Reading README.md\n\nFound the watcher initialization path.",
+      },
+      {
+        type: "item.updated",
+        threadId: "t-subagent-progress",
+        itemId: parentItemId,
+        payload: {
+          isSubAgent: true,
+          progress: {
+            description: "Reading README.md",
+            stepCount: 1,
+          },
+        },
+      },
+    ]);
+  });
+
   it("switches the inferred ACP parent for nested subagents", () => {
     const state = createAcpMapperState("t-nested-subagent");
     const outer = mapAcpSessionUpdate(

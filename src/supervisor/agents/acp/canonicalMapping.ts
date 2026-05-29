@@ -45,6 +45,8 @@ interface AcpToolCallItemState {
   itemType: CanonicalItemType;
   payload: Record<string, unknown>;
   isSubAgent: boolean;
+  subAgentProgressItemId?: string;
+  subAgentProgressText?: string;
   /**
    * ACP `Terminal` id that hosts this tool's output, if any. Captured on the
    * first `tool_call`/`tool_call_update` whose `content` references a terminal,
@@ -440,13 +442,33 @@ export function mapAcpSessionUpdate(
         state.resolveTerminalOutput,
         state.resolveTerminalOutputByCommand,
       );
-      item.payload = mergeToolPayload(item.payload, payload);
+      const subAgentProgress = item.isSubAgent
+        ? buildSubAgentProgress(toolCall, payload, status)
+        : undefined;
+      const nextPayload = subAgentProgress?.label
+        ? mergeToolPayload(payload, {
+            progress: {
+              description: subAgentProgress.label,
+              ...(subAgentProgress.summary ? { summary: subAgentProgress.summary } : {}),
+            },
+          })
+        : payload;
+      item.payload = mergeToolPayload(item.payload, nextPayload);
       events.push({
         type: isTerminal ? "item.completed" : "item.updated",
         threadId,
         itemId: item.itemId,
-        payload,
+        payload: nextPayload,
       });
+      if (subAgentProgress?.text) {
+        events.push(...buildSubAgentProgressEvents(state, item, subAgentProgress.text, isTerminal));
+      } else if (isTerminal && item.subAgentProgressItemId) {
+        events.push({
+          type: "item.completed",
+          threadId,
+          itemId: item.subAgentProgressItemId,
+        });
+      }
       if (isTerminal) {
         state.toolCallItems.delete(toolCall.toolCallId);
         if (item.isSubAgent) {
@@ -741,6 +763,99 @@ function resolveTerminalOutputForCommandPayload(
   const command = typeof payload.command === "string" ? payload.command : undefined;
   if (!command || !resolveTerminalOutputByCommand) return undefined;
   return resolveTerminalOutputByCommand(command);
+}
+
+function buildSubAgentProgress(
+  toolCall: {
+    title?: string | null;
+    kind?: string | null;
+    rawOutput?: unknown;
+    content?: unknown;
+  },
+  payload: Record<string, unknown>,
+  status: "running" | "success" | "error",
+): { label: string | undefined; text: string | undefined; summary: string | undefined } {
+  const title = normalizeToolText(toolCall.title);
+  const kind = normalizeToolText(toolCall.kind);
+  const result = payload.result;
+  const outputText = readSubAgentText(result) ?? readSubAgentText(toolCall.rawOutput);
+  const outputSummary = outputText ? firstNonEmptyLine(outputText) : undefined;
+  const label = status === "running" ? (title ?? kind ?? outputSummary) : undefined;
+  const text = outputText ?? label;
+  const summary = outputSummary ?? label;
+  return { label, text, summary };
+}
+
+function buildSubAgentProgressEvents(
+  state: AcpMapperState,
+  item: AcpToolCallItemState,
+  text: string,
+  isTerminal: boolean,
+): RuntimeEvent[] {
+  const normalized = text.trim();
+  if (!normalized || normalized === item.subAgentProgressText) return [];
+  const events: RuntimeEvent[] = [];
+  if (!item.subAgentProgressItemId) {
+    item.subAgentProgressItemId = newItemId("subagent");
+    item.subAgentProgressText = "";
+    events.push({
+      type: "item.started",
+      threadId: state.threadId,
+      itemId: item.subAgentProgressItemId,
+      itemType: "assistant_message",
+    });
+  }
+  const previous = item.subAgentProgressText ?? "";
+  const delta = normalized.startsWith(previous)
+    ? normalized.slice(previous.length)
+    : `${previous ? "\n\n" : ""}${normalized}`;
+  item.subAgentProgressText = previous + delta;
+  if (delta.length > 0) {
+    events.push({
+      type: "content.delta",
+      threadId: state.threadId,
+      itemId: item.subAgentProgressItemId,
+      stream: "assistant_text",
+      delta,
+    });
+  }
+  if (isTerminal) {
+    events.push({
+      type: "item.completed",
+      threadId: state.threadId,
+      itemId: item.subAgentProgressItemId,
+    });
+  }
+  return events;
+}
+
+function readSubAgentText(value: unknown): string | undefined {
+  if (typeof value === "string") return value.trim().length > 0 ? value : undefined;
+  if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
+  const record = value as Record<string, unknown>;
+  for (const key of ["text", "markdown", "message", "summary", "content", "detailedContent"]) {
+    const text = record[key];
+    if (typeof text === "string" && text.trim().length > 0) return text;
+  }
+  const contents = record.contents;
+  if (Array.isArray(contents)) {
+    const parts = contents
+      .map((entry) => {
+        if (!entry || typeof entry !== "object") return "";
+        const text = (entry as Record<string, unknown>).text;
+        return typeof text === "string" ? text : "";
+      })
+      .filter((text) => text.trim().length > 0);
+    if (parts.length > 0) return parts.join("\n\n");
+  }
+  return undefined;
+}
+
+function firstNonEmptyLine(text: string): string | undefined {
+  return text
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .find((line) => line.length > 0);
 }
 
 function getActiveSubAgent(state: AcpMapperState): ActiveAcpSubAgent | undefined {

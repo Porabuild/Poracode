@@ -221,4 +221,19 @@ describe("deriveToolDisplay", () => {
     });
     expect(display.Icon).toBe(Pencil);
   });
+
+  it("prefers live ACP subagent update titles over the launch description", () => {
+    const payload = makePayload({
+      name: "Reading README.md",
+      title: "Reading README.md",
+      isSubAgent: true,
+      args: {
+        description: "Explore worktree watcher",
+        subagent_type: "worker",
+        prompt: "Trace watcher flow",
+      },
+    });
+
+    expect(deriveToolDisplay(payload).title).toBe("Agent (worker): Reading README.md");
+  });
 });

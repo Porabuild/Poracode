@@ -15,6 +15,8 @@ import { buildLineUnifiedDiff, countLineChangeStats } from "@/shared/lineUnified
 import { detectLanguageFromPath, type ViewportLanguage } from "./languageDetect";
 
 export interface AcpToolResult {
+  /** Markdown/plain text result used by ACP servers such as Factory Droid. */
+  text?: unknown;
   /** Short preview text. */
   content?: unknown;
   /** Full output (may be larger than `content`). */
@@ -59,6 +61,7 @@ export function extractAcpResultPart(payload: unknown): ExtractedPart {
   const r = result as AcpToolResult;
   if (typeof r.detailedContent === "string" && r.detailedContent.length > 0)
     return asPart(prettyIfJson(r.detailedContent));
+  if (typeof r.text === "string" && r.text.length > 0) return asPart(prettyIfJson(r.text));
   if (typeof r.content === "string" && r.content.length > 0) return asPart(prettyIfJson(r.content));
   if (Array.isArray(r.contents)) {
     const parts = r.contents
