@@ -93,11 +93,11 @@ export function AppContent() {
     );
 
     let worktreePath: string | undefined;
+    let newWorktreeSetupPath: string | undefined;
     if (isHomeScope) {
       worktreePath = undefined;
     } else if (existingWorktreePath) {
       worktreePath = existingWorktreePath;
-      await primeWorktreeGitState(project, existingWorktreePath);
     } else if (worktreeBranch) {
       try {
         const result = await readBridge().gitAddWorktree({
@@ -107,35 +107,7 @@ export function AppContent() {
           startPoint: worktreeBaseBranch,
         });
         worktreePath = result.path;
-        await primeWorktreeGitState(project, result.path);
-
-        // Full refresh so the new worktree enters the cache and gets a file
-        // watcher (status-mode refreshes only walk cached worktrees), and so
-        // any new branch from createBranch shows up in BranchSelectors and
-        // worktreeSourceInfo without lagging a refresh cycle. Without this,
-        // the sidebar diff badge stays empty until the Git review panel
-        // mounts and runs its own one-shot fetch.
-        void refreshGitProject({ id: project.id, location: project.location }, "manual", "full");
-
-        const setupScript = project.scripts?.setupScript;
-        if (setupScript) {
-          const wtLocation = buildWorktreeLocation(project.location, result.path);
-          const store = useDevTerminalStore.getState();
-          const tab = store.addTab(project.id, "setup", result.path);
-          if (useSharedSettings.getState().autoShowTerminalPanel) {
-            store.openWorktreePanel(project.id, result.path);
-          }
-          store.setActiveTab(tab.id);
-          startShellWithToast(
-            {
-              shellId: tab.id,
-              projectLocation: wtLocation,
-              worktreePath: result.path,
-            },
-            "setup shell",
-          );
-          writeScriptToShell(tab.id, setupScript);
-        }
+        newWorktreeSetupPath = result.path;
       } catch (err) {
         console.error("[renderer] failed to create worktree:", err);
         return;
@@ -179,6 +151,19 @@ export function AppContent() {
     });
     queueThreadLaunch(thread.id, prompt, segments);
     generateTitleAsync(thread.id, project.location, projectAgentStatuses, titlePrompt);
+    if (worktreePath) {
+      void primeWorktreeGitState(project, worktreePath);
+      // Full refresh so the new worktree enters the cache and any new branch
+      // from createBranch shows up in BranchSelectors and worktreeSourceInfo
+      // without waiting for the next background refresh.
+      void refreshGitProject({ id: project.id, location: project.location }, "manual", "full");
+    }
+    if (newWorktreeSetupPath) {
+      const setupScript = project.scripts?.setupScript;
+      if (setupScript) {
+        runWorktreeSetupScript(project, newWorktreeSetupPath, setupScript);
+      }
+    }
   }
 
   async function handleContinueInProvider(
@@ -393,7 +378,14 @@ async function primeWorktreeGitState(project: Project, worktreePath: string): Pr
       .getState()
       .worktrees[project.id]?.filter((worktree) => !worktree.isMain)
       .map((worktree) => worktree.path) ?? [];
-  const worktreePaths = [...new Set([...cachedWorktreePaths, worktreePath])];
+  const threadWorktreePaths = useAppStore
+    .getState()
+    .threads.flatMap((thread) =>
+      thread.projectId === project.id && thread.worktreePath ? [thread.worktreePath] : [],
+    );
+  const worktreePaths = [
+    ...new Set([...cachedWorktreePaths, ...threadWorktreePaths, worktreePath]),
+  ].sort();
   const watchWorktrees = readBridge()
     .gitWatchWorktrees({ projectId: project.id, worktreePaths })
     .catch(() => undefined);
@@ -403,6 +395,25 @@ async function primeWorktreeGitState(project: Project, worktreePath: string): Pr
     .getGitStatus({ projectLocation: buildWorktreeLocation(project.location, worktreePath) })
     .then((status) => useGitStore.getState().setWorktreeStatus(worktreePath, status))
     .catch(() => undefined);
+}
+
+function runWorktreeSetupScript(project: Project, worktreePath: string, setupScript: string): void {
+  const wtLocation = buildWorktreeLocation(project.location, worktreePath);
+  const store = useDevTerminalStore.getState();
+  const tab = store.addTab(project.id, "setup", worktreePath);
+  if (useSharedSettings.getState().autoShowTerminalPanel) {
+    store.openWorktreePanel(project.id, worktreePath);
+  }
+  store.setActiveTab(tab.id);
+  startShellWithToast(
+    {
+      shellId: tab.id,
+      projectLocation: wtLocation,
+      worktreePath,
+    },
+    "setup shell",
+  );
+  writeScriptToShell(tab.id, setupScript);
 }
 
 /**

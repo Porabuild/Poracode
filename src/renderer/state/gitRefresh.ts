@@ -301,9 +301,17 @@ async function refreshProjectStatusOnly(
     useGitStore.getState().setStatus(project.id, statusResult);
   }
 
-  const cachedWorktrees = useGitStore.getState().worktrees[project.id];
-  if (!cachedWorktrees || cachedWorktrees.length === 0) return;
-  const childWorktreePaths = cachedWorktrees.filter((wt) => !wt.isMain).map((wt) => wt.path);
+  const cachedWorktreePaths =
+    useGitStore
+      .getState()
+      .worktrees[project.id]?.filter((wt) => !wt.isMain)
+      .map((wt) => wt.path) ?? [];
+  const threadWorktreePaths = useAppStore
+    .getState()
+    .threads.flatMap((thread) =>
+      thread.projectId === project.id && thread.worktreePath ? [thread.worktreePath] : [],
+    );
+  const childWorktreePaths = [...new Set([...cachedWorktreePaths, ...threadWorktreePaths])];
   if (childWorktreePaths.length === 0) return;
   const batch = await readBridge()
     .gitWorktreeStatusBatch({
@@ -406,17 +414,21 @@ export async function refreshGitProject(
           if (!worktrees) return;
           if (!isRefreshCurrent(project.id, refreshToken, isActive)) return;
           const childWorktrees = worktrees.filter((wt) => !wt.isMain);
+          const childWorktreePaths = childWorktrees.map((wt) => wt.path);
+          const threadWorktreePaths = useAppStore
+            .getState()
+            .threads.flatMap((thread) =>
+              thread.projectId === project.id && thread.worktreePath ? [thread.worktreePath] : [],
+            );
+          const watchWorktreePaths = [...new Set([...childWorktreePaths, ...threadWorktreePaths])];
 
-          const wtPaths = childWorktrees
-            .map((wt) => wt.path)
-            .sort()
-            .join("\0");
+          const wtPaths = [...watchWorktreePaths].sort().join("\0");
           if (wtPaths !== watchedWorktreePaths.get(project.id)) {
             watchedWorktreePaths.set(project.id, wtPaths);
             readBridge()
               .gitWatchWorktrees({
                 projectId: project.id,
-                worktreePaths: childWorktrees.map((wt) => wt.path),
+                worktreePaths: watchWorktreePaths,
               })
               .catch(() => undefined);
           }
@@ -424,7 +436,7 @@ export async function refreshGitProject(
           const statusesPromise = readBridge()
             .gitWorktreeStatusBatch({
               projectLocation: project.location,
-              worktreePaths: childWorktrees.map((wt) => wt.path),
+              worktreePaths: watchWorktreePaths,
             })
             .then((batch) => {
               if (!isRefreshCurrent(project.id, refreshToken, isActive)) return;

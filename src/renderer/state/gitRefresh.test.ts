@@ -11,8 +11,10 @@ import { useAppStore } from "./appStore";
 import { useGitStore } from "./gitStore";
 import { buildBranchPrKey } from "./gitSelectors";
 import {
+  cleanupGitRefreshProjects,
   PR_PENDING_REFRESH_INTERVAL_MS,
   PR_POST_PUSH_STATUS_POLL_MS,
+  refreshGitProject,
   stopPendingPrRefresh,
   startPostPushPrStatusRefresh,
   syncPendingPrRefreshProjects,
@@ -313,5 +315,144 @@ describe("pending PR refresh", () => {
     await vi.advanceTimersByTimeAsync(PR_POST_PUSH_STATUS_POLL_MS);
 
     expect(ghGetPrForBranchMock).toHaveBeenCalledTimes(3);
+  });
+});
+
+describe("watcher git status refresh", () => {
+  beforeEach(() => {
+    cleanupGitRefreshProjects(new Set());
+    useGitStore.setState({
+      statuses: {},
+      worktreeStatuses: {},
+      worktrees: {},
+      branches: {},
+      ghAvailable: {},
+      prData: {},
+      worktreeSourceInfo: {},
+      prDetails: {},
+      prFiles: {},
+      prDiffs: {},
+    });
+    useAppStore.setState({ projects: [project], threads: [] });
+  });
+
+  afterEach(() => {
+    cleanupGitRefreshProjects(new Set());
+  });
+
+  it("refreshes thread worktree statuses before the full worktree cache catches up", async () => {
+    const getGitStatus = vi.fn<() => Promise<GitStatusResult>>().mockResolvedValue(status);
+    const worktreeStatus: GitStatusResult = {
+      ...status,
+      branch: "feature/wt",
+      unstaged: [
+        {
+          path: "src/changed.ts",
+          status: "M",
+          staged: false,
+          insertions: 3,
+          deletions: 1,
+        },
+      ],
+      totalInsertions: 3,
+      totalDeletions: 1,
+    };
+    const gitWorktreeStatusBatch = vi
+      .fn<
+        (payload: {
+          projectLocation: ProjectLocation;
+          worktreePaths: string[];
+        }) => Promise<{ statuses: Record<string, GitStatusResult> }>
+      >()
+      .mockResolvedValue({ statuses: { "/repo-wt": worktreeStatus } });
+    Object.defineProperty(window, "lightcode", {
+      configurable: true,
+      value: {
+        platform: "darwin",
+        getGitStatus,
+        gitWorktreeStatusBatch,
+      },
+    });
+    useGitStore.getState().setWorktrees("p1", [
+      {
+        path: "/repo",
+        branch: "main",
+        commit: "abc123",
+        isMain: true,
+      },
+    ]);
+    useAppStore.setState({ threads: [worktreeThread] });
+
+    await refreshGitProject(project, "watcher", "status");
+
+    expect(gitWorktreeStatusBatch).toHaveBeenCalledWith({
+      projectLocation: location,
+      worktreePaths: ["/repo-wt"],
+    });
+    expect(useGitStore.getState().worktreeStatuses["/repo-wt"]).toEqual(worktreeStatus);
+  });
+
+  it("keeps thread worktrees watched when a stale full refresh has not listed them yet", async () => {
+    const worktreeStatus: GitStatusResult = {
+      ...status,
+      branch: "feature/wt",
+      unstaged: [
+        {
+          path: "src/changed.ts",
+          status: "M",
+          staged: false,
+          insertions: 3,
+          deletions: 1,
+        },
+      ],
+      totalInsertions: 3,
+      totalDeletions: 1,
+    };
+    const gitWatchWorktrees = vi.fn<() => Promise<void>>().mockResolvedValue(undefined);
+    const gitWorktreeStatusBatch = vi
+      .fn<
+        (payload: {
+          projectLocation: ProjectLocation;
+          worktreePaths: string[];
+        }) => Promise<{ statuses: Record<string, GitStatusResult> }>
+      >()
+      .mockResolvedValue({ statuses: { "/repo-wt": worktreeStatus } });
+    const gitProjectSnapshot = vi
+      .fn<
+        () => Promise<{
+          status: GitStatusResult;
+          branches: { current: string; branches: unknown[] };
+          worktrees: { path: string; branch: string; commit: string; isMain: boolean }[];
+          ghAvailable: boolean;
+        }>
+      >()
+      .mockResolvedValue({
+        status,
+        branches: { current: "main", branches: [] },
+        worktrees: [{ path: "/repo", branch: "main", commit: "abc123", isMain: true }],
+        ghAvailable: false,
+      });
+    Object.defineProperty(window, "lightcode", {
+      configurable: true,
+      value: {
+        platform: "darwin",
+        gitProjectSnapshot,
+        gitWatchWorktrees,
+        gitWorktreeStatusBatch,
+      },
+    });
+    useAppStore.setState({ threads: [worktreeThread] });
+
+    await refreshGitProject(project, "initial", "full");
+
+    expect(gitWatchWorktrees).toHaveBeenCalledWith({
+      projectId: "p1",
+      worktreePaths: ["/repo-wt"],
+    });
+    expect(gitWorktreeStatusBatch).toHaveBeenCalledWith({
+      projectLocation: location,
+      worktreePaths: ["/repo-wt"],
+    });
+    expect(useGitStore.getState().worktreeStatuses["/repo-wt"]).toEqual(worktreeStatus);
   });
 });

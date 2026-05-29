@@ -919,6 +919,60 @@ describe("App", () => {
     });
   });
 
+  it("keeps existing thread worktrees watched when creating another worktree", async () => {
+    useAppStore.persist.hasHydrated = vi.fn<() => boolean>().mockReturnValue(true);
+    useAppStore.persist.onHydrate = vi.fn<() => () => void>(() => () => undefined);
+    useAppStore.persist.onFinishHydration = vi.fn<() => () => void>(() => () => undefined);
+
+    useAppStore.setState((state) => ({
+      ...state,
+      projects: [
+        {
+          id: "project-1",
+          name: "Repo",
+          location: {
+            kind: "windows",
+            path: "C:\\repo",
+          },
+          createdAt: "2026-03-22T00:00:00.000Z",
+        },
+      ],
+      threads: [
+        {
+          id: "thread-existing",
+          projectId: "project-1",
+          title: "Existing worktree",
+          agentKind: "codex",
+          config: { model: "gpt-5.4" },
+          status: "idle",
+          attention: "none",
+          canResumeWithConfig: false,
+          worktreePath: "C:\\Users\\demo\\.lightcode\\worktrees\\repo-12345678\\feature-y",
+          worktreeBranch: "feature/y",
+          archived: false,
+          done: false,
+          starred: false,
+          createdAt: "2026-03-22T00:00:00.000Z",
+          updatedAt: "2026-03-22T00:00:00.000Z",
+        },
+      ],
+      view: { kind: "draft", projectId: "project-1" },
+    }));
+
+    render(<App />);
+    fireEvent.click(screen.getByText("start-worktree"));
+
+    await waitFor(() => {
+      expect(bridge.gitWatchWorktrees).toHaveBeenCalledWith({
+        projectId: "project-1",
+        worktreePaths: [
+          "C:\\Users\\demo\\.lightcode\\worktrees\\repo-12345678\\feature-x",
+          "C:\\Users\\demo\\.lightcode\\worktrees\\repo-12345678\\feature-y",
+        ],
+      });
+    });
+  });
+
   it("attaches a new thread to an existing worktree without creating another one", async () => {
     useAppStore.persist.hasHydrated = vi.fn<() => boolean>().mockReturnValue(true);
     useAppStore.persist.onHydrate = vi.fn<() => () => void>(() => () => undefined);
