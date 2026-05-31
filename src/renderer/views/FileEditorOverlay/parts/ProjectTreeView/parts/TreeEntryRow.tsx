@@ -15,6 +15,8 @@ import { InlineNameInput } from "./InlineNameInput";
 import { InlineDraftRow } from "./InlineDraftRow";
 import type { TreeDraftState } from "./useProjectTree";
 
+const COMPOSER_FILE_DRAG_TYPE = "application/lightcode-composer-file";
+
 export function TreeEntryRow(props: {
   entry: ProjectTreeEntry;
   depth: number;
@@ -125,7 +127,13 @@ export function TreeEntryRow(props: {
               "application/lightcode-project-tree",
               JSON.stringify({ path: entry.path, type: entry.type }),
             );
-            event.dataTransfer.effectAllowed = "move";
+            if (!isDirectory) {
+              event.dataTransfer.setData(
+                COMPOSER_FILE_DRAG_TYPE,
+                JSON.stringify({ path: entry.path, type: entry.type }),
+              );
+            }
+            event.dataTransfer.effectAllowed = isDirectory ? "move" : "copyMove";
           }}
           onDragOver={(event) => {
             if (isDirectory) {

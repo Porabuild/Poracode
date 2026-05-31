@@ -15,6 +15,8 @@ import { handleKeyActivate } from "@/renderer/utils/a11y";
 import { openFileInEditor } from "@/renderer/utils/gitHelpers";
 import { useGitReviewRowPadX } from "../gitReviewPadXContext";
 
+const COMPOSER_FILE_DRAG_TYPE = "application/lightcode-composer-file";
+
 export function FileRow(props: {
   path: string;
   project: Project;
@@ -85,12 +87,20 @@ export function FileRow(props: {
     <>
       <button
         type="button"
+        draggable
         className={`group flex w-full cursor-default items-center gap-1.5 rounded py-1 text-left text-xs transition-colors ${rowPadX} ${
           isSelected
             ? "bg-white/[0.08] text-foreground"
             : "text-muted hover:bg-white/[0.04] hover:text-foreground"
         }`}
         onClick={onSelect}
+        onDragStart={(event) => {
+          event.dataTransfer.setData(
+            COMPOSER_FILE_DRAG_TYPE,
+            JSON.stringify({ path, type: "file" }),
+          );
+          event.dataTransfer.effectAllowed = "copy";
+        }}
       >
         <FileIcon path={path} />
         <PathDisplay

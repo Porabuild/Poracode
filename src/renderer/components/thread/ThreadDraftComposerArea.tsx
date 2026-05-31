@@ -546,6 +546,7 @@ export function ThreadDraftComposerArea(props: {
         submitPending={isSubmitting}
         submitLabel="Launch thread"
         onPromptChange={setPrompt}
+        onAttachFiles={attachments.addFiles}
         onSubmit={() => {
           const segments = mentionRef.current?.serializeSegments() ?? [];
           submitSegments([...attachments.toSegments(), ...segments], prompt);

@@ -928,6 +928,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                         };
                   })()}
                   onPromptChange={setPrompt}
+                  onAttachFiles={attachments.addFiles}
                   onSubmit={() => {
                     const segments = mentionRef.current?.serializeSegments();
                     submitPrompt(
