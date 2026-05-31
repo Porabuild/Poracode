@@ -246,46 +246,49 @@ export function renameThread(threadId: string, title: string): void {
   useAppStore.getState().renameThread(threadId, title);
 }
 
-export function deleteThread(threadId: string, worktreePath?: string, projectId?: string): void {
-  const deleteThreadStoreAction = useAppStore.getState().deleteThread;
+function deleteThreadOnly(threadId: string): void {
+  useAppStore.getState().deleteThread(threadId);
+  void readBridge()
+    .closeThread({ threadId })
+    .catch(() => undefined);
+}
 
+export function deleteThread(threadId: string, worktreePath?: string, projectId?: string): void {
   if (!worktreePath) {
-    deleteThreadStoreAction(threadId);
-    void readBridge()
-      .closeThread({ threadId })
-      .catch(() => undefined);
+    deleteThreadOnly(threadId);
+    return;
+  }
+
+  const allThreads = useAppStore.getState().threads;
+  const siblings = allThreads.filter((t) => t.worktreePath === worktreePath && t.id !== threadId);
+
+  // Other threads still use this worktree — delete the thread without offering worktree removal.
+  if (siblings.length > 0) {
+    deleteThreadOnly(threadId);
     return;
   }
 
   const pref = readWorktreeDeletePref();
   if (pref === "thread-only") {
-    deleteThreadStoreAction(threadId);
-    void readBridge()
-      .closeThread({ threadId })
-      .catch(() => undefined);
+    deleteThreadOnly(threadId);
     return;
   }
 
   if (pref === "thread-and-worktree") {
-    const allThreads = useAppStore.getState().threads;
     const thread = allThreads.find((t) => t.id === threadId);
-    const siblings = allThreads.filter((t) => t.worktreePath === worktreePath && t.id !== threadId);
-    deleteThreadStoreAction(threadId);
-    for (const t of siblings) {
-      deleteThreadStoreAction(t.id);
-    }
+    useAppStore.getState().deleteThread(threadId);
 
     const project = useAppStore.getState().projects.find((p) => p.id === projectId);
     if (project) {
       void (async () => {
-        await closeThreads([threadId, ...siblings.map((t) => t.id)]);
+        await closeThreads([threadId]);
         await performWorktreeRemoval(project, worktreePath, thread?.worktreeBranch);
       })();
     }
     return;
   }
 
-  const thread = useAppStore.getState().threads.find((t) => t.id === threadId);
+  const thread = allThreads.find((t) => t.id === threadId);
   useWorktreeDeleteStore.getState().setDialog({
     kind: "single-thread",
     threadId,
