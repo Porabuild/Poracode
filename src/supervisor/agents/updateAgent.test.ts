@@ -31,6 +31,7 @@ const updateByKind: Record<string, AgentAdapter["update"]> = {
   },
   grok: {
     builtIn: { binary: "grok", args: ["update"] },
+    npm: "@xai-official/grok",
     latestVersionUrls: [
       "https://x.ai/cli/stable",
       "https://storage.googleapis.com/grok-build-public-artifacts/cli/stable",
@@ -150,6 +151,19 @@ describe("resolveUpdateCommand", () => {
     expect(resolveUpdateCommand(adapter, status, NATIVE_WIN, { skipBuiltIn: true })).toEqual({
       binary: "npm",
       args: ["install", "-g", "@openai/codex@latest"],
+      strategy: "npm-global",
+    });
+  });
+
+  it("falls back to the official Grok npm package when skipping the built-in updater", () => {
+    const adapter = makeAdapter("grok");
+    const status = makeStatus({
+      kind: "grok",
+      executablePath: "C:\\Users\\me\\.grok\\bin\\grok.exe",
+    });
+    expect(resolveUpdateCommand(adapter, status, NATIVE_WIN, { skipBuiltIn: true })).toEqual({
+      binary: "npm",
+      args: ["install", "-g", "@xai-official/grok@latest"],
       strategy: "npm-global",
     });
   });

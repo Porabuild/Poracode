@@ -109,13 +109,18 @@ export const NATIVE_AGENT_REGISTRY_ENTRIES: NativeAgentRegistryEntry[] = [
     id: "grok",
     label: "Grok Build",
     description: "First-class Grok Build CLI integration using Lightcode's native runtime.",
-    docsUrl: "https://x.ai/cli",
-    // Grok Build only ships a macOS/Linux installer; native Windows is unsupported.
-    // On Windows the install button is hidden and WSL targets are offered instead.
-    supportsWindows: false,
-    installCommand: () =>
-      "if command -v curl >/dev/null 2>&1; then curl -fsSL https://x.ai/cli/install.sh | bash; " +
-      "else printf 'curl is required to install Grok Build. Install curl, then refresh detected agents.\\n'; fi",
+    docsUrl: "https://docs.x.ai/build/overview",
+    installCommand: (project) =>
+      nativeInstallCommand(project, {
+        mac:
+          "if command -v curl >/dev/null 2>&1; then curl -fsSL https://x.ai/cli/install.sh | bash; " +
+          "else printf 'curl is required to install Grok Build. Install curl, then refresh detected agents.\\n'; fi",
+        posix:
+          "if command -v curl >/dev/null 2>&1; then curl -fsSL https://x.ai/cli/install.sh | bash; " +
+          "else printf 'curl is required to install Grok Build. Install curl, then refresh detected agents.\\n'; fi",
+        windows:
+          "if (Get-Command irm -ErrorAction SilentlyContinue) { irm https://x.ai/cli/install.ps1 | iex } else { Write-Host 'No supported installer found. Install PowerShell Invoke-RestMethod first, then refresh detected agents.' }",
+      }),
   },
   {
     id: "antigravity",

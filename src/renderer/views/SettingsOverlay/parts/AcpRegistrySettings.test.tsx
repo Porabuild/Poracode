@@ -302,6 +302,40 @@ describe("AcpRegistrySettings", () => {
     ).toContain("https://antigravity.google/cli/install.sh");
   });
 
+  it("offers Grok Build as a native Windows install", async () => {
+    bridge.platform = "win32";
+    const windowsProject = makeProject({
+      id: "windows-project",
+      name: "Windows Project",
+      location: { kind: "windows", path: "C:\\repo" },
+    });
+    appState.projects = [windowsProject];
+
+    render(<AcpRegistrySettings />);
+
+    await screen.findByRole("heading", { name: "Agent Registry" });
+    const grokCard = screen
+      .getByText(/First-class Grok Build CLI integration/u)
+      .closest(".rounded-lg");
+    expect(grokCard).toBeTruthy();
+    expect(within(grokCard as HTMLElement).queryByText(/Windows is not supported/u)).toBeNull();
+
+    fireEvent.click(within(grokCard as HTMLElement).getByRole("button", { name: "Install" }));
+
+    await waitFor(() => {
+      expect(runAgentInstallCommandMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          label: "Grok Build",
+        }),
+      );
+    });
+    const installInput = runAgentInstallCommandMock.mock.calls[0]?.[0] as
+      | { command: (project: Project) => string }
+      | undefined;
+    const command = withProcessPlatform("win32", () => installInput?.command(windowsProject));
+    expect(command).toContain("irm https://x.ai/cli/install.ps1 | iex");
+  });
+
   it("keeps brew install commands mac-only", () => {
     const wslProject = makeProject({
       id: "wsl-project",
@@ -341,6 +375,9 @@ describe("AcpRegistrySettings", () => {
     expect(entries.get("antigravity")?.installCommand(wslProject)).toContain(
       "curl -fsSL https://antigravity.google/cli/install.sh | bash",
     );
+    expect(entries.get("grok")?.installCommand(wslProject)).toContain(
+      "curl -fsSL https://x.ai/cli/install.sh | bash",
+    );
 
     withProcessPlatform("darwin", () => {
       expect(entries.get("codex")?.installCommand(macProject)).toContain(
@@ -352,6 +389,18 @@ describe("AcpRegistrySettings", () => {
       expect(entries.get("opencode")?.installCommand(macProject)).toContain(
         "brew install anomalyco/tap/opencode",
       );
+    });
+
+    withProcessPlatform("win32", () => {
+      expect(
+        entries.get("grok")?.installCommand(
+          makeProject({
+            id: "windows-project",
+            name: "Windows Project",
+            location: { kind: "windows", path: "C:\\repo" },
+          }),
+        ),
+      ).toContain("irm https://x.ai/cli/install.ps1 | iex");
     });
   });
 
