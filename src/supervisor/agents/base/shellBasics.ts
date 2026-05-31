@@ -10,6 +10,13 @@ export function getWslCommand(): string {
 }
 
 /**
+ * Default PATH used inside a WSL distro when launching an agent CLI, before
+ * prepending any resolved binary/node dirs. Shared by the per-provider argv
+ * builders so the fallback search path stays consistent across providers.
+ */
+export const DEFAULT_WSL_EXEC_PATH = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin";
+
+/**
  * Build a `export K=V; ` prefix string for injecting env vars into a POSIX shell script.
  * Returns an empty string when there are no env vars to inject.
  */

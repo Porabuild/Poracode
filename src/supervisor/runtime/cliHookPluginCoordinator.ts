@@ -17,6 +17,7 @@ import {
   type AgentAdapter,
   type AgentEnvContext,
   type AgentCliHookPluginSupport,
+  resolveWslHomeDirectoryAsync,
 } from "../agents/base";
 import type { BrowserMcpHttpConfig } from "../agents/browserMcp";
 import type { WslBridgeServer } from "../wsl/bridge";
@@ -358,6 +359,7 @@ export class CliHookPluginCoordinator {
       this.writeNegativeCacheEntry(cacheKey, slice, "unsupported environment");
       return { ok: false, reason: "unsupported environment" };
     }
+    await warmWslHomeCache(ctx);
 
     const settings = readSharedSettings(this.options.settingsPath);
     const cached = settings.agentHookSupport[cacheKey];
@@ -521,6 +523,7 @@ export class CliHookPluginCoordinator {
       };
     }
     const ctx = this.contextForEnv(env);
+    await warmWslHomeCache(ctx);
     // Probe support and install state in parallel — they have no data
     // dependency and each can incur a WSL round trip when env.kind === "wsl".
     const [supportedResult, installedResult] = await Promise.all([
@@ -574,6 +577,11 @@ function composeCacheKey(kind: AgentKind, ctx: AgentEnvContext): string {
     return `${kind}::wsl::${ctx.wslDistro}`;
   }
   return kind;
+}
+
+async function warmWslHomeCache(ctx: AgentEnvContext): Promise<void> {
+  if (ctx.envKind !== "wsl" || !ctx.wslDistro) return;
+  await resolveWslHomeDirectoryAsync(ctx.wslDistro);
 }
 
 function defaultEnvContext(

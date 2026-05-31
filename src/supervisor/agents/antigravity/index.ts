@@ -17,7 +17,9 @@ import {
   locationCwd,
   readAntigravityConversationIds,
   readAntigravityLastConversationForCwd,
+  readAntigravityLastConversationForCwdAsync,
   readNewestAntigravityConversationId,
+  readNewestAntigravityConversationIdAsync,
   resolveAntigravityWatchPaths,
 } from "./session";
 import { detectAntigravityTerminalStatus } from "./terminal";
@@ -28,6 +30,7 @@ export function createAntigravityAdapter(): AgentAdapter {
   let capabilities: AgentCapability = defaultAntigravityCapabilities;
   let preSpawnConversationIds = new Set<string>();
   let preSpawnLastConversationForCwd: string | undefined;
+  let preSpawnStartedAt = 0;
 
   return {
     kind: "antigravity",
@@ -53,11 +56,17 @@ export function createAntigravityAdapter(): AgentAdapter {
       // visible after the session writes its first `.pb` file. Snapshot the
       // existing ids + the workspace's cached "last" id so `discoverSessionRef`
       // can identify the brand-new one once it appears.
-      preSpawnConversationIds = readAntigravityConversationIds(location);
-      preSpawnLastConversationForCwd = readAntigravityLastConversationForCwd(
-        location,
-        locationCwd(location),
-      );
+      preSpawnStartedAt = Date.now();
+      if (location.kind === "wsl") {
+        preSpawnConversationIds = new Set();
+        preSpawnLastConversationForCwd = undefined;
+      } else {
+        preSpawnConversationIds = readAntigravityConversationIds(location);
+        preSpawnLastConversationForCwd = readAntigravityLastConversationForCwd(
+          location,
+          locationCwd(location),
+        );
+      }
       const args = buildAntigravityArgs(config, prompt);
       return { binary: "agy", args };
     },
@@ -74,7 +83,10 @@ export function createAntigravityAdapter(): AgentAdapter {
 
     async discoverSessionRef(location: ProjectLocation) {
       const cwd = locationCwd(location);
-      const latest = readAntigravityLastConversationForCwd(location, cwd);
+      const latest =
+        location.kind === "wsl"
+          ? await readAntigravityLastConversationForCwdAsync(location, cwd)
+          : readAntigravityLastConversationForCwd(location, cwd);
       if (
         latest &&
         latest !== preSpawnLastConversationForCwd &&
@@ -82,7 +94,14 @@ export function createAntigravityAdapter(): AgentAdapter {
       ) {
         return createKnownSessionRef(latest);
       }
-      const newest = readNewestAntigravityConversationId(location, preSpawnConversationIds);
+      const newest =
+        location.kind === "wsl"
+          ? await readNewestAntigravityConversationIdAsync(
+              location,
+              preSpawnConversationIds,
+              preSpawnStartedAt - 1000,
+            )
+          : readNewestAntigravityConversationId(location, preSpawnConversationIds);
       return newest ? createKnownSessionRef(newest) : undefined;
     },
 

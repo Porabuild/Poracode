@@ -14,7 +14,7 @@ vi.mock("../agents/base", async (importActual) => {
   };
 });
 
-import { AgentStatusService } from "./agentStatusService";
+import { AgentStatusService, parseWslRegistryDistributionNames } from "./agentStatusService";
 
 const tempDirs: string[] = [];
 
@@ -107,6 +107,21 @@ function makeMultiAdapterService(adapters: AgentAdapter[]): {
 }
 
 describe("AgentStatusService", () => {
+  it("parses WSL distro names from the Lxss registry output", () => {
+    expect(
+      parseWslRegistryDistributionNames(`
+HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Lxss\\{111}
+    DistributionName    REG_SZ    Ubuntu
+
+HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Lxss\\{222}
+    DistributionName    REG_SZ    Debian
+
+HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Lxss\\{333}
+    DistributionName    REG_SZ    Ubuntu
+`),
+    ).toEqual(["Ubuntu", "Debian"]);
+  });
+
   it("runs automatic startup detection only once across status reads", async () => {
     const detectInstall = vi.fn<AgentAdapter["detectInstall"]>().mockResolvedValue(makeStatus());
     const { service, statusCachePath } = makeService(detectInstall);

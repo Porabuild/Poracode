@@ -1,26 +1,48 @@
-import { copyFileSync, mkdirSync } from "node:fs";
-import { basename, join } from "node:path";
+import { readFile } from "node:fs/promises";
+import { basename } from "node:path";
 import type { PromptSegment, ProjectLocation } from "@/shared/contracts";
-import { getWslCommand, resolveWslHomeDirectory } from "../agents/base";
-import { spawnSync } from "node:child_process";
+import type { WslBridgeClient, WslLocation } from "../wsl/bridge/client";
 
-const wslAttachmentDirCache = new Map<string, { uncDir: string; linuxDir: string }>();
+const wslAttachmentDirCache = new Map<string, { home: string; linuxDir: string }>();
+let wslAttachmentBridgeClient: WslBridgeClient | undefined;
 
-function resolveWslAttachmentDirs(distro: string): { uncDir: string; linuxDir: string } {
+export function setWslAttachmentBridgeClient(client: WslBridgeClient | undefined): void {
+  wslAttachmentBridgeClient = client;
+}
+
+function attachmentLocation(
+  distro: string,
+  linuxDir: string,
+): Extract<ProjectLocation, { kind: "wsl" }> {
+  return {
+    kind: "wsl",
+    distro,
+    linuxPath: linuxDir,
+    uncPath: `\\\\wsl.localhost\\${distro}\\`,
+  };
+}
+
+async function resolveWslAttachmentDirs(
+  client: WslBridgeClient,
+  distro: string,
+): Promise<{ home: string; linuxDir: string }> {
   const cached = wslAttachmentDirCache.get(distro);
   if (cached) {
     return cached;
   }
 
-  const homeDir = resolveWslHomeDirectory(distro);
-  const linuxDir = homeDir ? `${homeDir}/.lightcode/attachments` : undefined;
-  if (!linuxDir) {
-    throw new Error(`Unable to resolve home for WSL distro "${distro}"`);
-  }
+  const rootLocation: WslLocation = {
+    kind: "wsl",
+    distro,
+    linuxPath: "/",
+    uncPath: `\\\\wsl.localhost\\${distro}\\`,
+  };
+  const { home } = await client.home(rootLocation);
+  const linuxDir = `${home}/.lightcode/attachments`;
+  const location = attachmentLocation(distro, linuxDir);
+  await client.mkdir(location, linuxDir, { recursive: true });
 
-  spawnSync(getWslCommand(), ["-d", distro, "--", "mkdir", "-p", linuxDir], { timeout: 5000 });
-  const uncDir = `\\\\wsl.localhost\\${distro}${linuxDir.replace(/\//g, "\\")}`;
-  const entry = { uncDir, linuxDir };
+  const entry = { home, linuxDir };
   wslAttachmentDirCache.set(distro, entry);
   return entry;
 }
@@ -35,38 +57,48 @@ function isImageAttachmentSegment(segment: PromptSegment): boolean {
   );
 }
 
-export function rewriteSegmentsForWsl(
+export async function rewriteSegmentsForWsl(
   segments: PromptSegment[],
   location: ProjectLocation,
   options?: { preserveImageAttachments?: boolean },
-): PromptSegment[] {
+): Promise<PromptSegment[]> {
   if (location.kind !== "wsl") {
     return segments;
   }
 
-  let dirs: { uncDir: string; linuxDir: string } | undefined;
-  return segments.map((segment) => {
+  const client = wslAttachmentBridgeClient;
+  if (!client) return segments;
+
+  let dirs: { home: string; linuxDir: string } | undefined;
+  const rewritten: PromptSegment[] = [];
+  for (const segment of segments) {
     if ((segment.kind !== "attachment" && segment.kind !== "file") || !segment.path) {
-      return segment;
+      rewritten.push(segment);
+      continue;
     }
     if (options?.preserveImageAttachments && isImageAttachmentSegment(segment)) {
-      return segment;
+      rewritten.push(segment);
+      continue;
     }
     if (!/^[A-Za-z]:[\\/]/.test(segment.path)) {
-      return segment;
+      rewritten.push(segment);
+      continue;
     }
 
-    dirs ??= resolveWslAttachmentDirs(location.distro);
-    mkdirSync(dirs.uncDir, { recursive: true });
-
+    dirs ??= await resolveWslAttachmentDirs(client, location.distro);
     const fileName = basename(segment.path);
-    const destination = join(dirs.uncDir, fileName);
+    const linuxPath = `${dirs.linuxDir}/${fileName}`;
+    const bridgeLocation = attachmentLocation(location.distro, dirs.linuxDir);
     try {
-      copyFileSync(segment.path, destination);
+      const content = await readFile(segment.path);
+      await client.rm(bridgeLocation, linuxPath, { force: true });
+      await client.writeNewFile(bridgeLocation, linuxPath, content);
     } catch (error) {
-      console.warn(`[wsl-attach] failed to copy ${segment.path} -> ${destination}:`, error);
-      return segment;
+      console.warn(`[wsl-attach] failed to copy ${segment.path} -> ${linuxPath}:`, error);
+      rewritten.push(segment);
+      continue;
     }
-    return { ...segment, path: `${dirs.linuxDir}/${fileName}` };
-  });
+    rewritten.push({ ...segment, path: linuxPath });
+  }
+  return rewritten;
 }

@@ -1,14 +1,13 @@
-import { execFile, spawn, spawnSync } from "node:child_process";
+import { execFile, spawnSync } from "node:child_process";
 import { homedir } from "node:os";
 import { promisify } from "node:util";
 import {
-  buildPosixExportPrefix,
   getPosixLoginShellArgs,
   getWindowsSystemCommand,
   quotePowerShellLiteral,
-  getWslCommand,
   quotePosixShellArg,
 } from "./shellBasics";
+import type { WslBridgeClient, WslLocation, WslProcessExecResult } from "../../wsl/bridge/client";
 
 const execFileAsync = promisify(execFile);
 
@@ -183,9 +182,12 @@ export function readCommandOutput(
   };
 }
 
-const WSL_BATCH_DELIMITER = "---LIGHTCODE_BATCH_SEP---";
-const DEFAULT_WSL_EXEC_PATH = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin";
 const wslShellPathCache = new Map<string, string>();
+let wslProcessBridgeClient: WslBridgeClient | undefined;
+
+export function setWslProcessBridgeClient(client: WslBridgeClient | undefined): void {
+  wslProcessBridgeClient = client;
+}
 
 function parseCommandOutputLine(stdout: string): string | undefined {
   return stdout
@@ -204,18 +206,29 @@ function parseWindowsExecutablePath(stdout: string): string | undefined {
 
 const wslHomeCache = new Map<string, string>();
 
-function buildDirectWslCommandArgs(command: string, args: string[]): string[] {
-  if (!command.startsWith("/")) {
-    return [command, ...args];
-  }
+function makeWslBridgeLocation(distro: string, cwd = "/"): WslLocation {
+  return {
+    kind: "wsl",
+    distro,
+    linuxPath: cwd,
+    uncPath: `\\\\wsl.localhost\\${distro}\\`,
+  };
+}
 
-  const slashIndex = command.lastIndexOf("/");
-  const binDir = slashIndex > 0 ? command.slice(0, slashIndex) : undefined;
-  const pathSegments = [binDir, DEFAULT_WSL_EXEC_PATH].filter((segment): segment is string =>
-    Boolean(segment),
-  );
+function bridgeProcessOutput(result: WslProcessExecResult): {
+  ok: boolean;
+  stdout: string;
+  stderr: string;
+} {
+  return {
+    ok: result.ok,
+    stdout: result.stdout.trim(),
+    stderr: result.stderr.trim(),
+  };
+}
 
-  return ["/usr/bin/env", `PATH=${pathSegments.join(":")}`, command, ...args];
+function bridgeBatchFallback(count: number): { ok: boolean; stdout: string }[] {
+  return Array.from({ length: count }, () => ({ ok: false, stdout: "" }));
 }
 
 export function resolveWslShellPath(distro: string): string {
@@ -224,159 +237,13 @@ export function resolveWslShellPath(distro: string): string {
     return cached;
   }
 
-  try {
-    const result = spawnSync(
-      getWslCommand(),
-      ["-d", distro, "--", "sh", "-lc", 'getent passwd "$(id -un)" | cut -d: -f7'],
-      {
-        encoding: "utf8",
-        shell: false,
-        windowsHide: true,
-        timeout: 3_000,
-      },
-    );
-    if (!result.error && result.status === 0) {
-      const shellPath = parseCommandOutputLine(`${result.stdout ?? ""}`);
-      if (shellPath) {
-        wslShellPathCache.set(distro, shellPath);
-        return shellPath;
-      }
-    }
-  } catch {
-    // Fall through to bash so rc files (nvm/fnm/asdf) still get sourced.
-  }
-
   const fallback = "/bin/bash";
   wslShellPathCache.set(distro, fallback);
   return fallback;
 }
 
-export async function resolveWslShellPathAsync(distro: string): Promise<string> {
-  const cached = wslShellPathCache.get(distro);
-  if (cached) {
-    return cached;
-  }
-
-  try {
-    const { stdout } = await execFileAsync(
-      getWslCommand(),
-      ["-d", distro, "--", "sh", "-lc", 'getent passwd "$(id -un)" | cut -d: -f7'],
-      {
-        windowsHide: true,
-        timeout: 3_000,
-      },
-    );
-    const shellPath = parseCommandOutputLine(stdout ?? "");
-    if (shellPath) {
-      wslShellPathCache.set(distro, shellPath);
-      return shellPath;
-    }
-  } catch {
-    // Fall through to bash so rc files (nvm/fnm/asdf) still get sourced.
-  }
-
-  const fallback = "/bin/bash";
-  wslShellPathCache.set(distro, fallback);
-  return fallback;
-}
-
-export function buildBatchWslScript(commands: string[], sep = WSL_BATCH_DELIMITER): string {
-  return commands.map((cmd) => `(${cmd}) 2>/dev/null; echo "${sep}"`).join("\n");
-}
-
-/**
- * Run multiple commands in a single `wsl.exe` invocation, splitting output
- * by a known delimiter. This avoids the per-invocation overhead of spawning
- * separate `wsl.exe` processes.
- */
-export function batchWslCommands(
-  distro: string,
-  commands: string[],
-): { ok: boolean; stdout: string }[] {
-  const sep = WSL_BATCH_DELIMITER;
-  const script = buildBatchWslScript(commands, sep);
-  const result = spawnSync(
-    getWslCommand(),
-    ["-d", distro, "--", resolveWslShellPath(distro), "-l", "-i", "-c", script],
-    {
-      encoding: "utf8",
-      shell: false,
-      windowsHide: true,
-      timeout: 15_000,
-    },
-  );
-  if (result.error || result.status !== 0) {
-    return commands.map(() => ({ ok: false, stdout: "" }));
-  }
-  const parts = (result.stdout ?? "").split(sep);
-  return commands.map((_, i) => {
-    const raw = (parts[i] ?? "").trim();
-    return { ok: raw.length > 0, stdout: raw };
-  });
-}
-
-export function resolveWslExecutablePath(distro: string, command: string): string | undefined {
-  const result = spawnSync(
-    getWslCommand(),
-    ["-d", distro, "--", resolveWslShellPath(distro), "-l", "-i", "-c", `command -v ${command}`],
-    {
-      encoding: "utf8",
-      shell: false,
-      windowsHide: true,
-      timeout: 5_000,
-    },
-  );
-  if (result.error || result.status !== 0) {
-    return undefined;
-  }
-  return parseCommandOutputLine(`${result.stdout ?? ""}`);
-}
-
-export function resolveWslHomeDirectory(distro: string): string | undefined {
-  const cached = wslHomeCache.get(distro);
-  if (cached) {
-    return cached;
-  }
-
-  const result = spawnSync(
-    getWslCommand(),
-    ["-d", distro, "--", "sh", "-lc", 'printf %s "$HOME"'],
-    {
-      encoding: "utf8",
-      shell: false,
-      windowsHide: true,
-      timeout: 5_000,
-    },
-  );
-  if (result.error || result.status !== 0) {
-    return undefined;
-  }
-  const home = parseCommandOutputLine(`${result.stdout ?? ""}`);
-  if (home) {
-    wslHomeCache.set(distro, home);
-  }
-  return home;
-}
-
-export function readWslCommandOutput(
-  distro: string,
-  command: string,
-  args: string[],
-): { ok: boolean; stdout: string; stderr: string } {
-  const result = spawnSync(
-    getWslCommand(),
-    ["-d", distro, "--", ...buildDirectWslCommandArgs(command, args)],
-    {
-      encoding: "utf8",
-      shell: false,
-      windowsHide: true,
-    },
-  );
-  return {
-    ok: result.status === 0,
-    stdout: `${result.stdout ?? ""}`.trim(),
-    stderr: `${result.stderr ?? ""}`.trim(),
-  };
+export function getCachedWslHomeDirectory(distro: string): string | undefined {
+  return wslHomeCache.get(distro);
 }
 
 const execPathCache = new Map<string, { path: string | undefined; ts: number }>();
@@ -555,24 +422,15 @@ export function primeWslProjectShellEnv(
   if (existing) return existing;
 
   const promise = (async () => {
-    let shellPath: string;
-    try {
-      shellPath = await resolveWslShellPathAsync(distro);
-    } catch {
-      return undefined;
-    }
-    const parsed = await runPrimedEnvProbe(getWslCommand(), [
-      "-d",
-      distro,
-      "--cd",
+    if (!wslProcessBridgeClient) return undefined;
+    const result = await wslProcessBridgeClient.processExec(makeWslBridgeLocation(distro, cwd), {
+      command: "sh",
       cwd,
-      "--",
-      shellPath,
-      "-l",
-      "-i",
-      "-c",
-      buildPrimedEnvProbe(),
-    ]);
+      args: ["-lc", buildPrimedEnvProbe()],
+      loginEnv: true,
+      timeoutMs: 15_000,
+    });
+    const parsed = result.ok ? parsePrimedEnvProbeOutput(result.stdout) : undefined;
     if (parsed) wslProjectShellEnvResolved.set(key, parsed);
     return parsed;
   })();
@@ -595,15 +453,19 @@ async function runPrimedEnvProbe(
       windowsHide: true,
       timeout: 15_000,
     });
-    const lines = (stdout ?? "").split(/\r?\n/g);
-    const markerIdx = lines.indexOf(PRIMED_ENV_MARKER);
-    if (markerIdx < 0) return undefined;
-    const parsed = parsePrimedEnvDump(lines.slice(markerIdx + 1));
-    if (Object.keys(parsed).length === 0) return undefined;
-    return parsed;
+    return parsePrimedEnvProbeOutput(stdout ?? "");
   } catch {
     return undefined;
   }
+}
+
+function parsePrimedEnvProbeOutput(stdout: string): Record<string, string> | undefined {
+  const lines = stdout.split(/\r?\n/g);
+  const markerIdx = lines.indexOf(PRIMED_ENV_MARKER);
+  if (markerIdx < 0) return undefined;
+  const parsed = parsePrimedEnvDump(lines.slice(markerIdx + 1));
+  if (Object.keys(parsed).length === 0) return undefined;
+  return parsed;
 }
 
 const PRIMED_ENV_MARKER = "__LIGHTCODE_ENV_BEGIN__";
@@ -770,25 +632,23 @@ export async function batchWslCommandsAsync(
   distro: string,
   commands: string[],
 ): Promise<{ ok: boolean; stdout: string }[]> {
-  const sep = WSL_BATCH_DELIMITER;
-  const script = buildBatchWslScript(commands, sep);
+  if (!wslProcessBridgeClient) return bridgeBatchFallback(commands.length);
   try {
-    const shellPath = await resolveWslShellPathAsync(distro);
-    const { stdout } = await execFileAsync(
-      getWslCommand(),
-      ["-d", distro, "--", shellPath, "-l", "-i", "-c", script],
-      {
-        windowsHide: true,
-        timeout: 15_000,
-      },
-    );
-    const parts = (stdout ?? "").split(sep);
-    return commands.map((_, i) => {
-      const raw = (parts[i] ?? "").trim();
-      return { ok: raw.length > 0, stdout: raw };
+    const result = await wslProcessBridgeClient.processBatch(makeWslBridgeLocation(distro), {
+      timeoutMs: 15_000,
+      commands: commands.map((cmd) => ({
+        command: "sh",
+        cwd: "/",
+        args: ["-lc", cmd],
+        loginEnv: true,
+      })),
     });
+    return result.results.map((entry) => ({
+      ok: entry.ok,
+      stdout: entry.stdout.trim(),
+    }));
   } catch {
-    return commands.map(() => ({ ok: false, stdout: "" }));
+    return bridgeBatchFallback(commands.length);
   }
 }
 
@@ -797,101 +657,27 @@ export async function parallelWslCommandsAsync(
   commands: { cwd?: string; cmd: string }[],
   options?: { timeoutMs?: number },
 ): Promise<{ ok: boolean; stdout: string; exitCode: number }[]> {
-  const sep = WSL_BATCH_DELIMITER;
-  const timeoutMs = options?.timeoutMs ?? 30_000;
-  const script = buildParallelWslScript(commands, sep);
+  if (!wslProcessBridgeClient) {
+    return commands.map(() => ({ ok: false, stdout: "", exitCode: 1 }));
+  }
   try {
-    const shellPath = await resolveWslShellPathAsync(distro);
-    const wslArgs = ["-d", distro, "--", shellPath, "-l"];
-    const stdout = await runWslScriptViaStdin(wslArgs, script, timeoutMs);
-    return parseParallelWslOutput(stdout, commands.length, sep);
+    const result = await wslProcessBridgeClient.processBatch(makeWslBridgeLocation(distro), {
+      timeoutMs: options?.timeoutMs ?? 30_000,
+      commands: commands.map((entry) => ({
+        command: "sh",
+        cwd: entry.cwd ?? "/",
+        args: ["-lc", entry.cmd],
+        loginEnv: true,
+      })),
+    });
+    return result.results.map((entry) => ({
+      ok: entry.ok,
+      stdout: entry.stdout.replace(/^\n+|\n+$/g, ""),
+      exitCode: entry.exitCode,
+    }));
   } catch {
     return commands.map(() => ({ ok: false, stdout: "", exitCode: 1 }));
   }
-}
-
-function runWslScriptViaStdin(
-  wslArgs: string[],
-  script: string,
-  timeoutMs: number,
-): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const child = spawn(getWslCommand(), wslArgs, {
-      stdio: ["pipe", "pipe", "pipe"],
-      windowsHide: true,
-    });
-    let stdout = "";
-    let stderr = "";
-    let timedOut = false;
-    const timer = setTimeout(() => {
-      timedOut = true;
-      child.kill();
-    }, timeoutMs);
-    child.stdout.on("data", (chunk: Buffer) => {
-      stdout += chunk.toString("utf8");
-      if (stdout.length > 50 * 1024 * 1024) child.kill();
-    });
-    child.stderr.on("data", (chunk: Buffer) => {
-      stderr += chunk.toString("utf8");
-    });
-    child.on("error", (err) => {
-      clearTimeout(timer);
-      reject(err);
-    });
-    child.on("close", (code) => {
-      clearTimeout(timer);
-      if (timedOut) return reject(new Error("wsl batch timed out"));
-      if (code !== 0 && stdout.length === 0) {
-        return reject(new Error(`wsl batch exited ${code}: ${stderr.trim()}`));
-      }
-      resolve(stdout);
-    });
-    child.stdin.write(script);
-    child.stdin.end();
-  });
-}
-
-function buildParallelWslScript(commands: { cwd?: string; cmd: string }[], sep: string): string {
-  const launchers = commands
-    .map((c, i) => {
-      const cwdPrefix = c.cwd ? `cd ${quotePosixShellArg(c.cwd)} && ` : "";
-      return `(${cwdPrefix}${c.cmd}) >"$T/${i}.out" 2>/dev/null; echo $? >"$T/${i}.rc" &`;
-    })
-    .join("\n");
-  const emitters = commands
-    .map(
-      (_, i) =>
-        `printf '%s\\n' "$(cat "$T/${i}.out")"; printf '\\n${sep}\\n%s\\n${sep}\\n' "$(cat "$T/${i}.rc")"`,
-    )
-    .join("\n");
-  return [
-    `export GIT_OPTIONAL_LOCKS=0`,
-    `T=$(mktemp -d)`,
-    `trap 'rm -rf "$T"' EXIT`,
-    launchers,
-    `wait`,
-    emitters,
-  ].join("\n");
-}
-
-function parseParallelWslOutput(
-  stdout: string,
-  count: number,
-  sep: string,
-): { ok: boolean; stdout: string; exitCode: number }[] {
-  const parts = stdout.split(sep);
-  const result: { ok: boolean; stdout: string; exitCode: number }[] = [];
-  for (let i = 0; i < count; i += 1) {
-    const out = (parts[i * 2] ?? "").replace(/^\n+|\n+$/g, "");
-    const rcStr = (parts[i * 2 + 1] ?? "").trim();
-    const exitCode = parseInt(rcStr, 10);
-    result.push({
-      ok: Number.isFinite(exitCode) && exitCode === 0,
-      stdout: out,
-      exitCode: Number.isFinite(exitCode) ? exitCode : 1,
-    });
-  }
-  return result;
 }
 
 export async function readWslCommandOutputAsync(
@@ -900,29 +686,21 @@ export async function readWslCommandOutputAsync(
   args: string[],
   options?: { cwd?: string },
 ): Promise<{ ok: boolean; stdout: string; stderr: string }> {
+  if (!wslProcessBridgeClient) return { ok: false, stdout: "", stderr: "" };
   try {
-    const { stdout, stderr } = await execFileAsync(
-      getWslCommand(),
-      [
-        "-d",
-        distro,
-        ...(options?.cwd ? ["--cd", options.cwd] : []),
-        "--",
-        ...buildDirectWslCommandArgs(command, args),
-      ],
+    const result = await wslProcessBridgeClient.processExec(
+      makeWslBridgeLocation(distro, options?.cwd ?? "/"),
       {
-        windowsHide: true,
-        timeout: 10_000,
+        command,
+        cwd: options?.cwd ?? "/",
+        args,
+        loginEnv: true,
+        timeoutMs: 10_000,
       },
     );
-    return { ok: true, stdout: (stdout ?? "").trim(), stderr: (stderr ?? "").trim() };
-  } catch (error: unknown) {
-    const err = error as { stdout?: string; stderr?: string } | undefined;
-    return {
-      ok: false,
-      stdout: (err?.stdout ?? "").trim(),
-      stderr: (err?.stderr ?? "").trim(),
-    };
+    return bridgeProcessOutput(result);
+  } catch {
+    return { ok: false, stdout: "", stderr: "" };
   }
 }
 
@@ -933,28 +711,22 @@ export async function readWslLoginShellCommandOutputAsync(
   args: string[],
   options?: { timeout?: number; maxBuffer?: number; env?: Record<string, string> },
 ): Promise<{ ok: boolean; stdout: string; stderr: string }> {
-  const shellPath = resolveWslShellPath(distro);
-  const exports = buildPosixExportPrefix(options?.env);
-  const script = `${exports}exec ${[command, ...args].map(quotePosixShellArg).join(" ")}`;
-
+  if (!wslProcessBridgeClient) return { ok: false, stdout: "", stderr: "" };
   try {
-    const { stdout, stderr } = await execFileAsync(
-      getWslCommand(),
-      ["-d", distro, "--cd", linuxCwd, "--", shellPath, "-l", "-i", "-c", script],
+    const result = await wslProcessBridgeClient.processExec(
+      makeWslBridgeLocation(distro, linuxCwd),
       {
-        windowsHide: true,
-        timeout: options?.timeout ?? 10_000,
-        ...(options?.maxBuffer ? { maxBuffer: options.maxBuffer } : {}),
+        command,
+        cwd: linuxCwd,
+        args,
+        loginEnv: true,
+        timeoutMs: options?.timeout ?? 10_000,
+        ...(options?.env ? { env: options.env } : {}),
       },
     );
-    return { ok: true, stdout: (stdout ?? "").trim(), stderr: (stderr ?? "").trim() };
-  } catch (error: unknown) {
-    const err = error as { stdout?: string; stderr?: string } | undefined;
-    return {
-      ok: false,
-      stdout: (err?.stdout ?? "").trim(),
-      stderr: (err?.stderr ?? "").trim(),
-    };
+    return bridgeProcessOutput(result);
+  } catch {
+    return { ok: false, stdout: "", stderr: "" };
   }
 }
 
@@ -965,17 +737,25 @@ export async function execInWsl(
   args: string[],
   options?: { timeout?: number; maxBuffer?: number; env?: NodeJS.ProcessEnv },
 ): Promise<string> {
-  const { stdout } = await execFileAsync(
-    getWslCommand(),
-    ["-d", distro, "--cd", linuxCwd, "--", command, ...args],
-    {
-      windowsHide: true,
-      timeout: options?.timeout ?? 10_000,
-      ...(options?.maxBuffer ? { maxBuffer: options.maxBuffer } : {}),
-      ...(options?.env ? { env: options.env } : {}),
-    },
-  );
-  return stdout;
+  if (!wslProcessBridgeClient) {
+    throw new Error(`WSL bridge unavailable for distro ${distro}`);
+  }
+  const result = await wslProcessBridgeClient.processExec(makeWslBridgeLocation(distro, linuxCwd), {
+    command,
+    cwd: linuxCwd,
+    args,
+    loginEnv: true,
+    timeoutMs: options?.timeout ?? 10_000,
+    ...(options?.env ? { env: toStringEnv(options.env) } : {}),
+  });
+  if (result.ok) return result.stdout;
+  const error = new Error(
+    result.error || result.stderr || `process exited ${result.exitCode}`,
+  ) as Error & { stdout?: string; stderr?: string; code?: number };
+  error.stdout = result.stdout;
+  error.stderr = result.stderr;
+  error.code = result.exitCode;
+  throw error;
 }
 
 export async function resolveWslHomeDirectoryAsync(distro: string): Promise<string | undefined> {

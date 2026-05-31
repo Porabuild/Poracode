@@ -295,4 +295,53 @@ describe("WslBridgeClient", () => {
       timeoutMs: 10_000,
     });
   });
+
+  it("processBatch forwards generic structured process commands", async () => {
+    fake.server.on("request", (req, res) => {
+      let raw = "";
+      req.on("data", (chunk) => (raw += chunk.toString("utf8")));
+      req.on("end", () => {
+        fake.lastRequest = {
+          url: req.url,
+          body: raw ? JSON.parse(raw) : undefined,
+          auth: req.headers["authorization"] as string | undefined,
+        };
+        res.statusCode = 200;
+        res.setHeader("content-type", "application/json");
+        res.end(
+          JSON.stringify({
+            ok: true,
+            data: { results: [{ ok: true, stdout: "[]\n", stderr: "", exitCode: 0 }] },
+          }),
+        );
+      });
+    });
+
+    const client = new WslBridgeClient(mockServer);
+    const result = await client.processBatch(makeLocation(), {
+      commands: [
+        {
+          command: "gh",
+          cwd: "/home/user/proj",
+          args: ["pr", "list"],
+          loginEnv: true,
+        },
+      ],
+      timeoutMs: 30_000,
+    });
+
+    expect(result.results[0]?.stdout).toBe("[]\n");
+    expect(fake.lastRequest.url).toBe("/v1/process/batch");
+    expect(fake.lastRequest.body).toEqual({
+      commands: [
+        {
+          command: "gh",
+          cwd: "/home/user/proj",
+          args: ["pr", "list"],
+          loginEnv: true,
+        },
+      ],
+      timeoutMs: 30_000,
+    });
+  });
 });

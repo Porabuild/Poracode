@@ -1,6 +1,6 @@
 import { copyFileSync, existsSync, mkdirSync, readFileSync, statSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { resolveWslHomeDirectory } from "../agents/base";
+import { getCachedWslHomeDirectory } from "../agents/base";
 
 /**
  * Shared "stage files into a WSL distro" primitive used by both the git
@@ -27,6 +27,11 @@ export interface WslDeployFile {
   relDest: string;
 }
 
+export interface WslBaseDeployResult {
+  /** Linux path of the deploy base inside the distro. */
+  linuxBaseDir: string;
+}
+
 /**
  * Resolve the directory containing WSL helper assets shipped with the app
  * (watcher.node, bridge.mjs, …). The main process exports
@@ -41,7 +46,7 @@ export function resolveWslHelpersDir(): string | undefined {
  * Idempotently stage a set of files into a WSL distro's
  * `<home>/.lightcode/<relDest>`. Returns the resolved home + linuxBaseDir on
  * success, or `null` when:
- *   - `$HOME` cannot be resolved (e.g. distro stopped, `wsl.exe` failure)
+ *   - `$HOME` has not been resolved through the bridge-backed runtime path
  *   - any source file is missing
  *   - the UNC copy errors out (permission, disk, distro restart, …)
  *
@@ -53,7 +58,7 @@ export function deployFilesToWslHome(
   distro: string,
   files: readonly WslDeployFile[],
 ): WslHomeDeployResult | null {
-  const home = resolveWslHomeDirectory(distro);
+  const home = getCachedWslHomeDirectory(distro);
   if (!home) return null;
 
   for (const file of files) {
@@ -78,6 +83,34 @@ export function deployFilesToWslHome(
   return { home, linuxBaseDir };
 }
 
+export function deployFilesToWslTempBase(
+  distro: string,
+  baseName: string,
+  files: readonly WslDeployFile[],
+): WslBaseDeployResult | null {
+  for (const file of files) {
+    if (!existsSync(file.src)) return null;
+  }
+
+  const safeBaseName = baseName.replace(/[^A-Za-z0-9._-]/g, "-");
+  const linuxBaseDir = `/tmp/${safeBaseName}`;
+  const uncBase = `\\\\wsl.localhost\\${distro}\\tmp\\${safeBaseName}`;
+
+  try {
+    for (const file of files) {
+      const segments = file.relDest.split("/").filter((segment) => segment.length > 0);
+      const winDest = [uncBase, ...segments].join("\\");
+      mkdirSync(dirname(winDest), { recursive: true });
+      if (isFresh(file.src, winDest)) continue;
+      copyFileSync(file.src, winDest);
+    }
+  } catch {
+    return null;
+  }
+
+  return { linuxBaseDir };
+}
+
 function isFresh(src: string, dest: string): boolean {
   try {
     if (!existsSync(dest)) return false;
@@ -90,9 +123,6 @@ function isFresh(src: string, dest: string): boolean {
     return false;
   }
 }
-
-/** Re-export for callsites that need the home path on its own. */
-export { resolveWslHomeDirectory as getWslHome } from "../agents/base";
 
 /**
  * Read a `const <NAME> = "<x.y.z>"` (or `let` / `var`) declaration out of a

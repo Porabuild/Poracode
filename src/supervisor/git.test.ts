@@ -124,36 +124,32 @@ describe("computeDefaultWorktreePath", () => {
   );
 
   it("stores WSL worktrees under the distro home .lightcode root", async () => {
-    readWslCommandOutputAsync.mockResolvedValue({
-      ok: true,
-      stdout: "/home/demo",
-      stderr: "",
-    });
+    const service = new GitService();
+    const home = vi.fn<() => Promise<{ home: string }>>(async () => ({ home: "/home/demo" }));
+    service.setWslClient({ home } as unknown as WslBridgeClient);
 
-    const path = await computeDefaultWorktreePath(
-      {
-        kind: "wsl",
-        distro: "Ubuntu",
-        linuxPath: "/home/demo/work/lightcode",
-        uncPath: "\\\\wsl.localhost\\Ubuntu\\home\\demo\\work\\lightcode",
-      },
-      "feature/x",
-    );
+    try {
+      const path = await computeDefaultWorktreePath(
+        {
+          kind: "wsl",
+          distro: "Ubuntu",
+          linuxPath: "/home/demo/work/lightcode",
+          uncPath: "\\\\wsl.localhost\\Ubuntu\\home\\demo\\work\\lightcode",
+        },
+        "feature/x",
+      );
 
-    expect(path).toMatch(/^\/home\/demo\/.lightcode\/worktrees\/lightcode-[a-f0-9]{4}\/feature-x$/);
-    expect(readWslCommandOutputAsync).toHaveBeenCalledWith("Ubuntu", "sh", [
-      "-lc",
-      'printf %s "$HOME"',
-    ]);
+      expect(path).toMatch(
+        /^\/home\/demo\/.lightcode\/worktrees\/lightcode-[a-f0-9]{4}\/feature-x$/,
+      );
+      expect(home).toHaveBeenCalledWith(expect.objectContaining({ distro: "Ubuntu" }));
+      expect(readWslCommandOutputAsync).not.toHaveBeenCalled();
+    } finally {
+      service.setWslClient(undefined);
+    }
   });
 
   it("fails when the WSL home directory cannot be resolved", async () => {
-    readWslCommandOutputAsync.mockResolvedValue({
-      ok: false,
-      stdout: "",
-      stderr: "lookup failed",
-    });
-
     await expect(
       computeDefaultWorktreePath(
         {
@@ -322,58 +318,20 @@ describe("GitService.commit", () => {
     vi.clearAllMocks();
   });
 
-  it("runs WSL commits through a login shell so hooks see the Linux toolchain", async () => {
-    mockGitCommands((args) => {
-      if (args[0] === "-d") {
-        return { stdout: "[main abc1234] feat(dashboard): add taxonomy filters\n" };
-      }
-      return { stdout: "" };
-    });
-
-    const message =
-      "feat(dashboard): add taxonomy filters\n\n- New `/api/taxonomy-values` endpoint";
-    const result = await new GitService().commit(
-      {
-        kind: "wsl",
-        distro: "Ubuntu",
-        linuxPath: "/home/demo/work/repo",
-        uncPath: "\\\\wsl.localhost\\Ubuntu\\home\\demo\\work\\repo",
-      },
-      message,
-      false,
-    );
-
-    expect(result).toEqual({ hash: "abc1234" });
-    const commitCall = execFileMock.mock.calls.find(
-      (call: unknown[]) =>
-        String(call[0]).includes("wsl") &&
-        Array.isArray(call[1]) &&
-        (call[1] as string[])[0] === "-d" &&
-        (call[1] as string[])[1] === "Ubuntu",
-    );
-    expect(commitCall).toBeDefined();
-    expect(commitCall![1]).toEqual(
-      expect.arrayContaining([
-        "-d",
-        "Ubuntu",
-        "--cd",
-        "/home/demo/work/repo",
-        "--",
-        "-l",
-        "-i",
-        "-c",
-      ]),
-    );
-    const commandArgs = commitCall![1] as string[];
-    expect(commandArgs[4]).toBe("--");
-    expect(commandArgs[commandArgs.length - 1]).toBe(
-      `export GIT_OPTIONAL_LOCKS='0'; exec 'git' 'commit' '-m' '${message.replaceAll("'", "'\\''")}'`,
-    );
-    expect(commitCall![2]).toEqual(
-      expect.objectContaining({
-        windowsHide: true,
-      }),
-    );
+  it("requires the WSL bridge for WSL commits", async () => {
+    await expect(
+      new GitService().commit(
+        {
+          kind: "wsl",
+          distro: "Ubuntu",
+          linuxPath: "/home/demo/work/repo",
+          uncPath: "\\\\wsl.localhost\\Ubuntu\\home\\demo\\work\\repo",
+        },
+        "feat(dashboard): add taxonomy filters",
+        false,
+      ),
+    ).rejects.toThrow("WSL bridge unavailable for Git");
+    expect(execFileMock).not.toHaveBeenCalled();
   });
 
   it("runs WSL commits through the bridge with login-shell env when available", async () => {

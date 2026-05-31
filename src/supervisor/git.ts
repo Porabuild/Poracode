@@ -14,7 +14,6 @@ import type {
   ProjectLocation,
 } from "@/shared/contracts";
 import { buildWorktreeLocation } from "@/shared/worktree";
-import { parallelWslCommandsAsync, quotePosixShellArg as quote } from "./agents/base";
 import {
   computeDefaultWorktreePath,
   execGit,
@@ -62,8 +61,7 @@ export class GitService {
 
   /**
    * WSL fast path for project refresh: run the Git snapshot through the
-   * long-lived in-distro bridge when available, falling back to the older
-   * single `wsl.exe` batch if the bridge is unavailable.
+   * long-lived in-distro bridge.
    */
   async batchedWslProjectSnapshot(
     location: ProjectLocation & { kind: "wsl" },
@@ -85,21 +83,7 @@ export class GitService {
       { cwd, args: branchListArgs },
       { cwd, args: ["worktree", "list", "--porcelain"] },
     ];
-    const fallbackCommands = [
-      { cwd, cmd: "git rev-parse --is-inside-work-tree" },
-      { cwd, cmd: "git status --porcelain=v2 -b" },
-      { cwd, cmd: "git remote -v" },
-      { cwd, cmd: "git diff --cached --numstat" },
-      { cwd, cmd: "git diff --numstat" },
-      { cwd, cmd: `git ${branchListArgs.map((a) => quote(a)).join(" ")}` },
-      { cwd, cmd: "git worktree list --porcelain" },
-      ...(includeGhCheck ? [{ cwd, cmd: "gh --version" }] : []),
-    ];
-    const bridgeResults = await execGitBatchWslBridge(location, gitCommands, 30_000);
-    const usedBridge = bridgeResults !== undefined;
-    const results =
-      bridgeResults ??
-      (await parallelWslCommandsAsync(location.distro, fallbackCommands, { timeoutMs: 30_000 }));
+    const results = await execGitBatchWslBridge(location, gitCommands, 30_000);
 
     const isRepo = results[0]!.ok;
     const baseStatus = buildGitStatusResultFromOutputs({
@@ -123,17 +107,7 @@ export class GitService {
       : null;
     let ghAvailable: boolean | null = null;
     if (includeGhCheck) {
-      if (usedBridge) {
-        ghAvailable =
-          (await ghVersionWslBridge(location, 10_000)) ??
-          (
-            await parallelWslCommandsAsync(location.distro, [{ cwd, cmd: "gh --version" }], {
-              timeoutMs: 10_000,
-            })
-          )[0]?.ok === true;
-      } else {
-        ghAvailable = results[7]?.ok === true;
-      }
+      ghAvailable = (await ghVersionWslBridge(location, 10_000)) ?? false;
     }
 
     return { status, branches, worktrees, ghAvailable };
@@ -141,9 +115,8 @@ export class GitService {
 
   /**
    * Fetch `git status` for many worktree paths at once. WSL routes through
-   * the in-distro bridge when available and falls back to one parallel
-   * `wsl.exe` batch. Worktrees whose status fetch fails are silently dropped
-   * from the result.
+   * the in-distro bridge. Worktrees whose status fetch fails are silently
+   * dropped from the result.
    */
   async getWorktreeStatusBatch(
     location: ProjectLocation,

@@ -172,6 +172,20 @@ export class WslBridgeClient {
     return this.call<WslGitExecResult>(location, "/v1/gh/version", input);
   }
 
+  async processExec(
+    location: WslLocation,
+    input: WslProcessExecInput,
+  ): Promise<WslProcessExecResult> {
+    return this.call<WslProcessExecResult>(location, "/v1/process/exec", input);
+  }
+
+  async processBatch(
+    location: WslLocation,
+    input: { commands: WslProcessExecInput[]; timeoutMs?: number },
+  ): Promise<{ results: WslProcessExecResult[] }> {
+    return this.call<{ results: WslProcessExecResult[] }>(location, "/v1/process/batch", input);
+  }
+
   /** Rename/move a path. Both sides must live inside `location`. */
   async rename(location: WslLocation, fromAbsolute: string, toAbsolute: string): Promise<void> {
     await this.call(location, "/v1/fs/rename", {
@@ -315,6 +329,12 @@ export interface WslGitExecResult {
   error?: string;
   timedOut?: boolean;
 }
+
+export interface WslProcessExecInput extends WslGitExecInput {
+  command: string;
+}
+
+export type WslProcessExecResult = WslGitExecResult;
 
 function asNodeErr(code: string, message: string): NodeJS.ErrnoException {
   const err = new Error(message) as NodeJS.ErrnoException;

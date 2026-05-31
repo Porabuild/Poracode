@@ -2,7 +2,6 @@ import type { Dirent, Stats } from "node:fs";
 import { readdir, readFile, rename, rm, stat, writeFile, mkdir } from "node:fs/promises";
 import { dirname, isAbsolute, posix, relative, resolve } from "node:path";
 import micromatch from "micromatch";
-import { readWslCommandOutputAsync } from "./agents/base";
 import type {
   CreateProjectEntryPayload,
   DeleteProjectEntryPayload,
@@ -132,11 +131,22 @@ export class ProjectTreeService {
     this.wslClient = client;
   }
 
+  private requireWslClient(): WslBridgeClient {
+    if (!this.wslClient) {
+      throw new Error("WSL bridge unavailable.");
+    }
+    return this.wslClient;
+  }
+
   async listProjectTree(payload: ListProjectTreePayload): Promise<ListProjectTreeResult> {
     const directoryPath = normalizeRelativePath(payload.directoryPath);
 
-    if (payload.projectLocation.kind === "wsl" && this.wslClient) {
-      return this.listProjectTreeWsl(payload.projectLocation, directoryPath, this.wslClient);
+    if (payload.projectLocation.kind === "wsl") {
+      return this.listProjectTreeWsl(
+        payload.projectLocation,
+        directoryPath,
+        this.requireWslClient(),
+      );
     }
 
     const fullPath = this.resolveEntryPath(payload.projectLocation, directoryPath);
@@ -216,8 +226,12 @@ export class ProjectTreeService {
     const path = normalizeRelativePath(payload.path);
 
     const raw =
-      payload.projectLocation.kind === "wsl" && this.wslClient
-        ? await this.readProjectFileBufferWsl(payload.projectLocation, path, this.wslClient)
+      payload.projectLocation.kind === "wsl"
+        ? await this.readProjectFileBufferWsl(
+            payload.projectLocation,
+            path,
+            this.requireWslClient(),
+          )
         : await this.readProjectFileBufferNative(payload.projectLocation, path);
 
     if (raw.kind === "tooLarge") {
@@ -262,11 +276,11 @@ export class ProjectTreeService {
     let raw: RawFileRead;
     try {
       raw =
-        payload.projectLocation.kind === "wsl" && this.wslClient
+        payload.projectLocation.kind === "wsl"
           ? await this.readAbsoluteFileBufferWsl(
               payload.projectLocation,
               this.resolveProjectLinuxReadPath(payload.projectLocation, payload.absolutePath),
-              this.wslClient,
+              this.requireWslClient(),
             )
           : await this.readAbsoluteFileBufferNative(
               this.resolveProjectNativeReadPath(payload.projectLocation, payload.absolutePath),
@@ -310,11 +324,11 @@ export class ProjectTreeService {
     let raw: RawFileRead;
     try {
       raw =
-        payload.projectLocation.kind === "wsl" && this.wslClient
+        payload.projectLocation.kind === "wsl"
           ? await this.readAbsoluteFileBufferWsl(
-              payload.projectLocation,
+              this.externalWslLocation(payload.projectLocation, payload.absolutePath),
               payload.absolutePath,
-              this.wslClient,
+              this.requireWslClient(),
             )
           : await this.readAbsoluteFileBufferNative(payload.absolutePath);
     } catch (err: unknown) {
@@ -361,8 +375,8 @@ export class ProjectTreeService {
     if (!isAbsolute(payload.absolutePath) && !payload.absolutePath.startsWith("/")) {
       throw new Error("Path must be absolute.");
     }
-    if (payload.projectLocation.kind === "wsl" && this.wslClient) {
-      return this.writeExternalFileWsl(payload.projectLocation, payload, this.wslClient);
+    if (payload.projectLocation.kind === "wsl") {
+      return this.writeExternalFileWsl(payload.projectLocation, payload, this.requireWslClient());
     }
 
     const fileStat = await stat(payload.absolutePath);
@@ -392,7 +406,8 @@ export class ProjectTreeService {
     payload: WriteExternalFilePayload,
     wslClient: WslBridgeClient,
   ): Promise<WriteExternalFileResult> {
-    const existing = await wslClient.readFile(location, payload.absolutePath, {
+    const externalLocation = this.externalWslLocation(location, payload.absolutePath);
+    const existing = await wslClient.readFile(externalLocation, payload.absolutePath, {
       maxBytes: MAX_EDITABLE_FILE_SIZE,
     });
     if (existing.tooLarge) {
@@ -406,7 +421,7 @@ export class ProjectTreeService {
       throw new Error("Binary files cannot be saved from the editor.");
     }
     const nextBuffer = buildWriteBuffer(existingBuffer, payload.content);
-    const result = await wslClient.writeFile(location, payload.absolutePath, nextBuffer, {
+    const result = await wslClient.writeFile(externalLocation, payload.absolutePath, nextBuffer, {
       expectedMtimeMs: existing.mtimeMs,
     });
     return { modifiedAtMs: result.mtimeMs };
@@ -501,8 +516,13 @@ export class ProjectTreeService {
   async writeProjectFile(payload: WriteProjectFilePayload): Promise<WriteProjectFileResult> {
     const path = normalizeRelativePath(payload.path);
 
-    if (payload.projectLocation.kind === "wsl" && this.wslClient) {
-      return this.writeProjectFileWsl(payload.projectLocation, path, payload, this.wslClient);
+    if (payload.projectLocation.kind === "wsl") {
+      return this.writeProjectFileWsl(
+        payload.projectLocation,
+        path,
+        payload,
+        this.requireWslClient(),
+      );
     }
 
     const { fullPath, fileStat } = await this.statFollowingWslSymlinks(
@@ -565,16 +585,17 @@ export class ProjectTreeService {
       throw new Error("A new entry must have a path.");
     }
 
-    if (payload.projectLocation.kind === "wsl" && this.wslClient) {
+    if (payload.projectLocation.kind === "wsl") {
+      const wslClient = this.requireWslClient();
       const absolute = joinProjectPosixPath(payload.projectLocation, path);
       const parent = absolute.slice(0, absolute.lastIndexOf("/"));
       if (parent && parent !== payload.projectLocation.linuxPath) {
-        await this.wslClient.mkdir(payload.projectLocation, parent, { recursive: true });
+        await wslClient.mkdir(payload.projectLocation, parent, { recursive: true });
       }
       if (payload.type === "directory") {
-        await this.wslClient.mkdir(payload.projectLocation, absolute);
+        await wslClient.mkdir(payload.projectLocation, absolute);
       } else {
-        await this.wslClient.writeNewFile(payload.projectLocation, absolute, Buffer.alloc(0));
+        await wslClient.writeNewFile(payload.projectLocation, absolute, Buffer.alloc(0));
       }
       this.invalidateCaches(payload.projectLocation);
       return;
@@ -596,8 +617,8 @@ export class ProjectTreeService {
     const nextPath = joinRelativePath(getParentRelativePath(path), nextName);
     if (nextPath === path) return;
 
-    if (payload.projectLocation.kind === "wsl" && this.wslClient) {
-      await this.wslClient.rename(
+    if (payload.projectLocation.kind === "wsl") {
+      await this.requireWslClient().rename(
         payload.projectLocation,
         joinProjectPosixPath(payload.projectLocation, path),
         joinProjectPosixPath(payload.projectLocation, nextPath),
@@ -626,8 +647,9 @@ export class ProjectTreeService {
     const nextPath = joinRelativePath(nextParentPath, currentName);
     if (nextPath === path) return;
 
-    if (payload.projectLocation.kind === "wsl" && this.wslClient) {
-      const stats = await this.wslClient.stat(payload.projectLocation, [
+    if (payload.projectLocation.kind === "wsl") {
+      const wslClient = this.requireWslClient();
+      const stats = await wslClient.stat(payload.projectLocation, [
         joinProjectPosixPath(payload.projectLocation, path),
       ]);
       const entry = stats.stats[0];
@@ -637,7 +659,7 @@ export class ProjectTreeService {
       ) {
         throw new Error("Folders cannot be moved into themselves.");
       }
-      await this.wslClient.rename(
+      await wslClient.rename(
         payload.projectLocation,
         joinProjectPosixPath(payload.projectLocation, path),
         joinProjectPosixPath(payload.projectLocation, nextPath),
@@ -664,8 +686,8 @@ export class ProjectTreeService {
   async deleteProjectEntry(payload: DeleteProjectEntryPayload): Promise<void> {
     const path = normalizeRelativePath(payload.path);
 
-    if (payload.projectLocation.kind === "wsl" && this.wslClient) {
-      await this.wslClient.rm(
+    if (payload.projectLocation.kind === "wsl") {
+      await this.requireWslClient().rm(
         payload.projectLocation,
         joinProjectPosixPath(payload.projectLocation, path),
         { recursive: true, force: false },
@@ -779,8 +801,8 @@ export class ProjectTreeService {
     location: ProjectLocation,
     ignoreSet: Set<string>,
   ): Promise<ProjectTreeEntry[]> {
-    if (location.kind === "wsl" && this.wslClient) {
-      const { entries } = await this.wslClient.find(location, {
+    if (location.kind === "wsl") {
+      const { entries } = await this.requireWslClient().find(location, {
         maxEntries: MAX_SEARCH_INDEX_SIZE,
         ignore: Array.from(ignoreSet),
       });
@@ -862,8 +884,6 @@ export class ProjectTreeService {
 
   /**
    * Determine which symlink entries point to directories.
-   * For WSL projects this runs a single batched `wsl.exe` command instead of
-   * spawning one process per symlink (~800-1000ms each).
    * Returns a Set of entry names whose symlink targets are directories.
    */
   private async classifySymlinks(
@@ -874,9 +894,7 @@ export class ProjectTreeService {
     const symlinks = entries.filter((e) => e.isSymbolicLink());
     if (symlinks.length === 0) return new Set();
 
-    if (location.kind === "wsl") {
-      return this.classifyWslSymlinks(location, directoryPath, symlinks);
-    }
+    if (location.kind === "wsl") return new Set();
 
     // Non-WSL: stat each symlink locally (fast syscall, follows symlinks).
     const dirNames = new Set<string>();
@@ -894,70 +912,24 @@ export class ProjectTreeService {
     return dirNames;
   }
 
-  /** Batch-classify WSL symlinks via a single `wsl.exe` invocation. */
-  private async classifyWslSymlinks(
-    location: Extract<ProjectLocation, { kind: "wsl" }>,
-    directoryPath: string,
-    symlinks: Dirent[],
-  ): Promise<Set<string>> {
-    const linuxDir = joinProjectPosixPath(location, directoryPath);
-
-    // Build a POSIX script that outputs 'd' or 'f' per symlink, one per line.
-    const tests = symlinks
-      .map((e) => {
-        const escaped = e.name.replace(/'/g, "'\\''");
-        return `test -d '${linuxDir}/${escaped}' && printf 'd\\n' || printf 'f\\n'`;
-      })
-      .join(";");
-
-    const result = await readWslCommandOutputAsync(location.distro, "sh", ["-c", tests]);
-
-    const dirNames = new Set<string>();
-    if (result.ok) {
-      const lines = result.stdout.split("\n");
-      for (let i = 0; i < symlinks.length; i++) {
-        if (lines[i]?.trim() === "d") dirNames.add(symlinks[i]!.name);
-      }
-    }
-    return dirNames;
-  }
-
   /**
-   * `stat()` a project entry, following WSL symlinks when necessary.
+   * `stat()` a native project entry.
    * Returns both the resolved path and the Stats object so callers never
    * need a redundant second `stat()`.
-   *
-   * The Windows 9P bridge cannot follow Linux symlinks over UNC paths, so
-   * when `stat` fails with ENOENT on a WSL location we resolve the real
-   * path via `realpath` inside the distro and rebuild the UNC path.
    */
   private async statFollowingWslSymlinks(
     location: ProjectLocation,
     relativePath: string,
   ): Promise<{ fullPath: string; fileStat: Stats }> {
     const fullPath = this.resolveEntryPath(location, relativePath);
-    try {
-      return { fullPath, fileStat: await stat(fullPath) };
-    } catch (err: unknown) {
-      if ((err as NodeJS.ErrnoException).code !== "ENOENT" || location.kind !== "wsl") throw err;
-    }
+    return { fullPath, fileStat: await stat(fullPath) };
+  }
 
-    // UNC stat failed — the path likely contains Linux symlinks.
-    // Ask WSL to resolve the real path inside the distro.
-    const linuxTarget = joinProjectPosixPath(location, relativePath);
-    const result = await readWslCommandOutputAsync(location.distro, "realpath", [
-      "-e",
-      linuxTarget,
-    ]);
-    if (!result.ok) {
-      throw Object.assign(new Error(`ENOENT: no such file or directory, stat '${fullPath}'`), {
-        code: "ENOENT",
-        syscall: "stat",
-        path: fullPath,
-      });
-    }
-    const resolved = `\\\\wsl.localhost\\${location.distro}${result.stdout.replace(/\//g, "\\")}`;
-    return { fullPath: resolved, fileStat: await stat(resolved) };
+  private externalWslLocation(
+    location: Extract<ProjectLocation, { kind: "wsl" }>,
+    absolutePath: string,
+  ): Extract<ProjectLocation, { kind: "wsl" }> {
+    return { ...location, linuxPath: absolutePath };
   }
 
   private async directoryHasVisibleChildren(fullPath: string): Promise<boolean> {

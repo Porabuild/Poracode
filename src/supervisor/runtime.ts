@@ -169,11 +169,12 @@ import {
 } from "./agents/acpRegistry";
 import { prefetchNativeNodeRuntime } from "./runtime/prefetchNativeNode";
 import {
-  readWslCommandOutputAsync,
   setSessionFsBridgeClient,
+  setWslProcessBridgeClient,
   type AgentAdapter,
   type AgentEnvContext,
 } from "./agents/base";
+import { setWslAttachmentBridgeClient } from "./runtime/threadAttachments";
 import { getLatestVersionForAdapter, runUpdateCommandWithFallback } from "./agents/updateAgent";
 import { clearAgentBinaryPathCache } from "./agents/binaryResolver";
 import { generateCommitMessage } from "./commitMessageGenerator";
@@ -373,8 +374,11 @@ export class SupervisorRuntime {
       this.gitService.setWslClient(client);
       this.gitCheckpointService.setWslClient(client);
       this.projectTreeService.setWslClient(client);
+      this.githubService.setWslClient(client);
       this._projectWatcher?.setWslClient(client);
       setSessionFsBridgeClient(client);
+      setWslProcessBridgeClient(client);
+      setWslAttachmentBridgeClient(client);
     }
 
     this.cliHookPluginCoordinator.startIngress();
@@ -1257,20 +1261,12 @@ export class SupervisorRuntime {
 
     const location = payload.projectLocation;
     if (location.kind === "wsl") {
-      const checks = candidates.map(
-        (candidate) =>
-          `test -f "${joinProjectPosixPath(location, candidate.file)}" && echo yes || echo no`,
-      );
-      const result = await readWslCommandOutputAsync(location.distro, "sh", [
-        "-c",
-        checks.join(" && echo '---' && "),
-      ]);
-      if (result.ok) {
-        const answers = result.stdout.split("---").map((value) => value.trim());
-        for (let index = 0; index < candidates.length; index += 1) {
-          if (answers[index] === "yes") {
-            return { setupScript: candidates[index]!.command };
-          }
+      if (!this.wslBridgeClient) return {};
+      const paths = candidates.map((candidate) => joinProjectPosixPath(location, candidate.file));
+      const { stats } = await this.wslBridgeClient.stat(location, paths);
+      for (let index = 0; index < candidates.length; index += 1) {
+        if (stats[index]?.isFile) {
+          return { setupScript: candidates[index]!.command };
         }
       }
       return {};

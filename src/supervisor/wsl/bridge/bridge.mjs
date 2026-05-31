@@ -51,7 +51,7 @@ import { isAbsolute, normalize, resolve as resolvePath } from "node:path/posix";
 import { createRequire } from "node:module";
 
 // Bumped on every behavioural change. Windows side reads this via regex.
-const BRIDGE_VERSION = "2.9.1";
+const BRIDGE_VERSION = "2.10.0";
 
 /**
  * Lazily loads `@parcel/watcher` (staged next to this script as
@@ -559,7 +559,7 @@ function gitMaybe(args, cwd, env) {
   }
 }
 
-function validateGitCommand(body) {
+function validateProcessCommand(body) {
   if (!body || typeof body !== "object") {
     return { error: { status: 400, code: "EINVAL", message: "body object required" } };
   }
@@ -592,6 +592,20 @@ function validateGitCommand(body) {
       env,
       loginEnv: body.loginEnv === true,
       timeoutMs: normalizeGitTimeout(body.timeoutMs),
+    },
+  };
+}
+
+function validateGenericProcessCommand(body) {
+  const parsed = validateProcessCommand(body);
+  if (parsed.error) return parsed;
+  if (typeof body.command !== "string" || body.command.length === 0) {
+    return { error: { status: 400, code: "EINVAL", message: "command must be a string" } };
+  }
+  return {
+    command: {
+      ...parsed.command,
+      binary: body.command,
     },
   };
 }
@@ -708,7 +722,7 @@ function runProcessExec(binary, command) {
 }
 
 async function gitExecHandler(req, body) {
-  const parsed = validateGitCommand(body);
+  const parsed = validateProcessCommand(body);
   if (parsed.error) return parsed.error;
   const result = await runGitExec(parsed.command);
   return { status: 200, data: result };
@@ -723,7 +737,7 @@ async function gitBatchHandler(req, body) {
   }
   const commands = [];
   for (const raw of body.commands) {
-    const parsed = validateGitCommand({
+    const parsed = validateProcessCommand({
       ...raw,
       timeoutMs: raw?.timeoutMs ?? body.timeoutMs,
     });
@@ -735,7 +749,7 @@ async function gitBatchHandler(req, body) {
 }
 
 async function ghVersionHandler(req, body) {
-  const parsed = validateGitCommand({
+  const parsed = validateProcessCommand({
     cwd: body?.cwd,
     args: ["--version"],
     loginEnv: body?.loginEnv,
@@ -744,6 +758,35 @@ async function ghVersionHandler(req, body) {
   if (parsed.error) return parsed.error;
   const result = await runProcessExec("gh", parsed.command);
   return { status: 200, data: result };
+}
+
+async function processExecHandler(req, body) {
+  const parsed = validateGenericProcessCommand(body);
+  if (parsed.error) return parsed.error;
+  const result = await runProcessExec(parsed.command.binary, parsed.command);
+  return { status: 200, data: result };
+}
+
+async function processBatchHandler(req, body) {
+  if (!Array.isArray(body.commands)) {
+    return { status: 400, code: "EINVAL", message: "commands must be an array" };
+  }
+  if (body.commands.length > MAX_GIT_COMMANDS) {
+    return { status: 400, code: "EINVAL", message: "too many commands" };
+  }
+  const commands = [];
+  for (const raw of body.commands) {
+    const parsed = validateGenericProcessCommand({
+      ...raw,
+      timeoutMs: raw?.timeoutMs ?? body.timeoutMs,
+    });
+    if (parsed.error) return parsed.error;
+    commands.push(parsed.command);
+  }
+  const results = await Promise.all(
+    commands.map((command) => runProcessExec(command.binary, command)),
+  );
+  return { status: 200, data: { results } };
 }
 
 function gitCheckpointSnapshotHandler(req, body) {
@@ -816,6 +859,11 @@ const GIT_ROUTES = new Map([
 ]);
 
 const GH_ROUTES = new Map([["/v1/gh/version", ghVersionHandler]]);
+
+const PROCESS_ROUTES = new Map([
+  ["/v1/process/exec", processExecHandler],
+  ["/v1/process/batch", processBatchHandler],
+]);
 
 /**
  * Active watch subscriptions keyed by client-supplied `subscriptionId`.
@@ -1166,6 +1214,11 @@ const server = createServer(async (req, res) => {
   const ghHandler = GH_ROUTES.get(pathOnly);
   if (ghHandler) {
     await handleFs(req, res, ghHandler);
+    return;
+  }
+  const processHandler = PROCESS_ROUTES.get(pathOnly);
+  if (processHandler) {
+    await handleFs(req, res, processHandler);
     return;
   }
   const watchHandler = WATCH_ROUTES.get(pathOnly);
