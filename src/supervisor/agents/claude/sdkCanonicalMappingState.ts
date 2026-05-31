@@ -41,6 +41,8 @@ export interface ClaudeMapperState {
   activeGoalItemId?: string;
   activeGoalObjective?: string;
   activeGoalStartedAtMs?: number;
+  activeGoalTokensUsed?: number;
+  activeGoalResultTokensUsed?: number;
   planAggregator?: PlanAggregatorState;
 }
 

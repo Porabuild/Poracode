@@ -761,4 +761,68 @@ describe("ClaudeSdkSession", () => {
 
     await session.dispose();
   });
+
+  it("keeps a goal active when interruptTurn is authoritative for the result", async () => {
+    const fake = createFakeQuery();
+    mockSdk.query.mockReturnValue(fake.runtime);
+    const runtimeEvents: RuntimeEvent[] = [];
+    const session = await ClaudeSdkSession.create({
+      threadId: "thread-claude-goal-steer",
+      projectLocation,
+      config,
+      presentationMode: "gui",
+    });
+    session.setListener({
+      onRuntimeEvent: (event) => runtimeEvents.push(event),
+      onUpdate: () => {},
+      onError: () => {},
+      onClose: () => {},
+    });
+
+    const openedSessionId = await session.openThread(config);
+    await flushAsyncWork();
+
+    await session.startTurn("/goal fix the bug", config);
+    await session.interruptTurn();
+    const goalItemId = runtimeEvents.find(
+      (event): event is Extract<RuntimeEvent, { type: "item.started" }> =>
+        event.type === "item.started" && event.itemType === "goal",
+    )?.itemId;
+    expect(goalItemId).toBeDefined();
+
+    fake.emitMessage({
+      type: "result",
+      subtype: "error_during_execution",
+      is_error: true,
+      errors: ["execution stopped by user"],
+      usage: { total_tokens: 12_000 },
+      session_id: openedSessionId,
+    } as unknown as SDKMessage);
+    await flushAsyncWork();
+
+    const goalUpdates = runtimeEvents.filter(
+      (event) => event.type === "item.updated" && event.itemId === goalItemId,
+    );
+    expect(goalUpdates.at(-1)).toMatchObject({
+      payload: {
+        status: "active",
+        tokensUsed: 42_000,
+      },
+    });
+    expect(runtimeEvents).not.toContainEqual(
+      expect.objectContaining({
+        type: "item.updated",
+        itemId: goalItemId,
+        payload: expect.objectContaining({ status: "complete" }),
+      }),
+    );
+    expect(runtimeEvents).toContainEqual(
+      expect.objectContaining({
+        type: "turn.completed",
+        state: "interrupted",
+      }),
+    );
+
+    await session.dispose();
+  });
 });
