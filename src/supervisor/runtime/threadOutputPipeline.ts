@@ -120,6 +120,10 @@ export class ThreadOutputPipeline {
       clearTimeout(session.userInterruptRecoveryTimer);
       session.userInterruptRecoveryTimer = undefined;
     }
+    if (session.structuredInterruptWatchdog) {
+      clearTimeout(session.structuredInterruptWatchdog);
+      session.structuredInterruptWatchdog = undefined;
+    }
   }
 
   getLatestTerminalStatusHint(session: SessionRuntime): TerminalStatusHint | null {

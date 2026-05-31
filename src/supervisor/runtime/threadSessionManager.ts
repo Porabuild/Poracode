@@ -68,6 +68,7 @@ import { rewriteSegmentsForWsl } from "./threadAttachments";
 import {
   isInterruptibleBusyStatus,
   isUserInterruptKeystroke,
+  STRUCTURED_INTERRUPT_STALE_KILL_MS,
   USER_INTERRUPT_RECOVERY_GRACE_MS,
 } from "./threadSession/userInterrupt";
 import { writeSubmittedPrompt } from "./threadSession/promptWrite";
@@ -341,6 +342,15 @@ export class ThreadSessionManager {
         : payload.config;
 
     session.config = effectiveConfig;
+    if (
+      usesStructuredFlow &&
+      !session.structuredSession &&
+      session.status === "error" &&
+      session.sessionRef
+    ) {
+      await this.restartThread(session, prompt, effectiveConfig);
+      return;
+    }
     // Route through the structured session when either the adapter is
     // server-controlled OR this thread was launched in chat mode (the
     // structured session owns input/output instead of the PTY).
@@ -576,12 +586,77 @@ export class ThreadSessionManager {
       return;
     }
     session.structuredTurnInterruptRequested = true;
+    this.armStructuredInterruptWatchdog(session);
     try {
       await session.structuredSession.interruptTurn();
     } catch (error) {
       session.structuredTurnInterruptRequested = false;
+      this.clearStructuredInterruptWatchdog(session);
       throw error;
     }
+  }
+
+  private clearStructuredInterruptWatchdog(session: SessionRuntime): void {
+    if (session.structuredInterruptWatchdog) {
+      clearTimeout(session.structuredInterruptWatchdog);
+      session.structuredInterruptWatchdog = undefined;
+    }
+  }
+
+  /**
+   * Arm (or reset) the force-stop watchdog for a structured turn. Reset on any
+   * inbound sign of life so a healthy-but-slow cancel is never force-killed; it
+   * only fires after the agent has gone fully silent for the grace window with
+   * the interrupt still pending — i.e. the session is stale/disconnected.
+   */
+  private armStructuredInterruptWatchdog(session: SessionRuntime): void {
+    this.clearStructuredInterruptWatchdog(session);
+    const instanceId = session.instanceId;
+    session.structuredInterruptWatchdog = setTimeout(() => {
+      session.structuredInterruptWatchdog = undefined;
+      this.forceStopStaleStructuredTurn(session.threadId, instanceId);
+    }, STRUCTURED_INTERRUPT_STALE_KILL_MS);
+  }
+
+  /**
+   * Re-arm the watchdog if a stop is still pending — called on inbound activity
+   * (status updates / runtime events) so the silence clock restarts whenever
+   * the session proves it is still alive.
+   */
+  private touchStructuredInterruptWatchdog(session: SessionRuntime): void {
+    if (!session.structuredTurnInterruptRequested) return;
+    if (session.status !== "working") return;
+    this.armStructuredInterruptWatchdog(session);
+  }
+
+  /**
+   * The agent never acknowledged a stop request and has gone silent: the
+   * structured session is stale/disconnected. Dispose it best-effort and force
+   * the thread into a stopped `error` state so the UI stops waiting forever.
+   */
+  private forceStopStaleStructuredTurn(threadId: string, instanceId: string): void {
+    const session = this.sessions.get(threadId);
+    if (!session || session.instanceId !== instanceId) {
+      return;
+    }
+    if (this.disposed || session.ignoreExit) {
+      return;
+    }
+    if (session.status !== "working" || !session.structuredTurnInterruptRequested) {
+      return;
+    }
+    this.clearStructuredInterruptWatchdog(session);
+    session.structuredTurnInterruptRequested = false;
+    this.clearPendingSteerSlot(session);
+    const staleSession = session.structuredSession;
+    session.structuredSession = undefined;
+    void Promise.resolve(staleSession?.dispose()).catch((error) => {
+      console.error("[supervisor] failed to dispose stale structured session:", error);
+    });
+    this.failStructuredSession(
+      session,
+      new Error("Agent stopped responding to the stop request and was force-stopped."),
+    );
   }
 
   /**
@@ -824,6 +899,7 @@ export class ThreadSessionManager {
     await Promise.allSettled(
       [...this.sessions.values()].map(async (session) => {
         session.ignoreExit = true;
+        this.outputPipeline.clearSessionTimers(session);
         await session.structuredSession?.dispose();
         this.safePtyKill(session);
       }),
@@ -1620,6 +1696,11 @@ export class ThreadSessionManager {
         );
         if (update.status !== "working") {
           session.structuredTurnInterruptRequested = false;
+          this.clearStructuredInterruptWatchdog(session);
+        } else {
+          // Still working but the agent showed a sign of life — restart the
+          // stale-kill clock so a healthy long-running cancel is not killed.
+          this.touchStructuredInterruptWatchdog(session);
         }
         if (
           session.presentationMode === "gui" &&
@@ -1649,6 +1730,10 @@ export class ThreadSessionManager {
         ) {
           session.suppressInitialStructuredIdle = undefined;
         }
+        // Streaming output is a sign of life — restart the stale-kill clock so a
+        // healthy agent still emitting tool/text deltas after a stop request is
+        // never force-stopped while it works toward honoring the cancel.
+        this.touchStructuredInterruptWatchdog(session);
         this.enqueueRuntimeEvent(session.threadId, event);
       },
     });
@@ -1765,6 +1850,7 @@ export class ThreadSessionManager {
       (session.presentationMode ?? session.adapter.capabilities.presentationMode) === "terminal";
     const useStructuredFlow = isServerControlled || !usesTerminalPresentation;
     session.ignoreExit = true;
+    this.outputPipeline.clearSessionTimers(session);
     // Subagent maps from the prior session would otherwise leak across resume:
     // any unsubscribed buffers, lingering child→parent entries, and overlay
     // subscriptions from the dead session are stale once the structured
@@ -1949,6 +2035,7 @@ export class ThreadSessionManager {
       }
 
       session.ignoreExit = true;
+      this.outputPipeline.clearSessionTimers(session);
       session.stopSessionRefWatcher?.();
       session.stopSessionRefWatcher = undefined;
       await session.structuredSession?.dispose();
