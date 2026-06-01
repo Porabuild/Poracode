@@ -1,4 +1,5 @@
 import type { AgentKind, Project } from "@/shared/contracts";
+import { isMac, isWindows } from "@/renderer/bridge";
 
 export interface NativeAgentRegistryEntry {
   id: AgentKind;
@@ -28,7 +29,7 @@ function isWslProject(project: Project): boolean {
 }
 
 function posixOrWindows(project: Project, posix: string, windows: string): string {
-  return isWslProject(project) || process.platform !== "win32" ? posix : windows;
+  return isWslProject(project) || !isWindows() ? posix : windows;
 }
 
 function nativeInstallCommand(
@@ -36,8 +37,8 @@ function nativeInstallCommand(
   commands: { mac: string; posix: string; windows: string },
 ): string {
   if (isWslProject(project)) return commands.posix;
-  if (process.platform === "win32") return commands.windows;
-  return process.platform === "darwin" ? commands.mac : commands.posix;
+  if (isWindows()) return commands.windows;
+  return isMac() ? commands.mac : commands.posix;
 }
 
 export const NATIVE_AGENT_REGISTRY_ENTRIES: NativeAgentRegistryEntry[] = [
@@ -137,7 +138,12 @@ export const NATIVE_AGENT_REGISTRY_ENTRIES: NativeAgentRegistryEntry[] = [
   },
 ];
 
-export const KNOWN_NATIVE_FAMILY_ACP_AGENT_IDS = new Set(["claude-acp", "codex-acp", "opencode"]);
+export const KNOWN_NATIVE_FAMILY_ACP_AGENT_IDS = new Set([
+  "claude-acp",
+  "codex-acp",
+  "grok-build",
+  "opencode",
+]);
 
 export const APP_SUPPORTED_ACP_AGENT_IDS = new Set([
   "cursor",
@@ -153,5 +159,6 @@ export const REGISTRY_AGENT_FAMILY_KIND: Record<string, AgentKind> = {
   gemini: "gemini",
   "github-copilot": "copilot",
   "github-copilot-cli": "copilot",
+  "grok-build": "grok",
   opencode: "opencode",
 };

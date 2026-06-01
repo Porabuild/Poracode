@@ -17,6 +17,7 @@ import type { SupervisorEvent } from "@/shared/ipc";
 import { normalizeSharedSettings } from "@/shared/settings";
 import { normalizeWslListOutput } from "@/shared/wsl";
 import {
+  invalidateExecutablePathCache,
   primeExecutablePathCache,
   type AgentAdapter,
   type AgentEnvContext,
@@ -247,6 +248,10 @@ export class AgentStatusService {
 
   async refreshAgentStatuses(payload: GetAgentStatusesPayload): Promise<AgentStatusesResponse> {
     const wslDistros = [...new Set(payload.wslDistros)];
+    // An explicit refresh is the signal that something changed on disk (an
+    // install/update just ran), so bypass the binary-path TTL cache and re-read
+    // PATH (including the registry-backed Windows user/machine PATH) fresh.
+    invalidateExecutablePathCache();
     if (payload.scope) {
       return this.runScopedDetection(wslDistros, payload.scope);
     }

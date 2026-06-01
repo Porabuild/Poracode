@@ -11,9 +11,11 @@ vi.mock("../agents/base", async (importActual) => {
   return {
     ...actual,
     primeExecutablePathCache: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+    invalidateExecutablePathCache: vi.fn<() => void>(),
   };
 });
 
+import { invalidateExecutablePathCache } from "../agents/base";
 import { AgentStatusService } from "./agentStatusService";
 
 const tempDirs: string[] = [];
@@ -162,6 +164,24 @@ describe("AgentStatusService", () => {
     await service.refreshAgentStatuses({ wslDistros: [] });
 
     expect(detectInstall).toHaveBeenCalledTimes(2);
+  });
+
+  it("busts the binary-path cache on explicit refresh but not on passive reads", async () => {
+    const detectInstall = vi.fn<AgentAdapter["detectInstall"]>().mockResolvedValue(makeStatus());
+    const { service } = makeService(detectInstall);
+    vi.mocked(invalidateExecutablePathCache).mockClear();
+
+    // Passive read must keep serving from the TTL cache — no invalidation.
+    await service.getAgentStatuses({ wslDistros: [] });
+    expect(invalidateExecutablePathCache).not.toHaveBeenCalled();
+
+    // Explicit full refresh re-reads PATH (e.g. after an install adds a binary).
+    await service.refreshAgentStatuses({ wslDistros: [] });
+    expect(invalidateExecutablePathCache).toHaveBeenCalledTimes(1);
+
+    // Scoped refresh (the post-install path) must invalidate too.
+    await service.refreshAgentStatuses({ wslDistros: [], scope: { agentKinds: ["codex"] } });
+    expect(invalidateExecutablePathCache).toHaveBeenCalledTimes(2);
   });
 
   it("does not auto-probe after an explicit refresh already ran", async () => {

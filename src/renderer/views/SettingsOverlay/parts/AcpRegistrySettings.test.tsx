@@ -77,6 +77,7 @@ vi.mock("@/renderer/state/sharedSettingsStore", () => ({
 
 vi.mock("@/renderer/bridge", () => ({
   isWindows: () => bridge.platform === "win32",
+  isMac: () => bridge.platform === "darwin",
   readBridge: () => bridge,
 }));
 
@@ -131,13 +132,13 @@ function makeProject(input: { id: string; name: string; location: Project["locat
   };
 }
 
-function withProcessPlatform<T>(platform: NodeJS.Platform, run: () => T): T {
-  const descriptor = Object.getOwnPropertyDescriptor(process, "platform");
-  Object.defineProperty(process, "platform", { value: platform });
+function withHostPlatform<T>(platform: NodeJS.Platform, run: () => T): T {
+  const previous = bridge.platform;
+  bridge.platform = platform;
   try {
     return run();
   } finally {
-    if (descriptor) Object.defineProperty(process, "platform", descriptor);
+    bridge.platform = previous;
   }
 }
 
@@ -164,6 +165,15 @@ const registry: AcpRegistryListResult = {
       version: "1.0.0",
       description: "Cursor through ACP",
       distribution: { npx: { package: "cursor-acp" } },
+    },
+    {
+      id: "grok-build",
+      name: "Grok Build",
+      version: "0.2.11",
+      description: "xAI's coding agent and CLI",
+      distribution: {
+        binary: { windows: { archive: "https://example.com/grok.zip", cmd: "grok" } },
+      },
     },
   ],
 };
@@ -237,6 +247,7 @@ describe("AcpRegistrySettings", () => {
 
     await screen.findByRole("heading", { name: "Agent Registry" });
     expect(screen.queryByText("Codex ACP")).not.toBeInTheDocument();
+    expect(screen.queryByText("xAI's coding agent and CLI")).not.toBeInTheDocument();
     expect(screen.getAllByText("GLM Agent").length).toBeGreaterThan(0);
     expect(screen.queryByRole("button", { name: "Show advanced ACP" })).toBeNull();
 
@@ -332,7 +343,7 @@ describe("AcpRegistrySettings", () => {
     const installInput = runAgentInstallCommandMock.mock.calls[0]?.[0] as
       | { command: (project: Project) => string }
       | undefined;
-    const command = withProcessPlatform("win32", () => installInput?.command(windowsProject));
+    const command = installInput?.command(windowsProject);
     expect(command).toContain("irm https://x.ai/cli/install.ps1 | iex");
   });
 
@@ -379,7 +390,7 @@ describe("AcpRegistrySettings", () => {
       "curl -fsSL https://x.ai/cli/install.sh | bash",
     );
 
-    withProcessPlatform("darwin", () => {
+    withHostPlatform("darwin", () => {
       expect(entries.get("codex")?.installCommand(macProject)).toContain(
         "brew install --cask codex",
       );
@@ -391,7 +402,7 @@ describe("AcpRegistrySettings", () => {
       );
     });
 
-    withProcessPlatform("win32", () => {
+    withHostPlatform("win32", () => {
       expect(
         entries.get("grok")?.installCommand(
           makeProject({

@@ -45,6 +45,7 @@ import {
   type StructuredSessionHandle,
   createKnownSessionRef,
   defaultFormatPromptSegments,
+  getRefreshedWindowsPath,
   getWslCommand,
   injectWslEnv,
   primeProjectShellEnv,
@@ -735,6 +736,19 @@ export class ThreadSessionManager {
       const missingNames = Object.keys(terminalEnv).filter((name) => !wslEnvNames.has(name));
       if (missingNames.length > 0) {
         shellEnv.WSLENV = [...(existingWslEnv ? [existingWslEnv] : []), ...missingNames].join(":");
+      }
+    } else {
+      // A new native shell (terminal tab or the login/install overlay) should
+      // see the same PATH a freshly-opened PowerShell would, not the
+      // supervisor's launch-time snapshot. Re-read the registry-backed PATH at
+      // spawn time so a CLI installed after launch (e.g. just-installed `grok`)
+      // is on PATH without an app restart. Only `Path`/`PATH` are touched to
+      // avoid reintroducing the undefined-value holes a raw process.env spread
+      // would carry.
+      const refreshedPath = getRefreshedWindowsPath();
+      if (refreshedPath) {
+        shellEnv.Path = refreshedPath;
+        shellEnv.PATH = refreshedPath;
       }
     }
 
