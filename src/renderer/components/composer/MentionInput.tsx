@@ -232,6 +232,12 @@ export const MentionInput = forwardRef<
     onBrowserMentionSelect?: () => void;
     onSlashCommandChange?: (query: string | null) => void;
     /**
+     * When true, the literal word "workflow" is promoted to a trigger-word chip
+     * (the orchestration affordance). Only enabled for providers/models that
+     * actually expose the Workflow tool; left as plain text otherwise.
+     */
+    workflowTriggerEnabled?: boolean;
+    /**
      * Called before MentionInput's own key handling (after the mention popover
      * absorbs navigation keys). Return `true` to indicate the key was handled
      * and stop further processing.
@@ -253,6 +259,7 @@ export const MentionInput = forwardRef<
     onBrowserMentionSelect,
     onSlashCommandChange,
     onInterceptKey,
+    workflowTriggerEnabled,
   } = props;
   const editorRef = useRef<HTMLDivElement>(null);
   const lastSlashQueryRef = useRef<string | null>(null);
@@ -568,7 +575,7 @@ export const MentionInput = forwardRef<
   }
 
   function handleInput() {
-    if (editorRef.current) replaceWorkflowTriggerWord();
+    if (editorRef.current && workflowTriggerEnabled) replaceWorkflowTriggerWord();
     checkMentionState();
     notifyTextChange();
   }
@@ -606,7 +613,7 @@ export const MentionInput = forwardRef<
       e.preventDefault();
       if (!editorRef.current) return;
       // Convert any remaining "workflow" words before serializing.
-      replaceAllWorkflowTriggerWords(editorRef.current);
+      if (workflowTriggerEnabled) replaceAllWorkflowTriggerWords(editorRef.current);
       const segments = serializeToSegments(editorRef.current);
       if (flattenSegments(segments).length > 0) {
         onSubmit(segments);
@@ -684,7 +691,7 @@ export const MentionInput = forwardRef<
     // chips, matching the live-typing behavior. The caret is restored to the
     // end of the paste afterwards so the user keeps typing where they left
     // off rather than jumping back into the chip.
-    if (editorRef.current && /\bworkflow\b/i.test(text)) {
+    if (workflowTriggerEnabled && editorRef.current && /\bworkflow\b/i.test(text)) {
       replaceAllWorkflowTriggerWords(editorRef.current);
       placeCaretAtEnd(editorRef.current);
     }

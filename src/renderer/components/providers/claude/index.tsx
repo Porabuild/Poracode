@@ -9,6 +9,7 @@ import {
   registerProviderIcon,
   registerProviderLabel,
   registerTitleGenDefaults,
+  registerWorkflowTrigger,
 } from "../ProviderIcon";
 
 registerProviderIcon("claude", ClaudeIcon);
@@ -31,6 +32,15 @@ registerConflictResolverDefaults("claude", {
   model: "claude-opus-4-8",
   effort: "high",
 });
+
+// Workflow orchestration (the `workflow` trigger word) is only available on
+// the Opus models that ship the Workflow tool. Other Claude models (Sonnet,
+// Haiku, older Opus) and every other provider leave the word as plain text.
+const WORKFLOW_TRIGGER_MODELS = new Set(["claude-opus-4-7", "claude-opus-4-8"]);
+registerWorkflowTrigger(
+  "claude",
+  (model) => model !== undefined && WORKFLOW_TRIGGER_MODELS.has(model),
+);
 
 registerComposerControls("claude", ({ capabilities, config, isDisabled, onConfigChange }) => {
   const isPlanMode = (config.mode ?? "agent") !== "agent";

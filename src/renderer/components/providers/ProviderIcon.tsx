@@ -279,6 +279,36 @@ export function getConfigNormalizer(kind: string): ConfigNormalizer | undefined 
   return CONFIG_NORMALIZER_REGISTRY.get(kind);
 }
 
+// --- Workflow trigger registry ---
+//
+// The composer promotes a literal "workflow" word into a git-branch chip to
+// hint that the agent will spin up an orchestration workflow. That affordance
+// only makes sense for providers/models that actually expose the Workflow
+// tool, so each such provider registers a matcher over its model ids.
+// Providers that never support workflows simply don't register, and the
+// composer leaves the word as plain text.
+
+type WorkflowTriggerMatcher = (model: string | undefined) => boolean;
+
+const WORKFLOW_TRIGGER_REGISTRY = new Map<string, WorkflowTriggerMatcher>();
+
+export function registerWorkflowTrigger(kind: string, supportsModel: WorkflowTriggerMatcher) {
+  WORKFLOW_TRIGGER_REGISTRY.set(kind, supportsModel);
+}
+
+/** True when the given provider+model exposes workflow orchestration. */
+export function supportsWorkflowTrigger(
+  kind: string | undefined,
+  model: string | undefined,
+): boolean {
+  if (!kind) return false;
+  const separatorIndex = kind.indexOf(":");
+  const matcher =
+    WORKFLOW_TRIGGER_REGISTRY.get(kind) ??
+    (separatorIndex > 0 ? WORKFLOW_TRIGGER_REGISTRY.get(kind.slice(0, separatorIndex)) : undefined);
+  return matcher ? matcher(model) : false;
+}
+
 // --- Commit generation defaults registry ---
 
 export interface CommitGenDefaults extends UtilityTaskDefaults {}

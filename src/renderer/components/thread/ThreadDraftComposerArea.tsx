@@ -23,6 +23,7 @@ import {
   useAttachments,
 } from "@/renderer/components/composer";
 import { getBrowserMcpScope } from "@/renderer/components/composer/browserMcpScope";
+import { supportsWorkflowTrigger } from "@/renderer/components/providers";
 import { useBrowserAttachInbox } from "@/renderer/state/browserAttachInbox";
 import { flattenSegments } from "@/renderer/components/composer/serializeMentions";
 import {
@@ -500,6 +501,10 @@ export function ThreadDraftComposerArea(props: {
             }}
             showBrowserMention={browserMcpScope !== "none" && props.config.browserMcp !== true}
             onBrowserMentionSelect={() => props.onConfigChange({ browserMcp: true })}
+            workflowTriggerEnabled={supportsWorkflowTrigger(
+              props.selectedAgent.kind,
+              props.config.model,
+            )}
             onPasteImage={(file) => {
               void attachments.addClipboardImage(file, `draft:${props.project.id}`);
             }}
