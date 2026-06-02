@@ -349,6 +349,34 @@ describe("CodexStructuredSession", () => {
     });
   });
 
+  it("forces serviceTier on each turn: 'fast' when Fast is on, null when off", async () => {
+    const requests: Array<{ method: string; params: Record<string, unknown> }> = [];
+    const structuredSession = makeStructuredSession(requests);
+
+    // Fast on → force serviceTier: "fast".
+    await structuredSession.startTurn("go fast", { model: "gpt-5.4", fast: true });
+    expect(requests[0]).toMatchObject({
+      method: "turn/start",
+      params: { serviceTier: "fast" },
+    });
+
+    // Fast off → force serviceTier: null so the app-server reverts to the
+    // default lane (the sticky override would otherwise stay on Fast).
+    await structuredSession.startTurn("back to normal", { model: "gpt-5.4", fast: false });
+    expect(requests[1]?.method).toBe("turn/start");
+    expect(requests[1]?.params.serviceTier).toBeNull();
+  });
+
+  it("forces serviceTier to null on the first turn when Fast is off", async () => {
+    const requests: Array<{ method: string; params: Record<string, unknown> }> = [];
+    const structuredSession = makeStructuredSession(requests);
+
+    await structuredSession.startTurn("hello", { model: "gpt-5.4", fast: false });
+
+    expect(requests[0]?.method).toBe("turn/start");
+    expect(requests[0]?.params.serviceTier).toBeNull();
+  });
+
   it("dispatches /goal <objective> to thread/goal/set without starting a model turn", async () => {
     const requests: Array<{ method: string; params: Record<string, unknown> }> = [];
     const structuredSession = makeStructuredSession(requests);
