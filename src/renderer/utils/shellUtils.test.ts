@@ -20,7 +20,11 @@ vi.mock("@/renderer/bridge", () => ({
   readBridge: () => bridge,
 }));
 
-import { appendExitOnSuccess, writeScriptToShellThenExitOnSuccess } from "./shellUtils";
+import {
+  appendExitOnSuccess,
+  buildScriptWithExitOnSuccess,
+  writeScriptToShellThenExitOnSuccess,
+} from "./shellUtils";
 
 function emit(event: SupervisorEvent) {
   for (const handler of [...supervisorHandlers]) handler(event);
@@ -41,6 +45,24 @@ describe("appendExitOnSuccess", () => {
 
   it("uses a conditional statement for native Windows (PowerShell `exit` is a keyword)", () => {
     expect(appendExitOnSuccess("npm ci", "windows")).toBe("npm ci; if ($?) { exit }");
+  });
+});
+
+describe("buildScriptWithExitOnSuccess", () => {
+  it("uses `&&` for multi-line posix scripts", () => {
+    expect(buildScriptWithExitOnSuccess("npm install\nnpm run setup", "posix")).toBe(
+      "npm install && npm run setup && exit",
+    );
+  });
+
+  it("uses PowerShell-compatible success guards for multi-line Windows scripts", () => {
+    expect(buildScriptWithExitOnSuccess("npm install\nnpm run setup", "windows")).toBe(
+      "npm install; if ($?) { npm run setup; if ($?) { exit } }",
+    );
+  });
+
+  it("returns an empty command for blank scripts", () => {
+    expect(buildScriptWithExitOnSuccess("# nope\n\n", "windows")).toBe("");
   });
 });
 
@@ -72,6 +94,19 @@ describe("writeScriptToShellThenExitOnSuccess", () => {
     emit({ type: "thread-output", threadId: "shell:1", data: "PS> ", outputLength: 4 });
 
     expect(lastWrite()).toBe("npm ci; if ($?) { exit }\r");
+  });
+
+  it("writes a PowerShell-compatible guarded chain for native Windows shells", () => {
+    writeScriptToShellThenExitOnSuccess(
+      "shell:1",
+      "npm install\nnpm run setup",
+      "windows",
+      () => {},
+    );
+
+    emit({ type: "thread-output", threadId: "shell:1", data: "PS> ", outputLength: 4 });
+
+    expect(lastWrite()).toBe("npm install; if ($?) { npm run setup; if ($?) { exit } }\r");
   });
 
   it("strips comments and blank lines before joining", () => {

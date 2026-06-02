@@ -17,11 +17,28 @@ export function startShellWithToast(payload: StartShellPayload, label: string): 
 }
 
 export function normalizeShellScript(script: string): string {
+  return normalizeShellScriptLines(script).join(" && ");
+}
+
+function normalizeShellScriptLines(script: string): string[] {
   return script
     .split(/\r?\n/)
     .map((l) => l.trim())
-    .filter((l) => l !== "" && !l.startsWith("#"))
-    .join(" && ");
+    .filter((l) => l !== "" && !l.startsWith("#"));
+}
+
+function buildPowerShellExitOnSuccess(lines: string[]): string {
+  return lines.reduceRight((tail, line) => `${line}; if ($?) { ${tail} }`, "exit");
+}
+
+export function buildScriptWithExitOnSuccess(
+  script: string,
+  locationKind: ProjectLocation["kind"],
+): string {
+  const lines = normalizeShellScriptLines(script);
+  if (lines.length === 0) return "";
+  if (locationKind === "windows") return buildPowerShellExitOnSuccess(lines);
+  return `${lines.join(" && ")} && exit`;
 }
 
 export function writeScriptToShell(shellId: string, script: string) {
@@ -85,7 +102,7 @@ export function writeScriptToShellThenExitOnSuccess(
   const command = normalizeShellScript(script);
   // Nothing meaningful to run — leave the (caller-guarded) shell untouched.
   if (!command) return () => undefined;
-  const data = `${appendExitOnSuccess(command, locationKind)}\r`;
+  const data = `${buildScriptWithExitOnSuccess(script, locationKind)}\r`;
 
   let armed = true;
   let detached = false;
