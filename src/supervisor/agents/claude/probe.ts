@@ -1,12 +1,16 @@
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { AgentAuthMethod, AgentCapability } from "@/shared/contracts";
-import type { SDKUserMessage, SlashCommand } from "@anthropic-ai/claude-agent-sdk";
+import type { SlashCommand } from "@anthropic-ai/claude-agent-sdk";
 import {
   readWslLoginShellCommandOutputAsync,
   type CapabilitiesProbeResult,
   type DetectProbeCtx,
 } from "../base";
+import { CLAUDE_FAST_MODE_DISABLED_MESSAGE } from "./detection";
+import { resolveFastModeCachePath } from "./fastModeCache";
+import { resolveFastAvailability } from "./fastModeProbe";
+import { AsyncPromptQueue } from "./promptQueue";
 
 const CLAUDE_TERMINAL_AUTH_METHOD: AgentAuthMethod = {
   type: "terminal",
@@ -81,23 +85,6 @@ export function mapClaudeSlashCommands(
   }));
 }
 
-function abortEndedUserStream(signal: AbortSignal): AsyncIterable<SDKUserMessage> {
-  return {
-    [Symbol.asyncIterator]: (): AsyncIterator<SDKUserMessage> => ({
-      next: () =>
-        new Promise<IteratorResult<SDKUserMessage>>((resolve) => {
-          if (signal.aborted) {
-            resolve({ done: true, value: undefined });
-            return;
-          }
-          signal.addEventListener("abort", () => resolve({ done: true, value: undefined }), {
-            once: true,
-          });
-        }),
-    }),
-  };
-}
-
 function probeDir(): string {
   return typeof __dirname !== "undefined" ? __dirname : dirname(fileURLToPath(import.meta.url));
 }
@@ -137,9 +124,10 @@ async function probeClaudeSdkPartialNative(
     const { query } = await import("@anthropic-ai/claude-agent-sdk");
     const abort = new AbortController();
     const timer = setTimeout(() => abort.abort(), timeoutMs);
+    const queue = new AsyncPromptQueue();
     try {
       const q = query({
-        prompt: abortEndedUserStream(abort.signal),
+        prompt: queue,
         options: {
           abortController: abort,
           pathToClaudeCodeExecutable: executablePath,
@@ -152,13 +140,26 @@ async function probeClaudeSdkPartialNative(
       });
       const init = await q.initializationResult();
       const slashCommands = mapClaudeSlashCommands(init.commands);
+      const fastAvailable = await resolveFastAvailability(
+        q,
+        queue,
+        init.account?.email,
+        resolveFastModeCachePath(),
+      );
+      const fastDisabledReason =
+        fastAvailable === false ? CLAUDE_FAST_MODE_DISABLED_MESSAGE : undefined;
       try {
+        queue.close();
         q.close();
       } catch {
         // ignore
       }
       abort.abort();
-      return slashCommands.length > 0 ? { slashCommands } : undefined;
+      if (slashCommands.length === 0 && !fastDisabledReason) return undefined;
+      return {
+        ...(slashCommands.length > 0 ? { slashCommands } : {}),
+        ...(fastDisabledReason ? { fastDisabledReason } : {}),
+      };
     } finally {
       clearTimeout(timer);
     }
@@ -180,12 +181,18 @@ async function probeClaudeSdkPartialWsl(
   const workerHostPath = getSdkWorkerPath();
   const workerWslPath =
     process.platform === "win32" ? win32PathToWslMount(workerHostPath) : workerHostPath;
+  // The worker runs in-distro, so hand it the fast-mode cache as a `/mnt/c/...`
+  // mount; it reads/writes the same file the native path uses (keyed by account
+  // hash), so the billed turn runs at most once per account.
+  const cacheHostPath = resolveFastModeCachePath();
+  const cacheWslPath =
+    process.platform === "win32" ? win32PathToWslMount(cacheHostPath) : cacheHostPath;
 
   const result = await readWslLoginShellCommandOutputAsync(
     ctx.location.distro,
     "/tmp",
     "node",
-    [workerWslPath, ctx.executablePath, String(timeoutMs)],
+    [workerWslPath, ctx.executablePath, String(timeoutMs), cacheWslPath],
     { timeout: timeoutMs + 3000 },
   );
 
@@ -200,16 +207,20 @@ async function probeClaudeSdkPartialWsl(
   try {
     const parsed = JSON.parse(result.stdout) as {
       slashCommands?: AgentCapability["slashCommands"];
+      fastAvailable?: boolean;
       error?: string;
     };
     if (parsed.error) {
       console.log("[claude-probe] wsl worker error field:", parsed.error);
       return undefined;
     }
-    if (parsed.slashCommands?.length) {
-      return { slashCommands: parsed.slashCommands };
-    }
-    return undefined;
+    const fastDisabledReason =
+      parsed.fastAvailable === false ? CLAUDE_FAST_MODE_DISABLED_MESSAGE : undefined;
+    if (!parsed.slashCommands?.length && !fastDisabledReason) return undefined;
+    return {
+      ...(parsed.slashCommands?.length ? { slashCommands: parsed.slashCommands } : {}),
+      ...(fastDisabledReason ? { fastDisabledReason } : {}),
+    };
   } catch {
     console.log("[claude-probe] wsl worker: invalid json stdout");
     return undefined;
@@ -221,7 +232,9 @@ export async function probeClaudeCapabilities(
 ): Promise<CapabilitiesProbeResult | undefined> {
   if (!ctx.executablePath) return undefined;
 
-  const timeoutMs = process.platform === "win32" ? 12_000 : 10_000;
+  // Both paths may run a one-off fast-mode availability turn on a cache miss, so
+  // allow extra headroom over a plain init probe.
+  const timeoutMs = process.platform === "win32" ? 25_000 : 20_000;
   const sdkPartial =
     ctx.location.kind === "wsl"
       ? await probeClaudeSdkPartialWsl(ctx, timeoutMs)

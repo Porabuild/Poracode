@@ -23,6 +23,7 @@ import {
   type AgentEnvContext,
   getWslCommand,
 } from "../agents/base";
+import { clearFastModeCache } from "../agents/claude/fastModeCache";
 
 const execFileAsync = promisify(execFile);
 
@@ -30,9 +31,10 @@ const execFileAsync = promisify(execFile);
  * Bump whenever a cached `AgentStatus` field's shape or derivation changes so
  * that previously-saved caches are invalidated and a fresh detection runs. v2
  * coincides with `DetectionSpec.loginCommand` becoming a function that depends
- * on the project location (e.g. `grok login --device-auth` on WSL).
+ * on the project location (e.g. `grok login --device-auth` on WSL). v3 adds
+ * `AgentCapability.fastDisabledReason` (Claude fast-mode org gating).
  */
-const STATUS_CACHE_VERSION = 2;
+const STATUS_CACHE_VERSION = 3;
 const WSL_AGENT_DETECTION_TIMEOUT_MS = 60_000;
 
 function migrateSettingDef(definition: Record<string, unknown>): Record<string, unknown> {
@@ -252,6 +254,9 @@ export class AgentStatusService {
     // install/update just ran), so bypass the binary-path TTL cache and re-read
     // PATH (including the registry-backed Windows user/machine PATH) fresh.
     invalidateExecutablePathCache();
+    // Also re-check Claude's per-account fast-mode availability (an org may have
+    // since enabled/disabled it); the next capabilities probe repopulates it.
+    void clearFastModeCache();
     if (payload.scope) {
       return this.runScopedDetection(wslDistros, payload.scope);
     }

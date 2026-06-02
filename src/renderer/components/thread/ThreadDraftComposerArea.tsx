@@ -39,6 +39,7 @@ import { ThreadAgentUpdateDock } from "./ThreadAgentUpdateDock";
 import { ThreadAuthRequiredDock } from "./ThreadAuthRequiredDock";
 import { ThreadDockHeader, ThreadDockSection } from "./ThreadDockUI";
 import { ThreadComposer, type ComposerControl } from "./ThreadComposer";
+import { supportsUsableFastMode } from "./threadDraftViewHelpers";
 import {
   filterSlashCommands,
   handleSlashCommandPanelKeyDown,
@@ -254,8 +255,7 @@ export function ThreadDraftComposerArea(props: {
           props.selectedAgent.capabilities.efforts ??
           []
         ).length ?? 0) > 0,
-      supportsFast:
-        props.selectedAgent.capabilities.fastModels?.includes(props.config.model) ?? false,
+      supportsFast: supportsUsableFastMode(props.selectedAgent.capabilities, props.config.model),
     },
   );
   const filteredCommands = filterSlashCommands(availableCommands, slashQuery);
@@ -326,7 +326,7 @@ export function ThreadDraftComposerArea(props: {
       return;
     }
     if (localAction?.kind === "toggle-fast") {
-      if (props.selectedAgent.capabilities.fastModels?.includes(props.config.model)) {
+      if (supportsUsableFastMode(props.selectedAgent.capabilities, props.config.model)) {
         props.onConfigChange({ fast: props.config.fast !== true });
       }
       mentionRef.current?.clear();

@@ -44,6 +44,12 @@ export type ComposerControl =
       isSelected: boolean;
       onChange?: (isSelected: boolean) => void;
       isDisabled?: boolean;
+      /**
+       * When set, the toggle is rendered dimmed and non-interactive with this
+       * message as its tooltip (e.g. a Fast toggle the account can't use). Kept
+       * hoverable rather than natively `disabled` so the tooltip still shows.
+       */
+      disabledReason?: string;
       iconOnly?: boolean;
       fillIconOnSelect?: boolean;
       isCurrentState?: boolean;
@@ -387,20 +393,26 @@ export function ThreadComposer(props: {
 
     if (control.kind === "toggle") {
       const hideLabel = control.iconOnly || shouldHideLabel;
+      // A `disabledReason` toggle stays hoverable (not natively `disabled`) so
+      // its explanatory tooltip still fires; it's dimmed and click is a no-op.
+      const gated = Boolean(control.disabledReason);
       const toggle = (
         <ToggleButton
           key={`toggle-${index}`}
           aria-label={control.label}
+          aria-disabled={gated}
           className={`lightcode-composer-toggle ${
             control.fillIconOnSelect ? "lightcode-composer-toggle--fill-icon-selected " : ""
           }${control.isCurrentState ? "lightcode-composer-toggle--current " : ""}${
             control.iconOnly ? "min-w-9 px-2" : "min-w-0 px-2.5"
-          }${control.className ? ` ${control.className}` : ""}`}
-          isDisabled={control.isDisabled ?? false}
-          isSelected={control.isSelected}
+          }${gated ? " opacity-50 cursor-not-allowed" : ""}${
+            control.className ? ` ${control.className}` : ""
+          }`}
+          isDisabled={gated ? false : (control.isDisabled ?? false)}
+          isSelected={gated ? false : control.isSelected}
           size="sm"
           variant="ghost"
-          onChange={control.onChange ?? (() => undefined)}
+          onChange={gated ? () => undefined : (control.onChange ?? (() => undefined))}
         >
           {resolveIcon(control)}
           {!control.iconOnly && (
@@ -411,11 +423,12 @@ export function ThreadComposer(props: {
         </ToggleButton>
       );
 
-      if (hideLabel) {
+      const tooltipText = gated ? control.disabledReason : hideLabel ? control.label : undefined;
+      if (tooltipText) {
         return (
-          <Tooltip key={`toggle-tooltip-${index}`}>
-            {toggle}
-            <Tooltip.Content placement="top">{control.label}</Tooltip.Content>
+          <Tooltip key={`toggle-tooltip-${index}`} delay={0}>
+            <Tooltip.Trigger>{toggle}</Tooltip.Trigger>
+            <Tooltip.Content placement="top">{tooltipText}</Tooltip.Content>
           </Tooltip>
         );
       }

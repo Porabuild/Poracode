@@ -69,6 +69,7 @@ import {
   type ClaudeQuestion,
 } from "./sdkCanonicalMapping";
 import { mapClaudeSlashCommands } from "./probe";
+import { AsyncPromptQueue } from "./promptQueue";
 
 const CLAUDE_EXIT_PLAN_MODE_TOOL_NAMES: ReadonlySet<string> = new Set([
   "ExitPlanMode",
@@ -95,43 +96,6 @@ type PendingRequest = PendingPermission | PendingQuestion;
 type CompletedClaudeTurn = {
   resumeSessionAt: string | undefined;
 };
-
-class AsyncPromptQueue implements AsyncIterable<SDKUserMessage> {
-  private items: SDKUserMessage[] = [];
-  private waiters: Array<(result: IteratorResult<SDKUserMessage>) => void> = [];
-  private closed = false;
-
-  push(message: SDKUserMessage): void {
-    if (this.closed) return;
-    const waiter = this.waiters.shift();
-    if (waiter) {
-      waiter({ done: false, value: message });
-      return;
-    }
-    this.items.push(message);
-  }
-
-  close(): void {
-    if (this.closed) return;
-    this.closed = true;
-    for (const waiter of this.waiters.splice(0)) {
-      waiter({ done: true, value: undefined });
-    }
-  }
-
-  [Symbol.asyncIterator](): AsyncIterator<SDKUserMessage> {
-    return {
-      next: () => {
-        const value = this.items.shift();
-        if (value) return Promise.resolve({ done: false, value });
-        if (this.closed) return Promise.resolve({ done: true, value: undefined });
-        return new Promise<IteratorResult<SDKUserMessage>>((resolve) => {
-          this.waiters.push(resolve);
-        });
-      },
-    };
-  }
-}
 
 function projectCwd(location: ProjectLocation): string {
   switch (location.kind) {
@@ -431,6 +395,7 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
   private appliedModel: string | undefined;
   private appliedPermissionMode: PermissionMode | undefined;
   private appliedUltracode = false;
+  private appliedFast = false;
   private currentStatus: ThreadStatus = "idle";
   private currentAttention: ThreadAttention = "none";
   private currentSlashCommands: AgentSlashCommand[] | undefined;
@@ -583,6 +548,7 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
     }
 
     await this.syncUltracodeFlag(query);
+    await this.syncFastMode(query);
 
     const message = await buildSdkUserMessage(prompt, segments);
     this.promptQueue.push(message);
@@ -606,6 +572,23 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
       this.appliedUltracode = wantUltracode;
     } catch {
       // Older CLIs ignore the unknown flag; effort still degrades to xhigh.
+    }
+  }
+
+  /**
+   * Fast mode is a session flag (`fastMode`), not a model-level setting. Apply
+   * it through the flag-settings layer when the user enabled the Fast toggle.
+   * When the account can't use fast mode the toggle is gated off upstream, so
+   * `config.fast` is never true here in that case.
+   */
+  private async syncFastMode(runtime: Query): Promise<void> {
+    const wantFast = this.currentConfig.fast === true;
+    if (wantFast === this.appliedFast) return;
+    try {
+      await runtime.applyFlagSettings({ fastMode: wantFast ? true : null });
+      this.appliedFast = wantFast;
+    } catch {
+      // Older CLIs ignore the flag; fast mode simply stays off.
     }
   }
 
@@ -645,6 +628,7 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
     this.appliedModel = undefined;
     this.appliedPermissionMode = undefined;
     this.appliedUltracode = false;
+    this.appliedFast = false;
     this.startQuery(this.sessionId, resumeSessionAt);
     await this.requireQuery();
 
@@ -937,6 +921,7 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
       this.appliedPermissionMode = permissionMode;
       void this.refreshSlashCommands(this.queryRuntime);
       void this.syncUltracodeFlag(this.queryRuntime);
+      void this.syncFastMode(this.queryRuntime);
       return this.queryRuntime;
     })();
 

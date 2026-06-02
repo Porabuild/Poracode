@@ -1,4 +1,5 @@
 import type {
+  AgentCapability,
   AgentStatus,
   ProjectDraftConfig,
   ProviderDraftConfig,
@@ -64,8 +65,19 @@ export function resolveContextSizeValue(
 }
 
 export function resolveFastValue(agent: AgentStatus, model: string, preferred?: boolean): boolean {
-  if (!agent.capabilities.fastModels?.includes(model)) return false;
+  if (!supportsUsableFastMode(agent.capabilities, model)) return false;
   return preferred === true;
+}
+
+/**
+ * The model supports fast mode AND the account can actually use it. Returns
+ * false when fast mode is gated (e.g. org-disabled, `fastDisabledReason` set) so
+ * the `/fast` command and provider hand-off don't enable an unusable mode. The
+ * Fast *toggle* still renders (disabled) — that path keys off `fastModels` +
+ * `fastDisabledReason` directly so it can show the explanatory tooltip.
+ */
+export function supportsUsableFastMode(capabilities: AgentCapability, model: string): boolean {
+  return (capabilities.fastModels?.includes(model) ?? false) && !capabilities.fastDisabledReason;
 }
 
 export function resolveThinkingValue(
