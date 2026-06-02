@@ -498,10 +498,8 @@ export class CodexStructuredSession implements StructuredSessionHandle {
         ...(config.approvalPolicy ? { approvalPolicy: config.approvalPolicy } : {}),
         ...(sandboxPolicy ? { sandboxPolicy } : {}),
         collaborationMode,
-        // The Fast toggle is authoritative: force the tier every turn. `"fast"`
-        // selects the Fast lane; `null` clears it back to the configured default
-        // (the codex app-server's `serviceTier` accepts `"fast" | "flex" | null`).
-        // Sent on each turn since the override is sticky on the server.
+        // Fast toggle is authoritative and the server tier is sticky, so force it
+        // every turn: "fast" selects the Fast lane, null clears it to the default.
         serviceTier: config.fast === true ? "fast" : null,
       });
       this.activeTurnId = extractTurnField(result, "id");
