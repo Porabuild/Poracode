@@ -3,6 +3,8 @@
  * no host dependency and take `now` as an argument rather than reading a clock.
  */
 
+import type { UsageWindow } from "./types";
+
 export type UsageTone = "normal" | "warning" | "danger" | "unknown";
 
 /** Map a utilization percentage to a status tone for ring/bar coloring. */
@@ -58,4 +60,137 @@ export function toEpochMs(value: string | number | null | undefined): number | u
   }
   const ms = Date.parse(value);
   return Number.isFinite(ms) ? ms : undefined;
+}
+
+const HOUR_MS = 3_600_000;
+const DAY_MS = 86_400_000;
+
+/**
+ * Below this fraction of the window elapsed, a rate projection is dominated by
+ * noise (a single early burst extrapolates to absurd end-of-period numbers), so
+ * we decline to project rather than show an alarming figure. ~5% is 15 min into
+ * a 5h session, ~8h into a week.
+ */
+const MIN_ELAPSED_FRACTION = 0.05;
+
+/**
+ * Below this usage level there's too little signal to project a meaningful rate,
+ * and "≈0% by reset" is just noise on an effectively empty bar, so we decline.
+ */
+const MIN_USED_PERCENT = 1;
+
+/**
+ * Length of the quota window ending at `resetsAt`, derived from the window id.
+ * Returns undefined for windows whose cadence we can't infer (e.g. Antigravity
+ * pools, dollar-denominated overage), so callers skip pacing for them.
+ *
+ * Most ids carry a fixed cadence (5h session, 7d weekly). `monthly` and the
+ * Cursor plan windows are calendar-month aligned, so their length is measured
+ * back from the actual reset date (28-31 days) rather than assumed to be 30d.
+ */
+export function windowDurationMs(windowId: string, resetsAt: number): number | undefined {
+  switch (windowId) {
+    case "session-5h":
+      return 5 * HOUR_MS;
+    case "weekly":
+    case "weekly-opus":
+    case "weekly-sonnet":
+      return 7 * DAY_MS;
+    case "monthly":
+    case "cursor-auto":
+    case "cursor-api":
+      return calendarMonthBeforeMs(resetsAt);
+  }
+  if (windowId.startsWith("gemini:")) return DAY_MS;
+  if (windowId.startsWith("codex:")) {
+    if (windowId.endsWith(":session-5h")) return 5 * HOUR_MS;
+    if (windowId.endsWith(":weekly")) return 7 * DAY_MS;
+  }
+  return undefined;
+}
+
+/** Milliseconds in the calendar month immediately preceding `resetsAt`. */
+function calendarMonthBeforeMs(resetsAt: number): number {
+  const start = new Date(resetsAt);
+  start.setMonth(start.getMonth() - 1);
+  return resetsAt - start.getTime();
+}
+
+/**
+ * A forward projection of where a usage window lands by its reset, assuming the
+ * current average burn rate holds. Powers the "will I run out early or coast to
+ * reset?" indicator. All fields are derived purely from
+ * (usedPercent, resetsAt, now) — see {@link projectWindowUsage}.
+ */
+export interface UsageProjection {
+  /** Fraction of the window elapsed at `now`, in (0, 1). */
+  elapsedFraction: number;
+  /**
+   * Usage at reset if the current average rate holds, in percent. Uncapped: a
+   * value > 100 means the quota is projected to run out before reset.
+   */
+  projectedPercent: number;
+  /**
+   * usedPercent minus the on-pace-to-exactly-exhaust line (elapsedFraction*100),
+   * in percentage points. Negative => under pace (headroom), positive => over
+   * pace (burning fast). Matches codexbar's "Pace … (±N%)" figure.
+   */
+  paceDelta: number;
+  /** True when the quota is projected to survive to reset (projectedPercent <= 100). */
+  lastsToReset: boolean;
+  /** Epoch ms the quota is projected to hit 100%, set only when that is before reset. */
+  runsOutAt?: number;
+}
+
+/**
+ * Project a window's end-of-period usage from its current burn rate. Returns
+ * undefined when there's no reset time, the window's cadence is unknown, the
+ * window is dollar-denominated, or too little of the window has elapsed for a
+ * projection to be meaningful — callers should simply omit the pace indicator
+ * in those cases.
+ */
+export function projectWindowUsage(
+  window: Pick<UsageWindow, "id" | "usedPercent" | "resetsAt" | "unit">,
+  now: number,
+): UsageProjection | undefined {
+  const { id, resetsAt, unit } = window;
+  if (resetsAt === undefined || !Number.isFinite(resetsAt)) return undefined;
+  // Dollar overage (e.g. Claude extra-usage) is a spend balance, not a time-rate
+  // window, so a "by reset" projection doesn't apply.
+  if (unit === "usd") return undefined;
+
+  const duration = windowDurationMs(id, resetsAt);
+  if (duration === undefined || duration <= 0) return undefined;
+
+  const windowStart = resetsAt - duration;
+  const elapsedMs = now - windowStart;
+  const elapsedFraction = elapsedMs / duration;
+  if (
+    !Number.isFinite(elapsedFraction) ||
+    elapsedFraction < MIN_ELAPSED_FRACTION ||
+    elapsedFraction >= 1
+  ) {
+    return undefined;
+  }
+
+  const used = Math.max(0, Math.min(100, window.usedPercent));
+  if (used < MIN_USED_PERCENT) return undefined;
+
+  const projectedPercent = used / elapsedFraction;
+  const paceDelta = used - elapsedFraction * 100;
+  const lastsToReset = projectedPercent <= 100;
+
+  const projection: UsageProjection = {
+    elapsedFraction,
+    projectedPercent,
+    paceDelta,
+    lastsToReset,
+  };
+  if (!lastsToReset) {
+    // At burn rate (used / elapsedMs), 100% is reached msToFull after the window
+    // start; surface that instant so the UI can say how early it runs out.
+    const msToFull = (100 / used) * elapsedMs;
+    projection.runsOutAt = windowStart + msToFull;
+  }
+  return projection;
 }

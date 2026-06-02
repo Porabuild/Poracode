@@ -188,7 +188,7 @@ export function UsageProviderCard(props: {
               ) : null}
             </span>
             {collapsed && (!hasWindows || !snapshot) ? (
-              <span className="text-xs text-muted">{usageStatusText(snapshot)}</span>
+              <span className="text-xs text-muted">{usageStatusText(snapshot, label)}</span>
             ) : null}
           </span>
         </button>
@@ -234,7 +234,7 @@ export function UsageProviderCard(props: {
             </>
           ) : (
             <div className="space-y-2">
-              <p className="text-xs text-muted">{usageStatusText(snapshot)}</p>
+              <p className="text-xs text-muted">{usageStatusText(snapshot, label)}</p>
               {canSignIn ? (
                 <button
                   type="button"

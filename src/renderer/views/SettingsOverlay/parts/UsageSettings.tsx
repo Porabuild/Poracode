@@ -23,7 +23,7 @@ function UsageProviderRow(props: { id: string; label: string }) {
   const enabled = !disabledProviders.includes(id);
   const showBars = enabled && snapshot?.status === "ok" && snapshot.windows.length > 0;
   const reserveBars = !enabled && snapshot?.status === "ok" && snapshot.windows.length > 0;
-  const message = enabled ? usageStatusText(snapshot) : "Tracking off";
+  const message = enabled ? usageStatusText(snapshot, label) : "Tracking off";
 
   return (
     <div className="flex items-start justify-between gap-4 border-t border-[color:var(--separator)] py-3 first:border-t-0">

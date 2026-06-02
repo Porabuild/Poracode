@@ -53,3 +53,5 @@ export {
   GEMINI_LOAD_ENDPOINT,
   GEMINI_QUOTA_ENDPOINT,
 } from "./collectors/gemini";
+export { antigravityPool, antigravityPoolWindows } from "./collectors/antigravity";
+export type { AntigravityModelQuota } from "./collectors/antigravity";

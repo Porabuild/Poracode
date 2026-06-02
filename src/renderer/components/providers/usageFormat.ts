@@ -1,8 +1,11 @@
 import {
   formatResetCountdown,
+  projectWindowUsage,
+  type UsageProjection,
   type UsageSnapshot,
   type UsageWindow,
 } from "@lightcode/agents-usage";
+import { usageToneColor } from "./usageTone";
 
 /** Format a monetary amount (already in the currency's main unit, e.g. dollars). */
 export function formatMoney(amount: number | undefined, currency: string | undefined): string {
@@ -61,6 +64,51 @@ export function formatWindowSecondaryValue(w: UsageWindow): string | undefined {
 }
 
 /**
+ * Pace indicator text for a usage window's forward projection: where the quota
+ * is headed by reset at the current burn rate. The tone color is keyed to the
+ * projected level (not current usage), so a bar trending into the red reads as
+ * a warning even while current usage is still comfortable.
+ *
+ * - Lasts to reset: "≈N% used by reset" — the lower the number, the more room.
+ * - Runs out early: "Runs out in 2h 10m · 1h 50m early" — actionable warning.
+ */
+export function formatPaceSummary(
+  projection: UsageProjection,
+  resetsAt: number,
+  now: number,
+): { text: string; toneColor: string } {
+  const toneColor = usageToneColor(projection.projectedPercent);
+  if (projection.lastsToReset) {
+    return { text: `≈${Math.round(projection.projectedPercent)}% used by reset`, toneColor };
+  }
+  const { runsOutAt } = projection;
+  const runOut = runsOutAt !== undefined ? formatResetCountdown(runsOutAt, now) : undefined;
+  if (runsOutAt === undefined || !runOut) return { text: "Over pace — runs out early", toneColor };
+  // How far ahead of reset the quota is projected to run dry.
+  const earlyMs = resetsAt - runsOutAt;
+  const early = earlyMs > 60_000 ? formatResetCountdown(now + earlyMs, now) : undefined;
+  return {
+    text: early ? `Runs out in ${runOut} · ${early} early` : `Runs out in ${runOut}`,
+    toneColor,
+  };
+}
+
+/**
+ * Pace summary for a window if one applies, else undefined. Wraps
+ * {@link projectWindowUsage} + {@link formatPaceSummary} so callers that only
+ * need the text (e.g. the rail tooltip) share one gate. Surfaces that also draw
+ * the bar call `projectWindowUsage` directly to reuse the projection object.
+ */
+export function formatWindowPace(
+  w: UsageWindow,
+  now: number,
+): { text: string; toneColor: string } | undefined {
+  const projection = projectWindowUsage(w, now);
+  if (!projection || w.resetsAt === undefined) return undefined;
+  return formatPaceSummary(projection, w.resetsAt, now);
+}
+
+/**
  * Single reset countdown shared across a provider's windows when they all reset
  * on the same clock (e.g. Cursor). Returns undefined when the windows don't
  * share one reset time, so callers fall back to per-window countdowns.
@@ -80,7 +128,10 @@ export function sharedWindowResetLabel(
 }
 
 /** Status line for a provider snapshot, shared by the usage card and settings rows. */
-export function usageStatusText(snapshot: UsageSnapshot | undefined): string {
+export function usageStatusText(
+  snapshot: UsageSnapshot | undefined,
+  providerLabel?: string,
+): string {
   if (!snapshot) return "No data yet";
   switch (snapshot.status) {
     case "ok":
@@ -93,6 +144,8 @@ export function usageStatusText(snapshot: UsageSnapshot | undefined): string {
       return "No windows reported";
     case "auth-missing":
       return "Not signed in";
+    case "app-not-running":
+      return `Start ${providerLabel ?? "the app"} to see usage`;
     case "rate-limited":
       return "Rate limited. Try again shortly.";
     case "quota-hit":

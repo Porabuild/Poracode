@@ -15,6 +15,7 @@ import {
 import { createNodeUsageHost } from "./usageHost";
 import { scanClaudeCost } from "./usageCostScanner";
 import { scanOpenCodeUsage } from "./openCodeUsageScanner";
+import { scanAntigravityUsage } from "./antigravityUsageScanner";
 
 /**
  * Periodic/on-demand provider usage collection, modeled on AgentStatusService:
@@ -35,10 +36,15 @@ const DEFAULT_PROVIDER_IDS = [
   "cursor",
   "grok",
   "gemini",
+  "antigravity",
   "opencode",
 ] as const;
-/** Providers collected supervisor-side (local SQLite), not the HTTP registry. */
-const LOCAL_PROVIDER_IDS = new Set<string>(["opencode"]);
+/**
+ * Providers collected supervisor-side (need process/SQLite access the pure HTTP
+ * registry can't do), not via `registry.collectAll`. `opencode` reads a local
+ * SQLite store; `antigravity` probes its local language server.
+ */
+const LOCAL_PROVIDER_IDS = new Set<string>(["opencode", "antigravity"]);
 const MIN_REFRESH_INTERVAL_MS = 2 * 60_000;
 
 export interface UsageServiceOptions {
@@ -201,6 +207,7 @@ export class UsageService {
     try {
       if (this.options.collectLocal) return await this.options.collectLocal(id, now);
       if (id === "opencode") return await scanOpenCodeUsage(now, this.host);
+      if (id === "antigravity") return await scanAntigravityUsage(now);
     } catch {
       // fall through to an error snapshot
     }

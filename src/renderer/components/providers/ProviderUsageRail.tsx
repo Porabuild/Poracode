@@ -9,8 +9,9 @@ import { readBridge } from "@/renderer/bridge";
 import { useProviderUsage, useProviderUsageStore } from "@/renderer/state/providerUsageStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { ProviderUsageCircle } from "./ProviderUsageCircle";
-import { formatUsageWindowLabel } from "./UsageWindowBars";
+import { formatUsageWindowLabel, PaceLine } from "./UsageWindowBars";
 import {
+  formatWindowPace,
   formatWindowSecondaryValue,
   formatWindowValue,
   sharedWindowResetLabel,
@@ -24,6 +25,8 @@ function statusText(snapshot: UsageSnapshot | undefined): string {
       return "";
     case "auth-missing":
       return "Not signed in";
+    case "app-not-running":
+      return "Not running";
     case "rate-limited":
       return "Rate limited";
     case "quota-hit":
@@ -62,17 +65,21 @@ function UsageTooltipBody(props: {
                 ? formatResetCountdown(w.resetsAt, now)
                 : undefined;
             const secondary = formatWindowSecondaryValue(w);
+            const pace = formatWindowPace(w, now);
             return (
-              <div key={w.id} className="flex items-center justify-between gap-3 whitespace-nowrap">
-                <span className="text-muted">{formatUsageWindowLabel(w)}</span>
-                <span className="font-medium text-foreground">
-                  {reset || secondary ? (
-                    <span className="mr-1 text-[10px] font-normal text-muted">
-                      {[secondary, reset].filter(Boolean).join(" · ")} ·
-                    </span>
-                  ) : null}
-                  {formatWindowValue(w)}
-                </span>
+              <div key={w.id}>
+                <div className="flex items-center justify-between gap-3 whitespace-nowrap">
+                  <span className="text-muted">{formatUsageWindowLabel(w)}</span>
+                  <span className="font-medium text-foreground">
+                    {reset || secondary ? (
+                      <span className="mr-1 text-[10px] font-normal text-muted">
+                        {[secondary, reset].filter(Boolean).join(" · ")} ·
+                      </span>
+                    ) : null}
+                    {formatWindowValue(w)}
+                  </span>
+                </div>
+                {pace ? <PaceLine pace={pace} className="text-[10px]" /> : null}
               </div>
             );
           })}

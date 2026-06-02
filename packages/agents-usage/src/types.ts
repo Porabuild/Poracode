@@ -23,18 +23,23 @@ export const knownUsageWindowIdSchema = z.enum([
 export type KnownUsageWindowId = z.infer<typeof knownUsageWindowIdSchema>;
 
 /**
- * A usage window id. Most providers use a fixed vocabulary, but Gemini Code
- * Assist reports one daily quota bucket per model and that model list is
- * dynamic (new models like `gemini-3.1-pro` or Codex model-specific limits)
- * appear without notice, so those ids are namespaced and flow through without a
- * schema change.
+ * A usage window id. Most providers use a fixed vocabulary, but some report a
+ * dynamic, namespaced set: Gemini Code Assist reports one daily bucket per model
+ * (`gemini:<modelId>`), Codex has model-specific limits (`codex:<limitId>`), and
+ * Antigravity folds models into broad quota pools (`antigravity:<pool>`). These
+ * ids flow through without a schema change.
  */
 export const usageWindowIdSchema = z.union([
   knownUsageWindowIdSchema,
   z.string().regex(/^gemini:.+/, "expected gemini:<modelId>"),
   z.string().regex(/^codex:.+/, "expected codex:<limitId>"),
+  z.string().regex(/^antigravity:.+/, "expected antigravity:<pool>"),
 ]);
-export type UsageWindowId = KnownUsageWindowId | `gemini:${string}` | `codex:${string}`;
+export type UsageWindowId =
+  | KnownUsageWindowId
+  | `gemini:${string}`
+  | `codex:${string}`
+  | `antigravity:${string}`;
 
 export const usageUnitSchema = z.enum(["percent", "tokens", "requests", "credits", "usd"]);
 export type UsageUnit = z.infer<typeof usageUnitSchema>;
@@ -97,6 +102,10 @@ export type UsageCredits = z.infer<typeof usageCreditsSchema>;
 export const usageStatusSchema = z.enum([
   "ok",
   "auth-missing",
+  // The provider's app/CLI must be running for usage to be readable (e.g.
+  // Antigravity reads a local language server only live). Distinct from
+  // auth-missing: the user may be signed in, the app just isn't running.
+  "app-not-running",
   "rate-limited",
   "quota-hit",
   "unsupported",

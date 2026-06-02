@@ -84,6 +84,9 @@ const GEMINI_COLLECTOR: UsageCollector = {
   collect: collectGemini,
 };
 
+// Antigravity is collected supervisor-side from its local language server
+// (LS-only), not here; see src/supervisor/runtime/antigravityUsageScanner.ts.
+
 const BUILT_IN: UsageCollector[] = [
   CLAUDE_COLLECTOR,
   CODEX_COLLECTOR,

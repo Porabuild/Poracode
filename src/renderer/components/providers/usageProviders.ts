@@ -22,6 +22,7 @@ export const USAGE_PROVIDERS: ReadonlyArray<UsageProvider> = [
   { id: "cursor", label: "Cursor", sharedWindowReset: true },
   { id: "grok", label: "Grok", supportsCookieLogin: true },
   { id: "gemini", label: "Gemini" },
+  { id: "antigravity", label: "Antigravity" },
   { id: "opencode", label: "OpenCode", supportsCookieLogin: true },
 ];
 

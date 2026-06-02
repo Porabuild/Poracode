@@ -50,8 +50,8 @@ describe("UsageService", () => {
       emit: (event) => events.push(event),
       cachePath: tempCachePath(),
       host: makeHost({ claude: { accessToken: "tok" } }),
-      // Stub the supervisor-local scanner so the unit test never touches disk
-      // (opencode).
+      // Stub the supervisor-local scanners so the unit test never touches disk
+      // or spawns a process (opencode, antigravity).
       collectLocal: (id, now) =>
         Promise.resolve({ providerId: id, status: "auth-missing", windows: [], fetchedAt: now }),
     });
@@ -59,6 +59,7 @@ describe("UsageService", () => {
     const result = await service.refreshProviderUsage({});
     expect(result.fromCache).toBe(false);
     expect(result.snapshots.map((s) => s.providerId).sort()).toEqual([
+      "antigravity",
       "claude",
       "codex",
       "copilot",
@@ -76,7 +77,7 @@ describe("UsageService", () => {
 
     const perProvider = events.filter((e) => e.type === "provider-usage");
     const terminal = events.filter((e) => e.type === "provider-usage-all");
-    expect(perProvider).toHaveLength(7);
+    expect(perProvider).toHaveLength(8);
     expect(terminal).toHaveLength(1);
   });
 
@@ -85,6 +86,8 @@ describe("UsageService", () => {
       emit: () => {},
       cachePath: tempCachePath(),
       host: makeHost({ claude: { accessToken: "tok" } }),
+      collectLocal: (id, now) =>
+        Promise.resolve({ providerId: id, status: "auth-missing", windows: [], fetchedAt: now }),
     });
     await service.refreshProviderUsage({});
     const cached = await service.getProviderUsage({ providerIds: ["claude"] });
@@ -170,6 +173,8 @@ describe("UsageService", () => {
       emit: () => {},
       cachePath: tempCachePath(),
       host,
+      collectLocal: (id, now) =>
+        Promise.resolve({ providerId: id, status: "auth-missing", windows: [], fetchedAt: now }),
     });
     await service.refreshProviderUsage({});
     const afterFirst = calls;
