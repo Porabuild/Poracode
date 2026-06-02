@@ -34,7 +34,7 @@ const execFileAsync = promisify(execFile);
  * on the project location (e.g. `grok login --device-auth` on WSL). v3 adds
  * `AgentCapability.fastDisabledReason` (Claude fast-mode org gating).
  */
-const STATUS_CACHE_VERSION = 3;
+export const STATUS_CACHE_VERSION = 3;
 const WSL_AGENT_DETECTION_TIMEOUT_MS = 60_000;
 
 function migrateSettingDef(definition: Record<string, unknown>): Record<string, unknown> {
