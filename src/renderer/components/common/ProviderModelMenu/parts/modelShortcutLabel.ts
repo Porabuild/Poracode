@@ -55,16 +55,22 @@ function formatCodexShortcutLabel(modelId: string, label: string): string {
   return label;
 }
 
-function formatCursorBaseShortcutLabel(baseId: string): string {
-  if (baseId === "default") return "Auto";
-  const composer = /^composer-(\d+(?:\.\d+)?)$/i.exec(baseId);
-  if (composer) return `Composer ${composer[1]}`;
-
+export function formatCodexFamilyModelLabel(baseId: string): string | undefined {
   const codex = /^gpt-(\d+(?:\.\d+)?)-codex(?:-(spark|max|mini))?$/i.exec(baseId);
   if (codex) {
     const suffix = codex[2] ? ` ${capitalizeSegment(codex[2])}` : "";
     return `Codex ${codex[1]}${suffix}`;
   }
+  return undefined;
+}
+
+function formatCursorBaseShortcutLabel(baseId: string): string {
+  if (baseId === "default") return "Auto";
+  const composer = /^composer-(\d+(?:\.\d+)?)$/i.exec(baseId);
+  if (composer) return `Composer ${composer[1]}`;
+
+  const codex = formatCodexFamilyModelLabel(baseId);
+  if (codex) return codex;
 
   const gpt = /^gpt-(\d+(?:\.\d+)?)(?:-(mini|nano))?$/i.exec(baseId);
   if (gpt) {

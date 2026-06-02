@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { buildProviderModelItems, type ProviderModelMenuProvider } from "./buildItems";
-import { formatShortcutFallbackLabel, formatShortcutModelLabel } from "./modelShortcutLabel";
+import {
+  formatCodexFamilyModelLabel,
+  formatShortcutFallbackLabel,
+  formatShortcutModelLabel,
+} from "./modelShortcutLabel";
 
 describe("formatShortcutModelLabel", () => {
   it("expands Codex short labels to GPT-prefixed titles", () => {
@@ -25,6 +29,11 @@ describe("formatShortcutModelLabel", () => {
     expect(formatShortcutModelLabel("cursor", "composer-2.5[fast=true]", "Composer 2.5")).toBe(
       "Composer 2.5 · Fast",
     );
+  });
+
+  it("formats Codex-family model ids for shared menu labels", () => {
+    expect(formatCodexFamilyModelLabel("gpt-5.3-codex-spark")).toBe("Codex 5.3 Spark");
+    expect(formatCodexFamilyModelLabel("gpt-5.1-codex-max")).toBe("Codex 5.1 Max");
   });
 });
 

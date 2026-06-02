@@ -98,6 +98,15 @@ describe("sharedSettingsFile", () => {
         transcriptionModel: "tiny",
         useWebGpu: true,
       },
+      usage: {
+        autoRefresh: true,
+        refreshIntervalMinutes: 5,
+        showEstimatedCost: false,
+        showInSidebar: true,
+        disabledProviders: [],
+        providerOrder: [],
+        collapsedProviders: [],
+      },
     });
 
     expect(readSharedSettingsFile(settingsPath)).toEqual({
@@ -171,6 +180,15 @@ describe("sharedSettingsFile", () => {
         transcriptionLanguage: "en",
         transcriptionModel: "tiny",
         useWebGpu: true,
+      },
+      usage: {
+        autoRefresh: true,
+        refreshIntervalMinutes: 5,
+        showEstimatedCost: false,
+        showInSidebar: true,
+        disabledProviders: [],
+        providerOrder: [],
+        collapsedProviders: [],
       },
     });
     expect(readFileSync(settingsPath, "utf8")).toContain('"themeMode": "dark"');

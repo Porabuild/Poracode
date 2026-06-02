@@ -1,11 +1,12 @@
 import { randomUUID } from "node:crypto";
-import { BrowserWindow, shell } from "electron";
+import { BrowserWindow, session as electronSession, shell } from "electron";
 import type {
   BrowserEvent,
   BrowserState,
   BrowserStartPickerResult,
   BrowserTabInfo,
 } from "@/shared/ipc";
+import type { UsageLoginConfirmationAction, UsageLoginDeviceCode } from "@/shared/contracts";
 import type { LightcodePaths } from "@/shared/lightcodePaths";
 import type { BrowserLinkOpenTarget, BrowserLinkPresentationMode } from "@/shared/settings";
 import { dbGetState, dbSetState } from "../db";
@@ -19,6 +20,7 @@ import { buildPickerScript } from "./picker/pickerScript";
 const PERSIST_KEY = "browser-panel-tabs-v1";
 const PERSIST_DEBOUNCE_MS = 750;
 const ATTACH_TIMEOUT_MS = 8000;
+const LOGIN_CONFIRMATION_TIMEOUT_MS = 5 * 60 * 1000;
 const INTERNAL_BROWSER_PROTOCOLS = new Set(["http:", "https:"]);
 const SYSTEM_BROWSER_PROTOCOLS = new Set(["http:", "https:", "mailto:"]);
 
@@ -31,6 +33,11 @@ interface PendingPicker {
   threadId: string;
   tabId: string;
   resolve(result: BrowserStartPickerResult): void;
+}
+
+interface PendingLoginConfirmation {
+  timeout: ReturnType<typeof setTimeout>;
+  resolve(action: UsageLoginConfirmationAction): void;
 }
 
 type PickerPayload =
@@ -53,6 +60,8 @@ export class BrowserPanelManager {
   private persistTimer: ReturnType<typeof setTimeout> | null = null;
   private restored = false;
   private pickerKeyCleanup: (() => void) | null = null;
+  private activeLoginCancel: (() => void) | null = null;
+  private pendingLoginConfirmations = new Map<string, PendingLoginConfirmation>();
 
   constructor(private readonly paths: LightcodePaths) {
     this.unsubscribePicker = onPickerCommit((commit) => this.onPickerCommit(commit));
@@ -120,6 +129,7 @@ export class BrowserPanelManager {
       this.persistTimer = null;
     }
     this.clearPickerShortcut();
+    this.cancelLoginConfirmations();
     for (const t of this.tabs) {
       void t.destroy();
     }
@@ -381,6 +391,199 @@ export class BrowserPanelManager {
     const t = this.findTab(tabId);
     if (!t || !t.isAttached()) return null;
     return await t.capturePng();
+  }
+
+  /**
+   * Open a provider login in a real panel tab and capture its web session
+   * cookies once the user signs in. Reuses the in-app browser (its webContents
+   * session holds the cookie jar) rather than a separate OS window. Resolves with
+   * the serialized `Cookie` header on success, or cancelled when the user closes
+   * the tab first. The caller seals the cookie — this method never touches secrets.
+   */
+  async captureLoginCookies(opts: {
+    loginUrl: string;
+    cookieUrl: string;
+    authCookiePattern: RegExp;
+    timeoutMs: number;
+    providerLabel?: string;
+    /**
+     * Optional live-session check run on the candidate `Cookie` header before
+     * prompting. A name match is only a candidate; returning false here keeps
+     * polling so a stale or mid-auth cookie never triggers a false prompt.
+     */
+    validateSession?: (cookieHeader: string) => Promise<boolean>;
+  }): Promise<{ ok: boolean; cookie?: string; cancelled?: boolean; error?: string }> {
+    // The caller (renderer) opens the browser-overlay drawer; we just create the
+    // login tab in it and capture cookies — presentation is the renderer's call.
+    let tabId: string;
+    try {
+      tabId = (await this.createTab({ url: opts.loginUrl, activate: true })).tabId;
+    } catch (err) {
+      return { ok: false, error: (err as Error).message ?? "Failed to open login tab" };
+    }
+
+    return await new Promise((resolve) => {
+      let settled = false;
+      let confirming = false;
+      let validating = false;
+      let session: Electron.Session | null = null;
+      const ignoredHeaders = new Set<string>();
+      // Cookie values proven NOT to be a live session (stale / mid-auth). Cached
+      // so a failed `validateSession` isn't re-run every poll tick — a real
+      // login changes the value, which re-triggers the check.
+      const invalidHeaders = new Set<string>();
+      const onChanged = (): void => {
+        void tryCapture();
+      };
+      const finish = (result: {
+        ok: boolean;
+        cookie?: string;
+        cancelled?: boolean;
+        error?: string;
+      }): void => {
+        if (settled) return;
+        settled = true;
+        this.activeLoginCancel = null;
+        this.cancelLoginConfirmations();
+        clearInterval(timer);
+        clearTimeout(timeout);
+        session?.cookies.removeListener("changed", onChanged);
+        if (this.findTab(tabId)) void this.closeTab(tabId).catch(() => {});
+        resolve(result);
+      };
+      // Let an external signal (e.g. the user closing the overlay) cancel the
+      // in-flight capture instead of waiting out the timeout.
+      this.activeLoginCancel = () => finish({ ok: false, cancelled: true });
+      const tryCapture = async (): Promise<void> => {
+        if (settled) return;
+        const tab = this.findTab(tabId);
+        if (!tab || tab.isDestroyed()) {
+          finish({ ok: false, cancelled: true });
+          return;
+        }
+        if (!tab.isAttached()) return;
+        try {
+          const ses = tab.webContents.session;
+          if (!session) {
+            session = ses;
+            session.cookies.on("changed", onChanged);
+          }
+          const cookies = await ses.cookies.get({ url: opts.cookieUrl });
+          if (!cookies.some((c) => opts.authCookiePattern.test(c.name))) return;
+          const header = cookies.map((c) => `${c.name}=${c.value}`).join("; ");
+          if (
+            !header ||
+            ignoredHeaders.has(header) ||
+            invalidHeaders.has(header) ||
+            confirming ||
+            validating
+          )
+            return;
+          // A matching cookie name is only a candidate. Providers that can verify
+          // a live session gate on it here so a stale/mid-auth cookie never
+          // triggers a false "Found a signed-in session" prompt.
+          if (opts.validateSession) {
+            validating = true;
+            try {
+              const live = await opts.validateSession(header);
+              validating = false;
+              if (settled) return;
+              if (!live) {
+                invalidHeaders.add(header);
+                return;
+              }
+            } catch {
+              // Transient probe failure — don't poison this value; a later tick
+              // retries (serialized by `validating`, so no request pile-up).
+              validating = false;
+              return;
+            }
+          }
+          confirming = true;
+          const action = await this.confirmLoginCookies(opts.providerLabel ?? "provider");
+          confirming = false;
+          if (action === "use") {
+            finish({ ok: true, cookie: header });
+            return;
+          }
+          if (action === "change") {
+            ignoredHeaders.add(header);
+            await this.clearLoginCookies(opts).catch(() => {});
+            await tab.loadURL(opts.loginUrl).catch(() => {});
+            return;
+          }
+          finish({ ok: false, cancelled: true });
+        } catch {
+          // webContents not ready / transient — keep polling
+        }
+      };
+      const timer = setInterval(() => void tryCapture(), 1_000);
+      const timeout = setTimeout(
+        () => finish({ ok: false, error: "Login timed out" }),
+        opts.timeoutMs,
+      );
+      void tryCapture();
+    });
+  }
+
+  private async confirmLoginCookies(providerLabel: string): Promise<UsageLoginConfirmationAction> {
+    if (!this.host || this.host.isDestroyed()) return "cancel";
+    const requestId = `usage-login-${randomUUID()}`;
+    return await new Promise((resolve) => {
+      const finish = (action: UsageLoginConfirmationAction): void => {
+        const pending = this.pendingLoginConfirmations.get(requestId);
+        if (!pending) return;
+        clearTimeout(pending.timeout);
+        this.pendingLoginConfirmations.delete(requestId);
+        resolve(action);
+      };
+      const timeout = setTimeout(() => {
+        this.emit({ type: "usage-login-confirmation-closed", requestId });
+        finish("cancel");
+      }, LOGIN_CONFIRMATION_TIMEOUT_MS);
+      this.pendingLoginConfirmations.set(requestId, { timeout, resolve: finish });
+      this.emit({
+        type: "usage-login-confirmation",
+        request: { requestId, providerLabel },
+      });
+    });
+  }
+
+  resolveUsageLoginConfirmation(payload: {
+    requestId: string;
+    action: UsageLoginConfirmationAction;
+  }): void {
+    this.pendingLoginConfirmations.get(payload.requestId)?.resolve(payload.action);
+  }
+
+  showUsageLoginDeviceCode(deviceCode: UsageLoginDeviceCode): void {
+    this.emit({ type: "usage-login-device-code", deviceCode });
+  }
+
+  clearUsageLoginDeviceCode(providerId: string): void {
+    this.emit({ type: "usage-login-device-code-cleared", providerId });
+  }
+
+  private cancelLoginConfirmations(): void {
+    for (const requestId of [...this.pendingLoginConfirmations.keys()]) {
+      this.emit({ type: "usage-login-confirmation-closed", requestId });
+      this.pendingLoginConfirmations.get(requestId)?.resolve("cancel");
+    }
+  }
+
+  async clearLoginCookies(opts: { cookieUrl: string; authCookiePattern: RegExp }): Promise<void> {
+    const ses = electronSession.fromPartition("persist:lightcode-browser");
+    const cookies = await ses.cookies.get({ url: opts.cookieUrl });
+    await Promise.all(
+      cookies
+        .filter((c) => opts.authCookiePattern.test(c.name))
+        .map((c) => ses.cookies.remove(opts.cookieUrl, c.name).catch(() => {})),
+    );
+  }
+
+  /** Cancel an in-flight `captureLoginCookies` (e.g. user closed the overlay). */
+  cancelLoginCapture(): void {
+    this.activeLoginCancel?.();
   }
 
   getActiveTab(): BrowserTab | null {

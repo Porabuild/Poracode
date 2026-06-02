@@ -12,6 +12,7 @@ import {
 import { useAppStore } from "./state/appStore";
 import { useDevTerminalStore } from "./state/devTerminalStore";
 import { useAgentStatusesStore } from "./state/agentStatusesStore";
+import { useProviderUsageStore } from "./state/providerUsageStore";
 import { useUpdateStore } from "./state/updateStore";
 import { installRuntimeItemsPersister } from "./state/chatRuntimePersister";
 import { clearRuntimeItemStoreSelectorCacheForThread } from "./components/thread/ChatPane/chatPaneSelectors";
@@ -146,6 +147,12 @@ const unsubSupervisor = readBridge().onSupervisorEvent((event) => {
   }
   if (event.type === "agent-status-updated") {
     useAgentStatusesStore.getState().mergeAgentStatus(event.status);
+  }
+  if (event.type === "provider-usage") {
+    useProviderUsageStore.getState().mergeSnapshot(event.snapshot);
+  }
+  if (event.type === "provider-usage-all") {
+    useProviderUsageStore.getState().setSnapshots(event.snapshots);
   }
   if (event.type === "windows-agent-statuses") {
     console.log(`[renderer] event: windows-agent-statuses (${event.statuses.length} agents)`);

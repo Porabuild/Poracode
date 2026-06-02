@@ -1,0 +1,75 @@
+import { z } from "zod";
+
+/**
+ * Provider usage contracts. The canonical usage vocabulary (UsageSnapshot etc.)
+ * is owned by the standalone `@lightcode/agents-usage` package and re-exported
+ * here so the renderer and supervisor share one set of types without the
+ * renderer importing a collector (which would drag fetch/child_process into the
+ * browser bundle). Only the IPC request payload needs a runtime Zod schema; the
+ * response is a plain typed result.
+ */
+
+export type {
+  UsageSnapshot,
+  UsageWindow,
+  UsageWindowId,
+  UsageStatus,
+  UsageUnit,
+  UsageCost,
+  UsageCostPeriod,
+  UsageTokens,
+  UsageCredits,
+  UsageMechanism,
+  UsageProviderDescriptor,
+} from "@lightcode/agents-usage";
+
+import type { UsageSnapshot } from "@lightcode/agents-usage";
+
+export const providerUsagePayloadSchema = z.object({
+  /** Restrict collection to these provider ids; omitted = all known providers. */
+  providerIds: z.array(z.string()).optional(),
+});
+export type ProviderUsagePayload = z.infer<typeof providerUsagePayloadSchema>;
+
+export interface ProviderUsageResponse {
+  snapshots: UsageSnapshot[];
+  /** True when the snapshots came from the on-disk cache (a refresh may be in flight). */
+  fromCache: boolean;
+}
+
+export const usageLoginPayloadSchema = z.object({
+  /** Provider to launch the browser-overlay cookie login for (e.g. "grok"). */
+  providerId: z.string(),
+});
+export type UsageLoginPayload = z.infer<typeof usageLoginPayloadSchema>;
+
+export interface UsageLoginResult {
+  ok: boolean;
+  /** True when the user closed the login window before completing. */
+  cancelled?: boolean;
+  error?: string;
+}
+
+export interface UsageLogoutResult {
+  ok: boolean;
+}
+
+export const usageLoginConfirmationActionSchema = z.enum(["use", "change", "cancel"]);
+export type UsageLoginConfirmationAction = z.infer<typeof usageLoginConfirmationActionSchema>;
+
+export interface UsageLoginConfirmationRequest {
+  requestId: string;
+  providerLabel: string;
+}
+
+export interface UsageLoginDeviceCode {
+  providerId: string;
+  providerLabel: string;
+  code: string;
+}
+
+export const usageLoginConfirmationPayloadSchema = z.object({
+  requestId: z.string().min(1),
+  action: usageLoginConfirmationActionSchema,
+});
+export type UsageLoginConfirmationPayload = z.infer<typeof usageLoginConfirmationPayloadSchema>;

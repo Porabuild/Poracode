@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import type { UsageLoginConfirmationRequest, UsageLoginDeviceCode } from "@/shared/contracts";
 import type { BrowserState, BrowserTabInfo } from "@/shared/ipc";
 
 export interface PendingPickerAttachment {
@@ -17,12 +18,18 @@ interface BrowserPanelState {
   pickerActive: boolean;
   attentionTabId: string | null;
   pendingPickerAttachment: PendingPickerAttachment | null;
+  usageLoginConfirmation: UsageLoginConfirmationRequest | null;
+  usageLoginDeviceCode: UsageLoginDeviceCode | null;
   setState: (state: BrowserState) => void;
   upsertTab: (tab: BrowserTabInfo) => void;
   setActive: (tabId: string | null) => void;
   setPickerActive: (active: boolean) => void;
   setAttention: (tabId: string | null) => void;
   setPendingPickerAttachment: (attachment: PendingPickerAttachment | null) => void;
+  setUsageLoginConfirmation: (request: UsageLoginConfirmationRequest | null) => void;
+  clearUsageLoginConfirmation: (requestId: string) => void;
+  setUsageLoginDeviceCode: (deviceCode: UsageLoginDeviceCode | null) => void;
+  clearUsageLoginDeviceCode: (providerId: string) => void;
 }
 
 export const useBrowserPanelStore = create<BrowserPanelState>((set) => ({
@@ -31,6 +38,8 @@ export const useBrowserPanelStore = create<BrowserPanelState>((set) => ({
   pickerActive: false,
   attentionTabId: null,
   pendingPickerAttachment: null,
+  usageLoginConfirmation: null,
+  usageLoginDeviceCode: null,
 
   setState: (state) =>
     set((s) => {
@@ -56,6 +65,16 @@ export const useBrowserPanelStore = create<BrowserPanelState>((set) => ({
   setPendingPickerAttachment: (attachment) =>
     set((state) =>
       state.pendingPickerAttachment === attachment ? {} : { pendingPickerAttachment: attachment },
+    ),
+  setUsageLoginConfirmation: (request) => set({ usageLoginConfirmation: request }),
+  clearUsageLoginConfirmation: (requestId) =>
+    set((state) =>
+      state.usageLoginConfirmation?.requestId === requestId ? { usageLoginConfirmation: null } : {},
+    ),
+  setUsageLoginDeviceCode: (deviceCode) => set({ usageLoginDeviceCode: deviceCode }),
+  clearUsageLoginDeviceCode: (providerId) =>
+    set((state) =>
+      state.usageLoginDeviceCode?.providerId === providerId ? { usageLoginDeviceCode: null } : {},
     ),
 }));
 

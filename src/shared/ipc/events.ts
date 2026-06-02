@@ -9,6 +9,9 @@ import type {
   ThreadConfig,
   ThreadStatus,
   ThreadStatusSource,
+  UsageLoginConfirmationRequest,
+  UsageLoginDeviceCode,
+  UsageSnapshot,
 } from "../contracts";
 import type { BrowserState, BrowserTabInfo } from "./procedures/browser";
 import type { BrowserLinkPresentationMode } from "../settings";
@@ -69,6 +72,8 @@ export type SupervisorEvent =
   | { type: "wsl-agent-statuses"; statuses: AgentStatus[] }
   | { type: "agent-detected"; status: AgentStatus }
   | { type: "agent-status-updated"; status: AgentStatus }
+  | { type: "provider-usage"; snapshot: UsageSnapshot }
+  | { type: "provider-usage-all"; snapshots: UsageSnapshot[] }
   | { type: "git-changed"; projectId: string }
   | { type: "project-tree-changed"; projectId: string }
   | { type: "lsp-message"; sessionId: string; message: unknown }
@@ -85,6 +90,10 @@ export type BrowserEvent =
   | { type: "tab-updated"; tab: BrowserTabInfo }
   | { type: "tab-attention"; tabId: string }
   | { type: "open-panel"; mode?: BrowserLinkPresentationMode }
+  | { type: "usage-login-confirmation"; request: UsageLoginConfirmationRequest }
+  | { type: "usage-login-confirmation-closed"; requestId: string }
+  | { type: "usage-login-device-code"; deviceCode: UsageLoginDeviceCode }
+  | { type: "usage-login-device-code-cleared"; providerId: string }
   | { type: "picker-cancelled" };
 
 export type UpdateStatus =

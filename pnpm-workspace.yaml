@@ -1,6 +1,7 @@
 packages:
   - "."
   - "website"
+  - "packages/agents-usage"
 
 # Share the virtual store across worktrees/checkouts via symlinks instead of
 # hardlinking every package into each node_modules/.pnpm (see pnpm.io/git-worktrees).

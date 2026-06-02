@@ -8,6 +8,8 @@ import {
   type RightPanelTab,
 } from "@/renderer/components/layout/UnifiedRightPanel";
 import { ProjectFilesPanel } from "@/renderer/views/FileEditorOverlay/parts/ProjectFilesPanel";
+import { UsagePanel } from "@/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/UsagePanel";
+import { UsagePanelHeaderActions } from "@/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsagePanelHeaderActions";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useDevTerminalStore } from "@/renderer/state/devTerminalStore";
 import { useFileEditorStore, type FileEditorRootContext } from "@/renderer/state/fileEditorStore";
@@ -68,6 +70,8 @@ export function ProjectAuxiliaryPanel(props: { includeTerminal: boolean }) {
   const setRightPanelTab = usePanelStore((s) => s.setRightPanelTab);
   const browserPanelOpen = usePanelStore((s) => s.browserPanelOpen);
   const browserOverlayOpen = usePanelStore((s) => s.browserOverlayOpen);
+  const usagePanelOpen = usePanelStore((s) => s.usagePanelOpen);
+  const setUsagePanelOpen = usePanelStore((s) => s.setUsagePanelOpen);
   const setBrowserPanelOpen = usePanelStore((s) => s.setBrowserPanelOpen);
   const setBrowserOverlayOpen = usePanelStore((s) => s.setBrowserOverlayOpen);
   const setBrowserOverlayMaximized = usePanelStore((s) => s.setBrowserOverlayMaximized);
@@ -98,7 +102,7 @@ export function ProjectAuxiliaryPanel(props: { includeTerminal: boolean }) {
 
   const activeTab: RightPanelTab = props.includeTerminal
     ? rightPanelTab
-    : rightPanelTab === "files" || rightPanelTab === "browser"
+    : rightPanelTab === "files" || rightPanelTab === "browser" || rightPanelTab === "usage"
       ? rightPanelTab
       : "git";
 
@@ -131,9 +135,11 @@ export function ProjectAuxiliaryPanel(props: { includeTerminal: boolean }) {
   const projectName =
     activeTab === "browser"
       ? "Browser"
-      : activeTab === "files"
-        ? (resolvedFilesPanelContext?.rootLabel ?? projectNameForScope(activeProjectScope()))
-        : projectNameForScope(activeProjectScope());
+      : activeTab === "usage"
+        ? "Usage"
+        : activeTab === "files"
+          ? (resolvedFilesPanelContext?.rootLabel ?? projectNameForScope(activeProjectScope()))
+          : projectNameForScope(activeProjectScope());
   const isHomeScope = isHomeProjectId(activeProjectScope()?.projectId);
 
   function resolveNextProjectScope(): PanelProjectScope | null {
@@ -169,6 +175,7 @@ export function ProjectAuxiliaryPanel(props: { includeTerminal: boolean }) {
   const renderGitContent = gitPanelOpen;
   const renderFilesContent = filesPanelOpen;
   const renderBrowserContent = browserPanelOpen && !browserOverlayOpen;
+  const renderUsageContent = usagePanelOpen;
 
   return (
     <UnifiedRightPanel
@@ -190,6 +197,10 @@ export function ProjectAuxiliaryPanel(props: { includeTerminal: boolean }) {
         ) : undefined
       }
       browserContent={renderBrowserContent ? <BrowserPanel visible /> : undefined}
+      usageContent={renderUsageContent ? <UsagePanel /> : undefined}
+      usageHeaderActions={
+        <UsagePanelHeaderActions dragControlClass="lightcode-overlay-header__controls" />
+      }
       showTerminalTab={props.includeTerminal}
       showFilesTab={!isHomeScope}
       showGitTab={!isHomeScope}
@@ -206,6 +217,10 @@ export function ProjectAuxiliaryPanel(props: { includeTerminal: boolean }) {
       onOpenBrowser={() => {
         setBrowserPanelOpen(true);
         setRightPanelTab("browser");
+      }}
+      onOpenUsage={() => {
+        setUsagePanelOpen(true);
+        setRightPanelTab("usage");
       }}
       onClose={handleClose}
     />

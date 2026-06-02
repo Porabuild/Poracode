@@ -7,6 +7,8 @@ import type {
   AgentHookPluginPayload,
   AgentHookPluginStatus,
   AgentStatusesResponse,
+  ProviderUsagePayload,
+  ProviderUsageResponse,
   AcpRegistryListResult,
   AcpRegistryMutationResult,
   CloseThreadPayload,
@@ -193,6 +195,7 @@ import { generatePrSummary } from "./prSummaryGenerator";
 import { detectWindowsShell, type WindowsShellPreference } from "./shellPreference";
 import { generateTitle } from "./titleGenerator";
 import { AgentStatusService, detectWslAgentStatuses } from "./runtime/agentStatusService";
+import { UsageService } from "./runtime/usageService";
 import { type SessionRuntime, type ShellSessionRuntime } from "./runtime/sessionTypes";
 import { ThreadSessionManager, writeSubmittedPrompt } from "./runtime/threadSessionManager";
 import { CliHookPluginCoordinator } from "./runtime/cliHookPluginCoordinator";
@@ -221,6 +224,7 @@ export class SupervisorRuntime {
   private readonly adapters = new Map<AgentKind, AgentAdapter>();
   private readonly windowsShell: WindowsShellPreference;
   private readonly agentStatusService: AgentStatusService;
+  private readonly usageService: UsageService;
   private readonly threadSessionManager: ThreadSessionManager;
   private readonly lspManager: LanguageServerManager;
   private readonly cliHookPluginCoordinator: CliHookPluginCoordinator;
@@ -287,6 +291,14 @@ export class SupervisorRuntime {
       statusCachePath: paths.statusCachePath,
       emit,
     });
+
+    this.usageService = new UsageService({
+      emit,
+      cachePath: join(paths.cacheDir, "provider-usage.json"),
+      cacheDir: paths.cacheDir,
+      settingsPath: this.settingsPath,
+    });
+    this.usageService.startAutoRefresh();
 
     // Boot the CLI hook plugin coordinator BEFORE the thread session manager so
     // the manager can pull `resolvePluginEnvForSpawn` off it. The coordinator
@@ -480,6 +492,14 @@ export class SupervisorRuntime {
 
   async refreshAgentStatuses(payload: GetAgentStatusesPayload): Promise<AgentStatusesResponse> {
     return this.agentStatusService.refreshAgentStatuses(payload);
+  }
+
+  async getProviderUsage(payload: ProviderUsagePayload): Promise<ProviderUsageResponse> {
+    return this.usageService.getProviderUsage(payload);
+  }
+
+  async refreshProviderUsage(payload: ProviderUsagePayload): Promise<ProviderUsageResponse> {
+    return this.usageService.refreshProviderUsage(payload);
   }
 
   async getAgentHookPluginStatuses(

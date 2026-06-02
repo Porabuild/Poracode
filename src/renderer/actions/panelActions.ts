@@ -69,6 +69,20 @@ export function openSettings(): void {
   usePanelStore.getState().openSettings();
 }
 
+export function openUsageSettings(): void {
+  usePanelStore.getState().openSettingsSection("usage");
+}
+
+/** Open the docked usage panel, or close all right-side panels if it is already active. */
+export function openUsagePanel(): void {
+  const panelStore = usePanelStore.getState();
+  if (panelStore.usagePanelOpen && panelStore.rightPanelTab === "usage") {
+    closeAllPanels();
+    return;
+  }
+  panelStore.openUsagePanel();
+}
+
 export function openProjectSettings(projectId: string): void {
   usePanelStore.getState().openProjectSettings(projectId);
 }

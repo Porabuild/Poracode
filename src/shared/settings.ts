@@ -83,6 +83,30 @@ const audioSettingsSchema = z.object({
   useWebGpu: z.boolean().default(true),
 });
 
+const usageSettingsSchema = z.object({
+  /** Auto-refresh provider usage on a background timer. */
+  autoRefresh: z.boolean().default(true),
+  /** Minutes between auto-refreshes. Floored at 2 to respect provider 429 limits. */
+  refreshIntervalMinutes: z.number().int().min(2).max(120).default(5),
+  /**
+   * Show estimated $ cost (reconstructed from local logs at public API rates).
+   * Opt-in and panel-only — it is meaningless for subscription/OAuth users.
+   */
+  showEstimatedCost: z.boolean().default(false),
+  /** Show the per-provider usage circles in the sidebar. */
+  showInSidebar: z.boolean().default(true),
+  /** Provider ids the user turned OFF for usage tracking. Default = all on. */
+  disabledProviders: z.array(z.string()).default([]),
+  /**
+   * User-defined display order for providers in the usage panel. Providers not
+   * in this list fall back to the built-in default order at the tail.
+   */
+  providerOrder: z.array(z.string()).default([]),
+  /** Provider ids the user collapsed to a compact row in the usage panel. */
+  collapsedProviders: z.array(z.string()).default([]),
+});
+export type UsageSettings = z.infer<typeof usageSettingsSchema>;
+
 export const sharedSettingsSchema = z.object({
   themeMode: themeModeSchema,
   /**
@@ -224,6 +248,8 @@ export const sharedSettingsSchema = z.object({
   browser: browserSettingsSchema,
   /** Local audio capture and speech-to-text settings. */
   audio: audioSettingsSchema,
+  /** Provider usage tracking (auto-refresh cadence, per-provider opt-out, cost). */
+  usage: usageSettingsSchema,
 });
 export type SharedSettings = z.infer<typeof sharedSettingsSchema>;
 
@@ -305,6 +331,15 @@ export const defaultSharedSettings: SharedSettings = {
     transcriptionLanguage: "en",
     transcriptionModel: "tiny",
     useWebGpu: true,
+  },
+  usage: {
+    autoRefresh: true,
+    refreshIntervalMinutes: 5,
+    showEstimatedCost: false,
+    showInSidebar: true,
+    disabledProviders: [],
+    providerOrder: [],
+    collapsedProviders: [],
   },
 };
 

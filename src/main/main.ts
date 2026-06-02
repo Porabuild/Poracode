@@ -30,6 +30,7 @@ import { IPC_EVENT_CHANNELS } from "@/shared/ipc";
 import { readSharedSettingsFile } from "./sharedSettingsFile";
 import { WindowsJobObjectManager } from "./windowsJobObject";
 import { captureMainException, initializeMainSentry } from "./diagnostics/sentry";
+import { configureSecretStorageKey } from "@/shared/secretStorage";
 import { readOrCreateSafeStorageSecretKey } from "./secretStorageKey";
 
 const isDev = Boolean(process.env.VITE_DEV_SERVER_URL);
@@ -190,6 +191,9 @@ if (!hasSingleInstanceLock) {
 
     initDatabase(lightcodePaths.dbPath);
     const secretStorageKey = readOrCreateSafeStorageSecretKey(lightcodePaths.baseDir);
+    // Configure the same key in main so it can seal captured secrets (e.g. usage
+    // login cookies); the supervisor configures it from the env var it receives.
+    configureSecretStorageKey(secretStorageKey);
 
     const supervisorPath = join(__dirname, "supervisor.cjs");
     const wslHelpersDir = app.isPackaged

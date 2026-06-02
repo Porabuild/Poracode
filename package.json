@@ -65,6 +65,7 @@
     "@heroui/react": "^3.0.3",
     "@heroui/styles": "^3.0.3",
     "@huggingface/transformers": "^4.2.0",
+    "@lightcode/agents-usage": "workspace:*",
     "@monaco-editor/react": "^4.7.0",
     "@opencode-ai/sdk": "^1.14.48",
     "@sentry/electron": "^7.13.0",

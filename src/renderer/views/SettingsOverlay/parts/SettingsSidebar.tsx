@@ -6,6 +6,7 @@ import {
   Bot,
   Boxes,
   FlaskConical,
+  Gauge,
   GitFork,
   Globe,
   Info,
@@ -209,6 +210,13 @@ export function SettingsSidebar(props: {
             />
             <SidebarButton
               iconOnly
+              icon={<Gauge className="size-4" />}
+              label="Usage"
+              isActive={activeSection === "usage"}
+              onPress={() => onSectionChange("usage")}
+            />
+            <SidebarButton
+              iconOnly
               icon={<Archive className="size-4" />}
               label="Archived Threads"
               isActive={activeSection === "archived"}
@@ -378,6 +386,12 @@ export function SettingsSidebar(props: {
               label="Browser"
               isActive={activeSection === "browser"}
               onPress={() => onSectionChange("browser")}
+            />
+            <SidebarButton
+              icon={<Gauge className="size-4" />}
+              label="Usage"
+              isActive={activeSection === "usage"}
+              onPress={() => onSectionChange("usage")}
             />
             <SidebarButton
               icon={<Archive className="size-4" />}

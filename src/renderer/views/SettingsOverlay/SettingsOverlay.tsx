@@ -1,13 +1,15 @@
-import { useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { AgentDiscoveryScreen } from "@/renderer/components/thread/AgentDiscoveryScreen";
 import { readBridge } from "@/renderer/bridge";
 import { useAppStore } from "@/renderer/state/appStore";
+import { usePanelStore } from "@/renderer/state/panelStore";
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
 import { buildWslProjectDistrosKey } from "@/renderer/state/projectKeys";
 import { PageLayout } from "@/renderer/components/layout/PageLayout";
 import { getSettingsInstalledAgents } from "@/shared/agentStatus";
 import { AppearanceSettings } from "./parts/AppearanceSettings";
 import { BrowserSettings } from "./parts/BrowserSettings";
+import { UsageSettings } from "./parts/UsageSettings";
 import { AudioSettings } from "./parts/AudioSettings";
 import { GeneralSettings } from "./parts/GeneralSettings";
 import { GitSettings } from "./parts/GitSettings";
@@ -38,6 +40,7 @@ const SECTION_VIEWS: Partial<Record<SettingsSection, () => ReactNode>> = {
   agents: () => <AgentSettingsEmpty />,
   agentsGeneral: () => <AgentsGeneralSettings />,
   browser: () => <BrowserSettings />,
+  usage: () => <UsageSettings />,
   archived: () => <ArchivedThreadsSettings />,
   about: () => <AboutSettings />,
   dev: () => <DevSettings />,
@@ -60,7 +63,19 @@ function renderSection(
 
 export function SettingsOverlay(props: { onClose: () => void }) {
   const { onClose } = props;
-  const [activeSection, setActiveSection] = useState<SettingsSection>("general");
+  const requestedSection = usePanelStore((s) => s.settingsSection);
+  const clearSettingsSection = usePanelStore((s) => s.clearSettingsSection);
+  const [activeSection, setActiveSection] = useState<SettingsSection>(
+    (requestedSection as SettingsSection | null) ?? "general",
+  );
+  // Apply a deep-link request (e.g. clicking a sidebar usage circle) and clear
+  // it so it doesn't re-fire on the next open.
+  useEffect(() => {
+    if (requestedSection) {
+      setActiveSection(requestedSection as SettingsSection);
+      clearSettingsSection();
+    }
+  }, [requestedSection, clearSettingsSection]);
   const [isRefreshingAgents, setIsRefreshingAgents] = useState(false);
   const refreshRunRef = useRef(0);
   const agentStatuses = useAgentStatusesStore((s) => s.agentStatuses);

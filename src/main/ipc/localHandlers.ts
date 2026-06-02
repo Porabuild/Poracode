@@ -34,6 +34,7 @@ import {
   type WindowChromePayload,
 } from "@/shared/ipc";
 import type { LightcodePaths } from "@/shared/lightcodePaths";
+import { UsageLoginManager } from "../usageLogin/UsageLoginManager";
 
 interface CreateLocalIpcHandlersOptions {
   getMainWindow(): BrowserWindow | null;
@@ -50,6 +51,15 @@ function requireBrowserPanel(getter: () => BrowserPanelManager | null): BrowserP
     throw new Error("Browser panel manager is not initialized.");
   }
   return mgr;
+}
+
+let usageLoginManager: UsageLoginManager | null = null;
+function getUsageLoginManager(
+  requirePaths: () => LightcodePaths,
+  getBrowserPanel: () => BrowserPanelManager | null,
+): UsageLoginManager {
+  usageLoginManager ??= new UsageLoginManager(requirePaths(), getBrowserPanel);
+  return usageLoginManager;
 }
 
 const ALLOWED_EXTERNAL_PROTOCOLS = new Set(["http:", "https:", "mailto:"]);
@@ -220,6 +230,25 @@ export function createLocalIpcHandlers(
       requireBrowserPanel(options.getBrowserPanelManager).startPicker(payload),
     browserCancelPicker: () => {
       requireBrowserPanel(options.getBrowserPanelManager).cancelPicker();
+    },
+    startUsageLogin: (payload) =>
+      getUsageLoginManager(
+        options.requireLightcodePaths,
+        options.getBrowserPanelManager,
+      ).startLogin(payload.providerId),
+    cancelUsageLogin: (payload) => {
+      getUsageLoginManager(
+        options.requireLightcodePaths,
+        options.getBrowserPanelManager,
+      ).cancelLogin(payload.providerId);
+    },
+    clearUsageLogin: (payload) =>
+      getUsageLoginManager(
+        options.requireLightcodePaths,
+        options.getBrowserPanelManager,
+      ).clearLogin(payload.providerId),
+    resolveUsageLoginConfirmation: (payload) => {
+      requireBrowserPanel(options.getBrowserPanelManager).resolveUsageLoginConfirmation(payload);
     },
   });
 }

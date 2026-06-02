@@ -29,6 +29,7 @@ import { SidebarPanelDragButton } from "@/renderer/views/MainView/parts/Sidebar/
 import { SidebarProjectSection } from "@/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectSection";
 import { readBridge } from "@/renderer/bridge";
 import { openSettings } from "@/renderer/actions/panelActions";
+import { ProviderUsageRail } from "@/renderer/components/providers/ProviderUsageRail";
 import { openTerminal } from "@/renderer/actions/terminalActions";
 import { openThread } from "@/renderer/actions/threadActions";
 import {
@@ -277,6 +278,7 @@ export function Sidebar() {
           <CollapsedThreadRail />
 
           <div className="flex flex-col gap-1 border-t border-[var(--hairline)] pt-2 pb-2 pr-2">
+            <ProviderUsageRail orientation="column" />
             <UpdateButtons iconOnly />
             <SidebarButton
               iconOnly
@@ -352,6 +354,7 @@ export function Sidebar() {
           )}
         </div>
 
+        <ProviderUsageRail orientation="row" />
         <div className={sidebarFooterNavClass}>
           <UpdateButtons />
           <SidebarButton
