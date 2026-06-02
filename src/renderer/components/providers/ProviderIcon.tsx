@@ -279,34 +279,36 @@ export function getConfigNormalizer(kind: string): ConfigNormalizer | undefined 
   return CONFIG_NORMALIZER_REGISTRY.get(kind);
 }
 
-// --- Workflow trigger registry ---
+// --- Trigger word registry ---
 //
-// The composer promotes a literal "workflow" word into a git-branch chip to
-// hint that the agent will spin up an orchestration workflow. That affordance
-// only makes sense for providers/models that actually expose the Workflow
-// tool, so each such provider registers a matcher over its model ids.
-// Providers that never support workflows simply don't register, and the
-// composer leaves the word as plain text.
+// The composer promotes certain literal words (e.g. "workflow") into chips to
+// hint at a special agent capability. Those affordances only make sense for
+// providers/models that actually expose the underlying feature, so each such
+// provider registers a matcher returning which trigger words apply to a given
+// model. Providers that opt into nothing leave every word as plain text. The
+// catalog of known words lives in composer/triggerWords.ts.
 
-type WorkflowTriggerMatcher = (model: string | undefined) => boolean;
+import type { TriggerWordDef } from "@/renderer/components/composer/triggerWords";
 
-const WORKFLOW_TRIGGER_REGISTRY = new Map<string, WorkflowTriggerMatcher>();
+type TriggerWordMatcher = (model: string | undefined) => readonly TriggerWordDef[];
 
-export function registerWorkflowTrigger(kind: string, supportsModel: WorkflowTriggerMatcher) {
-  WORKFLOW_TRIGGER_REGISTRY.set(kind, supportsModel);
+const TRIGGER_WORD_REGISTRY = new Map<string, TriggerWordMatcher>();
+
+export function registerTriggerWords(kind: string, resolve: TriggerWordMatcher) {
+  TRIGGER_WORD_REGISTRY.set(kind, resolve);
 }
 
-/** True when the given provider+model exposes workflow orchestration. */
-export function supportsWorkflowTrigger(
+/** Trigger words the given provider+model opts into (empty when none apply). */
+export function getTriggerWords(
   kind: string | undefined,
   model: string | undefined,
-): boolean {
-  if (!kind) return false;
+): readonly TriggerWordDef[] {
+  if (!kind) return [];
   const separatorIndex = kind.indexOf(":");
   const matcher =
-    WORKFLOW_TRIGGER_REGISTRY.get(kind) ??
-    (separatorIndex > 0 ? WORKFLOW_TRIGGER_REGISTRY.get(kind.slice(0, separatorIndex)) : undefined);
-  return matcher ? matcher(model) : false;
+    TRIGGER_WORD_REGISTRY.get(kind) ??
+    (separatorIndex > 0 ? TRIGGER_WORD_REGISTRY.get(kind.slice(0, separatorIndex)) : undefined);
+  return matcher ? matcher(model) : [];
 }
 
 // --- Commit generation defaults registry ---
