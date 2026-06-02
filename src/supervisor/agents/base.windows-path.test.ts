@@ -19,6 +19,8 @@ vi.mock("node:child_process", async () => {
 
 import {
   clearExecutablePathCache,
+  getRefreshedWindowsPath,
+  invalidateExecutablePathCache,
   resolveExecutablePath,
   resolveExecutablePathAsync,
 } from "./base";
@@ -158,5 +160,53 @@ describe.skipIf(process.platform !== "win32")("Windows executable path fallback"
     await expect(resolveExecutablePathAsync("gemini")).resolves.toBe(
       "C:\\Users\\demo\\AppData\\Roaming\\npm\\gemini.cmd",
     );
+  });
+
+  it("getRefreshedWindowsPath merges registry PATH beyond the live process Path", () => {
+    spawnSyncMock
+      .mockReturnValueOnce({ error: undefined, status: 0, stdout: USER_REG_QUERY, stderr: "" })
+      .mockReturnValueOnce({ error: undefined, status: 0, stdout: MACHINE_REG_QUERY, stderr: "" });
+
+    const refreshed = getRefreshedWindowsPath();
+    expect(refreshed).toContain("C:\\Windows\\System32");
+    expect(refreshed).toContain("C:\\Users\\demo\\.local\\bin");
+    expect(refreshed).toContain("C:\\Program Files\\Git\\cmd");
+  });
+
+  it("getRefreshedWindowsPath returns undefined when the registry adds nothing new", () => {
+    // A live process always has a PATH; assert against it (the case-insensitive
+    // delete in beforeEach drops it, so set it explicitly here).
+    process.env.Path = "C:\\Windows\\System32";
+    const onlySystem32 = [
+      "HKEY_CURRENT_USER\\Environment",
+      "    Path    REG_EXPAND_SZ    C:\\Windows\\System32",
+    ].join("\r\n");
+    spawnSyncMock
+      .mockReturnValueOnce({ error: undefined, status: 0, stdout: onlySystem32, stderr: "" })
+      .mockReturnValueOnce({ error: undefined, status: 0, stdout: onlySystem32, stderr: "" });
+
+    expect(getRefreshedWindowsPath()).toBeUndefined();
+  });
+
+  it("re-reads the registry PATH after invalidateExecutablePathCache (post-install)", () => {
+    process.env.Path = "C:\\Windows\\System32";
+    // Before install: the registry PATH matches the process PATH, so a spawned
+    // shell would only see System32 — the just-installed CLI is absent.
+    const beforeInstall = [
+      "HKEY_CURRENT_USER\\Environment",
+      "    Path    REG_EXPAND_SZ    C:\\Windows\\System32",
+    ].join("\r\n");
+    spawnSyncMock
+      .mockReturnValueOnce({ error: undefined, status: 0, stdout: beforeInstall, stderr: "" })
+      .mockReturnValueOnce({ error: undefined, status: 0, stdout: beforeInstall, stderr: "" });
+    expect(getRefreshedWindowsPath()).toBeUndefined();
+
+    // The installer added a new dir to the user registry PATH; the post-install
+    // refresh invalidates the cache, so the next read picks it up immediately.
+    invalidateExecutablePathCache();
+    spawnSyncMock
+      .mockReturnValueOnce({ error: undefined, status: 0, stdout: USER_REG_QUERY, stderr: "" })
+      .mockReturnValueOnce({ error: undefined, status: 0, stdout: MACHINE_REG_QUERY, stderr: "" });
+    expect(getRefreshedWindowsPath()).toContain("C:\\Users\\demo\\.local\\bin");
   });
 });

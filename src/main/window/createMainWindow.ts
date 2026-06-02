@@ -60,6 +60,8 @@ export interface CreateMainWindowOptions {
   posthogKey: string;
   sentryEnabled: boolean;
   windowChromeHeight: number;
+  /** Saved appearance, so the native window opens matching the theme. */
+  appearance: "light" | "dark";
   onClosed(): void;
   onClose?: (event: Electron.Event) => void;
   onRendererProcessGone?: (details: RenderProcessGoneDetails) => void;
@@ -69,6 +71,11 @@ export interface CreateMainWindowOptions {
 export function createMainWindow(options: CreateMainWindowOptions): BrowserWindow {
   const saved = getSavedWindowBounds();
   const supportsTitleBarOverlay = process.platform === "win32" || process.platform === "linux";
+  const isDark = options.appearance === "dark";
+  // Base bg/symbol per appearance, matching styles.css and the runtime
+  // setWindowChrome values, so the first frame doesn't flash a fixed palette.
+  const backgroundColor = isDark ? "#141416" : "#f1f1f4";
+  const symbolColor = isDark ? "#fafafa" : "#1f2937";
   const window = new BrowserWindow({
     title: options.title,
     show: false,
@@ -77,14 +84,14 @@ export function createMainWindow(options: CreateMainWindowOptions): BrowserWindo
     ...(saved?.x != null && saved?.y != null ? { x: saved.x, y: saved.y } : {}),
     minWidth: 540,
     minHeight: 720,
-    backgroundColor: "#1c1f24",
+    backgroundColor,
     autoHideMenuBar: true,
     ...(supportsTitleBarOverlay
       ? {
           titleBarStyle: "hidden" as const,
           titleBarOverlay: {
             color: "#00000000",
-            symbolColor: "#f8fafc",
+            symbolColor,
             height: options.windowChromeHeight,
           },
         }

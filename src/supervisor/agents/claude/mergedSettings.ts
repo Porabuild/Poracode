@@ -3,23 +3,27 @@ import { dirname, join, posix as posixPath } from "node:path";
 import type { ProjectLocation } from "@/shared/contracts";
 import { toWslUncPath } from "@/shared/wsl";
 
+const MERGED_SETTINGS_FILENAME = "settings-lightcode.json";
+
 /**
- * Generate a sibling `settings-ultracode.json` next to the hook plugin's
- * `settings.json`, with `"ultracode": true` merged into the top level.
+ * Generate a sibling `settings-lightcode.json` next to the hook plugin's
+ * `settings.json`, with the given session flags (e.g. `{ ultracode: true }` or
+ * `{ fastMode: true }`) merged into the top level.
  *
  * Why we can't just append a second `--settings` flag: Claude's CLI takes the
  * first `--settings` value and silently drops the rest, so passing the inline
- * `{"ultracode":true}` alongside the plugin's path either disables hooks or
- * disables ultracode depending on order. The CLI is happy with a single file
- * that carries both — that's what this helper produces.
+ * flags alongside the plugin's path either disables hooks or disables the flags
+ * depending on order. The CLI is happy with a single file that carries both —
+ * that's what this helper produces.
  *
  * Returns the path the CLI should be told to read (native path on Windows /
  * posix, Linux-side path on WSL), or `undefined` if the source can't be read
  * (we fall back to the plugin's regular settings file in that case).
  */
-export async function prepareClaudeUltracodeSettingsFile(
+export async function prepareClaudeMergedSettingsFile(
   pluginSettingsPath: string,
   projectLocation: ProjectLocation,
+  flags: Record<string, unknown>,
 ): Promise<string | undefined> {
   if (!pluginSettingsPath) return undefined;
 
@@ -27,12 +31,12 @@ export async function prepareClaudeUltracodeSettingsFile(
     const distro = projectLocation.distro;
     const linuxSource = pluginSettingsPath;
     const linuxDir = posixPath.dirname(linuxSource);
-    const linuxOut = `${linuxDir}/settings-ultracode.json`;
+    const linuxOut = `${linuxDir}/${MERGED_SETTINGS_FILENAME}`;
     const uncSource = toWslUncPath(distro, linuxSource);
     const uncOut = toWslUncPath(distro, linuxOut);
     try {
       const content = await fs.readFile(uncSource, "utf8");
-      const merged = mergeUltracode(content);
+      const merged = mergeFlags(content, flags);
       await fs.writeFile(uncOut, merged, "utf8");
       return linuxOut;
     } catch {
@@ -42,8 +46,8 @@ export async function prepareClaudeUltracodeSettingsFile(
 
   try {
     const content = await fs.readFile(pluginSettingsPath, "utf8");
-    const merged = mergeUltracode(content);
-    const outPath = join(dirname(pluginSettingsPath), "settings-ultracode.json");
+    const merged = mergeFlags(content, flags);
+    const outPath = join(dirname(pluginSettingsPath), MERGED_SETTINGS_FILENAME);
     await fs.writeFile(outPath, merged, "utf8");
     return outPath;
   } catch {
@@ -51,7 +55,7 @@ export async function prepareClaudeUltracodeSettingsFile(
   }
 }
 
-function mergeUltracode(content: string): string {
+function mergeFlags(content: string, flags: Record<string, unknown>): string {
   let parsed: Record<string, unknown>;
   try {
     const raw = JSON.parse(content);
@@ -59,5 +63,5 @@ function mergeUltracode(content: string): string {
   } catch {
     parsed = {};
   }
-  return JSON.stringify({ ...parsed, ultracode: true });
+  return JSON.stringify({ ...parsed, ...flags });
 }

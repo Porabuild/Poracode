@@ -173,7 +173,7 @@ export function BrowserPanel(props: { visible: boolean }) {
         onMenuPreviewChange={setMenuPreviewDataUrl}
       />
       <BrowserTabStrip />
-      <div className="relative flex-1 overflow-hidden bg-[var(--surface-background,#0d1117)]">
+      <div className="relative flex-1 overflow-hidden bg-[var(--content-background)]">
         {tabs.map((tab) => (
           <BrowserTabWebview
             key={tab.tabId}

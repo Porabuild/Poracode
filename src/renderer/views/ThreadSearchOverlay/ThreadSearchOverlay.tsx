@@ -107,9 +107,9 @@ export function ThreadSearchOverlay(props: { onClose: () => void }) {
       <div
         role="dialog"
         aria-label="Search threads"
-        className="relative flex w-full max-w-[640px] flex-col overflow-hidden rounded-3xl border border-white/10 bg-background shadow-2xl"
+        className="relative flex w-full max-w-[640px] flex-col overflow-hidden rounded-3xl border border-[var(--hairline-strong)] bg-background shadow-2xl"
       >
-        <div className="flex items-center gap-2 border-b border-white/6 px-4 py-3">
+        <div className="flex items-center gap-2 border-b border-[var(--hairline)] px-4 py-3">
           <Search className="size-4 shrink-0 text-muted" />
           <input
             ref={inputRef}

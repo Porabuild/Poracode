@@ -29,8 +29,8 @@ export function ThreadSearchResultRow(props: {
   });
 
   const stateClass = isSelected
-    ? "bg-white/[0.08] text-foreground"
-    : "text-foreground/85 hover:bg-white/[0.04] hover:text-foreground";
+    ? "bg-[var(--row-active)] text-foreground"
+    : "text-foreground/85 hover:bg-[var(--row-hover)] hover:text-foreground";
 
   return (
     <div

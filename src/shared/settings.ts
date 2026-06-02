@@ -85,6 +85,13 @@ const audioSettingsSchema = z.object({
 
 export const sharedSettingsSchema = z.object({
   themeMode: themeModeSchema,
+  /**
+   * Selected app theme preset id (see `renderer/theme/themePresets`). The
+   * matching light/dark variant is chosen by `themeMode`. Free-form string so
+   * the catalog can grow without a schema bump; unknown ids fall back to the
+   * base "default" theme at apply time.
+   */
+  themePreset: z.string(),
   terminalPosition: terminalPositionSchema,
   commitGenProvider: z.string(),
   commitGenModel: z.string(),
@@ -229,6 +236,7 @@ export type SharedSettingsInput = Omit<SharedSettings, "agentHookSupport">;
 
 export const defaultSharedSettings: SharedSettings = {
   themeMode: "dark",
+  themePreset: "default",
   terminalPosition: "bottom",
   commitGenProvider: "auto",
   commitGenModel: "",

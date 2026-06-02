@@ -164,7 +164,7 @@ function SidebarVirtualThreadRow(props: {
           {row.label}
         </div>
       ) : (
-        <div aria-hidden className="mx-1.5 my-1 h-px bg-white/6" />
+        <div aria-hidden className="mx-1.5 my-1 h-px bg-[var(--hairline)]" />
       )}
     </div>
   );

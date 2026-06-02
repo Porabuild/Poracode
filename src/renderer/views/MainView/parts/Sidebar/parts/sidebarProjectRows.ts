@@ -48,10 +48,10 @@ function entryIsStarred(entry: ThreadListEntry): boolean {
 
 export function estimateSidebarRowSize(row: SidebarVirtualRow | undefined): number {
   if (!row) return 32;
-  if (row.kind === "divider") return 10;
+  if (row.kind === "divider") return 11;
   if (row.kind === "section-label") return 28;
   if (row.kind === "worktree-group") return 34;
-  if (row.kind === "thread-group") return 30;
+  if (row.kind === "thread-group") return 26;
   return 30;
 }
 

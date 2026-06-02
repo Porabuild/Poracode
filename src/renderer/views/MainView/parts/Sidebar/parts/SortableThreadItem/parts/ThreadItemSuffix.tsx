@@ -41,7 +41,7 @@ export function ThreadItemSuffix(props: {
               projectId={thread.projectId}
               worktreePath={thread.worktreePath}
               ariaLabel={`Files for ${thread.worktreeBranch ?? thread.title}`}
-              className={`shrink-0 cursor-grab rounded p-0.5 transition-colors hover:bg-white/[0.04] hover:text-foreground active:cursor-grabbing ${
+              className={`shrink-0 cursor-grab rounded p-0.5 transition-colors hover:bg-[var(--row-hover)] hover:text-foreground active:cursor-grabbing ${
                 isFilesActive ? "text-accent" : "text-muted/60 opacity-0 group-hover:opacity-100"
               }`}
               onPress={() => openFilesPanel(thread.projectId, thread.worktreePath)}
@@ -54,7 +54,7 @@ export function ThreadItemSuffix(props: {
             projectId={thread.projectId}
             worktreePath={thread.worktreePath}
             ariaLabel={`Terminal for ${thread.worktreeBranch}`}
-            className={`shrink-0 cursor-grab rounded p-0.5 transition-colors hover:bg-white/[0.04] hover:text-foreground active:cursor-grabbing ${
+            className={`shrink-0 cursor-grab rounded p-0.5 transition-colors hover:bg-[var(--row-hover)] hover:text-foreground active:cursor-grabbing ${
               isTerminalActive
                 ? "text-accent"
                 : isTerminalOpen

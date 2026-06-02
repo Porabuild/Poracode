@@ -111,11 +111,26 @@ export function startClaudeTurn(
       state.activeGoalItemId = goalItemId;
       state.activeGoalObjective = goalPayload.objective;
       state.activeGoalStartedAtMs = Date.now();
+      delete state.activeGoalTokensUsed;
+      delete state.activeGoalResultTokensUsed;
     } else {
       delete state.activeGoalItemId;
       delete state.activeGoalObjective;
       delete state.activeGoalStartedAtMs;
+      delete state.activeGoalTokensUsed;
+      delete state.activeGoalResultTokensUsed;
     }
+  } else if (isClearPrompt(prompt) && state.activeGoalItemId) {
+    const payload = goalPayloadFromProviderState(
+      state.activeGoalObjective ? { objective: state.activeGoalObjective } : {},
+      "cleared",
+    );
+    events.push(...updateGoalItemEvents(state.threadId, state.activeGoalItemId, payload));
+    delete state.activeGoalItemId;
+    delete state.activeGoalObjective;
+    delete state.activeGoalStartedAtMs;
+    delete state.activeGoalTokensUsed;
+    delete state.activeGoalResultTokensUsed;
   }
   if (isManualCompactPrompt(prompt)) {
     const compactItemId = `compact-${turnId}`;
@@ -137,6 +152,10 @@ export function startClaudeTurn(
 
 function isManualCompactPrompt(prompt: string): boolean {
   return /^\/compact(?:\s|$)/.test(prompt.trimStart());
+}
+
+function isClearPrompt(prompt: string): boolean {
+  return /^\/clear(?:\s|$)/.test(prompt.trimStart());
 }
 
 function ensureTextItem(
@@ -1107,29 +1126,93 @@ export function extractResultErrorMessage(message: SDKMessage): string | undefin
 function completeActiveGoalEvents(
   state: ClaudeMapperState,
   message: Extract<SDKMessage, { type: "result" }>,
+  turnState: TurnState,
 ): RuntimeEvent[] {
   const goalItemId = state.activeGoalItemId;
   const objective = state.activeGoalObjective;
   const startedAtMs = state.activeGoalStartedAtMs;
   if (!goalItemId || !objective || startedAtMs === undefined) return [];
 
+  const nowMs = Date.now();
+  const usage = readClaudeResultUsage(message);
+  if (usage !== undefined) {
+    const resultTokensUsed = (state.activeGoalResultTokensUsed ?? 0) + usage;
+    state.activeGoalResultTokensUsed = resultTokensUsed;
+    state.activeGoalTokensUsed = Math.max(state.activeGoalTokensUsed ?? 0, resultTokensUsed);
+  }
+  const totalTokensUsed = state.activeGoalTokensUsed;
+  const elapsedSeconds = Math.max(0, Math.round((nowMs - startedAtMs) / 1000));
+
+  if (turnState === "interrupted") {
+    const payload = goalPayloadFromProviderState(
+      {
+        objective,
+        status: "active",
+        ...(totalTokensUsed !== undefined ? { tokensUsed: totalTokensUsed } : {}),
+        timeUsedSeconds: elapsedSeconds,
+        updatedAt: nowMs / 1000,
+      },
+      "updated",
+    );
+    return [
+      {
+        type: "item.updated",
+        threadId: state.threadId,
+        itemId: goalItemId,
+        payload,
+      },
+    ];
+  }
+
   delete state.activeGoalItemId;
   delete state.activeGoalObjective;
   delete state.activeGoalStartedAtMs;
+  delete state.activeGoalTokensUsed;
+  delete state.activeGoalResultTokensUsed;
 
-  const nowMs = Date.now();
-  const usage = readClaudeResultUsage(message);
   const payload = goalPayloadFromProviderState(
     {
       objective,
       status: "complete",
-      ...(usage !== undefined ? { tokensUsed: usage } : {}),
-      timeUsedSeconds: Math.max(0, Math.round((nowMs - startedAtMs) / 1000)),
+      ...(totalTokensUsed !== undefined ? { tokensUsed: totalTokensUsed } : {}),
+      timeUsedSeconds: elapsedSeconds,
       updatedAt: nowMs / 1000,
     },
     "updated",
   );
   return updateGoalItemEvents(state.threadId, goalItemId, payload);
+}
+
+export function emitActiveGoalTokenUpdate(
+  state: ClaudeMapperState,
+  tokensUsed: number,
+): RuntimeEvent | undefined {
+  if (
+    !state.activeGoalItemId ||
+    !state.activeGoalObjective ||
+    state.activeGoalStartedAtMs === undefined
+  ) {
+    return undefined;
+  }
+  const elapsedSeconds = Math.max(0, Math.round((Date.now() - state.activeGoalStartedAtMs) / 1000));
+  const bestKnownTokensUsed = Math.max(state.activeGoalTokensUsed ?? 0, tokensUsed);
+  state.activeGoalTokensUsed = bestKnownTokensUsed;
+  const payload = goalPayloadFromProviderState(
+    {
+      objective: state.activeGoalObjective,
+      status: "active",
+      tokensUsed: bestKnownTokensUsed,
+      timeUsedSeconds: elapsedSeconds,
+      updatedAt: Date.now() / 1000,
+    },
+    "updated",
+  );
+  return {
+    type: "item.updated",
+    threadId: state.threadId,
+    itemId: state.activeGoalItemId,
+    payload,
+  };
 }
 
 function readClaudeResultUsage(
@@ -1160,8 +1243,16 @@ function mapResultState(message: Extract<SDKMessage, { type: "result" }>): TurnS
   return "failed";
 }
 
-export function mapClaudeSdkMessage(message: SDKMessage, state: ClaudeMapperState): RuntimeEvent[] {
-  const events = mapClaudeSdkMessageInner(message, state);
+interface ClaudeSdkMessageMappingOptions {
+  resultState?: TurnState;
+}
+
+export function mapClaudeSdkMessage(
+  message: SDKMessage,
+  state: ClaudeMapperState,
+  options?: ClaudeSdkMessageMappingOptions,
+): RuntimeEvent[] {
+  const events = mapClaudeSdkMessageInner(message, state, options);
   return tagParent(events, readParentToolUseId(message), state);
 }
 
@@ -1201,7 +1292,11 @@ function readPositiveInteger(value: unknown): number | undefined {
   return parsed !== undefined && parsed > 0 ? parsed : undefined;
 }
 
-function mapClaudeSdkMessageInner(message: SDKMessage, state: ClaudeMapperState): RuntimeEvent[] {
+function mapClaudeSdkMessageInner(
+  message: SDKMessage,
+  state: ClaudeMapperState,
+  options?: ClaudeSdkMessageMappingOptions,
+): RuntimeEvent[] {
   const events: RuntimeEvent[] = [];
   if (message.type === "stream_event") {
     const event = message.event as unknown as Record<string, unknown>;
@@ -1466,13 +1561,13 @@ function mapClaudeSdkMessageInner(message: SDKMessage, state: ClaudeMapperState)
   }
 
   if (message.type === "result") {
-    const stateValue = mapResultState(message);
+    const stateValue = options?.resultState ?? mapResultState(message);
     events.push(...closeClaudeOpenItems(state));
     if (stateValue === "failed") {
       const msg = extractResultErrorMessage(message) ?? "Claude turn failed.";
       events.push({ type: "error", threadId: state.threadId, message: msg });
     }
-    events.push(...completeActiveGoalEvents(state, message));
+    events.push(...completeActiveGoalEvents(state, message, stateValue));
     if (state.currentTurnId) {
       events.push({
         type: "turn.completed",

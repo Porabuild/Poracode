@@ -23,6 +23,7 @@ const STORAGE_KEY = "lightcode-shared-settings";
 interface SharedSettingsState extends SharedSettings {
   sharedSettingsHydrated: boolean;
   setThemeMode: (mode: ThemeMode) => void;
+  setThemePreset: (id: string) => void;
   setTerminalPosition: (position: TerminalPosition) => void;
   setCommitGenConfig: (provider: string, model: string, effort: string) => void;
   setTitleGenConfig: (provider: string, model: string, effort: string) => void;
@@ -158,6 +159,11 @@ export const useSharedSettings = create<SharedSettingsState>()((set, get) => ({
   sharedSettingsHydrated: initialLoadDone,
   setThemeMode: (themeMode) => {
     set({ themeMode });
+    persistSettings(selectSharedSettings(get()));
+  },
+  setThemePreset: (themePreset) => {
+    if (get().themePreset === themePreset) return;
+    set({ themePreset });
     persistSettings(selectSharedSettings(get()));
   },
   setTerminalPosition: (terminalPosition) => {
@@ -454,6 +460,7 @@ export const useSharedSettings = create<SharedSettingsState>()((set, get) => ({
 function selectSharedSettings(state: SharedSettingsState): SharedSettingsInput {
   return {
     themeMode: state.themeMode,
+    themePreset: state.themePreset,
     terminalPosition: state.terminalPosition,
     commitGenProvider: state.commitGenProvider,
     commitGenModel: state.commitGenModel,

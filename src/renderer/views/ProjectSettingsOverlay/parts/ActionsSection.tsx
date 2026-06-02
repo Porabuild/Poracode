@@ -55,7 +55,7 @@ export function ActionsSection(props: { projectId: string }) {
           {actions.map((action) => (
             <div
               key={action.id}
-              className="group rounded-lg border border-white/6 bg-white/[0.02] p-3"
+              className="group rounded-lg border border-[var(--hairline)] bg-[var(--row-hover)] p-3"
             >
               <div className="mb-2.5 flex items-center gap-2">
                 <ActionIconPicker
@@ -103,7 +103,7 @@ export function ActionsSection(props: { projectId: string }) {
             </div>
           ))}
 
-          <div className="rounded-lg border border-dashed border-white/10 p-3">
+          <div className="rounded-lg border border-dashed border-[var(--hairline-strong)] p-3">
             <div className="mb-2.5 flex items-center gap-2">
               <ActionIconPicker value={newIcon} onChange={setNewIcon} />
               <Input

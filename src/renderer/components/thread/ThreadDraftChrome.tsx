@@ -45,7 +45,7 @@ export function ThreadDraftCompactHeader(props: {
             <button
               type="button"
               aria-label="Close pane"
-              className="lightcode-overlay-header__controls shrink-0 rounded p-1 text-muted/60 transition-colors hover:bg-white/[0.06] hover:text-foreground"
+              className="lightcode-overlay-header__controls shrink-0 rounded p-1 text-muted/60 transition-colors hover:bg-[var(--row-hover)] hover:text-foreground"
               onClick={(e) => {
                 e.stopPropagation();
                 props.onClose?.();

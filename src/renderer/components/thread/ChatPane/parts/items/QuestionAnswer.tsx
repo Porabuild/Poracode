@@ -6,7 +6,7 @@ import {
   getRuntimeItemPayload,
   type RuntimeChatItem,
 } from "@/renderer/state/slices/runtimeEventSlice";
-import { chatMessageSurfaceClass } from "./chatMessageSurface";
+import { chatPromptSurfaceClass } from "./chatMessageSurface";
 import { ItemMarkdown } from "./ItemMarkdown";
 
 interface QuestionAnswerProps {
@@ -19,7 +19,7 @@ export function QuestionAnswer({ item, checkpointRevertControl }: QuestionAnswer
   const questions = payload?.questions ?? [];
   if (questions.length === 0) return null;
   return (
-    <Surface variant="tertiary" className={`${chatMessageSurfaceClass} relative`}>
+    <Surface variant="tertiary" className={chatPromptSurfaceClass}>
       <div className="min-w-0 space-y-2 leading-snug">
         {questions.map((entry, index) => (
           <div

@@ -95,6 +95,13 @@ export function ProviderIcon(props: {
   className?: string | undefined;
   icon?: string | undefined;
   fallbackLabel?: string | undefined;
+  /**
+   * When true and the icon can't be resolved yet (no registered or external
+   * icon), reserve a same-size empty slot instead of rendering the generic
+   * letter fallback. Used while agent detection is still in flight so list
+   * rows don't flash a placeholder that jumps to the real icon on resolve.
+   */
+  pending?: boolean | undefined;
 }) {
   const Icon = ICON_REGISTRY.get(props.kind);
   const tone = props.tone ?? "inactive";
@@ -107,6 +114,9 @@ export function ProviderIcon(props: {
           {...(props.className ? { className: props.className } : {})}
         />
       );
+    }
+    if (props.pending) {
+      return <span aria-hidden className={props.className} />;
     }
     return (
       <GenericProviderIcon
@@ -267,6 +277,38 @@ export function registerConfigNormalizer(kind: string, normalizer: ConfigNormali
 
 export function getConfigNormalizer(kind: string): ConfigNormalizer | undefined {
   return CONFIG_NORMALIZER_REGISTRY.get(kind);
+}
+
+// --- Trigger word registry ---
+//
+// The composer promotes certain literal words (e.g. "workflow") into chips to
+// hint at a special agent capability. Those affordances only make sense for
+// providers/models that actually expose the underlying feature, so each such
+// provider registers a matcher returning which trigger words apply to a given
+// model. Providers that opt into nothing leave every word as plain text. The
+// catalog of known words lives in composer/triggerWords.ts.
+
+import type { TriggerWordDef } from "@/renderer/components/composer/triggerWords";
+
+type TriggerWordMatcher = (model: string | undefined) => readonly TriggerWordDef[];
+
+const TRIGGER_WORD_REGISTRY = new Map<string, TriggerWordMatcher>();
+
+export function registerTriggerWords(kind: string, resolve: TriggerWordMatcher) {
+  TRIGGER_WORD_REGISTRY.set(kind, resolve);
+}
+
+/** Trigger words the given provider+model opts into (empty when none apply). */
+export function getTriggerWords(
+  kind: string | undefined,
+  model: string | undefined,
+): readonly TriggerWordDef[] {
+  if (!kind) return [];
+  const separatorIndex = kind.indexOf(":");
+  const matcher =
+    TRIGGER_WORD_REGISTRY.get(kind) ??
+    (separatorIndex > 0 ? TRIGGER_WORD_REGISTRY.get(kind.slice(0, separatorIndex)) : undefined);
+  return matcher ? matcher(model) : [];
 }
 
 // --- Commit generation defaults registry ---

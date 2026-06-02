@@ -103,13 +103,13 @@ export function SearchExcludeBody(props: SearchExcludeBodyProps) {
 function ExcludeList(props: { rows: Row[]; onRemove: (pattern: string) => void }) {
   if (props.rows.length === 0) {
     return (
-      <div className="rounded border border-white/6 bg-surface/40 px-2.5 py-1 text-xs text-muted">
+      <div className="rounded border border-[var(--hairline)] bg-surface/40 px-2.5 py-1 text-xs text-muted">
         No patterns.
       </div>
     );
   }
   return (
-    <div className="max-h-[280px] divide-y divide-white/6 overflow-y-auto rounded border border-white/6 bg-surface/40">
+    <div className="max-h-[280px] divide-y divide-[var(--hairline)] overflow-y-auto rounded border border-[var(--hairline)] bg-surface/40">
       {props.rows.map((row) => (
         <div key={row.pattern} className="flex h-8 items-center gap-2 px-2.5">
           <code className="flex-1 truncate font-mono text-xs text-foreground">{row.pattern}</code>
@@ -128,7 +128,7 @@ function ExcludeList(props: { rows: Row[]; onRemove: (pattern: string) => void }
               type="button"
               aria-label={`Remove ${row.pattern}`}
               onClick={() => props.onRemove(row.pattern)}
-              className="flex size-5 items-center justify-center rounded text-muted hover:bg-white/8 hover:text-foreground"
+              className="flex size-5 items-center justify-center rounded text-muted hover:bg-[var(--row-hover)] hover:text-foreground"
             >
               <Trash2 className="size-3" />
             </button>

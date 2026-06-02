@@ -92,7 +92,7 @@ export function ProjectSwitchMenu(props: {
         <Dropdown.Trigger
           aria-label="Switch project"
           isDisabled={isDisabled}
-          className="group mx-auto inline-flex max-w-full items-center gap-1.5 rounded border border-transparent px-2 py-0.5 outline-none transition-colors hover:border-border/60 hover:bg-white/[0.03] focus-visible:border-border focus-visible:bg-white/[0.03] disabled:cursor-default disabled:hover:border-transparent disabled:hover:bg-transparent"
+          className="group mx-auto inline-flex max-w-full items-center gap-1.5 rounded border border-transparent px-2 py-0.5 outline-none transition-colors hover:border-border/60 hover:bg-[var(--row-hover)] focus-visible:border-border focus-visible:bg-[var(--row-hover)] disabled:cursor-default disabled:hover:border-transparent disabled:hover:bg-transparent"
         >
           <span className="min-w-0 truncate pb-[0.08em] leading-snug font-medium tracking-normal text-transparent [background-image:linear-gradient(135deg,var(--muted)_0%,color-mix(in_oklab,var(--accent)_30%,var(--muted))_100%)] [background-size:100%_100%] bg-clip-text font-mono">
             {label}
@@ -111,7 +111,7 @@ export function ProjectSwitchMenu(props: {
       <Dropdown.Trigger
         aria-label="Switch project"
         isDisabled={isDisabled}
-        className="group inline-flex min-w-0 max-w-full items-center gap-1 rounded px-1 py-0.5 text-sm leading-tight text-muted/60 outline-none transition-colors hover:bg-white/[0.04] hover:text-foreground focus-visible:bg-white/[0.04] disabled:cursor-default disabled:hover:bg-transparent disabled:hover:text-muted/60"
+        className="group inline-flex min-w-0 max-w-full items-center gap-1 rounded px-1 py-0.5 text-sm leading-tight text-muted/60 outline-none transition-colors hover:bg-[var(--row-hover)] hover:text-foreground focus-visible:bg-[var(--row-hover)] disabled:cursor-default disabled:hover:bg-transparent disabled:hover:text-muted/60"
       >
         {triggerIcon}
         <span className="min-w-0 truncate">{label}</span>

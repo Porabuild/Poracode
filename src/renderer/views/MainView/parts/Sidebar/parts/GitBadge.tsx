@@ -86,7 +86,7 @@ export function GitBadge(props: {
       role="button"
       tabIndex={0}
       aria-label={`Git status for ${props.projectName}`}
-      className={`shrink-0 cursor-grab rounded px-1 py-0.5 transition-colors hover:bg-white/[0.04] hover:text-foreground active:cursor-grabbing ${
+      className={`shrink-0 cursor-grab rounded px-1 py-0.5 transition-colors hover:bg-[var(--row-hover)] hover:text-foreground active:cursor-grabbing ${
         props.isActive ? "bg-accent/15 ring-1 ring-accent/40" : "text-muted/60"
       }`}
       onClick={(e) => {

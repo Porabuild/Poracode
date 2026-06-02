@@ -26,6 +26,7 @@ import type { MentionInputHandle } from "../composer";
 import { flattenSegments } from "../composer/serializeMentions";
 import { PresentationModeTabs } from "./PresentationModeTabs";
 import { capabilitiesForPresentation, filterHiddenModels } from "./threadComposerOptions";
+import { supportsUsableFastMode } from "./threadDraftViewHelpers";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useAppStore } from "@/renderer/state/appStore";
 import type { RuntimeChatItem } from "@/renderer/state/slices/runtimeEventSlice";
@@ -119,7 +120,7 @@ function resolveDefaultConfig(
   const model = resolveModelValue(capabilities, preferred?.model);
   const effort = resolveEffortValue(capabilities, model, preferred?.effort);
   const contextSize = resolveContextSizeValue(capabilities, model, preferred?.contextSize);
-  const fast = capabilities.fastModels?.includes(model) ? preferred?.fast === true : false;
+  const fast = supportsUsableFastMode(capabilities, model) ? preferred?.fast === true : false;
   const thinking = capabilities.thinkingModels?.includes(model)
     ? preferred?.thinking === true
     : false;

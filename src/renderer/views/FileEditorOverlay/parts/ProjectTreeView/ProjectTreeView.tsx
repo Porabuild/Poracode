@@ -129,7 +129,7 @@ export function ProjectTreeView(props: {
                 type="button"
                 aria-label="Clear search"
                 onClick={() => tree.setSearchQuery("")}
-                className="flex size-4 shrink-0 items-center justify-center rounded text-muted hover:bg-white/8 hover:text-foreground"
+                className="flex size-4 shrink-0 items-center justify-center rounded text-muted hover:bg-[var(--row-hover)] hover:text-foreground"
               >
                 <X className="size-3" />
               </button>
@@ -322,11 +322,11 @@ function SearchResultRow(props: { entry: ProjectTreeEntry; onOpen: () => void })
 
   return (
     <button
-      className={`flex w-full items-center gap-1.5 rounded-md px-2 py-0.5 text-left text-sm text-muted transition-colors hover:bg-white/[0.04] hover:text-foreground ${
+      className={`flex w-full items-center gap-1.5 rounded-md px-2 py-0.5 text-left text-sm text-muted transition-colors hover:bg-[var(--row-hover)] hover:text-foreground ${
         isSelected
-          ? "bg-white/[0.08] text-foreground"
+          ? "bg-[var(--row-active)] text-foreground"
           : isOpenInTab
-            ? "bg-white/[0.04] text-foreground"
+            ? "bg-[var(--row-hover)] text-foreground"
             : ""
       }`}
       onClick={props.onOpen}

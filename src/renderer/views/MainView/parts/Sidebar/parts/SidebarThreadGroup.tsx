@@ -116,7 +116,7 @@ export function SidebarThreadGroup(props: {
             <Tooltip delay={300}>
               <button
                 type="button"
-                className="shrink-0 rounded p-0.5 text-muted/40 transition-colors hover:bg-white/[0.06] hover:text-foreground"
+                className="shrink-0 rounded p-0.5 text-muted/40 transition-colors hover:bg-[var(--row-hover)] hover:text-foreground"
                 onClick={() => {
                   useAppStore.getState().openGroupView(entry.group.groupId);
                 }}

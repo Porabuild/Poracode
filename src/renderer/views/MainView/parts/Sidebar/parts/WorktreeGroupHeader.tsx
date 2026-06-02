@@ -69,7 +69,7 @@ export function WorktreeGroupHeader(props: {
             projectId={props.projectId}
             worktreePath={props.worktreePath}
             ariaLabel={`Files for ${props.worktreeBranch}`}
-            className={`shrink-0 cursor-grab rounded p-0.5 transition-colors hover:bg-white/[0.04] hover:text-foreground active:cursor-grabbing ${
+            className={`shrink-0 cursor-grab rounded p-0.5 transition-colors hover:bg-[var(--row-hover)] hover:text-foreground active:cursor-grabbing ${
               props.isActiveFiles
                 ? "text-accent"
                 : "text-muted/60 opacity-0 group-hover:opacity-100"
@@ -83,7 +83,7 @@ export function WorktreeGroupHeader(props: {
             projectId={props.projectId}
             worktreePath={props.worktreePath}
             ariaLabel={`Terminal for ${props.worktreeBranch}`}
-            className={`shrink-0 cursor-grab rounded p-0.5 transition-colors hover:bg-white/[0.04] hover:text-foreground active:cursor-grabbing ${
+            className={`shrink-0 cursor-grab rounded p-0.5 transition-colors hover:bg-[var(--row-hover)] hover:text-foreground active:cursor-grabbing ${
               props.isActiveTerminal
                 ? "text-accent"
                 : props.hasTerminal

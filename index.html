@@ -4,6 +4,42 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Lightcode</title>
+    <script>
+      // Pre-paint theme bootstrap: apply the saved appearance + background before
+      // the first frame so the initial paint matches the active theme instead of
+      // flashing the hardcoded base palette. The renderer re-applies the full
+      // token set on mount (see renderer/theme/applyAppTheme.ts).
+      (function () {
+        try {
+          var root = document.documentElement;
+          var boot = JSON.parse(localStorage.getItem("lightcode-boot") || "null");
+          var appearance =
+            boot && (boot.appearance === "light" || boot.appearance === "dark")
+              ? boot.appearance
+              : null;
+          if (!appearance) {
+            var settings = JSON.parse(localStorage.getItem("lightcode-shared-settings") || "null");
+            var mode = settings && settings.themeMode;
+            var prefersDark =
+              !window.matchMedia || window.matchMedia("(prefers-color-scheme: dark)").matches;
+            appearance =
+              mode === "light"
+                ? "light"
+                : mode === "dark"
+                  ? "dark"
+                  : prefersDark
+                    ? "dark"
+                    : "light";
+          }
+          root.classList.remove("light", "dark");
+          root.classList.add(appearance);
+          root.dataset.theme = appearance;
+          if (boot && boot.bg) root.style.backgroundColor = boot.bg;
+        } catch (e) {
+          // Ignore; the renderer applies real settings shortly after mount.
+        }
+      })();
+    </script>
   </head>
   <body class="bg-background text-foreground">
     <div id="root"></div>

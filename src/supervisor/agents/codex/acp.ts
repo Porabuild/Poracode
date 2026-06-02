@@ -498,7 +498,9 @@ export class CodexStructuredSession implements StructuredSessionHandle {
         ...(config.approvalPolicy ? { approvalPolicy: config.approvalPolicy } : {}),
         ...(sandboxPolicy ? { sandboxPolicy } : {}),
         collaborationMode,
-        ...(config.fast ? { serviceTier: "fast" } : {}),
+        // Fast toggle is authoritative and the server tier is sticky, so force it
+        // every turn: "fast" selects the Fast lane, null clears it to the default.
+        serviceTier: config.fast === true ? "fast" : null,
       });
       this.activeTurnId = extractTurnField(result, "id");
       if (this.pendingTurnInterrupt && this.activeTurnId) {

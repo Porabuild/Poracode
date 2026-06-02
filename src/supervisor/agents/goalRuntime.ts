@@ -18,7 +18,7 @@ export function parseGoalSlashCommand(prompt: string): GoalItemPayload | undefin
 
   const rawArgs = match[1]?.trim() ?? "";
   if (rawArgs.length === 0) return { action: "viewed" };
-  if (/^(clear|reset|off|none)$/iu.test(rawArgs)) return { action: "cleared" };
+  if (/^(clear|stop|off|reset|none|cancel)$/iu.test(rawArgs)) return { action: "cleared" };
   return {
     action: "set",
     objective: rawArgs,

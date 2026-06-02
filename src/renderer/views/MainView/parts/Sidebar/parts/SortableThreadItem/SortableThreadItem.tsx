@@ -15,6 +15,10 @@ import {
 import type { Project, Thread } from "@/shared/contracts";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useGitStore } from "@/renderer/state/gitStore";
+import {
+  isDetectingAgentsForLocation,
+  useAgentStatusesStore,
+} from "@/renderer/state/agentStatusesStore";
 import { useSortable } from "@dnd-kit/react/sortable";
 import { useIsDraggingThread, type DragSourceData } from "@/renderer/dnd";
 import { ContextMenu, SidebarButton } from "@/renderer/components/common";
@@ -79,6 +83,9 @@ export function SortableThreadItem(props: {
   const currentThreadCount = useCurrentThreadIdsCount();
   const projectAgents = useProjectAgentStatuses(project.location);
   const threadAgent = projectAgents.find((agent) => agent.kind === thread.agentKind);
+  const isDetectingAgents = useAgentStatusesStore((s) =>
+    isDetectingAgentsForLocation(s, project.location),
+  );
   const worktreeGitItems = useWorktreeGitItems(
     thread.projectId,
     thread.worktreePath ?? "",
@@ -312,6 +319,7 @@ export function SortableThreadItem(props: {
               {...(threadAgent?.icon ? { icon: threadAgent.icon } : {})}
               fallbackLabel={threadAgent?.label}
               tone={statusTone}
+              pending={isDetectingAgents}
               className="size-3.5 shrink-0"
             />
           }

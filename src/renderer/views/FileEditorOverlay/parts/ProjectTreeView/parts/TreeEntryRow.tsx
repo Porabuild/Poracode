@@ -15,6 +15,8 @@ import { InlineNameInput } from "./InlineNameInput";
 import { InlineDraftRow } from "./InlineDraftRow";
 import type { TreeDraftState } from "./useProjectTree";
 
+const COMPOSER_FILE_DRAG_TYPE = "application/lightcode-composer-file";
+
 export function TreeEntryRow(props: {
   entry: ProjectTreeEntry;
   depth: number;
@@ -93,10 +95,10 @@ export function TreeEntryRow(props: {
           draggable
           className={`group flex items-center gap-1.5 rounded-md px-2 py-0.5 text-sm text-muted transition-colors ${
             isSelected
-              ? "bg-white/[0.08] text-foreground"
+              ? "bg-[var(--row-active)] text-foreground"
               : isOpenInTab
-                ? "bg-white/[0.04] text-foreground hover:bg-white/[0.06]"
-                : "hover:bg-white/[0.04] hover:text-foreground"
+                ? "bg-[var(--row-hover)] text-foreground hover:bg-[var(--row-hover)]"
+                : "hover:bg-[var(--row-hover)] hover:text-foreground"
           } ${isDropTarget ? "ring-1 ring-accent/40" : ""}`}
           style={{ paddingLeft: `${depth * 14 + 8}px` }}
           onClick={() => {
@@ -125,7 +127,13 @@ export function TreeEntryRow(props: {
               "application/lightcode-project-tree",
               JSON.stringify({ path: entry.path, type: entry.type }),
             );
-            event.dataTransfer.effectAllowed = "move";
+            if (!isDirectory) {
+              event.dataTransfer.setData(
+                COMPOSER_FILE_DRAG_TYPE,
+                JSON.stringify({ path: entry.path, type: entry.type }),
+              );
+            }
+            event.dataTransfer.effectAllowed = isDirectory ? "move" : "copyMove";
           }}
           onDragOver={(event) => {
             if (isDirectory) {

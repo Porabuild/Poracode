@@ -77,6 +77,7 @@ vi.mock("@/renderer/state/sharedSettingsStore", () => ({
 
 vi.mock("@/renderer/bridge", () => ({
   isWindows: () => bridge.platform === "win32",
+  isMac: () => bridge.platform === "darwin",
   readBridge: () => bridge,
 }));
 
@@ -131,13 +132,13 @@ function makeProject(input: { id: string; name: string; location: Project["locat
   };
 }
 
-function withProcessPlatform<T>(platform: NodeJS.Platform, run: () => T): T {
-  const descriptor = Object.getOwnPropertyDescriptor(process, "platform");
-  Object.defineProperty(process, "platform", { value: platform });
+function withHostPlatform<T>(platform: NodeJS.Platform, run: () => T): T {
+  const previous = bridge.platform;
+  bridge.platform = platform;
   try {
     return run();
   } finally {
-    if (descriptor) Object.defineProperty(process, "platform", descriptor);
+    bridge.platform = previous;
   }
 }
 
@@ -164,6 +165,15 @@ const registry: AcpRegistryListResult = {
       version: "1.0.0",
       description: "Cursor through ACP",
       distribution: { npx: { package: "cursor-acp" } },
+    },
+    {
+      id: "grok-build",
+      name: "Grok Build",
+      version: "0.2.11",
+      description: "xAI's coding agent and CLI",
+      distribution: {
+        binary: { windows: { archive: "https://example.com/grok.zip", cmd: "grok" } },
+      },
     },
   ],
 };
@@ -237,6 +247,7 @@ describe("AcpRegistrySettings", () => {
 
     await screen.findByRole("heading", { name: "Agent Registry" });
     expect(screen.queryByText("Codex ACP")).not.toBeInTheDocument();
+    expect(screen.queryByText("xAI's coding agent and CLI")).not.toBeInTheDocument();
     expect(screen.getAllByText("GLM Agent").length).toBeGreaterThan(0);
     expect(screen.queryByRole("button", { name: "Show advanced ACP" })).toBeNull();
 
@@ -302,6 +313,40 @@ describe("AcpRegistrySettings", () => {
     ).toContain("https://antigravity.google/cli/install.sh");
   });
 
+  it("offers Grok Build as a native Windows install", async () => {
+    bridge.platform = "win32";
+    const windowsProject = makeProject({
+      id: "windows-project",
+      name: "Windows Project",
+      location: { kind: "windows", path: "C:\\repo" },
+    });
+    appState.projects = [windowsProject];
+
+    render(<AcpRegistrySettings />);
+
+    await screen.findByRole("heading", { name: "Agent Registry" });
+    const grokCard = screen
+      .getByText(/First-class Grok Build CLI integration/u)
+      .closest(".rounded-lg");
+    expect(grokCard).toBeTruthy();
+    expect(within(grokCard as HTMLElement).queryByText(/Windows is not supported/u)).toBeNull();
+
+    fireEvent.click(within(grokCard as HTMLElement).getByRole("button", { name: "Install" }));
+
+    await waitFor(() => {
+      expect(runAgentInstallCommandMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          label: "Grok Build",
+        }),
+      );
+    });
+    const installInput = runAgentInstallCommandMock.mock.calls[0]?.[0] as
+      | { command: (project: Project) => string }
+      | undefined;
+    const command = installInput?.command(windowsProject);
+    expect(command).toContain("irm https://x.ai/cli/install.ps1 | iex");
+  });
+
   it("keeps brew install commands mac-only", () => {
     const wslProject = makeProject({
       id: "wsl-project",
@@ -341,8 +386,11 @@ describe("AcpRegistrySettings", () => {
     expect(entries.get("antigravity")?.installCommand(wslProject)).toContain(
       "curl -fsSL https://antigravity.google/cli/install.sh | bash",
     );
+    expect(entries.get("grok")?.installCommand(wslProject)).toContain(
+      "curl -fsSL https://x.ai/cli/install.sh | bash",
+    );
 
-    withProcessPlatform("darwin", () => {
+    withHostPlatform("darwin", () => {
       expect(entries.get("codex")?.installCommand(macProject)).toContain(
         "brew install --cask codex",
       );
@@ -352,6 +400,18 @@ describe("AcpRegistrySettings", () => {
       expect(entries.get("opencode")?.installCommand(macProject)).toContain(
         "brew install anomalyco/tap/opencode",
       );
+    });
+
+    withHostPlatform("win32", () => {
+      expect(
+        entries.get("grok")?.installCommand(
+          makeProject({
+            id: "windows-project",
+            name: "Windows Project",
+            location: { kind: "windows", path: "C:\\repo" },
+          }),
+        ),
+      ).toContain("irm https://x.ai/cli/install.ps1 | iex");
     });
   });
 

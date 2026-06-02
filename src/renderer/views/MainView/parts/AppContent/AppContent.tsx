@@ -345,13 +345,13 @@ export function AppContent() {
       <div className="flex h-full flex-col">
         {activeGroupId && activeGroupName && (
           <div
-            className={`lightcode-content-over-drag-region ${macosTrafficLightPadClass} flex h-[env(titlebar-area-height,32px)] shrink-0 items-center gap-1 border-b border-white/[0.06] px-2`}
+            className={`lightcode-content-over-drag-region ${macosTrafficLightPadClass} flex h-[env(titlebar-area-height,32px)] shrink-0 items-center gap-1 border-b border-[var(--hairline)] px-2`}
           >
             <span className="truncate text-xs font-medium text-muted">{activeGroupName}</span>
             <button
               type="button"
               aria-label="Close group"
-              className="shrink-0 rounded p-0.5 text-muted/60 transition-colors hover:bg-white/[0.06] hover:text-foreground"
+              className="shrink-0 rounded p-0.5 text-muted/60 transition-colors hover:bg-[var(--row-hover)] hover:text-foreground"
               onClick={() => useAppStore.getState().closeGroupView()}
             >
               <X className="size-3.5" />

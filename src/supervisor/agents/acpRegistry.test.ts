@@ -30,6 +30,7 @@ vi.mock("./acp-generic", async (importOriginal) => {
 import {
   autoUpdateAcpRegistryAgents,
   backfillAcpRegistryAgentIcons,
+  cacheLocalAcpRegistryIcons,
   installAcpRegistryAgent,
   readAcpRegistrySettings,
   resolveRegistryAgentFamilyKind,
@@ -182,6 +183,78 @@ describe("ACP registry family mapping", () => {
       await expect(
         backfillAcpRegistryAgentIcons({ registry, settingsPath, iconsDir }),
       ).resolves.toBe(false);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("localizes remote acp-generic icons at launch without a registry fetch", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "lightcode-acp-registry-"));
+    const settingsPath = join(dir, "settings.json");
+    const iconsDir = join(dir, "acp-icons");
+    const remoteIcon = "https://cdn.agentclientprotocol.com/registry/v1/latest/glm-acp-agent.svg";
+    writeFileSync(
+      settingsPath,
+      JSON.stringify({
+        acpRegistryInstalledAgents: {
+          "glm-acp-agent": {
+            id: "glm-acp-agent",
+            name: "GLM Agent",
+            version: "1.1.3",
+            icon: remoteIcon,
+            installedAt: new Date(0).toISOString(),
+            adapterKind: "acp-generic:glm-acp-agent",
+            installKind: "generic",
+          },
+        },
+        agentInstances: {
+          "glm-acp-agent": {
+            id: "glm-acp-agent",
+            driver: "acp-generic",
+            displayName: "GLM Agent",
+            icon: remoteIcon,
+            enabled: true,
+            config: {
+              binary: "npx",
+              args: ["-y", "glm-acp-agent@1.1.3"],
+              authMode: "none",
+            },
+          },
+        },
+      }),
+      "utf8",
+    );
+
+    const fetchMock = vi.fn<(url: string) => Promise<Response>>(async (url: string) => {
+      if (url.endsWith(".svg")) {
+        return new Response("<svg/>", {
+          status: 200,
+          headers: { "content-type": "image/svg+xml" },
+        });
+      }
+      throw new Error(`unexpected fetch ${url}`);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    try {
+      await expect(cacheLocalAcpRegistryIcons({ settingsPath, iconsDir })).resolves.toBe(true);
+      const settings = JSON.parse(readFileSync(settingsPath, "utf8")) as {
+        acpRegistryInstalledAgents: Record<string, { icon?: string }>;
+        agentInstances: Record<string, { icon?: string }>;
+      };
+      const installedIcon = settings.acpRegistryInstalledAgents["glm-acp-agent"]?.icon;
+      const instanceIcon = settings.agentInstances["glm-acp-agent"]?.icon;
+      expect(installedIcon).toMatch(/^lightcode-local:\/\//);
+      expect(installedIcon).toContain("glm-acp-agent.svg");
+      expect(instanceIcon).toBe(installedIcon);
+      // Only the icon SVG is fetched — never the registry JSON.
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      expect(fetchMock.mock.calls[0]?.[0]).toBe(remoteIcon);
+
+      // Second launch: every icon is already local, so it's a no-op with no
+      // further network access.
+      fetchMock.mockClear();
+      await expect(cacheLocalAcpRegistryIcons({ settingsPath, iconsDir })).resolves.toBe(false);
+      expect(fetchMock).not.toHaveBeenCalled();
     } finally {
       vi.unstubAllGlobals();
     }

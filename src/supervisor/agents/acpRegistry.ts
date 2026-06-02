@@ -32,7 +32,7 @@ import {
   probeAcpGenericInstance,
   REGISTRY_INSTALL_PROBE_TIMEOUT_MS,
 } from "./acp-generic";
-import { cacheAcpRegistryIcon } from "./acpRegistryIcons";
+import { cacheAcpRegistryIcon, isRemoteIconUrl } from "./acpRegistryIcons";
 import {
   buildNpxPrefetchArgs,
   clearNpxExecutionCache,
@@ -67,38 +67,38 @@ export async function fetchAcpRegistry(): Promise<AcpRegistryListResult> {
   return acpRegistryListResultSchema.parse(await response.json());
 }
 
-export async function backfillAcpRegistryAgentIcons(input: {
-  registry: AcpRegistryListResult;
-  settingsPath: string;
-  iconsDir: string;
-}): Promise<boolean> {
-  const settings = readAcpRegistrySettings(input.settingsPath);
-  const agentsById = new Map(input.registry.agents.map((agent) => [agent.id, agent]));
-
-  // Resolve the cached URL for every agent that has an icon in the registry,
-  // up front and in parallel. Without this, N installed agents become N
-  // serial CDN fetches; with it, total wall-clock is one round-trip.
-  const iconsToResolve: { agentId: string; iconUrl: string }[] = [];
-  for (const id of Object.keys(settings.acpRegistryInstalledAgents)) {
-    const url = agentsById.get(id)?.icon;
-    if (url) iconsToResolve.push({ agentId: id, iconUrl: url });
-  }
-  for (const [id, instance] of Object.entries(settings.agentInstances)) {
-    if (instance.driver !== "acp-generic") continue;
-    if (iconsToResolve.some((entry) => entry.agentId === id)) continue;
-    const url = agentsById.get(id)?.icon;
-    if (url) iconsToResolve.push({ agentId: id, iconUrl: url });
-  }
+/**
+ * Cache every (agentId, iconUrl) pair in parallel and return the resolved
+ * `lightcode-local://` (or unchanged, on download failure) URL per agent.
+ * Without the parallelism N installed agents become N serial CDN fetches;
+ * with it total wall-clock is one round-trip.
+ */
+async function resolveAcpIcons(
+  iconsToResolve: { agentId: string; iconUrl: string }[],
+  iconsDir: string,
+): Promise<Map<string, string>> {
   const resolvedIconByAgentId = new Map<string, string>();
   await Promise.all(
     iconsToResolve.map(async ({ agentId, iconUrl }) => {
       resolvedIconByAgentId.set(
         agentId,
-        await cacheAcpRegistryIcon({ iconUrl, agentId, iconsDir: input.iconsDir }),
+        await cacheAcpRegistryIcon({ iconUrl, agentId, iconsDir }),
       );
     }),
   );
+  return resolvedIconByAgentId;
+}
 
+/**
+ * Write resolved icon URLs back onto both the installed-agent records and the
+ * acp-generic instances, keyed by agent id. Returns whether anything changed
+ * so callers can skip an invalidate/refresh when every icon already matched.
+ */
+function applyResolvedAcpIcons(
+  settingsPath: string,
+  settings: SharedSettings,
+  resolvedIconByAgentId: Map<string, string>,
+): boolean {
   let changed = false;
 
   const installedAgents = { ...settings.acpRegistryInstalledAgents };
@@ -119,12 +119,77 @@ export async function backfillAcpRegistryAgentIcons(input: {
   }
 
   if (!changed) return false;
-  writeAcpRegistrySettings(input.settingsPath, {
+  writeAcpRegistrySettings(settingsPath, {
     ...settings,
     acpRegistryInstalledAgents: installedAgents,
     agentInstances: instances,
   });
   return true;
+}
+
+/**
+ * Collect the acp-generic agents whose icon needs (re)caching, deduped by id
+ * across both the installed-agent records and the agent instances. `pickIconUrl`
+ * chooses the source URL per agent — the registry icon for a backfill, or the
+ * already-stored URL for a launch-time localize — and returns undefined to skip.
+ */
+function collectAcpIconsToResolve(
+  settings: SharedSettings,
+  pickIconUrl: (agentId: string, storedIcon: string | undefined) => string | undefined,
+): { agentId: string; iconUrl: string }[] {
+  const iconsToResolve: { agentId: string; iconUrl: string }[] = [];
+  const seen = new Set<string>();
+  const consider = (agentId: string, storedIcon: string | undefined) => {
+    if (seen.has(agentId)) return;
+    const iconUrl = pickIconUrl(agentId, storedIcon);
+    if (!iconUrl) return;
+    seen.add(agentId);
+    iconsToResolve.push({ agentId, iconUrl });
+  };
+  for (const [id, record] of Object.entries(settings.acpRegistryInstalledAgents)) {
+    consider(id, record.icon);
+  }
+  for (const [id, instance] of Object.entries(settings.agentInstances)) {
+    if (instance.driver !== "acp-generic") continue;
+    consider(id, instance.icon);
+  }
+  return iconsToResolve;
+}
+
+export async function backfillAcpRegistryAgentIcons(input: {
+  registry: AcpRegistryListResult;
+  settingsPath: string;
+  iconsDir: string;
+}): Promise<boolean> {
+  const settings = readAcpRegistrySettings(input.settingsPath);
+  const agentsById = new Map(input.registry.agents.map((agent) => [agent.id, agent]));
+  const iconsToResolve = collectAcpIconsToResolve(settings, (id) => agentsById.get(id)?.icon);
+  const resolved = await resolveAcpIcons(iconsToResolve, input.iconsDir);
+  return applyResolvedAcpIcons(input.settingsPath, settings, resolved);
+}
+
+/**
+ * Launch-time icon repair: convert any installed acp-generic icon still
+ * pointing at a remote CDN URL to a locally-cached `lightcode-local://` URL,
+ * using the URL already stored in settings — no registry fetch. An install
+ * that ran offline (or predates icon caching) otherwise re-fetches the icon
+ * over the network on every start, which flickers the sidebar rows until the
+ * round-trip completes. Once every icon is local this is a no-op with zero
+ * network. Offline downloads fail soft (the URL is left unchanged), so it
+ * simply retries on the next launch.
+ */
+export async function cacheLocalAcpRegistryIcons(input: {
+  settingsPath: string;
+  iconsDir: string;
+}): Promise<boolean> {
+  const settings = readAcpRegistrySettings(input.settingsPath);
+  const iconsToResolve = collectAcpIconsToResolve(settings, (_id, storedIcon) =>
+    storedIcon && isRemoteIconUrl(storedIcon) ? storedIcon : undefined,
+  );
+  if (iconsToResolve.length === 0) return false;
+
+  const resolved = await resolveAcpIcons(iconsToResolve, input.iconsDir);
+  return applyResolvedAcpIcons(input.settingsPath, settings, resolved);
 }
 
 export function readAcpRegistrySettings(settingsPath: string): SharedSettings {

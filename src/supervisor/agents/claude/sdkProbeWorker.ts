@@ -1,27 +1,16 @@
 /**
  * Runs inside WSL (login-shell `node` invocation) to execute the Claude Agent SDK
  * with a Linux `claude` path. Prints one JSON object on stdout:
- * `{ "slashCommands": AgentSlashCommand[] }`.
+ * `{ "slashCommands": AgentSlashCommand[], "fastAvailable"?: boolean }`.
+ *
+ * Args: <claudePath> <timeoutMs> [<fastModeCachePath>]. When the cache path is
+ * given (a `/mnt/c/...` mount of the host cache), fast-mode availability is
+ * probed once per account and shared with the native path.
  */
 import { query } from "@anthropic-ai/claude-agent-sdk";
-import type { SDKUserMessage, SlashCommand } from "@anthropic-ai/claude-agent-sdk";
-
-function abortEndedUserStream(signal: AbortSignal): AsyncIterable<SDKUserMessage> {
-  return {
-    [Symbol.asyncIterator]: (): AsyncIterator<SDKUserMessage> => ({
-      next: () =>
-        new Promise<IteratorResult<SDKUserMessage>>((resolve) => {
-          if (signal.aborted) {
-            resolve({ done: true, value: undefined });
-            return;
-          }
-          signal.addEventListener("abort", () => resolve({ done: true, value: undefined }), {
-            once: true,
-          });
-        }),
-    }),
-  };
-}
+import type { SlashCommand } from "@anthropic-ai/claude-agent-sdk";
+import { AsyncPromptQueue } from "./promptQueue";
+import { resolveFastAvailability } from "./fastModeProbe";
 
 function mapCommands(commands: SlashCommand[]) {
   return commands.map((c) => ({
@@ -35,6 +24,7 @@ function mapCommands(commands: SlashCommand[]) {
 async function main() {
   const claudePath = process.argv[2];
   const timeoutMs = Math.min(Math.max(Number(process.argv[3]) || 12_000, 3000), 60_000);
+  const cachePath = process.argv[4]?.trim() || undefined;
 
   if (!claudePath?.trim()) {
     console.error(JSON.stringify({ error: "missing_claude_path" }));
@@ -44,10 +34,11 @@ async function main() {
 
   const abort = new AbortController();
   const timer = setTimeout(() => abort.abort(), timeoutMs);
+  const queue = new AsyncPromptQueue();
 
   try {
     const q = query({
-      prompt: abortEndedUserStream(abort.signal),
+      prompt: queue,
       options: {
         abortController: abort,
         pathToClaudeCodeExecutable: claudePath,
@@ -60,9 +51,18 @@ async function main() {
     });
 
     const init = await q.initializationResult();
-    const payload = { slashCommands: mapCommands(init.commands) };
+    const slashCommands = mapCommands(init.commands);
+    const fastAvailable = cachePath
+      ? await resolveFastAvailability(q, queue, init.account?.email, cachePath)
+      : undefined;
+
+    const payload = {
+      slashCommands,
+      ...(fastAvailable !== undefined ? { fastAvailable } : {}),
+    };
     console.log(JSON.stringify(payload));
     try {
+      queue.close();
       q.close();
     } catch {
       // ignore

@@ -1,7 +1,8 @@
 import { watch } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
-import { app, BrowserWindow, Menu } from "electron";
+import { app, BrowserWindow, Menu, nativeTheme } from "electron";
+import { resolveThemeMode } from "@/shared/themeMode";
 import { closeDatabase, dbGetThreads, initDatabase } from "./db";
 import { cleanupOrphanedAttachments, prepareLightcodeDataRoot } from "./lightcodeData";
 import { createLocalIpcHandlers } from "./ipc/localHandlers";
@@ -70,6 +71,22 @@ function isCloseToTrayEnabled(): boolean {
   } catch {
     return false;
   }
+}
+
+/**
+ * Resolves the saved appearance so the native window opens with a matching
+ * background instead of flashing a fixed color before the renderer paints.
+ */
+function resolveAppAppearance(): "light" | "dark" {
+  let mode: "system" | "light" | "dark" = "dark";
+  if (lightcodePaths) {
+    try {
+      mode = readSharedSettingsFile(lightcodePaths.settingsPath).themeMode;
+    } catch {
+      // Fall back to dark.
+    }
+  }
+  return resolveThemeMode(mode, nativeTheme.shouldUseDarkColors);
 }
 
 function primeBrowserAllowFlags(): void {
@@ -255,6 +272,7 @@ if (!hasSingleInstanceLock) {
       posthogKey,
       sentryEnabled,
       windowChromeHeight: WINDOW_CHROME_HEIGHT,
+      appearance: resolveAppAppearance(),
       ...(process.env.VITE_DEV_SERVER_URL ? { devServerUrl: process.env.VITE_DEV_SERVER_URL } : {}),
       onClosed: () => {
         mainWindow = null;
@@ -342,6 +360,7 @@ if (!hasSingleInstanceLock) {
           posthogKey,
           sentryEnabled,
           windowChromeHeight: WINDOW_CHROME_HEIGHT,
+          appearance: resolveAppAppearance(),
           ...(process.env.VITE_DEV_SERVER_URL
             ? { devServerUrl: process.env.VITE_DEV_SERVER_URL }
             : {}),

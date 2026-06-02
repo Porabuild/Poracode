@@ -193,8 +193,19 @@ const runAgentLoginCommandMock = vi.hoisted(() =>
     }) => boolean
   >(),
 );
+const runAgentInstallCommandMock = vi.hoisted(() =>
+  vi.fn<
+    (input: {
+      label: string;
+      command: (project: Project) => string;
+      onCommandComplete?: (exitCode: number) => void;
+      project?: Project;
+    }) => boolean
+  >(),
+);
 
 vi.mock("@/renderer/actions/agentLoginActions", () => ({
+  runAgentInstallCommand: runAgentInstallCommandMock,
   runAgentLoginCommand: runAgentLoginCommandMock,
 }));
 
@@ -307,6 +318,7 @@ describe("SingleAgentSettings", () => {
     updateAgentBinaryMock.mockReset().mockResolvedValue({ ok: true });
     toastMock.danger.mockReset();
     toastMock.success.mockReset();
+    runAgentInstallCommandMock.mockReset().mockReturnValue(true);
     runAgentLoginCommandMock.mockReset().mockReturnValue(true);
   });
 
@@ -684,6 +696,106 @@ describe("SingleAgentSettings", () => {
       onCommandComplete: expect.any(Function),
     });
     expect(authenticateAcpAgentMock).not.toHaveBeenCalled();
+  });
+
+  it("shows a native Windows install row when Grok is only installed in WSL", async () => {
+    const windowsProject = makeProject({
+      id: "windows-project",
+      name: "Windows Project",
+      location: { kind: "windows", path: "C:\\project" },
+    });
+    appState.projects = [
+      windowsProject,
+      makeProject({
+        id: "wsl-project",
+        name: "WSL Project",
+        location: {
+          kind: "wsl",
+          distro: "Ubuntu",
+          linuxPath: "/home/demo/project",
+          uncPath: "\\\\wsl.localhost\\Ubuntu\\home\\demo\\project",
+        },
+      }),
+    ];
+    statusesState.agentStatuses = [
+      makeStatus("grok", {
+        label: "Grok Build",
+        installed: false,
+        authState: "missing",
+        envKind: "windows",
+      }),
+    ];
+    statusesState.wslAgentStatuses = [
+      makeStatus("grok", {
+        label: "Grok Build",
+        version: "0.2.11",
+        envKind: "wsl",
+        envDistro: "Ubuntu",
+      }),
+    ];
+
+    render(<SingleAgentSettings agentKind="grok" />);
+
+    const windowsRow = envRow("Windows");
+    expect(within(windowsRow).getByText("Not installed")).toBeInTheDocument();
+    fireEvent.click(within(windowsRow).getByRole("button", { name: "Install Windows" }));
+
+    expect(runAgentInstallCommandMock).toHaveBeenCalledWith({
+      label: "Grok Build",
+      command: expect.any(Function),
+      onCommandComplete: expect.any(Function),
+      project: windowsProject,
+    });
+  });
+
+  it("shows a WSL install row when Grok is only installed on Windows", async () => {
+    const wslProject = makeProject({
+      id: "wsl-project",
+      name: "WSL Project",
+      location: {
+        kind: "wsl",
+        distro: "Ubuntu",
+        linuxPath: "/home/demo/project",
+        uncPath: "\\\\wsl.localhost\\Ubuntu\\home\\demo\\project",
+      },
+    });
+    appState.projects = [
+      makeProject({
+        id: "windows-project",
+        name: "Windows Project",
+        location: { kind: "windows", path: "C:\\project" },
+      }),
+      wslProject,
+    ];
+    statusesState.agentStatuses = [
+      makeStatus("grok", {
+        label: "Grok Build",
+        version: "0.2.14",
+        envKind: "windows",
+      }),
+    ];
+    statusesState.wslAgentStatuses = [
+      makeStatus("grok", {
+        label: "Grok Build",
+        installed: false,
+        authState: "missing",
+        envKind: "wsl",
+        envDistro: "Ubuntu",
+      }),
+    ];
+
+    render(<SingleAgentSettings agentKind="grok" />);
+
+    const wslRow = envRow("WSL (Ubuntu)");
+    expect(within(wslRow).getByText("Not installed")).toBeInTheDocument();
+    fireEvent.click(within(wslRow).getByRole("button", { name: "Install WSL (Ubuntu)" }));
+
+    expect(runAgentInstallCommandMock).toHaveBeenCalledWith({
+      label: "Grok Build",
+      command: expect.any(Function),
+      onCommandComplete: expect.any(Function),
+      project: wslProject,
+    });
   });
 
   it("keeps ACP auth preferred for non-Grok agents that also expose loginCommand", async () => {

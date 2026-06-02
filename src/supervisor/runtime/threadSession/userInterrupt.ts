@@ -9,6 +9,24 @@ import type { SessionRuntime } from "../sessionTypes";
 export const USER_INTERRUPT_RECOVERY_GRACE_MS = 1200;
 
 /**
+ * Force-stop window for a structured (GUI) turn after the user requests a stop.
+ *
+ * A structured thread only leaves `working` once the agent emits a status
+ * update acknowledging the cancel. If the session is stale or disconnected
+ * (process alive but unresponsive, or the connection dropped without an exit
+ * event) that update never arrives and the thread spins on "working" forever.
+ *
+ * When a stop is requested we arm a watchdog and reset it on any inbound sign
+ * of life (status update or runtime event). If the agent goes fully silent for
+ * this long with the interrupt still pending, we treat the session as stale,
+ * dispose it, and force the thread into a stopped `error` state.
+ *
+ * Healthy agents (Claude SDK / ACP) acknowledge interrupts in well under a
+ * second, so 10s is a safe margin that still recovers a stuck thread quickly.
+ */
+export const STRUCTURED_INTERRUPT_STALE_KILL_MS = 10_000;
+
+/**
  * True iff the user keystroke payload represents an interrupt intent the
  * user expects to unblock the agent. Matches:
  *   - `\x03`   (Ctrl+C)     — always an interrupt

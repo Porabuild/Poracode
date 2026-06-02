@@ -6,6 +6,7 @@ import type { AgentStatus } from "@/shared/contracts";
 import { resolveLightcodePaths } from "@/shared/lightcodePaths";
 import type { AgentAdapter } from "../agents/base";
 import { detectWslAgentStatuses, SupervisorRuntime } from "../runtime";
+import { STATUS_CACHE_VERSION } from "./agentStatusService";
 
 const tempDirs: string[] = [];
 const runtimesToDispose: SupervisorRuntime[] = [];
@@ -48,7 +49,7 @@ describe("agent status cache", () => {
     writeFileSync(
       statusCachePath,
       JSON.stringify({
-        version: 2,
+        version: STATUS_CACHE_VERSION,
         windows: [
           {
             kind: "claude",
@@ -177,7 +178,7 @@ describe("agent status cache", () => {
     writeFileSync(
       statusCachePath,
       JSON.stringify({
-        version: 2,
+        version: STATUS_CACHE_VERSION,
         windows: [
           {
             kind: "codex",

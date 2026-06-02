@@ -46,7 +46,7 @@ export function HomeView() {
                   <div className="flex flex-col gap-1">
                     {homeScopeEnabled && homeProject ? (
                       <button
-                        className="group flex items-center gap-3 rounded-2xl px-3 py-2 text-left transition-colors hover:bg-white/[0.04]"
+                        className="group flex items-center gap-3 rounded-2xl px-3 py-2 text-left transition-colors hover:bg-[var(--row-hover)]"
                         onClick={() => openDraft(homeProject.id)}
                         type="button"
                       >
@@ -60,7 +60,7 @@ export function HomeView() {
                     {projects.map((project) => (
                       <button
                         key={project.id}
-                        className="group flex items-center gap-3 rounded-2xl px-3 py-2 text-left transition-colors hover:bg-white/[0.04]"
+                        className="group flex items-center gap-3 rounded-2xl px-3 py-2 text-left transition-colors hover:bg-[var(--row-hover)]"
                         onClick={() => openDraft(project.id)}
                         type="button"
                       >
@@ -94,7 +94,7 @@ export function HomeView() {
                       return (
                         <button
                           key={thread.id}
-                          className="group flex items-center gap-3 rounded-2xl px-3 py-2 text-left transition-colors hover:bg-white/[0.04]"
+                          className="group flex items-center gap-3 rounded-2xl px-3 py-2 text-left transition-colors hover:bg-[var(--row-hover)]"
                           onClick={() => openThread(thread.id)}
                           type="button"
                         >

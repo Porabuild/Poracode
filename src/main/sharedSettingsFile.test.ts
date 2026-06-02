@@ -28,6 +28,7 @@ describe("sharedSettingsFile", () => {
     const settingsPath = join(makeTempDir(), "settings.json");
     writeSharedSettingsFile(settingsPath, {
       themeMode: "dark",
+      themePreset: "default",
       terminalPosition: "right",
       commitGenProvider: "auto",
       commitGenModel: "",
@@ -101,6 +102,7 @@ describe("sharedSettingsFile", () => {
 
     expect(readSharedSettingsFile(settingsPath)).toEqual({
       themeMode: "dark",
+      themePreset: "default",
       terminalPosition: "right",
       commitGenProvider: "auto",
       commitGenModel: "",

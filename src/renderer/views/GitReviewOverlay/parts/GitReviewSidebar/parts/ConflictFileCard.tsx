@@ -16,6 +16,7 @@ import {
 import { useGitReviewRowPadX } from "../gitReviewPadXContext";
 
 const LARGE_DIFF_THRESHOLD = 500;
+const COMPOSER_FILE_DRAG_TYPE = "application/lightcode-composer-file";
 
 export function ConflictFileCard(props: {
   file: GitFileChange;
@@ -122,8 +123,16 @@ export function ConflictFileCard(props: {
       <div
         role="button"
         tabIndex={0}
+        draggable
         className={`sticky top-0 z-10 group flex cursor-pointer select-none items-center gap-1.5 bg-[var(--content-background)] py-1 text-xs transition-colors hover:bg-content2 ${rowPadX}`}
         onClick={() => setExpanded((v) => !v)}
+        onDragStart={(event) => {
+          event.dataTransfer.setData(
+            COMPOSER_FILE_DRAG_TYPE,
+            JSON.stringify({ path: file.path, type: "file" }),
+          );
+          event.dataTransfer.effectAllowed = "copy";
+        }}
         onKeyDown={(e) => handleKeyActivate(e, () => setExpanded((v) => !v))}
       >
         {expanded ? (
@@ -147,7 +156,7 @@ export function ConflictFileCard(props: {
             <div
               role="button"
               tabIndex={0}
-              className="rounded p-0.5 text-muted transition-colors hover:bg-white/[0.04] hover:text-foreground"
+              className="rounded p-0.5 text-muted transition-colors hover:bg-[var(--row-hover)] hover:text-foreground"
               title="Stage"
               onClick={handleStageConflict}
               onKeyDown={(e) =>
@@ -159,7 +168,7 @@ export function ConflictFileCard(props: {
             <div
               role="button"
               tabIndex={0}
-              className="rounded p-0.5 text-muted transition-colors hover:bg-white/[0.04] hover:text-foreground"
+              className="rounded p-0.5 text-muted transition-colors hover:bg-[var(--row-hover)] hover:text-foreground"
               title="Open in editor"
               onClick={handleOpenInEditor}
               onKeyDown={(e) =>

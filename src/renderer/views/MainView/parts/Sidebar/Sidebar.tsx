@@ -98,7 +98,7 @@ function UpdateButtons(props: { iconOnly?: boolean }) {
               {Math.round(downloadPercent)}%{speedLine ? ` · ${speedLine}` : ""}
             </span>
           </div>
-          <div className="h-1 w-full rounded-full bg-white/10">
+          <div className="h-1 w-full rounded-full bg-[var(--row-active)]">
             <div
               className="h-1 rounded-full bg-accent transition-[width] duration-300"
               style={{ width: `${Math.round(downloadPercent)}%` }}
@@ -128,7 +128,7 @@ function HomeTerminalButton(props: { projectId: string; projectName: string }) {
       panel="terminal"
       projectId={props.projectId}
       ariaLabel={`Terminal for ${props.projectName}`}
-      className={`shrink-0 cursor-grab rounded p-0.5 transition-colors hover:bg-white/[0.04] hover:text-foreground active:cursor-grabbing ${
+      className={`shrink-0 cursor-grab rounded p-0.5 transition-colors hover:bg-[var(--row-hover)] hover:text-foreground active:cursor-grabbing ${
         isActiveTerminal
           ? "text-accent"
           : hasTerminal
@@ -276,7 +276,7 @@ export function Sidebar() {
           </div>
           <CollapsedThreadRail />
 
-          <div className="flex flex-col gap-1 border-t border-white/6 pt-2 pb-2 pr-2">
+          <div className="flex flex-col gap-1 border-t border-[var(--hairline)] pt-2 pb-2 pr-2">
             <UpdateButtons iconOnly />
             <SidebarButton
               iconOnly

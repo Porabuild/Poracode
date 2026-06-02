@@ -349,6 +349,24 @@ describe("CodexStructuredSession", () => {
     });
   });
 
+  it("forces serviceTier each turn: null when Fast is off (incl. the first turn), 'fast' when on", async () => {
+    const requests: Array<{ method: string; params: Record<string, unknown> }> = [];
+    const structuredSession = makeStructuredSession(requests);
+
+    // Off on the first turn → force null rather than preserving a config.toml tier.
+    await structuredSession.startTurn("normal", { model: "gpt-5.4", fast: false });
+    expect(requests[0]?.method).toBe("turn/start");
+    expect(requests[0]?.params.serviceTier).toBeNull();
+
+    // On → force "fast".
+    await structuredSession.startTurn("go fast", { model: "gpt-5.4", fast: true });
+    expect(requests[1]?.params.serviceTier).toBe("fast");
+
+    // Back off → force null again to clear the sticky server-side override.
+    await structuredSession.startTurn("back to normal", { model: "gpt-5.4", fast: false });
+    expect(requests[2]?.params.serviceTier).toBeNull();
+  });
+
   it("dispatches /goal <objective> to thread/goal/set without starting a model turn", async () => {
     const requests: Array<{ method: string; params: Record<string, unknown> }> = [];
     const structuredSession = makeStructuredSession(requests);

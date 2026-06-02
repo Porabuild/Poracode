@@ -164,6 +164,7 @@ export const grokDetectionSpec: DetectionSpec = {
   capabilities: grokDefaultCapabilities,
   update: {
     builtIn: { binary: "grok", args: ["update"] },
+    npm: "@xai-official/grok",
     latestVersionUrls: [
       "https://x.ai/cli/stable",
       "https://storage.googleapis.com/grok-build-public-artifacts/cli/stable",

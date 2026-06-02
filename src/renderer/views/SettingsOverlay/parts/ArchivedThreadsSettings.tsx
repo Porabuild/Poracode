@@ -16,7 +16,7 @@ export function ArchivedThreadsSettings() {
       {archivedThreads.length === 0 ? (
         <p className="text-sm text-muted">No archived threads.</p>
       ) : (
-        <Surface variant="secondary" className="divide-y divide-white/6 rounded-xl">
+        <Surface variant="secondary" className="divide-y divide-[var(--hairline)] rounded-xl">
           {archivedThreads.map((thread) => {
             const project = projects.find((p) => p.id === thread.projectId);
             return (

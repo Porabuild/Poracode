@@ -3,7 +3,7 @@ import { useGitReviewSectionPadX } from "../gitReviewPadXContext";
 
 /**
  * Bordered, padded block at the bottom of the git review sidebar (commit, conflict actions,
- * PR, merge-to-source, etc.). Consolidates `border-t border-white/6 py-2 ${sectionPadX}` so
+ * PR, merge-to-source, etc.). Consolidates `border-t border-[var(--hairline)] py-2 ${sectionPadX}` so
  * spacing tweaks happen in one place.
  */
 export function GitReviewSection(props: {
@@ -14,6 +14,8 @@ export function GitReviewSection(props: {
   const sectionPadX = useGitReviewSectionPadX();
   const gap = props.gap === 1 ? "space-y-1" : "space-y-2";
   return (
-    <div className={`border-t border-white/6 py-2 ${gap} ${sectionPadX}`}>{props.children}</div>
+    <div className={`border-t border-[var(--hairline)] py-2 ${gap} ${sectionPadX}`}>
+      {props.children}
+    </div>
   );
 }

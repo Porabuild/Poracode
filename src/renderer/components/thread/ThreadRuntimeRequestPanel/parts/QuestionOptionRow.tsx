@@ -1,4 +1,5 @@
 import { Tooltip } from "@heroui/react";
+import { Check } from "lucide-react";
 import type { UserInputOption } from "@/shared/contracts";
 
 export function QuestionOptionRow(props: {
@@ -32,8 +33,14 @@ export function QuestionOptionRow(props: {
       }`}
     >
       {isMultiSelect ? (
-        <span className="mt-0.5 flex size-3 shrink-0 items-center justify-center rounded border border-foreground/30 text-[9px] text-foreground [font-variant-numeric:tabular-nums]">
-          {checked ? "x" : ""}
+        <span
+          className={`mt-0.5 flex size-3.5 shrink-0 items-center justify-center rounded-[3px] border transition-colors ${
+            checked
+              ? "border-accent bg-accent text-accent-foreground"
+              : "border-foreground/30 text-transparent"
+          }`}
+        >
+          <Check className="size-2.5" strokeWidth={3} aria-hidden />
         </span>
       ) : (
         <span className="mt-px w-4 shrink-0 text-[11px] font-medium text-[color:var(--muted)] [font-variant-numeric:tabular-nums]">

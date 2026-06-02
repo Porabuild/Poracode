@@ -23,6 +23,7 @@ import type {
   ThreadConfig,
   ThreadServerRequestId,
   ThreadStatus,
+  TurnState,
 } from "@/shared/contracts";
 import { areAgentSlashCommandsEqual } from "@/shared/contracts";
 import { buildClaudeBrowserMcpServers } from "./mcpBrowser";
@@ -44,6 +45,7 @@ import {
   type ThreadHistory,
 } from "../base";
 import { captureSupervisorException } from "../../diagnostics/sentry";
+import { readNonNegativeInteger } from "../contextUsage";
 import { resolveAgentBinaryPath } from "../binaryResolver";
 import { chosenOptionIds } from "../questionAnswers";
 import { applyClaudeContextSuffix } from "./argv";
@@ -53,6 +55,7 @@ import {
   buildClaudeQuestionAnswerEvents,
   closeClaudeOpenItems,
   createClaudeMapperState,
+  emitActiveGoalTokenUpdate,
   extractResultErrorMessage,
   isApiErrorResult,
   mapClaudePermissionRequest,
@@ -66,6 +69,7 @@ import {
   type ClaudeQuestion,
 } from "./sdkCanonicalMapping";
 import { mapClaudeSlashCommands } from "./probe";
+import { AsyncPromptQueue } from "./promptQueue";
 
 const CLAUDE_EXIT_PLAN_MODE_TOOL_NAMES: ReadonlySet<string> = new Set([
   "ExitPlanMode",
@@ -92,43 +96,6 @@ type PendingRequest = PendingPermission | PendingQuestion;
 type CompletedClaudeTurn = {
   resumeSessionAt: string | undefined;
 };
-
-class AsyncPromptQueue implements AsyncIterable<SDKUserMessage> {
-  private items: SDKUserMessage[] = [];
-  private waiters: Array<(result: IteratorResult<SDKUserMessage>) => void> = [];
-  private closed = false;
-
-  push(message: SDKUserMessage): void {
-    if (this.closed) return;
-    const waiter = this.waiters.shift();
-    if (waiter) {
-      waiter({ done: false, value: message });
-      return;
-    }
-    this.items.push(message);
-  }
-
-  close(): void {
-    if (this.closed) return;
-    this.closed = true;
-    for (const waiter of this.waiters.splice(0)) {
-      waiter({ done: true, value: undefined });
-    }
-  }
-
-  [Symbol.asyncIterator](): AsyncIterator<SDKUserMessage> {
-    return {
-      next: () => {
-        const value = this.items.shift();
-        if (value) return Promise.resolve({ done: false, value });
-        if (this.closed) return Promise.resolve({ done: true, value: undefined });
-        return new Promise<IteratorResult<SDKUserMessage>>((resolve) => {
-          this.waiters.push(resolve);
-        });
-      },
-    };
-  }
-}
 
 function projectCwd(location: ProjectLocation): string {
   switch (location.kind) {
@@ -428,6 +395,7 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
   private appliedModel: string | undefined;
   private appliedPermissionMode: PermissionMode | undefined;
   private appliedUltracode = false;
+  private appliedFast = false;
   private currentStatus: ThreadStatus = "idle";
   private currentAttention: ThreadAttention = "none";
   private currentSlashCommands: AgentSlashCommand[] | undefined;
@@ -448,6 +416,7 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
   // in the errors array — otherwise the supervisor's drain-on-idle hook would
   // miss the steer and the staged prompt would never flush.
   private interruptInFlight = false;
+  private goalTrackingTimer: ReturnType<typeof setInterval> | undefined;
 
   private constructor(input: CreateStructuredSessionInput) {
     this.input = input;
@@ -556,6 +525,7 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
       startClaudeTurn(this.mapperState, turnId, prompt, segments, options?.userMessageItemId),
     );
     this.emitUpdate({ status: "working", attention: "working" });
+    this.startGoalTracking();
 
     const query = await this.requireQuery();
     const model = applyClaudeContextSuffix(config.model, config.contextSize);
@@ -578,6 +548,7 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
     }
 
     await this.syncUltracodeFlag(query);
+    await this.syncFastMode(query);
 
     const message = await buildSdkUserMessage(prompt, segments);
     this.promptQueue.push(message);
@@ -601,6 +572,23 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
       this.appliedUltracode = wantUltracode;
     } catch {
       // Older CLIs ignore the unknown flag; effort still degrades to xhigh.
+    }
+  }
+
+  /**
+   * Fast mode is a session flag (`fastMode`), not a model-level setting. Apply
+   * it through the flag-settings layer when the user enabled the Fast toggle.
+   * When the account can't use fast mode the toggle is gated off upstream, so
+   * `config.fast` is never true here in that case.
+   */
+  private async syncFastMode(runtime: Query): Promise<void> {
+    const wantFast = this.currentConfig.fast === true;
+    if (wantFast === this.appliedFast) return;
+    try {
+      await runtime.applyFlagSettings({ fastMode: wantFast ? true : null });
+      this.appliedFast = wantFast;
+    } catch {
+      // Older CLIs ignore the flag; fast mode simply stays off.
     }
   }
 
@@ -640,6 +628,7 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
     this.appliedModel = undefined;
     this.appliedPermissionMode = undefined;
     this.appliedUltracode = false;
+    this.appliedFast = false;
     this.startQuery(this.sessionId, resumeSessionAt);
     await this.requireQuery();
 
@@ -745,9 +734,29 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
     this.emitUpdate({ status: "working", attention: "working" });
   }
 
+  private startGoalTracking(): void {
+    this.stopGoalTracking();
+    if (!this.mapperState.activeGoalItemId) return;
+    this.goalTrackingTimer = setInterval(() => {
+      if (this.disposed || !this.mapperState.activeGoalItemId) {
+        this.stopGoalTracking();
+        return;
+      }
+      void this.refreshContextUsage();
+    }, 15_000);
+  }
+
+  private stopGoalTracking(): void {
+    if (this.goalTrackingTimer !== undefined) {
+      clearInterval(this.goalTrackingTimer);
+      this.goalTrackingTimer = undefined;
+    }
+  }
+
   async dispose(): Promise<void> {
     if (this.disposed) return;
     this.disposed = true;
+    this.stopGoalTracking();
     for (const [requestId, pending] of this.pendingRequests) {
       if (pending.kind === "permission") {
         pending.resolve({ behavior: "deny", message: "Session closed." });
@@ -912,6 +921,7 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
       this.appliedPermissionMode = permissionMode;
       void this.refreshSlashCommands(this.queryRuntime);
       void this.syncUltracodeFlag(this.queryRuntime);
+      void this.syncFastMode(this.queryRuntime);
       return this.queryRuntime;
     })();
 
@@ -1038,12 +1048,21 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
       this.currentTurnAssistantUuid = message.uuid;
     }
 
-    const events = mapClaudeSdkMessage(message, this.mapperState);
+    let wasInterrupted = false;
+    let resultState: TurnState | undefined;
+    if (message.type === "result") {
+      wasInterrupted =
+        this.interruptInFlight || (message.subtype !== "success" && isInterruptedResult(message));
+      if (wasInterrupted) resultState = "interrupted";
+    }
+    const events = mapClaudeSdkMessage(
+      message,
+      this.mapperState,
+      resultState ? { resultState } : undefined,
+    );
     this.emitRuntimeEvents(events);
     if (message.type === "result") {
       void this.refreshContextUsage();
-      const wasInterrupted =
-        this.interruptInFlight || (message.subtype !== "success" && isInterruptedResult(message));
       this.interruptInFlight = false;
       const remaining = nonDiagnosticErrors(message);
       // claude.exe surfaces upstream API failures (e.g. 401 auth, 429 rate
@@ -1069,6 +1088,7 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
       }
       this.currentTurnAssistantUuid = undefined;
       this.currentTurnInFlight = false;
+      if (!wasInterrupted) this.stopGoalTracking();
       this.emitUpdate({
         status: failed ? "error" : "idle",
         attention: failed ? "error" : "none",
@@ -1100,6 +1120,13 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
       if (this.disposed) return;
       const event = mapClaudeContextUsageResponse(this.input.threadId, usage);
       if (event) this.emitRuntimeEvents([event]);
+      if (this.mapperState.activeGoalItemId) {
+        const usedTokens = readNonNegativeInteger(usage.totalTokens);
+        if (usedTokens !== undefined && usedTokens > 0) {
+          const goalUpdate = emitActiveGoalTokenUpdate(this.mapperState, usedTokens);
+          if (goalUpdate) this.emitRuntimeEvents([goalUpdate]);
+        }
+      }
     } catch {
       // Older transports can reject this control call. In that case, keep the
       // existing context state instead of emitting billing-token totals as usage.
