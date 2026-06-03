@@ -47,6 +47,10 @@ export interface BrowserMcpHttpConfig {
 
 export interface BrowserMcpBridge {
   ensureBridge(distro: string): Promise<{ baseUrl: string; secret: string } | undefined>;
+  ensureSshBridge?(
+    location: Extract<ProjectLocation, { kind: "ssh" }>,
+    upstream: BrowserMcpEnv,
+  ): Promise<{ baseUrl: string; secret: string } | undefined>;
 }
 
 /**
@@ -64,6 +68,7 @@ export function resolveBrowserMcpHttpConfig(
 ): BrowserMcpHttpConfig | null {
   const env = readBrowserMcpEnv();
   if (!env) return null;
+  if (location.kind === "ssh") return null;
   const url = location.kind === "wsl" ? rewriteUrlForWsl(env.url, location.distro) : env.url;
   // Append `/mcp` so the agent hits the Streamable-HTTP endpoint directly.
   const mcpUrl = `${url.replace(/\/$/, "")}/mcp`;
@@ -85,6 +90,19 @@ export async function resolveBrowserMcpHttpConfigForLaunch(
     const env = readBrowserMcpEnv();
     if (!env) return undefined;
     const handle = await bridge.ensureBridge(location.distro);
+    if (!handle) return undefined;
+    const url = `${handle.baseUrl.replace(/\/$/, "")}/mcp`;
+    return {
+      url,
+      token: handle.secret,
+      headers: { Authorization: `Bearer ${handle.secret}` },
+    };
+  }
+  if (location.kind === "ssh") {
+    if (!bridge?.ensureSshBridge) return undefined;
+    const env = readBrowserMcpEnv();
+    if (!env) return undefined;
+    const handle = await bridge.ensureSshBridge(location, env);
     if (!handle) return undefined;
     const url = `${handle.baseUrl.replace(/\/$/, "")}/mcp`;
     return {

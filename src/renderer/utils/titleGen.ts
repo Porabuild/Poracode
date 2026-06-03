@@ -11,12 +11,12 @@ export function generateTitleAsync(
   prompt: string,
 ): void {
   const settings = useSharedSettings.getState();
-  const isWsl = projectLocation.kind === "wsl";
-  const provider = isWsl ? settings.wslTitleGenProvider : settings.titleGenProvider;
+  const isRemote = projectLocation.kind === "wsl" || projectLocation.kind === "ssh";
+  const provider = isRemote ? settings.wslTitleGenProvider : settings.titleGenProvider;
   if (provider === "disabled") return;
 
-  const model = isWsl ? settings.wslTitleGenModel : settings.titleGenModel;
-  const effort = isWsl ? settings.wslTitleGenEffort : settings.titleGenEffort;
+  const model = isRemote ? settings.wslTitleGenModel : settings.titleGenModel;
+  const effort = isRemote ? settings.wslTitleGenEffort : settings.titleGenEffort;
 
   void generateTitleWithFallback({
     projectLocation,

@@ -7,7 +7,12 @@ import type {
   RefreshAgentScopeEnv,
 } from "@/shared/contracts";
 import { useAppStore } from "@/renderer/state/appStore";
-import { buildWslProjectDistrosKey, parseWslProjectDistrosKey } from "@/renderer/state/projectKeys";
+import {
+  buildSshProjectLocationsKey,
+  buildWslProjectDistrosKey,
+  parseSshProjectLocationsKey,
+  parseWslProjectDistrosKey,
+} from "@/renderer/state/projectKeys";
 
 const ACP_GENERIC_PREFIX = "acp-generic:";
 
@@ -80,27 +85,36 @@ export function findTerminalAuthMethodInStatuses(
 }
 
 export function agentAuthTarget(status: AgentStatus): {
-  envKind?: AgentStatus["envKind"];
+  envKind?: Exclude<AgentStatus["envKind"], "ssh">;
   wslDistro?: string;
 } {
   return {
-    ...(status.envKind ? { envKind: status.envKind } : {}),
+    ...(status.envKind && status.envKind !== "ssh" ? { envKind: status.envKind } : {}),
     ...(status.envDistro ? { wslDistro: status.envDistro } : {}),
   };
 }
 
 export function scopeEnvForStatus(status: AgentStatus): RefreshAgentScopeEnv {
-  return status.envKind === "wsl" && status.envDistro
-    ? { kind: "wsl", distro: status.envDistro }
-    : { kind: "native" };
+  if (status.envKind === "wsl" && status.envDistro) {
+    return { kind: "wsl", distro: status.envDistro };
+  }
+  if (status.envKind === "ssh" && status.envHost) {
+    const project = currentSshProjects().find((candidate) => candidate.host === status.envHost);
+    if (project) return { kind: "ssh", host: project.host, path: project.path };
+  }
+  return { kind: "native" };
 }
 
 export function statusUpdateScope(status: AgentStatus): {
-  envKind: "windows" | "wsl" | "posix";
+  envKind: "windows" | "wsl" | "posix" | "ssh";
   wslDistro?: string;
+  sshHost?: string;
 } {
   if (status.envKind === "wsl" && status.envDistro) {
     return { envKind: "wsl", wslDistro: status.envDistro };
+  }
+  if (status.envKind === "ssh" && status.envHost) {
+    return { envKind: "ssh", sshHost: status.envHost };
   }
   if (status.envKind === "windows") return { envKind: "windows" };
   return { envKind: "posix" };
@@ -108,12 +122,17 @@ export function statusUpdateScope(status: AgentStatus): {
 
 export function envLabelForStatus(status: AgentStatus): string {
   if (status.envKind === "wsl") return status.envDistro ? `WSL (${status.envDistro})` : "WSL";
+  if (status.envKind === "ssh") return status.envHost ? `SSH (${status.envHost})` : "SSH";
   if (status.envKind === "windows") return "Windows";
   return "";
 }
 
 export function currentWslDistros(): string[] {
   return parseWslProjectDistrosKey(buildWslProjectDistrosKey(useAppStore.getState().projects));
+}
+
+export function currentSshProjects(): Extract<Project["location"], { kind: "ssh" }>[] {
+  return parseSshProjectLocationsKey(buildSshProjectLocationsKey(useAppStore.getState().projects));
 }
 
 export function findProjectForStatus(
@@ -128,6 +147,11 @@ export function findProjectForStatus(
   }
   if (status.envKind === "windows") {
     return projects.find((project) => project.location.kind === "windows");
+  }
+  if (status.envKind === "ssh" && status.envHost) {
+    return projects.find(
+      (project) => project.location.kind === "ssh" && project.location.host === status.envHost,
+    );
   }
   return undefined;
 }

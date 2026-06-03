@@ -28,6 +28,9 @@ export function resolveUpdateCommand(
   envContext: AgentEnvContext,
   options?: { skipBuiltIn?: boolean },
 ): AgentUpdaterCommand | undefined {
+  if (envContext.envKind === "ssh") {
+    return undefined;
+  }
   const fromAdapter = adapter.buildUpdateCommand?.(envContext, status);
   if (fromAdapter && !(options?.skipBuiltIn && fromAdapter.strategy === "built-in")) {
     return fromAdapter;

@@ -80,6 +80,10 @@ export function ThreadPane(props: {
   const projectLocation = thread.worktreePath
     ? buildWorktreeLocation(project.location, thread.worktreePath)
     : project.location;
+  const providerInstalledAgents =
+    project.location.kind === "ssh"
+      ? projectAgentStatuses.filter((status) => status.installed)
+      : installedAgents;
   return (
     <ThreadView
       key={props.threadId}
@@ -204,7 +208,7 @@ export function ThreadPane(props: {
         captureThreadInputSubmitted(thread, segments);
         touchThread(thread.id);
       }}
-      installedAgents={installedAgents}
+      installedAgents={providerInstalledAgents}
       onContinueInProvider={
         props.onContinueInProvider
           ? (targetKind, tConfig, targetPresentationMode, prompt, segments, closeOrig, ctx) => {

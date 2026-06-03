@@ -290,8 +290,9 @@ export function closeDatabase() {
 function locationToRow(loc: ProjectLocation) {
   return {
     locationKind: loc.kind,
-    locationPath: loc.kind !== "wsl" ? loc.path : null,
-    locationDistro: loc.kind === "wsl" ? loc.distro : null,
+    locationPath:
+      loc.kind === "windows" || loc.kind === "posix" || loc.kind === "ssh" ? loc.path : null,
+    locationDistro: loc.kind === "wsl" ? loc.distro : loc.kind === "ssh" ? loc.host : null,
     locationLinuxPath: loc.kind === "wsl" ? loc.linuxPath : null,
     locationUncPath: loc.kind === "wsl" ? loc.uncPath : null,
   };
@@ -314,6 +315,9 @@ function rowToLocation(row: {
   }
   if (row.locationKind === "posix") {
     return { kind: "posix", path: row.locationPath! };
+  }
+  if (row.locationKind === "ssh") {
+    return { kind: "ssh", host: row.locationDistro!, path: row.locationPath! };
   }
   return { kind: "windows", path: row.locationPath! };
 }

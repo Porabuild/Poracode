@@ -82,21 +82,25 @@ export function useGitReviewActions(args: UseGitReviewActionsArgs) {
     else store.setStatus(storeKey, next);
   }
 
-  const isWsl = project.location.kind === "wsl";
+  const isRemote = project.location.kind === "wsl" || project.location.kind === "ssh";
   const commitGenProvider = useSharedSettings((s) =>
-    isWsl ? s.wslCommitGenProvider : s.commitGenProvider,
+    isRemote ? s.wslCommitGenProvider : s.commitGenProvider,
   );
-  const commitGenModel = useSharedSettings((s) => (isWsl ? s.wslCommitGenModel : s.commitGenModel));
+  const commitGenModel = useSharedSettings((s) =>
+    isRemote ? s.wslCommitGenModel : s.commitGenModel,
+  );
   const commitGenEffort = useSharedSettings((s) =>
-    isWsl ? s.wslCommitGenEffort : s.commitGenEffort,
+    isRemote ? s.wslCommitGenEffort : s.commitGenEffort,
   );
 
   const agentStatuses = useAgentStatusesStore((s) => s.agentStatuses);
   const wslAgentStatuses = useAgentStatusesStore((s) => s.wslAgentStatuses);
+  const sshAgentStatuses = useAgentStatusesStore((s) => s.sshAgentStatuses);
   const projectAgentStatuses = getProjectAgentStatuses(
     project.location,
     agentStatuses,
     wslAgentStatuses,
+    sshAgentStatuses,
   );
 
   const [commitMessage, setCommitMessage] = useState("");

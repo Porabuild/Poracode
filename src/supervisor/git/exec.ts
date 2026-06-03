@@ -9,6 +9,7 @@ import { attachErrorDetails, errorDetail, msg } from "@/shared/messages";
 import { getProjectName } from "@/shared/wsl";
 import { sanitizeWorktreeBranchName, sanitizeWorktreePathSegment } from "@/shared/worktree";
 import { buildAgentCommand, readWslCommandOutputAsync } from "../agents/base";
+import { readSshCommandOutput, resolveSshHomeDirectoryAsync } from "../ssh";
 import type { WslBridgeClient, WslGitExecResult } from "../wsl/bridge/client";
 import { mkdir } from "node:fs/promises";
 
@@ -102,6 +103,18 @@ export async function execGit(
       return stdout;
     }
 
+    if (location.kind === "ssh") {
+      const { stdout } = await readSshCommandOutput(location, "git", args, {
+        timeout,
+        maxBuffer,
+        env: {
+          GIT_OPTIONAL_LOCKS: "0",
+          ...(options?.env ?? {}),
+        },
+      });
+      return stdout;
+    }
+
     const env = { ...process.env, GIT_OPTIONAL_LOCKS: "0", ...(options?.env ?? {}) };
     const { stdout } = await execFileAsync("git", args, {
       cwd: location.path,
@@ -184,7 +197,7 @@ export function toForwardSlash(path: string): string {
 }
 
 export function normalizeWorktreePath(location: ProjectLocation, path: string): string {
-  if (location.kind === "wsl") {
+  if (location.kind === "wsl" || location.kind === "ssh") {
     return path;
   }
   return normalize(path).replace(/\\/g, "/").toLowerCase();
@@ -196,6 +209,9 @@ export function getLocationIdentity(location: ProjectLocation): string {
   }
   if (location.kind === "windows") {
     return `windows:${toForwardSlash(location.path).toLowerCase()}`;
+  }
+  if (location.kind === "ssh") {
+    return `ssh:${location.host}:${location.path}`;
   }
   return `posix:${location.path}`;
 }
@@ -238,6 +254,16 @@ export async function computeDefaultWorktreePath(
     const homePath = await resolveWslHomeDirectory(location.distro);
     return posix.join(homePath, ".lightcode", "worktrees", repoDir, branchDir);
   }
+  if (location.kind === "ssh") {
+    // `path: "/"` so the cached resolver `cd`s into a directory that always
+    // exists (the project path may be a not-yet-created worktree). The result
+    // is memoized per host in ssh.ts.
+    const homePath = await resolveSshHomeDirectoryAsync({ ...location, path: "/" });
+    if (!homePath) {
+      throw new Error(`Unable to resolve home directory for ${location.host}.`);
+    }
+    return posix.join(homePath, ".lightcode", "worktrees", repoDir, branchDir);
+  }
   return join(
     resolveLightcodePaths(join(homedir(), ".lightcode")).worktreesDir,
     repoDir,
@@ -265,6 +291,14 @@ export async function ensureWorktreeParentExists(
     if (!result.ok) {
       throw new Error(result.stderr || msg("git.wsl.mkdirFailed", { path: parentPath }));
     }
+    return;
+  }
+
+  if (location.kind === "ssh") {
+    await readSshCommandOutput({ ...location, path: "/" }, "mkdir", [
+      "-p",
+      posix.dirname(worktreePath),
+    ]);
     return;
   }
 

@@ -34,8 +34,10 @@ export interface CommandSpec {
 }
 
 export interface AgentEnvContext {
-  envKind: "windows" | "wsl" | "posix";
+  envKind: "windows" | "wsl" | "posix" | "ssh";
   wslDistro?: string;
+  sshHost?: string;
+  sshPath?: string;
   /**
    * Lightcode data base dir for native (non-WSL) plugin staging. Populated by
    * the supervisor so dev runs (`~/.lightcode-dev`) stage plugins separately

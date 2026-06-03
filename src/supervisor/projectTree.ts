@@ -28,6 +28,7 @@ import type {
 } from "@/shared/contracts";
 import { getProjectFsPath, joinProjectPosixPath } from "@/shared/wsl";
 import { execGit, getLocationIdentity } from "./git";
+import { readSshCommandOutput } from "./ssh";
 import type { WslBridgeClient } from "./wsl/bridge/client";
 
 const BOM = Buffer.from([0xef, 0xbb, 0xbf]);
@@ -44,6 +45,7 @@ interface CachedSearchIndex {
 type RawFileRead =
   | { kind: "tooLarge"; modifiedAtMs: number }
   | { kind: "ok"; buffer: Buffer; modifiedAtMs: number };
+type SshProjectLocation = Extract<ProjectLocation, { kind: "ssh" }>;
 
 function normalizeRelativePath(input: string): string {
   const normalized = input.replace(/\\/g, "/").replace(/^\/+|\/+$/g, "");
@@ -138,6 +140,9 @@ export class ProjectTreeService {
     if (payload.projectLocation.kind === "wsl" && this.wslClient) {
       return this.listProjectTreeWsl(payload.projectLocation, directoryPath, this.wslClient);
     }
+    if (payload.projectLocation.kind === "ssh") {
+      return this.listProjectTreeSsh(payload.projectLocation, directoryPath);
+    }
 
     const fullPath = this.resolveEntryPath(payload.projectLocation, directoryPath);
     const entries = await readdir(fullPath, { withFileTypes: true });
@@ -201,6 +206,47 @@ export class ProjectTreeService {
     return { directoryPath, entries: sortEntries(mapped) };
   }
 
+  private async listProjectTreeSsh(
+    location: SshProjectLocation,
+    directoryPath: string,
+  ): Promise<ListProjectTreeResult> {
+    const absolute = joinProjectPosixPath(location, directoryPath);
+    const script = `
+dir=$1
+for entry in "$dir"/* "$dir"/.[!.]* "$dir"/..?*; do
+  [ -e "$entry" ] || [ -L "$entry" ] || continue
+  name=\${entry##*/}
+  [ "$name" = ".git" ] && continue
+  if [ -d "$entry" ]; then
+    if find "$entry" -mindepth 1 -maxdepth 1 ! -name .git -print -quit | grep -q .; then
+      has=1
+    else
+      has=0
+    fi
+    printf 'directory\\0%s\\0%s\\0' "$has" "$name"
+  else
+    printf 'file\\0\\0%s\\0' "$name"
+  fi
+done
+`;
+    const result = await readSshCommandOutput(location, "sh", ["-c", script, "sh", absolute]);
+    const parts = result.stdout.split("\0");
+    const entries: ProjectTreeEntry[] = [];
+    for (let i = 0; i + 2 < parts.length; i += 3) {
+      const type = parts[i];
+      const hasChildren = parts[i + 1] === "1";
+      const name = parts[i + 2];
+      if (!type || !name) continue;
+      const path = joinRelativePath(directoryPath, name);
+      if (type === "directory") {
+        entries.push({ path, name, type: "directory", hasChildren });
+      } else {
+        entries.push({ path, name, type: "file" });
+      }
+    }
+    return { directoryPath, entries: sortEntries(entries) };
+  }
+
   async searchProjectTree(payload: SearchProjectTreePayload): Promise<SearchProjectTreeResult> {
     const query = payload.query.trim().toLowerCase();
     if (!query) return { entries: [] };
@@ -218,7 +264,9 @@ export class ProjectTreeService {
     const raw =
       payload.projectLocation.kind === "wsl" && this.wslClient
         ? await this.readProjectFileBufferWsl(payload.projectLocation, path, this.wslClient)
-        : await this.readProjectFileBufferNative(payload.projectLocation, path);
+        : payload.projectLocation.kind === "ssh"
+          ? await this.readProjectFileBufferSsh(payload.projectLocation, path)
+          : await this.readProjectFileBufferNative(payload.projectLocation, path);
 
     if (raw.kind === "tooLarge") {
       return { path, status: "too_large", modifiedAtMs: raw.modifiedAtMs };
@@ -275,6 +323,11 @@ export class ProjectTreeService {
           linuxPath,
           this.wslClient,
         );
+      } else if (payload.projectLocation.kind === "ssh") {
+        raw = await this.readAbsoluteFileBufferSsh(
+          payload.projectLocation,
+          this.resolveProjectSshReadPath(payload.projectLocation, payload.absolutePath),
+        );
       } else {
         raw = await this.readAbsoluteFileBufferNative(
           this.resolveProjectNativeReadPath(payload.projectLocation, payload.absolutePath),
@@ -325,7 +378,9 @@ export class ProjectTreeService {
               payload.absolutePath,
               this.wslClient,
             )
-          : await this.readAbsoluteFileBufferNative(payload.absolutePath);
+          : payload.projectLocation.kind === "ssh"
+            ? await this.readAbsoluteFileBufferSsh(payload.projectLocation, payload.absolutePath)
+            : await this.readAbsoluteFileBufferNative(payload.absolutePath);
     } catch (err: unknown) {
       if ((err as NodeJS.ErrnoException).code === "ENOENT") {
         return { path: payload.absolutePath, status: "missing", modifiedAtMs: 0 };
@@ -372,6 +427,9 @@ export class ProjectTreeService {
     }
     if (payload.projectLocation.kind === "wsl" && this.wslClient) {
       return this.writeExternalFileWsl(payload.projectLocation, payload, this.wslClient);
+    }
+    if (payload.projectLocation.kind === "ssh") {
+      return this.writeExternalFileSsh(payload.projectLocation, payload);
     }
 
     const fileStat = await stat(payload.absolutePath);
@@ -422,6 +480,24 @@ export class ProjectTreeService {
     return { modifiedAtMs: result.mtimeMs };
   }
 
+  private async writeExternalFileSsh(
+    location: SshProjectLocation,
+    payload: WriteExternalFilePayload,
+  ): Promise<WriteExternalFileResult> {
+    const existing = await this.readAbsoluteFileBufferSsh(location, payload.absolutePath);
+    if (existing.kind === "tooLarge") {
+      throw new Error("This file is too large to save from the editor.");
+    }
+    return this.writeSshFile(
+      location,
+      payload.absolutePath,
+      existing.buffer,
+      payload.content,
+      payload.baseModifiedAtMs,
+      existing.modifiedAtMs,
+    );
+  }
+
   /**
    * External reads/writes are intentionally NOT confined to the project root,
    * but the WSL bridge still requires every target to sit within a declared
@@ -465,6 +541,11 @@ export class ProjectTreeService {
     return path.startsWith("/") ? posix.resolve(path) : posix.resolve(root, path);
   }
 
+  private resolveProjectSshReadPath(location: SshProjectLocation, path: string): string {
+    const root = posix.resolve(location.path);
+    return path.startsWith("/") ? posix.resolve(path) : posix.resolve(root, path);
+  }
+
   private async readAbsoluteFileBufferNative(absolutePath: string): Promise<RawFileRead> {
     if (!isAbsolute(absolutePath)) throw new Error("Path must be absolute.");
     const fileStat = await stat(absolutePath);
@@ -492,6 +573,58 @@ export class ProjectTreeService {
       buffer: Buffer.from(result.contentBase64, "base64"),
       modifiedAtMs: result.mtimeMs,
     };
+  }
+
+  private async readAbsoluteFileBufferSsh(
+    location: SshProjectLocation,
+    absolutePath: string,
+  ): Promise<RawFileRead> {
+    const script = `
+path=$1
+max=$2
+if [ ! -e "$path" ]; then
+  printf 'missing\\n'
+  exit 0
+fi
+if [ ! -f "$path" ]; then
+  printf 'not_file\\n'
+  exit 0
+fi
+size=$(wc -c < "$path" | tr -d '[:space:]')
+mtime=$(stat -c %Y "$path" 2>/dev/null || stat -f %m "$path" 2>/dev/null || printf 0)
+if [ "$size" -gt "$max" ]; then
+  printf 'too_large\\t%s\\n' "$mtime"
+  exit 0
+fi
+printf 'ok\\t%s\\n' "$mtime"
+base64 "$path"
+`;
+    const result = await readSshCommandOutput(
+      location,
+      "sh",
+      ["-c", script, "sh", absolutePath, String(MAX_EDITABLE_FILE_SIZE)],
+      { maxBuffer: MAX_EDITABLE_FILE_SIZE * 2 },
+    );
+    const headerEnd = result.stdout.indexOf("\n");
+    const header = headerEnd === -1 ? result.stdout.trim() : result.stdout.slice(0, headerEnd);
+    const [status, mtimeRaw] = header.split("\t");
+    if (status === "missing") {
+      throw Object.assign(new Error(`ENOENT: no such file or directory, open '${absolutePath}'`), {
+        code: "ENOENT",
+      });
+    }
+    if (status === "not_file") {
+      throw new Error("Only files can be read.");
+    }
+    const modifiedAtMs = (Number.parseFloat(mtimeRaw ?? "0") || 0) * 1000;
+    if (status === "too_large") {
+      return { kind: "tooLarge", modifiedAtMs };
+    }
+    if (status !== "ok" || headerEnd === -1) {
+      throw new Error("Unable to read SSH file.");
+    }
+    const encoded = result.stdout.slice(headerEnd + 1).replace(/\s/g, "");
+    return { kind: "ok", buffer: Buffer.from(encoded, "base64"), modifiedAtMs };
   }
 
   private async readProjectFileBufferNative(
@@ -526,11 +659,21 @@ export class ProjectTreeService {
     };
   }
 
+  private async readProjectFileBufferSsh(
+    location: SshProjectLocation,
+    relativePath: string,
+  ): Promise<RawFileRead> {
+    return this.readAbsoluteFileBufferSsh(location, joinProjectPosixPath(location, relativePath));
+  }
+
   async writeProjectFile(payload: WriteProjectFilePayload): Promise<WriteProjectFileResult> {
     const path = normalizeRelativePath(payload.path);
 
     if (payload.projectLocation.kind === "wsl" && this.wslClient) {
       return this.writeProjectFileWsl(payload.projectLocation, path, payload, this.wslClient);
+    }
+    if (payload.projectLocation.kind === "ssh") {
+      return this.writeProjectFileSsh(payload.projectLocation, path, payload);
     }
 
     const { fullPath, fileStat } = await this.statFollowingWslSymlinks(
@@ -587,6 +730,76 @@ export class ProjectTreeService {
     return { modifiedAtMs: result.mtimeMs };
   }
 
+  private async writeProjectFileSsh(
+    location: SshProjectLocation,
+    relativePath: string,
+    payload: WriteProjectFilePayload,
+  ): Promise<WriteProjectFileResult> {
+    const absolute = joinProjectPosixPath(location, relativePath);
+    const existing = await this.readAbsoluteFileBufferSsh(location, absolute);
+    if (existing.kind === "tooLarge") {
+      throw new Error("This file is too large to save from the editor.");
+    }
+    const result = await this.writeSshFile(
+      location,
+      absolute,
+      existing.buffer,
+      payload.content,
+      payload.baseModifiedAtMs,
+      existing.modifiedAtMs,
+    );
+    this.invalidateCaches(location);
+    return result;
+  }
+
+  private async writeSshFile(
+    location: SshProjectLocation,
+    absolutePath: string,
+    existingBuffer: Buffer,
+    content: string,
+    baseModifiedAtMs: number,
+    existingModifiedAtMs: number,
+  ): Promise<WriteProjectFileResult> {
+    if (Math.abs(existingModifiedAtMs - baseModifiedAtMs) > 1) {
+      throw new Error("The file changed on disk. Reload it before saving.");
+    }
+    if (isBinaryBuffer(existingBuffer)) {
+      throw new Error("Binary files cannot be saved from the editor.");
+    }
+
+    const nextBuffer = buildWriteBuffer(existingBuffer, content);
+    const encoded = nextBuffer.toString("base64");
+    const expectedMtime = String(Math.round(existingModifiedAtMs / 1000));
+    const script = `
+target=$1
+expected=$2
+current=$(stat -c %Y "$target" 2>/dev/null || stat -f %m "$target" 2>/dev/null || printf 0)
+if [ "$current" != "$expected" ]; then
+  echo "The file changed on disk. Reload it before saving." >&2
+  exit 3
+fi
+parent=\${target%/*}
+if [ -n "$parent" ] && [ "$parent" != "$target" ]; then
+  mkdir -p "$parent"
+fi
+tmp="$target.lightcode.$$"
+trap 'rm -f "$tmp"' EXIT
+base64 -d > "$tmp" <<'__LIGHTCODE_FILE__'
+${encoded}
+__LIGHTCODE_FILE__
+mv "$tmp" "$target"
+stat -c %Y "$target" 2>/dev/null || stat -f %m "$target" 2>/dev/null || printf 0
+`;
+    const result = await readSshCommandOutput(location, "sh", [
+      "-c",
+      script,
+      "sh",
+      absolutePath,
+      expectedMtime,
+    ]);
+    return { modifiedAtMs: (Number.parseFloat(result.stdout.trim()) || 0) * 1000 };
+  }
+
   async createProjectEntry(payload: CreateProjectEntryPayload): Promise<void> {
     const path = normalizeRelativePath(payload.path);
     if (!path) {
@@ -604,6 +817,18 @@ export class ProjectTreeService {
       } else {
         await this.wslClient.writeNewFile(payload.projectLocation, absolute, Buffer.alloc(0));
       }
+      this.invalidateCaches(payload.projectLocation);
+      return;
+    }
+    if (payload.projectLocation.kind === "ssh") {
+      const absolute = joinProjectPosixPath(payload.projectLocation, path);
+      await readSshCommandOutput(payload.projectLocation, "sh", [
+        "-c",
+        'parent=${1%/*}; [ -n "$parent" ] && [ "$parent" != "$1" ] && mkdir -p "$parent"; [ ! -e "$1" ] || exit 1; if [ "$2" = directory ]; then mkdir "$1"; else : > "$1"; fi',
+        "sh",
+        absolute,
+        payload.type,
+      ]);
       this.invalidateCaches(payload.projectLocation);
       return;
     }
@@ -630,6 +855,15 @@ export class ProjectTreeService {
         joinProjectPosixPath(payload.projectLocation, path),
         joinProjectPosixPath(payload.projectLocation, nextPath),
       );
+      this.invalidateCaches(payload.projectLocation);
+      return;
+    }
+    if (payload.projectLocation.kind === "ssh") {
+      await readSshCommandOutput(payload.projectLocation, "mv", [
+        "--",
+        joinProjectPosixPath(payload.projectLocation, path),
+        joinProjectPosixPath(payload.projectLocation, nextPath),
+      ]);
       this.invalidateCaches(payload.projectLocation);
       return;
     }
@@ -673,6 +907,24 @@ export class ProjectTreeService {
       this.invalidateCaches(payload.projectLocation);
       return;
     }
+    if (payload.projectLocation.kind === "ssh") {
+      const sourcePath = joinProjectPosixPath(payload.projectLocation, path);
+      const targetPath = joinProjectPosixPath(payload.projectLocation, nextPath);
+      if (nextParentPath === path || nextParentPath.startsWith(`${path}/`)) {
+        const sourceType = await readSshCommandOutput(
+          payload.projectLocation,
+          "sh",
+          ["-c", 'test -d "$1" && printf d || printf f', "sh", sourcePath],
+          { maxBuffer: 16 },
+        ).catch(() => ({ stdout: "f" }));
+        if (sourceType.stdout.trim() === "d") {
+          throw new Error("Folders cannot be moved into themselves.");
+        }
+      }
+      await readSshCommandOutput(payload.projectLocation, "mv", ["--", sourcePath, targetPath]);
+      this.invalidateCaches(payload.projectLocation);
+      return;
+    }
 
     const { fullPath: sourceFullPath, fileStat: entryStat } = await this.statFollowingWslSymlinks(
       payload.projectLocation,
@@ -698,6 +950,15 @@ export class ProjectTreeService {
         joinProjectPosixPath(payload.projectLocation, path),
         { recursive: true, force: false },
       );
+      this.invalidateCaches(payload.projectLocation);
+      return;
+    }
+    if (payload.projectLocation.kind === "ssh") {
+      await readSshCommandOutput(payload.projectLocation, "rm", [
+        "-r",
+        "--",
+        joinProjectPosixPath(payload.projectLocation, path),
+      ]);
       this.invalidateCaches(payload.projectLocation);
       return;
     }
@@ -819,6 +1080,9 @@ export class ProjectTreeService {
         return { path: entry.path, name: entry.name, type: "file" };
       });
     }
+    if (location.kind === "ssh") {
+      return this.buildIndexFromWalkSsh(location, ignoreSet);
+    }
 
     const rootPath = getProjectFsPath(location);
     const stack = [""];
@@ -842,6 +1106,47 @@ export class ProjectTreeService {
       }
     }
     return results;
+  }
+
+  private async buildIndexFromWalkSsh(
+    location: SshProjectLocation,
+    ignoreSet: Set<string>,
+  ): Promise<ProjectTreeEntry[]> {
+    // Prune the heavy build/dependency directories at the `find` level so the
+    // 10MB buffer is not exhausted enumerating (e.g.) node_modules before the
+    // real source files are reached. `pathHitsIgnoredName` below still applies
+    // the project's full ignore set to whatever survives.
+    const pruneExpr = [
+      ".git",
+      "node_modules",
+      ".next",
+      "dist",
+      "build",
+      ".turbo",
+      "__pycache__",
+      ".venv",
+    ]
+      .map((name) => `-name '${name}'`)
+      .join(" -o ");
+    const script = `find "$1" -mindepth 1 \\( ${pruneExpr} \\) -prune -o -printf '%y\\0%P\\0'`;
+    const result = await readSshCommandOutput(location, "sh", ["-c", script, "sh", location.path], {
+      maxBuffer: 10 * 1024 * 1024,
+    }).catch(() => ({ stdout: "" }));
+    const parts = result.stdout.split("\0");
+    const entries: ProjectTreeEntry[] = [];
+    for (let i = 0; i + 1 < parts.length && entries.length < MAX_SEARCH_INDEX_SIZE; i += 2) {
+      const type = parts[i];
+      const path = parts[i + 1]?.replace(/\\/g, "/");
+      if (!type || !path || pathHitsIgnoredName(path, ignoreSet)) continue;
+      const slash = path.lastIndexOf("/");
+      const name = slash >= 0 ? path.slice(slash + 1) : path;
+      if (type === "d") {
+        entries.push({ path, name, type: "directory", hasChildren: true });
+      } else {
+        entries.push({ path, name, type: "file" });
+      }
+    }
+    return entries;
   }
 
   private rankEntries(

@@ -1,6 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ProjectWatcher } from "./projectWatcher";
+import { readSshCommandOutput } from "./ssh";
 import type { WslBridgeClient, WslLocation } from "./wsl/bridge/client";
+
+vi.mock("./ssh", () => ({
+  readSshCommandOutput: vi.fn<() => Promise<{ stdout: string; stderr: string }>>(),
+}));
 
 function makeLocation(linuxPath: string): WslLocation {
   return {
@@ -167,3 +172,46 @@ describe("ProjectWatcher WSL worktrees", () => {
     await watcher.dispose();
   });
 });
+
+describe("ProjectWatcher SSH polling", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+  });
+
+  it("emits tree changes when the remote tree signature changes", async () => {
+    vi.useFakeTimers();
+    const readSsh = vi.mocked(readSshCommandOutput);
+    readSsh
+      .mockResolvedValueOnce({ stdout: "sig-a\n", stderr: "" })
+      .mockResolvedValueOnce({ stdout: "sig-b\n", stderr: "" });
+    const onTreeChanged = vi.fn<(projectId: string) => void>();
+    const watcher = new ProjectWatcher({
+      onGitChanged: vi.fn<(projectId: string) => void>(),
+      onTreeChanged,
+    });
+
+    watcher.watch("project-ssh", {
+      kind: "ssh",
+      host: "dev.example.com",
+      path: "/home/demo/repo",
+    });
+
+    await vi.advanceTimersByTimeAsync(SSH_POLL_MS_FOR_TEST);
+    expect(onTreeChanged).not.toHaveBeenCalled();
+
+    await vi.advanceTimersByTimeAsync(SSH_POLL_MS_FOR_TEST);
+    await vi.advanceTimersByTimeAsync(300);
+
+    expect(readSsh).toHaveBeenCalledWith(
+      { kind: "ssh", host: "dev.example.com", path: "/home/demo/repo" },
+      "sh",
+      expect.any(Array),
+      expect.objectContaining({ timeout: 10_000 }),
+    );
+    expect(onTreeChanged).toHaveBeenCalledWith("project-ssh");
+    await watcher.dispose();
+  });
+});
+
+const SSH_POLL_MS_FOR_TEST = 3_000;

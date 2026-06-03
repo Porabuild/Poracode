@@ -39,6 +39,7 @@ function getProjectRoots(projectLocation: ProjectLocation): string[] {
       return [projectLocation.path];
     case "wsl":
       return [projectLocation.linuxPath, projectLocation.uncPath];
+    case "ssh":
     case "posix":
       return [projectLocation.path];
   }

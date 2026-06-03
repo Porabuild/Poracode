@@ -34,8 +34,10 @@ function reset() {
   useAgentStatusesStore.setState({
     agentStatuses: [],
     wslAgentStatuses: [],
+    sshAgentStatuses: [],
     windowsLoaded: false,
     wslLoaded: false,
+    sshLoaded: false,
     inFirstLaunchDiscovery: false,
     discoveryScope: undefined,
     discoveredAgents: [],
@@ -121,12 +123,15 @@ describe("hydrateFromCache", () => {
     useAgentStatusesStore.getState().hydrateFromCache({
       windows: [makeStatus({ kind: "claude" })],
       wsl: [makeStatus({ kind: "gemini", envKind: "wsl", envDistro: "Ubuntu" })],
+      ssh: [makeStatus({ kind: "codex", envKind: "ssh", envHost: "devbox" })],
     });
     const state = useAgentStatusesStore.getState();
     expect(state.agentStatuses).toHaveLength(1);
     expect(state.wslAgentStatuses).toHaveLength(1);
+    expect(state.sshAgentStatuses).toHaveLength(1);
     expect(state.windowsLoaded).toBe(true);
     expect(state.wslLoaded).toBe(true);
+    expect(state.sshLoaded).toBe(true);
     expect(state.inFirstLaunchDiscovery).toBe(false);
     expect(state.discoveryScope).toBeUndefined();
   });
@@ -160,13 +165,17 @@ describe("beginFirstLaunchDiscovery", () => {
   });
 
   it("can start combined discovery after statuses are already loaded", () => {
-    useAgentStatusesStore.setState({ windowsLoaded: true, wslLoaded: true });
+    useAgentStatusesStore.setState({ windowsLoaded: true, wslLoaded: true, sshLoaded: true });
     useAgentStatusesStore
       .getState()
-      .beginFirstLaunchDiscovery({ kind: "all", wslDistros: ["Ubuntu"] });
+      .beginFirstLaunchDiscovery({ kind: "all", wslDistros: ["Ubuntu"], sshHosts: ["devbox"] });
     const state = useAgentStatusesStore.getState();
     expect(state.inFirstLaunchDiscovery).toBe(true);
-    expect(state.discoveryScope).toEqual({ kind: "all", wslDistros: ["Ubuntu"] });
+    expect(state.discoveryScope).toEqual({
+      kind: "all",
+      wslDistros: ["Ubuntu"],
+      sshHosts: ["devbox"],
+    });
   });
 });
 
@@ -201,17 +210,20 @@ describe("pushDiscoveredAgent", () => {
   it("appends native and matching WSL agents during combined discovery", () => {
     useAgentStatusesStore
       .getState()
-      .beginFirstLaunchDiscovery({ kind: "all", wslDistros: ["Ubuntu"] });
+      .beginFirstLaunchDiscovery({ kind: "all", wslDistros: ["Ubuntu"], sshHosts: ["devbox"] });
     useAgentStatusesStore.getState().pushDiscoveredAgent(makeStatus({ kind: "codex" }));
     useAgentStatusesStore
       .getState()
       .pushDiscoveredAgent(makeStatus({ kind: "codex", envKind: "wsl", envDistro: "Ubuntu" }));
     useAgentStatusesStore
       .getState()
+      .pushDiscoveredAgent(makeStatus({ kind: "claude", envKind: "ssh", envHost: "devbox" }));
+    useAgentStatusesStore
+      .getState()
       .pushDiscoveredAgent(makeStatus({ kind: "gemini", envKind: "wsl", envDistro: "Debian" }));
     expect(
       useAgentStatusesStore.getState().discoveredAgents.map((status) => status.envKind),
-    ).toEqual([undefined, "wsl"]);
+    ).toEqual([undefined, "wsl", "ssh"]);
   });
 });
 
@@ -263,6 +275,15 @@ describe("mergeAgentStatus", () => {
     expect(state.wslLoaded).toBe(true);
   });
 
+  it("routes SSH statuses into sshAgentStatuses and keeps native list untouched", () => {
+    const ssh = makeStatus({ kind: "gemini", envKind: "ssh", envHost: "devbox" });
+    useAgentStatusesStore.getState().mergeAgentStatus(ssh);
+    const state = useAgentStatusesStore.getState();
+    expect(state.sshAgentStatuses).toHaveLength(1);
+    expect(state.agentStatuses).toHaveLength(0);
+    expect(state.sshLoaded).toBe(true);
+  });
+
   it("treats different envDistro values as distinct entries", () => {
     useAgentStatusesStore
       .getState()
@@ -298,6 +319,19 @@ describe("isDetectingAgentsForLocation", () => {
     expect(isDetectingAgentsForLocation({ windowsLoaded: false, wslLoaded: true }, loc)).toBe(
       false,
     );
+  });
+
+  it("uses sshLoaded for an SSH location", () => {
+    const loc: ProjectLocation = { kind: "ssh", host: "devbox", path: "/repo" };
+    expect(
+      isDetectingAgentsForLocation({ windowsLoaded: true, wslLoaded: true, sshLoaded: false }, loc),
+    ).toBe(true);
+    expect(
+      isDetectingAgentsForLocation(
+        { windowsLoaded: false, wslLoaded: false, sshLoaded: true },
+        loc,
+      ),
+    ).toBe(false);
   });
 });
 
@@ -337,7 +371,10 @@ describe("isDiscoveryActiveForLocation", () => {
     const loc: ProjectLocation = { kind: "windows", path: "C:\\tmp" };
     expect(
       isDiscoveryActiveForLocation(
-        { inFirstLaunchDiscovery: true, discoveryScope: { kind: "all", wslDistros: ["Ubuntu"] } },
+        {
+          inFirstLaunchDiscovery: true,
+          discoveryScope: { kind: "all", wslDistros: ["Ubuntu"], sshHosts: ["devbox"] },
+        },
         loc,
       ),
     ).toBe(true);

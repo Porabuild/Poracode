@@ -11,8 +11,10 @@ const { bridge } = vi.hoisted(() => ({
     pickFolder: vi.fn<() => Promise<null>>().mockResolvedValue(null),
     listWslDistros: vi.fn<() => Promise<string[]>>().mockResolvedValue([]),
     getAgentStatuses: vi
-      .fn<() => Promise<{ windows: unknown[]; wsl: unknown[]; fromCache: boolean }>>()
-      .mockResolvedValue({ windows: [], wsl: [], fromCache: false }),
+      .fn<
+        () => Promise<{ windows: unknown[]; wsl: unknown[]; ssh: unknown[]; fromCache: boolean }>
+      >()
+      .mockResolvedValue({ windows: [], wsl: [], ssh: [], fromCache: false }),
     getThreadSnapshots: vi.fn<() => Promise<unknown[]>>().mockResolvedValue([]),
     getHomeScopeLocation: vi
       .fn<() => Promise<{ kind: "windows"; path: string }>>()

@@ -84,9 +84,10 @@ export function GitReviewSidebar(props: {
   });
   const agentStatuses = useAgentStatusesStore((s) => s.agentStatuses);
   const wslAgentStatuses = useAgentStatusesStore((s) => s.wslAgentStatuses);
-  const isWsl = project.location.kind === "wsl";
+  const sshAgentStatuses = useAgentStatusesStore((s) => s.sshAgentStatuses);
+  const isRemote = project.location.kind === "wsl" || project.location.kind === "ssh";
   const commitGenProvider = useSharedSettings((s) =>
-    isWsl ? s.wslCommitGenProvider : s.commitGenProvider,
+    isRemote ? s.wslCommitGenProvider : s.commitGenProvider,
   );
 
   // Treat "unknown" as "might be GitHub" — covers SSH host aliases where the
@@ -177,6 +178,7 @@ export function GitReviewSidebar(props: {
     project.location,
     agentStatuses,
     wslAgentStatuses,
+    sshAgentStatuses,
   );
   const canGenerateMessage =
     getCommitGenCandidates(projectAgentStatuses, commitGenProvider).length > 0;

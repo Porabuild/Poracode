@@ -1,6 +1,7 @@
 import { spawn, type ChildProcess } from "node:child_process";
 import { terminateChildProcessTree } from "@/shared/processTree";
 import type { CommandSpec } from "../base";
+import { OPENCODE_LOCAL_BASE_URL_ENV } from "./argv";
 import { classifyOpenCodeError } from "./opencodeErrors";
 
 const URL_LINE_PREFIX = "opencode server listening";
@@ -64,11 +65,12 @@ function registerProcessExitCleanup(): void {
 export function spawnOpenCodeServer(commandSpec: CommandSpec): OpenCodeServerHandle {
   registerProcessExitCleanup();
   const isWin = process.platform === "win32";
+  const { [OPENCODE_LOCAL_BASE_URL_ENV]: localBaseUrl, ...commandEnv } = commandSpec.env ?? {};
   const child = spawn(commandSpec.command, commandSpec.args, {
     cwd: commandSpec.cwd,
     env: {
       ...process.env,
-      ...commandSpec.env,
+      ...commandEnv,
     },
     stdio: ["pipe", "pipe", "pipe"],
     shell: false,
@@ -141,7 +143,7 @@ export function spawnOpenCodeServer(commandSpec: CommandSpec): OpenCodeServerHan
       if (!line.startsWith(URL_LINE_PREFIX)) continue;
       const m = line.match(URL_REGEX);
       if (m && m[1]) {
-        baseUrl = m[1];
+        baseUrl = localBaseUrl ?? m[1];
         clearTimeout(readyTimeout);
         pending?.resolve(baseUrl);
         return;

@@ -60,6 +60,13 @@ import type {
   ThreadHistory,
   ThreadHistoryEntry,
 } from "./types";
+import {
+  buildSshCommand,
+  buildSshPtyCommand,
+  readSshCommandOutput,
+  resolveSshHomeDirectory,
+  runSshScript,
+} from "../../ssh";
 
 export type {
   AcpSessionUpdateTransform,
@@ -261,6 +268,7 @@ function buildPosixCommand(cwd: string, command: string, args: string[]): Comman
  * Handles:
  * - "windows" → PowerShell or cmd.exe
  * - "wsl" → wsl.exe with Linux shell
+ * - "ssh" → ssh with remote POSIX shell
  * - "posix" → macOS/Linux with $SHELL or /bin/bash
  */
 export function buildAgentCommand(
@@ -269,6 +277,7 @@ export function buildAgentCommand(
   args: string[],
   resolvedExecPath?: string,
   env?: Record<string, string>,
+  options?: { sshTty?: boolean; sshBatchMode?: "yes" | "no" },
 ): CommandSpec {
   if (location.kind === "wsl") {
     // Always launch the agent through `bash -l -i -c` so the user's rc files
@@ -296,6 +305,15 @@ export function buildAgentCommand(
         script,
       ],
     };
+  }
+
+  if (location.kind === "ssh") {
+    return options?.sshTty
+      ? buildSshPtyCommand(location, resolvedExecPath ?? command, args, env)
+      : buildSshCommand(location, resolvedExecPath ?? command, args, env, {
+          ...(options?.sshBatchMode ? { batchMode: options.sshBatchMode } : {}),
+          tty: false,
+        });
   }
 
   if (location.kind === "windows") {
@@ -327,7 +345,10 @@ export function buildAgentCommand(
  */
 export function resolveLaunchSpec(location: ProjectLocation, argv: AgentArgvSpec): CommandSpec {
   const resolvedExecPath = resolveAgentBinaryPath(location, argv.binary);
-  const spec = buildAgentCommand(location, argv.binary, argv.args, resolvedExecPath, argv.env);
+  const spec = buildAgentCommand(location, argv.binary, argv.args, resolvedExecPath, argv.env, {
+    sshBatchMode: "no",
+    sshTty: true,
+  });
   if (argv.sessionRef) {
     spec.sessionRef = argv.sessionRef;
   }
@@ -352,6 +373,15 @@ export function envVarAuthProbe(names: string[]): AuthProbe {
       const any = results.some((r) => r.ok && r.stdout.trim().length > 0);
       return any ? "authenticated" : "unknown";
     }
+    if (ctx.location.kind === "ssh") {
+      const result = await readSshCommandOutput(
+        ctx.location,
+        "sh",
+        ["-lc", names.map((name) => `printf %s "$${name}"`).join("; ")],
+        { timeout: 10_000 },
+      ).catch(() => undefined);
+      return result?.stdout.trim() ? "authenticated" : "unknown";
+    }
     const any = names.some((n) => {
       const value = process.env[n];
       return typeof value === "string" && value.trim().length > 0;
@@ -370,6 +400,7 @@ export function configFileAuthProbe(
   resolvePath: (location: ProjectLocation) => string | undefined,
 ): AuthProbe {
   return async (ctx) => {
+    if (ctx.location.kind === "ssh") return undefined;
     const path = resolvePath(ctx.location);
     if (!path) return undefined;
     return existsSync(path) ? "authenticated" : "missing";
@@ -394,6 +425,7 @@ export function cliSubcommandAuthProbe(args: string[]): AuthProbe {
 }
 
 const PROBE_WSL_LINUX_PATH = "/tmp";
+const PROBE_SSH_PATH = "/tmp";
 
 export function detectProbeLocation(ctx: AgentEnvContext | undefined): ProjectLocation {
   if (ctx?.envKind === "wsl" && ctx.wslDistro) {
@@ -403,6 +435,9 @@ export function detectProbeLocation(ctx: AgentEnvContext | undefined): ProjectLo
       linuxPath: PROBE_WSL_LINUX_PATH,
       uncPath: "\\\\wsl$",
     };
+  }
+  if (ctx?.envKind === "ssh" && ctx.sshHost) {
+    return { kind: "ssh", host: ctx.sshHost, path: ctx.sshPath ?? PROBE_SSH_PATH };
   }
   if (process.platform === "win32") {
     return { kind: "windows", path: homedir() };
@@ -435,6 +470,17 @@ async function resolveDetectedBinary(
     const path = result?.ok ? result.stdout : undefined;
     primeAgentBinaryPath(ctx.wslDistro, binary, path);
     return path;
+  }
+  if (ctx?.envKind === "ssh" && ctx.sshHost) {
+    const location: Extract<ProjectLocation, { kind: "ssh" }> = {
+      kind: "ssh",
+      host: ctx.sshHost,
+      path: ctx.sshPath ?? PROBE_SSH_PATH,
+    };
+    const result = await runSshScript(location, `command -v ${quotePosixShellArg(binary)}`, {
+      timeout: 10_000,
+    }).catch(() => undefined);
+    return result?.stdout.trim() || undefined;
   }
   return resolveExecutablePathAsync(binary);
 }
@@ -528,14 +574,25 @@ export function resolveAgentHomeSubpath(
   location: ProjectLocation,
   subpath: string,
 ): string | undefined {
+  const trimmed = subpath.replace(/^[\\/]+/, "");
   if (location.kind === "wsl") {
     const home = resolveWslHomeDirectory(location.distro);
     if (!home) return undefined;
-    const trimmed = subpath.replace(/^[\\/]+/, "");
     return toWslUncPath(location.distro, `${home}/${trimmed}`);
+  }
+  if (location.kind === "ssh") {
+    const home = resolveSshHomeDirectory(location);
+    return home ? `${home}/${trimmed}` : undefined;
   }
   return join(homedir(), ...subpath.split(/[\\/]/).filter((s) => s.length > 0));
 }
+
+export {
+  readSshCommandOutputSync,
+  resolveSshHomeDirectory,
+  runSshScript,
+  runSshScriptSync,
+} from "../../ssh";
 
 /**
  * Recursive `fs.watch` wrapper with uniform error-swallow / cleanup semantics.

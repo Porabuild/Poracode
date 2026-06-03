@@ -19,6 +19,7 @@ export function resolveOpenCodeSessionDirectory(location: ProjectLocation): stri
       return location.path;
     case "wsl":
       return location.linuxPath;
+    case "ssh":
     case "posix":
       return location.path;
   }
@@ -30,6 +31,8 @@ function poolKey(location: ProjectLocation): string {
       return `windows:${location.path}`;
     case "wsl":
       return `wsl:${location.distro}:${location.linuxPath}`;
+    case "ssh":
+      return `ssh:${location.host}:${location.path}`;
     case "posix":
       return `posix:${location.path}`;
   }

@@ -7,9 +7,12 @@ import {
   findSessionFiles,
   quotePosixShellArg,
   readSessionFileText,
+  readSshCommandOutputSync,
   readWslCommandOutput,
+  resolveSshHomeDirectory,
   resolveWslHomeDirectory,
   resolveWslShellPath,
+  runSshScriptSync,
 } from "../base";
 import {
   parseCodexRolloutIdFromPath,
@@ -34,6 +37,12 @@ function nativeCodexHomeCandidates(): string[] {
 function wslPrivateCodexHome(distro: string): string | undefined {
   const home = resolveWslHomeDirectory(distro);
   return home ? `${home}/.lightcode/agent-plugins/codex/home` : undefined;
+}
+
+function sshCodexHomeCandidates(location: Extract<ProjectLocation, { kind: "ssh" }>): string[] {
+  const home = resolveSshHomeDirectory(location);
+  if (!home) return [];
+  return [`${home}/.codex`, `${home}/.lightcode/agent-plugins/codex/home`];
 }
 
 function dedupeById<T extends { id: string }>(items: T[], getUpdatedAt: (item: T) => number): T[] {
@@ -63,6 +72,8 @@ export function describeCodexLocation(location: ProjectLocation): string {
       return `windows:${location.path}`;
     case "wsl":
       return `wsl:${location.distro}:${location.linuxPath}`;
+    case "ssh":
+      return `ssh:${location.host}:${location.path}`;
     case "posix":
       return `posix:${location.path}`;
   }
@@ -82,6 +93,16 @@ export function readCodexSessionIndexForLocation(location: ProjectLocation) {
       return [];
     }
     return parseCodexSessionIndex(result.stdout);
+  }
+
+  if (location.kind === "ssh") {
+    const commands = sshCodexHomeCandidates(location).map(
+      (home) => `cat ${quotePosixShellArg(`${home}/session_index.jsonl`)} 2>/dev/null || true`,
+    );
+    if (commands.length === 0) return [];
+    const result = runSshScriptSync(location, commands.join("\n"), { timeout: 10_000 });
+    if (!result.ok || result.stdout.length === 0) return [];
+    return dedupeSessionIndex(parseCodexSessionIndex(result.stdout));
   }
 
   const sessions = readCodexSessionIndex();
@@ -104,6 +125,13 @@ export function readCodexSessionIndexForLocation(location: ProjectLocation) {
 export async function readCodexSessionIndexForLocationAsync(
   location: ProjectLocation,
 ): Promise<Array<{ id: string; updatedAt: number; threadName: string }>> {
+  if (location.kind === "ssh") {
+    const paths = sshCodexHomeCandidates(location).map((home) => `${home}/session_index.jsonl`);
+    const reads = await Promise.all(paths.map((p) => readSessionFileText(location, p)));
+    const parts = reads.filter((r): r is string => typeof r === "string" && r.length > 0);
+    if (parts.length === 0) return [];
+    return dedupeSessionIndex(parts.flatMap((raw) => parseCodexSessionIndex(raw)));
+  }
   if (location.kind !== "wsl") {
     return readCodexSessionIndexForLocation(location);
   }
@@ -136,6 +164,8 @@ export function isInteractiveCodexRollout(
     case "windows":
       return rollout.cwd === location.path;
     case "posix":
+      return rollout.cwd === location.path;
+    case "ssh":
       return rollout.cwd === location.path;
     case "wsl":
       return rollout.cwd === location.linuxPath || rollout.cwd === location.uncPath;
@@ -184,6 +214,45 @@ export function readCodexRolloutsForLocation(location: ProjectLocation): CodexRo
             ...(updatedAt !== undefined ? { updatedAt } : {}),
           };
           return parsed ? [parsed] : [];
+        }),
+    );
+  }
+
+  if (location.kind === "ssh") {
+    const roots = sshCodexHomeCandidates(location)
+      .map((home) => quotePosixShellArg(`${home}/sessions`))
+      .join(" ");
+    if (!roots) return [];
+    const result = runSshScriptSync(
+      location,
+      [
+        `find ${roots} -type f -name 'rollout-*.jsonl' 2>/dev/null | while IFS= read -r path; do`,
+        `  mtime=$(stat -c %Y "$path" 2>/dev/null || stat -f %m "$path" 2>/dev/null || printf 0)`,
+        `  printf '%s\\t%s\\n' "$mtime" "$path"`,
+        `done`,
+      ].join("\n"),
+      { timeout: 15_000 },
+    );
+    if (!result.ok || result.stdout.length === 0) return [];
+    return dedupeRollouts(
+      result.stdout
+        .split(/\r?\n/g)
+        .map((line) => line.trim())
+        .filter(Boolean)
+        .flatMap((line) => {
+          const [mtimeRaw, path] = line.split("\t");
+          if (!path) return [];
+          const updatedAt = Number.isFinite(Number(mtimeRaw))
+            ? Math.round(Number(mtimeRaw) * 1000)
+            : undefined;
+          const id = parseCodexRolloutIdFromPath(path);
+          if (!id) return [];
+          const meta: CodexRolloutMeta = {
+            id,
+            path,
+            ...(updatedAt !== undefined ? { updatedAt } : {}),
+          };
+          return [meta];
         }),
     );
   }
@@ -251,6 +320,14 @@ export function readCodexRolloutMetaForLocation(
     return parseCodexRolloutMeta(rollout.path, result.stdout, rollout.updatedAt) ?? rollout;
   }
 
+  if (location.kind === "ssh") {
+    const result = readSshCommandOutputSync(location, "head", ["-n", "1", "--", rollout.path], {
+      timeout: 10_000,
+    });
+    if (!result.ok || result.stdout.length === 0) return rollout;
+    return parseCodexRolloutMeta(rollout.path, result.stdout, rollout.updatedAt) ?? rollout;
+  }
+
   try {
     const firstLine = readFileSync(rollout.path, "utf8").split(/\r?\n/g)[0] ?? "";
     return parseCodexRolloutMeta(rollout.path, firstLine, rollout.updatedAt) ?? rollout;
@@ -263,6 +340,12 @@ export async function readCodexRolloutMetaForLocationAsync(
   location: ProjectLocation,
   rollout: CodexRolloutMeta,
 ): Promise<CodexRolloutMeta | undefined> {
+  if (location.kind === "ssh") {
+    const text = await readSessionFileText(location, rollout.path);
+    if (!text) return rollout;
+    const firstLine = text.split(/\r?\n/g)[0] ?? "";
+    return parseCodexRolloutMeta(rollout.path, firstLine, rollout.updatedAt) ?? rollout;
+  }
   if (location.kind !== "wsl") {
     return readCodexRolloutMetaForLocation(location, rollout);
   }
@@ -275,15 +358,20 @@ export async function readCodexRolloutMetaForLocationAsync(
 export async function readCodexRolloutsForLocationAsync(
   location: ProjectLocation,
 ): Promise<CodexRolloutMeta[]> {
-  if (location.kind !== "wsl") {
+  if (location.kind !== "wsl" && location.kind !== "ssh") {
     return readCodexRolloutsForLocation(location);
   }
-  const home = resolveWslHomeDirectory(location.distro);
-  const privateHome = wslPrivateCodexHome(location.distro);
-  const roots = [
-    home ? `${home}/.codex/sessions` : undefined,
-    privateHome ? `${privateHome}/sessions` : undefined,
-  ].filter((r): r is string => Boolean(r));
+  let roots: string[];
+  if (location.kind === "ssh") {
+    roots = sshCodexHomeCandidates(location).map((home) => `${home}/sessions`);
+  } else {
+    const home = resolveWslHomeDirectory(location.distro);
+    const privateHome = wslPrivateCodexHome(location.distro);
+    roots = [
+      home ? `${home}/.codex/sessions` : undefined,
+      privateHome ? `${privateHome}/sessions` : undefined,
+    ].filter((r): r is string => Boolean(r));
+  }
 
   const accept = (name: string): boolean => name.startsWith("rollout-") && name.endsWith(".jsonl");
   const found = (
@@ -321,6 +409,9 @@ export function resolveCodexSessionWatchPaths(location: ProjectLocation): string
       home ? `${home}/.codex/sessions` : undefined,
       privateHome ? `${privateHome}/sessions` : undefined,
     ].filter((p): p is string => Boolean(p));
+  }
+  if (location.kind === "ssh") {
+    return sshCodexHomeCandidates(location).map((home) => `${home}/sessions`);
   }
   const paths: string[] = [];
   const publicSessions = join(homedir(), ".codex", "sessions");

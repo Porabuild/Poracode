@@ -8,6 +8,7 @@ import type {
   ProjectLocation,
 } from "@/shared/contracts";
 import { readWslCommandOutputAsync } from "../agents/base";
+import { readSshCommandOutput } from "../ssh";
 import type { WslBridgeClient } from "../wsl/bridge/client";
 import { execGit, removeWslPathViaBridge } from "./exec";
 
@@ -238,6 +239,10 @@ async function removeTempIndex(projectLocation: ProjectLocation, tempIndex: stri
       return;
     }
     await readWslCommandOutputAsync(projectLocation.distro, "rm", ["-f", tempIndex]);
+    return;
+  }
+  if (projectLocation.kind === "ssh") {
+    await readSshCommandOutput({ ...projectLocation, path: "/" }, "rm", ["-f", "--", tempIndex]);
     return;
   }
   const resolved = isAbsolute(tempIndex) ? tempIndex : join(projectLocation.path, tempIndex);

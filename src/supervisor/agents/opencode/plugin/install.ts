@@ -18,14 +18,22 @@ import { resolveWslHomeDirectory } from "../../base";
 import { BROWSER_MCP_SERVER_NAME } from "../../browserMcp";
 import {
   copyPluginAssetsIfStale,
+  copySshFile,
   createPluginSourceResolver,
   getNativePluginBaseDir,
+  getSshPluginBaseDirs,
   getWslPluginBaseDirs,
+  isSshPluginContext,
   isWslPluginContext,
   readBundledPluginVersion,
   readPluginManifest,
+  readSshTextFile,
+  removeSshFile,
   removeStagedPluginDir,
+  stagePluginAssetsToSsh,
   stagePluginAssetsToWsl,
+  verifySshStagedPlugin,
+  writeSshTextFile,
   type PluginManifest,
 } from "../../plugin/installerBase";
 import { buildOpenCodeBrowserMcp } from "../mcpBrowser";
@@ -158,7 +166,36 @@ function resolveOpenCodeWslPluginsDir(
   };
 }
 
+function resolveOpenCodeSshConfigDir(
+  ctx: AgentEnvContext & { envKind: "ssh"; sshHost: string },
+): { linuxDir: string } | undefined {
+  const ssh = getSshPluginBaseDirs(ctx, "opencode");
+  if (!ssh) return undefined;
+  return { linuxDir: `${ssh.home}/.config/opencode` };
+}
+
+function resolveOpenCodeSshPluginsDir(
+  ctx: AgentEnvContext & { envKind: "ssh"; sshHost: string },
+): { linuxDir: string } | undefined {
+  const cfg = resolveOpenCodeSshConfigDir(ctx);
+  return cfg ? { linuxDir: `${cfg.linuxDir}/plugins` } : undefined;
+}
+
 export function getOpenCodePluginPaths(ctx?: AgentEnvContext): OpenCodePluginPaths {
+  if (isSshPluginContext(ctx)) {
+    const ssh = getSshPluginBaseDirs(ctx, "opencode");
+    if (!ssh) {
+      return { pluginDir: "", opencodePluginFile: "", version: "0.0.0" };
+    }
+    const opencodeDir = resolveOpenCodeSshPluginsDir(ctx);
+    return {
+      pluginDir: ssh.linuxBase,
+      opencodePluginFile: opencodeDir
+        ? `${opencodeDir.linuxDir}/${OPENCODE_PLUGIN_DROP_FILE_NAME}`
+        : "",
+      version: "0.0.0",
+    };
+  }
   if (isWslPluginContext(ctx)) {
     const wsl = getWslPluginBaseDirs(ctx.wslDistro, "opencode");
     if (!wsl) {
@@ -213,6 +250,9 @@ export function installOpenCodePlugin(
   if (isWslPluginContext(ctx)) {
     return installOpenCodePluginWsl(ctx.wslDistro, sourceDir, manifest);
   }
+  if (isSshPluginContext(ctx)) {
+    return installOpenCodePluginSsh(ctx, sourceDir, manifest);
+  }
 
   const pluginDir = getNativePluginBaseDir("opencode", ctx?.baseDir);
   mkdirSync(pluginDir, { recursive: true });
@@ -250,6 +290,49 @@ export function installOpenCodePlugin(
     ok: true,
     version: manifest.version,
     paths: { pluginDir, opencodePluginFile, version: manifest.version },
+  };
+}
+
+function installOpenCodePluginSsh(
+  ctx: AgentEnvContext & { envKind: "ssh"; sshHost: string },
+  sourceDir: string,
+  manifest: PluginManifest,
+): { ok: true; paths: OpenCodePluginPaths; version: string } | { ok: false; reason: string } {
+  const staged = stagePluginAssetsToSsh(ctx, sourceDir, "opencode", OPENCODE_PLUGIN_ASSET_FILES);
+  if (!staged.ok) return staged;
+
+  const opencodeDir = resolveOpenCodeSshPluginsDir(ctx);
+  if (!opencodeDir) {
+    return {
+      ok: false,
+      reason: `failed to resolve OpenCode plugins dir on ssh host ${ctx.sshHost}`,
+    };
+  }
+  const opencodePluginFile = `${opencodeDir.linuxDir}/${OPENCODE_PLUGIN_DROP_FILE_NAME}`;
+  const opencodeManifestFile = `${opencodeDir.linuxDir}/${OPENCODE_PLUGIN_DROP_MANIFEST_NAME}`;
+  const pluginCopy = copySshFile(ctx, join(sourceDir, "lightcode-status.mjs"), opencodePluginFile);
+  if (!pluginCopy.ok) return pluginCopy;
+  const manifestCopy = copySshFile(ctx, join(sourceDir, "plugin.json"), opencodeManifestFile);
+  if (!manifestCopy.ok) return manifestCopy;
+  cleanupSshLegacyDrops(ctx, opencodeDir.linuxDir);
+
+  const cfgDir = resolveOpenCodeSshConfigDir(ctx);
+  if (cfgDir) {
+    updateOpenCodeSshConfigFile(ctx, `${cfgDir.linuxDir}/${OPENCODE_CONFIG_FILE_NAME}`, undefined);
+  }
+
+  console.log(
+    `[supervisor] OpenCode hook plugin staged v${manifest.version} on SSH host ${ctx.sshHost} at ${staged.linuxPluginDir} → ${opencodePluginFile}`,
+  );
+
+  return {
+    ok: true,
+    version: manifest.version,
+    paths: {
+      pluginDir: staged.linuxPluginDir,
+      opencodePluginFile,
+      version: manifest.version,
+    },
   };
 }
 
@@ -316,6 +399,32 @@ export function isOpenCodePluginInstalled(ctx?: AgentEnvContext): {
   installed: boolean;
   version?: string;
 } {
+  if (isSshPluginContext(ctx)) {
+    const paths = getOpenCodePluginPaths(ctx);
+    const opencodeDir = resolveOpenCodeSshPluginsDir(ctx);
+    if (!opencodeDir) return { installed: false };
+    return verifySshStagedPlugin(ctx, "opencode", {
+      assets: OPENCODE_PLUGIN_ASSET_FILES,
+      extraCheck: () => {
+        const stagedPlugin = readSshTextFile(ctx, `${paths.pluginDir}/lightcode-status.mjs`);
+        const droppedPlugin = readSshTextFile(
+          ctx,
+          `${opencodeDir.linuxDir}/${OPENCODE_PLUGIN_DROP_FILE_NAME}`,
+        );
+        const stagedManifest = readSshTextFile(ctx, `${paths.pluginDir}/plugin.json`);
+        const droppedManifest = readSshTextFile(
+          ctx,
+          `${opencodeDir.linuxDir}/${OPENCODE_PLUGIN_DROP_MANIFEST_NAME}`,
+        );
+        return (
+          stagedPlugin !== undefined &&
+          stagedPlugin === droppedPlugin &&
+          stagedManifest !== undefined &&
+          stagedManifest === droppedManifest
+        );
+      },
+    });
+  }
   if (isWslPluginContext(ctx)) {
     const wsl = getWslPluginBaseDirs(ctx.wslDistro, "opencode");
     if (!wsl) return { installed: false };
@@ -477,6 +586,17 @@ export function syncOpenCodeBrowserMcpConfigFile(
   enabled: boolean,
   browserMcp?: BrowserMcpHttpConfig,
 ): void {
+  if (location.kind === "ssh") {
+    const ctx = { envKind: "ssh", sshHost: location.host, sshPath: location.path } as const;
+    const cfgDir = resolveOpenCodeSshConfigDir(ctx);
+    if (!cfgDir) return;
+    updateOpenCodeSshConfigFile(
+      ctx,
+      `${cfgDir.linuxDir}/${OPENCODE_CONFIG_FILE_NAME}`,
+      enabled ? buildOpenCodeBrowserMcp(location, browserMcp) : undefined,
+    );
+    return;
+  }
   if (location.kind === "wsl") {
     const cfgDir = resolveOpenCodeWslConfigDir(location.distro);
     if (!cfgDir) return;
@@ -500,6 +620,24 @@ export function syncOpenCodeBrowserMcpConfigFile(
  * Best-effort: missing files / unreachable distros are swallowed.
  */
 export function uninstallOpenCodePlugin(ctx?: AgentEnvContext): void {
+  if (isSshPluginContext(ctx)) {
+    const opencodeDir = resolveOpenCodeSshPluginsDir(ctx);
+    if (opencodeDir) {
+      removeSshFile(ctx, `${opencodeDir.linuxDir}/${OPENCODE_PLUGIN_DROP_FILE_NAME}`);
+      removeSshFile(ctx, `${opencodeDir.linuxDir}/${OPENCODE_PLUGIN_DROP_MANIFEST_NAME}`);
+      cleanupSshLegacyDrops(ctx, opencodeDir.linuxDir);
+    }
+    const cfgDir = resolveOpenCodeSshConfigDir(ctx);
+    if (cfgDir) {
+      updateOpenCodeSshConfigFile(
+        ctx,
+        `${cfgDir.linuxDir}/${OPENCODE_CONFIG_FILE_NAME}`,
+        undefined,
+      );
+    }
+    removeStagedPluginDir("opencode", ctx);
+    return;
+  }
   if (isWslPluginContext(ctx)) {
     const opencodeDir = resolveOpenCodeWslPluginsDir(ctx.wslDistro);
     if (opencodeDir) {
@@ -523,6 +661,60 @@ export function uninstallOpenCodePlugin(ctx?: AgentEnvContext): void {
     undefined,
   );
   removeStagedPluginDir("opencode", ctx);
+}
+
+function cleanupSshLegacyDrops(
+  ctx: AgentEnvContext & { envKind: "ssh"; sshHost: string },
+  pluginsDir: string,
+): void {
+  for (const name of OPENCODE_LEGACY_DROP_FILES) {
+    removeSshFile(ctx, `${pluginsDir}/${name}`);
+  }
+}
+
+function updateOpenCodeSshConfigFile(
+  ctx: AgentEnvContext & { envKind: "ssh"; sshHost: string },
+  configPath: string,
+  servers: BrowserMcpServers,
+): void {
+  const raw = readSshTextFile(ctx, configPath);
+  let original: Record<string, unknown> = {};
+  if (raw && raw.trim().length > 0) {
+    try {
+      const parsed = JSON.parse(raw) as unknown;
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+        original = parsed as Record<string, unknown>;
+      }
+    } catch {
+      return;
+    }
+  }
+  const config: Record<string, unknown> = { ...original };
+  const existingPlugin = config.plugin;
+  if (Array.isArray(existingPlugin)) {
+    const filtered = existingPlugin.filter((entry) => {
+      if (typeof entry !== "string") return true;
+      return !entry.includes(LIGHTCODE_PLUGIN_SPEC_MARKER);
+    });
+    if (filtered.length === 0) delete config.plugin;
+    else if (filtered.length !== existingPlugin.length) config.plugin = filtered;
+  }
+  const mcpRaw = config.mcp;
+  const mcp: Record<string, unknown> =
+    mcpRaw && typeof mcpRaw === "object" && !Array.isArray(mcpRaw)
+      ? { ...(mcpRaw as Record<string, unknown>) }
+      : {};
+  delete mcp[BROWSER_MCP_SERVER_NAME];
+  if (servers) {
+    for (const [name, entry] of Object.entries(servers)) {
+      mcp[name] = entry;
+    }
+  }
+  if (Object.keys(mcp).length === 0) delete config.mcp;
+  else config.mcp = mcp;
+  const next = `${JSON.stringify(config, null, 2)}\n`;
+  if (raw === next) return;
+  void writeSshTextFile(ctx, configPath, next);
 }
 
 function removeIfPresent(path: string): void {

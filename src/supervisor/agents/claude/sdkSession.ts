@@ -28,6 +28,7 @@ import type {
 import { areAgentSlashCommandsEqual } from "@/shared/contracts";
 import { buildClaudeBrowserMcpServers } from "./mcpBrowser";
 import {
+  buildAgentCommand,
   createKnownSessionRef,
   getWslCommand,
   getPrimedPosixEnv,
@@ -101,6 +102,7 @@ function projectCwd(location: ProjectLocation): string {
   switch (location.kind) {
     case "wsl":
       return location.linuxPath;
+    case "ssh":
     case "windows":
     case "posix":
       return location.path;
@@ -209,6 +211,26 @@ function spawnClaudeNative(location: ProjectLocation, options: SpawnOptions): Sp
     stdio: ["pipe", "pipe", "pipe"],
     windowsHide: true,
     ...(options.cwd ? { cwd: options.cwd } : {}),
+  }) as unknown as SpawnedProcess;
+}
+
+function spawnClaudeInSsh(location: ProjectLocation, options: SpawnOptions): SpawnedProcess {
+  if (location.kind !== "ssh") {
+    throw new Error("spawnClaudeInSsh called for a non-SSH project.");
+  }
+  const command = options.command || "claude";
+  const spec = buildAgentCommand(
+    location,
+    command,
+    options.args,
+    undefined,
+    filteredEnv(options.env),
+  );
+  return spawn(spec.command, spec.args, {
+    env: process.env,
+    signal: options.signal,
+    stdio: ["pipe", "pipe", "pipe"],
+    windowsHide: true,
   }) as unknown as SpawnedProcess;
 }
 
@@ -824,7 +846,7 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
             (process.env as Record<string, string>))
           : undefined;
       const env =
-        this.input.projectLocation.kind === "wsl"
+        this.input.projectLocation.kind === "wsl" || this.input.projectLocation.kind === "ssh"
           ? { CLAUDE_AGENT_SDK_CLIENT_APP: "lightcode", BROWSER: "/bin/true" }
           : { ...(posixEnv ?? process.env), CLAUDE_AGENT_SDK_CLIENT_APP: "lightcode" };
       // Posix builds ship without the SDK's bundled `claude` SEA binary
@@ -861,6 +883,9 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
           // the binary cache yet.
           claudeExecutablePath =
             resolveAgentBinaryPath(this.input.projectLocation, "claude") ?? "claude";
+          break;
+        case "ssh":
+          claudeExecutablePath = "claude";
           break;
         default: {
           const _exhaustive: never = this.input.projectLocation;
@@ -908,12 +933,17 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
               spawnClaudeCodeProcess: (spawnOptions) =>
                 spawnClaudeInWsl(this.input.projectLocation, spawnOptions),
             }
-          : this.input.projectLocation.kind === "windows"
+          : this.input.projectLocation.kind === "ssh"
             ? {
                 spawnClaudeCodeProcess: (spawnOptions) =>
-                  spawnClaudeNative(this.input.projectLocation, spawnOptions),
+                  spawnClaudeInSsh(this.input.projectLocation, spawnOptions),
               }
-            : {}),
+            : this.input.projectLocation.kind === "windows"
+              ? {
+                  spawnClaudeCodeProcess: (spawnOptions) =>
+                    spawnClaudeNative(this.input.projectLocation, spawnOptions),
+                }
+              : {}),
       };
 
       this.queryRuntime = query({ prompt: this.promptQueue, options });

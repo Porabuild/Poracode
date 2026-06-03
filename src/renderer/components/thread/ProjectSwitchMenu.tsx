@@ -1,5 +1,5 @@
 import { startTransition } from "react";
-import { ChevronDown, FolderOpen, House, Monitor } from "lucide-react";
+import { ChevronDown, FolderOpen, House, Monitor, Server } from "lucide-react";
 import { Dropdown, Label } from "@heroui/react";
 import { useShallow } from "zustand/shallow";
 import type { Project } from "@/shared/contracts";
@@ -19,6 +19,9 @@ function LocationIcon(props: { kind: Project["location"]["kind"]; className?: st
   const className = `${props.className ?? "size-4"} shrink-0 text-muted`;
   if (props.kind === "windows") {
     return <Monitor className={className} />;
+  }
+  if (props.kind === "ssh") {
+    return <Server className={className} />;
   }
   return <FolderOpen className={className} />;
 }

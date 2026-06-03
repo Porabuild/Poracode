@@ -25,6 +25,7 @@ import {
 } from "@/shared/contracts";
 import { toWslUncPath } from "@/shared/wsl";
 import { buildAgentCommand, parallelWslCommandsAsync, quotePosixShellArg } from "./agents/base";
+import { readSshCommandOutput } from "./ssh";
 
 const execFileAsync = promisify(execFile);
 const GH_TIMEOUT = 30_000;
@@ -91,7 +92,9 @@ function classifyError(error: unknown, operation: string): Error {
 
 async function runGh(location: ProjectLocation, args: string[]): Promise<string> {
   const spec = buildAgentCommand(location, "gh", args);
-  const cwd = spec.cwd ?? (location.kind === "wsl" ? undefined : location.path);
+  const cwd =
+    spec.cwd ??
+    (location.kind === "windows" || location.kind === "posix" ? location.path : undefined);
   const { stdout } = await execFileAsync(spec.command, spec.args, {
     windowsHide: true,
     timeout: GH_TIMEOUT,
@@ -106,6 +109,30 @@ async function createGhBodyFile(
   prefix: string,
   body: string,
 ): Promise<{ cliPath: string; cleanup(): Promise<void> }> {
+  if (location.kind === "ssh") {
+    const dir = (
+      await readSshCommandOutput({ ...location, path: "/" }, "mktemp", [
+        "-d",
+        `/tmp/${prefix}-XXXXXX`,
+      ])
+    ).stdout.trim();
+    const filename = "body.md";
+    const cliPath = `${dir}/${filename}`;
+    const encoded = Buffer.from(body, "utf8").toString("base64");
+    await readSshCommandOutput({ ...location, path: "/" }, "sh", [
+      "-c",
+      `base64 -d > "$1" <<'__LIGHTCODE_GH_BODY__'\n${encoded}\n__LIGHTCODE_GH_BODY__`,
+      "sh",
+      cliPath,
+    ]);
+    return {
+      cliPath,
+      cleanup: async () => {
+        await readSshCommandOutput({ ...location, path: "/" }, "rm", ["-rf", "--", dir]);
+      },
+    };
+  }
+
   const dirPrefix =
     location.kind === "wsl"
       ? toWslUncPath(location.distro, `/tmp/${prefix}-`)
@@ -336,6 +363,7 @@ function mapPrDetails(raw: Record<string, unknown>): PrDetails {
 /** Stable cache key for {@link GitHubService.viewerLoginCache}. */
 function locationKey(location: ProjectLocation): string {
   if (location.kind === "wsl") return `wsl:${location.distro}:${location.linuxPath}`;
+  if (location.kind === "ssh") return `ssh:${location.host}:${location.path}`;
   return `${location.kind}:${location.path}`;
 }
 

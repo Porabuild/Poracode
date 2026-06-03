@@ -178,6 +178,18 @@ const unsubSupervisor = readBridge().onSupervisorEvent((event) => {
       store.setWslAgentStatuses(event.statuses);
     }
   }
+  if (event.type === "ssh-agent-statuses") {
+    console.log(`[renderer] event: ssh-agent-statuses (${event.statuses.length} agents)`);
+    const store = useAgentStatusesStore.getState();
+    if (store.inFirstLaunchDiscovery && store.discoveryScope?.kind === "ssh") {
+      const statuses = event.statuses;
+      setTimeout(() => {
+        useAgentStatusesStore.getState().setSshAgentStatuses(statuses);
+      }, 1000);
+    } else {
+      store.setSshAgentStatuses(event.statuses);
+    }
+  }
 });
 
 const unsubUpdate = readBridge().onUpdateStatus((status) => {

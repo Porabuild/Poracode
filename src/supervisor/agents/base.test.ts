@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 import type { ProjectLocation } from "@/shared/contracts";
-import { buildBatchWslScript, getWslCommand, injectWslEnv, wrapWslCommand } from "./base";
+import {
+  buildAgentCommand,
+  buildBatchWslScript,
+  getWslCommand,
+  injectWslEnv,
+  resolveLaunchSpec,
+  wrapWslCommand,
+} from "./base";
 
 const wslProject: ProjectLocation = {
   kind: "wsl",
@@ -98,5 +105,34 @@ describe("injectWslEnv", () => {
     const original = wrapWslCommand(wslProject, "claude", ["--version"]);
     const result = injectWslEnv(original, wslProject, {});
     expect(result).toBe(original);
+  });
+});
+
+describe("buildAgentCommand", () => {
+  it("launches SSH agent commands through ssh in the remote project path", () => {
+    const spec = buildAgentCommand(
+      { kind: "ssh", host: "devbox", path: "/home/demo/repo" },
+      "codex",
+      ["--version"],
+      undefined,
+      { LIGHTCODE: "1" },
+    );
+
+    expect(spec.command).toBe("ssh");
+    expect(spec.args).toEqual(expect.arrayContaining(["-o", "BatchMode=yes", "-T", "devbox"]));
+    expect(spec.args.at(-1)).toContain("/home/demo/repo");
+    expect(spec.args.at(-1)).toContain("LIGHTCODE");
+    expect(spec.args.at(-1)).toContain("codex");
+    expect(spec.args.at(-1)).toContain("--version");
+  });
+
+  it("uses a tty for SSH terminal launch specs", () => {
+    const spec = resolveLaunchSpec(
+      { kind: "ssh", host: "devbox", path: "/home/demo/repo" },
+      { binary: "codex", args: ["--version"] },
+    );
+
+    expect(spec.command).toBe("ssh");
+    expect(spec.args).toEqual(expect.arrayContaining(["-o", "BatchMode=no", "-tt", "devbox"]));
   });
 });

@@ -11,6 +11,7 @@ import {
 } from "@/shared/contracts";
 import { getProjectFsPath, toWslUncPath } from "@/shared/wsl";
 import { parallelWslCommandsAsync } from "../agents/base";
+import { readSshCommandOutput } from "../ssh";
 import {
   execGit,
   execGitBatchWslBridge,
@@ -649,10 +650,18 @@ export class GitStatusService {
       return { oldContent, newContent };
     }
 
-    const repoPath = getProjectFsPath(location);
+    const newContentPromise =
+      location.kind === "ssh"
+        ? readSshCommandOutput(location, "cat", ["--", filePath], {
+            timeout: GIT_DIFF_TIMEOUT,
+            maxBuffer: 50 * 1024 * 1024,
+          })
+            .then((result) => result.stdout)
+            .catch(() => "")
+        : readFile(join(getProjectFsPath(location), filePath), "utf-8").catch(() => "");
     const [oldContent, newContent] = await Promise.all([
       execGit(location, ["show", `:${filePath}`], { timeout: GIT_DIFF_TIMEOUT }).catch(() => ""),
-      readFile(join(repoPath, filePath), "utf-8").catch(() => ""),
+      newContentPromise,
     ]);
     return { oldContent, newContent };
   }
@@ -710,6 +719,16 @@ export class GitStatusService {
     location: ProjectLocation,
     filePath: string,
   ): Promise<number> {
+    if (location.kind === "ssh") {
+      const result = await readSshCommandOutput(
+        location,
+        "sh",
+        ["-c", 'test -f "$1" || exit 0; wc -l < "$1"', "sh", filePath],
+        { timeout: GIT_STATUS_TIMEOUT, maxBuffer: 1024 },
+      ).catch(() => ({ stdout: "" }));
+      return Number.parseInt(result.stdout.trim(), 10) || 0;
+    }
+
     const absolutePath = join(getProjectFsPath(location), filePath);
     try {
       const stats = await stat(absolutePath);

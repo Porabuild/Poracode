@@ -119,11 +119,12 @@ export function AppContent() {
       }
     }
 
-    const { agentStatuses, wslAgentStatuses } = useAgentStatusesStore.getState();
+    const { agentStatuses, wslAgentStatuses, sshAgentStatuses } = useAgentStatusesStore.getState();
     const projectAgentStatuses = getProjectAgentStatuses(
       project.location,
       agentStatuses,
       wslAgentStatuses,
+      sshAgentStatuses,
     );
     const titlePrompt = segments
       ? segments
@@ -257,8 +258,13 @@ export function AppContent() {
       useAppStore.getState().openThreadSideBySide(thread.id);
     }
 
-    const { agentStatuses, wslAgentStatuses } = useAgentStatusesStore.getState();
-    const agents = getProjectAgentStatuses(project.location, agentStatuses, wslAgentStatuses);
+    const { agentStatuses, wslAgentStatuses, sshAgentStatuses } = useAgentStatusesStore.getState();
+    const agents = getProjectAgentStatuses(
+      project.location,
+      agentStatuses,
+      wslAgentStatuses,
+      sshAgentStatuses,
+    );
     generateTitleAsync(thread.id, project.location, agents, prompt);
 
     const targetLabel = agents.find((a) => a.kind === targetAgentKind)?.label ?? targetAgentKind;
@@ -497,7 +503,12 @@ function DraftViewContent(props: {
   const { project, lastDraftConfig, onStart } = props;
   const projectAgentStatuses = useAgentStatusesStore(
     useShallow((s) =>
-      getProjectAgentStatuses(project.location, s.agentStatuses, s.wslAgentStatuses),
+      getProjectAgentStatuses(
+        project.location,
+        s.agentStatuses,
+        s.wslAgentStatuses,
+        s.sshAgentStatuses,
+      ),
     ),
   );
   const isDetectingAgents = useAgentStatusesStore((s) =>

@@ -1,5 +1,6 @@
 import {
   createProjectEntryPayloadSchema,
+  checkSshProjectConnectionPayloadSchema,
   deleteProjectEntryPayloadSchema,
   detectSetupScriptPayloadSchema,
   listProjectTreePayloadSchema,
@@ -38,6 +39,8 @@ import type {
   WriteExternalFileResult,
   WriteProjectFilePayload,
   WriteProjectFileResult,
+  CheckSshProjectConnectionPayload,
+  CheckSshProjectConnectionResult,
 } from "../../contracts";
 import { definePayloadProcedure } from "../core";
 
@@ -112,4 +115,9 @@ export const projectTreeProcedures = {
     DetectSetupScriptResult,
     "supervisor"
   >("detectSetupScript", "supervisor", detectSetupScriptPayloadSchema),
+  checkSshProjectConnection: definePayloadProcedure<
+    CheckSshProjectConnectionPayload,
+    CheckSshProjectConnectionResult,
+    "supervisor"
+  >("checkSshProjectConnection", "supervisor", checkSshProjectConnectionPayloadSchema),
 } as const;

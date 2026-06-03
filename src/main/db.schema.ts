@@ -3,9 +3,9 @@ import { sqliteTable, text, integer, primaryKey } from "drizzle-orm/sqlite-core"
 export const projects = sqliteTable("projects", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
-  locationKind: text("location_kind").notNull(), // "windows" | "wsl" | "posix"
-  locationPath: text("location_path"), // for windows/posix
-  locationDistro: text("location_distro"), // for wsl
+  locationKind: text("location_kind").notNull(), // "windows" | "wsl" | "posix" | "ssh"
+  locationPath: text("location_path"), // for windows/posix/ssh
+  locationDistro: text("location_distro"), // for wsl distro / ssh host
   locationLinuxPath: text("location_linux_path"), // for wsl
   locationUncPath: text("location_unc_path"), // for wsl
   lastDraftConfig: text("last_draft_config"), // JSON

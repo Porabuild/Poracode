@@ -243,5 +243,14 @@ function projectLocationsEqual(a: ProjectLocation, b: ProjectLocation): boolean 
   if (a.kind === "wsl" && b.kind === "wsl") {
     return a.distro === b.distro && a.linuxPath === b.linuxPath && a.uncPath === b.uncPath;
   }
-  return a.kind !== "wsl" && b.kind !== "wsl" && a.path === b.path;
+  if (a.kind === "ssh" && b.kind === "ssh") {
+    return a.host === b.host && a.path === b.path;
+  }
+  return (
+    a.kind !== "wsl" &&
+    a.kind !== "ssh" &&
+    b.kind !== "wsl" &&
+    b.kind !== "ssh" &&
+    a.path === b.path
+  );
 }

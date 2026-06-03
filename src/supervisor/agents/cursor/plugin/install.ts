@@ -14,14 +14,22 @@ import {
   createPluginSourceResolver,
   ctxCacheKey,
   getNativePluginBaseDir,
+  getSshPluginBaseDirs,
   getWslPluginBaseDirs,
+  isSshPluginContext,
   isWslPluginContext,
   memoByCtx,
   parseExistingHooksJson,
+  parseExistingSshJson,
   readBundledPluginVersion,
   readPluginManifest,
+  readSshTextFile,
   removeStagedPluginDir,
+  stagePluginAssetsToSsh,
   stagePluginAssetsToWsl,
+  sshPathExists,
+  verifySshStagedPlugin,
+  writeSshJsonFile,
   verifyStagedPluginAt,
   writeHooksJsonFile,
   writeNativeHookWrapper,
@@ -90,6 +98,14 @@ function wslGlobalCursorHooksPath(distro: string): string {
 }
 
 function computeCursorPluginPaths(ctx?: AgentEnvContext): CursorPluginPaths {
+  if (isSshPluginContext(ctx)) {
+    const ssh = getSshPluginBaseDirs(ctx, "cursor");
+    if (!ssh) return { pluginDir: "", globalHooksPath: "" };
+    return {
+      pluginDir: ssh.linuxBase,
+      globalHooksPath: `${ssh.home}/.cursor/hooks.json`,
+    };
+  }
   if (isWslPluginContext(ctx)) {
     const wsl = getWslPluginBaseDirs(ctx.wslDistro, "cursor");
     if (!wsl) return { pluginDir: "", globalHooksPath: "" };
@@ -237,6 +253,21 @@ export function installCursorPlugin(
       options.globalCursorDirOverride,
     );
   }
+  if (isSshPluginContext(ctx)) {
+    if (!options?.resolvedNodePath) {
+      return {
+        ok: false,
+        reason: "SSH Cursor plugin install requires a resolved node path on the remote host.",
+      };
+    }
+    return installCursorPluginSsh(
+      ctx,
+      sourceDir,
+      manifest,
+      options.resolvedNodePath,
+      options.globalCursorDirOverride,
+    );
+  }
 
   const pluginDir = getNativePluginBaseDir("cursor", ctx?.baseDir);
   mkdirSync(pluginDir, { recursive: true });
@@ -275,6 +306,53 @@ export function installCursorPlugin(
     ok: true,
     version: manifest.version,
     paths: { pluginDir, globalHooksPath: hooksPath },
+  };
+}
+
+function installCursorPluginSsh(
+  ctx: AgentEnvContext & { envKind: "ssh"; sshHost: string },
+  sourceDir: string,
+  manifest: PluginManifest,
+  resolvedNodePath: string,
+  globalCursorDirOverride: string | undefined,
+): { ok: true; paths: CursorPluginPaths; version: string } | { ok: false; reason: string } {
+  const staged = stagePluginAssetsToSsh(ctx, sourceDir, "cursor", {
+    includeForwardRuntime: true,
+  });
+  if (!staged.ok) return staged;
+
+  const hooksPath = globalCursorDirOverride
+    ? `${globalCursorDirOverride}/hooks.json`
+    : `${staged.deploy.home}/.cursor/hooks.json`;
+  const existing = parseExistingSshJson(ctx, hooksPath);
+  if (existing === null && sshPathExists(ctx, hooksPath)) {
+    return {
+      ok: false,
+      reason: `malformed Cursor hooks.json at ${hooksPath} on ssh host ${ctx.sshHost}`,
+    };
+  }
+
+  const commandHead = buildWslHookCommandHead(
+    resolvedNodePath,
+    `${staged.linuxPluginDir}/forward.mjs`,
+  );
+  const merged = mergeCursorHooksDocument(existing, commandHead);
+  const writeResult = writeSshJsonFile(ctx, hooksPath, merged);
+  if (!writeResult.ok) {
+    return {
+      ok: false,
+      reason: `failed to write hooks.json at ${hooksPath} on ssh host ${ctx.sshHost}: ${writeResult.reason}`,
+    };
+  }
+
+  console.log(
+    `[supervisor] Cursor hook plugin staged v${manifest.version} on SSH host ${ctx.sshHost} at ${staged.linuxPluginDir}; merged hooks into ${hooksPath}`,
+  );
+
+  return {
+    ok: true,
+    version: manifest.version,
+    paths: { pluginDir: staged.linuxPluginDir, globalHooksPath: hooksPath },
   };
 }
 
@@ -332,6 +410,16 @@ function installCursorPluginWsl(
 export function isCursorPluginInstalled(
   ctx?: AgentEnvContext,
 ): Promise<{ installed: boolean; version?: string }> {
+  if (isSshPluginContext(ctx)) {
+    const paths = getCursorPluginPaths(ctx);
+    return Promise.resolve(
+      verifySshStagedPlugin(ctx, "cursor", {
+        assets: CURSOR_VERIFY_ASSETS,
+        extraCheck: () =>
+          hooksJsonTextHasLightcodeEntry(readSshTextFile(ctx, paths.globalHooksPath)),
+      }),
+    );
+  }
   if (isWslPluginContext(ctx)) {
     const wsl = getWslPluginBaseDirs(ctx.wslDistro, "cursor");
     if (!wsl) return Promise.resolve({ installed: false });
@@ -345,6 +433,15 @@ export function isCursorPluginInstalled(
 }
 
 export function uninstallCursorPlugin(ctx?: AgentEnvContext): void {
+  if (isSshPluginContext(ctx)) {
+    const paths = getCursorPluginPaths(ctx);
+    const existing = parseExistingSshJson(ctx, paths.globalHooksPath);
+    if (existing !== null || sshPathExists(ctx, paths.globalHooksPath)) {
+      void writeSshJsonFile(ctx, paths.globalHooksPath, removeCursorHooksDocument(existing));
+    }
+    removeStagedPluginDir("cursor", ctx);
+    return;
+  }
   const hooksPath = isWslPluginContext(ctx)
     ? toWslUncPath(ctx.wslDistro, wslGlobalCursorHooksPath(ctx.wslDistro))
     : join(nativeGlobalCursorDir(), "hooks.json");
@@ -359,6 +456,26 @@ function hooksJsonHasLightcodeEntry(hooksPath: string): boolean {
   if (!existsSync(hooksPath)) return false;
   try {
     const doc = JSON.parse(readFileSync(hooksPath, "utf8")) as { hooks?: Record<string, unknown> };
+    if (!doc.hooks) return false;
+    for (const spec of CURSOR_HOOK_SPECS) {
+      const entries = doc.hooks[spec.event];
+      if (!Array.isArray(entries)) continue;
+      for (const entry of entries) {
+        if (!entry || typeof entry !== "object") continue;
+        const cmd = (entry as { command?: string }).command;
+        if (typeof cmd === "string" && LIGHTCODE_FORWARD_RE.test(cmd)) return true;
+      }
+    }
+    return false;
+  } catch {
+    return false;
+  }
+}
+
+function hooksJsonTextHasLightcodeEntry(raw: string | undefined): boolean {
+  if (!raw) return false;
+  try {
+    const doc = JSON.parse(raw) as { hooks?: Record<string, unknown> };
     if (!doc.hooks) return false;
     for (const spec of CURSOR_HOOK_SPECS) {
       const entries = doc.hooks[spec.event];

@@ -19,6 +19,7 @@ import {
   type AgentCliHookPluginSupport,
 } from "../agents/base";
 import type { BrowserMcpHttpConfig } from "../agents/browserMcp";
+import { SshHookTunnelManager, type SshLocation } from "../ssh";
 import type { WslBridgeServer } from "../wsl/bridge";
 import { isLightcodeHookDebug } from "./hookDebug";
 import { HookIngress, type HookIngressBootInfo } from "./hookIngress";
@@ -47,6 +48,13 @@ export interface CliHookPluginCoordinatorOptions {
    * reach.
    */
   wslHookBridge?: WslBridgeServer;
+  sshHookTunnel?: {
+    ensureTunnel(
+      location: SshLocation,
+      upstream: { url: string; secret: string; protocolVersion: number },
+    ): Promise<{ url: string; secret: string; protocolVersion: number } | undefined>;
+    dispose?(): void | Promise<void>;
+  };
 }
 
 const DEFAULT_CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
@@ -95,6 +103,7 @@ export class CliHookPluginCoordinator {
   ) => AgentEnvContext;
   private readonly installPromises = new Map<string, Promise<InstallOutcome>>();
   private wslHookBridge: WslBridgeServer | undefined;
+  private readonly sshHookTunnel: NonNullable<CliHookPluginCoordinatorOptions["sshHookTunnel"]>;
 
   constructor(
     private readonly options: CliHookPluginCoordinatorOptions,
@@ -121,6 +130,7 @@ export class CliHookPluginCoordinator {
       ingressOptions.preferredPort = options.preferredPort;
     }
     this.ingress = new HookIngress(ingressOptions);
+    this.sshHookTunnel = options.sshHookTunnel ?? new SshHookTunnelManager();
   }
 
   /**
@@ -173,6 +183,7 @@ export class CliHookPluginCoordinator {
     if (this.wslHookBridge) {
       await this.wslHookBridge.dispose();
     }
+    await this.sshHookTunnel.dispose?.();
   }
 
   /**
@@ -207,7 +218,6 @@ export class CliHookPluginCoordinator {
     if (!isTerminalLiveInput(adapter)) {
       return undefined;
     }
-
     const ctx = this.envContext(input.agentKind, input.projectLocation);
     if (input.browserMcpEnabled !== undefined) ctx.browserMcpEnabled = input.browserMcpEnabled;
     if (input.browserMcp) ctx.browserMcp = input.browserMcp;
@@ -319,6 +329,14 @@ export class CliHookPluginCoordinator {
       // Bridge inherits the supervisor's secret + protocol via spawn env.
       const info = await this.ingress.ready;
       return { url: handle.hookUrl, secret: info.secret, protocolVersion: info.protocolVersion };
+    }
+    if (ctx.envKind === "ssh") {
+      if (!ctx.sshHost) return undefined;
+      const info = await this.ingress.ready;
+      return this.sshHookTunnel.ensureTunnel(
+        { kind: "ssh", host: ctx.sshHost, path: ctx.sshPath ?? "/" },
+        { url: info.url, secret: info.secret, protocolVersion: info.protocolVersion },
+      );
     }
     const info = await this.ingress.ready;
     return { url: info.url, secret: info.secret, protocolVersion: info.protocolVersion };
@@ -573,6 +591,9 @@ function composeCacheKey(kind: AgentKind, ctx: AgentEnvContext): string {
   if (ctx.envKind === "wsl" && ctx.wslDistro) {
     return `${kind}::wsl::${ctx.wslDistro}`;
   }
+  if (ctx.envKind === "ssh" && ctx.sshHost) {
+    return `${kind}::ssh::${ctx.sshHost}`;
+  }
   return kind;
 }
 
@@ -588,6 +609,13 @@ function defaultEnvContext(
   }
   if (projectLocation?.kind === "posix") {
     return { envKind: "posix" };
+  }
+  if (projectLocation?.kind === "ssh") {
+    return {
+      envKind: "ssh",
+      sshHost: projectLocation.host,
+      sshPath: projectLocation.path,
+    };
   }
   return process.platform === "win32" ? { envKind: "windows" } : { envKind: "posix" };
 }

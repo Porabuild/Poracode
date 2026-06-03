@@ -178,7 +178,12 @@ const registry: AcpRegistryListResult = {
   ],
 };
 
-const emptyStatusesResponse: AgentStatusesResponse = { windows: [], wsl: [], fromCache: false };
+const emptyStatusesResponse: AgentStatusesResponse = {
+  windows: [],
+  wsl: [],
+  ssh: [],
+  fromCache: false,
+};
 
 function installedRecord(input: {
   id: string;

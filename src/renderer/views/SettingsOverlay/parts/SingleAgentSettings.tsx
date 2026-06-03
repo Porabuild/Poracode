@@ -426,6 +426,7 @@ function findTerminalLoginStatus(statuses: readonly AgentStatus[]): AgentStatus 
 }
 
 function statusEnvKey(status: AgentStatus): string {
+  if (status.envKind === "ssh" && status.envHost) return `ssh:${status.envHost}`;
   return status.envKind === "wsl" && status.envDistro ? `wsl:${status.envDistro}` : "native";
 }
 
@@ -538,13 +539,14 @@ function AgentEnvironmentRow(props: {
     targetVersion !== undefined;
 
   const previewScope = statusUpdateScope(status);
-  const previewCommand = showUpdateButton
-    ? resolveSharedUpdateCommand({
-        update: status.update,
-        executablePath: status.executablePath,
-        envKind: previewScope.envKind,
-      })
-    : undefined;
+  const previewCommand =
+    showUpdateButton && previewScope.envKind !== "ssh"
+      ? resolveSharedUpdateCommand({
+          update: status.update,
+          executablePath: status.executablePath,
+          envKind: previewScope.envKind,
+        })
+      : undefined;
   const previewCommandLine = previewCommand ? formatUpdateCommandLine(previewCommand) : undefined;
 
   const description = isMissing
@@ -1239,6 +1241,8 @@ export function SingleAgentSettings(props: { agentKind: string }) {
 
   const performBinaryUpdate = (status: AgentStatus) => {
     const scope = statusUpdateScope(status);
+    if (scope.envKind === "ssh") return;
+    const updateEnvKind = scope.envKind;
     const envKey = statusEnvKey(status);
     const envSuffix = envLabel(status) ? ` (${envLabel(status)})` : "";
     const previousVersion = status.version;
@@ -1246,7 +1250,7 @@ export function SingleAgentSettings(props: { agentKind: string }) {
     readBridge()
       .updateAgentBinary({
         agentKind: props.agentKind,
-        envKind: scope.envKind,
+        envKind: updateEnvKind,
         ...(scope.wslDistro ? { wslDistro: scope.wslDistro } : {}),
       })
       .then(async (result) => {

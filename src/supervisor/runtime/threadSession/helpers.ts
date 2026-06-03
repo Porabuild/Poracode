@@ -8,6 +8,8 @@ export function hookDebugProjectLabel(loc: ProjectLocation): string {
       return `wsl:${loc.distro}`;
     case "windows":
       return `windows:${loc.path}`;
+    case "ssh":
+      return `ssh:${loc.host}:${loc.path}`;
     case "posix":
       return `posix:${loc.path}`;
   }

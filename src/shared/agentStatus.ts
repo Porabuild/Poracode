@@ -4,7 +4,12 @@ export function getProjectAgentStatuses(
   location: ProjectLocation,
   windowsStatuses: AgentStatus[],
   wslStatuses: AgentStatus[],
+  sshStatuses: AgentStatus[] = [],
 ): AgentStatus[] {
+  if (location.kind === "ssh") {
+    return sshStatuses.filter((status) => status.envHost === location.host);
+  }
+
   if (location.kind !== "wsl") {
     return windowsStatuses;
   }

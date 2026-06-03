@@ -33,7 +33,7 @@ export function readConflictResolverSettingsForProject(
   locationKind: ProjectLocation["kind"],
   settings: ConflictResolverSettingsSource,
 ): ConflictResolverSettings {
-  if (locationKind !== "wsl") {
+  if (locationKind !== "wsl" && locationKind !== "ssh") {
     return {
       provider: settings.conflictResolverProvider,
       model: settings.conflictResolverModel,

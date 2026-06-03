@@ -2,9 +2,11 @@ import { watch, type FSWatcher } from "node:fs";
 import { join } from "node:path";
 import type { ProjectLocation } from "@/shared/contracts";
 import { toWslUncPath } from "@/shared/wsl";
+import { readSshCommandOutput, type SshLocation } from "./ssh";
 import type { WslBridgeClient, WslLocation } from "./wsl/bridge/client";
 
 const DEBOUNCE_MS = 300;
+const SSH_POLL_MS = 3_000;
 
 export interface ProjectWatcherCallbacks {
   /** Fires when `.git` metadata (refs, index, HEAD, worktrees/*) changes. */
@@ -22,6 +24,8 @@ interface WatcherEntry {
   wslUnsubscribe: WslUnsubscribe | null;
   gitDebounceTimer: ReturnType<typeof setTimeout> | null;
   treeDebounceTimer: ReturnType<typeof setTimeout> | null;
+  sshPollTimer: ReturnType<typeof setTimeout> | null;
+  sshTreeSignature?: string;
   projectId: string;
   location: ProjectLocation;
   wslSchedule?: WslSchedule;
@@ -32,6 +36,8 @@ interface WorktreeWatcherEntry {
   wslUnsubscribe: WslUnsubscribe | null;
   gitDebounceTimer: ReturnType<typeof setTimeout> | null;
   treeDebounceTimer: ReturnType<typeof setTimeout> | null;
+  sshPollTimer: ReturnType<typeof setTimeout> | null;
+  sshTreeSignature?: string;
   projectId: string;
   wslLocation?: WslLocation;
   wslLinuxPath?: string;
@@ -119,6 +125,33 @@ async function readGitignoreTopLevelDirs(
   }
 }
 
+async function readSshTreeSignature(location: SshLocation): Promise<string | undefined> {
+  const prune = [
+    "./.git",
+    "./node_modules",
+    "./.next",
+    "./dist",
+    "./build",
+    "./.turbo",
+    "./__pycache__",
+    "./.venv",
+  ]
+    .map((path) => `-path '${path}'`)
+    .join(" -o ");
+  const script = [
+    `find . \\( ${prune} \\) -prune -o -type f -printf '%T@ %s %p\\n' 2>/dev/null`,
+    "sort",
+    "sha256sum",
+    "awk '{print $1}'",
+  ].join(" | ");
+  const out = await readSshCommandOutput(location, "sh", ["-lc", script], {
+    timeout: 10_000,
+    maxBuffer: 1024 * 1024,
+  }).catch(() => undefined);
+  const signature = out?.stdout.trim().split(/\s+/)[0];
+  return signature || undefined;
+}
+
 /**
  * Watches a project for filesystem changes and emits debounced notifications
  * on two channels: `.git` metadata and the working tree.
@@ -153,6 +186,7 @@ export class ProjectWatcher {
       wslUnsubscribe: null,
       gitDebounceTimer: null,
       treeDebounceTimer: null,
+      sshPollTimer: null,
       projectId,
       location,
     };
@@ -176,6 +210,12 @@ export class ProjectWatcher {
       entry.wslSchedule = { onGit: scheduleGitNotify, onTree: scheduleTreeNotify };
       this.watchers.set(projectId, entry);
       void this.startWslSubscription(entry, location, location.linuxPath, entry.wslSchedule);
+      return;
+    }
+
+    if (location.kind === "ssh") {
+      this.watchers.set(projectId, entry);
+      this.startSshTreePolling(entry, location, location.path, scheduleTreeNotify);
       return;
     }
 
@@ -243,6 +283,7 @@ export class ProjectWatcher {
         wslUnsubscribe: null,
         gitDebounceTimer: null,
         treeDebounceTimer: null,
+        sshPollTimer: null,
         projectId,
       };
 
@@ -270,6 +311,12 @@ export class ProjectWatcher {
         continue;
       }
 
+      if (location?.kind === "ssh") {
+        this.worktreeWatchers.set(wtPath, entry);
+        this.startSshWorktreePolling(entry, location, wtPath, scheduleTreeNotify);
+        continue;
+      }
+
       try {
         entry.watcher = watch(wtPath, { recursive: true }, (_eventType, filename) => {
           if (filename) {
@@ -290,12 +337,62 @@ export class ProjectWatcher {
     }
   }
 
+  private startSshTreePolling(
+    entry: WatcherEntry,
+    location: Extract<ProjectLocation, { kind: "ssh" }>,
+    path: string,
+    scheduleTreeNotify: () => void,
+  ): void {
+    const poll = async () => {
+      const signature = await readSshTreeSignature({ kind: "ssh", host: location.host, path });
+      // Identity check (not just `.has`): if this project was unwatched and
+      // re-watched while we awaited, a new entry replaced ours — stop here so
+      // the stale poll loop doesn't re-arm itself and leak forever.
+      if (this.watchers.get(entry.projectId) !== entry) return;
+      if (signature) {
+        if (entry.sshTreeSignature === undefined) {
+          entry.sshTreeSignature = signature;
+        } else if (entry.sshTreeSignature !== signature) {
+          entry.sshTreeSignature = signature;
+          scheduleTreeNotify();
+        }
+      }
+      entry.sshPollTimer = setTimeout(poll, SSH_POLL_MS);
+    };
+    entry.sshPollTimer = setTimeout(poll, SSH_POLL_MS);
+  }
+
+  private startSshWorktreePolling(
+    entry: WorktreeWatcherEntry,
+    location: Extract<ProjectLocation, { kind: "ssh" }>,
+    path: string,
+    scheduleTreeNotify: () => void,
+  ): void {
+    const poll = async () => {
+      const signature = await readSshTreeSignature({ kind: "ssh", host: location.host, path });
+      // Identity check (not just `.has`): a re-watch may have replaced this
+      // worktree entry while we awaited; bail so the stale loop stops re-arming.
+      if (this.worktreeWatchers.get(path) !== entry) return;
+      if (signature) {
+        if (entry.sshTreeSignature === undefined) {
+          entry.sshTreeSignature = signature;
+        } else if (entry.sshTreeSignature !== signature) {
+          entry.sshTreeSignature = signature;
+          scheduleTreeNotify();
+        }
+      }
+      entry.sshPollTimer = setTimeout(poll, SSH_POLL_MS);
+    };
+    entry.sshPollTimer = setTimeout(poll, SSH_POLL_MS);
+  }
+
   /** Stop watching a project and its worktrees. */
   async unwatch(projectId: string): Promise<void> {
     const entry = this.watchers.get(projectId);
     if (entry) {
       if (entry.gitDebounceTimer) clearTimeout(entry.gitDebounceTimer);
       if (entry.treeDebounceTimer) clearTimeout(entry.treeDebounceTimer);
+      if (entry.sshPollTimer) clearTimeout(entry.sshPollTimer);
       entry.gitWatcher?.close();
       entry.workTreeWatcher?.close();
       if (entry.wslUnsubscribe) {
@@ -370,6 +467,7 @@ export class ProjectWatcher {
     if (!entry) return;
     if (entry.gitDebounceTimer) clearTimeout(entry.gitDebounceTimer);
     if (entry.treeDebounceTimer) clearTimeout(entry.treeDebounceTimer);
+    if (entry.sshPollTimer) clearTimeout(entry.sshPollTimer);
     entry.watcher?.close();
     if (entry.wslUnsubscribe) {
       await entry.wslUnsubscribe().catch(() => undefined);

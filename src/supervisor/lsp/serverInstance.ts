@@ -63,7 +63,10 @@ export class ServerInstance {
     if (this.disposed) return;
     this.onStatus("starting");
 
-    const projectRoot = getProjectFsPath(this.projectLocation);
+    const projectRoot =
+      this.projectLocation.kind === "ssh"
+        ? this.projectLocation.path
+        : getProjectFsPath(this.projectLocation);
     // Prime the user's interactive-shell env so node-based language servers
     // (typescript-language-server, vscode-eslint, etc.) launch with the
     // project-pinned node from fnm/asdf/mise rather than launchd's PATH.
@@ -77,7 +80,9 @@ export class ServerInstance {
         const command =
           this.projectLocation.kind === "wsl"
             ? resolveWslCommand(candidate.command, this.projectLocation.linuxPath)
-            : resolveNativeCommand(candidate.command, projectRoot);
+            : this.projectLocation.kind === "ssh"
+              ? resolveWslCommand(candidate.command, this.projectLocation.path)
+              : resolveNativeCommand(candidate.command, projectRoot);
         const spec = buildAgentCommand(this.projectLocation, command, candidate.args);
         const proc = spawn(spec.command, spec.args, {
           ...(spec.cwd ? { cwd: spec.cwd } : {}),

@@ -6,7 +6,12 @@ import { ensureHomeScopeProject } from "@/renderer/actions/projectActions";
 
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
 import { useAppStore } from "@/renderer/state/appStore";
-import { buildWslProjectDistrosKey, parseWslProjectDistrosKey } from "@/renderer/state/projectKeys";
+import {
+  buildSshProjectLocationsKey,
+  buildWslProjectDistrosKey,
+  parseSshProjectLocationsKey,
+  parseWslProjectDistrosKey,
+} from "@/renderer/state/projectKeys";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { AppDndProvider } from "@/renderer/dnd";
 
@@ -30,11 +35,24 @@ function findMissingWslDistro(distros: readonly string[], statuses: readonly Age
   return distros.find((distro) => !cachedDistros.has(distro));
 }
 
+function findMissingSshHost(
+  hosts: readonly string[],
+  statuses: readonly AgentStatus[],
+): string | undefined {
+  const cachedHosts = new Set(
+    statuses.flatMap((status) => (status.envHost ? [status.envHost] : [])),
+  );
+  return hosts.find((host) => !cachedHosts.has(host));
+}
+
 export function MainView(props: { storeHydrated: boolean; loadT0: number }) {
   const { storeHydrated, loadT0 } = props;
   const view = useAppStore((state) => state.view);
   const openHome = useAppStore((state) => state.openHome);
   const wslProjectDistrosKey = useAppStore((state) => buildWslProjectDistrosKey(state.projects));
+  const sshProjectLocationsKey = useAppStore((state) =>
+    buildSshProjectLocationsKey(state.projects),
+  );
   const homeScopeEnabled = useSharedSettings((state) => state.homeScopeEnabled);
   const sharedSettingsHydrated = useSharedSettings((state) => state.sharedSettingsHydrated);
 
@@ -65,32 +83,44 @@ export function MainView(props: { storeHydrated: boolean; loadT0: number }) {
     // Fresh detection results still arrive via events
     // (windows-agent-statuses, wsl-agent-statuses).
     const wslDistros = parseWslProjectDistrosKey(wslProjectDistrosKey);
+    const sshProjects = parseSshProjectLocationsKey(sshProjectLocationsKey);
+    const sshHosts = [...new Set(sshProjects.map((project) => project.host))];
     void readBridge()
-      .getAgentStatuses(wslDistros)
+      .getAgentStatuses(wslDistros, sshProjects)
       .then((response) => {
         const missingWslDistro = findMissingWslDistro(wslDistros, response.wsl);
+        const missingSshHost = findMissingSshHost(sshHosts, response.ssh);
         if (response.fromCache) {
           useAgentStatusesStore.getState().hydrateFromCache({
             windows: response.windows,
             wsl: response.wsl,
+            ssh: response.ssh,
           });
-          if (!missingWslDistro) {
+          if (!missingWslDistro && !missingSshHost) {
             return;
           }
           useAgentStatusesStore
             .getState()
-            .beginFirstLaunchDiscovery({ kind: "wsl", distro: missingWslDistro });
+            .beginFirstLaunchDiscovery(
+              missingWslDistro
+                ? { kind: "wsl", distro: missingWslDistro }
+                : { kind: "ssh", host: missingSshHost! },
+            );
           return;
         }
 
         useAgentStatusesStore
           .getState()
           .beginFirstLaunchDiscovery(
-            missingWslDistro ? { kind: "wsl", distro: missingWslDistro } : undefined,
+            missingWslDistro
+              ? { kind: "wsl", distro: missingWslDistro }
+              : missingSshHost
+                ? { kind: "ssh", host: missingSshHost }
+                : undefined,
           );
       })
       .catch(() => undefined);
-  }, [storeHydrated, wslProjectDistrosKey]);
+  }, [storeHydrated, wslProjectDistrosKey, sshProjectLocationsKey]);
 
   console.log(`[renderer] +${Date.now() - loadT0}ms: rendering main UI`);
   return (

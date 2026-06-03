@@ -36,6 +36,7 @@ import { buildPromptContentBlocks } from "@/shared/promptContent";
 import { terminateProcessTree } from "@/shared/processTree";
 import {
   resolveBrowserMcpHttpConfigForLaunch,
+  type BrowserMcpBridge,
   type BrowserMcpHttpConfig,
 } from "@/supervisor/agents/browserMcp";
 import {
@@ -55,6 +56,7 @@ import { prepareClaudeMergedSettingsFile } from "../agents/claude/mergedSettings
 import { captureSupervisorException } from "../diagnostics/sentry";
 import { ensureNodePtySpawnHelperExecutable } from "../nodePty";
 import type { WindowsShellPreference } from "../shellPreference";
+import { buildSshShellCommand } from "../ssh";
 import { BufferedLogWriter } from "./bufferedLogWriter";
 import { hookDebugSpawn } from "./hookDebug";
 import type {
@@ -104,9 +106,7 @@ export interface ThreadSessionManagerOptions {
     browserMcpEnabled?: boolean;
     browserMcp?: BrowserMcpHttpConfig;
   }): Promise<{ env: Record<string, string>; extraArgs: string[] } | undefined>;
-  wslBridge?: {
-    ensureBridge(distro: string): Promise<{ baseUrl: string; secret: string } | undefined>;
-  };
+  browserMcpBridge?: BrowserMcpBridge;
 }
 
 function shouldPrimeNativeProjectShellEnv(
@@ -1064,15 +1064,18 @@ export class ThreadSessionManager {
           hookEnvInjected: hasHookEnv,
         });
       } else if (hasHookEnv) {
-        const viaWslBridge = projectLocation.kind === "wsl";
+        const label =
+          projectLocation.kind === "wsl"
+            ? "CLI hook plugin → in-distro HTTP bridge (WSL) → supervisor"
+            : projectLocation.kind === "ssh"
+              ? "CLI hook plugin → SSH reverse tunnel → supervisor"
+              : "CLI hook plugin → host HookIngress → supervisor";
         hookDebugSpawn({
           threadId,
           agentKind,
           project: hookDebugProjectLabel(projectLocation),
           mode: "L1",
-          label: viaWslBridge
-            ? "CLI hook plugin → in-distro HTTP bridge (WSL) → supervisor"
-            : "CLI hook plugin → host HookIngress → supervisor",
+          label,
           liveInputMode,
           hookUrl,
           extraCliArgs: merged.extraArgs.length,
@@ -2242,6 +2245,10 @@ export class ThreadSessionManager {
       };
     }
 
+    if (location.kind === "ssh") {
+      return buildSshShellCommand(location, { startInHome });
+    }
+
     if (process.platform === "win32") {
       return {
         command: this.options.windowsShell.shell,
@@ -2316,7 +2323,7 @@ export class ThreadSessionManager {
     const cfg = await resolveBrowserMcpHttpConfigForLaunch(
       location,
       enabled,
-      this.options.wslBridge,
+      this.options.browserMcpBridge,
     );
     return cfg;
   }

@@ -14,9 +14,11 @@ function readyBadge(status: AgentStatus): { label: string; toneClass: string } |
   return { label: "Ready", toneClass: "text-success" };
 }
 
-function statusLine(scopedCount: number, installedCount: number, wslDistro: string | undefined) {
+function statusLine(scopedCount: number, installedCount: number, remoteKind: string | undefined) {
   if (scopedCount === 0) {
-    return wslDistro ? "Warming up WSL shell environment…" : "Warming up shell environment…";
+    return remoteKind
+      ? `Warming up ${remoteKind} shell environment…`
+      : "Warming up shell environment…";
   }
   if (installedCount === 0) return "No agents installed yet";
   if (installedCount === 1) return "1 agent ready";
@@ -62,6 +64,7 @@ function statusLabel(status: AgentStatus | undefined): { label: string; toneClas
 export function AgentDiscoveryScreen(props: {
   location?: ProjectLocation;
   onCancel?: () => void;
+  sshHosts?: string[];
   wslDistros?: string[];
 }) {
   // `discoveredAgents` is already scoped by `pushDiscoveredAgent` to the active
@@ -79,6 +82,7 @@ export function AgentDiscoveryScreen(props: {
   }
   const installedCount = discovered.reduce((n, s) => n + (s.installed ? 1 : 0), 0);
   const wslDistro = props.location?.kind === "wsl" ? props.location.distro : undefined;
+  const sshHost = props.location?.kind === "ssh" ? props.location.host : undefined;
   const scanTargets: ScanTarget[] =
     wslDistro !== undefined
       ? [
@@ -88,35 +92,55 @@ export function AgentDiscoveryScreen(props: {
             matches: (status) => status.envKind === "wsl" && status.envDistro === wslDistro,
           },
         ]
-      : props.wslDistros !== undefined
+      : sshHost !== undefined
         ? [
             {
-              key: "native",
-              label: "Windows",
-              matches: (status) => status.envKind !== "wsl",
+              key: `ssh:${sshHost}`,
+              label: `SSH: ${sshHost}`,
+              matches: (status) => status.envKind === "ssh" && status.envHost === sshHost,
             },
-            ...props.wslDistros.map((distro) => ({
-              key: `wsl:${distro}`,
-              label: `WSL: ${distro}`,
-              matches: (status: AgentStatus) =>
-                status.envKind === "wsl" && status.envDistro === distro,
-            })),
           ]
-        : discoveryScope?.kind === "all"
+        : props.wslDistros !== undefined || props.sshHosts !== undefined
           ? [
               {
                 key: "native",
                 label: "Windows",
-                matches: (status) => status.envKind !== "wsl",
+                matches: (status) => status.envKind !== "wsl" && status.envKind !== "ssh",
               },
-              ...discoveryScope.wslDistros.map((distro) => ({
+              ...(props.wslDistros ?? []).map((distro) => ({
                 key: `wsl:${distro}`,
                 label: `WSL: ${distro}`,
                 matches: (status: AgentStatus) =>
                   status.envKind === "wsl" && status.envDistro === distro,
               })),
+              ...(props.sshHosts ?? []).map((host) => ({
+                key: `ssh:${host}`,
+                label: `SSH: ${host}`,
+                matches: (status: AgentStatus) =>
+                  status.envKind === "ssh" && status.envHost === host,
+              })),
             ]
-          : [];
+          : discoveryScope?.kind === "all"
+            ? [
+                {
+                  key: "native",
+                  label: "Windows",
+                  matches: (status) => status.envKind !== "wsl" && status.envKind !== "ssh",
+                },
+                ...discoveryScope.wslDistros.map((distro) => ({
+                  key: `wsl:${distro}`,
+                  label: `WSL: ${distro}`,
+                  matches: (status: AgentStatus) =>
+                    status.envKind === "wsl" && status.envDistro === distro,
+                })),
+                ...(discoveryScope.sshHosts ?? []).map((host) => ({
+                  key: `ssh:${host}`,
+                  label: `SSH: ${host}`,
+                  matches: (status: AgentStatus) =>
+                    status.envKind === "ssh" && status.envHost === host,
+                })),
+              ]
+            : [];
   // Provider plugins self-register at module-load time; reading the registry
   // each render keeps this screen in sync as new agent kinds are added.
   const providers = getRegisteredProviders();
@@ -143,9 +167,11 @@ export function AgentDiscoveryScreen(props: {
         <p className="max-w-sm text-sm text-muted">
           {wslDistro
             ? `Scanning ${wslDistro} for installed CLIs. This usually takes a couple of seconds.`
-            : scanTargets.length > 1
-              ? "Scanning Windows and WSL for installed CLIs. This usually takes a couple of seconds."
-              : "Scanning your system for installed CLIs. This usually takes a couple of seconds."}
+            : sshHost
+              ? `Scanning ${sshHost} for installed CLIs. This usually takes a couple of seconds.`
+              : scanTargets.length > 1
+                ? "Scanning Windows and WSL for installed CLIs. This usually takes a couple of seconds."
+                : "Scanning your system for installed CLIs. This usually takes a couple of seconds."}
         </p>
         {scanTargets.length > 1 ? (
           <div className="flex flex-wrap items-center justify-center gap-1.5">
@@ -207,7 +233,11 @@ export function AgentDiscoveryScreen(props: {
       <div className="text-xs text-muted/70" aria-live="polite">
         {useMatrixLayout
           ? combinedStatusLine(discovered)
-          : statusLine(discovered.length, installedCount, wslDistro)}
+          : statusLine(
+              discovered.length,
+              installedCount,
+              wslDistro ? "WSL" : sshHost ? "SSH" : undefined,
+            )}
       </div>
 
       {props.onCancel ? (

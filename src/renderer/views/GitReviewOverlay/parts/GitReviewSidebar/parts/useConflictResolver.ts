@@ -31,6 +31,7 @@ export function useConflictResolver(params: {
 
   const agentStatuses = useAgentStatusesStore((s) => s.agentStatuses);
   const wslAgentStatuses = useAgentStatusesStore((s) => s.wslAgentStatuses);
+  const sshAgentStatuses = useAgentStatusesStore((s) => s.sshAgentStatuses);
   // useShallow is required: this selector builds a fresh object each call, and
   // zustand v5's useSyncExternalStore does not memoize selector results. Without
   // it the snapshot reference changes every render -> forceStoreRerender loops ->
@@ -57,6 +58,7 @@ export function useConflictResolver(params: {
     project.location,
     agentStatuses,
     wslAgentStatuses,
+    sshAgentStatuses,
   );
 
   const canResolveWithAgent =

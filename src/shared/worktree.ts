@@ -41,5 +41,8 @@ export function buildWorktreeLocation(
   if (original.kind === "posix") {
     return { kind: "posix", path: worktreePath };
   }
+  if (original.kind === "ssh") {
+    return { kind: "ssh", host: original.host, path: worktreePath };
+  }
   return { kind: "windows", path: worktreePath };
 }

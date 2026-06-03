@@ -17,7 +17,7 @@ import {
   GIT_FETCH_BACKGROUND_INTERVAL_MS,
 } from "@/renderer/utils/gitHelpers";
 
-const WSL_STATUS_POLL_INTERVAL_MS = 3_000;
+const REMOTE_STATUS_POLL_INTERVAL_MS = 3_000;
 
 export function useGitRefresh(storeHydrated: boolean) {
   // Subscribe only to the active-project identity/location key so draft config
@@ -172,12 +172,12 @@ export function useGitRefresh(storeHydrated: boolean) {
       );
     }
 
-    function pollPriorityWslStatus() {
+    function pollPriorityRemoteStatus() {
       if (!isActive) return;
       if (typeof document !== "undefined" && !document.hasFocus()) return;
       const priorityProjectIds = getPriorityProjectIds();
       for (const project of activeProjects) {
-        if (project.location.kind !== "wsl") continue;
+        if (project.location.kind !== "wsl" && project.location.kind !== "ssh") continue;
         if (!priorityProjectIds.has(project.id)) continue;
         void refreshGitProject(project, "poll", "status", { isActive: isActiveCheck });
       }
@@ -193,13 +193,16 @@ export function useGitRefresh(storeHydrated: boolean) {
       () => void fetchRemotes(),
       Math.min(GIT_FETCH_PRIORITY_INTERVAL_MS, GIT_FETCH_BACKGROUND_INTERVAL_MS),
     );
-    const wslStatusPollIntervalId = setInterval(pollPriorityWslStatus, WSL_STATUS_POLL_INTERVAL_MS);
+    const remoteStatusPollIntervalId = setInterval(
+      pollPriorityRemoteStatus,
+      REMOTE_STATUS_POLL_INTERVAL_MS,
+    );
 
     return () => {
       isActive = false;
       clearTimeout(initialFetchTimer);
       clearInterval(fetchIntervalId);
-      clearInterval(wslStatusPollIntervalId);
+      clearInterval(remoteStatusPollIntervalId);
       for (const timer of watcherDebounceTimers.values()) clearTimeout(timer);
       watcherDebounceTimers.clear();
       unsubPendingPrRefresh();

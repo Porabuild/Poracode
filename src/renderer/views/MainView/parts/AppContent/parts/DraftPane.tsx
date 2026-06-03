@@ -40,7 +40,14 @@ export function DraftPane(props: {
   const initialLastDraftConfig = useInitialProjectDraftConfig(props.projectId);
   const projectAgentStatuses = useAgentStatusesStore(
     useShallow((s) =>
-      project ? getProjectAgentStatuses(project.location, s.agentStatuses, s.wslAgentStatuses) : [],
+      project
+        ? getProjectAgentStatuses(
+            project.location,
+            s.agentStatuses,
+            s.wslAgentStatuses,
+            s.sshAgentStatuses,
+          )
+        : [],
     ),
   );
   const isDetectingAgents = useAgentStatusesStore((s) =>

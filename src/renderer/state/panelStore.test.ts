@@ -17,6 +17,7 @@ function resetPanelStore() {
     browserOverlayOpen: false,
     settingsOpen: false,
     projectSettingsId: null,
+    projectSettingsInitialSection: null,
     threadSearchOpen: false,
   });
 }
@@ -50,6 +51,17 @@ describe("selectAnyObstructingOverlayOpen", () => {
   it("returns true when a project settings overlay is open", () => {
     usePanelStore.setState({ projectSettingsId: "proj-1" });
     expect(selectAnyObstructingOverlayOpen()).toBe(true);
+  });
+
+  it("stores and clears the project settings initial section", () => {
+    const { openProjectSettings, closeProjectSettings } = usePanelStore.getState();
+    openProjectSettings("proj-1", "agents");
+    expect(usePanelStore.getState().projectSettingsId).toBe("proj-1");
+    expect(usePanelStore.getState().projectSettingsInitialSection).toBe("agents");
+
+    closeProjectSettings();
+    expect(usePanelStore.getState().projectSettingsId).toBeNull();
+    expect(usePanelStore.getState().projectSettingsInitialSection).toBeNull();
   });
 
   it("returns true when the git review overlay is open", () => {

@@ -43,9 +43,11 @@ export function ThreadAgentUpdateDock(props: {
   >(undefined);
   const [pending, setPending] = useState(false);
 
+  const isSshStatus = agentStatus.envKind === "ssh";
   const registryAgentId = acpGenericInstanceId(agentStatus.kind);
 
   useEffect(() => {
+    if (isSshStatus) return;
     if (registryAgentId) return;
     if (!agentStatus.installed || !agentStatus.version) return;
     let cancelled = false;
@@ -65,7 +67,7 @@ export function ThreadAgentUpdateDock(props: {
     return () => {
       cancelled = true;
     };
-  }, [agentStatus.kind, agentStatus.installed, agentStatus.version, registryAgentId]);
+  }, [agentStatus.kind, agentStatus.installed, agentStatus.version, isSshStatus, registryAgentId]);
 
   // Identity-gated read so a stale entry from a previous agent never matches
   // the current one (avoids one-frame flash on agent switch).
@@ -82,15 +84,19 @@ export function ThreadAgentUpdateDock(props: {
     installedVersion !== undefined &&
     isNewerVersion(resolvedLatest, installedVersion);
 
-  if (!isOutdated || !resolvedLatest || !installedVersion) {
+  if (isSshStatus || !isOutdated || !resolvedLatest || !installedVersion) {
     return null;
   }
 
   const scope = statusUpdateScope(agentStatus);
+  if (scope.envKind === "ssh") {
+    return null;
+  }
+  const updateEnvKind = scope.envKind;
   const previewCommand = resolveSharedUpdateCommand({
     update: agentStatus.update,
     executablePath: agentStatus.executablePath,
-    envKind: scope.envKind,
+    envKind: updateEnvKind,
   });
   const previewCommandLine = previewCommand ? formatUpdateCommandLine(previewCommand) : undefined;
 
@@ -103,7 +109,7 @@ export function ThreadAgentUpdateDock(props: {
     try {
       const result = await readBridge().updateAgentBinary({
         agentKind: agentStatus.kind,
-        envKind: scope.envKind,
+        envKind: updateEnvKind,
         ...(scope.wslDistro ? { wslDistro: scope.wslDistro } : {}),
       });
       if (result.ok) {

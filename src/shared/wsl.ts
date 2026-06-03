@@ -1,4 +1,5 @@
 import type { ProjectLocation } from "./contracts";
+import { formatSshProjectLocation } from "./ssh";
 
 export function stripNulChars(value: string): string {
   return value.split("\0").join("");
@@ -26,6 +27,7 @@ export function parseWslUncPath(uncPath: string): { distro: string; linuxPath: s
 
 export function getProjectDisplayPath(location: ProjectLocation): string {
   if (location.kind === "wsl") return `${location.distro}:${location.linuxPath}`;
+  if (location.kind === "ssh") return formatSshProjectLocation(location);
   return location.path;
 }
 
@@ -43,9 +45,13 @@ export function getProjectName(location: ProjectLocation): string {
  * - windows → `location.path`
  * - wsl     → `location.uncPath` (e.g. `\\wsl.localhost\Ubuntu\home\user\repo`)
  * - posix   → `location.path`
+ * - ssh     → not available through the local filesystem
  */
 export function getProjectFsPath(location: ProjectLocation): string {
   if (location.kind === "wsl") return location.uncPath;
+  if (location.kind === "ssh") {
+    throw new Error("SSH projects do not have a local filesystem path.");
+  }
   return location.path;
 }
 
@@ -58,9 +64,11 @@ export function getProjectFsPath(location: ProjectLocation): string {
  *             in-distro commands)
  * - wsl     → `location.linuxPath` (e.g. `/home/user/repo`)
  * - posix   → `location.path`
+ * - ssh     → `location.path`
  */
 export function getProjectPosixPath(location: ProjectLocation): string {
   if (location.kind === "wsl") return location.linuxPath;
+  if (location.kind === "ssh") return location.path;
   return location.path;
 }
 

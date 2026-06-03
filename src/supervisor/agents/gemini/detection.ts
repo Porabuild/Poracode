@@ -13,6 +13,7 @@ import {
 } from "../base";
 import { buildContextSizeCapabilities } from "../contextWindowLabel";
 import { getAgentProbeCwd } from "../probeCwd";
+import { runSshScript } from "../../ssh";
 
 // Gemini's ACP probe reports the selectable model ids/names, but not token
 // limits. Keep this as an exact documented allowlist so new ids do not inherit
@@ -55,6 +56,12 @@ export const defaultGeminiCapabilities: AgentCapability = {
 // Gemini stores a config dir at ~/.gemini after first login; treat its
 // presence as authenticated even without GEMINI_API_KEY set.
 const configDirAuthProbe: AuthProbe = async (ctx) => {
+  if (ctx.location.kind === "ssh") {
+    const result = await runSshScript(ctx.location, "test -d ~/.gemini && echo yes").catch(
+      () => undefined,
+    );
+    return result?.stdout.trim() === "yes" ? "authenticated" : "unknown";
+  }
   if (ctx.location.kind !== "wsl") {
     return existsSync(join(homedir(), ".gemini")) ? "authenticated" : "unknown";
   }
@@ -82,20 +89,33 @@ export function parseGeminiGoogleAccountsJson(raw: string): string | undefined {
 }
 
 async function probeGeminiMetadata(ctx: Parameters<NonNullable<DetectionSpec["statusProbe"]>>[0]) {
-  if (ctx.location.kind === "wsl") {
-    const [apiKeyResult, configDirResult, accountsResult] = await batchWslCommandsAsync(
-      ctx.location.distro,
-      [
-        'printf %s "$GEMINI_API_KEY"',
-        "test -d ~/.gemini && echo yes",
-        'cat ~/.gemini/google_accounts.json 2>/dev/null || printf ""',
-      ],
-    );
-    const apiKeySet = !!(apiKeyResult?.ok && apiKeyResult.stdout.trim().length > 0);
-    const configDirPresent = !!(configDirResult?.ok && configDirResult.stdout.trim() === "yes");
+  if (ctx.location.kind === "wsl" || ctx.location.kind === "ssh") {
+    const commands = [
+      'printf %s "$GEMINI_API_KEY"',
+      "test -d ~/.gemini && echo yes",
+      'cat ~/.gemini/google_accounts.json 2>/dev/null || printf ""',
+    ];
+    let outputs: string[];
+    if (ctx.location.kind === "wsl") {
+      outputs = (await batchWslCommandsAsync(ctx.location.distro, commands)).map((result) =>
+        result?.ok ? result.stdout : "",
+      );
+    } else {
+      const sshLocation = ctx.location;
+      outputs = await Promise.all(
+        commands.map((command) =>
+          runSshScript(sshLocation, command)
+            .then((result) => result.stdout)
+            .catch(() => ""),
+        ),
+      );
+    }
+    const [apiKeyStdout, configDirStdout, accountsStdout] = outputs;
+    const apiKeySet = !!apiKeyStdout?.trim();
+    const configDirPresent = configDirStdout?.trim() === "yes";
     const activeAccount =
-      !apiKeySet && accountsResult?.ok && accountsResult.stdout.length > 0
-        ? parseGeminiGoogleAccountsJson(accountsResult.stdout)
+      !apiKeySet && accountsStdout && accountsStdout.length > 0
+        ? parseGeminiGoogleAccountsJson(accountsStdout)
         : undefined;
     const providerMetadata = compactAgentProviderMetadata({
       ...(activeAccount ? { authenticatedAs: activeAccount } : {}),

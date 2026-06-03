@@ -12,6 +12,7 @@ import { fileURLToPath } from "node:url";
 import { toWslUncPath } from "@/shared/wsl";
 import type { AgentEnvContext } from "../../base";
 import { batchWslCommands, quotePosixShellArg } from "../../base";
+import { runSshScriptSync } from "../../../ssh";
 import {
   FORWARD_RUNTIME_FILE,
   buildNativeHookCommandHeads,
@@ -21,15 +22,23 @@ import {
   ctxCacheKey,
   ensureNativeStateLink,
   getNativePluginBaseDir,
+  getSshPluginBaseDirs,
   getWslPluginBaseDirs,
   hasNativeHookWrapper,
+  isSshPluginContext,
   isWslPluginContext,
   memoByCtx,
   parseExistingHooksJson,
+  parseExistingSshJson,
   readBundledPluginVersion,
   readPluginManifest,
+  readSshTextFile,
   removeStagedPluginDir,
+  stagePluginAssetsToSsh,
   stagePluginAssetsToWsl,
+  sshPathExists,
+  verifySshStagedPlugin,
+  writeSshJsonFile,
   writeHooksJsonFile,
   writeNativeHookWrapper,
   type PluginManifest,
@@ -78,6 +87,18 @@ export function readBundledCodexPluginVersion(): string {
 }
 
 function computeCodexPluginPaths(ctx?: AgentEnvContext): CodexPluginPaths {
+  if (isSshPluginContext(ctx)) {
+    const ssh = getSshPluginBaseDirs(ctx, "codex");
+    if (!ssh) {
+      return { pluginDir: "", codexHomeDir: "", codexHooksPath: "", version: "0.0.0" };
+    }
+    return {
+      pluginDir: ssh.linuxBase,
+      codexHomeDir: `${ssh.linuxBase}/home`,
+      codexHooksPath: `${ssh.linuxBase}/home/hooks.json`,
+      version: "0.0.0",
+    };
+  }
   if (isWslPluginContext(ctx)) {
     const wsl = getWslPluginBaseDirs(ctx.wslDistro, "codex");
     if (!wsl) {
@@ -245,6 +266,36 @@ function seedWslCodexHome(distro: string, home: string, linuxCodexHome: string):
   batchWslCommands(distro, [script]);
 }
 
+function seedSshCodexHome(
+  ctx: AgentEnvContext & { envKind: "ssh"; sshHost: string },
+  home: string,
+  linuxCodexHome: string,
+): void {
+  const globalCodexHome = `${home}/.codex`;
+  const linkExists = (path: string) =>
+    `[ -e ${quotePosixShellArg(path)} ] || [ -L ${quotePosixShellArg(path)} ]`;
+  const linkLine = (name: string, kind: "dir" | "file") => {
+    const target = quotePosixShellArg(`${linuxCodexHome}/${name}`);
+    const source = quotePosixShellArg(`${globalCodexHome}/${name}`);
+    const attempts = [
+      linkExists(`${linuxCodexHome}/${name}`),
+      `ln -s ${source} ${target}`,
+      ...(kind === "file" ? [`ln ${source} ${target}`, `cp ${source} ${target}`] : []),
+    ];
+    return attempts.join(" || ");
+  };
+  const script = [
+    [
+      "mkdir -p",
+      quotePosixShellArg(linuxCodexHome),
+      quotePosixShellArg(`${globalCodexHome}/sessions`),
+    ].join(" "),
+    `touch ${quotePosixShellArg(`${globalCodexHome}/session_index.jsonl`)}`,
+    ...CODEX_LINK_TARGETS.map(({ name, kind }) => linkLine(name, kind)),
+  ].join("\n");
+  runSshScriptSync({ kind: "ssh", host: ctx.sshHost, path: "/" }, script);
+}
+
 const MIN_CODEX_SEMVER = [0, 122, 0] as const;
 const CODEX_HOOKS_FEATURE_RENAME_SEMVER = [0, 130, 0] as const;
 const CODEX_GOALS_FEATURE_SEMVER = [0, 130, 0] as const;
@@ -342,6 +393,15 @@ export function installCodexPlugin(
     }
     return installCodexPluginWsl(ctx.wslDistro, sourceDir, manifest, options.resolvedNodePath);
   }
+  if (isSshPluginContext(ctx)) {
+    if (!options?.resolvedNodePath) {
+      return {
+        ok: false,
+        reason: "SSH Codex plugin install requires a resolved node path on the remote host.",
+      };
+    }
+    return installCodexPluginSsh(ctx, sourceDir, manifest, options.resolvedNodePath);
+  }
 
   const pluginDir = getNativePluginBaseDir("codex", ctx?.baseDir);
   const codexHomeDir = join(pluginDir, "home");
@@ -390,6 +450,58 @@ export function installCodexPlugin(
     paths: {
       pluginDir,
       codexHomeDir,
+      codexHooksPath: hooksPath,
+      version: manifest.version,
+    },
+  };
+}
+
+function installCodexPluginSsh(
+  ctx: AgentEnvContext & { envKind: "ssh"; sshHost: string },
+  sourceDir: string,
+  manifest: PluginManifest,
+  resolvedNodePath: string,
+): { ok: true; paths: CodexPluginPaths; version: string } | { ok: false; reason: string } {
+  const staged = stagePluginAssetsToSsh(ctx, sourceDir, "codex", {
+    includeForwardRuntime: true,
+  });
+  if (!staged.ok) return staged;
+
+  const linuxCodexHome = `${staged.linuxPluginDir}/home`;
+  seedSshCodexHome(ctx, staged.deploy.home, linuxCodexHome);
+  const hooksPath = `${linuxCodexHome}/hooks.json`;
+  const existing = parseExistingSshJson(ctx, hooksPath);
+  if (existing === null && sshPathExists(ctx, hooksPath)) {
+    return {
+      ok: false,
+      reason: `malformed private Codex hooks.json on ssh host ${ctx.sshHost}`,
+    };
+  }
+
+  const commandHead = `${JSON.stringify(resolvedNodePath)} ${JSON.stringify(`${staged.linuxPluginDir}/forward.mjs`)}`;
+  const merged = mergeCodexHooksDocument(existing, commandHead);
+  const writeResult = writeSshJsonFile(ctx, hooksPath, merged);
+  if (!writeResult.ok) {
+    return {
+      ok: false,
+      reason: `failed to write hooks.json on ssh host ${ctx.sshHost}: ${writeResult.reason}`,
+    };
+  }
+
+  console.log(
+    [
+      `[supervisor] Codex hook plugin staged v${manifest.version} (ssh:${ctx.sshHost})`,
+      `  pluginDir: ${staged.linuxPluginDir}`,
+      `  CODEX_HOME: ${linuxCodexHome}`,
+    ].join("\n"),
+  );
+
+  return {
+    ok: true,
+    version: manifest.version,
+    paths: {
+      pluginDir: staged.linuxPluginDir,
+      codexHomeDir: linuxCodexHome,
       codexHooksPath: hooksPath,
       version: manifest.version,
     },
@@ -461,6 +573,15 @@ function installCodexPluginWsl(
 export function isCodexPluginInstalled(
   ctx?: AgentEnvContext,
 ): Promise<{ installed: boolean; version?: string }> {
+  if (isSshPluginContext(ctx)) {
+    const paths = getCodexPluginPaths(ctx);
+    return Promise.resolve(
+      verifySshStagedPlugin(ctx, "codex", {
+        assets: ["plugin.json", "forward.mjs", FORWARD_RUNTIME_FILE, "home/hooks.json"],
+        extraCheck: () => codexHooksHaveLightcodeEntry(readSshTextFile(ctx, paths.codexHooksPath)),
+      }),
+    );
+  }
   if (isWslPluginContext(ctx)) {
     const wsl = getWslPluginBaseDirs(ctx.wslDistro, "codex");
     if (!wsl) return Promise.resolve({ installed: false });
@@ -512,5 +633,30 @@ function verifyCodexInstallAt(
     return { installed: true, version };
   } catch {
     return { installed: false };
+  }
+}
+
+function codexHooksHaveLightcodeEntry(raw: string | undefined): boolean {
+  if (!raw) return false;
+  try {
+    const doc = JSON.parse(raw) as { hooks?: Record<string, unknown> };
+    if (!doc.hooks) return false;
+    for (const event of CODEX_HOOK_EVENTS) {
+      const groups = doc.hooks[event];
+      if (!Array.isArray(groups)) continue;
+      for (const g of groups) {
+        if (!g || typeof g !== "object") continue;
+        const hooks = (g as { hooks?: unknown }).hooks;
+        if (!Array.isArray(hooks)) continue;
+        for (const h of hooks) {
+          if (!h || typeof h !== "object") continue;
+          const cmd = (h as { command?: string }).command;
+          if (typeof cmd === "string" && LIGHTCODE_FORWARD_RE.test(cmd)) return true;
+        }
+      }
+    }
+    return false;
+  } catch {
+    return false;
   }
 }

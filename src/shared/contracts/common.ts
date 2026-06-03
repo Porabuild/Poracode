@@ -85,6 +85,11 @@ export const projectLocationSchema = z.discriminatedUnion("kind", [
     kind: z.literal("posix"),
     path: z.string().min(1),
   }),
+  z.object({
+    kind: z.literal("ssh"),
+    host: z.string().min(1),
+    path: z.string().min(1),
+  }),
 ]);
 export type ProjectLocation = z.infer<typeof projectLocationSchema>;
 

@@ -3,7 +3,7 @@ import { readBridge } from "@/renderer/bridge";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useDevTerminalStore } from "@/renderer/state/devTerminalStore";
 import { useFileEditorStore } from "@/renderer/state/fileEditorStore";
-import { usePanelStore } from "@/renderer/state/panelStore";
+import { usePanelStore, type ProjectSettingsSectionId } from "@/renderer/state/panelStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { buildFileEditorContext, resolveWorktreeBranch } from "@/renderer/utils/gitHelpers";
 import { closeThreads } from "@/renderer/utils/shellUtils";
@@ -83,8 +83,11 @@ export function openUsagePanel(): void {
   panelStore.openUsagePanel();
 }
 
-export function openProjectSettings(projectId: string): void {
-  usePanelStore.getState().openProjectSettings(projectId);
+export function openProjectSettings(
+  projectId: string,
+  initialSection?: ProjectSettingsSectionId,
+): void {
+  usePanelStore.getState().openProjectSettings(projectId, initialSection);
 }
 
 /** Closes git/files side and right-panel content only. Does not hide the dev terminal (bottom or right). */

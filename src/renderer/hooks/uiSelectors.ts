@@ -183,7 +183,12 @@ export function useProjectAgentStatuses(
   return useAgentStatusesStore(
     useShallow((s) =>
       projectLocation
-        ? getProjectAgentStatuses(projectLocation, s.agentStatuses, s.wslAgentStatuses)
+        ? getProjectAgentStatuses(
+            projectLocation,
+            s.agentStatuses,
+            s.wslAgentStatuses,
+            s.sshAgentStatuses,
+          )
         : [],
     ),
   );

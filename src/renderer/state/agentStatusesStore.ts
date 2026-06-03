@@ -10,11 +10,13 @@ import {
 export type AgentDiscoveryScope =
   | { kind: "native" }
   | { kind: "wsl"; distro: string }
-  | { kind: "all"; wslDistros: string[] };
+  | { kind: "ssh"; host: string }
+  | { kind: "all"; wslDistros: string[]; sshHosts?: string[] };
 
 interface AgentStatusesStore {
   agentStatuses: AgentStatus[];
   wslAgentStatuses: AgentStatus[];
+  sshAgentStatuses: AgentStatus[];
   /**
    * True once a windows-agent-statuses event (or cache) has been applied.
    * Used by UI to distinguish "detecting…" from "detected nothing".
@@ -22,6 +24,8 @@ interface AgentStatusesStore {
   windowsLoaded: boolean;
   /** True once a wsl-agent-statuses event (or cache) has been applied. */
   wslLoaded: boolean;
+  /** True once ssh-agent-statuses has been applied for all requested SSH hosts. */
+  sshLoaded: boolean;
   /**
    * On first launch (no cache) we render a discovery screen that reveals
    * agent tiles as the supervisor streams `agent-detected` events. Once the
@@ -35,12 +39,17 @@ interface AgentStatusesStore {
   discoveredAgents: AgentStatus[];
   setAgentStatuses: (statuses: AgentStatus[]) => void;
   setWslAgentStatuses: (statuses: AgentStatus[]) => void;
+  setSshAgentStatuses: (statuses: AgentStatus[]) => void;
   /**
    * Hydrate both scopes at once from an RPC cache read.  Called before the
    * main UI mounts so ThreadDraft renders with the cached agents instead of
    * the empty initial state.
    */
-  hydrateFromCache: (cached: { windows: AgentStatus[]; wsl: AgentStatus[] }) => void;
+  hydrateFromCache: (cached: {
+    windows: AgentStatus[];
+    wsl: AgentStatus[];
+    ssh?: AgentStatus[];
+  }) => void;
   beginFirstLaunchDiscovery: (scope?: AgentDiscoveryScope) => void;
   resetDiscoveredAgents: () => void;
   pushDiscoveredAgent: (status: AgentStatus) => void;
@@ -79,6 +88,9 @@ function statusesEqual(a: AgentStatus[], b: AgentStatus[]): boolean {
       x.version === b[i]!.version &&
       x.authState === b[i]!.authState &&
       x.loginCommand === b[i]!.loginCommand &&
+      x.envKind === b[i]!.envKind &&
+      x.envDistro === b[i]!.envDistro &&
+      x.envHost === b[i]!.envHost &&
       JSON.stringify(x.authMethods ?? []) === JSON.stringify(b[i]!.authMethods ?? []) &&
       areAgentProviderMetadataEqual(x.providerMetadata, b[i]!.providerMetadata) &&
       capabilitiesEqual(x.capabilities, b[i]!.capabilities),
@@ -90,28 +102,40 @@ function isStatusInDiscoveryScope(
   scope: AgentDiscoveryScope | undefined,
 ): boolean {
   if (scope?.kind === "all") {
-    return status.envKind !== "wsl" || scope.wslDistros.includes(status.envDistro ?? "");
+    if (status.envKind === "wsl") return scope.wslDistros.includes(status.envDistro ?? "");
+    if (status.envKind === "ssh") return scope.sshHosts?.includes(status.envHost ?? "") ?? false;
+    return true;
   }
   if (scope?.kind === "wsl") {
     return status.envKind === "wsl" && status.envDistro === scope.distro;
   }
-  return status.envKind !== "wsl";
+  if (scope?.kind === "ssh") {
+    return status.envKind === "ssh" && status.envHost === scope.host;
+  }
+  return status.envKind !== "wsl" && status.envKind !== "ssh";
 }
 
 function buildStatusUpdatePatch(
   prev: AgentStatusesStore,
   incoming: AgentStatus[],
-  scope: "native" | "wsl",
+  scope: "native" | "wsl" | "ssh",
 ): Partial<AgentStatusesStore> {
   const isWsl = scope === "wsl";
-  const currentList = isWsl ? prev.wslAgentStatuses : prev.agentStatuses;
-  const currentLoaded = isWsl ? prev.wslLoaded : prev.windowsLoaded;
+  const isSsh = scope === "ssh";
+  const currentList = isSsh
+    ? prev.sshAgentStatuses
+    : isWsl
+      ? prev.wslAgentStatuses
+      : prev.agentStatuses;
+  const currentLoaded = isSsh ? prev.sshLoaded : isWsl ? prev.wslLoaded : prev.windowsLoaded;
   const equal = statusesEqual(currentList, incoming);
   const endsDiscovery =
     prev.inFirstLaunchDiscovery &&
-    (isWsl
-      ? prev.discoveryScope?.kind === "wsl"
-      : prev.discoveryScope?.kind === undefined || prev.discoveryScope.kind === "native");
+    (isSsh
+      ? prev.discoveryScope?.kind === "ssh"
+      : isWsl
+        ? prev.discoveryScope?.kind === "wsl"
+        : prev.discoveryScope?.kind === undefined || prev.discoveryScope.kind === "native");
   const discoveryPatch: Partial<AgentStatusesStore> = endsDiscovery
     ? { inFirstLaunchDiscovery: false, discoveryScope: undefined }
     : {};
@@ -120,12 +144,16 @@ function buildStatusUpdatePatch(
   }
   const listPatch: Partial<AgentStatusesStore> = equal
     ? {}
+    : isSsh
+      ? { sshAgentStatuses: incoming }
+      : isWsl
+        ? { wslAgentStatuses: incoming }
+        : { agentStatuses: incoming };
+  const loadedPatch: Partial<AgentStatusesStore> = isSsh
+    ? { sshLoaded: true }
     : isWsl
-      ? { wslAgentStatuses: incoming }
-      : { agentStatuses: incoming };
-  const loadedPatch: Partial<AgentStatusesStore> = isWsl
-    ? { wslLoaded: true }
-    : { windowsLoaded: true };
+      ? { wslLoaded: true }
+      : { windowsLoaded: true };
   return { ...listPatch, ...loadedPatch, ...discoveryPatch };
 }
 
@@ -134,8 +162,10 @@ export const useAgentStatusesStore = create<AgentStatusesStore>()(
     (set) => ({
       agentStatuses: [],
       wslAgentStatuses: [],
+      sshAgentStatuses: [],
       windowsLoaded: false,
       wslLoaded: false,
+      sshLoaded: false,
       inFirstLaunchDiscovery: false,
       discoveryScope: undefined,
       discoveredAgents: [],
@@ -143,12 +173,16 @@ export const useAgentStatusesStore = create<AgentStatusesStore>()(
         set((prev) => buildStatusUpdatePatch(prev, incoming, "native")),
       setWslAgentStatuses: (incoming) =>
         set((prev) => buildStatusUpdatePatch(prev, incoming, "wsl")),
-      hydrateFromCache: ({ windows, wsl }) =>
+      setSshAgentStatuses: (incoming) =>
+        set((prev) => buildStatusUpdatePatch(prev, incoming, "ssh")),
+      hydrateFromCache: ({ windows, wsl, ssh }) =>
         set(() => ({
           agentStatuses: windows,
           wslAgentStatuses: wsl,
+          sshAgentStatuses: ssh ?? [],
           windowsLoaded: true,
           wslLoaded: true,
+          sshLoaded: true,
           inFirstLaunchDiscovery: false,
           discoveryScope: undefined,
         })),
@@ -163,6 +197,7 @@ export const useAgentStatusesStore = create<AgentStatusesStore>()(
             discoveryScope: nextScope,
             discoveredAgents: [],
             ...(nextScope.kind === "wsl" ? { wslLoaded: false } : {}),
+            ...(nextScope.kind === "ssh" ? { sshLoaded: false } : {}),
           };
         }),
       resetDiscoveredAgents: () =>
@@ -183,7 +218,8 @@ export const useAgentStatusesStore = create<AgentStatusesStore>()(
               (existing) =>
                 existing.kind === status.kind &&
                 existing.envKind === status.envKind &&
-                existing.envDistro === status.envDistro,
+                existing.envDistro === status.envDistro &&
+                existing.envHost === status.envHost,
             )
           ) {
             return prev;
@@ -195,7 +231,16 @@ export const useAgentStatusesStore = create<AgentStatusesStore>()(
           const matches = (entry: AgentStatus) =>
             entry.kind === status.kind &&
             entry.envKind === status.envKind &&
-            entry.envDistro === status.envDistro;
+            entry.envDistro === status.envDistro &&
+            entry.envHost === status.envHost;
+          if (status.envKind === "ssh") {
+            const idx = prev.sshAgentStatuses.findIndex(matches);
+            const next =
+              idx === -1
+                ? [...prev.sshAgentStatuses, status]
+                : prev.sshAgentStatuses.map((entry, i) => (i === idx ? status : entry));
+            return { sshAgentStatuses: next, sshLoaded: true };
+          }
           if (status.envKind === "wsl") {
             const idx = prev.wslAgentStatuses.findIndex(matches);
             const next =
@@ -227,8 +272,10 @@ export const useAgentStatusesStore = create<AgentStatusesStore>()(
       partialize: (state) => ({
         agentStatuses: state.agentStatuses,
         wslAgentStatuses: state.wslAgentStatuses,
+        sshAgentStatuses: state.sshAgentStatuses,
         windowsLoaded: state.windowsLoaded,
         wslLoaded: state.wslLoaded,
+        sshLoaded: state.sshLoaded,
       }),
     },
   ),
@@ -241,9 +288,10 @@ export const useAgentStatusesStore = create<AgentStatusesStore>()(
  * shows the install-agents prompt.
  */
 export function isDetectingAgentsForLocation(
-  state: { windowsLoaded: boolean; wslLoaded: boolean },
+  state: { windowsLoaded: boolean; wslLoaded: boolean; sshLoaded?: boolean },
   location: ProjectLocation,
 ): boolean {
+  if (location.kind === "ssh") return state.sshLoaded !== true;
   return location.kind === "wsl" ? !state.wslLoaded : !state.windowsLoaded;
 }
 
@@ -256,5 +304,8 @@ export function isDiscoveryActiveForLocation(
   if (location.kind === "wsl") {
     return state.discoveryScope?.kind === "wsl" && state.discoveryScope.distro === location.distro;
   }
-  return state.discoveryScope?.kind !== "wsl";
+  if (location.kind === "ssh") {
+    return state.discoveryScope?.kind === "ssh" && state.discoveryScope.host === location.host;
+  }
+  return state.discoveryScope?.kind !== "wsl" && state.discoveryScope?.kind !== "ssh";
 }

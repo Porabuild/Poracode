@@ -10,6 +10,7 @@ import {
   type AgentStatus,
   type AgentStatusesResponse,
   type GetAgentStatusesPayload,
+  type ProjectLocation,
   type RefreshAgentScope,
   type RefreshAgentScopeEnv,
 } from "@/shared/contracts";
@@ -36,6 +37,7 @@ const execFileAsync = promisify(execFile);
  */
 export const STATUS_CACHE_VERSION = 3;
 const WSL_AGENT_DETECTION_TIMEOUT_MS = 60_000;
+const SSH_AGENT_DETECTION_TIMEOUT_MS = 60_000;
 
 function migrateSettingDef(definition: Record<string, unknown>): Record<string, unknown> {
   if (definition.type === "toggle" || definition.type === "select") {
@@ -110,30 +112,56 @@ function filterWslStatusesForDistros(
   );
 }
 
+function uniqueSshProjects(
+  locations: readonly Extract<ProjectLocation, { kind: "ssh" }>[],
+): Extract<ProjectLocation, { kind: "ssh" }>[] {
+  const byHost = new Map<string, Extract<ProjectLocation, { kind: "ssh" }>>();
+  for (const location of locations) {
+    if (!byHost.has(location.host)) byHost.set(location.host, location);
+  }
+  return [...byHost.values()];
+}
+
+function filterSshStatusesForHosts(
+  statuses: readonly AgentStatus[],
+  locations: readonly Extract<ProjectLocation, { kind: "ssh" }>[],
+): AgentStatus[] {
+  if (locations.length === 0) {
+    return [];
+  }
+  const hosts = new Set(locations.map((location) => location.host));
+  return statuses.filter((status) => status.envHost !== undefined && hosts.has(status.envHost));
+}
+
 function statusEnvKey(status: AgentStatus): string {
-  return `${status.kind}|${status.envKind ?? ""}|${status.envDistro ?? ""}`;
+  return `${status.kind}|${status.envKind ?? ""}|${status.envDistro ?? ""}|${status.envHost ?? ""}`;
 }
 
 function mergeScopedStatuses(
   existingWindows: readonly AgentStatus[],
   existingWsl: readonly AgentStatus[],
+  existingSsh: readonly AgentStatus[],
   probed: readonly AgentStatus[],
-): { windows: AgentStatus[]; wsl: AgentStatus[] } {
+): { windows: AgentStatus[]; wsl: AgentStatus[]; ssh: AgentStatus[] } {
   const byKey = new Map<string, AgentStatus>();
   for (const status of existingWindows) byKey.set(statusEnvKey(status), status);
   for (const status of existingWsl) byKey.set(statusEnvKey(status), status);
+  for (const status of existingSsh) byKey.set(statusEnvKey(status), status);
   for (const status of probed) byKey.set(statusEnvKey(status), status);
 
   const windows: AgentStatus[] = [];
   const wsl: AgentStatus[] = [];
+  const ssh: AgentStatus[] = [];
   for (const status of byKey.values()) {
     if (status.envKind === "wsl") {
       wsl.push(status);
+    } else if (status.envKind === "ssh") {
+      ssh.push(status);
     } else {
       windows.push(status);
     }
   }
-  return { windows, wsl };
+  return { windows, wsl, ssh };
 }
 
 export async function detectWslAgentStatuses(
@@ -206,6 +234,80 @@ export async function detectWslAgentStatuses(
   return statuses.flat();
 }
 
+export async function detectSshAgentStatuses(
+  adapters: Iterable<AgentAdapter>,
+  locations: readonly Extract<ProjectLocation, { kind: "ssh" }>[],
+  disabled?: ReadonlySet<string>,
+  onStatus?: (status: AgentStatus) => void,
+): Promise<AgentStatus[]> {
+  const adapterList = [...adapters];
+  const statuses = await Promise.all(
+    uniqueSshProjects(locations).map(async (location) => {
+      const ctx: AgentEnvContext = {
+        envKind: "ssh",
+        sshHost: location.host,
+        sshPath: location.path,
+      };
+      return Promise.all(
+        adapterList.map(async (adapter) => {
+          let status: AgentStatus;
+          if (disabled?.has(adapter.kind)) {
+            status = {
+              kind: adapter.kind,
+              label: adapter.label,
+              installed: true,
+              authState: "unknown" as const,
+              capabilities: adapter.capabilities,
+              ...(adapter.update ? { update: adapter.update } : {}),
+              envKind: "ssh" as const,
+              envHost: location.host,
+            };
+          } else {
+            try {
+              let timeout: NodeJS.Timeout | undefined;
+              const detected = await Promise.race([
+                adapter.detectInstall(ctx),
+                new Promise<never>((_, reject) => {
+                  timeout = setTimeout(() => {
+                    reject(
+                      new Error(
+                        `detectInstall(${adapter.kind}, ssh:${location.host}) timed out after ${SSH_AGENT_DETECTION_TIMEOUT_MS}ms`,
+                      ),
+                    );
+                  }, SSH_AGENT_DETECTION_TIMEOUT_MS);
+                  if (typeof timeout.unref === "function") timeout.unref();
+                }),
+              ]).finally(() => {
+                if (timeout) clearTimeout(timeout);
+              });
+              status = { ...detected, envKind: "ssh" as const, envHost: location.host };
+            } catch (error) {
+              console.error(
+                `[supervisor] detectInstall(${adapter.kind}, ssh:${location.host}) failed`,
+                error,
+              );
+              status = {
+                kind: adapter.kind,
+                label: adapter.label,
+                installed: false,
+                authState: "unknown" as const,
+                capabilities: adapter.capabilities,
+                ...(adapter.update ? { update: adapter.update } : {}),
+                envKind: "ssh" as const,
+                envHost: location.host,
+              };
+            }
+          }
+          onStatus?.(status);
+          return status;
+        }),
+      );
+    }),
+  );
+
+  return statuses.flat();
+}
+
 export interface AgentStatusServiceOptions {
   adapters: Map<string, AgentAdapter>;
   settingsPath: string;
@@ -216,12 +318,14 @@ export interface AgentStatusServiceOptions {
 interface DetectionResults {
   windows: AgentStatus[];
   wsl: AgentStatus[];
+  ssh: AgentStatus[];
 }
 
 export class AgentStatusService {
   private pendingDetection: Promise<DetectionResults> | undefined;
   private startupDetectionLaunched = false;
   private startupDetectionWslDistros = new Set<string>();
+  private startupDetectionSshHosts = new Set<string>();
 
   constructor(private readonly options: AgentStatusServiceOptions) {}
 
@@ -243,13 +347,15 @@ export class AgentStatusService {
 
   async getAgentStatuses(payload: GetAgentStatusesPayload): Promise<AgentStatusesResponse> {
     const wslDistros = [...new Set(payload.wslDistros)];
-    const cached = this.readCachedStatuses(wslDistros);
-    this.detectStartupAgentStatusesBackground(wslDistros);
+    const sshProjects = uniqueSshProjects(payload.sshProjects ?? []);
+    const cached = this.readCachedStatuses(wslDistros, sshProjects);
+    this.detectStartupAgentStatusesBackground(wslDistros, sshProjects);
     return cached;
   }
 
   async refreshAgentStatuses(payload: GetAgentStatusesPayload): Promise<AgentStatusesResponse> {
     const wslDistros = [...new Set(payload.wslDistros)];
+    const sshProjects = uniqueSshProjects(payload.sshProjects ?? []);
     // An explicit refresh is the signal that something changed on disk (an
     // install/update just ran), so bypass the binary-path TTL cache and re-read
     // PATH (including the registry-backed Windows user/machine PATH) fresh.
@@ -258,18 +364,20 @@ export class AgentStatusService {
     // since enabled/disabled it); the next capabilities probe repopulates it.
     void clearFastModeCache();
     if (payload.scope) {
-      return this.runScopedDetection(wslDistros, payload.scope);
+      return this.runScopedDetection(wslDistros, sshProjects, payload.scope);
     }
     this.startupDetectionLaunched = true;
     for (const distro of wslDistros) {
       this.startupDetectionWslDistros.add(distro);
     }
+    for (const project of sshProjects) {
+      this.startupDetectionSshHosts.add(project.host);
+    }
     const previousDetection = this.pendingDetection;
     const fresh = await this.runDetectionTask(async () => {
-      if (previousDetection) {
-        await previousDetection.catch(() => ({ windows: [], wsl: [] }));
-      }
-      return this.runDetection(wslDistros);
+      if (previousDetection)
+        await previousDetection.catch(() => ({ windows: [], wsl: [], ssh: [] }));
+      return this.runDetection(wslDistros, sshProjects);
     });
     return { ...fresh, fromCache: false };
   }
@@ -287,15 +395,16 @@ export class AgentStatusService {
    */
   private async runScopedDetection(
     wslDistros: readonly string[],
+    sshProjects: readonly Extract<ProjectLocation, { kind: "ssh" }>[],
     scope: RefreshAgentScope,
   ): Promise<AgentStatusesResponse> {
-    const existing = this.readCachedStatuses(wslDistros);
+    const existing = this.readCachedStatuses(wslDistros, sshProjects);
     // Without a baseline cache we have no merge target — fall back to a full
     // detection so the renderer ends up with a complete list. Callers
     // typically hit this path well after startup, so this is rare.
     if (!existing.fromCache) {
       this.startupDetectionLaunched = true;
-      const fresh = await this.runDetectionTask(() => this.runDetection(wslDistros));
+      const fresh = await this.runDetectionTask(() => this.runDetection(wslDistros, sshProjects));
       return { ...fresh, fromCache: false };
     }
 
@@ -305,7 +414,7 @@ export class AgentStatusService {
       .map((kind) => adapterByKind.get(kind))
       .filter((adapter): adapter is AgentAdapter => adapter !== undefined);
 
-    const targetEnvs = this.resolveScopedEnvs(scope.envs, wslDistros);
+    const targetEnvs = this.resolveScopedEnvs(scope.envs, wslDistros, sshProjects);
     const disabled = this.readDisabledAgents();
 
     const probed = await Promise.all(
@@ -318,14 +427,53 @@ export class AgentStatusService {
       this.options.emit({ type: "agent-status-updated", status });
     }
 
-    const merged = mergeScopedStatuses(existing.windows, existing.wsl, probed);
-    this.writeDiskCache(merged.windows, merged.wsl);
+    const merged = mergeScopedStatuses(existing.windows, existing.wsl, existing.ssh, probed);
+
+    // Persist into the FULL on-disk cache, not the scope-filtered `existing`.
+    // `readCachedStatuses` filters `wsl`/`ssh` down to the requested
+    // distros/hosts, so callers that pass a partial list (e.g. an SSH-only
+    // refresh with `wslDistros: []`, or a WSL/native refresh that omits
+    // `sshProjects`) would otherwise rewrite the other environment's bucket as
+    // empty and wipe its cached agents. Merging the probe into the unfiltered
+    // cache keeps environments outside this scope intact.
+    const fullCache = this.readRawCachedStatuses() ?? { windows: [], wsl: [], ssh: [] };
+    const persisted = mergeScopedStatuses(fullCache.windows, fullCache.wsl, fullCache.ssh, probed);
+    this.writeDiskCache(persisted.windows, persisted.wsl, persisted.ssh);
     return { ...merged, fromCache: false };
+  }
+
+  /**
+   * Reads and parses the raw on-disk cache lists without filtering by the
+   * currently-requested distros/hosts. Used as the merge base when persisting
+   * a scoped detection so unrelated environments are preserved. Returns
+   * `undefined` when no cache exists or its version is stale.
+   */
+  private readRawCachedStatuses(): DetectionResults | undefined {
+    try {
+      const raw = readFileSync(this.options.statusCachePath, "utf8");
+      const cache = JSON.parse(raw) as {
+        version?: number;
+        windows?: unknown[];
+        wsl?: unknown[];
+        ssh?: unknown[];
+      };
+      if (cache.version !== STATUS_CACHE_VERSION) {
+        return undefined;
+      }
+      return {
+        windows: parseCachedStatuses(cache.windows),
+        wsl: parseCachedStatuses(cache.wsl),
+        ssh: parseCachedStatuses(cache.ssh),
+      };
+    } catch {
+      return undefined;
+    }
   }
 
   private resolveScopedEnvs(
     envs: RefreshAgentScope["envs"],
     wslDistros: readonly string[],
+    sshProjects: readonly Extract<ProjectLocation, { kind: "ssh" }>[],
   ): RefreshAgentScopeEnv[] {
     if (envs && envs.length > 0) {
       return envs;
@@ -334,6 +482,11 @@ export class AgentStatusService {
     return [
       nativeEnv,
       ...wslDistros.map<RefreshAgentScopeEnv>((distro) => ({ kind: "wsl", distro })),
+      ...sshProjects.map<RefreshAgentScopeEnv>((project) => ({
+        kind: "ssh",
+        host: project.host,
+        path: project.path,
+      })),
     ];
   }
 
@@ -343,9 +496,15 @@ export class AgentStatusService {
     disabled: ReadonlySet<string>,
   ): Promise<AgentStatus> {
     const isWsl = env.kind === "wsl";
+    const isSsh = env.kind === "ssh";
     const nativeEnvKind: "windows" | "posix" = process.platform === "win32" ? "windows" : "posix";
-    const envKind: "windows" | "posix" | "wsl" = isWsl ? "wsl" : nativeEnvKind;
+    const envKind: "windows" | "posix" | "wsl" | "ssh" = isSsh
+      ? "ssh"
+      : isWsl
+        ? "wsl"
+        : nativeEnvKind;
     const envDistro = isWsl ? env.distro : undefined;
+    const envHost = isSsh ? env.host : undefined;
 
     if (disabled.has(adapter.kind)) {
       return {
@@ -357,20 +516,24 @@ export class AgentStatusService {
         ...(adapter.update ? { update: adapter.update } : {}),
         envKind,
         ...(envDistro ? { envDistro } : {}),
+        ...(envHost ? { envHost } : {}),
       };
     }
-    const ctx: AgentEnvContext | undefined = isWsl
-      ? { envKind: "wsl", wslDistro: env.distro }
-      : undefined;
+    const ctx: AgentEnvContext | undefined = isSsh
+      ? { envKind: "ssh", sshHost: env.host, sshPath: env.path }
+      : isWsl
+        ? { envKind: "wsl", wslDistro: env.distro }
+        : undefined;
     try {
       const detected = ctx ? await adapter.detectInstall(ctx) : await adapter.detectInstall();
       return {
         ...detected,
         envKind,
         ...(envDistro ? { envDistro } : {}),
+        ...(envHost ? { envHost } : {}),
       };
     } catch (error) {
-      const where = isWsl ? `wsl:${env.distro}` : "native";
+      const where = isSsh ? `ssh:${env.host}` : isWsl ? `wsl:${env.distro}` : "native";
       console.error(`[supervisor] scoped detectInstall(${adapter.kind}, ${where}) failed`, error);
       return {
         kind: adapter.kind,
@@ -381,6 +544,7 @@ export class AgentStatusService {
         ...(adapter.update ? { update: adapter.update } : {}),
         envKind,
         ...(envDistro ? { envDistro } : {}),
+        ...(envHost ? { envHost } : {}),
       };
     }
   }
@@ -395,13 +559,17 @@ export class AgentStatusService {
    * event) avoids a startup race where the ThreadDraft renders "No supported
    * agents detected" before the cache event is received.
    */
-  private readCachedStatuses(wslDistros: readonly string[]): AgentStatusesResponse {
+  private readCachedStatuses(
+    wslDistros: readonly string[],
+    sshProjects: readonly Extract<ProjectLocation, { kind: "ssh" }>[] = [],
+  ): AgentStatusesResponse {
     try {
       const raw = readFileSync(this.options.statusCachePath, "utf8");
       const cache = JSON.parse(raw) as {
         version?: number;
         windows?: unknown[];
         wsl?: unknown[];
+        ssh?: unknown[];
       };
 
       // Cache version is bumped whenever derived fields like `loginCommand`
@@ -410,7 +578,7 @@ export class AgentStatusService {
       // hand back pre-bump values that no longer match what fresh detection
       // would compute.
       if (cache.version !== STATUS_CACHE_VERSION) {
-        return { windows: [], wsl: [], fromCache: false };
+        return { windows: [], wsl: [], ssh: [], fromCache: false };
       }
 
       const windows = parseCachedStatuses(cache.windows)
@@ -419,10 +587,13 @@ export class AgentStatusService {
       const wsl = filterWslStatusesForDistros(parseCachedStatuses(cache.wsl), wslDistros).map(
         (status) => this.withCachedCapabilityDefaults(status),
       );
+      const ssh = filterSshStatusesForHosts(parseCachedStatuses(cache.ssh), sshProjects).map(
+        (status) => this.withCachedCapabilityDefaults(status),
+      );
 
-      return { windows, wsl, fromCache: true };
+      return { windows, wsl, ssh, fromCache: true };
     } catch {
-      return { windows: [], wsl: [], fromCache: false };
+      return { windows: [], wsl: [], ssh: [], fromCache: false };
     }
   }
 
@@ -448,7 +619,7 @@ export class AgentStatusService {
     };
   }
 
-  private writeDiskCache(windows: AgentStatus[], wsl: AgentStatus[]): void {
+  private writeDiskCache(windows: AgentStatus[], wsl: AgentStatus[], ssh: AgentStatus[]): void {
     try {
       writeFileSync(
         this.options.statusCachePath,
@@ -456,6 +627,7 @@ export class AgentStatusService {
           version: STATUS_CACHE_VERSION,
           windows,
           wsl,
+          ssh,
           savedAt: new Date().toISOString(),
         }),
         "utf8",
@@ -485,28 +657,45 @@ export class AgentStatusService {
     return pending;
   }
 
-  private detectStartupAgentStatusesBackground(wslDistros: readonly string[]): void {
+  private detectStartupAgentStatusesBackground(
+    wslDistros: readonly string[],
+    sshProjects: readonly Extract<ProjectLocation, { kind: "ssh" }>[],
+  ): void {
     const newWslDistros = wslDistros.filter(
       (distro) => !this.startupDetectionWslDistros.has(distro),
     );
-    if (this.startupDetectionLaunched && newWslDistros.length === 0) {
+    const newSshProjects = sshProjects.filter(
+      (project) => !this.startupDetectionSshHosts.has(project.host),
+    );
+    if (
+      this.startupDetectionLaunched &&
+      newWslDistros.length === 0 &&
+      newSshProjects.length === 0
+    ) {
       return;
     }
     this.startupDetectionLaunched = true;
     for (const distro of newWslDistros) {
       this.startupDetectionWslDistros.add(distro);
     }
+    for (const project of newSshProjects) {
+      this.startupDetectionSshHosts.add(project.host);
+    }
     const detectionWslDistros = [...this.startupDetectionWslDistros];
+    const detectionSshProjects = uniqueSshProjects([...sshProjects]);
     const previousDetection = this.pendingDetection;
     void this.runDetectionTask(async () => {
       if (previousDetection) {
-        await previousDetection.catch(() => ({ windows: [], wsl: [] }));
+        await previousDetection.catch(() => ({ windows: [], wsl: [], ssh: [] }));
       }
-      return this.runDetection(detectionWslDistros);
+      return this.runDetection(detectionWslDistros, detectionSshProjects);
     });
   }
 
-  private async runDetection(wslDistros: readonly string[]): Promise<DetectionResults> {
+  private async runDetection(
+    wslDistros: readonly string[],
+    sshProjects: readonly Extract<ProjectLocation, { kind: "ssh" }>[],
+  ): Promise<DetectionResults> {
     const adapters = [...this.options.adapters.values()];
     const disabled = this.readDisabledAgents();
 
@@ -581,9 +770,27 @@ export class AgentStatusService {
         return [] as AgentStatus[];
       });
 
-    const [nativeResult, wslResult] = await Promise.allSettled([nativePromise, wslPromise]);
+    const sshPromise = detectSshAgentStatuses(adapters, sshProjects, disabled, (status) => {
+      this.options.emit({ type: "agent-detected", status });
+    })
+      .then((statuses) => {
+        this.options.emit({ type: "ssh-agent-statuses", statuses });
+        return statuses;
+      })
+      .catch((error) => {
+        console.error("[supervisor] detectSshAgentStatuses failed", error);
+        this.options.emit({ type: "ssh-agent-statuses", statuses: [] });
+        return [] as AgentStatus[];
+      });
+
+    const [nativeResult, wslResult, sshResult] = await Promise.allSettled([
+      nativePromise,
+      wslPromise,
+      sshPromise,
+    ]);
     const nativeStatuses = nativeResult.status === "fulfilled" ? nativeResult.value : [];
     const wslStatuses = wslResult.status === "fulfilled" ? wslResult.value : [];
+    const sshStatuses = sshResult.status === "fulfilled" ? sshResult.value : [];
 
     // Native detection may have thrown before emitting — ensure the renderer
     // always gets a terminal windows-agent-statuses event.
@@ -595,8 +802,11 @@ export class AgentStatusService {
     if (wslDistros.length === 0) {
       this.options.emit({ type: "wsl-agent-statuses", statuses: [] });
     }
+    if (sshProjects.length === 0) {
+      this.options.emit({ type: "ssh-agent-statuses", statuses: [] });
+    }
 
-    this.writeDiskCache(nativeStatuses, wslStatuses);
-    return { windows: nativeStatuses, wsl: wslStatuses };
+    this.writeDiskCache(nativeStatuses, wslStatuses, sshStatuses);
+    return { windows: nativeStatuses, wsl: wslStatuses, ssh: sshStatuses };
   }
 }

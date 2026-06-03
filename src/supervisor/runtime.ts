@@ -18,6 +18,8 @@ import type {
   DeleteProjectEntryPayload,
   DetectSetupScriptPayload,
   DetectSetupScriptResult,
+  CheckSshProjectConnectionPayload,
+  CheckSshProjectConnectionResult,
   ExtractContextPayload,
   ExtractContextResult,
   FinalizeFileCheckpointPayload,
@@ -193,6 +195,7 @@ import { LanguageServerManager } from "./lsp";
 import { ProjectTreeService } from "./projectTree";
 import { generatePrSummary } from "./prSummaryGenerator";
 import { detectWindowsShell, type WindowsShellPreference } from "./shellPreference";
+import { readSshCommandOutput, SshBrowserMcpTunnelManager } from "./ssh";
 import { generateTitle } from "./titleGenerator";
 import { AgentStatusService, detectWslAgentStatuses } from "./runtime/agentStatusService";
 import { UsageService } from "./runtime/usageService";
@@ -228,6 +231,7 @@ export class SupervisorRuntime {
   private readonly threadSessionManager: ThreadSessionManager;
   private readonly lspManager: LanguageServerManager;
   private readonly cliHookPluginCoordinator: CliHookPluginCoordinator;
+  private readonly sshBrowserMcpTunnels = new SshBrowserMcpTunnelManager();
   private wslHookBridge: WslBridgeServer | undefined;
   private extractionAbortControllers = new Map<string, AbortController>();
 
@@ -400,7 +404,11 @@ export class SupervisorRuntime {
       readDisableCliHookPlugin: () => this.sharedSettingsCache.read().disableCliHookPlugin,
       adapters: this.adapters,
       windowsShell: this.windowsShell,
-      ...(this.wslHookBridge ? { wslBridge: this.wslHookBridge } : {}),
+      browserMcpBridge: {
+        ensureBridge: (distro) =>
+          this.wslHookBridge?.ensureBridge(distro) ?? Promise.resolve(undefined),
+        ensureSshBridge: (location, env) => this.sshBrowserMcpTunnels.ensureTunnel(location, env),
+      },
       resolvePluginEnvForSpawn: (input) =>
         this.cliHookPluginCoordinator.resolvePluginEnvForSpawn(input),
     });
@@ -1327,6 +1335,19 @@ export class SupervisorRuntime {
       return {};
     }
 
+    if (location.kind === "ssh") {
+      for (const candidate of candidates) {
+        const found = await readSshCommandOutput(location, "test", [
+          "-f",
+          joinProjectPosixPath(location, candidate.file),
+        ])
+          .then(() => true)
+          .catch(() => false);
+        if (found) return { setupScript: candidate.command };
+      }
+      return {};
+    }
+
     const dir = location.path;
     for (const candidate of candidates) {
       if (existsSync(join(dir, candidate.file))) {
@@ -1334,6 +1355,31 @@ export class SupervisorRuntime {
       }
     }
     return {};
+  }
+
+  async checkSshProjectConnection(
+    payload: CheckSshProjectConnectionPayload,
+  ): Promise<CheckSshProjectConnectionResult> {
+    const location = payload.projectLocation;
+    if (location.kind !== "ssh") {
+      return { ok: false, message: "Project is not an SSH project." };
+    }
+    const startedAt = Date.now();
+    try {
+      await readSshCommandOutput(location, "sh", ["-lc", 'test -d "$PWD" && printf %s "$PWD"']);
+      return {
+        ok: true,
+        message: "Connected",
+        latencyMs: Date.now() - startedAt,
+      };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      return {
+        ok: false,
+        message: message || "Unable to connect.",
+        latencyMs: Date.now() - startedAt,
+      };
+    }
   }
 
   async lspStart(payload: LspStartPayload): Promise<void> {
@@ -1358,6 +1404,7 @@ export class SupervisorRuntime {
     await this.threadSessionManager.dispose();
     this.sharedSettingsCache.dispose();
     await this.cliHookPluginCoordinator.dispose().catch(() => undefined);
+    this.sshBrowserMcpTunnels.dispose();
     const { shutdownSpawnedOpenCodeServers } = await import("./agents/opencode/sdkClient");
     shutdownSpawnedOpenCodeServers();
   }

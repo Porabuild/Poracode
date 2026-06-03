@@ -21,6 +21,7 @@ export interface FilesPanelContext {
 }
 
 export type RightPanelTab = "git" | "files" | "terminal" | "browser" | "usage";
+export type ProjectSettingsSectionId = "general" | "worktrees" | "actions" | "search" | "agents";
 
 interface PanelState {
   gitReviewContext: GitReviewContext | null;
@@ -38,6 +39,7 @@ interface PanelState {
   /** When the overlay is opened deep-linked to a section (e.g. "usage"); else null. */
   settingsSection: string | null;
   projectSettingsId: string | null;
+  projectSettingsInitialSection: ProjectSettingsSectionId | null;
   threadSortMode: ThreadSortMode;
   threadSearchOpen: boolean;
   setGitReviewContext: (ctx: GitReviewContext | null) => void;
@@ -58,7 +60,7 @@ interface PanelState {
   openSettingsSection: (section: string) => void;
   clearSettingsSection: () => void;
   closeSettings: () => void;
-  openProjectSettings: (projectId: string) => void;
+  openProjectSettings: (projectId: string, initialSection?: ProjectSettingsSectionId) => void;
   closeProjectSettings: () => void;
   openThreadSearch: () => void;
   closeThreadSearch: () => void;
@@ -111,6 +113,7 @@ export const usePanelStore = create<PanelState>((set) => ({
   settingsOpen: false,
   settingsSection: null,
   projectSettingsId: null,
+  projectSettingsInitialSection: null,
   threadSortMode: "updated",
   threadSearchOpen: false,
 
@@ -230,10 +233,19 @@ export const usePanelStore = create<PanelState>((set) => ({
   clearSettingsSection: () =>
     set((state) => (state.settingsSection === null ? {} : { settingsSection: null })),
   closeSettings: () => set((state) => (state.settingsOpen ? { settingsOpen: false } : {})),
-  openProjectSettings: (projectId) =>
-    set((state) => (state.projectSettingsId === projectId ? {} : { projectSettingsId: projectId })),
+  openProjectSettings: (projectId, initialSection) =>
+    set((state) =>
+      state.projectSettingsId === projectId &&
+      state.projectSettingsInitialSection === (initialSection ?? null)
+        ? {}
+        : { projectSettingsId: projectId, projectSettingsInitialSection: initialSection ?? null },
+    ),
   closeProjectSettings: () =>
-    set((state) => (state.projectSettingsId === null ? {} : { projectSettingsId: null })),
+    set((state) =>
+      state.projectSettingsId === null && state.projectSettingsInitialSection === null
+        ? {}
+        : { projectSettingsId: null, projectSettingsInitialSection: null },
+    ),
   openThreadSearch: () =>
     set((state) => (state.threadSearchOpen ? {} : { threadSearchOpen: true })),
   closeThreadSearch: () =>

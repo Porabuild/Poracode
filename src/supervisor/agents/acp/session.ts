@@ -74,6 +74,7 @@ import {
 import { terminateChildProcessTree } from "@/shared/processTree";
 import { ensureNodePtySpawnHelperExecutable } from "@/supervisor/nodePty";
 import {
+  buildAgentCommand,
   buildPosixExportPrefix,
   createKnownSessionRef,
   detectShell,
@@ -84,7 +85,9 @@ import {
   getWslCommand,
   quotePosixShellArg,
   quotePowerShellLiteral,
+  readSessionFileText,
   resolveWslShellPath,
+  runSshScript,
   type AgentLaunchOptions,
   type CommandSpec,
   type CreateStructuredSessionInput,
@@ -360,6 +363,22 @@ function buildAcpTerminalLaunch(
         "-c",
         script,
       ],
+      env: processEnvRecord(),
+    };
+  }
+
+  if (location.kind === "ssh") {
+    const spec = buildAgentCommand(
+      { ...location, path: cwd },
+      command,
+      args,
+      undefined,
+      { TERM: "xterm-256color", ...requestEnv },
+      { sshBatchMode: "yes", sshTty: false },
+    );
+    return {
+      command: spec.command,
+      args: spec.args,
       env: processEnvRecord(),
     };
   }
@@ -1210,7 +1229,13 @@ export class AcpStructuredSession implements StructuredSessionHandle {
   private async handleReadTextFile(params: ReadTextFileRequest): Promise<ReadTextFileResponse> {
     this.assertRequestSession(params.sessionId);
     const path = resolveAcpReadableHostFsPath(this.projectLocation, params.path);
-    const fullContent = await readFile(path, "utf8");
+    const fullContent =
+      this.projectLocation.kind === "ssh"
+        ? await readSessionFileText(this.projectLocation, path)
+        : await readFile(path, "utf8");
+    if (fullContent === undefined) {
+      throw RequestError.invalidParams({ message: `File not found: ${params.path}` });
+    }
     const content = sliceTextFileContent(fullContent, params.line, params.limit);
     return { content };
   }
@@ -1218,7 +1243,20 @@ export class AcpStructuredSession implements StructuredSessionHandle {
   private async handleWriteTextFile(params: WriteTextFileRequest): Promise<WriteTextFileResponse> {
     this.assertRequestSession(params.sessionId);
     const path = resolveAcpHostFsPath(this.projectLocation, params.path);
-    await writeFile(path, params.content, "utf8");
+    if (this.projectLocation.kind === "ssh") {
+      const encoded = Buffer.from(params.content, "utf8").toString("base64");
+      await runSshScript(
+        this.projectLocation,
+        [
+          `path=${quotePosixShellArg(path)}`,
+          `dir=\${path%/*}`,
+          `mkdir -p "$dir"`,
+          `printf %s ${quotePosixShellArg(encoded)} | base64 -d > "$path"`,
+        ].join("\n"),
+      );
+    } else {
+      await writeFile(path, params.content, "utf8");
+    }
     return {};
   }
 

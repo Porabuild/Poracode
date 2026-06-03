@@ -103,6 +103,7 @@ describe("agent status cache", () => {
         readCachedStatuses: (wslDistros: readonly string[]) => {
           windows: unknown[];
           wsl: unknown[];
+          ssh: unknown[];
           fromCache: boolean;
         };
       }
@@ -166,6 +167,7 @@ describe("agent status cache", () => {
         },
       ],
       wsl: [],
+      ssh: [],
     });
   });
 
@@ -210,6 +212,7 @@ describe("agent status cache", () => {
         readCachedStatuses: (wslDistros: readonly string[]) => {
           windows: AgentStatus[];
           wsl: AgentStatus[];
+          ssh: AgentStatus[];
           fromCache: boolean;
         };
       }
@@ -237,27 +240,7 @@ describe("detectWslAgentStatuses", () => {
   };
 
   it("detects statuses for every adapter in every distro", async () => {
-    const detectInstall = vi.fn<
-      (ctx?: { envKind: "windows" | "wsl"; wslDistro?: string }) => Promise<{
-        kind: "codex";
-        label: string;
-        installed: boolean;
-        authState: "unknown";
-        capabilities: {
-          models: [];
-          efforts: [];
-          modelEfforts: {};
-          modes: [];
-          approvalPolicies: [];
-          sandboxModes: [];
-          supportsResume: true;
-          supportsDirectInput: true;
-          liveInputMode: "server";
-          presentationMode: "terminal";
-          settingDefs: [];
-        };
-      }>
-    >(async (ctx?: { envKind: "windows" | "wsl"; wslDistro?: string }) => ({
+    const detectInstall = vi.fn<AgentAdapter["detectInstall"]>(async (ctx) => ({
       kind: "codex" as const,
       label: `Codex ${ctx?.wslDistro ?? "windows"}`,
       installed: ctx?.wslDistro === "Ubuntu",

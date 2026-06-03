@@ -2,7 +2,13 @@ import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import type { ProjectLocation } from "@/shared/contracts";
-import { resolveAgentHomeSubpath, resolveWslHomeDirectory } from "../base";
+import {
+  readSshCommandOutputSync,
+  resolveAgentHomeSubpath,
+  resolveSshHomeDirectory,
+  resolveWslHomeDirectory,
+  runSshScriptSync,
+} from "../base";
 
 const INVALID_SESSION_RE = /not\s+found|invalid\s+conversation|no\s+such\s+conversation/i;
 
@@ -25,7 +31,12 @@ export function resolveAntigravityConfigDir(location: ProjectLocation): string |
 
 export function antigravityConfigDirExists(location: ProjectLocation): boolean {
   const dir = resolveAntigravityConfigDir(location);
-  return Boolean(dir && existsSync(dir));
+  if (!dir) return false;
+  if (location.kind === "ssh") {
+    const result = runSshScriptSync(location, `[ -d ${shellQuote(dir)} ]`, { timeout: 5_000 });
+    return result.ok;
+  }
+  return existsSync(dir);
 }
 
 interface AntigravityConversationFile {
@@ -39,11 +50,46 @@ interface AntigravityConversationFile {
 // open database must be excluded — only the base file names a conversation.
 const CONVERSATION_FILE_RE = /\.(pb|db)$/;
 
+function shellQuote(s: string): string {
+  return `'${s.replace(/'/g, "'\\''")}'`;
+}
+
 function readAntigravityConversationFiles(
   location: ProjectLocation,
 ): AntigravityConversationFile[] {
   const dir = resolveAntigravityConversationsDir(location);
-  if (!dir || !existsSync(dir)) return [];
+  if (!dir) return [];
+  if (location.kind === "ssh") {
+    const result = runSshScriptSync(
+      location,
+      [
+        `dir=${shellQuote(dir)}`,
+        `[ -d "$dir" ] || exit 0`,
+        `find "$dir" -maxdepth 1 -type f -name '*.pb' 2>/dev/null | while IFS= read -r path; do`,
+        `  mtime=$(stat -c %Y "$path" 2>/dev/null || stat -f %m "$path" 2>/dev/null || printf 0)`,
+        `  printf '%s\\t%s\\n' "$mtime" "\${path##*/}"`,
+        `done`,
+      ].join("\n"),
+      { timeout: 10_000 },
+    );
+    if (!result.ok) return [];
+    return result.stdout
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .flatMap((line) => {
+        const [mtimeRaw, name] = line.split("\t");
+        if (!name?.endsWith(".pb")) return [];
+        return [
+          {
+            id: name.replace(/\.pb$/, ""),
+            path: `${dir}/${name}`,
+            mtimeMs: Number(mtimeRaw) * 1000,
+          },
+        ];
+      });
+  }
+  if (!existsSync(dir)) return [];
   try {
     return readdirSync(dir)
       .filter((file) => CONVERSATION_FILE_RE.test(file))
@@ -176,7 +222,11 @@ export function readAntigravityLastConversationForCwd(
   const path = resolveAgentHomeSubpath(location, LAST_CONVERSATIONS_SUBPATH);
   if (!path) return undefined;
   try {
-    const map = JSON.parse(readFileSync(path, "utf8")) as Record<string, unknown>;
+    const raw =
+      location.kind === "ssh"
+        ? readSshCommandOutputSync(location, "cat", [path], { timeout: 10_000 }).stdout
+        : readFileSync(path, "utf8");
+    const map = JSON.parse(raw) as Record<string, unknown>;
     const value = map[cwd];
     return typeof value === "string" && value.length > 0 ? value : undefined;
   } catch {
@@ -202,6 +252,11 @@ export function resolveAntigravityWatchPaths(location: ProjectLocation): string[
     if (!home) return [];
     return [`${home}/${ANTIGRAVITY_CONFIG_SUBPATH}`, `${home}/${ANTIGRAVITY_PARENT_SUBPATH}`];
   }
+  if (location.kind === "ssh") {
+    const home = resolveSshHomeDirectory(location);
+    if (!home) return [];
+    return [`${home}/${ANTIGRAVITY_CONFIG_SUBPATH}`, `${home}/${ANTIGRAVITY_PARENT_SUBPATH}`];
+  }
   const home = homedir();
   const paths = [
     join(home, ...ANTIGRAVITY_CONFIG_SUBPATH.split("/")),
@@ -211,5 +266,6 @@ export function resolveAntigravityWatchPaths(location: ProjectLocation): string[
 }
 
 export function describeAntigravityLocation(location: ProjectLocation): string {
+  if (location.kind === "ssh") return `ssh:${location.host}`;
   return location.kind === "wsl" ? `wsl:${location.distro}` : location.kind;
 }

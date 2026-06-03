@@ -39,6 +39,9 @@ export function resolveAgentBinaryPath(
     cache.set(key, resolved);
     return resolved;
   }
+  if (location.kind === "ssh") {
+    return undefined;
+  }
   // posix: piggy-back on the shared exec-path cache populated by
   // primeExecutablePathCache during agent detection. The cached path may come
   // from a temporary login shell (e.g. fnm multishell) that has since been

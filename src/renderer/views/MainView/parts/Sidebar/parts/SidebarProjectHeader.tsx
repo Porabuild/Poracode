@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import {
   ChevronRight,
   FileDiff,
@@ -7,6 +8,7 @@ import {
   Power,
   PowerOff,
   RefreshCw,
+  Server,
   Settings2,
   Trash2,
 } from "lucide-react";
@@ -21,6 +23,7 @@ import {
 } from "@/renderer/actions/panelActions";
 import { gitSync } from "@/renderer/actions/gitActions";
 import { openTerminal, runProjectAction } from "@/renderer/actions/terminalActions";
+import { readBridge } from "@/renderer/bridge";
 import {
   useIsProjectFilesPanelActive,
   useIsProjectGitPanelActive,
@@ -36,6 +39,8 @@ import { GitBadge } from "./GitBadge";
 import { SidebarPanelDragButton } from "./SidebarPanelDragButton";
 import { SyncBadge } from "./SyncBadge";
 
+type SshProjectStatus = "checking" | "connected" | "error" | "disconnected";
+
 export function SidebarProjectHeader(props: {
   project: Project;
   isCollapsed: boolean;
@@ -50,7 +55,106 @@ export function SidebarProjectHeader(props: {
   const isActiveFilesPanel = useIsProjectFilesPanelActive(project.id);
   const projectLocation = formatProjectLocation(project);
   const isDisabled = !!project.disabled;
+  const [sshStatus, setSshStatus] = useState<SshProjectStatus>(
+    isDisabled ? "disconnected" : "checking",
+  );
+  const [sshStatusMessage, setSshStatusMessage] = useState("");
+  const isSshProject = project.location.kind === "ssh";
+  const sshHost = project.location.kind === "ssh" ? project.location.host : undefined;
+  const sshPath = project.location.kind === "ssh" ? project.location.path : undefined;
+  const shouldReconnect = isSshProject && (isDisabled || sshStatus === "error");
+  const toggleDisabledIconIsPower = isSshProject ? shouldReconnect : isDisabled;
+  const toggleDisabledLabel = isSshProject
+    ? shouldReconnect
+      ? "Reconnect"
+      : "Disconnect"
+    : isDisabled
+      ? "Enable Project"
+      : "Disable Project";
   const showBody = !isCollapsed && !isDisabled;
+  const sshIconClass =
+    sshStatus === "connected"
+      ? "text-success"
+      : sshStatus === "error"
+        ? "text-danger"
+        : sshStatus === "checking"
+          ? "text-accent"
+          : "text-muted/40";
+  const sshTooltip =
+    sshStatus === "connected"
+      ? "Connected"
+      : sshStatus === "checking"
+        ? "Checking connection"
+        : sshStatus === "error"
+          ? sshStatusMessage || "Connection failed"
+          : "Disconnected";
+
+  async function checkSshConnection(): Promise<boolean> {
+    if (!isSshProject) return true;
+    setSshStatus("checking");
+    setSshStatusMessage("");
+    try {
+      const result = await readBridge().checkSshProjectConnection({
+        projectLocation: project.location,
+      });
+      setSshStatus(result.ok ? "connected" : "error");
+      setSshStatusMessage(result.message ?? "");
+      return result.ok;
+    } catch (error) {
+      setSshStatus("error");
+      setSshStatusMessage(error instanceof Error ? error.message : String(error));
+      return false;
+    }
+  }
+
+  useEffect(() => {
+    // Key off the SSH host/path primitives rather than the `project.location`
+    // object: the projects array (and the derived project object) is rebuilt on
+    // unrelated store updates, so depending on the object reference would
+    // re-spawn an `ssh` probe and flicker the badge on every such render.
+    if (sshHost === undefined || sshPath === undefined) return;
+    if (isDisabled) {
+      setSshStatus("disconnected");
+      setSshStatusMessage("");
+      return;
+    }
+    let cancelled = false;
+    setSshStatus("checking");
+    setSshStatusMessage("");
+    void readBridge()
+      .checkSshProjectConnection({
+        projectLocation: { kind: "ssh", host: sshHost, path: sshPath },
+      })
+      .then((result) => {
+        if (cancelled) return;
+        setSshStatus(result.ok ? "connected" : "error");
+        setSshStatusMessage(result.message ?? "");
+      })
+      .catch((error: unknown) => {
+        if (cancelled) return;
+        setSshStatus("error");
+        setSshStatusMessage(error instanceof Error ? error.message : String(error));
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isDisabled, sshHost, sshPath]);
+
+  function handleToggleDisabled() {
+    if (!isSshProject) {
+      setProjectDisabled(project.id, !isDisabled);
+      return;
+    }
+    if (!shouldReconnect) {
+      setSshStatus("disconnected");
+      setSshStatusMessage("");
+      setProjectDisabled(project.id, true);
+      return;
+    }
+    void checkSshConnection().then((connected) => {
+      if (connected) setProjectDisabled(project.id, false);
+    });
+  }
 
   return (
     <ContextMenu
@@ -99,8 +203,12 @@ export function SidebarProjectHeader(props: {
             ]),
         {
           id: "toggle-disabled",
-          label: isDisabled ? "Enable Project" : "Disable Project",
-          icon: isDisabled ? <Power className="size-3.5" /> : <PowerOff className="size-3.5" />,
+          label: toggleDisabledLabel,
+          icon: toggleDisabledIconIsPower ? (
+            <Power className="size-3.5" />
+          ) : (
+            <PowerOff className="size-3.5" />
+          ),
         },
         {
           id: "remove-project",
@@ -112,7 +220,7 @@ export function SidebarProjectHeader(props: {
       onAction={(key) => {
         if (key === "project-settings") openProjectSettings(project.id);
         if (key === "remove-project") deleteProject(project.id);
-        if (key === "toggle-disabled") setProjectDisabled(project.id, !isDisabled);
+        if (key === "toggle-disabled") handleToggleDisabled();
         if (key === "git-review") openGitReview(project.id);
         if (key === "git-sync") gitSync(project.id);
         if (key.startsWith("action:")) {
@@ -134,9 +242,16 @@ export function SidebarProjectHeader(props: {
             {project.location.kind === "wsl" && (
               <TuxIcon className="h-3 w-auto shrink-0 text-muted/60" />
             )}
+            {isSshProject && <Server className={`size-3 shrink-0 ${sshIconClass}`} />}
           </span>
         }
-        tooltip={isDisabled ? `${projectLocation} (disabled)` : projectLocation}
+        tooltip={
+          isSshProject
+            ? `${projectLocation} (${sshTooltip})`
+            : isDisabled
+              ? `${projectLocation} (disabled)`
+              : projectLocation
+        }
         className={`lightcode-sidebar-project-nudge !pl-1${isDragging ? " opacity-60" : ""}${
           isDisabled ? " opacity-50" : ""
         }`}

@@ -68,6 +68,22 @@ describe("getProjectAgentStatuses", () => {
 
     expect(getProjectAgentStatuses(location, [], legacyStatuses)).toEqual(legacyStatuses);
   });
+
+  it("returns only statuses for the matching SSH host", () => {
+    const location: ProjectLocation = { kind: "ssh", host: "devbox", path: "/repo" };
+
+    expect(
+      getProjectAgentStatuses(
+        location,
+        [makeStatus("codex", { envKind: "windows" })],
+        [],
+        [
+          makeStatus("claude", { envKind: "ssh", envHost: "devbox" }),
+          makeStatus("gemini", { envKind: "ssh", envHost: "other" }),
+        ],
+      ),
+    ).toEqual([makeStatus("claude", { envKind: "ssh", envHost: "devbox" })]);
+  });
 });
 
 describe("getSettingsInstalledAgents", () => {

@@ -55,9 +55,34 @@ describe("readConflictResolverSettingsForProject", () => {
     });
   });
 
+  it("falls back to Windows settings for SSH projects when WSL conflict resolver is unset", () => {
+    expect(readConflictResolverSettingsForProject("ssh", settings)).toEqual({
+      provider: "cursor",
+      model: "composer-2.5",
+      effort: "",
+      presentationMode: "terminal",
+    });
+  });
+
   it("uses WSL settings when WSL conflict resolver is configured", () => {
     expect(
       readConflictResolverSettingsForProject("wsl", {
+        ...settings,
+        wslConflictResolverProvider: "cursor",
+        wslConflictResolverModel: "composer-2.5-fast",
+        wslConflictResolverPresentationMode: "terminal",
+      }),
+    ).toEqual({
+      provider: "cursor",
+      model: "composer-2.5-fast",
+      effort: "",
+      presentationMode: "terminal",
+    });
+  });
+
+  it("uses WSL settings for SSH projects when WSL conflict resolver is configured", () => {
+    expect(
+      readConflictResolverSettingsForProject("ssh", {
         ...settings,
         wslConflictResolverProvider: "cursor",
         wslConflictResolverModel: "composer-2.5-fast",

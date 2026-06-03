@@ -40,6 +40,7 @@ import type {
   InstallAcpRegistryAgentPayload,
   InterruptThreadPayload,
   LogoutAcpAgentPayload,
+  ProjectLocation,
   RefreshAgentScope,
   RemoveAcpRegistryAgentPayload,
   ResizeTerminalPayload,
@@ -72,23 +73,31 @@ import {
 
 export const threadProcedures = {
   getAgentStatuses: defineIpcProcedure<
-    [string[]?],
+    [string[]?, Extract<ProjectLocation, { kind: "ssh" }>[]?],
     GetAgentStatusesPayload,
     AgentStatusesResponse,
     "supervisor"
-  >("getAgentStatuses", "supervisor", getAgentStatusesPayloadSchema, (wslDistros) =>
-    getAgentStatusesPayloadSchema.parse({ wslDistros: wslDistros ?? [] }),
-  ),
-  refreshAgentStatuses: defineIpcProcedure<
-    [string[]?, RefreshAgentScope?],
-    GetAgentStatusesPayload,
-    AgentStatusesResponse,
-    "supervisor"
-  >("refreshAgentStatuses", "supervisor", getAgentStatusesPayloadSchema, (wslDistros, scope) =>
+  >("getAgentStatuses", "supervisor", getAgentStatusesPayloadSchema, (wslDistros, sshProjects) =>
     getAgentStatusesPayloadSchema.parse({
       wslDistros: wslDistros ?? [],
-      ...(scope ? { scope } : {}),
+      sshProjects: sshProjects ?? [],
     }),
+  ),
+  refreshAgentStatuses: defineIpcProcedure<
+    [string[]?, RefreshAgentScope?, Extract<ProjectLocation, { kind: "ssh" }>[]?],
+    GetAgentStatusesPayload,
+    AgentStatusesResponse,
+    "supervisor"
+  >(
+    "refreshAgentStatuses",
+    "supervisor",
+    getAgentStatusesPayloadSchema,
+    (wslDistros, scope, sshProjects) =>
+      getAgentStatusesPayloadSchema.parse({
+        wslDistros: wslDistros ?? [],
+        sshProjects: sshProjects ?? [],
+        ...(scope ? { scope } : {}),
+      }),
   ),
   getAgentHookPluginStatuses: definePayloadProcedure<
     GetAgentHookPluginStatusesPayload,

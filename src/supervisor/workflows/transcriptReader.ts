@@ -7,6 +7,7 @@ import type {
   WorkflowRun,
   WorkflowRunStatus,
 } from "@/shared/contracts";
+import { listSessionDir, readSessionFileText } from "../agents/base";
 
 /**
  * The on-disk manifest at `<projectSessionDir>/workflows/<runId>.json` carries
@@ -77,7 +78,13 @@ async function readJournalAgents(input: ReadWorkflowRunInput): Promise<Map<strin
   const journalPath = joinPath(dirPath, "journal.jsonl");
   let raw: string;
   try {
-    raw = await readFile(journalPath, "utf8");
+    if (input.location.kind === "ssh") {
+      const text = await readSessionFileText(input.location, journalPath);
+      if (text === undefined) return new Map();
+      raw = text;
+    } else {
+      raw = await readFile(journalPath, "utf8");
+    }
   } catch (err) {
     if (isNotFoundError(err)) return new Map();
     throw err;
@@ -124,7 +131,12 @@ async function listStartedAgentIds(input: ReadWorkflowRunInput): Promise<string[
       : input.transcriptDir!;
   let entries: string[];
   try {
-    entries = await readdir(dirPath);
+    if (input.location.kind === "ssh") {
+      const result = await listSessionDir(input.location, dirPath);
+      entries = result?.map((entry) => entry.name) ?? [];
+    } else {
+      entries = await readdir(dirPath);
+    }
   } catch (err) {
     if (isNotFoundError(err)) return [];
     throw err;
@@ -184,6 +196,17 @@ async function readManifestBytes(input: ReadWorkflowRunInput): Promise<string> {
       input.manifestPath,
     );
     return readFile(uncPath, "utf8");
+  }
+  if (input.location.kind === "ssh") {
+    const text = await readSessionFileText(input.location, input.manifestPath);
+    if (text === undefined) {
+      const error = new Error(
+        `ENOENT: no such file, open '${input.manifestPath}'`,
+      ) as NodeJS.ErrnoException;
+      error.code = "ENOENT";
+      throw error;
+    }
+    return text;
   }
   return readFile(input.manifestPath, "utf8");
 }

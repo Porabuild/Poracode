@@ -255,4 +255,61 @@ describe("AgentStatusService", () => {
       expect.objectContaining({ kind: "codex", envKind: "wsl", envDistro: "Ubuntu" }),
     );
   });
+
+  it("streams SSH agent detection events during full detection", async () => {
+    const detectInstall = vi.fn<AgentAdapter["detectInstall"]>().mockResolvedValue(makeStatus());
+    const adapter = makeAdapter("codex", "Codex", detectInstall);
+    const { service, emit } = makeMultiAdapterService([adapter]);
+
+    await service.refreshAgentStatuses({
+      wslDistros: [],
+      sshProjects: [{ kind: "ssh", host: "devbox", path: "/repo" }],
+    });
+
+    expect(detectInstall).toHaveBeenCalledWith({
+      envKind: "ssh",
+      sshHost: "devbox",
+      sshPath: "/repo",
+    });
+    const detected = emit.mock.calls
+      .map(([event]) => event)
+      .filter((event) => event.type === "agent-detected")
+      .map((event) => event.status);
+    expect(detected).toContainEqual(
+      expect.objectContaining({ kind: "codex", envKind: "ssh", envHost: "devbox" }),
+    );
+  });
+
+  it("scoped refresh preserves cached agents for environments outside the scope", async () => {
+    const detectInstall = vi.fn<AgentAdapter["detectInstall"]>().mockResolvedValue(makeStatus());
+    const adapter = makeAdapter("codex", "Codex", detectInstall);
+    const { service } = makeMultiAdapterService([adapter]);
+
+    const sshProjects = [{ kind: "ssh" as const, host: "devbox", path: "/repo" }];
+
+    // Seed a full detection covering native + WSL + SSH so the cache has all
+    // three environment buckets populated.
+    await service.refreshAgentStatuses({ wslDistros: ["Ubuntu"], sshProjects });
+    const seeded = await service.getAgentStatuses({ wslDistros: ["Ubuntu"], sshProjects });
+    expect(seeded.ssh.some((s) => s.envHost === "devbox")).toBe(true);
+    expect(seeded.wsl.some((s) => s.envDistro === "Ubuntu")).toBe(true);
+
+    // A scoped refresh that omits sshProjects must not drop the cached SSH agents.
+    await service.refreshAgentStatuses({
+      wslDistros: ["Ubuntu"],
+      scope: { agentKinds: ["codex"] },
+    });
+    const afterWslScope = await service.getAgentStatuses({ wslDistros: ["Ubuntu"], sshProjects });
+    expect(afterWslScope.ssh.some((s) => s.envHost === "devbox")).toBe(true);
+
+    // A scoped refresh that omits wslDistros must not drop the cached WSL agents.
+    await service.refreshAgentStatuses({
+      wslDistros: [],
+      sshProjects,
+      scope: { agentKinds: ["codex"] },
+    });
+    const afterSshScope = await service.getAgentStatuses({ wslDistros: ["Ubuntu"], sshProjects });
+    expect(afterSshScope.wsl.some((s) => s.envDistro === "Ubuntu")).toBe(true);
+    expect(afterSshScope.ssh.some((s) => s.envHost === "devbox")).toBe(true);
+  });
 });

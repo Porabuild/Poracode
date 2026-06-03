@@ -94,6 +94,7 @@ export function createSupervisorIpcHandlers(runtime: SupervisorRuntime): Supervi
     moveProjectEntry: (payload) => runtime.moveProjectEntry(payload),
     deleteProjectEntry: (payload) => runtime.deleteProjectEntry(payload),
     detectSetupScript: (payload) => runtime.detectSetupScript(payload),
+    checkSshProjectConnection: (payload) => runtime.checkSshProjectConnection(payload),
     ghCheckAvailable: (payload) => runtime.ghCheckAvailable(payload),
     ghCreatePr: (payload) => runtime.ghCreatePr(payload),
     ghGetPrForBranch: (payload) => runtime.ghGetPrForBranch(payload),

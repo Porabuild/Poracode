@@ -59,22 +59,22 @@ export function runAgentLoginCommand(input: {
   }
 
   const shellId = `login:${crypto.randomUUID()}`;
-  // On WSL the agent CLI can't reach the Windows browser on its own, so we
+  // In remote shells the agent CLI can't reach the Windows browser on its own, so we
   // suppress its opener (BROWSER=/bin/true) and watch stdout for auth URLs to
   // hand off via the Windows shell. Native macOS / Windows CLIs already open
   // their own browser, so a renderer-side watcher would just double-launch.
-  const suppressWslBrowser = project.location.kind === "wsl";
-  const interceptWslUrls = suppressWslBrowser && !isGeminiLoginCommand(input);
+  const suppressRemoteBrowser = project.location.kind === "wsl" || project.location.kind === "ssh";
+  const interceptRemoteUrls = suppressRemoteBrowser && !isGeminiLoginCommand(input);
   // Wipe the bash prompt + echoed script line that briefly appear before the
   // TUI takes over. `clear` (POSIX) / `Clear-Host` (PowerShell) gives the
   // overlay a clean canvas so the user only sees the agent's own UI.
   const loginCommand = buildTerminalCommand({
     command: input.command,
-    env: suppressWslBrowser ? { BROWSER: "/bin/true", ...(input.env ?? {}) } : input.env,
+    env: suppressRemoteBrowser ? { BROWSER: "/bin/true", ...(input.env ?? {}) } : input.env,
   });
   const command =
     project.location.kind === "windows" ? `Clear-Host; ${loginCommand}` : `clear; ${loginCommand}`;
-  const stopOpeningUrls = interceptWslUrls ? watchUrlsInNativeBrowser(shellId) : undefined;
+  const stopOpeningUrls = interceptRemoteUrls ? watchUrlsInNativeBrowser(shellId) : undefined;
   const completionToken = createCompletionToken();
   const script = appendCompletionSignal(command, project, completionToken);
 

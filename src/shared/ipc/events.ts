@@ -70,6 +70,7 @@ export type SupervisorEvent =
     }
   | { type: "windows-agent-statuses"; statuses: AgentStatus[] }
   | { type: "wsl-agent-statuses"; statuses: AgentStatus[] }
+  | { type: "ssh-agent-statuses"; statuses: AgentStatus[] }
   | { type: "agent-detected"; status: AgentStatus }
   | { type: "agent-status-updated"; status: AgentStatus }
   | { type: "provider-usage"; snapshot: UsageSnapshot }

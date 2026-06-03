@@ -231,14 +231,16 @@ export const agentStatusSchema = z.object({
   authMethods: z.array(agentAuthMethodSchema).optional(),
   authLogoutSupported: z.boolean().optional(),
   capabilities: agentCapabilitySchema,
-  envKind: z.enum(["windows", "wsl", "posix"]).optional(),
+  envKind: z.enum(["windows", "wsl", "posix", "ssh"]).optional(),
   envDistro: z.string().optional(),
+  envHost: z.string().optional(),
 });
 export type AgentStatus = z.infer<typeof agentStatusSchema>;
 
 export const refreshAgentScopeEnvSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("native") }),
   z.object({ kind: z.literal("wsl"), distro: z.string().min(1) }),
+  z.object({ kind: z.literal("ssh"), host: z.string().min(1), path: z.string().min(1) }),
 ]);
 export type RefreshAgentScopeEnv = z.infer<typeof refreshAgentScopeEnvSchema>;
 
@@ -250,6 +252,9 @@ export type RefreshAgentScope = z.infer<typeof refreshAgentScopeSchema>;
 
 export const getAgentStatusesPayloadSchema = z.object({
   wslDistros: z.array(z.string().min(1)).default([]),
+  sshProjects: z
+    .array(z.object({ kind: z.literal("ssh"), host: z.string().min(1), path: z.string().min(1) }))
+    .optional(),
   scope: refreshAgentScopeSchema.optional(),
 });
 export type GetAgentStatusesPayload = z.infer<typeof getAgentStatusesPayloadSchema>;
@@ -257,6 +262,7 @@ export type GetAgentStatusesPayload = z.infer<typeof getAgentStatusesPayloadSche
 export const agentStatusesResponseSchema = z.object({
   windows: z.array(agentStatusSchema).default([]),
   wsl: z.array(agentStatusSchema).default([]),
+  ssh: z.array(agentStatusSchema).default([]),
   /**
    * True when the response was populated from the on-disk cache.
    * False when no cache file was available (e.g. first launch) — the caller

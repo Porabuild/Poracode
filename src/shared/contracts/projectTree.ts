@@ -195,3 +195,16 @@ export type DetectSetupScriptPayload = z.infer<typeof detectSetupScriptPayloadSc
 export interface DetectSetupScriptResult {
   setupScript?: string;
 }
+
+export const checkSshProjectConnectionPayloadSchema = z.object({
+  projectLocation: projectLocationSchema,
+});
+export type CheckSshProjectConnectionPayload = z.infer<
+  typeof checkSshProjectConnectionPayloadSchema
+>;
+
+export interface CheckSshProjectConnectionResult {
+  ok: boolean;
+  message?: string;
+  latencyMs?: number;
+}

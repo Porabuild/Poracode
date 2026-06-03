@@ -1,5 +1,6 @@
 import {
   ArrowLeft,
+  Bot,
   GitFork,
   PanelLeft,
   PanelLeftClose,
@@ -22,12 +23,16 @@ export function SettingsSidebar(props: {
   activeSection: ProjectSettingsSection;
   onSectionChange: (section: ProjectSettingsSection) => void;
   onClose: () => void;
+  showAgents?: boolean;
 }) {
-  const { activeSection, onSectionChange, onClose } = props;
+  const { activeSection, onSectionChange, onClose, showAgents } = props;
   const { isCollapsed, collapse, expand } = useSidebar();
 
   const sections: { id: ProjectSettingsSection; icon: React.ReactNode; label: string }[] = [
     { id: "general", icon: <Settings2 className="size-4" />, label: "General" },
+    ...(showAgents
+      ? [{ id: "agents" as const, icon: <Bot className="size-4" />, label: "Agents" }]
+      : []),
     { id: "worktrees", icon: <GitFork className="size-4" />, label: "Worktrees" },
     { id: "actions", icon: <Play className="size-4" />, label: "Actions" },
     { id: "search", icon: <Search className="size-4" />, label: "Search" },

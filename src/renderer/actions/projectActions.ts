@@ -34,9 +34,24 @@ export function setProjectDisabled(projectId: string, disabled: boolean): void {
   if (!project) return;
   if ((project.disabled ?? false) === disabled) return;
 
+  const projectThreadIds = disabled
+    ? store.threads.filter((t) => t.projectId === projectId).map((t) => t.id)
+    : [];
+
   store.setProjectDisabled(projectId, disabled);
 
   if (disabled) {
+    if (project.location.kind === "ssh" && projectThreadIds.length > 0) {
+      void Promise.allSettled(
+        projectThreadIds.map((threadId) => readBridge().closeThread({ threadId })),
+      ).then(() => {
+        const nextStore = useAppStore.getState();
+        for (const threadId of projectThreadIds) {
+          nextStore.markThreadExited(threadId);
+        }
+      });
+    }
+
     void readBridge()
       .gitUnwatchProject({ projectId })
       .catch(() => undefined);

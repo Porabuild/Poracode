@@ -4,10 +4,11 @@ import { KeyRound, LogIn, RefreshCw, Settings } from "lucide-react";
 import type { AgentStatus, Project } from "@/shared/contracts";
 import { readBridge } from "@/renderer/bridge";
 import { runAgentLoginCommand } from "@/renderer/actions/agentLoginActions";
-import { openSettings } from "@/renderer/actions/panelActions";
+import { openProjectSettings, openSettings } from "@/renderer/actions/panelActions";
 import { Button } from "@/renderer/components/common";
 import {
   agentAuthTarget,
+  currentSshProjects,
   currentWslDistros,
   findAgentAuthMethodForStatus,
   findTerminalAuthMethodForStatus,
@@ -16,10 +17,14 @@ import {
 import { ThreadDockHeader, ThreadDockSection } from "./ThreadDockUI";
 
 async function refreshAgentStatus(status: AgentStatus): Promise<void> {
-  await readBridge().refreshAgentStatuses(currentWslDistros(), {
-    agentKinds: [status.kind],
-    envs: [scopeEnvForStatus(status)],
-  });
+  await readBridge().refreshAgentStatuses(
+    currentWslDistros(),
+    {
+      agentKinds: [status.kind],
+      envs: [scopeEnvForStatus(status)],
+    },
+    currentSshProjects(),
+  );
 }
 
 /**
@@ -42,7 +47,7 @@ export function ThreadAuthRequiredDock(props: { agentStatus: AgentStatus; projec
   const [pendingAction, setPendingAction] = useState<"login" | "refresh" | undefined>();
   const agentAuthMethod = findAgentAuthMethodForStatus(agentStatus);
   const terminalAuthMethod = findTerminalAuthMethodForStatus(agentStatus);
-  const canUseAgentAuth = agentAuthMethod !== undefined;
+  const canUseAgentAuth = agentStatus.envKind !== "ssh" && agentAuthMethod !== undefined;
   const canUseTerminalLogin = Boolean(agentStatus.loginCommand);
   const hasDirectLogin = canUseAgentAuth || canUseTerminalLogin;
   const preferTerminalLogin = shouldPreferTerminalLogin(agentStatus);
@@ -52,6 +57,13 @@ export function ThreadAuthRequiredDock(props: { agentStatus: AgentStatus; projec
     : agentAuthMethod
       ? `Complete ${agentAuthMethod.name} sign-in before this thread can run.`
       : "Add credentials before this thread can run.";
+  const openAuthSettings = () => {
+    if (agentStatus.envKind === "ssh" && project) {
+      openProjectSettings(project.id, "agents");
+      return;
+    }
+    openSettings();
+  };
 
   async function handleLogin() {
     if (pendingAction) return;
@@ -147,7 +159,7 @@ export function ThreadAuthRequiredDock(props: { agentStatus: AgentStatus; projec
                 variant="ghost"
                 className="h-6 min-w-0 px-2 text-xs text-foreground"
                 onMouseDown={preventFocusSteal}
-                onPress={openSettings}
+                onPress={openAuthSettings}
               >
                 <Settings className="size-3.5" />
                 Settings

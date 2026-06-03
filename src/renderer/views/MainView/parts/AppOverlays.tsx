@@ -42,6 +42,7 @@ export function AppOverlays() {
   const projects = useAppStore((s) => s.projects);
   const settingsOpen = usePanelStore((s) => s.settingsOpen);
   const projectSettingsId = usePanelStore((s) => s.projectSettingsId);
+  const projectSettingsInitialSection = usePanelStore((s) => s.projectSettingsInitialSection);
   const gitOverlayOpen = usePanelStore((s) => s.gitOverlayOpen);
   const gitReviewContext = usePanelStore((s) => s.gitReviewContext);
   const gitReviewAsPanel = usePanelStore((s) => s.gitReviewAsPanel);
@@ -72,6 +73,9 @@ export function AppOverlays() {
         {projectSettingsId && (
           <ProjectSettingsOverlay
             projectId={projectSettingsId}
+            {...(projectSettingsInitialSection
+              ? { initialSection: projectSettingsInitialSection }
+              : {})}
             onClose={() => usePanelStore.getState().closeProjectSettings()}
           />
         )}
