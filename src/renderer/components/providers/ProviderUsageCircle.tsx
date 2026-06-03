@@ -1,5 +1,6 @@
 import type { UsageWindow } from "@lightcode/agents-usage";
 import { ProviderIcon } from "./ProviderIcon";
+import { pickUsageRings } from "./usageProviders";
 import { usageToneColor } from "./usageTone";
 
 /**
@@ -9,38 +10,11 @@ import { usageToneColor } from "./usageTone";
  * slower weekly/monthly is the INNER ring, so a full inner ring flags "weekly
  * almost gone" even when the session is idle. Cursor renders Auto + Composer
  * outside and API inside. Every other provider renders a SINGLE ring on its
- * most-constrained window — an at-a-glance "closest to the limit" read. Each
- * ring is colored by its own tone. Reuses the ring math from
- * ThreadContextIndicator.
+ * most-constrained window — an at-a-glance "closest to the limit" read. Which
+ * windows map to which ring is a per-provider descriptor in `usageProviders.ts`
+ * (see {@link pickUsageRings}). Each ring is colored by its own tone. Reuses the
+ * ring math from ThreadContextIndicator.
  */
-
-function pickRings(
-  kind: string,
-  windows: readonly UsageWindow[] | undefined,
-): {
-  outer?: UsageWindow;
-  inner?: UsageWindow;
-} {
-  if (!windows || windows.length === 0) return {};
-  if (kind === "cursor") {
-    const auto = windows.find((w) => w.id === "cursor-auto");
-    const api = windows.find((w) => w.id === "cursor-api");
-    if (auto && api) return { outer: auto, inner: api };
-    if (auto) return { outer: auto };
-    if (api) return { outer: api };
-  }
-  const session = windows.find((w) => w.id === "session-5h");
-  const longer =
-    windows.find((w) => w.id === "weekly") ??
-    windows.find((w) => w.id === "monthly") ??
-    windows.find((w) => w.id === "weekly-opus") ??
-    windows.find((w) => w.id === "weekly-sonnet");
-  // Two rings only where the short-vs-long split is real (Claude, Codex).
-  if (session && longer) return { outer: session, inner: longer };
-  // Everyone else: one ring on the most-constrained window.
-  const worst = [...windows].sort((a, b) => b.usedPercent - a.usedPercent)[0];
-  return worst ? { outer: worst } : {};
-}
 
 function Ring(props: { window: UsageWindow; radius: number }) {
   const { window, radius } = props;
@@ -78,7 +52,7 @@ export function ProviderUsageCircle(props: {
   size?: number;
 }) {
   const { kind, windows, size = 28 } = props;
-  const { outer, inner } = pickRings(kind, windows);
+  const { outer, inner } = pickUsageRings(kind, windows);
   const outerRadius = 11;
   const innerRadius = 7.5;
 

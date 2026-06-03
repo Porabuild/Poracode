@@ -96,6 +96,11 @@ const BUILT_IN: UsageCollector[] = [
   GEMINI_COLLECTOR,
 ];
 
+/** Descriptors for the built-in HTTP collectors, in registration order. */
+export function builtInUsageProviderDescriptors(): UsageProviderDescriptor[] {
+  return BUILT_IN.map((collector) => collector.descriptor);
+}
+
 export interface UsageCollectorRegistry {
   has(id: string): boolean;
   descriptors(): UsageProviderDescriptor[];

@@ -3,13 +3,17 @@ import { PointerActivationConstraints } from "@dnd-kit/dom";
 import { DragDropProvider, type DragEndEvent, KeyboardSensor, PointerSensor } from "@dnd-kit/react";
 import { isSortable, useSortable } from "@dnd-kit/react/sortable";
 import { Tooltip } from "@heroui/react";
-import { formatResetCountdown, type UsageSnapshot } from "@lightcode/agents-usage";
+import {
+  formatResetCountdown,
+  type UsageSnapshot,
+  usageWindowDisplayLabel,
+} from "@lightcode/agents-usage";
 import { openUsagePanel } from "@/renderer/actions/panelActions";
 import { readBridge } from "@/renderer/bridge";
 import { useProviderUsage, useProviderUsageStore } from "@/renderer/state/providerUsageStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { ProviderUsageCircle } from "./ProviderUsageCircle";
-import { formatUsageWindowLabel, PaceLine } from "./UsageWindowBars";
+import { PaceLine } from "./UsageWindowBars";
 import {
   formatWindowPace,
   formatWindowSecondaryValue,
@@ -69,7 +73,7 @@ function UsageTooltipBody(props: {
             return (
               <div key={w.id}>
                 <div className="flex items-center justify-between gap-3 whitespace-nowrap">
-                  <span className="text-muted">{formatUsageWindowLabel(w)}</span>
+                  <span className="text-muted">{usageWindowDisplayLabel(w)}</span>
                   <span className="font-medium text-foreground">
                     {reset || secondary ? (
                       <span className="mr-1 text-[10px] font-normal text-muted">

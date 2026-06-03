@@ -1,13 +1,10 @@
 import { useState } from "react";
 import { useSortable } from "@dnd-kit/react/sortable";
 import { ChevronDown, ChevronRight, GripVertical, LogOut } from "lucide-react";
-import type { UsageSnapshot } from "@lightcode/agents-usage";
+import { type UsageSnapshot, usageWindowDisplayLabel } from "@lightcode/agents-usage";
 import { readBridge } from "@/renderer/bridge";
 import { ProviderIcon } from "@/renderer/components/providers/ProviderIcon";
-import {
-  formatUsageWindowLabel,
-  UsageWindowBars,
-} from "@/renderer/components/providers/UsageWindowBars";
+import { UsageWindowBars } from "@/renderer/components/providers/UsageWindowBars";
 import {
   formatMoney,
   formatTokens,
@@ -17,7 +14,7 @@ import {
 } from "@/renderer/components/providers/usageFormat";
 import { usageToneColor } from "@/renderer/components/providers/usageTone";
 import {
-  supportsCookieLogin,
+  supportsBrowserLogin,
   usesSharedWindowReset,
 } from "@/renderer/components/providers/usageProviders";
 import { usePanelStore } from "@/renderer/state/panelStore";
@@ -38,7 +35,7 @@ function WindowChips(props: { windows: UsageSnapshot["windows"] }) {
             className="size-1.5 shrink-0 rounded-full"
             style={{ backgroundColor: usageToneColor(w.usedPercent) }}
           />
-          <span className="text-muted">{formatUsageWindowLabel(w)}</span>
+          <span className="text-muted">{usageWindowDisplayLabel(w)}</span>
           <span className="tabular-nums text-foreground">{formatWindowValue(w)}</span>
         </span>
       ))}
@@ -73,7 +70,7 @@ export function UsageProviderCard(props: {
   const hasStoredSession = useHasStoredSession(id);
   const [signingIn, setSigningIn] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
-  const supportsLogin = supportsCookieLogin(id);
+  const supportsLogin = supportsBrowserLogin(id);
   // A stored session that the latest fetch reports as rejected (expired cookie)
   // still warrants a "Sign in" to re-auth; an unauthenticated provider always does.
   // But never prompt sign-in once a fetch succeeds ("ok"): a provider authenticated

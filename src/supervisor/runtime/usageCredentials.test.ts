@@ -1,10 +1,8 @@
 import { describe, expect, it } from "vitest";
+import { parseClaudeCredentials } from "./claudeCredentials";
+import { parseCodexAuth } from "./codexCredentials";
+import { copilotCredentialTargetFromConfig } from "./copilotCredentials";
 import { cursorUserIdFromJwt } from "./cursorCredentials";
-import {
-  copilotCredentialTargetFromConfig,
-  parseClaudeCredentials,
-  parseCodexAuth,
-} from "./usageCredentials";
 
 /** Build a JWT-shaped token whose payload carries the given claims. */
 function fakeJwt(claims: Record<string, unknown>): string {

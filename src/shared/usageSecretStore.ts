@@ -8,12 +8,16 @@ import { decryptSecret, encryptSecret } from "./secretStorage";
  * the shared `safeStorage`-derived key (see `src/shared/secretStorage.ts`) so the
  * file never holds plaintext. Main writes on capture; the supervisor's usage
  * `CredentialStore.getSecret` reads. Shape: `{ [providerId]: { [key]: sealed } }`.
- *
- * The `decryptSecret`/`encryptSecret` `baseDir` argument is unused by the current
- * scheme; we pass "" and key the store solely by file path.
  */
 
 const SECRETS_FILE = "provider-secrets.json";
+
+/**
+ * `encryptSecret`/`decryptSecret` accept a `baseDir` for the agent-settings code
+ * path, but the global safeStorage-derived key ignores it; this store keys solely
+ * by file path, so we pass none. Named for clarity at the call sites below.
+ */
+const NO_BASE_DIR = "";
 
 type SecretsFile = Record<string, Record<string, string>>;
 
@@ -48,7 +52,7 @@ export function setUsageSecret(
   const path = usageSecretsPath(cacheDir);
   const data = readAll(path);
   const bucket = { ...(data[providerId] ?? {}) };
-  bucket[key] = encryptSecret("", plaintext);
+  bucket[key] = encryptSecret(NO_BASE_DIR, plaintext);
   data[providerId] = bucket;
   writeAll(path, data);
 }
@@ -91,7 +95,7 @@ export function getUsageSecret(
   const sealed = readAll(path)[providerId]?.[key];
   if (!sealed) return undefined;
   try {
-    return decryptSecret("", sealed);
+    return decryptSecret(NO_BASE_DIR, sealed);
   } catch {
     return undefined;
   }

@@ -36,6 +36,34 @@ export function formatResetCountdown(
 }
 
 /**
+ * Canonical labels for the known, cross-provider window ids. The window-id
+ * vocabulary is owned by this package (see `types.ts`), so its display labels
+ * belong here too rather than in any one renderer. Dynamic, provider-namespaced
+ * ids (`gemini:`/`codex:`/`antigravity:`) carry a final label from their own
+ * collector and fall through to `window.label`.
+ */
+const KNOWN_WINDOW_LABELS: Record<string, string> = {
+  "session-5h": "Session (5h)",
+  weekly: "Weekly",
+  "weekly-opus": "Weekly · Opus",
+  "weekly-sonnet": "Weekly · Sonnet",
+  monthly: "Monthly",
+  "extra-usage": "Extra usage",
+  "cursor-auto": "Auto + Composer",
+  "cursor-api": "API",
+};
+
+/** The label to show for a usage window, provider-agnostic. */
+export function usageWindowDisplayLabel(window: UsageWindow): string {
+  // Dollar-denominated overage, request-metered, and custom monthly windows keep
+  // the collector's own label instead of the generic known-id one.
+  if (window.unit === "usd" && window.limit !== undefined) return window.label;
+  if (window.id === "monthly" && window.unit === "requests") return window.label;
+  if (window.id === "monthly" && window.label !== "Monthly") return window.label;
+  return KNOWN_WINDOW_LABELS[window.id] ?? window.label;
+}
+
+/**
  * Providers report utilization either as a 0-1 fraction (Claude) or a 0-100
  * percentage (Codex `used_percent`). Normalize to 0-100.
  *

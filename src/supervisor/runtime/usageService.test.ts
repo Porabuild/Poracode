@@ -2,11 +2,26 @@ import { rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import type { HostPort, OAuthToken } from "@lightcode/agents-usage";
+import type { HostPort, OAuthToken, UsageSnapshot } from "@lightcode/agents-usage";
 import type { SupervisorEvent } from "@/shared/ipc";
+import type { LocalUsageCollector } from "./localUsageCollectors";
 import { UsageService } from "./usageService";
 
 const NOW = 1_700_000_000_000;
+
+/**
+ * Stub the supervisor-local collectors so unit tests never touch disk or spawn a
+ * process (opencode reads SQLite, antigravity probes a language server). Each
+ * returns auth-missing.
+ */
+function stubLocalCollectors(): LocalUsageCollector[] {
+  const stub = (id: string): LocalUsageCollector => ({
+    id,
+    collect: (nowMs): Promise<UsageSnapshot> =>
+      Promise.resolve({ providerId: id, status: "auth-missing", windows: [], fetchedAt: nowMs }),
+  });
+  return [stub("opencode"), stub("antigravity")];
+}
 
 const CLAUDE_BODY = JSON.stringify({
   five_hour: { utilization: 0.4, resets_at: "2026-05-29T12:00:00Z" },
@@ -50,10 +65,7 @@ describe("UsageService", () => {
       emit: (event) => events.push(event),
       cachePath: tempCachePath(),
       host: makeHost({ claude: { accessToken: "tok" } }),
-      // Stub the supervisor-local scanners so the unit test never touches disk
-      // or spawns a process (opencode, antigravity).
-      collectLocal: (id, now) =>
-        Promise.resolve({ providerId: id, status: "auth-missing", windows: [], fetchedAt: now }),
+      localCollectors: stubLocalCollectors(),
     });
 
     const result = await service.refreshProviderUsage({});
@@ -86,8 +98,7 @@ describe("UsageService", () => {
       emit: () => {},
       cachePath: tempCachePath(),
       host: makeHost({ claude: { accessToken: "tok" } }),
-      collectLocal: (id, now) =>
-        Promise.resolve({ providerId: id, status: "auth-missing", windows: [], fetchedAt: now }),
+      localCollectors: stubLocalCollectors(),
     });
     await service.refreshProviderUsage({});
     const cached = await service.getProviderUsage({ providerIds: ["claude"] });
@@ -173,8 +184,7 @@ describe("UsageService", () => {
       emit: () => {},
       cachePath: tempCachePath(),
       host,
-      collectLocal: (id, now) =>
-        Promise.resolve({ providerId: id, status: "auth-missing", windows: [], fetchedAt: now }),
+      localCollectors: stubLocalCollectors(),
     });
     await service.refreshProviderUsage({});
     const afterFirst = calls;

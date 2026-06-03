@@ -218,7 +218,7 @@ function BrowserDeviceCodeButton() {
     setTooltipOpen(true);
     if (copiedTimerRef.current) clearTimeout(copiedTimerRef.current);
     copiedTimerRef.current = setTimeout(() => setCopied(false), 1_500);
-  }, [deviceCode?.code, deviceCode]);
+  }, [deviceCode]);
 
   useEffect(() => {
     return () => {

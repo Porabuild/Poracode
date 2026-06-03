@@ -1,39 +1,74 @@
-import { describe, expect, it } from "vitest";
-import { parseZenBalance } from "./openCodeUsageScanner";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { HostPort } from "@lightcode/agents-usage";
+import type { OpenCodeWebSession } from "./openCodeWebSession";
 
 /**
- * The opencode.ai console server-renders its `billing.get` query into the page.
- * The balance is the raw `balance` field in 1e8 units ($1 = 100,000,000), per
- * the console's `formatBalance` (amount / 100000000). These cases lock the
- * conversion and the guard that keeps an unrelated `balance` from matching.
+ * The Go-DB read and the web-session fetch are unit-tested in their own modules
+ * (`openCodeGoDb.test.ts`, `openCodeWebSession.test.ts`, `openCodeZenBalance.test.ts`);
+ * here we mock both to test the orchestrator's status fall-through deterministically,
+ * without touching disk or the network.
  */
-describe("parseZenBalance", () => {
-  it("reads the SSR'd billing balance (1e8 units) as dollars", () => {
-    const body =
-      `<script>window._$HY={};</script>...` +
-      `{customerID:"cus_abc",balance:900000000,reload:!1,reloadAmount:2000000000,` +
-      `monthlyLimit:null,monthlyUsage:512300000}...`;
-    expect(parseZenBalance(body)).toBe(9);
+const goDb = vi.hoisted(() => ({
+  hasOpenCodeGoAuth: vi.fn<() => boolean>(),
+  readOpenCodeGoRows: vi.fn<() => Promise<{ createdMs: number; cost: number }[] | undefined>>(),
+}));
+const web = vi.hoisted(() => ({
+  fetchOpenCodeWeb: vi.fn<() => Promise<OpenCodeWebSession>>(),
+}));
+
+vi.mock("./openCodeGoDb", () => goDb);
+vi.mock("./openCodeWebSession", () => web);
+
+const { scanOpenCodeUsage } = await import("./openCodeUsageScanner");
+
+const NOW = 1_700_000_000_000;
+const host = {} as HostPort;
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  goDb.hasOpenCodeGoAuth.mockReturnValue(false);
+  goDb.readOpenCodeGoRows.mockResolvedValue(undefined);
+  web.fetchOpenCodeWeb.mockResolvedValue({ live: false });
+});
+
+describe("scanOpenCodeUsage", () => {
+  it("is auth-missing with no local auth/rows and no live web session", async () => {
+    const snap = await scanOpenCodeUsage(NOW, host);
+    expect(snap.status).toBe("auth-missing");
+    expect(snap.windows).toEqual([]);
   });
 
-  it("handles fractional balances", () => {
-    const body = `{customerID:"cus_x",paymentMethodLast4:"4242",balance:753000000,reloadAmount:1000000000}`;
-    expect(parseZenBalance(body)).toBe(7.53);
+  it("reports ok/Zen for a live web session without a Go subscription", async () => {
+    web.fetchOpenCodeWeb.mockResolvedValue({ live: true, balance: 9 });
+    const snap = await scanOpenCodeUsage(NOW, host);
+    expect(snap.status).toBe("ok");
+    expect(snap.plan).toBe("Zen");
+    expect(snap.windows).toEqual([]);
+    expect(snap.credits).toMatchObject({ balance: 9, currency: "USD" });
   });
 
-  it("ignores a bare balance with no billing siblings nearby", () => {
-    expect(parseZenBalance(`{"items":[{"balance":900000000}]}`)).toBeUndefined();
+  it("reports ok/Go with the web subscription windows when present", async () => {
+    const goWindows = [
+      { id: "session-5h" as const, label: "Rolling", usedPercent: 20, unit: "percent" as const },
+      { id: "weekly" as const, label: "Weekly", usedPercent: 5, unit: "percent" as const },
+    ];
+    web.fetchOpenCodeWeb.mockResolvedValue({ live: true, goWindows });
+    const snap = await scanOpenCodeUsage(NOW, host);
+    expect(snap.status).toBe("ok");
+    expect(snap.plan).toBe("Go");
+    expect(snap.windows).toEqual(goWindows);
   });
 
-  it("does not confuse currentBalanceUsd (already dollars) with the raw field", () => {
-    expect(parseZenBalance(`{"currentBalanceUsd": 9}`)).toBe(9);
+  it("falls back to local Go auth (no web) as ok/Go", async () => {
+    goDb.hasOpenCodeGoAuth.mockReturnValue(true);
+    const snap = await scanOpenCodeUsage(NOW, host);
+    expect(snap.status).toBe("ok");
+    expect(snap.plan).toBe("Go");
   });
 
-  it("still reads a visible 'Current balance $X' label", () => {
-    expect(parseZenBalance(`<span>Current balance <b>$12.34</b></span>`)).toBe(12.34);
-  });
-
-  it("returns undefined when there is no balance anywhere", () => {
-    expect(parseZenBalance(`<html><body>signed in, nothing here</body></html>`)).toBeUndefined();
+  it("is auth-missing when no host is provided and there is no local Go data", async () => {
+    const snap = await scanOpenCodeUsage(NOW);
+    expect(snap.status).toBe("auth-missing");
+    expect(web.fetchOpenCodeWeb).not.toHaveBeenCalled();
   });
 });

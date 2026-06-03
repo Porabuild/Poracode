@@ -112,6 +112,38 @@ function codexLimitId(value: string | undefined): string {
   return id || "additional";
 }
 
+function capitalize(segment: string): string {
+  return segment.length <= 1 ? segment : segment[0]!.toUpperCase() + segment.slice(1);
+}
+
+/** Normalize a limit name to a model-id slug (keeps dots, e.g. `gpt-5.3-codex-spark`). */
+function codexUsageModelId(label: string): string {
+  return label
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9.]+/g, "-")
+    .replace(/^-|-$/g, "");
+}
+
+/** Render a Codex-family model id ("gpt-5.3-codex-spark") as "Codex 5.3 Spark". */
+function formatCodexFamilyModelLabel(baseId: string): string | undefined {
+  const codex = /^gpt-(\d+(?:\.\d+)?)-codex(?:-(spark|max|mini))?$/i.exec(baseId);
+  if (!codex) return undefined;
+  const suffix = codex[2] ? ` ${capitalize(codex[2])}` : "";
+  return `Codex ${codex[1]}${suffix}`;
+}
+
+/**
+ * Display label for an additional rate limit: prefer the friendly Codex-family
+ * name ("Codex 5.3 Spark") when the limit name is a `gpt-*-codex` model, else
+ * the raw limit name. Owned by the collector so the shared UI bar stays
+ * provider-agnostic.
+ */
+function codexLimitLabel(limitName: string | undefined): string {
+  const base = limitName?.trim() || "Additional Codex";
+  return formatCodexFamilyModelLabel(codexUsageModelId(base)) ?? base;
+}
+
 function readHeaderPercent(headers: Record<string, string>, name: string): number | undefined {
   // Headers may arrive with any casing; scan case-insensitively.
   const target = name.toLowerCase();
@@ -153,7 +185,7 @@ export function parseCodexUsage(
   if (weekly) windows.push(weekly);
   for (const extra of data.additional_rate_limits ?? []) {
     const id = codexLimitId(extra.metered_feature ?? extra.limit_name);
-    const label = extra.limit_name?.trim() || "Additional Codex";
+    const label = codexLimitLabel(extra.limit_name);
     const extraSession = codexWindow(
       `codex:${id}:session-5h`,
       `${label} (5h)`,

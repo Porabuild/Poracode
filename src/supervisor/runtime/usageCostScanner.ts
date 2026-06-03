@@ -106,7 +106,8 @@ export async function scanClaudeCost(nowMs: number): Promise<ClaudeCostScan> {
     }
   }
   if (truncated) {
-    console.log(
+    // stderr (console.warn), never stdout — the supervisor reserves stdout for IPC.
+    console.warn(
       `[usage] Claude cost scan capped at ${MAX_TOTAL_BYTES / (1024 * 1024)}MB; some 30d logs skipped.`,
     );
   }

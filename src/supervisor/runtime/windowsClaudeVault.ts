@@ -1,6 +1,6 @@
 import { execFile } from "node:child_process";
-import { join } from "node:path";
 import { promisify } from "node:util";
+import { windowsPowershellPath } from "./windowsPowershell";
 
 const execFileAsync = promisify(execFile);
 
@@ -100,13 +100,7 @@ if ($secret) { [Console]::Out.Write($secret) }
 
 export async function readClaudeCredentialsFromWindowsVault(): Promise<string | undefined> {
   if (process.platform !== "win32") return undefined;
-  const powershell = join(
-    process.env.SystemRoot ?? "C:\\Windows",
-    "System32",
-    "WindowsPowerShell",
-    "v1.0",
-    "powershell.exe",
-  );
+  const powershell = windowsPowershellPath();
   try {
     const encoded = Buffer.from(PS_SCRIPT, "utf16le").toString("base64");
     const { stdout } = await execFileAsync(
@@ -123,13 +117,7 @@ export async function readClaudeCredentialsFromWindowsVault(): Promise<string | 
 
 export async function readWindowsCredentialTarget(targetName: string): Promise<string | undefined> {
   if (process.platform !== "win32") return undefined;
-  const powershell = join(
-    process.env.SystemRoot ?? "C:\\Windows",
-    "System32",
-    "WindowsPowerShell",
-    "v1.0",
-    "powershell.exe",
-  );
+  const powershell = windowsPowershellPath();
   try {
     const encoded = Buffer.from(PS_READ_TARGET_SCRIPT, "utf16le").toString("base64");
     const { stdout } = await execFileAsync(

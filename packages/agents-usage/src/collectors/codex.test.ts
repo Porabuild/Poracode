@@ -49,11 +49,11 @@ describe("parseCodexUsage", () => {
       FAKE_NOW_MS,
     );
     expect(snap.windows.find((w) => w.id === "codex:codex-bengalfox:session-5h")).toMatchObject({
-      label: "GPT-5.3-Codex-Spark (5h)",
+      label: "Codex 5.3 Spark (5h)",
       usedPercent: 0,
     });
     expect(snap.windows.find((w) => w.id === "codex:codex-bengalfox:weekly")).toMatchObject({
-      label: "GPT-5.3-Codex-Spark Weekly",
+      label: "Codex 5.3 Spark Weekly",
       usedPercent: 10,
     });
   });

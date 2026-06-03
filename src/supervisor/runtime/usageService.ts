@@ -1,5 +1,6 @@
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import {
+  allUsageProviderDescriptors,
   createUsageCollectorRegistry,
   type HostPort,
   type UsageCollectorRegistry,
@@ -12,10 +13,9 @@ import {
   normalizeSharedSettings,
   type UsageSettings,
 } from "@/shared/settings";
+import { createLocalUsageCollectors, type LocalUsageCollector } from "./localUsageCollectors";
 import { createNodeUsageHost } from "./usageHost";
 import { scanClaudeCost } from "./usageCostScanner";
-import { scanOpenCodeUsage } from "./openCodeUsageScanner";
-import { scanAntigravityUsage } from "./antigravityUsageScanner";
 
 /**
  * Periodic/on-demand provider usage collection, modeled on AgentStatusService:
@@ -29,22 +29,8 @@ import { scanAntigravityUsage } from "./antigravityUsageScanner";
 
 /** Bump when the cached snapshot shape changes so stale caches are discarded. */
 const USAGE_CACHE_VERSION = 2;
-const DEFAULT_PROVIDER_IDS = [
-  "claude",
-  "codex",
-  "copilot",
-  "cursor",
-  "grok",
-  "gemini",
-  "antigravity",
-  "opencode",
-] as const;
-/**
- * Providers collected supervisor-side (need process/SQLite access the pure HTTP
- * registry can't do), not via `registry.collectAll`. `opencode` reads a local
- * SQLite store; `antigravity` probes its local language server.
- */
-const LOCAL_PROVIDER_IDS = new Set<string>(["opencode", "antigravity"]);
+/** The full default provider set, from the package catalog (single source of truth). */
+const DEFAULT_PROVIDER_IDS: readonly string[] = allUsageProviderDescriptors().map((d) => d.id);
 const MIN_REFRESH_INTERVAL_MS = 2 * 60_000;
 
 export interface UsageServiceOptions {
@@ -58,8 +44,8 @@ export interface UsageServiceOptions {
   host?: HostPort;
   /** Restrict the default provider set (tests / future config). */
   providerIds?: readonly string[];
-  /** Override supervisor-local collection (opencode) — injected in tests. */
-  collectLocal?: (id: string, nowMs: number) => Promise<UsageSnapshot>;
+  /** Supervisor-local collectors (opencode, antigravity); injectable in tests. */
+  localCollectors?: LocalUsageCollector[];
 }
 
 interface UsageCacheFile {
@@ -69,15 +55,20 @@ interface UsageCacheFile {
 
 export class UsageService {
   private readonly registry: UsageCollectorRegistry = createUsageCollectorRegistry();
+  private readonly localCollectors: Map<string, LocalUsageCollector>;
   private readonly host: HostPort;
   private readonly snapshots = new Map<string, UsageSnapshot>();
   private loadedFromCache = false;
-  private refreshInFlight: Promise<ProviderUsageResponse> | undefined;
+  /** In-flight refreshes keyed by their sorted id-set, so identical concurrent refreshes coalesce. */
+  private readonly refreshesInFlight = new Map<string, Promise<ProviderUsageResponse>>();
   private autoRefreshTimer: NodeJS.Timeout | undefined;
   private stopped = false;
 
   constructor(private readonly options: UsageServiceOptions) {
     this.host = options.host ?? createNodeUsageHost(options.cacheDir);
+    this.localCollectors = new Map(
+      (options.localCollectors ?? createLocalUsageCollectors()).map((c) => [c.id, c]),
+    );
     this.loadCache();
   }
 
@@ -98,7 +89,7 @@ export class UsageService {
 
   /** A provider id this service can collect (package registry or supervisor-local). */
   private isSupported(id: string): boolean {
-    return this.registry.has(id) || LOCAL_PROVIDER_IDS.has(id);
+    return this.registry.has(id) || this.localCollectors.has(id);
   }
 
   /** Default providers minus the user's per-provider opt-outs, intersected with what we support. */
@@ -145,38 +136,36 @@ export class UsageService {
       return { snapshots: [], fromCache: false };
     }
 
-    // Coalesce concurrent full refreshes so a background trigger and a manual
-    // refresh don't double-hit rate-limited endpoints.
-    if (this.refreshInFlight && this.isFullSet(ids)) {
-      return this.refreshInFlight;
-    }
+    // Coalesce identical concurrent refreshes by their id-set so two triggers
+    // (e.g. the sidebar rail and the docked panel both calling getProviderUsage,
+    // or a background tick racing a manual refresh) don't double-hit rate-limited
+    // endpoints. Keyed by the sorted ids so it holds for any subset, not just the
+    // full default set.
+    const key = [...ids].sort().join(",");
+    const existing = this.refreshesInFlight.get(key);
+    if (existing) return existing;
 
-    if (!this.isFullSet(ids)) {
-      return this.runRefresh(ids);
-    }
-    // Track the SAME promise we store so the finally can clear it. (Storing
-    // `task.finally(...)` but comparing against `task` never matches, which
-    // pins refreshInFlight forever and makes every later refresh a no-op.)
+    // Track the SAME promise we store so the finally clears the right entry.
     const tracked: Promise<ProviderUsageResponse> = this.runRefresh(ids).finally(() => {
-      if (this.refreshInFlight === tracked) this.refreshInFlight = undefined;
+      if (this.refreshesInFlight.get(key) === tracked) this.refreshesInFlight.delete(key);
     });
-    this.refreshInFlight = tracked;
+    this.refreshesInFlight.set(key, tracked);
     return tracked;
-  }
-
-  private isFullSet(ids: readonly string[]): boolean {
-    const defaults = this.defaultProviderIds();
-    return ids.length === defaults.length && defaults.every((id) => ids.includes(id));
   }
 
   private async runRefresh(ids: string[]): Promise<ProviderUsageResponse> {
     const registryIds = ids.filter((id) => this.registry.has(id));
-    const localIds = ids.filter((id) => LOCAL_PROVIDER_IDS.has(id));
-    let snapshots = await this.registry.collectAll(registryIds, this.host);
-    // Local providers are independent of each other and of the registry set, so
-    // collect them concurrently rather than serially.
-    snapshots.push(...(await Promise.all(localIds.map((id) => this.collectLocal(id)))));
-    snapshots = snapshots.map((snap) => this.preserveOnTransientFailure(snap));
+    const localIds = ids.filter((id) => this.localCollectors.has(id));
+    // The registry HTTP batch and the supervisor-local collectors are independent
+    // of each other, so run both groups concurrently rather than waiting out the
+    // (rate-limited, slow) HTTP batch before starting the local scans.
+    const [registrySnaps, localSnaps] = await Promise.all([
+      this.registry.collectAll(registryIds, this.host),
+      Promise.all(localIds.map((id) => this.collectLocal(id))),
+    ]);
+    let snapshots = [...registrySnaps, ...localSnaps].map((snap) =>
+      this.preserveOnTransientFailure(snap),
+    );
     if (this.readUsageSettings().showEstimatedCost) {
       snapshots = await this.withEstimatedCost(snapshots);
     }
@@ -201,13 +190,12 @@ export class UsageService {
     return snap;
   }
 
-  /** Collect a supervisor-local (SQLite-backed) provider; never throws into the refresh. */
+  /** Collect a supervisor-local (SQLite/process-backed) provider; never throws into the refresh. */
   private async collectLocal(id: string): Promise<UsageSnapshot> {
     const now = this.host.now();
     try {
-      if (this.options.collectLocal) return await this.options.collectLocal(id, now);
-      if (id === "opencode") return await scanOpenCodeUsage(now, this.host);
-      if (id === "antigravity") return await scanAntigravityUsage(now);
+      const collector = this.localCollectors.get(id);
+      if (collector) return await collector.collect(now, this.host);
     } catch {
       // fall through to an error snapshot
     }
