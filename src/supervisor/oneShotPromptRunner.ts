@@ -1,6 +1,6 @@
 import type { ProjectLocation } from "@/shared/contracts";
 import type { AgentAdapter, CommandSpec } from "./agents/base";
-import { buildOneShotSpec, spawnAgent } from "./oneShotSpawn";
+import { prepareOneShot } from "./oneShotSpawn";
 
 // Spawn returns these errno codes when the OS rejects the argv length:
 // - ENAMETOOLONG: macOS / Windows (via libuv mapping)
@@ -140,7 +140,7 @@ export async function runOneShotPromptWithFallback(
     if (!cmd) {
       throw new Error(`${options.adapter.label} does not support one-shot generation`);
     }
-    const spawnSpec = buildOneShotSpec(options.location, cmd.command, cmd.args);
+    const { spec: spawnSpec, spawn } = prepareOneShot(options.location, cmd);
 
     if (hasNextAttempt && isArgvLikelyTooLong(spawnSpec)) {
       console.warn(
@@ -154,7 +154,7 @@ export async function runOneShotPromptWithFallback(
     );
 
     try {
-      return await spawnAgent(spawnSpec, cmd.stdin ?? prompt, options.timeoutMs, options.signal);
+      return await spawn(spawnSpec, cmd.stdin ?? prompt, options.timeoutMs, options.signal);
     } catch (err) {
       lastError = err;
       if (hasNextAttempt && isArgvTooLongError(err)) {

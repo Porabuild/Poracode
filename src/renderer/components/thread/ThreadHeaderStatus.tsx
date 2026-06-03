@@ -73,7 +73,7 @@ export function ThreadHeaderStatusTooltipBody(props: { thread: Thread }) {
           <p className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-xs leading-relaxed">
             <span className="text-muted">Support:</span>
             <span
-              className={`relative top-px size-1.5 shrink-0 rounded-full ring-1 ring-white/10 ${supportSourceDotClass(source)}`}
+              className={`relative top-px size-1.5 shrink-0 rounded-full ring-1 ring-[var(--hairline-strong)] ${supportSourceDotClass(source)}`}
               aria-hidden
             />
             <span className="font-semibold text-foreground">{activeSupportLabel(source)}</span>
@@ -107,7 +107,7 @@ export function ThreadHeaderStatusButton(props: {
       <Tooltip.Trigger>
         <button
           type="button"
-          className="lightcode-overlay-header__controls inline-flex shrink-0 rounded-sm p-0.5 outline-offset-2 hover:bg-white/[0.06]"
+          className="lightcode-overlay-header__controls inline-flex shrink-0 rounded-sm p-0.5 outline-offset-2 hover:bg-[var(--row-hover)]"
           aria-label={`${props.agentLabel ?? props.fallbackAgentKind}: ${threadRuntimeStatusLabel(thread)}. Hover for status details.`}
           onClick={(e) => {
             e.stopPropagation();

@@ -203,7 +203,7 @@ describe.skipIf(process.platform === "win32")("POSIX login shell wrappers", () =
       ["auth", "status"],
       expect.objectContaining({
         cwd: "/Users/demo/project",
-        timeout: 10_000,
+        timeout: 30_000,
         windowsHide: true,
       }),
     );

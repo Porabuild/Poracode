@@ -1,0 +1,38 @@
+{
+  "name": "@lightcode/agents-usage",
+  "version": "0.1.0",
+  "description": "Cross-platform usage & quota collection for AI coding agents (Claude, Codex, Copilot, ...). Runtime-agnostic core powering Lightcode's in-app usage tracking; a Windows-first alternative to codexbar/openusage.",
+  "keywords": [
+    "ai",
+    "claude",
+    "codex",
+    "codexbar",
+    "copilot",
+    "openusage",
+    "quota",
+    "rate-limit",
+    "usage"
+  ],
+  "license": "Apache-2.0",
+  "author": "SDSLeon",
+  "files": [
+    "dist",
+    "src"
+  ],
+  "type": "module",
+  "sideEffects": false,
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "zod": "^4.4.2"
+  }
+}

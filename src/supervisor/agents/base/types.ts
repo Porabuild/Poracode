@@ -280,7 +280,9 @@ export interface AgentOneShotRunner {
     model: string,
     effort?: string,
     prompt?: string,
-  ): { command: string; args: string[]; stdin?: string } | undefined;
+  ):
+    | { command: string; args: string[]; stdin?: string; isolateCwd?: boolean; pty?: boolean }
+    | undefined;
   runOneShot?(input: RunOneShotInput): Promise<string>;
   buildContextExtractionCommand?(
     sessionRef: SessionRef,

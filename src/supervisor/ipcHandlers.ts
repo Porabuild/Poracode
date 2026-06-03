@@ -6,6 +6,8 @@ export function createSupervisorIpcHandlers(runtime: SupervisorRuntime): Supervi
     listWslDistros: () => runtime.listWslDistros(),
     getAgentStatuses: (payload) => runtime.getAgentStatuses(payload),
     refreshAgentStatuses: (payload) => runtime.refreshAgentStatuses(payload),
+    getProviderUsage: (payload) => runtime.getProviderUsage(payload),
+    refreshProviderUsage: (payload) => runtime.refreshProviderUsage(payload),
     getAgentHookPluginStatuses: (payload) => runtime.getAgentHookPluginStatuses(payload),
     installAgentHookPlugin: (payload) => runtime.installAgentHookPlugin(payload),
     uninstallAgentHookPlugin: (payload) => runtime.uninstallAgentHookPlugin(payload),

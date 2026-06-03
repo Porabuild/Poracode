@@ -1,8 +1,8 @@
-import type { Thread } from "@/shared/contracts";
+import { isThreadTurnActive, type Thread } from "@/shared/contracts";
 import { groupThreads, type ThreadListEntry, type WorktreeThreadGroup } from "./groupThreads";
 import type { ThreadSortMode } from "./sortMode";
 
-export type SidebarVirtualRow =
+export type SidebarRow =
   | {
       kind: "thread";
       key: string;
@@ -27,7 +27,11 @@ export type SidebarVirtualRow =
       entry: Extract<ThreadListEntry, { kind: "thread-group" }>;
     }
   | { kind: "divider"; key: string }
-  | { kind: "section-label"; key: string; label: string };
+  | { kind: "section-label"; key: string; label: string }
+  | { kind: "see-more"; key: string; hiddenCount: number };
+
+/** Default number of list items shown per project before the "See more" row. */
+export const SIDEBAR_THREAD_LIST_PAGE_SIZE = 10;
 
 function isRecent(iso: string): boolean {
   return Date.now() - new Date(iso).getTime() < 24 * 60 * 60 * 1000;
@@ -46,21 +50,37 @@ function entryIsStarred(entry: ThreadListEntry): boolean {
   return entry.group.threads.some((t) => t.starred);
 }
 
-export function estimateSidebarRowSize(row: SidebarVirtualRow | undefined): number {
-  if (!row) return 32;
-  if (row.kind === "divider") return 10;
-  if (row.kind === "section-label") return 28;
-  if (row.kind === "worktree-group") return 34;
-  if (row.kind === "thread-group") return 30;
-  return 30;
+/** Pinned or attention-needing threads are never hidden behind "See more". */
+function threadIsProtected(thread: Thread): boolean {
+  return thread.starred || isThreadTurnActive(thread.status) || thread.status === "error";
 }
 
-export function estimateSidebarProjectListHeightPx(rows: SidebarVirtualRow[]): number {
-  return rows.reduce((total, row) => total + estimateSidebarRowSize(row), 0);
+function entryIsProtected(entry: ThreadListEntry): boolean {
+  if (entry.kind === "thread") return threadIsProtected(entry.thread);
+  return entry.group.threads.some(threadIsProtected);
+}
+
+/**
+ * Chooses which items stay visible under a page limit. Protected items are
+ * always kept; remaining slots fill in list order. Returns the kept set and the
+ * count of items hidden behind "See more".
+ */
+function selectVisible<T>(
+  items: T[],
+  limit: number,
+  isProtected: (item: T) => boolean,
+): { visible: Set<T>; hiddenCount: number } {
+  if (items.length <= limit) return { visible: new Set(items), hiddenCount: 0 };
+  const visible = new Set<T>(items.filter(isProtected));
+  for (const item of items) {
+    if (visible.size >= limit) break;
+    visible.add(item);
+  }
+  return { visible, hiddenCount: items.length - visible.size };
 }
 
 function pushEntryRows(
-  rows: SidebarVirtualRow[],
+  rows: SidebarRow[],
   entry: ThreadListEntry,
   entryIndex: number,
   input: {
@@ -137,15 +157,23 @@ export function buildSidebarProjectRows(input: {
   projectThreads: Thread[];
   sortMode: ThreadSortMode;
   collapsedWorktrees: Record<string, boolean>;
-}): SidebarVirtualRow[] {
-  const rows: SidebarVirtualRow[] = [];
+  /** Max list items shown before "See more"; protected items are always kept. */
+  visibleLimit: number;
+}): SidebarRow[] {
+  const rows: SidebarRow[] = [];
   const dndGroup = `project-entries:${input.projectId}`;
 
   if (input.sortMode === "manual") {
     const orderedThreads = [...input.projectThreads].sort(
       (a, b) => Number(b.starred) - Number(a.starred),
     );
+    const { visible, hiddenCount } = selectVisible(
+      orderedThreads,
+      input.visibleLimit,
+      threadIsProtected,
+    );
     orderedThreads.forEach((thread, idx) => {
+      if (!visible.has(thread)) return;
       rows.push({
         kind: "thread",
         key: `thread:${thread.id}`,
@@ -156,6 +184,7 @@ export function buildSidebarProjectRows(input: {
         showWorktreeFilesButton: !!thread.worktreePath,
       });
     });
+    if (hiddenCount > 0) rows.push({ kind: "see-more", key: "see-more", hiddenCount });
     return rows;
   }
 
@@ -167,7 +196,16 @@ export function buildSidebarProjectRows(input: {
   const unstarredEntries = entries.filter((e) => !entryIsStarred(e));
   const recentEntries = unstarredEntries.filter((e) => isRecent(getEntryDate(e, dateField)));
   const olderEntries = unstarredEntries.filter((e) => !isRecent(getEntryDate(e, dateField)));
-  const hasBothSections = recentEntries.length > 0 && olderEntries.length > 0;
+
+  const { visible, hiddenCount } = selectVisible(
+    [...starredEntries, ...recentEntries, ...olderEntries],
+    input.visibleLimit,
+    entryIsProtected,
+  );
+  const starredVisible = starredEntries.filter((e) => visible.has(e));
+  const recentVisible = recentEntries.filter((e) => visible.has(e));
+  const olderVisible = olderEntries.filter((e) => visible.has(e));
+  const hasBothSections = recentVisible.length > 0 && olderVisible.length > 0;
   let ungroupedIndex = 0;
 
   const nextUngroupedIndex = () => ungroupedIndex++;
@@ -196,12 +234,13 @@ export function buildSidebarProjectRows(input: {
     });
   };
 
-  pushList(starredEntries);
-  pushList(recentEntries, starredEntries.length);
+  pushList(starredVisible);
+  pushList(recentVisible, starredVisible.length);
   if (hasBothSections) {
     rows.push({ kind: "section-label", key: "older-label", label: "Older" });
   }
-  pushList(olderEntries, starredEntries.length + recentEntries.length);
+  pushList(olderVisible, starredVisible.length + recentVisible.length);
+  if (hiddenCount > 0) rows.push({ kind: "see-more", key: "see-more", hiddenCount });
 
   return rows;
 }

@@ -152,7 +152,7 @@ export function SidebarProjectHeader(props: {
                 panel="files"
                 projectId={project.id}
                 ariaLabel={`Files for ${project.name}`}
-                className={`shrink-0 cursor-grab rounded p-0.5 transition-colors hover:bg-white/[0.04] hover:text-foreground active:cursor-grabbing ${
+                className={`shrink-0 cursor-grab rounded p-0.5 transition-colors hover:bg-[var(--row-hover)] hover:text-foreground active:cursor-grabbing ${
                   isActiveFilesPanel
                     ? "text-accent"
                     : "text-muted/60 opacity-0 group-hover:opacity-100"
@@ -165,7 +165,7 @@ export function SidebarProjectHeader(props: {
                 panel="terminal"
                 projectId={project.id}
                 ariaLabel={`Terminal for ${project.name}`}
-                className={`shrink-0 cursor-grab rounded p-0.5 transition-colors hover:bg-white/[0.04] hover:text-foreground active:cursor-grabbing ${
+                className={`shrink-0 cursor-grab rounded p-0.5 transition-colors hover:bg-[var(--row-hover)] hover:text-foreground active:cursor-grabbing ${
                   isActiveTerminal
                     ? "text-accent"
                     : hasTerminal

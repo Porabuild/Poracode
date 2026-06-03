@@ -193,7 +193,7 @@ function Shell({
         <button
           type="button"
           aria-label="Close subagent"
-          className="shrink-0 rounded p-1 text-muted/60 transition-colors hover:bg-white/[0.06] hover:text-foreground"
+          className="shrink-0 rounded p-1 text-muted/60 transition-colors hover:bg-[var(--row-hover)] hover:text-foreground"
           onClick={onClose}
         >
           <X className="size-3.5" />

@@ -101,7 +101,7 @@ export function SyncBadge(props: { projectId: string; worktreePath?: string }) {
           role="button"
           tabIndex={0}
           aria-label={label}
-          className="shrink-0 cursor-default rounded px-1 py-0.5 transition-colors text-muted/60 hover:bg-white/[0.04] hover:text-foreground"
+          className="shrink-0 cursor-default rounded px-1 py-0.5 transition-colors text-muted/60 hover:bg-[var(--row-hover)] hover:text-foreground"
           onClick={(e) => {
             e.stopPropagation();
             void handlePress();

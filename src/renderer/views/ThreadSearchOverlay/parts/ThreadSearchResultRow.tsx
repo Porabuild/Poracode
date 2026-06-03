@@ -1,6 +1,6 @@
 import { useRef } from "react";
 import type { Project, Thread } from "@/shared/contracts";
-import { ProviderIcon, getStatusTone } from "@/renderer/components/providers";
+import { ThreadProviderIcon } from "@/renderer/components/providers";
 import { useDraggable } from "@dnd-kit/react";
 import type { DragSourceData } from "@/renderer/dnd";
 import { handleKeyActivate } from "@/renderer/utils/a11y";
@@ -14,7 +14,6 @@ export function ThreadSearchResultRow(props: {
 }) {
   const { thread, project, isSelected, onActivate, onHover } = props;
   const rowRef = useRef<HTMLDivElement>(null);
-  const tone = getStatusTone(thread);
 
   useDraggable({
     id: `thread-search:${thread.id}`,
@@ -29,8 +28,8 @@ export function ThreadSearchResultRow(props: {
   });
 
   const stateClass = isSelected
-    ? "bg-white/[0.08] text-foreground"
-    : "text-foreground/85 hover:bg-white/[0.04] hover:text-foreground";
+    ? "bg-[var(--row-active)] text-foreground"
+    : "text-foreground/85 hover:bg-[var(--row-hover)] hover:text-foreground";
 
   return (
     <div
@@ -43,7 +42,7 @@ export function ThreadSearchResultRow(props: {
       onMouseMove={onHover}
       onKeyDown={(e) => handleKeyActivate(e, onActivate)}
     >
-      <ProviderIcon kind={thread.agentKind} tone={tone} className="size-3.5 shrink-0" />
+      <ThreadProviderIcon thread={thread} className="size-3.5 shrink-0" />
       <span className={`min-w-0 flex-1 truncate ${thread.done ? "opacity-50 line-through" : ""}`}>
         {thread.title}
       </span>

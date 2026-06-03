@@ -21,6 +21,7 @@ import {
 } from "../composer";
 import type { MentionInputHandle } from "../composer";
 import { flattenSegments } from "../composer/serializeMentions";
+import { getTriggerWords } from "@/renderer/components/providers";
 import { readBridge } from "@/renderer/bridge";
 import { captureProductEvent, threadProductProperties } from "@/renderer/analytics/posthog";
 import { useAppStore } from "@/renderer/state/appStore";
@@ -33,6 +34,7 @@ import { ActiveSubAgentTile } from "./ChatPane/parts/items/ActiveSubAgentTile";
 import { selectActiveSubAgentParentItemIds } from "./ChatPane/chatPaneSelectors";
 import { ThreadCommandPanel } from "./ThreadCommandPanel";
 import { ThreadComposer, type ComposerControl } from "./ThreadComposer";
+import { supportsUsableFastMode } from "./threadDraftViewHelpers";
 import { ThreadContextDock } from "./ThreadContextDock";
 import { ThreadContextIndicator } from "./ThreadContextIndicator";
 import { ThreadErrorDock } from "./ThreadErrorDock";
@@ -258,7 +260,9 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
           agentStatus?.capabilities.efforts ??
           []
         ).length ?? 0) > 0,
-      supportsFast: agentStatus?.capabilities.fastModels?.includes(thread.config.model) ?? false,
+      supportsFast: agentStatus
+        ? supportsUsableFastMode(agentStatus.capabilities, thread.config.model)
+        : false,
     },
   );
   const filteredCommands = filterSlashCommands(availableCommands, slashQuery);
@@ -446,7 +450,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
       return;
     }
     if (localAction?.kind === "toggle-fast") {
-      if (agentStatus?.capabilities.fastModels?.includes(thread.config.model)) {
+      if (agentStatus && supportsUsableFastMode(agentStatus.capabilities, thread.config.model)) {
         props.onConfigChange({ ...thread.config, fast: thread.config.fast !== true });
       }
       mentionRef.current?.clear();
@@ -764,6 +768,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                       }
                       projectLocation={projectLocation}
                       projectId={thread.projectId}
+                      triggerWords={getTriggerWords(thread.agentKind, thread.config.model)}
                       onTextChange={setHasContent}
                       onSubmit={submitPrompt}
                       onPasteImage={(file) => {
@@ -928,6 +933,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                         };
                   })()}
                   onPromptChange={setPrompt}
+                  onAttachFiles={attachments.addFiles}
                   onSubmit={() => {
                     const segments = mentionRef.current?.serializeSegments();
                     submitPrompt(

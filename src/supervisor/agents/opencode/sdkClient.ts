@@ -5,7 +5,7 @@ import { resolveAgentBinaryPath } from "../binaryResolver";
 import { BROWSER_MCP_SERVER_NAME } from "../browserMcp";
 import { buildOpenCodeServerCommand } from "./argv";
 import { buildOpenCodeBrowserMcp } from "./mcpBrowser";
-import { isOpenCodeConnectionLoss } from "./opencodeErrors";
+import { classifyOpenCodeError, isOpenCodeConnectionLoss } from "./opencodeErrors";
 import {
   disposeSpawnedOpenCodeServerHandles,
   spawnOpenCodeServer,
@@ -69,6 +69,52 @@ interface PoolEntry {
 // is reused.
 const pool = new Map<string, PoolEntry>();
 
+// Total budget for confirming the server is reachable once it has announced
+// its URL, and the per-attempt fetch timeout inside that budget.
+const REACHABLE_TIMEOUT_MS = 10_000;
+const REACHABLE_ATTEMPT_TIMEOUT_MS = 1_000;
+
+/**
+ * Confirm the freshly-spawned server actually answers over HTTP before handing
+ * the client back. The server announces its URL the instant it binds, but for
+ * WSL projects it binds `127.0.0.1:<ephemeral>` *inside* the distro and WSL's
+ * localhost relay needs a moment to register the newly-bound port. Issuing
+ * `session.create` the instant the "listening" line appears can beat the relay
+ * and surface as `socket hang up`. (The long-lived fs/git bridge never hits
+ * this because it is spawned once at startup, well before its first request.)
+ * Callers gate this to WSL projects; native loopback servers are reachable the
+ * instant they announce their URL.
+ *
+ * We poll the root route — any HTTP response, including a 404, proves the
+ * round-trip works — backing off until it answers or the budget expires.
+ */
+async function waitForOpenCodeReachable(baseUrl: string): Promise<void> {
+  const deadline = Date.now() + REACHABLE_TIMEOUT_MS;
+  let backoffMs = 50;
+  for (;;) {
+    try {
+      await fetch(baseUrl, {
+        method: "GET",
+        signal: AbortSignal.timeout(REACHABLE_ATTEMPT_TIMEOUT_MS),
+      });
+      return;
+    } catch (err) {
+      if (Date.now() >= deadline) {
+        throw new Error(
+          classifyOpenCodeError({
+            cause: err,
+            serverUrl: baseUrl,
+            operation: "connect opencode server",
+          }),
+          { cause: err },
+        );
+      }
+    }
+    await new Promise((resolve) => setTimeout(resolve, backoffMs));
+    backoffMs = Math.min(backoffMs * 2, 500);
+  }
+}
+
 async function spawnAndWire(projectLocation: ProjectLocation): Promise<ServerSnapshot> {
   const resolvedExecPath = resolveAgentBinaryPath(projectLocation, "opencode");
   const command = buildOpenCodeServerCommand(projectLocation, resolvedExecPath);
@@ -77,6 +123,9 @@ async function spawnAndWire(projectLocation: ProjectLocation): Promise<ServerSna
   let baseUrl: string;
   try {
     baseUrl = await handle.baseUrl;
+    if (projectLocation.kind === "wsl") {
+      await waitForOpenCodeReachable(baseUrl);
+    }
   } catch (err) {
     await handle.dispose();
     throw err;

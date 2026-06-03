@@ -8,6 +8,7 @@ import { projectTreeProcedures } from "./procedures/projectTree";
 import { settingsProcedures } from "./procedures/settings";
 import { threadProcedures } from "./procedures/thread";
 import { updatesProcedures } from "./procedures/updates";
+import { usageProcedures } from "./procedures/usage";
 
 export const groupedIpcProcedures = {
   app: appProcedures,
@@ -20,6 +21,7 @@ export const groupedIpcProcedures = {
   updates: updatesProcedures,
   lsp: lspProcedures,
   browser: browserProcedures,
+  usage: usageProcedures,
 } as const;
 
 export const ipcProcedureMap = {
@@ -33,6 +35,7 @@ export const ipcProcedureMap = {
   ...updatesProcedures,
   ...lspProcedures,
   ...browserProcedures,
+  ...usageProcedures,
 } as const;
 
 export type IpcProcedureMap = typeof ipcProcedureMap;
@@ -53,6 +56,7 @@ export const MAIN_LOCAL_PROCEDURE_NAMES = [
   "saveHandoffContext",
   "openExternal",
   "openExternalNative",
+  "openMicrophoneSettings",
   "focusWindow",
   "getHomeScopeLocation",
   "getKeybindings",
@@ -97,6 +101,11 @@ export const MAIN_LOCAL_PROCEDURE_NAMES = [
   "browserAttachWebContents",
   "browserStartPicker",
   "browserCancelPicker",
+  "startUsageLogin",
+  "cancelUsageLogin",
+  "clearUsageLogin",
+  "resolveUsageLoginConfirmation",
+  "getUsageLoginState",
 ] as const satisfies readonly IpcProcedureName[];
 
 export type MainLocalProcedureName = (typeof MAIN_LOCAL_PROCEDURE_NAMES)[number];

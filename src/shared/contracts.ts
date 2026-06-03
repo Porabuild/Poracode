@@ -11,3 +11,4 @@ export * from "./contracts/agentEvent";
 export * from "./contracts/runtimeEvent";
 export * from "./contracts/agentInstance";
 export * from "./contracts/workflowTranscript";
+export * from "./contracts/usage";

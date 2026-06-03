@@ -106,7 +106,7 @@ export function FileGroup(props: {
             {staged ? (
               <button
                 type="button"
-                className="rounded p-0.5 text-muted transition-colors hover:bg-white/[0.04] hover:text-foreground"
+                className="rounded p-0.5 text-muted transition-colors hover:bg-[var(--row-hover)] hover:text-foreground"
                 title="Unstage all"
                 onClick={() => void handleUnstageAll()}
               >
@@ -116,7 +116,7 @@ export function FileGroup(props: {
               <>
                 <button
                   type="button"
-                  className="rounded p-0.5 text-muted transition-colors hover:bg-white/[0.04] hover:text-foreground"
+                  className="rounded p-0.5 text-muted transition-colors hover:bg-[var(--row-hover)] hover:text-foreground"
                   title="Stage all"
                   onClick={() => void handleStageAll()}
                 >

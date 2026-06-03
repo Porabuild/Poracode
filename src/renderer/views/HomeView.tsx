@@ -1,12 +1,10 @@
 import { ArrowRight, FolderOpen, House, Plus } from "lucide-react";
 import { useShallow } from "zustand/shallow";
-import { getProjectAgentStatuses } from "@/shared/agentStatus";
 import { isHomeProject, isHomeProjectId } from "@/shared/homeScope";
 import { useAppStore } from "@/renderer/state/appStore";
-import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { openThread } from "@/renderer/actions/threadActions";
-import { ProviderIcon, getStatusTone } from "@/renderer/components/providers";
+import { ThreadProviderIcon } from "@/renderer/components/providers";
 import { RelativeTime } from "@/renderer/components/common/RelativeTime";
 
 export function HomeView() {
@@ -27,12 +25,6 @@ export function HomeView() {
         .slice(0, 8),
     ),
   );
-  const { agentStatuses, wslAgentStatuses } = useAgentStatusesStore(
-    useShallow((state) => ({
-      agentStatuses: state.agentStatuses,
-      wslAgentStatuses: state.wslAgentStatuses,
-    })),
-  );
   const openDraft = useAppStore((state) => state.openDraft);
 
   return (
@@ -46,7 +38,7 @@ export function HomeView() {
                   <div className="flex flex-col gap-1">
                     {homeScopeEnabled && homeProject ? (
                       <button
-                        className="group flex items-center gap-3 rounded-2xl px-3 py-2 text-left transition-colors hover:bg-white/[0.04]"
+                        className="group flex items-center gap-3 rounded-2xl px-3 py-2 text-left transition-colors hover:bg-[var(--row-hover)]"
                         onClick={() => openDraft(homeProject.id)}
                         type="button"
                       >
@@ -60,7 +52,7 @@ export function HomeView() {
                     {projects.map((project) => (
                       <button
                         key={project.id}
-                        className="group flex items-center gap-3 rounded-2xl px-3 py-2 text-left transition-colors hover:bg-white/[0.04]"
+                        className="group flex items-center gap-3 rounded-2xl px-3 py-2 text-left transition-colors hover:bg-[var(--row-hover)]"
                         onClick={() => openDraft(project.id)}
                         type="button"
                       >
@@ -85,26 +77,14 @@ export function HomeView() {
                       const project = isHomeProjectId(thread.projectId)
                         ? homeProject
                         : projects.find((p) => p.id === thread.projectId);
-                      const availableAgents = project
-                        ? getProjectAgentStatuses(project.location, agentStatuses, wslAgentStatuses)
-                        : [...agentStatuses, ...wslAgentStatuses];
-                      const threadAgent = availableAgents.find(
-                        (agent) => agent.installed && agent.kind === thread.agentKind,
-                      );
                       return (
                         <button
                           key={thread.id}
-                          className="group flex items-center gap-3 rounded-2xl px-3 py-2 text-left transition-colors hover:bg-white/[0.04]"
+                          className="group flex items-center gap-3 rounded-2xl px-3 py-2 text-left transition-colors hover:bg-[var(--row-hover)]"
                           onClick={() => openThread(thread.id)}
                           type="button"
                         >
-                          <ProviderIcon
-                            kind={thread.agentKind}
-                            {...(threadAgent?.icon ? { icon: threadAgent.icon } : {})}
-                            fallbackLabel={threadAgent?.label}
-                            tone={getStatusTone(thread)}
-                            className="size-4 shrink-0"
-                          />
+                          <ThreadProviderIcon thread={thread} className="size-4 shrink-0" />
                           <p className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">
                             {thread.title}
                           </p>

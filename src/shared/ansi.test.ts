@@ -9,6 +9,10 @@ describe("stripAnsi", () => {
   it("removes CSI sequences", () => {
     expect(stripAnsi("\u001b[2Jhello")).toBe("hello");
   });
+
+  it("removes OSC sequences", () => {
+    expect(stripAnsi("title\r\n\u001b]0;powershell.exe\u0007")).toBe("title\r\n");
+  });
 });
 
 describe("stripAnsiPreservingLayout", () => {

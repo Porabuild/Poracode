@@ -27,7 +27,7 @@ import type {
   AgentTerminalAuthMethod,
 } from "@/shared/contracts";
 import { hookEnvForAgentStatus, hookEnvKey, hookEnvLabel } from "@/shared/agentHookPluginEnv";
-import { runAgentLoginCommand } from "@/renderer/actions/agentLoginActions";
+import { runAgentInstallCommand, runAgentLoginCommand } from "@/renderer/actions/agentLoginActions";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
 import { buildWslProjectDistrosKey } from "@/renderer/state/projectKeys";
@@ -56,6 +56,7 @@ import {
   type ProviderModelItem,
   type ProviderModelMenuProvider,
 } from "@/renderer/components/common/ProviderModelMenu";
+import { NATIVE_AGENT_REGISTRY_ENTRIES } from "./agentRegistryNative";
 
 const SAVED_SECRET_MASK = "***********";
 
@@ -434,6 +435,46 @@ function supportsAcpLogoutStatus(status: AgentStatus, acpInstanceId: string | un
 
 function shouldPreferTerminalLogin(status: AgentStatus): boolean {
   return status.kind === "grok" && Boolean(status.loginCommand);
+}
+
+function AgentInstallEnvironmentRow(props: {
+  agentLabel: string;
+  status: AgentStatus;
+  installPending: boolean;
+  onInstall: (status: AgentStatus) => void;
+}) {
+  const env = envLabel(props.status);
+  const envSuffix = env ? ` ${env}` : "";
+
+  return (
+    <div className="flex flex-col py-1.5 px-2 -mx-2 hover:bg-surface-secondary/40 rounded-lg transition-colors group/env">
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex min-w-0 items-center gap-2 text-sm font-medium">
+          <span className="shrink-0 text-foreground/90">{env || "Default"}</span>
+          <span className="shrink-0 tabular-nums text-muted/60 font-normal text-xs">
+            Not installed
+          </span>
+        </div>
+        <Button
+          size="sm"
+          variant="tertiary"
+          className="h-6 min-h-6 px-2 py-0 text-[10px] text-muted-foreground hover:text-foreground"
+          aria-label={`Install${envSuffix}`}
+          isPending={props.installPending}
+          onPress={() => props.onInstall(props.status)}
+        >
+          {props.installPending ? <PixelLoader size="xs" /> : <Download className="size-3" />}
+          {props.installPending ? "Installing" : "Install"}
+        </Button>
+      </div>
+      <div className="flex min-w-0 h-4 items-center">
+        <span className="min-w-0 truncate text-[11px] font-normal text-muted/60">
+          Install {props.agentLabel}
+          {env ? ` for ${env}` : ""}.
+        </span>
+      </div>
+    </div>
+  );
 }
 
 function AgentEnvironmentRow(props: {
@@ -819,6 +860,7 @@ export function SingleAgentSettings(props: { agentKind: string }) {
     agentKind: string;
     version: string | undefined;
   }>();
+  const [installPendingEnvKey, setInstallPendingEnvKey] = useState<string | undefined>();
   const [updatePending, setUpdatePending] = useState(false);
   const [binaryUpdatePendingEnvKey, setBinaryUpdatePendingEnvKey] = useState<string | undefined>();
   // After a successful update we hide the stale version and show a loader on
@@ -834,6 +876,21 @@ export function SingleAgentSettings(props: { agentKind: string }) {
   const installedHere = agentStatuses.filter((a) => a.kind === props.agentKind && a.installed);
   const installedWsl = wslAgentStatuses.filter((a) => a.kind === props.agentKind && a.installed);
   const installedStatuses = [...installedHere, ...installedWsl];
+  const nativeRegistryEntry = NATIVE_AGENT_REGISTRY_ENTRIES.find(
+    (entry) => entry.id === props.agentKind,
+  );
+  const installableHere = nativeRegistryEntry
+    ? agentStatuses.filter(
+        (a) =>
+          a.kind === props.agentKind &&
+          !a.installed &&
+          a.envKind !== "wsl" &&
+          !(a.envKind === "windows" && nativeRegistryEntry.supportsWindows === false),
+      )
+    : [];
+  const installableWsl = nativeRegistryEntry
+    ? wslAgentStatuses.filter((a) => a.kind === props.agentKind && !a.installed)
+    : [];
   const agent = installedHere[0] ?? installedWsl[0];
   const isDisabled = useSharedSettings((s) => s.disabledAgents.includes(props.agentKind));
   const setAgentDisabled = useSharedSettings((s) => s.setAgentDisabled);
@@ -1235,6 +1292,96 @@ export function SingleAgentSettings(props: { agentKind: string }) {
       .finally(() => setBinaryUpdatePendingEnvKey(undefined));
   };
 
+  const installAgentInEnvironment = (status: AgentStatus) => {
+    if (!nativeRegistryEntry) return;
+    const envKey = statusEnvKey(status);
+    const project = findProjectForAgentStatus(status, projects);
+    setInstallPendingEnvKey(envKey);
+    const opened = runAgentInstallCommand({
+      label: agent.label,
+      command: nativeRegistryEntry.installCommand,
+      ...(project ? { project } : {}),
+      onCommandComplete: (exitCode) => {
+        const clearPending = () =>
+          setInstallPendingEnvKey((current) => (current === envKey ? undefined : current));
+        if (exitCode !== 0) {
+          clearPending();
+          return;
+        }
+        void readBridge()
+          .refreshAgentStatuses(wslDistros, {
+            agentKinds: [props.agentKind],
+            envs: [scopeEnvForStatus(status)],
+          })
+          .finally(clearPending);
+      },
+    });
+    if (!opened) setInstallPendingEnvKey(undefined);
+  };
+
+  const renderInstalledEnvironmentRow = (status: AgentStatus) => {
+    const envKey = statusEnvKey(status);
+    const agentMethods =
+      status.authMethods?.filter(isAgentAuthMethod) ??
+      (sharedAgentAuthMethod ? [sharedAgentAuthMethod] : []);
+    const terminalMethod = status.loginCommand
+      ? (findTerminalAuthMethodForStatus(status) ??
+        sharedTerminalAuthMethod ?? {
+          id: "terminal-login",
+          name: "Login",
+          type: "terminal" as const,
+        })
+      : undefined;
+    const methods: Array<AgentOwnedAuthMethod | AgentTerminalAuthMethod> = usePerEnvAuthRows
+      ? shouldPreferTerminalLogin(status) && terminalMethod
+        ? [terminalMethod]
+        : agentMethods.length > 0
+          ? agentMethods
+          : terminalMethod
+            ? [terminalMethod]
+            : []
+      : [];
+    return (
+      <AgentEnvironmentRow
+        key={`${status.kind}-${envKey}`}
+        acpInstanceId={acpInstanceId}
+        agentLabel={agent.label}
+        authMethods={methods}
+        authPending={authPendingEnvKey === envKey}
+        binaryUpdatePending={binaryUpdatePendingEnvKey === envKey}
+        canLogout={supportsAcpLogoutStatus(status, acpInstanceId)}
+        includeAuthFallback={includeAuthFallbackMetadata}
+        isRedetecting={redetectingEnvKey === envKey}
+        latestNpmVersion={latestNpmVersion}
+        newestInstalledVersion={newestInstalledVersion}
+        pendingMessage={authPendingEnvKey === envKey ? authPendingMessage : undefined}
+        status={status}
+        onLogin={(method) => {
+          if (isAgentAuthMethod(method)) {
+            authenticateAgent({ status, method });
+            return;
+          }
+          runTerminalLogin(status, method);
+        }}
+        onLogout={() => logoutAgent(status)}
+        onUpdate={() => performBinaryUpdate(status)}
+      />
+    );
+  };
+
+  const renderInstallableEnvironmentRow = (status: AgentStatus) => {
+    const envKey = statusEnvKey(status);
+    return (
+      <AgentInstallEnvironmentRow
+        key={`${status.kind}-${envKey}-install`}
+        agentLabel={agent.label}
+        installPending={installPendingEnvKey === envKey}
+        status={status}
+        onInstall={installAgentInEnvironment}
+      />
+    );
+  };
+
   return (
     <div className="h-full min-h-0 overflow-y-auto px-6 pb-8 pt-4">
       <div className="mx-auto max-w-[720px]">
@@ -1293,56 +1440,10 @@ export function SingleAgentSettings(props: { agentKind: string }) {
           </div>
 
           <div className="space-y-0.5 border-t border-border/10 pt-3">
-            {installedStatuses.map((status) => {
-              const envKey = statusEnvKey(status);
-              const agentMethods =
-                status.authMethods?.filter(isAgentAuthMethod) ??
-                (sharedAgentAuthMethod ? [sharedAgentAuthMethod] : []);
-              const terminalMethod = status.loginCommand
-                ? (findTerminalAuthMethodForStatus(status) ??
-                  sharedTerminalAuthMethod ?? {
-                    id: "terminal-login",
-                    name: "Login",
-                    type: "terminal" as const,
-                  })
-                : undefined;
-              const methods: Array<AgentOwnedAuthMethod | AgentTerminalAuthMethod> =
-                usePerEnvAuthRows
-                  ? shouldPreferTerminalLogin(status) && terminalMethod
-                    ? [terminalMethod]
-                    : agentMethods.length > 0
-                      ? agentMethods
-                      : terminalMethod
-                        ? [terminalMethod]
-                        : []
-                  : [];
-              return (
-                <AgentEnvironmentRow
-                  key={`${status.kind}-${envKey}`}
-                  acpInstanceId={acpInstanceId}
-                  agentLabel={agent.label}
-                  authMethods={methods}
-                  authPending={authPendingEnvKey === envKey}
-                  binaryUpdatePending={binaryUpdatePendingEnvKey === envKey}
-                  canLogout={supportsAcpLogoutStatus(status, acpInstanceId)}
-                  includeAuthFallback={includeAuthFallbackMetadata}
-                  isRedetecting={redetectingEnvKey === envKey}
-                  latestNpmVersion={latestNpmVersion}
-                  newestInstalledVersion={newestInstalledVersion}
-                  pendingMessage={authPendingEnvKey === envKey ? authPendingMessage : undefined}
-                  status={status}
-                  onLogin={(method) => {
-                    if (isAgentAuthMethod(method)) {
-                      authenticateAgent({ status, method });
-                      return;
-                    }
-                    runTerminalLogin(status, method);
-                  }}
-                  onLogout={() => logoutAgent(status)}
-                  onUpdate={() => performBinaryUpdate(status)}
-                />
-              );
-            })}
+            {installedHere.map(renderInstalledEnvironmentRow)}
+            {installableHere.map(renderInstallableEnvironmentRow)}
+            {installedWsl.map(renderInstalledEnvironmentRow)}
+            {installableWsl.map(renderInstallableEnvironmentRow)}
           </div>
         </div>
 

@@ -20,7 +20,7 @@ export interface FilesPanelContext {
   rootLabel: string;
 }
 
-export type RightPanelTab = "git" | "files" | "terminal" | "browser";
+export type RightPanelTab = "git" | "files" | "terminal" | "browser" | "usage";
 
 interface PanelState {
   gitReviewContext: GitReviewContext | null;
@@ -30,10 +30,13 @@ interface PanelState {
   filesPanelContext: FilesPanelContext | null;
   rightPanelTab: RightPanelTab;
   browserPanelOpen: boolean;
+  usagePanelOpen: boolean;
   browserOverlayOpen: boolean;
   browserOverlayMaximized: boolean;
   browserOverlayDrawerWidth: number;
   settingsOpen: boolean;
+  /** When the overlay is opened deep-linked to a section (e.g. "usage"); else null. */
+  settingsSection: string | null;
   projectSettingsId: string | null;
   threadSortMode: ThreadSortMode;
   threadSearchOpen: boolean;
@@ -45,11 +48,15 @@ interface PanelState {
   setFilesPanelContext: (ctx: FilesPanelContext | null) => void;
   setRightPanelTab: (tab: RightPanelTab) => void;
   setBrowserPanelOpen: (v: boolean) => void;
+  setUsagePanelOpen: (v: boolean) => void;
+  openUsagePanel: () => void;
   setBrowserOverlayOpen: (v: boolean) => void;
   setBrowserOverlayMaximized: (v: boolean) => void;
   setBrowserOverlayDrawerWidth: (v: number) => void;
   openBrowserPanel: () => void;
   openSettings: () => void;
+  openSettingsSection: (section: string) => void;
+  clearSettingsSection: () => void;
   closeSettings: () => void;
   openProjectSettings: (projectId: string) => void;
   closeProjectSettings: () => void;
@@ -97,10 +104,12 @@ export const usePanelStore = create<PanelState>((set) => ({
   filesPanelContext: null,
   rightPanelTab: "git",
   browserPanelOpen: false,
+  usagePanelOpen: false,
   browserOverlayOpen: false,
   browserOverlayMaximized: false,
   browserOverlayDrawerWidth: loadInitialDrawerWidth(),
   settingsOpen: false,
+  settingsSection: null,
   projectSettingsId: null,
   threadSortMode: "updated",
   threadSearchOpen: false,
@@ -201,9 +210,25 @@ export const usePanelStore = create<PanelState>((set) => ({
         ? {}
         : { browserPanelOpen: true, rightPanelTab: "browser" as const },
     ),
+  setUsagePanelOpen: (v) =>
+    set((state) => (state.usagePanelOpen === v ? {} : { usagePanelOpen: v })),
+  openUsagePanel: () =>
+    set((state) =>
+      state.usagePanelOpen && state.rightPanelTab === "usage"
+        ? {}
+        : { usagePanelOpen: true, rightPanelTab: "usage" as const },
+    ),
   setThreadSortMode: (mode) =>
     set((state) => (state.threadSortMode === mode ? {} : { threadSortMode: mode })),
-  openSettings: () => set((state) => (state.settingsOpen ? {} : { settingsOpen: true })),
+  openSettings: () =>
+    set((state) =>
+      state.settingsOpen && state.settingsSection === null
+        ? {}
+        : { settingsOpen: true, settingsSection: null },
+    ),
+  openSettingsSection: (section) => set({ settingsOpen: true, settingsSection: section }),
+  clearSettingsSection: () =>
+    set((state) => (state.settingsSection === null ? {} : { settingsSection: null })),
   closeSettings: () => set((state) => (state.settingsOpen ? { settingsOpen: false } : {})),
   openProjectSettings: (projectId) =>
     set((state) => (state.projectSettingsId === projectId ? {} : { projectSettingsId: projectId })),
@@ -220,6 +245,7 @@ export const usePanelStore = create<PanelState>((set) => ({
         state.gitReviewContext === null &&
         state.filesPanelContext === null &&
         !state.browserPanelOpen &&
+        !state.usagePanelOpen &&
         !state.browserOverlayOpen &&
         !state.browserOverlayMaximized
       ) {
@@ -229,6 +255,7 @@ export const usePanelStore = create<PanelState>((set) => ({
         gitReviewContext: null,
         filesPanelContext: null,
         browserPanelOpen: false,
+        usagePanelOpen: false,
         browserOverlayOpen: false,
         browserOverlayMaximized: false,
       };

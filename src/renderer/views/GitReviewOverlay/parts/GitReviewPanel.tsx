@@ -213,7 +213,7 @@ export function GitReviewPanel(props: {
             )}
             <button
               type="button"
-              className={`rounded p-1 transition-colors hover:bg-white/[0.04] hover:text-foreground ${wrapLines ? "text-foreground" : "text-muted"}`}
+              className={`rounded p-1 transition-colors hover:bg-[var(--row-hover)] hover:text-foreground ${wrapLines ? "text-foreground" : "text-muted"}`}
               title={wrapLines ? "No wrap" : "Wrap lines"}
               onClick={() => setWrapLines((v) => !v)}
             >
@@ -221,7 +221,7 @@ export function GitReviewPanel(props: {
             </button>
             <button
               type="button"
-              className="rounded p-1 text-muted transition-colors hover:bg-white/[0.04] hover:text-foreground"
+              className="rounded p-1 text-muted transition-colors hover:bg-[var(--row-hover)] hover:text-foreground"
               title="Refresh"
               onClick={() => void handleRefresh()}
             >
@@ -303,7 +303,7 @@ export function GitReviewPanel(props: {
             )}
             <button
               type="button"
-              className={`rounded p-0.5 transition-colors hover:bg-white/[0.04] hover:text-foreground ${wrapLines ? "text-foreground" : "text-muted"}`}
+              className={`rounded p-0.5 transition-colors hover:bg-[var(--row-hover)] hover:text-foreground ${wrapLines ? "text-foreground" : "text-muted"}`}
               title={wrapLines ? "No wrap" : "Wrap lines"}
               onClick={() => setWrapLines((v) => !v)}
             >
@@ -311,7 +311,7 @@ export function GitReviewPanel(props: {
             </button>
             <button
               type="button"
-              className="rounded p-0.5 text-muted transition-colors hover:bg-white/[0.04] hover:text-foreground"
+              className="rounded p-0.5 text-muted transition-colors hover:bg-[var(--row-hover)] hover:text-foreground"
               title="Refresh"
               onClick={() => void handleRefresh()}
             >
@@ -319,7 +319,7 @@ export function GitReviewPanel(props: {
             </button>
             <button
               type="button"
-              className="rounded p-0.5 text-muted transition-colors hover:bg-white/[0.04] hover:text-foreground"
+              className="rounded p-0.5 text-muted transition-colors hover:bg-[var(--row-hover)] hover:text-foreground"
               title="Open as page"
               onClick={onExpandToOverlay}
             >
@@ -327,7 +327,7 @@ export function GitReviewPanel(props: {
             </button>
             <button
               type="button"
-              className="rounded p-0.5 text-muted transition-colors hover:bg-white/[0.04] hover:text-foreground"
+              className="rounded p-0.5 text-muted transition-colors hover:bg-[var(--row-hover)] hover:text-foreground"
               title="Hide"
               onClick={onClose}
             >

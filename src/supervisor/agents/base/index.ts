@@ -447,7 +447,6 @@ function extractSemverFromVersionOutput(raw: string | undefined): string | undef
 
 async function readDetectedVersion(
   location: ProjectLocation,
-  binary: string,
   executablePath: string | undefined,
   versionArgs: string[],
 ): Promise<string | undefined> {
@@ -461,7 +460,13 @@ async function readDetectedVersion(
     );
     return result.ok ? extractSemverFromVersionOutput(result.stdout) : undefined;
   }
-  const spec = buildAgentCommand(location, binary, versionArgs);
+  // Run the resolved binary directly rather than re-resolving the bare name
+  // through PATH. The supervisor's PATH is a launch-time snapshot, so a freshly
+  // installed native CLI (e.g. just-installed `grok` on Windows) is found by
+  // detection — which uses the registry-backed fallback — but its `--version`
+  // would miss and the version would render blank. Matches the WSL branch above
+  // and readAgentCommandOutput.
+  const spec = buildAgentCommand(location, executablePath, versionArgs);
   const result = await readCommandOutputAsync(
     spec.command,
     spec.args,
@@ -498,12 +503,15 @@ export async function readAgentCommandOutput(
   }
   const spec = buildAgentCommand(location, executablePath, args);
   const effectiveCwd = options?.posixCwd ?? spec.cwd;
+  const runOptions = {
+    ...(effectiveCwd ? { cwd: effectiveCwd } : {}),
+    ...(spec.env ? { env: spec.env } : {}),
+    ...(options?.timeoutMs ? { timeout: options.timeoutMs } : {}),
+  };
   return readCommandOutputAsync(
     spec.command,
     spec.args,
-    effectiveCwd || spec.env
-      ? { ...(effectiveCwd ? { cwd: effectiveCwd } : {}), ...(spec.env ? { env: spec.env } : {}) }
-      : undefined,
+    Object.keys(runOptions).length > 0 ? runOptions : undefined,
   );
 }
 
@@ -591,7 +599,7 @@ export async function detectAgentInstall(
   const executablePath = await resolveDetectedBinary(ctx, spec.binary);
 
   const versionArgs = spec.versionArgs ?? ["--version"];
-  const version = await readDetectedVersion(location, spec.binary, executablePath, versionArgs);
+  const version = await readDetectedVersion(location, executablePath, versionArgs);
 
   let capabilities = spec.capabilities;
   let statusProbeResult: StatusProbeResult | undefined;

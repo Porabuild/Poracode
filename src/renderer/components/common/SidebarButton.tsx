@@ -63,8 +63,8 @@ export function SidebarButton(props: {
     isDisabled || isDragging
       ? "cursor-not-allowed text-muted/40"
       : isActive && !isDraggingAnything
-        ? "bg-white/[0.08] text-foreground"
-        : `${inactiveText} ${!isDraggingAnything ? "hover:bg-white/[0.04] hover:text-foreground" : ""}`;
+        ? "bg-[var(--row-active)] text-foreground"
+        : `${inactiveText} ${!isDraggingAnything ? "hover:bg-[var(--row-hover)] hover:text-foreground" : ""}`;
 
   const sizeClass = size === "xs" ? "text-xs" : "text-sm";
   const dragRowDim = isDragging && !iconOnly && !isDisabled ? " opacity-60" : "";
@@ -96,7 +96,7 @@ export function SidebarButton(props: {
       tabIndex={isDisabled ? -1 : 0}
       aria-disabled={isDisabled || undefined}
       aria-grabbed={isDragging}
-      className={`group relative flex w-full cursor-default items-center gap-2 rounded-3xl px-2 py-1.5 text-left ${sizeClass} outline-none transition-colors ${stateClass}${dragRowDim} ${className ?? ""}`}
+      className={`group relative flex w-full shrink-0 cursor-default items-center gap-2 rounded-3xl px-2 py-1.5 text-left ${sizeClass} outline-none transition-colors ${stateClass}${dragRowDim} ${className ?? ""}`}
       onClick={isDisabled ? undefined : onPress}
       onDoubleClick={onDoubleClick}
       onContextMenu={onContextMenu}

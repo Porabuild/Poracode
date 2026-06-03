@@ -43,6 +43,12 @@ describe("createAntigravityAdapter", () => {
 
     expect(adapter.kind).toBe("antigravity");
     expect(adapter.binary).toBe("agy");
+    expect(adapter.update).toEqual({
+      builtIn: { binary: "agy", args: ["update"] },
+      latestVersionUrls: [
+        "https://antigravity-cli-auto-updater-974169037036.us-central1.run.app/manifests/linux_amd64.json",
+      ],
+    });
     expect(adapter.capabilities.models).toEqual([
       {
         id: ANTIGRAVITY_MANAGED_MODEL_ID,
@@ -80,6 +86,11 @@ describe("createAntigravityAdapter", () => {
       command: "agy",
       args: ["-p", "summarize"],
       stdin: "",
+      // Isolate the cwd so the one-shot's last_conversations.json[cwd] write
+      // can't be mistaken for the real interactive session (see index.ts).
+      isolateCwd: true,
+      // agy print mode emits its answer only when attached to a terminal.
+      pty: true,
     });
   });
 });

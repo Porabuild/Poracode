@@ -6,12 +6,14 @@ import type {
   BrowserStartPickerResult,
   BrowserTabInfo,
 } from "@/shared/ipc";
+import type { UsageLoginConfirmationAction, UsageLoginDeviceCode } from "@/shared/contracts";
 import type { LightcodePaths } from "@/shared/lightcodePaths";
 import type { BrowserLinkOpenTarget, BrowserLinkPresentationMode } from "@/shared/settings";
 import { dbGetState, dbSetState } from "../db";
 import { readSharedSettingsFile } from "../sharedSettingsFile";
 import { saveClipboardImageFile } from "../attachments/localFiles";
 import { IPC_EVENT_CHANNELS } from "@/shared/ipc";
+import { BrowserLoginCaptureCoordinator } from "./BrowserLoginCaptureCoordinator";
 import { BrowserTab, resolveWebContentsById } from "./BrowserTab";
 import { PICKER_COMMIT_ORIGIN, onPickerCommit } from "./picker/pickerProtocol";
 import { buildPickerScript } from "./picker/pickerScript";
@@ -53,6 +55,13 @@ export class BrowserPanelManager {
   private persistTimer: ReturnType<typeof setTimeout> | null = null;
   private restored = false;
   private pickerKeyCleanup: (() => void) | null = null;
+  private readonly loginCoordinator = new BrowserLoginCaptureCoordinator({
+    createTab: (payload) => this.createTab(payload),
+    closeTab: (tabId) => this.closeTab(tabId),
+    findTab: (tabId) => this.findTab(tabId),
+    emit: (event) => this.emit(event),
+    hasHostWindow: () => this.host !== null && !this.host.isDestroyed(),
+  });
 
   constructor(private readonly paths: LightcodePaths) {
     this.unsubscribePicker = onPickerCommit((commit) => this.onPickerCommit(commit));
@@ -120,6 +129,7 @@ export class BrowserPanelManager {
       this.persistTimer = null;
     }
     this.clearPickerShortcut();
+    this.loginCoordinator.cancelLoginConfirmations();
     for (const t of this.tabs) {
       void t.destroy();
     }
@@ -381,6 +391,46 @@ export class BrowserPanelManager {
     const t = this.findTab(tabId);
     if (!t || !t.isAttached()) return null;
     return await t.capturePng();
+  }
+
+  /**
+   * Browser-login capture (cookie/device-code flows) lives in
+   * {@link BrowserLoginCaptureCoordinator}; these thin delegates keep the public
+   * API stable for `UsageLoginManager` and the IPC layer.
+   */
+  captureLoginCookies(opts: {
+    loginUrl: string;
+    cookieUrl: string;
+    authCookiePattern: RegExp;
+    timeoutMs: number;
+    providerLabel?: string;
+    validateSession?: (cookieHeader: string) => Promise<boolean>;
+  }): Promise<{ ok: boolean; cookie?: string; cancelled?: boolean; error?: string }> {
+    return this.loginCoordinator.captureLoginCookies(opts);
+  }
+
+  resolveUsageLoginConfirmation(payload: {
+    requestId: string;
+    action: UsageLoginConfirmationAction;
+  }): void {
+    this.loginCoordinator.resolveUsageLoginConfirmation(payload);
+  }
+
+  showUsageLoginDeviceCode(deviceCode: UsageLoginDeviceCode): void {
+    this.loginCoordinator.showUsageLoginDeviceCode(deviceCode);
+  }
+
+  clearUsageLoginDeviceCode(providerId: string): void {
+    this.loginCoordinator.clearUsageLoginDeviceCode(providerId);
+  }
+
+  clearLoginCookies(opts: { cookieUrl: string; authCookiePattern: RegExp }): Promise<void> {
+    return this.loginCoordinator.clearLoginCookies(opts);
+  }
+
+  /** Cancel an in-flight `captureLoginCookies` (e.g. user closed the overlay). */
+  cancelLoginCapture(): void {
+    this.loginCoordinator.cancelLoginCapture();
   }
 
   getActiveTab(): BrowserTab | null {

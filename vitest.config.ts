@@ -44,6 +44,14 @@ export default defineConfig({
           environment: "node",
         },
       },
+      {
+        extends: true,
+        test: {
+          name: "packages",
+          include: ["packages/*/src/**/*.test.{ts,tsx}"],
+          environment: "node",
+        },
+      },
     ],
   },
 });

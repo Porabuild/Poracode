@@ -23,6 +23,7 @@ import {
   useAttachments,
 } from "@/renderer/components/composer";
 import { getBrowserMcpScope } from "@/renderer/components/composer/browserMcpScope";
+import { getTriggerWords } from "@/renderer/components/providers";
 import { useBrowserAttachInbox } from "@/renderer/state/browserAttachInbox";
 import { flattenSegments } from "@/renderer/components/composer/serializeMentions";
 import {
@@ -39,6 +40,7 @@ import { ThreadAgentUpdateDock } from "./ThreadAgentUpdateDock";
 import { ThreadAuthRequiredDock } from "./ThreadAuthRequiredDock";
 import { ThreadDockHeader, ThreadDockSection } from "./ThreadDockUI";
 import { ThreadComposer, type ComposerControl } from "./ThreadComposer";
+import { supportsUsableFastMode } from "./threadDraftViewHelpers";
 import {
   filterSlashCommands,
   handleSlashCommandPanelKeyDown,
@@ -254,8 +256,7 @@ export function ThreadDraftComposerArea(props: {
           props.selectedAgent.capabilities.efforts ??
           []
         ).length ?? 0) > 0,
-      supportsFast:
-        props.selectedAgent.capabilities.fastModels?.includes(props.config.model) ?? false,
+      supportsFast: supportsUsableFastMode(props.selectedAgent.capabilities, props.config.model),
     },
   );
   const filteredCommands = filterSlashCommands(availableCommands, slashQuery);
@@ -326,7 +327,7 @@ export function ThreadDraftComposerArea(props: {
       return;
     }
     if (localAction?.kind === "toggle-fast") {
-      if (props.selectedAgent.capabilities.fastModels?.includes(props.config.model)) {
+      if (supportsUsableFastMode(props.selectedAgent.capabilities, props.config.model)) {
         props.onConfigChange({ fast: props.config.fast !== true });
       }
       mentionRef.current?.clear();
@@ -500,6 +501,7 @@ export function ThreadDraftComposerArea(props: {
             }}
             showBrowserMention={browserMcpScope !== "none" && props.config.browserMcp !== true}
             onBrowserMentionSelect={() => props.onConfigChange({ browserMcp: true })}
+            triggerWords={getTriggerWords(props.selectedAgent.kind, props.config.model)}
             onPasteImage={(file) => {
               void attachments.addClipboardImage(file, `draft:${props.project.id}`);
             }}
@@ -546,6 +548,7 @@ export function ThreadDraftComposerArea(props: {
         submitPending={isSubmitting}
         submitLabel="Launch thread"
         onPromptChange={setPrompt}
+        onAttachFiles={attachments.addFiles}
         onSubmit={() => {
           const segments = mentionRef.current?.serializeSegments() ?? [];
           submitSegments([...attachments.toSegments(), ...segments], prompt);

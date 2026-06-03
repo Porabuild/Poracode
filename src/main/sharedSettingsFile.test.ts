@@ -28,6 +28,7 @@ describe("sharedSettingsFile", () => {
     const settingsPath = join(makeTempDir(), "settings.json");
     writeSharedSettingsFile(settingsPath, {
       themeMode: "dark",
+      themePreset: "default",
       terminalPosition: "right",
       commitGenProvider: "auto",
       commitGenModel: "",
@@ -96,11 +97,21 @@ describe("sharedSettingsFile", () => {
         transcriptionLanguage: "en",
         transcriptionModel: "tiny",
         useWebGpu: true,
+      },
+      usage: {
+        autoRefresh: true,
+        refreshIntervalMinutes: 5,
+        showEstimatedCost: false,
+        showInSidebar: true,
+        disabledProviders: [],
+        providerOrder: [],
+        collapsedProviders: [],
       },
     });
 
     expect(readSharedSettingsFile(settingsPath)).toEqual({
       themeMode: "dark",
+      themePreset: "default",
       terminalPosition: "right",
       commitGenProvider: "auto",
       commitGenModel: "",
@@ -169,6 +180,15 @@ describe("sharedSettingsFile", () => {
         transcriptionLanguage: "en",
         transcriptionModel: "tiny",
         useWebGpu: true,
+      },
+      usage: {
+        autoRefresh: true,
+        refreshIntervalMinutes: 5,
+        showEstimatedCost: false,
+        showInSidebar: true,
+        disabledProviders: [],
+        providerOrder: [],
+        collapsedProviders: [],
       },
     });
     expect(readFileSync(settingsPath, "utf8")).toContain('"themeMode": "dark"');

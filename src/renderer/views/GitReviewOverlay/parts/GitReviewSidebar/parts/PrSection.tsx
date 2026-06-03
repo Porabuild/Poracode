@@ -111,7 +111,7 @@ export function PrSection(props: {
               <button
                 type="button"
                 aria-label="Review PR"
-                className="rounded p-0.5 text-muted transition-colors hover:bg-white/[0.04] hover:text-foreground"
+                className="rounded p-0.5 text-muted transition-colors hover:bg-[var(--row-hover)] hover:text-foreground"
                 onClick={() =>
                   usePanelStore.getState().setPrReviewContext({
                     projectId,

@@ -11,6 +11,9 @@ import type { WslBridgeClient, WslLocation, WslProcessExecResult } from "../../w
 
 const execFileAsync = promisify(execFile);
 
+/** Default exec timeout for agent CLI probes and commands without an explicit `timeout`. */
+export const DEFAULT_COMMAND_OUTPUT_TIMEOUT_MS = 30_000;
+
 let cachedWindowsSearchPath: string | undefined | null = null;
 
 function getWindowsEnvValue(name: string): string | undefined {
@@ -89,7 +92,17 @@ function buildWindowsFallbackPath(): string | undefined {
   return cachedWindowsSearchPath ?? undefined;
 }
 
-function buildWindowsPathOverride(): NodeJS.ProcessEnv | undefined {
+/**
+ * The fresh merged Windows search PATH (current process `Path` + registry user +
+ * machine PATH), or `undefined` when it already matches the live process PATH or
+ * we're not on Windows. Read this at spawn time so a PTY launched after an
+ * installer updated the registry PATH picks up the new entries without an app
+ * restart. Honors {@link invalidateExecutablePathCache} (called on explicit
+ * refresh), so a post-install refresh re-reads the registry before the value is
+ * served here.
+ */
+export function getRefreshedWindowsPath(): string | undefined {
+  if (process.platform !== "win32") return undefined;
   const fallbackPath = buildWindowsFallbackPath();
   if (!fallbackPath) return undefined;
   if (
@@ -98,6 +111,12 @@ function buildWindowsPathOverride(): NodeJS.ProcessEnv | undefined {
   ) {
     return undefined;
   }
+  return fallbackPath;
+}
+
+function buildWindowsPathOverride(): NodeJS.ProcessEnv | undefined {
+  const fallbackPath = getRefreshedWindowsPath();
+  if (!fallbackPath) return undefined;
   return {
     ...process.env,
     Path: fallbackPath,
@@ -269,9 +288,22 @@ function wslProjectShellEnvKey(distro: string, cwd: string): string {
   return `${distro}\u0000${cwd}`;
 }
 
-export function clearExecutablePathCache(): void {
+/**
+ * Drops only the resolved-binary-path caches: the per-command `where.exe` /
+ * `command -v` results and the merged Windows search PATH (which includes the
+ * registry-backed user/machine PATH). Call this before an explicit, user-driven
+ * re-detection (e.g. after installing an agent) so a binary added to PATH by an
+ * installer is found immediately rather than after the 60s TTL or an app
+ * restart. Leaves the login-shell env primes intact — those are unrelated to
+ * "is this binary installed" and are expensive to rebuild.
+ */
+export function invalidateExecutablePathCache(): void {
   execPathCache.clear();
   cachedWindowsSearchPath = null;
+}
+
+export function clearExecutablePathCache(): void {
+  invalidateExecutablePathCache();
   primedPosixEnv = undefined;
   projectShellEnvCache.clear();
   projectShellEnvResolved.clear();
@@ -608,12 +640,12 @@ export async function resolveExecutablePathAsync(command: string): Promise<strin
 export async function readCommandOutputAsync(
   command: string,
   args: string[],
-  options?: { cwd?: string; env?: Record<string, string> },
+  options?: { cwd?: string; env?: Record<string, string>; timeout?: number },
 ): Promise<{ ok: boolean; stdout: string; stderr: string }> {
   try {
     const { stdout, stderr } = await execFileAsync(command, args, {
       windowsHide: true,
-      timeout: 10_000,
+      timeout: options?.timeout ?? DEFAULT_COMMAND_OUTPUT_TIMEOUT_MS,
       ...(options?.cwd ? { cwd: options.cwd } : {}),
       ...(options?.env ? { env: { ...process.env, ...options.env } } : {}),
     });

@@ -1,6 +1,7 @@
-import { Check, FolderOpen, GitFork } from "lucide-react";
+import { Check, FolderOpen, GitFork, Trash2 } from "lucide-react";
 import { SidebarButton } from "@/renderer/components/common";
 import { AnimatedTerminalIcon } from "@/renderer/components/common/AnimatedTerminalIcon";
+import { RelativeTime } from "@/renderer/components/common/RelativeTime";
 import { GitBadge } from "./GitBadge";
 import { SidebarPanelDragButton } from "./SidebarPanelDragButton";
 import { SyncBadge } from "./SyncBadge";
@@ -20,9 +21,11 @@ export function WorktreeGroupHeader(props: {
   onOpenFiles: () => void;
   onOpenGitReview: () => void;
   onOpenTerminal: () => void;
+  onDeleteWorktree: () => void;
   isDragging?: boolean;
   isDraggingAnything?: boolean;
   isDone?: boolean;
+  updatedAt: string;
   onContextMenu?: React.MouseEventHandler | undefined;
 }) {
   return (
@@ -69,7 +72,7 @@ export function WorktreeGroupHeader(props: {
             projectId={props.projectId}
             worktreePath={props.worktreePath}
             ariaLabel={`Files for ${props.worktreeBranch}`}
-            className={`shrink-0 cursor-grab rounded p-0.5 transition-colors hover:bg-white/[0.04] hover:text-foreground active:cursor-grabbing ${
+            className={`shrink-0 cursor-grab rounded p-0.5 transition-colors hover:bg-[var(--row-hover)] hover:text-foreground active:cursor-grabbing ${
               props.isActiveFiles
                 ? "text-accent"
                 : "text-muted/60 opacity-0 group-hover:opacity-100"
@@ -83,7 +86,7 @@ export function WorktreeGroupHeader(props: {
             projectId={props.projectId}
             worktreePath={props.worktreePath}
             ariaLabel={`Terminal for ${props.worktreeBranch}`}
-            className={`shrink-0 cursor-grab rounded p-0.5 transition-colors hover:bg-white/[0.04] hover:text-foreground active:cursor-grabbing ${
+            className={`shrink-0 cursor-grab rounded p-0.5 transition-colors hover:bg-[var(--row-hover)] hover:text-foreground active:cursor-grabbing ${
               props.isActiveTerminal
                 ? "text-accent"
                 : props.hasTerminal
@@ -102,6 +105,30 @@ export function WorktreeGroupHeader(props: {
             onPress={props.onOpenGitReview}
             isActive={props.isActiveGit}
           />
+          <span className="relative w-[2.4ch] shrink-0">
+            <RelativeTime
+              iso={props.updatedAt}
+              className="block text-center font-mono text-[10px] tabular-nums text-muted group-hover:invisible"
+            />
+            <div
+              role="button"
+              tabIndex={0}
+              aria-label={`Delete worktree ${props.worktreeBranch}`}
+              className="absolute inset-0 flex items-center justify-center rounded text-muted/55 opacity-0 transition hover:text-danger group-hover:opacity-100"
+              onClick={(event) => {
+                event.stopPropagation();
+                props.onDeleteWorktree();
+              }}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                  event.stopPropagation();
+                  props.onDeleteWorktree();
+                }
+              }}
+            >
+              <Trash2 className="size-3.5" />
+            </div>
+          </span>
         </>
       }
     />

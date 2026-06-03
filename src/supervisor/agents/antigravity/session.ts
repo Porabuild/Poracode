@@ -37,8 +37,14 @@ export function antigravityConfigDirExists(location: ProjectLocation): boolean {
 
 interface AntigravityConversationFile {
   id: string;
+  path: string;
   mtimeMs: number;
 }
+
+// `agy` migrated its conversation store from protobuf `.pb` files to SQLite
+// `.db` files; both forms may coexist. The `.db-wal`/`.db-shm` sidecars of an
+// open database must be excluded — only the base file names a conversation.
+const CONVERSATION_FILE_RE = /\.(pb|db)$/;
 
 function readAntigravityConversationFiles(
   location: ProjectLocation,
@@ -47,11 +53,12 @@ function readAntigravityConversationFiles(
   if (!dir || !existsSync(dir)) return [];
   try {
     return readdirSync(dir)
-      .filter((file) => file.endsWith(".pb"))
+      .filter((file) => CONVERSATION_FILE_RE.test(file))
       .map((file) => {
         const path = join(dir, file);
         return {
-          id: file.replace(/\.pb$/, ""),
+          id: file.replace(CONVERSATION_FILE_RE, ""),
+          path,
           mtimeMs: statSync(path).mtimeMs,
         };
       });
@@ -85,6 +92,7 @@ async function readAntigravityConversationFilesAsync(
     const path = `${dir}/${file.name}`;
     return {
       id: file.name.replace(/\.pb$/, ""),
+      path,
       mtimeMs: stats.get(path)?.mtimeMs ?? 0,
     };
   });
@@ -94,13 +102,106 @@ export function readAntigravityConversationIds(location: ProjectLocation): Set<s
   return new Set(readAntigravityConversationFiles(location).map((file) => file.id));
 }
 
-export function readNewestAntigravityConversationId(
+/**
+ * Extract the workspace directory a conversation was created in. `agy` stores
+ * it as a `file://<cwd>` URI inside the SQLite db (trajectory_metadata_blob),
+ * written when the conversation is created. Reading the raw bytes of the db
+ * and its `-wal` sidecar (fresh writes may not be checkpointed yet) and
+ * scanning for that URI avoids a SQLite dependency and any lock contention
+ * with the live session.
+ *
+ * The URI is a length-delimited protobuf string, so the byte immediately
+ * before `file://` is its length — matching that distinguishes the real
+ * workspace field from a `file://` that merely appears in conversation text
+ * (which is not framed that way). A path cannot contain protobuf tag bytes
+ * (< 0x20), so each candidate URI is the printable-ASCII run from `file://`.
+ */
+function readAntigravityConversationWorkspace(dbPath: string): string | undefined {
+  const prefixLen = "file://".length;
+  for (const candidate of [dbPath, `${dbPath}-wal`]) {
+    let buf: Buffer;
+    try {
+      buf = readFileSync(candidate);
+    } catch {
+      continue;
+    }
+    let fallback: string | undefined;
+    for (
+      let start = buf.indexOf("file://");
+      start >= 0;
+      start = buf.indexOf("file://", start + 1)
+    ) {
+      let end = start;
+      while (end < buf.length && buf[end]! >= 0x20 && buf[end]! <= 0x7e) end += 1;
+      const value = buf.toString("latin1", start + prefixLen, end);
+      if (isFramedProtobufString(buf, start, end - start)) return value;
+      fallback ??= value;
+    }
+    if (fallback !== undefined) return fallback;
+  }
+  return undefined;
+}
+
+/**
+ * Whether the bytes at `start` begin a protobuf field-1 (tag 0x0A) string of
+ * exactly `length` bytes — i.e. `0x0A <varint length> <string>`. Used to pin
+ * the workspace URI field and reject a `file://` that merely appears inside
+ * conversation text. Handles the 1- and 2-byte varint lengths that cover any
+ * realistic path (< 16 KiB).
+ */
+function isFramedProtobufString(buf: Buffer, start: number, length: number): boolean {
+  if (length < 0x80) {
+    return start >= 2 && buf[start - 1] === length && buf[start - 2] === 0x0a;
+  }
+  if (length < 0x4000) {
+    return (
+      start >= 3 &&
+      buf[start - 2] === ((length & 0x7f) | 0x80) &&
+      buf[start - 1] === length >> 7 &&
+      buf[start - 3] === 0x0a
+    );
+  }
+  return false;
+}
+
+function normalizeWorkspacePath(value: string): string {
+  // file URIs use forward slashes and prefix a Windows drive with a slash
+  // (file:///C:/x → /C:/x). Drop that and unify separators so a db-stored
+  // workspace compares equal to the launch cwd on every platform.
+  return value
+    .replace(/^\/(?=[A-Za-z]:)/, "")
+    .replace(/\\/g, "/")
+    .replace(/\/+$/, "");
+}
+
+function workspaceMatchesCwd(workspace: string, cwd: string): boolean {
+  const left = normalizeWorkspacePath(workspace);
+  const right = normalizeWorkspacePath(cwd);
+  // Windows drive paths are case-insensitive; posix/WSL paths are not.
+  return /^[A-Za-z]:/.test(right) ? left.toLowerCase() === right.toLowerCase() : left === right;
+}
+
+/**
+ * The newest conversation created since `previousIds` whose stored workspace
+ * matches `cwd`. This is the live-session-safe discovery signal: the db (and
+ * its workspace URI) exist as soon as the interactive session starts, while
+ * one-shot calls (title/commit/PR) run in an isolated cwd and are excluded by
+ * the workspace match. `last_conversations.json` cannot be used here — `agy`
+ * only writes it on exit, so it is empty while the session is alive.
+ */
+export function readNewestAntigravityConversationForCwd(
   location: ProjectLocation,
   previousIds: ReadonlySet<string>,
+  cwd: string,
 ): string | undefined {
-  return readAntigravityConversationFiles(location)
+  const fresh = readAntigravityConversationFiles(location)
     .filter((file) => !previousIds.has(file.id))
-    .sort((left, right) => right.mtimeMs - left.mtimeMs)[0]?.id;
+    .sort((left, right) => right.mtimeMs - left.mtimeMs);
+  for (const file of fresh) {
+    const workspace = readAntigravityConversationWorkspace(file.path);
+    if (workspace && workspaceMatchesCwd(workspace, cwd)) return file.id;
+  }
+  return undefined;
 }
 
 export async function readNewestAntigravityConversationIdAsync(

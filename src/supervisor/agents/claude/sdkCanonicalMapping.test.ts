@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   buildClaudeQuestionAnswerEvents,
   createClaudeMapperState,
+  emitActiveGoalTokenUpdate,
   mapClaudeContextUsageResponse,
   mapClaudePermissionRequest,
   mapClaudeQuestionRequest,
@@ -167,6 +168,212 @@ describe("sdkCanonicalMapping — prompt content", () => {
     );
 
     expect(resultEvents.some((event) => event.type === "item.updated")).toBe(false);
+  });
+
+  it("keeps the goal active on an interrupted (steered) turn and accumulates tokens", () => {
+    const state = createClaudeMapperState("thread-1");
+    vi.useFakeTimers();
+    try {
+      vi.setSystemTime(new Date("2026-05-12T10:00:00Z"));
+      startClaudeTurn(
+        state,
+        "turn-goal",
+        "/goal ship unified GUI goal support",
+        undefined,
+        "user-goal",
+      );
+
+      vi.setSystemTime(new Date("2026-05-12T10:01:00Z"));
+      const interruptedResult = mapClaudeSdkMessage(
+        {
+          type: "result",
+          subtype: "error_during_execution",
+          is_error: true,
+          errors: ["[ede_diagnostic] turn interrupted before assistant content"],
+          session_id: "claude-session",
+          usage: { input_tokens: 30_000, output_tokens: 4_000, total_tokens: 34_000 },
+        } as unknown as SDKMessage,
+        state,
+      );
+
+      const goalUpdate = interruptedResult.find(
+        (event) => event.type === "item.updated" && event.itemId === "goal-turn-goal",
+      );
+      expect(goalUpdate).toMatchObject({
+        type: "item.updated",
+        itemId: "goal-turn-goal",
+        payload: {
+          action: "updated",
+          objective: "ship unified GUI goal support",
+          status: "active",
+          tokensUsed: 34_000,
+          timeUsedSeconds: 60,
+        },
+      });
+
+      expect(state.activeGoalItemId).toBe("goal-turn-goal");
+      expect(state.activeGoalTokensUsed).toBe(34_000);
+
+      vi.setSystemTime(new Date("2026-05-12T10:03:00Z"));
+      const successResult = mapClaudeSdkMessage(
+        {
+          type: "result",
+          subtype: "success",
+          session_id: "claude-session",
+          usage: { input_tokens: 50_000, output_tokens: 8_000, total_tokens: 58_000 },
+        } as unknown as SDKMessage,
+        state,
+      );
+
+      const completedUpdate = successResult.find(
+        (event) => event.type === "item.updated" && event.itemId === "goal-turn-goal",
+      );
+      expect(completedUpdate).toMatchObject({
+        payload: {
+          status: "complete",
+          tokensUsed: 92_000,
+          timeUsedSeconds: 180,
+        },
+      });
+      expect(state.activeGoalItemId).toBeUndefined();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("preserves active goal state across steered turns when new prompt is not /goal", () => {
+    const state = createClaudeMapperState("thread-1");
+    vi.useFakeTimers();
+    try {
+      vi.setSystemTime(new Date("2026-05-12T10:00:00Z"));
+      startClaudeTurn(state, "turn-goal", "/goal fix the bug", undefined, "user-goal");
+
+      vi.setSystemTime(new Date("2026-05-12T10:00:30Z"));
+      mapClaudeSdkMessage(
+        {
+          type: "result",
+          subtype: "error_during_execution",
+          is_error: true,
+          errors: ["[ede_diagnostic] turn interrupted"],
+          session_id: "claude-session",
+          usage: { total_tokens: 10_000 },
+        } as unknown as SDKMessage,
+        state,
+      );
+
+      vi.setSystemTime(new Date("2026-05-12T10:00:35Z"));
+      startClaudeTurn(state, "turn-steer", "actually focus on the auth module", undefined);
+
+      expect(state.activeGoalItemId).toBe("goal-turn-goal");
+      expect(state.activeGoalObjective).toBe("fix the bug");
+      expect(state.activeGoalTokensUsed).toBe(10_000);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("replaces active goal when a new /goal command is issued after an interrupt", () => {
+    const state = createClaudeMapperState("thread-1");
+    vi.useFakeTimers();
+    try {
+      vi.setSystemTime(new Date("2026-05-12T10:00:00Z"));
+      startClaudeTurn(state, "turn-goal-1", "/goal old objective", undefined);
+
+      vi.setSystemTime(new Date("2026-05-12T10:00:30Z"));
+      mapClaudeSdkMessage(
+        {
+          type: "result",
+          subtype: "error_during_execution",
+          is_error: true,
+          errors: ["[ede_diagnostic] turn interrupted"],
+          session_id: "claude-session",
+          usage: { total_tokens: 5_000 },
+        } as unknown as SDKMessage,
+        state,
+      );
+
+      vi.setSystemTime(new Date("2026-05-12T10:00:35Z"));
+      startClaudeTurn(state, "turn-goal-2", "/goal new objective", undefined);
+
+      expect(state.activeGoalItemId).toBe("goal-turn-goal-2");
+      expect(state.activeGoalObjective).toBe("new objective");
+      expect(state.activeGoalStartedAtMs).toBe(Date.now());
+      expect(state.activeGoalTokensUsed).toBeUndefined();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("clears an active goal when /clear starts a new conversation", () => {
+    const state = createClaudeMapperState("thread-1");
+    startClaudeTurn(state, "turn-goal", "/goal fix the bug", undefined);
+
+    const clearEvents = startClaudeTurn(state, "turn-clear", "/clear", undefined);
+
+    expect(clearEvents).toContainEqual(
+      expect.objectContaining({
+        type: "item.updated",
+        itemId: "goal-turn-goal",
+        payload: expect.objectContaining({
+          action: "cleared",
+          objective: "fix the bug",
+        }),
+      }),
+    );
+    expect(state.activeGoalItemId).toBeUndefined();
+    expect(state.activeGoalObjective).toBeUndefined();
+  });
+
+  it("accepts documented clear aliases for /goal", () => {
+    const state = createClaudeMapperState("thread-1");
+    startClaudeTurn(state, "turn-goal", "/goal fix the bug", undefined);
+
+    const stopEvents = startClaudeTurn(state, "turn-stop", "/goal stop", undefined);
+
+    expect(stopEvents).toContainEqual(
+      expect.objectContaining({
+        type: "item.started",
+        itemId: "goal-turn-stop",
+        itemType: "goal",
+        payload: expect.objectContaining({ action: "cleared" }),
+      }),
+    );
+    expect(state.activeGoalItemId).toBeUndefined();
+  });
+
+  it("does not lower goal token usage when a final result reports fewer tokens than polling", () => {
+    const state = createClaudeMapperState("thread-1");
+    vi.useFakeTimers();
+    try {
+      vi.setSystemTime(new Date("2026-05-12T10:00:00Z"));
+      startClaudeTurn(state, "turn-goal", "/goal ship it", undefined);
+
+      vi.setSystemTime(new Date("2026-05-12T10:00:45Z"));
+      emitActiveGoalTokenUpdate(state, 42_000);
+
+      vi.setSystemTime(new Date("2026-05-12T10:01:00Z"));
+      const resultEvents = mapClaudeSdkMessage(
+        {
+          type: "result",
+          subtype: "success",
+          session_id: "claude-session",
+          usage: { total_tokens: 4_000 },
+        } as unknown as SDKMessage,
+        state,
+      );
+
+      const goalUpdate = resultEvents.find(
+        (event) => event.type === "item.updated" && event.itemId === "goal-turn-goal",
+      );
+      expect(goalUpdate).toMatchObject({
+        payload: {
+          status: "complete",
+          tokensUsed: 42_000,
+        },
+      });
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
 
@@ -1937,5 +2144,38 @@ describe("sdkCanonicalMapping — requests", () => {
       answers: {},
     });
     expect(events).toEqual([]);
+  });
+});
+
+describe("sdkCanonicalMapping — emitActiveGoalTokenUpdate", () => {
+  it("emits a goal item.updated with context usage tokens when a goal is active", () => {
+    const state = createClaudeMapperState("thread-1");
+    vi.useFakeTimers();
+    try {
+      vi.setSystemTime(new Date("2026-05-12T10:00:00Z"));
+      startClaudeTurn(state, "turn-goal", "/goal ship it", undefined);
+
+      vi.setSystemTime(new Date("2026-05-12T10:00:45Z"));
+      const event = emitActiveGoalTokenUpdate(state, 42_000);
+
+      expect(event).toMatchObject({
+        type: "item.updated",
+        threadId: "thread-1",
+        itemId: "goal-turn-goal",
+        payload: {
+          objective: "ship it",
+          status: "active",
+          tokensUsed: 42_000,
+          timeUsedSeconds: 45,
+        },
+      });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("returns undefined when no goal is active", () => {
+    const state = createClaudeMapperState("thread-1");
+    expect(emitActiveGoalTokenUpdate(state, 1_000)).toBeUndefined();
   });
 });

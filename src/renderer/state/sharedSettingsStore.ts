@@ -23,6 +23,7 @@ const STORAGE_KEY = "lightcode-shared-settings";
 interface SharedSettingsState extends SharedSettings {
   sharedSettingsHydrated: boolean;
   setThemeMode: (mode: ThemeMode) => void;
+  setThemePreset: (id: string) => void;
   setTerminalPosition: (position: TerminalPosition) => void;
   setCommitGenConfig: (provider: string, model: string, effort: string) => void;
   setTitleGenConfig: (provider: string, model: string, effort: string) => void;
@@ -63,6 +64,10 @@ interface SharedSettingsState extends SharedSettings {
   setAudioSetting: <K extends keyof SharedSettings["audio"]>(
     key: K,
     value: SharedSettings["audio"][K],
+  ) => void;
+  setUsageSetting: <K extends keyof SharedSettings["usage"]>(
+    key: K,
+    value: SharedSettings["usage"][K],
   ) => void;
   setProviderConfig: (agentKind: string, config: ProviderDraftConfig) => void;
   setLastPresentationMode: (agentKind: string, mode: ThreadPresentationMode) => void;
@@ -158,6 +163,11 @@ export const useSharedSettings = create<SharedSettingsState>()((set, get) => ({
   sharedSettingsHydrated: initialLoadDone,
   setThemeMode: (themeMode) => {
     set({ themeMode });
+    persistSettings(selectSharedSettings(get()));
+  },
+  setThemePreset: (themePreset) => {
+    if (get().themePreset === themePreset) return;
+    set({ themePreset });
     persistSettings(selectSharedSettings(get()));
   },
   setTerminalPosition: (terminalPosition) => {
@@ -331,6 +341,12 @@ export const useSharedSettings = create<SharedSettingsState>()((set, get) => ({
     set({ audio: { ...current, [key]: value } });
     persistSettings(selectSharedSettings(get()));
   },
+  setUsageSetting: (key, value) => {
+    const current = get().usage;
+    if (current[key] === value) return;
+    set({ usage: { ...current, [key]: value } });
+    persistSettings(selectSharedSettings(get()));
+  },
   setProviderConfig: (agentKind, config) => {
     if (!config.model.trim()) {
       return;
@@ -454,6 +470,7 @@ export const useSharedSettings = create<SharedSettingsState>()((set, get) => ({
 function selectSharedSettings(state: SharedSettingsState): SharedSettingsInput {
   return {
     themeMode: state.themeMode,
+    themePreset: state.themePreset,
     terminalPosition: state.terminalPosition,
     commitGenProvider: state.commitGenProvider,
     commitGenModel: state.commitGenModel,
@@ -511,6 +528,7 @@ function selectSharedSettings(state: SharedSettingsState): SharedSettingsInput {
     recentModels: state.recentModels,
     browser: state.browser,
     audio: state.audio,
+    usage: state.usage,
   };
 }
 

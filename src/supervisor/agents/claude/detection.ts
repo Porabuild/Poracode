@@ -6,6 +6,12 @@ import { probeClaudeCapabilities } from "./probe";
 /** Default `--permission-mode` when `ThreadConfig.approvalPolicy` is omitted. */
 export const CLAUDE_DEFAULT_APPROVAL_POLICY = "auto" as const;
 
+/**
+ * Shown on the disabled Fast toggle when the capabilities probe finds fast mode
+ * is unavailable for the account. Mirrors Claude Code's own `/fast` wording.
+ */
+export const CLAUDE_FAST_MODE_DISABLED_MESSAGE = "Fast mode has been disabled by your organization";
+
 const CLAUDE_BUILT_IN_SLASH_COMMANDS: AgentCapability["slashCommands"] = [
   {
     id: "goal",

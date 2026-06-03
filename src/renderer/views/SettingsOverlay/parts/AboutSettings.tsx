@@ -60,7 +60,7 @@ function UpdateButton() {
           </span>
         </div>
         {byteLine ? <p className="text-xs text-muted">{byteLine}</p> : null}
-        <div className="h-1 w-full rounded-full bg-white/10">
+        <div className="h-1 w-full rounded-full bg-[var(--row-active)]">
           <div
             className="h-1 rounded-full bg-accent transition-[width] duration-300"
             style={{ width: `${Math.round(downloadPercent)}%` }}
@@ -131,7 +131,7 @@ export function AboutSettings() {
         </div>
       </div>
 
-      <div className="mt-8 space-y-3 border-t border-white/6 pt-6">
+      <div className="mt-8 space-y-3 border-t border-[var(--hairline)] pt-6">
         <AboutLink href={WEBSITE_URL}>Website</AboutLink>
         <br />
         <AboutLink href={GITHUB_REPO}>GitHub Repository</AboutLink>

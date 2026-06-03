@@ -7,6 +7,8 @@ import type {
   AgentHookPluginPayload,
   AgentHookPluginStatus,
   AgentStatusesResponse,
+  ProviderUsagePayload,
+  ProviderUsageResponse,
   AcpRegistryListResult,
   AcpRegistryMutationResult,
   CloseThreadPayload,
@@ -159,6 +161,7 @@ import { buildAgentRegistry } from "./agents/registry";
 import {
   autoUpdateAcpRegistryAgents,
   backfillAcpRegistryAgentIcons,
+  cacheLocalAcpRegistryIcons,
   fetchAcpRegistry,
   installAcpRegistryAgent as installAcpRegistryAgentFromRegistry,
   readAcpRegistrySettings,
@@ -193,6 +196,7 @@ import { generatePrSummary } from "./prSummaryGenerator";
 import { detectWindowsShell, type WindowsShellPreference } from "./shellPreference";
 import { generateTitle } from "./titleGenerator";
 import { AgentStatusService, detectWslAgentStatuses } from "./runtime/agentStatusService";
+import { UsageService } from "./runtime/usageService";
 import { type SessionRuntime, type ShellSessionRuntime } from "./runtime/sessionTypes";
 import { ThreadSessionManager, writeSubmittedPrompt } from "./runtime/threadSessionManager";
 import { CliHookPluginCoordinator } from "./runtime/cliHookPluginCoordinator";
@@ -221,6 +225,7 @@ export class SupervisorRuntime {
   private readonly adapters = new Map<AgentKind, AgentAdapter>();
   private readonly windowsShell: WindowsShellPreference;
   private readonly agentStatusService: AgentStatusService;
+  private readonly usageService: UsageService;
   private readonly threadSessionManager: ThreadSessionManager;
   private readonly lspManager: LanguageServerManager;
   private readonly cliHookPluginCoordinator: CliHookPluginCoordinator;
@@ -287,6 +292,14 @@ export class SupervisorRuntime {
       statusCachePath: paths.statusCachePath,
       emit,
     });
+
+    this.usageService = new UsageService({
+      emit,
+      cachePath: join(paths.cacheDir, "provider-usage.json"),
+      cacheDir: paths.cacheDir,
+      settingsPath: this.settingsPath,
+    });
+    this.usageService.startAutoRefresh();
 
     // Boot the CLI hook plugin coordinator BEFORE the thread session manager so
     // the manager can pull `resolvePluginEnvForSpawn` off it. The coordinator
@@ -397,10 +410,58 @@ export class SupervisorRuntime {
     });
     this.sessions = this.threadSessionManager.sessions;
     this.shellSessions = this.threadSessionManager.shellSessions;
+
+    // One-time-per-machine icon repair: localize any acp-generic icon still on
+    // a remote CDN URL so sidebar rows paint from disk instead of flickering
+    // through a network round-trip on every start. No-op (no network) once all
+    // icons are local. Fire-and-forget — never blocks the window from opening.
+    void this.cacheLocalAcpIconsOnLaunch();
   }
 
   async listWslDistros(): Promise<string[]> {
     return this.agentStatusService.listWslDistros();
+  }
+
+  /**
+   * Convert remote acp-generic icon URLs to locally-cached ones at launch so
+   * the renderer receives `lightcode-local://` icons this session (and
+   * instantly on every future launch).
+   */
+  private async cacheLocalAcpIconsOnLaunch(): Promise<void> {
+    try {
+      const changed = await cacheLocalAcpRegistryIcons({
+        settingsPath: this.settingsPath,
+        iconsDir: this.acpIconsDir,
+      });
+      if (changed) await this.propagateAcpRegistryChange();
+    } catch (error) {
+      console.warn("[supervisor] launch ACP icon cache failed", error);
+    }
+  }
+
+  /**
+   * Propagate an acp-generic settings change (icon localization, registry
+   * update): invalidate the settings cache, rebuild adapters, and refresh the
+   * affected acp-generic statuses so the renderer picks up fresh icons/auth.
+   * Best-effort — refresh failures are swallowed so callers stay resilient.
+   */
+  private async propagateAcpRegistryChange(): Promise<void> {
+    this.sharedSettingsCache.invalidate();
+    this.refreshAgentRegistryAdapters();
+    const settings = readAcpRegistrySettings(this.settingsPath);
+    const acpKinds = Object.entries(settings.agentInstances)
+      .filter(([, instance]) => instance.driver === "acp-generic")
+      .map(([id]) => acpGenericKind(id));
+    if (acpKinds.length === 0) return;
+    try {
+      const wslDistros = await this.agentStatusService.listWslDistros();
+      await this.agentStatusService.refreshAgentStatuses({
+        wslDistros,
+        scope: { agentKinds: acpKinds },
+      });
+    } catch (error) {
+      console.warn("[supervisor] refresh after acp-generic settings change failed", error);
+    }
   }
 
   private refreshAgentRegistryAdapters(): void {
@@ -437,6 +498,14 @@ export class SupervisorRuntime {
     return this.agentStatusService.refreshAgentStatuses(payload);
   }
 
+  async getProviderUsage(payload: ProviderUsagePayload): Promise<ProviderUsageResponse> {
+    return this.usageService.getProviderUsage(payload);
+  }
+
+  async refreshProviderUsage(payload: ProviderUsagePayload): Promise<ProviderUsageResponse> {
+    return this.usageService.refreshProviderUsage(payload);
+  }
+
   async getAgentHookPluginStatuses(
     payload: GetAgentHookPluginStatusesPayload,
   ): Promise<AgentHookPluginStatus[]> {
@@ -469,25 +538,7 @@ export class SupervisorRuntime {
       iconsDir: this.acpIconsDir,
     });
     if (autoUpdate.updated.length > 0) changed = true;
-    if (changed) {
-      this.sharedSettingsCache.invalidate();
-      this.refreshAgentRegistryAdapters();
-      const settings = readAcpRegistrySettings(this.settingsPath);
-      const acpKinds = Object.entries(settings.agentInstances)
-        .filter(([, instance]) => instance.driver === "acp-generic")
-        .map(([id]) => acpGenericKind(id));
-      if (acpKinds.length > 0) {
-        try {
-          const wslDistros = await this.agentStatusService.listWslDistros();
-          await this.agentStatusService.refreshAgentStatuses({
-            wslDistros,
-            scope: { agentKinds: acpKinds },
-          });
-        } catch (error) {
-          console.warn("[supervisor] refresh after ACP icon backfill failed", error);
-        }
-      }
-    }
+    if (changed) await this.propagateAcpRegistryChange();
     return registry;
   }
 

@@ -8,6 +8,10 @@ export function useBrowserSync(): void {
   const upsertTab = useBrowserPanelStore((s) => s.upsertTab);
   const setAttention = useBrowserPanelStore((s) => s.setAttention);
   const setPickerActive = useBrowserPanelStore((s) => s.setPickerActive);
+  const setUsageLoginConfirmation = useBrowserPanelStore((s) => s.setUsageLoginConfirmation);
+  const clearUsageLoginConfirmation = useBrowserPanelStore((s) => s.clearUsageLoginConfirmation);
+  const setUsageLoginDeviceCode = useBrowserPanelStore((s) => s.setUsageLoginDeviceCode);
+  const clearUsageLoginDeviceCode = useBrowserPanelStore((s) => s.clearUsageLoginDeviceCode);
 
   useEffect(() => {
     let cancelled = false;
@@ -35,6 +39,14 @@ export function useBrowserSync(): void {
         }
       } else if (event.type === "picker-cancelled") {
         setPickerActive(false);
+      } else if (event.type === "usage-login-confirmation") {
+        setUsageLoginConfirmation(event.request);
+      } else if (event.type === "usage-login-confirmation-closed") {
+        clearUsageLoginConfirmation(event.requestId);
+      } else if (event.type === "usage-login-device-code") {
+        setUsageLoginDeviceCode(event.deviceCode);
+      } else if (event.type === "usage-login-device-code-cleared") {
+        clearUsageLoginDeviceCode(event.providerId);
       }
     });
     readBridge()
@@ -47,5 +59,14 @@ export function useBrowserSync(): void {
       cancelled = true;
       unsub();
     };
-  }, [setState, upsertTab, setAttention, setPickerActive]);
+  }, [
+    setState,
+    upsertTab,
+    setAttention,
+    setPickerActive,
+    setUsageLoginConfirmation,
+    clearUsageLoginConfirmation,
+    setUsageLoginDeviceCode,
+    clearUsageLoginDeviceCode,
+  ]);
 }

@@ -3,7 +3,7 @@ export interface LineChangeStats {
   removed: number;
 }
 
-type DiffOp =
+export type DiffOp =
   | { kind: "equal"; text: string }
   | { kind: "delete"; text: string }
   | { kind: "insert"; text: string };
@@ -59,7 +59,7 @@ export function buildLineUnifiedDiff(path: string, oldText: string, newText: str
   ].join("\n");
 }
 
-function diffLineOps(oldText: string, newText: string): DiffOp[] {
+export function diffLineOps(oldText: string, newText: string): DiffOp[] {
   if (oldText === newText) {
     return splitLines(oldText).map((text) => ({ kind: "equal", text }));
   }

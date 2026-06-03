@@ -53,7 +53,7 @@ export interface SessionRuntime {
   terminalSize: TerminalSize;
   launchPrompt: string;
   outputLength: number;
-  structuredSession?: StructuredSessionHandle;
+  structuredSession?: StructuredSessionHandle | undefined;
   /** Mode the thread was launched in. Preserved for restart / recovery flows. */
   presentationMode?: ThreadPresentationMode;
   ignoreExit?: boolean;
@@ -75,6 +75,16 @@ export interface SessionRuntime {
    */
   pendingSteer?: PendingSteerSlot | undefined;
   structuredTurnInterruptRequested?: boolean | undefined;
+  /**
+   * Force-stop watchdog for a structured (GUI) turn. Armed when the user
+   * requests a stop and reset on any inbound sign of life (status update or
+   * runtime event) while the interrupt is still pending. If it fires, the
+   * session is treated as stale/disconnected: the structured session is
+   * disposed and the thread is forced into a stopped `error` state so the UI
+   * does not hang on "waiting for agent to stop" forever.
+   * Cleared on stop-acknowledged, PTY exit, teardown, and `clearSessionTimers`.
+   */
+  structuredInterruptWatchdog?: ReturnType<typeof setTimeout> | undefined;
   /**
    * GUI Codex launches optimistically enter `working` before the app-server
    * listener is attached. Codex then replays the newly opened thread's idle

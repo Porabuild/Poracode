@@ -9,7 +9,7 @@ import type { ProviderModelMenuProvider } from "@/renderer/components/common";
 import { getComposerControls } from "@/renderer/components/providers";
 import { EffortIcon } from "@/renderer/components/providers/EffortIcon";
 import type { ComposerControl } from "./ThreadComposer";
-import { formatEffortLabel } from "./threadDraftViewHelpers";
+import { formatEffortLabel, supportsUsableFastMode } from "./threadDraftViewHelpers";
 import { capabilitiesForPresentation, filterHiddenModels } from "./threadComposerOptions";
 
 export type ModelPickerConfigPatch = {
@@ -91,7 +91,7 @@ export function patchConfigForModelChange(
     model,
     ...(!effortValid && nextEfforts.length > 0 ? { effort: nextEfforts[0] } : {}),
     ...(nextContextDefault ? { contextSize: nextContextDefault } : {}),
-    ...(capabilities.fastModels?.includes(model) ? {} : { fast: false }),
+    ...(supportsUsableFastMode(capabilities, model) ? {} : { fast: false }),
     ...(capabilities.thinkingModels?.includes(model) ? {} : { thinking: false }),
   };
 }
@@ -186,6 +186,7 @@ export function buildModelPickerControls(input: BuildModelPickerControlsInput): 
   }
 
   if (supportsFast) {
+    const fastDisabledReason = filteredCaps.fastDisabledReason;
     controls.push({
       kind: "toggle",
       label: "Fast",
@@ -195,6 +196,7 @@ export function buildModelPickerControls(input: BuildModelPickerControlsInput): 
       tier: 3,
       isSelected: fast === true,
       ...(isDisabled !== undefined ? { isDisabled } : {}),
+      ...(fastDisabledReason ? { disabledReason: fastDisabledReason } : {}),
       onChange: (selected) => onConfigPatch({ fast: selected }),
     });
   }

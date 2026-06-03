@@ -3,6 +3,10 @@ import { Link, Surface, Tooltip } from "@heroui/react";
 import { ChevronDown, ChevronUp, Copy, GitBranch } from "lucide-react";
 import type { CanonicalContentBlock, MessageItemPayload } from "@/shared/contracts";
 import { AttachmentBar, ImageLightbox, type Attachment } from "@/renderer/components/composer";
+import {
+  ALL_TRIGGER_WORDS,
+  triggerWordAlternation,
+} from "@/renderer/components/composer/triggerWords";
 import { readBridge } from "@/renderer/bridge";
 import { fileNameFromPath } from "@/shared/promptContent";
 import {
@@ -11,7 +15,7 @@ import {
 } from "@/renderer/state/slices/runtimeEventSlice";
 import { useChatPaneActions } from "../../chatPaneActionsContext";
 import { normalizeChatProjectPath } from "../../chatPathUtils";
-import { chatMessageSurfaceClass } from "./chatMessageSurface";
+import { chatPromptSurfaceClass } from "./chatMessageSurface";
 import { InlineFilePathChip } from "./InlineFilePathChip";
 import { ItemMarkdown } from "./ItemMarkdown";
 import { extractSelectorPayloads } from "./SelectorBadge";
@@ -46,7 +50,7 @@ export const UserMessage = memo(function UserMessage({
   const hasInlineFileMentions = content.some(
     (block) => block.kind === "file" && block.source !== "attachment",
   );
-  const hasTriggerWord = /\bworkflow\b/i.test(text);
+  const hasTriggerWord = TRIGGER_WORD_TEST_RE.test(text);
   const attachments = enrichWithSelectorPayloads(
     buildUserPromptAttachments(content),
     extractSelectorPayloads(rawText),
@@ -114,7 +118,7 @@ export const UserMessage = memo(function UserMessage({
   }
 
   return (
-    <Surface variant="tertiary" className={`${chatMessageSurfaceClass} relative`}>
+    <Surface variant="tertiary" className={chatPromptSurfaceClass}>
       <div className="min-w-0 space-y-1.5 leading-snug">
         {attachments.length > 0 ? (
           <div className="-mt-1">
@@ -225,8 +229,11 @@ function CopyUserMessageButton({ text }: { text: string }) {
 }
 
 const LEADING_SLASH_COMMAND_RE = /^\/([A-Za-z][A-Za-z0-9_-]*)(\s+|$)/;
-/** Matches "workflow" as a standalone word anywhere in text. */
-const TRIGGER_WORD_RE = /(\bworkflow\b)/gi;
+const TRIGGER_WORD_ALTERNATION = triggerWordAlternation(ALL_TRIGGER_WORDS);
+/** Matches any known trigger word as a standalone word (capturing, for split). */
+const TRIGGER_WORD_RE = new RegExp(`(\\b(?:${TRIGGER_WORD_ALTERNATION})\\b)`, "gi");
+/** Non-global variant for presence checks. */
+const TRIGGER_WORD_TEST_RE = new RegExp(`\\b(?:${TRIGGER_WORD_ALTERNATION})\\b`, "i");
 
 function extractLeadingSlashCommand(text: string): { slashCommand: string | null; body: string } {
   const match = text.match(LEADING_SLASH_COMMAND_RE);
@@ -290,7 +297,7 @@ function renderUserMessageInlineContent(
 const USER_MESSAGE_URL_RE = /https?:\/\/[^\s<>"']+/g;
 
 function renderUserMessageText(text: string, keyPrefix: string): ReactNode[] {
-  // Split by trigger words first; delimiters (odd indices) are "workflow" matches.
+  // Split by trigger words first; delimiters (odd indices) are trigger-word matches.
   const parts = text.split(TRIGGER_WORD_RE);
   if (parts.length > 1) {
     const nodes: ReactNode[] = [];

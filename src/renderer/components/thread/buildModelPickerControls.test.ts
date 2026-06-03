@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { AgentCapability } from "@/shared/contracts";
-import { patchConfigForModelChange } from "./buildModelPickerControls";
+import { buildModelPickerControls, patchConfigForModelChange } from "./buildModelPickerControls";
 
 const capabilities = {
   models: [
@@ -61,5 +61,43 @@ describe("patchConfigForModelChange", () => {
       contextSize: "128k",
       fast: false,
     });
+  });
+
+  it("forces fast off when the account can't use fast mode", () => {
+    const gated = { ...capabilities, fastDisabledReason: "disabled" } as AgentCapability;
+    expect(patchConfigForModelChange(gated, "a", { fast: true })).toMatchObject({
+      model: "a",
+      fast: false,
+    });
+  });
+});
+
+describe("buildModelPickerControls fast toggle", () => {
+  const baseInput = {
+    providers: [],
+    selectedAgentKind: "claude",
+    model: "a",
+    fast: false,
+    onProviderModelChange: () => undefined,
+    onConfigPatch: () => undefined,
+  };
+
+  it("marks the Fast toggle disabled with a reason when the account is gated", () => {
+    const controls = buildModelPickerControls({
+      ...baseInput,
+      capabilities: { ...capabilities, fastDisabledReason: "no fast for you" } as AgentCapability,
+    });
+    const fastToggle = controls.find((c) => c.kind === "toggle" && c.label === "Fast");
+    expect(
+      fastToggle && "disabledReason" in fastToggle ? fastToggle.disabledReason : undefined,
+    ).toBe("no fast for you");
+  });
+
+  it("leaves the Fast toggle enabled when fast mode is available", () => {
+    const controls = buildModelPickerControls({ ...baseInput, capabilities });
+    const fastToggle = controls.find((c) => c.kind === "toggle" && c.label === "Fast");
+    expect(
+      fastToggle && "disabledReason" in fastToggle ? fastToggle.disabledReason : undefined,
+    ).toBe(undefined);
   });
 });

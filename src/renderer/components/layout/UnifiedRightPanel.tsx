@@ -2,6 +2,7 @@ import { type CSSProperties, type ReactNode } from "react";
 import {
   FileDiff,
   FolderOpen,
+  Gauge,
   Globe,
   Maximize2,
   PanelRightClose,
@@ -24,9 +25,13 @@ export function UnifiedRightPanel(props: {
   gitContent: ReactNode;
   filesContent: ReactNode;
   browserContent: ReactNode;
+  usageContent?: ReactNode;
+  /** Tab-specific action buttons rendered in the header when the usage tab is active. */
+  usageHeaderActions?: ReactNode;
   showTerminalTab?: boolean;
   showFilesTab?: boolean;
   showGitTab?: boolean;
+  showUsageTab?: boolean;
   projectName: string | undefined;
   onExpandGitToOverlay?: () => void;
   onExpandFilesToOverlay?: () => void;
@@ -35,6 +40,7 @@ export function UnifiedRightPanel(props: {
   onOpenTerminal?: () => void;
   onOpenFiles?: () => void;
   onOpenBrowser?: () => void;
+  onOpenUsage?: () => void;
   onClose: () => void;
 }) {
   const {
@@ -44,9 +50,12 @@ export function UnifiedRightPanel(props: {
     gitContent,
     filesContent,
     browserContent,
+    usageContent,
+    usageHeaderActions,
     showTerminalTab = true,
     showFilesTab = true,
     showGitTab = true,
+    showUsageTab = true,
     projectName,
     onExpandGitToOverlay,
     onExpandFilesToOverlay,
@@ -55,6 +64,7 @@ export function UnifiedRightPanel(props: {
     onOpenTerminal,
     onOpenFiles,
     onOpenBrowser,
+    onOpenUsage,
     onClose,
   } = props;
 
@@ -112,6 +122,7 @@ export function UnifiedRightPanel(props: {
             <Maximize2 className="size-3" />
           </button>
         )}
+        {activeTab === "usage" ? usageHeaderActions : null}
         <div className="mx-0.5 h-3 w-px bg-border" />
         {showTerminalTab ? (
           <button
@@ -152,6 +163,19 @@ export function UnifiedRightPanel(props: {
             <FileDiff className="size-3.5" />
           </button>
         ) : null}
+        {showUsageTab ? (
+          <button
+            type="button"
+            className={`${dragCtl} ${panelHeaderTabIconButtonClass(activeTab === "usage")}`}
+            title="Usage"
+            onClick={() => {
+              if (onOpenUsage) onOpenUsage();
+              else onTabChange("usage");
+            }}
+          >
+            <Gauge className="size-3.5" />
+          </button>
+        ) : null}
         <button
           type="button"
           className={`${dragCtl} ${panelHeaderTabIconButtonClass(activeTab === "browser")}`}
@@ -188,6 +212,9 @@ export function UnifiedRightPanel(props: {
         </div>
         <div className="absolute inset-0 overflow-hidden" style={tabLayerStyle("browser")}>
           {browserContent}
+        </div>
+        <div className="absolute inset-0 overflow-hidden" style={tabLayerStyle("usage")}>
+          {usageContent}
         </div>
       </div>
     </div>

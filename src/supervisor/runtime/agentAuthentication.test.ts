@@ -50,6 +50,28 @@ function makeTempDir(): string {
 function makeRuntime(emit: ConstructorParameters<typeof SupervisorRuntime>[0]): SupervisorRuntime {
   const runtime = new SupervisorRuntime(emit);
   runtimesToDispose.push(runtime);
+  // `authenticateAcpAgent` fires `void refreshAffectedAgentStatus(...)`, a
+  // fire-and-forget host-detection sweep that runs after our assertions and is
+  // never awaited. Left real, it spawns the native agent probes — including the
+  // Claude Agent SDK subprocess and a billed fast-mode turn — then leaks an
+  // unhandled `EPIPE` when this unit test tears the runtime down mid-probe (the
+  // racing stdin write lives inside the SDK and has no error listener we can
+  // attach). This test only exercises auth-ack persistence, so stub the status
+  // service's two detection entry points to inert no-ops.
+  const statusService = (
+    runtime as unknown as {
+      agentStatusService: {
+        listWslDistros: () => Promise<string[]>;
+        refreshAgentStatuses: (payload: unknown) => Promise<unknown>;
+      };
+    }
+  ).agentStatusService;
+  vi.spyOn(statusService, "listWslDistros").mockResolvedValue([]);
+  vi.spyOn(statusService, "refreshAgentStatuses").mockResolvedValue({
+    windows: [],
+    wsl: [],
+    fromCache: false,
+  });
   return runtime;
 }
 

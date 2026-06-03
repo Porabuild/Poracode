@@ -3,7 +3,13 @@ import { waitFor } from "@testing-library/react";
 import type { Thread } from "@/shared/contracts";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useDevTerminalStore } from "@/renderer/state/devTerminalStore";
-import { openThread, reopenStoredThread, toggleMarkThreadDone } from "./threadActions";
+import { useWorktreeDeleteStore } from "@/renderer/state/worktreeDeleteStore";
+import {
+  deleteThread,
+  openThread,
+  reopenStoredThread,
+  toggleMarkThreadDone,
+} from "./threadActions";
 
 const { bridge } = vi.hoisted(() => ({
   bridge: {
@@ -14,9 +20,16 @@ const { hasHydratedThreadRuntimeItems, hydrateThreadRuntimeItems } = vi.hoisted(
   hasHydratedThreadRuntimeItems: vi.fn<(threadId: string) => boolean>().mockReturnValue(false),
   hydrateThreadRuntimeItems: vi.fn<(threadId: string) => Promise<void>>().mockResolvedValue(),
 }));
+const { performWorktreeRemoval } = vi.hoisted(() => ({
+  performWorktreeRemoval: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+}));
 
 vi.mock("@/renderer/bridge", () => ({
   readBridge: () => bridge,
+}));
+
+vi.mock("@/renderer/actions/worktreeActions", () => ({
+  performWorktreeRemoval,
 }));
 
 vi.mock("@/renderer/state/chatRuntimePersister", () => ({
@@ -30,6 +43,7 @@ describe("threadActions", () => {
     localStorage.clear();
     hasHydratedThreadRuntimeItems.mockReturnValue(false);
     hydrateThreadRuntimeItems.mockResolvedValue(undefined);
+    performWorktreeRemoval.mockResolvedValue(undefined);
     useAppStore.setState((state) => ({
       ...state,
       projects: [],
@@ -49,6 +63,7 @@ describe("threadActions", () => {
       focusRequestId: 0,
       tabActivity: {},
     });
+    useWorktreeDeleteStore.setState({ dialog: null });
   });
 
   it("hydrates a persisted GUI thread before opening the pane", async () => {
@@ -200,6 +215,85 @@ describe("threadActions", () => {
     expect(useAppStore.getState().threads[0]?.status).toBe("inactive");
   });
 
+  it("deletes a shared-worktree thread without prompting to remove the worktree", () => {
+    const worktreePath = "/repo/.worktrees/feature";
+    const firstThread = makeThread({
+      id: "thread-a",
+      worktreePath,
+      worktreeBranch: "lightcode/feature",
+    });
+    const secondThread = makeThread({
+      id: "thread-b",
+      worktreePath,
+      worktreeBranch: "lightcode/feature",
+    });
+    useAppStore.setState((state) => ({ ...state, threads: [firstThread, secondThread] }));
+
+    deleteThread(firstThread.id, worktreePath, firstThread.projectId);
+
+    expect(useAppStore.getState().threads.map((thread) => thread.id)).toEqual(["thread-b"]);
+    expect(bridge.closeThread).toHaveBeenCalledWith({ threadId: firstThread.id });
+    expect(useWorktreeDeleteStore.getState().dialog).toBeNull();
+  });
+
+  it("prompts to remove the worktree when deleting the sole thread using it", () => {
+    const worktreePath = "/repo/.worktrees/feature";
+    const thread = makeThread({
+      worktreePath,
+      worktreeBranch: "lightcode/feature",
+    });
+    useAppStore.setState((state) => ({ ...state, threads: [thread] }));
+
+    deleteThread(thread.id, worktreePath, thread.projectId);
+
+    expect(useAppStore.getState().threads).toHaveLength(1);
+    expect(bridge.closeThread).not.toHaveBeenCalled();
+    expect(useWorktreeDeleteStore.getState().dialog).toEqual({
+      kind: "single-thread",
+      threadId: thread.id,
+      projectId: thread.projectId,
+      worktreePath,
+      worktreeBranch: "lightcode/feature",
+    });
+  });
+
+  it("waits for the thread to close before removing the worktree", async () => {
+    let resolveClose: () => void = () => undefined;
+    const closePromise = new Promise<void>((resolve) => {
+      resolveClose = resolve;
+    });
+    bridge.closeThread.mockReturnValueOnce(closePromise);
+    localStorage.setItem("lightcode-delete-worktree-pref", "thread-and-worktree");
+    const worktreePath = "/repo/.worktrees/feature";
+    const project = useAppStore.getState().addProject({
+      kind: "posix",
+      path: "/repo",
+    });
+    const thread = makeThread({
+      projectId: project.id,
+      worktreePath,
+      worktreeBranch: "lightcode/feature",
+    });
+    useAppStore.setState((state) => ({ ...state, threads: [thread] }));
+
+    deleteThread(thread.id, worktreePath, project.id);
+
+    expect(useAppStore.getState().threads).toHaveLength(0);
+    expect(bridge.closeThread).toHaveBeenCalledTimes(1);
+    expect(bridge.closeThread).toHaveBeenCalledWith({ threadId: thread.id });
+    expect(performWorktreeRemoval).not.toHaveBeenCalled();
+
+    resolveClose();
+
+    await waitFor(() => {
+      expect(performWorktreeRemoval).toHaveBeenCalledWith(
+        project,
+        worktreePath,
+        "lightcode/feature",
+      );
+    });
+  });
+
   it("closes worktree dev terminals when marking a worktree thread done", () => {
     const worktreePath = "/repo/.worktrees/feature";
     const project = useAppStore.getState().addProject({
@@ -254,6 +348,57 @@ describe("threadActions", () => {
     expect(bridge.closeThread).toHaveBeenCalledWith({ threadId: thread.id });
     expect(bridge.closeThread).toHaveBeenCalledWith({ threadId: "shell:worktree" });
     expect(bridge.closeThread).toHaveBeenCalledWith({ threadId: "shell:worktree-split" });
+  });
+
+  it("keeps worktree dev terminals open when marking one of multiple worktree threads done", () => {
+    const worktreePath = "/repo/.worktrees/feature";
+    const project = useAppStore.getState().addProject({
+      kind: "posix",
+      path: "/repo",
+    });
+    const firstThread = useAppStore.getState().createThread({
+      projectId: project.id,
+      agentKind: "codex",
+      config: { model: "gpt-5.4" },
+      prompt: "hello",
+      worktreePath,
+    });
+    const secondThread = useAppStore.getState().createThread({
+      projectId: project.id,
+      agentKind: "codex",
+      config: { model: "gpt-5.4" },
+      prompt: "hello",
+      worktreePath,
+    });
+    useDevTerminalStore.setState({
+      isOpen: true,
+      activeProjectId: project.id,
+      activeWorktreePath: worktreePath,
+      tabs: [
+        {
+          id: "shell:worktree",
+          projectId: project.id,
+          worktreePath,
+          title: "feature",
+          createdAt: "2026-03-22T00:00:00.000Z",
+        },
+      ],
+      activeTabId: "shell:worktree",
+      tabActivity: { "shell:worktree": true },
+    });
+
+    toggleMarkThreadDone(firstThread.id);
+
+    const termState = useDevTerminalStore.getState();
+    expect(termState.isOpen).toBe(true);
+    expect(termState.activeProjectId).toBe(project.id);
+    expect(termState.activeWorktreePath).toBe(worktreePath);
+    expect(termState.tabs.map((tab) => tab.id)).toEqual(["shell:worktree"]);
+    expect(bridge.closeThread).toHaveBeenCalledWith({ threadId: firstThread.id });
+    expect(bridge.closeThread).not.toHaveBeenCalledWith({ threadId: "shell:worktree" });
+    expect(
+      useAppStore.getState().threads.find((thread) => thread.id === secondThread.id)?.done,
+    ).toBe(false);
   });
 });
 

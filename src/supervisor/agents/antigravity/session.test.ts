@@ -12,6 +12,23 @@ function makeTempHome(): string {
   return dir;
 }
 
+// Mimic an `agy` conversation SQLite db: the workspace is stored as a
+// length-delimited protobuf field-1 string `0x0A <len> file://<cwd>`. An
+// optional `decoy` is an unframed `file://` in conversation text placed before
+// the workspace, to prove the framed field is preferred. Returns the path.
+function writeConversationDb(dir: string, id: string, cwd: string, decoy?: string): string {
+  const path = join(dir, `${id}.db`);
+  const uri = Buffer.from(
+    `file://${cwd.startsWith("/") ? cwd : `/${cwd.replace(/\\/g, "/")}`}`,
+    "latin1",
+  );
+  const parts = [Buffer.from("SQLite format 3 ", "latin1")];
+  if (decoy) parts.push(Buffer.from(`(see ${decoy} for details) `, "latin1"));
+  parts.push(Buffer.from([0x0a, uri.length]), uri, Buffer.from([0x1a, 0x00]));
+  writeFileSync(path, Buffer.concat(parts));
+  return path;
+}
+
 async function loadSessionModule(home: string) {
   vi.resetModules();
   vi.doMock("node:os", async (importActual) => {
@@ -60,7 +77,7 @@ describe("Antigravity session files", () => {
     expect(resolveAntigravityWatchPaths(location)).toEqual([configDir, join(home, ".gemini")]);
   });
 
-  it("reads the cwd mapping and newest new conversation id", async () => {
+  it("reads the cwd mapping and snapshots conversation ids", async () => {
     const home = makeTempHome();
     const configDir = join(home, ".gemini", "antigravity-cli");
     const conversationsDir = join(configDir, "conversations");
@@ -71,25 +88,15 @@ describe("Antigravity session files", () => {
       JSON.stringify({ [location.path]: "conversation-new" }),
       "utf8",
     );
-    const oldPath = join(conversationsDir, "conversation-old.pb");
-    const newPath = join(conversationsDir, "conversation-new.pb");
-    writeFileSync(oldPath, "");
-    writeFileSync(newPath, "");
-    utimesSync(oldPath, new Date("2026-05-20T00:00:00.000Z"), new Date("2026-05-20T00:00:00.000Z"));
-    utimesSync(newPath, new Date("2026-05-20T00:00:01.000Z"), new Date("2026-05-20T00:00:01.000Z"));
+    writeFileSync(join(conversationsDir, "conversation-old.pb"), "");
+    writeFileSync(join(conversationsDir, "conversation-new.pb"), "");
 
-    const {
-      readAntigravityConversationIds,
-      readAntigravityLastConversationForCwd,
-      readNewestAntigravityConversationId,
-    } = await loadSessionModule(home);
+    const { readAntigravityConversationIds, readAntigravityLastConversationForCwd } =
+      await loadSessionModule(home);
 
     expect(readAntigravityLastConversationForCwd(location, location.path)).toBe("conversation-new");
     expect(readAntigravityConversationIds(location)).toEqual(
       new Set(["conversation-old", "conversation-new"]),
-    );
-    expect(readNewestAntigravityConversationId(location, new Set(["conversation-old"]))).toBe(
-      "conversation-new",
     );
   });
 
@@ -120,5 +127,61 @@ describe("Antigravity session files", () => {
     await expect(adapter.discoverSessionRef?.(location)).resolves.toMatchObject({
       providerSessionId: "conversation-new",
     });
+  });
+
+  it("snapshots both .pb and .db ids and ignores -wal/-shm sidecars", async () => {
+    const home = makeTempHome();
+    const conversationsDir = join(home, ".gemini", "antigravity-cli", "conversations");
+    mkdirSync(conversationsDir, { recursive: true });
+    writeFileSync(join(conversationsDir, "legacy.pb"), "");
+    writeConversationDb(conversationsDir, "modern", location.path);
+    writeFileSync(join(conversationsDir, "modern.db-wal"), "");
+    writeFileSync(join(conversationsDir, "modern.db-shm"), "");
+
+    const { readAntigravityConversationIds } = await loadSessionModule(home);
+
+    expect(readAntigravityConversationIds(location)).toEqual(new Set(["legacy", "modern"]));
+  });
+
+  it("discovers the new conversation whose stored workspace matches the launch cwd", async () => {
+    const home = makeTempHome();
+    const conversationsDir = join(home, ".gemini", "antigravity-cli", "conversations");
+    mkdirSync(conversationsDir, { recursive: true });
+
+    const { createAntigravityAdapter } = await loadAdapterModule(home);
+    const adapter = createAntigravityAdapter();
+    adapter.buildLaunchArgv(location, { model: "auto" }, "hello");
+
+    // Real interactive session for this workspace (with a decoy file:// in its
+    // content), plus a concurrent one-shot (title gen) that ran in an isolated
+    // cwd. The one-shot is made NEWER so a naive newest-by-mtime would wrongly
+    // pick it; the workspace match must still select the real session.
+    const real = writeConversationDb(
+      conversationsDir,
+      "real-session",
+      location.path,
+      "file:///C:/some/output.log",
+    );
+    const oneShot = writeConversationDb(conversationsDir, "title-gen", "C:\\Users\\me\\Temp");
+    utimesSync(real, new Date("2026-05-20T00:00:00Z"), new Date("2026-05-20T00:00:00Z"));
+    utimesSync(oneShot, new Date("2026-05-20T00:00:05Z"), new Date("2026-05-20T00:00:05Z"));
+
+    await expect(adapter.discoverSessionRef?.(location)).resolves.toMatchObject({
+      providerSessionId: "real-session",
+    });
+  });
+
+  it("does not rediscover a conversation that existed before launch", async () => {
+    const home = makeTempHome();
+    const conversationsDir = join(home, ".gemini", "antigravity-cli", "conversations");
+    mkdirSync(conversationsDir, { recursive: true });
+    // Pre-existing conversation for this workspace is captured in the snapshot.
+    writeConversationDb(conversationsDir, "old-session", location.path);
+
+    const { createAntigravityAdapter } = await loadAdapterModule(home);
+    const adapter = createAntigravityAdapter();
+    adapter.buildLaunchArgv(location, { model: "auto" }, "hello");
+
+    await expect(adapter.discoverSessionRef?.(location)).resolves.toBeUndefined();
   });
 });

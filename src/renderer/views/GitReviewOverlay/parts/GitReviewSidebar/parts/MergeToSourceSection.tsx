@@ -25,7 +25,7 @@ export function MergeToSourceSection(props: {
   return (
     <GitReviewSection>
       {sourceBranchLoading ? (
-        <div className="flex items-center justify-center py-2">
+        <div className="flex min-h-[3.5rem] items-center justify-center">
           <PixelLoader size="xs" />
         </div>
       ) : sourceBranch ? (
@@ -70,7 +70,7 @@ export function MergeToSourceSection(props: {
               </Dropdown.Popover>
             </Dropdown>
           </ButtonGroup>
-          <p className="text-center text-xs text-muted/60">
+          <p className="h-4 truncate px-1 text-center text-xs leading-4 text-muted/60">
             {worktreeBranch} → {sourceBranch} · {commitsAhead} ahead
           </p>
         </>

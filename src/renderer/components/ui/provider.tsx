@@ -9,6 +9,7 @@ import {
 import { Toast, toast as heroToast } from "@heroui/react";
 import { Copy } from "lucide-react";
 import { resolveThemeMode } from "@/shared/themeMode";
+import { applyAppTheme, persistThemeBoot, systemPrefersDark } from "@/renderer/theme/applyAppTheme";
 import { readBridge } from "@/renderer/bridge";
 import { captureRendererException } from "@/renderer/diagnostics/sentry";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
@@ -22,14 +23,6 @@ const toastTitleClassName = "lc-toast__title";
 
 export function useResolvedAppearance(): "light" | "dark" {
   return useContext(AppearanceContext);
-}
-
-function getSystemPrefersDark(): boolean {
-  if (typeof window === "undefined" || typeof window.matchMedia !== "function") {
-    return true;
-  }
-
-  return window.matchMedia("(prefers-color-scheme: dark)").matches;
 }
 
 interface ToastActionProps {
@@ -71,7 +64,8 @@ function ToastAction({ actionProps, actionLabel, isCopyAction }: ToastActionProp
 export function AppProvider(props: { children: ReactNode }) {
   const { children } = props;
   const themeMode = useSharedSettings((state) => state.themeMode);
-  const [prefersDark, setPrefersDark] = useState(getSystemPrefersDark);
+  const themePreset = useSharedSettings((state) => state.themePreset);
+  const [prefersDark, setPrefersDark] = useState(systemPrefersDark);
   const syncSystemPreference = useEffectEvent((matches: boolean) => {
     setPrefersDark(matches);
   });
@@ -100,7 +94,9 @@ export function AppProvider(props: { children: ReactNode }) {
     root.classList.remove("light", "dark");
     root.classList.add(appearance);
     root.dataset.theme = appearance;
-  }, [appearance]);
+    applyAppTheme(root, appearance, themePreset);
+    persistThemeBoot(appearance, themePreset);
+  }, [appearance, themePreset]);
 
   useEffect(() => {
     if (typeof window === "undefined" || !("lightcode" in window)) {

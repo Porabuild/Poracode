@@ -136,6 +136,7 @@ const agentPresentationCapabilityOverrideSchema = z
     modelContextSizes: z.record(z.string(), z.array(z.string().min(1))).optional(),
     defaultContextSize: z.string().optional(),
     fastModels: z.array(z.string().min(1)).optional(),
+    fastDisabledReason: z.string().optional(),
     thinkingModels: z.array(z.string().min(1)).optional(),
     modes: z.array(threadModeSchema),
     approvalPolicies: z.array(labeledOptionSchema),
@@ -171,6 +172,13 @@ export const agentCapabilitySchema = z.object({
   defaultContextSize: z.string().optional(),
   /** Model ids that support a fast/turbo execution mode. */
   fastModels: z.array(z.string().min(1)).optional(),
+  /**
+   * Set when a `fastModels` model technically supports fast mode but it is
+   * unavailable for the authenticated account (e.g. disabled by the org). The
+   * composer keeps the Fast toggle visible but renders it disabled with this
+   * message as its tooltip.
+   */
+  fastDisabledReason: z.string().optional(),
   /** Model ids that support a thinking/reasoning toggle separate from effort level. */
   thinkingModels: z.array(z.string().min(1)).optional(),
   modes: z.array(threadModeSchema).default([]),

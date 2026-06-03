@@ -1,0 +1,65 @@
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
+import { normalizeWslListOutput } from "@/shared/wsl";
+import { batchWslCommandsAsync, getWslCommand } from "../agents/base";
+
+const execFileAsync = promisify(execFile);
+
+/**
+ * WSL-side credential fallback. When a provider's native (Windows host) creds
+ * are missing, the user may be signed in only inside a WSL distro — read the
+ * creds from there. The token works regardless of which environment fetches
+ * with it, so this yields one combined snapshot (no dual-env UI).
+ *
+ * win32-only and best-effort: reads run through a login shell (so `gh` is on
+ * PATH) and only when native resolution already failed. Secrets are never
+ * logged. Commands avoid quotes so the login-shell wrapper doesn't mis-escape.
+ */
+
+async function listWslDistros(): Promise<string[]> {
+  if (process.platform !== "win32") return [];
+  try {
+    const { stdout } = await execFileAsync(getWslCommand(), ["-l", "-q"], {
+      encoding: "utf8",
+      windowsHide: true,
+      timeout: 5_000,
+    });
+    return normalizeWslListOutput(stdout ?? "");
+  } catch {
+    return [];
+  }
+}
+
+/** Run a read command in each distro; return the first non-empty stdout. */
+async function readFromAnyWslDistro(command: string): Promise<string | undefined> {
+  for (const distro of await listWslDistros()) {
+    try {
+      const [result] = await batchWslCommandsAsync(distro, [command]);
+      const out = result?.ok ? result.stdout.trim() : "";
+      if (out) return out;
+    } catch {
+      // try the next distro
+    }
+  }
+  return undefined;
+}
+
+export function readClaudeCredsFromWsl(): Promise<string | undefined> {
+  return readFromAnyWslDistro("cat $HOME/.claude/.credentials.json 2>/dev/null");
+}
+
+export function readCodexAuthFromWsl(): Promise<string | undefined> {
+  return readFromAnyWslDistro("cat $HOME/.codex/auth.json 2>/dev/null");
+}
+
+export function readCopilotTokenFromWsl(): Promise<string | undefined> {
+  return readFromAnyWslDistro("gh auth token 2>/dev/null");
+}
+
+export function readGrokAuthFromWsl(): Promise<string | undefined> {
+  return readFromAnyWslDistro("cat $HOME/.grok/auth.json 2>/dev/null");
+}
+
+export function readGeminiCredsFromWsl(): Promise<string | undefined> {
+  return readFromAnyWslDistro("cat $HOME/.gemini/oauth_creds.json 2>/dev/null");
+}

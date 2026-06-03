@@ -13,11 +13,13 @@ build/icons/
 .tmp/
 tmp/
 .agent/
+mcps/
 lightcode-diff.patch
 review.diff
 .spec-workflow/
 **/worktrees/
 .cursor/
+mcps/
 .antigravitycli/
 .recovery/
 resources/wsl-helpers/watcher.node

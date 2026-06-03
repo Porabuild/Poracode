@@ -353,11 +353,11 @@ export function ProviderModelMenu(props: ProviderModelMenuProps) {
             : "flex min-w-0 flex-col items-start justify-center gap-0.5"
         }
       >
-        <span className="max-w-full truncate leading-none">
+        <span className="max-w-full truncate leading-tight">
           {currentLabelParts.name || "Select model"}
         </span>
         {currentSubProvider ? (
-          <span className="max-w-full truncate text-[10px] font-medium leading-none text-muted/70">
+          <span className="max-w-full truncate text-[10px] font-medium leading-tight text-muted/70">
             {currentSubProvider.label}
           </span>
         ) : null}

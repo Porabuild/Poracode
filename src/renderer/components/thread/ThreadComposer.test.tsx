@@ -1,4 +1,4 @@
-import { act, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { ThreadComposer, type ComposerControl } from "./ThreadComposer";
 
@@ -56,6 +56,21 @@ function renderComposer(controls = composerControls()) {
       prompt=""
       submitDisabled
       submitLabel="Send message"
+      onPromptChange={vi.fn<(value: string) => void>()}
+      onSubmit={vi.fn<() => void>()}
+    />,
+  );
+}
+
+function renderComposerWithAttach(onAttachFiles: (paths: string[]) => void) {
+  return render(
+    <ThreadComposer
+      controls={composerControls()}
+      placeholder="Send a message..."
+      prompt=""
+      submitDisabled
+      submitLabel="Send message"
+      onAttachFiles={onAttachFiles}
       onPromptChange={vi.fn<(value: string) => void>()}
       onSubmit={vi.fn<() => void>()}
     />,
@@ -160,5 +175,37 @@ describe("ThreadComposer", () => {
     ]);
 
     expect(visibleText("Thinking")).toBeVisible();
+  });
+
+  it("shows an attachment drop target for supported files", () => {
+    const { container } = renderComposerWithAttach(vi.fn());
+    const shell = container.querySelector<HTMLElement>(".lightcode-composer-shell");
+    expect(shell).not.toBeNull();
+
+    fireEvent.dragEnter(shell!, {
+      dataTransfer: { types: ["Files"], files: [], dropEffect: "copy" },
+    });
+
+    expect(screen.getByText("Drop here to attach")).toBeVisible();
+  });
+
+  it("attaches files dragged from the project tree", () => {
+    const onAttachFiles = vi.fn<(paths: string[]) => void>();
+    const { container } = renderComposerWithAttach(onAttachFiles);
+    const shell = container.querySelector<HTMLElement>(".lightcode-composer-shell");
+    expect(shell).not.toBeNull();
+
+    fireEvent.drop(shell!, {
+      dataTransfer: {
+        types: ["application/lightcode-composer-file"],
+        files: [],
+        getData: (type: string) =>
+          type === "application/lightcode-composer-file"
+            ? JSON.stringify({ path: "src/App.tsx", type: "file" })
+            : "",
+      },
+    });
+
+    expect(onAttachFiles).toHaveBeenCalledWith(["src/App.tsx"]);
   });
 });

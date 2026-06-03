@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { createJSONStorage, persist } from "zustand/middleware";
 import {
   areAgentSlashCommandsEqual,
   areAgentProviderMetadataEqual,
@@ -128,85 +129,110 @@ function buildStatusUpdatePatch(
   return { ...listPatch, ...loadedPatch, ...discoveryPatch };
 }
 
-export const useAgentStatusesStore = create<AgentStatusesStore>()((set) => ({
-  agentStatuses: [],
-  wslAgentStatuses: [],
-  windowsLoaded: false,
-  wslLoaded: false,
-  inFirstLaunchDiscovery: false,
-  discoveryScope: undefined,
-  discoveredAgents: [],
-  setAgentStatuses: (incoming) => set((prev) => buildStatusUpdatePatch(prev, incoming, "native")),
-  setWslAgentStatuses: (incoming) => set((prev) => buildStatusUpdatePatch(prev, incoming, "wsl")),
-  hydrateFromCache: ({ windows, wsl }) =>
-    set(() => ({
-      agentStatuses: windows,
-      wslAgentStatuses: wsl,
-      windowsLoaded: true,
-      wslLoaded: true,
+export const useAgentStatusesStore = create<AgentStatusesStore>()(
+  persist(
+    (set) => ({
+      agentStatuses: [],
+      wslAgentStatuses: [],
+      windowsLoaded: false,
+      wslLoaded: false,
       inFirstLaunchDiscovery: false,
       discoveryScope: undefined,
-    })),
-  beginFirstLaunchDiscovery: (scope) =>
-    set((prev) => {
-      const nextScope = scope ?? { kind: "native" };
-      if (nextScope.kind === "native" && prev.windowsLoaded) {
-        return prev;
-      }
-      return {
-        inFirstLaunchDiscovery: true,
-        discoveryScope: nextScope,
-        discoveredAgents: [],
-        ...(nextScope.kind === "wsl" ? { wslLoaded: false } : {}),
-      };
+      discoveredAgents: [],
+      setAgentStatuses: (incoming) =>
+        set((prev) => buildStatusUpdatePatch(prev, incoming, "native")),
+      setWslAgentStatuses: (incoming) =>
+        set((prev) => buildStatusUpdatePatch(prev, incoming, "wsl")),
+      hydrateFromCache: ({ windows, wsl }) =>
+        set(() => ({
+          agentStatuses: windows,
+          wslAgentStatuses: wsl,
+          windowsLoaded: true,
+          wslLoaded: true,
+          inFirstLaunchDiscovery: false,
+          discoveryScope: undefined,
+        })),
+      beginFirstLaunchDiscovery: (scope) =>
+        set((prev) => {
+          const nextScope = scope ?? { kind: "native" };
+          if (nextScope.kind === "native" && prev.windowsLoaded) {
+            return prev;
+          }
+          return {
+            inFirstLaunchDiscovery: true,
+            discoveryScope: nextScope,
+            discoveredAgents: [],
+            ...(nextScope.kind === "wsl" ? { wslLoaded: false } : {}),
+          };
+        }),
+      resetDiscoveredAgents: () =>
+        set((prev) =>
+          prev.discoveredAgents.length === 0 &&
+          !prev.inFirstLaunchDiscovery &&
+          prev.discoveryScope === undefined
+            ? prev
+            : { discoveredAgents: [], inFirstLaunchDiscovery: false, discoveryScope: undefined },
+        ),
+      pushDiscoveredAgent: (status) =>
+        set((prev) => {
+          if (!isStatusInDiscoveryScope(status, prev.discoveryScope)) {
+            return prev;
+          }
+          if (
+            prev.discoveredAgents.some(
+              (existing) =>
+                existing.kind === status.kind &&
+                existing.envKind === status.envKind &&
+                existing.envDistro === status.envDistro,
+            )
+          ) {
+            return prev;
+          }
+          return { discoveredAgents: [...prev.discoveredAgents, status] };
+        }),
+      mergeAgentStatus: (status) =>
+        set((prev) => {
+          const matches = (entry: AgentStatus) =>
+            entry.kind === status.kind &&
+            entry.envKind === status.envKind &&
+            entry.envDistro === status.envDistro;
+          if (status.envKind === "wsl") {
+            const idx = prev.wslAgentStatuses.findIndex(matches);
+            const next =
+              idx === -1
+                ? [...prev.wslAgentStatuses, status]
+                : prev.wslAgentStatuses.map((entry, i) => (i === idx ? status : entry));
+            return { wslAgentStatuses: next, wslLoaded: true };
+          }
+          const idx = prev.agentStatuses.findIndex(matches);
+          const next =
+            idx === -1
+              ? [...prev.agentStatuses, status]
+              : prev.agentStatuses.map((entry, i) => (i === idx ? status : entry));
+          return { agentStatuses: next, windowsLoaded: true };
+        }),
     }),
-  resetDiscoveredAgents: () =>
-    set((prev) =>
-      prev.discoveredAgents.length === 0 &&
-      !prev.inFirstLaunchDiscovery &&
-      prev.discoveryScope === undefined
-        ? prev
-        : { discoveredAgents: [], inFirstLaunchDiscovery: false, discoveryScope: undefined },
-    ),
-  pushDiscoveredAgent: (status) =>
-    set((prev) => {
-      if (!isStatusInDiscoveryScope(status, prev.discoveryScope)) {
-        return prev;
-      }
-      if (
-        prev.discoveredAgents.some(
-          (existing) =>
-            existing.kind === status.kind &&
-            existing.envKind === status.envKind &&
-            existing.envDistro === status.envDistro,
-        )
-      ) {
-        return prev;
-      }
-      return { discoveredAgents: [...prev.discoveredAgents, status] };
-    }),
-  mergeAgentStatus: (status) =>
-    set((prev) => {
-      const matches = (entry: AgentStatus) =>
-        entry.kind === status.kind &&
-        entry.envKind === status.envKind &&
-        entry.envDistro === status.envDistro;
-      if (status.envKind === "wsl") {
-        const idx = prev.wslAgentStatuses.findIndex(matches);
-        const next =
-          idx === -1
-            ? [...prev.wslAgentStatuses, status]
-            : prev.wslAgentStatuses.map((entry, i) => (i === idx ? status : entry));
-        return { wslAgentStatuses: next, wslLoaded: true };
-      }
-      const idx = prev.agentStatuses.findIndex(matches);
-      const next =
-        idx === -1
-          ? [...prev.agentStatuses, status]
-          : prev.agentStatuses.map((entry, i) => (i === idx ? status : entry));
-      return { agentStatuses: next, windowsLoaded: true };
-    }),
-}));
+    {
+      name: "lightcode-agent-statuses-v1",
+      version: 1,
+      // Synchronous localStorage hydration (unlike the IndexedDB-backed app
+      // store) so the last-known statuses — and their already-cached provider
+      // icons — are in the store on the very first paint, before the async
+      // getAgentStatuses RPC resolves. The RPC still runs on launch and
+      // overwrites this with fresh results via hydrateFromCache.
+      storage: createJSONStorage(() => localStorage),
+      // Persist only the resolved statuses and their loaded flags. The
+      // discovery fields are session-scoped (they drive the first-launch
+      // discovery screen) and must reset to their initial state each launch.
+      partialize: (state) => ({
+        agentStatuses: state.agentStatuses,
+        wslAgentStatuses: state.wslAgentStatuses,
+        windowsLoaded: state.windowsLoaded,
+        wslLoaded: state.wslLoaded,
+      }),
+    },
+  ),
+);
 
 /**
  * Returns true when we haven't received agent statuses yet for the given

@@ -11,6 +11,7 @@ import {
   type RendererCrashReport,
 } from "./RendererCrashScreen";
 import { isIgnorableRejection, isIgnorableWindowError } from "./rendererGlobalErrors";
+import { bootstrapAppThemeFromCache } from "./theme/applyAppTheme";
 
 if (import.meta.env.DEV) {
   const warn = console.warn.bind(console);
@@ -21,7 +22,7 @@ if (import.meta.env.DEV) {
       (((head.startsWith("<Focusable>") || head.startsWith("<Pressable>")) &&
         ((head.includes("interactive ARIA role") &&
           (head.includes('Got "none"') || head.includes('Got "presentation"'))) ||
-          (head.startsWith("<Pressable>") && head.includes("child must be focusable")))) ||
+          head.includes("child must be focusable"))) ||
         head.startsWith("A PressResponder was rendered without a pressable child."))
     ) {
       return;
@@ -35,6 +36,10 @@ initializeRendererSentry();
 
 document.documentElement.dataset.platform =
   typeof window !== "undefined" && "lightcode" in window ? readBridge().platform : "unknown";
+
+// Apply the cached appearance + theme before first paint so a non-default theme
+// doesn't flash the base palette on launch.
+bootstrapAppThemeFromCache();
 
 const root = document.getElementById("root");
 

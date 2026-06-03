@@ -29,6 +29,9 @@ export function ThreadItemSuffix(props: {
   const isTerminalActive = useIsWorktreeTerminalActive(thread.worktreePath);
   const isTerminalOpen = useIsWorktreeTerminalOpen(thread.worktreePath);
   const isTerminalBusy = useIsWorktreeTerminalBusy(thread.worktreePath);
+  const isTerminalVisible = isTerminalActive || isTerminalOpen;
+  const hiddenPanelButtonClass =
+    "w-0 -mr-[3px] overflow-hidden p-0 opacity-0 pointer-events-none group-hover:w-[18px] group-hover:mr-0 group-hover:p-0.5 group-hover:opacity-100 group-hover:pointer-events-auto focus-visible:w-[18px] focus-visible:mr-0 focus-visible:p-0.5 focus-visible:opacity-100 focus-visible:pointer-events-auto";
 
   return (
     <>
@@ -41,8 +44,10 @@ export function ThreadItemSuffix(props: {
               projectId={thread.projectId}
               worktreePath={thread.worktreePath}
               ariaLabel={`Files for ${thread.worktreeBranch ?? thread.title}`}
-              className={`shrink-0 cursor-grab rounded p-0.5 transition-colors hover:bg-white/[0.04] hover:text-foreground active:cursor-grabbing ${
-                isFilesActive ? "text-accent" : "text-muted/60 opacity-0 group-hover:opacity-100"
+              className={`flex h-[18px] shrink-0 cursor-grab items-center justify-center rounded transition-[opacity,color,background-color] hover:bg-[var(--row-hover)] hover:text-foreground active:cursor-grabbing ${
+                isFilesActive
+                  ? "w-[18px] p-0.5 text-accent"
+                  : `text-muted/60 ${hiddenPanelButtonClass}`
               }`}
               onPress={() => openFilesPanel(thread.projectId, thread.worktreePath)}
             >
@@ -54,12 +59,10 @@ export function ThreadItemSuffix(props: {
             projectId={thread.projectId}
             worktreePath={thread.worktreePath}
             ariaLabel={`Terminal for ${thread.worktreeBranch}`}
-            className={`shrink-0 cursor-grab rounded p-0.5 transition-colors hover:bg-white/[0.04] hover:text-foreground active:cursor-grabbing ${
-              isTerminalActive
-                ? "text-accent"
-                : isTerminalOpen
-                  ? "text-foreground"
-                  : "text-muted/60 opacity-0 group-hover:opacity-100"
+            className={`flex h-[18px] shrink-0 cursor-grab items-center justify-center rounded transition-[opacity,color,background-color] hover:bg-[var(--row-hover)] hover:text-foreground active:cursor-grabbing ${
+              isTerminalVisible
+                ? `w-[18px] p-0.5 ${isTerminalActive ? "text-accent" : "text-foreground"}`
+                : `text-muted/60 ${hiddenPanelButtonClass}`
             }`}
             onPress={() => openWorktreeTerminal(thread.projectId, thread.worktreePath!)}
           >

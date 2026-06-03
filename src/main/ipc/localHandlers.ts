@@ -1,6 +1,7 @@
 import { homedir } from "node:os";
 import { clipboard, dialog, nativeImage, shell, type BrowserWindow } from "electron";
 import type { BrowserPanelManager } from "../browser";
+import { openMicrophoneSettings } from "../browser/permissions";
 import {
   dbDeleteProject,
   dbDeleteThread,
@@ -33,6 +34,7 @@ import {
   type WindowChromePayload,
 } from "@/shared/ipc";
 import type { LightcodePaths } from "@/shared/lightcodePaths";
+import { UsageLoginManager } from "../usageLogin/UsageLoginManager";
 
 interface CreateLocalIpcHandlersOptions {
   getMainWindow(): BrowserWindow | null;
@@ -49,6 +51,15 @@ function requireBrowserPanel(getter: () => BrowserPanelManager | null): BrowserP
     throw new Error("Browser panel manager is not initialized.");
   }
   return mgr;
+}
+
+let usageLoginManager: UsageLoginManager | null = null;
+function getUsageLoginManager(
+  requirePaths: () => LightcodePaths,
+  getBrowserPanel: () => BrowserPanelManager | null,
+): UsageLoginManager {
+  usageLoginManager ??= new UsageLoginManager(requirePaths(), getBrowserPanel);
+  return usageLoginManager;
 }
 
 const ALLOWED_EXTERNAL_PROTOCOLS = new Set(["http:", "https:", "mailto:"]);
@@ -102,6 +113,7 @@ export function createLocalIpcHandlers(
     openExternalNative: async (url) => {
       await shell.openExternal(assertSafeExternalUrl(url));
     },
+    openMicrophoneSettings: () => openMicrophoneSettings(),
     focusWindow: () => {
       const win = options.getMainWindow();
       if (!win) return;
@@ -219,5 +231,29 @@ export function createLocalIpcHandlers(
     browserCancelPicker: () => {
       requireBrowserPanel(options.getBrowserPanelManager).cancelPicker();
     },
+    startUsageLogin: (payload) =>
+      getUsageLoginManager(
+        options.requireLightcodePaths,
+        options.getBrowserPanelManager,
+      ).startLogin(payload.providerId),
+    cancelUsageLogin: (payload) => {
+      getUsageLoginManager(
+        options.requireLightcodePaths,
+        options.getBrowserPanelManager,
+      ).cancelLogin(payload.providerId);
+    },
+    clearUsageLogin: (payload) =>
+      getUsageLoginManager(
+        options.requireLightcodePaths,
+        options.getBrowserPanelManager,
+      ).clearLogin(payload.providerId),
+    resolveUsageLoginConfirmation: (payload) => {
+      requireBrowserPanel(options.getBrowserPanelManager).resolveUsageLoginConfirmation(payload);
+    },
+    getUsageLoginState: () =>
+      getUsageLoginManager(
+        options.requireLightcodePaths,
+        options.getBrowserPanelManager,
+      ).getLoginState(),
   });
 }

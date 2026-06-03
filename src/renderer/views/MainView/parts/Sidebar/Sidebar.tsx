@@ -17,7 +17,7 @@ import type { Thread } from "@/shared/contracts";
 import { formatBytes } from "@/shared/formatBytes";
 import { isHomeProject, isHomeProjectId } from "@/shared/homeScope";
 import { SidebarButton } from "@/renderer/components/common";
-import { ProviderIcon, getStatusTone } from "@/renderer/components/providers";
+import { ThreadProviderIcon } from "@/renderer/components/providers";
 import {
   sidebarBodyScrollClass,
   sidebarColumnLayoutClass,
@@ -29,6 +29,7 @@ import { SidebarPanelDragButton } from "@/renderer/views/MainView/parts/Sidebar/
 import { SidebarProjectSection } from "@/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectSection";
 import { readBridge } from "@/renderer/bridge";
 import { openSettings } from "@/renderer/actions/panelActions";
+import { ProviderUsageRail } from "@/renderer/components/providers/ProviderUsageRail";
 import { openTerminal } from "@/renderer/actions/terminalActions";
 import { openThread } from "@/renderer/actions/threadActions";
 import {
@@ -46,7 +47,6 @@ import { useSidebarUiStore } from "@/renderer/state/sidebarUiStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useUpdateStore } from "@/renderer/state/updateStore";
 import { SidebarProjectThreadList } from "./parts/SidebarProjectThreadList";
-import { resolveGrowableProjectId } from "./parts/sidebarGrowLayout";
 
 function UpdateButtons(props: { iconOnly?: boolean }) {
   const { iconOnly = false } = props;
@@ -98,7 +98,7 @@ function UpdateButtons(props: { iconOnly?: boolean }) {
               {Math.round(downloadPercent)}%{speedLine ? ` · ${speedLine}` : ""}
             </span>
           </div>
-          <div className="h-1 w-full rounded-full bg-white/10">
+          <div className="h-1 w-full rounded-full bg-[var(--row-active)]">
             <div
               className="h-1 rounded-full bg-accent transition-[width] duration-300"
               style={{ width: `${Math.round(downloadPercent)}%` }}
@@ -128,7 +128,7 @@ function HomeTerminalButton(props: { projectId: string; projectName: string }) {
       panel="terminal"
       projectId={props.projectId}
       ariaLabel={`Terminal for ${props.projectName}`}
-      className={`shrink-0 cursor-grab rounded p-0.5 transition-colors hover:bg-white/[0.04] hover:text-foreground active:cursor-grabbing ${
+      className={`shrink-0 cursor-grab rounded p-0.5 transition-colors hover:bg-[var(--row-hover)] hover:text-foreground active:cursor-grabbing ${
         isActiveTerminal
           ? "text-accent"
           : hasTerminal
@@ -143,13 +143,7 @@ function HomeTerminalButton(props: { projectId: string; projectName: string }) {
 }
 
 function ThreadIcon(props: { thread: Thread }) {
-  return (
-    <ProviderIcon
-      kind={props.thread.agentKind}
-      tone={getStatusTone(props.thread)}
-      className="size-3.5"
-    />
-  );
+  return <ThreadProviderIcon thread={props.thread} className="size-3.5" />;
 }
 
 function CollapsedThreadRail() {
@@ -202,11 +196,6 @@ export function Sidebar() {
       state.projects.filter((project) => !isHomeProject(project)).map((project) => project.id),
     ),
   );
-  const projectExpansionTokens = useAppStore(
-    useShallow((state) =>
-      state.projects.flatMap((project) => [project.id, project.disabled ? 1 : 0]),
-    ),
-  );
   const homeProject = useAppStore((state) => state.projects.find(isHomeProject));
   const homeScopeEnabled = useSharedSettings((s) => s.homeScopeEnabled);
   const currentProjectId = useCurrentProjectId();
@@ -216,20 +205,6 @@ export function Sidebar() {
   const openThreadSearch = usePanelStore((s) => s.openThreadSearch);
   const isHomeProjectCollapsed = useSidebarUiStore((s) =>
     homeProject ? (s.collapsedProjects[homeProject.id] ?? false) : false,
-  );
-  const collapsedProjects = useSidebarUiStore((s) => s.collapsedProjects);
-  const collapsedWorktrees = useSidebarUiStore((s) => s.collapsedWorktrees);
-  const growableProjectId = useAppStore(
-    useShallow((state) =>
-      resolveGrowableProjectId({
-        projectExpansionTokens,
-        collapsedProjects,
-        collapsedWorktrees,
-        homeScopeEnabled,
-        sortMode,
-        threads: state.threads,
-      }),
-    ),
   );
   const setProjectCollapsed = useSidebarUiStore((s) => s.setProjectCollapsed);
   const toggleProjectCollapsed = useSidebarUiStore((s) => s.toggleProjectCollapsed);
@@ -276,7 +251,8 @@ export function Sidebar() {
           </div>
           <CollapsedThreadRail />
 
-          <div className="flex flex-col gap-1 border-t border-white/6 pt-2 pb-2 pr-2">
+          <div className="flex flex-col gap-1 border-t border-[var(--hairline)] pt-2 pb-2 pr-2">
+            <ProviderUsageRail orientation="column" />
             <UpdateButtons iconOnly />
             <SidebarButton
               iconOnly
@@ -331,11 +307,7 @@ export function Sidebar() {
                     }
                   />
                   {isHomeProjectCollapsed ? null : (
-                    <SidebarProjectThreadList
-                      project={homeProject}
-                      sortMode={sortMode}
-                      growableProjectId={growableProjectId}
-                    />
+                    <SidebarProjectThreadList project={homeProject} sortMode={sortMode} />
                   )}
                 </section>
               ) : null}
@@ -345,13 +317,13 @@ export function Sidebar() {
                   projectId={projectId}
                   projectIndex={projectIndex}
                   sortMode={sortMode}
-                  growableProjectId={growableProjectId}
                 />
               ))}
             </div>
           )}
         </div>
 
+        <ProviderUsageRail orientation="row" />
         <div className={sidebarFooterNavClass}>
           <UpdateButtons />
           <SidebarButton

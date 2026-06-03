@@ -270,7 +270,13 @@ export function ContinueInProviderDialog(props: {
                         id: a.kind,
                         label: a.label,
                         icon: (
-                          <ProviderIcon kind={a.kind} tone="active" className="size-3.5 shrink-0" />
+                          <ProviderIcon
+                            kind={a.kind}
+                            {...(a.icon ? { icon: a.icon } : {})}
+                            fallbackLabel={a.label}
+                            tone="active"
+                            className="size-3.5 shrink-0"
+                          />
                         ),
                       }))}
                       onChange={handleProviderChange}
@@ -278,6 +284,8 @@ export function ContinueInProviderDialog(props: {
                         selectedAgent ? (
                           <ProviderIcon
                             kind={selectedAgent.kind}
+                            {...(selectedAgent.icon ? { icon: selectedAgent.icon } : {})}
+                            fallbackLabel={selectedAgent.label}
                             tone="active"
                             className="size-3.5 shrink-0"
                           />

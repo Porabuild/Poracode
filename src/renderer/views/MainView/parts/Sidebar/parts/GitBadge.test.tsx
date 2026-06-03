@@ -96,4 +96,34 @@ describe("GitBadge", () => {
 
     expect(screen.queryByRole("button", { name: "Git status for feature/pr" })).toBeNull();
   });
+
+  it("renders diff stats before the PR icon so the icon stays aligned with the timestamp", () => {
+    useGitStore.setState({
+      worktreeStatuses: {
+        "/wt/feature": makeStatus({ totalInsertions: 12, totalDeletions: 3 }),
+      },
+      prData: {
+        "/wt/feature": {
+          number: 1,
+          state: "open",
+          title: "PR",
+          url: "https://github.com/o/r/pull/1",
+          baseBranch: "main",
+          isDraft: false,
+          updatedAt: "2026-06-02T00:00:00.000Z",
+        },
+      },
+    });
+
+    render(<GitBadge projectId="project-1" projectName="feature/pr" worktreePath="/wt/feature" />);
+
+    const badge = screen.getByRole("button", { name: "Git status for feature/pr" });
+    const insertion = screen.getByText("+12");
+    const prIcon = badge.querySelector(".lucide-git-pull-request");
+
+    expect(prIcon).not.toBeNull();
+    expect(
+      insertion.compareDocumentPosition(prIcon!) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
 });

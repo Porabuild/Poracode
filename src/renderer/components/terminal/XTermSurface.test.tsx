@@ -57,7 +57,9 @@ vi.mock("@xterm/xterm", () => ({
     buffer = { active: { baseY: 0, viewportY: 0 } };
     cols = 80;
     rows = 24;
+    options: Record<string, unknown> = {};
     constructor(options: Record<string, unknown>) {
+      this.options = options;
       state.terminal = this as unknown as Record<string, ReturnType<typeof vi.fn>>;
       state.terminalOptions = options;
     }

@@ -1,4 +1,4 @@
-import { GitFork, Play, Plus, Trash2 } from "lucide-react";
+import { CircleCheck, GitFork, Play, Plus, Trash2 } from "lucide-react";
 import { useSortable } from "@dnd-kit/react/sortable";
 import type { Project } from "@/shared/contracts";
 import { ContextMenu } from "@/renderer/components/common";
@@ -21,7 +21,7 @@ import {
 import { openFilesPanel, openGitReview } from "@/renderer/actions/panelActions";
 import { openWorktreeTerminal, runProjectAction } from "@/renderer/actions/terminalActions";
 import { deleteWorktreeGroup } from "@/renderer/actions/worktreeActions";
-import { openNewThreadInWorktree } from "@/renderer/actions/threadActions";
+import { openNewThreadInWorktree, toggleMarkThreadDone } from "@/renderer/actions/threadActions";
 import { readBridge } from "@/renderer/bridge";
 import { useGitStore } from "@/renderer/state/gitStore";
 import { useIsWorktreeCollapsed, useSidebarUiStore } from "@/renderer/state/sidebarUiStore";
@@ -49,7 +49,12 @@ export function SidebarWorktreeGroup(props: {
   const isActiveFiles = useIsWorktreeFilesPanelActive(group.worktreePath);
   const isActiveGit = useIsWorktreeGitPanelActive(group.worktreePath);
   const groupThreadIds = group.threads.map((t) => t.id);
+  const activeThreads = group.threads.filter((t) => !t.done);
   const isDone = group.threads.every((t) => t.done);
+  const latestThreadUpdatedAt = group.threads.reduce(
+    (latest, thread) => (thread.updatedAt > latest ? thread.updatedAt : latest),
+    group.threads[0]!.updatedAt,
+  );
 
   const { ref } = useSortable({
     id: `wt:${group.worktreePath}`,
@@ -83,6 +88,12 @@ export function SidebarWorktreeGroup(props: {
             label: "Git",
             icon: <GitFork className="size-3.5" />,
             items: worktreeGitItems,
+          },
+          {
+            id: "mark-all-done",
+            label: "Mark All Done",
+            icon: <CircleCheck className="size-3.5" />,
+            isDisabled: activeThreads.length === 0,
           },
           ...(project.scripts?.actions?.length
             ? [
@@ -118,6 +129,11 @@ export function SidebarWorktreeGroup(props: {
           if (key === "git-review") openGitReview(project.id, group.worktreePath);
           if (key === "delete-worktree")
             deleteWorktreeGroup(project.id, group.worktreePath, groupThreadIds);
+          if (key === "mark-all-done") {
+            for (const thread of group.threads) {
+              if (!thread.done) toggleMarkThreadDone(thread.id);
+            }
+          }
           if (key === "git-sync") gitSync(project.id, group.worktreePath);
           if (key === "git-push") gitPush(project.id, group.worktreePath);
           if (key === "git-pull") gitPull(project.id, group.worktreePath);
@@ -148,9 +164,13 @@ export function SidebarWorktreeGroup(props: {
           onOpenFiles={() => openFilesPanel(project.id, group.worktreePath)}
           onOpenGitReview={() => openGitReview(project.id, group.worktreePath)}
           onOpenTerminal={() => openWorktreeTerminal(project.id, group.worktreePath)}
+          onDeleteWorktree={() =>
+            deleteWorktreeGroup(project.id, group.worktreePath, groupThreadIds)
+          }
           isDragging={isDragging}
           isDraggingAnything={!!source}
           isDone={isDone}
+          updatedAt={latestThreadUpdatedAt}
         />
       </ContextMenu>
     </div>

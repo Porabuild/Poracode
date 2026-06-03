@@ -29,11 +29,16 @@ import {
   useProjectIds,
   useProjectWithoutDraftConfig,
 } from "@/renderer/state/useThread";
-import { useDevTerminalStore } from "@/renderer/state/devTerminalStore";
+import { useDevTerminalStore, type DevTerminalTab } from "@/renderer/state/devTerminalStore";
+import { closeAllPanels } from "@/renderer/actions/panelActions";
 import { SplitPaneContainer, type Rect } from "@/renderer/components/layout/SplitPaneContainer";
 import { macosTrafficLightPadClass } from "@/renderer/components/layout/sidebarChrome";
 import { ThreadDraftView } from "@/renderer/components/thread/ThreadDraftView";
-import { startShellWithToast, writeScriptToShell } from "@/renderer/utils/shellUtils";
+import {
+  normalizeShellScript,
+  startShellWithToast,
+  writeScriptToShellThenExitOnSuccess,
+} from "@/renderer/utils/shellUtils";
 import { generateTitleAsync } from "@/renderer/utils/titleGen";
 import { HomeView } from "@/renderer/views/HomeView";
 import { buildProjectDraftConfig } from "./draftConfig";
@@ -345,13 +350,13 @@ export function AppContent() {
       <div className="flex h-full flex-col">
         {activeGroupId && activeGroupName && (
           <div
-            className={`lightcode-content-over-drag-region ${macosTrafficLightPadClass} flex h-[env(titlebar-area-height,32px)] shrink-0 items-center gap-1 border-b border-white/[0.06] px-2`}
+            className={`lightcode-content-over-drag-region ${macosTrafficLightPadClass} flex h-[env(titlebar-area-height,32px)] shrink-0 items-center gap-1 border-b border-[var(--hairline)] px-2`}
           >
             <span className="truncate text-xs font-medium text-muted">{activeGroupName}</span>
             <button
               type="button"
               aria-label="Close group"
-              className="shrink-0 rounded p-0.5 text-muted/60 transition-colors hover:bg-white/[0.06] hover:text-foreground"
+              className="shrink-0 rounded p-0.5 text-muted/60 transition-colors hover:bg-[var(--row-hover)] hover:text-foreground"
               onClick={() => useAppStore.getState().closeGroupView()}
             >
               <X className="size-3.5" />
@@ -398,22 +403,75 @@ async function primeWorktreeGitState(project: Project, worktreePath: string): Pr
 }
 
 function runWorktreeSetupScript(project: Project, worktreePath: string, setupScript: string): void {
+  // Blank / comments-only scripts have nothing to run — skip the terminal
+  // entirely rather than leaving an idle "setup" shell behind.
+  if (!normalizeShellScript(setupScript)) return;
+
   const wtLocation = buildWorktreeLocation(project.location, worktreePath);
   const store = useDevTerminalStore.getState();
   const tab = store.addTab(project.id, "setup", worktreePath);
-  if (useSharedSettings.getState().autoShowTerminalPanel) {
+  const autoShow = useSharedSettings.getState().autoShowTerminalPanel;
+  const panelAlreadyOpen = store.isOpen;
+  if (autoShow) {
     store.openWorktreePanel(project.id, worktreePath);
   }
   store.setActiveTab(tab.id);
-  startShellWithToast(
-    {
-      shellId: tab.id,
-      projectLocation: wtLocation,
-      worktreePath,
-    },
-    "setup shell",
+
+  // When the terminal panel is (or becomes) visible, every tab mounts its own
+  // XTermSurface, which spawns the PTY itself at the measured viewport size.
+  // Spawning eagerly too would create a second PTY for the same shell id and
+  // race it, re-running the setup chain. Only spawn eagerly when the panel
+  // stays closed (no surface ever mounts), where this is the sole spawn.
+  if (!autoShow && !panelAlreadyOpen) {
+    startShellWithToast(
+      {
+        shellId: tab.id,
+        projectLocation: wtLocation,
+        worktreePath,
+      },
+      "setup shell",
+    );
+  }
+
+  // Auto-close the setup terminal once every command succeeds (the script
+  // self-exits) so worktrees don't accumulate stale shells. A failed setup
+  // stops short of the exit and leaves the shell open for inspection.
+  const detach = writeScriptToShellThenExitOnSuccess(tab.id, setupScript, wtLocation.kind, () =>
+    removeWorktreeSetupTab(tab),
   );
-  writeScriptToShell(tab.id, setupScript);
+  // If the tab is closed before setup finishes (manual close, worktree
+  // deletion), `closeThread` suppresses `thread-exited`, so detach the exit
+  // listener here instead of leaking it for the rest of the session.
+  const unsubscribeTabs = useDevTerminalStore.subscribe((state, prev) => {
+    if (state.tabs === prev.tabs) return;
+    if (state.tabs.some((t) => t.id === tab.id)) return;
+    detach();
+    unsubscribeTabs();
+  });
+}
+
+/**
+ * Removes a finished setup terminal tab. The PTY has already exited (success or
+ * a manual `exit`), so the supervisor session is gone — removing the tab is
+ * sufficient and `closeThread` would be a no-op. If the setup tab was the only
+ * one in the worktree context the panel is showing, close the panel too so the
+ * auto-opened panel doesn't linger on an empty "Open a terminal" state (mirrors
+ * manual close in DevTerminalPanel).
+ */
+function removeWorktreeSetupTab(tab: DevTerminalTab): void {
+  const store = useDevTerminalStore.getState();
+  const showingThisContext =
+    store.isOpen &&
+    store.activeProjectId === tab.projectId &&
+    (store.activeWorktreePath ?? undefined) === tab.worktreePath;
+  store.removeTab(tab.id);
+  if (!showingThisContext) return;
+  const remaining = useDevTerminalStore
+    .getState()
+    .tabs.filter((t) => t.projectId === tab.projectId && t.worktreePath === tab.worktreePath);
+  if (remaining.length > 0) return;
+  if (useSharedSettings.getState().terminalPosition !== "bottom") closeAllPanels();
+  useDevTerminalStore.getState().closePanel();
 }
 
 /**

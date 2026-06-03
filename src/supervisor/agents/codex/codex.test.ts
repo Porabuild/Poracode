@@ -218,6 +218,7 @@ describe("CodexStructuredSession", () => {
     session["bufferedRuntimeEvents"] = [];
     session["isDisposed"] = false;
     session["currentThreadStatus"] = { type: "idle" };
+    session["seenErrorMessages"] = new Set<string>();
     session["request"] = async (
       method: string,
       params: Record<string, unknown>,
@@ -347,6 +348,24 @@ describe("CodexStructuredSession", () => {
         summary: "auto",
       },
     });
+  });
+
+  it("forces serviceTier each turn: null when Fast is off (incl. the first turn), 'fast' when on", async () => {
+    const requests: Array<{ method: string; params: Record<string, unknown> }> = [];
+    const structuredSession = makeStructuredSession(requests);
+
+    // Off on the first turn → force null rather than preserving a config.toml tier.
+    await structuredSession.startTurn("normal", { model: "gpt-5.4", fast: false });
+    expect(requests[0]?.method).toBe("turn/start");
+    expect(requests[0]?.params.serviceTier).toBeNull();
+
+    // On → force "fast".
+    await structuredSession.startTurn("go fast", { model: "gpt-5.4", fast: true });
+    expect(requests[1]?.params.serviceTier).toBe("fast");
+
+    // Back off → force null again to clear the sticky server-side override.
+    await structuredSession.startTurn("back to normal", { model: "gpt-5.4", fast: false });
+    expect(requests[2]?.params.serviceTier).toBeNull();
   });
 
   it("dispatches /goal <objective> to thread/goal/set without starting a model turn", async () => {
@@ -543,6 +562,107 @@ describe("CodexStructuredSession", () => {
       },
     ]);
     expect((structuredSession["inboundRequests"] as Map<string, unknown>).size).toBe(0);
+  });
+
+  function makeNotificationSession(): {
+    onMessage: (message: unknown) => void;
+    runtimeEvents: RuntimeEvent[];
+  } {
+    const session = Object.create(CodexStructuredSession.prototype) as Record<string, unknown>;
+    const runtimeEvents: RuntimeEvent[] = [];
+    let onMessage: ((message: unknown) => void) | undefined;
+    session["threadId"] = "local-thread";
+    session["remoteThreadId"] = "provider-thread";
+    session["isDisposed"] = false;
+    session["currentThreadStatus"] = { type: "idle" };
+    session["seenErrorMessages"] = new Set<string>();
+    session["bufferedRuntimeEvents"] = [];
+    session["pendingRequests"] = new Map();
+    session["inboundRequests"] = new Map();
+    session["rejectPendingRequests"] = () => {};
+    session["request"] = async () => ({});
+    session["listener"] = {
+      onRuntimeEvent: (event: RuntimeEvent) => runtimeEvents.push(event),
+      onUpdate: () => {},
+    };
+    session["transport"] = {
+      setListener: (next: { onMessage: (message: unknown) => void }) => {
+        onMessage = next.onMessage;
+      },
+      write: () => {},
+    };
+    (session["attachTransportHandlers"] as () => void).call(session);
+    if (!onMessage) throw new Error("transport listener was not attached");
+    return { onMessage, runtimeEvents };
+  }
+
+  it("collapses a single usage-limit failure into one error event", () => {
+    vi.useFakeTimers();
+    try {
+      const { onMessage, runtimeEvents } = makeNotificationSession();
+      const usageLimit =
+        "Error running remote compact task You've hit your usage limit. Visit https://chatgpt.com/codex/settings/usage to purchase more credits.";
+
+      // Observed ordering: the bare systemError status change lands first, then
+      // Codex reports the real reason via turn/completed(failed) and a
+      // duplicate thread/error notification. The specific message must preempt
+      // the generic system-error fallback, and the duplicate must be dropped.
+      onMessage({
+        jsonrpc: "2.0",
+        method: "thread/status/changed",
+        params: { threadId: "provider-thread", status: { type: "systemError" } },
+      });
+      onMessage({
+        jsonrpc: "2.0",
+        method: "turn/completed",
+        params: {
+          threadId: "provider-thread",
+          turn: { id: "turn-1", status: "failed", error: { message: usageLimit } },
+        },
+      });
+      onMessage({
+        jsonrpc: "2.0",
+        method: "thread/error",
+        params: { message: usageLimit },
+      });
+
+      vi.advanceTimersByTime(1000);
+
+      expect(runtimeEvents.filter((event) => event.type === "error")).toEqual([
+        { type: "error", threadId: "local-thread", message: usageLimit },
+      ]);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("still surfaces the generic system-error fallback when no specific error follows", () => {
+    vi.useFakeTimers();
+    try {
+      const { onMessage, runtimeEvents } = makeNotificationSession();
+
+      onMessage({
+        jsonrpc: "2.0",
+        method: "thread/status/changed",
+        params: { threadId: "provider-thread", status: { type: "systemError" } },
+      });
+
+      // The fallback is deferred — nothing is emitted synchronously.
+      expect(runtimeEvents.filter((event) => event.type === "error")).toEqual([]);
+
+      vi.advanceTimersByTime(1000);
+
+      expect(runtimeEvents.filter((event) => event.type === "error")).toEqual([
+        {
+          type: "error",
+          threadId: "local-thread",
+          message:
+            "Codex reported a system error. The session may be out of usage or otherwise unable to continue.",
+        },
+      ]);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
 

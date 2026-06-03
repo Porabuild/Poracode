@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from "react";
-import { Maximize2, Minimize2, X } from "lucide-react";
+import { Tooltip } from "@heroui/react";
+import { Check, Copy, Maximize2, Minimize2, X } from "lucide-react";
 import { isMac, readBridge } from "@/renderer/bridge";
 import { useBrowserPanelStore } from "@/renderer/state/browserPanelStore";
 import { usePanelStore } from "@/renderer/state/panelStore";
@@ -108,6 +109,7 @@ export function BrowserPanel(props: { visible: boolean }) {
             <div className={macosTrafficLightGutterClass} aria-hidden />
           ) : null}
           <div className="text-xs font-medium text-foreground">Browser</div>
+          <BrowserDeviceCodeButton />
           <div className="flex-1" />
           {browserPanelOpen ? (
             <button
@@ -173,7 +175,7 @@ export function BrowserPanel(props: { visible: boolean }) {
         onMenuPreviewChange={setMenuPreviewDataUrl}
       />
       <BrowserTabStrip />
-      <div className="relative flex-1 overflow-hidden bg-[var(--surface-background,#0d1117)]">
+      <div className="relative flex-1 overflow-hidden bg-[var(--content-background)]">
         {tabs.map((tab) => (
           <BrowserTabWebview
             key={tab.tabId}
@@ -197,6 +199,75 @@ export function BrowserPanel(props: { visible: boolean }) {
         ) : null}
       </div>
     </div>
+  );
+}
+
+function BrowserDeviceCodeButton() {
+  const deviceCode = useBrowserPanelStore((s) => s.usageLoginDeviceCode);
+  const [copied, setCopied] = useState(false);
+  const [tooltipOpen, setTooltipOpen] = useState(false);
+  const copiedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    if (!deviceCode) {
+      setCopied(false);
+      setTooltipOpen(false);
+      return;
+    }
+    setCopied(true);
+    setTooltipOpen(true);
+    if (copiedTimerRef.current) clearTimeout(copiedTimerRef.current);
+    copiedTimerRef.current = setTimeout(() => setCopied(false), 1_500);
+  }, [deviceCode]);
+
+  useEffect(() => {
+    return () => {
+      if (copiedTimerRef.current) clearTimeout(copiedTimerRef.current);
+    };
+  }, []);
+
+  if (!deviceCode) return null;
+  const activeDeviceCode = deviceCode;
+
+  function copyDeviceCode() {
+    navigator.clipboard
+      .writeText(activeDeviceCode.code)
+      .then(() => {
+        setCopied(true);
+        setTooltipOpen(true);
+        if (copiedTimerRef.current) clearTimeout(copiedTimerRef.current);
+        copiedTimerRef.current = setTimeout(() => setCopied(false), 1_500);
+      })
+      .catch(() => {});
+  }
+
+  return (
+    <Tooltip delay={0} isOpen={tooltipOpen} onOpenChange={setTooltipOpen}>
+      <Tooltip.Trigger>
+        <button
+          type="button"
+          className="ml-1.5 flex h-5 max-w-[170px] items-center gap-1 rounded border border-accent/30 bg-accent/10 px-1.5 text-[11px] text-foreground transition-colors hover:bg-accent/15"
+          title={`Copy ${activeDeviceCode.providerLabel} device code ${activeDeviceCode.code}`}
+          aria-label={`Copy ${activeDeviceCode.providerLabel} device code ${activeDeviceCode.code}`}
+          onClick={copyDeviceCode}
+        >
+          {copied ? (
+            <Check className="size-3 shrink-0 text-accent" />
+          ) : (
+            <Copy className="size-3 shrink-0 text-accent" />
+          )}
+          <span className="shrink-0 text-muted">Paste</span>
+          <span className="truncate font-mono text-foreground">{activeDeviceCode.code}</span>
+        </button>
+      </Tooltip.Trigger>
+      <Tooltip.Content placement="bottom" className="z-[1000] px-2 py-1.5 text-xs">
+        <span className="block whitespace-nowrap">
+          {copied ? "Code copied. " : ""}
+          Paste <span className="font-mono text-foreground">{activeDeviceCode.code}</span> here.
+          Click to copy.
+        </span>
+      </Tooltip.Content>
+    </Tooltip>
   );
 }
 

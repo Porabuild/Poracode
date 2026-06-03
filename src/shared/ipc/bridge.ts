@@ -31,6 +31,7 @@ export type LightcodeBridge = LightcodeInvokeBridge & {
   posthogHost: string;
   posthogKey: string;
   sentryEnabled: boolean;
+  getDroppedFilePaths(files: File[]): string[];
   onSupervisorEvent(listener: (event: SupervisorEvent) => void): () => void;
   onUpdateStatus(listener: (status: UpdateStatus) => void): () => void;
   onBrowserEvent(listener: (event: BrowserEvent) => void): () => void;

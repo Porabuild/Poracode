@@ -31,9 +31,16 @@ const updateByKind: Record<string, AgentAdapter["update"]> = {
   },
   grok: {
     builtIn: { binary: "grok", args: ["update"] },
+    npm: "@xai-official/grok",
     latestVersionUrls: [
       "https://x.ai/cli/stable",
       "https://storage.googleapis.com/grok-build-public-artifacts/cli/stable",
+    ],
+  },
+  antigravity: {
+    builtIn: { binary: "agy", args: ["update"] },
+    latestVersionUrls: [
+      "https://antigravity-cli-auto-updater-974169037036.us-central1.run.app/manifests/linux_amd64.json",
     ],
   },
 };
@@ -154,6 +161,19 @@ describe("resolveUpdateCommand", () => {
     });
   });
 
+  it("falls back to the official Grok npm package when skipping the built-in updater", () => {
+    const adapter = makeAdapter("grok");
+    const status = makeStatus({
+      kind: "grok",
+      executablePath: "C:\\Users\\me\\.grok\\bin\\grok.exe",
+    });
+    expect(resolveUpdateCommand(adapter, status, NATIVE_WIN, { skipBuiltIn: true })).toEqual({
+      binary: "npm",
+      args: ["install", "-g", "@xai-official/grok@latest"],
+      strategy: "npm-global",
+    });
+  });
+
   it("uses npm-global for gemini when the path is in an npm install location", () => {
     const adapter = makeAdapter("gemini");
     const status = makeStatus({
@@ -248,6 +268,21 @@ describe("getLatestVersionForAdapter", () => {
     expect(result).toEqual({ version: "0.2.3", source: "version-url" });
     expect(fetchSpy).toHaveBeenCalledTimes(1);
     expect(fetchSpy.mock.calls[0]?.[0]).toBe("https://x.ai/cli/stable");
+  });
+
+  it("extracts a manifest version from provider version URLs", async () => {
+    const fetchSpy = vi.fn<typeof fetch>().mockResolvedValue({
+      ok: true,
+      text: async () => JSON.stringify({ version: "1.0.4" }),
+    } as Response);
+    globalThis.fetch = fetchSpy as unknown as typeof fetch;
+
+    const result = await getLatestVersionForAdapter(makeAdapter("antigravity"));
+    expect(result).toEqual({ version: "1.0.4", source: "version-url" });
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    expect(fetchSpy.mock.calls[0]?.[0]).toBe(
+      "https://antigravity-cli-auto-updater-974169037036.us-central1.run.app/manifests/linux_amd64.json",
+    );
   });
 
   it("falls back to the next provider version URL", async () => {

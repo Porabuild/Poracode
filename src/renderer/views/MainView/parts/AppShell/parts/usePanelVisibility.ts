@@ -8,6 +8,7 @@ export function usePanelVisibility() {
   const gitReviewAsPanel = usePanelStore((s) => s.gitReviewAsPanel);
   const filesPanelContext = usePanelStore((s) => s.filesPanelContext);
   const browserPanelOpen = usePanelStore((s) => s.browserPanelOpen);
+  const usagePanelOpen = usePanelStore((s) => s.usagePanelOpen);
   const terminalPosition = useSharedSettings((s) => s.terminalPosition);
 
   const isTerminalRight = terminalPosition === "right";
@@ -15,9 +16,10 @@ export function usePanelVisibility() {
   const filesPanelOpen = filesPanelContext !== null;
 
   const rightPanelOpen = isTerminalRight
-    ? devTerminalOpen || gitPanelOpen || filesPanelOpen || browserPanelOpen
+    ? devTerminalOpen || gitPanelOpen || filesPanelOpen || browserPanelOpen || usagePanelOpen
     : devTerminalOpen;
-  const sideGitPanelOpen = !isTerminalRight && (gitPanelOpen || filesPanelOpen || browserPanelOpen);
+  const sideGitPanelOpen =
+    !isTerminalRight && (gitPanelOpen || filesPanelOpen || browserPanelOpen || usagePanelOpen);
 
   return { rightPanelOpen, gitPanelOpen: sideGitPanelOpen };
 }

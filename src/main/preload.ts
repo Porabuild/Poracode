@@ -1,4 +1,4 @@
-import { contextBridge, ipcRenderer } from "electron";
+import { contextBridge, ipcRenderer, webUtils } from "electron";
 import { type LightcodeChannel, normalizeChannel } from "@/shared/channel";
 import {
   createInvokeBridge,
@@ -86,6 +86,9 @@ const bridge: LightcodeBridge = {
   posthogHost: resolveArgValue("--lc-posthog-host="),
   posthogKey: resolveArgValue("--lc-posthog-key="),
   sentryEnabled: resolveSentryEnabled(),
+  getDroppedFilePaths(files) {
+    return files.map((file) => webUtils.getPathForFile(file)).filter((path) => path.length > 0);
+  },
   ...createInvokeBridge((channel, ...args) => ipcRenderer.invoke(channel, ...args)),
   onSupervisorEvent(listener) {
     const handler = (_event: Electron.IpcRendererEvent, payload: SupervisorEvent) => {

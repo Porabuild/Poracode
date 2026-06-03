@@ -168,7 +168,7 @@ export function DevTerminalPanel(props: { hideHeader?: boolean }) {
     projectTabs.length === 0 ? (
       <div className="flex h-full items-center justify-center">
         <button
-          className="cursor-default rounded-lg border border-dashed border-white/10 px-6 py-4 text-sm text-muted transition-colors hover:border-white/20 hover:text-foreground"
+          className="cursor-default rounded-lg border border-dashed border-[var(--hairline-strong)] px-6 py-4 text-sm text-muted transition-colors hover:border-[var(--hairline-strong)] hover:text-foreground"
           onClick={handleAddTab}
           type="button"
         >

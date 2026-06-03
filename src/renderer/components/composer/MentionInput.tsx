@@ -3,6 +3,7 @@ import type { FileEntry, ProjectLocation, PromptSegment } from "@/shared/contrac
 import { fileNameFromPath } from "@/shared/promptContent";
 import { createChipElement, type FileMentionData } from "./FileMentionChip";
 import { createSlashCommandChipElement, createTriggerWordChipElement } from "./SlashCommandChip";
+import { type TriggerWordDef, findTriggerWord, triggerWordAlternation } from "./triggerWords";
 import { MentionPopover, type MentionEntry } from "./MentionPopover";
 import { useDebouncedFileSearch } from "./useDebouncedFileSearch";
 import { serializeToSegments, flattenSegments } from "./serializeMentions";
@@ -119,12 +120,15 @@ function detectTriggerRange(triggerChar: string): Range | null {
   return range;
 }
 
-const WORKFLOW_WORD = "workflow";
-const WORKFLOW_WORD_LEN = WORKFLOW_WORD.length;
-/** Matches "workflow" as a standalone word at/near the cursor end of text. */
-const WORKFLOW_AT_CURSOR_RE = /(?:^|[\s(])(workflow)\s*$/i;
+/** Stable empty list so an omitted `triggerWords` prop doesn't churn renders. */
+const EMPTY_TRIGGER_WORDS: readonly TriggerWordDef[] = [];
 
-function replaceWorkflowTriggerWord(): boolean {
+/**
+ * Promote a trigger word at/near the cursor into a chip. Matches any of the
+ * enabled `defs` as a standalone word immediately before the caret.
+ */
+function replaceTriggerWordAtCursor(defs: readonly TriggerWordDef[]): boolean {
+  if (defs.length === 0) return false;
   const sel = window.getSelection();
   if (!sel || !sel.isCollapsed || !sel.anchorNode) return false;
   if (sel.anchorNode.nodeType !== Node.TEXT_NODE) return false;
@@ -136,20 +140,24 @@ function replaceWorkflowTriggerWord(): boolean {
   const text = textNode.textContent ?? "";
   const cursor = sel.anchorOffset;
   const before = text.substring(0, cursor);
-  const match = WORKFLOW_AT_CURSOR_RE.exec(before);
+  const atCursorRe = new RegExp(`(?:^|[\\s(])(${triggerWordAlternation(defs)})\\s*$`, "i");
+  const match = atCursorRe.exec(before);
   if (!match) return false;
+  const matchedWord = match[1];
+  const def = matchedWord ? findTriggerWord(defs, matchedWord) : undefined;
+  if (!matchedWord || !def) return false;
 
-  // Compute the start offset of "workflow" within the text node.
-  // match[0] includes the leading boundary char (space/paren/start), so
-  // the "workflow" word itself starts at match.index + (match[0].length - WORKFLOW_WORD_LEN).
-  const wordStart = match.index + match[0].length - WORKFLOW_WORD_LEN;
+  // Locate the matched word inside match[0] (which also captures the leading
+  // boundary char and any trailing whitespace), so the offset math holds for
+  // words of any length.
+  const wordStart = match.index + match[0].indexOf(matchedWord);
 
   const range = document.createRange();
   range.setStart(textNode, wordStart);
-  range.setEnd(textNode, wordStart + WORKFLOW_WORD_LEN);
+  range.setEnd(textNode, wordStart + matchedWord.length);
   range.deleteContents();
 
-  const chip = createTriggerWordChipElement(WORKFLOW_WORD);
+  const chip = createTriggerWordChipElement(def.word);
   range.insertNode(chip);
 
   const nextRange = document.createRange();
@@ -160,31 +168,42 @@ function replaceWorkflowTriggerWord(): boolean {
   return true;
 }
 
-/** Walk all text nodes and convert any remaining "workflow" words to chips. */
-function replaceAllWorkflowTriggerWords(editor: HTMLDivElement): void {
+/**
+ * Walk all text nodes and convert any remaining trigger words to chips.
+ * Returns true when at least one chip was inserted.
+ */
+function replaceAllTriggerWords(editor: HTMLDivElement, defs: readonly TriggerWordDef[]): boolean {
+  if (defs.length === 0) return false;
+  const wholeWordRe = new RegExp(`\\b(${triggerWordAlternation(defs)})\\b`, "gi");
   const textNodes: Text[] = [];
   const walker = document.createTreeWalker(editor, NodeFilter.SHOW_TEXT);
   let node: Text | null;
   while ((node = walker.nextNode() as Text | null)) {
     if (node.parentElement?.closest("[data-trigger-word]")) continue;
-    if (/\bworkflow\b/i.test(node.textContent ?? "")) textNodes.push(node);
+    wholeWordRe.lastIndex = 0;
+    if (wholeWordRe.test(node.textContent ?? "")) textNodes.push(node);
   }
 
+  let inserted = false;
   // Process in reverse so earlier DOM mutations don't shift later offsets.
   for (let i = textNodes.length - 1; i >= 0; i--) {
     const tn = textNodes[i]!;
     const text = tn.textContent ?? "";
-    const matches = [...text.matchAll(/\bworkflow\b/gi)].reverse();
+    const matches = [...text.matchAll(wholeWordRe)].reverse();
     for (const m of matches) {
       if (m.index == null) continue;
+      const def = findTriggerWord(defs, m[1] ?? m[0]);
+      if (!def) continue;
       const range = document.createRange();
       range.setStart(tn, m.index);
-      range.setEnd(tn, m.index + WORKFLOW_WORD_LEN);
+      range.setEnd(tn, m.index + m[0].length);
       range.deleteContents();
-      const chip = createTriggerWordChipElement(WORKFLOW_WORD);
+      const chip = createTriggerWordChipElement(def.word);
       range.insertNode(chip);
+      inserted = true;
     }
   }
+  return inserted;
 }
 
 function hasEditorContent(editor: HTMLDivElement): boolean {
@@ -232,6 +251,13 @@ export const MentionInput = forwardRef<
     onBrowserMentionSelect?: () => void;
     onSlashCommandChange?: (query: string | null) => void;
     /**
+     * Trigger words to promote into chips as the user types/pastes (e.g. the
+     * "workflow" orchestration affordance). Only the words the active
+     * provider/model opts into are passed; an empty/omitted list leaves all
+     * words as plain text. See {@link TriggerWordDef}.
+     */
+    triggerWords?: readonly TriggerWordDef[];
+    /**
      * Called before MentionInput's own key handling (after the mention popover
      * absorbs navigation keys). Return `true` to indicate the key was handled
      * and stop further processing.
@@ -253,7 +279,9 @@ export const MentionInput = forwardRef<
     onBrowserMentionSelect,
     onSlashCommandChange,
     onInterceptKey,
+    triggerWords,
   } = props;
+  const triggerWordDefs = triggerWords ?? EMPTY_TRIGGER_WORDS;
   const editorRef = useRef<HTMLDivElement>(null);
   const lastSlashQueryRef = useRef<string | null>(null);
   const voicePreviewRef = useRef<HTMLSpanElement | null>(null);
@@ -568,7 +596,7 @@ export const MentionInput = forwardRef<
   }
 
   function handleInput() {
-    if (editorRef.current) replaceWorkflowTriggerWord();
+    if (editorRef.current) replaceTriggerWordAtCursor(triggerWordDefs);
     checkMentionState();
     notifyTextChange();
   }
@@ -605,8 +633,8 @@ export const MentionInput = forwardRef<
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       if (!editorRef.current) return;
-      // Convert any remaining "workflow" words before serializing.
-      replaceAllWorkflowTriggerWords(editorRef.current);
+      // Convert any remaining trigger words before serializing.
+      replaceAllTriggerWords(editorRef.current, triggerWordDefs);
       const segments = serializeToSegments(editorRef.current);
       if (flattenSegments(segments).length > 0) {
         onSubmit(segments);
@@ -680,12 +708,11 @@ export const MentionInput = forwardRef<
     range.collapse(false);
     sel.removeAllRanges();
     sel.addRange(range);
-    // Promote any "workflow" tokens inside the pasted text to trigger-word
-    // chips, matching the live-typing behavior. The caret is restored to the
-    // end of the paste afterwards so the user keeps typing where they left
-    // off rather than jumping back into the chip.
-    if (editorRef.current && /\bworkflow\b/i.test(text)) {
-      replaceAllWorkflowTriggerWords(editorRef.current);
+    // Promote any trigger-word tokens inside the pasted text to chips, matching
+    // the live-typing behavior. The caret is restored to the end of the paste
+    // afterwards so the user keeps typing where they left off rather than
+    // jumping back into the chip.
+    if (editorRef.current && replaceAllTriggerWords(editorRef.current, triggerWordDefs)) {
       placeCaretAtEnd(editorRef.current);
     }
     notifyTextChange();

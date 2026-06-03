@@ -1,4 +1,4 @@
-import { ReactNode, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { ReactNode, useEffect, useLayoutEffect, useRef, useState, type DragEvent } from "react";
 import { ArrowUp, Square } from "lucide-react";
 import { ToggleButton, Tooltip } from "@heroui/react";
 import {
@@ -21,6 +21,7 @@ export type ComposerIconKind = "effort" | "permission";
 
 const COLLAPSE_LEVELS = [0, 1, 2, 3, 4, 5] as const;
 const DEFAULT_LABEL_COLLAPSE_LEVEL = 1;
+const COMPOSER_FILE_DRAG_TYPE = "application/lightcode-composer-file";
 
 export type ComposerControl =
   | {
@@ -44,6 +45,12 @@ export type ComposerControl =
       isSelected: boolean;
       onChange?: (isSelected: boolean) => void;
       isDisabled?: boolean;
+      /**
+       * When set, the toggle is rendered dimmed and non-interactive with this
+       * message as its tooltip (e.g. a Fast toggle the account can't use). Kept
+       * hoverable rather than natively `disabled` so the tooltip still shows.
+       */
+      disabledReason?: string;
       iconOnly?: boolean;
       fillIconOnSelect?: boolean;
       isCurrentState?: boolean;
@@ -160,6 +167,7 @@ export function ThreadComposer(props: {
   preserveDisabledControlStyle?: boolean;
   onPromptChange: (value: string) => void;
   onSubmit: () => void;
+  onAttachFiles?: (paths: string[]) => void;
   onStop?: (() => void) | undefined;
   controls: ComposerControl[];
   leadingControls?: ReactNode | ((wrapLevel: number) => ReactNode);
@@ -186,6 +194,7 @@ export function ThreadComposer(props: {
     preserveDisabledControlStyle = false,
     onPromptChange,
     onSubmit,
+    onAttachFiles,
     onStop,
     controls,
     leadingControls,
@@ -195,9 +204,11 @@ export function ThreadComposer(props: {
   } = props;
 
   const [wrapLevel, setWrapLevel] = useState(0);
+  const [isAttachmentDropActive, setIsAttachmentDropActive] = useState(false);
   const controlsRef = useRef<HTMLDivElement>(null);
   const probeContainerRef = useRef<HTMLDivElement>(null);
   const editorHostRef = useRef<HTMLDivElement>(null);
+  const attachmentDragDepthRef = useRef(0);
   const probeContentCacheRef = useRef<{ key: string; content: ReactNode } | undefined>(undefined);
   const derivedToolbarLayoutKey = controls
     .map((control) => {
@@ -387,20 +398,26 @@ export function ThreadComposer(props: {
 
     if (control.kind === "toggle") {
       const hideLabel = control.iconOnly || shouldHideLabel;
+      // A `disabledReason` toggle stays hoverable (not natively `disabled`) so
+      // its explanatory tooltip still fires; it's dimmed and click is a no-op.
+      const gated = Boolean(control.disabledReason);
       const toggle = (
         <ToggleButton
           key={`toggle-${index}`}
           aria-label={control.label}
+          aria-disabled={gated}
           className={`lightcode-composer-toggle ${
             control.fillIconOnSelect ? "lightcode-composer-toggle--fill-icon-selected " : ""
           }${control.isCurrentState ? "lightcode-composer-toggle--current " : ""}${
             control.iconOnly ? "min-w-9 px-2" : "min-w-0 px-2.5"
-          }${control.className ? ` ${control.className}` : ""}`}
-          isDisabled={control.isDisabled ?? false}
-          isSelected={control.isSelected}
+          }${gated ? " opacity-50 cursor-not-allowed" : ""}${
+            control.className ? ` ${control.className}` : ""
+          }`}
+          isDisabled={gated ? false : (control.isDisabled ?? false)}
+          isSelected={gated ? false : control.isSelected}
           size="sm"
           variant="ghost"
-          onChange={control.onChange ?? (() => undefined)}
+          onChange={gated ? () => undefined : (control.onChange ?? (() => undefined))}
         >
           {resolveIcon(control)}
           {!control.iconOnly && (
@@ -411,11 +428,12 @@ export function ThreadComposer(props: {
         </ToggleButton>
       );
 
-      if (hideLabel) {
+      const tooltipText = gated ? control.disabledReason : hideLabel ? control.label : undefined;
+      if (tooltipText) {
         return (
-          <Tooltip key={`toggle-tooltip-${index}`}>
-            {toggle}
-            <Tooltip.Content placement="top">{control.label}</Tooltip.Content>
+          <Tooltip key={`toggle-tooltip-${index}`} delay={0}>
+            <Tooltip.Trigger>{toggle}</Tooltip.Trigger>
+            <Tooltip.Content placement="top">{tooltipText}</Tooltip.Content>
           </Tooltip>
         );
       }
@@ -585,6 +603,57 @@ export function ThreadComposer(props: {
     );
   };
 
+  const hasAttachmentDragData = (dataTransfer: DataTransfer) =>
+    Array.from(dataTransfer.types).some(
+      (type) => type === "Files" || type === COMPOSER_FILE_DRAG_TYPE,
+    );
+
+  const resolveAttachmentDropPaths = (dataTransfer: DataTransfer): string[] => {
+    const payload = dataTransfer.getData(COMPOSER_FILE_DRAG_TYPE);
+    if (payload) {
+      try {
+        const parsed = JSON.parse(payload) as { path?: unknown; type?: unknown };
+        return typeof parsed.path === "string" && parsed.type === "file" ? [parsed.path] : [];
+      } catch {
+        return [];
+      }
+    }
+    return window.lightcode.getDroppedFilePaths(Array.from(dataTransfer.files));
+  };
+
+  const handleAttachmentDragEnter = (event: DragEvent<HTMLDivElement>) => {
+    if (!onAttachFiles || !hasAttachmentDragData(event.dataTransfer)) return;
+    event.preventDefault();
+    attachmentDragDepthRef.current += 1;
+    event.dataTransfer.dropEffect = "copy";
+    setIsAttachmentDropActive(true);
+  };
+
+  const handleAttachmentDragOver = (event: DragEvent<HTMLDivElement>) => {
+    if (!onAttachFiles || !hasAttachmentDragData(event.dataTransfer)) return;
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "copy";
+  };
+
+  const handleAttachmentDragLeave = (event: DragEvent<HTMLDivElement>) => {
+    if (!onAttachFiles || !hasAttachmentDragData(event.dataTransfer)) return;
+    attachmentDragDepthRef.current = Math.max(0, attachmentDragDepthRef.current - 1);
+    if (attachmentDragDepthRef.current === 0) {
+      setIsAttachmentDropActive(false);
+    }
+  };
+
+  const handleAttachmentDrop = (event: DragEvent<HTMLDivElement>) => {
+    if (!onAttachFiles || !hasAttachmentDragData(event.dataTransfer)) return;
+    event.preventDefault();
+    attachmentDragDepthRef.current = 0;
+    setIsAttachmentDropActive(false);
+    const paths = resolveAttachmentDropPaths(event.dataTransfer);
+    if (paths.length > 0) {
+      onAttachFiles(paths);
+    }
+  };
+
   const toolbar = (
     <div className={toolbarClassName}>
       {leadingControls && (
@@ -608,11 +677,22 @@ export function ThreadComposer(props: {
 
   return (
     <div>
-      <div className={shellClassName}>
+      <div
+        className={shellClassName}
+        onDragEnter={handleAttachmentDragEnter}
+        onDragOver={handleAttachmentDragOver}
+        onDragLeave={handleAttachmentDragLeave}
+        onDrop={handleAttachmentDrop}
+      >
         {variant === "draft" && <div className="lightcode-composer-border-glow" />}
+        {isAttachmentDropActive ? (
+          <div className="lightcode-composer-drop-overlay">Drop here to attach</div>
+        ) : null}
         {fixedContent}
         {attachmentBar}
-        <div ref={editorHostRef}>{renderEditor()}</div>
+        <div ref={editorHostRef} data-composer-input-anchor="">
+          {renderEditor()}
+        </div>
         {toolbar}
       </div>
     </div>

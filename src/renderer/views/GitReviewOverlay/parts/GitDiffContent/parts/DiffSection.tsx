@@ -96,7 +96,7 @@ export function DiffSection(props: {
       <div className="rounded border border-border">
         <FileHeader entry={entry} collapsed={collapsed} onToggleCollapse={onToggleCollapse} />
         <div className="flex h-16 items-center justify-center text-xs text-muted/40">
-          <div className="h-3 w-24 animate-pulse rounded bg-white/[0.06]" />
+          <div className="h-3 w-24 animate-pulse rounded bg-[var(--row-hover)]" />
         </div>
       </div>
     );
@@ -144,7 +144,7 @@ export function DiffSection(props: {
       ) : (
         !collapsed && (
           <div className="flex h-16 items-center justify-center text-xs text-muted/40">
-            <div className="h-3 w-24 animate-pulse rounded bg-white/[0.06]" />
+            <div className="h-3 w-24 animate-pulse rounded bg-[var(--row-hover)]" />
           </div>
         )
       )}

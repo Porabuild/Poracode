@@ -131,7 +131,7 @@ export function BrowserToolbar(props: {
   };
 
   return (
-    <div className="flex items-center gap-1 border-b border-border bg-[var(--content-background)] px-1.5 py-1">
+    <div className="flex items-center gap-1 border-b border-border bg-[var(--surface)] px-1.5 py-1">
       <button
         type="button"
         className={toolbarButtonClass}
@@ -177,7 +177,7 @@ export function BrowserToolbar(props: {
       <form className="flex-1" onSubmit={onSubmit}>
         <input
           type="text"
-          className="h-7 w-full rounded border border-border bg-[var(--input-background,#1c2128)] px-2 text-[12px] outline-none focus:border-sky-400"
+          className="h-7 w-full rounded border border-border bg-[var(--field-background)] px-2 text-[12px] text-foreground outline-none placeholder:text-[color:var(--field-placeholder)] focus:border-[color:var(--accent)]"
           placeholder="Search or enter address"
           value={urlInput}
           onChange={(e) => setUrlInput(e.target.value)}

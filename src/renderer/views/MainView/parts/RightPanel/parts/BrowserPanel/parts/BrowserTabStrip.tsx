@@ -7,7 +7,7 @@ function TabFavicon(props: { faviconUrl?: string; loading: boolean }) {
   if (props.loading) {
     return (
       <span className="flex size-3.5 shrink-0 items-center justify-center">
-        <span className="size-2 animate-pulse rounded-full bg-sky-400/70" />
+        <span className="size-2 animate-pulse rounded-full bg-accent/70" />
       </span>
     );
   }
@@ -99,7 +99,7 @@ export function BrowserTabStrip() {
             <button
               type="button"
               aria-label="Close tab"
-              className="invisible flex h-4 w-4 items-center justify-center rounded text-foreground/50 hover:bg-[var(--input-background-hover,#252b33)] hover:text-foreground group-hover:visible group-focus-within:visible"
+              className="invisible flex h-4 w-4 items-center justify-center rounded text-foreground/50 hover:bg-[var(--row-hover)] hover:text-foreground group-hover:visible group-focus-within:visible"
               title="Close tab"
               onClick={(e) => {
                 e.stopPropagation();
