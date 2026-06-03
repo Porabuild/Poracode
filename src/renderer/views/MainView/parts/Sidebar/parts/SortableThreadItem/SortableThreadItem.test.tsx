@@ -113,8 +113,7 @@ describe("SortableThreadItem", () => {
     contextMenuItemsMock.mockClear();
   });
 
-  it("uses the measured virtual row as the sortable element", () => {
-    const measureElement = vi.fn<(element: Element | null) => void>();
+  it("registers the row element as the sortable element", () => {
     const { container } = render(
       <SortableThreadItem
         thread={makeThread()}
@@ -124,16 +123,13 @@ describe("SortableThreadItem", () => {
         editingThreadId={null}
         setEditingThreadId={vi.fn<(id: string | null) => void>()}
         group="project-entries:project-1"
-        virtualIndex={3}
-        measureElement={measureElement}
       />,
     );
 
-    const row = container.querySelector("[data-index='3']");
+    const row = container.firstElementChild;
 
     expect(row).toBeInstanceOf(HTMLElement);
     expect(sortableRefMock).toHaveBeenCalledWith(row);
-    expect(measureElement).toHaveBeenCalledWith(row);
   });
 
   it("enables unload for a loaded thread without a session ref", () => {

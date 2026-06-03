@@ -1,4 +1,3 @@
-import { useVirtualizer } from "@tanstack/react-virtual";
 import type { Project } from "@/shared/contracts";
 import {
   useCurrentThreadIdsCount,
@@ -6,37 +5,26 @@ import {
   useIsCurrentProjectDraft,
   useProjectThreads,
 } from "@/renderer/hooks/uiSelectors";
-import { useScrollFade } from "@/renderer/hooks/useScrollFade";
+import { ChevronDown } from "lucide-react";
 import { useDragSource } from "@/renderer/dnd";
 import { openNewThread, openNewThreadSideBySide } from "@/renderer/actions/threadActions";
-import { useSidebarUiStore } from "@/renderer/state/sidebarUiStore";
+import { useSidebarUiStore, useThreadListLimit } from "@/renderer/state/sidebarUiStore";
+import { SidebarButton } from "@/renderer/components/common";
 import { NewThreadButton } from "./NewThreadButton";
-import { resolveProjectThreadListMaxHeight } from "./sidebarGrowLayout";
-import {
-  buildSidebarProjectRows,
-  estimateSidebarRowSize,
-  type SidebarVirtualRow,
-} from "./sidebarProjectRows";
+import { buildSidebarProjectRows, type SidebarRow } from "./sidebarProjectRows";
 import type { ThreadSortMode } from "./sortMode";
 import { SidebarThreadGroup } from "./SidebarThreadGroup";
 import { SidebarWorktreeGroup } from "./SidebarWorktreeGroup";
 import { SortableThreadItem } from "./SortableThreadItem/SortableThreadItem";
 
-const VIRTUAL_OVERSCAN = 12;
-
-export function SidebarProjectThreadList(props: {
-  project: Project;
-  sortMode: ThreadSortMode;
-  growableProjectId: string | null;
-}) {
-  const { project, sortMode, growableProjectId } = props;
-  const { setScrollContainer, scrollRef, scrollFadeStyle } = useScrollFade<HTMLDivElement>({
-    maxFadePx: 10,
-  });
+export function SidebarProjectThreadList(props: { project: Project; sortMode: ThreadSortMode }) {
+  const { project, sortMode } = props;
   const projectThreads = useProjectThreads(project.id);
   const collapsedWorktrees = useSidebarUiStore((s) => s.collapsedWorktrees);
   const editingThreadId = useSidebarUiStore((s) => s.editingThreadId);
   const setEditingThreadId = useSidebarUiStore((s) => s.setEditingThreadId);
+  const revealMoreThreads = useSidebarUiStore((s) => s.revealMoreThreads);
+  const visibleLimit = useThreadListLimit(project.id);
   const hasDraft = useHasDraft(project.id);
   const currentThreadCount = useCurrentThreadIdsCount();
   const isDraftActive = useIsCurrentProjectDraft(project.id);
@@ -47,22 +35,7 @@ export function SidebarProjectThreadList(props: {
     projectThreads,
     sortMode,
     collapsedWorktrees,
-  });
-  const virtualizer = useVirtualizer({
-    count: rows.length,
-    getScrollElement: () => scrollRef.current,
-    estimateSize: (index) => estimateSidebarRowSize(rows[index]),
-    getItemKey: (index) => rows[index]?.key ?? index,
-    overscan: VIRTUAL_OVERSCAN,
-    useFlushSync: false,
-  });
-  const virtualItems = virtualizer.getVirtualItems();
-  const totalSize = virtualizer.getTotalSize();
-  const firstVisibleStart = virtualItems[0]?.start ?? 0;
-  const maxHeight = resolveProjectThreadListMaxHeight({
-    growableProjectId,
-    projectId: project.id,
-    itemContentHeightPx: totalSize,
+    visibleLimit,
   });
 
   return (
@@ -77,48 +50,41 @@ export function SidebarProjectThreadList(props: {
         onOpenAsPanel={() => openNewThreadSideBySide(project.id)}
       />
 
-      <div
-        ref={setScrollContainer}
-        className="overflow-y-auto"
-        style={{
-          ...scrollFadeStyle,
-          ...(maxHeight ? { maxHeight } : {}),
-        }}
-      >
-        <div className="relative w-full" style={{ height: totalSize }}>
-          <div
-            className="absolute top-0 left-0 w-full"
-            style={{ transform: `translateY(${firstVisibleStart}px)` }}
-          >
-            {virtualItems.map((virtualRow) => {
-              const row = rows[virtualRow.index];
-              if (!row) return null;
-              return (
-                <SidebarVirtualThreadRow
-                  key={virtualRow.key}
-                  row={row}
-                  index={virtualRow.index}
-                  project={project}
-                  editingThreadId={editingThreadId}
-                  setEditingThreadId={setEditingThreadId}
-                  measureElement={virtualizer.measureElement}
-                />
-              );
-            })}
-          </div>
-        </div>
+      <div>
+        {rows.map((row) =>
+          row.kind === "see-more" ? (
+            <SeeMoreThreadsButton key={row.key} onPress={() => revealMoreThreads(project.id)} />
+          ) : (
+            <SidebarThreadRow
+              key={row.key}
+              row={row}
+              project={project}
+              editingThreadId={editingThreadId}
+              setEditingThreadId={setEditingThreadId}
+            />
+          ),
+        )}
       </div>
     </div>
   );
 }
 
-function SidebarVirtualThreadRow(props: {
-  row: SidebarVirtualRow;
-  index: number;
+function SeeMoreThreadsButton(props: { onPress: () => void }) {
+  return (
+    <SidebarButton
+      size="xs"
+      icon={<ChevronDown className="size-3.5" />}
+      label="See more"
+      onPress={props.onPress}
+    />
+  );
+}
+
+function SidebarThreadRow(props: {
+  row: Exclude<SidebarRow, { kind: "see-more" }>;
   project: Project;
   editingThreadId: string | null;
   setEditingThreadId: (id: string | null) => void;
-  measureElement: (element: Element | null) => void;
 }) {
   const { row, project, editingThreadId, setEditingThreadId } = props;
 
@@ -136,14 +102,12 @@ function SidebarVirtualThreadRow(props: {
         setEditingThreadId={setEditingThreadId}
         group={row.group}
         {...(row.sortDisabled !== undefined ? { sortDisabled: row.sortDisabled } : {})}
-        virtualIndex={props.index}
-        measureElement={props.measureElement}
       />
     );
   }
 
   return (
-    <div ref={props.measureElement} data-index={props.index} className="w-full pb-0.5">
+    <div className="w-full pb-0.5">
       {row.kind === "worktree-group" ? (
         <SidebarWorktreeGroup
           group={row.group}

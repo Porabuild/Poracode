@@ -1,16 +1,20 @@
 import { create } from "zustand";
 import { captureProductEvent } from "@/renderer/analytics/posthog";
+import { SIDEBAR_THREAD_LIST_PAGE_SIZE } from "@/renderer/views/MainView/parts/Sidebar/parts/sidebarProjectRows";
 
 const COLLAPSED_PROJECTS_STORAGE_KEY = "lightcode-collapsed-projects";
 
 interface SidebarUiState {
   collapsedProjects: Record<string, boolean>;
   collapsedWorktrees: Record<string, boolean>;
+  /** Per-project count of thread-list items revealed via "See more" (ephemeral). */
+  threadListLimits: Record<string, number>;
   editingThreadId: string | null;
   setProjectCollapsed: (projectId: string, collapsed: boolean) => void;
   toggleProjectCollapsed: (projectId: string) => void;
   setWorktreeCollapsed: (key: string, collapsed: boolean) => void;
   toggleWorktreeCollapsed: (key: string) => void;
+  revealMoreThreads: (projectId: string) => void;
   setEditingThreadId: (id: string | null) => void;
 }
 
@@ -31,9 +35,17 @@ function writeCollapsedProjects(collapsedProjects: Record<string, boolean>): voi
   }
 }
 
+function withoutKey<T>(record: Record<string, T>, key: string): Record<string, T> {
+  if (!(key in record)) return record;
+  const next = { ...record };
+  delete next[key];
+  return next;
+}
+
 export const useSidebarUiStore = create<SidebarUiState>()((set) => ({
   collapsedProjects: readCollapsedProjects(),
   collapsedWorktrees: {},
+  threadListLimits: {},
   editingThreadId: null,
 
   setProjectCollapsed: (projectId, collapsed) =>
@@ -42,17 +54,20 @@ export const useSidebarUiStore = create<SidebarUiState>()((set) => ({
       const collapsedProjects = { ...state.collapsedProjects, [projectId]: collapsed };
       writeCollapsedProjects(collapsedProjects);
       captureProductEvent("ui.project_group_toggled", { collapsed });
-      return { collapsedProjects };
+      // Collapsing resets the revealed page count so reopening starts fresh.
+      return collapsed
+        ? { collapsedProjects, threadListLimits: withoutKey(state.threadListLimits, projectId) }
+        : { collapsedProjects };
     }),
   toggleProjectCollapsed: (projectId) =>
     set((state) => {
-      const collapsedProjects = {
-        ...state.collapsedProjects,
-        [projectId]: !(state.collapsedProjects[projectId] ?? false),
-      };
+      const collapsed = !(state.collapsedProjects[projectId] ?? false);
+      const collapsedProjects = { ...state.collapsedProjects, [projectId]: collapsed };
       writeCollapsedProjects(collapsedProjects);
-      captureProductEvent("ui.project_group_toggled", { collapsed: collapsedProjects[projectId] });
-      return { collapsedProjects };
+      captureProductEvent("ui.project_group_toggled", { collapsed });
+      return collapsed
+        ? { collapsedProjects, threadListLimits: withoutKey(state.threadListLimits, projectId) }
+        : { collapsedProjects };
     }),
   setWorktreeCollapsed: (key, collapsed) =>
     set((state) => {
@@ -71,11 +86,26 @@ export const useSidebarUiStore = create<SidebarUiState>()((set) => ({
         },
       };
     }),
+  revealMoreThreads: (projectId) =>
+    set((state) => {
+      const current = state.threadListLimits[projectId] ?? SIDEBAR_THREAD_LIST_PAGE_SIZE;
+      captureProductEvent("ui.thread_list_show_more");
+      return {
+        threadListLimits: {
+          ...state.threadListLimits,
+          [projectId]: current + SIDEBAR_THREAD_LIST_PAGE_SIZE,
+        },
+      };
+    }),
   setEditingThreadId: (editingThreadId) => set({ editingThreadId }),
 }));
 
 export function useIsProjectCollapsed(projectId: string): boolean {
   return useSidebarUiStore((s) => s.collapsedProjects[projectId] ?? false);
+}
+
+export function useThreadListLimit(projectId: string): number {
+  return useSidebarUiStore((s) => s.threadListLimits[projectId] ?? SIDEBAR_THREAD_LIST_PAGE_SIZE);
 }
 
 export function useIsWorktreeCollapsed(key: string): boolean {
