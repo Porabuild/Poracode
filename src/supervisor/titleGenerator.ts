@@ -1,6 +1,6 @@
 import type { ProjectLocation } from "@/shared/contracts";
 import type { AgentAdapter } from "./agents/base";
-import { buildOneShotSpec, spawnAgent } from "./oneShotSpawn";
+import { prepareOneShot } from "./oneShotSpawn";
 
 const PROMPT =
   "Generate a concise title for a coding conversation based on the user's first message below.\n" +
@@ -106,8 +106,8 @@ async function runViaCli(
   if (!cmd) {
     throw new Error(`${adapter.label} does not support one-shot generation`);
   }
-  const spawnSpec = buildOneShotSpec(location, cmd.command, cmd.args);
-  return spawnAgent(spawnSpec, cmd.stdin ?? prompt, TITLE_GEN_TIMEOUT_MS);
+  const { spec, spawn } = prepareOneShot(location, cmd);
+  return spawn(spec, cmd.stdin ?? prompt, TITLE_GEN_TIMEOUT_MS);
 }
 
 function timeoutSignal(timeoutMs: number): AbortSignal | undefined {

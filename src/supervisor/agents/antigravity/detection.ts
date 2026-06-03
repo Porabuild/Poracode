@@ -48,5 +48,10 @@ export const antigravityDetectionSpec: DetectionSpec = {
   binary: "agy",
   capabilities: defaultAntigravityCapabilities,
   authProbes: [configDirAuthProbe],
-  update: { builtIn: { binary: "agy", args: ["update"] } },
+  update: {
+    builtIn: { binary: "agy", args: ["update"] },
+    latestVersionUrls: [
+      "https://antigravity-cli-auto-updater-974169037036.us-central1.run.app/manifests/linux_amd64.json",
+    ],
+  },
 };

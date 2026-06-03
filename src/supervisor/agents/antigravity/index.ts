@@ -17,7 +17,7 @@ import {
   locationCwd,
   readAntigravityConversationIds,
   readAntigravityLastConversationForCwd,
-  readNewestAntigravityConversationId,
+  readNewestAntigravityConversationForCwd,
   resolveAntigravityWatchPaths,
 } from "./session";
 import { detectAntigravityTerminalStatus } from "./terminal";
@@ -33,6 +33,7 @@ export function createAntigravityAdapter(): AgentAdapter {
     kind: "antigravity",
     label: "Antigravity",
     binary: "agy",
+    ...(antigravityDetectionSpec.update ? { update: antigravityDetectionSpec.update } : {}),
     get capabilities() {
       return capabilities;
     },
@@ -49,10 +50,10 @@ export function createAntigravityAdapter(): AgentAdapter {
     },
 
     buildLaunchArgv(location, config, prompt) {
-      // `agy` has no flag to pre-assign a conversation id; the id is only
-      // visible after the session writes its first `.pb` file. Snapshot the
-      // existing ids + the workspace's cached "last" id so `discoverSessionRef`
-      // can identify the brand-new one once it appears.
+      // `agy` has no flag to pre-assign a conversation id; the conversation db
+      // only appears once the session starts. Snapshot the existing ids + the
+      // workspace's cached "last" id so `discoverSessionRef` can pick out the
+      // brand-new conversation created for this launch.
       preSpawnConversationIds = readAntigravityConversationIds(location);
       preSpawnLastConversationForCwd = readAntigravityLastConversationForCwd(
         location,
@@ -74,6 +75,20 @@ export function createAntigravityAdapter(): AgentAdapter {
 
     async discoverSessionRef(location: ProjectLocation) {
       const cwd = locationCwd(location);
+      // Primary: the conversation db created for THIS workspace. It exists as
+      // soon as the interactive session starts, and the workspace match rules
+      // out concurrent one-shot calls (title/commit/PR), which run in an
+      // isolated cwd. Required to be correct on the first hit — the runtime
+      // locks the first discovered ref and stops watching.
+      const matched = readNewestAntigravityConversationForCwd(
+        location,
+        preSpawnConversationIds,
+        cwd,
+      );
+      if (matched) return createKnownSessionRef(matched);
+      // Fallback: the workspace → last-conversation cache. `agy` only writes
+      // this on exit, so it covers re-discovery of an already-closed session
+      // (e.g. after an app restart) rather than the live case above.
       const latest = readAntigravityLastConversationForCwd(location, cwd);
       if (
         latest &&
@@ -82,8 +97,7 @@ export function createAntigravityAdapter(): AgentAdapter {
       ) {
         return createKnownSessionRef(latest);
       }
-      const newest = readNewestAntigravityConversationId(location, preSpawnConversationIds);
-      return newest ? createKnownSessionRef(newest) : undefined;
+      return undefined;
     },
 
     watchSessionRef(location, onChanged) {
@@ -118,7 +132,14 @@ export function createAntigravityAdapter(): AgentAdapter {
 
     buildOneShotCommand(_model, _effort, prompt) {
       if (!prompt) return undefined;
-      return { command: "agy", args: ["-p", prompt], stdin: "" };
+      // `agy -p` persists a throwaway conversation AND rewrites
+      // last_conversations.json[cwd] with its id. Running it in the project cwd
+      // would race the real `--prompt-interactive` session for that cache key
+      // and make `discoverSessionRef` latch onto the one-shot conversation
+      // (title gen, commit-msg, PR summary). `agy` has no flag to pre-assign a
+      // conversation id, so isolate the cwd instead — the prompt is fully
+      // self-contained, so the working directory is irrelevant to the output.
+      return { command: "agy", args: ["-p", prompt], stdin: "", isolateCwd: true, pty: true };
     },
   };
 }

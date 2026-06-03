@@ -1,6 +1,10 @@
+// OSC (`]…` terminated by BEL/ST) must be the first alternative: the
+// single-char C1 class `[@-Z\\-_]` spans 0x5C-0x5F and so includes `]` (0x5D),
+// which would otherwise consume just `]` and leave the OSC body (e.g. a
+// `]0;title` window-title sequence) un-stripped.
 const ANSI_PATTERN =
   // eslint-disable-next-line no-control-regex
-  /\u001B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~]|\][^\u0007]*(?:\u0007|\u001B\\))/g;
+  /\u001B(?:\][^\u0007]*(?:\u0007|\u001B\\)|[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])/g;
 
 /** Cap CUF→spaces so hostile or buggy PTY output cannot force huge allocations. */
 const MAX_CUF_SPACES = 8192;

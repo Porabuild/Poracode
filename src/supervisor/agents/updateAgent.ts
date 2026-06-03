@@ -214,6 +214,22 @@ async function fetchHomebrewCaskLatestVersion(cask: string): Promise<string | un
 }
 
 async function fetchLatestVersionFromUrls(urls: readonly string[]): Promise<string | undefined> {
+  const parseVersion = (body: string): string | undefined => {
+    const trimmed = body.trim();
+    try {
+      const data = JSON.parse(trimmed) as { version?: unknown; tag_name?: unknown; name?: unknown };
+      const value =
+        typeof data.version === "string"
+          ? data.version
+          : typeof data.tag_name === "string"
+            ? data.tag_name
+            : data.name;
+      return typeof value === "string" && value.length > 0 ? value.replace(/^v/, "") : undefined;
+    } catch {
+      return trimmed;
+    }
+  };
+
   for (const url of urls) {
     let timer: NodeJS.Timeout | undefined;
     try {
@@ -227,7 +243,7 @@ async function fetchLatestVersionFromUrls(urls: readonly string[]): Promise<stri
         console.warn(`[updateAgent] version URL probe failed for ${url}: HTTP ${response.status}`);
         continue;
       }
-      const version = (await response.text()).trim();
+      const version = parseVersion(await response.text());
       if (version) return version;
       console.warn(`[updateAgent] version URL probe for ${url} returned no version`);
     } catch (error) {
