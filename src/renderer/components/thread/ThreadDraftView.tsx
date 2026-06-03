@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { toast } from "@heroui/react";
 import type {
   AgentStatus,
@@ -49,6 +49,90 @@ import {
   ThreadDraftHero,
   type ThreadDraftDropIndicator,
 } from "./ThreadDraftChrome";
+
+function clampNumber(value: number, min: number, max: number) {
+  return Math.min(Math.max(value, min), max);
+}
+
+/** Minimum gap kept above the composer once it can no longer stay centered. */
+const COMPOSER_ANCHOR_MIN_TOP = 8;
+
+/**
+ * Keeps the centered draft composer visually *stable* instead of re-centering on
+ * every height change. The composer starts vertically centered, then the top
+ * edge of the input is locked to that initial line: typing extra rows grows the
+ * box downward (top stays put), while rows that appear above the input (slash
+ * command panel, attachments, docks) grow the box upward (the input + toolbar
+ * stay put). Implemented by driving the height of a spacer above the block so
+ * the input's top edge holds a fixed fraction of the container height.
+ */
+function useStableComposerAnchor(opts: {
+  enabled: boolean;
+  containerRef: React.RefObject<HTMLDivElement | null>;
+  blockRef: React.RefObject<HTMLDivElement | null>;
+  spacerRef: React.RefObject<HTMLDivElement | null>;
+}) {
+  const { enabled, containerRef, blockRef, spacerRef } = opts;
+  // Fraction of the container height where the input's top edge is pinned.
+  // Captured once from the initial centered layout so window resizes keep the
+  // composer at the same relative position.
+  const anchorRatioRef = useRef<number | null>(null);
+
+  useLayoutEffect(() => {
+    if (!enabled) return;
+    const container = containerRef.current;
+    const block = blockRef.current;
+    const spacer = spacerRef.current;
+    if (!container || !block || !spacer) return;
+
+    const apply = () => {
+      const height = container.clientHeight;
+      if (height <= 0) return;
+      const containerTop = container.getBoundingClientRect().top;
+      const blockTop = block.getBoundingClientRect().top;
+      const inputEl = block.querySelector<HTMLElement>("[data-composer-input-anchor]");
+      const inputTop = (inputEl ?? block).getBoundingClientRect().top;
+      // Distance from the block's top to the input's top — grows when rows are
+      // inserted above the input (command panel, attachments, docks).
+      const aboveInput = inputTop - blockTop;
+      const blockHeight = block.offsetHeight;
+
+      // Establish the anchor once from the initial (centered) layout: the line
+      // the input's top edge would sit on if the block were centered.
+      if (anchorRatioRef.current === null) {
+        const centeredInputOffset = (height - blockHeight) / 2 + aboveInput;
+        anchorRatioRef.current = clampNumber(centeredInputOffset / height, 0, 1);
+      }
+
+      const desiredInputOffset = Math.round(anchorRatioRef.current * height);
+      const currentInputOffset = inputTop - containerTop;
+      const currentSpacer = spacer.offsetHeight;
+      const maxSpacer = Math.max(COMPOSER_ANCHOR_MIN_TOP, height - blockHeight);
+      // Snap to whole pixels. A fractional spacer height (e.g. 443.5px) reads
+      // back from offsetHeight rounded, so the next correction measures a stale
+      // value and the input/toolbar drift by a sub-pixel each time the box
+      // changes height (the toolbar visibly creeping up as the slash panel opens).
+      const nextSpacer = Math.round(
+        clampNumber(
+          currentSpacer + (desiredInputOffset - currentInputOffset),
+          COMPOSER_ANCHOR_MIN_TOP,
+          maxSpacer,
+        ),
+      );
+      // Integer guard: only write on a whole-pixel change, never feed a fraction
+      // back into the ResizeObserver loop.
+      if (Math.abs(nextSpacer - currentSpacer) >= 1) {
+        spacer.style.height = `${nextSpacer}px`;
+      }
+    };
+
+    apply();
+    const observer = new ResizeObserver(() => apply());
+    observer.observe(container);
+    observer.observe(block);
+    return () => observer.disconnect();
+  }, [enabled, containerRef, blockRef, spacerRef]);
+}
 
 export function ThreadDraftView(props: {
   project: Project;
@@ -687,6 +771,19 @@ export function ThreadDraftView(props: {
     [baseDraftControls, providerDraftControls],
   );
 
+  // Stable centering for the full (non-compact) draft view: center once, then
+  // pin the input's top edge so the composer no longer jumps when it grows.
+  // Declared before the early returns below to keep hook order consistent.
+  const anchorContainerRef = useRef<HTMLDivElement>(null);
+  const anchorBlockRef = useRef<HTMLDivElement>(null);
+  const anchorSpacerRef = useRef<HTMLDivElement>(null);
+  useStableComposerAnchor({
+    enabled: !props.compact,
+    containerRef: anchorContainerRef,
+    blockRef: anchorBlockRef,
+    spacerRef: anchorSpacerRef,
+  });
+
   if (!selectedAgent) {
     if (props.isDetectingAgents) {
       // First-launch fancy reveal: tiles fade in as `agent-detected` events
@@ -771,13 +868,23 @@ export function ThreadDraftView(props: {
         />
       )}
       <div
-        className={`${props.compact ? alignClass : "mx-auto justify-center"} relative flex h-full min-h-0 w-full max-w-[1040px] flex-col ${paddingClass} px-3 pb-2 ${props.compact ? "" : "pt-2"}`}
+        ref={props.compact ? undefined : anchorContainerRef}
+        className={`${props.compact ? alignClass : "mx-auto"} relative flex h-full min-h-0 w-full max-w-[1040px] flex-col ${paddingClass} px-3 pb-2 ${props.compact ? "" : "pt-2"}`}
       >
         <ThreadDraftDropIndicators dropIndicator={props.dropIndicator} />
-        {props.compact ? <ThreadDraftHero compact={props.compact} /> : null}
+        {props.compact ? (
+          <ThreadDraftHero compact={props.compact} />
+        ) : (
+          // Spacer whose height is driven by useStableComposerAnchor to keep the
+          // composer centered initially, then anchored as it grows.
+          <div ref={anchorSpacerRef} aria-hidden className="w-full shrink-0" />
+        )}
 
-        {/* Composer at bottom */}
-        <div className={`${props.compact ? alignClass : "mx-auto"} w-full max-w-[720px]`}>
+        {/* Composer block: centered initially, then anchored by the input's top edge. */}
+        <div
+          ref={props.compact ? undefined : anchorBlockRef}
+          className={`${props.compact ? alignClass : "mx-auto shrink-0"} w-full max-w-[720px]`}
+        >
           <div className="mb-1 flex items-center justify-between gap-2">
             <ProjectSwitchMenu
               currentProjectId={project.id}
@@ -822,6 +929,8 @@ export function ThreadDraftView(props: {
             onStart={onStart}
           />
         </div>
+        {/* Absorbs the slack below the anchored composer in the full draft view. */}
+        {props.compact ? null : <div aria-hidden className="min-h-0 w-full flex-1" />}
       </div>
     </div>
   );

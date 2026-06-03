@@ -690,7 +690,9 @@ export function ThreadComposer(props: {
         ) : null}
         {fixedContent}
         {attachmentBar}
-        <div ref={editorHostRef}>{renderEditor()}</div>
+        <div ref={editorHostRef} data-composer-input-anchor="">
+          {renderEditor()}
+        </div>
         {toolbar}
       </div>
     </div>
