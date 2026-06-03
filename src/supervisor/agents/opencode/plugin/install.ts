@@ -13,9 +13,12 @@ import { fileURLToPath } from "node:url";
 import type { ProjectLocation } from "@/shared/contracts";
 import { toWslUncPath } from "@/shared/wsl";
 import type { BrowserMcpHttpConfig } from "@/supervisor/agents/browserMcp";
+import type { ComputerUseMcpHttpConfig } from "@/supervisor/agents/computerUseMcp";
 import type { AgentEnvContext } from "../../base";
 import { resolveWslHomeDirectory } from "../../base";
 import { BROWSER_MCP_SERVER_NAME } from "../../browserMcp";
+import { COMPUTER_USE_MCP_SERVER_NAME } from "../../computerUseMcp";
+import { buildOpenCodeComputerUseMcp } from "../mcpComputerUse";
 import {
   copyPluginAssetsIfStale,
   createPluginSourceResolver,
@@ -402,7 +405,7 @@ function readJsonFileOrEmpty(path: string): ReadJsonOk | ReadJsonErr {
   }
 }
 
-type BrowserMcpServers =
+type LightcodeMcpServers =
   | Record<
       string,
       { type: "remote"; url: string; headers: Record<string, string>; enabled?: boolean }
@@ -417,7 +420,7 @@ type BrowserMcpServers =
  * from what's on disk. Best-effort: missing files / malformed JSON are
  * swallowed.
  */
-function updateOpenCodeConfigFile(configPath: string, servers: BrowserMcpServers): void {
+function updateOpenCodeConfigFile(configPath: string, servers: LightcodeMcpServers): void {
   const read = readJsonFileOrEmpty(configPath);
   if (!read.ok) return;
   const original =
@@ -445,6 +448,7 @@ function updateOpenCodeConfigFile(configPath: string, servers: BrowserMcpServers
       ? { ...(mcpRaw as Record<string, unknown>) }
       : {};
   delete mcp[BROWSER_MCP_SERVER_NAME];
+  delete mcp[COMPUTER_USE_MCP_SERVER_NAME];
   if (servers) {
     for (const [name, entry] of Object.entries(servers)) {
       mcp[name] = entry;
@@ -474,22 +478,27 @@ function updateOpenCodeConfigFile(configPath: string, servers: BrowserMcpServers
 
 export function syncOpenCodeBrowserMcpConfigFile(
   location: ProjectLocation,
-  enabled: boolean,
+  browserEnabled: boolean,
   browserMcp?: BrowserMcpHttpConfig,
+  computerUseEnabled = false,
+  computerUseMcp?: ComputerUseMcpHttpConfig,
 ): void {
+  const servers = {
+    ...((browserEnabled ? buildOpenCodeBrowserMcp(location, browserMcp) : undefined) ?? {}),
+    ...((computerUseEnabled ? buildOpenCodeComputerUseMcp(location, computerUseMcp) : undefined) ??
+      {}),
+  };
+  const nextServers = Object.keys(servers).length > 0 ? servers : undefined;
   if (location.kind === "wsl") {
     const cfgDir = resolveOpenCodeWslConfigDir(location.distro);
     if (!cfgDir) return;
-    updateOpenCodeConfigFile(
-      `${cfgDir.uncDir}\\${OPENCODE_CONFIG_FILE_NAME}`,
-      enabled ? buildOpenCodeBrowserMcp(location, browserMcp) : undefined,
-    );
+    updateOpenCodeConfigFile(`${cfgDir.uncDir}\\${OPENCODE_CONFIG_FILE_NAME}`, nextServers);
     return;
   }
 
   updateOpenCodeConfigFile(
     join(resolveOpenCodeNativeConfigDir(), OPENCODE_CONFIG_FILE_NAME),
-    enabled ? buildOpenCodeBrowserMcp(location, browserMcp) : undefined,
+    nextServers,
   );
 }
 

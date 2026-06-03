@@ -1,15 +1,26 @@
 import { useState } from "react";
-import { Globe, Paperclip, Plus } from "lucide-react";
+import { Globe, Monitor, Paperclip, Plus } from "lucide-react";
 import { Label, ListBox, Popover, Tooltip } from "@heroui/react";
 import { Button } from "@/renderer/components/common";
 
 export function ComposerAddMenu(props: {
   browserMcpEnabled: boolean;
+  computerUseEnabled: boolean;
   showBrowserOption: boolean;
+  showComputerUseOption: boolean;
   onPickFiles: () => void;
   onToggleBrowserMcp: (next: boolean) => void;
+  onToggleComputerUse: (next: boolean) => void;
 }) {
-  const { browserMcpEnabled, showBrowserOption, onPickFiles, onToggleBrowserMcp } = props;
+  const {
+    browserMcpEnabled,
+    computerUseEnabled,
+    showBrowserOption,
+    showComputerUseOption,
+    onPickFiles,
+    onToggleBrowserMcp,
+    onToggleComputerUse,
+  } = props;
   const [isOpen, setIsOpen] = useState(false);
 
   const handleSelect = (id: string) => {
@@ -20,6 +31,10 @@ export function ComposerAddMenu(props: {
     }
     if (id === "browser") {
       onToggleBrowserMcp(!browserMcpEnabled);
+      return;
+    }
+    if (id === "computer-use") {
+      onToggleComputerUse(!computerUseEnabled);
     }
   };
 
@@ -67,6 +82,19 @@ export function ComposerAddMenu(props: {
                   <Label className="flex-1 truncate">Browser</Label>
                   <span className="ms-auto truncate text-xs text-muted">
                     {browserMcpEnabled ? "Disable" : "Enable"}
+                  </span>
+                </ListBox.Item>
+              ) : null}
+              {showComputerUseOption ? (
+                <ListBox.Item
+                  id="computer-use"
+                  textValue="Computer Use"
+                  className="focus-visible:outline-none"
+                >
+                  <Monitor className="size-4 text-muted" />
+                  <Label className="flex-1 truncate">Computer Use</Label>
+                  <span className="ms-auto truncate text-xs text-muted">
+                    {computerUseEnabled ? "Disable" : "Enable"}
                   </span>
                 </ListBox.Item>
               ) : null}

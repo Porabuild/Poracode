@@ -27,6 +27,7 @@ import type {
 } from "@/shared/contracts";
 import { areAgentSlashCommandsEqual } from "@/shared/contracts";
 import { buildClaudeBrowserMcpServers } from "./mcpBrowser";
+import { buildClaudeComputerUseMcpServers } from "./mcpComputerUse";
 import {
   createKnownSessionRef,
   getWslCommand,
@@ -872,6 +873,15 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
         this.currentConfig.browserMcp === true,
         this.input.browserMcp,
       );
+      const computerUseMcpServers = buildClaudeComputerUseMcpServers(
+        this.input.projectLocation,
+        this.currentConfig.computerUse === true,
+        this.input.computerUseMcp,
+      );
+      const mcpServers =
+        browserMcpServers || computerUseMcpServers
+          ? { ...(browserMcpServers ?? {}), ...(computerUseMcpServers ?? {}) }
+          : undefined;
       const options: ClaudeQueryOptions = {
         cwd: projectCwd(this.input.projectLocation),
         model,
@@ -900,9 +910,7 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
             }
           : {}),
         ...(claudeExecutablePath ? { pathToClaudeCodeExecutable: claudeExecutablePath } : {}),
-        ...(browserMcpServers
-          ? ({ mcpServers: browserMcpServers } as Partial<ClaudeQueryOptions>)
-          : {}),
+        ...(mcpServers ? ({ mcpServers } as Partial<ClaudeQueryOptions>) : {}),
         ...(this.input.projectLocation.kind === "wsl"
           ? {
               spawnClaudeCodeProcess: (spawnOptions) =>

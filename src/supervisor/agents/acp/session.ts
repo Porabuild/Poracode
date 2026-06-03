@@ -12,6 +12,7 @@
 import { spawn as spawnChild, type ChildProcess } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { buildAcpBrowserMcpServers } from "./mcpBrowser";
+import { buildAcpComputerUseMcpServers } from "./mcpComputerUse";
 import { appendFileSync, mkdirSync } from "node:fs";
 import { readFile, writeFile } from "node:fs/promises";
 import { basename, join } from "node:path";
@@ -61,6 +62,7 @@ import type {
   ThreadStatus,
 } from "@/shared/contracts";
 import type { BrowserMcpHttpConfig } from "@/supervisor/agents/browserMcp";
+import type { ComputerUseMcpHttpConfig } from "@/supervisor/agents/computerUseMcp";
 import { areAgentSlashCommandsEqual, isThreadConfigEqual } from "@/shared/contracts";
 import { buildPromptContentBlocks } from "@/shared/promptContent";
 import {
@@ -445,6 +447,7 @@ export interface AcpStructuredSessionOptions {
    */
   sessionUpdateTransform?: (notification: SessionNotification) => SessionNotification;
   browserMcp?: BrowserMcpHttpConfig;
+  computerUseMcp?: ComputerUseMcpHttpConfig;
 }
 
 export class AcpStructuredSession implements StructuredSessionHandle {
@@ -460,6 +463,7 @@ export class AcpStructuredSession implements StructuredSessionHandle {
   private readonly cwd: string;
   private readonly projectLocation: ProjectLocation;
   private readonly browserMcp: BrowserMcpHttpConfig | undefined;
+  private readonly computerUseMcp: ComputerUseMcpHttpConfig | undefined;
   /** Lightcode thread id (stable identifier we report in RuntimeEvents). */
   private readonly threadId: string;
   private readonly stderrChunks: string[] = [];
@@ -545,6 +549,7 @@ export class AcpStructuredSession implements StructuredSessionHandle {
       this.sessionUpdateTransform = options.sessionUpdateTransform;
     }
     this.browserMcp = options?.browserMcp;
+    this.computerUseMcp = options?.computerUseMcp;
   }
 
   private shouldAutoApproveSyntheticPermissionRequest(): boolean {
@@ -933,11 +938,18 @@ export class AcpStructuredSession implements StructuredSessionHandle {
     let configOptions: unknown[] = [];
     this.currentConfig = undefined;
     this.currentSlashCommands = undefined;
-    const mcpServers = await buildAcpBrowserMcpServers(
-      this.projectLocation,
-      config.browserMcp === true,
-      this.browserMcp,
-    );
+    const mcpServers = [
+      ...buildAcpBrowserMcpServers(
+        this.projectLocation,
+        config.browserMcp === true,
+        this.browserMcp,
+      ),
+      ...buildAcpComputerUseMcpServers(
+        this.projectLocation,
+        config.computerUse === true,
+        this.computerUseMcp,
+      ),
+    ];
 
     if (sessionRef) {
       if (this.agentSessionCapabilities?.resume !== undefined) {
@@ -1826,6 +1838,7 @@ export function createAcpStructuredSession(
       ? { sessionUpdateTransform: input.acpSessionUpdateTransform }
       : {}),
     ...(input.browserMcp !== undefined ? { browserMcp: input.browserMcp } : {}),
+    ...(input.computerUseMcp !== undefined ? { computerUseMcp: input.computerUseMcp } : {}),
   });
 }
 

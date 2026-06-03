@@ -1,5 +1,5 @@
 export { MentionInput, type MentionInputHandle } from "./MentionInput";
-export { AttachmentBar, BrowserChip } from "./AttachmentBar";
+export { AttachmentBar, BrowserChip, ComputerUseChip } from "./AttachmentBar";
 export { ComposerAddMenu } from "./ComposerAddMenu";
 export { VoiceInputButton } from "./VoiceInputButton";
 export { ImageLightbox } from "./ImageLightbox";

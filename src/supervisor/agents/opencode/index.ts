@@ -111,6 +111,8 @@ export function createOpenCodeAdapter(): AgentAdapter {
         _location,
         isOpenCodeBrowserMcpEnabled(launchOptions?.agentSettings),
         launchOptions?.browserMcp,
+        config.computerUse === true,
+        launchOptions?.computerUseMcp,
       );
       const sessionId = launchOptions?.resumeThreadId;
       const args = buildOpenCodeArgs(config, prompt, sessionId);
@@ -125,6 +127,8 @@ export function createOpenCodeAdapter(): AgentAdapter {
         _location,
         isOpenCodeBrowserMcpEnabled(launchOptions?.agentSettings),
         launchOptions?.browserMcp,
+        config.computerUse === true,
+        launchOptions?.computerUseMcp,
       );
       return {
         binary: "opencode",

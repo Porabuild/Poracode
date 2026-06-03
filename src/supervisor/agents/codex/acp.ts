@@ -282,6 +282,8 @@ export class CodexStructuredSession implements StructuredSessionHandle {
         ...(wslNodePath !== undefined ? { wslNodePath } : {}),
         browserMcpEnabled: input.config.browserMcp === true,
         ...(input.browserMcp !== undefined ? { browserMcp: input.browserMcp } : {}),
+        computerUseMcpEnabled: input.config.computerUse === true,
+        ...(input.computerUseMcp !== undefined ? { computerUseMcp: input.computerUseMcp } : {}),
       }),
     );
     const transport = new CodexStdioTransport(appServer);

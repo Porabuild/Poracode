@@ -1,0 +1,50 @@
+import type { ProjectLocation } from "@/shared/contracts";
+import { rewriteUrlForWsl } from "@/supervisor/wsl/wslHostIp";
+
+export type ComputerUseMcpLocation =
+  | ProjectLocation
+  | { kind: "windows" }
+  | { kind: "posix" }
+  | { kind: "wsl"; distro: string };
+
+export interface ComputerUseMcpEnv {
+  url: string;
+  token: string;
+}
+
+export function readComputerUseMcpEnv(): ComputerUseMcpEnv | null {
+  const url = process.env.LIGHTCODE_COMPUTER_USE_MCP_URL;
+  const token = process.env.LIGHTCODE_COMPUTER_USE_MCP_TOKEN;
+  if (!url || !token) return null;
+  return { url, token };
+}
+
+export const COMPUTER_USE_MCP_SERVER_NAME = "computer_use";
+
+export interface ComputerUseMcpHttpConfig {
+  url: string;
+  token: string;
+  headers: Record<string, string>;
+}
+
+export function resolveComputerUseMcpHttpConfig(
+  location: ComputerUseMcpLocation,
+): ComputerUseMcpHttpConfig | null {
+  const env = readComputerUseMcpEnv();
+  if (!env) return null;
+  const url = location.kind === "wsl" ? rewriteUrlForWsl(env.url, location.distro) : env.url;
+  const mcpUrl = `${url.replace(/\/$/, "")}/mcp`;
+  return {
+    url: mcpUrl,
+    token: env.token,
+    headers: { Authorization: `Bearer ${env.token}` },
+  };
+}
+
+export function resolveComputerUseMcpHttpConfigForLaunch(
+  location: ComputerUseMcpLocation,
+  enabled: boolean,
+): ComputerUseMcpHttpConfig | undefined {
+  if (!enabled) return undefined;
+  return resolveComputerUseMcpHttpConfig(location) ?? undefined;
+}

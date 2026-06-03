@@ -21,4 +21,19 @@ describe("buildMentionResults", () => {
   it("does not show Browser until the composer allows it", () => {
     expect(buildMentionResults(fileResults, "browser", false)).toEqual(fileResults);
   });
+
+  it("shows Computer Use when enabled and the query matches", () => {
+    expect(buildMentionResults(fileResults, "computer", false, true)).toEqual([
+      { type: "computer_use", path: "computer", name: "Computer Use" },
+      ...fileResults,
+    ]);
+  });
+
+  it("shows Browser before Computer Use for an empty @ mention", () => {
+    expect(buildMentionResults(fileResults, "", true, true)).toEqual([
+      { type: "browser", path: "browser", name: "Browser" },
+      { type: "computer_use", path: "computer", name: "Computer Use" },
+      ...fileResults,
+    ]);
+  });
 });

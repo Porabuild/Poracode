@@ -39,6 +39,10 @@ import {
   type BrowserMcpHttpConfig,
 } from "@/supervisor/agents/browserMcp";
 import {
+  resolveComputerUseMcpHttpConfigForLaunch,
+  type ComputerUseMcpHttpConfig,
+} from "@/supervisor/agents/computerUseMcp";
+import {
   type AgentAdapter,
   type AgentLaunchOptions,
   type CommandSpec,
@@ -103,6 +107,8 @@ export interface ThreadSessionManagerOptions {
     projectLocation: ProjectLocation;
     browserMcpEnabled?: boolean;
     browserMcp?: BrowserMcpHttpConfig;
+    computerUseMcpEnabled?: boolean;
+    computerUseMcp?: ComputerUseMcpHttpConfig;
   }): Promise<{ env: Record<string, string>; extraArgs: string[] } | undefined>;
   wslBridge?: {
     ensureBridge(distro: string): Promise<{ baseUrl: string; secret: string } | undefined>;
@@ -1026,6 +1032,7 @@ export class ThreadSessionManager {
     projectLocation: ProjectLocation,
     config: ThreadConfig,
     browserMcp: BrowserMcpHttpConfig | undefined,
+    computerUseMcp: ComputerUseMcpHttpConfig | undefined,
   ): Promise<{ env: Record<string, string>; extraArgs: string[] }> {
     const adapter = this.options.adapters.get(agentKind);
     const liveInputMode = adapter?.capabilities.liveInputMode ?? "terminal";
@@ -1048,6 +1055,8 @@ export class ThreadSessionManager {
         projectLocation,
         browserMcpEnabled: this.isBrowserMcpEnabledForLaunch(adapter, config),
         ...(browserMcp !== undefined ? { browserMcp } : {}),
+        computerUseMcpEnabled: this.isComputerUseMcpEnabledForLaunch(config),
+        ...(computerUseMcp !== undefined ? { computerUseMcp } : {}),
       });
       const merged = resolved ?? { env: {}, extraArgs: [] };
       const hookUrl = merged.env.LIGHTCODE_HOOK_URL;
@@ -1221,6 +1230,10 @@ export class ThreadSessionManager {
       payload.projectLocation,
       payload.config,
     );
+    const computerUseMcp = this.resolveComputerUseMcpForLaunch(
+      payload.projectLocation,
+      payload.config,
+    );
     const structuredSession = await this.createStructuredSession(
       adapter,
       payload.threadId,
@@ -1228,6 +1241,7 @@ export class ThreadSessionManager {
       payload.projectLocation,
       payload.config,
       browserMcp,
+      computerUseMcp,
       payload.sessionRef,
       requestedPresentation,
     );
@@ -1356,21 +1370,25 @@ export class ThreadSessionManager {
       adapter,
       structuredSession?.launchOptions,
     );
-    const launchOptionsWithBrowserMcp = this.launchOptionsWithBrowserMcp(launchOptions, browserMcp);
+    const launchOptionsWithLocalMcps = this.launchOptionsWithLocalMcps(
+      launchOptions,
+      browserMcp,
+      computerUseMcp,
+    );
     const argv = payload.sessionRef
       ? adapter.buildResumeArgv(
           payload.projectLocation,
           payload.config,
           launchPrompt,
           payload.sessionRef,
-          launchOptionsWithBrowserMcp,
+          launchOptionsWithLocalMcps,
         )
       : adapter.buildLaunchArgv(
           payload.projectLocation,
           payload.config,
           launchPrompt,
           payload.sessionRef,
-          launchOptionsWithBrowserMcp,
+          launchOptionsWithLocalMcps,
         );
 
     // Append CLI hook plugin args (e.g. Claude `--settings <path>`); env vars
@@ -1386,6 +1404,7 @@ export class ThreadSessionManager {
       payload.projectLocation,
       payload.config,
       browserMcp,
+      computerUseMcp,
     );
     if (cliHookExtras.extraArgs.length > 0) {
       argv.args = this.mergeCliHookExtraArgs(
@@ -1456,6 +1475,7 @@ export class ThreadSessionManager {
     projectLocation: ProjectLocation,
     config: ThreadConfig,
     browserMcp: BrowserMcpHttpConfig | undefined,
+    computerUseMcp: ComputerUseMcpHttpConfig | undefined,
     sessionRef?: SessionRef,
     presentationMode?: import("@/shared/contracts").ThreadPresentationMode,
   ): Promise<StructuredSessionHandle | undefined> {
@@ -1469,6 +1489,7 @@ export class ThreadSessionManager {
         config,
         agentSettings: this.resolveAgentSettings(adapter),
         ...(browserMcp ? { browserMcp } : {}),
+        ...(computerUseMcp ? { computerUseMcp } : {}),
         ...(sessionRef ? { sessionRef } : {}),
         ...(presentationMode ? { presentationMode } : {}),
       });
@@ -1898,6 +1919,7 @@ export class ThreadSessionManager {
       session.projectLocation,
       config,
     );
+    const computerUseMcp = this.resolveComputerUseMcpForLaunch(session.projectLocation, config);
     const structuredSession = await this.createStructuredSession(
       session.adapter,
       session.threadId,
@@ -1905,6 +1927,7 @@ export class ThreadSessionManager {
       session.projectLocation,
       config,
       browserMcp,
+      computerUseMcp,
       session.sessionRef,
       session.presentationMode,
     );
@@ -1976,6 +1999,7 @@ export class ThreadSessionManager {
       session.projectLocation,
       config,
       browserMcp,
+      computerUseMcp,
     );
     if (!this.isCurrentSession(session)) {
       await structuredSession?.dispose();
@@ -1986,9 +2010,10 @@ export class ThreadSessionManager {
       config,
       launchPrompt,
       session.sessionRef,
-      this.launchOptionsWithBrowserMcp(
+      this.launchOptionsWithLocalMcps(
         this.launchOptionsWithAgentSettings(session.adapter, structuredSession?.launchOptions),
         browserMcp,
+        computerUseMcp,
       ),
     );
     if (cliHookExtras.extraArgs.length > 0) {
@@ -2071,12 +2096,17 @@ export class ThreadSessionManager {
         session.projectLocation,
         session.config,
       );
+      const computerUseMcp = this.resolveComputerUseMcpForLaunch(
+        session.projectLocation,
+        session.config,
+      );
       const cliHookExtras = await this.resolveCliHookPluginExtras(
         session.threadId,
         session.agentKind,
         session.projectLocation,
         session.config,
         browserMcp,
+        computerUseMcp,
       );
       if (!this.isCurrentSession(session)) {
         return;
@@ -2086,9 +2116,10 @@ export class ThreadSessionManager {
         session.config,
         session.launchPrompt,
         undefined,
-        this.launchOptionsWithBrowserMcp(
+        this.launchOptionsWithLocalMcps(
           this.launchOptionsWithAgentSettings(session.adapter),
           browserMcp,
+          computerUseMcp,
         ),
       );
       if (cliHookExtras.extraArgs.length > 0) {
@@ -2287,13 +2318,15 @@ export class ThreadSessionManager {
     };
   }
 
-  private launchOptionsWithBrowserMcp(
+  private launchOptionsWithLocalMcps(
     launchOptions: AgentLaunchOptions,
     browserMcp: BrowserMcpHttpConfig | undefined,
+    computerUseMcp: ComputerUseMcpHttpConfig | undefined,
   ): AgentLaunchOptions {
     return {
       ...launchOptions,
       ...(browserMcp !== undefined ? { browserMcp } : {}),
+      ...(computerUseMcp !== undefined ? { computerUseMcp } : {}),
     };
   }
 
@@ -2319,6 +2352,20 @@ export class ThreadSessionManager {
       this.options.wslBridge,
     );
     return cfg;
+  }
+
+  private isComputerUseMcpEnabledForLaunch(config: ThreadConfig): boolean {
+    return config.computerUse === true;
+  }
+
+  private resolveComputerUseMcpForLaunch(
+    location: ProjectLocation,
+    config: ThreadConfig,
+  ): ComputerUseMcpHttpConfig | undefined {
+    return resolveComputerUseMcpHttpConfigForLaunch(
+      location,
+      this.isComputerUseMcpEnabledForLaunch(config),
+    );
   }
 
   private resolveAgentProcessEnv(adapter: AgentAdapter): Record<string, string> {

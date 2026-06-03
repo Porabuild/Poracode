@@ -3,7 +3,9 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { toWslUncPath } from "@/shared/wsl";
 import type { BrowserMcpHttpConfig } from "@/supervisor/agents/browserMcp";
+import type { ComputerUseMcpHttpConfig } from "@/supervisor/agents/computerUseMcp";
 import { buildGeminiBrowserMcpServers } from "../mcpBrowser";
+import { buildGeminiComputerUseMcpServers } from "../mcpComputerUse";
 import type { AgentEnvContext } from "../../base";
 import {
   FORWARD_RUNTIME_FILE,
@@ -142,21 +144,29 @@ function resolveSettingsWritePath(ctx: AgentEnvContext | undefined, settingsPath
 export function syncGeminiBrowserMcpSettings(
   ctx: AgentEnvContext | undefined,
   browserMcp?: BrowserMcpHttpConfig,
+  computerUseMcp?: ComputerUseMcpHttpConfig,
 ): void {
-  if (ctx?.browserMcpEnabled === undefined) return;
+  if (ctx?.browserMcpEnabled === undefined && ctx?.computerUseMcpEnabled === undefined) return;
   const paths = getGeminiPluginPaths(ctx);
   if (!paths.settingsPath) return;
   const settingsPath = resolveSettingsWritePath(ctx, paths.settingsPath);
   try {
     const settings = JSON.parse(readFileSync(settingsPath, "utf8")) as GeminiSettings;
-    if (ctx.browserMcpEnabled && browserMcp) {
-      const location = isWslPluginContext(ctx)
-        ? ({ kind: "wsl", distro: ctx.wslDistro } as const)
-        : process.platform === "win32"
-          ? ({ kind: "windows" } as const)
-          : ({ kind: "posix" } as const);
-      const servers = buildGeminiBrowserMcpServers(location, browserMcp);
-      if (servers) settings.mcpServers = servers;
+    const location = isWslPluginContext(ctx)
+      ? ({ kind: "wsl", distro: ctx.wslDistro } as const)
+      : process.platform === "win32"
+        ? ({ kind: "windows" } as const)
+        : ({ kind: "posix" } as const);
+    const servers = {
+      ...((ctx.browserMcpEnabled && browserMcp
+        ? buildGeminiBrowserMcpServers(location, browserMcp)
+        : undefined) ?? {}),
+      ...((ctx.computerUseMcpEnabled && computerUseMcp
+        ? buildGeminiComputerUseMcpServers(location, computerUseMcp)
+        : undefined) ?? {}),
+    };
+    if (Object.keys(servers).length > 0) {
+      settings.mcpServers = servers;
     } else {
       delete settings.mcpServers;
     }
@@ -210,6 +220,7 @@ export function installGeminiPlugin(
       manifest,
       options.resolvedNodePath,
       ctx.browserMcp,
+      ctx.computerUseMcp,
     );
   }
 
@@ -223,10 +234,13 @@ export function installGeminiPlugin(
 
   const settingsPath = join(pluginDir, "settings.json");
   const nativeCommands = buildNativeHookCommandHeads(wrapperPath);
-  const browserMcpServers = buildGeminiBrowserMcpServers({ kind: "windows" }, ctx?.browserMcp);
+  const mcpServers = {
+    ...(buildGeminiBrowserMcpServers({ kind: "windows" }, ctx?.browserMcp) ?? {}),
+    ...(buildGeminiComputerUseMcpServers({ kind: "windows" }, ctx?.computerUseMcp) ?? {}),
+  };
   const settings = renderGeminiSettings({
     headExpression: nativeCommands.command,
-    ...(browserMcpServers ? { mcpServers: browserMcpServers } : {}),
+    ...(Object.keys(mcpServers).length > 0 ? { mcpServers } : {}),
   });
   writeFileSync(settingsPath, `${JSON.stringify(settings, null, 2)}\n`, "utf8");
 
@@ -247,6 +261,7 @@ function installGeminiPluginWsl(
   manifest: PluginManifest,
   resolvedNodePath: string,
   browserMcp?: BrowserMcpHttpConfig,
+  computerUseMcp?: ComputerUseMcpHttpConfig,
 ): { ok: true; paths: GeminiPluginPaths; version: string } | { ok: false; reason: string } {
   const staged = stagePluginAssetsToWsl(distro, sourceDir, "gemini", {
     includeForwardRuntime: true,
@@ -261,10 +276,13 @@ function installGeminiPluginWsl(
 
   try {
     mkdirSync(dirname(uncSettingsPath), { recursive: true });
-    const browserMcpServers = buildGeminiBrowserMcpServers({ kind: "wsl", distro }, browserMcp);
+    const mcpServers = {
+      ...(buildGeminiBrowserMcpServers({ kind: "wsl", distro }, browserMcp) ?? {}),
+      ...(buildGeminiComputerUseMcpServers({ kind: "wsl", distro }, computerUseMcp) ?? {}),
+    };
     const settings = renderGeminiSettings({
       headExpression,
-      ...(browserMcpServers ? { mcpServers: browserMcpServers } : {}),
+      ...(Object.keys(mcpServers).length > 0 ? { mcpServers } : {}),
     });
     writeFileSync(uncSettingsPath, `${JSON.stringify(settings, null, 2)}\n`, "utf8");
   } catch (error) {

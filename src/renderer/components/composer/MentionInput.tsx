@@ -9,16 +9,24 @@ import { useDebouncedFileSearch } from "./useDebouncedFileSearch";
 import { serializeToSegments, flattenSegments } from "./serializeMentions";
 
 const BROWSER_MENTION_ENTRY: MentionEntry = { type: "browser", path: "browser", name: "Browser" };
+const COMPUTER_USE_MENTION_ENTRY: MentionEntry = {
+  type: "computer_use",
+  path: "computer",
+  name: "Computer Use",
+};
 
 export function buildMentionResults(
   fileResults: FileEntry[],
   query: string,
   showBrowserMention: boolean,
+  showComputerUseMention = false,
 ): MentionEntry[] {
   const q = query.trim().toLowerCase();
   const browserResults =
     showBrowserMention && "browser".startsWith(q) ? [BROWSER_MENTION_ENTRY] : [];
-  return [...browserResults, ...fileResults];
+  const computerUseResults =
+    showComputerUseMention && "computer use".startsWith(q) ? [COMPUTER_USE_MENTION_ENTRY] : [];
+  return [...browserResults, ...computerUseResults, ...fileResults];
 }
 
 export interface MentionInputHandle {
@@ -249,6 +257,8 @@ export const MentionInput = forwardRef<
     onPasteImage?: (file: File) => void;
     showBrowserMention?: boolean;
     onBrowserMentionSelect?: () => void;
+    showComputerUseMention?: boolean;
+    onComputerUseMentionSelect?: () => void;
     onSlashCommandChange?: (query: string | null) => void;
     /**
      * Trigger words to promote into chips as the user types/pastes (e.g. the
@@ -277,6 +287,8 @@ export const MentionInput = forwardRef<
     onPasteImage,
     showBrowserMention,
     onBrowserMentionSelect,
+    showComputerUseMention,
+    onComputerUseMentionSelect,
     onSlashCommandChange,
     onInterceptKey,
     triggerWords,
@@ -298,11 +310,12 @@ export const MentionInput = forwardRef<
     fileResults,
     mention?.query ?? "",
     showBrowserMention === true,
+    showComputerUseMention === true,
   );
 
   useEffect(() => {
     setActiveIndex(0);
-  }, [mention?.query, fileResults, showBrowserMention]);
+  }, [mention?.query, fileResults, showBrowserMention, showComputerUseMention]);
 
   function insertPlainText(text: string) {
     const editor = editorRef.current;
@@ -560,6 +573,18 @@ export const MentionInput = forwardRef<
       range.deleteContents();
       setMention(null);
       onBrowserMentionSelect?.();
+      notifyTextChange();
+      return;
+    }
+
+    if (entry.type === "computer_use") {
+      const sel = window.getSelection();
+      if (!sel) return;
+      sel.removeAllRanges();
+      sel.addRange(range);
+      range.deleteContents();
+      setMention(null);
+      onComputerUseMentionSelect?.();
       notifyTextChange();
       return;
     }

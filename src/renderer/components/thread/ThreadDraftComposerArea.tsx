@@ -16,6 +16,7 @@ import {
   AttachmentBar,
   BrowserChip,
   ComposerAddMenu,
+  ComputerUseChip,
   ImageLightbox,
   MentionInput,
   VoiceInputButton,
@@ -24,6 +25,7 @@ import {
 } from "@/renderer/components/composer";
 import { getBrowserMcpScope } from "@/renderer/components/composer/browserMcpScope";
 import { getTriggerWords } from "@/renderer/components/providers";
+import { getComputerUseScope } from "@/renderer/components/composer/computerUseScope";
 import { useBrowserAttachInbox } from "@/renderer/state/browserAttachInbox";
 import { flattenSegments } from "@/renderer/components/composer/serializeMentions";
 import {
@@ -264,6 +266,7 @@ export function ThreadDraftComposerArea(props: {
   const authRequired = props.selectedAgent.authState === "missing";
   const isHomeScope = isHomeProjectId(props.project.id);
   const browserMcpScope = getBrowserMcpScope(props.selectedAgent.kind, props.presentationMode);
+  const computerUseScope = getComputerUseScope(props.selectedAgent.kind, props.presentationMode);
   const controls: ComposerControl[] = controlOpenRequest
     ? props.controls.map((control) => {
         if (controlOpenRequest.target === "model" && control.kind === "provider-model") {
@@ -480,8 +483,17 @@ export function ThreadDraftComposerArea(props: {
               if (idx >= 0) setLightboxIndex(idx);
             }}
             leading={
-              props.config.browserMcp === true ? (
-                <BrowserChip onRemove={() => props.onConfigChange({ browserMcp: false })} />
+              props.config.browserMcp === true || props.config.computerUse === true ? (
+                <>
+                  {props.config.browserMcp === true ? (
+                    <BrowserChip onRemove={() => props.onConfigChange({ browserMcp: false })} />
+                  ) : null}
+                  {props.config.computerUse === true ? (
+                    <ComputerUseChip
+                      onRemove={() => props.onConfigChange({ computerUse: false })}
+                    />
+                  ) : null}
+                </>
               ) : undefined
             }
           />
@@ -502,6 +514,10 @@ export function ThreadDraftComposerArea(props: {
             showBrowserMention={browserMcpScope !== "none" && props.config.browserMcp !== true}
             onBrowserMentionSelect={() => props.onConfigChange({ browserMcp: true })}
             triggerWords={getTriggerWords(props.selectedAgent.kind, props.config.model)}
+            showComputerUseMention={
+              computerUseScope !== "none" && props.config.computerUse !== true
+            }
+            onComputerUseMentionSelect={() => props.onConfigChange({ computerUse: true })}
             onPasteImage={(file) => {
               void attachments.addClipboardImage(file, `draft:${props.project.id}`);
             }}
@@ -557,7 +573,9 @@ export function ThreadDraftComposerArea(props: {
           <>
             <ComposerAddMenu
               browserMcpEnabled={props.config.browserMcp === true}
+              computerUseEnabled={props.config.computerUse === true}
               showBrowserOption={browserMcpScope !== "none"}
+              showComputerUseOption={computerUseScope !== "none"}
               onPickFiles={() => {
                 void readBridge()
                   .pickFiles()
@@ -566,6 +584,7 @@ export function ThreadDraftComposerArea(props: {
                   });
               }}
               onToggleBrowserMcp={(next) => props.onConfigChange({ browserMcp: next })}
+              onToggleComputerUse={(next) => props.onConfigChange({ computerUse: next })}
             />
             {props.gitBranch ? (
               <BranchSelector

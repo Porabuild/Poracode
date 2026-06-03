@@ -859,7 +859,9 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                         ) : null}
                         <ComposerAddMenu
                           browserMcpEnabled={thread.config.browserMcp === true}
+                          computerUseEnabled={thread.config.computerUse === true}
                           showBrowserOption={browserMcpToggleableHere}
+                          showComputerUseOption={false}
                           onPickFiles={() => {
                             void readBridge()
                               .pickFiles()
@@ -869,6 +871,9 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                           }}
                           onToggleBrowserMcp={(next) =>
                             props.onConfigChange({ ...thread.config, browserMcp: next })
+                          }
+                          onToggleComputerUse={(next) =>
+                            props.onConfigChange({ ...thread.config, computerUse: next })
                           }
                         />
                         {branchName ? (

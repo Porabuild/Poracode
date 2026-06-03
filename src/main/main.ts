@@ -18,6 +18,7 @@ import {
   installPickerProtocolHandler,
   registerPickerProtocolScheme,
 } from "./browser";
+import { ComputerUseMcpIngress } from "./computer-use";
 import { SupervisorClient } from "./supervisor/SupervisorClient";
 import { createAutoUpdaterController } from "./updates/autoUpdater";
 import { createMainWindow } from "./window/createMainWindow";
@@ -61,6 +62,7 @@ let lightcodePaths: LightcodePaths | null = null;
 let windowsJobObjectManager: WindowsJobObjectManager | null = null;
 let browserPanelManager: BrowserPanelManager | null = null;
 let browserMcpIngress: BrowserMcpIngress | null = null;
+let computerUseMcpIngress: ComputerUseMcpIngress | null = null;
 // Retained module-scope so the native Tray icon stays reachable from GC.
 let tray: TrayHandle | null = null;
 let isQuitting = false;
@@ -207,11 +209,21 @@ if (!hasSingleInstanceLock) {
       wslHelpersDir,
       secretStorageKey,
       resolveExtraEnv: () => {
-        const info = browserMcpIngress?.getInfo();
-        if (!info) return {};
+        const browserInfo = browserMcpIngress?.getInfo();
+        const computerUseInfo = computerUseMcpIngress?.getInfo();
         return {
-          LIGHTCODE_BROWSER_MCP_URL: info.url,
-          LIGHTCODE_BROWSER_MCP_TOKEN: info.token,
+          ...(browserInfo
+            ? {
+                LIGHTCODE_BROWSER_MCP_URL: browserInfo.url,
+                LIGHTCODE_BROWSER_MCP_TOKEN: browserInfo.token,
+              }
+            : {}),
+          ...(computerUseInfo
+            ? {
+                LIGHTCODE_COMPUTER_USE_MCP_URL: computerUseInfo.url,
+                LIGHTCODE_COMPUTER_USE_MCP_TOKEN: computerUseInfo.token,
+              }
+            : {}),
         };
       },
       assignPid: async (pid) => {
@@ -248,6 +260,11 @@ if (!hasSingleInstanceLock) {
     primeBrowserAllowFlags();
     const mcpInfoReady = browserMcpIngress.start().catch((err) => {
       console.error("[lightcode] browser MCP ingress failed to start:", err);
+      return null;
+    });
+    computerUseMcpIngress = new ComputerUseMcpIngress();
+    const computerUseMcpInfoReady = computerUseMcpIngress.start().catch((err) => {
+      console.error("[lightcode] computer use MCP ingress failed to start:", err);
       return null;
     });
 
@@ -312,7 +329,7 @@ if (!hasSingleInstanceLock) {
       );
     }
 
-    await mcpInfoReady;
+    await Promise.all([mcpInfoReady, computerUseMcpInfoReady]);
     supervisorClient.start(lightcodePaths.baseDir);
 
     mainWindow.once("ready-to-show", () => {
@@ -389,6 +406,8 @@ if (!hasSingleInstanceLock) {
       windowsJobObjectManager = null;
       browserMcpIngress?.dispose();
       browserMcpIngress = null;
+      computerUseMcpIngress?.dispose();
+      computerUseMcpIngress = null;
       browserPanelManager?.dispose();
       browserPanelManager = null;
       sleepInhibitor.dispose();
