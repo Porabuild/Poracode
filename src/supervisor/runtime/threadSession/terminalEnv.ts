@@ -1,5 +1,6 @@
 import { spawnSync } from "node:child_process";
 import type { AgentKind, ProjectLocation } from "@/shared/contracts";
+import { getWslCommand } from "../../agents/base";
 
 const GHOSTTY_TERM = "xterm-ghostty";
 const FALLBACK_TERM = "xterm-256color";
@@ -18,7 +19,16 @@ function terminalTermCacheKey(location: ProjectLocation): string {
 function hasGhosttyTerminfo(location: ProjectLocation): boolean {
   const options = { stdio: "ignore" as const, timeout: 250, windowsHide: true };
   if (location.kind === "wsl") {
-    return false;
+    // WSL terminfo lives in the distro, so probe it through wsl.exe. The
+    // terminal/PTY path intentionally stays on direct wsl.exe (not the bridge),
+    // and the result is cached per distro so this runs at most once per distro.
+    if (process.platform !== "win32") return false;
+    const result = spawnSync(
+      getWslCommand(),
+      ["-d", location.distro, "--", "sh", "-lc", `infocmp -x ${GHOSTTY_TERM} >/dev/null 2>&1`],
+      options,
+    );
+    return result?.status === 0;
   }
   if (process.platform === "win32") return false;
   return spawnSync("infocmp", ["-x", GHOSTTY_TERM], options)?.status === 0;
