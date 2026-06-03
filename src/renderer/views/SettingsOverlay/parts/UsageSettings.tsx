@@ -24,6 +24,15 @@ function UsageProviderRow(props: { id: string; label: string }) {
   const showBars = enabled && snapshot?.status === "ok" && snapshot.windows.length > 0;
   const reserveBars = !enabled && snapshot?.status === "ok" && snapshot.windows.length > 0;
   const message = enabled ? usageStatusText(snapshot, label) : "Tracking off";
+  // The credits line below already shows the balance, and usageStatusText folds
+  // it into the status string for a windowless "ok" snapshot — so skip the
+  // standalone message there to avoid rendering "Zen balance: $X" twice.
+  const messageDuplicatesCredits =
+    enabled &&
+    snapshot?.status === "ok" &&
+    snapshot.windows.length === 0 &&
+    !!snapshot.credits &&
+    !snapshot.credits.unlimited;
 
   return (
     <div className="flex items-start justify-between gap-4 border-t border-[color:var(--separator)] py-3 first:border-t-0">
@@ -45,7 +54,7 @@ function UsageProviderRow(props: { id: string; label: string }) {
               </div>
               <p className="absolute inset-0 text-xs text-muted">{message}</p>
             </div>
-          ) : (
+          ) : messageDuplicatesCredits ? null : (
             <p className="mt-0.5 text-xs text-muted">{message}</p>
           )}
           {snapshot?.cost ? (

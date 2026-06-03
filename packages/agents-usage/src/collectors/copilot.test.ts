@@ -107,7 +107,7 @@ describe("collectCopilot", () => {
     expect(captured?.Authorization).toBe("token stored");
   });
 
-  it("treats a paid response without quota snapshots as needing Copilot login", async () => {
+  it("stays signed in for a paid plan with no displayable quota window", async () => {
     const host = createFakeHost({
       tokens: { copilot: { accessToken: "ghtok" } },
       routes: {
@@ -118,6 +118,40 @@ describe("collectCopilot", () => {
             monthly_quotas: { chat: 500 },
           }),
         },
+      },
+    });
+    const snap = await collectCopilot(host);
+    expect(snap.status).toBe("ok");
+    expect(snap.plan).toBe("Copilot Pro");
+    expect(snap.windows).toEqual([]);
+  });
+
+  it("stays signed in for Business with unlimited premium interactions", async () => {
+    const host = createFakeHost({
+      tokens: { copilot: { accessToken: "ghtok" } },
+      routes: {
+        [COPILOT_USER_ENDPOINT]: {
+          body: JSON.stringify({
+            copilot_plan: "business",
+            login: "octo-dev",
+            quota_snapshots: { premium_interactions: { unlimited: true } },
+          }),
+        },
+      },
+    });
+    const snap = await collectCopilot(host);
+    expect(snap.status).toBe("ok");
+    expect(snap.plan).toBe("Copilot Business");
+    expect(snap.authenticatedAs).toBe("octo-dev");
+    expect(snap.windows).toEqual([]);
+    expect(snap.credits).toEqual({ balance: 0, unlimited: true });
+  });
+
+  it("needs login when the token has no Copilot plan or quota", async () => {
+    const host = createFakeHost({
+      tokens: { copilot: { accessToken: "ghtok" } },
+      routes: {
+        [COPILOT_USER_ENDPOINT]: { body: JSON.stringify({ login: "octo-dev" }) },
       },
     });
     const snap = await collectCopilot(host);

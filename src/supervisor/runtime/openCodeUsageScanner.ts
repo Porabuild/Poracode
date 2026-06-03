@@ -10,6 +10,7 @@ import {
   type HostPort,
   type OpenCodeCostRow,
   type UsageSnapshot,
+  type UsageWindow,
 } from "@lightcode/agents-usage";
 import { withReadonlyDb } from "./sqliteRead";
 
@@ -182,13 +183,66 @@ function findZenBalance(value: unknown): number | undefined {
   return undefined;
 }
 
-function parseZenBalance(text: string): number | undefined {
+/** Matches `"<key>": <number>` style pairs (the keys are word-ish, values numeric). */
+const KEYED_NUMBER_RE =
+  /["']?([A-Za-z][A-Za-z0-9_]{2,40})["']?\s*:\s*"?\$?\s*([0-9][0-9,]*(?:\.[0-9]+)?)"?/g;
+
+/**
+ * Find the balance when it is carried as a keyed number in serialized data
+ * embedded in the page (e.g. SolidStart hydration), where there is no "$" prefix
+ * and a human "balance" label may be nowhere near it — so neither the whole-body
+ * `JSON.parse` (the HTML isn't valid JSON) nor the label-proximity patterns
+ * catch it. Restricted to the same explicit balance keys as {@link findZenBalance}
+ * (e.g. `currentBalanceUsd`), so a bare `balance` that might be cents is ignored.
+ */
+function balanceFromEmbeddedKeys(text: string): number | undefined {
+  for (const [, key, value] of text.matchAll(KEYED_NUMBER_RE)) {
+    if (key && value && isExplicitBalanceKey(key)) {
+      const parsed = Number(value.replace(/,/g, ""));
+      if (Number.isFinite(parsed)) return parsed;
+    }
+  }
+  return undefined;
+}
+
+/** 1e8 raw units per USD in opencode.ai's billing store (see the console's `formatBalance`). */
+const OPENCODE_BALANCE_UNITS_PER_USD = 100_000_000;
+/** Sibling keys that confirm a bare `balance:` match is the opencode.ai billing object. */
+const BILLING_SIBLING_RE = /reloadAmount|monthlyUsage|monthlyLimit|customerID|paymentMethod/i;
+
+/**
+ * opencode.ai server-renders its `billing.get` query into the page (SolidStart
+ * SSR), where the balance is the raw `balance` field in 1e8 units — $1 =
+ * 100,000,000, with no "$" — per the console's `formatBalance`. Match that exact
+ * field (a lookbehind rejects `currentBalance`/`balanceUsd`; a nearby billing
+ * sibling key guards against an unrelated `balance`) and convert to dollars.
+ */
+function balanceFromBillingPayload(text: string): number | undefined {
+  for (const match of text.matchAll(/(?<![A-Za-z])balance["']?\s*:\s*([0-9]{4,})/gi)) {
+    const raw = match[1];
+    const at = match.index ?? 0;
+    if (!raw) continue;
+    const window = text.slice(Math.max(0, at - 200), at + 200);
+    if (!BILLING_SIBLING_RE.test(window)) continue;
+    const usd = Number(raw) / OPENCODE_BALANCE_UNITS_PER_USD;
+    if (Number.isFinite(usd) && usd >= 0 && usd < 1_000_000) {
+      return Math.round(usd * 100) / 100;
+    }
+  }
+  return undefined;
+}
+
+export function parseZenBalance(text: string): number | undefined {
   try {
     const balance = findZenBalance(JSON.parse(text));
     if (balance !== undefined) return balance;
   } catch {
-    // fall through to text parsing
+    // Not a pure-JSON body (e.g. an HTML dashboard); fall through.
   }
+  const billing = balanceFromBillingPayload(text);
+  if (billing !== undefined) return billing;
+  const embedded = balanceFromEmbeddedKeys(text);
+  if (embedded !== undefined) return embedded;
   const localized = text.match(
     /(?:current\s+balance|zen\s+balance|現在の残高)[^$]{0,80}\$\s*([0-9][0-9,]*(?:\.[0-9]+)?)/i,
   );
@@ -199,51 +253,213 @@ function parseZenBalance(text: string): number | undefined {
   return Number.isFinite(parsed) ? parsed : undefined;
 }
 
-async function fetchZenBalance(host: HostPort): Promise<number | undefined> {
-  const cookie = openCodeRequestCookie(await host.credentials.getSecret("opencode", "cookie"));
-  if (!cookie) return undefined;
-  const workspaceId = await fetchOpenCodeWorkspaceId(host.http, cookie);
-  if (!workspaceId) return undefined;
-  const res = await host.http.request({
-    url: `https://opencode.ai/workspace/${workspaceId}`,
-    headers: {
-      Cookie: cookie,
-      "User-Agent": OPENCODE_USER_AGENT,
-      Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-    },
-    timeoutMs: 5000,
-  });
-  if (res.status !== 200 || looksSignedOut(res.body)) return undefined;
-  return parseZenBalance(res.body);
+/**
+ * A short, value-masked excerpt around the first `balance:` in the body, so the
+ * dev log reveals the serialization *shape* (key names, formatting) without
+ * writing the actual balance or any account ids: every digit run becomes
+ * `<Nd>` and every long id-like token becomes `<id>`.
+ */
+function balanceStructureExcerpt(body: string): string | undefined {
+  const match = /(?<![A-Za-z])balance["']?\s*:/i.exec(body);
+  if (!match) return undefined;
+  return body
+    .slice(Math.max(0, match.index - 60), match.index + 120)
+    .replace(/[0-9]+/g, (digits) => `<${digits.length}d>`)
+    .replace(/[A-Za-z0-9_]{16,}/g, "<id>");
 }
 
-/** Build the OpenCode usage snapshot from local Go usage and optional Zen balance. */
+/**
+ * Non-sensitive shape of the workspace page, for the dev file logger only, to
+ * diagnose why a balance fails to parse without writing account data: HTTP
+ * status, body length, the signed-out heuristic, `$`/`balance` token counts, the
+ * explicit balance key names present, and a value-masked excerpt. Never includes
+ * the balance itself or any id.
+ */
+function workspacePageDiagnostics(
+  status: number,
+  signedOut: boolean,
+  body: string,
+): Record<string, unknown> {
+  const keys = new Set<string>();
+  for (const [, key] of body.matchAll(KEYED_NUMBER_RE)) {
+    if (key && isExplicitBalanceKey(key)) keys.add(key);
+  }
+  return {
+    status,
+    signedOut,
+    length: body.length,
+    dollarCount: (body.match(/\$/g) ?? []).length,
+    balanceTokenCount: (body.match(/balance/gi) ?? []).length,
+    balanceKeysPresent: [...keys],
+    embeddedBalanceMatched: balanceFromEmbeddedKeys(body) !== undefined,
+    billingPayloadMatched: balanceFromBillingPayload(body) !== undefined,
+    balanceContext: balanceStructureExcerpt(body),
+  };
+}
+
+interface OpenCodeWebSession {
+  /** The captured opencode.ai cookie authenticates as a live signed-in session. */
+  live: boolean;
+  /** Zen pay-as-you-go balance, when the dashboard exposes a parseable one. */
+  balance?: number;
+  /** Go (Lite) subscription windows (rolling 5h / weekly / monthly), when subscribed. */
+  goWindows?: UsageWindow[];
+}
+
+async function fetchOpenCodePage(
+  host: HostPort,
+  cookie: string,
+  url: string,
+): Promise<{ status: number; body: string } | undefined> {
+  try {
+    const res = await host.http.request({
+      url,
+      headers: {
+        Cookie: cookie,
+        "User-Agent": OPENCODE_USER_AGENT,
+        Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+      },
+      timeoutMs: 5000,
+    });
+    return { status: res.status, body: res.body };
+  } catch {
+    return undefined;
+  }
+}
+
+function matchNumber(text: string, pattern: RegExp): number | undefined {
+  const value = text.match(pattern)?.[1];
+  if (value === undefined) return undefined;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : undefined;
+}
+
+const OPENCODE_GO_WINDOW_SPECS = [
+  { key: "rollingUsage", id: "session-5h", label: "Rolling" },
+  { key: "weeklyUsage", id: "weekly", label: "Weekly" },
+  { key: "monthlyUsage", id: "monthly", label: "Monthly" },
+] as const;
+
+/**
+ * Parse the Go (Lite) subscription windows from the server-rendered
+ * `/workspace/{id}/go` body. opencode.ai renders `queryLiteSubscription`
+ * ("lite.subscription.get") as `rollingUsage`/`weeklyUsage`/`monthlyUsage`, each
+ * `{ usagePercent, resetInSec }` — see the console's `LiteUsageItem`. Returns []
+ * when the account has no Lite subscription (the keys are absent), and requires
+ * the two core windows so a stray match can't fabricate a partial set.
+ */
+export function parseOpenCodeGoWindows(text: string, nowMs: number): UsageWindow[] {
+  const windows: UsageWindow[] = [];
+  for (const spec of OPENCODE_GO_WINDOW_SPECS) {
+    const percent = matchNumber(
+      text,
+      new RegExp(`${spec.key}[^}]*?usagePercent["']?\\s*:\\s*([0-9]+(?:\\.[0-9]+)?)`, "i"),
+    );
+    if (percent === undefined) continue;
+    const resetInSec = matchNumber(
+      text,
+      new RegExp(`${spec.key}[^}]*?resetInSec["']?\\s*:\\s*([0-9]+)`, "i"),
+    );
+    windows.push({
+      id: spec.id,
+      label: spec.label,
+      usedPercent: Math.min(100, Math.max(0, percent)),
+      unit: "percent",
+      ...(resetInSec !== undefined ? { resetsAt: nowMs + resetInSec * 1000 } : {}),
+    });
+  }
+  const hasCore =
+    windows.some((w) => w.id === "session-5h") && windows.some((w) => w.id === "weekly");
+  return hasCore ? windows : [];
+}
+
+/**
+ * Fetch the opencode.ai web session: the live check (workspace-id probe — the
+ * same gate the browser login uses), the Zen balance, and the Go (Lite)
+ * subscription windows. Liveness is reported the moment a workspace id resolves,
+ * independently of whether a balance/windows parse — a signed-in account is
+ * signed in even on a zero/unrendered balance. Balance is rendered on both the
+ * home and `/go` pages, so we fetch both in parallel and prefer whichever parses.
+ */
+async function fetchOpenCodeWeb(host: HostPort, nowMs: number): Promise<OpenCodeWebSession> {
+  const cookie = openCodeRequestCookie(await host.credentials.getSecret("opencode", "cookie"));
+  if (!cookie) return { live: false };
+  const workspaceId = await fetchOpenCodeWorkspaceId(host.http, cookie);
+  if (!workspaceId) return { live: false };
+
+  const base = `https://opencode.ai/workspace/${workspaceId}`;
+  const [home, go] = await Promise.all([
+    fetchOpenCodePage(host, cookie, base),
+    fetchOpenCodePage(host, cookie, `${base}/go`),
+  ]);
+
+  const balance =
+    (home?.status === 200 ? parseZenBalance(home.body) : undefined) ??
+    (go?.status === 200 ? parseZenBalance(go.body) : undefined);
+  const goWindows = go?.status === 200 ? parseOpenCodeGoWindows(go.body, nowMs) : [];
+
+  if (balance === undefined) {
+    // Dev-only, value-masked: pins down where the balance lives when it fails to
+    // parse (e.g. it's fetched client-side and absent from this HTML).
+    const page = home ?? go;
+    if (page) {
+      host.log?.debug(
+        "opencode zen balance unparsed",
+        workspacePageDiagnostics(page.status, looksSignedOut(page.body), page.body),
+      );
+    }
+  }
+
+  return {
+    live: true,
+    ...(balance !== undefined ? { balance } : {}),
+    ...(goWindows.length > 0 ? { goWindows } : {}),
+  };
+}
+
+/** Build the OpenCode usage snapshot from Go subscription usage and optional Zen balance. */
 export async function scanOpenCodeUsage(nowMs: number, host?: HostPort): Promise<UsageSnapshot> {
   const hasGoAuth = hasOpenCodeGoAuth();
   const rows = (await readOpenCodeGoRows()) ?? [];
-  const zenBalance = host ? await fetchZenBalance(host).catch(() => undefined) : undefined;
-  const hasGo = hasGoAuth || rows.length > 0;
+  const web: OpenCodeWebSession = host
+    ? await fetchOpenCodeWeb(host, nowMs).catch(() => ({ live: false }))
+    : { live: false };
+  const zenBalance = web.balance;
+  const credits =
+    zenBalance !== undefined
+      ? { credits: { balance: zenBalance, currency: "USD", label: "Zen balance" } as const }
+      : {};
 
+  // Prefer the authoritative web view of the Go subscription (the rolling/weekly/
+  // monthly quota the dashboard shows); fall back to local CLI spend aggregation
+  // when the web windows aren't available but local usage exists.
+  const goWindows = web.goWindows ?? (rows.length > 0 ? aggregateOpenCodeUsage(rows, nowMs) : []);
+  const hasGo = (web.goWindows?.length ?? 0) > 0 || hasGoAuth || rows.length > 0;
+
+  // Go subscription (web or local): show its windows alongside any Zen balance.
   if (hasGo) {
     return {
       providerId: "opencode",
       status: "ok",
       plan: "Go",
-      windows: aggregateOpenCodeUsage(rows, nowMs),
-      ...(zenBalance !== undefined
-        ? { credits: { balance: zenBalance, currency: "USD", label: "Zen balance" } }
-        : {}),
+      windows: goWindows,
+      ...credits,
       fetchedAt: nowMs,
     };
   }
 
-  if (zenBalance !== undefined) {
+  // Signed in to opencode.ai (live web session) without a Go subscription. Report
+  // "ok" so the UI reflects the captured session even when no Zen balance is
+  // exposed — the browser login validated this very cookie via the same probe,
+  // so reverting to "auth-missing" here would wrongly drop the session the
+  // moment the user pressed "Use session".
+  if (web.live) {
     return {
       providerId: "opencode",
       status: "ok",
       plan: "Zen",
       windows: [],
-      credits: { balance: zenBalance, currency: "USD", label: "Zen balance" },
+      ...credits,
       fetchedAt: nowMs,
     };
   }

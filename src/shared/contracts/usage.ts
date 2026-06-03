@@ -54,6 +54,18 @@ export interface UsageLogoutResult {
   ok: boolean;
 }
 
+export const usageLoginStatePayloadSchema = z.object({});
+export type UsageLoginStatePayload = z.infer<typeof usageLoginStatePayloadSchema>;
+
+export interface UsageLoginStateResponse {
+  /**
+   * Per-provider: whether a login secret (cookie/token) is currently stored.
+   * The persistent source of truth for "signed in", so the UI doesn't infer
+   * sign-out from a failed/empty usage fetch.
+   */
+  stored: Record<string, boolean>;
+}
+
 export const usageLoginConfirmationActionSchema = z.enum(["use", "change", "cancel"]);
 export type UsageLoginConfirmationAction = z.infer<typeof usageLoginConfirmationActionSchema>;
 

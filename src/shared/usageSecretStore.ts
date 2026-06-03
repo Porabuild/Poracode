@@ -70,6 +70,17 @@ export function clearUsageSecret(cacheDir: string, providerId: string, key?: str
   writeAll(path, data);
 }
 
+/**
+ * True when any secret is stored for the provider, i.e. a login was captured.
+ * This is the persistent "signed in" signal — independent of whether the latest
+ * usage fetch succeeded — so a transient/empty fetch never reads as signed out.
+ * Does not unseal (presence, not validity).
+ */
+export function hasUsageSecret(cacheDir: string, providerId: string): boolean {
+  const bucket = readAll(usageSecretsPath(cacheDir))[providerId];
+  return bucket !== undefined && Object.keys(bucket).length > 0;
+}
+
 /** Read and unseal a provider secret, or undefined when absent/undecryptable. */
 export function getUsageSecret(
   cacheDir: string,

@@ -105,6 +105,7 @@ export const MAIN_LOCAL_PROCEDURE_NAMES = [
   "cancelUsageLogin",
   "clearUsageLogin",
   "resolveUsageLoginConfirmation",
+  "getUsageLoginState",
 ] as const satisfies readonly IpcProcedureName[];
 
 export type MainLocalProcedureName = (typeof MAIN_LOCAL_PROCEDURE_NAMES)[number];

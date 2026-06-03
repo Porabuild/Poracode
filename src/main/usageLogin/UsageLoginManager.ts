@@ -1,7 +1,8 @@
 import { clipboard } from "electron";
 import type { BrowserPanelManager } from "../browser";
 import type { LightcodePaths } from "@/shared/lightcodePaths";
-import { clearUsageSecret, setUsageSecret } from "@/shared/usageSecretStore";
+import type { UsageLoginStateResponse } from "@/shared/contracts";
+import { clearUsageSecret, hasUsageSecret, setUsageSecret } from "@/shared/usageSecretStore";
 import { isOpenCodeLoginCookieLive } from "./openCodeLoginProbe";
 
 /**
@@ -105,6 +106,19 @@ export class UsageLoginManager {
     private readonly paths: LightcodePaths,
     private readonly getBrowserPanel: () => BrowserPanelManager | null,
   ) {}
+
+  /**
+   * Which login-capable providers currently have a captured secret on disk.
+   * This is the persistent "signed in" signal the UI uses for the sign-in/out
+   * affordance, so a failed or empty usage fetch never reads as a sign-out.
+   */
+  getLoginState(): UsageLoginStateResponse {
+    const stored: Record<string, boolean> = {};
+    for (const providerId of Object.keys(PROVIDER_CONFIGS)) {
+      stored[providerId] = hasUsageSecret(this.paths.cacheDir, providerId);
+    }
+    return { stored };
+  }
 
   /** Cancel an in-flight login (e.g. the user closed the browser overlay). */
   cancelLogin(providerId: string): void {

@@ -22,6 +22,10 @@ import {
 } from "@/renderer/components/providers/usageProviders";
 import { usePanelStore } from "@/renderer/state/panelStore";
 import { useProviderUsage, useProviderUsageStore } from "@/renderer/state/providerUsageStore";
+import {
+  useHasStoredSession,
+  useUsageLoginStateStore,
+} from "@/renderer/state/usageLoginStateStore";
 
 /** Compact one-line window chips shown when the card is collapsed. */
 function WindowChips(props: { windows: UsageSnapshot["windows"] }) {
@@ -66,10 +70,18 @@ export function UsageProviderCard(props: {
 }) {
   const { id, label, index, collapsed, onToggleCollapse } = props;
   const snapshot = useProviderUsage(id);
+  const hasStoredSession = useHasStoredSession(id);
   const [signingIn, setSigningIn] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
   const supportsLogin = supportsCookieLogin(id);
-  const canSignIn = snapshot?.status === "auth-missing" && supportsLogin;
+  // A stored session that the latest fetch reports as rejected (expired cookie)
+  // still warrants a "Sign in" to re-auth; an unauthenticated provider always does.
+  // But never prompt sign-in once a fetch succeeds ("ok"): a provider authenticated
+  // by another path (e.g. Copilot's OAuth/CLI token) has no stored cookie session,
+  // yet is signed in — offering "Sign in" there is wrong.
+  const sessionRejected = snapshot?.status === "auth-missing";
+  const canSignIn =
+    supportsLogin && snapshot?.status !== "ok" && (!hasStoredSession || sessionRejected);
 
   const handleSignIn = async () => {
     setSigningIn(true);
@@ -102,6 +114,9 @@ export function UsageProviderCard(props: {
       // Dismiss the overlay once the login completes.
       usePanelStore.getState().setBrowserOverlayOpen(false);
       if (!outcome.ok) return;
+      // Mark the session stored so the card reads as signed in immediately,
+      // independent of whether the usage fetch below yields displayable data.
+      useUsageLoginStateStore.getState().setStored(id, true);
       // Pull a fresh snapshot now that the cookie is captured; the supervisor
       // also emits `provider-usage`, but merge the reply for immediacy.
       const usage = await readBridge().refreshProviderUsage({ providerIds: [id] });
@@ -117,6 +132,7 @@ export function UsageProviderCard(props: {
     setSigningOut(true);
     try {
       await readBridge().clearUsageLogin({ providerId: id });
+      useUsageLoginStateStore.getState().setStored(id, false);
       const usage = await readBridge().refreshProviderUsage({ providerIds: [id] });
       const fresh = usage.snapshots.find((s) => s.providerId === id);
       if (fresh) useProviderUsageStore.getState().mergeSnapshot(fresh);
@@ -137,7 +153,7 @@ export function UsageProviderCard(props: {
     snapshot?.status === "ok" &&
     (snapshot.windows.length > 0 || Boolean(snapshot.cost) || Boolean(snapshot.credits));
   const hasWindows = snapshot?.status === "ok" && snapshot.windows.length > 0;
-  const canSignOut = supportsLogin && snapshot !== undefined && snapshot.status !== "auth-missing";
+  const canSignOut = supportsLogin && hasStoredSession;
   const sharedReset = usesSharedWindowReset(id)
     ? sharedWindowResetLabel(snapshot, Date.now())
     : undefined;
@@ -262,7 +278,9 @@ function UsageProviderMeta(props: { snapshot: UsageSnapshot }) {
       `~${formatMoney(snapshot.cost.amount, snapshot.cost.currency)}${tokens} · ${snapshot.cost.period} · est.`,
     );
   }
-  if (snapshot.credits && !snapshot.credits.unlimited) {
+  if (snapshot.credits?.unlimited) {
+    lines.push("Unlimited");
+  } else if (snapshot.credits) {
     lines.push(
       `${snapshot.credits.label ?? "Credits"}: ${formatMoney(
         snapshot.credits.balance,

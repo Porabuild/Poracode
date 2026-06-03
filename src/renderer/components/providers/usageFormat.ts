@@ -69,8 +69,10 @@ export function formatWindowSecondaryValue(w: UsageWindow): string | undefined {
  * projected level (not current usage), so a bar trending into the red reads as
  * a warning even while current usage is still comfortable.
  *
- * - Lasts to reset: "≈N% used by reset" — the lower the number, the more room.
+ * - Lasts to reset: "≈N% by reset" — the lower the number, the more room.
  * - Runs out early: "Runs out in 2h 10m · 1h 50m early" — actionable warning.
+ * - Already exhausted: "Ran out · resets in 3d 7h" — countdown is moot, so show
+ *   when the quota returns instead.
  */
 export function formatPaceSummary(
   projection: UsageProjection,
@@ -79,11 +81,19 @@ export function formatPaceSummary(
 ): { text: string; toneColor: string } {
   const toneColor = usageToneColor(projection.projectedPercent);
   if (projection.lastsToReset) {
-    return { text: `≈${Math.round(projection.projectedPercent)}% used by reset`, toneColor };
+    return { text: `≈${Math.round(projection.projectedPercent)}% by reset`, toneColor };
   }
   const { runsOutAt } = projection;
-  const runOut = runsOutAt !== undefined ? formatResetCountdown(runsOutAt, now) : undefined;
-  if (runsOutAt === undefined || !runOut) return { text: "Over pace — runs out early", toneColor };
+  if (runsOutAt === undefined) return { text: "Over pace — runs out early", toneColor };
+  // Already exhausted: the projected run-out moment is now or in the past, so a
+  // "runs out in …" countdown and the "early" warning no longer apply — what's
+  // actionable is when the quota comes back.
+  if (runsOutAt <= now) {
+    const resets = formatResetCountdown(resetsAt, now);
+    return { text: resets ? `Ran out · resets in ${resets}` : "Ran out", toneColor };
+  }
+  const runOut = formatResetCountdown(runsOutAt, now);
+  if (!runOut) return { text: "Over pace — runs out early", toneColor };
   // How far ahead of reset the quota is projected to run dry.
   const earlyMs = resetsAt - runsOutAt;
   const early = earlyMs > 60_000 ? formatResetCountdown(now + earlyMs, now) : undefined;
@@ -135,7 +145,10 @@ export function usageStatusText(
   if (!snapshot) return "No data yet";
   switch (snapshot.status) {
     case "ok":
-      if (snapshot.credits && !snapshot.credits.unlimited) {
+      if (snapshot.credits?.unlimited) {
+        return "Unlimited";
+      }
+      if (snapshot.credits) {
         return `${snapshot.credits.label ?? "Credits"}: ${formatMoney(
           snapshot.credits.balance,
           snapshot.credits.currency,

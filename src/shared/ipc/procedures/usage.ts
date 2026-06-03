@@ -2,11 +2,14 @@ import {
   providerUsagePayloadSchema,
   usageLoginConfirmationPayloadSchema,
   usageLoginPayloadSchema,
+  usageLoginStatePayloadSchema,
   type ProviderUsagePayload,
   type ProviderUsageResponse,
   type UsageLoginConfirmationPayload,
   type UsageLoginPayload,
   type UsageLoginResult,
+  type UsageLoginStatePayload,
+  type UsageLoginStateResponse,
   type UsageLogoutResult,
 } from "../../contracts";
 import { definePayloadProcedure } from "../core";
@@ -32,6 +35,11 @@ export const usageProcedures = {
     void,
     "main-local"
   >("resolveUsageLoginConfirmation", "main-local", usageLoginConfirmationPayloadSchema),
+  getUsageLoginState: definePayloadProcedure<
+    UsageLoginStatePayload,
+    UsageLoginStateResponse,
+    "main-local"
+  >("getUsageLoginState", "main-local", usageLoginStatePayloadSchema),
   getProviderUsage: definePayloadProcedure<
     ProviderUsagePayload,
     ProviderUsageResponse,

@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { parseGrokUsage } from "./grok";
+import { createFakeHost } from "../testHost";
+import { collectGrok, parseGrokUsage } from "./grok";
+import { GROK_GRPC_ENDPOINT } from "./grokGrpc";
 
 const NOW = 1_717_000_000_000;
 
@@ -35,5 +37,29 @@ describe("parseGrokUsage", () => {
     expect(snap.status).toBe("ok");
     expect(snap.windows[0]!.usedPercent).toBe(0);
     expect(snap.plan).toBeUndefined();
+  });
+});
+
+describe("collectGrok cookie session", () => {
+  it("keeps the stored session on a transient failure (no token to fall back to)", async () => {
+    // A stored grok.com cookie whose check 5xx's, with no CLI token. This must
+    // not read as signed out: report a preserved `error`, not auth-missing, so a
+    // blip (e.g. a not-yet-ready network at startup) never forces a re-login.
+    const host = createFakeHost({
+      secrets: { grok: { cookie: "sso=abc" } },
+      routes: { [GROK_GRPC_ENDPOINT]: { status: 500 } },
+    });
+    const snap = await collectGrok(host);
+    expect(snap.status).toBe("error");
+    expect(snap.windows).toEqual([]);
+  });
+
+  it("reports auth-missing when the cookie is hard-rejected and there is no token", async () => {
+    const host = createFakeHost({
+      secrets: { grok: { cookie: "sso=expired" } },
+      routes: { [GROK_GRPC_ENDPOINT]: { status: 401 } },
+    });
+    const snap = await collectGrok(host);
+    expect(snap.status).toBe("auth-missing");
   });
 });

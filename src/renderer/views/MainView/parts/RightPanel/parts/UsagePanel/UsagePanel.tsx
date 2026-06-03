@@ -6,6 +6,7 @@ import { readBridge } from "@/renderer/bridge";
 import { resolveDisplayedProviders } from "@/renderer/components/providers/usageProviders";
 import { useScrollFade } from "@/renderer/hooks/useScrollFade";
 import { useProviderUsageStore } from "@/renderer/state/providerUsageStore";
+import { useUsageLoginStateStore } from "@/renderer/state/usageLoginStateStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { UsageProviderCard } from "./parts/UsageProviderCard";
 
@@ -38,6 +39,8 @@ export function UsagePanel() {
 
   // Hydrate the store from the supervisor cache on open (and let the cache's
   // staleness trigger a background refresh whose events update the cards live).
+  // Alongside it, load the persistent "signed in" flags so the sign-in/out
+  // affordance reflects the stored session, not whatever the last fetch returned.
   useEffect(() => {
     let cancelled = false;
     void readBridge()
@@ -46,6 +49,12 @@ export function UsagePanel() {
         if (cancelled) return;
         const store = useProviderUsageStore.getState();
         for (const snapshot of res.snapshots) store.mergeSnapshot(snapshot);
+      })
+      .catch(() => undefined);
+    void readBridge()
+      .getUsageLoginState({})
+      .then((res) => {
+        if (!cancelled) useUsageLoginStateStore.getState().setAll(res.stored);
       })
       .catch(() => undefined);
     return () => {

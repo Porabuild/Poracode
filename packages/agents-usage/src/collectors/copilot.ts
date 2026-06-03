@@ -107,7 +107,8 @@ export function parseCopilotUsage(body: unknown, nowMs: number): UsageSnapshot {
   const windows: UsageWindow[] = [];
 
   const paidReset = toEpochMs(data.quota_reset_date);
-  const premium = premiumWindow(data.quota_snapshots?.premium_interactions, paidReset);
+  const premiumQuota = data.quota_snapshots?.premium_interactions;
+  const premium = premiumWindow(premiumQuota, paidReset);
   if (premium) {
     windows.push(premium);
   } else if (!planKind || planKind === "free" || skuKind === "free_limited_copilot") {
@@ -116,6 +117,12 @@ export function parseCopilotUsage(body: unknown, nowMs: number): UsageSnapshot {
     if (free) windows.push(free);
   }
 
+  // Copilot's premium-request quota is now credit-billed: an org that sets no
+  // spending limit reports `premium_interactions.unlimited`, so there's no
+  // window to chart. Surface it as unlimited credits rather than dropping it —
+  // otherwise the card reads as "No windows reported" for a working account.
+  const unlimitedPremium = premiumQuota?.unlimited === true;
+
   return {
     providerId: "copilot",
     status: "ok",
@@ -123,6 +130,7 @@ export function parseCopilotUsage(body: unknown, nowMs: number): UsageSnapshot {
     fetchedAt: nowMs,
     ...(plan ? { plan } : {}),
     ...(data.login ? { authenticatedAs: data.login } : {}),
+    ...(unlimitedPremium ? { credits: { balance: 0, unlimited: true } } : {}),
   };
 }
 
@@ -193,7 +201,12 @@ export async function collectCopilot(
   }
 
   const snapshot = parseCopilotUsage(parsed, now);
-  if (snapshot.status === "ok" && snapshot.windows.length === 0) {
+  // A 200 with neither a plan nor any quota window means the token isn't entitled
+  // to Copilot — treat that as needing login. But a real plan with no displayable
+  // window (e.g. Business/Enterprise with unlimited premium interactions, or a
+  // paid plan whose only quotas are chat which we don't surface) is genuinely
+  // signed in — keep it "ok" so the card shows the plan instead of "Not signed in".
+  if (snapshot.status === "ok" && snapshot.windows.length === 0 && !snapshot.plan) {
     return {
       ...snapshot,
       status: "auth-missing",

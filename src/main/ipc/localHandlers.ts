@@ -250,5 +250,10 @@ export function createLocalIpcHandlers(
     resolveUsageLoginConfirmation: (payload) => {
       requireBrowserPanel(options.getBrowserPanelManager).resolveUsageLoginConfirmation(payload);
     },
+    getUsageLoginState: () =>
+      getUsageLoginManager(
+        options.requireLightcodePaths,
+        options.getBrowserPanelManager,
+      ).getLoginState(),
   });
 }

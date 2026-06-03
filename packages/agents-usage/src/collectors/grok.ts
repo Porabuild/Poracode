@@ -174,17 +174,33 @@ export async function collectGrok(host: HostPort, _opts?: CollectOptions): Promi
   // token path when no cookie is stored or the gRPC-web call fails.
   const cookie = await host.credentials.getSecret("grok", "cookie");
   if (cookie) {
+    let viaCookie: UsageSnapshot | undefined;
     try {
-      const viaCookie = await collectGrokViaCookie(host, cookie, now);
-      if (viaCookie && viaCookie.status !== "auth-missing") return viaCookie;
-      if (viaCookie?.status === "auth-missing") {
-        // Cookie expired/rejected; only surface that if there's no CLI token.
-        const token = await host.credentials.getOAuthToken("grok");
-        if (!token?.accessToken) return viaCookie;
-      }
+      viaCookie = await collectGrokViaCookie(host, cookie, now);
     } catch {
-      // fall through to the token path
+      // Network throw — treat as transient below, not a sign-out.
     }
+    if (viaCookie && viaCookie.status === "ok") return viaCookie;
+
+    // The cookie path produced no usage. Distinguish a hard rejection (401/403 →
+    // auth-missing) from a transient failure (network throw, 5xx, or an
+    // unparseable frame → undefined). Only the CLI token can substitute, so when
+    // there is none we keep the stored session visible: surface a hard rejection
+    // as auth-missing (re-login needed), but a transient failure as a preserved
+    // `error` so a blip (e.g. a not-yet-ready network at startup) never
+    // masquerades as signed out and forces a needless re-login.
+    const token = await host.credentials.getOAuthToken("grok");
+    if (!token?.accessToken) {
+      if (viaCookie?.status === "auth-missing") return viaCookie;
+      return {
+        providerId: "grok",
+        status: "error",
+        windows: [],
+        fetchedAt: now,
+        error: "grok.com session check failed",
+      };
+    }
+    // A CLI token exists — fall through to the token path below.
   }
 
   const token = await host.credentials.getOAuthToken("grok");
