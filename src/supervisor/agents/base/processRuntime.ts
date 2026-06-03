@@ -334,6 +334,16 @@ export function batchWslCommands(
   });
 }
 
+/**
+ * A WSL `command -v` result under `/mnt` is a Windows binary surfaced inside the
+ * distro via PATH interop, not a real Linux install — running it would launch a
+ * Windows process against a Linux cwd. Detection and launch-time resolution both
+ * reject it via this predicate so they agree regardless of binary-path cache.
+ */
+export function isWslInteropBinaryPath(path: string): boolean {
+  return path.startsWith("/mnt/");
+}
+
 export function resolveWslExecutablePath(distro: string, command: string): string | undefined {
   const result = spawnSync(
     getWslCommand(),
@@ -348,7 +358,11 @@ export function resolveWslExecutablePath(distro: string, command: string): strin
   if (result.error || result.status !== 0) {
     return undefined;
   }
-  return parseCommandOutputLine(`${result.stdout ?? ""}`);
+  const resolved = parseCommandOutputLine(`${result.stdout ?? ""}`);
+  if (!resolved || isWslInteropBinaryPath(resolved)) {
+    return undefined;
+  }
+  return resolved;
 }
 
 export function resolveWslHomeDirectory(distro: string): string | undefined {

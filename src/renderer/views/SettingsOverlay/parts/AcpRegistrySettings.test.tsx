@@ -44,6 +44,8 @@ const bridge = {
     >(),
   focusWindow: vi.fn<() => Promise<void>>(),
   openExternal: vi.fn<(url: string) => Promise<void>>(),
+  getLatestAgentVersion:
+    vi.fn<(payload: { agentKind: string }) => Promise<{ source: string; version?: string }>>(),
 };
 
 const runAgentInstallCommandMock = vi.hoisted(() => vi.fn<(input: unknown) => void>());
@@ -212,6 +214,7 @@ describe("AcpRegistrySettings", () => {
     bridge.authenticateAcpAgent.mockReset().mockResolvedValue(undefined);
     bridge.focusWindow.mockReset().mockResolvedValue(undefined);
     bridge.openExternal.mockReset().mockResolvedValue(undefined);
+    bridge.getLatestAgentVersion.mockReset().mockResolvedValue({ source: "unknown" });
     runAgentLoginCommandMock.mockReset();
     runAgentInstallCommandMock.mockReset();
     resetDiscoveredAgentsMock.mockReset();

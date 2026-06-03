@@ -78,3 +78,54 @@ describe("detectAgentInstall version probe", () => {
     );
   });
 });
+
+describe("detectAgentInstall WSL interop guard", () => {
+  const originalPlatform = process.platform;
+  const sep = "---LIGHTCODE_BATCH_SEP---";
+
+  beforeEach(() => {
+    Object.defineProperty(process, "platform", { value: "win32", configurable: true });
+    clearExecutablePathCache();
+    execFileAsyncMock.mockReset();
+  });
+
+  afterEach(() => {
+    Object.defineProperty(process, "platform", { value: originalPlatform, configurable: true });
+    vi.restoreAllMocks();
+  });
+
+  it("treats a Windows binary surfaced via /mnt interop as not installed in WSL", async () => {
+    // `command -v` inside the distro resolves a Windows-only install (npm
+    // global) through `/mnt/c` PATH interop. That is not a real Linux install,
+    // so the card must not report "Detected" in WSL.
+    execFileAsyncMock.mockImplementation(async (_cmd: unknown, args: unknown) => {
+      const joined = (Array.isArray(args) ? args : []).join(" ");
+      if (joined.includes("getent passwd")) return { stdout: "/bin/bash\n", stderr: "" };
+      if (joined.includes("command -v")) {
+        return { stdout: `/mnt/c/Users/x/AppData/Roaming/npm/grok\n${sep}\n`, stderr: "" };
+      }
+      return { stdout: "", stderr: "" };
+    });
+
+    const status = await detectAgentInstall({ envKind: "wsl", wslDistro: "Interop-Test" }, spec);
+
+    expect(status.installed).toBe(false);
+    expect(status.executablePath).toBeUndefined();
+  });
+
+  it("accepts a genuine Linux install path in WSL", async () => {
+    execFileAsyncMock.mockImplementation(async (_cmd: unknown, args: unknown) => {
+      const joined = (Array.isArray(args) ? args : []).join(" ");
+      if (joined.includes("getent passwd")) return { stdout: "/bin/bash\n", stderr: "" };
+      if (joined.includes("command -v")) {
+        return { stdout: `/home/x/.local/bin/grok\n${sep}\n`, stderr: "" };
+      }
+      return { stdout: "grok version 1.2.3\n", stderr: "" };
+    });
+
+    const status = await detectAgentInstall({ envKind: "wsl", wslDistro: "Linux-Test" }, spec);
+
+    expect(status.installed).toBe(true);
+    expect(status.executablePath).toBe("/home/x/.local/bin/grok");
+  });
+});
