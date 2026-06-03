@@ -70,7 +70,7 @@ export function formatWindowSecondaryValue(w: UsageWindow): string | undefined {
  * a warning even while current usage is still comfortable.
  *
  * - Lasts to reset: "≈N% by reset" — the lower the number, the more room.
- * - Runs out early: "Runs out in 2h 10m · 1h 50m early" — actionable warning.
+ * - Runs out early: "Runs out in 2h 10m" — actionable warning.
  * - Already exhausted: "Ran out · resets in 3d 7h" — countdown is moot, so show
  *   when the quota returns instead.
  */
@@ -93,14 +93,7 @@ export function formatPaceSummary(
     return { text: resets ? `Ran out · resets in ${resets}` : "Ran out", toneColor };
   }
   const runOut = formatResetCountdown(runsOutAt, now);
-  if (!runOut) return { text: "Over pace — runs out early", toneColor };
-  // How far ahead of reset the quota is projected to run dry.
-  const earlyMs = resetsAt - runsOutAt;
-  const early = earlyMs > 60_000 ? formatResetCountdown(now + earlyMs, now) : undefined;
-  return {
-    text: early ? `Runs out in ${runOut} · ${early} early` : `Runs out in ${runOut}`,
-    toneColor,
-  };
+  return { text: runOut ? `Runs out in ${runOut}` : "Runs out early", toneColor };
 }
 
 /**

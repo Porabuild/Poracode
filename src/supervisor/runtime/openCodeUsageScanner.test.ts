@@ -59,6 +59,19 @@ describe("scanOpenCodeUsage", () => {
     expect(snap.windows).toEqual(goWindows);
   });
 
+  it("keeps the Zen balance alongside Go subscription windows", async () => {
+    const goWindows = [
+      { id: "session-5h" as const, label: "Rolling", usedPercent: 20, unit: "percent" as const },
+      { id: "weekly" as const, label: "Weekly", usedPercent: 5, unit: "percent" as const },
+    ];
+    web.fetchOpenCodeWeb.mockResolvedValue({ live: true, balance: 9, goWindows });
+    const snap = await scanOpenCodeUsage(NOW, host);
+    expect(snap.status).toBe("ok");
+    expect(snap.plan).toBe("Go");
+    expect(snap.windows).toEqual(goWindows);
+    expect(snap.credits).toEqual({ balance: 9, currency: "USD", label: "Zen balance" });
+  });
+
   it("falls back to local Go auth (no web) as ok/Go", async () => {
     goDb.hasOpenCodeGoAuth.mockReturnValue(true);
     const snap = await scanOpenCodeUsage(NOW, host);

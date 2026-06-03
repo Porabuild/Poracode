@@ -3,9 +3,9 @@ import type { UsageWindow } from "./types";
 /**
  * OpenCode (OpenCode Zen / `opencode-go`) has no usage API — spend is read from
  * the CLI's local SQLite store. This pure aggregator turns assistant-message
- * cost rows into rolling 5h / weekly / monthly dollar windows against the fixed
- * plan budgets openusage uses. The host reads the rows; this does the math so it
- * is unit-testable without a database.
+ * cost rows into rolling 5h / weekly / monthly percent windows against the
+ * fixed plan budgets openusage uses. The host reads the rows; this does the math
+ * so it is unit-testable without a database.
  */
 
 export interface OpenCodeCostRow {
@@ -32,10 +32,6 @@ function utcMonthBoundsMs(nowMs: number): { start: number; end: number } {
     start: Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1),
     end: Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 1),
   };
-}
-
-function round2(value: number): number {
-  return Math.round(value * 100) / 100;
 }
 
 function sumSince(rows: readonly OpenCodeCostRow[], startMs: number, nowMs: number): number {
@@ -102,15 +98,12 @@ function window(
     id,
     label,
     usedPercent,
-    unit: "usd",
-    currency: "USD",
-    used: round2(used),
-    limit,
+    unit: "percent",
     ...(resetsAt !== undefined ? { resetsAt } : {}),
   };
 }
 
-/** Build the 5h / weekly / monthly dollar windows from cost rows. */
+/** Build the 5h / weekly / monthly percent windows from cost rows. */
 export function aggregateOpenCodeUsage(
   rows: readonly OpenCodeCostRow[],
   nowMs: number,

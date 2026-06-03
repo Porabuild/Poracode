@@ -6,7 +6,7 @@ const NOW = Date.UTC(2026, 4, 15, 12, 0, 0);
 const HOUR = 60 * 60 * 1000;
 
 describe("aggregateOpenCodeUsage", () => {
-  it("buckets costs into rolling 5h, weekly, and monthly dollar windows", () => {
+  it("buckets costs into rolling 5h, weekly, and monthly percent windows", () => {
     const rows = [
       { createdMs: NOW - 1 * HOUR, cost: 2 }, // session + week + month
       { createdMs: NOW - 10 * HOUR, cost: 3 }, // week + month
@@ -17,29 +17,27 @@ describe("aggregateOpenCodeUsage", () => {
     const [session, weekly, monthly] = aggregateOpenCodeUsage(rows, NOW);
 
     expect(session!.id).toBe("session-5h");
-    expect(session!.used).toBe(2);
-    expect(session!.limit).toBe(12);
     expect(session!.usedPercent).toBeCloseTo((2 / 12) * 100);
     expect(session!.resetsAt).toBeUndefined();
 
-    expect(weekly!.used).toBe(6);
     expect(weekly!.usedPercent).toBeCloseTo((6 / 30) * 100);
     expect(weekly!.resetsAt).toBe(Date.UTC(2026, 4, 18));
 
-    expect(monthly!.used).toBe(11);
     expect(monthly!.usedPercent).toBeCloseTo((11 / 60) * 100);
     expect(monthly!.resetsAt).toBe(Date.UTC(2026, 4, 20));
 
     for (const w of [session!, weekly!, monthly!]) {
-      expect(w.unit).toBe("usd");
-      expect(w.currency).toBe("USD");
+      expect(w.unit).toBe("percent");
+      expect(w.used).toBeUndefined();
+      expect(w.limit).toBeUndefined();
+      expect(w.currency).toBeUndefined();
     }
   });
 
   it("returns zeroed windows for no rows", () => {
     const windows = aggregateOpenCodeUsage([], NOW);
     expect(windows).toHaveLength(3);
-    expect(windows.every((w) => w.used === 0 && w.usedPercent === 0)).toBe(true);
+    expect(windows.every((w) => w.usedPercent === 0)).toBe(true);
   });
 
   it("anchors monthly usage to the earliest local Go usage timestamp", () => {
@@ -54,7 +52,7 @@ describe("aggregateOpenCodeUsage", () => {
     );
 
     const monthly = windows.find((w) => w.id === "monthly");
-    expect(monthly?.used).toBe(5);
+    expect(monthly?.usedPercent).toBeCloseTo((5 / 60) * 100);
     expect(monthly?.resetsAt).toBe(Date.UTC(2026, 3, 25, 7, 53, 16));
   });
 });

@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import type { UsageSnapshot } from "@/shared/contracts";
+import type { UsageCredits, UsageSnapshot } from "@/shared/contracts";
 
 /**
  * Per-provider usage snapshots streamed from the supervisor (`provider-usage` /
@@ -14,12 +14,23 @@ interface ProviderUsageStore {
   mergeSnapshot: (snapshot: UsageSnapshot) => void;
 }
 
+function creditsEqual(a: UsageCredits | undefined, b: UsageCredits | undefined): boolean {
+  if (!a || !b) return a === b;
+  return (
+    a.balance === b.balance &&
+    a.currency === b.currency &&
+    a.label === b.label &&
+    a.unlimited === b.unlimited
+  );
+}
+
 function snapshotEqual(a: UsageSnapshot | undefined, b: UsageSnapshot): boolean {
   if (!a) return false;
   if (
     a.status !== b.status ||
     a.plan !== b.plan ||
     a.fetchedAt !== b.fetchedAt ||
+    !creditsEqual(a.credits, b.credits) ||
     a.windows.length !== b.windows.length
   ) {
     return false;
