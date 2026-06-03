@@ -1,9 +1,20 @@
 import { describe, expect, it } from "vitest";
 import { createFakeHost } from "../testHost";
-import { collectGrok, parseGrokUsage } from "./grok";
+import { collectGrok, isGrokSessionLive, parseGrokUsage } from "./grok";
 import { GROK_GRPC_ENDPOINT } from "./grokGrpc";
 
 const NOW = 1_717_000_000_000;
+const LIVE_GRPC_MESSAGE_B64 =
+  "CkoKBAignAESAwjFJhoAIgYIgNrPzwYqBgiAl/PQBjINCgUI6g8QBBIAGgAiADINCgUI6g8QAxIAGgAiADINCgUI6g8QAhIAGgAiAA==";
+
+function frameToBase64(messageB64: string): string {
+  const message = Buffer.from(messageB64, "base64");
+  const header = Buffer.alloc(5);
+  header.writeUInt32BE(message.length, 1);
+  return Buffer.concat([header, message]).toString("base64");
+}
+
+const LIVE_GRPC_BODY = frameToBase64(LIVE_GRPC_MESSAGE_B64);
 
 describe("parseGrokUsage", () => {
   it("maps the /billing config block to a monthly credits window", () => {
@@ -41,6 +52,13 @@ describe("parseGrokUsage", () => {
 });
 
 describe("collectGrok cookie session", () => {
+  it("checks whether a browser cookie authenticates to grok.com", async () => {
+    const host = createFakeHost({
+      routes: { [GROK_GRPC_ENDPOINT]: { body: LIVE_GRPC_BODY } },
+    });
+    await expect(isGrokSessionLive(host.http, "sso=abc")).resolves.toBe(true);
+  });
+
   it("keeps the stored session on a transient failure (no token to fall back to)", async () => {
     // A stored grok.com cookie whose check 5xx's, with no CLI token. This must
     // not read as signed out: report a preserved `error`, not auth-missing, so a

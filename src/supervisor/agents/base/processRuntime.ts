@@ -1,5 +1,7 @@
 import { execFile, spawn, spawnSync } from "node:child_process";
+import { existsSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
+import { dirname, join } from "node:path";
 import { promisify } from "node:util";
 import {
   buildPosixExportPrefix,
@@ -218,7 +220,22 @@ function parseWindowsExecutablePath(stdout: string): string | undefined {
     .split(/\r?\n/g)
     .map((line) => line.trim())
     .filter((line) => line.length > 0);
-  return lines.findLast((line) => /\.(?:bat|cmd|com|exe|ps1)$/i.test(line)) ?? lines.at(-1);
+  const resolved =
+    lines.findLast((line) => /\.(?:bat|cmd|com|exe|ps1)$/i.test(line)) ?? lines.at(-1);
+  return resolveWindowsCmdExeTarget(resolved) ?? resolved;
+}
+
+function resolveWindowsCmdExeTarget(path: string | undefined): string | undefined {
+  if (!path || !/\.cmd$/i.test(path)) return undefined;
+  try {
+    const body = readFileSync(path, "utf8");
+    const match = /"%dp0%\\([^"]+?\.exe)"/i.exec(body);
+    if (!match?.[1]) return undefined;
+    const target = join(dirname(path), match[1]);
+    return existsSync(target) ? target : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 const wslHomeCache = new Map<string, string>();

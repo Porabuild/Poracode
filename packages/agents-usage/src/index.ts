@@ -44,6 +44,7 @@ export { collectCopilot, parseCopilotUsage, COPILOT_USER_ENDPOINT } from "./coll
 export { collectCursor, parseCursorUsage, CURSOR_USAGE_ENDPOINT } from "./collectors/cursor";
 export {
   collectGrok,
+  isGrokSessionLive,
   parseGrokUsage,
   GROK_BILLING_ENDPOINT,
   GROK_SETTINGS_ENDPOINT,

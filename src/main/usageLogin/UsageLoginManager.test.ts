@@ -9,8 +9,12 @@ vi.mock("electron", () => ({ clipboard: { writeText: vi.fn<(text: string) => voi
 vi.mock("./openCodeLoginProbe", () => ({
   isOpenCodeLoginCookieLive: vi.fn<(cookieHeader: string) => Promise<boolean>>(),
 }));
+vi.mock("./grokLoginProbe", () => ({
+  isGrokLoginCookieLive: vi.fn<(cookieHeader: string) => Promise<boolean>>(),
+}));
 
 const { UsageLoginManager } = await import("./UsageLoginManager");
+const { isGrokLoginCookieLive } = await import("./grokLoginProbe");
 
 const DEVICE_CODE_URL = "/login/device/code";
 const TOKEN_URL = "/login/oauth/access_token";
@@ -22,6 +26,10 @@ function makePanel() {
     showUsageLoginDeviceCode: vi.fn<(deviceCode: unknown) => void>(),
     clearUsageLoginDeviceCode: vi.fn<(providerId: string) => void>(),
     cancelLoginCapture: vi.fn<() => void>(),
+    captureLoginCookies: vi.fn<() => Promise<{ ok: boolean; cookie?: string }>>(async () => ({
+      ok: true,
+      cookie: "sso=abc",
+    })),
   };
 }
 
@@ -73,6 +81,24 @@ afterEach(() => {
 function newManager(panel: ReturnType<typeof makePanel>) {
   return new UsageLoginManager({ cacheDir } as never, () => panel as never);
 }
+
+describe("UsageLoginManager cookie flow", () => {
+  it("validates Grok cookies before saving them", async () => {
+    const panel = makePanel();
+    const manager = newManager(panel);
+
+    await expect(manager.startLogin("grok")).resolves.toEqual({ ok: true });
+
+    expect(panel.captureLoginCookies).toHaveBeenCalledWith(
+      expect.objectContaining({
+        loginUrl: "https://grok.com/",
+        cookieUrl: "https://grok.com/",
+        validateSession: isGrokLoginCookieLive,
+      }),
+    );
+    expect(hasUsageSecret(cacheDir, "grok")).toBe(true);
+  });
+});
 
 describe("UsageLoginManager GitHub device flow", () => {
   it("polls past authorization_pending, stores the token, and cleans up", async () => {
