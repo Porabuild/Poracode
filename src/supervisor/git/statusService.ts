@@ -275,6 +275,53 @@ export function buildGitStatusResultFromOutputs(args: {
   };
 }
 
+function buildGitStatusSummaryFromOutput(statusOutput: string): GitStatusResult {
+  const parsed = parseStatusPorcelainV2(statusOutput);
+  return {
+    detail: "summary",
+    isRepo: true,
+    branch: parsed.branch,
+    tracking: parsed.tracking,
+    hasRemote: parsed.tracking.length > 0,
+    remoteInfo: null,
+    ahead: parsed.ahead,
+    behind: parsed.behind,
+    staged: parsed.staged,
+    unstaged: parsed.unstaged,
+    totalInsertions: 0,
+    totalDeletions: 0,
+    ...(parsed.mergeInProgress
+      ? {
+          mergeInProgress: true,
+          conflictFiles: parsed.conflictFiles.map((path) => ({
+            path,
+            status: "U",
+            staged: false,
+            insertions: 0,
+            deletions: 0,
+          })),
+        }
+      : {}),
+  };
+}
+
+function nonRepoSummaryStatus(): GitStatusResult {
+  return {
+    detail: "summary",
+    isRepo: false,
+    branch: "",
+    tracking: "",
+    hasRemote: false,
+    remoteInfo: null,
+    ahead: 0,
+    behind: 0,
+    staged: [],
+    unstaged: [],
+    totalInsertions: 0,
+    totalDeletions: 0,
+  };
+}
+
 export class GitStatusService {
   private readonly untrackedStatsCache = new Map<string, UntrackedStatsCacheEntry>();
 
@@ -373,6 +420,33 @@ export class GitStatusService {
         ? { mergeInProgress: true, conflictFiles: conflictFileChanges }
         : {}),
     };
+  }
+
+  async getStatusSummary(location: ProjectLocation): Promise<GitStatusResult> {
+    if (location.kind === "wsl") {
+      const results =
+        (await execGitBatchWslBridge(
+          location,
+          [{ cwd: location.linuxPath, args: ["status", "--porcelain=v2", "-b"] }],
+          GIT_STATUS_TIMEOUT,
+        )) ??
+        (await parallelWslCommandsAsync(
+          location.distro,
+          [{ cwd: location.linuxPath, cmd: "git status --porcelain=v2 -b" }],
+          { timeoutMs: GIT_STATUS_TIMEOUT },
+        ));
+      const result = results[0];
+      return result?.ok ? buildGitStatusSummaryFromOutput(result.stdout) : nonRepoSummaryStatus();
+    }
+
+    try {
+      const statusOutput = await execGit(location, ["status", "--porcelain=v2", "-b"], {
+        timeout: GIT_STATUS_TIMEOUT,
+      });
+      return buildGitStatusSummaryFromOutput(statusOutput);
+    } catch {
+      return nonRepoSummaryStatus();
+    }
   }
 
   /**
@@ -517,6 +591,38 @@ export class GitStatusService {
         }
       }),
     );
+    return out;
+  }
+
+  async getWorktreeStatusSummaryBatchWsl(
+    location: ProjectLocation & { kind: "wsl" },
+    worktreePaths: string[],
+  ): Promise<Record<string, GitStatusResult>> {
+    if (worktreePaths.length === 0) return {};
+
+    const bridgeCommands = worktreePaths.map((cwd) => ({
+      cwd,
+      args: ["status", "--porcelain=v2", "-b"],
+    }));
+    const commands = worktreePaths.map((cwd) => ({
+      cwd,
+      cmd: "git status --porcelain=v2 -b",
+    }));
+    const bridgeResults = await execGitBatchWslBridge(location, bridgeCommands, GIT_STATUS_TIMEOUT);
+    const results =
+      bridgeResults ??
+      (await parallelWslCommandsAsync(location.distro, commands, {
+        timeoutMs: GIT_STATUS_TIMEOUT,
+      }));
+
+    const out: Record<string, GitStatusResult> = {};
+    for (let i = 0; i < worktreePaths.length; i += 1) {
+      const result = results[i];
+      if (!result) continue;
+      out[worktreePaths[i]!] = result.ok
+        ? buildGitStatusSummaryFromOutput(result.stdout)
+        : nonRepoSummaryStatus();
+    }
     return out;
   }
 

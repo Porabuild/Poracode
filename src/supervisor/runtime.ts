@@ -1120,6 +1120,7 @@ export class SupervisorRuntime {
     const statuses = await this.gitService.getWorktreeStatusBatch(
       payload.projectLocation,
       payload.worktreePaths,
+      payload.detail ?? "full",
     );
     return { statuses };
   }

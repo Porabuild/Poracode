@@ -8,6 +8,7 @@ import type {
   GitGetWorktreeSourceBranchResult,
   GitMergeToSourceResult,
   GitPullFromSourceResult,
+  GitStatusDetail,
   GitStatusResult,
   GitSwitchBranchResult,
   GitWorktreeListResult,
@@ -38,6 +39,8 @@ import {
   parseWorktreeListOutput,
 } from "./git/worktreeService";
 import type { WslBridgeClient } from "./wsl/bridge/client";
+
+const GIT_WORKTREE_STATUS_CONCURRENCY = 4;
 
 export {
   computeDefaultWorktreePath,
@@ -148,25 +151,40 @@ export class GitService {
   async getWorktreeStatusBatch(
     location: ProjectLocation,
     worktreePaths: string[],
+    detail: GitStatusDetail = "full",
   ): Promise<Record<string, GitStatusResult>> {
     if (worktreePaths.length === 0) return {};
 
     if (location.kind === "wsl") {
+      if (detail === "summary") {
+        return this.statusService.getWorktreeStatusSummaryBatchWsl(location, worktreePaths);
+      }
       return this.statusService.getWorktreeStatusBatchWsl(location, worktreePaths);
     }
 
-    const entries = await Promise.all(
-      worktreePaths.map(async (path) => {
+    const statuses: Record<string, GitStatusResult> = {};
+    let nextIndex = 0;
+    const runWorker = async () => {
+      while (nextIndex < worktreePaths.length) {
+        const path = worktreePaths[nextIndex++]!;
         try {
           const wtLocation = buildWorktreeLocation(location, path);
-          const status = await this.statusService.getStatus(wtLocation);
-          return [path, status] as const;
+          statuses[path] =
+            detail === "summary"
+              ? await this.statusService.getStatusSummary(wtLocation)
+              : await this.statusService.getStatus(wtLocation);
         } catch {
-          return undefined;
+          // Worktrees whose status fetch fails are silently dropped.
         }
-      }),
+      }
+    };
+    await Promise.all(
+      Array.from(
+        { length: Math.min(GIT_WORKTREE_STATUS_CONCURRENCY, worktreePaths.length) },
+        runWorker,
+      ),
     );
-    return Object.fromEntries(entries.filter((e) => e !== undefined));
+    return statuses;
   }
 
   async getDiff(
