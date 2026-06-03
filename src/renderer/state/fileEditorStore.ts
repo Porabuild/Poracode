@@ -85,6 +85,11 @@ export interface FileEditorBuffer {
   hasBom: boolean;
   isDirty: boolean;
   isLoading: boolean;
+  gitDiff?: FileEditorGitDiffContext;
+}
+
+export interface FileEditorGitDiffContext {
+  diff: string;
 }
 
 export interface FileEditorPendingReveal {
@@ -110,7 +115,11 @@ interface FileEditorStoreState {
     path: string,
     mode?: FileEditorOverlayMode | null,
     preview?: boolean,
-    options?: { lineNumber?: number; markdownPreview?: boolean },
+    options?: {
+      lineNumber?: number;
+      markdownPreview?: boolean;
+      gitDiff?: FileEditorGitDiffContext;
+    },
   ) => Promise<ReadProjectFileResult>;
   consumeReveal: (token: number) => void;
   pinTab: (path: string) => void;
@@ -201,6 +210,14 @@ function buildBuffer(result: ReadProjectFileResult): FileEditorBuffer {
     isDirty: false,
     isLoading: false,
   };
+}
+
+function withGitDiff(
+  buffer: FileEditorBuffer,
+  gitDiff: FileEditorGitDiffContext | undefined,
+): FileEditorBuffer {
+  const { gitDiff: _gitDiff, ...rest } = buffer;
+  return gitDiff ? { ...rest, gitDiff } : rest;
 }
 
 /**
@@ -344,6 +361,10 @@ export const useFileEditorStore = create<FileEditorStoreState>((set, get) => ({
           activePath: openPath,
           markdownPreviewPath,
           ...(reveal ? { pendingReveal: reveal } : {}),
+          buffers: {
+            ...changes.buffers,
+            [openPath]: withGitDiff(existing, options?.gitDiff),
+          },
         };
       });
       const cachedResult = {
@@ -370,17 +391,20 @@ export const useFileEditorStore = create<FileEditorStoreState>((set, get) => ({
         ...(reveal ? { pendingReveal: reveal } : {}),
         buffers: {
           ...changes.buffers,
-          [openPath]: {
-            path: openPath,
-            status: "ready",
-            modifiedAtMs: 0,
-            content: "",
-            savedContent: "",
-            lineEnding: "lf",
-            hasBom: false,
-            isDirty: false,
-            isLoading: true,
-          },
+          [openPath]: withGitDiff(
+            {
+              path: openPath,
+              status: "ready",
+              modifiedAtMs: 0,
+              content: "",
+              savedContent: "",
+              lineEnding: "lf",
+              hasBom: false,
+              isDirty: false,
+              isLoading: true,
+            },
+            options?.gitDiff,
+          ),
         },
       };
     });
@@ -400,7 +424,7 @@ export const useFileEditorStore = create<FileEditorStoreState>((set, get) => ({
       set((state) => ({
         buffers: {
           ...state.buffers,
-          [openPath]: buildBuffer(result),
+          [openPath]: withGitDiff(buildBuffer(result), options?.gitDiff),
         },
       }));
       captureProductEvent("file.opened", {
@@ -660,7 +684,7 @@ export const useFileEditorStore = create<FileEditorStoreState>((set, get) => ({
           continue;
         }
 
-        nextBuffers[path] = buildBuffer(result);
+        nextBuffers[path] = withGitDiff(buildBuffer(result), current.gitDiff);
         changed = true;
       }
 

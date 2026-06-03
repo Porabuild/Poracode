@@ -8,6 +8,15 @@ import { useFileEditorStore } from "@/renderer/state/fileEditorStore";
 import { useGitStore } from "@/renderer/state/gitStore";
 import type { FileEditorRootContext } from "@/renderer/state/fileEditorStore";
 
+interface GitDiffEditorRequest {
+  staged: boolean;
+  status: string;
+}
+
+type OpenFileInEditorOptions =
+  | number
+  | { lineNumber?: number; markdownPreview?: boolean; gitDiff?: GitDiffEditorRequest };
+
 export const GIT_FETCH_PRIORITY_INTERVAL_MS = 180_000;
 export const GIT_FETCH_BACKGROUND_INTERVAL_MS = 720_000;
 export const STALE_THREAD_SWEEP_INTERVAL_MS = 5 * 60_000;
@@ -70,12 +79,16 @@ export function compareFilesByDirThenName(a: { path: string }, b: { path: string
   return aName.localeCompare(bName, undefined, { sensitivity: "base" });
 }
 
+export function shouldOpenGitDiffEditor(status: string): boolean {
+  return status === "M";
+}
+
 export async function openFileInEditor(
   project: Project,
   worktreePath: string | undefined,
   worktreeBranch: string | undefined,
   path: string,
-  options?: number | { lineNumber?: number; markdownPreview?: boolean },
+  options?: OpenFileInEditorOptions,
 ): Promise<void> {
   const fileEditor = useFileEditorStore.getState();
   const targetContext = buildFileEditorContext(project, worktreePath, worktreeBranch);
@@ -86,13 +99,29 @@ export async function openFileInEditor(
   if (!isSameContext) {
     fileEditor.setRootContext(targetContext);
   }
+  const openOptions = typeof options === "number" ? { lineNumber: options } : options;
+  let gitDiff: { diff: string } | undefined;
+  if (openOptions?.gitDiff && shouldOpenGitDiffEditor(openOptions.gitDiff.status)) {
+    try {
+      const result = await readBridge().getGitDiff({
+        projectLocation: targetContext.projectLocation,
+        filePath: path,
+        staged: openOptions.gitDiff.staged,
+      });
+      gitDiff = { diff: result.diff };
+    } catch (error) {
+      captureRendererException(error, { featureArea: "git" });
+    }
+  }
+  const editorOptions = {
+    ...(openOptions?.lineNumber !== undefined ? { lineNumber: openOptions.lineNumber } : {}),
+    ...(openOptions?.markdownPreview !== undefined
+      ? { markdownPreview: openOptions.markdownPreview }
+      : {}),
+    ...(gitDiff ? { gitDiff } : {}),
+  };
   try {
-    await fileEditor.openFile(
-      path,
-      "modal",
-      false,
-      typeof options === "number" ? { lineNumber: options } : options,
-    );
+    await fileEditor.openFile(path, "modal", false, editorOptions);
   } catch (error) {
     captureRendererException(error, { featureArea: "file-editor" });
     toast.danger(error instanceof Error ? error.message : String(error));

@@ -1401,6 +1401,51 @@ html[data-platform="darwin"] .lightcode-content-over-drag-region--drag {
   background-color: var(--content-background) !important;
 }
 
+.lc-git-add-line {
+  background-color: rgba(64, 200, 174, 0.12);
+}
+
+.lc-git-add-rail {
+  background-color: rgb(64, 200, 174);
+  width: 3px !important;
+  margin-left: 2px;
+}
+
+.lc-git-delete-rail {
+  background-color: rgb(239, 68, 68);
+  width: 3px !important;
+  margin-left: 2px;
+}
+
+.lc-git-delete-zone {
+  height: 100%;
+  overflow: hidden;
+  background-color: rgba(239, 68, 68, 0.18);
+  color: #fca5a5;
+  font-family: var(--monaco-monospace-font, "Cascadia Code", Consolas, monospace);
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.lc-git-delete-zone-line {
+  display: flex;
+  min-width: max-content;
+  white-space: pre;
+}
+
+.lc-git-delete-zone-marker {
+  width: 1.5ch;
+  flex: 0 0 auto;
+  color: #ef4444;
+}
+
+.lc-git-delete-zone-margin {
+  height: 100%;
+  background-color: rgb(239, 68, 68);
+  width: 3px !important;
+  margin-left: 2px;
+}
+
 .lightcode-terminal-shell {
   display: grid;
   grid-template-columns: minmax(0, 1fr) var(--lightcode-terminal-scrollbar-width);

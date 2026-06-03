@@ -80,7 +80,10 @@ export function FileRow(props: {
   }
 
   function handleOpenInEditor() {
-    void openFileInEditor(project, worktreePath, worktreeBranch, path);
+    if (!file) return;
+    void openFileInEditor(project, worktreePath, worktreeBranch, path, {
+      gitDiff: { staged: file.staged, status: file.status },
+    });
   }
 
   return (

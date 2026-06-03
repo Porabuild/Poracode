@@ -196,7 +196,9 @@ export function StackedFileCard(props: {
   }
 
   function handleOpenInEditor() {
-    void openFileInEditor(project, worktreePath, worktreeBranch, file.path);
+    void openFileInEditor(project, worktreePath, worktreeBranch, file.path, {
+      gitDiff: { staged: file.staged, status: file.status },
+    });
   }
 
   const isNewFile = file.deletions === 0 && file.status !== "M" && file.status !== "D";

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { toast } from "@heroui/react";
 import { MarkdownPreview } from "../MarkdownPreview";
-import { Editor, type BeforeMount, type OnMount, type Monaco } from "@monaco-editor/react";
+import { Editor, type BeforeMount, type Monaco, type OnMount } from "@monaco-editor/react";
 import type { editor as MonacoEditor } from "monaco-editor";
 import { useFileEditorStore } from "@/renderer/state/fileEditorStore";
 import { macosTrafficLightPadClass } from "@/renderer/components/layout/sidebarChrome";
@@ -20,8 +20,31 @@ import { SortableTab } from "./parts/SortableTab";
 import { EditorToolbar } from "./parts/EditorToolbar";
 import { useLspSync } from "./parts/useLspSync";
 import { useMergeConflictContribution } from "./parts/mergeConflict/useMergeConflictContribution";
+import { useGitDiffContribution } from "./parts/gitDiff/useGitDiffContribution";
 
 export { getLanguageFromPath } from "./parts/langMap";
+
+const EDITOR_OPTIONS: MonacoEditor.IStandaloneEditorConstructionOptions = {
+  fontSize: 13,
+  lineHeight: 20,
+  minimap: { enabled: false },
+  scrollBeyondLastLine: false,
+  wordWrap: "on",
+  automaticLayout: true,
+  padding: { top: 4, bottom: 4 },
+  renderLineHighlightOnlyWhenFocus: true,
+  overviewRulerLanes: 0,
+  hideCursorInOverviewRuler: true,
+  overviewRulerBorder: false,
+  scrollbar: {
+    verticalScrollbarSize: 10,
+    horizontalScrollbarSize: 10,
+    verticalSliderSize: 8,
+    horizontalSliderSize: 8,
+  },
+  contextmenu: true,
+  tabSize: 2,
+};
 
 export function FileEditorPane(props: {
   showTabs: boolean;
@@ -224,13 +247,23 @@ function EditorBody(props: {
   const { activePath, projectLocation, bufferStatus, monacoTheme, showPreview, isMarkdown } = props;
   const content = useActiveBufferContent();
   const editorRef = useRef<MonacoEditor.IStandaloneCodeEditor | null>(null);
-  const [editorInstance, setEditorInstance] = useState<MonacoEditor.IStandaloneCodeEditor | null>(
-    null,
-  );
-  const [monacoInstance, setMonacoInstance] = useState<Monaco | null>(null);
+  const [editorState, setEditorState] = useState<{
+    path: string;
+    editor: MonacoEditor.IStandaloneCodeEditor;
+    monaco: Monaco;
+  } | null>(null);
+  const editorInstance = editorState?.path === activePath ? editorState.editor : null;
+  const monacoInstance = editorState?.path === activePath ? editorState.monaco : null;
   const pendingReveal = useFileEditorStore((state) => state.pendingReveal);
+  const gitDiff = useFileEditorStore((state) => {
+    const path = state.activePath;
+    if (!path) return null;
+    const buffer = state.buffers[path];
+    return buffer?.status === "ready" ? (buffer.gitDiff ?? null) : null;
+  });
 
   useMergeConflictContribution({ editor: editorInstance, monaco: monacoInstance });
+  useGitDiffContribution({ editor: editorInstance, gitDiff, bufferStatus });
 
   useEffect(() => {
     if (!pendingReveal || !editorInstance) return;
@@ -247,17 +280,22 @@ function EditorBody(props: {
     defineAppThemes(monaco);
   };
 
-  const handleEditorMount: OnMount = (editor, monaco) => {
-    editorRef.current = editor;
-    props.onMonacoReady(monaco);
-    setEditorInstance(editor);
-    setMonacoInstance(monaco);
+  function registerSaveCommand(editor: MonacoEditor.IStandaloneCodeEditor, monaco: Monaco) {
     // eslint-disable-next-line no-bitwise -- Monaco uses bitmask key combos
     editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
       const path = useFileEditorStore.getState().activePath;
       if (path) props.onSave(path);
     });
+  }
+
+  const handleEditorMount: OnMount = (editor, monaco) => {
+    editorRef.current = editor;
+    props.onMonacoReady(monaco);
+    setEditorState({ path: activePath, editor, monaco });
+    registerSaveCommand(editor, monaco);
   };
+
+  const modelPath = projectLocation ? createLspFileUri(projectLocation, activePath) : activePath;
 
   return (
     <div className="min-h-0 flex-1 overflow-hidden">
@@ -265,7 +303,7 @@ function EditorBody(props: {
         <MarkdownPreview content={content ?? ""} />
       ) : bufferStatus === "ready" ? (
         <Editor
-          path={projectLocation ? createLspFileUri(projectLocation, activePath) : activePath}
+          path={modelPath}
           language={getLanguageFromPath(activePath)}
           theme={monacoTheme}
           value={content ?? ""}
@@ -274,27 +312,7 @@ function EditorBody(props: {
           }}
           beforeMount={handleBeforeMount}
           onMount={handleEditorMount}
-          options={{
-            fontSize: 13,
-            lineHeight: 20,
-            minimap: { enabled: false },
-            scrollBeyondLastLine: false,
-            wordWrap: "on",
-            automaticLayout: true,
-            padding: { top: 4, bottom: 4 },
-            renderLineHighlightOnlyWhenFocus: true,
-            overviewRulerLanes: 0,
-            hideCursorInOverviewRuler: true,
-            overviewRulerBorder: false,
-            scrollbar: {
-              verticalScrollbarSize: 10,
-              horizontalScrollbarSize: 10,
-              verticalSliderSize: 8,
-              horizontalSliderSize: 8,
-            },
-            contextmenu: true,
-            tabSize: 2,
-          }}
+          options={EDITOR_OPTIONS}
           loading={
             <div className="flex h-full items-center justify-center text-sm text-muted">
               Loading editor…
