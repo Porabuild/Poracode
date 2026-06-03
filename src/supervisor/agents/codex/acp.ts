@@ -62,6 +62,15 @@ function sleep(ms: number): Promise<void> {
   });
 }
 
+// A `thread/status/changed → systemError` notification carries no message, so
+// we surface a generic fallback. But Codex often follows it with a specific
+// error (a `turn/completed(failed)` or `thread/error` notification carrying the
+// real reason, e.g. a usage-limit / "remote compact task" failure). Defer the
+// generic fallback briefly so a specific error can preempt it — otherwise the
+// user sees the generic notice *plus* the real error. The delay only postpones
+// an error message; the error status icon updates synchronously.
+const CODEX_SYSTEM_ERROR_FALLBACK_DELAY_MS = 250;
+
 function spawnAppServer(command: CommandSpec): ChildProcess {
   return spawn(command.command, command.args, {
     cwd: command.cwd ?? process.cwd(),
@@ -120,6 +129,17 @@ export class CodexStructuredSession implements StructuredSessionHandle {
   // `thread/status/changed` (which Codex emits as `idle` after an aborted
   // turn) must not overwrite the error state. Cleared on the next user turn.
   private errorSticky = false;
+  // Error messages already surfaced for the current turn. Codex can report one
+  // underlying failure (e.g. a usage limit) through several channels — the
+  // turn/start rejection, a `turn/completed(failed)` notification, and a
+  // `thread/error` notification — each carrying the same text. Deduping here
+  // keeps the user from seeing the same error two or three times. Cleared on
+  // the next user turn.
+  private readonly seenErrorMessages = new Set<string>();
+  // Pending deferred generic system-error fallback (see
+  // CODEX_SYSTEM_ERROR_FALLBACK_DELAY_MS). Cancelled if a specific error
+  // arrives first, on the next user turn, or on dispose.
+  private pendingSystemErrorFallback: ReturnType<typeof setTimeout> | undefined;
   private mapperState: CodexMapperState | undefined;
   /**
    * Runtime events emitted before the listener was wired. Replayed on
@@ -169,12 +189,41 @@ export class CodexStructuredSession implements StructuredSessionHandle {
 
   private emitRuntimeEvents(events: RuntimeEvent[]): void {
     if (events.length === 0) return;
+    const forwarded: RuntimeEvent[] = [];
+    for (const event of events) {
+      if (event.type === "error") {
+        // Collapse duplicate error notifications within a single turn so one
+        // underlying failure does not surface multiple identical toasts.
+        if (this.seenErrorMessages.has(event.message)) continue;
+        this.seenErrorMessages.add(event.message);
+        // A concrete error preempts the deferred generic system-error fallback.
+        this.clearPendingSystemErrorFallback();
+      }
+      forwarded.push(event);
+    }
+    if (forwarded.length === 0) return;
     if (!this.listener?.onRuntimeEvent) {
-      this.bufferedRuntimeEvents.push(...events);
+      this.bufferedRuntimeEvents.push(...forwarded);
       return;
     }
-    for (const event of events) {
+    for (const event of forwarded) {
       this.listener.onRuntimeEvent(event);
+    }
+  }
+
+  private scheduleSystemErrorFallback(message: string): void {
+    this.clearPendingSystemErrorFallback();
+    this.pendingSystemErrorFallback = setTimeout(() => {
+      this.pendingSystemErrorFallback = undefined;
+      if (this.isDisposed) return;
+      this.emitRuntimeEvents([{ type: "error", threadId: this.threadId, message }]);
+    }, CODEX_SYSTEM_ERROR_FALLBACK_DELAY_MS);
+  }
+
+  private clearPendingSystemErrorFallback(): void {
+    if (this.pendingSystemErrorFallback !== undefined) {
+      clearTimeout(this.pendingSystemErrorFallback);
+      this.pendingSystemErrorFallback = undefined;
     }
   }
 
@@ -437,8 +486,11 @@ export class CodexStructuredSession implements StructuredSessionHandle {
     segments?: PromptSegment[],
     options?: StartTurnOptions,
   ): Promise<void> {
-    // New user turn clears any sticky error from a previous failed turn.
+    // New user turn clears any sticky error from a previous failed turn, along
+    // with the per-turn error dedupe state and any pending fallback timer.
     this.errorSticky = false;
+    this.seenErrorMessages.clear();
+    this.clearPendingSystemErrorFallback();
     const threadId = await this.waitForRemoteThreadId();
 
     const turnId = `turn-${randomUUID()}`;
@@ -583,6 +635,7 @@ export class CodexStructuredSession implements StructuredSessionHandle {
     }
     this.isDisposed = true;
 
+    this.clearPendingSystemErrorFallback();
     this.transport.dispose();
 
     this.rejectPendingRequests(new Error("Codex app-server session disposed."));
@@ -700,6 +753,9 @@ export class CodexStructuredSession implements StructuredSessionHandle {
           // notification or a turn/start rejection (which set `errorSticky`),
           // surface a fallback runtime error event so `ThreadErrorDock`
           // renders something instead of leaving the user with an empty dock.
+          // The fallback is *deferred* (not emitted synchronously) so a
+          // specific error Codex sends moments later — e.g. a usage-limit
+          // "remote compact task" failure — can preempt the generic notice.
           // Set `errorSticky` *after* `emitDerivedUpdate` so the derived
           // `onUpdate` call still fires — `emitDerivedUpdate` short-circuits
           // when `errorSticky` is already true.
@@ -707,16 +763,11 @@ export class CodexStructuredSession implements StructuredSessionHandle {
             nextStatus.type === "systemError" &&
             this.currentThreadStatus.type !== "systemError" &&
             !this.errorSticky;
-          if (shouldFallbackEmit) {
-            const fallbackMessage = extractCodexStatusErrorMessage(params.status);
-            this.emitRuntimeEvents([
-              { type: "error", threadId: this.threadId, message: fallbackMessage },
-            ]);
-          }
           this.currentThreadStatus = nextStatus;
           this.emitDerivedUpdate();
           if (shouldFallbackEmit) {
             this.errorSticky = true;
+            this.scheduleSystemErrorFallback(extractCodexStatusErrorMessage(params.status));
           }
           return;
         }
