@@ -28,6 +28,8 @@ export function GitReviewPanelContent(props: {
     return undefined;
   }
 
+  const gitReviewKey = `${gitPanelContext.projectId}:${gitPanelContext.worktreePath ?? ""}`;
+
   return (
     <Suspense
       fallback={
@@ -37,6 +39,7 @@ export function GitReviewPanelContent(props: {
       }
     >
       <GitReviewPanel
+        key={gitReviewKey}
         project={project}
         {...(gitPanelContext.worktreePath
           ? {
