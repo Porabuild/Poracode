@@ -219,7 +219,12 @@ export function toggleMarkThreadDone(threadId: string): void {
   } else {
     void unloadStoredThread(threadId, { keepSidePanels: true }).catch(() => undefined);
     const worktreePath = thread.worktreePath;
-    if (worktreePath) {
+    const isLastOpenWorktreeThread =
+      worktreePath !== undefined &&
+      store.threads.every(
+        (t) => t.id === threadId || t.worktreePath !== worktreePath || t.done || t.archived,
+      );
+    if (worktreePath && isLastOpenWorktreeThread) {
       const termStore = useDevTerminalStore.getState();
       const removedTabIds = termStore.removeTabsForWorktree(worktreePath);
       void closeThreads(removedTabIds);

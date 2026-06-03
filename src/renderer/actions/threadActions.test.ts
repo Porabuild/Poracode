@@ -349,6 +349,57 @@ describe("threadActions", () => {
     expect(bridge.closeThread).toHaveBeenCalledWith({ threadId: "shell:worktree" });
     expect(bridge.closeThread).toHaveBeenCalledWith({ threadId: "shell:worktree-split" });
   });
+
+  it("keeps worktree dev terminals open when marking one of multiple worktree threads done", () => {
+    const worktreePath = "/repo/.worktrees/feature";
+    const project = useAppStore.getState().addProject({
+      kind: "posix",
+      path: "/repo",
+    });
+    const firstThread = useAppStore.getState().createThread({
+      projectId: project.id,
+      agentKind: "codex",
+      config: { model: "gpt-5.4" },
+      prompt: "hello",
+      worktreePath,
+    });
+    const secondThread = useAppStore.getState().createThread({
+      projectId: project.id,
+      agentKind: "codex",
+      config: { model: "gpt-5.4" },
+      prompt: "hello",
+      worktreePath,
+    });
+    useDevTerminalStore.setState({
+      isOpen: true,
+      activeProjectId: project.id,
+      activeWorktreePath: worktreePath,
+      tabs: [
+        {
+          id: "shell:worktree",
+          projectId: project.id,
+          worktreePath,
+          title: "feature",
+          createdAt: "2026-03-22T00:00:00.000Z",
+        },
+      ],
+      activeTabId: "shell:worktree",
+      tabActivity: { "shell:worktree": true },
+    });
+
+    toggleMarkThreadDone(firstThread.id);
+
+    const termState = useDevTerminalStore.getState();
+    expect(termState.isOpen).toBe(true);
+    expect(termState.activeProjectId).toBe(project.id);
+    expect(termState.activeWorktreePath).toBe(worktreePath);
+    expect(termState.tabs.map((tab) => tab.id)).toEqual(["shell:worktree"]);
+    expect(bridge.closeThread).toHaveBeenCalledWith({ threadId: firstThread.id });
+    expect(bridge.closeThread).not.toHaveBeenCalledWith({ threadId: "shell:worktree" });
+    expect(
+      useAppStore.getState().threads.find((thread) => thread.id === secondThread.id)?.done,
+    ).toBe(false);
+  });
 });
 
 function makeThread(input: Partial<Thread> = {}): Thread {
