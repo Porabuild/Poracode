@@ -1,7 +1,7 @@
 import { Button, Surface, Tooltip } from "@heroui/react";
 import { ArchiveRestore, Trash2 } from "lucide-react";
 import { useAppStore } from "@/renderer/state/appStore";
-import { ProviderIcon } from "@/renderer/components/providers/ProviderIcon";
+import { ThreadProviderIcon } from "@/renderer/components/providers/ThreadProviderIcon";
 import { SettingsPage } from "./SettingsForm";
 
 export function ArchivedThreadsSettings() {
@@ -21,7 +21,11 @@ export function ArchivedThreadsSettings() {
             const project = projects.find((p) => p.id === thread.projectId);
             return (
               <div key={thread.id} className="flex items-center gap-3 px-4 py-3">
-                <ProviderIcon kind={thread.agentKind} className="size-4 shrink-0 text-muted" />
+                <ThreadProviderIcon
+                  thread={thread}
+                  tone="inactive"
+                  className="size-4 shrink-0 text-muted"
+                />
                 <div className="flex min-w-0 flex-1 flex-col">
                   <p className="truncate text-sm font-medium text-foreground">{thread.title}</p>
                   {project && <p className="truncate text-xs text-muted">{project.name}</p>}

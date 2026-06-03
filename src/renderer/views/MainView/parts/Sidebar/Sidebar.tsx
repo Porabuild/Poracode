@@ -17,7 +17,7 @@ import type { Thread } from "@/shared/contracts";
 import { formatBytes } from "@/shared/formatBytes";
 import { isHomeProject, isHomeProjectId } from "@/shared/homeScope";
 import { SidebarButton } from "@/renderer/components/common";
-import { ProviderIcon, getStatusTone } from "@/renderer/components/providers";
+import { ThreadProviderIcon } from "@/renderer/components/providers";
 import {
   sidebarBodyScrollClass,
   sidebarColumnLayoutClass,
@@ -143,13 +143,7 @@ function HomeTerminalButton(props: { projectId: string; projectName: string }) {
 }
 
 function ThreadIcon(props: { thread: Thread }) {
-  return (
-    <ProviderIcon
-      kind={props.thread.agentKind}
-      tone={getStatusTone(props.thread)}
-      className="size-3.5"
-    />
-  );
+  return <ThreadProviderIcon thread={props.thread} className="size-3.5" />;
 }
 
 function CollapsedThreadRail() {

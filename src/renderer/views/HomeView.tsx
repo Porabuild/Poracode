@@ -1,12 +1,10 @@
 import { ArrowRight, FolderOpen, House, Plus } from "lucide-react";
 import { useShallow } from "zustand/shallow";
-import { getProjectAgentStatuses } from "@/shared/agentStatus";
 import { isHomeProject, isHomeProjectId } from "@/shared/homeScope";
 import { useAppStore } from "@/renderer/state/appStore";
-import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { openThread } from "@/renderer/actions/threadActions";
-import { ProviderIcon, getStatusTone } from "@/renderer/components/providers";
+import { ThreadProviderIcon } from "@/renderer/components/providers";
 import { RelativeTime } from "@/renderer/components/common/RelativeTime";
 
 export function HomeView() {
@@ -26,12 +24,6 @@ export function HomeView() {
         .toSorted((a, b) => b.updatedAt.localeCompare(a.updatedAt))
         .slice(0, 8),
     ),
-  );
-  const { agentStatuses, wslAgentStatuses } = useAgentStatusesStore(
-    useShallow((state) => ({
-      agentStatuses: state.agentStatuses,
-      wslAgentStatuses: state.wslAgentStatuses,
-    })),
   );
   const openDraft = useAppStore((state) => state.openDraft);
 
@@ -85,12 +77,6 @@ export function HomeView() {
                       const project = isHomeProjectId(thread.projectId)
                         ? homeProject
                         : projects.find((p) => p.id === thread.projectId);
-                      const availableAgents = project
-                        ? getProjectAgentStatuses(project.location, agentStatuses, wslAgentStatuses)
-                        : [...agentStatuses, ...wslAgentStatuses];
-                      const threadAgent = availableAgents.find(
-                        (agent) => agent.installed && agent.kind === thread.agentKind,
-                      );
                       return (
                         <button
                           key={thread.id}
@@ -98,13 +84,7 @@ export function HomeView() {
                           onClick={() => openThread(thread.id)}
                           type="button"
                         >
-                          <ProviderIcon
-                            kind={thread.agentKind}
-                            {...(threadAgent?.icon ? { icon: threadAgent.icon } : {})}
-                            fallbackLabel={threadAgent?.label}
-                            tone={getStatusTone(thread)}
-                            className="size-4 shrink-0"
-                          />
+                          <ThreadProviderIcon thread={thread} className="size-4 shrink-0" />
                           <p className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">
                             {thread.title}
                           </p>

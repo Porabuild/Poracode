@@ -33,6 +33,7 @@ vi.mock("@/renderer/components/common", () => ({
 
 vi.mock("@/renderer/components/providers", () => ({
   ProviderIcon: () => null,
+  ThreadProviderIcon: () => null,
   getStatusTone: () => "default",
 }));
 

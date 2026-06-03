@@ -2,6 +2,7 @@
 export * from "./statusTone";
 export * from "./StatusIcon";
 export * from "./ProviderIcon";
+export * from "./ThreadProviderIcon";
 export * from "./commitGen";
 export * from "./conflictResolver";
 export * from "./titleGen";

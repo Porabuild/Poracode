@@ -14,14 +14,10 @@ import {
 import type { Project, Thread } from "@/shared/contracts";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useGitStore } from "@/renderer/state/gitStore";
-import {
-  isDetectingAgentsForLocation,
-  useAgentStatusesStore,
-} from "@/renderer/state/agentStatusesStore";
 import { useSortable } from "@dnd-kit/react/sortable";
 import { useIsDraggingThread, type DragSourceData } from "@/renderer/dnd";
 import { ContextMenu, SidebarButton } from "@/renderer/components/common";
-import { ProviderIcon, getStatusTone } from "@/renderer/components/providers";
+import { ThreadProviderIcon, getStatusTone } from "@/renderer/components/providers";
 import { readBridge } from "@/renderer/bridge";
 import { resolveActionIcon } from "@/renderer/utils/actionIcons";
 import { useWorktreeGitItems } from "@/renderer/views/MainView/parts/Sidebar/parts/useWorktreeActions";
@@ -78,10 +74,6 @@ export function SortableThreadItem(props: {
   const isCurrentThread = useIsCurrentThread(thread.id);
   const currentThreadCount = useCurrentThreadIdsCount();
   const projectAgents = useProjectAgentStatuses(project.location);
-  const threadAgent = projectAgents.find((agent) => agent.kind === thread.agentKind);
-  const isDetectingAgents = useAgentStatusesStore((s) =>
-    isDetectingAgentsForLocation(s, project.location),
-  );
   const worktreeGitItems = useWorktreeGitItems(
     thread.projectId,
     thread.worktreePath ?? "",
@@ -302,16 +294,7 @@ export function SortableThreadItem(props: {
         <SidebarButton
           size="xs"
           statusTone={statusTone}
-          icon={
-            <ProviderIcon
-              kind={thread.agentKind}
-              {...(threadAgent?.icon ? { icon: threadAgent.icon } : {})}
-              fallbackLabel={threadAgent?.label}
-              tone={statusTone}
-              pending={isDetectingAgents}
-              className="size-3.5 shrink-0"
-            />
-          }
+          icon={<ThreadProviderIcon thread={thread} className="size-3.5 shrink-0" />}
           label={
             editingThreadId === thread.id ? (
               <InlineRenameInput
