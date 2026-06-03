@@ -68,6 +68,7 @@ function isKnownGitNoisePath(value: string): boolean {
     value === "FETCH_HEAD" ||
     value === "index" ||
     value === "index.lock" ||
+    /^worktrees\/[^/]+$/.test(value) ||
     /^worktrees\/[^/]+\/index$/.test(value) ||
     /^worktrees\/[^/]+\/index\.lock$/.test(value) ||
     /^\.watchman-cookie-/.test(value) ||
