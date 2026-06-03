@@ -15,9 +15,11 @@ export {
   defineMainLocalIpcHandlers,
   defineSupervisorIpcHandlers,
   IPC_EVENT_CHANNELS,
+  IPC_WINDOW_CHANNELS,
   parseIpcProcedureArgs,
   type LightcodeBridge,
   type LightcodeInvokeBridge,
+  type LightcodeWindowKind,
   type MainLocalIpcHandlerMap,
   type SupervisorIpcHandlerMap,
 } from "./bridge";

@@ -1,7 +1,7 @@
 import { watch } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
-import { app, BrowserWindow, Menu, nativeTheme } from "electron";
+import { app, BrowserWindow, globalShortcut, ipcMain, Menu, nativeTheme } from "electron";
 import { resolveThemeMode } from "@/shared/themeMode";
 import { closeDatabase, dbGetThreads, initDatabase } from "./db";
 import { cleanupOrphanedAttachments, prepareLightcodeDataRoot } from "./lightcodeData";
@@ -21,12 +21,17 @@ import {
 import { SupervisorClient } from "./supervisor/SupervisorClient";
 import { createAutoUpdaterController } from "./updates/autoUpdater";
 import { createMainWindow } from "./window/createMainWindow";
+import {
+  createQuickComposerWindow,
+  setQuickComposerWindowExpanded,
+} from "./window/createQuickComposerWindow";
+import { showAndFocusWindow } from "./window/showAndFocusWindow";
 import { createTray, type TrayHandle } from "./tray";
 import type { SupervisorEvent } from "@/shared/ipc";
 import { type LightcodePaths, resolveLightcodeBaseDir } from "@/shared/lightcodePaths";
 import { getAppName } from "@/shared/appName";
 import { resolveLightcodeChannel } from "@/shared/channel";
-import { IPC_EVENT_CHANNELS } from "@/shared/ipc";
+import { IPC_EVENT_CHANNELS, IPC_WINDOW_CHANNELS } from "@/shared/ipc";
 import { readSharedSettingsFile } from "./sharedSettingsFile";
 import { WindowsJobObjectManager } from "./windowsJobObject";
 import { captureMainException, initializeMainSentry } from "./diagnostics/sentry";
@@ -55,8 +60,10 @@ const posthogEnableDev = process.env.POSTHOG_ENABLE_DEV === "1";
 
 const hasSingleInstanceLock = isDev || app.requestSingleInstanceLock();
 const WINDOW_CHROME_HEIGHT = 32;
+const QUICK_COMPOSER_SHORTCUT = "CommandOrControl+L";
 
 let mainWindow: BrowserWindow | null = null;
+const quickComposerWindows = new Set<BrowserWindow>();
 let lightcodePaths: LightcodePaths | null = null;
 let windowsJobObjectManager: WindowsJobObjectManager | null = null;
 let browserPanelManager: BrowserPanelManager | null = null;
@@ -110,6 +117,51 @@ function handleMainWindowClose(event: Electron.Event): void {
   mainWindow.hide();
 }
 
+function focusMainWindow(): void {
+  if (mainWindow) showAndFocusWindow(mainWindow);
+}
+
+function quickComposerWindowFor(event: Electron.IpcMainInvokeEvent): BrowserWindow | null {
+  const window = BrowserWindow.fromWebContents(event.sender);
+  return window && quickComposerWindows.has(window) && !window.isDestroyed() ? window : null;
+}
+
+function sendSupervisorEventToRenderers(event: SupervisorEvent): void {
+  mainWindow?.webContents.send(IPC_EVENT_CHANNELS.supervisorEvent, event);
+  for (const window of quickComposerWindows) {
+    if (!window.isDestroyed()) {
+      window.webContents.send(IPC_EVENT_CHANNELS.supervisorEvent, event);
+    }
+  }
+}
+
+function openQuickComposerWindow(): void {
+  const window = createQuickComposerWindow({
+    title: getAppName(channel, isDev),
+    isDev,
+    channel,
+    preloadPath: join(__dirname, "preload.cjs"),
+    rendererHtmlPath: join(__dirname, "../renderer/index.html"),
+    appVersion: app.getVersion(),
+    posthogEnableDev,
+    posthogEnabled,
+    posthogHost,
+    posthogKey,
+    sentryEnabled,
+    ...(process.env.VITE_DEV_SERVER_URL ? { devServerUrl: process.env.VITE_DEV_SERVER_URL } : {}),
+    onClosed: () => {
+      quickComposerWindows.delete(window);
+    },
+    onRendererProcessGone: (details) => {
+      captureMainException(new Error(`Quick composer renderer process gone: ${details.reason}`), {
+        "lightcode.feature_area": "quick-composer",
+        "lightcode.process": "renderer",
+      });
+    },
+  });
+  quickComposerWindows.add(window);
+}
+
 const workingThreads = new Set<string>();
 const sleepInhibitor = createSleepInhibitor();
 
@@ -151,16 +203,7 @@ if (!hasSingleInstanceLock) {
   app.quit();
 } else {
   app.on("second-instance", () => {
-    if (!mainWindow) {
-      return;
-    }
-    if (mainWindow.isMinimized()) {
-      mainWindow.restore();
-    }
-    if (!mainWindow.isVisible()) {
-      mainWindow.show();
-    }
-    mainWindow.focus();
+    focusMainWindow();
   });
 
   app.whenReady().then(async () => {
@@ -222,7 +265,7 @@ if (!hasSingleInstanceLock) {
       },
       onEvent: (event) => {
         handleSupervisorEventForSleep(event);
-        mainWindow?.webContents.send(IPC_EVENT_CHANNELS.supervisorEvent, event);
+        sendSupervisorEventToRenderers(event);
       },
       onReset: () => {
         workingThreads.clear();
@@ -263,6 +306,35 @@ if (!hasSingleInstanceLock) {
       callSupervisor: (name, payload) => supervisorClient.call(name, payload),
     });
 
+    ipcMain.handle(IPC_WINDOW_CHANNELS.quickOverlaySetExpanded, (event, expanded: unknown) => {
+      const window = quickComposerWindowFor(event);
+      if (!window) return;
+      setQuickComposerWindowExpanded(window, expanded === true);
+    });
+    ipcMain.handle(IPC_WINDOW_CHANNELS.quickOverlayClose, (event) => {
+      const window = quickComposerWindowFor(event);
+      if (!window) return;
+      window.close();
+    });
+    ipcMain.handle(IPC_WINDOW_CHANNELS.quickOverlayThreadChanged, (_event, threadId: unknown) => {
+      if (typeof threadId !== "string" || threadId.length === 0) return;
+      mainWindow?.webContents.send(IPC_EVENT_CHANNELS.externalAppStoreChanged, { threadId });
+    });
+    ipcMain.handle(
+      IPC_WINDOW_CHANNELS.quickOverlayOpenThreadInMainWindow,
+      (event, threadId: unknown) => {
+        if (typeof threadId !== "string" || threadId.length === 0) return;
+        focusMainWindow();
+        mainWindow?.webContents.send(IPC_EVENT_CHANNELS.openThreadInMainWindow, { threadId });
+        const window = quickComposerWindowFor(event);
+        if (!window) return;
+        setQuickComposerWindowExpanded(window, false);
+        setTimeout(() => {
+          if (!window.isDestroyed()) window.close();
+        }, 160);
+      },
+    );
+
     mainWindow = createMainWindow({
       title: getAppName(channel, isDev),
       isDev,
@@ -301,6 +373,10 @@ if (!hasSingleInstanceLock) {
         app.quit();
       },
     });
+
+    if (!globalShortcut.register(QUICK_COMPOSER_SHORTCUT, openQuickComposerWindow)) {
+      console.warn(`[lightcode] failed to register ${QUICK_COMPOSER_SHORTCUT} for quick composer`);
+    }
 
     await jobObjectReady;
 
@@ -384,6 +460,7 @@ if (!hasSingleInstanceLock) {
 
     app.on("before-quit", () => {
       isQuitting = true;
+      globalShortcut.unregister(QUICK_COMPOSER_SHORTCUT);
       supervisorClient.dispose();
       windowsJobObjectManager?.dispose();
       windowsJobObjectManager = null;
@@ -394,6 +471,12 @@ if (!hasSingleInstanceLock) {
       sleepInhibitor.dispose();
       tray?.destroy();
       tray = null;
+      for (const window of quickComposerWindows) {
+        if (!window.isDestroyed()) {
+          window.close();
+        }
+      }
+      quickComposerWindows.clear();
     });
   });
 }

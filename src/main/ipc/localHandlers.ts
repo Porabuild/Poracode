@@ -2,6 +2,7 @@ import { homedir } from "node:os";
 import { clipboard, dialog, nativeImage, shell, type BrowserWindow } from "electron";
 import type { BrowserPanelManager } from "../browser";
 import { openMicrophoneSettings } from "../browser/permissions";
+import { showAndFocusWindow } from "../window/showAndFocusWindow";
 import {
   dbDeleteProject,
   dbDeleteThread,
@@ -116,11 +117,7 @@ export function createLocalIpcHandlers(
     openMicrophoneSettings: () => openMicrophoneSettings(),
     focusWindow: () => {
       const win = options.getMainWindow();
-      if (!win) return;
-      if (win.isMinimized()) {
-        win.restore();
-      }
-      win.focus();
+      if (win) showAndFocusWindow(win);
     },
     getHomeScopeLocation: () =>
       process.platform === "win32"

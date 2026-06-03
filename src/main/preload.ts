@@ -3,8 +3,10 @@ import { type LightcodeChannel, normalizeChannel } from "@/shared/channel";
 import {
   createInvokeBridge,
   IPC_EVENT_CHANNELS,
+  IPC_WINDOW_CHANNELS,
   type BrowserEvent,
   type LightcodeBridge,
+  type LightcodeWindowKind,
   type SupervisorEvent,
   type UpdateStatus,
 } from "@/shared/ipc";
@@ -44,6 +46,11 @@ function resolveChannel(): LightcodeChannel {
   return "stable";
 }
 
+function resolveWindowKind(): LightcodeWindowKind {
+  const value = resolveArgValue("--lc-window-kind=");
+  return value === "quickOverlay" ? "quickOverlay" : "main";
+}
+
 function resolveSentryEnabled(): boolean {
   const prefix = "--lc-sentry-enabled=";
   for (const arg of process.argv) {
@@ -73,6 +80,7 @@ function resolveArgBoolean(prefix: string): boolean {
 }
 
 const bridge: LightcodeBridge = {
+  windowKind: resolveWindowKind(),
   platform: process.platform,
   appVersion: resolveAppVersion(),
   arch: process.arch,
@@ -115,6 +123,36 @@ const bridge: LightcodeBridge = {
     ipcRenderer.on(IPC_EVENT_CHANNELS.browserEvent, handler);
     return () => {
       ipcRenderer.removeListener(IPC_EVENT_CHANNELS.browserEvent, handler);
+    };
+  },
+  setQuickOverlayExpanded(expanded) {
+    return ipcRenderer.invoke(IPC_WINDOW_CHANNELS.quickOverlaySetExpanded, expanded);
+  },
+  closeQuickOverlay() {
+    return ipcRenderer.invoke(IPC_WINDOW_CHANNELS.quickOverlayClose);
+  },
+  notifyQuickOverlayThreadChanged(threadId) {
+    return ipcRenderer.invoke(IPC_WINDOW_CHANNELS.quickOverlayThreadChanged, threadId);
+  },
+  openQuickOverlayThreadInMainWindow(threadId) {
+    return ipcRenderer.invoke(IPC_WINDOW_CHANNELS.quickOverlayOpenThreadInMainWindow, threadId);
+  },
+  onExternalAppStoreChanged(listener) {
+    const handler = (_event: Electron.IpcRendererEvent, payload: { threadId?: string }) => {
+      listener(payload);
+    };
+    ipcRenderer.on(IPC_EVENT_CHANNELS.externalAppStoreChanged, handler);
+    return () => {
+      ipcRenderer.removeListener(IPC_EVENT_CHANNELS.externalAppStoreChanged, handler);
+    };
+  },
+  onOpenThreadInMainWindow(listener) {
+    const handler = (_event: Electron.IpcRendererEvent, payload: { threadId: string }) => {
+      listener(payload);
+    };
+    ipcRenderer.on(IPC_EVENT_CHANNELS.openThreadInMainWindow, handler);
+    return () => {
+      ipcRenderer.removeListener(IPC_EVENT_CHANNELS.openThreadInMainWindow, handler);
     };
   },
 };

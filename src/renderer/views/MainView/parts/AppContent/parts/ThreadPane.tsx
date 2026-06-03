@@ -1,4 +1,4 @@
-import { startTransition, useRef } from "react";
+import { useRef } from "react";
 import type {
   ExtractContextResult,
   PromptSegment,
@@ -6,16 +6,11 @@ import type {
   ThreadConfig,
   ThreadPresentationMode,
 } from "@/shared/contracts";
-import { isHomeProjectId } from "@/shared/homeScope";
 import { buildWorktreeLocation } from "@/shared/worktree";
-import { buildPromptContentBlocks } from "@/shared/promptContent";
-import { readBridge } from "@/renderer/bridge";
-import { captureThreadInputSubmitted } from "@/renderer/analytics/posthog";
 import { toggleMarkThreadDone } from "@/renderer/actions/threadActions";
-import { useAppStore } from "@/renderer/state/appStore";
-import { captureFileCheckpoint } from "@/renderer/state/fileCheckpointActions";
 import { useProject, useThread } from "@/renderer/state/useThread";
 import { ThreadView } from "@/renderer/components/thread/ThreadView";
+import { buildThreadViewHandlers } from "@/renderer/components/thread/threadViewHandlers";
 import { useDraggable, useDroppable } from "@dnd-kit/react";
 import { useIsDraggingPane, usePaneDropIndicatorState, type DragSourceData } from "@/renderer/dnd";
 import {
@@ -49,13 +44,6 @@ export function ThreadPane(props: {
   const { prompt: pendingLaunchPrompt, segments: pendingLaunchSegments } = useThreadPendingLaunch(
     props.threadId,
   );
-  const {
-    applyRuntimeEvent,
-    updateThreadConfig,
-    updateThreadRuntime,
-    consumeThreadLaunch,
-    touchThread,
-  } = useAppStore.getState();
 
   const paneElementRef = useRef<HTMLDivElement>(null);
   const { handleRef } = useDraggable({
@@ -80,6 +68,7 @@ export function ThreadPane(props: {
   const projectLocation = thread.worktreePath
     ? buildWorktreeLocation(project.location, thread.worktreePath)
     : project.location;
+  const handlers = buildThreadViewHandlers(thread, projectLocation);
   return (
     <ThreadView
       key={props.threadId}
@@ -99,111 +88,14 @@ export function ThreadPane(props: {
       onMarkDone={() => {
         toggleMarkThreadDone(props.threadId);
       }}
-      onConfigChange={(config) => {
-        updateThreadConfig(thread.id, config);
-        // If the thread was in an error state, clearing it now lets the user
-        // see the header status return to normal (non-red) as they've taken
-        // action to address the failure (e.g. by switching models).
-        if (thread.status === "error") {
-          updateThreadRuntime(thread.id, {
-            status: "idle",
-            attention: "none",
-            canResumeWithConfig: thread.canResumeWithConfig,
-            ...(thread.sessionRef ? { sessionRef: thread.sessionRef } : {}),
-          });
-        }
-      }}
+      onConfigChange={handlers.onConfigChange}
       projectLocation={projectLocation}
-      onLaunchConsumed={() => consumeThreadLaunch(thread.id)}
-      onLaunchFailed={(message) => {
-        startTransition(() => {
-          applyRuntimeEvent(thread.id, {
-            type: "error",
-            threadId: thread.id,
-            message,
-          });
-          updateThreadRuntime(thread.id, {
-            status: "error",
-            attention: "error",
-            ...(thread.sessionRef ? { sessionRef: thread.sessionRef } : {}),
-            canResumeWithConfig: thread.canResumeWithConfig || thread.sessionRef !== undefined,
-          });
-        });
-      }}
-      onResolveServerRequest={async ({ requestId, method, response }) => {
-        await readBridge().resolveThreadServerRequest({
-          threadId: thread.id,
-          requestId,
-          method,
-          response,
-        });
-        touchThread(thread.id);
-      }}
+      onLaunchConsumed={handlers.onLaunchConsumed}
+      onLaunchFailed={handlers.onLaunchFailed}
+      onResolveServerRequest={handlers.onResolveServerRequest}
       {...(pendingLaunchPrompt !== undefined ? { pendingLaunchPrompt } : {})}
       {...(pendingLaunchSegments ? { pendingLaunchSegments } : {})}
-      onSubmitInput={async (prompt, segments) => {
-        // Optimistic user_message for GUI threads: paint the typed prompt
-        // into the chat pane synchronously so it shows before the IPC
-        // round-trip + (for first prompts) ACP handshake completes. The
-        // supervisor reuses the same item id end-to-end so duplicates are
-        // dropped by the renderer's per-id dedupe in `applyRuntimeEvent`.
-        const presentation = thread.presentationMode ?? "terminal";
-        let optimisticUserMessageItemId: string | undefined;
-        let markedWorking = false;
-        if (presentation === "gui" && prompt.length > 0) {
-          optimisticUserMessageItemId = `user-${crypto.randomUUID()}`;
-          useAppStore.getState().applyRuntimeEvent(thread.id, {
-            type: "item.started",
-            threadId: thread.id,
-            itemId: optimisticUserMessageItemId,
-            itemType: "user_message",
-            payload: { content: buildPromptContentBlocks(prompt, segments) },
-          });
-          useAppStore.getState().applyRuntimeEvent(thread.id, {
-            type: "item.completed",
-            threadId: thread.id,
-            itemId: optimisticUserMessageItemId,
-          });
-          updateThreadRuntime(thread.id, {
-            status: "working",
-            attention: "working",
-            canResumeWithConfig: thread.canResumeWithConfig,
-            ...(thread.sessionRef ? { sessionRef: thread.sessionRef } : {}),
-          });
-          markedWorking = true;
-          if (!isHomeProjectId(thread.projectId)) {
-            await captureFileCheckpoint({
-              threadId: thread.id,
-              checkpointItemId: optimisticUserMessageItemId,
-              projectLocation,
-            });
-          }
-        }
-        try {
-          await readBridge().sendThreadInput({
-            threadId: thread.id,
-            prompt,
-            ...(segments ? { segments } : {}),
-            config: thread.config,
-            ...(optimisticUserMessageItemId
-              ? { userMessageItemId: optimisticUserMessageItemId }
-              : {}),
-          });
-        } catch (error) {
-          if (markedWorking) {
-            updateThreadRuntime(thread.id, {
-              status: thread.status,
-              attention: thread.attention,
-              canResumeWithConfig: thread.canResumeWithConfig,
-              forceCloseActiveTurn: true,
-              ...(thread.sessionRef ? { sessionRef: thread.sessionRef } : {}),
-            });
-          }
-          throw error;
-        }
-        captureThreadInputSubmitted(thread, segments);
-        touchThread(thread.id);
-      }}
+      onSubmitInput={handlers.onSubmitInput}
       installedAgents={installedAgents}
       onContinueInProvider={
         props.onContinueInProvider

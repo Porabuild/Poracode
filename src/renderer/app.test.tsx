@@ -8,6 +8,7 @@ import { openThread, unloadThread } from "@/renderer/actions/threadActions";
 
 const { bridge } = vi.hoisted(() => ({
   bridge: {
+    windowKind: "main",
     pickFolder: vi.fn<() => Promise<null>>().mockResolvedValue(null),
     listWslDistros: vi.fn<() => Promise<string[]>>().mockResolvedValue([]),
     getAgentStatuses: vi
@@ -127,6 +128,12 @@ const { bridge } = vi.hoisted(() => ({
     startUpdateDownload: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
     installUpdate: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
     onUpdateStatus: vi.fn<() => () => void>(() => () => undefined),
+    setQuickOverlayExpanded: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+    closeQuickOverlay: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+    notifyQuickOverlayThreadChanged: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+    openQuickOverlayThreadInMainWindow: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+    onExternalAppStoreChanged: vi.fn<() => () => void>(() => () => undefined),
+    onOpenThreadInMainWindow: vi.fn<() => () => void>(() => () => undefined),
     listAcpRegistry: vi.fn<() => Promise<unknown>>().mockResolvedValue([]),
     onBrowserEvent: vi.fn<() => () => void>(() => () => undefined),
     browserGetState: vi
@@ -139,6 +146,7 @@ vi.mock("./bridge", () => ({
   readBridge: () => bridge,
   isWindows: () => false,
   isMac: () => false,
+  isQuickOverlay: () => bridge.windowKind === "quickOverlay",
 }));
 
 vi.mock("./components/ui/provider", () => ({

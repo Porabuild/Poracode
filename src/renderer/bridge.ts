@@ -15,3 +15,7 @@ export function isMac(): boolean {
 export function isDevApp(): boolean {
   return readBridge().isDev === true;
 }
+
+export function isQuickOverlay(): boolean {
+  return readBridge().windowKind === "quickOverlay";
+}

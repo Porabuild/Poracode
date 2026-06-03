@@ -2,6 +2,7 @@ import { dbGetState, dbSetState } from "../db";
 import { BrowserWindow, screen, type RenderProcessGoneDetails } from "electron";
 import type { LightcodeChannel } from "@/shared/channel";
 import { installSessionPermissions } from "../browser/permissions";
+import { buildRendererArgs } from "./rendererArgs";
 
 interface WindowBounds {
   x?: number;
@@ -104,17 +105,7 @@ export function createMainWindow(options: CreateMainWindowOptions): BrowserWindo
       nodeIntegration: false,
       sandbox: true,
       webviewTag: true,
-      additionalArguments: [
-        `--lc-app-version=${encodeURIComponent(options.appVersion)}`,
-        `--lc-is-dev=${options.isDev ? "1" : "0"}`,
-        `--lc-channel=${options.channel}`,
-        `--lc-posthog-enable-dev=${options.posthogEnableDev ? "1" : "0"}`,
-        `--lc-posthog-enabled=${options.posthogEnabled ? "1" : "0"}`,
-        // PostHog project keys are browser/client keys, not secrets; the renderer must send them.
-        `--lc-posthog-host=${encodeURIComponent(options.posthogHost)}`,
-        `--lc-posthog-key=${encodeURIComponent(options.posthogKey)}`,
-        `--lc-sentry-enabled=${options.sentryEnabled ? "1" : "0"}`,
-      ],
+      additionalArguments: buildRendererArgs("main", options),
     },
   });
   installSessionPermissions(window.webContents.session);

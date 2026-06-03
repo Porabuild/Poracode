@@ -1,5 +1,5 @@
 import type { PersistStorage, StorageValue } from "zustand/middleware";
-import { readBridge } from "../bridge";
+import { isQuickOverlay, readBridge } from "../bridge";
 import type { Project, Thread, AppView } from "@/shared/contracts";
 
 /**
@@ -11,6 +11,10 @@ import type { Project, Thread, AppView } from "@/shared/contracts";
  */
 function hasBridge(): boolean {
   return typeof window !== "undefined" && window.lightcode !== undefined;
+}
+
+function isQuickOverlayWindow(): boolean {
+  return hasBridge() && isQuickOverlay();
 }
 
 const APP_STORE_NAME = "lightcode-app-v2";
@@ -34,6 +38,7 @@ const dbStorageBackend = {
       return;
     }
     if (name === APP_STORE_NAME) {
+      if (isQuickOverlayWindow()) return;
       return saveAppStore(value);
     }
     void readBridge().dbSetState(name, json);

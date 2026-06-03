@@ -2,6 +2,7 @@ import { join } from "node:path";
 import { existsSync } from "node:fs";
 import { Menu, Tray, app, nativeImage, type BrowserWindow } from "electron";
 import type { LightcodeChannel } from "@/shared/channel";
+import { showAndFocusWindow } from "./window/showAndFocusWindow";
 
 interface CreateTrayOptions {
   window: BrowserWindow;
@@ -47,16 +48,7 @@ export function createTray(options: CreateTrayOptions): TrayHandle {
   const tray = new Tray(trayImage);
   tray.setToolTip(appName);
 
-  const showWindow = () => {
-    if (window.isDestroyed()) return;
-    if (window.isMinimized()) {
-      window.restore();
-    }
-    if (!window.isVisible()) {
-      window.show();
-    }
-    window.focus();
-  };
+  const showWindow = () => showAndFocusWindow(window);
 
   const rebuildMenu = () => {
     const menu = Menu.buildFromTemplate([

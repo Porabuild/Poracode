@@ -10,6 +10,8 @@ import {
 } from "./procedureMap";
 import type { BrowserEvent, SupervisorEvent, UpdateStatus } from "./events";
 
+export type LightcodeWindowKind = "main" | "quickOverlay";
+
 type ProcedureArgs<Name extends IpcProcedureName> =
   (typeof ipcProcedureMap)[Name]["__types"]["args"];
 
@@ -18,6 +20,7 @@ export type LightcodeInvokeBridge = {
 };
 
 export type LightcodeBridge = LightcodeInvokeBridge & {
+  windowKind: LightcodeWindowKind;
   platform: NodeJS.Platform;
   appVersion: string;
   arch: string;
@@ -35,6 +38,12 @@ export type LightcodeBridge = LightcodeInvokeBridge & {
   onSupervisorEvent(listener: (event: SupervisorEvent) => void): () => void;
   onUpdateStatus(listener: (status: UpdateStatus) => void): () => void;
   onBrowserEvent(listener: (event: BrowserEvent) => void): () => void;
+  setQuickOverlayExpanded(expanded: boolean): Promise<void>;
+  closeQuickOverlay(): Promise<void>;
+  notifyQuickOverlayThreadChanged(threadId: string): Promise<void>;
+  openQuickOverlayThreadInMainWindow(threadId: string): Promise<void>;
+  onExternalAppStoreChanged(listener: (event: { threadId?: string }) => void): () => void;
+  onOpenThreadInMainWindow(listener: (event: { threadId: string }) => void): () => void;
 };
 
 export function createInvokeBridge(
@@ -86,4 +95,13 @@ export const IPC_EVENT_CHANNELS = {
   supervisorEvent: createChannel("supervisorEvent"),
   updateStatus: createChannel("updateStatus"),
   browserEvent: createChannel("browserEvent"),
+  externalAppStoreChanged: createChannel("externalAppStoreChanged"),
+  openThreadInMainWindow: createChannel("openThreadInMainWindow"),
+} as const;
+
+export const IPC_WINDOW_CHANNELS = {
+  quickOverlaySetExpanded: createChannel("quickOverlaySetExpanded"),
+  quickOverlayClose: createChannel("quickOverlayClose"),
+  quickOverlayThreadChanged: createChannel("quickOverlayThreadChanged"),
+  quickOverlayOpenThreadInMainWindow: createChannel("quickOverlayOpenThreadInMainWindow"),
 } as const;

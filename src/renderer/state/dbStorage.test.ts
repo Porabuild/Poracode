@@ -11,6 +11,7 @@ const bridge = vi.hoisted(() => ({
 
 vi.mock("../bridge", () => ({
   readBridge: () => bridge,
+  isQuickOverlay: () => false,
 }));
 
 describe("createDbStorage", () => {

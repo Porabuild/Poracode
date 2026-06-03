@@ -1,9 +1,22 @@
 import { startTransition } from "react";
+import type {
+  AgentStatus,
+  Project,
+  PromptSegment,
+  Thread,
+  ThreadConfig,
+  ThreadPresentationMode,
+} from "@/shared/contracts";
+import { getProjectAgentStatuses } from "@/shared/agentStatus";
 import { isHomeProject } from "@/shared/homeScope";
 import { isDraftPaneId } from "@/shared/paneId";
+import { buildWorktreeLocation } from "@/shared/worktree";
 import { readBridge } from "@/renderer/bridge";
 import { useAppStore } from "@/renderer/state/appStore";
-import { useDevTerminalStore } from "@/renderer/state/devTerminalStore";
+import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
+import { useDevTerminalStore, type DevTerminalTab } from "@/renderer/state/devTerminalStore";
+import { refreshGitProject } from "@/renderer/state/gitRefresh";
+import { useGitStore } from "@/renderer/state/gitStore";
 import {
   hasHydratedThreadRuntimeItems,
   hydrateThreadRuntimeItems,
@@ -11,9 +24,16 @@ import {
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useWorktreeDeleteStore } from "@/renderer/state/worktreeDeleteStore";
 import { readWorktreeDeletePref } from "@/renderer/views/MainView/parts/Sidebar/parts/DeleteWorktreeDialog";
+import { buildProjectDraftConfig } from "@/renderer/views/MainView/parts/AppContent/draftConfig";
 import { resolveWorktreeBranch } from "@/renderer/utils/gitHelpers";
-import { closeThreads } from "@/renderer/utils/shellUtils";
-import { closePanelsForUnloadedThread } from "./panelActions";
+import {
+  closeThreads,
+  normalizeShellScript,
+  startShellWithToast,
+  writeScriptToShellThenExitOnSuccess,
+} from "@/renderer/utils/shellUtils";
+import { generateTitleAsync } from "@/renderer/utils/titleGen";
+import { closeAllPanels, closePanelsForUnloadedThread } from "./panelActions";
 import { getCurrentProjectId } from "./currentProject";
 import { performWorktreeRemoval } from "./worktreeActions";
 
@@ -73,6 +93,120 @@ export function openNewThreadInWorktree(input: {
       useAppStore.getState().openDraft(input.projectId);
     }
   });
+}
+
+export type DraftThreadStartInput = {
+  agentKind: AgentStatus["kind"];
+  config: ThreadConfig;
+  prompt: string;
+  segments?: PromptSegment[];
+  existingWorktreePath?: string;
+  worktreeBranch?: string;
+  worktreeBaseBranch?: string;
+  worktreeIsNewBranch?: boolean;
+  presentationMode?: ThreadPresentationMode;
+};
+
+export async function startThreadFromDraft(
+  project: Project,
+  input: DraftThreadStartInput,
+  options: { replacePaneId?: string; preserveActiveGroup?: boolean } = {},
+): Promise<Thread | null> {
+  const {
+    agentKind,
+    config,
+    prompt,
+    segments,
+    existingWorktreePath,
+    worktreeBranch,
+    worktreeBaseBranch,
+    worktreeIsNewBranch,
+    presentationMode,
+  } = input;
+  const isHomeScope = isHomeProject(project);
+  const store = useAppStore.getState();
+
+  store.updateProjectDraftConfig(
+    project.id,
+    buildProjectDraftConfig({
+      agentKind,
+      config,
+      worktreeMode: !isHomeScope && worktreeIsNewBranch === true,
+    }),
+  );
+
+  let worktreePath: string | undefined;
+  let newWorktreeSetupPath: string | undefined;
+  if (isHomeScope) {
+    worktreePath = undefined;
+  } else if (existingWorktreePath) {
+    worktreePath = existingWorktreePath;
+  } else if (worktreeBranch) {
+    try {
+      const result = await readBridge().gitAddWorktree({
+        projectLocation: project.location,
+        branch: worktreeBranch,
+        createBranch: worktreeIsNewBranch ?? false,
+        startPoint: worktreeBaseBranch,
+      });
+      worktreePath = result.path;
+      newWorktreeSetupPath = result.path;
+    } catch (err) {
+      console.error("[renderer] failed to create worktree:", err);
+      return null;
+    }
+  }
+
+  const { agentStatuses, wslAgentStatuses } = useAgentStatusesStore.getState();
+  const projectAgentStatuses = getProjectAgentStatuses(
+    project.location,
+    agentStatuses,
+    wslAgentStatuses,
+  );
+  const titlePrompt = segments
+    ? segments
+        .filter((s) => s.kind !== "attachment")
+        .map((s) => (s.kind === "file" ? `@${s.path}` : s.content))
+        .join("")
+        .trim() || prompt
+    : prompt;
+  const currentView = useAppStore.getState().view;
+  const activeGroup =
+    options.preserveActiveGroup !== false &&
+    currentView.kind === "thread" &&
+    currentView.activeGroupId
+      ? {
+          groupId: currentView.activeGroupId,
+          groupName: useAppStore
+            .getState()
+            .threads.find((t) => t.groupId === currentView.activeGroupId)?.groupName,
+        }
+      : undefined;
+
+  const thread = useAppStore.getState().createThread({
+    projectId: project.id,
+    agentKind,
+    config,
+    prompt: titlePrompt,
+    ...(presentationMode ? { presentationMode } : {}),
+    ...(worktreePath ? { worktreePath, worktreeBranch } : {}),
+    ...(options.replacePaneId ? { replacePaneId: options.replacePaneId } : {}),
+    ...(activeGroup?.groupId ? { groupId: activeGroup.groupId } : {}),
+    ...(activeGroup?.groupName ? { groupName: activeGroup.groupName } : {}),
+  });
+  useAppStore.getState().queueThreadLaunch(thread.id, prompt, segments);
+  generateTitleAsync(thread.id, project.location, projectAgentStatuses, titlePrompt);
+  if (worktreePath) {
+    void primeWorktreeGitState(project, worktreePath);
+    void refreshGitProject({ id: project.id, location: project.location }, "manual", "full");
+  }
+  if (newWorktreeSetupPath) {
+    const setupScript = project.scripts?.setupScript;
+    if (setupScript) {
+      runWorktreeSetupScript(project, newWorktreeSetupPath, setupScript);
+    }
+  }
+  return thread;
 }
 
 export function openThread(threadId: string, options?: { focusComposer?: boolean }): void {
@@ -319,4 +453,80 @@ export function reopenPaneThreadsIfInactive(): void {
     if (!thread || thread.status !== "inactive") continue;
     reopenStoredThread(thread.id);
   }
+}
+
+async function primeWorktreeGitState(project: Project, worktreePath: string): Promise<void> {
+  const cachedWorktreePaths =
+    useGitStore
+      .getState()
+      .worktrees[project.id]?.filter((worktree) => !worktree.isMain)
+      .map((worktree) => worktree.path) ?? [];
+  const threadWorktreePaths = useAppStore
+    .getState()
+    .threads.flatMap((thread) =>
+      thread.projectId === project.id && thread.worktreePath ? [thread.worktreePath] : [],
+    );
+  const worktreePaths = [
+    ...new Set([...cachedWorktreePaths, ...threadWorktreePaths, worktreePath]),
+  ].sort();
+  const watchWorktrees = readBridge()
+    .gitWatchWorktrees({ projectId: project.id, worktreePaths })
+    .catch(() => undefined);
+  if (project.location.kind === "wsl") return;
+  await watchWorktrees;
+  void readBridge()
+    .getGitStatus({ projectLocation: buildWorktreeLocation(project.location, worktreePath) })
+    .then((status) => useGitStore.getState().setWorktreeStatus(worktreePath, status))
+    .catch(() => undefined);
+}
+
+function runWorktreeSetupScript(project: Project, worktreePath: string, setupScript: string): void {
+  if (!normalizeShellScript(setupScript)) return;
+
+  const wtLocation = buildWorktreeLocation(project.location, worktreePath);
+  const store = useDevTerminalStore.getState();
+  const tab = store.addTab(project.id, "setup", worktreePath);
+  const autoShow = useSharedSettings.getState().autoShowTerminalPanel;
+  const panelAlreadyOpen = store.isOpen;
+  if (autoShow) {
+    store.openWorktreePanel(project.id, worktreePath);
+  }
+  store.setActiveTab(tab.id);
+
+  if (!autoShow && !panelAlreadyOpen) {
+    startShellWithToast(
+      {
+        shellId: tab.id,
+        projectLocation: wtLocation,
+        worktreePath,
+      },
+      "setup shell",
+    );
+  }
+
+  const detach = writeScriptToShellThenExitOnSuccess(tab.id, setupScript, wtLocation.kind, () =>
+    removeWorktreeSetupTab(tab),
+  );
+  const unsubscribeTabs = useDevTerminalStore.subscribe((state, prev) => {
+    if (state.tabs === prev.tabs) return;
+    if (state.tabs.some((t) => t.id === tab.id)) return;
+    detach();
+    unsubscribeTabs();
+  });
+}
+
+function removeWorktreeSetupTab(tab: DevTerminalTab): void {
+  const store = useDevTerminalStore.getState();
+  const showingThisContext =
+    store.isOpen &&
+    store.activeProjectId === tab.projectId &&
+    (store.activeWorktreePath ?? undefined) === tab.worktreePath;
+  store.removeTab(tab.id);
+  if (!showingThisContext) return;
+  const remaining = useDevTerminalStore
+    .getState()
+    .tabs.filter((t) => t.projectId === tab.projectId && t.worktreePath === tab.worktreePath);
+  if (remaining.length > 0) return;
+  if (useSharedSettings.getState().terminalPosition !== "bottom") closeAllPanels();
+  useDevTerminalStore.getState().closePanel();
 }

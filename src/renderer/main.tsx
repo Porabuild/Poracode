@@ -36,6 +36,8 @@ initializeRendererSentry();
 
 document.documentElement.dataset.platform =
   typeof window !== "undefined" && "lightcode" in window ? readBridge().platform : "unknown";
+document.documentElement.dataset.windowKind =
+  typeof window !== "undefined" && "lightcode" in window ? readBridge().windowKind : "main";
 
 // Apply the cached appearance + theme before first paint so a non-default theme
 // doesn't flash the base palette on launch.

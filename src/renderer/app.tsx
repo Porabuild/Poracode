@@ -3,7 +3,7 @@ import { useEffect } from "react";
 import { PixelLoader } from "./components/common";
 import { msg } from "@/shared/messages";
 import type { RuntimeEvent } from "@/shared/contracts";
-import { readBridge } from "./bridge";
+import { isQuickOverlay, readBridge } from "./bridge";
 import {
   handleThreadStateNotification,
   shouldInspectThreadStateForNotification,
@@ -16,10 +16,12 @@ import { useProviderUsageStore } from "./state/providerUsageStore";
 import { useUpdateStore } from "./state/updateStore";
 import { installRuntimeItemsPersister } from "./state/chatRuntimePersister";
 import { clearRuntimeItemStoreSelectorCacheForThread } from "./components/thread/ChatPane/chatPaneSelectors";
+import { openThread } from "./actions/threadActions";
 
 import { useAppHydration } from "@/renderer/hooks/useAppHydration";
 import { AppProvider } from "./components/ui/provider";
 import { MainView } from "@/renderer/views/MainView/MainView";
+import { QuickComposerOverlay } from "@/renderer/views/QuickComposerOverlay/QuickComposerOverlay";
 import { CommandPalette } from "@/renderer/commands/CommandPalette";
 import {
   captureAppStarted,
@@ -230,9 +232,15 @@ if (import.meta.hot) {
 }
 
 export function App() {
-  const { initialLoading, storeHydrated, loadT0 } = useAppHydration();
+  const isOverlay = isQuickOverlay();
+  const { initialLoading, storeHydrated, loadT0 } = useAppHydration({
+    runtimeOwner: !isOverlay,
+  });
 
   useEffect(() => {
+    if (isOverlay) {
+      return;
+    }
     if (initialLoading) {
       threadStateNotificationsArmed = false;
       return;
@@ -256,7 +264,24 @@ export function App() {
       threadStateNotificationsArmed = false;
       void flushProductAnalytics();
     };
-  }, [initialLoading]);
+  }, [initialLoading, isOverlay]);
+
+  useEffect(() => {
+    if (isOverlay) return;
+    return readBridge().onExternalAppStoreChanged(() => {
+      void useAppStore.persist.rehydrate();
+    });
+  }, [isOverlay]);
+
+  useEffect(() => {
+    if (isOverlay) return;
+    return readBridge().onOpenThreadInMainWindow(({ threadId }) => {
+      void (async () => {
+        await useAppStore.persist.rehydrate();
+        openThread(threadId, { focusComposer: true });
+      })();
+    });
+  }, [isOverlay]);
 
   if (initialLoading) {
     console.log(
@@ -276,8 +301,14 @@ export function App() {
 
   return (
     <AppProvider>
-      <MainView storeHydrated={storeHydrated} loadT0={loadT0} />
-      <CommandPalette />
+      {isOverlay ? (
+        <QuickComposerOverlay />
+      ) : (
+        <>
+          <MainView storeHydrated={storeHydrated} loadT0={loadT0} />
+          <CommandPalette />
+        </>
+      )}
     </AppProvider>
   );
 }
