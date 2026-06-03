@@ -96,22 +96,22 @@ export function GitBadge(props: {
       onKeyDown={(e) => handleKeyActivate(e, () => props.onPress?.(), { stopPropagation: true })}
     >
       <span className="flex items-center gap-1 text-[10px] font-medium">
-        {showPrIcon && <GitPullRequest className={`size-3 ${prIconColor}`} />}
-        {showWorktreeFork && (
-          <Tooltip delay={150}>
-            <Tooltip.Trigger tabIndex={-1} role="none">
-              <span className="flex items-center">
-                <GitFork className="size-3" />
-              </span>
-            </Tooltip.Trigger>
-            <Tooltip.Content placement="right">Worktree: {props.projectName}</Tooltip.Content>
-          </Tooltip>
-        )}
         {hasChanges && (
           <span className="flex items-center gap-0.5">
             {totalInsertions > 0 && <span className="text-success">+{totalInsertions}</span>}
             {totalDeletions > 0 && <span className="text-danger">-{totalDeletions}</span>}
           </span>
+        )}
+        {showPrIcon && <GitPullRequest className={`size-3 shrink-0 ${prIconColor}`} />}
+        {showWorktreeFork && (
+          <Tooltip delay={150}>
+            <Tooltip.Trigger tabIndex={-1} role="none">
+              <span className="flex shrink-0 items-center">
+                <GitFork className="size-3" />
+              </span>
+            </Tooltip.Trigger>
+            <Tooltip.Content placement="right">Worktree: {props.projectName}</Tooltip.Content>
+          </Tooltip>
         )}
       </span>
     </div>
