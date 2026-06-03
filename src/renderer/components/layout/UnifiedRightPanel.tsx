@@ -82,7 +82,10 @@ export function UnifiedRightPanel(props: {
   const dragCtl = "lightcode-overlay-header__controls";
 
   return (
-    <div className="flex h-full min-h-0 flex-col bg-[var(--content-background)]">
+    <div
+      data-lightcode-panel=""
+      className="flex h-full min-h-0 flex-col bg-[var(--content-background)]"
+    >
       <div className={`lightcode-overlay-header ${panelHeaderRowClass}`}>
         {projectName && (
           <PanelHeaderProjectName

@@ -50,14 +50,22 @@ export function buildWhenContext(
   const inputFocus = isTextInputElement(element);
   const editorFocus = Boolean(element?.closest(".monaco-editor"));
   const terminalFocus = Boolean(element?.closest(".xterm"));
+  const composerFocus = Boolean(
+    element?.closest("[data-lightcode-composer], .lightcode-composer-shell"),
+  );
+  const panelFocus = Boolean(element?.closest("[data-lightcode-panel]"));
+  const browserFocus = Boolean(element?.closest("[data-lightcode-browser]"));
 
   return {
     paletteOpen,
     inputFocus,
     editorFocus,
+    composerFocus,
     editorOpen: Boolean(fileEditor.activePath || fileEditor.rootContext),
     terminalFocus,
     terminalOpen: terminal.isOpen,
+    panelFocus,
+    browserFocus,
     hasProject: Boolean(active.project),
     hasThread: Boolean(active.thread),
     view: app.view.kind,

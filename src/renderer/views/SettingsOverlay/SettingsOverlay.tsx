@@ -18,6 +18,7 @@ import { AISettings } from "./parts/AISettings";
 import { AcpRegistrySettings } from "./parts/AcpRegistrySettings";
 import { AgentsGeneralSettings } from "./parts/AgentsGeneralSettings";
 import { SearchSettings } from "./parts/SearchSettings";
+import { ShortcutsSettings } from "./parts/ShortcutsSettings";
 import { TerminalSettings } from "./parts/TerminalSettings";
 import { ThreadSettings } from "./parts/ThreadSettings";
 import { ArchivedThreadsSettings } from "./parts/ArchivedThreadsSettings";
@@ -37,6 +38,7 @@ const SECTION_VIEWS: Partial<Record<SettingsSection, () => ReactNode>> = {
   notifications: () => <NotificationSettings />,
   ai: () => <AISettings />,
   search: () => <SearchSettings />,
+  shortcuts: () => <ShortcutsSettings />,
   agents: () => <AgentSettingsEmpty />,
   agentsGeneral: () => <AgentsGeneralSettings />,
   browser: () => <BrowserSettings />,

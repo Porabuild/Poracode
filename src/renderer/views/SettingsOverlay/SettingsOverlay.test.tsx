@@ -146,6 +146,10 @@ vi.mock("./parts/SearchSettings", () => ({
   SearchSettings: () => <div>Search</div>,
 }));
 
+vi.mock("./parts/ShortcutsSettings", () => ({
+  ShortcutsSettings: () => <div>Shortcuts</div>,
+}));
+
 vi.mock("./parts/ArchivedThreadsSettings", () => ({
   ArchivedThreadsSettings: () => <div>Archived</div>,
 }));
@@ -272,7 +276,7 @@ describe("SettingsOverlay", () => {
   it("routes split general sections from the sidebar", () => {
     render(<SettingsOverlay onClose={() => undefined} />);
 
-    for (const section of ["Appearance", "Terminal", "Threads", "Git"]) {
+    for (const section of ["Appearance", "Terminal", "Threads", "Git", "Shortcuts"]) {
       fireEvent.click(screen.getByRole("button", { name: section }));
       expect(within(screen.getByRole("main")).getByText(section)).toBeInTheDocument();
     }

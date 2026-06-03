@@ -10,6 +10,7 @@ import {
   GitFork,
   Globe,
   Info,
+  Keyboard,
   Mic,
   MessageSquare,
   PanelLeft,
@@ -138,6 +139,13 @@ export function SettingsSidebar(props: {
               label="Search"
               isActive={activeSection === "search"}
               onPress={() => onSectionChange("search")}
+            />
+            <SidebarButton
+              iconOnly
+              icon={<Keyboard className="size-4" />}
+              label="Shortcuts"
+              isActive={activeSection === "shortcuts"}
+              onPress={() => onSectionChange("shortcuts")}
             />
             <SidebarButton
               iconOnly
@@ -314,6 +322,12 @@ export function SettingsSidebar(props: {
               label="Search"
               isActive={activeSection === "search"}
               onPress={() => onSectionChange("search")}
+            />
+            <SidebarButton
+              icon={<Keyboard className="size-4" />}
+              label="Shortcuts"
+              isActive={activeSection === "shortcuts"}
+              onPress={() => onSectionChange("shortcuts")}
             />
             <SidebarButton
               icon={<Bot className="size-4" />}
