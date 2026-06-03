@@ -12,6 +12,9 @@ import {
 
 const execFileAsync = promisify(execFile);
 
+/** Default exec timeout for agent CLI probes and commands without an explicit `timeout`. */
+export const DEFAULT_COMMAND_OUTPUT_TIMEOUT_MS = 30_000;
+
 let cachedWindowsSearchPath: string | undefined | null = null;
 
 function getWindowsEnvValue(name: string): string | undefined {
@@ -775,12 +778,12 @@ export async function resolveExecutablePathAsync(command: string): Promise<strin
 export async function readCommandOutputAsync(
   command: string,
   args: string[],
-  options?: { cwd?: string; env?: Record<string, string> },
+  options?: { cwd?: string; env?: Record<string, string>; timeout?: number },
 ): Promise<{ ok: boolean; stdout: string; stderr: string }> {
   try {
     const { stdout, stderr } = await execFileAsync(command, args, {
       windowsHide: true,
-      timeout: 10_000,
+      timeout: options?.timeout ?? DEFAULT_COMMAND_OUTPUT_TIMEOUT_MS,
       ...(options?.cwd ? { cwd: options.cwd } : {}),
       ...(options?.env ? { env: { ...process.env, ...options.env } } : {}),
     });
@@ -941,7 +944,7 @@ export async function readWslCommandOutputAsync(
       ],
       {
         windowsHide: true,
-        timeout: 10_000,
+        timeout: DEFAULT_COMMAND_OUTPUT_TIMEOUT_MS,
       },
     );
     return { ok: true, stdout: (stdout ?? "").trim(), stderr: (stderr ?? "").trim() };
@@ -972,7 +975,7 @@ export async function readWslLoginShellCommandOutputAsync(
       ["-d", distro, "--cd", linuxCwd, "--", shellPath, "-l", "-i", "-c", script],
       {
         windowsHide: true,
-        timeout: options?.timeout ?? 10_000,
+        timeout: options?.timeout ?? DEFAULT_COMMAND_OUTPUT_TIMEOUT_MS,
         ...(options?.maxBuffer ? { maxBuffer: options.maxBuffer } : {}),
       },
     );
@@ -999,7 +1002,7 @@ export async function execInWsl(
     ["-d", distro, "--cd", linuxCwd, "--", command, ...args],
     {
       windowsHide: true,
-      timeout: options?.timeout ?? 10_000,
+      timeout: options?.timeout ?? DEFAULT_COMMAND_OUTPUT_TIMEOUT_MS,
       ...(options?.maxBuffer ? { maxBuffer: options.maxBuffer } : {}),
       ...(options?.env ? { env: options.env } : {}),
     },

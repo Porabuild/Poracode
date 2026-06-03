@@ -503,12 +503,15 @@ export async function readAgentCommandOutput(
   }
   const spec = buildAgentCommand(location, executablePath, args);
   const effectiveCwd = options?.posixCwd ?? spec.cwd;
+  const runOptions = {
+    ...(effectiveCwd ? { cwd: effectiveCwd } : {}),
+    ...(spec.env ? { env: spec.env } : {}),
+    ...(options?.timeoutMs ? { timeout: options.timeoutMs } : {}),
+  };
   return readCommandOutputAsync(
     spec.command,
     spec.args,
-    effectiveCwd || spec.env
-      ? { ...(effectiveCwd ? { cwd: effectiveCwd } : {}), ...(spec.env ? { env: spec.env } : {}) }
-      : undefined,
+    Object.keys(runOptions).length > 0 ? runOptions : undefined,
   );
 }
 

@@ -18,6 +18,7 @@ review.diff
 .spec-workflow/
 **/worktrees/
 .cursor/
+mcps/
 .antigravitycli/
 .recovery/
 resources/wsl-helpers/watcher.node
