@@ -35,27 +35,26 @@ export interface XTermSurfaceHandle {
 const TERMINAL_SCROLLBAR_WIDTH = 9;
 const TERMINAL_INTERNAL_SCROLLBAR_WIDTH = 0.01;
 
+// Terminal colors track the active theme by reading the same CSS custom
+// properties the rest of the app uses, so presets (Dracula, Nord, ...) apply to
+// the terminal too. Falls back to fixed light/dark values when a property is
+// unset or unparseable.
 function getTerminalTheme(appearance: "light" | "dark") {
   const rootStyles =
     typeof window !== "undefined" ? window.getComputedStyle(document.documentElement) : null;
-  const background =
-    rootStyles?.getPropertyValue("--content-background").trim() ||
-    (appearance === "dark" ? "#2b2a2f" : "#f1f1ef");
+  const readVar = (name: string) => rootStyles?.getPropertyValue(name).trim() || "";
 
-  if (appearance === "dark") {
-    return {
-      background,
-      foreground: "#e7edf6",
-      cursor: "#94bfff",
-      selectionBackground: "rgba(148, 191, 255, 0.24)",
-    };
-  }
+  const fallback =
+    appearance === "dark"
+      ? { background: "#2b2a2f", foreground: "#e7edf6", cursor: "#94bfff" }
+      : { background: "#f1f1ef", foreground: "#132034", cursor: "#1d4c89" };
 
   return {
-    background,
-    foreground: "#132034",
-    cursor: "#1d4c89",
-    selectionBackground: "rgba(29, 76, 137, 0.16)",
+    background: readVar("--content-background") || fallback.background,
+    foreground: readVar("--foreground") || fallback.foreground,
+    cursor: readVar("--accent") || fallback.cursor,
+    selectionBackground:
+      appearance === "dark" ? "rgba(148, 191, 255, 0.24)" : "rgba(29, 76, 137, 0.16)",
   };
 }
 
@@ -90,6 +89,7 @@ export const XTermSurface = forwardRef<
     openLinksInNativeBrowser = false,
   } = props;
   const appearance = useResolvedAppearance();
+  const themePreset = useSharedSettings((state) => state.themePreset);
   const mountRef = useRef<HTMLDivElement | null>(null);
   const scrollbarTrackRef = useRef<HTMLDivElement | null>(null);
   const terminalRef = useRef<Terminal | null>(null);
@@ -546,6 +546,20 @@ export const XTermSurface = forwardRef<
   useEffect(() => {
     requestRefitRef.current?.();
   }, [baseFontSize]);
+
+  // The terminal is created once (mount-once effect above) and won't pick up
+  // theme switches on its own. AppProvider rewrites the theme CSS vars in its
+  // own effect; child effects fire before parent effects, so defer one frame to
+  // read the freshly-applied values, then re-apply the palette in place.
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => {
+      const terminal = terminalRef.current;
+      if (terminal) {
+        terminal.options.theme = getTerminalTheme(appearance);
+      }
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [appearance, themePreset]);
 
   const contextMenuItems: ContextMenuItem[] = [
     { id: "copy", label: "Copy", isDisabled: !hasSelection },
