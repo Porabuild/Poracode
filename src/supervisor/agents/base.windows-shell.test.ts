@@ -106,25 +106,25 @@ describe.skipIf(process.platform !== "win32")("buildWindowsCommand", () => {
   it("bypasses npm .cmd shims so multiline args stay in argv", () => {
     const dir = mkdtempSync(join(tmpdir(), "lightcode-cmd-shim-"));
     tempDirs.push(dir);
-    const scriptPath = join(dir, "node_modules", "@openai", "codex", "bin", "codex.js");
+    const scriptPath = join(dir, "node_modules", "command-code", "dist", "index.mjs");
     mkdirSync(join(scriptPath, ".."), { recursive: true });
     writeFileSync(scriptPath, "", "utf8");
     const nodePath = join(dir, "node.exe");
     writeFileSync(nodePath, "", "utf8");
-    const shimPath = join(dir, "codex.cmd");
+    const shimPath = join(dir, "command-code.cmd");
     writeFileSync(
       shimPath,
       [
         "@ECHO off",
         "SETLOCAL",
-        'endLocal & goto #_undefined_# 2>NUL || title %COMSPEC% & "%dp0%\\node.exe"  "%dp0%\\node_modules\\@openai\\codex\\bin\\codex.js" %*',
+        'endLocal & goto #_undefined_# 2>NUL || title %COMSPEC% & "%dp0%\\node.exe"  "%dp0%\\node_modules\\command-code\\dist\\index.mjs" %*',
       ].join("\r\n"),
       "utf8",
     );
 
     const spec = buildAgentCommand(
       { kind: "windows", path: "C:\\repo" },
-      "codex",
+      "command-code",
       ["debug", "prompt-input", "hi\n1\n2"],
       shimPath,
     );

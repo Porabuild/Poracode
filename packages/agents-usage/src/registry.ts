@@ -1,5 +1,6 @@
 import { collectClaude } from "./collectors/claude";
 import { collectCodex } from "./collectors/codex";
+import { collectCommandCode } from "./collectors/commandcode";
 import { collectCopilot } from "./collectors/copilot";
 import { collectCursor } from "./collectors/cursor";
 import { collectGemini } from "./collectors/gemini";
@@ -84,6 +85,17 @@ const GEMINI_COLLECTOR: UsageCollector = {
   collect: collectGemini,
 };
 
+const COMMANDCODE_COLLECTOR: UsageCollector = {
+  descriptor: {
+    id: "commandcode",
+    label: "Command Code",
+    mechanism: "cookie",
+    needsLogin: true,
+    windowIds: ["monthly"],
+  },
+  collect: collectCommandCode,
+};
+
 // Antigravity is collected supervisor-side from its local language server
 // (LS-only), not here; see src/supervisor/runtime/antigravityUsageScanner.ts.
 
@@ -94,6 +106,7 @@ const BUILT_IN: UsageCollector[] = [
   CURSOR_COLLECTOR,
   GROK_COLLECTOR,
   GEMINI_COLLECTOR,
+  COMMANDCODE_COLLECTOR,
 ];
 
 /** Descriptors for the built-in HTTP collectors, in registration order. */

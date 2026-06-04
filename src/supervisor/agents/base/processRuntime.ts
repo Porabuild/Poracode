@@ -229,13 +229,13 @@ function resolveWindowsCmdExeTarget(path: string | undefined): string | undefine
   if (!path || !/\.cmd$/i.test(path)) return undefined;
   try {
     const body = readFileSync(path, "utf8");
-    // npm's standard Node-script shim wraps `"%dp0%\node.exe" "%dp0%\…\entry.js" %*`.
+    // npm's standard Node-script shim wraps `"%dp0%\node.exe" "%dp0%\…\entry.mjs" %*`.
     // Leave those alone so the downstream resolveWindowsNodeCmdShim (in base/index.ts)
-    // can extract the .js entry and invoke node with it directly. Substituting to
+    // can extract the script entry and invoke node with it directly. Substituting to
     // node.exe here would strip the script arg and pass agent flags straight to
     // node, which rejects them ("bad option: --model", etc.) and exits — breaking
     // every npm-installed agent (codex, commandcode, gemini, …) on Windows.
-    if (/["']?%dp0%\\[^"']+?\.js["']?\s+%\*/i.test(body)) return undefined;
+    if (/["']?%dp0%\\[^"']+?\.[cm]?js["']?\s+%\*/i.test(body)) return undefined;
     const match = /"%dp0%\\([^"]+?\.exe)"/i.exec(body);
     if (!match?.[1]) return undefined;
     const target = join(dirname(path), match[1]);

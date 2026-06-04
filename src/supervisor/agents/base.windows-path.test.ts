@@ -152,19 +152,19 @@ describe.skipIf(process.platform !== "win32")("Windows executable path fallback"
     expect(resolveExecutablePath("claude")).toBe(exePath);
   });
 
-  it("keeps the .cmd path for npm node-shim wrappers (e.g. codex.cmd → node codex.js)", () => {
+  it("keeps the .cmd path for npm node-shim wrappers (e.g. command-code.cmd → node index.mjs)", () => {
     // Regression: a previous version of resolveWindowsCmdExeTarget greedily
     // matched `"%dp0%\node.exe"` in npm's standard Node-script shim and
-    // returned node.exe directly. That stripped the .js entry script, so
+    // returned node.exe directly. That stripped the script entry, so
     // buildAgentCommand spawned `node.exe --model ... --enable ...` and Node
     // rejected the agent's flags with "bad option: --model". The .cmd must
-    // remain so resolveWindowsNodeCmdShim can extract the .js entry later.
-    const root = mkdtempSync(join(tmpdir(), "lightcode-codex-shim-"));
+    // remain so resolveWindowsNodeCmdShim can extract the script entry later.
+    const root = mkdtempSync(join(tmpdir(), "lightcode-command-code-shim-"));
     tempDirs.push(root);
-    const cmdPath = join(root, "codex.cmd");
+    const cmdPath = join(root, "command-code.cmd");
     const nodeExePath = join(root, "node.exe");
-    const jsPath = join(root, "node_modules", "@openai", "codex", "bin", "codex.js");
-    mkdirSync(join(root, "node_modules", "@openai", "codex", "bin"), { recursive: true });
+    const jsPath = join(root, "node_modules", "command-code", "dist", "index.mjs");
+    mkdirSync(join(root, "node_modules", "command-code", "dist"), { recursive: true });
     writeFileSync(nodeExePath, "");
     writeFileSync(jsPath, "");
     writeFileSync(
@@ -172,18 +172,18 @@ describe.skipIf(process.platform !== "win32")("Windows executable path fallback"
       [
         "@ECHO off",
         "SETLOCAL",
-        'endLocal & goto #_undefined_# 2>NUL || title %COMSPEC% & "%dp0%\\node.exe"  "%dp0%\\node_modules\\@openai\\codex\\bin\\codex.js" %*',
+        'endLocal & goto #_undefined_# 2>NUL || title %COMSPEC% & "%dp0%\\node.exe"  "%dp0%\\node_modules\\command-code\\dist\\index.mjs" %*',
         "",
       ].join("\r\n"),
     );
     spawnSyncMock.mockReturnValueOnce({
       error: undefined,
       status: 0,
-      stdout: [join(root, "codex"), cmdPath].join("\r\n"),
+      stdout: [join(root, "command-code"), cmdPath].join("\r\n"),
       stderr: "",
     });
 
-    expect(resolveExecutablePath("codex")).toBe(cmdPath);
+    expect(resolveExecutablePath("command-code")).toBe(cmdPath);
   });
 
   it("applies the same fallback to async resolution", async () => {

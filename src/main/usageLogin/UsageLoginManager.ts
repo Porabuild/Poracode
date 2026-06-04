@@ -3,6 +3,7 @@ import type { BrowserPanelManager } from "../browser";
 import type { LightcodePaths } from "@/shared/lightcodePaths";
 import type { UsageLoginStateResponse } from "@/shared/contracts";
 import { clearUsageSecret, hasUsageSecret, setUsageSecret } from "@/shared/usageSecretStore";
+import { isCommandCodeLoginCookieLive } from "./commandCodeLoginProbe";
 import { isGrokLoginCookieLive } from "./grokLoginProbe";
 import { isOpenCodeLoginCookieLive } from "./openCodeLoginProbe";
 
@@ -48,12 +49,24 @@ interface GitHubDeviceLoginConfig {
 type ProviderLoginConfig = CookieLoginConfig | GitHubDeviceLoginConfig;
 
 const PROVIDER_LABELS: Record<string, string> = {
+  commandcode: "Command Code",
   copilot: "GitHub Copilot",
   grok: "Grok",
   opencode: "OpenCode",
 };
 
 const PROVIDER_CONFIGS: Record<string, ProviderLoginConfig> = {
+  commandcode: {
+    kind: "cookie",
+    loginUrl: "https://commandcode.ai/signin",
+    cookieUrl: "https://commandcode.ai/",
+    // commandcode.ai is a better-auth app; cookies that share a name with
+    // session/auth/token signal a candidate login.
+    authCookiePattern: /session|auth|token/i,
+    // Confirm the cookie actually authenticates before prompting — better-auth
+    // can set a placeholder cookie before sign-in completes.
+    validateSession: isCommandCodeLoginCookieLive,
+  },
   copilot: {
     kind: "github-device",
     host: "github.com",
