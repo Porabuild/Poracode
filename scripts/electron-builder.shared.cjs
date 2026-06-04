@@ -38,6 +38,16 @@ function artifactPrefixFor(channel) {
   return channel === "nightly" ? "Lightcode-Nightly" : "Lightcode";
 }
 
+function normalizeAppleTeamId(teamId) {
+  const normalized = (teamId ?? "").trim().replace(/\.+$/, "");
+  return /^[A-Z0-9]{10}$/.test(normalized) ? normalized : null;
+}
+
+function webAuthnKeychainAccessGroupFor(teamId, channel) {
+  const normalizedTeamId = normalizeAppleTeamId(teamId);
+  return normalizedTeamId ? `${normalizedTeamId}.${appIdFor(channel)}.webauthn` : null;
+}
+
 module.exports = {
   CHANNELS,
   PACKAGED_DIST_DIRS,
@@ -48,4 +58,6 @@ module.exports = {
   userDataDirNameFor,
   updaterChannelFor,
   artifactPrefixFor,
+  normalizeAppleTeamId,
+  webAuthnKeychainAccessGroupFor,
 };

@@ -32,6 +32,7 @@ import { WindowsJobObjectManager } from "./windowsJobObject";
 import { captureMainException, initializeMainSentry } from "./diagnostics/sentry";
 import { configureSecretStorageKey } from "@/shared/secretStorage";
 import { readOrCreateSafeStorageSecretKey } from "./secretStorageKey";
+import { configureMacWebAuthn } from "./browser/webauthn";
 
 const isDev = Boolean(process.env.VITE_DEV_SERVER_URL);
 const channel = resolveLightcodeChannel();
@@ -165,6 +166,7 @@ if (!hasSingleInstanceLock) {
 
   app.whenReady().then(async () => {
     Menu.setApplicationMenu(null);
+    configureMacWebAuthn(channel);
 
     installLocalFileProtocolHandler();
     installPickerProtocolHandler();

@@ -198,6 +198,37 @@ function copyPackagedDist(stageRoot) {
   }
 }
 
+function prepareMacEntitlements(stageRoot, channel) {
+  const accessGroup = channelTable.webAuthnKeychainAccessGroupFor(
+    process.env.APPLE_TEAM_ID,
+    channel,
+  );
+  if (!accessGroup) {
+    console.log("[stage] APPLE_TEAM_ID not set; using base mac entitlements");
+    return "build/entitlements.mac.plist";
+  }
+
+  const sourcePath = join(stageRoot, "build", "entitlements.mac.plist");
+  const generatedPath = join(stageRoot, "build", "entitlements.mac.generated.plist");
+  const plist = readFileSync(sourcePath, "utf8");
+  if (plist.includes("keychain-access-groups")) {
+    return "build/entitlements.mac.plist";
+  }
+
+  const keychainEntitlement = [
+    "    <key>keychain-access-groups</key>",
+    "    <array>",
+    `        <string>${accessGroup}</string>`,
+    "    </array>",
+  ].join("\n");
+  if (!plist.includes("</dict>")) {
+    throw new Error("mac entitlements plist is missing </dict>");
+  }
+  writeFileSync(generatedPath, plist.replace("</dict>", `${keychainEntitlement}\n</dict>`));
+  console.log(`[stage] enabled mac WebAuthn keychain access group ${accessGroup}`);
+  return "build/entitlements.mac.generated.plist";
+}
+
 // The Claude Agent SDK lists `@anthropic-ai/claude-agent-sdk-<plat>-<arch>` as
 // optionalDependencies — each platform pack contains a ~200 MB precompiled
 // SEA binary of the `claude` CLI. The asar exclusion in the staged
@@ -313,7 +344,12 @@ async function main() {
     writeFileSync(join(stageRoot, "package.json"), `${JSON.stringify(stagePkg, null, 2)}\n`);
 
     // 5. Stage electron-builder config.
-    writeFileSync(join(stageRoot, "electron-builder.yml"), buildElectronBuilderConfig());
+    const channel = channelTable.normalizeChannel(process.env.LIGHTCODE_CHANNEL);
+    const macEntitlements = prepareMacEntitlements(stageRoot, channel);
+    writeFileSync(
+      join(stageRoot, "electron-builder.yml"),
+      buildElectronBuilderConfig({ macEntitlements }),
+    );
 
     // 6. Install prod + stage devdeps with a flat layout.
     //    node-linker=hoisted makes pnpm produce an npm-style flat node_modules,
@@ -421,7 +457,7 @@ async function main() {
   }
 }
 
-function buildElectronBuilderConfig() {
+function buildElectronBuilderConfig(options = {}) {
   // Generate the staged electron-builder config with a drastically simplified
   // `files:` block — the stage's node_modules contains only the runtime
   // externals we listed, so we can include all of node_modules without dragging
@@ -435,6 +471,7 @@ function buildElectronBuilderConfig() {
   const prefix = channelTable.artifactPrefixFor(channel);
   const iconSuffix = channel === "nightly" ? "-nightly" : "";
   const publishChannelLine = updaterChannel ? `\n  channel: ${updaterChannel}` : "";
+  const macEntitlements = options.macEntitlements ?? "build/entitlements.mac.plist";
   const packagedDistFilesYaml = PACKAGED_DIST_FILES.map((glob) =>
     glob.startsWith("!") ? `  - "${glob}"` : `  - ${glob}`,
   ).join("\n");
@@ -529,8 +566,8 @@ mac:
   gatekeeperAssess: false
   extendInfo:
     NSMicrophoneUsageDescription: Lightcode uses the microphone for local voice input in the composer.
-  entitlements: build/entitlements.mac.plist
-  entitlementsInherit: build/entitlements.mac.plist
+  entitlements: ${macEntitlements}
+  entitlementsInherit: ${macEntitlements}
   notarize: true
 
 npmRebuild: false

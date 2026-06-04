@@ -31,3 +31,20 @@ export function updaterChannelFor(channel: LightcodeChannel): string | undefined
 export function artifactPrefixFor(channel: LightcodeChannel): string {
   return channel === "nightly" ? "Lightcode-Nightly" : "Lightcode";
 }
+
+export function normalizeAppleTeamId(teamId: string | undefined | null): string | null {
+  const normalized = (teamId ?? "").trim().replace(/\.+$/, "");
+  return /^[A-Z0-9]{10}$/.test(normalized) ? normalized : null;
+}
+
+// The keychain access group must be byte-identical between the entitlements
+// plist embedded at sign time (scripts/build-desktop-artifact.mjs) and the
+// value passed to app.configureWebAuthn at runtime (src/main/browser/webauthn.ts),
+// or macOS platform passkeys silently fail. Keep it single-sourced here.
+export function webAuthnKeychainAccessGroupFor(
+  teamId: string | undefined | null,
+  channel: LightcodeChannel,
+): string | null {
+  const normalizedTeamId = normalizeAppleTeamId(teamId);
+  return normalizedTeamId ? `${normalizedTeamId}.${appIdFor(channel)}.webauthn` : null;
+}

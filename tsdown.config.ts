@@ -14,6 +14,7 @@ function readEnvValue(key: string): string {
 const channel = process.env.LIGHTCODE_CHANNEL === "nightly" ? "nightly" : "stable";
 
 const buildDefines = {
+  __APPLE_TEAM_ID__: JSON.stringify(readEnvValue("APPLE_TEAM_ID")),
   __BUILD_SENTRY_DSN__: JSON.stringify(readEnvValue("SENTRY_DSN")),
   __BUILD_SENTRY_ENVIRONMENT__: JSON.stringify(readEnvValue("SENTRY_ENVIRONMENT")),
   __LIGHTCODE_CHANNEL__: JSON.stringify(channel),
