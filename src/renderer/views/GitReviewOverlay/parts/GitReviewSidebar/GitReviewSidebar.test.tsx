@@ -276,7 +276,7 @@ describe("GitReviewSidebar", () => {
     expect(screen.queryByText("main-only.ts")).not.toBeInTheDocument();
   });
 
-  it("stores refreshed worktree source info so merge actions appear after commit", async () => {
+  it("moves worktree merge actions into the create PR dropdown", async () => {
     const project: Project = {
       id: "project-1",
       name: "Lightcode",
@@ -287,9 +287,14 @@ describe("GitReviewSidebar", () => {
     const gitStatus: GitStatusResult = {
       isRepo: true,
       branch: "feature/worktree",
-      tracking: "",
-      hasRemote: false,
-      remoteInfo: null,
+      tracking: "origin/feature/worktree",
+      hasRemote: true,
+      remoteInfo: {
+        url: "https://github.com/example/lightcode.git",
+        platform: "github",
+        owner: "example",
+        repo: "lightcode",
+      },
       ahead: 0,
       behind: 0,
       staged: [],
@@ -304,6 +309,7 @@ describe("GitReviewSidebar", () => {
       sourceAhead: 0,
     });
     const setWorktreeSourceInfo = vi.spyOn(useGitStore.getState(), "setWorktreeSourceInfo");
+    useGitStore.setState({ ghAvailable: { [project.id]: true } });
 
     render(
       <GitReviewSidebar
@@ -327,10 +333,12 @@ describe("GitReviewSidebar", () => {
         sourceAhead: 0,
       }),
     );
-    expect(screen.getByText("Merge & Remove Worktree")).toBeInTheDocument();
+    expect(screen.getByText("Merge Worktree")).toBeInTheDocument();
+    expect(screen.getByText("Merge Locally & Remove Worktree")).toBeInTheDocument();
+    expect(screen.queryByText("Merge & Remove Worktree")).not.toBeInTheDocument();
   });
 
-  it("shows the merge section while worktree source info is still loading", async () => {
+  it("does not show the removed merge section while worktree source info is still loading", () => {
     const project: Project = {
       id: "project-1",
       name: "Lightcode",
@@ -369,7 +377,8 @@ describe("GitReviewSidebar", () => {
       />,
     );
 
-    await waitFor(() => expect(screen.getByText("spinner")).toBeInTheDocument());
+    expect(screen.queryByText("spinner")).not.toBeInTheDocument();
+    expect(screen.queryByText("Merge & Remove Worktree")).not.toBeInTheDocument();
   });
 
   it("hides pull from source when the worktree is already up to date with its source branch", async () => {
