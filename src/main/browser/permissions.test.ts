@@ -17,31 +17,19 @@ type RequestHandler = (
   permission: string,
   callback: (granted: boolean) => void,
 ) => void;
-type WebAuthnAccountHandler = (
-  event: unknown,
-  details: { accounts: Array<{ credentialId: string }> },
-  callback: (credentialId: string | null) => void,
-) => void;
 
 function createFakeSession() {
   let requestHandler: RequestHandler | null = null;
-  let webAuthnAccountHandler: WebAuthnAccountHandler | null = null;
   const session = {
     setPermissionRequestHandler: vi.fn<(handler: RequestHandler) => void>((handler) => {
       requestHandler = handler;
     }),
     setPermissionCheckHandler: vi.fn<() => boolean>(),
-    on: vi.fn<(event: string, handler: WebAuthnAccountHandler) => void>((event, handler) => {
-      if (event === "select-webauthn-account") {
-        webAuthnAccountHandler = handler;
-      }
-    }),
   };
   installSessionPermissions(session as unknown as Parameters<typeof installSessionPermissions>[0]);
   return {
     session,
     getRequestHandler: () => requestHandler,
-    getWebAuthnAccountHandler: () => webAuthnAccountHandler,
   };
 }
 
@@ -208,30 +196,5 @@ describe("installSessionPermissions non-media permissions", () => {
   it("denies permissions outside the allow-list", async () => {
     const handler = installAndCaptureRequestHandler();
     await expect(requestPermission(handler, windowContents, "geolocation")).resolves.toBe(false);
-  });
-});
-
-describe("installSessionPermissions WebAuthn account selection", () => {
-  it("selects the first discoverable credential instead of letting Electron cancel by default", () => {
-    const { getWebAuthnAccountHandler } = createFakeSession();
-    const handler = getWebAuthnAccountHandler();
-    expect(handler).toBeTruthy();
-    const callback = vi.fn<(credentialId: string | null) => void>();
-
-    handler?.(
-      {},
-      { accounts: [{ credentialId: "credential-a" }, { credentialId: "credential-b" }] },
-      callback,
-    );
-
-    expect(callback).toHaveBeenCalledWith("credential-a");
-  });
-
-  it("only registers one WebAuthn account handler per session", () => {
-    const { session } = createFakeSession();
-    installSessionPermissions(
-      session as unknown as Parameters<typeof installSessionPermissions>[0],
-    );
-    expect(session.on).toHaveBeenCalledTimes(1);
   });
 });

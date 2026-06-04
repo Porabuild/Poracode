@@ -12,15 +12,8 @@ function readEnvValue(key: string): string {
 // with src/shared/channel.normalizeChannel + scripts/electron-builder.shared.cjs
 // is pinned by src/shared/channel.config-parity.test.ts.
 const channel = process.env.LIGHTCODE_CHANNEL === "nightly" ? "nightly" : "stable";
-const macWebAuthnEntitlementEnabled =
-  process.env.LIGHTCODE_ENABLE_MAC_WEBAUTHN_ENTITLEMENT === "1" ||
-  readEnvValue("MAC_PROVISIONING_PROFILE") !== "" ||
-  readEnvValue("MAC_PROVISIONING_PROFILE_PATH") !== "";
 
 const buildDefines = {
-  __APPLE_TEAM_ID__: JSON.stringify(
-    macWebAuthnEntitlementEnabled ? readEnvValue("APPLE_TEAM_ID") : "",
-  ),
   __BUILD_SENTRY_DSN__: JSON.stringify(readEnvValue("SENTRY_DSN")),
   __BUILD_SENTRY_ENVIRONMENT__: JSON.stringify(readEnvValue("SENTRY_ENVIRONMENT")),
   __LIGHTCODE_CHANNEL__: JSON.stringify(channel),

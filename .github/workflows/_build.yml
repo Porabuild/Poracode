@@ -21,12 +21,6 @@ on:
         required: false
       MAC_CSC_KEY_PASSWORD:
         required: false
-      MAC_PROVISIONING_PROFILE:
-        required: false
-      MAC_PROVISIONING_PROFILE_STABLE:
-        required: false
-      MAC_PROVISIONING_PROFILE_NIGHTLY:
-        required: false
       APPLE_ID:
         required: false
       APPLE_APP_SPECIFIC_PASSWORD:
@@ -90,34 +84,17 @@ jobs:
           # other native deps (node-pty, better-sqlite3) are still verified.
           ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
 
-      - name: Require macOS WebAuthn provisioning profile
-        if: matrix.os == 'macos-latest'
-        run: |
-          set -euo pipefail
-          if [ -z "${MAC_PROVISIONING_PROFILE:-}" ]; then
-            channel_secret="MAC_PROVISIONING_PROFILE_${LIGHTCODE_CHANNEL^^}"
-            echo "::error::macOS passkey support requires a base64-encoded Developer ID provisioning profile secret. Set ${channel_secret} for this channel, or MAC_PROVISIONING_PROFILE as a fallback."
-            exit 1
-          fi
-        shell: bash
-        env:
-          LIGHTCODE_CHANNEL: ${{ inputs.channel }}
-          MAC_PROVISIONING_PROFILE: ${{ inputs.channel == 'nightly' && secrets.MAC_PROVISIONING_PROFILE_NIGHTLY || inputs.channel == 'stable' && secrets.MAC_PROVISIONING_PROFILE_STABLE || secrets.MAC_PROVISIONING_PROFILE }}
-
       - name: Build app
         run: pnpm run build
         shell: bash
         env:
           LIGHTCODE_CHANNEL: ${{ inputs.channel }}
-          LIGHTCODE_ENABLE_MAC_WEBAUTHN_ENTITLEMENT: ${{ matrix.os == 'macos-latest' && '1' || '0' }}
           SENTRY_DSN: ${{ vars.SENTRY_DSN }}
           SENTRY_ENVIRONMENT: ${{ inputs.sentry_environment }}
           POSTHOG_ENABLED: ${{ vars.POSTHOG_ENABLED || '1' }}
           POSTHOG_KEY: ${{ vars.POSTHOG_KEY }}
           POSTHOG_HOST: ${{ vars.POSTHOG_HOST || 'https://us.i.posthog.com' }}
           POSTHOG_ENABLE_DEV: "0"
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-          MAC_PROVISIONING_PROFILE: ${{ inputs.channel == 'nightly' && secrets.MAC_PROVISIONING_PROFILE_NIGHTLY || inputs.channel == 'stable' && secrets.MAC_PROVISIONING_PROFILE_STABLE || secrets.MAC_PROVISIONING_PROFILE }}
 
       - name: Upload Sentry source maps
         if: matrix.os == 'ubuntu-latest'
@@ -158,13 +135,10 @@ jobs:
         shell: bash
         env:
           LIGHTCODE_CHANNEL: ${{ inputs.channel }}
-          LIGHTCODE_ENABLE_MAC_WEBAUTHN_ENTITLEMENT: "1"
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # macOS Developer ID signing (base64-encoded .p12 + password).
           CSC_LINK: ${{ secrets.MAC_CSC_LINK }}
           CSC_KEY_PASSWORD: ${{ secrets.MAC_CSC_KEY_PASSWORD }}
-          # macOS provisioning profile for restricted WebAuthn keychain-access-groups.
-          MAC_PROVISIONING_PROFILE: ${{ inputs.channel == 'nightly' && secrets.MAC_PROVISIONING_PROFILE_NIGHTLY || inputs.channel == 'stable' && secrets.MAC_PROVISIONING_PROFILE_STABLE || secrets.MAC_PROVISIONING_PROFILE }}
           # macOS notarization via Apple ID + app-specific password.
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
@@ -176,33 +150,14 @@ jobs:
           set -euo pipefail
           shopt -s nullglob
           apps=(release/mac*/Lightcode*.app)
-          expect_webauthn=0
-          if [ -n "${MAC_PROVISIONING_PROFILE:-}" ]; then
-            expect_webauthn=1
-          fi
           if [ "${#apps[@]}" -eq 0 ]; then
             echo "::error::No packaged macOS app bundles found under release/mac*."
             exit 1
           fi
           for app in "${apps[@]}"; do
-            entitlements="$(codesign -d --entitlements - "$app" 2>&1 || true)"
-            has_webauthn=0
-            if grep -q "keychain-access-groups" <<<"$entitlements"; then
-              has_webauthn=1
-            fi
-            if [ "$expect_webauthn" -eq 1 ] && [ "$has_webauthn" -ne 1 ]; then
-              echo "::error::$app is missing keychain-access-groups entitlements even though MAC_PROVISIONING_PROFILE is configured."
-              exit 1
-            fi
-            if [ "$has_webauthn" -eq 1 ] && [ ! -f "$app/Contents/embedded.provisionprofile" ]; then
-              echo "::error::$app has restricted keychain-access-groups entitlements but no embedded provisioning profile."
-              exit 1
-            fi
             codesign --verify --deep --strict --verbose=4 "$app"
           done
         shell: bash
-        env:
-          MAC_PROVISIONING_PROFILE: ${{ inputs.channel == 'nightly' && secrets.MAC_PROVISIONING_PROFILE_NIGHTLY || inputs.channel == 'stable' && secrets.MAC_PROVISIONING_PROFILE_STABLE || secrets.MAC_PROVISIONING_PROFILE }}
 
       - name: Upload built artifacts
         uses: actions/upload-artifact@v7

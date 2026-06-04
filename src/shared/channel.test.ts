@@ -6,7 +6,6 @@ import {
   productNameFor,
   updaterChannelFor,
   userDataDirNameFor,
-  webAuthnKeychainAccessGroupFor,
 } from "./channel";
 
 describe("channel", () => {
@@ -38,31 +37,6 @@ describe("channel", () => {
     expect(artifactPrefixFor("stable")).toBe("Lightcode");
     expect(artifactPrefixFor("nightly")).toBe("Lightcode-Nightly");
     expect(artifactPrefixFor("stable")).not.toBe(artifactPrefixFor("nightly"));
-  });
-});
-
-describe("webAuthnKeychainAccessGroupFor", () => {
-  it("builds the stable channel keychain access group", () => {
-    expect(webAuthnKeychainAccessGroupFor("ABCDE12345", "stable")).toBe(
-      "ABCDE12345.com.lightcode.app",
-    );
-  });
-
-  it("builds the nightly channel keychain access group", () => {
-    expect(webAuthnKeychainAccessGroupFor("ABCDE12345", "nightly")).toBe(
-      "ABCDE12345.com.lightcode.app.nightly",
-    );
-  });
-
-  it("accepts a trailing dot from Apple team identifier prefixes", () => {
-    expect(webAuthnKeychainAccessGroupFor("ABCDE12345.", "stable")).toBe(
-      "ABCDE12345.com.lightcode.app",
-    );
-  });
-
-  it("rejects missing or malformed team ids", () => {
-    expect(webAuthnKeychainAccessGroupFor("", "stable")).toBeNull();
-    expect(webAuthnKeychainAccessGroupFor("team", "stable")).toBeNull();
   });
 });
 

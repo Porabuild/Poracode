@@ -16,8 +16,6 @@ const BLOCKED_NAVIGATION_PROTOCOLS = new Set<string>([
   "view-source:",
 ]);
 
-const SESSIONS_WITH_WEBAUTHN_ACCOUNT_HANDLER = new WeakSet<Session>();
-
 export function isNavigationUrlAllowed(url: string): boolean {
   try {
     const parsed = new URL(url);
@@ -85,7 +83,6 @@ export async function openMicrophoneSettings(): Promise<void> {
 }
 
 export function installSessionPermissions(session: Session): void {
-  installWebAuthnAccountHandler(session);
   session.setPermissionRequestHandler((webContents, permission, callback) => {
     if (!isPermissionAllowed(webContents, permission)) {
       callback(false);
@@ -100,16 +97,6 @@ export function installSessionPermissions(session: Session): void {
   session.setPermissionCheckHandler((webContents, permission) =>
     isPermissionAllowed(webContents, permission),
   );
-}
-
-function installWebAuthnAccountHandler(session: Session): void {
-  if (SESSIONS_WITH_WEBAUTHN_ACCOUNT_HANDLER.has(session)) {
-    return;
-  }
-  SESSIONS_WITH_WEBAUTHN_ACCOUNT_HANDLER.add(session);
-  session.on("select-webauthn-account", (_event, details, callback) => {
-    callback(details.accounts[0]?.credentialId ?? null);
-  });
 }
 
 export function installNavigationGuards(

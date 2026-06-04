@@ -198,87 +198,6 @@ function copyPackagedDist(stageRoot) {
   }
 }
 
-function readEnvValue(name) {
-  return (process.env[name] ?? "").trim();
-}
-
-function prepareMacProvisioningProfile(stageRoot) {
-  const profilePath = readEnvValue("MAC_PROVISIONING_PROFILE_PATH");
-  const profileBase64 = readEnvValue("MAC_PROVISIONING_PROFILE");
-  if (!profilePath && !profileBase64) {
-    return null;
-  }
-
-  const stagedPath = join(stageRoot, "build", "embedded.provisionprofile");
-  if (profilePath) {
-    const sourcePath = resolve(repoRoot, profilePath);
-    if (!existsSync(sourcePath)) {
-      throw new Error(`MAC_PROVISIONING_PROFILE_PATH does not exist: ${sourcePath}`);
-    }
-    cpSync(sourcePath, stagedPath);
-  } else {
-    writeFileSync(stagedPath, Buffer.from(profileBase64, "base64"));
-  }
-
-  if (statSync(stagedPath).size === 0) {
-    throw new Error("mac provisioning profile is empty");
-  }
-  console.log("[stage] staged mac provisioning profile for WebAuthn keychain entitlement");
-  return "build/embedded.provisionprofile";
-}
-
-function prepareMacEntitlements(stageRoot, channel, provisioningProfile) {
-  const wantsWebAuthnEntitlement =
-    process.env.LIGHTCODE_ENABLE_MAC_WEBAUTHN_ENTITLEMENT === "1" || provisioningProfile !== null;
-  if (!wantsWebAuthnEntitlement) {
-    console.log("[stage] mac WebAuthn keychain entitlement disabled; using base mac entitlements");
-    return {
-      entitlements: "build/entitlements.mac.plist",
-      entitlementsInherit: "build/entitlements.mac.plist",
-    };
-  }
-
-  if (!provisioningProfile) {
-    throw new Error(
-      "mac WebAuthn keychain entitlement requires MAC_PROVISIONING_PROFILE or MAC_PROVISIONING_PROFILE_PATH",
-    );
-  }
-
-  const accessGroup = channelTable.webAuthnKeychainAccessGroupFor(
-    process.env.APPLE_TEAM_ID,
-    channel,
-  );
-  if (!accessGroup) {
-    throw new Error("mac WebAuthn keychain entitlement requires a valid APPLE_TEAM_ID");
-  }
-
-  const sourcePath = join(stageRoot, "build", "entitlements.mac.plist");
-  const generatedPath = join(stageRoot, "build", "entitlements.mac.generated.plist");
-  const plist = readFileSync(sourcePath, "utf8");
-  if (plist.includes("keychain-access-groups")) {
-    return {
-      entitlements: "build/entitlements.mac.plist",
-      entitlementsInherit: "build/entitlements.mac.plist",
-    };
-  }
-
-  const keychainEntitlement = [
-    "    <key>keychain-access-groups</key>",
-    "    <array>",
-    `        <string>${accessGroup}</string>`,
-    "    </array>",
-  ].join("\n");
-  if (!plist.includes("</dict>")) {
-    throw new Error("mac entitlements plist is missing </dict>");
-  }
-  writeFileSync(generatedPath, plist.replace("</dict>", `${keychainEntitlement}\n</dict>`));
-  console.log(`[stage] enabled mac WebAuthn keychain access group ${accessGroup}`);
-  return {
-    entitlements: "build/entitlements.mac.generated.plist",
-    entitlementsInherit: "build/entitlements.mac.plist",
-  };
-}
-
 // The Claude Agent SDK lists `@anthropic-ai/claude-agent-sdk-<plat>-<arch>` as
 // optionalDependencies — each platform pack contains a ~200 MB precompiled
 // SEA binary of the `claude` CLI. The asar exclusion in the staged
@@ -394,14 +313,7 @@ async function main() {
     writeFileSync(join(stageRoot, "package.json"), `${JSON.stringify(stagePkg, null, 2)}\n`);
 
     // 5. Stage electron-builder config.
-    const channel = channelTable.normalizeChannel(process.env.LIGHTCODE_CHANNEL);
-    const macProvisioningProfile =
-      platform === "mac" ? prepareMacProvisioningProfile(stageRoot) : null;
-    const macEntitlements = prepareMacEntitlements(stageRoot, channel, macProvisioningProfile);
-    writeFileSync(
-      join(stageRoot, "electron-builder.yml"),
-      buildElectronBuilderConfig({ ...macEntitlements, macProvisioningProfile }),
-    );
+    writeFileSync(join(stageRoot, "electron-builder.yml"), buildElectronBuilderConfig());
 
     // 6. Install prod + stage devdeps with a flat layout.
     //    node-linker=hoisted makes pnpm produce an npm-style flat node_modules,
@@ -509,7 +421,7 @@ async function main() {
   }
 }
 
-function buildElectronBuilderConfig(options = {}) {
+function buildElectronBuilderConfig() {
   // Generate the staged electron-builder config with a drastically simplified
   // `files:` block — the stage's node_modules contains only the runtime
   // externals we listed, so we can include all of node_modules without dragging
@@ -523,11 +435,8 @@ function buildElectronBuilderConfig(options = {}) {
   const prefix = channelTable.artifactPrefixFor(channel);
   const iconSuffix = channel === "nightly" ? "-nightly" : "";
   const publishChannelLine = updaterChannel ? `\n  channel: ${updaterChannel}` : "";
-  const macEntitlements = options.entitlements ?? "build/entitlements.mac.plist";
-  const macEntitlementsInherit = options.entitlementsInherit ?? "build/entitlements.mac.plist";
-  const macProvisioningProfileLine = options.macProvisioningProfile
-    ? `\n  provisioningProfile: ${options.macProvisioningProfile}`
-    : "";
+  const macEntitlements = "build/entitlements.mac.plist";
+  const macEntitlementsInherit = "build/entitlements.mac.plist";
   const packagedDistFilesYaml = PACKAGED_DIST_FILES.map((glob) =>
     glob.startsWith("!") ? `  - "${glob}"` : `  - ${glob}`,
   ).join("\n");
@@ -623,7 +532,7 @@ mac:
   extendInfo:
     NSMicrophoneUsageDescription: Lightcode uses the microphone for local voice input in the composer.
   entitlements: ${macEntitlements}
-  entitlementsInherit: ${macEntitlementsInherit}${macProvisioningProfileLine}
+  entitlementsInherit: ${macEntitlementsInherit}
   notarize: true
 
 npmRebuild: false
