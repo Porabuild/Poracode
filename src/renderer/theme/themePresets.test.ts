@@ -157,13 +157,16 @@ describe("theme presets", () => {
         // git-branch is a fixed tone in light; in dark it's the themed --muted.
         const gitBranch = mode === "light" ? semanticHex.light.gitBranch : v["--muted"]!;
 
-        // Tertiary fill steps toward fg (mirrors styles.css .button--tertiary),
-        // measured against --surface: tertiary buttons only render on panel
-        // surfaces (sidebars, dialogs, popovers), never the bare page — some
-        // themes pair a pure-white surface with a gray page where a
-        // surface-keyed fill couldn't clear the page without going muddy.
-        const buttonBg = mixHex(fg, surface, mode === "light" ? 0.2 : 0.18);
-        const buttonHover = mixHex(fg, surface, mode === "light" ? 0.26 : 0.22);
+        // Tertiary fill. In light, styles.css .button--tertiary darkens
+        // --content-background (where these controls render) toward black by a fixed
+        // fraction — foreground-independent, so it lands at a uniform contrast across
+        // presets instead of over-darkening themes with a dark foreground (the
+        // toward-fg approach made LightCode light read heavy). Measured against
+        // --content-background. In dark we keep HeroUI's stock --default fill: it
+        // sits quieter on the panel (below UI_FILL_FLOOR for a couple of dark
+        // presets) but reads as intended, so the floor is enforced light only.
+        const buttonBg = mode === "light" ? mixHex("#000000", content, 0.11) : v["--default"]!;
+        const buttonHover = mode === "light" ? mixHex("#000000", content, 0.16) : v["--default"]!;
         // Soft-accent label (--color-accent-soft-foreground): styles.css deepens
         // HeroUI's raw --accent toward fg so it stays accent-hued but legible.
         // It drives secondary-button labels (on the --default fill) and selected
@@ -178,8 +181,14 @@ describe("theme presets", () => {
           ["danger/content", sem.danger, content, UI_BOUNDARY_FLOOR],
           ["pr-merged/content", sem.prMerged, content, UI_BOUNDARY_FLOOR],
           ["git-branch/content", gitBranch, content, UI_BOUNDARY_FLOOR],
-          ["tertiary bg/surface", buttonBg, surface, UI_FILL_FLOOR],
-          ["tertiary hover/surface", buttonHover, surface, UI_FILL_FLOOR],
+          // Fill floor is light-only (dark uses the quieter stock fill), measured
+          // against --content-background where the tool panels/overlays render.
+          ...(mode === "light"
+            ? ([
+                ["tertiary bg/content", buttonBg, content, UI_FILL_FLOOR],
+                ["tertiary hover/content", buttonHover, content, UI_FILL_FLOOR],
+              ] as [string, string, string, number][])
+            : []),
           ["tertiary text/bg", fg, buttonBg, BG_FLOOR],
           ["tertiary text/hover", fg, buttonHover, BG_FLOOR],
           ["soft-accent label/accent-soft", softLabel, accentSoftFill, UI_BOUNDARY_FLOOR],

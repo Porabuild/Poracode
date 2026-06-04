@@ -206,7 +206,7 @@ function resolveWindowsNodeCmdShim(commandPath: string):
     return undefined;
   }
 
-  const match = /["']?%dp0%\\([^"']+?\.js)["']?\s+%\*/i.exec(content);
+  const match = /["']?%dp0%\\([^"']+?\.[cm]?js)["']?\s+%\*/i.exec(content);
   const relScript = match?.[1];
   if (!relScript) return undefined;
 

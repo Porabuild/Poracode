@@ -582,30 +582,34 @@
 }
 
 /* Tertiary: a quiet neutral that still reads as interactive. Borderless, like
-   HeroUI's stock tertiary — the separation from the surface comes from the fill
-   (a step toward --foreground, in the same family as --surface-tertiary /
-   --default), stepped slightly past --default so it stays visible. */
-.button--tertiary {
-  --button-bg: color-mix(in oklab, var(--surface) 82%, var(--foreground));
-  --button-bg-hover: color-mix(in oklab, var(--surface) 78%, var(--foreground));
+   HeroUI's stock tertiary — the separation comes from a fill a touch darker than
+   the panel. Derived by darkening --content-background (the surface these controls
+   render on) a fixed fraction toward black, NOT by mixing toward --foreground:
+   a toward-fg step darkens by a fraction of the gap to fg, so themes with a dark
+   foreground (e.g. LightCode light, fg ~L0.21) over-darken and read heavy. Scaling
+   the panel's own luminance toward black is foreground-independent, so the fill
+   lands at a uniform ~1.28:1 across every light preset. Dark keeps HeroUI's stock
+   fill, so this is light-only. */
+.light .button--tertiary,
+[data-theme="light"] .button--tertiary {
+  --button-bg: color-mix(in oklab, var(--content-background) 89%, #000);
+  --button-bg-hover: color-mix(in oklab, var(--content-background) 84%, #000);
   --button-bg-pressed: var(--button-bg-hover);
 }
 
-.light .button--tertiary,
-[data-theme="light"] .button--tertiary {
-  --button-bg: color-mix(in oklab, var(--surface) 80%, var(--foreground));
-  --button-bg-hover: color-mix(in oklab, var(--surface) 74%, var(--foreground));
-}
-
 /* Commit-message field. HeroUI's secondary textarea fills with --default, which
-   sits ~1.1:1 on the near-white git panel in light themes — the field reads as
-   part of the background. Step the fill further toward --foreground so it reads
-   as a distinct field (~1.6:1): recessed gray in light, raised lighter in dark.
+   in light themes (--default L0.86) sits ~1.1:1 on the near-white git panel — the
+   field reads as part of the background. Derived the same way as .button--tertiary
+   above (darken --content-background toward black, foreground-independent), stepped
+   slightly stronger so the input reads as recessed relative to the button. Dark
+   themes separate cleanly with the stock fill, so this is light only; the
+   placeholder is derived from the recessed fill to keep its contrast.
    Scoped to this field only (variant="secondary" + .lc-commit-message). */
-.lc-commit-message.textarea--secondary {
-  --textarea-bg: color-mix(in oklab, var(--surface) 78%, var(--foreground));
-  --textarea-bg-hover: color-mix(in oklab, var(--surface) 74%, var(--foreground));
+:where(.light, [data-theme="light"]) .lc-commit-message.textarea--secondary {
+  --textarea-bg: color-mix(in oklab, var(--content-background) 87%, #000);
+  --textarea-bg-hover: color-mix(in oklab, var(--content-background) 84%, #000);
   --textarea-bg-focus: var(--textarea-bg);
+  --field-placeholder: color-mix(in oklab, var(--textarea-bg) 68%, var(--foreground));
 }
 
 /* HeroUI sets `.tooltip__trigger { display: inline-block }`, which inherits

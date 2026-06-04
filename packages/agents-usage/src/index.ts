@@ -43,6 +43,17 @@ export {
 export { collectCopilot, parseCopilotUsage, COPILOT_USER_ENDPOINT } from "./collectors/copilot";
 export { collectCursor, parseCursorUsage, CURSOR_USAGE_ENDPOINT } from "./collectors/cursor";
 export {
+  collectCommandCode,
+  formatCommandCodePlanLabel,
+  isCommandCodeSessionLive,
+  parseCommandCodeUsage,
+  COMMANDCODE_AUTH_SESSION_ENDPOINT,
+  COMMANDCODE_BILLING_CREDITS_ENDPOINT,
+  COMMANDCODE_BILLING_SUBSCRIPTIONS_ENDPOINT,
+  COMMANDCODE_PROVIDER_ID,
+  COMMANDCODE_USAGE_SUMMARY_ENDPOINT,
+} from "./collectors/commandcode";
+export {
   collectGrok,
   isGrokSessionLive,
   parseGrokUsage,

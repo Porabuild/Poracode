@@ -74,6 +74,7 @@ describe("UsageService", () => {
       "antigravity",
       "claude",
       "codex",
+      "commandcode",
       "copilot",
       "cursor",
       "gemini",
@@ -89,7 +90,7 @@ describe("UsageService", () => {
 
     const perProvider = events.filter((e) => e.type === "provider-usage");
     const terminal = events.filter((e) => e.type === "provider-usage-all");
-    expect(perProvider).toHaveLength(8);
+    expect(perProvider).toHaveLength(9);
     expect(terminal).toHaveLength(1);
   });
 
