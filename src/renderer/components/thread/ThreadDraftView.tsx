@@ -778,7 +778,9 @@ export function ThreadDraftView(props: {
   const anchorBlockRef = useRef<HTMLDivElement>(null);
   const anchorSpacerRef = useRef<HTMLDivElement>(null);
   useStableComposerAnchor({
-    enabled: !props.compact,
+    // Agent detection can render the draft view before the composer DOM exists.
+    // Only arm the anchor once the selected-agent branch can actually mount it.
+    enabled: !props.compact && !!selectedAgent,
     containerRef: anchorContainerRef,
     blockRef: anchorBlockRef,
     spacerRef: anchorSpacerRef,
@@ -877,7 +879,12 @@ export function ThreadDraftView(props: {
         ) : (
           // Spacer whose height is driven by useStableComposerAnchor to keep the
           // composer centered initially, then anchored as it grows.
-          <div ref={anchorSpacerRef} aria-hidden className="w-full shrink-0" />
+          <div
+            ref={anchorSpacerRef}
+            aria-hidden
+            className="w-full shrink-0"
+            data-draft-composer-anchor-spacer=""
+          />
         )}
 
         {/* Composer block: centered initially, then anchored by the input's top edge. */}

@@ -244,6 +244,59 @@ const acpGenericStatus: AgentStatus = {
   },
 };
 
+function classNameIncludes(element: HTMLElement, value: string): boolean {
+  return typeof element.className === "string" && element.className.includes(value);
+}
+
+function installDraftComposerLayoutMetrics(): () => void {
+  const originalClientHeight = Object.getOwnPropertyDescriptor(
+    HTMLElement.prototype,
+    "clientHeight",
+  );
+  const originalOffsetHeight = Object.getOwnPropertyDescriptor(
+    HTMLElement.prototype,
+    "offsetHeight",
+  );
+  const originalGetBoundingClientRect = HTMLElement.prototype.getBoundingClientRect;
+
+  Object.defineProperty(HTMLElement.prototype, "clientHeight", {
+    configurable: true,
+    get() {
+      return classNameIncludes(this, "max-w-[1040px]") ? 800 : 0;
+    },
+  });
+  Object.defineProperty(HTMLElement.prototype, "offsetHeight", {
+    configurable: true,
+    get() {
+      if (classNameIncludes(this, "max-w-[720px]")) return 160;
+      return Number.parseInt(this.style.height, 10) || 0;
+    },
+  });
+  HTMLElement.prototype.getBoundingClientRect = function () {
+    return {
+      x: 0,
+      y: 0,
+      top: 0,
+      right: 720,
+      bottom: 0,
+      left: 0,
+      width: 720,
+      height: 0,
+      toJSON: () => ({}),
+    } as DOMRect;
+  };
+
+  return () => {
+    if (originalClientHeight) {
+      Object.defineProperty(HTMLElement.prototype, "clientHeight", originalClientHeight);
+    }
+    if (originalOffsetHeight) {
+      Object.defineProperty(HTMLElement.prototype, "offsetHeight", originalOffsetHeight);
+    }
+    HTMLElement.prototype.getBoundingClientRect = originalGetBoundingClientRect;
+  };
+}
+
 const singleContextThinkingCursorStatus: AgentStatus = {
   ...cursorStatus,
   capabilities: {
@@ -326,6 +379,30 @@ describe("ThreadDraftView", () => {
       expect(providerModel?.currentModel).toBe("auto");
       expect(props.controls.some((control) => control.value === "never")).toBe(true);
     });
+  });
+
+  it("anchors the full draft composer after agents resolve on the initial mount", async () => {
+    const restoreLayoutMetrics = installDraftComposerLayoutMetrics();
+    const onStart = vi.fn<(input: unknown) => void>();
+
+    try {
+      const { container, rerender } = render(
+        <ThreadDraftView project={project} agentStatuses={[]} onStart={onStart} />,
+      );
+
+      expect(container.querySelector("[data-draft-composer-anchor-spacer]")).toBeNull();
+
+      rerender(
+        <ThreadDraftView project={project} agentStatuses={[geminiStatus]} onStart={onStart} />,
+      );
+
+      await waitFor(() => expect(composerSpy).toHaveBeenCalled());
+
+      const spacer = container.querySelector<HTMLElement>("[data-draft-composer-anchor-spacer]");
+      expect(spacer?.style.height).toBe("320px");
+    } finally {
+      restoreLayoutMetrics();
+    }
   });
 
   it("shows the detecting state while agents are still loading", () => {
