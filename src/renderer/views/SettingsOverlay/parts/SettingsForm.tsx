@@ -17,15 +17,13 @@ export function SettingsPage(props: {
 }) {
   const { title, description, actions, bodyClassName = "space-y-4", children } = props;
   return (
-    <div className="h-full min-h-0 overflow-y-auto px-6 pb-8 pt-4 [scrollbar-gutter:stable]">
-      <div className="mx-auto min-h-full max-w-[720px]">
-        <div className={`flex items-center justify-between gap-4 ${description ? "mb-2" : "mb-6"}`}>
-          <h1 className="text-lg font-semibold text-foreground">{title}</h1>
-          {actions ? <div className="shrink-0">{actions}</div> : null}
-        </div>
-        {description ? <p className="mb-6 text-xs text-muted">{description}</p> : null}
-        <div className={bodyClassName}>{children}</div>
+    <div className="mx-auto min-h-full max-w-[720px]">
+      <div className={`flex items-center justify-between gap-4 ${description ? "mb-2" : "mb-6"}`}>
+        <h1 className="text-lg font-semibold text-foreground">{title}</h1>
+        {actions ? <div className="shrink-0">{actions}</div> : null}
       </div>
+      {description ? <p className="mb-6 text-xs text-muted">{description}</p> : null}
+      <div className={bodyClassName}>{children}</div>
     </div>
   );
 }

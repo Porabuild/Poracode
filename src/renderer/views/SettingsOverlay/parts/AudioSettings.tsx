@@ -4,6 +4,7 @@ import { Button, Select } from "@/renderer/components/common";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { friendlyError } from "@/shared/messages";
 import type { AudioTranscriptionModel } from "@/shared/settings";
+import { SettingsPage } from "./SettingsForm";
 
 const SYSTEM_MICROPHONE_ID = "system-default";
 
@@ -94,105 +95,93 @@ export function AudioSettings() {
   }, []);
 
   return (
-    <div className="h-full min-h-0 overflow-y-auto px-6 pb-8 pt-4">
-      <div className="mx-auto max-w-[720px]">
-        <h1 className="mb-6 text-lg font-semibold text-foreground">Audio</h1>
-
-        <div className="space-y-5">
-          <SettingRow
-            title="Show voice input button"
-            description="Show the microphone button in the composer."
-          >
-            <Switch
-              isSelected={showVoiceInputButton}
-              onChange={(selected) => {
-                startTransition(() => {
-                  setAudioSetting("showVoiceInputButton", selected);
-                });
-              }}
-            >
-              <Switch.Control>
-                <Switch.Thumb />
-              </Switch.Control>
-            </Switch>
-          </SettingRow>
-          <SettingRow
-            title="Microphone"
-            description="Device used by the composer voice input button."
-          >
-            <Select
-              aria-label="Microphone"
-              className="w-[280px] shrink-0"
-              options={microphoneOptions}
-              value={microphoneDeviceId || SYSTEM_MICROPHONE_ID}
-              onChange={(value) => {
-                startTransition(() => {
-                  setAudioSetting(
-                    "microphoneDeviceId",
-                    value === SYSTEM_MICROPHONE_ID ? "" : value,
-                  );
-                });
-              }}
-            />
-          </SettingRow>
-          <SettingRow
-            title="Test microphone"
-            description="Check the live input level from the selected device."
-          >
-            <MicrophoneTestBar microphoneDeviceId={microphoneDeviceId} />
-          </SettingRow>
-          <SettingRow
-            title="Voice input language"
-            description="Language the speech model should expect when transcribing composer dictation."
-          >
-            <Select
-              aria-label="Voice input language"
-              className="w-[280px] shrink-0"
-              options={languageOptions}
-              value={transcriptionLanguage}
-              onChange={(value) => {
-                startTransition(() => {
-                  setAudioSetting("transcriptionLanguage", value);
-                });
-              }}
-            />
-          </SettingRow>
-          <SettingRow
-            title="Voice input model"
-            description="Fastest uses Whisper tiny; Better uses Whisper base."
-          >
-            <Select
-              aria-label="Voice input model"
-              className="w-[280px] shrink-0"
-              options={modelOptions}
-              value={transcriptionModel}
-              onChange={(value) => {
-                startTransition(() => {
-                  setAudioSetting("transcriptionModel", value as AudioTranscriptionModel);
-                });
-              }}
-            />
-          </SettingRow>
-          <SettingRow
-            title="Use WebGPU acceleration"
-            description="Run local transcription on the GPU when available."
-          >
-            <Switch
-              isSelected={useWebGpu}
-              onChange={(selected) => {
-                startTransition(() => {
-                  setAudioSetting("useWebGpu", selected);
-                });
-              }}
-            >
-              <Switch.Control>
-                <Switch.Thumb />
-              </Switch.Control>
-            </Switch>
-          </SettingRow>
-        </div>
-      </div>
-    </div>
+    <SettingsPage title="Audio" bodyClassName="space-y-5">
+      <SettingRow
+        title="Show voice input button"
+        description="Show the microphone button in the composer."
+      >
+        <Switch
+          isSelected={showVoiceInputButton}
+          onChange={(selected) => {
+            startTransition(() => {
+              setAudioSetting("showVoiceInputButton", selected);
+            });
+          }}
+        >
+          <Switch.Control>
+            <Switch.Thumb />
+          </Switch.Control>
+        </Switch>
+      </SettingRow>
+      <SettingRow title="Microphone" description="Device used by the composer voice input button.">
+        <Select
+          aria-label="Microphone"
+          className="w-[280px] shrink-0"
+          options={microphoneOptions}
+          value={microphoneDeviceId || SYSTEM_MICROPHONE_ID}
+          onChange={(value) => {
+            startTransition(() => {
+              setAudioSetting("microphoneDeviceId", value === SYSTEM_MICROPHONE_ID ? "" : value);
+            });
+          }}
+        />
+      </SettingRow>
+      <SettingRow
+        title="Test microphone"
+        description="Check the live input level from the selected device."
+      >
+        <MicrophoneTestBar microphoneDeviceId={microphoneDeviceId} />
+      </SettingRow>
+      <SettingRow
+        title="Voice input language"
+        description="Language the speech model should expect when transcribing composer dictation."
+      >
+        <Select
+          aria-label="Voice input language"
+          className="w-[280px] shrink-0"
+          options={languageOptions}
+          value={transcriptionLanguage}
+          onChange={(value) => {
+            startTransition(() => {
+              setAudioSetting("transcriptionLanguage", value);
+            });
+          }}
+        />
+      </SettingRow>
+      <SettingRow
+        title="Voice input model"
+        description="Fastest uses Whisper tiny; Better uses Whisper base."
+      >
+        <Select
+          aria-label="Voice input model"
+          className="w-[280px] shrink-0"
+          options={modelOptions}
+          value={transcriptionModel}
+          onChange={(value) => {
+            startTransition(() => {
+              setAudioSetting("transcriptionModel", value as AudioTranscriptionModel);
+            });
+          }}
+        />
+      </SettingRow>
+      <SettingRow
+        title="Use WebGPU acceleration"
+        description="Run local transcription on the GPU when available."
+      >
+        <Switch
+          isSelected={useWebGpu}
+          onChange={(selected) => {
+            startTransition(() => {
+              setAudioSetting("useWebGpu", selected);
+            });
+          }}
+        >
+          <Switch.Control>
+            <Switch.Thumb />
+          </Switch.Control>
+        </Switch>
+      </SettingRow>
+    </SettingsPage>
   );
 }
 
