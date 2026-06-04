@@ -6,6 +6,7 @@ import { promisify } from "node:util";
 import {
   getPosixLoginShellArgs,
   getWindowsSystemCommand,
+  getWslCommand,
   quotePowerShellLiteral,
   quotePosixShellArg,
 } from "./shellBasics";
@@ -280,6 +281,28 @@ export function resolveWslShellPath(distro: string): string {
     return cached;
   }
 
+  try {
+    const result = spawnSync(
+      getWslCommand(),
+      ["-d", distro, "--", "sh", "-lc", 'getent passwd "$(id -un)" | cut -d: -f7'],
+      {
+        encoding: "utf8",
+        shell: false,
+        windowsHide: true,
+        timeout: 3_000,
+      },
+    );
+    if (!result.error && result.status === 0) {
+      const shellPath = parseCommandOutputLine(`${result.stdout ?? ""}`);
+      if (shellPath) {
+        wslShellPathCache.set(distro, shellPath);
+        return shellPath;
+      }
+    }
+  } catch {
+    // Fall through to bash so rc files (nvm/fnm/asdf) still get sourced.
+  }
+
   const fallback = "/bin/bash";
   wslShellPathCache.set(distro, fallback);
   return fallback;
@@ -287,6 +310,32 @@ export function resolveWslShellPath(distro: string): string {
 
 export function getCachedWslHomeDirectory(distro: string): string | undefined {
   return wslHomeCache.get(distro);
+}
+
+export function resolveWslHomeDirectory(distro: string): string | undefined {
+  const cached = wslHomeCache.get(distro);
+  if (cached) {
+    return cached;
+  }
+
+  const result = spawnSync(
+    getWslCommand(),
+    ["-d", distro, "--", "sh", "-lc", 'printf %s "$HOME"'],
+    {
+      encoding: "utf8",
+      shell: false,
+      windowsHide: true,
+      timeout: 5_000,
+    },
+  );
+  if (result.error || result.status !== 0) {
+    return undefined;
+  }
+  const home = parseCommandOutputLine(`${result.stdout ?? ""}`);
+  if (home) {
+    wslHomeCache.set(distro, home);
+  }
+  return home;
 }
 
 /**
@@ -338,6 +387,8 @@ export function invalidateExecutablePathCache(): void {
 
 export function clearExecutablePathCache(): void {
   invalidateExecutablePathCache();
+  wslShellPathCache.clear();
+  wslHomeCache.clear();
   primedPosixEnv = undefined;
   projectShellEnvCache.clear();
   projectShellEnvResolved.clear();

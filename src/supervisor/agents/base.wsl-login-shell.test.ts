@@ -28,6 +28,8 @@ import {
   batchWslCommandsAsync,
   primeWslProjectShellEnv,
   readWslLoginShellCommandOutputAsync,
+  resolveWslHomeDirectory,
+  resolveWslShellPath,
   setWslProcessBridgeClient,
 } from "./base";
 
@@ -128,6 +130,33 @@ describe.skipIf(process.platform !== "win32")("readWslLoginShellCommandOutputAsy
 
     expect(result).toEqual({ ok: false, stdout: "", stderr: "" });
     expect(execFileMock).not.toHaveBeenCalled();
+  });
+
+  it("resolves the distro user's login shell through bootstrap WSL", () => {
+    spawnSyncMock.mockReturnValue({
+      error: undefined,
+      status: 0,
+      stdout: "/usr/bin/zsh\n",
+    });
+
+    expect(resolveWslShellPath("Ubuntu")).toBe("/usr/bin/zsh");
+    expect(spawnSyncMock).toHaveBeenCalledWith(
+      expect.stringMatching(/wsl\.exe$/i),
+      ["-d", "Ubuntu", "--", "sh", "-lc", 'getent passwd "$(id -un)" | cut -d: -f7'],
+      expect.objectContaining({ timeout: 3_000 }),
+    );
+  });
+
+  it("resolves and caches the WSL home directory through bootstrap WSL", () => {
+    spawnSyncMock.mockReturnValue({
+      error: undefined,
+      status: 0,
+      stdout: "/home/demo\n",
+    });
+
+    expect(resolveWslHomeDirectory("Ubuntu")).toBe("/home/demo");
+    expect(resolveWslHomeDirectory("Ubuntu")).toBe("/home/demo");
+    expect(spawnSyncMock).toHaveBeenCalledTimes(1);
   });
 
   it("captures and caches the WSL project env through the bridge", async () => {

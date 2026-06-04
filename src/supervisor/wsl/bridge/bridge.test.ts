@@ -375,6 +375,26 @@ describeOnPosix("bridge.mjs fs endpoints", () => {
     });
   });
 
+  it("strips inherited Git control variables from process env", async () => {
+    await bridge.dispose();
+    bridge = await startBridge({ GIT_DIR: "/tmp/host-git-dir" });
+
+    const { status, body } = await post(`${bridge.baseUrl}/v1/process/exec`, {
+      command: "sh",
+      cwd: projectRoot,
+      args: ["-lc", 'printf "%s" "${GIT_DIR:-missing}"'],
+      timeoutMs: 10_000,
+    });
+
+    expect(status).toBe(200);
+    const envelope = body as {
+      ok: boolean;
+      data: { ok: boolean; stdout: string; exitCode: number };
+    };
+    expect(envelope.ok).toBe(true);
+    expect(envelope.data).toMatchObject({ ok: true, stdout: "missing", exitCode: 0 });
+  });
+
   it("runs login-env git execs without exposing the bridge secret to hooks", async () => {
     git(projectRoot, "init");
     git(projectRoot, "config", "user.email", "test@example.com");

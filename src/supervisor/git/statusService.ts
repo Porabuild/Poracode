@@ -10,7 +10,6 @@ import {
   type ProjectLocation,
 } from "@/shared/contracts";
 import { getProjectFsPath, toWslUncPath } from "@/shared/wsl";
-import { parallelWslCommandsAsync } from "../agents/base";
 import {
   execGit,
   execGitBatchWslBridge,
@@ -424,17 +423,11 @@ export class GitStatusService {
 
   async getStatusSummary(location: ProjectLocation): Promise<GitStatusResult> {
     if (location.kind === "wsl") {
-      const results =
-        (await execGitBatchWslBridge(
-          location,
-          [{ cwd: location.linuxPath, args: ["status", "--porcelain=v2", "-b"] }],
-          GIT_STATUS_TIMEOUT,
-        )) ??
-        (await parallelWslCommandsAsync(
-          location.distro,
-          [{ cwd: location.linuxPath, cmd: "git status --porcelain=v2 -b" }],
-          { timeoutMs: GIT_STATUS_TIMEOUT },
-        ));
+      const results = await execGitBatchWslBridge(
+        location,
+        [{ cwd: location.linuxPath, args: ["status", "--porcelain=v2", "-b"] }],
+        GIT_STATUS_TIMEOUT,
+      );
       const result = results[0];
       return result?.ok ? buildGitStatusSummaryFromOutput(result.stdout) : nonRepoSummaryStatus();
     }
@@ -577,16 +570,7 @@ export class GitStatusService {
       cwd,
       args: ["status", "--porcelain=v2", "-b"],
     }));
-    const commands = worktreePaths.map((cwd) => ({
-      cwd,
-      cmd: "git status --porcelain=v2 -b",
-    }));
-    const bridgeResults = await execGitBatchWslBridge(location, bridgeCommands, GIT_STATUS_TIMEOUT);
-    const results =
-      bridgeResults ??
-      (await parallelWslCommandsAsync(location.distro, commands, {
-        timeoutMs: GIT_STATUS_TIMEOUT,
-      }));
+    const results = await execGitBatchWslBridge(location, bridgeCommands, GIT_STATUS_TIMEOUT);
 
     const out: Record<string, GitStatusResult> = {};
     for (let i = 0; i < worktreePaths.length; i += 1) {

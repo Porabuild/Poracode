@@ -57,6 +57,7 @@ describe("WslBridgeClient", () => {
   });
 
   afterEach(() => {
+    vi.unstubAllGlobals();
     fake.server.close();
   });
 
@@ -152,6 +153,22 @@ describe("WslBridgeClient", () => {
     await expect(client.readdir(makeLocation(), "/home/user/proj")).rejects.toMatchObject({
       code: "EUNAVAIL",
     });
+  });
+
+  it("retries transient localhost forwarding failures after bridge boot", async () => {
+    const fetchMock = vi.fn<() => Promise<Response>>();
+    fetchMock.mockRejectedValueOnce(new TypeError("fetch failed"));
+    fetchMock.mockResolvedValueOnce(
+      new Response(JSON.stringify({ ok: true, data: { home: "/home/user" } }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const client = new WslBridgeClient(mockServer);
+    await expect(client.home(makeLocation())).resolves.toEqual({ home: "/home/user" });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
   it("find defaults root to projectLinuxPath when omitted", async () => {

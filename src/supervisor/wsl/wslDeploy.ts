@@ -1,6 +1,6 @@
 import { copyFileSync, existsSync, mkdirSync, readFileSync, statSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { getCachedWslHomeDirectory } from "../agents/base";
+import { getCachedWslHomeDirectory, resolveWslHomeDirectory } from "../agents/base";
 
 /**
  * Shared "stage files into a WSL distro" primitive used by both the git
@@ -46,7 +46,7 @@ export function resolveWslHelpersDir(): string | undefined {
  * Idempotently stage a set of files into a WSL distro's
  * `<home>/.lightcode/<relDest>`. Returns the resolved home + linuxBaseDir on
  * success, or `null` when:
- *   - `$HOME` has not been resolved through the bridge-backed runtime path
+ *   - `$HOME` cannot be resolved through the bootstrap WSL path
  *   - any source file is missing
  *   - the UNC copy errors out (permission, disk, distro restart, …)
  *
@@ -58,7 +58,7 @@ export function deployFilesToWslHome(
   distro: string,
   files: readonly WslDeployFile[],
 ): WslHomeDeployResult | null {
-  const home = getCachedWslHomeDirectory(distro);
+  const home = getCachedWslHomeDirectory(distro) ?? resolveWslHomeDirectory(distro);
   if (!home) return null;
 
   for (const file of files) {
