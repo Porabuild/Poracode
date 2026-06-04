@@ -4,7 +4,6 @@ import type { LightcodePaths } from "@/shared/lightcodePaths";
 import type { UsageLoginStateResponse } from "@/shared/contracts";
 import { clearUsageSecret, hasUsageSecret, setUsageSecret } from "@/shared/usageSecretStore";
 import { isCommandCodeLoginCookieLive } from "./commandCodeLoginProbe";
-import { isGrokLoginCookieLive } from "./grokLoginProbe";
 import { isOpenCodeLoginCookieLive } from "./openCodeLoginProbe";
 
 /**
@@ -77,9 +76,10 @@ const PROVIDER_CONFIGS: Record<string, ProviderLoginConfig> = {
     kind: "cookie",
     loginUrl: "https://grok.com/",
     cookieUrl: "https://grok.com/",
-    // grok.com sets SSO/session cookies on successful auth.
-    authCookiePattern: /sso|session|auth/i,
-    validateSession: isGrokLoginCookieLive,
+    // grok.com sets `sso` / `sso-rw` cookies after auth. Do not gate the
+    // confirmation dialog on Grok's private usage endpoint: when that endpoint
+    // drifts, a visibly signed-in browser session otherwise never prompts.
+    authCookiePattern: /^sso(?:-rw)?$/i,
   },
   opencode: {
     kind: "cookie",

@@ -8,6 +8,7 @@ import type { HostPort, HttpRequest, OAuthToken } from "./host";
 export interface FakeRoute {
   status?: number;
   body?: string;
+  bodyBytes?: Uint8Array;
   headers?: Record<string, string>;
 }
 
@@ -38,6 +39,7 @@ export function createFakeHost(config: FakeHostConfig = {}): HostPort {
           status: route?.status ?? 200,
           headers: route?.headers ?? {},
           body: route?.body ?? "{}",
+          ...(route?.bodyBytes ? { bodyBytes: route.bodyBytes } : {}),
         });
       },
     },

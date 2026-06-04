@@ -2,11 +2,9 @@ import { toEpochMs } from "../formatters";
 import type { CollectOptions, HostPort, HttpClient, HttpResponse } from "../host";
 import type { UsageSnapshot, UsageWindow } from "../types";
 import {
-  GROK_GRPC_EMPTY_FRAME_B64,
+  GROK_GRPC_EMPTY_FRAME_BYTES,
   GROK_GRPC_ENDPOINT,
-  debugGrokScalars,
-  extractGrokBilling,
-  unframeGrpcWebText,
+  parseGrokGrpcBillingResponse,
 } from "./grokGrpc";
 
 /**
@@ -106,26 +104,24 @@ function grokGrpcRequest(http: HttpClient, cookie: string): Promise<HttpResponse
     url: GROK_GRPC_ENDPOINT,
     headers: {
       Cookie: cookie,
-      "Content-Type": "application/grpc-web-text",
-      Accept: "application/grpc-web-text",
+      Origin: "https://grok.com",
+      Referer: "https://grok.com/?_s=usage",
+      Accept: "*/*",
+      "Content-Type": "application/grpc-web+proto",
       "x-grpc-web": "1",
+      "x-user-agent": "connect-es/2.1.1",
+      "User-Agent": "Lightcode",
     },
-    body: GROK_GRPC_EMPTY_FRAME_B64,
+    bodyBytes: GROK_GRPC_EMPTY_FRAME_BYTES,
     timeoutMs: 15_000,
   });
 }
 
-export async function isGrokSessionLive(http: HttpClient, cookie: string): Promise<boolean> {
-  const res = await grokGrpcRequest(http, cookie);
-  if (res.status < 200 || res.status >= 300) return false;
-  return unframeGrpcWebText(res.body) !== undefined;
-}
-
 /**
  * Collect via the grok.com browser session cookie (codexbar's path): POST the
- * gRPC-web `GetGrokBuildBillingConfig` and parse the protobuf for used/limit
- * credits + reset. Returns undefined to let the caller fall back to the CLI
- * token path on any failure.
+ * gRPC-web `GetGrokCreditsConfig` endpoint and parse the protobuf for used
+ * percent + reset. Returns undefined to let the caller fall back to the CLI token
+ * path on any transient failure.
  */
 async function collectGrokViaCookie(
   host: HostPort,
@@ -138,27 +134,23 @@ async function collectGrokViaCookie(
   }
   if (res.status < 200 || res.status >= 300) return undefined;
 
-  const message = unframeGrpcWebText(res.body);
-  if (!message) return undefined;
-  // Field-mapping aid (usage numbers + field paths + raw frame — no cookie/secret).
-  // Written by the dev file logger only; absent in production.
-  host.log?.debug("grok billing proto", {
-    scalars: debugGrokScalars(message),
-    rawBase64: Buffer.from(message).toString("base64"),
+  const parsed = parseGrokGrpcBillingResponse({
+    headers: res.headers,
+    ...(res.body ? { body: res.body } : {}),
+    ...(res.bodyBytes ? { bodyBytes: res.bodyBytes } : {}),
+    nowMs,
   });
-  const billing = extractGrokBilling(message, nowMs);
-  const usedPercent =
-    billing.limit !== undefined && billing.limit > 0 && billing.used !== undefined
-      ? Math.min(100, Math.max(0, (billing.used / billing.limit) * 100))
-      : 0;
+  if (parsed.kind === "unauthenticated") {
+    return { providerId: "grok", status: "auth-missing", windows: [], fetchedAt: nowMs };
+  }
+  if (parsed.kind !== "ok") return undefined;
+
   const window: UsageWindow = {
     id: "monthly",
-    label: grokWindowLabel(billing.periodStartMs, billing.resetsAt),
-    usedPercent,
+    label: grokWindowLabel(undefined, parsed.billing.resetsAt),
+    usedPercent: parsed.billing.usedPercent,
     unit: "credits",
-    ...(billing.used !== undefined ? { used: billing.used } : {}),
-    ...(billing.limit !== undefined ? { limit: billing.limit } : {}),
-    ...(billing.resetsAt !== undefined ? { resetsAt: billing.resetsAt } : {}),
+    ...(parsed.billing.resetsAt !== undefined ? { resetsAt: parsed.billing.resetsAt } : {}),
   };
   return { providerId: "grok", status: "ok", windows: [window], fetchedAt: nowMs };
 }

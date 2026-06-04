@@ -55,7 +55,6 @@ export {
 } from "./collectors/commandcode";
 export {
   collectGrok,
-  isGrokSessionLive,
   parseGrokUsage,
   GROK_BILLING_ENDPOINT,
   GROK_SETTINGS_ENDPOINT,

@@ -35,11 +35,16 @@ function createNodeHttpClient(): HttpClient {
         const res = await fetch(req.url, {
           method: req.method ?? "GET",
           ...(req.headers ? { headers: req.headers } : {}),
-          ...(req.body !== undefined ? { body: req.body } : {}),
+          ...(req.bodyBytes !== undefined
+            ? { body: Buffer.from(req.bodyBytes) }
+            : req.body !== undefined
+              ? { body: req.body }
+              : {}),
           signal: controller.signal,
         });
-        const body = await res.text();
-        return { status: res.status, headers: headersToRecord(res.headers), body };
+        const bodyBytes = new Uint8Array(await res.arrayBuffer());
+        const body = Buffer.from(bodyBytes).toString("utf8");
+        return { status: res.status, headers: headersToRecord(res.headers), body, bodyBytes };
       } finally {
         clearTimeout(timeout);
       }
