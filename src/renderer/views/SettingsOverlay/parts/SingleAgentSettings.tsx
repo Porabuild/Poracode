@@ -458,7 +458,7 @@ function AgentInstallEnvironmentRow(props: {
         <Button
           size="sm"
           variant="tertiary"
-          className="h-6 min-h-6 px-2 py-0 text-[10px] text-muted-foreground hover:text-foreground"
+          className="h-6 min-h-6 px-2 py-0 text-[10px] text-muted hover:text-foreground"
           aria-label={`Install${envSuffix}`}
           isPending={props.installPending}
           onPress={() => props.onInstall(props.status)}
@@ -629,7 +629,7 @@ function AgentEnvironmentRow(props: {
                       key={method.id}
                       size="sm"
                       variant="tertiary"
-                      className="h-6 min-h-6 px-2 py-0 text-[10px] text-muted-foreground hover:text-foreground"
+                      className="h-6 min-h-6 px-2 py-0 text-[10px] text-muted hover:text-foreground"
                       aria-label={`${loginLabel} ${method.name}${envSuffix}`}
                       onPress={() => props.onLogin(method)}
                     >
@@ -641,7 +641,7 @@ function AgentEnvironmentRow(props: {
                 <Button
                   size="sm"
                   variant="tertiary"
-                  className="h-6 min-h-6 px-2 py-0 text-[10px] text-muted-foreground hover:text-foreground"
+                  className="h-6 min-h-6 px-2 py-0 text-[10px] text-muted hover:text-foreground"
                   aria-label={`${loginLabel}${envSuffix}`}
                   onPress={() => props.onLogin(singleMethod)}
                 >
@@ -652,7 +652,7 @@ function AgentEnvironmentRow(props: {
                 <Button
                   size="sm"
                   variant="tertiary"
-                  className="h-6 min-h-6 px-2 py-0 text-[10px] text-muted-foreground hover:text-foreground"
+                  className="h-6 min-h-6 px-2 py-0 text-[10px] text-muted hover:text-foreground"
                   aria-label={`Logout${envSuffix}`}
                   onPress={props.onLogout}
                 >

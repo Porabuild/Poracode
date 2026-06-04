@@ -68,7 +68,7 @@ export function CommitSyncPanel(props: {
               placeholder="Commit message (Ctrl+Enter)"
               rows={1}
               value={commitMessage}
-              className={canGenerateMessage ? "pr-8" : ""}
+              className={`lc-commit-message ${canGenerateMessage ? "pr-8" : ""}`}
               variant="secondary"
               disabled={isCommitting}
               onChange={(e) => {

@@ -50,7 +50,7 @@ describe("GitBadge", () => {
     });
   });
 
-  it("shows a muted PR icon when a pushed worktree can create a PR", () => {
+  it("shows a branch-tone PR icon when a pushed worktree can create a PR", () => {
     useGitStore.setState({
       worktreeStatuses: { "/wt/feature": makeStatus() },
       ghAvailable: { "project-1": true },
@@ -62,7 +62,7 @@ describe("GitBadge", () => {
     const icon = badge.querySelector("svg");
 
     expect(icon).not.toBeNull();
-    expect(icon).toHaveClass("text-muted/60");
+    expect(icon).toHaveClass("text-[color:var(--git-branch-tone)]");
     expect(icon).toHaveClass("lucide-git-pull-request");
   });
 

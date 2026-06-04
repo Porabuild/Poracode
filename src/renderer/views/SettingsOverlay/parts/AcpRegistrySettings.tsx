@@ -111,7 +111,7 @@ function AgentIcon(props: {
       kind={props.installedKind ?? `acp-registry:${props.agent.id}`}
       icon={props.agent.icon}
       fallbackLabel={props.agent.name}
-      className={`size-8 shrink-0 rounded-lg ${props.isInstalled ? "!text-white !opacity-100" : ""}`}
+      className={`size-8 shrink-0 rounded-lg ${props.isInstalled ? "!text-foreground !opacity-100" : ""}`}
     />
   );
 }
@@ -561,7 +561,7 @@ export function AcpRegistrySettings(props: { onOpenAgentSettings?: (kind: string
           <ProviderIcon
             kind={agent.id}
             fallbackLabel={agent.label}
-            className={`size-8 shrink-0 rounded-lg ${isInstalled ? "!text-white !opacity-100" : ""}`}
+            className={`size-8 shrink-0 rounded-lg ${isInstalled ? "!text-foreground !opacity-100" : ""}`}
           />
 
           <div className="flex min-w-0 flex-1 flex-col gap-2">
@@ -583,7 +583,7 @@ export function AcpRegistrySettings(props: { onOpenAgentSettings?: (kind: string
                   <div className="flex flex-col items-end gap-1">
                     {nativeStatus ? (
                       <span className="inline-flex h-8 items-center gap-1 rounded-md px-2 text-xs text-muted">
-                        <CheckCircle2 className="size-3.5 text-white" />
+                        <CheckCircle2 className="size-3.5 text-success" />
                         Detected <span className="text-muted/70">(local)</span>
                       </span>
                     ) : null}
@@ -592,7 +592,7 @@ export function AcpRegistrySettings(props: { onOpenAgentSettings?: (kind: string
                         key={`${agent.id}-${status.envDistro ?? "wsl"}`}
                         className="inline-flex h-8 items-center gap-1 rounded-md px-2 text-xs text-muted"
                       >
-                        <CheckCircle2 className="size-3.5 text-white" />
+                        <CheckCircle2 className="size-3.5 text-success" />
                         Detected{" "}
                         <span className="text-muted/70">
                           {status.envDistro ? `WSL (${status.envDistro})` : "WSL"}
@@ -760,7 +760,7 @@ export function AcpRegistrySettings(props: { onOpenAgentSettings?: (kind: string
                         key={`${status.kind}-${status.envKind ?? "local"}-${status.envDistro ?? "default"}`}
                         className="inline-flex h-8 items-center gap-1 rounded-md px-2 text-xs text-muted"
                       >
-                        <CheckCircle2 className="size-3.5 text-white" />
+                        <CheckCircle2 className="size-3.5 text-success" />
                         Detected{" "}
                         <span className="text-muted/70">({detectionScopeLabel(status)})</span>
                       </span>

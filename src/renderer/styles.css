@@ -581,6 +581,33 @@
   cursor: default;
 }
 
+/* Tertiary: a quiet neutral that still reads as interactive. Borderless, like
+   HeroUI's stock tertiary — the separation from the surface comes from the fill
+   (a step toward --foreground, in the same family as --surface-tertiary /
+   --default), stepped slightly past --default so it stays visible. */
+.button--tertiary {
+  --button-bg: color-mix(in oklab, var(--surface) 82%, var(--foreground));
+  --button-bg-hover: color-mix(in oklab, var(--surface) 78%, var(--foreground));
+  --button-bg-pressed: var(--button-bg-hover);
+}
+
+.light .button--tertiary,
+[data-theme="light"] .button--tertiary {
+  --button-bg: color-mix(in oklab, var(--surface) 80%, var(--foreground));
+  --button-bg-hover: color-mix(in oklab, var(--surface) 74%, var(--foreground));
+}
+
+/* Commit-message field. HeroUI's secondary textarea fills with --default, which
+   sits ~1.1:1 on the near-white git panel in light themes — the field reads as
+   part of the background. Step the fill further toward --foreground so it reads
+   as a distinct field (~1.6:1): recessed gray in light, raised lighter in dark.
+   Scoped to this field only (variant="secondary" + .lc-commit-message). */
+.lc-commit-message.textarea--secondary {
+  --textarea-bg: color-mix(in oklab, var(--surface) 78%, var(--foreground));
+  --textarea-bg-hover: color-mix(in oklab, var(--surface) 74%, var(--foreground));
+  --textarea-bg-focus: var(--textarea-bg);
+}
+
 /* HeroUI sets `.tooltip__trigger { display: inline-block }`, which inherits
    line-height from the surrounding text and adds descender space below
    block-level children (e.g. svg). That makes triggers wrapping an icon render
@@ -723,6 +750,16 @@
   border-color: var(--primary);
 }
 
+/* HeroUI switch off-state track: HeroUI fills it with --default, which sits
+   ~1:1 on the page in light themes — an off toggle reads as empty background.
+   Step the track toward --foreground so it reads as a control and the white
+   thumb stays distinct (~1.8:1 in light, ~2.8:1 in dark). The checked track
+   (--switch-control-bg-checked = accent) and the hover/pressed derivations are
+   untouched — they still flow from this base. */
+.switch {
+  --switch-control-bg: color-mix(in oklab, var(--surface) 70%, var(--foreground));
+}
+
 @layer base {
   :root {
     /* Intentional overrides from HeroUI defaults */
@@ -730,11 +767,22 @@
     --field-radius: calc(var(--radius) * 2);
     --link: var(--accent);
     --focus: var(--foreground);
+
+    /* Soft-accent text: HeroUI uses raw --accent for the label that sits on a
+       soft/neutral fill (secondary button labels, selected toggle labels,
+       badges, chips). Full --accent drops to ~2.4:1 on those fills in
+       lower-contrast palettes (Solarized, Monokai). Deepen it toward
+       --foreground so it stays accent-hued but clears the UI-text floor on
+       every preset; both inputs are themed, so it adapts per theme/mode.
+       Enforced by themePresets.test ("keeps interactive colors readable"). */
+    --color-accent-soft-foreground: color-mix(in oklab, var(--accent) 65%, var(--foreground));
     --surface-shadow: 0 20px 60px rgba(0, 0, 0, 0.08);
     --overlay-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
 
     /* App-specific variables (not HeroUI) */
     --working-tone: var(--success);
+    --pr-merged: oklch(0.7 0.17 292);
+    --git-branch-tone: var(--muted);
     --sidebar-background: var(--surface);
     --content-background: var(--background);
     --window-header-background: var(--sidebar-background);
@@ -765,9 +813,21 @@
     --overlay: oklch(0.99 0.002 286);
     --muted: oklch(0.52 0.01 286);
     --scrollbar: oklch(0.78 0.01 286);
-    --default: oklch(0.93 0.004 286);
+    /* Neutral fill behind secondary/tertiary buttons, selects, chips, badges,
+       toggle/checkbox/radio controls. Stepped darker than HeroUI's stock
+       near-white default (~0.94) so these controls separate from the panel in
+       light themes (~1.35:1 vs page) instead of vanishing into it. */
+    --default: oklch(0.86 0.004 286);
     --accent: oklch(0.62 0.11 245);
     --accent-foreground: var(--snow);
+    --success: oklch(0.45 0.16 150);
+    --success-foreground: var(--snow);
+    --warning: oklch(0.5 0.14 78);
+    --warning-foreground: var(--snow);
+    --danger: oklch(0.48 0.2 25);
+    --danger-foreground: var(--snow);
+    --pr-merged: oklch(0.5 0.18 292);
+    --git-branch-tone: oklch(0.5 0.13 265);
     --field-background: oklch(0.975 0.002 286);
     --field-placeholder: oklch(0.55 0.01 286);
     --field-border: oklch(0.84 0.006 286 / 0.7);
@@ -797,6 +857,8 @@
     --default: oklch(0.28 0.004 286);
     --accent: oklch(0.77 0.08 244);
     --accent-foreground: oklch(0.18 0.004 286);
+    --danger: oklch(0.64 0.2 24.63);
+    --danger-foreground: var(--snow);
     --field-background: oklch(0.23 0.004 286);
     --field-placeholder: oklch(0.54 0.01 286);
     --field-border: oklch(0.34 0.006 286 / 0.85);
