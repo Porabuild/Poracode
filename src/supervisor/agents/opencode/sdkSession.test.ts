@@ -378,6 +378,7 @@ describe("OpencodeSdkSession", () => {
 
   it("records single-question option replies as question answer events", async () => {
     const runtimeEvents: RuntimeEvent[] = [];
+    const updates: StructuredSessionUpdate[] = [];
     const questionReply = vi.fn<() => Promise<void>>().mockResolvedValue(undefined);
     let releaseQuestionEvent!: () => void;
     const waitForSession = new Promise<void>((resolve) => {
@@ -435,7 +436,7 @@ describe("OpencodeSdkSession", () => {
     session.setListener({
       onClose: () => {},
       onError: () => {},
-      onUpdate: () => {},
+      onUpdate: (update) => updates.push(update),
       onRuntimeEvent: (event) => runtimeEvents.push(event),
     });
 
@@ -446,6 +447,9 @@ describe("OpencodeSdkSession", () => {
     await vi.waitFor(() => {
       expect(runtimeEvents.some((event) => event.type === "request.opened")).toBe(true);
     });
+    expect(updates).toContainEqual(
+      expect.objectContaining({ status: "needs_reply", attention: "needs_reply" }),
+    );
 
     await session.resolveServerRequest("opencode-q-req1", { optionId: "q0.1" });
 
@@ -469,6 +473,7 @@ describe("OpencodeSdkSession", () => {
         ],
       },
     });
+    expect(updates.at(-1)).toMatchObject({ status: "working", attention: "working" });
   });
 
   it("omits a session permission override in supervised mode", async () => {
