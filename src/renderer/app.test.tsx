@@ -3,6 +3,8 @@ import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useAppStore } from "./state/appStore";
 import { useGitStore } from "./state/gitStore";
+import { usePanelStore } from "./state/panelStore";
+import { useSidebarUiStore } from "./state/sidebarUiStore";
 import { gitMergeAndRemove } from "@/renderer/actions/gitActions";
 import { openThread, unloadThread } from "@/renderer/actions/threadActions";
 
@@ -337,6 +339,18 @@ describe("App", () => {
       ghAvailable: {},
       prData: {},
       worktreeSourceInfo: {},
+    });
+    usePanelStore.setState({
+      gitReviewContext: null,
+      gitReviewAsPanel: false,
+      filesPanelContext: null,
+      rightPanelTab: "git",
+      threadSortMode: "updated",
+    });
+    useSidebarUiStore.setState({
+      collapsedProjects: {},
+      collapsedWorktrees: {},
+      threadListLimits: {},
     });
   });
 
@@ -969,6 +983,107 @@ describe("App", () => {
           "C:\\Users\\demo\\.lightcode\\worktrees\\repo-12345678\\feature-x",
           "C:\\Users\\demo\\.lightcode\\worktrees\\repo-12345678\\feature-y",
         ],
+      });
+    });
+  });
+
+  it("reactively updates watched worktrees when a hidden worktree panel opens and closes", async () => {
+    useAppStore.persist.hasHydrated = vi.fn<() => boolean>().mockReturnValue(true);
+    useAppStore.persist.onHydrate = vi.fn<() => () => void>(() => () => undefined);
+    useAppStore.persist.onFinishHydration = vi.fn<() => () => void>(() => () => undefined);
+
+    const visiblePath = "C:\\Users\\demo\\.lightcode\\worktrees\\repo-12345678\\feature-y";
+    const hiddenPath = "C:\\Users\\demo\\.lightcode\\worktrees\\repo-12345678\\feature-z";
+
+    useSidebarUiStore.setState({ threadListLimits: { "project-1": 1 } });
+    useAppStore.setState((state) => ({
+      ...state,
+      projects: [
+        {
+          id: "project-1",
+          name: "Repo",
+          location: {
+            kind: "windows",
+            path: "C:\\repo",
+          },
+          createdAt: "2026-03-22T00:00:00.000Z",
+        },
+      ],
+      threads: [
+        {
+          id: "thread-visible",
+          projectId: "project-1",
+          title: "Visible worktree",
+          agentKind: "codex",
+          config: { model: "gpt-5.4" },
+          status: "idle",
+          attention: "none",
+          canResumeWithConfig: false,
+          worktreePath: visiblePath,
+          worktreeBranch: "feature/y",
+          archived: false,
+          done: false,
+          starred: false,
+          createdAt: "2026-03-22T00:00:00.000Z",
+          updatedAt: "2026-03-22T00:00:00.000Z",
+        },
+        {
+          id: "thread-hidden",
+          projectId: "project-1",
+          title: "Hidden worktree",
+          agentKind: "codex",
+          config: { model: "gpt-5.4" },
+          status: "finished",
+          attention: "none",
+          canResumeWithConfig: false,
+          worktreePath: hiddenPath,
+          worktreeBranch: "feature/z",
+          archived: false,
+          done: false,
+          starred: false,
+          createdAt: "2026-03-21T00:00:00.000Z",
+          updatedAt: "2026-03-21T00:00:00.000Z",
+        },
+      ],
+      view: { kind: "home" },
+    }));
+
+    render(<App />);
+
+    await waitFor(() => {
+      expect(bridge.gitWatchWorktrees).toHaveBeenCalledWith({
+        projectId: "project-1",
+        worktreePaths: [visiblePath],
+      });
+    });
+    bridge.gitWatchWorktrees.mockClear();
+
+    act(() => {
+      usePanelStore.setState({
+        gitReviewContext: { projectId: "project-1", worktreePath: hiddenPath },
+        gitReviewAsPanel: true,
+        rightPanelTab: "git",
+      });
+    });
+
+    await waitFor(() => {
+      expect(bridge.gitWatchWorktrees).toHaveBeenCalledWith({
+        projectId: "project-1",
+        worktreePaths: [visiblePath, hiddenPath],
+      });
+    });
+    bridge.gitWatchWorktrees.mockClear();
+
+    act(() => {
+      usePanelStore.setState({
+        gitReviewContext: null,
+      });
+    });
+
+    await waitFor(() => {
+      expect(bridge.gitWatchWorktrees).toHaveBeenCalledWith({
+        projectId: "project-1",
+        worktreePaths: [visiblePath],
       });
     });
   });

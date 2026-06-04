@@ -49,14 +49,113 @@ Every provider is a folder under `src/supervisor/agents/<kind>/` with the same i
 
 Opening two provider folders side-by-side answers "what does this provider do differently" by file-name alignment alone.
 
-| Provider | Models                                                              | Efforts                  | Live Input            | Structured Session     |
-| -------- | ------------------------------------------------------------------- | ------------------------ | --------------------- | ---------------------- |
-| Claude   | opus-4-7, opus-4-6[1m], sonnet, haiku                               | low, medium, high, max   | terminal              | No                     |
-| Codex    | gpt-5.4, gpt-5.4-mini, gpt-5.3-codex, gpt-5.2-codex, etc.           | low, medium, high, xhigh | terminal / GUI server | Yes (stdio app-server) |
-| Gemini   | auto, gemini-3.1-pro-preview, gemini-2.5-pro/flash/flash-lite, etc. | (none)                   | terminal              | No                     |
-| Copilot  | (probed via ACP)                                                    | low, medium, high, xhigh | terminal              | Yes (ACP)              |
-| Cursor   | auto, composer-\*, GPT/Opus/Sonnet variants                         | (embedded in model name) | terminal              | No                     |
-| Grok     | grok-build (probed via ACP)                                         | (none)                   | terminal              | Yes (ACP)              |
+| Provider     | Models                                                              | Efforts                  | Live Input            | Structured Session     |
+| ------------ | ------------------------------------------------------------------- | ------------------------ | --------------------- | ---------------------- |
+| Claude       | opus-4-7, opus-4-6[1m], sonnet, haiku                               | low, medium, high, max   | terminal              | No                     |
+| Codex        | gpt-5.4, gpt-5.4-mini, gpt-5.3-codex, gpt-5.2-codex, etc.           | low, medium, high, xhigh | terminal / GUI server | Yes (stdio app-server) |
+| Gemini       | auto, gemini-3.1-pro-preview, gemini-2.5-pro/flash/flash-lite, etc. | (none)                   | terminal              | No                     |
+| Copilot      | (probed via ACP)                                                    | low, medium, high, xhigh | terminal              | Yes (ACP)              |
+| Cursor       | auto, composer-\*, GPT/Opus/Sonnet variants                         | (embedded in model name) | terminal              | No                     |
+| Grok         | grok-build (probed via ACP)                                         | (none)                   | terminal              | Yes (ACP)              |
+| Antigravity  | auto (managed by `agy`)                                             | (none)                   | terminal              | No                     |
+| Command Code | Kimi/Claude/GPT/Gemini/GLM/… (static, `--list-models`)              | (none)                   | terminal              | No                     |
+
+## Adding a New Provider — Full Checklist
+
+A provider is "self-contained" in spirit, but a working provider still touches a
+fixed set of **shared registration points**. Missing one does not fail typecheck —
+it silently drops a feature (no installer, no update badge, no Login button, wrong
+menu order). Work this list top to bottom; the ⚠️ items are the ones most often
+forgotten.
+
+### 1. Supervisor adapter — `src/supervisor/agents/<kind>/`
+
+- [ ] `detection.ts` — `DetectionSpec`: `kind`, `label`, `binary`, `capabilities`
+      (models, modes, approvalPolicies, `defaultApprovalPolicy`, `bypassPermissions`),
+      `versionArgs`.
+  - [ ] ⚠️ `update` — set **`builtIn`** for a CLI self-updater (`x update`) **and**
+        `npm: "<pkg>"` when the CLI ships on npm. `npm` is what powers the registry
+        "outdated?" badge (`getNpmPackageNameForUpdate`) **and** the auto-fallback
+        when the built-in updater fails. `builtIn`-only ⇒ no version detection.
+  - [ ] ⚠️ Auth — set `loginCommand` (e.g. `"x login"`) **and** advertise a login
+        method, or the Login button never renders. `loginCommand` alone is inert:
+        the Settings button only shows when `status.authMethods` is non-empty. For a
+        non-ACP CLI, add a cheap `capabilitiesProbe` that returns
+        `{ authMethods: [{ id, name: "Login", type: "terminal" }] }` when installed
+        (the renderer routes `type: "terminal"` → `runTerminalLogin` → `loginCommand`).
+        Pair it with an `authProbes` entry that reads the actual **credential
+        artifact** the login writes (e.g. a token / `auth.json` with an API key),
+        **not** mere config-dir presence: the per-user dir (`~/.x`) is usually
+        created on first run, so keying off it falsely reports "Signed in" /
+        "Re-login" for a never-signed-in user (and the inverse if you then drop
+        the probe). Return `authenticated` when the credential exists, else
+        `missing`. (Providers that only auth on first TUI launch may skip this.)
+- [ ] `argv.ts` — `build<Kind>Args(config, prompt, …)`. Map `config.mode`/`approvalPolicy`/
+      `sandboxMode` to flags. Pass a trust/skip-prompt flag so the PTY never blocks.
+- [ ] `terminal.ts` — `detect<Kind>TerminalStatus` hint table (working/needs_approval/idle).
+- [ ] `session.ts` — credential-file auth probe + invalid-session regex; session-id
+      discovery/watch **only if** the CLI exposes stable ids (else resume via
+      `--continue`/`--last` with a synthetic `sessionRef` minted in `buildLaunchArgv`).
+- [ ] `index.ts` — `create<Kind>Adapter()`: `buildLaunchArgv`/`buildResumeArgv`,
+      `buildDirectInput`, `formatPromptSegments`, `detectTerminalStatus`,
+      `detectInvalidSessionRef`, `defaultOneShotModel` + `buildOneShotCommand`,
+      `spawnEnv` (`BROWSER=/bin/true` under WSL for OAuth providers).
+  - [ ] ⚠️ Re-expose `update` on the returned adapter object:
+        `...(spec.update ? { update: spec.update } : {})`. The shared updater reads
+        `status.update ?? adapter.update`, but the registry card's latest-version
+        probe (`getLatestVersionForAdapter`) reads **`adapter.update` only** — omit
+        this and a not-installed card shows no version even though the spec has `npm`.
+- [ ] `<kind>.test.ts` — argv, adapter shape, terminal heuristics, detection/auth.
+
+### 2. Supervisor registry
+
+- [ ] `src/supervisor/agents/registry.ts` — import the factory + add it to `builtIns`.
+
+### 3. Shared contracts
+
+- [ ] `src/shared/contracts/agentInstance.ts` — add the kind to `KNOWN_AGENT_DRIVERS`.
+
+### 4. Renderer provider — `src/renderer/components/providers/<kind>/`
+
+- [ ] `<Kind>Icon.tsx` — `createProviderIcon({ cssPrefix, path, viewBox })`.
+- [ ] `index.tsx` — `registerProviderIcon`, `registerProviderLabel`,
+      `registerComposerControls` (plan/work toggle + approval control), and
+      `registerCommitGenDefaults` / `registerTitleGenDefaults` /
+      `registerConflictResolverDefaults` if the provider should appear in "auto"
+      utility-task selection.
+- [ ] `src/renderer/components/providers/index.ts` — add `export * from "./<kind>"`.
+
+### 5. Renderer shared registration (⚠️ the easy-to-forget edits)
+
+- [ ] ⚠️ `…/ProviderModelMenu/parts/buildItems.ts` — add to `PROVIDER_ORDER`
+      (model-picker section order).
+- [ ] ⚠️ `src/renderer/components/providers/utilityTask.ts` — add to
+      `AUTO_PROVIDER_PREFERENCE_ORDER` (auto utility-task ranking).
+- [ ] ⚠️ `src/renderer/components/composer/browserMcpScope.ts` — map the kind to a
+      Browser-MCP scope (`"none"` for a TUI-only CLI).
+- [ ] ⚠️ `…/SettingsOverlay/parts/agentRegistryNative.ts` — add a
+      `NATIVE_AGENT_REGISTRY_ENTRIES` entry (per-platform install command +
+      `docsUrl`). Without this there is **no in-app install** for the provider.
+
+### 6. Tests & verification
+
+- [ ] `tests/integration/providers-lifecycle.integration.test.ts` — add a
+      `PREFERRED_MODEL` entry (auto-skips when the CLI is not installed).
+- [ ] Run green: `pnpm run typecheck`, `pnpm run lint`, targeted `pnpm exec vitest run`,
+      and `pnpm exec oxfmt --check <changed paths>`.
+
+### Capability-specific (only when the provider supports it)
+
+- [ ] ACP/structured GUI session → `createStructuredSession` + `buildAcpAuthCommand`/
+      `buildAcpLogoutCommand` (see Grok/Copilot/Cursor).
+- [ ] L1 hook plugin → `pluginId`/`installPlugin`/`pluginLaunchExtras` + a
+      `plugin/` dir (see Grok/Claude/Codex/Gemini).
+- [ ] OSC status (title spinner / iTerm2 progress) → `handleOscTitle`/
+      `handleOscNotification` (see Grok). Only wire when the CLI actually emits OSC.
+
+> Reference template for a **TUI-only, no-ACP, no-plugin** CLI: `antigravity/`
+> (single managed model) or `commandcode/` (multi-model + npm install/update + a
+> synthesized terminal Login method).
 
 ## Plugin Architecture
 
@@ -64,7 +163,7 @@ The codebase is provider-agnostic by design (targeting 5-10 providers). Each pro
 
 - **Supervisor side:** All provider-specific logic (heuristics, commands, detection, parsing) lives in the adapter's own file(s) under `src/supervisor/agents/`. The `SupervisorRuntime` calls adapter methods generically — no provider-specific if/else chains in runtime code.
 - **Renderer side:** Each provider has its own directory under `src/renderer/components/providers/<kind>/` containing icons, status components, and registration calls. Shared provider utilities (`statusTone.ts`, `StatusIcon.tsx`, `ProviderIcon.tsx`, `commitGen.ts`) live at the `providers/` root and are provider-agnostic.
-- **Registry pattern:** The agent registry (`agents/registry.ts`) and the renderer provider registries (`registerProviderIcon`, `registerModelLabels`, `registerCommitGenDefaults`) are the only integration points. Adding a new provider should require zero changes to existing shared files — just implement the adapter, create a provider component directory, and register.
+- **Registry pattern:** Provider behavior is fully self-contained, but registration still goes through a fixed set of shared integration points (the supervisor registry, the renderer provider registries, the model-picker/utility order arrays, the Browser-MCP scope map, and the native install registry). No provider-specific `if/else` lands in shared _logic_ — but each provider must be _listed_ in those registries. See [Adding a New Provider — Full Checklist](#adding-a-new-provider--full-checklist) for the exhaustive list; missing an entry silently drops a feature rather than failing the build.
 
 ## WSL Routing
 

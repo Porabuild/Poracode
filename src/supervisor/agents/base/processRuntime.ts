@@ -1,5 +1,7 @@
 import { execFile, spawnSync } from "node:child_process";
+import { existsSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
+import { dirname, join } from "node:path";
 import { promisify } from "node:util";
 import {
   getPosixLoginShellArgs,
@@ -220,7 +222,29 @@ function parseWindowsExecutablePath(stdout: string): string | undefined {
     .split(/\r?\n/g)
     .map((line) => line.trim())
     .filter((line) => line.length > 0);
-  return lines.findLast((line) => /\.(?:bat|cmd|com|exe|ps1)$/i.test(line)) ?? lines.at(-1);
+  const resolved =
+    lines.findLast((line) => /\.(?:bat|cmd|com|exe|ps1)$/i.test(line)) ?? lines.at(-1);
+  return resolveWindowsCmdExeTarget(resolved) ?? resolved;
+}
+
+function resolveWindowsCmdExeTarget(path: string | undefined): string | undefined {
+  if (!path || !/\.cmd$/i.test(path)) return undefined;
+  try {
+    const body = readFileSync(path, "utf8");
+    // npm's standard Node-script shim wraps `"%dp0%\node.exe" "%dp0%\…\entry.js" %*`.
+    // Leave those alone so the downstream resolveWindowsNodeCmdShim (in base/index.ts)
+    // can extract the .js entry and invoke node with it directly. Substituting to
+    // node.exe here would strip the script arg and pass agent flags straight to
+    // node, which rejects them ("bad option: --model", etc.) and exits — breaking
+    // every npm-installed agent (codex, commandcode, gemini, …) on Windows.
+    if (/["']?%dp0%\\[^"']+?\.js["']?\s+%\*/i.test(body)) return undefined;
+    const match = /"%dp0%\\([^"]+?\.exe)"/i.exec(body);
+    if (!match?.[1]) return undefined;
+    const target = join(dirname(path), match[1]);
+    return existsSync(target) ? target : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 const wslHomeCache = new Map<string, string>();
@@ -263,6 +287,16 @@ export function resolveWslShellPath(distro: string): string {
 
 export function getCachedWslHomeDirectory(distro: string): string | undefined {
   return wslHomeCache.get(distro);
+}
+
+/**
+ * A WSL `command -v` result under `/mnt` is a Windows binary surfaced inside the
+ * distro via PATH interop, not a real Linux install — running it would launch a
+ * Windows process against a Linux cwd. Detection and launch-time resolution both
+ * reject it via this predicate so they agree regardless of binary-path cache.
+ */
+export function isWslInteropBinaryPath(path: string): boolean {
+  return path.startsWith("/mnt/");
 }
 
 const execPathCache = new Map<string, { path: string | undefined; ts: number }>();

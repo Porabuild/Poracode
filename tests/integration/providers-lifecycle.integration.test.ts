@@ -38,6 +38,7 @@ const PREFERRED_MODEL: Record<string, string> = {
   claude: "haiku",
   cursor: "auto",
   antigravity: "auto",
+  commandcode: "google/gemini-3.1-flash-lite",
   opencode: "opencode/big-pickle",
 };
 

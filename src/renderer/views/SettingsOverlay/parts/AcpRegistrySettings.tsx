@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button, Input, Tooltip, Card, Dropdown, Label, toast } from "@heroui/react";
 import {
   AlertTriangle,
@@ -42,6 +42,28 @@ import {
   REGISTRY_AGENT_FAMILY_KIND,
   type NativeAgentRegistryEntry,
 } from "./agentRegistryNative";
+
+/**
+ * Pure version label for a native agent card. Shows the installed version when
+ * the agent is detected locally; otherwise the latest version published on npm
+ * (fetched lazily in the background by the parent — see `nativeLatestVersions`).
+ * Renders nothing when neither exists (e.g. installer-only agents with no npm
+ * package, like Antigravity).
+ */
+function NativeAgentVersionLabel(props: {
+  installedVersion: string | undefined;
+  latestNpmVersion: string | undefined;
+}) {
+  if (props.installedVersion) return <span>v{props.installedVersion}</span>;
+  if (props.latestNpmVersion) {
+    return (
+      <span>
+        v{props.latestNpmVersion} <span className="text-muted/60">available</span>
+      </span>
+    );
+  }
+  return null;
+}
 
 function registrySearchText(agent: AcpRegistryAgent): string {
   return [
@@ -89,7 +111,7 @@ function AgentIcon(props: {
       kind={props.installedKind ?? `acp-registry:${props.agent.id}`}
       icon={props.agent.icon}
       fallbackLabel={props.agent.name}
-      className={`size-8 shrink-0 rounded-lg ${props.isInstalled ? "!text-white !opacity-100" : ""}`}
+      className={`size-8 shrink-0 rounded-lg ${props.isInstalled ? "!text-foreground !opacity-100" : ""}`}
     />
   );
 }
@@ -101,6 +123,11 @@ export function AcpRegistrySettings(props: { onOpenAgentSettings?: (kind: string
   const [error, setError] = useState<string | undefined>();
   const [pendingAgentId, setPendingAgentId] = useState<string | undefined>();
   const [pendingAuthAgentId, setPendingAuthAgentId] = useState<string | undefined>();
+  const [nativeLatestVersions, setNativeLatestVersions] = useState<Record<string, string>>({});
+  // Native kinds we've already probed for a latest version, so the fetch effect
+  // never re-requests the same kind across re-renders. A failed probe is removed
+  // again so a later pass can retry.
+  const requestedLatestVersionsRef = useRef<Set<string>>(new Set());
 
   const settingsInstalled = useSharedSettings((s) => s.acpRegistryInstalledAgents);
   const syncInstalledAgents = useSharedSettings((s) => s.syncAcpRegistryInstalledAgents);
@@ -156,6 +183,50 @@ export function AcpRegistrySettings(props: { onOpenAgentSettings?: (kind: string
       detectedInstalledByKind.set(status.kind, [status]);
     }
   }
+
+  // Native agents not detected locally. Only these cards fall back to the npm
+  // "latest" label (installed agents show their detected version), so they are
+  // the only kinds worth a registry version probe.
+  const statusesLoaded = agentStatuses.length > 0 || wslAgentStatuses.length > 0;
+  // Joined into a stable primitive so it can key the effect below without a
+  // useMemo (React Compiler) and without re-running every render on a fresh
+  // array identity.
+  const notInstalledNativeKey = NATIVE_AGENT_REGISTRY_ENTRIES.map((entry) => entry.id)
+    .filter((id) => !detectedInstalledByKind.has(id))
+    .join(",");
+
+  // Probe npm for the latest version of each not-installed native agent so its
+  // card can show the version an Install would fetch. Held until the registry
+  // list and agent statuses have loaded (so the not-installed set is accurate
+  // and the probes don't compete with the initial load), then fired
+  // concurrently — the small not-installed set resolves without one slow probe
+  // blocking the rest. Results are cached supervisor-side.
+  useEffect(() => {
+    if (isLoading || !statusesLoaded) return;
+    let cancelled = false;
+    const requested = requestedLatestVersionsRef.current;
+    for (const id of notInstalledNativeKey ? notInstalledNativeKey.split(",") : []) {
+      if (requested.has(id)) continue;
+      requested.add(id);
+      readBridge()
+        .getLatestAgentVersion({ agentKind: id })
+        .then((result) => {
+          if (cancelled || !result.version) return;
+          const version = result.version;
+          setNativeLatestVersions((prev) => ({ ...prev, [id]: version }));
+        })
+        .catch((fetchError) => {
+          requested.delete(id);
+          console.warn(
+            `[AcpRegistrySettings] getLatestAgentVersion(${id}) failed:`,
+            fetchError instanceof Error ? fetchError.message : fetchError,
+          );
+        });
+    }
+    return () => {
+      cancelled = true;
+    };
+  }, [isLoading, statusesLoaded, notInstalledNativeKey]);
 
   const normalizedQuery = query.trim().toLowerCase();
   const wslProjectsByDistro = new Map<string, Project>();
@@ -490,7 +561,7 @@ export function AcpRegistrySettings(props: { onOpenAgentSettings?: (kind: string
           <ProviderIcon
             kind={agent.id}
             fallbackLabel={agent.label}
-            className={`size-8 shrink-0 rounded-lg ${isInstalled ? "!text-white !opacity-100" : ""}`}
+            className={`size-8 shrink-0 rounded-lg ${isInstalled ? "!text-foreground !opacity-100" : ""}`}
           />
 
           <div className="flex min-w-0 flex-1 flex-col gap-2">
@@ -512,7 +583,7 @@ export function AcpRegistrySettings(props: { onOpenAgentSettings?: (kind: string
                   <div className="flex flex-col items-end gap-1">
                     {nativeStatus ? (
                       <span className="inline-flex h-8 items-center gap-1 rounded-md px-2 text-xs text-muted">
-                        <CheckCircle2 className="size-3.5 text-white" />
+                        <CheckCircle2 className="size-3.5 text-success" />
                         Detected <span className="text-muted/70">(local)</span>
                       </span>
                     ) : null}
@@ -521,7 +592,7 @@ export function AcpRegistrySettings(props: { onOpenAgentSettings?: (kind: string
                         key={`${agent.id}-${status.envDistro ?? "wsl"}`}
                         className="inline-flex h-8 items-center gap-1 rounded-md px-2 text-xs text-muted"
                       >
-                        <CheckCircle2 className="size-3.5 text-white" />
+                        <CheckCircle2 className="size-3.5 text-success" />
                         Detected{" "}
                         <span className="text-muted/70">
                           {status.envDistro ? `WSL (${status.envDistro})` : "WSL"}
@@ -573,7 +644,10 @@ export function AcpRegistrySettings(props: { onOpenAgentSettings?: (kind: string
 
             <Card.Footer className="flex flex-wrap items-center gap-x-4 gap-y-2 p-0 text-xs text-muted">
               <span className="font-medium">ID: {agent.id}</span>
-              {nativeStatus?.version ? <span>v{nativeStatus.version}</span> : null}
+              <NativeAgentVersionLabel
+                installedVersion={nativeStatus?.version ?? installedWslStatuses[0]?.version}
+                latestNpmVersion={nativeLatestVersions[agent.id]}
+              />
               <button
                 type="button"
                 className="inline-flex items-center gap-1 text-muted transition-colors hover:text-foreground"
@@ -686,7 +760,7 @@ export function AcpRegistrySettings(props: { onOpenAgentSettings?: (kind: string
                         key={`${status.kind}-${status.envKind ?? "local"}-${status.envDistro ?? "default"}`}
                         className="inline-flex h-8 items-center gap-1 rounded-md px-2 text-xs text-muted"
                       >
-                        <CheckCircle2 className="size-3.5 text-white" />
+                        <CheckCircle2 className="size-3.5 text-success" />
                         Detected{" "}
                         <span className="text-muted/70">({detectionScopeLabel(status)})</span>
                       </span>

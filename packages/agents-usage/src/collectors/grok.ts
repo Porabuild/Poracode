@@ -1,5 +1,5 @@
 import { toEpochMs } from "../formatters";
-import type { CollectOptions, HostPort, HttpResponse } from "../host";
+import type { CollectOptions, HostPort, HttpClient, HttpResponse } from "../host";
 import type { UsageSnapshot, UsageWindow } from "../types";
 import {
   GROK_GRPC_EMPTY_FRAME_B64,
@@ -100,18 +100,8 @@ function grokWindowLabel(periodStartMs: number | undefined, resetsAt: number | u
   return "Credits";
 }
 
-/**
- * Collect via the grok.com browser session cookie (codexbar's path): POST the
- * gRPC-web `GetGrokBuildBillingConfig` and parse the protobuf for used/limit
- * credits + reset. Returns undefined to let the caller fall back to the CLI
- * token path on any failure.
- */
-async function collectGrokViaCookie(
-  host: HostPort,
-  cookie: string,
-  nowMs: number,
-): Promise<UsageSnapshot | undefined> {
-  const res = await host.http.request({
+function grokGrpcRequest(http: HttpClient, cookie: string): Promise<HttpResponse> {
+  return http.request({
     method: "POST",
     url: GROK_GRPC_ENDPOINT,
     headers: {
@@ -123,6 +113,26 @@ async function collectGrokViaCookie(
     body: GROK_GRPC_EMPTY_FRAME_B64,
     timeoutMs: 15_000,
   });
+}
+
+export async function isGrokSessionLive(http: HttpClient, cookie: string): Promise<boolean> {
+  const res = await grokGrpcRequest(http, cookie);
+  if (res.status < 200 || res.status >= 300) return false;
+  return unframeGrpcWebText(res.body) !== undefined;
+}
+
+/**
+ * Collect via the grok.com browser session cookie (codexbar's path): POST the
+ * gRPC-web `GetGrokBuildBillingConfig` and parse the protobuf for used/limit
+ * credits + reset. Returns undefined to let the caller fall back to the CLI
+ * token path on any failure.
+ */
+async function collectGrokViaCookie(
+  host: HostPort,
+  cookie: string,
+  nowMs: number,
+): Promise<UsageSnapshot | undefined> {
+  const res = await grokGrpcRequest(host.http, cookie);
   if (res.status === 401 || res.status === 403) {
     return { providerId: "grok", status: "auth-missing", windows: [], fetchedAt: nowMs };
   }

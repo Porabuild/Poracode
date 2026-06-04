@@ -3,6 +3,7 @@ import type { BrowserPanelManager } from "../browser";
 import type { LightcodePaths } from "@/shared/lightcodePaths";
 import type { UsageLoginStateResponse } from "@/shared/contracts";
 import { clearUsageSecret, hasUsageSecret, setUsageSecret } from "@/shared/usageSecretStore";
+import { isGrokLoginCookieLive } from "./grokLoginProbe";
 import { isOpenCodeLoginCookieLive } from "./openCodeLoginProbe";
 
 /**
@@ -65,6 +66,7 @@ const PROVIDER_CONFIGS: Record<string, ProviderLoginConfig> = {
     cookieUrl: "https://grok.com/",
     // grok.com sets SSO/session cookies on successful auth.
     authCookiePattern: /sso|session|auth/i,
+    validateSession: isGrokLoginCookieLive,
   },
   opencode: {
     kind: "cookie",

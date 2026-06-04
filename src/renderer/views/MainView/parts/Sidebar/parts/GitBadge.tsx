@@ -78,7 +78,7 @@ export function GitBadge(props: {
   const showWorktreeFork = (props.fallbackToWorktreeIcon ?? false) && isWorktree && !showPrIcon;
   if (!isRepo || (!hasChanges && !showPrIcon && !showWorktreeFork)) return null;
   const prIconColor = canCreatePr
-    ? "text-muted/60"
+    ? "text-[color:var(--git-branch-tone)]"
     : PR_TONE_TEXT_CLASS[getPrStatusTone(prState, checksStatus)];
   return (
     <div
@@ -107,7 +107,7 @@ export function GitBadge(props: {
           <Tooltip delay={150}>
             <Tooltip.Trigger tabIndex={-1} role="none">
               <span className="flex shrink-0 items-center">
-                <GitFork className="size-3" />
+                <GitFork className="size-3 text-[color:var(--git-branch-tone)]" />
               </span>
             </Tooltip.Trigger>
             <Tooltip.Content placement="right">Worktree: {props.projectName}</Tooltip.Content>

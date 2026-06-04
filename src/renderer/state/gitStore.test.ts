@@ -165,6 +165,49 @@ describe("gitStore batch updates", () => {
     expect(secondStatuses["/wt/b"]?.ahead).toBe(1);
   });
 
+  it("preserves matching full diff stats when a summary worktree status lands", () => {
+    useGitStore.getState().setWorktreeStatus("/wt/a", {
+      ...baseStatus,
+      unstaged: [
+        {
+          path: "src/changed.ts",
+          status: "M",
+          staged: false,
+          insertions: 8,
+          deletions: 2,
+        },
+      ],
+      totalInsertions: 8,
+      totalDeletions: 2,
+    });
+
+    useGitStore.getState().setWorktreeStatuses({
+      "/wt/a": {
+        detail: "summary",
+        ...baseStatus,
+        remoteInfo: null,
+        unstaged: [
+          {
+            path: "src/changed.ts",
+            status: "M",
+            staged: false,
+            insertions: 0,
+            deletions: 0,
+          },
+        ],
+        totalInsertions: 0,
+        totalDeletions: 0,
+      },
+    });
+
+    const status = useGitStore.getState().worktreeStatuses["/wt/a"]!;
+    expect(status.detail).toBe("summary");
+    expect(status.remoteInfo).toBe(baseStatus.remoteInfo);
+    expect(status.unstaged[0]).toMatchObject({ insertions: 8, deletions: 2 });
+    expect(status.totalInsertions).toBe(8);
+    expect(status.totalDeletions).toBe(2);
+  });
+
   it("dedupes by path when staging an MM file (one entry, latest stats win)", () => {
     const stagedM = {
       path: "src/foo.ts",

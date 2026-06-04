@@ -371,8 +371,8 @@ export const THEME_SPECS: AppThemeSpec[] = [
 export const APP_THEME_PRESETS: AppThemePreset[] = THEME_SPECS.map((spec) => ({
   id: spec.id,
   label: spec.label,
-  light: buildVariant(spec.light),
-  dark: buildVariant(spec.dark),
+  light: buildVariant(spec.light, "light"),
+  dark: buildVariant(spec.dark, "dark"),
 }));
 
 const PRESETS_BY_ID = new Map(APP_THEME_PRESETS.map((entry) => [entry.id, entry]));

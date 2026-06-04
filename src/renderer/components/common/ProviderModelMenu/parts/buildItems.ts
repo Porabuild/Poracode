@@ -66,6 +66,7 @@ const PROVIDER_ORDER: readonly string[] = [
   "codex",
   "gemini",
   "antigravity",
+  "commandcode",
   "opencode",
   "cursor",
   "copilot",

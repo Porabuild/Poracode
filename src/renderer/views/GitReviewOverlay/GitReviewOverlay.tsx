@@ -68,7 +68,7 @@ export function GitReviewOverlay(props: {
   // Eagerly fetch status on mount when it's not yet in the store
   // (e.g. worktree was just created and the poll cycle hasn't run yet)
   useEffect(() => {
-    if (gitStatus) return;
+    if (gitStatus && gitStatus.detail !== "summary") return;
     void fetchStatus();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps -- one-shot on mount
 

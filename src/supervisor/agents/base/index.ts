@@ -15,6 +15,7 @@ import {
   getPrimedPosixEnv,
   getProjectShellEnv,
   getWindowsPathOverrideEnv,
+  isWslInteropBinaryPath,
   readCommandOutputAsync,
   readWslLoginShellCommandOutputAsync,
   resolveExecutablePath,
@@ -432,7 +433,10 @@ async function resolveDetectedBinary(
 ): Promise<string | undefined> {
   if (ctx?.envKind === "wsl" && ctx.wslDistro) {
     const [result] = await batchWslCommandsAsync(ctx.wslDistro, [`command -v ${binary}`]);
-    const path = result?.ok ? result.stdout : undefined;
+    // A `/mnt/...` result is a Windows binary surfaced via PATH interop, not a
+    // real Linux install — reject it so detection matches launch-time
+    // resolution (see isWslInteropBinaryPath).
+    const path = result?.ok && !isWslInteropBinaryPath(result.stdout) ? result.stdout : undefined;
     primeAgentBinaryPath(ctx.wslDistro, binary, path);
     return path;
   }

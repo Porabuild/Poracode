@@ -136,6 +136,23 @@ export const NATIVE_AGENT_REGISTRY_ENTRIES: NativeAgentRegistryEntry[] = [
         "if (Get-Command irm -ErrorAction SilentlyContinue) { irm https://antigravity.google/cli/install.ps1 | iex } elseif (Get-Command curl.exe -ErrorAction SilentlyContinue) { cmd /c \"curl -fsSL https://antigravity.google/cli/install.cmd -o install.cmd && install.cmd && del install.cmd\" } else { Write-Host 'No supported installer found. Install PowerShell Invoke-RestMethod or curl first, then refresh detected agents.' }",
       ),
   },
+  {
+    id: "commandcode",
+    label: "Command Code",
+    description: "First-class Command Code CLI integration using Lightcode's native runtime.",
+    docsUrl: "https://commandcode.ai/docs/quickstart",
+    installCommand: (project) =>
+      nativeInstallCommand(project, {
+        mac:
+          "if command -v npm >/dev/null 2>&1; then npm install -g command-code@latest; else " +
+          "printf 'npm is required to install Command Code. Install Node.js/npm first, then refresh detected agents.\\n'; fi",
+        posix:
+          "if command -v npm >/dev/null 2>&1; then npm install -g command-code@latest; else " +
+          "printf 'npm is required to install Command Code. Install Node.js/npm first, then refresh detected agents.\\n'; fi",
+        windows:
+          "if (Get-Command npm -ErrorAction SilentlyContinue) { npm install -g command-code@latest } else { Write-Host 'No supported installer found. Install Node.js/npm first, then refresh detected agents.' }",
+      }),
+  },
 ];
 
 export const KNOWN_NATIVE_FAMILY_ACP_AGENT_IDS = new Set([

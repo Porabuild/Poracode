@@ -112,19 +112,23 @@ jobs:
       - name: List release assets
         run: ls -lh release-assets
 
-      - name: Remove previous nightly prereleases for this version
+      - name: Generate release notes since previous nightly
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CURRENT_TAG: ${{ needs.prepare.outputs.tag }}
-          NIGHTLY_PREFIX: v${{ needs.prepare.outputs.base_version }}-nightly.
         run: |
-          gh release list --json tagName,isPrerelease --limit 1000 \
-            --jq ".[] | select(.isPrerelease and .tagName != env.CURRENT_TAG and (.tagName | startswith(env.NIGHTLY_PREFIX))) | .tagName" |
-          while IFS= read -r tag; do
-            [ -n "$tag" ] || continue
-            echo "Deleting previous nightly release $tag"
-            gh release delete "$tag" --yes --cleanup-tag
-          done
+          previous_tag=$(gh release list --repo "${{ github.repository }}" --json tagName,isPrerelease,createdAt --limit 1000 \
+            --jq '[.[] | select(.isPrerelease and .tagName != env.CURRENT_TAG and (.tagName | test("-nightly\\.")))] | sort_by(.createdAt) | last | .tagName // empty')
+
+          args=(-f "tag_name=$CURRENT_TAG" -f "target_commitish=$CURRENT_TAG")
+          if [ -n "$previous_tag" ]; then
+            echo "Generating release notes since $previous_tag"
+            args+=(-f "previous_tag_name=$previous_tag")
+          else
+            echo "No previous nightly release found; generating default release notes."
+          fi
+
+          gh api repos/${{ github.repository }}/releases/generate-notes "${args[@]}" --jq .body > release-notes.md
 
       - name: Create GitHub prerelease
         uses: softprops/action-gh-release@v3
@@ -133,7 +137,7 @@ jobs:
           name: Lightcode Nightly ${{ needs.prepare.outputs.tag }}
           prerelease: true
           make_latest: false
-          generate_release_notes: true
+          body_path: release-notes.md
           fail_on_unmatched_files: true
           files: release-assets/*
         env:
