@@ -640,7 +640,7 @@ export function mapClaudeQuestionRequest(input: {
       summary: firstQuestion?.question ?? "Claude needs more information",
       details: {
         questions: input.questions,
-        ...(!isSingleQuestion ? { userInputForm: { questions: input.questions } } : {}),
+        userInputForm: { questions: input.questions },
       },
       ...(isSingleQuestion && firstQuestion?.options ? { options: firstQuestion.options } : {}),
       ...(isSingleQuestion && firstQuestion?.multiSelect !== undefined

@@ -1861,7 +1861,7 @@ describe("sdkCanonicalMapping — requests", () => {
     });
   });
 
-  it("parses AskUserQuestion input and exposes single-question options", () => {
+  it("parses AskUserQuestion input and exposes single-question options with a structured form", () => {
     const questions = parseClaudeQuestions({
       questions: [
         {
@@ -1880,6 +1880,9 @@ describe("sdkCanonicalMapping — requests", () => {
       requestType: "tool_user_input",
       payload: {
         summary: "Choose one",
+        details: {
+          userInputForm: { questions },
+        },
         multiSelect: true,
         options: [{ optionId: "A", label: "A", description: "Alpha" }],
       },
