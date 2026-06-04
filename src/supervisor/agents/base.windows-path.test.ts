@@ -152,6 +152,40 @@ describe.skipIf(process.platform !== "win32")("Windows executable path fallback"
     expect(resolveExecutablePath("claude")).toBe(exePath);
   });
 
+  it("keeps the .cmd path for npm node-shim wrappers (e.g. codex.cmd → node codex.js)", () => {
+    // Regression: a previous version of resolveWindowsCmdExeTarget greedily
+    // matched `"%dp0%\node.exe"` in npm's standard Node-script shim and
+    // returned node.exe directly. That stripped the .js entry script, so
+    // buildAgentCommand spawned `node.exe --model ... --enable ...` and Node
+    // rejected the agent's flags with "bad option: --model". The .cmd must
+    // remain so resolveWindowsNodeCmdShim can extract the .js entry later.
+    const root = mkdtempSync(join(tmpdir(), "lightcode-codex-shim-"));
+    tempDirs.push(root);
+    const cmdPath = join(root, "codex.cmd");
+    const nodeExePath = join(root, "node.exe");
+    const jsPath = join(root, "node_modules", "@openai", "codex", "bin", "codex.js");
+    mkdirSync(join(root, "node_modules", "@openai", "codex", "bin"), { recursive: true });
+    writeFileSync(nodeExePath, "");
+    writeFileSync(jsPath, "");
+    writeFileSync(
+      cmdPath,
+      [
+        "@ECHO off",
+        "SETLOCAL",
+        'endLocal & goto #_undefined_# 2>NUL || title %COMSPEC% & "%dp0%\\node.exe"  "%dp0%\\node_modules\\@openai\\codex\\bin\\codex.js" %*',
+        "",
+      ].join("\r\n"),
+    );
+    spawnSyncMock.mockReturnValueOnce({
+      error: undefined,
+      status: 0,
+      stdout: [join(root, "codex"), cmdPath].join("\r\n"),
+      stderr: "",
+    });
+
+    expect(resolveExecutablePath("codex")).toBe(cmdPath);
+  });
+
   it("applies the same fallback to async resolution", async () => {
     execFileAsyncMock.mockRejectedValueOnce(new Error("not found")).mockResolvedValueOnce({
       stdout: "C:\\Users\\demo\\scoop\\shims\\opencode.exe\r\n",
