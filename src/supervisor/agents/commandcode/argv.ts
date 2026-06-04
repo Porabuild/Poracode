@@ -26,7 +26,7 @@ export function buildCommandCodeArgs(
   prompt: string,
   resume?: boolean,
 ): string[] {
-  const args: string[] = ["--trust"];
+  const args: string[] = ["--trust", "--skip-onboarding"];
 
   if (resume) {
     args.push("--continue");

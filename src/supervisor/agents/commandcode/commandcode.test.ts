@@ -19,6 +19,7 @@ describe("buildCommandCodeArgs", () => {
     // v0.31.2 bundle: initial = permissionMode || (yolo ? "bypass":"standard").
     expect(buildCommandCodeArgs(config, "hello")).toEqual([
       "--trust",
+      "--skip-onboarding",
       "--model",
       "claude-opus-4-8",
       "--permission-mode",
@@ -31,6 +32,7 @@ describe("buildCommandCodeArgs", () => {
   it("adds --continue when resuming", () => {
     expect(buildCommandCodeArgs(config, "next", true)).toEqual([
       "--trust",
+      "--skip-onboarding",
       "--continue",
       "--model",
       "claude-opus-4-8",
@@ -44,6 +46,7 @@ describe("buildCommandCodeArgs", () => {
   it("omits the prompt positional when empty", () => {
     expect(buildCommandCodeArgs(config, "   ")).toEqual([
       "--trust",
+      "--skip-onboarding",
       "--model",
       "claude-opus-4-8",
       "--permission-mode",
@@ -116,6 +119,7 @@ describe("createCommandCodeAdapter", () => {
     expect(launch.binary).toBe("command-code");
     expect(launch.args).toEqual([
       "--trust",
+      "--skip-onboarding",
       "--model",
       "gpt-5.5",
       "--permission-mode",
@@ -138,6 +142,7 @@ describe("createCommandCodeAdapter", () => {
       binary: "command-code",
       args: [
         "--trust",
+        "--skip-onboarding",
         "--continue",
         "--model",
         "gpt-5.5",
@@ -154,7 +159,7 @@ describe("createCommandCodeAdapter", () => {
     const adapter = createCommandCodeAdapter();
     expect(adapter.buildOneShotCommand?.("gpt-5.4-mini", undefined, "summarize")).toEqual({
       command: "command-code",
-      args: ["--trust", "--model", "gpt-5.4-mini", "-p", "summarize"],
+      args: ["--trust", "--skip-onboarding", "--model", "gpt-5.4-mini", "-p", "summarize"],
       stdin: "",
     });
   });

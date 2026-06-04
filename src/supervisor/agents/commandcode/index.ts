@@ -86,7 +86,14 @@ export function createCommandCodeAdapter(): AgentAdapter {
       if (!prompt) return undefined;
       return {
         command: "command-code",
-        args: ["--trust", "--model", model || COMMANDCODE_DEFAULT_MODEL_ID, "-p", prompt],
+        args: [
+          "--trust",
+          "--skip-onboarding",
+          "--model",
+          model || COMMANDCODE_DEFAULT_MODEL_ID,
+          "-p",
+          prompt,
+        ],
         stdin: "",
       };
     },
