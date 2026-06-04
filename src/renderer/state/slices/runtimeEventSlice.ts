@@ -392,7 +392,9 @@ type RuntimeEventState = Pick<
   | "runtimeRequestsByThread"
   | "runtimeContextByThread"
   | "runtimeStructuralVersionByThread"
->;
+  | "runtimeCompletedTurnsByThread"
+> &
+  Pick<AppStoreState, "threads">;
 
 function applyRuntimeEventsToState(
   state: AppStoreState,
@@ -405,6 +407,8 @@ function applyRuntimeEventsToState(
     runtimeRequestsByThread: state.runtimeRequestsByThread,
     runtimeContextByThread: state.runtimeContextByThread,
     runtimeStructuralVersionByThread: state.runtimeStructuralVersionByThread,
+    runtimeCompletedTurnsByThread: state.runtimeCompletedTurnsByThread ?? {},
+    threads: state.threads ?? [],
   };
   let changed = false;
   let bumpStructural = false;
@@ -413,6 +417,10 @@ function applyRuntimeEventsToState(
     const patch = applyRuntimeEventToRuntimeState(nextState, threadId, event);
     if (Object.keys(patch).length === 0) continue;
     nextState = { ...nextState, ...patch };
+    const reopenPatch = reopenGuiTurnForLiveRuntimeActivity(nextState, threadId, event);
+    if (Object.keys(reopenPatch).length > 0) {
+      nextState = { ...nextState, ...reopenPatch };
+    }
     changed = true;
     if (eventAffectsStructuralVersion(event)) bumpStructural = true;
   }
@@ -431,6 +439,89 @@ function applyRuntimeEventsToState(
   return {
     ...nextState,
   };
+}
+
+function reopenGuiTurnForLiveRuntimeActivity(
+  state: RuntimeEventState,
+  threadId: string,
+  event: RuntimeEvent,
+): Partial<RuntimeEventState> {
+  if (!isLiveAssistantActivity(state, threadId, event)) return {};
+  let changed = false;
+  let nextCompletedTurns = state.runtimeCompletedTurnsByThread;
+  const nowIso = new Date().toISOString();
+  const threads = state.threads.map((thread) => {
+    if (
+      thread.id !== threadId ||
+      thread.presentationMode !== "gui" ||
+      (thread.status !== "idle" && thread.status !== "finished")
+    ) {
+      return thread;
+    }
+
+    changed = true;
+    const activeTurnStartedAt = thread.lastTurnStartedAt ?? thread.updatedAt ?? nowIso;
+    const startedAt = parseTurnMs(thread.lastTurnStartedAt);
+    const endedAt = parseTurnMs(thread.lastTurnEndedAt);
+    if (startedAt !== null && endedAt !== null) {
+      nextCompletedTurns = removeCompletedTurnWindow(
+        nextCompletedTurns,
+        threadId,
+        startedAt,
+        endedAt,
+      );
+    }
+    return {
+      ...thread,
+      status: "working" as const,
+      attention: "working" as const,
+      activeTurnStartedAt,
+      lastTurnEndedAt: undefined,
+    };
+  });
+  if (!changed) return {};
+  return {
+    threads,
+    ...(nextCompletedTurns !== state.runtimeCompletedTurnsByThread
+      ? { runtimeCompletedTurnsByThread: nextCompletedTurns }
+      : {}),
+  };
+}
+
+function isLiveAssistantActivity(
+  state: RuntimeEventState,
+  threadId: string,
+  event: RuntimeEvent,
+): boolean {
+  if (event.type === "item.started") {
+    return event.itemType !== "user_message" && event.itemType !== "error";
+  }
+  if (event.type !== "item.updated" && event.type !== "content.delta") return false;
+  const item = state.runtimeItemsByIdByThread[threadId]?.[event.itemId];
+  return item !== undefined && item.state !== "completed" && item.type !== "user_message";
+}
+
+function parseTurnMs(iso: string | undefined): number | null {
+  if (!iso) return null;
+  const ms = new Date(iso).getTime();
+  return Number.isFinite(ms) ? ms : null;
+}
+
+function removeCompletedTurnWindow(
+  turnsByThread: RuntimeEventSlice["runtimeCompletedTurnsByThread"],
+  threadId: string,
+  startedAt: number,
+  endedAt: number,
+): RuntimeEventSlice["runtimeCompletedTurnsByThread"] {
+  const turns = turnsByThread[threadId];
+  if (!turns?.length) return turnsByThread;
+  const filtered = turns.filter((turn) => turn.startedAt !== startedAt || turn.endedAt !== endedAt);
+  if (filtered.length === turns.length) return turnsByThread;
+  if (filtered.length > 0) {
+    return { ...turnsByThread, [threadId]: filtered };
+  }
+  const { [threadId]: _removed, ...rest } = turnsByThread;
+  return rest;
 }
 
 /**
