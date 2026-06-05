@@ -111,14 +111,9 @@ export function startClaudeTurn(
       state.activeGoalItemId = goalItemId;
       state.activeGoalObjective = goalPayload.objective;
       state.activeGoalStartedAtMs = Date.now();
-      delete state.activeGoalTokensUsed;
-      delete state.activeGoalResultTokensUsed;
+      resetActiveGoalTokenAccounting(state);
     } else {
-      delete state.activeGoalItemId;
-      delete state.activeGoalObjective;
-      delete state.activeGoalStartedAtMs;
-      delete state.activeGoalTokensUsed;
-      delete state.activeGoalResultTokensUsed;
+      clearActiveGoal(state);
     }
   } else if (isClearPrompt(prompt) && state.activeGoalItemId) {
     const payload = goalPayloadFromProviderState(
@@ -126,11 +121,7 @@ export function startClaudeTurn(
       "cleared",
     );
     events.push(...updateGoalItemEvents(state.threadId, state.activeGoalItemId, payload));
-    delete state.activeGoalItemId;
-    delete state.activeGoalObjective;
-    delete state.activeGoalStartedAtMs;
-    delete state.activeGoalTokensUsed;
-    delete state.activeGoalResultTokensUsed;
+    clearActiveGoal(state);
   }
   if (isManualCompactPrompt(prompt)) {
     const compactItemId = `compact-${turnId}`;
@@ -466,6 +457,7 @@ function startToolItem(
   if (state.toolItemsById.has(tool.itemId)) return;
   if (index !== undefined) state.toolItemsByIndex.set(index, tool);
   state.toolItemsById.set(tool.itemId, tool);
+  syncSubAgentModelProgress(tool);
   if (tool.planAggregatorRole) {
     // Suppress the underlying tool row — the aggregator's plan item is the
     // visible surface for TodoWrite / Task* calls. Forward any input that's
@@ -483,6 +475,13 @@ function startToolItem(
     itemType: tool.itemType,
     payload: toolPayload(tool, "running"),
   });
+}
+
+function syncSubAgentModelProgress(tool: ToolItemState): void {
+  if (tool.toolName !== "Task") return;
+  const model = readStringField(tool.input, "model");
+  if (!model) return;
+  tool.progress = { ...tool.progress, model };
 }
 
 function classifyRequestType(toolName: string): CanonicalRequestType {
@@ -896,6 +895,7 @@ function extractText(value: unknown): string {
 function applyTaskLifecycle(message: SDKMessage, state: ClaudeMapperState): RuntimeEvent[] {
   const events: RuntimeEvent[] = [];
   const obj = message as {
+    task_id?: unknown;
     tool_use_id?: unknown;
     description?: unknown;
     last_tool_name?: unknown;
@@ -908,11 +908,14 @@ function applyTaskLifecycle(message: SDKMessage, state: ClaudeMapperState): Runt
       : undefined;
   const contextUsage = contextUsageFromTaskUsage(state.threadId, usage);
   if (contextUsage) events.push(contextUsage);
+  const goalUsage = emitActiveGoalTaskUsageUpdate(state, obj, usage);
+  if (goalUsage) events.push(goalUsage);
 
   const toolUseId = typeof obj.tool_use_id === "string" ? obj.tool_use_id : undefined;
   if (!toolUseId) return events;
   const tool = state.toolItemsById.get(toolUseId);
   if (!tool) return events;
+  syncSubAgentModelProgress(tool);
 
   const next: ToolCallProgress = {
     ...tool.progress,
@@ -948,6 +951,34 @@ function contextUsageFromTaskUsage(
   const usedTokens = readNonNegativeInteger(usage?.total_tokens);
   if (usedTokens === undefined || usedTokens <= 0) return undefined;
   return createContextUsageEvent(threadId, { usedTokens });
+}
+
+function emitActiveGoalTaskUsageUpdate(
+  state: ClaudeMapperState,
+  message: { task_id?: unknown; tool_use_id?: unknown },
+  usage: { total_tokens?: number; tool_uses?: number; duration_ms?: number } | undefined,
+): RuntimeEvent | undefined {
+  if (!hasActiveGoal(state)) return undefined;
+  const totalTokens = readNonNegativeInteger(usage?.total_tokens);
+  if (totalTokens === undefined || totalTokens <= 0) return undefined;
+
+  const key = activeGoalTaskUsageKey(message);
+  if (!key) return undefined;
+
+  const taskTokens = (state.activeGoalTaskTokensByKey ??= new Map<string, number>());
+  const previous = taskTokens.get(key) ?? 0;
+  if (totalTokens <= previous) return undefined;
+  taskTokens.set(key, totalTokens);
+  return emitActiveGoalAggregateTokenUpdate(state);
+}
+
+function activeGoalTaskUsageKey(message: {
+  task_id?: unknown;
+  tool_use_id?: unknown;
+}): string | undefined {
+  const taskId = typeof message.task_id === "string" ? message.task_id : undefined;
+  const toolUseId = typeof message.tool_use_id === "string" ? message.tool_use_id : undefined;
+  return taskId ?? toolUseId;
 }
 
 function mapPermissionDenied(message: SDKMessage, state: ClaudeMapperState): RuntimeEvent[] {
@@ -1123,6 +1154,33 @@ export function extractResultErrorMessage(message: SDKMessage): string | undefin
   return undefined;
 }
 
+type ActiveGoalState = ClaudeMapperState & {
+  activeGoalItemId: string;
+  activeGoalObjective: string;
+  activeGoalStartedAtMs: number;
+};
+
+function hasActiveGoal(state: ClaudeMapperState): state is ActiveGoalState {
+  return (
+    state.activeGoalItemId !== undefined &&
+    state.activeGoalObjective !== undefined &&
+    state.activeGoalStartedAtMs !== undefined
+  );
+}
+
+function resetActiveGoalTokenAccounting(state: ClaudeMapperState): void {
+  delete state.activeGoalCompletedTurnTokensUsed;
+  delete state.activeGoalLiveApiTokensUsed;
+  delete state.activeGoalTaskTokensByKey;
+}
+
+function clearActiveGoal(state: ClaudeMapperState): void {
+  delete state.activeGoalItemId;
+  delete state.activeGoalObjective;
+  delete state.activeGoalStartedAtMs;
+  resetActiveGoalTokenAccounting(state);
+}
+
 function completeActiveGoalEvents(
   state: ClaudeMapperState,
   message: Extract<SDKMessage, { type: "result" }>,
@@ -1136,11 +1194,10 @@ function completeActiveGoalEvents(
   const nowMs = Date.now();
   const usage = readClaudeResultUsage(message);
   if (usage !== undefined) {
-    const resultTokensUsed = (state.activeGoalResultTokensUsed ?? 0) + usage;
-    state.activeGoalResultTokensUsed = resultTokensUsed;
-    state.activeGoalTokensUsed = Math.max(state.activeGoalTokensUsed ?? 0, resultTokensUsed);
+    state.activeGoalCompletedTurnTokensUsed =
+      (state.activeGoalCompletedTurnTokensUsed ?? 0) + usage;
   }
-  const totalTokensUsed = state.activeGoalTokensUsed;
+  const totalTokensUsed = activeGoalAggregateTokens(state);
   const elapsedSeconds = Math.max(0, Math.round((nowMs - startedAtMs) / 1000));
 
   if (turnState === "interrupted") {
@@ -1164,11 +1221,7 @@ function completeActiveGoalEvents(
     ];
   }
 
-  delete state.activeGoalItemId;
-  delete state.activeGoalObjective;
-  delete state.activeGoalStartedAtMs;
-  delete state.activeGoalTokensUsed;
-  delete state.activeGoalResultTokensUsed;
+  clearActiveGoal(state);
 
   const payload = goalPayloadFromProviderState(
     {
@@ -1187,21 +1240,21 @@ export function emitActiveGoalTokenUpdate(
   state: ClaudeMapperState,
   tokensUsed: number,
 ): RuntimeEvent | undefined {
-  if (
-    !state.activeGoalItemId ||
-    !state.activeGoalObjective ||
-    state.activeGoalStartedAtMs === undefined
-  ) {
-    return undefined;
-  }
+  if (!hasActiveGoal(state)) return undefined;
+  state.activeGoalLiveApiTokensUsed = Math.max(state.activeGoalLiveApiTokensUsed ?? 0, tokensUsed);
+  return emitActiveGoalAggregateTokenUpdate(state);
+}
+
+function emitActiveGoalAggregateTokenUpdate(state: ClaudeMapperState): RuntimeEvent | undefined {
+  if (!hasActiveGoal(state)) return undefined;
+  const aggregateTokens = activeGoalAggregateTokens(state);
+  if (aggregateTokens === undefined) return undefined;
   const elapsedSeconds = Math.max(0, Math.round((Date.now() - state.activeGoalStartedAtMs) / 1000));
-  const bestKnownTokensUsed = Math.max(state.activeGoalTokensUsed ?? 0, tokensUsed);
-  state.activeGoalTokensUsed = bestKnownTokensUsed;
   const payload = goalPayloadFromProviderState(
     {
       objective: state.activeGoalObjective,
       status: "active",
-      tokensUsed: bestKnownTokensUsed,
+      tokensUsed: aggregateTokens,
       timeUsedSeconds: elapsedSeconds,
       updatedAt: Date.now() / 1000,
     },
@@ -1215,18 +1268,46 @@ export function emitActiveGoalTokenUpdate(
   };
 }
 
+function activeGoalAggregateTokens(state: ClaudeMapperState): number | undefined {
+  const baseTokens = Math.max(
+    state.activeGoalCompletedTurnTokensUsed ?? 0,
+    state.activeGoalLiveApiTokensUsed ?? 0,
+  );
+  const taskTokens = sumActiveGoalTaskTokens(state);
+  const totalTokens = baseTokens + taskTokens;
+  return totalTokens > 0 ? totalTokens : undefined;
+}
+
+function sumActiveGoalTaskTokens(state: ClaudeMapperState): number {
+  let total = 0;
+  for (const tokens of state.activeGoalTaskTokensByKey?.values() ?? []) total += tokens;
+  return total;
+}
+
 function readClaudeResultUsage(
   message: Extract<SDKMessage, { type: "result" }>,
 ): number | undefined {
   const usage = (message as { usage?: unknown }).usage;
+  return readClaudeUsageSpendTokens(usage, { fallbackToTotalTokens: true });
+}
+
+export function readClaudeApiUsageSpendTokens(usage: unknown): number | undefined {
+  return readClaudeUsageSpendTokens(usage, { fallbackToTotalTokens: false });
+}
+
+function readClaudeUsageSpendTokens(
+  usage: unknown,
+  options: { fallbackToTotalTokens: boolean },
+): number | undefined {
   if (!usage || typeof usage !== "object") return undefined;
   const record = usage as Record<string, unknown>;
-  const total = readNonNegativeInteger(record.total_tokens);
-  if (total !== undefined) return total;
   const input = readNonNegativeInteger(record.input_tokens) ?? 0;
   const output = readNonNegativeInteger(record.output_tokens) ?? 0;
-  const sum = input + output;
-  return sum > 0 ? sum : undefined;
+  const cacheCreation = readNonNegativeInteger(record.cache_creation_input_tokens) ?? 0;
+  const cacheRead = readNonNegativeInteger(record.cache_read_input_tokens) ?? 0;
+  const sum = input + output + cacheCreation + cacheRead;
+  if (sum > 0) return sum;
+  return options.fallbackToTotalTokens ? readNonNegativeInteger(record.total_tokens) : undefined;
 }
 
 function mapResultState(message: Extract<SDKMessage, { type: "result" }>): TurnState {
@@ -1418,6 +1499,7 @@ function mapClaudeSdkMessageInner(
         if (!fingerprint || fingerprint === tool.lastInputFingerprint) return events;
         tool.input = nextInput;
         tool.lastInputFingerprint = fingerprint;
+        syncSubAgentModelProgress(tool);
         if (tool.planAggregatorRole) {
           events.push(...applyPlanAggregatorInput(state, tool));
           return events;
