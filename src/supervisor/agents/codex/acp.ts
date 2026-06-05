@@ -23,6 +23,7 @@ import {
   type StartTurnOptions,
   type StructuredSessionHandle,
   type StructuredSessionListener,
+  type StructuredSessionUpdate,
   type ThreadHistory,
 } from "../base";
 import { buildCodexAppServerCommand } from "./argv";
@@ -71,6 +72,27 @@ function sleep(ms: number): Promise<void> {
 // an error message; the error status icon updates synchronously.
 const CODEX_SYSTEM_ERROR_FALLBACK_DELAY_MS = 250;
 const CODEX_RESUME_STATUS_REPLAY_SUPPRESSION_MS = 500;
+const CODEX_EVENT_DEBUG_ENV = "LIGHTCODE_DEBUG_CODEX_EVENTS";
+
+type CodexEventDebugDirection =
+  | "codex->lightcode"
+  | "lightcode->codex"
+  | "lightcode:update"
+  | "lightcode:runtime"
+  | "transport";
+
+function isCodexEventDebugEnabled(): boolean {
+  const value = process.env[CODEX_EVENT_DEBUG_ENV];
+  return value === "1" || value === "true" || value === "all";
+}
+
+function stringifyCodexEventDebugPayload(payload: unknown): string {
+  try {
+    return JSON.stringify(payload);
+  } catch {
+    return String(payload);
+  }
+}
 
 function spawnAppServer(command: CommandSpec): ChildProcess {
   return spawn(command.command, command.args, {
@@ -241,6 +263,9 @@ export class CodexStructuredSession implements StructuredSessionHandle {
       forwarded.push(event);
     }
     if (forwarded.length === 0) return;
+    for (const event of forwarded) {
+      this.logCodexEventDebug("lightcode:runtime", event);
+    }
     if (!this.listener?.onRuntimeEvent) {
       this.bufferedRuntimeEvents.push(...forwarded);
       return;
@@ -351,7 +376,7 @@ export class CodexStructuredSession implements StructuredSessionHandle {
       return;
     }
     this.currentSlashCommands = commands;
-    this.listener?.onUpdate({
+    this.emitUpdate({
       ...deriveCodexStructuredState(this.currentThreadStatus),
       ...(this.remoteThreadId ? { sessionRef: toSessionRef(this.remoteThreadId) } : {}),
       slashCommands: commands,
@@ -407,11 +432,13 @@ export class CodexStructuredSession implements StructuredSessionHandle {
       }
     }
 
-    // Re-emit current state so the listener doesn't miss updates that
-    // fired before the listener was attached.
-    if (this.activated && this.remoteThreadId) {
+    // Re-emit meaningful state so the listener doesn't miss updates that fired
+    // before attachment. Plain `idle` from thread creation is already the
+    // runtime default and should not participate in live turn status.
+    const shouldReplayStatus = this.currentThreadStatus.type !== "idle";
+    if (this.activated && this.remoteThreadId && shouldReplayStatus) {
       const sessionRef = toSessionRef(this.remoteThreadId);
-      listener.onUpdate({
+      this.emitUpdate({
         ...deriveCodexStructuredState(this.currentThreadStatus),
         sessionRef,
         ...(this.currentSlashCommands !== undefined
@@ -419,7 +446,7 @@ export class CodexStructuredSession implements StructuredSessionHandle {
           : {}),
       });
     } else if (this.currentSlashCommands !== undefined) {
-      listener.onUpdate({
+      this.emitUpdate({
         ...deriveCodexStructuredState(this.currentThreadStatus),
         slashCommands: this.currentSlashCommands,
       });
@@ -620,19 +647,20 @@ export class CodexStructuredSession implements StructuredSessionHandle {
           { type: "error", threadId: this.threadId, message },
           { type: "turn.completed", threadId: this.threadId, turnId, state: "completed" },
         ]);
-        this.listener?.onUpdate({ status: "idle", attention: "none" });
+        this.emitUpdate({ status: "idle", attention: "none" });
         return;
       }
       this.emitRuntimeEvents([
         { type: "turn.completed", threadId: this.threadId, turnId, state: "completed" },
       ]);
-      this.listener?.onUpdate({ status: "idle", attention: "none" });
+      this.emitUpdate({ status: "idle", attention: "none" });
       return;
     }
 
     this.emitRuntimeEvents(userEvents);
 
-    this.listener?.onUpdate({ status: "working", attention: "working" });
+    this.currentThreadStatus = { type: "active", activeFlags: [] };
+    this.emitUpdate({ status: "working", attention: "working" });
 
     const input = buildCodexTurnInput(prompt, segments);
     const sandboxPolicy = toCodexSandboxPolicy(config.sandboxMode);
@@ -663,7 +691,7 @@ export class CodexStructuredSession implements StructuredSessionHandle {
       if (this.isDisposed) return;
       const message = error instanceof Error ? error.message : String(error);
       this.errorSticky = true;
-      this.listener?.onUpdate({ status: "error", attention: "error", errorMessage: message });
+      this.emitUpdate({ status: "error", attention: "error", errorMessage: message });
       this.emitRuntimeEvents([{ type: "error", threadId: this.threadId, message }]);
       throw error;
     }
@@ -710,7 +738,7 @@ export class CodexStructuredSession implements StructuredSessionHandle {
     const result = inbound
       ? translateCodexCanonicalResponse(inbound.method, inbound.params, response)
       : response;
-    this.transport.write({
+    this.writeToCodex({
       jsonrpc: "2.0",
       id: inbound?.id ?? requestId,
       result,
@@ -745,6 +773,7 @@ export class CodexStructuredSession implements StructuredSessionHandle {
   private attachTransportHandlers(): void {
     this.transport.setListener({
       onMessage: (payload) => {
+        this.logCodexEventDebug("codex->lightcode", payload);
         const message = parseCodexSocketMessage(payload);
 
         if (message.kind === "response") {
@@ -787,7 +816,7 @@ export class CodexStructuredSession implements StructuredSessionHandle {
             console.warn(
               `[codex] no canonical mapping for app-server request method "${message.method}"; replying method not found.`,
             );
-            this.transport.write({
+            this.writeToCodex({
               jsonrpc: "2.0",
               id: message.id,
               error: {
@@ -835,17 +864,12 @@ export class CodexStructuredSession implements StructuredSessionHandle {
               ? (thread.status as CodexThreadStatus)
               : { type: "idle" };
           if (this.shouldSuppressResumeActiveStatus(threadId, nextStatus)) {
-            this.listener?.onUpdate({
-              status: "idle",
-              attention: "none",
-              sessionRef: nextSessionRef,
-            });
-            void this.syncRemoteThreadState(threadId, nextSessionRef);
             return;
           }
           this.currentThreadStatus = nextStatus;
-          this.emitDerivedUpdate(nextSessionRef);
-          void this.syncRemoteThreadState(threadId, nextSessionRef);
+          if (nextStatus.type !== "idle") {
+            this.emitDerivedUpdate(nextSessionRef);
+          }
           return;
         }
 
@@ -899,7 +923,8 @@ export class CodexStructuredSession implements StructuredSessionHandle {
           this.activeTurnId =
             extractTurnField(params, "id") ??
             (typeof params.turnId === "string" ? params.turnId : this.activeTurnId);
-          this.listener?.onUpdate({
+          this.currentThreadStatus = { type: "active", activeFlags: [] };
+          this.emitUpdate({
             status: "working",
             attention: "working",
           });
@@ -919,7 +944,10 @@ export class CodexStructuredSession implements StructuredSessionHandle {
 
           this.pendingTurnInterrupt = false;
           this.activeTurnId = undefined;
-          void this.syncRemoteThreadState(incomingThreadId);
+          this.currentThreadStatus = { type: "idle" };
+          if (!this.errorSticky) {
+            this.emitUpdate({ status: "idle", attention: "none" });
+          }
           return;
         }
 
@@ -932,6 +960,10 @@ export class CodexStructuredSession implements StructuredSessionHandle {
         }
       },
       onClose: () => {
+        this.logCodexEventDebug("transport", {
+          event: "close",
+          output: this.transport.formatOutput(),
+        });
         this.rejectPendingRequests(
           new Error(`Codex app-server exited.${this.transport.formatOutput()}`),
         );
@@ -940,6 +972,10 @@ export class CodexStructuredSession implements StructuredSessionHandle {
         }
       },
       onError: (error) => {
+        this.logCodexEventDebug("transport", {
+          event: "error",
+          message: error.message,
+        });
         this.rejectPendingRequests(error);
         if (!this.isDisposed) {
           this.listener?.onError("Codex app-server connection failed.");
@@ -971,7 +1007,7 @@ export class CodexStructuredSession implements StructuredSessionHandle {
       this.updateSlashCommands(commands);
     }
 
-    this.transport.write({
+    this.writeToCodex({
       jsonrpc: "2.0",
       method: "initialized",
     });
@@ -997,12 +1033,12 @@ export class CodexStructuredSession implements StructuredSessionHandle {
       // Preserve error status until the user starts a new turn. Still forward
       // sessionRef updates if present so resume metadata is not lost.
       if (sessionRef) {
-        this.listener?.onUpdate({ status: "error", attention: "error", sessionRef });
+        this.emitUpdate({ status: "error", attention: "error", sessionRef });
       }
       return;
     }
     const next = deriveCodexStructuredState(this.currentThreadStatus);
-    this.listener?.onUpdate({
+    this.emitUpdate({
       status: next.status,
       attention: next.attention,
       ...(sessionRef ? { sessionRef } : {}),
@@ -1058,7 +1094,7 @@ export class CodexStructuredSession implements StructuredSessionHandle {
       });
     });
 
-    this.transport.write({
+    this.writeToCodex({
       jsonrpc: "2.0",
       id,
       method,
@@ -1066,6 +1102,26 @@ export class CodexStructuredSession implements StructuredSessionHandle {
     });
 
     return pending;
+  }
+
+  private emitUpdate(update: StructuredSessionUpdate): void {
+    this.logCodexEventDebug("lightcode:update", update);
+    this.listener?.onUpdate(update);
+  }
+
+  private writeToCodex(message: Record<string, unknown>): void {
+    this.logCodexEventDebug("lightcode->codex", message);
+    this.transport.write(message);
+  }
+
+  private logCodexEventDebug(direction: CodexEventDebugDirection, payload: unknown): void {
+    if (!isCodexEventDebugEnabled()) {
+      return;
+    }
+    const remote = this.remoteThreadId ? ` remoteThreadId=${this.remoteThreadId}` : "";
+    console.log(
+      `[codex-events] ${new Date().toISOString()} ${direction} localThreadId=${this.threadId}${remote} ${stringifyCodexEventDebugPayload(payload)}`,
+    );
   }
 
   private rejectPendingRequests(error: Error): void {

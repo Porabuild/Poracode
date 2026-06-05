@@ -15,11 +15,15 @@ export function hookDebugProjectLabel(loc: ProjectLocation): string {
 
 /**
  * Startup idle suppression is only for empty sync blips; visible runtime output
- * means a follow-up idle should close the optimistic working window.
+ * or turn completion means a follow-up idle should close the optimistic working
+ * window.
  */
 export function shouldReleaseInitialStructuredIdleSuppression(event: RuntimeEvent): boolean {
   if (event.type === "item.started") {
     return event.itemType !== "user_message";
+  }
+  if (event.type === "turn.completed") {
+    return true;
   }
   return (
     event.type === "content.delta" || event.type === "request.opened" || event.type === "error"

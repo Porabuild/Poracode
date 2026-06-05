@@ -1552,6 +1552,118 @@ describe("SupervisorRuntime thread input", () => {
     });
   });
 
+  it("lets canonical turn completion close an optimistic GUI launch turn without assistant items", async () => {
+    const emitted: Array<Record<string, unknown>> = [];
+    const runtime = makeRuntime((event) => {
+      emitted.push(event as Record<string, unknown>);
+    });
+    let runtimeListener:
+      | {
+          onUpdate(update: Record<string, unknown>): void;
+          onRuntimeEvent(event: RuntimeEvent): void;
+        }
+      | undefined;
+    const startTurn = vi.fn<() => Promise<void>>(async () => {
+      runtimeListener?.onRuntimeEvent({
+        type: "turn.completed",
+        threadId: "thread-gui-complete-only",
+        turnId: "turn-1",
+        state: "completed",
+      });
+      runtimeListener?.onUpdate({ status: "idle", attention: "none" });
+    });
+    const setListener = vi.fn<
+      (listener: {
+        onUpdate(update: Record<string, unknown>): void;
+        onRuntimeEvent(event: RuntimeEvent): void;
+      }) => void
+    >((listener) => {
+      runtimeListener = listener;
+      listener.onUpdate({
+        status: "idle",
+        attention: "none",
+        sessionRef: {
+          providerSessionId: "session-1",
+          discoveredAt: "2026-05-10T12:00:00.000Z",
+        },
+      });
+    });
+
+    const adapter = {
+      kind: "generic-gui" as const,
+      label: "Generic GUI Provider",
+      capabilities: {
+        models: [{ id: "gpt-5.4", label: "5.4" }],
+        efforts: ["high"],
+        modelEfforts: {},
+        modes: ["agent"],
+        approvalPolicies: [{ id: "on-request", label: "On Request" }],
+        sandboxModes: [{ id: "workspace-write", label: "Workspace Write" }],
+        supportsResume: true,
+        supportsDirectInput: true,
+        liveInputMode: "terminal" as const,
+        presentationMode: "terminal" as const,
+        presentationModes: ["terminal", "gui"] as const,
+      },
+      detectInstall: vi.fn<() => void>(),
+      buildLaunchArgv: vi.fn<() => { binary: string; args: string[] }>(() => ({
+        binary: "generic-gui",
+        args: ["should-not-spawn"],
+      })),
+      buildResumeArgv: vi.fn<() => void>(),
+      createInitialSessionRef: vi
+        .fn<() => { providerSessionId: string; discoveredAt: string } | undefined>()
+        .mockReturnValue(undefined),
+      createStructuredSession: vi.fn<() => Promise<Record<string, unknown>>>().mockResolvedValue({
+        launchOptions: { suppressResumeConfigOverrides: true, resumeThreadId: "session-1" },
+        activate: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+        openThread: vi.fn<() => Promise<string>>().mockResolvedValue("session-1"),
+        startTurn,
+        setListener,
+        dispose: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+      }),
+    };
+
+    (runtime as unknown as { adapters: Map<string, typeof adapter> }).adapters.set(
+      "generic-gui",
+      adapter,
+    );
+
+    await runtime.startThread({
+      threadId: "thread-gui-complete-only",
+      projectLocation: {
+        kind: "windows",
+        path: "C:\\repo",
+      },
+      agentKind: "generic-gui",
+      config: {
+        model: "gpt-5.4",
+      },
+      prompt: "hi",
+      presentationMode: "gui",
+      initialSize: {
+        cols: 132,
+        rows: 42,
+      },
+    });
+    await Promise.resolve();
+
+    const threadStates = emitted.filter(
+      (event) => event.type === "thread-state" && event.threadId === "thread-gui-complete-only",
+    );
+    expect(threadStates[0]).toMatchObject({
+      status: "working",
+      attention: "working",
+    });
+    expect(threadStates.at(-1)).toMatchObject({
+      status: "idle",
+      attention: "none",
+      sessionRef: {
+        providerSessionId: "session-1",
+      },
+    });
+  });
+
   it("lets a quick stop close an optimistic GUI launch turn before provider output", async () => {
     const emitted: Array<Record<string, unknown>> = [];
     const runtime = makeRuntime((event) => {

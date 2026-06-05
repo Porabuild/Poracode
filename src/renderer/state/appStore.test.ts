@@ -727,7 +727,7 @@ describe("appStore runtime config sync", () => {
     expect(useAppStore.getState().threads[0]?.lastTurnEndedAt).toBe("2026-05-01T12:00:30.000Z");
   });
 
-  it("keeps GUI startup idle blips from closing the active turn before assistant output", () => {
+  it("closes visible GUI idle updates even before assistant output", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-05-01T12:00:00.000Z"));
     const project = useAppStore.getState().addProject({
@@ -767,20 +767,19 @@ describe("appStore runtime config sync", () => {
     });
 
     expect(useAppStore.getState().threads[0]).toMatchObject({
-      status: "working",
-      attention: "working",
-      activeTurnStartedAt: "2026-05-01T12:00:00.000Z",
+      status: "idle",
+      attention: "none",
+      activeTurnStartedAt: undefined,
+      lastTurnStartedAt: "2026-05-01T12:00:00.000Z",
+      lastTurnEndedAt: "2026-05-01T12:00:01.000Z",
     });
-    expect(useAppStore.getState().runtimeCompletedTurnsByThread[thread.id]).toBeUndefined();
-
-    vi.setSystemTime(new Date("2026-05-01T12:00:05.000Z"));
-    useAppStore.getState().updateThreadRuntime(thread.id, {
-      status: "working",
-      attention: "working",
-      canResumeWithConfig: true,
-    });
-
-    expect(useAppStore.getState().threads[0]?.activeTurnStartedAt).toBe("2026-05-01T12:00:00.000Z");
+    expect(useAppStore.getState().runtimeCompletedTurnsByThread[thread.id]).toEqual([
+      {
+        startedAt: new Date("2026-05-01T12:00:00.000Z").getTime(),
+        endedAt: new Date("2026-05-01T12:00:01.000Z").getTime(),
+        anchorItemId: null,
+      },
+    ]);
   });
 
   it("closes an offscreen GUI thread when the transcript has not been hydrated", () => {

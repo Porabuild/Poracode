@@ -672,13 +672,7 @@ describe("CodexStructuredSession", () => {
       onRuntimeEvent: (event) => runtimeEvents.push(event),
     });
 
-    expect(updates).toEqual([
-      expect.objectContaining({
-        status: "idle",
-        attention: "none",
-        sessionRef: expect.objectContaining({ providerSessionId: "provider-thread" }),
-      }),
-    ]);
+    expect(updates).toEqual([]);
 
     onMessage?.({
       jsonrpc: "2.0",
@@ -732,6 +726,163 @@ describe("CodexStructuredSession", () => {
         attention: "working",
       }),
     );
+  });
+
+  it("keeps live status on lifecycle notifications instead of startup thread/read", async () => {
+    const session = Object.create(CodexStructuredSession.prototype) as Record<string, unknown>;
+    const updates: StructuredSessionUpdate[] = [];
+    const runtimeEvents: RuntimeEvent[] = [];
+    const requests: CodexRequestRecord[] = [];
+    let onMessage: ((message: unknown) => void) | undefined;
+    let resolveTurnStart: (value: unknown) => void = () => {};
+    const turnStart = new Promise<unknown>((resolve) => {
+      resolveTurnStart = resolve;
+    });
+
+    session["threadId"] = "local-thread";
+    session["remoteThreadId"] = "provider-thread";
+    session["isDisposed"] = false;
+    session["currentThreadStatus"] = { type: "idle" };
+    session["seenErrorMessages"] = new Set<string>();
+    session["bufferedRuntimeEvents"] = [];
+    session["pendingRequests"] = new Map();
+    session["inboundRequests"] = new Map();
+    session["resumeActiveStatusSuppressionUntil"] = new Map();
+    session["rejectPendingRequests"] = () => {};
+    session["request"] = async (
+      method: string,
+      params: Record<string, unknown>,
+      timeoutMs?: number,
+    ) => {
+      requests.push({
+        method,
+        params,
+        ...(timeoutMs !== undefined ? { timeoutMs } : {}),
+      });
+      if (method === "turn/start") {
+        return turnStart;
+      }
+      return {};
+    };
+    session["transport"] = {
+      setListener: (next: { onMessage: (message: unknown) => void }) => {
+        onMessage = next.onMessage;
+      },
+      write: () => {},
+      formatOutput: () => "",
+    };
+
+    (session["attachTransportHandlers"] as () => void).call(session);
+    (session as unknown as CodexStructuredSession).setListener({
+      onClose: () => {},
+      onError: () => {},
+      onUpdate: (update) => updates.push(update),
+      onRuntimeEvent: (event) => runtimeEvents.push(event),
+    });
+
+    onMessage?.({
+      jsonrpc: "2.0",
+      method: "thread/started",
+      params: {
+        thread: {
+          id: "provider-thread",
+          status: { type: "idle" },
+        },
+      },
+    });
+
+    expect(updates).toEqual([]);
+    expect(requests).toEqual([]);
+
+    const initialTurn = (session as unknown as CodexStructuredSession).startTurn("hi", {
+      model: "gpt-5.4",
+    });
+    await Promise.resolve();
+
+    expect(updates.at(-1)).toEqual({ status: "working", attention: "working" });
+    expect(requests.map((request) => request.method)).toEqual(["turn/start"]);
+
+    resolveTurnStart({ turn: { id: "turn-1", status: "inProgress" } });
+    await initialTurn;
+
+    onMessage?.({
+      jsonrpc: "2.0",
+      method: "turn/completed",
+      params: {
+        threadId: "provider-thread",
+        turn: { id: "turn-1", status: "completed" },
+      },
+    });
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(requests.map((request) => request.method)).toEqual(["turn/start"]);
+    expect(runtimeEvents).toContainEqual({
+      type: "turn.completed",
+      threadId: "local-thread",
+      turnId: "turn-1",
+      state: "completed",
+    });
+    expect(updates.at(-1)).toEqual({ status: "idle", attention: "none" });
+  });
+
+  it("emits completion idle even when a status idle already arrived", () => {
+    const session = Object.create(CodexStructuredSession.prototype) as Record<string, unknown>;
+    const updates: StructuredSessionUpdate[] = [];
+    const runtimeEvents: RuntimeEvent[] = [];
+    let onMessage: ((message: unknown) => void) | undefined;
+
+    session["threadId"] = "local-thread";
+    session["remoteThreadId"] = "provider-thread";
+    session["isDisposed"] = false;
+    session["currentThreadStatus"] = { type: "active", activeFlags: [] };
+    session["seenErrorMessages"] = new Set<string>();
+    session["bufferedRuntimeEvents"] = [];
+    session["pendingRequests"] = new Map();
+    session["inboundRequests"] = new Map();
+    session["resumeActiveStatusSuppressionUntil"] = new Map();
+    session["rejectPendingRequests"] = () => {};
+    session["request"] = async () => ({});
+    session["listener"] = {
+      onClose: () => {},
+      onError: () => {},
+      onUpdate: (update: StructuredSessionUpdate) => updates.push(update),
+      onRuntimeEvent: (event: RuntimeEvent) => runtimeEvents.push(event),
+    };
+    session["transport"] = {
+      setListener: (next: { onMessage: (message: unknown) => void }) => {
+        onMessage = next.onMessage;
+      },
+      write: () => {},
+      formatOutput: () => "",
+    };
+
+    (session["attachTransportHandlers"] as () => void).call(session);
+
+    onMessage?.({
+      jsonrpc: "2.0",
+      method: "thread/status/changed",
+      params: { threadId: "provider-thread", status: { type: "idle" } },
+    });
+    onMessage?.({
+      jsonrpc: "2.0",
+      method: "turn/completed",
+      params: {
+        threadId: "provider-thread",
+        turn: { id: "turn-1", status: "completed" },
+      },
+    });
+
+    expect(runtimeEvents).toContainEqual({
+      type: "turn.completed",
+      threadId: "local-thread",
+      turnId: "turn-1",
+      state: "completed",
+    });
+    expect(updates).toEqual([
+      { status: "idle", attention: "none" },
+      { status: "idle", attention: "none" },
+    ]);
   });
 
   it("collapses a single usage-limit failure into one error event", () => {
