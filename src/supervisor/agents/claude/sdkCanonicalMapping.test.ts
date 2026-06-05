@@ -1354,6 +1354,42 @@ describe("sdkCanonicalMapping — sub-agents", () => {
       },
     ]);
   });
+
+  it("drops child-scoped context updates so the composer tracks parent context only", () => {
+    const state = createClaudeMapperState("thread-1");
+    const events = mapClaudeSdkMessage(
+      {
+        type: "system",
+        subtype: "compact_boundary",
+        parent_tool_use_id: "toolu_parent",
+        compact_metadata: { trigger: "auto", pre_tokens: 20_000, post_tokens: 6_000 },
+        session_id: "claude-session",
+      } as unknown as SDKMessage,
+      state,
+    );
+
+    expect(events.some((event) => event.type === "context.updated")).toBe(false);
+    expect(events).toMatchObject([
+      {
+        type: "item.started",
+        itemType: "tool_call",
+        parentItemId: "toolu_parent",
+        payload: {
+          name: "ContextCompaction",
+          status: "success",
+          args: { trigger: "auto", pre_tokens: 20_000, post_tokens: 6_000 },
+        },
+      },
+      {
+        type: "item.completed",
+        payload: {
+          name: "ContextCompaction",
+          status: "success",
+          args: { trigger: "auto", pre_tokens: 20_000, post_tokens: 6_000 },
+        },
+      },
+    ]);
+  });
 });
 
 describe("sdkCanonicalMapping — task progress", () => {

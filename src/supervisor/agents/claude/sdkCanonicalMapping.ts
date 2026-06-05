@@ -1051,33 +1051,34 @@ function tagParent(
   state: ClaudeMapperState,
 ): RuntimeEvent[] {
   if (!parentItemId) return events;
+  const parentScopedEvents = events.filter((event) => event.type !== "context.updated");
   let taggedStarts = 0;
-  for (let i = 0; i < events.length; i += 1) {
-    const event = events[i]!;
+  for (let i = 0; i < parentScopedEvents.length; i += 1) {
+    const event = parentScopedEvents[i]!;
     if (event.type !== "item.started") continue;
     if ("parentItemId" in event && typeof event.parentItemId === "string") continue;
-    events[i] = { ...event, parentItemId };
+    parentScopedEvents[i] = { ...event, parentItemId };
     taggedStarts += 1;
   }
-  if (taggedStarts === 0) return events;
+  if (taggedStarts === 0) return parentScopedEvents;
   // Bump the sub-agent parent's step counter and emit an `item.updated` on the
   // parent so a closed overlay (which gates child events off IPC for perf)
   // still sees the count tick on the pill.
   const parent = state.toolItemsById.get(parentItemId);
-  if (!parent) return events;
+  if (!parent) return parentScopedEvents;
   const prevCount = parent.progress?.stepCount ?? 0;
   const nextProgress: ToolCallProgress = {
     ...(parent.progress ?? {}),
     stepCount: prevCount + taggedStarts,
   };
   parent.progress = nextProgress;
-  events.push({
+  parentScopedEvents.push({
     type: "item.updated",
     threadId: state.threadId,
     itemId: parent.itemId,
     payload: toolPayload(parent, "running"),
   });
-  return events;
+  return parentScopedEvents;
 }
 
 /**
