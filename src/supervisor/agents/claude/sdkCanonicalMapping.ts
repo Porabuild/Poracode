@@ -906,8 +906,6 @@ function applyTaskLifecycle(message: SDKMessage, state: ClaudeMapperState): Runt
     obj.usage && typeof obj.usage === "object"
       ? (obj.usage as { total_tokens?: number; tool_uses?: number; duration_ms?: number })
       : undefined;
-  const contextUsage = contextUsageFromTaskUsage(state.threadId, usage);
-  if (contextUsage) events.push(contextUsage);
 
   const toolUseId = typeof obj.tool_use_id === "string" ? obj.tool_use_id : undefined;
   if (!toolUseId) return events;
@@ -941,13 +939,22 @@ function applyTaskLifecycle(message: SDKMessage, state: ClaudeMapperState): Runt
   return events;
 }
 
-function contextUsageFromTaskUsage(
+function contextUsageFromCompactionMetadata(
   threadId: string,
-  usage: { total_tokens?: number; tool_uses?: number; duration_ms?: number } | undefined,
+  metadata: unknown,
 ): RuntimeEvent | undefined {
-  const usedTokens = readNonNegativeInteger(usage?.total_tokens);
-  if (usedTokens === undefined || usedTokens <= 0) return undefined;
-  return createContextUsageEvent(threadId, { usedTokens });
+  if (!metadata || typeof metadata !== "object") return undefined;
+  const obj = metadata as Record<string, unknown>;
+  const usedTokens =
+    readNonNegativeInteger(obj.post_tokens) ?? readNonNegativeInteger(obj.postTokens);
+  if (usedTokens === undefined) return undefined;
+  return createContextUsageEvent(threadId, {
+    usedTokens,
+    breakdown:
+      usedTokens > 0
+        ? [{ id: "current-context", label: "Current context", tokens: usedTokens }]
+        : [],
+  });
 }
 
 function mapPermissionDenied(message: SDKMessage, state: ClaudeMapperState): RuntimeEvent[] {
@@ -1260,7 +1267,6 @@ export function mapClaudeContextUsageResponse(
   threadId: string,
   response: SDKControlGetContextUsageResponse,
 ): RuntimeEvent | undefined {
-  const usedTokens = readNonNegativeInteger(response.totalTokens);
   const maxTokens =
     readPositiveInteger(response.maxTokens) ?? readPositiveInteger(response.rawMaxTokens);
   const breakdown = response.categories
@@ -1279,6 +1285,11 @@ export function mapClaudeContextUsageResponse(
       };
     })
     .filter((entry): entry is NonNullable<typeof entry> => entry !== undefined);
+  const rawUsedTokens = readNonNegativeInteger(response.totalTokens);
+  const usedTokens =
+    rawUsedTokens !== undefined && (rawUsedTokens > 0 || breakdown.length > 0)
+      ? rawUsedTokens
+      : undefined;
 
   return createContextUsageEvent(threadId, {
     ...(usedTokens !== undefined ? { usedTokens } : {}),
@@ -1619,6 +1630,8 @@ function mapClaudeSdkMessageInner(
       itemId,
       payload,
     });
+    const contextUsage = contextUsageFromCompactionMetadata(state.threadId, metadata);
+    if (contextUsage) events.push(contextUsage);
     return events;
   }
 
