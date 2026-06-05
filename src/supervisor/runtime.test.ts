@@ -869,7 +869,7 @@ describe("SupervisorRuntime thread input", () => {
         kind: "antigravity",
         label: "Antigravity",
         capabilities: {
-          models: [{ id: "auto", label: "Auto" }],
+          models: [{ id: "Gemini 3.5 Flash", label: "Gemini 3.5 Flash" }],
           efforts: [],
           modelEfforts: {},
           modes: [],
@@ -894,7 +894,7 @@ describe("SupervisorRuntime thread input", () => {
         path: "C:\\repo",
       },
       config: {
-        model: "auto",
+        model: "Gemini 3.5 Flash",
       },
       initialSize: {
         cols: 120,

@@ -1,22 +1,23 @@
 import type { AgentCapability } from "@/shared/contracts";
 import { type AuthProbe, type DetectionSpec } from "../base";
+import {
+  ANTIGRAVITY_KNOWN_MODEL_VARIANTS,
+  buildAntigravityModelCapabilities,
+  probeAntigravityModels,
+} from "./models";
 import { antigravityConfigDirExists } from "./session";
 
-// `agy` does not accept `--model` and chooses a model internally based on
-// the logged-in Google account. Surface Auto so the model picker has a
-// required config value; the launch path ignores the selection.
-export const ANTIGRAVITY_MANAGED_MODEL_ID = "auto";
+export const ANTIGRAVITY_DEFAULT_MODEL_ID = "Gemini 3.5 Flash";
+
+const defaultModelCapabilities = buildAntigravityModelCapabilities(
+  ANTIGRAVITY_KNOWN_MODEL_VARIANTS,
+);
 
 export const defaultAntigravityCapabilities: AgentCapability = {
-  models: [
-    {
-      id: ANTIGRAVITY_MANAGED_MODEL_ID,
-      label: "Auto",
-      description: "Model selected by agy from the signed-in account",
-    },
-  ],
-  efforts: [],
-  modelEfforts: {},
+  models: defaultModelCapabilities.models,
+  efforts: defaultModelCapabilities.efforts,
+  defaultEffort: defaultModelCapabilities.defaultEffort,
+  modelEfforts: defaultModelCapabilities.modelEfforts,
   modes: [],
   approvalPolicies: [
     { id: "default", label: "Default" },
@@ -48,6 +49,9 @@ export const antigravityDetectionSpec: DetectionSpec = {
   binary: "agy",
   capabilities: defaultAntigravityCapabilities,
   authProbes: [configDirAuthProbe],
+  async capabilitiesProbe(ctx) {
+    return await probeAntigravityModels(ctx);
+  },
   update: {
     builtIn: { binary: "agy", args: ["update"] },
     latestVersionUrls: [

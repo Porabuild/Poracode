@@ -5,9 +5,9 @@ import {
   watchSessionPaths,
   type AgentAdapter,
 } from "../base";
-import { buildAntigravityArgs } from "./argv";
+import { buildAntigravityArgs, resolveAntigravityModel } from "./argv";
 import {
-  ANTIGRAVITY_MANAGED_MODEL_ID,
+  ANTIGRAVITY_DEFAULT_MODEL_ID,
   antigravityDetectionSpec,
   defaultAntigravityCapabilities,
 } from "./detection";
@@ -158,9 +158,9 @@ export function createAntigravityAdapter(): AgentAdapter {
     detectTerminalStatus: detectAntigravityTerminalStatus,
     detectInvalidSessionRef: detectAntigravityInvalidSessionRef,
 
-    defaultOneShotModel: ANTIGRAVITY_MANAGED_MODEL_ID,
+    defaultOneShotModel: ANTIGRAVITY_DEFAULT_MODEL_ID,
 
-    buildOneShotCommand(_model, _effort, prompt) {
+    buildOneShotCommand(model, effort, prompt) {
       if (!prompt) return undefined;
       // `agy -p` persists a throwaway conversation AND rewrites
       // last_conversations.json[cwd] with its id. Running it in the project cwd
@@ -169,7 +169,13 @@ export function createAntigravityAdapter(): AgentAdapter {
       // (title gen, commit-msg, PR summary). `agy` has no flag to pre-assign a
       // conversation id, so isolate the cwd instead — the prompt is fully
       // self-contained, so the working directory is irrelevant to the output.
-      return { command: "agy", args: ["-p", prompt], stdin: "", isolateCwd: true, pty: true };
+      return {
+        command: "agy",
+        args: ["--model", resolveAntigravityModel(model, effort), "-p", prompt],
+        stdin: "",
+        isolateCwd: true,
+        pty: true,
+      };
     },
   };
 }
