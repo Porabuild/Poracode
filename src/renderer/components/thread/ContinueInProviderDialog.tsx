@@ -13,6 +13,7 @@ import type {
   ThreadPresentationMode,
 } from "@/shared/contracts";
 import { Button, PixelLoader } from "@/renderer/components/common";
+import { modelVisibilityKey } from "@/renderer/components/common/ProviderModelMenu/parts/providerIdentity";
 import { readBridge } from "@/renderer/bridge";
 import type { ComposerControl } from "./ThreadComposer";
 import { ThreadComposer } from "./ThreadComposer";
@@ -352,7 +353,7 @@ export function ContinueInProviderDialog(props: {
   const selectedTargetCapabilities = selectedAgent
     ? filterHiddenModels(
         capabilitiesForPresentation(selectedAgent.capabilities, targetPresentationMode),
-        allHiddenModels[selectedAgent.kind],
+        allHiddenModels[modelVisibilityKey(selectedAgent.kind, targetPresentationMode)],
       )
     : undefined;
   const providerModelProviders = buildProviderModelMenuProviders(otherAgents, {
@@ -392,7 +393,9 @@ export function ContinueInProviderDialog(props: {
   const supportsTargetGuiMode = otherAgents.some((agent) => supportsPresentation(agent, "gui"));
 
   // --- Extraction config (source provider) ---
-  const hiddenModelIds = useSharedSettings((s) => s.hiddenModels[thread.agentKind]);
+  const hiddenModelIds = useSharedSettings(
+    (s) => s.hiddenModels[modelVisibilityKey(thread.agentKind, sourcePresentationMode)],
+  );
   const filteredSourceCaps = sourceAgent
     ? filterHiddenModels(
         capabilitiesForPresentation(sourceAgent.capabilities, sourcePresentationMode),

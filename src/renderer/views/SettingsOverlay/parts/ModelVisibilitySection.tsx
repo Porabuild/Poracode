@@ -7,15 +7,50 @@ import { getSettingsInstalledAgents } from "@/shared/agentStatus";
 import {
   buildProviderModelItems,
   statusToMenuProvider,
+  type ProviderModelMenuProvider,
   type ProviderModelItem,
 } from "@/renderer/components/common/ProviderModelMenu";
+import { capabilitiesForPresentation } from "@/renderer/components/thread/threadComposerOptions";
 import { ProviderIcon } from "@/renderer/components/providers/ProviderIcon";
+import {
+  modelVisibilityKey,
+  providerLabelForPresentation,
+  providerMenuKey,
+  providerVisibilityKey,
+} from "@/renderer/components/common/ProviderModelMenu/parts/providerIdentity";
 
 type SubGroupState = "all" | "some" | "none";
 
 interface ModelEntry {
-  providerKind: string;
+  providerKey: string;
   modelId: string;
+}
+
+function modelVisibilityProviders(
+  agents: ReturnType<typeof getSettingsInstalledAgents>,
+): ProviderModelMenuProvider[] {
+  return agents.flatMap((agent) => {
+    if (agent.kind !== "cursor") return [statusToMenuProvider(agent)];
+
+    const supported = agent.capabilities.presentationModes ?? [agent.capabilities.presentationMode];
+    return supported
+      .map((presentationMode): ProviderModelMenuProvider => {
+        const provider: ProviderModelMenuProvider = {
+          kind: agent.kind,
+          label: agent.label,
+          presentationMode,
+          ...(agent.icon ? { icon: agent.icon } : {}),
+          modelPickerKey: providerMenuKey({ kind: agent.kind, presentationMode }),
+          hiddenModelsKey: modelVisibilityKey(agent.kind, presentationMode),
+          capabilities: capabilitiesForPresentation(agent.capabilities, presentationMode),
+        };
+        return {
+          ...provider,
+          label: providerLabelForPresentation(provider),
+        };
+      })
+      .filter((provider) => provider.capabilities.models.some((model) => model.id !== "auto"));
+  });
 }
 
 function GroupCheckIcon(props: { state: SubGroupState; className?: string }) {
@@ -36,7 +71,7 @@ function ModelVisibilityRow(props: {
   isVisible: boolean;
   groupState?: SubGroupState;
   indent?: boolean;
-  onToggleModel: (providerKind: string, modelId: string) => void;
+  onToggleModel: (providerKey: string, modelId: string) => void;
   onToggleGroup: (headerId: string) => void;
 }) {
   const { item, isVisible, groupState, indent, onToggleModel, onToggleGroup } = props;
@@ -112,11 +147,11 @@ function ModelVisibilityRow(props: {
       className={`lightcode-menu-item group mx-1.5 flex h-7 cursor-default items-center text-foreground ${
         indent ? "pl-4" : ""
       }`}
-      onClick={() => onToggleModel(item.providerKind, item.modelId)}
+      onClick={() => onToggleModel(item.hiddenModelsKey, item.modelId)}
       onKeyDown={(event) => {
         if (event.key === "Enter" || event.key === " ") {
           event.preventDefault();
-          onToggleModel(item.providerKind, item.modelId);
+          onToggleModel(item.hiddenModelsKey, item.modelId);
         }
       }}
     >
@@ -145,24 +180,26 @@ export function ModelVisibilitySection() {
   const setHiddenModels = useSharedSettings((s) => s.setHiddenModels);
 
   const installedAgents = getSettingsInstalledAgents(agentStatuses, wslAgentStatuses);
-  const providers = installedAgents.map(statusToMenuProvider);
+  const providers = modelVisibilityProviders(installedAgents);
 
   const allModels: ModelEntry[] = [];
   for (const provider of providers) {
+    const providerKey = providerVisibilityKey(provider);
     for (const model of provider.capabilities.models) {
       if (model.id === "auto") continue;
-      allModels.push({ providerKind: provider.kind, modelId: model.id });
+      allModels.push({ providerKey, modelId: model.id });
     }
   }
 
   const hiddenByProvider = new Map<string, Set<string>>();
   for (const provider of providers) {
-    hiddenByProvider.set(provider.kind, new Set(hiddenModels[provider.kind] ?? []));
+    const providerKey = providerVisibilityKey(provider);
+    hiddenByProvider.set(providerKey, new Set(hiddenModels[providerKey] ?? []));
   }
 
   const totalCount = allModels.length;
   const visibleCount = allModels.filter(
-    (m) => !(hiddenByProvider.get(m.providerKind)?.has(m.modelId) ?? false),
+    (m) => !(hiddenByProvider.get(m.providerKey)?.has(m.modelId) ?? false),
   ).length;
 
   const [isOpen, setIsOpen] = useState(false);
@@ -181,11 +218,11 @@ export function ModelVisibilitySection() {
 
   const groupModelEntries = new Map<string, ModelEntry[]>();
   {
-    let activeProvider: string | null = null;
+    let activeProviderHeaderId: string | null = null;
     let activeSubHeader: string | null = null;
     for (const item of items) {
       if (item.type === "header-provider") {
-        activeProvider = item.providerKind;
+        activeProviderHeaderId = item.id;
         activeSubHeader = null;
         if (!groupModelEntries.has(item.id)) groupModelEntries.set(item.id, []);
       } else if (item.type === "header-sub") {
@@ -194,10 +231,9 @@ export function ModelVisibilitySection() {
       } else if (item.type === "header-plain") {
         activeSubHeader = null;
       } else if (item.type === "model") {
-        const entry: ModelEntry = { providerKind: item.providerKind, modelId: item.modelId };
-        if (activeProvider) {
-          const providerHeaderId = `provider:${activeProvider}`;
-          groupModelEntries.get(providerHeaderId)?.push(entry);
+        const entry: ModelEntry = { providerKey: item.hiddenModelsKey, modelId: item.modelId };
+        if (activeProviderHeaderId) {
+          groupModelEntries.get(activeProviderHeaderId)?.push(entry);
         }
         if (activeSubHeader) {
           groupModelEntries.get(activeSubHeader)?.push(entry);
@@ -213,7 +249,7 @@ export function ModelVisibilitySection() {
       continue;
     }
     const hiddenIn = entries.filter(
-      (e) => hiddenByProvider.get(e.providerKind)?.has(e.modelId) ?? false,
+      (e) => hiddenByProvider.get(e.providerKey)?.has(e.modelId) ?? false,
     ).length;
     groupStates.set(
       headerId,
@@ -221,11 +257,11 @@ export function ModelVisibilitySection() {
     );
   }
 
-  function toggleModel(providerKind: string, modelId: string) {
-    const current = new Set(hiddenByProvider.get(providerKind) ?? []);
+  function toggleModel(providerKey: string, modelId: string) {
+    const current = new Set(hiddenByProvider.get(providerKey) ?? []);
     if (current.has(modelId)) current.delete(modelId);
     else current.add(modelId);
-    setHiddenModels(providerKind, [...current]);
+    setHiddenModels(providerKey, [...current]);
   }
 
   function toggleGroup(headerId: string) {
@@ -235,29 +271,29 @@ export function ModelVisibilitySection() {
     const hideAll = state === "all";
     const byProvider = new Map<string, Set<string>>();
     for (const entry of entries) {
-      let set = byProvider.get(entry.providerKind);
+      let set = byProvider.get(entry.providerKey);
       if (!set) {
-        set = new Set(hiddenByProvider.get(entry.providerKind) ?? []);
-        byProvider.set(entry.providerKind, set);
+        set = new Set(hiddenByProvider.get(entry.providerKey) ?? []);
+        byProvider.set(entry.providerKey, set);
       }
       if (hideAll) set.add(entry.modelId);
       else set.delete(entry.modelId);
     }
-    for (const [providerKind, set] of byProvider) {
-      setHiddenModels(providerKind, [...set]);
+    for (const [providerKey, set] of byProvider) {
+      setHiddenModels(providerKey, [...set]);
     }
   }
 
   function setAllHidden(hideAll: boolean) {
     const byProvider = new Map<string, Set<string>>();
-    for (const provider of providers) byProvider.set(provider.kind, new Set());
+    for (const provider of providers) byProvider.set(providerVisibilityKey(provider), new Set());
     if (hideAll) {
       for (const model of allModels) {
-        byProvider.get(model.providerKind)?.add(model.modelId);
+        byProvider.get(model.providerKey)?.add(model.modelId);
       }
     }
-    for (const [providerKind, set] of byProvider) {
-      setHiddenModels(providerKind, [...set]);
+    for (const [providerKey, set] of byProvider) {
+      setHiddenModels(providerKey, [...set]);
     }
   }
 
@@ -331,7 +367,7 @@ export function ModelVisibilitySection() {
                     }
                     const isVisible =
                       item.type === "model"
-                        ? !(hiddenByProvider.get(item.providerKind)?.has(item.modelId) ?? false)
+                        ? !(hiddenByProvider.get(item.hiddenModelsKey)?.has(item.modelId) ?? false)
                         : false;
                     const headerId =
                       item.type === "header-provider" || item.type === "header-sub"

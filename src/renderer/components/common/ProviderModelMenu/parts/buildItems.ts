@@ -6,13 +6,23 @@ import {
   modelLookupAliases,
   stripBracketParams,
 } from "./modelShortcutLabel";
+import {
+  providerLabelForPresentation,
+  providerMenuKey,
+  providerVisibilityKey,
+} from "./providerIdentity";
 import type { ProviderModelItem } from "./types";
 
 export interface ProviderModelMenuProvider {
+  /** Real adapter kind used for launch/favorites. */
   kind: string;
   label: string;
   icon?: string;
   presentationMode?: ThreadPresentationMode;
+  /** Unique UI identity when one adapter exposes multiple model surfaces. */
+  modelPickerKey?: string;
+  /** Settings key used for hidden-model persistence. */
+  hiddenModelsKey?: string;
   capabilities: AgentCapability;
 }
 
@@ -253,6 +263,8 @@ function getProviderModelCache(capability: AgentCapability): ProviderModelCache 
 
 interface VisibleProvider {
   provider: ProviderModelMenuProvider;
+  key: string;
+  visibilityKey: string;
   cache: ProviderModelCache;
   searchText: string;
 }
@@ -275,9 +287,14 @@ function findModelEntry(cache: ProviderModelCache, modelId: string): ModelEntry 
 
 function resolveModelRef(
   ref: ModelRef,
-  providersByKind: ReadonlyMap<string, VisibleProvider>,
+  visibleProviders: readonly VisibleProvider[],
 ): ResolvedModelRef | undefined {
-  const visibleProvider = providersByKind.get(ref.agentKind);
+  const visibleProvider = visibleProviders.find((entry) => {
+    if (entry.provider.kind !== ref.agentKind) return false;
+    if (!ref.presentationMode) return true;
+    if (!entry.provider.presentationMode) return true;
+    return entry.provider.presentationMode === ref.presentationMode;
+  });
   if (!visibleProvider) return undefined;
   const { provider, cache } = visibleProvider;
   const model =
@@ -322,12 +339,12 @@ export function buildProviderModelItems(input: BuildProviderModelItemsInput): Pr
     .sort((a, b) => providerSortKey(a.kind) - providerSortKey(b.kind));
   const visibleProviderEntries: VisibleProvider[] = visibleProviders.map((provider) => ({
     provider,
+    key: providerMenuKey(provider),
+    visibilityKey: providerVisibilityKey(provider),
     cache: getProviderModelCache(provider.capabilities),
-    searchText: `${provider.kind}\n${provider.label}`.toLowerCase(),
+    searchText:
+      `${provider.kind}\n${provider.label}\n${providerLabelForPresentation(provider)}`.toLowerCase(),
   }));
-  const visibleProvidersByKind = new Map(
-    visibleProviderEntries.map((entry) => [entry.provider.kind, entry]),
-  );
   const query = search.trim().toLowerCase();
   const isSearching = query.length > 0;
   const out: ProviderModelItem[] = [];
@@ -370,7 +387,7 @@ export function buildProviderModelItems(input: BuildProviderModelItemsInput): Pr
     });
     const items = dedupedRefs
       .filter((ref) => visibleKinds.has(ref.agentKind))
-      .map((ref) => resolveModelRef(ref, visibleProvidersByKind))
+      .map((ref) => resolveModelRef(ref, visibleProviderEntries))
       .filter((m): m is ResolvedModelRef => m !== undefined)
       .filter((m) => {
         if (!isSearching) return true;
@@ -379,11 +396,20 @@ export function buildProviderModelItems(input: BuildProviderModelItemsInput): Pr
     if (items.length === 0) return;
     out.push({ type: "header-plain", id: `header:${sectionId}`, label: headerLabel });
     for (const m of items) {
-      const providerIcon = visibleProvidersByKind.get(m.ref.agentKind)?.provider.icon;
+      const visibleProvider = visibleProviderEntries.find(
+        (entry) =>
+          entry.provider.kind === m.ref.agentKind &&
+          (!m.ref.presentationMode ||
+            !entry.provider.presentationMode ||
+            entry.provider.presentationMode === m.ref.presentationMode),
+      );
+      const providerIcon = visibleProvider?.provider.icon;
       out.push({
         type: "model",
         id: `${sectionId}:${m.ref.agentKind}:${m.ref.modelId}`,
         providerKind: m.ref.agentKind,
+        providerKey: visibleProvider?.key ?? m.ref.agentKind,
+        hiddenModelsKey: visibleProvider?.visibilityKey ?? m.ref.agentKind,
         modelId: m.ref.modelId,
         label: m.label,
         ...(m.ref.presentationMode ? { presentationMode: m.ref.presentationMode } : {}),
@@ -411,7 +437,7 @@ export function buildProviderModelItems(input: BuildProviderModelItemsInput): Pr
     }
   }
 
-  for (const { provider, cache, searchText } of visibleProviderEntries) {
+  for (const { provider, key, visibilityKey, cache, searchText } of visibleProviderEntries) {
     const cap = provider.capabilities;
     const providerHit = isSearching && searchText.includes(query);
     const currentEntry =
@@ -433,10 +459,12 @@ export function buildProviderModelItems(input: BuildProviderModelItemsInput): Pr
     if (showProviderHeaders) {
       out.push({
         type: "header-provider",
-        id: `provider:${provider.kind}`,
+        id: `provider:${key}`,
         providerKind: provider.kind,
+        providerKey: key,
+        hiddenModelsKey: visibilityKey,
         ...(provider.icon ? { providerIcon: provider.icon } : {}),
-        label: provider.label,
+        label: providerLabelForPresentation(provider),
       });
     }
 
@@ -445,8 +473,10 @@ export function buildProviderModelItems(input: BuildProviderModelItemsInput): Pr
       for (const m of sortFavoritesFirst(filtered, provider.kind)) {
         out.push({
           type: "model",
-          id: `model:${provider.kind}:${m.id}`,
+          id: `model:${key}:${m.id}`,
           providerKind: provider.kind,
+          providerKey: key,
+          hiddenModelsKey: visibilityKey,
           modelId: m.id,
           label: m.label,
           ...(provider.presentationMode ? { presentationMode: provider.presentationMode } : {}),
@@ -479,8 +509,10 @@ export function buildProviderModelItems(input: BuildProviderModelItemsInput): Pr
     for (const m of sortFavoritesFirst(ungrouped, provider.kind)) {
       out.push({
         type: "model",
-        id: `model:${provider.kind}:${m.id}`,
+        id: `model:${key}:${m.id}`,
         providerKind: provider.kind,
+        providerKey: key,
+        hiddenModelsKey: visibilityKey,
         modelId: m.id,
         label: m.label,
         ...(provider.presentationMode ? { presentationMode: provider.presentationMode } : {}),
@@ -498,16 +530,20 @@ export function buildProviderModelItems(input: BuildProviderModelItemsInput): Pr
       if (!models?.length) continue;
       out.push({
         type: "header-sub",
-        id: `sub:${provider.kind}:${sp.id}`,
+        id: `sub:${key}:${sp.id}`,
         providerKind: provider.kind,
+        providerKey: key,
+        hiddenModelsKey: visibilityKey,
         subId: sp.id,
         label: sp.label,
       });
       for (const m of sortFavoritesFirst(models, provider.kind)) {
         out.push({
           type: "model",
-          id: `model:${provider.kind}:${m.id}`,
+          id: `model:${key}:${m.id}`,
           providerKind: provider.kind,
+          providerKey: key,
+          hiddenModelsKey: visibilityKey,
           modelId: m.id,
           label: m.label,
           ...(provider.presentationMode ? { presentationMode: provider.presentationMode } : {}),

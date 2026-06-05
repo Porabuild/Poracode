@@ -6,6 +6,12 @@ import type {
   ThreadPresentationMode,
 } from "@/shared/contracts";
 import type { ProviderModelMenuProvider } from "@/renderer/components/common";
+import {
+  modelVisibilityKey,
+  providerLabelForPresentation,
+  providerMenuKey,
+  providerVisibilityKey,
+} from "@/renderer/components/common/ProviderModelMenu/parts/providerIdentity";
 import { getComposerControls } from "@/renderer/components/providers";
 import { EffortIcon } from "@/renderer/components/providers/EffortIcon";
 import type { ComposerControl } from "./ThreadComposer";
@@ -59,15 +65,25 @@ export function buildProviderModelMenuProviders(
     .map((agent) => {
       const agentPresentationMode =
         resolvePresentationMode?.(agent) ?? presentationMode ?? agent.capabilities.presentationMode;
-      const capabilities = filterHiddenModels(
-        capabilitiesForPresentation(agent.capabilities, agentPresentationMode),
-        hiddenModelsByAgent?.[agent.kind],
-      );
-      return {
+      const menuProvider: ProviderModelMenuProvider = {
         kind: agent.kind,
         label: agent.label,
+        presentationMode: agentPresentationMode,
         ...(agent.icon ? { icon: agent.icon } : {}),
-        ...(resolvePresentationMode ? { presentationMode: agentPresentationMode } : {}),
+        modelPickerKey: providerMenuKey({
+          kind: agent.kind,
+          presentationMode: agentPresentationMode,
+        }),
+        hiddenModelsKey: modelVisibilityKey(agent.kind, agentPresentationMode),
+        capabilities: capabilitiesForPresentation(agent.capabilities, agentPresentationMode),
+      };
+      const capabilities = filterHiddenModels(
+        menuProvider.capabilities,
+        hiddenModelsByAgent?.[providerVisibilityKey(menuProvider)],
+      );
+      return {
+        ...menuProvider,
+        label: providerLabelForPresentation(menuProvider),
         capabilities,
       };
     });

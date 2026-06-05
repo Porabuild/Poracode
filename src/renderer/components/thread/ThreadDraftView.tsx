@@ -13,6 +13,7 @@ import { readBridge } from "@/renderer/bridge";
 import { getConfigNormalizer } from "@/renderer/components/providers/ProviderIcon";
 import { useGitStore } from "@/renderer/state/gitStore";
 import { PixelLoader } from "@/renderer/components/common";
+import { modelVisibilityKey } from "@/renderer/components/common/ProviderModelMenu/parts/providerIdentity";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useAppStore } from "@/renderer/state/appStore";
 import { capabilitiesForPresentation, filterHiddenModels } from "./threadComposerOptions";
@@ -559,7 +560,9 @@ export function ThreadDraftView(props: {
   ]);
 
   const hiddenModelIds = useSharedSettings((s) =>
-    selectedAgent ? s.hiddenModels[selectedAgent.kind] : undefined,
+    selectedAgent
+      ? s.hiddenModels[modelVisibilityKey(selectedAgent.kind, presentationMode)]
+      : undefined,
   );
   const allHiddenModels = useSharedSettings((s) => s.hiddenModels);
   const selectedAgentFilteredCapabilities = useMemo(
