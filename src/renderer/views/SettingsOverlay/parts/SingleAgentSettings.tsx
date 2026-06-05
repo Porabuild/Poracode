@@ -50,45 +50,19 @@ import {
 import { Input, PixelLoader, Select } from "@/renderer/components/common";
 import { ProviderIcon } from "@/renderer/components/providers/ProviderIcon";
 import {
-  modelVisibilityKey,
-  providerLabelForPresentation,
   providerMenuKey,
   providerVisibilityKey,
 } from "@/renderer/components/common/ProviderModelMenu/parts/providerIdentity";
-import { capabilitiesForPresentation } from "@/renderer/components/thread/threadComposerOptions";
+import { expandAgentToVisibilityProviders } from "@/renderer/components/thread/buildModelPickerControls";
 import { SettingsPage } from "./SettingsForm";
 import {
   buildProviderModelItems,
-  statusToMenuProvider,
   type ProviderModelItem,
   type ProviderModelMenuProvider,
 } from "@/renderer/components/common/ProviderModelMenu";
 import { NATIVE_AGENT_REGISTRY_ENTRIES } from "./agentRegistryNative";
 
 const SAVED_SECRET_MASK = "***********";
-
-function settingsModelVisibilityProviders(agent: AgentStatus): ProviderModelMenuProvider[] {
-  if (agent.kind !== "cursor") return [statusToMenuProvider(agent)];
-
-  const supported = agent.capabilities.presentationModes ?? [agent.capabilities.presentationMode];
-  return supported
-    .map((presentationMode): ProviderModelMenuProvider => {
-      const provider: ProviderModelMenuProvider = {
-        kind: agent.kind,
-        label: agent.label,
-        presentationMode,
-        ...(agent.icon ? { icon: agent.icon } : {}),
-        modelPickerKey: providerMenuKey({ kind: agent.kind, presentationMode }),
-        hiddenModelsKey: modelVisibilityKey(agent.kind, presentationMode),
-        capabilities: capabilitiesForPresentation(agent.capabilities, presentationMode),
-      };
-      return {
-        ...provider,
-        label: providerLabelForPresentation(provider),
-      };
-    })
-    .filter((provider) => provider.capabilities.models.some((model) => model.id !== "auto"));
-}
 
 function AgentSettingRow(props: { agentKind: string; def: AgentSettingDef }) {
   const { agentKind, def } = props;
@@ -1006,7 +980,7 @@ export function SingleAgentSettings(props: { agentKind: string }) {
   const defs = (agent.capabilities.settingDefs ?? []).filter(
     (def) => !def.platforms || def.platforms.includes(platform),
   );
-  const modelVisibilityProviders = settingsModelVisibilityProviders(agent);
+  const modelVisibilityProviders = expandAgentToVisibilityProviders(agent);
   const hasSelectableModels = modelVisibilityProviders.length > 0;
 
   const versionRows: { label: string; status: AgentStatus }[] = [];

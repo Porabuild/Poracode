@@ -285,16 +285,29 @@ function findModelEntry(cache: ProviderModelCache, modelId: string): ModelEntry 
   return undefined;
 }
 
+// A favorites/recents ref carries an optional presentationMode. It matches a
+// visible provider of the same kind when neither side pins a mode, or when both
+// pin the same one. Used both to resolve refs and to look up their icons.
+function findVisibleProvider(
+  byKind: ReadonlyMap<string, VisibleProvider[]>,
+  agentKind: string,
+  presentationMode: ThreadPresentationMode | undefined,
+): VisibleProvider | undefined {
+  const candidates = byKind.get(agentKind);
+  if (!candidates) return undefined;
+  return candidates.find(
+    (entry) =>
+      !presentationMode ||
+      !entry.provider.presentationMode ||
+      entry.provider.presentationMode === presentationMode,
+  );
+}
+
 function resolveModelRef(
   ref: ModelRef,
-  visibleProviders: readonly VisibleProvider[],
+  providersByKind: ReadonlyMap<string, VisibleProvider[]>,
 ): ResolvedModelRef | undefined {
-  const visibleProvider = visibleProviders.find((entry) => {
-    if (entry.provider.kind !== ref.agentKind) return false;
-    if (!ref.presentationMode) return true;
-    if (!entry.provider.presentationMode) return true;
-    return entry.provider.presentationMode === ref.presentationMode;
-  });
+  const visibleProvider = findVisibleProvider(providersByKind, ref.agentKind, ref.presentationMode);
   if (!visibleProvider) return undefined;
   const { provider, cache } = visibleProvider;
   const model =
@@ -345,6 +358,12 @@ export function buildProviderModelItems(input: BuildProviderModelItemsInput): Pr
     searchText:
       `${provider.kind}\n${provider.label}\n${providerLabelForPresentation(provider)}`.toLowerCase(),
   }));
+  const visibleProvidersByKind = new Map<string, VisibleProvider[]>();
+  for (const entry of visibleProviderEntries) {
+    const list = visibleProvidersByKind.get(entry.provider.kind);
+    if (list) list.push(entry);
+    else visibleProvidersByKind.set(entry.provider.kind, [entry]);
+  }
   const query = search.trim().toLowerCase();
   const isSearching = query.length > 0;
   const out: ProviderModelItem[] = [];
@@ -387,7 +406,7 @@ export function buildProviderModelItems(input: BuildProviderModelItemsInput): Pr
     });
     const items = dedupedRefs
       .filter((ref) => visibleKinds.has(ref.agentKind))
-      .map((ref) => resolveModelRef(ref, visibleProviderEntries))
+      .map((ref) => resolveModelRef(ref, visibleProvidersByKind))
       .filter((m): m is ResolvedModelRef => m !== undefined)
       .filter((m) => {
         if (!isSearching) return true;
@@ -396,12 +415,10 @@ export function buildProviderModelItems(input: BuildProviderModelItemsInput): Pr
     if (items.length === 0) return;
     out.push({ type: "header-plain", id: `header:${sectionId}`, label: headerLabel });
     for (const m of items) {
-      const visibleProvider = visibleProviderEntries.find(
-        (entry) =>
-          entry.provider.kind === m.ref.agentKind &&
-          (!m.ref.presentationMode ||
-            !entry.provider.presentationMode ||
-            entry.provider.presentationMode === m.ref.presentationMode),
+      const visibleProvider = findVisibleProvider(
+        visibleProvidersByKind,
+        m.ref.agentKind,
+        m.ref.presentationMode,
       );
       const providerIcon = visibleProvider?.provider.icon;
       out.push({

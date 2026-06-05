@@ -6,51 +6,17 @@ import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
 import { getSettingsInstalledAgents } from "@/shared/agentStatus";
 import {
   buildProviderModelItems,
-  statusToMenuProvider,
-  type ProviderModelMenuProvider,
   type ProviderModelItem,
 } from "@/renderer/components/common/ProviderModelMenu";
-import { capabilitiesForPresentation } from "@/renderer/components/thread/threadComposerOptions";
+import { expandAgentToVisibilityProviders } from "@/renderer/components/thread/buildModelPickerControls";
 import { ProviderIcon } from "@/renderer/components/providers/ProviderIcon";
-import {
-  modelVisibilityKey,
-  providerLabelForPresentation,
-  providerMenuKey,
-  providerVisibilityKey,
-} from "@/renderer/components/common/ProviderModelMenu/parts/providerIdentity";
+import { providerVisibilityKey } from "@/renderer/components/common/ProviderModelMenu/parts/providerIdentity";
 
 type SubGroupState = "all" | "some" | "none";
 
 interface ModelEntry {
   providerKey: string;
   modelId: string;
-}
-
-function modelVisibilityProviders(
-  agents: ReturnType<typeof getSettingsInstalledAgents>,
-): ProviderModelMenuProvider[] {
-  return agents.flatMap((agent) => {
-    if (agent.kind !== "cursor") return [statusToMenuProvider(agent)];
-
-    const supported = agent.capabilities.presentationModes ?? [agent.capabilities.presentationMode];
-    return supported
-      .map((presentationMode): ProviderModelMenuProvider => {
-        const provider: ProviderModelMenuProvider = {
-          kind: agent.kind,
-          label: agent.label,
-          presentationMode,
-          ...(agent.icon ? { icon: agent.icon } : {}),
-          modelPickerKey: providerMenuKey({ kind: agent.kind, presentationMode }),
-          hiddenModelsKey: modelVisibilityKey(agent.kind, presentationMode),
-          capabilities: capabilitiesForPresentation(agent.capabilities, presentationMode),
-        };
-        return {
-          ...provider,
-          label: providerLabelForPresentation(provider),
-        };
-      })
-      .filter((provider) => provider.capabilities.models.some((model) => model.id !== "auto"));
-  });
 }
 
 function GroupCheckIcon(props: { state: SubGroupState; className?: string }) {
@@ -180,7 +146,7 @@ export function ModelVisibilitySection() {
   const setHiddenModels = useSharedSettings((s) => s.setHiddenModels);
 
   const installedAgents = getSettingsInstalledAgents(agentStatuses, wslAgentStatuses);
-  const providers = modelVisibilityProviders(installedAgents);
+  const providers = installedAgents.flatMap(expandAgentToVisibilityProviders);
 
   const allModels: ModelEntry[] = [];
   for (const provider of providers) {
