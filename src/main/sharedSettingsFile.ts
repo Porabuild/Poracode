@@ -1,5 +1,5 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { dirname } from "node:path";
+import { existsSync, readFileSync } from "node:fs";
+import { writeFileAtomic } from "@/shared/atomicFile";
 import {
   defaultSharedSettings,
   normalizeSharedSettings,
@@ -23,6 +23,5 @@ export function readSharedSettingsFile(settingsPath: string): SharedSettings {
 }
 
 export function writeSharedSettingsFile(settingsPath: string, settings: SharedSettings): void {
-  mkdirSync(dirname(settingsPath), { recursive: true });
-  writeFileSync(settingsPath, serializeSharedSettings(settings), "utf8");
+  writeFileAtomic(settingsPath, serializeSharedSettings(settings), { encoding: "utf8" });
 }

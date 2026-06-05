@@ -1397,6 +1397,42 @@ describe("sdkCanonicalMapping — sub-agents", () => {
       },
     ]);
   });
+
+  it("drops child-scoped context updates so the composer tracks parent context only", () => {
+    const state = createClaudeMapperState("thread-1");
+    const events = mapClaudeSdkMessage(
+      {
+        type: "system",
+        subtype: "compact_boundary",
+        parent_tool_use_id: "toolu_parent",
+        compact_metadata: { trigger: "auto", pre_tokens: 20_000, post_tokens: 6_000 },
+        session_id: "claude-session",
+      } as unknown as SDKMessage,
+      state,
+    );
+
+    expect(events.some((event) => event.type === "context.updated")).toBe(false);
+    expect(events).toMatchObject([
+      {
+        type: "item.started",
+        itemType: "tool_call",
+        parentItemId: "toolu_parent",
+        payload: {
+          name: "ContextCompaction",
+          status: "success",
+          args: { trigger: "auto", pre_tokens: 20_000, post_tokens: 6_000 },
+        },
+      },
+      {
+        type: "item.completed",
+        payload: {
+          name: "ContextCompaction",
+          status: "success",
+          args: { trigger: "auto", pre_tokens: 20_000, post_tokens: 6_000 },
+        },
+      },
+    ]);
+  });
 });
 
 describe("sdkCanonicalMapping — task progress", () => {
@@ -1432,11 +1468,6 @@ describe("sdkCanonicalMapping — task progress", () => {
 
     expect(events).toMatchObject([
       {
-        type: "context.updated",
-        threadId: "thread-1",
-        usage: { usedTokens: 4200 },
-      },
-      {
         type: "item.updated",
         threadId: "thread-1",
         itemId: "toolu_T1",
@@ -1455,9 +1486,10 @@ describe("sdkCanonicalMapping — task progress", () => {
         },
       },
     ]);
+    expect(events.some((event) => event.type === "context.updated")).toBe(false);
   });
 
-  it("still emits task_progress usage for unknown tool_use_id", () => {
+  it("does not treat task_progress usage as parent context-window usage", () => {
     const state = createClaudeMapperState("thread-1");
     const events = mapClaudeSdkMessage(
       {
@@ -1471,16 +1503,10 @@ describe("sdkCanonicalMapping — task progress", () => {
       } as unknown as SDKMessage,
       state,
     );
-    expect(events).toEqual([
-      {
-        type: "context.updated",
-        threadId: "thread-1",
-        usage: { usedTokens: 1 },
-      },
-    ]);
+    expect(events).toEqual([]);
   });
 
-  it("emits task_notification usage even without a parent tool row", () => {
+  it("does not emit task_notification usage as parent context-window usage", () => {
     const state = createClaudeMapperState("thread-1");
     const events = mapClaudeSdkMessage(
       {
@@ -1494,13 +1520,7 @@ describe("sdkCanonicalMapping — task progress", () => {
       } as unknown as SDKMessage,
       state,
     );
-    expect(events).toEqual([
-      {
-        type: "context.updated",
-        threadId: "thread-1",
-        usage: { usedTokens: 98_765 },
-      },
-    ]);
+    expect(events).toEqual([]);
   });
 
   it("adds deduped task usage to active goal token totals", () => {
@@ -1634,6 +1654,29 @@ describe("sdkCanonicalMapping — context usage", () => {
     });
   });
 
+  it("does not emit placeholder zero-token context usage from a sparse SDK response", () => {
+    const event = mapClaudeContextUsageResponse("thread-1", {
+      categories: [],
+      totalTokens: 0,
+      maxTokens: 1_000_000,
+      rawMaxTokens: 1_000_000,
+      percentage: 0,
+      gridRows: [],
+      model: "claude-opus-4-7[1m]",
+      memoryFiles: [],
+      mcpTools: [],
+      isAutoCompactEnabled: true,
+      agents: [],
+      apiUsage: null,
+    } satisfies SDKControlGetContextUsageResponse);
+
+    expect(event).toEqual({
+      type: "context.updated",
+      threadId: "thread-1",
+      usage: { maxTokens: 1_000_000 },
+    });
+  });
+
   it("does not treat result billing usage as context-window usage", () => {
     const state = createClaudeMapperState("thread-1");
     const events = mapClaudeSdkMessage(
@@ -1699,6 +1742,14 @@ describe("sdkCanonicalMapping — compaction", () => {
           args: { trigger: "manual", pre_tokens: 290000, post_tokens: 9900 },
         },
       },
+      {
+        type: "context.updated",
+        threadId: "thread-1",
+        usage: {
+          usedTokens: 9900,
+          breakdown: [{ id: "current-context", label: "Current context", tokens: 9900 }],
+        },
+      },
     ]);
   });
 
@@ -1729,6 +1780,13 @@ describe("sdkCanonicalMapping — compaction", () => {
           name: "ContextCompaction",
           status: "success",
           args: { trigger: "auto", pre_tokens: 100000, post_tokens: 12000 },
+        },
+      },
+      {
+        type: "context.updated",
+        usage: {
+          usedTokens: 12000,
+          breakdown: [{ id: "current-context", label: "Current context", tokens: 12000 }],
         },
       },
     ]);

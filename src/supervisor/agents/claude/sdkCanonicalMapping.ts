@@ -906,8 +906,6 @@ function applyTaskLifecycle(message: SDKMessage, state: ClaudeMapperState): Runt
     obj.usage && typeof obj.usage === "object"
       ? (obj.usage as { total_tokens?: number; tool_uses?: number; duration_ms?: number })
       : undefined;
-  const contextUsage = contextUsageFromTaskUsage(state.threadId, usage);
-  if (contextUsage) events.push(contextUsage);
   const goalUsage = emitActiveGoalTaskUsageUpdate(state, obj, usage);
   if (goalUsage) events.push(goalUsage);
 
@@ -944,13 +942,22 @@ function applyTaskLifecycle(message: SDKMessage, state: ClaudeMapperState): Runt
   return events;
 }
 
-function contextUsageFromTaskUsage(
+function contextUsageFromCompactionMetadata(
   threadId: string,
-  usage: { total_tokens?: number; tool_uses?: number; duration_ms?: number } | undefined,
+  metadata: unknown,
 ): RuntimeEvent | undefined {
-  const usedTokens = readNonNegativeInteger(usage?.total_tokens);
-  if (usedTokens === undefined || usedTokens <= 0) return undefined;
-  return createContextUsageEvent(threadId, { usedTokens });
+  if (!metadata || typeof metadata !== "object") return undefined;
+  const obj = metadata as Record<string, unknown>;
+  const usedTokens =
+    readNonNegativeInteger(obj.post_tokens) ?? readNonNegativeInteger(obj.postTokens);
+  if (usedTokens === undefined) return undefined;
+  return createContextUsageEvent(threadId, {
+    usedTokens,
+    breakdown:
+      usedTokens > 0
+        ? [{ id: "current-context", label: "Current context", tokens: usedTokens }]
+        : [],
+  });
 }
 
 function emitActiveGoalTaskUsageUpdate(
@@ -1075,33 +1082,34 @@ function tagParent(
   state: ClaudeMapperState,
 ): RuntimeEvent[] {
   if (!parentItemId) return events;
+  const parentScopedEvents = events.filter((event) => event.type !== "context.updated");
   let taggedStarts = 0;
-  for (let i = 0; i < events.length; i += 1) {
-    const event = events[i]!;
+  for (let i = 0; i < parentScopedEvents.length; i += 1) {
+    const event = parentScopedEvents[i]!;
     if (event.type !== "item.started") continue;
     if ("parentItemId" in event && typeof event.parentItemId === "string") continue;
-    events[i] = { ...event, parentItemId };
+    parentScopedEvents[i] = { ...event, parentItemId };
     taggedStarts += 1;
   }
-  if (taggedStarts === 0) return events;
+  if (taggedStarts === 0) return parentScopedEvents;
   // Bump the sub-agent parent's step counter and emit an `item.updated` on the
   // parent so a closed overlay (which gates child events off IPC for perf)
   // still sees the count tick on the pill.
   const parent = state.toolItemsById.get(parentItemId);
-  if (!parent) return events;
+  if (!parent) return parentScopedEvents;
   const prevCount = parent.progress?.stepCount ?? 0;
   const nextProgress: ToolCallProgress = {
     ...(parent.progress ?? {}),
     stepCount: prevCount + taggedStarts,
   };
   parent.progress = nextProgress;
-  events.push({
+  parentScopedEvents.push({
     type: "item.updated",
     threadId: state.threadId,
     itemId: parent.itemId,
     payload: toolPayload(parent, "running"),
   });
-  return events;
+  return parentScopedEvents;
 }
 
 /**
@@ -1341,7 +1349,6 @@ export function mapClaudeContextUsageResponse(
   threadId: string,
   response: SDKControlGetContextUsageResponse,
 ): RuntimeEvent | undefined {
-  const usedTokens = readNonNegativeInteger(response.totalTokens);
   const maxTokens =
     readPositiveInteger(response.maxTokens) ?? readPositiveInteger(response.rawMaxTokens);
   const breakdown = response.categories
@@ -1360,6 +1367,11 @@ export function mapClaudeContextUsageResponse(
       };
     })
     .filter((entry): entry is NonNullable<typeof entry> => entry !== undefined);
+  const rawUsedTokens = readNonNegativeInteger(response.totalTokens);
+  const usedTokens =
+    rawUsedTokens !== undefined && (rawUsedTokens > 0 || breakdown.length > 0)
+      ? rawUsedTokens
+      : undefined;
 
   return createContextUsageEvent(threadId, {
     ...(usedTokens !== undefined ? { usedTokens } : {}),
@@ -1701,6 +1713,8 @@ function mapClaudeSdkMessageInner(
       itemId,
       payload,
     });
+    const contextUsage = contextUsageFromCompactionMetadata(state.threadId, metadata);
+    if (contextUsage) events.push(contextUsage);
     return events;
   }
 

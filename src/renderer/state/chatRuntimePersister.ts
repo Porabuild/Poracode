@@ -60,40 +60,42 @@ export function installRuntimeItemsPersister(): () => void {
   const pendingTimers = new Map<string, ReturnType<typeof setTimeout>>();
   const pendingThreadIds = new Set<string>();
 
+  const flushThread = (threadId: string) => {
+    pendingTimers.delete(threadId);
+    if (!pendingThreadIds.delete(threadId)) return;
+    const snapshot = collectPendingFlush(threadId);
+    if (!snapshot) return;
+    const persisted = prepareRuntimeSnapshotForPersistence(snapshot.items, snapshot.turns);
+    const bridge = readBridge();
+    void bridge
+      .dbReplaceThreadRuntimeSnapshot({
+        threadId,
+        items: persisted.items.map((item) => ({
+          id: item.id,
+          type: item.type,
+          state: item.state,
+          payload: item.payload,
+          streams: item.streams as Record<string, string>,
+          ...(item.parentItemId ? { parentItemId: item.parentItemId } : {}),
+        })),
+        turns: persisted.turns.map((turn) => ({
+          startedAt: new Date(turn.startedAt).toISOString(),
+          endedAt: new Date(turn.endedAt).toISOString(),
+          anchorItemId: turn.anchorItemId,
+        })),
+        contextUsage: snapshot.contextUsage,
+      })
+      .catch((err: unknown) => {
+        console.warn("[chat] failed to persist runtime snapshot for thread %s", threadId, err);
+        captureRendererException(err, { featureArea: "runtime-persistence" });
+      });
+  };
+
   const scheduleFlush = (threadId: string) => {
     pendingThreadIds.add(threadId);
     const existing = pendingTimers.get(threadId);
     if (existing) clearTimeout(existing);
-    const timer = setTimeout(() => {
-      pendingTimers.delete(threadId);
-      if (!pendingThreadIds.delete(threadId)) return;
-      const snapshot = collectPendingFlush(threadId);
-      if (!snapshot) return;
-      const persisted = prepareRuntimeSnapshotForPersistence(snapshot.items, snapshot.turns);
-      const bridge = readBridge();
-      void bridge
-        .dbReplaceThreadRuntimeSnapshot({
-          threadId,
-          items: persisted.items.map((item) => ({
-            id: item.id,
-            type: item.type,
-            state: item.state,
-            payload: item.payload,
-            streams: item.streams as Record<string, string>,
-            ...(item.parentItemId ? { parentItemId: item.parentItemId } : {}),
-          })),
-          turns: persisted.turns.map((turn) => ({
-            startedAt: new Date(turn.startedAt).toISOString(),
-            endedAt: new Date(turn.endedAt).toISOString(),
-            anchorItemId: turn.anchorItemId,
-          })),
-          contextUsage: snapshot.contextUsage,
-        })
-        .catch((err: unknown) => {
-          console.warn("[chat] failed to persist runtime snapshot for thread %s", threadId, err);
-          captureRendererException(err, { featureArea: "runtime-persistence" });
-        });
-    }, FLUSH_DEBOUNCE_MS);
+    const timer = setTimeout(() => flushThread(threadId), FLUSH_DEBOUNCE_MS);
     pendingTimers.set(threadId, timer);
   };
 
@@ -105,9 +107,12 @@ export function installRuntimeItemsPersister(): () => void {
 
   return () => {
     unsubscribe();
+    // Drain pending debounced writes rather than dropping them, so the last
+    // items of a turn that just finished are not lost if teardown happens
+    // within the debounce window.
     for (const timer of pendingTimers.values()) clearTimeout(timer);
     pendingTimers.clear();
-    pendingThreadIds.clear();
+    for (const threadId of [...pendingThreadIds]) flushThread(threadId);
   };
 }
 

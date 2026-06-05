@@ -1,6 +1,18 @@
 import type { PersistStorage, StorageValue } from "zustand/middleware";
 import { readBridge } from "../bridge";
+import { captureRendererException } from "../diagnostics/sentry";
 import type { Project, Thread, AppView } from "@/shared/contracts";
+
+/**
+ * Surface a persistence failure instead of silently dropping it. These writes
+ * are fire-and-forget (Zustand's persist middleware does not retry), so a
+ * swallowed rejection means the user's data was never saved while the UI shows
+ * it as committed. Reporting is the minimum so the loss is observable.
+ */
+function reportPersistError(operation: string, error: unknown): void {
+  console.error(`[lightcode] failed to persist ${operation}:`, error);
+  captureRendererException(error, { featureArea: "app-state-persistence" });
+}
 
 /**
  * Raw string-level storage backend backed by SQLite via IPC.
@@ -36,7 +48,9 @@ const dbStorageBackend = {
     if (name === APP_STORE_NAME) {
       return saveAppStore(value);
     }
-    void readBridge().dbSetState(name, json);
+    readBridge()
+      .dbSetState(name, json)
+      .catch((error) => reportPersistError(`state "${name}"`, error));
   },
 
   async removeItem(name: string): Promise<void> {
@@ -46,7 +60,9 @@ const dbStorageBackend = {
       localStorage.removeItem(name);
       return;
     }
-    void readBridge().dbSetState(name, "");
+    readBridge()
+      .dbSetState(name, "")
+      .catch((error) => reportPersistError(`removal of state "${name}"`, error));
   },
 };
 
@@ -105,16 +121,21 @@ async function saveAppStore(value: StorageValue<unknown>): Promise<void> {
       | undefined;
     if (!state || typeof state !== "object") return;
 
-    void readBridge().dbSyncAll(
-      state.projects ?? [],
-      state.threads ?? [],
-      JSON.stringify(state.view ?? { kind: "home" }),
-    );
+    readBridge()
+      .dbSyncAll(
+        state.projects ?? [],
+        state.threads ?? [],
+        JSON.stringify(state.view ?? { kind: "home" }),
+      )
+      .catch((error) => reportPersistError("projects/threads/view", error));
     if (state.groupLayouts) {
-      void readBridge().dbSetState("groupLayouts", JSON.stringify(state.groupLayouts));
+      readBridge()
+        .dbSetState("groupLayouts", JSON.stringify(state.groupLayouts))
+        .catch((error) => reportPersistError("group layouts", error));
     }
-  } catch {
-    // If parsing fails, skip the write.
+  } catch (error) {
+    // Synchronous failure (e.g. JSON.stringify on a circular structure).
+    reportPersistError("app store", error);
   }
 }
 
