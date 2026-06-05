@@ -70,6 +70,7 @@ function sleep(ms: number): Promise<void> {
 // user sees the generic notice *plus* the real error. The delay only postpones
 // an error message; the error status icon updates synchronously.
 const CODEX_SYSTEM_ERROR_FALLBACK_DELAY_MS = 250;
+const CODEX_RESUME_STATUS_REPLAY_SUPPRESSION_MS = 500;
 
 function spawnAppServer(command: CommandSpec): ChildProcess {
   return spawn(command.command, command.args, {
@@ -87,6 +88,38 @@ function spawnAppServer(command: CommandSpec): ChildProcess {
 
 function toSessionRef(threadId: string): SessionRef {
   return createKnownSessionRef(threadId);
+}
+
+function isPlainActiveStatus(status: CodexThreadStatus): boolean {
+  if (status.type !== "active") {
+    return false;
+  }
+  const flags = new Set(status.activeFlags ?? []);
+  return !flags.has("waitingOnApproval") && !flags.has("waitingOnUserInput");
+}
+
+function readNotificationThreadId(
+  params: Record<string, unknown> | undefined,
+  fallbackThreadId: string | undefined,
+): string | undefined {
+  if (params && typeof params.threadId === "string") {
+    return params.threadId;
+  }
+  const thread =
+    params && typeof params.thread === "object" && params.thread !== null
+      ? (params.thread as Record<string, unknown>)
+      : undefined;
+  if (typeof thread?.id === "string") {
+    return thread.id;
+  }
+  const turn =
+    params && typeof params.turn === "object" && params.turn !== null
+      ? (params.turn as Record<string, unknown>)
+      : undefined;
+  if (typeof turn?.threadId === "string") {
+    return turn.threadId;
+  }
+  return fallbackThreadId;
 }
 
 // ── Structured Session ──────────────────────────────────────────
@@ -141,6 +174,12 @@ export class CodexStructuredSession implements StructuredSessionHandle {
   // arrives first, on the next user turn, or on dispose.
   private pendingSystemErrorFallback: ReturnType<typeof setTimeout> | undefined;
   private mapperState: CodexMapperState | undefined;
+  /**
+   * Codex can report a plain `active` status while `thread/resume` is only
+   * attaching to an existing saved thread. Treat that as history-load noise
+   * until `thread/read` confirms the real remote state.
+   */
+  private readonly resumeActiveStatusSuppressionUntil = new Map<string, number>();
   /**
    * Runtime events emitted before the listener was wired. Replayed on
    * `setListener` — same race as `AcpStructuredSession`.
@@ -225,6 +264,57 @@ export class CodexStructuredSession implements StructuredSessionHandle {
       clearTimeout(this.pendingSystemErrorFallback);
       this.pendingSystemErrorFallback = undefined;
     }
+  }
+
+  private beginResumeActiveStatusSuppression(threadId: string): void {
+    this.resumeActiveStatusSuppressionUntil.set(threadId, Number.POSITIVE_INFINITY);
+  }
+
+  private settleResumeActiveStatusSuppression(
+    threadId: string,
+    confirmedStatus?: CodexThreadStatus,
+  ): void {
+    if (!this.resumeActiveStatusSuppressionUntil.has(threadId)) {
+      return;
+    }
+    if (confirmedStatus && isPlainActiveStatus(confirmedStatus)) {
+      this.resumeActiveStatusSuppressionUntil.delete(threadId);
+      return;
+    }
+    const suppressUntil = Date.now() + CODEX_RESUME_STATUS_REPLAY_SUPPRESSION_MS;
+    this.resumeActiveStatusSuppressionUntil.set(threadId, suppressUntil);
+    setTimeout(() => {
+      if (this.resumeActiveStatusSuppressionUntil.get(threadId) === suppressUntil) {
+        this.resumeActiveStatusSuppressionUntil.delete(threadId);
+      }
+    }, CODEX_RESUME_STATUS_REPLAY_SUPPRESSION_MS);
+  }
+
+  private shouldSuppressResumeActiveStatus(threadId: string, status: CodexThreadStatus): boolean {
+    const suppressUntil = this.resumeActiveStatusSuppressionUntil.get(threadId);
+    if (suppressUntil === undefined) {
+      return false;
+    }
+    if (Date.now() > suppressUntil) {
+      this.resumeActiveStatusSuppressionUntil.delete(threadId);
+      return false;
+    }
+    return isPlainActiveStatus(status);
+  }
+
+  private isResumeReplaySuppressed(threadId: string | undefined): boolean {
+    if (!threadId) {
+      return false;
+    }
+    const suppressUntil = this.resumeActiveStatusSuppressionUntil.get(threadId);
+    if (suppressUntil === undefined) {
+      return false;
+    }
+    if (Date.now() > suppressUntil) {
+      this.resumeActiveStatusSuppressionUntil.delete(threadId);
+      return false;
+    }
+    return true;
   }
 
   private async dispatchCodexGoalCommand(
@@ -370,6 +460,7 @@ export class CodexStructuredSession implements StructuredSessionHandle {
     let threadId: string;
 
     if (sessionRef) {
+      this.beginResumeActiveStatusSuppression(sessionRef.providerSessionId);
       try {
         await this.request("thread/resume", {
           ...threadOverrides,
@@ -380,8 +471,10 @@ export class CodexStructuredSession implements StructuredSessionHandle {
       } catch (error) {
         const msg = error instanceof Error ? error.message : String(error);
         if (!isRecoverableResumeError(msg)) {
+          this.resumeActiveStatusSuppressionUntil.delete(sessionRef.providerSessionId);
           throw error;
         }
+        this.resumeActiveStatusSuppressionUntil.delete(sessionRef.providerSessionId);
         console.log("[codex] thread/resume failed (%s), falling back to thread/start", msg);
         const result = await this.request("thread/start", startParams);
         threadId = extractThreadField(result, "id") ?? "";
@@ -403,6 +496,9 @@ export class CodexStructuredSession implements StructuredSessionHandle {
 
     this.remoteThreadId = threadId;
     this.launchOptions = { ...this.launchOptions, resumeThreadId: threadId };
+    if (sessionRef) {
+      void this.syncRemoteThreadState(threadId, toSessionRef(threadId));
+    }
 
     return threadId;
   }
@@ -492,6 +588,7 @@ export class CodexStructuredSession implements StructuredSessionHandle {
     this.seenErrorMessages.clear();
     this.clearPendingSystemErrorFallback();
     const threadId = await this.waitForRemoteThreadId();
+    this.resumeActiveStatusSuppressionUntil.delete(threadId);
 
     const turnId = `turn-${randomUUID()}`;
     const userItemId = options?.userMessageItemId ?? `user-${turnId}`;
@@ -707,11 +804,15 @@ export class CodexStructuredSession implements StructuredSessionHandle {
         }
 
         const { method, params } = message;
+        const notificationThreadId = readNotificationThreadId(params, this.remoteThreadId);
+        const suppressResumeReplay = this.isResumeReplaySuppressed(notificationThreadId);
 
         // Translate to canonical chat events for chat-mode renderers. Runs
         // alongside the existing status-derivation logic below — terminal mode
         // is unaffected.
-        const runtimeEvents = mapCodexNotification(method, params, this.ensureMapperState());
+        const runtimeEvents = suppressResumeReplay
+          ? []
+          : mapCodexNotification(method, params, this.ensureMapperState());
         if (runtimeEvents.length > 0) this.emitRuntimeEvents(runtimeEvents);
 
         if (method === "thread/started" && params && "thread" in params) {
@@ -729,10 +830,20 @@ export class CodexStructuredSession implements StructuredSessionHandle {
 
           this.remoteThreadId = threadId;
           const nextSessionRef = toSessionRef(threadId);
-          this.currentThreadStatus =
+          const nextStatus: CodexThreadStatus =
             "status" in thread && thread.status && typeof thread.status === "object"
               ? (thread.status as CodexThreadStatus)
               : { type: "idle" };
+          if (this.shouldSuppressResumeActiveStatus(threadId, nextStatus)) {
+            this.listener?.onUpdate({
+              status: "idle",
+              attention: "none",
+              sessionRef: nextSessionRef,
+            });
+            void this.syncRemoteThreadState(threadId, nextSessionRef);
+            return;
+          }
+          this.currentThreadStatus = nextStatus;
           this.emitDerivedUpdate(nextSessionRef);
           void this.syncRemoteThreadState(threadId, nextSessionRef);
           return;
@@ -763,6 +874,9 @@ export class CodexStructuredSession implements StructuredSessionHandle {
             nextStatus.type === "systemError" &&
             this.currentThreadStatus.type !== "systemError" &&
             !this.errorSticky;
+          if (this.shouldSuppressResumeActiveStatus(String(params.threadId), nextStatus)) {
+            return;
+          }
           this.currentThreadStatus = nextStatus;
           this.emitDerivedUpdate();
           if (shouldFallbackEmit) {
@@ -773,6 +887,9 @@ export class CodexStructuredSession implements StructuredSessionHandle {
         }
 
         if (method === "turn/started" && params) {
+          if (suppressResumeReplay) {
+            return;
+          }
           const incomingThreadId =
             "threadId" in params ? String(params.threadId) : this.remoteThreadId;
           if (incomingThreadId && !this.isCurrentThreadNotification(incomingThreadId)) {
@@ -790,6 +907,9 @@ export class CodexStructuredSession implements StructuredSessionHandle {
         }
 
         if ((method === "turn/completed" || method === "turn/aborted") && params) {
+          if (suppressResumeReplay) {
+            return;
+          }
           const incomingThreadId =
             "threadId" in params ? String(params.threadId) : this.remoteThreadId;
           if (!incomingThreadId) return;
@@ -890,6 +1010,7 @@ export class CodexStructuredSession implements StructuredSessionHandle {
   }
 
   private async syncRemoteThreadState(threadId: string, sessionRef?: SessionRef): Promise<void> {
+    let confirmedStatus: CodexThreadStatus | undefined;
     try {
       const result = await this.request("thread/read", {
         threadId,
@@ -906,11 +1027,14 @@ export class CodexStructuredSession implements StructuredSessionHandle {
       }
 
       if ("status" in thread && thread.status && typeof thread.status === "object") {
-        this.currentThreadStatus = thread.status as CodexThreadStatus;
+        confirmedStatus = thread.status as CodexThreadStatus;
+        this.currentThreadStatus = confirmedStatus;
       }
       this.emitDerivedUpdate(sessionRef);
     } catch {
       // Ignore best-effort sync failures and continue using notifications.
+    } finally {
+      this.settleResumeActiveStatusSuppression(threadId, confirmedStatus);
     }
   }
 

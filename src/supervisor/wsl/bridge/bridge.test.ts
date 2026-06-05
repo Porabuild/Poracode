@@ -71,6 +71,26 @@ function closeServer(server: Server): Promise<void> {
   return new Promise((resolve) => server.close(() => resolve()));
 }
 
+function listenLocalServer(server: Server, preferredHost: string): Promise<string> {
+  return new Promise((resolve, reject) => {
+    function listen(host: string) {
+      server.once("error", (error: NodeJS.ErrnoException) => {
+        if (host === preferredHost && error.code === "EADDRNOTAVAIL") {
+          listen("127.0.0.1");
+          return;
+        }
+        reject(error);
+      });
+      server.listen(0, host, () => {
+        const address = server.address();
+        if (!address || typeof address === "string") throw new Error("unexpected address");
+        resolve(`http://${host}:${address.port}`);
+      });
+    }
+    listen(preferredHost);
+  });
+}
+
 async function post(url: string, body: unknown): Promise<{ status: number; body: unknown }> {
   const response = await fetch(url, {
     method: "POST",
@@ -116,13 +136,7 @@ describe("bridge.mjs Browser MCP proxy", () => {
         res.end(JSON.stringify({ jsonrpc: "2.0", id: 1, result: { ok: true } }));
       });
     });
-    upstreamBaseUrl = await new Promise<string>((resolve) => {
-      upstream.listen(0, "127.0.0.2", () => {
-        const address = upstream.address();
-        if (!address || typeof address === "string") throw new Error("unexpected address");
-        resolve(`http://127.0.0.2:${address.port}`);
-      });
-    });
+    upstreamBaseUrl = await listenLocalServer(upstream, "127.0.0.2");
     bridge = await startBridge({
       LIGHTCODE_BROWSER_MCP_URL: upstreamBaseUrl,
       LIGHTCODE_BROWSER_MCP_TOKEN: "upstream-token",

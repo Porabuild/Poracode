@@ -1,7 +1,9 @@
-import { useId, useRef } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { GitFork, GitPullRequest } from "lucide-react";
 import { Tooltip } from "@heroui/react";
 import { useDraggable } from "@dnd-kit/react";
+import { readBridge } from "@/renderer/bridge";
+import { useAppStore } from "@/renderer/state/appStore";
 import { useGitStore } from "@/renderer/state/gitStore";
 import { buildBranchPrKey } from "@/renderer/state/gitSelectors";
 import { useShallow } from "zustand/shallow";
@@ -42,34 +44,89 @@ export function GitBadge(props: {
     element: elementRef,
   });
 
-  const { isRepo, totalInsertions, totalDeletions, prState, checksStatus, canCreatePr } =
-    useGitStore(
-      useShallow((s) => {
-        const gitStatus = props.worktreePath
-          ? s.worktreeStatuses[props.worktreePath]
-          : s.statuses[props.projectId];
-        const pr = props.worktreePath
-          ? s.prData[props.worktreePath]
-          : s.prData[buildBranchPrKey(props.projectId)];
-        const details = pr?.number ? s.prDetails[`${props.projectId}#${pr.number}`] : undefined;
-        const detailsStatus = aggregatePrChecksStatus(details?.checks);
-        const isWorktree = props.worktreePath !== undefined;
-        const hasPr = pr !== undefined && pr !== null && pr.state !== "closed";
-        return {
-          isRepo: gitStatus?.isRepo ?? false,
-          totalInsertions: gitStatus?.totalInsertions ?? 0,
-          totalDeletions: gitStatus?.totalDeletions ?? 0,
-          prState: pr?.state,
-          checksStatus: combineChecksStatus(detailsStatus, pr?.checksStatus),
-          canCreatePr:
-            isWorktree &&
-            (s.ghAvailable[props.projectId] ?? false) &&
-            !hasPr &&
-            Boolean(gitStatus?.tracking) &&
-            (gitStatus?.ahead ?? 0) === 0,
-        };
-      }),
-    );
+  const projectLocation = useAppStore((s) =>
+    props.worktreePath ? undefined : s.projects.find((p) => p.id === props.projectId)?.location,
+  );
+  const [verifiedProjectPrBranch, setVerifiedProjectPrBranch] = useState<string | null>(null);
+  const projectPrKey = buildBranchPrKey(props.projectId);
+
+  const {
+    isRepo,
+    branch,
+    remotePlatform,
+    ghAvailable,
+    totalInsertions,
+    totalDeletions,
+    prState,
+    checksStatus,
+    canCreatePr,
+  } = useGitStore(
+    useShallow((s) => {
+      const gitStatus = props.worktreePath
+        ? s.worktreeStatuses[props.worktreePath]
+        : s.statuses[props.projectId];
+      const currentBranch = gitStatus?.branch ?? "";
+      const pr = props.worktreePath
+        ? s.prData[props.worktreePath]
+        : verifiedProjectPrBranch === currentBranch
+          ? s.prData[projectPrKey]
+          : null;
+      const details = pr?.number ? s.prDetails[`${props.projectId}#${pr.number}`] : undefined;
+      const detailsStatus = aggregatePrChecksStatus(details?.checks);
+      const isWorktree = props.worktreePath !== undefined;
+      const hasPr = pr !== undefined && pr !== null && pr.state !== "closed";
+      return {
+        isRepo: gitStatus?.isRepo ?? false,
+        branch: currentBranch,
+        remotePlatform: gitStatus?.remoteInfo?.platform,
+        ghAvailable: s.ghAvailable[props.projectId] ?? false,
+        totalInsertions: gitStatus?.totalInsertions ?? 0,
+        totalDeletions: gitStatus?.totalDeletions ?? 0,
+        prState: pr?.state,
+        checksStatus: combineChecksStatus(detailsStatus, pr?.checksStatus),
+        canCreatePr:
+          isWorktree &&
+          (s.ghAvailable[props.projectId] ?? false) &&
+          !hasPr &&
+          Boolean(gitStatus?.tracking) &&
+          (gitStatus?.ahead ?? 0) === 0,
+      };
+    }),
+  );
+
+  useEffect(() => {
+    if (props.worktreePath) return;
+    setVerifiedProjectPrBranch(null);
+    useGitStore.getState().setPrData(projectPrKey, null);
+    if (!isRepo || !branch || !projectLocation || !ghAvailable) return;
+    if (remotePlatform !== "github" && remotePlatform !== "unknown") return;
+
+    let isActive = true;
+    readBridge()
+      .ghGetPrForBranch({ projectLocation, branch })
+      .then((pr) => {
+        if (!isActive) return;
+        if (useGitStore.getState().statuses[props.projectId]?.branch !== branch) return;
+        useGitStore.getState().setPrData(projectPrKey, pr);
+        setVerifiedProjectPrBranch(branch);
+      })
+      .catch(() => {
+        if (isActive) setVerifiedProjectPrBranch(branch);
+      });
+    return () => {
+      isActive = false;
+    };
+  }, [
+    props.worktreePath,
+    props.projectId,
+    projectPrKey,
+    isRepo,
+    branch,
+    projectLocation,
+    ghAvailable,
+    remotePlatform,
+  ]);
+
   const hasChanges = totalInsertions > 0 || totalDeletions > 0;
   const isWorktree = props.worktreePath !== undefined;
   const hasVisiblePr =

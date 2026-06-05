@@ -19,6 +19,7 @@ import type { RuntimeEvent } from "@/shared/contracts";
 import { codexIntentFor } from "./plugin/intentMap";
 import { mapCodexModels, mapCodexRequirements, mapCodexSlashCommands } from "./probe";
 import { CodexStdioTransport } from "./stdioTransport";
+import type { StructuredSessionUpdate } from "../base";
 
 describe("deriveCodexStructuredState", () => {
   it("maps active approval state to needs_approval", () => {
@@ -219,6 +220,7 @@ describe("CodexStructuredSession", () => {
     session["isDisposed"] = false;
     session["currentThreadStatus"] = { type: "idle" };
     session["seenErrorMessages"] = new Set<string>();
+    session["resumeActiveStatusSuppressionUntil"] = new Map();
     session["request"] = async (
       method: string,
       params: Record<string, unknown>,
@@ -576,6 +578,7 @@ describe("CodexStructuredSession", () => {
     session["isDisposed"] = false;
     session["currentThreadStatus"] = { type: "idle" };
     session["seenErrorMessages"] = new Set<string>();
+    session["resumeActiveStatusSuppressionUntil"] = new Map();
     session["bufferedRuntimeEvents"] = [];
     session["pendingRequests"] = new Map();
     session["inboundRequests"] = new Map();
@@ -595,6 +598,141 @@ describe("CodexStructuredSession", () => {
     if (!onMessage) throw new Error("transport listener was not attached");
     return { onMessage, runtimeEvents };
   }
+
+  it("does not surface resume-time active status as new work", async () => {
+    const session = Object.create(CodexStructuredSession.prototype) as Record<string, unknown>;
+    const updates: StructuredSessionUpdate[] = [];
+    const runtimeEvents: RuntimeEvent[] = [];
+    const requests: CodexRequestRecord[] = [];
+    let onMessage: ((message: unknown) => void) | undefined;
+    let resolveThreadRead: (value: unknown) => void = () => {};
+    const threadRead = new Promise<unknown>((resolve) => {
+      resolveThreadRead = resolve;
+    });
+
+    session["threadId"] = "local-thread";
+    session["remoteThreadId"] = undefined;
+    session["launchOptions"] = {};
+    session["activated"] = true;
+    session["isDisposed"] = false;
+    session["currentThreadStatus"] = { type: "idle" };
+    session["seenErrorMessages"] = new Set<string>();
+    session["bufferedRuntimeEvents"] = [];
+    session["pendingRequests"] = new Map();
+    session["inboundRequests"] = new Map();
+    session["resumeActiveStatusSuppressionUntil"] = new Map();
+    session["rejectPendingRequests"] = () => {};
+    session["request"] = async (
+      method: string,
+      params: Record<string, unknown>,
+      timeoutMs?: number,
+    ) => {
+      requests.push({
+        method,
+        params,
+        ...(timeoutMs !== undefined ? { timeoutMs } : {}),
+      });
+      if (method === "thread/resume") {
+        onMessage?.({
+          jsonrpc: "2.0",
+          method: "thread/started",
+          params: {
+            thread: {
+              id: "provider-thread",
+              status: { type: "active", activeFlags: [] },
+            },
+          },
+        });
+        return {};
+      }
+      if (method === "thread/read") {
+        return threadRead;
+      }
+      return {};
+    };
+    session["transport"] = {
+      setListener: (next: { onMessage: (message: unknown) => void }) => {
+        onMessage = next.onMessage;
+      },
+      write: () => {},
+    };
+
+    (session["attachTransportHandlers"] as () => void).call(session);
+    await (session as unknown as CodexStructuredSession).openThread(
+      { model: "gpt-5.4" },
+      {
+        providerSessionId: "provider-thread",
+        discoveredAt: "2026-05-10T12:00:00.000Z",
+      },
+    );
+    (session as unknown as CodexStructuredSession).setListener({
+      onClose: () => {},
+      onError: () => {},
+      onUpdate: (update) => updates.push(update),
+      onRuntimeEvent: (event) => runtimeEvents.push(event),
+    });
+
+    expect(updates).toEqual([
+      expect.objectContaining({
+        status: "idle",
+        attention: "none",
+        sessionRef: expect.objectContaining({ providerSessionId: "provider-thread" }),
+      }),
+    ]);
+
+    onMessage?.({
+      jsonrpc: "2.0",
+      method: "turn/started",
+      params: {
+        threadId: "provider-thread",
+        turn: { id: "old-turn", threadId: "provider-thread" },
+      },
+    });
+    onMessage?.({
+      jsonrpc: "2.0",
+      method: "item/started",
+      params: {
+        threadId: "provider-thread",
+        item: {
+          id: "old-assistant",
+          type: "assistant_message",
+          text: "history",
+        },
+      },
+    });
+
+    resolveThreadRead({ thread: { status: { type: "idle" } } });
+    await Promise.resolve();
+    await Promise.resolve();
+
+    onMessage?.({
+      jsonrpc: "2.0",
+      method: "thread/started",
+      params: {
+        thread: {
+          id: "provider-thread",
+          status: { type: "active", activeFlags: [] },
+        },
+      },
+    });
+    onMessage?.({
+      jsonrpc: "2.0",
+      method: "turn/started",
+      params: {
+        threadId: "provider-thread",
+        turn: { id: "late-old-turn", threadId: "provider-thread" },
+      },
+    });
+
+    expect(requests.map((request) => request.method)).toContain("thread/read");
+    expect(runtimeEvents).toEqual([]);
+    expect(updates).not.toContainEqual(
+      expect.objectContaining({
+        status: "working",
+        attention: "working",
+      }),
+    );
+  });
 
   it("collapses a single usage-limit failure into one error event", () => {
     vi.useFakeTimers();
