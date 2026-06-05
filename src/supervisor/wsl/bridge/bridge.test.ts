@@ -76,7 +76,7 @@ function listenLocalServer(server: Server, preferredHost: string): Promise<strin
     function listen(host: string) {
       server.once("error", (error: NodeJS.ErrnoException) => {
         if (host === preferredHost && error.code === "EADDRNOTAVAIL") {
-          listen("127.0.0.1");
+          listen("0.0.0.0");
           return;
         }
         reject(error);
@@ -136,7 +136,7 @@ describe("bridge.mjs Browser MCP proxy", () => {
         res.end(JSON.stringify({ jsonrpc: "2.0", id: 1, result: { ok: true } }));
       });
     });
-    upstreamBaseUrl = await listenLocalServer(upstream, "127.0.0.2");
+    upstreamBaseUrl = await listenLocalServer(upstream, "0.0.0.0");
     bridge = await startBridge({
       LIGHTCODE_BROWSER_MCP_URL: upstreamBaseUrl,
       LIGHTCODE_BROWSER_MCP_TOKEN: "upstream-token",
