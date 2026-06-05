@@ -73,7 +73,7 @@ import {
   USER_INTERRUPT_RECOVERY_GRACE_MS,
 } from "./threadSession/userInterrupt";
 import { writeSubmittedPrompt } from "./threadSession/promptWrite";
-import { getClaudeL2TerminalEnv, resolveTerminalColorEnv } from "./threadSession/terminalEnv";
+import { getIterm2StatusL2TerminalEnv, resolveTerminalColorEnv } from "./threadSession/terminalEnv";
 import {
   hookDebugProjectLabel,
   requireSessionPty,
@@ -1546,7 +1546,7 @@ export class ThreadSessionManager {
     }
     Object.assign(
       agentEnv,
-      getClaudeL2TerminalEnv({
+      getIterm2StatusL2TerminalEnv({
         agentKind: input.agentKind,
         projectLocation: input.projectLocation,
         disableCliHookPlugin: this.readDisableCliHookPlugin(),
@@ -1560,6 +1560,7 @@ export class ThreadSessionManager {
       : undefined;
     let pty;
     if (command) {
+      ensureNodePtySpawnHelperExecutable();
       const ptyEnv = {
         ...sanitizedProcessEnv,
         ...(command.env ?? {}),

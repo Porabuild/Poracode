@@ -47,20 +47,28 @@ export function resolveTerminalColorEnv(location: ProjectLocation): TerminalColo
   return { TERM: FALLBACK_TERM, COLORTERM: "truecolor" };
 }
 
-export function getClaudeL2TerminalEnv(input: {
+const ITERM2_STATUS_ENV = {
+  TERM_PROGRAM: "iTerm.app",
+  TERM_PROGRAM_VERSION: "3.6.6",
+};
+
+export function getIterm2StatusL2TerminalEnv(input: {
   agentKind: AgentKind;
   projectLocation: ProjectLocation;
   disableCliHookPlugin: boolean;
   cliHookEnvInjected: boolean;
 }): Record<string, string> {
-  if (input.agentKind !== "claude") {
+  if (input.agentKind === "copilot") {
+    return ITERM2_STATUS_ENV;
+  }
+
+  if (input.agentKind !== "claude" && input.agentKind !== "gemini") {
     return {};
   }
+
   if (!input.disableCliHookPlugin && input.cliHookEnvInjected) {
     return {};
   }
-  return {
-    TERM_PROGRAM: "iTerm.app",
-    TERM_PROGRAM_VERSION: "3.6.6",
-  };
+
+  return ITERM2_STATUS_ENV;
 }

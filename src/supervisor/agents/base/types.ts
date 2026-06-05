@@ -135,6 +135,7 @@ export interface AgentArgvSpec {
   args: string[];
   env?: Record<string, string>;
   sessionRef?: SessionRef;
+  preferShell?: boolean;
 }
 
 export interface DetectProbeCtx {

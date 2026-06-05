@@ -374,6 +374,11 @@ export class OpencodeSdkSession implements StructuredSessionHandle {
     return Promise.resolve(new OpencodeSdkSession(input));
   }
 
+  private rememberSessionId(id: string): void {
+    this.sessionId = id;
+    this.launchOptions = { ...this.launchOptions, resumeThreadId: id };
+  }
+
   setListener(listener: StructuredSessionListener): void {
     this.listener = listener;
     if (this.bufferedRuntimeEvents.length > 0 && listener.onRuntimeEvent) {
@@ -453,7 +458,7 @@ export class OpencodeSdkSession implements StructuredSessionHandle {
       const existingData = existing.data;
       const id = existingData?.id;
       if (!id) throw new Error("opencode session.get returned no id");
-      this.sessionId = id;
+      this.rememberSessionId(id);
       this.sessionHasPermissionOverride = existingData.permission !== undefined;
       this.appliedPermissionSyncKey = undefined;
       if (this.mapperState) setOpenCodeMainSessionId(this.mapperState, id);
@@ -489,7 +494,7 @@ export class OpencodeSdkSession implements StructuredSessionHandle {
     }
     const id = created.data?.id;
     if (!id) throw new Error("opencode session.create returned no id");
-    this.sessionId = id;
+    this.rememberSessionId(id);
     this.sessionHasPermissionOverride = permission !== undefined;
     this.appliedPermissionSyncKey = this.permissionSyncKey(config);
     if (this.mapperState) setOpenCodeMainSessionId(this.mapperState, id);

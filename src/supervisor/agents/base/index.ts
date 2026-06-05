@@ -327,7 +327,10 @@ export function buildAgentCommand(
  * concerns — all branching lives here.
  */
 export function resolveLaunchSpec(location: ProjectLocation, argv: AgentArgvSpec): CommandSpec {
-  const resolvedExecPath = resolveAgentBinaryPath(location, argv.binary);
+  const resolvedExecPath =
+    argv.preferShell && location.kind === "posix"
+      ? undefined
+      : resolveAgentBinaryPath(location, argv.binary);
   const spec = buildAgentCommand(location, argv.binary, argv.args, resolvedExecPath, argv.env);
   if (argv.sessionRef) {
     spec.sessionRef = argv.sessionRef;

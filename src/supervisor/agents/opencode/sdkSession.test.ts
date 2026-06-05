@@ -88,6 +88,39 @@ describe("OpencodeSdkSession", () => {
     expect(dispose).toHaveBeenCalledTimes(1);
   });
 
+  it("stores the created session id in launch options for terminal TUI handoff", async () => {
+    const dispose = vi.fn<() => Promise<void>>().mockResolvedValue(undefined);
+    mocks.acquireOpenCodeServer.mockResolvedValue({
+      client: {
+        global: { event: vi.fn<() => Promise<{ stream: AsyncGenerator<Event> }>>() },
+        command: { list: vi.fn<() => Promise<{ data: [] }>>().mockResolvedValue({ data: [] }) },
+        session: {
+          create: vi
+            .fn<() => Promise<{ data: { id: string } }>>()
+            .mockResolvedValue({ data: { id: "ses_created" } }),
+        },
+      },
+      baseUrl: "http://127.0.0.1:0",
+      handle: {},
+      dispose,
+    });
+
+    const session = await OpencodeSdkSession.create({
+      threadId: "thread-opencode",
+      projectLocation,
+      config,
+      presentationMode: "terminal",
+    });
+
+    await session.activate();
+    await expect(session.openThread(config)).resolves.toBe("ses_created");
+
+    expect(session.launchOptions.resumeThreadId).toBe("ses_created");
+
+    await session.dispose();
+    expect(dispose).toHaveBeenCalledTimes(1);
+  });
+
   it("restarts the OpenCode server once when session.create loses its connection", async () => {
     const firstDispose = vi.fn<() => Promise<void>>().mockResolvedValue(undefined);
     const secondDispose = vi.fn<() => Promise<void>>().mockResolvedValue(undefined);
