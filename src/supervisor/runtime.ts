@@ -55,6 +55,7 @@ import type {
   GhUpdatePrBranchPayload,
   PrComment,
   GitAbortMergePayload,
+  GitAddRemotePayload,
   GitAddWorktreePayload,
   GitAddWorktreeResult,
   GitBranchListResult,
@@ -69,6 +70,7 @@ import type {
   GitFinishMergeResult,
   GitGetWorktreeSourceBranchPayload,
   GitGetWorktreeSourceBranchResult,
+  GitInitPayload,
   GitProjectSnapshotPayload,
   GitProjectSnapshotResult,
   GitWorktreeStatusBatchPayload,
@@ -893,6 +895,14 @@ export class SupervisorRuntime {
       payload.addAll ?? false,
     );
     return { hash, message: payload.message };
+  }
+
+  async gitInit(payload: GitInitPayload): Promise<void> {
+    return this.gitService.init(payload.projectLocation);
+  }
+
+  async gitAddRemote(payload: GitAddRemotePayload): Promise<void> {
+    return this.gitService.addRemote(payload.projectLocation, payload.remote, payload.url);
   }
 
   async generateCommitMessage(

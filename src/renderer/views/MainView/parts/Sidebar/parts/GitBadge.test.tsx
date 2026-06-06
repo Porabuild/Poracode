@@ -115,14 +115,64 @@ describe("GitBadge", () => {
     expect(icon).toHaveClass("lucide-git-fork");
   });
 
-  it("renders nothing for a clean worktree without the fallback", () => {
+  it("shows a hover affordance for a clean worktree without the fallback", () => {
     useGitStore.setState({
       worktreeStatuses: { "/wt/feature": makeStatus() },
     });
 
     render(<GitBadge projectId="project-1" projectName="feature/pr" worktreePath="/wt/feature" />);
 
-    expect(screen.queryByRole("button", { name: "Git status for feature/pr" })).toBeNull();
+    const badge = screen.getByRole("button", { name: "Git status for feature/pr" });
+    const icon = badge.querySelector("svg");
+
+    expect(badge).toHaveClass("opacity-0");
+    expect(badge).toHaveClass("px-1");
+    expect(badge).toHaveClass("py-0.5");
+    expect(badge).not.toHaveClass("w-[18px]");
+    expect(badge).not.toHaveClass("w-0");
+    expect(icon).not.toBeNull();
+    expect(icon).toHaveClass("lucide-git-branch");
+    expect(screen.getByText("Open Git panel")).toBeInTheDocument();
+  });
+
+  it("shows a not-repo badge after git status reports a non-repo", () => {
+    useGitStore.setState({
+      statuses: {
+        "project-1": makeStatus({
+          isRepo: false,
+          branch: "",
+          tracking: "",
+          hasRemote: false,
+          remoteInfo: null,
+        }),
+      },
+    });
+
+    render(<GitBadge projectId="project-1" projectName="Project" />);
+
+    const badge = screen.getByRole("button", {
+      name: "Git status for Project: not a Git repository",
+    });
+    const icon = badge.querySelector("svg");
+
+    expect(icon).not.toBeNull();
+    expect(icon).toHaveClass("lucide-git-branch-minus");
+    expect(screen.getByText("Not a Git repository")).toBeInTheDocument();
+  });
+
+  it("shows a hover affordance before git status loads", () => {
+    render(<GitBadge projectId="project-1" projectName="Project" />);
+
+    const badge = screen.getByRole("button", { name: "Git status for Project" });
+    const icon = badge.querySelector("svg");
+
+    expect(badge).toHaveClass("opacity-0");
+    expect(badge).toHaveClass("px-1");
+    expect(badge).toHaveClass("py-0.5");
+    expect(badge).not.toHaveClass("w-[18px]");
+    expect(badge).not.toHaveClass("w-0");
+    expect(icon).not.toBeNull();
+    expect(icon).toHaveClass("lucide-git-branch");
   });
 
   it("renders diff stats before the PR icon so the icon stays aligned with the timestamp", () => {
@@ -179,7 +229,9 @@ describe("GitBadge", () => {
 
     render(<GitBadge projectId="project-1" projectName="Project" />);
 
-    expect(screen.queryByRole("button", { name: "Git status for Project" })).toBeNull();
+    const loadingBadge = screen.getByRole("button", { name: "Git status for Project" });
+    expect(loadingBadge.querySelector(".lucide-git-pull-request")).toBeNull();
+    expect(loadingBadge.querySelector(".lucide-git-branch")).not.toBeNull();
     expect(ghGetPrForBranchMock).toHaveBeenCalledWith({
       projectLocation: { kind: "posix", path: "/repo" },
       branch: "feature/current",

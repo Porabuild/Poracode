@@ -14,6 +14,7 @@ import { usePanelStore } from "./panelStore";
 import { useSidebarUiStore } from "./sidebarUiStore";
 import {
   cleanupGitRefreshProjects,
+  getWatcherRefreshMode,
   PR_PENDING_REFRESH_INTERVAL_MS,
   PR_POST_PUSH_STATUS_POLL_MS,
   refreshGitProject,
@@ -451,6 +452,65 @@ describe("watcher git status refresh", () => {
       detail: "full",
     });
     expect(useGitStore.getState().worktreeStatuses["/repo-wt"]).toEqual(worktreeStatus);
+  });
+
+  it("promotes watcher refresh to a full snapshot after a project becomes a Git repo", async () => {
+    const nonRepoStatus: GitStatusResult = {
+      isRepo: false,
+      branch: "",
+      tracking: "",
+      hasRemote: false,
+      remoteInfo: null,
+      ahead: 0,
+      behind: 0,
+      staged: [],
+      unstaged: [],
+      totalInsertions: 0,
+      totalDeletions: 0,
+    };
+    const gitProjectSnapshot = vi
+      .fn<
+        () => Promise<{
+          status: GitStatusResult;
+          branches: { current: string; branches: [] };
+          worktrees: { path: string; branch: string; commit: string; isMain: boolean }[];
+          ghAvailable: boolean;
+        }>
+      >()
+      .mockResolvedValue({
+        status,
+        branches: { current: "feature/pr-checks", branches: [] },
+        worktrees: [{ path: "/repo", branch: "feature/pr-checks", commit: "abc123", isMain: true }],
+        ghAvailable: false,
+      });
+    const getGitStatus = vi.fn<() => Promise<GitStatusResult>>().mockResolvedValue(status);
+    const gitWatchWorktrees = vi.fn<() => Promise<void>>().mockResolvedValue(undefined);
+    Object.defineProperty(window, "lightcode", {
+      configurable: true,
+      value: {
+        platform: "darwin",
+        getGitStatus,
+        gitProjectSnapshot,
+        gitWatchWorktrees,
+      },
+    });
+    useGitStore.getState().setStatus("p1", nonRepoStatus);
+
+    await refreshGitProject(project, "watcher", getWatcherRefreshMode("p1"));
+
+    expect(getGitStatus).not.toHaveBeenCalled();
+    expect(gitProjectSnapshot).toHaveBeenCalledWith({
+      projectLocation: location,
+      includeGhCheck: true,
+    });
+    expect(useGitStore.getState().statuses.p1).toEqual(status);
+    expect(useGitStore.getState().branches.p1).toEqual({
+      current: "feature/pr-checks",
+      branches: [],
+    });
+    expect(useGitStore.getState().worktrees.p1).toEqual([
+      { path: "/repo", branch: "feature/pr-checks", commit: "abc123", isMain: true },
+    ]);
   });
 
   it("keeps thread worktrees watched when a stale full refresh has not listed them yet", async () => {

@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef, useState } from "react";
-import { GitFork, GitPullRequest } from "lucide-react";
+import { GitBranch, GitBranchMinus, GitFork, GitPullRequest } from "lucide-react";
 import { Tooltip } from "@heroui/react";
 import { useDraggable } from "@dnd-kit/react";
 import { readBridge } from "@/renderer/bridge";
@@ -15,6 +15,11 @@ import {
   PR_TONE_TEXT_CLASS,
 } from "@/renderer/utils/prStatus";
 import type { DragSourceData } from "@/renderer/dnd";
+
+const gitBadgeButtonClass =
+  "shrink-0 cursor-grab rounded px-1 py-0.5 transition-colors hover:bg-[var(--row-hover)] hover:text-foreground active:cursor-grabbing";
+const hiddenGitBadgeClass =
+  "opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto focus-visible:opacity-100 focus-visible:pointer-events-auto";
 
 export function GitBadge(props: {
   projectId: string;
@@ -51,6 +56,7 @@ export function GitBadge(props: {
   const projectPrKey = buildBranchPrKey(props.projectId);
 
   const {
+    hasStatus,
     isRepo,
     branch,
     remotePlatform,
@@ -76,6 +82,7 @@ export function GitBadge(props: {
       const isWorktree = props.worktreePath !== undefined;
       const hasPr = pr !== undefined && pr !== null && pr.state !== "closed";
       return {
+        hasStatus: gitStatus !== undefined,
         isRepo: gitStatus?.isRepo ?? false,
         branch: currentBranch,
         remotePlatform: gitStatus?.remoteInfo?.platform,
@@ -129,11 +136,68 @@ export function GitBadge(props: {
 
   const hasChanges = totalInsertions > 0 || totalDeletions > 0;
   const isWorktree = props.worktreePath !== undefined;
+  if (hasStatus && !isRepo) {
+    return (
+      <Tooltip delay={150}>
+        <Tooltip.Trigger>
+          <div
+            ref={elementRef}
+            role="button"
+            tabIndex={0}
+            aria-label={`Git status for ${props.projectName}: not a Git repository`}
+            className={`${gitBadgeButtonClass} ${
+              props.isActive ? "bg-accent/15 ring-1 ring-accent/40" : "text-muted/60"
+            }`}
+            onClick={(e) => {
+              e.stopPropagation();
+              props.onPress?.();
+            }}
+            onKeyDown={(e) =>
+              handleKeyActivate(e, () => props.onPress?.(), { stopPropagation: true })
+            }
+          >
+            <GitBranchMinus className="size-3 shrink-0 text-warning" />
+          </div>
+        </Tooltip.Trigger>
+        <Tooltip.Content placement="right">Not a Git repository</Tooltip.Content>
+      </Tooltip>
+    );
+  }
   const hasVisiblePr =
     prState !== undefined && prState !== "closed" && (prState !== "merged" || isWorktree);
   const showPrIcon = hasVisiblePr || canCreatePr;
   const showWorktreeFork = (props.fallbackToWorktreeIcon ?? false) && isWorktree && !showPrIcon;
-  if (!isRepo || (!hasChanges && !showPrIcon && !showWorktreeFork)) return null;
+  if (!isRepo || (!hasChanges && !showPrIcon && !showWorktreeFork)) {
+    return (
+      <Tooltip delay={150}>
+        <Tooltip.Trigger>
+          <div
+            ref={elementRef}
+            role="button"
+            tabIndex={0}
+            aria-label={`Git status for ${props.projectName}`}
+            className={`${gitBadgeButtonClass} ${
+              props.isActive
+                ? "bg-accent/15 ring-1 ring-accent/40"
+                : `text-muted/60 ${hiddenGitBadgeClass}`
+            }`}
+            onClick={(e) => {
+              e.stopPropagation();
+              props.onPress?.();
+            }}
+            onKeyDown={(e) =>
+              handleKeyActivate(e, () => props.onPress?.(), { stopPropagation: true })
+            }
+          >
+            <span className="flex items-center gap-1 text-[10px] font-medium">
+              <GitBranch className="size-3 shrink-0" />
+            </span>
+          </div>
+        </Tooltip.Trigger>
+        <Tooltip.Content placement="right">Open Git panel</Tooltip.Content>
+      </Tooltip>
+    );
+  }
   const prIconColor = canCreatePr
     ? "text-[color:var(--git-branch-tone)]"
     : PR_TONE_TEXT_CLASS[getPrStatusTone(prState, checksStatus)];

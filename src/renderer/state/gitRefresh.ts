@@ -38,6 +38,10 @@ function getWorktreeStatusDetail(reason: GitRefreshReason): GitStatusDetail {
   return reason === "fetch" || reason === "poll" ? "summary" : "full";
 }
 
+export function getWatcherRefreshMode(projectId: string): GitRefreshMode {
+  return useGitStore.getState().statuses[projectId]?.isRepo === false ? "full" : "status";
+}
+
 type ActiveGitProject = { id: string; location: ProjectLocation };
 
 interface PendingPrRefreshTarget {
@@ -668,8 +672,9 @@ export async function refreshGitProject(
     }
     refreshingProjects.delete(project.id);
     if (pendingWatcherRefreshProjects.delete(project.id)) {
-      console.log(`[git-refresh] rerun project=${project.id} reason=watcher mode=status`);
-      void refreshGitProject(project, "watcher", "status", options);
+      const nextMode = getWatcherRefreshMode(project.id);
+      console.log(`[git-refresh] rerun project=${project.id} reason=watcher mode=${nextMode}`);
+      void refreshGitProject(project, "watcher", nextMode, options);
     }
   }
 }

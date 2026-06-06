@@ -55,6 +55,8 @@ export function createSupervisorIpcHandlers(runtime: SupervisorRuntime): Supervi
     gitUnstageAll: (payload) => runtime.gitUnstageAll(payload),
     gitRevertAll: (payload) => runtime.gitRevertAll(payload),
     gitCommit: (payload) => runtime.gitCommit(payload),
+    gitInit: (payload) => runtime.gitInit(payload),
+    gitAddRemote: (payload) => runtime.gitAddRemote(payload),
     generateCommitMessage: (payload) => runtime.generateCommitMessage(payload),
     generateTitle: (payload) => runtime.generateTitle(payload),
     generatePrSummary: (payload) => runtime.generatePrSummary(payload),

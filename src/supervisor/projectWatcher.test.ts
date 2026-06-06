@@ -166,4 +166,43 @@ describe("ProjectWatcher WSL worktrees", () => {
     expect(onGitChanged).not.toHaveBeenCalled();
     await watcher.dispose();
   });
+
+  it("emits a git change when a WSL project becomes a Git repo", async () => {
+    vi.useFakeTimers();
+    const unsubscribe = vi.fn<() => Promise<void>>(async () => undefined);
+    const watch = vi.fn<WslBridgeClient["watch"]>(async () => ({
+      subscriptionId: "sub",
+      unsubscribe,
+    }));
+    const client = {
+      readFile: vi.fn<WslBridgeClient["readFile"]>(async () => {
+        throw new Error("missing");
+      }),
+      stat: vi.fn<WslBridgeClient["stat"]>(async (_location: WslLocation, paths: string[]) => ({
+        stats: paths.map((path) => ({
+          path,
+          exists: false,
+          isDirectory: false,
+          isFile: false,
+        })),
+      })),
+      watch,
+    } as unknown as WslBridgeClient;
+    const onGitChanged = vi.fn<(projectId: string) => void>();
+    const watcher = new ProjectWatcher({
+      onGitChanged,
+      onTreeChanged: vi.fn<(projectId: string) => void>(),
+    });
+    watcher.setWslClient(client);
+
+    watcher.watch("project-1", makeLocation("/home/demo/work/repo"));
+
+    await vi.waitFor(() => expect(watch).toHaveBeenCalledTimes(1));
+    const onEvent = watch.mock.calls[0]![2];
+    onEvent({ subscriptionId: "sub", scope: "worktree", paths: [".git/HEAD"] });
+    await vi.advanceTimersByTimeAsync(300);
+
+    expect(onGitChanged).toHaveBeenCalledWith("project-1");
+    await watcher.dispose();
+  });
 });

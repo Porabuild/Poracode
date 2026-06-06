@@ -106,12 +106,22 @@ export class GitWorktreeService {
   }
 
   async fetch(location: ProjectLocation, remote: string, prune: boolean): Promise<void> {
-    const remotes = await execGit(location, ["remote"], { timeout: GIT_STATUS_TIMEOUT });
+    let remotes: string;
+    try {
+      remotes = await execGit(location, ["remote"], { timeout: GIT_STATUS_TIMEOUT });
+    } catch (error) {
+      if (error instanceof Error && error.message.includes("not a git repository")) return;
+      throw error;
+    }
     if (!remotes.split(/\r?\n/).includes(remote)) return;
 
     const args = ["fetch", remote];
     if (prune) args.push("--prune");
     await execGit(location, args, { timeout: GIT_NETWORK_TIMEOUT });
+  }
+
+  async addRemote(location: ProjectLocation, remote: string, url: string): Promise<void> {
+    await execGit(location, ["remote", "add", remote, url], { timeout: GIT_STATUS_TIMEOUT });
   }
 
   async pull(location: ProjectLocation, remote: string): Promise<void> {

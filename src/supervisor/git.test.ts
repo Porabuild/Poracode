@@ -405,6 +405,54 @@ describe("GitService.commit", () => {
   });
 });
 
+describe("GitService.init", () => {
+  const location = {
+    kind: "windows" as const,
+    path: "C:\\Users\\demo\\work\\new-project",
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("initializes a repository at the project location", async () => {
+    mockGitCommands(() => ({ stdout: "" }));
+
+    await new GitService().init(location);
+
+    expect(execFileMock).toHaveBeenCalledWith(
+      "git",
+      ["init"],
+      expect.objectContaining({ cwd: location.path }),
+      expect.any(Function),
+    );
+  });
+});
+
+describe("GitService.addRemote", () => {
+  const location = {
+    kind: "windows" as const,
+    path: "C:\\Users\\demo\\work\\new-project",
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("adds a remote at the project location", async () => {
+    mockGitCommands(() => ({ stdout: "" }));
+
+    await new GitService().addRemote(location, "origin", "https://github.com/demo/repo.git");
+
+    expect(execFileMock).toHaveBeenCalledWith(
+      "git",
+      ["remote", "add", "origin", "https://github.com/demo/repo.git"],
+      expect.objectContaining({ cwd: location.path }),
+      expect.any(Function),
+    );
+  });
+});
+
 describe("GitService WSL bridge exec", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -489,6 +537,32 @@ describe("GitService WSL bridge exec", () => {
     }
   });
 
+  it("skips Windows fetch when the path is not a Git repository", async () => {
+    mockGitCommands((args) => {
+      if (args[0] === "remote") {
+        return { error: new Error("fatal: not a git repository") };
+      }
+      return { stdout: "" };
+    });
+
+    await new GitService().fetch(
+      {
+        kind: "windows",
+        path: "C:\\Users\\demo\\work\\not-repo",
+      },
+      "origin",
+      false,
+    );
+
+    expect(execFileMock).toHaveBeenCalledTimes(1);
+    expect(execFileMock).toHaveBeenCalledWith(
+      "git",
+      ["remote"],
+      expect.objectContaining({ cwd: "C:\\Users\\demo\\work\\not-repo" }),
+      expect.any(Function),
+    );
+  });
+
   it("skips WSL fetch when the remote is not configured", async () => {
     const gitExec = vi.fn<
       (location: WslLocation, input: WslGitExecInput) => Promise<WslGitExecResult>
@@ -503,6 +577,41 @@ describe("GitService WSL bridge exec", () => {
           distro: "Ubuntu",
           linuxPath: "/home/demo/work/repo",
           uncPath: "\\\\wsl.localhost\\Ubuntu\\home\\demo\\work\\repo",
+        },
+        "origin",
+        false,
+      );
+
+      expect(gitExec).toHaveBeenCalledTimes(1);
+      expect(gitExec).toHaveBeenCalledWith(
+        expect.objectContaining({ distro: "Ubuntu" }),
+        expect.objectContaining({ args: ["remote"], loginEnv: true }),
+      );
+      expect(execFileMock).not.toHaveBeenCalled();
+    } finally {
+      service.setWslClient(undefined);
+    }
+  });
+
+  it("skips WSL fetch when the path is not a Git repository", async () => {
+    const gitExec = vi.fn<
+      (location: WslLocation, input: WslGitExecInput) => Promise<WslGitExecResult>
+    >(async () => ({
+      ok: false,
+      stdout: "",
+      stderr: "fatal: not a git repository",
+      exitCode: 128,
+    }));
+    const service = new GitService();
+    service.setWslClient({ gitExec } as unknown as WslBridgeClient);
+
+    try {
+      await service.fetch(
+        {
+          kind: "wsl",
+          distro: "Ubuntu",
+          linuxPath: "/home/demo/work/not-repo",
+          uncPath: "\\\\wsl.localhost\\Ubuntu\\home\\demo\\work\\not-repo",
         },
         "origin",
         false,

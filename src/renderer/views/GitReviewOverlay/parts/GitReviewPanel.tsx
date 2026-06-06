@@ -19,6 +19,7 @@ import { BranchSelector } from "@/renderer/components/common";
 import { overlaySidebarSurfaceClass } from "@/renderer/components/layout/sidebarChrome";
 import { SidebarContext } from "@/renderer/views/MainView/parts/AppShell/AppShell";
 import { GitReviewSidebar } from "./GitReviewSidebar/GitReviewSidebar";
+import { addGitRemote, initGitRepository } from "./initGitRepository";
 
 const alwaysExpanded = {
   isCollapsed: false,
@@ -350,6 +351,26 @@ export function GitReviewPanel(props: {
             onClose={onClose}
             refreshKey={refreshKey}
             onRefresh={() => void handleRefresh()}
+            onInitRepository={() =>
+              void initGitRepository({
+                project,
+                effectiveLocation,
+                statusKey,
+                setRefreshing,
+                bumpRefreshKey: () => setRefreshKey((k) => k + 1),
+              })
+            }
+            onAddRemote={(remote, url) =>
+              addGitRemote({
+                project,
+                effectiveLocation,
+                statusKey,
+                remote,
+                url,
+                setRefreshing,
+                bumpRefreshKey: () => setRefreshKey((k) => k + 1),
+              })
+            }
             statusKey={statusKey}
             mode="panel"
             wrapLines={wrapLines}

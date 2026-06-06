@@ -241,6 +241,10 @@ export class GitService {
     return execGit(location, ["diff", "--cached"]);
   }
 
+  async init(location: ProjectLocation): Promise<void> {
+    await execGit(location, ["init"]);
+  }
+
   async getAllDiff(location: ProjectLocation): Promise<string> {
     return execGit(location, ["diff"]);
   }
@@ -262,6 +266,10 @@ export class GitService {
 
   async fetch(location: ProjectLocation, remote: string, prune: boolean): Promise<void> {
     return this.worktreeService.fetch(location, remote, prune);
+  }
+
+  async addRemote(location: ProjectLocation, remote: string, url: string): Promise<void> {
+    return this.worktreeService.addRemote(location, remote, url);
   }
 
   async pull(location: ProjectLocation, remote: string): Promise<void> {

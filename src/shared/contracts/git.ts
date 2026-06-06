@@ -194,6 +194,18 @@ export const gitCommitPayloadSchema = z.object({
 });
 export type GitCommitPayload = z.infer<typeof gitCommitPayloadSchema>;
 
+export const gitInitPayloadSchema = z.object({
+  projectLocation: projectLocationSchema,
+});
+export type GitInitPayload = z.infer<typeof gitInitPayloadSchema>;
+
+export const gitAddRemotePayloadSchema = z.object({
+  projectLocation: projectLocationSchema,
+  remote: z.string().min(1),
+  url: z.string().min(1),
+});
+export type GitAddRemotePayload = z.infer<typeof gitAddRemotePayloadSchema>;
+
 export interface GitCommitResult {
   hash: string;
   message: string;

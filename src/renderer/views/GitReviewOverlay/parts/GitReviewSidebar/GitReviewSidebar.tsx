@@ -3,12 +3,14 @@ import {
   ArrowLeft,
   ChevronDown,
   FileDiff,
+  GitBranchPlus,
   GitMerge,
   GitPullRequest,
+  Link2,
   PanelLeft,
   PanelLeftClose,
 } from "lucide-react";
-import { Button, ButtonGroup, Dropdown, Label } from "@heroui/react";
+import { Button, ButtonGroup, Dropdown, Label, Modal } from "@heroui/react";
 import type { GitBranchInfo, GitStatusResult, Project } from "@/shared/contracts";
 import { getProjectAgentStatuses } from "@/shared/agentStatus";
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
@@ -23,7 +25,7 @@ import {
   useSourceBranch,
 } from "@/renderer/state/gitSelectors";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
-import { SidebarButton } from "@/renderer/components/common";
+import { PixelLoader, SidebarButton } from "@/renderer/components/common";
 import { useScrollFade } from "@/renderer/hooks/useScrollFade";
 import { useSidebar } from "@/renderer/views/MainView/parts/AppShell/AppShell";
 import { getCommitGenCandidates } from "@/renderer/components/providers";
@@ -61,6 +63,8 @@ export function GitReviewSidebar(props: {
   onSelectFile: (path: string | null, staged: boolean) => void;
   onClose: () => void;
   onRefresh: () => void;
+  onInitRepository?: (() => void | Promise<void>) | undefined;
+  onAddRemote?: ((remote: string, url: string) => boolean | Promise<boolean>) | undefined;
   /** Store key for optimistic updates — worktree statusKey or project.id */
   statusKey?: string | undefined;
   mode?: "overlay" | "panel";
@@ -78,6 +82,8 @@ export function GitReviewSidebar(props: {
     onSelectFile,
     onClose,
     onRefresh,
+    onInitRepository,
+    onAddRemote,
     statusKey,
     mode = "overlay",
     wrapLines = false,
@@ -205,6 +211,40 @@ export function GitReviewSidebar(props: {
     showPrSection && ghAvailable && isPushed && sourceBranch && (!prState || prState === "closed"),
   );
   const [createPrModalOpen, setCreatePrModalOpen] = useState(false);
+  const [isInitializingRepo, setIsInitializingRepo] = useState(false);
+  const [addRemoteOpen, setAddRemoteOpen] = useState(false);
+  const [remoteName, setRemoteName] = useState("origin");
+  const [remoteUrl, setRemoteUrl] = useState("");
+  const [isAddingRemote, setIsAddingRemote] = useState(false);
+
+  async function handleInitRepository() {
+    if (!onInitRepository || isInitializingRepo) return;
+    setIsInitializingRepo(true);
+    try {
+      await onInitRepository();
+    } finally {
+      setIsInitializingRepo(false);
+    }
+  }
+
+  async function handleAddRemote() {
+    if (!onAddRemote || isAddingRemote) return;
+    const remote = remoteName.trim();
+    const url = remoteUrl.trim();
+    if (!remote || !url) return;
+
+    setIsAddingRemote(true);
+    try {
+      const ok = await onAddRemote(remote, url);
+      if (ok) {
+        setAddRemoteOpen(false);
+        setRemoteName("origin");
+        setRemoteUrl("");
+      }
+    } finally {
+      setIsAddingRemote(false);
+    }
+  }
 
   return (
     <GitReviewPadXProvider rowPadX="px-2" sectionPadX={mode === "panel" ? "px-2" : "px-0"}>
@@ -304,15 +344,60 @@ export function GitReviewSidebar(props: {
                 wrapLines={wrapLines}
               />
             )}
+            {gitStatus && !gitStatus.isRepo && (
+              <div
+                className={`flex min-h-full flex-col items-center justify-center gap-3 text-center text-xs text-muted/60 ${mode === "panel" ? "px-4" : "px-2"}`}
+              >
+                <span>Not a git repository</span>
+                {onInitRepository && (
+                  <Button
+                    size="sm"
+                    variant="tertiary"
+                    className="justify-center text-white [&_svg]:text-white"
+                    isDisabled={isInitializingRepo}
+                    isPending={isInitializingRepo}
+                    onPress={() => void handleInitRepository()}
+                  >
+                    {({ isPending }) =>
+                      isPending ? (
+                        <PixelLoader size="xs" />
+                      ) : (
+                        <>
+                          <GitBranchPlus className="size-3.5" />
+                          Initialize Repository
+                        </>
+                      )
+                    }
+                  </Button>
+                )}
+              </div>
+            )}
             {gitStatus &&
+              gitStatus.isRepo &&
               gitStatus.staged.length === 0 &&
               gitStatus.unstaged.length === 0 &&
               !mergeConflicting && (
-                <p
-                  className={`py-4 text-center text-xs text-muted/60 ${mode === "panel" ? "px-2" : "px-0"}`}
+                <div
+                  className={`flex min-h-full flex-col items-center justify-center gap-1 text-center text-xs text-muted/60 ${mode === "panel" ? "px-4" : "px-2"}`}
                 >
-                  No changes
-                </p>
+                  <span className="text-foreground/80">Working tree clean</span>
+                  <span>
+                    {hasRemote
+                      ? "File changes will appear here."
+                      : "No remote configured. Add a remote to enable push and pull."}
+                  </span>
+                  {!hasRemote && onAddRemote && (
+                    <Button
+                      size="sm"
+                      variant="tertiary"
+                      className="mt-2 justify-center text-white [&_svg]:text-white"
+                      onPress={() => setAddRemoteOpen(true)}
+                    >
+                      <Link2 className="size-3.5" />
+                      Add Remote
+                    </Button>
+                  )}
+                </div>
               )}
           </div>
 
@@ -442,6 +527,64 @@ export function GitReviewSidebar(props: {
             handleCreatePr={handleCreatePr}
             handleGeneratePrSummary={handleGeneratePrSummary}
           />
+
+          {addRemoteOpen && (
+            <Modal.Backdrop isOpen={addRemoteOpen} onOpenChange={setAddRemoteOpen}>
+              <Modal.Container>
+                <Modal.Dialog className="sm:max-w-[420px]">
+                  <Modal.CloseTrigger />
+                  <Modal.Header>
+                    <Modal.Heading>Add Remote</Modal.Heading>
+                  </Modal.Header>
+                  <Modal.Body className="p-4">
+                    <div className="flex flex-col gap-3">
+                      <label className="flex flex-col gap-1 text-xs text-muted">
+                        <span>Remote name</span>
+                        <input
+                          className="h-8 rounded-md border border-[color:var(--border)] bg-surface px-2 text-xs text-foreground outline-none transition-colors placeholder:text-muted/50 focus:border-foreground/40"
+                          value={remoteName}
+                          onChange={(event) => setRemoteName(event.target.value)}
+                        />
+                      </label>
+                      <label className="flex flex-col gap-1 text-xs text-muted">
+                        <span>Remote URL</span>
+                        <input
+                          className="h-8 rounded-md border border-[color:var(--border)] bg-surface px-2 text-xs text-foreground outline-none transition-colors placeholder:text-muted/50 focus:border-foreground/40"
+                          placeholder="git@github.com:owner/repo.git"
+                          value={remoteUrl}
+                          onChange={(event) => setRemoteUrl(event.target.value)}
+                          onKeyDown={(event) => {
+                            if (event.key === "Enter") {
+                              event.preventDefault();
+                              void handleAddRemote();
+                            }
+                          }}
+                        />
+                      </label>
+                    </div>
+                  </Modal.Body>
+                  <Modal.Footer>
+                    <Button slot="close" variant="ghost" className="text-muted">
+                      Cancel
+                    </Button>
+                    <Button
+                      variant="tertiary"
+                      isDisabled={isAddingRemote || !remoteName.trim() || !remoteUrl.trim()}
+                      isPending={isAddingRemote}
+                      onPress={() => void handleAddRemote()}
+                    >
+                      {({ isPending }) => (
+                        <>
+                          {isPending ? <PixelLoader size="xs" /> : <Link2 className="size-3.5" />}
+                          Add Remote
+                        </>
+                      )}
+                    </Button>
+                  </Modal.Footer>
+                </Modal.Dialog>
+              </Modal.Container>
+            </Modal.Backdrop>
+          )}
 
           {mode !== "panel" && (
             <div className={sidebarFooterNavClass}>
