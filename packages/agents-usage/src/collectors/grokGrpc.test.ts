@@ -1,47 +1,67 @@
 import { describe, expect, it } from "vitest";
-import { decodeProto, extractGrokBilling, unframeGrpcWebText } from "./grokGrpc";
+import { parseGrokGrpcBillingResponse } from "./grokGrpc";
 
-// Real `GetGrokBuildBillingConfig` message captured live from a SuperGrok
-// account showing "25% used · Resets May 31" (base64 of the unframed protobuf):
-// config.monthlyLimit=20000, used=4933, periodStart=2026-05-01, periodEnd=2026-05-31.
-const REAL_MESSAGE_B64 =
-  "CkoKBAignAESAwjFJhoAIgYIgNrPzwYqBgiAl/PQBjINCgUI6g8QBBIAGgAiADINCgUI6g8QAxIAGgAiADINCgUI6g8QAhIAGgAiAA==";
-const REAL_MESSAGE = Uint8Array.from(Buffer.from(REAL_MESSAGE_B64, "base64"));
+const NOW_MS = 1_768_000_000_000;
 
-/** Wrap a message in a gRPC-web data frame and base64-encode it (grpc-web-text). */
-function frameToBase64(message: Uint8Array): string {
-  const len = message.length;
-  const header = [0x00, (len >> 24) & 0xff, (len >> 16) & 0xff, (len >> 8) & 0xff, len & 0xff];
-  return Buffer.from(Uint8Array.from([...header, ...message])).toString("base64");
+function varint(value: number): number[] {
+  const out: number[] = [];
+  let next = value >>> 0;
+  while (next >= 0x80) {
+    out.push((next & 0x7f) | 0x80);
+    next >>>= 7;
+  }
+  out.push(next);
+  return out;
+}
+
+function frame(message: Uint8Array, flags = 0): Uint8Array {
+  const header = Buffer.alloc(5);
+  header[0] = flags;
+  header.writeUInt32BE(message.length, 1);
+  return Uint8Array.from(Buffer.concat([header, message]));
+}
+
+function creditsPayload(usedPercent: number, resetEpoch: number): Uint8Array {
+  const percent = Buffer.alloc(4);
+  percent.writeFloatLE(usedPercent, 0);
+  return Uint8Array.from([0x0d, ...percent, 0x10, ...varint(resetEpoch)]);
 }
 
 describe("grok gRPC-web parsing", () => {
-  it("decodes the top-level config message", () => {
-    const fields = decodeProto(REAL_MESSAGE);
-    expect(fields[0]!.field).toBe(1);
-    expect(fields[0]!.type).toBe("len");
-  });
-
-  it("unframes a grpc-web-text body back to the message", () => {
-    const recovered = unframeGrpcWebText(frameToBase64(REAL_MESSAGE));
-    expect(recovered).toEqual(REAL_MESSAGE);
-  });
-
-  it("extracts used/limit credits and the period reset from the live fixture", () => {
-    const billing = extractGrokBilling(REAL_MESSAGE, 1_780_186_184_382);
-    expect(billing.limit).toBe(20000);
-    expect(billing.used).toBe(4933);
-    // periodEnd 1780272000s → ms; periodStart 1777593600s → ms (31-day cycle).
-    expect(billing.resetsAt).toBe(1_780_272_000_000);
-    expect(billing.periodStartMs).toBe(1_777_593_600_000);
-    // 4933 / 20000 ≈ 24.7% used.
-    expect(Math.round((billing.used! / billing.limit!) * 100)).toBe(25);
-  });
-
-  it("returns undefined when there is no complete data frame", () => {
-    expect(unframeGrpcWebText(Buffer.from([0, 0, 0]).toString("base64"))).toBeUndefined();
+  it("extracts usage percent and reset from the credits response", () => {
     expect(
-      unframeGrpcWebText(Buffer.from([0, 0, 0, 0, 9, 1, 2]).toString("base64")),
-    ).toBeUndefined();
+      parseGrokGrpcBillingResponse({
+        headers: {},
+        bodyBytes: frame(creditsPayload(42.5, 1_800_000_000)),
+        nowMs: NOW_MS,
+      }),
+    ).toEqual({
+      kind: "ok",
+      billing: { usedPercent: 42.5, resetsAt: 1_800_000_000_000 },
+    });
+  });
+
+  it("parses no-usage-yet responses as zero percent", () => {
+    const bodyBytes = Uint8Array.from([
+      0x00, 0x00, 0x00, 0x00, 0x37, 0x0a, 0x35, 0x12, 0x00, 0x1a, 0x00, 0x22, 0x06, 0x08, 0x80,
+      0xda, 0xcf, 0xcf, 0x06, 0x2a, 0x06, 0x08, 0x80, 0x97, 0xf3, 0xd0, 0x06, 0x32, 0x09, 0x0a,
+      0x05, 0x08, 0xea, 0x0f, 0x10, 0x04, 0x12, 0x00, 0x32, 0x09, 0x0a, 0x05, 0x08, 0xea, 0x0f,
+      0x10, 0x03, 0x12, 0x00, 0x32, 0x09, 0x0a, 0x05, 0x08, 0xea, 0x0f, 0x10, 0x02, 0x12, 0x00,
+    ]);
+
+    expect(parseGrokGrpcBillingResponse({ headers: {}, bodyBytes, nowMs: NOW_MS })).toEqual({
+      kind: "ok",
+      billing: { usedPercent: 0, resetsAt: 1_780_272_000_000 },
+    });
+  });
+
+  it("turns grpc unauthenticated trailers into auth-missing", () => {
+    const result = parseGrokGrpcBillingResponse({
+      headers: {},
+      bodyBytes: frame(Buffer.from("grpc-status: 16\r\ngrpc-message: token%20expired\r\n"), 0x80),
+      nowMs: NOW_MS,
+    });
+
+    expect(result).toEqual({ kind: "unauthenticated" });
   });
 });

@@ -47,12 +47,13 @@ describe("WorkflowResultGroup", () => {
     expect(getTopTriggerText()).toContain("2 results");
   });
 
-  it("renders plain text inline without a group disclosure", () => {
-    render(
+  it("renders plain text in a message surface without a group disclosure", () => {
+    const { container } = render(
       <WorkflowResultGroup resultText="Workflow launched in background. Task ID: wikw7toud" />,
     );
     expect(screen.queryByRole("button")).toBeNull();
     expect(screen.getByText(/Workflow launched in background/)).toBeInTheDocument();
+    expect(container.firstElementChild).toHaveClass("rounded-3xl", "px-3", "py-2");
   });
 
   it("renders nothing for a tool_use_error block — error is surfaced via tooltip on the row icon", () => {

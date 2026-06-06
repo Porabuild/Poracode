@@ -66,7 +66,7 @@ export function getPrStatusTone(
 }
 
 export const PR_TONE_BG_CLASS: Record<PrStatusTone, string> = {
-  merged: "bg-purple-400",
+  merged: "bg-[var(--pr-merged)]",
   draft: "bg-gray-400",
   danger: "bg-danger",
   warning: "bg-warning",
@@ -74,7 +74,7 @@ export const PR_TONE_BG_CLASS: Record<PrStatusTone, string> = {
 };
 
 export const PR_TONE_TEXT_CLASS: Record<PrStatusTone, string> = {
-  merged: "text-purple-400",
+  merged: "text-[color:var(--pr-merged)]",
   draft: "text-gray-400",
   danger: "text-danger",
   warning: "text-warning",

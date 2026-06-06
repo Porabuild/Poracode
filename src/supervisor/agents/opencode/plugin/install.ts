@@ -13,8 +13,7 @@ import { fileURLToPath } from "node:url";
 import type { ProjectLocation } from "@/shared/contracts";
 import { toWslUncPath } from "@/shared/wsl";
 import type { BrowserMcpHttpConfig } from "@/supervisor/agents/browserMcp";
-import type { AgentEnvContext } from "../../base";
-import { resolveWslHomeDirectory } from "../../base";
+import { getCachedWslHomeDirectory, type AgentEnvContext } from "../../base";
 import { BROWSER_MCP_SERVER_NAME } from "../../browserMcp";
 import {
   copyPluginAssetsIfStale,
@@ -149,7 +148,7 @@ function resolveOpenCodeNativePluginsDir(): string {
 function resolveOpenCodeWslConfigDir(
   distro: string,
 ): { linuxDir: string; uncDir: string } | undefined {
-  const home = resolveWslHomeDirectory(distro);
+  const home = getCachedWslHomeDirectory(distro);
   if (!home) return undefined;
   const linuxDir = `${home}/.config/opencode`;
   return { linuxDir, uncDir: toWslUncPath(distro, linuxDir) };

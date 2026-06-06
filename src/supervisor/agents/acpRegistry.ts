@@ -1,14 +1,7 @@
 import { execFile } from "node:child_process";
 import { homedir } from "node:os";
-import {
-  copyFileSync,
-  chmodSync,
-  existsSync,
-  mkdirSync,
-  rmSync,
-  readFileSync,
-  writeFileSync,
-} from "node:fs";
+import { copyFileSync, chmodSync, existsSync, mkdirSync, rmSync, readFileSync } from "node:fs";
+import { writeFileAtomic } from "@/shared/atomicFile";
 import { basename, dirname, join } from "node:path";
 import { promisify } from "node:util";
 import {
@@ -205,9 +198,8 @@ export function readAcpRegistrySettings(settingsPath: string): SharedSettings {
 }
 
 function writeAcpRegistrySettings(settingsPath: string, settings: SharedSettings): void {
-  mkdirSync(dirname(settingsPath), { recursive: true });
   const encrypted = transformSensitiveAgentSecrets(settings, dirname(settingsPath), encryptSecret);
-  writeFileSync(settingsPath, JSON.stringify(encrypted, null, 2), "utf8");
+  writeFileAtomic(settingsPath, JSON.stringify(encrypted, null, 2), { encoding: "utf8" });
 }
 
 function registryInstallRecord(

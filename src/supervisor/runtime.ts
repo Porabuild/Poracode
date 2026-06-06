@@ -174,11 +174,12 @@ import {
 } from "./agents/acpRegistry";
 import { prefetchNativeNodeRuntime } from "./runtime/prefetchNativeNode";
 import {
-  readWslCommandOutputAsync,
   setSessionFsBridgeClient,
+  setWslProcessBridgeClient,
   type AgentAdapter,
   type AgentEnvContext,
 } from "./agents/base";
+import { setWslAttachmentBridgeClient } from "./runtime/threadAttachments";
 import { getLatestVersionForAdapter, runUpdateCommandWithFallback } from "./agents/updateAgent";
 import { clearAgentBinaryPathCache } from "./agents/binaryResolver";
 import { generateCommitMessage } from "./commitMessageGenerator";
@@ -198,6 +199,7 @@ import { detectWindowsShell, type WindowsShellPreference } from "./shellPreferen
 import { readSshCommandOutput, SshBrowserMcpTunnelManager } from "./ssh";
 import { generateTitle } from "./titleGenerator";
 import { AgentStatusService, detectWslAgentStatuses } from "./runtime/agentStatusService";
+import { createLocalUsageCollectors } from "./runtime/localUsageCollectors";
 import { UsageService } from "./runtime/usageService";
 import { type SessionRuntime, type ShellSessionRuntime } from "./runtime/sessionTypes";
 import { ThreadSessionManager, writeSubmittedPrompt } from "./runtime/threadSessionManager";
@@ -296,14 +298,6 @@ export class SupervisorRuntime {
       emit,
     });
 
-    this.usageService = new UsageService({
-      emit,
-      cachePath: join(paths.cacheDir, "provider-usage.json"),
-      cacheDir: paths.cacheDir,
-      settingsPath: this.settingsPath,
-    });
-    this.usageService.startAutoRefresh();
-
     // Boot the CLI hook plugin coordinator BEFORE the thread session manager so
     // the manager can pull `resolvePluginEnvForSpawn` off it. The coordinator
     // owns the singleton hook ingress; `startIngress()` is non-blocking — the
@@ -390,8 +384,11 @@ export class SupervisorRuntime {
       this.gitService.setWslClient(client);
       this.gitCheckpointService.setWslClient(client);
       this.projectTreeService.setWslClient(client);
+      this.githubService.setWslClient(client);
       this._projectWatcher?.setWslClient(client);
       setSessionFsBridgeClient(client);
+      setWslProcessBridgeClient(client);
+      setWslAttachmentBridgeClient(client);
     }
 
     this.cliHookPluginCoordinator.startIngress();
@@ -415,6 +412,17 @@ export class SupervisorRuntime {
     this.sessions = this.threadSessionManager.sessions;
     this.shellSessions = this.threadSessionManager.shellSessions;
 
+    this.usageService = new UsageService({
+      emit,
+      cachePath: join(paths.cacheDir, "provider-usage.json"),
+      cacheDir: paths.cacheDir,
+      settingsPath: this.settingsPath,
+      localCollectors: createLocalUsageCollectors({
+        getActiveAntigravityWslDistros: () => this.getActiveAntigravityWslDistros(),
+      }),
+    });
+    this.usageService.startAutoRefresh();
+
     // One-time-per-machine icon repair: localize any acp-generic icon still on
     // a remote CDN URL so sidebar rows paint from disk instead of flickering
     // through a network round-trip on every start. No-op (no network) once all
@@ -424,6 +432,17 @@ export class SupervisorRuntime {
 
   async listWslDistros(): Promise<string[]> {
     return this.agentStatusService.listWslDistros();
+  }
+
+  /** Distinct WSL distros hosting a live `antigravity` session (the only
+   * locations the usage scanner needs — native scanning is host-wide). */
+  private getActiveAntigravityWslDistros(): string[] {
+    const distros = new Set<string>();
+    for (const session of this.sessions.values()) {
+      if (session.agentKind !== "antigravity" || session.ptyExited) continue;
+      if (session.projectLocation.kind === "wsl") distros.add(session.projectLocation.distro);
+    }
+    return [...distros];
   }
 
   /**
@@ -800,6 +819,7 @@ export class SupervisorRuntime {
       manifestPath: payload.manifestPath,
       location: payload.location,
       ...(payload.transcriptDir ? { transcriptDir: payload.transcriptDir } : {}),
+      ...(payload.includeAgentChats ? { includeAgentChats: true } : {}),
     });
     return { run };
   }
@@ -1128,6 +1148,7 @@ export class SupervisorRuntime {
     const statuses = await this.gitService.getWorktreeStatusBatch(
       payload.projectLocation,
       payload.worktreePaths,
+      payload.detail ?? "full",
     );
     return { statuses };
   }
@@ -1316,20 +1337,12 @@ export class SupervisorRuntime {
 
     const location = payload.projectLocation;
     if (location.kind === "wsl") {
-      const checks = candidates.map(
-        (candidate) =>
-          `test -f "${joinProjectPosixPath(location, candidate.file)}" && echo yes || echo no`,
-      );
-      const result = await readWslCommandOutputAsync(location.distro, "sh", [
-        "-c",
-        checks.join(" && echo '---' && "),
-      ]);
-      if (result.ok) {
-        const answers = result.stdout.split("---").map((value) => value.trim());
-        for (let index = 0; index < candidates.length; index += 1) {
-          if (answers[index] === "yes") {
-            return { setupScript: candidates[index]!.command };
-          }
+      if (!this.wslBridgeClient) return {};
+      const paths = candidates.map((candidate) => joinProjectPosixPath(location, candidate.file));
+      const { stats } = await this.wslBridgeClient.stat(location, paths);
+      for (let index = 0; index < candidates.length; index += 1) {
+        if (stats[index]?.isFile) {
+          return { setupScript: candidates[index]!.command };
         }
       }
       return {};

@@ -1,10 +1,9 @@
 import { randomInt } from "node:crypto";
 import { dirname as posixDirname } from "node:path/posix";
 import type { ProjectLocation, ThreadConfig } from "@/shared/contracts";
-import { buildAgentCommand, getWslCommand, type CommandSpec } from "../base";
+import { buildAgentCommand, DEFAULT_WSL_EXEC_PATH, getWslCommand, type CommandSpec } from "../base";
 import { buildSshForwardedCommand } from "../../ssh";
 
-const DEFAULT_WSL_EXEC_PATH = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin";
 export const OPENCODE_LOCAL_BASE_URL_ENV = "LIGHTCODE_OPENCODE_LOCAL_BASE_URL";
 
 // `opencode` (default TUI) only accepts `[project]` as a positional, so the

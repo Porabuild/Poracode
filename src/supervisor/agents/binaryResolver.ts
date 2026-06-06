@@ -1,6 +1,6 @@
 import { statSync } from "node:fs";
 import type { ProjectLocation } from "@/shared/contracts";
-import { getCachedExecutablePath, resolveExecutablePath, resolveWslExecutablePath } from "./base";
+import { getCachedExecutablePath, resolveExecutablePath } from "./base";
 
 // Single process-wide cache, keyed by `${distro}\0${binary}`.
 // Replaces per-adapter `detectedWslExecPaths` maps so detection probes and
@@ -32,12 +32,7 @@ export function resolveAgentBinaryPath(
   }
   if (location.kind === "wsl") {
     const key = keyOf(location.distro, binary);
-    if (cache.has(key)) {
-      return cache.get(key);
-    }
-    const resolved = resolveWslExecutablePath(location.distro, binary);
-    cache.set(key, resolved);
-    return resolved;
+    return cache.get(key);
   }
   if (location.kind === "ssh") {
     return undefined;

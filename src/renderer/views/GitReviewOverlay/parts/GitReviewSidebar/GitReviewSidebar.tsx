@@ -1,6 +1,14 @@
 import { useState } from "react";
-import { ArrowLeft, FileDiff, GitPullRequest, PanelLeft, PanelLeftClose } from "lucide-react";
-import { Button } from "@heroui/react";
+import {
+  ArrowLeft,
+  ChevronDown,
+  FileDiff,
+  GitMerge,
+  GitPullRequest,
+  PanelLeft,
+  PanelLeftClose,
+} from "lucide-react";
+import { Button, ButtonGroup, Dropdown, Label } from "@heroui/react";
 import type { GitBranchInfo, GitStatusResult, Project } from "@/shared/contracts";
 import { getProjectAgentStatuses } from "@/shared/agentStatus";
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
@@ -36,7 +44,6 @@ import { ConflictResolutionActions } from "./parts/ConflictResolutionActions";
 import { CommitSyncPanel } from "./parts/CommitSyncPanel";
 import { PrSection } from "./parts/PrSection";
 import { CreatePrModal } from "./parts/CreatePrModal";
-import { MergeToSourceSection } from "./parts/MergeToSourceSection";
 import { GitReviewSection } from "./parts/GitReviewSection";
 import { GitReviewPadXProvider } from "./gitReviewPadXContext";
 
@@ -110,7 +117,7 @@ export function GitReviewSidebar(props: {
   const mergeConflicting = gitStatus?.mergeInProgress ?? false;
   const mergeConflictFiles = gitStatus?.conflictFiles ?? [];
 
-  const { sourceBranchLoading } = useSourceBranchData({
+  useSourceBranchData({
     project,
     effectiveBranch,
     effectivePrKey,
@@ -191,8 +198,8 @@ export function GitReviewSidebar(props: {
   const behind = gitStatus?.behind ?? 0;
   const needsPush = hasTracking ? ahead > 0 && behind === 0 : hasRemote;
 
-  const showMergeSection = Boolean(
-    worktreeBranch && worktreePath && !hasAnyChanges && (sourceBranchLoading || commitsAhead > 0),
+  const showMergeActions = Boolean(
+    worktreeBranch && worktreePath && !hasAnyChanges && sourceBranch && commitsAhead > 0,
   );
   const showPullFromSource = Boolean(effectiveBranch && sourceBranch && sourceAhead > 0);
   const isPushed = hasTracking && ahead === 0;
@@ -363,14 +370,59 @@ export function GitReviewSidebar(props: {
 
           {showCreatePrButton && (
             <GitReviewSection>
-              <Button
-                variant="tertiary"
-                className="w-full"
-                onPress={() => setCreatePrModalOpen(true)}
-              >
-                <GitPullRequest className="size-3.5" />
-                Create Pull Request
-              </Button>
+              {showMergeActions ? (
+                <ButtonGroup className="w-full">
+                  <Button
+                    variant="tertiary"
+                    className="flex-1"
+                    onPress={() => setCreatePrModalOpen(true)}
+                  >
+                    <GitPullRequest className="size-3.5" />
+                    Create Pull Request
+                  </Button>
+                  <Dropdown>
+                    <Button
+                      isIconOnly
+                      variant="tertiary"
+                      aria-label="More pull request options"
+                      isDisabled={isMerging}
+                    >
+                      <ButtonGroup.Separator />
+                      <ChevronDown className="size-3.5" />
+                    </Button>
+                    <Dropdown.Popover placement="top end">
+                      <Dropdown.Menu
+                        aria-label="Pull request options"
+                        onAction={(key) => {
+                          if (key === "merge-only") void handleMergeOnly();
+                          if (key === "merge-and-remove") void handleMergeAndRemove();
+                        }}
+                      >
+                        <Dropdown.Item id="merge-only" textValue="Merge Worktree">
+                          <GitMerge className="size-3.5" />
+                          <Label>Merge Worktree</Label>
+                        </Dropdown.Item>
+                        <Dropdown.Item
+                          id="merge-and-remove"
+                          textValue="Merge Locally & Remove Worktree"
+                        >
+                          <GitMerge className="size-3.5" />
+                          <Label>Merge Locally & Remove Worktree</Label>
+                        </Dropdown.Item>
+                      </Dropdown.Menu>
+                    </Dropdown.Popover>
+                  </Dropdown>
+                </ButtonGroup>
+              ) : (
+                <Button
+                  variant="tertiary"
+                  className="w-full"
+                  onPress={() => setCreatePrModalOpen(true)}
+                >
+                  <GitPullRequest className="size-3.5" />
+                  Create Pull Request
+                </Button>
+              )}
             </GitReviewSection>
           )}
 
@@ -392,18 +444,6 @@ export function GitReviewSidebar(props: {
             handleCreatePr={handleCreatePr}
             handleGeneratePrSummary={handleGeneratePrSummary}
           />
-
-          {showMergeSection && (
-            <MergeToSourceSection
-              sourceBranchLoading={sourceBranchLoading}
-              sourceBranch={sourceBranch}
-              worktreeBranch={worktreeBranch}
-              commitsAhead={commitsAhead}
-              isMerging={isMerging}
-              handleMergeAndRemove={handleMergeAndRemove}
-              handleMergeOnly={handleMergeOnly}
-            />
-          )}
 
           {mode !== "panel" && (
             <div className={sidebarFooterNavClass}>

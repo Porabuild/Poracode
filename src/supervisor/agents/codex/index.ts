@@ -6,6 +6,7 @@ import {
   buildAgentLogoutCommand,
   createKnownSessionRef,
   detectAgentInstall,
+  detectProbeLocation,
   getOscNotificationText,
   watchSessionPaths,
   type AgentAdapter,
@@ -15,7 +16,7 @@ import {
 import { resolveAgentBinaryPath } from "../binaryResolver";
 import { readSshCommandOutput } from "../../ssh";
 import { CodexStructuredSession } from "./acp";
-import { buildCodexArgvFor } from "./argv";
+import { buildCodexArgvFor, primeCodexGoalsSupport } from "./argv";
 import { codexDefaultCapabilities, codexDetectionSpec } from "./detection";
 import { detectRateLimitPrompt } from "./rateLimitPrompt";
 import { resolveInstallNodePath, warnIfPluginManifestMissing } from "../plugin/installerBase";
@@ -120,6 +121,7 @@ async function resolveCodexHooksFeatureFlag(ctx: {
 export function createCodexAdapter(): AgentAdapter {
   let capabilities: AgentCapability = codexDefaultCapabilities;
   let preSpawnRolloutIds = new Set<string>();
+  let preSpawnStartedAt = 0;
 
   return {
     kind: "codex",
@@ -188,7 +190,7 @@ export function createCodexAdapter(): AgentAdapter {
     async installPlugin(ctx) {
       const node = await resolveInstallNodePath(ctx);
       if (!node.ok) return node;
-      const result = installCodexPlugin(ctx, { resolvedNodePath: node.nodePath });
+      const result = await installCodexPlugin(ctx, { resolvedNodePath: node.nodePath });
       if (!result.ok) return result;
       return { ok: true, version: result.version };
     },
@@ -208,21 +210,27 @@ export function createCodexAdapter(): AgentAdapter {
     oscHintsDeferToHookPlugin: true,
     async detectInstall(ctx) {
       const status = await detectAgentInstall(ctx, codexDetectionSpec);
+      primeCodexGoalsSupport(detectProbeLocation(ctx), status.version, status.executablePath);
       capabilities = status.capabilities;
       return status;
     },
     buildLaunchArgv(location: ProjectLocation, config, prompt, sessionRef, launchOptions) {
-      const sessions = readCodexSessionIndexForLocation(location);
-      const rollouts = readCodexRolloutsForLocation(location);
-      preSpawnRolloutIds = new Set(rollouts.map((rollout) => rollout.id));
-      console.log(
-        [
-          `[codex] pre-spawn session snapshot (${describeCodexLocation(location)})`,
-          `  sessionIndex: ${sessions.length}`,
-          `  latestIndex: ${sessions.at(-1)?.id ?? "(none)"}`,
-          `  interactiveRollouts: ${rollouts.length}`,
-        ].join("\n"),
-      );
+      preSpawnStartedAt = Date.now();
+      if (location.kind === "wsl") {
+        preSpawnRolloutIds = new Set();
+      } else {
+        const sessions = readCodexSessionIndexForLocation(location);
+        const rollouts = readCodexRolloutsForLocation(location);
+        preSpawnRolloutIds = new Set(rollouts.map((rollout) => rollout.id));
+        console.log(
+          [
+            `[codex] pre-spawn session snapshot (${describeCodexLocation(location)})`,
+            `  sessionIndex: ${sessions.length}`,
+            `  latestIndex: ${sessions.at(-1)?.id ?? "(none)"}`,
+            `  interactiveRollouts: ${rollouts.length}`,
+          ].join("\n"),
+        );
+      }
       return buildCodexArgvFor(location, config, prompt, sessionRef, launchOptions);
     },
     buildResumeArgv(location, config, prompt, sessionRef, launchOptions) {
@@ -273,6 +281,12 @@ export function createCodexAdapter(): AgentAdapter {
         ]);
         const newRollouts = rollouts
           .filter((rollout) => !preSpawnRolloutIds.has(rollout.id))
+          .filter(
+            (rollout) =>
+              preSpawnStartedAt === 0 ||
+              rollout.updatedAt === undefined ||
+              rollout.updatedAt >= preSpawnStartedAt - 1000,
+          )
           .sort((a, b) => (b.updatedAt ?? 0) - (a.updatedAt ?? 0));
         let next: CodexRolloutMeta | undefined;
         for (const candidate of newRollouts) {

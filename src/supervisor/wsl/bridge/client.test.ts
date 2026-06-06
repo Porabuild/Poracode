@@ -57,6 +57,7 @@ describe("WslBridgeClient", () => {
   });
 
   afterEach(() => {
+    vi.unstubAllGlobals();
     fake.server.close();
   });
 
@@ -152,6 +153,22 @@ describe("WslBridgeClient", () => {
     await expect(client.readdir(makeLocation(), "/home/user/proj")).rejects.toMatchObject({
       code: "EUNAVAIL",
     });
+  });
+
+  it("retries transient localhost forwarding failures after bridge boot", async () => {
+    const fetchMock = vi.fn<() => Promise<Response>>();
+    fetchMock.mockRejectedValueOnce(new TypeError("fetch failed"));
+    fetchMock.mockResolvedValueOnce(
+      new Response(JSON.stringify({ ok: true, data: { home: "/home/user" } }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const client = new WslBridgeClient(mockServer);
+    await expect(client.home(makeLocation())).resolves.toEqual({ home: "/home/user" });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
   it("find defaults root to projectLinuxPath when omitted", async () => {
@@ -293,6 +310,55 @@ describe("WslBridgeClient", () => {
       cwd: "/home/user/proj",
       loginEnv: true,
       timeoutMs: 10_000,
+    });
+  });
+
+  it("processBatch forwards generic structured process commands", async () => {
+    fake.server.on("request", (req, res) => {
+      let raw = "";
+      req.on("data", (chunk) => (raw += chunk.toString("utf8")));
+      req.on("end", () => {
+        fake.lastRequest = {
+          url: req.url,
+          body: raw ? JSON.parse(raw) : undefined,
+          auth: req.headers["authorization"] as string | undefined,
+        };
+        res.statusCode = 200;
+        res.setHeader("content-type", "application/json");
+        res.end(
+          JSON.stringify({
+            ok: true,
+            data: { results: [{ ok: true, stdout: "[]\n", stderr: "", exitCode: 0 }] },
+          }),
+        );
+      });
+    });
+
+    const client = new WslBridgeClient(mockServer);
+    const result = await client.processBatch(makeLocation(), {
+      commands: [
+        {
+          command: "gh",
+          cwd: "/home/user/proj",
+          args: ["pr", "list"],
+          loginEnv: true,
+        },
+      ],
+      timeoutMs: 30_000,
+    });
+
+    expect(result.results[0]?.stdout).toBe("[]\n");
+    expect(fake.lastRequest.url).toBe("/v1/process/batch");
+    expect(fake.lastRequest.body).toEqual({
+      commands: [
+        {
+          command: "gh",
+          cwd: "/home/user/proj",
+          args: ["pr", "list"],
+          loginEnv: true,
+        },
+      ],
+      timeoutMs: 30_000,
     });
   });
 });

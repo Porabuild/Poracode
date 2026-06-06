@@ -10,6 +10,7 @@ import type {
   ThreadServerRequestId,
 } from "@/shared/contracts";
 import { ProviderModelMenuProvider, BranchSelector, type BranchSelection } from "../common";
+import { modelVisibilityKey } from "@/renderer/components/common/ProviderModelMenu/parts/providerIdentity";
 import { migrateCursorBaseId, parseCursorModelId } from "@/shared/cursorModelId";
 import {
   AttachmentBar,
@@ -320,7 +321,9 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
         ? s.worktreeStatuses[thread.worktreePath]?.branch
         : s.statuses[thread.projectId]?.branch),
   );
-  const hiddenModelIds = useSharedSettings((s) => s.hiddenModels[thread.agentKind]);
+  const hiddenModelIds = useSharedSettings(
+    (s) => s.hiddenModels[modelVisibilityKey(thread.agentKind, presentationMode)],
+  );
   const controls = buildControls(thread, agentStatus, hiddenModelIds, props.onConfigChange);
   const controlsWithOpenSignal = controls.map((control): ComposerControl => {
     if (controlOpenRequest?.target === "model" && control.kind === "provider-model") {

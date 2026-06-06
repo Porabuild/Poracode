@@ -4,13 +4,17 @@ import { parseDraftProjectId } from "@/shared/paneId";
 import { readBridge } from "@/renderer/bridge";
 import { useAppStore } from "@/renderer/state/appStore";
 import { buildActiveProjectsKey } from "@/renderer/state/projectKeys";
+import { useDevTerminalStore } from "@/renderer/state/devTerminalStore";
 import { useFileEditorStore } from "@/renderer/state/fileEditorStore";
 import { useGitStore } from "@/renderer/state/gitStore";
+import { usePanelStore } from "@/renderer/state/panelStore";
+import { useSidebarUiStore } from "@/renderer/state/sidebarUiStore";
 import {
   cleanupGitRefreshProjects,
   refreshGitProject,
   stopPendingPrRefresh,
   syncPendingPrRefreshProjects,
+  syncWatchedWorktreeProjects,
 } from "@/renderer/state/gitRefresh";
 import {
   GIT_FETCH_PRIORITY_INTERVAL_MS,
@@ -18,6 +22,24 @@ import {
 } from "@/renderer/utils/gitHelpers";
 
 const REMOTE_STATUS_POLL_INTERVAL_MS = 3_000;
+
+/**
+ * Subscribe to a store and invoke `onChange` whenever any of the selected
+ * fields changes identity. Collapses the otherwise-identical "compare a fixed
+ * field tuple, then re-sync" guards so the worktree-watch subscriptions below
+ * stay in one shape instead of four hand-written `===` chains.
+ */
+function subscribeToFieldChanges<S>(
+  subscribe: (listener: (state: S, prev: S) => void) => () => void,
+  selectFields: (state: S) => readonly unknown[],
+  onChange: () => void,
+): () => void {
+  return subscribe((state, prev) => {
+    const next = selectFields(state);
+    const previous = selectFields(prev);
+    if (next.some((value, index) => value !== previous[index])) onChange();
+  });
+}
 
 export function useGitRefresh(storeHydrated: boolean) {
   // Subscribe only to the active-project identity/location key so draft config
@@ -86,6 +108,12 @@ export function useGitRefresh(storeHydrated: boolean) {
         .catch(() => undefined);
     }
 
+    function syncActiveWorktrees() {
+      if (!isActive) return;
+      syncWatchedWorktreeProjects(activeProjects);
+      syncPendingPrRefreshProjects(activeProjects);
+    }
+
     const unsubWatcher = readBridge().onSupervisorEvent((event) => {
       // Both events are git-affecting: `.git` metadata clearly, and worktree
       // edits change `git status` output (a tracked file becomes modified,
@@ -104,10 +132,10 @@ export function useGitRefresh(storeHydrated: boolean) {
       }
     });
 
+    syncActiveWorktrees();
     for (const project of activeProjects) {
       void refreshGitProject(project, "initial", "full", { isActive: isActiveCheck });
     }
-    syncPendingPrRefreshProjects(activeProjects);
     const unsubPendingPrRefresh = useGitStore.subscribe((state, prev) => {
       if (
         state.statuses !== prev.statuses ||
@@ -117,11 +145,31 @@ export function useGitRefresh(storeHydrated: boolean) {
         syncPendingPrRefreshProjects(activeProjects);
       }
     });
-    const unsubPendingPrThreadRefresh = useAppStore.subscribe(
-      (state) => state.threads,
-      () => {
-        syncPendingPrRefreshProjects(activeProjects);
-      },
+    const unsubActiveWorktreeApp = subscribeToFieldChanges(
+      useAppStore.subscribe,
+      (state) => [state.threads, state.view, state.projects],
+      syncActiveWorktrees,
+    );
+    const unsubActiveWorktreePanel = subscribeToFieldChanges(
+      usePanelStore.subscribe,
+      (state) => [
+        state.gitReviewContext,
+        state.gitReviewAsPanel,
+        state.filesPanelContext,
+        state.rightPanelTab,
+        state.threadSortMode,
+      ],
+      syncActiveWorktrees,
+    );
+    const unsubActiveWorktreeSidebar = subscribeToFieldChanges(
+      useSidebarUiStore.subscribe,
+      (state) => [state.collapsedProjects, state.collapsedWorktrees, state.threadListLimits],
+      syncActiveWorktrees,
+    );
+    const unsubActiveWorktreeTerminal = subscribeToFieldChanges(
+      useDevTerminalStore.subscribe,
+      (state) => [state.isOpen, state.activeProjectId, state.activeWorktreePath],
+      syncActiveWorktrees,
     );
 
     async function fetchRemotes() {
@@ -206,7 +254,10 @@ export function useGitRefresh(storeHydrated: boolean) {
       for (const timer of watcherDebounceTimers.values()) clearTimeout(timer);
       watcherDebounceTimers.clear();
       unsubPendingPrRefresh();
-      unsubPendingPrThreadRefresh();
+      unsubActiveWorktreeApp();
+      unsubActiveWorktreePanel();
+      unsubActiveWorktreeSidebar();
+      unsubActiveWorktreeTerminal();
       stopPendingPrRefresh();
       unsubWatcher();
       for (const project of activeProjects) {

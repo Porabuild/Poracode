@@ -19,6 +19,7 @@ review.diff
 .spec-workflow/
 **/worktrees/
 .cursor/
+.commandcode/
 mcps/
 .antigravitycli/
 .recovery/

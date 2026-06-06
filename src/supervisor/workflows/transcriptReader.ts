@@ -2,6 +2,7 @@ import { readdir, readFile } from "node:fs/promises";
 import type {
   ProjectLocation,
   WorkflowAgent,
+  WorkflowAgentChatEntry,
   WorkflowAgentState,
   WorkflowPhase,
   WorkflowRun,
@@ -23,6 +24,7 @@ export interface ReadWorkflowRunInput {
   manifestPath: string;
   /** Optional — when provided, used to compute in-flight agent counts before the manifest is written. */
   transcriptDir?: string;
+  includeAgentChats?: boolean;
   location: ProjectLocation;
 }
 
@@ -40,7 +42,10 @@ export async function readWorkflowRun(input: ReadWorkflowRunInput): Promise<Work
 
   if (raw !== null) {
     const parsed = JSON.parse(raw) as unknown;
-    return parseWorkflowManifest(parsed, input.manifestPath);
+    const run = parseWorkflowManifest(parsed, input.manifestPath);
+    return input.includeAgentChats && input.transcriptDir
+      ? mergeTranscriptAgents(run, await readTranscriptAgents(input))
+      : run;
   }
 
   // Manifest missing — synthesize a partial run from the transcript dir so
@@ -51,14 +56,24 @@ export async function readWorkflowRun(input: ReadWorkflowRunInput): Promise<Work
   // as it begins).
   if (input.transcriptDir) {
     const journalAgents = await readJournalAgents(input);
+    if (input.includeAgentChats) {
+      const transcriptAgents = await readTranscriptAgents(input);
+      if (journalAgents.size > 0 || transcriptAgents.size > 0) {
+        return synthesizeInFlightRun(input.manifestPath, [
+          ...mergeJournalAndTranscriptAgents(journalAgents, transcriptAgents).values(),
+        ]);
+      }
+    }
     if (journalAgents.size > 0) {
-      return synthesizeInFlightRun(input.manifestPath, [...journalAgents.values()]);
+      return synthesizeInFlightRun(input.manifestPath, [
+        ...journalAgentsToWorkflowAgents(journalAgents).values(),
+      ]);
     }
     const metaIds = await listStartedAgentIds(input);
     if (metaIds.length > 0) {
       return synthesizeInFlightRun(
         input.manifestPath,
-        metaIds.map((id) => ({ agentId: id, state: "running" as const })),
+        metaIds.map((id) => ({ agentId: id, label: id, state: "running" as const })),
       );
     }
   }
@@ -68,13 +83,11 @@ export async function readWorkflowRun(input: ReadWorkflowRunInput): Promise<Work
 interface JournalAgent {
   agentId: string;
   state: WorkflowAgentState;
+  resultPreview?: string;
 }
 
 async function readJournalAgents(input: ReadWorkflowRunInput): Promise<Map<string, JournalAgent>> {
-  const dirPath =
-    input.location.kind === "wsl"
-      ? manifestUncPath(input.location.uncPath, input.location.linuxPath, input.transcriptDir!)
-      : input.transcriptDir!;
+  const dirPath = transcriptDirPath(input);
   const journalPath = joinPath(dirPath, "journal.jsonl");
   let raw: string;
   try {
@@ -110,12 +123,321 @@ async function readJournalAgents(input: ReadWorkflowRunInput): Promise<Map<strin
     if (type === "started") {
       if (!byId.has(agentId)) byId.set(agentId, { agentId, state: "running" });
     } else if (type === "result") {
-      byId.set(agentId, { agentId, state: "done" });
+      const resultPreview = stringifyUnknown(obj.result);
+      byId.set(
+        agentId,
+        resultPreview ? { agentId, state: "done", resultPreview } : { agentId, state: "done" },
+      );
     } else if (type === "error" || type === "failed") {
       byId.set(agentId, { agentId, state: "failed" });
     }
   }
   return byId;
+}
+
+async function readTranscriptAgents(
+  input: ReadWorkflowRunInput,
+): Promise<Map<string, WorkflowAgent>> {
+  const dirPath = transcriptDirPath(input);
+  let entries: string[];
+  try {
+    entries = await readdir(dirPath);
+  } catch (err) {
+    if (isNotFoundError(err)) return new Map();
+    throw err;
+  }
+
+  const agents = new Map<string, WorkflowAgent>();
+  for (const name of entries) {
+    const match = /^agent-([^.]+)\.jsonl$/.exec(name);
+    const agentId = match?.[1];
+    if (!agentId) continue;
+    let raw: string;
+    try {
+      raw = await readFile(joinPath(dirPath, name), "utf8");
+    } catch (err) {
+      if (isNotFoundError(err)) continue;
+      throw err;
+    }
+    agents.set(agentId, parseAgentJsonl(agentId, raw));
+  }
+  return agents;
+}
+
+function journalAgentsToWorkflowAgents(
+  journalAgents: ReadonlyMap<string, JournalAgent>,
+): Map<string, WorkflowAgent> {
+  const out = new Map<string, WorkflowAgent>();
+  for (const [agentId, agent] of journalAgents) {
+    const workflowAgent: WorkflowAgent = {
+      agentId,
+      label: agentId,
+      state: agent.state,
+    };
+    if (agent.resultPreview) workflowAgent.resultPreview = agent.resultPreview;
+    out.set(agentId, workflowAgent);
+  }
+  return out;
+}
+
+function mergeJournalAndTranscriptAgents(
+  journalAgents: ReadonlyMap<string, JournalAgent>,
+  transcriptAgents: ReadonlyMap<string, WorkflowAgent>,
+): Map<string, WorkflowAgent> {
+  const out = journalAgentsToWorkflowAgents(journalAgents);
+  for (const [agentId, transcriptAgent] of transcriptAgents) {
+    const journalAgent = out.get(agentId);
+    out.set(
+      agentId,
+      journalAgent ? mergeAgentRecords(journalAgent, transcriptAgent) : transcriptAgent,
+    );
+  }
+  return out;
+}
+
+function mergeTranscriptAgents(
+  run: WorkflowRun,
+  transcriptAgents: ReadonlyMap<string, WorkflowAgent>,
+): WorkflowRun {
+  if (transcriptAgents.size === 0) return run;
+  return {
+    ...run,
+    phases: run.phases.map((phase) => ({
+      ...phase,
+      agents: phase.agents.map((agent) => {
+        const transcriptAgent = transcriptAgents.get(agent.agentId);
+        return transcriptAgent ? mergeAgentRecords(agent, transcriptAgent) : agent;
+      }),
+    })),
+    unphasedAgents: run.unphasedAgents.map((agent) => {
+      const transcriptAgent = transcriptAgents.get(agent.agentId);
+      return transcriptAgent ? mergeAgentRecords(agent, transcriptAgent) : agent;
+    }),
+  };
+}
+
+function mergeAgentRecords(primary: WorkflowAgent, fallback: WorkflowAgent): WorkflowAgent {
+  const out: WorkflowAgent = { ...fallback, ...primary };
+  if (primary.label === primary.agentId && fallback.label !== fallback.agentId) {
+    out.label = fallback.label;
+  }
+  if (fallback.chat) out.chat = fallback.chat;
+  return out;
+}
+
+function parseAgentJsonl(agentId: string, raw: string): WorkflowAgent {
+  const chat: WorkflowAgentChatEntry[] = [];
+  let model: string | undefined;
+  let promptText: string | undefined;
+  let resultText: string | undefined;
+  let lastToolName: string | undefined;
+  let startedAt: number | undefined;
+  let lastProgressAt: number | undefined;
+  let tokens = 0;
+  let toolCalls = 0;
+
+  for (const line of raw.split(/\r?\n/)) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+    let record: unknown;
+    try {
+      record = JSON.parse(trimmed);
+    } catch {
+      continue;
+    }
+    const obj = readObject(record);
+    if (!obj) continue;
+    const timestamp = readString(obj.timestamp);
+    const timestampMs = timestamp ? Date.parse(timestamp) : Number.NaN;
+    if (Number.isFinite(timestampMs)) {
+      startedAt ??= timestampMs;
+      lastProgressAt = timestampMs;
+    }
+
+    const message = readObject(obj.message);
+    const type = readString(obj.type);
+    if (!message || (type !== "user" && type !== "assistant")) continue;
+
+    if (type === "assistant") {
+      const messageModel = readString(message.model);
+      if (messageModel) model = messageModel;
+      tokens += readUsageTokens(message.usage);
+    }
+
+    for (const parsed of parseChatEntries(message.content, type, timestamp)) {
+      chat.push(parsed.entry);
+      if (parsed.kind === "text" && parsed.entry.text) {
+        if (type === "user") {
+          promptText ??= parsed.entry.text;
+        } else {
+          resultText = parsed.entry.text;
+        }
+      }
+      if (parsed.kind === "tool_use") {
+        toolCalls += 1;
+        if (parsed.entry.title) lastToolName = parsed.entry.title;
+        if (parsed.entry.title === "StructuredOutput" && parsed.entry.text) {
+          resultText = parsed.entry.text;
+        }
+      }
+    }
+  }
+
+  const inferred = promptText ? inferAgentMetadata(promptText) : null;
+  const agent: WorkflowAgent = {
+    agentId,
+    label: inferred?.label ?? agentId,
+    state: "running",
+  };
+  if (inferred?.phaseTitle) agent.phaseTitle = inferred.phaseTitle;
+  if (model) agent.model = model;
+  if (startedAt !== undefined) agent.startedAt = startedAt;
+  if (lastProgressAt !== undefined) agent.lastProgressAt = lastProgressAt;
+  if (tokens > 0) agent.tokens = tokens;
+  if (toolCalls > 0) agent.toolCalls = toolCalls;
+  if (lastToolName) agent.lastToolName = lastToolName;
+  if (promptText) agent.promptPreview = previewText(promptText);
+  if (resultText) agent.resultPreview = previewText(resultText);
+  if (chat.length > 0) agent.chat = chat;
+  return agent;
+}
+
+function inferAgentMetadata(
+  promptText: string,
+): Pick<WorkflowAgent, "label" | "phaseTitle"> | null {
+  const quotedReviewer = /^You are the "([^"]+)" reviewer\b/i.exec(promptText);
+  if (quotedReviewer?.[1]) {
+    return { label: `review:${slugLabel(quotedReviewer[1])}`, phaseTitle: "Review" };
+  }
+
+  if (/^Adversarially verify\b/i.test(promptText)) {
+    const finding = /Finding:\s*"([^"]+)"/i.exec(promptText)?.[1];
+    const labelPart = finding ? slugLabel(finding) : "finding";
+    return { label: `verify:${labelPart}`, phaseTitle: "Verify" };
+  }
+
+  if (/A reviewer claims this issue\b/i.test(promptText)) {
+    const title = /^Title:\s*(.+)$/im.exec(promptText)?.[1]?.trim();
+    const labelPart = title ? slugLabel(title) : "finding";
+    return { label: `verify:${labelPart}`, phaseTitle: "Verify" };
+  }
+
+  if (/^You are reviewing\b/i.test(promptText)) {
+    const reviewKey = inferReviewKey(promptText);
+    return {
+      label: reviewKey ? `review:${reviewKey}` : "review",
+      phaseTitle: "Review",
+    };
+  }
+
+  return null;
+}
+
+function inferReviewKey(promptText: string): string | null {
+  if (/Focus ONLY on correctness bugs\b/i.test(promptText)) return "correctness";
+  if (/Focus on React\/state issues\b/i.test(promptText)) return "react-state";
+  if (/Focus on data-contract and parsing robustness\b/i.test(promptText)) return "parsing-ipc";
+  if (/Assess whether the new\/changed tests actually cover\b/i.test(promptText)) return "tests";
+
+  const focus = /^Focus:\s*(.+)$/im.exec(promptText)?.[1];
+  if (!focus) return null;
+  if (/logic bugs|incorrect parsing|off-by-one|async races/i.test(focus)) return "correctness";
+  if (/shared contract|IPC schema|workflowTranscript|schemas\.ts/i.test(focus)) {
+    return "contracts";
+  }
+  if (/renderer state|workflowRunStore|useWorkflowRun|stale closures/i.test(focus)) {
+    return "react-state";
+  }
+  if (/test coverage|new\/changed tests|untested/i.test(focus)) return "tests";
+  return slugLabel(focus);
+}
+
+interface ParsedChatEntry {
+  kind: "text" | "tool_use" | "tool_result";
+  entry: WorkflowAgentChatEntry;
+}
+
+function parseChatEntries(
+  raw: unknown,
+  role: "user" | "assistant",
+  timestamp: string | undefined,
+): ParsedChatEntry[] {
+  if (typeof raw === "string") {
+    const entry: WorkflowAgentChatEntry = { role, text: raw };
+    if (timestamp) entry.timestamp = timestamp;
+    return [{ kind: "text", entry }];
+  }
+  if (!Array.isArray(raw)) return [];
+
+  const entries: ParsedChatEntry[] = [];
+  for (const part of raw) {
+    const obj = readObject(part);
+    if (!obj) continue;
+    const type = readString(obj.type);
+    if (type === "text") {
+      const text = readString(obj.text);
+      if (!text) continue;
+      const entry: WorkflowAgentChatEntry = { role, text };
+      if (timestamp) entry.timestamp = timestamp;
+      entries.push({ kind: "text", entry });
+      continue;
+    }
+    if (type === "tool_use") {
+      const entry: WorkflowAgentChatEntry = { role: "tool" };
+      const name = readString(obj.name);
+      const text = stringifyUnknown(obj.input);
+      if (name) entry.title = name;
+      if (text) entry.text = text;
+      if (timestamp) entry.timestamp = timestamp;
+      entries.push({ kind: "tool_use", entry });
+      continue;
+    }
+    if (type === "tool_result") {
+      const entry: WorkflowAgentChatEntry = { role: "tool", title: "Tool result" };
+      const text = stringifyUnknown(obj.content);
+      if (text) entry.text = text;
+      if (timestamp) entry.timestamp = timestamp;
+      entries.push({ kind: "tool_result", entry });
+    }
+  }
+  return entries;
+}
+
+function transcriptDirPath(input: ReadWorkflowRunInput): string {
+  if (!input.transcriptDir) throw new Error("workflows: transcriptDir is required");
+  return input.location.kind === "wsl"
+    ? manifestUncPath(input.location.uncPath, input.location.linuxPath, input.transcriptDir)
+    : input.transcriptDir;
+}
+
+function readObject(raw: unknown): Record<string, unknown> | null {
+  return raw && typeof raw === "object" ? (raw as Record<string, unknown>) : null;
+}
+
+function readUsageTokens(raw: unknown): number {
+  const obj = readObject(raw);
+  if (!obj) return 0;
+  return (
+    (readNumber(obj.input_tokens) ?? 0) +
+    (readNumber(obj.output_tokens) ?? 0) +
+    (readNumber(obj.cache_creation_input_tokens) ?? 0) +
+    (readNumber(obj.cache_read_input_tokens) ?? 0)
+  );
+}
+
+function previewText(text: string): string {
+  const trimmed = text.trim();
+  return trimmed.length > 1000 ? `${trimmed.slice(0, 1000)}...` : trimmed;
+}
+
+function stringifyUnknown(raw: unknown): string | undefined {
+  if (raw === undefined || raw === null) return undefined;
+  if (typeof raw === "string") return raw;
+  try {
+    return JSON.stringify(raw);
+  } catch {
+    return String(raw);
+  }
 }
 
 function joinPath(dir: string, name: string): string {
@@ -124,11 +446,16 @@ function joinPath(dir: string, name: string): string {
   return `${trimmed}${sep}${name}`;
 }
 
+function slugLabel(text: string): string {
+  return text
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
 async function listStartedAgentIds(input: ReadWorkflowRunInput): Promise<string[]> {
-  const dirPath =
-    input.location.kind === "wsl"
-      ? manifestUncPath(input.location.uncPath, input.location.linuxPath, input.transcriptDir!)
-      : input.transcriptDir!;
+  const dirPath = transcriptDirPath(input);
   let entries: string[];
   try {
     if (input.location.kind === "ssh") {
@@ -151,22 +478,30 @@ async function listStartedAgentIds(input: ReadWorkflowRunInput): Promise<string[
 
 function synthesizeInFlightRun(
   manifestPath: string,
-  records: ReadonlyArray<{ agentId: string; state: WorkflowAgentState }>,
+  records: ReadonlyArray<WorkflowAgent>,
 ): WorkflowRun {
-  const agents: WorkflowAgent[] = records.map(({ agentId, state }) => ({
-    agentId,
-    // We don't have labels yet — they live in the agent JSONL or the
-    // (eventual) manifest. Use the id as a placeholder; the renderer
-    // strips the `agent:` style prefixes when a phase tab is active.
-    label: agentId,
-    state,
-  }));
+  const phases: WorkflowPhase[] = [];
+  const phaseByTitle = new Map<string, WorkflowPhase>();
+  const unphasedAgents: WorkflowAgent[] = [];
+  for (const agent of records) {
+    if (!agent.phaseTitle) {
+      unphasedAgents.push(agent);
+      continue;
+    }
+    let phase = phaseByTitle.get(agent.phaseTitle);
+    if (!phase) {
+      phase = { title: agent.phaseTitle, agents: [] };
+      phaseByTitle.set(agent.phaseTitle, phase);
+      phases.push(phase);
+    }
+    phase.agents.push(agent);
+  }
   return {
     runId: deriveRunIdFromPath(manifestPath) ?? "",
     status: "running",
-    agentCount: agents.length,
-    phases: [],
-    unphasedAgents: agents,
+    agentCount: records.length,
+    phases,
+    unphasedAgents,
   };
 }
 
@@ -302,6 +637,7 @@ export function parseWorkflowManifest(raw: unknown, sourcePath?: string): Workfl
     phases: phases.map(finalizePhase),
     unphasedAgents,
   };
+  applyRunTerminalState(run);
 
   setStringField(run, "taskId", obj.taskId);
   setStringField(run, "workflowName", obj.workflowName);
@@ -314,6 +650,22 @@ export function parseWorkflowManifest(raw: unknown, sourcePath?: string): Workfl
   setNumberField(run, "totalToolCalls", obj.totalToolCalls);
 
   return run;
+}
+
+function applyRunTerminalState(run: WorkflowRun): void {
+  if (run.status !== "cancelled") return;
+  for (const phase of run.phases) {
+    for (const agent of phase.agents) {
+      if (!isAgentTerminal(agent.state)) agent.state = "cancelled";
+    }
+  }
+  for (const agent of run.unphasedAgents) {
+    if (!isAgentTerminal(agent.state)) agent.state = "cancelled";
+  }
+}
+
+function isAgentTerminal(state: WorkflowAgentState | undefined): boolean {
+  return state === "done" || state === "failed" || state === "cancelled";
 }
 
 interface MutablePhase {
@@ -403,6 +755,8 @@ function readAgentState(raw: unknown): WorkflowAgentState | undefined {
     case "failed":
     case "cancelled":
       return raw;
+    case "progress":
+      return "running";
     default:
       return undefined;
   }
@@ -416,6 +770,8 @@ function readRunStatus(raw: unknown): WorkflowRunStatus {
     case "failed":
     case "cancelled":
       return raw;
+    case "killed":
+      return "cancelled";
     default:
       return "unknown";
   }

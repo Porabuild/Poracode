@@ -4,7 +4,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { toWslUncPath } from "@/shared/wsl";
 import type { AgentEnvContext } from "../../base";
-import { resolveWslHomeDirectory } from "../../base";
+import { getCachedWslHomeDirectory } from "../../base";
 import {
   FORWARD_RUNTIME_FILE,
   buildNativeHookCmdShellCommand,
@@ -93,7 +93,7 @@ function nativeGlobalCursorDir(): string {
 }
 
 function wslGlobalCursorHooksPath(distro: string): string {
-  const home = resolveWslHomeDirectory(distro);
+  const home = getCachedWslHomeDirectory(distro);
   return home ? `${home}/.cursor/hooks.json` : "";
 }
 

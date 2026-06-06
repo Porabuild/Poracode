@@ -5,11 +5,11 @@ import { Worker } from "node:worker_threads";
 import type { ProjectLocation, SessionRef } from "@/shared/contracts";
 import {
   createKnownSessionRef,
+  getCachedWslHomeDirectory,
   listSessionDir,
   readSshCommandOutputSync,
-  readWslCommandOutput,
   resolveSshHomeDirectory,
-  resolveWslHomeDirectory,
+  resolveWslHomeDirectoryAsync,
   statSessionPaths,
   watchSessionPaths,
 } from "../base";
@@ -30,7 +30,7 @@ function encodeCwdKey(cwd: string): string {
 
 function getGrokCwdSessionsDir(location: ProjectLocation, cwd: string): string | null {
   if (location.kind === "wsl") {
-    const home = resolveWslHomeDirectory(location.distro);
+    const home = getCachedWslHomeDirectory(location.distro);
     if (!home) return null;
     return `${home}/.grok/sessions/${encodeCwdKey(cwd)}`;
   }
@@ -41,9 +41,18 @@ function getGrokCwdSessionsDir(location: ProjectLocation, cwd: string): string |
   return join(GROK_SESSIONS_ROOT, encodeCwdKey(cwd));
 }
 
+async function getGrokCwdSessionsDirAsync(
+  location: ProjectLocation,
+  cwd: string,
+): Promise<string | null> {
+  if (location.kind !== "wsl") return getGrokCwdSessionsDir(location, cwd);
+  const home = await resolveWslHomeDirectoryAsync(location.distro);
+  return home ? `${home}/.grok/sessions/${encodeCwdKey(cwd)}` : null;
+}
+
 function getGrokSessionsRoot(location: ProjectLocation): string | null {
   if (location.kind === "wsl") {
-    const home = resolveWslHomeDirectory(location.distro);
+    const home = getCachedWslHomeDirectory(location.distro);
     return home ? `${home}/.grok/sessions` : null;
   }
   if (location.kind === "ssh") {
@@ -58,30 +67,16 @@ function getGrokSessionsRoot(location: ProjectLocation): string | null {
  * before spawning the grok PTY. It records what sessions already exist for
  * this cwd so that discover can tell the brand-new one apart.
  *
- * Sync on every platform — runs once per launch. WSL uses a one-shot
- * `wsl.exe ls` (~50–100ms) since `buildLaunchArgv` itself is synchronous;
- * the async discover path uses the in-distro bridge.
+ * Sync on native platforms only. WSL discovery uses the in-distro bridge
+ * after launch instead of doing a direct pre-spawn query.
  */
 export function snapshotGrokPreSpawnSessions(location: ProjectLocation, cwd: string): void {
   preSpawnSessionIds = new Set();
   preSpawnCwdKey = null;
+  if (location.kind === "wsl") return;
 
   const dir = getGrokCwdSessionsDir(location, cwd);
   if (!dir) return;
-
-  if (location.kind === "wsl") {
-    const result = readWslCommandOutput(location.distro, "sh", [
-      "-c",
-      `[ -d ${shellQuote(dir)} ] && ls -1 -- ${shellQuote(dir)} 2>/dev/null || true`,
-    ]);
-    if (!result.ok) return;
-    preSpawnCwdKey = encodeCwdKey(cwd);
-    for (const name of result.stdout.split(/\r?\n/)) {
-      const trimmed = name.trim();
-      if (isUuid(trimmed)) preSpawnSessionIds.add(trimmed);
-    }
-    return;
-  }
 
   if (location.kind === "ssh") {
     const result = readSshCommandOutputSync(location, "sh", [
@@ -134,7 +129,7 @@ export async function discoverGrokSessionRef(
   location: ProjectLocation,
   cwd: string,
 ): Promise<SessionRef | undefined> {
-  const dir = getGrokCwdSessionsDir(location, cwd);
+  const dir = await getGrokCwdSessionsDirAsync(location, cwd);
   if (!dir) return undefined;
   const key = encodeCwdKey(cwd);
 

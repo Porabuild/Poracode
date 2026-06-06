@@ -9,7 +9,7 @@ import {
 } from "./claude";
 
 const FIXTURE = {
-  five_hour: { utilization: 0.57, resets_at: "2026-05-29T12:00:00Z" },
+  five_hour: { utilization: 1, resets_at: "2026-05-29T12:00:00Z" },
   seven_day: { utilization: 0.22, resets_at: "2026-06-01T00:00:00Z" },
   seven_day_opus: { utilization: 0.1, resets_at: "2026-06-01T00:00:00Z" },
   extra_usage: {
@@ -30,11 +30,11 @@ describe("formatClaudePlan", () => {
 });
 
 describe("parseClaudeUsage", () => {
-  it("maps windows and normalizes 0-1 utilization to 0-100", () => {
+  it("maps windows and normalizes mixed Claude utilization units", () => {
     const snap = parseClaudeUsage(FIXTURE, FAKE_NOW_MS, { plan: "Claude Pro Subscription" });
     expect(snap.status).toBe("ok");
     const session = snap.windows.find((w) => w.id === "session-5h");
-    expect(session?.usedPercent).toBe(57);
+    expect(session?.usedPercent).toBe(1);
     expect(session?.resetsAt).toBe(Date.parse("2026-05-29T12:00:00Z"));
     expect(snap.windows.find((w) => w.id === "weekly")?.usedPercent).toBe(22);
     expect(snap.windows.find((w) => w.id === "weekly-opus")?.usedPercent).toBe(10);
@@ -54,6 +54,11 @@ describe("parseClaudeUsage", () => {
   it("omits windows the API does not report", () => {
     const snap = parseClaudeUsage({ five_hour: { utilization: 0.1 } }, FAKE_NOW_MS);
     expect(snap.windows.map((w) => w.id)).toEqual(["session-5h"]);
+  });
+
+  it("treats session utilization as a direct percentage", () => {
+    const snap = parseClaudeUsage({ five_hour: { utilization: 1 } }, FAKE_NOW_MS);
+    expect(snap.windows.find((w) => w.id === "session-5h")?.usedPercent).toBe(1);
   });
 });
 

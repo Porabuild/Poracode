@@ -1,7 +1,7 @@
 import { execFile } from "node:child_process";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { basename, join } from "node:path";
+import { join } from "node:path";
 import { promisify } from "node:util";
 import {
   PR_CHECK_FAILURE_CONCLUSIONS,
@@ -23,9 +23,9 @@ import {
   type GhGetPrFilesResult,
   type GhGetPrDiffResult,
 } from "@/shared/contracts";
-import { toWslUncPath } from "@/shared/wsl";
-import { buildAgentCommand, parallelWslCommandsAsync, quotePosixShellArg } from "./agents/base";
+import { buildAgentCommand } from "./agents/base";
 import { readSshCommandOutput } from "./ssh";
+import type { WslBridgeClient, WslProcessExecResult } from "./wsl/bridge/client";
 
 const execFileAsync = promisify(execFile);
 const GH_TIMEOUT = 30_000;
@@ -90,7 +90,26 @@ function classifyError(error: unknown, operation: string): Error {
   return new Error(`gh ${operation} failed: ${msg}`);
 }
 
-async function runGh(location: ProjectLocation, args: string[]): Promise<string> {
+async function runGh(
+  location: ProjectLocation,
+  args: string[],
+  wslClient: WslBridgeClient | undefined,
+): Promise<string> {
+  if (location.kind === "wsl") {
+    if (!wslClient) {
+      throw new Error(`WSL bridge unavailable for GitHub CLI in distro "${location.distro}"`);
+    }
+    const result = await wslClient.processExec(location, {
+      command: "gh",
+      cwd: location.linuxPath,
+      args,
+      loginEnv: true,
+      timeoutMs: GH_TIMEOUT,
+    });
+    if (result.ok) return result.stdout;
+    throw processResultToError(result);
+  }
+
   const spec = buildAgentCommand(location, "gh", args);
   const cwd =
     spec.cwd ??
@@ -104,10 +123,42 @@ async function runGh(location: ProjectLocation, args: string[]): Promise<string>
   return stdout;
 }
 
+async function runGhBatch(
+  location: ProjectLocation & { kind: "wsl" },
+  commands: string[][],
+  wslClient: WslBridgeClient | undefined,
+): Promise<WslProcessExecResult[]> {
+  if (!wslClient) {
+    throw new Error(`WSL bridge unavailable for GitHub CLI in distro "${location.distro}"`);
+  }
+  const result = await wslClient.processBatch(location, {
+    timeoutMs: GH_TIMEOUT,
+    commands: commands.map((args) => ({
+      command: "gh",
+      cwd: location.linuxPath,
+      args,
+      loginEnv: true,
+    })),
+  });
+  return result.results;
+}
+
+function processResultToError(result: WslProcessExecResult): Error {
+  const error = new Error(
+    result.error || result.stderr || `process exited ${result.exitCode}`,
+  ) as Error & { stdout?: string; stderr?: string; code?: number; signal?: string };
+  error.stdout = result.stdout;
+  error.stderr = result.stderr;
+  error.code = result.exitCode;
+  if (result.signal) error.signal = result.signal;
+  return error;
+}
+
 async function createGhBodyFile(
   location: ProjectLocation,
   prefix: string,
   body: string,
+  wslClient?: WslBridgeClient,
 ): Promise<{ cliPath: string; cleanup(): Promise<void> }> {
   if (location.kind === "ssh") {
     const dir = (
@@ -133,14 +184,33 @@ async function createGhBodyFile(
     };
   }
 
-  const dirPrefix =
-    location.kind === "wsl"
-      ? toWslUncPath(location.distro, `/tmp/${prefix}-`)
-      : join(tmpdir(), `${prefix}-`);
+  if (location.kind === "wsl") {
+    if (!wslClient) {
+      throw new Error(`WSL bridge unavailable for GitHub CLI in distro "${location.distro}"`);
+    }
+    const tmpLocation = { ...location, linuxPath: "/tmp" };
+    const dirResult = await wslClient.processExec(tmpLocation, {
+      command: "mktemp",
+      cwd: "/tmp",
+      args: ["-d", `/tmp/${prefix}-XXXXXX`],
+      loginEnv: true,
+      timeoutMs: GH_TIMEOUT,
+    });
+    if (!dirResult.ok) throw processResultToError(dirResult);
+    const dir = dirResult.stdout.trim();
+    const cliPath = `${dir}/body.md`;
+    await wslClient.writeNewFile(tmpLocation, cliPath, Buffer.from(body, "utf8"));
+    return {
+      cliPath,
+      cleanup: () => wslClient.rm(tmpLocation, dir, { recursive: true, force: true }),
+    };
+  }
+
+  const dirPrefix = join(tmpdir(), `${prefix}-`);
   const dir = await mkdtemp(dirPrefix);
   const filename = "body.md";
   const writePath = join(dir, filename);
-  const cliPath = location.kind === "wsl" ? `/tmp/${basename(dir)}/${filename}` : writePath;
+  const cliPath = writePath;
   await writeFile(writePath, body, { encoding: "utf-8", flag: "wx" });
   return {
     cliPath,
@@ -370,10 +440,26 @@ function locationKey(location: ProjectLocation): string {
 export class GitHubService {
   /** `gh api user` is the same answer per (kind, path) — cache to avoid one call per PR fetch. */
   private viewerLoginCache = new Map<string, string | null>();
+  private wslClient: WslBridgeClient | undefined;
+
+  setWslClient(client: WslBridgeClient | undefined): void {
+    this.wslClient = client;
+  }
+
+  private runGh(location: ProjectLocation, args: string[]): Promise<string> {
+    return runGh(location, args, this.wslClient);
+  }
+
+  private runGhBatch(
+    location: ProjectLocation & { kind: "wsl" },
+    commands: string[][],
+  ): Promise<WslProcessExecResult[]> {
+    return runGhBatch(location, commands, this.wslClient);
+  }
 
   async checkGhAvailable(location: ProjectLocation): Promise<GhCheckAvailableResult> {
     try {
-      await runGh(location, ["--version"]);
+      await this.runGh(location, ["--version"]);
       return { available: true };
     } catch {
       return { available: false };
@@ -385,7 +471,7 @@ export class GitHubService {
     const cached = this.viewerLoginCache.get(key);
     if (cached !== undefined) return cached ?? undefined;
     try {
-      const stdout = await runGh(location, ["api", "user", "--jq", ".login"]);
+      const stdout = await this.runGh(location, ["api", "user", "--jq", ".login"]);
       const login = stdout.trim();
       this.viewerLoginCache.set(key, login || null);
       return login || undefined;
@@ -400,7 +486,7 @@ export class GitHubService {
     branch: string,
     viewerLogin?: string,
   ): Promise<PrData> {
-    const stdout = await runGh(location, ["pr", "view", branch, "--json", PR_VIEW_FIELDS]);
+    const stdout = await this.runGh(location, ["pr", "view", branch, "--json", PR_VIEW_FIELDS]);
     return mapPrData(JSON.parse(stdout), viewerLogin);
   }
 
@@ -435,10 +521,7 @@ export class GitHubService {
     body: string,
     isDraft: boolean,
   ): Promise<PrData> {
-    // Write body to temp file to avoid shell escaping issues. For WSL projects,
-    // gh runs inside the distro and can't read a Windows path, so write into
-    // the distro's /tmp via UNC and pass the Linux path to --body-file.
-    const tempFile = await createGhBodyFile(location, "lightcode-pr-body", body);
+    const tempFile = await createGhBodyFile(location, "lightcode-pr-body", body, this.wslClient);
     try {
       const createArgs = [
         "pr",
@@ -453,7 +536,7 @@ export class GitHubService {
         tempFile.cliPath,
         ...(isDraft ? ["--draft"] : []),
       ];
-      await runGh(location, createArgs);
+      await this.runGh(location, createArgs);
 
       // `gh pr create` doesn't support --json. GitHub can briefly return an
       // empty or incomplete statusCheckRollup before Actions queues checks, so
@@ -481,20 +564,14 @@ export class GitHubService {
       PR_VIEW_FIELDS,
     ];
 
-    // WSL: collapse `gh pr list` + `gh api user` (for viewerDidAuthor) into a
-    // single wsl.exe spawn running the two gh calls in parallel. Saves one
-    // bash-init cycle (~500–1000ms on cold paths).
+    // WSL: collapse `gh pr list` + `gh api user` (for viewerDidAuthor) into one
+    // bridge batch running inside the distro.
     if (location.kind === "wsl") {
       const cachedLogin = this.viewerLoginCache.get(locationKey(location));
       const needsLogin = cachedLogin === undefined;
-      const commands = [
-        { cwd: location.linuxPath, cmd: `gh ${prListArgs.map(quotePosixShellArg).join(" ")}` },
-        ...(needsLogin ? [{ cwd: location.linuxPath, cmd: `gh api user --jq .login` }] : []),
-      ];
+      const commands = [prListArgs, ...(needsLogin ? [["api", "user", "--jq", ".login"]] : [])];
       try {
-        const results = await parallelWslCommandsAsync(location.distro, commands, {
-          timeoutMs: GH_TIMEOUT,
-        });
+        const results = await this.runGhBatch(location, commands);
         const prResult = results[0]!;
         if (!prResult.ok) {
           throw new Error(`gh pr list exited ${prResult.exitCode}`);
@@ -518,7 +595,7 @@ export class GitHubService {
     // Non-WSL: per-call spawn overhead is negligible — keep simple Promise.all.
     try {
       const [stdout, viewerLogin] = await Promise.all([
-        runGh(location, prListArgs),
+        this.runGh(location, prListArgs),
         this.getViewerLogin(location),
       ]);
       const items = JSON.parse(stdout);
@@ -540,7 +617,7 @@ export class GitHubService {
     try {
       const args = ["pr", "merge", String(prNumber), `--${method}`];
       if (admin) args.push("--admin");
-      await runGh(location, args);
+      await this.runGh(location, args);
     } catch (err) {
       throw classifyError(err, "pr merge");
     }
@@ -548,7 +625,7 @@ export class GitHubService {
 
   async closePr(location: ProjectLocation, prNumber: number): Promise<void> {
     try {
-      await runGh(location, ["pr", "close", String(prNumber)]);
+      await this.runGh(location, ["pr", "close", String(prNumber)]);
     } catch (err) {
       throw classifyError(err, "pr close");
     }
@@ -556,7 +633,7 @@ export class GitHubService {
 
   async reopenPr(location: ProjectLocation, prNumber: number): Promise<void> {
     try {
-      await runGh(location, ["pr", "reopen", String(prNumber)]);
+      await this.runGh(location, ["pr", "reopen", String(prNumber)]);
     } catch (err) {
       throw classifyError(err, "pr reopen");
     }
@@ -564,7 +641,7 @@ export class GitHubService {
 
   async markPrReady(location: ProjectLocation, prNumber: number): Promise<void> {
     try {
-      await runGh(location, ["pr", "ready", String(prNumber)]);
+      await this.runGh(location, ["pr", "ready", String(prNumber)]);
     } catch (err) {
       throw classifyError(err, "pr ready");
     }
@@ -575,7 +652,7 @@ export class GitHubService {
     try {
       const args = ["pr", "update-branch", String(prNumber)];
       if (rebase) args.push("--rebase");
-      await runGh(location, args);
+      await this.runGh(location, args);
     } catch (err) {
       throw classifyError(err, "pr update-branch");
     }
@@ -583,7 +660,7 @@ export class GitHubService {
 
   async getPrChecks(location: ProjectLocation, branch: string): Promise<GhGetPrChecksResult> {
     try {
-      const stdout = await runGh(location, [
+      const stdout = await this.runGh(location, [
         "pr",
         "checks",
         branch,
@@ -606,7 +683,13 @@ export class GitHubService {
 
   async getPrFiles(location: ProjectLocation, prNumber: number): Promise<GhGetPrFilesResult> {
     try {
-      const stdout = await runGh(location, ["pr", "view", String(prNumber), "--json", "files"]);
+      const stdout = await this.runGh(location, [
+        "pr",
+        "view",
+        String(prNumber),
+        "--json",
+        "files",
+      ]);
       const parsed = JSON.parse(stdout) as { files?: unknown };
       const raw = Array.isArray(parsed.files) ? parsed.files : [];
       const files: PrFile[] = raw.map((entry) => {
@@ -625,7 +708,7 @@ export class GitHubService {
 
   async getPrDiff(location: ProjectLocation, prNumber: number): Promise<GhGetPrDiffResult> {
     try {
-      const stdout = await runGh(location, ["pr", "diff", String(prNumber)]);
+      const stdout = await this.runGh(location, ["pr", "diff", String(prNumber)]);
       return { diff: stdout };
     } catch (err) {
       throw classifyError(err, "pr diff");
@@ -634,7 +717,7 @@ export class GitHubService {
 
   async getPrDetails(location: ProjectLocation, prNumber: number): Promise<GhGetPrDetailsResult> {
     try {
-      const stdout = await runGh(location, [
+      const stdout = await this.runGh(location, [
         "pr",
         "view",
         String(prNumber),
@@ -675,10 +758,16 @@ export class GitHubService {
     if (trimmed.length === 0) {
       throw new Error("Comment body is required.");
     }
-    const tempFile = await createGhBodyFile(location, "lightcode-pr-comment", trimmed);
+    const tempFile = await createGhBodyFile(
+      location,
+      "lightcode-pr-comment",
+      trimmed,
+      this.wslClient,
+    );
     try {
+      const commentArgs = ["pr", "comment", String(prNumber), "--body-file", tempFile.cliPath];
       const [stdout, viewerLogin] = await Promise.all([
-        runGh(location, ["pr", "comment", String(prNumber), "--body-file", tempFile.cliPath]),
+        this.runGh(location, commentArgs),
         this.getViewerLogin(location),
       ]);
       // `gh pr comment` prints the URL of the new comment. Fall back to a synthesized
@@ -719,16 +808,21 @@ export class GitHubService {
 
     if (trimmed.length === 0) {
       try {
-        await runGh(location, ["pr", "review", String(prNumber), flag]);
+        await this.runGh(location, ["pr", "review", String(prNumber), flag]);
         return;
       } catch (err) {
         throw classifyError(err, "pr review");
       }
     }
 
-    const tempFile = await createGhBodyFile(location, "lightcode-pr-review", trimmed);
+    const tempFile = await createGhBodyFile(
+      location,
+      "lightcode-pr-review",
+      trimmed,
+      this.wslClient,
+    );
     try {
-      await runGh(location, [
+      await this.runGh(location, [
         "pr",
         "review",
         String(prNumber),

@@ -8,7 +8,6 @@ import { resolveLightcodePaths } from "@/shared/lightcodePaths";
 import { attachErrorDetails, errorDetail, msg } from "@/shared/messages";
 import { getProjectName } from "@/shared/wsl";
 import { sanitizeWorktreeBranchName, sanitizeWorktreePathSegment } from "@/shared/worktree";
-import { buildAgentCommand, readWslCommandOutputAsync } from "../agents/base";
 import { readSshCommandOutput, resolveSshHomeDirectoryAsync } from "../ssh";
 import type { WslBridgeClient, WslGitExecResult } from "../wsl/bridge/client";
 import { mkdir } from "node:fs/promises";
@@ -40,20 +39,18 @@ export async function execGitBatchWslBridge(
   location: ProjectLocation & { kind: "wsl" },
   commands: WslGitBatchCommand[],
   timeoutMs: number,
-): Promise<WslGitExecResult[] | undefined> {
+): Promise<WslGitExecResult[]> {
   const client = wslGitBridgeClient;
-  if (!client) return undefined;
-  try {
-    const result = await client.gitBatch(location, {
-      commands: commands.map((command) =>
-        command.loginEnv === undefined ? { ...command, loginEnv: true } : command,
-      ),
-      timeoutMs,
-    });
-    return result.results;
-  } catch {
-    return undefined;
+  if (!client) {
+    throw new Error(`WSL bridge unavailable for Git in distro "${location.distro}"`);
   }
+  const result = await client.gitBatch(location, {
+    commands: commands.map((command) =>
+      command.loginEnv === undefined ? { ...command, loginEnv: true } : command,
+    ),
+    timeoutMs,
+  });
+  return result.results;
 }
 
 export async function ghVersionWslBridge(
@@ -85,22 +82,9 @@ export async function execGit(
   try {
     if (location.kind === "wsl") {
       const bridgeResult = await execGitWslBridge(location, args, timeout, options?.env);
-      if (bridgeResult) {
-        if (bridgeResult.ok) return bridgeResult.stdout;
-        if (options?.allowNonZeroExit && bridgeResult.stdout) return bridgeResult.stdout;
-        throw gitBridgeResultToError(bridgeResult);
-      }
-
-      const spec = buildAgentCommand(location, "git", args, undefined, {
-        GIT_OPTIONAL_LOCKS: "0",
-        ...(options?.env ?? {}),
-      });
-      const { stdout } = await execFileAsync(spec.command, spec.args, {
-        windowsHide: true,
-        timeout,
-        maxBuffer,
-      });
-      return stdout;
+      if (bridgeResult.ok) return bridgeResult.stdout;
+      if (options?.allowNonZeroExit && bridgeResult.stdout) return bridgeResult.stdout;
+      throw gitBridgeResultToError(bridgeResult);
     }
 
     if (location.kind === "ssh") {
@@ -140,20 +124,18 @@ async function execGitWslBridge(
   args: string[],
   timeoutMs: number,
   env: Record<string, string> | undefined,
-): Promise<WslGitExecResult | undefined> {
+): Promise<WslGitExecResult> {
   const client = wslGitBridgeClient;
-  if (!client) return undefined;
-  try {
-    return await client.gitExec(location, {
-      cwd: location.linuxPath,
-      args,
-      loginEnv: true,
-      timeoutMs,
-      ...(env ? { env } : {}),
-    });
-  } catch {
-    return undefined;
+  if (!client) {
+    throw new Error(`WSL bridge unavailable for Git in distro "${location.distro}"`);
   }
+  return await client.gitExec(location, {
+    cwd: location.linuxPath,
+    args,
+    loginEnv: true,
+    timeoutMs,
+    ...(env ? { env } : {}),
+  });
 }
 
 function gitBridgeResultToError(result: WslGitExecResult): Error {
@@ -223,25 +205,19 @@ function getWorktreeRepoDirName(location: ProjectLocation): string {
 }
 
 async function resolveWslHomeDirectory(distro: string): Promise<string> {
-  if (wslGitBridgeClient) {
-    try {
-      const result = await wslGitBridgeClient.home({
-        kind: "wsl",
-        distro,
-        linuxPath: "/",
-        uncPath: `\\\\wsl.localhost\\${distro}\\`,
-      });
-      if (result.home) return result.home;
-    } catch {
-      // fall back to wsl.exe below
-    }
-  }
-  const result = await readWslCommandOutputAsync(distro, "sh", ["-lc", 'printf %s "$HOME"']);
-  const homePath = result.stdout.trim();
-  if (!result.ok || !homePath) {
+  if (!wslGitBridgeClient) {
     throw new Error(msg("git.wsl.homeNotFound", { distro }));
   }
-  return homePath;
+  const result = await wslGitBridgeClient.home({
+    kind: "wsl",
+    distro,
+    linuxPath: "/",
+    uncPath: `\\\\wsl.localhost\\${distro}\\`,
+  });
+  if (!result.home) {
+    throw new Error(msg("git.wsl.homeNotFound", { distro }));
+  }
+  return result.home;
 }
 
 export async function computeDefaultWorktreePath(
@@ -277,20 +253,12 @@ export async function ensureWorktreeParentExists(
 ): Promise<void> {
   if (location.kind === "wsl") {
     const parentPath = posix.dirname(worktreePath);
-    if (wslGitBridgeClient) {
-      try {
-        await wslGitBridgeClient.mkdir({ ...location, linuxPath: parentPath }, parentPath, {
-          recursive: true,
-        });
-        return;
-      } catch {
-        // fall back to wsl.exe below
-      }
+    if (!wslGitBridgeClient) {
+      throw new Error(`WSL bridge unavailable for Git in distro "${location.distro}"`);
     }
-    const result = await readWslCommandOutputAsync(location.distro, "mkdir", ["-p", parentPath]);
-    if (!result.ok) {
-      throw new Error(result.stderr || msg("git.wsl.mkdirFailed", { path: parentPath }));
-    }
+    await wslGitBridgeClient.mkdir({ ...location, linuxPath: parentPath }, parentPath, {
+      recursive: true,
+    });
     return;
   }
 

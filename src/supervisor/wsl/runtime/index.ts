@@ -17,11 +17,18 @@
  * to resolve `node` from PATH.
  */
 
+import { execFile } from "node:child_process";
 import { copyFileSync, existsSync, mkdirSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { promisify } from "node:util";
 import { toWslUncPath } from "@/shared/wsl";
-import { batchWslCommandsAsync, getWslCommand, resolveWslHomeDirectory } from "../../agents/base";
+import {
+  batchWslCommandsAsync,
+  execInWsl,
+  getWslCommand,
+  resolveWslHomeDirectoryAsync,
+} from "../../agents/base";
 import { pruneStaleRuntimeDirs, safeRm } from "../../runtime/cleanup";
 import { downloadToFile, verifySha256 } from "../../runtime/download";
 import {
@@ -45,6 +52,7 @@ export type LinuxArch = "x64" | "arm64";
  * are handled by `src/supervisor/native/runtime`.
  */
 export type NodeTargetTriple = Extract<SharedNodeTargetTriple, "linux-x64" | "linux-arm64">;
+const execFileAsync = promisify(execFile);
 
 // ── Cache ────────────────────────────────────────────────────────────────
 
@@ -83,6 +91,7 @@ export type RuntimeProgressListener = (event: RuntimeProgressEvent) => void;
 
 export interface ResolveNodeOptions {
   onProgress?: RuntimeProgressListener;
+  useBridge?: boolean;
 }
 
 // ── Public API ───────────────────────────────────────────────────────────
@@ -106,7 +115,8 @@ export async function resolveNodeForDistro(
   }
 
   options?.onProgress?.({ kind: "probe-start" });
-  const probed = await probeUserNode(distro);
+  const useBridge = options?.useBridge !== false;
+  const probed = await probeUserNode(distro, { useBridge });
 
   if (probed) {
     const major = parseNodeMajor(probed.version);
@@ -147,11 +157,13 @@ export async function resolveNodeForDistro(
  */
 export async function probeUserNode(
   distro: string,
+  options?: { useBridge?: boolean },
 ): Promise<{ nodePath: string; version: string } | null> {
-  const [pathResult, versionResult] = await batchWslCommandsAsync(distro, [
-    "command -v node",
-    "node --version 2>/dev/null",
-  ]);
+  const commands = ["command -v node", "node --version 2>/dev/null"];
+  const [pathResult, versionResult] =
+    options?.useBridge === false
+      ? await batchWslCommandsForBootstrap(distro, commands)
+      : await batchWslCommandsAsync(distro, commands);
 
   const nodePath = (pathResult?.stdout ?? "").trim();
   const versionRaw = (versionResult?.stdout ?? "").trim();
@@ -170,6 +182,53 @@ async function probeDistroArch(distro: string): Promise<LinuxArch | null> {
   return null;
 }
 
+async function probeDistroArchForBootstrap(distro: string): Promise<LinuxArch | null> {
+  const [archResult] = await batchWslCommandsForBootstrap(distro, ["uname -m"]);
+  const out = (archResult?.stdout ?? "").trim();
+  if (out === "x86_64" || out === "amd64") return "x64";
+  if (out === "aarch64" || out === "arm64") return "arm64";
+  return null;
+}
+
+async function batchWslCommandsForBootstrap(
+  distro: string,
+  commands: string[],
+): Promise<{ ok: boolean; stdout: string }[]> {
+  const sep = "---LIGHTCODE_BOOTSTRAP_BATCH_SEP---";
+  const script = commands.map((cmd) => `(${cmd}) 2>/dev/null; printf '\\n${sep}\\n'`).join("\n");
+  try {
+    const { stdout } = await execFileAsync(
+      getWslCommand(),
+      ["-d", distro, "--", "/bin/bash", "-l", "-i", "-c", script],
+      { encoding: "utf8", windowsHide: true, timeout: 15_000 },
+    );
+    const parts = stdout.split(sep);
+    return commands.map((_, index) => {
+      const raw = (parts[index] ?? "").trim();
+      return { ok: raw.length > 0, stdout: raw };
+    });
+  } catch {
+    return commands.map(() => ({ ok: false, stdout: "" }));
+  }
+}
+
+async function resolveWslHomeDirectoryForBootstrap(distro: string): Promise<string | undefined> {
+  try {
+    const { stdout } = await execFileAsync(
+      getWslCommand(),
+      ["-d", distro, "--", "sh", "-lc", 'printf %s "$HOME"'],
+      { encoding: "utf8", windowsHide: true, timeout: 5_000 },
+    );
+    const home = (stdout ?? "")
+      .split(/\r?\n/g)
+      .map((line) => line.trim())
+      .findLast((line) => line.length > 0);
+    return home;
+  } catch {
+    return undefined;
+  }
+}
+
 // ── Install ──────────────────────────────────────────────────────────────
 
 /**
@@ -183,7 +242,10 @@ export async function installRuntimeIntoDistro(
   distro: string,
   options?: ResolveNodeOptions,
 ): Promise<{ nodePath: string }> {
-  const arch = await probeDistroArch(distro);
+  const useBridge = options?.useBridge !== false;
+  const arch = useBridge
+    ? await probeDistroArch(distro)
+    : await probeDistroArchForBootstrap(distro);
   if (!arch) {
     throw new Error(`could not detect architecture for WSL distro "${distro}"`);
   }
@@ -196,7 +258,9 @@ export async function installRuntimeIntoDistro(
     );
   }
 
-  const home = resolveWslHomeDirectory(distro);
+  const home = useBridge
+    ? await resolveWslHomeDirectoryAsync(distro)
+    : await resolveWslHomeDirectoryForBootstrap(distro);
   if (!home) {
     throw new Error(`could not resolve $HOME inside WSL distro "${distro}"`);
   }
@@ -241,16 +305,22 @@ export async function installRuntimeIntoDistro(
     copyFileSync(tmpTarball, stagedUncPath);
 
     options?.onProgress?.({ kind: "extract-start" });
-    await spawnAndAwaitExit(getWslCommand(), [
-      "-d",
-      distro,
-      "--",
-      "tar",
-      "-xJf",
-      stagedLinuxPath,
-      "-C",
-      linuxRuntimeDir,
-    ]);
+    if (useBridge) {
+      await execInWsl(distro, "/", "tar", ["-xJf", stagedLinuxPath, "-C", linuxRuntimeDir], {
+        timeout: 60_000,
+      });
+    } else {
+      await spawnAndAwaitExit(getWslCommand(), [
+        "-d",
+        distro,
+        "--",
+        "tar",
+        "-xJf",
+        stagedLinuxPath,
+        "-C",
+        linuxRuntimeDir,
+      ]);
+    }
 
     safeRm(stagedUncPath);
 

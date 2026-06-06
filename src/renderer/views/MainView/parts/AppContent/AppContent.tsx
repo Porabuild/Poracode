@@ -21,7 +21,7 @@ import {
   useAgentStatusesStore,
 } from "@/renderer/state/agentStatusesStore";
 import { useAppStore } from "@/renderer/state/appStore";
-import { refreshGitProject } from "@/renderer/state/gitRefresh";
+import { getProjectActiveWorktreePaths, refreshGitProject } from "@/renderer/state/gitRefresh";
 import { useGitStore } from "@/renderer/state/gitStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import {
@@ -384,18 +384,8 @@ export function AppContent() {
 }
 
 async function primeWorktreeGitState(project: Project, worktreePath: string): Promise<void> {
-  const cachedWorktreePaths =
-    useGitStore
-      .getState()
-      .worktrees[project.id]?.filter((worktree) => !worktree.isMain)
-      .map((worktree) => worktree.path) ?? [];
-  const threadWorktreePaths = useAppStore
-    .getState()
-    .threads.flatMap((thread) =>
-      thread.projectId === project.id && thread.worktreePath ? [thread.worktreePath] : [],
-    );
   const worktreePaths = [
-    ...new Set([...cachedWorktreePaths, ...threadWorktreePaths, worktreePath]),
+    ...new Set([...getProjectActiveWorktreePaths(project.id), worktreePath]),
   ].sort();
   const watchWorktrees = readBridge()
     .gitWatchWorktrees({ projectId: project.id, worktreePaths })

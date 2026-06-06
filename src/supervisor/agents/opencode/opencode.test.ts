@@ -395,9 +395,9 @@ describe("createOpenCodeAdapter", () => {
     ).toBeUndefined();
   });
 
-  it("skips ACP session setup when resuming an existing session", async () => {
+  it("skips SDK session setup when resuming an existing session", async () => {
     // On resume the providerSessionId is already known — no need to ask
-    // `opencode acp` to allocate a new one. Returning undefined keeps the
+    // `opencode serve` to allocate a new one. Returning undefined keeps the
     // existing flow (just `opencode --session <id>`).
     const adapter = createOpenCodeAdapter();
     await expect(
@@ -414,7 +414,7 @@ describe("createOpenCodeAdapter", () => {
   });
 
   it("buildLaunchArgv returns no --session and no sessionRef when launchOptions is empty", () => {
-    // Defensive path: if ACP allocation never ran (failed, skipped, structured
+    // Defensive path: if SDK allocation never ran (failed, skipped, structured
     // session disabled), the TUI is launched without `--session` and OpenCode
     // creates a fresh session itself — same as before Shape A.
     const adapter = createOpenCodeAdapter();
@@ -427,6 +427,7 @@ describe("createOpenCodeAdapter", () => {
     );
     expect(argv.args).not.toContain("--session");
     expect(argv.sessionRef).toBeUndefined();
+    expect(argv.preferShell).toBe(true);
   });
 
   it("isReadyForInitialPrompt fires on the keybind footer", () => {
@@ -438,7 +439,7 @@ describe("createOpenCodeAdapter", () => {
   });
 
   it("buildLaunchArgv promotes launchOptions.resumeThreadId to --session and sessionRef", () => {
-    // This is the post-ACP path: the structured session captured a freshly
+    // This is the post-SDK path: the structured session captured a freshly
     // allocated session id and stashed it in launchOptions before disposing.
     const adapter = createOpenCodeAdapter();
     const argv = adapter.buildLaunchArgv(
@@ -446,16 +447,37 @@ describe("createOpenCodeAdapter", () => {
       { model: "opencode/big-pickle" },
       "hello",
       undefined,
-      { resumeThreadId: "ses_acp_allocated" },
+      { resumeThreadId: "ses_sdk_allocated" },
     );
     expect(argv.args).toEqual([
       "--session",
-      "ses_acp_allocated",
+      "ses_sdk_allocated",
       "--model",
       "opencode/big-pickle",
       "--prompt",
       "hello",
     ]);
-    expect(argv.sessionRef?.providerSessionId).toBe("ses_acp_allocated");
+    expect(argv.sessionRef?.providerSessionId).toBe("ses_sdk_allocated");
+    expect(argv.preferShell).toBe(true);
+  });
+
+  it("buildResumeArgv opts into shell resolution for the terminal TUI", () => {
+    const adapter = createOpenCodeAdapter();
+    const argv = adapter.buildResumeArgv(
+      { kind: "windows", path: "C:\\repo" },
+      { model: "opencode/big-pickle" },
+      "continue",
+      { providerSessionId: "ses_existing", discoveredAt: new Date().toISOString() },
+    );
+
+    expect(argv.args).toEqual([
+      "--session",
+      "ses_existing",
+      "--model",
+      "opencode/big-pickle",
+      "--prompt",
+      "continue",
+    ]);
+    expect(argv.preferShell).toBe(true);
   });
 });

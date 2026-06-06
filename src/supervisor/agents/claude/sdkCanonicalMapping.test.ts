@@ -212,7 +212,7 @@ describe("sdkCanonicalMapping — prompt content", () => {
       });
 
       expect(state.activeGoalItemId).toBe("goal-turn-goal");
-      expect(state.activeGoalTokensUsed).toBe(34_000);
+      expect(state.activeGoalCompletedTurnTokensUsed).toBe(34_000);
 
       vi.setSystemTime(new Date("2026-05-12T10:03:00Z"));
       const successResult = mapClaudeSdkMessage(
@@ -266,7 +266,7 @@ describe("sdkCanonicalMapping — prompt content", () => {
 
       expect(state.activeGoalItemId).toBe("goal-turn-goal");
       expect(state.activeGoalObjective).toBe("fix the bug");
-      expect(state.activeGoalTokensUsed).toBe(10_000);
+      expect(state.activeGoalCompletedTurnTokensUsed).toBe(10_000);
     } finally {
       vi.useRealTimers();
     }
@@ -298,7 +298,7 @@ describe("sdkCanonicalMapping — prompt content", () => {
       expect(state.activeGoalItemId).toBe("goal-turn-goal-2");
       expect(state.activeGoalObjective).toBe("new objective");
       expect(state.activeGoalStartedAtMs).toBe(Date.now());
-      expect(state.activeGoalTokensUsed).toBeUndefined();
+      expect(state.activeGoalCompletedTurnTokensUsed).toBeUndefined();
     } finally {
       vi.useRealTimers();
     }
@@ -341,7 +341,7 @@ describe("sdkCanonicalMapping — prompt content", () => {
     expect(state.activeGoalItemId).toBeUndefined();
   });
 
-  it("does not lower goal token usage when a final result reports fewer tokens than polling", () => {
+  it("does not lower goal token usage when a final result reports fewer tokens than live spend", () => {
     const state = createClaudeMapperState("thread-1");
     vi.useFakeTimers();
     try {
@@ -649,6 +649,49 @@ describe("sdkCanonicalMapping — tool use", () => {
         args: { file_path: "src/foo.ts", offset: 0 },
       }),
     });
+  });
+
+  it("surfaces Task model override from streamed input JSON", () => {
+    const state = createClaudeMapperState("thread-1");
+    mapClaudeSdkMessage(
+      streamEvent({
+        type: "content_block_start",
+        index: 0,
+        content_block: { type: "tool_use", id: "toolu_task", name: "Task", input: {} },
+      }),
+      state,
+    );
+
+    const events = mapClaudeSdkMessage(
+      streamEvent({
+        type: "content_block_delta",
+        index: 0,
+        delta: {
+          type: "input_json_delta",
+          partial_json:
+            '{"description":"Audit","subagent_type":"general-purpose","model":"sonnet"}',
+        },
+      }),
+      state,
+    );
+
+    expect(events).toMatchObject([
+      {
+        type: "item.updated",
+        threadId: "thread-1",
+        itemId: "toolu_task",
+        payload: {
+          name: "Task",
+          args: {
+            description: "Audit",
+            subagent_type: "general-purpose",
+            model: "sonnet",
+          },
+          status: "running",
+          progress: { model: "sonnet" },
+        },
+      },
+    ]);
   });
 
   it("maps Claude Workflow tool calls as subagent-like tool_call items", () => {
@@ -1354,6 +1397,42 @@ describe("sdkCanonicalMapping — sub-agents", () => {
       },
     ]);
   });
+
+  it("drops child-scoped context updates so the composer tracks parent context only", () => {
+    const state = createClaudeMapperState("thread-1");
+    const events = mapClaudeSdkMessage(
+      {
+        type: "system",
+        subtype: "compact_boundary",
+        parent_tool_use_id: "toolu_parent",
+        compact_metadata: { trigger: "auto", pre_tokens: 20_000, post_tokens: 6_000 },
+        session_id: "claude-session",
+      } as unknown as SDKMessage,
+      state,
+    );
+
+    expect(events.some((event) => event.type === "context.updated")).toBe(false);
+    expect(events).toMatchObject([
+      {
+        type: "item.started",
+        itemType: "tool_call",
+        parentItemId: "toolu_parent",
+        payload: {
+          name: "ContextCompaction",
+          status: "success",
+          args: { trigger: "auto", pre_tokens: 20_000, post_tokens: 6_000 },
+        },
+      },
+      {
+        type: "item.completed",
+        payload: {
+          name: "ContextCompaction",
+          status: "success",
+          args: { trigger: "auto", pre_tokens: 20_000, post_tokens: 6_000 },
+        },
+      },
+    ]);
+  });
 });
 
 describe("sdkCanonicalMapping — task progress", () => {
@@ -1367,7 +1446,7 @@ describe("sdkCanonicalMapping — task progress", () => {
           type: "tool_use",
           id: "toolu_T1",
           name: "Task",
-          input: { description: "research" },
+          input: { description: "research", model: "opus" },
         },
       }),
       state,
@@ -1389,11 +1468,6 @@ describe("sdkCanonicalMapping — task progress", () => {
 
     expect(events).toMatchObject([
       {
-        type: "context.updated",
-        threadId: "thread-1",
-        usage: { usedTokens: 4200 },
-      },
-      {
         type: "item.updated",
         threadId: "thread-1",
         itemId: "toolu_T1",
@@ -1403,6 +1477,7 @@ describe("sdkCanonicalMapping — task progress", () => {
           progress: {
             description: "Searching for callers",
             lastToolName: "Grep",
+            model: "opus",
             tokens: 4200,
             toolUses: 3,
             durationMs: 1500,
@@ -1411,9 +1486,10 @@ describe("sdkCanonicalMapping — task progress", () => {
         },
       },
     ]);
+    expect(events.some((event) => event.type === "context.updated")).toBe(false);
   });
 
-  it("still emits task_progress usage for unknown tool_use_id", () => {
+  it("does not treat task_progress usage as parent context-window usage", () => {
     const state = createClaudeMapperState("thread-1");
     const events = mapClaudeSdkMessage(
       {
@@ -1427,16 +1503,10 @@ describe("sdkCanonicalMapping — task progress", () => {
       } as unknown as SDKMessage,
       state,
     );
-    expect(events).toEqual([
-      {
-        type: "context.updated",
-        threadId: "thread-1",
-        usage: { usedTokens: 1 },
-      },
-    ]);
+    expect(events).toEqual([]);
   });
 
-  it("emits task_notification usage even without a parent tool row", () => {
+  it("does not emit task_notification usage as parent context-window usage", () => {
     const state = createClaudeMapperState("thread-1");
     const events = mapClaudeSdkMessage(
       {
@@ -1450,13 +1520,102 @@ describe("sdkCanonicalMapping — task progress", () => {
       } as unknown as SDKMessage,
       state,
     );
-    expect(events).toEqual([
-      {
-        type: "context.updated",
-        threadId: "thread-1",
-        usage: { usedTokens: 98_765 },
-      },
-    ]);
+    expect(events).toEqual([]);
+  });
+
+  it("adds deduped task usage to active goal token totals", () => {
+    const state = createClaudeMapperState("thread-1");
+    vi.useFakeTimers();
+    try {
+      vi.setSystemTime(new Date("2026-05-12T10:00:00Z"));
+      startClaudeTurn(state, "turn-goal", "/goal count subagent tokens", undefined);
+
+      vi.setSystemTime(new Date("2026-05-12T10:00:20Z"));
+      const firstProgress = mapClaudeSdkMessage(
+        {
+          type: "system",
+          subtype: "task_progress",
+          session_id: "claude-session",
+          task_id: "task-1",
+          tool_use_id: "toolu_T1",
+          description: "Searching",
+          usage: { total_tokens: 4_200, tool_uses: 3, duration_ms: 1_500 },
+        } as unknown as SDKMessage,
+        state,
+      );
+      expect(firstProgress).toContainEqual(
+        expect.objectContaining({
+          type: "item.updated",
+          itemId: "goal-turn-goal",
+          payload: expect.objectContaining({
+            status: "active",
+            tokensUsed: 4_200,
+          }),
+        }),
+      );
+
+      vi.setSystemTime(new Date("2026-05-12T10:00:30Z"));
+      const secondProgress = mapClaudeSdkMessage(
+        {
+          type: "system",
+          subtype: "task_progress",
+          session_id: "claude-session",
+          task_id: "task-1",
+          tool_use_id: "toolu_T1",
+          description: "Reading",
+          usage: { total_tokens: 5_000, tool_uses: 4, duration_ms: 2_000 },
+        } as unknown as SDKMessage,
+        state,
+      );
+      expect(secondProgress).toContainEqual(
+        expect.objectContaining({
+          type: "item.updated",
+          itemId: "goal-turn-goal",
+          payload: expect.objectContaining({ tokensUsed: 5_000 }),
+        }),
+      );
+
+      const lowerDuplicate = mapClaudeSdkMessage(
+        {
+          type: "system",
+          subtype: "task_notification",
+          session_id: "claude-session",
+          task_id: "task-1",
+          status: "completed",
+          summary: "Done",
+          usage: { total_tokens: 4_900, tool_uses: 4, duration_ms: 2_100 },
+        } as unknown as SDKMessage,
+        state,
+      );
+      expect(
+        lowerDuplicate.some(
+          (event) => event.type === "item.updated" && event.itemId === "goal-turn-goal",
+        ),
+      ).toBe(false);
+
+      vi.setSystemTime(new Date("2026-05-12T10:01:00Z"));
+      const resultEvents = mapClaudeSdkMessage(
+        {
+          type: "result",
+          subtype: "success",
+          session_id: "claude-session",
+          usage: { input_tokens: 10, output_tokens: 5 },
+        } as unknown as SDKMessage,
+        state,
+      );
+      expect(resultEvents).toContainEqual(
+        expect.objectContaining({
+          type: "item.updated",
+          itemId: "goal-turn-goal",
+          payload: expect.objectContaining({
+            status: "complete",
+            tokensUsed: 5_015,
+          }),
+        }),
+      );
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
 
@@ -1492,6 +1651,29 @@ describe("sdkCanonicalMapping — context usage", () => {
           { id: "messages-1", label: "Messages", tokens: 45_000 },
         ],
       },
+    });
+  });
+
+  it("does not emit placeholder zero-token context usage from a sparse SDK response", () => {
+    const event = mapClaudeContextUsageResponse("thread-1", {
+      categories: [],
+      totalTokens: 0,
+      maxTokens: 1_000_000,
+      rawMaxTokens: 1_000_000,
+      percentage: 0,
+      gridRows: [],
+      model: "claude-opus-4-7[1m]",
+      memoryFiles: [],
+      mcpTools: [],
+      isAutoCompactEnabled: true,
+      agents: [],
+      apiUsage: null,
+    } satisfies SDKControlGetContextUsageResponse);
+
+    expect(event).toEqual({
+      type: "context.updated",
+      threadId: "thread-1",
+      usage: { maxTokens: 1_000_000 },
     });
   });
 
@@ -1560,6 +1742,14 @@ describe("sdkCanonicalMapping — compaction", () => {
           args: { trigger: "manual", pre_tokens: 290000, post_tokens: 9900 },
         },
       },
+      {
+        type: "context.updated",
+        threadId: "thread-1",
+        usage: {
+          usedTokens: 9900,
+          breakdown: [{ id: "current-context", label: "Current context", tokens: 9900 }],
+        },
+      },
     ]);
   });
 
@@ -1590,6 +1780,13 @@ describe("sdkCanonicalMapping — compaction", () => {
           name: "ContextCompaction",
           status: "success",
           args: { trigger: "auto", pre_tokens: 100000, post_tokens: 12000 },
+        },
+      },
+      {
+        type: "context.updated",
+        usage: {
+          usedTokens: 12000,
+          breakdown: [{ id: "current-context", label: "Current context", tokens: 12000 }],
         },
       },
     ]);
@@ -1861,7 +2058,7 @@ describe("sdkCanonicalMapping — requests", () => {
     });
   });
 
-  it("parses AskUserQuestion input and exposes single-question options", () => {
+  it("parses AskUserQuestion input and exposes single-question options with a structured form", () => {
     const questions = parseClaudeQuestions({
       questions: [
         {
@@ -1880,6 +2077,9 @@ describe("sdkCanonicalMapping — requests", () => {
       requestType: "tool_user_input",
       payload: {
         summary: "Choose one",
+        details: {
+          userInputForm: { questions },
+        },
         multiSelect: true,
         options: [{ optionId: "A", label: "A", description: "Alpha" }],
       },
@@ -2148,7 +2348,7 @@ describe("sdkCanonicalMapping — requests", () => {
 });
 
 describe("sdkCanonicalMapping — emitActiveGoalTokenUpdate", () => {
-  it("emits a goal item.updated with context usage tokens when a goal is active", () => {
+  it("emits a goal item.updated with spend tokens when a goal is active", () => {
     const state = createClaudeMapperState("thread-1");
     vi.useFakeTimers();
     try {

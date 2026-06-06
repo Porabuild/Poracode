@@ -17,7 +17,12 @@ import {
 import { dirname, join, posix as pathPosix, resolve } from "node:path";
 import { resolveLightcodePaths } from "@/shared/lightcodePaths";
 import { toWslUncPath } from "@/shared/wsl";
-import { resolveExecutablePath, resolveWslHomeDirectory, type AgentEnvContext } from "../base";
+import {
+  getCachedWslHomeDirectory,
+  resolveExecutablePath,
+  resolveWslHomeDirectoryAsync,
+  type AgentEnvContext,
+} from "../base";
 import {
   readSshCommandOutput,
   resolveSshHomeDirectory,
@@ -255,7 +260,7 @@ export interface SshPluginBaseDirs {
 }
 
 export function getWslPluginBaseDirs(distro: string, kind: string): WslPluginBaseDirs | undefined {
-  const home = resolveWslHomeDirectory(distro);
+  const home = getCachedWslHomeDirectory(distro);
   if (!home) return undefined;
   const linuxBase = `${home}/.lightcode/agent-plugins/${kind}`;
   return { home, linuxBase, uncBase: toWslUncPath(distro, linuxBase) };
@@ -590,6 +595,7 @@ export async function resolveInstallNodePath(
     try {
       const { resolveNodeForDistro } = await import("../../wsl/runtime");
       const resolved = await resolveNodeForDistro(ctx.wslDistro);
+      await resolveWslHomeDirectoryAsync(ctx.wslDistro);
       return { ok: true, nodePath: resolved.nodePath };
     } catch (error) {
       return {

@@ -16,13 +16,12 @@ import {
 } from "@/shared/contracts";
 import type { SupervisorEvent } from "@/shared/ipc";
 import { normalizeSharedSettings } from "@/shared/settings";
-import { normalizeWslListOutput } from "@/shared/wsl";
 import {
+  getWindowsSystemCommand,
   invalidateExecutablePathCache,
   primeExecutablePathCache,
   type AgentAdapter,
   type AgentEnvContext,
-  getWslCommand,
 } from "../agents/base";
 import { clearFastModeCache } from "../agents/claude/fastModeCache";
 
@@ -38,6 +37,7 @@ const execFileAsync = promisify(execFile);
 export const STATUS_CACHE_VERSION = 3;
 const WSL_AGENT_DETECTION_TIMEOUT_MS = 60_000;
 const SSH_AGENT_DETECTION_TIMEOUT_MS = 60_000;
+const WSL_LXSS_REGISTRY_KEY = "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Lxss";
 
 function migrateSettingDef(definition: Record<string, unknown>): Record<string, unknown> {
   if (definition.type === "toggle" || definition.type === "select") {
@@ -321,6 +321,19 @@ interface DetectionResults {
   ssh: AgentStatus[];
 }
 
+export function parseWslRegistryDistributionNames(stdout: string): string[] {
+  const names: string[] = [];
+  const seen = new Set<string>();
+  for (const line of stdout.split(/\r?\n/g)) {
+    const match = line.match(/^\s*DistributionName\s+REG_\w+\s+(.+?)\s*$/u);
+    const name = match?.[1]?.trim();
+    if (!name || seen.has(name)) continue;
+    seen.add(name);
+    names.push(name);
+  }
+  return names;
+}
+
 export class AgentStatusService {
   private pendingDetection: Promise<DetectionResults> | undefined;
   private startupDetectionLaunched = false;
@@ -331,14 +344,19 @@ export class AgentStatusService {
 
   async listWslDistros(): Promise<string[]> {
     const startedAt = Date.now();
+    if (process.platform !== "win32") return [];
     try {
-      const { stdout } = await execFileAsync(getWslCommand(), ["-l", "-q"], {
-        encoding: "utf8",
-        windowsHide: true,
-        timeout: 5_000,
-      });
+      const { stdout } = await execFileAsync(
+        getWindowsSystemCommand("reg.exe"),
+        ["query", WSL_LXSS_REGISTRY_KEY, "/s", "/v", "DistributionName"],
+        {
+          encoding: "utf8",
+          windowsHide: true,
+          timeout: 5_000,
+        },
+      );
       console.log(`[supervisor] listWslDistros: ${Date.now() - startedAt}ms`);
-      return normalizeWslListOutput(stdout ?? "");
+      return parseWslRegistryDistributionNames(stdout ?? "");
     } catch {
       console.log(`[supervisor] listWslDistros: failed (${Date.now() - startedAt}ms)`);
       return [];

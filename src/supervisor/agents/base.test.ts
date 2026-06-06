@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import type { ProjectLocation } from "@/shared/contracts";
 import {
   buildAgentCommand,
-  buildBatchWslScript,
   getWslCommand,
   injectWslEnv,
   resolveLaunchSpec,
@@ -15,14 +14,6 @@ const wslProject: ProjectLocation = {
   linuxPath: "/home/demo/project",
   uncPath: "\\\\wsl.localhost\\Ubuntu\\home\\demo\\project",
 };
-
-describe("buildBatchWslScript", () => {
-  it("separates commands with newlines so bash executes each batch item cleanly", () => {
-    expect(buildBatchWslScript(["which codex", "codex --version"], "__SEP__")).toBe(
-      '(which codex) 2>/dev/null; echo "__SEP__"\n(codex --version) 2>/dev/null; echo "__SEP__"',
-    );
-  });
-});
 
 describe.skipIf(process.platform !== "win32")("wrapWslCommand", () => {
   it("launches WSL agent commands through the resolved login shell", () => {

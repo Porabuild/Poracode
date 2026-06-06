@@ -11,7 +11,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { toWslUncPath } from "@/shared/wsl";
 import type { AgentEnvContext } from "../../base";
-import { batchWslCommands, quotePosixShellArg } from "../../base";
+import { execInWsl, quotePosixShellArg } from "../../base";
 import { runSshScriptSync } from "../../../ssh";
 import {
   FORWARD_RUNTIME_FILE,
@@ -236,7 +236,11 @@ function restorePrivateStateFile(
   }
 }
 
-function seedWslCodexHome(distro: string, home: string, linuxCodexHome: string): void {
+async function seedWslCodexHome(
+  distro: string,
+  home: string,
+  linuxCodexHome: string,
+): Promise<void> {
   const uncCodexHome = toWslUncPath(distro, linuxCodexHome);
   mkdirSync(uncCodexHome, { recursive: true });
   const globalCodexHome = `${home}/.codex`;
@@ -263,7 +267,7 @@ function seedWslCodexHome(distro: string, home: string, linuxCodexHome: string):
     `touch ${quotePosixShellArg(`${globalCodexHome}/session_index.jsonl`)}`,
     ...CODEX_LINK_TARGETS.map(({ name, kind }) => linkLine(name, kind)),
   ].join("\n");
-  batchWslCommands(distro, [script]);
+  await execInWsl(distro, "/", "sh", ["-lc", script], { timeout: 15_000 }).catch(() => undefined);
 }
 
 function seedSshCodexHome(
@@ -365,10 +369,10 @@ export interface InstallCodexPluginOptions {
   resolvedNodePath?: string | undefined;
 }
 
-export function installCodexPlugin(
+export async function installCodexPlugin(
   ctx?: AgentEnvContext,
   options?: InstallCodexPluginOptions,
-): { ok: true; paths: CodexPluginPaths; version: string } | { ok: false; reason: string } {
+): Promise<{ ok: true; paths: CodexPluginPaths; version: string } | { ok: false; reason: string }> {
   let sourceDir: string;
   try {
     sourceDir = resolveSourceDir();
@@ -508,12 +512,12 @@ function installCodexPluginSsh(
   };
 }
 
-function installCodexPluginWsl(
+async function installCodexPluginWsl(
   distro: string,
   sourceDir: string,
   manifest: PluginManifest,
   resolvedNodePath: string,
-): { ok: true; paths: CodexPluginPaths; version: string } | { ok: false; reason: string } {
+): Promise<{ ok: true; paths: CodexPluginPaths; version: string } | { ok: false; reason: string }> {
   const staged = stagePluginAssetsToWsl(distro, sourceDir, "codex", {
     includeForwardRuntime: true,
   });
@@ -521,7 +525,7 @@ function installCodexPluginWsl(
 
   const linuxForward = `${staged.linuxPluginDir}/forward.mjs`;
   const linuxCodexHome = `${staged.linuxPluginDir}/home`;
-  seedWslCodexHome(distro, staged.deploy.home, linuxCodexHome);
+  await seedWslCodexHome(distro, staged.deploy.home, linuxCodexHome);
   const linuxHooksPath = `${linuxCodexHome}/hooks.json`;
   const uncHooks = toWslUncPath(distro, linuxHooksPath);
 

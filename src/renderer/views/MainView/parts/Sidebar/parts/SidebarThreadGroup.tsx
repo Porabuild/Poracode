@@ -46,6 +46,8 @@ export function SidebarThreadGroup(props: {
     }
     clearThreadGroup(groupKey);
   };
+  const hiddenGroupActionClass =
+    "w-0 -mr-[3px] overflow-hidden p-0 opacity-0 pointer-events-none group-hover:w-[18px] group-hover:mr-0 group-hover:p-0.5 group-hover:opacity-100 group-hover:pointer-events-auto focus-visible:w-[18px] focus-visible:mr-0 focus-visible:p-0.5 focus-visible:opacity-100 focus-visible:pointer-events-auto";
 
   return (
     <div key={collapseKey} className="space-y-0.5">
@@ -140,7 +142,7 @@ export function SidebarThreadGroup(props: {
             <Tooltip delay={300}>
               <button
                 type="button"
-                className="shrink-0 rounded p-0.5 text-muted/40 transition-colors hover:bg-[var(--row-hover)] hover:text-foreground"
+                className={`flex h-[18px] shrink-0 items-center justify-center rounded text-muted/40 transition-[opacity,color,background-color] hover:bg-[var(--row-hover)] hover:text-foreground ${hiddenGroupActionClass}`}
                 onClick={() => {
                   useAppStore.getState().openGroupView(entry.group.groupId);
                 }}

@@ -5,13 +5,12 @@ import type { ProjectLocation } from "@/shared/contracts";
 import { resolveLightcodePaths } from "@/shared/lightcodePaths";
 import {
   findSessionFiles,
+  getCachedWslHomeDirectory,
   quotePosixShellArg,
   readSessionFileText,
   readSshCommandOutputSync,
-  readWslCommandOutput,
   resolveSshHomeDirectory,
-  resolveWslHomeDirectory,
-  resolveWslShellPath,
+  resolveWslHomeDirectoryAsync,
   runSshScriptSync,
 } from "../base";
 import {
@@ -34,8 +33,8 @@ function nativeCodexHomeCandidates(): string[] {
   return [join(homedir(), ".codex"), nativePrivateCodexHome()];
 }
 
-function wslPrivateCodexHome(distro: string): string | undefined {
-  const home = resolveWslHomeDirectory(distro);
+/** Append the codex private-home suffix to a resolved WSL `$HOME`, if present. */
+function codexPrivateHomeFrom(home: string | undefined): string | undefined {
   return home ? `${home}/.lightcode/agent-plugins/codex/home` : undefined;
 }
 
@@ -43,6 +42,10 @@ function sshCodexHomeCandidates(location: Extract<ProjectLocation, { kind: "ssh"
   const home = resolveSshHomeDirectory(location);
   if (!home) return [];
   return [`${home}/.codex`, `${home}/.lightcode/agent-plugins/codex/home`];
+}
+
+function wslPrivateCodexHome(distro: string): string | undefined {
+  return codexPrivateHomeFrom(getCachedWslHomeDirectory(distro));
 }
 
 function dedupeById<T extends { id: string }>(items: T[], getUpdatedAt: (item: T) => number): T[] {
@@ -81,18 +84,7 @@ export function describeCodexLocation(location: ProjectLocation): string {
 
 export function readCodexSessionIndexForLocation(location: ProjectLocation) {
   if (location.kind === "wsl") {
-    const privateHome = wslPrivateCodexHome(location.distro);
-    const commands = [
-      "cat ~/.codex/session_index.jsonl 2>/dev/null || true",
-      ...(privateHome
-        ? [`cat ${quotePosixShellArg(`${privateHome}/session_index.jsonl`)} 2>/dev/null || true`]
-        : []),
-    ];
-    const result = readWslCommandOutput(location.distro, "sh", ["-lc", commands.join("\n")]);
-    if (!result.ok || result.stdout.length === 0) {
-      return [];
-    }
-    return parseCodexSessionIndex(result.stdout);
+    return [];
   }
 
   if (location.kind === "ssh") {
@@ -135,8 +127,8 @@ export async function readCodexSessionIndexForLocationAsync(
   if (location.kind !== "wsl") {
     return readCodexSessionIndexForLocation(location);
   }
-  const home = resolveWslHomeDirectory(location.distro);
-  const privateHome = wslPrivateCodexHome(location.distro);
+  const home = await resolveWslHomeDirectoryAsync(location.distro);
+  const privateHome = codexPrivateHomeFrom(home);
   const paths = [
     home ? `${home}/.codex/session_index.jsonl` : undefined,
     privateHome ? `${privateHome}/session_index.jsonl` : undefined,
@@ -174,48 +166,7 @@ export function isInteractiveCodexRollout(
 
 export function readCodexRolloutsForLocation(location: ProjectLocation): CodexRolloutMeta[] {
   if (location.kind === "wsl") {
-    // Use the user's actual login shell (bash / zsh / fish / …) so `~`
-    // expands against their passwd entry, not an assumed `bash` install.
-    const shellPath = resolveWslShellPath(location.distro);
-    const privateHome = wslPrivateCodexHome(location.distro);
-    const roots = [
-      "~/.codex/sessions",
-      ...(privateHome ? [quotePosixShellArg(`${privateHome}/sessions`)] : []),
-    ].join(" ");
-    const result = readWslCommandOutput(location.distro, shellPath, [
-      "-l",
-      "-c",
-      `find ${roots} -type f -name 'rollout-*.jsonl' -printf '%T@\\t%p\\n' 2>/dev/null`,
-    ]);
-    if (!result.ok || result.stdout.length === 0) {
-      console.log(
-        "[codex] WSL rollout scan returned no output for %s: %s",
-        describeCodexLocation(location),
-        result.stderr || "(no stderr)",
-      );
-      return [];
-    }
-    return dedupeRollouts(
-      result.stdout
-        .split(/\r?\n/g)
-        .map((line) => line.trim())
-        .filter(Boolean)
-        .flatMap((line) => {
-          const [mtimeRaw, path] = line.split("\t");
-          if (!path) return [];
-          const updatedAt = Number.isFinite(Number(mtimeRaw))
-            ? Math.round(Number(mtimeRaw) * 1000)
-            : undefined;
-          const id = parseCodexRolloutIdFromPath(path);
-          if (!id) return [];
-          const parsed: CodexRolloutMeta = {
-            id,
-            path,
-            ...(updatedAt !== undefined ? { updatedAt } : {}),
-          };
-          return parsed ? [parsed] : [];
-        }),
-    );
+    return [];
   }
 
   if (location.kind === "ssh") {
@@ -307,17 +258,7 @@ export function readCodexRolloutMetaForLocation(
   rollout: CodexRolloutMeta,
 ): CodexRolloutMeta | undefined {
   if (location.kind === "wsl") {
-    const result = readWslCommandOutput(location.distro, "head", ["-n", "1", "--", rollout.path]);
-    if (!result.ok || result.stdout.length === 0) {
-      console.log(
-        "[codex] WSL rollout meta read failed for %s: path=%s stderr=%s",
-        describeCodexLocation(location),
-        rollout.path,
-        result.stderr || "(no stderr)",
-      );
-      return rollout;
-    }
-    return parseCodexRolloutMeta(rollout.path, result.stdout, rollout.updatedAt) ?? rollout;
+    return rollout;
   }
 
   if (location.kind === "ssh") {
@@ -365,8 +306,8 @@ export async function readCodexRolloutsForLocationAsync(
   if (location.kind === "ssh") {
     roots = sshCodexHomeCandidates(location).map((home) => `${home}/sessions`);
   } else {
-    const home = resolveWslHomeDirectory(location.distro);
-    const privateHome = wslPrivateCodexHome(location.distro);
+    const home = await resolveWslHomeDirectoryAsync(location.distro);
+    const privateHome = codexPrivateHomeFrom(home);
     roots = [
       home ? `${home}/.codex/sessions` : undefined,
       privateHome ? `${privateHome}/sessions` : undefined,
@@ -403,7 +344,7 @@ export async function readCodexRolloutsForLocationAsync(
  */
 export function resolveCodexSessionWatchPaths(location: ProjectLocation): string[] {
   if (location.kind === "wsl") {
-    const home = resolveWslHomeDirectory(location.distro);
+    const home = getCachedWslHomeDirectory(location.distro);
     const privateHome = wslPrivateCodexHome(location.distro);
     return [
       home ? `${home}/.codex/sessions` : undefined,

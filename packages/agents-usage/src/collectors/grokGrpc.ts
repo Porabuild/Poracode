@@ -1,177 +1,264 @@
 /**
- * Minimal gRPC-web (text) + protobuf reader for Grok's billing config, the path
- * codexbar uses: POST grok.com `GetGrokBuildBillingConfig` authenticated by the
- * grok.com browser session cookie. We frame an empty request, send it base64
- * (`application/grpc-web-text`, which keeps the HostPort's string body contract),
- * and parse the response protobuf "enough to recover used percent and reset".
- *
- * The protobuf has no field names on the wire, so extraction is heuristic and
- * documented; it is validated against a live capture + codexbar field-by-field.
+ * Minimal gRPC-web + protobuf reader for Grok's credits config. The grok.com
+ * endpoint is private and undocumented, so this parser intentionally extracts
+ * only the stable-looking scalars we need for the usage ring.
  */
 
 export const GROK_GRPC_ENDPOINT =
-  "https://grok.com/grok_api_v2.GrokBuildBilling/GetGrokBuildBillingConfig";
+  "https://grok.com/grok_api_v2.GrokBuildBilling/GetGrokCreditsConfig";
 
-/** Base64 of the empty gRPC-web frame: [flag=0x00, len=0x00000000]. */
-export const GROK_GRPC_EMPTY_FRAME_B64 = "AAAAAAA=";
-
-export interface ProtoField {
-  field: number;
-  type: "varint" | "i64" | "i32" | "len";
-  /** varint → bigint; i64/i32 → number(double/float); len → Uint8Array. */
-  value: bigint | number | Uint8Array;
-}
-
-/** Decode a protobuf message body into a flat list of top-level fields. */
-export function decodeProto(buf: Uint8Array): ProtoField[] {
-  const out: ProtoField[] = [];
-  let i = 0;
-  const readVarint = (): bigint => {
-    let shift = 0n;
-    let result = 0n;
-    while (i < buf.length) {
-      const b = buf[i++]!;
-      result |= BigInt(b & 0x7f) << shift;
-      if (!(b & 0x80)) break;
-      shift += 7n;
-    }
-    return result;
-  };
-  while (i < buf.length) {
-    const tag = readVarint();
-    const field = Number(tag >> 3n);
-    const wire = Number(tag & 7n);
-    if (field <= 0) break;
-    if (wire === 0) {
-      out.push({ field, type: "varint", value: readVarint() });
-    } else if (wire === 2) {
-      const len = Number(readVarint());
-      if (len < 0 || i + len > buf.length) break;
-      out.push({ field, type: "len", value: buf.subarray(i, i + len) });
-      i += len;
-    } else if (wire === 5) {
-      const dv = new DataView(buf.buffer, buf.byteOffset + i, 4);
-      out.push({ field, type: "i32", value: dv.getFloat32(0, true) });
-      i += 4;
-    } else if (wire === 1) {
-      const dv = new DataView(buf.buffer, buf.byteOffset + i, 8);
-      out.push({ field, type: "i64", value: dv.getFloat64(0, true) });
-      i += 8;
-    } else {
-      break;
-    }
-  }
-  return out;
-}
-
-/** Strip gRPC-web frames from a base64 (grpc-web-text) body; return the message frame bytes. */
-export function unframeGrpcWebText(base64Body: string): Uint8Array | undefined {
-  let bytes: Uint8Array;
-  try {
-    bytes = Uint8Array.from(Buffer.from(base64Body.trim(), "base64"));
-  } catch {
-    return undefined;
-  }
-  let i = 0;
-  while (i + 5 <= bytes.length) {
-    const flag = bytes[i]!;
-    const len =
-      (bytes[i + 1]! << 24) | (bytes[i + 2]! << 16) | (bytes[i + 3]! << 8) | bytes[i + 4]!;
-    const start = i + 5;
-    const end = start + len;
-    if (end > bytes.length) break;
-    // flag bit 0x80 marks the trailer frame; the data frame is flag 0x00.
-    if ((flag & 0x80) === 0) return bytes.subarray(start, end);
-    i = end;
-  }
-  return undefined;
-}
+/** Empty unary gRPC-web frame: [flag=0x00, len=0x00000000]. */
+export const GROK_GRPC_EMPTY_FRAME_BYTES = new Uint8Array([0, 0, 0, 0, 0]);
 
 export interface GrokBilling {
-  used?: number;
-  limit?: number;
+  usedPercent: number;
   resetsAt?: number;
-  /** Billing-period start (epoch ms); used to label the cycle. */
-  periodStartMs?: number;
 }
 
-/** Debug aid for finalizing the field mapping against a live capture. */
-export function debugGrokScalars(message: Uint8Array): Array<{ path: string; num: number }> {
-  const out: Scalar[] = [];
-  flattenScalars(message, [], out, 0);
-  return out.map((s) => ({ path: s.path.join("."), num: s.num }));
+export type GrokGrpcBillingResult =
+  | { kind: "ok"; billing: GrokBilling }
+  | { kind: "unauthenticated" }
+  | { kind: "invalid" };
+
+interface Fixed32Field {
+  path: number[];
+  value: number;
+  order: number;
 }
 
-/** Read the numeric leaf at a field-number path (e.g. [1,2,1]) or undefined. */
-function readProtoNumberPath(buf: Uint8Array, path: readonly number[]): number | undefined {
-  let fields = decodeProto(buf);
-  for (let i = 0; i < path.length; i++) {
-    const f = fields.find((x) => x.field === path[i]);
-    if (!f) return undefined;
-    if (i === path.length - 1) {
-      if (f.type === "varint") return Number(f.value as bigint);
-      if (f.type === "i64" || f.type === "i32") return f.value as number;
-      return undefined;
-    }
-    if (f.type !== "len") return undefined;
-    fields = decodeProto(f.value as Uint8Array);
+interface VarintField {
+  path: number[];
+  value: number;
+}
+
+interface ProtoScan {
+  fixed32Fields: Fixed32Field[];
+  varintFields: VarintField[];
+}
+
+function emptyScan(): ProtoScan {
+  return { fixed32Fields: [], varintFields: [] };
+}
+
+function mergeScan(target: ProtoScan, source: ProtoScan): void {
+  target.fixed32Fields.push(...source.fixed32Fields);
+  target.varintFields.push(...source.varintFields);
+}
+
+function readVarint(bytes: Uint8Array, cursor: { index: number }): bigint | undefined {
+  let shift = 0n;
+  let value = 0n;
+  while (cursor.index < bytes.length && shift < 64n) {
+    const byte = bytes[cursor.index++]!;
+    value |= BigInt(byte & 0x7f) << shift;
+    if ((byte & 0x80) === 0) return value;
+    shift += 7n;
   }
   return undefined;
 }
 
-/** A scalar value flattened with the path of field numbers that reached it. */
-interface Scalar {
-  path: number[];
-  num: number;
+function scanProtobuf(
+  bytes: Uint8Array,
+  depth: number,
+  path: number[] = [],
+  order = 0,
+): { scan: ProtoScan; order: number } {
+  const scan = emptyScan();
+  const cursor = { index: 0 };
+  let nextOrder = order;
+
+  while (cursor.index < bytes.length) {
+    const fieldStart = cursor.index;
+    const key = readVarint(bytes, cursor);
+    if (key === undefined || key === 0n) {
+      cursor.index = fieldStart + 1;
+      continue;
+    }
+
+    const fieldNumber = Number(key >> 3n);
+    const wireType = Number(key & 0x07n);
+    const fieldPath = [...path, fieldNumber];
+
+    if (wireType === 0) {
+      const value = readVarint(bytes, cursor);
+      if (value === undefined) {
+        cursor.index = fieldStart + 1;
+        continue;
+      }
+      scan.varintFields.push({ path: fieldPath, value: Number(value) });
+      continue;
+    }
+
+    if (wireType === 1) {
+      if (cursor.index + 8 > bytes.length) break;
+      cursor.index += 8;
+      continue;
+    }
+
+    if (wireType === 2) {
+      const length = readVarint(bytes, cursor);
+      if (length === undefined || length > BigInt(bytes.length - cursor.index)) {
+        cursor.index = fieldStart + 1;
+        continue;
+      }
+      const start = cursor.index;
+      const end = start + Number(length);
+      if (depth < 4) {
+        const nested = scanProtobuf(bytes.subarray(start, end), depth + 1, fieldPath, nextOrder);
+        mergeScan(scan, nested.scan);
+        nextOrder = nested.order;
+      }
+      cursor.index = end;
+      continue;
+    }
+
+    if (wireType === 5) {
+      if (cursor.index + 4 > bytes.length) break;
+      const view = new DataView(bytes.buffer, bytes.byteOffset + cursor.index, 4);
+      scan.fixed32Fields.push({
+        path: fieldPath,
+        value: view.getFloat32(0, true),
+        order: nextOrder,
+      });
+      nextOrder += 1;
+      cursor.index += 4;
+      continue;
+    }
+
+    cursor.index = fieldStart + 1;
+  }
+
+  return { scan, order: nextOrder };
 }
 
-/**
- * Confirmed `GetGrokBuildBillingConfig` field map (validated live against a
- * SuperGrok account showing 25% used, resets May 31):
- *   field 1 = config message
- *     1.1.1 = monthlyLimit.val   1.2.1 = used.val   1.3.1 = onDemandCap.val
- *     1.4.1 = billingPeriodStart (epoch s)   1.5.1 = billingPeriodEnd (epoch s)
- *     1.6   = history[] (repeated)
- */
-const GROK_PATH = {
-  limit: [1, 1, 1],
-  used: [1, 2, 1],
-  periodStart: [1, 4, 1],
-  periodEnd: [1, 5, 1],
-} as const;
-
-function flattenScalars(buf: Uint8Array, path: number[], out: Scalar[], depth: number): void {
-  if (depth > 6) return;
-  for (const f of decodeProto(buf)) {
-    const here = [...path, f.field];
-    if (f.type === "varint") out.push({ path: here, num: Number(f.value) });
-    else if (f.type === "i64" || f.type === "i32") out.push({ path: here, num: f.value as number });
-    else if (f.type === "len") {
-      const bytes = f.value as Uint8Array;
-      // Recurse into anything that looks like a nested message; ignore strings.
-      if (bytes.length > 1 && bytes.length < buf.length)
-        flattenScalars(bytes, here, out, depth + 1);
-    }
+/** Walk the 5-byte-prefixed gRPC-web frames, yielding each frame's flags + payload. */
+function* iterateGrpcWebFrames(
+  bytes: Uint8Array,
+): Generator<{ flags: number; payload: Uint8Array }> {
+  let index = 0;
+  while (index + 5 <= bytes.length) {
+    const flags = bytes[index]!;
+    const length =
+      (bytes[index + 1]! << 24) |
+      (bytes[index + 2]! << 16) |
+      (bytes[index + 3]! << 8) |
+      bytes[index + 4]!;
+    const start = index + 5;
+    const end = start + length;
+    if (length < 0 || end > bytes.length) break;
+    yield { flags, payload: bytes.subarray(start, end) };
+    index = end;
   }
 }
 
-/**
- * Extract used/limit credits and the reset timestamp from the decoded billing
- * message by exact field path (see `GROK_PATH`). Timestamps are epoch seconds on
- * the wire and converted to ms. `nowMs` is unused now that the mapping is exact,
- * but kept for signature stability with the collector.
- */
-export function extractGrokBilling(message: Uint8Array, _nowMs: number): GrokBilling {
-  const toMs = (sec: number | undefined): number | undefined =>
-    sec !== undefined && sec > 0 ? sec * 1000 : undefined;
-  const limit = readProtoNumberPath(message, GROK_PATH.limit);
-  const used = readProtoNumberPath(message, GROK_PATH.used);
-  const resetsAt = toMs(readProtoNumberPath(message, GROK_PATH.periodEnd));
-  const periodStartMs = toMs(readProtoNumberPath(message, GROK_PATH.periodStart));
+function grpcWebDataFrames(bytes: Uint8Array): Uint8Array[] {
+  const frames: Uint8Array[] = [];
+  // Bit 0x80 marks a trailer frame; the data frames are everything else.
+  for (const { flags, payload } of iterateGrpcWebFrames(bytes)) {
+    if ((flags & 0x80) === 0) frames.push(payload);
+  }
+  return frames;
+}
+
+function grpcWebTrailerFields(bytes: Uint8Array): Record<string, string> {
+  const fields: Record<string, string> = {};
+  for (const { flags, payload } of iterateGrpcWebFrames(bytes)) {
+    if ((flags & 0x80) === 0) continue;
+    const text = Buffer.from(payload).toString("utf8");
+    for (const line of text.split(/\r?\n/u)) {
+      if (!line) continue;
+      const separator = line.indexOf(":");
+      if (separator === -1) continue;
+      const key = line.slice(0, separator).trim().toLowerCase();
+      const rawValue = line.slice(separator + 1).trim();
+      fields[key] = decodeURIComponent(rawValue);
+    }
+  }
+  return fields;
+}
+
+function normalizeGrpcHeaderFields(headers: Record<string, string>): Record<string, string> {
+  const fields: Record<string, string> = {};
+  for (const [key, value] of Object.entries(headers)) {
+    const normalized = key.trim().toLowerCase();
+    if (!normalized.startsWith("grpc-")) continue;
+    fields[normalized] = decodeURIComponent(value.trim());
+  }
+  return fields;
+}
+
+function grpcStatusResult(fields: Record<string, string>): GrokGrpcBillingResult | undefined {
+  const rawStatus = fields["grpc-status"];
+  if (rawStatus === undefined) return undefined;
+  const status = Number.parseInt(rawStatus, 10);
+  if (!Number.isFinite(status) || status === 0) return undefined;
+  return status === 16 ? { kind: "unauthenticated" } : { kind: "invalid" };
+}
+
+function pathEquals(path: readonly number[], expected: readonly number[]): boolean {
+  return path.length === expected.length && path.every((value, index) => value === expected[index]);
+}
+
+function pathStartsWith(path: readonly number[], prefix: readonly number[]): boolean {
+  return prefix.every((value, index) => path[index] === value);
+}
+
+function extractCreditsBilling(frames: Uint8Array[], nowMs: number): GrokBilling | undefined {
+  if (frames.length === 0) return undefined;
+
+  const scan = emptyScan();
+  for (const frame of frames) {
+    mergeScan(scan, scanProtobuf(frame, 0).scan);
+  }
+
+  const usedPercent = scan.fixed32Fields
+    .filter((field) => {
+      const last = field.path[field.path.length - 1];
+      return last === 1 && Number.isFinite(field.value) && field.value >= 0 && field.value <= 100;
+    })
+    .sort((a, b) =>
+      a.path.length === b.path.length ? a.order - b.order : a.path.length - b.path.length,
+    )
+    .at(0)?.value;
+
+  const nowSec = nowMs / 1000;
+  const resetCandidates = scan.varintFields
+    .filter((field) => field.value >= 1_700_000_000 && field.value <= 2_100_000_000)
+    .filter((field) => field.value > nowSec);
+  const reset =
+    resetCandidates
+      .filter((field) => pathEquals(field.path, [1, 5, 1]))
+      .map((field) => field.value)
+      .sort((a, b) => a - b)[0] ??
+    resetCandidates.map((field) => field.value).sort((a, b) => a - b)[0];
+
+  const noUsageYet =
+    usedPercent === undefined &&
+    scan.fixed32Fields.length === 0 &&
+    reset !== undefined &&
+    scan.varintFields.some((field) => pathStartsWith(field.path, [1, 6]));
+  const percent = usedPercent ?? (noUsageYet ? 0 : undefined);
+  if (percent === undefined) return undefined;
+
   return {
-    ...(used !== undefined ? { used } : {}),
-    ...(limit !== undefined ? { limit } : {}),
-    ...(resetsAt !== undefined ? { resetsAt } : {}),
-    ...(periodStartMs !== undefined ? { periodStartMs } : {}),
+    usedPercent: percent,
+    ...(reset !== undefined ? { resetsAt: reset * 1000 } : {}),
   };
+}
+
+export function parseGrokGrpcBillingResponse(input: {
+  headers: Record<string, string>;
+  body?: string;
+  bodyBytes?: Uint8Array;
+  nowMs: number;
+}): GrokGrpcBillingResult {
+  const headerStatus = grpcStatusResult(normalizeGrpcHeaderFields(input.headers));
+  if (headerStatus) return headerStatus;
+
+  const bytes = input.bodyBytes ?? Buffer.from(input.body ?? "", "binary");
+  const trailerStatus = grpcStatusResult(grpcWebTrailerFields(bytes));
+  if (trailerStatus) return trailerStatus;
+
+  const billing = extractCreditsBilling(grpcWebDataFrames(bytes), input.nowMs);
+  return billing ? { kind: "ok", billing } : { kind: "invalid" };
 }

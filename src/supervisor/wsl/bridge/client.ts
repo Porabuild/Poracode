@@ -2,6 +2,9 @@ import { randomUUID } from "node:crypto";
 import type { ProjectLocation } from "@/shared/contracts";
 import type { WslBridgeServer, WatchEvent, WatchScope } from "./index";
 
+const BRIDGE_REQUEST_TIMEOUT_MS = 30_000;
+const BRIDGE_FETCH_ATTEMPTS = 8;
+
 /**
  * Thin, typed façade over the in-distro bridge server's `/v1/fs/*` endpoints.
  * Every method ensures the bridge is running (lazy spawn), then issues one
@@ -172,6 +175,20 @@ export class WslBridgeClient {
     return this.call<WslGitExecResult>(location, "/v1/gh/version", input);
   }
 
+  async processExec(
+    location: WslLocation,
+    input: WslProcessExecInput,
+  ): Promise<WslProcessExecResult> {
+    return this.call<WslProcessExecResult>(location, "/v1/process/exec", input);
+  }
+
+  async processBatch(
+    location: WslLocation,
+    input: { commands: WslProcessExecInput[]; timeoutMs?: number },
+  ): Promise<{ results: WslProcessExecResult[] }> {
+    return this.call<{ results: WslProcessExecResult[] }>(location, "/v1/process/batch", input);
+  }
+
   /** Rename/move a path. Both sides must live inside `location`. */
   async rename(location: WslLocation, fromAbsolute: string, toAbsolute: string): Promise<void> {
     await this.call(location, "/v1/fs/rename", {
@@ -224,19 +241,7 @@ export class WslBridgeClient {
     if (!handle) {
       throw asNodeErr("EUNAVAIL", `WSL bridge unavailable for distro ${location.distro}`);
     }
-    let response: Response;
-    try {
-      response = await fetch(`${handle.baseUrl}${path}`, {
-        method: "POST",
-        headers: {
-          authorization: `Bearer ${handle.secret}`,
-          "content-type": "application/json",
-        },
-        body: JSON.stringify(body),
-      });
-    } catch (err) {
-      throw asNodeErr("ECONN", `bridge request failed: ${errMessage(err)}`);
-    }
+    const response = await fetchBridge(`${handle.baseUrl}${path}`, handle.secret, body);
     let parsed: unknown;
     try {
       parsed = await response.json();
@@ -258,6 +263,42 @@ export class WslBridgeClient {
     const message = resolveErrMessage(envelope.message, envelope.error, path, response.status);
     throw asNodeErr(code, message);
   }
+}
+
+async function fetchBridge(url: string, secret: string, body: unknown): Promise<Response> {
+  let lastError: unknown;
+  for (let attempt = 1; attempt <= BRIDGE_FETCH_ATTEMPTS; attempt += 1) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), BRIDGE_REQUEST_TIMEOUT_MS);
+    if (typeof timeout.unref === "function") timeout.unref();
+    try {
+      return await fetch(url, {
+        method: "POST",
+        headers: {
+          authorization: `Bearer ${secret}`,
+          "content-type": "application/json",
+        },
+        body: JSON.stringify(body),
+        signal: controller.signal,
+      });
+    } catch (err) {
+      lastError = err;
+      if (!shouldRetryBridgeFetch(err) || attempt === BRIDGE_FETCH_ATTEMPTS) break;
+      await delay(125 * attempt);
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+  throw asNodeErr("ECONN", `bridge request failed: ${errMessage(lastError)}`);
+}
+
+function shouldRetryBridgeFetch(err: unknown): boolean {
+  const message = errMessage(err).toLowerCase();
+  return message.includes("fetch failed") || message.includes("econnrefused");
+}
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 export type WslLocation = Extract<ProjectLocation, { kind: "wsl" }>;
@@ -315,6 +356,12 @@ export interface WslGitExecResult {
   error?: string;
   timedOut?: boolean;
 }
+
+export interface WslProcessExecInput extends WslGitExecInput {
+  command: string;
+}
+
+export type WslProcessExecResult = WslGitExecResult;
 
 function asNodeErr(code: string, message: string): NodeJS.ErrnoException {
   const err = new Error(message) as NodeJS.ErrnoException;

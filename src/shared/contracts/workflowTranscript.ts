@@ -20,6 +20,14 @@ export const workflowAgentStateSchema = z.enum([
 ]);
 export type WorkflowAgentState = z.infer<typeof workflowAgentStateSchema>;
 
+export const workflowAgentChatEntrySchema = z.object({
+  role: z.enum(["user", "assistant", "tool"]),
+  title: z.string().optional(),
+  text: z.string().optional(),
+  timestamp: z.string().optional(),
+});
+export type WorkflowAgentChatEntry = z.infer<typeof workflowAgentChatEntrySchema>;
+
 export const workflowAgentSchema = z.object({
   agentId: z.string().min(1),
   label: z.string().min(1),
@@ -36,6 +44,7 @@ export const workflowAgentSchema = z.object({
   lastToolName: z.string().optional(),
   promptPreview: z.string().optional(),
   resultPreview: z.string().optional(),
+  chat: z.array(workflowAgentChatEntrySchema).optional(),
   attempt: z.number().int().nonnegative().optional(),
 });
 export type WorkflowAgent = z.infer<typeof workflowAgentSchema>;

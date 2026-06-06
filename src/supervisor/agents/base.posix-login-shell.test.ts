@@ -23,6 +23,7 @@ import {
   cliSubcommandAuthProbe,
   primeExecutablePathCache,
   primeProjectShellEnv,
+  resolveLaunchSpec,
   resolveExecutablePathAsync,
 } from "./base";
 
@@ -108,6 +109,34 @@ describe.skipIf(process.platform === "win32")("POSIX login shell wrappers", () =
         NVM_DIR: "/Users/demo/.nvm",
         HOMEBREW_PREFIX: "/opt/homebrew",
         EDITOR: "nvim",
+      },
+    });
+  });
+
+  it("shell-wraps launches that opt out of absolute binary direct spawn", async () => {
+    execFileAsyncMock.mockResolvedValue({
+      stdout: [
+        "opencode\t/Users/demo/.opencode/bin/opencode",
+        "__LIGHTCODE_ENV_BEGIN__",
+        "PATH=/opt/homebrew/bin:/usr/bin:/bin",
+      ].join("\n"),
+      stderr: "",
+    });
+
+    await primeExecutablePathCache(["opencode"]);
+
+    expect(
+      resolveLaunchSpec(posixProject, {
+        binary: "opencode",
+        args: ["--version"],
+        preferShell: true,
+      }),
+    ).toEqual({
+      command: "/bin/zsh",
+      args: expectedShellArgs("exec 'opencode' '--version'"),
+      cwd: "/Users/demo/project",
+      env: {
+        PATH: "/opt/homebrew/bin:/usr/bin:/bin",
       },
     });
   });

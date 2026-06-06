@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import type { OscNotification, OscShellEvent } from "@/shared/osc";
 import { buildCopilotArgs } from "./argv";
 import { copilotDetectionSpec } from "./detection";
 import {
@@ -12,6 +13,53 @@ import {
 describe("copilotDetectionSpec", () => {
   it("uses Copilot CLI login for terminal authentication", () => {
     expect(copilotDetectionSpec.loginCommand).toBe("copilot login");
+  });
+});
+
+function oscNotify(body: string, code: 9 | 99 | 777 = 9): OscNotification {
+  return { code, title: "", body, payload: undefined };
+}
+
+describe("createCopilotAdapter OSC status", () => {
+  const adapter = createCopilotAdapter();
+
+  it("maps iTerm2 OSC 9;4 progress to working and idle", () => {
+    expect(adapter.handleOscNotification?.(oscNotify("4;3;0"))).toEqual({
+      status: "working",
+      attention: "working",
+      corroborated: true,
+    });
+    expect(adapter.handleOscNotification?.(oscNotify("4;1;42"))).toEqual({
+      status: "working",
+      attention: "working",
+      corroborated: true,
+    });
+    expect(adapter.handleOscNotification?.(oscNotify("4;0;0"))).toEqual({
+      status: "idle",
+      attention: "none",
+      corroborated: true,
+    });
+  });
+
+  it("ignores non-OSC-9 progress-looking notifications", () => {
+    expect(adapter.handleOscNotification?.(oscNotify("4;3;0", 777))).toBeNull();
+    expect(adapter.handleOscNotification?.(oscNotify("4;0;0", 99))).toBeNull();
+  });
+
+  it("maps shell integration preexec/finished markers as a WSL fallback", () => {
+    const preexec: OscShellEvent = { code: 133, kind: "command-pre-exec" };
+    const finished: OscShellEvent = { code: 133, kind: "command-finished", exitCode: 0 };
+
+    expect(adapter.handleOscShellEvent?.(preexec)).toEqual({
+      status: "working",
+      attention: "working",
+      corroborated: true,
+    });
+    expect(adapter.handleOscShellEvent?.(finished)).toEqual({
+      status: "idle",
+      attention: "none",
+      corroborated: true,
+    });
   });
 });
 

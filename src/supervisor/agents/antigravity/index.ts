@@ -5,9 +5,9 @@ import {
   watchSessionPaths,
   type AgentAdapter,
 } from "../base";
-import { buildAntigravityArgs } from "./argv";
+import { buildAntigravityArgs, resolveAntigravityModel } from "./argv";
 import {
-  ANTIGRAVITY_MANAGED_MODEL_ID,
+  ANTIGRAVITY_DEFAULT_MODEL_ID,
   antigravityDetectionSpec,
   defaultAntigravityCapabilities,
 } from "./detection";
@@ -17,7 +17,9 @@ import {
   locationCwd,
   readAntigravityConversationIds,
   readAntigravityLastConversationForCwd,
+  readAntigravityLastConversationForCwdAsync,
   readNewestAntigravityConversationForCwd,
+  readNewestAntigravityConversationIdAsync,
   resolveAntigravityWatchPaths,
 } from "./session";
 import { detectAntigravityTerminalStatus } from "./terminal";
@@ -28,6 +30,7 @@ export function createAntigravityAdapter(): AgentAdapter {
   let capabilities: AgentCapability = defaultAntigravityCapabilities;
   let preSpawnConversationIds = new Set<string>();
   let preSpawnLastConversationForCwd: string | undefined;
+  let preSpawnStartedAt = 0;
 
   return {
     kind: "antigravity",
@@ -53,12 +56,20 @@ export function createAntigravityAdapter(): AgentAdapter {
       // `agy` has no flag to pre-assign a conversation id; the conversation db
       // only appears once the session starts. Snapshot the existing ids + the
       // workspace's cached "last" id so `discoverSessionRef` can pick out the
-      // brand-new conversation created for this launch.
-      preSpawnConversationIds = readAntigravityConversationIds(location);
-      preSpawnLastConversationForCwd = readAntigravityLastConversationForCwd(
-        location,
-        locationCwd(location),
-      );
+      // brand-new conversation created for this launch. On WSL we can't read
+      // those files synchronously, so leave the snapshot empty and rely on the
+      // post-spawn start time to window the async discovery instead.
+      preSpawnStartedAt = Date.now();
+      if (location.kind === "wsl") {
+        preSpawnConversationIds = new Set();
+        preSpawnLastConversationForCwd = undefined;
+      } else {
+        preSpawnConversationIds = readAntigravityConversationIds(location);
+        preSpawnLastConversationForCwd = readAntigravityLastConversationForCwd(
+          location,
+          locationCwd(location),
+        );
+      }
       const args = buildAntigravityArgs(config, prompt);
       return { binary: "agy", args };
     },
@@ -75,6 +86,25 @@ export function createAntigravityAdapter(): AgentAdapter {
 
     async discoverSessionRef(location: ProjectLocation) {
       const cwd = locationCwd(location);
+      // WSL can't synchronously read the conversation db's workspace URI over
+      // the bridge, so fall back to the cached "last" id plus a time-windowed
+      // newest-by-mtime scan (anchored to the launch time) for the live case.
+      if (location.kind === "wsl") {
+        const latest = await readAntigravityLastConversationForCwdAsync(location, cwd);
+        if (
+          latest &&
+          latest !== preSpawnLastConversationForCwd &&
+          !preSpawnConversationIds.has(latest)
+        ) {
+          return createKnownSessionRef(latest);
+        }
+        const newest = await readNewestAntigravityConversationIdAsync(
+          location,
+          preSpawnConversationIds,
+          preSpawnStartedAt - 1000,
+        );
+        return newest ? createKnownSessionRef(newest) : undefined;
+      }
       // Primary: the conversation db created for THIS workspace. It exists as
       // soon as the interactive session starts, and the workspace match rules
       // out concurrent one-shot calls (title/commit/PR), which run in an
@@ -128,9 +158,9 @@ export function createAntigravityAdapter(): AgentAdapter {
     detectTerminalStatus: detectAntigravityTerminalStatus,
     detectInvalidSessionRef: detectAntigravityInvalidSessionRef,
 
-    defaultOneShotModel: ANTIGRAVITY_MANAGED_MODEL_ID,
+    defaultOneShotModel: ANTIGRAVITY_DEFAULT_MODEL_ID,
 
-    buildOneShotCommand(_model, _effort, prompt) {
+    buildOneShotCommand(model, effort, prompt) {
       if (!prompt) return undefined;
       // `agy -p` persists a throwaway conversation AND rewrites
       // last_conversations.json[cwd] with its id. Running it in the project cwd
@@ -139,7 +169,13 @@ export function createAntigravityAdapter(): AgentAdapter {
       // (title gen, commit-msg, PR summary). `agy` has no flag to pre-assign a
       // conversation id, so isolate the cwd instead — the prompt is fully
       // self-contained, so the working directory is irrelevant to the output.
-      return { command: "agy", args: ["-p", prompt], stdin: "", isolateCwd: true, pty: true };
+      return {
+        command: "agy",
+        args: ["--model", resolveAntigravityModel(model, effort), "-p", prompt],
+        stdin: "",
+        isolateCwd: true,
+        pty: true,
+      };
     },
   };
 }

@@ -2,6 +2,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import type { OAuthToken } from "@lightcode/agents-usage";
+import { readClaudeCredentialsFromMacKeychain } from "./macClaudeKeychain";
 import { readClaudeCredentialsFromWindowsVault } from "./windowsClaudeVault";
 import { readClaudeCredsFromWsl } from "./wslCredentials";
 
@@ -62,6 +63,15 @@ export async function resolveClaudeToken(): Promise<OAuthToken | undefined> {
       if (token) return token;
     } catch {
       // try the next candidate dir
+    }
+  }
+  // Current native Claude Code builds on macOS store the same JSON payload in
+  // the login keychain instead of writing `~/.claude/.credentials.json`.
+  if (process.platform === "darwin") {
+    const blob = await readClaudeCredentialsFromMacKeychain();
+    if (blob) {
+      const token = parseClaudeCredentials(blob);
+      if (token) return token;
     }
   }
   // On native Windows, Claude Code may store the OAuth token in the Windows

@@ -280,7 +280,20 @@ export function getDb() {
 }
 
 export function closeDatabase() {
-  _sqlite?.close();
+  const sqlite = _sqlite;
+  if (sqlite) {
+    // With journal_mode=WAL + synchronous=NORMAL, committed transactions live
+    // in the -wal file and only become durable across an OS crash/power loss
+    // after a checkpoint. Fold the WAL back into the main db on shutdown so the
+    // most recent writes (threads/messages the user just made) are not at risk
+    // if `close()`'s implicit checkpoint is skipped on an unclean exit.
+    try {
+      sqlite.pragma("wal_checkpoint(TRUNCATE)");
+    } catch (error) {
+      console.error("[db] wal_checkpoint on close failed:", error);
+    }
+    sqlite.close();
+  }
   _sqlite = undefined;
   _db = undefined;
 }

@@ -10,7 +10,6 @@ import {
   type ProjectLocation,
 } from "@/shared/contracts";
 import { getProjectFsPath, toWslUncPath } from "@/shared/wsl";
-import { parallelWslCommandsAsync } from "../agents/base";
 import { readSshCommandOutput } from "../ssh";
 import {
   execGit,
@@ -276,6 +275,53 @@ export function buildGitStatusResultFromOutputs(args: {
   };
 }
 
+function buildGitStatusSummaryFromOutput(statusOutput: string): GitStatusResult {
+  const parsed = parseStatusPorcelainV2(statusOutput);
+  return {
+    detail: "summary",
+    isRepo: true,
+    branch: parsed.branch,
+    tracking: parsed.tracking,
+    hasRemote: parsed.tracking.length > 0,
+    remoteInfo: null,
+    ahead: parsed.ahead,
+    behind: parsed.behind,
+    staged: parsed.staged,
+    unstaged: parsed.unstaged,
+    totalInsertions: 0,
+    totalDeletions: 0,
+    ...(parsed.mergeInProgress
+      ? {
+          mergeInProgress: true,
+          conflictFiles: parsed.conflictFiles.map((path) => ({
+            path,
+            status: "U",
+            staged: false,
+            insertions: 0,
+            deletions: 0,
+          })),
+        }
+      : {}),
+  };
+}
+
+function nonRepoSummaryStatus(): GitStatusResult {
+  return {
+    detail: "summary",
+    isRepo: false,
+    branch: "",
+    tracking: "",
+    hasRemote: false,
+    remoteInfo: null,
+    ahead: 0,
+    behind: 0,
+    staged: [],
+    unstaged: [],
+    totalInsertions: 0,
+    totalDeletions: 0,
+  };
+}
+
 export class GitStatusService {
   private readonly untrackedStatsCache = new Map<string, UntrackedStatsCacheEntry>();
 
@@ -376,6 +422,27 @@ export class GitStatusService {
     };
   }
 
+  async getStatusSummary(location: ProjectLocation): Promise<GitStatusResult> {
+    if (location.kind === "wsl") {
+      const results = await execGitBatchWslBridge(
+        location,
+        [{ cwd: location.linuxPath, args: ["status", "--porcelain=v2", "-b"] }],
+        GIT_STATUS_TIMEOUT,
+      );
+      const result = results[0];
+      return result?.ok ? buildGitStatusSummaryFromOutput(result.stdout) : nonRepoSummaryStatus();
+    }
+
+    try {
+      const statusOutput = await execGit(location, ["status", "--porcelain=v2", "-b"], {
+        timeout: GIT_STATUS_TIMEOUT,
+      });
+      return buildGitStatusSummaryFromOutput(statusOutput);
+    } catch {
+      return nonRepoSummaryStatus();
+    }
+  }
+
   /**
    * Apply untracked-file stats and conflict-file enrichment to a status result
    * built from raw outputs. Exposed for the snapshot orchestrator that bypasses
@@ -410,7 +477,7 @@ export class GitStatusService {
     location: ProjectLocation & { kind: "wsl" },
   ): Promise<GitStatusResult> {
     const cwd = location.linuxPath;
-    const bridgeResults = await execGitBatchWslBridge(
+    const results = await execGitBatchWslBridge(
       location,
       [
         { cwd, args: ["rev-parse", "--is-inside-work-tree"] },
@@ -421,19 +488,6 @@ export class GitStatusService {
       ],
       GIT_STATUS_TIMEOUT,
     );
-    const results =
-      bridgeResults ??
-      (await parallelWslCommandsAsync(
-        location.distro,
-        [
-          { cwd, cmd: "git rev-parse --is-inside-work-tree" },
-          { cwd, cmd: "git status --porcelain=v2 -b" },
-          { cwd, cmd: "git remote -v" },
-          { cwd, cmd: "git diff --cached --numstat" },
-          { cwd, cmd: "git diff --numstat" },
-        ],
-        { timeoutMs: GIT_STATUS_TIMEOUT },
-      ));
     const isRepo = results[0]!.ok;
     const base = buildGitStatusResultFromOutputs({
       isRepo,
@@ -449,8 +503,7 @@ export class GitStatusService {
 
   /**
    * Run `rev-parse + status + remote + diff --cached + diff` for each of N
-   * worktree paths through the in-distro bridge when available. Falls back to
-   * the older single `wsl.exe` parallel batch when the bridge is unavailable.
+   * worktree paths through the in-distro bridge.
    */
   async getWorktreeStatusBatchWsl(
     location: ProjectLocation & { kind: "wsl" },
@@ -460,7 +513,6 @@ export class GitStatusService {
 
     const PER_WORKTREE_CMDS = 5;
     const bridgeCommands: { cwd: string; args: string[] }[] = [];
-    const commands: { cwd: string; cmd: string }[] = [];
     for (const cwd of worktreePaths) {
       bridgeCommands.push(
         { cwd, args: ["rev-parse", "--is-inside-work-tree"] },
@@ -469,20 +521,8 @@ export class GitStatusService {
         { cwd, args: ["diff", "--cached", "--numstat"] },
         { cwd, args: ["diff", "--numstat"] },
       );
-      commands.push(
-        { cwd, cmd: "git rev-parse --is-inside-work-tree" },
-        { cwd, cmd: "git status --porcelain=v2 -b" },
-        { cwd, cmd: "git remote -v" },
-        { cwd, cmd: "git diff --cached --numstat" },
-        { cwd, cmd: "git diff --numstat" },
-      );
     }
-    const bridgeResults = await execGitBatchWslBridge(location, bridgeCommands, GIT_STATUS_TIMEOUT);
-    const results =
-      bridgeResults ??
-      (await parallelWslCommandsAsync(location.distro, commands, {
-        timeoutMs: GIT_STATUS_TIMEOUT,
-      }));
+    const results = await execGitBatchWslBridge(location, bridgeCommands, GIT_STATUS_TIMEOUT);
 
     const out: Record<string, GitStatusResult> = {};
     await Promise.all(
@@ -518,6 +558,29 @@ export class GitStatusService {
         }
       }),
     );
+    return out;
+  }
+
+  async getWorktreeStatusSummaryBatchWsl(
+    location: ProjectLocation & { kind: "wsl" },
+    worktreePaths: string[],
+  ): Promise<Record<string, GitStatusResult>> {
+    if (worktreePaths.length === 0) return {};
+
+    const bridgeCommands = worktreePaths.map((cwd) => ({
+      cwd,
+      args: ["status", "--porcelain=v2", "-b"],
+    }));
+    const results = await execGitBatchWslBridge(location, bridgeCommands, GIT_STATUS_TIMEOUT);
+
+    const out: Record<string, GitStatusResult> = {};
+    for (let i = 0; i < worktreePaths.length; i += 1) {
+      const result = results[i];
+      if (!result) continue;
+      out[worktreePaths[i]!] = result.ok
+        ? buildGitStatusSummaryFromOutput(result.stdout)
+        : nonRepoSummaryStatus();
+    }
     return out;
   }
 

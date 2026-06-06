@@ -100,4 +100,44 @@ describe("buildProviderModelItems shortcut labels", () => {
     );
     expect(favorite?.type === "model" ? favorite.label : undefined).toBe("Composer 2.5 · Fast");
   });
+
+  it("keeps Cursor CLI and Cursor ACP as separate provider sections", () => {
+    const items = buildProviderModelItems({
+      providers: [
+        {
+          ...cursorProvider,
+          label: "Cursor CLI",
+          presentationMode: "terminal",
+          modelPickerKey: "cursor:terminal",
+          hiddenModelsKey: "cursor",
+        },
+        {
+          kind: "cursor",
+          label: "Cursor",
+          presentationMode: "gui",
+          modelPickerKey: "cursor:gui",
+          hiddenModelsKey: "cursor-acp",
+          capabilities: {
+            ...cursorProvider.capabilities,
+            models: [
+              {
+                id: "gpt-5.5[context=272k,reasoning=medium,fast=false]",
+                label: "GPT-5.5 · 272K · Medium",
+              },
+            ],
+          },
+        },
+      ],
+      search: "",
+    });
+
+    const headers = items.filter((item) => item.type === "header-provider");
+    expect(headers.map((header) => header.label)).toEqual(["Cursor CLI", "Cursor"]);
+    expect(headers.map((header) => header.hiddenModelsKey)).toEqual(["cursor", "cursor-acp"]);
+    expect(items.filter((item) => item.type === "model").map((item) => item.id)).toEqual([
+      "model:cursor:terminal:composer-2.5",
+      "model:cursor:terminal:gpt-5.5",
+      "model:cursor:gui:gpt-5.5[context=272k,reasoning=medium,fast=false]",
+    ]);
+  });
 });

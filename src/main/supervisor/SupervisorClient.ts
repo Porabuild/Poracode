@@ -17,6 +17,16 @@ function isSupervisorReply(message: unknown): message is SupervisorReply {
 }
 
 /**
+ * Backstop timeout for a single request/reply RPC. This is intentionally
+ * generous — some procedures legitimately run for minutes (downloading or
+ * installing agent binaries on a slow connection, large `git` operations).
+ * It exists only to guarantee that a request can never hang *forever* if the
+ * supervisor is alive but its handler deadlocks or never sends a reply; the
+ * common connection-loss case is already handled by the `exit`/EPIPE paths.
+ */
+const REQUEST_TIMEOUT_MS = 10 * 60 * 1000;
+
+/**
  * Electron / Windows: a forked supervisor with stdio "inherit" often does
  * not surface `console.log` in the same dev terminal as the main process.
  * Pipe stdout/stderr and write through the parent's stdio so hook-debug and
@@ -196,27 +206,46 @@ export class SupervisorClient {
     } as SupervisorRequest;
 
     return new Promise<IpcProcedureResult<Name>>((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        if (this.pendingRequests.delete(id)) {
+          reject(new Error(`Supervisor request "${type}" timed out.`));
+        }
+      }, REQUEST_TIMEOUT_MS);
+      // Avoid keeping the event loop (and the app) alive solely for this timer.
+      timeout.unref?.();
+
+      const settle = (settleFn: (value: unknown) => void, value: unknown): void => {
+        clearTimeout(timeout);
+        settleFn(value);
+      };
+
       this.pendingRequests.set(id, {
-        resolve: (value) => resolve(value as IpcProcedureResult<Name>),
-        reject,
+        resolve: (value) => settle((v) => resolve(v as IpcProcedureResult<Name>), value),
+        reject: (reason) => settle(reject as (value: unknown) => void, reason),
       });
-      try {
-        child.send(request, (error) => {
-          if (!error) {
-            return;
-          }
-          this.pendingRequests.delete(id);
-          if ((error as NodeJS.ErrnoException).code === "EPIPE") {
-            return;
-          }
-          reject(error);
-        });
-      } catch (error) {
-        this.pendingRequests.delete(id);
-        if ((error as NodeJS.ErrnoException).code === "EPIPE") {
+
+      // On `child.send` failure the request will never get a reply, so we must
+      // reject here — including the EPIPE case. The pending entry is already
+      // removed from the map at that point, so the `exit` handler's
+      // `rejectPendingRequests` can no longer reach it; returning silently
+      // would orphan the caller's promise forever.
+      const failSend = (error: unknown): void => {
+        const pending = this.pendingRequests.get(id);
+        if (!pending) {
           return;
         }
-        reject(error);
+        this.pendingRequests.delete(id);
+        pending.reject(error);
+      };
+
+      try {
+        child.send(request, (error) => {
+          if (error) {
+            failSend(error);
+          }
+        });
+      } catch (error) {
+        failSend(error);
       }
     });
   }

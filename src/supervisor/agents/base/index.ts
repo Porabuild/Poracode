@@ -11,14 +11,15 @@ import type {
 import { primeAgentBinaryPath, resolveAgentBinaryPath } from "../binaryResolver";
 import {
   batchWslCommandsAsync,
+  getCachedWslHomeDirectory,
   getPrimedPosixEnv,
   getProjectShellEnv,
   getWindowsPathOverrideEnv,
+  isWslInteropBinaryPath,
   readCommandOutputAsync,
   readWslLoginShellCommandOutputAsync,
   resolveExecutablePath,
   resolveExecutablePathAsync,
-  resolveWslHomeDirectory,
   resolveWslShellPath,
 } from "./processRuntime";
 import {
@@ -212,7 +213,7 @@ function resolveWindowsNodeCmdShim(commandPath: string):
     return undefined;
   }
 
-  const match = /["']?%dp0%\\([^"']+?\.js)["']?\s+%\*/i.exec(content);
+  const match = /["']?%dp0%\\([^"']+?\.[cm]?js)["']?\s+%\*/i.exec(content);
   const relScript = match?.[1];
   if (!relScript) return undefined;
 
@@ -344,7 +345,10 @@ export function buildAgentCommand(
  * concerns — all branching lives here.
  */
 export function resolveLaunchSpec(location: ProjectLocation, argv: AgentArgvSpec): CommandSpec {
-  const resolvedExecPath = resolveAgentBinaryPath(location, argv.binary);
+  const resolvedExecPath =
+    argv.preferShell && location.kind === "posix"
+      ? undefined
+      : resolveAgentBinaryPath(location, argv.binary);
   const spec = buildAgentCommand(location, argv.binary, argv.args, resolvedExecPath, argv.env, {
     sshBatchMode: "no",
     sshTty: true,
@@ -467,7 +471,10 @@ async function resolveDetectedBinary(
 ): Promise<string | undefined> {
   if (ctx?.envKind === "wsl" && ctx.wslDistro) {
     const [result] = await batchWslCommandsAsync(ctx.wslDistro, [`command -v ${binary}`]);
-    const path = result?.ok ? result.stdout : undefined;
+    // A `/mnt/...` result is a Windows binary surfaced via PATH interop, not a
+    // real Linux install — reject it so detection matches launch-time
+    // resolution (see isWslInteropBinaryPath).
+    const path = result?.ok && !isWslInteropBinaryPath(result.stdout) ? result.stdout : undefined;
     primeAgentBinaryPath(ctx.wslDistro, binary, path);
     return path;
   }
@@ -565,8 +572,9 @@ export async function readAgentCommandOutput(
 
 /**
  * Resolve a path inside the user's home directory, correctly across native
- * (`os.homedir()`) and WSL (UNC path against the distro's home, looked up via
- * `resolveWslHomeDirectory`). Returns `undefined` when the WSL home is
+ * (`os.homedir()`) and WSL (UNC path against the distro's home, read from the
+ * cache via `getCachedWslHomeDirectory`, populated by the bridge-backed
+ * `resolveWslHomeDirectoryAsync`). Returns `undefined` when the WSL home is
  * unavailable. Replaces per-provider platform branching like
  * `~/.codex/sessions` or `~/.gemini/tmp/<project>`.
  */
@@ -576,7 +584,7 @@ export function resolveAgentHomeSubpath(
 ): string | undefined {
   const trimmed = subpath.replace(/^[\\/]+/, "");
   if (location.kind === "wsl") {
-    const home = resolveWslHomeDirectory(location.distro);
+    const home = getCachedWslHomeDirectory(location.distro);
     if (!home) return undefined;
     return toWslUncPath(location.distro, `${home}/${trimmed}`);
   }

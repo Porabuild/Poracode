@@ -19,6 +19,16 @@ const SCRIPT = `export const meta = {
 const FINDINGS_SCHEMA = {
   properties: { detail: { type: 'string', description: 'trigger + observed vs expected' } },
 }
+
+const DIMENSIONS = [
+  { key: 'correctness', title: 'Correctness & logic' },
+  { key: 'security-compliance', title: 'Security & compliance' },
+]
+
+const reviewed = await pipeline(
+  DIMENSIONS,
+  d => agent(reviewPrompt(d), { label: 'review:' + d.key, phase: 'Review', model: 'claude-opus-4-8[1m]', schema: FINDINGS_SCHEMA }),
+)
 `;
 
 const RESULT = `Workflow launched in background. Task ID: wiaaqsf20
@@ -58,9 +68,22 @@ describe("parseWorkflowInfo", () => {
     ]);
   });
 
+  it("parses planned pipeline agents from the script", () => {
+    const info = parseWorkflowInfo(makePayload({ args: { script: SCRIPT } }));
+    expect(info.plannedAgents).toEqual([
+      { label: "review:correctness", phaseTitle: "Review", model: "claude-opus-4-8[1m]" },
+      {
+        label: "review:security-compliance",
+        phaseTitle: "Review",
+        model: "claude-opus-4-8[1m]",
+      },
+    ]);
+  });
+
   it("returns empty phases when no script is present", () => {
     const info = parseWorkflowInfo(makePayload({ args: { description: "Run checklist" } }));
     expect(info.phases).toEqual([]);
+    expect(info.plannedAgents).toEqual([]);
     expect(info.description).toBe("Run checklist");
   });
 

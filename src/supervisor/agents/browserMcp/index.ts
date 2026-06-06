@@ -11,7 +11,6 @@
  */
 
 import type { ProjectLocation } from "@/shared/contracts";
-import { rewriteUrlForWsl } from "@/supervisor/wsl/wslHostIp";
 
 /** Minimal shape needed to pick native-vs-WSL - accepts a `ProjectLocation` or
  *  a stripped-down `{ kind, distro? }` so internal installers can call without
@@ -69,7 +68,8 @@ export function resolveBrowserMcpHttpConfig(
   const env = readBrowserMcpEnv();
   if (!env) return null;
   if (location.kind === "ssh") return null;
-  const url = location.kind === "wsl" ? rewriteUrlForWsl(env.url, location.distro) : env.url;
+  if (location.kind === "wsl") return null;
+  const url = env.url;
   // Append `/mcp` so the agent hits the Streamable-HTTP endpoint directly.
   const mcpUrl = `${url.replace(/\/$/, "")}/mcp`;
   return {

@@ -5,9 +5,16 @@ export interface WorkflowPhase {
   detail?: string;
 }
 
+export interface WorkflowPlannedAgent {
+  label: string;
+  phaseTitle?: string;
+  model?: string;
+}
+
 export interface WorkflowInfo {
   description?: string;
   phases: WorkflowPhase[];
+  plannedAgents: WorkflowPlannedAgent[];
   runId?: string;
   /** Directory holding the per-agent jsonl transcripts. */
   transcriptDir?: string;
@@ -59,6 +66,113 @@ function parsePhases(script: string): WorkflowPhase[] {
   return phases;
 }
 
+function parsePlannedAgents(script: string): WorkflowPlannedAgent[] {
+  const arrays = parseConstObjectArrays(script);
+  const agents: WorkflowPlannedAgent[] = [];
+  const re =
+    /pipeline\s*\(\s*(\w+)\s*,\s*(\w+)\s*=>\s*agent\([\s\S]*?\{\s*([\s\S]*?label\s*:[\s\S]*?)\}\s*\)/g;
+  let match: RegExpExecArray | null;
+  while ((match = re.exec(script)) !== null) {
+    const arrayName = match[1];
+    const alias = match[2];
+    const options = match[3];
+    if (!arrayName || !alias || !options) continue;
+    const items = arrays.get(arrayName);
+    if (!items) continue;
+    const labelExpr = matchOptionExpression(options, "label");
+    if (!labelExpr) continue;
+    const phaseTitle = matchOptionString(options, "phase");
+    const model = matchOptionString(options, "model");
+    for (const item of items) {
+      const label = evaluateLabelExpression(labelExpr, alias, item);
+      if (!label) continue;
+      agents.push({
+        label,
+        ...(phaseTitle ? { phaseTitle } : {}),
+        ...(model ? { model } : {}),
+      });
+    }
+  }
+  return agents;
+}
+
+interface ScriptArrayItem {
+  key?: string;
+  title?: string;
+  model?: string;
+}
+
+function parseConstObjectArrays(script: string): Map<string, ScriptArrayItem[]> {
+  const arrays = new Map<string, ScriptArrayItem[]>();
+  const re = /const\s+(\w+)\s*=\s*\[([\s\S]*?)\]\s*(?:\n|$)/g;
+  let match: RegExpExecArray | null;
+  while ((match = re.exec(script)) !== null) {
+    const name = match[1];
+    const block = match[2];
+    if (!name || !block) continue;
+    const items: ScriptArrayItem[] = [];
+    const objectRe = /\{([\s\S]*?)\}/g;
+    let objectMatch: RegExpExecArray | null;
+    while ((objectMatch = objectRe.exec(block)) !== null) {
+      const object = objectMatch[1];
+      if (!object) continue;
+      const key = matchObjectString(object, "key");
+      const title = matchObjectString(object, "title");
+      const model = matchObjectString(object, "model");
+      if (key || title || model) {
+        items.push({
+          ...(key ? { key } : {}),
+          ...(title ? { title } : {}),
+          ...(model ? { model } : {}),
+        });
+      }
+    }
+    if (items.length > 0) arrays.set(name, items);
+  }
+  return arrays;
+}
+
+function matchObjectString(object: string, key: string): string | undefined {
+  const re = new RegExp(`${key}\\s*:\\s*(['"\`])((?:\\\\.|[^\\\\])*?)\\1`);
+  return re.exec(object)?.[2]?.trim() || undefined;
+}
+
+function matchOptionString(options: string, key: string): string | undefined {
+  return matchObjectString(options, key);
+}
+
+function matchOptionExpression(options: string, key: string): string | undefined {
+  const re = new RegExp(`${key}\\s*:\\s*([^,\\n}]+(?:\\s*\\+\\s*[^,\\n}]+)*)`);
+  return re.exec(options)?.[1]?.trim() || undefined;
+}
+
+function evaluateLabelExpression(
+  expression: string,
+  alias: string,
+  item: ScriptArrayItem,
+): string | undefined {
+  const templateMatch = /^`([\s\S]*)`$/.exec(expression.trim());
+  if (templateMatch?.[1]) {
+    const value = templateMatch[1].replace(/\$\{([^}]+)\}/g, (_match, rawExpr: string) => {
+      return evaluateLabelPart(rawExpr.trim(), alias, item) ?? "";
+    });
+    return value.trim() || undefined;
+  }
+
+  const parts = expression.split(/\s*\+\s*/);
+  const value = parts.map((part) => evaluateLabelPart(part.trim(), alias, item)).join("");
+  return value.trim() || undefined;
+}
+
+function evaluateLabelPart(part: string, alias: string, item: ScriptArrayItem): string | undefined {
+  const literal = /^(['"`])([\s\S]*)\1$/.exec(part);
+  if (literal?.[2] !== undefined) return literal[2];
+  if (part === `${alias}.key`) return item.key;
+  if (part === `${alias}.title`) return item.title;
+  if (part === `${alias}.model`) return item.model;
+  return undefined;
+}
+
 /**
  * Derive a human-readable view of a `Workflow` tool call. The provider payload
  * carries the orchestration script in `args.script`, a live description in
@@ -81,9 +195,11 @@ export function parseWorkflowInfo(payload: ToolCallPayload): WorkflowInfo {
   const manifestPath =
     transcriptDir && runId ? deriveManifestPath(transcriptDir, runId) : undefined;
   const phases = parsePhases(script);
+  const plannedAgents = parsePlannedAgents(script);
 
   return {
     phases,
+    plannedAgents,
     ...(description ? { description } : {}),
     ...(runId ? { runId } : {}),
     ...(transcriptDir ? { transcriptDir } : {}),

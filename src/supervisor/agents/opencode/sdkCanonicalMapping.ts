@@ -821,13 +821,14 @@ function questionRequestPayload(req: QuestionRequest): {
       ...(q.multiple ? { multiSelect: true } : {}),
     });
   }
+  const first = formQuestions[0];
   if (formQuestions.length > 1) {
     return { summary, details: { userInputForm: { questions: formQuestions } } };
   }
-  const first = formQuestions[0];
   return first
     ? {
         summary,
+        details: { userInputForm: { questions: formQuestions } },
         options: first.options,
         ...(first.multiSelect ? { multiSelect: true } : {}),
       }

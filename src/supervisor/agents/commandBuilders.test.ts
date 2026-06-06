@@ -59,6 +59,7 @@ import {
 import { createClaudeAdapter } from "./claude";
 import { createCopilotAdapter } from "./copilot";
 import { buildCodexAppServerCommand, createCodexAdapter } from "./codex";
+import { primeCodexGoalsSupport } from "./codex/argv";
 import { createCursorAdapter } from "./cursor";
 
 function launch(
@@ -223,6 +224,11 @@ describe("agent command builders", () => {
   });
 
   it("builds a WSL Codex app-server command without a login shell", () => {
+    // WSL goals support is detected asynchronously and cached during detection
+    // (see codex/index.ts), so prime it the way detection would before building
+    // the launch command — otherwise it defaults to off and `--enable goals`
+    // is omitted.
+    primeCodexGoalsSupport(wslProject, "codex-cli 0.130.0", "/home/demo/.local/bin/codex");
     const spec = buildCodexAppServerCommand(wslProject, {
       wslExecPath: "/home/demo/.local/bin/codex",
       wslNodePath: "/home/demo/.nvm/versions/node/v24.10.0/bin/node",

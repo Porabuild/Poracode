@@ -49,6 +49,7 @@ export const workflowGetRunPayloadSchema = z.object({
   manifestPath: z.string().min(1),
   /** Used to scan for in-flight `agent-*.meta.json` files before the manifest exists. */
   transcriptDir: z.string().min(1).optional(),
+  includeAgentChats: z.boolean().optional(),
   location: projectLocationSchema,
 });
 export type WorkflowGetRunPayload = z.infer<typeof workflowGetRunPayloadSchema>;

@@ -46,7 +46,6 @@ import {
   type ThreadHistory,
 } from "../base";
 import { captureSupervisorException } from "../../diagnostics/sentry";
-import { readNonNegativeInteger } from "../contextUsage";
 import { resolveAgentBinaryPath } from "../binaryResolver";
 import { chosenOptionIds } from "../questionAnswers";
 import { applyClaudeContextSuffix } from "./argv";
@@ -65,6 +64,7 @@ import {
   mapClaudeSdkMessage,
   nonDiagnosticErrors,
   parseClaudeQuestions,
+  readClaudeApiUsageSpendTokens,
   startClaudeTurn,
   type ClaudeMapperState,
   type ClaudeQuestion,
@@ -1151,15 +1151,16 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
       const event = mapClaudeContextUsageResponse(this.input.threadId, usage);
       if (event) this.emitRuntimeEvents([event]);
       if (this.mapperState.activeGoalItemId) {
-        const usedTokens = readNonNegativeInteger(usage.totalTokens);
-        if (usedTokens !== undefined && usedTokens > 0) {
-          const goalUpdate = emitActiveGoalTokenUpdate(this.mapperState, usedTokens);
-          if (goalUpdate) this.emitRuntimeEvents([goalUpdate]);
-        }
+        const spendTokens = readClaudeApiUsageSpendTokens(usage.apiUsage);
+        const goalUpdate =
+          spendTokens !== undefined
+            ? emitActiveGoalTokenUpdate(this.mapperState, spendTokens)
+            : undefined;
+        if (goalUpdate) this.emitRuntimeEvents([goalUpdate]);
       }
     } catch {
       // Older transports can reject this control call. In that case, keep the
-      // existing context state instead of emitting billing-token totals as usage.
+      // existing context and goal-spend state until a result message arrives.
     }
   }
 

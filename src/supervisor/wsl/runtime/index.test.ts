@@ -6,11 +6,19 @@ const batchWslCommandsAsyncMock = vi.hoisted(() =>
 const resolveWslHomeDirectoryMock = vi.hoisted(() =>
   vi.fn<(distro: string) => string | undefined>(),
 );
+const resolveWslHomeDirectoryAsyncMock = vi.hoisted(() =>
+  vi.fn<(distro: string) => Promise<string | undefined>>(),
+);
+const execInWslMock = vi.hoisted(() =>
+  vi.fn<(distro: string, cwd: string, command: string, args: string[]) => Promise<string>>(),
+);
 const getWslCommandMock = vi.hoisted(() => vi.fn<() => string>(() => "wsl.exe"));
 
 vi.mock("../../agents/base", () => ({
   batchWslCommandsAsync: batchWslCommandsAsyncMock,
+  execInWsl: execInWslMock,
   resolveWslHomeDirectory: resolveWslHomeDirectoryMock,
+  resolveWslHomeDirectoryAsync: resolveWslHomeDirectoryAsyncMock,
   getWslCommand: getWslCommandMock,
 }));
 
@@ -35,6 +43,8 @@ function setProbe(distro: string, ...callResponses: { ok: boolean; stdout: strin
 beforeEach(() => {
   batchWslCommandsAsyncMock.mockReset();
   resolveWslHomeDirectoryMock.mockReset();
+  resolveWslHomeDirectoryAsyncMock.mockReset();
+  execInWslMock.mockReset();
   getWslCommandMock.mockReturnValue("wsl.exe");
 });
 
@@ -130,6 +140,7 @@ describe("resolveNodeForDistro", () => {
 
   it("falls back to install when probed node is too old", async () => {
     resolveWslHomeDirectoryMock.mockReturnValue("/home/u");
+    resolveWslHomeDirectoryAsyncMock.mockResolvedValue("/home/u");
     setProbe(
       "Ubuntu",
       [
@@ -146,6 +157,7 @@ describe("resolveNodeForDistro", () => {
 
   it("falls back to install when no node is found", async () => {
     resolveWslHomeDirectoryMock.mockReturnValue("/home/u");
+    resolveWslHomeDirectoryAsyncMock.mockResolvedValue("/home/u");
     setProbe(
       "Ubuntu",
       [
@@ -164,6 +176,7 @@ describe("resolveNodeForDistro", () => {
 describe("installRuntimeIntoDistro rejection paths", () => {
   it("rejects when arch is unrecognised", async () => {
     resolveWslHomeDirectoryMock.mockReturnValue("/home/u");
+    resolveWslHomeDirectoryAsyncMock.mockResolvedValue("/home/u");
     setProbe("Ubuntu", [{ ok: true, stdout: "ppc64le" }]);
     const { installRuntimeIntoDistro } = await loadRuntime();
 
@@ -174,6 +187,7 @@ describe("installRuntimeIntoDistro rejection paths", () => {
 
   it("rejects when WSL home cannot be resolved", async () => {
     resolveWslHomeDirectoryMock.mockReturnValue(undefined);
+    resolveWslHomeDirectoryAsyncMock.mockResolvedValue(undefined);
     setProbe("Ubuntu", [{ ok: true, stdout: "x86_64" }]);
     const { installRuntimeIntoDistro } = await loadRuntime();
 
