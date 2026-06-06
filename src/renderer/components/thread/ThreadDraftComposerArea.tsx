@@ -266,7 +266,13 @@ export function ThreadDraftComposerArea(props: {
   const authRequired = props.selectedAgent.authState === "missing";
   const isHomeScope = isHomeProjectId(props.project.id);
   const browserMcpScope = getBrowserMcpScope(props.selectedAgent.kind, props.presentationMode);
-  const computerUseScope = getComputerUseScope(props.selectedAgent.kind, props.presentationMode);
+  const computerUseScope = getComputerUseScope(
+    props.selectedAgent.kind,
+    props.presentationMode,
+    props.project.location,
+  );
+  const computerUseEnabled = props.config.computerUse === true;
+  const onConfigChange = props.onConfigChange;
   const controls: ComposerControl[] = controlOpenRequest
     ? props.controls.map((control) => {
         if (controlOpenRequest.target === "model" && control.kind === "provider-model") {
@@ -296,6 +302,13 @@ export function ThreadDraftComposerArea(props: {
     branchSelection?.isWorktree ? "selection-worktree" : "selection-branch",
     controlKinds,
   ].join("|");
+
+  useEffect(() => {
+    if (computerUseScope === "none" && computerUseEnabled) {
+      onConfigChange({ computerUse: false });
+    }
+  }, [computerUseScope, computerUseEnabled, onConfigChange]);
+
   function resetDraftRefs() {
     latestSegmentsRef.current = [];
     attachmentsRef.current = [];
@@ -483,12 +496,13 @@ export function ThreadDraftComposerArea(props: {
               if (idx >= 0) setLightboxIndex(idx);
             }}
             leading={
-              props.config.browserMcp === true || props.config.computerUse === true ? (
+              props.config.browserMcp === true ||
+              (computerUseScope !== "none" && props.config.computerUse === true) ? (
                 <>
                   {props.config.browserMcp === true ? (
                     <BrowserChip onRemove={() => props.onConfigChange({ browserMcp: false })} />
                   ) : null}
-                  {props.config.computerUse === true ? (
+                  {computerUseScope !== "none" && props.config.computerUse === true ? (
                     <ComputerUseChip
                       onRemove={() => props.onConfigChange({ computerUse: false })}
                     />

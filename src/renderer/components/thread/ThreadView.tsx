@@ -203,7 +203,7 @@ export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
   const showBrowserChip =
     thread.config.browserMcp === true ||
     (thread.agentKind === "opencode" && opencodeBrowserMcpEnabled);
-  const showComputerUseChip = thread.config.computerUse === true;
+  const showComputerUseChip = thread.config.computerUse === true && !isWsl;
 
   useEffect(() => {
     const presentation =
