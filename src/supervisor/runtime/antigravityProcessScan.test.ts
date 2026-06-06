@@ -3,6 +3,8 @@ import {
   isAntigravityRoot,
   parseLsof,
   parsePortLines,
+  parseWslProcessLines,
+  parseWslSs,
   type ProcInfo,
   resolveTargets,
 } from "./antigravityProcessScan";
@@ -53,5 +55,28 @@ describe("parseLsof", () => {
       { pid: 1234, port: 51000 },
       { pid: 9999, port: 8080 },
     ]);
+  });
+});
+
+describe("WSL process scan parsers", () => {
+  it("offsets WSL pids into a separate namespace", () => {
+    const procs = parseWslProcessLines(
+      "91558 91550 /home/demo/.local/bin/agy --csrf-token tok\nbad line",
+    );
+    expect(procs).toEqual([
+      {
+        pid: 1_000_091_558,
+        ppid: 1_000_091_550,
+        haystack: "/home/demo/.local/bin/agy --csrf-token tok",
+        csrf: "tok",
+      },
+    ]);
+    expect(resolveTargets(procs).pids.has(1_000_091_558)).toBe(true);
+  });
+
+  it("parses WSL ss listeners with the same pid offset", () => {
+    expect(
+      parseWslSs('LISTEN 0 4096 127.0.0.1:36775 0.0.0.0:* users:(("agy",pid=91558,fd=12))'),
+    ).toEqual([{ pid: 1_000_091_558, port: 36775 }]);
   });
 });

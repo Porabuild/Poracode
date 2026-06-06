@@ -196,6 +196,7 @@ import { generatePrSummary } from "./prSummaryGenerator";
 import { detectWindowsShell, type WindowsShellPreference } from "./shellPreference";
 import { generateTitle } from "./titleGenerator";
 import { AgentStatusService, detectWslAgentStatuses } from "./runtime/agentStatusService";
+import { createLocalUsageCollectors } from "./runtime/localUsageCollectors";
 import { UsageService } from "./runtime/usageService";
 import { type SessionRuntime, type ShellSessionRuntime } from "./runtime/sessionTypes";
 import { ThreadSessionManager, writeSubmittedPrompt } from "./runtime/threadSessionManager";
@@ -292,14 +293,6 @@ export class SupervisorRuntime {
       statusCachePath: paths.statusCachePath,
       emit,
     });
-
-    this.usageService = new UsageService({
-      emit,
-      cachePath: join(paths.cacheDir, "provider-usage.json"),
-      cacheDir: paths.cacheDir,
-      settingsPath: this.settingsPath,
-    });
-    this.usageService.startAutoRefresh();
 
     // Boot the CLI hook plugin coordinator BEFORE the thread session manager so
     // the manager can pull `resolvePluginEnvForSpawn` off it. The coordinator
@@ -411,6 +404,17 @@ export class SupervisorRuntime {
     this.sessions = this.threadSessionManager.sessions;
     this.shellSessions = this.threadSessionManager.shellSessions;
 
+    this.usageService = new UsageService({
+      emit,
+      cachePath: join(paths.cacheDir, "provider-usage.json"),
+      cacheDir: paths.cacheDir,
+      settingsPath: this.settingsPath,
+      localCollectors: createLocalUsageCollectors({
+        getActiveAntigravityWslDistros: () => this.getActiveAntigravityWslDistros(),
+      }),
+    });
+    this.usageService.startAutoRefresh();
+
     // One-time-per-machine icon repair: localize any acp-generic icon still on
     // a remote CDN URL so sidebar rows paint from disk instead of flickering
     // through a network round-trip on every start. No-op (no network) once all
@@ -420,6 +424,17 @@ export class SupervisorRuntime {
 
   async listWslDistros(): Promise<string[]> {
     return this.agentStatusService.listWslDistros();
+  }
+
+  /** Distinct WSL distros hosting a live `antigravity` session (the only
+   * locations the usage scanner needs — native scanning is host-wide). */
+  private getActiveAntigravityWslDistros(): string[] {
+    const distros = new Set<string>();
+    for (const session of this.sessions.values()) {
+      if (session.agentKind !== "antigravity" || session.ptyExited) continue;
+      if (session.projectLocation.kind === "wsl") distros.add(session.projectLocation.distro);
+    }
+    return [...distros];
   }
 
   /**
