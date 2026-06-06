@@ -131,7 +131,13 @@ export function UsageSettings() {
       title="Usage"
       description="Track per-provider session, weekly, and monthly usage. Windows are reported by each provider; estimated cost is reconstructed from local logs."
       actions={
-        <Button size="sm" variant="secondary" isDisabled={isRefreshing} onPress={refreshNow}>
+        <Button
+          size="sm"
+          variant="ghost"
+          className="text-foreground"
+          isDisabled={isRefreshing}
+          onPress={refreshNow}
+        >
           <RefreshCw className={`size-3.5 ${isRefreshing ? "animate-spin" : ""}`} />
           Refresh
         </Button>

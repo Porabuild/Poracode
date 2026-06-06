@@ -20,6 +20,7 @@ import {
   type ProviderModelMenuProvider,
 } from "./parts/buildItems";
 import { deriveSubProvider } from "./parts/deriveSubProvider";
+import { providerMenuKey } from "./parts/providerIdentity";
 import type { ProviderModelItem } from "./parts/types";
 
 export type { ProviderModelMenuProvider };
@@ -240,7 +241,13 @@ export function ProviderModelMenu(props: ProviderModelMenuProps) {
   const latestFavoritesRef = useRef(favorites);
   const latestRecentsRef = useRef(recents);
 
-  const currentProvider = providers.find((p) => p.kind === currentAgentKind);
+  const currentProvider =
+    providers.find(
+      (p) =>
+        p.kind === currentAgentKind &&
+        (presentationMode === undefined || p.presentationMode === presentationMode),
+    ) ?? providers.find((p) => p.kind === currentAgentKind);
+  const currentProviderKey = currentProvider ? providerMenuKey(currentProvider) : currentAgentKind;
   const effectiveCurrentModel = normalizeCurrentModelForProvider(currentProvider, currentModel);
   const currentLabel =
     currentProvider?.capabilities.models.find((m) => m.id === effectiveCurrentModel)?.label ??
@@ -309,13 +316,17 @@ export function ProviderModelMenu(props: ProviderModelMenuProps) {
   const selectedKeys = new Set<string>([
     `fav:${currentAgentKind}:${effectiveCurrentModel}`,
     `recent:${currentAgentKind}:${effectiveCurrentModel}`,
-    `model:${currentAgentKind}:${effectiveCurrentModel}`,
+    `model:${currentProviderKey}:${effectiveCurrentModel}`,
   ]);
 
   function handleSelect(itemId: string) {
     const selected = items.find((item) => item.id === itemId);
     if (selected?.type !== "model") return;
-    if (selected.providerKind === currentAgentKind && selected.modelId === effectiveCurrentModel) {
+    if (
+      selected.providerKind === currentAgentKind &&
+      selected.modelId === effectiveCurrentModel &&
+      selected.providerKey === currentProviderKey
+    ) {
       handleOpenChange(false);
       return;
     }

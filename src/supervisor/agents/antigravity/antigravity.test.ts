@@ -2,33 +2,67 @@ import { describe, expect, it } from "vitest";
 import type { ProjectLocation, ThreadConfig } from "@/shared/contracts";
 import { createAntigravityAdapter } from ".";
 import { buildAntigravityArgs } from "./argv";
-import { ANTIGRAVITY_MANAGED_MODEL_ID } from "./detection";
+import { ANTIGRAVITY_DEFAULT_MODEL_ID } from "./detection";
+import {
+  ANTIGRAVITY_KNOWN_MODEL_VARIANTS,
+  buildAntigravityModelCapabilities,
+  parseAntigravityModelVariantsOutput,
+  parseAntigravityModelsOutput,
+} from "./models";
 import { detectAntigravityInvalidSessionRef } from "./session";
 import { detectAntigravityTerminalStatus } from "./terminal";
 
 describe("buildAntigravityArgs", () => {
-  const config: ThreadConfig = { model: ANTIGRAVITY_MANAGED_MODEL_ID };
+  const config: ThreadConfig = { model: ANTIGRAVITY_DEFAULT_MODEL_ID };
 
-  it("uses agy prompt-interactive for initial prompts without forwarding a model", () => {
-    const args = buildAntigravityArgs({ ...config, effort: "high" }, "hello");
+  it("uses Gemini 3.5 Flash Medium by default", () => {
+    const args = buildAntigravityArgs(config, "hello");
 
-    expect(args).toEqual(["--prompt-interactive", "hello"]);
-    expect(args).not.toContain("--model");
-    expect(args).not.toContain(ANTIGRAVITY_MANAGED_MODEL_ID);
-    expect(args).not.toContain("high");
+    expect(args).toEqual(["--model", "Gemini 3.5 Flash (Medium)", "--prompt-interactive", "hello"]);
+  });
+
+  it("composes selected efforts into exact agy model strings", () => {
+    expect(
+      buildAntigravityArgs({ model: ANTIGRAVITY_DEFAULT_MODEL_ID, effort: "High" }, "hello"),
+    ).toEqual(["--model", "Gemini 3.5 Flash (High)", "--prompt-interactive", "hello"]);
+  });
+
+  it("maps legacy auto configs to Gemini 3.5 Flash Medium", () => {
+    expect(buildAntigravityArgs({ model: "auto" }, "hello")).toEqual([
+      "--model",
+      "Gemini 3.5 Flash (Medium)",
+      "--prompt-interactive",
+      "hello",
+    ]);
+  });
+
+  it("passes exact agy model display strings", () => {
+    expect(buildAntigravityArgs({ model: "Gemini 3.5 Flash (Low)" }, "hello")).toEqual([
+      "--model",
+      "Gemini 3.5 Flash (Low)",
+      "--prompt-interactive",
+      "hello",
+    ]);
   });
 
   it("uses --conversation when resuming a known conversation", () => {
     expect(buildAntigravityArgs(config, "", "conversation-id")).toEqual([
       "--conversation",
       "conversation-id",
+      "--model",
+      "Gemini 3.5 Flash (Medium)",
     ]);
   });
 
   it("maps Lightcode bypass and sandbox config to agy flags", () => {
     expect(
       buildAntigravityArgs({ ...config, approvalPolicy: "yolo", sandboxMode: "sandbox" }, ""),
-    ).toEqual(["--dangerously-skip-permissions", "--sandbox"]);
+    ).toEqual([
+      "--model",
+      "Gemini 3.5 Flash (Medium)",
+      "--dangerously-skip-permissions",
+      "--sandbox",
+    ]);
   });
 });
 
@@ -50,26 +84,34 @@ describe("createAntigravityAdapter", () => {
       ],
     });
     expect(adapter.capabilities.models).toEqual([
-      {
-        id: ANTIGRAVITY_MANAGED_MODEL_ID,
-        label: "Auto",
-        description: "Model selected by agy from the signed-in account",
-      },
+      { id: "Gemini 3.5 Flash", label: "Gemini 3.5 Flash", description: "Google DeepMind" },
+      { id: "Gemini 3.1 Pro", label: "Gemini 3.1 Pro", description: "Google DeepMind" },
+      { id: "Claude Sonnet 4.6", label: "Claude Sonnet 4.6", description: "Anthropic" },
+      { id: "Claude Opus 4.6", label: "Claude Opus 4.6", description: "Anthropic" },
+      { id: "GPT-OSS 120B", label: "GPT-OSS 120B", description: "OpenAI" },
     ]);
+    expect(adapter.capabilities.defaultEffort).toBe("Medium");
+    expect(adapter.capabilities.modelEfforts).toEqual({
+      "Gemini 3.5 Flash": ["Low", "Medium", "High"],
+      "Gemini 3.1 Pro": ["Low", "High"],
+      "Claude Sonnet 4.6": ["Thinking"],
+      "Claude Opus 4.6": ["Thinking"],
+      "GPT-OSS 120B": ["Medium"],
+    });
     expect(adapter.capabilities.approvalPolicies.map((policy) => policy.id)).toEqual([
       "default",
       "yolo",
     ]);
-    expect(adapter.defaultOneShotModel).toBe(ANTIGRAVITY_MANAGED_MODEL_ID);
+    expect(adapter.defaultOneShotModel).toBe(ANTIGRAVITY_DEFAULT_MODEL_ID);
   });
 
   it("builds agy launch, resume, and one-shot commands", () => {
     const adapter = createAntigravityAdapter();
-    const config: ThreadConfig = { model: ANTIGRAVITY_MANAGED_MODEL_ID };
+    const config: ThreadConfig = { model: ANTIGRAVITY_DEFAULT_MODEL_ID };
 
     expect(adapter.buildLaunchArgv(project, config, "hi")).toMatchObject({
       binary: "agy",
-      args: ["--prompt-interactive", "hi"],
+      args: ["--model", "Gemini 3.5 Flash (Medium)", "--prompt-interactive", "hi"],
     });
     expect(
       adapter.buildResumeArgv(project, config, "next", {
@@ -78,13 +120,20 @@ describe("createAntigravityAdapter", () => {
       }),
     ).toMatchObject({
       binary: "agy",
-      args: ["--conversation", "conversation-id", "--prompt-interactive", "next"],
+      args: [
+        "--conversation",
+        "conversation-id",
+        "--model",
+        "Gemini 3.5 Flash (Medium)",
+        "--prompt-interactive",
+        "next",
+      ],
     });
     expect(
-      adapter.buildOneShotCommand?.(ANTIGRAVITY_MANAGED_MODEL_ID, undefined, "summarize"),
+      adapter.buildOneShotCommand?.(ANTIGRAVITY_DEFAULT_MODEL_ID, undefined, "summarize"),
     ).toEqual({
       command: "agy",
-      args: ["-p", "summarize"],
+      args: ["--model", "Gemini 3.5 Flash (Medium)", "-p", "summarize"],
       stdin: "",
       // Isolate the cwd so the one-shot's last_conversations.json[cwd] write
       // can't be mistaken for the real interactive session (see index.ts).
@@ -92,6 +141,75 @@ describe("createAntigravityAdapter", () => {
       // agy print mode emits its answer only when attached to a terminal.
       pty: true,
     });
+    expect(adapter.buildOneShotCommand?.("Gemini 3.5 Flash", "Low", "summarize")).toEqual({
+      command: "agy",
+      args: ["--model", "Gemini 3.5 Flash (Low)", "-p", "summarize"],
+      stdin: "",
+      isolateCwd: true,
+      pty: true,
+    });
+  });
+});
+
+describe("parseAntigravityModelsOutput", () => {
+  it("parses JSON model objects into variants", () => {
+    expect(
+      parseAntigravityModelVariantsOutput(
+        JSON.stringify({
+          models: [
+            {
+              id: "Gemini 3.5 Flash (Medium)",
+              label: "Gemini 3.5 Flash (Medium)",
+              provider: "Google",
+            },
+            { model: "Claude Sonnet 4.6 (Thinking)", displayName: "Claude Sonnet 4.6" },
+          ],
+        }),
+      ),
+    ).toEqual([
+      {
+        model: "Gemini 3.5 Flash",
+        effort: "Medium",
+        cliModel: "Gemini 3.5 Flash (Medium)",
+        provider: "Google",
+      },
+      { model: "Claude Sonnet 4.6", effort: "Thinking", cliModel: "Claude Sonnet 4.6 (Thinking)" },
+    ]);
+  });
+
+  it("parses agy 1.0.5 display-name model output into base models", () => {
+    const raw = ANTIGRAVITY_KNOWN_MODEL_VARIANTS.map((variant) => variant.cliModel).join("\n");
+
+    expect(parseAntigravityModelsOutput(raw)).toEqual([
+      { id: "Gemini 3.5 Flash", label: "Gemini 3.5 Flash" },
+      { id: "Gemini 3.1 Pro", label: "Gemini 3.1 Pro" },
+      { id: "Claude Sonnet 4.6", label: "Claude Sonnet 4.6" },
+      { id: "Claude Opus 4.6", label: "Claude Opus 4.6" },
+      { id: "GPT-OSS 120B", label: "GPT-OSS 120B" },
+    ]);
+
+    expect(
+      buildAntigravityModelCapabilities(parseAntigravityModelVariantsOutput(raw)).modelEfforts,
+    ).toEqual({
+      "Gemini 3.5 Flash": ["Low", "Medium", "High"],
+      "Gemini 3.1 Pro": ["Low", "High"],
+      "Claude Sonnet 4.6": ["Thinking"],
+      "Claude Opus 4.6": ["Thinking"],
+      "GPT-OSS 120B": ["Medium"],
+    });
+  });
+
+  it("parses table model output", () => {
+    expect(
+      parseAntigravityModelsOutput(
+        [
+          "Available models:",
+          "| id | label | provider |",
+          "| --- | --- | --- |",
+          "| Claude Opus 4.6 (Thinking) | Claude Opus 4.6 | Anthropic |",
+        ].join("\n"),
+      ),
+    ).toEqual([{ id: "Claude Opus 4.6", label: "Claude Opus 4.6", description: "Anthropic" }]);
   });
 });
 

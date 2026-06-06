@@ -118,6 +118,7 @@ function areGitStatusesEqual(a: GitStatusResult | undefined, b: GitStatusResult)
   const leftRemote = a.remoteInfo;
   const rightRemote = b.remoteInfo;
   return (
+    a.detail === b.detail &&
     a.isRepo === b.isRepo &&
     a.branch === b.branch &&
     a.tracking === b.tracking &&
@@ -138,6 +139,49 @@ function areGitStatusesEqual(a: GitStatusResult | undefined, b: GitStatusResult)
     areStatusFilesEqual(a.staged, b.staged) &&
     areStatusFilesEqual(a.unstaged, b.unstaged)
   );
+}
+
+function mergeSummaryFiles(
+  previous: readonly FileChange[],
+  incoming: readonly FileChange[],
+): FileChange[] {
+  if (incoming.length === 0) return [];
+  const previousByKey = new Map(
+    previous.map((file) => [
+      `${file.staged}\0${file.path}\0${file.oldPath ?? ""}\0${file.status}`,
+      file,
+    ]),
+  );
+  return incoming.map((file) => {
+    const previousFile = previousByKey.get(
+      `${file.staged}\0${file.path}\0${file.oldPath ?? ""}\0${file.status}`,
+    );
+    return previousFile
+      ? { ...file, insertions: previousFile.insertions, deletions: previousFile.deletions }
+      : file;
+  });
+}
+
+function mergeSummaryStatus(
+  previous: GitStatusResult | undefined,
+  incoming: GitStatusResult,
+): GitStatusResult {
+  if (incoming.detail !== "summary" || !previous) return incoming;
+  const staged = mergeSummaryFiles(previous.staged, incoming.staged);
+  const unstaged = mergeSummaryFiles(previous.unstaged, incoming.unstaged);
+  return {
+    ...incoming,
+    hasRemote: incoming.hasRemote || previous.hasRemote,
+    remoteInfo: incoming.remoteInfo ?? previous.remoteInfo,
+    staged,
+    unstaged,
+    totalInsertions:
+      staged.reduce((sum, file) => sum + file.insertions, 0) +
+      unstaged.reduce((sum, file) => sum + file.insertions, 0),
+    totalDeletions:
+      staged.reduce((sum, file) => sum + file.deletions, 0) +
+      unstaged.reduce((sum, file) => sum + file.deletions, 0),
+  };
 }
 
 function areBranchListsEqual(a: GitBranchListResult | undefined, b: GitBranchListResult) {
@@ -373,9 +417,10 @@ export const useGitStore = create<GitState & GitActions>()((set, get) => ({
     }),
 
   setWorktreeStatus: (worktreePath, status) => {
-    if (areGitStatusesEqual(get().worktreeStatuses[worktreePath], status)) return;
+    const nextStatus = mergeSummaryStatus(get().worktreeStatuses[worktreePath], status);
+    if (areGitStatusesEqual(get().worktreeStatuses[worktreePath], nextStatus)) return;
     set((state) => ({
-      worktreeStatuses: { ...state.worktreeStatuses, [worktreePath]: status },
+      worktreeStatuses: { ...state.worktreeStatuses, [worktreePath]: nextStatus },
     }));
   },
 
@@ -384,14 +429,15 @@ export const useGitStore = create<GitState & GitActions>()((set, get) => ({
       let nextWorktreeStatuses = state.worktreeStatuses;
       let changed = false;
       for (const [worktreePath, status] of Object.entries(statuses)) {
-        if (areGitStatusesEqual(nextWorktreeStatuses[worktreePath], status)) {
+        const nextStatus = mergeSummaryStatus(nextWorktreeStatuses[worktreePath], status);
+        if (areGitStatusesEqual(nextWorktreeStatuses[worktreePath], nextStatus)) {
           continue;
         }
         if (!changed) {
           nextWorktreeStatuses = { ...state.worktreeStatuses };
           changed = true;
         }
-        nextWorktreeStatuses[worktreePath] = status;
+        nextWorktreeStatuses[worktreePath] = nextStatus;
       }
       return changed ? { worktreeStatuses: nextWorktreeStatuses } : state;
     }),

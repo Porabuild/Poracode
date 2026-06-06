@@ -1,12 +1,8 @@
 import { memo, type ReactNode, useEffectEvent, useLayoutEffect, useRef, useState } from "react";
 import { Link, Surface, Tooltip } from "@heroui/react";
-import { ChevronDown, ChevronUp, Copy, GitBranch } from "lucide-react";
+import { ChevronDown, ChevronUp, Copy } from "lucide-react";
 import type { CanonicalContentBlock, MessageItemPayload } from "@/shared/contracts";
 import { AttachmentBar, ImageLightbox, type Attachment } from "@/renderer/components/composer";
-import {
-  ALL_TRIGGER_WORDS,
-  triggerWordAlternation,
-} from "@/renderer/components/composer/triggerWords";
 import { readBridge } from "@/renderer/bridge";
 import { fileNameFromPath } from "@/shared/promptContent";
 import {
@@ -50,7 +46,6 @@ export const UserMessage = memo(function UserMessage({
   const hasInlineFileMentions = content.some(
     (block) => block.kind === "file" && block.source !== "attachment",
   );
-  const hasTriggerWord = TRIGGER_WORD_TEST_RE.test(text);
   const attachments = enrichWithSelectorPayloads(
     buildUserPromptAttachments(content),
     extractSelectorPayloads(rawText),
@@ -110,7 +105,7 @@ export const UserMessage = memo(function UserMessage({
         {renderUserMessageInlineContent(content, commandPrefixLength, actions)}
       </>
     );
-  } else if (hasInlineFileMentions || hasTriggerWord) {
+  } else if (hasInlineFileMentions) {
     bodyClass = inlineBodyClass;
     bodyContent = renderUserMessageInlineContent(content, 0, actions);
   } else if (text.length > 0) {
@@ -229,11 +224,6 @@ function CopyUserMessageButton({ text }: { text: string }) {
 }
 
 const LEADING_SLASH_COMMAND_RE = /^\/([A-Za-z][A-Za-z0-9_-]*)(\s+|$)/;
-const TRIGGER_WORD_ALTERNATION = triggerWordAlternation(ALL_TRIGGER_WORDS);
-/** Matches any known trigger word as a standalone word (capturing, for split). */
-const TRIGGER_WORD_RE = new RegExp(`(\\b(?:${TRIGGER_WORD_ALTERNATION})\\b)`, "gi");
-/** Non-global variant for presence checks. */
-const TRIGGER_WORD_TEST_RE = new RegExp(`\\b(?:${TRIGGER_WORD_ALTERNATION})\\b`, "i");
 
 function extractLeadingSlashCommand(text: string): { slashCommand: string | null; body: string } {
   const match = text.match(LEADING_SLASH_COMMAND_RE);
@@ -297,26 +287,6 @@ function renderUserMessageInlineContent(
 const USER_MESSAGE_URL_RE = /https?:\/\/[^\s<>"']+/g;
 
 function renderUserMessageText(text: string, keyPrefix: string): ReactNode[] {
-  // Split by trigger words first; delimiters (odd indices) are trigger-word matches.
-  const parts = text.split(TRIGGER_WORD_RE);
-  if (parts.length > 1) {
-    const nodes: ReactNode[] = [];
-    for (let i = 0; i < parts.length; i++) {
-      const part = parts[i]!;
-      if (part.length === 0) continue;
-      if (i % 2 === 1) {
-        nodes.push(
-          <span key={`${keyPrefix}-trigger-${i}`} className="lightcode-inline-path-chip">
-            <GitBranch className="lightcode-inline-path-chip__icon" />
-            <span className="lightcode-inline-path-chip__name">{part}</span>
-          </span>,
-        );
-      } else {
-        nodes.push(...renderUserMessageUrls(part, `${keyPrefix}-${i}`));
-      }
-    }
-    return nodes;
-  }
   return renderUserMessageUrls(text, keyPrefix);
 }
 

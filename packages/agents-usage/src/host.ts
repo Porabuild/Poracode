@@ -9,6 +9,7 @@ export interface HttpRequest {
   url: string;
   headers?: Record<string, string>;
   body?: string;
+  bodyBytes?: Uint8Array;
   timeoutMs?: number;
 }
 
@@ -17,6 +18,7 @@ export interface HttpResponse {
   /** Lower-cased header names recommended; collectors read defensively. */
   headers: Record<string, string>;
   body: string;
+  bodyBytes?: Uint8Array;
 }
 
 export interface HttpClient {

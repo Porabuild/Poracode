@@ -89,6 +89,7 @@ export function AppOverlays() {
             }
           >
             <GitReviewOverlay
+              key={`${gitReviewContext.projectId}:${gitReviewContext.worktreePath ?? ""}`}
               project={gitReviewProject}
               {...(gitReviewContext.worktreePath
                 ? {

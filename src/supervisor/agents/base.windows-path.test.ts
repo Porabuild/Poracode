@@ -1,3 +1,6 @@
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const spawnSyncMock = vi.hoisted(() => vi.fn<(...args: unknown[]) => unknown>());
@@ -41,12 +44,14 @@ describe.skipIf(process.platform !== "win32")("Windows executable path fallback"
   const originalPATH = process.env.PATH;
   const originalSystemRoot = process.env.SystemRoot;
   const originalUserProfile = process.env.USERPROFILE;
+  let tempDirs: string[] = [];
 
   beforeEach(() => {
     Object.defineProperty(process, "platform", { value: "win32", configurable: true });
     clearExecutablePathCache();
     spawnSyncMock.mockReset();
     execFileAsyncMock.mockReset();
+    tempDirs = [];
     process.env.SystemRoot = "C:\\Windows";
     process.env.USERPROFILE = "C:\\Users\\demo";
     process.env.Path = "C:\\Windows\\System32";
@@ -76,6 +81,9 @@ describe.skipIf(process.platform !== "win32")("Windows executable path fallback"
       process.env.USERPROFILE = originalUserProfile;
     }
     vi.restoreAllMocks();
+    for (const dir of tempDirs) {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 
   it("falls back to the registry-backed Windows Path when ambient lookup misses", () => {
@@ -119,6 +127,63 @@ describe.skipIf(process.platform !== "win32")("Windows executable path fallback"
     expect(resolveExecutablePath("gemini")).toBe(
       "C:\\Users\\demo\\AppData\\Roaming\\npm\\gemini.cmd",
     );
+  });
+
+  it("resolves npm .cmd shims to their package exe target when present", () => {
+    const root = mkdtempSync(join(tmpdir(), "lightcode-claude-shim-"));
+    tempDirs.push(root);
+    const cmdPath = join(root, "claude.cmd");
+    const exePath = join(root, "node_modules", "@anthropic-ai", "claude-code", "bin", "claude.exe");
+    mkdirSync(join(root, "node_modules", "@anthropic-ai", "claude-code", "bin"), {
+      recursive: true,
+    });
+    writeFileSync(
+      cmdPath,
+      '"%dp0%\\node_modules\\@anthropic-ai\\claude-code\\bin\\claude.exe" %*\n',
+    );
+    writeFileSync(exePath, "");
+    spawnSyncMock.mockReturnValueOnce({
+      error: undefined,
+      status: 0,
+      stdout: [join(root, "claude"), cmdPath].join("\r\n"),
+      stderr: "",
+    });
+
+    expect(resolveExecutablePath("claude")).toBe(exePath);
+  });
+
+  it("keeps the .cmd path for npm node-shim wrappers (e.g. command-code.cmd → node index.mjs)", () => {
+    // Regression: a previous version of resolveWindowsCmdExeTarget greedily
+    // matched `"%dp0%\node.exe"` in npm's standard Node-script shim and
+    // returned node.exe directly. That stripped the script entry, so
+    // buildAgentCommand spawned `node.exe --model ... --enable ...` and Node
+    // rejected the agent's flags with "bad option: --model". The .cmd must
+    // remain so resolveWindowsNodeCmdShim can extract the script entry later.
+    const root = mkdtempSync(join(tmpdir(), "lightcode-command-code-shim-"));
+    tempDirs.push(root);
+    const cmdPath = join(root, "command-code.cmd");
+    const nodeExePath = join(root, "node.exe");
+    const jsPath = join(root, "node_modules", "command-code", "dist", "index.mjs");
+    mkdirSync(join(root, "node_modules", "command-code", "dist"), { recursive: true });
+    writeFileSync(nodeExePath, "");
+    writeFileSync(jsPath, "");
+    writeFileSync(
+      cmdPath,
+      [
+        "@ECHO off",
+        "SETLOCAL",
+        'endLocal & goto #_undefined_# 2>NUL || title %COMSPEC% & "%dp0%\\node.exe"  "%dp0%\\node_modules\\command-code\\dist\\index.mjs" %*',
+        "",
+      ].join("\r\n"),
+    );
+    spawnSyncMock.mockReturnValueOnce({
+      error: undefined,
+      status: 0,
+      stdout: [join(root, "command-code"), cmdPath].join("\r\n"),
+      stderr: "",
+    });
+
+    expect(resolveExecutablePath("command-code")).toBe(cmdPath);
   });
 
   it("applies the same fallback to async resolution", async () => {

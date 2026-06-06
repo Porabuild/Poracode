@@ -9,6 +9,7 @@ import type {
   ThreadConfig,
 } from "@/shared/contracts";
 import { Button, OptionMenu, PixelLoader } from "@/renderer/components/common";
+import { modelVisibilityKey } from "@/renderer/components/common/ProviderModelMenu/parts/providerIdentity";
 import { ProviderIcon, getComposerControls } from "@/renderer/components/providers";
 import { EffortIcon } from "@/renderer/components/providers/EffortIcon";
 import { PermissionIcon } from "@/renderer/components/providers/PermissionIcon";
@@ -155,7 +156,9 @@ export function ContinueInProviderDialog(props: {
     }
   }
 
-  const hiddenTargetModelIds = useSharedSettings((s) => s.hiddenModels[selectedKind]);
+  const hiddenTargetModelIds = useSharedSettings(
+    (s) => s.hiddenModels[modelVisibilityKey(selectedKind)],
+  );
   const targetControls = (
     selectedAgent
       ? (getComposerControls(selectedKind)?.({
@@ -172,7 +175,9 @@ export function ContinueInProviderDialog(props: {
   const [extractModel, setExtractModel] = useState(thread.config.model || models[0]?.id || "");
   const [extractEffort, setExtractEffort] = useState("low");
 
-  const hiddenModelIds = useSharedSettings((s) => s.hiddenModels[thread.agentKind]);
+  const hiddenModelIds = useSharedSettings(
+    (s) => s.hiddenModels[modelVisibilityKey(thread.agentKind, thread.presentationMode)],
+  );
   const filteredSourceCaps = sourceAgent
     ? filterHiddenModels(sourceAgent.capabilities, hiddenModelIds)
     : undefined;

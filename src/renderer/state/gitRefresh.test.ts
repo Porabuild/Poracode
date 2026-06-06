@@ -10,6 +10,8 @@ import type {
 import { useAppStore } from "./appStore";
 import { useGitStore } from "./gitStore";
 import { buildBranchPrKey } from "./gitSelectors";
+import { usePanelStore } from "./panelStore";
+import { useSidebarUiStore } from "./sidebarUiStore";
 import {
   cleanupGitRefreshProjects,
   PR_PENDING_REFRESH_INTERVAL_MS,
@@ -107,6 +109,16 @@ const worktreeThread: Thread = {
   updatedAt: "2026-04-04T00:00:00.000Z",
 };
 
+const hiddenWorktreeThread: Thread = {
+  ...worktreeThread,
+  id: "t-hidden",
+  title: "Hidden worktree thread",
+  worktreePath: "/repo-hidden",
+  worktreeBranch: "feature/hidden",
+  createdAt: "2026-04-03T00:00:00.000Z",
+  updatedAt: "2026-04-03T00:00:00.000Z",
+};
+
 describe("pending PR refresh", () => {
   beforeEach(() => {
     vi.useFakeTimers();
@@ -132,7 +144,19 @@ describe("pending PR refresh", () => {
       prFiles: {},
       prDiffs: {},
     });
-    useAppStore.setState({ projects: [project], threads: [] });
+    usePanelStore.setState({
+      gitReviewContext: null,
+      gitReviewAsPanel: false,
+      filesPanelContext: null,
+      rightPanelTab: "git",
+      threadSortMode: "updated",
+    });
+    useSidebarUiStore.setState({
+      collapsedProjects: {},
+      collapsedWorktrees: {},
+      threadListLimits: {},
+    });
+    useAppStore.setState({ projects: [project], threads: [], view: { kind: "home" } });
   });
 
   afterEach(() => {
@@ -228,6 +252,23 @@ describe("pending PR refresh", () => {
     await vi.advanceTimersByTimeAsync(PR_PENDING_REFRESH_INTERVAL_MS);
 
     expect(ghGetPrForBranchMock).not.toHaveBeenCalled();
+  });
+
+  it("does not poll pending PR checks for worktree threads hidden behind See more", async () => {
+    useSidebarUiStore.setState({ threadListLimits: { p1: 1 } });
+    useAppStore.setState({ threads: [worktreeThread, hiddenWorktreeThread] });
+    useGitStore.getState().setPrData("/repo-wt", basePr);
+    useGitStore.getState().setPrData("/repo-hidden", { ...basePr, number: 43 });
+    ghGetPrForBranchMock.mockResolvedValue({ ...basePr, checksStatus: "PENDING" });
+    ghGetPrDetailsMock.mockResolvedValue({ details: baseDetails });
+
+    syncPendingPrRefreshProjects([{ id: "p1", location }]);
+
+    expect(ghGetPrForBranchMock).toHaveBeenCalledTimes(1);
+    expect(ghGetPrForBranchMock).toHaveBeenCalledWith({
+      projectLocation: location,
+      branch: "feature/wt",
+    });
   });
 
   it("does not poll orphaned pending PR details", async () => {
@@ -333,7 +374,19 @@ describe("watcher git status refresh", () => {
       prFiles: {},
       prDiffs: {},
     });
-    useAppStore.setState({ projects: [project], threads: [] });
+    usePanelStore.setState({
+      gitReviewContext: null,
+      gitReviewAsPanel: false,
+      filesPanelContext: null,
+      rightPanelTab: "git",
+      threadSortMode: "updated",
+    });
+    useSidebarUiStore.setState({
+      collapsedProjects: {},
+      collapsedWorktrees: {},
+      threadListLimits: {},
+    });
+    useAppStore.setState({ projects: [project], threads: [], view: { kind: "home" } });
   });
 
   afterEach(() => {
@@ -380,14 +433,22 @@ describe("watcher git status refresh", () => {
         commit: "abc123",
         isMain: true,
       },
+      {
+        path: "/repo-old",
+        branch: "feature/old",
+        commit: "abc123",
+        isMain: false,
+      },
     ]);
-    useAppStore.setState({ threads: [worktreeThread] });
+    useSidebarUiStore.setState({ threadListLimits: { p1: 1 } });
+    useAppStore.setState({ threads: [worktreeThread, hiddenWorktreeThread] });
 
     await refreshGitProject(project, "watcher", "status");
 
     expect(gitWorktreeStatusBatch).toHaveBeenCalledWith({
       projectLocation: location,
       worktreePaths: ["/repo-wt"],
+      detail: "full",
     });
     expect(useGitStore.getState().worktreeStatuses["/repo-wt"]).toEqual(worktreeStatus);
   });
@@ -429,7 +490,10 @@ describe("watcher git status refresh", () => {
       .mockResolvedValue({
         status,
         branches: { current: "main", branches: [] },
-        worktrees: [{ path: "/repo", branch: "main", commit: "abc123", isMain: true }],
+        worktrees: [
+          { path: "/repo", branch: "main", commit: "abc123", isMain: true },
+          { path: "/repo-old", branch: "feature/old", commit: "abc123", isMain: false },
+        ],
         ghAvailable: false,
       });
     Object.defineProperty(window, "lightcode", {
@@ -441,7 +505,8 @@ describe("watcher git status refresh", () => {
         gitWorktreeStatusBatch,
       },
     });
-    useAppStore.setState({ threads: [worktreeThread] });
+    useSidebarUiStore.setState({ threadListLimits: { p1: 1 } });
+    useAppStore.setState({ threads: [worktreeThread, hiddenWorktreeThread] });
 
     await refreshGitProject(project, "initial", "full");
 
@@ -452,7 +517,82 @@ describe("watcher git status refresh", () => {
     expect(gitWorktreeStatusBatch).toHaveBeenCalledWith({
       projectLocation: location,
       worktreePaths: ["/repo-wt"],
+      detail: "full",
     });
     expect(useGitStore.getState().worktreeStatuses["/repo-wt"]).toEqual(worktreeStatus);
+  });
+
+  it("keeps hidden worktree threads watched while they are open in a thread pane", async () => {
+    const gitWatchWorktrees = vi.fn<() => Promise<void>>().mockResolvedValue(undefined);
+    const gitWorktreeStatusBatch = vi
+      .fn<
+        (payload: {
+          projectLocation: ProjectLocation;
+          worktreePaths: string[];
+        }) => Promise<{ statuses: Record<string, GitStatusResult> }>
+      >()
+      .mockResolvedValue({ statuses: {} });
+    const gitProjectSnapshot = vi
+      .fn<() => Promise<{ status: GitStatusResult; worktrees: []; ghAvailable: boolean }>>()
+      .mockResolvedValue({ status, worktrees: [], ghAvailable: false });
+    Object.defineProperty(window, "lightcode", {
+      configurable: true,
+      value: {
+        platform: "darwin",
+        gitProjectSnapshot,
+        gitWatchWorktrees,
+        gitWorktreeStatusBatch,
+      },
+    });
+    useSidebarUiStore.setState({ threadListLimits: { p1: 1 } });
+    useAppStore.setState({
+      threads: [worktreeThread, hiddenWorktreeThread],
+      view: { kind: "thread", panes: ["t-hidden"] as [string, ...string[]] },
+    });
+
+    await refreshGitProject(project, "initial", "full");
+
+    expect(gitWatchWorktrees).toHaveBeenCalledWith({
+      projectId: "p1",
+      worktreePaths: ["/repo-hidden", "/repo-wt"],
+    });
+  });
+
+  it("keeps hidden worktree threads watched while their git panel is active", async () => {
+    const gitWatchWorktrees = vi.fn<() => Promise<void>>().mockResolvedValue(undefined);
+    const gitWorktreeStatusBatch = vi
+      .fn<
+        (payload: {
+          projectLocation: ProjectLocation;
+          worktreePaths: string[];
+        }) => Promise<{ statuses: Record<string, GitStatusResult> }>
+      >()
+      .mockResolvedValue({ statuses: {} });
+    const gitProjectSnapshot = vi
+      .fn<() => Promise<{ status: GitStatusResult; worktrees: []; ghAvailable: boolean }>>()
+      .mockResolvedValue({ status, worktrees: [], ghAvailable: false });
+    Object.defineProperty(window, "lightcode", {
+      configurable: true,
+      value: {
+        platform: "darwin",
+        gitProjectSnapshot,
+        gitWatchWorktrees,
+        gitWorktreeStatusBatch,
+      },
+    });
+    useSidebarUiStore.setState({ threadListLimits: { p1: 1 } });
+    usePanelStore.setState({
+      gitReviewContext: { projectId: "p1", worktreePath: "/repo-hidden" },
+      gitReviewAsPanel: true,
+      rightPanelTab: "git",
+    });
+    useAppStore.setState({ threads: [worktreeThread, hiddenWorktreeThread] });
+
+    await refreshGitProject(project, "initial", "full");
+
+    expect(gitWatchWorktrees).toHaveBeenCalledWith({
+      projectId: "p1",
+      worktreePaths: ["/repo-hidden", "/repo-wt"],
+    });
   });
 });

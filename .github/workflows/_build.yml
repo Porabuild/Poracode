@@ -144,6 +144,21 @@ jobs:
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
 
+      - name: Verify macOS app bundle
+        if: matrix.os == 'macos-latest'
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          apps=(release/mac*/Lightcode*.app)
+          if [ "${#apps[@]}" -eq 0 ]; then
+            echo "::error::No packaged macOS app bundles found under release/mac*."
+            exit 1
+          fi
+          for app in "${apps[@]}"; do
+            codesign --verify --deep --strict --verbose=4 "$app"
+          done
+        shell: bash
+
       - name: Upload built artifacts
         uses: actions/upload-artifact@v7
         with:

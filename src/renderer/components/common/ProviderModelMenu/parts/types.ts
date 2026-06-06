@@ -10,6 +10,8 @@ export interface ProviderModelHeaderProvider {
   type: "header-provider";
   id: string;
   providerKind: string;
+  providerKey: string;
+  hiddenModelsKey: string;
   providerIcon?: string;
   label: string;
 }
@@ -18,6 +20,8 @@ export interface ProviderModelHeaderSubProvider {
   type: "header-sub";
   id: string;
   providerKind: string;
+  providerKey: string;
+  hiddenModelsKey: string;
   subId: string;
   label: string;
 }
@@ -26,6 +30,8 @@ export interface ProviderModelRow {
   type: "model";
   id: string;
   providerKind: string;
+  providerKey: string;
+  hiddenModelsKey: string;
   providerIcon?: string;
   presentationMode?: ThreadPresentationMode;
   modelId: string;

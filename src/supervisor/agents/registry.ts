@@ -3,6 +3,10 @@
  * To add a built-in provider: import its factory, add to the array.
  * To remove: delete its import + array entry, then delete its folder.
  *
+ * This array is ONE of several registration points. Full checklist (install,
+ * update, auth, picker order, etc.): .agents/docs/agent-adapters.md
+ * → "Adding a New Provider — Full Checklist".
+ *
  * For runtime-extensible ACP-speaking agents, pass `userInstances` to
  * `buildAgentRegistry` — each `acp-generic` instance becomes a discrete
  * adapter via `createAcpGenericAdapter`.
@@ -12,6 +16,7 @@ import { createAcpGenericAdapter } from "./acp-generic";
 import { createAntigravityAdapter } from "./antigravity";
 import type { AgentAdapter } from "./base";
 import { createClaudeAdapter } from "./claude";
+import { createCommandCodeAdapter } from "./commandcode";
 import { createCopilotAdapter } from "./copilot";
 import { createCodexAdapter } from "./codex";
 import { createCursorAdapter } from "./cursor";
@@ -36,6 +41,7 @@ export function buildAgentRegistry(userInstances: AgentInstanceConfig[]): AgentA
     createGeminiAdapter(),
     createGrokAdapter(),
     createAntigravityAdapter(),
+    createCommandCodeAdapter(),
     createCursorAdapter(),
     createOpenCodeAdapter(),
   ];

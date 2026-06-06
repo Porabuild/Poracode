@@ -59,3 +59,24 @@ minimumReleaseAgeExclude:
   - "@anthropic-ai/claude-agent-sdk-win32-arm64@0.3.154"
   - "@anthropic-ai/claude-agent-sdk-win32-x64@0.3.154"
   - "@anthropic-ai/claude-agent-sdk@0.3.154"
+  # Already present in the lockfile when the supply-chain guard was added.
+  - "react@19.2.7"
+  - "react-dom@19.2.7"
+  - "@types/react@19.2.16"
+  - "lucide-react@1.17.0"
+
+# Supply-chain guard: refuse to install any package version published less
+# than this many minutes ago. 7 days catches the typical window in which
+# malicious or compromised releases are detected and unpublished.
+# Use `minimumReleaseAgeExclude` above to whitelist specific versions that
+# need to be adopted immediately (e.g. security patches, first-party SDKs).
+minimumReleaseAge: 10080
+
+# Force-bump vulnerable transitive dependencies flagged by GitHub Dependabot.
+# These selectors only rewrite versions that fall inside the advisory range,
+# leaving already-patched copies (e.g. dompurify 3.4.5) untouched.
+overrides:
+  "axios@<1.16.0": "^1.16.0"
+  "tmp@<0.2.6": "^0.2.6"
+  "brace-expansion@>=5.0.0 <5.0.6": "^5.0.6"
+  "dompurify@<3.3.2": "^3.3.2"

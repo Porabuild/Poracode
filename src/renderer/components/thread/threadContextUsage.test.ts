@@ -85,10 +85,11 @@ describe("threadContextUsage", () => {
     expect(summary.remainingLabel).toBe("129K");
   });
 
-  it("only treats positive provider token usage as reportable", () => {
+  it("treats zero-token provider context usage as reportable", () => {
     expect(hasReportedContextUsage(undefined)).toBe(false);
+    expect(hasReportedContextUsage({})).toBe(false);
     expect(hasReportedContextUsage({ maxTokens: 200_000 })).toBe(false);
-    expect(hasReportedContextUsage({ usedTokens: 0, maxTokens: 200_000 })).toBe(false);
+    expect(hasReportedContextUsage({ usedTokens: 0, maxTokens: 200_000 })).toBe(true);
     expect(hasReportedContextUsage({ usedTokens: 1, maxTokens: 200_000 })).toBe(true);
   });
 

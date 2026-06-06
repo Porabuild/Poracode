@@ -26,10 +26,13 @@ import { listListeningPorts, listProcesses, resolveTargets } from "./antigravity
  */
 
 /** Probe the running language server; undefined when none is reachable. */
-async function scanLanguageServer(nowMs: number): Promise<UsageSnapshot | undefined> {
-  const { pids, csrfTokens } = resolveTargets(await listProcesses());
+async function scanLanguageServer(
+  nowMs: number,
+  wslDistros: readonly string[],
+): Promise<UsageSnapshot | undefined> {
+  const { pids, csrfTokens } = resolveTargets(await listProcesses(wslDistros));
   if (pids.size === 0) return undefined;
-  const ports = (await listListeningPorts())
+  const ports = (await listListeningPorts(wslDistros))
     .filter((entry) => pids.has(entry.pid))
     .map((entry) => entry.port);
   for (const port of [...new Set(ports)]) {
@@ -59,8 +62,11 @@ async function scanLanguageServer(nowMs: number): Promise<UsageSnapshot | undefi
 }
 
 /** Build the Antigravity usage snapshot from its local language server. */
-export async function scanAntigravityUsage(nowMs: number): Promise<UsageSnapshot> {
-  const ls = await scanLanguageServer(nowMs).catch(() => undefined);
+export async function scanAntigravityUsage(
+  nowMs: number,
+  wslDistros: readonly string[] = [],
+): Promise<UsageSnapshot> {
+  const ls = await scanLanguageServer(nowMs, wslDistros).catch(() => undefined);
   if (ls && ls.windows.length > 0) return ls;
   // No reachable LS: `agy`/the IDE isn't running. The user may well be signed
   // in, so this is "start the app", not "sign in".

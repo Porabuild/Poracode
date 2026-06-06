@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createDbStorage } from "./dbStorage";
 
 const bridge = vi.hoisted(() => ({
@@ -13,6 +13,13 @@ vi.mock("../bridge", () => ({
   readBridge: () => bridge,
   isQuickOverlay: () => false,
 }));
+
+const captureRendererException = vi.hoisted(() =>
+  vi.fn<(error: unknown, context?: { featureArea?: string }) => void>(),
+);
+vi.mock("../diagnostics/sentry", () => ({ captureRendererException }));
+
+const flushMicrotasks = () => new Promise((resolve) => setTimeout(resolve, 0));
 
 describe("createDbStorage", () => {
   beforeEach(() => {
@@ -68,5 +75,60 @@ describe("createDbStorage", () => {
     });
 
     expect(bridge.dbSetState).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("dbStorage persistence error reporting", () => {
+  beforeEach(() => {
+    bridge.dbSetState.mockReset().mockResolvedValue(undefined);
+    bridge.dbSyncAll.mockReset().mockResolvedValue(undefined);
+    captureRendererException.mockClear();
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    window.lightcode = {} as typeof window.lightcode;
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("reports a rejected app-store sync instead of silently dropping it", async () => {
+    bridge.dbSyncAll.mockRejectedValue(new Error("db locked"));
+    const storage = createDbStorage();
+
+    await storage.setItem("lightcode-app-v2", {
+      state: { projects: [], threads: [], view: { kind: "home" }, groupLayouts: {} },
+      version: 4,
+    } as never);
+    await flushMicrotasks();
+
+    expect(bridge.dbSyncAll).toHaveBeenCalledOnce();
+    expect(captureRendererException).toHaveBeenCalledWith(
+      expect.any(Error),
+      expect.objectContaining({ featureArea: "app-state-persistence" }),
+    );
+  });
+
+  it("reports a rejected generic state write", async () => {
+    bridge.dbSetState.mockRejectedValue(new Error("disk full"));
+    const storage = createDbStorage();
+
+    await storage.setItem("some-other-store", { state: { x: 1 }, version: 1 } as never);
+    await flushMicrotasks();
+
+    expect(bridge.dbSetState).toHaveBeenCalledOnce();
+    expect(captureRendererException).toHaveBeenCalledWith(
+      expect.any(Error),
+      expect.objectContaining({ featureArea: "app-state-persistence" }),
+    );
+  });
+
+  it("does not report when the write succeeds", async () => {
+    const storage = createDbStorage();
+
+    await storage.setItem("some-other-store", { state: { y: 2 }, version: 1 } as never);
+    await flushMicrotasks();
+
+    expect(bridge.dbSetState).toHaveBeenCalledOnce();
+    expect(captureRendererException).not.toHaveBeenCalled();
   });
 });

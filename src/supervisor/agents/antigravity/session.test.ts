@@ -116,7 +116,7 @@ describe("Antigravity session files", () => {
     const { createAntigravityAdapter } = await loadAdapterModule(home);
     const adapter = createAntigravityAdapter();
 
-    adapter.buildLaunchArgv(location, { model: "auto" }, "hello");
+    adapter.buildLaunchArgv(location, { model: "Gemini 3.5 Flash" }, "hello");
     writeFileSync(
       join(configDir, "cache", "last_conversations.json"),
       JSON.stringify({ [location.path]: "conversation-new" }),
@@ -150,7 +150,7 @@ describe("Antigravity session files", () => {
 
     const { createAntigravityAdapter } = await loadAdapterModule(home);
     const adapter = createAntigravityAdapter();
-    adapter.buildLaunchArgv(location, { model: "auto" }, "hello");
+    adapter.buildLaunchArgv(location, { model: "Gemini 3.5 Flash" }, "hello");
 
     // Real interactive session for this workspace (with a decoy file:// in its
     // content), plus a concurrent one-shot (title gen) that ran in an isolated
@@ -180,7 +180,7 @@ describe("Antigravity session files", () => {
 
     const { createAntigravityAdapter } = await loadAdapterModule(home);
     const adapter = createAntigravityAdapter();
-    adapter.buildLaunchArgv(location, { model: "auto" }, "hello");
+    adapter.buildLaunchArgv(location, { model: "Gemini 3.5 Flash" }, "hello");
 
     await expect(adapter.discoverSessionRef?.(location)).resolves.toBeUndefined();
   });

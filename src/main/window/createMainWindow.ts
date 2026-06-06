@@ -110,6 +110,41 @@ export function createMainWindow(options: CreateMainWindowOptions): BrowserWindo
   });
   installSessionPermissions(window.webContents.session);
 
+  // Lock the privileged top frame to the app's own origin. The main renderer
+  // holds the full `lightcode` preload bridge (DB, file pickers, openExternal,
+  // supervisor RPC); if it could be navigated to a remote origin, that page
+  // would inherit the bridge. External links are opened via IPC/openExternal,
+  // so the renderer never legitimately performs a top-level navigation away
+  // from itself or opens new windows.
+  const isAllowedAppUrl = (target: string): boolean => {
+    try {
+      const url = new URL(target);
+      if (options.isDev && options.devServerUrl) {
+        return url.origin === new URL(options.devServerUrl).origin || url.protocol === "file:";
+      }
+      return url.protocol === "file:";
+    } catch {
+      return false;
+    }
+  };
+  const blockOffAppNavigation = (event: Electron.Event, target: string): void => {
+    if (!isAllowedAppUrl(target)) {
+      console.warn(`[lightcode] blocked navigation to off-app URL: ${target}`);
+      event.preventDefault();
+    }
+  };
+  window.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
+  window.webContents.on("will-navigate", blockOffAppNavigation);
+  window.webContents.on("will-redirect", blockOffAppNavigation);
+  // `webviewTag` is enabled for the in-app browser; the embedding renderer
+  // controls each <webview>'s attributes, so enforce that no webview can
+  // request a preload or Node access regardless of what markup is injected.
+  window.webContents.on("will-attach-webview", (_event, webPreferences) => {
+    delete webPreferences.preload;
+    webPreferences.nodeIntegration = false;
+    webPreferences.contextIsolation = true;
+  });
+
   window.once("ready-to-show", () => {
     if (saved?.isMaximized) {
       window.maximize();

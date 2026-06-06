@@ -49,10 +49,14 @@ import {
 } from "@/renderer/utils/acpRegistryAuth";
 import { Input, PixelLoader, Select } from "@/renderer/components/common";
 import { ProviderIcon } from "@/renderer/components/providers/ProviderIcon";
+import {
+  providerMenuKey,
+  providerVisibilityKey,
+} from "@/renderer/components/common/ProviderModelMenu/parts/providerIdentity";
+import { expandAgentToVisibilityProviders } from "@/renderer/components/thread/buildModelPickerControls";
 import { SettingsPage } from "./SettingsForm";
 import {
   buildProviderModelItems,
-  statusToMenuProvider,
   type ProviderModelItem,
   type ProviderModelMenuProvider,
 } from "@/renderer/components/common/ProviderModelMenu";
@@ -107,11 +111,11 @@ function AgentSettingRow(props: { agentKind: string; def: AgentSettingDef }) {
 }
 
 function ModelVisibilityDropdown(props: {
-  agentKind: string;
+  settingsKey: string;
   provider: ProviderModelMenuProvider;
 }) {
-  const { agentKind, provider } = props;
-  const hiddenIds = useSharedSettings((s) => s.hiddenModels[agentKind]);
+  const { settingsKey, provider } = props;
+  const hiddenIds = useSharedSettings((s) => s.hiddenModels[settingsKey]);
   const setHiddenModels = useSharedSettings((s) => s.setHiddenModels);
 
   const [isOpen, setIsOpen] = useState(false);
@@ -159,7 +163,7 @@ function ModelVisibilityDropdown(props: {
     const next = new Set(hiddenSet);
     if (next.has(modelId)) next.delete(modelId);
     else next.add(modelId);
-    setHiddenModels(agentKind, [...next]);
+    setHiddenModels(settingsKey, [...next]);
   }
 
   function toggleSubGroup(headerId: string) {
@@ -173,17 +177,19 @@ function ModelVisibilityDropdown(props: {
       if (nextHidden) next.add(id);
       else next.delete(id);
     }
-    setHiddenModels(agentKind, [...next]);
+    setHiddenModels(settingsKey, [...next]);
   }
 
   function setAllHidden(hideAll: boolean) {
-    setHiddenModels(agentKind, hideAll ? allModels.map((m) => m.id) : []);
+    setHiddenModels(settingsKey, hideAll ? allModels.map((m) => m.id) : []);
   }
 
   return (
     <div className="flex items-center justify-between gap-4 py-2 border-b border-border/10 last:border-0 group">
       <div className="flex flex-col min-w-0 flex-1">
-        <p className="text-sm font-medium text-foreground">Visible models</p>
+        <p className="text-sm font-medium text-foreground">
+          {provider.kind === "cursor" ? `Visible ${provider.label} models` : "Visible models"}
+        </p>
         <p className="text-[11px] text-muted line-clamp-1 group-hover:line-clamp-none transition-all">
           Toggle models off to hide them from the selector.
         </p>
@@ -458,7 +464,7 @@ function AgentInstallEnvironmentRow(props: {
         <Button
           size="sm"
           variant="tertiary"
-          className="h-6 min-h-6 px-2 py-0 text-[10px] text-muted-foreground hover:text-foreground"
+          className="h-6 min-h-6 px-2 py-0 text-[10px] text-muted hover:text-foreground"
           aria-label={`Install${envSuffix}`}
           isPending={props.installPending}
           onPress={() => props.onInstall(props.status)}
@@ -629,7 +635,7 @@ function AgentEnvironmentRow(props: {
                       key={method.id}
                       size="sm"
                       variant="tertiary"
-                      className="h-6 min-h-6 px-2 py-0 text-[10px] text-muted-foreground hover:text-foreground"
+                      className="h-6 min-h-6 px-2 py-0 text-[10px] text-muted hover:text-foreground"
                       aria-label={`${loginLabel} ${method.name}${envSuffix}`}
                       onPress={() => props.onLogin(method)}
                     >
@@ -641,7 +647,7 @@ function AgentEnvironmentRow(props: {
                 <Button
                   size="sm"
                   variant="tertiary"
-                  className="h-6 min-h-6 px-2 py-0 text-[10px] text-muted-foreground hover:text-foreground"
+                  className="h-6 min-h-6 px-2 py-0 text-[10px] text-muted hover:text-foreground"
                   aria-label={`${loginLabel}${envSuffix}`}
                   onPress={() => props.onLogin(singleMethod)}
                 >
@@ -652,7 +658,7 @@ function AgentEnvironmentRow(props: {
                 <Button
                   size="sm"
                   variant="tertiary"
-                  className="h-6 min-h-6 px-2 py-0 text-[10px] text-muted-foreground hover:text-foreground"
+                  className="h-6 min-h-6 px-2 py-0 text-[10px] text-muted hover:text-foreground"
                   aria-label={`Logout${envSuffix}`}
                   onPress={props.onLogout}
                 >
@@ -974,8 +980,8 @@ export function SingleAgentSettings(props: { agentKind: string }) {
   const defs = (agent.capabilities.settingDefs ?? []).filter(
     (def) => !def.platforms || def.platforms.includes(platform),
   );
-  const hasSelectableModels = agent.capabilities.models.some((m) => m.id !== "auto");
-  const menuProvider = statusToMenuProvider(agent);
+  const modelVisibilityProviders = expandAgentToVisibilityProviders(agent);
+  const hasSelectableModels = modelVisibilityProviders.length > 0;
 
   const versionRows: { label: string; status: AgentStatus }[] = [];
   if (platform === "win32") {
@@ -1383,275 +1389,275 @@ export function SingleAgentSettings(props: { agentKind: string }) {
   };
 
   return (
-    <div className="h-full min-h-0 overflow-y-auto px-6 pb-8 pt-4">
-      <div className="mx-auto max-w-[720px]">
-        <div className="mb-6">
-          <div className="flex items-center justify-between gap-4 mb-4">
-            <div className="flex items-center gap-3">
-              <ProviderIcon
-                kind={agent.kind}
-                icon={agent.icon}
-                fallbackLabel={agent.label}
-                className="size-8"
-              />
-              <div className="flex flex-col">
-                <h1 className="text-lg font-semibold text-foreground leading-tight">
-                  {agent.label}
-                </h1>
-                <p className="text-[11px] text-muted">
-                  {isDisabled ? "Agent is currently disabled" : "Agent is active and ready"}
-                </p>
-              </div>
-            </div>
-            <div className="flex items-center gap-3">
-              {updateAvailable && (
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  className="h-7 min-h-7 gap-1 px-2 text-[11px]"
-                  isPending={updatePending}
-                  onPress={performUpdate}
-                >
-                  <ArrowUpCircle className="size-3" />
-                  Update to v{latestRegistryVersion}
-                </Button>
-              )}
-              <Switch
-                isSelected={!isDisabled}
-                isDisabled={binaryUpdatePendingEnvKey !== undefined}
-                size="sm"
-                aria-label="Enabled"
-                onChange={(selected) => {
-                  startTransition(() => {
-                    setAgentDisabled(agent.kind, !selected);
-                  });
-                  if (selected) {
-                    void readBridge()
-                      .refreshAgentStatuses(wslDistros, { agentKinds: [agent.kind] })
-                      .catch(() => undefined);
-                  }
-                }}
-              >
-                <Switch.Control>
-                  <Switch.Thumb />
-                </Switch.Control>
-              </Switch>
+    <div className="mx-auto max-w-[720px]">
+      <div className="mb-6">
+        <div className="flex items-center justify-between gap-4 mb-4">
+          <div className="flex items-center gap-3">
+            <ProviderIcon
+              kind={agent.kind}
+              icon={agent.icon}
+              fallbackLabel={agent.label}
+              className="size-8"
+            />
+            <div className="flex flex-col">
+              <h1 className="text-lg font-semibold text-foreground leading-tight">{agent.label}</h1>
+              <p className="text-[11px] text-muted">
+                {isDisabled ? "Agent is currently disabled" : "Agent is active and ready"}
+              </p>
             </div>
           </div>
-
-          <div className="space-y-0.5 border-t border-border/10 pt-3">
-            {installedHere.map(renderInstalledEnvironmentRow)}
-            {installableHere.map(renderInstallableEnvironmentRow)}
-            {installedWsl.map(renderInstalledEnvironmentRow)}
-            {installableWsl.map(renderInstallableEnvironmentRow)}
+          <div className="flex items-center gap-3">
+            {updateAvailable && (
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-7 min-h-7 gap-1 px-2 text-[11px]"
+                isPending={updatePending}
+                onPress={performUpdate}
+              >
+                <ArrowUpCircle className="size-3" />
+                Update to v{latestRegistryVersion}
+              </Button>
+            )}
+            <Switch
+              isSelected={!isDisabled}
+              isDisabled={binaryUpdatePendingEnvKey !== undefined}
+              size="sm"
+              aria-label="Enabled"
+              onChange={(selected) => {
+                startTransition(() => {
+                  setAgentDisabled(agent.kind, !selected);
+                });
+                if (selected) {
+                  void readBridge()
+                    .refreshAgentStatuses(wslDistros, { agentKinds: [agent.kind] })
+                    .catch(() => undefined);
+                }
+              }}
+            >
+              <Switch.Control>
+                <Switch.Thumb />
+              </Switch.Control>
+            </Switch>
           </div>
         </div>
 
-        <div className="space-y-4">
-          {hasAuthSettings && (
-            <div className="space-y-2">
-              {envVarAuthMethod && acpInstanceId ? (
-                <div className="flex items-start justify-between gap-4 rounded-xl border border-border bg-surface-secondary px-3 py-2 text-foreground">
-                  <div className="flex min-w-0 items-start gap-2">
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-medium">{envVarAuthMethod.name}</p>
-                      <p className="text-xs text-muted">
-                        Saved credentials are shared across all environments.
-                      </p>
-                      <div className="mt-3 flex flex-col gap-2">
-                        {envVarAuthMethod.vars.map((variable) => {
-                          const hasAuthValue = Object.prototype.hasOwnProperty.call(
-                            authValues,
-                            variable.name,
-                          );
-                          const allEnvVarSaved =
-                            missingAuthStatuses.length === 0 && installedStatuses.length > 0;
-                          return (
-                            <Input
-                              key={variable.name}
-                              aria-label={variable.label ?? variable.name}
-                              className="w-full"
-                              placeholder={variable.label ?? variable.name}
-                              type={
-                                variable.secret === false || (!hasAuthValue && allEnvVarSaved)
-                                  ? "text"
-                                  : "password"
-                              }
-                              value={
-                                hasAuthValue
-                                  ? (authValues[variable.name] ?? "")
-                                  : allEnvVarSaved
-                                    ? SAVED_SECRET_MASK
-                                    : ""
-                              }
-                              onFocus={() => {
-                                if (allEnvVarSaved && !hasAuthValue) {
-                                  setAuthValues((current) => ({
-                                    ...current,
-                                    [variable.name]: "",
-                                  }));
-                                }
-                              }}
-                              onBlur={(event) => {
-                                if (!allEnvVarSaved) return;
-                                if (
-                                  event.relatedTarget instanceof HTMLElement &&
-                                  event.relatedTarget.closest("[data-acp-auth-save]")
-                                ) {
-                                  return;
-                                }
-                                setAuthValues((current) => {
-                                  if (
-                                    !Object.prototype.hasOwnProperty.call(current, variable.name)
-                                  ) {
-                                    return current;
-                                  }
-                                  const next = { ...current };
-                                  delete next[variable.name];
-                                  return next;
-                                });
-                              }}
-                              onChange={(event) =>
+        <div className="space-y-0.5 border-t border-border/10 pt-3">
+          {installedHere.map(renderInstalledEnvironmentRow)}
+          {installableHere.map(renderInstallableEnvironmentRow)}
+          {installedWsl.map(renderInstalledEnvironmentRow)}
+          {installableWsl.map(renderInstallableEnvironmentRow)}
+        </div>
+      </div>
+
+      <div className="space-y-4">
+        {hasAuthSettings && (
+          <div className="space-y-2">
+            {envVarAuthMethod && acpInstanceId ? (
+              <div className="flex items-start justify-between gap-4 rounded-xl border border-border bg-surface-secondary px-3 py-2 text-foreground">
+                <div className="flex min-w-0 items-start gap-2">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium">{envVarAuthMethod.name}</p>
+                    <p className="text-xs text-muted">
+                      Saved credentials are shared across all environments.
+                    </p>
+                    <div className="mt-3 flex flex-col gap-2">
+                      {envVarAuthMethod.vars.map((variable) => {
+                        const hasAuthValue = Object.prototype.hasOwnProperty.call(
+                          authValues,
+                          variable.name,
+                        );
+                        const allEnvVarSaved =
+                          missingAuthStatuses.length === 0 && installedStatuses.length > 0;
+                        return (
+                          <Input
+                            key={variable.name}
+                            aria-label={variable.label ?? variable.name}
+                            className="w-full"
+                            placeholder={variable.label ?? variable.name}
+                            type={
+                              variable.secret === false || (!hasAuthValue && allEnvVarSaved)
+                                ? "text"
+                                : "password"
+                            }
+                            value={
+                              hasAuthValue
+                                ? (authValues[variable.name] ?? "")
+                                : allEnvVarSaved
+                                  ? SAVED_SECRET_MASK
+                                  : ""
+                            }
+                            onFocus={() => {
+                              if (allEnvVarSaved && !hasAuthValue) {
                                 setAuthValues((current) => ({
                                   ...current,
-                                  [variable.name]: event.target.value,
-                                }))
+                                  [variable.name]: "",
+                                }));
                               }
-                            />
-                          );
-                        })}
-                      </div>
+                            }}
+                            onBlur={(event) => {
+                              if (!allEnvVarSaved) return;
+                              if (
+                                event.relatedTarget instanceof HTMLElement &&
+                                event.relatedTarget.closest("[data-acp-auth-save]")
+                              ) {
+                                return;
+                              }
+                              setAuthValues((current) => {
+                                if (!Object.prototype.hasOwnProperty.call(current, variable.name)) {
+                                  return current;
+                                }
+                                const next = { ...current };
+                                delete next[variable.name];
+                                return next;
+                              });
+                            }}
+                            onChange={(event) =>
+                              setAuthValues((current) => ({
+                                ...current,
+                                [variable.name]: event.target.value,
+                              }))
+                            }
+                          />
+                        );
+                      })}
                     </div>
                   </div>
-                  <div className="flex shrink-0 flex-row items-center gap-2">
+                </div>
+                <div className="flex shrink-0 flex-row items-center gap-2">
+                  <Button
+                    size="sm"
+                    variant="tertiary"
+                    isIconOnly
+                    aria-label="Save"
+                    isDisabled={!canSaveEnvAuth}
+                    isPending={authPending}
+                    data-acp-auth-save=""
+                    onPress={saveEnvAuth}
+                  >
+                    <Save className="size-4" />
+                  </Button>
+                  {!usePerEnvAuthRows && (
                     <Button
                       size="sm"
                       variant="tertiary"
                       isIconOnly
-                      aria-label="Save"
-                      isDisabled={!canSaveEnvAuth}
+                      aria-label="Logout"
                       isPending={authPending}
-                      data-acp-auth-save=""
-                      onPress={saveEnvAuth}
+                      onPress={clearEnvVarCredentials}
                     >
-                      <Save className="size-4" />
+                      <LogOut className="size-4 text-danger" />
                     </Button>
-                    {!usePerEnvAuthRows && (
-                      <Button
-                        size="sm"
-                        variant="tertiary"
-                        isIconOnly
-                        aria-label="Logout"
-                        isPending={authPending}
-                        onPress={clearEnvVarCredentials}
-                      >
-                        <LogOut className="size-4 text-danger" />
-                      </Button>
-                    )}
+                  )}
+                </div>
+              </div>
+            ) : null}
+
+            {!usePerEnvAuthRows &&
+            !showEnvVarOnly &&
+            (agentAuth || loginStatus || logoutStatuses.length > 0) ? (
+              <div className="flex items-start justify-between gap-4 py-1">
+                <div className="flex min-w-0 items-start gap-2">
+                  <div className="min-w-0 flex-1">
+                    <p className={`text-sm font-medium ${authMissing ? "text-warning" : ""}`}>
+                      {authMissing ? (
+                        <AlertTriangle className="mr-1.5 inline size-4 -translate-y-px text-warning" />
+                      ) : null}
+                      {authMissing ? "Login required" : "Authentication"}
+                    </p>
+                    <p className="text-xs text-muted truncate">
+                      {authPendingMessage ??
+                        (authMissing
+                          ? `${missingAuthLabel ? `${missingAuthLabel} needs authentication. ` : ""}${
+                              envVarAuthMethod
+                                ? agentAuth
+                                  ? `Complete ${agentAuth.method.name} sign-in or save ${envVarAuthMethod.name} credentials.`
+                                  : `Save ${envVarAuthMethod.name} credentials.`
+                                : agentAuth
+                                  ? `Complete ${agentAuth.method.name} sign-in.`
+                                  : loginCommand
+                                    ? `Run ${loginCommand} to sign in.`
+                                    : "Sign in with the agent CLI."
+                            }`
+                          : "Credentials are configured.")}
+                    </p>
                   </div>
                 </div>
-              ) : null}
-
-              {!usePerEnvAuthRows &&
-              !showEnvVarOnly &&
-              (agentAuth || loginStatus || logoutStatuses.length > 0) ? (
-                <div className="flex items-start justify-between gap-4 py-1">
-                  <div className="flex min-w-0 items-start gap-2">
-                    <div className="min-w-0 flex-1">
-                      <p className={`text-sm font-medium ${authMissing ? "text-warning" : ""}`}>
-                        {authMissing ? (
-                          <AlertTriangle className="mr-1.5 inline size-4 -translate-y-px text-warning" />
-                        ) : null}
-                        {authMissing ? "Login required" : "Authentication"}
-                      </p>
-                      <p className="text-xs text-muted truncate">
-                        {authPendingMessage ??
-                          (authMissing
-                            ? `${missingAuthLabel ? `${missingAuthLabel} needs authentication. ` : ""}${
-                                envVarAuthMethod
-                                  ? agentAuth
-                                    ? `Complete ${agentAuth.method.name} sign-in or save ${envVarAuthMethod.name} credentials.`
-                                    : `Save ${envVarAuthMethod.name} credentials.`
-                                  : agentAuth
-                                    ? `Complete ${agentAuth.method.name} sign-in.`
-                                    : loginCommand
-                                      ? `Run ${loginCommand} to sign in.`
-                                      : "Sign in with the agent CLI."
-                              }`
-                            : "Credentials are configured.")}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex shrink-0 flex-col items-end gap-2">
-                    {agentAuth && supportsAcpAgentAuth ? (
-                      (agentAuthEntries.length > 0 ? agentAuthEntries : [agentAuth]).map(
-                        (entry, index) => (
-                          <Button
-                            key={`${entry.status.kind}-${entry.status.envKind ?? "native"}-${entry.status.envDistro ?? index}`}
-                            size="sm"
-                            variant="tertiary"
-                            className="h-7 min-h-7 gap-1 px-2 text-[11px]"
-                            isPending={authPending}
-                            onPress={() => authenticateAgent(entry)}
-                          >
-                            <LogIn className="size-3" />
-                            {authMissing ? "Login" : "Re-login"}
-                          </Button>
-                        ),
-                      )
-                    ) : loginStatus && loginCommand ? (
-                      <Button
-                        size="sm"
-                        variant="tertiary"
-                        className="h-7 min-h-7 gap-1 px-2 text-[11px]"
-                        onPress={() => runTerminalLogin(loginStatus, terminalLoginMethod)}
-                      >
-                        <LogIn className="size-3" />
-                        {authMissing ? "Login" : "Re-login"}
-                      </Button>
-                    ) : null}
-                    {logoutStatuses.map((status, index) => (
-                      <Button
-                        key={`${status.kind}-${status.envKind ?? "native"}-${status.envDistro ?? index}-logout`}
-                        size="sm"
-                        variant="tertiary"
-                        className="h-7 min-h-7 gap-1 px-2 text-[11px]"
-                        isPending={authPending}
-                        onPress={() => logoutAgent(status)}
-                      >
-                        <LogOut className="size-3 text-danger" />
-                        Logout
-                      </Button>
-                    ))}
-                  </div>
+                <div className="flex shrink-0 flex-col items-end gap-2">
+                  {agentAuth && supportsAcpAgentAuth ? (
+                    (agentAuthEntries.length > 0 ? agentAuthEntries : [agentAuth]).map(
+                      (entry, index) => (
+                        <Button
+                          key={`${entry.status.kind}-${entry.status.envKind ?? "native"}-${entry.status.envDistro ?? index}`}
+                          size="sm"
+                          variant="tertiary"
+                          className="h-7 min-h-7 gap-1 px-2 text-[11px]"
+                          isPending={authPending}
+                          onPress={() => authenticateAgent(entry)}
+                        >
+                          <LogIn className="size-3" />
+                          {authMissing ? "Login" : "Re-login"}
+                        </Button>
+                      ),
+                    )
+                  ) : loginStatus && loginCommand ? (
+                    <Button
+                      size="sm"
+                      variant="tertiary"
+                      className="h-7 min-h-7 gap-1 px-2 text-[11px]"
+                      onPress={() => runTerminalLogin(loginStatus, terminalLoginMethod)}
+                    >
+                      <LogIn className="size-3" />
+                      {authMissing ? "Login" : "Re-login"}
+                    </Button>
+                  ) : null}
+                  {logoutStatuses.map((status, index) => (
+                    <Button
+                      key={`${status.kind}-${status.envKind ?? "native"}-${status.envDistro ?? index}-logout`}
+                      size="sm"
+                      variant="tertiary"
+                      className="h-7 min-h-7 gap-1 px-2 text-[11px]"
+                      isPending={authPending}
+                      onPress={() => logoutAgent(status)}
+                    >
+                      <LogOut className="size-3 text-danger" />
+                      Logout
+                    </Button>
+                  ))}
                 </div>
-              ) : null}
-            </div>
-          )}
-        </div>
-
-        <div className={`transition-opacity ${isDisabled ? "pointer-events-none opacity-40" : ""}`}>
-          {defs.length > 0 && (
-            <div className="mt-6">
-              {defs.map((def) => (
-                <AgentSettingRow key={def.key} agentKind={agent.kind} def={def} />
-              ))}
-            </div>
-          )}
-
-          {hasSelectableModels && (
-            <div className="mt-6">
-              <ModelVisibilityDropdown agentKind={agent.kind} provider={menuProvider} />
-            </div>
-          )}
-        </div>
-
-        <HookPluginSettings
-          agentKind={agent.kind}
-          agentLabel={agent.label}
-          statuses={installedStatuses}
-        />
+              </div>
+            ) : null}
+          </div>
+        )}
       </div>
+
+      <div className={`transition-opacity ${isDisabled ? "pointer-events-none opacity-40" : ""}`}>
+        {defs.length > 0 && (
+          <div className="mt-6">
+            {defs.map((def) => (
+              <AgentSettingRow key={def.key} agentKind={agent.kind} def={def} />
+            ))}
+          </div>
+        )}
+
+        {hasSelectableModels && (
+          <div className="mt-6">
+            {modelVisibilityProviders.map((provider) => (
+              <ModelVisibilityDropdown
+                key={providerMenuKey(provider)}
+                settingsKey={providerVisibilityKey(provider)}
+                provider={provider}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+
+      <HookPluginSettings
+        agentKind={agent.kind}
+        agentLabel={agent.label}
+        statuses={installedStatuses}
+      />
     </div>
   );
 }

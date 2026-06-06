@@ -19,7 +19,11 @@ export interface GitFileChange {
   deletions: number;
 }
 
+export const gitStatusDetailSchema = z.enum(["summary", "full"]);
+export type GitStatusDetail = z.infer<typeof gitStatusDetailSchema>;
+
 export interface GitStatusResult {
+  detail?: GitStatusDetail;
   isRepo: boolean;
   branch: string;
   tracking: string;
@@ -121,6 +125,7 @@ export type RestoreFileCheckpointPayload = z.infer<typeof restoreFileCheckpointP
 export const gitWorktreeStatusBatchPayloadSchema = z.object({
   projectLocation: projectLocationSchema,
   worktreePaths: z.array(z.string().min(1)),
+  detail: gitStatusDetailSchema.optional(),
 });
 export type GitWorktreeStatusBatchPayload = z.infer<typeof gitWorktreeStatusBatchPayloadSchema>;
 

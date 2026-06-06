@@ -63,20 +63,19 @@ Always return a **module-level sentinel** (`EMPTY_ARRAY`, `EMPTY_MAP`) instead o
 
 When a selector must derive a per-entity value from a list (filter, group, lookup), build the derivation **once per array reference** and cache it in a `WeakMap<Array, Map<key, Value>>`. First caller builds O(N); subsequent callers are O(1) until the store replaces the array.
 
-```ts
-const projectThreadsCache = new WeakMap<Thread[], Map<string, Thread[]>>();
+Use the shared `createArrayKeyedMap` helper in `state/derivations.ts` rather than hand-rolling the `WeakMap`:
 
-function getProjectThreads(threads: Thread[], projectId: string): Thread[] {
-  let map = projectThreadsCache.get(threads);
-  if (!map) {
-    map = buildProjectThreadsMap(threads, (t) => !t.archived);
-    projectThreadsCache.set(threads, map);
-  }
-  return map.get(projectId) ?? EMPTY_THREADS;
-}
+```ts
+// derivations.ts — first arg builds the per-key Map once per array reference
+const getProjectThreads = createArrayKeyedMap((threads: Thread[]) =>
+  buildProjectThreadsMap(threads, (t) => !t.archived),
+);
+
+// selector — O(1) after the first caller for a given array identity
+const threads = getProjectThreads(allThreads).get(projectId) ?? EMPTY_THREADS;
 ```
 
-Precedent: `hooks/uiSelectors.ts` (`projectThreadsCache`, `groupNameCache`, `threadRequestsCache`); `state/gitSelectors.ts` (`stagedMapCache`, `unstagedMapCache`).
+Precedent: `state/derivations.ts` (`createArrayKeyedMap`), consumed by `hooks/uiSelectors.ts` and `state/gitSelectors.ts`.
 
 ### 5. Equality gates in store setters
 
@@ -127,7 +126,7 @@ The row component's props are the **identifier** (`path`, `key`, `id`) and maybe
 
 When a new cross-cutting UI domain appears (tree expansion, panel visibility, editor tabs), give it its **own** Zustand store. One-store-per-app leads to broad subscriptions and eventually to God-state.
 
-Current domain stores: `appStore`, `gitStore`, `devTerminalStore`, `panelStore`, `fileEditorStore`, `projectTreeStore`, `sharedSettingsStore`, `updateStore`, `agentStatusesStore`, `worktreeDeleteStore`. A new store is cheap; broadening an existing one is expensive.
+The renderer currently runs ~20 such domain stores (`src/renderer/state/*Store.ts`; see the full table in `architecture.md` → State Management). A new store is cheap; broadening an existing one is expensive.
 
 ### 9. Cache-invalidation keys for lazy async work
 
