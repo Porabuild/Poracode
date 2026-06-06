@@ -20,15 +20,22 @@ export function useWorkflowRun(
   manifestPath: string | null,
   location: ProjectLocation | null,
   transcriptDir: string | null = null,
+  includeAgentChats = false,
 ): UseWorkflowRunResult {
   const subscribe = useWorkflowRunStore((s) => s.subscribe);
   const entry = useWorkflowRunStore((s) => (itemId ? s.byItemId[itemId] : undefined));
 
   useEffect(() => {
     if (!itemId || !manifestPath || !location) return;
-    const unsubscribe = subscribe(itemId, manifestPath, location, transcriptDir ?? undefined);
+    const unsubscribe = subscribe(
+      itemId,
+      manifestPath,
+      location,
+      transcriptDir ?? undefined,
+      includeAgentChats,
+    );
     return unsubscribe;
-  }, [itemId, manifestPath, location, transcriptDir, subscribe]);
+  }, [itemId, manifestPath, location, transcriptDir, includeAgentChats, subscribe]);
 
   return {
     run: entry?.run ?? null,

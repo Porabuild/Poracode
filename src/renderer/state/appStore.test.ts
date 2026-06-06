@@ -727,7 +727,7 @@ describe("appStore runtime config sync", () => {
     expect(useAppStore.getState().threads[0]?.lastTurnEndedAt).toBe("2026-05-01T12:00:30.000Z");
   });
 
-  it("keeps GUI startup idle blips from closing the active turn before assistant output", () => {
+  it("closes visible GUI idle updates even before assistant output", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-05-01T12:00:00.000Z"));
     const project = useAppStore.getState().addProject({
@@ -767,20 +767,19 @@ describe("appStore runtime config sync", () => {
     });
 
     expect(useAppStore.getState().threads[0]).toMatchObject({
-      status: "working",
-      attention: "working",
-      activeTurnStartedAt: "2026-05-01T12:00:00.000Z",
+      status: "idle",
+      attention: "none",
+      activeTurnStartedAt: undefined,
+      lastTurnStartedAt: "2026-05-01T12:00:00.000Z",
+      lastTurnEndedAt: "2026-05-01T12:00:01.000Z",
     });
-    expect(useAppStore.getState().runtimeCompletedTurnsByThread[thread.id]).toBeUndefined();
-
-    vi.setSystemTime(new Date("2026-05-01T12:00:05.000Z"));
-    useAppStore.getState().updateThreadRuntime(thread.id, {
-      status: "working",
-      attention: "working",
-      canResumeWithConfig: true,
-    });
-
-    expect(useAppStore.getState().threads[0]?.activeTurnStartedAt).toBe("2026-05-01T12:00:00.000Z");
+    expect(useAppStore.getState().runtimeCompletedTurnsByThread[thread.id]).toEqual([
+      {
+        startedAt: new Date("2026-05-01T12:00:00.000Z").getTime(),
+        endedAt: new Date("2026-05-01T12:00:01.000Z").getTime(),
+        anchorItemId: null,
+      },
+    ]);
   });
 
   it("closes an offscreen GUI thread when the transcript has not been hydrated", () => {
@@ -912,6 +911,70 @@ describe("appStore runtime config sync", () => {
 
     expect(useAppStore.getState().runtimeCompletedTurnsByThread[thread.id]?.[0]).toMatchObject({
       anchorItemId: "assistant-1",
+    });
+  });
+
+  it("reopens a GUI turn when structured runtime activity arrives after a premature idle", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-05-01T12:00:00.000Z"));
+    const project = useAppStore.getState().addProject({
+      kind: "windows",
+      path: "C:\\repo",
+    });
+    const thread = useAppStore.getState().createThread({
+      projectId: project.id,
+      agentKind: "claude",
+      config: { model: "m" },
+      prompt: "a",
+      presentationMode: "gui",
+    });
+    useAppStore.getState().applyRuntimeEvent(thread.id, {
+      type: "item.started",
+      threadId: thread.id,
+      itemId: "assistant-1",
+      itemType: "assistant_message",
+    });
+
+    vi.setSystemTime(new Date("2026-05-01T12:00:50.000Z"));
+    useAppStore.getState().updateThreadRuntime(thread.id, {
+      status: "idle",
+      attention: "none",
+      canResumeWithConfig: true,
+    });
+    expect(useAppStore.getState().threads[0]).toMatchObject({
+      status: "idle",
+      activeTurnStartedAt: undefined,
+      lastTurnStartedAt: "2026-05-01T12:00:00.000Z",
+      lastTurnEndedAt: "2026-05-01T12:00:50.000Z",
+    });
+    expect(useAppStore.getState().runtimeCompletedTurnsByThread[thread.id]).toHaveLength(1);
+
+    useAppStore.getState().applyRuntimeEvent(thread.id, {
+      type: "item.started",
+      threadId: thread.id,
+      itemId: "reasoning-1",
+      itemType: "reasoning",
+    });
+
+    expect(useAppStore.getState().threads[0]).toMatchObject({
+      status: "working",
+      attention: "working",
+      activeTurnStartedAt: "2026-05-01T12:00:00.000Z",
+      lastTurnEndedAt: undefined,
+    });
+    expect(useAppStore.getState().runtimeCompletedTurnsByThread[thread.id]).toBeUndefined();
+
+    vi.setSystemTime(new Date("2026-05-01T12:01:15.000Z"));
+    useAppStore.getState().updateThreadRuntime(thread.id, {
+      status: "idle",
+      attention: "none",
+      canResumeWithConfig: true,
+    });
+
+    expect(useAppStore.getState().runtimeCompletedTurnsByThread[thread.id]?.[0]).toMatchObject({
+      startedAt: new Date("2026-05-01T12:00:00.000Z").getTime(),
+      endedAt: new Date("2026-05-01T12:01:15.000Z").getTime(),
+      anchorItemId: "reasoning-1",
     });
   });
 

@@ -47,6 +47,12 @@ vi.mock("./agents/base", () => ({
 import { GitHubService, aggregateChecksStatus } from "./github";
 
 const location = { kind: "windows" as const, path: "C:\\Users\\demo\\repo" };
+const wslLocation = {
+  kind: "wsl" as const,
+  distro: "Ubuntu",
+  linuxPath: "/home/demo/repo",
+  uncPath: "\\\\wsl.localhost\\Ubuntu\\home\\demo\\repo",
+};
 
 describe("GitHubService", () => {
   beforeEach(() => {
@@ -217,6 +223,69 @@ describe("GitHubService", () => {
         "GitHub CLI (gh) is not installed",
       );
     });
+
+    it("routes WSL PR lookup through the bridge process batch", async () => {
+      const processBatch = vi.fn<
+        () => Promise<{
+          results: { ok: boolean; stdout: string; stderr: string; exitCode: number }[];
+        }>
+      >(async () => ({
+        results: [
+          {
+            ok: true,
+            stdout: JSON.stringify([
+              {
+                number: 42,
+                url: "https://github.com/owner/repo/pull/42",
+                state: "OPEN",
+                title: "Add feature",
+                baseRefName: "main",
+                isDraft: false,
+                updatedAt: "2026-04-03T10:00:00Z",
+              },
+            ]),
+            stderr: "",
+            exitCode: 0,
+          },
+          { ok: true, stdout: "demo\n", stderr: "", exitCode: 0 },
+        ],
+      }));
+      const service = new GitHubService();
+      service.setWslClient({ processBatch } as never);
+
+      const result = await service.getPrForBranch(wslLocation, "feature/x");
+
+      expect(result?.number).toBe(42);
+      expect(execFileAsyncMock).not.toHaveBeenCalled();
+      expect(processBatch).toHaveBeenCalledWith(wslLocation, {
+        timeoutMs: 30_000,
+        commands: [
+          {
+            command: "gh",
+            cwd: "/home/demo/repo",
+            args: [
+              "pr",
+              "list",
+              "--head",
+              "feature/x",
+              "--state",
+              "all",
+              "--limit",
+              "20",
+              "--json",
+              expect.stringContaining("statusCheckRollup"),
+            ],
+            loginEnv: true,
+          },
+          {
+            command: "gh",
+            cwd: "/home/demo/repo",
+            args: ["api", "user", "--jq", ".login"],
+            loginEnv: true,
+          },
+        ],
+      });
+    });
   });
 
   describe("createPr", () => {
@@ -265,6 +334,92 @@ describe("GitHubService", () => {
       expect(viewArgs).toContain("pr");
       expect(viewArgs).toContain("view");
       expect(viewArgs).toContain("--json");
+    });
+
+    it("creates a WSL PR using a bridge-staged body file", async () => {
+      type ProcessResult = { ok: boolean; stdout: string; stderr: string; exitCode: number };
+      const processExec = vi.fn<
+        (location: unknown, input: { command: string; args: string[] }) => Promise<ProcessResult>
+      >(async (_location, input) => {
+        const args = input.args;
+        if (input.command === "mktemp") {
+          return { ok: true, stdout: "/tmp/lightcode-pr-body-abc123\n", stderr: "", exitCode: 0 };
+        }
+        if (args[0] === "pr" && args[1] === "create") {
+          return {
+            ok: true,
+            stdout: "https://github.com/owner/repo/pull/50\n",
+            stderr: "",
+            exitCode: 0,
+          };
+        }
+        if (args[0] === "pr" && args[1] === "view") {
+          return {
+            ok: true,
+            stdout: JSON.stringify({
+              number: 50,
+              url: "https://github.com/owner/repo/pull/50",
+              state: "OPEN",
+              title: "My PR",
+              baseRefName: "main",
+              isDraft: false,
+              statusCheckRollup: [{ status: "QUEUED", conclusion: "" }],
+              updatedAt: "2026-04-03T10:00:00Z",
+            }),
+            stderr: "",
+            exitCode: 0,
+          };
+        }
+        return { ok: true, stdout: "demo\n", stderr: "", exitCode: 0 };
+      });
+      const processBatch = vi.fn<() => Promise<{ results: ProcessResult[] }>>(async () => ({
+        results: [
+          {
+            ok: true,
+            stdout: JSON.stringify([
+              {
+                number: 50,
+                url: "https://github.com/owner/repo/pull/50",
+                state: "OPEN",
+                title: "My PR",
+                baseRefName: "main",
+                isDraft: false,
+                updatedAt: "2026-04-03T10:00:00Z",
+              },
+            ]),
+            stderr: "",
+            exitCode: 0,
+          },
+        ],
+      }));
+      const writeNewFile = vi.fn<() => Promise<{ mtimeMs: number; size: number }>>(async () => ({
+        mtimeMs: 1,
+        size: 16,
+      }));
+      const rm = vi.fn<() => Promise<void>>(async () => undefined);
+      const service = new GitHubService();
+      service.setWslClient({ processExec, processBatch, writeNewFile, rm } as never);
+
+      await service.createPr(wslLocation, "feature/x", "main", "My PR", "Some description", false);
+
+      expect(writeNewFile).toHaveBeenCalledWith(
+        { ...wslLocation, linuxPath: "/tmp" },
+        "/tmp/lightcode-pr-body-abc123/body.md",
+        Buffer.from("Some description", "utf8"),
+      );
+      const createCall = processExec.mock.calls.find(([, input]) => {
+        const args = input.args;
+        return input.command === "gh" && args[0] === "pr" && args[1] === "create";
+      });
+      const createArgs = createCall![1].args;
+      expect(createArgs).toContain("--body-file");
+      expect(createArgs).toContain("/tmp/lightcode-pr-body-abc123/body.md");
+      expect(createArgs).not.toContain("--body");
+      expect(rm).toHaveBeenCalledWith(
+        { ...wslLocation, linuxPath: "/tmp" },
+        "/tmp/lightcode-pr-body-abc123",
+        { recursive: true, force: true },
+      );
     });
 
     it("includes --draft flag when isDraft is true", async () => {

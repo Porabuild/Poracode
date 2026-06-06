@@ -15,6 +15,7 @@ import { deriveToolDisplay, isWorkflowTool } from "./toolDisplay";
 import { PixelLoader } from "@/renderer/components/common/PixelLoader";
 import { ThreadDockHeader, ThreadDockList, ThreadDockSection } from "../../../ThreadDockUI";
 import { parseWorkflowInfo } from "./workflowDisplay";
+import { SubAgentProgressMeta, hasSubAgentProgressMeta } from "./subAgentProgressMeta";
 
 interface ActiveSubAgentTileProps {
   threadId: string;
@@ -141,6 +142,7 @@ function ActiveSubAgentRow({
   const isDone = !isRunning;
   const progress = payload?.progress;
   const stepCount = progress?.stepCount ?? childCount;
+  const liveLabel = progress?.lastToolName ?? progress?.description;
 
   const innerClass = `flex items-center gap-2 rounded px-2 py-1 leading-5 ${
     isDone ? "opacity-60" : ""
@@ -172,16 +174,21 @@ function ActiveSubAgentRow({
         ) : workflowIsLive ? (
           <span className="shrink-0 text-foreground-muted opacity-80">starting…</span>
         ) : isRunning ? (
-          <span className="shrink-0 tabular-nums text-foreground-muted opacity-80">
-            {progress?.lastToolName || progress?.description ? (
-              <span className="mr-1.5 max-w-[20ch] truncate inline-block align-bottom">
-                {progress?.lastToolName ?? progress?.description}
-              </span>
-            ) : null}
-            <span>
-              {stepCount} step{stepCount === 1 ? "" : "s"}
-            </span>
-          </span>
+          <SubAgentProgressMeta
+            progress={progress}
+            liveLabel={liveLabel}
+            stepCount={stepCount}
+            includeStepCount
+            className="max-w-[45%] shrink-0 text-foreground-muted opacity-80"
+            liveMaxClassName="max-w-[20ch]"
+            loaderClassName="text-foreground-muted"
+          />
+        ) : hasSubAgentProgressMeta(progress) ? (
+          <SubAgentProgressMeta
+            progress={progress}
+            className="max-w-[45%] shrink-0 text-foreground-muted opacity-80"
+            loaderClassName="text-foreground-muted"
+          />
         ) : null}
       </button>
       <button

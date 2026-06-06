@@ -3,7 +3,6 @@ import { join } from "node:path";
 import type { ProjectLocation } from "@/shared/contracts";
 import { toWslUncPath } from "@/shared/wsl";
 import type { WslBridgeClient, WslLocation } from "../../wsl/bridge/client";
-import { resolveWslHomeDirectory } from "./processRuntime";
 
 /**
  * Shared filesystem helpers for agent session discovery. Routes WSL reads
@@ -27,8 +26,26 @@ export function setSessionFsBridgeClient(client: WslBridgeClient | undefined): v
   bridgeClient = client;
 }
 
-function bridgeLocationForHome(distro: string): WslLocation | undefined {
-  const home = resolveWslHomeDirectory(distro);
+// `$HOME` is stable for a distro over the process lifetime, but
+// `bridgeLocationForHome` is called on every session-discovery read/watch.
+// Cache it per distro so we don't pay a bridge round-trip just to resolve it.
+const homeCache = new Map<string, string>();
+
+async function bridgeLocationForHome(
+  client: WslBridgeClient,
+  distro: string,
+): Promise<WslLocation | undefined> {
+  let home = homeCache.get(distro);
+  if (!home) {
+    const rootLocation: WslLocation = {
+      kind: "wsl",
+      distro,
+      linuxPath: "/",
+      uncPath: `\\\\wsl.localhost\\${distro}\\`,
+    };
+    home = (await client.home(rootLocation)).home;
+    if (home) homeCache.set(distro, home);
+  }
   if (!home) return undefined;
   return { kind: "wsl", distro, linuxPath: home, uncPath: toWslUncPath(distro, home) };
 }
@@ -60,7 +77,7 @@ export async function listSessionDir(
   }
   const client = bridgeClient;
   if (!client) return undefined;
-  const synLoc = bridgeLocationForHome(location.distro);
+  const synLoc = await bridgeLocationForHome(client, location.distro).catch(() => undefined);
   if (!synLoc) return undefined;
   try {
     const result = await client.readdir(synLoc, absolutePath);
@@ -100,7 +117,9 @@ export async function statSessionPaths(
     return map;
   }
   const client = bridgeClient;
-  const synLoc = bridgeLocationForHome(location.distro);
+  const synLoc = client
+    ? await bridgeLocationForHome(client, location.distro).catch(() => undefined)
+    : undefined;
   if (!client || !synLoc) {
     return new Map(paths.map((p) => [p, { exists: false }]));
   }
@@ -141,7 +160,9 @@ export async function readSessionFileText(
     }
   }
   const client = bridgeClient;
-  const synLoc = bridgeLocationForHome(location.distro);
+  const synLoc = client
+    ? await bridgeLocationForHome(client, location.distro).catch(() => undefined)
+    : undefined;
   if (!client || !synLoc) return undefined;
   try {
     const result = await client.readFile(synLoc, absolutePath, { maxBytes });
@@ -215,7 +236,9 @@ export async function findSessionFiles(
   }
 
   const client = bridgeClient;
-  const synLoc = bridgeLocationForHome(location.distro);
+  const synLoc = client
+    ? await bridgeLocationForHome(client, location.distro).catch(() => undefined)
+    : undefined;
   if (!client || !synLoc) return [];
   try {
     const result = await client.find(synLoc, {
@@ -293,8 +316,7 @@ export function watchSessionPaths(
   }
 
   const client = bridgeClient;
-  const synLoc = bridgeLocationForHome(location.distro);
-  if (!client || !synLoc) return () => undefined;
+  if (!client) return () => undefined;
 
   let disposed = false;
   let unsubscribe: (() => Promise<void>) | undefined;
@@ -302,6 +324,8 @@ export function watchSessionPaths(
   // so pre-filter to paths that exist on disk. The home root itself is the
   // safest broad watch when no specific subpath is present yet.
   (async () => {
+    const synLoc = await bridgeLocationForHome(client, location.distro).catch(() => undefined);
+    if (!synLoc || disposed) return;
     const stats = await client.stat(synLoc, paths);
     const existing = stats.stats.filter((s) => s.exists).map((s) => s.path);
     if (existing.length === 0 || disposed) return;

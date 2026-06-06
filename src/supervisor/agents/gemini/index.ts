@@ -8,6 +8,7 @@ import {
   createKnownSessionRef,
   detectAgentInstall,
   detectProbeLocation,
+  iterm2ProgressOscHint,
   type AgentAdapter,
   type AgentEnvContext,
   type CreateStructuredSessionInput,
@@ -26,7 +27,7 @@ import {
   uninstallGeminiPlugin,
 } from "./plugin/install";
 import { detectGeminiInvalidSessionRef } from "./session";
-import { detectGeminiTerminalStatus } from "./terminal";
+import { detectGeminiOscTitleStatus } from "./terminal";
 
 export { detectGeminiInvalidSessionRef } from "./session";
 
@@ -36,6 +37,10 @@ warnIfPluginManifestMissing("gemini", GEMINI_PLUGIN_VERSION);
 
 function geminiHookActiveTerminalFallback(hint: TerminalStatusHint): boolean {
   return hint.status === "needs_reply" || hint.status === "needs_approval";
+}
+
+function geminiOscTitleHint(title: { text: string }): TerminalStatusHint | null {
+  return detectGeminiOscTitleStatus(title.text);
 }
 
 export function createGeminiAdapter(): AgentAdapter {
@@ -153,7 +158,8 @@ export function createGeminiAdapter(): AgentAdapter {
       const restStr = rest.map((s) => (s.kind === "file" ? `@${s.path}` : s.content)).join("");
       return attachmentLines ? `${restStr}\n\n${attachmentLines} ` : restStr;
     },
-    detectTerminalStatus: detectGeminiTerminalStatus,
+    handleOscNotification: iterm2ProgressOscHint,
+    handleOscTitle: geminiOscTitleHint,
     shouldApplyTerminalStatusWhileHookActive: geminiHookActiveTerminalFallback,
     detectInvalidSessionRef: detectGeminiInvalidSessionRef,
 

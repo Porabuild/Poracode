@@ -22,7 +22,8 @@ export interface ThreadContextUsageSummary {
 }
 
 export function hasReportedContextUsage(usage: ThreadContextUsage | undefined): boolean {
-  return (usage?.usedTokens ?? 0) > 0;
+  if (!usage) return false;
+  return usage.usedTokens !== undefined || (usage.breakdown?.length ?? 0) > 0;
 }
 
 export function resolveThreadContextUsageSummary(input: {

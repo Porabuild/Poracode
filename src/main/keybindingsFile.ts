@@ -1,5 +1,5 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { dirname } from "node:path";
+import { existsSync, readFileSync } from "node:fs";
+import { writeFileAtomic } from "@/shared/atomicFile";
 import {
   keybindingsFileSchema,
   serializeDefaultKeybindings,
@@ -8,8 +8,7 @@ import {
 
 export function readKeybindingsFile(keybindingsPath: string): KeybindingsConfig {
   if (!existsSync(keybindingsPath)) {
-    mkdirSync(dirname(keybindingsPath), { recursive: true });
-    writeFileSync(keybindingsPath, serializeDefaultKeybindings(), "utf8");
+    writeFileAtomic(keybindingsPath, serializeDefaultKeybindings(), { encoding: "utf8" });
   }
 
   const raw = readFileSync(keybindingsPath, "utf8");

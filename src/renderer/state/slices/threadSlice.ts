@@ -388,18 +388,6 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
         ) {
           effectiveStatus = "finished";
         }
-        if (
-          input.status === "idle" &&
-          thread.presentationMode === "gui" &&
-          isThreadLiveStatus(thread.status) &&
-          input.forceCloseActiveTurn !== true &&
-          (isVisible ||
-            Object.prototype.hasOwnProperty.call(state.runtimeItemIdsByThread, thread.id)) &&
-          resolveCompletedTurnAnchorItemId(state, thread.id) === null
-        ) {
-          effectiveStatus = thread.status;
-          effectiveAttention = thread.attention;
-        }
 
         const sessionRefChanged =
           input.sessionRef !== undefined &&

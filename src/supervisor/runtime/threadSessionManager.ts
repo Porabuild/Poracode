@@ -77,7 +77,7 @@ import {
   USER_INTERRUPT_RECOVERY_GRACE_MS,
 } from "./threadSession/userInterrupt";
 import { writeSubmittedPrompt } from "./threadSession/promptWrite";
-import { getClaudeL2TerminalEnv, resolveTerminalColorEnv } from "./threadSession/terminalEnv";
+import { getIterm2StatusL2TerminalEnv, resolveTerminalColorEnv } from "./threadSession/terminalEnv";
 import {
   hookDebugProjectLabel,
   requireSessionPty,
@@ -331,7 +331,7 @@ export class ThreadSessionManager {
     const usesStructuredFlow =
       session.adapter.capabilities.liveInputMode === "server" || session.presentationMode === "gui";
     const effectiveSegments = payload.segments
-      ? rewriteSegmentsForWsl(payload.segments, session.projectLocation, {
+      ? await rewriteSegmentsForWsl(payload.segments, session.projectLocation, {
           preserveImageAttachments: usesStructuredFlow,
         })
       : undefined;
@@ -682,7 +682,7 @@ export class ThreadSessionManager {
       throw new Error("Thread does not support structured turns.");
     }
     const effectiveSegments = payload.segments
-      ? rewriteSegmentsForWsl(payload.segments, session.projectLocation, {
+      ? await rewriteSegmentsForWsl(payload.segments, session.projectLocation, {
           preserveImageAttachments: true,
         })
       : undefined;
@@ -1184,7 +1184,7 @@ export class ThreadSessionManager {
     const usesTerminalPresentation = requestedPresentation === "terminal";
     const useStructuredFlow = isServerControlled || !usesTerminalPresentation;
     const effectiveSegments = payload.segments
-      ? rewriteSegmentsForWsl(payload.segments, payload.projectLocation, {
+      ? await rewriteSegmentsForWsl(payload.segments, payload.projectLocation, {
           preserveImageAttachments: useStructuredFlow,
         })
       : undefined;
@@ -1567,7 +1567,7 @@ export class ThreadSessionManager {
     }
     Object.assign(
       agentEnv,
-      getClaudeL2TerminalEnv({
+      getIterm2StatusL2TerminalEnv({
         agentKind: input.agentKind,
         projectLocation: input.projectLocation,
         disableCliHookPlugin: this.readDisableCliHookPlugin(),
@@ -1581,6 +1581,7 @@ export class ThreadSessionManager {
       : undefined;
     let pty;
     if (command) {
+      ensureNodePtySpawnHelperExecutable();
       const ptyEnv = {
         ...sanitizedProcessEnv,
         ...(command.env ?? {}),

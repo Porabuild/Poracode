@@ -16,7 +16,12 @@ vi.mock("node:child_process", async () => {
   };
 });
 
-import { clearExecutablePathCache, detectAgentInstall, type DetectionSpec } from "./base";
+import {
+  clearExecutablePathCache,
+  detectAgentInstall,
+  setWslProcessBridgeClient,
+  type DetectionSpec,
+} from "./base";
 
 const capabilities: AgentCapability = {
   models: [],
@@ -76,5 +81,63 @@ describe("detectAgentInstall version probe", () => {
       ["--version"],
       expect.anything(),
     );
+  });
+});
+
+describe("detectAgentInstall WSL interop guard", () => {
+  const originalPlatform = process.platform;
+  // WSL `command -v` output the fake bridge returns for the binary probe; set
+  // per test. The branch routes WSL detection through the in-distro bridge
+  // (batchWslCommandsAsync -> processBatch), not a direct wsl.exe spawn, so the
+  // test wires a fake bridge client rather than mocking execFile.
+  let commandVStdout = "";
+
+  beforeEach(() => {
+    Object.defineProperty(process, "platform", { value: "win32", configurable: true });
+    clearExecutablePathCache();
+    execFileAsyncMock.mockReset();
+    setWslProcessBridgeClient({
+      processBatch: async (_location: unknown, input: { commands: unknown[] }) => ({
+        results: input.commands.map(() => ({
+          ok: commandVStdout.length > 0,
+          stdout: commandVStdout,
+          stderr: "",
+          exitCode: commandVStdout.length > 0 ? 0 : 1,
+        })),
+      }),
+      processExec: async () => ({
+        ok: true,
+        stdout: "grok version 1.2.3",
+        stderr: "",
+        exitCode: 0,
+      }),
+    } as never);
+  });
+
+  afterEach(() => {
+    setWslProcessBridgeClient(undefined);
+    Object.defineProperty(process, "platform", { value: originalPlatform, configurable: true });
+    vi.restoreAllMocks();
+  });
+
+  it("treats a Windows binary surfaced via /mnt interop as not installed in WSL", async () => {
+    // `command -v` inside the distro resolves a Windows-only install (npm
+    // global) through `/mnt/c` PATH interop. That is not a real Linux install,
+    // so the card must not report "Detected" in WSL.
+    commandVStdout = "/mnt/c/Users/x/AppData/Roaming/npm/grok";
+
+    const status = await detectAgentInstall({ envKind: "wsl", wslDistro: "Interop-Test" }, spec);
+
+    expect(status.installed).toBe(false);
+    expect(status.executablePath).toBeUndefined();
+  });
+
+  it("accepts a genuine Linux install path in WSL", async () => {
+    commandVStdout = "/home/x/.local/bin/grok";
+
+    const status = await detectAgentInstall({ envKind: "wsl", wslDistro: "Linux-Test" }, spec);
+
+    expect(status.installed).toBe(true);
+    expect(status.executablePath).toBe("/home/x/.local/bin/grok");
   });
 });

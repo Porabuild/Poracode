@@ -453,12 +453,14 @@ export function mapAcpSessionUpdate(
             },
           })
         : payload;
-      item.payload = mergeToolPayload(item.payload, nextPayload);
+      const mergedPayload = mergeToolPayload(item.payload, nextPayload);
+      const emittedPayload = mergeProgressForEmission(nextPayload, mergedPayload);
+      item.payload = mergedPayload;
       events.push({
         type: isTerminal ? "item.completed" : "item.updated",
         threadId,
         itemId: item.itemId,
-        payload: nextPayload,
+        payload: emittedPayload,
       });
       if (subAgentProgress?.text) {
         events.push(...buildSubAgentProgressEvents(state, item, subAgentProgress.text, isTerminal));
@@ -590,6 +592,7 @@ function buildAcpToolCallPayload(
   const locations = extractToolLocations(toolCall.locations);
   const name = title ?? kind ?? "tool";
   const contentResult = extractToolCallContentText(toolCall.content, resolveTerminalOutput);
+  const subAgentModel = isSubAgent ? readStringField(toolCall.rawInput, "model") : undefined;
   const base: Record<string, unknown> = {
     name,
     args: toolCall.rawInput,
@@ -599,6 +602,7 @@ function buildAcpToolCallPayload(
     ...(kind ? { kind } : {}),
     ...(locations.length > 0 ? { locations } : {}),
     ...(isSubAgent ? { isSubAgent: true } : {}),
+    ...(subAgentModel ? { progress: { model: subAgentModel } } : {}),
   };
   if (itemType === "command_execution") {
     const cmd = readStringField(toolCall.rawInput, "command");
@@ -1001,6 +1005,18 @@ function mergeToolPayload(
     };
   }
   return merged;
+}
+
+function mergeProgressForEmission(
+  next: Record<string, unknown>,
+  merged: Record<string, unknown>,
+): Record<string, unknown> {
+  if (!next.progress || typeof next.progress !== "object" || Array.isArray(next.progress)) {
+    return next;
+  }
+  const progress = merged.progress;
+  if (!progress || typeof progress !== "object" || Array.isArray(progress)) return next;
+  return { ...next, progress };
 }
 
 /** Find the first `ToolCallContent` entry of type `"terminal"` and return its id. */

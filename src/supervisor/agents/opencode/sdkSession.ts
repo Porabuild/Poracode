@@ -375,6 +375,11 @@ export class OpencodeSdkSession implements StructuredSessionHandle {
     return Promise.resolve(new OpencodeSdkSession(input));
   }
 
+  private rememberSessionId(id: string): void {
+    this.sessionId = id;
+    this.launchOptions = { ...this.launchOptions, resumeThreadId: id };
+  }
+
   setListener(listener: StructuredSessionListener): void {
     this.listener = listener;
     if (this.bufferedRuntimeEvents.length > 0 && listener.onRuntimeEvent) {
@@ -461,7 +466,7 @@ export class OpencodeSdkSession implements StructuredSessionHandle {
       const existingData = existing.data;
       const id = existingData?.id;
       if (!id) throw new Error("opencode session.get returned no id");
-      this.sessionId = id;
+      this.rememberSessionId(id);
       this.sessionHasPermissionOverride = existingData.permission !== undefined;
       this.appliedPermissionSyncKey = undefined;
       if (this.mapperState) setOpenCodeMainSessionId(this.mapperState, id);
@@ -497,7 +502,7 @@ export class OpencodeSdkSession implements StructuredSessionHandle {
     }
     const id = created.data?.id;
     if (!id) throw new Error("opencode session.create returned no id");
-    this.sessionId = id;
+    this.rememberSessionId(id);
     this.sessionHasPermissionOverride = permission !== undefined;
     this.appliedPermissionSyncKey = this.permissionSyncKey(config);
     if (this.mapperState) setOpenCodeMainSessionId(this.mapperState, id);
@@ -589,6 +594,7 @@ export class OpencodeSdkSession implements StructuredSessionHandle {
       } catch {
         // Server-side may have already received another reply or aborted.
       }
+      this.emitUpdateAfterRequestResolution();
       return;
     }
 
@@ -620,6 +626,7 @@ export class OpencodeSdkSession implements StructuredSessionHandle {
           }),
         );
       }
+      this.emitUpdateAfterRequestResolution();
     }
   }
 
@@ -838,6 +845,35 @@ export class OpencodeSdkSession implements StructuredSessionHandle {
     }
   }
 
+  private sessionRefUpdate(): { sessionRef: SessionRef } | Record<string, never> {
+    return this.sessionId ? { sessionRef: createKnownSessionRef(this.sessionId) } : {};
+  }
+
+  private pendingRequestStatus(): { status: ThreadStatus; attention: ThreadAttention } | undefined {
+    let hasQuestion = false;
+    for (const pending of this.pendingRequests.values()) {
+      if (pending.kind === "permission") {
+        return { status: "needs_approval", attention: "needs_approval" };
+      }
+      hasQuestion = true;
+    }
+    return hasQuestion ? { status: "needs_reply", attention: "needs_reply" } : undefined;
+  }
+
+  private emitPendingRequestUpdate(): void {
+    const pending = this.pendingRequestStatus();
+    if (!pending) return;
+    this.listener?.onUpdate({ ...pending, ...this.sessionRefUpdate() });
+  }
+
+  private emitUpdateAfterRequestResolution(): void {
+    const pending = this.pendingRequestStatus();
+    this.listener?.onUpdate({
+      ...(pending ?? { status: "working", attention: "working" }),
+      ...this.sessionRefUpdate(),
+    });
+  }
+
   private startEventStream(): void {
     const acquired = this.requireAcquired();
     const ctrl = new AbortController();
@@ -919,17 +955,16 @@ export class OpencodeSdkSession implements StructuredSessionHandle {
     if (event.type === "session.status") {
       const upd = mapStatusUpdate(event.properties);
       this.listener?.onUpdate({
-        ...upd,
-        ...(this.sessionId ? { sessionRef: createKnownSessionRef(this.sessionId) } : {}),
+        ...(this.pendingRequestStatus() ?? upd),
+        ...this.sessionRefUpdate(),
       });
       return;
     }
 
     if (event.type === "session.idle") {
       this.listener?.onUpdate({
-        status: "idle",
-        attention: "none",
-        ...(this.sessionId ? { sessionRef: createKnownSessionRef(this.sessionId) } : {}),
+        ...(this.pendingRequestStatus() ?? { status: "idle", attention: "none" }),
+        ...this.sessionRefUpdate(),
       });
       return;
     }
@@ -941,6 +976,12 @@ export class OpencodeSdkSession implements StructuredSessionHandle {
         requestID: event.properties.id,
         sessionID: event.properties.sessionID,
       });
+      this.emitPendingRequestUpdate();
+    }
+
+    if (event.type === "permission.replied") {
+      const requestId = `opencode-perm-${event.properties.requestID}` as ThreadServerRequestId;
+      if (this.pendingRequests.delete(requestId)) this.emitUpdateAfterRequestResolution();
     }
 
     if (event.type === "question.asked") {
@@ -953,6 +994,12 @@ export class OpencodeSdkSession implements StructuredSessionHandle {
         optionValues: questionMetadata.optionValues,
         sourceQuestions: questionMetadata.sourceQuestions,
       });
+      this.emitPendingRequestUpdate();
+    }
+
+    if (event.type === "question.replied" || event.type === "question.rejected") {
+      const requestId = `opencode-q-${event.properties.requestID}` as ThreadServerRequestId;
+      if (this.pendingRequests.delete(requestId)) this.emitUpdateAfterRequestResolution();
     }
 
     if (event.type === "session.error") {

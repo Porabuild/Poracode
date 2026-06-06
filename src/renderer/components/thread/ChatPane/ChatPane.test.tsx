@@ -598,6 +598,26 @@ describe("ChatPane", () => {
     expect(document.body).not.toHaveTextContent("WindowsApps");
   });
 
+  it("shows provider-reported subagent model and tokens without falling back to the parent model", async () => {
+    const thread = { ...makeThread(), config: { model: "gpt-parent-main" } };
+    seedSubAgentTool(thread.id, {
+      itemId: "task-1",
+      model: "opus",
+      tokens: 336_000,
+      lastToolName: "Bash",
+      stepCount: 21,
+    });
+
+    renderChatPane(thread);
+    await waitFor(() => expect(hydrateThreadRuntimeItems).toHaveBeenCalledWith(thread.id));
+
+    expect(await screen.findByText("Opus")).toBeInTheDocument();
+    expect(screen.getByText("336k tok")).toBeInTheDocument();
+    expect(screen.getByText("Bash")).toBeInTheDocument();
+    expect(screen.getByText("21 steps")).toBeInTheDocument();
+    expect(document.body).not.toHaveTextContent("gpt-parent-main");
+  });
+
   it("collapses long user messages behind a show more button", async () => {
     const thread = makeThread();
     seedUserMessage(
@@ -1224,6 +1244,36 @@ function startCommandItem(threadId: string, itemId: string, command: string) {
     itemId,
     itemType: "command_execution",
     payload: { command },
+  });
+}
+
+function seedSubAgentTool(
+  threadId: string,
+  args: {
+    itemId: string;
+    model: string;
+    tokens: number;
+    lastToolName: string;
+    stepCount: number;
+  },
+) {
+  useAppStore.getState().applyRuntimeEvent(threadId, {
+    type: "item.started",
+    threadId,
+    itemId: args.itemId,
+    itemType: "tool_call",
+    payload: {
+      name: "Task",
+      status: "running",
+      args: { description: "Audit project", model: args.model },
+      isSubAgent: true,
+      progress: {
+        model: args.model,
+        tokens: args.tokens,
+        lastToolName: args.lastToolName,
+        stepCount: args.stepCount,
+      },
+    },
   });
 }
 

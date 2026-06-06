@@ -18,7 +18,7 @@ Before creating a new component, check if an existing one handles the use case.
 ### Key Reuse Points
 
 - **`ThreadComposer`** supports an `inputContent` prop that replaces the textarea with custom content (prompt options, approval panels). Use this for any agent interaction that replaces the text input — do not create separate panels.
-- **`ThreadServerRequestPanel`** handles structured server requests (Codex App Server). Terminal-mode prompts use `inputContent` on the composer instead.
+- **`ThreadRuntimeRequestPanel`** handles structured server requests (Codex App Server). Terminal-mode prompts use `inputContent` on the composer instead.
 - **`StatusIcon`** is the shared animated icon wrapper. Provider icons (`ClaudeIcon`, `CodexStatusIcon`, `GeminiIcon`) are thin wrappers that pass their SVG path — do not duplicate animation logic.
 - **`getStatusTone()`** maps thread status/attention to icon tone for all providers. Do not create per-provider tone mappers.
 - **`ProviderIcon`** is the registry-based component that renders the correct icon by agent kind and tone. Use it rather than importing provider icons directly.
@@ -38,7 +38,7 @@ The renderer is provider-agnostic. Provider-specific rendering is registered via
 
 ```
 registerProviderIcon(kind, IconComponent)     — Icon for sidebar, thread header
-registerModelLabels(kind, formatter)           — Model ID → display name
+registerProviderLabel(kind, label)             — Provider kind → display name
 registerCommitGenDefaults(kind, defaults)      — Default model/effort for commit generation
 ```
 
@@ -53,19 +53,31 @@ Shared provider utilities live at the `providers/` root:
 
 ## Code Organization (Renderer)
 
-| Directory                 | Purpose                                                                                                                                                    |
-| ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `components/thread/`      | ThreadView, ThreadComposer, ThreadDraftView, TerminalPane, ThreadServerRequestPanel                                                                        |
-| `components/terminal/`    | XTermSurface (xterm.js integration)                                                                                                                        |
-| `components/devTerminal/` | DevTerminalPanel (shell session tabs)                                                                                                                      |
-| `components/providers/`   | Per-provider icons/registration + shared provider utilities                                                                                                |
-| `components/common/`      | Generic, provider-agnostic components (Button, Card, Input, TextArea, Select, OptionMenu, ContextMenu, PromptOptions, BranchSelector, SidebarButton, etc.) |
-| `components/layout/`      | AppShell (sidebar + main + right panel), SplitPaneContainer (multi-pane)                                                                                   |
-| `components/sidebar/`     | Sidebar with project/thread lists, drag-drop reordering, git status badges                                                                                 |
-| `components/gitReview/`   | GitReviewOverlay, GitDiffContent (@git-diff-view/react), GitReviewSidebar (staging UI)                                                                     |
-| `components/settings/`    | SettingsOverlay (theme, commit gen config)                                                                                                                 |
-| `components/ui/`          | AppProvider (HeroUI + theme setup)                                                                                                                         |
-| `state/`                  | Zustand stores (appStore, gitStore, devTerminalStore, sharedSettingsStore, updateStore)                                                                    |
+`src/renderer/` splits into reusable building blocks under `components/` and feature screens/overlays under `views/`.
+
+| `components/` dir | Purpose                                                                                                                       |
+| ----------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| `thread/`         | ThreadView, ThreadDraftView, ThreadComposer, TerminalPane, ChatPane, ThreadRuntimeRequestPanel, PresentationModeTabs          |
+| `composer/`       | Composer parts — MentionInput, AttachmentBar, ComposerAddMenu, browserMcpScope                                                |
+| `terminal/`       | XTermSurface (xterm.js integration), TerminalLinkProvider                                                                     |
+| `diff/`           | DiffCardList                                                                                                                  |
+| `providers/`      | Per-provider icons/registration + shared provider utilities                                                                   |
+| `common/`         | Generic, provider-agnostic components (Button, Card, Input, OptionMenu, ContextMenu, BranchSelector, ProviderModelMenu, etc.) |
+| `layout/`         | OverlayShell, PageLayout, SplitPaneContainer (multi-pane), pane/overlay chrome helpers                                        |
+| `ui/`             | AppProvider (HeroUI + theme setup)                                                                                            |
+
+| `views/` overlay/screen   | Purpose                                                                                                                          |
+| ------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| `MainView/`               | AppShell (sidebar + main + right panel), Sidebar (project/thread lists), RightPanel (DevTerminalPanel, BrowserPanel, UsagePanel) |
+| `GitReviewOverlay/`       | GitReviewOverlay, GitDiffContent (@git-diff-view/react), GitReviewSidebar (staging UI)                                           |
+| `SettingsOverlay/`        | SettingsOverlay (theme, commit gen config, native agent registry)                                                                |
+| `FileEditorOverlay/`      | File editor tabs + body                                                                                                          |
+| `ProjectSettingsOverlay/` | Per-project settings                                                                                                             |
+| `PrReviewOverlay/`        | PR review                                                                                                                        |
+| `LoginTerminalOverlay/`   | One-shot TUI auth terminal                                                                                                       |
+| `ThreadSearchOverlay/`    | Thread search                                                                                                                    |
+
+Other `src/renderer/` dirs: `state/` (Zustand stores — see architecture.md → State Management), `hooks/` (cross-cutting hooks + selectors, e.g. `uiSelectors.ts`), plus `actions/`, `commands/`, `theme/`, `lsp/`, `workers/`, `utils/`.
 
 ## Theme System
 
@@ -79,31 +91,26 @@ Three modes: light, dark, system. Resolved via `useResolvedAppearance()` hook in
 
 ## Module Loading
 
-Vite 8 (Rolldown) splits renderer output into manual chunks: `xterm`, `git-diff`, `ui`, `framework`, `vendor`. Heavy chunks that are not needed at startup should be lazy-loaded and preloaded:
+Vite 8 (Rolldown) splits renderer output into manual chunks: `xterm`, `git-diff`, `monaco`, `shiki`, `ui`, `framework`, `vendor`. Heavy chunks that are not needed at startup should be lazy-loaded:
 
-1. **`React.lazy()`** for route-level code splitting — wrap the component in `lazy()` + `<Suspense>`. Example: `GitReviewOverlay` is lazy-loaded because it pulls in the `git-diff` chunk.
-2. **`requestIdleCallback` preloading** — after the lazy declaration, fire a top-level `import()` inside `requestIdleCallback` so the chunk downloads during idle time, before the user navigates to it. This eliminates the spinner on first open.
-3. **Static imports within lazy boundaries** — child modules (e.g. `GitDiffContent` inside `GitReviewOverlay`) use normal static imports. They load automatically when the parent chunk loads.
+1. **`React.lazy()`** for overlay-level code splitting — wrap the component in `lazy()` + `<Suspense>`. The feature overlays (`GitReviewOverlay`, `FileEditorOverlay`, `PrReviewOverlay`, …) are lazy-loaded in `views/MainView/parts/AppOverlays.tsx`; `GitReviewOverlay` for instance pulls in the `git-diff` chunk only when opened.
+2. **Static imports within lazy boundaries** — child modules (e.g. `GitDiffContent` inside `GitReviewOverlay`) use normal static imports. They load automatically when the parent chunk loads.
+3. **Idle-deferred hydration** — non-urgent startup work is scheduled via `requestIdleCallback` (with a `setTimeout` fallback) in `hooks/useAppHydration.ts`, keeping first paint cheap.
 
-Pattern in `app.tsx`:
+Pattern in `AppOverlays.tsx`:
 
 ```tsx
-const MyOverlay = lazy(() => import("./MyOverlay").then((m) => ({ default: m.MyOverlay })));
+const GitReviewOverlay = lazy(() =>
+  import("@/renderer/views/GitReviewOverlay/GitReviewOverlay").then((m) => ({
+    default: m.GitReviewOverlay,
+  })),
+);
 
-// Preload during idle so it's ready when needed
-if (typeof requestIdleCallback === "function") {
-  requestIdleCallback(() => {
-    import("./MyOverlay");
-  });
-} else {
-  setTimeout(() => {
-    import("./MyOverlay");
-  }, 1000);
-}
+// rendered inside a <Suspense> boundary
 ```
 
 ## Drag-and-Drop
 
 - Sidebar supports reordering projects and threads via native drag API.
 - Threads can be dragged from the sidebar to the pane area to open side-by-side.
-- `src/renderer/state/reorder.ts` provides the `reorderArray` helper.
+- `src/renderer/state/reorder.ts` provides the reordering helpers (`reorderIds`, `reorderThreadsInProject`, `reorderThreadBlockInProject`).

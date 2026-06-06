@@ -8,13 +8,13 @@ import type {
   GitGetWorktreeSourceBranchResult,
   GitMergeToSourceResult,
   GitPullFromSourceResult,
+  GitStatusDetail,
   GitStatusResult,
   GitSwitchBranchResult,
   GitWorktreeListResult,
   ProjectLocation,
 } from "@/shared/contracts";
 import { buildWorktreeLocation } from "@/shared/worktree";
-import { parallelWslCommandsAsync, quotePosixShellArg as quote } from "./agents/base";
 import {
   computeDefaultWorktreePath,
   execGit,
@@ -39,6 +39,8 @@ import {
 } from "./git/worktreeService";
 import type { WslBridgeClient } from "./wsl/bridge/client";
 
+const GIT_WORKTREE_STATUS_CONCURRENCY = 4;
+
 export {
   computeDefaultWorktreePath,
   execGit,
@@ -62,8 +64,7 @@ export class GitService {
 
   /**
    * WSL fast path for project refresh: run the Git snapshot through the
-   * long-lived in-distro bridge when available, falling back to the older
-   * single `wsl.exe` batch if the bridge is unavailable.
+   * long-lived in-distro bridge.
    */
   async batchedWslProjectSnapshot(
     location: ProjectLocation & { kind: "wsl" },
@@ -85,21 +86,7 @@ export class GitService {
       { cwd, args: branchListArgs },
       { cwd, args: ["worktree", "list", "--porcelain"] },
     ];
-    const fallbackCommands = [
-      { cwd, cmd: "git rev-parse --is-inside-work-tree" },
-      { cwd, cmd: "git status --porcelain=v2 -b" },
-      { cwd, cmd: "git remote -v" },
-      { cwd, cmd: "git diff --cached --numstat" },
-      { cwd, cmd: "git diff --numstat" },
-      { cwd, cmd: `git ${branchListArgs.map((a) => quote(a)).join(" ")}` },
-      { cwd, cmd: "git worktree list --porcelain" },
-      ...(includeGhCheck ? [{ cwd, cmd: "gh --version" }] : []),
-    ];
-    const bridgeResults = await execGitBatchWslBridge(location, gitCommands, 30_000);
-    const usedBridge = bridgeResults !== undefined;
-    const results =
-      bridgeResults ??
-      (await parallelWslCommandsAsync(location.distro, fallbackCommands, { timeoutMs: 30_000 }));
+    const results = await execGitBatchWslBridge(location, gitCommands, 30_000);
 
     const isRepo = results[0]!.ok;
     const baseStatus = buildGitStatusResultFromOutputs({
@@ -123,17 +110,7 @@ export class GitService {
       : null;
     let ghAvailable: boolean | null = null;
     if (includeGhCheck) {
-      if (usedBridge) {
-        ghAvailable =
-          (await ghVersionWslBridge(location, 10_000)) ??
-          (
-            await parallelWslCommandsAsync(location.distro, [{ cwd, cmd: "gh --version" }], {
-              timeoutMs: 10_000,
-            })
-          )[0]?.ok === true;
-      } else {
-        ghAvailable = results[7]?.ok === true;
-      }
+      ghAvailable = (await ghVersionWslBridge(location, 10_000)) ?? false;
     }
 
     return { status, branches, worktrees, ghAvailable };
@@ -141,32 +118,46 @@ export class GitService {
 
   /**
    * Fetch `git status` for many worktree paths at once. WSL routes through
-   * the in-distro bridge when available and falls back to one parallel
-   * `wsl.exe` batch. Worktrees whose status fetch fails are silently dropped
-   * from the result.
+   * the in-distro bridge. Worktrees whose status fetch fails are silently
+   * dropped from the result.
    */
   async getWorktreeStatusBatch(
     location: ProjectLocation,
     worktreePaths: string[],
+    detail: GitStatusDetail = "full",
   ): Promise<Record<string, GitStatusResult>> {
     if (worktreePaths.length === 0) return {};
 
     if (location.kind === "wsl") {
+      if (detail === "summary") {
+        return this.statusService.getWorktreeStatusSummaryBatchWsl(location, worktreePaths);
+      }
       return this.statusService.getWorktreeStatusBatchWsl(location, worktreePaths);
     }
 
-    const entries = await Promise.all(
-      worktreePaths.map(async (path) => {
+    const statuses: Record<string, GitStatusResult> = {};
+    let nextIndex = 0;
+    const runWorker = async () => {
+      while (nextIndex < worktreePaths.length) {
+        const path = worktreePaths[nextIndex++]!;
         try {
           const wtLocation = buildWorktreeLocation(location, path);
-          const status = await this.statusService.getStatus(wtLocation);
-          return [path, status] as const;
+          statuses[path] =
+            detail === "summary"
+              ? await this.statusService.getStatusSummary(wtLocation)
+              : await this.statusService.getStatus(wtLocation);
         } catch {
-          return undefined;
+          // Worktrees whose status fetch fails are silently dropped.
         }
-      }),
+      }
+    };
+    await Promise.all(
+      Array.from(
+        { length: Math.min(GIT_WORKTREE_STATUS_CONCURRENCY, worktreePaths.length) },
+        runWorker,
+      ),
     );
-    return Object.fromEntries(entries.filter((e) => e !== undefined));
+    return statuses;
   }
 
   async getDiff(

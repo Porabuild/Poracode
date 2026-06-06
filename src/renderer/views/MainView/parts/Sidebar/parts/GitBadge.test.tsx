@@ -1,9 +1,23 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { GitStatusResult } from "@/shared/contracts";
+import type { GitStatusResult, PrData, ProjectLocation } from "@/shared/contracts";
+import { useAppStore } from "@/renderer/state/appStore";
 import { useGitStore } from "@/renderer/state/gitStore";
+import { buildBranchPrKey } from "@/renderer/state/gitSelectors";
 import { GitBadge } from "./GitBadge";
+
+const ghGetPrForBranchMock = vi.hoisted(() =>
+  vi.fn<
+    (payload: { projectLocation: ProjectLocation; branch: string }) => Promise<PrData | null>
+  >(),
+);
+
+vi.mock("@/renderer/bridge", () => ({
+  readBridge: () => ({
+    ghGetPrForBranch: ghGetPrForBranchMock,
+  }),
+}));
 
 vi.mock("@dnd-kit/react", () => ({
   useDraggable: () => undefined,
@@ -34,8 +48,22 @@ function makeStatus(overrides: Partial<GitStatusResult> = {}): GitStatusResult {
   };
 }
 
+const basePr: PrData = {
+  number: 1,
+  state: "open",
+  title: "PR",
+  url: "https://github.com/o/r/pull/1",
+  baseBranch: "main",
+  isDraft: false,
+  updatedAt: "2026-06-02T00:00:00.000Z",
+};
+
 describe("GitBadge", () => {
   beforeEach(() => {
+    ghGetPrForBranchMock.mockReset();
+    useAppStore.setState({
+      projects: [],
+    });
     useGitStore.setState({
       statuses: {},
       worktreeStatuses: {},
@@ -50,7 +78,7 @@ describe("GitBadge", () => {
     });
   });
 
-  it("shows a muted PR icon when a pushed worktree can create a PR", () => {
+  it("shows a branch-tone PR icon when a pushed worktree can create a PR", () => {
     useGitStore.setState({
       worktreeStatuses: { "/wt/feature": makeStatus() },
       ghAvailable: { "project-1": true },
@@ -62,7 +90,7 @@ describe("GitBadge", () => {
     const icon = badge.querySelector("svg");
 
     expect(icon).not.toBeNull();
-    expect(icon).toHaveClass("text-muted/60");
+    expect(icon).toHaveClass("text-[color:var(--git-branch-tone)]");
     expect(icon).toHaveClass("lucide-git-pull-request");
   });
 
@@ -103,15 +131,7 @@ describe("GitBadge", () => {
         "/wt/feature": makeStatus({ totalInsertions: 12, totalDeletions: 3 }),
       },
       prData: {
-        "/wt/feature": {
-          number: 1,
-          state: "open",
-          title: "PR",
-          url: "https://github.com/o/r/pull/1",
-          baseBranch: "main",
-          isDraft: false,
-          updatedAt: "2026-06-02T00:00:00.000Z",
-        },
+        "/wt/feature": basePr,
       },
     });
 
@@ -125,5 +145,51 @@ describe("GitBadge", () => {
     expect(
       insertion.compareDocumentPosition(prIcon!) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
+  });
+
+  it("does not show a stale project PR while fetching the current branch PR", async () => {
+    let resolvePr: (pr: PrData | null) => void = () => {};
+    ghGetPrForBranchMock.mockReturnValue(
+      new Promise<PrData | null>((resolve) => {
+        resolvePr = resolve;
+      }),
+    );
+    useAppStore.setState({
+      projects: [
+        {
+          id: "project-1",
+          name: "Project",
+          location: { kind: "posix", path: "/repo" },
+          createdAt: "2026-06-02T00:00:00.000Z",
+        },
+      ],
+    });
+    useGitStore.setState({
+      statuses: {
+        "project-1": makeStatus({
+          branch: "feature/current",
+          remoteInfo: { platform: "github", owner: "o", repo: "r", url: "https://github.com/o/r" },
+        }),
+      },
+      ghAvailable: { "project-1": true },
+      prData: {
+        [buildBranchPrKey("project-1")]: { ...basePr, number: 99, title: "Stale PR" },
+      },
+    });
+
+    render(<GitBadge projectId="project-1" projectName="Project" />);
+
+    expect(screen.queryByRole("button", { name: "Git status for Project" })).toBeNull();
+    expect(ghGetPrForBranchMock).toHaveBeenCalledWith({
+      projectLocation: { kind: "posix", path: "/repo" },
+      branch: "feature/current",
+    });
+
+    resolvePr({ ...basePr, number: 2, title: "Current PR" });
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Git status for Project" })).toBeInTheDocument();
+    });
+    expect(useGitStore.getState().prData[buildBranchPrKey("project-1")]?.number).toBe(2);
   });
 });

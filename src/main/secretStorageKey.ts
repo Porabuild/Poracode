@@ -1,7 +1,8 @@
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { randomBytes } from "node:crypto";
-import { dirname, join } from "node:path";
+import { join } from "node:path";
 import { safeStorage } from "electron";
+import { writeFileAtomic } from "@/shared/atomicFile";
 
 const SAFE_STORAGE_KEY_FILE = "secret-key.safe";
 
@@ -32,7 +33,6 @@ export function readOrCreateSafeStorageSecretKey(baseDir: string): string {
 
   const key = randomBytes(32).toString("base64");
   const encrypted = safeStorage.encryptString(key).toString("base64");
-  mkdirSync(dirname(path), { recursive: true });
-  writeFileSync(path, encrypted, { encoding: "utf8", mode: 0o600 });
+  writeFileAtomic(path, encrypted, { encoding: "utf8", mode: 0o600 });
   return key;
 }

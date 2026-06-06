@@ -792,6 +792,7 @@ describe("mapAcpSessionUpdate", () => {
         rawInput: {
           description: "Explore worktree watcher",
           subagent_type: "worker",
+          model: "gemini-2.5-pro",
           prompt: "Trace watcher flow",
         },
       } as Parameters<typeof mapAcpSessionUpdate>[0]["update"]),
@@ -822,6 +823,7 @@ describe("mapAcpSessionUpdate", () => {
           isSubAgent: true,
           progress: {
             description: "Reading README.md",
+            model: "gemini-2.5-pro",
             summary: "Reading README.md",
           },
         },

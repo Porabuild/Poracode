@@ -49,6 +49,20 @@ if (baseDirOverride) {
 }
 
 const sentryEnabled = initializeMainSentry({ appVersion: app.getVersion(), isDev, channel });
+
+// Fallback global handlers so a stray throw in any main-process callback
+// (IPC handler, Electron event listener, timer) is reported rather than
+// silently taking the whole app — and the supervisor and all windows — down.
+// Sentry's Electron integration also hooks these, but only when a DSN is
+// configured and initialization succeeded; this guarantees coverage otherwise.
+process.on("uncaughtException", (error) => {
+  console.error("[lightcode] uncaught exception:", error);
+  captureMainException(error, { "lightcode.feature_area": "main" });
+});
+process.on("unhandledRejection", (reason) => {
+  console.error("[lightcode] unhandled rejection:", reason);
+  captureMainException(reason, { "lightcode.feature_area": "main" });
+});
 const posthogEnabled = process.env.POSTHOG_ENABLED !== "0";
 const posthogKey = posthogEnabled ? (process.env.POSTHOG_KEY ?? "").trim() : "";
 const posthogHost = (process.env.POSTHOG_HOST ?? "").trim();

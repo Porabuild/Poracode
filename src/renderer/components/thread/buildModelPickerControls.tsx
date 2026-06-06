@@ -6,6 +6,13 @@ import type {
   ThreadPresentationMode,
 } from "@/shared/contracts";
 import type { ProviderModelMenuProvider } from "@/renderer/components/common";
+import { statusToMenuProvider } from "@/renderer/components/common/ProviderModelMenu";
+import {
+  modelVisibilityKey,
+  providerLabelForPresentation,
+  providerMenuKey,
+  providerVisibilityKey,
+} from "@/renderer/components/common/ProviderModelMenu/parts/providerIdentity";
 import { getComposerControls } from "@/renderer/components/providers";
 import { EffortIcon } from "@/renderer/components/providers/EffortIcon";
 import type { ComposerControl } from "./ThreadComposer";
@@ -42,6 +49,26 @@ export type BuildModelPickerControlsInput = {
   onConfigPatch: (patch: ModelPickerConfigPatch) => void;
 };
 
+/**
+ * Build the menu provider for a single agent surface, applying the
+ * presentation-specific identity (key, visibility key, label) and capabilities.
+ */
+function makeMenuProvider(
+  agent: AgentStatus,
+  presentationMode: ThreadPresentationMode,
+): ProviderModelMenuProvider {
+  const provider: ProviderModelMenuProvider = {
+    kind: agent.kind,
+    label: agent.label,
+    presentationMode,
+    ...(agent.icon ? { icon: agent.icon } : {}),
+    modelPickerKey: providerMenuKey({ kind: agent.kind, presentationMode }),
+    hiddenModelsKey: modelVisibilityKey(agent.kind, presentationMode),
+    capabilities: capabilitiesForPresentation(agent.capabilities, presentationMode),
+  };
+  return { ...provider, label: providerLabelForPresentation(provider) };
+}
+
 export function buildProviderModelMenuProviders(
   agents: readonly AgentStatus[],
   options?: {
@@ -59,18 +86,31 @@ export function buildProviderModelMenuProviders(
     .map((agent) => {
       const agentPresentationMode =
         resolvePresentationMode?.(agent) ?? presentationMode ?? agent.capabilities.presentationMode;
-      const capabilities = filterHiddenModels(
-        capabilitiesForPresentation(agent.capabilities, agentPresentationMode),
-        hiddenModelsByAgent?.[agent.kind],
-      );
+      const menuProvider = makeMenuProvider(agent, agentPresentationMode);
       return {
-        kind: agent.kind,
-        label: agent.label,
-        ...(agent.icon ? { icon: agent.icon } : {}),
-        ...(resolvePresentationMode ? { presentationMode: agentPresentationMode } : {}),
-        capabilities,
+        ...menuProvider,
+        capabilities: filterHiddenModels(
+          menuProvider.capabilities,
+          hiddenModelsByAgent?.[providerVisibilityKey(menuProvider)],
+        ),
       };
     });
+}
+
+/**
+ * Expand an agent into one menu provider per model-visibility surface. Most
+ * agents have a single surface; Cursor exposes separate CLI (terminal) and ACP
+ * (gui) surfaces, each with its own hidden-model persistence key. Surfaces whose
+ * only model is the synthetic "auto" entry are dropped — they have nothing to
+ * toggle.
+ */
+export function expandAgentToVisibilityProviders(agent: AgentStatus): ProviderModelMenuProvider[] {
+  if (agent.kind !== "cursor") return [statusToMenuProvider(agent)];
+
+  const supported = agent.capabilities.presentationModes ?? [agent.capabilities.presentationMode];
+  return supported
+    .map((presentationMode) => makeMenuProvider(agent, presentationMode))
+    .filter((provider) => provider.capabilities.models.some((model) => model.id !== "auto"));
 }
 
 export function patchConfigForModelChange(

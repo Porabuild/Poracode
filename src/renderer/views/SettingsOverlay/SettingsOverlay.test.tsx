@@ -146,6 +146,10 @@ vi.mock("./parts/SearchSettings", () => ({
   SearchSettings: () => <div>Search</div>,
 }));
 
+vi.mock("./parts/UsageSettings", () => ({
+  UsageSettings: () => <div>Usage</div>,
+}));
+
 vi.mock("./parts/ArchivedThreadsSettings", () => ({
   ArchivedThreadsSettings: () => <div>Archived</div>,
 }));
@@ -276,6 +280,21 @@ describe("SettingsOverlay", () => {
       fireEvent.click(screen.getByRole("button", { name: section }));
       expect(within(screen.getByRole("main")).getByText(section)).toBeInTheDocument();
     }
+  });
+
+  it("owns normal settings scrolling at the overlay level", () => {
+    const { container } = render(<SettingsOverlay onClose={() => undefined} />);
+    const firstScroller = container.querySelector<HTMLElement>("[data-settings-scroll-area]");
+    expect(firstScroller).not.toBeNull();
+    firstScroller!.scrollTop = 240;
+
+    fireEvent.click(screen.getByRole("button", { name: "Usage" }));
+
+    const nextScroller = container.querySelector<HTMLElement>("[data-settings-scroll-area]");
+    expect(nextScroller).not.toBeNull();
+    expect(nextScroller).not.toBe(firstScroller);
+    expect(nextScroller!.scrollTop).toBe(0);
+    expect(within(screen.getByRole("main")).getByText("Usage")).toBeInTheDocument();
   });
 
   it("marks agents that need attention in the sidebar", () => {

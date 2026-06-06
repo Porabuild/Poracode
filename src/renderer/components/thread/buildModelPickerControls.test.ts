@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
-import type { AgentCapability } from "@/shared/contracts";
-import { buildModelPickerControls, patchConfigForModelChange } from "./buildModelPickerControls";
+import type { AgentCapability, AgentStatus } from "@/shared/contracts";
+import {
+  buildModelPickerControls,
+  buildProviderModelMenuProviders,
+  patchConfigForModelChange,
+} from "./buildModelPickerControls";
 
 const capabilities = {
   models: [
@@ -99,5 +103,82 @@ describe("buildModelPickerControls fast toggle", () => {
     expect(
       fastToggle && "disabledReason" in fastToggle ? fastToggle.disabledReason : undefined,
     ).toBe(undefined);
+  });
+});
+
+describe("buildProviderModelMenuProviders", () => {
+  const cursorStatus: AgentStatus = {
+    kind: "cursor",
+    label: "Cursor",
+    installed: true,
+    authState: "authenticated",
+    capabilities: {
+      models: [
+        { id: "composer-2.5", label: "Composer 2.5" },
+        { id: "gpt-5", label: "GPT-5" },
+      ],
+      efforts: [],
+      modelEfforts: {},
+      modes: ["agent"],
+      approvalPolicies: [],
+      sandboxModes: [],
+      supportsResume: true,
+      supportsDirectInput: true,
+      liveInputMode: "terminal",
+      presentationMode: "terminal",
+      presentationModes: ["terminal", "gui"],
+      settingDefs: [],
+      presentationCapabilities: {
+        gui: {
+          models: [
+            {
+              id: "gpt-5[context=272k,reasoning=medium,fast=false]",
+              label: "GPT-5 · 272K · Medium",
+            },
+            {
+              id: "composer-2.5[context=default,reasoning=medium,fast=false]",
+              label: "Composer 2.5 · Medium",
+            },
+          ],
+          efforts: [],
+          modelEfforts: {
+            "gpt-5[context=272k,reasoning=medium,fast=false]": [],
+            "composer-2.5[context=default,reasoning=medium,fast=false]": [],
+          },
+        },
+      },
+    },
+  };
+
+  it("uses separate Cursor CLI and Cursor ACP hidden-model keys", () => {
+    const terminalProviders = buildProviderModelMenuProviders([cursorStatus], {
+      presentationMode: "terminal",
+      hiddenModelsByAgent: { cursor: ["gpt-5"] },
+    });
+
+    expect(terminalProviders[0]).toMatchObject({
+      kind: "cursor",
+      label: "Cursor CLI",
+      hiddenModelsKey: "cursor",
+    });
+    expect(terminalProviders[0]?.capabilities.models.map((model) => model.id)).toEqual([
+      "composer-2.5",
+    ]);
+
+    const guiProviders = buildProviderModelMenuProviders([cursorStatus], {
+      presentationMode: "gui",
+      hiddenModelsByAgent: {
+        "cursor-acp": ["gpt-5[context=272k,reasoning=medium,fast=false]"],
+      },
+    });
+
+    expect(guiProviders[0]).toMatchObject({
+      kind: "cursor",
+      label: "Cursor",
+      hiddenModelsKey: "cursor-acp",
+    });
+    expect(guiProviders[0]?.capabilities.models.map((model) => model.id)).toEqual([
+      "composer-2.5[context=default,reasoning=medium,fast=false]",
+    ]);
   });
 });

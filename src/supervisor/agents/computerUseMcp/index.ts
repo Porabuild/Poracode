@@ -1,5 +1,4 @@
 import type { ProjectLocation } from "@/shared/contracts";
-import { rewriteUrlForWsl } from "@/supervisor/wsl/wslHostIp";
 
 export type ComputerUseMcpLocation =
   | ProjectLocation
@@ -32,8 +31,12 @@ export function resolveComputerUseMcpHttpConfig(
 ): ComputerUseMcpHttpConfig | null {
   const env = readComputerUseMcpEnv();
   if (!env) return null;
-  const url = location.kind === "wsl" ? rewriteUrlForWsl(env.url, location.distro) : env.url;
-  const mcpUrl = `${url.replace(/\/$/, "")}/mcp`;
+  // WSL projects can't reach the host MCP endpoint over loopback; the
+  // host-gateway rewrite was removed when WSL exec moved to the supervisor
+  // bridge. Mirror browserMcp and decline here — callers short-circuit WSL
+  // unless a launch-time config is supplied.
+  if (location.kind === "wsl") return null;
+  const mcpUrl = `${env.url.replace(/\/$/, "")}/mcp`;
   return {
     url: mcpUrl,
     token: env.token,

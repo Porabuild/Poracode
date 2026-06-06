@@ -3,10 +3,9 @@ import type { BrowserMcpHttpConfig } from "@/supervisor/agents/browserMcp";
 import type { ComputerUseMcpHttpConfig } from "@/supervisor/agents/computerUseMcp";
 import type { ProjectLocation, SessionRef, ThreadConfig } from "@/shared/contracts";
 import {
-  batchWslCommands,
   buildAgentCommand,
+  DEFAULT_WSL_EXEC_PATH,
   getWslCommand,
-  quotePosixShellArg,
   type AgentArgvSpec,
   type AgentLaunchOptions,
   type CommandSpec,
@@ -19,7 +18,6 @@ import {
 import { buildCodexBrowserMcpArgs, buildCodexBrowserMcpEnv } from "./mcpBrowser";
 import { buildCodexComputerUseMcpArgs, buildCodexComputerUseMcpEnv } from "./mcpComputerUse";
 
-const DEFAULT_WSL_EXEC_PATH = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin";
 const CODEX_GOALS_FEATURE_FLAG = "goals";
 const codexGoalsSupportCache = new Map<string, boolean>();
 
@@ -204,27 +202,33 @@ export function buildCodexAppServerCommand(
 }
 
 function isCodexGoalsSupported(location: ProjectLocation, executablePath?: string): boolean {
-  const key = `${location.kind}:${location.kind === "wsl" ? location.distro : (executablePath ?? "")}`;
+  if (location.kind === "wsl") {
+    return codexGoalsSupportCache.get(codexGoalsSupportKey(location, executablePath)) ?? false;
+  }
+
+  const key = codexGoalsSupportKey(location, executablePath);
   const cached = codexGoalsSupportCache.get(key);
   if (cached !== undefined) return cached;
 
-  const supported =
-    location.kind === "wsl"
-      ? isCodexGoalsSupportedInWsl(location.distro, executablePath)
-      : isCodexSemverKnownSupportedForGoals(probeCodexCliSemver());
+  const supported = isCodexSemverKnownSupportedForGoals(probeCodexCliSemver());
   codexGoalsSupportCache.set(key, supported);
   return supported;
 }
 
-function isCodexGoalsSupportedInWsl(distro: string, executablePath?: string): boolean {
-  const command = `${quotePosixShellArg(executablePath ?? "codex")} --version`;
-  const [result] = batchWslCommands(distro, [command]);
-  const versionLine =
-    result?.stdout
-      .split("\n")
-      .map((line) => line.trim())
-      .find((line) => line.length > 0) ?? "";
-  return isCodexSemverKnownSupportedForGoals(parseCodexVersionLine(versionLine));
+export function primeCodexGoalsSupport(
+  location: ProjectLocation,
+  version: string | undefined,
+  executablePath?: string,
+): void {
+  if (location.kind !== "wsl") return;
+  const supported = version
+    ? isCodexSemverSupportedForGoals(parseCodexVersionLine(version))
+    : false;
+  codexGoalsSupportCache.set(codexGoalsSupportKey(location, executablePath), supported);
+}
+
+function codexGoalsSupportKey(location: ProjectLocation, executablePath?: string): string {
+  return location.kind === "wsl" ? `wsl:${location.distro}` : `native:${executablePath ?? ""}`;
 }
 
 function isCodexSemverKnownSupportedForGoals(v: [number, number, number] | null): boolean {

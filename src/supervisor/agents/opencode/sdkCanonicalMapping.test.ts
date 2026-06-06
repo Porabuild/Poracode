@@ -297,6 +297,22 @@ describe("sdkCanonicalMapping — permission/question events", () => {
     expect(ev.requestId).toBe("opencode-q-q_1");
     expect(ev.requestType).toBe("tool_user_input");
     expect(ev.payload.multiSelect).toBe(true);
+    expect(ev.payload.details).toEqual({
+      userInputForm: {
+        questions: [
+          {
+            id: "q0",
+            question: "Pick frameworks",
+            header: "Frameworks",
+            options: [
+              { optionId: "q0.0", label: "React", description: "UI lib" },
+              { optionId: "q0.1", label: "Vue", description: "Reactive" },
+            ],
+            multiSelect: true,
+          },
+        ],
+      },
+    });
     expect(ev.payload.options).toHaveLength(2);
     expect(ev.payload.options?.[0]?.label).toBe("React");
   });

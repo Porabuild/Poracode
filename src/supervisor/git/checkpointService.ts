@@ -7,7 +7,6 @@ import type {
   FileCheckpointTurn,
   ProjectLocation,
 } from "@/shared/contracts";
-import { readWslCommandOutputAsync } from "../agents/base";
 import type { WslBridgeClient } from "../wsl/bridge/client";
 import { execGit, removeWslPathViaBridge } from "./exec";
 
@@ -234,10 +233,7 @@ async function createTempIndexPath(projectLocation: ProjectLocation): Promise<st
 
 async function removeTempIndex(projectLocation: ProjectLocation, tempIndex: string): Promise<void> {
   if (projectLocation.kind === "wsl") {
-    if (await removeWslPathViaBridge(projectLocation, tempIndex, { force: true })) {
-      return;
-    }
-    await readWslCommandOutputAsync(projectLocation.distro, "rm", ["-f", tempIndex]);
+    await removeWslPathViaBridge(projectLocation, tempIndex, { force: true });
     return;
   }
   const resolved = isAbsolute(tempIndex) ? tempIndex : join(projectLocation.path, tempIndex);

@@ -75,9 +75,8 @@ interface GeminiSettings {
  * they all converged on `session.turn_started`, fired up to 2N+ times per
  * turn (matcher: "*"), and the supervisor already deduplicates identical
  * state transitions in `ThreadOutputPipeline.updateState`. Tool-level
- * granularity is recoverable from the terminal title-bar heuristic
- * (`detectGeminiTerminalStatus`) and per-tool extras were only consumed by
- * `hookDebug` for diagnostics.
+ * granularity is recoverable from Gemini's OSC title status, and per-tool
+ * extras were only consumed by `hookDebug` for diagnostics.
  */
 const GEMINI_HOOK_SPECS: ReadonlyArray<{ event: string; matcher?: string }> = [
   { event: "SessionStart" },

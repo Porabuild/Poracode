@@ -4,7 +4,11 @@ import type { ChildProcess } from "node:child_process";
 import { terminateChildProcessTree } from "@/shared/processTree";
 import { type AgentEventEnvelope, agentEventEnvelopeSchema } from "@/shared/contracts/agentEvent";
 import { isLightcodeHookDebug } from "../../runtime/hookDebug";
-import { deployFilesToWslHome, readBundledHelperVersion, resolveWslHelpersDir } from "../wslDeploy";
+import {
+  deployFilesToWslTempBase,
+  readBundledHelperVersion,
+  resolveWslHelpersDir,
+} from "../wslDeploy";
 import { resolveNodeForDistro, type ResolvedNode } from "../runtime";
 import { attachLineSplitter, spawnWslLineChild, type WslLineChildOpts } from "../wslChild";
 
@@ -35,12 +39,12 @@ export interface WslBridgeServerOptions {
    */
   resolveNode?: (distro: string) => Promise<ResolvedNode | null>;
   /**
-   * Test seam: replace the deploy step. Defaults to `deployFilesToWslHome`.
+   * Test seam: replace the deploy step. Defaults to `deployFilesToWslTempBase`.
    */
   deploy?: (
     distro: string,
     files: { src: string; relDest: string }[],
-  ) => { home: string; linuxBaseDir: string } | null;
+  ) => { linuxBaseDir: string } | null;
   /** Optional override for the resources dir (defaults to `resolveWslHelpersDir`). */
   helpersDir?: string;
   /**
@@ -252,7 +256,10 @@ export class WslBridgeServer {
       return undefined;
     }
 
-    const deploy = this.options.deploy ?? deployFilesToWslHome;
+    const deploy =
+      this.options.deploy ??
+      ((targetDistro, files) =>
+        deployFilesToWslTempBase(targetDistro, `lightcode-bridge-${process.pid}`, files));
     const watcherBinding = join(helpersDir, "watcher.node");
     const deployedFiles: { src: string; relDest: string }[] = [
       { src: bridgeSrc, relDest: "bridge/bridge.mjs" },
@@ -265,7 +272,7 @@ export class WslBridgeServer {
       if (isLightcodeHookDebug()) {
         console.log("[supervisor] hook-debug: WSL bridge not started", {
           distro,
-          reason: "deployFilesToWslHome failed (UNC path / home / permissions)",
+          reason: "deployFilesToWslTempBase failed (UNC path / permissions)",
         });
       }
       return undefined;
@@ -496,7 +503,7 @@ export class WslBridgeServer {
  */
 async function defaultResolveNode(distro: string): Promise<ResolvedNode | null> {
   try {
-    return await resolveNodeForDistro(distro);
+    return await resolveNodeForDistro(distro, { useBridge: false });
   } catch {
     return null;
   }

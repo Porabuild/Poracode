@@ -714,6 +714,81 @@ describe("ClaudeSdkSession", () => {
     await session.dispose();
   });
 
+  it("updates active goal tokens from live SDK api usage including cache", async () => {
+    vi.useFakeTimers();
+    try {
+      const fake = createFakeQuery();
+      fake.getContextUsage.mockResolvedValue({
+        categories: [{ name: "Messages", tokens: 238_000, color: "#3366ff" }],
+        totalTokens: 238_000,
+        maxTokens: 1_000_000,
+        rawMaxTokens: 1_000_000,
+        percentage: 23.8,
+        gridRows: [],
+        model: "claude-opus-4-7[1m]",
+        memoryFiles: [],
+        mcpTools: [],
+        isAutoCompactEnabled: true,
+        agents: [],
+        apiUsage: {
+          input_tokens: 1_500,
+          output_tokens: 500,
+          cache_creation_input_tokens: 99_000,
+          cache_read_input_tokens: 136_000,
+        },
+      });
+      mockSdk.query.mockReturnValue(fake.runtime);
+      const runtimeEvents: RuntimeEvent[] = [];
+      const session = await ClaudeSdkSession.create({
+        threadId: "thread-claude-goal-spend",
+        projectLocation,
+        config,
+        presentationMode: "gui",
+      });
+      session.setListener({
+        onRuntimeEvent: (event) => runtimeEvents.push(event),
+        onUpdate: () => {},
+        onError: () => {},
+        onClose: () => {},
+      });
+
+      await session.openThread(config);
+      await session.startTurn("/goal fix live token count", config);
+      await vi.advanceTimersByTimeAsync(15_000);
+
+      expect(runtimeEvents).toContainEqual({
+        type: "context.updated",
+        threadId: "thread-claude-goal-spend",
+        usage: {
+          usedTokens: 238_000,
+          maxTokens: 1_000_000,
+          breakdown: [{ id: "messages-0", label: "Messages", tokens: 238_000 }],
+        },
+      });
+      expect(runtimeEvents).toContainEqual(
+        expect.objectContaining({
+          type: "item.updated",
+          threadId: "thread-claude-goal-spend",
+          payload: expect.objectContaining({
+            objective: "fix live token count",
+            status: "active",
+            tokensUsed: 237_000,
+          }),
+        }),
+      );
+      expect(runtimeEvents).not.toContainEqual(
+        expect.objectContaining({
+          type: "item.updated",
+          payload: expect.objectContaining({ tokensUsed: 238_000 }),
+        }),
+      );
+
+      await session.dispose();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("treats a steered/interrupted turn as idle rather than a failed turn", async () => {
     const fake = createFakeQuery();
     mockSdk.query.mockReturnValue(fake.runtime);
@@ -806,7 +881,7 @@ describe("ClaudeSdkSession", () => {
     expect(goalUpdates.at(-1)).toMatchObject({
       payload: {
         status: "active",
-        tokensUsed: 42_000,
+        tokensUsed: 12_000,
       },
     });
     expect(runtimeEvents).not.toContainEqual(

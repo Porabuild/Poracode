@@ -19,6 +19,9 @@ function terminalTermCacheKey(location: ProjectLocation): string {
 function hasGhosttyTerminfo(location: ProjectLocation): boolean {
   const options = { stdio: "ignore" as const, timeout: 250, windowsHide: true };
   if (location.kind === "wsl") {
+    // WSL terminfo lives in the distro, so probe it through wsl.exe. The
+    // terminal/PTY path intentionally stays on direct wsl.exe (not the bridge),
+    // and the result is cached per distro so this runs at most once per distro.
     if (process.platform !== "win32") return false;
     const result = spawnSync(
       getWslCommand(),
@@ -44,20 +47,28 @@ export function resolveTerminalColorEnv(location: ProjectLocation): TerminalColo
   return { TERM: FALLBACK_TERM, COLORTERM: "truecolor" };
 }
 
-export function getClaudeL2TerminalEnv(input: {
+const ITERM2_STATUS_ENV = {
+  TERM_PROGRAM: "iTerm.app",
+  TERM_PROGRAM_VERSION: "3.6.6",
+};
+
+export function getIterm2StatusL2TerminalEnv(input: {
   agentKind: AgentKind;
   projectLocation: ProjectLocation;
   disableCliHookPlugin: boolean;
   cliHookEnvInjected: boolean;
 }): Record<string, string> {
-  if (input.agentKind !== "claude") {
+  if (input.agentKind === "copilot") {
+    return ITERM2_STATUS_ENV;
+  }
+
+  if (input.agentKind !== "claude" && input.agentKind !== "gemini") {
     return {};
   }
+
   if (!input.disableCliHookPlugin && input.cliHookEnvInjected) {
     return {};
   }
-  return {
-    TERM_PROGRAM: "iTerm.app",
-    TERM_PROGRAM_VERSION: "3.6.6",
-  };
+
+  return ITERM2_STATUS_ENV;
 }

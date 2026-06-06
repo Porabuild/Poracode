@@ -37,6 +37,7 @@ const RENDERER_META: Record<string, Omit<UsageProvider, "id" | "label">> = {
   },
   // Copilot uses GitHub's OAuth device flow, the others a captured web-session
   // cookie — both surface as the in-app browser login.
+  commandcode: { supportsBrowserLogin: true },
   copilot: { supportsBrowserLogin: true },
   cursor: { sharedWindowReset: true, rings: { outer: ["cursor-auto"], inner: ["cursor-api"] } },
   grok: { supportsBrowserLogin: true },

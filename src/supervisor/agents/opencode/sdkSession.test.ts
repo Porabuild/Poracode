@@ -88,6 +88,39 @@ describe("OpencodeSdkSession", () => {
     expect(dispose).toHaveBeenCalledTimes(1);
   });
 
+  it("stores the created session id in launch options for terminal TUI handoff", async () => {
+    const dispose = vi.fn<() => Promise<void>>().mockResolvedValue(undefined);
+    mocks.acquireOpenCodeServer.mockResolvedValue({
+      client: {
+        global: { event: vi.fn<() => Promise<{ stream: AsyncGenerator<Event> }>>() },
+        command: { list: vi.fn<() => Promise<{ data: [] }>>().mockResolvedValue({ data: [] }) },
+        session: {
+          create: vi
+            .fn<() => Promise<{ data: { id: string } }>>()
+            .mockResolvedValue({ data: { id: "ses_created" } }),
+        },
+      },
+      baseUrl: "http://127.0.0.1:0",
+      handle: {},
+      dispose,
+    });
+
+    const session = await OpencodeSdkSession.create({
+      threadId: "thread-opencode",
+      projectLocation,
+      config,
+      presentationMode: "terminal",
+    });
+
+    await session.activate();
+    await expect(session.openThread(config)).resolves.toBe("ses_created");
+
+    expect(session.launchOptions.resumeThreadId).toBe("ses_created");
+
+    await session.dispose();
+    expect(dispose).toHaveBeenCalledTimes(1);
+  });
+
   it("restarts the OpenCode server once when session.create loses its connection", async () => {
     const firstDispose = vi.fn<() => Promise<void>>().mockResolvedValue(undefined);
     const secondDispose = vi.fn<() => Promise<void>>().mockResolvedValue(undefined);
@@ -378,6 +411,7 @@ describe("OpencodeSdkSession", () => {
 
   it("records single-question option replies as question answer events", async () => {
     const runtimeEvents: RuntimeEvent[] = [];
+    const updates: StructuredSessionUpdate[] = [];
     const questionReply = vi.fn<() => Promise<void>>().mockResolvedValue(undefined);
     let releaseQuestionEvent!: () => void;
     const waitForSession = new Promise<void>((resolve) => {
@@ -435,7 +469,7 @@ describe("OpencodeSdkSession", () => {
     session.setListener({
       onClose: () => {},
       onError: () => {},
-      onUpdate: () => {},
+      onUpdate: (update) => updates.push(update),
       onRuntimeEvent: (event) => runtimeEvents.push(event),
     });
 
@@ -446,6 +480,9 @@ describe("OpencodeSdkSession", () => {
     await vi.waitFor(() => {
       expect(runtimeEvents.some((event) => event.type === "request.opened")).toBe(true);
     });
+    expect(updates).toContainEqual(
+      expect.objectContaining({ status: "needs_reply", attention: "needs_reply" }),
+    );
 
     await session.resolveServerRequest("opencode-q-req1", { optionId: "q0.1" });
 
@@ -469,6 +506,7 @@ describe("OpencodeSdkSession", () => {
         ],
       },
     });
+    expect(updates.at(-1)).toMatchObject({ status: "working", attention: "working" });
   });
 
   it("omits a session permission override in supervised mode", async () => {

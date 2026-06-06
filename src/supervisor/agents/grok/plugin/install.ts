@@ -3,7 +3,7 @@ import { homedir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { toWslUncPath } from "@/shared/wsl";
-import { resolveWslHomeDirectory, type AgentEnvContext } from "../../base";
+import { getCachedWslHomeDirectory, type AgentEnvContext } from "../../base";
 import {
   FORWARD_RUNTIME_FILE,
   buildNativeHookCommandHeads,
@@ -80,7 +80,7 @@ function nativeGlobalGrokDir(): string {
 }
 
 function wslGlobalGrokDir(distro: string): string {
-  const home = resolveWslHomeDirectory(distro);
+  const home = getCachedWslHomeDirectory(distro);
   return home ? `${home}/${GLOBAL_GROK_DIR_NAME}` : "";
 }
 

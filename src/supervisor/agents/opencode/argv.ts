@@ -1,8 +1,6 @@
 import { dirname as posixDirname } from "node:path/posix";
 import type { ProjectLocation, ThreadConfig } from "@/shared/contracts";
-import { buildAgentCommand, getWslCommand, type CommandSpec } from "../base";
-
-const DEFAULT_WSL_EXEC_PATH = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin";
+import { buildAgentCommand, DEFAULT_WSL_EXEC_PATH, getWslCommand, type CommandSpec } from "../base";
 
 // `opencode` (default TUI) only accepts `[project]` as a positional, so the
 // initial prompt must go through `--prompt` rather than a trailing arg.

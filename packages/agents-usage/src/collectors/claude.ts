@@ -52,8 +52,9 @@ function windowFrom(
   id: UsageWindowId,
   label: string,
   raw: ClaudeWindowRaw | undefined,
+  normalize: (value: number | undefined) => number | undefined = normalizePercent,
 ): UsageWindow | undefined {
-  const usedPercent = normalizePercent(raw?.utilization);
+  const usedPercent = normalize(raw?.utilization);
   if (usedPercent === undefined) return undefined;
   const resetsAt = toEpochMs(raw?.resets_at);
   return {
@@ -65,6 +66,11 @@ function windowFrom(
   };
 }
 
+function normalizeClaudeSessionPercent(value: number | undefined): number | undefined {
+  if (value === undefined || !Number.isFinite(value) || value < 0) return undefined;
+  return Math.min(100, Math.max(0, Math.round(value * 10) / 10));
+}
+
 /** Pure: map a parsed `/api/oauth/usage` body to a snapshot. */
 export function parseClaudeUsage(
   body: unknown,
@@ -74,7 +80,7 @@ export function parseClaudeUsage(
   const data = (body ?? {}) as ClaudeUsageResponse;
   const windows: UsageWindow[] = [];
   for (const w of [
-    windowFrom("session-5h", "Session (5h)", data.five_hour),
+    windowFrom("session-5h", "Session (5h)", data.five_hour, normalizeClaudeSessionPercent),
     windowFrom("weekly", "Weekly", data.seven_day),
     windowFrom("weekly-opus", "Weekly (Opus)", data.seven_day_opus),
     windowFrom("weekly-sonnet", "Weekly (Sonnet)", data.seven_day_sonnet),

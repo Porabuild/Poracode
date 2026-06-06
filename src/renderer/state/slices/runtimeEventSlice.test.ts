@@ -140,6 +140,56 @@ describe("runtimeEventSlice.applyRuntimeEvent", () => {
     }
   });
 
+  it("preserves the context limit and replaces stale breakdown on partial updates", () => {
+    apply("t1", {
+      type: "context.updated",
+      threadId: "t1",
+      usage: {
+        usedTokens: 71_000,
+        maxTokens: 200_000,
+        breakdown: [{ id: "input", label: "Input", tokens: 71_000 }],
+      },
+    });
+
+    apply("t1", {
+      type: "context.updated",
+      threadId: "t1",
+      usage: {
+        usedTokens: 9_900,
+        breakdown: [{ id: "current-context", label: "Current context", tokens: 9_900 }],
+      },
+    });
+
+    expect(store.getState().runtimeContextByThread["t1"]).toEqual({
+      usedTokens: 9_900,
+      maxTokens: 200_000,
+      breakdown: [{ id: "current-context", label: "Current context", tokens: 9_900 }],
+    });
+  });
+
+  it("keeps compacted usage when a later refresh reports only the context limit", () => {
+    apply("t1", {
+      type: "context.updated",
+      threadId: "t1",
+      usage: {
+        usedTokens: 15_000,
+        breakdown: [{ id: "current-context", label: "Current context", tokens: 15_000 }],
+      },
+    });
+
+    apply("t1", {
+      type: "context.updated",
+      threadId: "t1",
+      usage: { maxTokens: 1_000_000 },
+    });
+
+    expect(store.getState().runtimeContextByThread["t1"]).toEqual({
+      usedTokens: 15_000,
+      maxTokens: 1_000_000,
+      breakdown: [{ id: "current-context", label: "Current context", tokens: 15_000 }],
+    });
+  });
+
   it("deduplicates overlapping streamed chunks", () => {
     apply("t1", {
       type: "item.started",

@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { Bot, Check, CircleAlert } from "lucide-react";
 import type {
   ProjectLocation,
@@ -43,22 +43,25 @@ export function WorkflowOverlayBody({
     workflow.manifestPath ?? null,
     projectLocation ?? null,
     workflow.transcriptDir ?? null,
+    true,
   );
 
   const [activePhase, setActivePhase] = useState<string | null>(null);
   const [activeAgentId, setActiveAgentId] = useState<string | null>(null);
 
-  const phases = run?.phases ?? phasesFromInfo(workflow);
+  const displayRun = run ? applyWorkflowPlan(run, workflow) : null;
+  const phases = displayRun?.phases ?? phasesFromInfo(workflow);
   const resolvedActivePhase = activePhase ?? phases[0]?.title ?? null;
   const phase = phases.find((p) => p.title === resolvedActivePhase) ?? phases[0] ?? emptyPhase();
 
-  const unphased = run?.unphasedAgents ?? [];
+  const unphased = displayRun?.unphasedAgents ?? [];
+  const columnAgents = phases.length === 0 ? unphased : phase.agents;
   const showUnphasedAtTop = !run && phase.agents.length === 0 && unphased.length === 0;
 
-  const selectedAgent = useMemo(() => {
-    if (!activeAgentId) return null;
-    return phase.agents.find((a) => a.agentId === activeAgentId) ?? null;
-  }, [activeAgentId, phase]);
+  const selectedAgent = activeAgentId
+    ? (columnAgents.find((a) => a.agentId === activeAgentId) ??
+      findAgentById(phases, unphased, activeAgentId))
+    : null;
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -69,12 +72,12 @@ export function WorkflowOverlayBody({
           setActivePhase(title);
           setActiveAgentId(null);
         }}
-        run={run}
+        run={displayRun}
         error={error}
       />
       <div className="grid min-h-0 flex-1 grid-cols-1 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)]">
         <AgentsColumn
-          agents={phase.agents}
+          agents={columnAgents}
           phaseTitle={phase.title}
           activeAgentId={activeAgentId}
           onSelect={setActiveAgentId}
@@ -87,9 +90,9 @@ export function WorkflowOverlayBody({
                 : "No agents in this phase."
           }
         />
-        <AgentDetail agent={selectedAgent} phaseTitle={phase.title} />
+        <AgentDetail agent={selectedAgent} phaseTitle={selectedAgent?.phaseTitle ?? phase.title} />
       </div>
-      {unphased.length > 0 ? (
+      {unphased.length > 0 && phases.length > 0 ? (
         <UnphasedAgents agents={unphased} onSelect={setActiveAgentId} />
       ) : null}
     </div>
@@ -233,6 +236,7 @@ function AgentRow({
   const done = isAgentDone(agent);
   const labelDisplay = stripPhasePrefix(agent.label, phaseTitle);
   const stats: string[] = [];
+  if (agent.model) stats.push(formatModel(agent.model));
   if (agent.tokens !== undefined) stats.push(`${formatTokens(agent.tokens)} tok`);
   if (agent.toolCalls !== undefined) stats.push(`${agent.toolCalls} tools`);
   if (done && agent.durationMs !== undefined) stats.push(formatDuration(agent.durationMs));
@@ -311,6 +315,38 @@ function AgentDetail({ agent, phaseTitle }: { agent: WorkflowAgent | null; phase
           </pre>
         </section>
       ) : null}
+      {agent.chat?.length ? (
+        <section className="pt-3">
+          <h3 className="pb-1 text-[length:var(--lc-chat-font-size-meta)] font-medium text-foreground">
+            Chat
+          </h3>
+          <ol className="flex flex-col gap-2">
+            {agent.chat.map((entry, index) => (
+              <li
+                key={`${index}-${entry.timestamp ?? ""}-${entry.title ?? entry.role}`}
+                className="rounded border border-[color:var(--border)] bg-[var(--composer-surface)] px-2 py-1.5"
+              >
+                <div className="flex min-w-0 items-baseline gap-2 pb-1 text-[length:var(--lc-chat-font-size-meta)] text-foreground-muted">
+                  <span className="shrink-0 font-medium capitalize">{entry.role}</span>
+                  {entry.title ? (
+                    <span className="min-w-0 truncate font-mono">{entry.title}</span>
+                  ) : null}
+                  {entry.timestamp ? (
+                    <span className="ml-auto shrink-0 tabular-nums opacity-70">
+                      {formatChatTimestamp(entry.timestamp)}
+                    </span>
+                  ) : null}
+                </div>
+                {entry.text ? (
+                  <pre className="whitespace-pre-wrap break-words font-mono text-[length:var(--lc-chat-font-size-meta)] text-foreground/90">
+                    {entry.text}
+                  </pre>
+                ) : null}
+              </li>
+            ))}
+          </ol>
+        </section>
+      ) : null}
     </div>
   );
 }
@@ -383,6 +419,38 @@ function phasesFromInfo(info: WorkflowInfo): WorkflowPhase[] {
   });
 }
 
+function applyWorkflowPlan(run: WorkflowRun, workflow: WorkflowInfo): WorkflowRun {
+  if (run.phases.length > 0 || workflow.plannedAgents.length === 0) return run;
+
+  const phases = phasesFromInfo(workflow);
+  const phaseByTitle = new Map(phases.map((phase) => [phase.title, phase]));
+  const unphasedAgents: WorkflowAgent[] = [];
+  const agents = run.unphasedAgents.map((agent, index) => {
+    const planned = workflow.plannedAgents[index];
+    if (!planned) return agent;
+    const merged: WorkflowAgent = {
+      ...agent,
+      label: planned.label,
+      ...(planned.phaseTitle ? { phaseTitle: planned.phaseTitle } : {}),
+      ...(planned.model && !agent.model ? { model: planned.model } : {}),
+    };
+    if (planned.phaseTitle) {
+      const target = phaseByTitle.get(planned.phaseTitle);
+      if (target) {
+        target.agents.push(merged);
+        return null;
+      }
+    }
+    return merged;
+  });
+
+  for (const agent of agents) {
+    if (agent) unphasedAgents.push(agent);
+  }
+
+  return { ...run, phases, unphasedAgents };
+}
+
 function emptyPhase(): WorkflowPhase {
   return { title: "", agents: [] };
 }
@@ -392,6 +460,18 @@ function countCompletedAgents(run: WorkflowRun): number {
   for (const phase of run.phases) total += phase.agents.filter(isAgentDone).length;
   for (const agent of run.unphasedAgents) if (isAgentDone(agent)) total += 1;
   return total;
+}
+
+function findAgentById(
+  phases: WorkflowPhase[],
+  unphased: WorkflowAgent[],
+  agentId: string,
+): WorkflowAgent | null {
+  for (const phase of phases) {
+    const agent = phase.agents.find((entry) => entry.agentId === agentId);
+    if (agent) return agent;
+  }
+  return unphased.find((entry) => entry.agentId === agentId) ?? null;
 }
 
 function isAgentDone(agent: WorkflowAgent): boolean {
@@ -426,4 +506,14 @@ function formatDuration(ms: number): string {
   const seconds = totalSeconds % 60;
   if (minutes === 0) return `${seconds}s`;
   return `${minutes}m${seconds.toString().padStart(2, "0")}s`;
+}
+
+function formatModel(model: string): string {
+  return model.replace(/^claude-/u, "").replace(/\[([^\]]+)\]/u, " · $1");
+}
+
+function formatChatTimestamp(timestamp: string): string {
+  const date = new Date(timestamp);
+  if (Number.isNaN(date.getTime())) return timestamp;
+  return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
 }

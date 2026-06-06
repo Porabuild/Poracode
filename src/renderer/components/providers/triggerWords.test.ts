@@ -7,12 +7,9 @@ function words(kind: string | undefined, model: string | undefined): string[] {
 }
 
 describe("getTriggerWords", () => {
-  it("enables the workflow chip only for Claude Opus 4.7 / 4.8", () => {
-    expect(words("claude", "claude-opus-4-8")).toEqual(["workflow"]);
-    expect(words("claude", "claude-opus-4-7")).toEqual(["workflow"]);
-  });
-
-  it("leaves the word as plain text for other Claude models", () => {
+  it("leaves workflow as plain text for Claude models", () => {
+    expect(words("claude", "claude-opus-4-8")).toEqual([]);
+    expect(words("claude", "claude-opus-4-7")).toEqual([]);
     expect(words("claude", "claude-opus-4-6")).toEqual([]);
     expect(words("claude", "sonnet")).toEqual([]);
     expect(words("claude", "haiku")).toEqual([]);
