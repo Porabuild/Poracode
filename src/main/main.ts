@@ -77,7 +77,7 @@ const WINDOW_CHROME_HEIGHT = 32;
 const QUICK_COMPOSER_SHORTCUT = "CommandOrControl+L";
 
 let mainWindow: BrowserWindow | null = null;
-const quickComposerWindows = new Set<BrowserWindow>();
+let quickComposerWindow: BrowserWindow | null = null;
 let lightcodePaths: LightcodePaths | null = null;
 let windowsJobObjectManager: WindowsJobObjectManager | null = null;
 let browserPanelManager: BrowserPanelManager | null = null;
@@ -137,19 +137,22 @@ function focusMainWindow(): void {
 
 function quickComposerWindowFor(event: Electron.IpcMainInvokeEvent): BrowserWindow | null {
   const window = BrowserWindow.fromWebContents(event.sender);
-  return window && quickComposerWindows.has(window) && !window.isDestroyed() ? window : null;
+  return window && window === quickComposerWindow && !window.isDestroyed() ? window : null;
 }
 
 function sendSupervisorEventToRenderers(event: SupervisorEvent): void {
   mainWindow?.webContents.send(IPC_EVENT_CHANNELS.supervisorEvent, event);
-  for (const window of quickComposerWindows) {
-    if (!window.isDestroyed()) {
-      window.webContents.send(IPC_EVENT_CHANNELS.supervisorEvent, event);
-    }
+  if (quickComposerWindow && !quickComposerWindow.isDestroyed()) {
+    quickComposerWindow.webContents.send(IPC_EVENT_CHANNELS.supervisorEvent, event);
   }
 }
 
 function openQuickComposerWindow(): void {
+  if (quickComposerWindow && !quickComposerWindow.isDestroyed()) {
+    showAndFocusWindow(quickComposerWindow);
+    return;
+  }
+
   const window = createQuickComposerWindow({
     title: getAppName(channel, isDev),
     isDev,
@@ -164,7 +167,9 @@ function openQuickComposerWindow(): void {
     sentryEnabled,
     ...(process.env.VITE_DEV_SERVER_URL ? { devServerUrl: process.env.VITE_DEV_SERVER_URL } : {}),
     onClosed: () => {
-      quickComposerWindows.delete(window);
+      if (quickComposerWindow === window) {
+        quickComposerWindow = null;
+      }
     },
     onRendererProcessGone: (details) => {
       captureMainException(new Error(`Quick composer renderer process gone: ${details.reason}`), {
@@ -173,7 +178,38 @@ function openQuickComposerWindow(): void {
       });
     },
   });
-  quickComposerWindows.add(window);
+  quickComposerWindow = window;
+}
+
+function createMainAppWindow(): BrowserWindow {
+  const window = createMainWindow({
+    title: getAppName(channel, isDev),
+    isDev,
+    channel,
+    preloadPath: join(__dirname, "preload.cjs"),
+    rendererHtmlPath: join(__dirname, "../renderer/index.html"),
+    appVersion: app.getVersion(),
+    posthogEnableDev,
+    posthogEnabled,
+    posthogHost,
+    posthogKey,
+    sentryEnabled,
+    windowChromeHeight: WINDOW_CHROME_HEIGHT,
+    appearance: resolveAppAppearance(),
+    ...(process.env.VITE_DEV_SERVER_URL ? { devServerUrl: process.env.VITE_DEV_SERVER_URL } : {}),
+    onClosed: () => {
+      mainWindow = null;
+    },
+    onClose: handleMainWindowClose,
+    onRendererProcessGone: (details) => {
+      captureMainException(new Error(`Renderer process gone: ${details.reason}`), {
+        "lightcode.feature_area": "renderer",
+        "lightcode.process": "renderer",
+      });
+    },
+  });
+  browserPanelManager?.bindHost(window);
+  return window;
 }
 
 const workingThreads = new Set<string>();
@@ -349,34 +385,7 @@ if (!hasSingleInstanceLock) {
       },
     );
 
-    mainWindow = createMainWindow({
-      title: getAppName(channel, isDev),
-      isDev,
-      channel,
-      preloadPath: join(__dirname, "preload.cjs"),
-      rendererHtmlPath: join(__dirname, "../renderer/index.html"),
-      appVersion: app.getVersion(),
-      posthogEnableDev,
-      posthogEnabled,
-      posthogHost,
-      posthogKey,
-      sentryEnabled,
-      windowChromeHeight: WINDOW_CHROME_HEIGHT,
-      appearance: resolveAppAppearance(),
-      ...(process.env.VITE_DEV_SERVER_URL ? { devServerUrl: process.env.VITE_DEV_SERVER_URL } : {}),
-      onClosed: () => {
-        mainWindow = null;
-      },
-      onClose: handleMainWindowClose,
-      onRendererProcessGone: (details) => {
-        captureMainException(new Error(`Renderer process gone: ${details.reason}`), {
-          "lightcode.feature_area": "renderer",
-          "lightcode.process": "renderer",
-        });
-      },
-    });
-
-    browserPanelManager.bindHost(mainWindow);
+    mainWindow = createMainAppWindow();
 
     tray = createTray({
       window: mainWindow,
@@ -434,42 +443,10 @@ if (!hasSingleInstanceLock) {
 
     app.on("activate", () => {
       if (mainWindow && !mainWindow.isDestroyed()) {
-        if (!mainWindow.isVisible()) {
-          mainWindow.show();
-        }
-        mainWindow.focus();
+        showAndFocusWindow(mainWindow);
         return;
       }
-      if (BrowserWindow.getAllWindows().length === 0) {
-        mainWindow = createMainWindow({
-          title: getAppName(channel, isDev),
-          isDev,
-          channel,
-          preloadPath: join(__dirname, "preload.cjs"),
-          rendererHtmlPath: join(__dirname, "../renderer/index.html"),
-          appVersion: app.getVersion(),
-          posthogEnableDev,
-          posthogEnabled,
-          posthogHost,
-          posthogKey,
-          sentryEnabled,
-          windowChromeHeight: WINDOW_CHROME_HEIGHT,
-          appearance: resolveAppAppearance(),
-          ...(process.env.VITE_DEV_SERVER_URL
-            ? { devServerUrl: process.env.VITE_DEV_SERVER_URL }
-            : {}),
-          onClosed: () => {
-            mainWindow = null;
-          },
-          onClose: handleMainWindowClose,
-          onRendererProcessGone: (details) => {
-            captureMainException(new Error(`Renderer process gone: ${details.reason}`), {
-              "lightcode.feature_area": "renderer",
-              "lightcode.process": "renderer",
-            });
-          },
-        });
-      }
+      mainWindow = createMainAppWindow();
     });
 
     app.on("before-quit", () => {
@@ -485,12 +462,10 @@ if (!hasSingleInstanceLock) {
       sleepInhibitor.dispose();
       tray?.destroy();
       tray = null;
-      for (const window of quickComposerWindows) {
-        if (!window.isDestroyed()) {
-          window.close();
-        }
+      if (quickComposerWindow && !quickComposerWindow.isDestroyed()) {
+        quickComposerWindow.close();
       }
-      quickComposerWindows.clear();
+      quickComposerWindow = null;
     });
   });
 }
