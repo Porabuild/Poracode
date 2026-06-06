@@ -1,5 +1,6 @@
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
+import { batchWslCommandsAsync } from "../agents/base";
 import { windowsPowershellPath } from "./windowsPowershell";
 
 /**
@@ -12,6 +13,7 @@ import { windowsPowershellPath } from "./windowsPowershell";
  */
 
 const execFileAsync = promisify(execFile);
+const WSL_PID_OFFSET = 1_000_000_000;
 
 export interface ProcInfo {
   pid: number;
@@ -22,7 +24,7 @@ export interface ProcInfo {
 }
 
 /** Enumerate processes as `pid|ppid|name|commandLine`; empty on any failure. */
-export async function listProcesses(): Promise<ProcInfo[]> {
+export async function listProcesses(wslDistros: readonly string[] = []): Promise<ProcInfo[]> {
   let lines: string[] = [];
   try {
     if (process.platform === "win32") {
@@ -68,6 +70,9 @@ export async function listProcesses(): Promise<ProcInfo[]> {
       csrf,
     });
   }
+  if (process.platform === "win32" && wslDistros.length > 0) {
+    procs.push(...(await listWslProcesses(wslDistros)));
+  }
   return procs;
 }
 
@@ -107,7 +112,9 @@ export function resolveTargets(procs: ProcInfo[]): { pids: Set<number>; csrfToke
 }
 
 /** Map every listening loopback port to its owning pid; empty on any failure. */
-export async function listListeningPorts(): Promise<{ pid: number; port: number }[]> {
+export async function listListeningPorts(
+  wslDistros: readonly string[] = [],
+): Promise<{ pid: number; port: number }[]> {
   try {
     if (process.platform === "win32") {
       const { stdout } = await execFileAsync(
@@ -120,7 +127,10 @@ export async function listListeningPorts(): Promise<{ pid: number; port: number 
         ],
         { timeout: 6_000, windowsHide: true, maxBuffer: 2 * 1024 * 1024 },
       );
-      return parsePortLines(stdout);
+      return [
+        ...parsePortLines(stdout),
+        ...(wslDistros.length > 0 ? await listWslListeningPorts(wslDistros) : []),
+      ];
     }
     const { stdout } = await execFileAsync("lsof", ["-nP", "-iTCP", "-sTCP:LISTEN", "-FpPn"], {
       timeout: 6_000,
@@ -130,6 +140,60 @@ export async function listListeningPorts(): Promise<{ pid: number; port: number 
   } catch {
     return [];
   }
+}
+
+/** Run one command in each distro (in parallel) and flat-parse the stdout. */
+async function scanWslDistros<T>(
+  distros: readonly string[],
+  command: string,
+  parse: (stdout: string) => T[],
+): Promise<T[]> {
+  const perDistro = await Promise.all(
+    distros.map(async (distro) => {
+      const [result] = await batchWslCommandsAsync(distro, [command]);
+      return result?.ok ? parse(result.stdout) : [];
+    }),
+  );
+  return perDistro.flat();
+}
+
+const listWslProcesses = (distros: readonly string[]): Promise<ProcInfo[]> =>
+  scanWslDistros(distros, "ps -axww -o pid=,ppid=,args=", parseWslProcessLines);
+
+const listWslListeningPorts = (
+  distros: readonly string[],
+): Promise<{ pid: number; port: number }[]> =>
+  scanWslDistros(distros, "ss -ltnpH 2>/dev/null", parseWslSs);
+
+export function parseWslProcessLines(stdout: string): ProcInfo[] {
+  const procs: ProcInfo[] = [];
+  for (const line of stdout.split(/\r?\n/)) {
+    const m = line.match(/^\s*(\d+)\s+(\d+)\s+(.*)$/);
+    if (!m) continue;
+    const pid = Number(m[1]);
+    const ppid = Number(m[2]);
+    if (!Number.isFinite(pid) || pid <= 0) continue;
+    const cmd = m[3] ?? "";
+    const csrf = cmd.match(/csrf[_-]?token["' =:]+([A-Za-z0-9._-]+)/i)?.[1];
+    procs.push({
+      pid: WSL_PID_OFFSET + pid,
+      ppid: Number.isFinite(ppid) ? WSL_PID_OFFSET + ppid : 0,
+      haystack: cmd.toLowerCase(),
+      csrf,
+    });
+  }
+  return procs;
+}
+
+export function parseWslSs(stdout: string): { pid: number; port: number }[] {
+  const out: { pid: number; port: number }[] = [];
+  for (const line of stdout.split(/\r?\n/)) {
+    const pid = Number(line.match(/\bpid=(\d+)\b/)?.[1]);
+    const parts = line.trim().split(/\s+/);
+    const port = Number(parts[3]?.match(/:(\d{2,5})$/)?.[1]);
+    if (pid > 0 && port > 0 && port <= 65535) out.push({ pid: WSL_PID_OFFSET + pid, port });
+  }
+  return out;
 }
 
 export function parsePortLines(stdout: string): { pid: number; port: number }[] {

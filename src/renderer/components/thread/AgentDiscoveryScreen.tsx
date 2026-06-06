@@ -136,8 +136,8 @@ export function AgentDiscoveryScreen(props: {
   } as CSSProperties;
 
   return (
-    <div className="agent-discovery-screen flex h-full flex-col items-center justify-center gap-8 px-6 text-center">
-      <div className="flex flex-col items-center gap-3">
+    <div className="agent-discovery-screen flex h-full min-h-0 flex-col items-center gap-6 overflow-y-auto px-6 py-6 text-center">
+      <div className="flex shrink-0 flex-col items-center gap-3">
         <PixelLoader size="lg" className="text-foreground" />
         <h1 className="text-xl font-semibold tracking-tight">Discovering coding agents…</h1>
         <p className="max-w-sm text-sm text-muted">
@@ -161,9 +161,9 @@ export function AgentDiscoveryScreen(props: {
         ) : null}
       </div>
 
-      <div className="w-full max-w-[42rem] overflow-hidden rounded border border-border/60 bg-background/25 text-left">
+      <div className="flex w-full min-h-0 max-w-[42rem] flex-col overflow-hidden rounded border border-border/60 bg-background/25 text-left">
         <div
-          className="grid grid-cols-[minmax(11rem,1fr)_repeat(var(--agent-target-count),minmax(7rem,8rem))] border-b border-border/60 px-3 py-2 text-[0.6875rem] font-medium uppercase text-muted/70"
+          className="grid shrink-0 grid-cols-[minmax(11rem,1fr)_repeat(var(--agent-target-count),minmax(7rem,8rem))] border-b border-border/60 px-3 py-2 text-[0.6875rem] font-medium uppercase text-muted/70"
           style={matrixGridStyle}
         >
           <div>Provider</div>
@@ -173,7 +173,7 @@ export function AgentDiscoveryScreen(props: {
             </div>
           ))}
         </div>
-        <div>
+        <div className="min-h-0 overflow-y-auto [scrollbar-gutter:stable]">
           {providers.map(({ kind, label }) => {
             const statuses = statusesByKind.get(kind) ?? [];
             return (
@@ -204,17 +204,19 @@ export function AgentDiscoveryScreen(props: {
         </div>
       </div>
 
-      <div className="text-xs text-muted/70" aria-live="polite">
+      <div className="shrink-0 text-xs text-muted/70" aria-live="polite">
         {useMatrixLayout
           ? combinedStatusLine(discovered)
           : statusLine(discovered.length, installedCount, wslDistro)}
       </div>
 
       {props.onCancel ? (
-        <Button size="sm" variant="tertiary" onPress={props.onCancel}>
-          <X className="size-3.5" />
-          Cancel
-        </Button>
+        <div className="shrink-0">
+          <Button size="sm" variant="tertiary" onPress={props.onCancel}>
+            <X className="size-3.5" />
+            Cancel
+          </Button>
+        </div>
       ) : null}
     </div>
   );

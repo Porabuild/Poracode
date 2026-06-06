@@ -13,6 +13,7 @@ import { useChatPaneActions } from "../../chatPaneActionsContext";
 import { getChildItemIdsStoreSelector } from "../../chatPaneSelectors";
 import { extractAcpResultPart } from "./acpToolPayload";
 import { ItemMarkdown } from "./ItemMarkdown";
+import { SubAgentProgressMeta, hasSubAgentProgressMeta } from "./subAgentProgressMeta";
 import { deriveToolDisplay, isWorkflowTool } from "./toolDisplay";
 import { parseWorkflowInfo } from "./workflowDisplay";
 import { WorkflowResultGroup } from "./WorkflowResultGroup";
@@ -198,18 +199,18 @@ function resolveStatus(
   }
 
   if (isRunning) {
-    const stepLabel = `${stepCount} step${stepCount === 1 ? "" : "s"}`;
     return {
       rightLabel: (
-        <span className="inline-flex min-w-0 items-center gap-1.5 text-[color:var(--muted)]">
-          {liveLabel ? (
-            <span className="max-w-[28ch] truncate" title={progress?.description ?? liveLabel}>
-              {liveLabel}
-            </span>
-          ) : null}
-          <span>{stepLabel}</span>
-          <PixelLoader size="xxs" className="text-[color:var(--muted)]" />
-        </span>
+        <SubAgentProgressMeta
+          progress={progress}
+          liveLabel={liveLabel}
+          stepCount={stepCount}
+          includeStepCount
+          showLoader
+          className="text-[color:var(--muted)]"
+          liveMaxClassName="max-w-[28ch]"
+          loaderClassName="text-[color:var(--muted)]"
+        />
       ),
       rightLabelClassName: "!text-[color:var(--muted)]",
     };
@@ -230,6 +231,18 @@ function resolveStatus(
         icon
       ),
       rightLabelClassName: "text-danger",
+    };
+  }
+  if (hasSubAgentProgressMeta(progress)) {
+    return {
+      rightLabel: (
+        <SubAgentProgressMeta
+          progress={progress}
+          className="text-[color:var(--muted)]"
+          loaderClassName="text-[color:var(--muted)]"
+        />
+      ),
+      rightLabelClassName: "!text-[color:var(--muted)]",
     };
   }
   return {

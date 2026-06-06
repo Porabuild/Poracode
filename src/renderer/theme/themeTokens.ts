@@ -97,7 +97,7 @@ const mix = (a: string, aPct: number, b: string): string =>
 const fade = (color: string, pct: number): string =>
   `color-mix(in oklab, ${color} ${pct}%, transparent)`;
 
-export function buildVariant(spec: ThemeSpec): ThemeVariantVars {
+export function buildVariant(spec: ThemeSpec, mode: "light" | "dark"): ThemeVariantVars {
   const { bg, surface, fg, accent, accentFg, border } = spec;
   const sidebar = spec.sidebar ?? surface;
   const content = spec.content ?? bg;
@@ -129,7 +129,12 @@ export function buildVariant(spec: ThemeSpec): ThemeVariantVars {
     "--overlay": mix(surface, 93, fg),
     "--muted": muted.hex,
     "--scrollbar": fade(muted.hex, 60),
-    "--default": mix(surface, 86, fg),
+    // Neutral fill for secondary/tertiary buttons, selects, chips, toggle and
+    // checkbox/radio controls. Stepped toward fg so the controls separate from
+    // the panel — more in light (where surfaces cluster near white and would
+    // otherwise swallow the fill, ~1.35:1 vs page) than in dark, where
+    // over-stepping would lighten the fill into the (light) accent label.
+    "--default": mix(surface, mode === "light" ? 82 : 86, fg),
     "--accent": accent,
     "--accent-foreground": accentFg,
     "--field-background": mix(surface, 95, fg),

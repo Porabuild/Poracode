@@ -132,6 +132,26 @@ describe("parseWorkflowManifest", () => {
     expect(run.status).toBe("unknown");
   });
 
+  it("normalizes in-progress manifest status values", () => {
+    const run = parseWorkflowManifest(
+      makeManifest({
+        status: "killed",
+        workflowProgress: [
+          { type: "workflow_phase", index: 1, title: "Review" },
+          {
+            type: "workflow_agent",
+            label: "review:1",
+            agentId: "a1",
+            phaseIndex: 1,
+            state: "progress",
+          },
+        ],
+      }),
+    );
+    expect(run.status).toBe("cancelled");
+    expect(run.phases[0]?.agents[0]?.state).toBe("cancelled");
+  });
+
   it("skips malformed progress records without throwing", () => {
     const run = parseWorkflowManifest(
       makeManifest({
@@ -210,6 +230,168 @@ describe("readWorkflowRun transcript-dir fallback", () => {
     expect(run?.agentCount).toBe(2);
     expect(run?.unphasedAgents.map((a) => a.agentId).sort()).toEqual(["a1", "a2"]);
     expect(run?.unphasedAgents.every((a) => a.state === "running")).toBe(true);
+  });
+
+  it("reads per-agent chat from agent jsonl files before the manifest exists", async () => {
+    const root = mkdtempSync(join(tmpdir(), "wf-test-"));
+    const sessionDir = join(root, "session");
+    const transcriptDir = join(sessionDir, "subagents", "workflows", "wf_test");
+    await mkdir(transcriptDir, { recursive: true });
+    await writeFile(
+      join(transcriptDir, "journal.jsonl"),
+      JSON.stringify({ type: "started", agentId: "a1" }),
+    );
+    await writeFile(
+      join(transcriptDir, "agent-a1.jsonl"),
+      [
+        JSON.stringify({
+          type: "user",
+          timestamp: "2026-06-01T12:00:00.000Z",
+          message: { role: "user", content: "Review the patch." },
+        }),
+        JSON.stringify({
+          type: "assistant",
+          timestamp: "2026-06-01T12:00:01.000Z",
+          message: {
+            role: "assistant",
+            model: "claude-opus-4-8",
+            content: [
+              { type: "text", text: "I'll inspect it." },
+              { type: "tool_use", name: "Read", input: { file_path: "src/app.ts" } },
+            ],
+            usage: { input_tokens: 3, output_tokens: 4 },
+          },
+        }),
+        JSON.stringify({
+          type: "user",
+          timestamp: "2026-06-01T12:00:02.000Z",
+          message: {
+            role: "user",
+            content: [{ type: "tool_result", content: "file body" }],
+          },
+        }),
+        JSON.stringify({
+          type: "assistant",
+          timestamp: "2026-06-01T12:00:03.000Z",
+          message: {
+            role: "assistant",
+            content: [{ type: "tool_use", name: "StructuredOutput", input: { findings: [] } }],
+            usage: { input_tokens: 1, output_tokens: 2 },
+          },
+        }),
+      ].join("\n"),
+    );
+
+    const run = await readWorkflowRun({
+      manifestPath: join(sessionDir, "workflows", "wf_test.json"),
+      transcriptDir,
+      includeAgentChats: true,
+      location: { kind: "posix", path: root },
+    });
+    const agent = run?.unphasedAgents[0];
+    expect(agent?.promptPreview).toBe("Review the patch.");
+    expect(agent?.resultPreview).toBe('{"findings":[]}');
+    expect(agent?.model).toBe("claude-opus-4-8");
+    expect(agent?.tokens).toBe(10);
+    expect(agent?.toolCalls).toBe(2);
+    expect(agent?.lastToolName).toBe("StructuredOutput");
+    expect(agent?.chat?.map((entry) => entry.title).filter(Boolean)).toEqual([
+      "Read",
+      "Tool result",
+      "StructuredOutput",
+    ]);
+  });
+
+  it("infers labels and phases from live review workflow prompts before the manifest exists", async () => {
+    const root = mkdtempSync(join(tmpdir(), "wf-test-"));
+    const sessionDir = join(root, "session");
+    const transcriptDir = join(sessionDir, "subagents", "workflows", "wf_test");
+    await mkdir(transcriptDir, { recursive: true });
+    await writeFile(
+      join(transcriptDir, "journal.jsonl"),
+      [
+        JSON.stringify({ type: "started", agentId: "a1" }),
+        JSON.stringify({ type: "started", agentId: "a2" }),
+        JSON.stringify({ type: "started", agentId: "a3" }),
+      ].join("\n"),
+    );
+    await writeFile(
+      join(transcriptDir, "agent-a1.jsonl"),
+      JSON.stringify({
+        type: "user",
+        message: {
+          role: "user",
+          content:
+            "You are reviewing the uncommitted working-tree changes in this repo. Run `git --no-pager diff HEAD` to see the full diff, and read surrounding code with Read/Grep as needed.\n\nFocus ONLY on correctness bugs: logic errors, off-by-one, null/undefined handling, incorrect async/await, race conditions, broken state updates, wrong types, edge cases the diff fails to handle, regressions vs the prior behavior.\n\nReport concrete findings tied to a file and line. Do not report style or speculative issues.",
+        },
+      }),
+    );
+    await writeFile(
+      join(transcriptDir, "agent-a2.jsonl"),
+      JSON.stringify({
+        type: "user",
+        message: {
+          role: "user",
+          content:
+            "You are reviewing the UNCOMMITTED changes in the git repo at C:/Users/sdsle/work/lightcode (branch master).\nGet the diff with: git -C C:/Users/sdsle/work/lightcode diff HEAD\nThe changes touch a workflow-transcript reader/display feature (src/supervisor/workflows/transcriptReader.ts, renderer workflow run store/overlay, shared contracts).\nRead the surrounding code as needed to judge correctness, not just the diff hunks.\n\nFocus: shared contract / IPC schema changes (workflowTranscript.ts, schemas.ts). Are new fields validated, optional vs required correct, renderer and supervisor in agreement, backward compatible with old transcripts?",
+        },
+      }),
+    );
+    await writeFile(
+      join(transcriptDir, "agent-a3.jsonl"),
+      JSON.stringify({
+        type: "user",
+        message: {
+          role: "user",
+          content:
+            "You are reviewing the UNCOMMITTED changes in the git repo at C:/Users/sdsle/work/lightcode (branch master).\nGet the diff with: git -C C:/Users/sdsle/work/lightcode diff HEAD\nThe changes touch a workflow-transcript reader/display feature (src/supervisor/workflows/transcriptReader.ts, renderer workflow run store/overlay, shared contracts).\nRead the surrounding code as needed to judge correctness, not just the diff hunks.\n\nA reviewer claims this issue. Adversarially verify it by reading the actual code. Default to isReal=false unless you can confirm it from the code.\n\nTitle: applyWorkflowPlan matches transcript agents to planned agents by positional index, but transcript order is non-deterministic\nFile: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx:428\nDetail: Check it.",
+        },
+      }),
+    );
+
+    const run = await readWorkflowRun({
+      manifestPath: join(sessionDir, "workflows", "wf_test.json"),
+      transcriptDir,
+      includeAgentChats: true,
+      location: { kind: "posix", path: root },
+    });
+    expect(run?.phases.map((phase) => phase.title)).toEqual(["Review", "Verify"]);
+    expect(run?.phases[0]?.agents[0]?.label).toBe("review:correctness");
+    expect(run?.phases[0]?.agents[1]?.label).toBe("review:contracts");
+    expect(run?.phases[1]?.agents[0]?.label).toBe(
+      "verify:applyworkflowplan-matches-transcript-agents-to-planned-agents-by-positional-index-but-transcript-order-is-non-deterministic",
+    );
+    expect(run?.unphasedAgents).toEqual([]);
+  });
+
+  it("merges per-agent chat into a present manifest when requested", async () => {
+    const root = mkdtempSync(join(tmpdir(), "wf-test-"));
+    const sessionDir = join(root, "session");
+    const workflowsDir = join(sessionDir, "workflows");
+    const transcriptDir = join(sessionDir, "subagents", "workflows", "wf_real");
+    await mkdir(workflowsDir, { recursive: true });
+    await mkdir(transcriptDir, { recursive: true });
+    await writeFile(join(workflowsDir, "wf_real.json"), JSON.stringify(makeManifest()));
+    await writeFile(
+      join(transcriptDir, "agent-a9856bef19e02cdf4.jsonl"),
+      [
+        JSON.stringify({ type: "user", message: { role: "user", content: "Full prompt" } }),
+        JSON.stringify({
+          type: "assistant",
+          message: { role: "assistant", content: [{ type: "text", text: "Full answer" }] },
+        }),
+      ].join("\n"),
+    );
+
+    const run = await readWorkflowRun({
+      manifestPath: join(workflowsDir, "wf_real.json"),
+      transcriptDir,
+      includeAgentChats: true,
+      location: { kind: "posix", path: root },
+    });
+    const agent = run?.phases[0]?.agents[0];
+    expect(agent?.label).toBe("review:functional");
+    expect(agent?.chat?.map((entry) => entry.text)).toEqual(["Full prompt", "Full answer"]);
   });
 
   it("returns null when both the manifest and transcript dir are missing", async () => {

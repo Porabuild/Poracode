@@ -213,7 +213,13 @@ export function ThreadComposer(props: {
   const derivedToolbarLayoutKey = controls
     .map((control) => {
       if (control.kind === "provider-model") {
-        return `provider-model:${control.currentAgentKind}:${control.currentModel}:${control.presentationMode ?? ""}:${control.hideLabelOnWrap ? "hide" : "show"}`;
+        const providersKey = control.providers
+          .map(
+            (provider) =>
+              `${provider.modelPickerKey ?? provider.kind}:${provider.capabilities.models.map((model) => `${model.id}:${model.label}`).join(",")}`,
+          )
+          .join(";");
+        return `provider-model:${control.currentAgentKind}:${control.currentModel}:${control.presentationMode ?? ""}:${control.hideLabelOnWrap ? "hide" : "show"}:${providersKey}`;
       }
       if (control.kind === "effort-context") {
         return `effort-context:${control.effortValue ?? ""}:${control.contextValue ?? ""}:${control.thinkingValue ?? ""}:${control.hideLabelOnWrap ? "hide" : "show"}`;

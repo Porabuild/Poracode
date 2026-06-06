@@ -281,12 +281,11 @@ export function getConfigNormalizer(kind: string): ConfigNormalizer | undefined 
 
 // --- Trigger word registry ---
 //
-// The composer promotes certain literal words (e.g. "workflow") into chips to
-// hint at a special agent capability. Those affordances only make sense for
+// The composer can promote certain literal words into chips to hint at a
+// special agent capability. Those affordances only make sense for
 // providers/models that actually expose the underlying feature, so each such
 // provider registers a matcher returning which trigger words apply to a given
-// model. Providers that opt into nothing leave every word as plain text. The
-// catalog of known words lives in composer/triggerWords.ts.
+// model. Providers that opt into nothing leave every word as plain text.
 
 import type { TriggerWordDef } from "@/renderer/components/composer/triggerWords";
 

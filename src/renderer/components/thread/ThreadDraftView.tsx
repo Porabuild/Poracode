@@ -13,6 +13,7 @@ import { readBridge } from "@/renderer/bridge";
 import { getConfigNormalizer } from "@/renderer/components/providers/ProviderIcon";
 import { useGitStore } from "@/renderer/state/gitStore";
 import { PixelLoader } from "@/renderer/components/common";
+import { modelVisibilityKey } from "@/renderer/components/common/ProviderModelMenu/parts/providerIdentity";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useAppStore } from "@/renderer/state/appStore";
 import { capabilitiesForPresentation, filterHiddenModels } from "./threadComposerOptions";
@@ -559,7 +560,9 @@ export function ThreadDraftView(props: {
   ]);
 
   const hiddenModelIds = useSharedSettings((s) =>
-    selectedAgent ? s.hiddenModels[selectedAgent.kind] : undefined,
+    selectedAgent
+      ? s.hiddenModels[modelVisibilityKey(selectedAgent.kind, presentationMode)]
+      : undefined,
   );
   const allHiddenModels = useSharedSettings((s) => s.hiddenModels);
   const selectedAgentFilteredCapabilities = useMemo(
@@ -778,7 +781,9 @@ export function ThreadDraftView(props: {
   const anchorBlockRef = useRef<HTMLDivElement>(null);
   const anchorSpacerRef = useRef<HTMLDivElement>(null);
   useStableComposerAnchor({
-    enabled: !props.compact,
+    // Agent detection can render the draft view before the composer DOM exists.
+    // Only arm the anchor once the selected-agent branch can actually mount it.
+    enabled: !props.compact && !!selectedAgent,
     containerRef: anchorContainerRef,
     blockRef: anchorBlockRef,
     spacerRef: anchorSpacerRef,
@@ -877,7 +882,12 @@ export function ThreadDraftView(props: {
         ) : (
           // Spacer whose height is driven by useStableComposerAnchor to keep the
           // composer centered initially, then anchored as it grows.
-          <div ref={anchorSpacerRef} aria-hidden className="w-full shrink-0" />
+          <div
+            ref={anchorSpacerRef}
+            aria-hidden
+            className="w-full shrink-0"
+            data-draft-composer-anchor-spacer=""
+          />
         )}
 
         {/* Composer block: centered initially, then anchored by the input's top edge. */}

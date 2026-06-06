@@ -17,9 +17,19 @@ export interface LocalUsageCollector {
   collect(nowMs: number, host: HostPort): Promise<UsageSnapshot>;
 }
 
-export function createLocalUsageCollectors(): LocalUsageCollector[] {
+export interface LocalUsageCollectorsOptions {
+  getActiveAntigravityWslDistros?: () => readonly string[];
+}
+
+export function createLocalUsageCollectors(
+  options: LocalUsageCollectorsOptions = {},
+): LocalUsageCollector[] {
   return [
     { id: "opencode", collect: (nowMs, host) => scanOpenCodeUsage(nowMs, host) },
-    { id: "antigravity", collect: (nowMs) => scanAntigravityUsage(nowMs) },
+    {
+      id: "antigravity",
+      collect: (nowMs) =>
+        scanAntigravityUsage(nowMs, options.getActiveAntigravityWslDistros?.() ?? []),
+    },
   ];
 }

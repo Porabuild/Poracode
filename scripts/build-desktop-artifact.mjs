@@ -435,6 +435,8 @@ function buildElectronBuilderConfig() {
   const prefix = channelTable.artifactPrefixFor(channel);
   const iconSuffix = channel === "nightly" ? "-nightly" : "";
   const publishChannelLine = updaterChannel ? `\n  channel: ${updaterChannel}` : "";
+  const macEntitlements = "build/entitlements.mac.plist";
+  const macEntitlementsInherit = "build/entitlements.mac.plist";
   const packagedDistFilesYaml = PACKAGED_DIST_FILES.map((glob) =>
     glob.startsWith("!") ? `  - "${glob}"` : `  - ${glob}`,
   ).join("\n");
@@ -529,8 +531,8 @@ mac:
   gatekeeperAssess: false
   extendInfo:
     NSMicrophoneUsageDescription: Lightcode uses the microphone for local voice input in the composer.
-  entitlements: build/entitlements.mac.plist
-  entitlementsInherit: build/entitlements.mac.plist
+  entitlements: ${macEntitlements}
+  entitlementsInherit: ${macEntitlementsInherit}
   notarize: true
 
 npmRebuild: false

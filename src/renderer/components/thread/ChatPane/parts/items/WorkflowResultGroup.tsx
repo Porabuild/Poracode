@@ -1,7 +1,8 @@
-import { Disclosure } from "@heroui/react";
+import { Disclosure, Surface } from "@heroui/react";
 import { memo, useState } from "react";
 import { GitBranch } from "lucide-react";
 import { useChatPaneActions } from "../../chatPaneActionsContext";
+import { chatMessageSurfaceClass } from "./chatMessageSurface";
 import { ItemMarkdown } from "./ItemMarkdown";
 
 /**
@@ -81,9 +82,11 @@ function WorkflowPlainResult({ text, parsed }: { text: string; parsed: unknown |
     );
   }
   return (
-    <div className="w-full min-w-0 text-[length:var(--lc-chat-font-size-command)] text-foreground">
-      <ItemMarkdown text={text} />
-    </div>
+    <Surface variant="transparent" className={chatMessageSurfaceClass}>
+      <div className="min-w-0 leading-snug text-foreground">
+        <ItemMarkdown text={text} />
+      </div>
+    </Surface>
   );
 }
 

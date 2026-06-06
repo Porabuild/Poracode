@@ -100,9 +100,10 @@ export function createOpenCodeAdapter(): AgentAdapter {
     // ── Launch / resume ──────────────────────────────────────────────────
     //
     // Session ID allocation: see `createStructuredSession` below. On a fresh
-    // launch the runtime spins up `opencode acp`, calls `session/new`, captures
-    // the resulting `ses_xxx` id, sets `launchOptions.resumeThreadId`, and then
-    // disposes the ACP connection (because `liveInputMode === "terminal"`).
+    // launch the runtime spins up `opencode serve`, calls `session.create`,
+    // captures the resulting `ses_xxx` id, sets `launchOptions.resumeThreadId`,
+    // and then disposes the SDK connection (because `liveInputMode ===
+    // "terminal"`).
     // The TUI process below picks up the pre-allocated id via `--session <id>`,
     // so the supervisor knows the providerSessionId synchronously instead of
     // polling `opencode session list` after spawn.
@@ -117,6 +118,7 @@ export function createOpenCodeAdapter(): AgentAdapter {
       return {
         binary: "opencode",
         args,
+        preferShell: true,
         ...(sessionId ? { sessionRef: createKnownSessionRef(sessionId) } : {}),
       };
     },
@@ -129,6 +131,7 @@ export function createOpenCodeAdapter(): AgentAdapter {
       return {
         binary: "opencode",
         args: buildOpenCodeArgs(config, prompt, sessionRef.providerSessionId),
+        preferShell: true,
       };
     },
     createInitialSessionRef() {
@@ -177,7 +180,7 @@ export function createOpenCodeAdapter(): AgentAdapter {
     // OpenCode's TUI silently ignores `--prompt` when `--session <id>` is
     // also present (verified empirically against opencode 1.14.30: the prompt
     // text never lands in the session). Since we always pre-allocate the
-    // session id via ACP for new threads, `--session` is *always* present —
+    // session id via SDK for new threads, `--session` is *always* present —
     // so the launch-time prompt path is dead. Defer the initial prompt to the
     // PTY: the runtime queues it as `pendingTerminalPrompt` and types it via
     // `buildDirectInput` once the TUI is ready. Same pattern Codex uses for

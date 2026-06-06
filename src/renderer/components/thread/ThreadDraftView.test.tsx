@@ -159,6 +159,31 @@ const antigravityStatus: AgentStatus = {
   },
 };
 
+const commandCodeStatus: AgentStatus = {
+  kind: "commandcode",
+  label: "Command Code",
+  installed: true,
+  authState: "authenticated",
+  capabilities: {
+    models: [
+      { id: "moonshotai/Kimi-K2.5", label: "Kimi K2.5" },
+      { id: "gpt-5.4-mini", label: "GPT-5.4 Mini" },
+    ],
+    efforts: [],
+    modelEfforts: {},
+    modes: ["agent", "plan"],
+    approvalPolicies: [{ id: "yolo", label: "Bypass Permissions" }],
+    sandboxModes: [],
+    supportsResume: true,
+    supportsDirectInput: true,
+    liveInputMode: "terminal",
+    presentationMode: "terminal",
+    presentationModes: ["terminal"],
+    defaultApprovalPolicy: "yolo",
+    settingDefs: [],
+  },
+};
+
 const claudeStatus: AgentStatus = {
   kind: "claude",
   label: "Claude",
@@ -244,6 +269,59 @@ const acpGenericStatus: AgentStatus = {
   },
 };
 
+function classNameIncludes(element: HTMLElement, value: string): boolean {
+  return typeof element.className === "string" && element.className.includes(value);
+}
+
+function installDraftComposerLayoutMetrics(): () => void {
+  const originalClientHeight = Object.getOwnPropertyDescriptor(
+    HTMLElement.prototype,
+    "clientHeight",
+  );
+  const originalOffsetHeight = Object.getOwnPropertyDescriptor(
+    HTMLElement.prototype,
+    "offsetHeight",
+  );
+  const originalGetBoundingClientRect = HTMLElement.prototype.getBoundingClientRect;
+
+  Object.defineProperty(HTMLElement.prototype, "clientHeight", {
+    configurable: true,
+    get() {
+      return classNameIncludes(this, "max-w-[1040px]") ? 800 : 0;
+    },
+  });
+  Object.defineProperty(HTMLElement.prototype, "offsetHeight", {
+    configurable: true,
+    get() {
+      if (classNameIncludes(this, "max-w-[720px]")) return 160;
+      return Number.parseInt(this.style.height, 10) || 0;
+    },
+  });
+  HTMLElement.prototype.getBoundingClientRect = function () {
+    return {
+      x: 0,
+      y: 0,
+      top: 0,
+      right: 720,
+      bottom: 0,
+      left: 0,
+      width: 720,
+      height: 0,
+      toJSON: () => ({}),
+    } as DOMRect;
+  };
+
+  return () => {
+    if (originalClientHeight) {
+      Object.defineProperty(HTMLElement.prototype, "clientHeight", originalClientHeight);
+    }
+    if (originalOffsetHeight) {
+      Object.defineProperty(HTMLElement.prototype, "offsetHeight", originalOffsetHeight);
+    }
+    HTMLElement.prototype.getBoundingClientRect = originalGetBoundingClientRect;
+  };
+}
+
 const singleContextThinkingCursorStatus: AgentStatus = {
   ...cursorStatus,
   capabilities: {
@@ -326,6 +404,30 @@ describe("ThreadDraftView", () => {
       expect(providerModel?.currentModel).toBe("auto");
       expect(props.controls.some((control) => control.value === "never")).toBe(true);
     });
+  });
+
+  it("anchors the full draft composer after agents resolve on the initial mount", async () => {
+    const restoreLayoutMetrics = installDraftComposerLayoutMetrics();
+    const onStart = vi.fn<(input: unknown) => void>();
+
+    try {
+      const { container, rerender } = render(
+        <ThreadDraftView project={project} agentStatuses={[]} onStart={onStart} />,
+      );
+
+      expect(container.querySelector("[data-draft-composer-anchor-spacer]")).toBeNull();
+
+      rerender(
+        <ThreadDraftView project={project} agentStatuses={[geminiStatus]} onStart={onStart} />,
+      );
+
+      await waitFor(() => expect(composerSpy).toHaveBeenCalled());
+
+      const spacer = container.querySelector<HTMLElement>("[data-draft-composer-anchor-spacer]");
+      expect(spacer?.style.height).toBe("320px");
+    } finally {
+      restoreLayoutMetrics();
+    }
   });
 
   it("shows the detecting state while agents are still loading", () => {
@@ -645,6 +747,73 @@ describe("ThreadDraftView", () => {
 
     await waitFor(() => {
       expect(screen.getByRole("tab", { name: "Chat" })).toHaveAttribute("aria-selected", "true");
+    });
+  });
+
+  it("adds a provider to the mounted draft picker when it becomes installed", async () => {
+    const onStart = vi.fn<(input: unknown) => void>();
+    const lastDraftConfig = {
+      agentKind: "commandcode",
+      model: "moonshotai/Kimi-K2.5",
+      effort: "",
+      mode: "agent",
+      approvalPolicy: "yolo",
+      sandboxMode: "",
+    } as const;
+    const { rerender } = render(
+      <ThreadDraftView
+        project={project}
+        agentStatuses={[dualModeCodexStatus]}
+        lastDraftConfig={lastDraftConfig}
+        onStart={onStart}
+      />,
+    );
+
+    await waitFor(() => {
+      const props = composerSpy.mock.lastCall?.[0] as {
+        controls: Array<{
+          kind?: string;
+          currentAgentKind?: string;
+          providers?: Array<{ kind: string }>;
+        }>;
+      };
+      const providerModel = props.controls.find((c) => c.kind === "provider-model");
+      expect(providerModel?.currentAgentKind).toBe("codex");
+      expect(providerModel?.providers?.map((provider) => provider.kind)).toEqual(["codex"]);
+    });
+
+    rerender(
+      <ThreadDraftView
+        project={project}
+        agentStatuses={[dualModeCodexStatus, commandCodeStatus]}
+        lastDraftConfig={lastDraftConfig}
+        onStart={onStart}
+      />,
+    );
+
+    await waitFor(() => {
+      const props = composerSpy.mock.lastCall?.[0] as {
+        controls: Array<{
+          kind?: string;
+          currentAgentKind?: string;
+          currentModel?: string;
+          presentationMode?: string;
+          providers?: Array<{
+            kind: string;
+            capabilities: { models: Array<{ id: string; label: string }> };
+          }>;
+        }>;
+      };
+      const providerModel = props.controls.find((c) => c.kind === "provider-model");
+      expect(providerModel?.currentAgentKind).toBe("codex");
+      expect(providerModel?.currentModel).toBe("gpt-5.4");
+      const commandCodeProvider = providerModel?.providers?.find(
+        (provider) => provider.kind === "commandcode",
+      );
+      expect(commandCodeProvider?.capabilities.models.map((model) => model.id)).toEqual([
+        "moonshotai/Kimi-K2.5",
+        "gpt-5.4-mini",
+      ]);
     });
   });
 

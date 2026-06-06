@@ -1,17 +1,18 @@
 import { describe, expect, it } from "vitest";
 import type { ProjectLocation, ThreadConfig } from "@/shared/contracts";
+import type { OscTitle } from "@/shared/osc";
 import { createGeminiAdapter } from ".";
 import { buildGeminiArgs } from "./argv";
 import { geminiIntentFor } from "./plugin/intentMap";
 import { detectGeminiInvalidSessionRef } from "./session";
-import { detectGeminiTerminalStatus } from "./terminal";
+import { detectGeminiOscTitleStatus } from "./terminal";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-describe("detectGeminiTerminalStatus", () => {
+describe("detectGeminiOscTitleStatus", () => {
   it("detects idle from ◇ Ready title bar indicator", () => {
-    const text = "0;◇  Ready (my-project)";
-    expect(detectGeminiTerminalStatus(text)).toEqual({
+    const text = "◇  Ready (my-project)";
+    expect(detectGeminiOscTitleStatus(text)).toEqual({
       status: "idle",
       attention: "none",
       corroborated: true,
@@ -19,8 +20,8 @@ describe("detectGeminiTerminalStatus", () => {
   });
 
   it("detects working from ✦ Working title bar indicator", () => {
-    const text = "0;✦  Working… (my-project)";
-    expect(detectGeminiTerminalStatus(text)).toEqual({
+    const text = "✦  Working… (my-project)";
+    expect(detectGeminiOscTitleStatus(text)).toEqual({
       status: "working",
       attention: "working",
       corroborated: true,
@@ -28,160 +29,64 @@ describe("detectGeminiTerminalStatus", () => {
   });
 
   it("detects needs_reply from ✋ Action Required title bar indicator", () => {
-    const text = "0;✋  Action Required (my-project)";
-    const result = detectGeminiTerminalStatus(text);
+    const text = "✋  Action Required (my-project)";
+    const result = detectGeminiOscTitleStatus(text);
     expect(result?.status).toBe("needs_reply");
     expect(result?.attention).toBe("needs_reply");
-  });
-
-  it("detects needs_reply from Enter to select footer", () => {
-    const text = "Enter to select · ↑/↓ to navigate · Esc to cancel";
-    const result = detectGeminiTerminalStatus(text);
-    expect(result?.status).toBe("needs_reply");
-    expect(result?.attention).toBe("needs_reply");
-  });
-
-  it("detects working from esc-to-cancel prompt", () => {
-    const text = "⠋ Thinking about your request... (esc to cancel, 2s)";
-    expect(detectGeminiTerminalStatus(text)).toEqual({
-      status: "working",
-      attention: "working",
-      corroborated: true,
-    });
-  });
-
-  it("ignores stale spinner without esc-to-cancel context", () => {
-    const text = "⠋ Resuming session...\n>   Type your message or @path/to/file";
-    expect(detectGeminiTerminalStatus(text)).toEqual({
-      status: "idle",
-      attention: "none",
-      corroborated: false,
-    });
-  });
-
-  it("detects approval prompt from [y/n] pattern", () => {
-    const text = "Allow gemini to write to file.ts? [y/n]";
-    expect(detectGeminiTerminalStatus(text)).toEqual({
-      status: "needs_approval",
-      attention: "needs_approval",
-      corroborated: true,
-    });
   });
 
   it("returns null when no pattern matches", () => {
-    expect(detectGeminiTerminalStatus("random text with no indicators")).toBeNull();
+    expect(detectGeminiOscTitleStatus("Type your message or @path/to/file")).toBeNull();
+    expect(detectGeminiOscTitleStatus("? for shortcuts")).toBeNull();
+    expect(detectGeminiOscTitleStatus("⠋ Thinking... (esc to cancel, 2s)")).toBeNull();
   });
+});
 
-  it("Ready wins over earlier Working when closer to end", () => {
-    const text = "0;✦  Working… (my-project)\nsome output\n0;◇  Ready (my-project)";
-    expect(detectGeminiTerminalStatus(text)?.status).toBe("idle");
-  });
+describe("createGeminiAdapter handleOscNotification", () => {
+  const adapter = createGeminiAdapter();
 
-  it("Action Required wins over Working when closer to end", () => {
-    const text = "0;✦  Working… (my-project)\nsome output\n0;✋  Action Required (my-project)";
-    expect(detectGeminiTerminalStatus(text)?.status).toBe("needs_reply");
-  });
-
-  it("keeps working when the input prompt is still visible below the spinner", () => {
-    const text = [
-      "0;✦  Working… (my-project)",
-      "⠋ Thinking... Moving Towards the Goal (esc to cancel, 4s)",
-      ">   Type your message or @path/to/file",
-      "? for shortcuts",
-    ].join("\n");
-
-    expect(detectGeminiTerminalStatus(text)).toEqual({
+  it("maps iTerm2 OSC 9;4 progress to working and idle", () => {
+    expect(
+      adapter.handleOscNotification?.({ code: 9, title: "", body: "4;3;0", payload: undefined }),
+    ).toEqual({
       status: "working",
       attention: "working",
       corroborated: true,
     });
-  });
-
-  it("returns to idle when Ready appears after earlier working output", () => {
-    const text = [
-      "⠋ Thinking... Moving Towards the Goal (esc to cancel, 4s)",
-      ">   Type your message or @path/to/file",
-      "0;◇  Ready (my-project)",
-      ">   Type your message or @path/to/file",
-    ].join("\n");
-
-    expect(detectGeminiTerminalStatus(text)).toEqual({
+    expect(
+      adapter.handleOscNotification?.({ code: 9, title: "", body: "4;0;0", payload: undefined }),
+    ).toEqual({
       status: "idle",
       attention: "none",
       corroborated: true,
     });
   });
+});
 
-  it("keeps working when spinner is present but no title bar signal exists", () => {
-    const text = [
-      "⠋ This is taking a bit longer, we're still on it. (esc to cancel, 2m 13s)",
-      ">   Type your message or @path/to/file",
-      "? for shortcuts",
-    ].join("\n");
+describe("createGeminiAdapter handleOscTitle", () => {
+  const adapter = createGeminiAdapter();
+  const oscTitle = (text: string, code: 0 | 1 | 2 = 0): OscTitle => ({ code, text });
 
-    expect(detectGeminiTerminalStatus(text)).toEqual({
+  it("does not parse stripped TUI text for status", () => {
+    expect(adapter.detectTerminalStatus).toBeUndefined();
+  });
+
+  it("maps Gemini title-bar status to Lightcode status", () => {
+    expect(adapter.handleOscTitle?.(oscTitle("✦  Working… (lightcode)"))).toEqual({
       status: "working",
       attention: "working",
       corroborated: true,
     });
-  });
-
-  it("still uses the input prompt as an idle fallback when no stronger signal exists", () => {
-    const text = ">   Type your message or @path/to/file";
-    expect(detectGeminiTerminalStatus(text)).toEqual({
+    expect(adapter.handleOscTitle?.(oscTitle("◇  Ready (lightcode)"))).toEqual({
       status: "idle",
       attention: "none",
-      corroborated: false,
+      corroborated: true,
     });
-  });
-
-  it("ignores stale working output deep in history when only the idle prompt remains in the tail", () => {
-    const text = [
-      "0;✦  Working… (my-project)",
-      "x".repeat(1500),
-      ">   Type your message or @path/to/file",
-    ].join("\n");
-
-    expect(detectGeminiTerminalStatus(text)).toEqual({
-      status: "idle",
-      attention: "none",
-      corroborated: false,
+    expect(adapter.handleOscTitle?.(oscTitle("✋  Action Required (lightcode)"))).toEqual({
+      status: "needs_reply",
+      attention: "needs_reply",
+      corroborated: true,
     });
-  });
-
-  it("detects needs_reply from Action Required with numbered options", () => {
-    const text = [
-      "Which modules would you like to update?",
-      "",
-      "● 1.  All npm modules",
-      "  2.  Specific packages",
-      "  3.  Other",
-      "",
-      "Enter to select · ↑/↓ to navigate · Esc to cancel",
-      "",
-      "0;✋  Action Required (my-project)",
-    ].join("\n");
-
-    const result = detectGeminiTerminalStatus(text);
-    expect(result?.status).toBe("needs_reply");
-    expect(result?.attention).toBe("needs_reply");
-  });
-
-  it("detects needs_reply from plan approval with Action Required", () => {
-    const text = [
-      "Ready to start implementation?",
-      "",
-      "● 1.  Yes, automatically accept edits",
-      "  2.  Yes, manually accept edits",
-      "",
-      "Enter to select",
-      "",
-      "0;✋  Action Required (my-project)",
-    ].join("\n");
-
-    const result = detectGeminiTerminalStatus(text);
-    expect(result?.status).toBe("needs_reply");
-    expect(result?.attention).toBe("needs_reply");
   });
 });
 

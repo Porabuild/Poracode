@@ -10,12 +10,28 @@ export function getWslCommand(): string {
 }
 
 /**
+ * Default PATH used inside a WSL distro when launching an agent CLI, before
+ * prepending any resolved binary/node dirs. Shared by the per-provider argv
+ * builders so the fallback search path stays consistent across providers.
+ */
+export const DEFAULT_WSL_EXEC_PATH = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin";
+
+/** A valid POSIX environment variable name; anything else is rejected outright. */
+const POSIX_ENV_NAME_RE = /^[A-Za-z_][A-Za-z0-9_]*$/;
+
+/**
  * Build a `export K=V; ` prefix string for injecting env vars into a POSIX shell script.
  * Returns an empty string when there are no env vars to inject.
+ *
+ * Values are always single-quoted via `quotePosixShellArg`. Keys are validated
+ * against `POSIX_ENV_NAME_RE` and skipped if invalid: the key is interpolated
+ * raw into the `export` statement, so a key containing shell metacharacters
+ * would otherwise break out of the script. All current callers pass constant
+ * keys, but this keeps a future dynamic-key caller from introducing injection.
  */
 export function buildPosixExportPrefix(env: Record<string, string> | undefined): string {
   if (!env) return "";
-  const entries = Object.entries(env);
+  const entries = Object.entries(env).filter(([k]) => POSIX_ENV_NAME_RE.test(k));
   if (entries.length === 0) return "";
   return entries.map(([k, v]) => `export ${k}=${quotePosixShellArg(v)}`).join("; ") + "; ";
 }

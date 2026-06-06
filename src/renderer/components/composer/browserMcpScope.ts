@@ -22,7 +22,8 @@ export function getBrowserMcpScope(
 ): BrowserMcpScope {
   if (presentationMode === "gui") {
     if (agentKind === "claude") return "always";
-    if (agentKind === "opencode" || agentKind === "antigravity") return "none";
+    if (agentKind === "opencode" || agentKind === "antigravity" || agentKind === "commandcode")
+      return "none";
     return "launch";
   }
   if (agentKind === "codex") return "launch";

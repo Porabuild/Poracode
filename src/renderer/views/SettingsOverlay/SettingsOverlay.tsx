@@ -91,6 +91,7 @@ export function SettingsOverlay(props: { onClose: () => void }) {
   );
   const isAgentsSectionActive = activeSection === "agents" || activeSection.startsWith("agents:");
   const wslDistros = wslProjectDistrosKey ? wslProjectDistrosKey.split("\0") : [];
+  const section = renderSection(activeSection, setActiveSection);
 
   const refreshAgents = () => {
     if (isRefreshingAgents) {
@@ -142,14 +143,24 @@ export function SettingsOverlay(props: { onClose: () => void }) {
         />
       }
       content={
-        <div className="relative h-full min-h-0">
-          {renderSection(activeSection, setActiveSection)}
-          {isAgentsSectionActive && isRefreshingAgents ? (
-            <div className="absolute inset-0 z-20 bg-background/90 backdrop-blur-sm">
-              <AgentDiscoveryScreen wslDistros={wslDistros} onCancel={cancelRefreshAgents} />
-            </div>
-          ) : null}
-        </div>
+        activeSection === "acpRegistry" ? (
+          <div key={activeSection} className="relative h-full min-h-0">
+            {section}
+          </div>
+        ) : (
+          <div
+            key={activeSection}
+            data-settings-scroll-area="true"
+            className="relative h-full min-h-0 overflow-y-auto px-6 pb-8 pt-4 [overflow-anchor:none] [scrollbar-gutter:stable]"
+          >
+            {section}
+            {isAgentsSectionActive && isRefreshingAgents ? (
+              <div className="absolute inset-0 z-20 bg-background/90 backdrop-blur-sm">
+                <AgentDiscoveryScreen wslDistros={wslDistros} onCancel={cancelRefreshAgents} />
+              </div>
+            ) : null}
+          </div>
+        )
       }
     />
   );

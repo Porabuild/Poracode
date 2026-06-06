@@ -74,6 +74,7 @@ describe("UsageService", () => {
       "antigravity",
       "claude",
       "codex",
+      "commandcode",
       "copilot",
       "cursor",
       "gemini",
@@ -83,13 +84,13 @@ describe("UsageService", () => {
 
     const claude = result.snapshots.find((s) => s.providerId === "claude");
     expect(claude?.status).toBe("ok");
-    expect(claude?.windows.find((w) => w.id === "session-5h")?.usedPercent).toBe(40);
+    expect(claude?.windows.find((w) => w.id === "session-5h")?.usedPercent).toBe(0.4);
     // No token → auth-missing, no endpoint hit.
     expect(result.snapshots.find((s) => s.providerId === "codex")?.status).toBe("auth-missing");
 
     const perProvider = events.filter((e) => e.type === "provider-usage");
     const terminal = events.filter((e) => e.type === "provider-usage-all");
-    expect(perProvider).toHaveLength(8);
+    expect(perProvider).toHaveLength(9);
     expect(terminal).toHaveLength(1);
   });
 

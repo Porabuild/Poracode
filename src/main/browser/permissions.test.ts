@@ -18,7 +18,7 @@ type RequestHandler = (
   callback: (granted: boolean) => void,
 ) => void;
 
-function installAndCaptureRequestHandler(): RequestHandler {
+function createFakeSession() {
   let requestHandler: RequestHandler | null = null;
   const session = {
     setPermissionRequestHandler: vi.fn<(handler: RequestHandler) => void>((handler) => {
@@ -27,6 +27,15 @@ function installAndCaptureRequestHandler(): RequestHandler {
     setPermissionCheckHandler: vi.fn<() => boolean>(),
   };
   installSessionPermissions(session as unknown as Parameters<typeof installSessionPermissions>[0]);
+  return {
+    session,
+    getRequestHandler: () => requestHandler,
+  };
+}
+
+function installAndCaptureRequestHandler(): RequestHandler {
+  const { getRequestHandler } = createFakeSession();
+  const requestHandler = getRequestHandler();
   if (!requestHandler) {
     throw new Error("installSessionPermissions did not register a request handler");
   }

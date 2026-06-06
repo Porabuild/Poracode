@@ -25,6 +25,8 @@ const ERROR_BACKOFF_MS = 3000;
 interface PollerState {
   manifestPath: string;
   transcriptDir: string | undefined;
+  includeAgentChats: boolean;
+  chatRefCount: number;
   location: ProjectLocation;
   refCount: number;
   timer: ReturnType<typeof setTimeout> | null;
@@ -46,6 +48,7 @@ interface WorkflowRunStore {
     manifestPath: string,
     location: ProjectLocation,
     transcriptDir?: string,
+    includeAgentChats?: boolean,
   ) => () => void;
 }
 
@@ -69,6 +72,7 @@ export const useWorkflowRunStore = create<WorkflowRunStore>((set, get) => {
         manifestPath: poller.manifestPath,
         location: poller.location,
         ...(poller.transcriptDir ? { transcriptDir: poller.transcriptDir } : {}),
+        ...(poller.includeAgentChats ? { includeAgentChats: true } : {}),
       });
       if (poller.cancelled) return;
       // A `null` run means the manifest file doesn't exist yet — the
@@ -94,17 +98,27 @@ export const useWorkflowRunStore = create<WorkflowRunStore>((set, get) => {
 
   return {
     byItemId: {},
-    subscribe(itemId, manifestPath, location, transcriptDir) {
+    subscribe(itemId, manifestPath, location, transcriptDir, includeAgentChats = false) {
       const existing = pollers.get(itemId);
       if (existing) {
         existing.refCount += 1;
-        if (!existing.timer && !get().byItemId[itemId]?.run) {
+        let shouldFetch = !get().byItemId[itemId]?.run;
+        if (includeAgentChats && !existing.includeAgentChats) {
+          existing.chatRefCount += 1;
+          existing.includeAgentChats = true;
+          shouldFetch = true;
+        } else if (includeAgentChats) {
+          existing.chatRefCount += 1;
+        }
+        if (!existing.timer && shouldFetch) {
           existing.timer = setTimeout(() => void tick(itemId), 0);
         }
       } else {
         const poller: PollerState = {
           manifestPath,
           transcriptDir,
+          includeAgentChats,
+          chatRefCount: includeAgentChats ? 1 : 0,
           location,
           refCount: 1,
           timer: null,
@@ -126,6 +140,10 @@ export const useWorkflowRunStore = create<WorkflowRunStore>((set, get) => {
         const poller = pollers.get(itemId);
         if (!poller) return;
         poller.refCount = Math.max(0, poller.refCount - 1);
+        if (includeAgentChats) {
+          poller.chatRefCount = Math.max(0, poller.chatRefCount - 1);
+          poller.includeAgentChats = poller.chatRefCount > 0;
+        }
         if (poller.refCount === 0) {
           poller.cancelled = true;
           if (poller.timer) {
