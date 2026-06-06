@@ -626,6 +626,69 @@ describe("ClaudeSdkSession", () => {
     await session.dispose();
   });
 
+  it.skipIf(process.platform !== "win32")(
+    "wraps native Windows SDK .cmd shims instead of spawning them directly",
+    async () => {
+      const fake = createFakeQuery();
+      mockSdk.query.mockReturnValue(fake.runtime);
+      const signal = new AbortController().signal;
+      const session = await ClaudeSdkSession.create({
+        threadId: "thread-claude-windows-shim",
+        projectLocation,
+        config,
+        presentationMode: "gui",
+      });
+      session.setListener({
+        onRuntimeEvent: () => {},
+        onUpdate: () => {},
+        onError: () => {},
+        onClose: () => {},
+      });
+
+      await session.openThread(config);
+      const queryInput = mockSdk.query.mock.calls[0]?.[0] as {
+        options?: {
+          spawnClaudeCodeProcess?: (spawnOptions: SpawnOptions) => SpawnedProcess;
+        };
+      };
+      const spawnClaudeCodeProcess = queryInput.options?.spawnClaudeCodeProcess;
+      expect(spawnClaudeCodeProcess).toEqual(expect.any(Function));
+
+      spawnClaudeCodeProcess?.({
+        command: "C:\\Users\\demo\\AppData\\Roaming\\npm\\claude.cmd",
+        args: ["chat", "--json"],
+        cwd: "C:\\repo\\subdir",
+        env: {
+          CLAUDE_AGENT_SDK_CLIENT_APP: "lightcode",
+          FOO: "bar",
+          PATH: "C:\\Windows\\System32",
+        },
+        signal,
+      });
+
+      expect(mockChildProcess.spawn).toHaveBeenCalledTimes(1);
+      const [command, _args, options] = mockChildProcess.spawn.mock.calls[0] as [
+        string,
+        string[],
+        Record<string, unknown>,
+      ];
+      expect(command).not.toBe("C:\\Users\\demo\\AppData\\Roaming\\npm\\claude.cmd");
+      expect(options).toMatchObject({
+        cwd: "C:\\repo\\subdir",
+        env: expect.objectContaining({
+          CLAUDE_AGENT_SDK_CLIENT_APP: "lightcode",
+          FOO: "bar",
+          PATH: "C:\\Windows\\System32",
+        }),
+        signal,
+        stdio: ["pipe", "pipe", "pipe"],
+        windowsHide: true,
+      });
+
+      await session.dispose();
+    },
+  );
+
   it("surfaces live SDK slash commands on GUI sessions", async () => {
     const fake = createFakeQuery([
       {

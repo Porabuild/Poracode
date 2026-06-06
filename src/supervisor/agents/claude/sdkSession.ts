@@ -29,6 +29,7 @@ import { areAgentSlashCommandsEqual } from "@/shared/contracts";
 import { buildClaudeBrowserMcpServers } from "./mcpBrowser";
 import {
   createKnownSessionRef,
+  buildAgentCommand,
   getWslCommand,
   getPrimedPosixEnv,
   getProjectShellEnv,
@@ -97,6 +98,8 @@ type CompletedClaudeTurn = {
   resumeSessionAt: string | undefined;
 };
 
+type WindowsProjectLocation = Extract<ProjectLocation, { kind: "windows" }>;
+
 function projectCwd(location: ProjectLocation): string {
   switch (location.kind) {
     case "wsl":
@@ -160,6 +163,14 @@ function filteredEnv(env: Record<string, string | undefined>): Record<string, st
   return out;
 }
 
+function definedEnv(env: Record<string, string | undefined>): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const [key, value] of Object.entries(env)) {
+    if (value !== undefined) out[key] = value;
+  }
+  return out;
+}
+
 function buildDirectWslEnvCommandArgs(
   command: string,
   args: string[],
@@ -201,14 +212,35 @@ function spawnClaudeInWsl(location: ProjectLocation, options: SpawnOptions): Spa
   }) as unknown as SpawnedProcess;
 }
 
-function spawnClaudeNative(location: ProjectLocation, options: SpawnOptions): SpawnedProcess {
+function spawnClaudeNative(
+  location: WindowsProjectLocation,
+  options: SpawnOptions,
+): SpawnedProcess {
   const command = options.command || resolveAgentBinaryPath(location, "claude") || "claude";
+  const cwd = options.cwd ?? location.path;
+  if (process.platform === "win32") {
+    const env = definedEnv(options.env);
+    const spec = buildAgentCommand(
+      { ...location, path: cwd },
+      command,
+      options.args,
+      undefined,
+      env,
+    );
+    return spawn(spec.command, spec.args, {
+      ...(spec.env ? { env: spec.env } : Object.keys(env).length > 0 ? { env } : {}),
+      signal: options.signal,
+      stdio: ["pipe", "pipe", "pipe"],
+      windowsHide: true,
+      cwd: spec.cwd,
+    }) as unknown as SpawnedProcess;
+  }
   return spawn(command, options.args, {
     env: options.env,
     signal: options.signal,
     stdio: ["pipe", "pipe", "pipe"],
     windowsHide: true,
-    ...(options.cwd ? { cwd: options.cwd } : {}),
+    cwd,
   }) as unknown as SpawnedProcess;
 }
 
@@ -872,6 +904,19 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
         this.currentConfig.browserMcp === true,
         this.input.browserMcp,
       );
+      let spawnClaudeCodeProcess: ((spawnOptions: SpawnOptions) => SpawnedProcess) | undefined;
+      switch (this.input.projectLocation.kind) {
+        case "wsl": {
+          const location = this.input.projectLocation;
+          spawnClaudeCodeProcess = (spawnOptions) => spawnClaudeInWsl(location, spawnOptions);
+          break;
+        }
+        case "windows": {
+          const location = this.input.projectLocation;
+          spawnClaudeCodeProcess = (spawnOptions) => spawnClaudeNative(location, spawnOptions);
+          break;
+        }
+      }
       const options: ClaudeQueryOptions = {
         cwd: projectCwd(this.input.projectLocation),
         model,
@@ -903,17 +948,7 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
         ...(browserMcpServers
           ? ({ mcpServers: browserMcpServers } as Partial<ClaudeQueryOptions>)
           : {}),
-        ...(this.input.projectLocation.kind === "wsl"
-          ? {
-              spawnClaudeCodeProcess: (spawnOptions) =>
-                spawnClaudeInWsl(this.input.projectLocation, spawnOptions),
-            }
-          : this.input.projectLocation.kind === "windows"
-            ? {
-                spawnClaudeCodeProcess: (spawnOptions) =>
-                  spawnClaudeNative(this.input.projectLocation, spawnOptions),
-              }
-            : {}),
+        ...(spawnClaudeCodeProcess ? { spawnClaudeCodeProcess } : {}),
       };
 
       this.queryRuntime = query({ prompt: this.promptQueue, options });
