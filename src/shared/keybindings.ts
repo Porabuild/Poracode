@@ -34,7 +34,7 @@ export const DEFAULT_KEYBINDINGS: KeybindingsFile = {
       command: "thread.search.open",
       key: "Ctrl+P",
       mac: "Meta+P",
-      when: "!inputFocus && !editorFocus && !terminalFocus",
+      when: "!inputFocus && !editorFocus && !terminalFocus && !composerFocus && !panelFocus && !browserFocus",
     },
     {
       command: "terminal.toggle",
@@ -45,7 +45,7 @@ export const DEFAULT_KEYBINDINGS: KeybindingsFile = {
       command: "pane.close",
       key: "Ctrl+W",
       mac: "Meta+W",
-      when: "threadView && !inputFocus && !editorFocus && !terminalFocus",
+      when: "threadView && !inputFocus && !editorFocus && !terminalFocus && !composerFocus && !panelFocus && !browserFocus",
     },
     {
       command: "editor.save",

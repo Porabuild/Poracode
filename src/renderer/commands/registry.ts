@@ -53,7 +53,7 @@ export function buildWhenContext(
   const composerFocus = Boolean(
     element?.closest("[data-lightcode-composer], .lightcode-composer-shell"),
   );
-  const panelFocus = Boolean(element?.closest("[data-lightcode-panel]"));
+  const panelFocus = Boolean(element?.closest("[data-lightcode-panel], [data-overlay-surface]"));
   const browserFocus = Boolean(element?.closest("[data-lightcode-browser]"));
 
   return {

@@ -9,7 +9,11 @@ describe("DEFAULT_KEYBINDINGS", () => {
 
     expect(byCommand["pane.close"]?.when).toContain("!inputFocus");
     expect(byCommand["pane.close"]?.when).toContain("!terminalFocus");
+    expect(byCommand["pane.close"]?.when).toContain("!panelFocus");
+    expect(byCommand["pane.close"]?.when).toContain("!browserFocus");
+    expect(byCommand["pane.close"]?.when).toContain("!composerFocus");
     expect(byCommand["editor.save"]?.when).toBe("editorFocus");
     expect(byCommand["thread.search.open"]?.when).toContain("!inputFocus");
+    expect(byCommand["thread.search.open"]?.when).toContain("!panelFocus");
   });
 });

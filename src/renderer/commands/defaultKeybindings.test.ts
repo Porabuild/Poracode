@@ -48,6 +48,43 @@ describe("default keybindings", () => {
         inputFocus: true,
       }),
     ).toBe(false);
+    expect(
+      evaluateWhenClause(bindings["pane.close"]?.when, {
+        ...idleThreadContext,
+        panelFocus: true,
+      }),
+    ).toBe(false);
+    expect(
+      evaluateWhenClause(bindings["pane.close"]?.when, {
+        ...idleThreadContext,
+        browserFocus: true,
+      }),
+    ).toBe(false);
+    expect(
+      evaluateWhenClause(bindings["pane.close"]?.when, {
+        ...idleThreadContext,
+        composerFocus: true,
+      }),
+    ).toBe(false);
+    expect(evaluateWhenClause(bindings["thread.search.open"]?.when, idleThreadContext)).toBe(true);
+    expect(
+      evaluateWhenClause(bindings["thread.search.open"]?.when, {
+        ...idleThreadContext,
+        panelFocus: true,
+      }),
+    ).toBe(false);
+    expect(
+      evaluateWhenClause(bindings["thread.search.open"]?.when, {
+        ...idleThreadContext,
+        browserFocus: true,
+      }),
+    ).toBe(false);
+    expect(
+      evaluateWhenClause(bindings["thread.search.open"]?.when, {
+        ...idleThreadContext,
+        composerFocus: true,
+      }),
+    ).toBe(false);
     expect(evaluateWhenClause(bindings["editor.save"]?.when, { editorFocus: true })).toBe(true);
     expect(evaluateWhenClause(bindings["editor.save"]?.when, { editorOpen: true })).toBe(false);
   });
