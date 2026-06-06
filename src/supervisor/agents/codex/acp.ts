@@ -931,12 +931,11 @@ export class CodexStructuredSession implements StructuredSessionHandle {
           return;
         }
 
-        if ((method === "turn/completed" || method === "turn/aborted") && params) {
+        if (method === "turn/completed" || method === "turn/aborted") {
           if (suppressResumeReplay) {
             return;
           }
-          const incomingThreadId =
-            "threadId" in params ? String(params.threadId) : this.remoteThreadId;
+          const incomingThreadId = readNotificationThreadId(params, this.remoteThreadId);
           if (!incomingThreadId) return;
           if (!this.isCurrentThreadNotification(incomingThreadId)) {
             return;

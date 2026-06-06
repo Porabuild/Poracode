@@ -885,6 +885,46 @@ describe("CodexStructuredSession", () => {
     ]);
   });
 
+  it("emits completion idle for Codex turn completion notifications without params", () => {
+    const session = Object.create(CodexStructuredSession.prototype) as Record<string, unknown>;
+    const updates: StructuredSessionUpdate[] = [];
+    let onMessage: ((message: unknown) => void) | undefined;
+
+    session["threadId"] = "local-thread";
+    session["remoteThreadId"] = "provider-thread";
+    session["isDisposed"] = false;
+    session["currentThreadStatus"] = { type: "active", activeFlags: [] };
+    session["seenErrorMessages"] = new Set<string>();
+    session["bufferedRuntimeEvents"] = [];
+    session["pendingRequests"] = new Map();
+    session["inboundRequests"] = new Map();
+    session["resumeActiveStatusSuppressionUntil"] = new Map();
+    session["rejectPendingRequests"] = () => {};
+    session["request"] = async () => ({});
+    session["listener"] = {
+      onClose: () => {},
+      onError: () => {},
+      onUpdate: (update: StructuredSessionUpdate) => updates.push(update),
+      onRuntimeEvent: () => {},
+    };
+    session["transport"] = {
+      setListener: (next: { onMessage: (message: unknown) => void }) => {
+        onMessage = next.onMessage;
+      },
+      write: () => {},
+      formatOutput: () => "",
+    };
+
+    (session["attachTransportHandlers"] as () => void).call(session);
+
+    onMessage?.({
+      jsonrpc: "2.0",
+      method: "turn/completed",
+    });
+
+    expect(updates).toEqual([{ status: "idle", attention: "none" }]);
+  });
+
   it("collapses a single usage-limit failure into one error event", () => {
     vi.useFakeTimers();
     try {
