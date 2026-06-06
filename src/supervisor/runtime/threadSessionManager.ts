@@ -1064,18 +1064,15 @@ export class ThreadSessionManager {
           hookEnvInjected: hasHookEnv,
         });
       } else if (hasHookEnv) {
-        const label =
-          projectLocation.kind === "wsl"
-            ? "CLI hook plugin → in-distro HTTP bridge (WSL) → supervisor"
-            : projectLocation.kind === "ssh"
-              ? "CLI hook plugin → SSH reverse tunnel → supervisor"
-              : "CLI hook plugin → host HookIngress → supervisor";
+        const viaWslBridge = projectLocation.kind === "wsl";
         hookDebugSpawn({
           threadId,
           agentKind,
           project: hookDebugProjectLabel(projectLocation),
           mode: "L1",
-          label,
+          label: viaWslBridge
+            ? "CLI hook plugin → in-distro HTTP bridge (WSL) → supervisor"
+            : "CLI hook plugin → host HookIngress → supervisor",
           liveInputMode,
           hookUrl,
           extraCliArgs: merged.extraArgs.length,
@@ -1359,7 +1356,10 @@ export class ThreadSessionManager {
       adapter,
       structuredSession?.launchOptions,
     );
-    const launchOptionsWithBrowserMcp = this.launchOptionsWithBrowserMcp(launchOptions, browserMcp);
+    const launchOptionsWithBrowserMcp = this.launchOptionsWithSessionTracking(
+      payload.projectLocation,
+      this.launchOptionsWithBrowserMcp(launchOptions, browserMcp),
+    );
     const argv = payload.sessionRef
       ? adapter.buildResumeArgv(
           payload.projectLocation,
@@ -1463,6 +1463,9 @@ export class ThreadSessionManager {
     presentationMode?: import("@/shared/contracts").ThreadPresentationMode,
   ): Promise<StructuredSessionHandle | undefined> {
     if (!adapter.createStructuredSession) {
+      return undefined;
+    }
+    if (projectLocation.kind === "ssh") {
       return undefined;
     }
     try {
@@ -1632,6 +1635,7 @@ export class ThreadSessionManager {
     this.outputPipeline.emitState(session);
     if (
       pty &&
+      input.projectLocation.kind !== "ssh" &&
       !session.sessionRef &&
       !session.sessionRefDiscoveryStarted &&
       input.adapter.discoverSessionRef
@@ -1805,6 +1809,10 @@ export class ThreadSessionManager {
   }
 
   private pollSessionRefDiscovery(session: SessionRuntime): void {
+    if (session.projectLocation.kind === "ssh") {
+      return;
+    }
+    const projectLocation = session.projectLocation;
     let attempt = 0;
     let polling = false;
     const existingIds = new Set<string>();
@@ -1826,7 +1834,7 @@ export class ThreadSessionManager {
         attempt += 1;
       }
       try {
-        const ref = await session.adapter.discoverSessionRef?.(session.projectLocation);
+        const ref = await session.adapter.discoverSessionRef?.(projectLocation);
         if (ref && !session.sessionRef && !existingIds.has(ref.providerSessionId)) {
           session.sessionRef = ref;
           session.canResumeWithConfig = true;
@@ -1847,7 +1855,7 @@ export class ThreadSessionManager {
     };
 
     session.stopSessionRefWatcher = session.adapter.watchSessionRef?.(
-      session.projectLocation,
+      projectLocation,
       () => void poll(true),
     );
     const initialDelay = session.adapter.initialSessionRefDiscoveryDelayMs ?? 0;
@@ -1990,9 +1998,12 @@ export class ThreadSessionManager {
       config,
       launchPrompt,
       session.sessionRef,
-      this.launchOptionsWithBrowserMcp(
-        this.launchOptionsWithAgentSettings(session.adapter, structuredSession?.launchOptions),
-        browserMcp,
+      this.launchOptionsWithSessionTracking(
+        session.projectLocation,
+        this.launchOptionsWithBrowserMcp(
+          this.launchOptionsWithAgentSettings(session.adapter, structuredSession?.launchOptions),
+          browserMcp,
+        ),
       ),
     );
     if (cliHookExtras.extraArgs.length > 0) {
@@ -2090,9 +2101,12 @@ export class ThreadSessionManager {
         session.config,
         session.launchPrompt,
         undefined,
-        this.launchOptionsWithBrowserMcp(
-          this.launchOptionsWithAgentSettings(session.adapter),
-          browserMcp,
+        this.launchOptionsWithSessionTracking(
+          session.projectLocation,
+          this.launchOptionsWithBrowserMcp(
+            this.launchOptionsWithAgentSettings(session.adapter),
+            browserMcp,
+          ),
         ),
       );
       if (cliHookExtras.extraArgs.length > 0) {
@@ -2303,6 +2317,15 @@ export class ThreadSessionManager {
       ...launchOptions,
       ...(browserMcp !== undefined ? { browserMcp } : {}),
     };
+  }
+
+  private launchOptionsWithSessionTracking(
+    location: ProjectLocation,
+    launchOptions: AgentLaunchOptions,
+  ): AgentLaunchOptions {
+    return location.kind === "ssh"
+      ? { ...launchOptions, sessionTrackingEnabled: false }
+      : launchOptions;
   }
 
   private isBrowserMcpEnabledForLaunch(

@@ -78,15 +78,17 @@ export async function generateTitle(
   // Prefer the SDK / structured-runtime path: no cold-start cost, no argv
   // length limit. Fall back to spawning the CLI when the adapter only
   // exposes `buildOneShotCommand`.
-  const raw = adapter.runOneShot
-    ? await adapter.runOneShot({
-        location,
-        model: effectiveModel,
-        effort,
-        prompt: finalPrompt,
-        signal: timeoutSignal(TITLE_GEN_TIMEOUT_MS),
-      })
-    : await runViaCli(location, adapter, effectiveModel, effort, finalPrompt);
+  const sdkLocation = location.kind === "ssh" ? undefined : location;
+  const raw =
+    adapter.runOneShot && sdkLocation
+      ? await adapter.runOneShot({
+          location: sdkLocation,
+          model: effectiveModel,
+          effort,
+          prompt: finalPrompt,
+          signal: timeoutSignal(TITLE_GEN_TIMEOUT_MS),
+        })
+      : await runViaCli(location, adapter, effectiveModel, effort, finalPrompt);
 
   const title = cleanTitle(raw);
   if (!title) {

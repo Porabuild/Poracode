@@ -1,6 +1,6 @@
 import type { OpencodeClient } from "@opencode-ai/sdk/v2/client";
-import type { ProjectLocation } from "@/shared/contracts";
 import type { BrowserMcpHttpConfig } from "@/supervisor/agents/browserMcp";
+import type { NonSshProjectLocation } from "../base";
 import { resolveAgentBinaryPath } from "../binaryResolver";
 import { BROWSER_MCP_SERVER_NAME } from "../browserMcp";
 import { buildOpenCodeServerCommand } from "./argv";
@@ -13,26 +13,23 @@ import {
 } from "./sdkServer";
 
 /** Agent-side cwd that the SDK passes through to the server's session config. */
-export function resolveOpenCodeSessionDirectory(location: ProjectLocation): string {
+export function resolveOpenCodeSessionDirectory(location: NonSshProjectLocation): string {
   switch (location.kind) {
     case "windows":
       return location.path;
     case "wsl":
       return location.linuxPath;
-    case "ssh":
     case "posix":
       return location.path;
   }
 }
 
-function poolKey(location: ProjectLocation): string {
+function poolKey(location: NonSshProjectLocation): string {
   switch (location.kind) {
     case "windows":
       return `windows:${location.path}`;
     case "wsl":
       return `wsl:${location.distro}:${location.linuxPath}`;
-    case "ssh":
-      return `ssh:${location.host}:${location.path}`;
     case "posix":
       return `posix:${location.path}`;
   }
@@ -118,7 +115,7 @@ async function waitForOpenCodeReachable(baseUrl: string): Promise<void> {
   }
 }
 
-async function spawnAndWire(projectLocation: ProjectLocation): Promise<ServerSnapshot> {
+async function spawnAndWire(projectLocation: NonSshProjectLocation): Promise<ServerSnapshot> {
   const resolvedExecPath = resolveAgentBinaryPath(projectLocation, "opencode");
   const command = buildOpenCodeServerCommand(projectLocation, resolvedExecPath);
   const handle = spawnOpenCodeServer(command);
@@ -156,7 +153,7 @@ async function spawnAndWire(projectLocation: ProjectLocation): Promise<ServerSna
  * `session.create`; GUI flow keeps its acquisition for the thread's lifetime.
  */
 export interface AcquireOpenCodeServerInput {
-  projectLocation: ProjectLocation;
+  projectLocation: NonSshProjectLocation;
   browserMcpEnabled?: boolean;
   browserMcp?: BrowserMcpHttpConfig;
   /**

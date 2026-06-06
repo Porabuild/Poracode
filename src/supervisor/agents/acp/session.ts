@@ -51,7 +51,6 @@ import {
 } from "@agentclientprotocol/sdk";
 import type {
   AgentSlashCommand,
-  ProjectLocation,
   PromptSegment,
   RuntimeEvent,
   SessionRef,
@@ -74,7 +73,6 @@ import {
 import { terminateChildProcessTree } from "@/shared/processTree";
 import { ensureNodePtySpawnHelperExecutable } from "@/supervisor/nodePty";
 import {
-  buildAgentCommand,
   buildPosixExportPrefix,
   createKnownSessionRef,
   detectShell,
@@ -85,12 +83,11 @@ import {
   getWslCommand,
   quotePosixShellArg,
   quotePowerShellLiteral,
-  readSessionFileText,
   resolveWslShellPath,
-  runSshScript,
   type AgentLaunchOptions,
   type CommandSpec,
   type CreateStructuredSessionInput,
+  type NonSshProjectLocation,
   type StartTurnOptions,
   type StructuredSessionHandle,
   type StructuredSessionListener,
@@ -127,7 +124,7 @@ export { resolveAcpReadableHostFsPath, resolveAcpResourcePath, toAcpResourceUri 
  */
 async function segmentsToContentBlocks(
   prompt: string,
-  location: ProjectLocation,
+  location: NonSshProjectLocation,
   segments?: PromptSegment[],
   promptCapabilities?: PromptCapabilities,
 ): Promise<ContentBlock[]> {
@@ -263,7 +260,7 @@ function processEnvRecord(): Record<string, string> {
   return env;
 }
 
-function buildAcpTerminalEnv(location: ProjectLocation): Record<string, string> {
+function buildAcpTerminalEnv(location: NonSshProjectLocation): Record<string, string> {
   const env = processEnvRecord();
   if (location.kind === "windows") {
     return {
@@ -309,14 +306,14 @@ function acpTerminalEnvEntries(
   return env;
 }
 
-function resolveAcpTerminalCwd(location: ProjectLocation, cwd: string): string {
+function resolveAcpTerminalCwd(location: NonSshProjectLocation, cwd: string): string {
   return location.kind === "wsl"
     ? resolveAcpProjectPath(location, cwd)
     : resolveAcpHostFsPath(location, cwd);
 }
 
 function buildAcpTerminalLaunch(
-  location: ProjectLocation,
+  location: NonSshProjectLocation,
   cwd: string,
   command: string,
   args: string[],
@@ -363,22 +360,6 @@ function buildAcpTerminalLaunch(
         "-c",
         script,
       ],
-      env: processEnvRecord(),
-    };
-  }
-
-  if (location.kind === "ssh") {
-    const spec = buildAgentCommand(
-      { ...location, path: cwd },
-      command,
-      args,
-      undefined,
-      { TERM: "xterm-256color", ...requestEnv },
-      { sshBatchMode: "yes", sshTty: false },
-    );
-    return {
-      command: spec.command,
-      args: spec.args,
       env: processEnvRecord(),
     };
   }
@@ -477,7 +458,7 @@ export class AcpStructuredSession implements StructuredSessionHandle {
   private readonly child: ChildProcess;
   private readonly connection: ClientSideConnection;
   private readonly cwd: string;
-  private readonly projectLocation: ProjectLocation;
+  private readonly projectLocation: NonSshProjectLocation;
   private readonly browserMcp: BrowserMcpHttpConfig | undefined;
   /** Lightcode thread id (stable identifier we report in RuntimeEvents). */
   private readonly threadId: string;
@@ -546,7 +527,7 @@ export class AcpStructuredSession implements StructuredSessionHandle {
   private constructor(
     child: ChildProcess,
     connection: ClientSideConnection,
-    projectLocation: ProjectLocation,
+    projectLocation: NonSshProjectLocation,
     cwd: string,
     threadId: string,
     options?: AcpStructuredSessionOptions,
@@ -761,7 +742,7 @@ export class AcpStructuredSession implements StructuredSessionHandle {
    */
   static create(
     command: CommandSpec,
-    projectLocation: ProjectLocation,
+    projectLocation: NonSshProjectLocation,
     threadId: string,
     options?: AcpStructuredSessionOptions,
   ): AcpStructuredSession {
@@ -1229,13 +1210,7 @@ export class AcpStructuredSession implements StructuredSessionHandle {
   private async handleReadTextFile(params: ReadTextFileRequest): Promise<ReadTextFileResponse> {
     this.assertRequestSession(params.sessionId);
     const path = resolveAcpReadableHostFsPath(this.projectLocation, params.path);
-    const fullContent =
-      this.projectLocation.kind === "ssh"
-        ? await readSessionFileText(this.projectLocation, path)
-        : await readFile(path, "utf8");
-    if (fullContent === undefined) {
-      throw RequestError.invalidParams({ message: `File not found: ${params.path}` });
-    }
+    const fullContent = await readFile(path, "utf8");
     const content = sliceTextFileContent(fullContent, params.line, params.limit);
     return { content };
   }
@@ -1243,20 +1218,7 @@ export class AcpStructuredSession implements StructuredSessionHandle {
   private async handleWriteTextFile(params: WriteTextFileRequest): Promise<WriteTextFileResponse> {
     this.assertRequestSession(params.sessionId);
     const path = resolveAcpHostFsPath(this.projectLocation, params.path);
-    if (this.projectLocation.kind === "ssh") {
-      const encoded = Buffer.from(params.content, "utf8").toString("base64");
-      await runSshScript(
-        this.projectLocation,
-        [
-          `path=${quotePosixShellArg(path)}`,
-          `dir=\${path%/*}`,
-          `mkdir -p "$dir"`,
-          `printf %s ${quotePosixShellArg(encoded)} | base64 -d > "$path"`,
-        ].join("\n"),
-      );
-    } else {
-      await writeFile(path, params.content, "utf8");
-    }
+    await writeFile(path, params.content, "utf8");
     return {};
   }
 

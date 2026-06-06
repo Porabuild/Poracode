@@ -7,8 +7,6 @@ import {
   createKnownSessionRef,
   getCachedWslHomeDirectory,
   listSessionDir,
-  readSshCommandOutputSync,
-  resolveSshHomeDirectory,
   resolveWslHomeDirectoryAsync,
   statSessionPaths,
   watchSessionPaths,
@@ -34,10 +32,6 @@ function getGrokCwdSessionsDir(location: ProjectLocation, cwd: string): string |
     if (!home) return null;
     return `${home}/.grok/sessions/${encodeCwdKey(cwd)}`;
   }
-  if (location.kind === "ssh") {
-    const home = resolveSshHomeDirectory(location);
-    return home ? `${home}/.grok/sessions/${encodeCwdKey(cwd)}` : null;
-  }
   return join(GROK_SESSIONS_ROOT, encodeCwdKey(cwd));
 }
 
@@ -53,10 +47,6 @@ async function getGrokCwdSessionsDirAsync(
 function getGrokSessionsRoot(location: ProjectLocation): string | null {
   if (location.kind === "wsl") {
     const home = getCachedWslHomeDirectory(location.distro);
-    return home ? `${home}/.grok/sessions` : null;
-  }
-  if (location.kind === "ssh") {
-    const home = resolveSshHomeDirectory(location);
     return home ? `${home}/.grok/sessions` : null;
   }
   return GROK_SESSIONS_ROOT;
@@ -78,20 +68,6 @@ export function snapshotGrokPreSpawnSessions(location: ProjectLocation, cwd: str
   const dir = getGrokCwdSessionsDir(location, cwd);
   if (!dir) return;
 
-  if (location.kind === "ssh") {
-    const result = readSshCommandOutputSync(location, "sh", [
-      "-lc",
-      `[ -d ${shellQuote(dir)} ] && ls -1 -- ${shellQuote(dir)} 2>/dev/null || true`,
-    ]);
-    if (!result.ok) return;
-    preSpawnCwdKey = encodeCwdKey(cwd);
-    for (const name of result.stdout.split(/\r?\n/)) {
-      const trimmed = name.trim();
-      if (isUuid(trimmed)) preSpawnSessionIds.add(trimmed);
-    }
-    return;
-  }
-
   if (!existsSync(dir)) return;
   preSpawnCwdKey = encodeCwdKey(cwd);
 
@@ -105,10 +81,6 @@ export function snapshotGrokPreSpawnSessions(location: ProjectLocation, cwd: str
   } catch {
     // Best effort; discovery will still be able to pick a recent dir.
   }
-}
-
-function shellQuote(s: string): string {
-  return `'${s.replace(/'/g, "'\\''")}'`;
 }
 
 function isUuid(s: string): boolean {
@@ -169,7 +141,7 @@ export function makeGrokDiscoverSessionRef() {
  */
 export function resolveGrokSessionsWatchPaths(location: ProjectLocation, cwd: string): string[] {
   const dir = getGrokCwdSessionsDir(location, cwd);
-  if (location.kind === "wsl" || location.kind === "ssh") {
+  if (location.kind === "wsl") {
     const root = getGrokSessionsRoot(location);
     return [dir ?? undefined, root ?? undefined].filter((p): p is string => Boolean(p));
   }
@@ -266,16 +238,15 @@ for (const r of reqs) p.stdin.write(JSON.stringify(r) + "\\n");
  * Returns `undefined` on any failure (timeout, auth error, JSON parse, etc.).
  * Callers must treat undefined as "no minted ID" and proceed without `-r`.
  *
- * Remote environments skip this local pre-mint path. The remote PTY launch
- * still snapshots sessions before spawn and discovers the created session
- * afterward, matching the fallback path used when local minting fails.
+ * WSL is skipped — minting would require routing the ACP child through
+ * `wsl.exe`, which is out of scope here.
  */
 export function mintGrokSessionIdViaAcpSync(
   location: ProjectLocation,
   timeoutMs = 4500,
   extraLaunchArgs: string[] = [],
 ): string | undefined {
-  if (location.kind === "wsl" || location.kind === "ssh") return undefined;
+  if (location.kind === "wsl") return undefined;
 
   // Use the absolute path resolved during detection. Packaged Electron apps
   // start with a minimal PATH that may exclude Homebrew/asdf/etc., so a bare

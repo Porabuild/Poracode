@@ -13,19 +13,14 @@ import {
   ctxCacheKey,
   getNativeHookWrapperFilename,
   getNativePluginBaseDir,
-  getSshPluginBaseDirs,
   getWslPluginBaseDirs,
   hasNativeHookWrapper,
-  isSshPluginContext,
   isWslPluginContext,
   memoByCtx,
   readBundledPluginVersion,
   readPluginManifest,
   removeStagedPluginDir,
-  stagePluginAssetsToSsh,
   stagePluginAssetsToWsl,
-  verifySshStagedPlugin,
-  writeSshJsonFile,
   writeNativeHookWrapper,
   type PluginManifest,
 } from "../../plugin/installerBase";
@@ -88,15 +83,6 @@ export function readBundledClaudePluginVersion(): string {
 }
 
 function computeClaudePluginPaths(ctx?: AgentEnvContext): ClaudePluginPaths {
-  if (isSshPluginContext(ctx)) {
-    const ssh = getSshPluginBaseDirs(ctx, "claude");
-    if (!ssh) return { pluginDir: "", settingsPath: "", version: "0.0.0" };
-    return {
-      pluginDir: ssh.linuxBase,
-      settingsPath: `${ssh.linuxBase}/settings.json`,
-      version: "0.0.0",
-    };
-  }
   if (isWslPluginContext(ctx)) {
     const wsl = getWslPluginBaseDirs(ctx.wslDistro, "claude");
     if (!wsl) return { pluginDir: "", settingsPath: "", version: "0.0.0" };
@@ -186,15 +172,6 @@ export function installClaudePlugin(
     }
     return installClaudePluginWsl(ctx.wslDistro, sourceDir, manifest, options.resolvedNodePath);
   }
-  if (isSshPluginContext(ctx)) {
-    if (!options?.resolvedNodePath) {
-      return {
-        ok: false,
-        reason: "SSH Claude plugin install requires a resolved node path on the remote host.",
-      };
-    }
-    return installClaudePluginSsh(ctx, sourceDir, manifest, options.resolvedNodePath);
-  }
 
   const pluginDir = getNativePluginBaseDir("claude", ctx?.baseDir);
   mkdirSync(pluginDir, { recursive: true });
@@ -220,37 +197,6 @@ export function installClaudePlugin(
     ok: true,
     version: manifest.version,
     paths: { pluginDir, settingsPath, version: manifest.version },
-  };
-}
-
-function installClaudePluginSsh(
-  ctx: AgentEnvContext & { envKind: "ssh"; sshHost: string },
-  sourceDir: string,
-  manifest: PluginManifest,
-  resolvedNodePath: string,
-): { ok: true; paths: ClaudePluginPaths; version: string } | { ok: false; reason: string } {
-  const staged = stagePluginAssetsToSsh(ctx, sourceDir, "claude", {
-    includeForwardRuntime: true,
-  });
-  if (!staged.ok) return staged;
-
-  const linuxPluginDir = staged.linuxPluginDir;
-  const settingsPath = `${linuxPluginDir}/settings.json`;
-  const headExpression = buildWslHookCommandHead(resolvedNodePath, `${linuxPluginDir}/forward.mjs`);
-  const settings = renderClaudeSettings(headExpression);
-  const settingsResult = writeSshJsonFile(ctx, settingsPath, settings);
-  if (!settingsResult.ok) return settingsResult;
-  const hooksResult = writeSshJsonFile(ctx, `${linuxPluginDir}/hooks/hooks.json`, settings);
-  if (!hooksResult.ok) return hooksResult;
-
-  console.log(
-    `[supervisor] Claude hook plugin staged v${manifest.version} on SSH host ${ctx.sshHost} at ${linuxPluginDir} (forward.mjs, settings.json, hooks/hooks.json) using node=${resolvedNodePath}`,
-  );
-
-  return {
-    ok: true,
-    version: manifest.version,
-    paths: { pluginDir: linuxPluginDir, settingsPath, version: manifest.version },
   };
 }
 
@@ -310,17 +256,6 @@ export function isClaudePluginInstalled(ctx?: AgentEnvContext): {
   installed: boolean;
   version?: string;
 } {
-  if (isSshPluginContext(ctx)) {
-    return verifySshStagedPlugin(ctx, "claude", {
-      assets: [
-        "plugin.json",
-        "forward.mjs",
-        FORWARD_RUNTIME_FILE,
-        "settings.json",
-        "hooks/hooks.json",
-      ],
-    });
-  }
   if (isWslPluginContext(ctx)) {
     const wsl = getWslPluginBaseDirs(ctx.wslDistro, "claude");
     if (!wsl) return { installed: false };

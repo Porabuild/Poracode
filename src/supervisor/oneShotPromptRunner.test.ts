@@ -51,6 +51,12 @@ const windowsProject: ProjectLocation = {
   path: "C:\\Users\\demo\\project",
 };
 
+const sshProject: ProjectLocation = {
+  kind: "ssh",
+  host: "devbox",
+  path: "/repo",
+};
+
 // Adapter that embeds the prompt directly in argv (mirrors Claude/Gemini/Copilot).
 function argvProneAdapter(): AgentAdapter {
   return {
@@ -132,6 +138,48 @@ describe("runOneShotPromptWithFallback", () => {
     expect(spawnMock).toHaveBeenCalledTimes(1);
     const args = spawnMock.mock.calls[0]?.[1] as string[];
     expect(args).toEqual(["-p", "hello world", "--model", "haiku"]);
+  });
+
+  it("uses the command fallback for SSH even when the adapter supports runOneShot", async () => {
+    const child = createMockChildProcess();
+    spawnMock.mockReturnValueOnce(child);
+    buildAgentCommandMock.mockReturnValueOnce({
+      command: "ssh",
+      args: ["devbox", "remote claude"],
+    });
+    const runOneShot = vi.fn<NonNullable<AgentAdapter["runOneShot"]>>().mockResolvedValue("sdk");
+    const adapter = {
+      ...argvProneAdapter(),
+      runOneShot,
+    } as AgentAdapter;
+
+    const pending = runOneShotPromptWithFallback({
+      location: sshProject,
+      adapter,
+      model: "haiku",
+      effort: undefined,
+      timeoutMs: 10_000,
+      logTag: "test",
+      attempts: [{ level: "full", buildPrompt: () => "remote prompt" }],
+    });
+    await flushPromises();
+
+    child.stdout.emit("data", Buffer.from("remote ok"));
+    child.emit("close", 0);
+
+    await expect(pending).resolves.toBe("remote ok");
+    expect(runOneShot).not.toHaveBeenCalled();
+    expect(buildAgentCommandMock).toHaveBeenCalledWith(sshProject, "claude", [
+      "-p",
+      "remote prompt",
+      "--model",
+      "haiku",
+    ]);
+    expect(spawnMock).toHaveBeenCalledWith(
+      "ssh",
+      ["devbox", "remote claude"],
+      expect.objectContaining({ stdio: ["pipe", "pipe", "pipe"], windowsHide: true }),
+    );
   });
 
   it("proactively skips an attempt whose built argv exceeds the platform budget", async () => {

@@ -5,9 +5,10 @@ import { buildCodexBrowserMcpArgs, buildCodexBrowserMcpEnv } from "../codex/mcpB
 import { buildGeminiBrowserMcpServers } from "../gemini/mcpBrowser";
 import { buildOpenCodeBrowserMcp } from "../opencode/mcpBrowser";
 import { resolveBrowserMcpHttpConfigForLaunch, type BrowserMcpHttpConfig } from "./index";
+import type { ProjectLocation } from "@/shared/contracts";
 
 const wslLocation = { kind: "wsl", distro: "Ubuntu" } as const;
-const sshLocation = { kind: "ssh", host: "devbox", path: "/repo" } as const;
+const sshLocation: ProjectLocation = { kind: "ssh", host: "devbox", path: "/repo" };
 const bridgeMcp: BrowserMcpHttpConfig = {
   url: "http://127.0.0.1:45678/mcp",
   token: "bridge-secret",
@@ -84,44 +85,17 @@ describe("WSL Browser MCP provider configs", () => {
     expect(buildOpenCodeBrowserMcp(wslLocation)).toBeUndefined();
   });
 
-  it("resolves SSH Browser MCP through a reverse SSH bridge", async () => {
+  it("does not pass the host Browser MCP endpoint into SSH launches", async () => {
     process.env.LIGHTCODE_BROWSER_MCP_URL = "http://127.0.0.1:65093";
     process.env.LIGHTCODE_BROWSER_MCP_TOKEN = "host-token";
-    const ensureSshBridge = vi.fn<
-      (
-        location: typeof sshLocation,
-        upstream: { url: string; token: string },
-      ) => Promise<{ baseUrl: string; secret: string }>
-    >(async () => ({
+    const ensureBridge = vi.fn<() => Promise<{ baseUrl: string; secret: string }>>(async () => ({
       baseUrl: "http://127.0.0.1:45678",
-      secret: "host-token",
+      secret: "bridge-secret",
     }));
-    const ensureBridge = vi.fn<() => Promise<{ baseUrl: string; secret: string } | undefined>>();
 
     await expect(
-      resolveBrowserMcpHttpConfigForLaunch(sshLocation, true, {
-        ensureBridge,
-        ensureSshBridge,
-      }),
-    ).resolves.toEqual({
-      url: "http://127.0.0.1:45678/mcp",
-      token: "host-token",
-      headers: { Authorization: "Bearer host-token" },
-    });
-    expect(ensureSshBridge).toHaveBeenCalledWith(sshLocation, {
-      url: "http://127.0.0.1:65093",
-      token: "host-token",
-    });
-  });
-
-  it("does not fall back to local loopback MCP for SSH when no SSH bridge exists", () => {
-    process.env.LIGHTCODE_BROWSER_MCP_URL = "http://127.0.0.1:65093";
-    process.env.LIGHTCODE_BROWSER_MCP_TOKEN = "host-token";
-
-    expect(buildAcpBrowserMcpServers(sshLocation, true)).toEqual([]);
-    expect(buildClaudeBrowserMcpServers(sshLocation, true)).toBeUndefined();
-    expect(buildCodexBrowserMcpArgs(sshLocation, true)).toEqual([]);
-    expect(buildGeminiBrowserMcpServers(sshLocation)).toBeUndefined();
-    expect(buildOpenCodeBrowserMcp(sshLocation)).toBeUndefined();
+      resolveBrowserMcpHttpConfigForLaunch(sshLocation, true, { ensureBridge }),
+    ).resolves.toBeUndefined();
+    expect(ensureBridge).not.toHaveBeenCalled();
   });
 });

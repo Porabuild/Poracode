@@ -196,7 +196,7 @@ import { LanguageServerManager } from "./lsp";
 import { ProjectTreeService } from "./projectTree";
 import { generatePrSummary } from "./prSummaryGenerator";
 import { detectWindowsShell, type WindowsShellPreference } from "./shellPreference";
-import { readSshCommandOutput, SshBrowserMcpTunnelManager } from "./ssh";
+import { readSshCommandOutput } from "./ssh";
 import { generateTitle } from "./titleGenerator";
 import { AgentStatusService, detectWslAgentStatuses } from "./runtime/agentStatusService";
 import { createLocalUsageCollectors } from "./runtime/localUsageCollectors";
@@ -233,7 +233,6 @@ export class SupervisorRuntime {
   private readonly threadSessionManager: ThreadSessionManager;
   private readonly lspManager: LanguageServerManager;
   private readonly cliHookPluginCoordinator: CliHookPluginCoordinator;
-  private readonly sshBrowserMcpTunnels = new SshBrowserMcpTunnelManager();
   private wslHookBridge: WslBridgeServer | undefined;
   private extractionAbortControllers = new Map<string, AbortController>();
 
@@ -404,7 +403,6 @@ export class SupervisorRuntime {
       browserMcpBridge: {
         ensureBridge: (distro) =>
           this.wslHookBridge?.ensureBridge(distro) ?? Promise.resolve(undefined),
-        ensureSshBridge: (location, env) => this.sshBrowserMcpTunnels.ensureTunnel(location, env),
       },
       resolvePluginEnvForSpawn: (input) =>
         this.cliHookPluginCoordinator.resolvePluginEnvForSpawn(input),
@@ -1417,7 +1415,6 @@ export class SupervisorRuntime {
     await this.threadSessionManager.dispose();
     this.sharedSettingsCache.dispose();
     await this.cliHookPluginCoordinator.dispose().catch(() => undefined);
-    this.sshBrowserMcpTunnels.dispose();
     const { shutdownSpawnedOpenCodeServers } = await import("./agents/opencode/sdkClient");
     shutdownSpawnedOpenCodeServers();
   }

@@ -46,10 +46,6 @@ export interface BrowserMcpHttpConfig {
 
 export interface BrowserMcpBridge {
   ensureBridge(distro: string): Promise<{ baseUrl: string; secret: string } | undefined>;
-  ensureSshBridge?(
-    location: Extract<ProjectLocation, { kind: "ssh" }>,
-    upstream: BrowserMcpEnv,
-  ): Promise<{ baseUrl: string; secret: string } | undefined>;
 }
 
 /**
@@ -85,24 +81,12 @@ export async function resolveBrowserMcpHttpConfigForLaunch(
   bridge?: BrowserMcpBridge,
 ): Promise<BrowserMcpHttpConfig | undefined> {
   if (!enabled) return undefined;
+  if (location.kind === "ssh") return undefined;
   if (location.kind === "wsl") {
     if (!bridge) return undefined;
     const env = readBrowserMcpEnv();
     if (!env) return undefined;
     const handle = await bridge.ensureBridge(location.distro);
-    if (!handle) return undefined;
-    const url = `${handle.baseUrl.replace(/\/$/, "")}/mcp`;
-    return {
-      url,
-      token: handle.secret,
-      headers: { Authorization: `Bearer ${handle.secret}` },
-    };
-  }
-  if (location.kind === "ssh") {
-    if (!bridge?.ensureSshBridge) return undefined;
-    const env = readBrowserMcpEnv();
-    if (!env) return undefined;
-    const handle = await bridge.ensureSshBridge(location, env);
     if (!handle) return undefined;
     const url = `${handle.baseUrl.replace(/\/$/, "")}/mcp`;
     return {

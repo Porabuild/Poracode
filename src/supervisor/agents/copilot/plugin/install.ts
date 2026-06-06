@@ -13,21 +13,14 @@ import {
   createPluginSourceResolver,
   ctxCacheKey,
   getNativePluginBaseDir,
-  getSshPluginBaseDirs,
   getWslPluginBaseDirs,
-  isSshPluginContext,
   isWslPluginContext,
   memoByCtx,
   readBundledPluginVersion,
   readPluginManifest,
-  readSshTextFile,
-  removeSshFile,
   removeStagedPluginDir,
-  stagePluginAssetsToSsh,
   stagePluginAssetsToWsl,
   verifyStagedPluginAt,
-  verifySshStagedPlugin,
-  writeSshTextFile,
   writeNativeHookWrapper,
   type PluginManifest,
 } from "../../plugin/installerBase";
@@ -113,15 +106,6 @@ function wslGlobalCopilotDir(distro: string): string {
 }
 
 function computeCopilotPluginPaths(ctx?: AgentEnvContext): CopilotPluginPaths {
-  if (isSshPluginContext(ctx)) {
-    const ssh = getSshPluginBaseDirs(ctx, "copilot");
-    if (!ssh) return { pluginDir: "", globalHookFilePath: "", version: "0.0.0" };
-    return {
-      pluginDir: ssh.linuxBase,
-      globalHookFilePath: `${ssh.home}/.copilot/${GLOBAL_HOOK_DIR_NAME}/${GLOBAL_HOOK_FILENAME}`,
-      version: "0.0.0",
-    };
-  }
   if (isWslPluginContext(ctx)) {
     const wsl = getWslPluginBaseDirs(ctx.wslDistro, "copilot");
     if (!wsl) return { pluginDir: "", globalHookFilePath: "", version: "0.0.0" };
@@ -213,21 +197,6 @@ export function installCopilotPlugin(
       options.globalCopilotDirOverride,
     );
   }
-  if (isSshPluginContext(ctx)) {
-    if (!options?.resolvedNodePath) {
-      return {
-        ok: false,
-        reason: "SSH Copilot plugin install requires a resolved node path on the remote host.",
-      };
-    }
-    return installCopilotPluginSsh(
-      ctx,
-      sourceDir,
-      manifest,
-      options.resolvedNodePath,
-      options.globalCopilotDirOverride,
-    );
-  }
 
   const pluginDir = getNativePluginBaseDir("copilot", ctx?.baseDir);
   mkdirSync(pluginDir, { recursive: true });
@@ -262,49 +231,6 @@ export function installCopilotPlugin(
     ok: true,
     version: manifest.version,
     paths: { pluginDir, globalHookFilePath: hookFilePath, version: manifest.version },
-  };
-}
-
-function installCopilotPluginSsh(
-  ctx: AgentEnvContext & { envKind: "ssh"; sshHost: string },
-  sourceDir: string,
-  manifest: PluginManifest,
-  resolvedNodePath: string,
-  globalCopilotDirOverride: string | undefined,
-): { ok: true; paths: CopilotPluginPaths; version: string } | { ok: false; reason: string } {
-  const staged = stagePluginAssetsToSsh(ctx, sourceDir, "copilot", {
-    includeForwardRuntime: true,
-  });
-  if (!staged.ok) return staged;
-
-  const linuxForward = `${staged.linuxPluginDir}/forward.mjs`;
-  const linuxCopilotDir = globalCopilotDirOverride ?? `${staged.deploy.home}/.copilot`;
-  const hookFilePath = `${linuxCopilotDir}/${GLOBAL_HOOK_DIR_NAME}/${GLOBAL_HOOK_FILENAME}`;
-  const bashCommand = buildWslHookCommandHead(resolvedNodePath, linuxForward);
-  const writeResult = writeSshCopilotHookFileIfChanged(ctx, hookFilePath, { bashCommand });
-  if (!writeResult.ok) {
-    return {
-      ok: false,
-      reason: `failed to write Copilot hook file at ${hookFilePath} on ssh host ${ctx.sshHost}: ${writeResult.reason}`,
-    };
-  }
-
-  console.log(
-    [
-      `[supervisor] Copilot hook plugin staged v${manifest.version} on SSH host ${ctx.sshHost}`,
-      `  pluginDir: ${staged.linuxPluginDir}`,
-      `  hookFile: ${hookFilePath}`,
-    ].join("\n"),
-  );
-
-  return {
-    ok: true,
-    version: manifest.version,
-    paths: {
-      pluginDir: staged.linuxPluginDir,
-      globalHookFilePath: hookFilePath,
-      version: manifest.version,
-    },
   };
 }
 
@@ -360,13 +286,6 @@ export function isCopilotPluginInstalled(ctx?: AgentEnvContext): {
   installed: boolean;
   version?: string;
 } {
-  if (isSshPluginContext(ctx)) {
-    const paths = getCopilotPluginPaths(ctx);
-    return verifySshStagedPlugin(ctx, "copilot", {
-      assets: COPILOT_VERIFY_ASSETS,
-      extraCheck: () => readSshTextFile(ctx, paths.globalHookFilePath) !== undefined,
-    });
-  }
   if (isWslPluginContext(ctx)) {
     const wsl = getWslPluginBaseDirs(ctx.wslDistro, "copilot");
     if (!wsl) return { installed: false };
@@ -387,14 +306,6 @@ export function isCopilotPluginInstalled(ctx?: AgentEnvContext): {
 }
 
 export function uninstallCopilotPlugin(ctx?: AgentEnvContext): void {
-  if (isSshPluginContext(ctx)) {
-    const paths = getCopilotPluginPaths(ctx);
-    if (readSshTextFile(ctx, paths.globalHookFilePath) !== undefined) {
-      removeSshFile(ctx, paths.globalHookFilePath);
-    }
-    removeStagedPluginDir("copilot", ctx);
-    return;
-  }
   const hookFile = isWslPluginContext(ctx)
     ? toWslUncPath(
         ctx.wslDistro,
@@ -469,16 +380,6 @@ function writeCopilotHookFileIfChanged(
       reason: error instanceof Error ? error.message : String(error),
     };
   }
-}
-
-function writeSshCopilotHookFileIfChanged(
-  ctx: AgentEnvContext & { envKind: "ssh"; sshHost: string },
-  hookFilePath: string,
-  input: { bashCommand: string; powershellCommand?: string },
-): { ok: true } | { ok: false; reason: string } {
-  const serialized = `${JSON.stringify(renderCopilotHookConfig(input), null, 2)}\n`;
-  if (readSshTextFile(ctx, hookFilePath) === serialized) return { ok: true };
-  return writeSshTextFile(ctx, hookFilePath, serialized);
 }
 
 /** Exposed for tests. */

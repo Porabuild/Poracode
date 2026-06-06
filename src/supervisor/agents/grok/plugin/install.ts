@@ -13,21 +13,14 @@ import {
   createPluginSourceResolver,
   ctxCacheKey,
   getNativePluginBaseDir,
-  getSshPluginBaseDirs,
   getWslPluginBaseDirs,
-  isSshPluginContext,
   isWslPluginContext,
   memoByCtx,
   readBundledPluginVersion,
   readPluginManifest,
-  readSshTextFile,
-  removeSshFile,
   removeStagedPluginDir,
-  stagePluginAssetsToSsh,
   stagePluginAssetsToWsl,
   verifyStagedPluginAt,
-  verifySshStagedPlugin,
-  writeSshTextFile,
   writeNativeHookWrapper,
   type PluginManifest,
 } from "../../plugin/installerBase";
@@ -92,15 +85,6 @@ function wslGlobalGrokDir(distro: string): string {
 }
 
 function computeGrokPluginPaths(ctx?: AgentEnvContext): GrokPluginPaths {
-  if (isSshPluginContext(ctx)) {
-    const ssh = getSshPluginBaseDirs(ctx, "grok");
-    if (!ssh) return { pluginDir: "", globalHookFilePath: "", version: "0.0.0" };
-    return {
-      pluginDir: ssh.linuxBase,
-      globalHookFilePath: `${ssh.home}/${GLOBAL_GROK_DIR_NAME}/${GLOBAL_HOOK_DIR_NAME}/${GLOBAL_HOOK_FILENAME}`,
-      version: "0.0.0",
-    };
-  }
   if (isWslPluginContext(ctx)) {
     const wsl = getWslPluginBaseDirs(ctx.wslDistro, "grok");
     if (!wsl) return { pluginDir: "", globalHookFilePath: "", version: "0.0.0" };
@@ -191,21 +175,6 @@ export function installGrokPlugin(
       options.globalGrokDirOverride,
     );
   }
-  if (isSshPluginContext(ctx)) {
-    if (!options?.resolvedNodePath) {
-      return {
-        ok: false,
-        reason: "SSH Grok plugin install requires a resolved node path on the remote host.",
-      };
-    }
-    return installGrokPluginSsh(
-      ctx,
-      sourceDir,
-      manifest,
-      options.resolvedNodePath,
-      options.globalGrokDirOverride,
-    );
-  }
 
   const pluginDir = getNativePluginBaseDir("grok", ctx?.baseDir);
   mkdirSync(pluginDir, { recursive: true });
@@ -239,49 +208,6 @@ export function installGrokPlugin(
     ok: true,
     version: manifest.version,
     paths: { pluginDir, globalHookFilePath: hookFilePath, version: manifest.version },
-  };
-}
-
-function installGrokPluginSsh(
-  ctx: AgentEnvContext & { envKind: "ssh"; sshHost: string },
-  sourceDir: string,
-  manifest: PluginManifest,
-  resolvedNodePath: string,
-  globalGrokDirOverride: string | undefined,
-): { ok: true; paths: GrokPluginPaths; version: string } | { ok: false; reason: string } {
-  const staged = stagePluginAssetsToSsh(ctx, sourceDir, "grok", {
-    includeForwardRuntime: true,
-  });
-  if (!staged.ok) return staged;
-
-  const linuxForward = `${staged.linuxPluginDir}/forward.mjs`;
-  const linuxGrokDir = globalGrokDirOverride ?? `${staged.deploy.home}/${GLOBAL_GROK_DIR_NAME}`;
-  const hookFilePath = `${linuxGrokDir}/${GLOBAL_HOOK_DIR_NAME}/${GLOBAL_HOOK_FILENAME}`;
-  const command = buildWslHookCommandHead(resolvedNodePath, linuxForward);
-  const writeResult = writeSshGrokHookFileIfChanged(ctx, hookFilePath, { command });
-  if (!writeResult.ok) {
-    return {
-      ok: false,
-      reason: `failed to write Grok hook file at ${hookFilePath} on ssh host ${ctx.sshHost}: ${writeResult.reason}`,
-    };
-  }
-
-  console.log(
-    [
-      `[supervisor] Grok hook plugin staged v${manifest.version} on SSH host ${ctx.sshHost}`,
-      `  pluginDir: ${staged.linuxPluginDir}`,
-      `  hookFile: ${hookFilePath}`,
-    ].join("\n"),
-  );
-
-  return {
-    ok: true,
-    version: manifest.version,
-    paths: {
-      pluginDir: staged.linuxPluginDir,
-      globalHookFilePath: hookFilePath,
-      version: manifest.version,
-    },
   };
 }
 
@@ -337,14 +263,6 @@ export function isGrokPluginInstalled(ctx?: AgentEnvContext): {
   installed: boolean;
   version?: string;
 } {
-  if (isSshPluginContext(ctx)) {
-    const paths = getGrokPluginPaths(ctx);
-    return verifySshStagedPlugin(ctx, "grok", {
-      assets: GROK_VERIFY_ASSETS,
-      extraCheck: () =>
-        hookFileTextMatchesLightcode(readSshTextFile(ctx, paths.globalHookFilePath)),
-    });
-  }
   if (isWslPluginContext(ctx)) {
     const wsl = getWslPluginBaseDirs(ctx.wslDistro, "grok");
     if (!wsl) return { installed: false };
@@ -365,14 +283,6 @@ export function isGrokPluginInstalled(ctx?: AgentEnvContext): {
 }
 
 export function uninstallGrokPlugin(ctx?: AgentEnvContext): void {
-  if (isSshPluginContext(ctx)) {
-    const paths = getGrokPluginPaths(ctx);
-    if (hookFileTextMatchesLightcode(readSshTextFile(ctx, paths.globalHookFilePath))) {
-      removeSshFile(ctx, paths.globalHookFilePath);
-    }
-    removeStagedPluginDir("grok", ctx);
-    return;
-  }
   const hookFile = isWslPluginContext(ctx)
     ? toWslUncPath(
         ctx.wslDistro,
@@ -400,32 +310,6 @@ function hookFileMatchesLightcode(path: string): boolean {
   if (!existsSync(path)) return false;
   try {
     const raw = readFileSync(path, "utf8");
-    const parsed = JSON.parse(raw) as { hooks?: Record<string, unknown> };
-    if (!parsed.hooks || typeof parsed.hooks !== "object") return false;
-    for (const event of GROK_HOOK_EVENTS) {
-      const groups = parsed.hooks[event];
-      if (!Array.isArray(groups) || groups.length === 0) return false;
-      const found = groups.some((group) => {
-        if (!group || typeof group !== "object") return false;
-        const hookEntries = (group as { hooks?: unknown }).hooks;
-        if (!Array.isArray(hookEntries)) return false;
-        return hookEntries.some((hook) => {
-          if (!hook || typeof hook !== "object") return false;
-          const command = (hook as { command?: unknown }).command;
-          return typeof command === "string" && LIGHTCODE_GROK_HOOK_RE.test(command);
-        });
-      });
-      if (!found) return false;
-    }
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-function hookFileTextMatchesLightcode(raw: string | undefined): boolean {
-  if (!raw) return false;
-  try {
     const parsed = JSON.parse(raw) as { hooks?: Record<string, unknown> };
     if (!parsed.hooks || typeof parsed.hooks !== "object") return false;
     for (const event of GROK_HOOK_EVENTS) {
@@ -510,16 +394,6 @@ function writeGrokHookFileIfChanged(
       reason: error instanceof Error ? error.message : String(error),
     };
   }
-}
-
-function writeSshGrokHookFileIfChanged(
-  ctx: AgentEnvContext & { envKind: "ssh"; sshHost: string },
-  hookFilePath: string,
-  input: { command: string },
-): { ok: true } | { ok: false; reason: string } {
-  const serialized = `${JSON.stringify(renderGrokHookConfig(input), null, 2)}\n`;
-  if (readSshTextFile(ctx, hookFilePath) === serialized) return { ok: true };
-  return writeSshTextFile(ctx, hookFilePath, serialized);
 }
 
 export { GROK_HOOK_EVENTS, GLOBAL_HOOK_FILENAME, GLOBAL_HOOK_DIR_NAME };

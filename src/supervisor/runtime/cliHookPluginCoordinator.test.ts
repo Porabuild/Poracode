@@ -659,67 +659,6 @@ describe("CliHookPluginCoordinator install cache", () => {
     expect(resolved).toBeUndefined();
   });
 
-  it("routes SSH spawns through a project-scoped reverse tunnel", async () => {
-    const stub = makeStubAdapter("claude");
-    stub.isPluginInstalled.mockResolvedValue({ installed: true, version: "1.0.0" });
-
-    const ensureTunnel = vi.fn<
-      () => Promise<{ url: string; secret: string; protocolVersion: number }>
-    >(async () => ({
-      url: "http://127.0.0.1:55502/v1/agent-event",
-      secret: "ssh-secret",
-      protocolVersion: 1,
-    }));
-
-    coordinator = new CliHookPluginCoordinator(
-      {
-        adapters: new Map([["claude", stub.adapter]]),
-        settingsPath,
-        envContext: (_kind, location) =>
-          location?.kind === "ssh"
-            ? { envKind: "ssh", sshHost: location.host, sshPath: location.path }
-            : { envKind: "posix" },
-        sshHookTunnel: {
-          ensureTunnel,
-          dispose: vi.fn<() => void>(),
-        },
-      },
-      () => undefined,
-    );
-    coordinator.startIngress();
-
-    const resolved = await coordinator.resolvePluginEnvForSpawn({
-      threadId: "t-ssh",
-      agentKind: "claude",
-      projectLocation: {
-        kind: "ssh",
-        host: "dev.example.com",
-        path: "/home/u/project",
-      },
-    });
-
-    expect(ensureTunnel).toHaveBeenCalledWith(
-      { kind: "ssh", host: "dev.example.com", path: "/home/u/project" },
-      expect.objectContaining({ protocolVersion: 1 }),
-    );
-    expect(stub.isPluginInstalled).toHaveBeenCalledWith(
-      expect.objectContaining({
-        envKind: "ssh",
-        sshHost: "dev.example.com",
-        sshPath: "/home/u/project",
-      }),
-    );
-    expect(resolved).toBeDefined();
-    expect(resolved!.env).toMatchObject({
-      LIGHTCODE_THREAD_ID: "t-ssh",
-      LIGHTCODE_AGENT_KIND: "claude",
-      LIGHTCODE_HOOK_URL: "http://127.0.0.1:55502/v1/agent-event",
-      LIGHTCODE_HOOK_SECRET: "ssh-secret",
-      LIGHTCODE_HOOK_PROTOCOL_VERSION: "1",
-    });
-    expect(resolved!.extraArgs).toEqual(["--claude-marker"]);
-  });
-
   it("skips CLI hook plugin entirely for server-controlled (ACP/SDK) adapters", async () => {
     // ACP/SDK/server agents carry their own status channel. The coordinator
     // must not install the plugin nor return env/args for them — otherwise
@@ -774,6 +713,30 @@ describe("CliHookPluginCoordinator install cache", () => {
       agentKind: "fake-agent",
     });
     expect(resolved).toBeUndefined();
+  });
+
+  it("skips CLI hook plugins for SSH launches", async () => {
+    const stub = makeStubAdapter("claude");
+    stub.isPluginInstalled.mockResolvedValue({ installed: true, version: "1.0.0" });
+
+    coordinator = new CliHookPluginCoordinator(
+      {
+        adapters: new Map([["claude", stub.adapter]]),
+        settingsPath,
+        envContext: () => ({ envKind: "ssh", sshHost: "devbox", sshPath: "/repo" }),
+      },
+      () => undefined,
+    );
+
+    const resolved = await coordinator.resolvePluginEnvForSpawn({
+      threadId: "t-ssh",
+      agentKind: "claude",
+      projectLocation: { kind: "ssh", host: "devbox", path: "/repo" },
+    });
+
+    expect(resolved).toBeUndefined();
+    expect(stub.isPluginInstalled).not.toHaveBeenCalled();
+    expect(stub.installPlugin).not.toHaveBeenCalled();
   });
 
   it("explicitly installs codex and writes a cache entry", async () => {

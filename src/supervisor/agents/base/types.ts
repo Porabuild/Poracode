@@ -49,8 +49,15 @@ export interface AgentEnvContext {
   browserMcp?: BrowserMcpHttpConfig;
 }
 
+export type AgentCliHookEnvContext = Omit<AgentEnvContext, "envKind" | "sshHost" | "sshPath"> & {
+  envKind: "windows" | "wsl" | "posix";
+};
+
+export type NonSshProjectLocation = Exclude<ProjectLocation, { kind: "ssh" }>;
+
 export interface AgentLaunchOptions {
   suppressResumeConfigOverrides?: boolean;
+  sessionTrackingEnabled?: boolean;
   resumeThreadId?: string;
   agentSettings?: Record<string, boolean | string>;
   browserMcp?: BrowserMcpHttpConfig;
@@ -112,7 +119,7 @@ export type ResolveExecutablePath = (command: string) => string | undefined;
 
 export interface CreateStructuredSessionInput {
   threadId: string;
-  projectLocation: ProjectLocation;
+  projectLocation: NonSshProjectLocation;
   config: ThreadConfig;
   agentSettings?: Record<string, boolean | string>;
   browserMcp?: BrowserMcpHttpConfig;
@@ -145,6 +152,10 @@ export interface DetectProbeCtx {
   executablePath: string | undefined;
   version?: string | undefined;
 }
+
+export type CapabilitiesProbeCtx = Omit<DetectProbeCtx, "location"> & {
+  location: NonSshProjectLocation;
+};
 
 export type AuthProbe = (ctx: DetectProbeCtx) => Promise<AuthState | undefined>;
 
@@ -184,7 +195,7 @@ export interface DetectionSpec {
   versionArgs?: string[];
   statusProbe?: StatusProbe;
   authProbes?: AuthProbe[];
-  capabilitiesProbe?: (ctx: DetectProbeCtx) => Promise<CapabilitiesProbeResult | undefined>;
+  capabilitiesProbe?: (ctx: CapabilitiesProbeCtx) => Promise<CapabilitiesProbeResult | undefined>;
 }
 
 export interface AgentMetadata {
@@ -264,13 +275,16 @@ export interface AgentSessionTracker {
   createStructuredSession?(
     input: CreateStructuredSessionInput,
   ): Promise<StructuredSessionHandle | undefined>;
-  discoverSessionRef?(location: ProjectLocation): Promise<SessionRef | undefined>;
+  discoverSessionRef?(location: NonSshProjectLocation): Promise<SessionRef | undefined>;
   initialSessionRefDiscoveryDelayMs?: number;
-  watchSessionRef?(location: ProjectLocation, onChanged: () => void): (() => void) | undefined;
+  watchSessionRef?(
+    location: NonSshProjectLocation,
+    onChanged: () => void,
+  ): (() => void) | undefined;
 }
 
 export interface RunOneShotInput {
-  location: ProjectLocation;
+  location: NonSshProjectLocation;
   model: string;
   effort?: string | undefined;
   prompt: string;
@@ -339,14 +353,14 @@ export interface AgentCliHookPluginSupport {
   readonly pluginVersion: string;
   readonly minProtocolVersion: number;
   readonly partialL1?: boolean;
-  isPluginSupported?(ctx: AgentEnvContext): Promise<boolean>;
-  isPluginInstalled(ctx: AgentEnvContext): Promise<{ installed: boolean; version?: string }>;
+  isPluginSupported?(ctx: AgentCliHookEnvContext): Promise<boolean>;
+  isPluginInstalled(ctx: AgentCliHookEnvContext): Promise<{ installed: boolean; version?: string }>;
   installPlugin(
-    ctx: AgentEnvContext,
+    ctx: AgentCliHookEnvContext,
   ): Promise<{ ok: true; version: string } | { ok: false; reason: string }>;
-  uninstallPlugin?(ctx: AgentEnvContext): Promise<void>;
+  uninstallPlugin?(ctx: AgentCliHookEnvContext): Promise<void>;
   pluginLaunchExtras?(
-    ctx: AgentEnvContext,
+    ctx: AgentCliHookEnvContext,
   ): Promise<{ args?: string[]; env?: Record<string, string> } | undefined>;
 }
 

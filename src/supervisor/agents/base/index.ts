@@ -38,6 +38,7 @@ import type {
   AgentLaunchOptions,
   AgentLauncher,
   AgentMetadata,
+  NonSshProjectLocation,
   AgentOneShotRunner,
   AgentPromptFormatter,
   AgentSessionTracker,
@@ -45,6 +46,7 @@ import type {
   AgentUpdater,
   AgentUpdaterCommand,
   AuthProbe,
+  CapabilitiesProbeCtx,
   CapabilitiesProbeResult,
   CommandSpec,
   CreateStructuredSessionInput,
@@ -61,19 +63,14 @@ import type {
   ThreadHistory,
   ThreadHistoryEntry,
 } from "./types";
-import {
-  buildSshCommand,
-  buildSshPtyCommand,
-  readSshCommandOutput,
-  resolveSshHomeDirectory,
-  runSshScript,
-} from "../../ssh";
+import { buildSshCommand, buildSshPtyCommand, readSshCommandOutput, runSshScript } from "../../ssh";
 
 export type {
   AcpSessionUpdateTransform,
   AgentAcpAuth,
   AgentAdapter,
   AgentArgvSpec,
+  AgentCliHookEnvContext,
   AgentCliHookPluginSupport,
   AgentDetector,
   AgentEnvContext,
@@ -87,6 +84,7 @@ export type {
   AgentUpdater,
   AgentUpdaterCommand,
   AuthProbe,
+  CapabilitiesProbeCtx,
   CapabilitiesProbeResult,
   CommandSpec,
   CreateStructuredSessionInput,
@@ -97,6 +95,7 @@ export type {
   ResolveExecutablePath,
   RunOneShotInput,
   StartTurnOptions,
+  NonSshProjectLocation,
   StatusProbe,
   StatusProbeResult,
   StructuredSessionHandle,
@@ -359,6 +358,13 @@ export function resolveLaunchSpec(location: ProjectLocation, argv: AgentArgvSpec
   return spec;
 }
 
+export function isSessionTrackingLocation(
+  location: ProjectLocation,
+  launchOptions?: AgentLaunchOptions,
+): location is NonSshProjectLocation {
+  return launchOptions?.sessionTrackingEnabled !== false && location.kind !== "ssh";
+}
+
 // ── Install-detection engine ───────────────────────────────────────
 
 /**
@@ -588,19 +594,8 @@ export function resolveAgentHomeSubpath(
     if (!home) return undefined;
     return toWslUncPath(location.distro, `${home}/${trimmed}`);
   }
-  if (location.kind === "ssh") {
-    const home = resolveSshHomeDirectory(location);
-    return home ? `${home}/${trimmed}` : undefined;
-  }
   return join(homedir(), ...subpath.split(/[\\/]/).filter((s) => s.length > 0));
 }
-
-export {
-  readSshCommandOutputSync,
-  resolveSshHomeDirectory,
-  runSshScript,
-  runSshScriptSync,
-} from "../../ssh";
 
 /**
  * Recursive `fs.watch` wrapper with uniform error-swallow / cleanup semantics.
@@ -673,8 +668,12 @@ export async function detectAgentInstall(
   let probedProviderMetadata: AgentProviderMetadata | undefined;
   if (executablePath) {
     const probeCtx: DetectProbeCtx = { location, executablePath, version };
+    const capabilitiesProbeCtx: CapabilitiesProbeCtx | undefined =
+      location.kind === "ssh" ? undefined : { location, executablePath, version };
     const [capabilityPartial, nextStatusProbeResult] = await Promise.all([
-      spec.capabilitiesProbe ? spec.capabilitiesProbe(probeCtx) : Promise.resolve(undefined),
+      spec.capabilitiesProbe && capabilitiesProbeCtx
+        ? spec.capabilitiesProbe(capabilitiesProbeCtx)
+        : Promise.resolve(undefined),
       spec.statusProbe ? spec.statusProbe(probeCtx) : Promise.resolve(undefined),
     ]);
     if (capabilityPartial) {

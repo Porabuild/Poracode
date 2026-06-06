@@ -1,10 +1,6 @@
-import { randomInt } from "node:crypto";
 import { dirname as posixDirname } from "node:path/posix";
 import type { ProjectLocation, ThreadConfig } from "@/shared/contracts";
 import { buildAgentCommand, DEFAULT_WSL_EXEC_PATH, getWslCommand, type CommandSpec } from "../base";
-import { buildSshForwardedCommand } from "../../ssh";
-
-export const OPENCODE_LOCAL_BASE_URL_ENV = "LIGHTCODE_OPENCODE_LOCAL_BASE_URL";
 
 // `opencode` (default TUI) only accepts `[project]` as a positional, so the
 // initial prompt must go through `--prompt` rather than a trailing arg.
@@ -69,27 +65,6 @@ export function buildOpenCodeServerCommand(
         ...args,
       ],
     };
-  }
-  if (location.kind === "ssh") {
-    const localPort = randomInt(40_000, 60_000);
-    const remotePort = randomInt(40_000, 60_000);
-    const spec = buildSshForwardedCommand(
-      location,
-      resolvedExecPath ?? "opencode",
-      ["serve", "--hostname=127.0.0.1", `--port=${remotePort}`, "--print-logs"],
-      undefined,
-      [
-        {
-          localHost: "127.0.0.1",
-          localPort,
-          remoteHost: "127.0.0.1",
-          remotePort,
-        },
-      ],
-      { batchMode: "yes", tty: false },
-    );
-    spec.env = { [OPENCODE_LOCAL_BASE_URL_ENV]: `http://127.0.0.1:${localPort}` };
-    return spec;
   }
   return buildAgentCommand(location, "opencode", args, resolvedExecPath);
 }

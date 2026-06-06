@@ -14,7 +14,7 @@ import {
   unlinkSync,
   writeFileSync,
 } from "node:fs";
-import { dirname, join, posix as pathPosix, resolve } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { resolveLightcodePaths } from "@/shared/lightcodePaths";
 import { toWslUncPath } from "@/shared/wsl";
 import {
@@ -23,12 +23,6 @@ import {
   resolveWslHomeDirectoryAsync,
   type AgentEnvContext,
 } from "../base";
-import {
-  readSshCommandOutput,
-  resolveSshHomeDirectory,
-  runSshScriptSync,
-  type SshLocation,
-} from "../../ssh";
 import { deployFilesToWslHome, type WslHomeDeployResult } from "../../wsl/wslDeploy";
 
 /**
@@ -46,14 +40,9 @@ export interface PluginManifest {
 }
 
 export type WslAgentEnvContext = AgentEnvContext & { envKind: "wsl"; wslDistro: string };
-export type SshAgentEnvContext = AgentEnvContext & { envKind: "ssh"; sshHost: string };
 
 export function isWslPluginContext(ctx: AgentEnvContext | undefined): ctx is WslAgentEnvContext {
   return Boolean(ctx && ctx.envKind === "wsl" && ctx.wslDistro);
-}
-
-export function isSshPluginContext(ctx: AgentEnvContext | undefined): ctx is SshAgentEnvContext {
-  return Boolean(ctx && ctx.envKind === "ssh" && ctx.sshHost);
 }
 
 export interface PluginSourceResolverOptions {
@@ -254,29 +243,11 @@ export interface WslPluginBaseDirs {
   uncBase: string;
 }
 
-export interface SshPluginBaseDirs {
-  home: string;
-  linuxBase: string;
-}
-
 export function getWslPluginBaseDirs(distro: string, kind: string): WslPluginBaseDirs | undefined {
   const home = getCachedWslHomeDirectory(distro);
   if (!home) return undefined;
   const linuxBase = `${home}/.lightcode/agent-plugins/${kind}`;
   return { home, linuxBase, uncBase: toWslUncPath(distro, linuxBase) };
-}
-
-export function getSshLocation(ctx: SshAgentEnvContext): SshLocation {
-  return { kind: "ssh", host: ctx.sshHost, path: "/" };
-}
-
-export function getSshPluginBaseDirs(
-  ctx: SshAgentEnvContext,
-  kind: string,
-): SshPluginBaseDirs | undefined {
-  const home = resolveSshHomeDirectory(getSshLocation(ctx));
-  if (!home) return undefined;
-  return { home, linuxBase: `${home}/.lightcode/agent-plugins/${kind}` };
 }
 
 export function getNativePluginBaseDir(kind: string, baseDir?: string): string {
@@ -285,12 +256,6 @@ export function getNativePluginBaseDir(kind: string, baseDir?: string): string {
 }
 
 export function removeStagedPluginDir(kind: string, ctx?: AgentEnvContext): void {
-  if (isSshPluginContext(ctx)) {
-    const ssh = getSshPluginBaseDirs(ctx, kind);
-    if (!ssh) return;
-    runSshScriptSync(getSshLocation(ctx), `rm -rf ${quoteHookCommandArg(ssh.linuxBase, "wsl")}`);
-    return;
-  }
   const dir = isWslPluginContext(ctx)
     ? getWslPluginBaseDirs(ctx.wslDistro, kind)?.uncBase
     : getNativePluginBaseDir(kind, ctx?.baseDir);
@@ -374,7 +339,7 @@ export function memoByCtx<TArgs extends unknown[], TResult>(
 /** Stable string key for an `AgentEnvContext`. Process-local; not for persistence. */
 export function ctxCacheKey(ctx: AgentEnvContext | undefined): string {
   if (!ctx) return "no-ctx";
-  return `${ctx.envKind}|${ctx.wslDistro ?? ""}|${ctx.sshHost ?? ""}|${ctx.baseDir ?? ""}`;
+  return `${ctx.envKind}|${ctx.wslDistro ?? ""}|${ctx.baseDir ?? ""}`;
 }
 
 /**
@@ -606,18 +571,6 @@ export async function resolveInstallNodePath(
       };
     }
   }
-  if (isSshPluginContext(ctx)) {
-    const location = getSshLocation(ctx);
-    const result = await readSshCommandOutput(location, "sh", ["-lc", "command -v node"], {
-      timeout: 5_000,
-    }).catch((error: unknown) => ({
-      stdout: "",
-      stderr: error instanceof Error ? error.message : String(error),
-    }));
-    const nodePath = result.stdout.trim().split("\n")[0]?.trim();
-    if (nodePath) return { ok: true, nodePath };
-    return { ok: false, reason: `failed to resolve node on ssh host ${ctx.sshHost}` };
-  }
 
   try {
     const { resolveNativeNode } = await import("../../native/runtime");
@@ -699,55 +652,6 @@ function looksLikeUtf16Le(buffer: Buffer): boolean {
 export function writeHooksJsonFile(path: string, doc: unknown): void {
   mkdirSync(dirname(path), { recursive: true });
   writeFileSync(path, `${JSON.stringify(doc, null, 2)}\n`, "utf8");
-}
-
-export function sshPathExists(ctx: SshAgentEnvContext, path: string): boolean {
-  const result = runSshScriptSync(
-    getSshLocation(ctx),
-    `test -e ${quoteHookCommandArg(path, "wsl")}`,
-    { timeout: 5_000 },
-  );
-  return result.ok;
-}
-
-export function readSshTextFile(ctx: SshAgentEnvContext, path: string): string | undefined {
-  const result = runSshScriptSync(getSshLocation(ctx), `cat ${quoteHookCommandArg(path, "wsl")}`, {
-    timeout: 5_000,
-    maxBuffer: 10 * 1024 * 1024,
-  });
-  return result.ok ? result.stdout : undefined;
-}
-
-export function writeSshTextFile(
-  ctx: SshAgentEnvContext,
-  path: string,
-  contents: string,
-): { ok: true } | { ok: false; reason: string } {
-  return writeSshFiles(ctx, [{ remotePath: path, contents: Buffer.from(contents, "utf8") }]);
-}
-
-export function writeSshJsonFile(
-  ctx: SshAgentEnvContext,
-  path: string,
-  doc: unknown,
-): { ok: true } | { ok: false; reason: string } {
-  return writeSshTextFile(ctx, path, `${JSON.stringify(doc, null, 2)}\n`);
-}
-
-export function removeSshFile(ctx: SshAgentEnvContext, path: string): void {
-  runSshScriptSync(getSshLocation(ctx), `rm -f ${quoteHookCommandArg(path, "wsl")}`, {
-    timeout: 5_000,
-  });
-}
-
-export function parseExistingSshJson(ctx: SshAgentEnvContext, path: string): unknown | null {
-  const raw = readSshTextFile(ctx, path);
-  if (raw === undefined) return null;
-  try {
-    return raw.trim() ? (JSON.parse(raw) as unknown) : {};
-  } catch {
-    return null;
-  }
 }
 
 // ── Shared private-home state mirroring ──────────────────────────────────
@@ -939,34 +843,6 @@ export function verifyStagedPluginAt(
   }
 }
 
-export function verifySshStagedPlugin(
-  ctx: SshAgentEnvContext,
-  kind: string,
-  options?: Omit<VerifyStagedPluginOptions, "requireNativeWrapper" | "extraCheck"> & {
-    extraCheck?: () => boolean;
-  },
-): { installed: boolean; version?: string } {
-  const dirs = getSshPluginBaseDirs(ctx, kind);
-  if (!dirs) return { installed: false };
-  const assets = options?.assets ?? PLUGIN_ASSET_FILES;
-  const tests = assets
-    .map((asset) => `test -f ${quoteHookCommandArg(`${dirs.linuxBase}/${asset}`, "wsl")}`)
-    .join("\n");
-  const result = runSshScriptSync(
-    getSshLocation(ctx),
-    `${tests}\ncat ${quoteHookCommandArg(`${dirs.linuxBase}/plugin.json`, "wsl")}`,
-    { timeout: 5_000 },
-  );
-  if (!result.ok) return { installed: false };
-  if (options?.extraCheck && !options.extraCheck()) return { installed: false };
-  try {
-    const version = (JSON.parse(result.stdout) as PluginManifest).version;
-    return typeof version === "string" ? { installed: true, version } : { installed: false };
-  } catch {
-    return { installed: false };
-  }
-}
-
 // ── Shared WSL plugin staging ────────────────────────────────────────────
 
 export interface StagePluginAssetsToWslOptions {
@@ -1028,71 +904,4 @@ export function stagePluginAssetsToWsl(
     deploy,
     linuxPluginDir: `${deploy.linuxBaseDir}/agent-plugins/${kind}`,
   };
-}
-
-// ── Shared SSH plugin staging ────────────────────────────────────────────
-
-export function stagePluginAssetsToSsh(
-  ctx: SshAgentEnvContext,
-  sourceDir: string,
-  kind: string,
-  options?: StagePluginAssetsToWslOptions | readonly string[],
-): { ok: true; deploy: SshPluginBaseDirs; linuxPluginDir: string } | { ok: false; reason: string } {
-  let opts: StagePluginAssetsToWslOptions;
-  if (Array.isArray(options)) opts = { assets: options as readonly string[] };
-  else opts = (options ?? {}) as StagePluginAssetsToWslOptions;
-
-  const deploy = getSshPluginBaseDirs(ctx, kind);
-  if (!deploy) return { ok: false, reason: `failed to resolve home on ssh host ${ctx.sshHost}` };
-
-  const assets = opts.assets ?? PLUGIN_ASSET_FILES;
-  const files: Array<{ remotePath: string; contents: Buffer }> = assets.map((file) => ({
-    remotePath: `${deploy.linuxBase}/${file}`,
-    contents: readFileSync(join(sourceDir, file)),
-  }));
-  if (opts.includeForwardRuntime) {
-    files.push({
-      remotePath: `${deploy.linuxBase}/${FORWARD_RUNTIME_FILE}`,
-      contents: readFileSync(resolveForwardRuntimeSourcePath()),
-    });
-  }
-
-  const written = writeSshFiles(ctx, files);
-  if (!written.ok) return written;
-  return { ok: true, deploy, linuxPluginDir: deploy.linuxBase };
-}
-
-export function copySshFile(
-  ctx: SshAgentEnvContext,
-  sourcePath: string,
-  remotePath: string,
-): { ok: true } | { ok: false; reason: string } {
-  return writeSshFiles(ctx, [{ remotePath, contents: readFileSync(sourcePath) }]);
-}
-
-function writeSshFiles(
-  ctx: SshAgentEnvContext,
-  files: Array<{ remotePath: string; contents: Buffer }>,
-): { ok: true } | { ok: false; reason: string } {
-  const script = files
-    .map((file, index) => {
-      const marker = `LIGHTCODE_FILE_${index}`;
-      return [
-        `mkdir -p ${quoteHookCommandArg(pathPosix.dirname(file.remotePath), "wsl")}`,
-        `base64 -d > ${quoteHookCommandArg(file.remotePath, "wsl")} <<'${marker}'`,
-        file.contents.toString("base64"),
-        marker,
-      ].join("\n");
-    })
-    .join("\n");
-  const result = runSshScriptSync(getSshLocation(ctx), script, {
-    timeout: 15_000,
-    maxBuffer: 10 * 1024 * 1024,
-  });
-  return result.ok
-    ? { ok: true }
-    : {
-        ok: false,
-        reason: result.stderr.trim() || `failed to write files on ssh host ${ctx.sshHost}`,
-      };
 }

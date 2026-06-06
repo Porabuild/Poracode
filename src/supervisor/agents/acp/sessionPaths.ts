@@ -1,37 +1,34 @@
 import { posix, win32 } from "node:path";
 import { pathToFileURL } from "node:url";
 import { RequestError } from "@agentclientprotocol/sdk";
-import type { ProjectLocation } from "@/shared/contracts";
 import { toWslUncPath } from "@/shared/wsl";
+import type { NonSshProjectLocation } from "../base";
 
 /** CWD to pass into the ACP session (the agent's working directory). */
-export function resolveSessionCwd(location: ProjectLocation): string {
+export function resolveSessionCwd(location: NonSshProjectLocation): string {
   switch (location.kind) {
     case "windows":
       return location.path;
     case "wsl":
       return location.linuxPath;
-    case "ssh":
     case "posix":
       return location.path;
   }
 }
 
 /** CWD for the spawned process on the host OS (must be a valid native path). */
-export function resolveSpawnCwd(location: ProjectLocation): string | undefined {
+export function resolveSpawnCwd(location: NonSshProjectLocation): string | undefined {
   // WSL projects launch wsl.exe from Windows — the linux path doesn't exist
   // on the host FS. wsl.exe receives its cwd via --cd, so no spawn cwd needed.
   if (location.kind === "wsl") return undefined;
-  if (location.kind === "ssh") return undefined;
   return location.path;
 }
 
-export function basenameForProjectPath(location: ProjectLocation, filePath: string): string {
+export function basenameForProjectPath(location: NonSshProjectLocation, filePath: string): string {
   switch (location.kind) {
     case "windows":
       return win32.basename(filePath);
     case "wsl":
-    case "ssh":
     case "posix":
       return posix.basename(filePath);
   }
@@ -41,7 +38,7 @@ export function isWindowsAbsolutePath(filePath: string): boolean {
   return /^[A-Za-z]:[\\/]/.test(filePath) || filePath.startsWith("\\\\");
 }
 
-export function resolveAcpResourcePath(location: ProjectLocation, rawPath: string): string {
+export function resolveAcpResourcePath(location: NonSshProjectLocation, rawPath: string): string {
   if (isWindowsAbsolutePath(rawPath)) {
     return rawPath;
   }
@@ -50,13 +47,12 @@ export function resolveAcpResourcePath(location: ProjectLocation, rawPath: strin
       return win32.join(location.path, rawPath);
     case "wsl":
       return rawPath.startsWith("/") ? rawPath : posix.join(location.linuxPath, rawPath);
-    case "ssh":
     case "posix":
       return rawPath.startsWith("/") ? rawPath : posix.join(location.path, rawPath);
   }
 }
 
-function isProjectRelativePath(location: ProjectLocation, absolutePath: string): boolean {
+function isProjectRelativePath(location: NonSshProjectLocation, absolutePath: string): boolean {
   switch (location.kind) {
     case "windows": {
       const relative = win32.relative(location.path, absolutePath);
@@ -66,7 +62,6 @@ function isProjectRelativePath(location: ProjectLocation, absolutePath: string):
       const relative = posix.relative(location.linuxPath, absolutePath);
       return relative === "" || (!relative.startsWith("..") && !posix.isAbsolute(relative));
     }
-    case "ssh":
     case "posix": {
       const relative = posix.relative(location.path, absolutePath);
       return relative === "" || (!relative.startsWith("..") && !posix.isAbsolute(relative));
@@ -74,7 +69,7 @@ function isProjectRelativePath(location: ProjectLocation, absolutePath: string):
   }
 }
 
-export function resolveAcpProjectPath(location: ProjectLocation, rawPath: string): string {
+export function resolveAcpProjectPath(location: NonSshProjectLocation, rawPath: string): string {
   const absolutePath = resolveAcpResourcePath(location, rawPath);
   if (!isProjectRelativePath(location, absolutePath)) {
     throw RequestError.invalidParams({ message: `Path is outside the project: ${rawPath}` });
@@ -82,7 +77,7 @@ export function resolveAcpProjectPath(location: ProjectLocation, rawPath: string
   return absolutePath;
 }
 
-export function resolveAcpHostFsPath(location: ProjectLocation, rawPath: string): string {
+export function resolveAcpHostFsPath(location: NonSshProjectLocation, rawPath: string): string {
   const absolutePath = resolveAcpProjectPath(location, rawPath);
   if (location.kind !== "wsl" || isWindowsAbsolutePath(absolutePath)) {
     return absolutePath;
@@ -93,7 +88,10 @@ export function resolveAcpHostFsPath(location: ProjectLocation, rawPath: string)
     : win32.join(location.uncPath, ...relative.split("/").filter(Boolean));
 }
 
-export function resolveAcpReadableHostFsPath(location: ProjectLocation, rawPath: string): string {
+export function resolveAcpReadableHostFsPath(
+  location: NonSshProjectLocation,
+  rawPath: string,
+): string {
   const absolutePath = resolveAcpResourcePath(location, rawPath);
   if (isProjectRelativePath(location, absolutePath)) {
     return resolveAcpHostFsPath(location, rawPath);
@@ -108,7 +106,7 @@ export function resolveAcpReadableHostFsPath(location: ProjectLocation, rawPath:
   return normalizedPath;
 }
 
-export function toAcpResourceUri(location: ProjectLocation, rawPath: string): string {
+export function toAcpResourceUri(location: NonSshProjectLocation, rawPath: string): string {
   const absolutePath = resolveAcpResourcePath(location, rawPath);
   if (isWindowsAbsolutePath(absolutePath)) {
     // Emit the legacy "file://C:/..." (two-slash) form for Windows absolute
@@ -123,7 +121,6 @@ export function toAcpResourceUri(location: ProjectLocation, rawPath: string): st
     case "windows":
       return pathToFileURL(absolutePath).href;
     case "wsl":
-    case "ssh":
     case "posix":
       return new URL(`file://${absolutePath.replace(/\\/g, "/")}`).href;
   }
@@ -165,7 +162,7 @@ export function sliceTextFileContent(
   return selected.join("\n");
 }
 
-function isAgentSkillReadPath(location: ProjectLocation, absolutePath: string): boolean {
+function isAgentSkillReadPath(location: NonSshProjectLocation, absolutePath: string): boolean {
   switch (location.kind) {
     case "windows": {
       const match =
@@ -178,7 +175,6 @@ function isAgentSkillReadPath(location: ProjectLocation, absolutePath: string): 
       return relative !== "" && !relative.startsWith("..") && !win32.isAbsolute(relative);
     }
     case "wsl":
-    case "ssh":
     case "posix": {
       const match = /^(\/(?:home\/[^/]+|Users\/[^/]+|root)\/\.agents\/skills)(?:\/.*)?$/.exec(
         absolutePath,
@@ -191,7 +187,7 @@ function isAgentSkillReadPath(location: ProjectLocation, absolutePath: string): 
   }
 }
 
-function normalizeAcpPath(location: ProjectLocation, absolutePath: string): string {
+function normalizeAcpPath(location: NonSshProjectLocation, absolutePath: string): string {
   if (isWindowsAbsolutePath(absolutePath)) return win32.normalize(absolutePath);
   return location.kind === "windows"
     ? win32.normalize(absolutePath)

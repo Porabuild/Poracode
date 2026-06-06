@@ -12,7 +12,6 @@
  * collect the assistant's text reply.
  */
 
-import type { ProjectLocation } from "@/shared/contracts";
 import type { RunOneShotInput } from "../base";
 import { classifyOpenCodeError } from "./opencodeErrors";
 import { acquireOpenCodeServer, type AcquiredOpenCodeServer } from "./sdkClient";
@@ -26,7 +25,7 @@ import { acquireOpenCodeServer, type AcquiredOpenCodeServer } from "./sdkClient"
 const ONE_SHOT_IDLE_TTL_MS = 30_000;
 
 interface AcquireInput {
-  location: ProjectLocation;
+  location: RunOneShotInput["location"];
 }
 
 async function acquireOneShotServer(input: AcquireInput): Promise<AcquiredOpenCodeServer> {

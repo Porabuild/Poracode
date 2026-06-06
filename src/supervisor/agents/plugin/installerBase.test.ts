@@ -514,13 +514,10 @@ describe("memoByCtx", () => {
 });
 
 describe("ctxCacheKey", () => {
-  it("produces a stable string per (envKind, wslDistro, sshHost, baseDir) tuple", () => {
-    expect(ctxCacheKey({ envKind: "windows" })).toBe("windows|||");
-    expect(ctxCacheKey({ envKind: "windows", baseDir: "/tmp/a" })).toBe("windows|||/tmp/a");
-    expect(ctxCacheKey({ envKind: "wsl", wslDistro: "Ubuntu" })).toBe("wsl|Ubuntu||");
-    expect(ctxCacheKey({ envKind: "ssh", sshHost: "dev.example.com" })).toBe(
-      "ssh||dev.example.com|",
-    );
+  it("produces a stable string per (envKind, wslDistro, baseDir) tuple", () => {
+    expect(ctxCacheKey({ envKind: "windows" })).toBe("windows||");
+    expect(ctxCacheKey({ envKind: "windows", baseDir: "/tmp/a" })).toBe("windows||/tmp/a");
+    expect(ctxCacheKey({ envKind: "wsl", wslDistro: "Ubuntu" })).toBe("wsl|Ubuntu|");
     expect(ctxCacheKey(undefined)).toBe("no-ctx");
   });
 });

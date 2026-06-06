@@ -97,7 +97,8 @@ export async function runOneShotPromptWithFallback(
     throw new Error(`${options.adapter.label} does not support one-shot generation`);
   }
 
-  const useSdkPath = typeof options.adapter.runOneShot === "function";
+  const sdkLocation = options.location.kind === "ssh" ? undefined : options.location;
+  const useSdkPath = sdkLocation !== undefined && typeof options.adapter.runOneShot === "function";
 
   let lastError: unknown;
   for (let i = 0; i < options.attempts.length; i++) {
@@ -105,14 +106,14 @@ export async function runOneShotPromptWithFallback(
     const prompt = attempt.buildPrompt();
     const hasNextAttempt = i < options.attempts.length - 1;
 
-    if (useSdkPath) {
+    if (useSdkPath && sdkLocation) {
       console.log(
         `[${options.logTag}] sdk one-shot ${attempt.level} (prompt ${prompt.length} chars)`,
       );
       const signal = wrapTimeoutSignal(options.signal, options.timeoutMs);
       try {
         return await options.adapter.runOneShot!({
-          location: options.location,
+          location: sdkLocation,
           model: options.model,
           effort: options.effort,
           prompt,

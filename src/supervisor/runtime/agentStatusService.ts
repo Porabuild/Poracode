@@ -133,6 +133,21 @@ function filterSshStatusesForHosts(
   return statuses.filter((status) => status.envHost !== undefined && hosts.has(status.envHost));
 }
 
+function asSshTerminalStatus(status: AgentStatus, host: string): AgentStatus {
+  return {
+    ...status,
+    envKind: "ssh",
+    envHost: host,
+    capabilities: {
+      ...status.capabilities,
+      liveInputMode: "terminal",
+      presentationMode: "terminal",
+      presentationModes: ["terminal"],
+      supportsResume: false,
+    },
+  };
+}
+
 function statusEnvKey(status: AgentStatus): string {
   return `${status.kind}|${status.envKind ?? ""}|${status.envDistro ?? ""}|${status.envHost ?? ""}`;
 }
@@ -252,16 +267,17 @@ export async function detectSshAgentStatuses(
         adapterList.map(async (adapter) => {
           let status: AgentStatus;
           if (disabled?.has(adapter.kind)) {
-            status = {
-              kind: adapter.kind,
-              label: adapter.label,
-              installed: true,
-              authState: "unknown" as const,
-              capabilities: adapter.capabilities,
-              ...(adapter.update ? { update: adapter.update } : {}),
-              envKind: "ssh" as const,
-              envHost: location.host,
-            };
+            status = asSshTerminalStatus(
+              {
+                kind: adapter.kind,
+                label: adapter.label,
+                installed: true,
+                authState: "unknown" as const,
+                capabilities: adapter.capabilities,
+                ...(adapter.update ? { update: adapter.update } : {}),
+              },
+              location.host,
+            );
           } else {
             try {
               let timeout: NodeJS.Timeout | undefined;
@@ -280,22 +296,23 @@ export async function detectSshAgentStatuses(
               ]).finally(() => {
                 if (timeout) clearTimeout(timeout);
               });
-              status = { ...detected, envKind: "ssh" as const, envHost: location.host };
+              status = asSshTerminalStatus(detected, location.host);
             } catch (error) {
               console.error(
                 `[supervisor] detectInstall(${adapter.kind}, ssh:${location.host}) failed`,
                 error,
               );
-              status = {
-                kind: adapter.kind,
-                label: adapter.label,
-                installed: false,
-                authState: "unknown" as const,
-                capabilities: adapter.capabilities,
-                ...(adapter.update ? { update: adapter.update } : {}),
-                envKind: "ssh" as const,
-                envHost: location.host,
-              };
+              status = asSshTerminalStatus(
+                {
+                  kind: adapter.kind,
+                  label: adapter.label,
+                  installed: false,
+                  authState: "unknown" as const,
+                  capabilities: adapter.capabilities,
+                  ...(adapter.update ? { update: adapter.update } : {}),
+                },
+                location.host,
+              );
             }
           }
           onStatus?.(status);
@@ -525,7 +542,7 @@ export class AgentStatusService {
     const envHost = isSsh ? env.host : undefined;
 
     if (disabled.has(adapter.kind)) {
-      return {
+      const status: AgentStatus = {
         kind: adapter.kind,
         label: adapter.label,
         installed: true,
@@ -536,6 +553,7 @@ export class AgentStatusService {
         ...(envDistro ? { envDistro } : {}),
         ...(envHost ? { envHost } : {}),
       };
+      return isSsh && envHost ? asSshTerminalStatus(status, envHost) : status;
     }
     const ctx: AgentEnvContext | undefined = isSsh
       ? { envKind: "ssh", sshHost: env.host, sshPath: env.path }
@@ -544,16 +562,17 @@ export class AgentStatusService {
         : undefined;
     try {
       const detected = ctx ? await adapter.detectInstall(ctx) : await adapter.detectInstall();
-      return {
+      const status: AgentStatus = {
         ...detected,
         envKind,
         ...(envDistro ? { envDistro } : {}),
         ...(envHost ? { envHost } : {}),
       };
+      return isSsh && envHost ? asSshTerminalStatus(status, envHost) : status;
     } catch (error) {
       const where = isSsh ? `ssh:${env.host}` : isWsl ? `wsl:${env.distro}` : "native";
       console.error(`[supervisor] scoped detectInstall(${adapter.kind}, ${where}) failed`, error);
-      return {
+      const status: AgentStatus = {
         kind: adapter.kind,
         label: adapter.label,
         installed: false,
@@ -564,6 +583,7 @@ export class AgentStatusService {
         ...(envDistro ? { envDistro } : {}),
         ...(envHost ? { envHost } : {}),
       };
+      return isSsh && envHost ? asSshTerminalStatus(status, envHost) : status;
     }
   }
 

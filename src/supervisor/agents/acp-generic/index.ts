@@ -208,9 +208,6 @@ function detectProbeLocation(ctx: AgentEnvContext | undefined): ProjectLocation 
       uncPath: "\\\\wsl$",
     };
   }
-  if (ctx?.envKind === "ssh" && ctx.sshHost) {
-    return { kind: "ssh", host: ctx.sshHost, path: ctx.sshPath ?? "/" };
-  }
   if (process.platform === "win32") {
     return { kind: "windows", path: homedir() };
   }

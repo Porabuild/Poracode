@@ -1,10 +1,8 @@
 import { existsSync, readFileSync, readdirSync, statSync, watch as fsWatch } from "node:fs";
-import { basename, join } from "node:path";
+import { join } from "node:path";
 import type { ProjectLocation } from "@/shared/contracts";
 import { toWslUncPath } from "@/shared/wsl";
 import type { WslBridgeClient, WslLocation } from "../../wsl/bridge/client";
-import { runSshScript } from "../../ssh";
-import { quotePosixShellArg } from "./shellBasics";
 
 /**
  * Shared filesystem helpers for agent session discovery. Routes WSL reads
@@ -57,50 +55,10 @@ export interface SessionDirEntry {
   type: "file" | "directory" | "symlink" | "other";
 }
 
-function parseSshDirEntry(line: string): SessionDirEntry | undefined {
-  const tab = line.indexOf("\t");
-  if (tab <= 0) return undefined;
-  const name = line.slice(0, tab);
-  const rawType = line.slice(tab + 1);
-  const type =
-    rawType === "file" || rawType === "directory" || rawType === "symlink" || rawType === "other"
-      ? rawType
-      : "other";
-  return { name, type };
-}
-
-async function listSshSessionDir(
-  location: Extract<ProjectLocation, { kind: "ssh" }>,
-  absolutePath: string,
-): Promise<SessionDirEntry[] | undefined> {
-  const dir = quotePosixShellArg(absolutePath);
-  const result = await runSshScript(
-    location,
-    [
-      `dir=${dir}`,
-      `[ -d "$dir" ] || exit 0`,
-      `for p in "$dir"/* "$dir"/.[!.]* "$dir"/..?*; do`,
-      `  [ -e "$p" ] || [ -L "$p" ] || continue`,
-      `  name=\${p##*/}`,
-      `  if [ -f "$p" ]; then type=file; elif [ -d "$p" ]; then type=directory; elif [ -L "$p" ]; then type=symlink; else type=other; fi`,
-      `  printf '%s\\t%s\\n' "$name" "$type"`,
-      `done`,
-    ].join("\n"),
-  ).catch(() => undefined);
-  if (!result) return undefined;
-  return result.stdout
-    .split(/\r?\n/)
-    .map((line) => parseSshDirEntry(line))
-    .filter((entry): entry is SessionDirEntry => entry !== undefined);
-}
-
 export async function listSessionDir(
   location: ProjectLocation,
   absolutePath: string,
 ): Promise<SessionDirEntry[] | undefined> {
-  if (location.kind === "ssh") {
-    return listSshSessionDir(location, absolutePath);
-  }
   if (location.kind !== "wsl") {
     try {
       return readdirSync(absolutePath, { withFileTypes: true }).map((d) => ({
@@ -136,59 +94,11 @@ export interface SessionStat {
   isFile?: boolean;
 }
 
-async function statSshSessionPaths(
-  location: Extract<ProjectLocation, { kind: "ssh" }>,
-  paths: string[],
-): Promise<Map<string, SessionStat>> {
-  const lines = [
-    `mtime() { stat -c %Y "$1" 2>/dev/null || stat -f %m "$1" 2>/dev/null || printf 0; }`,
-    ...paths.map((path, index) => {
-      const p = quotePosixShellArg(path);
-      return [
-        `p=${p}`,
-        `if [ -e "$p" ] || [ -L "$p" ]; then`,
-        `  is_file=0; is_dir=0`,
-        `  [ -f "$p" ] && is_file=1`,
-        `  [ -d "$p" ] && is_dir=1`,
-        `  printf '${index}\\t1\\t%s\\t%s\\t%s\\n' "$(mtime "$p")" "$is_file" "$is_dir"`,
-        `else`,
-        `  printf '${index}\\t0\\t0\\t0\\t0\\n'`,
-        `fi`,
-      ].join("\n");
-    }),
-  ];
-  const result = await runSshScript(location, lines.join("\n")).catch(() => undefined);
-  const map = new Map<string, SessionStat>(paths.map((p) => [p, { exists: false }]));
-  if (!result) return map;
-  for (const line of result.stdout.split(/\r?\n/)) {
-    if (!line.trim()) continue;
-    const [indexRaw, existsRaw, mtimeRaw, fileRaw, dirRaw] = line.split("\t");
-    const index = Number(indexRaw);
-    const path = paths[index];
-    if (!Number.isInteger(index) || !path) continue;
-    if (existsRaw !== "1") {
-      map.set(path, { exists: false });
-      continue;
-    }
-    const mtimeSeconds = Number(mtimeRaw);
-    map.set(path, {
-      exists: true,
-      ...(Number.isFinite(mtimeSeconds) ? { mtimeMs: mtimeSeconds * 1000 } : {}),
-      isFile: fileRaw === "1",
-      isDirectory: dirRaw === "1",
-    });
-  }
-  return map;
-}
-
 export async function statSessionPaths(
   location: ProjectLocation,
   paths: string[],
 ): Promise<Map<string, SessionStat>> {
   if (paths.length === 0) return new Map();
-  if (location.kind === "ssh") {
-    return statSshSessionPaths(location, paths);
-  }
   if (location.kind !== "wsl") {
     const map = new Map<string, SessionStat>();
     for (const p of paths) {
@@ -240,21 +150,6 @@ export async function readSessionFileText(
   absolutePath: string,
   maxBytes = 0,
 ): Promise<string | undefined> {
-  if (location.kind === "ssh") {
-    const path = quotePosixShellArg(absolutePath);
-    const sizeGuard =
-      maxBytes > 0
-        ? `size=$(wc -c < ${path} 2>/dev/null || printf 0); [ "$size" -le ${maxBytes} ] || exit 3`
-        : "";
-    const result = await runSshScript(
-      location,
-      [`[ -f ${path} ] || exit 3`, sizeGuard, `cat -- ${path}`].filter(Boolean).join("\n"),
-      {
-        ...(maxBytes > 0 ? { maxBuffer: maxBytes + 1024 } : {}),
-      },
-    ).catch(() => undefined);
-    return result?.stdout;
-  }
   if (location.kind !== "wsl") {
     try {
       const raw = readFileSync(absolutePath);
@@ -297,41 +192,6 @@ export interface FoundSessionFile {
   mtimeMs?: number;
 }
 
-async function findSshSessionFiles(
-  location: Extract<ProjectLocation, { kind: "ssh" }>,
-  opts: FindSessionFilesOptions,
-): Promise<FoundSessionFile[]> {
-  const ignoreExpr =
-    opts.ignore && opts.ignore.length > 0
-      ? `\\( ${opts.ignore.map((name) => `-name ${quotePosixShellArg(name)}`).join(" -o ")} \\) -prune -o `
-      : "";
-  const result = await runSshScript(
-    location,
-    [
-      `root=${quotePosixShellArg(opts.root)}`,
-      `[ -d "$root" ] || exit 0`,
-      `find "$root" ${ignoreExpr}-type f -print 2>/dev/null | sed -n '1,${opts.maxEntries ?? 10_000}p'`,
-    ].join("\n"),
-  ).catch(() => undefined);
-  if (!result) return [];
-  const acceptFile = opts.acceptFile ?? (() => true);
-  const matches = result.stdout
-    .split(/\r?\n/)
-    .map((path) => path.trim())
-    .filter((path) => path.length > 0)
-    .map((path) => ({ path, name: basename(path) }))
-    .filter((entry) => acceptFile(entry.name));
-  if (!opts.includeMtime || matches.length === 0) return matches;
-  const stats = await statSshSessionPaths(
-    location,
-    matches.map((match) => match.path),
-  );
-  return matches.map((match) => {
-    const mtimeMs = stats.get(match.path)?.mtimeMs;
-    return typeof mtimeMs === "number" ? { ...match, mtimeMs } : match;
-  });
-}
-
 export async function findSessionFiles(
   location: ProjectLocation,
   opts: FindSessionFilesOptions,
@@ -339,10 +199,6 @@ export async function findSessionFiles(
   const acceptFile = opts.acceptFile ?? (() => true);
   const maxEntries = opts.maxEntries ?? 10_000;
   const ignore = opts.ignore ?? [];
-
-  if (location.kind === "ssh") {
-    return findSshSessionFiles(location, opts);
-  }
 
   if (location.kind !== "wsl") {
     const out: FoundSessionFile[] = [];
@@ -422,36 +278,6 @@ export function watchSessionPaths(
   label: string,
 ): () => void {
   if (paths.length === 0) return () => undefined;
-  if (location.kind === "ssh") {
-    let disposed = false;
-    let timer: NodeJS.Timeout | undefined;
-    let previousKey: string | undefined;
-    const poll = async () => {
-      const stats = await statSshSessionPaths(location, paths);
-      const nextKey = paths
-        .map((p) => {
-          const stat = stats.get(p);
-          return `${p}:${stat?.exists ? "1" : "0"}:${stat?.mtimeMs ?? 0}`;
-        })
-        .join("|");
-      if (previousKey !== undefined && nextKey !== previousKey && !disposed) onChanged();
-      previousKey = nextKey;
-      if (disposed) return;
-      timer = setTimeout(() => void poll(), 2_000);
-      if (typeof timer.unref === "function") timer.unref();
-    };
-    void poll().catch((err) => {
-      console.log(
-        "[%s] ssh session watcher failed: %s",
-        label,
-        err instanceof Error ? err.message : String(err),
-      );
-    });
-    return () => {
-      disposed = true;
-      if (timer) clearTimeout(timer);
-    };
-  }
   if (location.kind !== "wsl") {
     const watchers: Array<() => void> = [];
     for (const p of paths) {

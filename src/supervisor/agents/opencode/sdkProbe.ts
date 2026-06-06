@@ -21,7 +21,7 @@
  * etc. The caller logs the failure mode and degrades gracefully.
  */
 
-import type { ProjectLocation } from "@/shared/contracts";
+import type { NonSshProjectLocation } from "../base";
 import { resolveAgentBinaryPath } from "../binaryResolver";
 import { buildOpenCodeServerCommand } from "./argv";
 import { resolveOpenCodeSessionDirectory } from "./sdkClient";
@@ -159,7 +159,7 @@ function normalizeAgentsResponse(raw: unknown): OpenCodeSdkAgent[] {
  * callers are expected to fall back to the CLI parser.
  */
 export async function probeOpenCodeInventoryViaSdk(
-  location: ProjectLocation,
+  location: NonSshProjectLocation,
   executablePath: string,
 ): Promise<OpenCodeSdkInventory | undefined> {
   const resolvedExecPath = resolveAgentBinaryPath(location, executablePath);

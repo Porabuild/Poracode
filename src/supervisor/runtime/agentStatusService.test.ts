@@ -293,6 +293,13 @@ HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Lxss\\{333}
     expect(detected).toContainEqual(
       expect.objectContaining({ kind: "codex", envKind: "ssh", envHost: "devbox" }),
     );
+    const sshStatus = detected.find((status) => status.envKind === "ssh");
+    expect(sshStatus?.capabilities).toMatchObject({
+      liveInputMode: "terminal",
+      presentationMode: "terminal",
+      presentationModes: ["terminal"],
+      supportsResume: false,
+    });
   });
 
   it("scoped refresh preserves cached agents for environments outside the scope", async () => {

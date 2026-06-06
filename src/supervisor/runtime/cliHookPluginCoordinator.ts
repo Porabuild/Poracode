@@ -15,12 +15,12 @@ import type {
 } from "@/shared/contracts";
 import {
   type AgentAdapter,
+  type AgentCliHookEnvContext,
   type AgentEnvContext,
   type AgentCliHookPluginSupport,
   resolveWslHomeDirectoryAsync,
 } from "../agents/base";
 import type { BrowserMcpHttpConfig } from "../agents/browserMcp";
-import { SshHookTunnelManager, type SshLocation } from "../ssh";
 import type { WslBridgeServer } from "../wsl/bridge";
 import { isLightcodeHookDebug } from "./hookDebug";
 import { HookIngress, type HookIngressBootInfo } from "./hookIngress";
@@ -49,13 +49,6 @@ export interface CliHookPluginCoordinatorOptions {
    * reach.
    */
   wslHookBridge?: WslBridgeServer;
-  sshHookTunnel?: {
-    ensureTunnel(
-      location: SshLocation,
-      upstream: { url: string; secret: string; protocolVersion: number },
-    ): Promise<{ url: string; secret: string; protocolVersion: number } | undefined>;
-    dispose?(): void | Promise<void>;
-  };
 }
 
 const DEFAULT_CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
@@ -104,7 +97,6 @@ export class CliHookPluginCoordinator {
   ) => AgentEnvContext;
   private readonly installPromises = new Map<string, Promise<InstallOutcome>>();
   private wslHookBridge: WslBridgeServer | undefined;
-  private readonly sshHookTunnel: NonNullable<CliHookPluginCoordinatorOptions["sshHookTunnel"]>;
 
   constructor(
     private readonly options: CliHookPluginCoordinatorOptions,
@@ -131,7 +123,6 @@ export class CliHookPluginCoordinator {
       ingressOptions.preferredPort = options.preferredPort;
     }
     this.ingress = new HookIngress(ingressOptions);
-    this.sshHookTunnel = options.sshHookTunnel ?? new SshHookTunnelManager();
   }
 
   /**
@@ -184,7 +175,6 @@ export class CliHookPluginCoordinator {
     if (this.wslHookBridge) {
       await this.wslHookBridge.dispose();
     }
-    await this.sshHookTunnel.dispose?.();
   }
 
   /**
@@ -219,7 +209,13 @@ export class CliHookPluginCoordinator {
     if (!isTerminalLiveInput(adapter)) {
       return undefined;
     }
-    const ctx = this.envContext(input.agentKind, input.projectLocation);
+    if (input.projectLocation?.kind === "ssh") {
+      return undefined;
+    }
+    const ctx = toCliHookEnvContext(this.envContext(input.agentKind, input.projectLocation));
+    if (!ctx) {
+      return undefined;
+    }
     if (input.browserMcpEnabled !== undefined) ctx.browserMcpEnabled = input.browserMcpEnabled;
     if (input.browserMcp) ctx.browserMcp = input.browserMcp;
     const outcome = await this.ensureInstalledOrUpdated(adapter, slice, ctx);
@@ -259,7 +255,8 @@ export class CliHookPluginCoordinator {
       // in `resolvePluginEnvForSpawn`. Installing their plugin would be
       // wasted I/O because the runtime never injects the env/args for them.
       if (!isTerminalLiveInput(adapter)) return;
-      const ctx = this.envContext(adapter.kind);
+      const ctx = toCliHookEnvContext(this.envContext(adapter.kind));
+      if (!ctx) return;
       await this.ensureInstalledOrUpdated(adapter, slice, ctx);
     });
     await Promise.allSettled(tasks);
@@ -321,7 +318,7 @@ export class CliHookPluginCoordinator {
   }
 
   private async resolveTransport(
-    ctx: AgentEnvContext,
+    ctx: AgentCliHookEnvContext,
   ): Promise<{ url: string; secret: string; protocolVersion: number } | undefined> {
     if (ctx.envKind === "wsl") {
       if (!this.wslHookBridge || !ctx.wslDistro) return undefined;
@@ -331,14 +328,6 @@ export class CliHookPluginCoordinator {
       const info = await this.ingress.ready;
       return { url: handle.hookUrl, secret: info.secret, protocolVersion: info.protocolVersion };
     }
-    if (ctx.envKind === "ssh") {
-      if (!ctx.sshHost) return undefined;
-      const info = await this.ingress.ready;
-      return this.sshHookTunnel.ensureTunnel(
-        { kind: "ssh", host: ctx.sshHost, path: ctx.sshPath ?? "/" },
-        { url: info.url, secret: info.secret, protocolVersion: info.protocolVersion },
-      );
-    }
     const info = await this.ingress.ready;
     return { url: info.url, secret: info.secret, protocolVersion: info.protocolVersion };
   }
@@ -346,7 +335,7 @@ export class CliHookPluginCoordinator {
   private async ensureInstalledOrUpdated(
     adapter: AgentAdapter,
     slice: AgentCliHookPluginSupport,
-    ctx: AgentEnvContext,
+    ctx: AgentCliHookEnvContext,
   ): Promise<InstallOutcome> {
     const key = composeCacheKey(adapter.kind, ctx);
     const existing = this.installPromises.get(key);
@@ -369,7 +358,7 @@ export class CliHookPluginCoordinator {
   private async runInstall(
     adapter: AgentAdapter,
     slice: AgentCliHookPluginSupport,
-    ctx: AgentEnvContext,
+    ctx: AgentCliHookEnvContext,
     cacheKey: string,
   ): Promise<InstallOutcome> {
     const supported = (await slice.isPluginSupported?.(ctx)) ?? true;
@@ -514,9 +503,9 @@ export class CliHookPluginCoordinator {
     }
   }
 
-  private contextForEnv(env: AgentHookPluginEnv): AgentEnvContext {
+  private contextForEnv(env: AgentHookPluginEnv): AgentCliHookEnvContext {
     const nativeKind = process.platform === "win32" ? "windows" : "posix";
-    const ctx: AgentEnvContext =
+    const ctx: AgentCliHookEnvContext =
       env.kind === "wsl" ? { envKind: "wsl", wslDistro: env.distro } : { envKind: nativeKind };
     const baseDir = this.options.baseDir;
     if (ctx.baseDir !== undefined || baseDir === undefined) return ctx;
@@ -594,15 +583,29 @@ function composeCacheKey(kind: AgentKind, ctx: AgentEnvContext): string {
   if (ctx.envKind === "wsl" && ctx.wslDistro) {
     return `${kind}::wsl::${ctx.wslDistro}`;
   }
-  if (ctx.envKind === "ssh" && ctx.sshHost) {
-    return `${kind}::ssh::${ctx.sshHost}`;
-  }
   return kind;
 }
 
 async function warmWslHomeCache(ctx: AgentEnvContext): Promise<void> {
   if (ctx.envKind !== "wsl" || !ctx.wslDistro) return;
   await resolveWslHomeDirectoryAsync(ctx.wslDistro);
+}
+
+function toCliHookEnvContext(ctx: AgentEnvContext): AgentCliHookEnvContext | undefined {
+  if (ctx.envKind === "ssh") return undefined;
+  const common = {
+    ...(ctx.baseDir !== undefined ? { baseDir: ctx.baseDir } : {}),
+    ...(ctx.browserMcpEnabled !== undefined ? { browserMcpEnabled: ctx.browserMcpEnabled } : {}),
+    ...(ctx.browserMcp !== undefined ? { browserMcp: ctx.browserMcp } : {}),
+  };
+  if (ctx.envKind === "wsl") {
+    return {
+      envKind: "wsl",
+      ...(ctx.wslDistro !== undefined ? { wslDistro: ctx.wslDistro } : {}),
+      ...common,
+    };
+  }
+  return { envKind: ctx.envKind, ...common };
 }
 
 function defaultEnvContext(

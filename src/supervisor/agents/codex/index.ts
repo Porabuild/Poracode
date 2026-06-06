@@ -8,13 +8,13 @@ import {
   detectAgentInstall,
   detectProbeLocation,
   getOscNotificationText,
+  isSessionTrackingLocation,
   watchSessionPaths,
   type AgentAdapter,
   type CreateStructuredSessionInput,
   type TerminalStatusHint,
 } from "../base";
 import { resolveAgentBinaryPath } from "../binaryResolver";
-import { readSshCommandOutput } from "../../ssh";
 import { CodexStructuredSession } from "./acp";
 import { buildCodexArgvFor, primeCodexGoalsSupport } from "./argv";
 import { codexDefaultCapabilities, codexDetectionSpec } from "./detection";
@@ -87,29 +87,13 @@ function codexOscHint(notification: OscNotification): TerminalStatusHint | null 
 }
 
 async function resolveCodexHooksFeatureFlag(ctx: {
-  envKind: "windows" | "wsl" | "posix" | "ssh";
+  envKind: "windows" | "wsl" | "posix";
   wslDistro?: string;
-  sshHost?: string;
-  sshPath?: string;
 }): Promise<string> {
   if (ctx.envKind === "wsl" && ctx.wslDistro) {
     const [verOut] = await batchWslCommandsAsync(ctx.wslDistro, ["codex --version"]);
     const versionLine =
       verOut?.stdout
-        .split("\n")
-        .map((line) => line.trim())
-        .find((line) => line.length > 0) ?? "";
-    return codexHooksFeatureFlagForSemver(parseCodexVersionLine(versionLine));
-  }
-  if (ctx.envKind === "ssh" && ctx.sshHost) {
-    const out = await readSshCommandOutput(
-      { kind: "ssh", host: ctx.sshHost, path: ctx.sshPath ?? "/" },
-      "codex",
-      ["--version"],
-      { timeout: 8_000 },
-    ).catch(() => undefined);
-    const versionLine =
-      out?.stdout
         .split("\n")
         .map((line) => line.trim())
         .find((line) => line.length > 0) ?? "";
@@ -158,30 +142,6 @@ export function createCodexAdapter(): AgentAdapter {
         }
         return true;
       }
-      if (ctx.envKind === "ssh" && ctx.sshHost) {
-        const out = await readSshCommandOutput(
-          { kind: "ssh", host: ctx.sshHost, path: ctx.sshPath ?? "/" },
-          "codex",
-          ["--version"],
-          { timeout: 8_000 },
-        ).catch(() => undefined);
-        const versionLine =
-          out?.stdout
-            .split("\n")
-            .map((line) => line.trim())
-            .find((line) => line.length > 0) ?? "";
-        const v = parseCodexVersionLine(versionLine);
-        if (!isCodexSemverSupportedForHooks(v)) {
-          console.warn(
-            `[codex] SSH hook plugin unsupported on host ${ctx.sshHost}: ` +
-              `need codex-cli >= ${CODEX_MIN_HOOKS_VERSION_LABEL}, got ${
-                versionLine || "(unparseable `codex --version` output)"
-              }`,
-          );
-          return false;
-        }
-        return true;
-      }
       return isCodexVersionSupportedForHooks();
     },
     isPluginInstalled(ctx) {
@@ -216,7 +176,7 @@ export function createCodexAdapter(): AgentAdapter {
     },
     buildLaunchArgv(location: ProjectLocation, config, prompt, sessionRef, launchOptions) {
       preSpawnStartedAt = Date.now();
-      if (location.kind === "wsl") {
+      if (location.kind === "wsl" || !isSessionTrackingLocation(location, launchOptions)) {
         preSpawnRolloutIds = new Set();
       } else {
         const sessions = readCodexSessionIndexForLocation(location);

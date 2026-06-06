@@ -15,20 +15,14 @@ import {
   ctxCacheKey,
   getNativeHookWrapperFilename,
   getNativePluginBaseDir,
-  getSshPluginBaseDirs,
   getWslPluginBaseDirs,
   hasNativeHookWrapper,
-  isSshPluginContext,
   isWslPluginContext,
   memoByCtx,
   readBundledPluginVersion,
   readPluginManifest,
-  readSshTextFile,
   removeStagedPluginDir,
-  stagePluginAssetsToSsh,
   stagePluginAssetsToWsl,
-  verifySshStagedPlugin,
-  writeSshJsonFile,
   writeNativeHookWrapper,
   type PluginManifest,
 } from "../../plugin/installerBase";
@@ -105,15 +99,6 @@ export function readBundledGeminiPluginVersion(): string {
 }
 
 function computeGeminiPluginPaths(ctx?: AgentEnvContext): GeminiPluginPaths {
-  if (isSshPluginContext(ctx)) {
-    const ssh = getSshPluginBaseDirs(ctx, "gemini");
-    if (!ssh) return { pluginDir: "", settingsPath: "", version: "0.0.0" };
-    return {
-      pluginDir: ssh.linuxBase,
-      settingsPath: `${ssh.linuxBase}/settings.json`,
-      version: "0.0.0",
-    };
-  }
   if (isWslPluginContext(ctx)) {
     const wsl = getWslPluginBaseDirs(ctx.wslDistro, "gemini");
     if (!wsl) return { pluginDir: "", settingsPath: "", version: "0.0.0" };
@@ -160,26 +145,6 @@ export function syncGeminiBrowserMcpSettings(
   if (ctx?.browserMcpEnabled === undefined) return;
   const paths = getGeminiPluginPaths(ctx);
   if (!paths.settingsPath) return;
-  if (isSshPluginContext(ctx)) {
-    try {
-      const raw = readSshTextFile(ctx, paths.settingsPath);
-      if (!raw) return;
-      const settings = JSON.parse(raw) as GeminiSettings;
-      if (ctx.browserMcpEnabled && browserMcp) {
-        const servers = buildGeminiBrowserMcpServers(
-          { kind: "ssh", host: ctx.sshHost, path: ctx.sshPath ?? "/" },
-          browserMcp,
-        );
-        if (servers) settings.mcpServers = servers;
-      } else {
-        delete settings.mcpServers;
-      }
-      void writeSshJsonFile(ctx, paths.settingsPath, settings);
-    } catch {
-      // Best-effort; stale settings should not block thread launch.
-    }
-    return;
-  }
   const settingsPath = resolveSettingsWritePath(ctx, paths.settingsPath);
   try {
     const settings = JSON.parse(readFileSync(settingsPath, "utf8")) as GeminiSettings;
@@ -246,21 +211,6 @@ export function installGeminiPlugin(
       ctx.browserMcp,
     );
   }
-  if (isSshPluginContext(ctx)) {
-    if (!options?.resolvedNodePath) {
-      return {
-        ok: false,
-        reason: "SSH Gemini plugin install requires a resolved node path on the remote host.",
-      };
-    }
-    return installGeminiPluginSsh(
-      ctx,
-      sourceDir,
-      manifest,
-      options.resolvedNodePath,
-      ctx.browserMcp,
-    );
-  }
 
   const pluginDir = getNativePluginBaseDir("gemini", ctx?.baseDir);
   mkdirSync(pluginDir, { recursive: true });
@@ -287,45 +237,6 @@ export function installGeminiPlugin(
     ok: true,
     version: manifest.version,
     paths: { pluginDir, settingsPath, version: manifest.version },
-  };
-}
-
-function installGeminiPluginSsh(
-  ctx: AgentEnvContext & { envKind: "ssh"; sshHost: string },
-  sourceDir: string,
-  manifest: PluginManifest,
-  resolvedNodePath: string,
-  browserMcp?: BrowserMcpHttpConfig,
-): { ok: true; paths: GeminiPluginPaths; version: string } | { ok: false; reason: string } {
-  const staged = stagePluginAssetsToSsh(ctx, sourceDir, "gemini", {
-    includeForwardRuntime: true,
-  });
-  if (!staged.ok) return staged;
-
-  const settingsPath = `${staged.linuxPluginDir}/settings.json`;
-  const headExpression = buildWslHookCommandHead(
-    resolvedNodePath,
-    `${staged.linuxPluginDir}/forward.mjs`,
-  );
-  const browserMcpServers = buildGeminiBrowserMcpServers(
-    { kind: "ssh", host: ctx.sshHost, path: ctx.sshPath ?? "/" },
-    browserMcp,
-  );
-  const settings = renderGeminiSettings({
-    headExpression,
-    ...(browserMcpServers ? { mcpServers: browserMcpServers } : {}),
-  });
-  const writeResult = writeSshJsonFile(ctx, settingsPath, settings);
-  if (!writeResult.ok) return writeResult;
-
-  console.log(
-    `[supervisor] Gemini hook plugin staged v${manifest.version} on SSH host ${ctx.sshHost} at ${staged.linuxPluginDir} (forward.mjs, settings.json)`,
-  );
-
-  return {
-    ok: true,
-    version: manifest.version,
-    paths: { pluginDir: staged.linuxPluginDir, settingsPath, version: manifest.version },
   };
 }
 
@@ -383,13 +294,6 @@ export function isGeminiPluginInstalled(ctx?: AgentEnvContext): {
   installed: boolean;
   version?: string;
 } {
-  if (isSshPluginContext(ctx)) {
-    const paths = getGeminiPluginPaths(ctx);
-    return verifySshStagedPlugin(ctx, "gemini", {
-      assets: ["plugin.json", "forward.mjs", FORWARD_RUNTIME_FILE, "settings.json"],
-      extraCheck: () => hasGeminiHooksFromRaw(readSshTextFile(ctx, paths.settingsPath)),
-    });
-  }
   if (isWslPluginContext(ctx)) {
     const wsl = getWslPluginBaseDirs(ctx.wslDistro, "gemini");
     if (!wsl) return { installed: false };
@@ -448,16 +352,6 @@ function hasGeminiHooks(hooks: Record<string, unknown> | undefined): boolean {
     if (!found) return false;
   }
   return true;
-}
-
-function hasGeminiHooksFromRaw(raw: string | undefined): boolean {
-  if (!raw) return false;
-  try {
-    const settings = JSON.parse(raw) as { hooks?: Record<string, unknown> };
-    return hasGeminiHooks(settings.hooks);
-  } catch {
-    return false;
-  }
 }
 
 export interface RenderGeminiSettingsOptions {

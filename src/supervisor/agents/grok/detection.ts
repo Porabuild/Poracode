@@ -17,7 +17,6 @@ import {
 } from "../base";
 import { buildContextSizeCapabilities } from "../contextWindowLabel";
 import { getAgentProbeCwd, resolveProbeSpawnCwd } from "../probeCwd";
-import { runSshScript } from "../../ssh";
 
 // Approval policies surfaced to Lightcode. Grok only honors `--always-approve`
 // (bypass) at launch — `--permission-mode <MODE>` is headless-only and is
@@ -147,13 +146,6 @@ async function grokAuthFileProbe(
     if (existsSync(join(home, ".grok", "auth.json"))) return "authenticated";
     return "unknown";
   };
-  if (ctx.location.kind === "ssh") {
-    const result = await runSshScript(
-      ctx.location,
-      "test -f ~/.grok/auth.json && echo yes || echo no",
-    ).catch(() => undefined);
-    return result?.stdout.trim() === "yes" ? "authenticated" : "unknown";
-  }
   if (ctx.location.kind !== "wsl") {
     return check(homedir());
   }
