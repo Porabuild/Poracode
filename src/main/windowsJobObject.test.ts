@@ -159,10 +159,16 @@ describe("WindowsJobObjectManager", () => {
 
     const manager = new WindowsJobObjectManager();
     const pending = manager.start();
+    let startupError: unknown;
+    const handledPending = pending.catch((error: unknown) => {
+      startupError = error;
+    });
 
     await vi.advanceTimersByTimeAsync(30_000);
 
-    await expect(pending).rejects.toThrow(/timed out after 30000ms/i);
+    await handledPending;
+    expect(startupError).toBeInstanceOf(Error);
+    expect((startupError as Error).message).toMatch(/timed out after 30000ms/i);
   });
 
   it("sends an exit command and ends stdin on dispose", async () => {
