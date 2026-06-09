@@ -540,7 +540,7 @@ export async function refreshGitProject(
           );
 
           const statusesPromise =
-            watchWorktreePaths.length === 0
+            reason === "fetch" || watchWorktreePaths.length === 0
               ? Promise.resolve()
               : readBridge()
                   .gitWorktreeStatusBatch({
