@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { toast } from "@heroui/react";
 import type { GitBranchInfo, GitStatusResult, Project, ProjectLocation } from "@/shared/contracts";
 import { getProjectAgentStatuses } from "@/shared/agentStatus";
@@ -7,6 +6,10 @@ import { msg, friendlyError, friendlyErrorWithDetail } from "@/shared/messages";
 import { readBridge } from "@/renderer/bridge";
 import { captureProductEvent } from "@/renderer/analytics/posthog";
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
+import {
+  useGitReviewActionState,
+  useGitReviewActionStore,
+} from "@/renderer/state/gitReviewActionStore";
 import { useGitStore } from "@/renderer/state/gitStore";
 import { startPostPushPrStatusRefresh } from "@/renderer/state/gitRefresh";
 import { usePullFromSourceDialogStore } from "@/renderer/state/pullFromSourceDialogStore";
@@ -99,20 +102,44 @@ export function useGitReviewActions(args: UseGitReviewActionsArgs) {
     wslAgentStatuses,
   );
 
-  const [commitMessage, setCommitMessage] = useState("");
-  const [isCommitting, setIsCommitting] = useState(false);
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [isSyncing, setIsSyncing] = useState(false);
-  const [isMerging, setIsMerging] = useState(false);
-  const [isPullingFromSource, setIsPullingFromSource] = useState(false);
-  const [isAbortingMerge, setIsAbortingMerge] = useState(false);
-  const [isFinishingMerge, setIsFinishingMerge] = useState(false);
-
-  const [prTitle, setPrTitle] = useState("");
-  const [prBody, setPrBody] = useState("");
-  const [prTargetBranch, setPrTargetBranch] = useState<string | null>(null);
-  const [isCreatingPr, setIsCreatingPr] = useState(false);
-  const [isGeneratingPr, setIsGeneratingPr] = useState(false);
+  // The git review panel is keyed by `${projectId}:${worktreePath}` and fully
+  // remounts when the user switches projects, so any useState here would reset
+  // on switch — dropping draft text, the generation spinner, and any in-flight
+  // operation's pending state while the work keeps running in the supervisor.
+  // Holding it all in a store keyed by the same `storeKey` makes it survive the
+  // remount: spinners reappear, async results land against the right panel even
+  // if it unmounted mid-flight, and drafts are preserved. See
+  // gitReviewActionStore.
+  const {
+    commitMessage,
+    prTitle,
+    prBody,
+    prTargetBranch,
+    isGenerating,
+    isGeneratingPr,
+    isCommitting,
+    isSyncing,
+    isMerging,
+    isPullingFromSource,
+    isAbortingMerge,
+    isFinishingMerge,
+    isCreatingPr,
+  } = useGitReviewActionState(storeKey);
+  const patch = useGitReviewActionStore((s) => s.patch);
+  const setCommitMessage = (value: string) => patch(storeKey, { commitMessage: value });
+  const setPrTitle = (value: string) => patch(storeKey, { prTitle: value });
+  const setPrBody = (value: string) => patch(storeKey, { prBody: value });
+  const setPrTargetBranch = (value: string | null) => patch(storeKey, { prTargetBranch: value });
+  const setIsGenerating = (value: boolean) => patch(storeKey, { isGenerating: value });
+  const setIsGeneratingPr = (value: boolean) => patch(storeKey, { isGeneratingPr: value });
+  const setIsCommitting = (value: boolean) => patch(storeKey, { isCommitting: value });
+  const setIsSyncing = (value: boolean) => patch(storeKey, { isSyncing: value });
+  const setIsMerging = (value: boolean) => patch(storeKey, { isMerging: value });
+  const setIsPullingFromSource = (value: boolean) =>
+    patch(storeKey, { isPullingFromSource: value });
+  const setIsAbortingMerge = (value: boolean) => patch(storeKey, { isAbortingMerge: value });
+  const setIsFinishingMerge = (value: boolean) => patch(storeKey, { isFinishingMerge: value });
+  const setIsCreatingPr = (value: boolean) => patch(storeKey, { isCreatingPr: value });
 
   const writeActions = usePrWriteActions({
     projectLocation: project.location,
@@ -240,6 +267,9 @@ export function useGitReviewActions(args: UseGitReviewActionsArgs) {
   }
 
   async function handleGenerateMessage(): Promise<void> {
+    // A generation may still be running from before a panel remount — don't
+    // start a second one; the first one's result will land in the store.
+    if (isGenerating) return;
     setIsGenerating(true);
     try {
       const message = await generateMessage();
@@ -467,6 +497,9 @@ export function useGitReviewActions(args: UseGitReviewActionsArgs) {
       return;
     }
 
+    // Don't start a second PR-summary generation if one is still in flight
+    // from before a panel remount — its result will land in the store.
+    if (isGeneratingPr) return;
     setIsGeneratingPr(true);
     for (const candidate of candidates) {
       const resolved = resolveCommitGenConfig(candidate, commitGenModel, commitGenEffort);
