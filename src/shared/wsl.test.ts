@@ -31,4 +31,18 @@ describe("wsl helpers", () => {
   it("returns null for a non-WSL path", () => {
     expect(parseWslUncPath("C:\\Users\\demo")).toBeNull();
   });
+
+  it("parses a bare distro-root path to linuxPath '/'", () => {
+    expect(parseWslUncPath("\\\\wsl.localhost\\Ubuntu")).toEqual({
+      distro: "Ubuntu",
+      linuxPath: "/",
+    });
+  });
+
+  it("parses a distro-root path with a trailing separator to linuxPath '/'", () => {
+    expect(parseWslUncPath("\\\\wsl.localhost\\Ubuntu\\")).toEqual({
+      distro: "Ubuntu",
+      linuxPath: "/",
+    });
+  });
 });

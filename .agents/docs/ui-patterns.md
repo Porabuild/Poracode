@@ -25,6 +25,15 @@ Before creating a new component, check if an existing one handles the use case.
 - **`BranchSelector`** handles branch picking and worktree creation in `ThreadDraftView`. Reuse it for any branch-related UI.
 - **`OptionMenu`** is the dropdown for model/effort/permission selections. It supports custom label formatters via the provider registry.
 
+### Dialogs
+
+Match the canonical dialog look — do not restyle. Reference: `CreatePrModal`, `ContinueInProviderDialog`.
+
+- **Form / input dialogs:** HeroUI `Modal` (`Modal.Backdrop` → `Container` → `Dialog`), kept **compact** (`Dialog` `sm:max-w-[~460px]`, `Modal.Body className="p-4"` with inner `gap-3`). Include a `Modal.CloseTrigger`.
+- **Footer buttons:** Cancel is a **muted ghost** — `<Button slot="close" variant="ghost" className="text-muted">Cancel</Button>`. The confirm/primary action is the **white tertiary** — `variant="tertiary"`. Do **not** use `variant="primary"` for the action in these dialogs.
+- **Destructive confirms:** use the shared `ConfirmDialog` (`AlertDialog`) with `confirmVariant="danger"`; its Cancel is `variant="tertiary"` by convention.
+- Keep dialog body height stable — avoid controls that appear/disappear as the user types (fold previews into an existing control rather than adding a conditional line).
+
 ## ACP Composer Behavior
 
 - **Inline file mentions stay text-first, then serialize to structured segments.** `MentionInput` + `serializeMentions` accept raw `@path` tokens, so repo-relative references like `@.agents/docs/ui-patterns.md` become `{ kind: "file" }` prompt segments on submit without requiring a picker chip.

@@ -15,6 +15,7 @@ describe("sharedSettingsStore", () => {
         useWebGpu: true,
       },
       providerConfigs: {},
+      lastUsedProjectDirs: {},
     });
   });
 
@@ -61,5 +62,22 @@ describe("sharedSettingsStore", () => {
       fast: true,
       thinking: true,
     });
+  });
+
+  it("records the last-used project directory per runtime key", () => {
+    useSharedSettings.getState().setLastUsedProjectDir("native", "/Users/me/code");
+    useSharedSettings.getState().setLastUsedProjectDir("Ubuntu", "\\\\wsl.localhost\\Ubuntu\\home");
+
+    expect(useSharedSettings.getState().lastUsedProjectDirs).toEqual({
+      native: "/Users/me/code",
+      Ubuntu: "\\\\wsl.localhost\\Ubuntu\\home",
+    });
+  });
+
+  it("overwrites the directory for an existing runtime key", () => {
+    useSharedSettings.getState().setLastUsedProjectDir("native", "/Users/me/a");
+    useSharedSettings.getState().setLastUsedProjectDir("native", "/Users/me/b");
+
+    expect(useSharedSettings.getState().lastUsedProjectDirs.native).toBe("/Users/me/b");
   });
 });

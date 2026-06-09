@@ -198,6 +198,12 @@ export const sharedSettingsSchema = z.object({
    * the user's previous choice.
    */
   lastPresentationModeByAgent: z.record(z.string(), threadPresentationModeSchema),
+  /**
+   * Last-used parent directory for the create-project folder picker, keyed by
+   * runtime (`"native"` or a WSL distro name). Preselected when browsing for a
+   * new project; falls back to the runtime's home directory when absent.
+   */
+  lastUsedProjectDirs: z.record(z.string(), z.string()),
   /** Enable LSP language servers for the file editor (type checking, completions, etc.). */
   editorLspEnabled: z.boolean(),
   /** When true (VS Code default), the @file mention search honors `.gitignore`. */
@@ -306,6 +312,7 @@ export const defaultSharedSettings: SharedSettings = {
   gitReviewMode: "panel",
   providerConfigs: {},
   lastPresentationModeByAgent: {},
+  lastUsedProjectDirs: {},
   editorLspEnabled: false,
   searchUseIgnoreFiles: true,
   searchExclude: { ...DEFAULT_SEARCH_EXCLUDE },

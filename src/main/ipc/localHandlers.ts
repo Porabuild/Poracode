@@ -25,6 +25,7 @@ import {
   saveClipboardImageFile,
   saveHandoffContextFile,
 } from "../attachments/localFiles";
+import { createProjectDirectory } from "../projectDirectory";
 import { readSharedSettingsFile, writeSharedSettingsFile } from "../sharedSettingsFile";
 import { readKeybindingsFile } from "../keybindingsFile";
 import type { AutoUpdaterController } from "../updates/autoUpdater";
@@ -102,6 +103,7 @@ export function createLocalIpcHandlers(
       saveClipboardImageFile(options.requireLightcodePaths(), payload),
     saveHandoffContext: (payload) =>
       saveHandoffContextFile(options.requireLightcodePaths(), payload),
+    createProjectDirectory: (payload) => createProjectDirectory(payload),
     openExternal: async (url) => {
       const safeUrl = assertSafeExternalUrl(url);
       const browserPanel = options.getBrowserPanelManager();

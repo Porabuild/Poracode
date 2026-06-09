@@ -32,6 +32,19 @@ export const saveHandoffContextPayloadSchema = z.object({
   content: z.string(),
 });
 
+export const createProjectDirectoryPayloadSchema = z.object({
+  /** Absolute parent directory (native path, or a `\\wsl...` UNC path). */
+  parent: z.string().min(1),
+  /** New folder name (validated by the renderer before sending). */
+  name: z.string().min(1),
+  kind: z.enum(["windows", "wsl", "posix"]),
+});
+export type CreateProjectDirectoryPayload = z.infer<typeof createProjectDirectoryPayloadSchema>;
+export interface CreateProjectDirectoryResult {
+  /** Absolute path of the newly-created directory. */
+  path: string;
+}
+
 export const readThreadPayloadSchema = z.object({
   threadId: z.string().min(1),
 });

@@ -40,6 +40,8 @@ interface PanelState {
   projectSettingsId: string | null;
   threadSortMode: ThreadSortMode;
   threadSearchOpen: boolean;
+  /** Whether the "Start from scratch" create-project modal is open. */
+  createProjectModalOpen: boolean;
   setGitReviewContext: (ctx: GitReviewContext | null) => void;
   setThreadSortMode: (mode: ThreadSortMode) => void;
   setGitReviewAsPanel: (v: boolean) => void;
@@ -62,6 +64,8 @@ interface PanelState {
   closeProjectSettings: () => void;
   openThreadSearch: () => void;
   closeThreadSearch: () => void;
+  openCreateProjectModal: () => void;
+  closeCreateProjectModal: () => void;
   closeAllPanels: () => void;
 }
 
@@ -113,6 +117,7 @@ export const usePanelStore = create<PanelState>((set) => ({
   projectSettingsId: null,
   threadSortMode: "updated",
   threadSearchOpen: false,
+  createProjectModalOpen: false,
 
   setGitReviewContext: (ctx) => {
     const prev = usePanelStore.getState().gitReviewContext;
@@ -238,6 +243,10 @@ export const usePanelStore = create<PanelState>((set) => ({
     set((state) => (state.threadSearchOpen ? {} : { threadSearchOpen: true })),
   closeThreadSearch: () =>
     set((state) => (state.threadSearchOpen ? { threadSearchOpen: false } : {})),
+  openCreateProjectModal: () =>
+    set((state) => (state.createProjectModalOpen ? {} : { createProjectModalOpen: true })),
+  closeCreateProjectModal: () =>
+    set((state) => (state.createProjectModalOpen ? { createProjectModalOpen: false } : {})),
   closeAllPanels: () => {
     localStorage.removeItem(STORAGE_KEY);
     set((state) => {

@@ -11,7 +11,6 @@ import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { AppDndProvider } from "@/renderer/dnd";
 
 import { useKeyboardShortcuts } from "@/renderer/hooks/useKeyboardShortcuts";
-import { useWslDetection } from "@/renderer/hooks/useWslDetection";
 import { useGitRefresh } from "@/renderer/hooks/useGitRefresh";
 import { useThreadLifecycle } from "@/renderer/hooks/useThreadLifecycle";
 import { useDndHandlers } from "@/renderer/hooks/useDndHandlers";
@@ -39,7 +38,6 @@ export function MainView(props: { storeHydrated: boolean; loadT0: number }) {
   const sharedSettingsHydrated = useSharedSettings((state) => state.sharedSettingsHydrated);
 
   useThreadLifecycle(storeHydrated);
-  const { wslAvailable } = useWslDetection(storeHydrated);
   useKeyboardShortcuts();
   useGitRefresh(storeHydrated);
   useBrowserSync();
@@ -105,10 +103,7 @@ export function MainView(props: { storeHydrated: boolean; loadT0: number }) {
             : buildPaneLayoutFromLegacy(["__placeholder__"])
         }
       >
-        <MainPageLayout
-          wslAvailable={wslAvailable}
-          onTitleClick={() => startTransition(() => openHome())}
-        />
+        <MainPageLayout onTitleClick={() => startTransition(() => openHome())} />
         <ThreadSearchOverlayHost />
       </AppDndProvider>
       <StalePanelCleanup />

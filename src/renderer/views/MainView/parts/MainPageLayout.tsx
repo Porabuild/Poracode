@@ -20,8 +20,8 @@ const FileEditorPanel = lazy(() =>
   })),
 );
 
-export function MainPageLayout(props: { wslAvailable: boolean; onTitleClick: () => void }) {
-  const { wslAvailable, onTitleClick } = props;
+export function MainPageLayout(props: { onTitleClick: () => void }) {
+  const { onTitleClick } = props;
 
   return (
     <PageLayout
@@ -29,7 +29,7 @@ export function MainPageLayout(props: { wslAvailable: boolean; onTitleClick: () 
       onTitleClick={onTitleClick}
       onRequestClosePanels={closeAllPanels}
       onDismissRightOverlay={dismissRightOverlay}
-      sidebarHeaderChildren={<SidebarHeaderControls wslAvailable={wslAvailable} />}
+      sidebarHeaderChildren={<SidebarHeaderControls />}
       sidebar={<Sidebar />}
       content={
         <MainPanelDropZone>

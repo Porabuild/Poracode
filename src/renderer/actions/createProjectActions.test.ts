@@ -1,0 +1,145 @@
+import { beforeEach, describe, expect, test, vi } from "vitest";
+
+const mocks = vi.hoisted(() => ({
+  createProjectDirectory: vi.fn<(p: unknown) => Promise<{ path: string }>>(),
+  pickFolder: vi.fn<(d?: string) => Promise<string | null>>(),
+  addProject: vi.fn<(location: unknown, name?: string) => unknown>((location, name) => ({
+    id: "p1",
+    name: name ?? "x",
+    location,
+    createdAt: "t",
+  })),
+  openDraft: vi.fn<(id: string) => void>(),
+  setLastUsedProjectDir: vi.fn<(key: string, dir: string) => void>(),
+  autoDetectSetupScript: vi.fn<(project: unknown) => void>(),
+  loadHomeScopeLocation: vi.fn<() => Promise<{ kind: string; path: string }>>(),
+  lastUsedProjectDirs: {} as Record<string, string>,
+}));
+
+const { createProjectDirectory, addProject, openDraft, setLastUsedProjectDir } = mocks;
+
+vi.mock("@/renderer/bridge", () => ({
+  readBridge: () => ({
+    platform: "darwin",
+    createProjectDirectory: mocks.createProjectDirectory,
+    pickFolder: mocks.pickFolder,
+  }),
+}));
+vi.mock("@/renderer/actions/projectActions", () => ({
+  loadHomeScopeLocation: mocks.loadHomeScopeLocation,
+}));
+vi.mock("@/renderer/state/appStore", () => ({
+  useAppStore: { getState: () => ({ addProject: mocks.addProject, openDraft: mocks.openDraft }) },
+}));
+vi.mock("@/renderer/state/sharedSettingsStore", () => ({
+  useSharedSettings: {
+    getState: () => ({
+      setLastUsedProjectDir: mocks.setLastUsedProjectDir,
+      lastUsedProjectDirs: mocks.lastUsedProjectDirs,
+    }),
+  },
+}));
+vi.mock("@/renderer/utils/gitHelpers", () => ({
+  autoDetectSetupScript: mocks.autoDetectSetupScript,
+}));
+
+import { addExistingProject, commitCreateProject } from "./createProjectActions";
+
+describe("commitCreateProject", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  test("existing folder: adds the project and records its parent as last-used", async () => {
+    await commitCreateProject({
+      mode: "existing",
+      choice: { kind: "native" },
+      dir: "/Users/me/code/app",
+      name: "app",
+    });
+
+    expect(createProjectDirectory).not.toHaveBeenCalled();
+    expect(addProject).toHaveBeenCalledWith({ kind: "posix", path: "/Users/me/code/app" }, "app");
+    expect(setLastUsedProjectDir).toHaveBeenCalledWith("native", "/Users/me/code");
+    expect(openDraft).toHaveBeenCalledWith("p1");
+  });
+
+  test("scratch: creates the directory, then adds the project at the returned path", async () => {
+    createProjectDirectory.mockResolvedValue({ path: "/Users/me/code/new" });
+
+    await commitCreateProject({
+      mode: "scratch",
+      choice: { kind: "native" },
+      dir: "/Users/me/code",
+      name: "new",
+    });
+
+    expect(createProjectDirectory).toHaveBeenCalledWith({
+      parent: "/Users/me/code",
+      name: "new",
+      kind: "posix",
+    });
+    expect(addProject).toHaveBeenCalledWith({ kind: "posix", path: "/Users/me/code/new" }, "new");
+    // scratch records the parent the user browsed, not the new folder.
+    expect(setLastUsedProjectDir).toHaveBeenCalledWith("native", "/Users/me/code");
+  });
+
+  test("scratch failure propagates and does not add a project", async () => {
+    createProjectDirectory.mockRejectedValue(
+      new Error('A folder named "new" already exists here.'),
+    );
+
+    await expect(
+      commitCreateProject({
+        mode: "scratch",
+        choice: { kind: "native" },
+        dir: "/Users/me/code",
+        name: "new",
+      }),
+    ).rejects.toThrow(/already exists/i);
+
+    expect(addProject).not.toHaveBeenCalled();
+    expect(setLastUsedProjectDir).not.toHaveBeenCalled();
+  });
+});
+
+describe("addExistingProject", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.lastUsedProjectDirs = {};
+    mocks.loadHomeScopeLocation.mockResolvedValue({ kind: "posix", path: "/Users/me" });
+  });
+
+  test("opens the picker at home when no last-used dir, then adds the picked folder", async () => {
+    mocks.pickFolder.mockResolvedValue("/Users/me/code/app");
+
+    await addExistingProject();
+
+    expect(mocks.pickFolder).toHaveBeenCalledWith("/Users/me");
+    expect(addProject).toHaveBeenCalledWith(
+      { kind: "posix", path: "/Users/me/code/app" },
+      undefined,
+    );
+    expect(setLastUsedProjectDir).toHaveBeenCalledWith("native", "/Users/me/code");
+    expect(createProjectDirectory).not.toHaveBeenCalled();
+  });
+
+  test("opens the picker at the last-used native dir when present", async () => {
+    mocks.lastUsedProjectDirs = { native: "/Users/me/projects" };
+    mocks.pickFolder.mockResolvedValue("/Users/me/projects/app");
+
+    await addExistingProject();
+
+    expect(mocks.pickFolder).toHaveBeenCalledWith("/Users/me/projects");
+    expect(mocks.loadHomeScopeLocation).not.toHaveBeenCalled();
+  });
+
+  test("does nothing when the picker is cancelled", async () => {
+    mocks.pickFolder.mockResolvedValue(null);
+
+    await addExistingProject();
+
+    expect(addProject).not.toHaveBeenCalled();
+    expect(setLastUsedProjectDir).not.toHaveBeenCalled();
+  });
+});

@@ -17,10 +17,14 @@ export function toWslUncPath(distro: string, linuxPath: string): string {
 }
 
 export function parseWslUncPath(uncPath: string): { distro: string; linuxPath: string } | null {
-  const match = /^\\\\wsl(?:\.localhost|\$)\\([^\\]+)\\(.+)$/i.exec(uncPath);
+  // The subpath after the distro is optional so a bare distro root
+  // (`\\wsl.localhost\Ubuntu`, with or without a trailing separator) parses to
+  // linuxPath "/" rather than failing and being misread as a Windows path.
+  const match = /^\\\\wsl(?:\.localhost|\$)\\([^\\]+)(?:\\(.*))?$/i.exec(uncPath);
   if (!match) return null;
   const distro = match[1]!;
-  const linuxPath = "/" + match[2]!.replace(/\\/g, "/");
+  const rest = match[2];
+  const linuxPath = rest ? "/" + rest.replace(/\\/g, "/") : "/";
   return { distro, linuxPath };
 }
 

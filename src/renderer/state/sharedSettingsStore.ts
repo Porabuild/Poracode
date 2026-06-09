@@ -71,6 +71,7 @@ interface SharedSettingsState extends SharedSettings {
   ) => void;
   setProviderConfig: (agentKind: string, config: ProviderDraftConfig) => void;
   setLastPresentationMode: (agentKind: string, mode: ThreadPresentationMode) => void;
+  setLastUsedProjectDir: (runtimeKey: string, dir: string) => void;
   setNotificationsEnabled: (value: boolean) => void;
   setNotificationSound: (value: boolean) => void;
   setNotificationFilter: (value: NotificationFilter) => void;
@@ -364,6 +365,12 @@ export const useSharedSettings = create<SharedSettingsState>()((set, get) => ({
     set({ lastPresentationModeByAgent: { ...current, [agentKind]: mode } });
     persistSettings(selectSharedSettings(get()));
   },
+  setLastUsedProjectDir: (runtimeKey, dir) => {
+    const current = get().lastUsedProjectDirs;
+    if (current[runtimeKey] === dir) return;
+    set({ lastUsedProjectDirs: { ...current, [runtimeKey]: dir } });
+    persistSettings(selectSharedSettings(get()));
+  },
   setNotificationsEnabled: (notificationsEnabled) => {
     if (get().notificationsEnabled === notificationsEnabled) return;
     set({ notificationsEnabled });
@@ -514,6 +521,7 @@ function selectSharedSettings(state: SharedSettingsState): SharedSettingsInput {
     gitReviewMode: state.gitReviewMode,
     providerConfigs: state.providerConfigs,
     lastPresentationModeByAgent: state.lastPresentationModeByAgent,
+    lastUsedProjectDirs: state.lastUsedProjectDirs,
     editorLspEnabled: state.editorLspEnabled,
     searchUseIgnoreFiles: state.searchUseIgnoreFiles,
     searchExclude: state.searchExclude,
