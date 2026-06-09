@@ -22,25 +22,48 @@ const CLAUDE_TERMINAL_AUTH_METHOD: AgentAuthMethod = {
 
 const MIN_CLAUDE_OPUS_47_CLI = [2, 1, 111] as const;
 const MIN_CLAUDE_OPUS_48_CLI = [2, 1, 154] as const;
+const MIN_CLAUDE_FABLE_5_CLI = [2, 1, 170] as const;
 const OPUS_48_MODEL_ID = "claude-opus-4-8";
 const OPUS_47_MODEL_ID = "claude-opus-4-7";
+const FABLE_5_MODEL_ID = "claude-fable-5";
 
 const CLAUDE_SEMVER_RE = /(\d+)\.(\d+)\.(\d+)/;
 
 /** Built-in catalog (CLI `--model` ids) merged with semver gate + SDK slash commands. */
 const BUILTIN_MODELS: AgentCapability["models"] = [
   { id: OPUS_48_MODEL_ID, label: "Opus 4.8" },
+  { id: FABLE_5_MODEL_ID, label: "Fable 5" },
   { id: OPUS_47_MODEL_ID, label: "Opus 4.7" },
   { id: "claude-opus-4-6", label: "Opus 4.6" },
   { id: "sonnet", label: "Sonnet" },
   { id: "haiku", label: "Haiku" },
 ];
 
+/** Effort tiers shared by the frontier models (Opus 4.7/4.8 and Fable 5). */
+const PREMIUM_EFFORT_TIERS = ["low", "medium", "high", "xHigh", "max", "ultracode"];
+
 const BUILTIN_MODEL_EFFORTS: AgentCapability["modelEfforts"] = {
+  [OPUS_48_MODEL_ID]: PREMIUM_EFFORT_TIERS,
+  [FABLE_5_MODEL_ID]: PREMIUM_EFFORT_TIERS,
+  [OPUS_47_MODEL_ID]: PREMIUM_EFFORT_TIERS,
   "claude-opus-4-6": ["low", "medium", "high", "max"],
   haiku: [],
   sonnet: ["low", "medium", "high", "max"],
 };
+
+const BUILTIN_MODEL_CONTEXT_SIZES: NonNullable<AgentCapability["modelContextSizes"]> = {
+  [OPUS_48_MODEL_ID]: ["1m", "200k"],
+  [FABLE_5_MODEL_ID]: ["1m"],
+  [OPUS_47_MODEL_ID]: ["1m", "200k"],
+  "claude-opus-4-6": ["1m", "200k"],
+  sonnet: ["200k", "1m"],
+};
+
+const BUILTIN_FAST_MODELS: NonNullable<AgentCapability["fastModels"]> = [
+  OPUS_48_MODEL_ID,
+  OPUS_47_MODEL_ID,
+  "claude-opus-4-6",
+];
 
 function parseSemverTriplet(version: string): [number, number, number] | null {
   const m = CLAUDE_SEMVER_RE.exec(version.trim());
@@ -63,16 +86,20 @@ export function claudeCapabilitiesFromCliVersion(
   if (!triplet) return undefined;
 
   const hiddenModelIds = new Set<string>();
+  if (!semverGte(triplet, MIN_CLAUDE_FABLE_5_CLI)) hiddenModelIds.add(FABLE_5_MODEL_ID);
   if (!semverGte(triplet, MIN_CLAUDE_OPUS_48_CLI)) hiddenModelIds.add(OPUS_48_MODEL_ID);
   if (!semverGte(triplet, MIN_CLAUDE_OPUS_47_CLI)) hiddenModelIds.add(OPUS_47_MODEL_ID);
   if (hiddenModelIds.size === 0) return undefined;
 
   const models = BUILTIN_MODELS.filter((m) => !hiddenModelIds.has(m.id));
   const modelEfforts = { ...BUILTIN_MODEL_EFFORTS };
+  const modelContextSizes = { ...BUILTIN_MODEL_CONTEXT_SIZES };
   for (const modelId of hiddenModelIds) {
     delete modelEfforts[modelId];
+    delete modelContextSizes[modelId];
   }
-  return { models, modelEfforts };
+  const fastModels = BUILTIN_FAST_MODELS.filter((modelId) => !hiddenModelIds.has(modelId));
+  return { models, modelEfforts, modelContextSizes, fastModels };
 }
 
 export function mapClaudeSlashCommands(

@@ -52,7 +52,7 @@
   },
   "dependencies": {
     "@agentclientprotocol/sdk": "^0.21.1",
-    "@anthropic-ai/claude-agent-sdk": "^0.3.154",
+    "@anthropic-ai/claude-agent-sdk": "^0.3.170",
     "@chenglou/pretext": "^0.0.6",
     "@dnd-kit/abstract": "^0.4.0",
     "@dnd-kit/collision": "^0.4.0",

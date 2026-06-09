@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createClaudeAdapter } from "./index";
-import { parseClaudeAuthStatusJson } from "./detection";
+import { claudeCapabilities, parseClaudeAuthStatusJson } from "./detection";
 import type { OscNotification, OscTitle } from "@/shared/osc";
 import type { ProjectLocation, ThreadConfig } from "@/shared/contracts";
 
@@ -128,6 +128,22 @@ describe("createClaudeAdapter structured sessions", () => {
         presentationMode: "gui",
       }),
     ).resolves.toMatchObject({ launchOptions: { suppressResumeConfigOverrides: true } });
+  });
+});
+
+describe("claudeCapabilities", () => {
+  it("advertises Fable 5 as a 1M-only non-fast model guarded by the probe", () => {
+    expect(claudeCapabilities.models).toContainEqual({ id: "claude-fable-5", label: "Fable 5" });
+    expect(claudeCapabilities.modelEfforts["claude-fable-5"]).toEqual([
+      "low",
+      "medium",
+      "high",
+      "xHigh",
+      "max",
+      "ultracode",
+    ]);
+    expect(claudeCapabilities.modelContextSizes?.["claude-fable-5"]).toEqual(["1m"]);
+    expect(claudeCapabilities.fastModels).not.toContain("claude-fable-5");
   });
 });
 

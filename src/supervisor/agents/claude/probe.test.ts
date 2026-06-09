@@ -97,23 +97,35 @@ beforeEach(() => {
 });
 
 describe("claudeCapabilitiesFromCliVersion", () => {
-  it("hides Opus 4.7 and 4.8 when CLI is below 2.1.111", () => {
+  it("hides Fable 5, Opus 4.7, and Opus 4.8 when CLI is below 2.1.111", () => {
     const p = claudeCapabilitiesFromCliVersion("2.1.110");
+    expect(p?.models?.map((m) => m.id)).not.toContain("claude-fable-5");
     expect(p?.models?.map((m) => m.id)).not.toContain("claude-opus-4-7");
     expect(p?.models?.map((m) => m.id)).not.toContain("claude-opus-4-8");
+    expect(p?.modelContextSizes && "claude-fable-5" in p.modelContextSizes).toBe(false);
     expect(p?.modelEfforts && "claude-opus-4-7" in p.modelEfforts).toBe(false);
     expect(p?.models?.map((m) => m.id)).toContain("claude-opus-4-6");
   });
 
-  it("hides only Opus 4.8 when CLI supports Opus 4.7 but not 4.8", () => {
+  it("hides Fable 5 and Opus 4.8 when CLI supports Opus 4.7 but not Opus 4.8", () => {
     const p = claudeCapabilitiesFromCliVersion("2.1.153");
     expect(p?.models?.map((m) => m.id)).toContain("claude-opus-4-7");
     expect(p?.models?.map((m) => m.id)).toContain("claude-opus-4-6");
+    expect(p?.models?.map((m) => m.id)).not.toContain("claude-fable-5");
     expect(p?.models?.map((m) => m.id)).not.toContain("claude-opus-4-8");
   });
 
-  it("returns undefined when CLI supports Opus 4.8", () => {
-    expect(claudeCapabilitiesFromCliVersion("2.1.154")).toBeUndefined();
+  it("hides only Fable 5 when CLI supports Opus 4.8 but not Fable 5", () => {
+    const p = claudeCapabilitiesFromCliVersion("2.1.169");
+    expect(p?.models?.map((m) => m.id)).toContain("claude-opus-4-8");
+    expect(p?.models?.map((m) => m.id)).toContain("claude-opus-4-7");
+    expect(p?.models?.map((m) => m.id)).not.toContain("claude-fable-5");
+    expect(p?.modelEfforts && "claude-fable-5" in p.modelEfforts).toBe(false);
+    expect(p?.modelContextSizes && "claude-fable-5" in p.modelContextSizes).toBe(false);
+  });
+
+  it("returns undefined when CLI supports Fable 5", () => {
+    expect(claudeCapabilitiesFromCliVersion("2.1.170")).toBeUndefined();
     expect(claudeCapabilitiesFromCliVersion("3.0.0")).toBeUndefined();
   });
 
