@@ -31,8 +31,8 @@ const CLAUDE_SEMVER_RE = /(\d+)\.(\d+)\.(\d+)/;
 
 /** Built-in catalog (CLI `--model` ids) merged with semver gate + SDK slash commands. */
 const BUILTIN_MODELS: AgentCapability["models"] = [
-  { id: OPUS_48_MODEL_ID, label: "Opus 4.8" },
   { id: FABLE_5_MODEL_ID, label: "Fable 5" },
+  { id: OPUS_48_MODEL_ID, label: "Opus 4.8" },
   { id: OPUS_47_MODEL_ID, label: "Opus 4.7" },
   { id: "claude-opus-4-6", label: "Opus 4.6" },
   { id: "sonnet", label: "Sonnet" },
@@ -43,8 +43,8 @@ const BUILTIN_MODELS: AgentCapability["models"] = [
 const PREMIUM_EFFORT_TIERS = ["low", "medium", "high", "xHigh", "max", "ultracode"];
 
 const BUILTIN_MODEL_EFFORTS: AgentCapability["modelEfforts"] = {
-  [OPUS_48_MODEL_ID]: PREMIUM_EFFORT_TIERS,
   [FABLE_5_MODEL_ID]: PREMIUM_EFFORT_TIERS,
+  [OPUS_48_MODEL_ID]: PREMIUM_EFFORT_TIERS,
   [OPUS_47_MODEL_ID]: PREMIUM_EFFORT_TIERS,
   "claude-opus-4-6": ["low", "medium", "high", "max"],
   haiku: [],
@@ -52,8 +52,8 @@ const BUILTIN_MODEL_EFFORTS: AgentCapability["modelEfforts"] = {
 };
 
 const BUILTIN_MODEL_CONTEXT_SIZES: NonNullable<AgentCapability["modelContextSizes"]> = {
-  [OPUS_48_MODEL_ID]: ["1m", "200k"],
   [FABLE_5_MODEL_ID]: ["1m"],
+  [OPUS_48_MODEL_ID]: ["1m", "200k"],
   [OPUS_47_MODEL_ID]: ["1m", "200k"],
   "claude-opus-4-6": ["1m", "200k"],
   sonnet: ["200k", "1m"],

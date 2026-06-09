@@ -25,8 +25,8 @@ const PREMIUM_EFFORT_TIERS = ["low", "medium", "high", "xHigh", "max", "ultracod
 
 export const claudeCapabilities: AgentCapability = {
   models: [
-    { id: "claude-opus-4-8", label: "Opus 4.8" },
     { id: "claude-fable-5", label: "Fable 5" },
+    { id: "claude-opus-4-8", label: "Opus 4.8" },
     { id: "claude-opus-4-7", label: "Opus 4.7" },
     { id: "claude-opus-4-6", label: "Opus 4.6" },
     { id: "sonnet", label: "Sonnet" },
@@ -35,8 +35,8 @@ export const claudeCapabilities: AgentCapability = {
   efforts: PREMIUM_EFFORT_TIERS,
   defaultEffort: "high",
   modelEfforts: {
-    "claude-opus-4-8": PREMIUM_EFFORT_TIERS,
     "claude-fable-5": PREMIUM_EFFORT_TIERS,
+    "claude-opus-4-8": PREMIUM_EFFORT_TIERS,
     "claude-opus-4-7": PREMIUM_EFFORT_TIERS,
     "claude-opus-4-6": ["low", "medium", "high", "max"],
     haiku: [],
@@ -50,8 +50,8 @@ export const claudeCapabilities: AgentCapability = {
   // to 1M (the long-context build users select these for); Sonnet defaults to
   // 200k because the 1M tier is billed per-token at premium rates.
   modelContextSizes: {
-    "claude-opus-4-8": ["1m", "200k"],
     "claude-fable-5": ["1m"],
+    "claude-opus-4-8": ["1m", "200k"],
     "claude-opus-4-7": ["1m", "200k"],
     "claude-opus-4-6": ["1m", "200k"],
     sonnet: ["200k", "1m"],

@@ -145,6 +145,10 @@ describe("claudeCapabilities", () => {
     expect(claudeCapabilities.modelContextSizes?.["claude-fable-5"]).toEqual(["1m"]);
     expect(claudeCapabilities.fastModels).not.toContain("claude-fable-5");
   });
+
+  it("lists Fable 5 first so the latest model is the default for new threads", () => {
+    expect(claudeCapabilities.models[0]).toEqual({ id: "claude-fable-5", label: "Fable 5" });
+  });
 });
 
 describe("createClaudeAdapter buildAcpLogoutCommand", () => {
