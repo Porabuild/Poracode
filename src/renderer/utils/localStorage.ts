@@ -29,3 +29,11 @@ export function writeStoredBoolean(key: string, value: boolean): void {
     /* ignore */
   }
 }
+
+export function writeStoredNumber(key: string, value: number): void {
+  try {
+    localStorage.setItem(key, String(value));
+  } catch {
+    /* ignore */
+  }
+}

@@ -2,6 +2,7 @@ import { z } from "zod";
 import type { RuntimeEvent, WorkflowRun } from "../contracts";
 import {
   projectLocationSchema,
+  projectNotesSchema,
   projectSchema,
   threadContextUsageSchema,
   threadSchema,
@@ -118,6 +119,11 @@ export const dbReplaceRuntimeSnapshotPayloadSchema = z.object({
 export const dbGetThreadContextUsagePayloadSchema = z.object({
   threadId: z.string().min(1),
 });
+
+export const dbGetProjectNotesPayloadSchema = z.object({
+  projectId: z.string().min(1),
+});
+export const dbSetProjectNotesPayloadSchema = projectNotesSchema;
 
 export const openExternalPayloadSchema = z.string().min(1);
 

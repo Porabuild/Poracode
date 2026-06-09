@@ -1,7 +1,13 @@
 import Database from "better-sqlite3";
 import { drizzle } from "drizzle-orm/better-sqlite3";
 import { asc, eq } from "drizzle-orm";
-import type { ProjectLocation, Project, Thread, ThreadContextUsage } from "@/shared/contracts";
+import type {
+  ProjectLocation,
+  Project,
+  ProjectNotes,
+  Thread,
+  ThreadContextUsage,
+} from "@/shared/contracts";
 import * as schema from "./db.schema";
 
 let _db: ReturnType<typeof drizzle> | undefined;
@@ -86,11 +92,17 @@ export function initDatabase(dbPath: string) {
       thread_id TEXT PRIMARY KEY REFERENCES threads(id) ON DELETE CASCADE,
       usage TEXT NOT NULL
     );
+    CREATE TABLE IF NOT EXISTS project_notes (
+      project_id TEXT PRIMARY KEY,
+      doc TEXT,
+      todos TEXT NOT NULL DEFAULT '[]',
+      updated_at TEXT NOT NULL
+    );
   `);
 
   // Baseline schema version for future DB migrations.
   // New upgrade steps should live behind this gate when we need them.
-  const SCHEMA_VERSION = 15;
+  const SCHEMA_VERSION = 16;
 
   const storedVersion = Number(
     (
@@ -233,6 +245,17 @@ export function initDatabase(dbPath: string) {
         CREATE TABLE IF NOT EXISTS thread_context_usage (
           thread_id TEXT PRIMARY KEY REFERENCES threads(id) ON DELETE CASCADE,
           usage TEXT NOT NULL
+        );
+      `);
+    }
+
+    if (storedVersion < 16) {
+      sqlite.exec(`
+        CREATE TABLE IF NOT EXISTS project_notes (
+          project_id TEXT PRIMARY KEY,
+          doc TEXT,
+          todos TEXT NOT NULL DEFAULT '[]',
+          updated_at TEXT NOT NULL
         );
       `);
     }
@@ -732,6 +755,39 @@ function safeParse(json: string): unknown {
 export function dbDeleteProject(projectId: string): void {
   const db = getDb();
   db.delete(schema.projects).where(eq(schema.projects.id, projectId)).run();
+  db.delete(schema.projectNotes).where(eq(schema.projectNotes.projectId, projectId)).run();
+}
+
+// ── Per-project notes ───────────────────────────────────────────────
+
+export function dbGetProjectNotes(projectId: string): ProjectNotes | null {
+  const db = getDb();
+  const row = db
+    .select()
+    .from(schema.projectNotes)
+    .where(eq(schema.projectNotes.projectId, projectId))
+    .get();
+  if (!row) return null;
+  const parsedTodos = row.todos ? safeParse(row.todos) : [];
+  return {
+    projectId: row.projectId,
+    doc: row.doc ? (safeParse(row.doc) ?? null) : null,
+    todos: Array.isArray(parsedTodos) ? (parsedTodos as ProjectNotes["todos"]) : [],
+    updatedAt: row.updatedAt,
+  };
+}
+
+export function dbSetProjectNotes(notes: ProjectNotes): void {
+  const db = getDb();
+  const doc = notes.doc == null ? null : JSON.stringify(notes.doc);
+  const todos = JSON.stringify(notes.todos ?? []);
+  db.insert(schema.projectNotes)
+    .values({ projectId: notes.projectId, doc, todos, updatedAt: notes.updatedAt })
+    .onConflictDoUpdate({
+      target: schema.projectNotes.projectId,
+      set: { doc, todos, updatedAt: notes.updatedAt },
+    })
+    .run();
 }
 
 /**
@@ -747,11 +803,13 @@ export function dbSyncAll(projectsData: Project[], threadsData: Thread[], viewJs
     );
     const incomingProjectIds = new Set(projectsData.map((p) => p.id));
     const deleteProject = _sqlite!.prepare("DELETE FROM projects WHERE id = ?");
+    const deleteProjectNotes = _sqlite!.prepare("DELETE FROM project_notes WHERE project_id = ?");
     const upsertProject = prepareProjectSyncStatement(_sqlite!);
 
     for (const pid of existingProjectIds) {
       if (!incomingProjectIds.has(pid)) {
         deleteProject.run(pid);
+        deleteProjectNotes.run(pid);
       }
     }
     for (let i = 0; i < projectsData.length; i++) {

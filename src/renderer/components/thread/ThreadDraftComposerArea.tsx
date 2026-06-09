@@ -230,6 +230,7 @@ export function ThreadDraftComposerArea(props: {
   const pendingWorktreeSelection = useAppStore(
     (s) => s.pendingDraftWorktreeSelections[props.project.id],
   );
+  const pendingComposerSeed = useAppStore((s) => s.pendingComposerSeeds[props.project.id]);
   const [slashQuery, setSlashQuery] = useState<string | null>(null);
   const [slashActiveIndex, setSlashActiveIndex] = useState(0);
   const [controlOpenRequest, setControlOpenRequest] = useState<{
@@ -401,6 +402,16 @@ export function ThreadDraftComposerArea(props: {
     onWorktreeModeChange(!pendingWorktreeSelection.worktreePath);
     useAppStore.getState().clearPendingDraftWorktreeSelection(projectId);
   }, [pendingWorktreeSelection, projectId, onWorktreeModeChange]);
+
+  // A composer seed (e.g. "New thread from a to-do / selected note text") inserts
+  // its text into the input at the caret, preserving anything the user already
+  // typed. Subscribing to the store covers both a fresh mount and an
+  // already-open draft (where openDraft does not remount this component).
+  useEffect(() => {
+    if (!pendingComposerSeed) return;
+    mentionRef.current?.insertText(pendingComposerSeed.text);
+    useAppStore.getState().clearComposerSeed(projectId);
+  }, [pendingComposerSeed, projectId]);
 
   useEffect(() => {
     const pid = props.project.id;

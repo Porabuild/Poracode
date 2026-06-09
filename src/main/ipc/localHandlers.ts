@@ -5,6 +5,7 @@ import { openMicrophoneSettings } from "../browser/permissions";
 import {
   dbDeleteProject,
   dbDeleteThread,
+  dbGetProjectNotes,
   dbGetProjects,
   dbGetState,
   dbGetThreadCompletedTurns,
@@ -14,6 +15,7 @@ import {
   dbReplaceThreadCompletedTurns,
   dbReplaceThreadRuntimeSnapshot,
   dbReplaceThreadRuntimeItems,
+  dbSetProjectNotes,
   dbSetState,
   dbSyncAll,
   dbUpsertProject,
@@ -179,6 +181,8 @@ export function createLocalIpcHandlers(
     dbReplaceThreadRuntimeSnapshot: ({ threadId, items, turns, contextUsage }) =>
       dbReplaceThreadRuntimeSnapshot(threadId, items, turns, contextUsage),
     dbGetThreadContextUsage: ({ threadId }) => dbGetThreadContextUsage(threadId),
+    dbGetProjectNotes: ({ projectId }) => dbGetProjectNotes(projectId),
+    dbSetProjectNotes: (notes) => dbSetProjectNotes(notes),
     checkForUpdate: () => options.autoUpdater.checkForUpdate(),
     startUpdateDownload: () => options.autoUpdater.startUpdateDownload(),
     installUpdate: () => options.autoUpdater.installUpdate(),

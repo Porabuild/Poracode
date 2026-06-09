@@ -5,6 +5,7 @@ import {
   Gauge,
   Globe,
   Maximize2,
+  NotebookPen,
   PanelRightClose,
   TerminalSquare,
 } from "lucide-react";
@@ -26,12 +27,14 @@ export function UnifiedRightPanel(props: {
   filesContent: ReactNode;
   browserContent: ReactNode;
   usageContent?: ReactNode;
+  notesContent?: ReactNode;
   /** Tab-specific action buttons rendered in the header when the usage tab is active. */
   usageHeaderActions?: ReactNode;
   showTerminalTab?: boolean;
   showFilesTab?: boolean;
   showGitTab?: boolean;
   showUsageTab?: boolean;
+  showNotesTab?: boolean;
   projectName: string | undefined;
   onExpandGitToOverlay?: () => void;
   onExpandFilesToOverlay?: () => void;
@@ -41,6 +44,7 @@ export function UnifiedRightPanel(props: {
   onOpenFiles?: () => void;
   onOpenBrowser?: () => void;
   onOpenUsage?: () => void;
+  onOpenNotes?: () => void;
   onClose: () => void;
 }) {
   const {
@@ -51,11 +55,13 @@ export function UnifiedRightPanel(props: {
     filesContent,
     browserContent,
     usageContent,
+    notesContent,
     usageHeaderActions,
     showTerminalTab = true,
     showFilesTab = true,
     showGitTab = true,
     showUsageTab = true,
+    showNotesTab = true,
     projectName,
     onExpandGitToOverlay,
     onExpandFilesToOverlay,
@@ -65,6 +71,7 @@ export function UnifiedRightPanel(props: {
     onOpenFiles,
     onOpenBrowser,
     onOpenUsage,
+    onOpenNotes,
     onClose,
   } = props;
 
@@ -176,6 +183,19 @@ export function UnifiedRightPanel(props: {
             <Gauge className="size-3.5" />
           </button>
         ) : null}
+        {showNotesTab ? (
+          <button
+            type="button"
+            className={`${dragCtl} ${panelHeaderTabIconButtonClass(activeTab === "notes")}`}
+            title="Notes"
+            onClick={() => {
+              if (onOpenNotes) onOpenNotes();
+              else onTabChange("notes");
+            }}
+          >
+            <NotebookPen className="size-3.5" />
+          </button>
+        ) : null}
         <button
           type="button"
           className={`${dragCtl} ${panelHeaderTabIconButtonClass(activeTab === "browser")}`}
@@ -215,6 +235,9 @@ export function UnifiedRightPanel(props: {
         </div>
         <div className="absolute inset-0 overflow-hidden" style={tabLayerStyle("usage")}>
           {usageContent}
+        </div>
+        <div className="absolute inset-0 overflow-hidden" style={tabLayerStyle("notes")}>
+          {notesContent}
         </div>
       </div>
     </div>
