@@ -1,7 +1,11 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useAppStore } from "@/renderer/state/appStore";
-import { ChatPaneActionsContext, useChatPaneActions } from "../chatPaneActionsContext";
+import {
+  ChatPaneActionsContext,
+  useChatPaneActions,
+  type ChatPaneActions,
+} from "../chatPaneActionsContext";
 import { MessageList } from "./MessageList";
 
 type MockVirtualRow = {
@@ -15,6 +19,8 @@ type MockVirtualizer = {
   getTotalSize: () => number;
   measure: () => void;
   measureElement: (element: HTMLDivElement | null) => void;
+  resizeItem: (index: number, size: number) => void;
+  options: { measureElement: (element: Element, entry: undefined, instance: unknown) => number };
   scrollToIndex: (index: number, options?: { align?: "start" | "center" | "end" | "auto" }) => void;
   shouldAdjustScrollPositionOnItemSizeChange?: (
     item: { start: number; size: number },
@@ -34,6 +40,8 @@ const {
   useVirtualizerMock,
   measureMock,
   measureElementMock,
+  resizeItemMock,
+  optionsMeasureElementMock,
   scrollToIndexMock,
   getVirtualItemsMock,
   getTotalSizeMock,
@@ -41,6 +49,9 @@ const {
   useVirtualizerMock: vi.fn<(options: MockVirtualizerOptions) => MockVirtualizer>(),
   measureMock: vi.fn<() => void>(),
   measureElementMock: vi.fn<(element: HTMLDivElement | null) => void>(),
+  resizeItemMock: vi.fn<(index: number, size: number) => void>(),
+  optionsMeasureElementMock:
+    vi.fn<(element: Element, entry: undefined, instance: unknown) => number>(),
   scrollToIndexMock:
     vi.fn<(index: number, options?: { align?: "start" | "center" | "end" | "auto" }) => void>(),
   getVirtualItemsMock: vi.fn<() => MockVirtualRow[]>(),
@@ -77,11 +88,14 @@ describe("MessageList", () => {
       { key: "row-3", index: 2, start: 192 },
     ]);
     getTotalSizeMock.mockReturnValue(384);
+    optionsMeasureElementMock.mockReturnValue(96);
     useVirtualizerMock.mockReturnValue({
       getVirtualItems: getVirtualItemsMock,
       getTotalSize: getTotalSizeMock,
       measure: measureMock,
       measureElement: measureElementMock,
+      resizeItem: resizeItemMock,
+      options: { measureElement: optionsMeasureElementMock },
       scrollToIndex: scrollToIndexMock,
     });
   });
@@ -140,78 +154,40 @@ describe("MessageList", () => {
     expect(document.querySelector("[data-item-id='item-2']")).not.toHaveAttribute("style");
   });
 
-  it("only adjusts scroll for measured rows fully above the viewport", () => {
-    const scrollElement = document.createElement("div");
-    scrollElement.scrollTop = 160;
+  it("never lets TanStack adjust scroll itself and compensates rows fully above the viewport on the next commit", () => {
+    const { scrollElement, shouldAdjust, commit } = renderCompensationList();
 
-    render(
-      <MessageList
-        threadId="thread-1"
-        entries={makeEntries(["item-1", "item-2", "item-3", "item-4"])}
-        scrollElement={scrollElement}
-      />,
-    );
+    expect(shouldAdjust({ start: 0, size: 80 }, 40, idleVirtualizer)).toBe(false);
 
-    const virtualizer = useVirtualizerMock.mock.results[0]!.value;
-    const shouldAdjust = virtualizer.shouldAdjustScrollPositionOnItemSizeChange!;
-
-    const idleVirtualizer = { isScrolling: false, scrollDirection: null } as const;
-    expect(shouldAdjust({ start: 0, size: 80 }, 40, idleVirtualizer)).toBe(true);
-    expect(shouldAdjust({ start: 96, size: 100 }, 40, idleVirtualizer)).toBe(false);
+    commit();
+    expect(scrollElement.scrollTop).toBe(200);
   });
 
-  it("does not adjust scroll for rows above the viewport during active upward scroll", () => {
-    const scrollElement = document.createElement("div");
-    scrollElement.scrollTop = 160;
+  it("does not compensate rows that overlap or sit below the viewport", () => {
+    const { scrollElement, shouldAdjust, commit } = renderCompensationList();
 
-    render(
-      <MessageList
-        threadId="thread-1"
-        entries={makeEntries(["item-1", "item-2", "item-3", "item-4"])}
-        scrollElement={scrollElement}
-      />,
-    );
+    expect(shouldAdjust({ start: 96, size: 100 }, 40, idleVirtualizer)).toBe(false);
 
-    const virtualizer = useVirtualizerMock.mock.results[0]!.value;
-    const shouldAdjust = virtualizer.shouldAdjustScrollPositionOnItemSizeChange!;
+    commit();
+    expect(scrollElement.scrollTop).toBe(160);
+  });
 
+  it("compensates rows above the viewport during active upward scroll", () => {
+    const { scrollElement, shouldAdjust, commit } = renderCompensationList();
+
+    scrollElement.scrollTop = 120;
     expect(
       shouldAdjust({ start: 0, size: 80 }, -40, {
         isScrolling: true,
         scrollDirection: "backward",
       }),
     ).toBe(false);
+
+    commit();
+    expect(scrollElement.scrollTop).toBe(80);
   });
 
-  it("does not adjust scroll for delayed row measurements after scrolling upward", () => {
-    const scrollElement = document.createElement("div");
-    scrollElement.scrollTop = 160;
-
-    render(
-      <MessageList
-        threadId="thread-1"
-        entries={makeEntries(["item-1", "item-2", "item-3", "item-4"])}
-        scrollElement={scrollElement}
-      />,
-    );
-
-    const virtualizer = useVirtualizerMock.mock.results[0]!.value;
-    const shouldAdjust = virtualizer.shouldAdjustScrollPositionOnItemSizeChange!;
-
-    scrollElement.scrollTop = 120;
-    fireEvent.scroll(scrollElement);
-
-    expect(
-      shouldAdjust({ start: 0, size: 80 }, -40, {
-        isScrolling: false,
-        scrollDirection: null,
-      }),
-    ).toBe(false);
-  });
-
-  it("adjusts streaming row height changes when bottom-sticky", () => {
-    const scrollElement = document.createElement("div");
-    scrollElement.scrollTop = 160;
+  it("compensates streaming row height changes when bottom-sticky", () => {
     const actions = {
       openProjectRelativePath: vi.fn<(path: string, lineNumber?: number) => void>(),
       revealProjectFolderInTree: vi.fn<(path: string) => void>(),
@@ -221,26 +197,28 @@ describe("MessageList", () => {
       projectLocation: { kind: "windows" as const, path: "C:\\repo" },
       projectRootNames: new Set<string>(),
     };
+    const { scrollElement, shouldAdjust, commit } = renderCompensationList(actions);
+
+    expect(shouldAdjust({ start: 96, size: 100 }, 24, idleVirtualizer)).toBe(false);
+
+    commit();
+    expect(scrollElement.scrollTop).toBe(184);
+  });
+
+  it("measures newly mounted rows synchronously so the size correction lands in the mount commit", () => {
+    const scrollElement = document.createElement("div");
+    optionsMeasureElementMock.mockReturnValue(132);
 
     render(
-      <ChatPaneActionsContext.Provider value={actions}>
-        <MessageList
-          threadId="thread-1"
-          entries={makeEntries(["item-1", "item-2", "item-3", "item-4"])}
-          scrollElement={scrollElement}
-        />
-      </ChatPaneActionsContext.Provider>,
+      <MessageList
+        threadId="thread-1"
+        entries={makeEntries(["item-1", "item-2", "item-3", "item-4"])}
+        scrollElement={scrollElement}
+      />,
     );
 
-    const virtualizer = useVirtualizerMock.mock.results[0]!.value;
-    const shouldAdjust = virtualizer.shouldAdjustScrollPositionOnItemSizeChange!;
-
-    expect(
-      shouldAdjust({ start: 96, size: 100 }, 24, {
-        isScrolling: false,
-        scrollDirection: null,
-      }),
-    ).toBe(true);
+    expect(resizeItemMock).toHaveBeenCalledWith(1, 132);
+    expect(resizeItemMock).toHaveBeenCalledWith(2, 132);
   });
 
   it("registers TanStack scrollToIndex as the bottom scroll handler", () => {
@@ -478,4 +456,36 @@ describe("MessageList", () => {
 
 function makeEntries(itemIds: readonly string[]) {
   return itemIds.map((id) => ({ kind: "item" as const, id }));
+}
+
+const idleVirtualizer = { isScrolling: false, scrollDirection: null } as const;
+
+/**
+ * Renders a MessageList wired for the scroll-compensation tests and returns
+ * the intercepted size-change predicate plus a `commit` that re-renders so the
+ * pending compensation layout effect applies.
+ */
+function renderCompensationList(actions?: ChatPaneActions) {
+  const scrollElement = document.createElement("div");
+  scrollElement.scrollTop = 160;
+  const entries = makeEntries(["item-1", "item-2", "item-3", "item-4"]);
+  // A fresh element per render: re-passing the identical element would let
+  // React bail out and skip the commit the compensation effect runs in.
+  const makeUi = () => {
+    const list = (
+      <MessageList threadId="thread-1" entries={entries} scrollElement={scrollElement} />
+    );
+    return actions ? (
+      <ChatPaneActionsContext.Provider value={actions}>{list}</ChatPaneActionsContext.Provider>
+    ) : (
+      list
+    );
+  };
+  const { rerender } = render(makeUi());
+  const virtualizer = useVirtualizerMock.mock.results[0]!.value;
+  return {
+    scrollElement,
+    shouldAdjust: virtualizer.shouldAdjustScrollPositionOnItemSizeChange!,
+    commit: () => rerender(makeUi()),
+  };
 }

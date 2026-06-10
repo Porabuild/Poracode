@@ -41,6 +41,8 @@ vi.mock("@tanstack/react-virtual", () => ({
     getTotalSize: () => options.count * 96,
     measure: vi.fn<() => void>(),
     measureElement: vi.fn<(element: HTMLDivElement | null) => void>(),
+    resizeItem: vi.fn<(index: number, size: number) => void>(),
+    options: { measureElement: () => 96 },
     scrollToIndex: (
       index: number,
       scrollOptions?: { align?: "auto" | "center" | "end" | "start" },

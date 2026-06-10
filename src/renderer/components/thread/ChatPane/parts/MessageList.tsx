@@ -47,7 +47,6 @@ interface MessageListProps {
 
 const CHAT_TRANSCRIPT_OVERSCAN = 8;
 const DEFAULT_ROW_ESTIMATE_PX = 96;
-const UPWARD_SCROLL_MEASUREMENT_SUPPRESSION_MS = 750;
 const SKIP_REVERT_CONFIRM_PREF_KEY = "lightcode-chat-checkpoint-revert-skip-confirm";
 
 // Intentionally not wrapped in `React.memo`: pane swaps preserve this fiber
@@ -65,8 +64,7 @@ export function MessageList({
   const parentActions = useChatPaneActions();
   const virtualSizeBoxRef = useRef<HTMLDivElement | null>(null);
   const rowElementsRef = useRef(new Map<number, HTMLDivElement>());
-  const lastScrollTopRef = useRef(0);
-  const suppressUpwardSizeAdjustmentUntilRef = useRef(0);
+  const pendingScrollCompensationRef = useRef(0);
   const [measureEpoch, setMeasureEpoch] = useState(0);
   const [pendingRevertItemId, setPendingRevertItemId] = useState<string | null>(null);
   const [dontAskAgain, setDontAskAgain] = useState(false);
@@ -97,41 +95,34 @@ export function MessageList({
   }, [entries.length, parentActions, virtualizer]);
 
   useLayoutEffect(() => {
-    if (!scrollElement) return;
-    lastScrollTopRef.current = scrollElement.scrollTop;
-
-    const handleScroll = () => {
-      const prevScrollTop = lastScrollTopRef.current;
-      const nextScrollTop = scrollElement.scrollTop;
-      lastScrollTopRef.current = nextScrollTop;
-      if (nextScrollTop < prevScrollTop) {
-        suppressUpwardSizeAdjustmentUntilRef.current =
-          performance.now() + UPWARD_SCROLL_MEASUREMENT_SUPPRESSION_MS;
-      }
-    };
-
-    scrollElement.addEventListener("scroll", handleScroll, { passive: true });
-    return () => scrollElement.removeEventListener("scroll", handleScroll);
-  }, [scrollElement]);
-
-  useLayoutEffect(() => {
-    // Adjust scroll only when the resized row is fully above the viewport.
-    // This is what keeps visible content anchored as overscan rows replace
-    // their estimated heights with real measurements — critical for smooth
-    // idle reading. During and shortly after upward scrolling, suppress the
-    // compensation so delayed row measurements do not pull the transcript.
-    virtualizer.shouldAdjustScrollPositionOnItemSizeChange = (item, _delta, instance) => {
+    // Compensate scroll when a row above the viewport (or any row while
+    // bottom-sticky) trades its estimated height for a real measurement —
+    // otherwise the estimate error shifts the visible content. Always return
+    // false so TanStack never calls scrollTo itself: that adjustment runs
+    // outside React's commit and paints one frame apart from the translateY /
+    // row-height change, which reads as flicker. Instead the delta is
+    // accumulated here and applied in the layout effect below, in the same
+    // commit (and therefore the same paint) as the DOM change it compensates.
+    virtualizer.shouldAdjustScrollPositionOnItemSizeChange = (item, delta) => {
       if (!scrollElement) return false;
-      const now = performance.now();
-      if (instance.isScrolling && instance.scrollDirection === "backward") return false;
-      if (now <= suppressUpwardSizeAdjustmentUntilRef.current) return false;
-      if (parentActions?.isStickToBottom?.()) return true;
-      return item.start + item.size <= scrollElement.scrollTop;
+      if (parentActions?.isStickToBottom?.() || item.start + item.size <= scrollElement.scrollTop) {
+        pendingScrollCompensationRef.current += delta;
+      }
+      return false;
     };
     return () => {
       virtualizer.shouldAdjustScrollPositionOnItemSizeChange = undefined;
     };
   }, [parentActions, scrollElement, virtualizer]);
+
+  // Intentionally dependency-free: runs after every commit, once row refs have
+  // synchronously measured newly mounted rows, so the scroll correction lands
+  // before the browser paints the row's real height.
+  useLayoutEffect(() => {
+    if (pendingScrollCompensationRef.current === 0 || !scrollElement) return;
+    scrollElement.scrollTop += pendingScrollCompensationRef.current;
+    pendingScrollCompensationRef.current = 0;
+  });
 
   useLayoutEffect(() => {
     const virtualSizeBox = virtualSizeBoxRef.current;
@@ -182,10 +173,20 @@ export function MessageList({
     (index: number, element: HTMLDivElement | null) => {
       if (element) {
         rowElementsRef.current.set(index, element);
+        virtualizer.measureElement(element);
+        // TanStack defers ref-time measurement to the next ResizeObserver
+        // frame while scrolling, but the row's real DOM height is already on
+        // screen this commit — a frame with the old scroll offset would paint
+        // shifted. Measure synchronously so the estimate correction (and the
+        // pending scroll compensation it accumulates) applies pre-paint.
+        virtualizer.resizeItem(
+          index,
+          virtualizer.options.measureElement(element, undefined, virtualizer),
+        );
       } else {
         rowElementsRef.current.delete(index);
+        virtualizer.measureElement(element);
       }
-      virtualizer.measureElement(element);
     },
     [virtualizer],
   );
