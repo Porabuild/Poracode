@@ -508,10 +508,14 @@ export class SupervisorRuntime {
   }
 
   async getAgentStatuses(payload: GetAgentStatusesPayload): Promise<AgentStatusesResponse> {
+    this.sharedSettingsCache.invalidate();
+    this.refreshAgentRegistryAdapters();
     return this.agentStatusService.getAgentStatuses(payload);
   }
 
   async refreshAgentStatuses(payload: GetAgentStatusesPayload): Promise<AgentStatusesResponse> {
+    this.sharedSettingsCache.invalidate();
+    this.refreshAgentRegistryAdapters();
     return this.agentStatusService.refreshAgentStatuses(payload);
   }
 

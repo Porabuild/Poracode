@@ -30,6 +30,7 @@ import {
   type WriteTerminalPayload,
   type RuntimeEvent,
   areAgentSlashCommandsEqual,
+  isClaudeProfileKind,
   isThreadConfigEqual,
 } from "@/shared/contracts";
 import { buildPromptContentBlocks } from "@/shared/promptContent";
@@ -113,6 +114,10 @@ function shouldPrimeNativeProjectShellEnv(
   location: ProjectLocation,
 ): location is Extract<ProjectLocation, { kind: "windows" | "posix" }> {
   return location.kind === "posix" || (process.platform === "win32" && location.kind === "windows");
+}
+
+function isClaudeAdapterKind(kind: string): boolean {
+  return kind === "claude" || isClaudeProfileKind(kind);
 }
 
 export class ThreadSessionManager {
@@ -967,7 +972,7 @@ export class ThreadSessionManager {
     config: ThreadConfig,
     projectLocation: ProjectLocation,
   ): Promise<string[]> {
-    if (adapter.kind !== "claude") return args;
+    if (!isClaudeAdapterKind(adapter.kind)) return args;
     const flags: Record<string, unknown> = {};
     if (config.effort === "ultracode") flags.ultracode = true;
     if (config.fast === true) flags.fastMode = true;
@@ -994,25 +999,24 @@ export class ThreadSessionManager {
       return args;
     }
 
-    switch (adapter.kind) {
-      case "codex": {
-        let trailingPositionals = 0;
-        if (args[0] === "resume" || sessionRef) {
-          trailingPositionals += 1;
-        }
-        if (prompt.trim().length > 0) {
-          trailingPositionals += 1;
-        }
-        const insertAt = Math.max(args.length - trailingPositionals, args[0] === "resume" ? 1 : 0);
-        return [...args.slice(0, insertAt), ...extraArgs, ...args.slice(insertAt)];
+    if (adapter.kind === "codex") {
+      let trailingPositionals = 0;
+      if (args[0] === "resume" || sessionRef) {
+        trailingPositionals += 1;
       }
-      case "claude": {
-        const insertAt = prompt.trim().length > 0 ? args.length - 1 : args.length;
-        return [...args.slice(0, insertAt), ...extraArgs, ...args.slice(insertAt)];
+      if (prompt.trim().length > 0) {
+        trailingPositionals += 1;
       }
-      default:
-        return [...args, ...extraArgs];
+      const insertAt = Math.max(args.length - trailingPositionals, args[0] === "resume" ? 1 : 0);
+      return [...args.slice(0, insertAt), ...extraArgs, ...args.slice(insertAt)];
     }
+
+    if (isClaudeAdapterKind(adapter.kind)) {
+      const insertAt = prompt.trim().length > 0 ? args.length - 1 : args.length;
+      return [...args.slice(0, insertAt), ...extraArgs, ...args.slice(insertAt)];
+    }
+
+    return [...args, ...extraArgs];
   }
 
   /**

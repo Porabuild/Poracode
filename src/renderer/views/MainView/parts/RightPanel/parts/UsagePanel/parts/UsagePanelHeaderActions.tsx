@@ -16,10 +16,11 @@ export function UsagePanelHeaderActions(props: { dragControlClass: string }) {
   const providerOrder = useSharedSettings((s) => s.usage.providerOrder);
   const disabledProviders = useSharedSettings((s) => s.usage.disabledProviders);
   const collapsedProviders = useSharedSettings((s) => s.usage.collapsedProviders);
+  const agentInstances = useSharedSettings((s) => s.agentInstances);
   const setUsageSetting = useSharedSettings((s) => s.setUsageSetting);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  const displayed = resolveDisplayedProviders(providerOrder, disabledProviders);
+  const displayed = resolveDisplayedProviders(providerOrder, disabledProviders, agentInstances);
   const allCollapsed =
     displayed.length > 0 && displayed.every((p) => collapsedProviders.includes(p.id));
 

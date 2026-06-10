@@ -1,6 +1,6 @@
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import type { AgentAuthMethod, AgentCapability } from "@/shared/contracts";
+import type { AgentCapability, AgentTerminalAuthMethod } from "@/shared/contracts";
 import type { SlashCommand } from "@anthropic-ai/claude-agent-sdk";
 import {
   readWslLoginShellCommandOutputAsync,
@@ -13,12 +13,16 @@ import { resolveFastAvailability } from "./fastModeProbe";
 import { AsyncPromptQueue } from "./promptQueue";
 import { spawnClaudeProbeProcess } from "./sdkProbeProcess";
 
-const CLAUDE_TERMINAL_AUTH_METHOD: AgentAuthMethod = {
+const CLAUDE_TERMINAL_AUTH_METHOD: AgentTerminalAuthMethod = {
   type: "terminal",
   id: "claude-login",
   name: "Claude login",
   args: ["auth", "login"],
 };
+
+export function claudeTerminalAuthMethod(env?: Record<string, string>): AgentTerminalAuthMethod {
+  return env ? { ...CLAUDE_TERMINAL_AUTH_METHOD, env } : CLAUDE_TERMINAL_AUTH_METHOD;
+}
 
 const MIN_CLAUDE_OPUS_47_CLI = [2, 1, 111] as const;
 const MIN_CLAUDE_OPUS_48_CLI = [2, 1, 154] as const;
@@ -147,6 +151,7 @@ export function win32PathToWslMount(winPath: string): string {
 async function probeClaudeSdkPartialNative(
   executablePath: string,
   timeoutMs: number,
+  envOverrides?: Record<string, string>,
 ): Promise<Partial<AgentCapability> | undefined> {
   try {
     const { query } = await import("@anthropic-ai/claude-agent-sdk");
@@ -161,6 +166,7 @@ async function probeClaudeSdkPartialNative(
           pathToClaudeCodeExecutable: executablePath,
           persistSession: false,
           cwd: process.platform === "win32" ? (process.env.USERPROFILE ?? process.cwd()) : "/tmp",
+          ...(envOverrides ? { env: { ...process.env, ...envOverrides } } : {}),
           settingSources: ["user", "project", "local"],
           allowedTools: [],
           stderr: () => {},
@@ -204,6 +210,7 @@ async function probeClaudeSdkPartialNative(
 async function probeClaudeSdkPartialWsl(
   ctx: DetectProbeCtx,
   timeoutMs: number,
+  envOverrides?: Record<string, string>,
 ): Promise<Partial<AgentCapability> | undefined> {
   if (ctx.location.kind !== "wsl" || !ctx.executablePath) return undefined;
 
@@ -222,7 +229,10 @@ async function probeClaudeSdkPartialWsl(
     "/tmp",
     "node",
     [workerWslPath, ctx.executablePath, String(timeoutMs), cacheWslPath],
-    { timeout: timeoutMs + 3000 },
+    {
+      timeout: timeoutMs + 3000,
+      ...(envOverrides ? { env: envOverrides } : {}),
+    },
   );
 
   if (!result.ok) {
@@ -258,6 +268,7 @@ async function probeClaudeSdkPartialWsl(
 
 export async function probeClaudeCapabilities(
   ctx: DetectProbeCtx,
+  options?: { env?: Record<string, string> },
 ): Promise<CapabilitiesProbeResult | undefined> {
   if (!ctx.executablePath) return undefined;
 
@@ -266,8 +277,8 @@ export async function probeClaudeCapabilities(
   const timeoutMs = process.platform === "win32" ? 25_000 : 20_000;
   const sdkPartial =
     ctx.location.kind === "wsl"
-      ? await probeClaudeSdkPartialWsl(ctx, timeoutMs)
-      : await probeClaudeSdkPartialNative(ctx.executablePath, timeoutMs);
+      ? await probeClaudeSdkPartialWsl(ctx, timeoutMs, options?.env)
+      : await probeClaudeSdkPartialNative(ctx.executablePath, timeoutMs, options?.env);
 
   const versionPartial = claudeCapabilitiesFromCliVersion(ctx.version);
 
@@ -278,7 +289,7 @@ export async function probeClaudeCapabilities(
   return {
     ...(sdkPartial ?? {}),
     ...(versionPartial ?? {}),
-    authMethods: [CLAUDE_TERMINAL_AUTH_METHOD],
+    authMethods: [claudeTerminalAuthMethod(options?.env)],
     authLogoutSupported: true,
   };
 }

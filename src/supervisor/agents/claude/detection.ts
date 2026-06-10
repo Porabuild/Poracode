@@ -161,7 +161,10 @@ export function parseClaudeAuthStatusJson(output: string): StatusProbeResult | u
   };
 }
 
-async function probeClaudeStatus(ctx: Parameters<NonNullable<DetectionSpec["statusProbe"]>>[0]) {
+export async function probeClaudeStatus(
+  ctx: Parameters<NonNullable<DetectionSpec["statusProbe"]>>[0],
+  options?: { env?: Record<string, string> },
+) {
   if (!ctx.executablePath) return undefined;
   const result = await readAgentCommandOutput(
     ctx.location,
@@ -169,6 +172,7 @@ async function probeClaudeStatus(ctx: Parameters<NonNullable<DetectionSpec["stat
     ["auth", "status"],
     {
       posixCwd: getAgentProbeCwd(ctx.location),
+      ...(options?.env ? { env: options.env } : {}),
     },
   );
   const parsed = parseClaudeAuthStatusJson(result.stdout || result.stderr);

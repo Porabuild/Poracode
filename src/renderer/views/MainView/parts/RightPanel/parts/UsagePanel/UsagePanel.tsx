@@ -26,6 +26,7 @@ export function UsagePanel() {
   const providerOrder = useSharedSettings((s) => s.usage.providerOrder);
   const disabledProviders = useSharedSettings((s) => s.usage.disabledProviders);
   const collapsedProviders = useSharedSettings((s) => s.usage.collapsedProviders);
+  const agentInstances = useSharedSettings((s) => s.agentInstances);
   const setUsageSetting = useSharedSettings((s) => s.setUsageSetting);
   const snapshots = useProviderUsageStore((s) => s.snapshots);
   const [nowTick, setNowTick] = useState(() => Date.now());
@@ -35,7 +36,7 @@ export function UsagePanel() {
     maxFadePx: 10,
   });
 
-  const displayed = resolveDisplayedProviders(providerOrder, disabledProviders);
+  const displayed = resolveDisplayedProviders(providerOrder, disabledProviders, agentInstances);
 
   // Hydrate the store from the supervisor cache on open (and let the cache's
   // staleness trigger a background refresh whose events update the cards live).

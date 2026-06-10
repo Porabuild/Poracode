@@ -68,4 +68,15 @@ describe("Claude composer controls", () => {
       "bypassPermissions",
     );
   });
+
+  it("uses the Claude composer controls for profile-backed Claude providers", () => {
+    const controls = getComposerControls("claude:work")?.({
+      capabilities,
+      config: { model: "claude-fable-5" },
+      isDisabled: false,
+      onConfigChange: () => undefined,
+    });
+
+    expect(controls?.some(isPermissionControl)).toBe(true);
+  });
 });

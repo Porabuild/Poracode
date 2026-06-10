@@ -113,6 +113,7 @@ export interface CreateStructuredSessionInput {
   projectLocation: ProjectLocation;
   config: ThreadConfig;
   agentSettings?: Record<string, boolean | string>;
+  env?: Record<string, string>;
   browserMcp?: BrowserMcpHttpConfig;
   sessionRef?: SessionRef;
   presentationMode?: ThreadPresentationMode;
@@ -281,15 +282,23 @@ export interface AgentOneShotRunner {
     model: string,
     effort?: string,
     prompt?: string,
+    location?: ProjectLocation,
   ):
-    | { command: string; args: string[]; stdin?: string; isolateCwd?: boolean; pty?: boolean }
+    | {
+        command: string;
+        args: string[];
+        stdin?: string;
+        isolateCwd?: boolean;
+        pty?: boolean;
+        env?: Record<string, string>;
+      }
     | undefined;
   runOneShot?(input: RunOneShotInput): Promise<string>;
   buildContextExtractionCommand?(
     sessionRef: SessionRef,
     location: ProjectLocation,
     model?: string,
-  ): { command: string; args: string[]; stdin?: string } | undefined;
+  ): { command: string; args: string[]; stdin?: string; env?: Record<string, string> } | undefined;
 }
 
 /**

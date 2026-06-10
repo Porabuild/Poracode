@@ -140,10 +140,23 @@ export function createLocalIpcHandlers(
       // Preserve supervisor-managed fields so the renderer's persist cycle
       // doesn't clobber writes made out-of-band by the supervisor.
       const onDisk = readSharedSettingsFile(settingsPath);
+      const rendererManagedInstances = Object.fromEntries(
+        Object.entries(settings.agentInstances).filter(
+          ([, instance]) => instance.driver !== "acp-generic",
+        ),
+      );
+      const supervisorManagedInstances = Object.fromEntries(
+        Object.entries(onDisk.agentInstances).filter(
+          ([, instance]) => instance.driver === "acp-generic",
+        ),
+      );
       writeSharedSettingsFile(settingsPath, {
         ...settings,
         acpRegistryInstalledAgents: onDisk.acpRegistryInstalledAgents,
-        agentInstances: onDisk.agentInstances,
+        agentInstances: {
+          ...rendererManagedInstances,
+          ...supervisorManagedInstances,
+        },
         agentHookSupport: onDisk.agentHookSupport,
       });
       options.updatePowerSaveBlocker();

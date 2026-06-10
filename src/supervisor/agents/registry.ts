@@ -15,7 +15,7 @@ import type { AgentInstanceConfig } from "@/shared/contracts";
 import { createAcpGenericAdapter } from "./acp-generic";
 import { createAntigravityAdapter } from "./antigravity";
 import type { AgentAdapter } from "./base";
-import { createClaudeAdapter } from "./claude";
+import { createClaudeAdapter, createClaudeProfileAdapter } from "./claude";
 import { createCommandCodeAdapter } from "./commandcode";
 import { createCopilotAdapter } from "./copilot";
 import { createCodexAdapter } from "./codex";
@@ -48,7 +48,21 @@ export function buildAgentRegistry(userInstances: AgentInstanceConfig[]): AgentA
   const userAdapters = userInstances
     .filter((inst) => inst.enabled !== false && inst.driver === "acp-generic")
     .map((inst) => createAcpGenericAdapter(inst));
-  const adapters = [...builtIns, ...userAdapters];
+  const claudeProfileAdapters = userInstances
+    .filter((inst) => inst.enabled !== false && inst.driver === "claude")
+    .flatMap((inst) => {
+      try {
+        return [createClaudeProfileAdapter(inst)];
+      } catch (error) {
+        console.warn(
+          `[agents] skipping Claude profile ${inst.id}: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+        );
+        return [];
+      }
+    });
+  const adapters = [...builtIns, ...claudeProfileAdapters, ...userAdapters];
   const kinds = new Set(adapters.map((a) => a.kind));
   if (kinds.size !== adapters.length) {
     throw new Error("Duplicate agent kind in registry");

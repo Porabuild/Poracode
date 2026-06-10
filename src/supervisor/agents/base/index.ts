@@ -497,18 +497,30 @@ export async function readAgentCommandOutput(
   location: ProjectLocation,
   executablePath: string,
   args: string[],
-  options?: { timeoutMs?: number; wslLinuxCwd?: string; posixCwd?: string },
+  options?: {
+    timeoutMs?: number;
+    wslLinuxCwd?: string;
+    posixCwd?: string;
+    env?: Record<string, string>;
+  },
 ): Promise<{ ok: boolean; stdout: string; stderr: string }> {
   if (location.kind === "wsl") {
+    const wslOptions =
+      options?.timeoutMs !== undefined || options?.env
+        ? {
+            ...(options?.timeoutMs !== undefined ? { timeout: options.timeoutMs } : {}),
+            ...(options?.env ? { env: options.env } : {}),
+          }
+        : undefined;
     return readWslLoginShellCommandOutputAsync(
       location.distro,
       options?.wslLinuxCwd ?? location.linuxPath,
       executablePath,
       args,
-      options?.timeoutMs ? { timeout: options.timeoutMs } : undefined,
+      wslOptions,
     );
   }
-  const spec = buildAgentCommand(location, executablePath, args);
+  const spec = buildAgentCommand(location, executablePath, args, undefined, options?.env);
   const effectiveCwd = options?.posixCwd ?? spec.cwd;
   const runOptions = {
     ...(effectiveCwd ? { cwd: effectiveCwd } : {}),

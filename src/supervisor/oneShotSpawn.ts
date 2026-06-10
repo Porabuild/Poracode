@@ -16,6 +16,7 @@ export interface OneShotSpecOptions {
    * is irrelevant to the result.
    */
   isolateCwd?: boolean | undefined;
+  env?: Record<string, string> | undefined;
 }
 
 /**
@@ -37,7 +38,7 @@ export function buildOneShotSpec(
   options?: OneShotSpecOptions,
 ): CommandSpec {
   const effectiveLocation = options?.isolateCwd ? isolatedCwdLocation(location) : location;
-  return buildAgentCommand(effectiveLocation, command, args);
+  return buildAgentCommand(effectiveLocation, command, args, undefined, options?.env);
 }
 
 /**
@@ -49,9 +50,18 @@ export function buildOneShotSpec(
  */
 export function prepareOneShot(
   location: ProjectLocation,
-  cmd: { command: string; args: string[]; isolateCwd?: boolean; pty?: boolean },
+  cmd: {
+    command: string;
+    args: string[];
+    isolateCwd?: boolean;
+    pty?: boolean;
+    env?: Record<string, string>;
+  },
 ): { spec: CommandSpec; spawn: typeof spawnAgent } {
-  const spec = buildOneShotSpec(location, cmd.command, cmd.args, { isolateCwd: cmd.isolateCwd });
+  const spec = buildOneShotSpec(location, cmd.command, cmd.args, {
+    isolateCwd: cmd.isolateCwd,
+    ...(cmd.env ? { env: cmd.env } : {}),
+  });
   return { spec, spawn: cmd.pty ? spawnAgentPty : spawnAgent };
 }
 

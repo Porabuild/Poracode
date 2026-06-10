@@ -1,4 +1,9 @@
-import type { AgentCapability, AgentStatus, ThreadPresentationMode } from "@/shared/contracts";
+import {
+  baseAgentKind,
+  type AgentCapability,
+  type AgentStatus,
+  type ThreadPresentationMode,
+} from "@/shared/contracts";
 import { deriveSubProvider, listSubProviderOrder } from "./deriveSubProvider";
 import {
   formatShortcutFallbackLabel,
@@ -86,7 +91,7 @@ function makeProviderSortKey(userOrder: readonly string[] | undefined): (kind: s
   const trimmed = userOrder?.filter((k) => k.length > 0) ?? [];
   if (trimmed.length === 0) {
     return (kind) => {
-      const idx = PROVIDER_ORDER.indexOf(kind);
+      const idx = PROVIDER_ORDER.indexOf(baseAgentKind(kind));
       return idx < 0 ? PROVIDER_ORDER.length : idx;
     };
   }
@@ -98,7 +103,7 @@ function makeProviderSortKey(userOrder: readonly string[] | undefined): (kind: s
   return (kind) => {
     const fromUser = userIndex.get(kind);
     if (fromUser !== undefined) return fromUser;
-    const fromDefault = PROVIDER_ORDER.indexOf(kind);
+    const fromDefault = PROVIDER_ORDER.indexOf(baseAgentKind(kind));
     return userTailBase + (fromDefault < 0 ? PROVIDER_ORDER.length : fromDefault);
   };
 }

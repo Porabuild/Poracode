@@ -1,5 +1,7 @@
+import { homedir } from "node:os";
+import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { createClaudeAdapter } from "./index";
+import { createClaudeAdapter, createClaudeProfileAdapter } from "./index";
 import { claudeCapabilities, parseClaudeAuthStatusJson } from "./detection";
 import type { OscNotification, OscTitle } from "@/shared/osc";
 import type { ProjectLocation, ThreadConfig } from "@/shared/contracts";
@@ -163,6 +165,42 @@ describe("createClaudeAdapter buildAcpLogoutCommand", () => {
     expect(rendered).toMatch(/claude/i);
     expect(rendered).toContain("auth");
     expect(rendered).toContain("logout");
+  });
+});
+
+describe("createClaudeProfileAdapter", () => {
+  const projectLocation: ProjectLocation = { kind: "posix", path: "/repo" };
+
+  it("creates a distinct Claude adapter backed by a separate config directory", () => {
+    const adapter = createClaudeProfileAdapter({
+      id: "work",
+      driver: "claude",
+      displayName: "Work",
+      config: { configDir: "~/.lightcode/claude-profiles/work" },
+    });
+
+    expect(adapter.kind).toBe("claude:work");
+    expect(adapter.label).toBe("Claude Work");
+    expect(adapter.capabilities.subProviders).toContainEqual({
+      id: "claude-profile",
+      label: "Work",
+    });
+    expect(adapter.capabilities.modelSubProvider?.sonnet).toBe("claude-profile");
+
+    const expectedConfigDir = path.join(homedir(), ".lightcode/claude-profiles/work");
+    expect(
+      adapter.buildLaunchArgv(projectLocation, { model: "sonnet" }, "hello").env?.CLAUDE_CONFIG_DIR,
+    ).toBe(expectedConfigDir);
+    expect(
+      adapter.buildOneShotCommand?.("haiku", undefined, "Summarize", projectLocation)?.env
+        ?.CLAUDE_CONFIG_DIR,
+    ).toBe(expectedConfigDir);
+    expect(
+      adapter.buildContextExtractionCommand?.(
+        { providerSessionId: "session-1", discoveredAt: "test" },
+        projectLocation,
+      )?.env?.CLAUDE_CONFIG_DIR,
+    ).toBe(expectedConfigDir);
   });
 });
 

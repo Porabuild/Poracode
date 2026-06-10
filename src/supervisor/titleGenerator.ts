@@ -102,7 +102,7 @@ async function runViaCli(
   effort: string | undefined,
   prompt: string,
 ): Promise<string> {
-  const cmd = adapter.buildOneShotCommand!(model, effort, prompt);
+  const cmd = adapter.buildOneShotCommand!(model, effort, prompt, location);
   if (!cmd) {
     throw new Error(`${adapter.label} does not support one-shot generation`);
   }

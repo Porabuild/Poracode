@@ -8,6 +8,7 @@ import {
 } from "@/shared/settings";
 import type {
   GitReviewMode,
+  AgentInstanceConfig,
   InstalledAcpRegistryAgent,
   NewThreadMode,
   NotificationFilter,
@@ -76,6 +77,8 @@ interface SharedSettingsState extends SharedSettings {
   setNotificationSound: (value: boolean) => void;
   setNotificationFilter: (value: NotificationFilter) => void;
   syncAcpRegistryInstalledAgents: (installed: InstalledAcpRegistryAgent[]) => void;
+  setAgentInstance: (instance: AgentInstanceConfig) => void;
+  removeAgentInstance: (instanceId: string) => void;
   setNotificationStatuses: (value: {
     done?: boolean;
     needsAttention?: boolean;
@@ -412,6 +415,33 @@ export const useSharedSettings = create<SharedSettingsState>()((set, get) => ({
       ),
     });
     cacheSettingsSnapshot(selectSharedSettings(get()));
+  },
+  setAgentInstance: (instance) => {
+    const current = get().agentInstances;
+    set({ agentInstances: { ...current, [instance.id]: instance } });
+    persistSettings(selectSharedSettings(get()));
+  },
+  removeAgentInstance: (instanceId) => {
+    const current = get().agentInstances;
+    if (!current[instanceId]) return;
+    const { [instanceId]: _removed, ...agentInstances } = current;
+    const prefix = `claude:${instanceId}`;
+    const removeProfileKey = (values: Record<string, unknown>) =>
+      Object.fromEntries(Object.entries(values).filter(([key]) => key !== prefix));
+    set({
+      agentInstances,
+      providerConfigs: removeProfileKey(get().providerConfigs) as SharedSettings["providerConfigs"],
+      hiddenModels: removeProfileKey(get().hiddenModels) as SharedSettings["hiddenModels"],
+      agentSettings: removeProfileKey(get().agentSettings) as SharedSettings["agentSettings"],
+      lastPresentationModeByAgent: removeProfileKey(
+        get().lastPresentationModeByAgent,
+      ) as SharedSettings["lastPresentationModeByAgent"],
+      disabledAgents: get().disabledAgents.filter((kind) => kind !== prefix),
+      favoriteModels: get().favoriteModels.filter((entry) => entry.agentKind !== prefix),
+      recentModels: get().recentModels.filter((entry) => entry.agentKind !== prefix),
+      providerOrder: get().providerOrder.filter((kind) => kind !== prefix),
+    });
+    persistSettings(selectSharedSettings(get()));
   },
   setNotificationStatuses: (partial) => {
     const current = get().notificationStatuses;

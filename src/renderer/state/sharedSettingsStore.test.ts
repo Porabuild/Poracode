@@ -15,6 +15,14 @@ describe("sharedSettingsStore", () => {
         useWebGpu: true,
       },
       providerConfigs: {},
+      agentInstances: {},
+      hiddenModels: {},
+      agentSettings: {},
+      lastPresentationModeByAgent: {},
+      disabledAgents: [],
+      favoriteModels: [],
+      recentModels: [],
+      providerOrder: [],
       lastUsedProjectDirs: {},
     });
   });
@@ -79,5 +87,43 @@ describe("sharedSettingsStore", () => {
     useSharedSettings.getState().setLastUsedProjectDir("native", "/Users/me/b");
 
     expect(useSharedSettings.getState().lastUsedProjectDirs.native).toBe("/Users/me/b");
+  });
+
+  it("adds and removes Claude profile instances with their profile-scoped settings", () => {
+    useSharedSettings.getState().setAgentInstance({
+      id: "work",
+      driver: "claude",
+      displayName: "Work",
+      config: { configDir: "~/.lightcode/claude-profiles/work" },
+    });
+    useSharedSettings.setState({
+      providerConfigs: {
+        claude: { model: "sonnet" },
+        "claude:work": { model: "haiku" },
+      },
+      hiddenModels: { "claude:work": ["sonnet"] },
+      agentSettings: { "claude:work": { noFlicker: true } },
+      lastPresentationModeByAgent: { "claude:work": "gui" },
+      disabledAgents: ["claude:work"],
+      favoriteModels: [{ agentKind: "claude:work", modelId: "haiku", presentationMode: "gui" }],
+      recentModels: [{ agentKind: "claude:work", modelId: "sonnet", presentationMode: "gui" }],
+      providerOrder: ["claude", "claude:work"],
+    });
+
+    expect(useSharedSettings.getState().agentInstances.work?.displayName).toBe("Work");
+
+    useSharedSettings.getState().removeAgentInstance("work");
+
+    const state = useSharedSettings.getState();
+    expect(state.agentInstances.work).toBeUndefined();
+    expect(state.providerConfigs.claude).toEqual({ model: "sonnet" });
+    expect(state.providerConfigs["claude:work"]).toBeUndefined();
+    expect(state.hiddenModels["claude:work"]).toBeUndefined();
+    expect(state.agentSettings["claude:work"]).toBeUndefined();
+    expect(state.lastPresentationModeByAgent["claude:work"]).toBeUndefined();
+    expect(state.disabledAgents).not.toContain("claude:work");
+    expect(state.favoriteModels).toEqual([]);
+    expect(state.recentModels).toEqual([]);
+    expect(state.providerOrder).toEqual(["claude"]);
   });
 });

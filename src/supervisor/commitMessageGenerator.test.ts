@@ -207,12 +207,13 @@ describe("generateCommitMessage", () => {
     const pending = generateCommitMessage(windowsProject, createAdapter());
     await flushPromises();
 
-    expect(buildAgentCommandMock).toHaveBeenCalledWith(windowsProject, "codex", [
-      "exec",
-      "-m",
-      "gpt-5.4-mini",
-      "-",
-    ]);
+    expect(buildAgentCommandMock).toHaveBeenCalledWith(
+      windowsProject,
+      "codex",
+      ["exec", "-m", "gpt-5.4-mini", "-"],
+      undefined,
+      undefined,
+    );
     expect(spawnMock).toHaveBeenCalledWith(
       "codex",
       ["exec", "-m", "gpt-5.4-mini", "-"],
@@ -238,12 +239,13 @@ describe("generateCommitMessage", () => {
     const pending = generateCommitMessage(wslProject, createAdapter());
     await flushPromises();
 
-    expect(buildAgentCommandMock).toHaveBeenCalledWith(wslProject, "codex", [
-      "exec",
-      "-m",
-      "gpt-5.4-mini",
-      "-",
-    ]);
+    expect(buildAgentCommandMock).toHaveBeenCalledWith(
+      wslProject,
+      "codex",
+      ["exec", "-m", "gpt-5.4-mini", "-"],
+      undefined,
+      undefined,
+    );
 
     child.stdout.emit("data", Buffer.from("fix(wsl): route commit generation through WSL"));
     child.emit("close", 0);

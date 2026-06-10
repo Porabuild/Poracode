@@ -136,7 +136,12 @@ export async function runOneShotPromptWithFallback(
     if (!options.adapter.buildOneShotCommand) {
       throw new Error(`${options.adapter.label} does not support one-shot generation`);
     }
-    const cmd = options.adapter.buildOneShotCommand(options.model, options.effort, prompt);
+    const cmd = options.adapter.buildOneShotCommand(
+      options.model,
+      options.effort,
+      prompt,
+      options.location,
+    );
     if (!cmd) {
       throw new Error(`${options.adapter.label} does not support one-shot generation`);
     }

@@ -20,6 +20,12 @@ interface ClaudeOAuthBlob {
   rateLimitTier?: string;
 }
 
+export interface ClaudeCredentialEnv {
+  CLAUDE_CONFIG_DIR?: string | undefined;
+  CLAUDE_SECURESTORAGE_CONFIG_DIR?: string | undefined;
+  CLAUDE_CODE_CUSTOM_OAUTH_URL?: string | undefined;
+}
+
 /**
  * Parse a Claude credential blob into an OAuth token bundle. Accepts either the
  * `~/.claude/.credentials.json` shape (a `claudeAiOauth` wrapper) or a bare
@@ -45,17 +51,30 @@ export function parseClaudeCredentials(content: string): OAuthToken | undefined 
   };
 }
 
-function claudeCredentialDirs(): string[] {
-  const dirs: string[] = [];
-  const configDir = process.env.CLAUDE_CONFIG_DIR?.trim();
-  if (configDir) dirs.push(configDir);
-  dirs.push(join(homedir(), ".claude"));
-  dirs.push(join(homedir(), ".config", "claude"));
-  return dirs;
+/**
+ * Candidate Claude Code config dirs, honoring an explicit CLAUDE_CONFIG_DIR
+ * override. Shared by credential lookup and the local cost scanner.
+ */
+export function claudeConfigDirs(
+  env: { CLAUDE_CONFIG_DIR?: string | undefined } = process.env,
+): string[] {
+  const configDir = env.CLAUDE_CONFIG_DIR?.trim();
+  if (configDir) {
+    return [configDir];
+  }
+  return [join(homedir(), ".claude"), join(homedir(), ".config", "claude")];
 }
 
-export async function resolveClaudeToken(): Promise<OAuthToken | undefined> {
-  for (const dir of claudeCredentialDirs()) {
+function hasExplicitClaudeConfig(env: ClaudeCredentialEnv): boolean {
+  return Boolean(
+    env.CLAUDE_CONFIG_DIR?.trim() || env.CLAUDE_SECURESTORAGE_CONFIG_DIR !== undefined,
+  );
+}
+
+export async function resolveClaudeToken(
+  env: ClaudeCredentialEnv = process.env,
+): Promise<OAuthToken | undefined> {
+  for (const dir of claudeConfigDirs(env)) {
     const path = join(dir, ".credentials.json");
     if (!existsSync(path)) continue;
     try {
@@ -68,11 +87,14 @@ export async function resolveClaudeToken(): Promise<OAuthToken | undefined> {
   // Current native Claude Code builds on macOS store the same JSON payload in
   // the login keychain instead of writing `~/.claude/.credentials.json`.
   if (process.platform === "darwin") {
-    const blob = await readClaudeCredentialsFromMacKeychain();
+    const blob = await readClaudeCredentialsFromMacKeychain(env);
     if (blob) {
       const token = parseClaudeCredentials(blob);
       if (token) return token;
     }
+  }
+  if (hasExplicitClaudeConfig(env)) {
+    return undefined;
   }
   // On native Windows, Claude Code may store the OAuth token in the Windows
   // Credential Manager rather than a file (Win-CodexBar issue #22). Best-effort

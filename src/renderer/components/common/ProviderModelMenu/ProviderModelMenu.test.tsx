@@ -389,6 +389,30 @@ describe("ProviderModelMenu", () => {
     });
   });
 
+  it("shows Claude profile models under the profile subprovider row", async () => {
+    const provider = makeNamedProvider("claude:work", "Claude Work", 2);
+    provider.capabilities.subProviders = [{ id: "claude-profile", label: "Work" }];
+    provider.capabilities.modelSubProvider = {
+      "model-1": "claude-profile",
+      "model-2": "claude-profile",
+    };
+
+    render(
+      <ProviderModelMenu
+        providers={[provider]}
+        currentAgentKind="claude:work"
+        currentModel="model-1"
+        onChange={vi.fn<(next: { agentKind: string; model: string }) => void>()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Select model" }));
+    const listbox = await screen.findByRole("listbox", { name: "Models" });
+
+    expect(within(listbox).getByText("Work")).toBeInTheDocument();
+    expect(within(listbox).getByText("Model 2")).toBeInTheDocument();
+  });
+
   it("resets the window when a long list shrinks so rows do not render blank", async () => {
     const { rerender } = render(
       <ProviderModelMenu

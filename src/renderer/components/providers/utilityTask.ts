@@ -1,3 +1,5 @@
+import { baseAgentKind } from "@/shared/contracts";
+
 export interface UtilityTaskDefaults {
   label?: string;
   hint?: string;
@@ -53,7 +55,7 @@ export const AUTO_PROVIDER_PREFERENCE_ORDER: readonly string[] = [
 
 export function sortByAutoPreference<T extends { kind: string }>(items: readonly T[]): T[] {
   const rank = (kind: string) => {
-    const idx = AUTO_PROVIDER_PREFERENCE_ORDER.indexOf(kind);
+    const idx = AUTO_PROVIDER_PREFERENCE_ORDER.indexOf(baseAgentKind(kind));
     return idx < 0 ? AUTO_PROVIDER_PREFERENCE_ORDER.length : idx;
   };
   return [...items].sort((a, b) => rank(a.kind) - rank(b.kind));

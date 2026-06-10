@@ -857,8 +857,16 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
           : undefined;
       const env =
         this.input.projectLocation.kind === "wsl"
-          ? { CLAUDE_AGENT_SDK_CLIENT_APP: "lightcode", BROWSER: "/bin/true" }
-          : { ...(posixEnv ?? process.env), CLAUDE_AGENT_SDK_CLIENT_APP: "lightcode" };
+          ? {
+              CLAUDE_AGENT_SDK_CLIENT_APP: "lightcode",
+              BROWSER: "/bin/true",
+              ...(this.input.env ?? {}),
+            }
+          : {
+              ...(posixEnv ?? process.env),
+              CLAUDE_AGENT_SDK_CLIENT_APP: "lightcode",
+              ...(this.input.env ?? {}),
+            };
       // Posix builds ship without the SDK's bundled `claude` SEA binary
       // (electron-builder strips `@anthropic-ai/claude-agent-sdk-*` from the
       // asar). The SDK falls back to that binary when `pathToClaudeCodeExecutable`

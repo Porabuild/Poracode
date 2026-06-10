@@ -140,6 +140,7 @@ export function ProviderUsageRail(props: { orientation?: "row" | "column" }) {
   const showInSidebar = useSharedSettings((s) => s.usage.showInSidebar);
   const disabledProviders = useSharedSettings((s) => s.usage.disabledProviders);
   const providerOrder = useSharedSettings((s) => s.usage.providerOrder);
+  const agentInstances = useSharedSettings((s) => s.agentInstances);
   const setUsageSetting = useSharedSettings((s) => s.setUsageSetting);
 
   useEffect(() => {
@@ -166,7 +167,7 @@ export function ProviderUsageRail(props: { orientation?: "row" | "column" }) {
     KeyboardSensor,
   ];
 
-  const providers = resolveDisplayedProviders(providerOrder, disabledProviders);
+  const providers = resolveDisplayedProviders(providerOrder, disabledProviders, agentInstances);
 
   if (!showInSidebar || providers.length === 0) return null;
 

@@ -21,7 +21,7 @@ import {
   Sparkles,
   TerminalSquare,
 } from "lucide-react";
-import type { AgentStatus } from "@/shared/contracts";
+import { isClaudeProfileKind, type AgentStatus } from "@/shared/contracts";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import {
   overlaySidebarColumnClass,
@@ -35,6 +35,29 @@ import { PixelLoader, SidebarButton } from "@/renderer/components/common";
 import { useSidebar } from "@/renderer/views/MainView/parts/AppShell/AppShell";
 import { isDevApp } from "@/renderer/bridge";
 import type { SettingsSection } from "./types";
+
+function claudeProfileSidebarLabel(agent: AgentStatus): string {
+  return agent.label.replace(/^Claude\s+/iu, "").trim() || agent.label;
+}
+
+function renderAgentIcon(
+  agent: AgentStatus,
+  options: {
+    disabled: boolean;
+    className?: string;
+  },
+) {
+  return (
+    <ProviderIcon
+      kind={agent.kind}
+      icon={agent.icon}
+      fallbackLabel={
+        isClaudeProfileKind(agent.kind) ? claudeProfileSidebarLabel(agent) : agent.label
+      }
+      className={`${options.className ?? "size-4"} ${options.disabled ? "opacity-35" : ""}`}
+    />
+  );
+}
 
 export function SettingsSidebar(props: {
   activeSection: SettingsSection;
@@ -56,6 +79,8 @@ export function SettingsSidebar(props: {
   } = props;
   const { isCollapsed, collapse, expand } = useSidebar();
   const disabledAgents = useSharedSettings((s) => s.disabledAgents);
+  const primaryAgents = installedAgents.filter((agent) => !isClaudeProfileKind(agent.kind));
+  const claudeProfileAgents = installedAgents.filter((agent) => isClaudeProfileKind(agent.kind));
   const isAgentsActive =
     activeSection === "agents" ||
     activeSection === "acpRegistry" ||
@@ -176,29 +201,53 @@ export function SettingsSidebar(props: {
               />
             )}
             {isAgentsActive &&
-              installedAgents.map((agent) => {
+              primaryAgents.map((agent) => {
                 const needsAttention = attentionAgentKinds.has(agent.kind);
                 return (
-                  <SidebarButton
-                    key={agent.kind}
-                    iconOnly
-                    icon={
-                      <span className="relative flex size-4 items-center justify-center">
-                        <ProviderIcon
-                          kind={agent.kind}
-                          icon={agent.icon}
-                          fallbackLabel={agent.label}
-                          className={`size-4 ${disabledAgents.includes(agent.kind) ? "opacity-35" : ""}`}
-                        />
-                        {needsAttention ? (
-                          <AlertTriangle className="absolute -right-1 -top-1 size-2.5 text-warning" />
-                        ) : null}
-                      </span>
-                    }
-                    label={agent.label}
-                    isActive={activeSection === `agents:${agent.kind}`}
-                    onPress={() => onSectionChange(`agents:${agent.kind}`)}
-                  />
+                  <div key={agent.kind} className="space-y-0.5">
+                    <SidebarButton
+                      iconOnly
+                      icon={
+                        <span className="relative flex size-4 items-center justify-center">
+                          {renderAgentIcon(agent, {
+                            disabled: disabledAgents.includes(agent.kind),
+                          })}
+                          {needsAttention ? (
+                            <AlertTriangle className="absolute -right-1 -top-1 size-2.5 text-warning" />
+                          ) : null}
+                        </span>
+                      }
+                      label={agent.label}
+                      isActive={activeSection === `agents:${agent.kind}`}
+                      onPress={() => onSectionChange(`agents:${agent.kind}`)}
+                    />
+                    {agent.kind === "claude"
+                      ? claudeProfileAgents.map((profile) => {
+                          const profileNeedsAttention = attentionAgentKinds.has(profile.kind);
+                          return (
+                            <SidebarButton
+                              key={profile.kind}
+                              iconOnly
+                              className="ml-3 h-7 w-7"
+                              icon={
+                                <span className="relative flex size-3.5 items-center justify-center">
+                                  {renderAgentIcon(profile, {
+                                    disabled: disabledAgents.includes(profile.kind),
+                                    className: "size-3.5",
+                                  })}
+                                  {profileNeedsAttention ? (
+                                    <AlertTriangle className="absolute -right-1 -top-1 size-2.5 text-warning" />
+                                  ) : null}
+                                </span>
+                              }
+                              label={profile.label}
+                              isActive={activeSection === `agents:${profile.kind}`}
+                              onPress={() => onSectionChange(`agents:${profile.kind}`)}
+                            />
+                          );
+                        })
+                      : null}
+                  </div>
                 );
               })}
             <SidebarButton
@@ -353,30 +402,55 @@ export function SettingsSidebar(props: {
                   isActive={activeSection === "acpRegistry"}
                   onPress={() => onSectionChange("acpRegistry")}
                 />
-                {installedAgents.map((agent) => {
+                {primaryAgents.map((agent) => {
                   const agentDisabled = disabledAgents.includes(agent.kind);
                   const needsAttention = attentionAgentKinds.has(agent.kind);
                   return (
-                    <SidebarButton
-                      key={agent.kind}
-                      icon={
-                        <ProviderIcon
-                          kind={agent.kind}
-                          icon={agent.icon}
-                          fallbackLabel={agent.label}
-                          className={`size-4 ${agentDisabled ? "opacity-35" : ""}`}
-                        />
-                      }
-                      label={agent.label}
-                      suffix={
-                        needsAttention ? (
-                          <AlertTriangle aria-hidden="true" className="size-3.5 text-warning" />
-                        ) : null
-                      }
-                      className={agentDisabled ? "opacity-50" : ""}
-                      isActive={activeSection === `agents:${agent.kind}`}
-                      onPress={() => onSectionChange(`agents:${agent.kind}`)}
-                    />
+                    <div key={agent.kind} className="space-y-0.5">
+                      <SidebarButton
+                        icon={renderAgentIcon(agent, {
+                          disabled: agentDisabled,
+                        })}
+                        label={agent.label}
+                        suffix={
+                          needsAttention ? (
+                            <AlertTriangle aria-hidden="true" className="size-3.5 text-warning" />
+                          ) : null
+                        }
+                        className={agentDisabled ? "opacity-50" : ""}
+                        isActive={activeSection === `agents:${agent.kind}`}
+                        onPress={() => onSectionChange(`agents:${agent.kind}`)}
+                      />
+                      {agent.kind === "claude" && claudeProfileAgents.length > 0 ? (
+                        <div className="space-y-0.5 pl-5">
+                          {claudeProfileAgents.map((profile) => {
+                            const profileDisabled = disabledAgents.includes(profile.kind);
+                            const profileNeedsAttention = attentionAgentKinds.has(profile.kind);
+                            return (
+                              <SidebarButton
+                                key={profile.kind}
+                                icon={renderAgentIcon(profile, {
+                                  disabled: profileDisabled,
+                                  className: "size-3.5",
+                                })}
+                                label={claudeProfileSidebarLabel(profile)}
+                                suffix={
+                                  profileNeedsAttention ? (
+                                    <AlertTriangle
+                                      aria-hidden="true"
+                                      className="size-3.5 text-warning"
+                                    />
+                                  ) : null
+                                }
+                                className={`text-xs ${profileDisabled ? "opacity-50" : ""}`}
+                                isActive={activeSection === `agents:${profile.kind}`}
+                                onPress={() => onSectionChange(`agents:${profile.kind}`)}
+                              />
+                            );
+                          })}
+                        </div>
+                      ) : null}
+                    </div>
                   );
                 })}
               </div>

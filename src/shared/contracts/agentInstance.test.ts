@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { agentInstanceConfigSchema, parseAcpGenericInstanceConfig } from "./agentInstance";
+import {
+  agentInstanceConfigSchema,
+  claudeProfileKind,
+  extractClaudeProfileInstanceId,
+  isClaudeProfileKind,
+  parseAcpGenericInstanceConfig,
+  parseClaudeProfileInstanceConfig,
+} from "./agentInstance";
 
 /**
  * `parseAcpGenericInstanceConfig` parses user-supplied JSON from settings, so
@@ -54,6 +61,28 @@ describe("parseAcpGenericInstanceConfig", () => {
     // `binary` though — the second call should throw with a Zod message.
     expect(() => parseAcpGenericInstanceConfig(undefined)).toThrow(Error);
     expect(() => parseAcpGenericInstanceConfig(null)).toThrow(Error);
+  });
+});
+
+describe("Claude profile instance helpers", () => {
+  it("parses a Claude profile config directory", () => {
+    expect(
+      parseClaudeProfileInstanceConfig({
+        configDir: "~/.lightcode/claude-profiles/work",
+      }),
+    ).toEqual({ configDir: "~/.lightcode/claude-profiles/work" });
+  });
+
+  it("rejects an empty Claude profile config directory", () => {
+    expect(() => parseClaudeProfileInstanceConfig({ configDir: "" })).toThrow(Error);
+  });
+
+  it("maps profile ids to synthetic Claude provider kinds", () => {
+    expect(claudeProfileKind("work")).toBe("claude:work");
+    expect(isClaudeProfileKind("claude:work")).toBe(true);
+    expect(isClaudeProfileKind("claude")).toBe(false);
+    expect(extractClaudeProfileInstanceId("claude:work")).toBe("work");
+    expect(extractClaudeProfileInstanceId("codex")).toBeUndefined();
   });
 });
 

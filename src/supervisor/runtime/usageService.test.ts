@@ -1,4 +1,4 @@
-import { rmSync } from "node:fs";
+import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -51,7 +51,7 @@ function tempCachePath(): string {
 afterEach(() => {
   for (const path of cachePaths.splice(0)) {
     try {
-      rmSync(path, { force: true });
+      rmSync(path, { force: true, recursive: true });
     } catch {
       // ignore
     }
@@ -202,5 +202,70 @@ describe("UsageService", () => {
     });
     const result = await service.refreshProviderUsage({ providerIds: ["ghost"] });
     expect(result.snapshots).toHaveLength(0);
+  });
+
+  it("collects Claude profile usage from the profile config directory", async () => {
+    const profileDir = join(tmpdir(), `lightcode-usage-claude-profile-${process.pid}`);
+    cachePaths.push(profileDir);
+    mkdirSync(profileDir, { recursive: true });
+    writeFileSync(
+      join(profileDir, ".credentials.json"),
+      JSON.stringify({
+        claudeAiOauth: {
+          accessToken: "profile-token",
+          subscriptionType: "team",
+        },
+      }),
+      "utf8",
+    );
+
+    const settingsPath = tempCachePath();
+    writeFileSync(
+      settingsPath,
+      JSON.stringify({
+        agentInstances: {
+          home: {
+            id: "home",
+            driver: "claude",
+            displayName: "Home",
+            config: { configDir: profileDir },
+          },
+        },
+      }),
+      "utf8",
+    );
+
+    let authorization: string | undefined;
+    const host: HostPort = {
+      now: () => NOW,
+      credentials: {
+        getOAuthToken: () => Promise.resolve(undefined),
+        getSecret: () => Promise.resolve(undefined),
+      },
+      http: {
+        request: (request) => {
+          authorization = request.headers?.Authorization;
+          return Promise.resolve({ status: 200, headers: {}, body: CLAUDE_BODY });
+        },
+      },
+    };
+    const service = new UsageService({
+      emit: () => {},
+      cachePath: tempCachePath(),
+      settingsPath,
+      host,
+      localCollectors: stubLocalCollectors(),
+    });
+
+    const result = await service.refreshProviderUsage({ providerIds: ["claude:home"] });
+
+    expect(authorization).toBe("Bearer profile-token");
+    expect(result.snapshots).toHaveLength(1);
+    expect(result.snapshots[0]).toMatchObject({
+      providerId: "claude:home",
+      status: "ok",
+      plan: "Team Subscription",
+    });
+    expect(result.snapshots[0]?.windows.find((w) => w.id === "session-5h")?.usedPercent).toBe(0.4);
   });
 });

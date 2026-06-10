@@ -1,4 +1,10 @@
 import { allUsageProviderDescriptors, type UsageWindow } from "@lightcode/agents-usage";
+import {
+  baseAgentKind,
+  claudeProfileKind,
+  parseClaudeProfileInstanceConfig,
+  type AgentInstanceConfigMap,
+} from "@/shared/contracts";
 
 /**
  * Providers the usage tracker shows in the renderer. The canonical id + label +
@@ -44,18 +50,62 @@ const RENDERER_META: Record<string, Omit<UsageProvider, "id" | "label">> = {
   opencode: { supportsBrowserLogin: true },
 };
 
-export const USAGE_PROVIDERS: ReadonlyArray<UsageProvider> = allUsageProviderDescriptors().map(
+const STATIC_USAGE_PROVIDERS: ReadonlyArray<UsageProvider> = allUsageProviderDescriptors().map(
   (d) => ({ id: d.id, label: d.label, ...RENDERER_META[d.id] }),
 );
 
+export const USAGE_PROVIDERS: ReadonlyArray<UsageProvider> = STATIC_USAGE_PROVIDERS;
+
+function rendererMeta(providerId: string): Omit<UsageProvider, "id" | "label"> | undefined {
+  return RENDERER_META[providerId] ?? RENDERER_META[baseAgentKind(providerId)];
+}
+
+function claudeProfileUsageProviders(
+  agentInstances: AgentInstanceConfigMap | undefined,
+): UsageProvider[] {
+  if (!agentInstances) return [];
+  const profiles: UsageProvider[] = [];
+  for (const instance of Object.values(agentInstances)) {
+    if (instance.enabled === false || instance.driver !== "claude") continue;
+    try {
+      parseClaudeProfileInstanceConfig(instance.config);
+    } catch {
+      continue;
+    }
+    const label = instance.displayName ?? instance.id;
+    profiles.push({
+      id: claudeProfileKind(instance.id),
+      label: `Claude ${label}`,
+      ...rendererMeta("claude"),
+    });
+  }
+  profiles.sort((a, b) => a.label.localeCompare(b.label));
+  return profiles;
+}
+
+export function usageProvidersForAgentInstances(
+  agentInstances: AgentInstanceConfigMap | undefined,
+): UsageProvider[] {
+  const profiles = claudeProfileUsageProviders(agentInstances);
+  if (profiles.length === 0) return [...STATIC_USAGE_PROVIDERS];
+  const out: UsageProvider[] = [];
+  for (const provider of STATIC_USAGE_PROVIDERS) {
+    out.push(provider);
+    if (provider.id === "claude") {
+      out.push(...profiles);
+    }
+  }
+  return out;
+}
+
 /** Providers that expose the browser-overlay login (cookie or device flow). */
 export function supportsBrowserLogin(providerId: string): boolean {
-  return USAGE_PROVIDERS.some((p) => p.id === providerId && p.supportsBrowserLogin === true);
+  return rendererMeta(providerId)?.supportsBrowserLogin === true;
 }
 
 /** Providers whose windows share one reset clock (one header countdown, no per-window resets). */
 export function usesSharedWindowReset(providerId: string): boolean {
-  return USAGE_PROVIDERS.some((p) => p.id === providerId && p.sharedWindowReset === true);
+  return rendererMeta(providerId)?.sharedWindowReset === true;
 }
 
 function firstWindowMatching(
@@ -80,7 +130,7 @@ export function pickUsageRings(
   windows: readonly UsageWindow[] | undefined,
 ): { outer?: UsageWindow; inner?: UsageWindow } {
   if (!windows || windows.length === 0) return {};
-  const spec = USAGE_PROVIDERS.find((p) => p.id === providerId)?.rings;
+  const spec = rendererMeta(providerId)?.rings;
   if (spec) {
     const outer = firstWindowMatching(windows, spec.outer);
     const inner = firstWindowMatching(windows, spec.inner);
@@ -100,8 +150,11 @@ export function pickUsageRings(
 export function resolveDisplayedProviders(
   providerOrder: readonly string[],
   disabledProviders: readonly string[],
+  agentInstances?: AgentInstanceConfigMap,
 ): UsageProvider[] {
-  const enabled = USAGE_PROVIDERS.filter((p) => !disabledProviders.includes(p.id));
+  const enabled = usageProvidersForAgentInstances(agentInstances).filter(
+    (p) => !disabledProviders.includes(p.id),
+  );
   const byId = new Map(enabled.map((p) => [p.id, p]));
   const ordered: UsageProvider[] = [];
   const seen = new Set<string>();
