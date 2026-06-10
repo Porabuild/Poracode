@@ -322,6 +322,8 @@ export const gitAddWorktreePayloadSchema = z.object({
   branch: z.string().optional(),
   createBranch: z.boolean().default(false),
   startPoint: z.string().optional(),
+  /** Gitignore-style patterns for ignored files to copy from the main project. */
+  copyIgnoredPatterns: z.array(z.string()).optional(),
 });
 export type GitAddWorktreePayload = z.infer<typeof gitAddWorktreePayloadSchema>;
 

@@ -19,6 +19,7 @@ import {
   GIT_STATUS_TIMEOUT,
   normalizeWorktreePath,
 } from "./exec";
+import { copyIgnoredFilesIntoWorktree } from "./copyIgnoredFiles";
 import { parseStatusPorcelainV2 } from "./statusService";
 
 /** Argv for `git branch` to feed {@link parseBranchListOutput}. */
@@ -159,6 +160,7 @@ export class GitWorktreeService {
     branch?: string,
     createBranch?: boolean,
     startPoint?: string,
+    copyIgnoredPatterns?: string[],
   ): Promise<GitAddWorktreeResult> {
     const resolvedPath =
       path ?? (branch ? await computeDefaultWorktreePath(location, branch) : undefined);
@@ -178,6 +180,15 @@ export class GitWorktreeService {
       const sourceBranch = startPoint ?? (await this.getCurrentBranch(location));
       if (sourceBranch && sourceBranch !== branch) {
         await this.writeWorktreeSourceBranch(location, branch, sourceBranch);
+      }
+    }
+
+    if (copyIgnoredPatterns?.length) {
+      try {
+        await copyIgnoredFilesIntoWorktree(location, resolvedPath, copyIgnoredPatterns);
+      } catch (err) {
+        // Non-fatal: the worktree itself was created successfully.
+        console.warn("[supervisor] failed to copy ignored files into worktree:", err);
       }
     }
 

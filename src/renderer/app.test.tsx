@@ -895,6 +895,7 @@ describe("App", () => {
             kind: "windows",
             path: "C:\\repo",
           },
+          scripts: { actions: [], worktreeCopyPatterns: [".env", ".env.*"] },
           createdAt: "2026-03-22T00:00:00.000Z",
         },
       ],
@@ -910,6 +911,7 @@ describe("App", () => {
         branch: "feature/x",
         createBranch: true,
         startPoint: "main",
+        copyIgnoredPatterns: [".env", ".env.*"],
       });
     });
 

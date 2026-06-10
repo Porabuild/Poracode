@@ -3,6 +3,7 @@ import type { ProjectScripts } from "@/shared/contracts";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useProject } from "@/renderer/state/useThread";
 import { TextArea } from "@/renderer/components/common";
+import { parseCopyPatterns } from "@/shared/worktree";
 
 export function ScriptsSection(props: { projectId: string }) {
   const project = useProject(props.projectId);
@@ -11,6 +12,7 @@ export function ScriptsSection(props: { projectId: string }) {
   const scripts = project?.scripts ?? { actions: [] };
   const [setupScript, setSetupScript] = useState(scripts.setupScript ?? "");
   const [cleanupScript, setCleanupScript] = useState(scripts.cleanupScript ?? "");
+  const [copyPatterns, setCopyPatterns] = useState((scripts.worktreeCopyPatterns ?? []).join("\n"));
 
   if (!project) return null;
 
@@ -58,6 +60,28 @@ export function ScriptsSection(props: { projectId: string }) {
               value={cleanupScript}
               onChange={(e) => setCleanupScript(e.target.value)}
               onBlur={() => save({ cleanupScript: cleanupScript.trim() || undefined })}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <div>
+              <p className="text-sm font-medium text-foreground">Copy ignored files</p>
+              <p className="text-xs text-muted">
+                Gitignored files to copy from the main project into each new worktree.
+                Gitignore-style patterns, one per line (e.g., <code>.env.*</code>).
+              </p>
+            </div>
+            <TextArea
+              aria-label="Copy ignored files"
+              className="w-full font-mono text-xs"
+              rows={3}
+              placeholder={".env\n.env.*"}
+              value={copyPatterns}
+              onChange={(e) => setCopyPatterns(e.target.value)}
+              onBlur={() => {
+                const patterns = parseCopyPatterns(copyPatterns);
+                save({ worktreeCopyPatterns: patterns.length > 0 ? patterns : undefined });
+              }}
             />
           </div>
         </div>
