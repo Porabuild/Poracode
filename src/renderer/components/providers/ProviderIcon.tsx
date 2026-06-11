@@ -79,6 +79,7 @@ function claudeProfileBadgeLabel(kind: string, fallbackLabel: string | undefined
   const profileId = kind.slice("claude:".length);
   const label = fallbackLabel?.trim();
   if (!label) return profileId;
+  if (label === kind || label.toLowerCase().startsWith("claude:")) return profileId;
   const profileLabel = label.replace(/^claude\s+/i, "").trim();
   return profileLabel || profileId;
 }

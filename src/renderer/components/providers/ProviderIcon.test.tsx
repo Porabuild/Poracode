@@ -10,4 +10,11 @@ describe("ProviderIcon", () => {
     expect(screen.getByText("H")).toBeInTheDocument();
     expect(screen.queryByText("C")).not.toBeInTheDocument();
   });
+
+  it("uses the Claude profile id for the badge when no display label is provided", () => {
+    render(<ProviderIcon kind="claude:personal" fallbackLabel="claude:personal" />);
+
+    expect(screen.getByText("P")).toBeInTheDocument();
+    expect(screen.queryByText("C")).not.toBeInTheDocument();
+  });
 });
