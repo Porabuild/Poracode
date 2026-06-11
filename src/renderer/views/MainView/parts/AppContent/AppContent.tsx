@@ -110,6 +110,7 @@ export function AppContent() {
           branch: worktreeBranch,
           createBranch: worktreeIsNewBranch ?? false,
           startPoint: worktreeBaseBranch,
+          copyIgnoredPatterns: project.scripts?.worktreeCopyPatterns,
         });
         worktreePath = result.path;
         newWorktreeSetupPath = result.path;

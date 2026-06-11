@@ -299,8 +299,16 @@ export class GitService {
     branch?: string,
     createBranch?: boolean,
     startPoint?: string,
+    copyIgnoredPatterns?: string[],
   ): Promise<GitAddWorktreeResult> {
-    return this.worktreeService.addWorktree(location, path, branch, createBranch, startPoint);
+    return this.worktreeService.addWorktree(
+      location,
+      path,
+      branch,
+      createBranch,
+      startPoint,
+      copyIgnoredPatterns,
+    );
   }
 
   async removeWorktree(

@@ -1015,6 +1015,7 @@ export class SupervisorRuntime {
       payload.branch,
       payload.createBranch,
       payload.startPoint,
+      payload.copyIgnoredPatterns,
     );
   }
 

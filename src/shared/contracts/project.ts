@@ -13,6 +13,8 @@ export type ProjectAction = z.infer<typeof projectActionSchema>;
 export const projectScriptsSchema = z.object({
   setupScript: z.string().optional(),
   cleanupScript: z.string().optional(),
+  /** Gitignore-style patterns for ignored files to copy into new worktrees (e.g. `.env.*`). */
+  worktreeCopyPatterns: z.array(z.string()).optional(),
   actions: z.array(projectActionSchema).default([]),
 });
 export type ProjectScripts = z.infer<typeof projectScriptsSchema>;
