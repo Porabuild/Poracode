@@ -17,7 +17,12 @@ export function useBrowserSync(): void {
     let cancelled = false;
     const unsub = readBridge().onBrowserEvent((event) => {
       if (event.type === "state") {
+        const hadTabs = useBrowserPanelStore.getState().tabs.length > 0;
         setState(event.state);
+        if (hadTabs && event.state.tabs.length === 0) {
+          // Closing the last tab dismisses the browser panel and overlay.
+          usePanelStore.getState().setBrowserPanelOpen(false);
+        }
       } else if (event.type === "tab-updated") {
         upsertTab(event.tab);
       } else if (event.type === "tab-attention") {
