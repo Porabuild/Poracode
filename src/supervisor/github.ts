@@ -32,6 +32,10 @@ const CREATE_PR_STATUS_WAIT_MS = 15_000;
 const CREATE_PR_STATUS_POLL_MS = 5_000;
 const PR_VIEW_FIELDS =
   "number,url,state,title,baseRefName,isDraft,reviewDecision,statusCheckRollup,updatedAt,mergeable,mergeStateStatus,author";
+// Bulk list: adds `headRefName` (to key per branch) and drops `author` (the icon
+// doesn't need viewerDidAuthor, so we skip the extra `gh api user` lookup).
+const PR_LIST_FIELDS =
+  "number,headRefName,url,state,title,baseRefName,isDraft,reviewDecision,statusCheckRollup,updatedAt,mergeable,mergeStateStatus";
 
 function selectLatestPr(items: unknown[]): Record<string, unknown> | null {
   return items.reduce<Record<string, unknown> | null>((latest, item) => {
@@ -576,6 +580,40 @@ export class GitHubService {
       return latest ? mapPrData(latest, viewerLogin) : null;
     } catch (err) {
       if (isRepoNotFoundError(err)) return null;
+      throw classifyError(err, "pr list");
+    }
+  }
+
+  /**
+   * List every PR in the repo in a single `gh` call, keyed by head branch name
+   * (latest PR per branch). Powers PR-status icons for all branches in the
+   * branch selector without a per-branch fetch.
+   */
+  async listPrs(location: ProjectLocation): Promise<Record<string, PrData>> {
+    const args = ["pr", "list", "--state", "all", "--limit", "100", "--json", PR_LIST_FIELDS];
+    try {
+      const stdout = await this.runGh(location, args);
+      const items = JSON.parse(stdout);
+      if (!Array.isArray(items)) return {};
+      // Group PRs by head branch, then reuse the single-branch "highest PR number
+      // wins" rule (selectLatestPr) to pick one per branch.
+      const byBranch = new Map<string, unknown[]>();
+      for (const item of items) {
+        if (!item || typeof item !== "object") continue;
+        const branch = (item as Record<string, unknown>).headRefName;
+        if (typeof branch !== "string" || !branch) continue;
+        const group = byBranch.get(branch);
+        if (group) group.push(item);
+        else byBranch.set(branch, [item]);
+      }
+      const result: Record<string, PrData> = {};
+      for (const [branch, group] of byBranch) {
+        const latest = selectLatestPr(group);
+        if (latest) result[branch] = mapPrData(latest);
+      }
+      return result;
+    } catch (err) {
+      if (isRepoNotFoundError(err)) return {};
       throw classifyError(err, "pr list");
     }
   }

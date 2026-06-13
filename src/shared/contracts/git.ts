@@ -296,6 +296,12 @@ export interface GitWorktreeListResult {
 
 export interface GitAddWorktreeResult {
   path: string;
+  /**
+   * When `transferUncommitted` was requested: whether the changes landed in the
+   * new worktree. `false` means the apply conflicted — for a copy they remain on
+   * the source branch; for a move they remain in a git stash (source still clean).
+   */
+  changesTransferred?: boolean;
 }
 
 export const getGitBranchesPayloadSchema = z.object({
@@ -324,6 +330,16 @@ export const gitAddWorktreePayloadSchema = z.object({
   startPoint: z.string().optional(),
   /** Gitignore-style patterns for ignored files to copy from the main project. */
   copyIgnoredPatterns: z.array(z.string()).optional(),
+  /**
+   * Bring the main checkout's uncommitted changes (including untracked files)
+   * into the new worktree.
+   */
+  transferUncommitted: z.boolean().default(false),
+  /**
+   * When transferring: keep a copy of the changes on the source branch (COPY).
+   * Defaults to false, which leaves the source branch clean (MOVE).
+   */
+  keepChangesInSource: z.boolean().default(false),
 });
 export type GitAddWorktreePayload = z.infer<typeof gitAddWorktreePayloadSchema>;
 

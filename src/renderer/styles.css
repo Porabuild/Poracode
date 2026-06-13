@@ -1740,6 +1740,13 @@ html[data-platform="darwin"] .lightcode-content-over-drag-region--drag {
   gap: 0.35rem;
 }
 
+/* Compact variant for secondary control rows (e.g. the worktree row under the composer). */
+.lightcode-composer-menu--compact {
+  height: 1.625rem;
+  gap: 0.25rem;
+  font-size: 0.75rem;
+}
+
 .lightcode-composer-static {
   display: inline-flex;
   height: 2.25rem;

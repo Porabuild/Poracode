@@ -32,6 +32,7 @@ export function DraftPane(props: {
       worktreeBranch?: string;
       worktreeBaseBranch?: string;
       worktreeIsNewBranch?: boolean;
+      worktreeTransferUncommitted?: boolean;
       presentationMode?: import("@/shared/contracts").ThreadPresentationMode;
     },
   ) => void;

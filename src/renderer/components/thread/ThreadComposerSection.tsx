@@ -898,6 +898,13 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                               onSelect={handleBranchSelect}
                               onSwitchBranch={handleSwitchBranch}
                               hideWorktreeToggle
+                              showMoveBranchAction
+                              {...(project?.scripts?.worktreeCopyPatterns
+                                ? {
+                                    moveBranchCopyIgnoredPatterns:
+                                      project.scripts.worktreeCopyPatterns,
+                                  }
+                                : {})}
                               forceHideLabel={level >= 3}
                               iconOnly={level >= 3}
                             />

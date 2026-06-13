@@ -99,6 +99,7 @@ export function createSupervisorIpcHandlers(runtime: SupervisorRuntime): Supervi
     ghCheckAvailable: (payload) => runtime.ghCheckAvailable(payload),
     ghCreatePr: (payload) => runtime.ghCreatePr(payload),
     ghGetPrForBranch: (payload) => runtime.ghGetPrForBranch(payload),
+    ghListPrs: (payload) => runtime.ghListPrs(payload),
     ghMergePr: (payload) => runtime.ghMergePr(payload),
     ghClosePr: (payload) => runtime.ghClosePr(payload),
     ghReopenPr: (payload) => runtime.ghReopenPr(payload),

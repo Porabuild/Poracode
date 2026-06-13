@@ -40,6 +40,16 @@ export function resolvePrKey(projectId: string, worktreePath: string | undefined
   return worktreePath ?? buildBranchPrKey(projectId);
 }
 
+/**
+ * Key for a PR discovered by the bulk branch-PR prefetch (`ghListPrs`), addressed
+ * by branch name. Distinct from {@link buildBranchPrKey} (the checked-out main
+ * branch) and worktree-path keys, so branch-selector rows can show PR status for
+ * remote/local branches that aren't checked out as a worktree.
+ */
+export function buildBranchNamePrKey(projectId: string, branch: string): string {
+  return `__branchname:${projectId}:${branch}`;
+}
+
 type PrField<K extends keyof PrData> = PrData[K] | undefined;
 
 function makePrFieldSelector<K extends keyof PrData>(field: K) {

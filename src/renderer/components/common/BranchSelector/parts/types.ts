@@ -3,4 +3,6 @@ export interface BranchSelection {
   baseBranch?: string;
   isWorktree: boolean;
   worktreePath?: string;
+  /** Carry the main checkout's uncommitted changes into the new worktree. */
+  transferUncommitted?: boolean;
 }

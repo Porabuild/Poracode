@@ -46,6 +46,8 @@ import type {
   GhGetPrFilesPayload,
   GhGetPrFilesResult,
   GhGetPrForBranchPayload,
+  GhListPrsPayload,
+  GhListPrsResult,
   GhMergePrPayload,
   GhClosePrPayload,
   GhMarkPrReadyPayload,
@@ -1016,6 +1018,8 @@ export class SupervisorRuntime {
       payload.createBranch,
       payload.startPoint,
       payload.copyIgnoredPatterns,
+      payload.transferUncommitted,
+      payload.keepChangesInSource,
     );
   }
 
@@ -1194,6 +1198,10 @@ export class SupervisorRuntime {
 
   async ghGetPrForBranch(payload: GhGetPrForBranchPayload): Promise<PrData | null> {
     return this.githubService.getPrForBranch(payload.projectLocation, payload.branch);
+  }
+
+  async ghListPrs(payload: GhListPrsPayload): Promise<GhListPrsResult> {
+    return { prs: await this.githubService.listPrs(payload.projectLocation) };
   }
 
   async ghMergePr(payload: GhMergePrPayload): Promise<void> {

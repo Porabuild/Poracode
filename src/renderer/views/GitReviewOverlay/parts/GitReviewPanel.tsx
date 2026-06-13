@@ -174,6 +174,10 @@ export function GitReviewPanel(props: {
                     value={gitStatus.branch}
                     onSwitchBranch={handleSwitchBranch}
                     hideWorktreeToggle
+                    showMoveBranchAction
+                    {...(project.scripts?.worktreeCopyPatterns
+                      ? { moveBranchCopyIgnoredPatterns: project.scripts.worktreeCopyPatterns }
+                      : {})}
                     popoverPlacement="bottom"
                     trigger={
                       <button
@@ -265,6 +269,10 @@ export function GitReviewPanel(props: {
                     value={gitStatus.branch}
                     onSwitchBranch={handleSwitchBranch}
                     hideWorktreeToggle
+                    showMoveBranchAction
+                    {...(project.scripts?.worktreeCopyPatterns
+                      ? { moveBranchCopyIgnoredPatterns: project.scripts.worktreeCopyPatterns }
+                      : {})}
                     popoverPlacement="bottom"
                     trigger={
                       <button

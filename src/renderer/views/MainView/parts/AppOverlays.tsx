@@ -150,7 +150,10 @@ export function AppOverlays() {
             <PrReviewOverlay
               project={prReviewProject}
               prNumber={prReviewContext.prNumber}
-              prKey={resolvePrKey(prReviewContext.projectId, prReviewContext.worktreePath)}
+              prKey={
+                prReviewContext.prKey ??
+                resolvePrKey(prReviewContext.projectId, prReviewContext.worktreePath)
+              }
               {...(prReviewContext.worktreePath
                 ? {
                     locationOverride: buildWorktreeLocation(

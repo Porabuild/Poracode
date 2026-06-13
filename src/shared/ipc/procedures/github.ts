@@ -7,6 +7,7 @@ import {
   ghGetPrDiffPayloadSchema,
   ghGetPrFilesPayloadSchema,
   ghGetPrForBranchPayloadSchema,
+  ghListPrsPayloadSchema,
   ghMarkPrReadyPayloadSchema,
   ghMergePrPayloadSchema,
   ghPostPrCommentPayloadSchema,
@@ -28,6 +29,8 @@ import type {
   GhGetPrFilesPayload,
   GhGetPrFilesResult,
   GhGetPrForBranchPayload,
+  GhListPrsPayload,
+  GhListPrsResult,
   GhMarkPrReadyPayload,
   GhMergePrPayload,
   GhPostPrCommentPayload,
@@ -54,6 +57,11 @@ export const githubProcedures = {
     "ghGetPrForBranch",
     "supervisor",
     ghGetPrForBranchPayloadSchema,
+  ),
+  ghListPrs: definePayloadProcedure<GhListPrsPayload, GhListPrsResult, "supervisor">(
+    "ghListPrs",
+    "supervisor",
+    ghListPrsPayloadSchema,
   ),
   ghMergePr: definePayloadProcedure<GhMergePrPayload, void, "supervisor">(
     "ghMergePr",

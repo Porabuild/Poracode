@@ -300,6 +300,8 @@ export class GitService {
     createBranch?: boolean,
     startPoint?: string,
     copyIgnoredPatterns?: string[],
+    transferUncommitted?: boolean,
+    keepChangesInSource?: boolean,
   ): Promise<GitAddWorktreeResult> {
     return this.worktreeService.addWorktree(
       location,
@@ -308,6 +310,8 @@ export class GitService {
       createBranch,
       startPoint,
       copyIgnoredPatterns,
+      transferUncommitted,
+      keepChangesInSource,
     );
   }
 

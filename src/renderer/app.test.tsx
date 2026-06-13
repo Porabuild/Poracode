@@ -912,6 +912,8 @@ describe("App", () => {
         createBranch: true,
         startPoint: "main",
         copyIgnoredPatterns: [".env", ".env.*"],
+        transferUncommitted: false,
+        keepChangesInSource: false,
       });
     });
 

@@ -3,7 +3,7 @@ import { readBridge } from "@/renderer/bridge";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useDevTerminalStore } from "@/renderer/state/devTerminalStore";
 import { useGitStore } from "@/renderer/state/gitStore";
-import { buildBranchPrKey } from "@/renderer/state/gitSelectors";
+import { buildBranchNamePrKey, buildBranchPrKey } from "@/renderer/state/gitSelectors";
 import { usePanelStore } from "@/renderer/state/panelStore";
 import { useSidebarUiStore } from "@/renderer/state/sidebarUiStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
@@ -33,6 +33,49 @@ export const PR_POST_PUSH_STATUS_WAIT_MS = 15_000;
 export const PR_POST_PUSH_STATUS_POLL_MS = 5_000;
 
 const alwaysActive = () => true;
+
+const BRANCH_PR_PREFETCH_THROTTLE_MS = 10_000;
+const branchPrPrefetchLastRun = new Map<string, number>();
+const branchPrPrefetchInFlight = new Set<string>();
+
+/**
+ * Bulk-fetch PR status for every branch of a project in one `gh pr list` call and
+ * cache it under branch-name keys (see {@link buildBranchNamePrKey}) so the branch
+ * selector can show PR-status icons for remote/local branches that aren't checked
+ * out as a worktree. Dedupes in-flight calls, throttles (so dropdown opens + the
+ * refresh cycle don't spam `gh`), and self-gates on gh availability + a GitHub
+ * remote. Results persist for free via the gitStore prData snapshot, so cached
+ * icons show instantly and refresh in place.
+ */
+export async function prefetchBranchPrData(project: {
+  id: string;
+  location: ProjectLocation;
+}): Promise<void> {
+  if (branchPrPrefetchInFlight.has(project.id)) return;
+  const last = branchPrPrefetchLastRun.get(project.id) ?? 0;
+  if (Date.now() - last < BRANCH_PR_PREFETCH_THROTTLE_MS) return;
+  const state = useGitStore.getState();
+  if (!state.ghAvailable[project.id]) return;
+  const platform = state.statuses[project.id]?.remoteInfo?.platform;
+  if (platform !== undefined && platform !== "github" && platform !== "unknown") return;
+
+  branchPrPrefetchInFlight.add(project.id);
+  branchPrPrefetchLastRun.set(project.id, Date.now());
+  try {
+    const { prs } = await readBridge().ghListPrs({ projectLocation: project.location });
+    const updates: Record<string, PrData | null> = {};
+    for (const [branch, pr] of Object.entries(prs)) {
+      updates[buildBranchNamePrKey(project.id, branch)] = pr;
+    }
+    if (Object.keys(updates).length > 0) {
+      useGitStore.getState().setPrDataBatch(updates);
+    }
+  } catch (err) {
+    console.warn(`[git-refresh] ghListPrs failed project=${project.id}`, err);
+  } finally {
+    branchPrPrefetchInFlight.delete(project.id);
+  }
+}
 
 function getWorktreeStatusDetail(reason: GitRefreshReason): GitStatusDetail {
   return reason === "fetch" || reason === "poll" ? "summary" : "full";
@@ -517,6 +560,14 @@ export async function refreshGitProject(
 
         const statusPromise = snapshotPromise.then((snap) => snap?.status ?? undefined);
         const worktreesPromise = snapshotPromise.then((snap) => snap?.worktrees ?? undefined);
+
+        // Once the snapshot has set gh availability + remote platform, bulk-prefetch
+        // PR status for every branch (one gh call) for the branch-selector icons.
+        // Fire-and-forget: it writes branch-keyed prData independently of this refresh.
+        void snapshotPromise.then(() => {
+          if (!isRefreshCurrent(project.id, refreshToken, isActive)) return;
+          void prefetchBranchPrData(project);
+        });
 
         const ghAvailablePromise: Promise<boolean> = cachedGhAvailable
           ? Promise.resolve(true)

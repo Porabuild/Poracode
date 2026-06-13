@@ -11,6 +11,13 @@ export interface PrReviewContext {
   projectId: string;
   worktreePath?: string;
   prNumber: number;
+  /**
+   * Explicit prData key override for selectors (title/url/checks). Set when
+   * opening a PR for a branch that has no worktree, so the overlay reads the
+   * branch-keyed prefetch entry instead of the main-branch key. Defaults to
+   * `resolvePrKey(projectId, worktreePath)` when omitted.
+   */
+  prKey?: string;
 }
 
 export interface FilesPanelContext {
@@ -154,7 +161,8 @@ export const usePanelStore = create<PanelState>((set) => ({
           ctx !== null &&
           prev.projectId === ctx.projectId &&
           prev.worktreePath === ctx.worktreePath &&
-          prev.prNumber === ctx.prNumber)
+          prev.prNumber === ctx.prNumber &&
+          prev.prKey === ctx.prKey)
       ) {
         return {};
       }

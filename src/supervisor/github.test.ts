@@ -288,6 +288,99 @@ describe("GitHubService", () => {
     });
   });
 
+  describe("listPrs", () => {
+    it("keys PRs by head branch and maps PR data", async () => {
+      const prJson = JSON.stringify([
+        {
+          number: 42,
+          headRefName: "feature/x",
+          url: "https://github.com/owner/repo/pull/42",
+          state: "OPEN",
+          title: "Add feature",
+          baseRefName: "main",
+          isDraft: false,
+          updatedAt: "2026-04-03T10:00:00Z",
+        },
+        {
+          number: 43,
+          headRefName: "feature/y",
+          url: "https://github.com/owner/repo/pull/43",
+          state: "MERGED",
+          title: "Other",
+          baseRefName: "main",
+          isDraft: false,
+          updatedAt: "2026-04-02T10:00:00Z",
+        },
+      ]);
+      execFileAsyncMock.mockResolvedValue({ stdout: prJson });
+
+      const result = await new GitHubService().listPrs(location);
+
+      const ghArgs = buildAgentCommandMock.mock.calls[0]![2] as string[];
+      expect(ghArgs).toEqual([
+        "pr",
+        "list",
+        "--state",
+        "all",
+        "--limit",
+        "100",
+        "--json",
+        expect.stringContaining("headRefName"),
+      ]);
+      expect(result["feature/x"]).toMatchObject({ number: 42, state: "open" });
+      expect(result["feature/y"]).toMatchObject({ number: 43, state: "merged" });
+    });
+
+    it("keeps the latest PR per branch", async () => {
+      const prJson = JSON.stringify([
+        {
+          number: 10,
+          headRefName: "feature/x",
+          url: "u",
+          state: "CLOSED",
+          title: "old",
+          baseRefName: "main",
+          isDraft: false,
+          updatedAt: "2026-04-01T10:00:00Z",
+        },
+        {
+          number: 12,
+          headRefName: "feature/x",
+          url: "u",
+          state: "OPEN",
+          title: "new",
+          baseRefName: "main",
+          isDraft: false,
+          updatedAt: "2026-04-02T10:00:00Z",
+        },
+      ]);
+      execFileAsyncMock.mockResolvedValue({ stdout: prJson });
+
+      const result = await new GitHubService().listPrs(location);
+
+      expect(Object.keys(result)).toEqual(["feature/x"]);
+      expect(result["feature/x"]).toMatchObject({ number: 12, state: "open" });
+    });
+
+    it("returns an empty map when no PRs exist", async () => {
+      execFileAsyncMock.mockResolvedValue({ stdout: "[]" });
+
+      const result = await new GitHubService().listPrs(location);
+
+      expect(result).toEqual({});
+    });
+
+    it("returns an empty map when the remote repo doesn't exist on GitHub", async () => {
+      execFileAsyncMock.mockRejectedValue(
+        new Error("GraphQL: Could not resolve to a Repository with the name 'owner/missing'."),
+      );
+
+      const result = await new GitHubService().listPrs(location);
+
+      expect(result).toEqual({});
+    });
+  });
+
   describe("createPr", () => {
     it("creates a PR using body-file and returns data from pr view", async () => {
       const viewJson = JSON.stringify({

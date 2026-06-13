@@ -1,5 +1,5 @@
 import type { RefObject } from "react";
-import { GitFork, Plus } from "lucide-react";
+import { FolderInput, GitFork, Plus } from "lucide-react";
 import { Checkbox, Label, ListBox } from "@heroui/react";
 import type { BranchSelection } from "./types";
 
@@ -19,6 +19,9 @@ export function BranchFooterActions(props: {
   isWorktree: boolean | undefined;
   branchWorktreePath: Map<string, string>;
   onSelect: ((selection: BranchSelection) => void) | undefined;
+  showMoveBranch: boolean;
+  isMovingBranch: boolean;
+  onMoveBranchToWorktree: () => void;
 }) {
   const {
     isCreating,
@@ -36,6 +39,9 @@ export function BranchFooterActions(props: {
     isWorktree,
     branchWorktreePath,
     onSelect,
+    showMoveBranch,
+    isMovingBranch,
+    onMoveBranchToWorktree,
   } = props;
 
   return (
@@ -154,6 +160,28 @@ export function BranchFooterActions(props: {
                 <Checkbox.Indicator />
               </Checkbox.Control>
             </Checkbox>
+          </ListBox.Item>
+        </ListBox>
+      )}
+
+      {/* Move the current uncommitted changes into a new worktree */}
+      {showMoveBranch && (
+        <ListBox
+          aria-label="Move changes to a new worktree"
+          className="lightcode-menu"
+          selectionMode="none"
+          disabledKeys={isMovingBranch ? ["move-branch"] : []}
+          onAction={() => onMoveBranchToWorktree()}
+        >
+          <ListBox.Item
+            id="move-branch"
+            textValue="Move changes to a new worktree"
+            className="focus-visible:outline-none"
+          >
+            <FolderInput className="size-3.5 shrink-0 text-muted" />
+            <Label className="flex-1">
+              {isMovingBranch ? "Moving changes…" : "Move changes to a new worktree"}
+            </Label>
           </ListBox.Item>
         </ListBox>
       )}

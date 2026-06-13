@@ -131,6 +131,16 @@ export const ghGetPrForBranchPayloadSchema = z.object({
 });
 export type GhGetPrForBranchPayload = z.infer<typeof ghGetPrForBranchPayloadSchema>;
 
+export const ghListPrsPayloadSchema = z.object({
+  projectLocation: projectLocationSchema,
+});
+export type GhListPrsPayload = z.infer<typeof ghListPrsPayloadSchema>;
+
+export interface GhListPrsResult {
+  /** Latest PR per head branch, keyed by head branch name. */
+  prs: Record<string, PrData>;
+}
+
 export const ghMergePrPayloadSchema = z.object({
   projectLocation: projectLocationSchema,
   prNumber: z.number().int().min(1),
