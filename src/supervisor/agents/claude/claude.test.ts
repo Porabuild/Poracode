@@ -134,8 +134,12 @@ describe("createClaudeAdapter structured sessions", () => {
 });
 
 describe("claudeCapabilities", () => {
-  it("advertises Fable 5 as a 1M-only non-fast model guarded by the probe", () => {
-    expect(claudeCapabilities.models).toContainEqual({ id: "claude-fable-5", label: "Fable 5" });
+  it("keeps Fable 5 disabled (hidden from pickers) while retaining its metadata for re-enable", () => {
+    expect(claudeCapabilities.models).not.toContainEqual({
+      id: "claude-fable-5",
+      label: "Fable 5",
+    });
+    // Definition is retained so flipping FABLE_5_ENABLED re-enables it cleanly.
     expect(claudeCapabilities.modelEfforts["claude-fable-5"]).toEqual([
       "low",
       "medium",
@@ -148,8 +152,8 @@ describe("claudeCapabilities", () => {
     expect(claudeCapabilities.fastModels).not.toContain("claude-fable-5");
   });
 
-  it("lists Fable 5 first so the latest model is the default for new threads", () => {
-    expect(claudeCapabilities.models[0]).toEqual({ id: "claude-fable-5", label: "Fable 5" });
+  it("lists Opus 4.8 first so it is the default for new threads while Fable 5 is disabled", () => {
+    expect(claudeCapabilities.models[0]).toEqual({ id: "claude-opus-4-8", label: "Opus 4.8" });
   });
 });
 

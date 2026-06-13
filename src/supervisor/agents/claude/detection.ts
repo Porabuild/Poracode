@@ -23,9 +23,17 @@ const CLAUDE_BUILT_IN_SLASH_COMMANDS: AgentCapability["slashCommands"] = [
 /** Effort tiers shared by the frontier models (Opus 4.7/4.8 and Fable 5). */
 const PREMIUM_EFFORT_TIERS = ["low", "medium", "high", "xHigh", "max", "ultracode"];
 
+/**
+ * Master switch for the Fable 5 model. Flip to `true` to surface it again in the
+ * model pickers — its effort/context/auto metadata is retained below so
+ * re-enabling is a one-line change. While `false`, Fable 5 is hidden everywhere
+ * (the leftover keyed entries are inert without a matching `models` row).
+ */
+const FABLE_5_ENABLED = false;
+
 export const claudeCapabilities: AgentCapability = {
   models: [
-    { id: "claude-fable-5", label: "Fable 5" },
+    ...(FABLE_5_ENABLED ? [{ id: "claude-fable-5", label: "Fable 5" }] : []),
     { id: "claude-opus-4-8", label: "Opus 4.8" },
     { id: "claude-opus-4-7", label: "Opus 4.7" },
     { id: "claude-opus-4-6", label: "Opus 4.6" },
