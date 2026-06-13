@@ -17,6 +17,11 @@ import type {
   UserInputOption,
 } from "@/shared/contracts";
 import { readDiffSummary, readFileChangePath } from "../fileChangeSummary";
+import {
+  buildDiffHeaderLines,
+  formatHunkRange,
+  normalizeDiffFilePath,
+} from "@/shared/lineUnifiedDiff";
 import { createContextUsageEvent, readNonNegativeInteger } from "../contextUsage";
 import { buildQuestionAnswerEvents } from "../questionAnswerEvents";
 import {
@@ -40,6 +45,7 @@ import {
 import {
   createClaudeMapperState,
   type ClaudeMapperState,
+  type FileChangeMetadata,
   type PlanAggregatorRole,
   type TextItemState,
   type ToolItemState,
@@ -758,6 +764,7 @@ function toolPayload(
       ...(diffSummary ? { diffSummary } : {}),
       args: tool.input,
       ...(result !== undefined ? { result } : {}),
+      ...(tool.fileChangeMetadata ? { metadata: tool.fileChangeMetadata } : {}),
       ...errorFields,
     };
   }
@@ -794,6 +801,80 @@ function inferFileChangeKind(toolName: string): "create" | "edit" | "delete" {
   if (n.includes("write")) return "create";
   if (n.includes("delete") || n.includes("remove")) return "delete";
   return "edit";
+}
+
+interface StructuredPatchHunk {
+  oldStart: number;
+  oldLines: number;
+  newStart: number;
+  newLines: number;
+  lines: string[];
+}
+
+function readStructuredPatchHunks(toolUseResult: unknown): StructuredPatchHunk[] | undefined {
+  if (!toolUseResult || typeof toolUseResult !== "object") return undefined;
+  const patch = (toolUseResult as Record<string, unknown>).structuredPatch;
+  if (!Array.isArray(patch) || patch.length === 0) return undefined;
+  const hunks: StructuredPatchHunk[] = [];
+  for (const entry of patch) {
+    if (!entry || typeof entry !== "object") continue;
+    const { oldStart, oldLines, newStart, newLines, lines } = entry as Record<string, unknown>;
+    if (
+      typeof oldStart !== "number" ||
+      typeof oldLines !== "number" ||
+      typeof newStart !== "number" ||
+      typeof newLines !== "number" ||
+      !Array.isArray(lines)
+    ) {
+      continue;
+    }
+    hunks.push({
+      oldStart,
+      oldLines,
+      newStart,
+      newLines,
+      lines: lines.filter((line): line is string => typeof line === "string"),
+    });
+  }
+  return hunks.length > 0 ? hunks : undefined;
+}
+
+/**
+ * Build a `metadata.changes[]` entry from the Claude SDK's
+ * `tool_use_result.structuredPatch` (Edit / MultiEdit / Write output). The hunk
+ * headers carry the real file line numbers (`oldStart` / `newStart`), so a full
+ * unified diff assembled here flows through the renderer's existing structured-
+ * changes passthrough (the same path Codex uses) and InlineDiffView renders true
+ * line numbers instead of the synthetic `@@ -1 +1 @@` synthesized from
+ * `old_string` / `new_string`.
+ *
+ * `expectedPath` guards against a `tool_use_result` that belongs to a different
+ * tool_result block in the same user message (Claude emits one per message in
+ * practice, but the SDK field is untyped and shared across the message).
+ */
+function fileChangeMetadataFromToolResult(
+  toolUseResult: unknown,
+  expectedPath: string | undefined,
+): FileChangeMetadata | undefined {
+  const hunks = readStructuredPatchHunks(toolUseResult);
+  if (!hunks) return undefined;
+  const record = toolUseResult as Record<string, unknown>;
+  const filePath = typeof record.filePath === "string" ? record.filePath : undefined;
+  const resultPath = filePath && filePath.length > 0 ? filePath : expectedPath;
+  if (!resultPath) return undefined;
+  if (expectedPath && filePath !== undefined && filePath !== expectedPath) return undefined;
+  const isCreate = record.originalFile === null || record.type === "create";
+  const displayPath = normalizeDiffFilePath(resultPath);
+  const body = hunks.flatMap((hunk) => [
+    `@@ -${formatHunkRange(hunk.oldStart, hunk.oldLines)} +${formatHunkRange(hunk.newStart, hunk.newLines)} @@`,
+    ...hunk.lines,
+  ]);
+  const diff = [...buildDiffHeaderLines(displayPath, isCreate, false), ...body].join("\n");
+  return {
+    changes: [
+      { path: resultPath, kind: { type: isCreate ? "add" : "update", move_path: null }, diff },
+    ],
+  };
 }
 
 function extractPlanSteps(
@@ -1621,6 +1702,13 @@ function mapClaudeSdkMessageInner(
         continue;
       }
       const isError = obj.is_error === true;
+      if (tool.itemType === "file_change" && !isError) {
+        const metadata = fileChangeMetadataFromToolResult(
+          (message as { tool_use_result?: unknown }).tool_use_result,
+          readFileChangePath(tool.input),
+        );
+        if (metadata) tool.fileChangeMetadata = metadata;
+      }
       const stream =
         tool.itemType === "command_execution"
           ? "command_output"

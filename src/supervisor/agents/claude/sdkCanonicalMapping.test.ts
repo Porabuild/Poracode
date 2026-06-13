@@ -1151,6 +1151,146 @@ describe("sdkCanonicalMapping — tool use", () => {
     ]);
   });
 
+  it("threads structuredPatch real line numbers onto Edit file changes", () => {
+    const state = createClaudeMapperState("thread-1");
+    const args = {
+      file_path: "src/app.ts",
+      old_string: "const oldValue = true;",
+      new_string: "const oldValue = false;",
+    };
+
+    mapClaudeSdkMessage(
+      streamEvent({
+        type: "content_block_start",
+        index: 0,
+        content_block: { type: "tool_use", id: "toolu_edit", name: "Edit", input: args },
+      }),
+      state,
+    );
+
+    const completed = mapClaudeSdkMessage(
+      {
+        type: "user",
+        session_id: "claude-session",
+        parent_tool_use_id: null,
+        tool_use_result: {
+          filePath: "src/app.ts",
+          oldString: args.old_string,
+          newString: args.new_string,
+          originalFile: "line 11\nconst oldValue = true;\nline 13\n",
+          userModified: false,
+          replaceAll: false,
+          structuredPatch: [
+            {
+              oldStart: 11,
+              oldLines: 3,
+              newStart: 11,
+              newLines: 3,
+              lines: [
+                " line 11",
+                "-const oldValue = true;",
+                "+const oldValue = false;",
+                " line 13",
+              ],
+            },
+          ],
+        },
+        message: {
+          role: "user",
+          content: [{ type: "tool_result", tool_use_id: "toolu_edit", content: "Edit applied." }],
+        },
+      } as unknown as SDKMessage,
+      state,
+    );
+
+    const updated = completed.find((event) => event.type === "item.updated");
+    const payload = (updated as { payload?: Record<string, unknown> }).payload;
+    const metadata = payload?.metadata as { changes?: Array<{ path?: string; diff?: string }> };
+    expect(metadata.changes?.[0]?.path).toBe("src/app.ts");
+    // Real file line numbers from structuredPatch, not the synthetic `@@ -1 +1 @@`.
+    expect(metadata.changes?.[0]?.diff).toContain("@@ -11,3 +11,3 @@");
+    expect(metadata.changes?.[0]?.diff).toContain("-const oldValue = true;");
+    expect(metadata.changes?.[0]?.diff).toContain("+const oldValue = false;");
+    // The human-readable result text is still preserved for the accordion.
+    expect(payload?.result).toBe("Edit applied.");
+  });
+
+  it("emits every structuredPatch hunk for a MultiEdit at its real start line", () => {
+    const state = createClaudeMapperState("thread-1");
+    const args = { file_path: "src/app.ts", edits: [] };
+
+    mapClaudeSdkMessage(
+      streamEvent({
+        type: "content_block_start",
+        index: 0,
+        content_block: { type: "tool_use", id: "toolu_multi", name: "MultiEdit", input: args },
+      }),
+      state,
+    );
+
+    const completed = mapClaudeSdkMessage(
+      {
+        type: "user",
+        session_id: "claude-session",
+        parent_tool_use_id: null,
+        tool_use_result: {
+          filePath: "src/app.ts",
+          structuredPatch: [
+            { oldStart: 5, oldLines: 1, newStart: 5, newLines: 1, lines: ["-a", "+A"] },
+            { oldStart: 40, oldLines: 1, newStart: 40, newLines: 2, lines: ["-b", "+B", "+C"] },
+          ],
+        },
+        message: {
+          role: "user",
+          content: [{ type: "tool_result", tool_use_id: "toolu_multi", content: "ok" }],
+        },
+      } as unknown as SDKMessage,
+      state,
+    );
+
+    const updated = completed.find((event) => event.type === "item.updated");
+    const diff = (updated as { payload?: { metadata?: { changes?: Array<{ diff?: string }> } } })
+      .payload?.metadata?.changes?.[0]?.diff;
+    expect(diff).toContain("@@ -5 +5 @@");
+    expect(diff).toContain("@@ -40 +40,2 @@");
+  });
+
+  it("ignores a structuredPatch whose filePath does not match the edited file", () => {
+    const state = createClaudeMapperState("thread-1");
+    const args = { file_path: "src/app.ts", old_string: "a", new_string: "b" };
+
+    mapClaudeSdkMessage(
+      streamEvent({
+        type: "content_block_start",
+        index: 0,
+        content_block: { type: "tool_use", id: "toolu_edit", name: "Edit", input: args },
+      }),
+      state,
+    );
+
+    const completed = mapClaudeSdkMessage(
+      {
+        type: "user",
+        session_id: "claude-session",
+        parent_tool_use_id: null,
+        tool_use_result: {
+          filePath: "src/other.ts",
+          structuredPatch: [
+            { oldStart: 9, oldLines: 1, newStart: 9, newLines: 1, lines: ["-a", "+b"] },
+          ],
+        },
+        message: {
+          role: "user",
+          content: [{ type: "tool_result", tool_use_id: "toolu_edit", content: "ok" }],
+        },
+      } as unknown as SDKMessage,
+      state,
+    );
+
+    const updated = completed.find((event) => event.type === "item.updated");
+    expect((updated as { payload?: Record<string, unknown> }).payload?.metadata).toBeUndefined();
+  });
+
   it("counts Claude Write content lines as create diff summary", () => {
     const state = createClaudeMapperState("thread-1");
     const args = {

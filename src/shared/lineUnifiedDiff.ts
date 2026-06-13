@@ -35,6 +35,27 @@ export function countLineChangeStats(oldText: string, newText: string): LineChan
   return { added, removed };
 }
 
+/**
+ * The `diff --git` / `---` / `+++` header lines for a unified diff. `displayPath`
+ * must already be normalized via {@link normalizeDiffFilePath}.
+ */
+export function buildDiffHeaderLines(
+  displayPath: string,
+  isCreate: boolean,
+  isDelete: boolean,
+): string[] {
+  return [
+    `diff --git a/${displayPath} b/${displayPath}`,
+    isCreate ? "--- /dev/null" : `--- a/${displayPath}`,
+    isDelete ? "+++ /dev/null" : `+++ b/${displayPath}`,
+  ];
+}
+
+/** Git hunk ranges drop the `,count` suffix when the range covers a single line. */
+export function formatHunkRange(start: number, count: number): string {
+  return count === 1 ? String(start) : `${start},${count}`;
+}
+
 /** Build a minimal unified diff suitable for InlineDiffView / git-diff-view. */
 export function buildLineUnifiedDiff(path: string, oldText: string, newText: string): string {
   const displayPath = normalizeDiffFilePath(path);
@@ -42,21 +63,7 @@ export function buildLineUnifiedDiff(path: string, oldText: string, newText: str
   const isCreate = oldText.length === 0;
   const isDelete = newText.length === 0;
   const hunks = buildHunks(ops);
-  if (hunks.length === 0) {
-    return [
-      `diff --git a/${displayPath} b/${displayPath}`,
-      isCreate ? "--- /dev/null" : `--- a/${displayPath}`,
-      isDelete ? "+++ /dev/null" : `+++ b/${displayPath}`,
-      "",
-    ].join("\n");
-  }
-  return [
-    `diff --git a/${displayPath} b/${displayPath}`,
-    isCreate ? "--- /dev/null" : `--- a/${displayPath}`,
-    isDelete ? "+++ /dev/null" : `+++ b/${displayPath}`,
-    ...hunks,
-    "",
-  ].join("\n");
+  return [...buildDiffHeaderLines(displayPath, isCreate, isDelete), ...hunks, ""].join("\n");
 }
 
 export function diffLineOps(oldText: string, newText: string): DiffOp[] {
@@ -175,13 +182,11 @@ function splitLines(text: string): string[] {
 /** Git unified-diff old-file range (`-0,0` when the hunk only adds lines). */
 function formatOldHunkRange(count: number, linesBefore: number): string {
   if (count === 0) return "0,0";
-  const start = linesBefore + 1;
-  return count === 1 ? String(start) : `${start},${count}`;
+  return formatHunkRange(linesBefore + 1, count);
 }
 
 /** Git unified-diff new-file range. */
 function formatNewHunkRange(count: number, linesBefore: number): string {
   if (count === 0) return "0,0";
-  const start = linesBefore + 1;
-  return count === 1 ? String(start) : `${start},${count}`;
+  return formatHunkRange(linesBefore + 1, count);
 }
