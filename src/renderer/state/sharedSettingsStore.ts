@@ -12,6 +12,7 @@ import type {
   InstalledAcpRegistryAgent,
   NewThreadMode,
   NotificationFilter,
+  PrCreateMode,
   ProviderDraftConfig,
   TerminalPosition,
   ThemeMode,
@@ -53,6 +54,7 @@ interface SharedSettingsState extends SharedSettings {
   setHomeScopeEnabled: (value: boolean) => void;
   setAutoShowTerminalPanel: (value: boolean) => void;
   setGitReviewMode: (value: GitReviewMode) => void;
+  setPrCreateMode: (value: PrCreateMode) => void;
   setEditorLspEnabled: (value: boolean) => void;
   setSearchUseIgnoreFiles: (value: boolean) => void;
   setSearchExclude: (value: Record<string, boolean>) => void;
@@ -311,6 +313,11 @@ export const useSharedSettings = create<SharedSettingsState>()((set, get) => ({
     set({ gitReviewMode });
     persistSettings(selectSharedSettings(get()));
   },
+  setPrCreateMode: (prCreateMode) => {
+    if (get().prCreateMode === prCreateMode) return;
+    set({ prCreateMode });
+    persistSettings(selectSharedSettings(get()));
+  },
   setEditorLspEnabled: (editorLspEnabled) => {
     set({ editorLspEnabled });
     persistSettings(selectSharedSettings(get()));
@@ -549,6 +556,7 @@ function selectSharedSettings(state: SharedSettingsState): SharedSettingsInput {
     homeScopeEnabled: state.homeScopeEnabled,
     autoShowTerminalPanel: state.autoShowTerminalPanel,
     gitReviewMode: state.gitReviewMode,
+    prCreateMode: state.prCreateMode,
     providerConfigs: state.providerConfigs,
     lastPresentationModeByAgent: state.lastPresentationModeByAgent,
     lastUsedProjectDirs: state.lastUsedProjectDirs,

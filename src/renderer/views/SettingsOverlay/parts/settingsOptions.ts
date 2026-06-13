@@ -24,6 +24,11 @@ export const gitReviewModeOptions = [
   { id: "page", label: "Page" },
 ] as const;
 
+export const prCreateModeOptions = [
+  { id: "dialog", label: "Open dialog" },
+  { id: "auto", label: "Auto-generate" },
+] as const;
+
 export const scrollSpeedOptions = Array.from({ length: 10 }, (_, i) => ({
   id: String(i + 1),
   label: `${i + 1}x`,

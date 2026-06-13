@@ -18,6 +18,14 @@ export type NewThreadMode = z.infer<typeof newThreadModeSchema>;
 export const gitReviewModeSchema = z.enum(["panel", "page"]);
 export type GitReviewMode = z.infer<typeof gitReviewModeSchema>;
 
+/**
+ * What the "Create PR" button does by default: open the dialog so the user can
+ * edit the title/body first (`dialog`), or auto-generate the summary and create
+ * the PR immediately (`auto`).
+ */
+export const prCreateModeSchema = z.enum(["dialog", "auto"]);
+export type PrCreateMode = z.infer<typeof prCreateModeSchema>;
+
 export const liveInputModeSchema = z.enum(["terminal", "server"]);
 export type LiveInputMode = z.infer<typeof liveInputModeSchema>;
 

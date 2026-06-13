@@ -101,6 +101,7 @@ export function GitReviewSidebar(props: {
   const commitGenProvider = useSharedSettings((s) =>
     isWsl ? s.wslCommitGenProvider : s.commitGenProvider,
   );
+  const prCreateMode = useSharedSettings((s) => s.prCreateMode);
 
   // Treat "unknown" as "might be GitHub" — covers SSH host aliases where the
   // remote URL hostname doesn't contain "github" but resolves to github.com.
@@ -211,6 +212,24 @@ export function GitReviewSidebar(props: {
     showPrSection && ghAvailable && isPushed && sourceBranch && (!prState || prState === "closed"),
   );
   const [createPrModalOpen, setCreatePrModalOpen] = useState(false);
+  // In "auto" mode the Create PR button skips the dialog: it auto-generates the
+  // title/body and creates the PR in one click (handleCreatePr handles the
+  // empty-title generation), showing a spinner meanwhile. Otherwise it opens
+  // the dialog as before. The button renders in two layout contexts below
+  // (merge-actions group vs standalone), so its label/pending/content are
+  // derived once here and shared.
+  const isAutoPrMode = prCreateMode === "auto";
+  const createPrPending = isAutoPrMode && prLoading;
+  const onCreatePrPress = () => {
+    if (isAutoPrMode) void handleCreatePr(false);
+    else setCreatePrModalOpen(true);
+  };
+  const createPrButtonContent = (
+    <>
+      {createPrPending ? <PixelLoader size="xs" /> : <GitPullRequest className="size-3.5" />}
+      {isAutoPrMode ? "Create PR (Auto)" : "Create PR"}
+    </>
+  );
   const [isInitializingRepo, setIsInitializingRepo] = useState(false);
   const [addRemoteOpen, setAddRemoteOpen] = useState(false);
   const [remoteName, setRemoteName] = useState("origin");
@@ -458,10 +477,11 @@ export function GitReviewSidebar(props: {
                   <Button
                     variant="tertiary"
                     className="flex-1"
-                    onPress={() => setCreatePrModalOpen(true)}
+                    isDisabled={createPrPending}
+                    isPending={createPrPending}
+                    onPress={onCreatePrPress}
                   >
-                    <GitPullRequest className="size-3.5" />
-                    Create Pull Request
+                    {createPrButtonContent}
                   </Button>
                   <Dropdown>
                     <Button
@@ -500,10 +520,11 @@ export function GitReviewSidebar(props: {
                 <Button
                   variant="tertiary"
                   className="w-full"
-                  onPress={() => setCreatePrModalOpen(true)}
+                  isDisabled={createPrPending}
+                  isPending={createPrPending}
+                  onPress={onCreatePrPress}
                 >
-                  <GitPullRequest className="size-3.5" />
-                  Create Pull Request
+                  {createPrButtonContent}
                 </Button>
               )}
             </GitReviewSection>

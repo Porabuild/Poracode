@@ -3,6 +3,7 @@ import {
   agentInstanceConfigMapSchema,
   installedAcpRegistryAgentSchema,
   gitReviewModeSchema,
+  prCreateModeSchema,
   newThreadModeSchema,
   notificationFilterSchema,
   providerDraftConfigSchema,
@@ -190,6 +191,11 @@ export const sharedSettingsSchema = z.object({
   autoShowTerminalPanel: z.boolean(),
   /** Open git review as a right-side panel or a full page overlay. */
   gitReviewMode: gitReviewModeSchema,
+  /**
+   * Default "Create PR" action: open the dialog to edit details, or
+   * auto-generate the summary and create the PR immediately.
+   */
+  prCreateMode: prCreateModeSchema,
   /** Per-provider last-used draft config (model, effort, mode, etc.). App-wide. */
   providerConfigs: z.record(z.string(), providerDraftConfigSchema),
   /**
@@ -310,6 +316,7 @@ export const defaultSharedSettings: SharedSettings = {
   homeScopeEnabled: true,
   autoShowTerminalPanel: true,
   gitReviewMode: "panel",
+  prCreateMode: "dialog",
   providerConfigs: {},
   lastPresentationModeByAgent: {},
   lastUsedProjectDirs: {},
