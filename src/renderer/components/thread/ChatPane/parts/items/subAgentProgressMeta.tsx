@@ -1,6 +1,7 @@
 import { Fragment } from "react";
 import type { ToolCallProgress } from "@/shared/contracts";
 import { PixelLoader } from "@/renderer/components/common/PixelLoader";
+import { formatTokenCount } from "@/renderer/components/thread/formatTokenCount";
 import {
   formatBracketParamHints,
   stripBracketParams,
@@ -88,17 +89,11 @@ export function formatSubAgentModelLabel(model: string | undefined): string | un
 
 function formatSubAgentTokenLabel(tokens: number | undefined): string | undefined {
   if (tokens === undefined || tokens <= 0) return undefined;
-  return `${formatCompactNumber(tokens)} tok`;
+  return `${formatTokenCount(tokens)} tok`;
 }
 
 function formatSubAgentStepLabel(stepCount: number): string {
   return `${stepCount} step${stepCount === 1 ? "" : "s"}`;
-}
-
-function formatCompactNumber(n: number): string {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1).replace(/\.0$/, "")}m`;
-  if (n >= 1_000) return `${(n / 1_000).toFixed(1).replace(/\.0$/, "")}k`;
-  return String(n);
 }
 
 function formatKnownModelId(modelId: string): string | undefined {

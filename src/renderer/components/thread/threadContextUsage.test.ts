@@ -1,10 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { AgentStatus, Thread } from "@/shared/contracts";
-import {
-  formatTokenCount,
-  hasReportedContextUsage,
-  resolveThreadContextUsageSummary,
-} from "./threadContextUsage";
+import { formatTokenCount } from "./formatTokenCount";
+import { hasReportedContextUsage, resolveThreadContextUsageSummary } from "./threadContextUsage";
 
 const baseThread: Thread = {
   id: "thread-1",
@@ -54,6 +51,9 @@ describe("threadContextUsage", () => {
     expect(formatTokenCount(8_400)).toBe("8.4K");
     expect(formatTokenCount(200_000)).toBe("200K");
     expect(formatTokenCount(1_000_000)).toBe("1M");
+    expect(formatTokenCount(1_500_000)).toBe("1.5M");
+    expect(formatTokenCount(24_767_000)).toBe("24.8M");
+    expect(formatTokenCount(150_000_000)).toBe("150M");
   });
 
   it("combines provider usage with configured context limit", () => {

@@ -35,7 +35,7 @@ describe("ThreadGoalDock", () => {
     expect(screen.getByLabelText("Thread goal dock")).toHaveAttribute("data-placement", "composer");
     expect(screen.getByText("Goal")).toBeInTheDocument();
     expect(screen.getByText("Ship goal dock")).toBeInTheDocument();
-    expect(screen.getByText("120/1000 tokens")).toBeInTheDocument();
+    expect(screen.getByText("120/1K tokens")).toBeInTheDocument();
     expect(screen.getByText("5s")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Close goal" }));
@@ -65,7 +65,7 @@ describe("ThreadGoalDock", () => {
       </AppProvider>,
     );
 
-    expect(screen.getByText("Complete · 11k tokens")).toBeInTheDocument();
+    expect(screen.getByText("Complete · 11K tokens")).toBeInTheDocument();
     expect(screen.getByText("10m 21s")).toBeInTheDocument();
   });
 

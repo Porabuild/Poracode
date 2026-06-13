@@ -13,6 +13,7 @@ import { getRuntimeItemPayload } from "@/renderer/state/slices/runtimeEventSlice
 import type { ProjectLocation, ToolCallPayload, WorkflowRun } from "@/shared/contracts";
 import { deriveToolDisplay, isWorkflowTool } from "./toolDisplay";
 import { PixelLoader } from "@/renderer/components/common/PixelLoader";
+import { formatTokenCount } from "@/renderer/components/thread/formatTokenCount";
 import { ThreadDockHeader, ThreadDockList, ThreadDockSection } from "../../../ThreadDockUI";
 import { parseWorkflowInfo } from "./workflowDisplay";
 import { SubAgentProgressMeta, hasSubAgentProgressMeta } from "./subAgentProgressMeta";
@@ -211,7 +212,7 @@ function WorkflowDockStats({ run }: { run: WorkflowRun }) {
   const completed = countDoneWorkflowAgents(run);
   const parts: string[] = [];
   if (run.agentCount > 0) parts.push(`${completed}/${run.agentCount}`);
-  if (run.totalTokens !== undefined) parts.push(`${formatDockTokens(run.totalTokens)} tok`);
+  if (run.totalTokens !== undefined) parts.push(`${formatTokenCount(run.totalTokens)} tok`);
   if (run.durationMs !== undefined) parts.push(formatDockDuration(run.durationMs));
   return (
     <span className="shrink-0 tabular-nums text-foreground-muted opacity-80">
@@ -239,11 +240,6 @@ function countDoneWorkflowAgents(run: WorkflowRun): number {
     }
   }
   return total;
-}
-
-function formatDockTokens(n: number): string {
-  if (n >= 1000) return `${(n / 1000).toFixed(1).replace(/\.0$/, "")}k`;
-  return String(n);
 }
 
 function formatDockDuration(ms: number): string {

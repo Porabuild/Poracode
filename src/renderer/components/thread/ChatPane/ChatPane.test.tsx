@@ -614,7 +614,7 @@ describe("ChatPane", () => {
     await waitFor(() => expect(hydrateThreadRuntimeItems).toHaveBeenCalledWith(thread.id));
 
     expect(await screen.findByText("Opus")).toBeInTheDocument();
-    expect(screen.getByText("336k tok")).toBeInTheDocument();
+    expect(screen.getByText("336K tok")).toBeInTheDocument();
     expect(screen.getByText("Bash")).toBeInTheDocument();
     expect(screen.getByText("21 steps")).toBeInTheDocument();
     expect(document.body).not.toHaveTextContent("gpt-parent-main");
