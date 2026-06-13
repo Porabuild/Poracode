@@ -10,6 +10,7 @@ import type {
 } from "@/shared/contracts";
 import { LightballTabs, PixelLoader, type LightballTab } from "@/renderer/components/common";
 import { ThreadDockRow } from "@/renderer/components/thread/ThreadDockUI";
+import { formatTokenCount } from "@/renderer/components/thread/formatTokenCount";
 import { useWorkflowRun } from "@/renderer/state/useWorkflowRun";
 import type { WorkflowInfo } from "./workflowDisplay";
 
@@ -129,7 +130,7 @@ function WorkflowToolbar({
   const statParts: string[] = [];
   if (total > 0) statParts.push(`${completed}/${total} agents`);
   if (duration !== undefined) statParts.push(formatDuration(duration));
-  if (tokens !== undefined) statParts.push(`${formatTokens(tokens)} tok`);
+  if (tokens !== undefined) statParts.push(`${formatTokenCount(tokens)} tok`);
   if (tools !== undefined) statParts.push(`${tools} tools`);
 
   const hasStats = statParts.length > 0 || status !== "unknown";
@@ -237,7 +238,7 @@ function AgentRow({
   const labelDisplay = stripPhasePrefix(agent.label, phaseTitle);
   const stats: string[] = [];
   if (agent.model) stats.push(formatModel(agent.model));
-  if (agent.tokens !== undefined) stats.push(`${formatTokens(agent.tokens)} tok`);
+  if (agent.tokens !== undefined) stats.push(`${formatTokenCount(agent.tokens)} tok`);
   if (agent.toolCalls !== undefined) stats.push(`${agent.toolCalls} tools`);
   if (done && agent.durationMs !== undefined) stats.push(formatDuration(agent.durationMs));
   return (
@@ -283,7 +284,7 @@ function AgentDetail({ agent, phaseTitle }: { agent: WorkflowAgent | null; phase
       <p className="text-[length:var(--lc-chat-font-size-meta)] text-foreground-muted">
         {[
           agent.model,
-          agent.tokens !== undefined ? `${formatTokens(agent.tokens)} tok` : null,
+          agent.tokens !== undefined ? `${formatTokenCount(agent.tokens)} tok` : null,
           agent.toolCalls !== undefined ? `${agent.toolCalls} tool calls` : null,
           agent.durationMs !== undefined ? formatDuration(agent.durationMs) : null,
         ]
@@ -493,11 +494,6 @@ function stripPhasePrefix(label: string, phaseTitle: string): string {
     return rest.length > 0 ? rest : label;
   }
   return label;
-}
-
-function formatTokens(n: number): string {
-  if (n >= 1000) return `${(n / 1000).toFixed(1).replace(/\.0$/, "")}k`;
-  return String(n);
 }
 
 function formatDuration(ms: number): string {

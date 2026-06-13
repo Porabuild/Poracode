@@ -6,6 +6,7 @@ import type {
   ThreadContextUsage,
 } from "@/shared/contracts";
 import { capabilitiesForPresentation } from "./threadComposerOptions";
+import { formatTokenCount } from "./formatTokenCount";
 
 export interface ThreadContextUsageSummary {
   usedTokens?: number;
@@ -85,21 +86,6 @@ export function resolveThreadContextUsageSummary(input: {
     headline,
     detail,
   };
-}
-
-export function formatTokenCount(tokens: number): string {
-  if (tokens >= 1_000_000) {
-    return formatTokenUnit(tokens / 1_000_000, "M");
-  }
-  if (tokens >= 1_000) {
-    return formatTokenUnit(tokens / 1_000, "K");
-  }
-  return String(tokens);
-}
-
-function formatTokenUnit(value: number, unit: "K" | "M"): string {
-  const rounded = value >= 10 ? Math.round(value) : Math.round(value * 10) / 10;
-  return `${Number.isInteger(rounded) ? rounded.toFixed(0) : rounded.toFixed(1)}${unit}`;
 }
 
 function inferConfiguredContextLimit(
