@@ -23,6 +23,43 @@ describe("shortcut catalog", () => {
     }
   });
 
+  it("documents the editor close-tab key once, without a duplicate row", () => {
+    for (const platform of PLATFORMS) {
+      const rows = buildShortcutRows(
+        buildCommandRegistry(),
+        DEFAULT_KEYBINDINGS.keybindings,
+        platform,
+      );
+      const closeRows = rows.filter((row) => row.title.trim().toLowerCase() === "close editor tab");
+      expect(closeRows).toHaveLength(1);
+      expect(closeRows[0]?.keys).toContain(formatKeybinding("Mod+W", platform));
+    }
+  });
+
+  it("does not list two rows with the same title in a single context", () => {
+    const duplicates: string[] = [];
+    for (const platform of PLATFORMS) {
+      const rows = buildShortcutRows(
+        buildCommandRegistry(),
+        DEFAULT_KEYBINDINGS.keybindings,
+        platform,
+      );
+      for (const context of CONTEXTS) {
+        const seen = new Map<string, string>();
+        for (const row of rows) {
+          if (!row.contexts.includes(context)) continue;
+          const title = row.title.trim().toLowerCase();
+          const previous = seen.get(title);
+          if (previous) {
+            duplicates.push(`${platform} ${context} "${title}": ${previous} vs ${row.id}`);
+          }
+          seen.set(title, row.id);
+        }
+      }
+    }
+    expect(duplicates).toEqual([]);
+  });
+
   it("does not show conflicting shortcuts inside a context", () => {
     const conflicts: string[] = [];
 

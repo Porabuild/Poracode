@@ -29,6 +29,14 @@ export interface AppCommand {
   subtitle?: string;
   keywords?: string[];
   when?: string;
+  /**
+   * Documentation-only keybinding shown in the Shortcuts settings when the
+   * command has no entry in keybindings.json. Used for commands whose key is
+   * handled by a local listener rather than the global keybinding hook (e.g.
+   * editor.close → ⌘W in FileEditorPane). The global hook never reads this; it
+   * only resolves keys from the keybindings store, so it has no runtime effect.
+   */
+  keys?: string[];
   run: (args?: unknown) => void | Promise<void>;
 }
 
@@ -187,6 +195,7 @@ function baseCommands(): AppCommand[] {
       title: "Close Editor Tab",
       group: "Editor",
       when: "editorOpen",
+      keys: ["Mod+W"],
       run: () => {
         const editor = useFileEditorStore.getState();
         const path = editor.activePath;

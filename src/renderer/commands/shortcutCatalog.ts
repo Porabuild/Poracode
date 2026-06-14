@@ -125,14 +125,6 @@ export const LOCAL_SHORTCUTS: readonly LocalShortcut[] = [
     keys: ["Mod+Shift+R", "Shift+F5"],
   },
   {
-    id: "editor.close-tab",
-    title: "Close editor tab",
-    description: "Editor",
-    group: "Editor",
-    when: "editorFocus",
-    keys: ["Mod+W"],
-  },
-  {
     id: "overlay.close",
     title: "Close overlay",
     description: "Panels and overlays",
@@ -166,7 +158,11 @@ export function buildShortcutRows(
   const commandRows = commands.map((command) => {
     const bindings = bindingsByCommand.get(command.id) ?? [];
     const contexts = contextsForCommand(command, bindings);
-    const keys = formatBindings(bindings, platform);
+    const bound = formatBindings(bindings, platform);
+    const keys =
+      bound.length > 0
+        ? bound
+        : (command.keys ?? []).map((key) => formatKeybinding(key, platform) || key);
     return rowWithSearchText({
       id: command.id,
       title: command.title,
