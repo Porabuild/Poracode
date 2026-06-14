@@ -405,6 +405,14 @@ export class ThreadSessionManager {
       session.projectLocation,
     );
 
+    // Optimistic working edge for CLI-hook agents with no turn-START event
+    // (Command Code): show `working` the instant the prompt is sent. Gated on
+    // `cliHookEnvInjected` so the authoritative `Stop` hook is guaranteed wired
+    // to return the thread to idle — never strands it in `working`.
+    if (session.adapter.optimisticWorkingOnSubmit && session.cliHookEnvInjected) {
+      this.outputPipeline.updateState(session, "working", "working");
+    }
+
     await sleep(300);
     if (session.prevChunk.includes("[Pasted text")) {
       pty.write("\r");

@@ -196,8 +196,15 @@ describe("createCommandCodeAdapter", () => {
 });
 
 describe("detectCommandCodeTerminalStatus", () => {
-  it("treats the empty prompt as idle", () => {
-    const text = ["────────────", ">", "────────────", "? for shortcuts"].join("\n");
+  it("treats the empty composer as idle", () => {
+    // Real idle screen: `❯ Ask your question...` placeholder + shortcuts hint.
+    const text = [
+      "────────────",
+      "❯ Ask your question...",
+      "────────────",
+      "  » permission bypass on [shift+tab]",
+      "  ? for shortcuts",
+    ].join("\n");
     expect(detectCommandCodeTerminalStatus(text)).toEqual({
       status: "idle",
       attention: "none",
@@ -211,8 +218,12 @@ describe("detectCommandCodeTerminalStatus", () => {
     expect(result?.attention).toBe("needs_approval");
   });
 
-  it("detects the braille loader as working", () => {
-    expect(detectCommandCodeTerminalStatus("⡿ Thinking…")).toMatchObject({
+  it("detects the working spinner row via the `esc to interrupt` invariant", () => {
+    // The verb label is randomized ("Cogitating"/"Processing"/"Conjuring"/…),
+    // so detection anchors on `esc to interrupt`, not the label.
+    expect(
+      detectCommandCodeTerminalStatus(" · Conjuring  esc to interrupt • 1s • ↑ 0"),
+    ).toMatchObject({
       status: "working",
       attention: "working",
     });

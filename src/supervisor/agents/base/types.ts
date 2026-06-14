@@ -251,6 +251,16 @@ export interface AgentTerminalObserver {
   detectInvalidSessionRef?(text: string): boolean;
   detectAutoResponse?(text: string): string | null;
   workingSilenceTimeoutMs?: number | null;
+  /**
+   * Set `working` optimistically the moment the user submits a prompt to a live
+   * terminal session, instead of waiting for a status signal. Command Code (and
+   * any CLI whose hooks/OSC emit no turn-START event — it only has
+   * PreToolUse/Stop) has no reliable `working` edge for a pure-text turn
+   * otherwise; the authoritative `Stop` hook clears it back to `idle`. Only
+   * honored while a CLI hook plugin is active (`cliHookEnvInjected`) so a
+   * missing turn-finished signal can never strand the thread in `working`.
+   */
+  optimisticWorkingOnSubmit?: boolean;
   handleOscNotification?(notification: OscNotification): TerminalStatusHint | null;
   handleOscTitle?(title: OscTitle): TerminalStatusHint | null;
   handleOscShellEvent?(event: OscShellEvent): TerminalStatusHint | null;

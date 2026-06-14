@@ -70,6 +70,11 @@ const PLUGINS = [
     srcDir: join(repoRoot, "src", "supervisor", "agents", "grok", "plugin"),
   },
   {
+    kind: "commandcode",
+    assets: ["plugin.json", "forward.mjs"],
+    srcDir: join(repoRoot, "src", "supervisor", "agents", "commandcode", "plugin"),
+  },
+  {
     kind: "opencode",
     assets: ["plugin.json", "lightcode-status.mjs"],
     srcDir: join(repoRoot, "src", "supervisor", "agents", "opencode", "plugin"),

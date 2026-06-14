@@ -1,11 +1,18 @@
 import type { AgentCapability, PromptSegment } from "@/shared/contracts";
-import { detectAgentInstall, type AgentAdapter } from "../base";
+import { detectAgentInstall, type AgentAdapter, type TerminalStatusHint } from "../base";
+import { resolveInstallNodePath, warnIfPluginManifestMissing } from "../plugin/installerBase";
 import { buildCommandCodeArgs } from "./argv";
 import {
   COMMANDCODE_DEFAULT_MODEL_ID,
   commandCodeDetectionSpec,
   defaultCommandCodeCapabilities,
 } from "./detection";
+import {
+  installCommandCodePlugin,
+  isCommandCodePluginInstalled,
+  readBundledCommandCodePluginVersion,
+  uninstallCommandCodePlugin,
+} from "./plugin/install";
 import { detectCommandCodeInvalidSessionRef } from "./session";
 import {
   isUuid,
@@ -16,6 +23,22 @@ import {
 import { detectCommandCodeTerminalStatus } from "./terminal";
 
 export { detectCommandCodeInvalidSessionRef } from "./session";
+
+const COMMANDCODE_PLUGIN_VERSION = readBundledCommandCodePluginVersion();
+
+warnIfPluginManifestMissing("commandcode", COMMANDCODE_PLUGIN_VERSION);
+
+/**
+ * Command Code's L1 `Stop` hook owns the authoritative working→idle edge, so
+ * while a hook is active we only let the L2 terminal-text fallback surface
+ * `working` (for follow-up text turns, which have no turn-start hook) and the
+ * interactive `needs_approval` / `needs_reply` states (no hook event exists for
+ * those). `idle` is suppressed here so a stale spinner frame can never beat the
+ * `Stop` hook to the idle transition.
+ */
+function commandCodeHookActiveTerminalFallback(hint: TerminalStatusHint): boolean {
+  return hint.status !== "idle";
+}
 
 // A cheap model for one-shot utility runs (title/commit generation) when the
 // caller doesn't pin one. Kept in sync with the renderer's registered
@@ -42,6 +65,34 @@ export function createCommandCodeAdapter(): AgentAdapter {
     // PTY (the user completes auth via the printed URL instead).
     spawnEnv: {
       wsl: { BROWSER: "/bin/true" },
+    },
+
+    // ── CLI hook plugin support ──────────────────────────────────────────
+    // Command Code emits no OSC; its Claude-compatible hook system is the only
+    // stable working/idle signal. `Stop` → idle is authoritative (full L1, not
+    // partialL1). Install is manual-only (the launch path never installs a
+    // missing plugin) and the hooks live in the user's `~/.commandcode/
+    // settings.json`, which the CLI auto-trusts.
+    pluginId: "lightcode-status@commandcode",
+    pluginVersion: COMMANDCODE_PLUGIN_VERSION,
+    minProtocolVersion: 1,
+    async isPluginSupported() {
+      // Native: forward.mjs runs under Electron-as-Node via a generated
+      // wrapper. WSL: install resolves a distro node. Always supported.
+      return true;
+    },
+    async isPluginInstalled(ctx) {
+      return isCommandCodePluginInstalled(ctx);
+    },
+    async installPlugin(ctx) {
+      const node = await resolveInstallNodePath(ctx);
+      if (!node.ok) return node;
+      const result = installCommandCodePlugin(ctx, { resolvedNodePath: node.nodePath });
+      if (!result.ok) return result;
+      return { ok: true, version: result.version };
+    },
+    async uninstallPlugin(ctx) {
+      uninstallCommandCodePlugin(ctx);
     },
 
     async detectInstall(ctx) {
@@ -99,6 +150,11 @@ export function createCommandCodeAdapter(): AgentAdapter {
     },
 
     detectTerminalStatus: detectCommandCodeTerminalStatus,
+    shouldApplyTerminalStatusWhileHookActive: commandCodeHookActiveTerminalFallback,
+    // Command Code emits no turn-START hook (only PreToolUse/PostToolUse/Stop),
+    // so a pure-text turn would otherwise show no `working`. Flip to working on
+    // submit; the `Stop` hook returns it to idle.
+    optimisticWorkingOnSubmit: true,
     detectInvalidSessionRef: detectCommandCodeInvalidSessionRef,
 
     defaultOneShotModel: COMMANDCODE_ONESHOT_MODEL_ID,
