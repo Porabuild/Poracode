@@ -4,6 +4,7 @@ import {
   installedAcpRegistryAgentSchema,
   gitReviewModeSchema,
   prCreateModeSchema,
+  commitDefaultActionSchema,
   newThreadModeSchema,
   notificationFilterSchema,
   providerDraftConfigSchema,
@@ -193,9 +194,15 @@ export const sharedSettingsSchema = z.object({
   gitReviewMode: gitReviewModeSchema,
   /**
    * Default "Create PR" action: open the dialog to edit details, or
-   * auto-generate the summary and create the PR immediately.
+   * auto-generate the summary and create the PR immediately. Doubles as the
+   * sticky last-used choice for the Create PR split-button.
    */
   prCreateMode: prCreateModeSchema,
+  /**
+   * Sticky last-used primary commit action for the commit split-button,
+   * remembered across sessions so it defaults to whatever the user picked last.
+   */
+  commitDefaultAction: commitDefaultActionSchema,
   /** Per-provider last-used draft config (model, effort, mode, etc.). App-wide. */
   providerConfigs: z.record(z.string(), providerDraftConfigSchema),
   /**
@@ -317,6 +324,7 @@ export const defaultSharedSettings: SharedSettings = {
   autoShowTerminalPanel: true,
   gitReviewMode: "panel",
   prCreateMode: "dialog",
+  commitDefaultAction: "commit-push",
   providerConfigs: {},
   lastPresentationModeByAgent: {},
   lastUsedProjectDirs: {},

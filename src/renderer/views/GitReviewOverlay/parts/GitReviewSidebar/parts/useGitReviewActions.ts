@@ -183,7 +183,11 @@ export function useGitReviewActions(args: UseGitReviewActionsArgs) {
     });
   }
 
-  async function handleCommit(addAll: boolean, pushAfter = false): Promise<void> {
+  // Returns true when the commit (and optional push) fully succeeded, so
+  // callers that chain further work — e.g. the combined "Commit & Create PR"
+  // action — only proceed when there's actually something pushed to open a PR
+  // against.
+  async function handleCommit(addAll: boolean, pushAfter = false): Promise<boolean> {
     setIsCommitting(true);
     try {
       let message = commitMessage.trim();
@@ -235,7 +239,7 @@ export function useGitReviewActions(args: UseGitReviewActionsArgs) {
         } finally {
           setIsSyncing(false);
         }
-        return;
+        return true;
       }
 
       onRefresh();
@@ -246,6 +250,7 @@ export function useGitReviewActions(args: UseGitReviewActionsArgs) {
         .gitFetch({ projectLocation: project.location, remote: "origin", prune: false })
         .catch(() => undefined)
         .finally(() => onRefresh());
+      return true;
     } catch (err) {
       console.error("[git] commit failed", err);
       const { summary, details } = friendlyErrorWithDetail(err);
@@ -261,6 +266,7 @@ export function useGitReviewActions(args: UseGitReviewActionsArgs) {
       } else {
         toast.danger(summary);
       }
+      return false;
     } finally {
       setIsCommitting(false);
     }
@@ -548,6 +554,16 @@ export function useGitReviewActions(args: UseGitReviewActionsArgs) {
     }
   }
 
+  // One-click "Commit & Create PR": commit + push, then — only if that
+  // succeeded — auto-create the PR. The PR step always auto-generates (never
+  // opens the dialog), so this stays a single uninterrupted action regardless
+  // of the prCreateMode setting.
+  async function handleCommitAndCreatePr(addAll: boolean): Promise<void> {
+    const committed = await handleCommit(addAll, true);
+    if (!committed) return;
+    await handleCreatePr(false);
+  }
+
   async function handleGeneratePrSummary(): Promise<void> {
     const targetBranch = prTargetBranch || sourceBranch;
     if (!effectiveBranch || !targetBranch) return;
@@ -604,6 +620,7 @@ export function useGitReviewActions(args: UseGitReviewActionsArgs) {
     handleAbortMerge,
     handleFinishMerge,
     handleCreatePr,
+    handleCommitAndCreatePr,
     handleMergePr: writeActions.handleMergePr,
     handleClosePr: writeActions.handleClosePr,
     handleMarkPrReady: writeActions.handleMarkPrReady,

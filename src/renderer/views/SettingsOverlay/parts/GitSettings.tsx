@@ -30,8 +30,8 @@ export function GitSettings() {
         />
       </SettingRow>
       <SettingRow
-        title="Create PR action"
-        description="Open a dialog to edit the PR title and description first, or auto-generate them and create the PR in one click."
+        title="Default Create PR action"
+        description="What the Create PR button does by default: open a dialog to edit the title and description first, or auto-generate them and create the PR in one click. You can also switch this from the button's menu."
       >
         <Select
           aria-label="Create PR action"

@@ -10,8 +10,8 @@ import {
   PanelLeft,
   PanelLeftClose,
 } from "lucide-react";
-import { Button, ButtonGroup, Dropdown, Label, Modal } from "@heroui/react";
-import type { GitBranchInfo, GitStatusResult, Project } from "@/shared/contracts";
+import { Button, ButtonGroup, Dropdown, Label, Modal, Separator } from "@heroui/react";
+import type { GitBranchInfo, GitStatusResult, PrCreateMode, Project } from "@/shared/contracts";
 import { getProjectAgentStatuses } from "@/shared/agentStatus";
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
 import { useGitStore } from "@/renderer/state/gitStore";
@@ -102,6 +102,9 @@ export function GitReviewSidebar(props: {
     isWsl ? s.wslCommitGenProvider : s.commitGenProvider,
   );
   const prCreateMode = useSharedSettings((s) => s.prCreateMode);
+  const setPrCreateMode = useSharedSettings((s) => s.setPrCreateMode);
+  const commitDefaultAction = useSharedSettings((s) => s.commitDefaultAction);
+  const setCommitDefaultAction = useSharedSettings((s) => s.setCommitDefaultAction);
 
   // Treat "unknown" as "might be GitHub" — covers SSH host aliases where the
   // remote URL hostname doesn't contain "github" but resolves to github.com.
@@ -160,6 +163,7 @@ export function GitReviewSidebar(props: {
     handlePullFromSource,
     handleAbortMerge,
     handleCreatePr,
+    handleCommitAndCreatePr,
     handleMergePr,
     handleClosePr,
     handleMarkPrReady,
@@ -208,9 +212,15 @@ export function GitReviewSidebar(props: {
   );
   const showPullFromSource = Boolean(effectiveBranch && sourceBranch && sourceAhead > 0);
   const isPushed = hasTracking && ahead === 0;
-  const showCreatePrButton = Boolean(
-    showPrSection && ghAvailable && isPushed && sourceBranch && (!prState || prState === "closed"),
+  // Shared PR eligibility: a GitHub repo with a target branch and no open PR.
+  const prEligible = Boolean(
+    showPrSection && ghAvailable && sourceBranch && (!prState || prState === "closed"),
   );
+  const showCreatePrButton = prEligible && isPushed;
+  // Whether the one-click "Commit & Create PR" action is offered. Unlike
+  // showCreatePrButton this does NOT require an already-pushed branch (it only
+  // needs a remote) — the combined action pushes as part of its flow.
+  const canCreatePr = prEligible && hasRemote;
   const [createPrModalOpen, setCreatePrModalOpen] = useState(false);
   // In "auto" mode the Create PR button skips the dialog: it auto-generates the
   // title/body and creates the PR in one click (handleCreatePr handles the
@@ -220,10 +230,19 @@ export function GitReviewSidebar(props: {
   // derived once here and shared.
   const isAutoPrMode = prCreateMode === "auto";
   const createPrPending = isAutoPrMode && prLoading;
-  const onCreatePrPress = () => {
-    if (isAutoPrMode) void handleCreatePr(false);
+  const runPrMode = (prMode: PrCreateMode) => {
+    if (prMode === "auto") void handleCreatePr(false);
     else setCreatePrModalOpen(true);
   };
+  const onCreatePrPress = () => runPrMode(prCreateMode);
+  // Picking the other mode from the split-button menu both runs it and makes
+  // it the sticky default (the same field the Git settings select drives).
+  const selectPrMode = (prMode: PrCreateMode) => {
+    setPrCreateMode(prMode);
+    runPrMode(prMode);
+  };
+  const altPrMode: PrCreateMode = isAutoPrMode ? "dialog" : "auto";
+  const altPrModeLabel = isAutoPrMode ? "Create PR…" : "Create PR (Auto)";
   const createPrButtonContent = (
     <>
       {createPrPending ? <PixelLoader size="xs" /> : <GitPullRequest className="size-3.5" />}
@@ -441,14 +460,19 @@ export function GitReviewSidebar(props: {
               setCommitMessage={setCommitMessage}
               canCommitStaged={canCommitStaged}
               canGenerateMessage={canGenerateMessage}
+              canCreatePr={canCreatePr}
+              commitDefaultAction={commitDefaultAction}
+              setCommitDefaultAction={setCommitDefaultAction}
               isCommitting={isCommitting}
               isGenerating={isGenerating}
               isSyncing={isSyncing}
+              prLoading={prLoading}
               isPullingFromSource={isPullingFromSource}
               showPullFromSource={showPullFromSource}
               sourceBranch={sourceBranch}
               sourceAhead={sourceAhead}
               handleCommit={handleCommit}
+              handleCommitAndCreatePr={handleCommitAndCreatePr}
               handleGenerateMessage={handleGenerateMessage}
               handleSyncOrPush={handleSyncOrPush}
               handleSyncAction={handleSyncAction}
@@ -472,61 +496,60 @@ export function GitReviewSidebar(props: {
 
           {showCreatePrButton && (
             <GitReviewSection>
-              {showMergeActions ? (
-                <ButtonGroup className="w-full">
-                  <Button
-                    variant="tertiary"
-                    className="flex-1"
-                    isDisabled={createPrPending}
-                    isPending={createPrPending}
-                    onPress={onCreatePrPress}
-                  >
-                    {createPrButtonContent}
-                  </Button>
-                  <Dropdown>
-                    <Button
-                      isIconOnly
-                      variant="tertiary"
-                      aria-label="More pull request options"
-                      isDisabled={isMerging}
-                    >
-                      <ButtonGroup.Separator />
-                      <ChevronDown className="size-3.5" />
-                    </Button>
-                    <Dropdown.Popover placement="top end">
-                      <Dropdown.Menu
-                        aria-label="Pull request options"
-                        onAction={(key) => {
-                          if (key === "merge-only") void handleMergeOnly();
-                          if (key === "merge-and-remove") void handleMergeAndRemove();
-                        }}
-                      >
-                        <Dropdown.Item id="merge-only" textValue="Merge Worktree">
-                          <GitMerge className="size-3.5" />
-                          <Label>Merge Worktree</Label>
-                        </Dropdown.Item>
-                        <Dropdown.Item
-                          id="merge-and-remove"
-                          textValue="Merge Locally & Remove Worktree"
-                        >
-                          <GitMerge className="size-3.5" />
-                          <Label>Merge Locally & Remove Worktree</Label>
-                        </Dropdown.Item>
-                      </Dropdown.Menu>
-                    </Dropdown.Popover>
-                  </Dropdown>
-                </ButtonGroup>
-              ) : (
+              <ButtonGroup className="w-full">
                 <Button
                   variant="tertiary"
-                  className="w-full"
+                  className="flex-1"
                   isDisabled={createPrPending}
                   isPending={createPrPending}
                   onPress={onCreatePrPress}
                 >
                   {createPrButtonContent}
                 </Button>
-              )}
+                <Dropdown>
+                  <Button
+                    isIconOnly
+                    variant="tertiary"
+                    aria-label="More pull request options"
+                    isDisabled={createPrPending || isMerging}
+                  >
+                    <ButtonGroup.Separator />
+                    <ChevronDown className="size-3.5" />
+                  </Button>
+                  <Dropdown.Popover placement="top end">
+                    <Dropdown.Menu
+                      aria-label="Pull request options"
+                      onAction={(key) => {
+                        if (key === "pr-auto") selectPrMode("auto");
+                        else if (key === "pr-dialog") selectPrMode("dialog");
+                        else if (key === "merge-only") void handleMergeOnly();
+                        else if (key === "merge-and-remove") void handleMergeAndRemove();
+                      }}
+                    >
+                      <Dropdown.Item id={`pr-${altPrMode}`} textValue={altPrModeLabel}>
+                        <GitPullRequest className="size-3.5" />
+                        <Label>{altPrModeLabel}</Label>
+                      </Dropdown.Item>
+                      {showMergeActions ? (
+                        <>
+                          <Separator />
+                          <Dropdown.Item id="merge-only" textValue="Merge Worktree">
+                            <GitMerge className="size-3.5" />
+                            <Label>Merge Worktree</Label>
+                          </Dropdown.Item>
+                          <Dropdown.Item
+                            id="merge-and-remove"
+                            textValue="Merge Locally & Remove Worktree"
+                          >
+                            <GitMerge className="size-3.5" />
+                            <Label>Merge Locally & Remove Worktree</Label>
+                          </Dropdown.Item>
+                        </>
+                      ) : null}
+                    </Dropdown.Menu>
+                  </Dropdown.Popover>
+                </Dropdown>
+              </ButtonGroup>
             </GitReviewSection>
           )}
 

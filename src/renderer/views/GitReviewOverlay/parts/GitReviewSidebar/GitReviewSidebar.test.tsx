@@ -102,6 +102,7 @@ vi.mock("@heroui/react", () => {
     Label: (props: { children: ReactNode }) => <span>{props.children}</span>,
     ListBox,
     Select,
+    Separator: () => <span />,
 
     Surface: Wrapper,
     Tooltip,
