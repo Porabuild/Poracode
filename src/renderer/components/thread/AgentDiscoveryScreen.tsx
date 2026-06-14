@@ -169,7 +169,10 @@ export function AgentDiscoveryScreen(props: {
           <div>Provider</div>
           {statusTargets.map((target) => (
             <div key={target.key} className="text-center">
-              {target.label}
+              {/* The per-system label (e.g. "Windows", "WSL: …") only disambiguates
+                  when there are multiple environment columns. With a single column —
+                  always the case on macOS/Linux — it is redundant noise, so omit it. */}
+              {useMatrixLayout ? target.label : null}
             </div>
           ))}
         </div>
