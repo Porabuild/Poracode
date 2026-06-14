@@ -791,7 +791,6 @@
     --content-background: var(--background);
     --window-header-background: var(--sidebar-background);
     --window-overlay-background: rgba(0, 0, 0, 0);
-    --terminal-surface: var(--surface);
     --composer-surface: var(--surface);
     --interactive-cursor: default;
 
@@ -843,7 +842,6 @@
     --sidebar-background: oklch(0.945 0.004 286);
     --content-background: oklch(0.975 0.003 286);
     --window-header-background: var(--sidebar-background);
-    --terminal-surface: oklch(0.967 0.003 286);
     --composer-surface: oklch(0.982 0.002 286);
   }
 
@@ -874,7 +872,6 @@
     --sidebar-background: oklch(0.22 0.004 286);
     --content-background: oklch(0.2 0.004 286);
     --window-header-background: var(--sidebar-background);
-    --terminal-surface: oklch(0.155 0.004 286);
     --composer-surface: oklch(0.25 0.004 286);
   }
 
