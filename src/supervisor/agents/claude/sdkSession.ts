@@ -1131,7 +1131,13 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
       }
       this.currentTurnAssistantUuid = undefined;
       this.currentTurnInFlight = false;
-      if (!wasInterrupted) this.stopGoalTracking();
+      // Stop the 15s goal-tracking poller on every turn end — including
+      // interrupts and steers — so it does not keep firing context-usage
+      // round-trips while the thread sits idle. The goal itself is NOT cleared
+      // here: it stays active (completeActiveGoalEvents only completes it on a
+      // clean turn end, and `/clear` clears it explicitly), and the next turn
+      // restarts tracking via startGoalTracking().
+      this.stopGoalTracking();
       this.emitUpdate({
         status: failed ? "error" : "idle",
         attention: failed ? "error" : "none",

@@ -963,4 +963,60 @@ describe("ClaudeSdkSession", () => {
 
     await session.dispose();
   });
+
+  it("stops the goal-tracking poller after an interrupted turn while keeping the goal active", async () => {
+    vi.useFakeTimers();
+    try {
+      const fake = createFakeQuery();
+      mockSdk.query.mockReturnValue(fake.runtime);
+      const runtimeEvents: RuntimeEvent[] = [];
+      const session = await ClaudeSdkSession.create({
+        threadId: "thread-claude-goal-interrupt-timer",
+        projectLocation,
+        config,
+        presentationMode: "gui",
+      });
+      session.setListener({
+        onRuntimeEvent: (event) => runtimeEvents.push(event),
+        onUpdate: () => {},
+        onError: () => {},
+        onClose: () => {},
+      });
+
+      const openedSessionId = await session.openThread(config);
+      await session.startTurn("/goal fix the bug", config);
+
+      // Stop/steer mid-turn: interrupt, then the interrupted result settles it.
+      await session.interruptTurn();
+      fake.emitMessage({
+        type: "result",
+        subtype: "error_during_execution",
+        is_error: true,
+        errors: ["execution stopped by user"],
+        session_id: openedSessionId,
+      } as unknown as SDKMessage);
+      await vi.advanceTimersByTimeAsync(0);
+
+      // The goal is kept active across the stop (not completed/cleared).
+      const goalItemId = runtimeEvents.find(
+        (event): event is Extract<RuntimeEvent, { type: "item.started" }> =>
+          event.type === "item.started" && event.itemType === "goal",
+      )?.itemId;
+      expect(
+        runtimeEvents
+          .filter((event) => event.type === "item.updated" && event.itemId === goalItemId)
+          .at(-1),
+      ).toMatchObject({ payload: { status: "active" } });
+
+      // The 15s goal-tracking interval must have stopped — advancing well past
+      // it produces no further context-usage polls (previously it leaked).
+      const pollsAfterStop = fake.getContextUsage.mock.calls.length;
+      await vi.advanceTimersByTimeAsync(45_000);
+      expect(fake.getContextUsage.mock.calls.length).toBe(pollsAfterStop);
+
+      await session.dispose();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });

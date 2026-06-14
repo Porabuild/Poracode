@@ -92,6 +92,16 @@ export interface RuntimeEventSlice {
   runtimeStructuralVersionByThread: Record<string, number>;
   /** Frozen per-turn timing windows accumulated during the session. */
   runtimeCompletedTurnsByThread: Record<string, ReadonlyArray<CompletedTurnRecord>>;
+  /**
+   * Tracks whether the runtime event stream's current turn is open per thread:
+   * `true` after `turn.started`, `false` after `turn.completed`. Gates
+   * `reopenGuiTurnForLiveRuntimeActivity` so trailing runtime events that land
+   * AFTER a turn's `turn.completed` (and its `idle` status) cannot flip a
+   * settled GUI thread back to "working". Absent (`undefined`) means we have no
+   * turn-boundary evidence yet, so reopen stays permitted (premature-idle
+   * safety net). See reopenGuiTurnForLiveRuntimeActivity.
+   */
+  runtimeOpenTurnByThread: Record<string, boolean>;
   /** File-backed checkpoint snapshots keyed by checkpoint item id. */
   fileCheckpointsByThread: Record<string, Record<string, FileCheckpointRecord>>;
   /** Completed turn file diffs keyed by the turn anchor/checkpoint item id. */
@@ -150,6 +160,7 @@ export const createRuntimeEventSlice: SliceCreator<RuntimeEventSlice> = (set) =>
   runtimeContextByThread: {},
   runtimeStructuralVersionByThread: {},
   runtimeCompletedTurnsByThread: {},
+  runtimeOpenTurnByThread: {},
   fileCheckpointsByThread: {},
   fileCheckpointTurnsByThread: {},
 
@@ -167,7 +178,8 @@ export const createRuntimeEventSlice: SliceCreator<RuntimeEventSlice> = (set) =>
         !(threadId in state.runtimeRequestsByThread) &&
         !(threadId in state.runtimeContextByThread) &&
         !(threadId in state.runtimeStructuralVersionByThread) &&
-        !(threadId in state.runtimeCompletedTurnsByThread)
+        !(threadId in state.runtimeCompletedTurnsByThread) &&
+        !(threadId in state.runtimeOpenTurnByThread)
       ) {
         return {};
       }
@@ -184,6 +196,8 @@ export const createRuntimeEventSlice: SliceCreator<RuntimeEventSlice> = (set) =>
         state.runtimeStructuralVersionByThread;
       const { [threadId]: _droppedTurns, ...runtimeCompletedTurnsByThread } =
         state.runtimeCompletedTurnsByThread;
+      const { [threadId]: _droppedOpenTurn, ...runtimeOpenTurnByThread } =
+        state.runtimeOpenTurnByThread;
       return {
         runtimeItemIdsByThread,
         runtimeItemsByIdByThread,
@@ -191,6 +205,7 @@ export const createRuntimeEventSlice: SliceCreator<RuntimeEventSlice> = (set) =>
         runtimeContextByThread,
         runtimeStructuralVersionByThread,
         runtimeCompletedTurnsByThread,
+        runtimeOpenTurnByThread,
       };
     }),
 
@@ -393,6 +408,7 @@ type RuntimeEventState = Pick<
   | "runtimeContextByThread"
   | "runtimeStructuralVersionByThread"
   | "runtimeCompletedTurnsByThread"
+  | "runtimeOpenTurnByThread"
 > &
   Pick<AppStoreState, "threads">;
 
@@ -408,6 +424,7 @@ function applyRuntimeEventsToState(
     runtimeContextByThread: state.runtimeContextByThread,
     runtimeStructuralVersionByThread: state.runtimeStructuralVersionByThread,
     runtimeCompletedTurnsByThread: state.runtimeCompletedTurnsByThread ?? {},
+    runtimeOpenTurnByThread: state.runtimeOpenTurnByThread ?? {},
     threads: state.threads ?? [],
   };
   let changed = false;
@@ -446,6 +463,12 @@ function reopenGuiTurnForLiveRuntimeActivity(
   threadId: string,
   event: RuntimeEvent,
 ): Partial<RuntimeEventState> {
+  // Once a turn has completed (`turn.completed` -> open === false), trailing
+  // runtime events for that turn can legitimately arrive after its `idle`
+  // status on the single FIFO IPC wire. Those must not flip the settled GUI
+  // thread back to "working". A genuinely premature idle (no `turn.completed`
+  // yet -> open !== false) still reopens, preserving the safety net.
+  if (state.runtimeOpenTurnByThread[threadId] === false) return {};
   if (!isLiveAssistantActivity(state, threadId, event)) return {};
   let changed = false;
   let nextCompletedTurns = state.runtimeCompletedTurnsByThread;
@@ -551,14 +574,30 @@ function applyRuntimeEventToRuntimeState(
   switch (event.type) {
     case "session.started":
     case "session.exited":
-    case "turn.started":
     case "warning":
       // No item state to mutate. Status flows through the existing thread-state channel.
       return {};
 
-    case "turn.completed":
-      if (event.state !== "interrupted" && event.state !== "cancelled") return {};
-      return pruneTrailingInterruptedReasoningItems(state, threadId);
+    case "turn.started":
+      // Mark the runtime turn open so live activity may (re)open the GUI turn.
+      // No item state to mutate; status flows through the thread-state channel.
+      if (state.runtimeOpenTurnByThread[threadId] === true) return {};
+      return {
+        runtimeOpenTurnByThread: { ...state.runtimeOpenTurnByThread, [threadId]: true },
+      };
+
+    case "turn.completed": {
+      // Mark the runtime turn closed. Trailing live events that land after this
+      // (e.g. on the persistent plan item, after the turn's `idle` status) must
+      // NOT reopen the settled GUI turn — that left a stale "working" until the
+      // next thread-switch snapshot reconcile.
+      const closeTurnPatch =
+        state.runtimeOpenTurnByThread[threadId] === false
+          ? {}
+          : { runtimeOpenTurnByThread: { ...state.runtimeOpenTurnByThread, [threadId]: false } };
+      if (event.state !== "interrupted" && event.state !== "cancelled") return closeTurnPatch;
+      return { ...closeTurnPatch, ...pruneTrailingInterruptedReasoningItems(state, threadId) };
+    }
 
     case "item.started": {
       const existingIds = state.runtimeItemIdsByThread[threadId] ?? [];
