@@ -143,5 +143,23 @@ export const openExternalPayloadSchema = z.string().min(1);
 export const windowChromePayloadSchema = z.object({
   backgroundColor: z.string(),
   symbolColor: z.string(),
+  /**
+   * Whether the opt-in translucent ("liquid glass") sidebar material should be
+   * active. The main process applies a native blur where supported (macOS
+   * vibrancy, Windows 11 acrylic) and otherwise leaves the window opaque.
+   * Optional for backwards compatibility with callers that predate the toggle.
+   */
+  materialEnabled: z.boolean().optional(),
+  /** Resolved appearance, used to restore the opaque window background when the material is off. */
+  appearance: z.enum(["light", "dark"]).optional(),
 });
 export type WindowChromePayload = z.infer<typeof windowChromePayloadSchema>;
+
+/**
+ * Result of {@link windowChromePayloadSchema}: reports whether the main process
+ * actually applied a native window material, so the renderer can gate the
+ * transparent-window CSS on the truthful state (e.g. Windows 10 has no acrylic).
+ */
+export interface WindowChromeResult {
+  nativeMaterial: boolean;
+}

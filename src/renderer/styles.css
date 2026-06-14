@@ -1008,6 +1008,83 @@ body {
   z-index: 20;
 }
 
+/* === Translucent ("liquid glass") sidebar ===================================
+   Opt-in via the Appearance toggle (default off). Two paths:
+
+   1. Native material — [data-native-material="on"] is set by the renderer ONLY
+      after the main process confirms it actually applied a blur material
+      (macOS vibrancy / Windows 11 acrylic). The whole window is blurred by the
+      OS, so we clear the opaque window layers (body, shell) and re-cover the
+      main content with an opaque pane; only the sidebar (and the thin titlebar /
+      resize-handle gaps) stay translucent. <main> has no background of its own,
+      so it must be given one explicitly or the whole window goes translucent.
+
+   2. In-app fallback — [data-sidebar-glass="on"] without a native material
+      (Linux, Windows 10, older builds). The window stays opaque; the docked,
+      flush-left sidebar gets a faux-translucent gradient + bevel (a real
+      backdrop-filter would blur almost nothing there). Real blur is reserved
+      for the floating *overlay* sidebar, which genuinely sits over content.
+
+   These rules are intentionally unlayered so they win over Tailwind utilities
+   (e.g. the sidebar's bg-[var(--content-background)] header class). */
+
+/* 1. Native material: clear opaque window layers, keep main content opaque. */
+html[data-native-material="on"] body,
+html[data-native-material="on"] .lightcode-shell {
+  background: transparent;
+}
+html[data-native-material="on"] .lightcode-shell main {
+  background: var(--content-background);
+}
+/* Faint tint so sidebar text/icons stay legible over the live OS blur. The
+   sidebar header (shared .lightcode-overlay-header class) is forced transparent
+   so the aside's single tint layer shows through instead of stacking. */
+html[data-native-material="on"] .lightcode-sidebar-aside {
+  background: color-mix(in oklab, var(--sidebar-background) 55%, transparent);
+}
+html[data-native-material="on"] .lightcode-sidebar-aside .lightcode-overlay-header {
+  background: transparent;
+}
+
+/* 2. In-app fallback: opaque window, faux-translucent gradient sidebar. */
+html[data-sidebar-glass="on"]:not([data-native-material="on"]) .lightcode-sidebar-aside {
+  background: linear-gradient(
+    180deg,
+    color-mix(in oklab, var(--sidebar-background) 90%, transparent) 0%,
+    color-mix(in oklab, var(--sidebar-background) 74%, transparent) 100%
+  );
+  box-shadow:
+    inset 1px 0 0 color-mix(in oklab, var(--foreground) 7%, transparent),
+    inset 0 1px 0 color-mix(in oklab, var(--foreground) 9%, transparent);
+}
+html[data-sidebar-glass="on"]:not([data-native-material="on"])
+  .lightcode-sidebar-aside
+  .lightcode-overlay-header {
+  background: transparent;
+}
+/* Real blur only for the floating overlay sidebar (it sits over content). */
+@supports (backdrop-filter: blur(1px)) {
+  html[data-sidebar-glass="on"]:not([data-native-material="on"]) .lightcode-sidebar-aside--overlay {
+    background: color-mix(in oklab, var(--sidebar-background) 70%, transparent);
+    backdrop-filter: blur(18px) saturate(1.5);
+  }
+}
+
+/* Accessibility: drop translucency when the OS asks for reduced transparency.
+   The renderer also gates this in JS, so this is a first-paint safety net. */
+@media (prefers-reduced-transparency: reduce) {
+  html[data-native-material="on"] body,
+  html[data-native-material="on"] .lightcode-shell {
+    background: var(--content-background);
+  }
+  html[data-sidebar-glass="on"] .lightcode-sidebar-aside:not(.lightcode-sidebar-aside--overlay),
+  html[data-native-material="on"] .lightcode-sidebar-aside:not(.lightcode-sidebar-aside--overlay) {
+    background: transparent;
+    backdrop-filter: none;
+    box-shadow: none;
+  }
+}
+
 /* Counterpart to .lightcode-content-over-drag-region: used on pane headers
    when the pane can't be reordered (single-pane layouts), so the header
    acts as the window drag region instead of a dnd handle. macOS-only —

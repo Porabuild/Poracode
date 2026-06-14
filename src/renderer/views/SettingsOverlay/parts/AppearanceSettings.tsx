@@ -1,6 +1,8 @@
 import { startTransition, useState, type CSSProperties } from "react";
 import { ChevronDown } from "lucide-react";
+import { Switch } from "@heroui/react";
 import type { ThemeMode } from "@/shared/contracts";
+import { isMac } from "@/renderer/bridge";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useResolvedAppearance } from "@/renderer/components/ui/provider";
 import { getThemePreset } from "@/renderer/theme/themePresets";
@@ -21,6 +23,8 @@ export function AppearanceSettings() {
   ) as CSSProperties;
   const guiChatFontSize = useSharedSettings((state) => state.guiChatFontSize);
   const setGuiChatFontSize = useSharedSettings((state) => state.setGuiChatFontSize);
+  const sidebarTranslucency = useSharedSettings((state) => state.sidebarTranslucency);
+  const setSidebarTranslucency = useSharedSettings((state) => state.setSidebarTranslucency);
 
   return (
     <SettingsPage title="Appearance">
@@ -82,6 +86,28 @@ export function AppearanceSettings() {
             });
           }}
         />
+      </SettingRow>
+
+      <SettingRow
+        title="Translucent sidebar"
+        description={
+          isMac()
+            ? "Frost the sidebar with the system blur material (vibrancy), echoing recent macOS. Falls back to a translucent tint where unsupported."
+            : "Make the sidebar translucent — the system blur material on Windows 11, a translucent tint elsewhere."
+        }
+      >
+        <Switch
+          isSelected={sidebarTranslucency}
+          onChange={(selected) => {
+            startTransition(() => {
+              setSidebarTranslucency(selected);
+            });
+          }}
+        >
+          <Switch.Control>
+            <Switch.Thumb />
+          </Switch.Control>
+        </Switch>
       </SettingRow>
     </SettingsPage>
   );

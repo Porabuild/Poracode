@@ -1,7 +1,11 @@
 import { z } from "zod";
 import type { SharedSettings, SharedSettingsInput } from "../../settings";
 import { defineNoArgProcedure, definePayloadProcedure } from "../core";
-import { windowChromePayloadSchema, type WindowChromePayload } from "../schemas";
+import {
+  windowChromePayloadSchema,
+  type WindowChromePayload,
+  type WindowChromeResult,
+} from "../schemas";
 
 export const settingsProcedures = {
   getSharedSettings: defineNoArgProcedure<SharedSettings, "main-local">(
@@ -13,9 +17,9 @@ export const settingsProcedures = {
     "main-local",
     z.custom<SharedSettingsInput>(),
   ),
-  setWindowChrome: definePayloadProcedure<WindowChromePayload, void, "main-local">(
-    "setWindowChrome",
-    "main-local",
-    windowChromePayloadSchema,
-  ),
+  setWindowChrome: definePayloadProcedure<
+    WindowChromePayload,
+    WindowChromeResult | void,
+    "main-local"
+  >("setWindowChrome", "main-local", windowChromePayloadSchema),
 } as const;

@@ -108,6 +108,22 @@ function resolveAppAppearance(): "light" | "dark" {
   return resolveThemeMode(mode, nativeTheme.shouldUseDarkColors);
 }
 
+/**
+ * Resolves the saved opt-in translucent ("liquid glass") sidebar setting so the
+ * window can open with the native material already applied instead of flashing
+ * opaque before the renderer requests it.
+ */
+function resolveSidebarTranslucency(): boolean {
+  if (!lightcodePaths) {
+    return false;
+  }
+  try {
+    return readSharedSettingsFile(lightcodePaths.settingsPath).sidebarTranslucency === true;
+  } catch {
+    return false;
+  }
+}
+
 function primeBrowserAllowFlags(): void {
   if (!browserMcpIngress || !lightcodePaths) return;
   try {
@@ -297,6 +313,7 @@ if (!hasSingleInstanceLock) {
       windowChromeHeight: WINDOW_CHROME_HEIGHT,
       browserUserAgent: chromeLikeUserAgent,
       appearance: resolveAppAppearance(),
+      sidebarTranslucency: resolveSidebarTranslucency(),
       ...(process.env.VITE_DEV_SERVER_URL ? { devServerUrl: process.env.VITE_DEV_SERVER_URL } : {}),
       onClosed: () => {
         mainWindow = null;
@@ -386,6 +403,7 @@ if (!hasSingleInstanceLock) {
           windowChromeHeight: WINDOW_CHROME_HEIGHT,
           browserUserAgent: chromeLikeUserAgent,
           appearance: resolveAppAppearance(),
+          sidebarTranslucency: resolveSidebarTranslucency(),
           ...(process.env.VITE_DEV_SERVER_URL
             ? { devServerUrl: process.env.VITE_DEV_SERVER_URL }
             : {}),

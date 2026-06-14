@@ -2,6 +2,7 @@ import { dbGetState, dbSetState } from "../db";
 import { BrowserWindow, screen, type RenderProcessGoneDetails } from "electron";
 import type { LightcodeChannel } from "@/shared/channel";
 import { installSessionPermissions } from "../browser/permissions";
+import { supportsNativeWindowMaterial } from "./windowMaterial";
 
 interface WindowBounds {
   x?: number;
@@ -63,6 +64,8 @@ export interface CreateMainWindowOptions {
   browserUserAgent: string;
   /** Saved appearance, so the native window opens matching the theme. */
   appearance: "light" | "dark";
+  /** Saved opt-in translucent ("liquid glass") sidebar, so the window opens with the material already applied. */
+  sidebarTranslucency: boolean;
   onClosed(): void;
   onClose?: (event: Electron.Event) => void;
   onRendererProcessGone?: (details: RenderProcessGoneDetails) => void;
@@ -77,6 +80,11 @@ export function createMainWindow(options: CreateMainWindowOptions): BrowserWindo
   // setWindowChrome values, so the first frame doesn't flash a fixed palette.
   const backgroundColor = isDark ? "#141416" : "#f1f1f4";
   const symbolColor = isDark ? "#fafafa" : "#1f2937";
+  // Native translucency only when the saved toggle is on AND the OS supports a
+  // blur material. When active the window background is transparent so the
+  // OS-composited blur shows through; the renderer keeps the main content opaque
+  // and leaves only the sidebar region translucent (see styles.css glass rules).
+  const useNativeMaterial = options.sidebarTranslucency && supportsNativeWindowMaterial();
   const window = new BrowserWindow({
     title: options.title,
     show: false,
@@ -85,8 +93,12 @@ export function createMainWindow(options: CreateMainWindowOptions): BrowserWindo
     ...(saved?.x != null && saved?.y != null ? { x: saved.x, y: saved.y } : {}),
     minWidth: 540,
     minHeight: 720,
-    backgroundColor,
+    backgroundColor: useNativeMaterial ? "#00000000" : backgroundColor,
     autoHideMenuBar: true,
+    ...(useNativeMaterial && process.platform === "darwin" ? { vibrancy: "sidebar" as const } : {}),
+    ...(useNativeMaterial && process.platform === "win32"
+      ? { backgroundMaterial: "acrylic" as const }
+      : {}),
     ...(supportsTitleBarOverlay
       ? {
           titleBarStyle: "hidden" as const,

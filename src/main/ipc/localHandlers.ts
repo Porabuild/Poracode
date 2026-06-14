@@ -35,7 +35,9 @@ import {
   defineMainLocalIpcHandlers,
   type MainLocalIpcHandlerMap,
   type WindowChromePayload,
+  type WindowChromeResult,
 } from "@/shared/ipc";
+import { opaqueWindowBackground, supportsNativeWindowMaterial } from "../window/windowMaterial";
 import type { LightcodePaths } from "@/shared/lightcodePaths";
 import { UsageLoginManager } from "../usageLogin/UsageLoginManager";
 
@@ -162,10 +164,10 @@ export function createLocalIpcHandlers(
       options.updatePowerSaveBlocker();
       options.onSharedSettingsChanged?.();
     },
-    setWindowChrome: async (payload: WindowChromePayload) => {
+    setWindowChrome: async (payload: WindowChromePayload): Promise<WindowChromeResult> => {
       const mainWindow = options.getMainWindow();
       if (!mainWindow) {
-        return;
+        return { nativeMaterial: false };
       }
       if (process.platform === "win32" || process.platform === "linux") {
         mainWindow.setTitleBarOverlay({
@@ -174,6 +176,19 @@ export function createLocalIpcHandlers(
           height: 32,
         });
       }
+      // Apply (or clear) the opt-in translucent ("liquid glass") sidebar material
+      // live. The whole window is blurred by the OS, so the renderer keeps the
+      // main content opaque and leaves only the sidebar region translucent.
+      const nativeMaterial = payload.materialEnabled === true && supportsNativeWindowMaterial();
+      if (process.platform === "darwin") {
+        mainWindow.setVibrancy(nativeMaterial ? "sidebar" : null);
+      } else if (process.platform === "win32") {
+        mainWindow.setBackgroundMaterial(nativeMaterial ? "acrylic" : "none");
+      }
+      mainWindow.setBackgroundColor(
+        nativeMaterial ? "#00000000" : opaqueWindowBackground(payload.appearance ?? "dark"),
+      );
+      return { nativeMaterial };
     },
     dbGetProjects: () => dbGetProjects(),
     dbGetThreads: () => dbGetThreads(),

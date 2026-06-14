@@ -254,9 +254,9 @@ function ShellSidebarAside(props: {
   return (
     <aside
       ref={sidebarRef}
-      className={`flex min-h-0 flex-col overflow-hidden transition-[border-color] duration-200 ${
+      className={`lightcode-sidebar-aside flex min-h-0 flex-col overflow-hidden transition-[border-color] duration-200 ${
         effectiveIsOverlay
-          ? `fixed inset-y-0 left-0 z-[60] border-r border-[color:var(--border)] bg-background shadow-2xl transition-transform duration-200 ${
+          ? `lightcode-sidebar-aside--overlay fixed inset-y-0 left-0 z-[60] border-r border-[color:var(--border)] bg-background shadow-2xl transition-transform duration-200 ${
               effectiveClosingOverlay || !overlayReady ? "-translate-x-full" : "translate-x-0"
             }`
           : `relative ${

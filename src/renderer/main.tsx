@@ -37,6 +37,26 @@ initializeRendererSentry();
 document.documentElement.dataset.platform =
   typeof window !== "undefined" && "lightcode" in window ? readBridge().platform : "unknown";
 
+// Pre-paint hint for the opt-in translucent ("liquid glass") sidebar so the
+// window doesn't flash opaque before the renderer requests the material. The
+// authoritative state is applied by provider.tsx once settings hydrate.
+try {
+  const cached = localStorage.getItem("lightcode-shared-settings");
+  const reducedTransparency =
+    typeof window.matchMedia === "function" &&
+    window.matchMedia("(prefers-reduced-transparency: reduce)").matches;
+  const glassEnabled =
+    !reducedTransparency && cached != null && JSON.parse(cached)?.sidebarTranslucency === true;
+  document.documentElement.dataset.sidebarGlass = glassEnabled ? "on" : "off";
+  // macOS always supports vibrancy, so the window already opened with it applied;
+  // Windows capability is build-dependent, so its hint waits for the bridge reply.
+  if (glassEnabled && "lightcode" in window && readBridge().platform === "darwin") {
+    document.documentElement.dataset.nativeMaterial = "on";
+  }
+} catch {
+  // Non-fatal: provider.tsx applies the authoritative state after hydration.
+}
+
 // Apply the cached appearance + theme before first paint so a non-default theme
 // doesn't flash the base palette on launch.
 bootstrapAppThemeFromCache();

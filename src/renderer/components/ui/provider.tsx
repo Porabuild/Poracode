@@ -15,6 +15,14 @@ import { captureRendererException } from "@/renderer/diagnostics/sentry";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { getToastActionLabel, normalizeToastContent } from "./toastContent";
 
+function systemPrefersReducedTransparency(): boolean {
+  return (
+    typeof window !== "undefined" &&
+    typeof window.matchMedia === "function" &&
+    window.matchMedia("(prefers-reduced-transparency: reduce)").matches
+  );
+}
+
 const AppearanceContext = createContext<"light" | "dark">("dark");
 const toastContentClassName = "min-w-0 p-0 pr-1";
 const toastDescriptionClassName =
@@ -69,6 +77,11 @@ export function AppProvider(props: { children: ReactNode }) {
   const syncSystemPreference = useEffectEvent((matches: boolean) => {
     setPrefersDark(matches);
   });
+  const sidebarTranslucency = useSharedSettings((state) => state.sidebarTranslucency);
+  const [reducedTransparency, setReducedTransparency] = useState(systemPrefersReducedTransparency);
+  const syncReducedTransparency = useEffectEvent((matches: boolean) => {
+    setReducedTransparency(matches);
+  });
 
   useEffect(() => {
     if (typeof window === "undefined" || typeof window.matchMedia !== "function") {
@@ -87,7 +100,26 @@ export function AppProvider(props: { children: ReactNode }) {
     };
   }, []);
 
+  useEffect(() => {
+    if (typeof window === "undefined" || typeof window.matchMedia !== "function") {
+      return;
+    }
+
+    const media = window.matchMedia("(prefers-reduced-transparency: reduce)");
+    const onChange = (event: MediaQueryListEvent) => {
+      syncReducedTransparency(event.matches);
+    };
+
+    syncReducedTransparency(media.matches);
+    media.addEventListener("change", onChange);
+    return () => {
+      media.removeEventListener("change", onChange);
+    };
+  }, []);
+
   const appearance = resolveThemeMode(themeMode, prefersDark);
+  // The opt-in translucent sidebar, suppressed when the OS asks for reduced transparency.
+  const glassEnabled = sidebarTranslucency && !reducedTransparency;
 
   useEffect(() => {
     const root = document.documentElement;
@@ -97,6 +129,12 @@ export function AppProvider(props: { children: ReactNode }) {
     applyAppTheme(root, appearance, themePreset);
     persistThemeBoot(appearance, themePreset);
   }, [appearance, themePreset]);
+
+  // Gates the in-app CSS sidebar tint/fallback. Set unconditionally (works in
+  // tests / non-Electron) so the styling never depends on the bridge.
+  useEffect(() => {
+    document.documentElement.dataset.sidebarGlass = glassEnabled ? "on" : "off";
+  }, [glassEnabled]);
 
   useEffect(() => {
     if (typeof window === "undefined" || !("lightcode" in window)) {
@@ -111,12 +149,21 @@ export function AppProvider(props: { children: ReactNode }) {
         backgroundColor:
           styles.getPropertyValue("--window-overlay-background").trim() || "rgba(0, 0, 0, 0)",
         symbolColor: appearance === "dark" ? "#fafafa" : "#1f2937",
+        materialEnabled: glassEnabled,
+        appearance,
+      })
+      .then((result) => {
+        // The main process reports whether a native blur material was actually
+        // applied (e.g. Windows 10 has none); gate the transparent-window CSS on
+        // that truthful state instead of guessing from the platform.
+        root.dataset.nativeMaterial = result?.nativeMaterial ? "on" : "off";
       })
       .catch((error: unknown) => {
+        root.dataset.nativeMaterial = "off";
         captureRendererException(error, { featureArea: "window-chrome" });
         // Keep renderer boot resilient if Electron rejects a color value.
       });
-  }, [appearance]);
+  }, [appearance, glassEnabled]);
 
   return (
     <AppearanceContext.Provider value={appearance}>
