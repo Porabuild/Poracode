@@ -20,7 +20,7 @@ import {
 } from "@/renderer/actions/createProjectActions";
 import { usePanelStore } from "@/renderer/state/panelStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
-import { Input, TuxIcon } from "@/renderer/components/common";
+import { Input, PixelLoader, TuxIcon } from "@/renderer/components/common";
 import { formatRelativeTime } from "@/renderer/utils/formatTime";
 
 type CloneMode = "github" | "url";
@@ -263,6 +263,33 @@ function CloneProjectForm() {
       setBusy(false);
     }
   }
+  const cloneTarget =
+    mode === "github" ? (selectedRepo?.nameWithOwner ?? "repository") : url.trim() || "repository";
+
+  if (busy) {
+    return (
+      <>
+        <Modal.Header>
+          <Modal.Heading>Cloning…</Modal.Heading>
+        </Modal.Header>
+        <Modal.Body className="flex flex-col items-center justify-center gap-4 px-4 py-12 text-center">
+          <PixelLoader size="lg" className="text-foreground" />
+          <div className="flex flex-col gap-1">
+            <p className="text-sm font-medium text-foreground">Cloning {cloneTarget}</p>
+            <p className="text-xs text-muted">
+              Downloading into “{name || "the chosen folder"}”. This can take a moment for large
+              repositories.
+            </p>
+          </div>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="tertiary" isDisabled isPending>
+            Cloning…
+          </Button>
+        </Modal.Footer>
+      </>
+    );
+  }
 
   const runtimeLabel = runtimeKey === "native" ? "Native" : runtimeKey;
 
@@ -396,8 +423,7 @@ function CloneProjectForm() {
         </Button>
         <Button
           variant="tertiary"
-          isDisabled={!!validationError || busy}
-          isPending={busy}
+          isDisabled={!!validationError}
           onPress={() => void handleSubmit()}
         >
           Clone
@@ -501,14 +527,14 @@ function GitHubBrowser(props: {
         </div>
       )}
 
-      <div className="relative">
-        <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted" />
+      <div className="relative w-full">
+        <Search className="pointer-events-none absolute left-2.5 top-1/2 z-10 size-3.5 -translate-y-1/2 text-muted" />
         <Input
           aria-label="Search repositories"
           placeholder="Search repositories…"
           value={props.repoSearch}
           onChange={(e) => props.onSearch(e.target.value)}
-          className="pl-8"
+          className="w-full pl-8"
         />
       </div>
 
@@ -539,19 +565,23 @@ function RepoList(props: {
   }
 
   if (props.repos === null) {
-    return <p className="px-1 py-6 text-center text-xs text-muted">Loading repositories…</p>;
+    return (
+      <div className="flex items-center justify-center px-1 py-10">
+        <PixelLoader size="md" className="text-muted" />
+      </div>
+    );
   }
 
   if (props.filteredRepos.length === 0) {
     return (
-      <p className="px-1 py-6 text-center text-xs text-muted">
+      <p className="px-1 py-10 text-center text-xs text-muted">
         {props.repos.length === 0 ? "No repositories found." : "No matches."}
       </p>
     );
   }
 
   return (
-    <div className="max-h-56 overflow-y-auto rounded-lg border border-default-200">
+    <div className="-mr-1 flex max-h-60 flex-col gap-0.5 overflow-y-auto pr-1">
       {props.filteredRepos.map((repo) => {
         const selected = repo.nameWithOwner === props.selectedRepoId;
         return (
@@ -559,23 +589,22 @@ function RepoList(props: {
             key={repo.nameWithOwner}
             type="button"
             onClick={() => props.onSelectRepo(repo)}
-            className={`flex w-full items-start gap-2 border-b border-default-100 px-3 py-2 text-left last:border-b-0 hover:bg-content2 ${
-              selected ? "bg-accent/10" : ""
+            className={`flex w-full items-start gap-2 rounded-lg px-2 py-1.5 text-left transition-colors ${
+              selected
+                ? "bg-[var(--row-active)] text-foreground"
+                : "text-foreground/85 hover:bg-[var(--row-hover)] hover:text-foreground"
             }`}
           >
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-1.5">
-                <span className="truncate text-sm font-medium text-foreground">
-                  {repo.nameWithOwner}
-                </span>
+                <span className="truncate text-sm font-medium">{repo.nameWithOwner}</span>
                 {repo.isPrivate ? <Lock className="size-3 shrink-0 text-muted" /> : null}
               </div>
-              {repo.description ? (
-                <p className="truncate text-xs text-muted">{repo.description}</p>
-              ) : null}
+              {/* Keep every row two lines tall so the list reads like the sidebar. */}
+              <p className="truncate text-xs text-muted">{repo.description || "No description"}</p>
             </div>
             {repo.pushedAt ? (
-              <span className="shrink-0 text-[10px] text-muted/70">
+              <span className="mt-0.5 shrink-0 text-[10px] text-muted/70">
                 {formatRelativeTime(repo.pushedAt)}
               </span>
             ) : null}
