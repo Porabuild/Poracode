@@ -28,6 +28,7 @@ export function createSupervisorIpcHandlers(runtime: SupervisorRuntime): Supervi
     setPendingSteer: (payload) => runtime.setPendingSteer(payload),
     clearPendingSteer: (payload) => runtime.clearPendingSteer(payload),
     writeTerminal: (payload) => runtime.writeTerminal(payload),
+    stageThreadInput: (payload) => runtime.stageThreadInput(payload),
     resizeTerminal: (payload) => runtime.resizeTerminal(payload),
     resolveThreadServerRequest: (payload) => runtime.resolveThreadServerRequest(payload),
     closeThread: (payload) => runtime.closeThread(payload),

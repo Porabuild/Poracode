@@ -26,7 +26,12 @@ import { getTriggerWords } from "@/renderer/components/providers";
 import { readBridge } from "@/renderer/bridge";
 import { captureProductEvent, threadProductProperties } from "@/renderer/analytics/posthog";
 import { useAppStore } from "@/renderer/state/appStore";
-import { buildLcSelectorFence, useBrowserAttachInbox } from "@/renderer/state/browserAttachInbox";
+import {
+  buildLcSelectorFence,
+  buildSelectorPlainText,
+  useBrowserAttachInbox,
+} from "@/renderer/state/browserAttachInbox";
+import { useComposerUiStore } from "@/renderer/state/composerUiStore";
 import { useGitStore } from "@/renderer/state/gitStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useThread } from "@/renderer/state/useThread";
@@ -314,6 +319,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
   const [composerCollapsed, setComposerCollapsed] = useState(collapseTerminalComposerSetting);
   const canCollapseComposer = showTerminalComposer;
   const isComposerCollapsed = canCollapseComposer && composerCollapsed;
+  const setComposerUi = useComposerUiStore((s) => s.setComposerUi);
   const branchName = useGitStore(
     (s) =>
       thread.worktreeBranch ??
@@ -414,19 +420,20 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
 
   function submitPrompt(segments: PromptSegment[]) {
     const attachmentSegments = attachments.toSegments();
-    const selectorFences = attachments.attachments
+    // The `lc-selector` fence is parsed only by the GUI chat SelectorBadge; a
+    // terminal-native agent reads raw text, so submit a plain sentence instead.
+    const selectorSegments: PromptSegment[] = attachments.attachments
       .filter((a) => a.selector && a.sourceUrl)
-      .map((a) =>
-        buildLcSelectorFence({
-          selector: a.selector ?? "",
-          sourceUrl: a.sourceUrl ?? "",
-          attachmentName: a.name,
-        }),
-      );
-    const selectorSegments: PromptSegment[] = selectorFences.map((text) => ({
-      kind: "text" as const,
-      content: text,
-    }));
+      .map((a) => ({
+        kind: "text" as const,
+        content: usesTerminalPresentation
+          ? `\n\n${buildSelectorPlainText({ selector: a.selector ?? "", sourceUrl: a.sourceUrl ?? "" })}\n`
+          : buildLcSelectorFence({
+              selector: a.selector ?? "",
+              sourceUrl: a.sourceUrl ?? "",
+              attachmentName: a.name,
+            }),
+      }));
     const allSegments = [...attachmentSegments, ...selectorSegments, ...segments];
     const flat = flattenSegments(allSegments);
     if (flat.length === 0 || !canSubmit) return;
@@ -602,6 +609,15 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
     window.addEventListener("lightcode:paste-to-composer", handlePasteToComposer);
     return () => window.removeEventListener("lightcode:paste-to-composer", handlePasteToComposer);
   }, []);
+
+  // Publish the rendered presentation + collapsed state so the browser element
+  // picker can decide whether a pick should go to the terminal or the composer.
+  useEffect(() => {
+    setComposerUi(thread.id, { presentation: presentationMode, collapsed: isComposerCollapsed });
+  }, [thread.id, presentationMode, isComposerCollapsed, setComposerUi]);
+  useEffect(() => {
+    return () => useComposerUiStore.getState().clearComposerUi(thread.id);
+  }, [thread.id]);
 
   const pendingComposerFocusThreadId = useAppStore((s) => s.pendingComposerFocusThreadId);
   useEffect(() => {

@@ -16,6 +16,7 @@ import {
   sendThreadInputPayloadSchema,
   setAcpRegistryAgentAuthPayloadSchema,
   setPendingSteerPayloadSchema,
+  stageThreadInputPayloadSchema,
   startShellPayloadSchema,
   startThreadPayloadSchema,
   updateAcpRegistryAgentPayloadSchema,
@@ -48,6 +49,7 @@ import type {
   SendThreadInputPayload,
   SetAcpRegistryAgentAuthPayload,
   SetPendingSteerPayload,
+  StageThreadInputPayload,
   StartShellPayload,
   StartThreadPayload,
   StartThreadResult,
@@ -187,6 +189,11 @@ export const threadProcedures = {
     "writeTerminal",
     "supervisor",
     writeTerminalPayloadSchema,
+  ),
+  stageThreadInput: definePayloadProcedure<StageThreadInputPayload, void, "supervisor">(
+    "stageThreadInput",
+    "supervisor",
+    stageThreadInputPayloadSchema,
   ),
   resizeTerminal: definePayloadProcedure<ResizeTerminalPayload, void, "supervisor">(
     "resizeTerminal",

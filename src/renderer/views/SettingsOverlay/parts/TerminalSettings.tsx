@@ -1,10 +1,16 @@
 import { startTransition } from "react";
 import { Switch } from "@heroui/react";
 import type { TerminalPosition } from "@/shared/contracts";
+import type { CliPickerTarget } from "@/shared/settings";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { Select } from "@/renderer/components/common";
 import { SettingRow, SettingsPage } from "./SettingsForm";
-import { fontSizeOptions, scrollSpeedOptions, terminalPositionOptions } from "./settingsOptions";
+import {
+  cliPickerTargetOptions,
+  fontSizeOptions,
+  scrollSpeedOptions,
+  terminalPositionOptions,
+} from "./settingsOptions";
 
 export function TerminalSettings() {
   const terminalPosition = useSharedSettings((state) => state.terminalPosition);
@@ -13,6 +19,8 @@ export function TerminalSettings() {
   const setCollapseTerminalComposer = useSharedSettings(
     (state) => state.setCollapseTerminalComposer,
   );
+  const cliPickerTarget = useSharedSettings((state) => state.cliPickerTarget);
+  const setCliPickerTarget = useSharedSettings((state) => state.setCliPickerTarget);
   const autoShowTerminalPanel = useSharedSettings((state) => state.autoShowTerminalPanel);
   const setAutoShowTerminalPanel = useSharedSettings((state) => state.setAutoShowTerminalPanel);
   const scrollSpeed = useSharedSettings((state) => state.scrollSpeed);
@@ -58,7 +66,7 @@ export function TerminalSettings() {
 
       <SettingRow
         title="Collapse terminal composer"
-        description="Hide the composer by default in terminal-native threads."
+        description="Start the composer collapsed in terminal-native threads. A collapsed composer routes browser element picks straight to the terminal."
       >
         <Switch
           isSelected={collapseTerminalComposer}
@@ -72,6 +80,23 @@ export function TerminalSettings() {
             <Switch.Thumb />
           </Switch.Control>
         </Switch>
+      </SettingRow>
+
+      <SettingRow
+        title="Browser pick target (CLI threads)"
+        description="Where a browser element-picker selection goes in terminal-native threads. A collapsed composer always routes to the terminal."
+      >
+        <Select
+          aria-label="Browser pick target for CLI threads"
+          className="w-[160px] shrink-0"
+          options={cliPickerTargetOptions}
+          value={cliPickerTarget}
+          onChange={(value) => {
+            startTransition(() => {
+              setCliPickerTarget(value as CliPickerTarget);
+            });
+          }}
+        />
       </SettingRow>
 
       <SettingRow

@@ -82,6 +82,9 @@ export const defaultCommandCodeCapabilities: AgentCapability = {
   sandboxModes: [],
   supportsResume: true,
   supportsDirectInput: true,
+  // Command Code sandboxes file reads to its working directory, so picked
+  // screenshots / attachments must be copied into the project before use.
+  requiresWorkspaceLocalAttachments: true,
   liveInputMode: "terminal",
   presentationMode: "terminal",
   presentationModes: ["terminal"],

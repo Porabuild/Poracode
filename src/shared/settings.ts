@@ -162,6 +162,13 @@ export const sharedSettingsSchema = z.object({
   agentInstances: agentInstanceConfigMapSchema,
   /** When true, the composer in terminal-native threads starts collapsed. */
   collapseTerminalComposer: z.boolean(),
+  /**
+   * Where a browser element-picker selection is delivered for a terminal-native
+   * (CLI) thread. "ask" shows a chooser on pick (but a collapsed composer always
+   * routes straight to the terminal); "terminal" always types it into the PTY
+   * input line; "composer" always stages it in the composer attachment bar.
+   */
+  cliPickerTarget: z.enum(["ask", "terminal", "composer"]),
   /** Idle minutes before a hidden resumable thread is unloaded. 0 disables auto-unload. */
   staleThreadUnloadMinutes: z.number().int().min(0),
   /** Days a thread can stay marked done before it is auto-archived. 0 disables auto-archive. */
@@ -272,6 +279,9 @@ export const sharedSettingsSchema = z.object({
 });
 export type SharedSettings = z.infer<typeof sharedSettingsSchema>;
 
+/** Browser element-picker delivery target for terminal-native (CLI) threads. */
+export type CliPickerTarget = SharedSettings["cliPickerTarget"];
+
 /**
  * Settings as written by the renderer / IPC consumer. Excludes
  * supervisor-only fields (`agentHookSupport`) that the renderer never
@@ -310,6 +320,7 @@ export const defaultSharedSettings: SharedSettings = {
   acpRegistryInstalledAgents: {},
   agentInstances: {},
   collapseTerminalComposer: false,
+  cliPickerTarget: "ask",
   staleThreadUnloadMinutes: 60,
   autoArchiveDoneAfterDays: 7,
   scrollSpeed: 2,

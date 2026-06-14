@@ -14,6 +14,12 @@ export const threadRemoveActionOptions = [
   { id: "delete", label: "Delete" },
 ] as const;
 
+export const cliPickerTargetOptions = [
+  { id: "ask", label: "Ask each time" },
+  { id: "terminal", label: "Terminal input" },
+  { id: "composer", label: "Composer" },
+] as const;
+
 export const newThreadModeOptions = [
   { id: "page", label: "Page" },
   { id: "panel", label: "Panel" },

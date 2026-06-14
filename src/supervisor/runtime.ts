@@ -145,6 +145,7 @@ import type {
   StartShellPayload,
   StartThreadPayload,
   StartThreadResult,
+  StageThreadInputPayload,
   ThreadRuntimeSnapshot,
   WriteExternalFilePayload,
   WriteExternalFileResult,
@@ -782,6 +783,10 @@ export class SupervisorRuntime {
 
   async writeTerminal(payload: WriteTerminalPayload): Promise<void> {
     return this.threadSessionManager.writeTerminal(payload);
+  }
+
+  async stageThreadInput(payload: StageThreadInputPayload): Promise<void> {
+    return this.threadSessionManager.stageThreadInput(payload);
   }
 
   async resizeTerminal(payload: ResizeTerminalPayload): Promise<void> {

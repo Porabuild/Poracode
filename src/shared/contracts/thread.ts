@@ -162,6 +162,21 @@ export const writeTerminalPayloadSchema = z.object({
 });
 export type WriteTerminalPayload = z.infer<typeof writeTerminalPayloadSchema>;
 
+/**
+ * Type text into a terminal-native thread's PTY input line WITHOUT submitting
+ * it (no trailing carriage return). Used to route a browser element-picker
+ * selection straight into a CLI agent's input so the user can review/extend it
+ * before pressing Enter. `segments` is formatted through the adapter (so image
+ * attachments become `@path` references and WSL paths are rewritten) and then
+ * collapsed to a single line to avoid an accidental newline submit.
+ */
+export const stageThreadInputPayloadSchema = z.object({
+  threadId: z.string().min(1),
+  prompt: z.string(),
+  segments: z.array(promptSegmentSchema).optional(),
+});
+export type StageThreadInputPayload = z.infer<typeof stageThreadInputPayloadSchema>;
+
 export const resizeTerminalPayloadSchema = terminalSizeSchema.extend({
   threadId: z.string().min(1),
 });

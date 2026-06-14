@@ -3,6 +3,7 @@ import { readBridge } from "../bridge";
 import {
   defaultSharedSettings,
   normalizeSharedSettings,
+  type CliPickerTarget,
   type SharedSettings,
   type SharedSettingsInput,
 } from "@/shared/settings";
@@ -42,6 +43,7 @@ interface SharedSettingsState extends SharedSettings {
   setAgentDisabled: (agentKind: string, disabled: boolean) => void;
   setProviderOrder: (order: string[]) => void;
   setCollapseTerminalComposer: (value: boolean) => void;
+  setCliPickerTarget: (value: CliPickerTarget) => void;
   setStaleThreadUnloadMinutes: (value: number) => void;
   setAutoArchiveDoneAfterDays: (value: number) => void;
   setScrollSpeed: (value: number) => void;
@@ -259,6 +261,10 @@ export const useSharedSettings = create<SharedSettingsState>()((set, get) => ({
   },
   setCollapseTerminalComposer: (collapseTerminalComposer) => {
     set({ collapseTerminalComposer });
+    persistSettings(selectSharedSettings(get()));
+  },
+  setCliPickerTarget: (cliPickerTarget) => {
+    set({ cliPickerTarget });
     persistSettings(selectSharedSettings(get()));
   },
   setStaleThreadUnloadMinutes: (staleThreadUnloadMinutes) => {
@@ -550,6 +556,7 @@ function selectSharedSettings(state: SharedSettingsState): SharedSettingsInput {
     acpRegistryInstalledAgents: state.acpRegistryInstalledAgents,
     agentInstances: state.agentInstances,
     collapseTerminalComposer: state.collapseTerminalComposer,
+    cliPickerTarget: state.cliPickerTarget,
     staleThreadUnloadMinutes: state.staleThreadUnloadMinutes,
     autoArchiveDoneAfterDays: state.autoArchiveDoneAfterDays,
     scrollSpeed: state.scrollSpeed,
