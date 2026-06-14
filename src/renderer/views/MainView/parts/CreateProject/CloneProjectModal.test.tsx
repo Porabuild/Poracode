@@ -126,34 +126,33 @@ describe("CloneProjectModal", () => {
 
   test("falls back to URL mode when no GitHub accounts are signed in", async () => {
     mocks.ghListAccounts.mockResolvedValue({ accounts: [] });
-    test("shows a loading view with the target while the clone is in flight", async () => {
-      let resolveClone: () => void = () => {};
-      mocks.commitCloneProject.mockReturnValue(
-        new Promise<void>((resolve) => {
-          resolveClone = resolve;
-        }),
-      );
-
-      usePanelStore.getState().openCloneProjectModal();
-      render(<CloneProjectModal />);
-
-      fireEvent.click(await screen.findByText("SDSLeon/lightcode"));
-      fireEvent.click(await screen.findByRole("button", { name: "Clone" }));
-
-      // The form is replaced by a loading view naming what's being cloned.
-      await waitFor(() =>
-        expect(screen.getByText(/Cloning SDSLeon\/lightcode/)).toBeInTheDocument(),
-      );
-      expect(screen.getByRole("button", { name: "Cloning…" })).toBeDisabled();
-      expect(screen.queryByLabelText("Folder name")).not.toBeInTheDocument();
-
-      resolveClone();
-      await waitFor(() => expect(usePanelStore.getState().cloneProjectModalOpen).toBe(false));
-    });
 
     usePanelStore.getState().openCloneProjectModal();
     render(<CloneProjectModal />);
 
     await waitFor(() => expect(screen.getByLabelText("Repository URL")).toBeInTheDocument());
+  });
+
+  test("shows a loading view with the target while the clone is in flight", async () => {
+    let resolveClone: () => void = () => {};
+    mocks.commitCloneProject.mockReturnValue(
+      new Promise<void>((resolve) => {
+        resolveClone = resolve;
+      }),
+    );
+
+    usePanelStore.getState().openCloneProjectModal();
+    render(<CloneProjectModal />);
+
+    fireEvent.click(await screen.findByText("SDSLeon/lightcode"));
+    fireEvent.click(await screen.findByRole("button", { name: "Clone" }));
+
+    // The form is replaced by a loading view naming what's being cloned.
+    await waitFor(() => expect(screen.getByText(/Cloning SDSLeon\/lightcode/)).toBeInTheDocument());
+    expect(screen.getByRole("button", { name: "Cloning…" })).toBeDisabled();
+    expect(screen.queryByLabelText("Folder name")).not.toBeInTheDocument();
+
+    resolveClone();
+    await waitFor(() => expect(usePanelStore.getState().cloneProjectModalOpen).toBe(false));
   });
 });
