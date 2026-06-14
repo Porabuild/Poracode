@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, test, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   createProjectDirectory: vi.fn<(p: unknown) => Promise<{ path: string }>>(),
+  cloneRepo: vi.fn<(p: unknown) => Promise<{ path: string }>>(),
   pickFolder: vi.fn<(d?: string) => Promise<string | null>>(),
   addProject: vi.fn<(location: unknown, name?: string) => unknown>((location, name) => ({
     id: "p1",
@@ -22,6 +23,7 @@ vi.mock("@/renderer/bridge", () => ({
   readBridge: () => ({
     platform: "darwin",
     createProjectDirectory: mocks.createProjectDirectory,
+    cloneRepo: mocks.cloneRepo,
     pickFolder: mocks.pickFolder,
   }),
 }));
@@ -43,7 +45,13 @@ vi.mock("@/renderer/utils/gitHelpers", () => ({
   autoDetectSetupScript: mocks.autoDetectSetupScript,
 }));
 
-import { addExistingProject, commitCreateProject } from "./createProjectActions";
+import {
+  addExistingProject,
+  commitCloneProject,
+  commitCreateProject,
+} from "./createProjectActions";
+
+const { cloneRepo } = mocks;
 
 describe("commitCreateProject", () => {
   beforeEach(() => {
@@ -97,6 +105,78 @@ describe("commitCreateProject", () => {
         name: "new",
       }),
     ).rejects.toThrow(/already exists/i);
+
+    expect(addProject).not.toHaveBeenCalled();
+    expect(setLastUsedProjectDir).not.toHaveBeenCalled();
+  });
+});
+
+describe("commitCloneProject", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  test("github source: clones, then adds the project at the returned path", async () => {
+    cloneRepo.mockResolvedValue({ path: "/Users/me/code/lightcode" });
+
+    await commitCloneProject({
+      choice: { kind: "native" },
+      parentDir: "/Users/me/code",
+      name: "lightcode",
+      source: {
+        kind: "github",
+        nameWithOwner: "SDSLeon/lightcode",
+        account: { host: "github.com", login: "SDSLeon" },
+      },
+    });
+
+    expect(cloneRepo).toHaveBeenCalledWith({
+      parentLocation: { kind: "posix", path: "/Users/me/code" },
+      name: "lightcode",
+      source: {
+        kind: "github",
+        nameWithOwner: "SDSLeon/lightcode",
+        account: { host: "github.com", login: "SDSLeon" },
+      },
+    });
+    expect(addProject).toHaveBeenCalledWith(
+      { kind: "posix", path: "/Users/me/code/lightcode" },
+      "lightcode",
+    );
+    // Records the parent the user cloned into, not the new folder.
+    expect(setLastUsedProjectDir).toHaveBeenCalledWith("native", "/Users/me/code");
+    expect(openDraft).toHaveBeenCalledWith("p1");
+  });
+
+  test("url source: passes the url through and opens the clone", async () => {
+    cloneRepo.mockResolvedValue({ path: "/Users/me/code/repo" });
+
+    await commitCloneProject({
+      choice: { kind: "native" },
+      parentDir: "/Users/me/code",
+      name: "repo",
+      source: { kind: "url", url: "https://github.com/owner/repo.git" },
+    });
+
+    expect(cloneRepo).toHaveBeenCalledWith({
+      parentLocation: { kind: "posix", path: "/Users/me/code" },
+      name: "repo",
+      source: { kind: "url", url: "https://github.com/owner/repo.git" },
+    });
+    expect(addProject).toHaveBeenCalledWith({ kind: "posix", path: "/Users/me/code/repo" }, "repo");
+  });
+
+  test("clone failure propagates and does not add a project", async () => {
+    cloneRepo.mockRejectedValue(new Error("Authentication failed"));
+
+    await expect(
+      commitCloneProject({
+        choice: { kind: "native" },
+        parentDir: "/Users/me/code",
+        name: "repo",
+        source: { kind: "url", url: "bad" },
+      }),
+    ).rejects.toThrow(/authentication/i);
 
     expect(addProject).not.toHaveBeenCalled();
     expect(setLastUsedProjectDir).not.toHaveBeenCalled();

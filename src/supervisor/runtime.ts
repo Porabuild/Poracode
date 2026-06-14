@@ -33,10 +33,16 @@ import type {
   GetGitBranchesPayload,
   GetGitDiffBatchPayload,
   GetGitDiffPayload,
+  CloneRepoPayload,
+  CloneRepoResult,
   GetGitFileContentPayload,
   GetGitStatusPayload,
   GhCheckAvailableResult,
   GhCreatePrPayload,
+  GhListAccountsPayload,
+  GhListAccountsResult,
+  GhListReposPayload,
+  GhListReposResult,
   GhGetPrChecksPayload,
   GhGetPrChecksResult,
   GhGetPrDetailsPayload,
@@ -1183,6 +1189,27 @@ export class SupervisorRuntime {
 
   async ghCheckAvailable(payload: GetGitStatusPayload): Promise<GhCheckAvailableResult> {
     return this.githubService.checkGhAvailable(payload.projectLocation);
+  }
+
+  async ghListAccounts(payload: GhListAccountsPayload): Promise<GhListAccountsResult> {
+    return this.githubService.listAccounts(payload.runtime);
+  }
+
+  async ghListRepos(payload: GhListReposPayload): Promise<GhListReposResult> {
+    return this.githubService.listRepos(payload.runtime, payload.account);
+  }
+
+  async cloneRepo(payload: CloneRepoPayload): Promise<CloneRepoResult> {
+    const { parentLocation, name, source } = payload;
+    if (source.kind === "github") {
+      return this.githubService.cloneRepo(
+        parentLocation,
+        name,
+        source.nameWithOwner,
+        source.account,
+      );
+    }
+    return this.gitService.cloneFromUrl(parentLocation, name, source.url);
   }
 
   async ghCreatePr(payload: GhCreatePrPayload): Promise<PrData> {

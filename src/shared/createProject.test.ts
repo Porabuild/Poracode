@@ -1,6 +1,8 @@
 import { describe, expect, test } from "vitest";
 import {
   buildScratchTargetPath,
+  cloneFolderNameFromRepo,
+  cloneFolderNameFromUrl,
   deriveLocationFromPath,
   parentDirOf,
   runtimeKeyForChoice,
@@ -213,5 +215,37 @@ describe("validateScratchParent", () => {
 describe("wslHomeDir", () => {
   test("returns the distro home UNC path", () => {
     expect(wslHomeDir("Ubuntu")).toBe("\\\\wsl.localhost\\Ubuntu\\home");
+  });
+});
+
+describe("cloneFolderNameFromRepo", () => {
+  test("takes the bare repo name from owner/name", () => {
+    expect(cloneFolderNameFromRepo("SDSLeon/lightcode")).toBe("lightcode");
+  });
+
+  test("strips a trailing .git", () => {
+    expect(cloneFolderNameFromRepo("owner/repo.git")).toBe("repo");
+  });
+
+  test("handles a value without an owner", () => {
+    expect(cloneFolderNameFromRepo("repo")).toBe("repo");
+  });
+});
+
+describe("cloneFolderNameFromUrl", () => {
+  test("derives the name from an https URL", () => {
+    expect(cloneFolderNameFromUrl("https://github.com/owner/repo.git")).toBe("repo");
+  });
+
+  test("derives the name from an scp-style URL", () => {
+    expect(cloneFolderNameFromUrl("git@github.com:owner/repo.git")).toBe("repo");
+  });
+
+  test("ignores a trailing slash and missing .git", () => {
+    expect(cloneFolderNameFromUrl("https://github.com/owner/repo/")).toBe("repo");
+  });
+
+  test("returns empty for an empty URL", () => {
+    expect(cloneFolderNameFromUrl("   ")).toBe("");
   });
 });

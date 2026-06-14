@@ -1,10 +1,11 @@
 import { startTransition } from "react";
-import type { ProjectLocation } from "@/shared/contracts";
+import type { CloneRepoSource, ProjectLocation } from "@/shared/contracts";
 import {
   deriveLocationFromPath,
   parentDirOf,
   runtimeKeyForLocation,
   scratchKindForChoice,
+  wslHomeDir,
   type RuntimeChoice,
 } from "@/shared/createProject";
 import { getProjectFsPath } from "@/shared/wsl";
@@ -23,6 +24,21 @@ export interface CommitCreateProjectParams {
   /** "scratch" → the parent directory; "existing" → the chosen project folder. */
   dir: string;
   name: string;
+}
+
+/**
+ * Register a freshly materialized project: remember the browsed parent per
+ * runtime (so the next create/clone starts there), add it to the store, detect
+ * its setup script, and open its draft. Shared by the create and clone flows.
+ */
+function registerNewProject(location: ProjectLocation, name: string, lastUsedDir: string): void {
+  useSharedSettings.getState().setLastUsedProjectDir(runtimeKeyForLocation(location), lastUsedDir);
+
+  startTransition(() => {
+    const project = useAppStore.getState().addProject(location, name || undefined);
+    autoDetectSetupScript(project);
+    useAppStore.getState().openDraft(project.id);
+  });
 }
 
 /**
@@ -48,13 +64,7 @@ export async function commitCreateProject(params: CommitCreateProjectParams): Pr
     lastUsedDir = parentDirOf(params.dir, location.kind);
   }
 
-  useSharedSettings.getState().setLastUsedProjectDir(runtimeKeyForLocation(location), lastUsedDir);
-
-  startTransition(() => {
-    const project = useAppStore.getState().addProject(location, name || undefined);
-    autoDetectSetupScript(project);
-    useAppStore.getState().openDraft(project.id);
-  });
+  registerNewProject(location, name, lastUsedDir);
 }
 
 /**
@@ -81,4 +91,49 @@ export async function addExistingProject(): Promise<void> {
     dir: picked,
     name: "",
   });
+}
+
+/**
+ * A `ProjectLocation` to run the GitHub CLI in for a runtime choice (used when
+ * listing accounts/repos, before a project exists). Native resolves to the
+ * host's home dir; a WSL choice resolves to that distro's `/home` over the UNC
+ * bridge. The cwd only needs to be a valid directory for `gh` — listing isn't
+ * tied to any repo.
+ */
+export function resolveRuntimeContextLocation(choice: RuntimeChoice): Promise<ProjectLocation> {
+  if (choice.kind === "wsl") {
+    return Promise.resolve(
+      deriveLocationFromPath(wslHomeDir(choice.distro), readBridge().platform),
+    );
+  }
+  return loadHomeScopeLocation();
+}
+
+export interface CommitCloneProjectParams {
+  choice: RuntimeChoice;
+  /** Existing parent folder to clone into. */
+  parentDir: string;
+  /** New folder name for the clone. */
+  name: string;
+  source: CloneRepoSource;
+}
+
+/**
+ * Clone a repository into `parentDir/name`, then add it as a project, remember
+ * the parent per runtime (so the next clone/create starts there), and open its
+ * draft. Errors (auth, network, an existing folder) propagate so the modal can
+ * surface them.
+ */
+export async function commitCloneProject(params: CommitCloneProjectParams): Promise<void> {
+  const platform = readBridge().platform;
+  const name = params.name.trim();
+  const parentLocation = deriveLocationFromPath(params.parentDir, platform);
+
+  const { path } = await readBridge().cloneRepo({
+    parentLocation,
+    name,
+    source: params.source,
+  });
+
+  registerNewProject(deriveLocationFromPath(path, platform), name, params.parentDir);
 }

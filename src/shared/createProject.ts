@@ -123,3 +123,24 @@ export function validateScratchParent(parent: string, choice: RuntimeChoice): st
 export function wslHomeDir(distro: string): string {
   return toWslUncPath(distro, "home");
 }
+
+/** Default clone folder name from an "owner/name" repo id (the bare repo name). */
+export function cloneFolderNameFromRepo(nameWithOwner: string): string {
+  const leaf = nameWithOwner.split("/").pop() ?? nameWithOwner;
+  return leaf.replace(/\.git$/i, "");
+}
+
+/**
+ * Default clone folder name from a git URL: the last path segment with any
+ * trailing `.git` and slashes removed. Handles both https
+ * (`https://host/owner/repo.git`) and scp-style (`git@host:owner/repo.git`).
+ */
+export function cloneFolderNameFromUrl(url: string): string {
+  const trimmed = url
+    .trim()
+    .replace(/\.git$/i, "")
+    .replace(/[/\\]+$/, "");
+  if (!trimmed) return "";
+  const match = /[^/:\\]+$/.exec(trimmed);
+  return match ? match[0] : "";
+}

@@ -1,7 +1,31 @@
 import { createServer, type Server } from "node:http";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { WslBridgeClient, type WslLocation } from "./client";
+import { WslBridgeClient, bridgeRequestTimeoutMs, type WslLocation } from "./client";
 import type { WslBridgeServer } from "./index";
+
+describe("bridgeRequestTimeoutMs", () => {
+  it("uses the default for bodies without a timeout", () => {
+    expect(bridgeRequestTimeoutMs({})).toBe(30_000);
+    expect(bridgeRequestTimeoutMs({ cwd: "/x" })).toBe(30_000);
+    expect(bridgeRequestTimeoutMs(undefined)).toBe(30_000);
+  });
+
+  it("keeps the default floor when the requested timeout is small", () => {
+    // 10s request + 15s margin = 25s, below the 30s floor.
+    expect(bridgeRequestTimeoutMs({ timeoutMs: 10_000 })).toBe(30_000);
+  });
+
+  it("outlasts a long requested timeout (e.g. clone) so the server timeout wins", () => {
+    // A 600s clone must not be aborted by the 30s HTTP default.
+    expect(bridgeRequestTimeoutMs({ timeoutMs: 600_000 })).toBe(615_000);
+  });
+
+  it("ignores invalid timeout values", () => {
+    expect(bridgeRequestTimeoutMs({ timeoutMs: -5 })).toBe(30_000);
+    expect(bridgeRequestTimeoutMs({ timeoutMs: Number.NaN })).toBe(30_000);
+    expect(bridgeRequestTimeoutMs({ timeoutMs: "600000" })).toBe(30_000);
+  });
+});
 
 /**
  * Client-side tests: stand up a real HTTP server in-process, wire it into a

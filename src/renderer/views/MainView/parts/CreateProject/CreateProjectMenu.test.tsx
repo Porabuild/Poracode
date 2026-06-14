@@ -16,9 +16,11 @@ import { CreateProjectMenu } from "./CreateProjectMenu";
 describe("CreateProjectMenu", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    usePanelStore.setState({ createProjectModalOpen: false });
+    usePanelStore.setState({ createProjectModalOpen: false, cloneProjectModalOpen: false });
   });
-  afterEach(() => usePanelStore.setState({ createProjectModalOpen: false }));
+  afterEach(() =>
+    usePanelStore.setState({ createProjectModalOpen: false, cloneProjectModalOpen: false }),
+  );
 
   it("opens the scratch modal when 'Start from scratch' is chosen", async () => {
     render(
@@ -31,6 +33,21 @@ describe("CreateProjectMenu", () => {
     fireEvent.click(await screen.findByText("Start from scratch"));
 
     await waitFor(() => expect(usePanelStore.getState().createProjectModalOpen).toBe(true));
+    expect(mocks.addExistingProject).not.toHaveBeenCalled();
+  });
+
+  it("opens the clone modal when 'Clone a repository' is chosen", async () => {
+    render(
+      <CreateProjectMenu>
+        <Button aria-label="Add project">+</Button>
+      </CreateProjectMenu>,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Add project" }));
+    fireEvent.click(await screen.findByText("Clone a repository"));
+
+    await waitFor(() => expect(usePanelStore.getState().cloneProjectModalOpen).toBe(true));
+    expect(usePanelStore.getState().createProjectModalOpen).toBe(false);
     expect(mocks.addExistingProject).not.toHaveBeenCalled();
   });
 

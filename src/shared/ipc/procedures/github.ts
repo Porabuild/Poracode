@@ -1,4 +1,5 @@
 import {
+  cloneRepoPayloadSchema,
   getGitStatusPayloadSchema,
   ghClosePrPayloadSchema,
   ghCreatePrPayloadSchema,
@@ -7,7 +8,9 @@ import {
   ghGetPrDiffPayloadSchema,
   ghGetPrFilesPayloadSchema,
   ghGetPrForBranchPayloadSchema,
+  ghListAccountsPayloadSchema,
   ghListPrsPayloadSchema,
+  ghListReposPayloadSchema,
   ghMarkPrReadyPayloadSchema,
   ghMergePrPayloadSchema,
   ghPostPrCommentPayloadSchema,
@@ -16,6 +19,8 @@ import {
   ghUpdatePrBranchPayloadSchema,
 } from "../../contracts";
 import type {
+  CloneRepoPayload,
+  CloneRepoResult,
   GetGitStatusPayload,
   GhCheckAvailableResult,
   GhClosePrPayload,
@@ -29,8 +34,12 @@ import type {
   GhGetPrFilesPayload,
   GhGetPrFilesResult,
   GhGetPrForBranchPayload,
+  GhListAccountsPayload,
+  GhListAccountsResult,
   GhListPrsPayload,
   GhListPrsResult,
+  GhListReposPayload,
+  GhListReposResult,
   GhMarkPrReadyPayload,
   GhMergePrPayload,
   GhPostPrCommentPayload,
@@ -117,5 +126,20 @@ export const githubProcedures = {
     "ghPostPrComment",
     "supervisor",
     ghPostPrCommentPayloadSchema,
+  ),
+  ghListAccounts: definePayloadProcedure<GhListAccountsPayload, GhListAccountsResult, "supervisor">(
+    "ghListAccounts",
+    "supervisor",
+    ghListAccountsPayloadSchema,
+  ),
+  ghListRepos: definePayloadProcedure<GhListReposPayload, GhListReposResult, "supervisor">(
+    "ghListRepos",
+    "supervisor",
+    ghListReposPayloadSchema,
+  ),
+  cloneRepo: definePayloadProcedure<CloneRepoPayload, CloneRepoResult, "supervisor">(
+    "cloneRepo",
+    "supervisor",
+    cloneRepoPayloadSchema,
   ),
 } as const;

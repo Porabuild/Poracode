@@ -86,7 +86,10 @@ const MAX_FS_BODY_BYTES = 2 * 1024 * 1024;
 const MAX_MCP_BODY_BYTES = 1024 * 1024;
 const MAX_FIND_ENTRIES = 50_000;
 const MAX_GIT_COMMANDS = 256;
-const MAX_GIT_TIMEOUT_MS = 300_000;
+// Generous upper bound so long network operations (notably `git clone` / `gh
+// repo clone` of large repos) can run to completion; still finite so a hung
+// command can't pin the bridge forever.
+const MAX_GIT_TIMEOUT_MS = 600_000;
 const VALID_INTENTS = new Set([
   "session.started",
   "session.turn_started",

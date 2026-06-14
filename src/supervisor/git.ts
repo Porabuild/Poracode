@@ -19,10 +19,12 @@ import {
   computeDefaultWorktreePath,
   execGit,
   execGitBatchWslBridge,
+  GIT_CLONE_TIMEOUT,
   GIT_HOOK_TIMEOUT,
   getLocationIdentity,
   ghVersionWslBridge,
   parseRemoteUrl,
+  resolveClonedProjectPath,
   setWslGitBridgeClient,
 } from "./git/exec";
 import { GitMergeService } from "./git/mergeService";
@@ -47,6 +49,7 @@ export {
   getLocationIdentity,
   parseRemoteUrl,
   parseStatusPorcelainV2,
+  resolveClonedProjectPath,
 };
 
 export class GitService {
@@ -243,6 +246,20 @@ export class GitService {
 
   async init(location: ProjectLocation): Promise<void> {
     await execGit(location, ["init"]);
+  }
+
+  /**
+   * Clone `url` into a new `name` folder inside `parent`, returning the path of
+   * the created folder. The clone runs with `parent` as its working directory,
+   * so `parent` must already exist (the renderer picks an existing folder).
+   */
+  async cloneFromUrl(
+    parent: ProjectLocation,
+    name: string,
+    url: string,
+  ): Promise<{ path: string }> {
+    await execGit(parent, ["clone", url, name], { timeout: GIT_CLONE_TIMEOUT });
+    return { path: resolveClonedProjectPath(parent, name) };
   }
 
   async getAllDiff(location: ProjectLocation): Promise<string> {

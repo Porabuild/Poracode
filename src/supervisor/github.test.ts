@@ -44,7 +44,13 @@ vi.mock("./agents/base", () => ({
   buildAgentCommand: buildAgentCommandMock,
 }));
 
-import { GitHubService, aggregateChecksStatus } from "./github";
+import {
+  GitHubService,
+  aggregateChecksStatus,
+  mapGitHubApiRepo,
+  parseGhAuthAccounts,
+} from "./github";
+import { resolveClonedProjectPath } from "./git/exec";
 
 const location = { kind: "windows" as const, path: "C:\\Users\\demo\\repo" };
 const wslLocation = {
@@ -77,7 +83,13 @@ describe("GitHubService", () => {
       const result = await new GitHubService().checkGhAvailable(location);
 
       expect(result).toEqual({ available: true });
-      expect(buildAgentCommandMock).toHaveBeenCalledWith(location, "gh", ["--version"]);
+      expect(buildAgentCommandMock).toHaveBeenCalledWith(
+        location,
+        "gh",
+        ["--version"],
+        undefined,
+        undefined,
+      );
       expect(execFileAsyncMock.mock.calls[0]![2]).toMatchObject({ cwd: location.path });
     });
 
@@ -940,5 +952,215 @@ describe("GitHubService", () => {
 
       expect(result.checks).toEqual([]);
     });
+  });
+
+  describe("listAccounts", () => {
+    const AUTH_STATUS = [
+      "github.com",
+      "  ✓ Logged in to github.com account SDSLeon (keyring)",
+      "  - Active account: true",
+      "",
+      "  ✓ Logged in to github.com account ym-svecherenko (keyring)",
+      "  - Active account: false",
+      "",
+    ].join("\n");
+
+    it("parses signed-in accounts and the active flag", async () => {
+      execFileAsyncMock.mockResolvedValue({ stdout: AUTH_STATUS });
+
+      const result = await new GitHubService().listAccounts(location);
+
+      expect(result.accounts).toEqual([
+        { host: "github.com", login: "SDSLeon", active: true },
+        { host: "github.com", login: "ym-svecherenko", active: false },
+      ]);
+    });
+
+    it("returns an empty list when gh is signed out", async () => {
+      execFileAsyncMock.mockRejectedValue(Object.assign(new Error("exit 1"), { stdout: "" }));
+
+      const result = await new GitHubService().listAccounts(location);
+
+      expect(result.accounts).toEqual([]);
+    });
+
+    it("still parses accounts when gh exits non-zero but printed them", async () => {
+      execFileAsyncMock.mockRejectedValue(
+        Object.assign(new Error("exit 1"), { stdout: AUTH_STATUS }),
+      );
+
+      const result = await new GitHubService().listAccounts(location);
+
+      expect(result.accounts).toHaveLength(2);
+    });
+  });
+
+  describe("listRepos", () => {
+    it("scopes to the account token and maps the repositories", async () => {
+      const reposJson = JSON.stringify([
+        {
+          full_name: "yieldmo/web-sdk",
+          name: "web-sdk",
+          owner: { login: "yieldmo" },
+          description: "SDK",
+          private: true,
+          fork: false,
+          ssh_url: "git@github.com:yieldmo/web-sdk.git",
+          clone_url: "https://github.com/yieldmo/web-sdk.git",
+          pushed_at: "2026-06-01T00:00:00Z",
+        },
+      ]);
+      execFileAsyncMock
+        .mockResolvedValueOnce({ stdout: "gho_token123\n" })
+        .mockResolvedValueOnce({ stdout: reposJson });
+
+      const result = await new GitHubService().listRepos(location, {
+        host: "github.com",
+        login: "ym-svecherenko",
+      });
+
+      expect(result.repos).toEqual([
+        {
+          nameWithOwner: "yieldmo/web-sdk",
+          owner: "yieldmo",
+          name: "web-sdk",
+          description: "SDK",
+          isPrivate: true,
+          isFork: false,
+          sshUrl: "git@github.com:yieldmo/web-sdk.git",
+          httpsUrl: "https://github.com/yieldmo/web-sdk.git",
+          pushedAt: "2026-06-01T00:00:00Z",
+        },
+      ]);
+      expect(execFileAsyncMock.mock.calls[0]![1]).toEqual([
+        "auth",
+        "token",
+        "--hostname",
+        "github.com",
+        "--user",
+        "ym-svecherenko",
+      ]);
+      const apiArgs = execFileAsyncMock.mock.calls[1]![1] as string[];
+      expect(apiArgs[0]).toBe("api");
+      expect(apiArgs[1]).toContain("user/repos");
+    });
+
+    it("throws (instead of falling back to the active account) when the account token is unavailable", async () => {
+      // `gh auth token --user X` fails → no token to scope with.
+      execFileAsyncMock.mockRejectedValueOnce(new Error("no token"));
+
+      await expect(
+        new GitHubService().listRepos(location, { host: "github.com", login: "ghost" }),
+      ).rejects.toThrow(/ghost/);
+      // We must not have proceeded to `gh api user/repos` under the active account.
+      expect(execFileAsyncMock).toHaveBeenCalledTimes(1);
+    });
+
+    it("dedupes and stops fetching after a short page", async () => {
+      const page = (names: string[]) =>
+        JSON.stringify(names.map((n) => ({ full_name: n, name: n.split("/")[1] })));
+      execFileAsyncMock
+        .mockResolvedValueOnce({ stdout: "tok\n" })
+        .mockResolvedValueOnce({ stdout: page(["a/one", "a/two", "a/one"]) });
+
+      const result = await new GitHubService().listRepos(location, {
+        host: "github.com",
+        login: "a",
+      });
+
+      expect(result.repos.map((r) => r.nameWithOwner)).toEqual(["a/one", "a/two"]);
+      // auth token + one page; a short page means no further requests.
+      expect(execFileAsyncMock).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  describe("cloneRepo", () => {
+    it("clones via gh repo clone and returns the joined path", async () => {
+      execFileAsyncMock
+        .mockResolvedValueOnce({ stdout: "gho_token\n" })
+        .mockResolvedValueOnce({ stdout: "" });
+
+      const result = await new GitHubService().cloneRepo(location, "myrepo", "owner/myrepo", {
+        host: "github.com",
+        login: "SDSLeon",
+      });
+
+      expect(result).toEqual({ path: "C:\\Users\\demo\\repo\\myrepo" });
+      expect(execFileAsyncMock.mock.calls[1]![1]).toEqual([
+        "repo",
+        "clone",
+        "owner/myrepo",
+        "myrepo",
+      ]);
+    });
+  });
+});
+
+describe("parseGhAuthAccounts", () => {
+  it("returns an empty list for empty output", () => {
+    expect(parseGhAuthAccounts("")).toEqual([]);
+  });
+
+  it("marks only the active account", () => {
+    const out = [
+      "  ✓ Logged in to github.com account alice (keyring)",
+      "  - Active account: false",
+      "  ✓ Logged in to ghe.example.com account bob (oauth_token)",
+      "  - Active account: true",
+    ].join("\n");
+
+    expect(parseGhAuthAccounts(out)).toEqual([
+      { host: "github.com", login: "alice", active: false },
+      { host: "ghe.example.com", login: "bob", active: true },
+    ]);
+  });
+});
+
+describe("mapGitHubApiRepo", () => {
+  it("falls back to full_name when owner/name fields are missing", () => {
+    expect(mapGitHubApiRepo({ full_name: "octo/repo" })).toEqual({
+      nameWithOwner: "octo/repo",
+      owner: "octo",
+      name: "repo",
+      description: "",
+      isPrivate: false,
+      isFork: false,
+      sshUrl: "",
+      httpsUrl: "",
+      pushedAt: "",
+    });
+  });
+
+  it("returns null without a full_name", () => {
+    expect(mapGitHubApiRepo({})).toBeNull();
+    expect(mapGitHubApiRepo(null)).toBeNull();
+  });
+});
+
+describe("resolveClonedProjectPath", () => {
+  it("joins posix parents with /", () => {
+    expect(resolveClonedProjectPath({ kind: "posix", path: "/home/me/code" }, "repo")).toBe(
+      "/home/me/code/repo",
+    );
+  });
+
+  it("joins windows parents with \\", () => {
+    expect(resolveClonedProjectPath({ kind: "windows", path: "C:\\Users\\me\\code" }, "repo")).toBe(
+      "C:\\Users\\me\\code\\repo",
+    );
+  });
+
+  it("joins WSL parents onto the UNC path", () => {
+    expect(
+      resolveClonedProjectPath(
+        {
+          kind: "wsl",
+          distro: "Ubuntu",
+          linuxPath: "/home/me/code",
+          uncPath: "\\\\wsl.localhost\\Ubuntu\\home\\me\\code",
+        },
+        "repo",
+      ),
+    ).toBe("\\\\wsl.localhost\\Ubuntu\\home\\me\\code\\repo");
   });
 });

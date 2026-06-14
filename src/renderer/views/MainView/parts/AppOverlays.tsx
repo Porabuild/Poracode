@@ -38,6 +38,7 @@ import { WelcomeOverlay } from "@/renderer/views/WelcomeOverlay";
 import { BrowserOverlay } from "@/renderer/views/MainView/parts/BrowserOverlay";
 import { LoginTerminalOverlay } from "@/renderer/views/LoginTerminalOverlay/LoginTerminalOverlay";
 import { CreateProjectModal } from "@/renderer/views/MainView/parts/CreateProject/CreateProjectModal";
+import { CloneProjectModal } from "@/renderer/views/MainView/parts/CreateProject/CloneProjectModal";
 
 export function AppOverlays() {
   const projects = useAppStore((s) => s.projects);
@@ -182,6 +183,7 @@ export function AppOverlays() {
       <UsageLoginConfirmationDialog />
       <LoginTerminalOverlay />
       <CreateProjectModal />
+      <CloneProjectModal />
     </>
   );
 }

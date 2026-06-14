@@ -228,3 +228,84 @@ export const ghPostPrCommentPayloadSchema = z.object({
   body: z.string().min(1),
 });
 export type GhPostPrCommentPayload = z.infer<typeof ghPostPrCommentPayloadSchema>;
+
+// --- Clone a repository ---------------------------------------------------
+// "Add project → Clone a repository" browses the GitHub CLI's signed-in
+// accounts and the repositories each can reach, then clones into a local
+// folder. Listing and cloning run wherever `gh`/`git` live for the chosen
+// runtime, so every payload carries a `ProjectLocation` to anchor the cwd and
+// (for WSL) the bridge.
+
+/** One account the GitHub CLI is signed in to (from `gh auth status`). */
+export interface GitHubAccount {
+  host: string;
+  login: string;
+  /** The host's currently active account — used as the default selection. */
+  active: boolean;
+}
+
+export interface GhListAccountsResult {
+  accounts: GitHubAccount[];
+}
+
+/** A repository the selected account can clone, shaped for the picker. */
+export interface GitHubRepoSummary {
+  /** "owner/name". */
+  nameWithOwner: string;
+  owner: string;
+  name: string;
+  description: string;
+  isPrivate: boolean;
+  isFork: boolean;
+  sshUrl: string;
+  httpsUrl: string;
+  /** ISO timestamp of the last push; the list is sorted by this descending. */
+  pushedAt: string;
+}
+
+export interface GhListReposResult {
+  repos: GitHubRepoSummary[];
+}
+
+export interface CloneRepoResult {
+  /** Absolute path of the freshly cloned project folder. */
+  path: string;
+}
+
+/** Identifies a signed-in account so the supervisor can scope `gh` to it. */
+const gitHubAccountRefSchema = z.object({
+  host: z.string().min(1),
+  login: z.string().min(1),
+});
+export type GitHubAccountRef = z.infer<typeof gitHubAccountRefSchema>;
+
+export const ghListAccountsPayloadSchema = z.object({
+  /** Runtime context (cwd / WSL distro) the `gh` CLI should run in. */
+  runtime: projectLocationSchema,
+});
+export type GhListAccountsPayload = z.infer<typeof ghListAccountsPayloadSchema>;
+
+export const ghListReposPayloadSchema = z.object({
+  runtime: projectLocationSchema,
+  account: gitHubAccountRefSchema,
+});
+export type GhListReposPayload = z.infer<typeof ghListReposPayloadSchema>;
+
+export const cloneRepoSourceSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("url"), url: z.string().min(1) }),
+  z.object({
+    kind: z.literal("github"),
+    nameWithOwner: z.string().min(1),
+    account: gitHubAccountRefSchema,
+  }),
+]);
+export type CloneRepoSource = z.infer<typeof cloneRepoSourceSchema>;
+
+export const cloneRepoPayloadSchema = z.object({
+  /** The existing parent folder to clone into; its kind drives the runtime. */
+  parentLocation: projectLocationSchema,
+  /** New folder name for the clone (already validated by the renderer). */
+  name: z.string().min(1),
+  source: cloneRepoSourceSchema,
+});
+export type CloneRepoPayload = z.infer<typeof cloneRepoPayloadSchema>;
