@@ -10,6 +10,7 @@ import {
   parseCommandCodeModels,
 } from "./detection";
 import { authJsonHasApiKey, detectCommandCodeInvalidSessionRef } from "./session";
+import { commandCodeTranscriptId, isUuid, sanitizeCommandCodeCwd } from "./sessionFiles";
 import { detectCommandCodeTerminalStatus } from "./terminal";
 
 describe("buildCommandCodeArgs", () => {
@@ -31,8 +32,23 @@ describe("buildCommandCodeArgs", () => {
     ]);
   });
 
-  it("adds --continue when resuming", () => {
-    expect(buildCommandCodeArgs(config, "next", true)).toEqual([
+  it("resumes a specific session with --resume <id>", () => {
+    expect(buildCommandCodeArgs(config, "next", "af75c40e-44dd-4369-a187-571745a01df2")).toEqual([
+      "--trust",
+      "--skip-onboarding",
+      "--resume",
+      "af75c40e-44dd-4369-a187-571745a01df2",
+      "--model",
+      "claude-opus-4-8",
+      "--permission-mode",
+      "standard",
+      "--yolo",
+      "next",
+    ]);
+  });
+
+  it("falls back to --continue when the resume id is the empty string", () => {
+    expect(buildCommandCodeArgs(config, "next", "")).toEqual([
       "--trust",
       "--skip-onboarding",
       "--continue",
@@ -43,6 +59,12 @@ describe("buildCommandCodeArgs", () => {
       "--yolo",
       "next",
     ]);
+  });
+
+  it("adds no resume flag for a fresh launch", () => {
+    const args = buildCommandCodeArgs(config, "next");
+    expect(args).not.toContain("--resume");
+    expect(args).not.toContain("--continue");
   });
 
   it("omits the prompt positional when empty", () => {
@@ -114,7 +136,9 @@ describe("createCommandCodeAdapter", () => {
     expect(adapter.update?.npm).toBe("command-code");
   });
 
-  it("mints a synthetic sessionRef on launch so the thread is resumable", () => {
+  it("launches without a sessionRef so the runtime discovers the real id", () => {
+    // The synthetic ref is gone: returning no ref is what lets the runtime's
+    // discoverSessionRef path run and capture command-code's real session id.
     const adapter = createCommandCodeAdapter();
     const launch = adapter.buildLaunchArgv(project, { model: "gpt-5.5" }, "hi");
 
@@ -129,31 +153,35 @@ describe("createCommandCodeAdapter", () => {
       "--yolo",
       "hi",
     ]);
-    expect(launch.sessionRef?.providerSessionId).toEqual(expect.any(String));
-    expect(launch.sessionRef?.providerSessionId.length).toBeGreaterThan(0);
+    expect(launch.sessionRef).toBeUndefined();
+    expect(adapter.discoverSessionRef).toBeTypeOf("function");
+    expect(adapter.watchSessionRef).toBeTypeOf("function");
   });
 
-  it("resumes with --continue and ignores the synthetic session id", () => {
+  it("resumes a discovered session id with --resume", () => {
+    const adapter = createCommandCodeAdapter();
+    const resume = adapter.buildResumeArgv(project, { model: "gpt-5.5" }, "next", {
+      providerSessionId: "af75c40e-44dd-4369-a187-571745a01df2",
+      discoveredAt: "2026-05-20T00:00:00.000Z",
+    });
+
+    expect(resume.args).toContain("--resume");
+    expect(resume.args).toContain("af75c40e-44dd-4369-a187-571745a01df2");
+    expect(resume.args).not.toContain("--continue");
+  });
+
+  it("falls back to --continue for a non-uuid (legacy/synthetic) ref", () => {
+    // A non-UUID ref can't be a real command-code session id, so resume can't
+    // target one — it uses --continue and never passes the bogus id. A stale
+    // *uuid* ref instead goes through --resume and the runtime recovers it.
     const adapter = createCommandCodeAdapter();
     const resume = adapter.buildResumeArgv(project, { model: "gpt-5.5" }, "next", {
       providerSessionId: "synthetic-id",
       discoveredAt: "2026-05-20T00:00:00.000Z",
     });
 
-    expect(resume).toMatchObject({
-      binary: "command-code",
-      args: [
-        "--trust",
-        "--skip-onboarding",
-        "--continue",
-        "--model",
-        "gpt-5.5",
-        "--permission-mode",
-        "standard",
-        "--yolo",
-        "next",
-      ],
-    });
+    expect(resume.args).toContain("--continue");
+    expect(resume.args).not.toContain("--resume");
     expect(resume.args).not.toContain("synthetic-id");
   });
 
@@ -354,9 +382,73 @@ describe("detectCommandCodeInvalidSessionRef", () => {
   it("detects empty-continue messages", () => {
     expect(detectCommandCodeInvalidSessionRef("No previous conversation found")).toBe(true);
     expect(detectCommandCodeInvalidSessionRef("Nothing to continue")).toBe(true);
+    expect(detectCommandCodeInvalidSessionRef("No conversations found to resume.")).toBe(true);
+  });
+
+  it("detects a missing --resume <id> target and a corrupt transcript", () => {
+    expect(
+      detectCommandCodeInvalidSessionRef(
+        'No session "deadbeef-0000-4000-8000-000000000000" found to resume.',
+      ),
+    ).toBe(true);
+    expect(
+      detectCommandCodeInvalidSessionRef(
+        "Session could not be loaded. 1 lines could not be parsed.",
+      ),
+    ).toBe(true);
   });
 
   it("ignores unrelated output", () => {
     expect(detectCommandCodeInvalidSessionRef("Command Code ready")).toBe(false);
+  });
+});
+
+describe("commandCodeTranscriptId", () => {
+  const uuid = "af75c40e-44dd-4369-a187-571745a01df2";
+
+  it("accepts a real <uuid>.jsonl transcript", () => {
+    expect(commandCodeTranscriptId(`${uuid}.jsonl`)).toBe(uuid);
+  });
+
+  it("rejects every sidecar and audit file (the corruption guard)", () => {
+    // Passing any of these basenames to `--resume` is what yields
+    // "Session could not be loaded. N lines could not be parsed."
+    expect(commandCodeTranscriptId(`hooks-audit-${uuid}.jsonl`)).toBeUndefined();
+    expect(commandCodeTranscriptId(`hooks-audit-hooks-audit-${uuid}.jsonl`)).toBeUndefined();
+    expect(commandCodeTranscriptId(`hooks-audit-${uuid}.checkpoints.jsonl`)).toBeUndefined();
+    expect(commandCodeTranscriptId(`${uuid}.checkpoints.jsonl`)).toBeUndefined();
+    expect(commandCodeTranscriptId(`${uuid}.prompts.jsonl`)).toBeUndefined();
+    expect(commandCodeTranscriptId(`${uuid}.meta.json`)).toBeUndefined();
+    expect(commandCodeTranscriptId(`${uuid}.share.json`)).toBeUndefined();
+    expect(commandCodeTranscriptId("settings.json")).toBeUndefined();
+    expect(commandCodeTranscriptId("not-a-uuid.jsonl")).toBeUndefined();
+  });
+
+  it("validates the uuid shape", () => {
+    expect(isUuid(uuid)).toBe(true);
+    expect(isUuid("hooks-audit-" + uuid)).toBe(false);
+    expect(isUuid("synthetic-id")).toBe(false);
+  });
+});
+
+describe("sanitizeCommandCodeCwd", () => {
+  // These fixture paths don't exist on the test machine, so realpath throws and
+  // the raw path is sanitized — deterministic, and matching the verified
+  // on-disk layout (lowercase, leading slash dropped, non-alphanumeric -> '-').
+  it("maps a project cwd to command-code's projects/<dir> name", () => {
+    expect(sanitizeCommandCodeCwd("/Users/test-fixture-xyz/work/lightcode")).toBe(
+      "users-test-fixture-xyz-work-lightcode",
+    );
+  });
+
+  it("lowercases and collapses dots and slashes (worktree + temp paths)", () => {
+    expect(
+      sanitizeCommandCodeCwd(
+        "/Users/test-fixture-xyz/.lightcode/worktrees/lc-bbea/lc-golden-pixel-8f39b4b5",
+      ),
+    ).toBe("users-test-fixture-xyz-lightcode-worktrees-lc-bbea-lc-golden-pixel-8f39b4b5");
+    expect(sanitizeCommandCodeCwd("/private/var/T/cc-dbg-ca.ppww")).toBe(
+      "private-var-t-cc-dbg-ca-ppww",
+    );
   });
 });

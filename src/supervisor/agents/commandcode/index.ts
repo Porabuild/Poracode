@@ -1,5 +1,5 @@
 import type { AgentCapability, PromptSegment } from "@/shared/contracts";
-import { createKnownSessionRef, detectAgentInstall, type AgentAdapter } from "../base";
+import { detectAgentInstall, type AgentAdapter } from "../base";
 import { buildCommandCodeArgs } from "./argv";
 import {
   COMMANDCODE_DEFAULT_MODEL_ID,
@@ -7,6 +7,12 @@ import {
   defaultCommandCodeCapabilities,
 } from "./detection";
 import { detectCommandCodeInvalidSessionRef } from "./session";
+import {
+  isUuid,
+  makeCommandCodeDiscoverSessionRef,
+  makeCommandCodeWatchSessionRef,
+  snapshotCommandCodePreSpawnSessions,
+} from "./sessionFiles";
 import { detectCommandCodeTerminalStatus } from "./terminal";
 
 export { detectCommandCodeInvalidSessionRef } from "./session";
@@ -44,23 +50,38 @@ export function createCommandCodeAdapter(): AgentAdapter {
       return status;
     },
 
-    buildLaunchArgv(_location, config, prompt) {
+    buildLaunchArgv(location, config, prompt) {
       // `command-code` has no flag to pre-assign or report a session id, so we
-      // mint a synthetic ref to mark the thread resumable immediately. Resume
-      // then uses `--continue` (the last conversation in this cwd) — robust for
-      // the worktree-isolated common case; see buildResumeArgv.
+      // snapshot the existing transcripts here and let the runtime discover the
+      // real id afterward (discoverSessionRef below). Returning no sessionRef
+      // is what enables that discovery path; resume then targets the exact id.
+      const cwd = location.kind === "wsl" ? location.linuxPath : location.path;
+      snapshotCommandCodePreSpawnSessions(location, cwd);
       const args = buildCommandCodeArgs(config, prompt);
-      return { binary: "command-code", args, sessionRef: createKnownSessionRef() };
+      return { binary: "command-code", args };
     },
 
-    buildResumeArgv(_location, config, prompt) {
-      const args = buildCommandCodeArgs(config, prompt, true);
+    buildResumeArgv(_location, config, prompt, sessionRef) {
+      // Resume the exact discovered session id (`--resume <id>`). A dead/stale
+      // id surfaces command-code's "found to resume" error, which the runtime
+      // recovers by relaunching fresh (see detectCommandCodeInvalidSessionRef)
+      // — same contract as grok/codex. A non-UUID ref (legacy/degenerate) falls
+      // back to `--continue`.
+      const id = sessionRef?.providerSessionId;
+      const args = buildCommandCodeArgs(config, prompt, id && isUuid(id) ? id : "");
       return { binary: "command-code", args };
     },
 
     createInitialSessionRef() {
       return undefined;
     },
+
+    // `command-code` writes the transcript only on the first message, so poll a
+    // beat after launch and rely on watchSessionRef to catch the file's
+    // creation. Mirrors codex's discovery cadence.
+    initialSessionRefDiscoveryDelayMs: 1000,
+    discoverSessionRef: makeCommandCodeDiscoverSessionRef(),
+    watchSessionRef: makeCommandCodeWatchSessionRef(),
 
     buildDirectInput(prompt) {
       // The TUI treats bulk writes as a paste, so an embedded `\r` becomes a
