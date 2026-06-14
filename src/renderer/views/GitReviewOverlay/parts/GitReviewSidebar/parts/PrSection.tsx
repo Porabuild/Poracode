@@ -21,6 +21,7 @@ import {
 } from "@heroui/react";
 import { readBridge } from "@/renderer/bridge";
 import { PixelLoader } from "@/renderer/components/common";
+import type { PrWriteAction } from "@/renderer/hooks/usePrWriteActions";
 import {
   usePrMergeStateStatus,
   usePrMergeable,
@@ -47,6 +48,8 @@ export function PrSection(props: {
   projectId: string;
   worktreePath?: string | undefined;
   prLoading: boolean;
+  /** Which write action is in flight, so only its button spins (others stay disabled). */
+  pendingAction?: PrWriteAction | null | undefined;
   handleMergePr: (method: "merge" | "squash" | "rebase", admin?: boolean) => Promise<void>;
   handleClosePr: () => Promise<void>;
   handleMarkPrReady: () => Promise<void>;
@@ -57,6 +60,7 @@ export function PrSection(props: {
     projectId,
     worktreePath,
     prLoading,
+    pendingAction,
     handleMergePr,
     handleClosePr,
     handleMarkPrReady,
@@ -133,7 +137,7 @@ export function PrSection(props: {
             variant="tertiary"
             className="flex-1"
             isDisabled={prLoading}
-            isPending={prLoading}
+            isPending={pendingAction === "ready"}
             onPress={() => void handleMarkPrReady()}
           >
             {({ isPending }) => (
@@ -204,7 +208,7 @@ export function PrSection(props: {
                 variant="tertiary"
                 className="flex-1"
                 isDisabled={prLoading}
-                isPending={prLoading}
+                isPending={pendingAction === "update"}
                 onPress={() => void handleUpdatePrBranch(false)}
               >
                 {({ isPending }) => (
@@ -248,7 +252,7 @@ export function PrSection(props: {
               variant="tertiary"
               className="flex-1"
               isDisabled={prLoading || (isBlocked && !bypass)}
-              isPending={prLoading}
+              isPending={pendingAction === "merge"}
               onPress={() => void handleMergePr("squash", bypass)}
             >
               {({ isPending }) => (

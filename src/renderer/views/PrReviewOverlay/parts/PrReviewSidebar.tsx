@@ -48,12 +48,18 @@ export function PrReviewSidebar(props: {
   } = props;
   const { isCollapsed, collapse, expand } = useSidebar();
   const [expanded, setExpanded] = useState(true);
-  const { prLoading, handleMergePr, handleClosePr, handleMarkPrReady, handleUpdatePrBranch } =
-    usePrWriteActions({
-      projectLocation,
-      prKey,
-      onRefresh,
-    });
+  const {
+    prLoading,
+    pendingAction,
+    handleMergePr,
+    handleClosePr,
+    handleMarkPrReady,
+    handleUpdatePrBranch,
+  } = usePrWriteActions({
+    projectLocation,
+    prKey,
+    onRefresh,
+  });
 
   const sorted = files.toSorted((a, b) =>
     compareFilesByDirThenName({ path: a.path }, { path: b.path }),
@@ -148,6 +154,7 @@ export function PrReviewSidebar(props: {
             projectId={projectId}
             worktreePath={worktreePath}
             prLoading={prLoading}
+            pendingAction={pendingAction}
             handleMergePr={handleMergePr}
             handleClosePr={handleClosePr}
             handleMarkPrReady={handleMarkPrReady}

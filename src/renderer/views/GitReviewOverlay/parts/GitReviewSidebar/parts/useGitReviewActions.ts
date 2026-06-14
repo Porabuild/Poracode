@@ -593,6 +593,7 @@ export function useGitReviewActions(args: UseGitReviewActionsArgs) {
     prTargetBranch,
     setPrTargetBranch,
     prLoading,
+    prPendingAction: writeActions.pendingAction,
     isGeneratingPr,
     handleCommit,
     handleGenerateMessage,

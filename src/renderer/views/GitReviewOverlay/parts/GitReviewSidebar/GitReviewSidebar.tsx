@@ -150,6 +150,7 @@ export function GitReviewSidebar(props: {
     prTargetBranch,
     setPrTargetBranch,
     prLoading,
+    prPendingAction,
     isGeneratingPr,
     handleCommit,
     handleGenerateMessage,
@@ -463,6 +464,7 @@ export function GitReviewSidebar(props: {
               projectId={project.id}
               worktreePath={worktreePath}
               prLoading={prLoading}
+              pendingAction={prPendingAction}
               handleMergePr={handleMergePr}
               handleClosePr={handleClosePr}
               handleMarkPrReady={handleMarkPrReady}
