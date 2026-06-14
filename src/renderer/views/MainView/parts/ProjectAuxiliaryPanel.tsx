@@ -8,6 +8,7 @@ import {
   type RightPanelTab,
 } from "@/renderer/components/layout/UnifiedRightPanel";
 import { ProjectFilesPanel } from "@/renderer/views/FileEditorOverlay/parts/ProjectFilesPanel";
+import { NotesPanel } from "@/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesPanel";
 import { UsagePanel } from "@/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/UsagePanel";
 import { UsagePanelHeaderActions } from "@/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsagePanelHeaderActions";
 import { useAppStore } from "@/renderer/state/appStore";
@@ -24,6 +25,7 @@ import {
   showGitReviewPanel,
 } from "@/renderer/actions/panelActions";
 import { showTerminalPanel } from "@/renderer/actions/terminalActions";
+import { getCurrentProjectId } from "@/renderer/actions/currentProject";
 import { buildFileEditorContext } from "@/renderer/utils/gitHelpers";
 import { GitReviewPanelContent } from "./RightPanel/parts/GitReviewPanelContent";
 
@@ -72,6 +74,11 @@ export function ProjectAuxiliaryPanel(props: { includeTerminal: boolean }) {
   const browserOverlayOpen = usePanelStore((s) => s.browserOverlayOpen);
   const usagePanelOpen = usePanelStore((s) => s.usagePanelOpen);
   const setUsagePanelOpen = usePanelStore((s) => s.setUsagePanelOpen);
+  const notesPanelOpen = usePanelStore((s) => s.notesPanelOpen);
+  const setNotesPanelOpen = usePanelStore((s) => s.setNotesPanelOpen);
+  // Reactive id of the project the notes panel should show — recomputed (and
+  // re-rendered) as the user navigates between threads/drafts/projects.
+  const currentProjectId = useAppStore(() => getCurrentProjectId());
   const setBrowserPanelOpen = usePanelStore((s) => s.setBrowserPanelOpen);
   const setBrowserOverlayOpen = usePanelStore((s) => s.setBrowserOverlayOpen);
   const setBrowserOverlayMaximized = usePanelStore((s) => s.setBrowserOverlayMaximized);
@@ -102,7 +109,10 @@ export function ProjectAuxiliaryPanel(props: { includeTerminal: boolean }) {
 
   const activeTab: RightPanelTab = props.includeTerminal
     ? rightPanelTab
-    : rightPanelTab === "files" || rightPanelTab === "browser" || rightPanelTab === "usage"
+    : rightPanelTab === "files" ||
+        rightPanelTab === "browser" ||
+        rightPanelTab === "usage" ||
+        rightPanelTab === "notes"
       ? rightPanelTab
       : "git";
 
@@ -132,14 +142,23 @@ export function ProjectAuxiliaryPanel(props: { includeTerminal: boolean }) {
     return projects.find((p) => p.id === scope.projectId)?.name;
   }
 
-  const projectName =
-    activeTab === "browser"
-      ? "Browser"
-      : activeTab === "usage"
-        ? "Usage"
-        : activeTab === "files"
-          ? (resolvedFilesPanelContext?.rootLabel ?? projectNameForScope(activeProjectScope()))
-          : projectNameForScope(activeProjectScope());
+  const notesProjectId = currentProjectId ?? resolveNextProjectScope()?.projectId;
+
+  function resolveProjectName(): string | undefined {
+    switch (activeTab) {
+      case "browser":
+        return "Browser";
+      case "usage":
+        return "Usage";
+      case "notes":
+        return notesProjectId ? projectNameForScope({ projectId: notesProjectId }) : "Notes";
+      case "files":
+        return resolvedFilesPanelContext?.rootLabel ?? projectNameForScope(activeProjectScope());
+      default:
+        return projectNameForScope(activeProjectScope());
+    }
+  }
+  const projectName = resolveProjectName();
   const isHomeScope = isHomeProjectId(activeProjectScope()?.projectId);
 
   function resolveNextProjectScope(): PanelProjectScope | null {
@@ -176,6 +195,7 @@ export function ProjectAuxiliaryPanel(props: { includeTerminal: boolean }) {
   const renderFilesContent = filesPanelOpen;
   const renderBrowserContent = browserPanelOpen && !browserOverlayOpen;
   const renderUsageContent = usagePanelOpen;
+  const renderNotesContent = notesPanelOpen && notesProjectId !== undefined;
 
   return (
     <UnifiedRightPanel
@@ -198,12 +218,18 @@ export function ProjectAuxiliaryPanel(props: { includeTerminal: boolean }) {
       }
       browserContent={renderBrowserContent ? <BrowserPanel visible /> : undefined}
       usageContent={renderUsageContent ? <UsagePanel /> : undefined}
+      notesContent={
+        renderNotesContent && notesProjectId ? (
+          <NotesPanel key={notesProjectId} projectId={notesProjectId} />
+        ) : undefined
+      }
       usageHeaderActions={
         <UsagePanelHeaderActions dragControlClass="lightcode-overlay-header__controls" />
       }
       showTerminalTab={props.includeTerminal}
       showFilesTab={!isHomeScope}
       showGitTab={!isHomeScope}
+      showNotesTab={notesProjectId !== undefined}
       projectName={projectName}
       onExpandGitToOverlay={() => setGitOverlayOpen(true)}
       onExpandFilesToOverlay={() => setFileEditorOverlayMode("fullscreen")}
@@ -221,6 +247,10 @@ export function ProjectAuxiliaryPanel(props: { includeTerminal: boolean }) {
       onOpenUsage={() => {
         setUsagePanelOpen(true);
         setRightPanelTab("usage");
+      }}
+      onOpenNotes={() => {
+        setNotesPanelOpen(true);
+        setRightPanelTab("notes");
       }}
       onClose={handleClose}
     />

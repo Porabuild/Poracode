@@ -1,4 +1,5 @@
 import type { CSSProperties, ReactNode } from "react";
+import { baseAgentKind } from "@/shared/contracts";
 import type { StatusTone } from "./statusTone";
 import {
   getUtilityTaskCandidates,
@@ -74,6 +75,23 @@ function fallbackInitial(label: string | undefined): string {
   return (raw.match(/[A-Za-z0-9]/)?.[0] ?? "?").toUpperCase();
 }
 
+function claudeProfileBadgeLabel(kind: string, fallbackLabel: string | undefined): string {
+  const profileId = kind.slice("claude:".length);
+  const label = fallbackLabel?.trim();
+  if (!label) return profileId;
+  if (label === kind || label.toLowerCase().startsWith("claude:")) return profileId;
+  const profileLabel = label.replace(/^claude\s+/i, "").trim();
+  return profileLabel || profileId;
+}
+
+/** Registry lookup that falls back to the base kind for instance-scoped kinds. */
+function lookupByKind<T>(registry: Map<string, T>, kind: string): T | undefined {
+  const exact = registry.get(kind);
+  if (exact !== undefined) return exact;
+  const baseKind = baseAgentKind(kind);
+  return baseKind !== kind ? registry.get(baseKind) : undefined;
+}
+
 function GenericProviderIcon(props: { label?: string; tone: StatusTone; className?: string }) {
   return (
     <span
@@ -103,7 +121,7 @@ export function ProviderIcon(props: {
    */
   pending?: boolean | undefined;
 }) {
-  const Icon = ICON_REGISTRY.get(props.kind);
+  const Icon = lookupByKind(ICON_REGISTRY, props.kind);
   const tone = props.tone ?? "inactive";
   if (!Icon) {
     if (props.icon) {
@@ -126,7 +144,20 @@ export function ProviderIcon(props: {
       />
     );
   }
-  return <Icon tone={tone} {...(props.className ? { className: props.className } : {})} />;
+  const rendered = (
+    <Icon tone={tone} {...(props.className ? { className: props.className } : {})} />
+  );
+  if (props.kind.startsWith("claude:")) {
+    return (
+      <span className={`relative inline-flex ${props.className ?? ""}`}>
+        {rendered}
+        <span className="absolute -bottom-0.5 -right-0.5 flex size-2.5 items-center justify-center rounded-full border border-background bg-surface text-[6px] font-semibold leading-none text-foreground">
+          {fallbackInitial(claudeProfileBadgeLabel(props.kind, props.fallbackLabel))}
+        </span>
+      </span>
+    );
+  }
+  return rendered;
 }
 
 // --- Provider label registry ---
@@ -202,12 +233,7 @@ export function registerComposerControls(kind: string, registration: ComposerCon
 }
 
 export function getComposerControls(kind: string): ComposerControlsFactory | undefined {
-  const separatorIndex = kind.indexOf(":");
-  const registration =
-    COMPOSER_CONTROLS_REGISTRY.get(kind) ??
-    (separatorIndex > 0
-      ? COMPOSER_CONTROLS_REGISTRY.get(kind.slice(0, separatorIndex))
-      : undefined);
+  const registration = lookupByKind(COMPOSER_CONTROLS_REGISTRY, kind);
   if (!registration) return undefined;
   if (typeof registration === "function") return registration;
   return (input) => {
@@ -252,7 +278,7 @@ export function registerGuiSlashCommands(kind: string, registration: GuiSlashCom
 }
 
 export function getGuiSlashCommands(kind: string): GuiSlashCommandRegistration | undefined {
-  return GUI_SLASH_COMMAND_REGISTRY.get(kind);
+  return lookupByKind(GUI_SLASH_COMMAND_REGISTRY, kind);
 }
 
 // --- Config normalizer registry ---
@@ -276,7 +302,7 @@ export function registerConfigNormalizer(kind: string, normalizer: ConfigNormali
 }
 
 export function getConfigNormalizer(kind: string): ConfigNormalizer | undefined {
-  return CONFIG_NORMALIZER_REGISTRY.get(kind);
+  return lookupByKind(CONFIG_NORMALIZER_REGISTRY, kind);
 }
 
 // --- Trigger word registry ---
@@ -303,10 +329,7 @@ export function getTriggerWords(
   model: string | undefined,
 ): readonly TriggerWordDef[] {
   if (!kind) return [];
-  const separatorIndex = kind.indexOf(":");
-  const matcher =
-    TRIGGER_WORD_REGISTRY.get(kind) ??
-    (separatorIndex > 0 ? TRIGGER_WORD_REGISTRY.get(kind.slice(0, separatorIndex)) : undefined);
+  const matcher = lookupByKind(TRIGGER_WORD_REGISTRY, kind);
   return matcher ? matcher(model) : [];
 }
 
@@ -321,7 +344,7 @@ export function registerCommitGenDefaults(kind: string, defaults: CommitGenDefau
 }
 
 export function getCommitGenDefaults(kind: string): CommitGenDefaults | undefined {
-  return COMMIT_GEN_REGISTRY.get(kind);
+  return lookupByKind(COMMIT_GEN_REGISTRY, kind);
 }
 
 export function getCommitGenDefaultsHint(): string | undefined {
@@ -339,7 +362,7 @@ export function registerTitleGenDefaults(kind: string, defaults: TitleGenDefault
 }
 
 export function getTitleGenDefaults(kind: string): TitleGenDefaults | undefined {
-  return TITLE_GEN_REGISTRY.get(kind);
+  return lookupByKind(TITLE_GEN_REGISTRY, kind);
 }
 
 export function getTitleGenDefaultsHint(): string | undefined {
@@ -357,7 +380,7 @@ export function registerConflictResolverDefaults(kind: string, defaults: Conflic
 }
 
 export function getConflictResolverDefaults(kind: string): ConflictResolverDefaults | undefined {
-  return CONFLICT_RESOLVER_REGISTRY.get(kind);
+  return lookupByKind(CONFLICT_RESOLVER_REGISTRY, kind);
 }
 
 export function getConflictResolverDefaultsHint(): string | undefined {

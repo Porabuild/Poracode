@@ -11,6 +11,7 @@ import { usePanelStore } from "@/renderer/state/panelStore";
 import { useSidebarUiStore } from "@/renderer/state/sidebarUiStore";
 import {
   cleanupGitRefreshProjects,
+  getWatcherRefreshMode,
   refreshGitProject,
   stopPendingPrRefresh,
   syncPendingPrRefreshProjects,
@@ -69,7 +70,9 @@ export function useGitRefresh(storeHydrated: boolean) {
         setTimeout(() => {
           watcherDebounceTimers.delete(project.id);
           if (!isActive) return;
-          void refreshGitProject(project, "watcher", "status", { isActive: isActiveCheck });
+          void refreshGitProject(project, "watcher", getWatcherRefreshMode(project.id), {
+            isActive: isActiveCheck,
+          });
         }, WATCHER_DEBOUNCE_MS),
       );
     }

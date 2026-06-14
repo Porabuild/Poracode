@@ -1,10 +1,5 @@
-import { startTransition } from "react";
-import { FolderPlus, Globe, Monitor, Search } from "lucide-react";
+import { FolderPlus, Globe, Search } from "lucide-react";
 import { Button, Dropdown, Label, Tooltip } from "@heroui/react";
-import { TuxIcon } from "@/renderer/components/common";
-import { parseWslUncPath } from "@/shared/wsl";
-import { isWindows, readBridge } from "@/renderer/bridge";
-import { useAppStore } from "@/renderer/state/appStore";
 import { usePanelStore } from "@/renderer/state/panelStore";
 import {
   type ThreadSortMode,
@@ -12,12 +7,9 @@ import {
   sortModeIcon,
   sortModeLabel,
 } from "@/renderer/views/MainView/parts/Sidebar/parts/sortMode";
-import { autoDetectSetupScript } from "@/renderer/utils/gitHelpers";
+import { CreateProjectMenu } from "@/renderer/views/MainView/parts/CreateProject/CreateProjectMenu";
 
-export function SidebarHeaderControls(props: { wslAvailable: boolean }) {
-  const { wslAvailable } = props;
-  const addProject = useAppStore((state) => state.addProject);
-  const openDraft = useAppStore((state) => state.openDraft);
+export function SidebarHeaderControls() {
   const threadSortMode = usePanelStore((s) => s.threadSortMode);
   const browserPanelOpen = usePanelStore((s) => s.browserPanelOpen);
   const rightPanelTab = usePanelStore((s) => s.rightPanelTab);
@@ -40,93 +32,17 @@ export function SidebarHeaderControls(props: { wslAvailable: boolean }) {
         </Tooltip.Trigger>
         <Tooltip.Content placement="bottom">Search</Tooltip.Content>
       </Tooltip>
-      {isWindows() ? (
-        <Dropdown>
-          <Button
-            isIconOnly
-            aria-label="Add project"
-            size="sm"
-            variant="ghost"
-            className="size-6 min-w-0 text-muted hover:text-foreground"
-          >
-            <FolderPlus className="size-3.5" />
-          </Button>
-          <Dropdown.Popover>
-            <Dropdown.Menu
-              aria-label="Add project options"
-              onAction={(key) => {
-                if (key === "windows") {
-                  void readBridge()
-                    .pickFolder()
-                    .then((path) => {
-                      if (!path) return;
-                      startTransition(() => {
-                        const project = addProject({ kind: "windows", path });
-                        autoDetectSetupScript(project);
-                        openDraft(project.id);
-                      });
-                    });
-                }
-                if (key === "wsl") {
-                  void readBridge()
-                    .listWslDistros()
-                    .then((distros) => {
-                      const distro = distros[0];
-                      const defaultPath = distro ? `\\\\wsl.localhost\\${distro}\\home` : undefined;
-                      return readBridge().pickFolder(defaultPath);
-                    })
-                    .then((selectedPath) => {
-                      if (!selectedPath) return;
-                      const parsed = parseWslUncPath(selectedPath);
-                      if (!parsed) return;
-                      startTransition(() => {
-                        const project = addProject({
-                          kind: "wsl",
-                          distro: parsed.distro,
-                          linuxPath: parsed.linuxPath,
-                          uncPath: selectedPath,
-                        });
-                        autoDetectSetupScript(project);
-                        openDraft(project.id);
-                      });
-                    });
-                }
-              }}
-            >
-              <Dropdown.Item id="windows" textValue="Add Windows Project">
-                <Monitor className="size-4 shrink-0 text-muted" />
-                <Label>Add Windows Project</Label>
-              </Dropdown.Item>
-              <Dropdown.Item id="wsl" isDisabled={!wslAvailable} textValue="Add WSL Project">
-                <TuxIcon className="size-4 shrink-0 text-muted" />
-                <Label>Add WSL Project</Label>
-              </Dropdown.Item>
-            </Dropdown.Menu>
-          </Dropdown.Popover>
-        </Dropdown>
-      ) : (
+      <CreateProjectMenu>
         <Button
           isIconOnly
           aria-label="Add project"
           size="sm"
           variant="ghost"
           className="size-6 min-w-0 text-muted hover:text-foreground"
-          onPress={() => {
-            void readBridge()
-              .pickFolder()
-              .then((path) => {
-                if (!path) return;
-                startTransition(() => {
-                  const project = addProject({ kind: "posix", path });
-                  autoDetectSetupScript(project);
-                  openDraft(project.id);
-                });
-              });
-          }}
         >
           <FolderPlus className="size-3.5" />
         </Button>
-      )}
+      </CreateProjectMenu>
       <Dropdown>
         <Button
           isIconOnly

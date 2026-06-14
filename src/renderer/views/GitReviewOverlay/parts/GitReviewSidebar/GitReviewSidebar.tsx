@@ -3,13 +3,15 @@ import {
   ArrowLeft,
   ChevronDown,
   FileDiff,
+  GitBranchPlus,
   GitMerge,
   GitPullRequest,
+  Link2,
   PanelLeft,
   PanelLeftClose,
 } from "lucide-react";
-import { Button, ButtonGroup, Dropdown, Label } from "@heroui/react";
-import type { GitBranchInfo, GitStatusResult, Project } from "@/shared/contracts";
+import { Button, ButtonGroup, Dropdown, Label, Modal, Separator } from "@heroui/react";
+import type { GitBranchInfo, GitStatusResult, PrCreateMode, Project } from "@/shared/contracts";
 import { getProjectAgentStatuses } from "@/shared/agentStatus";
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
 import { useGitStore } from "@/renderer/state/gitStore";
@@ -23,7 +25,7 @@ import {
   useSourceBranch,
 } from "@/renderer/state/gitSelectors";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
-import { SidebarButton } from "@/renderer/components/common";
+import { PixelLoader, SidebarButton } from "@/renderer/components/common";
 import { useScrollFade } from "@/renderer/hooks/useScrollFade";
 import { useSidebar } from "@/renderer/views/MainView/parts/AppShell/AppShell";
 import { getCommitGenCandidates } from "@/renderer/components/providers";
@@ -61,6 +63,8 @@ export function GitReviewSidebar(props: {
   onSelectFile: (path: string | null, staged: boolean) => void;
   onClose: () => void;
   onRefresh: () => void;
+  onInitRepository?: (() => void | Promise<void>) | undefined;
+  onAddRemote?: ((remote: string, url: string) => boolean | Promise<boolean>) | undefined;
   /** Store key for optimistic updates — worktree statusKey or project.id */
   statusKey?: string | undefined;
   mode?: "overlay" | "panel";
@@ -78,6 +82,8 @@ export function GitReviewSidebar(props: {
     onSelectFile,
     onClose,
     onRefresh,
+    onInitRepository,
+    onAddRemote,
     statusKey,
     mode = "overlay",
     wrapLines = false,
@@ -95,6 +101,10 @@ export function GitReviewSidebar(props: {
   const commitGenProvider = useSharedSettings((s) =>
     isWsl ? s.wslCommitGenProvider : s.commitGenProvider,
   );
+  const prCreateMode = useSharedSettings((s) => s.prCreateMode);
+  const setPrCreateMode = useSharedSettings((s) => s.setPrCreateMode);
+  const commitDefaultAction = useSharedSettings((s) => s.commitDefaultAction);
+  const setCommitDefaultAction = useSharedSettings((s) => s.setCommitDefaultAction);
 
   // Treat "unknown" as "might be GitHub" — covers SSH host aliases where the
   // remote URL hostname doesn't contain "github" but resolves to github.com.
@@ -143,6 +153,7 @@ export function GitReviewSidebar(props: {
     prTargetBranch,
     setPrTargetBranch,
     prLoading,
+    prPendingAction,
     isGeneratingPr,
     handleCommit,
     handleGenerateMessage,
@@ -153,6 +164,7 @@ export function GitReviewSidebar(props: {
     handlePullFromSource,
     handleAbortMerge,
     handleCreatePr,
+    handleCommitAndCreatePr,
     handleMergePr,
     handleClosePr,
     handleMarkPrReady,
@@ -201,10 +213,77 @@ export function GitReviewSidebar(props: {
   );
   const showPullFromSource = Boolean(effectiveBranch && sourceBranch && sourceAhead > 0);
   const isPushed = hasTracking && ahead === 0;
-  const showCreatePrButton = Boolean(
-    showPrSection && ghAvailable && isPushed && sourceBranch && (!prState || prState === "closed"),
+  // Shared PR eligibility: a GitHub repo with a target branch and no open PR.
+  const prEligible = Boolean(
+    showPrSection && ghAvailable && sourceBranch && (!prState || prState === "closed"),
   );
+  const showCreatePrButton = prEligible && isPushed;
+  // Whether the one-click "Commit & Create PR" action is offered. Unlike
+  // showCreatePrButton this does NOT require an already-pushed branch (it only
+  // needs a remote) — the combined action pushes as part of its flow.
+  const canCreatePr = prEligible && hasRemote;
   const [createPrModalOpen, setCreatePrModalOpen] = useState(false);
+  // In "auto" mode the Create PR button skips the dialog: it auto-generates the
+  // title/body and creates the PR in one click (handleCreatePr handles the
+  // empty-title generation), showing a spinner meanwhile. Otherwise it opens
+  // the dialog as before. The button renders in two layout contexts below
+  // (merge-actions group vs standalone), so its label/pending/content are
+  // derived once here and shared.
+  const isAutoPrMode = prCreateMode === "auto";
+  const createPrPending = isAutoPrMode && prLoading;
+  const runPrMode = (prMode: PrCreateMode) => {
+    if (prMode === "auto") void handleCreatePr(false);
+    else setCreatePrModalOpen(true);
+  };
+  const onCreatePrPress = () => runPrMode(prCreateMode);
+  // Picking the other mode from the split-button menu both runs it and makes
+  // it the sticky default (the same field the Git settings select drives).
+  const selectPrMode = (prMode: PrCreateMode) => {
+    setPrCreateMode(prMode);
+    runPrMode(prMode);
+  };
+  const altPrMode: PrCreateMode = isAutoPrMode ? "dialog" : "auto";
+  const altPrModeLabel = isAutoPrMode ? "Create PR…" : "Create PR (Auto)";
+  const createPrButtonContent = (
+    <>
+      {createPrPending ? <PixelLoader size="xs" /> : <GitPullRequest className="size-3.5" />}
+      {isAutoPrMode ? "Create PR (Auto)" : "Create PR"}
+    </>
+  );
+  const [isInitializingRepo, setIsInitializingRepo] = useState(false);
+  const [addRemoteOpen, setAddRemoteOpen] = useState(false);
+  const [remoteName, setRemoteName] = useState("origin");
+  const [remoteUrl, setRemoteUrl] = useState("");
+  const [isAddingRemote, setIsAddingRemote] = useState(false);
+
+  async function handleInitRepository() {
+    if (!onInitRepository || isInitializingRepo) return;
+    setIsInitializingRepo(true);
+    try {
+      await onInitRepository();
+    } finally {
+      setIsInitializingRepo(false);
+    }
+  }
+
+  async function handleAddRemote() {
+    if (!onAddRemote || isAddingRemote) return;
+    const remote = remoteName.trim();
+    const url = remoteUrl.trim();
+    if (!remote || !url) return;
+
+    setIsAddingRemote(true);
+    try {
+      const ok = await onAddRemote(remote, url);
+      if (ok) {
+        setAddRemoteOpen(false);
+        setRemoteName("origin");
+        setRemoteUrl("");
+      }
+    } finally {
+      setIsAddingRemote(false);
+    }
+  }
 
   return (
     <GitReviewPadXProvider rowPadX="px-2" sectionPadX={mode === "panel" ? "px-2" : "px-0"}>
@@ -304,15 +383,60 @@ export function GitReviewSidebar(props: {
                 wrapLines={wrapLines}
               />
             )}
+            {gitStatus && !gitStatus.isRepo && (
+              <div
+                className={`flex min-h-full flex-col items-center justify-center gap-3 text-center text-xs text-muted/60 ${mode === "panel" ? "px-4" : "px-2"}`}
+              >
+                <span>Not a git repository</span>
+                {onInitRepository && (
+                  <Button
+                    size="sm"
+                    variant="tertiary"
+                    className="justify-center text-white [&_svg]:text-white"
+                    isDisabled={isInitializingRepo}
+                    isPending={isInitializingRepo}
+                    onPress={() => void handleInitRepository()}
+                  >
+                    {({ isPending }) =>
+                      isPending ? (
+                        <PixelLoader size="xs" />
+                      ) : (
+                        <>
+                          <GitBranchPlus className="size-3.5" />
+                          Initialize Repository
+                        </>
+                      )
+                    }
+                  </Button>
+                )}
+              </div>
+            )}
             {gitStatus &&
+              gitStatus.isRepo &&
               gitStatus.staged.length === 0 &&
               gitStatus.unstaged.length === 0 &&
               !mergeConflicting && (
-                <p
-                  className={`py-4 text-center text-xs text-muted/60 ${mode === "panel" ? "px-2" : "px-0"}`}
+                <div
+                  className={`flex min-h-full flex-col items-center justify-center gap-1 text-center text-xs text-muted/60 ${mode === "panel" ? "px-4" : "px-2"}`}
                 >
-                  No changes
-                </p>
+                  <span className="text-foreground/80">Working tree clean</span>
+                  <span>
+                    {hasRemote
+                      ? "File changes will appear here."
+                      : "No remote configured. Add a remote to enable push and pull."}
+                  </span>
+                  {!hasRemote && onAddRemote && (
+                    <Button
+                      size="sm"
+                      variant="tertiary"
+                      className="mt-2 justify-center text-white [&_svg]:text-white"
+                      onPress={() => setAddRemoteOpen(true)}
+                    >
+                      <Link2 className="size-3.5" />
+                      Add Remote
+                    </Button>
+                  )}
+                </div>
               )}
           </div>
 
@@ -337,14 +461,19 @@ export function GitReviewSidebar(props: {
               setCommitMessage={setCommitMessage}
               canCommitStaged={canCommitStaged}
               canGenerateMessage={canGenerateMessage}
+              canCreatePr={canCreatePr}
+              commitDefaultAction={commitDefaultAction}
+              setCommitDefaultAction={setCommitDefaultAction}
               isCommitting={isCommitting}
               isGenerating={isGenerating}
               isSyncing={isSyncing}
+              prLoading={prLoading}
               isPullingFromSource={isPullingFromSource}
               showPullFromSource={showPullFromSource}
               sourceBranch={sourceBranch}
               sourceAhead={sourceAhead}
               handleCommit={handleCommit}
+              handleCommitAndCreatePr={handleCommitAndCreatePr}
               handleGenerateMessage={handleGenerateMessage}
               handleSyncOrPush={handleSyncOrPush}
               handleSyncAction={handleSyncAction}
@@ -359,6 +488,7 @@ export function GitReviewSidebar(props: {
               projectId={project.id}
               worktreePath={worktreePath}
               prLoading={prLoading}
+              pendingAction={prPendingAction}
               handleMergePr={handleMergePr}
               handleClosePr={handleClosePr}
               handleMarkPrReady={handleMarkPrReady}
@@ -368,59 +498,60 @@ export function GitReviewSidebar(props: {
 
           {showCreatePrButton && (
             <GitReviewSection>
-              {showMergeActions ? (
-                <ButtonGroup className="w-full">
-                  <Button
-                    variant="tertiary"
-                    className="flex-1"
-                    onPress={() => setCreatePrModalOpen(true)}
-                  >
-                    <GitPullRequest className="size-3.5" />
-                    Create Pull Request
-                  </Button>
-                  <Dropdown>
-                    <Button
-                      isIconOnly
-                      variant="tertiary"
-                      aria-label="More pull request options"
-                      isDisabled={isMerging}
-                    >
-                      <ButtonGroup.Separator />
-                      <ChevronDown className="size-3.5" />
-                    </Button>
-                    <Dropdown.Popover placement="top end">
-                      <Dropdown.Menu
-                        aria-label="Pull request options"
-                        onAction={(key) => {
-                          if (key === "merge-only") void handleMergeOnly();
-                          if (key === "merge-and-remove") void handleMergeAndRemove();
-                        }}
-                      >
-                        <Dropdown.Item id="merge-only" textValue="Merge Worktree">
-                          <GitMerge className="size-3.5" />
-                          <Label>Merge Worktree</Label>
-                        </Dropdown.Item>
-                        <Dropdown.Item
-                          id="merge-and-remove"
-                          textValue="Merge Locally & Remove Worktree"
-                        >
-                          <GitMerge className="size-3.5" />
-                          <Label>Merge Locally & Remove Worktree</Label>
-                        </Dropdown.Item>
-                      </Dropdown.Menu>
-                    </Dropdown.Popover>
-                  </Dropdown>
-                </ButtonGroup>
-              ) : (
+              <ButtonGroup className="w-full">
                 <Button
                   variant="tertiary"
-                  className="w-full"
-                  onPress={() => setCreatePrModalOpen(true)}
+                  className="flex-1"
+                  isDisabled={createPrPending}
+                  isPending={createPrPending}
+                  onPress={onCreatePrPress}
                 >
-                  <GitPullRequest className="size-3.5" />
-                  Create Pull Request
+                  {createPrButtonContent}
                 </Button>
-              )}
+                <Dropdown>
+                  <Button
+                    isIconOnly
+                    variant="tertiary"
+                    aria-label="More pull request options"
+                    isDisabled={createPrPending || isMerging}
+                  >
+                    <ButtonGroup.Separator />
+                    <ChevronDown className="size-3.5" />
+                  </Button>
+                  <Dropdown.Popover placement="top end">
+                    <Dropdown.Menu
+                      aria-label="Pull request options"
+                      onAction={(key) => {
+                        if (key === "pr-auto") selectPrMode("auto");
+                        else if (key === "pr-dialog") selectPrMode("dialog");
+                        else if (key === "merge-only") void handleMergeOnly();
+                        else if (key === "merge-and-remove") void handleMergeAndRemove();
+                      }}
+                    >
+                      <Dropdown.Item id={`pr-${altPrMode}`} textValue={altPrModeLabel}>
+                        <GitPullRequest className="size-3.5" />
+                        <Label>{altPrModeLabel}</Label>
+                      </Dropdown.Item>
+                      {showMergeActions ? (
+                        <>
+                          <Separator />
+                          <Dropdown.Item id="merge-only" textValue="Merge Worktree">
+                            <GitMerge className="size-3.5" />
+                            <Label>Merge Worktree</Label>
+                          </Dropdown.Item>
+                          <Dropdown.Item
+                            id="merge-and-remove"
+                            textValue="Merge Locally & Remove Worktree"
+                          >
+                            <GitMerge className="size-3.5" />
+                            <Label>Merge Locally & Remove Worktree</Label>
+                          </Dropdown.Item>
+                        </>
+                      ) : null}
+                    </Dropdown.Menu>
+                  </Dropdown.Popover>
+                </Dropdown>
+              </ButtonGroup>
             </GitReviewSection>
           )}
 
@@ -442,6 +573,64 @@ export function GitReviewSidebar(props: {
             handleCreatePr={handleCreatePr}
             handleGeneratePrSummary={handleGeneratePrSummary}
           />
+
+          {addRemoteOpen && (
+            <Modal.Backdrop isOpen={addRemoteOpen} onOpenChange={setAddRemoteOpen}>
+              <Modal.Container>
+                <Modal.Dialog className="sm:max-w-[420px]">
+                  <Modal.CloseTrigger />
+                  <Modal.Header>
+                    <Modal.Heading>Add Remote</Modal.Heading>
+                  </Modal.Header>
+                  <Modal.Body className="p-4">
+                    <div className="flex flex-col gap-3">
+                      <label className="flex flex-col gap-1 text-xs text-muted">
+                        <span>Remote name</span>
+                        <input
+                          className="h-8 rounded-md border border-[color:var(--border)] bg-surface px-2 text-xs text-foreground outline-none transition-colors placeholder:text-muted/50 focus:border-foreground/40"
+                          value={remoteName}
+                          onChange={(event) => setRemoteName(event.target.value)}
+                        />
+                      </label>
+                      <label className="flex flex-col gap-1 text-xs text-muted">
+                        <span>Remote URL</span>
+                        <input
+                          className="h-8 rounded-md border border-[color:var(--border)] bg-surface px-2 text-xs text-foreground outline-none transition-colors placeholder:text-muted/50 focus:border-foreground/40"
+                          placeholder="git@github.com:owner/repo.git"
+                          value={remoteUrl}
+                          onChange={(event) => setRemoteUrl(event.target.value)}
+                          onKeyDown={(event) => {
+                            if (event.key === "Enter") {
+                              event.preventDefault();
+                              void handleAddRemote();
+                            }
+                          }}
+                        />
+                      </label>
+                    </div>
+                  </Modal.Body>
+                  <Modal.Footer>
+                    <Button slot="close" variant="ghost" className="text-muted">
+                      Cancel
+                    </Button>
+                    <Button
+                      variant="tertiary"
+                      isDisabled={isAddingRemote || !remoteName.trim() || !remoteUrl.trim()}
+                      isPending={isAddingRemote}
+                      onPress={() => void handleAddRemote()}
+                    >
+                      {({ isPending }) => (
+                        <>
+                          {isPending ? <PixelLoader size="xs" /> : <Link2 className="size-3.5" />}
+                          Add Remote
+                        </>
+                      )}
+                    </Button>
+                  </Modal.Footer>
+                </Modal.Dialog>
+              </Modal.Container>
+            </Modal.Backdrop>
+          )}
 
           {mode !== "panel" && (
             <div className={sidebarFooterNavClass}>

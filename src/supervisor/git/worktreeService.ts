@@ -11,14 +11,17 @@ import {
 } from "@/shared/contracts";
 import { msg } from "@/shared/messages";
 import { resolveLightcodePaths } from "@/shared/lightcodePaths";
+import { buildWorktreeLocation } from "@/shared/worktree";
 import {
   computeDefaultWorktreePath,
   ensureWorktreeParentExists,
   execGit,
+  GIT_HOOK_TIMEOUT,
   GIT_NETWORK_TIMEOUT,
   GIT_STATUS_TIMEOUT,
   normalizeWorktreePath,
 } from "./exec";
+import { copyIgnoredFilesIntoWorktree } from "./copyIgnoredFiles";
 import { parseStatusPorcelainV2 } from "./statusService";
 
 /** Argv for `git branch` to feed {@link parseBranchListOutput}. */
@@ -106,12 +109,22 @@ export class GitWorktreeService {
   }
 
   async fetch(location: ProjectLocation, remote: string, prune: boolean): Promise<void> {
-    const remotes = await execGit(location, ["remote"], { timeout: GIT_STATUS_TIMEOUT });
+    let remotes: string;
+    try {
+      remotes = await execGit(location, ["remote"], { timeout: GIT_STATUS_TIMEOUT });
+    } catch (error) {
+      if (error instanceof Error && error.message.includes("not a git repository")) return;
+      throw error;
+    }
     if (!remotes.split(/\r?\n/).includes(remote)) return;
 
     const args = ["fetch", remote];
     if (prune) args.push("--prune");
     await execGit(location, args, { timeout: GIT_NETWORK_TIMEOUT });
+  }
+
+  async addRemote(location: ProjectLocation, remote: string, url: string): Promise<void> {
+    await execGit(location, ["remote", "add", remote, url], { timeout: GIT_STATUS_TIMEOUT });
   }
 
   async pull(location: ProjectLocation, remote: string): Promise<void> {
@@ -149,6 +162,9 @@ export class GitWorktreeService {
     branch?: string,
     createBranch?: boolean,
     startPoint?: string,
+    copyIgnoredPatterns?: string[],
+    transferUncommitted?: boolean,
+    keepChangesInSource?: boolean,
   ): Promise<GitAddWorktreeResult> {
     const resolvedPath =
       path ?? (branch ? await computeDefaultWorktreePath(location, branch) : undefined);
@@ -156,13 +172,53 @@ export class GitWorktreeService {
       throw new Error(msg("git.worktree.noBranch"));
     }
     await ensureWorktreeParentExists(location, resolvedPath);
+
+    // Optionally bring the main checkout's uncommitted changes into the new
+    // worktree: stash (including untracked files), create the worktree, then
+    // apply the stash into it. With `keepChangesInSource` we also re-apply the
+    // stash in the source (a COPY); otherwise the source is left clean (a MOVE).
+    // The stash list is shared across a repository's worktrees, so we pin the
+    // exact stash commit by SHA rather than trusting `stash@{0}`.
+    const carryChanges =
+      transferUncommitted === true && (await this.hasUncommittedChanges(location));
+    const stashSha = carryChanges
+      ? await this.pushTransferStash(
+          location,
+          `Lightcode: ${keepChangesInSource ? "copy" : "move"} changes to ${branch ?? resolvedPath}`,
+        )
+      : undefined;
+
     const args = ["worktree", "add"];
     if (createBranch && branch) {
       args.push("-b", branch, resolvedPath, ...(startPoint ? [startPoint] : []));
     } else {
       args.push(resolvedPath, ...(branch ? [branch] : []));
     }
-    await execGit(location, args);
+    try {
+      await execGit(location, args);
+    } catch (error) {
+      // Creation failed — put the changes back on the source before bailing out.
+      if (stashSha) await this.restoreSourceStash(location, stashSha);
+      throw error;
+    }
+
+    let changesTransferred: boolean | undefined;
+    if (stashSha) {
+      changesTransferred = await this.applyStashInto(
+        buildWorktreeLocation(location, resolvedPath),
+        stashSha,
+      );
+      if (keepChangesInSource) {
+        // Copy: restore the source working tree (then drop the stash). This is
+        // independent of the worktree apply, so the source keeps its changes
+        // even if the worktree apply conflicted.
+        await this.restoreSourceStash(location, stashSha);
+      } else if (changesTransferred) {
+        // Move: drop the stash on success; a conflicting apply keeps it so the
+        // work stays recoverable (reported via `changesTransferred: false`).
+        await this.dropStashBySha(location, stashSha);
+      }
+    }
 
     if (branch && createBranch) {
       const sourceBranch = startPoint ?? (await this.getCurrentBranch(location));
@@ -171,7 +227,19 @@ export class GitWorktreeService {
       }
     }
 
-    return { path: resolvedPath };
+    if (copyIgnoredPatterns?.length) {
+      try {
+        await copyIgnoredFilesIntoWorktree(location, resolvedPath, copyIgnoredPatterns);
+      } catch (err) {
+        // Non-fatal: the worktree itself was created successfully.
+        console.warn("[supervisor] failed to copy ignored files into worktree:", err);
+      }
+    }
+
+    return {
+      path: resolvedPath,
+      ...(changesTransferred !== undefined ? { changesTransferred } : {}),
+    };
   }
 
   async removeWorktree(
@@ -444,6 +512,85 @@ export class GitWorktreeService {
       return result.trim() || null;
     } catch {
       return null;
+    }
+  }
+
+  private async hasUncommittedChanges(location: ProjectLocation): Promise<boolean> {
+    const status = await execGit(location, ["status", "--porcelain"], {
+      timeout: GIT_STATUS_TIMEOUT,
+    });
+    return status.trim().length > 0;
+  }
+
+  /** Resolve the SHA of the topmost stash entry, or null when the list is empty. */
+  private async topStashSha(location: ProjectLocation): Promise<string | null> {
+    try {
+      const out = await execGit(location, ["rev-parse", "--verify", "--quiet", "stash@{0}"]);
+      return out.trim() || null;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Stash the working tree (including untracked files) and return the concrete
+   * stash commit SHA so callers can pin operations to it instead of `stash@{0}`
+   * (which a concurrent stash in another worktree could shadow).
+   *
+   * Returns undefined when the push saved nothing — `git status` can report a
+   * dirty tree that `git stash push` ignores (e.g. a dirty submodule). We detect
+   * that by comparing the top-of-stack SHA before and after the push; without
+   * this guard, pinning `stash@{0}` would latch onto an unrelated pre-existing
+   * user stash and later drop it, destroying work the operation never touched.
+   */
+  private async pushTransferStash(
+    location: ProjectLocation,
+    message: string,
+  ): Promise<string | undefined> {
+    const before = await this.topStashSha(location);
+    await execGit(location, ["stash", "push", "-u", "-m", message]);
+    const after = await this.topStashSha(location);
+    if (!after || after === before) return undefined;
+    return after;
+  }
+
+  /** Apply a specific stash commit into a checkout. Returns whether it applied cleanly. */
+  private async applyStashInto(location: ProjectLocation, stashSha: string): Promise<boolean> {
+    try {
+      await execGit(location, ["stash", "apply", "--index", stashSha], {
+        timeout: GIT_HOOK_TIMEOUT,
+      });
+      return true;
+    } catch (err) {
+      console.warn("[supervisor] failed to apply transferred changes:", err);
+      return false;
+    }
+  }
+
+  /**
+   * Re-apply the transfer stash into the source checkout and drop it. The drop
+   * only runs if the apply succeeded, so a failed restore never discards the
+   * user's only copy of the changes.
+   */
+  private async restoreSourceStash(location: ProjectLocation, stashSha: string): Promise<void> {
+    const restored = await this.applyStashInto(location, stashSha);
+    if (restored) await this.dropStashBySha(location, stashSha);
+  }
+
+  /** Drop the stash entry whose commit matches {@link stashSha}, resolved by SHA. */
+  private async dropStashBySha(location: ProjectLocation, stashSha: string): Promise<void> {
+    try {
+      const list = await execGit(location, ["stash", "list", "--format=%H %gd"]);
+      // Each line is "<full-sha> stash@{N}"; both fields are space-free.
+      for (const line of list.split("\n")) {
+        const [hash, ref] = line.trim().split(" ");
+        if (hash === stashSha && ref) {
+          await execGit(location, ["stash", "drop", ref]);
+          return;
+        }
+      }
+    } catch (err) {
+      console.warn("[supervisor] failed to drop transfer stash:", err);
     }
   }
 }

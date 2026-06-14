@@ -8,15 +8,17 @@ import {
   parseClaudeUsage,
 } from "./claude";
 
+// The Claude /api/oauth/usage endpoint reports `utilization` in percent (0-100)
+// for every window, not as a 0-1 fraction. These values mirror a real response.
 const FIXTURE = {
-  five_hour: { utilization: 1, resets_at: "2026-05-29T12:00:00Z" },
-  seven_day: { utilization: 0.22, resets_at: "2026-06-01T00:00:00Z" },
-  seven_day_opus: { utilization: 0.1, resets_at: "2026-06-01T00:00:00Z" },
+  five_hour: { utilization: 21, resets_at: "2026-05-29T12:00:00Z" },
+  seven_day: { utilization: 1, resets_at: "2026-06-01T00:00:00Z" },
+  seven_day_opus: { utilization: 10, resets_at: "2026-06-01T00:00:00Z" },
   extra_usage: {
     is_enabled: true,
     monthly_limit: 25000,
     used_credits: 7836,
-    utilization: 0.31,
+    utilization: 31,
     currency: "USD",
   },
 };
@@ -30,13 +32,13 @@ describe("formatClaudePlan", () => {
 });
 
 describe("parseClaudeUsage", () => {
-  it("maps windows and normalizes mixed Claude utilization units", () => {
+  it("maps every Claude window as a direct percentage", () => {
     const snap = parseClaudeUsage(FIXTURE, FAKE_NOW_MS, { plan: "Claude Pro Subscription" });
     expect(snap.status).toBe("ok");
     const session = snap.windows.find((w) => w.id === "session-5h");
-    expect(session?.usedPercent).toBe(1);
+    expect(session?.usedPercent).toBe(21);
     expect(session?.resetsAt).toBe(Date.parse("2026-05-29T12:00:00Z"));
-    expect(snap.windows.find((w) => w.id === "weekly")?.usedPercent).toBe(22);
+    expect(snap.windows.find((w) => w.id === "weekly")?.usedPercent).toBe(1);
     expect(snap.windows.find((w) => w.id === "weekly-opus")?.usedPercent).toBe(10);
     // extra_usage is pay-as-you-go overage, surfaced as a dollar "extra-usage"
     // line — never as a "monthly" rate window.
@@ -59,6 +61,18 @@ describe("parseClaudeUsage", () => {
   it("treats session utilization as a direct percentage", () => {
     const snap = parseClaudeUsage({ five_hour: { utilization: 1 } }, FAKE_NOW_MS);
     expect(snap.windows.find((w) => w.id === "session-5h")?.usedPercent).toBe(1);
+  });
+
+  it("treats weekly utilization as a direct percentage, not a 0-1 fraction", () => {
+    // Regression: the API reports weekly utilization in percent like every other
+    // window. A value of 1 means 1% and must not be read as the fraction 1.0 →
+    // 100% (which rendered a freshly-reset weekly window as a full red bar).
+    const snap = parseClaudeUsage(
+      { seven_day: { utilization: 1 }, seven_day_sonnet: { utilization: 0.5 } },
+      FAKE_NOW_MS,
+    );
+    expect(snap.windows.find((w) => w.id === "weekly")?.usedPercent).toBe(1);
+    expect(snap.windows.find((w) => w.id === "weekly-sonnet")?.usedPercent).toBe(0.5);
   });
 });
 

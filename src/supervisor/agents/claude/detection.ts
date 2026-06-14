@@ -20,19 +20,32 @@ const CLAUDE_BUILT_IN_SLASH_COMMANDS: AgentCapability["slashCommands"] = [
   },
 ];
 
+/** Effort tiers shared by the frontier models (Opus 4.7/4.8 and Fable 5). */
+const PREMIUM_EFFORT_TIERS = ["low", "medium", "high", "xHigh", "max", "ultracode"];
+
+/**
+ * Master switch for the Fable 5 model. Flip to `true` to surface it again in the
+ * model pickers — its effort/context/auto metadata is retained below so
+ * re-enabling is a one-line change. While `false`, Fable 5 is hidden everywhere
+ * (the leftover keyed entries are inert without a matching `models` row).
+ */
+const FABLE_5_ENABLED = false;
+
 export const claudeCapabilities: AgentCapability = {
   models: [
+    ...(FABLE_5_ENABLED ? [{ id: "claude-fable-5", label: "Fable 5" }] : []),
     { id: "claude-opus-4-8", label: "Opus 4.8" },
     { id: "claude-opus-4-7", label: "Opus 4.7" },
     { id: "claude-opus-4-6", label: "Opus 4.6" },
     { id: "sonnet", label: "Sonnet" },
     { id: "haiku", label: "Haiku" },
   ],
-  efforts: ["low", "medium", "high", "xHigh", "max", "ultracode"],
+  efforts: PREMIUM_EFFORT_TIERS,
   defaultEffort: "high",
   modelEfforts: {
-    "claude-opus-4-8": ["low", "medium", "high", "xHigh", "max", "ultracode"],
-    "claude-opus-4-7": ["low", "medium", "high", "xHigh", "max", "ultracode"],
+    "claude-fable-5": PREMIUM_EFFORT_TIERS,
+    "claude-opus-4-8": PREMIUM_EFFORT_TIERS,
+    "claude-opus-4-7": PREMIUM_EFFORT_TIERS,
     "claude-opus-4-6": ["low", "medium", "high", "max"],
     haiku: [],
     sonnet: ["low", "medium", "high", "max"],
@@ -45,6 +58,7 @@ export const claudeCapabilities: AgentCapability = {
   // to 1M (the long-context build users select these for); Sonnet defaults to
   // 200k because the 1M tier is billed per-token at premium rates.
   modelContextSizes: {
+    "claude-fable-5": ["1m"],
     "claude-opus-4-8": ["1m", "200k"],
     "claude-opus-4-7": ["1m", "200k"],
     "claude-opus-4-6": ["1m", "200k"],
@@ -155,7 +169,10 @@ export function parseClaudeAuthStatusJson(output: string): StatusProbeResult | u
   };
 }
 
-async function probeClaudeStatus(ctx: Parameters<NonNullable<DetectionSpec["statusProbe"]>>[0]) {
+export async function probeClaudeStatus(
+  ctx: Parameters<NonNullable<DetectionSpec["statusProbe"]>>[0],
+  options?: { env?: Record<string, string> },
+) {
   if (!ctx.executablePath) return undefined;
   const result = await readAgentCommandOutput(
     ctx.location,
@@ -163,6 +180,7 @@ async function probeClaudeStatus(ctx: Parameters<NonNullable<DetectionSpec["stat
     ["auth", "status"],
     {
       posixCwd: getAgentProbeCwd(ctx.location),
+      ...(options?.env ? { env: options.env } : {}),
     },
   );
   const parsed = parseClaudeAuthStatusJson(result.stdout || result.stderr);

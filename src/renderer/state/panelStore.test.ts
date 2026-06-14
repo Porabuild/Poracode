@@ -85,6 +85,27 @@ describe("selectAnyObstructingOverlayOpen", () => {
   });
 });
 
+describe("create project modal", () => {
+  beforeEach(() => {
+    resetPanelStore();
+  });
+  afterEach(() => {
+    resetPanelStore();
+  });
+
+  it("is closed by default", () => {
+    expect(usePanelStore.getState().createProjectModalOpen).toBe(false);
+  });
+
+  it("opens and closes the scratch modal", () => {
+    usePanelStore.getState().openCreateProjectModal();
+    expect(usePanelStore.getState().createProjectModalOpen).toBe(true);
+
+    usePanelStore.getState().closeCreateProjectModal();
+    expect(usePanelStore.getState().createProjectModalOpen).toBe(false);
+  });
+});
+
 describe("browserOverlayMaximized lifecycle", () => {
   beforeEach(() => {
     resetPanelStore();

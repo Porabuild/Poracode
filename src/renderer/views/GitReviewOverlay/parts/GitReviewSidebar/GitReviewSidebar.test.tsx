@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { GitStatusResult, Project } from "@/shared/contracts";
@@ -22,12 +22,22 @@ const bridgeMock = vi.hoisted(() => ({
 vi.mock("@heroui/react", () => {
   function Button(props: {
     children?: ReactNode | ((state: { isPending: boolean }) => ReactNode);
+    className?: string;
     isDisabled?: boolean;
+    isPending?: boolean;
+    onPress?: () => void;
+    variant?: string;
   }) {
     return (
-      <button disabled={props.isDisabled} type="button">
+      <button
+        className={props.className}
+        data-variant={props.variant}
+        disabled={props.isDisabled}
+        type="button"
+        onClick={props.onPress}
+      >
         {typeof props.children === "function"
-          ? props.children({ isPending: false })
+          ? props.children({ isPending: props.isPending ?? false })
           : props.children}
       </button>
     );
@@ -92,6 +102,7 @@ vi.mock("@heroui/react", () => {
     Label: (props: { children: ReactNode }) => <span>{props.children}</span>,
     ListBox,
     Select,
+    Separator: () => <span />,
 
     Surface: Wrapper,
     Tooltip,
@@ -274,6 +285,189 @@ describe("GitReviewSidebar", () => {
     expect(screen.getByText("worktree-only.ts")).toBeInTheDocument();
     expect(screen.getByPlaceholderText("Commit message (Ctrl+Enter)")).toBeInTheDocument();
     expect(screen.queryByText("main-only.ts")).not.toBeInTheDocument();
+  });
+
+  it("shows an init action when the location is not a git repository", () => {
+    const project: Project = {
+      id: "project-1",
+      name: "Lightcode",
+      createdAt: new Date().toISOString(),
+      location: { kind: "windows", path: "C:\\repo" },
+    };
+    const gitStatus: GitStatusResult = {
+      isRepo: false,
+      branch: "",
+      tracking: "",
+      hasRemote: false,
+      remoteInfo: null,
+      ahead: 0,
+      behind: 0,
+      staged: [],
+      unstaged: [],
+      totalInsertions: 0,
+      totalDeletions: 0,
+    };
+    const onInitRepository = vi.fn<() => void>();
+
+    render(
+      <GitReviewSidebar
+        project={project}
+        gitStatus={gitStatus}
+        selectedFile={null}
+        selectedStaged={false}
+        refreshKey={0}
+        onSelectFile={() => undefined}
+        onClose={() => undefined}
+        onRefresh={() => undefined}
+        onInitRepository={onInitRepository}
+      />,
+    );
+
+    expect(screen.getByText("Not a git repository")).toBeInTheDocument();
+    expect(screen.queryByText("No changes")).not.toBeInTheDocument();
+
+    const initButton = screen.getByRole("button", { name: "Initialize Repository" });
+
+    expect(initButton).toHaveAttribute("data-variant", "tertiary");
+    expect(initButton).toHaveClass("text-white");
+
+    fireEvent.click(initButton);
+
+    expect(onInitRepository).toHaveBeenCalledOnce();
+  });
+
+  it("shows the pixel loader while init is pending", async () => {
+    const project: Project = {
+      id: "project-1",
+      name: "Lightcode",
+      createdAt: new Date().toISOString(),
+      location: { kind: "windows", path: "C:\\repo" },
+    };
+    const gitStatus: GitStatusResult = {
+      isRepo: false,
+      branch: "",
+      tracking: "",
+      hasRemote: false,
+      remoteInfo: null,
+      ahead: 0,
+      behind: 0,
+      staged: [],
+      unstaged: [],
+      totalInsertions: 0,
+      totalDeletions: 0,
+    };
+    const onInitRepository = vi.fn<() => Promise<void>>(() => new Promise(() => {}));
+
+    render(
+      <GitReviewSidebar
+        project={project}
+        gitStatus={gitStatus}
+        selectedFile={null}
+        selectedStaged={false}
+        refreshKey={0}
+        onSelectFile={() => undefined}
+        onClose={() => undefined}
+        onRefresh={() => undefined}
+        onInitRepository={onInitRepository}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Initialize Repository" }));
+
+    await waitFor(() => expect(screen.getByText("spinner")).toBeInTheDocument());
+  });
+
+  it("shows a clean working tree state after the repo has no changes", () => {
+    const project: Project = {
+      id: "project-1",
+      name: "Lightcode",
+      createdAt: new Date().toISOString(),
+      location: { kind: "windows", path: "C:\\repo" },
+    };
+    const gitStatus: GitStatusResult = {
+      isRepo: true,
+      branch: "master",
+      tracking: "",
+      hasRemote: false,
+      remoteInfo: null,
+      ahead: 0,
+      behind: 0,
+      staged: [],
+      unstaged: [],
+      totalInsertions: 0,
+      totalDeletions: 0,
+    };
+
+    render(
+      <GitReviewSidebar
+        project={project}
+        gitStatus={gitStatus}
+        selectedFile={null}
+        selectedStaged={false}
+        refreshKey={0}
+        onSelectFile={() => undefined}
+        onClose={() => undefined}
+        onRefresh={() => undefined}
+      />,
+    );
+
+    expect(screen.getByText("Working tree clean")).toBeInTheDocument();
+    expect(
+      screen.getByText("No remote configured. Add a remote to enable push and pull."),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("No changes")).not.toBeInTheDocument();
+  });
+
+  it("adds a remote from the clean working tree state", async () => {
+    const project: Project = {
+      id: "project-1",
+      name: "Lightcode",
+      createdAt: new Date().toISOString(),
+      location: { kind: "windows", path: "C:\\repo" },
+    };
+    const gitStatus: GitStatusResult = {
+      isRepo: true,
+      branch: "master",
+      tracking: "",
+      hasRemote: false,
+      remoteInfo: null,
+      ahead: 0,
+      behind: 0,
+      staged: [],
+      unstaged: [],
+      totalInsertions: 0,
+      totalDeletions: 0,
+    };
+    const onAddRemote = vi
+      .fn<(remote: string, url: string) => Promise<boolean>>()
+      .mockResolvedValue(true);
+
+    render(
+      <GitReviewSidebar
+        project={project}
+        gitStatus={gitStatus}
+        selectedFile={null}
+        selectedStaged={false}
+        refreshKey={0}
+        onSelectFile={() => undefined}
+        onClose={() => undefined}
+        onRefresh={() => undefined}
+        onAddRemote={onAddRemote}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Add Remote" }));
+    fireEvent.change(screen.getByLabelText("Remote name"), { target: { value: " upstream " } });
+    fireEvent.change(screen.getByLabelText("Remote URL"), {
+      target: { value: " git@github.com:example/lightcode.git " },
+    });
+    const addButtons = screen.getAllByRole("button", { name: "Add Remote" });
+    fireEvent.click(addButtons[addButtons.length - 1]!);
+
+    await waitFor(() =>
+      expect(onAddRemote).toHaveBeenCalledWith("upstream", "git@github.com:example/lightcode.git"),
+    );
+    await waitFor(() => expect(screen.queryByLabelText("Remote URL")).not.toBeInTheDocument());
   });
 
   it("moves worktree merge actions into the create PR dropdown", async () => {

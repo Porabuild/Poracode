@@ -37,6 +37,8 @@ import type { UsageLoginConfirmationAction } from "@/shared/contracts";
 import { WelcomeOverlay } from "@/renderer/views/WelcomeOverlay";
 import { BrowserOverlay } from "@/renderer/views/MainView/parts/BrowserOverlay";
 import { LoginTerminalOverlay } from "@/renderer/views/LoginTerminalOverlay/LoginTerminalOverlay";
+import { CreateProjectModal } from "@/renderer/views/MainView/parts/CreateProject/CreateProjectModal";
+import { CloneProjectModal } from "@/renderer/views/MainView/parts/CreateProject/CloneProjectModal";
 
 export function AppOverlays() {
   const projects = useAppStore((s) => s.projects);
@@ -149,7 +151,10 @@ export function AppOverlays() {
             <PrReviewOverlay
               project={prReviewProject}
               prNumber={prReviewContext.prNumber}
-              prKey={resolvePrKey(prReviewContext.projectId, prReviewContext.worktreePath)}
+              prKey={
+                prReviewContext.prKey ??
+                resolvePrKey(prReviewContext.projectId, prReviewContext.worktreePath)
+              }
               {...(prReviewContext.worktreePath
                 ? {
                     locationOverride: buildWorktreeLocation(
@@ -177,6 +182,8 @@ export function AppOverlays() {
       <BrowserOverlay open={browserOverlayOpen} />
       <UsageLoginConfirmationDialog />
       <LoginTerminalOverlay />
+      <CreateProjectModal />
+      <CloneProjectModal />
     </>
   );
 }

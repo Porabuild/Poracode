@@ -35,8 +35,6 @@ export interface ThemeSpec {
   sidebar?: string;
   /** Optional explicit content-area background. Defaults to `bg`. */
   content?: string;
-  /** Optional explicit agent-terminal background. Defaults to `bg`. */
-  terminal?: string;
 }
 
 /**
@@ -86,7 +84,6 @@ export const MANAGED_THEME_VARS = [
   "--separator",
   "--sidebar-background",
   "--content-background",
-  "--terminal-surface",
   "--composer-surface",
 ] as const;
 
@@ -101,7 +98,6 @@ export function buildVariant(spec: ThemeSpec, mode: "light" | "dark"): ThemeVari
   const { bg, surface, fg, accent, accentFg, border } = spec;
   const sidebar = spec.sidebar ?? surface;
   const content = spec.content ?? bg;
-  const terminal = spec.terminal ?? bg;
 
   // Derive readable secondary text from fg→bg with a contrast floor. Placeholder
   // sits a step dimmer than muted; the scrollbar is a translucent muted.
@@ -146,7 +142,6 @@ export function buildVariant(spec: ThemeSpec, mode: "light" | "dark"): ThemeVari
     "--separator": fade(border, 75),
     "--sidebar-background": sidebar,
     "--content-background": content,
-    "--terminal-surface": terminal,
     "--composer-surface": mix(surface, 90, fg),
   };
 }

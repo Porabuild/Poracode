@@ -5,13 +5,27 @@ import type { GitBranchInfo } from "@/shared/contracts";
 import { friendlyError } from "@/shared/messages";
 import { readBridge } from "@/renderer/bridge";
 import { useGitStore } from "@/renderer/state/gitStore";
+import { prefetchBranchPrData, refreshGitProject } from "@/renderer/state/gitRefresh";
+import { buildBranchNamePrKey } from "@/renderer/state/gitSelectors";
+import { usePanelStore } from "@/renderer/state/panelStore";
+import { openNewThreadInWorktree } from "@/renderer/actions/threadActions";
+import { deleteWorktreeGroup } from "@/renderer/actions/worktreeActions";
 import { Button } from "../Button";
+import { ConfirmDialog } from "../ConfirmDialog";
 import { useBranchList } from "./parts/useBranchList";
-import { BranchListBox } from "./parts/BranchListBox";
+import { BranchListBox, type OpenPrReviewArgs } from "./parts/BranchListBox";
 import { BranchFooterActions } from "./parts/BranchFooterActions";
+import { generateWorktreeBranch } from "./parts/generateWorktreeBranch";
 import type { BranchSelection } from "./parts/types";
 
 export type { BranchSelection };
+
+interface PendingDelete {
+  branch: GitBranchInfo;
+  worktreePath?: string;
+  threadIds: string[];
+  threadCount: number;
+}
 
 export interface BranchSelectorProps {
   projectId: string;
@@ -26,9 +40,17 @@ export interface BranchSelectorProps {
   isDisabled?: boolean;
   trigger?: ReactNode;
   hideWorktreeToggle?: boolean;
+  /** Show the "Move changes to a new worktree" action in the popover footer. */
+  showMoveBranchAction?: boolean;
+  /** Project copy patterns to preserve when moving the current branch. */
+  moveBranchCopyIgnoredPatterns?: string[];
   popoverPlacement?: "top" | "bottom";
   forceHideLabel?: boolean;
   iconOnly?: boolean;
+  /** Hide the leading branch/fork glyph on the trigger (e.g. when a sibling control already shows it). */
+  hideTriggerIcon?: boolean;
+  /** Render a shorter trigger for secondary control rows. */
+  compact?: boolean;
   className?: string;
 }
 
@@ -46,16 +68,23 @@ export function BranchSelector(props: BranchSelectorProps) {
     isDisabled,
     trigger,
     hideWorktreeToggle,
+    showMoveBranchAction = false,
+    moveBranchCopyIgnoredPatterns,
     popoverPlacement = "top",
     forceHideLabel = false,
     iconOnly = false,
+    hideTriggerIcon = false,
+    compact = false,
   } = props;
+  const triggerIconSize = compact ? "size-3" : "size-3.5";
 
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [isCreating, setIsCreating] = useState(false);
   const [newBranchName, setNewBranchName] = useState("");
   const [deletingBranch, setDeletingBranch] = useState<string | null>(null);
+  const [isMovingBranch, setIsMovingBranch] = useState(false);
+  const [pendingDelete, setPendingDelete] = useState<PendingDelete | null>(null);
   const searchRef = useRef<HTMLInputElement>(null);
   const createRef = useRef<HTMLInputElement>(null);
 
@@ -63,9 +92,9 @@ export function BranchSelector(props: BranchSelectorProps) {
     items,
     hasLocal,
     hasRemote,
-    activeWorktreeBranches,
     worktreeBranches,
     branchWorktreePath,
+    threadsByBranch,
     projectLocation,
   } = useBranchList({ projectId, search });
 
@@ -75,6 +104,11 @@ export function BranchSelector(props: BranchSelectorProps) {
       setIsCreating(false);
       setNewBranchName("");
       setTimeout(() => searchRef.current?.focus(), 50);
+      // Refresh PR status for all branches in the background; cached icons show
+      // immediately (prefetch self-throttles + dedupes).
+      if (projectLocation) {
+        void prefetchBranchPrData({ id: projectId, location: projectLocation });
+      }
     }
   }, [isOpen]); // eslint-disable-line react-hooks/exhaustive-deps -- only on open/close
 
@@ -125,21 +159,43 @@ export function BranchSelector(props: BranchSelectorProps) {
     setNewBranchName("");
   }
 
-  async function handleDeleteBranch(branch: GitBranchInfo) {
-    if (!projectLocation) return;
+  function handleRequestDelete(branch: GitBranchInfo) {
+    const worktreePath = branch.isRemote ? undefined : branchWorktreePath.get(branch.name);
+    const threads = threadsByBranch.get(branch.name) ?? [];
+    setIsOpen(false);
+    setPendingDelete({
+      branch,
+      ...(worktreePath ? { worktreePath } : {}),
+      threadIds: threads.map((t) => t.id),
+      threadCount: threads.length,
+    });
+  }
+
+  function handleOpenPrReview(args: OpenPrReviewArgs) {
+    setIsOpen(false);
+    usePanelStore.getState().setPrReviewContext({
+      projectId,
+      prNumber: args.prNumber,
+      ...(args.worktreePath
+        ? { worktreePath: args.worktreePath }
+        : { prKey: buildBranchNamePrKey(projectId, args.branch) }),
+    });
+  }
+
+  async function confirmDelete() {
+    const target = pendingDelete;
+    setPendingDelete(null);
+    if (!target || !projectLocation) return;
+    const { branch, worktreePath, threadIds } = target;
+    // Worktree branches reuse the sidebar's removal path (closes linked threads,
+    // runs the cleanup script, removes the worktree, then deletes the branch).
+    if (worktreePath) {
+      deleteWorktreeGroup(projectId, worktreePath, threadIds);
+      return;
+    }
+    // Plain local or remote branch with no worktree — delete the ref directly.
     setDeletingBranch(branch.name);
     try {
-      if (!branch.isRemote) {
-        const wtPath = branchWorktreePath.get(branch.name);
-        if (wtPath) {
-          await readBridge().gitRemoveWorktree({
-            projectLocation,
-            path: wtPath,
-            force: true,
-            deleteBranch: false,
-          });
-        }
-      }
       await readBridge().gitDeleteBranch({
         projectLocation,
         branch: branch.name,
@@ -164,6 +220,46 @@ export function BranchSelector(props: BranchSelectorProps) {
     }
   }
 
+  async function handleMoveBranchToWorktree() {
+    if (!projectLocation || isMovingBranch) return;
+    setIsMovingBranch(true);
+    setIsOpen(false);
+    try {
+      const newBranch = generateWorktreeBranch();
+      const result = await readBridge().gitAddWorktree({
+        projectLocation,
+        branch: newBranch,
+        createBranch: true,
+        startPoint: currentBranch,
+        transferUncommitted: true,
+        // This action MOVES the changes — leave the current branch clean.
+        keepChangesInSource: false,
+        ...(moveBranchCopyIgnoredPatterns?.length
+          ? { copyIgnoredPatterns: moveBranchCopyIgnoredPatterns }
+          : {}),
+      });
+      await refreshGitProject({ id: projectId, location: projectLocation }, "manual", "full");
+      openNewThreadInWorktree({
+        projectId,
+        worktreePath: result.path,
+        worktreeBranch: newBranch,
+      });
+      if (result.changesTransferred === false) {
+        toast.danger(
+          `Created a worktree on "${newBranch}", but the changes conflicted and remain in a git stash — resolve them in the worktree.`,
+        );
+      } else {
+        toast.success(
+          `Moved your changes into a new worktree on "${newBranch}". "${currentBranch}" is now clean.`,
+        );
+      }
+    } catch (error) {
+      toast.danger(friendlyError(error));
+    } finally {
+      setIsMovingBranch(false);
+    }
+  }
+
   return (
     <div className={`flex items-center gap-1 ${props.className ?? ""}`}>
       {worktreeMode && <span className="shrink-0 text-xs text-muted">from</span>}
@@ -176,13 +272,17 @@ export function BranchSelector(props: BranchSelectorProps) {
                 isDisabled={isDisabled ?? false}
                 size="sm"
                 variant="ghost"
-                className="lightcode-composer-menu min-w-0 max-w-48 px-2.5"
+                className={`lightcode-composer-menu min-w-0 max-w-48 ${
+                  compact ? "lightcode-composer-menu--compact px-2" : "px-2.5"
+                }`}
               >
-                {isWorktree || worktreeMode ? (
-                  <GitFork className="size-3.5 text-muted" />
-                ) : (
-                  <GitBranch className="size-3.5 text-muted" />
-                )}
+                {!hideTriggerIcon || iconOnly ? (
+                  isWorktree || worktreeMode ? (
+                    <GitFork className={`${triggerIconSize} text-muted`} />
+                  ) : (
+                    <GitBranch className={`${triggerIconSize} text-muted`} />
+                  )
+                ) : null}
                 {!iconOnly && (
                   <span
                     className={
@@ -198,8 +298,8 @@ export function BranchSelector(props: BranchSelectorProps) {
                   <ChevronDown
                     className={
                       forceHideLabel
-                        ? "lightcode-composer-label-hideable size-3.5 text-muted is-hidden"
-                        : "size-3.5 text-muted"
+                        ? `lightcode-composer-label-hideable ${triggerIconSize} text-muted is-hidden`
+                        : `${triggerIconSize} text-muted`
                     }
                   />
                 )}
@@ -235,6 +335,7 @@ export function BranchSelector(props: BranchSelectorProps) {
 
             <div className="flex-1 overflow-hidden pb-1.5">
               <BranchListBox
+                projectId={projectId}
                 items={items}
                 hasLocal={hasLocal}
                 hasRemote={hasRemote}
@@ -244,10 +345,12 @@ export function BranchSelector(props: BranchSelectorProps) {
                 isWorktree={isWorktree}
                 worktreeMode={worktreeMode}
                 deletingBranch={deletingBranch}
-                activeWorktreeBranches={activeWorktreeBranches}
                 worktreeBranches={worktreeBranches}
+                branchWorktreePath={branchWorktreePath}
+                threadsByBranch={threadsByBranch}
                 onSelect={handleSelectBranch}
-                onDelete={(b) => void handleDeleteBranch(b as GitBranchInfo)}
+                onDelete={(b) => handleRequestDelete(b as GitBranchInfo)}
+                onOpenPrReview={handleOpenPrReview}
               />
             </div>
 
@@ -267,10 +370,33 @@ export function BranchSelector(props: BranchSelectorProps) {
               isWorktree={isWorktree}
               branchWorktreePath={branchWorktreePath}
               onSelect={onSelect}
+              showMoveBranch={showMoveBranchAction}
+              isMovingBranch={isMovingBranch}
+              onMoveBranchToWorktree={() => void handleMoveBranchToWorktree()}
             />
           </Popover.Dialog>
         </Popover.Content>
       </Popover>
+      <ConfirmDialog
+        isOpen={pendingDelete !== null}
+        title={pendingDelete?.worktreePath ? "Remove worktree?" : "Delete branch?"}
+        body={
+          pendingDelete?.worktreePath
+            ? `This removes the worktree on "${pendingDelete.branch.name}"${
+                pendingDelete.threadCount > 0
+                  ? ` and closes ${pendingDelete.threadCount} linked thread${
+                      pendingDelete.threadCount === 1 ? "" : "s"
+                    }`
+                  : ""
+              }, then deletes the branch.`
+            : `This permanently deletes the branch "${pendingDelete?.branch.name ?? ""}"${
+                pendingDelete?.branch.isRemote ? " from its remote" : ""
+              }.`
+        }
+        confirmLabel={pendingDelete?.worktreePath ? "Remove" : "Delete"}
+        onConfirm={() => void confirmDelete()}
+        onClose={() => setPendingDelete(null)}
+      />
     </div>
   );
 }

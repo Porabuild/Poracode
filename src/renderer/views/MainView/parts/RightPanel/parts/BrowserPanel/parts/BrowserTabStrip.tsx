@@ -58,8 +58,8 @@ export function BrowserTabStrip() {
             draggable
             className={`group flex max-w-[180px] min-w-[80px] cursor-pointer items-center gap-1 rounded px-2 py-1 text-left text-[12px] ${
               active
-                ? "bg-[var(--field-background)] text-foreground"
-                : "bg-[var(--surface-secondary)] text-foreground/80 hover:bg-[var(--surface-tertiary)]"
+                ? "bg-[var(--surface-tertiary)] font-medium text-foreground"
+                : "bg-transparent text-foreground/60 hover:bg-[var(--surface-secondary)] hover:text-foreground/80"
             } ${attention ? "ring-1 ring-amber-400/60" : ""} ${draggingTabId === tab.tabId ? "opacity-50" : ""}`}
             onDragStart={(e) => {
               setDraggingTabId(tab.tabId);

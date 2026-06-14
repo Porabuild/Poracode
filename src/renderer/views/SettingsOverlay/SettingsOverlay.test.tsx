@@ -256,6 +256,40 @@ describe("SettingsOverlay", () => {
     expect(screen.getByText("Agent Registry Settings")).toBeInTheDocument();
   });
 
+  it("groups Claude profile providers under Claude Code in the agents sidebar", () => {
+    statusesState.agentStatuses = [
+      makeStatus("claude", {
+        label: "Claude Code",
+        envKind: "posix",
+      }),
+      makeStatus("codex", {
+        label: "Codex",
+        envKind: "posix",
+      }),
+      makeStatus("claude:home", {
+        label: "Claude Home",
+        envKind: "posix",
+      }),
+    ];
+
+    render(<SettingsOverlay onClose={() => undefined} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Agents" }));
+
+    const buttons = screen
+      .getAllByRole("button")
+      .map((button) => button.textContent)
+      .filter(Boolean);
+    expect(buttons.slice(buttons.indexOf("Claude Code"), buttons.indexOf("Codex") + 1)).toEqual([
+      "Claude Code",
+      "Home",
+      "Codex",
+    ]);
+
+    fireEvent.click(screen.getByRole("button", { name: "Home" }));
+    expect(screen.getByText("Agent claude:home")).toBeInTheDocument();
+  });
+
   it("opens Agents on General and toggles closed on a second click", () => {
     statusesState.agentStatuses = [
       makeStatus("claude", {

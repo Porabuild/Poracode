@@ -3,6 +3,7 @@ import { Surface } from "@heroui/react";
 import { Layers } from "lucide-react";
 import type { ToolCallPayload } from "@/shared/contracts";
 import type { RuntimeChatItem } from "@/renderer/state/slices/runtimeEventSlice";
+import { formatTokenCount } from "@/renderer/components/thread/formatTokenCount";
 import { chatMessageSurfaceClass } from "./chatMessageSurface";
 
 interface ContextCompactionProps {
@@ -49,8 +50,8 @@ interface CompactMetadata {
 function formatCompactionSummary(payload: unknown): string | null {
   const meta = readCompactMetadata(payload);
   if (!meta) return null;
-  const before = formatTokenCount(meta.pre_tokens);
-  const after = formatTokenCount(meta.post_tokens);
+  const before = formatTokenLabel(meta.pre_tokens);
+  const after = formatTokenLabel(meta.post_tokens);
   const trigger = meta.trigger === "manual" ? "manually compacted" : "compacted";
   if (before && after) return `Context ${trigger}: ${before} → ${after} tokens`;
   if (before) return `Context ${trigger} from ${before} tokens`;
@@ -64,11 +65,9 @@ function readCompactMetadata(payload: unknown): CompactMetadata | null {
   return args as CompactMetadata;
 }
 
-function formatTokenCount(value: number | undefined): string | null {
+function formatTokenLabel(value: number | undefined): string | null {
   if (typeof value !== "number" || !Number.isFinite(value) || value < 0) return null;
-  if (value < 1000) return String(value);
-  if (value < 1_000_000) return `${(value / 1000).toFixed(value < 10_000 ? 1 : 0)}k`;
-  return `${(value / 1_000_000).toFixed(1)}M`;
+  return formatTokenCount(value);
 }
 
 /**

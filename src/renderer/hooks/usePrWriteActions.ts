@@ -14,8 +14,12 @@ export interface UsePrWriteActionsArgs {
   onRefresh: () => void;
 }
 
+/** Which PR write action is currently in flight, so only its button shows a spinner. */
+export type PrWriteAction = "merge" | "close" | "ready" | "update";
+
 export interface UsePrWriteActionsResult {
   prLoading: boolean;
+  pendingAction: PrWriteAction | null;
   handleMergePr: (method: "merge" | "squash" | "rebase", admin?: boolean) => Promise<void>;
   handleClosePr: () => Promise<void>;
   handleMarkPrReady: () => Promise<void>;
@@ -30,7 +34,8 @@ export interface UsePrWriteActionsResult {
  */
 export function usePrWriteActions(args: UsePrWriteActionsArgs): UsePrWriteActionsResult {
   const { projectLocation, localSyncLocation, prKey, onRefresh } = args;
-  const [prLoading, setPrLoading] = useState(false);
+  const [pendingAction, setPendingAction] = useState<PrWriteAction | null>(null);
+  const prLoading = pendingAction !== null;
 
   function getCurrentPrData() {
     if (!prKey) return null;
@@ -43,7 +48,7 @@ export function usePrWriteActions(args: UsePrWriteActionsArgs): UsePrWriteAction
   ): Promise<void> {
     const prData = getCurrentPrData();
     if (!prData) return;
-    setPrLoading(true);
+    setPendingAction("merge");
     try {
       await readBridge().ghMergePr({
         projectLocation,
@@ -72,14 +77,14 @@ export function usePrWriteActions(args: UsePrWriteActionsArgs): UsePrWriteAction
         toast.danger(message);
       }
     } finally {
-      setPrLoading(false);
+      setPendingAction(null);
     }
   }
 
   async function handleClosePr(): Promise<void> {
     const prData = getCurrentPrData();
     if (!prData) return;
-    setPrLoading(true);
+    setPendingAction("close");
     try {
       await readBridge().ghClosePr({ projectLocation, prNumber: prData.number });
       if (prKey) {
@@ -89,14 +94,14 @@ export function usePrWriteActions(args: UsePrWriteActionsArgs): UsePrWriteAction
       console.error("[git] close PR failed", err);
       toast.danger(friendlyError(err));
     } finally {
-      setPrLoading(false);
+      setPendingAction(null);
     }
   }
 
   async function handleMarkPrReady(): Promise<void> {
     const prData = getCurrentPrData();
     if (!prData) return;
-    setPrLoading(true);
+    setPendingAction("ready");
     try {
       await readBridge().ghMarkPrReady({ projectLocation, prNumber: prData.number });
       if (prKey) {
@@ -107,14 +112,14 @@ export function usePrWriteActions(args: UsePrWriteActionsArgs): UsePrWriteAction
       console.error("[git] mark PR ready failed", err);
       toast.danger(friendlyError(err));
     } finally {
-      setPrLoading(false);
+      setPendingAction(null);
     }
   }
 
   async function handleUpdatePrBranch(rebase = false): Promise<void> {
     const prData = getCurrentPrData();
     if (!prData) return;
-    setPrLoading(true);
+    setPendingAction("update");
     try {
       await readBridge().ghUpdatePrBranch({
         projectLocation,
@@ -132,9 +137,16 @@ export function usePrWriteActions(args: UsePrWriteActionsArgs): UsePrWriteAction
       console.error("[git] update PR branch failed", err);
       toast.danger(friendlyError(err));
     } finally {
-      setPrLoading(false);
+      setPendingAction(null);
     }
   }
 
-  return { prLoading, handleMergePr, handleClosePr, handleMarkPrReady, handleUpdatePrBranch };
+  return {
+    prLoading,
+    pendingAction,
+    handleMergePr,
+    handleClosePr,
+    handleMarkPrReady,
+    handleUpdatePrBranch,
+  };
 }

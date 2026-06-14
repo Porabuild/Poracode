@@ -27,6 +27,9 @@ describe("BranchFooterActions", () => {
           new Map([["feature/x", "C:\\Users\\demo\\.lightcode\\worktrees\\repo\\feature-x"]])
         }
         onSelect={onSelect}
+        showMoveBranch={false}
+        isMovingBranch={false}
+        onMoveBranchToWorktree={vi.fn<() => void>()}
       />,
     );
 

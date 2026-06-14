@@ -11,6 +11,20 @@ export interface TextItemState {
 
 export type PlanAggregatorRole = "TodoWrite" | "TaskCreate" | "TaskUpdate" | "TaskStop";
 
+/**
+ * Structured per-file diff metadata built from the SDK's
+ * `tool_use_result.structuredPatch` (Edit/MultiEdit/Write output). Mirrors the
+ * `metadata.changes[]` shape that Codex/OpenCode emit so the renderer's
+ * existing structured-changes passthrough can render real hunk line numbers.
+ */
+export interface FileChangeMetadata {
+  changes: Array<{
+    path?: string;
+    kind: { type: string; move_path: string | null };
+    diff: string;
+  }>;
+}
+
 export interface ToolItemState {
   itemId: string;
   itemType: CanonicalItemType;
@@ -26,6 +40,12 @@ export interface ToolItemState {
    * canonical `plan` item events instead.
    */
   planAggregatorRole?: PlanAggregatorRole;
+  /**
+   * Real-line-number diff derived from the tool result's `structuredPatch`,
+   * attached to the `file_change` payload so InlineDiffView shows true file
+   * line numbers instead of a synthetic `@@ -1 +1 @@` header.
+   */
+  fileChangeMetadata?: FileChangeMetadata;
 }
 
 export interface ClaudeMapperState {

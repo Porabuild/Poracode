@@ -20,6 +20,7 @@ import {
   type SendThreadInputPayload,
   type SessionRef,
   type SetPendingSteerPayload,
+  type StageThreadInputPayload,
   type StartShellPayload,
   type StartThreadPayload,
   type StartThreadResult,
@@ -30,6 +31,7 @@ import {
   type WriteTerminalPayload,
   type RuntimeEvent,
   areAgentSlashCommandsEqual,
+  isClaudeProfileKind,
   isThreadConfigEqual,
 } from "@/shared/contracts";
 import { buildPromptContentBlocks } from "@/shared/promptContent";
@@ -64,7 +66,7 @@ import type {
   ShellSessionRuntime,
 } from "./sessionTypes";
 import { ThreadOutputPipeline, resolveThreadStatusSource } from "./threadOutputPipeline";
-import { rewriteSegmentsForWsl } from "./threadAttachments";
+import { rewriteSegmentsForWorkspace, rewriteSegmentsForWsl } from "./threadAttachments";
 
 import {
   isInterruptibleBusyStatus,
@@ -113,6 +115,10 @@ function shouldPrimeNativeProjectShellEnv(
   location: ProjectLocation,
 ): location is Extract<ProjectLocation, { kind: "windows" | "posix" }> {
   return location.kind === "posix" || (process.platform === "win32" && location.kind === "windows");
+}
+
+function isClaudeAdapterKind(kind: string): boolean {
+  return kind === "claude" || isClaudeProfileKind(kind);
 }
 
 export class ThreadSessionManager {
@@ -329,11 +335,7 @@ export class ThreadSessionManager {
           preserveImageAttachments: usesStructuredFlow,
         })
       : undefined;
-    const prompt =
-      effectiveSegments && effectiveSegments.length > 0
-        ? (session.adapter.formatPromptSegments?.(effectiveSegments) ??
-          defaultFormatPromptSegments(effectiveSegments))
-        : payload.prompt;
+    const prompt = this.formatSegmentsForPrompt(session, effectiveSegments, payload.prompt);
 
     const effectiveConfig =
       session.presentationMode !== "gui" &&
@@ -383,14 +385,23 @@ export class ThreadSessionManager {
     }
 
     const pty = requireSessionPty(session);
+    // Workspace-sandboxed agents (e.g. Command Code) can't read attachments that
+    // live outside the project, so copy them in and re-format with the new paths.
+    // localizeWorkspaceAttachments returns the same array when it's a no-op, so
+    // reuse the already-formatted prompt unless paths actually changed.
+    const ptySegments = await this.localizeWorkspaceAttachments(session, effectiveSegments);
+    const ptyPrompt =
+      ptySegments === effectiveSegments
+        ? prompt
+        : this.formatSegmentsForPrompt(session, ptySegments, payload.prompt);
     await writeSubmittedPrompt(
       pty,
       session.adapter.buildDirectInput?.(
-        prompt,
-        effectiveSegments,
+        ptyPrompt,
+        ptySegments,
         session.config,
         session.projectLocation,
-      ) ?? [prompt, "\r"],
+      ) ?? [ptyPrompt, "\r"],
       session.projectLocation,
     );
 
@@ -453,6 +464,68 @@ export class ThreadSessionManager {
     const session = this.requireSession(payload.threadId);
     requireSessionPty(session).write(payload.data);
     this.maybeArmUserInterruptRecovery(session, payload.data);
+  }
+
+  /**
+   * Type a prompt into a terminal-native thread's PTY input line WITHOUT
+   * submitting it. Mirrors the segment formatting of {@link sendThreadInput}'s
+   * PTY path (WSL rewrite + adapter `formatPromptSegments`) but collapses the
+   * result to a single line and omits the trailing carriage return, so the text
+   * lands in the agent's input line for the user to review/extend before they
+   * press Enter. Used to route a browser element-picker selection straight to a
+   * CLI agent. Rejects for structured (server / GUI) threads, which own input
+   * through their session rather than a PTY input line.
+   */
+  async stageThreadInput(payload: StageThreadInputPayload): Promise<void> {
+    const session = this.requireSession(payload.threadId);
+    if (session.status === "inactive" || session.status === "launching") {
+      throw new Error("This thread is not ready to receive terminal input yet.");
+    }
+    const usesStructuredFlow =
+      session.adapter.capabilities.liveInputMode === "server" || session.presentationMode === "gui";
+    if (usesStructuredFlow) {
+      throw new Error("stageThreadInput is only supported for terminal-native threads.");
+    }
+    const wslSegments = payload.segments
+      ? await rewriteSegmentsForWsl(payload.segments, session.projectLocation, {
+          preserveImageAttachments: false,
+        })
+      : undefined;
+    const effectiveSegments = await this.localizeWorkspaceAttachments(session, wslSegments);
+    const formatted = this.formatSegmentsForPrompt(session, effectiveSegments, payload.prompt);
+    // Collapse newlines so a raw PTY write cannot accidentally submit the line
+    // (a bare \n reads as Enter to most shells/TUIs); the user submits manually.
+    const singleLine = formatted.replace(/\s*\r?\n\s*/g, " ").trim();
+    if (!singleLine) return;
+    requireSessionPty(session).write(singleLine);
+  }
+
+  /** Renders prompt segments to text via the adapter (or the default), falling
+   * back to `fallbackPrompt` when there are no segments. */
+  private formatSegmentsForPrompt(
+    session: SessionRuntime,
+    segments: PromptSegment[] | undefined,
+    fallbackPrompt: string,
+  ): string {
+    return segments && segments.length > 0
+      ? (session.adapter.formatPromptSegments?.(segments) ?? defaultFormatPromptSegments(segments))
+      : fallbackPrompt;
+  }
+
+  /**
+   * Copies attachments into the workspace for adapters that can only read files
+   * inside their working directory (`requiresWorkspaceLocalAttachments`, e.g.
+   * Command Code). No-op for other adapters and for WSL sessions (whose
+   * attachments are handled by {@link rewriteSegmentsForWsl}).
+   */
+  private async localizeWorkspaceAttachments(
+    session: SessionRuntime,
+    segments: PromptSegment[] | undefined,
+  ): Promise<PromptSegment[] | undefined> {
+    if (!segments || segments.length === 0) return segments;
+    if (!session.adapter.capabilities.requiresWorkspaceLocalAttachments) return segments;
+    if (session.projectLocation.kind === "wsl") return segments;
+    return rewriteSegmentsForWorkspace(segments, session.projectLocation.path);
   }
 
   /**
@@ -967,7 +1040,7 @@ export class ThreadSessionManager {
     config: ThreadConfig,
     projectLocation: ProjectLocation,
   ): Promise<string[]> {
-    if (adapter.kind !== "claude") return args;
+    if (!isClaudeAdapterKind(adapter.kind)) return args;
     const flags: Record<string, unknown> = {};
     if (config.effort === "ultracode") flags.ultracode = true;
     if (config.fast === true) flags.fastMode = true;
@@ -994,25 +1067,24 @@ export class ThreadSessionManager {
       return args;
     }
 
-    switch (adapter.kind) {
-      case "codex": {
-        let trailingPositionals = 0;
-        if (args[0] === "resume" || sessionRef) {
-          trailingPositionals += 1;
-        }
-        if (prompt.trim().length > 0) {
-          trailingPositionals += 1;
-        }
-        const insertAt = Math.max(args.length - trailingPositionals, args[0] === "resume" ? 1 : 0);
-        return [...args.slice(0, insertAt), ...extraArgs, ...args.slice(insertAt)];
+    if (adapter.kind === "codex") {
+      let trailingPositionals = 0;
+      if (args[0] === "resume" || sessionRef) {
+        trailingPositionals += 1;
       }
-      case "claude": {
-        const insertAt = prompt.trim().length > 0 ? args.length - 1 : args.length;
-        return [...args.slice(0, insertAt), ...extraArgs, ...args.slice(insertAt)];
+      if (prompt.trim().length > 0) {
+        trailingPositionals += 1;
       }
-      default:
-        return [...args, ...extraArgs];
+      const insertAt = Math.max(args.length - trailingPositionals, args[0] === "resume" ? 1 : 0);
+      return [...args.slice(0, insertAt), ...extraArgs, ...args.slice(insertAt)];
     }
+
+    if (isClaudeAdapterKind(adapter.kind)) {
+      const insertAt = prompt.trim().length > 0 ? args.length - 1 : args.length;
+      return [...args.slice(0, insertAt), ...extraArgs, ...args.slice(insertAt)];
+    }
+
+    return [...args, ...extraArgs];
   }
 
   /**
@@ -1702,6 +1774,17 @@ export class ThreadSessionManager {
         if (session.suppressInitialStructuredIdle === true && update.status !== "idle") {
           session.suppressInitialStructuredIdle = undefined;
         }
+
+        // Wire-ordering: `thread-state` (status) events are emitted to the
+        // renderer immediately, but this session's runtime events are batched
+        // (RuntimeEventBuffer, ~16ms). Without flushing here, a turn-end `idle`
+        // can overtake the turn's final runtime events on the IPC wire; those
+        // trailing events then land after `idle` in the renderer and re-open the
+        // GUI turn to "working" via reopenGuiTurnForLiveRuntimeActivity, leaving a
+        // stale "working" until the next snapshot reconcile (on thread switch).
+        // Flushing first guarantees the renderer applies the final events before
+        // the status change, mirroring its own flushPendingRuntimeEventsSync.
+        this.flushRuntimeEvents();
 
         this.outputPipeline.updateState(
           session,

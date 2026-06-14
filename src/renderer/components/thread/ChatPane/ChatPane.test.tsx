@@ -41,6 +41,8 @@ vi.mock("@tanstack/react-virtual", () => ({
     getTotalSize: () => options.count * 96,
     measure: vi.fn<() => void>(),
     measureElement: vi.fn<(element: HTMLDivElement | null) => void>(),
+    resizeItem: vi.fn<(index: number, size: number) => void>(),
+    options: { measureElement: () => 96 },
     scrollToIndex: (
       index: number,
       scrollOptions?: { align?: "auto" | "center" | "end" | "start" },
@@ -612,7 +614,7 @@ describe("ChatPane", () => {
     await waitFor(() => expect(hydrateThreadRuntimeItems).toHaveBeenCalledWith(thread.id));
 
     expect(await screen.findByText("Opus")).toBeInTheDocument();
-    expect(screen.getByText("336k tok")).toBeInTheDocument();
+    expect(screen.getByText("336K tok")).toBeInTheDocument();
     expect(screen.getByText("Bash")).toBeInTheDocument();
     expect(screen.getByText("21 steps")).toBeInTheDocument();
     expect(document.body).not.toHaveTextContent("gpt-parent-main");

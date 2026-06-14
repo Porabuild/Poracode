@@ -5,6 +5,7 @@ import { SearchAddon } from "@xterm/addon-search";
 import { Unicode11Addon } from "@xterm/addon-unicode11";
 import { WebglAddon } from "@xterm/addon-webgl";
 import { TerminalLinkProvider } from "./TerminalLinkProvider";
+import { resolveTerminalColor } from "./terminalColors";
 import { Terminal } from "@xterm/xterm";
 import { Button } from "@heroui/react";
 import { ArrowDown } from "lucide-react";
@@ -37,12 +38,15 @@ const TERMINAL_INTERNAL_SCROLLBAR_WIDTH = 0.01;
 
 // Terminal colors track the active theme by reading the same CSS custom
 // properties the rest of the app uses, so presets (Dracula, Nord, ...) apply to
-// the terminal too. Falls back to fixed light/dark values when a property is
-// unset or unparseable.
+// the terminal too. The raw custom-property values use modern color syntax
+// (`oklch(...)`, `color-mix(...)`) that xterm's renderer cannot parse, so each is
+// normalized to an xterm-safe `#hex`/`rgba()` string; we fall back to fixed
+// light/dark values when a property is unset or unparseable.
 function getTerminalTheme(appearance: "light" | "dark") {
   const rootStyles =
     typeof window !== "undefined" ? window.getComputedStyle(document.documentElement) : null;
-  const readVar = (name: string) => rootStyles?.getPropertyValue(name).trim() || "";
+  const readVar = (name: string) =>
+    resolveTerminalColor(rootStyles?.getPropertyValue(name).trim() ?? "");
 
   const fallback =
     appearance === "dark"

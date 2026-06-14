@@ -1,6 +1,6 @@
 {
   "name": "lightcode",
-  "version": "1.2.1",
+  "version": "1.2.2",
   "private": true,
   "description": "The universal desktop orchestrator for AI agents. Run terminal-native and structured chat agents side-by-side.",
   "homepage": "https://www.lightcodeapp.com/",
@@ -52,7 +52,7 @@
   },
   "dependencies": {
     "@agentclientprotocol/sdk": "^0.21.1",
-    "@anthropic-ai/claude-agent-sdk": "^0.3.154",
+    "@anthropic-ai/claude-agent-sdk": "^0.3.170",
     "@chenglou/pretext": "^0.0.6",
     "@dnd-kit/abstract": "^0.4.0",
     "@dnd-kit/collision": "^0.4.0",
@@ -71,6 +71,10 @@
     "@sentry/electron": "^7.13.0",
     "@sentry/node": "10.50.0",
     "@tanstack/react-virtual": "^3.13.24",
+    "@tiptap/extensions": "^3.24.0",
+    "@tiptap/pm": "^3.24.0",
+    "@tiptap/react": "^3.24.0",
+    "@tiptap/starter-kit": "^3.24.0",
     "@xterm/addon-clipboard": "0.3.0-beta.219",
     "@xterm/addon-fit": "0.12.0-beta.219",
     "@xterm/addon-image": "0.10.0-beta.219",

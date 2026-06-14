@@ -22,15 +22,24 @@ export function useBranchList(params: { projectId: string; search: string }) {
   const { projectId, search } = params;
   const branchData = useGitStore((s) => s.branches[projectId]);
   const worktrees = useGitStore((s) => s.worktrees[projectId]);
-  const activeWorktreeBranchNames = useAppStore(
-    useShallow((s) => getActiveWorktreeBranchNames(s.threads, projectId)),
+  const projectThreads = useAppStore(
+    useShallow((s) =>
+      s.threads.filter((t) => t.projectId === projectId && !t.archived && t.worktreeBranch),
+    ),
   );
   const projectLocation = useProject(projectId)?.location;
 
-  const activeWorktreeBranches = useMemo(
-    () => new Set(activeWorktreeBranchNames),
-    [activeWorktreeBranchNames],
-  );
+  const threadsByBranch = useMemo(() => {
+    const map = new Map<string, Thread[]>();
+    for (const t of projectThreads) {
+      const branch = t.worktreeBranch;
+      if (!branch) continue;
+      const list = map.get(branch);
+      if (list) list.push(t);
+      else map.set(branch, [t]);
+    }
+    return map;
+  }, [projectThreads]);
   const worktreeBranches = useMemo(
     () => new Set(worktrees?.filter((w) => !w.isMain).map((w) => w.branch) ?? []),
     [worktrees],
@@ -90,9 +99,9 @@ export function useBranchList(params: { projectId: string; search: string }) {
     items,
     hasLocal,
     hasRemote,
-    activeWorktreeBranches,
     worktreeBranches,
     branchWorktreePath,
+    threadsByBranch,
     projectLocation,
   };
 }

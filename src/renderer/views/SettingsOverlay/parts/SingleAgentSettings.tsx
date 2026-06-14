@@ -61,6 +61,7 @@ import {
   type ProviderModelMenuProvider,
 } from "@/renderer/components/common/ProviderModelMenu";
 import { NATIVE_AGENT_REGISTRY_ENTRIES } from "./agentRegistryNative";
+import { ClaudeProfileSettings } from "./ClaudeProfileSettings";
 
 const SAVED_SECRET_MASK = "***********";
 
@@ -1451,6 +1452,8 @@ export function SingleAgentSettings(props: { agentKind: string }) {
       </div>
 
       <div className="space-y-4">
+        {props.agentKind === "claude" ? <ClaudeProfileSettings /> : null}
+
         {hasAuthSettings && (
           <div className="space-y-2">
             {envVarAuthMethod && acpInstanceId ? (

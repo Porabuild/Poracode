@@ -63,7 +63,10 @@ export class BrowserPanelManager {
     hasHostWindow: () => this.host !== null && !this.host.isDestroyed(),
   });
 
-  constructor(private readonly paths: LightcodePaths) {
+  constructor(
+    private readonly paths: LightcodePaths,
+    private readonly browserUserAgent: string,
+  ) {
     this.unsubscribePicker = onPickerCommit((commit) => this.onPickerCommit(commit));
   }
 
@@ -260,6 +263,7 @@ export class BrowserPanelManager {
     const tab = new BrowserTab({
       tabId,
       ...(payload.url ? { initialUrl: payload.url } : {}),
+      userAgent: this.browserUserAgent,
       onUpdate: (snap) => {
         this.emit({ type: "tab-updated", tab: { ...snap } });
         this.schedulePersist();

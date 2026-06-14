@@ -16,7 +16,7 @@ describe("subAgentProgressMeta", () => {
       }),
     ).toEqual([
       { kind: "model", label: "Opus" },
-      { kind: "tokens", label: "336k tok" },
+      { kind: "tokens", label: "336K tok" },
       { kind: "live", label: "Bash" },
       { kind: "steps", label: "21 steps" },
     ]);

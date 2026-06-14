@@ -1,18 +1,24 @@
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { homedir } from "node:os";
+import { join } from "node:path";
 import {
   allUsageProviderDescriptors,
+  collectClaude,
   createUsageCollectorRegistry,
   type HostPort,
   type UsageCollectorRegistry,
   type UsageSnapshot,
 } from "@lightcode/agents-usage";
+import { claudeProfileKind, parseClaudeProfileInstanceConfig } from "@/shared/contracts";
 import type { ProviderUsagePayload, ProviderUsageResponse } from "@/shared/contracts";
 import type { SupervisorEvent } from "@/shared/ipc";
 import {
   defaultSharedSettings,
   normalizeSharedSettings,
+  type SharedSettings,
   type UsageSettings,
 } from "@/shared/settings";
+import { resolveClaudeToken } from "./claudeCredentials";
 import { createLocalUsageCollectors, type LocalUsageCollector } from "./localUsageCollectors";
 import { createNodeUsageHost } from "./usageHost";
 import { scanClaudeCost } from "./usageCostScanner";
@@ -53,6 +59,18 @@ interface UsageCacheFile {
   snapshots?: UsageSnapshot[];
 }
 
+interface ClaudeUsageProfile {
+  providerId: string;
+  configDir: string;
+}
+
+function resolveNativeTildePath(rawPath: string): string {
+  const trimmed = rawPath.trim();
+  if (trimmed === "~") return homedir();
+  if (trimmed.startsWith("~/")) return join(homedir(), trimmed.slice(2));
+  return trimmed;
+}
+
 export class UsageService {
   private readonly registry: UsageCollectorRegistry = createUsageCollectorRegistry();
   private readonly localCollectors: Map<string, LocalUsageCollector>;
@@ -73,23 +91,52 @@ export class UsageService {
   }
 
   private defaultProviderIds(): string[] {
-    return [...(this.options.providerIds ?? DEFAULT_PROVIDER_IDS)];
+    const baseIds = [...(this.options.providerIds ?? DEFAULT_PROVIDER_IDS)];
+    if (this.options.providerIds) return baseIds;
+    return [...baseIds, ...this.readClaudeUsageProfiles().keys()];
+  }
+
+  /** Read shared settings from disk (defaults if absent). */
+  private readSharedSettings(): SharedSettings {
+    if (!this.options.settingsPath) return defaultSharedSettings;
+    try {
+      return normalizeSharedSettings(JSON.parse(readFileSync(this.options.settingsPath, "utf8")));
+    } catch {
+      return defaultSharedSettings;
+    }
   }
 
   /** Read the usage policy from the shared settings file (defaults if absent). */
   private readUsageSettings(): UsageSettings {
-    if (!this.options.settingsPath) return defaultSharedSettings.usage;
-    try {
-      return normalizeSharedSettings(JSON.parse(readFileSync(this.options.settingsPath, "utf8")))
-        .usage;
-    } catch {
-      return defaultSharedSettings.usage;
+    return this.readSharedSettings().usage;
+  }
+
+  private readClaudeUsageProfiles(): Map<string, ClaudeUsageProfile> {
+    const profiles = new Map<string, ClaudeUsageProfile>();
+    const { agentInstances } = this.readSharedSettings();
+    for (const instance of Object.values(agentInstances)) {
+      if (instance.enabled === false || instance.driver !== "claude") continue;
+      try {
+        const cfg = parseClaudeProfileInstanceConfig(instance.config);
+        const providerId = claudeProfileKind(instance.id);
+        profiles.set(providerId, {
+          providerId,
+          configDir: resolveNativeTildePath(cfg.configDir),
+        });
+      } catch {
+        // Malformed profile records are ignored by the agent registry too.
+      }
     }
+    return profiles;
   }
 
   /** A provider id this service can collect (package registry or supervisor-local). */
   private isSupported(id: string): boolean {
-    return this.registry.has(id) || this.localCollectors.has(id);
+    return (
+      this.registry.has(id) ||
+      this.localCollectors.has(id) ||
+      this.readClaudeUsageProfiles().has(id)
+    );
   }
 
   /** Default providers minus the user's per-provider opt-outs, intersected with what we support. */
@@ -154,20 +201,28 @@ export class UsageService {
   }
 
   private async runRefresh(ids: string[]): Promise<ProviderUsageResponse> {
+    const claudeProfiles = this.readClaudeUsageProfiles();
     const registryIds = ids.filter((id) => this.registry.has(id));
     const localIds = ids.filter((id) => this.localCollectors.has(id));
+    const claudeProfileIds = ids.filter((id) => claudeProfiles.has(id));
     // The registry HTTP batch and the supervisor-local collectors are independent
     // of each other, so run both groups concurrently rather than waiting out the
     // (rate-limited, slow) HTTP batch before starting the local scans.
-    const [registrySnaps, localSnaps] = await Promise.all([
+    const [registrySnaps, localSnaps, claudeProfileSnaps] = await Promise.all([
       this.registry.collectAll(registryIds, this.host),
       Promise.all(localIds.map((id) => this.collectLocal(id))),
+      Promise.all(
+        claudeProfileIds.flatMap((id) => {
+          const profile = claudeProfiles.get(id);
+          return profile ? [this.collectClaudeProfile(profile)] : [];
+        }),
+      ),
     ]);
-    let snapshots = [...registrySnaps, ...localSnaps].map((snap) =>
+    let snapshots = [...registrySnaps, ...localSnaps, ...claudeProfileSnaps].map((snap) =>
       this.preserveOnTransientFailure(snap),
     );
     if (this.readUsageSettings().showEstimatedCost) {
-      snapshots = await this.withEstimatedCost(snapshots);
+      snapshots = await this.withEstimatedCost(snapshots, claudeProfiles);
     }
     for (const snapshot of snapshots) {
       this.snapshots.set(snapshot.providerId, snapshot);
@@ -202,26 +257,61 @@ export class UsageService {
     return { providerId: id, status: "error", windows: [], fetchedAt: now };
   }
 
+  private async collectClaudeProfile(profile: ClaudeUsageProfile): Promise<UsageSnapshot> {
+    const now = this.host.now();
+    const scopedHost: HostPort = {
+      http: this.host.http,
+      now: () => this.host.now(),
+      credentials: {
+        getOAuthToken: () => resolveClaudeToken({ CLAUDE_CONFIG_DIR: profile.configDir }),
+        getSecret: (providerId, key) => this.host.credentials.getSecret(providerId, key),
+      },
+      ...(this.host.clientVersions ? { clientVersions: this.host.clientVersions } : {}),
+      ...(this.host.log ? { log: this.host.log } : {}),
+    };
+    try {
+      const snapshot = await collectClaude(scopedHost);
+      return { ...snapshot, providerId: profile.providerId };
+    } catch (error) {
+      return {
+        providerId: profile.providerId,
+        status: "error",
+        windows: [],
+        fetchedAt: now,
+        error: error instanceof Error ? error.message : String(error),
+      };
+    }
+  }
+
   /**
    * Merge estimated 30-day cost + tokens (from local logs at API rates) into the
    * Claude snapshot. Best-effort and cached; never throws into the refresh.
    */
-  private async withEstimatedCost(snapshots: UsageSnapshot[]): Promise<UsageSnapshot[]> {
-    const index = snapshots.findIndex((s) => s.providerId === "claude");
-    if (index === -1) return snapshots;
-    try {
-      const scan = await scanClaudeCost(this.host.now());
-      if (!scan.estimate) return snapshots;
-      const next = [...snapshots];
-      next[index] = {
-        ...next[index]!,
-        cost: scan.estimate.cost,
-        tokens: scan.estimate.tokens,
-      };
-      return next;
-    } catch {
-      return snapshots;
-    }
+  private async withEstimatedCost(
+    snapshots: UsageSnapshot[],
+    profiles: Map<string, ClaudeUsageProfile>,
+  ): Promise<UsageSnapshot[]> {
+    return Promise.all(
+      snapshots.map(async (snapshot) => {
+        const profile = profiles.get(snapshot.providerId);
+        const isBaseClaude = snapshot.providerId === "claude";
+        if (!isBaseClaude && !profile) return snapshot;
+        try {
+          const scan = await scanClaudeCost(
+            this.host.now(),
+            profile ? { CLAUDE_CONFIG_DIR: profile.configDir } : undefined,
+          );
+          if (!scan.estimate) return snapshot;
+          return {
+            ...snapshot,
+            cost: scan.estimate.cost,
+            tokens: scan.estimate.tokens,
+          };
+        } catch {
+          return snapshot;
+        }
+      }),
+    );
   }
 
   /**

@@ -1,5 +1,7 @@
-import type { AgentCapability, AgentTerminalAuthMethod } from "@/shared/contracts";
-import { type AuthProbe, type DetectionSpec } from "../base";
+import { stripAnsi } from "@/shared/ansi";
+import type { AgentCapability, AgentTerminalAuthMethod, LabeledOption } from "@/shared/contracts";
+import { type AuthProbe, type DetectionSpec, readAgentCommandOutput } from "../base";
+import { getAgentProbeCwd } from "../probeCwd";
 import { commandCodeHasStoredCredentials } from "./session";
 
 // Command Code's CLI default (used with no `-m`). We surface it first so a
@@ -9,70 +11,254 @@ import { commandCodeHasStoredCredentials } from "./session";
 // case-insensitive and accepts either the full id or the part after the `/`.
 export const COMMANDCODE_DEFAULT_MODEL_ID = "moonshotai/Kimi-K2.5";
 
-// Vendor groupings for the model picker. The slash-namespaced ids
-// (`google/…`, `moonshotai/…`) auto-derive a sub-provider from their prefix;
-// the un-namespaced Anthropic/OpenAI ids are mapped explicitly below so every
-// model groups consistently by vendor.
-const COMMANDCODE_SUB_PROVIDERS = [
-  { id: "anthropic", label: "Anthropic" },
-  { id: "openai", label: "OpenAI" },
-  { id: "google", label: "Google" },
-  { id: "moonshotai", label: "Moonshot" },
-  { id: "deepseek", label: "DeepSeek" },
-  { id: "zai-org", label: "Z.ai" },
-  { id: "MiniMaxAI", label: "MiniMax" },
-  { id: "Qwen", label: "Qwen" },
-  { id: "stepfun", label: "StepFun" },
-  { id: "xiaomi", label: "Xiaomi" },
-];
-
-const COMMANDCODE_MODELS = [
-  { id: COMMANDCODE_DEFAULT_MODEL_ID, label: "Kimi K2.5", description: "Moonshot AI (default)" },
-  { id: "moonshotai/Kimi-K2.6", label: "Kimi K2.6", description: "Moonshot AI" },
-  { id: "claude-opus-4-8", label: "Claude Opus 4.8", description: "Anthropic" },
-  { id: "claude-opus-4-7", label: "Claude Opus 4.7", description: "Anthropic" },
-  { id: "claude-opus-4-6", label: "Claude Opus 4.6", description: "Anthropic" },
-  { id: "claude-sonnet-4-6", label: "Claude Sonnet 4.6", description: "Anthropic" },
-  { id: "claude-haiku-4-5", label: "Claude Haiku 4.5", description: "Anthropic" },
-  { id: "gpt-5.5", label: "GPT-5.5", description: "OpenAI" },
-  { id: "gpt-5.4", label: "GPT-5.4", description: "OpenAI" },
-  { id: "gpt-5.3-codex", label: "GPT-5.3 Codex", description: "OpenAI" },
-  { id: "gpt-5.4-mini", label: "GPT-5.4 Mini", description: "OpenAI" },
-  { id: "google/gemini-3.5-flash", label: "Gemini 3.5 Flash", description: "Google" },
-  { id: "google/gemini-3.1-flash-lite", label: "Gemini 3.1 Flash Lite", description: "Google" },
-  { id: "deepseek/deepseek-v4-pro", label: "DeepSeek V4 Pro", description: "DeepSeek" },
-  { id: "deepseek/deepseek-v4-flash", label: "DeepSeek V4 Flash", description: "DeepSeek" },
-  { id: "zai-org/GLM-5.1", label: "GLM-5.1", description: "Z.ai" },
-  { id: "zai-org/GLM-5", label: "GLM-5", description: "Z.ai" },
-  { id: "MiniMaxAI/MiniMax-M3", label: "MiniMax M3", description: "MiniMax" },
-  { id: "MiniMaxAI/MiniMax-M2.7", label: "MiniMax M2.7", description: "MiniMax" },
-  { id: "MiniMaxAI/MiniMax-M2.5", label: "MiniMax M2.5", description: "MiniMax" },
-  { id: "Qwen/Qwen3.7-Max", label: "Qwen3.7 Max", description: "Qwen" },
-  { id: "Qwen/Qwen3.6-Max-Preview", label: "Qwen3.6 Max Preview", description: "Qwen" },
-  { id: "Qwen/Qwen3.6-Plus", label: "Qwen3.6 Plus", description: "Qwen" },
-  { id: "stepfun/Step-3.5-Flash", label: "Step 3.5 Flash", description: "StepFun" },
-  { id: "xiaomi/mimo-v2.5-pro", label: "MiMo v2.5 Pro", description: "Xiaomi" },
-  { id: "xiaomi/mimo-v2.5", label: "MiMo v2.5", description: "Xiaomi" },
-];
-
-const COMMANDCODE_MODEL_SUB_PROVIDER: Record<string, string> = {
-  "claude-opus-4-8": "anthropic",
-  "claude-opus-4-7": "anthropic",
-  "claude-opus-4-6": "anthropic",
-  "claude-sonnet-4-6": "anthropic",
-  "claude-haiku-4-5": "anthropic",
-  "gpt-5.5": "openai",
-  "gpt-5.4": "openai",
-  "gpt-5.3-codex": "openai",
-  "gpt-5.4-mini": "openai",
+// Curated sub-provider labels + canonical display order for the model picker.
+// The slash-namespaced ids (`google/…`, `moonshotai/…`) auto-derive a
+// sub-provider from their prefix; the un-namespaced Anthropic/OpenAI ids map
+// explicitly (see `commandCodeModelSubProviderId`). Any namespace the CLI
+// surfaces that isn't listed here still groups — it just falls back to a
+// humanized label and sorts after the curated ones.
+const COMMANDCODE_SUB_PROVIDER_LABELS: Record<string, string> = {
+  anthropic: "Anthropic",
+  openai: "OpenAI",
+  google: "Google",
+  moonshotai: "Moonshot",
+  deepseek: "DeepSeek",
+  "zai-org": "Z.ai",
+  MiniMaxAI: "MiniMax",
+  Qwen: "Qwen",
+  stepfun: "StepFun",
+  xiaomi: "Xiaomi",
+  nvidia: "NVIDIA",
 };
 
+const COMMANDCODE_SUB_PROVIDER_ORDER = [
+  "anthropic",
+  "openai",
+  "google",
+  "moonshotai",
+  "deepseek",
+  "zai-org",
+  "MiniMaxAI",
+  "Qwen",
+  "stepfun",
+  "xiaomi",
+  "nvidia",
+];
+
+// Hand-tuned display labels keyed by model id. These exist only to render known
+// ids prettily (correct casing, `4.6` vs `4-6`, dropping a noisy param suffix
+// like `nemotron-3-ultra-550b-a55b`). They are NOT the source of truth for
+// which models exist — that comes from `command-code --list-models` at
+// detection time. A brand-new id we haven't curated still appears, labeled by
+// `humanizeCommandCodeModelLabel` until an override is added here.
+const COMMANDCODE_MODEL_LABELS: Record<string, string> = {
+  "deepseek/deepseek-v4-pro": "DeepSeek V4 Pro",
+  "deepseek/deepseek-v4-flash": "DeepSeek V4 Flash",
+  "moonshotai/Kimi-K2.7-Code": "Kimi K2.7 Code",
+  "moonshotai/Kimi-K2.6": "Kimi K2.6",
+  "moonshotai/Kimi-K2.5": "Kimi K2.5",
+  "zai-org/GLM-5.1": "GLM-5.1",
+  "zai-org/GLM-5": "GLM-5",
+  "MiniMaxAI/MiniMax-M3": "MiniMax M3",
+  "MiniMaxAI/MiniMax-M2.7": "MiniMax M2.7",
+  "MiniMaxAI/MiniMax-M2.5": "MiniMax M2.5",
+  "xiaomi/mimo-v2.5-pro": "MiMo v2.5 Pro",
+  "xiaomi/mimo-v2.5": "MiMo v2.5",
+  "Qwen/Qwen3.7-Max": "Qwen3.7 Max",
+  "Qwen/Qwen3.7-Plus": "Qwen3.7 Plus",
+  "Qwen/Qwen3.6-Max-Preview": "Qwen3.6 Max Preview",
+  "Qwen/Qwen3.6-Plus": "Qwen3.6 Plus",
+  "stepfun/Step-3.7-Flash": "Step 3.7 Flash",
+  "stepfun/Step-3.5-Flash": "Step 3.5 Flash",
+  "nvidia/nemotron-3-ultra-550b-a55b": "Nemotron 3 Ultra",
+  "claude-sonnet-4-6": "Claude Sonnet 4.6",
+  "claude-fable-5": "Claude Fable 5",
+  "claude-opus-4-8": "Claude Opus 4.8",
+  "claude-opus-4-7": "Claude Opus 4.7",
+  "claude-opus-4-6": "Claude Opus 4.6",
+  "claude-haiku-4-5": "Claude Haiku 4.5",
+  "gpt-5.5": "GPT-5.5",
+  "gpt-5.4": "GPT-5.4",
+  "gpt-5.4-mini": "GPT-5.4 Mini",
+  "gpt-5.3-codex": "GPT-5.3 Codex",
+  "google/gemini-3.5-flash": "Gemini 3.5 Flash",
+  "google/gemini-3.1-flash-lite": "Gemini 3.1 Flash Lite",
+};
+
+// Offline fallback model ids (a known-good snapshot of `--list-models`). Used to
+// build `defaultCommandCodeCapabilities` so the picker still has a sensible set
+// before/without a successful probe. The live probe replaces this whenever
+// `command-code --list-models` succeeds, so it never has to stay current.
+const COMMANDCODE_FALLBACK_MODEL_IDS = [
+  "deepseek/deepseek-v4-pro",
+  "deepseek/deepseek-v4-flash",
+  "moonshotai/Kimi-K2.7-Code",
+  "moonshotai/Kimi-K2.6",
+  COMMANDCODE_DEFAULT_MODEL_ID,
+  "zai-org/GLM-5.1",
+  "zai-org/GLM-5",
+  "MiniMaxAI/MiniMax-M3",
+  "MiniMaxAI/MiniMax-M2.7",
+  "MiniMaxAI/MiniMax-M2.5",
+  "xiaomi/mimo-v2.5-pro",
+  "xiaomi/mimo-v2.5",
+  "Qwen/Qwen3.6-Max-Preview",
+  "Qwen/Qwen3.6-Plus",
+  "Qwen/Qwen3.7-Max",
+  "Qwen/Qwen3.7-Plus",
+  "stepfun/Step-3.7-Flash",
+  "stepfun/Step-3.5-Flash",
+  "nvidia/nemotron-3-ultra-550b-a55b",
+  "claude-sonnet-4-6",
+  "claude-fable-5",
+  "claude-opus-4-8",
+  "claude-opus-4-7",
+  "claude-haiku-4-5",
+  "gpt-5.5",
+  "gpt-5.4",
+  "gpt-5.3-codex",
+  "gpt-5.4-mini",
+  "google/gemini-3.5-flash",
+  "google/gemini-3.1-flash-lite",
+];
+
+export interface ParsedCommandCodeModel {
+  id: string;
+  description?: string;
+  isDefault?: boolean;
+}
+
+// A model row is `<id><2+ spaces><tagline>`; section headers ("Open Source",
+// "Anthropic") have no 2-space gap and so never match. The id guard rejects the
+// `Docs:`/usage footer lines (the leading prefix skip below covers them too).
+const COMMANDCODE_MODEL_LINE_RE = /^(\S+)\s{2,}(.+)$/;
+const COMMANDCODE_MODEL_ID_RE = /^[A-Za-z0-9][\w./-]*$/;
+const COMMANDCODE_NOISE_LINE_RE = /^(?:Available\b|Pass\b|cmd\b|Docs:|Tip:|Loading\b|Usage:)/i;
+
+/**
+ * Parse `command-code --list-models` stdout into `{id, description, isDefault}`.
+ * Tolerant by design: anything that isn't a recognizable `id  tagline` row
+ * (headers, blank lines, the trailing usage/docs footer) is skipped, and the
+ * `(default)` / `(recommended)` markers are stripped out of the tagline.
+ */
+export function parseCommandCodeModels(output: string): ParsedCommandCodeModel[] {
+  const parsed: ParsedCommandCodeModel[] = [];
+  const seen = new Set<string>();
+  for (const rawLine of stripAnsi(output).split(/\r?\n/)) {
+    const line = rawLine.trim();
+    if (!line || COMMANDCODE_NOISE_LINE_RE.test(line)) continue;
+
+    const match = COMMANDCODE_MODEL_LINE_RE.exec(line);
+    if (!match) continue;
+    const id = match[1]!;
+    if (!COMMANDCODE_MODEL_ID_RE.test(id) || seen.has(id)) continue;
+    seen.add(id);
+
+    const rawDescription = match[2]!.trim();
+    const isDefault = /\(default\)/i.test(rawDescription);
+    const description = rawDescription
+      .replace(/\s*\((?:default|recommended)\)\s*/gi, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+    parsed.push({
+      id,
+      ...(description ? { description } : {}),
+      ...(isDefault ? { isDefault: true } : {}),
+    });
+  }
+  return parsed;
+}
+
+function humanizeCommandCodeModelLabel(id: string): string {
+  // Drop any namespace prefix, then turn `-` separators into spaces and
+  // title-case each segment. Fallback only — curated ids use the override map.
+  const tail = id.includes("/") ? id.slice(id.lastIndexOf("/") + 1) : id;
+  return tail
+    .split("-")
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
+function commandCodeModelSubProviderId(id: string): string | undefined {
+  const slash = id.indexOf("/");
+  if (slash > 0) return id.slice(0, slash);
+  if (/^claude/i.test(id)) return "anthropic";
+  if (/^(?:gpt|o\d|codex)/i.test(id)) return "openai";
+  return undefined;
+}
+
+/**
+ * Turn parsed models into the picker's model capabilities: the labeled model
+ * list plus the sub-provider grouping (labels + per-model mapping). Shared by
+ * the static fallback and the live `--list-models` probe so labels and grouping
+ * stay consistent across both paths.
+ */
+export function buildCommandCodeModelPickerCapabilities(
+  parsed: ParsedCommandCodeModel[],
+): Pick<AgentCapability, "models" | "subProviders" | "modelSubProvider"> {
+  const models: LabeledOption[] = [];
+  const modelSubProvider: Record<string, string> = {};
+  const usedSubProviders = new Set<string>();
+  const seen = new Set<string>();
+  let defaultId: string | undefined;
+
+  for (const { id, description, isDefault } of parsed) {
+    if (!id || seen.has(id)) continue;
+    seen.add(id);
+    if (isDefault && !defaultId) defaultId = id;
+
+    const model: LabeledOption = {
+      id,
+      label: COMMANDCODE_MODEL_LABELS[id] ?? humanizeCommandCodeModelLabel(id),
+    };
+    const desc = description?.trim();
+    if (desc) model.description = desc;
+    models.push(model);
+
+    const sub = commandCodeModelSubProviderId(id);
+    if (sub) {
+      modelSubProvider[id] = sub;
+      usedSubProviders.add(sub);
+    }
+  }
+
+  // Surface Command Code's own default first so a fresh thread (one with no
+  // saved model) mirrors what running `command-code` directly would pick —
+  // `resolveModelValue` falls back to `models[0]`.
+  if (defaultId) {
+    const idx = models.findIndex((m) => m.id === defaultId);
+    if (idx > 0) models.unshift(models.splice(idx, 1)[0]!);
+  }
+
+  const subProviders: LabeledOption[] = [];
+  const emitted = new Set<string>();
+  const pushSubProvider = (subId: string) => {
+    if (emitted.has(subId)) return;
+    emitted.add(subId);
+    subProviders.push({
+      id: subId,
+      label: COMMANDCODE_SUB_PROVIDER_LABELS[subId] ?? humanizeCommandCodeModelLabel(subId),
+    });
+  };
+  for (const subId of COMMANDCODE_SUB_PROVIDER_ORDER) {
+    if (usedSubProviders.has(subId)) pushSubProvider(subId);
+  }
+  // Any namespace the CLI introduced that we don't have a curated order for.
+  for (const subId of usedSubProviders) pushSubProvider(subId);
+
+  return { models, subProviders, modelSubProvider };
+}
+
 export const defaultCommandCodeCapabilities: AgentCapability = {
-  models: COMMANDCODE_MODELS,
+  ...buildCommandCodeModelPickerCapabilities(
+    COMMANDCODE_FALLBACK_MODEL_IDS.map((id) => ({
+      id,
+      ...(id === COMMANDCODE_DEFAULT_MODEL_ID ? { isDefault: true } : {}),
+    })),
+  ),
   efforts: [],
   modelEfforts: {},
-  subProviders: COMMANDCODE_SUB_PROVIDERS,
-  modelSubProvider: COMMANDCODE_MODEL_SUB_PROVIDER,
   modes: ["agent", "plan"],
   approvalPolicies: [
     { id: "default", label: "Default" },
@@ -82,6 +268,9 @@ export const defaultCommandCodeCapabilities: AgentCapability = {
   sandboxModes: [],
   supportsResume: true,
   supportsDirectInput: true,
+  // Command Code sandboxes file reads to its working directory, so picked
+  // screenshots / attachments must be copied into the project before use.
+  requiresWorkspaceLocalAttachments: true,
   liveInputMode: "terminal",
   presentationMode: "terminal",
   presentationModes: ["terminal"],
@@ -119,12 +308,28 @@ export const commandCodeDetectionSpec: DetectionSpec = {
   capabilities: defaultCommandCodeCapabilities,
   versionArgs: ["--version"],
   authProbes: [storedCredentialsAuthProbe],
-  // Cheap, no-spawn probe: just advertise the terminal login method when
-  // installed so the Settings Login button appears. Does not touch the static
-  // model list (detectAgentInstall only merges non-auth capability fields).
+  // Two cheap, no-TUI jobs in one probe: advertise the terminal login method so
+  // the Settings Login button appears, and refresh the model list from
+  // `command-code --list-models` (instant, no auth needed) so newly shipped
+  // models show up without an app release. If the list call fails or parses to
+  // nothing we return auth only, leaving the static fallback models in place
+  // (detectAgentInstall shallow-merges this partial over spec.capabilities).
   async capabilitiesProbe(ctx) {
     if (!ctx.executablePath) return undefined;
-    return { authMethods: [COMMANDCODE_TERMINAL_AUTH] };
+    const result = await readAgentCommandOutput(
+      ctx.location,
+      ctx.executablePath,
+      ["--list-models"],
+      {
+        timeoutMs: 8_000,
+        wslLinuxCwd: "/tmp",
+        posixCwd: getAgentProbeCwd(ctx.location),
+      },
+    ).catch(() => undefined);
+    const parsed = result?.ok ? parseCommandCodeModels(result.stdout) : [];
+    const modelCapabilities =
+      parsed.length > 0 ? buildCommandCodeModelPickerCapabilities(parsed) : undefined;
+    return { authMethods: [COMMANDCODE_TERMINAL_AUTH], ...modelCapabilities };
   },
   // `command-code update` is the documented self-updater (preferred). `npm`
   // also enables the registry "outdated?" check (getNpmPackageNameForUpdate)

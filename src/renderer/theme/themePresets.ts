@@ -50,7 +50,6 @@ export const THEME_SPECS: AppThemeSpec[] = [
       border: "#cacace",
       sidebar: "#ececef",
       content: "#f6f6f9",
-      terminal: "#f4f4f6",
     },
     dark: {
       bg: "#141416",
@@ -61,7 +60,6 @@ export const THEME_SPECS: AppThemeSpec[] = [
       border: "#303033",
       sidebar: "#1a1a1c",
       content: "#161618",
-      terminal: "#0c0c0e",
     },
   },
 
@@ -78,7 +76,6 @@ export const THEME_SPECS: AppThemeSpec[] = [
       accentFg: "#ffffff",
       border: "#bcc0cc",
       sidebar: "#e6e9ef",
-      terminal: "#dce0e8",
     },
     dark: {
       bg: "#1e1e2e",
@@ -89,7 +86,6 @@ export const THEME_SPECS: AppThemeSpec[] = [
       accentFg: "#1e1e2e",
       border: "#313244",
       sidebar: "#181825",
-      terminal: "#181825",
     },
   },
 
@@ -106,7 +102,6 @@ export const THEME_SPECS: AppThemeSpec[] = [
       border: "#d0d7de",
       sidebar: "#f6f8fa",
       content: "#ffffff",
-      terminal: "#f6f8fa",
     },
     dark: {
       bg: "#0d1117",
@@ -116,7 +111,6 @@ export const THEME_SPECS: AppThemeSpec[] = [
       accentFg: "#ffffff",
       border: "#30363d",
       sidebar: "#0d1117",
-      terminal: "#010409",
     },
   },
 
@@ -132,7 +126,6 @@ export const THEME_SPECS: AppThemeSpec[] = [
       accentFg: "#ffffff",
       border: "#e5e5e6",
       sidebar: "#eaeaeb",
-      terminal: "#f0f0f0",
     },
     dark: {
       bg: "#282c34",
@@ -143,7 +136,6 @@ export const THEME_SPECS: AppThemeSpec[] = [
       accentFg: "#282c34",
       border: "#3b4048",
       sidebar: "#21252b",
-      terminal: "#21252b",
     },
   },
 
@@ -159,7 +151,6 @@ export const THEME_SPECS: AppThemeSpec[] = [
       accentFg: "#ffffff",
       border: "#d4cfc0",
       sidebar: "#f3eedd",
-      terminal: "#f3eedd",
     },
     dark: {
       bg: "#282a36",
@@ -169,7 +160,6 @@ export const THEME_SPECS: AppThemeSpec[] = [
       accentFg: "#282a36",
       border: "#44475a",
       sidebar: "#21222c",
-      terminal: "#21222c",
     },
   },
 
@@ -185,7 +175,6 @@ export const THEME_SPECS: AppThemeSpec[] = [
       accentFg: "#ffffff",
       border: "#d8dee9",
       sidebar: "#e5e9f0",
-      terminal: "#e5e9f0",
     },
     dark: {
       bg: "#2e3440",
@@ -196,7 +185,6 @@ export const THEME_SPECS: AppThemeSpec[] = [
       accentFg: "#2e3440",
       border: "#434c5e",
       sidebar: "#2b303b",
-      terminal: "#272c36",
     },
   },
 
@@ -213,7 +201,6 @@ export const THEME_SPECS: AppThemeSpec[] = [
       accentFg: "#ffffff",
       border: "#c4c8da",
       sidebar: "#d6d8df",
-      terminal: "#d6d8df",
     },
     dark: {
       bg: "#1a1b26",
@@ -224,7 +211,6 @@ export const THEME_SPECS: AppThemeSpec[] = [
       accentFg: "#1a1b26",
       border: "#292e42",
       sidebar: "#16161e",
-      terminal: "#16161e",
     },
   },
 
@@ -240,7 +226,6 @@ export const THEME_SPECS: AppThemeSpec[] = [
       accentFg: "#fbf1c7",
       border: "#d5c4a1",
       sidebar: "#ebdbb2",
-      terminal: "#ebdbb2",
     },
     dark: {
       bg: "#282828",
@@ -251,7 +236,6 @@ export const THEME_SPECS: AppThemeSpec[] = [
       accentFg: "#282828",
       border: "#504945",
       sidebar: "#1d2021",
-      terminal: "#1d2021",
     },
   },
 
@@ -269,7 +253,6 @@ export const THEME_SPECS: AppThemeSpec[] = [
       accentFg: "#fdf6e3",
       border: "#ddd6c1",
       sidebar: "#eee8d5",
-      terminal: "#eee8d5",
     },
     dark: {
       bg: "#002b36",
@@ -279,7 +262,6 @@ export const THEME_SPECS: AppThemeSpec[] = [
       accentFg: "#002b36",
       border: "#0a4a5a",
       sidebar: "#002028",
-      terminal: "#002028",
     },
   },
 
@@ -296,7 +278,6 @@ export const THEME_SPECS: AppThemeSpec[] = [
       accentFg: "#ffffff",
       border: "#dfdad9",
       sidebar: "#f2e9e1",
-      terminal: "#f2e9e1",
     },
     dark: {
       bg: "#232136",
@@ -306,7 +287,6 @@ export const THEME_SPECS: AppThemeSpec[] = [
       accentFg: "#232136",
       border: "#44415a",
       sidebar: "#1f1d2e",
-      terminal: "#1f1d2e",
     },
   },
 
@@ -326,7 +306,6 @@ export const THEME_SPECS: AppThemeSpec[] = [
       accentFg: "#ffffff",
       border: "#e0dcc7",
       sidebar: "#efebd4",
-      terminal: "#efebd4",
     },
     dark: {
       bg: "#2d353b",
@@ -337,7 +316,6 @@ export const THEME_SPECS: AppThemeSpec[] = [
       accentFg: "#2d353b",
       border: "#475258",
       sidebar: "#272e33",
-      terminal: "#272e33",
     },
   },
 
@@ -353,7 +331,6 @@ export const THEME_SPECS: AppThemeSpec[] = [
       accentFg: "#ffffff",
       border: "#e4e3da",
       sidebar: "#f1f1ea",
-      terminal: "#f1f1ea",
     },
     dark: {
       bg: "#272822",
@@ -363,7 +340,6 @@ export const THEME_SPECS: AppThemeSpec[] = [
       accentFg: "#ffffff",
       border: "#3e3d32",
       sidebar: "#1d1e19",
-      terminal: "#1d1e19",
     },
   },
 ];

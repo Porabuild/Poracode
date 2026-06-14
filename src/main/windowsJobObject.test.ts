@@ -70,7 +70,7 @@ function createMockChild() {
   return child;
 }
 
-describe.skipIf(process.platform !== "win32")("WindowsJobObjectManager", () => {
+describe("WindowsJobObjectManager", () => {
   const platformDescriptor = Object.getOwnPropertyDescriptor(process, "platform");
 
   beforeEach(() => {
@@ -136,6 +136,39 @@ describe.skipIf(process.platform !== "win32")("WindowsJobObjectManager", () => {
     child.emit("exit", 1, null);
 
     await expect(pending).rejects.toThrow(/failed to start/i);
+  });
+
+  it("allows slow helper startup beyond the old five second watchdog", async () => {
+    vi.useFakeTimers();
+    const child = createMockChild();
+    spawnMock.mockReturnValue(child);
+
+    const manager = new WindowsJobObjectManager();
+    const pending = manager.start();
+
+    await vi.advanceTimersByTimeAsync(5_000);
+    child.stdout.write('{"type":"ready"}\n');
+
+    await expect(pending).resolves.toBeUndefined();
+  });
+
+  it("rejects startup when the helper never becomes ready", async () => {
+    vi.useFakeTimers();
+    const child = createMockChild();
+    spawnMock.mockReturnValue(child);
+
+    const manager = new WindowsJobObjectManager();
+    const pending = manager.start();
+    let startupError: unknown;
+    const handledPending = pending.catch((error: unknown) => {
+      startupError = error;
+    });
+
+    await vi.advanceTimersByTimeAsync(30_000);
+
+    await handledPending;
+    expect(startupError).toBeInstanceOf(Error);
+    expect((startupError as Error).message).toMatch(/timed out after 30000ms/i);
   });
 
   it("sends an exit command and ends stdin on dispose", async () => {

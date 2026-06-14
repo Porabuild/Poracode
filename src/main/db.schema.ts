@@ -58,6 +58,22 @@ export const appState = sqliteTable("app_state", {
 });
 
 /**
+ * Per-project notes panel content. One row per project, keyed by project id.
+ * `doc` holds the TipTap (ProseMirror) JSON for the free-form notes editor;
+ * `todos` holds the structured to-do list. Kept in its own table (rather than a
+ * `projects` column synced via `dbSyncAll`) so editing notes does not rewrite
+ * the entire projects+threads snapshot on every keystroke. Orphan rows are
+ * cleaned up explicitly on project deletion (see db.ts), so no FK is declared —
+ * this avoids an insert/sync ordering race for a brand-new project.
+ */
+export const projectNotes = sqliteTable("project_notes", {
+  projectId: text("project_id").primaryKey(),
+  doc: text("doc"), // JSON (TipTap document), nullable when empty
+  todos: text("todos").notNull().default("[]"), // JSON array of NotesTodoItem
+  updatedAt: text("updated_at").notNull(),
+});
+
+/**
  * Persisted canonical chat items per thread (for renderer-native chat mode).
  * Mirrors the renderer's `RuntimeChatItem` shape so we can hydrate the chat
  * UI when the user reopens a thread.

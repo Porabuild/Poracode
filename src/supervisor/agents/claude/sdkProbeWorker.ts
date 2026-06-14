@@ -11,6 +11,7 @@ import { query } from "@anthropic-ai/claude-agent-sdk";
 import type { SlashCommand } from "@anthropic-ai/claude-agent-sdk";
 import { AsyncPromptQueue } from "./promptQueue";
 import { resolveFastAvailability } from "./fastModeProbe";
+import { spawnClaudeProbeProcess } from "./sdkProbeProcess";
 
 function mapCommands(commands: SlashCommand[]) {
   return commands.map((c) => ({
@@ -47,6 +48,7 @@ async function main() {
         settingSources: ["user", "project", "local"],
         allowedTools: [],
         stderr: () => {},
+        spawnClaudeCodeProcess: spawnClaudeProbeProcess,
       },
     });
 

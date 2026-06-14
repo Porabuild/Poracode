@@ -63,7 +63,10 @@ describe("BrowserPanelManager", () => {
 
   it("rejects the host window WebContents as a browser tab target", async () => {
     const { BrowserPanelManager } = await import("./BrowserPanelManager");
-    const manager = new BrowserPanelManager({ settingsPath: "settings.json" } as never);
+    const manager = new BrowserPanelManager(
+      { settingsPath: "settings.json" } as never,
+      "Mozilla/5.0 Chrome/141.0.0.0 Safari/537.36",
+    );
     const { tab, host } = createManagerWithTab();
 
     manager.bindHost(host as never);
@@ -76,7 +79,10 @@ describe("BrowserPanelManager", () => {
 
   it("attaches a non-host WebContents to the browser tab", async () => {
     const { BrowserPanelManager } = await import("./BrowserPanelManager");
-    const manager = new BrowserPanelManager({ settingsPath: "settings.json" } as never);
+    const manager = new BrowserPanelManager(
+      { settingsPath: "settings.json" } as never,
+      "Mozilla/5.0 Chrome/141.0.0.0 Safari/537.36",
+    );
     const { tab, host } = createManagerWithTab();
     const guestWebContents = { id: 99 };
     resolveWebContentsById.mockReturnValue(guestWebContents);

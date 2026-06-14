@@ -248,6 +248,262 @@ describe("GitService.addWorktree", () => {
   });
 });
 
+describe("GitService.addWorktree (transfer uncommitted changes)", () => {
+  const location = {
+    kind: "windows" as const,
+    path: "C:\\Users\\demo\\work\\lightcode",
+  };
+  const worktreePath = "C:\\Users\\demo\\.lightcode\\worktrees\\lightcode-12345678\\feature-x";
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mkdirMock.mockResolvedValue(undefined);
+  });
+
+  it("moves the stash into the worktree, drops it, and leaves the source clean", async () => {
+    let stashPushed = false;
+    mockGitCommands((args) => {
+      if (args[0] === "status" && args[1] === "--porcelain") return { stdout: " M src/file.ts\n" };
+      if (args[0] === "branch" && args[1] === "--show-current") return { stdout: "master\n" };
+      if (args[0] === "stash" && args[1] === "push") {
+        stashPushed = true;
+        return { stdout: "" };
+      }
+      // The transfer stash is only pinned once `stash push` actually creates it.
+      if (args[0] === "rev-parse" && args.includes("stash@{0}")) {
+        return stashPushed ? { stdout: "stashsha\n" } : { error: new Error("unknown revision") };
+      }
+      if (args[0] === "stash" && args[1] === "list") return { stdout: "stashsha stash@{0}\n" };
+      return { stdout: "" };
+    });
+
+    const result = await new GitService().addWorktree(
+      location,
+      worktreePath,
+      "feature/x",
+      true,
+      "master",
+      undefined,
+      true,
+    );
+
+    expect(result.changesTransferred).toBe(true);
+
+    const commands = execFileMock.mock.calls.map((c: unknown[]) => (c[1] as string[]).join(" "));
+    expect(commands.some((c) => c.startsWith("stash push -u"))).toBe(true);
+    expect(commands.some((c) => c.startsWith("worktree add -b feature/x"))).toBe(true);
+    // Never relies on stash@{0}: apply/drop are pinned to the captured SHA.
+    expect(commands).not.toContain("stash pop");
+
+    // Move semantics: the pinned stash is applied ONLY inside the worktree (the
+    // source is left clean — not re-applied), then dropped.
+    const applyCwds = execFileMock.mock.calls
+      .filter(
+        (c: unknown[]) =>
+          Array.isArray(c[1]) && (c[1] as string[]).join(" ") === "stash apply --index stashsha",
+      )
+      .map((c: unknown[]) => (c[2] as { cwd?: string }).cwd);
+    expect(applyCwds).toEqual([worktreePath]);
+    expect(applyCwds).not.toContain(location.path);
+    expect(commands).toContain("stash drop stash@{0}");
+  });
+
+  it("copies the stash into the worktree and restores the source when keepChangesInSource is set", async () => {
+    let stashPushed = false;
+    mockGitCommands((args) => {
+      if (args[0] === "status" && args[1] === "--porcelain") return { stdout: " M src/file.ts\n" };
+      if (args[0] === "branch" && args[1] === "--show-current") return { stdout: "master\n" };
+      if (args[0] === "stash" && args[1] === "push") {
+        stashPushed = true;
+        return { stdout: "" };
+      }
+      // The transfer stash is only pinned once `stash push` actually creates it.
+      if (args[0] === "rev-parse" && args.includes("stash@{0}")) {
+        return stashPushed ? { stdout: "stashsha\n" } : { error: new Error("unknown revision") };
+      }
+      if (args[0] === "stash" && args[1] === "list") return { stdout: "stashsha stash@{0}\n" };
+      return { stdout: "" };
+    });
+
+    const result = await new GitService().addWorktree(
+      location,
+      worktreePath,
+      "feature/x",
+      true,
+      "master",
+      undefined,
+      true,
+      true,
+    );
+
+    expect(result.changesTransferred).toBe(true);
+
+    const commands = execFileMock.mock.calls.map((c: unknown[]) => (c[1] as string[]).join(" "));
+    expect(commands).not.toContain("stash pop");
+
+    // Copy semantics: the pinned stash is applied into BOTH the worktree and the
+    // source, then dropped — the source keeps its changes.
+    const applyCwds = execFileMock.mock.calls
+      .filter(
+        (c: unknown[]) =>
+          Array.isArray(c[1]) && (c[1] as string[]).join(" ") === "stash apply --index stashsha",
+      )
+      .map((c: unknown[]) => (c[2] as { cwd?: string }).cwd);
+    expect(applyCwds).toContain(worktreePath);
+    expect(applyCwds).toContain(location.path);
+    expect(commands).toContain("stash drop stash@{0}");
+  });
+
+  it("keeps the changes stashed (changesTransferred=false) when the worktree apply conflicts", async () => {
+    let stashPushed = false;
+    mockGitCommands((args) => {
+      if (args[0] === "status" && args[1] === "--porcelain") return { stdout: " M src/file.ts\n" };
+      if (args[0] === "branch" && args[1] === "--show-current") return { stdout: "master\n" };
+      if (args[0] === "stash" && args[1] === "push") {
+        stashPushed = true;
+        return { stdout: "" };
+      }
+      if (args[0] === "rev-parse" && args.includes("stash@{0}")) {
+        return stashPushed ? { stdout: "stashsha\n" } : { error: new Error("unknown revision") };
+      }
+      if (args[0] === "stash" && args[1] === "apply") {
+        return { error: new Error("CONFLICT (content): Merge conflict in src/file.ts") };
+      }
+      return { stdout: "" };
+    });
+
+    const result = await new GitService().addWorktree(
+      location,
+      worktreePath,
+      "feature/x",
+      true,
+      "master",
+      undefined,
+      true,
+    );
+
+    // The source was already left clean by the stash push; a conflicting apply
+    // keeps the work recoverable in the stash rather than dropping it.
+    expect(result.changesTransferred).toBe(false);
+    const commands = execFileMock.mock.calls.map((c: unknown[]) => (c[1] as string[]).join(" "));
+    expect(commands.some((c) => c.startsWith("stash drop"))).toBe(false);
+  });
+
+  it("skips the transfer when the working tree is clean", async () => {
+    mockGitCommands((args) => {
+      if (args[0] === "status" && args[1] === "--porcelain") return { stdout: "" };
+      if (args[0] === "branch" && args[1] === "--show-current") return { stdout: "master\n" };
+      return { stdout: "" };
+    });
+
+    await new GitService().addWorktree(
+      location,
+      worktreePath,
+      "feature/x",
+      true,
+      "master",
+      undefined,
+      true,
+    );
+
+    const stashCall = execFileMock.mock.calls.find(
+      (c: unknown[]) => Array.isArray(c[1]) && (c[1] as string[])[0] === "stash",
+    );
+    expect(stashCall).toBeUndefined();
+  });
+
+  it("never touches a pre-existing stash when `git stash push` saves nothing (e.g. dirty submodule)", async () => {
+    // `git status` reports dirty (a dirty submodule), but `git stash push` is a
+    // no-op, and an UNRELATED user stash already sits on top of the shared list.
+    mockGitCommands((args) => {
+      if (args[0] === "status" && args[1] === "--porcelain") return { stdout: " M sub\n" };
+      if (args[0] === "branch" && args[1] === "--show-current") return { stdout: "master\n" };
+      // push saves nothing → the top-of-stack SHA is unchanged before and after.
+      if (args[0] === "rev-parse" && args.includes("stash@{0}")) return { stdout: "userstash\n" };
+      return { stdout: "" };
+    });
+
+    const result = await new GitService().addWorktree(
+      location,
+      worktreePath,
+      "feature/x",
+      true,
+      "master",
+      undefined,
+      true,
+    );
+
+    const commands = execFileMock.mock.calls.map((c: unknown[]) => (c[1] as string[]).join(" "));
+    // The worktree is still created, but the unrelated stash is never applied or
+    // dropped — no data loss.
+    expect(commands.some((c) => c.startsWith("worktree add -b feature/x"))).toBe(true);
+    expect(commands.some((c) => c.startsWith("stash apply"))).toBe(false);
+    expect(commands.some((c) => c.startsWith("stash drop"))).toBe(false);
+    expect(result.changesTransferred).toBeUndefined();
+  });
+
+  it("applies transferred changes to WSL worktrees with a UNC filesystem path", async () => {
+    const wslLocation = {
+      kind: "wsl" as const,
+      distro: "Ubuntu",
+      linuxPath: "/home/demo/work/lightcode",
+      uncPath: "\\\\wsl.localhost\\Ubuntu\\home\\demo\\work\\lightcode",
+    };
+    const wslWorktreePath = "/home/demo/.lightcode/worktrees/lightcode/feature-x";
+    const bridgeMkdir = vi.fn<() => Promise<void>>(async () => undefined);
+    let stashPushed = false;
+    const gitExec = vi.fn<
+      (location: WslLocation, input: WslGitExecInput) => Promise<WslGitExecResult>
+    >(async (_location, input) => {
+      const args = input.args;
+      if (args[0] === "status" && args[1] === "--porcelain") {
+        return { ok: true, stdout: " M src/file.ts\n", stderr: "", exitCode: 0 };
+      }
+      if (args[0] === "stash" && args[1] === "push") {
+        stashPushed = true;
+        return { ok: true, stdout: "", stderr: "", exitCode: 0 };
+      }
+      if (args[0] === "rev-parse" && args.includes("stash@{0}")) {
+        return stashPushed
+          ? { ok: true, stdout: "stashsha\n", stderr: "", exitCode: 0 }
+          : { ok: false, stdout: "", stderr: "", exitCode: 1 };
+      }
+      if (args[0] === "stash" && args[1] === "list") {
+        return { ok: true, stdout: "stashsha stash@{0}\n", stderr: "", exitCode: 0 };
+      }
+      return { ok: true, stdout: "", stderr: "", exitCode: 0 };
+    });
+    const service = new GitService();
+    service.setWslClient({ gitExec, mkdir: bridgeMkdir } as unknown as WslBridgeClient);
+
+    try {
+      await service.addWorktree(
+        wslLocation,
+        wslWorktreePath,
+        "feature/x",
+        true,
+        "main",
+        undefined,
+        true,
+      );
+
+      const applyCalls = gitExec.mock.calls.filter(
+        ([, input]) => input.args.join(" ") === "stash apply --index stashsha",
+      );
+      expect(applyCalls[0]?.[0]).toMatchObject({
+        kind: "wsl",
+        distro: "Ubuntu",
+        linuxPath: wslWorktreePath,
+        uncPath:
+          "\\\\wsl.localhost\\Ubuntu\\home\\demo\\.lightcode\\worktrees\\lightcode\\feature-x",
+      });
+      expect(applyCalls[0]?.[1]).toMatchObject({ cwd: wslWorktreePath });
+    } finally {
+      service.setWslClient(undefined);
+    }
+  });
+});
+
 describe("GitService.revert", () => {
   const location = {
     kind: "windows" as const,
@@ -405,6 +661,54 @@ describe("GitService.commit", () => {
   });
 });
 
+describe("GitService.init", () => {
+  const location = {
+    kind: "windows" as const,
+    path: "C:\\Users\\demo\\work\\new-project",
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("initializes a repository at the project location", async () => {
+    mockGitCommands(() => ({ stdout: "" }));
+
+    await new GitService().init(location);
+
+    expect(execFileMock).toHaveBeenCalledWith(
+      "git",
+      ["init"],
+      expect.objectContaining({ cwd: location.path }),
+      expect.any(Function),
+    );
+  });
+});
+
+describe("GitService.addRemote", () => {
+  const location = {
+    kind: "windows" as const,
+    path: "C:\\Users\\demo\\work\\new-project",
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("adds a remote at the project location", async () => {
+    mockGitCommands(() => ({ stdout: "" }));
+
+    await new GitService().addRemote(location, "origin", "https://github.com/demo/repo.git");
+
+    expect(execFileMock).toHaveBeenCalledWith(
+      "git",
+      ["remote", "add", "origin", "https://github.com/demo/repo.git"],
+      expect.objectContaining({ cwd: location.path }),
+      expect.any(Function),
+    );
+  });
+});
+
 describe("GitService WSL bridge exec", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -489,6 +793,32 @@ describe("GitService WSL bridge exec", () => {
     }
   });
 
+  it("skips Windows fetch when the path is not a Git repository", async () => {
+    mockGitCommands((args) => {
+      if (args[0] === "remote") {
+        return { error: new Error("fatal: not a git repository") };
+      }
+      return { stdout: "" };
+    });
+
+    await new GitService().fetch(
+      {
+        kind: "windows",
+        path: "C:\\Users\\demo\\work\\not-repo",
+      },
+      "origin",
+      false,
+    );
+
+    expect(execFileMock).toHaveBeenCalledTimes(1);
+    expect(execFileMock).toHaveBeenCalledWith(
+      "git",
+      ["remote"],
+      expect.objectContaining({ cwd: "C:\\Users\\demo\\work\\not-repo" }),
+      expect.any(Function),
+    );
+  });
+
   it("skips WSL fetch when the remote is not configured", async () => {
     const gitExec = vi.fn<
       (location: WslLocation, input: WslGitExecInput) => Promise<WslGitExecResult>
@@ -503,6 +833,41 @@ describe("GitService WSL bridge exec", () => {
           distro: "Ubuntu",
           linuxPath: "/home/demo/work/repo",
           uncPath: "\\\\wsl.localhost\\Ubuntu\\home\\demo\\work\\repo",
+        },
+        "origin",
+        false,
+      );
+
+      expect(gitExec).toHaveBeenCalledTimes(1);
+      expect(gitExec).toHaveBeenCalledWith(
+        expect.objectContaining({ distro: "Ubuntu" }),
+        expect.objectContaining({ args: ["remote"], loginEnv: true }),
+      );
+      expect(execFileMock).not.toHaveBeenCalled();
+    } finally {
+      service.setWslClient(undefined);
+    }
+  });
+
+  it("skips WSL fetch when the path is not a Git repository", async () => {
+    const gitExec = vi.fn<
+      (location: WslLocation, input: WslGitExecInput) => Promise<WslGitExecResult>
+    >(async () => ({
+      ok: false,
+      stdout: "",
+      stderr: "fatal: not a git repository",
+      exitCode: 128,
+    }));
+    const service = new GitService();
+    service.setWslClient({ gitExec } as unknown as WslBridgeClient);
+
+    try {
+      await service.fetch(
+        {
+          kind: "wsl",
+          distro: "Ubuntu",
+          linuxPath: "/home/demo/work/not-repo",
+          uncPath: "\\\\wsl.localhost\\Ubuntu\\home\\demo\\work\\not-repo",
         },
         "origin",
         false,

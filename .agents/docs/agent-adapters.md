@@ -53,7 +53,7 @@ Model/effort lists below are the **statically declared defaults**. Several provi
 
 | Provider     | Models                                                 | Efforts                                  | Live Input            | Structured Session     |
 | ------------ | ------------------------------------------------------ | ---------------------------------------- | --------------------- | ---------------------- |
-| Claude       | opus-4-8, opus-4-7, opus-4-6, sonnet, haiku            | low, medium, high, xHigh, max, ultracode | terminal              | No                     |
+| Claude       | opus-4-8, fable-5, opus-4-7, opus-4-6, sonnet, haiku   | low, medium, high, xHigh, max, ultracode | terminal              | No                     |
 | Codex        | (probed dynamically via app-server)                    | (probed dynamically)                     | terminal / GUI server | Yes (stdio app-server) |
 | Gemini       | (probed dynamically via ACP)                           | (probed dynamically)                     | terminal              | No                     |
 | Copilot      | (probed via ACP)                                       | (probed via ACP)                         | terminal              | Yes (ACP)              |

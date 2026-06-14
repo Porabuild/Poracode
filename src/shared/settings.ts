@@ -3,6 +3,8 @@ import {
   agentInstanceConfigMapSchema,
   installedAcpRegistryAgentSchema,
   gitReviewModeSchema,
+  prCreateModeSchema,
+  commitDefaultActionSchema,
   newThreadModeSchema,
   notificationFilterSchema,
   providerDraftConfigSchema,
@@ -160,6 +162,13 @@ export const sharedSettingsSchema = z.object({
   agentInstances: agentInstanceConfigMapSchema,
   /** When true, the composer in terminal-native threads starts collapsed. */
   collapseTerminalComposer: z.boolean(),
+  /**
+   * Where a browser element-picker selection is delivered for a terminal-native
+   * (CLI) thread. "ask" shows a chooser on pick (but a collapsed composer always
+   * routes straight to the terminal); "terminal" always types it into the PTY
+   * input line; "composer" always stages it in the composer attachment bar.
+   */
+  cliPickerTarget: z.enum(["ask", "terminal", "composer"]),
   /** Idle minutes before a hidden resumable thread is unloaded. 0 disables auto-unload. */
   staleThreadUnloadMinutes: z.number().int().min(0),
   /** Days a thread can stay marked done before it is auto-archived. 0 disables auto-archive. */
@@ -190,6 +199,17 @@ export const sharedSettingsSchema = z.object({
   autoShowTerminalPanel: z.boolean(),
   /** Open git review as a right-side panel or a full page overlay. */
   gitReviewMode: gitReviewModeSchema,
+  /**
+   * Default "Create PR" action: open the dialog to edit details, or
+   * auto-generate the summary and create the PR immediately. Doubles as the
+   * sticky last-used choice for the Create PR split-button.
+   */
+  prCreateMode: prCreateModeSchema,
+  /**
+   * Sticky last-used primary commit action for the commit split-button,
+   * remembered across sessions so it defaults to whatever the user picked last.
+   */
+  commitDefaultAction: commitDefaultActionSchema,
   /** Per-provider last-used draft config (model, effort, mode, etc.). App-wide. */
   providerConfigs: z.record(z.string(), providerDraftConfigSchema),
   /**
@@ -198,6 +218,12 @@ export const sharedSettingsSchema = z.object({
    * the user's previous choice.
    */
   lastPresentationModeByAgent: z.record(z.string(), threadPresentationModeSchema),
+  /**
+   * Last-used parent directory for the create-project folder picker, keyed by
+   * runtime (`"native"` or a WSL distro name). Preselected when browsing for a
+   * new project; falls back to the runtime's home directory when absent.
+   */
+  lastUsedProjectDirs: z.record(z.string(), z.string()),
   /** Enable LSP language servers for the file editor (type checking, completions, etc.). */
   editorLspEnabled: z.boolean(),
   /** When true (VS Code default), the @file mention search honors `.gitignore`. */
@@ -253,6 +279,9 @@ export const sharedSettingsSchema = z.object({
 });
 export type SharedSettings = z.infer<typeof sharedSettingsSchema>;
 
+/** Browser element-picker delivery target for terminal-native (CLI) threads. */
+export type CliPickerTarget = SharedSettings["cliPickerTarget"];
+
 /**
  * Settings as written by the renderer / IPC consumer. Excludes
  * supervisor-only fields (`agentHookSupport`) that the renderer never
@@ -291,6 +320,7 @@ export const defaultSharedSettings: SharedSettings = {
   acpRegistryInstalledAgents: {},
   agentInstances: {},
   collapseTerminalComposer: false,
+  cliPickerTarget: "ask",
   staleThreadUnloadMinutes: 60,
   autoArchiveDoneAfterDays: 7,
   scrollSpeed: 2,
@@ -304,8 +334,11 @@ export const defaultSharedSettings: SharedSettings = {
   homeScopeEnabled: true,
   autoShowTerminalPanel: true,
   gitReviewMode: "panel",
+  prCreateMode: "dialog",
+  commitDefaultAction: "commit-push",
   providerConfigs: {},
   lastPresentationModeByAgent: {},
+  lastUsedProjectDirs: {},
   editorLspEnabled: false,
   searchUseIgnoreFiles: true,
   searchExclude: { ...DEFAULT_SEARCH_EXCLUDE },

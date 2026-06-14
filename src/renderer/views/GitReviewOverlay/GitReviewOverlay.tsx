@@ -11,6 +11,7 @@ import { BranchSelector } from "@/renderer/components/common";
 import { PageLayout } from "@/renderer/components/layout/PageLayout";
 import { GitReviewSidebar } from "./parts/GitReviewSidebar/GitReviewSidebar";
 import { GitDiffContent, type DiffFilter } from "./parts/GitDiffContent/GitDiffContent";
+import { addGitRemote, initGitRepository } from "./parts/initGitRepository";
 
 /** Matches DiffModeEnum values from @git-diff-view/react — kept local to avoid importing the heavy library. */
 const DIFF_MODE = { Split: 1, Unified: 4 } as const;
@@ -175,6 +176,10 @@ export function GitReviewOverlay(props: {
                     value={gitStatus.branch}
                     onSwitchBranch={handleSwitchBranch}
                     hideWorktreeToggle
+                    showMoveBranchAction
+                    {...(project.scripts?.worktreeCopyPatterns
+                      ? { moveBranchCopyIgnoredPatterns: project.scripts.worktreeCopyPatterns }
+                      : {})}
                     popoverPlacement="bottom"
                     trigger={
                       <Button
@@ -299,6 +304,26 @@ export function GitReviewOverlay(props: {
           onClose={onClose}
           refreshKey={refreshKey}
           onRefresh={() => void handleRefresh()}
+          onInitRepository={() =>
+            void initGitRepository({
+              project,
+              effectiveLocation,
+              statusKey,
+              setRefreshing,
+              bumpRefreshKey: () => setRefreshKey((k) => k + 1),
+            })
+          }
+          onAddRemote={(remote, url) =>
+            addGitRemote({
+              project,
+              effectiveLocation,
+              statusKey,
+              remote,
+              url,
+              setRefreshing,
+              bumpRefreshKey: () => setRefreshKey((k) => k + 1),
+            })
+          }
           statusKey={statusKey}
         />
       }

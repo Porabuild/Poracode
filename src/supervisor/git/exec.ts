@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { execFile } from "node:child_process";
 import { homedir } from "node:os";
-import { dirname, join, normalize, posix } from "node:path";
+import { dirname, join, normalize, posix, win32 } from "node:path";
 import { promisify } from "node:util";
 import type { GitRemoteInfo, ProjectLocation, RemoteHostPlatform } from "@/shared/contracts";
 import { resolveLightcodePaths } from "@/shared/lightcodePaths";
@@ -17,6 +17,9 @@ export const GIT_STATUS_TIMEOUT = 10_000;
 export const GIT_DIFF_TIMEOUT = 15_000;
 export const GIT_NETWORK_TIMEOUT = 30_000;
 export const GIT_DEFAULT_TIMEOUT = 15_000;
+// Cloning a repository can pull a lot of history over the network; allow plenty
+// of time before giving up so large repos don't fail spuriously.
+export const GIT_CLONE_TIMEOUT = 600_000;
 // Operations that invoke user-defined hooks (pre-commit lint/typecheck/test, etc.).
 // Generous bound so common hook chains complete; still finite so a hung hook can't pin the UI forever.
 export const GIT_HOOK_TIMEOUT = 300_000;
@@ -259,6 +262,18 @@ function detectPlatform(hostname: string): RemoteHostPlatform {
   if (normalized === "gitlab.com" || normalized.includes("gitlab")) return "gitlab";
   if (normalized === "bitbucket.org" || normalized.includes("bitbucket")) return "bitbucket";
   return "unknown";
+}
+
+/**
+ * Path of a child folder (e.g. a freshly cloned repo) inside a parent location.
+ * Mirrors the join rules of the main process's `createProjectDirectory`: posix
+ * uses `/`, while windows and WSL clones live at the parent's UNC path joined
+ * with `\` so the renderer can derive the project location from the result.
+ */
+export function resolveClonedProjectPath(parent: ProjectLocation, name: string): string {
+  if (parent.kind === "posix") return posix.join(parent.path, name);
+  if (parent.kind === "windows") return win32.join(parent.path, name);
+  return win32.join(parent.uncPath, name);
 }
 
 export function parseRemoteUrl(url: string): GitRemoteInfo | null {

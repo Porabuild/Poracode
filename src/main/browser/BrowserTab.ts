@@ -22,6 +22,7 @@ export interface BrowserTabSnapshot {
 export interface BrowserTabOptions {
   tabId: string;
   initialUrl?: string;
+  userAgent: string;
   onUpdate(snapshot: BrowserTabSnapshot): void;
   onAttention(tabId: string): void;
   onPopup(tabId: string, url: string): void;
@@ -101,6 +102,7 @@ export class BrowserTab {
       this.teardownListeners();
     }
     this._webContents = webContents;
+    webContents.setUserAgent(this.opts.userAgent);
     this._cdp = new CdpClient(webContents);
     installSessionPermissions(webContents.session);
     const removeNavGuards = installNavigationGuards(webContents, (popupUrl) => {

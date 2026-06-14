@@ -1,8 +1,30 @@
-import { ArrowDown, ArrowUp, ArrowUpDown, ChevronDown, Lock, Sparkles } from "lucide-react";
+import type { ReactNode } from "react";
+import {
+  ArrowDown,
+  ArrowUp,
+  ArrowUpDown,
+  ChevronDown,
+  GitPullRequest,
+  Lock,
+  Sparkles,
+} from "lucide-react";
 import { Button, ButtonGroup, Dropdown, Label, Tooltip } from "@heroui/react";
+import type { CommitDefaultAction } from "@/shared/contracts";
 import { PixelLoader, TextArea } from "@/renderer/components/common";
 import type { GitSyncCommand } from "@/renderer/actions/gitCommandRunner";
 import { GitReviewSection } from "./GitReviewSection";
+import {
+  COMMIT_ACTION_LABELS,
+  getAvailableCommitActions,
+  resolvePrimaryCommitAction,
+} from "./commitActions";
+
+// Static icon per commit action — the visual twin of COMMIT_ACTION_LABELS.
+const COMMIT_ACTION_ICONS: Record<CommitDefaultAction, ReactNode> = {
+  commit: <Lock className="size-3.5" />,
+  "commit-push": <ArrowUp className="size-3.5" />,
+  "commit-push-pr": <GitPullRequest className="size-3.5" />,
+};
 
 export function CommitSyncPanel(props: {
   hasAnyChanges: boolean;
@@ -16,14 +38,19 @@ export function CommitSyncPanel(props: {
   setCommitMessage: (msg: string) => void;
   canCommitStaged: boolean;
   canGenerateMessage: boolean;
+  canCreatePr: boolean;
+  commitDefaultAction: CommitDefaultAction;
+  setCommitDefaultAction: (action: CommitDefaultAction) => void;
   isCommitting: boolean;
   isGenerating: boolean;
   isSyncing: boolean;
+  prLoading: boolean;
   isPullingFromSource: boolean;
   showPullFromSource: boolean;
   sourceBranch: string | null;
   sourceAhead: number;
-  handleCommit: (addAll: boolean, pushAfter?: boolean) => Promise<void>;
+  handleCommit: (addAll: boolean, pushAfter?: boolean) => Promise<boolean>;
+  handleCommitAndCreatePr: (addAll: boolean) => Promise<void>;
   handleGenerateMessage: () => Promise<void>;
   handleSyncOrPush: () => Promise<void>;
   handleSyncAction: (key: GitSyncCommand) => Promise<void>;
@@ -41,19 +68,48 @@ export function CommitSyncPanel(props: {
     setCommitMessage,
     canCommitStaged,
     canGenerateMessage,
+    canCreatePr,
+    commitDefaultAction,
+    setCommitDefaultAction,
     isCommitting,
     isGenerating,
     isSyncing,
+    prLoading,
     isPullingFromSource,
     showPullFromSource,
     sourceBranch,
     sourceAhead,
     handleCommit,
+    handleCommitAndCreatePr,
     handleGenerateMessage,
     handleSyncOrPush,
     handleSyncAction,
     handlePullFromSource,
   } = props;
+
+  // Resolve which commit action the primary button performs. The user's
+  // sticky last-used choice wins when it's actually available; otherwise we
+  // degrade to the strongest available action (push needs a remote, PR needs
+  // a target branch) without overwriting their stored preference.
+  const addAll = !hasStagedChanges;
+  const availableCommitActions = getAvailableCommitActions({ hasRemote, canCreatePr });
+  const primaryCommitAction = resolvePrimaryCommitAction(commitDefaultAction, {
+    hasRemote,
+    canCreatePr,
+  });
+  const runCommitAction = (action: CommitDefaultAction) => {
+    if (action === "commit") return void handleCommit(addAll);
+    if (action === "commit-push") return void handleCommit(addAll, true);
+    return void handleCommitAndCreatePr(addAll);
+  };
+  // Picking from the dropdown both runs the action and makes it the new
+  // sticky default; pressing the primary button only runs it.
+  const selectCommitAction = (action: CommitDefaultAction) => {
+    setCommitDefaultAction(action);
+    runCommitAction(action);
+  };
+  const primaryCommitPending =
+    isCommitting || (primaryCommitAction === "commit-push-pr" && prLoading);
 
   return (
     <GitReviewSection gap={1}>
@@ -77,7 +133,7 @@ export function CommitSyncPanel(props: {
               onKeyDown={(e) => {
                 if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
                   e.preventDefault();
-                  if (canCommitStaged) void handleCommit(!hasStagedChanges, hasRemote);
+                  if (canCommitStaged) runCommitAction(primaryCommitAction);
                 }
               }}
             />
@@ -102,30 +158,32 @@ export function CommitSyncPanel(props: {
           </div>
 
           {(() => {
+            const secondaryActions = availableCommitActions.filter(
+              (action) => action !== primaryCommitAction,
+            );
+            const hasMenuItems = secondaryActions.length > 0 || showPullFromSource;
+
             const commitButton = (
               <Button
                 variant="tertiary"
-                className="flex-1"
+                className={hasMenuItems ? "flex-1" : "w-full"}
                 isDisabled={!canCommitStaged}
-                isPending={isCommitting}
-                onPress={() => void handleCommit(!hasStagedChanges, hasRemote)}
+                isPending={primaryCommitPending}
+                onPress={() => runCommitAction(primaryCommitAction)}
               >
                 {({ isPending }) => (
                   <>
                     {isPending ? (
                       <PixelLoader size="xs" />
-                    ) : hasRemote ? (
-                      <ArrowUp className="size-3.5" />
                     ) : (
-                      <Lock className="size-3.5" />
+                      COMMIT_ACTION_ICONS[primaryCommitAction]
                     )}
-                    {hasRemote ? "Commit & Push" : "Commit"}
+                    {COMMIT_ACTION_LABELS[primaryCommitAction]}
                   </>
                 )}
               </Button>
             );
 
-            const hasMenuItems = hasRemote || showPullFromSource;
             if (!hasMenuItems) {
               return <div className="flex w-full">{commitButton}</div>;
             }
@@ -147,20 +205,24 @@ export function CommitSyncPanel(props: {
                     <Dropdown.Menu
                       aria-label="Commit options"
                       onAction={(key) => {
-                        if (key === "commit-only") void handleCommit(!hasStagedChanges);
-                        if (key === "pull-from-source") void handlePullFromSource();
+                        if (key === "pull-from-source") {
+                          void handlePullFromSource();
+                          return;
+                        }
+                        selectCommitAction(key as CommitDefaultAction);
                       }}
                     >
-                      {hasRemote ? (
+                      {secondaryActions.map((action) => (
                         <Dropdown.Item
-                          id="commit-only"
-                          textValue="Commit"
+                          key={action}
+                          id={action}
+                          textValue={COMMIT_ACTION_LABELS[action]}
                           isDisabled={!canCommitStaged}
                         >
-                          <Lock className="size-3.5" />
-                          <Label>Commit</Label>
+                          {COMMIT_ACTION_ICONS[action]}
+                          <Label>{COMMIT_ACTION_LABELS[action]}</Label>
                         </Dropdown.Item>
-                      ) : null}
+                      ))}
                       {showPullFromSource ? (
                         <Dropdown.Item
                           id="pull-from-source"

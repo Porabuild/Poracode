@@ -53,6 +53,12 @@ function isIgnoredWorkTreeFile(name: string): boolean {
   return IGNORED_PREFIXES.some((p) => name.startsWith(p));
 }
 
+function isRecoverableGitPath(name: string): boolean {
+  if (name === ".git") return true;
+  if (!name.startsWith(".git/")) return false;
+  return !isKnownGitNoisePath(name.slice(".git/".length));
+}
+
 const WSL_IGNORE_DIRS = [
   "node_modules",
   ".next",
@@ -182,28 +188,43 @@ export class ProjectWatcher {
     const repoPath = location.path;
     const gitDir = join(repoPath, ".git");
 
+    const startGitWatcher = () => {
+      if (entry.gitWatcher) return;
+      try {
+        entry.gitWatcher = watch(gitDir, { recursive: true }, (_eventType, filename) => {
+          // Windows fs.watch coalesces bursts into filename-less events, which
+          // we cannot filter — they cause a refresh→write→event→refresh loop.
+          // Real isolated changes always deliver a filename, so drop the rest.
+          if (!filename) return;
+          const name = filename.replace(/\\/g, "/");
+          if (isKnownGitNoisePath(name)) return;
+          scheduleGitNotify();
+        });
+        entry.gitWatcher.on("error", () => {
+          entry.gitWatcher?.close();
+          entry.gitWatcher = null;
+        });
+      } catch {
+        // .git directory may not exist yet or may not be watchable
+      }
+    };
+
+    startGitWatcher();
+
     try {
-      entry.gitWatcher = watch(gitDir, { recursive: true }, (_eventType, filename) => {
+      entry.workTreeWatcher = watch(repoPath, { recursive: true }, (_eventType, filename) => {
         // Windows fs.watch coalesces bursts into filename-less events, which
         // we cannot filter — they cause a refresh→write→event→refresh loop.
         // Real isolated changes always deliver a filename, so drop the rest.
         if (!filename) return;
         const name = filename.replace(/\\/g, "/");
-        if (isKnownGitNoisePath(name)) return;
-        scheduleGitNotify();
-      });
-      entry.gitWatcher.on("error", () => {
-        entry.gitWatcher?.close();
-        entry.gitWatcher = null;
-      });
-    } catch {
-      // .git directory may not exist yet or may not be watchable
-    }
-
-    try {
-      entry.workTreeWatcher = watch(repoPath, { recursive: true }, (_eventType, filename) => {
-        if (!filename) return;
-        const name = filename.replace(/\\/g, "/");
+        if (isRecoverableGitPath(name)) {
+          if (!entry.gitWatcher) {
+            startGitWatcher();
+            scheduleGitNotify();
+          }
+          return;
+        }
         if (isIgnoredWorkTreeFile(name)) return;
         scheduleTreeNotify();
       });
@@ -435,8 +456,10 @@ export class ProjectWatcher {
       { path: linuxPath, scope: "worktree" },
     ];
     const gitStat = await client.stat(location, [gitPath], { follow: true }).catch(() => null);
+    let hasGitScope = false;
     if (gitStat?.stats[0]?.isDirectory) {
       paths.push({ path: gitPath, scope: "git" });
+      hasGitScope = true;
     }
     try {
       return await client.watch(
@@ -457,6 +480,9 @@ export class ProjectWatcher {
             if (event.paths.length === 0) {
               schedule.onTree();
               return;
+            }
+            if (!hasGitScope && event.paths.some((p) => isRecoverableGitPath(p))) {
+              schedule.onGit();
             }
             // `.git/...` writes (e.g. our own `git status` creating
             // `.git/index.lock`) leak into worktree-scope events because the

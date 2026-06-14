@@ -137,12 +137,13 @@ describe("generatePrSummary", () => {
     );
     await flushPromises();
 
-    expect(buildAgentCommandMock).toHaveBeenCalledWith(windowsProject, "codex", [
-      "exec",
-      "-m",
-      "gpt-5.4-mini",
-      "-",
-    ]);
+    expect(buildAgentCommandMock).toHaveBeenCalledWith(
+      windowsProject,
+      "codex",
+      ["exec", "-m", "gpt-5.4-mini", "-"],
+      undefined,
+      undefined,
+    );
     expect(spawnMock).toHaveBeenCalledWith(
       "codex",
       ["exec", "-m", "gpt-5.4-mini", "-"],

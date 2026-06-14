@@ -25,7 +25,7 @@ interface HelperErrorMessage {
 
 type HelperMessage = HelperReadyMessage | HelperAssignedMessage | HelperErrorMessage;
 
-const START_TIMEOUT_MS = 5_000;
+const START_TIMEOUT_MS = 30_000;
 const DISPOSE_GRACE_MS = 500;
 
 function buildHelperScript(): string {

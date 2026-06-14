@@ -1,7 +1,7 @@
 import { watch } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
-import { app, BrowserWindow, Menu, nativeTheme } from "electron";
+import { app, BrowserWindow, Menu, nativeTheme, session as electronSession } from "electron";
 import { resolveThemeMode } from "@/shared/themeMode";
 import { closeDatabase, dbGetThreads, initDatabase } from "./db";
 import { cleanupOrphanedAttachments, prepareLightcodeDataRoot } from "./lightcodeData";
@@ -18,6 +18,7 @@ import {
   installPickerProtocolHandler,
   registerPickerProtocolScheme,
 } from "./browser";
+import { buildChromeLikeUserAgent } from "./browser/userAgent";
 import { SupervisorClient } from "./supervisor/SupervisorClient";
 import { createAutoUpdaterController } from "./updates/autoUpdater";
 import { createMainWindow } from "./window/createMainWindow";
@@ -40,6 +41,9 @@ const baseDirOverride = process.env.LIGHTCODE_BASE_DIR;
 if (process.env.LIGHTCODE_CDP_PORT) {
   app.commandLine.appendSwitch("remote-debugging-port", process.env.LIGHTCODE_CDP_PORT);
 }
+
+const chromeLikeUserAgent = buildChromeLikeUserAgent(app.userAgentFallback);
+app.userAgentFallback = chromeLikeUserAgent;
 
 if (baseDirOverride) {
   app.setPath("userData", join(baseDirOverride, "userData"));
@@ -182,6 +186,7 @@ if (!hasSingleInstanceLock) {
 
     installLocalFileProtocolHandler();
     installPickerProtocolHandler();
+    electronSession.fromPartition("persist:lightcode-browser").setUserAgent(chromeLikeUserAgent);
 
     lightcodePaths = prepareLightcodeDataRoot(
       baseDirOverride ??
@@ -256,7 +261,7 @@ if (!hasSingleInstanceLock) {
       },
     );
 
-    browserPanelManager = new BrowserPanelManager(lightcodePaths);
+    browserPanelManager = new BrowserPanelManager(lightcodePaths, chromeLikeUserAgent);
     browserMcpIngress = new BrowserMcpIngress();
     browserMcpIngress.setManagerAccessor(() => browserPanelManager);
     primeBrowserAllowFlags();
@@ -290,6 +295,7 @@ if (!hasSingleInstanceLock) {
       posthogKey,
       sentryEnabled,
       windowChromeHeight: WINDOW_CHROME_HEIGHT,
+      browserUserAgent: chromeLikeUserAgent,
       appearance: resolveAppAppearance(),
       ...(process.env.VITE_DEV_SERVER_URL ? { devServerUrl: process.env.VITE_DEV_SERVER_URL } : {}),
       onClosed: () => {
@@ -378,6 +384,7 @@ if (!hasSingleInstanceLock) {
           posthogKey,
           sentryEnabled,
           windowChromeHeight: WINDOW_CHROME_HEIGHT,
+          browserUserAgent: chromeLikeUserAgent,
           appearance: resolveAppAppearance(),
           ...(process.env.VITE_DEV_SERVER_URL
             ? { devServerUrl: process.env.VITE_DEV_SERVER_URL }

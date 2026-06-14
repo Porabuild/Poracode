@@ -60,7 +60,9 @@ export async function extractContext(
   if (adapter.buildContextExtractionCommand) {
     const cmd = adapter.buildContextExtractionCommand(sessionRef, location, model);
     if (cmd) {
-      const spawnSpec = buildOneShotSpec(location, cmd.command, cmd.args);
+      const spawnSpec = buildOneShotSpec(location, cmd.command, cmd.args, {
+        ...(cmd.env ? { env: cmd.env } : {}),
+      });
       console.log(`[context-extract] spawning: ${spawnSpec.command} ${spawnSpec.args.join(" ")}`);
 
       const raw = await spawnAgent(

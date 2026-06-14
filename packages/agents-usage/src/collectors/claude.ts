@@ -1,5 +1,5 @@
 import { DEFAULT_CLIENT_VERSIONS } from "../clientVersions";
-import { normalizePercent, toEpochMs } from "../formatters";
+import { toEpochMs } from "../formatters";
 import type { CollectOptions, HostPort } from "../host";
 import type { UsageSnapshot, UsageWindow, UsageWindowId } from "../types";
 
@@ -52,9 +52,8 @@ function windowFrom(
   id: UsageWindowId,
   label: string,
   raw: ClaudeWindowRaw | undefined,
-  normalize: (value: number | undefined) => number | undefined = normalizePercent,
 ): UsageWindow | undefined {
-  const usedPercent = normalize(raw?.utilization);
+  const usedPercent = normalizeClaudePercent(raw?.utilization);
   if (usedPercent === undefined) return undefined;
   const resetsAt = toEpochMs(raw?.resets_at);
   return {
@@ -66,7 +65,13 @@ function windowFrom(
   };
 }
 
-function normalizeClaudeSessionPercent(value: number | undefined): number | undefined {
+/**
+ * The Claude `/api/oauth/usage` endpoint reports `utilization` already in
+ * percent (0-100) for every window — session, weekly, and overage alike. Clamp
+ * to 0-100 and round to one decimal; never rescale (a value of 1 means 1%, not
+ * the fraction 1.0 → 100%).
+ */
+function normalizeClaudePercent(value: number | undefined): number | undefined {
   if (value === undefined || !Number.isFinite(value) || value < 0) return undefined;
   return Math.min(100, Math.max(0, Math.round(value * 10) / 10));
 }
@@ -80,7 +85,7 @@ export function parseClaudeUsage(
   const data = (body ?? {}) as ClaudeUsageResponse;
   const windows: UsageWindow[] = [];
   for (const w of [
-    windowFrom("session-5h", "Session (5h)", data.five_hour, normalizeClaudeSessionPercent),
+    windowFrom("session-5h", "Session (5h)", data.five_hour),
     windowFrom("weekly", "Weekly", data.seven_day),
     windowFrom("weekly-opus", "Weekly (Opus)", data.seven_day_opus),
     windowFrom("weekly-sonnet", "Weekly (Sonnet)", data.seven_day_sonnet),
@@ -95,7 +100,7 @@ export function parseClaudeUsage(
     const usedCents = data.extra_usage.used_credits;
     const limitCents = data.extra_usage.monthly_limit;
     const pct =
-      normalizePercent(data.extra_usage.utilization) ??
+      normalizeClaudePercent(data.extra_usage.utilization) ??
       (usedCents !== undefined && limitCents ? Math.min(100, (usedCents / limitCents) * 100) : 0);
     windows.push({
       id: "extra-usage",

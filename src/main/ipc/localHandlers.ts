@@ -5,6 +5,7 @@ import { openMicrophoneSettings } from "../browser/permissions";
 import {
   dbDeleteProject,
   dbDeleteThread,
+  dbGetProjectNotes,
   dbGetProjects,
   dbGetState,
   dbGetThreadCompletedTurns,
@@ -14,6 +15,7 @@ import {
   dbReplaceThreadCompletedTurns,
   dbReplaceThreadRuntimeSnapshot,
   dbReplaceThreadRuntimeItems,
+  dbSetProjectNotes,
   dbSetState,
   dbSyncAll,
   dbUpsertProject,
@@ -25,6 +27,7 @@ import {
   saveClipboardImageFile,
   saveHandoffContextFile,
 } from "../attachments/localFiles";
+import { createProjectDirectory } from "../projectDirectory";
 import { readSharedSettingsFile, writeSharedSettingsFile } from "../sharedSettingsFile";
 import { readKeybindingsFile } from "../keybindingsFile";
 import type { AutoUpdaterController } from "../updates/autoUpdater";
@@ -102,6 +105,7 @@ export function createLocalIpcHandlers(
       saveClipboardImageFile(options.requireLightcodePaths(), payload),
     saveHandoffContext: (payload) =>
       saveHandoffContextFile(options.requireLightcodePaths(), payload),
+    createProjectDirectory: (payload) => createProjectDirectory(payload),
     openExternal: async (url) => {
       const safeUrl = assertSafeExternalUrl(url);
       const browserPanel = options.getBrowserPanelManager();
@@ -136,10 +140,23 @@ export function createLocalIpcHandlers(
       // Preserve supervisor-managed fields so the renderer's persist cycle
       // doesn't clobber writes made out-of-band by the supervisor.
       const onDisk = readSharedSettingsFile(settingsPath);
+      const rendererManagedInstances = Object.fromEntries(
+        Object.entries(settings.agentInstances).filter(
+          ([, instance]) => instance.driver !== "acp-generic",
+        ),
+      );
+      const supervisorManagedInstances = Object.fromEntries(
+        Object.entries(onDisk.agentInstances).filter(
+          ([, instance]) => instance.driver === "acp-generic",
+        ),
+      );
       writeSharedSettingsFile(settingsPath, {
         ...settings,
         acpRegistryInstalledAgents: onDisk.acpRegistryInstalledAgents,
-        agentInstances: onDisk.agentInstances,
+        agentInstances: {
+          ...rendererManagedInstances,
+          ...supervisorManagedInstances,
+        },
         agentHookSupport: onDisk.agentHookSupport,
       });
       options.updatePowerSaveBlocker();
@@ -179,6 +196,8 @@ export function createLocalIpcHandlers(
     dbReplaceThreadRuntimeSnapshot: ({ threadId, items, turns, contextUsage }) =>
       dbReplaceThreadRuntimeSnapshot(threadId, items, turns, contextUsage),
     dbGetThreadContextUsage: ({ threadId }) => dbGetThreadContextUsage(threadId),
+    dbGetProjectNotes: ({ projectId }) => dbGetProjectNotes(projectId),
+    dbSetProjectNotes: (notes) => dbSetProjectNotes(notes),
     checkForUpdate: () => options.autoUpdater.checkForUpdate(),
     startUpdateDownload: () => options.autoUpdater.startUpdateDownload(),
     installUpdate: () => options.autoUpdater.installUpdate(),

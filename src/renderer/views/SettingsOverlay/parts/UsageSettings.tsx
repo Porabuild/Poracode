@@ -10,7 +10,7 @@ import {
   usageStatusText,
 } from "@/renderer/components/providers/usageFormat";
 import { UsageWindowBars } from "@/renderer/components/providers/UsageWindowBars";
-import { USAGE_PROVIDERS } from "@/renderer/components/providers/usageProviders";
+import { usageProvidersForAgentInstances } from "@/renderer/components/providers/usageProviders";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useProviderUsage, useProviderUsageStore } from "@/renderer/state/providerUsageStore";
 import { SettingRow, SettingsPage } from "./SettingsForm";
@@ -97,8 +97,10 @@ export function UsageSettings() {
   const refreshIntervalMinutes = useSharedSettings((s) => s.usage.refreshIntervalMinutes);
   const showInSidebar = useSharedSettings((s) => s.usage.showInSidebar);
   const showEstimatedCost = useSharedSettings((s) => s.usage.showEstimatedCost);
+  const agentInstances = useSharedSettings((s) => s.agentInstances);
   const setUsageSetting = useSharedSettings((s) => s.setUsageSetting);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const usageProviders = usageProvidersForAgentInstances(agentInstances);
 
   // Hydrate the store from the supervisor cache on open (and let the cache's
   // staleness trigger a background refresh whose events update the rows live).
@@ -217,7 +219,7 @@ export function UsageSettings() {
           Turn tracking on or off per provider. Disabled providers are skipped by the auto-refresh.
         </p>
         <div>
-          {USAGE_PROVIDERS.map((p) => (
+          {usageProviders.map((p) => (
             <UsageProviderRow key={p.id} id={p.id} label={p.label} />
           ))}
         </div>

@@ -247,6 +247,38 @@ describe("acpToolPayload", () => {
     expect(part.text).toContain("+after");
   });
 
+  it("preserves Claude structuredPatch real line numbers from metadata.changes", () => {
+    // Shape emitted by the Claude supervisor from tool_use_result.structuredPatch:
+    // a full unified diff whose @@ header carries the real file line numbers.
+    const diff = [
+      "diff --git a/src/app.ts b/src/app.ts",
+      "--- a/src/app.ts",
+      "+++ b/src/app.ts",
+      "@@ -11,3 +11,3 @@",
+      " line 11",
+      "-const oldValue = true;",
+      "+const oldValue = false;",
+      " line 13",
+    ].join("\n");
+
+    const payload = {
+      path: "src/app.ts",
+      args: {
+        file_path: "src/app.ts",
+        old_string: "const oldValue = true;",
+        new_string: "const oldValue = false;",
+      },
+      result: "Edit applied.",
+      metadata: { changes: [{ path: "src/app.ts", kind: { type: "update" }, diff }] },
+    };
+
+    const part = extractAcpDiffResultPart(payload);
+    expect(part.language).toBe("diff");
+    expect(part.text).toContain("@@ -11,3 +11,3 @@");
+    expect(part.text).not.toContain("@@ -1 +1 @@");
+    expect(extractAcpDiffSummary(payload)).toEqual({ added: 1, removed: 1 });
+  });
+
   it("synthesizes diffs and summaries from apply_patch patchText args", () => {
     const payload = {
       args: {

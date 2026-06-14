@@ -46,7 +46,7 @@ export function CreatePrModal(props: {
         <Modal.Dialog className="sm:max-w-[600px]">
           <Modal.CloseTrigger />
           <Modal.Header>
-            <Modal.Heading>Create Pull Request</Modal.Heading>
+            <Modal.Heading>Create PR</Modal.Heading>
             <div className="mt-1 flex items-center gap-1.5 text-xs text-muted">
               <span className="truncate">{effectiveBranch}</span>
               <span className="shrink-0">→</span>
@@ -83,7 +83,7 @@ export function CreatePrModal(props: {
                 <TextArea
                   fullWidth
                   autoSize
-                  placeholder="PR title *"
+                  placeholder="PR title (leave empty to auto-generate)"
                   rows={1}
                   maxRows={3}
                   value={prTitle}
@@ -126,7 +126,7 @@ export function CreatePrModal(props: {
             <ButtonGroup>
               <Button
                 variant="tertiary"
-                isDisabled={prLoading || !prTitle.trim()}
+                isDisabled={prLoading || isGeneratingPr}
                 isPending={prLoading}
                 onPress={() => void handleCreatePr(false).then(() => onOpenChange(false))}
               >
@@ -146,7 +146,7 @@ export function CreatePrModal(props: {
                   isIconOnly
                   variant="tertiary"
                   aria-label="More PR options"
-                  isDisabled={prLoading || !prTitle.trim()}
+                  isDisabled={prLoading || isGeneratingPr}
                 >
                   <ButtonGroup.Separator />
                   <ChevronDown className="size-3.5" />

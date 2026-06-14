@@ -71,6 +71,7 @@ export function AppContent() {
       worktreeBranch?: string;
       worktreeBaseBranch?: string;
       worktreeIsNewBranch?: boolean;
+      worktreeTransferUncommitted?: boolean;
       presentationMode?: import("@/shared/contracts").ThreadPresentationMode;
     },
     replacePaneIdParam?: string,
@@ -84,6 +85,7 @@ export function AppContent() {
       worktreeBranch,
       worktreeBaseBranch,
       worktreeIsNewBranch,
+      worktreeTransferUncommitted,
       presentationMode,
     } = input;
     const isHomeScope = isHomeProject(project);
@@ -110,9 +112,19 @@ export function AppContent() {
           branch: worktreeBranch,
           createBranch: worktreeIsNewBranch ?? false,
           startPoint: worktreeBaseBranch,
+          copyIgnoredPatterns: project.scripts?.worktreeCopyPatterns,
+          transferUncommitted: worktreeTransferUncommitted ?? false,
+          // The composer's "Worktree + changes" option copies the changes and
+          // keeps them on the current branch (vs. the "Move changes" action).
+          keepChangesInSource: worktreeTransferUncommitted ?? false,
         });
         worktreePath = result.path;
         newWorktreeSetupPath = result.path;
+        if (worktreeTransferUncommitted && result.changesTransferred === false) {
+          toast.danger(
+            "Couldn't copy your uncommitted changes into the new worktree — they remain on the current branch.",
+          );
+        }
       } catch (err) {
         console.error("[renderer] failed to create worktree:", err);
         return;
@@ -482,6 +494,7 @@ function DraftViewContent(props: {
     worktreeBranch?: string;
     worktreeBaseBranch?: string;
     worktreeIsNewBranch?: boolean;
+    worktreeTransferUncommitted?: boolean;
   }) => void;
 }) {
   const { project, lastDraftConfig, onStart } = props;

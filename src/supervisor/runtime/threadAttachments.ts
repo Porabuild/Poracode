@@ -1,5 +1,6 @@
-import { readFile } from "node:fs/promises";
-import { basename } from "node:path";
+import { existsSync } from "node:fs";
+import { copyFile, mkdir, readFile, writeFile } from "node:fs/promises";
+import { basename, isAbsolute, join, relative } from "node:path";
 import type { PromptSegment, ProjectLocation } from "@/shared/contracts";
 import type { WslBridgeClient, WslLocation } from "../wsl/bridge/client";
 
@@ -57,6 +58,13 @@ function isImageAttachmentSegment(segment: PromptSegment): boolean {
   );
 }
 
+/** A segment that carries a filesystem path eligible for copy/rewrite. */
+function isRewritableFileSegment(
+  segment: PromptSegment,
+): segment is Extract<PromptSegment, { kind: "attachment" | "file" }> {
+  return (segment.kind === "attachment" || segment.kind === "file") && Boolean(segment.path);
+}
+
 export async function rewriteSegmentsForWsl(
   segments: PromptSegment[],
   location: ProjectLocation,
@@ -72,7 +80,7 @@ export async function rewriteSegmentsForWsl(
   let dirs: { home: string; linuxDir: string } | undefined;
   const rewritten: PromptSegment[] = [];
   for (const segment of segments) {
-    if ((segment.kind !== "attachment" && segment.kind !== "file") || !segment.path) {
+    if (!isRewritableFileSegment(segment)) {
       rewritten.push(segment);
       continue;
     }
@@ -99,6 +107,61 @@ export async function rewriteSegmentsForWsl(
       continue;
     }
     rewritten.push({ ...segment, path: linuxPath });
+  }
+  return rewritten;
+}
+
+const WORKSPACE_ATTACHMENT_DIR = ".lightcode";
+const WORKSPACE_ATTACHMENT_SUBDIR = "attachments";
+
+function isInsideDir(child: string, parent: string): boolean {
+  const rel = relative(parent, child);
+  return rel.length > 0 && !rel.startsWith("..") && !isAbsolute(rel);
+}
+
+/**
+ * Copies any attachment/file segment that lives outside `projectDir` into
+ * `<projectDir>/.lightcode/attachments` and rewrites its path there. Some agents
+ * (e.g. Command Code) sandbox file reads to their working directory, so a
+ * picker screenshot in `~/.lightcode/attachments` is otherwise unreadable. The
+ * copied files self-ignore via a `.lightcode/.gitignore` so they never show up
+ * in `git status`. Paths already inside the workspace are left untouched.
+ */
+export async function rewriteSegmentsForWorkspace(
+  segments: PromptSegment[],
+  projectDir: string,
+): Promise<PromptSegment[]> {
+  const attachmentsDir = join(projectDir, WORKSPACE_ATTACHMENT_DIR, WORKSPACE_ATTACHMENT_SUBDIR);
+  let prepared = false;
+  const rewritten: PromptSegment[] = [];
+  for (const segment of segments) {
+    if (!isRewritableFileSegment(segment)) {
+      rewritten.push(segment);
+      continue;
+    }
+    if (!isAbsolute(segment.path) || isInsideDir(segment.path, projectDir)) {
+      rewritten.push(segment);
+      continue;
+    }
+    try {
+      if (!prepared) {
+        await mkdir(attachmentsDir, { recursive: true });
+        const gitignorePath = join(projectDir, WORKSPACE_ATTACHMENT_DIR, ".gitignore");
+        if (!existsSync(gitignorePath)) {
+          await writeFile(gitignorePath, "*\n");
+        }
+        prepared = true;
+      }
+      const dest = join(attachmentsDir, basename(segment.path));
+      await copyFile(segment.path, dest);
+      rewritten.push({ ...segment, path: dest });
+    } catch (error) {
+      console.warn(
+        `[workspace-attach] failed to copy ${segment.path} -> ${attachmentsDir}:`,
+        error,
+      );
+      rewritten.push(segment);
+    }
   }
   return rewritten;
 }

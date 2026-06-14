@@ -60,6 +60,7 @@ export interface CreateMainWindowOptions {
   posthogKey: string;
   sentryEnabled: boolean;
   windowChromeHeight: number;
+  browserUserAgent: string;
   /** Saved appearance, so the native window opens matching the theme. */
   appearance: "light" | "dark";
   onClosed(): void;
@@ -118,6 +119,7 @@ export function createMainWindow(options: CreateMainWindowOptions): BrowserWindo
     },
   });
   installSessionPermissions(window.webContents.session);
+  window.webContents.setUserAgent(options.browserUserAgent);
 
   // Lock the privileged top frame to the app's own origin. The main renderer
   // holds the full `lightcode` preload bridge (DB, file pickers, openExternal,

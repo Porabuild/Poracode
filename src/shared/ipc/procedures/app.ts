@@ -3,10 +3,12 @@ import type { ProjectLocation } from "../../contracts";
 import type { KeybindingsConfig } from "../../keybindings";
 import { defineIpcProcedure, defineNoArgProcedure, definePayloadProcedure } from "../core";
 import {
+  createProjectDirectoryPayloadSchema,
   openExternalPayloadSchema,
   pickFilesOptionsSchema,
   saveClipboardImagePayloadSchema,
   saveHandoffContextPayloadSchema,
+  type CreateProjectDirectoryResult,
 } from "../schemas";
 
 export const appProcedures = {
@@ -34,6 +36,11 @@ export const appProcedures = {
     string,
     "main-local"
   >("saveHandoffContext", "main-local", saveHandoffContextPayloadSchema),
+  createProjectDirectory: definePayloadProcedure<
+    z.infer<typeof createProjectDirectoryPayloadSchema>,
+    CreateProjectDirectoryResult,
+    "main-local"
+  >("createProjectDirectory", "main-local", createProjectDirectoryPayloadSchema),
   listWslDistros: defineNoArgProcedure<string[], "supervisor">("listWslDistros", "supervisor"),
   openExternal: defineIpcProcedure<[string], string, void, "main-local">(
     "openExternal",

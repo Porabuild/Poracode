@@ -61,3 +61,14 @@ export function buildLcSelectorFence(item: {
   });
   return `\n\n\`\`\`${LC_SELECTOR_LANG}\n${payload}\n\`\`\`\n`;
 }
+
+/**
+ * Plain-text equivalent of {@link buildLcSelectorFence} for terminal-native
+ * (CLI) threads. The `lc-selector` fence is parsed only by the GUI chat
+ * `SelectorBadge` renderer; a CLI agent reading raw terminal text needs a human
+ * sentence instead. Callers add their own surrounding whitespace (the composer
+ * separates it from the typed message; the terminal-insert path collapses it).
+ */
+export function buildSelectorPlainText(item: { selector: string; sourceUrl: string }): string {
+  return `Selected element \`${item.selector}\` from ${item.sourceUrl}`;
+}

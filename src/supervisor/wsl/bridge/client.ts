@@ -3,7 +3,26 @@ import type { ProjectLocation } from "@/shared/contracts";
 import type { WslBridgeServer, WatchEvent, WatchScope } from "./index";
 
 const BRIDGE_REQUEST_TIMEOUT_MS = 30_000;
+// For long-running commands (e.g. `git clone`) the request carries its own
+// `timeoutMs`; the HTTP abort must outlast it so the server-side timeout — which
+// returns a proper result — wins instead of the client aborting prematurely.
+const BRIDGE_REQUEST_TIMEOUT_MARGIN_MS = 15_000;
 const BRIDGE_FETCH_ATTEMPTS = 8;
+
+/**
+ * How long to let a single bridge HTTP request run before aborting. Commands
+ * that pass a `timeoutMs` (git/process exec + batches) get that plus a margin so
+ * the in-distro server's own timeout fires first; everything else uses the
+ * default. A stuck server is still bounded.
+ */
+export function bridgeRequestTimeoutMs(body: unknown): number {
+  const requested =
+    body && typeof body === "object" ? (body as { timeoutMs?: unknown }).timeoutMs : undefined;
+  if (typeof requested === "number" && Number.isFinite(requested) && requested > 0) {
+    return Math.max(BRIDGE_REQUEST_TIMEOUT_MS, requested + BRIDGE_REQUEST_TIMEOUT_MARGIN_MS);
+  }
+  return BRIDGE_REQUEST_TIMEOUT_MS;
+}
 
 /**
  * Thin, typed façade over the in-distro bridge server's `/v1/fs/*` endpoints.
@@ -241,7 +260,12 @@ export class WslBridgeClient {
     if (!handle) {
       throw asNodeErr("EUNAVAIL", `WSL bridge unavailable for distro ${location.distro}`);
     }
-    const response = await fetchBridge(`${handle.baseUrl}${path}`, handle.secret, body);
+    const response = await fetchBridge(
+      `${handle.baseUrl}${path}`,
+      handle.secret,
+      body,
+      bridgeRequestTimeoutMs(body),
+    );
     let parsed: unknown;
     try {
       parsed = await response.json();
@@ -265,11 +289,16 @@ export class WslBridgeClient {
   }
 }
 
-async function fetchBridge(url: string, secret: string, body: unknown): Promise<Response> {
+async function fetchBridge(
+  url: string,
+  secret: string,
+  body: unknown,
+  requestTimeoutMs: number = BRIDGE_REQUEST_TIMEOUT_MS,
+): Promise<Response> {
   let lastError: unknown;
   for (let attempt = 1; attempt <= BRIDGE_FETCH_ATTEMPTS; attempt += 1) {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), BRIDGE_REQUEST_TIMEOUT_MS);
+    const timeout = setTimeout(() => controller.abort(), requestTimeoutMs);
     if (typeof timeout.unref === "function") timeout.unref();
     try {
       return await fetch(url, {

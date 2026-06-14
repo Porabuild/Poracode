@@ -74,11 +74,14 @@ function statusesEqual(a: AgentStatus[], b: AgentStatus[]): boolean {
   return a.every(
     (x, i) =>
       x.kind === b[i]!.kind &&
+      x.label === b[i]!.label &&
       x.installed === b[i]!.installed &&
       x.icon === b[i]!.icon &&
       x.version === b[i]!.version &&
       x.authState === b[i]!.authState &&
       x.loginCommand === b[i]!.loginCommand &&
+      x.envKind === b[i]!.envKind &&
+      x.envDistro === b[i]!.envDistro &&
       JSON.stringify(x.authMethods ?? []) === JSON.stringify(b[i]!.authMethods ?? []) &&
       areAgentProviderMetadataEqual(x.providerMetadata, b[i]!.providerMetadata) &&
       capabilitiesEqual(x.capabilities, b[i]!.capabilities),

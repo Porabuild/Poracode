@@ -35,6 +35,8 @@ export const KNOWN_AGENT_DRIVERS = {
   acpGeneric: "acp-generic" as AgentDriverKind,
 } as const;
 
+export const CLAUDE_PROFILE_KIND_PREFIX = "claude:";
+
 export const agentInstanceIdSchema = z
   .string()
   .min(1)
@@ -112,4 +114,40 @@ export type AgentInstanceConfigMap = z.infer<typeof agentInstanceConfigMapSchema
 
 export function parseAcpGenericInstanceConfig(value: unknown): AcpGenericInstanceConfig {
   return acpGenericInstanceConfigSchema.parse(value ?? {});
+}
+
+// ── claude profile driver config ────────────────────────────────────────
+
+export const claudeProfileInstanceConfigSchema = z.object({
+  /**
+   * Directory passed to Claude Code as CLAUDE_CONFIG_DIR. A leading "~/" is
+   * resolved against the target runtime environment (native home or WSL home).
+   */
+  configDir: z.string().min(1),
+});
+export type ClaudeProfileInstanceConfig = z.infer<typeof claudeProfileInstanceConfigSchema>;
+
+export function parseClaudeProfileInstanceConfig(value: unknown): ClaudeProfileInstanceConfig {
+  return claudeProfileInstanceConfigSchema.parse(value ?? {});
+}
+
+export function claudeProfileKind(instanceId: string): AgentDriverKind {
+  return `${CLAUDE_PROFILE_KIND_PREFIX}${instanceId}` as AgentDriverKind;
+}
+
+export function isClaudeProfileKind(kind: string): boolean {
+  return kind.startsWith(CLAUDE_PROFILE_KIND_PREFIX);
+}
+
+export function extractClaudeProfileInstanceId(kind: string): string | undefined {
+  return isClaudeProfileKind(kind) ? kind.slice(CLAUDE_PROFILE_KIND_PREFIX.length) : undefined;
+}
+
+/**
+ * Strips the instance suffix from an instance-scoped kind (e.g.
+ * "claude:work" → "claude"). Kinds without a suffix are returned unchanged.
+ */
+export function baseAgentKind(kind: string): string {
+  const separatorIndex = kind.indexOf(":");
+  return separatorIndex > 0 ? kind.slice(0, separatorIndex) : kind;
 }

@@ -34,6 +34,7 @@ import {
   type BranchSelection,
 } from "@/renderer/components/common";
 import { useAppStore } from "@/renderer/state/appStore";
+import { useGitStore } from "@/renderer/state/gitStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { ThreadCommandPanel } from "./ThreadCommandPanel";
 import { ThreadAgentUpdateDock } from "./ThreadAgentUpdateDock";
@@ -48,6 +49,7 @@ import {
   resolveLocalSlashCommandAction,
 } from "./threadSlashCommands";
 import { handleComposerControlShortcut } from "./threadComposerShortcuts";
+import { WorktreeModeSelect, type WorktreeMode } from "./WorktreeModeSelect";
 
 export type DraftStartInput = {
   agentKind: AgentStatus["kind"];
@@ -58,6 +60,7 @@ export type DraftStartInput = {
   worktreeBranch?: string;
   worktreeBaseBranch?: string;
   worktreeIsNewBranch?: boolean;
+  worktreeTransferUncommitted?: boolean;
   presentationMode?: ThreadPresentationMode;
 };
 
@@ -230,6 +233,7 @@ export function ThreadDraftComposerArea(props: {
   const pendingWorktreeSelection = useAppStore(
     (s) => s.pendingDraftWorktreeSelections[props.project.id],
   );
+  const pendingComposerSeed = useAppStore((s) => s.pendingComposerSeeds[props.project.id]);
   const [slashQuery, setSlashQuery] = useState<string | null>(null);
   const [slashActiveIndex, setSlashActiveIndex] = useState(0);
   const [controlOpenRequest, setControlOpenRequest] = useState<{
@@ -264,6 +268,47 @@ export function ThreadDraftComposerArea(props: {
   const authRequired = props.selectedAgent.authState === "missing";
   const isHomeScope = isHomeProjectId(props.project.id);
   const browserMcpScope = getBrowserMcpScope(props.selectedAgent.kind, props.presentationMode);
+
+  // Worktree creation lives in the composer toolbar. The "bring over uncommitted
+  // changes" affordance only appears when the new worktree forks from the
+  // current (dirty) checkout — the only case where transferring is meaningful.
+  const projectStatus = useGitStore((s) => s.statuses[props.project.id]);
+  const hasUncommittedChanges =
+    !!projectStatus && projectStatus.staged.length + projectStatus.unstaged.length > 0;
+  const worktreeBase = branchSelection?.baseBranch ?? branchSelection?.branch ?? props.gitBranch;
+  // The worktree dropdown's "+ changes" choice is offered whenever the current
+  // (dirty) checkout would be the worktree's fork point — independent of whether
+  // worktree mode is already on, since selecting it also turns worktree mode on.
+  const canBringChanges = hasUncommittedChanges && worktreeBase === props.gitBranch;
+  // Transferring is only meaningful once worktree mode is actually on.
+  const canTransferUncommitted = props.worktreeMode && canBringChanges;
+  const shouldTransferUncommitted =
+    canTransferUncommitted && branchSelection?.transferUncommitted === true;
+
+  const worktreeSelected = branchSelection?.isWorktree ?? props.worktreeMode;
+  const worktreeMode: WorktreeMode = !worktreeSelected
+    ? "none"
+    : shouldTransferUncommitted
+      ? "new-with-changes"
+      : "new";
+
+  function selectNewWorktree(overrides?: Partial<BranchSelection>) {
+    const base = worktreeBase ?? props.gitBranch ?? "";
+    setBranchSelection({ branch: base, baseBranch: base, isWorktree: true, ...overrides });
+  }
+
+  function handleWorktreeModeChange(mode: WorktreeMode) {
+    if (mode === "none") {
+      props.onWorktreeModeChange(false);
+      setBranchSelection(null);
+      return;
+    }
+    props.onWorktreeModeChange(true);
+    // Keep an existing worktree selection (e.g. a worktreePath from "New thread
+    // in worktree") intact rather than rebuilding it into a brand-new branch.
+    if (branchSelection?.worktreePath) return;
+    selectNewWorktree({ transferUncommitted: mode === "new-with-changes" });
+  }
   const controls: ComposerControl[] = controlOpenRequest
     ? props.controls.map((control) => {
         if (controlOpenRequest.target === "model" && control.kind === "provider-model") {
@@ -291,6 +336,7 @@ export function ThreadDraftComposerArea(props: {
     branchSelection?.branch ?? "",
     branchSelection?.baseBranch ?? "",
     branchSelection?.isWorktree ? "selection-worktree" : "selection-branch",
+    canTransferUncommitted ? "can-transfer" : "no-transfer",
     controlKinds,
   ].join("|");
   function resetDraftRefs() {
@@ -365,6 +411,7 @@ export function ThreadDraftComposerArea(props: {
                 ? { worktreeBaseBranch: branchSelection.baseBranch }
                 : {}),
               worktreeIsNewBranch: true,
+              ...(shouldTransferUncommitted ? { worktreeTransferUncommitted: true } : {}),
             }
         : {}),
     });
@@ -401,6 +448,16 @@ export function ThreadDraftComposerArea(props: {
     onWorktreeModeChange(!pendingWorktreeSelection.worktreePath);
     useAppStore.getState().clearPendingDraftWorktreeSelection(projectId);
   }, [pendingWorktreeSelection, projectId, onWorktreeModeChange]);
+
+  // A composer seed (e.g. "New thread from a to-do / selected note text") inserts
+  // its text into the input at the caret, preserving anything the user already
+  // typed. Subscribing to the store covers both a fresh mount and an
+  // already-open draft (where openDraft does not remount this component).
+  useEffect(() => {
+    if (!pendingComposerSeed) return;
+    mentionRef.current?.insertText(pendingComposerSeed.text);
+    useAppStore.getState().clearComposerSeed(projectId);
+  }, [pendingComposerSeed, projectId]);
 
   useEffect(() => {
     const pid = props.project.id;
@@ -553,7 +610,7 @@ export function ThreadDraftComposerArea(props: {
           const segments = mentionRef.current?.serializeSegments() ?? [];
           submitSegments([...attachments.toSegments(), ...segments], prompt);
         }}
-        afterControls={(level) => (
+        afterControls={() => (
           <>
             <ComposerAddMenu
               browserMcpEnabled={props.config.browserMcp === true}
@@ -567,21 +624,6 @@ export function ThreadDraftComposerArea(props: {
               }}
               onToggleBrowserMcp={(next) => props.onConfigChange({ browserMcp: next })}
             />
-            {props.gitBranch ? (
-              <BranchSelector
-                projectId={props.project.id}
-                currentBranch={props.gitBranch}
-                value={branchSelection?.branch ?? props.gitBranch}
-                isWorktree={branchSelection?.isWorktree}
-                baseBranch={branchSelection?.baseBranch}
-                worktreeMode={props.worktreeMode}
-                onWorktreeModeChange={props.onWorktreeModeChange}
-                onSelect={setBranchSelection}
-                onSwitchBranch={props.onSwitchBranch}
-                forceHideLabel={level >= 3}
-                iconOnly={level >= 3}
-              />
-            ) : null}
             {showVoiceInputButton ? (
               <VoiceInputButton
                 isDisabled={authRequired || agentUpdating || isSubmitting}
@@ -599,6 +641,36 @@ export function ThreadDraftComposerArea(props: {
           </>
         )}
       />
+      {props.gitBranch ? (
+        <div className="mt-1.5 flex flex-wrap items-center gap-1 px-1">
+          <WorktreeModeSelect
+            mode={worktreeMode}
+            canBringChanges={canBringChanges}
+            onChange={handleWorktreeModeChange}
+            compact
+          />
+          <BranchSelector
+            projectId={props.project.id}
+            currentBranch={props.gitBranch}
+            value={branchSelection?.branch ?? props.gitBranch}
+            isWorktree={branchSelection?.isWorktree}
+            baseBranch={branchSelection?.baseBranch}
+            worktreeMode={props.worktreeMode}
+            onWorktreeModeChange={props.onWorktreeModeChange}
+            onSelect={setBranchSelection}
+            onSwitchBranch={props.onSwitchBranch}
+            hideWorktreeToggle
+            hideTriggerIcon
+            compact
+            showMoveBranchAction
+            {...(props.project.scripts?.worktreeCopyPatterns
+              ? {
+                  moveBranchCopyIgnoredPatterns: props.project.scripts.worktreeCopyPatterns,
+                }
+              : {})}
+          />
+        </div>
+      ) : null}
       {lightboxIndex !== null && imageAttachments.length > 0 ? (
         <ImageLightbox
           images={imageAttachments}

@@ -56,10 +56,12 @@ export function claudeKeychainServiceNames(env: KeychainEnv = process.env): stri
   );
 }
 
-export async function readClaudeCredentialsFromMacKeychain(): Promise<string | undefined> {
+export async function readClaudeCredentialsFromMacKeychain(
+  env: KeychainEnv = process.env,
+): Promise<string | undefined> {
   if (process.platform !== "darwin") return undefined;
   const account = claudeKeychainAccount();
-  for (const service of claudeKeychainServiceNames()) {
+  for (const service of claudeKeychainServiceNames(env)) {
     try {
       const { stdout } = await execFileAsync(
         "security",

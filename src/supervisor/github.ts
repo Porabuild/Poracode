@@ -17,21 +17,39 @@ import {
   type PrCheck,
   type PrFile,
   type PrReviewDecision,
+  type CloneRepoResult,
   type GhCheckAvailableResult,
   type GhGetPrChecksResult,
   type GhGetPrDetailsResult,
   type GhGetPrFilesResult,
   type GhGetPrDiffResult,
+  type GhListAccountsResult,
+  type GhListReposResult,
+  type GitHubAccount,
+  type GitHubAccountRef,
+  type GitHubRepoSummary,
 } from "@/shared/contracts";
 import { buildAgentCommand } from "./agents/base";
+import { resolveClonedProjectPath } from "./git/exec";
 import type { WslBridgeClient, WslProcessExecResult } from "./wsl/bridge/client";
 
 const execFileAsync = promisify(execFile);
 const GH_TIMEOUT = 30_000;
+// Cloning can pull a lot of history; give it room before timing out.
+const GH_CLONE_TIMEOUT = 600_000;
+// Repos per page and the page cap for the picker. The list is sorted by most
+// recent push, so the first few hundred cover the realistic clone targets; the
+// renderer adds client-side search over whatever we return.
+const GH_REPO_PAGE_SIZE = 100;
+const GH_REPO_MAX_PAGES = 5;
 const CREATE_PR_STATUS_WAIT_MS = 15_000;
 const CREATE_PR_STATUS_POLL_MS = 5_000;
 const PR_VIEW_FIELDS =
   "number,url,state,title,baseRefName,isDraft,reviewDecision,statusCheckRollup,updatedAt,mergeable,mergeStateStatus,author";
+// Bulk list: adds `headRefName` (to key per branch) and drops `author` (the icon
+// doesn't need viewerDidAuthor, so we skip the extra `gh api user` lookup).
+const PR_LIST_FIELDS =
+  "number,headRefName,url,state,title,baseRefName,isDraft,reviewDecision,statusCheckRollup,updatedAt,mergeable,mergeStateStatus";
 
 function selectLatestPr(items: unknown[]): Record<string, unknown> | null {
   return items.reduce<Record<string, unknown> | null>((latest, item) => {
@@ -89,11 +107,19 @@ function classifyError(error: unknown, operation: string): Error {
   return new Error(`gh ${operation} failed: ${msg}`);
 }
 
+interface RunGhOptions {
+  /** Extra env (e.g. `GH_TOKEN`) merged into the gh invocation. */
+  env?: Record<string, string>;
+  timeoutMs?: number;
+}
+
 async function runGh(
   location: ProjectLocation,
   args: string[],
   wslClient: WslBridgeClient | undefined,
+  options?: RunGhOptions,
 ): Promise<string> {
+  const timeoutMs = options?.timeoutMs ?? GH_TIMEOUT;
   if (location.kind === "wsl") {
     if (!wslClient) {
       throw new Error(`WSL bridge unavailable for GitHub CLI in distro "${location.distro}"`);
@@ -103,17 +129,18 @@ async function runGh(
       cwd: location.linuxPath,
       args,
       loginEnv: true,
-      timeoutMs: GH_TIMEOUT,
+      timeoutMs,
+      ...(options?.env ? { env: options.env } : {}),
     });
     if (result.ok) return result.stdout;
     throw processResultToError(result);
   }
 
-  const spec = buildAgentCommand(location, "gh", args);
+  const spec = buildAgentCommand(location, "gh", args, undefined, options?.env);
   const cwd = spec.cwd ?? location.path;
   const { stdout } = await execFileAsync(spec.command, spec.args, {
     windowsHide: true,
-    timeout: GH_TIMEOUT,
+    timeout: timeoutMs,
     ...(cwd ? { cwd } : {}),
     env: spec.env ? { ...process.env, ...spec.env } : process.env,
   });
@@ -403,6 +430,62 @@ function mapPrDetails(raw: Record<string, unknown>): PrDetails {
   };
 }
 
+/**
+ * Parse the accounts out of `gh auth status` text. The output groups one block
+ * per signed-in account: a "Logged in to <host> account <login>" line followed
+ * by an "Active account: true/false" line. Tolerant of formatting drift across
+ * gh versions — we only key off those two phrases.
+ */
+export function parseGhAuthAccounts(output: string): GitHubAccount[] {
+  const accounts: GitHubAccount[] = [];
+  let current: GitHubAccount | null = null;
+  for (const line of output.split(/\r?\n/)) {
+    const loggedIn = /Logged in to (\S+) account (\S+)/.exec(line);
+    if (loggedIn) {
+      current = { host: loggedIn[1]!, login: loggedIn[2]!, active: false };
+      accounts.push(current);
+      continue;
+    }
+    if (current && /Active account:\s*true/i.test(line)) {
+      current.active = true;
+    }
+  }
+  return accounts;
+}
+
+/** Map a raw GitHub REST `user/repos` entry to the picker summary. */
+export function mapGitHubApiRepo(raw: unknown): GitHubRepoSummary | null {
+  if (!raw || typeof raw !== "object") return null;
+  const r = raw as Record<string, unknown>;
+  const nameWithOwner = typeof r.full_name === "string" ? r.full_name : "";
+  if (!nameWithOwner) return null;
+  const [ownerFromFull, nameFromFull] = nameWithOwner.split("/");
+  const ownerObj = r.owner as Record<string, unknown> | null | undefined;
+  const owner =
+    ownerObj && typeof ownerObj.login === "string" ? ownerObj.login : (ownerFromFull ?? "");
+  const name = typeof r.name === "string" ? r.name : (nameFromFull ?? "");
+  return {
+    nameWithOwner,
+    owner,
+    name,
+    description: typeof r.description === "string" ? r.description : "",
+    isPrivate: r.private === true,
+    isFork: r.fork === true,
+    sshUrl: typeof r.ssh_url === "string" ? r.ssh_url : "",
+    httpsUrl: typeof r.clone_url === "string" ? r.clone_url : "",
+    pushedAt: typeof r.pushed_at === "string" ? r.pushed_at : "",
+  };
+}
+
+/** Read `stdout` off a child-process / bridge error, if present. */
+function extractStdout(error: unknown): string {
+  if (error && typeof error === "object" && "stdout" in error) {
+    const value = (error as { stdout: unknown }).stdout;
+    if (typeof value === "string") return value;
+  }
+  return "";
+}
+
 /** Stable cache key for {@link GitHubService.viewerLoginCache}. */
 function locationKey(location: ProjectLocation): string {
   if (location.kind === "wsl") return `wsl:${location.distro}:${location.linuxPath}`;
@@ -418,8 +501,12 @@ export class GitHubService {
     this.wslClient = client;
   }
 
-  private runGh(location: ProjectLocation, args: string[]): Promise<string> {
-    return runGh(location, args, this.wslClient);
+  private runGh(
+    location: ProjectLocation,
+    args: string[],
+    options?: RunGhOptions,
+  ): Promise<string> {
+    return runGh(location, args, this.wslClient, options);
   }
 
   private runGhBatch(
@@ -435,6 +522,109 @@ export class GitHubService {
       return { available: true };
     } catch {
       return { available: false };
+    }
+  }
+
+  /**
+   * List the accounts `gh` is signed in to. Returns an empty list (rather than
+   * throwing) when gh is missing or signed out, so the picker can degrade to a
+   * "sign in / paste a URL" state. gh exits non-zero when any account's token
+   * is invalid yet still prints the others to stdout, so we parse that too.
+   */
+  async listAccounts(location: ProjectLocation): Promise<GhListAccountsResult> {
+    try {
+      const stdout = await this.runGh(location, ["auth", "status"]);
+      return { accounts: parseGhAuthAccounts(stdout) };
+    } catch (err) {
+      return { accounts: parseGhAuthAccounts(extractStdout(err)) };
+    }
+  }
+
+  /**
+   * Resolve the stored token for a specific account so we can scope gh to it
+   * (every account listed by `gh auth status` has a retrievable token). Throws a
+   * clear error rather than returning undefined, so callers never silently fall
+   * back to gh's *active* account — which would list/clone the wrong account.
+   */
+  private async getAccountToken(
+    location: ProjectLocation,
+    account: GitHubAccountRef,
+  ): Promise<string> {
+    let token = "";
+    try {
+      const stdout = await this.runGh(location, [
+        "auth",
+        "token",
+        "--hostname",
+        account.host,
+        "--user",
+        account.login,
+      ]);
+      token = stdout.trim();
+    } catch {
+      token = "";
+    }
+    if (!token) {
+      throw new Error(
+        `Couldn't access the GitHub account "${account.login}". Run "gh auth login" and try again.`,
+      );
+    }
+    return token;
+  }
+
+  /**
+   * List repositories the given account can clone — its own plus org repos —
+   * most-recently-pushed first. Runs `gh api user/repos` scoped to the account's
+   * token (via `GH_TOKEN`) so it works for accounts that aren't gh's active one,
+   * without mutating the user's active account.
+   */
+  async listRepos(
+    location: ProjectLocation,
+    account: GitHubAccountRef,
+  ): Promise<GhListReposResult> {
+    const token = await this.getAccountToken(location, account);
+    const env = { GH_TOKEN: token };
+    try {
+      const repos: GitHubRepoSummary[] = [];
+      const seen = new Set<string>();
+      for (let page = 1; page <= GH_REPO_MAX_PAGES; page++) {
+        const path =
+          `user/repos?per_page=${GH_REPO_PAGE_SIZE}` +
+          `&affiliation=owner,collaborator,organization_member&sort=pushed&page=${page}`;
+        const stdout = await this.runGh(location, ["api", path], { env });
+        const items = JSON.parse(stdout);
+        if (!Array.isArray(items) || items.length === 0) break;
+        for (const item of items) {
+          const repo = mapGitHubApiRepo(item);
+          if (repo && !seen.has(repo.nameWithOwner)) {
+            seen.add(repo.nameWithOwner);
+            repos.push(repo);
+          }
+        }
+        if (items.length < GH_REPO_PAGE_SIZE) break;
+      }
+      return { repos };
+    } catch (err) {
+      throw classifyError(err, "repo list");
+    }
+  }
+
+  /** Clone a `gh`-browsed repository into `parent/name`, scoped to its account. */
+  async cloneRepo(
+    parent: ProjectLocation,
+    name: string,
+    nameWithOwner: string,
+    account: GitHubAccountRef,
+  ): Promise<CloneRepoResult> {
+    const token = await this.getAccountToken(parent, account);
+    try {
+      await this.runGh(parent, ["repo", "clone", nameWithOwner, name], {
+        timeoutMs: GH_CLONE_TIMEOUT,
+        env: { GH_TOKEN: token },
+      });
+      return { path: resolveClonedProjectPath(parent, name) };
+    } catch (err) {
+      throw classifyError(err, "repo clone");
     }
   }
 
@@ -576,6 +766,40 @@ export class GitHubService {
       return latest ? mapPrData(latest, viewerLogin) : null;
     } catch (err) {
       if (isRepoNotFoundError(err)) return null;
+      throw classifyError(err, "pr list");
+    }
+  }
+
+  /**
+   * List every PR in the repo in a single `gh` call, keyed by head branch name
+   * (latest PR per branch). Powers PR-status icons for all branches in the
+   * branch selector without a per-branch fetch.
+   */
+  async listPrs(location: ProjectLocation): Promise<Record<string, PrData>> {
+    const args = ["pr", "list", "--state", "all", "--limit", "100", "--json", PR_LIST_FIELDS];
+    try {
+      const stdout = await this.runGh(location, args);
+      const items = JSON.parse(stdout);
+      if (!Array.isArray(items)) return {};
+      // Group PRs by head branch, then reuse the single-branch "highest PR number
+      // wins" rule (selectLatestPr) to pick one per branch.
+      const byBranch = new Map<string, unknown[]>();
+      for (const item of items) {
+        if (!item || typeof item !== "object") continue;
+        const branch = (item as Record<string, unknown>).headRefName;
+        if (typeof branch !== "string" || !branch) continue;
+        const group = byBranch.get(branch);
+        if (group) group.push(item);
+        else byBranch.set(branch, [item]);
+      }
+      const result: Record<string, PrData> = {};
+      for (const [branch, group] of byBranch) {
+        const latest = selectLatestPr(group);
+        if (latest) result[branch] = mapPrData(latest);
+      }
+      return result;
+    } catch (err) {
+      if (isRepoNotFoundError(err)) return {};
       throw classifyError(err, "pr list");
     }
   }

@@ -1,16 +1,18 @@
 import { z } from "zod";
 import { projectSchema, threadSchema } from "../../contracts";
-import type { Project, Thread, ThreadContextUsage } from "../../contracts";
+import type { Project, ProjectNotes, Thread, ThreadContextUsage } from "../../contracts";
 import { defineIpcProcedure, defineNoArgProcedure, definePayloadProcedure } from "../core";
 import {
   dbDeleteProjectPayloadSchema,
   dbDeleteThreadPayloadSchema,
   dbGetCompletedTurnsPayloadSchema,
+  dbGetProjectNotesPayloadSchema,
   dbGetRuntimeItemsPayloadSchema,
   dbGetThreadContextUsagePayloadSchema,
   dbReplaceCompletedTurnsPayloadSchema,
   dbReplaceRuntimeItemsPayloadSchema,
   dbReplaceRuntimeSnapshotPayloadSchema,
+  dbSetProjectNotesPayloadSchema,
   dbStateKeySchema,
   dbStatePayloadSchema,
   dbSyncAllPayloadSchema,
@@ -107,5 +109,18 @@ export const dbProcedures = {
     "main-local"
   >("dbGetThreadContextUsage", "main-local", dbGetThreadContextUsagePayloadSchema, (threadId) =>
     dbGetThreadContextUsagePayloadSchema.parse({ threadId }),
+  ),
+  dbGetProjectNotes: defineIpcProcedure<
+    [string],
+    z.infer<typeof dbGetProjectNotesPayloadSchema>,
+    ProjectNotes | null,
+    "main-local"
+  >("dbGetProjectNotes", "main-local", dbGetProjectNotesPayloadSchema, (projectId) =>
+    dbGetProjectNotesPayloadSchema.parse({ projectId }),
+  ),
+  dbSetProjectNotes: definePayloadProcedure<ProjectNotes, void, "main-local">(
+    "dbSetProjectNotes",
+    "main-local",
+    dbSetProjectNotesPayloadSchema,
   ),
 } as const;

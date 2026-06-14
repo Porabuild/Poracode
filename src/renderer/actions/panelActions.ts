@@ -83,6 +83,16 @@ export function openUsagePanel(): void {
   panelStore.openUsagePanel();
 }
 
+/** Open the docked notes panel, or close all right-side panels if it is already active. */
+export function openNotesPanel(): void {
+  const panelStore = usePanelStore.getState();
+  if (panelStore.notesPanelOpen && panelStore.rightPanelTab === "notes") {
+    closeAllPanels();
+    return;
+  }
+  panelStore.openNotesPanel();
+}
+
 export function openProjectSettings(projectId: string): void {
   usePanelStore.getState().openProjectSettings(projectId);
 }

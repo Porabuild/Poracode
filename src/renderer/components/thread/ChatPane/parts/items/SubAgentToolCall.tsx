@@ -9,6 +9,7 @@ import {
   type RuntimeChatItem,
 } from "@/renderer/state/slices/runtimeEventSlice";
 import { useWorkflowRun } from "@/renderer/state/useWorkflowRun";
+import { formatTokenCount } from "@/renderer/components/thread/formatTokenCount";
 import { useChatPaneActions } from "../../chatPaneActionsContext";
 import { getChildItemIdsStoreSelector } from "../../chatPaneSelectors";
 import { extractAcpResultPart } from "./acpToolPayload";
@@ -277,7 +278,7 @@ function WorkflowRunStats({ run }: { run: WorkflowRun }) {
     parts.push(formatWorkflowDuration(run.durationMs));
   }
   if (run.totalTokens !== undefined && run.totalTokens > 0) {
-    parts.push(`${formatWorkflowTokens(run.totalTokens)} tok`);
+    parts.push(`${formatTokenCount(run.totalTokens)} tok`);
   }
   if (run.totalToolCalls !== undefined && run.totalToolCalls > 0) {
     parts.push(`${run.totalToolCalls} tools`);
@@ -313,11 +314,6 @@ function sumTrackedAgents(run: WorkflowRun): number {
   let total = run.unphasedAgents.length;
   for (const phase of run.phases) total += phase.agents.length;
   return total;
-}
-
-function formatWorkflowTokens(n: number): string {
-  if (n >= 1000) return `${(n / 1000).toFixed(1).replace(/\.0$/, "")}k`;
-  return String(n);
 }
 
 function formatWorkflowDuration(ms: number): string {

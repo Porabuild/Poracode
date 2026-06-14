@@ -18,6 +18,25 @@ export type NewThreadMode = z.infer<typeof newThreadModeSchema>;
 export const gitReviewModeSchema = z.enum(["panel", "page"]);
 export type GitReviewMode = z.infer<typeof gitReviewModeSchema>;
 
+/**
+ * What the "Create PR" button does by default: open the dialog so the user can
+ * edit the title/body first (`dialog`), or auto-generate the summary and create
+ * the PR immediately (`auto`).
+ */
+export const prCreateModeSchema = z.enum(["dialog", "auto"]);
+export type PrCreateMode = z.infer<typeof prCreateModeSchema>;
+
+/**
+ * The last-used primary commit action, remembered so the commit split-button
+ * defaults to whatever the user picked last (VS Code style). `commit` commits
+ * the staged changes only, `commit-push` commits and pushes, `commit-push-pr`
+ * commits, pushes, then auto-creates a PR in one click. When the remembered
+ * action isn't available (no remote, or no PR target), the button degrades to
+ * the best available action.
+ */
+export const commitDefaultActionSchema = z.enum(["commit", "commit-push", "commit-push-pr"]);
+export type CommitDefaultAction = z.infer<typeof commitDefaultActionSchema>;
+
 export const liveInputModeSchema = z.enum(["terminal", "server"]);
 export type LiveInputMode = z.infer<typeof liveInputModeSchema>;
 

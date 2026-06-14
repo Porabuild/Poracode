@@ -11,6 +11,13 @@ export interface PrReviewContext {
   projectId: string;
   worktreePath?: string;
   prNumber: number;
+  /**
+   * Explicit prData key override for selectors (title/url/checks). Set when
+   * opening a PR for a branch that has no worktree, so the overlay reads the
+   * branch-keyed prefetch entry instead of the main-branch key. Defaults to
+   * `resolvePrKey(projectId, worktreePath)` when omitted.
+   */
+  prKey?: string;
 }
 
 export interface FilesPanelContext {
@@ -20,7 +27,7 @@ export interface FilesPanelContext {
   rootLabel: string;
 }
 
-export type RightPanelTab = "git" | "files" | "terminal" | "browser" | "usage";
+export type RightPanelTab = "git" | "files" | "terminal" | "browser" | "usage" | "notes";
 
 interface PanelState {
   gitReviewContext: GitReviewContext | null;
@@ -31,6 +38,7 @@ interface PanelState {
   rightPanelTab: RightPanelTab;
   browserPanelOpen: boolean;
   usagePanelOpen: boolean;
+  notesPanelOpen: boolean;
   browserOverlayOpen: boolean;
   browserOverlayMaximized: boolean;
   browserOverlayDrawerWidth: number;
@@ -40,6 +48,10 @@ interface PanelState {
   projectSettingsId: string | null;
   threadSortMode: ThreadSortMode;
   threadSearchOpen: boolean;
+  /** Whether the "Start from scratch" create-project modal is open. */
+  createProjectModalOpen: boolean;
+  /** Whether the "Clone a repository" modal is open. */
+  cloneProjectModalOpen: boolean;
   setGitReviewContext: (ctx: GitReviewContext | null) => void;
   setThreadSortMode: (mode: ThreadSortMode) => void;
   setGitReviewAsPanel: (v: boolean) => void;
@@ -50,6 +62,8 @@ interface PanelState {
   setBrowserPanelOpen: (v: boolean) => void;
   setUsagePanelOpen: (v: boolean) => void;
   openUsagePanel: () => void;
+  setNotesPanelOpen: (v: boolean) => void;
+  openNotesPanel: () => void;
   setBrowserOverlayOpen: (v: boolean) => void;
   setBrowserOverlayMaximized: (v: boolean) => void;
   setBrowserOverlayDrawerWidth: (v: number) => void;
@@ -62,6 +76,10 @@ interface PanelState {
   closeProjectSettings: () => void;
   openThreadSearch: () => void;
   closeThreadSearch: () => void;
+  openCreateProjectModal: () => void;
+  closeCreateProjectModal: () => void;
+  openCloneProjectModal: () => void;
+  closeCloneProjectModal: () => void;
   closeAllPanels: () => void;
 }
 
@@ -105,6 +123,7 @@ export const usePanelStore = create<PanelState>((set) => ({
   rightPanelTab: "git",
   browserPanelOpen: false,
   usagePanelOpen: false,
+  notesPanelOpen: false,
   browserOverlayOpen: false,
   browserOverlayMaximized: false,
   browserOverlayDrawerWidth: loadInitialDrawerWidth(),
@@ -113,6 +132,8 @@ export const usePanelStore = create<PanelState>((set) => ({
   projectSettingsId: null,
   threadSortMode: "updated",
   threadSearchOpen: false,
+  createProjectModalOpen: false,
+  cloneProjectModalOpen: false,
 
   setGitReviewContext: (ctx) => {
     const prev = usePanelStore.getState().gitReviewContext;
@@ -145,7 +166,8 @@ export const usePanelStore = create<PanelState>((set) => ({
           ctx !== null &&
           prev.projectId === ctx.projectId &&
           prev.worktreePath === ctx.worktreePath &&
-          prev.prNumber === ctx.prNumber)
+          prev.prNumber === ctx.prNumber &&
+          prev.prKey === ctx.prKey)
       ) {
         return {};
       }
@@ -218,6 +240,14 @@ export const usePanelStore = create<PanelState>((set) => ({
         ? {}
         : { usagePanelOpen: true, rightPanelTab: "usage" as const },
     ),
+  setNotesPanelOpen: (v) =>
+    set((state) => (state.notesPanelOpen === v ? {} : { notesPanelOpen: v })),
+  openNotesPanel: () =>
+    set((state) =>
+      state.notesPanelOpen && state.rightPanelTab === "notes"
+        ? {}
+        : { notesPanelOpen: true, rightPanelTab: "notes" as const },
+    ),
   setThreadSortMode: (mode) =>
     set((state) => (state.threadSortMode === mode ? {} : { threadSortMode: mode })),
   openSettings: () =>
@@ -238,6 +268,14 @@ export const usePanelStore = create<PanelState>((set) => ({
     set((state) => (state.threadSearchOpen ? {} : { threadSearchOpen: true })),
   closeThreadSearch: () =>
     set((state) => (state.threadSearchOpen ? { threadSearchOpen: false } : {})),
+  openCreateProjectModal: () =>
+    set((state) => (state.createProjectModalOpen ? {} : { createProjectModalOpen: true })),
+  closeCreateProjectModal: () =>
+    set((state) => (state.createProjectModalOpen ? { createProjectModalOpen: false } : {})),
+  openCloneProjectModal: () =>
+    set((state) => (state.cloneProjectModalOpen ? {} : { cloneProjectModalOpen: true })),
+  closeCloneProjectModal: () =>
+    set((state) => (state.cloneProjectModalOpen ? { cloneProjectModalOpen: false } : {})),
   closeAllPanels: () => {
     localStorage.removeItem(STORAGE_KEY);
     set((state) => {
@@ -246,6 +284,7 @@ export const usePanelStore = create<PanelState>((set) => ({
         state.filesPanelContext === null &&
         !state.browserPanelOpen &&
         !state.usagePanelOpen &&
+        !state.notesPanelOpen &&
         !state.browserOverlayOpen &&
         !state.browserOverlayMaximized
       ) {
@@ -256,6 +295,7 @@ export const usePanelStore = create<PanelState>((set) => ({
         filesPanelContext: null,
         browserPanelOpen: false,
         usagePanelOpen: false,
+        notesPanelOpen: false,
         browserOverlayOpen: false,
         browserOverlayMaximized: false,
       };

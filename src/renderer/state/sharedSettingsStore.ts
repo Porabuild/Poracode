@@ -3,14 +3,18 @@ import { readBridge } from "../bridge";
 import {
   defaultSharedSettings,
   normalizeSharedSettings,
+  type CliPickerTarget,
   type SharedSettings,
   type SharedSettingsInput,
 } from "@/shared/settings";
 import type {
   GitReviewMode,
+  AgentInstanceConfig,
+  CommitDefaultAction,
   InstalledAcpRegistryAgent,
   NewThreadMode,
   NotificationFilter,
+  PrCreateMode,
   ProviderDraftConfig,
   TerminalPosition,
   ThemeMode,
@@ -39,6 +43,7 @@ interface SharedSettingsState extends SharedSettings {
   setAgentDisabled: (agentKind: string, disabled: boolean) => void;
   setProviderOrder: (order: string[]) => void;
   setCollapseTerminalComposer: (value: boolean) => void;
+  setCliPickerTarget: (value: CliPickerTarget) => void;
   setStaleThreadUnloadMinutes: (value: number) => void;
   setAutoArchiveDoneAfterDays: (value: number) => void;
   setScrollSpeed: (value: number) => void;
@@ -52,6 +57,8 @@ interface SharedSettingsState extends SharedSettings {
   setHomeScopeEnabled: (value: boolean) => void;
   setAutoShowTerminalPanel: (value: boolean) => void;
   setGitReviewMode: (value: GitReviewMode) => void;
+  setPrCreateMode: (value: PrCreateMode) => void;
+  setCommitDefaultAction: (value: CommitDefaultAction) => void;
   setEditorLspEnabled: (value: boolean) => void;
   setSearchUseIgnoreFiles: (value: boolean) => void;
   setSearchExclude: (value: Record<string, boolean>) => void;
@@ -71,10 +78,13 @@ interface SharedSettingsState extends SharedSettings {
   ) => void;
   setProviderConfig: (agentKind: string, config: ProviderDraftConfig) => void;
   setLastPresentationMode: (agentKind: string, mode: ThreadPresentationMode) => void;
+  setLastUsedProjectDir: (runtimeKey: string, dir: string) => void;
   setNotificationsEnabled: (value: boolean) => void;
   setNotificationSound: (value: boolean) => void;
   setNotificationFilter: (value: NotificationFilter) => void;
   syncAcpRegistryInstalledAgents: (installed: InstalledAcpRegistryAgent[]) => void;
+  setAgentInstance: (instance: AgentInstanceConfig) => void;
+  removeAgentInstance: (instanceId: string) => void;
   setNotificationStatuses: (value: {
     done?: boolean;
     needsAttention?: boolean;
@@ -253,6 +263,10 @@ export const useSharedSettings = create<SharedSettingsState>()((set, get) => ({
     set({ collapseTerminalComposer });
     persistSettings(selectSharedSettings(get()));
   },
+  setCliPickerTarget: (cliPickerTarget) => {
+    set({ cliPickerTarget });
+    persistSettings(selectSharedSettings(get()));
+  },
   setStaleThreadUnloadMinutes: (staleThreadUnloadMinutes) => {
     set({ staleThreadUnloadMinutes });
     persistSettings(selectSharedSettings(get()));
@@ -305,6 +319,16 @@ export const useSharedSettings = create<SharedSettingsState>()((set, get) => ({
   },
   setGitReviewMode: (gitReviewMode) => {
     set({ gitReviewMode });
+    persistSettings(selectSharedSettings(get()));
+  },
+  setPrCreateMode: (prCreateMode) => {
+    if (get().prCreateMode === prCreateMode) return;
+    set({ prCreateMode });
+    persistSettings(selectSharedSettings(get()));
+  },
+  setCommitDefaultAction: (commitDefaultAction) => {
+    if (get().commitDefaultAction === commitDefaultAction) return;
+    set({ commitDefaultAction });
     persistSettings(selectSharedSettings(get()));
   },
   setEditorLspEnabled: (editorLspEnabled) => {
@@ -364,6 +388,12 @@ export const useSharedSettings = create<SharedSettingsState>()((set, get) => ({
     set({ lastPresentationModeByAgent: { ...current, [agentKind]: mode } });
     persistSettings(selectSharedSettings(get()));
   },
+  setLastUsedProjectDir: (runtimeKey, dir) => {
+    const current = get().lastUsedProjectDirs;
+    if (current[runtimeKey] === dir) return;
+    set({ lastUsedProjectDirs: { ...current, [runtimeKey]: dir } });
+    persistSettings(selectSharedSettings(get()));
+  },
   setNotificationsEnabled: (notificationsEnabled) => {
     if (get().notificationsEnabled === notificationsEnabled) return;
     set({ notificationsEnabled });
@@ -405,6 +435,33 @@ export const useSharedSettings = create<SharedSettingsState>()((set, get) => ({
       ),
     });
     cacheSettingsSnapshot(selectSharedSettings(get()));
+  },
+  setAgentInstance: (instance) => {
+    const current = get().agentInstances;
+    set({ agentInstances: { ...current, [instance.id]: instance } });
+    persistSettings(selectSharedSettings(get()));
+  },
+  removeAgentInstance: (instanceId) => {
+    const current = get().agentInstances;
+    if (!current[instanceId]) return;
+    const { [instanceId]: _removed, ...agentInstances } = current;
+    const prefix = `claude:${instanceId}`;
+    const removeProfileKey = (values: Record<string, unknown>) =>
+      Object.fromEntries(Object.entries(values).filter(([key]) => key !== prefix));
+    set({
+      agentInstances,
+      providerConfigs: removeProfileKey(get().providerConfigs) as SharedSettings["providerConfigs"],
+      hiddenModels: removeProfileKey(get().hiddenModels) as SharedSettings["hiddenModels"],
+      agentSettings: removeProfileKey(get().agentSettings) as SharedSettings["agentSettings"],
+      lastPresentationModeByAgent: removeProfileKey(
+        get().lastPresentationModeByAgent,
+      ) as SharedSettings["lastPresentationModeByAgent"],
+      disabledAgents: get().disabledAgents.filter((kind) => kind !== prefix),
+      favoriteModels: get().favoriteModels.filter((entry) => entry.agentKind !== prefix),
+      recentModels: get().recentModels.filter((entry) => entry.agentKind !== prefix),
+      providerOrder: get().providerOrder.filter((kind) => kind !== prefix),
+    });
+    persistSettings(selectSharedSettings(get()));
   },
   setNotificationStatuses: (partial) => {
     const current = get().notificationStatuses;
@@ -499,6 +556,7 @@ function selectSharedSettings(state: SharedSettingsState): SharedSettingsInput {
     acpRegistryInstalledAgents: state.acpRegistryInstalledAgents,
     agentInstances: state.agentInstances,
     collapseTerminalComposer: state.collapseTerminalComposer,
+    cliPickerTarget: state.cliPickerTarget,
     staleThreadUnloadMinutes: state.staleThreadUnloadMinutes,
     autoArchiveDoneAfterDays: state.autoArchiveDoneAfterDays,
     scrollSpeed: state.scrollSpeed,
@@ -512,8 +570,11 @@ function selectSharedSettings(state: SharedSettingsState): SharedSettingsInput {
     homeScopeEnabled: state.homeScopeEnabled,
     autoShowTerminalPanel: state.autoShowTerminalPanel,
     gitReviewMode: state.gitReviewMode,
+    prCreateMode: state.prCreateMode,
+    commitDefaultAction: state.commitDefaultAction,
     providerConfigs: state.providerConfigs,
     lastPresentationModeByAgent: state.lastPresentationModeByAgent,
+    lastUsedProjectDirs: state.lastUsedProjectDirs,
     editorLspEnabled: state.editorLspEnabled,
     searchUseIgnoreFiles: state.searchUseIgnoreFiles,
     searchExclude: state.searchExclude,

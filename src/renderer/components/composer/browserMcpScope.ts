@@ -1,4 +1,4 @@
-import type { ThreadPresentationMode } from "@/shared/contracts";
+import { baseAgentKind, type ThreadPresentationMode } from "@/shared/contracts";
 
 /**
  * How a given (agentKind, presentationMode) pair gates Browser MCP per-thread.
@@ -20,12 +20,13 @@ export function getBrowserMcpScope(
   agentKind: string,
   presentationMode: ThreadPresentationMode,
 ): BrowserMcpScope {
+  const baseKind = baseAgentKind(agentKind);
   if (presentationMode === "gui") {
-    if (agentKind === "claude") return "always";
-    if (agentKind === "opencode" || agentKind === "antigravity" || agentKind === "commandcode")
+    if (baseKind === "claude") return "always";
+    if (baseKind === "opencode" || baseKind === "antigravity" || baseKind === "commandcode")
       return "none";
     return "launch";
   }
-  if (agentKind === "codex") return "launch";
+  if (baseKind === "codex") return "launch";
   return "none";
 }

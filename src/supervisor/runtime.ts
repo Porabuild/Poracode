@@ -33,10 +33,16 @@ import type {
   GetGitBranchesPayload,
   GetGitDiffBatchPayload,
   GetGitDiffPayload,
+  CloneRepoPayload,
+  CloneRepoResult,
   GetGitFileContentPayload,
   GetGitStatusPayload,
   GhCheckAvailableResult,
   GhCreatePrPayload,
+  GhListAccountsPayload,
+  GhListAccountsResult,
+  GhListReposPayload,
+  GhListReposResult,
   GhGetPrChecksPayload,
   GhGetPrChecksResult,
   GhGetPrDetailsPayload,
@@ -46,6 +52,8 @@ import type {
   GhGetPrFilesPayload,
   GhGetPrFilesResult,
   GhGetPrForBranchPayload,
+  GhListPrsPayload,
+  GhListPrsResult,
   GhMergePrPayload,
   GhClosePrPayload,
   GhMarkPrReadyPayload,
@@ -55,6 +63,7 @@ import type {
   GhUpdatePrBranchPayload,
   PrComment,
   GitAbortMergePayload,
+  GitAddRemotePayload,
   GitAddWorktreePayload,
   GitAddWorktreeResult,
   GitBranchListResult,
@@ -69,6 +78,7 @@ import type {
   GitFinishMergeResult,
   GitGetWorktreeSourceBranchPayload,
   GitGetWorktreeSourceBranchResult,
+  GitInitPayload,
   GitProjectSnapshotPayload,
   GitProjectSnapshotResult,
   GitWorktreeStatusBatchPayload,
@@ -135,6 +145,7 @@ import type {
   StartShellPayload,
   StartThreadPayload,
   StartThreadResult,
+  StageThreadInputPayload,
   ThreadRuntimeSnapshot,
   WriteExternalFilePayload,
   WriteExternalFileResult,
@@ -506,10 +517,14 @@ export class SupervisorRuntime {
   }
 
   async getAgentStatuses(payload: GetAgentStatusesPayload): Promise<AgentStatusesResponse> {
+    this.sharedSettingsCache.invalidate();
+    this.refreshAgentRegistryAdapters();
     return this.agentStatusService.getAgentStatuses(payload);
   }
 
   async refreshAgentStatuses(payload: GetAgentStatusesPayload): Promise<AgentStatusesResponse> {
+    this.sharedSettingsCache.invalidate();
+    this.refreshAgentRegistryAdapters();
     return this.agentStatusService.refreshAgentStatuses(payload);
   }
 
@@ -770,6 +785,10 @@ export class SupervisorRuntime {
     return this.threadSessionManager.writeTerminal(payload);
   }
 
+  async stageThreadInput(payload: StageThreadInputPayload): Promise<void> {
+    return this.threadSessionManager.stageThreadInput(payload);
+  }
+
   async resizeTerminal(payload: ResizeTerminalPayload): Promise<void> {
     return this.threadSessionManager.resizeTerminal(payload);
   }
@@ -895,6 +914,14 @@ export class SupervisorRuntime {
     return { hash, message: payload.message };
   }
 
+  async gitInit(payload: GitInitPayload): Promise<void> {
+    return this.gitService.init(payload.projectLocation);
+  }
+
+  async gitAddRemote(payload: GitAddRemotePayload): Promise<void> {
+    return this.gitService.addRemote(payload.projectLocation, payload.remote, payload.url);
+  }
+
   async generateCommitMessage(
     payload: GenerateCommitMessagePayload,
   ): Promise<GenerateCommitMessageResult> {
@@ -1001,6 +1028,9 @@ export class SupervisorRuntime {
       payload.branch,
       payload.createBranch,
       payload.startPoint,
+      payload.copyIgnoredPatterns,
+      payload.transferUncommitted,
+      payload.keepChangesInSource,
     );
   }
 
@@ -1166,6 +1196,27 @@ export class SupervisorRuntime {
     return this.githubService.checkGhAvailable(payload.projectLocation);
   }
 
+  async ghListAccounts(payload: GhListAccountsPayload): Promise<GhListAccountsResult> {
+    return this.githubService.listAccounts(payload.runtime);
+  }
+
+  async ghListRepos(payload: GhListReposPayload): Promise<GhListReposResult> {
+    return this.githubService.listRepos(payload.runtime, payload.account);
+  }
+
+  async cloneRepo(payload: CloneRepoPayload): Promise<CloneRepoResult> {
+    const { parentLocation, name, source } = payload;
+    if (source.kind === "github") {
+      return this.githubService.cloneRepo(
+        parentLocation,
+        name,
+        source.nameWithOwner,
+        source.account,
+      );
+    }
+    return this.gitService.cloneFromUrl(parentLocation, name, source.url);
+  }
+
   async ghCreatePr(payload: GhCreatePrPayload): Promise<PrData> {
     return this.githubService.createPr(
       payload.projectLocation,
@@ -1179,6 +1230,10 @@ export class SupervisorRuntime {
 
   async ghGetPrForBranch(payload: GhGetPrForBranchPayload): Promise<PrData | null> {
     return this.githubService.getPrForBranch(payload.projectLocation, payload.branch);
+  }
+
+  async ghListPrs(payload: GhListPrsPayload): Promise<GhListPrsResult> {
+    return { prs: await this.githubService.listPrs(payload.projectLocation) };
   }
 
   async ghMergePr(payload: GhMergePrPayload): Promise<void> {

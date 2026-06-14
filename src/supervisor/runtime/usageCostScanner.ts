@@ -1,8 +1,8 @@
 import type { Dirent } from "node:fs";
 import { readdir, readFile, stat } from "node:fs/promises";
-import { homedir } from "node:os";
 import { join } from "node:path";
 import { aggregateClaudeCost, type CostEstimate } from "@lightcode/agents-usage";
+import { claudeConfigDirs } from "./claudeCredentials";
 
 /**
  * Supervisor-side estimated-cost scanner. Reads Claude Code session JSONL from
@@ -24,13 +24,12 @@ interface FileRef {
   size: number;
 }
 
-function claudeProjectsDirs(): string[] {
-  const dirs: string[] = [];
-  const configDir = process.env.CLAUDE_CONFIG_DIR?.trim();
-  if (configDir) dirs.push(join(configDir, "projects"));
-  dirs.push(join(homedir(), ".claude", "projects"));
-  dirs.push(join(homedir(), ".config", "claude", "projects"));
-  return dirs;
+interface ClaudeCostEnv {
+  CLAUDE_CONFIG_DIR?: string | undefined;
+}
+
+function claudeProjectsDirs(env: ClaudeCostEnv = process.env): string[] {
+  return claudeConfigDirs(env).map((dir) => join(dir, "projects"));
 }
 
 async function safeReaddir(dir: string): Promise<Dirent[]> {
@@ -41,9 +40,9 @@ async function safeReaddir(dir: string): Promise<Dirent[]> {
   }
 }
 
-async function collectRecentClaudeLogs(sinceMs: number): Promise<FileRef[]> {
+async function collectRecentClaudeLogs(sinceMs: number, env?: ClaudeCostEnv): Promise<FileRef[]> {
   const files: FileRef[] = [];
-  for (const dir of claudeProjectsDirs()) {
+  for (const dir of claudeProjectsDirs(env)) {
     for (const project of await safeReaddir(dir)) {
       if (!project.isDirectory()) continue;
       const projectDir = join(dir, project.name);
@@ -82,9 +81,9 @@ function signatureOf(files: readonly FileRef[]): string {
  * Estimate Claude 30-day cost + tokens from local logs. Memoized on the log
  * tree's signature, so repeated calls with unchanged logs are free.
  */
-export async function scanClaudeCost(nowMs: number): Promise<ClaudeCostScan> {
+export async function scanClaudeCost(nowMs: number, env?: ClaudeCostEnv): Promise<ClaudeCostScan> {
   const sinceMs = nowMs - THIRTY_DAYS_MS;
-  const files = await collectRecentClaudeLogs(sinceMs);
+  const files = await collectRecentClaudeLogs(sinceMs, env);
   const signature = signatureOf(files);
   if (cache && cache.signature === signature) return cache.result;
 

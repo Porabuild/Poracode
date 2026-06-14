@@ -1,14 +1,12 @@
 import { useEffect, useState, useRef } from "react";
 import { FolderPlus, MessageSquareText } from "lucide-react";
 import { Button } from "@heroui/react";
-import type { ProjectLocation } from "@/shared/contracts";
 import { isHomeProject } from "@/shared/homeScope";
-import { isWindows, readBridge } from "@/renderer/bridge";
 import { loadHomeScopeLocation } from "@/renderer/actions/projectActions";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
-import { autoDetectSetupScript } from "@/renderer/utils/gitHelpers";
 import { readStoredBoolean, writeStoredBoolean } from "@/renderer/utils/localStorage";
+import { CreateProjectMenu } from "@/renderer/views/MainView/parts/CreateProject/CreateProjectMenu";
 import { WELCOME_BACKGROUND_CODE } from "./welcomeBackgroundCode";
 import appIconUrl from "../../../build/icon.png";
 
@@ -28,7 +26,6 @@ export function WelcomeOverlay() {
 
   const homeScopeEnabled = useSharedSettings((state) => state.homeScopeEnabled);
   const setHomeScopeEnabled = useSharedSettings((state) => state.setHomeScopeEnabled);
-  const addProject = useAppStore((state) => state.addProject);
   const openDraft = useAppStore((state) => state.openDraft);
 
   // `welcomeSeen` is read synchronously from localStorage so the overlay's
@@ -111,21 +108,6 @@ export function WelcomeOverlay() {
       })
       .catch(() => {
         useAppStore.getState().openHome();
-      });
-  }
-
-  function handleAddProject() {
-    void readBridge()
-      .pickFolder()
-      .then((path) => {
-        if (!path) return;
-        const location: ProjectLocation = isWindows()
-          ? { kind: "windows", path }
-          : { kind: "posix", path };
-        dismissWelcome();
-        const project = addProject(location);
-        autoDetectSetupScript(project);
-        openDraft(project.id);
       });
   }
 
@@ -229,16 +211,17 @@ export function WelcomeOverlay() {
                 Home
               </span>
             </Button>
-            <Button
-              fullWidth
-              size="lg"
-              variant="tertiary"
-              className="lightcode-welcome-button h-12 justify-center gap-2 !text-white"
-              onPress={handleAddProject}
-            >
-              <FolderPlus className="size-4" />
-              Add Project
-            </Button>
+            <CreateProjectMenu onSelect={dismissWelcome}>
+              <Button
+                fullWidth
+                size="lg"
+                variant="tertiary"
+                className="lightcode-welcome-button h-12 justify-center gap-2 !text-white"
+              >
+                <FolderPlus className="size-4" />
+                Add Project
+              </Button>
+            </CreateProjectMenu>
           </div>
         </div>
       </div>

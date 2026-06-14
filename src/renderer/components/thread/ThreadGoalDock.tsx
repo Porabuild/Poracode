@@ -4,6 +4,7 @@ import { CircleCheckBig, Target, X } from "lucide-react";
 import type { ThreadGoalDockState } from "./threadGoalState";
 import { ThreadDockSection } from "./ThreadDockUI";
 import { formatElapsed } from "./ChatPane/formatElapsed";
+import { formatTokenCount } from "./formatTokenCount";
 
 interface ThreadGoalDockProps {
   state: ThreadGoalDockState;
@@ -138,11 +139,6 @@ function goalMeta(state: ThreadGoalDockState): string[] {
     details.push(`${formatTokenCount(state.tokensUsed)} tokens`);
   }
   return details;
-}
-
-function formatTokenCount(tokens: number): string {
-  if (tokens < 10_000) return String(tokens);
-  return `${Math.floor(tokens / 1_000)}k`;
 }
 
 function goalStatusLabel(status: ThreadGoalDockState["status"]): string {

@@ -14,6 +14,12 @@ export const threadRemoveActionOptions = [
   { id: "delete", label: "Delete" },
 ] as const;
 
+export const cliPickerTargetOptions = [
+  { id: "ask", label: "Ask each time" },
+  { id: "terminal", label: "Terminal input" },
+  { id: "composer", label: "Composer" },
+] as const;
+
 export const newThreadModeOptions = [
   { id: "page", label: "Page" },
   { id: "panel", label: "Panel" },
@@ -22,6 +28,11 @@ export const newThreadModeOptions = [
 export const gitReviewModeOptions = [
   { id: "panel", label: "Panel" },
   { id: "page", label: "Page" },
+] as const;
+
+export const prCreateModeOptions = [
+  { id: "dialog", label: "Open dialog" },
+  { id: "auto", label: "Auto-generate" },
 ] as const;
 
 export const scrollSpeedOptions = Array.from({ length: 10 }, (_, i) => ({

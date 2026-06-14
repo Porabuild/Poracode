@@ -14,7 +14,7 @@ import { useShallow } from "zustand/shallow";
 import { readBridge } from "@/renderer/bridge";
 import { useBrowserPanelStore } from "@/renderer/state/browserPanelStore";
 import { panelHeaderIconButtonClass } from "@/renderer/components/layout/sidebarChrome";
-import type { PickerThreadTarget } from "../hooks/useElementPicker";
+import type { PickDestination, PickerThreadTarget } from "../hooks/useElementPicker";
 
 const LOCALHOST_PATTERN =
   /^(localhost|(?:\d{1,3}\.){3}\d{1,3}|\[(?:[0-9a-f:]+)\])(?::\d+)?(?:[/?#]|$)/i;
@@ -45,7 +45,7 @@ export function BrowserToolbar(props: {
   pickerTargets: PickerThreadTarget[];
   hasPendingPick: boolean;
   pendingPickAnchor: { x: number; y: number } | null;
-  onChoosePickTarget: (threadId: string) => void;
+  onChoosePickTarget: (threadId: string, destination: PickDestination) => void;
   onCancelPendingPick: () => void;
   onMenuPreviewChange: (dataUrl: string | null) => void;
 }) {
@@ -129,6 +129,48 @@ export function BrowserToolbar(props: {
       .browserNavigate({ tabId: activeTabId, url })
       .catch(() => {});
   };
+
+  // CLI targets offer Terminal vs Composer; everything else only has a
+  // composer. The destination is encoded into the menu key as
+  // `<destination>:<threadId>` and split on the first colon (thread ids such as
+  // `draft:<projectId>` may themselves contain colons).
+  const onChoosePickAction = (key: Key) => {
+    const raw = String(key);
+    const idx = raw.indexOf(":");
+    const destination = raw.slice(0, idx) as PickDestination;
+    props.onChoosePickTarget(raw.slice(idx + 1), destination);
+  };
+  const renderPickItems = () =>
+    props.pickerTargets.flatMap((target) =>
+      target.canRouteToTerminal
+        ? [
+            <Dropdown.Item
+              key={`terminal:${target.threadId}`}
+              id={`terminal:${target.threadId}`}
+              textValue={`${target.title} — Terminal`}
+            >
+              <Label>{target.title}</Label>
+              <span className="ml-auto pl-3 text-muted">Terminal</span>
+            </Dropdown.Item>,
+            <Dropdown.Item
+              key={`composer:${target.threadId}`}
+              id={`composer:${target.threadId}`}
+              textValue={`${target.title} — Composer`}
+            >
+              <Label>{target.title}</Label>
+              <span className="ml-auto pl-3 text-muted">Composer</span>
+            </Dropdown.Item>,
+          ]
+        : [
+            <Dropdown.Item
+              key={`composer:${target.threadId}`}
+              id={`composer:${target.threadId}`}
+              textValue={target.title}
+            >
+              <Label>{target.title}</Label>
+            </Dropdown.Item>,
+          ],
+    );
 
   return (
     <div className="flex items-center gap-1 border-b border-border bg-[var(--surface)] px-1.5 py-1">
@@ -215,19 +257,8 @@ export function BrowserToolbar(props: {
                 className="z-[1000] min-w-[220px]"
                 isNonModal
               >
-                <Dropdown.Menu
-                  aria-label="Attach to thread"
-                  onAction={(key) => props.onChoosePickTarget(String(key))}
-                >
-                  {props.pickerTargets.map((target) => (
-                    <Dropdown.Item
-                      key={target.threadId}
-                      id={target.threadId}
-                      textValue={target.title}
-                    >
-                      <Label>{target.title}</Label>
-                    </Dropdown.Item>
-                  ))}
+                <Dropdown.Menu aria-label="Attach to thread" onAction={onChoosePickAction}>
+                  {renderPickItems()}
                 </Dropdown.Menu>
               </Dropdown.Popover>
             </Dropdown>,
@@ -251,15 +282,8 @@ export function BrowserToolbar(props: {
             <MousePointerSquareDashed className="size-3.5" />
           </Button>
           <Dropdown.Popover className="z-[1000] min-w-[220px]">
-            <Dropdown.Menu
-              aria-label="Attach to thread"
-              onAction={(key) => props.onChoosePickTarget(String(key))}
-            >
-              {props.pickerTargets.map((target) => (
-                <Dropdown.Item key={target.threadId} id={target.threadId} textValue={target.title}>
-                  <Label>{target.title}</Label>
-                </Dropdown.Item>
-              ))}
+            <Dropdown.Menu aria-label="Attach to thread" onAction={onChoosePickAction}>
+              {renderPickItems()}
             </Dropdown.Menu>
           </Dropdown.Popover>
         </Dropdown>

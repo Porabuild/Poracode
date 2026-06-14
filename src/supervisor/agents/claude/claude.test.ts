@@ -1,6 +1,8 @@
+import { homedir } from "node:os";
+import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { createClaudeAdapter } from "./index";
-import { parseClaudeAuthStatusJson } from "./detection";
+import { createClaudeAdapter, createClaudeProfileAdapter } from "./index";
+import { claudeCapabilities, parseClaudeAuthStatusJson } from "./detection";
 import type { OscNotification, OscTitle } from "@/shared/osc";
 import type { ProjectLocation, ThreadConfig } from "@/shared/contracts";
 
@@ -131,6 +133,30 @@ describe("createClaudeAdapter structured sessions", () => {
   });
 });
 
+describe("claudeCapabilities", () => {
+  it("keeps Fable 5 disabled (hidden from pickers) while retaining its metadata for re-enable", () => {
+    expect(claudeCapabilities.models).not.toContainEqual({
+      id: "claude-fable-5",
+      label: "Fable 5",
+    });
+    // Definition is retained so flipping FABLE_5_ENABLED re-enables it cleanly.
+    expect(claudeCapabilities.modelEfforts["claude-fable-5"]).toEqual([
+      "low",
+      "medium",
+      "high",
+      "xHigh",
+      "max",
+      "ultracode",
+    ]);
+    expect(claudeCapabilities.modelContextSizes?.["claude-fable-5"]).toEqual(["1m"]);
+    expect(claudeCapabilities.fastModels).not.toContain("claude-fable-5");
+  });
+
+  it("lists Opus 4.8 first so it is the default for new threads while Fable 5 is disabled", () => {
+    expect(claudeCapabilities.models[0]).toEqual({ id: "claude-opus-4-8", label: "Opus 4.8" });
+  });
+});
+
 describe("createClaudeAdapter buildAcpLogoutCommand", () => {
   it("returns `claude auth logout` so the Settings logout button can drive it", async () => {
     const adapter = createClaudeAdapter();
@@ -143,6 +169,39 @@ describe("createClaudeAdapter buildAcpLogoutCommand", () => {
     expect(rendered).toMatch(/claude/i);
     expect(rendered).toContain("auth");
     expect(rendered).toContain("logout");
+  });
+});
+
+describe("createClaudeProfileAdapter", () => {
+  const projectLocation: ProjectLocation = { kind: "posix", path: "/repo" };
+
+  it("creates a distinct Claude adapter backed by a separate config directory", () => {
+    const adapter = createClaudeProfileAdapter({
+      id: "work",
+      driver: "claude",
+      displayName: "Work",
+      config: { configDir: "~/.lightcode/claude-profiles/work" },
+    });
+
+    expect(adapter.kind).toBe("claude:work");
+    expect(adapter.label).toBe("Claude Work");
+    expect(adapter.capabilities.subProviders).toBeUndefined();
+    expect(adapter.capabilities.modelSubProvider).toBeUndefined();
+
+    const expectedConfigDir = path.join(homedir(), ".lightcode/claude-profiles/work");
+    expect(
+      adapter.buildLaunchArgv(projectLocation, { model: "sonnet" }, "hello").env?.CLAUDE_CONFIG_DIR,
+    ).toBe(expectedConfigDir);
+    expect(
+      adapter.buildOneShotCommand?.("haiku", undefined, "Summarize", projectLocation)?.env
+        ?.CLAUDE_CONFIG_DIR,
+    ).toBe(expectedConfigDir);
+    expect(
+      adapter.buildContextExtractionCommand?.(
+        { providerSessionId: "session-1", discoveredAt: "test" },
+        projectLocation,
+      )?.env?.CLAUDE_CONFIG_DIR,
+    ).toBe(expectedConfigDir);
   });
 });
 

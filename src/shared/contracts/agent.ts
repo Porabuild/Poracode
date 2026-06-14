@@ -190,6 +190,13 @@ export const agentCapabilitySchema = z.object({
   defaultSandboxMode: z.string().optional(),
   supportsResume: z.boolean().default(false),
   supportsDirectInput: z.boolean().default(true),
+  /**
+   * When true, the agent can only read files inside its working directory (e.g.
+   * Command Code sandboxes file access to the project/worktree). Attachments
+   * that live outside the workspace are copied into a workspace-local dir and
+   * referenced there before being handed to the terminal.
+   */
+  requiresWorkspaceLocalAttachments: z.boolean().optional(),
   liveInputMode: liveInputModeSchema.default("terminal"),
   presentationMode: threadPresentationModeSchema.default("terminal"),
   /**

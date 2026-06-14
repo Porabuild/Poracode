@@ -1,18 +1,25 @@
 import { randomUUID } from "node:crypto";
+import { homedir } from "node:os";
+import path, { posix as posixPath } from "node:path";
 
-import type { PromptSegment } from "@/shared/contracts";
+import type { AgentInstanceConfig, ProjectLocation, PromptSegment } from "@/shared/contracts";
+import { claudeProfileKind, parseClaudeProfileInstanceConfig } from "@/shared/contracts";
 import {
   brailleSpinnerOscTitleHint,
-  buildAgentLogoutCommand,
+  buildAgentCommand,
   createKnownSessionRef,
   detectAgentInstall,
+  detectProbeLocation,
   iterm2ProgressOscHint,
+  resolveWslHomeDirectory,
   shortenHomePath,
   type AgentAdapter,
   type CreateStructuredSessionInput,
+  type DetectProbeCtx,
 } from "../base";
 import { buildClaudeArgs } from "./argv";
-import { claudeCapabilities, claudeDetectionSpec } from "./detection";
+import { claudeCapabilities, claudeDetectionSpec, probeClaudeStatus } from "./detection";
+import { probeClaudeCapabilities } from "./probe";
 import { ClaudeSdkSession } from "./sdkSession";
 import { resolveInstallNodePath, warnIfPluginManifestMissing } from "../plugin/installerBase";
 import {
@@ -30,18 +37,57 @@ const CLAUDE_PLUGIN_VERSION = readBundledClaudePluginVersion();
 
 warnIfPluginManifestMissing("claude", CLAUDE_PLUGIN_VERSION);
 
-export function createClaudeAdapter(): AgentAdapter {
+interface ClaudeAdapterOptions {
+  kind?: string;
+  label?: string;
+  configDir?: string;
+}
+
+function resolveTildePath(rawPath: string, location: ProjectLocation): string {
+  const trimmed = rawPath.trim();
+  if (trimmed !== "~" && !trimmed.startsWith("~/")) {
+    return trimmed;
+  }
+  const suffix = trimmed === "~" ? "" : trimmed.slice(2);
+  if (location.kind === "wsl") {
+    const home = resolveWslHomeDirectory(location.distro);
+    return home ? posixPath.join(home, suffix) : trimmed;
+  }
+  return path.join(homedir(), suffix);
+}
+
+function profileEnvForLocation(
+  configDir: string | undefined,
+  location: ProjectLocation,
+): Record<string, string> | undefined {
+  if (!configDir?.trim()) return undefined;
+  return { CLAUDE_CONFIG_DIR: resolveTildePath(configDir, location) };
+}
+
+export function createClaudeProfileAdapter(instance: AgentInstanceConfig): AgentAdapter {
+  const cfg = parseClaudeProfileInstanceConfig(instance.config);
+  const profileLabel = instance.displayName ?? instance.id;
+  return createClaudeAdapter({
+    kind: claudeProfileKind(instance.id),
+    label: `Claude ${profileLabel}`,
+    configDir: cfg.configDir,
+  });
+}
+
+export function createClaudeAdapter(options: ClaudeAdapterOptions = {}): AgentAdapter {
+  const kind = options.kind ?? "claude";
+  const label = options.label ?? "Claude Code";
+  const profileEnv = (location: ProjectLocation) =>
+    profileEnvForLocation(options.configDir, location);
+
   return {
-    kind: "claude",
-    label: "Claude Code",
+    kind,
+    label,
     binary: "claude",
     capabilities: claudeCapabilities,
     ...(claudeDetectionSpec.update ? { update: claudeDetectionSpec.update } : {}),
     // WSL OAuth flows try to open a browser; no-op it so the PTY doesn't hang.
     spawnEnv: { wsl: { BROWSER: "/bin/true" } },
-    detectInstall(ctx) {
-      return detectAgentInstall(ctx, claudeDetectionSpec);
-    },
     // ── CLI hook plugin support ──────────────────────────────────────────
     pluginId: "lightcode-status@claude",
     pluginVersion: CLAUDE_PLUGIN_VERSION,
@@ -72,27 +118,66 @@ export function createClaudeAdapter(): AgentAdapter {
       const paths = getClaudePluginPaths(ctx);
       return { args: ["--settings", paths.settingsPath] };
     },
-    buildLaunchArgv(_location, config, prompt, _sessionRef, _launchOptions) {
+    async detectInstall(ctx) {
+      const spec =
+        options.configDir === undefined
+          ? claudeDetectionSpec
+          : {
+              ...claudeDetectionSpec,
+              kind,
+              label,
+              capabilities: claudeCapabilities,
+              statusProbe: (probeCtx: DetectProbeCtx) => {
+                const env = profileEnv(probeCtx.location);
+                return probeClaudeStatus(probeCtx, env ? { env } : undefined);
+              },
+              capabilitiesProbe: (probeCtx: DetectProbeCtx) => {
+                const env = profileEnv(probeCtx.location);
+                return probeClaudeCapabilities(probeCtx, env ? { env } : undefined);
+              },
+            };
+      const status = await detectAgentInstall(ctx, spec);
+      return {
+        ...status,
+        kind,
+        label,
+        capabilities: status.capabilities,
+      };
+    },
+    buildLaunchArgv(location, config, prompt, _sessionRef, _launchOptions) {
       const assignedId = randomUUID();
       const args = buildClaudeArgs(config, prompt, undefined, assignedId);
+      const env = profileEnv(location);
       return {
         binary: "claude",
         args,
+        ...(env ? { env } : {}),
         sessionRef: createKnownSessionRef(assignedId),
       };
     },
-    buildResumeArgv(_location, config, prompt, sessionRef, _launchOptions) {
+    buildResumeArgv(location, config, prompt, sessionRef, _launchOptions) {
       const args = buildClaudeArgs(config, prompt, sessionRef.providerSessionId);
-      return { binary: "claude", args };
+      const env = profileEnv(location);
+      return { binary: "claude", args, ...(env ? { env } : {}) };
     },
     createInitialSessionRef() {
       return undefined;
     },
     async createStructuredSession(input: CreateStructuredSessionInput) {
       if (input.presentationMode !== "gui") return undefined;
-      return ClaudeSdkSession.create(input);
+      const env = profileEnv(input.projectLocation);
+      return ClaudeSdkSession.create({ ...input, ...(env ? { env } : {}) });
     },
-    buildAcpLogoutCommand: buildAgentLogoutCommand("claude", ["auth", "logout"]),
+    async buildAcpLogoutCommand(ctx) {
+      const location = detectProbeLocation(ctx);
+      return buildAgentCommand(
+        location,
+        "claude",
+        ["auth", "logout"],
+        undefined,
+        profileEnv(location),
+      );
+    },
     buildDirectInput(prompt, segments) {
       const attachmentCount = segments?.filter((s) => s.kind === "attachment").length ?? 0;
       const wait = attachmentCount > 0 ? 800 + (attachmentCount - 1) * 150 : 60;
@@ -113,7 +198,7 @@ export function createClaudeAdapter(): AgentAdapter {
     oscHintsDeferToHookPlugin: true,
     workingSilenceTimeoutMs: null,
     defaultOneShotModel: "haiku",
-    buildOneShotCommand(model, effort, prompt) {
+    buildOneShotCommand(model, effort, prompt, location) {
       if (!prompt) return undefined;
       // --no-session-persistence keeps title/commit/PR-summary calls out of
       // the `/resume` picker. --fallback-model auto-degrades to Haiku if the
@@ -131,9 +216,15 @@ export function createClaudeAdapter(): AgentAdapter {
       if (effort) {
         args.push("--effort", effort);
       }
-      return { command: "claude", args, stdin: "" };
+      const env = location ? profileEnv(location) : undefined;
+      return {
+        command: "claude",
+        args,
+        stdin: "",
+        ...(env ? { env } : {}),
+      };
     },
-    buildContextExtractionCommand(sessionRef, _location, model) {
+    buildContextExtractionCommand(sessionRef, location, model) {
       // The resumed session is read-only here; --no-session-persistence
       // prevents the extraction turn from being written back to disk.
       const args = [
@@ -144,7 +235,12 @@ export function createClaudeAdapter(): AgentAdapter {
         model ?? "haiku",
         "--no-session-persistence",
       ];
-      return { command: "claude", args };
+      const env = profileEnv(location);
+      return {
+        command: "claude",
+        args,
+        ...(env ? { env } : {}),
+      };
     },
   };
 }

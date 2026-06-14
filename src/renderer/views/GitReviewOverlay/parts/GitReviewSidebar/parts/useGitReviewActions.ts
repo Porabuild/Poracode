@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { toast } from "@heroui/react";
 import type { GitBranchInfo, GitStatusResult, Project, ProjectLocation } from "@/shared/contracts";
 import { getProjectAgentStatuses } from "@/shared/agentStatus";
@@ -7,6 +6,10 @@ import { msg, friendlyError, friendlyErrorWithDetail } from "@/shared/messages";
 import { readBridge } from "@/renderer/bridge";
 import { captureProductEvent } from "@/renderer/analytics/posthog";
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
+import {
+  useGitReviewActionState,
+  useGitReviewActionStore,
+} from "@/renderer/state/gitReviewActionStore";
 import { useGitStore } from "@/renderer/state/gitStore";
 import { startPostPushPrStatusRefresh } from "@/renderer/state/gitRefresh";
 import { usePullFromSourceDialogStore } from "@/renderer/state/pullFromSourceDialogStore";
@@ -99,20 +102,44 @@ export function useGitReviewActions(args: UseGitReviewActionsArgs) {
     wslAgentStatuses,
   );
 
-  const [commitMessage, setCommitMessage] = useState("");
-  const [isCommitting, setIsCommitting] = useState(false);
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [isSyncing, setIsSyncing] = useState(false);
-  const [isMerging, setIsMerging] = useState(false);
-  const [isPullingFromSource, setIsPullingFromSource] = useState(false);
-  const [isAbortingMerge, setIsAbortingMerge] = useState(false);
-  const [isFinishingMerge, setIsFinishingMerge] = useState(false);
-
-  const [prTitle, setPrTitle] = useState("");
-  const [prBody, setPrBody] = useState("");
-  const [prTargetBranch, setPrTargetBranch] = useState<string | null>(null);
-  const [isCreatingPr, setIsCreatingPr] = useState(false);
-  const [isGeneratingPr, setIsGeneratingPr] = useState(false);
+  // The git review panel is keyed by `${projectId}:${worktreePath}` and fully
+  // remounts when the user switches projects, so any useState here would reset
+  // on switch — dropping draft text, the generation spinner, and any in-flight
+  // operation's pending state while the work keeps running in the supervisor.
+  // Holding it all in a store keyed by the same `storeKey` makes it survive the
+  // remount: spinners reappear, async results land against the right panel even
+  // if it unmounted mid-flight, and drafts are preserved. See
+  // gitReviewActionStore.
+  const {
+    commitMessage,
+    prTitle,
+    prBody,
+    prTargetBranch,
+    isGenerating,
+    isGeneratingPr,
+    isCommitting,
+    isSyncing,
+    isMerging,
+    isPullingFromSource,
+    isAbortingMerge,
+    isFinishingMerge,
+    isCreatingPr,
+  } = useGitReviewActionState(storeKey);
+  const patch = useGitReviewActionStore((s) => s.patch);
+  const setCommitMessage = (value: string) => patch(storeKey, { commitMessage: value });
+  const setPrTitle = (value: string) => patch(storeKey, { prTitle: value });
+  const setPrBody = (value: string) => patch(storeKey, { prBody: value });
+  const setPrTargetBranch = (value: string | null) => patch(storeKey, { prTargetBranch: value });
+  const setIsGenerating = (value: boolean) => patch(storeKey, { isGenerating: value });
+  const setIsGeneratingPr = (value: boolean) => patch(storeKey, { isGeneratingPr: value });
+  const setIsCommitting = (value: boolean) => patch(storeKey, { isCommitting: value });
+  const setIsSyncing = (value: boolean) => patch(storeKey, { isSyncing: value });
+  const setIsMerging = (value: boolean) => patch(storeKey, { isMerging: value });
+  const setIsPullingFromSource = (value: boolean) =>
+    patch(storeKey, { isPullingFromSource: value });
+  const setIsAbortingMerge = (value: boolean) => patch(storeKey, { isAbortingMerge: value });
+  const setIsFinishingMerge = (value: boolean) => patch(storeKey, { isFinishingMerge: value });
+  const setIsCreatingPr = (value: boolean) => patch(storeKey, { isCreatingPr: value });
 
   const writeActions = usePrWriteActions({
     projectLocation: project.location,
@@ -156,7 +183,11 @@ export function useGitReviewActions(args: UseGitReviewActionsArgs) {
     });
   }
 
-  async function handleCommit(addAll: boolean, pushAfter = false): Promise<void> {
+  // Returns true when the commit (and optional push) fully succeeded, so
+  // callers that chain further work — e.g. the combined "Commit & Create PR"
+  // action — only proceed when there's actually something pushed to open a PR
+  // against.
+  async function handleCommit(addAll: boolean, pushAfter = false): Promise<boolean> {
     setIsCommitting(true);
     try {
       let message = commitMessage.trim();
@@ -208,7 +239,7 @@ export function useGitReviewActions(args: UseGitReviewActionsArgs) {
         } finally {
           setIsSyncing(false);
         }
-        return;
+        return true;
       }
 
       onRefresh();
@@ -219,6 +250,7 @@ export function useGitReviewActions(args: UseGitReviewActionsArgs) {
         .gitFetch({ projectLocation: project.location, remote: "origin", prune: false })
         .catch(() => undefined)
         .finally(() => onRefresh());
+      return true;
     } catch (err) {
       console.error("[git] commit failed", err);
       const { summary, details } = friendlyErrorWithDetail(err);
@@ -234,12 +266,16 @@ export function useGitReviewActions(args: UseGitReviewActionsArgs) {
       } else {
         toast.danger(summary);
       }
+      return false;
     } finally {
       setIsCommitting(false);
     }
   }
 
   async function handleGenerateMessage(): Promise<void> {
+    // A generation may still be running from before a panel remount — don't
+    // start a second one; the first one's result will land in the store.
+    if (isGenerating) return;
     setIsGenerating(true);
     try {
       const message = await generateMessage();
@@ -427,20 +463,81 @@ export function useGitReviewActions(args: UseGitReviewActionsArgs) {
     }
   }
 
+  // Generate a PR summary by trying each given commit-gen candidate in turn.
+  // Returns null when the candidate list is empty or (for the "auto" provider)
+  // every candidate failed. Throws when a fixed provider fails, so the caller
+  // can surface the error. Does not touch the generating flag — the caller owns
+  // it, since this is shared by the explicit "Generate" button and the
+  // auto-create flow. Candidates are passed in so the caller computes them once.
+  async function generatePrSummaryResult(
+    candidates: ReturnType<typeof getCommitGenCandidates>,
+    headBranch: string,
+    baseBranch: string,
+  ): Promise<{ title: string; description: string } | null> {
+    for (const candidate of candidates) {
+      const resolved = resolveCommitGenConfig(candidate, commitGenModel, commitGenEffort);
+      try {
+        const result = await readBridge().generatePrSummary({
+          projectLocation: project.location,
+          agentKind: candidate.kind,
+          branch: headBranch,
+          baseBranch,
+          ...(resolved.model ? { model: resolved.model } : {}),
+          ...(resolved.effort ? { effort: resolved.effort } : {}),
+        });
+        captureProductEvent("git.pr_summary_generated", {
+          effort: resolved.effort || "default",
+          has_worktree: Boolean(worktreePath),
+          provider: candidate.kind,
+        });
+        return result;
+      } catch (err) {
+        // With a fixed provider there's nothing to fall back to — let the
+        // caller decide how to surface it. With "auto", try the next candidate.
+        if (commitGenProvider !== "auto") throw err;
+      }
+    }
+    return null;
+  }
+
   async function handleCreatePr(isDraft: boolean): Promise<void> {
     const targetBranch = prTargetBranch || sourceBranch;
     if (!effectiveBranch || !targetBranch) return;
     setIsCreatingPr(true);
     try {
+      let title = prTitle.trim();
+      let body = prBody.trim();
+      let autoGenerated = false;
+      // No title entered: auto-generate the summary first, mirroring the
+      // empty-commit-message flow in handleCommit. This powers both the
+      // "auto" create-PR mode and pressing Create in the dialog with a blank
+      // title.
+      if (!title && canGenerateMessage && !isGeneratingPr) {
+        const candidates = getCommitGenCandidates(projectAgentStatuses, commitGenProvider);
+        setIsGeneratingPr(true);
+        try {
+          const summary = await generatePrSummaryResult(candidates, effectiveBranch, targetBranch);
+          if (summary) {
+            title = summary.title.trim();
+            body = summary.description.trim();
+            autoGenerated = true;
+            setPrTitle(title);
+            setPrBody(body);
+          }
+        } finally {
+          setIsGeneratingPr(false);
+        }
+      }
       const pr = await readBridge().ghCreatePr({
         projectLocation: project.location,
         branch: effectiveBranch,
         baseBranch: targetBranch,
-        title: prTitle.trim() || effectiveBranch,
-        body: prBody.trim(),
+        title: title || effectiveBranch,
+        body,
         isDraft,
       });
       captureProductEvent("git.pr_created", {
+        auto_generated: autoGenerated,
         has_worktree: Boolean(worktreePath),
         is_draft: isDraft,
       });
@@ -457,6 +554,16 @@ export function useGitReviewActions(args: UseGitReviewActionsArgs) {
     }
   }
 
+  // One-click "Commit & Create PR": commit + push, then — only if that
+  // succeeded — auto-create the PR. The PR step always auto-generates (never
+  // opens the dialog), so this stays a single uninterrupted action regardless
+  // of the prCreateMode setting.
+  async function handleCommitAndCreatePr(addAll: boolean): Promise<void> {
+    const committed = await handleCommit(addAll, true);
+    if (!committed) return;
+    await handleCreatePr(false);
+  }
+
   async function handleGeneratePrSummary(): Promise<void> {
     const targetBranch = prTargetBranch || sourceBranch;
     if (!effectiveBranch || !targetBranch) return;
@@ -467,35 +574,22 @@ export function useGitReviewActions(args: UseGitReviewActionsArgs) {
       return;
     }
 
+    // Don't start a second PR-summary generation if one is still in flight
+    // from before a panel remount — its result will land in the store.
+    if (isGeneratingPr) return;
     setIsGeneratingPr(true);
-    for (const candidate of candidates) {
-      const resolved = resolveCommitGenConfig(candidate, commitGenModel, commitGenEffort);
-      try {
-        const result = await readBridge().generatePrSummary({
-          projectLocation: project.location,
-          agentKind: candidate.kind,
-          branch: effectiveBranch,
-          baseBranch: targetBranch,
-          ...(resolved.model ? { model: resolved.model } : {}),
-          ...(resolved.effort ? { effort: resolved.effort } : {}),
-        });
+    try {
+      const result = await generatePrSummaryResult(candidates, effectiveBranch, targetBranch);
+      if (result) {
         setPrTitle(result.title);
         setPrBody(result.description);
-        captureProductEvent("git.pr_summary_generated", {
-          effort: resolved.effort || "default",
-          has_worktree: Boolean(worktreePath),
-          provider: candidate.kind,
-        });
-        break;
-      } catch (err) {
-        if (commitGenProvider !== "auto") {
-          console.error("[git] generate PR summary failed", err);
-          toast.danger(friendlyError(err));
-          break;
-        }
       }
+    } catch (err) {
+      console.error("[git] generate PR summary failed", err);
+      toast.danger(friendlyError(err));
+    } finally {
+      setIsGeneratingPr(false);
     }
-    setIsGeneratingPr(false);
   }
 
   return {
@@ -515,6 +609,7 @@ export function useGitReviewActions(args: UseGitReviewActionsArgs) {
     prTargetBranch,
     setPrTargetBranch,
     prLoading,
+    prPendingAction: writeActions.pendingAction,
     isGeneratingPr,
     handleCommit,
     handleGenerateMessage,
@@ -526,6 +621,7 @@ export function useGitReviewActions(args: UseGitReviewActionsArgs) {
     handleAbortMerge,
     handleFinishMerge,
     handleCreatePr,
+    handleCommitAndCreatePr,
     handleMergePr: writeActions.handleMergePr,
     handleClosePr: writeActions.handleClosePr,
     handleMarkPrReady: writeActions.handleMarkPrReady,

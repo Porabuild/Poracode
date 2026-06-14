@@ -978,6 +978,101 @@ describe("appStore runtime config sync", () => {
     });
   });
 
+  it("does not reopen a settled GUI turn when trailing activity arrives after turn.completed", () => {
+    const project = useAppStore.getState().addProject({
+      kind: "windows",
+      path: "C:\\repo",
+    });
+    const thread = useAppStore.getState().createThread({
+      projectId: project.id,
+      agentKind: "claude",
+      config: { model: "m" },
+      prompt: "a",
+      presentationMode: "gui",
+    });
+    useAppStore.getState().applyRuntimeEvent(thread.id, {
+      type: "turn.started",
+      threadId: thread.id,
+      turnId: "turn-1",
+    });
+    // An item that stays open across the turn boundary, mirroring the persistent
+    // plan/todo item that `closeClaudeOpenItems` deliberately leaves open.
+    useAppStore.getState().applyRuntimeEvent(thread.id, {
+      type: "item.started",
+      threadId: thread.id,
+      itemId: "plan-1",
+      itemType: "reasoning",
+    });
+    useAppStore.getState().updateThreadRuntime(thread.id, {
+      status: "working",
+      attention: "working",
+      canResumeWithConfig: true,
+    });
+    // Turn settles: turn.completed is flushed before the idle status.
+    useAppStore.getState().applyRuntimeEvent(thread.id, {
+      type: "turn.completed",
+      threadId: thread.id,
+      turnId: "turn-1",
+      state: "completed",
+    });
+    useAppStore.getState().updateThreadRuntime(thread.id, {
+      status: "idle",
+      attention: "none",
+      canResumeWithConfig: true,
+    });
+    expect(useAppStore.getState().threads[0]?.status).toBe("idle");
+
+    // A trailing live event for the already-settled turn lands after idle (the
+    // post-idle IPC race). It must NOT flip the thread back to "working".
+    useAppStore.getState().applyRuntimeEvent(thread.id, {
+      type: "item.updated",
+      threadId: thread.id,
+      itemId: "plan-1",
+      payload: {},
+    });
+
+    expect(useAppStore.getState().threads[0]?.status).toBe("idle");
+  });
+
+  it("still reopens a GUI turn for live activity while the turn is still open", () => {
+    const project = useAppStore.getState().addProject({
+      kind: "windows",
+      path: "C:\\repo",
+    });
+    const thread = useAppStore.getState().createThread({
+      projectId: project.id,
+      agentKind: "claude",
+      config: { model: "m" },
+      prompt: "a",
+      presentationMode: "gui",
+    });
+    // Turn is open (turn.started, no turn.completed yet) but a premature idle
+    // arrives — the safety net must still reopen when real activity follows.
+    useAppStore.getState().applyRuntimeEvent(thread.id, {
+      type: "turn.started",
+      threadId: thread.id,
+      turnId: "turn-1",
+    });
+    useAppStore.getState().updateThreadRuntime(thread.id, {
+      status: "idle",
+      attention: "none",
+      canResumeWithConfig: true,
+    });
+    expect(useAppStore.getState().threads[0]?.status).toBe("idle");
+
+    useAppStore.getState().applyRuntimeEvent(thread.id, {
+      type: "item.started",
+      threadId: thread.id,
+      itemId: "assistant-1",
+      itemType: "assistant_message",
+    });
+
+    expect(useAppStore.getState().threads[0]).toMatchObject({
+      status: "working",
+      attention: "working",
+    });
+  });
+
   it("does not add sub-second completed turns", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-05-01T12:00:00.000Z"));
