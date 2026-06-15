@@ -6,7 +6,7 @@ import { isMac, isWindows } from "@/renderer/bridge";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useResolvedAppearance } from "@/renderer/components/ui/provider";
 import { getThemePreset } from "@/renderer/theme/themePresets";
-import { WINDOWS_GLASS_TINT_DEFAULT, sidebarGlassTintExpr } from "@/renderer/theme/sidebarGlass";
+import { WINDOWS_GLASS_TINT_DEFAULT, applySidebarGlassTint } from "@/renderer/theme/sidebarGlass";
 import { useNativeMaterialActive } from "@/renderer/hooks/useGlassState";
 import { Select } from "@/renderer/components/common";
 import { SettingRow, SettingsPage } from "./SettingsForm";
@@ -43,15 +43,20 @@ export function AppearanceSettings() {
   useEffect(() => {
     setGlassTint(glassTintOverride ?? glassTintDefault);
   }, [glassTintOverride, glassTintDefault]);
+  // HeroUI's Slider emits number | number[]; this control is single-thumb.
+  const normalizeSliderValue = (value: number | number[]): number =>
+    Array.isArray(value) ? (value[0] ?? glassTint) : value;
   const previewGlassTint = (next: number | number[]) => {
-    const pct = Array.isArray(next) ? (next[0] ?? glassTint) : next;
+    const pct = normalizeSliderValue(next);
     setGlassTint(pct);
-    document.documentElement.style.setProperty("--sidebar-glass-tint", sidebarGlassTintExpr(pct));
+    // Live preview through the same writer the provider uses, so there's one
+    // place that knows how to set/clear the inline tint.
+    applySidebarGlassTint(document.documentElement, pct, true);
   };
   const resetGlassTint = () => {
     setGlassTint(glassTintDefault);
     // Clear the override so the styles.css per-platform default takes back over.
-    document.documentElement.style.removeProperty("--sidebar-glass-tint");
+    applySidebarGlassTint(document.documentElement, null, true);
     startTransition(() => {
       setSidebarGlassTint(appearance, null);
     });
@@ -155,9 +160,8 @@ export function AppearanceSettings() {
             value={glassTint}
             onChange={previewGlassTint}
             onChangeEnd={(next) => {
-              const pct = Array.isArray(next) ? (next[0] ?? glassTint) : next;
               startTransition(() => {
-                setSidebarGlassTint(appearance, pct);
+                setSidebarGlassTint(appearance, normalizeSliderValue(next));
               });
             }}
           >
