@@ -1,5 +1,6 @@
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
+import { CLAUDE_EFFORT_TIERS } from "@/shared/agents/claudeEfforts";
 import type { AgentCapability, AgentTerminalAuthMethod } from "@/shared/contracts";
 import type { SlashCommand } from "@anthropic-ai/claude-agent-sdk";
 import {
@@ -44,7 +45,7 @@ const BUILTIN_MODELS: AgentCapability["models"] = [
 ];
 
 /** Effort tiers shared by the frontier models (Opus 4.7/4.8 and Fable 5). */
-const PREMIUM_EFFORT_TIERS = ["low", "medium", "high", "xHigh", "max", "ultracode"];
+const PREMIUM_EFFORT_TIERS: string[] = [...CLAUDE_EFFORT_TIERS];
 
 const BUILTIN_MODEL_EFFORTS: AgentCapability["modelEfforts"] = {
   [FABLE_5_MODEL_ID]: PREMIUM_EFFORT_TIERS,
