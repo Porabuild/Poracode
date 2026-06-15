@@ -4,6 +4,7 @@ import { dbProcedures } from "./procedures/db";
 import { githubProcedures } from "./procedures/github";
 import { gitProcedures } from "./procedures/git";
 import { lspProcedures } from "./procedures/lsp";
+import { profileProcedures } from "./procedures/profile";
 import { projectTreeProcedures } from "./procedures/projectTree";
 import { settingsProcedures } from "./procedures/settings";
 import { threadProcedures } from "./procedures/thread";
@@ -22,6 +23,7 @@ export const groupedIpcProcedures = {
   lsp: lspProcedures,
   browser: browserProcedures,
   usage: usageProcedures,
+  profile: profileProcedures,
 } as const;
 
 export const ipcProcedureMap = {
@@ -36,6 +38,7 @@ export const ipcProcedureMap = {
   ...lspProcedures,
   ...browserProcedures,
   ...usageProcedures,
+  ...profileProcedures,
 } as const;
 
 export type IpcProcedureMap = typeof ipcProcedureMap;
@@ -59,11 +62,13 @@ export const MAIN_LOCAL_PROCEDURE_NAMES = [
   "openExternalNative",
   "openMicrophoneSettings",
   "focusWindow",
+  "relaunchApp",
   "getHomeScopeLocation",
   "getKeybindings",
   "revealProjectEntry",
   "getSharedSettings",
   "setSharedSettings",
+  "setClaudeProfileEnvironment",
   "setWindowChrome",
   "dbGetProjects",
   "dbGetThreads",
@@ -109,6 +114,13 @@ export const MAIN_LOCAL_PROCEDURE_NAMES = [
   "clearUsageLogin",
   "resolveUsageLoginConfirmation",
   "getUsageLoginState",
+  "getProfileCoreStats",
+  "getProfileTokenStats",
+  "getProfileDevices",
+  "getProfileIdentity",
+  "setProfileIdentity",
+  "copyShareImage",
+  "appendUsageEvents",
 ] as const satisfies readonly IpcProcedureName[];
 
 export type MainLocalProcedureName = (typeof MAIN_LOCAL_PROCEDURE_NAMES)[number];

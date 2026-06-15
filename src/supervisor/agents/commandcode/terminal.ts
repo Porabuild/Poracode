@@ -5,9 +5,21 @@ interface CommandCodeHintEntry extends HintEntry {
   attention: TerminalStatusHint["attention"];
 }
 
-// Best-effort heuristics for the `command-code` TUI. These mirror the shape of
-// other terminal providers and should be tuned against a live install — the
-// CLI was not available to capture exact output when this was written.
+// Heuristics tuned against captured `command-code` v0.37 TUI output.
+//
+// Working: the spinner row reads `· <Gerund>  esc to interrupt • <n>s • ↑ <n>`,
+// where <Gerund> is a RANDOM verb ("Cogitating", "Processing", "Conjuring", …),
+// so we anchor on the invariant `esc to interrupt` and never the label or the
+// `·` spinner glyph (too generic on its own).
+// Idle: the composer placeholder `❯ Ask your question...` plus the
+// `? for shortcuts` / `/ for commands` hint row.
+//
+// The authoritative working→idle edge is owned by the L1 `Stop` hook (see
+// `plugin/`). This L2 detection is the full fallback when the hook plugin is
+// NOT installed, and — gated by `shouldApplyTerminalStatusWhileHookActive` in
+// `index.ts` — supplies the `working` edge for follow-up text turns plus the
+// `needs_approval` / `needs_reply` interactive states, which have no hook event.
+// (Command Code emits no OSC, so there is no OSC-based signal to fall back to.)
 const COMMANDCODE_STRONG: CommandCodeHintEntry[] = [
   { re: /Enter to select|Choose an option/i, status: "needs_reply", attention: "needs_reply" },
   {
@@ -15,13 +27,11 @@ const COMMANDCODE_STRONG: CommandCodeHintEntry[] = [
     status: "needs_approval",
     attention: "needs_approval",
   },
-  { re: /^[^\S\r\n]*[⣷⣯⣟⡿⢿⣻⣽⣾](?:\s|$)/m, status: "working", attention: "working" },
-  { re: /\besc to (?:cancel|interrupt)\b/i, status: "working", attention: "working" },
-  { re: /✦\s+Working|⚙\s+Working|Thinking…|Generating…/i, status: "working", attention: "working" },
+  { re: /\besc to interrupt\b/i, status: "working", attention: "working" },
 ];
 
 const COMMANDCODE_FALLBACK_IDLE: CommandCodeHintEntry[] = [
-  { re: /^\s*>\s*$/m, status: "idle", attention: "none" },
+  { re: /Ask your question/i, status: "idle", attention: "none" },
   { re: /\?\s+for shortcuts|\/\s+for commands/i, status: "idle", attention: "none" },
 ];
 

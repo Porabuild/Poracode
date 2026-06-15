@@ -1,4 +1,5 @@
 export type SettingsSection =
+  | "profile"
   | "general"
   | "audio"
   | "appearance"

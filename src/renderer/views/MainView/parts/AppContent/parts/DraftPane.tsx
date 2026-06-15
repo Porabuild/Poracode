@@ -1,5 +1,5 @@
 import { useRef } from "react";
-import type { AgentStatus, Project, PromptSegment } from "@/shared/contracts";
+import type { Project } from "@/shared/contracts";
 import { getProjectAgentStatuses } from "@/shared/agentStatus";
 import {
   isDetectingAgentsForLocation,
@@ -10,6 +10,7 @@ import {
   useProjectWithoutDraftConfig,
 } from "@/renderer/state/useThread";
 import { ThreadDraftView } from "@/renderer/components/thread/ThreadDraftView";
+import type { DraftStartInput } from "@/renderer/components/thread/ThreadDraftComposerArea";
 import { useDraggable, useDroppable } from "@dnd-kit/react";
 import { useShallow } from "zustand/shallow";
 import { useIsDraggingPane, usePaneDropIndicatorState, type DragSourceData } from "@/renderer/dnd";
@@ -21,21 +22,7 @@ export function DraftPane(props: {
   paneAlign: "left" | "center" | "right";
   headerNeedsTrafficLightPad?: boolean;
   onClose: () => void;
-  onStart: (
-    project: Project,
-    input: {
-      agentKind: AgentStatus["kind"];
-      config: import("@/shared/contracts").ThreadConfig;
-      prompt: string;
-      segments?: PromptSegment[];
-      existingWorktreePath?: string;
-      worktreeBranch?: string;
-      worktreeBaseBranch?: string;
-      worktreeIsNewBranch?: boolean;
-      worktreeTransferUncommitted?: boolean;
-      presentationMode?: import("@/shared/contracts").ThreadPresentationMode;
-    },
-  ) => void;
+  onStart: (project: Project, input: DraftStartInput) => void | Promise<void>;
 }) {
   const project = useProjectWithoutDraftConfig(props.projectId);
   const initialLastDraftConfig = useInitialProjectDraftConfig(props.projectId);

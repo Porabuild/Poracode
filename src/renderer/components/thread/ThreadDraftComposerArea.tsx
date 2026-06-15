@@ -193,7 +193,7 @@ export function ThreadDraftComposerArea(props: {
   onWorktreeModeChange: (worktreeMode: boolean) => void;
   onSwitchBranch: (branch: string, createNew: boolean) => void;
   onRememberPresentationMode: () => void;
-  onStart: (input: DraftStartInput) => void;
+  onStart: (input: DraftStartInput) => void | Promise<void>;
 }) {
   const [prompt, setPrompt] = useState("");
   const [hasContent, setHasContent] = useState(false);
@@ -393,7 +393,7 @@ export function ThreadDraftComposerArea(props: {
     if (props.supportsModePicker) {
       props.onRememberPresentationMode();
     }
-    props.onStart({
+    const startResult = props.onStart({
       agentKind: props.selectedAgent.kind,
       config: props.config,
       prompt: flatPrompt,
@@ -414,6 +414,20 @@ export function ThreadDraftComposerArea(props: {
               ...(shouldTransferUncommitted ? { worktreeTransferUncommitted: true } : {}),
             }
         : {}),
+    });
+    // On success the draft pane unmounts (replaced by the launched thread), so
+    // this state never matters. On failure (e.g. worktree creation errored) the
+    // pane stays mounted — re-enable the composer instead of leaving it stuck on
+    // the launch spinner with the user's prompt trapped behind it. `onStart` may
+    // return void or a promise; Promise.resolve normalizes both.
+    void Promise.resolve(startResult).catch(() => {
+      submittedRef.current = false;
+      // resetDraftRefs() above cleared the snapshot the unmount-cleanup save
+      // reads. The prompt is still in the editor, so re-capture it — otherwise
+      // navigating away without another edit would silently drop it.
+      latestSegmentsRef.current = mentionRef.current?.serializeSegments() ?? [];
+      attachmentsRef.current = attachments.attachments;
+      setIsSubmitting(false);
     });
   }
 

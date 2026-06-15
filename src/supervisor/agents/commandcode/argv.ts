@@ -17,18 +17,24 @@ import type { ThreadConfig } from "@/shared/contracts";
  *   always pin an explicit `--permission-mode <standard|auto-accept|plan>` —
  *   except when the user picks Bypass Permissions, where we intentionally omit
  *   it so `--yolo` selects bypass as the starting mode.
- * - `command-code` has no flag to pre-assign a session id, so resume uses
- *   `--continue` (continue the last conversation in this cwd) rather than a
- *   tracked id. The initial prompt is passed as a trailing positional arg.
+ * - `command-code` has no flag to pre-assign or report a session id, but it
+ *   does support `--resume <id>` (load that exact conversation). We discover
+ *   the real id from `~/.commandcode/projects/<cwd>/<id>.jsonl` (see
+ *   sessionFiles.ts) and pass it here. `resumeSessionId` is: `undefined` for a
+ *   fresh launch (no resume flag), a non-empty id for `--resume <id>`, or `""`
+ *   for the `--continue` fallback when no real id is known. The initial prompt
+ *   is passed as a trailing positional arg.
  */
 export function buildCommandCodeArgs(
   config: ThreadConfig,
   prompt: string,
-  resume?: boolean,
+  resumeSessionId?: string,
 ): string[] {
   const args: string[] = ["--trust", "--skip-onboarding"];
 
-  if (resume) {
+  if (resumeSessionId) {
+    args.push("--resume", resumeSessionId);
+  } else if (resumeSessionId === "") {
     args.push("--continue");
   }
   if (config.model) {

@@ -528,6 +528,35 @@ describe("ThreadDraftView", () => {
     });
   });
 
+  it("re-enables the composer when onStart rejects (e.g. worktree creation fails)", async () => {
+    const onStart = vi.fn<(input: unknown) => void | Promise<void>>(() =>
+      Promise.reject(new Error("worktree creation failed")),
+    );
+
+    render(
+      <ThreadDraftView project={project} agentStatuses={[dualModeCodexStatus]} onStart={onStart} />,
+    );
+
+    await waitFor(() => {
+      const props = composerSpy.mock.lastCall?.[0] as { controls: Array<{ kind?: string }> };
+      expect(props.controls.some((c) => c.kind === "provider-model")).toBe(true);
+    });
+
+    fireEvent.click(screen.getByText("set-prompt"));
+    await act(async () => {
+      fireEvent.click(screen.getByText("submit"));
+    });
+
+    expect(onStart).toHaveBeenCalledTimes(1);
+
+    // Once the rejection settles the composer is interactive again rather than
+    // frozen on the launch spinner with the prompt trapped behind it.
+    await waitFor(() => {
+      const props = composerSpy.mock.lastCall?.[0] as { submitPending?: boolean };
+      expect(props.submitPending).toBe(false);
+    });
+  });
+
   it("defaults Home Codex drafts to provider defaults, same as any other project", async () => {
     const onStart = vi.fn<(input: unknown) => void>();
     useSharedSettings.setState({

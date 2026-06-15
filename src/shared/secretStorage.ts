@@ -1,4 +1,9 @@
 import { randomBytes, createCipheriv, createDecipheriv } from "node:crypto";
+import { SECRET_PREFIX, isEncryptedSecret } from "./secretFormat";
+
+// Re-exported so existing `@/shared/secretStorage` import sites stay stable;
+// the prefix check itself is crypto-free (see `secretFormat.ts`).
+export { isEncryptedSecret };
 
 /**
  * Symmetric secret sealing shared by the main and supervisor processes. The key
@@ -10,8 +15,6 @@ import { randomBytes, createCipheriv, createDecipheriv } from "node:crypto";
  * plaintext crossing the IPC channel. Pure `node:crypto`; no Electron import, so
  * it runs in either process (and under vitest with an ephemeral fallback key).
  */
-
-const SECRET_PREFIX = "lc-safe:v1:";
 
 let configuredSecretKey: Buffer | undefined;
 let testFallbackSecretKey: Buffer | undefined;
@@ -32,10 +35,6 @@ function readSecretKey(): Buffer {
     return testFallbackSecretKey;
   }
   throw new Error("Lightcode secret storage key is not initialized.");
-}
-
-export function isEncryptedSecret(value: string): boolean {
-  return value.startsWith(SECRET_PREFIX);
 }
 
 export function encryptSecret(_baseDir: string, value: string): string {

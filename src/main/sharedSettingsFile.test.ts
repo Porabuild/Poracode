@@ -2,8 +2,14 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { defaultSharedSettings } from "@/shared/settings";
-import { readSharedSettingsFile, writeSharedSettingsFile } from "./sharedSettingsFile";
+import type { AgentInstanceConfig } from "@/shared/contracts";
+import { isEncryptedSecret } from "@/shared/secretStorage";
+import { defaultSharedSettings, type SharedSettings } from "@/shared/settings";
+import {
+  applyClaudeProfileEnvironment,
+  readSharedSettingsFile,
+  writeSharedSettingsFile,
+} from "./sharedSettingsFile";
 
 const tempDirs: string[] = [];
 
@@ -69,6 +75,8 @@ describe("sharedSettingsFile", () => {
       threadRemoveAction: "archive",
       newThreadMode: "page",
       homeScopeEnabled: true,
+      sidebarTranslucency: false,
+      sidebarGlassTint: { light: null, dark: null },
       autoShowTerminalPanel: true,
       gitReviewMode: "panel",
       prCreateMode: "dialog",
@@ -156,6 +164,8 @@ describe("sharedSettingsFile", () => {
       threadRemoveAction: "archive",
       newThreadMode: "page",
       homeScopeEnabled: true,
+      sidebarTranslucency: false,
+      sidebarGlassTint: { light: null, dark: null },
       autoShowTerminalPanel: true,
       gitReviewMode: "panel",
       prCreateMode: "dialog",
@@ -328,5 +338,92 @@ describe("sharedSettingsFile", () => {
       transcriptionModel: "tiny",
       useWebGpu: true,
     });
+  });
+});
+
+describe("applyClaudeProfileEnvironment", () => {
+  function claudeProfileSettings(environment?: AgentInstanceConfig["environment"]): SharedSettings {
+    const instance: AgentInstanceConfig = {
+      id: "glm",
+      driver: "claude",
+      displayName: "GLM",
+      config: { configDir: "~/.lightcode/claude-profiles/glm" },
+      ...(environment ? { environment } : {}),
+    };
+    return { ...defaultSharedSettings, agentInstances: { glm: instance } };
+  }
+
+  it("seals sensitive values and stores non-sensitive ones as plaintext", () => {
+    const { settings, instance } = applyClaudeProfileEnvironment(
+      claudeProfileSettings(),
+      {
+        instanceId: "glm",
+        environment: {
+          ANTHROPIC_BASE_URL: { value: "https://api.z.ai/api/anthropic" },
+          ANTHROPIC_AUTH_TOKEN: { value: "sk-secret-123", sensitive: true },
+        },
+      },
+      makeTempDir(),
+    );
+
+    expect(instance.environment?.ANTHROPIC_BASE_URL).toEqual({
+      value: "https://api.z.ai/api/anthropic",
+    });
+    const token = instance.environment?.ANTHROPIC_AUTH_TOKEN;
+    expect(token?.sensitive).toBe(true);
+    expect(isEncryptedSecret(token?.value ?? "")).toBe(true);
+    expect(token?.value).not.toContain("sk-secret-123");
+    // The returned instance is the one written into the settings map.
+    expect(settings.agentInstances.glm).toBe(instance);
+  });
+
+  it("round-trips an already-sealed secret without re-sealing it", () => {
+    const dir = makeTempDir();
+    const first = applyClaudeProfileEnvironment(
+      claudeProfileSettings(),
+      { instanceId: "glm", environment: { TOKEN: { value: "plain", sensitive: true } } },
+      dir,
+    );
+    const sealed = first.instance.environment?.TOKEN?.value ?? "";
+
+    const second = applyClaudeProfileEnvironment(
+      claudeProfileSettings(),
+      { instanceId: "glm", environment: { TOKEN: { value: sealed, sensitive: true } } },
+      dir,
+    );
+    expect(second.instance.environment?.TOKEN?.value).toBe(sealed);
+  });
+
+  it("drops empty values and removes the environment field when all are empty", () => {
+    const { instance } = applyClaudeProfileEnvironment(
+      claudeProfileSettings({ OLD: { value: "x" } }),
+      { instanceId: "glm", environment: { OLD: { value: "" }, "": { value: "ignored" } } },
+      makeTempDir(),
+    );
+    expect(instance.environment).toBeUndefined();
+  });
+
+  it("throws for a missing instance or a non-Claude driver", () => {
+    expect(() =>
+      applyClaudeProfileEnvironment(
+        claudeProfileSettings(),
+        { instanceId: "nope", environment: {} },
+        makeTempDir(),
+      ),
+    ).toThrow(/not found/i);
+
+    const acpSettings: SharedSettings = {
+      ...defaultSharedSettings,
+      agentInstances: {
+        droid: { id: "droid", driver: "acp-generic", config: { binary: "droid" } },
+      },
+    };
+    expect(() =>
+      applyClaudeProfileEnvironment(
+        acpSettings,
+        { instanceId: "droid", environment: {} },
+        makeTempDir(),
+      ),
+    ).toThrow(/not found/i);
   });
 });

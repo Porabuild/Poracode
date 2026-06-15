@@ -456,6 +456,7 @@ async function readDetectedVersion(
   location: ProjectLocation,
   executablePath: string | undefined,
   versionArgs: string[],
+  probeEnv?: Record<string, string>,
 ): Promise<string | undefined> {
   if (!executablePath) return undefined;
   if (location.kind === "wsl") {
@@ -464,6 +465,7 @@ async function readDetectedVersion(
       PROBE_WSL_LINUX_PATH,
       executablePath,
       versionArgs,
+      probeEnv ? { env: probeEnv } : undefined,
     );
     return result.ok ? extractSemverFromVersionOutput(result.stdout) : undefined;
   }
@@ -473,7 +475,7 @@ async function readDetectedVersion(
   // detection — which uses the registry-backed fallback — but its `--version`
   // would miss and the version would render blank. Matches the WSL branch above
   // and readAgentCommandOutput.
-  const spec = buildAgentCommand(location, executablePath, versionArgs);
+  const spec = buildAgentCommand(location, executablePath, versionArgs, undefined, probeEnv);
   const result = await readCommandOutputAsync(
     spec.command,
     spec.args,
@@ -618,7 +620,7 @@ export async function detectAgentInstall(
   const executablePath = await resolveDetectedBinary(ctx, spec.binary);
 
   const versionArgs = spec.versionArgs ?? ["--version"];
-  const version = await readDetectedVersion(location, executablePath, versionArgs);
+  const version = await readDetectedVersion(location, executablePath, versionArgs, spec.probeEnv);
 
   let capabilities = spec.capabilities;
   let statusProbeResult: StatusProbeResult | undefined;
@@ -627,7 +629,7 @@ export async function detectAgentInstall(
   let probedAuthState: AuthState | undefined;
   let probedProviderMetadata: AgentProviderMetadata | undefined;
   if (executablePath) {
-    const probeCtx: DetectProbeCtx = { location, executablePath, version };
+    const probeCtx: DetectProbeCtx = { location, executablePath, version, probeEnv: spec.probeEnv };
     const [capabilityPartial, nextStatusProbeResult] = await Promise.all([
       spec.capabilitiesProbe ? spec.capabilitiesProbe(probeCtx) : Promise.resolve(undefined),
       spec.statusProbe ? spec.statusProbe(probeCtx) : Promise.resolve(undefined),

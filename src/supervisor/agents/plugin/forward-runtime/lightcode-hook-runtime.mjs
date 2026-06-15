@@ -188,7 +188,11 @@ export async function runForwarder(options) {
 
     const debug = hookDebugEnabled();
     const url = process.env.LIGHTCODE_HOOK_URL;
-    const secret = process.env.LIGHTCODE_HOOK_SECRET;
+    // Some agent CLIs (e.g. command-code) strip env vars whose NAME matches a
+    // secret denylist (/SECRET/, /TOKEN/, /AUTH/, …) before invoking the hook,
+    // which drops LIGHTCODE_HOOK_SECRET. The supervisor also injects the same
+    // value under the denylist-safe name LIGHTCODE_HOOK_NONCE; fall back to it.
+    const secret = process.env.LIGHTCODE_HOOK_SECRET ?? process.env.LIGHTCODE_HOOK_NONCE;
     const threadId = process.env.LIGHTCODE_THREAD_ID;
     const agentKind = process.env.LIGHTCODE_AGENT_KIND ?? defaultAgentKind;
     const supervisorProtocol = Number(

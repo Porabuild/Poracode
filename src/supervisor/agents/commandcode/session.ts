@@ -31,11 +31,15 @@ export function commandCodeHasStoredCredentials(location: ProjectLocation): bool
   }
 }
 
-// Emitted by `--continue` when there is no prior conversation in the cwd, or by
-// a stale resume. Returning true here lets the runtime drop the (synthetic)
-// sessionRef and relaunch fresh instead of looping on a dead resume.
+// Emitted when a resume target is missing or unloadable: `--continue` with no
+// prior conversation (`No conversations found to resume.`), `--resume <id>`
+// with an unknown id (`No session "<id>" found to resume.`), or a corrupt
+// transcript (`Session could not be loaded. N lines could not be parsed.`).
+// Returning true lets the runtime drop the dead ref and relaunch fresh instead
+// of looping on it. The `found to resume` / `could not be loaded` anchors are
+// specific enough not to fire on ordinary agent output during launch.
 const INVALID_SESSION_RE =
-  /no\s+(?:previous\s+)?conversation|nothing\s+to\s+continue|no\s+session\s+to\s+(?:resume|continue)/i;
+  /no\s+(?:previous\s+)?conversation|nothing\s+to\s+continue|no\s+session\s+to\s+(?:resume|continue)|found\s+to\s+resume|session\s+could\s+not\s+be\s+loaded|lines?\s+could\s+not\s+be\s+parsed/i;
 
 export function detectCommandCodeInvalidSessionRef(output: string): boolean {
   return INVALID_SESSION_RE.test(output);
