@@ -206,7 +206,7 @@ function ShellSidebarSpacer(props: { hasHeaders: boolean; forceSidebarExpanded: 
   if (!isOverlay) return null;
   return (
     <div
-      className={`shrink-0 ${!props.hasHeaders ? "-mt-5 h-[calc(100%+0.75rem)]" : ""}`}
+      className={`lightcode-sidebar-spacer shrink-0 ${!props.hasHeaders ? "-mt-5 h-[calc(100%+0.75rem)]" : ""}`}
       style={{ width: SIDEBAR_COLLAPSED_WIDTH, minWidth: SIDEBAR_COLLAPSED_WIDTH }}
     />
   );

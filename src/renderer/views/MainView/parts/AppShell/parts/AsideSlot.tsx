@@ -83,22 +83,30 @@ export function AsideSlot(props: {
     };
   }
 
-  // Content cross-fades on the inner layer so the opaque <aside> background
-  // never reveals the OS blur material during the animation. A keyframe (not a
-  // transition) is used so the fade reliably re-fires each time: the layer is
-  // clipped to zero by the docked panel's collapsing size, and a transition's
-  // start value is unreliable when an element is revealed from a zero-clipped
-  // state (the content would pop in at full opacity). The signal differs by
-  // mode — docked tracks isOpen (size animation); overlay tracks overlayReady so
-  // the content fades in step with the slide-in/out.
+  // Content (header + body) cross-fades on the inner layer so the opaque <aside>
+  // background never reveals the OS blur material during the animation. The
+  // signal differs by mode: docked tracks isOpen (size animation); overlay
+  // tracks overlayReady so the content fades in step with the slide-in/out.
+  //
+  // Docked uses a keyframe because the layer is clipped to zero by the
+  // collapsing panel and a transition's start value is unreliable when revealed
+  // from a zero-clipped state (content would pop in at full opacity). The
+  // overlay is never clipped (it is a full-size panel that only translates), so
+  // a plain opacity transition is reliable there — and unlike the keyframe it
+  // fades cleanly on close from its current value instead of snapping to 0.
   const contentVisible = overlay ? overlayReady : isOpen;
   const contentFadeDuration = overlay ? "300ms" : dockedFadeDuration;
+  const contentFadeEase = contentVisible ? "ease-out" : "ease-in";
   const innerStyle: CSSProperties = {
     ...(isHorizontal ? { height: targetHeight } : { width: targetWidth }),
     opacity: contentVisible ? 1 : 0,
-    animation: `${
-      contentVisible ? "lightcode-panel-content-in" : "lightcode-panel-content-out"
-    } ${contentFadeDuration} ${contentVisible ? "ease-out" : "ease-in"}`,
+    ...(overlay
+      ? { transition: `opacity ${contentFadeDuration} ${contentFadeEase}` }
+      : {
+          animation: `${
+            contentVisible ? "lightcode-panel-content-in" : "lightcode-panel-content-out"
+          } ${contentFadeDuration} ${contentFadeEase}`,
+        }),
     willChange: "opacity",
   };
   const asideKey = overlay ? "overlay-aside" : "docked-aside";

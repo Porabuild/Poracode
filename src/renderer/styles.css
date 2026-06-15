@@ -1065,6 +1065,13 @@ html[data-native-material="on"] .lightcode-sidebar-aside .lightcode-overlay-head
 html[data-native-material="on"] .lightcode-sidebar-aside--overlay {
   background: var(--content-background);
 }
+/* While the overlay sidebar slides out and snaps to the collapsed rail, the
+   spacer that reserves the rail's slot is briefly uncovered. Give it the same
+   glass tint as the docked collapsed rail so the strip never flashes raw
+   acrylic before the rail paints in. */
+html[data-native-material="on"] .lightcode-sidebar-spacer {
+  background: var(--sidebar-glass-tint);
+}
 /* Windows-only frosting bump. DWM acrylic blurs whatever sits behind the window,
    so the backdrop bleeds through the tint and drags the sidebar toward it: a dark
    theme over a bright window washes out toward grey, while a light theme over a
