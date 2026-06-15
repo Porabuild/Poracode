@@ -1059,6 +1059,12 @@ html[data-native-material="on"] .lightcode-sidebar-aside {
 html[data-native-material="on"] .lightcode-sidebar-aside .lightcode-overlay-header {
   background: transparent;
 }
+/* The floating overlay sidebar sits over dimmed content, where a translucent
+   tint reads muddy and hurts legibility — paint it fully opaque (the glass tint
+   at 100%). Docked sidebars keep the translucent tint set above. */
+html[data-native-material="on"] .lightcode-sidebar-aside--overlay {
+  background: var(--content-background);
+}
 /* Windows-only frosting bump. DWM acrylic blurs whatever sits behind the window,
    so the backdrop bleeds through the tint and drags the sidebar toward it: a dark
    theme over a bright window washes out toward grey, while a light theme over a
@@ -1091,12 +1097,10 @@ html[data-sidebar-glass="on"]:not([data-native-material="on"])
   .lightcode-overlay-header {
   background: transparent;
 }
-/* Real blur only for the floating overlay sidebar (it sits over content). */
-@supports (backdrop-filter: blur(1px)) {
-  html[data-sidebar-glass="on"]:not([data-native-material="on"]) .lightcode-sidebar-aside--overlay {
-    background: color-mix(in oklab, var(--sidebar-background) 70%, transparent);
-    backdrop-filter: blur(18px) saturate(1.5);
-  }
+/* In-app fallback overlay sidebar: opaque too — it floats over dimmed content,
+   so the faux-glass tint/blur used for the docked fallback would read muddy. */
+html[data-sidebar-glass="on"]:not([data-native-material="on"]) .lightcode-sidebar-aside--overlay {
+  background: var(--sidebar-background);
 }
 
 /* Overlays (settings, git review, file editor, …) reuse the same AppShell, so
@@ -2402,6 +2406,27 @@ html[data-platform="darwin"] .lightcode-content-over-drag-region--drag {
   }
   to {
     opacity: 1;
+  }
+}
+
+/* Docked right/bottom panel content fade. The panel's <aside> background stays
+   opaque (so the OS blur never shows through); only this content layer fades.
+   Keyframes, not a transition, because the layer is clipped to zero by the
+   aside's collapsing size and a transition's start value is unreliable there. */
+@keyframes lightcode-panel-content-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes lightcode-panel-content-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
   }
 }
 

@@ -39,8 +39,8 @@ export function AsideSlot(props: {
   // Docked path: width/height animates open <-> closed.
   const dockedDisplayWidth = !isHorizontal ? (isOpen ? targetWidth : 0) : undefined;
   const dockedDisplayHeight = isHorizontal ? (isOpen ? targetHeight : 0) : undefined;
-  // Show: Faster fade in (300ms), fast width/height (150ms)
-  // Hide: Fast width/height (150ms), fast-ish fade out (200ms)
+  // Show: content fades in (300ms) over the opaque background, fast size (150ms).
+  // Hide: fast size (150ms), fast-ish content fade out (200ms).
   // During an active drag, useResizablePanels writes transitionDuration: 0ms directly
   // to the panel element so per-frame width/height updates aren't smoothed.
   const dockedFadeDuration = isOpen ? "300ms" : "200ms";
@@ -49,31 +49,58 @@ export function AsideSlot(props: {
   let asideClassName: string;
   let asideStyle: CSSProperties;
   if (overlay) {
-    asideClassName = `fixed bottom-0 right-0 z-50 flex flex-col overflow-hidden border-l border-[color:var(--border)] bg-[var(--content-background)] shadow-2xl transition-transform duration-300 will-change-transform ${
+    asideClassName = `fixed inset-y-0 right-0 z-50 flex flex-col overflow-hidden border-l border-[color:var(--border)] bg-[var(--content-background)] shadow-2xl transition-transform duration-300 will-change-transform ${
       overlayReady ? "translate-x-0" : "translate-x-full"
     }`;
     asideStyle = {
-      top: overlayTop,
+      // Span the full window height so the opaque panel background reaches the
+      // very top — otherwise the strip above it shows the content-header row
+      // dimmed by the dialog backdrop, reading as a darker seam. The panel's own
+      // content is pushed below the OS titlebar/window-controls row via padding
+      // so its header buttons don't collide with the min/max/close controls.
+      paddingTop: overlayTop,
       width: targetWidth,
       minWidth: targetWidth,
     };
   } else {
+    // The background layer (this <aside>) stays fully opaque while the panel
+    // animates open, so the OS blur material (Windows acrylic / macOS vibrancy)
+    // never shows through. Only the size animates here; the panel *content*
+    // cross-fades on the inner layer below. Collapse the border to transparent
+    // while closed so the 0-size panel leaves no 1px hairline at the edge.
+    const borderColorClass = isOpen ? "border-[color:var(--border)]" : "border-transparent";
     asideClassName = `relative overflow-hidden bg-[var(--content-background)] ${
-      isHorizontal
-        ? "min-w-0 border-t border-[color:var(--border)]"
-        : "min-h-0 border-l border-[color:var(--border)]"
+      isHorizontal ? `min-w-0 border-t ${borderColorClass}` : `min-h-0 border-l ${borderColorClass}`
     }`;
     asideStyle = {
       ...(isHorizontal
         ? { height: dockedDisplayHeight, minHeight: dockedDisplayHeight }
         : { width: dockedDisplayWidth, minWidth: dockedDisplayWidth }),
-      opacity: isOpen ? 1 : 0,
-      transitionProperty: "width, min-width, height, min-height, opacity, border-color",
-      transitionDuration: `${dockedSizeDuration}, ${dockedSizeDuration}, ${dockedSizeDuration}, ${dockedSizeDuration}, ${dockedFadeDuration}, 200ms`,
+      transitionProperty: "width, min-width, height, min-height, border-color",
+      transitionDuration: `${dockedSizeDuration}, ${dockedSizeDuration}, ${dockedSizeDuration}, ${dockedSizeDuration}, 200ms`,
       transitionTimingFunction: isOpen ? "ease-out" : "ease-in",
-      willChange: "width, min-width, height, min-height, opacity",
+      willChange: "width, min-width, height, min-height",
     };
   }
+
+  // Content cross-fades on the inner layer so the opaque <aside> background
+  // never reveals the OS blur material during the animation. A keyframe (not a
+  // transition) is used so the fade reliably re-fires each time: the layer is
+  // clipped to zero by the docked panel's collapsing size, and a transition's
+  // start value is unreliable when an element is revealed from a zero-clipped
+  // state (the content would pop in at full opacity). The signal differs by
+  // mode — docked tracks isOpen (size animation); overlay tracks overlayReady so
+  // the content fades in step with the slide-in/out.
+  const contentVisible = overlay ? overlayReady : isOpen;
+  const contentFadeDuration = overlay ? "300ms" : dockedFadeDuration;
+  const innerStyle: CSSProperties = {
+    ...(isHorizontal ? { height: targetHeight } : { width: targetWidth }),
+    opacity: contentVisible ? 1 : 0,
+    animation: `${
+      contentVisible ? "lightcode-panel-content-in" : "lightcode-panel-content-out"
+    } ${contentFadeDuration} ${contentVisible ? "ease-out" : "ease-in"}`,
+    willChange: "opacity",
+  };
   const asideKey = overlay ? "overlay-aside" : "docked-aside";
 
   return (
@@ -91,11 +118,7 @@ export function AsideSlot(props: {
         />
       )}
       <aside key={asideKey} ref={panelRef} className={asideClassName} style={asideStyle}>
-        <div
-          ref={panelInnerRef}
-          className="h-full w-full"
-          style={isHorizontal ? { height: targetHeight } : { width: targetWidth }}
-        >
+        <div ref={panelInnerRef} className="h-full w-full" style={innerStyle}>
           {children}
         </div>
       </aside>

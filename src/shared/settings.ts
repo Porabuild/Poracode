@@ -196,9 +196,9 @@ export const sharedSettingsSchema = z.object({
   /** Show the projectless Home scope for OS-level agent sessions. */
   homeScopeEnabled: z.boolean(),
   /**
-   * Opt-in translucent ("liquid glass") sidebar. When on, the window uses a
+   * Translucent ("liquid glass") sidebar. When on, the window uses a
    * native blur material where supported (macOS vibrancy, Windows 11 acrylic)
-   * and an in-app translucent fallback elsewhere. Default off.
+   * and an in-app translucent fallback elsewhere. Default on.
    */
   sidebarTranslucency: z.boolean(),
   /**
@@ -349,7 +349,7 @@ export const defaultSharedSettings: SharedSettings = {
   threadRemoveAction: "archive",
   newThreadMode: "page",
   homeScopeEnabled: true,
-  sidebarTranslucency: false,
+  sidebarTranslucency: true,
   sidebarGlassTint: { light: null, dark: null },
   autoShowTerminalPanel: true,
   gitReviewMode: "panel",
