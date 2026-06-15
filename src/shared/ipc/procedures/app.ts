@@ -59,6 +59,7 @@ export const appProcedures = {
     "main-local",
   ),
   focusWindow: defineNoArgProcedure<void, "main-local">("focusWindow", "main-local"),
+  relaunchApp: defineNoArgProcedure<void, "main-local">("relaunchApp", "main-local"),
   getHomeScopeLocation: defineNoArgProcedure<ProjectLocation, "main-local">(
     "getHomeScopeLocation",
     "main-local",

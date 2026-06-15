@@ -203,6 +203,128 @@ describe("createClaudeProfileAdapter", () => {
       )?.env?.CLAUDE_CONFIG_DIR,
     ).toBe(expectedConfigDir);
   });
+
+  it("merges the instance environment into the spawn env, with CLAUDE_CONFIG_DIR winning", () => {
+    const adapter = createClaudeProfileAdapter({
+      id: "glm",
+      driver: "claude",
+      displayName: "GLM",
+      config: { configDir: "~/.lightcode/claude-profiles/glm" },
+      // Values arrive decrypted from the supervisor's settings read.
+      environment: {
+        ANTHROPIC_BASE_URL: { value: "https://api.z.ai/api/anthropic" },
+        ANTHROPIC_AUTH_TOKEN: { value: "sk-test", sensitive: true },
+        // A user override of CLAUDE_CONFIG_DIR must not win over the profile.
+        CLAUDE_CONFIG_DIR: { value: "/should/be/ignored" },
+      },
+    });
+
+    const env = adapter.buildLaunchArgv(projectLocation, { model: "glm-5.2" }, "hello").env;
+    const expectedConfigDir = path.join(homedir(), ".lightcode/claude-profiles/glm");
+    expect(env?.ANTHROPIC_BASE_URL).toBe("https://api.z.ai/api/anthropic");
+    expect(env?.ANTHROPIC_AUTH_TOKEN).toBe("sk-test");
+    expect(env?.CLAUDE_CONFIG_DIR).toBe(expectedConfigDir);
+  });
+
+  it("appends configured models to the built-in list", () => {
+    const adapter = createClaudeProfileAdapter({
+      id: "glm",
+      driver: "claude",
+      displayName: "GLM",
+      config: {
+        configDir: "~/.lightcode/claude-profiles/glm",
+        models: [{ id: "glm-5.2", label: "GLM 5.2" }, { id: "glm-4.5-air" }],
+      },
+    });
+
+    const ids = adapter.capabilities.models.map((model) => model.id);
+    // Built-in Claude models stay selectable; custom ones are appended.
+    expect(ids).toEqual([
+      ...claudeCapabilities.models.map((model) => model.id),
+      "glm-5.2",
+      "glm-4.5-air",
+    ]);
+    expect(adapter.capabilities.models).toContainEqual({ id: "glm-5.2", label: "GLM 5.2" });
+    expect(adapter.capabilities.models).toContainEqual({
+      id: "glm-4.5-air",
+      label: "glm-4.5-air",
+    });
+    // Built-in per-model maps are preserved (Claude models still work).
+    expect(adapter.capabilities.modelEfforts).toEqual(claudeCapabilities.modelEfforts);
+  });
+
+  it("does not duplicate a configured model that matches a built-in id", () => {
+    const adapter = createClaudeProfileAdapter({
+      id: "glm",
+      driver: "claude",
+      displayName: "GLM",
+      config: {
+        configDir: "~/.lightcode/claude-profiles/glm",
+        models: [{ id: "sonnet", label: "Sonnet (custom)" }],
+      },
+    });
+
+    const sonnetEntries = adapter.capabilities.models.filter((model) => model.id === "sonnet");
+    expect(sonnetEntries).toEqual([{ id: "sonnet", label: "Sonnet" }]);
+  });
+
+  it("does not duplicate repeated configured model ids", () => {
+    const adapter = createClaudeProfileAdapter({
+      id: "glm",
+      driver: "claude",
+      displayName: "GLM",
+      config: {
+        configDir: "~/.lightcode/claude-profiles/glm",
+        models: [{ id: "glm-5.2" }, { id: "glm-5.2", label: "GLM duplicate" }],
+      },
+    });
+
+    const customEntries = adapter.capabilities.models.filter((model) => model.id === "glm-5.2");
+    expect(customEntries).toEqual([{ id: "glm-5.2", label: "glm-5.2" }]);
+  });
+
+  it("restricts the effort allow-list and keeps an allowed default", () => {
+    const adapter = createClaudeProfileAdapter({
+      id: "glm",
+      driver: "claude",
+      displayName: "GLM",
+      config: { configDir: "~/.lightcode/claude-profiles/glm", efforts: ["high", "max"] },
+    });
+
+    expect(adapter.capabilities.efforts).toEqual(["high", "max"]);
+    expect(adapter.capabilities.defaultEffort).toBe("high");
+  });
+
+  it("re-homes the default effort to the first allowed tier when disabled", () => {
+    const adapter = createClaudeProfileAdapter({
+      id: "glm",
+      driver: "claude",
+      displayName: "GLM",
+      config: { configDir: "~/.lightcode/claude-profiles/glm", efforts: ["max", "ultracode"] },
+    });
+
+    expect(adapter.capabilities.efforts).toEqual(["max", "ultracode"]);
+    expect(adapter.capabilities.defaultEffort).toBe("max");
+  });
+
+  it("leaves the built-in adapter capabilities untouched", () => {
+    expect(createClaudeAdapter().capabilities.models).toEqual(claudeCapabilities.models);
+    expect(createClaudeAdapter().capabilities.efforts).toEqual(claudeCapabilities.efforts);
+  });
+
+  it("falls back to the built-in efforts when an allow-list has no known tiers", () => {
+    // Guards a hand-edited config: an all-unknown allow-list must not leave the
+    // picker with zero effort options.
+    const adapter = createClaudeProfileAdapter({
+      id: "glm",
+      driver: "claude",
+      displayName: "GLM",
+      config: { configDir: "~/.lightcode/claude-profiles/glm", efforts: ["bogus", "nope"] },
+    });
+
+    expect(adapter.capabilities.efforts).toEqual(claudeCapabilities.efforts);
+    expect(adapter.capabilities.defaultEffort).toBe(claudeCapabilities.defaultEffort);
+  });
 });
 
 describe("parseClaudeAuthStatusJson", () => {

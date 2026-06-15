@@ -15,6 +15,14 @@ import { captureRendererException } from "@/renderer/diagnostics/sentry";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { getToastActionLabel, normalizeToastContent } from "./toastContent";
 
+function systemPrefersReducedTransparency(): boolean {
+  return (
+    typeof window !== "undefined" &&
+    typeof window.matchMedia === "function" &&
+    window.matchMedia("(prefers-reduced-transparency: reduce)").matches
+  );
+}
+
 const AppearanceContext = createContext<"light" | "dark">("dark");
 const toastContentClassName = "min-w-0 p-0 pr-1";
 const toastDescriptionClassName =
@@ -61,13 +69,21 @@ function ToastAction({ actionProps, actionLabel, isCopyAction }: ToastActionProp
   );
 }
 
-export function AppProvider(props: { children: ReactNode }) {
-  const { children } = props;
+export function AppProvider(props: { children: ReactNode; contentReady?: boolean }) {
+  // `contentReady` gates the glass material: the window stays opaque through
+  // loading and only goes translucent once the main content is mounted, so the
+  // app never shows a bare translucent window mid-load.
+  const { children, contentReady = false } = props;
   const themeMode = useSharedSettings((state) => state.themeMode);
   const themePreset = useSharedSettings((state) => state.themePreset);
   const [prefersDark, setPrefersDark] = useState(systemPrefersDark);
   const syncSystemPreference = useEffectEvent((matches: boolean) => {
     setPrefersDark(matches);
+  });
+  const sidebarTranslucency = useSharedSettings((state) => state.sidebarTranslucency);
+  const [reducedTransparency, setReducedTransparency] = useState(systemPrefersReducedTransparency);
+  const syncReducedTransparency = useEffectEvent((matches: boolean) => {
+    setReducedTransparency(matches);
   });
 
   useEffect(() => {
@@ -87,7 +103,26 @@ export function AppProvider(props: { children: ReactNode }) {
     };
   }, []);
 
+  useEffect(() => {
+    if (typeof window === "undefined" || typeof window.matchMedia !== "function") {
+      return;
+    }
+
+    const media = window.matchMedia("(prefers-reduced-transparency: reduce)");
+    const onChange = (event: MediaQueryListEvent) => {
+      syncReducedTransparency(event.matches);
+    };
+
+    syncReducedTransparency(media.matches);
+    media.addEventListener("change", onChange);
+    return () => {
+      media.removeEventListener("change", onChange);
+    };
+  }, []);
+
   const appearance = resolveThemeMode(themeMode, prefersDark);
+  // The opt-in translucent sidebar, suppressed when the OS asks for reduced transparency.
+  const glassEnabled = sidebarTranslucency && !reducedTransparency;
 
   useEffect(() => {
     const root = document.documentElement;
@@ -98,6 +133,12 @@ export function AppProvider(props: { children: ReactNode }) {
     persistThemeBoot(appearance, themePreset);
   }, [appearance, themePreset]);
 
+  // Gates the in-app CSS sidebar tint/fallback. Held off until content is ready
+  // so the loading screen stays opaque.
+  useEffect(() => {
+    document.documentElement.dataset.sidebarGlass = glassEnabled && contentReady ? "on" : "off";
+  }, [glassEnabled, contentReady]);
+
   useEffect(() => {
     if (typeof window === "undefined" || !("lightcode" in window)) {
       return;
@@ -105,18 +146,27 @@ export function AppProvider(props: { children: ReactNode }) {
 
     const root = document.documentElement;
     const styles = window.getComputedStyle(root);
+    const wantMaterial = glassEnabled && contentReady;
 
     void readBridge()
       .setWindowChrome({
         backgroundColor:
           styles.getPropertyValue("--window-overlay-background").trim() || "rgba(0, 0, 0, 0)",
         symbolColor: appearance === "dark" ? "#fafafa" : "#1f2937",
+        materialEnabled: wantMaterial,
+        appearance,
+      })
+      .then((result) => {
+        // The native material is toggled live by the main process; reveal it via
+        // the transparent-window CSS only where the OS actually supports it.
+        root.dataset.nativeMaterial = wantMaterial && !!result?.nativeCapable ? "on" : "off";
       })
       .catch((error: unknown) => {
+        root.dataset.nativeMaterial = "off";
         captureRendererException(error, { featureArea: "window-chrome" });
         // Keep renderer boot resilient if Electron rejects a color value.
       });
-  }, [appearance]);
+  }, [appearance, glassEnabled, contentReady]);
 
   return (
     <AppearanceContext.Provider value={appearance}>

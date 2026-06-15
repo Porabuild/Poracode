@@ -1,7 +1,7 @@
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { AgentStatus, Project } from "@/shared/contracts";
+import type { AgentInstanceConfig, AgentStatus, Project } from "@/shared/contracts";
 
 const statusesState = {
   agentStatuses: [] as AgentStatus[],
@@ -12,10 +12,12 @@ const sharedSettingsState = {
   disabledAgents: [] as string[],
   hiddenModels: {} as Record<string, string[]>,
   agentSettings: {} as Record<string, Record<string, unknown>>,
+  agentInstances: {} as Record<string, AgentInstanceConfig>,
   acpRegistryInstalledAgents: {} as Record<string, unknown>,
   setAgentDisabled: vi.fn<(kind: string, disabled: boolean) => void>(),
   setHiddenModels: vi.fn<(kind: string, hidden: string[]) => void>(),
   setAgentSetting: vi.fn<(kind: string, key: string, value: unknown) => void>(),
+  setAgentInstance: vi.fn<(instance: AgentInstanceConfig) => void>(),
 };
 
 const appState = {
@@ -305,9 +307,11 @@ describe("SingleAgentSettings", () => {
     sharedSettingsState.disabledAgents = [];
     sharedSettingsState.hiddenModels = {};
     sharedSettingsState.agentSettings = {};
+    sharedSettingsState.agentInstances = {};
     sharedSettingsState.setAgentDisabled.mockReset();
     sharedSettingsState.setHiddenModels.mockReset();
     sharedSettingsState.setAgentSetting.mockReset();
+    sharedSettingsState.setAgentInstance.mockReset();
     refreshAgentStatusesMock.mockReset().mockResolvedValue(undefined);
     setAcpRegistryAgentAuthMock.mockReset().mockResolvedValue({});
     authenticateAcpAgentMock.mockReset().mockResolvedValue(undefined);
@@ -345,6 +349,25 @@ describe("SingleAgentSettings", () => {
     // identity fields are available.
     expect(screen.queryByText("Auth method")).not.toBeInTheDocument();
     expect(screen.queryByText("Claude.ai")).not.toBeInTheDocument();
+  });
+
+  it("renders a Claude profile editor before detection has reported the profile status", () => {
+    sharedSettingsState.agentInstances = {
+      glm: {
+        id: "glm",
+        driver: "claude",
+        displayName: "GLM",
+        config: { configDir: "~/.lightcode/claude-profiles/glm" },
+      },
+    };
+
+    render(<SingleAgentSettings agentKind="claude:glm" />);
+
+    expect(screen.getByText("Claude GLM")).toBeInTheDocument();
+    expect(screen.getByLabelText("Claude profile config directory")).toHaveValue(
+      "~/.lightcode/claude-profiles/glm",
+    );
+    expect(screen.queryByText("This agent is not installed.")).not.toBeInTheDocument();
   });
 
   it("summarizes OpenCode connected providers on a single line", () => {

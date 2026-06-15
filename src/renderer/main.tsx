@@ -37,6 +37,10 @@ initializeRendererSentry();
 document.documentElement.dataset.platform =
   typeof window !== "undefined" && "lightcode" in window ? readBridge().platform : "unknown";
 
+// The translucent ("liquid glass") sidebar is applied by provider.tsx only once
+// the main content is ready — the window stays opaque (the index.html boot
+// background) through loading so it doesn't show a bare translucent window.
+
 // Apply the cached appearance + theme before first paint so a non-default theme
 // doesn't flash the base palette on launch.
 bootstrapAppThemeFromCache();

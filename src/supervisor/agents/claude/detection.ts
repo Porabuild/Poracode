@@ -1,4 +1,5 @@
 import { compactAgentProviderMetadata, type AgentCapability } from "@/shared/contracts";
+import { CLAUDE_EFFORT_TIERS } from "@/shared/agents/claudeEfforts";
 import { readAgentCommandOutput, type DetectionSpec, type StatusProbeResult } from "../base";
 import { getAgentProbeCwd } from "../probeCwd";
 import { probeClaudeCapabilities } from "./probe";
@@ -21,7 +22,7 @@ const CLAUDE_BUILT_IN_SLASH_COMMANDS: AgentCapability["slashCommands"] = [
 ];
 
 /** Effort tiers shared by the frontier models (Opus 4.7/4.8 and Fable 5). */
-const PREMIUM_EFFORT_TIERS = ["low", "medium", "high", "xHigh", "max", "ultracode"];
+const PREMIUM_EFFORT_TIERS: string[] = [...CLAUDE_EFFORT_TIERS];
 
 /**
  * Master switch for the Fable 5 model. Flip to `true` to surface it again in the

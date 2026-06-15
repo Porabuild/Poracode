@@ -195,6 +195,12 @@ export const sharedSettingsSchema = z.object({
   newThreadMode: newThreadModeSchema,
   /** Show the projectless Home scope for OS-level agent sessions. */
   homeScopeEnabled: z.boolean(),
+  /**
+   * Opt-in translucent ("liquid glass") sidebar. When on, the window uses a
+   * native blur material where supported (macOS vibrancy, Windows 11 acrylic)
+   * and an in-app translucent fallback elsewhere. Default off.
+   */
+  sidebarTranslucency: z.boolean(),
   /** Automatically show the terminal panel when running commands or creating worktrees. */
   autoShowTerminalPanel: z.boolean(),
   /** Open git review as a right-side panel or a full page overlay. */
@@ -332,6 +338,7 @@ export const defaultSharedSettings: SharedSettings = {
   threadRemoveAction: "archive",
   newThreadMode: "page",
   homeScopeEnabled: true,
+  sidebarTranslucency: false,
   autoShowTerminalPanel: true,
   gitReviewMode: "panel",
   prCreateMode: "dialog",
