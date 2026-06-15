@@ -93,35 +93,29 @@ function isCloseToTrayEnabled(): boolean {
 }
 
 /**
- * Resolves the saved appearance so the native window opens with a matching
- * background instead of flashing a fixed color before the renderer paints.
+ * Resolves the saved appearance + opt-in translucent ("liquid glass") sidebar in
+ * a single settings read, so the window opens already matching the theme and
+ * material (flash-free first paint) before the renderer paints.
  */
-function resolveAppAppearance(): "light" | "dark" {
+function resolveWindowChromeOptions(): {
+  appearance: "light" | "dark";
+  sidebarTranslucency: boolean;
+} {
   let mode: "system" | "light" | "dark" = "dark";
+  let wantGlass = false;
   if (lightcodePaths) {
     try {
-      mode = readSharedSettingsFile(lightcodePaths.settingsPath).themeMode;
+      const settings = readSharedSettingsFile(lightcodePaths.settingsPath);
+      mode = settings.themeMode;
+      wantGlass = settings.sidebarTranslucency === true;
     } catch {
-      // Fall back to dark.
+      // Fall back to dark / opaque.
     }
   }
-  return resolveThemeMode(mode, nativeTheme.shouldUseDarkColors);
-}
-
-/**
- * Resolves the saved opt-in translucent ("liquid glass") sidebar setting so the
- * window can open with the native material already applied instead of flashing
- * opaque before the renderer requests it.
- */
-function resolveSidebarTranslucency(): boolean {
-  if (!lightcodePaths) {
-    return false;
-  }
-  try {
-    return readSharedSettingsFile(lightcodePaths.settingsPath).sidebarTranslucency === true;
-  } catch {
-    return false;
-  }
+  return {
+    appearance: resolveThemeMode(mode, nativeTheme.shouldUseDarkColors),
+    sidebarTranslucency: wantGlass,
+  };
 }
 
 function primeBrowserAllowFlags(): void {
@@ -294,10 +288,16 @@ if (!hasSingleInstanceLock) {
         updatePowerSaveBlocker,
         autoUpdater: autoUpdaterController,
         onSharedSettingsChanged: primeBrowserAllowFlags,
+        requestRelaunch: () => {
+          isQuitting = true;
+          app.relaunch();
+          app.quit();
+        },
       }),
       callSupervisor: (name, payload) => supervisorClient.call(name, payload),
     });
 
+    const windowChrome = resolveWindowChromeOptions();
     mainWindow = createMainWindow({
       title: getAppName(channel, isDev),
       isDev,
@@ -312,8 +312,8 @@ if (!hasSingleInstanceLock) {
       sentryEnabled,
       windowChromeHeight: WINDOW_CHROME_HEIGHT,
       browserUserAgent: chromeLikeUserAgent,
-      appearance: resolveAppAppearance(),
-      sidebarTranslucency: resolveSidebarTranslucency(),
+      appearance: windowChrome.appearance,
+      sidebarTranslucency: windowChrome.sidebarTranslucency,
       ...(process.env.VITE_DEV_SERVER_URL ? { devServerUrl: process.env.VITE_DEV_SERVER_URL } : {}),
       onClosed: () => {
         mainWindow = null;
@@ -388,6 +388,7 @@ if (!hasSingleInstanceLock) {
         return;
       }
       if (BrowserWindow.getAllWindows().length === 0) {
+        const reopenChrome = resolveWindowChromeOptions();
         mainWindow = createMainWindow({
           title: getAppName(channel, isDev),
           isDev,
@@ -402,8 +403,8 @@ if (!hasSingleInstanceLock) {
           sentryEnabled,
           windowChromeHeight: WINDOW_CHROME_HEIGHT,
           browserUserAgent: chromeLikeUserAgent,
-          appearance: resolveAppAppearance(),
-          sidebarTranslucency: resolveSidebarTranslucency(),
+          appearance: reopenChrome.appearance,
+          sidebarTranslucency: reopenChrome.sidebarTranslucency,
           ...(process.env.VITE_DEV_SERVER_URL
             ? { devServerUrl: process.env.VITE_DEV_SERVER_URL }
             : {}),

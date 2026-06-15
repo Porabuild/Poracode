@@ -69,8 +69,11 @@ function ToastAction({ actionProps, actionLabel, isCopyAction }: ToastActionProp
   );
 }
 
-export function AppProvider(props: { children: ReactNode }) {
-  const { children } = props;
+export function AppProvider(props: { children: ReactNode; contentReady?: boolean }) {
+  // `contentReady` gates the glass material: the window stays opaque through
+  // loading and only goes translucent once the main content is mounted, so the
+  // app never shows a bare translucent window mid-load.
+  const { children, contentReady = false } = props;
   const themeMode = useSharedSettings((state) => state.themeMode);
   const themePreset = useSharedSettings((state) => state.themePreset);
   const [prefersDark, setPrefersDark] = useState(systemPrefersDark);
@@ -130,11 +133,11 @@ export function AppProvider(props: { children: ReactNode }) {
     persistThemeBoot(appearance, themePreset);
   }, [appearance, themePreset]);
 
-  // Gates the in-app CSS sidebar tint/fallback. Set unconditionally (works in
-  // tests / non-Electron) so the styling never depends on the bridge.
+  // Gates the in-app CSS sidebar tint/fallback. Held off until content is ready
+  // so the loading screen stays opaque.
   useEffect(() => {
-    document.documentElement.dataset.sidebarGlass = glassEnabled ? "on" : "off";
-  }, [glassEnabled]);
+    document.documentElement.dataset.sidebarGlass = glassEnabled && contentReady ? "on" : "off";
+  }, [glassEnabled, contentReady]);
 
   useEffect(() => {
     if (typeof window === "undefined" || !("lightcode" in window)) {
@@ -143,27 +146,27 @@ export function AppProvider(props: { children: ReactNode }) {
 
     const root = document.documentElement;
     const styles = window.getComputedStyle(root);
+    const wantMaterial = glassEnabled && contentReady;
 
     void readBridge()
       .setWindowChrome({
         backgroundColor:
           styles.getPropertyValue("--window-overlay-background").trim() || "rgba(0, 0, 0, 0)",
         symbolColor: appearance === "dark" ? "#fafafa" : "#1f2937",
-        materialEnabled: glassEnabled,
+        materialEnabled: wantMaterial,
         appearance,
       })
       .then((result) => {
-        // The main process reports whether a native blur material was actually
-        // applied (e.g. Windows 10 has none); gate the transparent-window CSS on
-        // that truthful state instead of guessing from the platform.
-        root.dataset.nativeMaterial = result?.nativeMaterial ? "on" : "off";
+        // The native material is toggled live by the main process; reveal it via
+        // the transparent-window CSS only where the OS actually supports it.
+        root.dataset.nativeMaterial = wantMaterial && !!result?.nativeCapable ? "on" : "off";
       })
       .catch((error: unknown) => {
         root.dataset.nativeMaterial = "off";
         captureRendererException(error, { featureArea: "window-chrome" });
         // Keep renderer boot resilient if Electron rejects a color value.
       });
-  }, [appearance, glassEnabled]);
+  }, [appearance, glassEnabled, contentReady]);
 
   return (
     <AppearanceContext.Provider value={appearance}>

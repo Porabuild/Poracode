@@ -59,8 +59,14 @@ export function panelHeaderTabIconButtonClass(active: boolean) {
 /** Column shell (inset `px-2`); pair with `overlaySidebarSurfaceClass` for overlay/panel UIs. */
 export const sidebarColumnLayoutClass = "flex h-full min-h-0 min-w-0 flex-col gap-3 px-2 pb-0 pt-0";
 
-/** Primary surface for overlay and docked tool panels (matches main content / thread area). */
-export const overlaySidebarSurfaceClass = "bg-[var(--content-background)]";
+/**
+ * Primary surface for overlay and docked tool panels (matches main content / thread area).
+ * The `lightcode-overlay-surface` marker lets the translucent-sidebar CSS turn this
+ * transparent when it sits inside the sidebar column, so overlay sidebars get the same
+ * glass treatment as the main app sidebar (see styles.css).
+ */
+export const overlaySidebarSurfaceClass =
+  "lightcode-overlay-surface bg-[var(--content-background)]";
 
 /** File editor, git, settings overlays, etc.: layout + background. */
 export const overlaySidebarColumnClass = `${sidebarColumnLayoutClass} ${overlaySidebarSurfaceClass}`;

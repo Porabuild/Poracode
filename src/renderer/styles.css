@@ -788,6 +788,12 @@
     --pr-merged: oklch(0.7 0.17 292);
     --git-branch-tone: var(--muted);
     --sidebar-background: var(--surface);
+    /* Overlay painted on the translucent ("liquid glass") sidebar: the content
+       background (matching the main panes) at partial alpha. The OS blur behind
+       is the *wallpaper*, not the theme color, so higher alpha keeps the sidebar
+       reading as the theme (less wallpaper/grey showing); lower alpha shows more
+       wallpaper blur (more glassy, but tinted by whatever's on the desktop). */
+    --sidebar-glass-tint: color-mix(in oklab, var(--content-background) 35%, transparent);
     --content-background: var(--background);
     --window-header-background: var(--sidebar-background);
     --window-overlay-background: rgba(0, 0, 0, 0);
@@ -871,6 +877,9 @@
     /* App-specific */
     --sidebar-background: oklch(0.22 0.004 286);
     --content-background: oklch(0.2 0.004 286);
+    /* Dark surfaces read muddier through heavy blur, so lean more on the theme
+       color (higher alpha = less transparent) than the light default above. */
+    --sidebar-glass-tint: color-mix(in oklab, var(--content-background) 65%, transparent);
     --window-header-background: var(--sidebar-background);
     --composer-surface: oklch(0.25 0.004 286);
   }
@@ -1028,7 +1037,12 @@ body {
    These rules are intentionally unlayered so they win over Tailwind utilities
    (e.g. the sidebar's bg-[var(--content-background)] header class). */
 
-/* 1. Native material: clear opaque window layers, keep main content opaque. */
+/* 1. Native material: clear opaque window layers, keep main content opaque.
+   index.html's boot script sets an inline opaque background on <html> to avoid a
+   load flash; override it with !important so the OS blur shows through. */
+html[data-native-material="on"] {
+  background: transparent !important;
+}
 html[data-native-material="on"] body,
 html[data-native-material="on"] .lightcode-shell {
   background: transparent;
@@ -1040,7 +1054,7 @@ html[data-native-material="on"] .lightcode-shell main {
    sidebar header (shared .lightcode-overlay-header class) is forced transparent
    so the aside's single tint layer shows through instead of stacking. */
 html[data-native-material="on"] .lightcode-sidebar-aside {
-  background: color-mix(in oklab, var(--sidebar-background) 55%, transparent);
+  background: var(--sidebar-glass-tint);
 }
 html[data-native-material="on"] .lightcode-sidebar-aside .lightcode-overlay-header {
   background: transparent;
@@ -1068,6 +1082,40 @@ html[data-sidebar-glass="on"]:not([data-native-material="on"])
     background: color-mix(in oklab, var(--sidebar-background) 70%, transparent);
     backdrop-filter: blur(18px) saturate(1.5);
   }
+}
+
+/* Overlays (settings, git review, file editor, …) reuse the same AppShell, so
+   they get the glass sidebar too. The overlay sidebar body normally paints an
+   opaque surface (`overlaySidebarSurfaceClass`); clear it inside the sidebar
+   column so the aside's single glass tint shows through and the header (already
+   transparent) matches — no seam. Docked tool panels use the same surface class
+   but live outside `.lightcode-sidebar-aside`, so they stay opaque. */
+html[data-sidebar-glass="on"] .lightcode-sidebar-aside .lightcode-overlay-surface {
+  background: transparent;
+}
+/* For overlays that actually have a glass sidebar, let the OverlayShell cover
+   pass the native blur through (its opaque <main> still covers the content).
+   Plain dialogs without a sidebar keep their opaque backdrop. */
+html[data-native-material="on"] [data-overlay-surface]:has(.lightcode-sidebar-aside) {
+  background: transparent;
+}
+/* …and hide the base app behind such an overlay so the overlay's translucent
+   sidebar reveals the desktop, not the app underneath (which would bleed through
+   the tint). visibility:hidden keeps the app mounted — preserving scroll, chat,
+   and terminal state — while painting nothing. Hide every shell, then keep the
+   overlay's own shell visible. Gated on [data-overlay-visible] (set only while
+   the overlay is fully shown) so on open/close the base app fades in/out with
+   the overlay instead of flashing bare desktop underneath. */
+html[data-native-material="on"]
+  #root:has([data-overlay-surface][data-overlay-visible] .lightcode-sidebar-aside)
+  .lightcode-shell {
+  visibility: hidden;
+}
+html[data-native-material="on"]
+  #root:has([data-overlay-surface][data-overlay-visible] .lightcode-sidebar-aside)
+  [data-overlay-surface]
+  .lightcode-shell {
+  visibility: visible;
 }
 
 /* Accessibility: drop translucency when the OS asks for reduced transparency.

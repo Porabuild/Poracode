@@ -59,6 +59,7 @@ export const MAIN_LOCAL_PROCEDURE_NAMES = [
   "openExternalNative",
   "openMicrophoneSettings",
   "focusWindow",
+  "relaunchApp",
   "getHomeScopeLocation",
   "getKeybindings",
   "revealProjectEntry",

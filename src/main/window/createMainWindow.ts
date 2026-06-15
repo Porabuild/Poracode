@@ -2,7 +2,7 @@ import { dbGetState, dbSetState } from "../db";
 import { BrowserWindow, screen, type RenderProcessGoneDetails } from "electron";
 import type { LightcodeChannel } from "@/shared/channel";
 import { installSessionPermissions } from "../browser/permissions";
-import { supportsNativeWindowMaterial } from "./windowMaterial";
+import { supportsNativeWindowMaterial, syncNativeThemeForMaterial } from "./windowMaterial";
 
 interface WindowBounds {
   x?: number;
@@ -80,11 +80,20 @@ export function createMainWindow(options: CreateMainWindowOptions): BrowserWindo
   // setWindowChrome values, so the first frame doesn't flash a fixed palette.
   const backgroundColor = isDark ? "#141416" : "#f1f1f4";
   const symbolColor = isDark ? "#fafafa" : "#1f2937";
-  // Native translucency only when the saved toggle is on AND the OS supports a
-  // blur material. When active the window background is transparent so the
-  // OS-composited blur shows through; the renderer keeps the main content opaque
-  // and leaves only the sidebar region translucent (see styles.css glass rules).
-  const useNativeMaterial = options.sidebarTranslucency && supportsNativeWindowMaterial();
+  // macOS: always create the window transparent + vibrancy-capable so the glass
+  // sidebar can be toggled live (the renderer reveals/hides it purely via CSS —
+  // with glass off the opaque content simply covers the material). macOS can't
+  // turn an opaque window transparent at runtime, so the capability has to exist
+  // from creation. Windows acrylic is applied here for a flash-free first paint
+  // when glass is already on, and toggled live via setBackgroundMaterial.
+  const isMacOS = process.platform === "darwin";
+  const winGlassAtStart =
+    process.platform === "win32" && options.sidebarTranslucency && supportsNativeWindowMaterial();
+  if (options.sidebarTranslucency && supportsNativeWindowMaterial()) {
+    // Match the native appearance to the app theme so the material renders in the
+    // right light/dark variant from the first frame.
+    syncNativeThemeForMaterial(options.appearance);
+  }
   const window = new BrowserWindow({
     title: options.title,
     show: false,
@@ -93,12 +102,12 @@ export function createMainWindow(options: CreateMainWindowOptions): BrowserWindo
     ...(saved?.x != null && saved?.y != null ? { x: saved.x, y: saved.y } : {}),
     minWidth: 540,
     minHeight: 720,
-    backgroundColor: useNativeMaterial ? "#00000000" : backgroundColor,
+    backgroundColor: isMacOS || winGlassAtStart ? "#00000000" : backgroundColor,
     autoHideMenuBar: true,
-    ...(useNativeMaterial && process.platform === "darwin" ? { vibrancy: "sidebar" as const } : {}),
-    ...(useNativeMaterial && process.platform === "win32"
-      ? { backgroundMaterial: "acrylic" as const }
+    ...(isMacOS
+      ? { vibrancy: "sidebar" as const, visualEffectState: "active" as const, transparent: true }
       : {}),
+    ...(winGlassAtStart ? { backgroundMaterial: "acrylic" as const } : {}),
     ...(supportsTitleBarOverlay
       ? {
           titleBarStyle: "hidden" as const,

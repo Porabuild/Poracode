@@ -37,7 +37,7 @@ import {
   type WindowChromePayload,
   type WindowChromeResult,
 } from "@/shared/ipc";
-import { opaqueWindowBackground, supportsNativeWindowMaterial } from "../window/windowMaterial";
+import { supportsNativeWindowMaterial, syncNativeThemeForMaterial } from "../window/windowMaterial";
 import type { LightcodePaths } from "@/shared/lightcodePaths";
 import { UsageLoginManager } from "../usageLogin/UsageLoginManager";
 
@@ -48,6 +48,8 @@ interface CreateLocalIpcHandlersOptions {
   updatePowerSaveBlocker(): void;
   autoUpdater: AutoUpdaterController;
   onSharedSettingsChanged?(): void;
+  /** Relaunch the app (exposed via the relaunchApp IPC). */
+  requestRelaunch(): void;
 }
 
 function requireBrowserPanel(getter: () => BrowserPanelManager | null): BrowserPanelManager {
@@ -128,6 +130,9 @@ export function createLocalIpcHandlers(
       }
       win.focus();
     },
+    relaunchApp: () => {
+      options.requestRelaunch();
+    },
     getHomeScopeLocation: () =>
       process.platform === "win32"
         ? { kind: "windows", path: homedir() }
@@ -165,9 +170,10 @@ export function createLocalIpcHandlers(
       options.onSharedSettingsChanged?.();
     },
     setWindowChrome: async (payload: WindowChromePayload): Promise<WindowChromeResult> => {
+      const nativeCapable = supportsNativeWindowMaterial();
       const mainWindow = options.getMainWindow();
       if (!mainWindow) {
-        return { nativeMaterial: false };
+        return { nativeCapable };
       }
       if (process.platform === "win32" || process.platform === "linux") {
         mainWindow.setTitleBarOverlay({
@@ -176,19 +182,20 @@ export function createLocalIpcHandlers(
           height: 32,
         });
       }
-      // Apply (or clear) the opt-in translucent ("liquid glass") sidebar material
-      // live. The whole window is blurred by the OS, so the renderer keeps the
-      // main content opaque and leaves only the sidebar region translucent.
-      const nativeMaterial = payload.materialEnabled === true && supportsNativeWindowMaterial();
-      if (process.platform === "darwin") {
-        mainWindow.setVibrancy(nativeMaterial ? "sidebar" : null);
-      } else if (process.platform === "win32") {
-        mainWindow.setBackgroundMaterial(nativeMaterial ? "acrylic" : "none");
+      // Toggle the native translucency material live. macOS vibrancy is created
+      // with the window and revealed/hidden purely via CSS, so there is nothing
+      // to switch here. Windows acrylic is toggled at runtime (no relaunch).
+      const wantsMaterial = payload.materialEnabled === true && nativeCapable;
+      if (process.platform === "win32") {
+        mainWindow.setBackgroundMaterial(wantsMaterial ? "acrylic" : "none");
+        mainWindow.setBackgroundColor(
+          wantsMaterial ? "#00000000" : payload.appearance === "dark" ? "#141416" : "#f1f1f4",
+        );
       }
-      mainWindow.setBackgroundColor(
-        nativeMaterial ? "#00000000" : opaqueWindowBackground(payload.appearance ?? "dark"),
-      );
-      return { nativeMaterial };
+      if (wantsMaterial && payload.appearance) {
+        syncNativeThemeForMaterial(payload.appearance);
+      }
+      return { nativeCapable };
     },
     dbGetProjects: () => dbGetProjects(),
     dbGetThreads: () => dbGetThreads(),
