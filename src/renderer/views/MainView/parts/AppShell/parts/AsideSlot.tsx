@@ -58,11 +58,21 @@ export function AsideSlot(props: {
       minWidth: targetWidth,
     };
   } else {
+    // A docked panel collapses its width/height to 0 when closed, but a
+    // `border-t`/`border-l` on a border-box element still reserves a 1px edge even
+    // at size 0. That leaves a 1px strip between `main` and the window edge; with
+    // the translucent shell (native material) the shell behind it is transparent,
+    // so the strip reveals the backdrop as a stray hairline along the content's
+    // bottom/right. Only apply the divider border while the panel is open so a
+    // closed panel occupies no space and `main` reaches the edge.
+    const borderClass = isOpen
+      ? isHorizontal
+        ? "border-t border-[color:var(--border)]"
+        : "border-l border-[color:var(--border)]"
+      : "";
     asideClassName = `relative overflow-hidden bg-[var(--content-background)] ${
-      isHorizontal
-        ? "min-w-0 border-t border-[color:var(--border)]"
-        : "min-h-0 border-l border-[color:var(--border)]"
-    }`;
+      isHorizontal ? "min-w-0" : "min-h-0"
+    } ${borderClass}`;
     asideStyle = {
       ...(isHorizontal
         ? { height: dockedDisplayHeight, minHeight: dockedDisplayHeight }
