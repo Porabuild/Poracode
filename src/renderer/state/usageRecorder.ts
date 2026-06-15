@@ -37,6 +37,14 @@ const turnStartByThread = new Map<string, { turnId: string; startedAt: number }>
 // cleared per turn: usedTokens is cumulative across a thread's whole life, so
 // resetting it would make the next delta count the full context again. One int
 // per thread that streamed tokens this session - cleared on app restart.
+//
+// Presence (`.has`), not just value, carries meaning. A thread created THIS
+// session is seeded to 0 by recordThreadStarted, so its first context.updated
+// counts the whole new context (delta from 0). A thread RESUMED from a prior
+// session has no entry: its first context.updated reports a context whose
+// tokens were already counted last session, so we only establish the baseline
+// and emit nothing - otherwise the restored context would be double-counted on
+// every restart, inflating lifetime/peak. See the context.updated case below.
 const lastUsedByThread = new Map<string, number>();
 // Token deltas coalesced per provider|model between flushes, so a turn that
 // streams many context.updated events produces ONE row, not dozens.
@@ -195,6 +203,10 @@ export function recordAiAction(type: AiActionType, provider: string, model: stri
 /** Record that a thread was started (provider/model/mode/fast/effort). */
 export function recordThreadStarted(thread: Thread): void {
   const m = metaOf(thread);
+  // Seed the token baseline so this freshly-started thread's first
+  // context.updated counts its initial context as new (delta from 0). Resumed
+  // threads get no seed and are handled in the context.updated case below.
+  if (!lastUsedByThread.has(thread.id)) lastUsedByThread.set(thread.id, 0);
   push({
     ts: Date.now(),
     kind: "thread_started",
@@ -262,9 +274,16 @@ export function recordRuntimeUsage(
       case "context.updated": {
         const used = event.usage.usedTokens;
         if (typeof used === "number" && used > 0) {
+          // No baseline means this thread was resumed from a prior session: its
+          // usedTokens already reflects context counted then, so only establish
+          // the baseline and emit nothing. Counting delta-from-zero here would
+          // re-add the whole restored context. Threads started this session are
+          // seeded to 0 by recordThreadStarted, so they DO count their first
+          // context.
+          const hasBaseline = lastUsedByThread.has(threadId);
           const prev = lastUsedByThread.get(threadId) ?? 0;
-          const delta = Math.max(0, used - prev);
           lastUsedByThread.set(threadId, used);
+          const delta = hasBaseline ? Math.max(0, used - prev) : 0;
           if (delta > 0) {
             const m = getMeta();
             if (m) {
