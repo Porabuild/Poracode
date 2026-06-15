@@ -56,6 +56,7 @@ interface SharedSettingsState extends SharedSettings {
   setNewThreadMode: (value: NewThreadMode) => void;
   setHomeScopeEnabled: (value: boolean) => void;
   setSidebarTranslucency: (value: boolean) => void;
+  setSidebarGlassTint: (appearance: "light" | "dark", value: number | null) => void;
   setAutoShowTerminalPanel: (value: boolean) => void;
   setGitReviewMode: (value: GitReviewMode) => void;
   setPrCreateMode: (value: PrCreateMode) => void;
@@ -319,6 +320,12 @@ export const useSharedSettings = create<SharedSettingsState>()((set, get) => ({
     set({ sidebarTranslucency });
     persistSettings(selectSharedSettings(get()));
   },
+  setSidebarGlassTint: (appearance, value) => {
+    const current = get().sidebarGlassTint;
+    if (current[appearance] === value) return;
+    set({ sidebarGlassTint: { ...current, [appearance]: value } });
+    persistSettings(selectSharedSettings(get()));
+  },
   setAutoShowTerminalPanel: (autoShowTerminalPanel) => {
     set({ autoShowTerminalPanel });
     persistSettings(selectSharedSettings(get()));
@@ -575,6 +582,7 @@ function selectSharedSettings(state: SharedSettingsState): SharedSettingsInput {
     newThreadMode: state.newThreadMode,
     homeScopeEnabled: state.homeScopeEnabled,
     sidebarTranslucency: state.sidebarTranslucency,
+    sidebarGlassTint: state.sidebarGlassTint,
     autoShowTerminalPanel: state.autoShowTerminalPanel,
     gitReviewMode: state.gitReviewMode,
     prCreateMode: state.prCreateMode,

@@ -201,6 +201,17 @@ export const sharedSettingsSchema = z.object({
    * and an in-app translucent fallback elsewhere. Default off.
    */
   sidebarTranslucency: z.boolean(),
+  /**
+   * Per-appearance override for the translucent sidebar's frosting: the alpha
+   * (0–100) of the `--sidebar-glass-tint` content-background mix. Higher is more
+   * frosted (holds the theme color); lower shows more of the blurred backdrop.
+   * `null` keeps the built-in per-platform default (see styles.css). Applied
+   * Windows-only — macOS vibrancy keeps its own tint.
+   */
+  sidebarGlassTint: z.object({
+    light: z.number().int().min(0).max(100).nullable().default(null),
+    dark: z.number().int().min(0).max(100).nullable().default(null),
+  }),
   /** Automatically show the terminal panel when running commands or creating worktrees. */
   autoShowTerminalPanel: z.boolean(),
   /** Open git review as a right-side panel or a full page overlay. */
@@ -339,6 +350,7 @@ export const defaultSharedSettings: SharedSettings = {
   newThreadMode: "page",
   homeScopeEnabled: true,
   sidebarTranslucency: false,
+  sidebarGlassTint: { light: null, dark: null },
   autoShowTerminalPanel: true,
   gitReviewMode: "panel",
   prCreateMode: "dialog",

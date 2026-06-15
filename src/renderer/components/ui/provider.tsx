@@ -10,6 +10,7 @@ import { Toast, toast as heroToast } from "@heroui/react";
 import { Copy } from "lucide-react";
 import { resolveThemeMode } from "@/shared/themeMode";
 import { applyAppTheme, persistThemeBoot, systemPrefersDark } from "@/renderer/theme/applyAppTheme";
+import { applySidebarGlassTint } from "@/renderer/theme/sidebarGlass";
 import { readBridge } from "@/renderer/bridge";
 import { captureRendererException } from "@/renderer/diagnostics/sentry";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
@@ -81,6 +82,7 @@ export function AppProvider(props: { children: ReactNode; contentReady?: boolean
     setPrefersDark(matches);
   });
   const sidebarTranslucency = useSharedSettings((state) => state.sidebarTranslucency);
+  const sidebarGlassTint = useSharedSettings((state) => state.sidebarGlassTint);
   const [reducedTransparency, setReducedTransparency] = useState(systemPrefersReducedTransparency);
   const syncReducedTransparency = useEffectEvent((matches: boolean) => {
     setReducedTransparency(matches);
@@ -167,6 +169,17 @@ export function AppProvider(props: { children: ReactNode; contentReady?: boolean
         // Keep renderer boot resilient if Electron rejects a color value.
       });
   }, [appearance, glassEnabled, contentReady]);
+
+  // User-tuned sidebar frosting (Appearance slider): override the glass tint
+  // alpha for the active appearance. No-op off Windows / when an appearance has
+  // no override, leaving the styles.css per-platform default authoritative.
+  useEffect(() => {
+    applySidebarGlassTint(
+      document.documentElement,
+      sidebarGlassTint[appearance],
+      glassEnabled && contentReady,
+    );
+  }, [appearance, glassEnabled, contentReady, sidebarGlassTint]);
 
   return (
     <AppearanceContext.Provider value={appearance}>
