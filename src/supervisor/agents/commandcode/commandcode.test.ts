@@ -191,6 +191,8 @@ describe("createCommandCodeAdapter", () => {
       command: "command-code",
       args: ["--trust", "--skip-onboarding", "--model", "gpt-5.4-mini", "-p", "summarize"],
       stdin: "",
+      // Suppress the CLI's background self-updater on one-shot utility runs.
+      env: { COMMANDCODE_SKIP_UPDATES: "1" },
     });
   });
 });
@@ -243,6 +245,22 @@ describe("commandCodeDetectionSpec auth", () => {
     expect(commandCodeDetectionSpec.loginCommand).toBe("command-code login");
   });
 
+  // Suppresses the CLI's background self-updater. The one-shot and terminal-login
+  // surfaces are asserted by their own tests above; this covers the detection
+  // probe + PTY-launch surfaces.
+  it("sets COMMANDCODE_SKIP_UPDATES on the version probe and PTY launch env", () => {
+    // `--version` probe (also flows to capabilitiesProbe via DetectProbeCtx.probeEnv).
+    expect(commandCodeDetectionSpec.probeEnv).toEqual({ COMMANDCODE_SKIP_UPDATES: "1" });
+
+    // Interactive / login PTY launch (spawnEnv); wsl keeps the OAuth BROWSER shim.
+    const adapter = createCommandCodeAdapter();
+    expect(adapter.spawnEnv?.native).toEqual({ COMMANDCODE_SKIP_UPDATES: "1" });
+    expect(adapter.spawnEnv?.wsl).toEqual({
+      BROWSER: "/bin/true",
+      COMMANDCODE_SKIP_UPDATES: "1",
+    });
+  });
+
   it("advertises a terminal login method when installed (drives the Login button)", async () => {
     const project: ProjectLocation = { kind: "windows", path: "C:\\demo" };
     const result = await commandCodeDetectionSpec.capabilitiesProbe?.({
@@ -250,7 +268,12 @@ describe("commandCodeDetectionSpec auth", () => {
       executablePath: "C:\\bin\\command-code.cmd",
     });
     expect(result?.authMethods).toEqual([
-      { id: "commandcode-terminal-login", name: "Login", type: "terminal" },
+      {
+        id: "commandcode-terminal-login",
+        name: "Login",
+        type: "terminal",
+        env: { COMMANDCODE_SKIP_UPDATES: "1" },
+      },
     ]);
   });
 

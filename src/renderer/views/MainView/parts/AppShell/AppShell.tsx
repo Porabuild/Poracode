@@ -11,6 +11,7 @@ import {
 import { useShallow } from "zustand/shallow";
 import { isMac, isWindows } from "@/renderer/bridge";
 import { useTwoRafReady } from "@/renderer/hooks/useTwoRafReady";
+import { useSidebarGlassActive } from "@/renderer/hooks/useGlassState";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { macosTrafficLightPadClass } from "@/renderer/components/layout/sidebarChrome";
 import {
@@ -235,10 +236,17 @@ function ShellSidebarAside(props: {
   const effectiveClosingOverlay = forceSidebarExpanded ? false : closingOverlay;
   const effectiveIsOverlay = forceSidebarExpanded ? false : isOverlay;
 
+  // A translucent sidebar reads as its own glass edge, so the hard hairline
+  // between it and the content looks heavy. Drop it (transparent, keeping the
+  // 1px so width doesn't shift) while glass is active — but still flash the
+  // accent on resize-handle hover, since that border is the only resize cue.
+  const glassActive = useSidebarGlassActive();
   const sidebarDividerColorClass =
     isSidebarHandleHovered && !effectiveIsOverlay
       ? "border-[color:var(--accent)]"
-      : "border-[color:var(--border)]";
+      : glassActive
+        ? "border-transparent"
+        : "border-[color:var(--border)]";
   // Windows: stop the sidebar divider below the header so it doesn't run through the title row.
   // macOS keeps the full-height border because the header sits inside the hidden-inset titlebar.
   // HOWEVER, if the sidebar is too narrow (e.g. collapsed), the full-height border would run

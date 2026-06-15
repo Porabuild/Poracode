@@ -1059,6 +1059,21 @@ html[data-native-material="on"] .lightcode-sidebar-aside {
 html[data-native-material="on"] .lightcode-sidebar-aside .lightcode-overlay-header {
   background: transparent;
 }
+/* Windows-only frosting bump. DWM acrylic blurs whatever sits behind the window,
+   so the backdrop bleeds through the tint and drags the sidebar toward it: a dark
+   theme over a bright window washes out toward grey, while a light theme over a
+   dark backdrop goes too dark. Lean the tint more opaque on Windows so the sidebar
+   holds its own theme color regardless of what's behind. Dark leans heavier (85%)
+   since a dark surface over a bright backdrop swings the most; light needs less
+   (65%). macOS vibrancy composites its own adaptive material, so darwin is left
+   untouched; these rules are unlayered so they win over the @layer base token. */
+html[data-platform="win32"][data-native-material="on"] {
+  --sidebar-glass-tint: color-mix(in oklab, var(--content-background) 65%, transparent);
+}
+html[data-platform="win32"][data-native-material="on"].dark,
+html[data-platform="win32"][data-native-material="on"][data-theme="dark"] {
+  --sidebar-glass-tint: color-mix(in oklab, var(--content-background) 85%, transparent);
+}
 
 /* 2. In-app fallback: opaque window, faux-translucent gradient sidebar. */
 html[data-sidebar-glass="on"]:not([data-native-material="on"]) .lightcode-sidebar-aside {
