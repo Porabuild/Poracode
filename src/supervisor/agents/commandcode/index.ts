@@ -4,6 +4,7 @@ import { resolveInstallNodePath, warnIfPluginManifestMissing } from "../plugin/i
 import { buildCommandCodeArgs } from "./argv";
 import {
   COMMANDCODE_DEFAULT_MODEL_ID,
+  COMMANDCODE_SKIP_UPDATES_ENV,
   commandCodeDetectionSpec,
   defaultCommandCodeCapabilities,
 } from "./detection";
@@ -63,8 +64,12 @@ export function createCommandCodeAdapter(): AgentAdapter {
     // `command-code login` opens a browser for OAuth; BROWSER=/bin/true keeps
     // the WSL flow from trying to `xdg-open` inside the distro and hanging the
     // PTY (the user completes auth via the printed URL instead).
+    // COMMANDCODE_SKIP_UPDATES disables the CLI's background self-updater so an
+    // interactive/login launch doesn't spawn a detached `npm i` terminal window
+    // (see COMMANDCODE_SKIP_UPDATES_ENV in detection.ts).
     spawnEnv: {
-      wsl: { BROWSER: "/bin/true" },
+      native: COMMANDCODE_SKIP_UPDATES_ENV,
+      wsl: { BROWSER: "/bin/true", ...COMMANDCODE_SKIP_UPDATES_ENV },
     },
 
     // ── CLI hook plugin support ──────────────────────────────────────────
@@ -172,6 +177,8 @@ export function createCommandCodeAdapter(): AgentAdapter {
           prompt,
         ],
         stdin: "",
+        // Don't let a one-shot utility run trigger the CLI's background updater.
+        env: COMMANDCODE_SKIP_UPDATES_ENV,
       };
     },
   };

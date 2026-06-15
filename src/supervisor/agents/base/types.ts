@@ -143,6 +143,8 @@ export interface DetectProbeCtx {
   location: ProjectLocation;
   executablePath: string | undefined;
   version?: string | undefined;
+  /** {@link DetectionSpec.probeEnv}, so `capabilitiesProbe`/`statusProbe` can forward it. */
+  probeEnv?: Record<string, string> | undefined;
 }
 
 export type AuthProbe = (ctx: DetectProbeCtx) => Promise<AuthState | undefined>;
@@ -181,6 +183,15 @@ export interface DetectionSpec {
   capabilities: AgentCapability;
   update?: AgentUpdateInfo;
   versionArgs?: string[];
+  /**
+   * Env merged onto the `--version` probe spawn. Used to neutralize a CLI's own
+   * background self-updater during detection — e.g. `command-code` spawns a
+   * detached npm install on every invocation unless `COMMANDCODE_SKIP_UPDATES`
+   * is set, which otherwise surfaces as a stray terminal window on app launch.
+   * Also exposed to `capabilitiesProbe`/`statusProbe` via `DetectProbeCtx.probeEnv`
+   * so they can forward it to their own `readAgentCommandOutput` calls.
+   */
+  probeEnv?: Record<string, string>;
   statusProbe?: StatusProbe;
   authProbes?: AuthProbe[];
   capabilitiesProbe?: (ctx: DetectProbeCtx) => Promise<CapabilitiesProbeResult | undefined>;
