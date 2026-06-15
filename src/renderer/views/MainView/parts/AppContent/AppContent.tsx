@@ -2,7 +2,6 @@ import { useShallow } from "zustand/shallow";
 import { X } from "lucide-react";
 import { toast } from "@heroui/react";
 import type {
-  AgentStatus,
   ExtractContextResult,
   Project,
   PromptSegment,
@@ -11,6 +10,7 @@ import type {
   ThreadPresentationMode,
 } from "@/shared/contracts";
 import { getProjectAgentStatuses } from "@/shared/agentStatus";
+import { friendlyError } from "@/shared/messages";
 import { isHomeProject } from "@/shared/homeScope";
 import { buildWorktreeLocation } from "@/shared/worktree";
 import { isDraftPaneId, parseDraftProjectId } from "@/shared/paneId";
@@ -34,6 +34,7 @@ import { closeAllPanels } from "@/renderer/actions/panelActions";
 import { SplitPaneContainer, type Rect } from "@/renderer/components/layout/SplitPaneContainer";
 import { macosTrafficLightPadClass } from "@/renderer/components/layout/sidebarChrome";
 import { ThreadDraftView } from "@/renderer/components/thread/ThreadDraftView";
+import type { DraftStartInput } from "@/renderer/components/thread/ThreadDraftComposerArea";
 import {
   normalizeShellScript,
   startShellWithToast,
@@ -62,18 +63,7 @@ export function AppContent() {
   });
   async function handleDraftStart(
     project: Project,
-    input: {
-      agentKind: AgentStatus["kind"];
-      config: import("@/shared/contracts").ThreadConfig;
-      prompt: string;
-      segments?: PromptSegment[];
-      existingWorktreePath?: string;
-      worktreeBranch?: string;
-      worktreeBaseBranch?: string;
-      worktreeIsNewBranch?: boolean;
-      worktreeTransferUncommitted?: boolean;
-      presentationMode?: import("@/shared/contracts").ThreadPresentationMode;
-    },
+    input: DraftStartInput,
     replacePaneIdParam?: string,
   ) {
     const {
@@ -127,7 +117,10 @@ export function AppContent() {
         }
       } catch (err) {
         console.error("[renderer] failed to create worktree:", err);
-        return;
+        // Surface the failure and propagate so the composer can re-enable
+        // itself — otherwise it stays stuck on the launch spinner forever.
+        toast.danger(friendlyError(err));
+        throw err;
       }
     }
 
@@ -288,7 +281,7 @@ export function AppContent() {
         <DraftViewContent
           project={draftProject}
           lastDraftConfig={draftLastDraftConfig}
-          onStart={(input) => void handleDraftStart(draftProject, input)}
+          onStart={(input) => handleDraftStart(draftProject, input)}
         />
       </div>
     );
@@ -333,7 +326,7 @@ export function AppContent() {
           paneAlign={paneAlign}
           headerNeedsTrafficLightPad={headerNeedsTrafficLightPad}
           onClose={() => closePane(paneId)}
-          onStart={(project, input) => void handleDraftStart(project, input, paneId)}
+          onStart={(project, input) => handleDraftStart(project, input, paneId)}
         />
       ) : (
         <ThreadPane
@@ -485,17 +478,7 @@ function removeWorktreeSetupTab(tab: DevTerminalTab): void {
 function DraftViewContent(props: {
   project: Project;
   lastDraftConfig?: Project["lastDraftConfig"];
-  onStart: (input: {
-    agentKind: AgentStatus["kind"];
-    config: ThreadConfig;
-    prompt: string;
-    segments?: PromptSegment[];
-    existingWorktreePath?: string;
-    worktreeBranch?: string;
-    worktreeBaseBranch?: string;
-    worktreeIsNewBranch?: boolean;
-    worktreeTransferUncommitted?: boolean;
-  }) => void;
+  onStart: (input: DraftStartInput) => void | Promise<void>;
 }) {
   const { project, lastDraftConfig, onStart } = props;
   const projectAgentStatuses = useAgentStatusesStore(

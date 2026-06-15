@@ -200,6 +200,167 @@ describe("GitService.addWorktree", () => {
     expect(configCall![1]).toContain("master");
   });
 
+  it("qualifies a bare remote-tracking branch start point with its remote", async () => {
+    // The composer passes a remote branch's short name (no "origin/" prefix) as
+    // the base. On its own that is not a valid object, so the worktree add must
+    // fork from the qualified `origin/<name>` ref instead.
+    mockGitCommands((args) => {
+      if (args[0] === "worktree" && args[1] === "add") return { stdout: "" };
+      if (args[0] === "remote") return { stdout: "origin\n" };
+      if (args[0] === "rev-parse") {
+        const ref = args[args.length - 1];
+        // The bare name does not resolve; only the qualified remote ref does.
+        if (ref === "refs/remotes/origin/lightcode/silver-meadow-abcd") return { stdout: "sha\n" };
+        return { error: new Error("fatal: Needed a single revision") };
+      }
+      if (args[0] === "config") return { stdout: "" };
+      return { stdout: "" };
+    });
+
+    await new GitService().addWorktree(
+      location,
+      "C:\\Users\\demo\\.lightcode\\worktrees\\lightcode-12345678\\lightcode-brave-heron",
+      "lightcode/brave-heron",
+      true,
+      "lightcode/silver-meadow-abcd",
+    );
+
+    const commands = execFileMock.mock.calls.map((c: unknown[]) => (c[1] as string[]).join(" "));
+    expect(
+      commands.some((c) =>
+        c.includes(
+          "worktree add -b lightcode/brave-heron " +
+            "C:\\Users\\demo\\.lightcode\\worktrees\\lightcode-12345678\\lightcode-brave-heron " +
+            "origin/lightcode/silver-meadow-abcd",
+        ),
+      ),
+    ).toBe(true);
+
+    // The recorded source branch is the qualified ref, so diff bases line up.
+    const configCall = execFileMock.mock.calls.find(
+      (call: unknown[]) =>
+        Array.isArray(call[1]) &&
+        (call[1] as string[])[0] === "config" &&
+        (call[1] as string[]).includes("branch.lightcode/brave-heron.lightcodeSource"),
+    );
+    expect(configCall).toBeDefined();
+    expect(configCall![1]).toContain("origin/lightcode/silver-meadow-abcd");
+  });
+
+  it("leaves a start point untouched when it resolves locally", async () => {
+    const revParseRefs: string[] = [];
+    mockGitCommands((args) => {
+      if (args[0] === "worktree" && args[1] === "add") return { stdout: "" };
+      if (args[0] === "rev-parse") {
+        revParseRefs.push(args[args.length - 1]!);
+        return { stdout: "sha\n" }; // resolves directly — no remote lookup needed
+      }
+      if (args[0] === "config") return { stdout: "" };
+      return { stdout: "" };
+    });
+
+    await new GitService().addWorktree(
+      location,
+      "C:\\Users\\demo\\.lightcode\\worktrees\\lightcode-12345678\\lightcode-brave-heron",
+      "lightcode/brave-heron",
+      true,
+      "main",
+    );
+
+    const commands = execFileMock.mock.calls.map((c: unknown[]) => (c[1] as string[]).join(" "));
+    expect(
+      commands.some(
+        (c) => c.includes("worktree add -b lightcode/brave-heron") && c.endsWith("main"),
+      ),
+    ).toBe(true);
+    // A resolvable start point short-circuits before any `git remote` lookup.
+    expect(commands.some((c) => c === "remote")).toBe(false);
+    expect(revParseRefs).toEqual(["main"]);
+  });
+
+  it("qualifies with the single matching remote when several remotes are configured", async () => {
+    // Two remotes exist, but only `upstream` carries the branch — qualify with it.
+    mockGitCommands((args) => {
+      if (args[0] === "worktree" && args[1] === "add") return { stdout: "" };
+      if (args[0] === "remote") return { stdout: "origin\nupstream\n" };
+      if (args[0] === "rev-parse") {
+        const ref = args[args.length - 1];
+        if (ref === "refs/remotes/upstream/feature/x") return { stdout: "sha\n" };
+        return { error: new Error("fatal: Needed a single revision") };
+      }
+      if (args[0] === "config") return { stdout: "" };
+      return { stdout: "" };
+    });
+
+    await new GitService().addWorktree(
+      location,
+      "C:\\Users\\demo\\.lightcode\\worktrees\\lightcode-12345678\\lightcode-brave-heron",
+      "lightcode/brave-heron",
+      true,
+      "feature/x",
+    );
+
+    const wtAdd = execFileMock.mock.calls
+      .map((c: unknown[]) => (c[1] as string[]).join(" "))
+      .find((c) => c.startsWith("worktree add -b lightcode/brave-heron"));
+    expect(wtAdd?.endsWith("upstream/feature/x")).toBe(true);
+  });
+
+  it("prefers origin when the branch name exists on multiple remotes", async () => {
+    // Both `origin` and `upstream` carry the name — prefer origin, matching the
+    // module's origin-centric diff-base handling, rather than failing as ambiguous.
+    mockGitCommands((args) => {
+      if (args[0] === "worktree" && args[1] === "add") return { stdout: "" };
+      if (args[0] === "remote") return { stdout: "upstream\norigin\n" };
+      if (args[0] === "rev-parse") {
+        const ref = args[args.length - 1];
+        if (ref === "refs/remotes/origin/feature/x" || ref === "refs/remotes/upstream/feature/x") {
+          return { stdout: "sha\n" };
+        }
+        return { error: new Error("fatal: Needed a single revision") };
+      }
+      if (args[0] === "config") return { stdout: "" };
+      return { stdout: "" };
+    });
+
+    await new GitService().addWorktree(
+      location,
+      "C:\\Users\\demo\\.lightcode\\worktrees\\lightcode-12345678\\lightcode-brave-heron",
+      "lightcode/brave-heron",
+      true,
+      "feature/x",
+    );
+
+    const wtAdd = execFileMock.mock.calls
+      .map((c: unknown[]) => (c[1] as string[]).join(" "))
+      .find((c) => c.startsWith("worktree add -b lightcode/brave-heron"));
+    expect(wtAdd?.endsWith("origin/feature/x")).toBe(true);
+  });
+
+  it("forks a local branch directly when its name also exists on a remote", async () => {
+    // The bare name resolves locally, so the worktree forks the local branch and
+    // never consults remotes (no qualification, no `git remote` call).
+    mockGitCommands((args) => {
+      if (args[0] === "worktree" && args[1] === "add") return { stdout: "" };
+      if (args[0] === "rev-parse") return { stdout: "sha\n" }; // resolves locally
+      if (args[0] === "config") return { stdout: "" };
+      return { stdout: "" };
+    });
+
+    await new GitService().addWorktree(
+      location,
+      "C:\\Users\\demo\\.lightcode\\worktrees\\lightcode-12345678\\lightcode-brave-heron",
+      "lightcode/brave-heron",
+      true,
+      "feature/x",
+    );
+
+    const commands = execFileMock.mock.calls.map((c: unknown[]) => (c[1] as string[]).join(" "));
+    const wtAdd = commands.find((c) => c.startsWith("worktree add -b lightcode/brave-heron"));
+    expect(wtAdd?.endsWith("feature/x")).toBe(true);
+    expect(commands.some((c) => c === "remote")).toBe(false);
+  });
+
   it("resolves default WSL worktree paths through the bridge", async () => {
     const home = vi.fn<() => Promise<{ home: string }>>(async () => ({ home: "/home/demo" }));
     const bridgeMkdir = vi.fn<() => Promise<void>>(async () => undefined);
