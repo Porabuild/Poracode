@@ -188,9 +188,18 @@ export class GitWorktreeService {
         )
       : undefined;
 
+    // A bare remote-tracking branch name (e.g. "feature/x" when only
+    // `origin/feature/x` exists locally) is not a valid object on its own, so
+    // `git worktree add -b <new> <path> feature/x` fails with "not a valid
+    // object name". Qualify it with its remote before forking.
+    const resolvedStartPoint =
+      startPoint && createBranch
+        ? await this.resolveStartPointRef(location, startPoint)
+        : startPoint;
+
     const args = ["worktree", "add"];
     if (createBranch && branch) {
-      args.push("-b", branch, resolvedPath, ...(startPoint ? [startPoint] : []));
+      args.push("-b", branch, resolvedPath, ...(resolvedStartPoint ? [resolvedStartPoint] : []));
     } else {
       args.push(resolvedPath, ...(branch ? [branch] : []));
     }
@@ -221,7 +230,9 @@ export class GitWorktreeService {
     }
 
     if (branch && createBranch) {
-      const sourceBranch = startPoint ?? (await this.getCurrentBranch(location));
+      // Record the resolved (qualified) start-point so the diff base matches
+      // what we actually forked from — e.g. "origin/feature/x", not "feature/x".
+      const sourceBranch = resolvedStartPoint ?? (await this.getCurrentBranch(location));
       if (sourceBranch && sourceBranch !== branch) {
         await this.writeWorktreeSourceBranch(location, branch, sourceBranch);
       }
@@ -371,6 +382,53 @@ export class GitWorktreeService {
       }
     }
     return { sourceBranch, commitsAhead, sourceAhead };
+  }
+
+  /**
+   * Resolve a worktree start-point into a ref `git worktree add` can fork from.
+   * A bare remote-tracking branch name (e.g. "feature/x" when only
+   * `origin/feature/x` exists) is not a valid object on its own, so we qualify
+   * it with its remote. Local branches, tags, SHAs and already-qualified remote
+   * refs resolve directly and pass through unchanged. When the name lives on
+   * several remotes we prefer `origin` (matching this module's origin-centric
+   * defaults — fetch/resolveFetchedSourceRef); a genuinely origin-less clash
+   * stays ambiguous, so we leave it for git to report rather than guessing.
+   */
+  private async resolveStartPointRef(
+    location: ProjectLocation,
+    startPoint: string,
+  ): Promise<string> {
+    if (await this.refResolves(location, startPoint)) return startPoint;
+
+    let remotesRaw: string;
+    try {
+      remotesRaw = await execGit(location, ["remote"], { timeout: GIT_STATUS_TIMEOUT });
+    } catch {
+      return startPoint;
+    }
+    const remotes = remotesRaw
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean);
+    const matchingRemotes: string[] = [];
+    for (const remote of remotes) {
+      if (await this.refResolves(location, `refs/remotes/${remote}/${startPoint}`)) {
+        matchingRemotes.push(remote);
+      }
+    }
+    if (matchingRemotes.length === 1) return `${matchingRemotes[0]}/${startPoint}`;
+    if (matchingRemotes.includes("origin")) return `origin/${startPoint}`;
+    return startPoint;
+  }
+
+  /** True when `ref` resolves to an object in this repository. */
+  private async refResolves(location: ProjectLocation, ref: string): Promise<boolean> {
+    try {
+      await execGit(location, ["rev-parse", "--verify", "--quiet", ref]);
+      return true;
+    } catch {
+      return false;
+    }
   }
 
   async resolveFetchedSourceRef(location: ProjectLocation, sourceBranch: string): Promise<string> {

@@ -65,6 +65,7 @@ export const MAIN_LOCAL_PROCEDURE_NAMES = [
   "revealProjectEntry",
   "getSharedSettings",
   "setSharedSettings",
+  "setClaudeProfileEnvironment",
   "setWindowChrome",
   "dbGetProjects",
   "dbGetThreads",

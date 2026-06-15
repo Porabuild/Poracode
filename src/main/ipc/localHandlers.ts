@@ -1,4 +1,5 @@
 import { homedir } from "node:os";
+import { dirname } from "node:path";
 import { clipboard, dialog, nativeImage, shell, type BrowserWindow } from "electron";
 import type { BrowserPanelManager } from "../browser";
 import { openMicrophoneSettings } from "../browser/permissions";
@@ -28,7 +29,11 @@ import {
   saveHandoffContextFile,
 } from "../attachments/localFiles";
 import { createProjectDirectory } from "../projectDirectory";
-import { readSharedSettingsFile, writeSharedSettingsFile } from "../sharedSettingsFile";
+import {
+  applyClaudeProfileEnvironment,
+  readSharedSettingsFile,
+  writeSharedSettingsFile,
+} from "../sharedSettingsFile";
 import { readKeybindingsFile } from "../keybindingsFile";
 import type { AutoUpdaterController } from "../updates/autoUpdater";
 import {
@@ -38,6 +43,7 @@ import {
   type WindowChromeResult,
 } from "@/shared/ipc";
 import { supportsNativeWindowMaterial, syncNativeThemeForMaterial } from "../window/windowMaterial";
+import type { AgentInstanceConfig } from "@/shared/contracts";
 import type { LightcodePaths } from "@/shared/lightcodePaths";
 import { UsageLoginManager } from "../usageLogin/UsageLoginManager";
 
@@ -148,9 +154,21 @@ export function createLocalIpcHandlers(
       // doesn't clobber writes made out-of-band by the supervisor.
       const onDisk = readSharedSettingsFile(settingsPath);
       const rendererManagedInstances = Object.fromEntries(
-        Object.entries(settings.agentInstances).filter(
-          ([, instance]) => instance.driver !== "acp-generic",
-        ),
+        Object.entries(settings.agentInstances)
+          .filter(([, instance]) => instance.driver !== "acp-generic")
+          .map(([id, instance]): [string, AgentInstanceConfig] => {
+            // A Claude profile's `environment` is owned by the encrypting
+            // `setClaudeProfileEnvironment` path. Pin it to disk so the
+            // renderer's plaintext-capable persist cycle can never write a
+            // secret in the clear or clear a saved one. Other drivers keep
+            // their existing renderer-managed behavior.
+            if (instance.driver !== "claude") return [id, instance];
+            const onDiskEnv = onDisk.agentInstances[id]?.environment;
+            const next: AgentInstanceConfig = { ...instance };
+            if (onDiskEnv) next.environment = onDiskEnv;
+            else delete next.environment;
+            return [id, next];
+          }),
       );
       const supervisorManagedInstances = Object.fromEntries(
         Object.entries(onDisk.agentInstances).filter(
@@ -168,6 +186,17 @@ export function createLocalIpcHandlers(
       });
       options.updatePowerSaveBlocker();
       options.onSharedSettingsChanged?.();
+    },
+    setClaudeProfileEnvironment: (payload) => {
+      const settingsPath = options.requireLightcodePaths().settingsPath;
+      const { settings, instance } = applyClaudeProfileEnvironment(
+        readSharedSettingsFile(settingsPath),
+        payload,
+        dirname(settingsPath),
+      );
+      writeSharedSettingsFile(settingsPath, settings);
+      options.onSharedSettingsChanged?.();
+      return instance;
     },
     setWindowChrome: async (payload: WindowChromePayload): Promise<WindowChromeResult> => {
       const nativeCapable = supportsNativeWindowMaterial();

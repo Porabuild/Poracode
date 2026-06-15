@@ -26,6 +26,7 @@ import type {
   AgentStatus,
   AgentTerminalAuthMethod,
 } from "@/shared/contracts";
+import { extractClaudeProfileInstanceId, isClaudeProfileKind } from "@/shared/contracts";
 import { hookEnvForAgentStatus, hookEnvKey, hookEnvLabel } from "@/shared/agentHookPluginEnv";
 import { runAgentInstallCommand, runAgentLoginCommand } from "@/renderer/actions/agentLoginActions";
 import { useAppStore } from "@/renderer/state/appStore";
@@ -61,7 +62,7 @@ import {
   type ProviderModelMenuProvider,
 } from "@/renderer/components/common/ProviderModelMenu";
 import { NATIVE_AGENT_REGISTRY_ENTRIES } from "./agentRegistryNative";
-import { ClaudeProfileSettings } from "./ClaudeProfileSettings";
+import { ClaudeProfileProviderSettings, ClaudeProfileSettings } from "./ClaudeProfileSettings";
 
 const SAVED_SECRET_MASK = "***********";
 
@@ -849,7 +850,10 @@ function HookPluginSettings(props: {
   );
 }
 
-export function SingleAgentSettings(props: { agentKind: string }) {
+export function SingleAgentSettings(props: {
+  agentKind: string;
+  onOpenProfile?: (profileKind: string) => void;
+}) {
   const [authValues, setAuthValues] = useState<Record<string, string>>({});
   const [authPending, setAuthPending] = useState(false);
   const [authPendingMessage, setAuthPendingMessage] = useState<string | undefined>();
@@ -880,6 +884,10 @@ export function SingleAgentSettings(props: { agentKind: string }) {
   const projects = useAppStore((state) => state.projects);
   const wslProjectDistrosKey = buildWslProjectDistrosKey(projects);
   const platform = navigator.platform.toLowerCase().includes("win") ? "win32" : "posix";
+  const claudeProfileInstanceId = extractClaudeProfileInstanceId(props.agentKind);
+  const claudeProfileInstance = useSharedSettings((s) =>
+    claudeProfileInstanceId ? s.agentInstances[claudeProfileInstanceId] : undefined,
+  );
   const installedHere = agentStatuses.filter((a) => a.kind === props.agentKind && a.installed);
   const installedWsl = wslAgentStatuses.filter((a) => a.kind === props.agentKind && a.installed);
   const installedStatuses = [...installedHere, ...installedWsl];
@@ -971,6 +979,16 @@ export function SingleAgentSettings(props: { agentKind: string }) {
   }, [props.agentKind, registryAgentId]);
 
   if (!agent) {
+    if (claudeProfileInstanceId && claudeProfileInstance?.driver === "claude") {
+      return (
+        <SettingsPage
+          title={`Claude ${claudeProfileInstance.displayName ?? claudeProfileInstance.id}`}
+          bodyClassName=""
+        >
+          <ClaudeProfileProviderSettings instanceId={claudeProfileInstanceId} />
+        </SettingsPage>
+      );
+    }
     return (
       <SettingsPage title="Agent not found" bodyClassName="">
         <p className="text-sm text-muted">This agent is not installed.</p>
@@ -1452,7 +1470,15 @@ export function SingleAgentSettings(props: { agentKind: string }) {
       </div>
 
       <div className="space-y-4">
-        {props.agentKind === "claude" ? <ClaudeProfileSettings /> : null}
+        {props.agentKind === "claude" ? (
+          <ClaudeProfileSettings onOpenProfile={props.onOpenProfile} />
+        ) : null}
+        {isClaudeProfileKind(props.agentKind) ? (
+          <ClaudeProfileProviderSettings
+            key={props.agentKind}
+            instanceId={claudeProfileInstanceId ?? ""}
+          />
+        ) : null}
 
         {hasAuthSettings && (
           <div className="space-y-2">

@@ -56,7 +56,12 @@ function renderSection(
     );
   }
   if (activeSection.startsWith("agents:")) {
-    return <SingleAgentSettings agentKind={activeSection.slice(7)} />;
+    return (
+      <SingleAgentSettings
+        agentKind={activeSection.slice(7)}
+        onOpenProfile={(kind) => onSectionChange(`agents:${kind}`)}
+      />
+    );
   }
   return SECTION_VIEWS[activeSection]?.() ?? null;
 }

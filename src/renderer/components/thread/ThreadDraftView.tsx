@@ -164,7 +164,7 @@ export function ThreadDraftView(props: {
   droppableRef?: React.RefObject<HTMLDivElement | null>;
   onClose?: (() => void) | undefined;
   dragHandleRef?: React.RefCallback<Element>;
-  onStart: (input: DraftStartInput) => void;
+  onStart: (input: DraftStartInput) => void | Promise<void>;
 }) {
   const {
     project,
