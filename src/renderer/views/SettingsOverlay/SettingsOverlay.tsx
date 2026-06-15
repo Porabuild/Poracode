@@ -7,6 +7,7 @@ import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
 import { buildWslProjectDistrosKey } from "@/renderer/state/projectKeys";
 import { PageLayout } from "@/renderer/components/layout/PageLayout";
 import { getSettingsInstalledAgents } from "@/shared/agentStatus";
+import { ProfileSettings } from "./parts/ProfileSettings";
 import { AppearanceSettings } from "./parts/AppearanceSettings";
 import { BrowserSettings } from "./parts/BrowserSettings";
 import { UsageSettings } from "./parts/UsageSettings";
@@ -28,6 +29,7 @@ import { AgentSettingsEmpty, SingleAgentSettings } from "./parts/SingleAgentSett
 import type { SettingsSection } from "./parts/types";
 
 const SECTION_VIEWS: Partial<Record<SettingsSection, () => ReactNode>> = {
+  profile: () => <ProfileSettings />,
   general: () => <GeneralSettings />,
   audio: () => <AudioSettings />,
   appearance: () => <AppearanceSettings />,

@@ -21,6 +21,7 @@ import {
 } from "../reorder";
 import { makeThreadTitle, removePaneFromView, replacePaneInView, stripPlanMode } from "./helpers";
 import { markThreadRuntimeForPersistence, type CompletedTurnRecord } from "./runtimeEventSlice";
+import { recordThreadStarted } from "../usageRecorder";
 import type { AppStoreState, SliceCreator } from "./shared";
 
 export interface ThreadSlice {
@@ -283,6 +284,8 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
       };
     });
 
+    // Durable "thread started" usage fact (survives later delete/archive).
+    recordThreadStarted(thread);
     return thread;
   },
   deleteThread: (threadId) =>

@@ -10,6 +10,7 @@ import {
 } from "./notifications";
 
 import { useAppStore } from "./state/appStore";
+import { recordRuntimeUsage } from "./state/usageRecorder";
 import { useDevTerminalStore } from "./state/devTerminalStore";
 import { useAgentStatusesStore } from "./state/agentStatusesStore";
 import { useProviderUsageStore } from "./state/providerUsageStore";
@@ -54,8 +55,12 @@ function flushPendingRuntimeEvents(): void {
   runtimeFlushHandle = null;
   if (pendingRuntimeEvents.size === 0) return;
   const store = useAppStore.getState();
+  const threads = store.threads;
   for (const [threadId, events] of pendingRuntimeEvents) {
     store.applyRuntimeEvents(threadId, events);
+    // Durable usage capture at the canonical layer (all providers normalized).
+    // Thread metadata is resolved lazily inside, so pure-delta frames are free.
+    recordRuntimeUsage(threadId, events, threads);
   }
   pendingRuntimeEvents.clear();
 }

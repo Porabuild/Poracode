@@ -6,6 +6,7 @@ import {
   readConflictResolverSettingsForProject,
   resolveConflictResolverLaunchConfig,
 } from "@/renderer/components/providers/conflictResolver";
+import { recordAiAction } from "@/renderer/state/usageRecorder";
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
@@ -111,6 +112,7 @@ export function useConflictResolver(params: {
       ...(worktreeBranch ? { worktreeBranch } : {}),
     });
     store.queueThreadLaunch(thread.id, prompt);
+    recordAiAction("conflict", provider.kind, model || "default");
   }
 
   return { canResolveWithAgent, handleResolveWithAgent, projectAgentStatuses };

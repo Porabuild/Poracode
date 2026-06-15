@@ -3,6 +3,7 @@ import { clipboard, dialog, nativeImage, shell, type BrowserWindow } from "elect
 import type { BrowserPanelManager } from "../browser";
 import { openMicrophoneSettings } from "../browser/permissions";
 import {
+  dbAppendUsageEvents,
   dbDeleteProject,
   dbDeleteThread,
   dbGetProjectNotes,
@@ -28,6 +29,13 @@ import {
   saveHandoffContextFile,
 } from "../attachments/localFiles";
 import { createProjectDirectory } from "../projectDirectory";
+import {
+  getProfileCoreStats,
+  getProfileDevicesResponse,
+  getProfileIdentityResponse,
+  getProfileTokenStats,
+  setProfileIdentityResponse,
+} from "../profile";
 import { readSharedSettingsFile, writeSharedSettingsFile } from "../sharedSettingsFile";
 import { readKeybindingsFile } from "../keybindingsFile";
 import type { AutoUpdaterController } from "../updates/autoUpdater";
@@ -63,6 +71,15 @@ function getUsageLoginManager(
 ): UsageLoginManager {
   usageLoginManager ??= new UsageLoginManager(requirePaths(), getBrowserPanel);
   return usageLoginManager;
+}
+
+function roundRect(rect: { x: number; y: number; width: number; height: number }) {
+  return {
+    x: Math.round(rect.x),
+    y: Math.round(rect.y),
+    width: Math.round(rect.width),
+    height: Math.round(rect.height),
+  };
 }
 
 const ALLOWED_EXTERNAL_PROTOCOLS = new Set(["http:", "https:", "mailto:"]);
@@ -274,5 +291,17 @@ export function createLocalIpcHandlers(
         options.requireLightcodePaths,
         options.getBrowserPanelManager,
       ).getLoginState(),
+    getProfileCoreStats: (req) => getProfileCoreStats(req),
+    getProfileTokenStats: (req) => getProfileTokenStats(req),
+    getProfileDevices: () => getProfileDevicesResponse(),
+    getProfileIdentity: () => getProfileIdentityResponse(),
+    setProfileIdentity: (identity) => setProfileIdentityResponse(identity),
+    copyShareImage: async (rect) => {
+      const win = options.getMainWindow();
+      if (!win) return;
+      const image = await win.webContents.capturePage(roundRect(rect));
+      if (!image.isEmpty()) clipboard.writeImage(image);
+    },
+    appendUsageEvents: ({ events }) => dbAppendUsageEvents(events),
   });
 }

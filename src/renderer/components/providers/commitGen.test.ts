@@ -3,6 +3,7 @@ import type { AgentStatus, GenerateCommitMessagePayload } from "@/shared/contrac
 import { getCommitGenDefaultsHint } from "./ProviderIcon";
 import {
   generateCommitMessageWithFallback,
+  generateCommitMessageWithFallbackDetails,
   getCommitGenCandidates,
   resolveCommitGenConfig,
 } from "./commitGen";
@@ -168,6 +169,27 @@ describe("generateCommitMessageWithFallback", () => {
       agentKind: "claude",
       model: "sonnet",
       effort: "high",
+    });
+  });
+
+  it("returns the provider and model that actually generated the message", async () => {
+    const invoke = vi.fn<CommitMessageInvoker>();
+    invoke.mockRejectedValueOnce(new Error("Codex CLI not found: codex"));
+    invoke.mockResolvedValueOnce({ message: "fix(git): restore commit generation" });
+
+    await expect(
+      generateCommitMessageWithFallbackDetails({
+        projectLocation,
+        agentStatuses: [codexStatus, claudeStatus],
+        provider: "auto",
+        model: "",
+        effort: "",
+        invoke,
+      }),
+    ).resolves.toEqual({
+      message: "fix(git): restore commit generation",
+      provider: "claude",
+      model: "sonnet",
     });
   });
 
