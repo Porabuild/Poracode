@@ -149,6 +149,8 @@ export function useGitReviewActions(args: UseGitReviewActionsArgs) {
     projectLocation: project.location,
     localSyncLocation: getWorktreeLocation(),
     prKey: effectivePrKey,
+    branch: effectiveBranch,
+    projectId: project.id,
     onRefresh,
   });
   const prLoading = isCreatingPr || writeActions.prLoading;
@@ -670,6 +672,8 @@ export function useGitReviewActions(args: UseGitReviewActionsArgs) {
     handleClosePr: writeActions.handleClosePr,
     handleMarkPrReady: writeActions.handleMarkPrReady,
     handleUpdatePrBranch: writeActions.handleUpdatePrBranch,
+    handleRefreshPr: writeActions.handleRefreshPr,
+    isRefreshingPr: writeActions.isRefreshing,
     handleGeneratePrSummary,
   };
 }

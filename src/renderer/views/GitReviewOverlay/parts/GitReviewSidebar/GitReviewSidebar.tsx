@@ -169,6 +169,8 @@ export function GitReviewSidebar(props: {
     handleClosePr,
     handleMarkPrReady,
     handleUpdatePrBranch,
+    handleRefreshPr,
+    isRefreshingPr,
     handleGeneratePrSummary,
   } = useGitReviewActions({
     project,
@@ -493,6 +495,8 @@ export function GitReviewSidebar(props: {
               handleClosePr={handleClosePr}
               handleMarkPrReady={handleMarkPrReady}
               handleUpdatePrBranch={handleUpdatePrBranch}
+              onRefreshPr={handleRefreshPr}
+              isRefreshingPr={isRefreshingPr}
             />
           )}
 

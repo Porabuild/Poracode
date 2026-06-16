@@ -1,4 +1,9 @@
-import type { GitStatusDetail, PrData, ProjectLocation } from "@/shared/contracts";
+import type {
+  GitStatusDetail,
+  PrData,
+  ProjectLocation,
+  RemoteHostPlatform,
+} from "@/shared/contracts";
 import { readBridge } from "@/renderer/bridge";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useDevTerminalStore } from "@/renderer/state/devTerminalStore";
@@ -34,6 +39,18 @@ export const PR_POST_PUSH_STATUS_POLL_MS = 5_000;
 
 const alwaysActive = () => true;
 
+/**
+ * A remote worth trying `gh` against: an explicit GitHub remote, an as-yet
+ * unclassified one ("unknown" — covers SSH host aliases that resolve to
+ * github.com), or one we haven't inspected yet (undefined). This is the gate
+ * every PR-fetch path checks (alongside `ghAvailable`) before paying a
+ * `gh pr list` spawn — see {@link prefetchBranchPrData} and the worktree git
+ * panel's manual refresh.
+ */
+export function mightBeGitHubRemote(platform: RemoteHostPlatform | undefined): boolean {
+  return platform === undefined || platform === "github" || platform === "unknown";
+}
+
 const BRANCH_PR_PREFETCH_THROTTLE_MS = 10_000;
 const branchPrPrefetchLastRun = new Map<string, number>();
 const branchPrPrefetchInFlight = new Set<string>();
@@ -56,8 +73,7 @@ export async function prefetchBranchPrData(project: {
   if (Date.now() - last < BRANCH_PR_PREFETCH_THROTTLE_MS) return;
   const state = useGitStore.getState();
   if (!state.ghAvailable[project.id]) return;
-  const platform = state.statuses[project.id]?.remoteInfo?.platform;
-  if (platform !== undefined && platform !== "github" && platform !== "unknown") return;
+  if (!mightBeGitHubRemote(state.statuses[project.id]?.remoteInfo?.platform)) return;
 
   branchPrPrefetchInFlight.add(project.id);
   branchPrPrefetchLastRun.set(project.id, Date.now());
@@ -294,32 +310,46 @@ function buildPendingPrRefreshTargets(
   return targets;
 }
 
+/**
+ * Fetch a single PR's data (and its details, when a number + cache key are
+ * known) and write both into the git store. Shared by the background
+ * pending-PR poll and the on-demand refresh affordances (the PR block's
+ * refresh icon and the worktree git panel's refresh button) so every surface
+ * lands the same `setPrData` / `setPrDetails` shape. Network errors are
+ * swallowed per request — a failed refresh leaves the cached snapshot intact.
+ */
+export async function refreshSinglePr(params: {
+  projectLocation: ProjectLocation;
+  prKey: string;
+  branch: string;
+  detailsCacheKey?: string;
+  prNumber?: number;
+}): Promise<void> {
+  const bridge = readBridge();
+  const prPromise = bridge
+    .ghGetPrForBranch({ projectLocation: params.projectLocation, branch: params.branch })
+    .catch(() => undefined);
+  const detailsPromise =
+    params.detailsCacheKey && params.prNumber
+      ? bridge
+          .ghGetPrDetails({ projectLocation: params.projectLocation, prNumber: params.prNumber })
+          .catch(() => undefined)
+      : Promise.resolve(undefined);
+  const [pr, details] = await Promise.all([prPromise, detailsPromise]);
+  if (pr !== undefined) {
+    useGitStore.getState().setPrData(params.prKey, pr);
+  }
+  if (params.detailsCacheKey && details) {
+    useGitStore.getState().setPrDetails(params.detailsCacheKey, details.details);
+  }
+}
+
 async function refreshPendingPr(key: string): Promise<void> {
   const entry = pendingPrRefreshEntries.get(key);
   if (!entry || entry.inFlight) return;
   entry.inFlight = true;
   try {
-    const { target } = entry;
-    const bridge = readBridge();
-    const prPromise = bridge
-      .ghGetPrForBranch({ projectLocation: target.projectLocation, branch: target.branch })
-      .catch(() => undefined);
-    const detailsPromise =
-      target.detailsCacheKey && target.prNumber
-        ? bridge
-            .ghGetPrDetails({
-              projectLocation: target.projectLocation,
-              prNumber: target.prNumber,
-            })
-            .catch(() => undefined)
-        : Promise.resolve(undefined);
-    const [pr, details] = await Promise.all([prPromise, detailsPromise]);
-    if (pr !== undefined) {
-      useGitStore.getState().setPrData(target.prKey, pr);
-    }
-    if (target.detailsCacheKey && details) {
-      useGitStore.getState().setPrDetails(target.detailsCacheKey, details.details);
-    }
+    await refreshSinglePr(entry.target);
   } finally {
     const current = pendingPrRefreshEntries.get(key);
     if (current) current.inFlight = false;

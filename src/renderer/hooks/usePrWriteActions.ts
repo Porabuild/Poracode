@@ -4,6 +4,7 @@ import type { ProjectLocation } from "@/shared/contracts";
 import { friendlyError } from "@/shared/messages";
 import { readBridge } from "@/renderer/bridge";
 import { useGitStore } from "@/renderer/state/gitStore";
+import { refreshSinglePr } from "@/renderer/state/gitRefresh";
 
 const ADMIN_BYPASS_RX = /--admin|base branch policy|not mergeable/i;
 
@@ -11,6 +12,10 @@ export interface UsePrWriteActionsArgs {
   projectLocation: ProjectLocation;
   localSyncLocation?: ProjectLocation | undefined;
   prKey: string | undefined;
+  /** PR head branch — required for the on-demand `handleRefreshPr` refetch. */
+  branch?: string | undefined;
+  /** Project id used to build the PR-details cache key (`${projectId}#${number}`). */
+  projectId?: string | undefined;
   onRefresh: () => void;
 }
 
@@ -20,10 +25,14 @@ export type PrWriteAction = "merge" | "close" | "ready" | "update";
 export interface UsePrWriteActionsResult {
   prLoading: boolean;
   pendingAction: PrWriteAction | null;
+  /** True while an on-demand PR refresh is in flight (independent of `prLoading`). */
+  isRefreshing: boolean;
   handleMergePr: (method: "merge" | "squash" | "rebase", admin?: boolean) => Promise<void>;
   handleClosePr: () => Promise<void>;
   handleMarkPrReady: () => Promise<void>;
   handleUpdatePrBranch: (rebase?: boolean) => Promise<void>;
+  /** Refetch this PR's data + details on demand (e.g. the PR block refresh icon). */
+  handleRefreshPr: () => Promise<void>;
 }
 
 /**
@@ -33,13 +42,35 @@ export interface UsePrWriteActionsResult {
  * stay in lockstep across surfaces.
  */
 export function usePrWriteActions(args: UsePrWriteActionsArgs): UsePrWriteActionsResult {
-  const { projectLocation, localSyncLocation, prKey, onRefresh } = args;
+  const { projectLocation, localSyncLocation, prKey, branch, projectId, onRefresh } = args;
   const [pendingAction, setPendingAction] = useState<PrWriteAction | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const prLoading = pendingAction !== null;
 
   function getCurrentPrData() {
     if (!prKey) return null;
     return useGitStore.getState().prData[prKey] ?? null;
+  }
+
+  // On-demand refetch of the live PR snapshot (state, mergeability, checks) plus
+  // its details. Kept separate from `pendingAction` so the refresh spinner never
+  // disables the merge/close/update buttons. No-ops without a key + head branch.
+  async function handleRefreshPr(): Promise<void> {
+    if (!prKey || !branch || isRefreshing) return;
+    const prNumber = getCurrentPrData()?.number;
+    const detailsCacheKey = projectId && prNumber ? `${projectId}#${prNumber}` : undefined;
+    setIsRefreshing(true);
+    try {
+      await refreshSinglePr({
+        projectLocation,
+        prKey,
+        branch,
+        ...(detailsCacheKey ? { detailsCacheKey } : {}),
+        ...(prNumber ? { prNumber } : {}),
+      });
+    } finally {
+      setIsRefreshing(false);
+    }
   }
 
   async function handleMergePr(
@@ -144,9 +175,11 @@ export function usePrWriteActions(args: UsePrWriteActionsArgs): UsePrWriteAction
   return {
     prLoading,
     pendingAction,
+    isRefreshing,
     handleMergePr,
     handleClosePr,
     handleMarkPrReady,
     handleUpdatePrBranch,
+    handleRefreshPr,
   };
 }
