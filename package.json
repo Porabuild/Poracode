@@ -125,7 +125,7 @@
     "concurrently": "^9.2.1",
     "cross-env": "^10.1.0",
     "drizzle-kit": "1.0.0-rc.1",
-    "electron": "41.7.0",
+    "electron": "41.7.1",
     "electron-builder": "^26.8.1",
     "electronmon": "^2.0.4",
     "husky": "^9.1.7",
