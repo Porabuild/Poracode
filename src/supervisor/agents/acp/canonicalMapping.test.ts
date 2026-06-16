@@ -191,6 +191,45 @@ describe("mapAcpSessionUpdate", () => {
     expect(state.toolCallItems.has("tc-1")).toBe(false);
   });
 
+  it("preserves inline image content from a tool result onto payload.images", () => {
+    const state = createAcpMapperState("t-image");
+    mapAcpSessionUpdate(
+      note({
+        sessionUpdate: "tool_call",
+        toolCallId: "tc-img",
+        title: "generate_image",
+        kind: "other",
+        status: "in_progress",
+        rawInput: { prompt: "a red square" },
+      } as Parameters<typeof mapAcpSessionUpdate>[0]["update"]),
+      state,
+    );
+
+    const completed = mapAcpSessionUpdate(
+      note({
+        sessionUpdate: "tool_call_update",
+        toolCallId: "tc-img",
+        status: "completed",
+        content: [
+          {
+            type: "content",
+            content: { type: "image", data: "iVBORw0KGgo=", mimeType: "image/png" },
+          },
+        ],
+      } as Parameters<typeof mapAcpSessionUpdate>[0]["update"]),
+      state,
+    );
+
+    // A terminal tool_call_update seals the row on `item.completed`, carrying
+    // the final payload. The base64 image survives onto payload.images as a
+    // renderable data URL so the chat row can show it inline (the text-only
+    // extractor would drop it).
+    const sealed = completed.find((e) => e.type === "item.completed") as
+      | { payload?: Record<string, unknown> }
+      | undefined;
+    expect(sealed?.payload?.images).toEqual(["data:image/png;base64,iVBORw0KGgo="]);
+  });
+
   it("falls back to the tool title for command_execution when rawInput.command is missing", () => {
     // Gemini's ACP run_shell_command tool emits `kind: "execute"` with the
     // command in `title` instead of `rawInput.command`. Without the fallback

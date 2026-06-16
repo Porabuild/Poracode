@@ -3,11 +3,13 @@ import type { ProjectLocation } from "../../contracts";
 import type { KeybindingsConfig } from "../../keybindings";
 import { defineIpcProcedure, defineNoArgProcedure, definePayloadProcedure } from "../core";
 import {
+  copyImageToClipboardPayloadSchema,
   createProjectDirectoryPayloadSchema,
   openExternalPayloadSchema,
   pickFilesOptionsSchema,
   saveClipboardImagePayloadSchema,
   saveHandoffContextPayloadSchema,
+  saveImageFilePayloadSchema,
   type CreateProjectDirectoryResult,
 } from "../schemas";
 
@@ -36,6 +38,16 @@ export const appProcedures = {
     string,
     "main-local"
   >("saveHandoffContext", "main-local", saveHandoffContextPayloadSchema),
+  saveImageFile: definePayloadProcedure<
+    z.infer<typeof saveImageFilePayloadSchema>,
+    string | null,
+    "main-local"
+  >("saveImageFile", "main-local", saveImageFilePayloadSchema),
+  copyImageToClipboard: definePayloadProcedure<
+    z.infer<typeof copyImageToClipboardPayloadSchema>,
+    boolean,
+    "main-local"
+  >("copyImageToClipboard", "main-local", copyImageToClipboardPayloadSchema),
   createProjectDirectory: definePayloadProcedure<
     z.infer<typeof createProjectDirectoryPayloadSchema>,
     CreateProjectDirectoryResult,

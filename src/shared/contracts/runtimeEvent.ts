@@ -185,6 +185,14 @@ export const toolCallPayloadSchema = z.object({
   serverId: z.string().optional(),
   args: z.unknown().optional(),
   result: z.unknown().optional(),
+  /**
+   * Inline images produced by the tool, as renderable `data:` URLs. Populated by
+   * the agent mappers when a tool result carries image content blocks (ACP
+   * `{ type: "image", data, mimeType }`, Claude `{ type: "image", source: { … } }`)
+   * so the renderer can show them inline. Codex's `imageGeneration` instead
+   * carries its base64 on `result`; both are handled by the renderer.
+   */
+  images: z.array(z.string()).optional(),
   status: toolCallStatusSchema,
   progress: toolCallProgressSchema.optional(),
   isSubAgent: z.boolean().optional(),

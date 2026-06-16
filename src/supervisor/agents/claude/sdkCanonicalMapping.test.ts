@@ -1076,6 +1076,54 @@ describe("sdkCanonicalMapping — tool use", () => {
     ]);
   });
 
+  it("preserves image content blocks from a tool result onto payload.images", () => {
+    const state = createClaudeMapperState("thread-1");
+    mapClaudeSdkMessage(
+      streamEvent({
+        type: "content_block_start",
+        index: 0,
+        content_block: {
+          type: "tool_use",
+          id: "toolu_img",
+          name: "generate_picture",
+          input: { prompt: "a cat" },
+        },
+      }),
+      state,
+    );
+
+    const events = mapClaudeSdkMessage(
+      {
+        type: "user",
+        session_id: "claude-session",
+        parent_tool_use_id: null,
+        message: {
+          role: "user",
+          content: [
+            {
+              type: "tool_result",
+              tool_use_id: "toolu_img",
+              content: [
+                {
+                  type: "image",
+                  source: { type: "base64", media_type: "image/png", data: "iVBORw0KGgo=" },
+                },
+              ],
+            },
+          ],
+        },
+      } as unknown as SDKMessage,
+      state,
+    );
+
+    const updated = events.find((e) => e.type === "item.updated") as
+      | { payload: Record<string, unknown> }
+      | undefined;
+    // The text-only extractor would drop the image; it must survive onto
+    // payload.images as a renderable data URL so the chat row shows it inline.
+    expect(updated?.payload.images).toEqual(["data:image/png;base64,iVBORw0KGgo="]);
+  });
+
   it("maps Edit tool results as ACP-shaped file changes", () => {
     const state = createClaudeMapperState("thread-1");
     const args = {
