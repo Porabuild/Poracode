@@ -11,6 +11,8 @@
 import { describe, expect, it } from "vitest";
 import {
   buildGitStatusResultFromOutputs,
+  buildGitStatusSummaryFromOutput,
+  expandUntrackedEntries,
   parseDiffNumstat,
   parseStatusPorcelainV2,
 } from "./statusService";
@@ -250,5 +252,73 @@ describe("buildGitStatusResultFromOutputs", () => {
     });
     expect(result.remoteInfo?.platform).toBe("github");
     expect(result.remoteInfo?.owner).toBe("owner");
+  });
+});
+
+describe("expandUntrackedEntries", () => {
+  it("replaces a collapsed `? dir/` entry with one entry per ls-files path", () => {
+    const parsed = parseStatusPorcelainV2(["# branch.head main", "? src/widget/"].join("\n"));
+    expandUntrackedEntries(parsed, "src/widget/a.ts\0src/widget/b.ts\0src/widget/c.css\0");
+    expect(parsed.unstaged.map((f) => f.path)).toEqual([
+      "src/widget/a.ts",
+      "src/widget/b.ts",
+      "src/widget/c.css",
+    ]);
+    // Counts stay 0 — the summary path leaves them for mergeSummaryStatus to backfill.
+    expect(parsed.unstaged.every((f) => f.status === "?" && !f.staged)).toBe(true);
+    expect(parsed.unstaged.every((f) => f.insertions === 0 && f.deletions === 0)).toBe(true);
+  });
+
+  it("keeps tracked unstaged entries and drops only collapsed `?` rows", () => {
+    const parsed = parseStatusPorcelainV2(
+      [
+        "# branch.head main",
+        "1 .M N... 100644 100644 100644 bbb bbb src/tracked.ts",
+        "? src/new/",
+      ].join("\n"),
+    );
+    expandUntrackedEntries(parsed, "src/new/x.ts\0");
+    expect(parsed.unstaged.map((f) => f.path)).toEqual(["src/tracked.ts", "src/new/x.ts"]);
+  });
+
+  it("is a no-op when there are no untracked entries", () => {
+    const parsed = parseStatusPorcelainV2(
+      ["# branch.head main", "1 .M N... 100644 100644 100644 bbb bbb src/tracked.ts"].join("\n"),
+    );
+    expandUntrackedEntries(parsed, "src/ignored.ts\0");
+    expect(parsed.unstaged.map((f) => f.path)).toEqual(["src/tracked.ts"]);
+  });
+
+  it("leaves the collapsed entry intact when ls-files output is empty", () => {
+    const parsed = parseStatusPorcelainV2(["# branch.head main", "? src/new/"].join("\n"));
+    expandUntrackedEntries(parsed, "");
+    expect(parsed.unstaged.map((f) => f.path)).toEqual(["src/new/"]);
+  });
+});
+
+describe("buildGitStatusSummaryFromOutput", () => {
+  it("keeps untracked directories collapsed when ls-files output is empty", () => {
+    const result = buildGitStatusSummaryFromOutput(
+      ["# branch.head main", "? src/new/"].join("\n"),
+      "",
+    );
+    expect(result.detail).toBe("summary");
+    expect(result.unstaged.map((f) => f.path)).toEqual(["src/new/"]);
+  });
+
+  it("expands untracked directories so the summary file list matches the full path", () => {
+    const result = buildGitStatusSummaryFromOutput(
+      ["# branch.head main", "? src/new/"].join("\n"),
+      "src/new/a.ts\0src/new/b.ts\0",
+    );
+    // Same per-file granularity the full/enriched path produces, with status "?"
+    // and counts 0 — keys line up so mergeSummaryStatus can backfill insertions.
+    expect(
+      result.unstaged.map((f) => ({ path: f.path, status: f.status, staged: f.staged })),
+    ).toEqual([
+      { path: "src/new/a.ts", status: "?", staged: false },
+      { path: "src/new/b.ts", status: "?", staged: false },
+    ]);
+    expect(result.totalInsertions).toBe(0);
   });
 });
