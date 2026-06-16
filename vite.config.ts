@@ -1,5 +1,5 @@
 import { resolve } from "node:path";
-import { defineConfig, loadEnv } from "vite";
+import { defineConfig, loadEnv, type Plugin } from "vite";
 import babel from "@rolldown/plugin-babel";
 import react, { reactCompilerPreset } from "@vitejs/plugin-react";
 
@@ -30,8 +30,38 @@ function buildPostHogEnvDefines(mode: string): Record<string, string> {
 // src/shared/channel.config-parity.test.ts.
 const lightcodeChannel = process.env.LIGHTCODE_CHANNEL === "nightly" ? "nightly" : "stable";
 
+// Dev-only: connect the renderer to the standalone React DevTools app for
+// inspecting/profiling rerenders. The React DevTools *browser extension* uses
+// `chrome.scripting` (Manifest V3), which Electron doesn't implement — under
+// Electron the extension panels load but never find the React tree
+// (facebook/react#25843). The supported alternative is the standalone
+// `react-devtools` app (run via `pnpm devtools`), which serves a backend on
+// :8097 that the page connects to. The hook must be installed *before* React
+// loads, so we inject a classic <script> at the top of <head>; the deferred
+// `main.tsx` module script runs after it. Opt-in via LIGHTCODE_REACT_DEVTOOLS=1
+// (set by the `dev:devtools` script) so a normal `pnpm dev` stays noise-free
+// when the standalone app isn't running.
+function reactDevtoolsStandalone(): Plugin {
+  return {
+    name: "lightcode:react-devtools-standalone",
+    apply: "serve",
+    transformIndexHtml() {
+      if (process.env.LIGHTCODE_REACT_DEVTOOLS !== "1") {
+        return;
+      }
+      return [
+        {
+          tag: "script",
+          attrs: { src: "http://localhost:8097" },
+          injectTo: "head-prepend",
+        },
+      ];
+    },
+  };
+}
+
 export default defineConfig(({ mode }) => ({
-  plugins: [react(), babel({ presets: [compilerPreset] })],
+  plugins: [reactDevtoolsStandalone(), react(), babel({ presets: [compilerPreset] })],
   base: "./",
   define: {
     ...buildPostHogEnvDefines(mode),

@@ -1,5 +1,6 @@
 import { createRoot, type Root } from "react-dom/client";
 import "./styles.css";
+import "./uiAnimationActivity";
 import { readBridge } from "./bridge";
 import { captureRendererException, initializeRendererSentry } from "./diagnostics/sentry";
 import { getAppName } from "@/shared/appName";

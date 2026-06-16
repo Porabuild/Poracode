@@ -1,6 +1,7 @@
 # Notes & To-dos Panel — Design
 
 **Date:** 2026-06-08
+**Status:** **Implemented** (shipped in PR #151). Reconciled with the shipped code below.
 **Goal:** Add a per-project Notes/To-dos panel to the right panel (iCloud Notes–style),
 reusing a popular editor library, with the ability to spin up a new thread from a to-do
 item or from selected note text.
@@ -54,22 +55,25 @@ edited note docs don't rewrite the entire projects+threads payload on each keyst
 
 Standalone Zustand store (NOT persisted through the app-store middleware). Per-project
 cache `{ status, doc, todos }`. Actions: `ensureLoaded`, `setDoc`, `addTodo`, `toggleTodo`,
-`updateTodoText`, `removeTodo`, `reorderTodos`, `flush`, `flushAll`. Mutations schedule a
+`updateTodoText`, `removeTodo`, `moveTodo(projectId, fromIndex, toIndex)`, `flush`, `flushAll`. Mutations schedule a
 ~600ms debounced `dbSetProjectNotes`; `flush`/`flushAll` (panel close, beforeunload) write
 immediately. Missing-bridge (tests) is handled gracefully — in-memory only.
 
 ## New-thread seeding — `src/renderer/actions/notesActions.ts`
 
-`newThreadFromText(projectId, text)`:
+`newThreadFromText(projectId, text)` (shipped as two steps — the originally-planned
+"merge into draft text" step was dropped; preservation of already-typed text is handled
+downstream by caret insertion instead):
 
-1. Merge `text` into the project's draft text (append to any in-progress prompt; preserve
-   file/attachment segments).
-2. Push a one-shot **composer seed** (`draftSlice.setComposerSeed`) so the draft composer
-   applies it whether it mounts fresh or is already open.
-3. `openNewThread(projectId)` (respects side-by-side `newThreadMode`).
+1. Push a one-shot **composer seed** (`draftSlice.setComposerSeed`) carrying the trimmed
+   text, so the draft composer applies it whether it mounts fresh or is already open. The
+   seed is kept separate from `draftContents` (it does not touch the stored draft).
+2. `openNewThread(projectId)` (respects side-by-side `newThreadMode`).
 
 `ThreadDraftComposerArea` consumes a pending seed on mount and on nonce change via the
-existing `MentionInput` ref (`restoreFromSegments`), then clears it.
+existing `MentionInput` ref (`insertText`, which inserts at the caret so anything the user
+already typed is preserved), then clears it. (`restoreFromSegments` is a separate path used
+to restore a previously saved draft, not the seed.)
 
 ## UI
 
@@ -96,8 +100,9 @@ existing `MentionInput` ref (`restoreFromSegments`), then clears it.
 ## Styling
 
 ProseMirror/editor styles (placeholder, list spacing, focus) added to
-`src/renderer/styles.css`, scoped to a `.lc-notes-editor` wrapper using existing design
-tokens (`--foreground`, `--muted`, `--border`, `--accent`).
+`src/renderer/styles.css`, scoped to the `.lc-notes-prose` contenteditable root using existing
+design tokens (`--foreground`, `--muted`, `--border`, `--accent`). (`.lc-notes-editor` is only
+a wrapper `div` className with no styles attached.)
 
 ## Testing
 

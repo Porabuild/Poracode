@@ -1300,8 +1300,6 @@ html[data-platform="darwin"] .lightcode-content-over-drag-region--drag {
   width: 100%;
   height: 100%;
   overflow: visible;
-  will-change: filter, transform;
-  transform: translate3d(0, 0, 0);
 }
 
 .lightcode-provider-icon__fill {
@@ -1318,13 +1316,6 @@ html[data-platform="darwin"] .lightcode-content-over-drag-region--drag {
   -webkit-mask-position: center;
   -webkit-mask-repeat: no-repeat;
   -webkit-mask-size: contain;
-  will-change: filter, transform;
-  transform: translate3d(0, 0, 0);
-}
-
-.lightcode-provider-icon svg {
-  will-change: filter, transform;
-  transform: translate3d(0, 0, 0);
 }
 
 .lightcode-provider-icon--external .lightcode-provider-icon__mask {
@@ -1370,7 +1361,12 @@ html[data-platform="darwin"] .lightcode-content-over-drag-region--drag {
     transparent 100%
   );
   transform: translate3d(-33.333%, 0, 0);
-  animation: lightcode-provider-icon-mask-scan 1.45s linear infinite;
+  /* Throttle the shine to 15fps with steps() rather than advancing every display
+     refresh. The compositor only produces a new frame when the stepped transform
+     actually changes, so a 120Hz ProMotion panel draws ~15 frames/s here instead
+     of ~120 — an ~8x cut in GPU compositing for a sweep this subtle and slow.
+     24 steps / 1.6s = 15fps. Raise the step count for a smoother sweep. */
+  animation: lightcode-provider-icon-mask-scan 1.6s steps(24, jump-end) infinite;
   will-change: transform;
 }
 
@@ -1404,6 +1400,33 @@ html[data-platform="darwin"] .lightcode-content-over-drag-region--drag {
   }
 }
 
+/* Pause the always-on status-icon animations when the window is hidden or
+   unfocused (attributes toggled by uiAnimationActivity.ts). The static glow and
+   colour stay, so a backgrounded window still shows which threads are busy — we
+   just stop driving the GPU compositor while nobody is looking. Drop the
+   `data-app-unfocused` selectors if you want the sweep to keep running while the
+   window is visible-but-unfocused. */
+html[data-app-hidden] .lightcode-provider-icon__mask-scan::before,
+html[data-app-unfocused] .lightcode-provider-icon__mask-scan::before,
+html[data-app-hidden] .lightcode-provider-icon--attention,
+html[data-app-unfocused] .lightcode-provider-icon--attention,
+html[data-app-hidden] .lightcode-provider-icon--finished,
+html[data-app-unfocused] .lightcode-provider-icon--finished {
+  animation-play-state: paused;
+}
+
+/* Honour the OS "reduce motion" setting — drop the moving sweep/pulse entirely
+   and let the static glow + colour signal status. (The thinking shimmer + brain
+   are JS-driven via thinkingAnimator.ts, which checks prefers-reduced-motion
+   itself and paints a single static frame.) */
+@media (prefers-reduced-motion: reduce) {
+  .lightcode-provider-icon__mask-scan::before,
+  .lightcode-provider-icon--attention,
+  .lightcode-provider-icon--finished {
+    animation: none;
+  }
+}
+
 .lightcode-provider-icon__shell {
   fill: currentColor;
   opacity: 0.32;
@@ -1432,6 +1455,12 @@ html[data-platform="darwin"] .lightcode-content-over-drag-region--drag {
   .lightcode-provider-icon__mask:not(.lightcode-provider-icon__mask-scan) {
   filter: drop-shadow(0 0 0.25rem color-mix(in oklab, var(--working-tone) 45%, transparent))
     drop-shadow(0 0 0.5rem color-mix(in oklab, var(--working-tone) 22%, transparent));
+  /* Promote to a compositor layer ONLY while working — the glow drop-shadow and
+     the shine sweep need it. Idle/gray icons (often dozens across the sidebar +
+     recent-threads lists) no longer each carry a standing `will-change` layer
+     and its GPU memory. */
+  will-change: filter, transform;
+  transform: translate3d(0, 0, 0);
 }
 
 .lightcode-provider-icon--error {
@@ -1495,53 +1524,28 @@ html[data-platform="darwin"] .lightcode-content-over-drag-region--drag {
   pointer-events: none;
 }
 
-@keyframes lightcode-brain-firing {
-  0%,
-  100% {
-    opacity: 0.45;
-  }
-  50% {
-    opacity: 1;
-  }
-}
-
 .lightcode-brain-thinking {
   filter: drop-shadow(0 0 0.1rem color-mix(in oklab, currentColor 32%, transparent));
-  will-change: transform;
-  transform: translateZ(0);
 }
 
+/* The per-path "firing" opacities are driven from a shared 15fps timer
+   (thinkingAnimator.ts), NOT a CSS animation: a continuously-active opacity
+   animation on SVG paths can't composite, so it would force a main-thread style
+   recalc + frame on every display refresh (~120fps). 0.55 is the static
+   fallback shown before the timer first paints. */
 .lightcode-brain-thinking path {
   opacity: 0.55;
-  will-change: opacity;
 }
 
-.lightcode-brain-thinking path:nth-child(3n + 1) {
-  animation: lightcode-brain-firing 1.8s ease-in-out infinite;
-  animation-delay: 0s;
-}
-
-.lightcode-brain-thinking path:nth-child(3n + 2) {
-  animation: lightcode-brain-firing 1.8s ease-in-out infinite;
-  animation-delay: 0.6s;
-}
-
-.lightcode-brain-thinking path:nth-child(3n) {
-  animation: lightcode-brain-firing 1.8s ease-in-out infinite;
-  animation-delay: 1.2s;
-}
-
-@keyframes lightcode-text-shimmer {
-  0% {
-    background-position: 0% 0;
-  }
-  100% {
-    background-position: -200% 0;
-  }
-}
-
-/* "Thinking" label that pairs with the brain. The highlight shimmers in
-   a continuous, smooth 60fps compositor sweep. */
+/* "Thinking"/"Working for"/"Compacting"/"Proposed plan" label that pairs with
+   the brain. The highlight sweeps via `background-position` — a main-thread
+   *paint* property that can't composite, so an always-active CSS animation here
+   repaints AND recalcs style every display refresh (~120fps). Instead the sweep
+   is driven from a shared 15fps timer (thinkingAnimator.ts) that writes
+   `background-position-x` only ~15×/s, letting the frame pipeline idle between
+   ticks. `contain: paint` keeps each repaint scoped to the label box; the
+   `background-position: 0% 0` below is the static fallback before the timer
+   runs. */
 .lightcode-thinking-text {
   position: relative;
   display: inline-block;
@@ -1561,8 +1565,6 @@ html[data-platform="darwin"] .lightcode-content-over-drag-region--drag {
   -webkit-background-clip: text;
   color: transparent;
   -webkit-text-fill-color: transparent;
-  animation: lightcode-text-shimmer 2.2s linear infinite;
-  will-change: background-position;
 }
 
 @keyframes lightcode-plan-check-1-anim {

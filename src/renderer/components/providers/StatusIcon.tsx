@@ -1,4 +1,5 @@
 import type { StatusTone } from "./statusTone";
+import { syncMaskScanPhase } from "./syncMaskScanPhase";
 
 export function StatusIcon(props: {
   tone: StatusTone;
@@ -75,6 +76,7 @@ export function StatusIcon(props: {
       </svg>
       {tone === "working" && maskUrl ? (
         <span
+          ref={syncMaskScanPhase}
           className="lightcode-provider-icon__mask-scan"
           aria-hidden="true"
           style={{ WebkitMaskImage: maskUrl, maskImage: maskUrl }}

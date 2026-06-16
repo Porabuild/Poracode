@@ -5,6 +5,7 @@ import type { ToolCallPayload } from "@/shared/contracts";
 import type { RuntimeChatItem } from "@/renderer/state/slices/runtimeEventSlice";
 import { ItemMarkdown } from "./ItemMarkdown";
 import { PathDisplay } from "@/renderer/components/common/PathDisplay";
+import { useShimmer } from "@/renderer/thinkingAnimator";
 import { chatMessageSurfaceClass } from "./chatMessageSurface";
 
 interface PlanProposalProps {
@@ -26,6 +27,7 @@ export const PlanProposal = memo(function PlanProposal({ item }: PlanProposalPro
   const plan = readString(args, "plan");
   const planFilePath = readString(args, "planFilePath") ?? readString(args, "plan_filename");
   const isStreaming = item.state !== "completed";
+  const thinkingTextRef = useShimmer<HTMLSpanElement>(isStreaming);
 
   if (!plan && !isStreaming && !planFilePath) return null;
 
@@ -37,6 +39,7 @@ export const PlanProposal = memo(function PlanProposal({ item }: PlanProposalPro
             className={`size-3 shrink-0 ${isStreaming ? "lightcode-plan-proposal-icon" : ""}`}
           />
           <span
+            ref={thinkingTextRef}
             className={isStreaming ? "lightcode-thinking-text" : ""}
             {...(isStreaming ? { "data-lightcode-shimmer-text": "Proposed plan" } : {})}
           >

@@ -49,15 +49,17 @@ Every provider is a folder under `src/supervisor/agents/<kind>/` with the same i
 
 Opening two provider folders side-by-side answers "what does this provider do differently" by file-name alignment alone.
 
-Model/effort lists below are the **statically declared defaults**. Several providers ship `models: []` / `efforts: []` and fill them at runtime from a capabilities probe (Codex/Gemini/Copilot/Grok/OpenCode) — the listed values are illustrative, not authoritative. Read the provider's `detection.ts` for the live source of truth.
+Model/effort lists below are the **statically declared defaults**. Several providers ship `models: []` / `efforts: []` and fill them at runtime from a capabilities probe (Codex/Gemini/Copilot/Grok/OpenCode, and Cursor via its CLI `--list-models`) — the listed values are illustrative, not authoritative. Read the provider's `detection.ts` for the live source of truth.
+
+The **Structured Session** column reflects whether the adapter implements `createStructuredSession` (i.e. supports a `"gui"` presentation mode); it is not a model-list default and is authoritative.
 
 | Provider     | Models                                                 | Efforts                                  | Live Input            | Structured Session     |
 | ------------ | ------------------------------------------------------ | ---------------------------------------- | --------------------- | ---------------------- |
-| Claude       | opus-4-8, fable-5, opus-4-7, opus-4-6, sonnet, haiku   | low, medium, high, xHigh, max, ultracode | terminal              | No                     |
+| Claude       | opus-4-8, fable-5, opus-4-7, opus-4-6, sonnet, haiku   | low, medium, high, xHigh, max, ultracode | terminal              | Yes (SDK)              |
 | Codex        | (probed dynamically via app-server)                    | (probed dynamically)                     | terminal / GUI server | Yes (stdio app-server) |
-| Gemini       | (probed dynamically via ACP)                           | (probed dynamically)                     | terminal              | No                     |
+| Gemini       | (probed dynamically via ACP)                           | (probed dynamically)                     | terminal              | Yes (ACP)              |
 | Copilot      | (probed via ACP)                                       | (probed via ACP)                         | terminal              | Yes (ACP)              |
-| Cursor       | auto, composer-\*, GPT/Opus/Sonnet variants            | (embedded in model name)                 | terminal              | No                     |
+| Cursor       | auto, composer-\*, GPT/Opus/Sonnet variants (probed via `--list-models`) | (embedded in model name)                 | terminal              | Yes (ACP)              |
 | Grok         | grok-build (probed via ACP)                            | (none)                                   | terminal              | Yes (ACP)              |
 | OpenCode     | (probed dynamically via SDK)                           | (probed dynamically)                     | terminal / GUI server | Yes (SDK server)       |
 | Antigravity  | auto (managed by `agy`)                                | (none)                                   | terminal              | No                     |
@@ -116,7 +118,7 @@ forgotten.
 
 ### 3. Shared contracts
 
-- [ ] `src/shared/contracts/agentInstance.ts` — add the kind to `KNOWN_AGENT_DRIVERS`.
+- [ ] `src/shared/contracts/agentInstance.ts` — add the kind to `KNOWN_AGENT_DRIVERS`. (Note: this map currently has **no runtime readers** — the shipped Grok provider omits its entry with no observable effect — so today this is for completeness, not feature-gating.)
 
 ### 4. Renderer provider — `src/renderer/components/providers/<kind>/`
 
@@ -173,7 +175,7 @@ The codebase is provider-agnostic by design (targeting 5-10 providers). Each pro
 - WSL projects are detected via `ProjectLocation.kind === "wsl"`.
 - Commands are wrapped: `wsl.exe -d <distro> --cd <linuxPath> -- <command>`.
 - `batchWslCommandsAsync()` combines multiple commands into one `wsl.exe` invocation to avoid ~800-1000ms per-spawn overhead.
-- Shell detection (`resolveWslShellPath`) is cached per distro with `/bin/sh` fallback.
+- Shell detection (`resolveWslShellPath`) is cached per distro with a `/bin/bash` fallback (chosen over `/bin/sh` so rc files — nvm/fnm/asdf — still get sourced).
 - Agent install detection runs per-environment (Windows and each active WSL distro independently).
 
 ## Hook Runtime Resolution
@@ -190,7 +192,7 @@ Three layers, in order of cost:
 2. **Login-shell probe.** macOS GUI apps don't inherit the user's interactive PATH (no Homebrew, no nvm) — so on POSIX we spawn `$SHELL -lic` with sentinel markers (`__LC_NODE_PATH__:`, `__LC_NODE_VERSION__:`) to extract the user's `node` past any rc-file noise. On Windows, Electron inherits PATH from the registry already, so `where.exe node` is enough. If the binary version is ≥ `MIN_ACCEPTED_NODE_MAJOR`, that's our pick.
 3. **Background install.** When 1 + 2 both miss, the resolver fires `installNativeRuntime` (download → SHA256-verify → `tar -xJf` for `.tar.xz` / `tar.exe -xf` for `.zip`) and immediately returns null. The current install pass falls back to `ELECTRON_RUN_AS_NODE=1`; next supervisor boot picks up the managed runtime via the fast path.
 
-Result is memoized for the supervisor lifetime (one promise shared across all 5 providers) and cleared on restart. `resolveNativeNode` is the public entry point; `managedNodePath` is exported for tests.
+Result is memoized for the supervisor lifetime (one promise per base dir, shared across whatever providers resolve against that dir) and cleared on restart. `resolveNativeNode` is the public entry point; `managedNodePath` is exported for tests.
 
 ### WSL — `src/supervisor/wsl/runtime/index.ts`
 
