@@ -100,6 +100,9 @@ minimumReleaseAgeExclude:
   - "dompurify@3.4.10"
   - "protobufjs@7.6.4"
   - "form-data@4.0.6"
+  # 2026-06-16 Dependabot advisory batch: hono security patch published within
+  # the 7-day guard window, adopted immediately (alerts #124-#128).
+  - "hono@4.12.25"
 
 # Supply-chain guard: refuse to install any package version published less
 # than this many minutes ago. 7 days catches the typical window in which
@@ -126,3 +129,14 @@ overrides:
   "vite@>=8.0.0 <8.0.16": "^8.0.16"
   "js-yaml@>=4.0.0 <4.2.0": "^4.2.0"
   "@babel/core@>=7.0.0 <7.29.6": "^7.29.6"
+  # 2026-06-16 advisory batch.
+  # hono CORS wildcard-with-credentials + path traversal etc. (#124-#128).
+  "hono@<4.12.25": "4.12.25"
+  # got UNIX-socket redirect (#103); only the dev react-devtools update-notifier
+  # chain pulls the vulnerable 6.x. Pin to the last CJS line (11.x), since
+  # package-json@4 `require()`s got and got@12+ is ESM-only.
+  "got@<11.8.5": "11.8.6"
+  # electron use-after-free / injection batch (#106-#123). The vulnerable 23.x
+  # comes only from react-devtools (dev-only standalone inspector); 23.x has no
+  # in-line patch (#104), so dedupe it onto the app's own electron major.
+  "electron@>=23.0.0 <39.8.5": "41.7.0"
