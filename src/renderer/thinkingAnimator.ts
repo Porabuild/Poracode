@@ -1,4 +1,4 @@
-// Shared 15fps driver for the "thinking" UI animations — the
+// Shared 20fps driver for the "thinking" UI animations — the
 // `.lightcode-thinking-text` shimmer ("Working for"/"Thinking"/"Compacting"/
 // "Proposed plan") and the `.lightcode-brain-thinking` firing.
 //
@@ -14,8 +14,8 @@
 // paint but NOT that per-frame recalc loop, because the animation is still
 // "active" every frame.
 //
-// Driving the exact same values from a single `setInterval` at 15fps means the
-// element is only dirtied ~15×/s; between ticks nothing is invalidated, so the
+// Driving the exact same values from a single `setInterval` at 20fps means the
+// element is only dirtied ~20×/s; between ticks nothing is invalidated, so the
 // renderer's frame pipeline goes idle. The visuals are identical (same gradient
 // sweep, same staggered brain firing), and a shared wall-clock phase keeps every
 // instance perfectly in sync. The timer pauses while the window is hidden or
@@ -25,8 +25,8 @@
 import { useEffect, useRef } from "react";
 import type { RefObject } from "react";
 
-const FPS = 15;
-const TICK_MS = Math.round(1000 / FPS); // ~67ms
+const FPS = 20;
+const TICK_MS = Math.round(1000 / FPS); // 50ms
 const SHIMMER_PERIOD_MS = 2200; // matches the previous 2.2s background-position sweep
 const BRAIN_PERIOD_MS = 1800; // matches the previous 1.8s opacity pulse
 const BRAIN_GROUP_DELAY_MS = 600; // matches the previous 0s / 0.6s / 1.2s stagger
@@ -85,7 +85,7 @@ function paintFrame(now: number): void {
 
 function tick(): void {
   // Freeze (skip writes) while backgrounded/unfocused — nothing to drive, and
-  // the static frozen frame is fine. Next tick resumes within ~67ms on refocus.
+  // the static frozen frame is fine. Next tick resumes within ~50ms on refocus.
   if (!isAppActive()) return;
   paintFrame(Date.now());
 }

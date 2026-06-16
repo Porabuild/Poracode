@@ -1361,12 +1361,12 @@ html[data-platform="darwin"] .lightcode-content-over-drag-region--drag {
     transparent 100%
   );
   transform: translate3d(-33.333%, 0, 0);
-  /* Throttle the shine to 15fps with steps() rather than advancing every display
+  /* Throttle the shine to 20fps with steps() rather than advancing every display
      refresh. The compositor only produces a new frame when the stepped transform
-     actually changes, so a 120Hz ProMotion panel draws ~15 frames/s here instead
-     of ~120 — an ~8x cut in GPU compositing for a sweep this subtle and slow.
-     24 steps / 1.6s = 15fps. Raise the step count for a smoother sweep. */
-  animation: lightcode-provider-icon-mask-scan 1.6s steps(24, jump-end) infinite;
+     actually changes, so a 120Hz ProMotion panel draws ~20 frames/s here instead
+     of ~120 — a ~6x cut in GPU compositing for a sweep this subtle and slow.
+     32 steps / 1.6s = 20fps. Raise the step count for a smoother sweep. */
+  animation: lightcode-provider-icon-mask-scan 1.6s steps(32, jump-end) infinite;
   will-change: transform;
 }
 
@@ -1528,7 +1528,7 @@ html[data-app-unfocused] .lightcode-provider-icon--finished {
   filter: drop-shadow(0 0 0.1rem color-mix(in oklab, currentColor 32%, transparent));
 }
 
-/* The per-path "firing" opacities are driven from a shared 15fps timer
+/* The per-path "firing" opacities are driven from a shared 20fps timer
    (thinkingAnimator.ts), NOT a CSS animation: a continuously-active opacity
    animation on SVG paths can't composite, so it would force a main-thread style
    recalc + frame on every display refresh (~120fps). 0.55 is the static
@@ -1541,8 +1541,8 @@ html[data-app-unfocused] .lightcode-provider-icon--finished {
    the brain. The highlight sweeps via `background-position` — a main-thread
    *paint* property that can't composite, so an always-active CSS animation here
    repaints AND recalcs style every display refresh (~120fps). Instead the sweep
-   is driven from a shared 15fps timer (thinkingAnimator.ts) that writes
-   `background-position-x` only ~15×/s, letting the frame pipeline idle between
+   is driven from a shared 20fps timer (thinkingAnimator.ts) that writes
+   `background-position-x` only ~20×/s, letting the frame pipeline idle between
    ticks. `contain: paint` keeps each repaint scoped to the label box; the
    `background-position: 0% 0` below is the static fallback before the timer
    runs. */

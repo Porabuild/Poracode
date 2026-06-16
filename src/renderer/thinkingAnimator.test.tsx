@@ -40,9 +40,9 @@ describe("thinkingAnimator", () => {
     expect(el.style.backgroundPositionX).toMatch(/%$/);
     expect(parseFloat(el.style.backgroundPositionX)).toBeCloseTo(0, 5);
 
-    // One 67ms tick → now=67 → -200 * (67/2200) ≈ -6.1%.
-    vi.advanceTimersByTime(67);
-    expect(parseFloat(el.style.backgroundPositionX)).toBeCloseTo(-6.1, 1);
+    // One 50ms tick → now=50 → -200 * (50/2200) ≈ -4.5%.
+    vi.advanceTimersByTime(50);
+    expect(parseFloat(el.style.backgroundPositionX)).toBeCloseTo(-4.5, 1);
   });
 
   it("stops writing once the element unmounts", () => {

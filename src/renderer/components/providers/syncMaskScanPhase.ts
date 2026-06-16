@@ -1,18 +1,18 @@
 // Phase-locks the working-icon shine sweep across every on-screen instance.
 //
-// The sweep is a `steps()` (≈15fps) transform animation on the
+// The sweep is a `steps()` (≈20fps) transform animation on the
 // `.lightcode-provider-icon__mask-scan::before` pseudo-element (see styles.css).
 // A `steps()` animation only produces a compositor frame when its value
-// actually changes, so a single icon redraws ~15×/s. But a working thread shows
+// actually changes, so a single icon redraws ~20×/s. But a working thread shows
 // its icon in several places at once (sidebar row + recent-threads row + ...),
 // and each CSS animation starts when its element mounts — so the instances step
-// at slightly different instants and the compositor ends up drawing ~15fps ×
+// at slightly different instants and the compositor ends up drawing ~20fps ×
 // (number of instances).
 //
 // Pinning every instance's `startTime` to the document timeline origin makes
 // them all share one clock: identical duration + identical steps + identical
 // phase ⇒ they change value at the exact same instants, so the compositor
-// coalesces them into a single redraw per step (true ~15fps total, regardless
+// coalesces them into a single redraw per step (true ~20fps total, regardless
 // of how many working icons are visible).
 
 const MASK_SCAN_ANIMATION_NAME = "lightcode-provider-icon-mask-scan";
