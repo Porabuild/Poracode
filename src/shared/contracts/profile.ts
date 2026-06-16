@@ -134,6 +134,14 @@ export interface ProfileSkillUsage {
   runCount: number;
 }
 
+/** A selectable account for the per-account stats filter (account-scoped key). */
+export interface ProfileAccountRef {
+  /** Account-scoped agent kind, e.g. "claude" or "claude:work". */
+  key: string;
+  /** Display label, e.g. "Claude" or "Claude - work". */
+  label: string;
+}
+
 export const aiActionTypeSchema = z.enum(["commit", "pr", "conflict"]);
 export type AiActionType = z.infer<typeof aiActionTypeSchema>;
 
@@ -186,12 +194,20 @@ export interface ProfileCoreStats {
   models: ProfileBreakdownEntry[];
   /** Threads started by presentation mode (chat vs CLI). */
   modes: ProfileBreakdownEntry[];
-  /** Top skills/subagents by run count. */
+  /** Top skills by run count (`$skill`). */
   skills: ProfileSkillUsage[];
+  /** Top subagents by run count (`@agent`). */
+  subagents: ProfileSkillUsage[];
   /** Top MCP servers by tool-call count. */
   mcps: ProfileSkillUsage[];
   /** AI-performed git actions (commits / PRs / conflict resolutions). */
   aiActions: ProfileAiAction[];
+  /**
+   * Distinct accounts seen in the (unfiltered) usage log, for the per-account
+   * filter. Always the full set regardless of the active `provider` filter, so
+   * the picker stays stable while a single account is selected.
+   */
+  availableAccounts: ProfileAccountRef[];
 }
 
 // -- Token stats (durable local usage log) ----------------------------
@@ -239,6 +255,12 @@ export const profileStatsRequestSchema = z.object({
    * an empty-but-valid blob today.
    */
   deviceId: z.string().optional(),
+  /**
+   * Account-scoped provider filter. When set, every stat (heatmap, totals,
+   * breakdowns, plugins, ...) is scoped to events whose recorded account kind
+   * matches exactly, e.g. "claude" or "claude:work". Omit for all accounts.
+   */
+  provider: z.string().optional(),
 });
 export type ProfileStatsRequest = z.infer<typeof profileStatsRequestSchema>;
 

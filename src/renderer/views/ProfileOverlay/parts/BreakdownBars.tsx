@@ -23,6 +23,8 @@ export function BreakdownBars(props: {
   loadingRows?: number;
   emptyText?: string;
   footer?: ReactNode;
+  /** Formats the raw count shown next to the percent (default `toLocaleString`). */
+  formatValue?: (count: number) => string;
 }) {
   const {
     title,
@@ -33,6 +35,7 @@ export function BreakdownBars(props: {
     loadingRows = 4,
     emptyText,
     footer,
+    formatValue = (n) => n.toLocaleString(),
   } = props;
   const rows = entries.slice(0, limit);
 
@@ -56,7 +59,10 @@ export function BreakdownBars(props: {
             <div key={entry.key} className="flex flex-col gap-1.5">
               <div className="flex items-center justify-between gap-4 text-sm">
                 <span className="truncate font-medium text-foreground">{entry.label}</span>
-                <span className="shrink-0 tabular-nums text-muted">{entry.percent}%</span>
+                <span className="flex shrink-0 items-baseline gap-1.5 tabular-nums">
+                  <span className="text-muted">{formatValue(entry.count)}</span>
+                  <span className="text-muted/50">{entry.percent}%</span>
+                </span>
               </div>
               <div className="h-1.5 w-full overflow-hidden rounded-full bg-foreground/10">
                 <div

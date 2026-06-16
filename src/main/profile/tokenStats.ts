@@ -55,7 +55,7 @@ export function computeProfileTokenStats(req: ProfileStatsRequest): ProfileToken
   // Reuse the last aggregation until a usage write bumps the generation, so
   // repeated opens don't re-scan the log.
   const generation = getProfileDataGeneration();
-  const cacheKey = `${offset}|${todayIndex}|${req.scope ?? "device"}|${req.deviceId ?? "current"}`;
+  const cacheKey = `${offset}|${todayIndex}|${req.scope ?? "device"}|${req.deviceId ?? "current"}|${req.provider ?? "all"}`;
   const cached = tokenCache.get(cacheKey);
   if (cached && cached.generation === generation) return cached.result;
 
@@ -76,6 +76,8 @@ export function computeProfileTokenStats(req: ProfileStatsRequest): ProfileToken
 
   for (const row of dbGetAllUsageEvents()) {
     if (row.kind !== "tokens" || row.value <= 0) continue;
+    // Scope to the selected account (exact account-kind match) when filtering.
+    if (req.provider && row.provider !== req.provider) continue;
     lifetimeTokens += row.value;
     const day = dayKeyFromIndex(localDayIndex(row.ts, offset));
     perDay.set(day, (perDay.get(day) ?? 0) + row.value);

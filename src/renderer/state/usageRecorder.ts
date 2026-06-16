@@ -187,9 +187,21 @@ function classifyItem(itemType: string, payload: unknown): ItemHit | undefined {
     return { kind: "skill", name: skill || "skill" };
   }
   const subagentType = str(args, "subagent_type");
-  if (p?.["isSubAgent"] === true || name === "Task" || name === "Workflow" || subagentType) {
+  if (
+    p?.["isSubAgent"] === true ||
+    name === "Task" ||
+    name === "Workflow" ||
+    name === "Agent" ||
+    subagentType
+  ) {
+    // Prefer the agent type (Task/Agent); for workflows use the saved name or
+    // description (inline script workflows carry neither, so they bucket under a
+    // generic "workflow"); otherwise the task description.
     const agent =
-      subagentType ?? (name === "Workflow" ? "workflow" : str(args, "description")) ?? "subagent";
+      subagentType ??
+      (name === "Workflow"
+        ? (str(args, "name") ?? str(args, "description") ?? "workflow")
+        : (str(args, "description") ?? "subagent"));
     return { kind: "subagent", name: agent };
   }
   return undefined;

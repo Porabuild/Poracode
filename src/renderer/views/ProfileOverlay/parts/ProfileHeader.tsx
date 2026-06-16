@@ -30,10 +30,12 @@ export function ProfileHeader(props: {
   currentDeviceId: string | null;
   selection: ProfileSelection;
   onSelect: (selection: ProfileSelection) => void;
+  /** Rendered on the same row as the device picker, before the actions. */
+  filter?: ReactNode;
   /** Rendered on the same row as the device picker (Share / Edit). */
   actions?: ReactNode;
 }) {
-  const { identity, devices, currentDeviceId, selection, onSelect, actions } = props;
+  const { identity, devices, currentDeviceId, selection, onSelect, filter, actions } = props;
   const plan = identity.plan ?? "Local";
 
   const value =
@@ -80,10 +82,17 @@ export function ProfileHeader(props: {
         <DevicePicker
           value={value}
           options={options}
-          onChange={(id) =>
-            onSelect(id === ALL_DEVICES ? { scope: "all" } : { scope: "device", deviceId: id })
-          }
+          onChange={(id) => {
+            // Preserve the active account filter across a device/scope switch.
+            const provider = selection.provider ? { provider: selection.provider } : {};
+            onSelect(
+              id === ALL_DEVICES
+                ? { scope: "all", ...provider }
+                : { scope: "device", deviceId: id, ...provider },
+            );
+          }}
         />
+        {filter}
         {actions}
       </div>
     </div>

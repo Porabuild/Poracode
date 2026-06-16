@@ -12,6 +12,8 @@ export interface ProfileSelection {
   scope: ProfileStatScope;
   /** Selected device id when scope === "device"; undefined = current device. */
   deviceId?: string;
+  /** Account-scoped provider filter; undefined = all accounts. */
+  provider?: string;
 }
 
 export interface ProfileData {
@@ -62,14 +64,25 @@ export function useProfileData(): ProfileData {
     };
   }, []);
 
-  const { scope, deviceId } = selection;
+  const { scope, deviceId, provider } = selection;
   useEffect(() => {
     let active = true;
     const utcOffsetMinutes = -new Date().getTimezoneOffset();
-    const req = { utcOffsetMinutes, scope, ...(deviceId ? { deviceId } : {}) };
+    const req = {
+      utcOffsetMinutes,
+      scope,
+      ...(deviceId ? { deviceId } : {}),
+      ...(provider ? { provider } : {}),
+    };
     setCoreLoading(true);
     setTokensLoading(true);
     setError(null);
+    // Drop the previous selection's token rollup so the token-weighted sections
+    // (StatStrip, Providers, Model usage) fall back to their skeletons instead of
+    // briefly showing another account's numbers under the newly selected filter.
+    // `core` is kept (it reloads from the fast SQLite tier) so the page chrome -
+    // including the account filter itself - stays mounted during the refetch.
+    setTokens(null);
 
     void readBridge()
       .getProfileCoreStats(req)
@@ -99,7 +112,7 @@ export function useProfileData(): ProfileData {
     return () => {
       active = false;
     };
-  }, [scope, deviceId]);
+  }, [scope, deviceId, provider]);
 
   async function saveIdentity(identity: ProfileIdentity): Promise<void> {
     const response = await readBridge().setProfileIdentity(identity);
