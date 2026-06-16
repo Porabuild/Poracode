@@ -31,12 +31,19 @@ export const ImageView = memo(function ImageView({ item }: ImageViewProps) {
   return <ImageCard source={source} />;
 });
 
-/** Inline image card with copy / download actions and a click-to-zoom lightbox. */
+/**
+ * Inline image card with a click-to-zoom lightbox and a copy / download / expand
+ * toolbar that floats over the image. The toolbar (not a caption) carries the
+ * actions because the picture isn't necessarily "generated" — it may just be
+ * something the agent shared — so a "Generated image" label would be misleading.
+ * The toolbar sits on a translucent backdrop so its icons stay legible over any
+ * image, and reveals on hover / keyboard focus to keep the picture uncluttered.
+ */
 export function ImageCard({ source }: { source: ImageViewSource }) {
   const [isLightboxOpen, setLightboxOpen] = useState(false);
 
   return (
-    <figure className="m-0 inline-flex max-w-full flex-col overflow-hidden rounded-2xl border border-[color:var(--border)] bg-[var(--composer-surface)]">
+    <figure className="group relative m-0 inline-flex max-w-full overflow-hidden rounded-2xl border border-[color:var(--border)] bg-[var(--composer-surface)]">
       <button
         type="button"
         className="block cursor-zoom-in bg-black/20"
@@ -50,21 +57,13 @@ export function ImageCard({ source }: { source: ImageViewSource }) {
           className="block max-h-[22rem] w-auto max-w-full object-contain"
         />
       </button>
-      <figcaption className="flex items-center justify-between gap-2 border-t border-[color:var(--border)] px-2 py-1">
-        <span
-          className="min-w-0 flex-1 truncate text-[length:var(--lc-chat-font-size-command)] text-[color:var(--muted)]"
-          title={source.alt}
-        >
-          {source.alt}
-        </span>
-        <span className="flex shrink-0 items-center gap-0.5">
-          <CopyImageButton source={source} />
-          <DownloadImageButton src={source.src} fileName={source.fileName} />
-          <IconButton label="Open preview" onClick={() => setLightboxOpen(true)}>
-            <Maximize2 className="size-3.5" />
-          </IconButton>
-        </span>
-      </figcaption>
+      <div className="pointer-events-none absolute right-1.5 top-1.5 flex items-center gap-0.5 rounded-lg bg-black/50 p-0.5 opacity-0 backdrop-blur-sm transition-opacity duration-150 group-hover:pointer-events-auto group-hover:opacity-100 focus-within:pointer-events-auto focus-within:opacity-100">
+        <CopyImageButton source={source} />
+        <DownloadImageButton src={source.src} fileName={source.fileName} />
+        <IconButton label="Open preview" onClick={() => setLightboxOpen(true)}>
+          <Maximize2 className="size-3.5" />
+        </IconButton>
+      </div>
       {isLightboxOpen ? (
         <ImageLightboxView
           images={[{ src: source.src, alt: source.alt }]}
@@ -133,7 +132,7 @@ function IconButton({
         <button
           type="button"
           aria-label={label}
-          className="flex size-6 items-center justify-center rounded text-muted/70 transition-colors hover:bg-foreground/5 hover:text-foreground"
+          className="flex size-6 items-center justify-center rounded text-white/80 transition-colors hover:bg-white/20 hover:text-white"
           onClick={(event) => {
             event.stopPropagation();
             onClick();

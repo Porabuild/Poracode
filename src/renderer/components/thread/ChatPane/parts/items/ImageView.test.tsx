@@ -18,7 +18,7 @@ function imageItem(payload: Record<string, unknown>): RuntimeChatItem {
 }
 
 describe("ImageView", () => {
-  it("renders an inline <img> with the generated image and a caption", () => {
+  it("renders an inline <img> with an overlaid action toolbar (no visible caption)", () => {
     render(
       <AppProvider>
         <ImageView
@@ -35,9 +35,12 @@ describe("ImageView", () => {
     const img = screen.getByAltText("A red square") as HTMLImageElement;
     expect(img.tagName).toBe("IMG");
     expect(img.getAttribute("src")).toBe(`data:image/png;base64,${PNG_BASE64}`);
-    expect(screen.getByText("A red square")).toBeTruthy();
+    // The prompt lives only on the <img> alt for a11y — it is not written as a
+    // visible caption (the picture may be shared, not "generated").
+    expect(screen.queryByText("A red square")).toBeNull();
     expect(screen.getByRole("button", { name: "Copy image" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Download image" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Open preview" })).toBeTruthy();
   });
 
   it("opens a lightbox when the image is clicked", () => {
