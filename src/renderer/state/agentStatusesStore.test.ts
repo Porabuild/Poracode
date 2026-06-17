@@ -274,6 +274,26 @@ describe("mergeAgentStatus", () => {
   });
 });
 
+describe("removeAgentStatus", () => {
+  it("removes matching statuses from native, WSL, and discovery lists", () => {
+    const profile = makeStatus({ kind: "claude:glm" });
+    const wslProfile = makeStatus({ kind: "claude:glm", envKind: "wsl", envDistro: "Ubuntu" });
+    const codex = makeStatus({ kind: "codex" });
+    useAgentStatusesStore.setState({
+      agentStatuses: [profile, codex],
+      wslAgentStatuses: [wslProfile],
+      discoveredAgents: [profile],
+    });
+
+    useAgentStatusesStore.getState().removeAgentStatus("claude:glm");
+
+    const state = useAgentStatusesStore.getState();
+    expect(state.agentStatuses.map((status) => status.kind)).toEqual(["codex"]);
+    expect(state.wslAgentStatuses).toEqual([]);
+    expect(state.discoveredAgents).toEqual([]);
+  });
+});
+
 describe("isDetectingAgentsForLocation", () => {
   it("returns true for a windows location when windowsLoaded is false", () => {
     const loc: ProjectLocation = { kind: "windows", path: "C:\\tmp" };

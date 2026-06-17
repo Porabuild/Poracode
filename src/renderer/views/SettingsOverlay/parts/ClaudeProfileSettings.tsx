@@ -22,16 +22,18 @@ import { CLAUDE_EFFORT_TIERS } from "@/shared/agents/claudeEfforts";
 import { readBridge } from "@/renderer/bridge";
 import { Input } from "@/renderer/components/common";
 import { formatEffortLabel } from "@/renderer/components/thread/threadDraftViewHelpers";
+import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { currentWslDistros } from "@/renderer/utils/acpRegistryAuth";
 import {
-  appendGlmPresetRows,
+  applyPresetEnvRows,
   cleanModels,
   defaultConfigDir,
   effortsConfigFromSelection,
   environmentFromRows,
   modelsFromConfig,
   profileUsesExternalProvider,
+  PROFILE_PRESETS,
   rowsFromEnvironment,
   SAVED_SECRET_MASK,
   selectedEffortsFromConfig,
@@ -39,7 +41,16 @@ import {
   uniqueProfileId,
   type EnvRow,
   type ModelRow,
+  type ProfilePreset,
 } from "./ClaudeProfileSettingsModel";
+
+const CLAUDE_PROFILE_BASE_MODEL_IDS = [
+  "claude-opus-4-8",
+  "claude-opus-4-7",
+  "claude-opus-4-6",
+  "sonnet",
+  "haiku",
+];
 
 function refreshClaudeProfile(kind?: string): void {
   window.setTimeout(() => {
@@ -108,6 +119,52 @@ function EffortMultiSelect(props: { selected: Set<string>; onToggle: (tier: stri
   );
 }
 
+// ── Preset selector ──────────────────────────────────────────────────────────
+
+/**
+ * Dropdown of external-provider presets (z.ai, …). Picking one seeds the editor;
+ * extend the list by adding to `PROFILE_PRESETS`.
+ */
+function PresetMenu(props: { onApply: (preset: ProfilePreset) => void }) {
+  const [isOpen, setIsOpen] = useState(false);
+  return (
+    <Popover isOpen={isOpen} onOpenChange={setIsOpen}>
+      <Popover.Trigger>
+        <Button
+          size="sm"
+          variant="ghost"
+          aria-label="Apply provider preset"
+          className="h-6 min-h-6 gap-1 px-1.5 text-[11px]"
+        >
+          <Wand2 className="size-3" />
+          Presets
+          <ChevronDown className="size-3 shrink-0 text-muted" />
+        </Button>
+      </Popover.Trigger>
+      <Popover.Content placement="bottom end" className="w-40 p-0">
+        <Popover.Dialog className="!p-0">
+          <div role="menu" aria-label="Provider presets" className="lightcode-menu py-1">
+            {PROFILE_PRESETS.map((preset) => (
+              <button
+                key={preset.id}
+                type="button"
+                role="menuitem"
+                className="flex w-full items-center px-3 py-1.5 text-sm text-foreground hover:bg-surface-secondary/50"
+                onClick={() => {
+                  props.onApply(preset);
+                  setIsOpen(false);
+                }}
+              >
+                {preset.label}
+              </button>
+            ))}
+          </div>
+        </Popover.Dialog>
+      </Popover.Content>
+    </Popover>
+  );
+}
+
 // ── Per-profile editor (rendered on the profile's own settings page) ──────────
 
 /**
@@ -133,6 +190,13 @@ function ClaudeProfileEditor(props: {
   config: ClaudeProfileInstanceConfig;
 }) {
   const setAgentInstance = useSharedSettings((s) => s.setAgentInstance);
+  const setHiddenModels = useSharedSettings((s) => s.setHiddenModels);
+  const profileKind = claudeProfileKind(props.instance.id);
+  const profileStatus = useAgentStatusesStore(
+    (s) =>
+      s.agentStatuses.find((status) => status.kind === profileKind) ??
+      s.wslAgentStatuses.find((status) => status.kind === profileKind),
+  );
   const rowIdCounter = useRef(0);
   const nextRowId = () => `r${(rowIdCounter.current += 1)}`;
 
@@ -168,7 +232,38 @@ function ClaudeProfileEditor(props: {
       { rowId: nextRowId(), key: "", value: "", sensitive: false, replacing: false },
     ]);
 
-  const applyGlmPreset = () => setEnvRows((rows) => appendGlmPresetRows(rows, nextRowId));
+  // Applying a preset seeds the editor and persists picker models so the shared
+  // "Visible models" section can refresh immediately.
+  const applyPreset = (preset: ProfilePreset) => {
+    const nextModelRows = (() => {
+      const existing = new Set(modelRows.map((row) => row.id.trim()));
+      const additions = preset.models
+        .filter((model) => !existing.has(model.id))
+        .map((model) => ({ rowId: nextRowId(), id: model.id, label: model.label }));
+      return additions.length > 0 ? [...modelRows, ...additions] : modelRows;
+    })();
+    const nextEfforts = new Set(preset.efforts);
+    const models = cleanModels(nextModelRows);
+    const efforts = effortsConfigFromSelection(nextEfforts);
+    const config: ClaudeProfileInstanceConfig = { ...props.config };
+    const presetModelIds = new Set(preset.models.map((model) => model.id));
+    const currentModelIds =
+      profileStatus?.capabilities.models.map((model) => model.id) ?? CLAUDE_PROFILE_BASE_MODEL_IDS;
+    if (models) config.models = models;
+    else delete config.models;
+    if (efforts) config.efforts = efforts;
+    else delete config.efforts;
+
+    setEnvRows((rows) => applyPresetEnvRows(preset.envRows, rows, nextRowId));
+    setSelectedEfforts(nextEfforts);
+    setModelRows(nextModelRows);
+    setAgentInstance({ ...props.instance, config });
+    setHiddenModels(
+      profileKind,
+      currentModelIds.filter((id) => id !== "auto" && !presetModelIds.has(id)),
+    );
+    refreshClaudeProfile(profileKind);
+  };
 
   const updateModelRow = (rowId: string, patch: Partial<ModelRow>) =>
     setModelRows((rows) => rows.map((row) => (row.rowId === rowId ? { ...row, ...patch } : row)));
@@ -220,7 +315,7 @@ function ClaudeProfileEditor(props: {
         <div className="min-w-0">
           <p className="text-sm font-medium text-foreground">External provider</p>
           <p className="text-xs text-muted">
-            Point this profile at a non-Anthropic provider (GLM, …) with custom env vars, model
+            Point this profile at a non-Anthropic provider (z.ai, …) with custom env vars, model
             names, and effort levels.
           </p>
         </div>
@@ -263,15 +358,7 @@ function ClaudeProfileEditor(props: {
         <div className="flex items-center justify-between gap-2">
           <p className="text-xs font-medium text-foreground">Environment variables</p>
           <div className="flex items-center gap-1">
-            <Button
-              size="sm"
-              variant="ghost"
-              className="h-6 min-h-6 gap-1 px-1.5 text-[11px]"
-              onPress={applyGlmPreset}
-            >
-              <Wand2 className="size-3" />
-              GLM preset
-            </Button>
+            <PresetMenu onApply={applyPreset} />
             <Button
               size="sm"
               variant="ghost"
@@ -383,7 +470,7 @@ function ClaudeProfileEditor(props: {
             <Input
               aria-label="Model id"
               className="min-w-0 flex-1 font-mono text-xs"
-              placeholder="glm-5.2"
+              placeholder="glm-5.2[1m]"
               value={row.id}
               onChange={(event) => updateModelRow(row.rowId, { id: event.target.value })}
             />
@@ -484,6 +571,7 @@ export function ClaudeProfileSettings(props: {
   const agentInstances = useSharedSettings((s) => s.agentInstances ?? {});
   const setAgentInstance = useSharedSettings((s) => s.setAgentInstance);
   const removeAgentInstance = useSharedSettings((s) => s.removeAgentInstance);
+  const removeAgentStatus = useAgentStatusesStore((s) => s.removeAgentStatus);
   const [isAdding, setIsAdding] = useState(false);
   const [newName, setNewName] = useState("");
   const [newConfigDir, setNewConfigDir] = useState("");
@@ -541,7 +629,7 @@ export function ClaudeProfileSettings(props: {
           <p className="text-sm font-medium text-foreground">Profiles</p>
           <p className="text-xs text-muted">
             Separate Claude Code accounts by config directory, or point a profile at an external
-            provider (GLM, …). Open a profile to configure its env vars, models, and effort.
+            provider (z.ai, …). Open a profile to configure its env vars, models, and effort.
           </p>
         </div>
         <Button
@@ -567,7 +655,9 @@ export function ClaudeProfileSettings(props: {
             config={config}
             onOpen={() => props.onOpenProfile?.(claudeProfileKind(instance.id))}
             onRemove={(id) => {
+              const kind = claudeProfileKind(id);
               removeAgentInstance(id);
+              removeAgentStatus(kind);
               refreshClaudeProfile();
               toast.success("Claude profile removed.");
             }}

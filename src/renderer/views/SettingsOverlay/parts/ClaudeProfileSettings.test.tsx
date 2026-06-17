@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { AgentInstanceConfig } from "@/shared/contracts";
+import type { AgentInstanceConfig, AgentStatus } from "@/shared/contracts";
 
 const toastMock = vi.hoisted(() => ({
   danger: vi.fn<(message: string) => void>(),
@@ -81,11 +81,22 @@ const settingsState = {
   agentInstances: {} as Record<string, AgentInstanceConfig>,
   setAgentInstance: vi.fn<(instance: AgentInstanceConfig) => void>(),
   removeAgentInstance: vi.fn<(id: string) => void>(),
+  setHiddenModels: vi.fn<(kind: string, hidden: string[]) => void>(),
+};
+const statusState = {
+  agentStatuses: [] as AgentStatus[],
+  wslAgentStatuses: [] as AgentStatus[],
+  removeAgentStatus: vi.fn<(kind: string) => void>(),
 };
 
 vi.mock("@/renderer/state/sharedSettingsStore", () => ({
   useSharedSettings: (selector: (state: typeof settingsState) => unknown) =>
     selector(settingsState),
+}));
+
+vi.mock("@/renderer/state/agentStatusesStore", () => ({
+  useAgentStatusesStore: (selector: (state: typeof statusState) => unknown) =>
+    selector(statusState),
 }));
 
 import { ClaudeProfileProviderSettings, ClaudeProfileSettings } from "./ClaudeProfileSettings";
@@ -100,11 +111,46 @@ function claudeProfile(overrides: Partial<AgentInstanceConfig> = {}): AgentInsta
   };
 }
 
+function agentStatus(overrides: Partial<AgentStatus> = {}): AgentStatus {
+  return {
+    kind: "claude:glm",
+    label: "Claude GLM",
+    installed: true,
+    authState: "authenticated",
+    capabilities: {
+      models: [
+        { id: "claude-opus-4-8", label: "Opus 4.8" },
+        { id: "claude-opus-4-7", label: "Opus 4.7" },
+        { id: "claude-opus-4-6", label: "Opus 4.6" },
+        { id: "sonnet", label: "Sonnet" },
+        { id: "haiku", label: "Haiku" },
+        { id: "glm-5.2[1m]", label: "GLM 5.2" },
+      ],
+      efforts: [],
+      modelEfforts: {},
+      modes: [],
+      approvalPolicies: [],
+      sandboxModes: [],
+      settingDefs: [],
+      supportsResume: true,
+      supportsDirectInput: true,
+      liveInputMode: "terminal",
+      presentationMode: "terminal",
+      presentationModes: ["terminal"],
+    },
+    ...overrides,
+  };
+}
+
 describe("ClaudeProfileSettings", () => {
   beforeEach(() => {
     settingsState.agentInstances = {};
     settingsState.setAgentInstance.mockReset();
     settingsState.removeAgentInstance.mockReset();
+    settingsState.setHiddenModels.mockReset();
+    statusState.agentStatuses = [agentStatus()];
+    statusState.wslAgentStatuses = [];
+    statusState.removeAgentStatus.mockReset();
     refreshAgentStatusesMock.mockReset().mockResolvedValue();
     setClaudeProfileEnvironmentMock.mockReset().mockImplementation(async () => claudeProfile());
     toastMock.success.mockReset();
@@ -202,6 +248,16 @@ describe("ClaudeProfileSettings", () => {
 
     expect(onOpenProfile).toHaveBeenCalledWith("claude:work");
   });
+
+  it("removes a profile from settings and agent statuses", () => {
+    settingsState.agentInstances = { glm: claudeProfile() };
+    render(<ClaudeProfileSettings />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Remove Claude profile" }));
+
+    expect(settingsState.removeAgentInstance).toHaveBeenCalledWith("glm");
+    expect(statusState.removeAgentStatus).toHaveBeenCalledWith("claude:glm");
+  });
 });
 
 describe("ClaudeProfileProviderSettings", () => {
@@ -239,13 +295,71 @@ describe("ClaudeProfileProviderSettings", () => {
     await waitFor(() => expect(settingsState.setAgentInstance).toHaveBeenCalled());
   });
 
-  it("fills the editor from the GLM preset", () => {
+  it("fills the editor from the z.ai preset", () => {
     render(<ClaudeProfileProviderSettings instanceId="glm" />);
 
-    fireEvent.click(screen.getByRole("button", { name: /glm preset/i }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "z.ai" }));
 
     expect(screen.getByDisplayValue("https://api.z.ai/api/anthropic")).toBeInTheDocument();
     expect(screen.getByDisplayValue("ANTHROPIC_AUTH_TOKEN")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("CLAUDE_CODE_AUTO_COMPACT_WINDOW")).toBeInTheDocument();
+    // The preset's GLM 5.2 picker model id keeps its [1m] suffix verbatim.
+    expect(screen.getByLabelText("Model id")).toHaveValue("glm-5.2[1m]");
+    expect(settingsState.setHiddenModels).toHaveBeenCalledWith("claude:glm", [
+      "claude-opus-4-8",
+      "claude-opus-4-7",
+      "claude-opus-4-6",
+      "sonnet",
+      "haiku",
+    ]);
+  });
+
+  it("fills the editor from the DeepSeek preset with two models", async () => {
+    render(<ClaudeProfileProviderSettings instanceId="glm" />);
+
+    fireEvent.click(screen.getByRole("menuitem", { name: "DeepSeek" }));
+
+    expect(screen.getByDisplayValue("https://api.deepseek.com/anthropic")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("ANTHROPIC_MODEL")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("CLAUDE_CODE_SUBAGENT_MODEL")).toBeInTheDocument();
+    expect(
+      screen.getAllByLabelText("Model id").map((input) => input.getAttribute("value")),
+    ).toEqual(["deepseek-v4-pro[1m]", "deepseek-v4-flash"]);
+    expect(settingsState.setAgentInstance).toHaveBeenCalledWith({
+      id: "glm",
+      driver: "claude",
+      displayName: "GLM",
+      config: {
+        configDir: "~/.lightcode/claude-profiles/glm",
+        models: [
+          { id: "deepseek-v4-pro[1m]", label: "DeepSeek V4 Pro" },
+          { id: "deepseek-v4-flash", label: "DeepSeek V4 Flash" },
+        ],
+        efforts: ["max"],
+      },
+    });
+    expect(settingsState.setHiddenModels).toHaveBeenCalledWith("claude:glm", [
+      "claude-opus-4-8",
+      "claude-opus-4-7",
+      "claude-opus-4-6",
+      "sonnet",
+      "haiku",
+      "glm-5.2[1m]",
+    ]);
+    await waitFor(() => expect(refreshAgentStatusesMock).toHaveBeenCalled());
+  });
+
+  it("fills the editor from the MiniMax preset", () => {
+    render(<ClaudeProfileProviderSettings instanceId="glm" />);
+
+    fireEvent.click(screen.getByRole("menuitem", { name: "MiniMax" }));
+
+    expect(screen.getByDisplayValue("https://api.minimax.io/anthropic")).toBeInTheDocument();
+    expect(
+      screen.getByDisplayValue("CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC"),
+    ).toBeInTheDocument();
+    expect(screen.getByDisplayValue("CLAUDE_CODE_AUTO_COMPACT_WINDOW")).toBeInTheDocument();
+    expect(screen.getByLabelText("Model id")).toHaveValue("MiniMax-M3");
   });
 
   it("masks an already-sealed secret value", () => {

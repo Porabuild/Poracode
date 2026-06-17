@@ -10,17 +10,90 @@ export const SAVED_SECRET_MASK = "••••••••";
 
 const SENSITIVE_KEY_RE = /(token|secret|password|api[_-]?key|auth)/iu;
 
-export const GLM_PRESET_ROWS: ReadonlyArray<{
-  key: string;
-  value: string;
-  sensitive: boolean;
-}> = [
+/** A preset env row: the literal value for plain keys; "" for secrets (entered later). */
+export type PresetEnvRow = { key: string; value: string; sensitive: boolean };
+
+/**
+ * Canonical z.ai (GLM) environment, per https://docs.z.ai/devpack/tool/claude.
+ * `glm-5.2[1m]` is z.ai's real model name for the 1M-context GLM 5.2 — the `[1m]`
+ * is part of the id, not Lightcode's context selector, so it is sent verbatim.
+ * `CLAUDE_CODE_AUTO_COMPACT_WINDOW` is required for the 1M context to be usable.
+ */
+export const ZAI_PRESET_ROWS: ReadonlyArray<PresetEnvRow> = [
   { key: "ANTHROPIC_BASE_URL", value: "https://api.z.ai/api/anthropic", sensitive: false },
   { key: "ANTHROPIC_AUTH_TOKEN", value: "", sensitive: true },
-  { key: "ANTHROPIC_DEFAULT_OPUS_MODEL", value: "glm-5.2", sensitive: false },
-  { key: "ANTHROPIC_DEFAULT_SONNET_MODEL", value: "glm-5.2", sensitive: false },
+  { key: "ANTHROPIC_DEFAULT_OPUS_MODEL", value: "glm-5.2[1m]", sensitive: false },
+  { key: "ANTHROPIC_DEFAULT_SONNET_MODEL", value: "glm-5.2[1m]", sensitive: false },
   { key: "ANTHROPIC_DEFAULT_HAIKU_MODEL", value: "glm-4.5-air", sensitive: false },
   { key: "API_TIMEOUT_MS", value: "3000000", sensitive: false },
+  { key: "CLAUDE_CODE_AUTO_COMPACT_WINDOW", value: "1000000", sensitive: false },
+];
+
+export const DEEPSEEK_PRESET_ROWS: ReadonlyArray<PresetEnvRow> = [
+  { key: "ANTHROPIC_BASE_URL", value: "https://api.deepseek.com/anthropic", sensitive: false },
+  { key: "ANTHROPIC_AUTH_TOKEN", value: "", sensitive: true },
+  { key: "ANTHROPIC_MODEL", value: "deepseek-v4-pro[1m]", sensitive: false },
+  { key: "ANTHROPIC_DEFAULT_OPUS_MODEL", value: "deepseek-v4-pro[1m]", sensitive: false },
+  { key: "ANTHROPIC_DEFAULT_SONNET_MODEL", value: "deepseek-v4-pro[1m]", sensitive: false },
+  { key: "ANTHROPIC_DEFAULT_HAIKU_MODEL", value: "deepseek-v4-flash", sensitive: false },
+  { key: "CLAUDE_CODE_SUBAGENT_MODEL", value: "deepseek-v4-flash", sensitive: false },
+  { key: "CLAUDE_CODE_EFFORT_LEVEL", value: "max", sensitive: false },
+];
+
+export const MINIMAX_PRESET_ROWS: ReadonlyArray<PresetEnvRow> = [
+  { key: "ANTHROPIC_BASE_URL", value: "https://api.minimax.io/anthropic", sensitive: false },
+  { key: "ANTHROPIC_AUTH_TOKEN", value: "", sensitive: true },
+  { key: "API_TIMEOUT_MS", value: "3000000", sensitive: false },
+  { key: "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC", value: "1", sensitive: false },
+  { key: "ANTHROPIC_MODEL", value: "MiniMax-M3", sensitive: false },
+  { key: "ANTHROPIC_DEFAULT_SONNET_MODEL", value: "MiniMax-M3", sensitive: false },
+  { key: "ANTHROPIC_DEFAULT_OPUS_MODEL", value: "MiniMax-M3", sensitive: false },
+  { key: "ANTHROPIC_DEFAULT_HAIKU_MODEL", value: "MiniMax-M3", sensitive: false },
+  { key: "CLAUDE_CODE_AUTO_COMPACT_WINDOW", value: "512000", sensitive: false },
+];
+
+/**
+ * An external-provider preset offered by the profile editor's preset selector.
+ * Add more entries to `PROFILE_PRESETS` to offer additional providers — the UI
+ * renders one menu item per preset. A preset only seeds env vars, picker models,
+ * and the effort allow-list; it never changes model visibility.
+ */
+export interface ProfilePreset {
+  id: string;
+  label: string;
+  envRows: ReadonlyArray<PresetEnvRow>;
+  /** Custom picker models the preset adds. */
+  models: readonly { id: string; label: string }[];
+  /** Effort tiers the preset keeps (providers often collapse the lower tiers). */
+  efforts: readonly string[];
+}
+
+export const PROFILE_PRESETS: readonly ProfilePreset[] = [
+  {
+    id: "zai",
+    label: "z.ai",
+    envRows: ZAI_PRESET_ROWS,
+    // glm-5.2[1m] is z.ai's 1M-context GLM 5.2 (the `[1m]` is part of the id).
+    models: [{ id: "glm-5.2[1m]", label: "GLM 5.2" }],
+    efforts: ["high", "max", "ultracode"],
+  },
+  {
+    id: "deepseek",
+    label: "DeepSeek",
+    envRows: DEEPSEEK_PRESET_ROWS,
+    models: [
+      { id: "deepseek-v4-pro[1m]", label: "DeepSeek V4 Pro" },
+      { id: "deepseek-v4-flash", label: "DeepSeek V4 Flash" },
+    ],
+    efforts: ["max"],
+  },
+  {
+    id: "minimax",
+    label: "MiniMax",
+    envRows: MINIMAX_PRESET_ROWS,
+    models: [{ id: "MiniMax-M3", label: "MiniMax M3" }],
+    efforts: CLAUDE_EFFORT_TIERS,
+  },
 ];
 
 export interface EnvRow {
@@ -117,16 +190,40 @@ export function environmentFromRows(rows: readonly EnvRow[]): Record<string, Age
   return environment;
 }
 
-export function appendGlmPresetRows(rows: readonly EnvRow[], nextRowId: () => string): EnvRow[] {
-  const present = new Set(rows.map((row) => row.key.trim()));
-  const additions = GLM_PRESET_ROWS.filter((preset) => !present.has(preset.key)).map((preset) => ({
-    rowId: nextRowId(),
-    key: preset.key,
-    value: preset.value,
-    sensitive: preset.sensitive,
-    replacing: false,
-  }));
-  return [...rows, ...additions];
+/**
+ * Apply a preset to the env rows: upsert every preset key to its canonical value
+ * while preserving an already-entered secret (the auth token is never clobbered)
+ * and keeping any extra custom rows the user added.
+ */
+export function applyPresetEnvRows(
+  presetRows: ReadonlyArray<PresetEnvRow>,
+  rows: readonly EnvRow[],
+  nextRowId: () => string,
+): EnvRow[] {
+  const presetKeys = new Set(presetRows.map((preset) => preset.key));
+  const byKey = new Map(rows.map((row) => [row.key.trim(), row] as const));
+  const result: EnvRow[] = presetRows.map((preset) => {
+    const existing = byKey.get(preset.key);
+    // Keep a secret the user already supplied (plaintext or sealed) rather than
+    // wiping it with the preset's empty placeholder.
+    if (existing && preset.sensitive && (existing.value.length > 0 || existing.sealed)) {
+      return { ...existing, sensitive: true };
+    }
+    if (existing) {
+      return { ...existing, value: preset.value, sensitive: preset.sensitive, replacing: false };
+    }
+    return {
+      rowId: nextRowId(),
+      key: preset.key,
+      value: preset.value,
+      sensitive: preset.sensitive,
+      replacing: false,
+    };
+  });
+  for (const row of rows) {
+    if (!presetKeys.has(row.key.trim())) result.push(row);
+  }
+  return result;
 }
 
 export function modelsFromConfig(
