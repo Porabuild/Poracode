@@ -33,7 +33,7 @@ export function getCommitGenCandidates(
   return getUtilityTaskCandidates(agentStatuses, provider, getCommitGenDefaults);
 }
 
-export async function generateCommitMessageWithFallback(input: {
+interface GenerateCommitMessageWithFallbackInput {
   projectLocation: ProjectLocation;
   agentStatuses: readonly AgentStatus[];
   provider: string;
@@ -42,7 +42,17 @@ export async function generateCommitMessageWithFallback(input: {
   /** English name of the language to write the commit message in. Omitted = English. */
   language?: string;
   invoke: (payload: GenerateCommitMessagePayload) => Promise<GenerateCommitMessageResult>;
-}): Promise<string> {
+}
+
+export interface GeneratedCommitMessageWithProvider {
+  message: string;
+  provider: string;
+  model: string;
+}
+
+export async function generateCommitMessageWithFallbackDetails(
+  input: GenerateCommitMessageWithFallbackInput,
+): Promise<GeneratedCommitMessageWithProvider> {
   const candidates = getCommitGenCandidates(input.agentStatuses, input.provider);
   if (candidates.length === 0) {
     throw new Error("No agent available to generate commit message");
@@ -61,7 +71,11 @@ export async function generateCommitMessageWithFallback(input: {
         ...(resolvedCommitGen.effort ? { effort: resolvedCommitGen.effort } : {}),
         ...(input.language ? { language: input.language } : {}),
       });
-      return result.message;
+      return {
+        message: result.message,
+        provider: candidate.kind,
+        model: resolvedCommitGen.model || "default",
+      };
     } catch (error) {
       const message = toErrorMessage(error);
       if (input.provider !== "auto") {
@@ -72,4 +86,10 @@ export async function generateCommitMessageWithFallback(input: {
   }
 
   throw new Error(`Auto commit generation failed. ${failures.join(" | ")}`);
+}
+
+export async function generateCommitMessageWithFallback(
+  input: GenerateCommitMessageWithFallbackInput,
+): Promise<string> {
+  return (await generateCommitMessageWithFallbackDetails(input)).message;
 }

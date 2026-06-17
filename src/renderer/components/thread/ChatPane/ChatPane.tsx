@@ -16,6 +16,7 @@ import { isThreadTurnActive, type Thread } from "@/shared/contracts";
 import { isHomeProjectId } from "@/shared/homeScope";
 import { chatMessageSurfaceClass } from "./parts/items/chatMessageSurface";
 import { readBridge } from "@/renderer/bridge";
+import { useShimmerRef } from "@/renderer/thinkingAnimator";
 import { useScrollFade } from "@/renderer/hooks/useScrollFade";
 import { useAppStore } from "@/renderer/state/appStore";
 import { hydrateThreadRuntimeItems } from "@/renderer/state/chatRuntimePersister";
@@ -746,11 +747,9 @@ function WorkingFor({ turn, isPaused }: { turn: TurnTiming; isPaused: boolean })
     return () => clearInterval(id);
   }, [turn.startedAt, turn.endedAt, isPaused, t]);
 
-  const className = isPaused
-    ? "text-muted"
-    : turn.endedAt === null
-      ? "lightcode-thinking-text"
-      : "text-muted";
+  const isThinking = !isPaused && turn.endedAt === null;
+  useShimmerRef(textRef, isThinking);
+  const className = isThinking ? "lightcode-thinking-text" : "text-muted";
   return <span ref={textRef} className={className} aria-live="polite" />;
 }
 

@@ -162,19 +162,58 @@ export const XTermSurface = forwardRef<
     let lastFitHeight = -1;
     let resizeFrame = 0;
     let ptyResizeTimer = 0;
-    let lastPtyResizeAt = 0;
     let scrollbackHydrationToken = 0;
     let hydratingScrollback = false;
     let bufferedOutputDuringHydration = "";
-    // Fit the canvas immediately; throttle (leading + trailing) the PTY resize
-    // RPC so the agent sees cols updates ~40×/s during a drag — not only after
-    // the user releases — while still coalescing rapid mount-time transitions.
-    const PTY_RESIZE_THROTTLE_MS = 25;
+    let reopenRepaintDone = false;
+    // Fit the canvas every frame for live visual feedback, but DEBOUNCE the PTY
+    // resize RPC, mirroring VS Code's TerminalResizeDebouncer. A full-height
+    // repaint-in-place TUI (Claude no-flicker, codex) re-emits its whole frame
+    // on every SIGWINCH, and a continuous drag firing ~40 resizes/sec piled
+    // those repaints up as duplicate frames in scrollback ("artifacts on top" +
+    // a growing scrollbar). While the normal buffer is still small there is
+    // nothing to orphan, so resize immediately (snappy, and cheap for alt-screen
+    // apps whose normal buffer stays small); past the threshold, debounce so a
+    // drag coalesces to one resize/repaint. Constants from microsoft/vscode
+    // terminalResizeDebouncer.ts (DebounceResizeXDelay, StartDebouncingThreshold).
+    const PTY_RESIZE_DEBOUNCE_MS = 100;
+    const RESIZE_DEBOUNCE_BUFFER_THRESHOLD = 200;
+
+    // Force the live agent to repaint a clean full frame. On reopen the PTY kept
+    // running at the same winsize, so a fresh same-size fit issues a no-op
+    // TIOCSWINSZ that the kernel never turns into SIGWINCH — a no-alt-screen
+    // repaint-in-place agent (Claude Code's no-flicker TUI, Command Code) thus
+    // never redraws and its bottom input row can be missing until the user
+    // manually resizes the window. Send one deliberate winsize delta so the
+    // kernel delivers SIGWINCH and the agent emits a fresh frame over the
+    // (possibly stale / byte-sliced) replayed scrollback. One-shot per mount.
+    const forceAgentRepaint = () => {
+      if (!isActive || reopenRepaintDone) return;
+      const cols = terminal.cols;
+      const rows = terminal.rows;
+      if (cols < 20 || rows < 5) return;
+      reopenRepaintDone = true;
+      // Pin our throttle bookkeeping to the REAL size so the next doFit doesn't
+      // also fire a (now-redundant) resize for the same dimensions.
+      lastCols = cols;
+      lastRows = rows;
+      const intermediateRows = rows > 5 ? rows - 1 : rows + 1;
+      void readBridge()
+        .resizeTerminal({ threadId: terminalId, cols, rows: intermediateRows })
+        .catch(() => {});
+      requestAnimationFrame(() => {
+        if (!isActive) return;
+        void readBridge()
+          .resizeTerminal({ threadId: terminalId, cols, rows })
+          .catch(() => {});
+      });
+    };
 
     const hydrateScrollback = () => {
       const token = ++scrollbackHydrationToken;
       hydratingScrollback = true;
       bufferedOutputDuringHydration = "";
+      let restoredScrollback = false;
       void readBridge()
         .readTerminalScrollback({ threadId: terminalId })
         .then((scrollback) => {
@@ -185,6 +224,7 @@ export const XTermSurface = forwardRef<
             terminal.reset();
             terminal.write(scrollback);
             bufferedOutputDuringHydration = "";
+            restoredScrollback = true;
           }
         })
         .catch(() => undefined)
@@ -196,6 +236,11 @@ export const XTermSurface = forwardRef<
           if (bufferedOutputDuringHydration.length > 0) {
             terminal.write(bufferedOutputDuringHydration);
             bufferedOutputDuringHydration = "";
+          }
+          // Reopen of an existing session: nudge the live agent into a fresh
+          // repaint over the replayed (and possibly stale) frame.
+          if (restoredScrollback) {
+            forceAgentRepaint();
           }
         });
     };
@@ -294,18 +339,36 @@ export const XTermSurface = forwardRef<
         terminal.options.fontSize = desiredFontSize;
       }
 
+      // A no-alt-screen full-height TUI (Claude no-flicker, Command Code)
+      // repaints in the main buffer, so a row change during a refit can leave
+      // the viewport parked on stale scrollback instead of the live frame —
+      // reading as "the window resized but the terminal scrolled instead of
+      // repainting". Re-pin to the bottom after fitting, but only when the user
+      // hadn't deliberately scrolled up (so we never steal an intentional
+      // scroll-back). In an alternate-screen buffer baseY is 0, so this is a
+      // no-op there.
+      const wasPinnedToBottom = terminal.buffer.active.viewportY >= terminal.buffer.active.baseY;
+
       fit.fit();
 
-      const now = performance.now();
-      const elapsed = now - lastPtyResizeAt;
-      if (elapsed >= PTY_RESIZE_THROTTLE_MS) {
-        lastPtyResizeAt = now;
+      if (wasPinnedToBottom) {
+        terminal.scrollToBottom();
+      }
+
+      // Resize immediately while the normal buffer is small (nothing to orphan
+      // yet); once it holds real content, debounce so a continuous drag settles
+      // to one resize/repaint instead of a per-frame storm. Restart the timer on
+      // every fit so only the final size reaches the agent.
+      if (ptyResizeTimer !== 0) {
+        clearTimeout(ptyResizeTimer);
+        ptyResizeTimer = 0;
+      }
+      if (terminal.buffer.normal.length < RESIZE_DEBOUNCE_BUFFER_THRESHOLD) {
         flushPtyResize();
-      } else if (ptyResizeTimer === 0) {
+      } else {
         ptyResizeTimer = window.setTimeout(() => {
-          lastPtyResizeAt = performance.now();
           flushPtyResize();
-        }, PTY_RESIZE_THROTTLE_MS - elapsed) as unknown as number;
+        }, PTY_RESIZE_DEBOUNCE_MS) as unknown as number;
       }
     };
 
@@ -516,9 +579,15 @@ export const XTermSurface = forwardRef<
       }
     });
 
+    // Fit synchronously before hydrating: reading clientWidth forces layout, so
+    // in a real browser the terminal is already at the viewport width when the
+    // (async) scrollback replay writes — otherwise the raw transcript is written
+    // at xterm's 80-col default and then reflowed, garbling a restored
+    // full-height TUI frame. No-op when the pane has no layout yet (e.g. tests).
+    doFit();
     hydrateScrollback();
 
-    // Double-rAF to ensure layout has settled before fitting
+    // Double-rAF backstop in case layout hadn't settled at mount.
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
         if (isActive) {

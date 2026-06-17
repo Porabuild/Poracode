@@ -51,6 +51,7 @@ interface AgentStatusesStore {
    * everything else lands in `agentStatuses`.
    */
   mergeAgentStatus: (status: AgentStatus) => void;
+  removeAgentStatus: (kind: string) => void;
 }
 
 function capabilitiesEqual(
@@ -213,6 +214,20 @@ export const useAgentStatusesStore = create<AgentStatusesStore>()(
               ? [...prev.agentStatuses, status]
               : prev.agentStatuses.map((entry, i) => (i === idx ? status : entry));
           return { agentStatuses: next, windowsLoaded: true };
+        }),
+      removeAgentStatus: (kind) =>
+        set((prev) => {
+          const agentStatuses = prev.agentStatuses.filter((status) => status.kind !== kind);
+          const wslAgentStatuses = prev.wslAgentStatuses.filter((status) => status.kind !== kind);
+          const discoveredAgents = prev.discoveredAgents.filter((status) => status.kind !== kind);
+          if (
+            agentStatuses.length === prev.agentStatuses.length &&
+            wslAgentStatuses.length === prev.wslAgentStatuses.length &&
+            discoveredAgents.length === prev.discoveredAgents.length
+          ) {
+            return prev;
+          }
+          return { agentStatuses, wslAgentStatuses, discoveredAgents };
         }),
     }),
     {

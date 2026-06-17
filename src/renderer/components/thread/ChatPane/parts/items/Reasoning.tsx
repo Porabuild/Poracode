@@ -13,6 +13,7 @@ import { Brain, ChevronDown } from "lucide-react";
 import type { RuntimeChatItem } from "@/renderer/state/slices/runtimeEventSlice";
 import { useChatPaneActions } from "../../chatPaneActionsContext";
 import { isElementAtBottom } from "../../chatScrollGeometry";
+import { useBrainThinking, useShimmer } from "@/renderer/thinkingAnimator";
 import { chatMessageSurfaceClass } from "./chatMessageSurface";
 import { ItemMarkdown } from "./ItemMarkdown";
 
@@ -88,6 +89,9 @@ export const Reasoning = memo(function Reasoning({ item }: ReasoningProps) {
     return () => observer.disconnect();
   }, [shouldAutoScroll]);
 
+  const thinkingTextRef = useShimmer<HTMLSpanElement>(isStreaming);
+  const brainRef = useBrainThinking(isStreaming);
+
   if (!isStreaming) {
     // Compact toggle — visually distinct from tool-call accordions: no border
     // tile, dotted left rule when expanded, italic body. Equal vertical
@@ -124,8 +128,16 @@ export const Reasoning = memo(function Reasoning({ item }: ReasoningProps) {
     <Surface variant="transparent" className={chatMessageSurfaceClass}>
       <div className="flex min-w-0 flex-col gap-1.5 text-[length:var(--lc-chat-font-size-meta)] text-foreground-muted">
         <div className="inline-flex items-center gap-1.5">
-          <Brain className="lightcode-brain-thinking size-3 shrink-0" aria-label={t`Thinking`} />
-          <span className="lightcode-thinking-text" data-lightcode-shimmer-text={t`Thinking`}>
+          <Brain
+            ref={brainRef}
+            className="lightcode-brain-thinking size-3 shrink-0"
+            aria-label={t`Thinking`}
+          />
+          <span
+            ref={thinkingTextRef}
+            className="lightcode-thinking-text"
+            data-lightcode-shimmer-text={t`Thinking`}
+          >
             <Trans>Thinking</Trans>
           </span>
         </div>

@@ -41,7 +41,7 @@ export function BrowserTabStrip() {
   }
 
   return (
-    <div className="flex items-center gap-1 overflow-x-auto border-b border-border bg-[var(--surface)] px-1 py-1">
+    <div className="flex items-center gap-1 overflow-x-auto border-b border-border bg-[var(--content-background)] px-1 py-1">
       {tabs.map((tab) => {
         const active = tab.tabId === activeTabId;
         const attention = !active && tab.tabId === attentionTabId;

@@ -85,6 +85,11 @@ msgstr "{0} credentials removed."
 msgid "{0} credentials saved."
 msgstr "{0} credentials saved."
 
+#. placeholder {0}: devices.length
+#: src/renderer/views/ProfileOverlay/parts/ProfileHeader.tsx
+msgid "{0} devices"
+msgstr "{0} devices"
+
 #. placeholder {0}: props.agentLabel
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
 msgid "{0} hooks installed for {envName}."
@@ -125,10 +130,35 @@ msgstr "{0} logged out."
 msgid "{0} needs authentication."
 msgstr "{0} needs authentication."
 
+#. placeholder {0}: cell.count
+#: src/renderer/views/ProfileOverlay/parts/ActivityHeatmap.tsx
+msgid "{0} prompt - {when}"
+msgstr "{0} prompt - {when}"
+
+#. placeholder {0}: cell.count
+#: src/renderer/views/ProfileOverlay/parts/ActivityHeatmap.tsx
+msgid "{0} prompts - {when}"
+msgstr "{0} prompts - {when}"
+
+#. placeholder {0}: item.runCount.toLocaleString()
+#: src/renderer/views/ProfileOverlay/parts/PluginUsage.tsx
+msgid "{0} run"
+msgstr "{0} run"
+
+#. placeholder {0}: item.runCount.toLocaleString()
+#: src/renderer/views/ProfileOverlay/parts/PluginUsage.tsx
+msgid "{0} runs"
+msgstr "{0} runs"
+
 #. placeholder {0}: formatTokens(snapshot.tokens.total)
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
 msgid "{0} tokens"
 msgstr "{0} tokens"
+
+#. placeholder {0}: formatCompact(cell.count)
+#: src/renderer/views/ProfileOverlay/parts/ActivityHeatmap.tsx
+msgid "{0} tokens - {when}"
+msgstr "{0} tokens - {when}"
 
 #. placeholder {0}: agent.name
 #. placeholder {1}: agent.version
@@ -166,11 +196,27 @@ msgstr "{0} used"
 msgid "{0}% Full"
 msgstr "{0}% Full"
 
+#. placeholder {0}: Math.floor(days / 30)
+#: src/renderer/views/ProfileOverlay/parts/ProfileHeader.tsx
+msgid "{0}mo ago"
+msgstr "{0}mo ago"
+
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 msgid "{agentLabel}: {statusLabel}. Hover for status details."
 msgstr "{agentLabel}: {statusLabel}. Hover for status details."
 
+#: src/renderer/views/ProfileOverlay/parts/ShareCard.tsx
+#: src/renderer/views/ProfileOverlay/parts/StatStrip.tsx
+msgid "{days} day"
+msgstr "{days} day"
+
+#: src/renderer/views/ProfileOverlay/parts/ShareCard.tsx
+#: src/renderer/views/ProfileOverlay/parts/StatStrip.tsx
+msgid "{days} days"
+msgstr "{days} days"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/UsagePanel.tsx
+#: src/renderer/views/ProfileOverlay/parts/ProfileHeader.tsx
 msgid "{days}d ago"
 msgstr "{days}d ago"
 
@@ -336,6 +382,10 @@ msgstr "Account"
 msgid "Account options"
 msgstr "Account options"
 
+#: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
+msgid "Accounts"
+msgstr "Accounts"
+
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "ACP"
@@ -367,7 +417,20 @@ msgstr "Actions"
 msgid "Active"
 msgstr "Active"
 
+#: src/renderer/views/ProfileOverlay/parts/ActivitySection.tsx
+msgid "Activity"
+msgstr "Activity"
+
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "Activity insights"
+msgstr "Activity insights"
+
+#: src/renderer/views/ProfileOverlay/parts/ActivitySection.tsx
+msgid "Activity metric"
+msgstr "Activity metric"
+
 #: src/renderer/components/composer/ComposerAddMenu.tsx
+#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SearchExcludeBody.tsx
 msgid "Add"
 msgstr "Add"
@@ -403,6 +466,10 @@ msgstr "Add Claude profile"
 #: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
 msgid "Add credentials before this thread can run."
 msgstr "Add credentials before this thread can run."
+
+#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+msgid "Add model"
+msgstr "Add model"
 
 #: src/renderer/views/SettingsOverlay/parts/SearchExcludeBody.tsx
 msgid "Add pattern"
@@ -440,10 +507,6 @@ msgstr "Add to favorites"
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
 msgid "Agent"
 msgstr "Agent"
-
-#: src/renderer/components/providers/codex/index.tsx
-msgid "agent - Switch this chat to agent mode"
-msgstr "agent - Switch this chat to agent mode"
 
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Agent ({subagent}): {description}"
@@ -515,6 +578,22 @@ msgid "AI agent orchestrator — manage coding agents via Terminal and Native "
 msgstr "AI agent orchestrator — manage coding agents via Terminal and Native "
 "ACP."
 
+#: src/renderer/views/ProfileOverlay/parts/AiActions.tsx
+msgid "AI git actions"
+msgstr "AI git actions"
+
+#: src/renderer/views/ProfileOverlay/parts/AccountFilter.tsx
+msgid "All accounts"
+msgstr "All accounts"
+
+#: src/renderer/views/ProfileOverlay/parts/ProfileHeader.tsx
+msgid "All devices"
+msgstr "All devices"
+
+#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+msgid "All efforts"
+msgstr "All efforts"
+
 #: src/renderer/views/GitReviewOverlay/GitReviewOverlay.tsx
 #: src/renderer/views/PrReviewOverlay/PrReviewOverlay.tsx
 msgid "All files"
@@ -559,6 +638,10 @@ msgstr "Appearance"
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
 msgid "Appearance mode"
 msgstr "Appearance mode"
+
+#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+msgid "Apply provider preset"
+msgstr "Apply provider preset"
 
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
 msgid "Approval or reply required from you."
@@ -711,6 +794,14 @@ msgstr "available"
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Available ACP Agents"
 msgstr "Available ACP Agents"
+
+#: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
+msgid "Avatar color"
+msgstr "Avatar color"
+
+#: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
+msgid "Avatar color {color}"
+msgstr "Avatar color {color}"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Back"
@@ -872,6 +963,16 @@ msgstr "Building diff…"
 msgid "by <0>{author}</0>"
 msgstr "by <0>{author}</0>"
 
+#: src/renderer/views/ProfileOverlay/parts/ModelUsage.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
+msgid "by prompts"
+msgstr "by prompts"
+
+#: src/renderer/views/ProfileOverlay/parts/ModelUsage.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
+msgid "by tokens"
+msgstr "by tokens"
+
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "Bypass branch protection rules"
 msgstr "Bypass branch protection rules"
@@ -895,6 +996,7 @@ msgstr "Bypass branch protection rules (admin merge)"
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
 #: src/renderer/views/MainView/parts/PullFromSourceDialog.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/DeleteWorktreeDialog.tsx
+#: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
 #: src/renderer/views/PrReviewOverlay/parts/SubmitReviewPopover.tsx
 msgid "Cancel"
 msgstr "Cancel"
@@ -1013,7 +1115,7 @@ msgid "Choose whether links from Lightcode and browser popups stay in Lightcode 
 msgstr "Choose whether links from Lightcode and browser popups stay in "
 "Lightcode or open externally."
 
-#. placeholder {0}: next.displayName ?? next.id
+#. placeholder {0}: trimmedName || displayLabel
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Claude {0} profile saved."
 msgstr "Claude {0} profile saved."
@@ -1324,6 +1426,10 @@ msgstr "completed"
 msgid "Composer"
 msgstr "Composer"
 
+#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+msgid "Config directory"
+msgstr "Config directory"
+
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 msgid "Conflict Resolver"
 msgstr "Conflict Resolver"
@@ -1398,10 +1504,15 @@ msgstr "Control which files appear in the @file mention search. Per-project "
 msgid "Conversation"
 msgstr "Conversation"
 
+#: src/renderer/components/thread/ChatPane/parts/items/ImageView.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/UserMessage.tsx
 #: src/renderer/RendererCrashScreen.tsx
 msgid "Copied"
 msgstr "Copied"
+
+#: src/renderer/views/ProfileOverlay/parts/ShareDialog.tsx
+msgid "Copied to clipboard"
+msgstr "Copied to clipboard"
 
 #: src/renderer/components/terminal/XTermSurface.tsx
 msgid "Copy"
@@ -1432,6 +1543,11 @@ msgstr "Copy failed"
 #: src/renderer/views/ProjectSettingsOverlay/parts/ScriptsSection.tsx
 msgid "Copy ignored files"
 msgstr "Copy ignored files"
+
+#: src/renderer/components/thread/ChatPane/parts/items/ImageView.tsx
+#: src/renderer/views/ProfileOverlay/parts/ShareDialog.tsx
+msgid "Copy image"
+msgstr "Copy image"
 
 #: src/renderer/components/thread/ChatPane/parts/items/UserMessage.tsx
 msgid "Copy message"
@@ -1487,6 +1603,10 @@ msgstr "Couldn't create the project."
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "Couldn't list repositories."
 msgstr "Couldn't list repositories."
+
+#: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
+msgid "Couldn't load your profile stats."
+msgstr "Couldn't load your profile stats."
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CreatePrModal.tsx
 msgid "Create Draft PR"
@@ -1552,6 +1672,14 @@ msgstr "Credentials are configured."
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Credits"
 msgstr "Credits"
+
+#: src/renderer/views/ProfileOverlay/parts/ShareCard.tsx
+msgid "current streak"
+msgstr "current streak"
+
+#: src/renderer/views/ProfileOverlay/parts/StatStrip.tsx
+msgid "Current streak"
+msgstr "Current streak"
 
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
@@ -1709,6 +1837,10 @@ msgstr "Device used by the composer voice input button."
 msgid "Disable"
 msgstr "Disable"
 
+#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+msgid "Disable {tierLabel} effort"
+msgstr "Disable {tierLabel} effort"
+
 #: src/renderer/components/composer/AttachmentBar.tsx
 msgid "Disable Browser MCP"
 msgstr "Disable Browser MCP"
@@ -1720,6 +1852,12 @@ msgstr "Disable CLI hook plugin (L1)"
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
 msgid "Disable Project"
 msgstr "Disable Project"
+
+#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+msgid "Disable tiers an external provider collapses (e.g. keep only High and "
+"Max)."
+msgstr "Disable tiers an external provider collapses (e.g. keep only High and "
+"Max)."
 
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 msgid "Disabled"
@@ -1784,6 +1922,10 @@ msgstr "Done"
 msgid "Done · Waiting for your input"
 msgstr "Done · Waiting for your input"
 
+#: src/renderer/components/thread/ChatPane/parts/items/ImageView.tsx
+msgid "Download image"
+msgstr "Download image"
+
 #. placeholder {0}: name || t`the chosen folder`
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "Downloading into “{0}”. This can take a moment for large repositories."
@@ -1835,12 +1977,17 @@ msgid "e.g. Work"
 msgstr "e.g. Work"
 
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
+#: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "Edit"
 msgstr "Edit"
 
 #: src/renderer/components/thread/ChatPane/parts/items/FileChange.tsx
 msgid "Edit file"
 msgstr "Edit file"
+
+#: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
+msgid "Edit profile"
+msgstr "Edit profile"
 
 #: src/renderer/components/thread/ChatPane/parts/items/FileChange.tsx
 msgid "Edit:"
@@ -1859,13 +2006,13 @@ msgstr "Editor LSP"
 msgid "Editor tabs"
 msgstr "Editor tabs"
 
-#: src/renderer/components/providers/codex/index.tsx
-msgid "effort - Open the effort picker"
-msgstr "effort - Open the effort picker"
-
 #: src/renderer/components/common/EffortContextMenu/EffortContextMenu.tsx
 msgid "Effort and context"
 msgstr "Effort and context"
+
+#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+msgid "Effort levels"
+msgstr "Effort levels"
 
 #. About page label: Electron framework version
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
@@ -1875,6 +2022,10 @@ msgstr "Electron"
 #: src/renderer/components/composer/ComposerAddMenu.tsx
 msgid "Enable"
 msgstr "Enable"
+
+#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+msgid "Enable {tierLabel} effort"
+msgstr "Enable {tierLabel} effort"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 msgid "Enable language server support for type checking, completions, and "
@@ -1925,6 +2076,18 @@ msgstr "Enter plan mode"
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 msgid "Environment"
 msgstr "Environment"
+
+#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+msgid "Environment variable name"
+msgstr "Environment variable name"
+
+#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+msgid "Environment variable value"
+msgstr "Environment variable value"
+
+#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+msgid "Environment variables"
+msgstr "Environment variables"
 
 #: src/renderer/components/thread/ChatPane/parts/items/FileChange.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentToolCall.tsx
@@ -1982,6 +2145,14 @@ msgstr "Expand error"
 msgid "Expand todo dock"
 msgstr "Expand todo dock"
 
+#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+msgid "External"
+msgstr "External"
+
+#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+msgid "External provider"
+msgstr "External provider"
+
 #: src/renderer/components/thread/threadDraftViewHelpers.ts
 msgid "Extra High"
 msgstr "Extra High"
@@ -2005,6 +2176,10 @@ msgstr "Failed to close pull request: {detail}"
 msgid "Failed to create pull request: {detail}"
 msgstr "Failed to create pull request: {detail}"
 
+#: src/renderer/views/ProfileOverlay/useProfileData.ts
+msgid "Failed to load profile stats."
+msgstr "Failed to load profile stats."
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Failed to merge pull request: {detail}"
 msgstr "Failed to merge pull request: {detail}"
@@ -2013,9 +2188,9 @@ msgstr "Failed to merge pull request: {detail}"
 msgid "Fast"
 msgstr "Fast"
 
-#: src/renderer/components/providers/codex/index.tsx
-msgid "fast - Toggle Fast mode"
-msgstr "fast - Toggle Fast mode"
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "Fast mode"
+msgstr "Fast mode"
 
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 msgid "Fastest (Whisper tiny)"
@@ -2158,6 +2333,18 @@ msgstr "Forward"
 msgid "Found a signed-in {0} session."
 msgstr "Found a signed-in {0} session."
 
+#: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
+msgid "Frost the sidebar with the system blur material (vibrancy), echoing "
+"recent macOS. Falls back to a translucent tint where unsupported."
+msgstr "Frost the sidebar with the system blur material (vibrancy), echoing "
+"recent macOS. Falls back to a translucent tint where unsupported."
+
+#: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
+msgid "Frosting of the {appearance}-mode sidebar over the system blur. Higher "
+"holds the theme color; lower shows more of what's behind."
+msgstr "Frosting of the {appearance}-mode sidebar over the system blur. Higher "
+"holds the theme color; lower shows more of what's behind."
+
 #: src/renderer/components/providers/codex/index.tsx
 #: src/renderer/components/providers/composerControlBuilders.tsx
 msgid "Full access"
@@ -2240,13 +2427,17 @@ msgid "Gitignored files to copy from the main project into each new worktree. "
 msgstr "Gitignored files to copy from the main project into each new worktree. "
 "Gitignore-style patterns, one per line (e.g., <0>.env.*</0>)."
 
+#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+msgid "GLM 5.2 (optional label)"
+msgstr "GLM 5.2 (optional label)"
+
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 msgid "Goal"
 msgstr "Goal"
 
-#: src/renderer/components/providers/codex/index.tsx
-msgid "goal - Set or view an experimental goal"
-msgstr "goal - Set or view an experimental goal"
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "Goals set"
+msgstr "Goals set"
 
 #: src/renderer/views/MainView/parts/AppContent/AppContent.tsx
 msgid "Group"
@@ -2259,6 +2450,14 @@ msgstr "Group open threads"
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
 msgid "GUI chat font size"
 msgstr "GUI chat font size"
+
+#: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
+msgid "handle"
+msgstr "handle"
+
+#: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
+msgid "Handle"
+msgstr "Handle"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Hard Reload"
@@ -2337,6 +2536,7 @@ msgstr "ID: {0}"
 msgid "Idle"
 msgstr "Idle"
 
+#: src/renderer/components/thread/ChatPane/parts/items/ImageView.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Image"
 msgstr "Image"
@@ -2386,7 +2586,7 @@ msgstr "Install"
 msgid "Install {0} for {env}."
 msgstr "Install {0} for {env}."
 
-#. placeholder {0}: formatAgentList(props.agentStatuses.map((s) => s.label), i18n._.bind(i18n))
+#. placeholder {0}: formatAgentList(props.agentStatuses.map((s) => s.label))
 #: src/renderer/components/thread/ThreadDraftView.tsx
 msgid "Install {0} to create a thread."
 msgstr "Install {0} to create a thread."
@@ -2503,6 +2703,10 @@ msgstr "Launching…"
 msgid "Leave a comment"
 msgstr "Leave a comment"
 
+#: src/renderer/views/ProfileOverlay/parts/ActivityHeatmap.tsx
+msgid "Less"
+msgstr "Less"
+
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
 msgid "Lets agents call <0>eval</0> to run arbitrary JavaScript inside the "
 "embedded page. Off by default — turn on only when you trust the loaded "
@@ -2516,6 +2720,14 @@ msgstr "Lets agents call <0>eval</0> to run arbitrary JavaScript inside the "
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "License"
 msgstr "License"
+
+#: src/renderer/views/ProfileOverlay/parts/ShareCard.tsx
+msgid "lifetime tokens"
+msgstr "lifetime tokens"
+
+#: src/renderer/views/ProfileOverlay/parts/StatStrip.tsx
+msgid "Lifetime tokens"
+msgstr "Lifetime tokens"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Light"
@@ -2578,6 +2790,7 @@ msgid "local"
 msgstr "local"
 
 #: src/renderer/components/common/BranchSelector/parts/useBranchList.ts
+#: src/renderer/views/ProfileOverlay/parts/ProfileHeader.tsx
 msgid "Local"
 msgstr "Local"
 
@@ -2626,6 +2839,24 @@ msgstr "Logout"
 msgid "Logout {env}"
 msgstr "Logout {env}"
 
+#: src/renderer/views/ProfileOverlay/parts/ShareCard.tsx
+msgid "longest streak"
+msgstr "longest streak"
+
+#: src/renderer/views/ProfileOverlay/parts/StatStrip.tsx
+msgid "Longest streak"
+msgstr "Longest streak"
+
+#: src/renderer/views/ProfileOverlay/parts/StatStrip.tsx
+msgid "Longest task"
+msgstr "Longest task"
+
+#: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
+msgid "Make the sidebar translucent — the system blur material on Windows 11, a "
+"translucent tint elsewhere."
+msgstr "Make the sidebar translucent — the system blur material on Windows 11, "
+"a translucent tint elsewhere."
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/sortMode.ts
 msgid "Manual order"
 msgstr "Manual order"
@@ -2667,6 +2898,10 @@ msgstr "Maximize"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 msgid "Maximize browser"
 msgstr "Maximize browser"
+
+#: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
+msgid "MCP servers"
+msgstr "MCP servers"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/useWorktreeActions.ts
 msgid "Merge & Remove"
@@ -2731,6 +2966,10 @@ msgstr "Merged"
 msgid "Merging is blocked"
 msgstr "Merging is blocked"
 
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "Messages sent"
+msgstr "Messages sent"
+
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 msgid "Microphone"
 msgstr "Microphone"
@@ -2768,17 +3007,34 @@ msgstr "Minimize to panel"
 msgid "Mode"
 msgstr "Mode"
 
-#: src/renderer/components/providers/codex/index.tsx
-msgid "model - Open the model picker"
-msgstr "model - Open the model picker"
+#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+msgid "Model id"
+msgstr "Model id"
+
+#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+msgid "Model label"
+msgstr "Model label"
 
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 msgid "Model order"
 msgstr "Model order"
 
+#: src/renderer/views/ProfileOverlay/parts/ModelUsage.tsx
+msgid "Model usage"
+msgstr "Model usage"
+
 #: src/renderer/components/common/ProviderModelMenu/ProviderModelMenu.tsx
+#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Models"
 msgstr "Models"
+
+#: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
+msgid "Modes"
+msgstr "Modes"
+
+#: src/renderer/views/ProfileOverlay/parts/ActivityHeatmap.tsx
+msgid "More"
+msgstr "More"
 
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/ApprovalActions.tsx
 msgid "More approval options"
@@ -2804,6 +3060,22 @@ msgstr "More pull request options"
 msgid "More sync options"
 msgstr "More sync options"
 
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "Most active hour"
+msgstr "Most active hour"
+
+#: src/renderer/views/ProfileOverlay/parts/PluginUsage.tsx
+msgid "Most used plugins"
+msgstr "Most used plugins"
+
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "Most used provider"
+msgstr "Most used provider"
+
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "Most used reasoning"
+msgstr "Most used reasoning"
+
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #: src/renderer/views/MainView/parts/AppContent/parts/Thread/parts/ContinueInProviderDialog.tsx
@@ -2827,6 +3099,11 @@ msgstr "Moved your changes into a new worktree on \"{newBranch}\". "
 #: src/renderer/components/common/BranchSelector/parts/BranchFooterActions.tsx
 msgid "Moving changes…"
 msgstr "Moving changes…"
+
+#: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
+#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+msgid "Name"
+msgstr "Name"
 
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
 msgid "Name your project and choose where to create it."
@@ -2949,6 +3226,10 @@ msgstr "No active browser tab"
 msgid "No active session"
 msgstr "No active session"
 
+#: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
+msgid "No activity yet."
+msgstr "No activity yet."
+
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "No additional Claude profiles."
 msgstr "No additional Claude profiles."
@@ -2968,6 +3249,10 @@ msgstr "No agents installed yet"
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
 msgid "No agents installed."
 msgstr "No agents installed."
+
+#: src/renderer/views/ProfileOverlay/parts/AiActions.tsx
+msgid "No AI commits, PRs, or conflict resolutions tracked yet."
+msgstr "No AI commits, PRs, or conflict resolutions tracked yet."
 
 #: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
 msgid "No archived threads."
@@ -3018,6 +3303,10 @@ msgstr "No conversation yet. Be the first to comment."
 msgid "No data yet"
 msgstr "No data yet"
 
+#: src/renderer/views/ProfileOverlay/parts/BreakdownBars.tsx
+msgid "No data yet."
+msgstr "No data yet."
+
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "No description"
 msgstr "No description"
@@ -3061,6 +3350,10 @@ msgstr "No matching agents."
 #: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
 msgid "No matching threads"
 msgstr "No matching threads"
+
+#: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
+msgid "No MCP tools used yet."
+msgstr "No MCP tools used yet."
 
 #: src/renderer/components/thread/ChatPane/ChatPane.tsx
 msgid "No messages yet"
@@ -3112,6 +3405,10 @@ msgstr "No repositories found."
 msgid "No runtime items yet for this thread."
 msgstr "No runtime items yet for this thread."
 
+#: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
+msgid "No skills used yet."
+msgstr "No skills used yet."
+
 #: src/renderer/components/composer/VoiceInputButton.tsx
 msgid "No speech detected."
 msgstr "No speech detected."
@@ -3120,6 +3417,10 @@ msgstr "No speech detected."
 msgid "No staged changes"
 msgstr "No staged changes"
 
+#: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
+msgid "No subagents used yet."
+msgstr "No subagents used yet."
+
 #: src/renderer/components/thread/ThreadDraftView.tsx
 msgid "No supported agents detected"
 msgstr "No supported agents detected"
@@ -3127,6 +3428,10 @@ msgstr "No supported agents detected"
 #: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
 msgid "No threads"
 msgstr "No threads"
+
+#: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
+msgid "No threads yet."
+msgstr "No threads yet."
 
 #: src/renderer/components/providers/usageFormat.ts
 msgid "No windows reported"
@@ -3139,6 +3444,10 @@ msgstr "No worktree"
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewPanel.tsx
 msgid "No wrap"
 msgstr "No wrap"
+
+#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+msgid "None"
+msgstr "None"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitDiffContent/GitDiffContent.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
@@ -3175,6 +3484,10 @@ msgstr "Not supported"
 msgid "Notes"
 msgstr "Notes"
 
+#: src/renderer/views/ProfileOverlay/parts/PluginUsage.tsx
+msgid "Nothing tracked yet. It'll appear here as you use it."
+msgstr "Nothing tracked yet. It'll appear here as you use it."
+
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Notifications"
@@ -3209,6 +3522,10 @@ msgstr "Only when unfocused"
 #: src/renderer/views/PrReviewOverlay/parts/PrMetaRow.tsx
 msgid "Open"
 msgstr "Open"
+
+#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+msgid "Open {label}"
+msgstr "Open {label}"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/DevTerminalPanel.tsx
 msgid "Open a terminal"
@@ -3283,6 +3600,10 @@ msgstr "Open Git Review"
 msgid "Open git review as a right-side panel or a full page."
 msgstr "Open git review as a right-side panel or a full page."
 
+#: src/renderer/components/thread/ChatPane/parts/items/ImageView.tsx
+msgid "Open image preview"
+msgstr "Open image preview"
+
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ConflictFileCard.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ConflictGroup.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/FileRow.tsx
@@ -3310,6 +3631,10 @@ msgstr "Open PR #{0}"
 #: src/renderer/views/PrReviewOverlay/PrReviewOverlay.tsx
 msgid "Open PR on GitHub"
 msgstr "Open PR on GitHub"
+
+#: src/renderer/components/thread/ChatPane/parts/items/ImageView.tsx
+msgid "Open preview"
+msgstr "Open preview"
 
 #: src/renderer/commands/registry.ts
 msgid "Open Project Settings"
@@ -3376,6 +3701,12 @@ msgstr "Outcome"
 msgid "Over pace — runs out early"
 msgstr "Over pace — runs out early"
 
+#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+msgid "Override Claude defaults — e.g. ANTHROPIC_BASE_URL and "
+"ANTHROPIC_AUTH_TOKEN."
+msgstr "Override Claude defaults — e.g. ANTHROPIC_BASE_URL and "
+"ANTHROPIC_AUTH_TOKEN."
+
 #: src/renderer/views/ProjectSettingsOverlay/parts/SearchSection.tsx
 msgid "Overriding the global setting for this project."
 msgstr "Overriding the global setting for this project."
@@ -3413,6 +3744,14 @@ msgstr "Paste in input"
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 msgid "Paused"
 msgstr "Paused"
+
+#: src/renderer/views/ProfileOverlay/parts/ShareCard.tsx
+msgid "peak day"
+msgstr "peak day"
+
+#: src/renderer/views/ProfileOverlay/parts/StatStrip.tsx
+msgid "Peak day"
+msgstr "Peak day"
 
 #: src/renderer/components/thread/ChatPane/parts/items/PlanItem.tsx
 #: src/renderer/components/thread/ThreadTodoDock.tsx
@@ -3460,10 +3799,6 @@ msgstr "Pinned"
 msgid "Plan"
 msgstr "Plan"
 
-#: src/renderer/components/providers/codex/index.tsx
-msgid "plan - Switch this chat to plan mode"
-msgstr "plan - Switch this chat to plan mode"
-
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
 msgid "Play a sound when a notification is shown."
 msgstr "Play a sound when a notification is shown."
@@ -3471,6 +3806,12 @@ msgstr "Play a sound when a notification is shown."
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
 msgid "Play notification sound"
 msgstr "Play notification sound"
+
+#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+msgid "Point this profile at a non-Anthropic provider (z.ai, …) with custom env "
+"vars, model names, and effort levels."
+msgstr "Point this profile at a non-Anthropic provider (z.ai, …) with custom "
+"env vars, model names, and effort levels."
 
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
 msgid "Popular editor themes adapted to Lightcode. Each follows the light or "
@@ -3502,6 +3843,10 @@ msgstr "PR title (leave empty to auto-generate)"
 msgid "Pre-commit hook failed"
 msgstr "Pre-commit hook failed"
 
+#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+msgid "Presets"
+msgstr "Presets"
+
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 msgid "Prevent sleep while working"
 msgstr "Prevent sleep while working"
@@ -3514,6 +3859,10 @@ msgstr "Preview {0}"
 #: src/renderer/components/composer/ImageLightbox.tsx
 msgid "Previous image"
 msgstr "Previous image"
+
+#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
+msgid "Profile"
+msgstr "Profile"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Profiles"
@@ -3545,6 +3894,10 @@ msgstr "Project-specific overrides on top of the global search settings."
 msgid "Prompt"
 msgstr "Prompt"
 
+#: src/renderer/views/ProfileOverlay/parts/ActivitySection.tsx
+msgid "Prompts"
+msgstr "Prompts"
+
 #: src/renderer/components/thread/ChatPane/parts/items/PlanProposal.tsx
 msgid "Proposed plan"
 msgstr "Proposed plan"
@@ -3562,11 +3915,16 @@ msgstr "Provider"
 msgid "Provider has not reported token usage."
 msgstr "Provider has not reported token usage."
 
+#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+msgid "Provider presets"
+msgstr "Provider presets"
+
 #. plural
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
 msgid "providers"
 msgstr "providers"
 
+#: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Providers"
 msgstr "Providers"
@@ -3782,6 +4140,10 @@ msgstr "Remove action"
 msgid "Remove Claude profile"
 msgstr "Remove Claude profile"
 
+#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+msgid "Remove environment variable"
+msgstr "Remove environment variable"
+
 #: src/renderer/components/common/ProviderModelMenu/ProviderModelMenu.tsx
 msgid "Remove from favorites"
 msgstr "Remove from favorites"
@@ -3793,6 +4155,10 @@ msgstr "Remove from group"
 #: src/renderer/components/thread/ChatPane/parts/items/ActiveSubAgentTile.tsx
 msgid "Remove from panel"
 msgstr "Remove from panel"
+
+#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+msgid "Remove model"
+msgstr "Remove model"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
 msgid "Remove Project"
@@ -3887,6 +4253,14 @@ msgstr "reset"
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 msgid "Reset model order"
 msgstr "Reset model order"
+
+#: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
+msgid "Reset sidebar frosting to default"
+msgstr "Reset sidebar frosting to default"
+
+#: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
+msgid "Reset to default"
+msgstr "Reset to default"
 
 #: src/renderer/components/layout/BrowserDrawerShell.tsx
 msgid "Resize browser drawer"
@@ -4094,6 +4468,8 @@ msgid "Runtime options"
 msgstr "Runtime options"
 
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorToolbar.tsx
+#: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
+#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
 msgid "Save"
 msgstr "Save"
@@ -4252,6 +4628,10 @@ msgstr "Select an agent to see its prompt and outcome."
 msgid "Select branch"
 msgstr "Select branch"
 
+#: src/renderer/views/ProfileOverlay/parts/DevicePicker.tsx
+msgid "Select device"
+msgstr "Select device"
+
 #: src/renderer/components/common/ProviderModelMenu/ProviderModelMenu.tsx
 msgid "Select model"
 msgstr "Select model"
@@ -4274,8 +4654,12 @@ msgid "Sent selection to terminal."
 msgstr "Sent selection to terminal."
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
-msgid "Separate Claude Code accounts by config directory."
-msgstr "Separate Claude Code accounts by config directory."
+msgid "Separate Claude Code accounts by config directory, or point a profile at "
+"an external provider (z.ai, …). Open a profile to configure its env "
+"vars, models, and effort."
+msgstr "Separate Claude Code accounts by config directory, or point a profile "
+"at an external provider (z.ai, …). Open a profile to configure its env "
+"vars, models, and effort."
 
 #: src/renderer/components/providers/codex/index.tsx
 msgid "Set or view an experimental goal"
@@ -4290,6 +4674,14 @@ msgstr "Settings"
 #: src/renderer/views/ProjectSettingsOverlay/parts/ScriptsSection.tsx
 msgid "Setup script"
 msgstr "Setup script"
+
+#: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
+msgid "Share"
+msgstr "Share"
+
+#: src/renderer/views/ProfileOverlay/parts/ShareDialog.tsx
+msgid "Share your activity"
+msgstr "Share your activity"
 
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Show a compact per-provider usage ring in the sidebar."
@@ -4378,6 +4770,10 @@ msgstr "Show the microphone button in the composer."
 msgid "Show voice input button"
 msgstr "Show voice input button"
 
+#: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
+msgid "Sidebar frosting"
+msgstr "Sidebar frosting"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
 msgid "Sign in"
 msgstr "Sign in"
@@ -4422,6 +4818,14 @@ msgstr "Signing out. Detected agents will refresh when it finishes."
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Skill: {skill}"
 msgstr "Skill: {skill}"
+
+#: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
+msgid "Skills"
+msgstr "Skills"
+
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "Skills explored"
+msgstr "Skills explored"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "Some checks are failing or pending."
@@ -4478,10 +4882,9 @@ msgstr "Staged ({0})"
 msgid "Start"
 msgstr "Start"
 
-#. placeholder {0}: providerLabel ?? i18n._(msg`the app`)
 #: src/renderer/components/providers/usageFormat.ts
-msgid "Start {0} to see usage"
-msgstr "Start {0} to see usage"
+msgid "Start {appName} to see usage"
+msgstr "Start {appName} to see usage"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesEditor.tsx
 msgid "Start a new thread from the selected text"
@@ -4568,6 +4971,14 @@ msgstr "Stop task"
 msgid "Stop voice input"
 msgstr "Stop voice input"
 
+#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+msgid "Store as plain text"
+msgstr "Store as plain text"
+
+#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+msgid "Store as secret (encrypted at rest)"
+msgstr "Store as secret (encrypted at rest)"
+
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentOverlay.tsx
 msgid "Subagent"
 msgstr "Subagent"
@@ -4581,6 +4992,7 @@ msgid "Subagent Result"
 msgstr "Subagent Result"
 
 #: src/renderer/components/thread/ChatPane/parts/items/ActiveSubAgentTile.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "Subagents"
 msgstr "Subagents"
 
@@ -4668,6 +5080,10 @@ msgstr "Sync failed: {detail}"
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CommitSyncPanel.tsx
 msgid "Sync options"
 msgstr "Sync options"
+
+#: src/renderer/views/ProfileOverlay/parts/ProfileHeader.tsx
+msgid "Syncs with Cloud"
+msgstr "Syncs with Cloud"
 
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 #: src/renderer/i18n/locales.ts
@@ -4932,9 +5348,30 @@ msgstr "Toggle models off to hide them from the selector."
 msgid "Toggle Terminal"
 msgstr "Toggle Terminal"
 
+#: src/renderer/views/ProfileOverlay/parts/ActivitySection.tsx
+msgid "Tokens"
+msgstr "Tokens"
+
+#. placeholder {0}: tokens!.providers.map((p) => p.label).join(", ")
+#: src/renderer/views/ProfileOverlay/parts/ModelUsage.tsx
+msgid "Tokens from {0}"
+msgstr "Tokens from {0}"
+
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Tool search"
 msgstr "Tool search"
+
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "Total prompts"
+msgstr "Total prompts"
+
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "Total skills used"
+msgstr "Total skills used"
+
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "Total threads"
+msgstr "Total threads"
 
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Track {label} usage"
@@ -4956,6 +5393,10 @@ msgstr "Tracking off"
 #: src/renderer/components/composer/VoiceInputButton.tsx
 msgid "Transcribing voice"
 msgstr "Transcribing voice"
+
+#: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
+msgid "Translucent sidebar"
+msgstr "Translucent sidebar"
 
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Turn tracking on or off per provider. Disabled providers are skipped by "
@@ -5035,6 +5476,10 @@ msgstr "Unable to resolve home directory for WSL distro \"{distro}\""
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
 msgid "Unable to save {0} credentials."
 msgstr "Unable to save {0} credentials."
+
+#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+msgid "Unable to save Claude {displayLabel} profile."
+msgstr "Unable to save Claude {displayLabel} profile."
 
 #: src/renderer/utils/shellUtils.ts
 msgid "Unable to start {label}."
@@ -5280,10 +5725,18 @@ msgstr "Use WebGPU acceleration"
 msgid "Used"
 msgstr "Used"
 
+#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+msgid "Using the built-in Claude model list."
+msgstr "Using the built-in Claude model list."
+
 #. placeholder {0}: status.bundledVersion
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
 msgid "v{0} available"
 msgstr "v{0} available"
+
+#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+msgid "value"
+msgstr "value"
 
 #. About page label: app version row
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
@@ -5571,3 +6024,7 @@ msgstr "WSL"
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "WSL ({0})"
 msgstr "WSL ({0})"
+
+#: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
+msgid "Your name"
+msgstr "Your name"

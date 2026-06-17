@@ -1,8 +1,10 @@
 import { homedir } from "node:os";
+import { dirname } from "node:path";
 import { clipboard, dialog, nativeImage, shell, type BrowserWindow } from "electron";
 import type { BrowserPanelManager } from "../browser";
 import { openMicrophoneSettings } from "../browser/permissions";
 import {
+  dbAppendUsageEvents,
   dbDeleteProject,
   dbDeleteThread,
   dbGetProjectNotes,
@@ -26,16 +28,31 @@ import {
   resolveProjectFsPath,
   saveClipboardImageFile,
   saveHandoffContextFile,
+  writeImageFile,
 } from "../attachments/localFiles";
 import { createProjectDirectory } from "../projectDirectory";
-import { readSharedSettingsFile, writeSharedSettingsFile } from "../sharedSettingsFile";
+import {
+  getProfileCoreStats,
+  getProfileDevicesResponse,
+  getProfileIdentityResponse,
+  getProfileTokenStats,
+  setProfileIdentityResponse,
+} from "../profile";
+import {
+  applyClaudeProfileEnvironment,
+  readSharedSettingsFile,
+  writeSharedSettingsFile,
+} from "../sharedSettingsFile";
 import { readKeybindingsFile } from "../keybindingsFile";
 import type { AutoUpdaterController } from "../updates/autoUpdater";
 import {
   defineMainLocalIpcHandlers,
   type MainLocalIpcHandlerMap,
   type WindowChromePayload,
+  type WindowChromeResult,
 } from "@/shared/ipc";
+import { supportsNativeWindowMaterial, syncNativeThemeForMaterial } from "../window/windowMaterial";
+import type { AgentInstanceConfig } from "@/shared/contracts";
 import type { LightcodePaths } from "@/shared/lightcodePaths";
 import { UsageLoginManager } from "../usageLogin/UsageLoginManager";
 
@@ -46,6 +63,8 @@ interface CreateLocalIpcHandlersOptions {
   updatePowerSaveBlocker(): void;
   autoUpdater: AutoUpdaterController;
   onSharedSettingsChanged?(): void;
+  /** Relaunch the app (exposed via the relaunchApp IPC). */
+  requestRelaunch(): void;
 }
 
 function requireBrowserPanel(getter: () => BrowserPanelManager | null): BrowserPanelManager {
@@ -63,6 +82,15 @@ function getUsageLoginManager(
 ): UsageLoginManager {
   usageLoginManager ??= new UsageLoginManager(requirePaths(), getBrowserPanel);
   return usageLoginManager;
+}
+
+function roundRect(rect: { x: number; y: number; width: number; height: number }) {
+  return {
+    x: Math.round(rect.x),
+    y: Math.round(rect.y),
+    width: Math.round(rect.width),
+    height: Math.round(rect.height),
+  };
 }
 
 const ALLOWED_EXTERNAL_PROTOCOLS = new Set(["http:", "https:", "mailto:"]);
@@ -105,6 +133,28 @@ export function createLocalIpcHandlers(
       saveClipboardImageFile(options.requireLightcodePaths(), payload),
     saveHandoffContext: (payload) =>
       saveHandoffContextFile(options.requireLightcodePaths(), payload),
+    saveImageFile: async ({ data, suggestedName }) => {
+      const win = options.getMainWindow();
+      const result = await dialog.showSaveDialog(win!, {
+        title: "Save image",
+        defaultPath: suggestedName,
+        filters: [
+          { name: "Images", extensions: ["png", "jpg", "jpeg", "gif", "webp", "svg", "bmp"] },
+        ],
+      });
+      if (result.canceled || !result.filePath) return null;
+      writeImageFile(result.filePath, data);
+      return result.filePath;
+    },
+    copyImageToClipboard: ({ data }) => {
+      // `nativeImage.createFromBuffer` only decodes PNG/JPEG; the renderer
+      // converts other formats to PNG first. Report whether anything landed on
+      // the clipboard so the UI doesn't claim success on an empty image.
+      const image = nativeImage.createFromBuffer(Buffer.from(data));
+      if (image.isEmpty()) return false;
+      clipboard.writeImage(image);
+      return true;
+    },
     createProjectDirectory: (payload) => createProjectDirectory(payload),
     openExternal: async (url) => {
       const safeUrl = assertSafeExternalUrl(url);
@@ -126,6 +176,9 @@ export function createLocalIpcHandlers(
       }
       win.focus();
     },
+    relaunchApp: () => {
+      options.requestRelaunch();
+    },
     getHomeScopeLocation: () =>
       process.platform === "win32"
         ? { kind: "windows", path: homedir() }
@@ -141,9 +194,21 @@ export function createLocalIpcHandlers(
       // doesn't clobber writes made out-of-band by the supervisor.
       const onDisk = readSharedSettingsFile(settingsPath);
       const rendererManagedInstances = Object.fromEntries(
-        Object.entries(settings.agentInstances).filter(
-          ([, instance]) => instance.driver !== "acp-generic",
-        ),
+        Object.entries(settings.agentInstances)
+          .filter(([, instance]) => instance.driver !== "acp-generic")
+          .map(([id, instance]): [string, AgentInstanceConfig] => {
+            // A Claude profile's `environment` is owned by the encrypting
+            // `setClaudeProfileEnvironment` path. Pin it to disk so the
+            // renderer's plaintext-capable persist cycle can never write a
+            // secret in the clear or clear a saved one. Other drivers keep
+            // their existing renderer-managed behavior.
+            if (instance.driver !== "claude") return [id, instance];
+            const onDiskEnv = onDisk.agentInstances[id]?.environment;
+            const next: AgentInstanceConfig = { ...instance };
+            if (onDiskEnv) next.environment = onDiskEnv;
+            else delete next.environment;
+            return [id, next];
+          }),
       );
       const supervisorManagedInstances = Object.fromEntries(
         Object.entries(onDisk.agentInstances).filter(
@@ -162,10 +227,22 @@ export function createLocalIpcHandlers(
       options.updatePowerSaveBlocker();
       options.onSharedSettingsChanged?.();
     },
-    setWindowChrome: async (payload: WindowChromePayload) => {
+    setClaudeProfileEnvironment: (payload) => {
+      const settingsPath = options.requireLightcodePaths().settingsPath;
+      const { settings, instance } = applyClaudeProfileEnvironment(
+        readSharedSettingsFile(settingsPath),
+        payload,
+        dirname(settingsPath),
+      );
+      writeSharedSettingsFile(settingsPath, settings);
+      options.onSharedSettingsChanged?.();
+      return instance;
+    },
+    setWindowChrome: async (payload: WindowChromePayload): Promise<WindowChromeResult> => {
+      const nativeCapable = supportsNativeWindowMaterial();
       const mainWindow = options.getMainWindow();
       if (!mainWindow) {
-        return;
+        return { nativeCapable };
       }
       if (process.platform === "win32" || process.platform === "linux") {
         mainWindow.setTitleBarOverlay({
@@ -174,6 +251,20 @@ export function createLocalIpcHandlers(
           height: 32,
         });
       }
+      // Toggle the native translucency material live. macOS vibrancy is created
+      // with the window and revealed/hidden purely via CSS, so there is nothing
+      // to switch here. Windows acrylic is toggled at runtime (no relaunch).
+      const wantsMaterial = payload.materialEnabled === true && nativeCapable;
+      if (process.platform === "win32") {
+        mainWindow.setBackgroundMaterial(wantsMaterial ? "acrylic" : "none");
+        mainWindow.setBackgroundColor(
+          wantsMaterial ? "#00000000" : payload.appearance === "dark" ? "#141416" : "#f1f1f4",
+        );
+      }
+      if (wantsMaterial && payload.appearance) {
+        syncNativeThemeForMaterial(payload.appearance);
+      }
+      return { nativeCapable };
     },
     dbGetProjects: () => dbGetProjects(),
     dbGetThreads: () => dbGetThreads(),
@@ -274,5 +365,17 @@ export function createLocalIpcHandlers(
         options.requireLightcodePaths,
         options.getBrowserPanelManager,
       ).getLoginState(),
+    getProfileCoreStats: (req) => getProfileCoreStats(req),
+    getProfileTokenStats: (req) => getProfileTokenStats(req),
+    getProfileDevices: () => getProfileDevicesResponse(),
+    getProfileIdentity: () => getProfileIdentityResponse(),
+    setProfileIdentity: (identity) => setProfileIdentityResponse(identity),
+    copyShareImage: async (rect) => {
+      const win = options.getMainWindow();
+      if (!win) return;
+      const image = await win.webContents.capturePage(roundRect(rect));
+      if (!image.isEmpty()) clipboard.writeImage(image);
+    },
+    appendUsageEvents: ({ events }) => dbAppendUsageEvents(events),
   });
 }

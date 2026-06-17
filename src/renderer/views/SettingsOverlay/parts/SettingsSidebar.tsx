@@ -20,6 +20,7 @@ import {
   Settings2,
   Sparkles,
   TerminalSquare,
+  UserRound,
 } from "lucide-react";
 import { useLingui } from "@lingui/react/macro";
 import { isClaudeProfileKind, type AgentStatus } from "@/shared/contracts";
@@ -103,6 +104,13 @@ export function SettingsSidebar(props: {
       {isCollapsed && (
         <div className="absolute inset-0 z-10 flex h-full min-h-0 flex-col items-start gap-3 pl-2 pb-1 pt-0">
           <div className="min-h-0 flex-1 space-y-0.5 overflow-y-auto">
+            <SidebarButton
+              iconOnly
+              icon={<UserRound className="size-4" />}
+              label={t`Profile`}
+              isActive={activeSection === "profile"}
+              onPress={() => onSectionChange("profile")}
+            />
             <SidebarButton
               iconOnly
               icon={<Settings2 className="size-4" />}
@@ -315,6 +323,12 @@ export function SettingsSidebar(props: {
       >
         <div className={sidebarBodyScrollClass()}>
           <div className="space-y-0.5">
+            <SidebarButton
+              icon={<UserRound className="size-4" />}
+              label={t`Profile`}
+              isActive={activeSection === "profile"}
+              onPress={() => onSectionChange("profile")}
+            />
             <SidebarButton
               icon={<Settings2 className="size-4" />}
               label={t`General`}

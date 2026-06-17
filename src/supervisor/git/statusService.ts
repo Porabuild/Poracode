@@ -45,6 +45,9 @@ function parseUntrackedPaths(output: string): string[] {
     .map((path) => toForwardSlash(path));
 }
 
+/** Lists untracked, non-ignored files NUL-separated — one path per file. */
+const LS_FILES_UNTRACKED_ARGS = ["ls-files", "--others", "--exclude-standard", "-z"];
+
 export function parseStatusPorcelainV2(output: string): ParsedPorcelainStatus {
   let branch = "";
   let tracking = "";
@@ -274,8 +277,40 @@ export function buildGitStatusResultFromOutputs(args: {
   };
 }
 
-function buildGitStatusSummaryFromOutput(statusOutput: string): GitStatusResult {
+/**
+ * Expand the single collapsed `? dir/` porcelain entries into one entry per
+ * untracked file, using the paths from `git ls-files --others --exclude-standard
+ * -z`. Insertion/deletion counts are left at 0 so the summary path stays cheap
+ * (no file reads); {@link mergeSummaryStatus} in the renderer backfills the
+ * counts from the prior full refresh by matching `path`/`status` keys.
+ *
+ * The point is to keep the summary file list structurally identical to the full
+ * path's expanded list. Without this, the cheap summary (poll/fetch) returns one
+ * collapsed directory row while the full refresh (watcher/initial) returns one
+ * row per file — so the Changes panel visibly flips between a collapsed and an
+ * expanded view of the same working tree, and the key-based count backfill fails.
+ */
+export function expandUntrackedEntries(parsed: ParsedPorcelainStatus, lsFilesOutput: string): void {
+  if (!parsed.unstaged.some((file) => file.status === "?")) return;
+  const untrackedPaths = parseUntrackedPaths(lsFilesOutput);
+  if (untrackedPaths.length === 0) return;
+  const trackedUnstaged = parsed.unstaged.filter((file) => file.status !== "?");
+  const untracked: GitFileChange[] = untrackedPaths.map((path) => ({
+    path,
+    status: "?",
+    staged: false,
+    insertions: 0,
+    deletions: 0,
+  }));
+  parsed.unstaged = [...trackedUnstaged, ...untracked];
+}
+
+export function buildGitStatusSummaryFromOutput(
+  statusOutput: string,
+  untrackedOutput: string,
+): GitStatusResult {
   const parsed = parseStatusPorcelainV2(statusOutput);
+  expandUntrackedEntries(parsed, untrackedOutput);
   return {
     detail: "summary",
     isRepo: true,
@@ -425,18 +460,25 @@ export class GitStatusService {
     if (location.kind === "wsl") {
       const results = await execGitBatchWslBridge(
         location,
-        [{ cwd: location.linuxPath, args: ["status", "--porcelain=v2", "-b"] }],
+        [
+          { cwd: location.linuxPath, args: ["status", "--porcelain=v2", "-b"] },
+          { cwd: location.linuxPath, args: LS_FILES_UNTRACKED_ARGS },
+        ],
         GIT_STATUS_TIMEOUT,
       );
       const result = results[0];
-      return result?.ok ? buildGitStatusSummaryFromOutput(result.stdout) : nonRepoSummaryStatus();
+      const untracked = results[1];
+      return result?.ok
+        ? buildGitStatusSummaryFromOutput(result.stdout, untracked?.ok ? untracked.stdout : "")
+        : nonRepoSummaryStatus();
     }
 
     try {
-      const statusOutput = await execGit(location, ["status", "--porcelain=v2", "-b"], {
-        timeout: GIT_STATUS_TIMEOUT,
-      });
-      return buildGitStatusSummaryFromOutput(statusOutput);
+      const [statusOutput, untrackedOutput] = await Promise.all([
+        execGit(location, ["status", "--porcelain=v2", "-b"], { timeout: GIT_STATUS_TIMEOUT }),
+        execGit(location, LS_FILES_UNTRACKED_ARGS, { timeout: GIT_STATUS_TIMEOUT }).catch(() => ""),
+      ]);
+      return buildGitStatusSummaryFromOutput(statusOutput, untrackedOutput);
     } catch {
       return nonRepoSummaryStatus();
     }
@@ -566,18 +608,27 @@ export class GitStatusService {
   ): Promise<Record<string, GitStatusResult>> {
     if (worktreePaths.length === 0) return {};
 
-    const bridgeCommands = worktreePaths.map((cwd) => ({
-      cwd,
-      args: ["status", "--porcelain=v2", "-b"],
-    }));
+    const PER_WORKTREE_CMDS = 2;
+    const bridgeCommands: { cwd: string; args: string[] }[] = [];
+    for (const cwd of worktreePaths) {
+      bridgeCommands.push(
+        { cwd, args: ["status", "--porcelain=v2", "-b"] },
+        { cwd, args: LS_FILES_UNTRACKED_ARGS },
+      );
+    }
     const results = await execGitBatchWslBridge(location, bridgeCommands, GIT_STATUS_TIMEOUT);
 
     const out: Record<string, GitStatusResult> = {};
     for (let i = 0; i < worktreePaths.length; i += 1) {
-      const result = results[i];
-      if (!result) continue;
-      out[worktreePaths[i]!] = result.ok
-        ? buildGitStatusSummaryFromOutput(result.stdout)
+      const off = i * PER_WORKTREE_CMDS;
+      const statusResult = results[off];
+      if (!statusResult) continue;
+      const untrackedResult = results[off + 1];
+      out[worktreePaths[i]!] = statusResult.ok
+        ? buildGitStatusSummaryFromOutput(
+            statusResult.stdout,
+            untrackedResult?.ok ? untrackedResult.stdout : "",
+          )
         : nonRepoSummaryStatus();
     }
     return out;
@@ -739,34 +790,23 @@ export class GitStatusService {
     location: ProjectLocation,
     parsed: ParsedPorcelainStatus,
   ): Promise<void> {
-    const hasUntracked = parsed.unstaged.some((file) => file.status === "?");
-    if (!hasUntracked) {
-      return;
-    }
+    if (!parsed.unstaged.some((file) => file.status === "?")) return;
 
-    const lsFilesOutput = await execGit(
-      location,
-      ["ls-files", "--others", "--exclude-standard", "-z"],
-      {
-        timeout: GIT_STATUS_TIMEOUT,
-      },
-    ).catch(() => "");
-    const actualUntrackedPaths = parseUntrackedPaths(lsFilesOutput);
-    if (actualUntrackedPaths.length === 0) {
-      return;
-    }
+    const lsFilesOutput = await execGit(location, LS_FILES_UNTRACKED_ARGS, {
+      timeout: GIT_STATUS_TIMEOUT,
+    }).catch(() => "");
+    // Share the row-shaping with the summary path so the two never disagree on
+    // untracked-entry shape (the key the renderer's count backfill matches on).
+    expandUntrackedEntries(parsed, lsFilesOutput);
 
-    const trackedUnstaged = parsed.unstaged.filter((file) => file.status !== "?");
-    const untracked = await Promise.all(
-      actualUntrackedPaths.map(async (path) => ({
-        path,
-        status: "?",
-        staged: false,
-        insertions: await this.readUntrackedInsertions(location, path),
-        deletions: 0,
-      })),
+    // The full path additionally counts insertions per untracked file; the
+    // expanded rows arrive with counts at 0, so fill them in here.
+    await Promise.all(
+      parsed.unstaged.map(async (file) => {
+        if (file.status !== "?") return;
+        file.insertions = await this.readUntrackedInsertions(location, file.path);
+      }),
     );
-    parsed.unstaged = [...trackedUnstaged, ...untracked];
   }
 
   private async readUntrackedInsertions(

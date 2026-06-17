@@ -57,6 +57,9 @@ export function PrSection(props: {
   handleClosePr: () => Promise<void>;
   handleMarkPrReady: () => Promise<void>;
   handleUpdatePrBranch?: ((rebase?: boolean) => Promise<void>) | undefined;
+  /** Refetch this PR's live data on demand. When omitted, no refresh icon shows. */
+  onRefreshPr?: (() => void | Promise<void>) | undefined;
+  isRefreshingPr?: boolean | undefined;
 }) {
   const {
     prKey,
@@ -68,6 +71,8 @@ export function PrSection(props: {
     handleClosePr,
     handleMarkPrReady,
     handleUpdatePrBranch,
+    onRefreshPr,
+    isRefreshingPr,
   } = props;
   const { t } = useLingui();
   const state = usePrState(prKey);
@@ -98,6 +103,9 @@ export function PrSection(props: {
     title || (state === "merged" ? t`Merged` : state === "draft" ? "" : t`Open`);
 
   const canReview = number !== undefined && state !== "merged" && state !== "closed";
+  // Offer refresh for live PRs only — a merged/closed PR's head branch is often
+  // gone, so a by-branch refetch is pointless. Mirrors `canReview`'s exclusions.
+  const canRefresh = Boolean(onRefreshPr) && state !== "merged" && state !== "closed";
 
   return (
     <GitReviewSection>
@@ -115,6 +123,22 @@ export function PrSection(props: {
           </span>
           <ExternalLink className="size-4 shrink-0" />
         </Link>
+        {canRefresh && (
+          <Tooltip delay={300}>
+            <Tooltip.Trigger>
+              <button
+                type="button"
+                aria-label="Refresh PR"
+                className="rounded p-0.5 text-muted transition-colors hover:bg-[var(--row-hover)] hover:text-foreground disabled:opacity-50"
+                disabled={isRefreshingPr}
+                onClick={() => void onRefreshPr?.()}
+              >
+                <RefreshCw className={`size-3.5 ${isRefreshingPr ? "animate-spin" : ""}`} />
+              </button>
+            </Tooltip.Trigger>
+            <Tooltip.Content placement="top">Refresh PR</Tooltip.Content>
+          </Tooltip>
+        )}
         {canReview && (
           <Tooltip delay={300}>
             <Tooltip.Trigger>

@@ -5,8 +5,41 @@ import { useLingui } from "@lingui/react/macro";
 import { toLocalFileUrl } from "@/shared/promptContent";
 import type { Attachment } from "./useAttachments";
 
+/** A pre-resolved image for the lightbox: a renderable URL plus an accessible label. */
+export interface LightboxImage {
+  /** Renderable image URL — a `data:`, `lightcode-local://`, or remote URL. */
+  src: string;
+  /** Accessible label / alt text. */
+  alt?: string;
+}
+
+/**
+ * Attachment-backed lightbox used by the composer surfaces. Resolves each
+ * attachment's local path to a renderable URL and defers to
+ * {@link ImageLightboxView}.
+ */
 export function ImageLightbox(props: {
   images: Attachment[];
+  initialIndex: number;
+  onClose: () => void;
+}) {
+  const images: LightboxImage[] = props.images.map((img) => ({
+    src: toLocalFileUrl(img.path),
+    alt: img.name,
+  }));
+  return (
+    <ImageLightboxView images={images} initialIndex={props.initialIndex} onClose={props.onClose} />
+  );
+}
+
+/**
+ * Source-agnostic fullscreen image viewer. Accepts already-resolved image URLs
+ * (`data:`, `lightcode-local://`, remote) so it can be reused for chat-generated
+ * images as well as composer attachments. Supports keyboard nav and prev/next
+ * chrome for multi-image galleries; a single image renders without that chrome.
+ */
+export function ImageLightboxView(props: {
+  images: LightboxImage[];
   initialIndex: number;
   onClose: () => void;
 }) {
@@ -42,7 +75,7 @@ export function ImageLightbox(props: {
       onClick={onClose}
       role="dialog"
       aria-modal="true"
-      aria-label={current.name ?? t`Image preview`}
+      aria-label={current.alt ?? t`Image preview`}
     >
       <button
         type="button"
@@ -70,8 +103,8 @@ export function ImageLightbox(props: {
       {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-noninteractive-element-interactions -- stopPropagation prevents backdrop close */}
       <img
         className="lightcode-image-lightbox__image"
-        src={toLocalFileUrl(current.path)}
-        alt={current.name ?? ""}
+        src={current.src}
+        alt={current.alt ?? ""}
         onClick={(e) => e.stopPropagation()}
         draggable={false}
       />

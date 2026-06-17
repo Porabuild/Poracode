@@ -179,7 +179,7 @@ export function BrowserToolbar(props: {
     );
 
   return (
-    <div className="flex items-center gap-1 border-b border-border bg-[var(--surface)] px-1.5 py-1">
+    <div className="flex items-center gap-1 border-b border-border bg-[var(--content-background)] px-1.5 py-1">
       <button
         type="button"
         className={toolbarButtonClass}

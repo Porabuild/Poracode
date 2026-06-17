@@ -788,6 +788,12 @@
     --pr-merged: oklch(0.7 0.17 292);
     --git-branch-tone: var(--muted);
     --sidebar-background: var(--surface);
+    /* Overlay painted on the translucent ("liquid glass") sidebar: the content
+       background (matching the main panes) at partial alpha. The OS blur behind
+       is the *wallpaper*, not the theme color, so higher alpha keeps the sidebar
+       reading as the theme (less wallpaper/grey showing); lower alpha shows more
+       wallpaper blur (more glassy, but tinted by whatever's on the desktop). */
+    --sidebar-glass-tint: color-mix(in oklab, var(--content-background) 35%, transparent);
     --content-background: var(--background);
     --window-header-background: var(--sidebar-background);
     --window-overlay-background: rgba(0, 0, 0, 0);
@@ -871,6 +877,9 @@
     /* App-specific */
     --sidebar-background: oklch(0.22 0.004 286);
     --content-background: oklch(0.2 0.004 286);
+    /* Dark surfaces read muddier through heavy blur, so lean more on the theme
+       color (higher alpha = less transparent) than the light default above. */
+    --sidebar-glass-tint: color-mix(in oklab, var(--content-background) 65%, transparent);
     --window-header-background: var(--sidebar-background);
     --composer-surface: oklch(0.25 0.004 286);
   }
@@ -1006,6 +1015,148 @@ body {
   -webkit-app-region: no-drag;
   app-region: no-drag;
   z-index: 20;
+}
+
+/* === Translucent ("liquid glass") sidebar ===================================
+   Opt-in via the Appearance toggle (default off). Two paths:
+
+   1. Native material — [data-native-material="on"] is set by the renderer ONLY
+      after the main process confirms it actually applied a blur material
+      (macOS vibrancy / Windows 11 acrylic). The whole window is blurred by the
+      OS, so we clear the opaque window layers (body, shell) and re-cover the
+      main content with an opaque pane; only the sidebar (and the thin titlebar /
+      resize-handle gaps) stay translucent. <main> has no background of its own,
+      so it must be given one explicitly or the whole window goes translucent.
+
+   2. In-app fallback — [data-sidebar-glass="on"] without a native material
+      (Linux, Windows 10, older builds). The window stays opaque; the docked,
+      flush-left sidebar gets a faux-translucent gradient + bevel (a real
+      backdrop-filter would blur almost nothing there). Real blur is reserved
+      for the floating *overlay* sidebar, which genuinely sits over content.
+
+   These rules are intentionally unlayered so they win over Tailwind utilities
+   (e.g. the sidebar's bg-[var(--content-background)] header class). */
+
+/* 1. Native material: clear opaque window layers, keep main content opaque.
+   index.html's boot script sets an inline opaque background on <html> to avoid a
+   load flash; override it with !important so the OS blur shows through. */
+html[data-native-material="on"] {
+  background: transparent !important;
+}
+html[data-native-material="on"] body,
+html[data-native-material="on"] .lightcode-shell {
+  background: transparent;
+}
+html[data-native-material="on"] .lightcode-shell main {
+  background: var(--content-background);
+}
+/* Faint tint so sidebar text/icons stay legible over the live OS blur. The
+   sidebar header (shared .lightcode-overlay-header class) is forced transparent
+   so the aside's single tint layer shows through instead of stacking. */
+html[data-native-material="on"] .lightcode-sidebar-aside {
+  background: var(--sidebar-glass-tint);
+}
+html[data-native-material="on"] .lightcode-sidebar-aside .lightcode-overlay-header {
+  background: transparent;
+}
+/* The floating overlay sidebar sits over dimmed content, where a translucent
+   tint reads muddy and hurts legibility — paint it fully opaque (the glass tint
+   at 100%). Docked sidebars keep the translucent tint set above. */
+html[data-native-material="on"] .lightcode-sidebar-aside--overlay {
+  background: var(--content-background);
+}
+/* While the overlay sidebar slides out and snaps to the collapsed rail, the
+   spacer that reserves the rail's slot is briefly uncovered. Give it the same
+   glass tint as the docked collapsed rail so the strip never flashes raw
+   acrylic before the rail paints in. */
+html[data-native-material="on"] .lightcode-sidebar-spacer {
+  background: var(--sidebar-glass-tint);
+}
+/* Windows-only frosting bump. DWM acrylic blurs whatever sits behind the window,
+   so the backdrop bleeds through the tint and drags the sidebar toward it: a dark
+   theme over a bright window washes out toward grey, while a light theme over a
+   dark backdrop goes too dark. Lean the tint more opaque on Windows so the sidebar
+   holds its own theme color regardless of what's behind. Dark leans heavier (85%)
+   since a dark surface over a bright backdrop swings the most; light needs less
+   (65%). macOS vibrancy composites its own adaptive material, so darwin is left
+   untouched; these rules are unlayered so they win over the @layer base token. */
+html[data-platform="win32"][data-native-material="on"] {
+  --sidebar-glass-tint: color-mix(in oklab, var(--content-background) 65%, transparent);
+}
+html[data-platform="win32"][data-native-material="on"].dark,
+html[data-platform="win32"][data-native-material="on"][data-theme="dark"] {
+  --sidebar-glass-tint: color-mix(in oklab, var(--content-background) 85%, transparent);
+}
+
+/* 2. In-app fallback: opaque window, faux-translucent gradient sidebar. */
+html[data-sidebar-glass="on"]:not([data-native-material="on"]) .lightcode-sidebar-aside {
+  background: linear-gradient(
+    180deg,
+    color-mix(in oklab, var(--sidebar-background) 90%, transparent) 0%,
+    color-mix(in oklab, var(--sidebar-background) 74%, transparent) 100%
+  );
+  box-shadow:
+    inset 1px 0 0 color-mix(in oklab, var(--foreground) 7%, transparent),
+    inset 0 1px 0 color-mix(in oklab, var(--foreground) 9%, transparent);
+}
+html[data-sidebar-glass="on"]:not([data-native-material="on"])
+  .lightcode-sidebar-aside
+  .lightcode-overlay-header {
+  background: transparent;
+}
+/* In-app fallback overlay sidebar: opaque too — it floats over dimmed content,
+   so the faux-glass tint/blur used for the docked fallback would read muddy. */
+html[data-sidebar-glass="on"]:not([data-native-material="on"]) .lightcode-sidebar-aside--overlay {
+  background: var(--sidebar-background);
+}
+
+/* Overlays (settings, git review, file editor, …) reuse the same AppShell, so
+   they get the glass sidebar too. The overlay sidebar body normally paints an
+   opaque surface (`overlaySidebarSurfaceClass`); clear it inside the sidebar
+   column so the aside's single glass tint shows through and the header (already
+   transparent) matches — no seam. Docked tool panels use the same surface class
+   but live outside `.lightcode-sidebar-aside`, so they stay opaque. */
+html[data-sidebar-glass="on"] .lightcode-sidebar-aside .lightcode-overlay-surface {
+  background: transparent;
+}
+/* For overlays that actually have a glass sidebar, let the OverlayShell cover
+   pass the native blur through (its opaque <main> still covers the content).
+   Plain dialogs without a sidebar keep their opaque backdrop. */
+html[data-native-material="on"] [data-overlay-surface]:has(.lightcode-sidebar-aside) {
+  background: transparent;
+}
+/* …and hide the base app behind such an overlay so the overlay's translucent
+   sidebar reveals the desktop, not the app underneath (which would bleed through
+   the tint). visibility:hidden keeps the app mounted — preserving scroll, chat,
+   and terminal state — while painting nothing. Hide every shell, then keep the
+   overlay's own shell visible. Gated on [data-overlay-visible] (set only while
+   the overlay is fully shown) so on open/close the base app fades in/out with
+   the overlay instead of flashing bare desktop underneath. */
+html[data-native-material="on"]
+  #root:has([data-overlay-surface][data-overlay-visible] .lightcode-sidebar-aside)
+  .lightcode-shell {
+  visibility: hidden;
+}
+html[data-native-material="on"]
+  #root:has([data-overlay-surface][data-overlay-visible] .lightcode-sidebar-aside)
+  [data-overlay-surface]
+  .lightcode-shell {
+  visibility: visible;
+}
+
+/* Accessibility: drop translucency when the OS asks for reduced transparency.
+   The renderer also gates this in JS, so this is a first-paint safety net. */
+@media (prefers-reduced-transparency: reduce) {
+  html[data-native-material="on"] body,
+  html[data-native-material="on"] .lightcode-shell {
+    background: var(--content-background);
+  }
+  html[data-sidebar-glass="on"] .lightcode-sidebar-aside:not(.lightcode-sidebar-aside--overlay),
+  html[data-native-material="on"] .lightcode-sidebar-aside:not(.lightcode-sidebar-aside--overlay) {
+    background: transparent;
+    backdrop-filter: none;
+    box-shadow: none;
+  }
 }
 
 /* Counterpart to .lightcode-content-over-drag-region: used on pane headers
@@ -1149,8 +1300,6 @@ html[data-platform="darwin"] .lightcode-content-over-drag-region--drag {
   width: 100%;
   height: 100%;
   overflow: visible;
-  will-change: filter, transform;
-  transform: translate3d(0, 0, 0);
 }
 
 .lightcode-provider-icon__fill {
@@ -1167,13 +1316,6 @@ html[data-platform="darwin"] .lightcode-content-over-drag-region--drag {
   -webkit-mask-position: center;
   -webkit-mask-repeat: no-repeat;
   -webkit-mask-size: contain;
-  will-change: filter, transform;
-  transform: translate3d(0, 0, 0);
-}
-
-.lightcode-provider-icon svg {
-  will-change: filter, transform;
-  transform: translate3d(0, 0, 0);
 }
 
 .lightcode-provider-icon--external .lightcode-provider-icon__mask {
@@ -1219,7 +1361,12 @@ html[data-platform="darwin"] .lightcode-content-over-drag-region--drag {
     transparent 100%
   );
   transform: translate3d(-33.333%, 0, 0);
-  animation: lightcode-provider-icon-mask-scan 1.45s linear infinite;
+  /* Throttle the shine to 20fps with steps() rather than advancing every display
+     refresh. The compositor only produces a new frame when the stepped transform
+     actually changes, so a 120Hz ProMotion panel draws ~20 frames/s here instead
+     of ~120 — a ~6x cut in GPU compositing for a sweep this subtle and slow.
+     32 steps / 1.6s = 20fps. Raise the step count for a smoother sweep. */
+  animation: lightcode-provider-icon-mask-scan 1.6s steps(32, jump-end) infinite;
   will-change: transform;
 }
 
@@ -1253,6 +1400,33 @@ html[data-platform="darwin"] .lightcode-content-over-drag-region--drag {
   }
 }
 
+/* Pause the always-on status-icon animations when the window is hidden or
+   unfocused (attributes toggled by uiAnimationActivity.ts). The static glow and
+   colour stay, so a backgrounded window still shows which threads are busy — we
+   just stop driving the GPU compositor while nobody is looking. Drop the
+   `data-app-unfocused` selectors if you want the sweep to keep running while the
+   window is visible-but-unfocused. */
+html[data-app-hidden] .lightcode-provider-icon__mask-scan::before,
+html[data-app-unfocused] .lightcode-provider-icon__mask-scan::before,
+html[data-app-hidden] .lightcode-provider-icon--attention,
+html[data-app-unfocused] .lightcode-provider-icon--attention,
+html[data-app-hidden] .lightcode-provider-icon--finished,
+html[data-app-unfocused] .lightcode-provider-icon--finished {
+  animation-play-state: paused;
+}
+
+/* Honour the OS "reduce motion" setting — drop the moving sweep/pulse entirely
+   and let the static glow + colour signal status. (The thinking shimmer + brain
+   are JS-driven via thinkingAnimator.ts, which checks prefers-reduced-motion
+   itself and paints a single static frame.) */
+@media (prefers-reduced-motion: reduce) {
+  .lightcode-provider-icon__mask-scan::before,
+  .lightcode-provider-icon--attention,
+  .lightcode-provider-icon--finished {
+    animation: none;
+  }
+}
+
 .lightcode-provider-icon__shell {
   fill: currentColor;
   opacity: 0.32;
@@ -1281,6 +1455,12 @@ html[data-platform="darwin"] .lightcode-content-over-drag-region--drag {
   .lightcode-provider-icon__mask:not(.lightcode-provider-icon__mask-scan) {
   filter: drop-shadow(0 0 0.25rem color-mix(in oklab, var(--working-tone) 45%, transparent))
     drop-shadow(0 0 0.5rem color-mix(in oklab, var(--working-tone) 22%, transparent));
+  /* Promote to a compositor layer ONLY while working — the glow drop-shadow and
+     the shine sweep need it. Idle/gray icons (often dozens across the sidebar +
+     recent-threads lists) no longer each carry a standing `will-change` layer
+     and its GPU memory. */
+  will-change: filter, transform;
+  transform: translate3d(0, 0, 0);
 }
 
 .lightcode-provider-icon--error {
@@ -1344,53 +1524,28 @@ html[data-platform="darwin"] .lightcode-content-over-drag-region--drag {
   pointer-events: none;
 }
 
-@keyframes lightcode-brain-firing {
-  0%,
-  100% {
-    opacity: 0.45;
-  }
-  50% {
-    opacity: 1;
-  }
-}
-
 .lightcode-brain-thinking {
   filter: drop-shadow(0 0 0.1rem color-mix(in oklab, currentColor 32%, transparent));
-  will-change: transform;
-  transform: translateZ(0);
 }
 
+/* The per-path "firing" opacities are driven from a shared 20fps timer
+   (thinkingAnimator.ts), NOT a CSS animation: a continuously-active opacity
+   animation on SVG paths can't composite, so it would force a main-thread style
+   recalc + frame on every display refresh (~120fps). 0.55 is the static
+   fallback shown before the timer first paints. */
 .lightcode-brain-thinking path {
   opacity: 0.55;
-  will-change: opacity;
 }
 
-.lightcode-brain-thinking path:nth-child(3n + 1) {
-  animation: lightcode-brain-firing 1.8s ease-in-out infinite;
-  animation-delay: 0s;
-}
-
-.lightcode-brain-thinking path:nth-child(3n + 2) {
-  animation: lightcode-brain-firing 1.8s ease-in-out infinite;
-  animation-delay: 0.6s;
-}
-
-.lightcode-brain-thinking path:nth-child(3n) {
-  animation: lightcode-brain-firing 1.8s ease-in-out infinite;
-  animation-delay: 1.2s;
-}
-
-@keyframes lightcode-text-shimmer {
-  0% {
-    background-position: 0% 0;
-  }
-  100% {
-    background-position: -200% 0;
-  }
-}
-
-/* "Thinking" label that pairs with the brain. The highlight shimmers in
-   a continuous, smooth 60fps compositor sweep. */
+/* "Thinking"/"Working for"/"Compacting"/"Proposed plan" label that pairs with
+   the brain. The highlight sweeps via `background-position` — a main-thread
+   *paint* property that can't composite, so an always-active CSS animation here
+   repaints AND recalcs style every display refresh (~120fps). Instead the sweep
+   is driven from a shared 20fps timer (thinkingAnimator.ts) that writes
+   `background-position-x` only ~20×/s, letting the frame pipeline idle between
+   ticks. `contain: paint` keeps each repaint scoped to the label box; the
+   `background-position: 0% 0` below is the static fallback before the timer
+   runs. */
 .lightcode-thinking-text {
   position: relative;
   display: inline-block;
@@ -1410,8 +1565,6 @@ html[data-platform="darwin"] .lightcode-content-over-drag-region--drag {
   -webkit-background-clip: text;
   color: transparent;
   -webkit-text-fill-color: transparent;
-  animation: lightcode-text-shimmer 2.2s linear infinite;
-  will-change: background-position;
 }
 
 @keyframes lightcode-plan-check-1-anim {
@@ -2262,6 +2415,27 @@ html[data-platform="darwin"] .lightcode-content-over-drag-region--drag {
   }
   to {
     opacity: 1;
+  }
+}
+
+/* Docked right/bottom panel content fade. The panel's <aside> background stays
+   opaque (so the OS blur never shows through); only this content layer fades.
+   Keyframes, not a transition, because the layer is clipped to zero by the
+   aside's collapsing size and a transition's start value is unreliable there. */
+@keyframes lightcode-panel-content-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes lightcode-panel-content-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
   }
 }
 

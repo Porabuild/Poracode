@@ -71,8 +71,10 @@ const getProjectThreads = createArrayKeyedMap((threads: Thread[]) =>
   buildProjectThreadsMap(threads, (t) => !t.archived),
 );
 
-// selector — O(1) after the first caller for a given array identity
-const threads = getProjectThreads(allThreads).get(projectId) ?? EMPTY_THREADS;
+// selector — O(1) after the first caller for a given array identity.
+// The returned getter takes (array, key) and returns the value directly;
+// the internal Map's .get is not exposed to callers.
+const threads = getProjectThreads(allThreads, projectId) ?? EMPTY_THREADS;
 ```
 
 Precedent: `state/derivations.ts` (`createArrayKeyedMap`), consumed by `hooks/uiSelectors.ts` and `state/gitSelectors.ts`.
@@ -117,7 +119,7 @@ A component that renders a tab strip, a file tree, or a PR card often ends up su
 Fix it by splitting the component so each subcomponent subscribes only to what **it** renders:
 
 - `FileEditorPane` → `TabStripHeader` (tab list) + `EditorBody` (active buffer content).
-- `ProjectTreeView` → `TreeChildren` (per-directory entries) + `TreeEntryRow` (per-path flags) + `TreeSearchBar` (debounced query).
+- `ProjectTreeView` → `TreeChildren` (per-directory entries) + `TreeEntryRow` (per-path flags); the debounced search query is owned by the `useProjectTree` hook.
 - `GitReviewSidebar` → `PrSection(prKey)` + per-file `FileRow(path)`.
 
 The row component's props are the **identifier** (`path`, `key`, `id`) and maybe stable callbacks — never the entity payload.
@@ -165,7 +167,7 @@ If a child needs a store value, the child reads it via a hook. Do not pass `sele
 ## Vite Configuration
 
 - Use Vite 8 Rolldown-native config (e.g. `rolldownOptions`) over older Rollup-first patterns.
-- Manual chunks are defined for xterm, git-diff, ui (HeroUI + React Aria), framework (React + Zustand + Zod), and vendor.
+- Manual chunks are defined for xterm, git-diff, monaco, shiki, ui (HeroUI + React Aria), framework (React + Zustand + Zod), and vendor.
 
 ## Cleanup
 

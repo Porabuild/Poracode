@@ -4,6 +4,20 @@ import { type AuthProbe, type DetectionSpec, readAgentCommandOutput } from "../b
 import { getAgentProbeCwd } from "../probeCwd";
 import { commandCodeHasStoredCredentials } from "./session";
 
+// Command Code's CLI runs a background self-updater on EVERY invocation: when a
+// newer npm version exists it spawns a detached `cmd.exe`/`npm i <tgz>` (see the
+// CLI's `spawnBackgroundUpdate`), which Windows 11 surfaces as a stray terminal
+// window — re-triggered by each launch-time detection probe. Lightcode owns
+// agent updates (Settings update button → `command-code update`), so we set
+// `COMMANDCODE_SKIP_UPDATES` on every command-code spawn we make (detection
+// probes, PTY launches, one-shots) to suppress the CLI's own updater. The CLI
+// also honors `CI`, but that flips broader non-interactive behavior, so we use
+// the dedicated switch. `command-code update` runs without this env (separate
+// path), so explicit updates still work.
+export const COMMANDCODE_SKIP_UPDATES_ENV: Record<string, string> = {
+  COMMANDCODE_SKIP_UPDATES: "1",
+};
+
 // Command Code's CLI default (used with no `-m`). We surface it first so a
 // fresh thread mirrors what running `command-code` directly would pick.
 // Source: https://commandcode.ai/docs/reference/cli/models (also `command-code
@@ -298,6 +312,10 @@ const COMMANDCODE_TERMINAL_AUTH: AgentTerminalAuthMethod = {
   id: "commandcode-terminal-login",
   name: "Login",
   type: "terminal",
+  // `runTerminalLogin` forwards `env` into the login command; suppress the
+  // CLI's background self-updater so `command-code login` doesn't spawn a
+  // detached `npm i` terminal alongside the login overlay.
+  env: COMMANDCODE_SKIP_UPDATES_ENV,
 };
 
 export const commandCodeDetectionSpec: DetectionSpec = {
@@ -324,6 +342,8 @@ export const commandCodeDetectionSpec: DetectionSpec = {
         timeoutMs: 8_000,
         wslLinuxCwd: "/tmp",
         posixCwd: getAgentProbeCwd(ctx.location),
+        // Suppress the CLI's background self-updater (sourced from spec.probeEnv).
+        ...(ctx.probeEnv ? { env: ctx.probeEnv } : {}),
       },
     ).catch(() => undefined);
     const parsed = result?.ok ? parseCommandCodeModels(result.stdout) : [];
@@ -336,4 +356,6 @@ export const commandCodeDetectionSpec: DetectionSpec = {
   // and is the automatic fallback if the built-in updater fails, since the CLI
   // is distributed as the `command-code` npm package on every platform.
   update: { builtIn: { binary: "command-code", args: ["update"] }, npm: "command-code" },
+  // Suppress the CLI's own background self-updater on the `--version` probe.
+  probeEnv: COMMANDCODE_SKIP_UPDATES_ENV,
 };

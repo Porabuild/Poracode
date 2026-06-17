@@ -119,6 +119,8 @@ import type {
   UpdateAgentBinaryResult,
   GetLatestAgentVersionPayload,
   GetLatestAgentVersionResult,
+  GetAntigravityAccountPayload,
+  GetAntigravityAccountResult,
   SetPendingSteerPayload,
   ClearPendingSteerPayload,
   ListProjectTreePayload,
@@ -208,6 +210,7 @@ import { detectWindowsShell, type WindowsShellPreference } from "./shellPreferen
 import { generateTitle } from "./titleGenerator";
 import { AgentStatusService, detectWslAgentStatuses } from "./runtime/agentStatusService";
 import { createLocalUsageCollectors } from "./runtime/localUsageCollectors";
+import { probeAntigravityAccount } from "./runtime/antigravityAccountProbe";
 import { UsageService } from "./runtime/usageService";
 import { type SessionRuntime, type ShellSessionRuntime } from "./runtime/sessionTypes";
 import { ThreadSessionManager, writeSubmittedPrompt } from "./runtime/threadSessionManager";
@@ -654,6 +657,34 @@ export class SupervisorRuntime {
     const adapter = this.adapters.get(payload.agentKind);
     if (!adapter) return { source: "unknown" };
     return getLatestVersionForAdapter(adapter);
+  }
+
+  /** Short-lived cache for the resolved Antigravity account, so reopening the
+   * settings page doesn't re-spawn `agy` each time. */
+  private antigravityAccountCache:
+    | { value: NonNullable<GetAntigravityAccountResult["account"]>; at: number }
+    | undefined;
+
+  async getAntigravityAccount(
+    payload: GetAntigravityAccountPayload,
+  ): Promise<GetAntigravityAccountResult> {
+    const ACCOUNT_TTL_MS = 5 * 60_000;
+    const cached = this.antigravityAccountCache;
+    if (cached && Date.now() - cached.at < ACCOUNT_TTL_MS) return { account: cached.value };
+
+    const wslDistros = payload.wslDistros ?? [];
+    const { windows } = await this.agentStatusService.getAgentStatuses({ wslDistros });
+    const native = windows.find((status) => status.kind === "antigravity" && status.installed);
+    // Spawning `agy` is only safe once the user is signed in (the config-dir
+    // probe's soft signal) — a never-authenticated spawn would drop into the
+    // interactive OAuth flow. Otherwise restrict to reusing a running LS.
+    const account = await probeAntigravityAccount({
+      ...(native?.executablePath ? { executablePath: native.executablePath } : {}),
+      wslDistros,
+      allowSpawn: native?.authState === "authenticated",
+    }).catch(() => undefined);
+    if (account) this.antigravityAccountCache = { value: account, at: Date.now() };
+    return account ? { account } : {};
   }
 
   async removeAcpRegistryAgent(

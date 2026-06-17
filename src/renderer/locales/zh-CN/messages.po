@@ -84,6 +84,11 @@ msgstr "{0}凭据已删除。"
 msgid "{0} credentials saved."
 msgstr "{0}凭据已保存。"
 
+#. placeholder {0}: devices.length
+#: src/renderer/views/ProfileOverlay/parts/ProfileHeader.tsx
+msgid "{0} devices"
+msgstr "{0}台设备"
+
 #. placeholder {0}: props.agentLabel
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
 msgid "{0} hooks installed for {envName}."
@@ -124,10 +129,35 @@ msgstr "{0}已注销。"
 msgid "{0} needs authentication."
 msgstr "{0}需要身份验证。"
 
+#. placeholder {0}: cell.count
+#: src/renderer/views/ProfileOverlay/parts/ActivityHeatmap.tsx
+msgid "{0} prompt - {when}"
+msgstr "{0}条提示 - {when}"
+
+#. placeholder {0}: cell.count
+#: src/renderer/views/ProfileOverlay/parts/ActivityHeatmap.tsx
+msgid "{0} prompts - {when}"
+msgstr "{0}条提示 - {when}"
+
+#. placeholder {0}: item.runCount.toLocaleString()
+#: src/renderer/views/ProfileOverlay/parts/PluginUsage.tsx
+msgid "{0} run"
+msgstr "运行{0}次"
+
+#. placeholder {0}: item.runCount.toLocaleString()
+#: src/renderer/views/ProfileOverlay/parts/PluginUsage.tsx
+msgid "{0} runs"
+msgstr "运行{0}次"
+
 #. placeholder {0}: formatTokens(snapshot.tokens.total)
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
 msgid "{0} tokens"
 msgstr "{0} 令牌"
+
+#. placeholder {0}: formatCompact(cell.count)
+#: src/renderer/views/ProfileOverlay/parts/ActivityHeatmap.tsx
+msgid "{0} tokens - {when}"
+msgstr "{0}个token - {when}"
 
 #. placeholder {0}: agent.name
 #. placeholder {1}: agent.version
@@ -165,11 +195,27 @@ msgstr "已使用 {0}"
 msgid "{0}% Full"
 msgstr "{0}% 满"
 
+#. placeholder {0}: Math.floor(days / 30)
+#: src/renderer/views/ProfileOverlay/parts/ProfileHeader.tsx
+msgid "{0}mo ago"
+msgstr "{0}个月前"
+
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 msgid "{agentLabel}: {statusLabel}. Hover for status details."
 msgstr "{agentLabel}：{statusLabel}。将鼠标悬停以查看状态详细信息。"
 
+#: src/renderer/views/ProfileOverlay/parts/ShareCard.tsx
+#: src/renderer/views/ProfileOverlay/parts/StatStrip.tsx
+msgid "{days} day"
+msgstr "{days}天"
+
+#: src/renderer/views/ProfileOverlay/parts/ShareCard.tsx
+#: src/renderer/views/ProfileOverlay/parts/StatStrip.tsx
+msgid "{days} days"
+msgstr "{days}天"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/UsagePanel.tsx
+#: src/renderer/views/ProfileOverlay/parts/ProfileHeader.tsx
 msgid "{days}d ago"
 msgstr "{days}天前"
 
@@ -335,6 +381,10 @@ msgstr "帐户"
 msgid "Account options"
 msgstr "账户选项"
 
+#: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
+msgid "Accounts"
+msgstr "账户"
+
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "ACP"
@@ -366,7 +416,20 @@ msgstr "操作"
 msgid "Active"
 msgstr "活动"
 
+#: src/renderer/views/ProfileOverlay/parts/ActivitySection.tsx
+msgid "Activity"
+msgstr "活动"
+
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "Activity insights"
+msgstr "活动洞察"
+
+#: src/renderer/views/ProfileOverlay/parts/ActivitySection.tsx
+msgid "Activity metric"
+msgstr "活动指标"
+
 #: src/renderer/components/composer/ComposerAddMenu.tsx
+#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SearchExcludeBody.tsx
 msgid "Add"
 msgstr "添加"
@@ -402,6 +465,10 @@ msgstr "添加 Claude 配置文件"
 #: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
 msgid "Add credentials before this thread can run."
 msgstr "在此线程运行之前添加凭据。"
+
+#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+msgid "Add model"
+msgstr "添加模型"
 
 #: src/renderer/views/SettingsOverlay/parts/SearchExcludeBody.tsx
 msgid "Add pattern"
@@ -439,10 +506,6 @@ msgstr "添加到收藏夹"
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
 msgid "Agent"
 msgstr "智能体"
-
-#: src/renderer/components/providers/codex/index.tsx
-msgid "agent - Switch this chat to agent mode"
-msgstr "代理 - 将此聊天切换到代理模式"
 
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Agent ({subagent}): {description}"
@@ -512,6 +575,22 @@ msgid "AI agent orchestrator — manage coding agents via Terminal and Native "
 "ACP."
 msgstr "AI 代理协调器 — 通过终端和本机 ACP 管理编码代理。"
 
+#: src/renderer/views/ProfileOverlay/parts/AiActions.tsx
+msgid "AI git actions"
+msgstr "AI git操作"
+
+#: src/renderer/views/ProfileOverlay/parts/AccountFilter.tsx
+msgid "All accounts"
+msgstr "全部账户"
+
+#: src/renderer/views/ProfileOverlay/parts/ProfileHeader.tsx
+msgid "All devices"
+msgstr "全部设备"
+
+#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+msgid "All efforts"
+msgstr "全部级别"
+
 #: src/renderer/views/GitReviewOverlay/GitReviewOverlay.tsx
 #: src/renderer/views/PrReviewOverlay/PrReviewOverlay.tsx
 msgid "All files"
@@ -555,6 +634,10 @@ msgstr "外观"
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
 msgid "Appearance mode"
 msgstr "外观模式"
+
+#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+msgid "Apply provider preset"
+msgstr "应用服务商预设"
 
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
 msgid "Approval or reply required from you."
@@ -705,6 +788,14 @@ msgstr "可用"
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Available ACP Agents"
 msgstr "可用的 ACP 代理"
+
+#: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
+msgid "Avatar color"
+msgstr "头像颜色"
+
+#: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
+msgid "Avatar color {color}"
+msgstr "头像颜色{color}"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Back"
@@ -863,6 +954,16 @@ msgstr "正在生成差异…"
 msgid "by <0>{author}</0>"
 msgstr "由 <0>{author}</0>"
 
+#: src/renderer/views/ProfileOverlay/parts/ModelUsage.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
+msgid "by prompts"
+msgstr "按提示数"
+
+#: src/renderer/views/ProfileOverlay/parts/ModelUsage.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
+msgid "by tokens"
+msgstr "按token数"
+
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "Bypass branch protection rules"
 msgstr "绕过分支保护规则"
@@ -886,6 +987,7 @@ msgstr "绕过分支保护规则（管理合并）"
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
 #: src/renderer/views/MainView/parts/PullFromSourceDialog.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/DeleteWorktreeDialog.tsx
+#: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
 #: src/renderer/views/PrReviewOverlay/parts/SubmitReviewPopover.tsx
 msgid "Cancel"
 msgstr "取消"
@@ -1003,7 +1105,7 @@ msgid "Choose whether links from Lightcode and browser popups stay in Lightcode 
 "or open externally."
 msgstr "选择来自 Lightcode 和浏览器弹出窗口的链接是保留在 Lightcode 中还是在外部打开。"
 
-#. placeholder {0}: next.displayName ?? next.id
+#. placeholder {0}: trimmedName || displayLabel
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Claude {0} profile saved."
 msgstr "Claude {0} 配置文件已保存。"
@@ -1314,6 +1416,10 @@ msgstr "已完成"
 msgid "Composer"
 msgstr "Composer"
 
+#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+msgid "Config directory"
+msgstr "配置目录"
+
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 msgid "Conflict Resolver"
 msgstr "冲突解决者"
@@ -1387,10 +1493,15 @@ msgstr "控制哪些文件出现在 @file 提及搜索中。可在各项目的�
 msgid "Conversation"
 msgstr "对话"
 
+#: src/renderer/components/thread/ChatPane/parts/items/ImageView.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/UserMessage.tsx
 #: src/renderer/RendererCrashScreen.tsx
 msgid "Copied"
 msgstr "已复制"
+
+#: src/renderer/views/ProfileOverlay/parts/ShareDialog.tsx
+msgid "Copied to clipboard"
+msgstr "已复制到剪贴板"
 
 #: src/renderer/components/terminal/XTermSurface.tsx
 msgid "Copy"
@@ -1421,6 +1532,11 @@ msgstr "复制失败"
 #: src/renderer/views/ProjectSettingsOverlay/parts/ScriptsSection.tsx
 msgid "Copy ignored files"
 msgstr "复制忽略的文件"
+
+#: src/renderer/components/thread/ChatPane/parts/items/ImageView.tsx
+#: src/renderer/views/ProfileOverlay/parts/ShareDialog.tsx
+msgid "Copy image"
+msgstr "复制图片"
 
 #: src/renderer/components/thread/ChatPane/parts/items/UserMessage.tsx
 msgid "Copy message"
@@ -1475,6 +1591,10 @@ msgstr "无法创建项目。"
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "Couldn't list repositories."
 msgstr "无法列出存储库。"
+
+#: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
+msgid "Couldn't load your profile stats."
+msgstr "无法加载你的资料统计。"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CreatePrModal.tsx
 msgid "Create Draft PR"
@@ -1539,6 +1659,14 @@ msgstr "凭证已配置。"
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Credits"
 msgstr "鸣谢"
+
+#: src/renderer/views/ProfileOverlay/parts/ShareCard.tsx
+msgid "current streak"
+msgstr "当前连续天数"
+
+#: src/renderer/views/ProfileOverlay/parts/StatStrip.tsx
+msgid "Current streak"
+msgstr "当前连续天数"
 
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
@@ -1696,6 +1824,10 @@ msgstr "输入框语音输入按钮使用的设备。"
 msgid "Disable"
 msgstr "禁用"
 
+#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+msgid "Disable {tierLabel} effort"
+msgstr "禁用{tierLabel}级别"
+
 #: src/renderer/components/composer/AttachmentBar.tsx
 msgid "Disable Browser MCP"
 msgstr "禁用浏览器 MCP"
@@ -1707,6 +1839,11 @@ msgstr "禁用 CLI 挂钩插件 (L1)"
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
 msgid "Disable Project"
 msgstr "禁用项目"
+
+#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+msgid "Disable tiers an external provider collapses (e.g. keep only High and "
+"Max)."
+msgstr "禁用外部服务商合并的级别（例如仅保留High和Max）。"
 
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 msgid "Disabled"
@@ -1771,6 +1908,10 @@ msgstr "完成"
 msgid "Done · Waiting for your input"
 msgstr "完成 · 等待您的输入"
 
+#: src/renderer/components/thread/ChatPane/parts/items/ImageView.tsx
+msgid "Download image"
+msgstr "下载图片"
+
 #. placeholder {0}: name || t`the chosen folder`
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "Downloading into “{0}”. This can take a moment for large repositories."
@@ -1821,12 +1962,17 @@ msgid "e.g. Work"
 msgstr "例如工作"
 
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
+#: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "Edit"
 msgstr "编辑"
 
 #: src/renderer/components/thread/ChatPane/parts/items/FileChange.tsx
 msgid "Edit file"
 msgstr "编辑文件"
+
+#: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
+msgid "Edit profile"
+msgstr "编辑资料"
 
 #: src/renderer/components/thread/ChatPane/parts/items/FileChange.tsx
 msgid "Edit:"
@@ -1845,13 +1991,13 @@ msgstr "编辑器 LSP"
 msgid "Editor tabs"
 msgstr "编辑器选项卡"
 
-#: src/renderer/components/providers/codex/index.tsx
-msgid "effort - Open the effort picker"
-msgstr "effort - 打开思考强度选择器"
-
 #: src/renderer/components/common/EffortContextMenu/EffortContextMenu.tsx
 msgid "Effort and context"
 msgstr "思考强度与上下文"
+
+#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+msgid "Effort levels"
+msgstr "思考级别"
 
 #. About page label: Electron framework version
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
@@ -1861,6 +2007,10 @@ msgstr "Electron"
 #: src/renderer/components/composer/ComposerAddMenu.tsx
 msgid "Enable"
 msgstr "启用"
+
+#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+msgid "Enable {tierLabel} effort"
+msgstr "启用{tierLabel}级别"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 msgid "Enable language server support for type checking, completions, and "
@@ -1909,6 +2059,18 @@ msgstr "进入计划模式"
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 msgid "Environment"
 msgstr "环境"
+
+#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+msgid "Environment variable name"
+msgstr "环境变量名称"
+
+#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+msgid "Environment variable value"
+msgstr "环境变量值"
+
+#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+msgid "Environment variables"
+msgstr "环境变量"
 
 #: src/renderer/components/thread/ChatPane/parts/items/FileChange.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentToolCall.tsx
@@ -1966,6 +2128,14 @@ msgstr "展开错误"
 msgid "Expand todo dock"
 msgstr "展开待办事项停靠栏"
 
+#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+msgid "External"
+msgstr "外部"
+
+#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+msgid "External provider"
+msgstr "外部服务商"
+
 #: src/renderer/components/thread/threadDraftViewHelpers.ts
 msgid "Extra High"
 msgstr "超高"
@@ -1989,6 +2159,10 @@ msgstr "无法关闭拉取请求：{detail}"
 msgid "Failed to create pull request: {detail}"
 msgstr "无法创建拉取请求：{detail}"
 
+#: src/renderer/views/ProfileOverlay/useProfileData.ts
+msgid "Failed to load profile stats."
+msgstr "加载资料统计失败。"
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Failed to merge pull request: {detail}"
 msgstr "无法合并拉取请求：{detail}"
@@ -1997,9 +2171,9 @@ msgstr "无法合并拉取请求：{detail}"
 msgid "Fast"
 msgstr "快"
 
-#: src/renderer/components/providers/codex/index.tsx
-msgid "fast - Toggle Fast mode"
-msgstr "快速 - 切换快速模式"
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "Fast mode"
+msgstr "快速模式"
 
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 msgid "Fastest (Whisper tiny)"
@@ -2136,6 +2310,16 @@ msgstr "前进"
 msgid "Found a signed-in {0} session."
 msgstr "找到已登录的{0}会话。"
 
+#: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
+msgid "Frost the sidebar with the system blur material (vibrancy), echoing "
+"recent macOS. Falls back to a translucent tint where unsupported."
+msgstr "使用系统模糊材质（vibrancy）为侧边栏添加磨砂效果，呼应新版macOS。不支持时回退为半透明着色。"
+
+#: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
+msgid "Frosting of the {appearance}-mode sidebar over the system blur. Higher "
+"holds the theme color; lower shows more of what's behind."
+msgstr "在系统模糊之上为{appearance}模式侧边栏添加磨砂效果。数值越高越保留主题色；越低则越多透出背后内容。"
+
 #: src/renderer/components/providers/codex/index.tsx
 #: src/renderer/components/providers/composerControlBuilders.tsx
 msgid "Full access"
@@ -2217,13 +2401,17 @@ msgid "Gitignored files to copy from the main project into each new worktree. "
 "Gitignore-style patterns, one per line (e.g., <0>.env.*</0>)."
 msgstr "Gitignored 文件从主项目复制到每个新工作树中。 Gitignore 风格的模式，每行一个（例如 <0>.env.*</0>）。"
 
+#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+msgid "GLM 5.2 (optional label)"
+msgstr "GLM 5.2（可选标签）"
+
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 msgid "Goal"
 msgstr "目标"
 
-#: src/renderer/components/providers/codex/index.tsx
-msgid "goal - Set or view an experimental goal"
-msgstr "目标 - 设置或查看实验目标"
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "Goals set"
+msgstr "已设目标"
 
 #: src/renderer/views/MainView/parts/AppContent/AppContent.tsx
 msgid "Group"
@@ -2236,6 +2424,14 @@ msgstr "对打开的线程进行分组"
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
 msgid "GUI chat font size"
 msgstr "GUI聊天字体大小"
+
+#: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
+msgid "handle"
+msgstr "用户名"
+
+#: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
+msgid "Handle"
+msgstr "用户名"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Hard Reload"
@@ -2313,6 +2509,7 @@ msgstr "编号：{0}"
 msgid "Idle"
 msgstr "空闲"
 
+#: src/renderer/components/thread/ChatPane/parts/items/ImageView.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Image"
 msgstr "图片"
@@ -2362,7 +2559,7 @@ msgstr "安装"
 msgid "Install {0} for {env}."
 msgstr "为{env}安装{0}。"
 
-#. placeholder {0}: formatAgentList(props.agentStatuses.map((s) => s.label), i18n._.bind(i18n))
+#. placeholder {0}: formatAgentList(props.agentStatuses.map((s) => s.label))
 #: src/renderer/components/thread/ThreadDraftView.tsx
 msgid "Install {0} to create a thread."
 msgstr "安装{0}以创建线程。"
@@ -2477,6 +2674,10 @@ msgstr "正在启动…"
 msgid "Leave a comment"
 msgstr "发表评论"
 
+#: src/renderer/views/ProfileOverlay/parts/ActivityHeatmap.tsx
+msgid "Less"
+msgstr "少"
+
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
 msgid "Lets agents call <0>eval</0> to run arbitrary JavaScript inside the "
 "embedded page. Off by default — turn on only when you trust the loaded "
@@ -2488,6 +2689,14 @@ msgstr "让代理调用 <0>eval</0> 在嵌入页面内运行任意 JavaScript。
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "License"
 msgstr "许可证"
+
+#: src/renderer/views/ProfileOverlay/parts/ShareCard.tsx
+msgid "lifetime tokens"
+msgstr "累计token数"
+
+#: src/renderer/views/ProfileOverlay/parts/StatStrip.tsx
+msgid "Lifetime tokens"
+msgstr "累计token数"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Light"
@@ -2550,6 +2759,7 @@ msgid "local"
 msgstr "本地"
 
 #: src/renderer/components/common/BranchSelector/parts/useBranchList.ts
+#: src/renderer/views/ProfileOverlay/parts/ProfileHeader.tsx
 msgid "Local"
 msgstr "本地"
 
@@ -2598,6 +2808,23 @@ msgstr "退出"
 msgid "Logout {env}"
 msgstr "注销{env}"
 
+#: src/renderer/views/ProfileOverlay/parts/ShareCard.tsx
+msgid "longest streak"
+msgstr "最长连续天数"
+
+#: src/renderer/views/ProfileOverlay/parts/StatStrip.tsx
+msgid "Longest streak"
+msgstr "最长连续天数"
+
+#: src/renderer/views/ProfileOverlay/parts/StatStrip.tsx
+msgid "Longest task"
+msgstr "最长任务"
+
+#: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
+msgid "Make the sidebar translucent — the system blur material on Windows 11, a "
+"translucent tint elsewhere."
+msgstr "将侧边栏设为半透明——在Windows 11上使用系统模糊材质，在其他平台上使用半透明着色。"
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/sortMode.ts
 msgid "Manual order"
 msgstr "手动排序"
@@ -2639,6 +2866,10 @@ msgstr "最大化"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 msgid "Maximize browser"
 msgstr "最大化浏览器"
+
+#: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
+msgid "MCP servers"
+msgstr "MCP服务器"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/useWorktreeActions.ts
 msgid "Merge & Remove"
@@ -2702,6 +2933,10 @@ msgstr "已合并"
 msgid "Merging is blocked"
 msgstr "合并被阻止"
 
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "Messages sent"
+msgstr "已发送消息"
+
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 msgid "Microphone"
 msgstr "麦克风"
@@ -2739,17 +2974,34 @@ msgstr "最小化到面板"
 msgid "Mode"
 msgstr "模式"
 
-#: src/renderer/components/providers/codex/index.tsx
-msgid "model - Open the model picker"
-msgstr "模型 - 打开模型选择器"
+#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+msgid "Model id"
+msgstr "模型id"
+
+#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+msgid "Model label"
+msgstr "模型标签"
 
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 msgid "Model order"
 msgstr "模型排序"
 
+#: src/renderer/views/ProfileOverlay/parts/ModelUsage.tsx
+msgid "Model usage"
+msgstr "模型用量"
+
 #: src/renderer/components/common/ProviderModelMenu/ProviderModelMenu.tsx
+#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Models"
 msgstr "模型"
+
+#: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
+msgid "Modes"
+msgstr "模式"
+
+#: src/renderer/views/ProfileOverlay/parts/ActivityHeatmap.tsx
+msgid "More"
+msgstr "多"
 
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/ApprovalActions.tsx
 msgid "More approval options"
@@ -2775,6 +3027,22 @@ msgstr "更多拉取请求选项"
 msgid "More sync options"
 msgstr "更多同步选项"
 
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "Most active hour"
+msgstr "最活跃时段"
+
+#: src/renderer/views/ProfileOverlay/parts/PluginUsage.tsx
+msgid "Most used plugins"
+msgstr "最常用插件"
+
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "Most used provider"
+msgstr "最常用服务商"
+
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "Most used reasoning"
+msgstr "最常用思考级别"
+
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #: src/renderer/views/MainView/parts/AppContent/parts/Thread/parts/ContinueInProviderDialog.tsx
@@ -2797,6 +3065,11 @@ msgstr "已将您的更改移至“{newBranch}”上的新工作树中。“{cur
 #: src/renderer/components/common/BranchSelector/parts/BranchFooterActions.tsx
 msgid "Moving changes…"
 msgstr "正在移动更改…"
+
+#: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
+#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+msgid "Name"
+msgstr "名称"
 
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
 msgid "Name your project and choose where to create it."
@@ -2919,6 +3192,10 @@ msgstr "没有活动的浏览器选项卡"
 msgid "No active session"
 msgstr "没有活动会话"
 
+#: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
+msgid "No activity yet."
+msgstr "暂无活动。"
+
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "No additional Claude profiles."
 msgstr "没有其他 Claude 配置文件。"
@@ -2938,6 +3215,10 @@ msgstr "尚未安装代理"
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
 msgid "No agents installed."
 msgstr "没有安装代理。"
+
+#: src/renderer/views/ProfileOverlay/parts/AiActions.tsx
+msgid "No AI commits, PRs, or conflict resolutions tracked yet."
+msgstr "暂未记录任何AI提交、PR或冲突解决。"
 
 #: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
 msgid "No archived threads."
@@ -2988,6 +3269,10 @@ msgstr "还没有对话。成为第一个发表评论的人。"
 msgid "No data yet"
 msgstr "还没有数据"
 
+#: src/renderer/views/ProfileOverlay/parts/BreakdownBars.tsx
+msgid "No data yet."
+msgstr "暂无数据。"
+
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "No description"
 msgstr "无描述"
@@ -3030,6 +3315,10 @@ msgstr "没有匹配的代理。"
 #: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
 msgid "No matching threads"
 msgstr "没有匹配的线程"
+
+#: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
+msgid "No MCP tools used yet."
+msgstr "暂未使用任何MCP工具。"
 
 #: src/renderer/components/thread/ChatPane/ChatPane.tsx
 msgid "No messages yet"
@@ -3081,6 +3370,10 @@ msgstr "未找到存储库。"
 msgid "No runtime items yet for this thread."
 msgstr "该线程还没有运行时项目。"
 
+#: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
+msgid "No skills used yet."
+msgstr "暂未使用任何技能。"
+
 #: src/renderer/components/composer/VoiceInputButton.tsx
 msgid "No speech detected."
 msgstr "未检测到语音。"
@@ -3089,6 +3382,10 @@ msgstr "未检测到语音。"
 msgid "No staged changes"
 msgstr "没有暂存的更改"
 
+#: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
+msgid "No subagents used yet."
+msgstr "暂未使用任何子智能体。"
+
 #: src/renderer/components/thread/ThreadDraftView.tsx
 msgid "No supported agents detected"
 msgstr "未检测到支持的代理"
@@ -3096,6 +3393,10 @@ msgstr "未检测到支持的代理"
 #: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
 msgid "No threads"
 msgstr "没有线程"
+
+#: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
+msgid "No threads yet."
+msgstr "暂无对话。"
 
 #: src/renderer/components/providers/usageFormat.ts
 msgid "No windows reported"
@@ -3108,6 +3409,10 @@ msgstr "无工作树"
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewPanel.tsx
 msgid "No wrap"
 msgstr "不换行"
+
+#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+msgid "None"
+msgstr "无"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitDiffContent/GitDiffContent.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
@@ -3144,6 +3449,10 @@ msgstr "不支持"
 msgid "Notes"
 msgstr "注释"
 
+#: src/renderer/views/ProfileOverlay/parts/PluginUsage.tsx
+msgid "Nothing tracked yet. It'll appear here as you use it."
+msgstr "暂无记录。使用过程中将在此显示。"
+
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Notifications"
@@ -3178,6 +3487,10 @@ msgstr "仅当窗口失去焦点时"
 #: src/renderer/views/PrReviewOverlay/parts/PrMetaRow.tsx
 msgid "Open"
 msgstr "打开"
+
+#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+msgid "Open {label}"
+msgstr "打开{label}"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/DevTerminalPanel.tsx
 msgid "Open a terminal"
@@ -3252,6 +3565,10 @@ msgstr "打开 Git 审查"
 msgid "Open git review as a right-side panel or a full page."
 msgstr "将 git review 作为右侧面板或整页打开。"
 
+#: src/renderer/components/thread/ChatPane/parts/items/ImageView.tsx
+msgid "Open image preview"
+msgstr "打开图片预览"
+
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ConflictFileCard.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ConflictGroup.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/FileRow.tsx
@@ -3279,6 +3596,10 @@ msgstr "打开 PR #{0}"
 #: src/renderer/views/PrReviewOverlay/PrReviewOverlay.tsx
 msgid "Open PR on GitHub"
 msgstr "在 GitHub 上打开 PR"
+
+#: src/renderer/components/thread/ChatPane/parts/items/ImageView.tsx
+msgid "Open preview"
+msgstr "打开预览"
 
 #: src/renderer/commands/registry.ts
 msgid "Open Project Settings"
@@ -3344,6 +3665,11 @@ msgstr "结果"
 msgid "Over pace — runs out early"
 msgstr "节奏过快 — 提前用完"
 
+#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+msgid "Override Claude defaults — e.g. ANTHROPIC_BASE_URL and "
+"ANTHROPIC_AUTH_TOKEN."
+msgstr "覆盖Claude默认值——例如ANTHROPIC_BASE_URL和ANTHROPIC_AUTH_TOKEN。"
+
 #: src/renderer/views/ProjectSettingsOverlay/parts/SearchSection.tsx
 msgid "Overriding the global setting for this project."
 msgstr "覆盖该项目的全局设置。"
@@ -3381,6 +3707,14 @@ msgstr "粘贴到输入中"
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 msgid "Paused"
 msgstr "已暂停"
+
+#: src/renderer/views/ProfileOverlay/parts/ShareCard.tsx
+msgid "peak day"
+msgstr "最活跃日"
+
+#: src/renderer/views/ProfileOverlay/parts/StatStrip.tsx
+msgid "Peak day"
+msgstr "最活跃日"
 
 #: src/renderer/components/thread/ChatPane/parts/items/PlanItem.tsx
 #: src/renderer/components/thread/ThreadTodoDock.tsx
@@ -3428,10 +3762,6 @@ msgstr "已固定"
 msgid "Plan"
 msgstr "计划"
 
-#: src/renderer/components/providers/codex/index.tsx
-msgid "plan - Switch this chat to plan mode"
-msgstr "计划 - 将此聊天切换到计划模式"
-
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
 msgid "Play a sound when a notification is shown."
 msgstr "显示通知时播放声音。"
@@ -3439,6 +3769,11 @@ msgstr "显示通知时播放声音。"
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
 msgid "Play notification sound"
 msgstr "播放通知声音"
+
+#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+msgid "Point this profile at a non-Anthropic provider (z.ai, …) with custom env "
+"vars, model names, and effort levels."
+msgstr "将此配置指向非Anthropic服务商（z.ai，…），并自定义环境变量、模型名称和思考级别。"
 
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
 msgid "Popular editor themes adapted to Lightcode. Each follows the light or "
@@ -3469,6 +3804,10 @@ msgstr "PR 标题（留空以自动生成）"
 msgid "Pre-commit hook failed"
 msgstr "预提交挂钩失败"
 
+#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+msgid "Presets"
+msgstr "预设"
+
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 msgid "Prevent sleep while working"
 msgstr "工作时阻止系统休眠"
@@ -3481,6 +3820,10 @@ msgstr "预览{0}"
 #: src/renderer/components/composer/ImageLightbox.tsx
 msgid "Previous image"
 msgstr "上一张图片"
+
+#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
+msgid "Profile"
+msgstr "个人资料"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Profiles"
@@ -3512,6 +3855,10 @@ msgstr "在全局搜索设置基础上的项目特定覆盖。"
 msgid "Prompt"
 msgstr "提示"
 
+#: src/renderer/views/ProfileOverlay/parts/ActivitySection.tsx
+msgid "Prompts"
+msgstr "提示"
+
 #: src/renderer/components/thread/ChatPane/parts/items/PlanProposal.tsx
 msgid "Proposed plan"
 msgstr "拟议计划"
@@ -3529,11 +3876,16 @@ msgstr "提供商"
 msgid "Provider has not reported token usage."
 msgstr "提供商尚未报告令牌使用情况。"
 
+#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+msgid "Provider presets"
+msgstr "服务商预设"
+
 #. plural
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
 msgid "providers"
 msgstr "提供商"
 
+#: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Providers"
 msgstr "提供商"
@@ -3747,6 +4099,10 @@ msgstr "删除动作"
 msgid "Remove Claude profile"
 msgstr "删除 Claude 配置文件"
 
+#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+msgid "Remove environment variable"
+msgstr "移除环境变量"
+
 #: src/renderer/components/common/ProviderModelMenu/ProviderModelMenu.tsx
 msgid "Remove from favorites"
 msgstr "从收藏夹中删除"
@@ -3758,6 +4114,10 @@ msgstr "从组中删除"
 #: src/renderer/components/thread/ChatPane/parts/items/ActiveSubAgentTile.tsx
 msgid "Remove from panel"
 msgstr "从面板上移除"
+
+#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+msgid "Remove model"
+msgstr "移除模型"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
 msgid "Remove Project"
@@ -3852,6 +4212,14 @@ msgstr "重置"
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 msgid "Reset model order"
 msgstr "重置模型顺序"
+
+#: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
+msgid "Reset sidebar frosting to default"
+msgstr "将侧边栏磨砂效果重置为默认"
+
+#: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
+msgid "Reset to default"
+msgstr "重置为默认"
 
 #: src/renderer/components/layout/BrowserDrawerShell.tsx
 msgid "Resize browser drawer"
@@ -4058,6 +4426,8 @@ msgid "Runtime options"
 msgstr "运行时选项"
 
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorToolbar.tsx
+#: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
+#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
 msgid "Save"
 msgstr "保存"
@@ -4213,6 +4583,10 @@ msgstr "选择一个代理以查看其提示和结果。"
 msgid "Select branch"
 msgstr "选择分支"
 
+#: src/renderer/views/ProfileOverlay/parts/DevicePicker.tsx
+msgid "Select device"
+msgstr "选择设备"
+
 #: src/renderer/components/common/ProviderModelMenu/ProviderModelMenu.tsx
 msgid "Select model"
 msgstr "选择模型"
@@ -4235,8 +4609,10 @@ msgid "Sent selection to terminal."
 msgstr "将选择发送到终端。"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
-msgid "Separate Claude Code accounts by config directory."
-msgstr "按配置目录分隔 Claude Code 帐户。"
+msgid "Separate Claude Code accounts by config directory, or point a profile at "
+"an external provider (z.ai, …). Open a profile to configure its env "
+"vars, models, and effort."
+msgstr "按配置目录区分Claude Code账户，或将配置指向外部服务商（z.ai，…）。打开某个配置以设置其环境变量、模型和思考级别。"
 
 #: src/renderer/components/providers/codex/index.tsx
 msgid "Set or view an experimental goal"
@@ -4251,6 +4627,14 @@ msgstr "设置"
 #: src/renderer/views/ProjectSettingsOverlay/parts/ScriptsSection.tsx
 msgid "Setup script"
 msgstr "设置脚本"
+
+#: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
+msgid "Share"
+msgstr "分享"
+
+#: src/renderer/views/ProfileOverlay/parts/ShareDialog.tsx
+msgid "Share your activity"
+msgstr "分享你的活动"
 
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Show a compact per-provider usage ring in the sidebar."
@@ -4339,6 +4723,10 @@ msgstr "在编辑器中显示麦克风按钮。"
 msgid "Show voice input button"
 msgstr "显示语音输入按钮"
 
+#: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
+msgid "Sidebar frosting"
+msgstr "侧边栏磨砂效果"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
 msgid "Sign in"
 msgstr "登录"
@@ -4383,6 +4771,14 @@ msgstr "正在退出。检测到的代理将在完成后刷新。"
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Skill: {skill}"
 msgstr "技能：{skill}"
+
+#: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
+msgid "Skills"
+msgstr "技能"
+
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "Skills explored"
+msgstr "已探索技能"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "Some checks are failing or pending."
@@ -4439,10 +4835,9 @@ msgstr "已暂存（{0}）"
 msgid "Start"
 msgstr "开始"
 
-#. placeholder {0}: providerLabel ?? i18n._(msg`the app`)
 #: src/renderer/components/providers/usageFormat.ts
-msgid "Start {0} to see usage"
-msgstr "启动{0}查看用法"
+msgid "Start {appName} to see usage"
+msgstr "启动{appName}以查看用量"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesEditor.tsx
 msgid "Start a new thread from the selected text"
@@ -4527,6 +4922,14 @@ msgstr "停止任务"
 msgid "Stop voice input"
 msgstr "停止语音输入"
 
+#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+msgid "Store as plain text"
+msgstr "以明文存储"
+
+#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+msgid "Store as secret (encrypted at rest)"
+msgstr "以密文存储（静态加密）"
+
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentOverlay.tsx
 msgid "Subagent"
 msgstr "子代理"
@@ -4540,6 +4943,7 @@ msgid "Subagent Result"
 msgstr "子代理结果"
 
 #: src/renderer/components/thread/ChatPane/parts/items/ActiveSubAgentTile.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "Subagents"
 msgstr "子代理"
 
@@ -4627,6 +5031,10 @@ msgstr "同步失败：{detail}"
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CommitSyncPanel.tsx
 msgid "Sync options"
 msgstr "同步选项"
+
+#: src/renderer/views/ProfileOverlay/parts/ProfileHeader.tsx
+msgid "Syncs with Cloud"
+msgstr "与Cloud同步"
 
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 #: src/renderer/i18n/locales.ts
@@ -4885,9 +5293,30 @@ msgstr "关闭模型以将其隐藏在选择器中。"
 msgid "Toggle Terminal"
 msgstr "切换终端"
 
+#: src/renderer/views/ProfileOverlay/parts/ActivitySection.tsx
+msgid "Tokens"
+msgstr "Token"
+
+#. placeholder {0}: tokens!.providers.map((p) => p.label).join(", ")
+#: src/renderer/views/ProfileOverlay/parts/ModelUsage.tsx
+msgid "Tokens from {0}"
+msgstr "来自{0}的token"
+
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Tool search"
 msgstr "工具搜索"
+
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "Total prompts"
+msgstr "提示总数"
+
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "Total skills used"
+msgstr "已用技能总数"
+
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "Total threads"
+msgstr "对话总数"
 
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Track {label} usage"
@@ -4907,6 +5336,10 @@ msgstr "追踪关闭"
 #: src/renderer/components/composer/VoiceInputButton.tsx
 msgid "Transcribing voice"
 msgstr "正在转录语音"
+
+#: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
+msgid "Translucent sidebar"
+msgstr "半透明侧边栏"
 
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Turn tracking on or off per provider. Disabled providers are skipped by "
@@ -4985,6 +5418,10 @@ msgstr "无法解析 WSL 发行版“{distro}”的主目录"
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
 msgid "Unable to save {0} credentials."
 msgstr "无法保存{0}凭据。"
+
+#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+msgid "Unable to save Claude {displayLabel} profile."
+msgstr "无法保存Claude {displayLabel}配置。"
 
 #: src/renderer/utils/shellUtils.ts
 msgid "Unable to start {label}."
@@ -5229,10 +5666,18 @@ msgstr "使用WebGPU加速"
 msgid "Used"
 msgstr "已使用"
 
+#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+msgid "Using the built-in Claude model list."
+msgstr "正在使用内置的Claude模型列表。"
+
 #. placeholder {0}: status.bundledVersion
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
 msgid "v{0} available"
 msgstr "v{0}可用"
+
+#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+msgid "value"
+msgstr "值"
 
 #. About page label: app version row
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
@@ -5508,3 +5953,7 @@ msgstr "WSL"
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "WSL ({0})"
 msgstr "WSL（{0}）"
+
+#: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
+msgid "Your name"
+msgstr "你的名字"

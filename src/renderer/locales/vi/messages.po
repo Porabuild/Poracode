@@ -86,6 +86,11 @@ msgstr "Đã xóa thông tin đăng nhập của {0}."
 msgid "{0} credentials saved."
 msgstr "Đã lưu thông tin đăng nhập của {0}."
 
+#. placeholder {0}: devices.length
+#: src/renderer/views/ProfileOverlay/parts/ProfileHeader.tsx
+msgid "{0} devices"
+msgstr "{0} thiết bị"
+
 #. placeholder {0}: props.agentLabel
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
 msgid "{0} hooks installed for {envName}."
@@ -126,10 +131,35 @@ msgstr "{0} đã đăng xuất."
 msgid "{0} needs authentication."
 msgstr "{0} cần xác thực."
 
+#. placeholder {0}: cell.count
+#: src/renderer/views/ProfileOverlay/parts/ActivityHeatmap.tsx
+msgid "{0} prompt - {when}"
+msgstr "{0} prompt - {when}"
+
+#. placeholder {0}: cell.count
+#: src/renderer/views/ProfileOverlay/parts/ActivityHeatmap.tsx
+msgid "{0} prompts - {when}"
+msgstr "{0} prompt - {when}"
+
+#. placeholder {0}: item.runCount.toLocaleString()
+#: src/renderer/views/ProfileOverlay/parts/PluginUsage.tsx
+msgid "{0} run"
+msgstr "{0} lần chạy"
+
+#. placeholder {0}: item.runCount.toLocaleString()
+#: src/renderer/views/ProfileOverlay/parts/PluginUsage.tsx
+msgid "{0} runs"
+msgstr "{0} lần chạy"
+
 #. placeholder {0}: formatTokens(snapshot.tokens.total)
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
 msgid "{0} tokens"
 msgstr "{0} mã thông báo"
+
+#. placeholder {0}: formatCompact(cell.count)
+#: src/renderer/views/ProfileOverlay/parts/ActivityHeatmap.tsx
+msgid "{0} tokens - {when}"
+msgstr "{0} tokens - {when}"
 
 #. placeholder {0}: agent.name
 #. placeholder {1}: agent.version
@@ -167,11 +197,27 @@ msgstr "Đã dùng {0}"
 msgid "{0}% Full"
 msgstr "{0}% Đầy"
 
+#. placeholder {0}: Math.floor(days / 30)
+#: src/renderer/views/ProfileOverlay/parts/ProfileHeader.tsx
+msgid "{0}mo ago"
+msgstr "{0} tháng trước"
+
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 msgid "{agentLabel}: {statusLabel}. Hover for status details."
 msgstr "{agentLabel}: {statusLabel}. Di chuột để biết chi tiết trạng thái."
 
+#: src/renderer/views/ProfileOverlay/parts/ShareCard.tsx
+#: src/renderer/views/ProfileOverlay/parts/StatStrip.tsx
+msgid "{days} day"
+msgstr "{days} ngày"
+
+#: src/renderer/views/ProfileOverlay/parts/ShareCard.tsx
+#: src/renderer/views/ProfileOverlay/parts/StatStrip.tsx
+msgid "{days} days"
+msgstr "{days} ngày"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/UsagePanel.tsx
+#: src/renderer/views/ProfileOverlay/parts/ProfileHeader.tsx
 msgid "{days}d ago"
 msgstr "{days} ngày trước"
 
@@ -338,6 +384,10 @@ msgstr "Tài khoản"
 msgid "Account options"
 msgstr "Tùy chọn tài khoản"
 
+#: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
+msgid "Accounts"
+msgstr "Tài khoản"
+
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "ACP"
@@ -369,7 +419,20 @@ msgstr "Hành động"
 msgid "Active"
 msgstr "Đang hoạt động"
 
+#: src/renderer/views/ProfileOverlay/parts/ActivitySection.tsx
+msgid "Activity"
+msgstr "Hoạt động"
+
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "Activity insights"
+msgstr "Phân tích hoạt động"
+
+#: src/renderer/views/ProfileOverlay/parts/ActivitySection.tsx
+msgid "Activity metric"
+msgstr "Chỉ số hoạt động"
+
 #: src/renderer/components/composer/ComposerAddMenu.tsx
+#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SearchExcludeBody.tsx
 msgid "Add"
 msgstr "Thêm vào"
@@ -405,6 +468,10 @@ msgstr "Thêm hồ sơ Claude"
 #: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
 msgid "Add credentials before this thread can run."
 msgstr "Thêm thông tin xác thực trước khi chuỗi này có thể chạy."
+
+#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+msgid "Add model"
+msgstr "Thêm mô hình"
 
 #: src/renderer/views/SettingsOverlay/parts/SearchExcludeBody.tsx
 msgid "Add pattern"
@@ -442,10 +509,6 @@ msgstr "Thêm vào mục yêu thích"
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
 msgid "Agent"
 msgstr "Tác nhân"
-
-#: src/renderer/components/providers/codex/index.tsx
-msgid "agent - Switch this chat to agent mode"
-msgstr "tác nhân - Chuyển cuộc trò chuyện này sang chế độ tác nhân"
 
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Agent ({subagent}): {description}"
@@ -517,6 +580,22 @@ msgid "AI agent orchestrator — manage coding agents via Terminal and Native "
 msgstr "Trình điều phối tác nhân AI - quản lý các tác nhân mã hóa thông qua "
 "Terminal và Native ACP."
 
+#: src/renderer/views/ProfileOverlay/parts/AiActions.tsx
+msgid "AI git actions"
+msgstr "Thao tác git bằng AI"
+
+#: src/renderer/views/ProfileOverlay/parts/AccountFilter.tsx
+msgid "All accounts"
+msgstr "Tất cả tài khoản"
+
+#: src/renderer/views/ProfileOverlay/parts/ProfileHeader.tsx
+msgid "All devices"
+msgstr "Tất cả thiết bị"
+
+#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+msgid "All efforts"
+msgstr "Tất cả mức nỗ lực"
+
 #: src/renderer/views/GitReviewOverlay/GitReviewOverlay.tsx
 #: src/renderer/views/PrReviewOverlay/PrReviewOverlay.tsx
 msgid "All files"
@@ -561,6 +640,10 @@ msgstr "Giao diện"
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
 msgid "Appearance mode"
 msgstr "Chế độ giao diện"
+
+#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+msgid "Apply provider preset"
+msgstr "Áp dụng cấu hình nhà cung cấp"
 
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
 msgid "Approval or reply required from you."
@@ -714,6 +797,14 @@ msgstr "có sẵn"
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Available ACP Agents"
 msgstr "Tác nhân ACP có sẵn"
+
+#: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
+msgid "Avatar color"
+msgstr "Màu ảnh đại diện"
+
+#: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
+msgid "Avatar color {color}"
+msgstr "Màu ảnh đại diện {color}"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Back"
@@ -875,6 +966,16 @@ msgstr "Đang dựng diff…"
 msgid "by <0>{author}</0>"
 msgstr "bởi <0>{author}</0>"
 
+#: src/renderer/views/ProfileOverlay/parts/ModelUsage.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
+msgid "by prompts"
+msgstr "theo prompt"
+
+#: src/renderer/views/ProfileOverlay/parts/ModelUsage.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
+msgid "by tokens"
+msgstr "theo tokens"
+
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "Bypass branch protection rules"
 msgstr "Bỏ qua các quy tắc bảo vệ nhánh"
@@ -898,6 +999,7 @@ msgstr "Bỏ qua các quy tắc bảo vệ nhánh (hợp nhất với quyền qu
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
 #: src/renderer/views/MainView/parts/PullFromSourceDialog.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/DeleteWorktreeDialog.tsx
+#: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
 #: src/renderer/views/PrReviewOverlay/parts/SubmitReviewPopover.tsx
 msgid "Cancel"
 msgstr "Hủy bỏ"
@@ -1017,7 +1119,7 @@ msgid "Choose whether links from Lightcode and browser popups stay in Lightcode 
 msgstr "Chọn xem các liên kết từ Lightcode và cửa sổ bật lên của trình duyệt "
 "vẫn ở trong Lightcode hay mở bên ngoài."
 
-#. placeholder {0}: next.displayName ?? next.id
+#. placeholder {0}: trimmedName || displayLabel
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Claude {0} profile saved."
 msgstr "Đã lưu hồ sơ Claude {0}."
@@ -1329,6 +1431,10 @@ msgstr "hoàn thành"
 msgid "Composer"
 msgstr "Composer"
 
+#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+msgid "Config directory"
+msgstr "Thư mục cấu hình"
+
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 msgid "Conflict Resolver"
 msgstr "Giải quyết xung đột"
@@ -1403,10 +1509,15 @@ msgstr "Kiểm soát những tập tin nào xuất hiện trong tìm kiếm đ�
 msgid "Conversation"
 msgstr "Cuộc trò chuyện"
 
+#: src/renderer/components/thread/ChatPane/parts/items/ImageView.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/UserMessage.tsx
 #: src/renderer/RendererCrashScreen.tsx
 msgid "Copied"
 msgstr "Đã sao chép"
+
+#: src/renderer/views/ProfileOverlay/parts/ShareDialog.tsx
+msgid "Copied to clipboard"
+msgstr "Đã sao chép vào bộ nhớ tạm"
 
 #: src/renderer/components/terminal/XTermSurface.tsx
 msgid "Copy"
@@ -1437,6 +1548,11 @@ msgstr "Sao chép không thành công"
 #: src/renderer/views/ProjectSettingsOverlay/parts/ScriptsSection.tsx
 msgid "Copy ignored files"
 msgstr "Sao chép các tập tin bị bỏ qua"
+
+#: src/renderer/components/thread/ChatPane/parts/items/ImageView.tsx
+#: src/renderer/views/ProfileOverlay/parts/ShareDialog.tsx
+msgid "Copy image"
+msgstr "Sao chép hình ảnh"
 
 #: src/renderer/components/thread/ChatPane/parts/items/UserMessage.tsx
 msgid "Copy message"
@@ -1493,6 +1609,10 @@ msgstr "Không thể tạo dự án."
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "Couldn't list repositories."
 msgstr "Không thể liệt kê các kho lưu trữ."
+
+#: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
+msgid "Couldn't load your profile stats."
+msgstr "Không thể tải thống kê hồ sơ của bạn."
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CreatePrModal.tsx
 msgid "Create Draft PR"
@@ -1559,6 +1679,14 @@ msgstr "Thông tin xác thực được cấu hình."
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Credits"
 msgstr "Số dư tín dụng"
+
+#: src/renderer/views/ProfileOverlay/parts/ShareCard.tsx
+msgid "current streak"
+msgstr "chuỗi ngày hiện tại"
+
+#: src/renderer/views/ProfileOverlay/parts/StatStrip.tsx
+msgid "Current streak"
+msgstr "Chuỗi ngày hiện tại"
 
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
@@ -1717,6 +1845,10 @@ msgstr "Thiết bị được dùng cho nút nhập giọng nói của khung so�
 msgid "Disable"
 msgstr "Vô hiệu hóa"
 
+#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+msgid "Disable {tierLabel} effort"
+msgstr "Tắt mức nỗ lực {tierLabel}"
+
 #: src/renderer/components/composer/AttachmentBar.tsx
 msgid "Disable Browser MCP"
 msgstr "Tắt MCP trình duyệt"
@@ -1728,6 +1860,12 @@ msgstr "Vô hiệu hóa plugin hook CLI (L1)"
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
 msgid "Disable Project"
 msgstr "Vô hiệu hóa dự án"
+
+#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+msgid "Disable tiers an external provider collapses (e.g. keep only High and "
+"Max)."
+msgstr "Tắt các mức mà nhà cung cấp bên ngoài gộp lại (ví dụ chỉ giữ High và "
+"Max)."
 
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 msgid "Disabled"
@@ -1792,6 +1930,10 @@ msgstr "Xong"
 msgid "Done · Waiting for your input"
 msgstr "Xong · Đang chờ bạn nhập"
 
+#: src/renderer/components/thread/ChatPane/parts/items/ImageView.tsx
+msgid "Download image"
+msgstr "Tải hình ảnh"
+
 #. placeholder {0}: name || t`the chosen folder`
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "Downloading into “{0}”. This can take a moment for large repositories."
@@ -1845,12 +1987,17 @@ msgid "e.g. Work"
 msgstr "ví dụ: Work"
 
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
+#: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "Edit"
 msgstr "Chỉnh sửa"
 
 #: src/renderer/components/thread/ChatPane/parts/items/FileChange.tsx
 msgid "Edit file"
 msgstr "Chỉnh sửa tập tin"
+
+#: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
+msgid "Edit profile"
+msgstr "Chỉnh sửa hồ sơ"
 
 #: src/renderer/components/thread/ChatPane/parts/items/FileChange.tsx
 msgid "Edit:"
@@ -1869,13 +2016,13 @@ msgstr "LSP của trình chỉnh sửa"
 msgid "Editor tabs"
 msgstr "Tab trình chỉnh sửa"
 
-#: src/renderer/components/providers/codex/index.tsx
-msgid "effort - Open the effort picker"
-msgstr "nỗ lực - Mở bộ chọn nỗ lực"
-
 #: src/renderer/components/common/EffortContextMenu/EffortContextMenu.tsx
 msgid "Effort and context"
 msgstr "Nỗ lực và bối cảnh"
+
+#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+msgid "Effort levels"
+msgstr "Mức nỗ lực"
 
 #. About page label: Electron framework version
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
@@ -1885,6 +2032,10 @@ msgstr "Electron"
 #: src/renderer/components/composer/ComposerAddMenu.tsx
 msgid "Enable"
 msgstr "Kích hoạt"
+
+#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+msgid "Enable {tierLabel} effort"
+msgstr "Bật mức nỗ lực {tierLabel}"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 msgid "Enable language server support for type checking, completions, and "
@@ -1936,6 +2087,18 @@ msgstr "Vào chế độ kế hoạch"
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 msgid "Environment"
 msgstr "Môi trường"
+
+#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+msgid "Environment variable name"
+msgstr "Tên biến môi trường"
+
+#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+msgid "Environment variable value"
+msgstr "Giá trị biến môi trường"
+
+#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+msgid "Environment variables"
+msgstr "Biến môi trường"
 
 #: src/renderer/components/thread/ChatPane/parts/items/FileChange.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentToolCall.tsx
@@ -1993,6 +2156,14 @@ msgstr "Mở rộng lỗi"
 msgid "Expand todo dock"
 msgstr "Mở rộng dock việc cần làm"
 
+#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+msgid "External"
+msgstr "Bên ngoài"
+
+#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+msgid "External provider"
+msgstr "Nhà cung cấp bên ngoài"
+
 #: src/renderer/components/thread/threadDraftViewHelpers.ts
 msgid "Extra High"
 msgstr "Cực cao"
@@ -2016,6 +2187,10 @@ msgstr "Không thể đóng pull request: {detail}"
 msgid "Failed to create pull request: {detail}"
 msgstr "Không tạo được pull request: {detail}"
 
+#: src/renderer/views/ProfileOverlay/useProfileData.ts
+msgid "Failed to load profile stats."
+msgstr "Không tải được thống kê hồ sơ."
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Failed to merge pull request: {detail}"
 msgstr "Không thể hợp nhất pull request: {detail}"
@@ -2024,9 +2199,9 @@ msgstr "Không thể hợp nhất pull request: {detail}"
 msgid "Fast"
 msgstr "Nhanh"
 
-#: src/renderer/components/providers/codex/index.tsx
-msgid "fast - Toggle Fast mode"
-msgstr "nhanh - Chuyển đổi chế độ Nhanh"
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "Fast mode"
+msgstr "Chế độ nhanh"
 
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 msgid "Fastest (Whisper tiny)"
@@ -2169,6 +2344,18 @@ msgstr "Chuyển tiếp"
 msgid "Found a signed-in {0} session."
 msgstr "Đã tìm thấy phiên đăng nhập {0}."
 
+#: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
+msgid "Frost the sidebar with the system blur material (vibrancy), echoing "
+"recent macOS. Falls back to a translucent tint where unsupported."
+msgstr "Làm mờ thanh bên bằng hiệu ứng làm mờ của hệ thống (vibrancy), gợi nhớ "
+"macOS gần đây. Sẽ dùng lớp màu mờ trong suốt nếu không được hỗ trợ."
+
+#: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
+msgid "Frosting of the {appearance}-mode sidebar over the system blur. Higher "
+"holds the theme color; lower shows more of what's behind."
+msgstr "Độ mờ của thanh bên ở chế độ {appearance} trên nền làm mờ hệ thống. Cao "
+"hơn giữ màu chủ đề; thấp hơn để lộ nhiều hơn phần phía sau."
+
 #: src/renderer/components/providers/codex/index.tsx
 #: src/renderer/components/providers/composerControlBuilders.tsx
 msgid "Full access"
@@ -2252,13 +2439,17 @@ msgstr "Các tệp được Gitignored để sao chép từ dự án chính vào
 "việc mới. Các mẫu kiểu Gitignore, mỗi mẫu một dòng (ví dụ: "
 "<0>.env.*</0>)."
 
+#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+msgid "GLM 5.2 (optional label)"
+msgstr "GLM 5.2 (nhãn tùy chọn)"
+
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 msgid "Goal"
 msgstr "Mục tiêu"
 
-#: src/renderer/components/providers/codex/index.tsx
-msgid "goal - Set or view an experimental goal"
-msgstr "mục tiêu - Đặt hoặc xem mục tiêu thử nghiệm"
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "Goals set"
+msgstr "Mục tiêu đã đặt"
 
 #: src/renderer/views/MainView/parts/AppContent/AppContent.tsx
 msgid "Group"
@@ -2271,6 +2462,14 @@ msgstr "Nhóm chủ đề mở"
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
 msgid "GUI chat font size"
 msgstr "Kích thước phông chữ trò chuyện GUI"
+
+#: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
+msgid "handle"
+msgstr "handle"
+
+#: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
+msgid "Handle"
+msgstr "Handle"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Hard Reload"
@@ -2350,6 +2549,7 @@ msgstr "Mã số: {0}"
 msgid "Idle"
 msgstr "Nhàn rỗi"
 
+#: src/renderer/components/thread/ChatPane/parts/items/ImageView.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Image"
 msgstr "Hình ảnh"
@@ -2399,7 +2599,7 @@ msgstr "cài đặt"
 msgid "Install {0} for {env}."
 msgstr "Cài đặt {0} cho {env}."
 
-#. placeholder {0}: formatAgentList(props.agentStatuses.map((s) => s.label), i18n._.bind(i18n))
+#. placeholder {0}: formatAgentList(props.agentStatuses.map((s) => s.label))
 #: src/renderer/components/thread/ThreadDraftView.tsx
 msgid "Install {0} to create a thread."
 msgstr "Cài đặt {0} để tạo chủ đề."
@@ -2518,6 +2718,10 @@ msgstr "Đang khởi chạy…"
 msgid "Leave a comment"
 msgstr "Để lại bình luận"
 
+#: src/renderer/views/ProfileOverlay/parts/ActivityHeatmap.tsx
+msgid "Less"
+msgstr "Ít"
+
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
 msgid "Lets agents call <0>eval</0> to run arbitrary JavaScript inside the "
 "embedded page. Off by default — turn on only when you trust the loaded "
@@ -2531,6 +2735,14 @@ msgstr "Cho phép các tác nhân gọi <0>eval</0> để chạy JavaScript tùy
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "License"
 msgstr "Giấy phép"
+
+#: src/renderer/views/ProfileOverlay/parts/ShareCard.tsx
+msgid "lifetime tokens"
+msgstr "tokens trọn đời"
+
+#: src/renderer/views/ProfileOverlay/parts/StatStrip.tsx
+msgid "Lifetime tokens"
+msgstr "Tokens trọn đời"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Light"
@@ -2593,6 +2805,7 @@ msgid "local"
 msgstr "cục bộ"
 
 #: src/renderer/components/common/BranchSelector/parts/useBranchList.ts
+#: src/renderer/views/ProfileOverlay/parts/ProfileHeader.tsx
 msgid "Local"
 msgstr "Cục bộ"
 
@@ -2641,6 +2854,24 @@ msgstr "Đăng xuất"
 msgid "Logout {env}"
 msgstr "Đăng xuất {env}"
 
+#: src/renderer/views/ProfileOverlay/parts/ShareCard.tsx
+msgid "longest streak"
+msgstr "chuỗi ngày dài nhất"
+
+#: src/renderer/views/ProfileOverlay/parts/StatStrip.tsx
+msgid "Longest streak"
+msgstr "Chuỗi ngày dài nhất"
+
+#: src/renderer/views/ProfileOverlay/parts/StatStrip.tsx
+msgid "Longest task"
+msgstr "Tác vụ dài nhất"
+
+#: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
+msgid "Make the sidebar translucent — the system blur material on Windows 11, a "
+"translucent tint elsewhere."
+msgstr "Làm thanh bên trong suốt — hiệu ứng làm mờ của hệ thống trên Windows "
+"11, lớp màu mờ trong suốt ở nơi khác."
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/sortMode.ts
 msgid "Manual order"
 msgstr "Sắp xếp thủ công"
@@ -2682,6 +2913,10 @@ msgstr "Tối đa hóa"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 msgid "Maximize browser"
 msgstr "Tối đa hóa trình duyệt"
+
+#: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
+msgid "MCP servers"
+msgstr "Máy chủ MCP"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/useWorktreeActions.ts
 msgid "Merge & Remove"
@@ -2746,6 +2981,10 @@ msgstr "Đã hợp nhất"
 msgid "Merging is blocked"
 msgstr "Việc hợp nhất bị chặn"
 
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "Messages sent"
+msgstr "Tin nhắn đã gửi"
+
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 msgid "Microphone"
 msgstr "Micrô"
@@ -2783,17 +3022,34 @@ msgstr "Thu nhỏ vào bảng điều khiển"
 msgid "Mode"
 msgstr "Chế độ"
 
-#: src/renderer/components/providers/codex/index.tsx
-msgid "model - Open the model picker"
-msgstr "mô hình - Mở bộ chọn mô hình"
+#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+msgid "Model id"
+msgstr "ID mô hình"
+
+#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+msgid "Model label"
+msgstr "Nhãn mô hình"
 
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 msgid "Model order"
 msgstr "Thứ tự mô hình"
 
+#: src/renderer/views/ProfileOverlay/parts/ModelUsage.tsx
+msgid "Model usage"
+msgstr "Mức dùng mô hình"
+
 #: src/renderer/components/common/ProviderModelMenu/ProviderModelMenu.tsx
+#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Models"
 msgstr "Mô hình"
+
+#: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
+msgid "Modes"
+msgstr "Chế độ"
+
+#: src/renderer/views/ProfileOverlay/parts/ActivityHeatmap.tsx
+msgid "More"
+msgstr "Nhiều"
 
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/ApprovalActions.tsx
 msgid "More approval options"
@@ -2819,6 +3075,22 @@ msgstr "Nhiều tùy chọn pull request hơn"
 msgid "More sync options"
 msgstr "Nhiều tùy chọn đồng bộ hơn"
 
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "Most active hour"
+msgstr "Giờ hoạt động nhiều nhất"
+
+#: src/renderer/views/ProfileOverlay/parts/PluginUsage.tsx
+msgid "Most used plugins"
+msgstr "Plugin dùng nhiều nhất"
+
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "Most used provider"
+msgstr "Nhà cung cấp dùng nhiều nhất"
+
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "Most used reasoning"
+msgstr "Mức suy luận dùng nhiều nhất"
+
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #: src/renderer/views/MainView/parts/AppContent/parts/Thread/parts/ContinueInProviderDialog.tsx
@@ -2842,6 +3114,11 @@ msgstr "Đã chuyển các thay đổi của bạn sang một cây làm việc m
 #: src/renderer/components/common/BranchSelector/parts/BranchFooterActions.tsx
 msgid "Moving changes…"
 msgstr "Đang di chuyển các thay đổi…"
+
+#: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
+#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+msgid "Name"
+msgstr "Tên"
 
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
 msgid "Name your project and choose where to create it."
@@ -2964,6 +3241,10 @@ msgstr "Không có tab trình duyệt đang hoạt động"
 msgid "No active session"
 msgstr "Không có phiên hoạt động"
 
+#: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
+msgid "No activity yet."
+msgstr "Chưa có hoạt động nào."
+
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "No additional Claude profiles."
 msgstr "Không có hồ sơ Claude bổ sung."
@@ -2983,6 +3264,10 @@ msgstr "Chưa có tác nhân nào được cài đặt"
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
 msgid "No agents installed."
 msgstr "Không có tác nhân nào được cài đặt."
+
+#: src/renderer/views/ProfileOverlay/parts/AiActions.tsx
+msgid "No AI commits, PRs, or conflict resolutions tracked yet."
+msgstr "Chưa ghi nhận commit, PR hay giải quyết xung đột nào bằng AI."
 
 #: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
 msgid "No archived threads."
@@ -3033,6 +3318,10 @@ msgstr "Chưa có cuộc trò chuyện nào. Hãy là người đầu tiên bìn
 msgid "No data yet"
 msgstr "Chưa có dữ liệu"
 
+#: src/renderer/views/ProfileOverlay/parts/BreakdownBars.tsx
+msgid "No data yet."
+msgstr "Chưa có dữ liệu."
+
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "No description"
 msgstr "Không có mô tả"
@@ -3076,6 +3365,10 @@ msgstr "Không có tác nhân nào phù hợp."
 #: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
 msgid "No matching threads"
 msgstr "Không có luồng nào phù hợp"
+
+#: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
+msgid "No MCP tools used yet."
+msgstr "Chưa dùng công cụ MCP nào."
 
 #: src/renderer/components/thread/ChatPane/ChatPane.tsx
 msgid "No messages yet"
@@ -3128,6 +3421,10 @@ msgstr "Không tìm thấy kho lưu trữ nào."
 msgid "No runtime items yet for this thread."
 msgstr "Chưa có mục thời gian chạy nào cho luồng này."
 
+#: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
+msgid "No skills used yet."
+msgstr "Chưa dùng skill nào."
+
 #: src/renderer/components/composer/VoiceInputButton.tsx
 msgid "No speech detected."
 msgstr "Không phát hiện thấy giọng nói nào."
@@ -3136,6 +3433,10 @@ msgstr "Không phát hiện thấy giọng nói nào."
 msgid "No staged changes"
 msgstr "Không có thay đổi nào được đưa vào staging"
 
+#: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
+msgid "No subagents used yet."
+msgstr "Chưa dùng subagent nào."
+
 #: src/renderer/components/thread/ThreadDraftView.tsx
 msgid "No supported agents detected"
 msgstr "Không phát hiện thấy tác nhân được hỗ trợ nào"
@@ -3143,6 +3444,10 @@ msgstr "Không phát hiện thấy tác nhân được hỗ trợ nào"
 #: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
 msgid "No threads"
 msgstr "Không có luồng nào"
+
+#: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
+msgid "No threads yet."
+msgstr "Chưa có luồng nào."
 
 #: src/renderer/components/providers/usageFormat.ts
 msgid "No windows reported"
@@ -3155,6 +3460,10 @@ msgstr "Không có worktree"
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewPanel.tsx
 msgid "No wrap"
 msgstr "Không ngắt dòng"
+
+#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+msgid "None"
+msgstr "Không có"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitDiffContent/GitDiffContent.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
@@ -3191,6 +3500,10 @@ msgstr "Không được hỗ trợ"
 msgid "Notes"
 msgstr "Ghi chú"
 
+#: src/renderer/views/ProfileOverlay/parts/PluginUsage.tsx
+msgid "Nothing tracked yet. It'll appear here as you use it."
+msgstr "Chưa ghi nhận gì. Nội dung sẽ xuất hiện ở đây khi bạn sử dụng."
+
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Notifications"
@@ -3225,6 +3538,10 @@ msgstr "Chỉ khi không tập trung"
 #: src/renderer/views/PrReviewOverlay/parts/PrMetaRow.tsx
 msgid "Open"
 msgstr "Mở"
+
+#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+msgid "Open {label}"
+msgstr "Mở {label}"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/DevTerminalPanel.tsx
 msgid "Open a terminal"
@@ -3299,6 +3616,10 @@ msgstr "Mở Git Review"
 msgid "Open git review as a right-side panel or a full page."
 msgstr "Mở đánh giá git dưới dạng bảng điều khiển bên phải hoặc toàn trang."
 
+#: src/renderer/components/thread/ChatPane/parts/items/ImageView.tsx
+msgid "Open image preview"
+msgstr "Mở xem trước hình ảnh"
+
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ConflictFileCard.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ConflictGroup.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/FileRow.tsx
@@ -3326,6 +3647,10 @@ msgstr "Mở PR #{0}"
 #: src/renderer/views/PrReviewOverlay/PrReviewOverlay.tsx
 msgid "Open PR on GitHub"
 msgstr "Mở PR trên GitHub"
+
+#: src/renderer/components/thread/ChatPane/parts/items/ImageView.tsx
+msgid "Open preview"
+msgstr "Mở xem trước"
 
 #: src/renderer/commands/registry.ts
 msgid "Open Project Settings"
@@ -3392,6 +3717,12 @@ msgstr "Kết quả"
 msgid "Over pace — runs out early"
 msgstr "Vượt nhịp độ — hết sớm"
 
+#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+msgid "Override Claude defaults — e.g. ANTHROPIC_BASE_URL and "
+"ANTHROPIC_AUTH_TOKEN."
+msgstr "Ghi đè giá trị mặc định của Claude — ví dụ ANTHROPIC_BASE_URL và "
+"ANTHROPIC_AUTH_TOKEN."
+
 #: src/renderer/views/ProjectSettingsOverlay/parts/SearchSection.tsx
 msgid "Overriding the global setting for this project."
 msgstr "Ghi đè cài đặt chung cho dự án này."
@@ -3429,6 +3760,14 @@ msgstr "Dán vào đầu vào"
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 msgid "Paused"
 msgstr "Đã tạm dừng"
+
+#: src/renderer/views/ProfileOverlay/parts/ShareCard.tsx
+msgid "peak day"
+msgstr "ngày cao điểm"
+
+#: src/renderer/views/ProfileOverlay/parts/StatStrip.tsx
+msgid "Peak day"
+msgstr "Ngày cao điểm"
 
 #: src/renderer/components/thread/ChatPane/parts/items/PlanItem.tsx
 #: src/renderer/components/thread/ThreadTodoDock.tsx
@@ -3476,10 +3815,6 @@ msgstr "Đã ghim"
 msgid "Plan"
 msgstr "kế hoạch"
 
-#: src/renderer/components/providers/codex/index.tsx
-msgid "plan - Switch this chat to plan mode"
-msgstr "plan - Chuyển cuộc trò chuyện này sang chế độ kế hoạch"
-
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
 msgid "Play a sound when a notification is shown."
 msgstr "Phát âm thanh khi thông báo được hiển thị."
@@ -3487,6 +3822,12 @@ msgstr "Phát âm thanh khi thông báo được hiển thị."
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
 msgid "Play notification sound"
 msgstr "Phát âm thanh thông báo"
+
+#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+msgid "Point this profile at a non-Anthropic provider (z.ai, …) with custom env "
+"vars, model names, and effort levels."
+msgstr "Trỏ hồ sơ này tới nhà cung cấp ngoài Anthropic (z.ai, …) với biến môi "
+"trường, tên mô hình và mức nỗ lực tùy chỉnh."
 
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
 msgid "Popular editor themes adapted to Lightcode. Each follows the light or "
@@ -3518,6 +3859,10 @@ msgstr "Tiêu đề PR (để trống để tự động tạo)"
 msgid "Pre-commit hook failed"
 msgstr "Hook pre-commit không thành công"
 
+#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+msgid "Presets"
+msgstr "Cấu hình sẵn"
+
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 msgid "Prevent sleep while working"
 msgstr "Ngăn chế độ ngủ khi đang làm việc"
@@ -3530,6 +3875,10 @@ msgstr "Xem trước {0}"
 #: src/renderer/components/composer/ImageLightbox.tsx
 msgid "Previous image"
 msgstr "Hình ảnh trước đó"
+
+#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
+msgid "Profile"
+msgstr "Hồ sơ"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Profiles"
@@ -3561,6 +3910,10 @@ msgstr "Ghi đè dành riêng cho dự án ở đầu cài đặt tìm kiếm ch
 msgid "Prompt"
 msgstr "Lời nhắc"
 
+#: src/renderer/views/ProfileOverlay/parts/ActivitySection.tsx
+msgid "Prompts"
+msgstr "Prompt"
+
 #: src/renderer/components/thread/ChatPane/parts/items/PlanProposal.tsx
 msgid "Proposed plan"
 msgstr "Kế hoạch đề xuất"
@@ -3578,11 +3931,16 @@ msgstr "nhà cung cấp"
 msgid "Provider has not reported token usage."
 msgstr "Nhà cung cấp chưa báo cáo việc sử dụng mã thông báo."
 
+#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+msgid "Provider presets"
+msgstr "Cấu hình nhà cung cấp"
+
 #. plural
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
 msgid "providers"
 msgstr "nhà cung cấp"
 
+#: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Providers"
 msgstr "Nhà cung cấp"
@@ -3800,6 +4158,10 @@ msgstr "Xóa hành động"
 msgid "Remove Claude profile"
 msgstr "Xóa hồ sơ Claude"
 
+#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+msgid "Remove environment variable"
+msgstr "Xóa biến môi trường"
+
 #: src/renderer/components/common/ProviderModelMenu/ProviderModelMenu.tsx
 msgid "Remove from favorites"
 msgstr "Xóa khỏi mục yêu thích"
@@ -3811,6 +4173,10 @@ msgstr "Xóa khỏi nhóm"
 #: src/renderer/components/thread/ChatPane/parts/items/ActiveSubAgentTile.tsx
 msgid "Remove from panel"
 msgstr "Xóa khỏi bảng điều khiển"
+
+#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+msgid "Remove model"
+msgstr "Xóa mô hình"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
 msgid "Remove Project"
@@ -3906,6 +4272,14 @@ msgstr "đặt lại"
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 msgid "Reset model order"
 msgstr "Đặt lại thứ tự mô hình"
+
+#: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
+msgid "Reset sidebar frosting to default"
+msgstr "Đặt lại độ mờ thanh bên về mặc định"
+
+#: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
+msgid "Reset to default"
+msgstr "Đặt lại về mặc định"
 
 #: src/renderer/components/layout/BrowserDrawerShell.tsx
 msgid "Resize browser drawer"
@@ -4113,6 +4487,8 @@ msgid "Runtime options"
 msgstr "Tùy chọn thời gian chạy"
 
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorToolbar.tsx
+#: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
+#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
 msgid "Save"
 msgstr "Lưu"
@@ -4271,6 +4647,10 @@ msgstr "Chọn một tác nhân để xem lời nhắc và kết quả của nó
 msgid "Select branch"
 msgstr "Chọn nhánh"
 
+#: src/renderer/views/ProfileOverlay/parts/DevicePicker.tsx
+msgid "Select device"
+msgstr "Chọn thiết bị"
+
 #: src/renderer/components/common/ProviderModelMenu/ProviderModelMenu.tsx
 msgid "Select model"
 msgstr "Chọn mô hình"
@@ -4293,8 +4673,12 @@ msgid "Sent selection to terminal."
 msgstr "Đã gửi lựa chọn đến thiết bị đầu cuối."
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
-msgid "Separate Claude Code accounts by config directory."
-msgstr "Phân tách các tài khoản Claude Code theo thư mục cấu hình."
+msgid "Separate Claude Code accounts by config directory, or point a profile at "
+"an external provider (z.ai, …). Open a profile to configure its env "
+"vars, models, and effort."
+msgstr "Tách các tài khoản Claude Code theo thư mục cấu hình, hoặc trỏ một hồ "
+"sơ tới nhà cung cấp bên ngoài (z.ai, …). Mở một hồ sơ để cấu hình biến "
+"môi trường, mô hình và mức nỗ lực của nó."
 
 #: src/renderer/components/providers/codex/index.tsx
 msgid "Set or view an experimental goal"
@@ -4309,6 +4693,14 @@ msgstr "Cài đặt"
 #: src/renderer/views/ProjectSettingsOverlay/parts/ScriptsSection.tsx
 msgid "Setup script"
 msgstr "Tập lệnh thiết lập"
+
+#: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
+msgid "Share"
+msgstr "Chia sẻ"
+
+#: src/renderer/views/ProfileOverlay/parts/ShareDialog.tsx
+msgid "Share your activity"
+msgstr "Chia sẻ hoạt động của bạn"
 
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Show a compact per-provider usage ring in the sidebar."
@@ -4398,6 +4790,10 @@ msgstr "Hiển thị nút micrô trong trình soạn thảo."
 msgid "Show voice input button"
 msgstr "Hiển thị nút nhập bằng giọng nói"
 
+#: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
+msgid "Sidebar frosting"
+msgstr "Độ mờ thanh bên"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
 msgid "Sign in"
 msgstr "Đăng nhập"
@@ -4443,6 +4839,14 @@ msgstr "Đang đăng xuất. Các tác nhân được phát hiện sẽ làm m�
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Skill: {skill}"
 msgstr "Kỹ năng: {skill}"
+
+#: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
+msgid "Skills"
+msgstr "Skill"
+
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "Skills explored"
+msgstr "Skill đã khám phá"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "Some checks are failing or pending."
@@ -4499,10 +4903,9 @@ msgstr "Đã stage ({0})"
 msgid "Start"
 msgstr "Bắt đầu"
 
-#. placeholder {0}: providerLabel ?? i18n._(msg`the app`)
 #: src/renderer/components/providers/usageFormat.ts
-msgid "Start {0} to see usage"
-msgstr "Bắt đầu {0} để xem mức sử dụng"
+msgid "Start {appName} to see usage"
+msgstr "Khởi động {appName} để xem mức sử dụng"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesEditor.tsx
 msgid "Start a new thread from the selected text"
@@ -4590,6 +4993,14 @@ msgstr "Dừng tác vụ"
 msgid "Stop voice input"
 msgstr "Dừng nhập bằng giọng nói"
 
+#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+msgid "Store as plain text"
+msgstr "Lưu dưới dạng văn bản thuần"
+
+#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+msgid "Store as secret (encrypted at rest)"
+msgstr "Lưu dưới dạng bí mật (mã hóa khi lưu trữ)"
+
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentOverlay.tsx
 msgid "Subagent"
 msgstr "Tác nhân phụ"
@@ -4603,6 +5014,7 @@ msgid "Subagent Result"
 msgstr "Kết quả tác nhân phụ"
 
 #: src/renderer/components/thread/ChatPane/parts/items/ActiveSubAgentTile.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "Subagents"
 msgstr "Tác nhân phụ"
 
@@ -4690,6 +5102,10 @@ msgstr "Đồng bộ hóa không thành công: {detail}"
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CommitSyncPanel.tsx
 msgid "Sync options"
 msgstr "Tùy chọn đồng bộ hóa"
+
+#: src/renderer/views/ProfileOverlay/parts/ProfileHeader.tsx
+msgid "Syncs with Cloud"
+msgstr "Đồng bộ với Cloud"
 
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 #: src/renderer/i18n/locales.ts
@@ -4956,9 +5372,30 @@ msgstr "Tắt các mô hình để ẩn chúng khỏi bộ chọn."
 msgid "Toggle Terminal"
 msgstr "Bật/tắt thiết bị đầu cuối"
 
+#: src/renderer/views/ProfileOverlay/parts/ActivitySection.tsx
+msgid "Tokens"
+msgstr "Tokens"
+
+#. placeholder {0}: tokens!.providers.map((p) => p.label).join(", ")
+#: src/renderer/views/ProfileOverlay/parts/ModelUsage.tsx
+msgid "Tokens from {0}"
+msgstr "Tokens từ {0}"
+
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Tool search"
 msgstr "Tìm kiếm công cụ"
+
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "Total prompts"
+msgstr "Tổng số prompt"
+
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "Total skills used"
+msgstr "Tổng số skill đã dùng"
+
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "Total threads"
+msgstr "Tổng số luồng"
 
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Track {label} usage"
@@ -4980,6 +5417,10 @@ msgstr "Tắt theo dõi"
 #: src/renderer/components/composer/VoiceInputButton.tsx
 msgid "Transcribing voice"
 msgstr "Phiên âm giọng nói"
+
+#: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
+msgid "Translucent sidebar"
+msgstr "Thanh bên trong suốt"
 
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Turn tracking on or off per provider. Disabled providers are skipped by "
@@ -5059,6 +5500,10 @@ msgstr "Không thể giải quyết thư mục chính cho bản phân phối WSL
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
 msgid "Unable to save {0} credentials."
 msgstr "Không thể lưu thông tin xác thực {0}."
+
+#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+msgid "Unable to save Claude {displayLabel} profile."
+msgstr "Không thể lưu hồ sơ Claude {displayLabel}."
 
 #: src/renderer/utils/shellUtils.ts
 msgid "Unable to start {label}."
@@ -5304,10 +5749,18 @@ msgstr "Sử dụng tính năng tăng tốc WebGPU"
 msgid "Used"
 msgstr "Đã dùng"
 
+#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+msgid "Using the built-in Claude model list."
+msgstr "Đang dùng danh sách mô hình Claude tích hợp sẵn."
+
 #. placeholder {0}: status.bundledVersion
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
 msgid "v{0} available"
 msgstr "v{0} có sẵn"
+
+#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+msgid "value"
+msgstr "giá trị"
 
 #. About page label: app version row
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
@@ -5597,3 +6050,7 @@ msgstr "WSL"
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "WSL ({0})"
 msgstr "WSL ({0})"
+
+#: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
+msgid "Your name"
+msgstr "Tên của bạn"

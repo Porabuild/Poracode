@@ -7,6 +7,7 @@ import { Layers } from "lucide-react";
 import type { ToolCallPayload } from "@/shared/contracts";
 import type { RuntimeChatItem } from "@/renderer/state/slices/runtimeEventSlice";
 import { formatTokenCount } from "@/renderer/components/thread/formatTokenCount";
+import { useShimmer } from "@/renderer/thinkingAnimator";
 import { chatMessageSurfaceClass } from "./chatMessageSurface";
 
 interface ContextCompactionProps {
@@ -17,6 +18,7 @@ export const ContextCompaction = memo(function ContextCompaction({ item }: Conte
   const { t } = useLingui();
   const isRunning = item.state !== "completed";
   const summary = isRunning ? null : formatCompactionSummary(item.payload, t);
+  const thinkingTextRef = useShimmer<HTMLSpanElement>(isRunning);
 
   if (isRunning) {
     const compactingLabel = t`Compacting context`;
@@ -24,7 +26,11 @@ export const ContextCompaction = memo(function ContextCompaction({ item }: Conte
       <Surface variant="transparent" className={chatMessageSurfaceClass}>
         <div className="inline-flex min-w-0 items-center gap-1.5 text-[length:var(--lc-chat-font-size-meta)] text-foreground-muted">
           <Layers className="size-3 shrink-0 lightcode-compacting-icon" />
-          <span className="lightcode-thinking-text" data-lightcode-shimmer-text={compactingLabel}>
+          <span
+            ref={thinkingTextRef}
+            className="lightcode-thinking-text"
+            data-lightcode-shimmer-text={compactingLabel}
+          >
             {compactingLabel}
           </span>
         </div>

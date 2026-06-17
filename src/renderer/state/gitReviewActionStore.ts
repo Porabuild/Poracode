@@ -23,13 +23,31 @@ import { create } from "zustand";
  * survive an app restart, or an action killed with the process would leave its
  * spinner stuck on forever.
  */
+/**
+ * Provenance of an AI-generated draft, kept alongside the draft text so a
+ * later commit/PR that uses it is attributed to the right provider/model even
+ * when the user pressed "Generate" explicitly (which fills the draft, so the
+ * commit/PR code path sees a non-empty field and skips its inline-generate
+ * branch). `text` is the exact generated string, matched against the final
+ * value to confirm the AI draft actually survived to the action.
+ */
+export interface GeneratedDraftMeta {
+  text: string;
+  provider: string;
+  model: string;
+}
+
 export interface GitReviewActionState {
   /** Draft commit message — typed by the user or filled in by generation. */
   commitMessage: string;
+  /** Provenance of the last AI-generated commit message (null once consumed/replaced). */
+  commitGen: GeneratedDraftMeta | null;
   /** Draft PR title. */
   prTitle: string;
   /** Draft PR body. */
   prBody: string;
+  /** Provenance of the last AI-generated PR summary (matched on title). */
+  prGen: GeneratedDraftMeta | null;
   /** Draft PR target branch (null = use the resolved source branch). */
   prTargetBranch: string | null;
   /** A commit-message generation is in flight (supervisor one-shot LLM call). */
@@ -55,8 +73,10 @@ export interface GitReviewActionState {
 /** Stable default returned for panels with no state yet — never mutate. */
 const EMPTY_STATE: GitReviewActionState = Object.freeze({
   commitMessage: "",
+  commitGen: null,
   prTitle: "",
   prBody: "",
+  prGen: null,
   prTargetBranch: null,
   isGenerating: false,
   isGeneratingPr: false,

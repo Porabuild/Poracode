@@ -24,10 +24,12 @@ import type {
   AgentHookPluginEnv,
   AgentHookPluginStatus,
   AgentOwnedAuthMethod,
+  AgentProviderMetadata,
   AgentSettingDef,
   AgentStatus,
   AgentTerminalAuthMethod,
 } from "@/shared/contracts";
+import { extractClaudeProfileInstanceId, isClaudeProfileKind } from "@/shared/contracts";
 import { hookEnvForAgentStatus, hookEnvKey, hookEnvLabel } from "@/shared/agentHookPluginEnv";
 import { runAgentInstallCommand, runAgentLoginCommand } from "@/renderer/actions/agentLoginActions";
 import { useAppStore } from "@/renderer/state/appStore";
@@ -64,7 +66,7 @@ import {
   type ProviderModelMenuProvider,
 } from "@/renderer/components/common/ProviderModelMenu";
 import { NATIVE_AGENT_REGISTRY_ENTRIES } from "./agentRegistryNative";
-import { ClaudeProfileSettings } from "./ClaudeProfileSettings";
+import { ClaudeProfileProviderSettings, ClaudeProfileSettings } from "./ClaudeProfileSettings";
 
 const SAVED_SECRET_MASK = "***********";
 
@@ -514,6 +516,12 @@ function AgentEnvironmentRow(props: {
 
   includeAuthFallback: boolean;
   acpInstanceId: string | undefined;
+  /**
+   * Identity resolved out-of-band (Antigravity's account lives behind its
+   * language server, not in the detected status). When present it overrides the
+   * status's own `providerMetadata` for the summary line.
+   */
+  accountMetadata?: AgentProviderMetadata | undefined;
 }) {
   const { t } = useLingui();
   const { status, authMethods } = props;
@@ -531,9 +539,15 @@ function AgentEnvironmentRow(props: {
   const hasMultipleMethods = authMethods.length > 1;
   const singleMethod = !hasMultipleMethods ? authMethods[0] : undefined;
 
-  const metadataSummary = formatAgentMetadataSummary(status, {
-    includeAuthFallback: props.includeAuthFallback,
-  });
+  // Only override with the out-of-band account on an env that is itself signed
+  // in — otherwise a not-authenticated row (e.g. a WSL distro pending login)
+  // would show the shared account next to its own "Login required" warning.
+  const metadataSummary = formatAgentMetadataSummary(
+    props.accountMetadata && isAuthenticated
+      ? { ...status, providerMetadata: props.accountMetadata }
+      : status,
+    { includeAuthFallback: props.includeAuthFallback },
+  );
 
   const installedVer = status.version;
   const registryTargetVersion =
@@ -885,7 +899,10 @@ function HookPluginSettings(props: {
   );
 }
 
-export function SingleAgentSettings(props: { agentKind: string }) {
+export function SingleAgentSettings(props: {
+  agentKind: string;
+  onOpenProfile?: (profileKind: string) => void;
+}) {
   const { t } = useLingui();
   const [authValues, setAuthValues] = useState<Record<string, string>>({});
   const [authPending, setAuthPending] = useState(false);
@@ -906,6 +923,10 @@ export function SingleAgentSettings(props: { agentKind: string }) {
   }>();
   const [installPendingEnvKey, setInstallPendingEnvKey] = useState<string | undefined>();
   const [updatePending, setUpdatePending] = useState(false);
+  // Antigravity's signed-in account lives behind its language server (the
+  // credential sits in the OS keyring), so it isn't in the detected status.
+  // Resolved lazily when this page opens; undefined for every other agent.
+  const [antigravityAccount, setAntigravityAccount] = useState<AgentProviderMetadata | undefined>();
   const [binaryUpdatePendingEnvKey, setBinaryUpdatePendingEnvKey] = useState<string | undefined>();
   // After a successful update we hide the stale version and show a loader on
   // that row until `refreshAgentStatuses` returns with the freshly-detected
@@ -917,6 +938,10 @@ export function SingleAgentSettings(props: { agentKind: string }) {
   const projects = useAppStore((state) => state.projects);
   const wslProjectDistrosKey = buildWslProjectDistrosKey(projects);
   const platform = navigator.platform.toLowerCase().includes("win") ? "win32" : "posix";
+  const claudeProfileInstanceId = extractClaudeProfileInstanceId(props.agentKind);
+  const claudeProfileInstance = useSharedSettings((s) =>
+    claudeProfileInstanceId ? s.agentInstances[claudeProfileInstanceId] : undefined,
+  );
   const installedHere = agentStatuses.filter((a) => a.kind === props.agentKind && a.installed);
   const installedWsl = wslAgentStatuses.filter((a) => a.kind === props.agentKind && a.installed);
   const installedStatuses = [...installedHere, ...installedWsl];
@@ -1007,7 +1032,38 @@ export function SingleAgentSettings(props: { agentKind: string }) {
     };
   }, [props.agentKind, registryAgentId]);
 
+  // Resolve the Antigravity account on open. The supervisor reuses a running
+  // `agy` language server or briefly spawns one to read GetUserStatus, so this
+  // can take a moment; it stays undefined (no account line) when unavailable.
+  useEffect(() => {
+    if (props.agentKind !== "antigravity") {
+      setAntigravityAccount(undefined);
+      return;
+    }
+    let cancelled = false;
+    readBridge()
+      .getAntigravityAccount({ wslDistros })
+      .then((result) => {
+        if (!cancelled) setAntigravityAccount(result.account);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [props.agentKind, wslProjectDistrosKey]);
+
   if (!agent) {
+    if (claudeProfileInstanceId && claudeProfileInstance?.driver === "claude") {
+      return (
+        <SettingsPage
+          title={`Claude ${claudeProfileInstance.displayName ?? claudeProfileInstance.id}`}
+          bodyClassName=""
+        >
+          <ClaudeProfileProviderSettings instanceId={claudeProfileInstanceId} />
+        </SettingsPage>
+      );
+    }
     return (
       <SettingsPage title={t`Agent not found`} bodyClassName="">
         <p className="text-sm text-muted">
@@ -1029,7 +1085,7 @@ export function SingleAgentSettings(props: { agentKind: string }) {
     for (const s of installedWsl) versionRows.push({ label: envLabel(s), status: s });
   } else {
     for (const s of installedHere)
-      versionRows.push({ label: envLabel(s) || "Installed", status: s });
+      versionRows.push({ label: envLabel(s) || t`Installed`, status: s });
   }
   const missingAuthStatuses = installedStatuses.filter((status) => status.authState === "missing");
   const envVarAuthMethod =
@@ -1420,6 +1476,7 @@ export function SingleAgentSettings(props: { agentKind: string }) {
     return (
       <AgentEnvironmentRow
         key={`${status.kind}-${envKey}`}
+        accountMetadata={antigravityAccount}
         acpInstanceId={acpInstanceId}
         agentLabel={agent.label}
         authMethods={methods}
@@ -1521,7 +1578,15 @@ export function SingleAgentSettings(props: { agentKind: string }) {
       </div>
 
       <div className="space-y-4">
-        {props.agentKind === "claude" ? <ClaudeProfileSettings /> : null}
+        {props.agentKind === "claude" ? (
+          <ClaudeProfileSettings onOpenProfile={props.onOpenProfile} />
+        ) : null}
+        {isClaudeProfileKind(props.agentKind) ? (
+          <ClaudeProfileProviderSettings
+            key={props.agentKind}
+            instanceId={claudeProfileInstanceId ?? ""}
+          />
+        ) : null}
 
         {hasAuthSettings && (
           <div className="space-y-2">

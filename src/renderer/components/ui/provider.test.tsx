@@ -2,7 +2,10 @@ import { render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ThemeMode } from "@/shared/contracts";
 
-const settingsState: { themeMode: ThemeMode } = { themeMode: "system" };
+const settingsState: {
+  themeMode: ThemeMode;
+  sidebarGlassTint: { light: number | null; dark: number | null };
+} = { themeMode: "system", sidebarGlassTint: { light: null, dark: null } };
 
 vi.mock("../../state/sharedSettingsStore", () => ({
   useSharedSettings: (selector: (s: typeof settingsState) => unknown) => selector(settingsState),

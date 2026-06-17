@@ -1,5 +1,6 @@
 import type { ThreadContextUsage, ToolCallPayload } from "@/shared/contracts";
 import { captureRendererException } from "../diagnostics/sentry";
+import { imageViewRendersInline } from "../components/thread/ChatPane/parts/items/imageViewSource";
 import { isSubAgentTool } from "../components/thread/ChatPane/parts/items/toolDisplay";
 import { readBridge } from "../bridge";
 import { useAppStore } from "./appStore";
@@ -350,6 +351,19 @@ function isToolGroupItem(item: RuntimeChatItem): boolean {
   // bundling either into a tool-call summary would erase that history.
   if (item.parentItemId) return false;
   if (item.type === "tool_call" && isSubAgentTool(item.payload as ToolCallPayload | undefined)) {
+    return false;
+  }
+  // Tool rows that render as a standalone inline image (ImageView) must NOT be
+  // folded into a "N tools" summary: `summarizeToolCallRun` keeps only a name +
+  // status, which would strip the image off the payload and lose it on reload.
+  // Keep them as discrete rows so the picture survives hydration.
+  if (
+    (item.type === "tool_call" ||
+      item.type === "mcp_tool_call" ||
+      item.type === "image_view" ||
+      item.type === "dynamic_tool_call") &&
+    imageViewRendersInline(item.payload)
+  ) {
     return false;
   }
   return (

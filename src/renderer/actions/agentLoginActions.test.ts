@@ -177,6 +177,36 @@ describe("runAgentLoginCommand", () => {
     expect(bridge.openExternalNative).toHaveBeenCalledWith(url);
   });
 
+  it("sets profile env via PowerShell assignments on native Windows, not a POSIX prefix", () => {
+    runAgentLoginCommand({
+      label: "Claude Code",
+      command: "claude auth login",
+      env: { CLAUDE_CONFIG_DIR: "C:\\Users\\sdsle\\.lightcode\\claude-profiles\\home" },
+      project: windowsProject,
+    });
+
+    const script = writeScriptToShellMock.mock.calls[0]?.[1] ?? "";
+    // PowerShell can't run `KEY=value command`; it must assign $env: first.
+    expect(script).toContain(
+      "Clear-Host; $env:CLAUDE_CONFIG_DIR = 'C:\\Users\\sdsle\\.lightcode\\claude-profiles\\home'; claude auth login",
+    );
+    expect(script).not.toContain("CLAUDE_CONFIG_DIR=C:");
+  });
+
+  it("sets profile env via an inline POSIX prefix on WSL", () => {
+    runAgentLoginCommand({
+      label: "Claude Code",
+      command: "claude auth login",
+      env: { CLAUDE_CONFIG_DIR: "/home/demo/.claude-profiles/home" },
+      project: wslProject,
+    });
+
+    const script = writeScriptToShellMock.mock.calls[0]?.[1] ?? "";
+    expect(script).toContain(
+      "clear; BROWSER='/bin/true' CLAUDE_CONFIG_DIR='/home/demo/.claude-profiles/home' claude auth login",
+    );
+  });
+
   it("does not intercept login URLs on native Windows so the CLI's own browser opener wins", () => {
     runAgentLoginCommand({
       label: "Grok",

@@ -6,7 +6,7 @@ import {
   planFromUserStatus,
   queryLs,
 } from "./antigravityLanguageServer";
-import { listListeningPorts, listProcesses, resolveTargets } from "./antigravityProcessScan";
+import { resolveAntigravityLsEndpoints } from "./antigravityProcessScan";
 
 /**
  * Antigravity usage from its local language server (LS-only by design).
@@ -30,12 +30,8 @@ async function scanLanguageServer(
   nowMs: number,
   wslDistros: readonly string[],
 ): Promise<UsageSnapshot | undefined> {
-  const { pids, csrfTokens } = resolveTargets(await listProcesses(wslDistros));
-  if (pids.size === 0) return undefined;
-  const ports = (await listListeningPorts(wslDistros))
-    .filter((entry) => pids.has(entry.pid))
-    .map((entry) => entry.port);
-  for (const port of [...new Set(ports)]) {
+  const { ports, csrfTokens } = await resolveAntigravityLsEndpoints(wslDistros);
+  for (const port of ports) {
     let body = await queryLs(port, GET_USER_STATUS, csrfTokens);
     let models = body !== undefined ? modelsFromBody(body) : [];
     if (body !== undefined && models.length === 0) {

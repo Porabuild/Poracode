@@ -26,6 +26,11 @@ export function saveClipboardImageFile(
   return filePath;
 }
 
+/** Write raw image bytes to a user-chosen absolute path (download "Save as…"). */
+export function writeImageFile(filePath: string, data: Uint8Array): void {
+  writeFileSync(filePath, Buffer.from(data));
+}
+
 export function saveHandoffContextFile(
   paths: LightcodePaths,
   payload: { threadId: string; content: string },
