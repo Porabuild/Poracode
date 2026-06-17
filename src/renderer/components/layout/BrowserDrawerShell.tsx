@@ -5,6 +5,7 @@ import {
   type MouseEvent as ReactMouseEvent,
   type ReactNode,
 } from "react";
+import { useLingui } from "@lingui/react/macro";
 import { usePanelStore } from "@/renderer/state/panelStore";
 import { pushEscapeHandler } from "./overlayEscapeStack";
 
@@ -38,6 +39,7 @@ export function BrowserDrawerShell(props: {
   children: ReactNode;
 }) {
   const { open, maximized, onExited, children } = props;
+  const { t } = useLingui();
   const drawerWidth = usePanelStore((s) => s.browserOverlayDrawerWidth);
   const setDrawerWidth = usePanelStore((s) => s.setBrowserOverlayDrawerWidth);
   const [mounted, setMounted] = useState(open);
@@ -143,7 +145,7 @@ export function BrowserDrawerShell(props: {
           <div
             role="separator"
             aria-orientation="vertical"
-            aria-label="Resize browser drawer"
+            aria-label={t`Resize browser drawer`}
             className="absolute left-0 top-0 bottom-0 z-10 w-1.5 cursor-ew-resize transition-colors hover:bg-foreground/15"
             onMouseDown={handleResizeStart}
           />

@@ -1,8 +1,10 @@
 import { toast } from "@heroui/react";
+import { msg } from "@lingui/core/macro";
 import { buildWorktreeLocation } from "@/shared/worktree";
 import { errorDetail } from "@/shared/messages";
 import type { Project } from "@/shared/contracts";
 import { readBridge } from "@/renderer/bridge";
+import { i18n } from "@/renderer/i18n/i18n";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useDevTerminalStore } from "@/renderer/state/devTerminalStore";
 import { useFileEditorStore } from "@/renderer/state/fileEditorStore";
@@ -59,7 +61,7 @@ export async function performWorktreeRemoval(
   } catch (err: unknown) {
     const detail = errorDetail(err);
     console.warn(`[renderer] failed to remove worktree ${worktreePath}:`, detail);
-    toast.danger(detail || "Unable to remove worktree.");
+    toast.danger(detail || i18n._(msg`Unable to remove worktree.`));
     return;
   }
 

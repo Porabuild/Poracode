@@ -1,6 +1,8 @@
 import { startTransition, useEffect, useRef, useState } from "react";
 import { DragDropProvider, type DragEndEvent } from "@dnd-kit/react";
 import { isSortable } from "@dnd-kit/react/sortable";
+import { msg } from "@lingui/core/macro";
+import { Trans, useLingui } from "@lingui/react/macro";
 import { openUsageSettings } from "@/renderer/actions/panelActions";
 import { readBridge } from "@/renderer/bridge";
 import { resolveDisplayedProviders } from "@/renderer/components/providers/usageProviders";
@@ -9,20 +11,23 @@ import { useProviderUsageStore } from "@/renderer/state/providerUsageStore";
 import { useUsageLoginStateStore } from "@/renderer/state/usageLoginStateStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { UsageProviderCard } from "./parts/UsageProviderCard";
+import type { TranslateFn } from "@/renderer/i18n/i18n";
 
 /** "Updated 12s ago" style relative label from an epoch-ms timestamp. */
-function formatUpdatedAgo(fetchedAt: number, now: number): string {
+function formatUpdatedAgo(fetchedAt: number, now: number, t: TranslateFn): string {
   const seconds = Math.max(0, Math.round((now - fetchedAt) / 1000));
-  if (seconds < 5) return "just now";
-  if (seconds < 60) return `${seconds}s ago`;
+  if (seconds < 5) return t(msg`just now`);
+  if (seconds < 60) return t(msg`${seconds}s ago`);
   const minutes = Math.round(seconds / 60);
-  if (minutes < 60) return `${minutes}m ago`;
+  if (minutes < 60) return t(msg`${minutes}m ago`);
   const hours = Math.round(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
-  return `${Math.round(hours / 24)}d ago`;
+  if (hours < 24) return t(msg`${hours}h ago`);
+  const days = Math.round(hours / 24);
+  return t(msg`${days}d ago`);
 }
 
 export function UsagePanel() {
+  const { t } = useLingui();
   const providerOrder = useSharedSettings((s) => s.usage.providerOrder);
   const disabledProviders = useSharedSettings((s) => s.usage.disabledProviders);
   const collapsedProviders = useSharedSettings((s) => s.usage.collapsedProviders);
@@ -109,13 +114,15 @@ export function UsagePanel() {
         <div ref={contentRef} className="min-h-full">
           {displayed.length === 0 ? (
             <div className="flex min-h-full flex-col items-center justify-center gap-2 px-6 text-center">
-              <p className="text-sm text-muted">No providers are being tracked.</p>
+              <p className="text-sm text-muted">
+                <Trans>No providers are being tracked.</Trans>
+              </p>
               <button
                 type="button"
                 onClick={openUsageSettings}
                 className="text-xs text-accent underline-offset-2 hover:underline"
               >
-                Enable providers in settings
+                <Trans>Enable providers in settings</Trans>
               </button>
             </div>
           ) : (
@@ -140,7 +147,7 @@ export function UsagePanel() {
       {lastUpdated > 0 ? (
         <div className="shrink-0 border-t border-[color:var(--separator)] px-3 py-1.5">
           <p className="text-[11px] text-muted/70">
-            Updated {formatUpdatedAgo(lastUpdated, nowTick)}
+            <Trans>Updated {formatUpdatedAgo(lastUpdated, nowTick, t)}</Trans>
           </p>
         </div>
       ) : null}

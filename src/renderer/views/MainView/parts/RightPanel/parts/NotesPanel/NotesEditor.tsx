@@ -3,6 +3,7 @@ import { EditorContent, useEditor } from "@tiptap/react";
 import { BubbleMenu } from "@tiptap/react/menus";
 import { StarterKit } from "@tiptap/starter-kit";
 import { Placeholder } from "@tiptap/extensions";
+import { Trans, useLingui } from "@lingui/react/macro";
 import { Bold, Italic, MessageSquarePlus } from "lucide-react";
 import { newThreadFromText } from "@/renderer/actions/notesActions";
 import { useNotesStore } from "@/renderer/state/notesStore";
@@ -16,6 +17,7 @@ import { sidebarBodyScrollClass } from "@/renderer/components/layout/sidebarChro
  */
 export function NotesEditor(props: { projectId: string }) {
   const { projectId } = props;
+  const { t } = useLingui();
   const setDoc = useNotesStore((s) => s.setDoc);
   // Read the loaded document once at mount — feeding store updates back into the
   // editor on every keystroke would reset the caret.
@@ -29,11 +31,11 @@ export function NotesEditor(props: { projectId: string }) {
   const editor = useEditor({
     extensions: [
       StarterKit,
-      Placeholder.configure({ placeholder: "Write notes for this project…" }),
+      Placeholder.configure({ placeholder: t`Write notes for this project…` }),
     ],
     content: (initialContentRef.current as object | null) ?? "",
     editorProps: {
-      attributes: { class: "lc-notes-prose", "aria-label": "Project notes" },
+      attributes: { class: "lc-notes-prose", "aria-label": t`Project notes` },
     },
     onCreate: () => {
       initializedRef.current = true;
@@ -78,7 +80,7 @@ export function NotesEditor(props: { projectId: string }) {
         <button
           type="button"
           className={`${bubbleButtonClass} ${editor.isActive("bold") ? "text-accent" : ""}`}
-          title="Bold"
+          title={t`Bold`}
           onClick={() => editor.chain().focus().toggleBold().run()}
         >
           <Bold className="size-3.5" />
@@ -86,7 +88,7 @@ export function NotesEditor(props: { projectId: string }) {
         <button
           type="button"
           className={`${bubbleButtonClass} ${editor.isActive("italic") ? "text-accent" : ""}`}
-          title="Italic"
+          title={t`Italic`}
           onClick={() => editor.chain().focus().toggleItalic().run()}
         >
           <Italic className="size-3.5" />
@@ -95,11 +97,11 @@ export function NotesEditor(props: { projectId: string }) {
         <button
           type="button"
           className={bubbleButtonClass}
-          title="Start a new thread from the selected text"
+          title={t`Start a new thread from the selected text`}
           onClick={startThreadFromSelection}
         >
           <MessageSquarePlus className="size-3.5" />
-          New thread
+          <Trans>New thread</Trans>
         </button>
       </BubbleMenu>
     </div>

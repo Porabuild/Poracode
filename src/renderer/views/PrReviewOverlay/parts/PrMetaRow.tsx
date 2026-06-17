@@ -1,26 +1,30 @@
 import { GitBranch, GitMerge } from "lucide-react";
 import { Chip } from "@heroui/react";
+import { msg } from "@lingui/core/macro";
+import { Plural, Trans, useLingui } from "@lingui/react/macro";
+import type { MessageDescriptor } from "@lingui/core";
 import { usePrState } from "@/renderer/state/gitSelectors";
 import { useGitStore } from "@/renderer/state/gitStore";
 import { usePrCombinedChecksStatus } from "@/renderer/hooks/usePrCombinedChecksStatus";
 import { getPrStatusTone, PR_TONE_BG_CLASS, PR_TONE_TEXT_CLASS } from "@/renderer/utils/prStatus";
 
-const STATE_LABEL: Record<NonNullable<ReturnType<typeof usePrState>>, string> = {
-  open: "Open",
-  draft: "Draft",
-  merged: "Merged",
-  closed: "Closed",
+const STATE_LABEL: Record<NonNullable<ReturnType<typeof usePrState>>, MessageDescriptor> = {
+  open: msg`Open`,
+  draft: msg`Draft`,
+  merged: msg`Merged`,
+  closed: msg`Closed`,
 };
 
 /** State chip + author + branches + diff stats — used in the content-header bar. */
 export function PrMetaRow(props: { prKey: string; cacheKey: string }) {
   const { prKey, cacheKey } = props;
+  const { t } = useLingui();
   const state = usePrState(prKey);
   const checksStatus = usePrCombinedChecksStatus(prKey, cacheKey);
   const details = useGitStore((s) => s.prDetails[cacheKey]);
 
   const tone = getPrStatusTone(state, checksStatus);
-  const stateLabel = state ? STATE_LABEL[state] : "—";
+  const stateLabel = state ? t(STATE_LABEL[state]) : "—";
   const head = details?.headBranch;
   const base = details?.baseBranch;
   const author = details?.author?.login;
@@ -34,7 +38,9 @@ export function PrMetaRow(props: { prKey: string; cacheKey: string }) {
       </Chip>
       {author && (
         <span className="whitespace-nowrap text-muted">
-          by <span className="text-foreground">{author}</span>
+          <Trans>
+            by <span className="text-foreground">{author}</span>
+          </Trans>
         </span>
       )}
       {head && base && (
@@ -52,7 +58,9 @@ export function PrMetaRow(props: { prKey: string; cacheKey: string }) {
         <span className="flex shrink-0 items-center gap-1.5 whitespace-nowrap text-[11px]">
           <span className="text-success">+{details.additions}</span>
           <span className="text-danger">−{details.deletions}</span>
-          <span className="text-muted/60">· {details.changedFiles} files</span>
+          <span className="text-muted/60">
+            · <Plural value={details.changedFiles} one="# file" other="# files" />
+          </span>
         </span>
       )}
     </div>

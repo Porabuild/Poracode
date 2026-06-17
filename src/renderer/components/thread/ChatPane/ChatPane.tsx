@@ -9,6 +9,7 @@ import {
   useState,
 } from "react";
 import { Button, Surface } from "@heroui/react";
+import { Trans, useLingui } from "@lingui/react/macro";
 import { ArrowDown } from "lucide-react";
 import { useShallow } from "zustand/react/shallow";
 import { isThreadTurnActive, type Thread } from "@/shared/contracts";
@@ -284,7 +285,9 @@ export function ChatPane(props: ChatPaneProps) {
               {isEmpty && !showTailLoader ? (
                 showEmptyHint ? (
                   <div className="flex h-full flex-col items-center justify-center gap-2 text-foreground-muted">
-                    <span>No messages yet</span>
+                    <span>
+                      <Trans>No messages yet</Trans>
+                    </span>
                   </div>
                 ) : null
               ) : (
@@ -349,6 +352,7 @@ const ChatScrollControls = forwardRef<
     onInitialScrollSettled: () => void;
   }
 >(function ChatScrollControls(props, ref) {
+  const { t } = useLingui();
   const {
     scrollRef,
     contentRef,
@@ -601,7 +605,7 @@ const ChatScrollControls = forwardRef<
       isIconOnly
       variant="tertiary"
       size="sm"
-      aria-label="Scroll to bottom"
+      aria-label={t`Scroll to bottom`}
       onPress={handleScrollButtonPress}
       className={`absolute bottom-4 right-4 z-10 transition-opacity duration-200 ease-out ${
         showScrollDown ? "opacity-80 hover:opacity-100" : "pointer-events-none opacity-0"
@@ -686,6 +690,7 @@ function ChatTailLoader({ turn, isPaused }: { turn: TurnTiming; isPaused: boolea
  * streaming.
  */
 function WorkingFor({ turn, isPaused }: { turn: TurnTiming; isPaused: boolean }) {
+  const { t } = useLingui();
   const textRef = useRef<HTMLSpanElement>(null);
   const pauseStateRef = useRef<{ accumulatedPauseMs: number; pausedSinceMs: number | null }>({
     accumulatedPauseMs: 0,
@@ -702,7 +707,8 @@ function WorkingFor({ turn, isPaused }: { turn: TurnTiming; isPaused: boolean })
       if (!node) return;
       if (turn.endedAt !== null) {
         const elapsedSeconds = Math.max(0, Math.floor((turn.endedAt - turn.startedAt) / 1000));
-        const text = elapsedSeconds < 1 ? "" : `Worked for ${formatElapsed(elapsedSeconds)}`;
+        const elapsed = formatElapsed(elapsedSeconds);
+        const text = elapsedSeconds < 1 ? "" : t`Worked for ${elapsed}`;
         node.textContent = text;
         node.dataset.lightcodeShimmerText = text;
         return;
@@ -713,7 +719,8 @@ function WorkingFor({ turn, isPaused }: { turn: TurnTiming; isPaused: boolean })
         pauseState.pausedSinceMs !== null ? Math.max(0, now - pauseState.pausedSinceMs) : 0;
       const elapsedMs = now - turn.startedAt - pauseState.accumulatedPauseMs - currentPauseMs;
       const elapsedSeconds = Math.max(0, Math.floor(elapsedMs / 1000));
-      const text = elapsedSeconds < 1 ? "" : `Working for ${formatElapsed(elapsedSeconds)}`;
+      const elapsed = formatElapsed(elapsedSeconds);
+      const text = elapsedSeconds < 1 ? "" : t`Working for ${elapsed}`;
       node.textContent = text;
       node.dataset.lightcodeShimmerText = text;
     };
@@ -737,7 +744,7 @@ function WorkingFor({ turn, isPaused }: { turn: TurnTiming; isPaused: boolean })
     if (turn.endedAt !== null) return;
     const id = setInterval(update, 1000);
     return () => clearInterval(id);
-  }, [turn.startedAt, turn.endedAt, isPaused]);
+  }, [turn.startedAt, turn.endedAt, isPaused, t]);
 
   const className = isPaused
     ? "text-muted"

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Check, ChevronDown, GitBranch, GitFork } from "lucide-react";
 import { Label, ListBox, Popover } from "@heroui/react";
+import { useLingui } from "@lingui/react/macro";
 import { Button } from "@/renderer/components/common";
 
 export type WorktreeMode = "none" | "new" | "new-with-changes";
@@ -21,28 +22,29 @@ export function WorktreeModeSelect(props: {
   /** Render a shorter trigger for secondary control rows. */
   compact?: boolean;
 }) {
+  const { t } = useLingui();
   const [isOpen, setIsOpen] = useState(false);
   const iconSize = props.compact ? "size-3" : "size-3.5";
 
   const options: WorktreeModeOption[] = [
     {
       id: "none",
-      label: "No worktree",
-      description: "Work in the current checkout",
+      label: t`No worktree`,
+      description: t`Work in the current checkout`,
       icon: GitBranch,
     },
     {
       id: "new",
-      label: "Worktree",
-      description: "Run in a separate worktree",
+      label: t`Worktree`,
+      description: t`Run in a separate worktree`,
       icon: GitFork,
     },
     ...(props.canBringChanges
       ? [
           {
             id: "new-with-changes" as const,
-            label: "Worktree + changes",
-            description: "Copy uncommitted changes here (keeps them on this branch)",
+            label: t`Worktree + changes`,
+            description: t`Copy uncommitted changes here (keeps them on this branch)`,
             icon: GitFork,
           },
         ]
@@ -56,7 +58,7 @@ export function WorktreeModeSelect(props: {
     <Popover isOpen={isOpen} onOpenChange={setIsOpen}>
       <Popover.Trigger className="flex min-w-0 items-center">
         <Button
-          aria-label="Worktree mode"
+          aria-label={t`Worktree mode`}
           isDisabled={props.isDisabled ?? false}
           size="sm"
           variant="ghost"
@@ -72,7 +74,7 @@ export function WorktreeModeSelect(props: {
       <Popover.Content placement="top" className="w-64 p-0">
         <Popover.Dialog className="!p-0 !py-1">
           <ListBox
-            aria-label="Worktree mode"
+            aria-label={t`Worktree mode`}
             className="lightcode-menu"
             selectionMode="none"
             onAction={(key) => {

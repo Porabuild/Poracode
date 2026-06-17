@@ -7,6 +7,7 @@ import {
   PanelLeftClose,
 } from "lucide-react";
 import { useState } from "react";
+import { Trans, useLingui } from "@lingui/react/macro";
 import type { PrFile, ProjectLocation } from "@/shared/contracts";
 import { SidebarButton } from "@/renderer/components/common";
 import {
@@ -46,6 +47,7 @@ export function PrReviewSidebar(props: {
     onClose,
     onRefresh,
   } = props;
+  const { t } = useLingui();
   const { isCollapsed, collapse, expand } = useSidebar();
   const [expanded, setExpanded] = useState(true);
   const {
@@ -76,7 +78,7 @@ export function PrReviewSidebar(props: {
             <SidebarButton
               iconOnly
               icon={<FileDiff className="size-4" />}
-              label="Changes in PR"
+              label={t`Changes in PR`}
               isActive
             />
           </div>
@@ -84,13 +86,13 @@ export function PrReviewSidebar(props: {
             <SidebarButton
               iconOnly
               icon={<ArrowLeft className="size-4" />}
-              label="Return to app"
+              label={t`Return to app`}
               onPress={onClose}
             />
             <SidebarButton
               iconOnly
               icon={<PanelLeft className="size-4" />}
-              label="Show sidebar"
+              label={t`Show sidebar`}
               onPress={expand}
             />
           </div>
@@ -116,7 +118,7 @@ export function PrReviewSidebar(props: {
                   ) : (
                     <ChevronRight className="size-3" />
                   )}
-                  Changes in PR
+                  <Trans>Changes in PR</Trans>
                   <span className="font-normal text-muted/60">({files.length})</span>
                 </button>
                 <span className="ml-auto flex items-center gap-0.5 text-[10px] leading-4 font-medium font-normal">
@@ -128,12 +130,12 @@ export function PrReviewSidebar(props: {
                 <div className="space-y-px">
                   {loading && files.length === 0 && (
                     <div className="flex items-center justify-center px-2 py-3 text-xs text-muted/60">
-                      Loading PR…
+                      <Trans>Loading PR…</Trans>
                     </div>
                   )}
                   {!loading && files.length === 0 && (
                     <div className="flex items-center justify-center px-2 py-3 text-xs text-muted/60">
-                      No changes
+                      <Trans>No changes</Trans>
                     </div>
                   )}
                   {sorted.map((file) => (
@@ -164,12 +166,12 @@ export function PrReviewSidebar(props: {
           <div className={sidebarFooterNavClass}>
             <SidebarButton
               icon={<ArrowLeft className="size-4" />}
-              label="Return to app"
+              label={t`Return to app`}
               onPress={onClose}
             />
             <SidebarButton
               icon={<PanelLeftClose className="size-4" />}
-              label="Hide sidebar"
+              label={t`Hide sidebar`}
               onPress={collapse}
             />
           </div>

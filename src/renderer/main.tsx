@@ -12,6 +12,7 @@ import {
 } from "./RendererCrashScreen";
 import { isIgnorableRejection, isIgnorableWindowError } from "./rendererGlobalErrors";
 import { bootstrapAppThemeFromCache } from "./theme/applyAppTheme";
+import { bootstrapAppLocaleFromCache } from "./i18n/i18n";
 
 if (import.meta.env.DEV) {
   const warn = console.warn.bind(console);
@@ -144,8 +145,13 @@ reactRoot = createRoot(root, {
   },
 });
 
-void import("./app")
-  .then(({ App }) => {
+// Load the app chunk and the cached locale's catalog in parallel, then mount
+// once the catalog is active so non-English users don't flash the source locale
+// on first paint. bootstrapAppLocaleFromCache never rejects and is time-bounded
+// (a hung catalog can't wedge mount), so the app-chunk import stays the only
+// bootstrap rejection (handled below).
+void Promise.all([import("./app"), bootstrapAppLocaleFromCache()])
+  .then(([{ App }]) => {
     reactRoot?.render(
       <RendererErrorBoundary>
         <App />

@@ -1,5 +1,6 @@
 import { Columns2, PanelBottomClose, Plus, Trash2 } from "lucide-react";
 import { Tabs } from "@heroui/react";
+import { useLingui } from "@lingui/react/macro";
 import type { Project, TerminalSize } from "@/shared/contracts";
 import { useDevTerminalStore, type DevTerminalTab } from "@/renderer/state/devTerminalStore";
 import { ContextMenu } from "@/renderer/components/common";
@@ -30,6 +31,7 @@ export function BottomTerminalLayout(props: {
   handleTabContextAction: (tab: DevTerminalTab, key: string) => void;
   onTerminalResize?: (terminalId: string, size: TerminalSize) => void;
 }) {
+  const { t } = useLingui();
   const {
     tabs,
     projectTabs,
@@ -67,7 +69,7 @@ export function BottomTerminalLayout(props: {
             <button
               type="button"
               className={panelHeaderIconButtonClass}
-              title="Hide terminal"
+              title={t`Hide terminal`}
               onClick={() => useDevTerminalStore.getState().closePanel()}
             >
               <PanelBottomClose className="size-3" />
@@ -83,7 +85,7 @@ export function BottomTerminalLayout(props: {
             onSelectionChange={handleSelectionChange}
           >
             <Tabs.ListContainer className="w-full p-0">
-              <Tabs.List aria-label="Terminal tabs" className="w-full *:h-6">
+              <Tabs.List aria-label={t`Terminal tabs`} className="w-full *:h-6">
                 {tabRows.map(({ id, tab, isSplit }) => {
                   const parentSelected = selectedTabId === tab.id;
                   return (

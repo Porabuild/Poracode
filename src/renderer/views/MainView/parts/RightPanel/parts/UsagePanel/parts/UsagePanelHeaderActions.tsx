@@ -1,5 +1,6 @@
 import { startTransition, useState } from "react";
 import { ChevronsDownUp, ChevronsUpDown, RefreshCw, Settings2 } from "lucide-react";
+import { useLingui } from "@lingui/react/macro";
 import { openUsageSettings } from "@/renderer/actions/panelActions";
 import { readBridge } from "@/renderer/bridge";
 import { panelHeaderIconButtonClass } from "@/renderer/components/layout/sidebarChrome";
@@ -13,6 +14,7 @@ import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
  */
 export function UsagePanelHeaderActions(props: { dragControlClass: string }) {
   const { dragControlClass } = props;
+  const { t } = useLingui();
   const providerOrder = useSharedSettings((s) => s.usage.providerOrder);
   const disabledProviders = useSharedSettings((s) => s.usage.disabledProviders);
   const collapsedProviders = useSharedSettings((s) => s.usage.collapsedProviders);
@@ -49,7 +51,7 @@ export function UsagePanelHeaderActions(props: { dragControlClass: string }) {
         <button
           type="button"
           className={buttonClass}
-          title={allCollapsed ? "Expand all" : "Collapse all"}
+          title={allCollapsed ? t`Expand all` : t`Collapse all`}
           onClick={toggleCollapseAll}
         >
           {allCollapsed ? (
@@ -62,7 +64,7 @@ export function UsagePanelHeaderActions(props: { dragControlClass: string }) {
       <button
         type="button"
         className={buttonClass}
-        title="Usage settings"
+        title={t`Usage settings`}
         onClick={openUsageSettings}
       >
         <Settings2 className="size-3.5" />
@@ -70,7 +72,7 @@ export function UsagePanelHeaderActions(props: { dragControlClass: string }) {
       <button
         type="button"
         className={buttonClass}
-        title="Refresh"
+        title={t`Refresh`}
         disabled={isRefreshing}
         onClick={refreshNow}
       >

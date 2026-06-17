@@ -1,5 +1,6 @@
 import { CheckCircle2, Clock, ExternalLink, XCircle } from "lucide-react";
 import { Link } from "@heroui/react";
+import { Trans, useLingui } from "@lingui/react/macro";
 import { PR_CHECK_FAILURE_CONCLUSIONS, type PrCheck } from "@/shared/contracts";
 import { readBridge } from "@/renderer/bridge";
 import { PixelLoader } from "@/renderer/components/common";
@@ -36,6 +37,7 @@ const TONE_CLASS = {
 
 export function PrChecksTab(props: { cacheKey: string; loading: boolean }) {
   const { cacheKey, loading } = props;
+  const { t } = useLingui();
   const details = useGitStore((s) => s.prDetails[cacheKey]);
   const checks = details?.checks;
 
@@ -50,7 +52,7 @@ export function PrChecksTab(props: { cacheKey: string; loading: boolean }) {
   if (!checks || checks.length === 0) {
     return (
       <div className="px-6 py-6 text-center text-xs text-muted/60">
-        No checks reported for this PR.
+        <Trans>No checks reported for this PR.</Trans>
       </div>
     );
   }
@@ -61,7 +63,9 @@ export function PrChecksTab(props: { cacheKey: string; loading: boolean }) {
     <div className="mx-auto w-full max-w-3xl px-6 py-3">
       <div className="mb-2 flex items-center justify-between text-[11px] text-muted">
         <span>
-          <span className="text-foreground">{passed}</span> of {checks.length} checks passed
+          <Trans>
+            <span className="text-foreground">{passed}</span> of {checks.length} checks passed
+          </Trans>
         </span>
       </div>
       <ul className="divide-y divide-[color:var(--border)] overflow-hidden rounded-2xl border border-[color:var(--border)] bg-surface-tertiary/30">
@@ -79,13 +83,13 @@ export function PrChecksTab(props: { cacheKey: string; loading: boolean }) {
                 {(check.workflowName || check.conclusion || check.state) && (
                   <div className="mt-0.5 truncate text-[11px] text-muted">
                     {check.workflowName ? `${check.workflowName} · ` : ""}
-                    {check.conclusion || check.state || "Unknown"}
+                    {check.conclusion || check.state || t`Unknown`}
                   </div>
                 )}
               </div>
               {check.url ? (
                 <Link
-                  aria-label="Open check"
+                  aria-label={t`Open check`}
                   className="shrink-0 text-muted hover:text-foreground"
                   onPress={() => void readBridge().openExternal(check.url!)}
                 >

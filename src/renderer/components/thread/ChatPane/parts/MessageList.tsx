@@ -1,6 +1,7 @@
 import { memo, useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { Surface } from "@heroui/react";
+import { Trans } from "@lingui/react/macro";
 import type { ProjectLocation } from "@/shared/contracts";
 import { readBridge } from "@/renderer/bridge";
 import { useAppStore } from "@/renderer/state/appStore";
@@ -473,11 +474,14 @@ const VirtualChatListRow = memo(function VirtualChatListRow({
 function CompletedTurnIndicator({ record }: { threadId: string; record: CompletedTurnRecord }) {
   const elapsedSeconds = Math.max(0, Math.floor((record.endedAt - record.startedAt) / 1000));
   if (elapsedSeconds < 1) return null;
+  const elapsed = formatElapsed(elapsedSeconds);
   return (
     <Surface variant="transparent" className={chatMessageSurfaceClass}>
       <div className="flex flex-col gap-0.5 text-[length:var(--lc-chat-font-size-meta)] text-foreground-muted">
         {elapsedSeconds >= 1 ? (
-          <span className="text-muted">Worked for {formatElapsed(elapsedSeconds)}</span>
+          <span className="text-muted">
+            <Trans>Worked for {elapsed}</Trans>
+          </span>
         ) : null}
       </div>
     </Surface>

@@ -1,6 +1,7 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import type { GhListAccountsResult, GhListReposResult } from "@/shared/contracts";
+import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 
 const mocks = vi.hoisted(() => ({
   listWslDistros: vi.fn<() => Promise<string[]>>().mockResolvedValue([]),

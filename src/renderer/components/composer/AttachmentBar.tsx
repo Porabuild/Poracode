@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { Tooltip } from "@heroui/react";
 import { Globe, X } from "lucide-react";
+import { useLingui } from "@lingui/react/macro";
 import { getEntryIconUrl } from "@/renderer/components/common/fileIcons";
 import { toLocalFileUrl } from "@/shared/promptContent";
 import type { Attachment } from "./useAttachments";
@@ -10,7 +11,9 @@ export function BrowserChip(props: {
   title?: string;
   variant?: "chip" | "header";
 }) {
-  const { onRemove, title = "Browser MCP enabled for this thread", variant = "chip" } = props;
+  const { t } = useLingui();
+  const { onRemove, variant = "chip" } = props;
+  const title = props.title ?? t`Browser MCP enabled for this thread`;
   if (variant === "header") {
     // Same structure as the other header buttons (CircleCheck / ArrowRightLeft
     // / Bug / X) so the indicator slots into the row without alignment drift.
@@ -41,12 +44,12 @@ export function BrowserChip(props: {
       role={onRemove ? "group" : "img"}
     >
       <Globe className="size-3 text-muted" aria-hidden="true" />
-      <span className="lightcode-attachment-chip__name">Browser</span>
+      <span className="lightcode-attachment-chip__name">{t`Browser`}</span>
       {onRemove ? (
         <button
           type="button"
           className="lightcode-attachment-chip__delete"
-          aria-label="Disable Browser MCP"
+          aria-label={t`Disable Browser MCP`}
           onMouseDown={(e) => e.preventDefault()}
           onClick={(e) => {
             e.stopPropagation();
@@ -66,6 +69,7 @@ function AttachmentChip(props: {
   onPreviewImage?: ((attachment: Attachment) => void) | undefined;
   hideImageName?: boolean;
 }) {
+  const { t } = useLingui();
   const { attachment: att, onRemove, onPreviewImage, hideImageName } = props;
   const isPicked = !!att.selector;
   const labelText = isPicked ? att.selector! : att.name;
@@ -105,7 +109,7 @@ function AttachmentChip(props: {
         <button
           type="button"
           className="lightcode-attachment-chip__delete"
-          aria-label={`Remove ${att.name}`}
+          aria-label={t`Remove ${att.name}`}
           onMouseDown={(e) => e.preventDefault()}
           onClick={(e) => {
             e.stopPropagation();
@@ -144,6 +148,7 @@ function ImagePreview(props: {
   attachment: Attachment;
   onPreviewImage?: ((attachment: Attachment) => void) | undefined;
 }) {
+  const { t } = useLingui();
   const { attachment: att, onPreviewImage } = props;
   const img = <img src={toLocalFileUrl(att.path)} alt={att.name} draggable={false} />;
   if (onPreviewImage) {
@@ -152,7 +157,7 @@ function ImagePreview(props: {
         type="button"
         className="lightcode-attachment-image-preview"
         onClick={() => onPreviewImage(att)}
-        aria-label={`Preview ${att.name}`}
+        aria-label={t`Preview ${att.name}`}
       >
         {img}
       </button>

@@ -1,5 +1,6 @@
-import { render, screen } from "@testing-library/react";
+import { screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
+import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import { WorkflowResultGroup } from "./WorkflowResultGroup";
 
 function getTopTriggerText(): string {

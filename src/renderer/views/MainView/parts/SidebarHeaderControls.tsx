@@ -1,5 +1,6 @@
 import { FolderPlus, Globe, Search } from "lucide-react";
 import { Button, Dropdown, Label, Tooltip } from "@heroui/react";
+import { Trans, useLingui } from "@lingui/react/macro";
 import { usePanelStore } from "@/renderer/state/panelStore";
 import {
   type ThreadSortMode,
@@ -10,6 +11,7 @@ import {
 import { CreateProjectMenu } from "@/renderer/views/MainView/parts/CreateProject/CreateProjectMenu";
 
 export function SidebarHeaderControls() {
+  const { t } = useLingui();
   const threadSortMode = usePanelStore((s) => s.threadSortMode);
   const browserPanelOpen = usePanelStore((s) => s.browserPanelOpen);
   const rightPanelTab = usePanelStore((s) => s.rightPanelTab);
@@ -21,7 +23,7 @@ export function SidebarHeaderControls() {
         <Tooltip.Trigger>
           <Button
             isIconOnly
-            aria-label="Search"
+            aria-label={t`Search`}
             size="sm"
             variant="ghost"
             className="size-6 min-w-0 text-muted hover:text-foreground"
@@ -30,12 +32,14 @@ export function SidebarHeaderControls() {
             <Search className="size-3.5" />
           </Button>
         </Tooltip.Trigger>
-        <Tooltip.Content placement="bottom">Search</Tooltip.Content>
+        <Tooltip.Content placement="bottom">
+          <Trans>Search</Trans>
+        </Tooltip.Content>
       </Tooltip>
       <CreateProjectMenu>
         <Button
           isIconOnly
-          aria-label="Add project"
+          aria-label={t`Add project`}
           size="sm"
           variant="ghost"
           className="size-6 min-w-0 text-muted hover:text-foreground"
@@ -46,7 +50,7 @@ export function SidebarHeaderControls() {
       <Dropdown>
         <Button
           isIconOnly
-          aria-label="Sort threads"
+          aria-label={t`Sort threads`}
           size="sm"
           variant="ghost"
           className="size-6 min-w-0 text-muted hover:text-foreground"
@@ -58,7 +62,7 @@ export function SidebarHeaderControls() {
         </Button>
         <Dropdown.Popover>
           <Dropdown.Menu
-            aria-label="Thread sort order"
+            aria-label={t`Thread sort order`}
             selectionMode="single"
             selectedKeys={[threadSortMode]}
             onAction={(key) => {
@@ -67,10 +71,11 @@ export function SidebarHeaderControls() {
           >
             {sortModeOrder.map((mode) => {
               const Icon = sortModeIcon[mode];
+              const label = t(sortModeLabel[mode]);
               return (
-                <Dropdown.Item key={mode} id={mode} textValue={sortModeLabel[mode]}>
+                <Dropdown.Item key={mode} id={mode} textValue={label}>
                   <Icon className="size-4 shrink-0 text-muted" />
-                  <Label>{sortModeLabel[mode]}</Label>
+                  <Label>{label}</Label>
                 </Dropdown.Item>
               );
             })}
@@ -81,7 +86,7 @@ export function SidebarHeaderControls() {
         <Tooltip.Trigger>
           <Button
             isIconOnly
-            aria-label={browserVisible ? "Hide browser" : "Open browser"}
+            aria-label={browserVisible ? t`Hide browser` : t`Open browser`}
             size="sm"
             variant="ghost"
             className="size-6 min-w-0 text-muted hover:text-foreground"
@@ -98,7 +103,9 @@ export function SidebarHeaderControls() {
             <Globe className="size-3.5" />
           </Button>
         </Tooltip.Trigger>
-        <Tooltip.Content placement="bottom">Browser</Tooltip.Content>
+        <Tooltip.Content placement="bottom">
+          <Trans>Browser</Trans>
+        </Tooltip.Content>
       </Tooltip>
     </div>
   );

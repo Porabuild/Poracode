@@ -1,15 +1,26 @@
+import { msg } from "@lingui/core/macro";
 import {
   asPermissionRequestDetails,
   type CanonicalRequestType,
   type RequestOutcome,
   type UserInputOption,
 } from "@/shared/contracts";
+import { i18n } from "@/renderer/i18n/i18n";
 import type { OpenRuntimeRequest } from "@/renderer/state/slices/runtimeEventSlice";
 
-export const DEFAULT_APPROVAL_OPTIONS: UserInputOption[] = [
-  { optionId: "allow", label: "Allow" },
-  { optionId: "deny", label: "Deny" },
-];
+/**
+ * Default approve/deny options used when the request carries none. The
+ * `optionId`s are the stable identifiers that drive selection + the
+ * negative-option detection (`isNegativeOption` matches on `optionId`), so only
+ * the display `label` is localized — and built fresh per call so it tracks the
+ * active locale.
+ */
+export function getDefaultApprovalOptions(): UserInputOption[] {
+  return [
+    { optionId: "allow", label: i18n._(msg`Allow`) },
+    { optionId: "deny", label: i18n._(msg`Deny`) },
+  ];
+}
 
 export const NEGATIVE_OPTION_PATTERN = /(deny|denied|decline|reject|abort|cancel)/i;
 
@@ -36,7 +47,7 @@ const APPROVAL_REQUEST_TYPES = new Set<CanonicalRequestType>([
 export function getApprovalDenyOption(request: OpenRuntimeRequest): UserInputOption | undefined {
   if (!APPROVAL_REQUEST_TYPES.has(request.requestType)) return undefined;
   if (isPlanApprovalRequest(request)) return undefined;
-  const options = request.payload.options ?? DEFAULT_APPROVAL_OPTIONS;
+  const options = request.payload.options ?? getDefaultApprovalOptions();
   return options.find(isNegativeOption);
 }
 

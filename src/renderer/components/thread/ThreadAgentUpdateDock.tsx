@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { toast } from "@heroui/react";
 import { Download } from "lucide-react";
+import { Trans, useLingui } from "@lingui/react/macro";
 import type { AgentStatus } from "@/shared/contracts";
 import {
   formatUpdateCommandLine,
@@ -38,6 +39,7 @@ export function ThreadAgentUpdateDock(props: {
   onUpdatingChange?: (updating: boolean) => void;
 }) {
   const { agentStatus, onUpdatingChange } = props;
+  const { t } = useLingui();
   const [latestVersion, setLatestVersion] = useState<
     { agentKind: string; version: string | undefined } | undefined
   >(undefined);
@@ -107,7 +109,7 @@ export function ThreadAgentUpdateDock(props: {
         ...(scope.wslDistro ? { wslDistro: scope.wslDistro } : {}),
       });
       if (result.ok) {
-        toast.success(`${agentStatus.label} updated to v${resolvedLatest}.`);
+        toast.success(t`${agentStatus.label} updated to v${resolvedLatest}.`);
         await readBridge().refreshAgentStatuses(currentWslDistros(), {
           agentKinds: [agentStatus.kind],
           envs: [scopeEnvForStatus(agentStatus)],
@@ -116,13 +118,13 @@ export function ThreadAgentUpdateDock(props: {
         const detail = result.output?.trim();
         toast.danger(
           detail
-            ? `Unable to update ${agentStatus.label}: ${detail.slice(0, 240)}`
-            : `Unable to update ${agentStatus.label}.`,
+            ? t`Unable to update ${agentStatus.label}: ${detail.slice(0, 240)}`
+            : t`Unable to update ${agentStatus.label}.`,
         );
       }
     } catch (error) {
       toast.danger(
-        error instanceof Error ? error.message : `Unable to update ${agentStatus.label}.`,
+        error instanceof Error ? error.message : t`Unable to update ${agentStatus.label}.`,
       );
     } finally {
       setPending(false);
@@ -135,11 +137,11 @@ export function ThreadAgentUpdateDock(props: {
   }`;
 
   return (
-    <ThreadDockSection placement="composer" collapsed={false} ariaLabel="Agent update available">
+    <ThreadDockSection placement="composer" collapsed={false} ariaLabel={t`Agent update available`}>
       <ThreadDockHeader
         icon={Download}
         iconClassName="text-foreground"
-        title="Update available"
+        title={t`Update available`}
         actions={
           <div className="flex shrink-0 items-center gap-1">
             <Button
@@ -151,7 +153,7 @@ export function ThreadAgentUpdateDock(props: {
               onPress={() => void handleUpdate()}
             >
               {pending ? <PixelLoader size="xs" /> : <Download className="size-3.5" />}
-              Update
+              <Trans>Update</Trans>
             </Button>
           </div>
         }

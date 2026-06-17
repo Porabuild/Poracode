@@ -1,4 +1,5 @@
 import { MessageSquare, TerminalSquare } from "lucide-react";
+import { useLingui } from "@lingui/react/macro";
 import type { ThreadPresentationMode } from "@/shared/contracts";
 import { LightballTabs, type LightballTab } from "@/renderer/components/common";
 
@@ -14,17 +15,18 @@ export interface PresentationModeTabsProps {
 
 export function PresentationModeTabs(props: PresentationModeTabsProps) {
   const { presentationMode, onChange, supportsTerminal, supportsGui, className } = props;
+  const { t } = useLingui();
 
   const tabs: ReadonlyArray<LightballTab<ThreadPresentationMode>> = [
     {
       id: "gui",
-      label: "Chat",
+      label: t`Chat`,
       icon: <MessageSquare className="size-3" />,
       disabled: !supportsGui,
     },
     {
       id: "terminal",
-      label: "CLI",
+      label: t`CLI`,
       icon: <TerminalSquare className="size-3" />,
       disabled: !supportsTerminal,
     },
@@ -36,7 +38,7 @@ export function PresentationModeTabs(props: PresentationModeTabsProps) {
         tabs={tabs}
         active={presentationMode}
         onChange={onChange}
-        ariaLabel="Thread mode"
+        ariaLabel={t`Thread mode`}
         className="w-[140px]"
         equalWidth
         delayActiveText

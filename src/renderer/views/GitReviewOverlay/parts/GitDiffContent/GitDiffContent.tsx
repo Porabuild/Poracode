@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { setEnableFastDiffTemplate } from "@git-diff-view/react";
+import { Trans } from "@lingui/react/macro";
 import "@git-diff-view/react/styles/diff-view.css";
 
 // Must match worker setting — enables pre-rendered HTML templates (dangerouslySetInnerHTML)
@@ -170,7 +171,7 @@ export function GitDiffContent(props: {
   if (!gitStatus?.isRepo) {
     return (
       <div className="flex h-full items-center justify-center text-sm text-muted">
-        Not a git repository
+        <Trans>Not a git repository</Trans>
       </div>
     );
   }
@@ -188,7 +189,11 @@ export function GitDiffContent(props: {
       <div ref={scrollRef} className="h-full min-h-0 overflow-y-auto px-4">
         {filtered.length === 0 && !loading && (
           <div className="flex items-center justify-center py-8 text-sm text-muted">
-            {diffFilter === "staged" ? "No staged changes" : "No changes to display"}
+            {diffFilter === "staged" ? (
+              <Trans>No staged changes</Trans>
+            ) : (
+              <Trans>No changes to display</Trans>
+            )}
           </div>
         )}
         <div className="space-y-4">

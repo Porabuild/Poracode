@@ -1,4 +1,5 @@
 import { Zap } from "lucide-react";
+import { msg } from "@lingui/core/macro";
 import type {
   AgentCapability,
   AgentStatus,
@@ -230,6 +231,7 @@ export function buildModelPickerControls(input: BuildModelPickerControlsInput): 
     controls.push({
       kind: "toggle",
       label: "Fast",
+      displayLabel: msg`Fast`,
       icon: <Zap className="size-3.5" />,
       iconOnly: true,
       fillIconOnSelect: true,

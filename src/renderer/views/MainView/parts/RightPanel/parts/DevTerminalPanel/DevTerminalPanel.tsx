@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { Trans, useLingui } from "@lingui/react/macro";
 import { Columns2 } from "lucide-react";
 import { readBridge } from "@/renderer/bridge";
 import { useAppStore } from "@/renderer/state/appStore";
@@ -12,6 +13,7 @@ import { RightTerminalLayout } from "./parts/RightTerminalLayout";
 
 export function DevTerminalPanel(props: { hideHeader?: boolean }) {
   const { hideHeader } = props;
+  const { t } = useLingui();
   const projects = useAppStore((s) => s.projects);
   const tabs = useDevTerminalStore((s) => s.tabs);
   const activeProjectId = useDevTerminalStore((s) => s.activeProjectId);
@@ -28,15 +30,15 @@ export function DevTerminalPanel(props: { hideHeader?: boolean }) {
   const terminalPosition = useSharedSettings((s) => s.terminalPosition);
   const spawnedRef = useRef(new Set<string>());
 
-  const projectTabs = tabs.filter((t) => {
-    if (t.projectId !== activeProjectId) return false;
-    if (activeWorktreePath) return t.worktreePath === activeWorktreePath;
-    return !t.worktreePath;
+  const projectTabs = tabs.filter((tab) => {
+    if (tab.projectId !== activeProjectId) return false;
+    if (activeWorktreePath) return tab.worktreePath === activeWorktreePath;
+    return !tab.worktreePath;
   });
   const activeProject = projects.find((p) => p.id === activeProjectId);
   const selectedTabId =
     projectTabs.find((tab) => tab.id === activeTabId)?.id ?? projectTabs.at(-1)?.id ?? "__add__";
-  const activeTab = projectTabs.find((t) => t.id === selectedTabId);
+  const activeTab = projectTabs.find((tab) => tab.id === selectedTabId);
 
   const isBottom = terminalPosition === "bottom";
 
@@ -69,7 +71,7 @@ export function DevTerminalPanel(props: { hideHeader?: boolean }) {
   // pre-wrapped scrollback, so getting the very first lines right matters.
   function handleTerminalResize(terminalId: string, size: TerminalSize) {
     if (spawnedRef.current.has(terminalId)) return;
-    const owningTab = tabs.find((t) => t.id === terminalId || t.splitId === terminalId);
+    const owningTab = tabs.find((tab) => tab.id === terminalId || tab.splitId === terminalId);
     if (!owningTab) return;
     const project = projects.find((p) => p.id === owningTab.projectId);
     if (!project) return;
@@ -88,7 +90,7 @@ export function DevTerminalPanel(props: { hideHeader?: boolean }) {
   }
 
   function handleCloseTab(tab: DevTerminalTab) {
-    const remaining = tabs.filter((t) => t.id !== tab.id);
+    const remaining = tabs.filter((other) => other.id !== tab.id);
     if (tab.splitId) {
       void readBridge()
         .closeThread({ threadId: tab.splitId })
@@ -101,10 +103,10 @@ export function DevTerminalPanel(props: { hideHeader?: boolean }) {
       .catch(() => undefined);
     spawnedRef.current.delete(tab.id);
 
-    const remainingInContext = remaining.filter((t) => {
-      if (t.projectId !== tab.projectId) return false;
-      if (activeWorktreePath) return t.worktreePath === activeWorktreePath;
-      return !t.worktreePath;
+    const remainingInContext = remaining.filter((other) => {
+      if (other.projectId !== tab.projectId) return false;
+      if (activeWorktreePath) return other.worktreePath === activeWorktreePath;
+      return !other.worktreePath;
     });
     if (remainingInContext.length === 0) {
       if (!isBottom) closeAllPanels();
@@ -142,10 +144,10 @@ export function DevTerminalPanel(props: { hideHeader?: boolean }) {
     if (!isBottom) return [];
 
     if (tab.splitId) {
-      return [{ id: "close-split", label: "Close Split", icon: <Columns2 className="size-4" /> }];
+      return [{ id: "close-split", label: t`Close Split`, icon: <Columns2 className="size-4" /> }];
     }
     return [
-      { id: "split-terminal", label: "Split Terminal", icon: <Columns2 className="size-4" /> },
+      { id: "split-terminal", label: t`Split Terminal`, icon: <Columns2 className="size-4" /> },
     ];
   }
 
@@ -160,7 +162,7 @@ export function DevTerminalPanel(props: { hideHeader?: boolean }) {
       handleAddTab();
       return;
     }
-    const parentTab = projectTabs.find((t) => t.splitId === id);
+    const parentTab = projectTabs.find((tab) => tab.splitId === id);
     setActiveTab(parentTab ? parentTab.id : id);
   }
 
@@ -172,7 +174,7 @@ export function DevTerminalPanel(props: { hideHeader?: boolean }) {
           onClick={handleAddTab}
           type="button"
         >
-          Open a terminal
+          <Trans>Open a terminal</Trans>
         </button>
       </div>
     ) : null;

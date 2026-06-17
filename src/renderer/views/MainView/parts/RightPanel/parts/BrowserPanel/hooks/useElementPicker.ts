@@ -1,5 +1,6 @@
 import { useCallback } from "react";
 import { toast } from "@heroui/react";
+import { useLingui } from "@lingui/react/macro";
 import { useShallow } from "zustand/shallow";
 import type { PromptSegment } from "@/shared/contracts";
 import { isDraftPaneId, parseDraftProjectId } from "@/shared/paneId";
@@ -124,6 +125,7 @@ function buildSelectionSegments(attachment: PendingPickerAttachment): {
 }
 
 export function useElementPicker() {
+  const { t } = useLingui();
   const activeTabId = useBrowserPanelStore((s) => s.activeTabId);
   const pickerActive = useBrowserPanelStore((s) => s.pickerActive);
   const setPickerActive = useBrowserPanelStore((s) => s.setPickerActive);
@@ -148,12 +150,12 @@ export function useElementPicker() {
       const projectName = projects.find((p) => p.id === projectId)?.name;
       return {
         threadId: paneId,
-        title: projectName ? `New thread — ${projectName}` : "New thread",
+        title: projectName ? t`New thread — ${projectName}` : t`New thread`,
         canRouteToTerminal,
       };
     }
-    const thread = threads.find((t) => t.id === paneId);
-    return { threadId: paneId, title: thread?.title ?? "Thread", canRouteToTerminal };
+    const targetThread = threads.find((thread) => thread.id === paneId);
+    return { threadId: paneId, title: targetThread?.title ?? t`Thread`, canRouteToTerminal };
   });
 
   const cancelPicker = useCallback(async (): Promise<PickerOutcome> => {
@@ -170,21 +172,21 @@ export function useElementPicker() {
         const { prompt, segments } = buildSelectionSegments(attachment);
         try {
           await readBridge().stageThreadInput({ threadId, prompt, segments });
-          toast.success("Sent selection to terminal.");
+          toast.success(t`Sent selection to terminal.`);
           return;
         } catch (error) {
           // The PTY may not be ready (still launching, exited). Don't lose the
           // pick — drop it into the composer instead.
           console.error("[picker] failed to stage terminal input", error);
           enqueueAttach({ threadId, ...attachment });
-          toast.warning("Terminal not ready — added selection to composer.");
+          toast.warning(t`Terminal not ready — added selection to composer.`);
           return;
         }
       }
       enqueueAttach({ threadId, ...attachment });
-      toast.success("Attached browser selection.");
+      toast.success(t`Attached browser selection.`);
     },
-    [enqueueAttach],
+    [enqueueAttach, t],
   );
 
   const startPicker = useCallback(async (): Promise<PickerOutcome> => {
@@ -192,13 +194,15 @@ export function useElementPicker() {
       return await cancelPicker();
     }
     if (!activeTabId) {
-      toast.danger("No active browser tab");
-      return { ok: false, cancelled: false, error: "No active browser tab" };
+      const error = t`No active browser tab`;
+      toast.danger(error);
+      return { ok: false, cancelled: false, error };
     }
     const targetIds = resolveTargetThreadIds();
     if (targetIds.length === 0) {
-      toast.danger("Open a thread first to attach to it.");
-      return { ok: false, cancelled: false, error: "Open a thread first to attach to it" };
+      const error = t`Open a thread first to attach to it.`;
+      toast.danger(error);
+      return { ok: false, cancelled: false, error };
     }
     setPendingPickerAttachment(null);
     setPickerActive(true);
@@ -209,8 +213,9 @@ export function useElementPicker() {
         tabId: activeTabId,
       });
       if (!result.ok) {
-        toast.danger(result.error ?? "Picker failed");
-        return { ok: false, cancelled: false, error: result.error ?? "Picker failed" };
+        const error = result.error ?? t`Picker failed`;
+        toast.danger(error);
+        return { ok: false, cancelled: false, error };
       }
       if (result.cancelled) {
         return { ok: true, cancelled: true };
@@ -218,8 +223,9 @@ export function useElementPicker() {
       if (
         !(result.attachmentPath && result.attachmentName && result.selector && result.sourceUrl)
       ) {
-        toast.danger("Picker returned no attachment");
-        return { ok: false, cancelled: false, error: "Picker returned no attachment" };
+        const error = t`Picker returned no attachment`;
+        toast.danger(error);
+        return { ok: false, cancelled: false, error };
       }
       const anchor = result.rect ? anchorFromSelectedRect(activeTabId, result.rect) : null;
       const attachment: PendingPickerAttachment = {
@@ -250,6 +256,7 @@ export function useElementPicker() {
     pickerActive,
     setPendingPickerAttachment,
     setPickerActive,
+    t,
   ]);
 
   const chooseTargetForPendingPick = useCallback(

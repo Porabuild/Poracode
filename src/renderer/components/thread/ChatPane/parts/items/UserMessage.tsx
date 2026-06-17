@@ -1,5 +1,6 @@
 import { memo, type ReactNode, useEffectEvent, useLayoutEffect, useRef, useState } from "react";
 import { Link, Surface, Tooltip } from "@heroui/react";
+import { useLingui } from "@lingui/react/macro";
 import { ChevronDown, ChevronUp, Copy } from "lucide-react";
 import type { CanonicalContentBlock, MessageItemPayload } from "@/shared/contracts";
 import { AttachmentBar, ImageLightbox, type Attachment } from "@/renderer/components/composer";
@@ -31,6 +32,7 @@ export const UserMessage = memo(function UserMessage({
   item,
   checkpointRevertControl,
 }: UserMessageProps) {
+  const { t } = useLingui();
   const actions = useChatPaneActions();
   const [isExpanded, setIsExpanded] = useState(false);
   const [hasVisualOverflow, setHasVisualOverflow] = useState(false);
@@ -82,7 +84,7 @@ export const UserMessage = memo(function UserMessage({
     return null;
   const isCollapsible = hasVisualOverflow;
   const isCollapsed = isCollapsible && !isExpanded;
-  const tooltipLabel = isExpanded ? "Show less" : "Show more";
+  const tooltipLabel = isExpanded ? t`Show less` : t`Show more`;
   const Icon = isExpanded ? ChevronUp : ChevronDown;
   const collapseClass = isCollapsed
     ? collapsedMessageClass
@@ -168,6 +170,7 @@ export const UserMessage = memo(function UserMessage({
 });
 
 function CopyUserMessageButton({ text }: { text: string }) {
+  const { t } = useLingui();
   const [copyState, setCopyState] = useState<"idle" | "copied">("idle");
   const [isTooltipOpen, setIsTooltipOpen] = useState(false);
   const resetTimerRef = useRef<number | null>(null);
@@ -186,7 +189,7 @@ function CopyUserMessageButton({ text }: { text: string }) {
       <Tooltip.Trigger>
         <button
           type="button"
-          aria-label={copyState === "copied" ? "Copied" : "Copy message"}
+          aria-label={copyState === "copied" ? t`Copied` : t`Copy message`}
           className="flex size-5 items-center justify-center rounded text-muted/70 transition-colors hover:bg-foreground/5 hover:text-foreground"
           onClick={(event) => {
             event.stopPropagation();
@@ -217,7 +220,7 @@ function CopyUserMessageButton({ text }: { text: string }) {
         </button>
       </Tooltip.Trigger>
       <Tooltip.Content placement="top">
-        {copyState === "copied" ? "Copied" : "Copy message"}
+        {copyState === "copied" ? t`Copied` : t`Copy message`}
       </Tooltip.Content>
     </Tooltip>
   );

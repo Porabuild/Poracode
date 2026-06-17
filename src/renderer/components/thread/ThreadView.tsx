@@ -1,6 +1,7 @@
 import { memo, useEffect, useRef, useState } from "react";
 import { Tooltip } from "@heroui/react";
 import { ArrowRightLeft, Bug, CircleCheck, X } from "lucide-react";
+import { Trans, useLingui } from "@lingui/react/macro";
 import type {
   AgentStatus,
   ProjectLocation,
@@ -39,7 +40,7 @@ function stripIpcInvokeFraming(message: string): string {
   return message.replace(/^Error invoking remote method '[^']+':\s*(?:Error:\s*)?/, "");
 }
 
-function formatLaunchError(error: unknown): string {
+function formatLaunchError(error: unknown, fallbackMessage: string): string {
   if (error instanceof Error && error.message.trim().length > 0) {
     return stripIpcInvokeFraming(error.message);
   }
@@ -55,7 +56,7 @@ function formatLaunchError(error: unknown): string {
   ) {
     return stripIpcInvokeFraming(error.message);
   }
-  return "Thread failed to start.";
+  return fallbackMessage;
 }
 
 function areThreadViewPropsEqual(prev: ThreadViewProps, next: ThreadViewProps): boolean {
@@ -175,6 +176,7 @@ export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
     onResolveServerRequest,
     onSubmitInput,
   } = props;
+  const { t } = useLingui();
   const terminalPaneRef = useRef<TerminalPaneHandle>(null);
   const [terminalSize, setTerminalSize] = useState<TerminalSize | null>(null);
   const [continueDialogOpen, setContinueDialogOpen] = useState(false);
@@ -316,9 +318,10 @@ export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
       );
     })().catch((error) => {
       launchRequestRef.current = null;
-      onLaunchFailed?.(formatLaunchError(error));
+      onLaunchFailed?.(formatLaunchError(error, t`Thread failed to start.`));
     });
   }, [
+    t,
     onLaunchConsumed,
     onLaunchFailed,
     pendingLaunchPrompt,
@@ -394,7 +397,7 @@ export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
                 <BrowserChip
                   variant="header"
                   {...(thread.agentKind === "opencode"
-                    ? { title: "Browser MCP enabled for OpenCode" }
+                    ? { title: t`Browser MCP enabled for OpenCode` }
                     : {})}
                 />
               ) : null}
@@ -413,7 +416,7 @@ export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
                     <Tooltip.Trigger>
                       <button
                         type="button"
-                        aria-label="Continue in another provider"
+                        aria-label={t`Continue in another provider`}
                         className="lightcode-overlay-header__controls shrink-0 rounded p-1 text-muted/60 transition-colors hover:bg-[var(--row-hover)] hover:text-foreground"
                         onClick={(e) => {
                           e.stopPropagation();
@@ -423,7 +426,9 @@ export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
                         <ArrowRightLeft className="size-3.5" />
                       </button>
                     </Tooltip.Trigger>
-                    <Tooltip.Content>Continue in another provider</Tooltip.Content>
+                    <Tooltip.Content>
+                      <Trans>Continue in another provider</Trans>
+                    </Tooltip.Content>
                   </Tooltip>
                 ) : null}
                 {!usesTerminalPresentation ? (
@@ -432,7 +437,9 @@ export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
                       <button
                         type="button"
                         aria-label={
-                          runtimeDebugOpen ? "Hide runtime debug panel" : "Show runtime debug panel"
+                          runtimeDebugOpen
+                            ? t`Hide runtime debug panel`
+                            : t`Show runtime debug panel`
                         }
                         aria-pressed={runtimeDebugOpen}
                         className={`lightcode-overlay-header__controls shrink-0 rounded p-1 transition-colors hover:bg-[var(--row-hover)] ${runtimeDebugOpen ? "text-foreground" : "text-muted/60 hover:text-foreground"}`}
@@ -445,16 +452,18 @@ export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
                       </button>
                     </Tooltip.Trigger>
                     <Tooltip.Content>
-                      {runtimeDebugOpen
-                        ? "Hide canonical runtime item inspector"
-                        : "Inspect canonical runtime items"}
+                      {runtimeDebugOpen ? (
+                        <Trans>Hide canonical runtime item inspector</Trans>
+                      ) : (
+                        <Trans>Inspect canonical runtime items</Trans>
+                      )}
                     </Tooltip.Content>
                   </Tooltip>
                 ) : null}
                 {onMarkDone ? (
                   <button
                     type="button"
-                    aria-label={thread.done ? "Unmark done" : "Mark done"}
+                    aria-label={thread.done ? t`Unmark done` : t`Mark done`}
                     className={`lightcode-overlay-header__controls shrink-0 rounded p-1 transition-colors hover:bg-[var(--row-hover)] ${thread.done ? "text-[oklch(0.78_0.1_180)]" : "text-muted/60 hover:text-foreground"}`}
                     onClick={(e) => {
                       e.stopPropagation();
@@ -467,7 +476,7 @@ export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
                 {showCloseButton ? (
                   <button
                     type="button"
-                    aria-label="Close pane"
+                    aria-label={t`Close pane`}
                     className="lightcode-overlay-header__controls shrink-0 rounded p-1 text-muted/60 transition-colors hover:bg-[var(--row-hover)] hover:text-foreground"
                     onClick={(e) => {
                       e.stopPropagation();

@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { useLingui } from "@lingui/react/macro";
 
 // 3×3 pixel grid:
 // 0 1 2
@@ -191,6 +192,7 @@ export function PixelLoader({
   className,
   style,
 }: PixelLoaderProps) {
+  const { t } = useLingui();
   const chosen = useRef(pattern ?? SESSION_PATTERN);
   const filterId = useRef(`px-glow-${filterIdCounter++}`);
   const speedMultiplier = PATTERN_SPEED_MULTIPLIERS[chosen.current] ?? 1;
@@ -234,7 +236,7 @@ export function PixelLoader({
       className={mergedClass}
       style={customStyle}
       data-pattern={chosen.current}
-      aria-label="Loading"
+      aria-label={t`Loading`}
       role="img"
     >
       <defs>

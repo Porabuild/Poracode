@@ -1,4 +1,7 @@
 import { memo, useMemo, useState, type ReactNode } from "react";
+import { msg } from "@lingui/core/macro";
+import { useLingui } from "@lingui/react/macro";
+import type { TranslateFn } from "@/renderer/i18n/i18n";
 import { CircleAlert } from "lucide-react";
 import type { ToolCallPayload } from "@/shared/contracts";
 import { PixelLoader } from "@/renderer/components/common";
@@ -28,6 +31,7 @@ interface ToolCallProps {
 }
 
 export const ToolCall = memo(function ToolCall({ item }: ToolCallProps) {
+  const { t } = useLingui();
   const payload = item.payload as ToolCallPayload | undefined;
   const [isExpanded, setIsExpanded] = useState(false);
   const paneActions = useChatPaneActions();
@@ -74,6 +78,7 @@ export const ToolCall = memo(function ToolCall({ item }: ToolCallProps) {
     item,
     payload,
     diffText ? extractAcpDiffSummary(payload) : undefined,
+    t,
   );
 
   return (
@@ -132,7 +137,8 @@ interface ToolStatusDisplay {
 function resolveToolStatus(
   item: RuntimeChatItem,
   payload: ToolCallPayload,
-  diffSummary?: ReturnType<typeof extractAcpDiffSummary>,
+  diffSummary: ReturnType<typeof extractAcpDiffSummary> | undefined,
+  t: TranslateFn,
 ): ToolStatusDisplay {
   const isRunning = item.state !== "completed" || payload.status === "running";
   if (isRunning) {
@@ -143,7 +149,7 @@ function resolveToolStatus(
   }
   if (payload.status === "error") {
     return {
-      rightLabel: <CircleAlert className="size-3 text-danger" aria-label="error" />,
+      rightLabel: <CircleAlert className="size-3 text-danger" aria-label={t(msg`error`)} />,
       rightLabelClassName: "text-danger",
     };
   }

@@ -1,4 +1,5 @@
 import { toast } from "@heroui/react";
+import { useLingui } from "@lingui/react/macro";
 import { ArrowLeft } from "lucide-react";
 import { PageLayout } from "@/renderer/components/layout/PageLayout";
 import {
@@ -11,6 +12,7 @@ import { FileEditorPane } from "./parts/FileEditorPane/FileEditorPane";
 import { SidebarButton } from "@/renderer/components/common";
 
 export function FileEditorOverlay(props: { onClose: () => void }) {
+  const { t } = useLingui();
   const rootContext = useFileEditorStore((state) => state.rootContext);
   const buffers = useFileEditorStore((state) => state.buffers);
   const openFile = useFileEditorStore((state) => state.openFile);
@@ -23,7 +25,7 @@ export function FileEditorOverlay(props: { onClose: () => void }) {
   );
 
   function requestClose() {
-    if (hasDirtyBuffers && !window.confirm("Discard unsaved editor changes?")) {
+    if (hasDirtyBuffers && !window.confirm(t`Discard unsaved editor changes?`)) {
       return;
     }
     props.onClose();
@@ -31,7 +33,7 @@ export function FileEditorOverlay(props: { onClose: () => void }) {
 
   return (
     <PageLayout
-      title="Editor"
+      title={t`Editor`}
       forceSidebarExpanded
       contentHeaderChildren={
         <div className="lightcode-overlay-header__controls flex min-w-0 items-center">
@@ -56,7 +58,7 @@ export function FileEditorOverlay(props: { onClose: () => void }) {
           <div className={sidebarFooterNavClass}>
             <SidebarButton
               icon={<ArrowLeft className="size-4" />}
-              label="Return to app"
+              label={t`Return to app`}
               onPress={requestClose}
             />
           </div>

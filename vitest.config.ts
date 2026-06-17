@@ -1,5 +1,7 @@
 import { resolve } from "node:path";
 import { defineConfig } from "vitest/config";
+import babel from "@rolldown/plugin-babel";
+import { lingui } from "@lingui/vite-plugin";
 
 export default defineConfig({
   test: {
@@ -17,6 +19,11 @@ export default defineConfig({
     projects: [
       {
         extends: true,
+        // Expand Lingui macros (Trans/t/msg/useLingui) and resolve `.po` catalog
+        // imports in the renderer test bundle — the macros throw at runtime if
+        // left untransformed. (No React Compiler here; it is a build-only
+        // optimization and unnecessary for tests.)
+        plugins: [babel({ plugins: ["@lingui/babel-plugin-lingui-macro"] }), lingui()],
         resolve: {
           alias: {
             "@": resolve(__dirname, "src"),

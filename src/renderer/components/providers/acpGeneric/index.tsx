@@ -1,3 +1,4 @@
+import { msg } from "@lingui/core/macro";
 import type { ComposerControl } from "@/renderer/components/thread/ThreadComposer";
 import { planWorkToggle } from "../composerControlBuilders";
 import { registerComposerControls } from "../ProviderIcon";
@@ -27,6 +28,7 @@ registerComposerControls("acp-generic", ({ capabilities, config, isDisabled, onC
     controls.push({
       kind: "toggle",
       label: isAutoApprove ? "Auto Approve" : "Supervised",
+      displayLabel: isAutoApprove ? msg`Auto Approve` : msg`Supervised`,
       iconKind: "permission",
       isSelected: isAutoApprove,
       isCurrentState: true,

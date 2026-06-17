@@ -1,16 +1,20 @@
 import { startTransition } from "react";
 import { Switch } from "@heroui/react";
+import { msg } from "@lingui/core/macro";
+import { Trans, useLingui } from "@lingui/react/macro";
 import type { NotificationFilter } from "@/shared/contracts";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { Select } from "@/renderer/components/common";
 import { SettingRow, SettingsPage } from "./SettingsForm";
+import { useLocalizedOptions } from "./settingsOptions";
 
 const filterOptions = [
-  { id: "unfocused", label: "Only when unfocused" },
-  { id: "all", label: "Always" },
+  { id: "unfocused", label: msg`Only when unfocused` },
+  { id: "all", label: msg({ message: "Always", comment: "Notification filter: always notify" }) },
 ] as const;
 
 export function NotificationSettings() {
+  const { t } = useLingui();
   const notificationsEnabled = useSharedSettings((s) => s.notificationsEnabled);
   const setNotificationsEnabled = useSharedSettings((s) => s.setNotificationsEnabled);
   const notificationSound = useSharedSettings((s) => s.notificationSound);
@@ -22,11 +26,13 @@ export function NotificationSettings() {
   const notifyL2Cli = useSharedSettings((s) => s.notifyL2Cli);
   const setNotifyL2Cli = useSharedSettings((s) => s.setNotifyL2Cli);
 
+  const filterOpts = useLocalizedOptions(filterOptions);
+
   return (
-    <SettingsPage title="Notifications">
+    <SettingsPage title={t`Notifications`}>
       <SettingRow
-        title="Enable notifications"
-        description="Show notifications when thread status changes."
+        title={t`Enable notifications`}
+        description={<Trans>Show notifications when thread status changes.</Trans>}
       >
         <Switch
           isSelected={notificationsEnabled}
@@ -46,8 +52,8 @@ export function NotificationSettings() {
         className={`space-y-4 transition-opacity ${notificationsEnabled ? "" : "pointer-events-none opacity-40"}`}
       >
         <SettingRow
-          title="Play notification sound"
-          description="Play a sound when a notification is shown."
+          title={t`Play notification sound`}
+          description={<Trans>Play a sound when a notification is shown.</Trans>}
         >
           <Switch
             isSelected={notificationSound}
@@ -64,13 +70,13 @@ export function NotificationSettings() {
         </SettingRow>
 
         <SettingRow
-          title="Show notifications"
-          description="When to display in-app toasts for visible threads."
+          title={t`Show notifications`}
+          description={<Trans>When to display in-app toasts for visible threads.</Trans>}
         >
           <Select
-            aria-label="Show notifications"
+            aria-label={t`Show notifications`}
             className="w-[180px] shrink-0"
-            options={filterOptions}
+            options={filterOpts}
             value={notificationFilter}
             onChange={(value) => {
               startTransition(() => {
@@ -81,12 +87,18 @@ export function NotificationSettings() {
         </SettingRow>
 
         <div className="pt-2">
-          <p className="mb-3 text-sm font-medium text-foreground">Notify me about</p>
+          <p className="mb-3 text-sm font-medium text-foreground">
+            <Trans>Notify me about</Trans>
+          </p>
           <div className="space-y-3">
             <div className="flex items-center justify-between gap-4">
               <div className="min-w-0">
-                <p className="text-sm text-foreground">Done</p>
-                <p className="text-xs text-muted">Thread finished or waiting for your input.</p>
+                <p className="text-sm text-foreground">
+                  <Trans comment="Notification status: thread is done">Done</Trans>
+                </p>
+                <p className="text-xs text-muted">
+                  <Trans>Thread finished or waiting for your input.</Trans>
+                </p>
               </div>
               <Switch
                 isSelected={notificationStatuses.done}
@@ -104,8 +116,12 @@ export function NotificationSettings() {
 
             <div className="flex items-center justify-between gap-4">
               <div className="min-w-0">
-                <p className="text-sm text-foreground">Needs Attention</p>
-                <p className="text-xs text-muted">Approval or reply required from you.</p>
+                <p className="text-sm text-foreground">
+                  <Trans>Needs Attention</Trans>
+                </p>
+                <p className="text-xs text-muted">
+                  <Trans>Approval or reply required from you.</Trans>
+                </p>
               </div>
               <Switch
                 isSelected={notificationStatuses.needsAttention}
@@ -123,8 +139,12 @@ export function NotificationSettings() {
 
             <div className="flex items-center justify-between gap-4">
               <div className="min-w-0">
-                <p className="text-sm text-foreground">Error</p>
-                <p className="text-xs text-muted">Agent encountered an error.</p>
+                <p className="text-sm text-foreground">
+                  <Trans comment="Notification status: agent error">Error</Trans>
+                </p>
+                <p className="text-xs text-muted">
+                  <Trans>Agent encountered an error.</Trans>
+                </p>
               </div>
               <Switch
                 isSelected={notificationStatuses.error}
@@ -144,8 +164,13 @@ export function NotificationSettings() {
 
         <SettingRow
           className="pt-2"
-          title="Notify for L2 CLI threads"
-          description="When off, suppress notifications from terminal threads whose status comes from the OSC fallback (no CLI hook plugin)."
+          title={t`Notify for L2 CLI threads`}
+          description={
+            <Trans>
+              When off, suppress notifications from terminal threads whose status comes from the OSC
+              fallback (no CLI hook plugin).
+            </Trans>
+          }
         >
           <Switch
             isSelected={notifyL2Cli}

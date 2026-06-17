@@ -1,3 +1,4 @@
+import { Trans, useLingui } from "@lingui/react/macro";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useProject } from "@/renderer/state/useThread";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
@@ -5,6 +6,7 @@ import { DEFAULT_SEARCH_EXCLUDE } from "@/shared/searchExclude";
 import { SearchExcludeBody } from "@/renderer/views/SettingsOverlay/parts/SearchExcludeBody";
 
 export function SearchSection(props: { projectId: string }) {
+  const { t } = useLingui();
   const project = useProject(props.projectId);
   const updateProjectSearchSettings = useAppStore((s) => s.updateProjectSearchSettings);
   const globalUseIgnoreFiles = useSharedSettings((s) => s.searchUseIgnoreFiles);
@@ -29,17 +31,23 @@ export function SearchSection(props: { projectId: string }) {
   return (
     <div className="h-full min-h-0 overflow-y-auto px-6 pb-8 pt-4">
       <div className="mx-auto max-w-[720px]">
-        <h1 className="mb-2 text-lg font-semibold text-foreground">Search</h1>
+        <h1 className="mb-2 text-lg font-semibold text-foreground">
+          <Trans>Search</Trans>
+        </h1>
         <p className="mb-6 text-xs text-muted">
-          Project-specific overrides on top of the global search settings.
+          <Trans>Project-specific overrides on top of the global search settings.</Trans>
         </p>
 
         <SearchExcludeBody
           useIgnoreFiles={effectiveUseIgnoreFiles}
           useIgnoreFilesNote={
-            overridesIgnoreFiles
-              ? "Overriding the global setting for this project."
-              : `Inheriting the global setting (currently ${globalUseIgnoreFiles ? "on" : "off"}).`
+            overridesIgnoreFiles ? (
+              <Trans>Overriding the global setting for this project.</Trans>
+            ) : (
+              <Trans>
+                Inheriting the global setting (currently {globalUseIgnoreFiles ? t`on` : t`off`}).
+              </Trans>
+            )
           }
           onUseIgnoreFilesChange={(value) => update({ ...settings, useIgnoreFiles: value })}
           useIgnoreFilesResetAction={
@@ -49,7 +57,7 @@ export function SearchSection(props: { projectId: string }) {
                 className="text-xs text-muted underline-offset-2 hover:underline"
                 onClick={() => update({ ...settings, useIgnoreFiles: undefined })}
               >
-                reset
+                <Trans>reset</Trans>
               </button>
             ) : undefined
           }

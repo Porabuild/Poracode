@@ -1,11 +1,12 @@
 import { forwardRef, type ReactNode } from "react";
+import { useLingui } from "@lingui/react/macro";
 
 export function ThreadDockSection({
   children,
   placement = "composer",
   collapsed = false,
   className = "",
-  ariaLabel = "Thread dock",
+  ariaLabel,
 }: {
   children: ReactNode;
   placement?: "composer" | "right";
@@ -13,6 +14,8 @@ export function ThreadDockSection({
   className?: string;
   ariaLabel?: string;
 }) {
+  const { t } = useLingui();
+  const resolvedAriaLabel = ariaLabel ?? t`Thread dock`;
   const baseClass =
     placement === "composer"
       ? "flex flex-col border-b border-[color:var(--border)] bg-transparent text-xs"
@@ -22,7 +25,7 @@ export function ThreadDockSection({
 
   return (
     <section
-      aria-label={ariaLabel}
+      aria-label={resolvedAriaLabel}
       className={`${baseClass} ${className}`}
       data-collapsed={collapsed ? "true" : "false"}
       data-placement={placement}

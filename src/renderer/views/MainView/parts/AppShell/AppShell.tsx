@@ -9,6 +9,7 @@ import {
   useState,
 } from "react";
 import { useShallow } from "zustand/shallow";
+import { useLingui } from "@lingui/react/macro";
 import { isMac, isWindows } from "@/renderer/bridge";
 import { useTwoRafReady } from "@/renderer/hooks/useTwoRafReady";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
@@ -302,6 +303,7 @@ function ShellSidebarResizeHandle(props: {
   onMouseLeave: () => void;
   onMouseDown: (event: React.MouseEvent<HTMLDivElement>) => void;
 }) {
+  const { t } = useLingui();
   const { isCollapsed, isOverlay } = useSidebarOverlayStore(
     useShallow((s) => ({
       isCollapsed: s.isCollapsed,
@@ -329,7 +331,7 @@ function ShellSidebarResizeHandle(props: {
       onMouseDown={props.onMouseDown}
       role="separator"
       aria-orientation="vertical"
-      aria-label="Resize sidebar"
+      aria-label={t`Resize sidebar`}
     />
   );
 }
@@ -345,6 +347,7 @@ export function AppShell(props: {
   onRequestClosePanels?: () => void;
   onDismissRightOverlay?: () => void;
 }) {
+  const { t } = useLingui();
   const { sidebar, content, sidebarHeader, contentHeader, rightPanel, gitPanel } = props;
   const forceSidebarExpanded = props.forceSidebarExpanded === true;
   const terminalPosition = useSharedSettings((s) => s.terminalPosition);
@@ -604,7 +607,7 @@ export function AppShell(props: {
                 onResizeStart={isBottom ? handlePanelBottomResizeStart : handlePanelResizeStart}
                 panelRef={panelRef}
                 panelInnerRef={panelInnerRef}
-                ariaLabel="Resize terminal panel"
+                ariaLabel={t`Resize terminal panel`}
                 overlay={rightPanelAsOverlay}
                 overlayReady={rightOverlayReadyForDisplay}
                 overlayTop={rightOverlayTop}
@@ -622,7 +625,7 @@ export function AppShell(props: {
               onResizeStart={handleGitPanelResizeStart}
               panelRef={gitPanelRef}
               panelInnerRef={gitPanelInnerRef}
-              ariaLabel="Resize git panel"
+              ariaLabel={t`Resize git panel`}
               overlay={gitPanelAsOverlay}
               overlayReady={rightOverlayReadyForDisplay}
               overlayTop={rightOverlayTop}

@@ -1,5 +1,6 @@
 import { ArrowRight, FolderOpen, House, Plus } from "lucide-react";
 import { useShallow } from "zustand/shallow";
+import { Trans } from "@lingui/react/macro";
 import { isHomeProject, isHomeProjectId } from "@/shared/homeScope";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
@@ -44,7 +45,7 @@ export function HomeView() {
                       >
                         <House className="size-4 shrink-0 text-muted" />
                         <p className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">
-                          Home
+                          <Trans>Home</Trans>
                         </p>
                         <Plus className="size-4 shrink-0 text-muted opacity-0 transition-opacity group-hover:opacity-100" />
                       </button>
@@ -70,7 +71,7 @@ export function HomeView() {
               {recentThreads.length > 0 ? (
                 <section>
                   <h2 className="mb-3 text-xs font-semibold uppercase tracking-[0.12em] text-muted">
-                    Recent threads
+                    <Trans>Recent threads</Trans>
                   </h2>
                   <div className="flex flex-col gap-1">
                     {recentThreads.map((thread) => {

@@ -7,6 +7,7 @@ import {
   type SharedSettings,
   type SharedSettingsInput,
 } from "@/shared/settings";
+import type { AiContentLanguage, LocaleSetting } from "@/shared/locale";
 import type {
   GitReviewMode,
   AgentInstanceConfig,
@@ -28,6 +29,8 @@ interface SharedSettingsState extends SharedSettings {
   sharedSettingsHydrated: boolean;
   setThemeMode: (mode: ThemeMode) => void;
   setThemePreset: (id: string) => void;
+  setLocale: (locale: LocaleSetting) => void;
+  setGitTextLanguage: (value: AiContentLanguage) => void;
   setTerminalPosition: (position: TerminalPosition) => void;
   setCommitGenConfig: (provider: string, model: string, effort: string) => void;
   setTitleGenConfig: (provider: string, model: string, effort: string) => void;
@@ -178,6 +181,16 @@ export const useSharedSettings = create<SharedSettingsState>()((set, get) => ({
   setThemePreset: (themePreset) => {
     if (get().themePreset === themePreset) return;
     set({ themePreset });
+    persistSettings(selectSharedSettings(get()));
+  },
+  setLocale: (locale) => {
+    if (get().locale === locale) return;
+    set({ locale });
+    persistSettings(selectSharedSettings(get()));
+  },
+  setGitTextLanguage: (gitTextLanguage) => {
+    if (get().gitTextLanguage === gitTextLanguage) return;
+    set({ gitTextLanguage });
     persistSettings(selectSharedSettings(get()));
   },
   setTerminalPosition: (terminalPosition) => {
@@ -528,6 +541,8 @@ function selectSharedSettings(state: SharedSettingsState): SharedSettingsInput {
   return {
     themeMode: state.themeMode,
     themePreset: state.themePreset,
+    locale: state.locale,
+    gitTextLanguage: state.gitTextLanguage,
     terminalPosition: state.terminalPosition,
     commitGenProvider: state.commitGenProvider,
     commitGenModel: state.commitGenModel,

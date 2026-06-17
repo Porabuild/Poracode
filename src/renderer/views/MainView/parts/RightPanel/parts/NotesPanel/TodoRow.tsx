@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useSortable } from "@dnd-kit/react/sortable";
 import { Check, MessageSquarePlus, Trash2 } from "lucide-react";
+import { useLingui } from "@lingui/react/macro";
 import type { NotesTodoItem } from "@/shared/contracts";
 import { ContextMenu } from "@/renderer/components/common";
 
@@ -17,6 +18,7 @@ export function TodoRow(props: {
   onNewThread: () => void;
 }) {
   const { todo, index, projectId, onToggle, onChangeText, onRemove, onNewThread } = props;
+  const { t } = useLingui();
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(todo.text);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -57,10 +59,15 @@ export function TodoRow(props: {
       items={[
         {
           id: "new-thread",
-          label: "New thread from this to-do",
+          label: t`New thread from this to-do`,
           icon: <MessageSquarePlus className="size-3.5" />,
         },
-        { id: "delete", label: "Delete", icon: <Trash2 className="size-3.5" />, variant: "danger" },
+        {
+          id: "delete",
+          label: t`Delete`,
+          icon: <Trash2 className="size-3.5" />,
+          variant: "danger",
+        },
       ]}
       onAction={(key) => {
         if (key === "new-thread") onNewThread();
@@ -80,7 +87,7 @@ export function TodoRow(props: {
               ? "border-foreground bg-foreground text-background"
               : "border-[color:var(--border)] text-transparent hover:border-foreground"
           }`}
-          title={todo.done ? "Mark as not done" : "Mark as done"}
+          title={todo.done ? t`Mark as not done` : t`Mark as done`}
           onPointerDown={(e) => e.stopPropagation()}
           onClick={onToggle}
         >
@@ -111,7 +118,7 @@ export function TodoRow(props: {
             className={`m-0 min-w-0 flex-1 cursor-grab truncate p-0 text-left text-xs leading-5 ${
               todo.done ? "text-muted line-through" : "text-foreground"
             }`}
-            title="Drag to reorder; double-click to edit"
+            title={t`Drag to reorder; double-click to edit`}
             // Edit on double-click so a single click + drag is free to reorder
             // (single-click edit would flip on `editing`, disabling the sortable).
             onDoubleClick={() => {
@@ -133,7 +140,7 @@ export function TodoRow(props: {
           <button
             type="button"
             className={`${todoActionButtonClass} ${actionVisibilityClass} hover:text-foreground`}
-            title="Start a new thread from this to-do"
+            title={t`Start a new thread from this to-do`}
             onPointerDown={(e) => e.stopPropagation()}
             onClick={onNewThread}
           >
@@ -142,7 +149,7 @@ export function TodoRow(props: {
           <button
             type="button"
             className={`${todoActionButtonClass} ${actionVisibilityClass} hover:text-danger`}
-            title="Delete to-do"
+            title={t`Delete to-do`}
             onPointerDown={(e) => e.stopPropagation()}
             onClick={onRemove}
           >

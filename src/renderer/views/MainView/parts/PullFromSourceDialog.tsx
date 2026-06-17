@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { AlertDialog, toast } from "@heroui/react";
+import { Trans } from "@lingui/react/macro";
 import { buildWorktreeLocation } from "@/shared/worktree";
 import { msg } from "@/shared/messages";
 import { openGitReviewForWorktree } from "@/renderer/actions/gitActions";
@@ -64,18 +65,22 @@ export function PullFromSourceDialog() {
   const dialogContent = (
     <>
       <AlertDialog.Header className="gap-1">
-        <AlertDialog.Heading>Pull from {activeDialog.sourceBranch}?</AlertDialog.Heading>
+        <AlertDialog.Heading>
+          <Trans>Pull from {activeDialog.sourceBranch}?</Trans>
+        </AlertDialog.Heading>
         <p className="text-sm leading-5 text-muted">
-          This worktree has local changes. Lightcode can temporarily stash them, pull from{" "}
-          {activeDialog.sourceBranch}, then re-apply your changes.
+          <Trans>
+            This worktree has local changes. Lightcode can temporarily stash them, pull from{" "}
+            {activeDialog.sourceBranch}, then re-apply your changes.
+          </Trans>
         </p>
       </AlertDialog.Header>
       <AlertDialog.Footer>
         <Button slot="close" variant="ghost" className="text-muted" isDisabled={isPulling}>
-          Cancel
+          <Trans>Cancel</Trans>
         </Button>
         <Button variant="tertiary" onPress={handleStashPullReapply} isPending={isPulling}>
-          Stash & Pull
+          <Trans>Stash & Pull</Trans>
         </Button>
       </AlertDialog.Footer>
     </>

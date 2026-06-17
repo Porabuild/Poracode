@@ -1,7 +1,8 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it } from "vitest";
 import type { Project } from "@/shared/contracts";
 import { useAppStore } from "@/renderer/state/appStore";
+import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import { ScriptsSection } from "./ScriptsSection";
 
 function seedProject(overrides: Partial<Project> = {}) {

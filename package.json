@@ -48,6 +48,8 @@
     "test:integration:providers": "vitest run --config vitest.integration.config.ts",
     "update-server": "node scripts/update-server.mjs",
     "db:clone": "node scripts/clone-db.mjs",
+    "i18n:extract": "lingui extract",
+    "i18n:extract:clean": "lingui extract --clean",
     "prepare": "husky"
   },
   "dependencies": {
@@ -66,6 +68,8 @@
     "@heroui/styles": "^3.0.3",
     "@huggingface/transformers": "^4.2.0",
     "@lightcode/agents-usage": "workspace:*",
+    "@lingui/core": "6.2.0",
+    "@lingui/react": "6.2.0",
     "@monaco-editor/react": "^4.7.0",
     "@opencode-ai/sdk": "^1.14.48",
     "@sentry/electron": "^7.13.0",
@@ -107,6 +111,10 @@
   "devDependencies": {
     "@babel/core": "^7.29.0",
     "@electron/rebuild": "^4.0.4",
+    "@lingui/babel-plugin-lingui-macro": "6.2.0",
+    "@lingui/cli": "6.2.0",
+    "@lingui/format-po": "6.2.0",
+    "@lingui/vite-plugin": "6.2.0",
     "@rolldown/plugin-babel": "^0.2.3",
     "@sentry/cli": "^3.4.2",
     "@tailwindcss/postcss": "^4.2.4",

@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Tooltip, toast } from "@heroui/react";
 import { Download, Webhook, X } from "lucide-react";
+import { Trans, useLingui } from "@lingui/react/macro";
 import type {
   AgentHookPluginStatus,
   AgentStatus,
@@ -69,6 +70,7 @@ function HookInstallProposal(props: {
   selectedAgent: AgentStatus;
   presentationMode: ThreadPresentationMode;
 }) {
+  const { t } = useLingui();
   const env = hookEnvForProject(props.project);
   const envKey = hookEnvKey(env);
   const agentKind = props.selectedAgent.kind;
@@ -122,24 +124,24 @@ function HookInstallProposal(props: {
       .installAgentHookPlugin({ agentKind: props.selectedAgent.kind, env })
       .then((result) => {
         setStatus(result.status);
-        toast.success(`${props.selectedAgent.label} hooks installed.`);
+        toast.success(t`${props.selectedAgent.label} hooks installed.`);
       })
       .catch((error) =>
         toast.danger(
           error instanceof Error
             ? error.message
-            : `Unable to install ${props.selectedAgent.label} hooks.`,
+            : t`Unable to install ${props.selectedAgent.label} hooks.`,
         ),
       )
       .finally(() => setPending(false));
   };
 
   return (
-    <ThreadDockSection placement="composer" collapsed={false} ariaLabel="Install CLI hooks">
+    <ThreadDockSection placement="composer" collapsed={false} ariaLabel={t`Install CLI hooks`}>
       <ThreadDockHeader
         icon={Webhook}
         iconClassName="text-foreground"
-        title="Install CLI hooks"
+        title={t`Install CLI hooks`}
         actions={
           <div className="flex shrink-0 items-center gap-1">
             <Button
@@ -151,12 +153,12 @@ function HookInstallProposal(props: {
               onPress={install}
             >
               {pending ? <PixelLoader size="xs" /> : <Download className="size-3.5" />}
-              Install
+              <Trans>Install</Trans>
             </Button>
             <Tooltip delay={0}>
               <Tooltip.Trigger>
                 <button
-                  aria-label="Don't show hook install proposal"
+                  aria-label={t`Don't show hook install proposal`}
                   className="shrink-0 rounded p-1 text-muted/70 transition-colors hover:bg-danger-500/10 hover:text-danger-500"
                   type="button"
                   onClick={() => dismissHookInstallProposal(proposalKey)}
@@ -164,13 +166,15 @@ function HookInstallProposal(props: {
                   <X className="size-3.5" />
                 </button>
               </Tooltip.Trigger>
-              <Tooltip.Content>Dismiss</Tooltip.Content>
+              <Tooltip.Content>
+                <Trans>Dismiss</Trans>
+              </Tooltip.Content>
             </Tooltip>
           </div>
         }
       >
         <span className="min-w-0 flex-1 truncate leading-5 text-[color:var(--muted)]">
-          Better status updates while agents run.
+          <Trans>Better status updates while agents run.</Trans>
         </span>
       </ThreadDockHeader>
     </ThreadDockSection>
@@ -195,6 +199,7 @@ export function ThreadDraftComposerArea(props: {
   onRememberPresentationMode: () => void;
   onStart: (input: DraftStartInput) => void | Promise<void>;
 }) {
+  const { t } = useLingui();
   const [prompt, setPrompt] = useState("");
   const [hasContent, setHasContent] = useState(false);
   // Set to true while an agent-binary update is running for this project's env.
@@ -562,7 +567,7 @@ export function ThreadDraftComposerArea(props: {
             ref={mentionRef}
             autoFocus={(props.paneCount ?? 1) === 1} // eslint-disable-line jsx-a11y/no-autofocus -- desktop app, expected UX
             compact={props.compact ?? false}
-            placeholder="Send a message..."
+            placeholder={t`Send a message...`}
             projectLocation={isHomeScope ? undefined : props.project.location}
             {...(!isHomeScope ? { projectId: props.project.id } : {})}
             onTextChange={(hasText) => {
@@ -608,7 +613,7 @@ export function ThreadDraftComposerArea(props: {
             onSlashCommandChange={setSlashQuery}
           />
         }
-        placeholder="Send a message..."
+        placeholder={t`Send a message...`}
         prompt={prompt}
         submitDisabled={
           authRequired ||
@@ -617,7 +622,7 @@ export function ThreadDraftComposerArea(props: {
           !(hasContent || attachments.attachments.length > 0)
         }
         submitPending={isSubmitting}
-        submitLabel="Launch thread"
+        submitLabel={t`Launch thread`}
         onPromptChange={setPrompt}
         onAttachFiles={attachments.addFiles}
         onSubmit={() => {

@@ -1,6 +1,8 @@
 import type { AgentStatus, ProjectLocation } from "@/shared/contracts";
+import { resolveAiLanguageName } from "@/shared/locale";
 import { readBridge } from "@/renderer/bridge";
 import { generateTitleWithFallback } from "@/renderer/components/providers";
+import { detectOSLocale } from "@/renderer/i18n/locales";
 import { useAppStore, makeThreadTitle } from "@/renderer/state/appStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 
@@ -17,6 +19,10 @@ export function generateTitleAsync(
 
   const model = isWsl ? settings.wslTitleGenModel : settings.titleGenModel;
   const effort = isWsl ? settings.wslTitleGenEffort : settings.titleGenEffort;
+  // Thread titles are "conversation" text: they follow the app language. When
+  // it resolves to English the directive is omitted, preserving the default
+  // "match the user's message language" behavior.
+  const language = resolveAiLanguageName("match-app", settings.locale, detectOSLocale());
 
   void generateTitleWithFallback({
     projectLocation,
@@ -25,6 +31,7 @@ export function generateTitleAsync(
     model,
     effort,
     prompt,
+    ...(language ? { language } : {}),
     invoke: (payload) => {
       return readBridge().generateTitle(payload);
     },

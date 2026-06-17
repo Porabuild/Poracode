@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useLingui } from "@lingui/react/macro";
 import { useAppStore } from "@/renderer/state/appStore";
 import { PageLayout } from "@/renderer/components/layout/PageLayout";
 import { SettingsSidebar } from "./parts/SettingsSidebar";
@@ -12,14 +13,15 @@ export { resolveActionIcon } from "@/renderer/utils/actionIcons";
 
 export function ProjectSettingsOverlay(props: { projectId: string; onClose: () => void }) {
   const { projectId, onClose } = props;
+  const { t } = useLingui();
   const projectName = useAppStore(
-    (s) => s.projects.find((p) => p.id === projectId)?.name ?? "Project",
+    (s) => s.projects.find((p) => p.id === projectId)?.name ?? t`Project`,
   );
   const [activeSection, setActiveSection] = useState<ProjectSettingsSection>("general");
 
   return (
     <PageLayout
-      title={`${projectName} Settings`}
+      title={t`${projectName} Settings`}
       sidebar={
         <SettingsSidebar
           activeSection={activeSection}

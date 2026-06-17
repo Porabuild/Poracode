@@ -1,5 +1,6 @@
 import { lazy, Suspense } from "react";
 import { AlertDialog } from "@heroui/react";
+import { Trans } from "@lingui/react/macro";
 import { PixelLoader } from "@/renderer/components/common";
 import { buildWorktreeLocation } from "@/shared/worktree";
 import { OverlayShell } from "@/renderer/components/layout/OverlayShell";
@@ -214,25 +215,30 @@ function UsageLoginConfirmationDialog() {
       <AlertDialog.Container size="sm">
         <AlertDialog.Dialog className="sm:max-w-[420px] !p-4">
           <AlertDialog.Header className="gap-1">
-            <AlertDialog.Heading>Use detected session?</AlertDialog.Heading>
+            <AlertDialog.Heading>
+              <Trans>Use detected session?</Trans>
+            </AlertDialog.Heading>
             <p className="text-sm leading-5 text-muted">
-              Found a signed-in {activeRequest.providerLabel} session.
+              <Trans>Found a signed-in {activeRequest.providerLabel} session.</Trans>
             </p>
           </AlertDialog.Header>
           <AlertDialog.Body>
             <p className="text-sm leading-5 text-muted">
-              Use this account for usage tracking, or change users in the browser before continuing.
+              <Trans>
+                Use this account for usage tracking, or change users in the browser before
+                continuing.
+              </Trans>
             </p>
           </AlertDialog.Body>
           <AlertDialog.Footer>
             <Button slot="close" variant="ghost" className="text-muted">
-              Cancel
+              <Trans>Cancel</Trans>
             </Button>
             <Button variant="tertiary" onPress={() => respond("change")}>
-              Change User
+              <Trans>Change User</Trans>
             </Button>
             <Button variant="primary" onPress={() => respond("use")}>
-              Use Session
+              <Trans>Use Session</Trans>
             </Button>
           </AlertDialog.Footer>
         </AlertDialog.Dialog>

@@ -1,4 +1,5 @@
 import { Check } from "lucide-react";
+import { useLingui } from "@lingui/react/macro";
 import type { UserInputFormAnswer, UserInputFormQuestion } from "../userInputForm";
 import { questionHasAnswer } from "../userInputForm";
 
@@ -11,9 +12,14 @@ export function QuestionSwitcher(props: {
   onSelect: (index: number) => void;
 }) {
   const { questions, answers, customAnswers, activeIndex, isDisabled, onSelect } = props;
+  const { t } = useLingui();
   if (questions.length <= 1) return null;
   return (
-    <div role="tablist" aria-label="Questions" className="mt-0.5 flex gap-1 overflow-x-auto pb-0.5">
+    <div
+      role="tablist"
+      aria-label={t`Questions`}
+      className="mt-0.5 flex gap-1 overflow-x-auto pb-0.5"
+    >
       {questions.map((question, index) => {
         const isActive = index === activeIndex;
         const hasAnswer = questionHasAnswer(question, answers, customAnswers);

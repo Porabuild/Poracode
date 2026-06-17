@@ -1,6 +1,8 @@
 export * from "./CodexStatusIcon";
 
+import { msg } from "@lingui/core/macro";
 import type { ComposerControl } from "@/renderer/components/thread/ThreadComposer";
+import { i18n } from "@/renderer/i18n/i18n";
 import { CodexStatusIcon } from "./CodexStatusIcon";
 import { planWorkToggle } from "../composerControlBuilders";
 import type { AgentCapability, ThreadConfig } from "@/shared/contracts";
@@ -44,36 +46,22 @@ registerConfigNormalizer("codex", ({ config, presentationMode }) => {
   return {};
 });
 
+// A slash command's label is its id followed by the (translated) description, so
+// the description is translated once and the `/id` keyword stays untranslatable.
+const codexCommand = (id: string, description: string) => ({
+  id,
+  description,
+  label: `${id} - ${description}`,
+});
+
 registerGuiSlashCommands("codex", {
   buildCommands: ({ hasEffort, supportsFast }) => [
-    { id: "model", label: "model - Open the model picker", description: "Open the model picker" },
-    {
-      id: "plan",
-      label: "plan - Switch this chat to plan mode",
-      description: "Switch this chat to plan mode",
-    },
-    {
-      id: "agent",
-      label: "agent - Switch this chat to agent mode",
-      description: "Switch this chat to agent mode",
-    },
-    {
-      id: "goal",
-      label: "goal - Set or view an experimental goal",
-      description: "Set or view an experimental goal",
-    },
-    ...(hasEffort
-      ? [
-          {
-            id: "effort",
-            label: "effort - Open the effort picker",
-            description: "Open the effort picker",
-          },
-        ]
-      : []),
-    ...(supportsFast
-      ? [{ id: "fast", label: "fast - Toggle Fast mode", description: "Toggle Fast mode" }]
-      : []),
+    codexCommand("model", i18n._(msg`Open the model picker`)),
+    codexCommand("plan", i18n._(msg`Switch this chat to plan mode`)),
+    codexCommand("agent", i18n._(msg`Switch this chat to agent mode`)),
+    codexCommand("goal", i18n._(msg`Set or view an experimental goal`)),
+    ...(hasEffort ? [codexCommand("effort", i18n._(msg`Open the effort picker`))] : []),
+    ...(supportsFast ? [codexCommand("fast", i18n._(msg`Toggle Fast mode`))] : []),
   ],
   resolveLocalAction: (typed) => {
     const normalized = typed.trim().toLowerCase();
@@ -89,22 +77,22 @@ registerGuiSlashCommands("codex", {
 const CODEX_PERMISSION_PRESETS = [
   {
     id: "default-permissions",
-    label: "Default permissions",
-    hint: "Use config",
+    label: msg`Default permissions`,
+    hint: msg`Use config`,
     approvalPolicies: [],
     sandboxModes: [],
   },
   {
     id: "auto-review",
-    label: "Auto-review",
-    hint: "Review on request",
+    label: msg`Auto-review`,
+    hint: msg`Review on request`,
     approvalPolicies: ["on-request"],
     sandboxModes: ["workspace-write"],
   },
   {
     id: "full-access",
-    label: "Full access",
-    hint: "No prompts",
+    label: msg`Full access`,
+    hint: msg`No prompts`,
     approvalPolicies: ["never"],
     sandboxModes: ["danger-full-access"],
   },
@@ -158,8 +146,8 @@ function buildCodexPermissionControl(
     iconKind: "permission",
     options: permissionPresets.map((preset) => ({
       id: preset.id,
-      label: preset.label,
-      hint: preset.hint,
+      label: i18n._(preset.label),
+      hint: i18n._(preset.hint),
     })),
     hideLabelOnWrap: true,
     value: current.id,

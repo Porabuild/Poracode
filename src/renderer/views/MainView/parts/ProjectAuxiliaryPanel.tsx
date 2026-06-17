@@ -1,4 +1,5 @@
 import { useRef } from "react";
+import { useLingui } from "@lingui/react/macro";
 import type { Project } from "@/shared/contracts";
 import { isHomeProjectId } from "@/shared/homeScope";
 import { BrowserPanel } from "@/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel";
@@ -64,6 +65,7 @@ function resolveFilesRootContext(
 }
 
 export function ProjectAuxiliaryPanel(props: { includeTerminal: boolean }) {
+  const { t } = useLingui();
   const projects = useAppStore((s) => s.projects);
   const gitReviewContext = usePanelStore((s) => s.gitReviewContext);
   const gitReviewAsPanel = usePanelStore((s) => s.gitReviewAsPanel);
@@ -147,11 +149,11 @@ export function ProjectAuxiliaryPanel(props: { includeTerminal: boolean }) {
   function resolveProjectName(): string | undefined {
     switch (activeTab) {
       case "browser":
-        return "Browser";
+        return t`Browser`;
       case "usage":
-        return "Usage";
+        return t`Usage`;
       case "notes":
-        return notesProjectId ? projectNameForScope({ projectId: notesProjectId }) : "Notes";
+        return notesProjectId ? projectNameForScope({ projectId: notesProjectId }) : t`Notes`;
       case "files":
         return resolvedFilesPanelContext?.rootLabel ?? projectNameForScope(activeProjectScope());
       default:

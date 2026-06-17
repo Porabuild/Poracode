@@ -11,6 +11,7 @@ import {
   PanelLeftClose,
 } from "lucide-react";
 import { Button, ButtonGroup, Dropdown, Label, Modal, Separator } from "@heroui/react";
+import { Trans, useLingui } from "@lingui/react/macro";
 import type { GitBranchInfo, GitStatusResult, PrCreateMode, Project } from "@/shared/contracts";
 import { getProjectAgentStatuses } from "@/shared/agentStatus";
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
@@ -88,6 +89,7 @@ export function GitReviewSidebar(props: {
     mode = "overlay",
     wrapLines = false,
   } = props;
+  const { t } = useLingui();
   const storeKey = statusKey ?? project.id;
   const isWorktreeStatus = Boolean(statusKey);
   const { isCollapsed, collapse, expand } = useSidebar();
@@ -243,11 +245,11 @@ export function GitReviewSidebar(props: {
     runPrMode(prMode);
   };
   const altPrMode: PrCreateMode = isAutoPrMode ? "dialog" : "auto";
-  const altPrModeLabel = isAutoPrMode ? "Create PR…" : "Create PR (Auto)";
+  const altPrModeLabel = isAutoPrMode ? t`Create PR…` : t`Create PR (Auto)`;
   const createPrButtonContent = (
     <>
       {createPrPending ? <PixelLoader size="xs" /> : <GitPullRequest className="size-3.5" />}
-      {isAutoPrMode ? "Create PR (Auto)" : "Create PR"}
+      {isAutoPrMode ? <Trans>Create PR (Auto)</Trans> : <Trans>Create PR</Trans>}
     </>
   );
   const [isInitializingRepo, setIsInitializingRepo] = useState(false);
@@ -295,7 +297,7 @@ export function GitReviewSidebar(props: {
               <SidebarButton
                 iconOnly
                 icon={<FileDiff className="size-4" />}
-                label="Changes"
+                label={t`Changes`}
                 isActive
               />
             </div>
@@ -305,13 +307,13 @@ export function GitReviewSidebar(props: {
                   <SidebarButton
                     iconOnly
                     icon={<ArrowLeft className="size-4" />}
-                    label="Return to app"
+                    label={t`Return to app`}
                     onPress={onClose}
                   />
                   <SidebarButton
                     iconOnly
                     icon={<PanelLeft className="size-4" />}
-                    label="Show sidebar"
+                    label={t`Show sidebar`}
                     onPress={expand}
                   />
                 </>
@@ -347,7 +349,7 @@ export function GitReviewSidebar(props: {
             )}
             {gitStatus && gitStatus.staged.length > 0 && (
               <FileGroup
-                title="Staged"
+                title={t`Staged`}
                 count={gitStatus.staged.length}
                 staged
                 files={gitStatus.staged}
@@ -366,7 +368,7 @@ export function GitReviewSidebar(props: {
             )}
             {gitStatus && gitStatus.unstaged.length > 0 && (
               <FileGroup
-                title="Changes"
+                title={t`Changes`}
                 count={gitStatus.unstaged.length}
                 staged={false}
                 files={gitStatus.unstaged}
@@ -387,7 +389,9 @@ export function GitReviewSidebar(props: {
               <div
                 className={`flex min-h-full flex-col items-center justify-center gap-3 text-center text-xs text-muted/60 ${mode === "panel" ? "px-4" : "px-2"}`}
               >
-                <span>Not a git repository</span>
+                <span>
+                  <Trans>Not a git repository</Trans>
+                </span>
                 {onInitRepository && (
                   <Button
                     size="sm"
@@ -403,7 +407,7 @@ export function GitReviewSidebar(props: {
                       ) : (
                         <>
                           <GitBranchPlus className="size-3.5" />
-                          Initialize Repository
+                          <Trans>Initialize Repository</Trans>
                         </>
                       )
                     }
@@ -419,11 +423,15 @@ export function GitReviewSidebar(props: {
                 <div
                   className={`flex min-h-full flex-col items-center justify-center gap-1 text-center text-xs text-muted/60 ${mode === "panel" ? "px-4" : "px-2"}`}
                 >
-                  <span className="text-foreground/80">Working tree clean</span>
+                  <span className="text-foreground/80">
+                    <Trans>Working tree clean</Trans>
+                  </span>
                   <span>
-                    {hasRemote
-                      ? "File changes will appear here."
-                      : "No remote configured. Add a remote to enable push and pull."}
+                    {hasRemote ? (
+                      <Trans>File changes will appear here.</Trans>
+                    ) : (
+                      <Trans>No remote configured. Add a remote to enable push and pull.</Trans>
+                    )}
                   </span>
                   {!hasRemote && onAddRemote && (
                     <Button
@@ -433,7 +441,7 @@ export function GitReviewSidebar(props: {
                       onPress={() => setAddRemoteOpen(true)}
                     >
                       <Link2 className="size-3.5" />
-                      Add Remote
+                      <Trans>Add Remote</Trans>
                     </Button>
                   )}
                 </div>
@@ -512,7 +520,7 @@ export function GitReviewSidebar(props: {
                   <Button
                     isIconOnly
                     variant="tertiary"
-                    aria-label="More pull request options"
+                    aria-label={t`More pull request options`}
                     isDisabled={createPrPending || isMerging}
                   >
                     <ButtonGroup.Separator />
@@ -520,7 +528,7 @@ export function GitReviewSidebar(props: {
                   </Button>
                   <Dropdown.Popover placement="top end">
                     <Dropdown.Menu
-                      aria-label="Pull request options"
+                      aria-label={t`Pull request options`}
                       onAction={(key) => {
                         if (key === "pr-auto") selectPrMode("auto");
                         else if (key === "pr-dialog") selectPrMode("dialog");
@@ -535,16 +543,20 @@ export function GitReviewSidebar(props: {
                       {showMergeActions ? (
                         <>
                           <Separator />
-                          <Dropdown.Item id="merge-only" textValue="Merge Worktree">
+                          <Dropdown.Item id="merge-only" textValue={t`Merge Worktree`}>
                             <GitMerge className="size-3.5" />
-                            <Label>Merge Worktree</Label>
+                            <Label>
+                              <Trans>Merge Worktree</Trans>
+                            </Label>
                           </Dropdown.Item>
                           <Dropdown.Item
                             id="merge-and-remove"
-                            textValue="Merge Locally & Remove Worktree"
+                            textValue={t`Merge Locally & Remove Worktree`}
                           >
                             <GitMerge className="size-3.5" />
-                            <Label>Merge Locally & Remove Worktree</Label>
+                            <Label>
+                              <Trans>Merge Locally & Remove Worktree</Trans>
+                            </Label>
                           </Dropdown.Item>
                         </>
                       ) : null}
@@ -580,21 +592,37 @@ export function GitReviewSidebar(props: {
                 <Modal.Dialog className="sm:max-w-[420px]">
                   <Modal.CloseTrigger />
                   <Modal.Header>
-                    <Modal.Heading>Add Remote</Modal.Heading>
+                    <Modal.Heading>
+                      <Trans>Add Remote</Trans>
+                    </Modal.Heading>
                   </Modal.Header>
                   <Modal.Body className="p-4">
                     <div className="flex flex-col gap-3">
-                      <label className="flex flex-col gap-1 text-xs text-muted">
-                        <span>Remote name</span>
+                      <label
+                        htmlFor="git-add-remote-name"
+                        className="flex flex-col gap-1 text-xs text-muted"
+                      >
+                        <span>
+                          <Trans>Remote name</Trans>
+                        </span>
                         <input
+                          id="git-add-remote-name"
+                          aria-label={t`Remote name`}
                           className="h-8 rounded-md border border-[color:var(--border)] bg-surface px-2 text-xs text-foreground outline-none transition-colors placeholder:text-muted/50 focus:border-foreground/40"
                           value={remoteName}
                           onChange={(event) => setRemoteName(event.target.value)}
                         />
                       </label>
-                      <label className="flex flex-col gap-1 text-xs text-muted">
-                        <span>Remote URL</span>
+                      <label
+                        htmlFor="git-add-remote-url"
+                        className="flex flex-col gap-1 text-xs text-muted"
+                      >
+                        <span>
+                          <Trans>Remote URL</Trans>
+                        </span>
                         <input
+                          id="git-add-remote-url"
+                          aria-label={t`Remote URL`}
                           className="h-8 rounded-md border border-[color:var(--border)] bg-surface px-2 text-xs text-foreground outline-none transition-colors placeholder:text-muted/50 focus:border-foreground/40"
                           placeholder="git@github.com:owner/repo.git"
                           value={remoteUrl}
@@ -611,7 +639,7 @@ export function GitReviewSidebar(props: {
                   </Modal.Body>
                   <Modal.Footer>
                     <Button slot="close" variant="ghost" className="text-muted">
-                      Cancel
+                      <Trans>Cancel</Trans>
                     </Button>
                     <Button
                       variant="tertiary"
@@ -622,7 +650,7 @@ export function GitReviewSidebar(props: {
                       {({ isPending }) => (
                         <>
                           {isPending ? <PixelLoader size="xs" /> : <Link2 className="size-3.5" />}
-                          Add Remote
+                          <Trans>Add Remote</Trans>
                         </>
                       )}
                     </Button>
@@ -636,12 +664,12 @@ export function GitReviewSidebar(props: {
             <div className={sidebarFooterNavClass}>
               <SidebarButton
                 icon={<ArrowLeft className="size-4" />}
-                label="Return to app"
+                label={t`Return to app`}
                 onPress={onClose}
               />
               <SidebarButton
                 icon={<PanelLeftClose className="size-4" />}
-                label="Hide sidebar"
+                label={t`Hide sidebar`}
                 onPress={collapse}
               />
             </div>

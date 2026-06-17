@@ -10,6 +10,7 @@ import {
   Settings2,
   Trash2,
 } from "lucide-react";
+import { useLingui } from "@lingui/react/macro";
 import type { Project } from "@/shared/contracts";
 import { TuxIcon } from "@/renderer/components/common/TuxIcon";
 import { ContextMenu, SidebarButton } from "@/renderer/components/common";
@@ -42,6 +43,7 @@ export function SidebarProjectHeader(props: {
   isDragging: boolean;
 }) {
   const { project, isCollapsed, isDragging } = props;
+  const { t } = useLingui();
   const toggleProjectCollapsed = useSidebarUiStore((s) => s.toggleProjectCollapsed);
   const hasTerminal = useIsProjectTerminalOpen(project.id);
   const isActiveTerminal = useIsProjectTerminalActive(project.id);
@@ -57,7 +59,7 @@ export function SidebarProjectHeader(props: {
       items={[
         {
           id: "project-settings",
-          label: "Project Settings",
+          label: t`Project Settings`,
           icon: <Settings2 className="size-3.5" />,
         },
         ...(isDisabled
@@ -66,17 +68,17 @@ export function SidebarProjectHeader(props: {
               {
                 type: "submenu" as const,
                 id: "git",
-                label: "Git",
+                label: t`Git`,
                 icon: <GitFork className="size-3.5" />,
                 items: [
                   {
                     id: "git-review",
-                    label: "Review Changes",
+                    label: t`Review Changes`,
                     icon: <FileDiff className="size-3.5" />,
                   },
                   {
                     id: "git-sync",
-                    label: "Sync",
+                    label: t`Sync`,
                     icon: <RefreshCw className="size-3.5" />,
                   },
                 ],
@@ -86,7 +88,7 @@ export function SidebarProjectHeader(props: {
                     {
                       type: "submenu" as const,
                       id: "run-action",
-                      label: "Run",
+                      label: t`Run`,
                       icon: <Play className="size-3.5" />,
                       items: project.scripts.actions.map((action) => ({
                         id: `action:${action.id}`,
@@ -99,12 +101,12 @@ export function SidebarProjectHeader(props: {
             ]),
         {
           id: "toggle-disabled",
-          label: isDisabled ? "Enable Project" : "Disable Project",
+          label: isDisabled ? t`Enable Project` : t`Disable Project`,
           icon: isDisabled ? <Power className="size-3.5" /> : <PowerOff className="size-3.5" />,
         },
         {
           id: "remove-project",
-          label: "Remove Project",
+          label: t`Remove Project`,
           icon: <Trash2 className="size-3.5" />,
           variant: "danger" as const,
         },
@@ -136,7 +138,7 @@ export function SidebarProjectHeader(props: {
             )}
           </span>
         }
-        tooltip={isDisabled ? `${projectLocation} (disabled)` : projectLocation}
+        tooltip={isDisabled ? t`${projectLocation} (disabled)` : projectLocation}
         className={`lightcode-sidebar-project-nudge !pl-1${isDragging ? " opacity-60" : ""}${
           isDisabled ? " opacity-50" : ""
         }`}
@@ -151,7 +153,7 @@ export function SidebarProjectHeader(props: {
               <SidebarPanelDragButton
                 panel="files"
                 projectId={project.id}
-                ariaLabel={`Files for ${project.name}`}
+                ariaLabel={t`Files for ${project.name}`}
                 className={`shrink-0 cursor-grab rounded p-0.5 transition-colors hover:bg-[var(--row-hover)] hover:text-foreground active:cursor-grabbing ${
                   isActiveFilesPanel
                     ? "text-accent"
@@ -164,7 +166,7 @@ export function SidebarProjectHeader(props: {
               <SidebarPanelDragButton
                 panel="terminal"
                 projectId={project.id}
-                ariaLabel={`Terminal for ${project.name}`}
+                ariaLabel={t`Terminal for ${project.name}`}
                 className={`shrink-0 cursor-grab rounded p-0.5 transition-colors hover:bg-[var(--row-hover)] hover:text-foreground active:cursor-grabbing ${
                   isActiveTerminal
                     ? "text-accent"

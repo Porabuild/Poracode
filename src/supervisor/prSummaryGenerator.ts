@@ -4,26 +4,39 @@ import { buildDiffPromptContext, getFilesFromDiff } from "./diffPromptContext";
 import { GitService } from "./git";
 import { runOneShotPromptWithFallback } from "./oneShotPromptRunner";
 
-const PROMPT =
-  "Generate a pull request title and description for the following changes.\n" +
-  "Rules:\n" +
-  "- The title should be a single line, at most 72 characters, imperative mood\n" +
-  "- The description should be a concise markdown summary (2-5 bullet points)\n" +
-  "- Focus on the what and why, not the how\n" +
-  "- Use the changed files list as the source of truth for coverage\n" +
-  "- Cover every major area; do not focus only on the largest or first diff\n" +
-  "- Detect the PR type from the branch name and changes:\n" +
-  "  - fix/, bugfix/, hotfix/ prefixes or bug-related changes → Bugfix\n" +
-  "  - feat/, feature/ prefixes or new functionality → Feature\n" +
-  "  - If the PR covers multiple purposes (e.g. feature + refactor), note them\n" +
-  "- Look for Jira/ticket IDs (pattern: 2-5 uppercase letters + dash + digits, e.g. SIT-123, TDNT-456, SN-78)\n" +
-  "  in both the branch name AND commit messages. Collect all unique ticket IDs found.\n" +
-  "  Include the primary ticket at the start of the title like: SIT-123: <title>\n" +
-  "  and list all tickets at the top of the description, e.g. `Tickets: SIT-123, SIT-456`\n" +
-  "- Reply with ONLY the following format, nothing else:\n" +
-  "TITLE: <title>\n" +
-  "DESCRIPTION:\n" +
-  "<description>\n\n";
+/**
+ * Build the PR-summary instruction prompt. When `language` is set, the title
+ * and description prose are written in that language while the literal output
+ * markers (`TITLE:` / `DESCRIPTION:`) and ticket IDs stay English — both are
+ * parsed by `cleanPrSummary`, so they must not be localized.
+ */
+function buildPrompt(language?: string): string {
+  const languageRule = language
+    ? `- Write the title and description in ${language}; keep the literal labels TITLE: and DESCRIPTION: and any ticket IDs in English\n`
+    : "";
+  return (
+    "Generate a pull request title and description for the following changes.\n" +
+    "Rules:\n" +
+    "- The title should be a single line, at most 72 characters, imperative mood\n" +
+    "- The description should be a concise markdown summary (2-5 bullet points)\n" +
+    "- Focus on the what and why, not the how\n" +
+    "- Use the changed files list as the source of truth for coverage\n" +
+    "- Cover every major area; do not focus only on the largest or first diff\n" +
+    "- Detect the PR type from the branch name and changes:\n" +
+    "  - fix/, bugfix/, hotfix/ prefixes or bug-related changes → Bugfix\n" +
+    "  - feat/, feature/ prefixes or new functionality → Feature\n" +
+    "  - If the PR covers multiple purposes (e.g. feature + refactor), note them\n" +
+    "- Look for Jira/ticket IDs (pattern: 2-5 uppercase letters + dash + digits, e.g. SIT-123, TDNT-456, SN-78)\n" +
+    "  in both the branch name AND commit messages. Collect all unique ticket IDs found.\n" +
+    "  Include the primary ticket at the start of the title like: SIT-123: <title>\n" +
+    "  and list all tickets at the top of the description, e.g. `Tickets: SIT-123, SIT-456`\n" +
+    languageRule +
+    "- Reply with ONLY the following format, nothing else:\n" +
+    "TITLE: <title>\n" +
+    "DESCRIPTION:\n" +
+    "<description>\n\n"
+  );
+}
 
 const MAX_DIFF_CONTEXT_CHARS = 24_000;
 const MAX_LOG_CHARS = 4000;
@@ -68,6 +81,7 @@ export async function generatePrSummary(
   baseBranch: string,
   model?: string,
   effort?: string,
+  language?: string,
 ): Promise<{ title: string; description: string }> {
   const effectiveModel = model ?? adapter.defaultOneShotModel;
   if (!effectiveModel) {
@@ -103,6 +117,7 @@ export async function generatePrSummary(
   const logSection = "Git log:\n" + truncate(log, MAX_LOG_CHARS);
   const sourceLabel = `Branch diff: ${baseBranch}...${branch}`;
   const files = diff.trim() ? getFilesFromDiff(diff) : [];
+  const instructions = buildPrompt(language);
 
   const raw = await runOneShotPromptWithFallback({
     location,
@@ -115,7 +130,7 @@ export async function generatePrSummary(
       {
         level: "full",
         buildPrompt: () => {
-          let prompt = PROMPT + branchHeader + logSection;
+          let prompt = instructions + branchHeader + logSection;
           if (diff.trim()) {
             prompt +=
               "\n\n" +
@@ -132,7 +147,7 @@ export async function generatePrSummary(
       {
         level: "files-only",
         buildPrompt: () => {
-          let prompt = PROMPT + branchHeader + logSection;
+          let prompt = instructions + branchHeader + logSection;
           if (files.length > 0) {
             prompt += "\n\n" + buildDiffPromptContext({ diff: "", files, sourceLabel });
           }

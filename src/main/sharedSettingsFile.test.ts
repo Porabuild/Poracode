@@ -29,6 +29,8 @@ describe("sharedSettingsFile", () => {
     writeSharedSettingsFile(settingsPath, {
       themeMode: "dark",
       themePreset: "default",
+      locale: "system",
+      gitTextLanguage: "en",
       terminalPosition: "right",
       commitGenProvider: "auto",
       commitGenModel: "",
@@ -116,6 +118,8 @@ describe("sharedSettingsFile", () => {
     expect(readSharedSettingsFile(settingsPath)).toEqual({
       themeMode: "dark",
       themePreset: "default",
+      locale: "system",
+      gitTextLanguage: "en",
       terminalPosition: "right",
       commitGenProvider: "auto",
       commitGenModel: "",

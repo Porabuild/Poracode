@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { ChevronDown, ChevronRight, FileEdit, Plus } from "lucide-react";
+import { Trans, useLingui } from "@lingui/react/macro";
 import type { GitFileChange, Project } from "@/shared/contracts";
 import { readBridge } from "@/renderer/bridge";
 import { useGitStore } from "@/renderer/state/gitStore";
@@ -39,6 +40,7 @@ export function ConflictGroup(props: {
     diffTheme,
     wrapLines,
   } = props;
+  const { t } = useLingui();
   const rowPadX = useGitReviewRowPadX();
   const [expanded, setExpanded] = useState(true);
   const inlineDiffs = mode === "panel";
@@ -69,7 +71,7 @@ export function ConflictGroup(props: {
           onClick={() => setExpanded((v) => !v)}
         >
           {expanded ? <ChevronDown className="size-3" /> : <ChevronRight className="size-3" />}
-          Conflicts
+          <Trans>Conflicts</Trans>
           <span className="font-normal text-muted/60">({files.length})</span>
         </button>
         <span className="ml-auto mr-1.5 flex items-center gap-0.5 text-[10px] leading-4 font-medium font-normal">
@@ -138,7 +140,7 @@ export function ConflictGroup(props: {
                       role="button"
                       tabIndex={0}
                       className="rounded p-0.5 text-muted transition-colors hover:bg-[var(--row-hover)] hover:text-foreground"
-                      title="Stage"
+                      title={t`Stage`}
                       onClick={(e) => {
                         e.stopPropagation();
                         void handleStageConflict(file.path);
@@ -155,7 +157,7 @@ export function ConflictGroup(props: {
                       role="button"
                       tabIndex={0}
                       className="rounded p-0.5 text-muted transition-colors hover:bg-[var(--row-hover)] hover:text-foreground"
-                      title="Open in editor"
+                      title={t`Open in editor`}
                       onClick={(e) => {
                         e.stopPropagation();
                         void handleOpenInEditor(file.path);

@@ -1,7 +1,8 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, screen } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { AgentInstanceConfig } from "@/shared/contracts";
+import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 
 const toastMock = vi.hoisted(() => ({
   danger: vi.fn<(message: string) => void>(),

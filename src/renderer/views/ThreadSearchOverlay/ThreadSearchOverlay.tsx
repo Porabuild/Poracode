@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Search } from "lucide-react";
+import { Trans, useLingui } from "@lingui/react/macro";
 import { useShallow } from "zustand/shallow";
 import { useAppStore } from "@/renderer/state/appStore";
 import { usePanelStore } from "@/renderer/state/panelStore";
@@ -11,6 +12,7 @@ const RESULT_LIMIT = 50;
 
 export function ThreadSearchOverlay(props: { onClose: () => void }) {
   const { onClose } = props;
+  const { t } = useLingui();
   const [query, setQuery] = useState("");
   const [selectedIndex, setSelectedIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -21,7 +23,7 @@ export function ThreadSearchOverlay(props: { onClose: () => void }) {
 
   const dragSource = useDragSource();
   const isDraggingThreadFromSearch =
-    dragSource?.type === "thread" && threads.some((t) => t.id === dragSource.threadId);
+    dragSource?.type === "thread" && threads.some((thread) => thread.id === dragSource.threadId);
   const wasDraggingRef = useRef(false);
 
   // When a drag started from this overlay ends, close the overlay.
@@ -48,8 +50,10 @@ export function ThreadSearchOverlay(props: { onClose: () => void }) {
 
   const results = useMemo(() => {
     const q = query.trim().toLowerCase();
-    const candidates = threads.filter((t) => !t.archived);
-    const filtered = q ? candidates.filter((t) => t.title.toLowerCase().includes(q)) : candidates;
+    const candidates = threads.filter((thread) => !thread.archived);
+    const filtered = q
+      ? candidates.filter((thread) => thread.title.toLowerCase().includes(q))
+      : candidates;
     return filtered
       .slice()
       .sort((a, b) => {
@@ -100,13 +104,13 @@ export function ThreadSearchOverlay(props: { onClose: () => void }) {
     >
       <button
         type="button"
-        aria-label="Close search"
+        aria-label={t`Close search`}
         className="absolute inset-0 cursor-default bg-black/40"
         onClick={onClose}
       />
       <div
         role="dialog"
-        aria-label="Search threads"
+        aria-label={t`Search threads`}
         className="relative flex w-full max-w-[640px] flex-col overflow-hidden rounded-3xl border border-[var(--hairline-strong)] bg-background shadow-2xl"
       >
         <div className="flex items-center gap-2 border-b border-[var(--hairline)] px-4 py-3">
@@ -116,7 +120,7 @@ export function ThreadSearchOverlay(props: { onClose: () => void }) {
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search…"
+            placeholder={t`Search…`}
             className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted/70"
             spellCheck={false}
             autoComplete="off"
@@ -125,12 +129,12 @@ export function ThreadSearchOverlay(props: { onClose: () => void }) {
         <div ref={listRef} role="listbox" className="max-h-[60vh] overflow-y-auto p-1.5">
           {results.length === 0 ? (
             <div className="px-3 py-6 text-center text-sm text-muted">
-              {query.trim() ? "No matching threads" : "No threads"}
+              {query.trim() ? <Trans>No matching threads</Trans> : <Trans>No threads</Trans>}
             </div>
           ) : (
             <div className="flex flex-col gap-0.5">
               <div className="px-3 pb-0.5 pt-1.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-muted/70">
-                Threads
+                <Trans>Threads</Trans>
               </div>
               {results.map((thread, index) => (
                 <ThreadSearchResultRow

@@ -9,6 +9,7 @@ import {
   WrapText,
 } from "lucide-react";
 import { toast, Tooltip } from "@heroui/react";
+import { useLingui } from "@lingui/react/macro";
 import type { Project, ProjectLocation, GitStatusResult } from "@/shared/contracts";
 import { friendlyError } from "@/shared/messages";
 import { readBridge } from "@/renderer/bridge";
@@ -53,6 +54,7 @@ export function GitReviewPanel(props: {
     onClose,
     hideHeader,
   } = props;
+  const { t } = useLingui();
   const threadRemoveAction = useSharedSettings((s) => s.threadRemoveAction);
   const effectiveLocation = locationOverride ?? project.location;
   const effectiveProject = locationOverride ? { ...project, location: effectiveLocation } : project;
@@ -183,7 +185,7 @@ export function GitReviewPanel(props: {
                       <button
                         type="button"
                         className="flex min-w-0 flex-1 cursor-pointer items-center gap-1 rounded px-1.5 py-1 hover:bg-foreground/5"
-                        aria-label="Switch branch"
+                        aria-label={t`Switch branch`}
                       >
                         <GitBranch className="size-3 shrink-0 text-muted/50" />
                         <span className="block flex-1 truncate text-left text-muted">
@@ -206,7 +208,7 @@ export function GitReviewPanel(props: {
               <button
                 type="button"
                 className={`rounded p-1 text-muted transition-colors ${threadRemoveAction === "archive" ? "hover:bg-warning/10 hover:text-warning" : "hover:bg-danger/10 hover:text-danger"}`}
-                title={threadRemoveAction === "archive" ? "Archive" : "Delete"}
+                title={threadRemoveAction === "archive" ? t`Archive` : t`Delete`}
                 onClick={onRemove}
               >
                 {threadRemoveAction === "archive" ? (
@@ -219,7 +221,7 @@ export function GitReviewPanel(props: {
             <button
               type="button"
               className={`rounded p-1 transition-colors hover:bg-[var(--row-hover)] hover:text-foreground ${wrapLines ? "text-foreground" : "text-muted"}`}
-              title={wrapLines ? "No wrap" : "Wrap lines"}
+              title={wrapLines ? t`No wrap` : t`Wrap lines`}
               onClick={() => setWrapLines((v) => !v)}
             >
               <WrapText className="size-3" />
@@ -227,7 +229,7 @@ export function GitReviewPanel(props: {
             <button
               type="button"
               className="rounded p-1 text-muted transition-colors hover:bg-[var(--row-hover)] hover:text-foreground"
-              title="Refresh"
+              title={t`Refresh`}
               onClick={() => void handleRefresh()}
             >
               <RefreshCw className={`size-3 ${refreshing ? "animate-spin" : ""}`} />
@@ -278,7 +280,7 @@ export function GitReviewPanel(props: {
                       <button
                         type="button"
                         className="ml-1 flex min-w-0 cursor-pointer items-center gap-1 rounded px-1.5 hover:bg-foreground/5"
-                        aria-label="Switch branch"
+                        aria-label={t`Switch branch`}
                       >
                         <GitBranch className="size-3 shrink-0 text-muted/50" />
                         <span className="max-w-[200px] truncate text-muted">
@@ -300,7 +302,7 @@ export function GitReviewPanel(props: {
               <button
                 type="button"
                 className={`rounded p-0.5 text-muted transition-colors ${threadRemoveAction === "archive" ? "hover:bg-warning/10 hover:text-warning" : "hover:bg-danger/10 hover:text-danger"}`}
-                title={threadRemoveAction === "archive" ? "Archive" : "Delete"}
+                title={threadRemoveAction === "archive" ? t`Archive` : t`Delete`}
                 onClick={onRemove}
               >
                 {threadRemoveAction === "archive" ? (
@@ -313,7 +315,7 @@ export function GitReviewPanel(props: {
             <button
               type="button"
               className={`rounded p-0.5 transition-colors hover:bg-[var(--row-hover)] hover:text-foreground ${wrapLines ? "text-foreground" : "text-muted"}`}
-              title={wrapLines ? "No wrap" : "Wrap lines"}
+              title={wrapLines ? t`No wrap` : t`Wrap lines`}
               onClick={() => setWrapLines((v) => !v)}
             >
               <WrapText className="size-3" />
@@ -321,7 +323,7 @@ export function GitReviewPanel(props: {
             <button
               type="button"
               className="rounded p-0.5 text-muted transition-colors hover:bg-[var(--row-hover)] hover:text-foreground"
-              title="Refresh"
+              title={t`Refresh`}
               onClick={() => void handleRefresh()}
             >
               <RefreshCw className={`size-3 ${refreshing ? "animate-spin" : ""}`} />
@@ -329,7 +331,7 @@ export function GitReviewPanel(props: {
             <button
               type="button"
               className="rounded p-0.5 text-muted transition-colors hover:bg-[var(--row-hover)] hover:text-foreground"
-              title="Open as page"
+              title={t`Open as page`}
               onClick={onExpandToOverlay}
             >
               <Maximize2 className="size-3" />
@@ -337,7 +339,7 @@ export function GitReviewPanel(props: {
             <button
               type="button"
               className="rounded p-0.5 text-muted transition-colors hover:bg-[var(--row-hover)] hover:text-foreground"
-              title="Hide"
+              title={t`Hide`}
               onClick={onClose}
             >
               <PanelRightClose className="size-3" />

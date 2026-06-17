@@ -1,0 +1,5573 @@
+msgid ""
+msgstr ""
+"POT-Creation-Date: 2026-06-15 03:02-0700\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Generator: @lingui/cli\n"
+"Language: en\n"
+"Project-Id-Version: \n"
+"Report-Msgid-Bugs-To: \n"
+"PO-Revision-Date: \n"
+"Last-Translator: \n"
+"Language-Team: \n"
+"Plural-Forms: \n"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
+msgid "(Draft)"
+msgstr "(Draft)"
+
+#: src/renderer/views/PrReviewOverlay/parts/PrCommitsTab.tsx
+msgid "(no message)"
+msgstr "(no message)"
+
+#. placeholder {0}: details.changedFiles
+#: src/renderer/views/PrReviewOverlay/parts/PrMetaRow.tsx
+msgid "{0, plural, one {# file} other {# files}}"
+msgstr "{0, plural, one {# file} other {# files}}"
+
+#. placeholder {0}: readyKinds.size
+#: src/renderer/components/thread/AgentDiscoveryScreen.tsx
+msgid "{0, plural, one {# provider ready} other {# providers ready}}"
+msgstr "{0, plural, one {# provider ready} other {# providers ready}}"
+
+#. placeholder {0}: details.patterns.length
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PermissionDetailsLine.tsx
+msgid "{0, plural, one {target} other {targets}}"
+msgstr "{0, plural, one {target} other {targets}}"
+
+#. placeholder {0}: props.checkpointGuard.sharedThreadCount
+#: src/renderer/components/thread/ChatPane/parts/CheckpointRevertControls.tsx
+msgid "{0, plural, other {# other chats use this same tree. File restore could "
+"overwrite their changes.}}"
+msgstr "{0, plural, other {# other chats use this same tree. File restore could "
+"overwrite their changes.}}"
+
+#. placeholder {0}: target.title
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
+msgid "{0} — Composer"
+msgstr "{0} — Composer"
+
+#. placeholder {0}: target.title
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
+msgid "{0} — Terminal"
+msgstr "{0} — Terminal"
+
+#. placeholder {0}: agent.label
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+msgid "{0} ({envName}) is already up to date."
+msgstr "{0} ({envName}) is already up to date."
+
+#. placeholder {0}: agent.label
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+msgid "{0} ({envName}) updated to v{newVersion}."
+msgstr "{0} ({envName}) updated to v{newVersion}."
+
+#. placeholder {0}: agent.label
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+msgid "{0} ({envName}) updated."
+msgstr "{0} ({envName}) updated."
+
+#. placeholder {0}: agent.label
+#. placeholder {0}: agentStatus.label
+#: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+msgid "{0} authenticated."
+msgstr "{0} authenticated."
+
+#. placeholder {0}: agent.label
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+msgid "{0} credentials removed."
+msgstr "{0} credentials removed."
+
+#. placeholder {0}: agent.label
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+msgid "{0} credentials saved."
+msgstr "{0} credentials saved."
+
+#. placeholder {0}: props.agentLabel
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+msgid "{0} hooks installed for {envName}."
+msgstr "{0} hooks installed for {envName}."
+
+#. placeholder {0}: props.selectedAgent.label
+#: src/renderer/components/thread/ThreadDraftComposerArea.tsx
+msgid "{0} hooks installed."
+msgstr "{0} hooks installed."
+
+#. placeholder {0}: props.agentLabel
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+msgid "{0} hooks removed for {envName}."
+msgstr "{0} hooks removed for {envName}."
+
+#. placeholder {0}: agent.label
+#: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
+msgid "{0} install targets"
+msgstr "{0} install targets"
+
+#. placeholder {0}: agent.label
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+msgid "{0} is already up to date."
+msgstr "{0} is already up to date."
+
+#. placeholder {0}: summary.maxLabel
+#: src/renderer/components/thread/ThreadContextDock.tsx
+msgid "{0} limit"
+msgstr "{0} limit"
+
+#. placeholder {0}: agent.label
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+msgid "{0} logged out."
+msgstr "{0} logged out."
+
+#. placeholder {0}: agent.name
+#: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
+msgid "{0} needs authentication."
+msgstr "{0} needs authentication."
+
+#. placeholder {0}: formatTokens(snapshot.tokens.total)
+#: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
+msgid "{0} tokens"
+msgstr "{0} tokens"
+
+#. placeholder {0}: agent.name
+#. placeholder {1}: agent.version
+#: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
+msgid "{0} updated to v{1}."
+msgstr "{0} updated to v{1}."
+
+#. placeholder {0}: agent.label
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+msgid "{0} updated to v{latestRegistryVersion}."
+msgstr "{0} updated to v{latestRegistryVersion}."
+
+#. placeholder {0}: agent.label
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+msgid "{0} updated to v{newVersion}."
+msgstr "{0} updated to v{newVersion}."
+
+#. placeholder {0}: agentStatus.label
+#: src/renderer/components/thread/ThreadAgentUpdateDock.tsx
+msgid "{0} updated to v{resolvedLatest}."
+msgstr "{0} updated to v{resolvedLatest}."
+
+#. placeholder {0}: agent.label
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+msgid "{0} updated."
+msgstr "{0} updated."
+
+#. placeholder {0}: summary.usedLabel
+#: src/renderer/components/thread/ThreadContextDock.tsx
+msgid "{0} used"
+msgstr "{0} used"
+
+#. placeholder {0}: summary.percent
+#: src/renderer/components/thread/ThreadContextDock.tsx
+msgid "{0}% Full"
+msgstr "{0}% Full"
+
+#: src/renderer/components/thread/ThreadHeaderStatus.tsx
+msgid "{agentLabel}: {statusLabel}. Hover for status details."
+msgstr "{agentLabel}: {statusLabel}. Hover for status details."
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/UsagePanel.tsx
+msgid "{days}d ago"
+msgstr "{days}d ago"
+
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+msgid "{envOrAgentLabel} needs authentication."
+msgstr "{envOrAgentLabel} needs authentication."
+
+#: src/renderer/components/thread/ChatPane/ChatRuntimeDebugPanel.tsx
+msgid "{filteredCount} / {totalCount} matches"
+msgstr "{filteredCount} / {totalCount} matches"
+
+#: src/renderer/components/thread/threadDraftViewHelpers.ts
+msgid "{head}, or {tail}"
+msgstr "{head}, or {tail}"
+
+#: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
+msgid "{heading} mode"
+msgstr "{heading} mode"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "{hook} hook failed"
+msgstr "{hook} hook failed"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/UsagePanel.tsx
+msgid "{hours}h ago"
+msgstr "{hours}h ago"
+
+#: src/renderer/components/thread/AgentDiscoveryScreen.tsx
+msgid "{installedCount, plural, one {# agent ready} other {# agents ready}}"
+msgstr "{installedCount, plural, one {# agent ready} other {# agents ready}}"
+
+#: src/renderer/components/providers/ProviderUsageRail.tsx
+msgid "{label} usage — open usage panel"
+msgstr "{label} usage — open usage panel"
+
+#. placeholder {0}: method.name
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+msgid "{loginLabel} {0}"
+msgstr "{loginLabel} {0}"
+
+#. placeholder {0}: method.name
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+msgid "{loginLabel} {0} {env}"
+msgstr "{loginLabel} {0} {env}"
+
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+msgid "{loginLabel} {env}"
+msgstr "{loginLabel} {env}"
+
+#: src/renderer/components/thread/threadContextUsage.ts
+msgid "{maxLabel} context"
+msgstr "{maxLabel} context"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/UsagePanel.tsx
+msgid "{minutes}m ago"
+msgstr "{minutes}m ago"
+
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+msgid "{missingAuthLabel} needs authentication."
+msgstr "{missingAuthLabel} needs authentication."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "{original}\n"
+"Worktree cleanup also failed: {cleanup}"
+msgstr "{original}\n"
+"Worktree cleanup also failed: {cleanup}"
+
+#: src/renderer/components/thread/threadContextUsage.ts
+msgid "{percent}% full"
+msgstr "{percent}% full"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
+msgid "{projectLocation} (disabled)"
+msgstr "{projectLocation} (disabled)"
+
+#: src/renderer/views/ProjectSettingsOverlay/ProjectSettingsOverlay.tsx
+msgid "{projectName} Settings"
+msgstr "{projectName} Settings"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/TodoList.tsx
+msgid "{remaining, plural, one {# open} other {# open}}"
+msgstr "{remaining, plural, one {# open} other {# open}}"
+
+#: src/renderer/components/thread/ChatPane/parts/items/ToolCallGroup.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/WebSearchItem.tsx
+msgid "{resultCount, plural, one {# result} other {# results}}"
+msgstr "{resultCount, plural, one {# result} other {# results}}"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/UsagePanel.tsx
+msgid "{seconds}s ago"
+msgstr "{seconds}s ago"
+
+#: src/renderer/components/thread/ThreadGoalDock.tsx
+msgid "{used} tokens"
+msgstr "{used} tokens"
+
+#: src/renderer/components/thread/ThreadGoalDock.tsx
+msgid "{used}/{budget} tokens"
+msgstr "{used}/{budget} tokens"
+
+#: src/renderer/components/thread/threadContextUsage.ts
+msgid "{usedLabel} / {maxLabel} tokens"
+msgstr "{usedLabel} / {maxLabel} tokens"
+
+#: src/renderer/components/thread/threadContextUsage.ts
+msgid "{usedLabel} tokens"
+msgstr "{usedLabel} tokens"
+
+#: src/renderer/views/SettingsOverlay/parts/ModelVisibilitySection.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+msgid "{visibleCount} of {totalCount} visible"
+msgstr "{visibleCount} of {totalCount} visible"
+
+#: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
+msgid "© {currentYear} Serhii Vecherenko. All rights reserved."
+msgstr "© {currentYear} Serhii Vecherenko. All rights reserved."
+
+#. placeholder {0}: checks.length
+#: src/renderer/views/PrReviewOverlay/parts/PrChecksTab.tsx
+msgid "<0>{passed}</0> of {0} checks passed"
+msgstr "<0>{passed}</0> of {0} checks passed"
+
+#. placeholder {0}: snapshot.cost.period
+#: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
+msgid "~{money}{tokens} · {0} · est."
+msgstr "~{money}{tokens} · {0} · est."
+
+#. placeholder {0}: Math.round(projection.projectedPercent)
+#: src/renderer/components/providers/usageFormat.ts
+msgid "≈{0}% by reset"
+msgstr "≈{0}% by reset"
+
+#: src/renderer/components/thread/threadDraftViewHelpers.ts
+msgid "a supported coding agent"
+msgstr "a supported coding agent"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ConflictResolutionActions.tsx
+msgid "Abort Merge"
+msgstr "Abort Merge"
+
+#: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
+msgid "About"
+msgstr "About"
+
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/mergeConflict/codeLensProvider.ts
+msgid "Accept Both Changes"
+msgstr "Accept Both Changes"
+
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/mergeConflict/codeLensProvider.ts
+msgid "Accept Current Change"
+msgstr "Accept Current Change"
+
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/mergeConflict/codeLensProvider.ts
+msgid "Accept Incoming Change"
+msgstr "Accept Incoming Change"
+
+#: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
+msgid "Account"
+msgstr "Account"
+
+#: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
+msgid "Account options"
+msgstr "Account options"
+
+#: src/renderer/components/thread/ThreadHeaderStatus.tsx
+#: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
+msgid "ACP"
+msgstr "ACP"
+
+#: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
+msgid "ACP Agents"
+msgstr "ACP Agents"
+
+#: src/renderer/views/ProjectSettingsOverlay/parts/ActionsSection.tsx
+msgid "Action command"
+msgstr "Action command"
+
+#: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
+msgid "Action for the quick-remove button on sidebar threads."
+msgstr "Action for the quick-remove button on sidebar threads."
+
+#: src/renderer/views/ProjectSettingsOverlay/parts/ActionsSection.tsx
+msgid "Action name"
+msgstr "Action name"
+
+#: src/renderer/components/common/BranchSelector/parts/BranchFooterActions.tsx
+#: src/renderer/views/ProjectSettingsOverlay/parts/ActionsSection.tsx
+#: src/renderer/views/ProjectSettingsOverlay/parts/SettingsSidebar.tsx
+msgid "Actions"
+msgstr "Actions"
+
+#: src/renderer/components/thread/ThreadGoalDock.tsx
+msgid "Active"
+msgstr "Active"
+
+#: src/renderer/components/composer/ComposerAddMenu.tsx
+#: src/renderer/views/SettingsOverlay/parts/SearchExcludeBody.tsx
+msgid "Add"
+msgstr "Add"
+
+#: src/renderer/actions/agentLoginActions.ts
+msgid "Add a project before installing an agent."
+msgstr "Add a project before installing an agent."
+
+#: src/renderer/actions/agentLoginActions.ts
+msgid "Add a project before signing in."
+msgstr "Add a project before signing in."
+
+#: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
+msgid "Add a project to start"
+msgstr "Add a project to start"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/TodoList.tsx
+msgid "Add a to-do…"
+msgstr "Add a to-do…"
+
+#: src/renderer/views/ProjectSettingsOverlay/parts/ActionsSection.tsx
+msgid "Add action"
+msgstr "Add action"
+
+#: src/renderer/components/composer/ComposerAddMenu.tsx
+msgid "Add attachment or capability"
+msgstr "Add attachment or capability"
+
+#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+msgid "Add Claude profile"
+msgstr "Add Claude profile"
+
+#: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
+msgid "Add credentials before this thread can run."
+msgstr "Add credentials before this thread can run."
+
+#: src/renderer/views/SettingsOverlay/parts/SearchExcludeBody.tsx
+msgid "Add pattern"
+msgstr "Add pattern"
+
+#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+msgid "Add profile"
+msgstr "Add profile"
+
+#: src/renderer/views/MainView/parts/SidebarHeaderControls.tsx
+msgid "Add project"
+msgstr "Add project"
+
+#: src/renderer/views/WelcomeOverlay.tsx
+msgid "Add Project"
+msgstr "Add Project"
+
+#: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
+msgid "Add project options"
+msgstr "Add project options"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
+msgid "Add Remote"
+msgstr "Add Remote"
+
+#: src/renderer/components/composer/ComposerAddMenu.tsx
+msgid "Add to composer"
+msgstr "Add to composer"
+
+#: src/renderer/components/common/ProviderModelMenu/ProviderModelMenu.tsx
+msgid "Add to favorites"
+msgstr "Add to favorites"
+
+#: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+msgid "Agent"
+msgstr "Agent"
+
+#: src/renderer/components/providers/codex/index.tsx
+msgid "agent - Switch this chat to agent mode"
+msgstr "agent - Switch this chat to agent mode"
+
+#: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
+msgid "Agent ({subagent}): {description}"
+msgstr "Agent ({subagent}): {description}"
+
+#: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
+msgid "Agent chat (ACP / markdown). Command rows use this size minus 1 px; tool "
+"and plan lines minus 2 px."
+msgstr "Agent chat (ACP / markdown). Command rows use this size minus 1 px; "
+"tool and plan lines minus 2 px."
+
+#: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
+msgid "Agent encountered an error."
+msgstr "Agent encountered an error."
+
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+msgid "Agent is active and ready"
+msgstr "Agent is active and ready"
+
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+msgid "Agent is currently disabled"
+msgstr "Agent is currently disabled"
+
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+msgid "Agent not found"
+msgstr "Agent not found"
+
+#: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
+msgid "Agent Registry"
+msgstr "Agent Registry"
+
+#: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
+msgid "Agent terminal font size"
+msgstr "Agent terminal font size"
+
+#: src/renderer/components/thread/ThreadAgentUpdateDock.tsx
+msgid "Agent update available"
+msgstr "Agent update available"
+
+#: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
+msgid "Agent: {description}"
+msgstr "Agent: {description}"
+
+#: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
+msgid "Agent: {subagent}"
+msgstr "Agent: {subagent}"
+
+#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+msgid "Agents"
+msgstr "Agents"
+
+#: src/renderer/views/SettingsOverlay/parts/AgentsGeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
+msgid "Agents · General"
+msgstr "Agents · General"
+
+#. Settings section: AI / assistant configuration
+#. Settings section: AI / assistant configuration
+#: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
+msgid "AI"
+msgstr "AI"
+
+#: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
+msgid "AI agent orchestrator — manage coding agents via Terminal and Native "
+"ACP."
+msgstr "AI agent orchestrator — manage coding agents via Terminal and Native "
+"ACP."
+
+#: src/renderer/views/GitReviewOverlay/GitReviewOverlay.tsx
+#: src/renderer/views/PrReviewOverlay/PrReviewOverlay.tsx
+msgid "All files"
+msgstr "All files"
+
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/helpers.ts
+msgid "Allow"
+msgstr "Allow"
+
+#: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
+msgid "Allow agents to read/write cookies and storage"
+msgstr "Allow agents to read/write cookies and storage"
+
+#: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
+msgid "Allow eval"
+msgstr "Allow eval"
+
+#. Notification filter: always notify
+#: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
+msgid "Always"
+msgstr "Always"
+
+#: src/renderer/views/SettingsOverlay/parts/SearchExcludeBody.tsx
+msgid "Always excluded"
+msgstr "Always excluded"
+
+#: src/renderer/components/thread/ChatPane/parts/CheckpointRevertControls.tsx
+msgid "Another chat uses this same tree. File restore could overwrite that "
+"chat's changes."
+msgstr "Another chat uses this same tree. File restore could overwrite that "
+"chat's changes."
+
+#: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
+msgid "App Browser"
+msgstr "App Browser"
+
+#: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
+msgid "Appearance"
+msgstr "Appearance"
+
+#: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
+msgid "Appearance mode"
+msgstr "Appearance mode"
+
+#: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
+msgid "Approval or reply required from you."
+msgstr "Approval or reply required from you."
+
+#: src/renderer/views/PrReviewOverlay/parts/SubmitReviewPopover.tsx
+msgid "Approve"
+msgstr "Approve"
+
+#: src/renderer/views/PrReviewOverlay/parts/PrConversationTab.tsx
+msgid "approved"
+msgstr "approved"
+
+#: src/renderer/views/PrReviewOverlay/parts/SubmitReviewPopover.tsx
+msgid "Approved"
+msgstr "Approved"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewPanel.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
+msgid "Archive"
+msgstr "Archive"
+
+#. placeholder {0}: entry.group.groupName
+#. placeholder {0}: thread.title
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadGroup.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/parts/ThreadItemSuffix.tsx
+msgid "Archive {0}"
+msgstr "Archive {0}"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadGroup.tsx
+msgid "Archive All"
+msgstr "Archive All"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
+msgid "Archive Thread"
+msgstr "Archive Thread"
+
+#: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
+msgid "Archived Threads"
+msgstr "Archived Threads"
+
+#. placeholder {0}: file.path
+#: src/renderer/views/GitReviewOverlay/parts/GitStackedDiff.tsx
+msgid "Are you sure you want to revert <0>{0}</0>? This cannot be undone."
+msgstr "Are you sure you want to revert <0>{0}</0>? This cannot be undone."
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/FileRow.tsx
+msgid "Are you sure you want to revert <0>{path}</0>? This cannot be undone."
+msgstr "Are you sure you want to revert <0>{path}</0>? This cannot be undone."
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/FileGroup.tsx
+msgid "Are you sure you want to revert all unstaged changes? This cannot be "
+"undone."
+msgstr "Are you sure you want to revert all unstaged changes? This cannot be "
+"undone."
+
+#. placeholder {0}: agentStatus?.label ?? agentFallbackLabel
+#: src/renderer/components/thread/ThreadComposerSection.tsx
+msgid "Ask {0} anything about this workspace"
+msgstr "Ask {0} anything about this workspace"
+
+#: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
+msgid "Ask each time"
+msgstr "Ask each time"
+
+#: src/renderer/views/WelcomeOverlay.tsx
+msgid "Ask Question"
+msgstr "Ask Question"
+
+#: src/renderer/components/composer/ComposerAddMenu.tsx
+msgid "Attach"
+msgstr "Attach"
+
+#: src/renderer/components/thread/ContinueInProviderDialog.tsx
+msgid "Attach files"
+msgstr "Attach files"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
+msgid "Attach to thread"
+msgstr "Attach to thread"
+
+#: src/renderer/components/thread/ThreadTodoDock.tsx
+msgid "Attach todo dock to composer"
+msgstr "Attach todo dock to composer"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/hooks/useElementPicker.ts
+msgid "Attached browser selection."
+msgstr "Attached browser selection."
+
+#: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
+msgid "Audio"
+msgstr "Audio"
+
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+msgid "Authentication"
+msgstr "Authentication"
+
+#: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
+msgid "Authentication required"
+msgstr "Authentication required"
+
+#: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
+msgid "Auto"
+msgstr "Auto"
+
+#: src/renderer/components/providers/acpGeneric/index.tsx
+msgid "Auto Approve"
+msgstr "Auto Approve"
+
+#: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
+msgid "Auto-archive done threads after"
+msgstr "Auto-archive done threads after"
+
+#: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
+msgid "Auto-archive done threads after (days)"
+msgstr "Auto-archive done threads after (days)"
+
+#: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
+msgid "Auto-generate"
+msgstr "Auto-generate"
+
+#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+msgid "Auto-refresh (minutes)"
+msgstr "Auto-refresh (minutes)"
+
+#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+msgid "Auto-refresh interval in minutes, 0 to turn off"
+msgstr "Auto-refresh interval in minutes, 0 to turn off"
+
+#: src/renderer/components/providers/codex/index.tsx
+msgid "Auto-review"
+msgstr "Auto-review"
+
+#: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
+msgid "Auto-show terminal panel"
+msgstr "Auto-show terminal panel"
+
+#: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
+msgid "Automatically show the terminal panel when running commands or creating "
+"worktrees."
+msgstr "Automatically show the terminal panel when running commands or creating "
+"worktrees."
+
+#: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
+msgid "available"
+msgstr "available"
+
+#: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
+msgid "Available ACP Agents"
+msgstr "Available ACP Agents"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
+msgid "Back"
+msgstr "Back"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Background process exited unexpectedly"
+msgstr "Background process exited unexpectedly"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Background process is not running"
+msgstr "Background process is not running"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Background process restarted"
+msgstr "Background process restarted"
+
+#: src/renderer/components/thread/ChatPane/parts/items/ActiveSubAgentTile.tsx
+msgid "Background tasks"
+msgstr "Background tasks"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
+msgid "Base branch is ahead — branch must be updated first."
+msgstr "Base branch is ahead — branch must be updated first."
+
+#: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
+msgid "Base font size for agent terminals. Auto-shrinks in narrow or short "
+"panes."
+msgstr "Base font size for agent terminals. Auto-shrinks in narrow or short "
+"panes."
+
+#: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
+msgid "Base font size for the terminal panel. Auto-shrinks in narrow or short "
+"panes."
+msgstr "Base font size for the terminal panel. Auto-shrinks in narrow or short "
+"panes."
+
+#: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
+msgid "Bash output"
+msgstr "Bash output"
+
+#: src/renderer/components/thread/ThreadHeaderStatus.tsx
+msgid "Basic (CLI)"
+msgstr "Basic (CLI)"
+
+#: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+msgid "Better (Whisper base)"
+msgstr "Better (Whisper base)"
+
+#: src/renderer/components/thread/ThreadDraftComposerArea.tsx
+msgid "Better status updates while agents run."
+msgstr "Better status updates while agents run."
+
+#: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
+msgid "Binary"
+msgstr "Binary"
+
+#: src/renderer/components/thread/ChatPane/parts/items/useReadAbsoluteFile.tsx
+msgid "Binary file — preview unavailable."
+msgstr "Binary file — preview unavailable."
+
+#: src/renderer/components/diff/DiffCardList.tsx
+msgid "Binary file or no diff available"
+msgstr "Binary file or no diff available"
+
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
+msgid "Binary files can't be edited here."
+msgstr "Binary files can't be edited here."
+
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PermissionDetailsLine.tsx
+msgid "blocked:"
+msgstr "blocked:"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesEditor.tsx
+msgid "Bold"
+msgstr "Bold"
+
+#: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
+msgid "Bottom"
+msgstr "Bottom"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Branch '{branch}' has uncommitted changes in '{path}' — commit or stash "
+"them before merging"
+msgstr "Branch '{branch}' has uncommitted changes in '{path}' — commit or stash "
+"them before merging"
+
+#. placeholder {0}: props.branch
+#: src/renderer/views/MainView/parts/Sidebar/parts/ForceDeleteBranchDialog.tsx
+msgid "Branch <0>{0}</0> has unmerged changes:"
+msgstr "Branch <0>{0}</0> has unmerged changes:"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/ForceDeleteBranchDialog.tsx
+msgid "Branch not fully merged"
+msgstr "Branch not fully merged"
+
+#: src/renderer/hooks/usePrWriteActions.ts
+msgid "Branch protection rules blocked this merge."
+msgstr "Branch protection rules blocked this merge."
+
+#: src/renderer/components/common/BranchSelector/parts/BranchListBox.tsx
+msgid "Branches"
+msgstr "Branches"
+
+#: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
+#: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
+msgid "Browse for parent folder"
+msgstr "Browse for parent folder"
+
+#: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
+msgid "Browse your GitHub repositories or paste a clone URL."
+msgstr "Browse your GitHub repositories or paste a clone URL."
+
+#: src/renderer/components/composer/AttachmentBar.tsx
+#: src/renderer/components/composer/ComposerAddMenu.tsx
+#: src/renderer/components/layout/UnifiedRightPanel.tsx
+#: src/renderer/views/MainView/parts/ProjectAuxiliaryPanel.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
+#: src/renderer/views/MainView/parts/SidebarHeaderControls.tsx
+#: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
+msgid "Browser"
+msgstr "Browser"
+
+#: src/renderer/components/composer/MentionPopover.tsx
+msgid "Browser MCP"
+msgstr "Browser MCP"
+
+#: src/renderer/components/thread/ThreadView.tsx
+msgid "Browser MCP enabled for OpenCode"
+msgstr "Browser MCP enabled for OpenCode"
+
+#: src/renderer/components/composer/AttachmentBar.tsx
+msgid "Browser MCP enabled for this thread"
+msgstr "Browser MCP enabled for this thread"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
+msgid "Browser menu"
+msgstr "Browser menu"
+
+#: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
+msgid "Browser pick target (CLI threads)"
+msgstr "Browser pick target (CLI threads)"
+
+#: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
+msgid "Browser pick target for CLI threads"
+msgstr "Browser pick target for CLI threads"
+
+#: src/renderer/components/thread/ThreadGoalDock.tsx
+msgid "Budget limit reached"
+msgstr "Budget limit reached"
+
+#: src/renderer/components/diff/DiffCardList.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/InlineDiffView.tsx
+msgid "Building diff…"
+msgstr "Building diff…"
+
+#: src/renderer/views/PrReviewOverlay/parts/PrMetaRow.tsx
+msgid "by <0>{author}</0>"
+msgstr "by <0>{author}</0>"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
+msgid "Bypass branch protection rules"
+msgstr "Bypass branch protection rules"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
+msgid "Bypass branch protection rules (admin merge)"
+msgstr "Bypass branch protection rules (admin merge)"
+
+#. Dialog button: dismiss without deleting
+#: src/renderer/components/common/ConfirmDialog.tsx
+#: src/renderer/components/thread/AgentDiscoveryScreen.tsx
+#: src/renderer/components/thread/ChatPane/parts/CheckpointRevertControls.tsx
+#: src/renderer/components/thread/ContinueInProviderDialog.tsx
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CreatePrModal.tsx
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/FileGroup.tsx
+#: src/renderer/views/MainView/parts/AppContent/parts/Thread/parts/ContinueInProviderDialog.tsx
+#: src/renderer/views/MainView/parts/AppOverlays.tsx
+#: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
+#: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
+#: src/renderer/views/MainView/parts/PullFromSourceDialog.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/DeleteWorktreeDialog.tsx
+#: src/renderer/views/PrReviewOverlay/parts/SubmitReviewPopover.tsx
+msgid "Cancel"
+msgstr "Cancel"
+
+#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+msgid "Cancel new Claude profile"
+msgstr "Cancel new Claude profile"
+
+#: src/renderer/components/thread/ThreadPendingSteerStrip.tsx
+msgid "Cancel pending steer"
+msgstr "Cancel pending steer"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
+msgid "Cancel picker"
+msgstr "Cancel picker"
+
+#: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
+msgid "cancelled"
+msgstr "cancelled"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Cannot create a default worktree path without a branch name"
+msgstr "Cannot create a default worktree path without a branch name"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Cannot switch branches — commit or stash your changes first"
+msgstr "Cannot switch branches — commit or stash your changes first"
+
+#: src/renderer/views/MainView/parts/AppOverlays.tsx
+msgid "Change User"
+msgstr "Change User"
+
+#. Link to the list of release notes
+#: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
+msgid "Changelog"
+msgstr "Changelog"
+
+#: src/renderer/views/GitReviewOverlay/GitReviewOverlay.tsx
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
+#: src/renderer/views/PrReviewOverlay/parts/PrTabsPill.tsx
+msgid "Changes"
+msgstr "Changes"
+
+#. placeholder {0}: gitStatus.unstaged.length
+#: src/renderer/views/GitReviewOverlay/GitReviewOverlay.tsx
+msgid "Changes ({0})"
+msgstr "Changes ({0})"
+
+#: src/renderer/views/PrReviewOverlay/parts/PrReviewSidebar.tsx
+msgid "Changes in PR"
+msgstr "Changes in PR"
+
+#: src/renderer/views/PrReviewOverlay/parts/SubmitReviewPopover.tsx
+msgid "Changes requested"
+msgstr "Changes requested"
+
+#. About page label: release channel (stable/nightly)
+#: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
+msgid "Channel"
+msgstr "Channel"
+
+#: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
+#: src/renderer/components/thread/PresentationModeTabs.tsx
+#: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
+msgid "Chat"
+msgstr "Chat"
+
+#: src/renderer/commands/registry.ts
+msgid "Chat Commands"
+msgstr "Chat Commands"
+
+#: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
+msgid "Check"
+msgstr "Check"
+
+#: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
+msgid "Check for updates"
+msgstr "Check for updates"
+
+#: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+msgid "Check the live input level from the selected device."
+msgstr "Check the live input level from the selected device."
+
+#: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
+msgid "Checking…"
+msgstr "Checking…"
+
+#: src/renderer/views/PrReviewOverlay/parts/PrTabsPill.tsx
+msgid "Checks"
+msgstr "Checks"
+
+#: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
+#: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
+msgid "Choose a folder…"
+msgstr "Choose a folder…"
+
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+msgid "Choose how to sign in for {env}."
+msgstr "Choose how to sign in for {env}."
+
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+msgid "Choose how to sign in."
+msgstr "Choose how to sign in."
+
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+msgid "Choose the display language for Lightcode's interface."
+msgstr "Choose the display language for Lightcode's interface."
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
+msgid "Choose thread to attach to"
+msgstr "Choose thread to attach to"
+
+#: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
+msgid "Choose whether links from Lightcode and browser popups stay in Lightcode "
+"or open externally."
+msgstr "Choose whether links from Lightcode and browser popups stay in "
+"Lightcode or open externally."
+
+#. placeholder {0}: next.displayName ?? next.id
+#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+msgid "Claude {0} profile saved."
+msgstr "Claude {0} profile saved."
+
+#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+msgid "Claude {displayName} profile added."
+msgstr "Claude {displayName} profile added."
+
+#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+msgid "Claude profile config directory"
+msgstr "Claude profile config directory"
+
+#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+msgid "Claude profile name"
+msgstr "Claude profile name"
+
+#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+msgid "Claude profile removed."
+msgstr "Claude profile removed."
+
+#: src/renderer/views/ProjectSettingsOverlay/parts/ScriptsSection.tsx
+msgid "Cleanup script"
+msgstr "Cleanup script"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
+msgid "Clear Browsing History"
+msgstr "Clear Browsing History"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
+msgid "Clear Cache"
+msgstr "Clear Cache"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
+msgid "Clear Cookies"
+msgstr "Clear Cookies"
+
+#: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
+msgid "Clear search"
+msgstr "Clear search"
+
+#: src/renderer/components/thread/PresentationModeTabs.tsx
+#: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
+msgid "CLI"
+msgstr "CLI"
+
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+msgid "CLI hooks"
+msgstr "CLI hooks"
+
+#: src/renderer/views/MainView/parts/AppContent/parts/Thread/parts/ContinueInProviderDialog.tsx
+#: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
+msgid "Clone"
+msgstr "Clone"
+
+#: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
+#: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
+msgid "Clone a repository"
+msgstr "Clone a repository"
+
+#: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
+msgid "Clone URL"
+msgstr "Clone URL"
+
+#: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
+msgid "Cloning {cloneTarget}"
+msgstr "Cloning {cloneTarget}"
+
+#: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
+msgid "Cloning…"
+msgstr "Cloning…"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
+msgid "Close"
+msgstr "Close"
+
+#: src/renderer/views/LoginTerminalOverlay/LoginTerminalOverlay.tsx
+msgid "Close {purposeNoun} terminal"
+msgstr "Close {purposeNoun} terminal"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
+msgid "Close browser"
+msgstr "Close browser"
+
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorToolbar.tsx
+msgid "Close editor"
+msgstr "Close editor"
+
+#: src/renderer/commands/registry.ts
+msgid "Close Editor Tab"
+msgstr "Close Editor Tab"
+
+#: src/renderer/components/thread/ThreadGoalDock.tsx
+msgid "Close goal"
+msgstr "Close goal"
+
+#: src/renderer/views/MainView/parts/AppContent/AppContent.tsx
+msgid "Close group"
+msgstr "Close group"
+
+#: src/renderer/components/thread/ThreadDraftChrome.tsx
+#: src/renderer/components/thread/ThreadView.tsx
+msgid "Close pane"
+msgstr "Close pane"
+
+#: src/renderer/commands/registry.ts
+msgid "Close Pane"
+msgstr "Close Pane"
+
+#: src/renderer/components/thread/ThreadTodoDock.tsx
+msgid "Close plan"
+msgstr "Close plan"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
+msgid "Close PR"
+msgstr "Close PR"
+
+#: src/renderer/components/composer/ImageLightbox.tsx
+msgid "Close preview"
+msgstr "Close preview"
+
+#: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
+msgid "Close search"
+msgstr "Close search"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/DevTerminalPanel.tsx
+msgid "Close Split"
+msgstr "Close Split"
+
+#: src/renderer/components/thread/ChatPane/parts/items/SubAgentOverlay.tsx
+msgid "Close subagent"
+msgstr "Close subagent"
+
+#: src/renderer/components/thread/ChatPane/parts/items/ActiveSubAgentTile.tsx
+msgid "Close subagents"
+msgstr "Close subagents"
+
+#: src/renderer/components/thread/ChatPane/parts/items/ActiveSubAgentTile.tsx
+msgid "Close subagents panel"
+msgstr "Close subagents panel"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabStrip.tsx
+msgid "Close tab"
+msgstr "Close tab"
+
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+msgid "Close to tray"
+msgstr "Close to tray"
+
+#: src/renderer/components/thread/ThreadContextDock.tsx
+msgid "Close usage details"
+msgstr "Close usage details"
+
+#: src/renderer/views/PrReviewOverlay/parts/PrMetaRow.tsx
+msgid "Closed"
+msgstr "Closed"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
+msgid "Code copied. "
+msgstr "Code copied. "
+
+#: src/renderer/components/thread/ThreadErrorDock.tsx
+#: src/renderer/components/thread/ThreadTodoDock.tsx
+msgid "Collapse"
+msgstr "Collapse"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
+msgid "Collapse {label}"
+msgstr "Collapse {label}"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsagePanelHeaderActions.tsx
+msgid "Collapse all"
+msgstr "Collapse all"
+
+#: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
+msgid "Collapse All"
+msgstr "Collapse All"
+
+#: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
+msgid "Collapse all folders"
+msgstr "Collapse all folders"
+
+#: src/renderer/components/thread/ThreadComposerSection.tsx
+msgid "Collapse composer"
+msgstr "Collapse composer"
+
+#: src/renderer/components/thread/ThreadErrorDock.tsx
+msgid "Collapse error"
+msgstr "Collapse error"
+
+#: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
+msgid "Collapse terminal composer"
+msgstr "Collapse terminal composer"
+
+#: src/renderer/components/thread/ThreadTodoDock.tsx
+msgid "Collapse todo dock"
+msgstr "Collapse todo dock"
+
+#. Accessible label for the command palette search input
+#: src/renderer/commands/CommandPalette.tsx
+msgid "Command"
+msgstr "Command"
+
+#: src/renderer/views/ProjectSettingsOverlay/parts/ActionsSection.tsx
+msgid "Command (e.g., npm run dev)"
+msgstr "Command (e.g., npm run dev)"
+
+#: src/renderer/commands/CommandPalette.tsx
+#: src/renderer/components/thread/ThreadCommandPanel.tsx
+msgid "Commands"
+msgstr "Commands"
+
+#: src/renderer/views/PrReviewOverlay/parts/PrConversationTab.tsx
+#: src/renderer/views/PrReviewOverlay/parts/SubmitReviewPopover.tsx
+msgid "Comment"
+msgstr "Comment"
+
+#: src/renderer/views/PrReviewOverlay/parts/PrConversationTab.tsx
+#: src/renderer/views/PrReviewOverlay/parts/SubmitReviewPopover.tsx
+msgid "Comment posted"
+msgstr "Comment posted"
+
+#: src/renderer/views/PrReviewOverlay/parts/PrConversationTab.tsx
+msgid "commented"
+msgstr "commented"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/commitActions.ts
+msgid "Commit"
+msgstr "Commit"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/commitActions.ts
+msgid "Commit & Create PR"
+msgstr "Commit & Create PR"
+
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+msgid "Commit & PR language"
+msgstr "Commit & PR language"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/commitActions.ts
+msgid "Commit & Push"
+msgstr "Commit & Push"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Commit failed: {detail}"
+msgstr "Commit failed: {detail}"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CommitSyncPanel.tsx
+msgid "Commit message"
+msgstr "Commit message"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CommitSyncPanel.tsx
+msgid "Commit message (Ctrl+Enter)"
+msgstr "Commit message (Ctrl+Enter)"
+
+#: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
+msgid "Commit Message Generation"
+msgstr "Commit Message Generation"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CommitSyncPanel.tsx
+msgid "Commit options"
+msgstr "Commit options"
+
+#: src/renderer/views/PrReviewOverlay/parts/PrTabsPill.tsx
+msgid "Commits"
+msgstr "Commits"
+
+#: src/renderer/components/thread/ChatPane/parts/items/ContextCompaction.tsx
+msgid "Compacting context"
+msgstr "Compacting context"
+
+#: src/renderer/components/thread/ThreadGoalDock.tsx
+msgid "Complete"
+msgstr "Complete"
+
+#. placeholder {0}: agentAuthMethod.name
+#: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
+msgid "Complete {0} sign-in before this thread can run."
+msgstr "Complete {0} sign-in before this thread can run."
+
+#. placeholder {0}: singleMethod.name
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+msgid "Complete {0} sign-in for {env}."
+msgstr "Complete {0} sign-in for {env}."
+
+#. placeholder {0}: agentAuth.method.name
+#. placeholder {1}: envVarAuthMethod.name
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+msgid "Complete {0} sign-in or save {1} credentials."
+msgstr "Complete {0} sign-in or save {1} credentials."
+
+#. placeholder {0}: agentAuth.method.name
+#. placeholder {0}: singleMethod.name
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+msgid "Complete {0} sign-in."
+msgstr "Complete {0} sign-in."
+
+#: src/renderer/views/LoginTerminalOverlay/LoginTerminalOverlay.tsx
+msgid "Complete the prompts in this terminal. Closes when finished."
+msgstr "Complete the prompts in this terminal. Closes when finished."
+
+#: src/renderer/components/thread/ChatPane/parts/items/ActiveSubAgentTile.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/PlanItem.tsx
+#: src/renderer/components/thread/ThreadTodoDock.tsx
+msgid "completed"
+msgstr "completed"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
+msgid "Composer"
+msgstr "Composer"
+
+#: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
+msgid "Conflict Resolver"
+msgstr "Conflict Resolver"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ConflictGroup.tsx
+msgid "Conflicts"
+msgstr "Conflicts"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
+msgid "Console"
+msgstr "Console"
+
+#: src/renderer/components/common/EffortContextMenu/EffortContextMenu.tsx
+#: src/renderer/components/thread/threadContextUsage.ts
+msgid "Context"
+msgstr "Context"
+
+#: src/renderer/components/thread/ChatPane/parts/items/ContextCompaction.tsx
+msgid "Context compacted"
+msgstr "Context compacted"
+
+#: src/renderer/components/thread/ChatPane/parts/items/ContextCompaction.tsx
+msgid "Context compacted from {before} tokens"
+msgstr "Context compacted from {before} tokens"
+
+#: src/renderer/components/thread/ChatPane/parts/items/ContextCompaction.tsx
+msgid "Context compacted: {before} → {after} tokens"
+msgstr "Context compacted: {before} → {after} tokens"
+
+#. placeholder {0}: sourceAgent?.label ?? thread.agentKind
+#: src/renderer/views/MainView/parts/AppContent/parts/Thread/parts/ContinueInProviderDialog.tsx
+msgid "Context extraction ({0})"
+msgstr "Context extraction ({0})"
+
+#: src/renderer/components/thread/ChatPane/parts/items/ContextCompaction.tsx
+msgid "Context manually compacted from {before} tokens"
+msgstr "Context manually compacted from {before} tokens"
+
+#: src/renderer/components/thread/ChatPane/parts/items/ContextCompaction.tsx
+msgid "Context manually compacted: {before} → {after} tokens"
+msgstr "Context manually compacted: {before} → {after} tokens"
+
+#: src/renderer/views/MainView/parts/AppContent/AppContent.tsx
+msgid "Context transferred to {targetLabel}"
+msgstr "Context transferred to {targetLabel}"
+
+#: src/renderer/components/thread/threadContextUsage.ts
+msgid "Context usage"
+msgstr "Context usage"
+
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
+msgid "Continue"
+msgstr "Continue"
+
+#: src/renderer/components/thread/ContinueInProviderDialog.tsx
+#: src/renderer/components/thread/ThreadView.tsx
+#: src/renderer/views/MainView/parts/AppContent/parts/Thread/parts/ContinueInProviderDialog.tsx
+msgid "Continue in another provider"
+msgstr "Continue in another provider"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
+msgid "Continue in..."
+msgstr "Continue in..."
+
+#: src/renderer/views/SettingsOverlay/parts/SearchSettings.tsx
+msgid "Control which files appear in the @file mention search. Per-project "
+"overrides live in each project's settings."
+msgstr "Control which files appear in the @file mention search. Per-project "
+"overrides live in each project's settings."
+
+#: src/renderer/views/PrReviewOverlay/parts/PrTabsPill.tsx
+msgid "Conversation"
+msgstr "Conversation"
+
+#: src/renderer/components/thread/ChatPane/parts/items/UserMessage.tsx
+#: src/renderer/RendererCrashScreen.tsx
+msgid "Copied"
+msgstr "Copied"
+
+#: src/renderer/components/terminal/XTermSurface.tsx
+msgid "Copy"
+msgstr "Copy"
+
+#. placeholder {0}: activeDeviceCode.providerLabel
+#. placeholder {1}: activeDeviceCode.code
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
+msgid "Copy {0} device code {1}"
+msgstr "Copy {0} device code {1}"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
+msgid "Copy Current URL"
+msgstr "Copy Current URL"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/useGitReviewActions.ts
+msgid "Copy details"
+msgstr "Copy details"
+
+#: src/renderer/RendererCrashScreen.tsx
+msgid "Copy diagnostics"
+msgstr "Copy diagnostics"
+
+#: src/renderer/RendererCrashScreen.tsx
+msgid "Copy failed"
+msgstr "Copy failed"
+
+#: src/renderer/views/ProjectSettingsOverlay/parts/ScriptsSection.tsx
+msgid "Copy ignored files"
+msgstr "Copy ignored files"
+
+#: src/renderer/components/thread/ChatPane/parts/items/UserMessage.tsx
+msgid "Copy message"
+msgstr "Copy message"
+
+#: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/parts/TreeEntryRow.tsx
+msgid "Copy Path"
+msgstr "Copy Path"
+
+#: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/parts/TreeEntryRow.tsx
+msgid "Copy Relative Path"
+msgstr "Copy Relative Path"
+
+#: src/renderer/components/thread/WorktreeModeSelect.tsx
+msgid "Copy uncommitted changes here (keeps them on this branch)"
+msgstr "Copy uncommitted changes here (keeps them on this branch)"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Could not abort the merge: {detail}"
+msgstr "Could not abort the merge: {detail}"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Could not complete the merge"
+msgstr "Could not complete the merge"
+
+#: src/renderer/components/thread/ContinueInProviderDialog.tsx
+#: src/renderer/views/MainView/parts/AppContent/parts/Thread/parts/ContinueInProviderDialog.tsx
+msgid "Could not extract context."
+msgstr "Could not extract context."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Could not generate commit message: {detail}"
+msgstr "Could not generate commit message: {detail}"
+
+#: src/renderer/components/thread/ChatPane/parts/items/useReadAbsoluteFile.tsx
+msgid "Could not read file."
+msgstr "Could not read file."
+
+#: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
+msgid "Couldn't clone the repository."
+msgstr "Couldn't clone the repository."
+
+#: src/renderer/views/MainView/parts/AppContent/AppContent.tsx
+msgid "Couldn't copy your uncommitted changes into the new worktree — they "
+"remain on the current branch."
+msgstr "Couldn't copy your uncommitted changes into the new worktree — they "
+"remain on the current branch."
+
+#: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
+msgid "Couldn't create the project."
+msgstr "Couldn't create the project."
+
+#: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
+msgid "Couldn't list repositories."
+msgstr "Couldn't list repositories."
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CreatePrModal.tsx
+msgid "Create Draft PR"
+msgstr "Create Draft PR"
+
+#: src/renderer/components/thread/ChatPane/parts/items/FileChange.tsx
+msgid "Create file"
+msgstr "Create file"
+
+#: src/renderer/components/common/BranchSelector/parts/BranchFooterActions.tsx
+msgid "Create new branch"
+msgstr "Create new branch"
+
+#: src/renderer/components/common/BranchSelector/parts/BranchFooterActions.tsx
+msgid "Create new branch..."
+msgstr "Create new branch..."
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CreatePrModal.tsx
+msgid "Create PR"
+msgstr "Create PR"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
+msgid "Create PR (Auto)"
+msgstr "Create PR (Auto)"
+
+#: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
+msgid "Create PR action"
+msgstr "Create PR action"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
+msgid "Create PR…"
+msgstr "Create PR…"
+
+#: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
+msgid "Create project"
+msgstr "Create project"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/useWorktreeActions.ts
+msgid "Create Pull Request"
+msgstr "Create Pull Request"
+
+#: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
+msgid "Create task"
+msgstr "Create task"
+
+#: src/renderer/components/thread/ChatPane/parts/items/FileChange.tsx
+msgid "Create:"
+msgstr "Create:"
+
+#: src/renderer/components/common/BranchSelector/BranchSelector.tsx
+msgid "Created a worktree on \"{newBranch}\", but the changes conflicted and "
+"remain in a git stash — resolve them in the worktree."
+msgstr "Created a worktree on \"{newBranch}\", but the changes conflicted and "
+"remain in a git stash — resolve them in the worktree."
+
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+msgid "Credentials are configured."
+msgstr "Credentials are configured."
+
+#: src/renderer/components/providers/usageFormat.ts
+#: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+msgid "Credits"
+msgstr "Credits"
+
+#: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
+msgid "Custom"
+msgstr "Custom"
+
+#: src/renderer/views/ProjectSettingsOverlay/parts/ActionsSection.tsx
+msgid "Custom commands available from the project context menu (right-click)."
+msgstr "Custom commands available from the project context menu (right-click)."
+
+#: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
+msgid "Dark"
+msgstr "Dark"
+
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
+msgid "Decline"
+msgstr "Decline"
+
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+msgid "Default"
+msgstr "Default"
+
+#: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
+msgid "Default Create PR action"
+msgstr "Default Create PR action"
+
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+msgid "Default new thread"
+msgstr "Default new thread"
+
+#: src/renderer/components/providers/codex/index.tsx
+msgid "Default permissions"
+msgstr "Default permissions"
+
+#: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
+msgid "Default thread removal"
+msgstr "Default thread removal"
+
+#. Thread remove action: delete permanently
+#: src/renderer/components/common/BranchSelector/BranchSelector.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
+#: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/parts/TreeEntryRow.tsx
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewPanel.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/TodoRow.tsx
+#: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
+msgid "Delete"
+msgstr "Delete"
+
+#. placeholder {0}: branch.name
+#. placeholder {0}: entry.group.groupName
+#. placeholder {0}: thread.title
+#: src/renderer/components/common/BranchSelector/parts/BranchListBox.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadGroup.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/parts/ThreadItemSuffix.tsx
+msgid "Delete {0}"
+msgstr "Delete {0}"
+
+#: src/renderer/components/common/BranchSelector/BranchSelector.tsx
+msgid "Delete branch?"
+msgstr "Delete branch?"
+
+#: src/renderer/components/thread/ChatPane/parts/items/FileChange.tsx
+msgid "Delete file"
+msgstr "Delete file"
+
+#. Tooltip: permanently delete the archived thread
+#: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
+msgid "Delete permanently"
+msgstr "Delete permanently"
+
+#: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
+msgid "Delete thread"
+msgstr "Delete thread"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
+msgid "Delete Thread"
+msgstr "Delete Thread"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/DeleteWorktreeDialog.tsx
+msgid "Delete thread?"
+msgstr "Delete thread?"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/TodoRow.tsx
+msgid "Delete to-do"
+msgstr "Delete to-do"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarWorktreeGroup.tsx
+msgid "Delete Worktree"
+msgstr "Delete Worktree"
+
+#. placeholder {0}: props.worktreeBranch
+#: src/renderer/views/MainView/parts/Sidebar/parts/WorktreeGroupHeader.tsx
+msgid "Delete worktree {0}"
+msgstr "Delete worktree {0}"
+
+#: src/renderer/components/thread/ChatPane/parts/items/FileChange.tsx
+msgid "Delete:"
+msgstr "Delete:"
+
+#: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
+msgid "Deleting"
+msgstr "Deleting"
+
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/helpers.ts
+msgid "Deny"
+msgstr "Deny"
+
+#: src/renderer/components/thread/ThreadComposerSection.tsx
+msgid "Deny and tell the agent what to do differently…"
+msgstr "Deny and tell the agent what to do differently…"
+
+#: src/renderer/views/PrReviewOverlay/parts/PrHeaderCard.tsx
+msgid "Description"
+msgstr "Description"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CreatePrModal.tsx
+msgid "Description (optional)"
+msgstr "Description (optional)"
+
+#. placeholder {0}: detectionScopeLabel(status)
+#: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
+msgid "Detected <0>({0})</0>"
+msgstr "Detected <0>({0})</0>"
+
+#: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
+msgid "Detected <0>(local)</0>"
+msgstr "Detected <0>(local)</0>"
+
+#. placeholder {0}: status.envDistro ? `WSL (${status.envDistro})` : "WSL"
+#: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
+msgid "Detected <0>{0}</0>"
+msgstr "Detected <0>{0}</0>"
+
+#: src/renderer/components/thread/ThreadDraftView.tsx
+msgid "Detecting agents…"
+msgstr "Detecting agents…"
+
+#. Settings section: developer/debug tools
+#. Settings section: developer/debug tools
+#: src/renderer/views/SettingsOverlay/parts/DevSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
+msgid "Dev"
+msgstr "Dev"
+
+#: src/renderer/views/SettingsOverlay/parts/DevSettings.tsx
+msgid "Development-only overrides. Only visible in the LIGHTCODE DEV build."
+msgstr "Development-only overrides. Only visible in the LIGHTCODE DEV build."
+
+#: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+msgid "Device used by the composer voice input button."
+msgstr "Device used by the composer voice input button."
+
+#: src/renderer/components/composer/ComposerAddMenu.tsx
+msgid "Disable"
+msgstr "Disable"
+
+#: src/renderer/components/composer/AttachmentBar.tsx
+msgid "Disable Browser MCP"
+msgstr "Disable Browser MCP"
+
+#: src/renderer/views/SettingsOverlay/parts/DevSettings.tsx
+msgid "Disable CLI hook plugin (L1)"
+msgstr "Disable CLI hook plugin (L1)"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
+msgid "Disable Project"
+msgstr "Disable Project"
+
+#: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
+msgid "Disabled"
+msgstr "Disabled"
+
+#: src/renderer/commands/registry.ts
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
+msgid "Discard unsaved changes in {path}?"
+msgstr "Discard unsaved changes in {path}?"
+
+#: src/renderer/views/FileEditorOverlay/FileEditorOverlay.tsx
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorModal.tsx
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPanel.tsx
+msgid "Discard unsaved editor changes?"
+msgstr "Discard unsaved editor changes?"
+
+#: src/renderer/components/thread/AgentDiscoveryScreen.tsx
+msgid "Discovering coding agents…"
+msgstr "Discovering coding agents…"
+
+#: src/renderer/components/thread/ThreadDraftComposerArea.tsx
+#: src/renderer/components/thread/ThreadErrorDock.tsx
+msgid "Dismiss"
+msgstr "Dismiss"
+
+#: src/renderer/components/thread/ThreadErrorDock.tsx
+msgid "Dismiss error"
+msgstr "Dismiss error"
+
+#: src/renderer/views/PrReviewOverlay/parts/PrConversationTab.tsx
+msgid "dismissed review"
+msgstr "dismissed review"
+
+#: src/renderer/views/ProjectSettingsOverlay/parts/GeneralSection.tsx
+msgid "Display name in the sidebar."
+msgstr "Display name in the sidebar."
+
+#: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
+msgid "Docs"
+msgstr "Docs"
+
+#: src/renderer/components/thread/ChatPane/parts/CheckpointRevertControls.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/DeleteWorktreeDialog.tsx
+msgid "Don't ask again"
+msgstr "Don't ask again"
+
+#: src/renderer/components/thread/ThreadDraftComposerArea.tsx
+msgid "Don't show hook install proposal"
+msgstr "Don't show hook install proposal"
+
+#: src/renderer/components/thread/ChatPane/parts/items/SubAgentToolCall.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
+msgid "done"
+msgstr "done"
+
+#. Notification status: thread is done
+#: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
+msgid "Done"
+msgstr "Done"
+
+#: src/renderer/notifications.ts
+msgid "Done · Waiting for your input"
+msgstr "Done · Waiting for your input"
+
+#. placeholder {0}: name || t`the chosen folder`
+#: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
+msgid "Downloading into “{0}”. This can take a moment for large repositories."
+msgstr "Downloading into “{0}”. This can take a moment for large repositories."
+
+#. placeholder {0}: Math.round(downloadProgress.progress)
+#: src/renderer/components/composer/VoiceInputButton.tsx
+msgid "Downloading voice model {0}%"
+msgstr "Downloading voice model {0}%"
+
+#: src/renderer/components/composer/VoiceInputButton.tsx
+msgid "Downloading voice model..."
+msgstr "Downloading voice model..."
+
+#: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
+msgid "Downloading{v} — {percent}%{speedSuffix}"
+msgstr "Downloading{v} — {percent}%{speedSuffix}"
+
+#: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
+msgid "Downloading{versionLabel}"
+msgstr "Downloading{versionLabel}"
+
+#: src/renderer/views/PrReviewOverlay/parts/PrMetaRow.tsx
+msgid "Draft"
+msgstr "Draft"
+
+#: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
+msgid "Drag to reorder how providers appear in the model picker."
+msgstr "Drag to reorder how providers appear in the model picker."
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/TodoRow.tsx
+msgid "Drag to reorder; double-click to edit"
+msgstr "Drag to reorder; double-click to edit"
+
+#: src/renderer/components/thread/ThreadComposer.tsx
+msgid "Drop here to attach"
+msgstr "Drop here to attach"
+
+#: src/renderer/views/SettingsOverlay/parts/DevSettings.tsx
+msgid "Drops incoming hook envelopes on the supervisor so agents fall back to "
+"L2 (OSC 9;4 progress) without touching install or iTerm2 notifications. "
+"Takes effect on the next hook event — no restart needed."
+msgstr "Drops incoming hook envelopes on the supervisor so agents fall back to "
+"L2 (OSC 9;4 progress) without touching install or iTerm2 notifications. "
+"Takes effect on the next hook event — no restart needed."
+
+#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+msgid "e.g. Work"
+msgstr "e.g. Work"
+
+#: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
+msgid "Edit"
+msgstr "Edit"
+
+#: src/renderer/components/thread/ChatPane/parts/items/FileChange.tsx
+msgid "Edit file"
+msgstr "Edit file"
+
+#: src/renderer/components/thread/ChatPane/parts/items/FileChange.tsx
+msgid "Edit:"
+msgstr "Edit:"
+
+#: src/renderer/commands/registry.ts
+#: src/renderer/views/FileEditorOverlay/FileEditorOverlay.tsx
+msgid "Editor"
+msgstr "Editor"
+
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+msgid "Editor LSP"
+msgstr "Editor LSP"
+
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
+msgid "Editor tabs"
+msgstr "Editor tabs"
+
+#: src/renderer/components/providers/codex/index.tsx
+msgid "effort - Open the effort picker"
+msgstr "effort - Open the effort picker"
+
+#: src/renderer/components/common/EffortContextMenu/EffortContextMenu.tsx
+msgid "Effort and context"
+msgstr "Effort and context"
+
+#. About page label: Electron framework version
+#: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
+msgid "Electron"
+msgstr "Electron"
+
+#: src/renderer/components/composer/ComposerAddMenu.tsx
+msgid "Enable"
+msgstr "Enable"
+
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+msgid "Enable language server support for type checking, completions, and "
+"diagnostics. Requires a language server installed."
+msgstr "Enable language server support for type checking, completions, and "
+"diagnostics. Requires a language server installed."
+
+#: src/renderer/components/composer/voiceError.ts
+msgid "Enable microphone access in your system settings, then try again."
+msgstr "Enable microphone access in your system settings, then try again."
+
+#: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
+msgid "Enable notifications"
+msgstr "Enable notifications"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
+msgid "Enable Project"
+msgstr "Enable Project"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/UsagePanel.tsx
+msgid "Enable providers in settings"
+msgstr "Enable providers in settings"
+
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+msgid "Enabled"
+msgstr "Enabled"
+
+#: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
+msgid "Enables <0>cookies</0> and <1>storage</1>. Cookies can contain session "
+"tokens and storage often holds auth state — only enable when you trust "
+"both the agent and the sites it visits."
+msgstr "Enables <0>cookies</0> and <1>storage</1>. Cookies can contain session "
+"tokens and storage often holds auth state — only enable when you trust "
+"both the agent and the sites it visits."
+
+#: src/renderer/components/thread/ThreadHeaderStatus.tsx
+msgid "Enhanced (Hooks)"
+msgstr "Enhanced (Hooks)"
+
+#: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
+msgid "Enter a repository URL."
+msgstr "Enter a repository URL."
+
+#: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
+msgid "Enter plan mode"
+msgstr "Enter plan mode"
+
+#: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
+msgid "Environment"
+msgstr "Environment"
+
+#: src/renderer/components/thread/ChatPane/parts/items/FileChange.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/SubAgentToolCall.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/ToolCall.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/ToolCallGroup.tsx
+msgid "error"
+msgstr "error"
+
+#. Notification status: agent error
+#: src/renderer/components/providers/ProviderUsageRail.tsx
+#: src/renderer/components/providers/usageFormat.ts
+#: src/renderer/components/thread/ChatPane/parts/items/ErrorItem.tsx
+#: src/renderer/components/thread/ThreadErrorDock.tsx
+#: src/renderer/components/thread/ThreadHeaderStatus.tsx
+#: src/renderer/components/ui/toastContent.ts
+#: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
+msgid "Error"
+msgstr "Error"
+
+#: src/renderer/notifications.ts
+msgid "Error · Agent encountered an error"
+msgstr "Error · Agent encountered an error"
+
+#: src/renderer/views/SettingsOverlay/parts/SearchExcludeBody.tsx
+msgid "Exclude patterns"
+msgstr "Exclude patterns"
+
+#: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
+msgid "Exit plan mode"
+msgstr "Exit plan mode"
+
+#. placeholder {0}: renderedSession.failedExitCode
+#: src/renderer/views/LoginTerminalOverlay/LoginTerminalOverlay.tsx
+msgid "Exited with code {0}. Close to retry."
+msgstr "Exited with code {0}. Close to retry."
+
+#: src/renderer/components/thread/ThreadErrorDock.tsx
+#: src/renderer/components/thread/ThreadTodoDock.tsx
+msgid "Expand"
+msgstr "Expand"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
+msgid "Expand {label}"
+msgstr "Expand {label}"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsagePanelHeaderActions.tsx
+msgid "Expand all"
+msgstr "Expand all"
+
+#: src/renderer/components/thread/ThreadErrorDock.tsx
+msgid "Expand error"
+msgstr "Expand error"
+
+#: src/renderer/components/thread/ThreadTodoDock.tsx
+msgid "Expand todo dock"
+msgstr "Expand todo dock"
+
+#: src/renderer/components/thread/threadDraftViewHelpers.ts
+msgid "Extra High"
+msgstr "Extra High"
+
+#. placeholder {0}: sourceAgent?.label ?? thread.agentKind
+#: src/renderer/components/thread/ContinueInProviderDialog.tsx
+#: src/renderer/views/MainView/parts/AppContent/parts/Thread/parts/ContinueInProviderDialog.tsx
+msgid "Extracting context from {0}..."
+msgstr "Extracting context from {0}..."
+
+#: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
+#: src/renderer/views/LoginTerminalOverlay/LoginTerminalOverlay.tsx
+msgid "failed"
+msgstr "failed"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Failed to close pull request: {detail}"
+msgstr "Failed to close pull request: {detail}"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Failed to create pull request: {detail}"
+msgstr "Failed to create pull request: {detail}"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Failed to merge pull request: {detail}"
+msgstr "Failed to merge pull request: {detail}"
+
+#: src/renderer/components/thread/buildModelPickerControls.tsx
+msgid "Fast"
+msgstr "Fast"
+
+#: src/renderer/components/providers/codex/index.tsx
+msgid "fast - Toggle Fast mode"
+msgstr "fast - Toggle Fast mode"
+
+#: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+msgid "Fastest (Whisper tiny)"
+msgstr "Fastest (Whisper tiny)"
+
+#: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+msgid "Fastest uses Whisper tiny; Better uses Whisper base."
+msgstr "Fastest uses Whisper tiny; Better uses Whisper base."
+
+#: src/renderer/components/common/ProviderModelMenu/parts/buildItems.ts
+msgid "Favorites"
+msgstr "Favorites"
+
+#: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
+msgid "Fetch"
+msgstr "Fetch"
+
+#: src/renderer/components/composer/ComposerAddMenu.tsx
+msgid "File"
+msgstr "File"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
+msgid "File changes will appear here."
+msgstr "File changes will appear here."
+
+#: src/renderer/components/thread/ChatPane/parts/items/useReadAbsoluteFile.tsx
+msgid "File is too large to preview."
+msgstr "File is too large to preview."
+
+#: src/renderer/components/thread/ChatPane/parts/items/useReadAbsoluteFile.tsx
+msgid "File no longer exists on disk."
+msgstr "File no longer exists on disk."
+
+#. placeholder {0}: entry.insertions + entry.deletions
+#. placeholder {0}: file.insertions + file.deletions
+#: src/renderer/views/GitReviewOverlay/parts/GitDiffContent/parts/DiffSection.tsx
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ConflictFileCard.tsx
+#: src/renderer/views/GitReviewOverlay/parts/GitStackedDiff.tsx
+msgid "File too large to display ({0, plural, one {# line changed} other {# "
+"lines changed}})"
+msgstr "File too large to display ({0, plural, one {# line changed} other {# "
+"lines changed}})"
+
+#: src/renderer/components/thread/ChatPane/parts/items/useReadAbsoluteFile.tsx
+msgid "File uses an unsupported encoding."
+msgstr "File uses an unsupported encoding."
+
+#: src/renderer/components/layout/UnifiedRightPanel.tsx
+msgid "Files"
+msgstr "Files"
+
+#. placeholder {0}: project.name
+#. placeholder {0}: props.worktreeBranch
+#. placeholder {0}: thread.worktreeBranch ?? thread.title
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/parts/ThreadItemSuffix.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/WorktreeGroupHeader.tsx
+msgid "Files for {0}"
+msgstr "Files for {0}"
+
+#: src/renderer/views/SettingsOverlay/parts/SearchExcludeBody.tsx
+msgid "Files matching these globs are hidden from the @file mention search."
+msgstr "Files matching these globs are hidden from the @file mention search."
+
+#: src/renderer/views/PrReviewOverlay/parts/SubmitReviewPopover.tsx
+msgid "Finish your review"
+msgstr "Finish your review"
+
+#: src/renderer/components/thread/ThreadHeaderStatus.tsx
+msgid "Finished"
+msgstr "Finished"
+
+#: src/renderer/notifications.ts
+msgid "Finished · Waiting for your input"
+msgstr "Finished · Waiting for your input"
+
+#: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
+msgid "First-class Antigravity CLI integration using Lightcode's native "
+"runtime."
+msgstr "First-class Antigravity CLI integration using Lightcode's native "
+"runtime."
+
+#: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
+msgid "First-class Claude Code integration using Lightcode's native SDK "
+"runtime."
+msgstr "First-class Claude Code integration using Lightcode's native SDK "
+"runtime."
+
+#: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
+msgid "First-class Codex CLI integration using Lightcode's native app-server "
+"runtime."
+msgstr "First-class Codex CLI integration using Lightcode's native app-server "
+"runtime."
+
+#: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
+msgid "First-class Command Code CLI integration using Lightcode's native "
+"runtime."
+msgstr "First-class Command Code CLI integration using Lightcode's native "
+"runtime."
+
+#: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
+msgid "First-class Grok Build CLI integration using Lightcode's native runtime."
+msgstr "First-class Grok Build CLI integration using Lightcode's native "
+"runtime."
+
+#: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
+msgid "First-class OpenCode integration using Lightcode's native SDK runtime."
+msgstr "First-class OpenCode integration using Lightcode's native SDK runtime."
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ConflictResolutionActions.tsx
+msgid "Fix in Agent"
+msgstr "Fix in Agent"
+
+#: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
+msgid "Folder name"
+msgstr "Folder name"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/ForceDeleteBranchDialog.tsx
+msgid "Force Delete"
+msgstr "Force Delete"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/ForceDeleteBranchDialog.tsx
+msgid "Force delete? Unmerged changes will be lost."
+msgstr "Force delete? Unmerged changes will be lost."
+
+#: src/renderer/components/thread/ContinueInProviderDialog.tsx
+msgid "Fork"
+msgstr "Fork"
+
+#: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
+msgid "Format files"
+msgstr "Format files"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
+msgid "Forward"
+msgstr "Forward"
+
+#. placeholder {0}: activeRequest.providerLabel
+#: src/renderer/views/MainView/parts/AppOverlays.tsx
+msgid "Found a signed-in {0} session."
+msgstr "Found a signed-in {0} session."
+
+#: src/renderer/components/providers/codex/index.tsx
+#: src/renderer/components/providers/composerControlBuilders.tsx
+msgid "Full access"
+msgstr "Full access"
+
+#: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
+msgid "Fullscreen overlay"
+msgstr "Fullscreen overlay"
+
+#: src/renderer/views/ProjectSettingsOverlay/parts/GeneralSection.tsx
+#: src/renderer/views/ProjectSettingsOverlay/parts/SettingsSidebar.tsx
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
+msgid "General"
+msgstr "General"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CommitSyncPanel.tsx
+msgid "Generate commit message"
+msgstr "Generate commit message"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CreatePrModal.tsx
+msgid "Generate PR summary"
+msgstr "Generate PR summary"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CreatePrModal.tsx
+msgid "Generate with AI"
+msgstr "Generate with AI"
+
+#: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
+msgid "Generates commit messages from staged changes."
+msgstr "Generates commit messages from staged changes."
+
+#: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
+msgid "Generates short titles for new threads."
+msgstr "Generates short titles for new threads."
+
+#: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
+msgid "Get task"
+msgstr "Get task"
+
+#: src/renderer/components/layout/UnifiedRightPanel.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarWorktreeGroup.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
+#: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
+msgid "Git"
+msgstr "Git"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Git {command} failed: {detail}"
+msgstr "Git {command} failed: {detail}"
+
+#: src/renderer/views/GitReviewOverlay/GitReviewOverlay.tsx
+msgid "Git Review"
+msgstr "Git Review"
+
+#: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
+msgid "Git review mode"
+msgstr "Git review mode"
+
+#. placeholder {0}: props.projectName
+#: src/renderer/views/MainView/parts/Sidebar/parts/GitBadge.tsx
+msgid "Git status for {0}"
+msgstr "Git status for {0}"
+
+#. placeholder {0}: props.projectName
+#: src/renderer/views/MainView/parts/Sidebar/parts/GitBadge.tsx
+msgid "Git status for {0}: not a Git repository"
+msgstr "Git status for {0}: not a Git repository"
+
+#: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
+msgid "GitHub Repository"
+msgstr "GitHub Repository"
+
+#: src/renderer/views/ProjectSettingsOverlay/parts/ScriptsSection.tsx
+msgid "Gitignored files to copy from the main project into each new worktree. "
+"Gitignore-style patterns, one per line (e.g., <0>.env.*</0>)."
+msgstr "Gitignored files to copy from the main project into each new worktree. "
+"Gitignore-style patterns, one per line (e.g., <0>.env.*</0>)."
+
+#: src/renderer/components/thread/ThreadGoalDock.tsx
+msgid "Goal"
+msgstr "Goal"
+
+#: src/renderer/components/providers/codex/index.tsx
+msgid "goal - Set or view an experimental goal"
+msgstr "goal - Set or view an experimental goal"
+
+#: src/renderer/views/MainView/parts/AppContent/AppContent.tsx
+msgid "Group"
+msgstr "Group"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
+msgid "Group open threads"
+msgstr "Group open threads"
+
+#: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
+msgid "GUI chat font size"
+msgstr "GUI chat font size"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
+msgid "Hard Reload"
+msgstr "Hard Reload"
+
+#: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
+msgid "Hidden resumable threads are swept every 5 minutes and unloaded after "
+"this idle age."
+msgstr "Hidden resumable threads are swept every 5 minutes and unloaded after "
+"this idle age."
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewPanel.tsx
+msgid "Hide"
+msgstr "Hide"
+
+#: src/renderer/views/SettingsOverlay/parts/ModelVisibilitySection.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+msgid "Hide all"
+msgstr "Hide all"
+
+#: src/renderer/views/MainView/parts/SidebarHeaderControls.tsx
+msgid "Hide browser"
+msgstr "Hide browser"
+
+#: src/renderer/components/thread/ThreadView.tsx
+msgid "Hide canonical runtime item inspector"
+msgstr "Hide canonical runtime item inspector"
+
+#: src/renderer/components/thread/ThreadContextIndicator.tsx
+msgid "Hide context usage details"
+msgstr "Hide context usage details"
+
+#: src/renderer/views/SettingsOverlay/parts/ModelVisibilitySection.tsx
+msgid "Hide models you don't use from the model picker across every provider."
+msgstr "Hide models you don't use from the model picker across every provider."
+
+#: src/renderer/components/layout/UnifiedRightPanel.tsx
+msgid "Hide panel"
+msgstr "Hide panel"
+
+#: src/renderer/components/thread/ThreadView.tsx
+msgid "Hide runtime debug panel"
+msgstr "Hide runtime debug panel"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
+#: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
+#: src/renderer/views/ProjectSettingsOverlay/parts/SettingsSidebar.tsx
+#: src/renderer/views/PrReviewOverlay/parts/PrReviewSidebar.tsx
+#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
+msgid "Hide sidebar"
+msgstr "Hide sidebar"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/parts/BottomTerminalLayout.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/parts/RightTerminalLayout.tsx
+msgid "Hide terminal"
+msgstr "Hide terminal"
+
+#: src/renderer/views/HomeView.tsx
+#: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
+#: src/renderer/views/WelcomeOverlay.tsx
+msgid "Home"
+msgstr "Home"
+
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+msgid "Home scope"
+msgstr "Home scope"
+
+#. placeholder {0}: agent.id
+#: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
+msgid "ID: {0}"
+msgstr "ID: {0}"
+
+#. Microphone input level when not testing
+#: src/renderer/components/thread/ThreadHeaderStatus.tsx
+#: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+msgid "Idle"
+msgstr "Idle"
+
+#: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
+msgid "Image"
+msgstr "Image"
+
+#: src/renderer/components/composer/ImageLightbox.tsx
+msgid "Image preview"
+msgstr "Image preview"
+
+#: src/renderer/components/thread/ThreadHeaderStatus.tsx
+msgid "Inactive"
+msgstr "Inactive"
+
+#. Badge on an exclude pattern inherited from a lower scope
+#: src/renderer/views/SettingsOverlay/parts/SearchExcludeBody.tsx
+msgid "inherited"
+msgstr "inherited"
+
+#. placeholder {0}: globalUseIgnoreFiles ? t`on` : t`off`
+#: src/renderer/views/ProjectSettingsOverlay/parts/SearchSection.tsx
+msgid "Inheriting the global setting (currently {0})."
+msgstr "Inheriting the global setting (currently {0})."
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
+msgid "Initialize Repository"
+msgstr "Initialize Repository"
+
+#: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+msgid "Input level"
+msgstr "Input level"
+
+#: src/renderer/components/thread/ThreadView.tsx
+msgid "Inspect canonical runtime items"
+msgstr "Inspect canonical runtime items"
+
+#: src/renderer/views/LoginTerminalOverlay/LoginTerminalOverlay.tsx
+msgid "install"
+msgstr "install"
+
+#: src/renderer/components/thread/ThreadDraftComposerArea.tsx
+#: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+msgid "Install"
+msgstr "Install"
+
+#. placeholder {0}: props.agentLabel
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+msgid "Install {0} for {env}."
+msgstr "Install {0} for {env}."
+
+#. placeholder {0}: formatAgentList(props.agentStatuses.map((s) => s.label), i18n._.bind(i18n))
+#: src/renderer/components/thread/ThreadDraftView.tsx
+msgid "Install {0} to create a thread."
+msgstr "Install {0} to create a thread."
+
+#. placeholder {0}: props.agentLabel
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+msgid "Install {0}."
+msgstr "Install {0}."
+
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+msgid "Install {env}"
+msgstr "Install {env}"
+
+#: src/renderer/components/thread/ThreadDraftComposerArea.tsx
+msgid "Install CLI hooks"
+msgstr "Install CLI hooks"
+
+#: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
+msgid "Install in WSL: {distro}"
+msgstr "Install in WSL: {distro}"
+
+#: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
+msgid "Install native providers first; use ACP for additional protocol agents."
+msgstr "Install native providers first; use ACP for additional protocol agents."
+
+#: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
+msgid "Install on Windows"
+msgstr "Install on Windows"
+
+#: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
+msgid "Install packages"
+msgstr "Install packages"
+
+#: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
+#: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
+msgid "Install update"
+msgstr "Install update"
+
+#: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
+msgid "Install v{updateVersion}"
+msgstr "Install v{updateVersion}"
+
+#: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
+msgid "Install v{version}"
+msgstr "Install v{version}"
+
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+msgid "Installed"
+msgstr "Installed"
+
+#: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+msgid "Installing"
+msgstr "Installing"
+
+#: src/renderer/views/LoginTerminalOverlay/LoginTerminalOverlay.tsx
+msgid "Installing in this terminal. Closes when finished."
+msgstr "Installing in this terminal. Closes when finished."
+
+#: src/renderer/state/slices/runtimeEventSlice.ts
+msgid "Interrupted: agent session ended before completion."
+msgstr "Interrupted: agent session ended before completion."
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesEditor.tsx
+msgid "Italic"
+msgstr "Italic"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/UsagePanel.tsx
+msgid "just now"
+msgstr "just now"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/ForceDeleteBranchDialog.tsx
+msgid "Keep Branch"
+msgstr "Keep Branch"
+
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+msgid "Keep the system awake while any thread is actively working."
+msgstr "Keep the system awake while any thread is actively working."
+
+#: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
+msgid "Kill bash"
+msgstr "Kill bash"
+
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+msgid "Language"
+msgstr "Language"
+
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+msgid "Language for AI-generated commit messages and pull request summaries. "
+"Thread titles always follow the app language."
+msgstr "Language for AI-generated commit messages and pull request summaries. "
+"Thread titles always follow the app language."
+
+#: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+msgid "Language the speech model should expect when transcribing composer "
+"dictation."
+msgstr "Language the speech model should expect when transcribing composer "
+"dictation."
+
+#. placeholder {0}: agent.lastToolName
+#: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
+msgid "Last tool: <0>{0}</0>"
+msgstr "Last tool: <0>{0}</0>"
+
+#: src/renderer/components/thread/ThreadDraftComposerArea.tsx
+msgid "Launch thread"
+msgstr "Launch thread"
+
+#: src/renderer/components/thread/ThreadHeaderStatus.tsx
+msgid "Launching…"
+msgstr "Launching…"
+
+#: src/renderer/views/PrReviewOverlay/parts/SubmitReviewPopover.tsx
+msgid "Leave a comment"
+msgstr "Leave a comment"
+
+#: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
+msgid "Lets agents call <0>eval</0> to run arbitrary JavaScript inside the "
+"embedded page. Off by default — turn on only when you trust the loaded "
+"sites and the agent."
+msgstr "Lets agents call <0>eval</0> to run arbitrary JavaScript inside the "
+"embedded page. Off by default — turn on only when you trust the loaded "
+"sites and the agent."
+
+#. About page label: software license row
+#. Link to the license file
+#: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
+msgid "License"
+msgstr "License"
+
+#: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
+msgid "Light"
+msgstr "Light"
+
+#: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
+#: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
+msgid "List"
+msgstr "List"
+
+#: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
+msgid "List packages"
+msgstr "List packages"
+
+#: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
+msgid "List tasks"
+msgstr "List tasks"
+
+#: src/renderer/components/common/PixelLoader.tsx
+msgid "Loading"
+msgstr "Loading"
+
+#: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
+msgid "Loading accounts…"
+msgstr "Loading accounts…"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitDiffContent/parts/SingleFileDiff.tsx
+msgid "Loading diff..."
+msgstr "Loading diff..."
+
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
+msgid "Loading editor…"
+msgstr "Loading editor…"
+
+#: src/renderer/components/thread/ChatPane/parts/items/useReadAbsoluteFile.tsx
+msgid "Loading file…"
+msgstr "Loading file…"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesPanel.tsx
+msgid "Loading notes…"
+msgstr "Loading notes…"
+
+#: src/renderer/views/PrReviewOverlay/parts/PrReviewSidebar.tsx
+msgid "Loading PR…"
+msgstr "Loading PR…"
+
+#: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
+msgid "Loading registry..."
+msgstr "Loading registry..."
+
+#: src/renderer/app.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
+#: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/parts/TreeEntryRow.tsx
+#: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
+msgid "Loading…"
+msgstr "Loading…"
+
+#: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
+msgid "local"
+msgstr "local"
+
+#: src/renderer/components/common/BranchSelector/parts/useBranchList.ts
+msgid "Local"
+msgstr "Local"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Local changes need to be stashed before pulling from {branch}"
+msgstr "Local changes need to be stashed before pulling from {branch}"
+
+#: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
+#: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
+msgid "Location"
+msgstr "Location"
+
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+msgid "Logging in"
+msgstr "Logging in"
+
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+msgid "Logging out"
+msgstr "Logging out"
+
+#: src/renderer/views/LoginTerminalOverlay/LoginTerminalOverlay.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+msgid "login"
+msgstr "login"
+
+#: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
+#: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+msgid "Login"
+msgstr "Login"
+
+#. placeholder {0}: detectionScopeLabel(entry.status)
+#: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
+msgid "Login {0}"
+msgstr "Login {0}"
+
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+msgid "Login required"
+msgstr "Login required"
+
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+msgid "Logout"
+msgstr "Logout"
+
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+msgid "Logout {env}"
+msgstr "Logout {env}"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/sortMode.ts
+msgid "Manual order"
+msgstr "Manual order"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadGroup.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarWorktreeGroup.tsx
+msgid "Mark All Done"
+msgstr "Mark All Done"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/TodoRow.tsx
+msgid "Mark as done"
+msgstr "Mark as done"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/TodoRow.tsx
+msgid "Mark as not done"
+msgstr "Mark as not done"
+
+#: src/renderer/components/thread/ThreadView.tsx
+msgid "Mark done"
+msgstr "Mark done"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
+msgid "Mark Done"
+msgstr "Mark Done"
+
+#: src/renderer/i18n/locales.ts
+msgid "Match app language"
+msgstr "Match app language"
+
+#: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
+msgid "Match your system, or force light or dark."
+msgstr "Match your system, or force light or dark."
+
+#: src/renderer/components/layout/UnifiedRightPanel.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
+msgid "Maximize"
+msgstr "Maximize"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
+msgid "Maximize browser"
+msgstr "Maximize browser"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/useWorktreeActions.ts
+msgid "Merge & Remove"
+msgstr "Merge & Remove"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
+msgid "Merge conflicts must be resolved."
+msgstr "Merge conflicts must be resolved."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Merge failed"
+msgstr "Merge failed"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Merge has conflicts"
+msgstr "Merge has conflicts"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Merge has conflicts:\n"
+"{files}"
+msgstr "Merge has conflicts:\n"
+"{files}"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
+msgid "Merge Locally & Remove Worktree"
+msgstr "Merge Locally & Remove Worktree"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
+msgid "Merge method"
+msgstr "Merge method"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
+msgid "Merge options"
+msgstr "Merge options"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
+msgid "Merge PR: Commit"
+msgstr "Merge PR: Commit"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
+msgid "Merge PR: Rebase"
+msgstr "Merge PR: Rebase"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
+msgid "Merge PR: Squash"
+msgstr "Merge PR: Squash"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/useWorktreeActions.ts
+msgid "Merge to Source"
+msgstr "Merge to Source"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
+msgid "Merge Worktree"
+msgstr "Merge Worktree"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
+#: src/renderer/views/PrReviewOverlay/parts/PrMetaRow.tsx
+msgid "Merged"
+msgstr "Merged"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
+msgid "Merging is blocked"
+msgstr "Merging is blocked"
+
+#: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+msgid "Microphone"
+msgstr "Microphone"
+
+#. Fallback microphone device name with index
+#: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+msgid "Microphone {fallbackNumber}"
+msgstr "Microphone {fallbackNumber}"
+
+#: src/renderer/components/composer/voiceError.ts
+msgid "Microphone access is off."
+msgstr "Microphone access is off."
+
+#: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+msgid "Microphone input level"
+msgstr "Microphone input level"
+
+#: src/renderer/components/composer/voiceError.ts
+msgid "Microphone permission was denied."
+msgstr "Microphone permission was denied."
+
+#: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+msgid "Microphone testing is not available in this environment."
+msgstr "Microphone testing is not available in this environment."
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
+msgid "Minimize browser to right panel"
+msgstr "Minimize browser to right panel"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
+msgid "Minimize to panel"
+msgstr "Minimize to panel"
+
+#: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
+msgid "Mode"
+msgstr "Mode"
+
+#: src/renderer/components/providers/codex/index.tsx
+msgid "model - Open the model picker"
+msgstr "model - Open the model picker"
+
+#: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
+msgid "Model order"
+msgstr "Model order"
+
+#: src/renderer/components/common/ProviderModelMenu/ProviderModelMenu.tsx
+msgid "Models"
+msgstr "Models"
+
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/ApprovalActions.tsx
+msgid "More approval options"
+msgstr "More approval options"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CommitSyncPanel.tsx
+msgid "More commit options"
+msgstr "More commit options"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
+msgid "More PR actions"
+msgstr "More PR actions"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CreatePrModal.tsx
+msgid "More PR options"
+msgstr "More PR options"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
+msgid "More pull request options"
+msgstr "More pull request options"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CommitSyncPanel.tsx
+msgid "More sync options"
+msgstr "More sync options"
+
+#: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
+#: src/renderer/components/thread/ContinueInProviderDialog.tsx
+#: src/renderer/views/MainView/parts/AppContent/parts/Thread/parts/ContinueInProviderDialog.tsx
+msgid "Move"
+msgstr "Move"
+
+#: src/renderer/components/common/BranchSelector/parts/BranchFooterActions.tsx
+msgid "Move changes to a new worktree"
+msgstr "Move changes to a new worktree"
+
+#: src/renderer/components/thread/ThreadTodoDock.tsx
+msgid "Move todo dock to right panel"
+msgstr "Move todo dock to right panel"
+
+#: src/renderer/components/common/BranchSelector/BranchSelector.tsx
+msgid "Moved your changes into a new worktree on \"{newBranch}\". "
+"\"{currentBranch}\" is now clean."
+msgstr "Moved your changes into a new worktree on \"{newBranch}\". "
+"\"{currentBranch}\" is now clean."
+
+#: src/renderer/components/common/BranchSelector/parts/BranchFooterActions.tsx
+msgid "Moving changes…"
+msgstr "Moving changes…"
+
+#: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
+msgid "Name your project and choose where to create it."
+msgstr "Name your project and choose where to create it."
+
+#: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
+#: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
+#: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
+msgid "Native"
+msgstr "Native"
+
+#: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
+msgid "Native Providers"
+msgstr "Native Providers"
+
+#: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
+msgid "Native support"
+msgstr "Native support"
+
+#: src/renderer/components/thread/ThreadHeaderStatus.tsx
+msgid "Needs approval"
+msgstr "Needs approval"
+
+#: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
+msgid "Needs Attention"
+msgstr "Needs Attention"
+
+#: src/renderer/notifications.ts
+msgid "Needs Attention · Approval required"
+msgstr "Needs Attention · Approval required"
+
+#: src/renderer/notifications.ts
+msgid "Needs Attention · Reply required"
+msgstr "Needs Attention · Reply required"
+
+#: src/renderer/components/thread/ThreadHeaderStatus.tsx
+msgid "Needs reply"
+msgstr "Needs reply"
+
+#: src/renderer/views/ProjectSettingsOverlay/parts/ActionsSection.tsx
+msgid "New action command"
+msgstr "New action command"
+
+#: src/renderer/views/ProjectSettingsOverlay/parts/ActionsSection.tsx
+msgid "New action name"
+msgstr "New action name"
+
+#: src/renderer/components/common/BranchSelector/parts/BranchFooterActions.tsx
+msgid "New branch name..."
+msgstr "New branch name..."
+
+#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+msgid "New Claude profile config directory"
+msgstr "New Claude profile config directory"
+
+#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+msgid "New Claude profile name"
+msgstr "New Claude profile name"
+
+#: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/parts/TreeEntryRow.tsx
+#: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
+msgid "New File"
+msgstr "New File"
+
+#: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/parts/TreeEntryRow.tsx
+#: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
+msgid "New Folder"
+msgstr "New Folder"
+
+#: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
+msgid "New project"
+msgstr "New project"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabStrip.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
+msgid "New tab"
+msgstr "New tab"
+
+#: src/renderer/components/thread/ThreadDraftChrome.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/hooks/useElementPicker.ts
+#: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesEditor.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/NewThreadButton.tsx
+msgid "New thread"
+msgstr "New thread"
+
+#: src/renderer/commands/registry.ts
+msgid "New Thread"
+msgstr "New Thread"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/hooks/useElementPicker.ts
+msgid "New thread — {projectName}"
+msgstr "New thread — {projectName}"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/NewThreadButton.tsx
+msgid "New thread (draft)"
+msgstr "New thread (draft)"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/TodoRow.tsx
+msgid "New thread from this to-do"
+msgstr "New thread from this to-do"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarWorktreeGroup.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
+msgid "New Thread in Worktree"
+msgstr "New Thread in Worktree"
+
+#: src/renderer/components/common/BranchSelector/parts/BranchFooterActions.tsx
+msgid "New worktree"
+msgstr "New worktree"
+
+#: src/renderer/components/composer/ImageLightbox.tsx
+msgid "Next image"
+msgstr "Next image"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/hooks/useElementPicker.ts
+msgid "No active browser tab"
+msgstr "No active browser tab"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
+msgid "No active session"
+msgstr "No active session"
+
+#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+msgid "No additional Claude profiles."
+msgstr "No additional Claude profiles."
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/useGitReviewActions.ts
+msgid "No agent available to generate PR summary"
+msgstr "No agent available to generate PR summary"
+
+#: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
+msgid "No agents in this phase."
+msgstr "No agents in this phase."
+
+#: src/renderer/components/thread/AgentDiscoveryScreen.tsx
+msgid "No agents installed yet"
+msgstr "No agents installed yet"
+
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+msgid "No agents installed."
+msgstr "No agents installed."
+
+#: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
+msgid "No archived threads."
+msgstr "No archived threads."
+
+#: src/renderer/components/common/BranchSelector/parts/BranchListBox.tsx
+msgid "No branches found"
+msgstr "No branches found"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserEmptyState.tsx
+msgid "No browser tab open"
+msgstr "No browser tab open"
+
+#: src/renderer/components/diff/DiffCardList.tsx
+#: src/renderer/views/PrReviewOverlay/parts/PrReviewSidebar.tsx
+msgid "No changes"
+msgstr "No changes"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitDiffContent/GitDiffContent.tsx
+#: src/renderer/views/GitReviewOverlay/parts/GitDiffContent/parts/SingleFileDiff.tsx
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ConflictFileCard.tsx
+#: src/renderer/views/GitReviewOverlay/parts/GitStackedDiff.tsx
+msgid "No changes to display"
+msgstr "No changes to display"
+
+#: src/renderer/views/PrReviewOverlay/parts/PrChecksTab.tsx
+msgid "No checks reported for this PR."
+msgstr "No checks reported for this PR."
+
+#: src/renderer/commands/CommandPalette.tsx
+msgid "No commands found"
+msgstr "No commands found"
+
+#: src/renderer/views/PrReviewOverlay/parts/PrCommitsTab.tsx
+msgid "No commits found."
+msgstr "No commits found."
+
+#: src/renderer/components/thread/ChatPane/ChatRuntimeDebugPanel.tsx
+msgid "No content streams."
+msgstr "No content streams."
+
+#: src/renderer/views/PrReviewOverlay/parts/PrConversationTab.tsx
+msgid "No conversation yet. Be the first to comment."
+msgstr "No conversation yet. Be the first to comment."
+
+#: src/renderer/components/providers/ProviderUsageRail.tsx
+#: src/renderer/components/providers/usageFormat.ts
+msgid "No data yet"
+msgstr "No data yet"
+
+#: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
+msgid "No description"
+msgstr "No description"
+
+#. placeholder {0}: entry.filePath
+#: src/renderer/views/GitReviewOverlay/parts/GitDiffContent/parts/DiffSection.tsx
+msgid "No diff available for {0}"
+msgstr "No diff available for {0}"
+
+#: src/renderer/components/diff/DiffCardList.tsx
+msgid "No diff for {visiblePath}"
+msgstr "No diff for {visiblePath}"
+
+#: src/renderer/components/thread/ChatPane/parts/CheckpointRevertControls.tsx
+msgid "No file checkpoint is stored for this message."
+msgstr "No file checkpoint is stored for this message."
+
+#. placeholder {0}: tree.searchQuery
+#: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
+msgid "No files match \"{0}\"."
+msgstr "No files match \"{0}\"."
+
+#: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
+msgid "No GitHub CLI accounts found. Sign in with <0>gh auth login</0>, or "
+"<1>paste a clone URL</1>."
+msgstr "No GitHub CLI accounts found. Sign in with <0>gh auth login</0>, or "
+"<1>paste a clone URL</1>."
+
+#: src/renderer/components/thread/ChatPane/ChatRuntimeDebugPanel.tsx
+msgid "No matches for “{query}”."
+msgstr "No matches for “{query}”."
+
+#: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
+msgid "No matches."
+msgstr "No matches."
+
+#: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
+msgid "No matching agents."
+msgstr "No matching agents."
+
+#: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
+msgid "No matching threads"
+msgstr "No matching threads"
+
+#: src/renderer/components/thread/ChatPane/ChatPane.tsx
+msgid "No messages yet"
+msgstr "No messages yet"
+
+#: src/renderer/components/composer/voiceError.ts
+msgid "No microphone found."
+msgstr "No microphone found."
+
+#: src/renderer/components/common/ProviderModelMenu/ProviderModelMenu.tsx
+#: src/renderer/views/SettingsOverlay/parts/ModelVisibilitySection.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+msgid "No models found"
+msgstr "No models found"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
+msgid "No other agents installed"
+msgstr "No other agents installed"
+
+#: src/renderer/views/SettingsOverlay/parts/SearchExcludeBody.tsx
+msgid "No patterns."
+msgstr "No patterns."
+
+#: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
+msgid "No phases yet."
+msgstr "No phases yet."
+
+#: src/renderer/components/providers/codex/index.tsx
+msgid "No prompts"
+msgstr "No prompts"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/UsagePanel.tsx
+msgid "No providers are being tracked."
+msgstr "No providers are being tracked."
+
+#: src/renderer/components/thread/AgentDiscoveryScreen.tsx
+msgid "No providers ready yet"
+msgstr "No providers ready yet"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
+msgid "No remote configured. Add a remote to enable push and pull."
+msgstr "No remote configured. Add a remote to enable push and pull."
+
+#: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
+msgid "No repositories found."
+msgstr "No repositories found."
+
+#: src/renderer/components/thread/ChatPane/ChatRuntimeDebugPanel.tsx
+msgid "No runtime items yet for this thread."
+msgstr "No runtime items yet for this thread."
+
+#: src/renderer/components/composer/VoiceInputButton.tsx
+msgid "No speech detected."
+msgstr "No speech detected."
+
+#: src/renderer/views/GitReviewOverlay/parts/GitDiffContent/GitDiffContent.tsx
+msgid "No staged changes"
+msgstr "No staged changes"
+
+#: src/renderer/components/thread/ThreadDraftView.tsx
+msgid "No supported agents detected"
+msgstr "No supported agents detected"
+
+#: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
+msgid "No threads"
+msgstr "No threads"
+
+#: src/renderer/components/providers/usageFormat.ts
+msgid "No windows reported"
+msgstr "No windows reported"
+
+#: src/renderer/components/thread/WorktreeModeSelect.tsx
+msgid "No worktree"
+msgstr "No worktree"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewPanel.tsx
+msgid "No wrap"
+msgstr "No wrap"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitDiffContent/GitDiffContent.tsx
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
+msgid "Not a git repository"
+msgstr "Not a git repository"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/GitBadge.tsx
+msgid "Not a Git repository"
+msgstr "Not a Git repository"
+
+#: src/renderer/components/thread/AgentDiscoveryScreen.tsx
+msgid "Not found"
+msgstr "Not found"
+
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+msgid "Not installed"
+msgstr "Not installed"
+
+#: src/renderer/components/providers/ProviderUsageRail.tsx
+msgid "Not running"
+msgstr "Not running"
+
+#: src/renderer/components/providers/ProviderUsageRail.tsx
+#: src/renderer/components/providers/usageFormat.ts
+msgid "Not signed in"
+msgstr "Not signed in"
+
+#: src/renderer/components/providers/ProviderUsageRail.tsx
+msgid "Not supported"
+msgstr "Not supported"
+
+#: src/renderer/components/layout/UnifiedRightPanel.tsx
+#: src/renderer/views/MainView/parts/ProjectAuxiliaryPanel.tsx
+msgid "Notes"
+msgstr "Notes"
+
+#: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
+msgid "Notifications"
+msgstr "Notifications"
+
+#: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
+msgid "Notify for L2 CLI threads"
+msgstr "Notify for L2 CLI threads"
+
+#: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
+msgid "Notify me about"
+msgstr "Notify me about"
+
+#: src/renderer/views/ProjectSettingsOverlay/parts/SearchSection.tsx
+msgid "off"
+msgstr "off"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/sidebarProjectRows.ts
+msgid "Older"
+msgstr "Older"
+
+#: src/renderer/views/ProjectSettingsOverlay/parts/SearchSection.tsx
+msgid "on"
+msgstr "on"
+
+#: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
+msgid "Only when unfocused"
+msgstr "Only when unfocused"
+
+#: src/renderer/notifications.ts
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
+#: src/renderer/views/PrReviewOverlay/parts/PrMetaRow.tsx
+msgid "Open"
+msgstr "Open"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/DevTerminalPanel.tsx
+msgid "Open a terminal"
+msgstr "Open a terminal"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/hooks/useElementPicker.ts
+msgid "Open a thread first to attach to it."
+msgstr "Open a thread first to attach to it."
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadGroup.tsx
+msgid "Open All"
+msgstr "Open All"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadGroup.tsx
+msgid "Open all in group"
+msgstr "Open all in group"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewPanel.tsx
+msgid "Open as page"
+msgstr "Open as page"
+
+#. Context menu action: open the new thread in a side-by-side panel
+#: src/renderer/views/MainView/parts/Sidebar/parts/NewThreadButton.tsx
+msgid "Open as Panel"
+msgstr "Open as Panel"
+
+#: src/renderer/views/MainView/parts/SidebarHeaderControls.tsx
+msgid "Open browser"
+msgstr "Open browser"
+
+#: src/renderer/views/PrReviewOverlay/parts/PrChecksTab.tsx
+msgid "Open check"
+msgstr "Open check"
+
+#: src/renderer/commands/registry.ts
+msgid "Open Command Palette"
+msgstr "Open Command Palette"
+
+#: src/renderer/views/PrReviewOverlay/parts/PrCommitsTab.tsx
+msgid "Open commit on GitHub"
+msgstr "Open commit on GitHub"
+
+#: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
+msgid "Open conflict resolver in"
+msgstr "Open conflict resolver in"
+
+#: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
+msgid "Open dialog"
+msgstr "Open dialog"
+
+#: src/renderer/commands/registry.ts
+msgid "Open File"
+msgstr "Open File"
+
+#: src/renderer/commands/registry.ts
+msgid "Open Files"
+msgstr "Open Files"
+
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorToolbar.tsx
+msgid "Open fullscreen"
+msgstr "Open fullscreen"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/GitBadge.tsx
+msgid "Open Git panel"
+msgstr "Open Git panel"
+
+#: src/renderer/commands/registry.ts
+msgid "Open Git Review"
+msgstr "Open Git Review"
+
+#: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
+msgid "Open git review as a right-side panel or a full page."
+msgstr "Open git review as a right-side panel or a full page."
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ConflictFileCard.tsx
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ConflictGroup.tsx
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/FileRow.tsx
+#: src/renderer/views/GitReviewOverlay/parts/GitStackedDiff.tsx
+msgid "Open in editor"
+msgstr "Open in editor"
+
+#: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
+msgid "Open links in"
+msgstr "Open links in"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserEmptyState.tsx
+msgid "Open new tab"
+msgstr "Open new tab"
+
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+msgid "Open new threads as a full page or a side-by-side panel."
+msgstr "Open new threads as a full page or a side-by-side panel."
+
+#. placeholder {0}: vis.prNumber
+#: src/renderer/views/MainView/parts/Sidebar/parts/useWorktreeActions.ts
+msgid "Open PR #{0}"
+msgstr "Open PR #{0}"
+
+#: src/renderer/views/PrReviewOverlay/PrReviewOverlay.tsx
+msgid "Open PR on GitHub"
+msgstr "Open PR on GitHub"
+
+#: src/renderer/commands/registry.ts
+msgid "Open Project Settings"
+msgstr "Open Project Settings"
+
+#: src/renderer/components/thread/ChatPane/ChatRuntimeDebugPanel.tsx
+msgid "Open requests"
+msgstr "Open requests"
+
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
+msgid "Open required URL"
+msgstr "Open required URL"
+
+#: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
+msgid "Open settings"
+msgstr "Open settings"
+
+#: src/renderer/commands/registry.ts
+#: src/renderer/components/composer/voiceError.ts
+msgid "Open Settings"
+msgstr "Open Settings"
+
+#. placeholder {0}: display.title
+#: src/renderer/components/thread/ChatPane/parts/items/SubAgentToolCall.tsx
+msgid "Open subagent: {0}"
+msgstr "Open subagent: {0}"
+
+#: src/renderer/components/providers/codex/index.tsx
+msgid "Open the effort picker"
+msgstr "Open the effort picker"
+
+#: src/renderer/components/providers/codex/index.tsx
+msgid "Open the model picker"
+msgstr "Open the model picker"
+
+#. placeholder {0}: request.receivedAt
+#. placeholder {1}: index + 1
+#: src/renderer/components/thread/ChatPane/ChatRuntimeDebugPanel.tsx
+msgid "Opened {0} (#{1})"
+msgstr "Opened {0} (#{1})"
+
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+msgid "Optional status hooks. Installed hooks update automatically; missing "
+"hooks are never installed automatically."
+msgstr "Optional status hooks. Installed hooks update automatically; missing "
+"hooks are never installed automatically."
+
+#: src/renderer/components/common/BranchSelector/parts/BranchFooterActions.tsx
+#: src/renderer/components/common/EffortContextMenu/EffortContextMenu.tsx
+#: src/renderer/components/common/OptionMenu.tsx
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/QuestionRows.tsx
+msgid "Options"
+msgstr "Options"
+
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/userInputForm.tsx
+msgid "Or write a custom answer"
+msgstr "Or write a custom answer"
+
+#: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
+msgid "Outcome"
+msgstr "Outcome"
+
+#: src/renderer/components/providers/usageFormat.ts
+msgid "Over pace — runs out early"
+msgstr "Over pace — runs out early"
+
+#: src/renderer/views/ProjectSettingsOverlay/parts/SearchSection.tsx
+msgid "Overriding the global setting for this project."
+msgstr "Overriding the global setting for this project."
+
+#: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
+msgid "Package config"
+msgstr "Package config"
+
+#: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
+msgid "Package manager"
+msgstr "Package manager"
+
+#: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
+msgid "Page"
+msgstr "Page"
+
+#: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
+msgid "Panel"
+msgstr "Panel"
+
+#: src/renderer/components/terminal/XTermSurface.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
+msgid "Paste"
+msgstr "Paste"
+
+#. placeholder {0}: activeDeviceCode.code
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
+msgid "Paste <0>{0}</0> here. Click to copy."
+msgstr "Paste <0>{0}</0> here. Click to copy."
+
+#: src/renderer/components/terminal/XTermSurface.tsx
+msgid "Paste in input"
+msgstr "Paste in input"
+
+#: src/renderer/components/thread/ThreadGoalDock.tsx
+msgid "Paused"
+msgstr "Paused"
+
+#: src/renderer/components/thread/ChatPane/parts/items/PlanItem.tsx
+#: src/renderer/components/thread/ThreadTodoDock.tsx
+msgid "pending"
+msgstr "pending"
+
+#: src/renderer/views/PrReviewOverlay/parts/PrConversationTab.tsx
+msgid "pending review"
+msgstr "pending review"
+
+#: src/renderer/components/thread/ThreadPendingSteerStrip.tsx
+msgid "Pending steer"
+msgstr "Pending steer"
+
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PermissionDetailsLine.tsx
+msgid "permission"
+msgstr "permission"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
+msgid "Pick element"
+msgstr "Pick element"
+
+#: src/renderer/views/ProjectSettingsOverlay/parts/ActionIconPicker.tsx
+msgid "Pick icon"
+msgstr "Pick icon"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/hooks/useElementPicker.ts
+msgid "Picker failed"
+msgstr "Picker failed"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/hooks/useElementPicker.ts
+msgid "Picker returned no attachment"
+msgstr "Picker returned no attachment"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
+msgid "Pin to top"
+msgstr "Pin to top"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/parts/ThreadItemSuffix.tsx
+msgid "Pinned"
+msgstr "Pinned"
+
+#: src/renderer/components/providers/composerControlBuilders.tsx
+#: src/renderer/components/thread/ThreadTodoDock.tsx
+msgid "Plan"
+msgstr "Plan"
+
+#: src/renderer/components/providers/codex/index.tsx
+msgid "plan - Switch this chat to plan mode"
+msgstr "plan - Switch this chat to plan mode"
+
+#: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
+msgid "Play a sound when a notification is shown."
+msgstr "Play a sound when a notification is shown."
+
+#: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
+msgid "Play notification sound"
+msgstr "Play notification sound"
+
+#: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
+msgid "Popular editor themes adapted to Lightcode. Each follows the light or "
+"dark mode above."
+msgstr "Popular editor themes adapted to Lightcode. Each follows the light or "
+"dark mode above."
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
+msgid "PR actions"
+msgstr "PR actions"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CreatePrModal.tsx
+msgid "PR options"
+msgstr "PR options"
+
+#: src/renderer/views/PrReviewOverlay/PrReviewOverlay.tsx
+msgid "PR Review"
+msgstr "PR Review"
+
+#: src/renderer/views/PrReviewOverlay/parts/PrTabsPill.tsx
+msgid "PR sections"
+msgstr "PR sections"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CreatePrModal.tsx
+msgid "PR title (leave empty to auto-generate)"
+msgstr "PR title (leave empty to auto-generate)"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Pre-commit hook failed"
+msgstr "Pre-commit hook failed"
+
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+msgid "Prevent sleep while working"
+msgstr "Prevent sleep while working"
+
+#. placeholder {0}: att.name
+#: src/renderer/components/composer/AttachmentBar.tsx
+msgid "Preview {0}"
+msgstr "Preview {0}"
+
+#: src/renderer/components/composer/ImageLightbox.tsx
+msgid "Previous image"
+msgstr "Previous image"
+
+#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+msgid "Profiles"
+msgstr "Profiles"
+
+#: src/renderer/commands/registry.ts
+#: src/renderer/views/ProjectSettingsOverlay/ProjectSettingsOverlay.tsx
+msgid "Project"
+msgstr "Project"
+
+#: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
+#: src/renderer/views/ProjectSettingsOverlay/parts/GeneralSection.tsx
+msgid "Project name"
+msgstr "Project name"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesEditor.tsx
+msgid "Project notes"
+msgstr "Project notes"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
+msgid "Project Settings"
+msgstr "Project Settings"
+
+#: src/renderer/views/ProjectSettingsOverlay/parts/SearchSection.tsx
+msgid "Project-specific overrides on top of the global search settings."
+msgstr "Project-specific overrides on top of the global search settings."
+
+#: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
+msgid "Prompt"
+msgstr "Prompt"
+
+#: src/renderer/components/thread/ChatPane/parts/items/PlanProposal.tsx
+msgid "Proposed plan"
+msgstr "Proposed plan"
+
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+msgid "provider"
+msgstr "provider"
+
+#: src/renderer/components/thread/AgentDiscoveryScreen.tsx
+msgid "Provider"
+msgstr "Provider"
+
+#: src/renderer/components/thread/ThreadContextDock.tsx
+#: src/renderer/components/thread/threadContextUsage.ts
+msgid "Provider has not reported token usage."
+msgstr "Provider has not reported token usage."
+
+#. plural
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+msgid "providers"
+msgstr "providers"
+
+#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+msgid "Providers"
+msgstr "Providers"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/useWorktreeActions.ts
+msgid "Pull"
+msgstr "Pull"
+
+#. placeholder {0}: vis.behind
+#: src/renderer/views/MainView/parts/Sidebar/parts/useWorktreeActions.ts
+msgid "Pull ({0})"
+msgstr "Pull ({0})"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CommitSyncPanel.tsx
+msgid "Pull ({behind})"
+msgstr "Pull ({behind})"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/SyncBadge.tsx
+msgid "Pull ↓{behind}"
+msgstr "Pull ↓{behind}"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Pull did not complete. Your local changes remain in a Lightcode stash."
+msgstr "Pull did not complete. Your local changes remain in a Lightcode stash."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Pull failed: {detail}"
+msgstr "Pull failed: {detail}"
+
+#. placeholder {0}: activeDialog.sourceBranch
+#: src/renderer/views/MainView/parts/PullFromSourceDialog.tsx
+msgid "Pull from {0}?"
+msgstr "Pull from {0}?"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CommitSyncPanel.tsx
+msgid "Pull from {sourceBranch} ({sourceAhead})"
+msgstr "Pull from {sourceBranch} ({sourceAhead})"
+
+#. placeholder {0}: vis.sourceAhead
+#: src/renderer/views/MainView/parts/Sidebar/parts/useWorktreeActions.ts
+msgid "Pull from Source ({0})"
+msgstr "Pull from Source ({0})"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CommitSyncPanel.tsx
+msgid "Pull Rebase ({behind})"
+msgstr "Pull Rebase ({behind})"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
+msgid "Pull request options"
+msgstr "Pull request options"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CommitSyncPanel.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/useWorktreeActions.ts
+msgid "Push"
+msgstr "Push"
+
+#. placeholder {0}: vis.ahead
+#: src/renderer/views/MainView/parts/Sidebar/parts/useWorktreeActions.ts
+msgid "Push ({0})"
+msgstr "Push ({0})"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CommitSyncPanel.tsx
+msgid "Push ({ahead})"
+msgstr "Push ({ahead})"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/SyncBadge.tsx
+msgid "Push ↑{ahead}"
+msgstr "Push ↑{ahead}"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Push failed: {detail}"
+msgstr "Push failed: {detail}"
+
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/QuestionSwitcher.tsx
+msgid "Questions"
+msgstr "Questions"
+
+#: src/renderer/components/providers/ProviderUsageRail.tsx
+#: src/renderer/components/providers/usageFormat.ts
+msgid "Quota reached"
+msgstr "Quota reached"
+
+#: src/renderer/components/providers/usageFormat.ts
+msgid "Ran out"
+msgstr "Ran out"
+
+#: src/renderer/components/providers/usageFormat.ts
+msgid "Ran out · resets in {resets}"
+msgstr "Ran out · resets in {resets}"
+
+#: src/renderer/components/providers/ProviderUsageRail.tsx
+msgid "Rate limited"
+msgstr "Rate limited"
+
+#: src/renderer/components/providers/usageFormat.ts
+msgid "Rate limited. Try again shortly."
+msgstr "Rate limited. Try again shortly."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Re-applying local changes has conflicts"
+msgstr "Re-applying local changes has conflicts"
+
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+msgid "Re-login"
+msgstr "Re-login"
+
+#: src/renderer/components/thread/AgentDiscoveryScreen.tsx
+msgid "Ready"
+msgstr "Ready"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
+msgid "Ready for Review"
+msgstr "Ready for Review"
+
+#: src/renderer/components/common/EffortContextMenu/EffortContextMenu.tsx
+msgid "Reasoning"
+msgstr "Reasoning"
+
+#: src/renderer/components/common/ProviderModelMenu/parts/buildItems.ts
+msgid "Recent"
+msgstr "Recent"
+
+#: src/renderer/views/HomeView.tsx
+msgid "Recent threads"
+msgstr "Recent threads"
+
+#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+msgid "Reconstructed from local logs at public API rates — it does not reflect "
+"your real bill on subscription plans. Shown only in the usage panel."
+msgstr "Reconstructed from local logs at public API rates — it does not reflect "
+"your real bill on subscription plans. Shown only in the usage panel."
+
+#. Button: re-fetch provider usage now
+#: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
+#: src/renderer/views/GitReviewOverlay/GitReviewOverlay.tsx
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewPanel.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsagePanelHeaderActions.tsx
+#: src/renderer/views/PrReviewOverlay/PrReviewOverlay.tsx
+#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+msgid "Refresh"
+msgstr "Refresh"
+
+#. placeholder {0}: agentStatus.label
+#: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
+msgid "Refresh {0} authentication"
+msgstr "Refresh {0} authentication"
+
+#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
+msgid "Refresh detected agents"
+msgstr "Refresh detected agents"
+
+#: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
+msgid "Refresh registry"
+msgstr "Refresh registry"
+
+#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+msgid "Refresh usage in the background every N minutes. Set to 0 to turn off "
+"(manual only). The 2-minute floor respects provider rate limits."
+msgstr "Refresh usage in the background every N minutes. Set to 0 to turn off "
+"(manual only). The 2-minute floor respects provider rate limits."
+
+#. placeholder {0}: status.label
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+msgid "Refreshing {0} authentication status."
+msgstr "Refreshing {0} authentication status."
+
+#. placeholder {0}: status.label
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+msgid "Refreshing {env} {0} authentication status."
+msgstr "Refreshing {env} {0} authentication status."
+
+#: src/renderer/RendererCrashScreen.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
+msgid "Reload"
+msgstr "Reload"
+
+#: src/renderer/components/common/BranchSelector/parts/useBranchList.ts
+msgid "Remote"
+msgstr "Remote"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
+msgid "Remote name"
+msgstr "Remote name"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
+msgid "Remote URL"
+msgstr "Remote URL"
+
+#: src/renderer/components/common/BranchSelector/BranchSelector.tsx
+msgid "Remove"
+msgstr "Remove"
+
+#. placeholder {0}: att.name
+#: src/renderer/components/composer/AttachmentBar.tsx
+msgid "Remove {0}"
+msgstr "Remove {0}"
+
+#. placeholder {0}: display.title
+#: src/renderer/components/thread/ChatPane/parts/items/ActiveSubAgentTile.tsx
+msgid "Remove {0} from panel"
+msgstr "Remove {0} from panel"
+
+#: src/renderer/views/SettingsOverlay/parts/SearchExcludeBody.tsx
+msgid "Remove {pattern}"
+msgstr "Remove {pattern}"
+
+#: src/renderer/views/ProjectSettingsOverlay/parts/ActionsSection.tsx
+msgid "Remove action"
+msgstr "Remove action"
+
+#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+msgid "Remove Claude profile"
+msgstr "Remove Claude profile"
+
+#: src/renderer/components/common/ProviderModelMenu/ProviderModelMenu.tsx
+msgid "Remove from favorites"
+msgstr "Remove from favorites"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
+msgid "Remove from group"
+msgstr "Remove from group"
+
+#: src/renderer/components/thread/ChatPane/parts/items/ActiveSubAgentTile.tsx
+msgid "Remove from panel"
+msgstr "Remove from panel"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
+msgid "Remove Project"
+msgstr "Remove Project"
+
+#: src/renderer/components/common/BranchSelector/BranchSelector.tsx
+msgid "Remove worktree?"
+msgstr "Remove worktree?"
+
+#: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/parts/TreeEntryRow.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
+msgid "Rename"
+msgstr "Rename"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadGroup.tsx
+msgid "Rename Group"
+msgstr "Rename Group"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/InlineRenameInput.tsx
+msgid "Rename thread"
+msgstr "Rename thread"
+
+#: src/renderer/RendererCrashScreen.tsx
+msgid "Renderer crashed"
+msgstr "Renderer crashed"
+
+#: src/renderer/RendererCrashScreen.tsx
+msgid "Renderer failed during startup"
+msgstr "Renderer failed during startup"
+
+#: src/renderer/RendererCrashScreen.tsx
+msgid "Renderer hit a React error"
+msgstr "Renderer hit a React error"
+
+#: src/renderer/RendererCrashScreen.tsx
+msgid "Renderer hit an uncaught error"
+msgstr "Renderer hit an uncaught error"
+
+#: src/renderer/RendererCrashScreen.tsx
+msgid "Renderer hit an unhandled promise rejection"
+msgstr "Renderer hit an unhandled promise rejection"
+
+#. placeholder {0}: agent.label
+#: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
+msgid "Reorder {0}"
+msgstr "Reorder {0}"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
+msgid "Reorder {label}"
+msgstr "Reorder {label}"
+
+#: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
+msgid "Report an Issue"
+msgstr "Report an Issue"
+
+#: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
+msgid "repository"
+msgstr "repository"
+
+#: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
+msgid "Repository"
+msgstr "Repository"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
+msgid "Repository pre-receive hook is blocking the merge."
+msgstr "Repository pre-receive hook is blocking the merge."
+
+#: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
+msgid "Repository URL"
+msgstr "Repository URL"
+
+#: src/renderer/views/PrReviewOverlay/parts/SubmitReviewPopover.tsx
+msgid "Request changes"
+msgstr "Request changes"
+
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/ThreadRuntimeRequestPanel.tsx
+msgid "Request details"
+msgstr "Request details"
+
+#: src/renderer/views/PrReviewOverlay/parts/PrConversationTab.tsx
+msgid "requested changes"
+msgstr "requested changes"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
+msgid "Required reviews, conversations, or status checks not met."
+msgstr "Required reviews, conversations, or status checks not met."
+
+#: src/renderer/views/ProjectSettingsOverlay/parts/SearchSection.tsx
+msgid "reset"
+msgstr "reset"
+
+#: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
+msgid "Reset model order"
+msgstr "Reset model order"
+
+#: src/renderer/components/layout/BrowserDrawerShell.tsx
+msgid "Resize browser drawer"
+msgstr "Resize browser drawer"
+
+#: src/renderer/components/layout/SplitPaneContainer.tsx
+msgid "Resize column"
+msgstr "Resize column"
+
+#: src/renderer/views/MainView/parts/AppShell/AppShell.tsx
+msgid "Resize git panel"
+msgstr "Resize git panel"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesPanel.tsx
+msgid "Resize notes and to-dos"
+msgstr "Resize notes and to-dos"
+
+#: src/renderer/components/layout/SplitPaneContainer.tsx
+msgid "Resize row"
+msgstr "Resize row"
+
+#: src/renderer/views/MainView/parts/AppShell/AppShell.tsx
+msgid "Resize sidebar"
+msgstr "Resize sidebar"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/parts/TerminalSurfaces.tsx
+msgid "Resize split"
+msgstr "Resize split"
+
+#: src/renderer/views/MainView/parts/AppShell/AppShell.tsx
+msgid "Resize terminal panel"
+msgstr "Resize terminal panel"
+
+#: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
+msgid "Resolves merge conflicts during rebase or merge."
+msgstr "Resolves merge conflicts during rebase or merge."
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
+msgid "Restore"
+msgstr "Restore"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
+msgid "Restore browser"
+msgstr "Restore browser"
+
+#: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
+msgid "Restore thread"
+msgstr "Restore thread"
+
+#: src/renderer/hooks/usePrWriteActions.ts
+msgid "Retry with admin"
+msgstr "Retry with admin"
+
+#: src/renderer/views/FileEditorOverlay/FileEditorOverlay.tsx
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
+#: src/renderer/views/ProjectSettingsOverlay/parts/SettingsSidebar.tsx
+#: src/renderer/views/PrReviewOverlay/parts/PrReviewSidebar.tsx
+#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
+msgid "Return to app"
+msgstr "Return to app"
+
+#: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/parts/TreeEntryRow.tsx
+#: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
+msgid "Reveal in File Explorer"
+msgstr "Reveal in File Explorer"
+
+#: src/renderer/components/thread/ChatPane/parts/items/InlineFolderPathChip.tsx
+msgid "Reveal in file tree"
+msgstr "Reveal in file tree"
+
+#: src/renderer/components/thread/ChatPane/parts/CheckpointRevertControls.tsx
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/FileRow.tsx
+#: src/renderer/views/GitReviewOverlay/parts/GitStackedDiff.tsx
+msgid "Revert"
+msgstr "Revert"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/FileGroup.tsx
+msgid "Revert all"
+msgstr "Revert all"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/FileGroup.tsx
+msgid "Revert all changes"
+msgstr "Revert all changes"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/FileRow.tsx
+#: src/renderer/views/GitReviewOverlay/parts/GitStackedDiff.tsx
+msgid "Revert changes"
+msgstr "Revert changes"
+
+#: src/renderer/components/thread/ChatPane/parts/CheckpointRevertControls.tsx
+msgid "Revert to checkpoint?"
+msgstr "Revert to checkpoint?"
+
+#: src/renderer/components/thread/ChatPane/parts/CheckpointRevertControls.tsx
+msgid "Revert to this checkpoint"
+msgstr "Revert to this checkpoint"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/useWorktreeActions.ts
+msgid "Review Changes"
+msgstr "Review Changes"
+
+#: src/renderer/views/PrReviewOverlay/parts/SubmitReviewPopover.tsx
+msgid "Review comment"
+msgstr "Review comment"
+
+#: src/renderer/views/PrReviewOverlay/parts/SubmitReviewPopover.tsx
+msgid "Review decision"
+msgstr "Review decision"
+
+#: src/renderer/components/providers/codex/index.tsx
+msgid "Review on request"
+msgstr "Review on request"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
+msgid "Review PR"
+msgstr "Review PR"
+
+#. placeholder {0}: branch.name
+#: src/renderer/components/common/BranchSelector/parts/BranchListBox.tsx
+msgid "Review PR #{prNumber} for {0}"
+msgstr "Review PR #{prNumber} for {0}"
+
+#: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
+msgid "Right"
+msgstr "Right"
+
+#: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
+msgid "Right panel"
+msgstr "Right panel"
+
+#: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
+#: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarWorktreeGroup.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
+msgid "Run"
+msgstr "Run"
+
+#. placeholder {0}: workflow.runId
+#: src/renderer/components/thread/ChatPane/parts/items/SubAgentOverlay.tsx
+msgid "Run {0}"
+msgstr "Run {0}"
+
+#. placeholder {0}: agentStatus.loginCommand
+#: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
+msgid "Run {0} before this thread can run."
+msgstr "Run {0} before this thread can run."
+
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+msgid "Run {loginCommand} to sign in."
+msgstr "Run {loginCommand} to sign in."
+
+#: src/renderer/components/thread/ChatPane/parts/items/ToolCallGroup.tsx
+msgid "Run command"
+msgstr "Run command"
+
+#: src/renderer/components/thread/WorktreeModeSelect.tsx
+msgid "Run in a separate worktree"
+msgstr "Run in a separate worktree"
+
+#: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+msgid "Run local transcription on the GPU when available."
+msgstr "Run local transcription on the GPU when available."
+
+#: src/renderer/commands/registry.ts
+msgid "Run Terminal Command"
+msgstr "Run Terminal Command"
+
+#: src/renderer/components/thread/ChatPane/parts/items/SubAgentToolCall.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
+msgid "running"
+msgstr "running"
+
+#: src/renderer/views/ProjectSettingsOverlay/parts/ScriptsSection.tsx
+msgid "Runs before a worktree is removed (e.g., <0>rm -rf node_modules</0>)."
+msgstr "Runs before a worktree is removed (e.g., <0>rm -rf node_modules</0>)."
+
+#: src/renderer/views/ProjectSettingsOverlay/parts/ScriptsSection.tsx
+msgid "Runs in a terminal after a new worktree is created (e.g., <0>pnpm "
+"install</0>)."
+msgstr "Runs in a terminal after a new worktree is created (e.g., <0>pnpm "
+"install</0>)."
+
+#: src/renderer/components/providers/usageFormat.ts
+msgid "Runs out early"
+msgstr "Runs out early"
+
+#: src/renderer/components/providers/usageFormat.ts
+msgid "Runs out in {runOut}"
+msgstr "Runs out in {runOut}"
+
+#: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
+#: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
+msgid "Runtime"
+msgstr "Runtime"
+
+#: src/renderer/components/thread/ThreadContent.tsx
+msgid "Runtime debug"
+msgstr "Runtime debug"
+
+#: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
+#: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
+msgid "Runtime options"
+msgstr "Runtime options"
+
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorToolbar.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+msgid "Save"
+msgstr "Save"
+
+#. placeholder {0}: envVarAuthMethod.name
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+msgid "Save {0} credentials."
+msgstr "Save {0} credentials."
+
+#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+msgid "Save Claude profile"
+msgstr "Save Claude profile"
+
+#: src/renderer/commands/registry.ts
+msgid "Save File"
+msgstr "Save File"
+
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+msgid "Saved credentials are shared across all environments."
+msgstr "Saved credentials are shared across all environments."
+
+#: src/renderer/components/thread/AgentDiscoveryScreen.tsx
+msgid "Scanning {wslDistro} for installed CLIs. This usually takes a couple of "
+"seconds."
+msgstr "Scanning {wslDistro} for installed CLIs. This usually takes a couple of "
+"seconds."
+
+#: src/renderer/components/thread/AgentDiscoveryScreen.tsx
+msgid "Scanning Windows and WSL for installed CLIs. This usually takes a couple "
+"of seconds."
+msgstr "Scanning Windows and WSL for installed CLIs. This usually takes a "
+"couple of seconds."
+
+#: src/renderer/components/thread/AgentDiscoveryScreen.tsx
+msgid "Scanning your system for installed CLIs. This usually takes a couple of "
+"seconds."
+msgstr "Scanning your system for installed CLIs. This usually takes a couple of "
+"seconds."
+
+#: src/renderer/commands/registry.ts
+msgid "Scripts"
+msgstr "Scripts"
+
+#: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
+msgid "Scroll speed multiplier for the terminal scrollback buffer."
+msgstr "Scroll speed multiplier for the terminal scrollback buffer."
+
+#: src/renderer/components/terminal/XTermSurface.tsx
+#: src/renderer/components/thread/ChatPane/ChatPane.tsx
+msgid "Scroll to bottom"
+msgstr "Scroll to bottom"
+
+#: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
+#: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
+#: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
+#: src/renderer/views/MainView/parts/SidebarHeaderControls.tsx
+#: src/renderer/views/ProjectSettingsOverlay/parts/SearchSection.tsx
+#: src/renderer/views/ProjectSettingsOverlay/parts/SettingsSidebar.tsx
+#: src/renderer/views/SettingsOverlay/parts/SearchSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
+msgid "Search"
+msgstr "Search"
+
+#: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
+msgid "Search agents"
+msgstr "Search agents"
+
+#: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
+msgid "Search agents..."
+msgstr "Search agents..."
+
+#: src/renderer/components/common/BranchSelector/BranchSelector.tsx
+msgid "Search branches..."
+msgstr "Search branches..."
+
+#: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
+msgid "Search files"
+msgstr "Search files"
+
+#: src/renderer/views/SettingsOverlay/parts/ModelVisibilitySection.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+msgid "Search models"
+msgstr "Search models"
+
+#: src/renderer/components/common/ProviderModelMenu/ProviderModelMenu.tsx
+#: src/renderer/views/SettingsOverlay/parts/ModelVisibilitySection.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+msgid "Search models..."
+msgstr "Search models..."
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
+msgid "Search or enter address"
+msgstr "Search or enter address"
+
+#: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
+msgid "Search repositories"
+msgstr "Search repositories"
+
+#: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
+msgid "Search repositories…"
+msgstr "Search repositories…"
+
+#: src/renderer/components/thread/ChatPane/ChatRuntimeDebugPanel.tsx
+msgid "Search runtime items…"
+msgstr "Search runtime items…"
+
+#: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
+msgid "Search threads"
+msgstr "Search threads"
+
+#: src/renderer/commands/registry.ts
+msgid "Search Threads"
+msgstr "Search Threads"
+
+#: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
+msgid "Search…"
+msgstr "Search…"
+
+#: src/renderer/components/thread/AgentDiscoveryScreen.tsx
+msgid "Searching..."
+msgstr "Searching..."
+
+#: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
+msgid "Searching…"
+msgstr "Searching…"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectThreadList.tsx
+msgid "See more"
+msgstr "See more"
+
+#: src/renderer/components/common/OptionMenu.tsx
+msgid "Select"
+msgstr "Select"
+
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorModal.tsx
+msgid "Select a file from the tree"
+msgstr "Select a file from the tree"
+
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
+msgid "Select a file to start editing."
+msgstr "Select a file to start editing."
+
+#: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
+msgid "Select a repository."
+msgstr "Select a repository."
+
+#: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
+msgid "Select account"
+msgstr "Select account"
+
+#: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
+msgid "Select an agent to see its prompt and outcome."
+msgstr "Select an agent to see its prompt and outcome."
+
+#: src/renderer/components/common/BranchSelector/BranchSelector.tsx
+msgid "Select branch"
+msgstr "Select branch"
+
+#: src/renderer/components/common/ProviderModelMenu/ProviderModelMenu.tsx
+msgid "Select model"
+msgstr "Select model"
+
+#: src/renderer/components/thread/ProjectSwitchMenu.tsx
+msgid "Select project"
+msgstr "Select project"
+
+#: src/renderer/components/thread/ThreadComposerSection.tsx
+#: src/renderer/components/thread/ThreadDraftComposerArea.tsx
+msgid "Send a message..."
+msgstr "Send a message..."
+
+#: src/renderer/components/thread/ThreadComposerSection.tsx
+msgid "Send message"
+msgstr "Send message"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/hooks/useElementPicker.ts
+msgid "Sent selection to terminal."
+msgstr "Sent selection to terminal."
+
+#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+msgid "Separate Claude Code accounts by config directory."
+msgstr "Separate Claude Code accounts by config directory."
+
+#: src/renderer/components/providers/codex/index.tsx
+msgid "Set or view an experimental goal"
+msgstr "Set or view an experimental goal"
+
+#: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
+#: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
+#: src/renderer/views/SettingsOverlay/SettingsOverlay.tsx
+msgid "Settings"
+msgstr "Settings"
+
+#: src/renderer/views/ProjectSettingsOverlay/parts/ScriptsSection.tsx
+msgid "Setup script"
+msgstr "Setup script"
+
+#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+msgid "Show a compact per-provider usage ring in the sidebar."
+msgstr "Show a compact per-provider usage ring in the sidebar."
+
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+msgid "Show a projectless Home scope for OS-level agent sessions."
+msgstr "Show a projectless Home scope for OS-level agent sessions."
+
+#: src/renderer/components/thread/ChatPane/parts/items/ToolCallGroup.tsx
+#: src/renderer/views/SettingsOverlay/parts/ModelVisibilitySection.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+msgid "Show all"
+msgstr "Show all"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
+msgid "Show Bookmark Bar"
+msgstr "Show Bookmark Bar"
+
+#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+msgid "Show circles in sidebar"
+msgstr "Show circles in sidebar"
+
+#: src/renderer/components/thread/ThreadComposerSection.tsx
+msgid "Show composer"
+msgstr "Show composer"
+
+#: src/renderer/components/thread/ThreadContextIndicator.tsx
+msgid "Show context usage details"
+msgstr "Show context usage details"
+
+#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+msgid "Show estimated cost"
+msgstr "Show estimated cost"
+
+#: src/renderer/components/thread/ChatPane/parts/items/InlineFolderPathChip.tsx
+msgid "Show in file explorer"
+msgstr "Show in file explorer"
+
+#: src/renderer/components/thread/ChatPane/parts/items/ToolCallGroup.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/UserMessage.tsx
+msgid "Show less"
+msgstr "Show less"
+
+#: src/renderer/components/thread/ChatPane/parts/items/UserMessage.tsx
+msgid "Show more"
+msgstr "Show more"
+
+#: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
+msgid "Show notifications"
+msgstr "Show notifications"
+
+#: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
+msgid "Show notifications when thread status changes."
+msgstr "Show notifications when thread status changes."
+
+#: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
+msgid "Show opened links in"
+msgstr "Show opened links in"
+
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorToolbar.tsx
+msgid "Show preview"
+msgstr "Show preview"
+
+#: src/renderer/components/thread/ThreadView.tsx
+msgid "Show runtime debug panel"
+msgstr "Show runtime debug panel"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
+#: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
+#: src/renderer/views/ProjectSettingsOverlay/parts/SettingsSidebar.tsx
+#: src/renderer/views/PrReviewOverlay/parts/PrReviewSidebar.tsx
+#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
+msgid "Show sidebar"
+msgstr "Show sidebar"
+
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorToolbar.tsx
+msgid "Show source"
+msgstr "Show source"
+
+#: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+msgid "Show the microphone button in the composer."
+msgstr "Show the microphone button in the composer."
+
+#: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+msgid "Show voice input button"
+msgstr "Show voice input button"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
+msgid "Sign in"
+msgstr "Sign in"
+
+#: src/renderer/components/thread/AgentDiscoveryScreen.tsx
+msgid "Sign in needed"
+msgstr "Sign in needed"
+
+#: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
+#: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
+msgid "Sign in required"
+msgstr "Sign in required"
+
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+msgid "Sign in with the agent CLI."
+msgstr "Sign in with the agent CLI."
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
+msgid "Sign out {label}"
+msgstr "Sign out {label}"
+
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+msgid "Signed in"
+msgstr "Signed in"
+
+#: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
+msgid "Signing in"
+msgstr "Signing in"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
+msgid "Signing in…"
+msgstr "Signing in…"
+
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+msgid "Signing out {env}. Detected agents will refresh when it finishes."
+msgstr "Signing out {env}. Detected agents will refresh when it finishes."
+
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+msgid "Signing out. Detected agents will refresh when it finishes."
+msgstr "Signing out. Detected agents will refresh when it finishes."
+
+#: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
+msgid "Skill: {skill}"
+msgstr "Skill: {skill}"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
+msgid "Some checks are failing or pending."
+msgstr "Some checks are failing or pending."
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/sortMode.ts
+msgid "Sort by created"
+msgstr "Sort by created"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/sortMode.ts
+msgid "Sort by last updated"
+msgstr "Sort by last updated"
+
+#: src/renderer/views/MainView/parts/SidebarHeaderControls.tsx
+msgid "Sort threads"
+msgstr "Sort threads"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/DevTerminalPanel.tsx
+msgid "Split Terminal"
+msgstr "Split Terminal"
+
+#: src/renderer/views/GitReviewOverlay/GitReviewOverlay.tsx
+#: src/renderer/views/PrReviewOverlay/PrReviewOverlay.tsx
+msgid "Split view"
+msgstr "Split view"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ConflictFileCard.tsx
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ConflictGroup.tsx
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/FileRow.tsx
+#: src/renderer/views/GitReviewOverlay/parts/GitStackedDiff.tsx
+msgid "Stage"
+msgstr "Stage"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/FileGroup.tsx
+msgid "Stage all"
+msgstr "Stage all"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitDiffContent/parts/FileHeader.tsx
+msgid "staged"
+msgstr "staged"
+
+#: src/renderer/views/GitReviewOverlay/GitReviewOverlay.tsx
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
+msgid "Staged"
+msgstr "Staged"
+
+#. placeholder {0}: gitStatus.staged.length
+#: src/renderer/views/GitReviewOverlay/GitReviewOverlay.tsx
+msgid "Staged ({0})"
+msgstr "Staged ({0})"
+
+#. Button: start the microphone level test
+#: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+msgid "Start"
+msgstr "Start"
+
+#. placeholder {0}: providerLabel ?? i18n._(msg`the app`)
+#: src/renderer/components/providers/usageFormat.ts
+msgid "Start {0} to see usage"
+msgstr "Start {0} to see usage"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesEditor.tsx
+msgid "Start a new thread from the selected text"
+msgstr "Start a new thread from the selected text"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/TodoRow.tsx
+msgid "Start a new thread from this to-do"
+msgstr "Start a new thread from this to-do"
+
+#: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
+#: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
+msgid "Start from scratch"
+msgstr "Start from scratch"
+
+#: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
+msgid "Start the composer collapsed in terminal-native threads. A collapsed "
+"composer routes browser element picks straight to the terminal."
+msgstr "Start the composer collapsed in terminal-native threads. A collapsed "
+"composer routes browser element picks straight to the terminal."
+
+#: src/renderer/components/composer/VoiceInputButton.tsx
+msgid "Start voice input"
+msgstr "Start voice input"
+
+#: src/renderer/components/thread/ContinueInProviderDialog.tsx
+#: src/renderer/views/MainView/parts/AppContent/parts/Thread/parts/ContinueInProviderDialog.tsx
+msgid "Start Without Context"
+msgstr "Start Without Context"
+
+#: src/renderer/views/MainView/parts/AppContent/AppContent.tsx
+msgid "Started {targetLabel} thread"
+msgstr "Started {targetLabel} thread"
+
+#. Button label while the microphone test is starting
+#: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+msgid "Starting"
+msgstr "Starting"
+
+#: src/renderer/components/composer/VoiceInputButton.tsx
+msgid "Starting voice input"
+msgstr "Starting voice input"
+
+#: src/renderer/components/thread/ChatPane/parts/items/ActiveSubAgentTile.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/SubAgentToolCall.tsx
+msgid "starting…"
+msgstr "starting…"
+
+#: src/renderer/views/MainView/parts/PullFromSourceDialog.tsx
+msgid "Stash & Pull"
+msgstr "Stash & Pull"
+
+#: src/renderer/components/thread/ThreadHeaderStatus.tsx
+msgid "Status is inferred from terminal output (L2). Install the hook plugin in "
+"settings for structured updates."
+msgstr "Status is inferred from terminal output (L2). Install the hook plugin "
+"in settings for structured updates."
+
+#: src/renderer/components/thread/ThreadHeaderStatus.tsx
+msgid "Status is provided by the agent control protocol (ACP)."
+msgstr "Status is provided by the agent control protocol (ACP)."
+
+#: src/renderer/components/thread/ThreadHeaderStatus.tsx
+msgid "Status updates come from the CLI hook plugin."
+msgstr "Status updates come from the CLI hook plugin."
+
+#: src/renderer/components/thread/ThreadHeaderStatus.tsx
+msgid "Status:"
+msgstr "Status:"
+
+#. Button: stop the microphone level test
+#: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+msgid "Stop"
+msgstr "Stop"
+
+#: src/renderer/components/thread/ThreadComposer.tsx
+msgid "Stop response"
+msgstr "Stop response"
+
+#: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
+msgid "Stop task"
+msgstr "Stop task"
+
+#: src/renderer/components/composer/VoiceInputButton.tsx
+msgid "Stop voice input"
+msgstr "Stop voice input"
+
+#: src/renderer/components/thread/ChatPane/parts/items/SubAgentOverlay.tsx
+msgid "Subagent"
+msgstr "Subagent"
+
+#: src/renderer/components/thread/ChatPane/parts/items/SubAgentOverlay.tsx
+msgid "Subagent not found."
+msgstr "Subagent not found."
+
+#: src/renderer/components/thread/ChatPane/parts/items/SubAgentToolCall.tsx
+msgid "Subagent Result"
+msgstr "Subagent Result"
+
+#: src/renderer/components/thread/ChatPane/parts/items/ActiveSubAgentTile.tsx
+msgid "Subagents"
+msgstr "Subagents"
+
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/QuestionRows.tsx
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
+msgid "Submit"
+msgstr "Submit"
+
+#: src/renderer/views/PrReviewOverlay/parts/SubmitReviewPopover.tsx
+msgid "Submit feedback and approve merging these changes."
+msgstr "Submit feedback and approve merging these changes."
+
+#: src/renderer/views/PrReviewOverlay/parts/SubmitReviewPopover.tsx
+msgid "Submit feedback that must be addressed before merging."
+msgstr "Submit feedback that must be addressed before merging."
+
+#: src/renderer/views/PrReviewOverlay/parts/SubmitReviewPopover.tsx
+msgid "Submit feedback without explicit approval."
+msgstr "Submit feedback without explicit approval."
+
+#: src/renderer/views/PrReviewOverlay/parts/SubmitReviewPopover.tsx
+msgid "Submit review"
+msgstr "Submit review"
+
+#: src/renderer/components/providers/acpGeneric/index.tsx
+#: src/renderer/components/providers/composerControlBuilders.tsx
+msgid "Supervised"
+msgstr "Supervised"
+
+#: src/renderer/components/thread/ThreadHeaderStatus.tsx
+msgid "Support mode appears once the session connects."
+msgstr "Support mode appears once the session connects."
+
+#: src/renderer/components/thread/ThreadHeaderStatus.tsx
+msgid "Support:"
+msgstr "Support:"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesPanel.tsx
+msgid "Swap notes and to-dos"
+msgstr "Swap notes and to-dos"
+
+#: src/renderer/views/GitReviewOverlay/GitReviewOverlay.tsx
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewPanel.tsx
+msgid "Switch branch"
+msgstr "Switch branch"
+
+#: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
+msgid "Switch mode"
+msgstr "Switch mode"
+
+#: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
+msgid "Switch mode: {title}"
+msgstr "Switch mode: {title}"
+
+#: src/renderer/components/thread/ProjectSwitchMenu.tsx
+msgid "Switch project"
+msgstr "Switch project"
+
+#: src/renderer/components/providers/codex/index.tsx
+msgid "Switch this chat to agent mode"
+msgstr "Switch this chat to agent mode"
+
+#: src/renderer/components/providers/codex/index.tsx
+msgid "Switch this chat to plan mode"
+msgstr "Switch this chat to plan mode"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CommitSyncPanel.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/useWorktreeActions.ts
+msgid "Sync"
+msgstr "Sync"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CommitSyncPanel.tsx
+msgid "Sync (Rebase)"
+msgstr "Sync (Rebase)"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/SyncBadge.tsx
+msgid "Sync ↓{behind} ↑{ahead}"
+msgstr "Sync ↓{behind} ↑{ahead}"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Sync failed: {detail}"
+msgstr "Sync failed: {detail}"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CommitSyncPanel.tsx
+msgid "Sync options"
+msgstr "Sync options"
+
+#: src/renderer/components/thread/AgentDiscoveryScreen.tsx
+#: src/renderer/i18n/locales.ts
+#: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
+msgid "System"
+msgstr "System"
+
+#: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
+msgid "System Browser"
+msgstr "System Browser"
+
+#: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+msgid "System default"
+msgstr "System default"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
+msgid "Take Screenshot"
+msgstr "Take Screenshot"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CreatePrModal.tsx
+msgid "Target branch"
+msgstr "Target branch"
+
+#: src/renderer/views/MainView/parts/AppContent/parts/Thread/parts/ContinueInProviderDialog.tsx
+msgid "Target provider"
+msgstr "Target provider"
+
+#: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
+msgid "Task output"
+msgstr "Task output"
+
+#. placeholder {0}: selectedAgent?.label ?? targetProviderFallback
+#: src/renderer/components/thread/ContinueInProviderDialog.tsx
+msgid "Tell {0} what to do next..."
+msgstr "Tell {0} what to do next..."
+
+#: src/renderer/components/thread/ContinueInProviderDialog.tsx
+msgid "Tell the target provider what to do next..."
+msgstr "Tell the target provider what to do next..."
+
+#: src/renderer/commands/registry.ts
+#: src/renderer/components/layout/UnifiedRightPanel.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
+#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
+#: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
+msgid "Terminal"
+msgstr "Terminal"
+
+#. placeholder {0}: project.name
+#. placeholder {0}: props.projectName
+#. placeholder {0}: props.worktreeBranch
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/parts/ThreadItemSuffix.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/WorktreeGroupHeader.tsx
+#: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
+msgid "Terminal for {0}"
+msgstr "Terminal for {0}"
+
+#: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
+msgid "Terminal input"
+msgstr "Terminal input"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/hooks/useElementPicker.ts
+msgid "Terminal not ready — added selection to composer."
+msgstr "Terminal not ready — added selection to composer."
+
+#: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
+msgid "Terminal panel font size"
+msgstr "Terminal panel font size"
+
+#: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
+msgid "Terminal position"
+msgstr "Terminal position"
+
+#: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
+msgid "Terminal scroll speed"
+msgstr "Terminal scroll speed"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/parts/BottomTerminalLayout.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/parts/RightTerminalLayout.tsx
+msgid "Terminal tabs"
+msgstr "Terminal tabs"
+
+#: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+msgid "Test microphone"
+msgstr "Test microphone"
+
+#: src/renderer/components/thread/ThreadComposerSection.tsx
+msgid "the agent"
+msgstr "the agent"
+
+#: src/renderer/components/providers/usageFormat.ts
+msgid "the app"
+msgstr "the app"
+
+#: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
+msgid "the chosen folder"
+msgstr "the chosen folder"
+
+#: src/renderer/RendererCrashScreen.tsx
+msgid "The normal app shell could not render. The diagnostics below are shown "
+"before reload so the failure can be investigated."
+msgstr "The normal app shell could not render. The diagnostics below are shown "
+"before reload so the failure can be investigated."
+
+#: src/renderer/components/thread/ContinueInProviderDialog.tsx
+msgid "the target provider"
+msgstr "the target provider"
+
+#: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
+msgid "Theme"
+msgstr "Theme"
+
+#: src/renderer/components/common/EffortContextMenu/EffortContextMenu.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/Reasoning.tsx
+msgid "Thinking"
+msgstr "Thinking"
+
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+msgid "This agent is not installed."
+msgstr "This agent is not installed."
+
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+msgid "this environment"
+msgstr "this environment"
+
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
+msgid "This file is too large for the built-in editor."
+msgstr "This file is too large for the built-in editor."
+
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
+msgid "This file uses an unsupported encoding."
+msgstr "This file uses an unsupported encoding."
+
+#. placeholder {0}: pendingDelete.branch.name
+#: src/renderer/components/common/BranchSelector/BranchSelector.tsx
+msgid "This permanently deletes the branch \"{0}\" from its remote."
+msgstr "This permanently deletes the branch \"{0}\" from its remote."
+
+#. placeholder {0}: pendingDelete?.branch.name ?? ""
+#: src/renderer/components/common/BranchSelector/BranchSelector.tsx
+msgid "This permanently deletes the branch \"{0}\"."
+msgstr "This permanently deletes the branch \"{0}\"."
+
+#: src/renderer/components/thread/ChatPane/parts/CheckpointRevertControls.tsx
+msgid "This removes later messages and restores files when a checkpoint "
+"snapshot is available."
+msgstr "This removes later messages and restores files when a checkpoint "
+"snapshot is available."
+
+#. placeholder {0}: pendingDelete.branch.name
+#. placeholder {1}: pendingDelete.threadCount
+#: src/renderer/components/common/BranchSelector/BranchSelector.tsx
+msgid "This removes the worktree on \"{0}\" and closes {1, plural, one {# "
+"linked thread} other {# linked threads}}, then deletes the branch."
+msgstr "This removes the worktree on \"{0}\" and closes {1, plural, one {# "
+"linked thread} other {# linked threads}}, then deletes the branch."
+
+#. placeholder {0}: pendingDelete.branch.name
+#: src/renderer/components/common/BranchSelector/BranchSelector.tsx
+msgid "This removes the worktree on \"{0}\", then deletes the branch."
+msgstr "This removes the worktree on \"{0}\", then deletes the branch."
+
+#. placeholder {0}: props.worktreeBranch
+#: src/renderer/views/MainView/parts/Sidebar/parts/DeleteWorktreeDialog.tsx
+msgid "This thread uses worktree <0>{0}</0>. Also remove the worktree "
+"directory?"
+msgstr "This thread uses worktree <0>{0}</0>. Also remove the worktree "
+"directory?"
+
+#. placeholder {0}: activeDialog.sourceBranch
+#: src/renderer/views/MainView/parts/PullFromSourceDialog.tsx
+msgid "This worktree has local changes. Lightcode can temporarily stash them, "
+"pull from {0}, then re-apply your changes."
+msgstr "This worktree has local changes. Lightcode can temporarily stash them, "
+"pull from {0}, then re-apply your changes."
+
+#: src/renderer/components/thread/ChatPane/parts/items/Reasoning.tsx
+msgid "Thought"
+msgstr "Thought"
+
+#: src/renderer/commands/registry.ts
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/hooks/useElementPicker.ts
+msgid "Thread"
+msgstr "Thread"
+
+#. Dialog button: delete the thread and remove its worktree directory
+#: src/renderer/views/MainView/parts/Sidebar/parts/DeleteWorktreeDialog.tsx
+msgid "Thread + Worktree"
+msgstr "Thread + Worktree"
+
+#: src/renderer/components/thread/ThreadContextDock.tsx
+msgid "Thread context usage"
+msgstr "Thread context usage"
+
+#: src/renderer/components/thread/ThreadDockUI.tsx
+msgid "Thread dock"
+msgstr "Thread dock"
+
+#: src/renderer/components/thread/ThreadView.tsx
+msgid "Thread failed to start."
+msgstr "Thread failed to start."
+
+#: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
+msgid "Thread finished or waiting for your input."
+msgstr "Thread finished or waiting for your input."
+
+#: src/renderer/components/thread/ThreadGoalDock.tsx
+msgid "Thread goal dock"
+msgstr "Thread goal dock"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
+msgid "Thread is already unloaded."
+msgstr "Thread is already unloaded."
+
+#: src/renderer/components/thread/PresentationModeTabs.tsx
+msgid "Thread mode"
+msgstr "Thread mode"
+
+#. Dialog button: delete the thread but keep the worktree directory
+#: src/renderer/views/MainView/parts/Sidebar/parts/DeleteWorktreeDialog.tsx
+msgid "Thread Only"
+msgstr "Thread Only"
+
+#: src/renderer/views/MainView/parts/SidebarHeaderControls.tsx
+msgid "Thread sort order"
+msgstr "Thread sort order"
+
+#: src/renderer/components/thread/ThreadTodoDock.tsx
+msgid "Thread todo dock"
+msgstr "Thread todo dock"
+
+#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
+#: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
+#: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
+msgid "Threads"
+msgstr "Threads"
+
+#: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
+msgid "Threads marked done that have not been touched for this many days are "
+"archived automatically on app launch. Set to 0 to disable."
+msgstr "Threads marked done that have not been touched for this many days are "
+"archived automatically on app launch. Set to 0 to disable."
+
+#: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
+msgid "Title Generation"
+msgstr "Title Generation"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/TodoList.tsx
+msgid "To-dos"
+msgstr "To-dos"
+
+#: src/renderer/components/providers/codex/index.tsx
+msgid "Toggle Fast mode"
+msgstr "Toggle Fast mode"
+
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+msgid "Toggle models off to hide them from the selector."
+msgstr "Toggle models off to hide them from the selector."
+
+#: src/renderer/commands/registry.ts
+msgid "Toggle Terminal"
+msgstr "Toggle Terminal"
+
+#: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
+msgid "Tool search"
+msgstr "Tool search"
+
+#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+msgid "Track {label} usage"
+msgstr "Track {label} usage"
+
+#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+msgid "Track per-provider session, weekly, and monthly usage. Windows are "
+"reported by each provider; estimated cost is reconstructed from local "
+"logs."
+msgstr "Track per-provider session, weekly, and monthly usage. Windows are "
+"reported by each provider; estimated cost is reconstructed from local "
+"logs."
+
+#. Usage status when provider tracking is disabled
+#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+msgid "Tracking off"
+msgstr "Tracking off"
+
+#: src/renderer/components/composer/VoiceInputButton.tsx
+msgid "Transcribing voice"
+msgstr "Transcribing voice"
+
+#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+msgid "Turn tracking on or off per provider. Disabled providers are skipped by "
+"the auto-refresh."
+msgstr "Turn tracking on or off per provider. Disabled providers are skipped by "
+"the auto-refresh."
+
+#: src/renderer/commands/CommandPalette.tsx
+msgid "Type a command"
+msgstr "Type a command"
+
+#. placeholder {0}: agent.label
+#. placeholder {0}: agentStatus.label
+#: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+msgid "Unable to authenticate {0}."
+msgstr "Unable to authenticate {0}."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Unable to create WSL worktree directory \"{path}\""
+msgstr "Unable to create WSL worktree directory \"{path}\""
+
+#. placeholder {0}: props.selectedAgent.label
+#: src/renderer/components/thread/ThreadDraftComposerArea.tsx
+msgid "Unable to install {0} hooks."
+msgstr "Unable to install {0} hooks."
+
+#. placeholder {0}: input.label
+#: src/renderer/actions/agentLoginActions.ts
+msgid "Unable to install {0}."
+msgstr "Unable to install {0}."
+
+#. placeholder {0}: agent.label
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+msgid "Unable to log out {0}."
+msgstr "Unable to log out {0}."
+
+#. placeholder {0}: input.label
+#: src/renderer/actions/agentLoginActions.ts
+msgid "Unable to open {0} login."
+msgstr "Unable to open {0} login."
+
+#: src/renderer/commands/registry.ts
+msgid "Unable to open file"
+msgstr "Unable to open file"
+
+#. placeholder {0}: agentStatus.label
+#. placeholder {0}: status.label
+#: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+msgid "Unable to refresh {0} status."
+msgstr "Unable to refresh {0} status."
+
+#. placeholder {0}: agentStatus.label
+#: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
+msgid "Unable to refresh {0}."
+msgstr "Unable to refresh {0}."
+
+#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+msgid "Unable to refresh Claude profiles."
+msgstr "Unable to refresh Claude profiles."
+
+#. placeholder {0}: agent.label
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+msgid "Unable to remove {0} credentials."
+msgstr "Unable to remove {0} credentials."
+
+#: src/renderer/actions/worktreeActions.ts
+msgid "Unable to remove worktree."
+msgstr "Unable to remove worktree."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Unable to resolve home directory for WSL distro \"{distro}\""
+msgstr "Unable to resolve home directory for WSL distro \"{distro}\""
+
+#. placeholder {0}: agent.label
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+msgid "Unable to save {0} credentials."
+msgstr "Unable to save {0} credentials."
+
+#: src/renderer/utils/shellUtils.ts
+msgid "Unable to start {label}."
+msgstr "Unable to start {label}."
+
+#. placeholder {0}: agent.label
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+msgid "Unable to update {0} ({envName}): {detailText}"
+msgstr "Unable to update {0} ({envName}): {detailText}"
+
+#. placeholder {0}: agent.label
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+msgid "Unable to update {0} ({envName})."
+msgstr "Unable to update {0} ({envName})."
+
+#. placeholder {0}: props.agentLabel
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+msgid "Unable to update {0} hooks."
+msgstr "Unable to update {0} hooks."
+
+#. placeholder {0}: agentStatus.label
+#. placeholder {1}: detail.slice(0, 240)
+#: src/renderer/components/thread/ThreadAgentUpdateDock.tsx
+msgid "Unable to update {0}: {1}"
+msgstr "Unable to update {0}: {1}"
+
+#. placeholder {0}: agent.label
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+msgid "Unable to update {0}: {detailText}"
+msgstr "Unable to update {0}: {detailText}"
+
+#. placeholder {0}: agent.label
+#. placeholder {0}: agentStatus.label
+#: src/renderer/components/thread/ThreadAgentUpdateDock.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+msgid "Unable to update {0}."
+msgstr "Unable to update {0}."
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadGroup.tsx
+msgid "Ungroup All"
+msgstr "Ungroup All"
+
+#: src/renderer/views/GitReviewOverlay/GitReviewOverlay.tsx
+#: src/renderer/views/PrReviewOverlay/PrReviewOverlay.tsx
+msgid "Unified view"
+msgstr "Unified view"
+
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+msgid "Uninstall"
+msgstr "Uninstall"
+
+#: src/renderer/components/thread/threadContextUsage.ts
+#: src/renderer/views/PrReviewOverlay/parts/PrChecksTab.tsx
+msgid "Unknown"
+msgstr "Unknown"
+
+#: src/renderer/notifications.ts
+msgid "Unknown project"
+msgstr "Unknown project"
+
+#: src/renderer/components/providers/usageFormat.ts
+#: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
+msgid "Unlimited"
+msgstr "Unlimited"
+
+#: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
+msgid "Unload idle threads after"
+msgstr "Unload idle threads after"
+
+#: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
+msgid "Unload idle threads after (minutes)"
+msgstr "Unload idle threads after (minutes)"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
+msgid "Unload Thread"
+msgstr "Unload Thread"
+
+#: src/renderer/components/thread/ThreadView.tsx
+msgid "Unmark done"
+msgstr "Unmark done"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
+msgid "Unmark Done"
+msgstr "Unmark Done"
+
+#: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
+msgid "Unphased:"
+msgstr "Unphased:"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
+msgid "Unpin"
+msgstr "Unpin"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/FileRow.tsx
+#: src/renderer/views/GitReviewOverlay/parts/GitStackedDiff.tsx
+msgid "Unstage"
+msgstr "Unstage"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/FileGroup.tsx
+msgid "Unstage all"
+msgstr "Unstage all"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitDiffContent/parts/FileHeader.tsx
+msgid "unstaged"
+msgstr "unstaged"
+
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+msgid "Unsupported"
+msgstr "Unsupported"
+
+#: src/renderer/components/thread/ThreadAgentUpdateDock.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+msgid "Update"
+msgstr "Update"
+
+#. placeholder {0}: props.agentLabel
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+msgid "Update {0} to {updateLabel}"
+msgstr "Update {0} to {updateLabel}"
+
+#: src/renderer/components/thread/ThreadAgentUpdateDock.tsx
+msgid "Update available"
+msgstr "Update available"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
+msgid "Update branch"
+msgstr "Update branch"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Update error: {detail}"
+msgstr "Update error: {detail}"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
+msgid "Update method"
+msgstr "Update method"
+
+#: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
+msgid "Update task"
+msgstr "Update task"
+
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+msgid "Update to {updateLabel}"
+msgstr "Update to {updateLabel}"
+
+#. placeholder {0}: props.agentLabel
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+msgid "Update to {updateLabel} for {0}"
+msgstr "Update to {updateLabel} for {0}"
+
+#. placeholder {0}: props.agentLabel
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+msgid "Update to {updateLabel} for {0} ({env})"
+msgstr "Update to {updateLabel} for {0} ({env})"
+
+#. placeholder {0}: agent.version
+#: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
+msgid "Update to v{0}"
+msgstr "Update to v{0}"
+
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+msgid "Update to v{latestRegistryVersion}"
+msgstr "Update to v{latestRegistryVersion}"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
+msgid "Update with merge commit"
+msgstr "Update with merge commit"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
+msgid "Update with rebase"
+msgstr "Update with rebase"
+
+#. placeholder {0}: formatUpdatedAgo(lastUpdated, nowTick, t)
+#: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/UsagePanel.tsx
+msgid "Updated {0}"
+msgstr "Updated {0}"
+
+#: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
+msgid "Updating"
+msgstr "Updating"
+
+#. placeholder {0}: props.agentLabel
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+msgid "Updating {0}"
+msgstr "Updating {0}"
+
+#. placeholder {0}: props.agentLabel
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+msgid "Updating {0} ({env})"
+msgstr "Updating {0} ({env})"
+
+#: src/renderer/components/layout/UnifiedRightPanel.tsx
+#: src/renderer/components/providers/ProviderUsageRail.tsx
+#: src/renderer/components/thread/ThreadContextDock.tsx
+#: src/renderer/views/MainView/parts/ProjectAuxiliaryPanel.tsx
+#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+msgid "Usage"
+msgstr "Usage"
+
+#: src/renderer/components/providers/usageFormat.ts
+msgid "Usage not supported"
+msgstr "Usage not supported"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsagePanelHeaderActions.tsx
+msgid "Usage settings"
+msgstr "Usage settings"
+
+#: src/renderer/components/thread/ThreadContextDock.tsx
+msgid "Usage unknown"
+msgstr "Usage unknown"
+
+#: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
+msgid "Use an existing folder"
+msgstr "Use an existing folder"
+
+#: src/renderer/components/providers/codex/index.tsx
+msgid "Use config"
+msgstr "Use config"
+
+#: src/renderer/views/MainView/parts/AppOverlays.tsx
+msgid "Use detected session?"
+msgstr "Use detected session?"
+
+#: src/renderer/views/SettingsOverlay/parts/SearchExcludeBody.tsx
+msgid "Use ignore files"
+msgstr "Use ignore files"
+
+#: src/renderer/views/MainView/parts/AppOverlays.tsx
+msgid "Use Session"
+msgstr "Use Session"
+
+#: src/renderer/views/MainView/parts/AppOverlays.tsx
+msgid "Use this account for usage tracking, or change users in the browser "
+"before continuing."
+msgstr "Use this account for usage tracking, or change users in the browser "
+"before continuing."
+
+#: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+msgid "Use WebGPU acceleration"
+msgstr "Use WebGPU acceleration"
+
+#: src/renderer/components/thread/threadContextUsage.ts
+msgid "Used"
+msgstr "Used"
+
+#. placeholder {0}: status.bundledVersion
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+msgid "v{0} available"
+msgstr "v{0} available"
+
+#. About page label: app version row
+#: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
+msgid "Version"
+msgstr "Version"
+
+#. placeholder {0}: metadata.authMethod
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+msgid "via {0}"
+msgstr "via {0}"
+
+#: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
+#: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
+msgid "View"
+msgstr "View"
+
+#. placeholder {0}: provider.label
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+msgid "Visible {0} models"
+msgstr "Visible {0} models"
+
+#: src/renderer/views/SettingsOverlay/parts/ModelVisibilitySection.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+msgid "Visible models"
+msgstr "Visible models"
+
+#: src/renderer/components/composer/VoiceInputButton.tsx
+msgid "Voice input is not available in this environment."
+msgstr "Voice input is not available in this environment."
+
+#: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+msgid "Voice input language"
+msgstr "Voice input language"
+
+#: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+msgid "Voice input model"
+msgstr "Voice input model"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
+msgid "Wait for the thread to finish starting."
+msgstr "Wait for the thread to finish starting."
+
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+msgid "Waiting for {authEnv} {authMethodName} authentication. Detected agents "
+"will refresh when it finishes."
+msgstr "Waiting for {authEnv} {authMethodName} authentication. Detected agents "
+"will refresh when it finishes."
+
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+msgid "Waiting for {authMethodName} authentication. Detected agents will "
+"refresh when it finishes."
+msgstr "Waiting for {authMethodName} authentication. Detected agents will "
+"refresh when it finishes."
+
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+msgid "Waiting for {env} {methodName} authentication. Detected agents will "
+"refresh when it finishes."
+msgstr "Waiting for {env} {methodName} authentication. Detected agents will "
+"refresh when it finishes."
+
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+msgid "Waiting for {methodName} authentication. Detected agents will refresh "
+"when it finishes."
+msgstr "Waiting for {methodName} authentication. Detected agents will refresh "
+"when it finishes."
+
+#: src/renderer/components/thread/ThreadPendingSteerStrip.tsx
+msgid "waiting for agent to stop"
+msgstr "waiting for agent to stop"
+
+#: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
+msgid "Waiting for workflow to spawn agents…"
+msgstr "Waiting for workflow to spawn agents…"
+
+#: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
+msgid "Wake up"
+msgstr "Wake up"
+
+#: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
+msgid "Wake up in {interval}"
+msgstr "Wake up in {interval}"
+
+#: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
+msgid "Wake up in {interval}: {reason}"
+msgstr "Wake up in {interval}: {reason}"
+
+#: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
+msgid "Wake up: {reason}"
+msgstr "Wake up: {reason}"
+
+#: src/renderer/components/thread/AgentDiscoveryScreen.tsx
+msgid "Warming up shell environment…"
+msgstr "Warming up shell environment…"
+
+#: src/renderer/components/thread/AgentDiscoveryScreen.tsx
+msgid "Warming up shell environments..."
+msgstr "Warming up shell environments..."
+
+#: src/renderer/components/thread/AgentDiscoveryScreen.tsx
+msgid "Warming up WSL shell environment…"
+msgstr "Warming up WSL shell environment…"
+
+#: src/renderer/components/thread/ChatPane/parts/items/ToolCallGroup.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
+#: src/renderer/components/thread/ChatPane/parts/items/WebSearchItem.tsx
+msgid "Web search"
+msgstr "Web search"
+
+#. External link to the product website
+#: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
+msgid "Website"
+msgstr "Website"
+
+#: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
+msgid "What the Create PR button does by default: open a dialog to edit the "
+"title and description first, or auto-generate them and create the PR in "
+"one click. You can also switch this from the button's menu."
+msgstr "What the Create PR button does by default: open a dialog to edit the "
+"title and description first, or auto-generate them and create the PR in "
+"one click. You can also switch this from the button's menu."
+
+#: src/renderer/views/SettingsOverlay/parts/SearchSettings.tsx
+msgid "When enabled, search respects <0>.gitignore</0> entries."
+msgstr "When enabled, search respects <0>.gitignore</0> entries."
+
+#: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
+msgid "When links open in a Lightcode browser tab, choose where the browser is "
+"revealed."
+msgstr "When links open in a Lightcode browser tab, choose where the browser is "
+"revealed."
+
+#: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
+msgid "When off, suppress notifications from terminal threads whose status "
+"comes from the OSC fallback (no CLI hook plugin)."
+msgstr "When off, suppress notifications from terminal threads whose status "
+"comes from the OSC fallback (no CLI hook plugin)."
+
+#: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
+msgid "When to display in-app toasts for visible threads."
+msgstr "When to display in-app toasts for visible threads."
+
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+msgid "When you close the window, keep Lightcode running in the system tray. "
+"Disable to quit on close."
+msgstr "When you close the window, keep Lightcode running in the system tray. "
+"Disable to quit on close."
+
+#: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
+msgid "Where a browser element-picker selection goes in terminal-native "
+"threads. A collapsed composer always routes to the terminal."
+msgstr "Where a browser element-picker selection goes in terminal-native "
+"threads. A collapsed composer always routes to the terminal."
+
+#: src/renderer/views/WelcomeOverlay.tsx
+msgid "Where do you want to begin?"
+msgstr "Where do you want to begin?"
+
+#: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
+msgid "Where the terminal panel appears."
+msgstr "Where the terminal panel appears."
+
+#. placeholder {0}: env || t`this environment`
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+msgid "Will run in {0}:"
+msgstr "Will run in {0}:"
+
+#: src/renderer/components/thread/AgentDiscoveryScreen.tsx
+#: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
+msgid "Windows"
+msgstr "Windows"
+
+#: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
+msgid "Windows is not supported yet. Install inside WSL or on macOS/Linux."
+msgstr "Windows is not supported yet. Install inside WSL or on macOS/Linux."
+
+#: src/renderer/components/providers/composerControlBuilders.tsx
+msgid "Work"
+msgstr "Work"
+
+#: src/renderer/components/thread/WorktreeModeSelect.tsx
+msgid "Work in the current checkout"
+msgstr "Work in the current checkout"
+
+#: src/renderer/components/thread/ChatPane/ChatPane.tsx
+#: src/renderer/components/thread/ChatPane/parts/MessageList.tsx
+msgid "Worked for {elapsed}"
+msgstr "Worked for {elapsed}"
+
+#: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
+msgid "Workflow"
+msgstr "Workflow"
+
+#: src/renderer/components/thread/ChatPane/parts/items/SubAgentOverlay.tsx
+msgid "Workflow finished. Child agents ran in a separate process and aren’t "
+"streamed here yet."
+msgstr "Workflow finished. Child agents ran in a separate process and aren’t "
+"streamed here yet."
+
+#: src/renderer/components/thread/ChatPane/parts/items/SubAgentOverlay.tsx
+msgid "Workflow is running in the background. Child agents run in a separate "
+"process and aren’t streamed here yet."
+msgstr "Workflow is running in the background. Child agents run in a separate "
+"process and aren’t streamed here yet."
+
+#: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
+msgid "Workflow phases"
+msgstr "Workflow phases"
+
+#: src/renderer/components/thread/ChatPane/parts/items/WorkflowResultGroup.tsx
+msgid "Workflow results"
+msgstr "Workflow results"
+
+#: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
+msgid "Workflow: {description}"
+msgstr "Workflow: {description}"
+
+#: src/renderer/components/thread/ChatPane/parts/items/ActiveSubAgentTile.tsx
+msgid "Workflows"
+msgstr "Workflows"
+
+#: src/renderer/components/thread/ThreadHeaderStatus.tsx
+msgid "Working"
+msgstr "Working"
+
+#: src/renderer/components/thread/ChatPane/ChatPane.tsx
+msgid "Working for {elapsed}"
+msgstr "Working for {elapsed}"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
+msgid "Working tree clean"
+msgstr "Working tree clean"
+
+#: src/renderer/components/thread/ChatPane/parts/items/SubAgentOverlay.tsx
+msgid "Working…"
+msgstr "Working…"
+
+#: src/renderer/components/thread/WorktreeModeSelect.tsx
+msgid "Worktree"
+msgstr "Worktree"
+
+#: src/renderer/components/thread/WorktreeModeSelect.tsx
+msgid "Worktree + changes"
+msgstr "Worktree + changes"
+
+#: src/renderer/components/thread/WorktreeModeSelect.tsx
+msgid "Worktree mode"
+msgstr "Worktree mode"
+
+#. placeholder {0}: props.projectName
+#. placeholder {0}: props.worktreeBranch
+#: src/renderer/views/MainView/parts/Sidebar/parts/GitBadge.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/WorktreeGroupHeader.tsx
+msgid "Worktree: {0}"
+msgstr "Worktree: {0}"
+
+#: src/renderer/views/ProjectSettingsOverlay/parts/ScriptsSection.tsx
+#: src/renderer/views/ProjectSettingsOverlay/parts/SettingsSidebar.tsx
+msgid "Worktrees"
+msgstr "Worktrees"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewPanel.tsx
+msgid "Wrap lines"
+msgstr "Wrap lines"
+
+#: src/renderer/views/PrReviewOverlay/parts/PrConversationTab.tsx
+msgid "Write a comment"
+msgstr "Write a comment"
+
+#: src/renderer/views/PrReviewOverlay/parts/PrConversationTab.tsx
+msgid "Write a comment…"
+msgstr "Write a comment…"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesEditor.tsx
+msgid "Write notes for this project…"
+msgstr "Write notes for this project…"
+
+#: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
+msgid "WSL"
+msgstr "WSL"
+
+#. placeholder {0}: status.envDistro
+#: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
+msgid "WSL ({0})"
+msgstr "WSL ({0})"

@@ -19,6 +19,9 @@ import {
   ToggleButton,
   Tooltip,
 } from "@heroui/react";
+import { msg } from "@lingui/core/macro";
+import { Trans, useLingui } from "@lingui/react/macro";
+import type { MessageDescriptor } from "@lingui/core";
 import { readBridge } from "@/renderer/bridge";
 import { PixelLoader } from "@/renderer/components/common";
 import type { PrWriteAction } from "@/renderer/hooks/usePrWriteActions";
@@ -35,12 +38,12 @@ import { usePrCombinedChecksStatus } from "@/renderer/hooks/usePrCombinedChecksS
 import { getPrStatusTone, PR_TONE_BG_CLASS } from "@/renderer/utils/prStatus";
 import { GitReviewSection } from "./GitReviewSection";
 
-const BLOCK_REASON: Record<string, string> = {
-  BLOCKED: "Required reviews, conversations, or status checks not met.",
-  BEHIND: "Base branch is ahead — branch must be updated first.",
-  DIRTY: "Merge conflicts must be resolved.",
-  UNSTABLE: "Some checks are failing or pending.",
-  HAS_HOOKS: "Repository pre-receive hook is blocking the merge.",
+const BLOCK_REASON: Record<string, MessageDescriptor> = {
+  BLOCKED: msg`Required reviews, conversations, or status checks not met.`,
+  BEHIND: msg`Base branch is ahead — branch must be updated first.`,
+  DIRTY: msg`Merge conflicts must be resolved.`,
+  UNSTABLE: msg`Some checks are failing or pending.`,
+  HAS_HOOKS: msg`Repository pre-receive hook is blocking the merge.`,
 };
 
 export function PrSection(props: {
@@ -66,6 +69,7 @@ export function PrSection(props: {
     handleMarkPrReady,
     handleUpdatePrBranch,
   } = props;
+  const { t } = useLingui();
   const state = usePrState(prKey);
   const number = usePrNumber(prKey);
   const title = usePrTitle(prKey);
@@ -84,12 +88,14 @@ export function PrSection(props: {
     reasonKey !== "CLEAN" &&
     reasonKey !== "DRAFT" &&
     reasonKey !== "UNKNOWN";
-  const blockReason = reasonKey ? BLOCK_REASON[reasonKey] : undefined;
+  const blockReasonMsg = reasonKey ? BLOCK_REASON[reasonKey] : undefined;
+  const blockReason = blockReasonMsg ? t(blockReasonMsg) : undefined;
   // Conflicts and pre-receive hooks can't be admin-bypassed.
   const canBypass = isBlocked && reasonKey !== "DIRTY" && reasonKey !== "HAS_HOOKS";
 
-  const stateBadge = state === "draft" ? "(Draft)" : "";
-  const fallbackTitle = title || (state === "merged" ? "Merged" : state === "draft" ? "" : "Open");
+  const stateBadge = state === "draft" ? t`(Draft)` : "";
+  const fallbackTitle =
+    title || (state === "merged" ? t`Merged` : state === "draft" ? "" : t`Open`);
 
   const canReview = number !== undefined && state !== "merged" && state !== "closed";
 
@@ -114,7 +120,7 @@ export function PrSection(props: {
             <Tooltip.Trigger>
               <button
                 type="button"
-                aria-label="Review PR"
+                aria-label={t`Review PR`}
                 className="rounded p-0.5 text-muted transition-colors hover:bg-[var(--row-hover)] hover:text-foreground"
                 onClick={() =>
                   usePanelStore.getState().setPrReviewContext({
@@ -127,7 +133,9 @@ export function PrSection(props: {
                 <Eye className="size-3.5" />
               </button>
             </Tooltip.Trigger>
-            <Tooltip.Content placement="top">Review PR</Tooltip.Content>
+            <Tooltip.Content placement="top">
+              <Trans>Review PR</Trans>
+            </Tooltip.Content>
           </Tooltip>
         )}
       </div>
@@ -143,7 +151,7 @@ export function PrSection(props: {
             {({ isPending }) => (
               <>
                 {isPending ? <PixelLoader size="xs" /> : <CheckCircle2 className="size-3.5" />}
-                Ready for Review
+                <Trans>Ready for Review</Trans>
               </>
             )}
           </Button>
@@ -151,7 +159,7 @@ export function PrSection(props: {
             <Button
               isIconOnly
               variant="tertiary"
-              aria-label="More PR actions"
+              aria-label={t`More PR actions`}
               isDisabled={prLoading}
             >
               <ButtonGroup.Separator />
@@ -159,13 +167,15 @@ export function PrSection(props: {
             </Button>
             <Dropdown.Popover placement="top end">
               <Dropdown.Menu
-                aria-label="PR actions"
+                aria-label={t`PR actions`}
                 onAction={(key) => {
                   if (key === "close") void handleClosePr();
                 }}
               >
-                <Dropdown.Item id="close" textValue="Close PR" variant="danger">
-                  <Label>Close PR</Label>
+                <Dropdown.Item id="close" textValue={t`Close PR`} variant="danger">
+                  <Label>
+                    <Trans>Close PR</Trans>
+                  </Label>
                 </Dropdown.Item>
               </Dropdown.Menu>
             </Dropdown.Popover>
@@ -178,7 +188,9 @@ export function PrSection(props: {
             <div className="flex flex-col gap-1 text-xs">
               <div className="flex items-center gap-2 text-danger">
                 <AlertTriangle className="size-3.5 shrink-0" />
-                <span className="min-w-0 flex-1 truncate font-medium">Merging is blocked</span>
+                <span className="min-w-0 flex-1 truncate font-medium">
+                  <Trans>Merging is blocked</Trans>
+                </span>
                 {canBypass && (
                   <Tooltip>
                     <ToggleButton
@@ -188,13 +200,13 @@ export function PrSection(props: {
                       isSelected={bypass}
                       onChange={setBypass}
                       isDisabled={prLoading}
-                      aria-label="Bypass branch protection rules"
+                      aria-label={t`Bypass branch protection rules`}
                       className="size-5 shrink-0 text-danger data-[selected=true]:bg-danger data-[selected=true]:text-white"
                     >
                       <ShieldOff className="size-3" />
                     </ToggleButton>
                     <Tooltip.Content placement="top">
-                      Bypass branch protection rules (admin merge)
+                      <Trans>Bypass branch protection rules (admin merge)</Trans>
                     </Tooltip.Content>
                   </Tooltip>
                 )}
@@ -214,7 +226,7 @@ export function PrSection(props: {
                 {({ isPending }) => (
                   <>
                     {isPending ? <PixelLoader size="xs" /> : <RefreshCw className="size-3.5" />}
-                    Update branch
+                    <Trans>Update branch</Trans>
                   </>
                 )}
               </Button>
@@ -222,7 +234,7 @@ export function PrSection(props: {
                 <Button
                   isIconOnly
                   variant="tertiary"
-                  aria-label="Update method"
+                  aria-label={t`Update method`}
                   isDisabled={prLoading}
                 >
                   <ButtonGroup.Separator />
@@ -230,17 +242,21 @@ export function PrSection(props: {
                 </Button>
                 <Dropdown.Popover placement="top end">
                   <Dropdown.Menu
-                    aria-label="Update method"
+                    aria-label={t`Update method`}
                     onAction={(key) => {
                       if (key === "rebase") void handleUpdatePrBranch(true);
                       else void handleUpdatePrBranch(false);
                     }}
                   >
-                    <Dropdown.Item id="merge" textValue="Update with merge commit">
-                      <Label>Update with merge commit</Label>
+                    <Dropdown.Item id="merge" textValue={t`Update with merge commit`}>
+                      <Label>
+                        <Trans>Update with merge commit</Trans>
+                      </Label>
                     </Dropdown.Item>
-                    <Dropdown.Item id="rebase" textValue="Update with rebase">
-                      <Label>Update with rebase</Label>
+                    <Dropdown.Item id="rebase" textValue={t`Update with rebase`}>
+                      <Label>
+                        <Trans>Update with rebase</Trans>
+                      </Label>
                     </Dropdown.Item>
                   </Dropdown.Menu>
                 </Dropdown.Popover>
@@ -258,7 +274,7 @@ export function PrSection(props: {
               {({ isPending }) => (
                 <>
                   {isPending ? <PixelLoader size="xs" /> : <GitMerge className="size-3.5" />}
-                  Merge PR: Squash
+                  <Trans>Merge PR: Squash</Trans>
                 </>
               )}
             </Button>
@@ -266,7 +282,7 @@ export function PrSection(props: {
               <Button
                 isIconOnly
                 variant="tertiary"
-                aria-label="Merge options"
+                aria-label={t`Merge options`}
                 isDisabled={prLoading}
               >
                 <ButtonGroup.Separator />
@@ -274,22 +290,28 @@ export function PrSection(props: {
               </Button>
               <Dropdown.Popover placement="top end">
                 <Dropdown.Menu
-                  aria-label="Merge method"
+                  aria-label={t`Merge method`}
                   disabledKeys={isBlocked && !bypass ? ["merge", "squash", "rebase"] : []}
                   onAction={(key) => {
                     if (key === "close") void handleClosePr();
                     else void handleMergePr(key as "merge" | "squash" | "rebase", bypass);
                   }}
                 >
-                  <Dropdown.Item id="merge" textValue="Merge PR: Commit">
-                    <Label>Merge PR: Commit</Label>
+                  <Dropdown.Item id="merge" textValue={t`Merge PR: Commit`}>
+                    <Label>
+                      <Trans>Merge PR: Commit</Trans>
+                    </Label>
                   </Dropdown.Item>
-                  <Dropdown.Item id="rebase" textValue="Merge PR: Rebase">
-                    <Label>Merge PR: Rebase</Label>
+                  <Dropdown.Item id="rebase" textValue={t`Merge PR: Rebase`}>
+                    <Label>
+                      <Trans>Merge PR: Rebase</Trans>
+                    </Label>
                   </Dropdown.Item>
                   <Separator />
-                  <Dropdown.Item id="close" textValue="Close PR" variant="danger">
-                    <Label>Close PR</Label>
+                  <Dropdown.Item id="close" textValue={t`Close PR`} variant="danger">
+                    <Label>
+                      <Trans>Close PR</Trans>
+                    </Label>
                   </Dropdown.Item>
                 </Dropdown.Menu>
               </Dropdown.Popover>

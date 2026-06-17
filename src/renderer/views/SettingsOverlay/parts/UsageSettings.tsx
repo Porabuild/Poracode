@@ -1,6 +1,7 @@
 import { startTransition, useEffect, useState } from "react";
 import { RefreshCw } from "lucide-react";
 import { NumberField, Switch } from "@heroui/react";
+import { Trans, useLingui } from "@lingui/react/macro";
 import { readBridge } from "@/renderer/bridge";
 import { Button } from "@/renderer/components/common";
 import { ProviderIcon } from "@/renderer/components/providers/ProviderIcon";
@@ -17,13 +18,16 @@ import { SettingRow, SettingsPage } from "./SettingsForm";
 
 function UsageProviderRow(props: { id: string; label: string }) {
   const { id, label } = props;
+  const { t } = useLingui();
   const snapshot = useProviderUsage(id);
   const disabledProviders = useSharedSettings((s) => s.usage.disabledProviders);
   const setUsageSetting = useSharedSettings((s) => s.setUsageSetting);
   const enabled = !disabledProviders.includes(id);
   const showBars = enabled && snapshot?.status === "ok" && snapshot.windows.length > 0;
   const reserveBars = !enabled && snapshot?.status === "ok" && snapshot.windows.length > 0;
-  const message = enabled ? usageStatusText(snapshot, label) : "Tracking off";
+  const message = enabled
+    ? usageStatusText(snapshot, label)
+    : t({ message: "Tracking off", comment: "Usage status when provider tracking is disabled" });
   // The credits line below already shows the balance, and usageStatusText folds
   // it into the status string for a windowless "ok" snapshot — so skip the
   // standalone message there to avoid rendering "Zen balance: $X" twice.
@@ -66,14 +70,14 @@ function UsageProviderRow(props: { id: string; label: string }) {
           ) : null}
           {snapshot?.credits && !snapshot.credits.unlimited ? (
             <p className="mt-1.5 text-xs text-muted">
-              {snapshot.credits.label ?? "Credits"}:{" "}
+              {snapshot.credits.label ?? t`Credits`}:{" "}
               {formatMoney(snapshot.credits.balance, snapshot.credits.currency)}
             </p>
           ) : null}
         </div>
       </div>
       <Switch
-        aria-label={`Track ${label} usage`}
+        aria-label={t`Track ${label} usage`}
         isSelected={enabled}
         onChange={(selected) => {
           const next = selected
@@ -93,6 +97,7 @@ function UsageProviderRow(props: { id: string; label: string }) {
 }
 
 export function UsageSettings() {
+  const { t } = useLingui();
   const autoRefresh = useSharedSettings((s) => s.usage.autoRefresh);
   const refreshIntervalMinutes = useSharedSettings((s) => s.usage.refreshIntervalMinutes);
   const showInSidebar = useSharedSettings((s) => s.usage.showInSidebar);
@@ -130,8 +135,8 @@ export function UsageSettings() {
 
   return (
     <SettingsPage
-      title="Usage"
-      description="Track per-provider session, weekly, and monthly usage. Windows are reported by each provider; estimated cost is reconstructed from local logs."
+      title={t`Usage`}
+      description={t`Track per-provider session, weekly, and monthly usage. Windows are reported by each provider; estimated cost is reconstructed from local logs.`}
       actions={
         <Button
           size="sm"
@@ -141,16 +146,21 @@ export function UsageSettings() {
           onPress={refreshNow}
         >
           <RefreshCw className={`size-3.5 ${isRefreshing ? "animate-spin" : ""}`} />
-          Refresh
+          <Trans comment="Button: re-fetch provider usage now">Refresh</Trans>
         </Button>
       }
     >
       <SettingRow
-        title="Auto-refresh (minutes)"
-        description="Refresh usage in the background every N minutes. Set to 0 to turn off (manual only). The 2-minute floor respects provider rate limits."
+        title={t`Auto-refresh (minutes)`}
+        description={
+          <Trans>
+            Refresh usage in the background every N minutes. Set to 0 to turn off (manual only). The
+            2-minute floor respects provider rate limits.
+          </Trans>
+        }
       >
         <NumberField
-          aria-label="Auto-refresh interval in minutes, 0 to turn off"
+          aria-label={t`Auto-refresh interval in minutes, 0 to turn off`}
           className="w-[140px] shrink-0"
           minValue={0}
           maxValue={120}
@@ -178,8 +188,8 @@ export function UsageSettings() {
       </SettingRow>
 
       <SettingRow
-        title="Show circles in sidebar"
-        description="Show a compact per-provider usage ring in the sidebar."
+        title={t`Show circles in sidebar`}
+        description={<Trans>Show a compact per-provider usage ring in the sidebar.</Trans>}
       >
         <Switch
           isSelected={showInSidebar}
@@ -196,8 +206,13 @@ export function UsageSettings() {
       </SettingRow>
 
       <SettingRow
-        title="Show estimated cost"
-        description="Reconstructed from local logs at public API rates — it does not reflect your real bill on subscription plans. Shown only in the usage panel."
+        title={t`Show estimated cost`}
+        description={
+          <Trans>
+            Reconstructed from local logs at public API rates — it does not reflect your real bill
+            on subscription plans. Shown only in the usage panel.
+          </Trans>
+        }
       >
         <Switch
           isSelected={showEstimatedCost}
@@ -214,9 +229,14 @@ export function UsageSettings() {
       </SettingRow>
 
       <div className="pt-2">
-        <p className="mb-1 text-sm font-medium text-foreground">Providers</p>
+        <p className="mb-1 text-sm font-medium text-foreground">
+          <Trans>Providers</Trans>
+        </p>
         <p className="mb-2 text-xs text-muted">
-          Turn tracking on or off per provider. Disabled providers are skipped by the auto-refresh.
+          <Trans>
+            Turn tracking on or off per provider. Disabled providers are skipped by the
+            auto-refresh.
+          </Trans>
         </p>
         <div>
           {usageProviders.map((p) => (

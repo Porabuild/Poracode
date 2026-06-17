@@ -1,3 +1,5 @@
+import { msg } from "@lingui/core/macro";
+import type { MessageDescriptor } from "@lingui/core";
 import { isThreadTurnActive, type Thread } from "@/shared/contracts";
 import { groupThreads, type ThreadListEntry, type WorktreeThreadGroup } from "./groupThreads";
 import type { ThreadSortMode } from "./sortMode";
@@ -27,7 +29,7 @@ export type SidebarRow =
       entry: Extract<ThreadListEntry, { kind: "thread-group" }>;
     }
   | { kind: "divider"; key: string }
-  | { kind: "section-label"; key: string; label: string }
+  | { kind: "section-label"; key: string; label: MessageDescriptor }
   | { kind: "see-more"; key: string; hiddenCount: number };
 
 /** Default number of list items shown per project before the "See more" row. */
@@ -237,7 +239,7 @@ export function buildSidebarProjectRows(input: {
   pushList(starredVisible);
   pushList(recentVisible, starredVisible.length);
   if (hasBothSections) {
-    rows.push({ kind: "section-label", key: "older-label", label: "Older" });
+    rows.push({ kind: "section-label", key: "older-label", label: msg`Older` });
   }
   pushList(olderVisible, starredVisible.length + recentVisible.length);
   if (hiddenCount > 0) rows.push({ kind: "see-more", key: "see-more", hiddenCount });

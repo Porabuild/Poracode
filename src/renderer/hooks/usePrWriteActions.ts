@@ -1,8 +1,10 @@
 import { useState } from "react";
 import { toast } from "@heroui/react";
+import { msg } from "@lingui/core/macro";
 import type { ProjectLocation } from "@/shared/contracts";
 import { friendlyError } from "@/shared/messages";
 import { readBridge } from "@/renderer/bridge";
+import { i18n } from "@/renderer/i18n/i18n";
 import { useGitStore } from "@/renderer/state/gitStore";
 
 const ADMIN_BYPASS_RX = /--admin|base branch policy|not mergeable/i;
@@ -66,9 +68,9 @@ export function usePrWriteActions(args: UsePrWriteActionsArgs): UsePrWriteAction
       const canBypass = !admin && ADMIN_BYPASS_RX.test(message);
       if (canBypass) {
         toast.danger(message, {
-          description: "Branch protection rules blocked this merge.",
+          description: i18n._(msg`Branch protection rules blocked this merge.`),
           actionProps: {
-            children: "Retry with admin",
+            children: i18n._(msg`Retry with admin`),
             onPress: () => void handleMergePr(method, true),
           },
           timeout: 0,

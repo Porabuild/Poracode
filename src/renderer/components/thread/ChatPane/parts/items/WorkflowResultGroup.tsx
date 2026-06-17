@@ -1,5 +1,6 @@
 import { Disclosure, Surface } from "@heroui/react";
 import { memo, useState } from "react";
+import { useLingui } from "@lingui/react/macro";
 import { GitBranch } from "lucide-react";
 import { useChatPaneActions } from "../../chatPaneActionsContext";
 import { chatMessageSurfaceClass } from "./chatMessageSurface";
@@ -32,6 +33,7 @@ export const WorkflowResultGroup = memo(function WorkflowResultGroup({
 
   const parsed = tryParseJson(trimmed);
   const list = parsed !== undefined ? findResultList(parsed) : null;
+  const { t } = useLingui();
   const actions = useChatPaneActions();
   const [isExpanded, setIsExpanded] = useState(false);
 
@@ -46,7 +48,7 @@ export const WorkflowResultGroup = memo(function WorkflowResultGroup({
   const countLabel = `${list.items.length} ${list.items.length === 1 ? itemNoun : pluralize(itemNoun)}`;
   return (
     <WorkflowResultShell
-      label="Workflow results"
+      label={t`Workflow results`}
       countLabel={countLabel}
       isExpanded={isExpanded}
       onToggle={(next) => {

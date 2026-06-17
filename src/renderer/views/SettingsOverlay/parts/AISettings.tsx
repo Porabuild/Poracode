@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from "react";
 import { ToggleButton, ToggleButtonGroup, Tooltip } from "@heroui/react";
+import { Trans, useLingui } from "@lingui/react/macro";
 import { Monitor } from "lucide-react";
 import type { AgentStatus, ThreadPresentationMode } from "@/shared/contracts";
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
@@ -55,6 +56,7 @@ function GenConfigSection(props: {
   /** When set, model lists mirror the selected thread presentation surface (CLI vs Chat/ACP). */
   presentationMode?: ThreadPresentationMode;
 }) {
+  const { t } = useLingui();
   const {
     heading,
     description,
@@ -162,7 +164,7 @@ function GenConfigSection(props: {
         <div className="flex shrink-0 items-center gap-2">
           {mode !== "disabled" && props.extraControls ? props.extraControls : null}
           <ToggleButtonGroup
-            aria-label={`${heading} mode`}
+            aria-label={t`${heading} mode`}
             className="h-7 [&_button]:h-7 [&_button]:min-h-0 [&_button]:min-w-0 [&_button]:px-2"
             selectionMode="single"
             disallowEmptySelection
@@ -173,11 +175,17 @@ function GenConfigSection(props: {
               if (next) changeMode(next);
             }}
           >
-            <ToggleButton id="auto">Auto</ToggleButton>
-            <ToggleButton id="custom" isDisabled={installedAgents.length === 0}>
-              Custom
+            <ToggleButton id="auto">
+              <Trans>Auto</Trans>
             </ToggleButton>
-            {props.allowDisabled ? <ToggleButton id="disabled">Disabled</ToggleButton> : null}
+            <ToggleButton id="custom" isDisabled={installedAgents.length === 0}>
+              <Trans>Custom</Trans>
+            </ToggleButton>
+            {props.allowDisabled ? (
+              <ToggleButton id="disabled">
+                <Trans>Disabled</Trans>
+              </ToggleButton>
+            ) : null}
           </ToggleButtonGroup>
         </div>
       </div>
@@ -219,13 +227,18 @@ function PresentationModeToggle(props: {
         if (next) props.onChange(next);
       }}
     >
-      <ToggleButton id="gui">Chat</ToggleButton>
-      <ToggleButton id="terminal">CLI</ToggleButton>
+      <ToggleButton id="gui">
+        <Trans>Chat</Trans>
+      </ToggleButton>
+      <ToggleButton id="terminal">
+        <Trans>CLI</Trans>
+      </ToggleButton>
     </ToggleButtonGroup>
   );
 }
 
 export function AISettings() {
+  const { t } = useLingui();
   const [envKind, setEnvKind] = useState<EnvKind>("windows");
 
   const agentStatuses = useAgentStatusesStore((s) => s.agentStatuses);
@@ -282,12 +295,12 @@ export function AISettings() {
 
   return (
     <SettingsPage
-      title="AI"
+      title={t`AI`}
       bodyClassName="space-y-8"
       actions={
         hasWsl ? (
           <ToggleButtonGroup
-            aria-label="Environment"
+            aria-label={t`Environment`}
             className="h-7 [&_button]:h-7 [&_button]:min-h-0 [&_button]:min-w-0 [&_button]:px-2"
             selectionMode="single"
             disallowEmptySelection
@@ -298,10 +311,10 @@ export function AISettings() {
               if (next) setEnvKind(next);
             }}
           >
-            <ToggleButton isIconOnly id="windows" aria-label="Windows">
+            <ToggleButton isIconOnly id="windows" aria-label={t`Windows`}>
               <Monitor className="size-3.5" />
             </ToggleButton>
-            <ToggleButton isIconOnly id="wsl" aria-label="WSL">
+            <ToggleButton isIconOnly id="wsl" aria-label={t`WSL`}>
               <ToggleButtonGroup.Separator />
               <TuxIcon className="size-7" />
             </ToggleButton>
@@ -310,9 +323,9 @@ export function AISettings() {
       }
     >
       <GenConfigSection
-        heading="Title Generation"
+        heading={t`Title Generation`}
         allowDisabled
-        description="Generates short titles for new threads."
+        description={t`Generates short titles for new threads.`}
         defaultsHint={getTitleGenDefaultsHint()}
         agentStatuses={activeStatuses}
         provider={titleGenProvider}
@@ -324,8 +337,8 @@ export function AISettings() {
       />
 
       <GenConfigSection
-        heading="Commit Message Generation"
-        description="Generates commit messages from staged changes."
+        heading={t`Commit Message Generation`}
+        description={t`Generates commit messages from staged changes.`}
         defaultsHint={getCommitGenDefaultsHint()}
         agentStatuses={activeStatuses}
         provider={commitGenProvider}
@@ -337,8 +350,8 @@ export function AISettings() {
       />
 
       <GenConfigSection
-        heading="Conflict Resolver"
-        description="Resolves merge conflicts during rebase or merge."
+        heading={t`Conflict Resolver`}
+        description={t`Resolves merge conflicts during rebase or merge.`}
         defaultsHint={getConflictResolverDefaultsHint()}
         agentStatuses={activeStatuses}
         provider={conflictResolverProvider}
@@ -350,7 +363,7 @@ export function AISettings() {
         presentationMode={conflictResolverPresentationMode}
         extraControls={
           <PresentationModeToggle
-            ariaLabel="Open conflict resolver in"
+            ariaLabel={t`Open conflict resolver in`}
             value={conflictResolverPresentationMode}
             onChange={setConflictResolverPresentationMode}
           />

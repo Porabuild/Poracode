@@ -1,5 +1,8 @@
 import { Disclosure } from "@heroui/react";
 import { Fragment, memo, useEffect, useRef, useState, type ReactNode } from "react";
+import { msg } from "@lingui/core/macro";
+import { Plural, Trans, useLingui } from "@lingui/react/macro";
+import type { TranslateFn } from "@/renderer/i18n/i18n";
 import {
   CircleAlert,
   Eye,
@@ -149,7 +152,7 @@ export const ToolCallGroup = memo(function ToolCallGroup({
                     actions?.onContentHeightChange();
                   }}
                 >
-                  {showAll ? "Show less" : "Show all"}
+                  {showAll ? <Trans>Show less</Trans> : <Trans>Show all</Trans>}
                 </button>
               </div>
             ) : null}
@@ -201,9 +204,10 @@ function SameFileEditGroupTitle({ summary }: { summary: SameFileEditGroupSummary
 }
 
 function ToolCallInline({ item }: { item: RuntimeChatItem }) {
+  const { t } = useLingui();
   const actions = useChatPaneActions();
   const [isExpanded, setIsExpanded] = useState(false);
-  const row = getInlineRow(item, isExpanded);
+  const row = getInlineRow(item, isExpanded, t);
   const fetchTarget =
     row?.fetchPath && actions?.projectLocation
       ? { path: row.fetchPath, projectLocation: actions.projectLocation }
@@ -347,10 +351,14 @@ function InlineRowTitle({
   );
 }
 
-function getInlineRow(item: RuntimeChatItem, isExpanded: boolean): InlineRow | null {
-  if (item.type === "command_execution") return getCommandRow(item, isExpanded);
+function getInlineRow(
+  item: RuntimeChatItem,
+  isExpanded: boolean,
+  t: TranslateFn,
+): InlineRow | null {
+  if (item.type === "command_execution") return getCommandRow(item, isExpanded, t);
   if (item.type === "file_change") return getFileChangeRow(item, isExpanded);
-  if (item.type === "web_search") return getWebSearchRow(item, isExpanded);
+  if (item.type === "web_search") return getWebSearchRow(item, isExpanded, t);
   return getToolCallRow(item, isExpanded);
 }
 
@@ -446,10 +454,15 @@ function isReadLikeToolPayload(payload: ToolCallPayload): boolean {
 }
 
 function ErrorIcon() {
-  return <CircleAlert className="size-3 text-danger" aria-label="error" />;
+  const { t } = useLingui();
+  return <CircleAlert className="size-3 text-danger" aria-label={t`error`} />;
 }
 
-function getCommandRow(item: RuntimeChatItem, isExpanded: boolean): InlineRow | null {
+function getCommandRow(
+  item: RuntimeChatItem,
+  isExpanded: boolean,
+  t: TranslateFn,
+): InlineRow | null {
   const payload = getRuntimeItemPayload<CommandExecutionPayload>(item, "command_execution");
   const command = readCommandPayloadCommand(payload);
   const display = command ? commandIntentDisplay(command) : undefined;
@@ -469,7 +482,7 @@ function getCommandRow(item: RuntimeChatItem, isExpanded: boolean): InlineRow | 
   ) : undefined;
   return {
     Icon: display ? iconForCommandIntent(display.kind) : Terminal,
-    title: display?.title ?? "Run command",
+    title: display?.title ?? t(msg`Run command`),
     ...(display?.parts ? { titleParts: display.parts } : {}),
     rightLabel,
     rightLabelClassName: isErrorExit ? "text-danger" : "text-[color:var(--muted)]",
@@ -542,10 +555,14 @@ function getFileChangeRow(item: RuntimeChatItem, isExpanded: boolean): InlineRow
   };
 }
 
-function getWebSearchRow(item: RuntimeChatItem, isExpanded: boolean): InlineRow | null {
+function getWebSearchRow(
+  item: RuntimeChatItem,
+  isExpanded: boolean,
+  t: TranslateFn,
+): InlineRow | null {
   const payload = getRuntimeItemPayload<WebSearchPayload>(item, "web_search");
   if (!payload) return null;
-  const title = payload.query || formatWebSearchName(readPayloadString(payload, "name"));
+  const title = payload.query || formatWebSearchName(readPayloadString(payload, "name"), t);
   const sections: ToolCallSection[] =
     isExpanded && hasAuxFields(payload)
       ? [
@@ -558,7 +575,7 @@ function getWebSearchRow(item: RuntimeChatItem, isExpanded: boolean): InlineRow 
   const rightLabel: ReactNode = isRunning ? (
     <PixelLoader size="xxs" className="text-[color:var(--muted)]" />
   ) : resultCount != null ? (
-    `${resultCount} result${resultCount === 1 ? "" : "s"}`
+    <Plural value={resultCount} one="# result" other="# results" />
   ) : undefined;
   return {
     Icon: Globe,
@@ -570,8 +587,8 @@ function getWebSearchRow(item: RuntimeChatItem, isExpanded: boolean): InlineRow 
   };
 }
 
-function formatWebSearchName(name: string | undefined): string {
-  return name === "WebSearch" || !name ? "Web search" : name;
+function formatWebSearchName(name: string | undefined, t: TranslateFn): string {
+  return name === "WebSearch" || !name ? t(msg`Web search`) : name;
 }
 
 type GroupCategory = "viewed" | "searched" | "edited" | "executed" | "other";

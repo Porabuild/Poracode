@@ -2,6 +2,7 @@ import { resolve } from "node:path";
 import { defineConfig, loadEnv } from "vite";
 import babel from "@rolldown/plugin-babel";
 import react, { reactCompilerPreset } from "@vitejs/plugin-react";
+import { lingui } from "@lingui/vite-plugin";
 
 const compilerPreset = reactCompilerPreset();
 const DEFAULT_POSTHOG_HOST = "https://us.i.posthog.com";
@@ -31,7 +32,18 @@ function buildPostHogEnvDefines(mode: string): Record<string, string> {
 const lightcodeChannel = process.env.LIGHTCODE_CHANNEL === "nightly" ? "nightly" : "stable";
 
 export default defineConfig(({ mode }) => ({
-  plugins: [react(), babel({ presets: [compilerPreset] })],
+  plugins: [
+    react(),
+    // The Lingui macro must expand BEFORE the React Compiler. Babel applies
+    // `plugins` ahead of `presets`, so listing the macro as a plugin (with the
+    // compiler as a preset) guarantees that order within this single Babel pass.
+    // We use the Babel macro (not the SWC plugin) because this project transforms
+    // with Babel, sidestepping the SWC-plugin/runtime version-matching pitfalls.
+    babel({ plugins: ["@lingui/babel-plugin-lingui-macro"], presets: [compilerPreset] }),
+    // Compiles `.po` catalog imports into runtime message modules on the fly,
+    // so we never need a separate `lingui compile` step for the app build.
+    lingui(),
+  ],
   base: "./",
   define: {
     ...buildPostHogEnvDefines(mode),

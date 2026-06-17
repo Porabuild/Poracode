@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Trans, useLingui } from "@lingui/react/macro";
 import { Plus, Trash2 } from "lucide-react";
 import type { ProjectAction } from "@/shared/contracts";
 import { useAppStore } from "@/renderer/state/appStore";
@@ -7,6 +8,7 @@ import { Button, Input, TextArea } from "@/renderer/components/common";
 import { ActionIconPicker } from "./ActionIconPicker";
 
 export function ActionsSection(props: { projectId: string }) {
+  const { t } = useLingui();
   const project = useProject(props.projectId);
   const updateProjectScripts = useAppStore((s) => s.updateProjectScripts);
 
@@ -46,9 +48,11 @@ export function ActionsSection(props: { projectId: string }) {
   return (
     <div className="h-full min-h-0 overflow-y-auto px-6 pb-8 pt-4">
       <div className="mx-auto max-w-[720px]">
-        <h1 className="mb-6 text-lg font-semibold text-foreground">Actions</h1>
+        <h1 className="mb-6 text-lg font-semibold text-foreground">
+          <Trans>Actions</Trans>
+        </h1>
         <p className="mb-4 text-xs text-muted">
-          Custom commands available from the project context menu (right-click).
+          <Trans>Custom commands available from the project context menu (right-click).</Trans>
         </p>
 
         <div className="space-y-3">
@@ -68,7 +72,7 @@ export function ActionsSection(props: { projectId: string }) {
                   }}
                 />
                 <Input
-                  aria-label="Action name"
+                  aria-label={t`Action name`}
                   className="min-w-0 flex-1 font-medium"
                   value={action.name}
                   onChange={(e) => {
@@ -81,7 +85,7 @@ export function ActionsSection(props: { projectId: string }) {
                 <Button
                   isIconOnly
                   variant="ghost"
-                  aria-label="Remove action"
+                  aria-label={t`Remove action`}
                   className="shrink-0 opacity-0 transition-opacity group-hover:opacity-100"
                   onPress={() => removeAction(action.id)}
                 >
@@ -89,7 +93,7 @@ export function ActionsSection(props: { projectId: string }) {
                 </Button>
               </div>
               <TextArea
-                aria-label="Action command"
+                aria-label={t`Action command`}
                 className="w-full font-mono text-xs"
                 rows={2}
                 value={action.command}
@@ -107,9 +111,9 @@ export function ActionsSection(props: { projectId: string }) {
             <div className="mb-2.5 flex items-center gap-2">
               <ActionIconPicker value={newIcon} onChange={setNewIcon} />
               <Input
-                aria-label="New action name"
+                aria-label={t`New action name`}
                 className="min-w-0 flex-1"
-                placeholder="Action name"
+                placeholder={t`Action name`}
                 value={newName}
                 onChange={(e) => setNewName(e.target.value)}
                 onKeyDown={(e) => {
@@ -118,10 +122,10 @@ export function ActionsSection(props: { projectId: string }) {
               />
             </div>
             <TextArea
-              aria-label="New action command"
+              aria-label={t`New action command`}
               className="mb-3 w-full font-mono text-xs"
               rows={2}
-              placeholder={"Command (e.g., npm run dev)"}
+              placeholder={t`Command (e.g., npm run dev)`}
               value={newCommand}
               onChange={(e) => setNewCommand(e.target.value)}
             />
@@ -132,7 +136,7 @@ export function ActionsSection(props: { projectId: string }) {
               onPress={addAction}
             >
               <Plus className="size-4" />
-              Add action
+              <Trans>Add action</Trans>
             </Button>
           </div>
         </div>

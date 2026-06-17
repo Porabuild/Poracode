@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { PixelLoader } from "@/renderer/components/common";
 import { Tooltip } from "@heroui/react";
+import { useLingui } from "@lingui/react/macro";
 import { useShallow } from "zustand/shallow";
 import { useGitStore } from "@/renderer/state/gitStore";
 import { useAppStore } from "@/renderer/state/appStore";
@@ -14,6 +15,7 @@ import {
 } from "@/renderer/actions/gitCommandRunner";
 
 export function SyncBadge(props: { projectId: string; worktreePath?: string }) {
+  const { t } = useLingui();
   const { ahead, behind, hasTracking, hasRemote } = useGitStore(
     useShallow((s) => {
       const status = props.worktreePath
@@ -37,10 +39,10 @@ export function SyncBadge(props: { projectId: string; worktreePath?: string }) {
 
   const label =
     syncAction === "push"
-      ? `Push ↑${ahead}`
+      ? t`Push ↑${ahead}`
       : syncAction === "pull"
-        ? `Pull ↓${behind}`
-        : `Sync ↓${behind} ↑${ahead}`;
+        ? t`Pull ↓${behind}`
+        : t`Sync ↓${behind} ↑${ahead}`;
 
   async function handlePress() {
     if (isSyncing) return;
@@ -57,7 +59,10 @@ export function SyncBadge(props: { projectId: string; worktreePath?: string }) {
         if (props.worktreePath) {
           const thread = useAppStore
             .getState()
-            .threads.find((t) => t.worktreePath === props.worktreePath && t.worktreeBranch);
+            .threads.find(
+              (candidate) =>
+                candidate.worktreePath === props.worktreePath && candidate.worktreeBranch,
+            );
           await runGitSyncCommand({
             command: "push",
             projectLocation: location,

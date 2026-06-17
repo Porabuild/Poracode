@@ -1,12 +1,15 @@
 import { useState } from "react";
 import { Button, toast } from "@heroui/react";
 import { Check, Plus, RefreshCw, Save, Trash2, X } from "lucide-react";
+import { msg } from "@lingui/core/macro";
+import { Trans, useLingui } from "@lingui/react/macro";
 import {
   claudeProfileKind,
   parseClaudeProfileInstanceConfig,
   type AgentInstanceConfig,
 } from "@/shared/contracts";
 import { readBridge } from "@/renderer/bridge";
+import { i18n } from "@/renderer/i18n/i18n";
 import { Input } from "@/renderer/components/common";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { currentWslDistros } from "@/renderer/utils/acpRegistryAuth";
@@ -41,7 +44,9 @@ function refreshClaudeProfile(kind?: string): void {
     void readBridge()
       .refreshAgentStatuses(currentWslDistros(), kind ? { agentKinds: [kind] } : undefined)
       .catch((error) =>
-        toast.danger(error instanceof Error ? error.message : "Unable to refresh Claude profiles."),
+        toast.danger(
+          error instanceof Error ? error.message : i18n._(msg`Unable to refresh Claude profiles.`),
+        ),
       );
   }, 50);
 }
@@ -52,6 +57,7 @@ function ClaudeProfileRow(props: {
   onSave: (instance: AgentInstanceConfig) => void;
   onRemove: (id: string) => void;
 }) {
+  const { t } = useLingui();
   const [name, setName] = useState(props.instance.displayName ?? props.instance.id);
   const [configDir, setConfigDir] = useState(props.configDir);
   const trimmedName = name.trim();
@@ -64,13 +70,13 @@ function ClaudeProfileRow(props: {
   return (
     <div className="col-span-3 grid grid-cols-subgrid items-center border-b border-border/10 py-2 last:border-0">
       <Input
-        aria-label="Claude profile name"
+        aria-label={t`Claude profile name`}
         className="min-w-0"
         value={name}
         onChange={(event) => setName(event.target.value)}
       />
       <Input
-        aria-label="Claude profile config directory"
+        aria-label={t`Claude profile config directory`}
         className="min-w-0"
         value={configDir}
         onChange={(event) => setConfigDir(event.target.value)}
@@ -78,7 +84,7 @@ function ClaudeProfileRow(props: {
       <div className="flex shrink-0 items-center gap-1 justify-self-end">
         <Button
           isIconOnly
-          aria-label="Save Claude profile"
+          aria-label={t`Save Claude profile`}
           size="sm"
           variant="ghost"
           className="h-7 w-7 min-w-7"
@@ -95,7 +101,7 @@ function ClaudeProfileRow(props: {
         </Button>
         <Button
           isIconOnly
-          aria-label="Remove Claude profile"
+          aria-label={t`Remove Claude profile`}
           size="sm"
           variant="ghost"
           className="h-7 w-7 min-w-7 text-danger"
@@ -109,6 +115,7 @@ function ClaudeProfileRow(props: {
 }
 
 export function ClaudeProfileSettings() {
+  const { t } = useLingui();
   const agentInstances = useSharedSettings((s) => s.agentInstances ?? {});
   const setAgentInstance = useSharedSettings((s) => s.setAgentInstance);
   const removeAgentInstance = useSharedSettings((s) => s.removeAgentInstance);
@@ -156,15 +163,19 @@ export function ClaudeProfileSettings() {
     setAgentInstance(instance);
     refreshClaudeProfile(claudeProfileKind(id));
     closeAddForm();
-    toast.success(`Claude ${displayName} profile added.`);
+    toast.success(t`Claude ${displayName} profile added.`);
   }
 
   return (
     <div className="border-t border-border/10 pt-4">
       <div className="mb-2 flex items-center justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-sm font-medium text-foreground">Profiles</p>
-          <p className="text-xs text-muted">Separate Claude Code accounts by config directory.</p>
+          <p className="text-sm font-medium text-foreground">
+            <Trans>Profiles</Trans>
+          </p>
+          <p className="text-xs text-muted">
+            <Trans>Separate Claude Code accounts by config directory.</Trans>
+          </p>
         </div>
         <Button
           size="sm"
@@ -173,12 +184,14 @@ export function ClaudeProfileSettings() {
           onPress={() => refreshClaudeProfile()}
         >
           <RefreshCw className="size-3" />
-          Refresh
+          <Trans>Refresh</Trans>
         </Button>
       </div>
 
       {profiles.length === 0 && !isAdding ? (
-        <p className="py-2 text-xs text-muted">No additional Claude profiles.</p>
+        <p className="py-2 text-xs text-muted">
+          <Trans>No additional Claude profiles.</Trans>
+        </p>
       ) : null}
 
       {/* One grid for saved rows AND the draft row (subgrid rows), so the
@@ -192,12 +205,12 @@ export function ClaudeProfileSettings() {
             onSave={(next) => {
               setAgentInstance(next);
               refreshClaudeProfile(claudeProfileKind(next.id));
-              toast.success(`Claude ${next.displayName ?? next.id} profile saved.`);
+              toast.success(t`Claude ${next.displayName ?? next.id} profile saved.`);
             }}
             onRemove={(id) => {
               removeAgentInstance(id);
               refreshClaudeProfile();
-              toast.success("Claude profile removed.");
+              toast.success(t`Claude profile removed.`);
             }}
           />
         ))}
@@ -208,14 +221,14 @@ export function ClaudeProfileSettings() {
               // Focus the name field when the form is revealed by the explicit
               // "Add profile" press (the accepted exception to no-autofocus).
               ref={(node: HTMLInputElement | null) => node?.focus()}
-              aria-label="New Claude profile name"
+              aria-label={t`New Claude profile name`}
               className="min-w-0"
-              placeholder="e.g. Work"
+              placeholder={t`e.g. Work`}
               value={newName}
               onChange={(event) => setNewName(event.target.value)}
             />
             <Input
-              aria-label="New Claude profile config directory"
+              aria-label={t`New Claude profile config directory`}
               className="min-w-0"
               placeholder={suggestedConfigDir}
               value={newConfigDir}
@@ -226,7 +239,7 @@ export function ClaudeProfileSettings() {
             <div className="flex shrink-0 items-center gap-1 justify-self-end">
               <Button
                 isIconOnly
-                aria-label="Add Claude profile"
+                aria-label={t`Add Claude profile`}
                 size="sm"
                 variant="ghost"
                 className="h-7 w-7 min-w-7"
@@ -237,7 +250,7 @@ export function ClaudeProfileSettings() {
               </Button>
               <Button
                 isIconOnly
-                aria-label="Cancel new Claude profile"
+                aria-label={t`Cancel new Claude profile`}
                 size="sm"
                 variant="ghost"
                 className="h-7 w-7 min-w-7"
@@ -258,7 +271,7 @@ export function ClaudeProfileSettings() {
           onPress={() => setIsAdding(true)}
         >
           <Plus className="size-3" />
-          Add profile
+          <Trans>Add profile</Trans>
         </Button>
       ) : null}
     </div>

@@ -1,4 +1,5 @@
 import { Tooltip } from "@heroui/react";
+import { Trans, useLingui } from "@lingui/react/macro";
 import { Archive, Check, ChevronRight, CircleCheck, Columns2, Pencil, Trash2 } from "lucide-react";
 import type { Project } from "@/shared/contracts";
 import { ContextMenu } from "@/renderer/components/common";
@@ -18,11 +19,12 @@ export function SidebarThreadGroup(props: {
   setEditingThreadId: (id: string | null) => void;
 }) {
   const { entry, editingThreadId, setEditingThreadId } = props;
+  const { t } = useLingui();
   const groupKey = entry.group.groupId;
   const collapseKey = `group:${groupKey}`;
   const isGroupCollapsed = useIsWorktreeCollapsed(collapseKey);
   const toggleWorktreeCollapsed = useSidebarUiStore((s) => s.toggleWorktreeCollapsed);
-  const activeThreads = entry.group.threads.filter((t) => !t.done);
+  const activeThreads = entry.group.threads.filter((thread) => !thread.done);
   const isDone = activeThreads.length === 0;
   const isRenamingGroup = editingThreadId === collapseKey;
   const threadRemoveAction = useSharedSettings((s) => s.threadRemoveAction);
@@ -31,10 +33,10 @@ export function SidebarThreadGroup(props: {
     entry.group.threads[0]!.updatedAt,
   );
   const removeGroupThreads = () => {
-    const threadIds = entry.group.threads.map((t) => t.id);
-    for (const t of entry.group.threads) {
+    const threadIds = entry.group.threads.map((thread) => thread.id);
+    for (const thread of entry.group.threads) {
       if (threadRemoveAction === "archive") {
-        archiveThread(t.id);
+        archiveThread(thread.id);
       }
     }
     if (threadRemoveAction === "delete") {
@@ -55,29 +57,29 @@ export function SidebarThreadGroup(props: {
         items={[
           {
             id: "open-all",
-            label: "Open All",
+            label: t`Open All`,
             icon: <Columns2 className="size-3.5" />,
             isDisabled: activeThreads.length < 2,
           },
           {
             id: "rename-group",
-            label: "Rename Group",
+            label: t`Rename Group`,
             icon: <Pencil className="size-3.5" />,
           },
           {
             id: "mark-all-done",
-            label: "Mark All Done",
+            label: t`Mark All Done`,
             icon: <CircleCheck className="size-3.5" />,
             isDisabled: activeThreads.length === 0,
           },
           { type: "separator" as const },
           {
             id: "archive-all",
-            label: "Archive All",
+            label: t`Archive All`,
             icon: <Archive className="size-3.5" />,
             variant: "warning",
           },
-          { id: "ungroup-all", label: "Ungroup All", variant: "warning" },
+          { id: "ungroup-all", label: t`Ungroup All`, variant: "warning" },
         ]}
         onAction={(key) => {
           if (key === "open-all") {
@@ -87,13 +89,13 @@ export function SidebarThreadGroup(props: {
             setEditingThreadId(collapseKey);
           }
           if (key === "mark-all-done") {
-            for (const t of entry.group.threads) {
-              if (!t.done) toggleMarkThreadDone(t.id);
+            for (const thread of entry.group.threads) {
+              if (!thread.done) toggleMarkThreadDone(thread.id);
             }
           }
           if (key === "archive-all") {
-            for (const t of entry.group.threads) {
-              archiveThread(t.id);
+            for (const thread of entry.group.threads) {
+              archiveThread(thread.id);
             }
             clearThreadGroup(groupKey);
           }
@@ -119,8 +121,8 @@ export function SidebarThreadGroup(props: {
                 initialValue={entry.group.groupName}
                 onCommit={(newName) => {
                   useAppStore.setState((state) => ({
-                    threads: state.threads.map((t) =>
-                      t.groupId === groupKey ? { ...t, groupName: newName } : t,
+                    threads: state.threads.map((thread) =>
+                      thread.groupId === groupKey ? { ...thread, groupName: newName } : thread,
                     ),
                   }));
                   setEditingThreadId(null);
@@ -149,7 +151,9 @@ export function SidebarThreadGroup(props: {
               >
                 <Columns2 className="size-3" />
               </button>
-              <Tooltip.Content>Open all in group</Tooltip.Content>
+              <Tooltip.Content>
+                <Trans>Open all in group</Trans>
+              </Tooltip.Content>
             </Tooltip>
           )}
           {!isRenamingGroup && (
@@ -163,8 +167,8 @@ export function SidebarThreadGroup(props: {
                 tabIndex={0}
                 aria-label={
                   threadRemoveAction === "archive"
-                    ? `Archive ${entry.group.groupName}`
-                    : `Delete ${entry.group.groupName}`
+                    ? t`Archive ${entry.group.groupName}`
+                    : t`Delete ${entry.group.groupName}`
                 }
                 className={`absolute inset-0 flex items-center justify-center rounded text-muted/55 opacity-0 transition group-hover:opacity-100 ${threadRemoveAction === "archive" ? "hover:text-warning" : "hover:text-danger"}`}
                 onClick={(event) => {

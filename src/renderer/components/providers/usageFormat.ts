@@ -5,6 +5,8 @@ import {
   type UsageSnapshot,
   type UsageWindow,
 } from "@lightcode/agents-usage";
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/renderer/i18n/i18n";
 import { usageToneColor } from "./usageTone";
 
 /** Format a monetary amount (already in the currency's main unit, e.g. dollars). */
@@ -81,19 +83,27 @@ export function formatPaceSummary(
 ): { text: string; toneColor: string } {
   const toneColor = usageToneColor(projection.projectedPercent);
   if (projection.lastsToReset) {
-    return { text: `≈${Math.round(projection.projectedPercent)}% by reset`, toneColor };
+    return { text: i18n._(msg`≈${Math.round(projection.projectedPercent)}% by reset`), toneColor };
   }
   const { runsOutAt } = projection;
-  if (runsOutAt === undefined) return { text: "Over pace — runs out early", toneColor };
+  if (runsOutAt === undefined) {
+    return { text: i18n._(msg`Over pace — runs out early`), toneColor };
+  }
   // Already exhausted: the projected run-out moment is now or in the past, so a
   // "runs out in …" countdown and the "early" warning no longer apply — what's
   // actionable is when the quota comes back.
   if (runsOutAt <= now) {
     const resets = formatResetCountdown(resetsAt, now);
-    return { text: resets ? `Ran out · resets in ${resets}` : "Ran out", toneColor };
+    return {
+      text: resets ? i18n._(msg`Ran out · resets in ${resets}`) : i18n._(msg`Ran out`),
+      toneColor,
+    };
   }
   const runOut = formatResetCountdown(runsOutAt, now);
-  return { text: runOut ? `Runs out in ${runOut}` : "Runs out early", toneColor };
+  return {
+    text: runOut ? i18n._(msg`Runs out in ${runOut}`) : i18n._(msg`Runs out early`),
+    toneColor,
+  };
 }
 
 /**
@@ -135,30 +145,32 @@ export function usageStatusText(
   snapshot: UsageSnapshot | undefined,
   providerLabel?: string,
 ): string {
-  if (!snapshot) return "No data yet";
+  if (!snapshot) return i18n._(msg`No data yet`);
   switch (snapshot.status) {
     case "ok":
       if (snapshot.credits?.unlimited) {
-        return "Unlimited";
+        return i18n._(msg`Unlimited`);
       }
       if (snapshot.credits) {
-        return `${snapshot.credits.label ?? "Credits"}: ${formatMoney(
+        return `${snapshot.credits.label ?? i18n._(msg`Credits`)}: ${formatMoney(
           snapshot.credits.balance,
           snapshot.credits.currency,
         )}`;
       }
-      return "No windows reported";
+      return i18n._(msg`No windows reported`);
     case "auth-missing":
-      return "Not signed in";
-    case "app-not-running":
-      return `Start ${providerLabel ?? "the app"} to see usage`;
+      return i18n._(msg`Not signed in`);
+    case "app-not-running": {
+      const appName = providerLabel ?? i18n._(msg`the app`);
+      return i18n._(msg`Start ${appName} to see usage`);
+    }
     case "rate-limited":
-      return "Rate limited. Try again shortly.";
+      return i18n._(msg`Rate limited. Try again shortly.`);
     case "quota-hit":
-      return "Quota reached";
+      return i18n._(msg`Quota reached`);
     case "unsupported":
-      return "Usage not supported";
+      return i18n._(msg`Usage not supported`);
     default:
-      return snapshot.error ?? "Error";
+      return snapshot.error ?? i18n._(msg`Error`);
   }
 }

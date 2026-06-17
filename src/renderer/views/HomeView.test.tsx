@@ -1,4 +1,5 @@
-import { render, screen } from "@testing-library/react";
+import { screen } from "@testing-library/react";
+import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import { beforeEach, describe, expect, it } from "vitest";
 import type { AgentStatus, Project, Thread } from "@/shared/contracts";
 import { useAppStore } from "@/renderer/state/appStore";

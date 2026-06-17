@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useLingui } from "@lingui/react/macro";
 import type { DevTerminalTab } from "@/renderer/state/devTerminalStore";
 import { XTermSurface, type XTermSurfaceHandle } from "@/renderer/components/terminal/XTermSurface";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
@@ -36,6 +37,7 @@ export function TerminalSurfaces(props: {
   updateTabTitle: (tabId: string, title: string) => void;
   onTerminalResize?: (terminalId: string, size: TerminalSize) => void;
 }) {
+  const { t } = useLingui();
   const {
     tabs,
     selectedTabId,
@@ -167,11 +169,11 @@ export function TerminalSurfaces(props: {
           onMouseDown={handleResizeStart}
           role="separator"
           aria-orientation="vertical"
-          aria-label="Resize split"
+          aria-label={t`Resize split`}
         />
         <div className="relative h-full min-h-0 min-w-0 flex-1 overflow-hidden">
           {tabs
-            .filter((t) => t.splitId)
+            .filter((tab) => tab.splitId)
             .map((tab) => (
               <div
                 key={tab.splitId}

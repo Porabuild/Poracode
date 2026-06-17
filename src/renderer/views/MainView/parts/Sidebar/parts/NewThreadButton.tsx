@@ -1,6 +1,7 @@
 import { useRef } from "react";
 import { Columns2, Plus } from "lucide-react";
 import { useDraggable } from "@dnd-kit/react";
+import { useLingui } from "@lingui/react/macro";
 import { ContextMenu, SidebarButton } from "@/renderer/components/common";
 import type { DragSourceData } from "@/renderer/dnd";
 
@@ -13,6 +14,7 @@ export function NewThreadButton(props: {
   onPress: () => void;
   onOpenAsPanel: () => void;
 }) {
+  const { t } = useLingui();
   const newThreadRef = useRef<HTMLDivElement>(null);
   useDraggable({
     id: `new-thread:${props.projectId}`,
@@ -26,7 +28,10 @@ export function NewThreadButton(props: {
       items={[
         {
           id: "open-as-panel",
-          label: "Open as Panel",
+          label: t({
+            message: "Open as Panel",
+            comment: "Context menu action: open the new thread in a side-by-side panel",
+          }),
           icon: <Columns2 className="size-3.5" />,
           isDisabled: !props.canOpenAsPanel,
         },
@@ -40,7 +45,7 @@ export function NewThreadButton(props: {
         liveText
         ref={newThreadRef}
         icon={<Plus className="size-4" />}
-        label={props.hasDraft ? "New thread (draft)" : "New thread"}
+        label={props.hasDraft ? t`New thread (draft)` : t`New thread`}
         isActive={props.isActive}
         isDraggingAnything={props.isDraggingAnything}
         onPress={props.onPress}

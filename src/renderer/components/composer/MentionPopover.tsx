@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { Globe } from "lucide-react";
+import { Trans } from "@lingui/react/macro";
 import type { FileEntry } from "@/shared/contracts";
 import { getEntryIconUrl } from "@/renderer/components/common/fileIcons";
 
@@ -87,7 +88,7 @@ export function MentionPopover(props: {
               <span className="lightcode-mention-popover__label truncate">{entry.name}</span>
               {isBrowser ? (
                 <span className="lightcode-mention-popover__detail ml-auto shrink-0 text-xs text-[var(--muted)]">
-                  Browser MCP
+                  <Trans>Browser MCP</Trans>
                 </span>
               ) : dir ? (
                 <span className="lightcode-mention-popover__detail ml-auto shrink-0 text-xs text-[var(--muted)]">

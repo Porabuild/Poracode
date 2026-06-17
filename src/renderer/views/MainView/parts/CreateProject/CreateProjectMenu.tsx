@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { FilePlus, FolderOpen, GitBranch } from "lucide-react";
 import { Dropdown, Label } from "@heroui/react";
+import { Trans, useLingui } from "@lingui/react/macro";
 import { usePanelStore } from "@/renderer/state/panelStore";
 import {
   addExistingProject,
@@ -22,12 +23,13 @@ export function CreateProjectMenu(props: {
   children: ReactNode;
   onSelect?: (action: AddProjectAction) => void;
 }) {
+  const { t } = useLingui();
   return (
     <Dropdown>
       {props.children}
       <Dropdown.Popover>
         <Dropdown.Menu
-          aria-label="Add project options"
+          aria-label={t`Add project options`}
           onAction={(key) => {
             const action = key as AddProjectAction;
             props.onSelect?.(action);
@@ -40,17 +42,23 @@ export function CreateProjectMenu(props: {
             }
           }}
         >
-          <Dropdown.Item id="scratch" textValue="Start from scratch">
+          <Dropdown.Item id="scratch" textValue={t`Start from scratch`}>
             <FilePlus className="size-4 shrink-0 text-muted" />
-            <Label>Start from scratch</Label>
+            <Label>
+              <Trans>Start from scratch</Trans>
+            </Label>
           </Dropdown.Item>
-          <Dropdown.Item id="clone" textValue="Clone a repository">
+          <Dropdown.Item id="clone" textValue={t`Clone a repository`}>
             <GitBranch className="size-4 shrink-0 text-muted" />
-            <Label>Clone a repository</Label>
+            <Label>
+              <Trans>Clone a repository</Trans>
+            </Label>
           </Dropdown.Item>
-          <Dropdown.Item id="existing" textValue="Use an existing folder">
+          <Dropdown.Item id="existing" textValue={t`Use an existing folder`}>
             <FolderOpen className="size-4 shrink-0 text-muted" />
-            <Label>Use an existing folder</Label>
+            <Label>
+              <Trans>Use an existing folder</Trans>
+            </Label>
           </Dropdown.Item>
         </Dropdown.Menu>
       </Dropdown.Popover>

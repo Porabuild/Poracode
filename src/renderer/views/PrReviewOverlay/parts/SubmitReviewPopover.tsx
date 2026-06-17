@@ -10,6 +10,7 @@ import {
   toast,
 } from "@heroui/react";
 import { Check, MessageSquare, X } from "lucide-react";
+import { Trans, useLingui } from "@lingui/react/macro";
 import type { PrReviewDecision, ProjectLocation } from "@/shared/contracts";
 import { friendlyError } from "@/shared/messages";
 import { readBridge } from "@/renderer/bridge";
@@ -22,6 +23,7 @@ export function SubmitReviewPopover(props: {
   onSubmitted: () => void;
 }) {
   const { projectLocation, prNumber, hidden, onSubmitted } = props;
+  const { t } = useLingui();
   const [open, setOpen] = useState(false);
   const [decision, setDecision] = useState<PrReviewDecision>("comment");
   const [body, setBody] = useState("");
@@ -44,10 +46,10 @@ export function SubmitReviewPopover(props: {
       });
       toast.success(
         decision === "approve"
-          ? "Approved"
+          ? t`Approved`
           : decision === "request-changes"
-            ? "Changes requested"
-            : "Comment posted",
+            ? t`Changes requested`
+            : t`Comment posted`,
       );
       setOpen(false);
       setBody("");
@@ -68,20 +70,20 @@ export function SubmitReviewPopover(props: {
   }[] = [
     {
       value: "comment",
-      label: "Comment",
-      description: "Submit feedback without explicit approval.",
+      label: t`Comment`,
+      description: t`Submit feedback without explicit approval.`,
       icon: MessageSquare,
     },
     {
       value: "approve",
-      label: "Approve",
-      description: "Submit feedback and approve merging these changes.",
+      label: t`Approve`,
+      description: t`Submit feedback and approve merging these changes.`,
       icon: Check,
     },
     {
       value: "request-changes",
-      label: "Request changes",
-      description: "Submit feedback that must be addressed before merging.",
+      label: t`Request changes`,
+      description: t`Submit feedback that must be addressed before merging.`,
       icon: X,
     },
   ];
@@ -95,22 +97,24 @@ export function SubmitReviewPopover(props: {
         onPress={() => setOpen(true)}
       >
         <Check className="size-3" />
-        Submit review
+        <Trans>Submit review</Trans>
       </Button>
       <Popover.Content className="w-[340px]">
         <Popover.Dialog>
-          <Popover.Heading>Finish your review</Popover.Heading>
+          <Popover.Heading>
+            <Trans>Finish your review</Trans>
+          </Popover.Heading>
           <div className="mt-2 flex flex-col gap-3">
             <TextArea
-              aria-label="Review comment"
+              aria-label={t`Review comment`}
               className="h-20 w-full text-xs"
-              placeholder="Leave a comment"
+              placeholder={t`Leave a comment`}
               value={body}
               onChange={(e) => setBody(e.target.value)}
               disabled={submitting}
             />
             <RadioGroup
-              aria-label="Review decision"
+              aria-label={t`Review decision`}
               className="gap-1.5"
               value={decision}
               onChange={(v) => setDecision(v as PrReviewDecision)}
@@ -137,7 +141,7 @@ export function SubmitReviewPopover(props: {
                 onPress={() => setOpen(false)}
                 isDisabled={submitting}
               >
-                Cancel
+                <Trans>Cancel</Trans>
               </Button>
               <Button
                 variant="primary"
@@ -147,7 +151,7 @@ export function SubmitReviewPopover(props: {
                 isPending={submitting}
                 isDisabled={submitting || (requiresBody && bodyEmpty)}
               >
-                Submit review
+                <Trans>Submit review</Trans>
               </Button>
             </div>
           </div>

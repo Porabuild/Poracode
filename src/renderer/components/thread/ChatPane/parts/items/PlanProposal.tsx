@@ -1,5 +1,6 @@
 import { memo } from "react";
 import { Surface } from "@heroui/react";
+import { useLingui } from "@lingui/react/macro";
 import { AnimatingPlanIcon } from "@/renderer/components/common";
 import type { ToolCallPayload } from "@/shared/contracts";
 import type { RuntimeChatItem } from "@/renderer/state/slices/runtimeEventSlice";
@@ -21,6 +22,7 @@ interface PlanProposalProps {
  * accordion in the way.
  */
 export const PlanProposal = memo(function PlanProposal({ item }: PlanProposalProps) {
+  const { t } = useLingui();
   const payload = item.payload as ToolCallPayload | undefined;
   const args = readArgsObject(payload);
   const plan = readString(args, "plan");
@@ -28,6 +30,8 @@ export const PlanProposal = memo(function PlanProposal({ item }: PlanProposalPro
   const isStreaming = item.state !== "completed";
 
   if (!plan && !isStreaming && !planFilePath) return null;
+
+  const proposedPlanLabel = t`Proposed plan`;
 
   return (
     <Surface variant="transparent" className={chatMessageSurfaceClass}>
@@ -38,9 +42,9 @@ export const PlanProposal = memo(function PlanProposal({ item }: PlanProposalPro
           />
           <span
             className={isStreaming ? "lightcode-thinking-text" : ""}
-            {...(isStreaming ? { "data-lightcode-shimmer-text": "Proposed plan" } : {})}
+            {...(isStreaming ? { "data-lightcode-shimmer-text": proposedPlanLabel } : {})}
           >
-            Proposed plan
+            {proposedPlanLabel}
           </span>
         </div>
         {plan ? <ItemMarkdown text={plan} /> : null}

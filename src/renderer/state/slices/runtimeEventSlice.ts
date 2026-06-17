@@ -1,3 +1,4 @@
+import { msg } from "@lingui/core/macro";
 import type {
   CanonicalItemType,
   CanonicalRequestType,
@@ -9,9 +10,10 @@ import type {
   ThreadContextUsage,
   ToolCallPayload,
 } from "@/shared/contracts";
+import { i18n } from "@/renderer/i18n/i18n";
 import type { AppStoreState, SliceCreator } from "./shared";
 
-const STALE_SUB_AGENT_ERROR_MESSAGE = "Interrupted: agent session ended before completion.";
+const STALE_SUB_AGENT_ERROR_MESSAGE = msg`Interrupted: agent session ended before completion.`;
 
 type RuntimePersistenceDirtyListener = (threadIds: readonly string[]) => void;
 
@@ -901,7 +903,9 @@ function terminateSubAgentItem(item: RuntimeChatItem): RuntimeChatItem {
   const nextPayload: ToolCallPayload = {
     ...payload,
     status: "error",
-    ...(payload.result === undefined ? { result: { error: STALE_SUB_AGENT_ERROR_MESSAGE } } : {}),
+    ...(payload.result === undefined
+      ? { result: { error: i18n._(STALE_SUB_AGENT_ERROR_MESSAGE) } }
+      : {}),
   };
   return {
     ...item,

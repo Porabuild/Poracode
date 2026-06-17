@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Input, Label, Modal } from "@heroui/react";
+import { Trans, useLingui } from "@lingui/react/macro";
+import type { MessageDescriptor } from "@lingui/core";
 import { Command, Search } from "lucide-react";
 import { readBridge } from "@/renderer/bridge";
 import { useAppStore } from "@/renderer/state/appStore";
@@ -18,6 +20,7 @@ import {
 const MAX_VISIBLE_COMMANDS = 80;
 
 export function CommandPalette() {
+  const { t } = useLingui();
   const isOpen = useCommandPaletteStore((state) => state.isOpen);
   const close = useCommandPaletteStore((state) => state.close);
   const keybindings = useKeybindingStore((state) => state.keybindings);
@@ -37,7 +40,9 @@ export function CommandPalette() {
   const commands = buildCommandRegistry().filter((command) =>
     isCommandAvailable(command, whenContext),
   );
-  const filteredCommands = filterCommands(commands, query).slice(0, MAX_VISIBLE_COMMANDS);
+  const resolve = (value: string | MessageDescriptor): string =>
+    typeof value === "string" ? value : t(value);
+  const filteredCommands = filterCommands(commands, query, resolve).slice(0, MAX_VISIBLE_COMMANDS);
   const activeCommand = filteredCommands[activeIndex];
 
   useEffect(() => {
@@ -76,9 +81,12 @@ export function CommandPalette() {
             <Search className="size-4 shrink-0 text-muted" />
             <Input
               ref={inputRef}
-              aria-label="Command"
+              aria-label={t({
+                message: "Command",
+                comment: "Accessible label for the command palette search input",
+              })}
               variant="secondary"
-              placeholder="Type a command"
+              placeholder={t`Type a command`}
               value={query}
               onChange={(event) => {
                 setQuery(event.target.value);
@@ -101,7 +109,7 @@ export function CommandPalette() {
           </div>
           <div className="max-h-[min(520px,70vh)] overflow-y-auto p-2">
             {filteredCommands.length > 0 ? (
-              <div role="listbox" aria-label="Commands" className="space-y-1">
+              <div role="listbox" aria-label={t`Commands`} className="space-y-1">
                 {filteredCommands.map((command, index) => {
                   const shortcut = shortcutForCommand(command.id, keybindings);
                   return (
@@ -118,9 +126,9 @@ export function CommandPalette() {
                     >
                       <Command className="size-4 shrink-0 text-muted" />
                       <span className="min-w-0 flex-1">
-                        <Label className="block truncate text-sm">{command.title}</Label>
+                        <Label className="block truncate text-sm">{resolve(command.title)}</Label>
                         <span className="block truncate text-xs text-muted">
-                          {command.subtitle ?? command.group}
+                          {resolve(command.subtitle ?? command.group)}
                         </span>
                       </span>
                       {shortcut ? (
@@ -133,7 +141,9 @@ export function CommandPalette() {
                 })}
               </div>
             ) : (
-              <div className="px-3 py-8 text-center text-sm text-muted">No commands found</div>
+              <div className="px-3 py-8 text-center text-sm text-muted">
+                <Trans>No commands found</Trans>
+              </div>
             )}
           </div>
         </Modal.Dialog>
@@ -142,16 +152,20 @@ export function CommandPalette() {
   );
 }
 
-function filterCommands(commands: AppCommand[], query: string): AppCommand[] {
+function filterCommands(
+  commands: AppCommand[],
+  query: string,
+  resolve: (value: string | MessageDescriptor) => string,
+): AppCommand[] {
   const normalized = query.trim().toLowerCase();
   if (!normalized) return commands;
   const terms = normalized.split(/\s+/);
   return commands.filter((command) => {
     const haystack = [
       command.id,
-      command.title,
-      command.group,
-      command.subtitle ?? "",
+      resolve(command.title),
+      resolve(command.group),
+      command.subtitle ? resolve(command.subtitle) : "",
       ...(command.keywords ?? []),
     ]
       .join(" ")
