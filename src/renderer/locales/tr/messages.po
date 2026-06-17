@@ -2390,6 +2390,10 @@ msgstr "PR özeti oluştur"
 msgid "Generate with AI"
 msgstr "Yapay zeka ile oluşturun"
 
+#: src/renderer/components/thread/ChatPane/parts/items/imageViewSource.ts
+msgid "Generated image"
+msgstr "Oluşturulan görsel"
+
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 msgid "Generates commit messages from staged changes."
 msgstr "Hazırlanmış (staged) değişikliklerden commit mesajları oluşturur."

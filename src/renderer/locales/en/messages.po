@@ -2373,6 +2373,10 @@ msgstr "Generate PR summary"
 msgid "Generate with AI"
 msgstr "Generate with AI"
 
+#: src/renderer/components/thread/ChatPane/parts/items/imageViewSource.ts
+msgid "Generated image"
+msgstr "Generated image"
+
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 msgid "Generates commit messages from staged changes."
 msgstr "Generates commit messages from staged changes."

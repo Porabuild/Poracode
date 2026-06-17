@@ -2384,6 +2384,10 @@ msgstr "Tạo bản tóm tắt PR"
 msgid "Generate with AI"
 msgstr "Tạo bằng AI"
 
+#: src/renderer/components/thread/ChatPane/parts/items/imageViewSource.ts
+msgid "Generated image"
+msgstr "Hình ảnh đã tạo"
+
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 msgid "Generates commit messages from staged changes."
 msgstr "Tạo thông điệp commit từ các thay đổi đã staged."

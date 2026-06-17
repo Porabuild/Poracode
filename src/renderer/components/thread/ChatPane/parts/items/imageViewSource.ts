@@ -23,6 +23,9 @@
  * memoized per item by the component.
  */
 
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/renderer/i18n/i18n";
+
 export interface ImageViewSource {
   /** Renderable inline image URL: a `data:` URL (base64) or an svg `data:` URL. */
   src: string;
@@ -110,8 +113,9 @@ export function resolveImageViewSource(payload: unknown): ImageViewSource | null
   if (!src) return null;
   const mime = classification.mime;
   const extension = EXTENSION_BY_MIME[mime] ?? "png";
-  const alt = readPromptText(payload) ?? "";
-  return { src, mime, extension, fileName: buildFileName(alt, extension), alt };
+  const promptText = readPromptText(payload);
+  const alt = promptText ?? i18n._(msg`Generated image`);
+  return { src, mime, extension, fileName: buildFileName(promptText ?? "", extension), alt };
 }
 
 function findClassifiedCandidate(
@@ -156,9 +160,10 @@ export function imageViewSourceFromImageBlock(block: {
       ? block.mimeType
       : classification.mime;
   const extension = EXTENSION_BY_MIME[mime] ?? "png";
-  const alt =
-    typeof block.name === "string" && block.name.trim().length > 0 ? block.name.trim() : "";
-  return { src, mime, extension, fileName: buildFileName(alt, extension), alt };
+  const name =
+    typeof block.name === "string" && block.name.trim().length > 0 ? block.name.trim() : undefined;
+  const alt = name ?? i18n._(msg`Generated image`);
+  return { src, mime, extension, fileName: buildFileName(name ?? "", extension), alt };
 }
 
 function collectResultCandidates(result: unknown): string[] {

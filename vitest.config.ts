@@ -26,8 +26,8 @@ export default defineConfig({
         plugins: [babel({ plugins: ["@lingui/babel-plugin-lingui-macro"] }), lingui()],
         resolve: {
           alias: {
-            "@": resolve(__dirname, "src"),
-            "~file-icons": resolve(__dirname, "node_modules/material-icon-theme/icons"),
+            "@": resolve(import.meta.dirname, "src"),
+            "~file-icons": resolve(import.meta.dirname, "node_modules/material-icon-theme/icons"),
           },
         },
         test: {
@@ -41,7 +41,7 @@ export default defineConfig({
         extends: true,
         resolve: {
           alias: {
-            "@": resolve(__dirname, "src"),
+            "@": resolve(import.meta.dirname, "src"),
           },
         },
         test: {

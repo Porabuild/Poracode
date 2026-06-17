@@ -2348,6 +2348,10 @@ msgstr "生成 PR 摘要"
 msgid "Generate with AI"
 msgstr "用人工智能生成"
 
+#: src/renderer/components/thread/ChatPane/parts/items/imageViewSource.ts
+msgid "Generated image"
+msgstr "生成的图片"
+
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 msgid "Generates commit messages from staged changes."
 msgstr "从分阶段更改生成提交消息。"

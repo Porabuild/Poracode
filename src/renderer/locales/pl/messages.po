@@ -2391,6 +2391,10 @@ msgstr "Wygeneruj podsumowanie PR"
 msgid "Generate with AI"
 msgstr "Generuj za pomocą sztucznej inteligencji"
 
+#: src/renderer/components/thread/ChatPane/parts/items/imageViewSource.ts
+msgid "Generated image"
+msgstr "Wygenerowany obraz"
+
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 msgid "Generates commit messages from staged changes."
 msgstr "Generuje komunikaty commita na podstawie przygotowanych (staged) zmian."

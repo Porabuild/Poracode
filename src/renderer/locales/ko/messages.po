@@ -2353,6 +2353,10 @@ msgstr "PR 요약 생성"
 msgid "Generate with AI"
 msgstr "AI로 생성"
 
+#: src/renderer/components/thread/ChatPane/parts/items/imageViewSource.ts
+msgid "Generated image"
+msgstr "생성된 이미지"
+
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 msgid "Generates commit messages from staged changes."
 msgstr "스테이징된 변경 사항에서 커밋 메시지를 생성합니다."

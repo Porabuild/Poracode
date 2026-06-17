@@ -2353,6 +2353,10 @@ msgstr "PRサマリーを生成する"
 msgid "Generate with AI"
 msgstr "AIで生成"
 
+#: src/renderer/components/thread/ChatPane/parts/items/imageViewSource.ts
+msgid "Generated image"
+msgstr "生成された画像"
+
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 msgid "Generates commit messages from staged changes."
 msgstr "ステージされた変更からコミットメッセージを生成します。"
