@@ -108,7 +108,7 @@ export function deriveToolDisplay(payload: ToolCallPayload): ToolDisplay {
   }
 
   if (isSkillTool(payload)) {
-    const skill = readStr(args, "skill") ?? readStr(args, "name");
+    const skill = readStr(args, "skill") ?? readStr(args, "name") ?? readSkillName(payload);
     return { title: skill ? i18n._(msg`Skill: ${skill}`) : payload.name, Icon: Sparkles };
   }
 
@@ -458,7 +458,30 @@ export function isSkillTool(payload: ToolCallPayload): boolean {
   const n = payload.name.trim();
   if (n === "Skill" || /^(loaded|using) skill\b/i.test(n)) return true;
   const args = readArgsObject(payload);
-  return readStr(args, "skill") !== undefined;
+  return readStr(args, "skill") !== undefined || readSkillName(payload) !== undefined;
+}
+
+function readSkillName(payload: ToolCallPayload): string | undefined {
+  const args = readArgsObject(payload);
+  return (
+    readSkillNameFromPath(readPathArg(args)) ??
+    readSkillNameFromPath(payload.title) ??
+    readSkillNameFromPath(payload.name)
+  );
+}
+
+function readSkillNameFromPath(value: string | undefined): string | undefined {
+  if (!value) return undefined;
+  const cleaned = value
+    .replace(/^(?:view(?:\s+\d+(?::\d+)?)?|read(?:ing)?|open(?:ing)?)[:\s]+/i, "")
+    .trim()
+    .replace(/^["'`]+|["'`]+$/g, "");
+  const parts = cleaned.split(/[\\/]+/).filter(Boolean);
+  if (parts.at(-1)?.toLowerCase() !== "skill.md") return undefined;
+  const skillsIndex = parts.findLastIndex((part) => part.toLowerCase() === "skills");
+  if (skillsIndex === -1 || skillsIndex >= parts.length - 2) return undefined;
+  const skill = parts.at(-2);
+  return skill && !skill.startsWith(".") ? skill : undefined;
 }
 
 function formatAcpPathDisplay(

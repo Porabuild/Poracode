@@ -36,8 +36,8 @@ describe("installCommandCodePlugin (native staging)", () => {
     expect(existsSync(join(dir, "plugin.json"))).toBe(true);
     expect(existsSync(join(dir, "forward.mjs"))).toBe(true);
     expect(existsSync(join(dir, "lightcode-hook-runtime.mjs"))).toBe(true);
-    // POSIX wrapper (this test only runs the native posix branch).
-    expect(existsSync(join(dir, "lightcode-hook.sh"))).toBe(true);
+    const wrapperName = process.platform === "win32" ? "lightcode-hook.cmd" : "lightcode-hook.sh";
+    expect(existsSync(join(dir, wrapperName))).toBe(true);
 
     const doc = JSON.parse(readFileSync(join(ccDir, "settings.json"), "utf8")) as {
       hooks: Record<string, Array<{ hooks: Array<{ type: string; command: string }> }>>;
@@ -45,8 +45,9 @@ describe("installCommandCodePlugin (native staging)", () => {
     for (const ev of ["PreToolUse", "PostToolUse", "Stop"]) {
       const entry = doc.hooks[ev]?.[0]?.hooks?.[0];
       expect(entry?.type).toBe("command");
-      expect(entry?.command).toContain("agent-plugins/commandcode/lightcode-hook.sh");
-      expect(entry?.command.endsWith(` ${ev}`)).toBe(true);
+      const command = entry?.command ?? "";
+      expect(command.replace(/\\/g, "/")).toContain(`agent-plugins/commandcode/${wrapperName}`);
+      expect(command.endsWith(` ${ev}`)).toBe(true);
     }
   });
 

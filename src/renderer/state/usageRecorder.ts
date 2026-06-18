@@ -167,31 +167,46 @@ function classifyItem(itemType: string, payload: unknown): ItemHit | undefined {
   const name = str(p, "name") ?? "";
   const title = str(p, "title") ?? "";
   const args = asRecord(p?.["args"]);
+  const lowerName = name.toLowerCase();
 
   if (itemType === "mcp_tool_call" || /^mcp__/.test(name)) {
     const match = /^mcp__(.+?)__/.exec(name);
-    return { kind: "mcp", name: match?.[1] ?? str(p, "serverId") ?? "mcp" };
+    return {
+      kind: "mcp",
+      name:
+        match?.[1] ??
+        str(p, "serverId") ??
+        str(p, "server") ??
+        str(args, "serverId") ??
+        str(args, "server") ??
+        "mcp",
+    };
   }
   if (
-    name === "Skill" ||
+    lowerName === "skill" ||
     /^(loaded|using) skill\b/i.test(name) ||
-    /^(loaded|using) skill\b/i.test(title)
+    /^(loaded|using) skill\b/i.test(title) ||
+    readSkillName(p, args) !== undefined
   ) {
     const skill =
       str(args, "skill") ??
       str(args, "name") ??
+      readSkillName(p, args) ??
       title
         .replace(/^(loaded|using) skill[:\s]*/i, "")
         .replace(/^skill:\s*/i, "")
         .trim();
     return { kind: "skill", name: skill || "skill" };
   }
-  const subagentType = str(args, "subagent_type");
+  const subagentType =
+    str(args, "subagent_type") ?? str(args, "agent_type") ?? str(args, "agentType");
   if (
     p?.["isSubAgent"] === true ||
-    name === "Task" ||
-    name === "Workflow" ||
-    name === "Agent" ||
+    lowerName === "task" ||
+    lowerName === "workflow" ||
+    lowerName === "agent" ||
+    lowerName === "collabagenttoolcall" ||
+    lowerName === "collab agent tool call" ||
     subagentType
   ) {
     // Prefer the agent type (Task/Agent); for workflows use the saved name or
@@ -199,12 +214,51 @@ function classifyItem(itemType: string, payload: unknown): ItemHit | undefined {
     // generic "workflow"); otherwise the task description.
     const agent =
       subagentType ??
-      (name === "Workflow"
+      (lowerName === "workflow"
         ? (str(args, "name") ?? str(args, "description") ?? "workflow")
-        : (str(args, "description") ?? "subagent"));
+        : (str(args, "description") ?? str(args, "prompt") ?? "subagent"));
     return { kind: "subagent", name: agent };
   }
   return undefined;
+}
+
+function readSkillName(
+  payload: Record<string, unknown> | undefined,
+  args: Record<string, unknown> | undefined,
+): string | undefined {
+  return (
+    str(args, "skill") ??
+    str(args, "name") ??
+    readSkillNameFromPath(readPathArg(args)) ??
+    readSkillNameFromPath(str(payload, "title")) ??
+    readSkillNameFromPath(str(payload, "name"))
+  );
+}
+
+function readPathArg(args: Record<string, unknown> | undefined): string | undefined {
+  return (
+    str(args, "file_path") ??
+    str(args, "filePath") ??
+    str(args, "path") ??
+    str(args, "relative_path") ??
+    str(args, "relativePath") ??
+    str(args, "notebook_path") ??
+    str(args, "notebookPath")
+  );
+}
+
+function readSkillNameFromPath(value: string | undefined): string | undefined {
+  if (!value) return undefined;
+  const cleaned = value
+    .replace(/^(?:view(?:\s+\d+(?::\d+)?)?|read(?:ing)?|open(?:ing)?)[:\s]+/i, "")
+    .trim()
+    .replace(/^["'`]+|["'`]+$/g, "");
+  const parts = cleaned.split(/[\\/]+/).filter(Boolean);
+  if (parts.at(-1)?.toLowerCase() !== "skill.md") return undefined;
+  const skillsIndex = parts.findLastIndex((part) => part.toLowerCase() === "skills");
+  if (skillsIndex === -1 || skillsIndex >= parts.length - 2) return undefined;
+  const skill = parts.at(-2);
+  return skill && !skill.startsWith(".") ? skill : undefined;
 }
 
 /** Record an AI-performed git action (commit / PR / conflict) into the buffer. */
