@@ -350,6 +350,14 @@ msgstr "~{money}{tokens} · {0} · geschätzt"
 msgid "≈{0}% by reset"
 msgstr "≈{0}% bis zum Reset"
 
+#: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
+msgid "30d"
+msgstr "30 T"
+
+#: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
+msgid "7d"
+msgstr "7 T"
+
 #: src/renderer/components/thread/threadDraftViewHelpers.ts
 msgid "a supported coding agent"
 msgstr "ein unterstützter Codierungsagent"
@@ -584,6 +592,10 @@ msgstr "KI-Agenten-Orchestrator – Codierungsagenten über Terminal und natives
 #: src/renderer/views/ProfileOverlay/parts/AiActions.tsx
 msgid "AI git actions"
 msgstr "KI-Git-Aktionen"
+
+#: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
+msgid "All"
+msgstr "Alle"
 
 #: src/renderer/views/ProfileOverlay/parts/AccountFilter.tsx
 msgid "All accounts"
@@ -3902,6 +3914,10 @@ msgstr "Vorheriges Bild"
 msgid "Profile"
 msgstr "Profil"
 
+#: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
+msgid "Profile stats range"
+msgstr "Statistikzeitraum des Profils"
+
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Profiles"
 msgstr "Profile"
@@ -4871,13 +4887,21 @@ msgstr "Wird abgemeldet. Erkannte Agenten werden aktualisiert, wenn der Vorgang 
 msgid "Skill: {skill}"
 msgstr "Fähigkeit: {skill}"
 
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "Skill/subagent runs"
+msgstr "Verwendete Skills/Subagenten insgesamt"
+
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "Skills"
 msgstr "Skills"
 
 #: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
-msgid "Skills explored"
-msgstr "Erkundete Skills"
+#~ msgid "Skills explored"
+#~ msgstr "Erkundete Skills"
+
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "Skills/subagents explored"
+msgstr "Erkundete Skills/Subagenten"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "Some checks are failing or pending."
@@ -5427,12 +5451,20 @@ msgid "Total prompts"
 msgstr "Prompts insgesamt"
 
 #: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
-msgid "Total skills used"
-msgstr "Verwendete Skills insgesamt"
+#~ msgid "Total skills used"
+#~ msgstr "Verwendete Skills insgesamt"
 
 #: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
 msgid "Total threads"
 msgstr "Threads insgesamt"
+
+#: src/renderer/views/ProfileOverlay/parts/ShareCard.tsx
+msgid "total tokens"
+msgstr "Tokens im Zeitraum"
+
+#: src/renderer/views/ProfileOverlay/parts/StatStrip.tsx
+msgid "Total tokens"
+msgstr "Tokens im Zeitraum"
 
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Track {label} usage"

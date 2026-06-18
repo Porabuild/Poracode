@@ -349,6 +349,14 @@ msgstr "~{money}{tokens}·{0}· 推定。"
 msgid "≈{0}% by reset"
 msgstr "≈{0}% (リセットまでに)"
 
+#: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
+msgid "30d"
+msgstr "30日"
+
+#: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
+msgid "7d"
+msgstr "7日"
+
 #: src/renderer/components/thread/threadDraftViewHelpers.ts
 msgid "a supported coding agent"
 msgstr "サポートされているコーディング エージェント"
@@ -580,6 +588,10 @@ msgstr "AI エージェント オーケストレーター — ターミナルお
 #: src/renderer/views/ProfileOverlay/parts/AiActions.tsx
 msgid "AI git actions"
 msgstr "AIによるgit操作"
+
+#: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
+msgid "All"
+msgstr "全期間"
 
 #: src/renderer/views/ProfileOverlay/parts/AccountFilter.tsx
 msgid "All accounts"
@@ -3837,6 +3849,10 @@ msgstr "前の画像"
 msgid "Profile"
 msgstr "プロフィール"
 
+#: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
+msgid "Profile stats range"
+msgstr "プロフィール統計の期間"
+
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Profiles"
 msgstr "プロファイル"
@@ -4788,13 +4804,21 @@ msgstr "サインアウトしています。検出されたエージェントは
 msgid "Skill: {skill}"
 msgstr "スキル:{skill}"
 
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "Skill/subagent runs"
+msgstr "スキル/サブエージェントの使用回数"
+
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "Skills"
 msgstr "スキル"
 
 #: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
-msgid "Skills explored"
-msgstr "試したスキル数"
+#~ msgid "Skills explored"
+#~ msgstr "試したスキル数"
+
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "Skills/subagents explored"
+msgstr "試したスキル/サブエージェント数"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "Some checks are failing or pending."
@@ -5329,12 +5353,20 @@ msgid "Total prompts"
 msgstr "プロンプト総数"
 
 #: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
-msgid "Total skills used"
-msgstr "使用したスキルの総数"
+#~ msgid "Total skills used"
+#~ msgstr "使用したスキルの総数"
 
 #: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
 msgid "Total threads"
 msgstr "スレッド総数"
+
+#: src/renderer/views/ProfileOverlay/parts/ShareCard.tsx
+msgid "total tokens"
+msgstr "合計トークン"
+
+#: src/renderer/views/ProfileOverlay/parts/StatStrip.tsx
+msgid "Total tokens"
+msgstr "合計トークン"
 
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Track {label} usage"

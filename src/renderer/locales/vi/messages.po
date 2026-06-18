@@ -351,6 +351,14 @@ msgstr "~{money}{tokens} · {0} · ước tính."
 msgid "≈{0}% by reset"
 msgstr "≈{0}% khi đặt lại"
 
+#: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
+msgid "30d"
+msgstr "30 ngày"
+
+#: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
+msgid "7d"
+msgstr "7 ngày"
+
 #: src/renderer/components/thread/threadDraftViewHelpers.ts
 msgid "a supported coding agent"
 msgstr "một tác nhân mã hóa được hỗ trợ"
@@ -583,6 +591,10 @@ msgstr "Trình điều phối tác nhân AI - quản lý các tác nhân mã hó
 #: src/renderer/views/ProfileOverlay/parts/AiActions.tsx
 msgid "AI git actions"
 msgstr "Thao tác git bằng AI"
+
+#: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
+msgid "All"
+msgstr "Tất cả"
 
 #: src/renderer/views/ProfileOverlay/parts/AccountFilter.tsx
 msgid "All accounts"
@@ -3884,6 +3896,10 @@ msgstr "Hình ảnh trước đó"
 msgid "Profile"
 msgstr "Hồ sơ"
 
+#: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
+msgid "Profile stats range"
+msgstr "Phạm vi thống kê hồ sơ"
+
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Profiles"
 msgstr "Hồ sơ"
@@ -4844,13 +4860,21 @@ msgstr "Đang đăng xuất. Các tác nhân được phát hiện sẽ làm m�
 msgid "Skill: {skill}"
 msgstr "Kỹ năng: {skill}"
 
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "Skill/subagent runs"
+msgstr "Tổng số lần chạy skill/subagent"
+
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "Skills"
 msgstr "Skill"
 
 #: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
-msgid "Skills explored"
-msgstr "Skill đã khám phá"
+#~ msgid "Skills explored"
+#~ msgstr "Skill đã khám phá"
+
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "Skills/subagents explored"
+msgstr "Skill/subagent đã khám phá"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "Some checks are failing or pending."
@@ -5394,12 +5418,20 @@ msgid "Total prompts"
 msgstr "Tổng số prompt"
 
 #: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
-msgid "Total skills used"
-msgstr "Tổng số skill đã dùng"
+#~ msgid "Total skills used"
+#~ msgstr "Tổng số skill đã dùng"
 
 #: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
 msgid "Total threads"
 msgstr "Tổng số luồng"
+
+#: src/renderer/views/ProfileOverlay/parts/ShareCard.tsx
+msgid "total tokens"
+msgstr "tổng số tokens"
+
+#: src/renderer/views/ProfileOverlay/parts/StatStrip.tsx
+msgid "Total tokens"
+msgstr "Tổng số tokens"
 
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Track {label} usage"

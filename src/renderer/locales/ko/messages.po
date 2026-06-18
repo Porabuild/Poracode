@@ -349,6 +349,14 @@ msgstr "~{money}{tokens} · {0} · 예상"
 msgid "≈{0}% by reset"
 msgstr "재설정 시 ≈{0}%"
 
+#: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
+msgid "30d"
+msgstr "30일"
+
+#: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
+msgid "7d"
+msgstr "7일"
+
 #: src/renderer/components/thread/threadDraftViewHelpers.ts
 msgid "a supported coding agent"
 msgstr "지원되는 코딩 에이전트"
@@ -580,6 +588,10 @@ msgstr "AI 에이전트 오케스트레이터 — 터미널 및 기본 ACP를 �
 #: src/renderer/views/ProfileOverlay/parts/AiActions.tsx
 msgid "AI git actions"
 msgstr "AI git 작업"
+
+#: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
+msgid "All"
+msgstr "전체"
 
 #: src/renderer/views/ProfileOverlay/parts/AccountFilter.tsx
 msgid "All accounts"
@@ -3838,6 +3850,10 @@ msgstr "이전 이미지"
 msgid "Profile"
 msgstr "프로필"
 
+#: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
+msgid "Profile stats range"
+msgstr "프로필 통계 기간"
+
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Profiles"
 msgstr "프로필"
@@ -4787,13 +4803,21 @@ msgstr "로그아웃합니다. 감지된 에이전트는 완료되면 새로 고
 msgid "Skill: {skill}"
 msgstr "스킬: {skill}"
 
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "Skill/subagent runs"
+msgstr "사용한 전체 스킬/서브에이전트"
+
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "Skills"
 msgstr "스킬"
 
 #: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
-msgid "Skills explored"
-msgstr "탐색한 스킬"
+#~ msgid "Skills explored"
+#~ msgstr "탐색한 스킬"
+
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "Skills/subagents explored"
+msgstr "탐색한 스킬/서브에이전트"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "Some checks are failing or pending."
@@ -5328,12 +5352,20 @@ msgid "Total prompts"
 msgstr "전체 프롬프트"
 
 #: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
-msgid "Total skills used"
-msgstr "사용한 전체 스킬"
+#~ msgid "Total skills used"
+#~ msgstr "사용한 전체 스킬"
 
 #: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
 msgid "Total threads"
 msgstr "전체 스레드"
+
+#: src/renderer/views/ProfileOverlay/parts/ShareCard.tsx
+msgid "total tokens"
+msgstr "전체 토큰"
+
+#: src/renderer/views/ProfileOverlay/parts/StatStrip.tsx
+msgid "Total tokens"
+msgstr "전체 토큰"
 
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Track {label} usage"

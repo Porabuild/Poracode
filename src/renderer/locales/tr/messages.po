@@ -350,6 +350,14 @@ msgstr "~{money}{tokens} · {0} · tahmini"
 msgid "≈{0}% by reset"
 msgstr "sıfırlamaya kadar ≈%{0}"
 
+#: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
+msgid "30d"
+msgstr "30g"
+
+#: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
+msgid "7d"
+msgstr "7g"
+
 #: src/renderer/components/thread/threadDraftViewHelpers.ts
 msgid "a supported coding agent"
 msgstr "desteklenen bir kodlama aracısı"
@@ -583,6 +591,10 @@ msgstr "AI aracı orkestratörü — kodlama aracılarını Terminal ve Yerel AC
 #: src/renderer/views/ProfileOverlay/parts/AiActions.tsx
 msgid "AI git actions"
 msgstr "Yapay zeka git işlemleri"
+
+#: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
+msgid "All"
+msgstr "Tümü"
 
 #: src/renderer/views/ProfileOverlay/parts/AccountFilter.tsx
 msgid "All accounts"
@@ -3889,6 +3901,10 @@ msgstr "Önceki resim"
 msgid "Profile"
 msgstr "Profil"
 
+#: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
+msgid "Profile stats range"
+msgstr "Profil istatistikleri aralığı"
+
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Profiles"
 msgstr "Profiller"
@@ -4853,13 +4869,21 @@ msgstr "Çıkış yapılıyor. Algılanan aracılar tamamlandığında yenilenec
 msgid "Skill: {skill}"
 msgstr "Beceri: {skill}"
 
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "Skill/subagent runs"
+msgstr "Beceri/alt aracı çalıştırmaları"
+
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "Skills"
 msgstr "Beceriler"
 
 #: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
-msgid "Skills explored"
-msgstr "Keşfedilen beceriler"
+#~ msgid "Skills explored"
+#~ msgstr "Keşfedilen beceriler"
+
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "Skills/subagents explored"
+msgstr "Keşfedilen beceri/alt aracılar"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "Some checks are failing or pending."
@@ -5404,12 +5428,20 @@ msgid "Total prompts"
 msgstr "Toplam istem"
 
 #: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
-msgid "Total skills used"
-msgstr "Kullanılan toplam beceri"
+#~ msgid "Total skills used"
+#~ msgstr "Kullanılan toplam beceri"
 
 #: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
 msgid "Total threads"
 msgstr "Toplam konuşma"
+
+#: src/renderer/views/ProfileOverlay/parts/ShareCard.tsx
+msgid "total tokens"
+msgstr "token toplamı"
+
+#: src/renderer/views/ProfileOverlay/parts/StatStrip.tsx
+msgid "Total tokens"
+msgstr "Token toplamı"
 
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Track {label} usage"
