@@ -1,38 +1,87 @@
+import { msg } from "@lingui/core/macro";
 import type { MessageDescriptor } from "@lingui/core";
 import type { KeybindingEntry } from "@/shared/keybindings";
+import { DEFAULT_KEYBINDINGS } from "@/shared/keybindings";
 import { bindingForPlatform, formatKeybinding, type PlatformName } from "./keybindingMatcher";
 import type { AppCommand } from "./registry";
 
-type ResolveLabel = (value: string | MessageDescriptor) => string;
+export type ResolveLabel = (value: string | MessageDescriptor) => string;
 
 export const SHORTCUT_CONTEXTS = [
-  { id: "all", label: "All" },
-  { id: "global", label: "Global" },
-  { id: "composer", label: "Composer" },
-  { id: "panel", label: "Panel" },
-  { id: "editor", label: "Editor" },
-  { id: "terminal", label: "Terminal" },
-  { id: "browser", label: "Browser" },
-  { id: "project", label: "Project" },
-  { id: "thread", label: "Thread" },
+  { id: "all", label: msg`All` },
+  { id: "global", label: msg`Global` },
+  { id: "composer", label: msg`Composer` },
+  { id: "panel", label: msg`Panel` },
+  { id: "editor", label: msg`Editor` },
+  { id: "terminal", label: msg`Terminal` },
+  { id: "browser", label: msg`Browser` },
+  { id: "project", label: msg`Project` },
+  { id: "thread", label: msg`Thread` },
 ] as const;
 
 export type ShortcutContext = (typeof SHORTCUT_CONTEXTS)[number]["id"];
+
+/**
+ * Sections that split the flat shortcut list into groups. Each row belongs to
+ * exactly one section (derived from its canonical group token), so — unlike
+ * {@link SHORTCUT_CONTEXTS}, where a row can match several contexts — sections
+ * never duplicate a command. `groups` lists the canonical (English) group
+ * tokens that map into the section. Order here is the render/nav order.
+ */
+export const SHORTCUT_SECTIONS = [
+  { id: "composer", label: msg`Composer`, groups: ["Composer"] },
+  { id: "editor", label: msg`Editor`, groups: ["Editor"] },
+  { id: "terminal", label: msg`Terminal`, groups: ["Terminal"] },
+  { id: "browser", label: msg`Browser`, groups: ["Browser"] },
+  { id: "git", label: msg`Git`, groups: ["Git"] },
+  { id: "project", label: msg`Project`, groups: ["Project"] },
+  { id: "thread", label: msg`Thread`, groups: ["Thread"] },
+  { id: "scripts", label: msg`Scripts`, groups: ["Scripts"] },
+  { id: "chat", label: msg`Chat Commands`, groups: ["Chat Commands"] },
+  { id: "general", label: msg`General`, groups: ["Lightcode"] },
+  { id: "custom", label: msg`Custom`, groups: ["Custom"] },
+] as const;
+
+export type ShortcutSection = (typeof SHORTCUT_SECTIONS)[number]["id"];
 
 export interface ShortcutRow {
   id: string;
   title: string;
   description: string;
   group: string;
+  section: ShortcutSection;
   contexts: ShortcutContext[];
   keys: string[];
   searchText: string;
+  /**
+   * The command id a binding would target. Present for rows backed by the
+   * keybinding system (registry commands + custom bindings); `null` for built-in
+   * shortcuts that live in component handlers and can't be rebound.
+   */
+  commandId: string | null;
+  /** Whether the user can add/remove/reset this row's keybindings. */
+  editable: boolean;
+  /** The raw keybinding-file entries backing this row (for the editor). */
+  bindings: KeybindingEntry[];
+  /** The shipped default entries for this command, used by reset-to-default. */
+  defaultBindings: KeybindingEntry[];
+  /**
+   * `when` clause to copy onto a newly recorded binding so it inherits the
+   * command's input-safety guards (e.g. `!inputFocus`). `null` ⇒ rely on the
+   * command's own `when`.
+   */
+  whenTemplate: string | null;
 }
 
 interface LocalShortcut {
   id: string;
-  title: string;
-  description: string;
+  title: MessageDescriptor;
+  description: MessageDescriptor;
+  /**
+   * Canonical (English) grouping token. Never displayed — it only feeds context
+   * detection in {@link contextsForWhen} and row sorting, so it stays
+   * locale-independent. The displayed strings are `title` and `description`.
+   */
   group: string;
   when?: string;
   keys: string[];
@@ -41,109 +90,116 @@ interface LocalShortcut {
 export const LOCAL_SHORTCUTS: readonly LocalShortcut[] = [
   {
     id: "composer.send",
-    title: "Send message",
-    description: "Composer",
+    title: msg`Send message`,
+    description: msg`Composer`,
     group: "Composer",
     when: "composerFocus",
     keys: ["Enter"],
   },
   {
     id: "composer.new-line",
-    title: "New line",
-    description: "Composer",
+    title: msg`New line`,
+    description: msg`Composer`,
     group: "Composer",
     when: "composerFocus",
     keys: ["Shift+Enter"],
   },
   {
     id: "composer.toggle-work-plan",
-    title: "Toggle Work or Plan",
-    description: "Composer controls",
+    title: msg`Toggle Work or Plan`,
+    description: msg`Composer controls`,
     group: "Composer",
     when: "composerFocus",
     keys: ["Shift+Tab"],
   },
   {
     id: "composer.cycle-effort",
-    title: "Cycle reasoning effort",
-    description: "Composer controls",
+    title: msg`Cycle reasoning effort`,
+    description: msg`Composer controls`,
     group: "Composer",
     when: "composerFocus",
     keys: ["Mod+T"],
   },
   {
     id: "composer.toggle-fast",
-    title: "Toggle Fast mode",
-    description: "Composer controls",
+    title: msg`Toggle Fast mode`,
+    description: msg`Composer controls`,
     group: "Composer",
     when: "composerFocus",
     keys: ["Mod+F"],
   },
   {
     id: "composer.cycle-permission",
-    title: "Cycle permission mode",
-    description: "Composer controls",
+    title: msg`Cycle permission mode`,
+    description: msg`Composer controls`,
     group: "Composer",
     when: "composerFocus",
     keys: ["Mod+P"],
   },
   {
     id: "composer.open-model-picker",
-    title: "Open model picker",
-    description: "Composer controls",
+    title: msg`Open model picker`,
+    description: msg`Composer controls`,
     group: "Composer",
     when: "composerFocus",
     keys: ["Mod+M"],
   },
   {
     id: "terminal.copy",
-    title: "Copy selection",
-    description: "Terminal",
+    title: msg`Copy selection`,
+    description: msg`Terminal`,
     group: "Terminal",
     when: "terminalFocus",
     keys: ["Mod+C"],
   },
   {
     id: "terminal.paste",
-    title: "Paste",
-    description: "Terminal",
+    title: msg`Paste`,
+    description: msg`Terminal`,
     group: "Terminal",
     when: "terminalFocus",
     keys: ["Mod+V"],
   },
   {
     id: "browser.reload",
-    title: "Reload browser page",
-    description: "Browser",
+    title: msg`Reload browser page`,
+    description: msg`Browser`,
     group: "Browser",
     when: "browserFocus",
     keys: ["Mod+R", "F5"],
   },
   {
     id: "browser.hard-reload",
-    title: "Force reload browser page",
-    description: "Browser",
+    title: msg`Force reload browser page`,
+    description: msg`Browser`,
     group: "Browser",
     when: "browserFocus",
     keys: ["Mod+Shift+R", "Shift+F5"],
   },
   {
     id: "overlay.close",
-    title: "Close overlay",
-    description: "Panels and overlays",
+    title: msg`Close overlay`,
+    description: msg`Panels and overlays`,
     group: "Lightcode",
     when: "panelFocus",
     keys: ["Escape"],
   },
   {
     id: "git.submit-form",
-    title: "Submit Git form",
-    description: "Commit, PR, and review composers",
+    title: msg`Submit Git form`,
+    description: msg`Commit, PR, and review composers`,
     group: "Git",
     when: "panelFocus",
     keys: ["Mod+Enter"],
   },
 ];
+
+const DEFAULT_BINDINGS_BY_COMMAND = new Map<string, KeybindingEntry[]>();
+for (const binding of DEFAULT_KEYBINDINGS.keybindings) {
+  const existing = DEFAULT_BINDINGS_BY_COMMAND.get(binding.command);
+  if (existing) existing.push(binding);
+  else DEFAULT_BINDINGS_BY_COMMAND.set(binding.command, [binding]);
+}
 
 export function buildShortcutRows(
   commands: AppCommand[],
@@ -161,42 +217,77 @@ export function buildShortcutRows(
   const knownCommandIds = new Set(commands.map((command) => command.id));
   const commandRows = commands.map((command) => {
     const bindings = bindingsByCommand.get(command.id) ?? [];
+    const defaultBindings = DEFAULT_BINDINGS_BY_COMMAND.get(command.id) ?? [];
     const group = resolve(command.group);
-    const contexts = contextsForCommand(command, bindings, group);
+    // Context and section detection match canonical English group tokens (e.g.
+    // `group === "Editor"`), so feed them the source label — not the translated
+    // `group` above, which would never match `===` in a non-English locale.
+    const canonicalGroup = canonicalLabel(command.group);
+    const contexts = contextsForCommand(command, bindings, canonicalGroup);
     const bound = formatBindings(bindings, platform);
     const keys =
       bound.length > 0
         ? bound
         : (command.keys ?? []).map((key) => formatKeybinding(key, platform) || key);
-    return rowWithSearchText({
-      id: command.id,
-      title: resolve(command.title),
-      description: resolve(command.subtitle ?? command.group),
-      group,
-      contexts,
-      keys,
-    });
+    return rowWithSearchText(
+      {
+        id: command.id,
+        title: resolve(command.title),
+        description: resolve(command.subtitle ?? command.group),
+        group,
+        section: sectionForGroup(canonicalGroup),
+        contexts,
+        keys,
+        commandId: command.id,
+        editable: true,
+        bindings,
+        defaultBindings,
+        whenTemplate: bindings[0]?.when ?? defaultBindings[0]?.when ?? null,
+      },
+      resolve,
+    );
   });
 
   const customRows = keybindings
     .filter((binding) => !knownCommandIds.has(binding.command))
     .map((binding) =>
-      rowWithSearchText({
-        id: `custom:${binding.command}:${binding.key ?? binding.mac ?? binding.windows ?? binding.linux ?? ""}`,
-        title: binding.command,
-        description: "Custom",
-        group: "Custom",
-        contexts: contextsForWhen(binding.when, "Custom", binding.command),
-        keys: formatBindings([binding], platform),
-      }),
+      rowWithSearchText(
+        {
+          id: `custom:${binding.command}:${binding.key ?? binding.mac ?? binding.windows ?? binding.linux ?? ""}`,
+          title: binding.command,
+          description: resolve(msg`Custom`),
+          group: "Custom",
+          section: "custom",
+          contexts: contextsForWhen(binding.when, "Custom", binding.command),
+          keys: formatBindings([binding], platform),
+          commandId: binding.command,
+          editable: true,
+          bindings: [binding],
+          defaultBindings: [],
+          whenTemplate: binding.when ?? null,
+        },
+        resolve,
+      ),
     );
 
   const localRows = LOCAL_SHORTCUTS.map((shortcut) =>
-    rowWithSearchText({
-      ...shortcut,
-      contexts: contextsForWhen(shortcut.when, shortcut.group, shortcut.id),
-      keys: shortcut.keys.map((key) => formatKeybinding(key, platform) || key),
-    }),
+    rowWithSearchText(
+      {
+        id: shortcut.id,
+        title: resolve(shortcut.title),
+        description: resolve(shortcut.description),
+        group: shortcut.group,
+        section: sectionForGroup(shortcut.group),
+        contexts: contextsForWhen(shortcut.when, shortcut.group, shortcut.id),
+        keys: shortcut.keys.map((key) => formatKeybinding(key, platform) || key),
+        commandId: null,
+        editable: false,
+        bindings: [],
+        defaultBindings: [],
+        whenTemplate: null,
+      },
+      resolve,
+    ),
   );
 
   return [...commandRows, ...customRows, ...localRows].sort((a, b) => {
@@ -205,18 +296,46 @@ export function buildShortcutRows(
   });
 }
 
-export function countRowsForContext(
-  rows: readonly ShortcutRow[],
-  context: ShortcutContext,
-): number {
-  return rows.filter((row) => row.contexts.includes(context)).length;
-}
-
-export function labelForContext(context: ShortcutContext): string {
+export function labelForContext(context: ShortcutContext): string | MessageDescriptor {
   return SHORTCUT_CONTEXTS.find((item) => item.id === context)?.label ?? context;
 }
 
-function rowWithSearchText(row: Omit<ShortcutRow, "searchText">): ShortcutRow {
+const SECTION_BY_GROUP = new Map<string, ShortcutSection>();
+for (const section of SHORTCUT_SECTIONS) {
+  for (const group of section.groups) SECTION_BY_GROUP.set(group.toLowerCase(), section.id);
+}
+
+/** Map a canonical (English) group token to its section. Unknown groups fall
+ * into "general" so a newly added command is never silently dropped. */
+function sectionForGroup(group: string): ShortcutSection {
+  return SECTION_BY_GROUP.get(group.trim().toLowerCase()) ?? "general";
+}
+
+export interface ShortcutSectionGroup {
+  id: ShortcutSection;
+  label: string | MessageDescriptor;
+  rows: ShortcutRow[];
+}
+
+/**
+ * Bucket rows into {@link SHORTCUT_SECTIONS} order, dropping empty sections and
+ * sorting each section's rows by title. Feed it the already-filtered rows so the
+ * section nav and list reflect the active search.
+ */
+export function groupRowsBySection(rows: readonly ShortcutRow[]): ShortcutSectionGroup[] {
+  return SHORTCUT_SECTIONS.map((section) => ({
+    id: section.id,
+    label: section.label,
+    rows: rows
+      .filter((row) => row.section === section.id)
+      .sort((a, b) => a.title.localeCompare(b.title)),
+  })).filter((section) => section.rows.length > 0);
+}
+
+function rowWithSearchText(
+  row: Omit<ShortcutRow, "searchText">,
+  resolve: ResolveLabel,
+): ShortcutRow {
   return {
     ...row,
     searchText: [
@@ -224,7 +343,7 @@ function rowWithSearchText(row: Omit<ShortcutRow, "searchText">): ShortcutRow {
       row.description,
       row.group,
       row.keys.join(" "),
-      row.contexts.map(labelForContext).join(" "),
+      row.contexts.map((context) => resolve(labelForContext(context))).join(" "),
     ]
       .join(" ")
       .toLowerCase(),
@@ -239,6 +358,19 @@ function formatBindings(bindings: readonly KeybindingEntry[], platform: Platform
     if (key) formatted.add(key);
   }
   return [...formatted];
+}
+
+/**
+ * The canonical (English) source text of a label, independent of the active
+ * locale. `contextsForWhen` matches group tokens with `===` against English
+ * literals, so it must receive the source string rather than the translated
+ * display label — otherwise context detection silently fails in non-English
+ * locales. A `MessageDescriptor` carries its source as `message` (and, under
+ * this catalog's message-as-id scheme, `id`); plain strings are already source.
+ */
+function canonicalLabel(value: string | MessageDescriptor): string {
+  if (typeof value === "string") return value;
+  return value.message ?? String(value.id ?? "");
 }
 
 function contextsForCommand(

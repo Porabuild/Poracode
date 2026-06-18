@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { DEFAULT_KEYBINDINGS } from "@/shared/keybindings";
-import { readKeybindingsFile } from "./keybindingsFile";
+import { readKeybindingsFile, writeKeybindingsFile } from "./keybindingsFile";
 
 let tempDir: string | null = null;
 
@@ -34,5 +34,26 @@ describe("readKeybindingsFile", () => {
     writeFileSync(path, `${JSON.stringify(custom)}\n`, "utf8");
 
     expect(readKeybindingsFile(path).file).toEqual(custom);
+  });
+});
+
+describe("writeKeybindingsFile", () => {
+  it("persists bindings atomically and round-trips through the reader", () => {
+    tempDir = mkdtempSync(join(tmpdir(), "lightcode-keybindings-"));
+    const path = join(tempDir, "keybindings.json");
+    const next = {
+      version: 1 as const,
+      keybindings: [
+        { command: "settings.open", key: "Ctrl+," },
+        { command: "palette.open", key: "Ctrl+K" },
+      ],
+    };
+
+    const config = writeKeybindingsFile(path, next);
+
+    expect(config.path).toBe(path);
+    expect(config.file).toEqual(next);
+    expect(readKeybindingsFile(path).file).toEqual(next);
+    expect(readFileSync(path, "utf8").endsWith("\n")).toBe(true);
   });
 });

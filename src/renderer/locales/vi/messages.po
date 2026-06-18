@@ -505,6 +505,10 @@ msgstr "Thêm tùy chọn dự án"
 msgid "Add Remote"
 msgstr "Thêm remote"
 
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
+msgid "Add shortcut"
+msgstr "Thêm phím tắt"
+
 #: src/renderer/components/composer/ComposerAddMenu.tsx
 msgid "Add to composer"
 msgstr "Thêm vào trình soạn thảo"
@@ -592,6 +596,7 @@ msgstr "Trình điều phối tác nhân AI - quản lý các tác nhân mã hó
 msgid "AI git actions"
 msgstr "Thao tác git bằng AI"
 
+#: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "All"
 msgstr "Tất cả"
@@ -624,6 +629,10 @@ msgstr "Cho phép tác nhân đọc/ghi cookie và bộ nhớ lưu trữ"
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
 msgid "Allow eval"
 msgstr "Cho phép eval"
+
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
+msgid "Already used by {conflict}"
+msgstr "Đã được dùng bởi {conflict}"
 
 #. Notification filter: always notify
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
@@ -935,6 +944,7 @@ msgstr "Duyệt tìm thư mục mẹ"
 msgid "Browse your GitHub repositories or paste a clone URL."
 msgstr "Duyệt qua kho GitHub của bạn hoặc dán URL nhân bản."
 
+#: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/composer/AttachmentBar.tsx
 #: src/renderer/components/composer/ComposerAddMenu.tsx
 #: src/renderer/components/layout/UnifiedRightPanel.tsx
@@ -979,6 +989,10 @@ msgstr "Đã đạt đến giới hạn ngân sách"
 msgid "Building diff…"
 msgstr "Đang dựng diff…"
 
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
+msgid "Built-in shortcut — can't be changed"
+msgstr "Phím tắt tích hợp sẵn — không thể thay đổi"
+
 #: src/renderer/views/PrReviewOverlay/parts/PrMetaRow.tsx
 msgid "by <0>{author}</0>"
 msgstr "bởi <0>{author}</0>"
@@ -1018,6 +1032,7 @@ msgstr "Bỏ qua các quy tắc bảo vệ nhánh (hợp nhất với quyền qu
 #: src/renderer/views/MainView/parts/Sidebar/parts/DeleteWorktreeDialog.tsx
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
 #: src/renderer/views/PrReviewOverlay/parts/SubmitReviewPopover.tsx
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Cancel"
 msgstr "Hủy bỏ"
 
@@ -1049,6 +1064,10 @@ msgstr "Không thể chuyển nhánh — trước tiên hãy commit hoặc stash
 #: src/renderer/views/ProjectSettingsOverlay/parts/GeneralSection.tsx
 msgid "Change project folder"
 msgstr "Thay đổi thư mục dự án"
+
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
+msgid "Change shortcut"
+msgstr "Thay đổi phím tắt"
 
 #: src/renderer/views/MainView/parts/AppOverlays.tsx
 msgid "Change User"
@@ -1090,6 +1109,7 @@ msgid "Chat"
 msgstr "Trò chuyện"
 
 #: src/renderer/commands/registry.ts
+#: src/renderer/commands/shortcutCatalog.ts
 msgid "Chat Commands"
 msgstr "Lệnh trò chuyện"
 
@@ -1194,6 +1214,10 @@ msgstr "CLI"
 msgid "CLI hooks"
 msgstr "Hook CLI"
 
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
+msgid "Click a shortcut to record a new key, or ＋ to add another."
+msgstr "Nhấp vào một phím tắt để ghi lại phím mới, hoặc ＋ để thêm phím khác."
+
 #: src/renderer/views/MainView/parts/AppContent/parts/Thread/parts/ContinueInProviderDialog.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "Clone"
@@ -1243,6 +1267,10 @@ msgstr "Đóng mục tiêu"
 #: src/renderer/views/MainView/parts/AppContent/AppContent.tsx
 msgid "Close group"
 msgstr "Đóng nhóm"
+
+#: src/renderer/commands/shortcutCatalog.ts
+msgid "Close overlay"
+msgstr "Đóng lớp phủ"
 
 #: src/renderer/components/thread/ThreadDraftChrome.tsx
 #: src/renderer/components/thread/ThreadView.tsx
@@ -1406,6 +1434,10 @@ msgstr "Tạo thông báo commit"
 msgid "Commit options"
 msgstr "Tùy chọn cam kết"
 
+#: src/renderer/commands/shortcutCatalog.ts
+msgid "Commit, PR, and review composers"
+msgstr "Trình soạn thảo commit, PR và đánh giá"
+
 #: src/renderer/views/PrReviewOverlay/parts/PrTabsPill.tsx
 msgid "Commits"
 msgstr "Cam kết"
@@ -1451,10 +1483,15 @@ msgstr "Hoàn thành các lời nhắc trong thiết bị đầu cuối này. Đ
 msgid "completed"
 msgstr "hoàn thành"
 
+#: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Composer"
 msgstr "Composer"
+
+#: src/renderer/commands/shortcutCatalog.ts
+msgid "Composer controls"
+msgstr "Điều khiển trình soạn thảo"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Config directory"
@@ -1591,6 +1628,10 @@ msgstr "Sao chép đường dẫn"
 msgid "Copy Relative Path"
 msgstr "Sao chép đường dẫn tương đối"
 
+#: src/renderer/commands/shortcutCatalog.ts
+msgid "Copy selection"
+msgstr "Sao chép lựa chọn"
+
 #: src/renderer/components/thread/WorktreeModeSelect.tsx
 msgid "Copy uncommitted changes here (keeps them on this branch)"
 msgstr "Sao chép các thay đổi chưa được cam kết tại đây (giữ chúng trên nhánh "
@@ -1638,6 +1679,10 @@ msgstr "Không thể liệt kê các kho lưu trữ."
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "Couldn't load your profile stats."
 msgstr "Không thể tải thống kê hồ sơ của bạn."
+
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
+msgid "Couldn't save the shortcut."
+msgstr "Không thể lưu phím tắt."
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CreatePrModal.tsx
 msgid "Create Draft PR"
@@ -1713,6 +1758,7 @@ msgstr "chuỗi ngày hiện tại"
 msgid "Current streak"
 msgstr "Chuỗi ngày hiện tại"
 
+#: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
@@ -1722,6 +1768,14 @@ msgstr "Tùy chỉnh"
 #: src/renderer/views/ProjectSettingsOverlay/parts/ActionsSection.tsx
 msgid "Custom commands available from the project context menu (right-click)."
 msgstr "Các lệnh tùy chỉnh có sẵn từ menu ngữ cảnh của dự án (nhấp chuột phải)."
+
+#: src/renderer/commands/shortcutCatalog.ts
+msgid "Cycle permission mode"
+msgstr "Luân chuyển chế độ cho phép"
+
+#: src/renderer/commands/shortcutCatalog.ts
+msgid "Cycle reasoning effort"
+msgstr "Luân chuyển mức nỗ lực suy luận"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Dark"
@@ -1897,6 +1951,10 @@ msgstr "Tắt các mức mà nhà cung cấp bên ngoài gộp lại (ví dụ c
 msgid "Disabled"
 msgstr "Đã tắt"
 
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
+msgid "Discard"
+msgstr "Hủy bỏ"
+
 #: src/renderer/commands/registry.ts
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
 msgid "Discard unsaved changes in {path}?"
@@ -2030,6 +2088,7 @@ msgid "Edit:"
 msgstr "Chỉnh sửa:"
 
 #: src/renderer/commands/registry.ts
+#: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/views/FileEditorOverlay/FileEditorOverlay.tsx
 msgid "Editor"
 msgstr "Trình chỉnh sửa"
@@ -2364,6 +2423,10 @@ msgstr "Buộc xóa"
 msgid "Force delete? Unmerged changes will be lost."
 msgstr "Buộc xóa? Những thay đổi chưa được hợp nhất sẽ bị mất."
 
+#: src/renderer/commands/shortcutCatalog.ts
+msgid "Force reload browser page"
+msgstr "Buộc tải lại trang trình duyệt"
+
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 msgid "Fork"
 msgstr "Fork"
@@ -2402,6 +2465,7 @@ msgstr "Toàn quyền truy cập"
 msgid "Fullscreen overlay"
 msgstr "Lớp phủ toàn màn hình"
 
+#: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/views/ProjectSettingsOverlay/parts/GeneralSection.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/SettingsSidebar.tsx
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
@@ -2437,6 +2501,7 @@ msgstr "Tạo tiêu đề ngắn cho chủ đề mới."
 msgid "Get task"
 msgstr "Nhận nhiệm vụ"
 
+#: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/layout/UnifiedRightPanel.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
@@ -2483,6 +2548,10 @@ msgstr "Các tệp được Gitignored để sao chép từ dự án chính vào
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "GLM 5.2 (optional label)"
 msgstr "GLM 5.2 (nhãn tùy chọn)"
+
+#: src/renderer/commands/shortcutCatalog.ts
+msgid "Global"
+msgstr "Toàn cục"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Global folder"
@@ -2720,6 +2789,10 @@ msgstr "Bị gián đoạn: phiên tác nhân đã kết thúc trước khi hoà
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesEditor.tsx
 msgid "Italic"
 msgstr "Nghiêng"
+
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
+msgid "Jump to section"
+msgstr "Chuyển đến phần"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/UsagePanel.tsx
 msgid "just now"
@@ -3241,6 +3314,10 @@ msgstr "Tệp mới"
 msgid "New Folder"
 msgstr "Thư mục mới"
 
+#: src/renderer/commands/shortcutCatalog.ts
+msgid "New line"
+msgstr "Dòng mới"
+
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
 msgid "New project"
 msgstr "Dự án mới"
@@ -3474,6 +3551,10 @@ msgstr "Không tìm thấy kho lưu trữ nào."
 msgid "No runtime items yet for this thread."
 msgstr "Chưa có mục thời gian chạy nào cho luồng này."
 
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
+msgid "No shortcuts found"
+msgstr "Không tìm thấy phím tắt nào"
+
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "No skills used yet."
 msgstr "Chưa dùng skill nào."
@@ -3684,6 +3765,10 @@ msgstr "Mở trong trình chỉnh sửa"
 msgid "Open links in"
 msgstr "Mở liên kết trong"
 
+#: src/renderer/commands/shortcutCatalog.ts
+msgid "Open model picker"
+msgstr "Mở bộ chọn mô hình"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserEmptyState.tsx
 msgid "Open new tab"
 msgstr "Mở tab mới"
@@ -3798,10 +3883,16 @@ msgstr "Trình quản lý gói"
 msgid "Page"
 msgstr "Trang"
 
+#: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Panel"
 msgstr "bảng điều khiển"
 
+#: src/renderer/commands/shortcutCatalog.ts
+msgid "Panels and overlays"
+msgstr "Bảng điều khiển và lớp phủ"
+
+#: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/terminal/XTermSurface.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 msgid "Paste"
@@ -3922,6 +4013,10 @@ msgstr "Hook pre-commit không thành công"
 msgid "Presets"
 msgstr "Cấu hình sẵn"
 
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
+msgid "Press shortcut…"
+msgstr "Nhấn phím tắt…"
+
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 msgid "Prevent sleep while working"
 msgstr "Ngăn chế độ ngủ khi đang làm việc"
@@ -3948,6 +4043,7 @@ msgid "Profiles"
 msgstr "Hồ sơ"
 
 #: src/renderer/commands/registry.ts
+#: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/views/ProjectSettingsOverlay/ProjectSettingsOverlay.tsx
 msgid "Project"
 msgstr "dự án"
@@ -4192,6 +4288,10 @@ msgstr "Đang làm mới trạng thái xác thực {env} {0}."
 msgid "Reload"
 msgstr "Tải lại"
 
+#: src/renderer/commands/shortcutCatalog.ts
+msgid "Reload browser page"
+msgstr "Tải lại trang trình duyệt"
+
 #: src/renderer/components/common/BranchSelector/parts/useBranchList.ts
 msgid "Remote"
 msgstr "Từ xa"
@@ -4253,6 +4353,10 @@ msgstr "Xóa mô hình"
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
 msgid "Remove Project"
 msgstr "Xóa dự án"
+
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
+msgid "Remove shortcut"
+msgstr "Xóa phím tắt"
 
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
 msgid "Remove worktree?"
@@ -4350,6 +4454,7 @@ msgid "Reset sidebar frosting to default"
 msgstr "Đặt lại độ mờ thanh bên về mặc định"
 
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Reset to default"
 msgstr "Đặt lại về mặc định"
 
@@ -4582,6 +4687,10 @@ msgstr "Lưu hồ sơ Claude"
 msgid "Save File"
 msgstr "Lưu tập tin"
 
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
+msgid "Save shortcut"
+msgstr "Lưu phím tắt"
+
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
 msgid "Saved credentials are shared across all environments."
 msgstr "Thông tin đăng nhập đã lưu được chia sẻ trên tất cả các môi trường."
@@ -4605,6 +4714,7 @@ msgstr "Đang quét hệ thống của bạn để tìm CLI đã cài đặt. Vi
 "vài giây."
 
 #: src/renderer/commands/registry.ts
+#: src/renderer/commands/shortcutCatalog.ts
 msgid "Scripts"
 msgstr "Tập lệnh"
 
@@ -4670,6 +4780,10 @@ msgstr "Tìm kiếm kho lưu trữ…"
 #: src/renderer/components/thread/ChatPane/ChatRuntimeDebugPanel.tsx
 msgid "Search runtime items…"
 msgstr "Tìm kiếm các mục thời gian chạy…"
+
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
+msgid "Search shortcuts"
+msgstr "Tìm kiếm phím tắt"
 
 #: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
 msgid "Search threads"
@@ -4740,6 +4854,7 @@ msgstr "Chọn dự án"
 msgid "Send a message..."
 msgstr "Gửi tin nhắn..."
 
+#: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/thread/ThreadComposerSection.tsx
 msgid "Send message"
 msgstr "Gửi tin nhắn"
@@ -4760,6 +4875,10 @@ msgstr "Tách các tài khoản Claude Code theo thư mục cấu hình, hoặc 
 msgid "Set or view an experimental goal"
 msgstr "Đặt hoặc xem mục tiêu thử nghiệm"
 
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
+msgid "Set shortcut"
+msgstr "Đặt phím tắt"
+
 #: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 #: src/renderer/views/SettingsOverlay/SettingsOverlay.tsx
@@ -4777,6 +4896,11 @@ msgstr "Chia sẻ"
 #: src/renderer/views/ProfileOverlay/parts/ShareDialog.tsx
 msgid "Share your activity"
 msgstr "Chia sẻ hoạt động của bạn"
+
+#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
+msgid "Shortcuts"
+msgstr "Phím tắt"
 
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Show a compact per-provider usage ring in the sidebar."
@@ -4923,10 +5047,6 @@ msgstr "Tổng số lần chạy skill/subagent"
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "Skills"
 msgstr "Skill"
-
-#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
-#~ msgid "Skills explored"
-#~ msgstr "Skill đã khám phá"
 
 #: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
 msgid "Skills/subagents explored"
@@ -5127,6 +5247,10 @@ msgstr "Gửi phản hồi phải được giải quyết trước khi hợp nh�
 msgid "Submit feedback without explicit approval."
 msgstr "Gửi phản hồi mà không có sự chấp thuận rõ ràng."
 
+#: src/renderer/commands/shortcutCatalog.ts
+msgid "Submit Git form"
+msgstr "Gửi biểu mẫu Git"
+
 #: src/renderer/views/PrReviewOverlay/parts/SubmitReviewPopover.tsx
 msgid "Submit review"
 msgstr "Gửi đánh giá"
@@ -5239,6 +5363,7 @@ msgid "Tell the target provider what to do next..."
 msgstr "Cho nhà cung cấp mục tiêu biết phải làm gì tiếp theo..."
 
 #: src/renderer/commands/registry.ts
+#: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/layout/UnifiedRightPanel.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
@@ -5387,6 +5512,7 @@ msgid "Thought"
 msgstr "Suy nghĩ"
 
 #: src/renderer/commands/registry.ts
+#: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/hooks/useElementPicker.ts
 msgid "Thread"
 msgstr "luồng"
@@ -5457,6 +5583,7 @@ msgstr "Tạo tiêu đề"
 msgid "To-dos"
 msgstr "Việc cần làm"
 
+#: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/providers/codex/index.tsx
 msgid "Toggle Fast mode"
 msgstr "Chuyển đổi chế độ Nhanh"
@@ -5468,6 +5595,10 @@ msgstr "Tắt các mô hình để ẩn chúng khỏi bộ chọn."
 #: src/renderer/commands/registry.ts
 msgid "Toggle Terminal"
 msgstr "Bật/tắt thiết bị đầu cuối"
+
+#: src/renderer/commands/shortcutCatalog.ts
+msgid "Toggle Work or Plan"
+msgstr "Chuyển đổi công việc hoặc kế hoạch"
 
 #: src/renderer/views/ProfileOverlay/parts/ActivitySection.tsx
 msgid "Tokens"
@@ -5485,10 +5616,6 @@ msgstr "Tìm kiếm công cụ"
 #: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
 msgid "Total prompts"
 msgstr "Tổng số prompt"
-
-#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
-#~ msgid "Total skills used"
-#~ msgstr "Tổng số skill đã dùng"
 
 #: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
 msgid "Total threads"
@@ -5647,6 +5774,10 @@ msgstr "Không thể cập nhật {0}: {detailText}"
 msgid "Unable to update {0}."
 msgstr "Không thể cập nhật {0}."
 
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
+msgid "Unassigned"
+msgstr "Chưa gán"
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadGroup.tsx
 msgid "Ungroup All"
 msgstr "Bỏ nhóm tất cả"
@@ -5662,6 +5793,7 @@ msgstr "Gỡ cài đặt"
 
 #: src/renderer/components/thread/threadContextUsage.ts
 #: src/renderer/views/PrReviewOverlay/parts/PrChecksTab.tsx
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Unknown"
 msgstr "Không xác định"
 
@@ -5859,6 +5991,10 @@ msgstr "Sử dụng tính năng tăng tốc WebGPU"
 #: src/renderer/components/thread/threadContextUsage.ts
 msgid "Used"
 msgstr "Đã dùng"
+
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
+msgid "Used by {conflict}"
+msgstr "Đã được dùng bởi {conflict}"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Using the built-in Claude model list."

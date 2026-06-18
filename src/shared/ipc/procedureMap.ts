@@ -67,6 +67,7 @@ export const MAIN_LOCAL_PROCEDURE_NAMES = [
   "relaunchApp",
   "getHomeScopeLocation",
   "getKeybindings",
+  "setKeybindings",
   "revealProjectEntry",
   "getSharedSettings",
   "setSharedSettings",

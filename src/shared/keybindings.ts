@@ -22,6 +22,9 @@ export interface KeybindingsConfig {
   file: KeybindingsFile;
 }
 
+const NOT_TYPING =
+  "!inputFocus && !editorFocus && !terminalFocus && !composerFocus && !panelFocus && !browserFocus";
+
 export const DEFAULT_KEYBINDINGS: KeybindingsFile = {
   version: 1,
   keybindings: [
@@ -31,10 +34,32 @@ export const DEFAULT_KEYBINDINGS: KeybindingsFile = {
       mac: "Meta+Shift+P",
     },
     {
-      command: "thread.search.open",
+      command: "palette.open",
+      key: "Ctrl+K",
+      mac: "Meta+K",
+    },
+    {
+      command: "settings.open",
+      key: "Ctrl+,",
+      mac: "Meta+,",
+    },
+    {
+      command: "files.open",
       key: "Ctrl+P",
       mac: "Meta+P",
-      when: "!inputFocus && !editorFocus && !terminalFocus && !composerFocus && !panelFocus && !browserFocus",
+      when: NOT_TYPING,
+    },
+    {
+      command: "thread.search.open",
+      key: "Ctrl+G",
+      mac: "Meta+G",
+      when: NOT_TYPING,
+    },
+    {
+      command: "git.open",
+      key: "Ctrl+Shift+G",
+      mac: "Meta+Shift+G",
+      when: "hasProject",
     },
     {
       command: "terminal.toggle",
@@ -45,7 +70,7 @@ export const DEFAULT_KEYBINDINGS: KeybindingsFile = {
       command: "pane.close",
       key: "Ctrl+W",
       mac: "Meta+W",
-      when: "threadView && !inputFocus && !editorFocus && !terminalFocus && !composerFocus && !panelFocus && !browserFocus",
+      when: `threadView && ${NOT_TYPING}`,
     },
     {
       command: "editor.save",

@@ -14,7 +14,7 @@ import {
   openSettings,
 } from "@/renderer/actions/panelActions";
 import { openNewThread } from "@/renderer/actions/threadActions";
-import { runProjectAction, showTerminalPanel } from "@/renderer/actions/terminalActions";
+import { openWorktreeTerminal, runProjectAction } from "@/renderer/actions/terminalActions";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useDevTerminalStore } from "@/renderer/state/devTerminalStore";
 import { useFileEditorStore } from "@/renderer/state/fileEditorStore";
@@ -143,7 +143,7 @@ function baseCommands(): AppCommand[] {
         const active = resolveActiveContext();
         if (!active.project) return;
         if (active.worktreePath) {
-          showTerminalPanel(active.project.id, active.worktreePath);
+          openWorktreeTerminal(active.project.id, active.worktreePath);
         } else {
           useDevTerminalStore.getState().togglePanel(active.project.id);
         }

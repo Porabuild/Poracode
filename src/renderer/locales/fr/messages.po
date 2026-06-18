@@ -506,6 +506,10 @@ msgstr "Ajouter des options de projet"
 msgid "Add Remote"
 msgstr "Ajouter un dépôt distant"
 
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
+msgid "Add shortcut"
+msgstr "Ajouter un raccourci"
+
 #: src/renderer/components/composer/ComposerAddMenu.tsx
 msgid "Add to composer"
 msgstr "Ajouter au compositeur"
@@ -593,6 +597,7 @@ msgstr "Orchestrateur d'agents IA : gérez les agents de codage via Terminal et
 msgid "AI git actions"
 msgstr "Actions git IA"
 
+#: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "All"
 msgstr "Tout"
@@ -625,6 +630,10 @@ msgstr "Autoriser les agents à lire/écrire les cookies et le stockage"
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
 msgid "Allow eval"
 msgstr "Autoriser l'évaluation"
+
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
+msgid "Already used by {conflict}"
+msgstr "Déjà utilisé par {conflict}"
 
 #. Notification filter: always notify
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
@@ -939,6 +948,7 @@ msgstr "Rechercher le dossier parent"
 msgid "Browse your GitHub repositories or paste a clone URL."
 msgstr "Parcourez vos référentiels GitHub ou collez une URL de clonage."
 
+#: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/composer/AttachmentBar.tsx
 #: src/renderer/components/composer/ComposerAddMenu.tsx
 #: src/renderer/components/layout/UnifiedRightPanel.tsx
@@ -983,6 +993,10 @@ msgstr "Limite budgétaire atteinte"
 msgid "Building diff…"
 msgstr "Génération de la différence…"
 
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
+msgid "Built-in shortcut — can't be changed"
+msgstr "Raccourci intégré — non modifiable"
+
 #: src/renderer/views/PrReviewOverlay/parts/PrMetaRow.tsx
 msgid "by <0>{author}</0>"
 msgstr "par <0>{author}</0>"
@@ -1023,6 +1037,7 @@ msgstr "Contourner les règles de protection des branches (fusion des "
 #: src/renderer/views/MainView/parts/Sidebar/parts/DeleteWorktreeDialog.tsx
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
 #: src/renderer/views/PrReviewOverlay/parts/SubmitReviewPopover.tsx
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Cancel"
 msgstr "Annuler"
 
@@ -1055,6 +1070,10 @@ msgstr "Impossible de changer de branche : validez ou stockez d'abord vos "
 #: src/renderer/views/ProjectSettingsOverlay/parts/GeneralSection.tsx
 msgid "Change project folder"
 msgstr "Changer le dossier du projet"
+
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
+msgid "Change shortcut"
+msgstr "Changer le raccourci"
 
 #: src/renderer/views/MainView/parts/AppOverlays.tsx
 msgid "Change User"
@@ -1096,6 +1115,7 @@ msgid "Chat"
 msgstr "Chat"
 
 #: src/renderer/commands/registry.ts
+#: src/renderer/commands/shortcutCatalog.ts
 msgid "Chat Commands"
 msgstr "Commandes de discussion"
 
@@ -1200,6 +1220,11 @@ msgstr "CLI"
 msgid "CLI hooks"
 msgstr "Hooks CLI"
 
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
+msgid "Click a shortcut to record a new key, or ＋ to add another."
+msgstr "Cliquez sur un raccourci pour enregistrer une nouvelle touche, ou sur ＋ "
+"pour en ajouter un autre."
+
 #: src/renderer/views/MainView/parts/AppContent/parts/Thread/parts/ContinueInProviderDialog.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "Clone"
@@ -1249,6 +1274,10 @@ msgstr "Fermer l'objectif"
 #: src/renderer/views/MainView/parts/AppContent/AppContent.tsx
 msgid "Close group"
 msgstr "Fermer le groupe"
+
+#: src/renderer/commands/shortcutCatalog.ts
+msgid "Close overlay"
+msgstr "Fermer la superposition"
 
 #: src/renderer/components/thread/ThreadDraftChrome.tsx
 #: src/renderer/components/thread/ThreadView.tsx
@@ -1412,6 +1441,10 @@ msgstr "Génération de messages de validation"
 msgid "Commit options"
 msgstr "Options de validation"
 
+#: src/renderer/commands/shortcutCatalog.ts
+msgid "Commit, PR, and review composers"
+msgstr "Compositeurs de commit, PR et revue"
+
 #: src/renderer/views/PrReviewOverlay/parts/PrTabsPill.tsx
 msgid "Commits"
 msgstr "Commits"
@@ -1457,10 +1490,15 @@ msgstr "Complétez les invites dans ce terminal. Se ferme une fois terminé."
 msgid "completed"
 msgstr "terminé"
 
+#: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Composer"
 msgstr "Composer"
+
+#: src/renderer/commands/shortcutCatalog.ts
+msgid "Composer controls"
+msgstr "Commandes du compositeur"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Config directory"
@@ -1598,6 +1636,10 @@ msgstr "Copier le chemin"
 msgid "Copy Relative Path"
 msgstr "Copier le chemin relatif"
 
+#: src/renderer/commands/shortcutCatalog.ts
+msgid "Copy selection"
+msgstr "Copier la sélection"
+
 #: src/renderer/components/thread/WorktreeModeSelect.tsx
 msgid "Copy uncommitted changes here (keeps them on this branch)"
 msgstr "Copiez les modifications non validées ici (les conserve sur cette "
@@ -1645,6 +1687,10 @@ msgstr "Impossible de lister les référentiels."
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "Couldn't load your profile stats."
 msgstr "Impossible de charger vos statistiques de profil."
+
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
+msgid "Couldn't save the shortcut."
+msgstr "Impossible d'enregistrer le raccourci."
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CreatePrModal.tsx
 msgid "Create Draft PR"
@@ -1720,6 +1766,7 @@ msgstr "série actuelle"
 msgid "Current streak"
 msgstr "Série actuelle"
 
+#: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
@@ -1730,6 +1777,14 @@ msgstr "Personnalisé"
 msgid "Custom commands available from the project context menu (right-click)."
 msgstr "Commandes personnalisées disponibles dans le menu contextuel du projet "
 "(clic droit)."
+
+#: src/renderer/commands/shortcutCatalog.ts
+msgid "Cycle permission mode"
+msgstr "Parcourir les modes d'autorisation"
+
+#: src/renderer/commands/shortcutCatalog.ts
+msgid "Cycle reasoning effort"
+msgstr "Parcourir les niveaux d'effort de raisonnement"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Dark"
@@ -1905,6 +1960,10 @@ msgstr "Désactivez les niveaux qu'un fournisseur externe regroupe (par ex. ne "
 msgid "Disabled"
 msgstr "Désactivé"
 
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
+msgid "Discard"
+msgstr "Abandonner"
+
 #: src/renderer/commands/registry.ts
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
 msgid "Discard unsaved changes in {path}?"
@@ -2039,6 +2098,7 @@ msgid "Edit:"
 msgstr "Modifier :"
 
 #: src/renderer/commands/registry.ts
+#: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/views/FileEditorOverlay/FileEditorOverlay.tsx
 msgid "Editor"
 msgstr "Éditeur"
@@ -2378,6 +2438,10 @@ msgid "Force delete? Unmerged changes will be lost."
 msgstr "Forcer la suppression ? Les modifications non fusionnées seront "
 "perdues."
 
+#: src/renderer/commands/shortcutCatalog.ts
+msgid "Force reload browser page"
+msgstr "Forcer le rechargement de la page du navigateur"
+
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 msgid "Fork"
 msgstr "Fork"
@@ -2418,6 +2482,7 @@ msgstr "Accès complet"
 msgid "Fullscreen overlay"
 msgstr "Superposition plein écran"
 
+#: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/views/ProjectSettingsOverlay/parts/GeneralSection.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/SettingsSidebar.tsx
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
@@ -2453,6 +2518,7 @@ msgstr "Génère des titres courts pour les nouveaux fils de discussion."
 msgid "Get task"
 msgstr "Obtenir la tâche"
 
+#: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/layout/UnifiedRightPanel.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
@@ -2499,6 +2565,10 @@ msgstr "Fichiers Gitignorés à copier du projet principal dans chaque nouvel "
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "GLM 5.2 (optional label)"
 msgstr "GLM 5.2 (libellé optionnel)"
+
+#: src/renderer/commands/shortcutCatalog.ts
+msgid "Global"
+msgstr "Global"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Global folder"
@@ -2736,6 +2806,10 @@ msgstr "Interrompu : la session de l'agent s'est terminée avant la fin."
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesEditor.tsx
 msgid "Italic"
 msgstr "Italique"
+
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
+msgid "Jump to section"
+msgstr "Aller à la section"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/UsagePanel.tsx
 msgid "just now"
@@ -3258,6 +3332,10 @@ msgstr "Nouveau fichier"
 msgid "New Folder"
 msgstr "Nouveau dossier"
 
+#: src/renderer/commands/shortcutCatalog.ts
+msgid "New line"
+msgstr "Nouvelle ligne"
+
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
 msgid "New project"
 msgstr "Nouveau projet"
@@ -3491,6 +3569,10 @@ msgstr "Aucun dépôt trouvé."
 msgid "No runtime items yet for this thread."
 msgstr "Aucun élément d'exécution pour ce fil pour l'instant."
 
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
+msgid "No shortcuts found"
+msgstr "Aucun raccourci trouvé"
+
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "No skills used yet."
 msgstr "Aucune compétence utilisée pour l'instant."
@@ -3702,6 +3784,10 @@ msgstr "Ouvrir dans l'éditeur"
 msgid "Open links in"
 msgstr "Ouvrir les liens dans"
 
+#: src/renderer/commands/shortcutCatalog.ts
+msgid "Open model picker"
+msgstr "Ouvrir le sélecteur de modèle"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserEmptyState.tsx
 msgid "Open new tab"
 msgstr "Ouvrir un nouvel onglet"
@@ -3818,10 +3904,16 @@ msgstr "Gestionnaire de paquets"
 msgid "Page"
 msgstr "Page"
 
+#: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Panel"
 msgstr "Panneau"
 
+#: src/renderer/commands/shortcutCatalog.ts
+msgid "Panels and overlays"
+msgstr "Panneaux et superpositions"
+
+#: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/terminal/XTermSurface.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 msgid "Paste"
@@ -3943,6 +4035,10 @@ msgstr "Échec du hook de pré-validation"
 msgid "Presets"
 msgstr "Préréglages"
 
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
+msgid "Press shortcut…"
+msgstr "Appuyez sur le raccourci…"
+
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 msgid "Prevent sleep while working"
 msgstr "Empêcher la mise en veille pendant le travail"
@@ -3969,6 +4065,7 @@ msgid "Profiles"
 msgstr "Profils"
 
 #: src/renderer/commands/registry.ts
+#: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/views/ProjectSettingsOverlay/ProjectSettingsOverlay.tsx
 msgid "Project"
 msgstr "Projet"
@@ -4214,6 +4311,10 @@ msgstr "Actualisation du statut d'authentification {env} {0}."
 msgid "Reload"
 msgstr "Recharger"
 
+#: src/renderer/commands/shortcutCatalog.ts
+msgid "Reload browser page"
+msgstr "Recharger la page du navigateur"
+
 #: src/renderer/components/common/BranchSelector/parts/useBranchList.ts
 msgid "Remote"
 msgstr "À distance"
@@ -4275,6 +4376,10 @@ msgstr "Supprimer le modèle"
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
 msgid "Remove Project"
 msgstr "Supprimer le projet"
+
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
+msgid "Remove shortcut"
+msgstr "Supprimer le raccourci"
 
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
 msgid "Remove worktree?"
@@ -4372,6 +4477,7 @@ msgid "Reset sidebar frosting to default"
 msgstr "Réinitialiser le givrage de la barre latérale"
 
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Reset to default"
 msgstr "Réinitialiser par défaut"
 
@@ -4605,6 +4711,10 @@ msgstr "Enregistrer le profil de Claude"
 msgid "Save File"
 msgstr "Enregistrer le fichier"
 
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
+msgid "Save shortcut"
+msgstr "Enregistrer le raccourci"
+
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
 msgid "Saved credentials are shared across all environments."
 msgstr "Les informations d'identification enregistrées sont partagées dans tous "
@@ -4629,6 +4739,7 @@ msgstr "Analyse de votre système pour les CLI installées. Cela prend "
 "généralement quelques secondes."
 
 #: src/renderer/commands/registry.ts
+#: src/renderer/commands/shortcutCatalog.ts
 msgid "Scripts"
 msgstr "Scripts"
 
@@ -4695,6 +4806,10 @@ msgstr "Rechercher des dépôts…"
 #: src/renderer/components/thread/ChatPane/ChatRuntimeDebugPanel.tsx
 msgid "Search runtime items…"
 msgstr "Rechercher des éléments d'exécution…"
+
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
+msgid "Search shortcuts"
+msgstr "Rechercher des raccourcis"
 
 #: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
 msgid "Search threads"
@@ -4765,6 +4880,7 @@ msgstr "Sélectionnez un projet"
 msgid "Send a message..."
 msgstr "Envoyer un message..."
 
+#: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/thread/ThreadComposerSection.tsx
 msgid "Send message"
 msgstr "Envoyer un message"
@@ -4786,6 +4902,10 @@ msgstr "Séparez les comptes Claude Code par dossier de configuration, ou "
 msgid "Set or view an experimental goal"
 msgstr "Définir ou afficher un objectif expérimental"
 
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
+msgid "Set shortcut"
+msgstr "Définir un raccourci"
+
 #: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 #: src/renderer/views/SettingsOverlay/SettingsOverlay.tsx
@@ -4803,6 +4923,11 @@ msgstr "Partager"
 #: src/renderer/views/ProfileOverlay/parts/ShareDialog.tsx
 msgid "Share your activity"
 msgstr "Partagez votre activité"
+
+#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
+msgid "Shortcuts"
+msgstr "Raccourcis"
 
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Show a compact per-provider usage ring in the sidebar."
@@ -4951,10 +5076,6 @@ msgstr "Exécutions de compétences/sous-agents"
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "Skills"
 msgstr "Compétences"
-
-#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
-#~ msgid "Skills explored"
-#~ msgstr "Compétences explorées"
 
 #: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
 msgid "Skills/subagents explored"
@@ -5156,6 +5277,10 @@ msgstr "Soumettez des commentaires qui doivent être traités avant la fusion."
 msgid "Submit feedback without explicit approval."
 msgstr "Soumettez des commentaires sans approbation explicite."
 
+#: src/renderer/commands/shortcutCatalog.ts
+msgid "Submit Git form"
+msgstr "Soumettre le formulaire Git"
+
 #: src/renderer/views/PrReviewOverlay/parts/SubmitReviewPopover.tsx
 msgid "Submit review"
 msgstr "Envoyer la révision"
@@ -5268,6 +5393,7 @@ msgid "Tell the target provider what to do next..."
 msgstr "Dites au fournisseur cible quoi faire ensuite..."
 
 #: src/renderer/commands/registry.ts
+#: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/layout/UnifiedRightPanel.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
@@ -5416,6 +5542,7 @@ msgid "Thought"
 msgstr "Pensée"
 
 #: src/renderer/commands/registry.ts
+#: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/hooks/useElementPicker.ts
 msgid "Thread"
 msgstr "Fil de discussion"
@@ -5487,6 +5614,7 @@ msgstr "Génération de titre"
 msgid "To-dos"
 msgstr "À faire"
 
+#: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/providers/codex/index.tsx
 msgid "Toggle Fast mode"
 msgstr "Activer/désactiver le mode rapide"
@@ -5498,6 +5626,10 @@ msgstr "Désactivez les modèles pour les masquer du sélecteur."
 #: src/renderer/commands/registry.ts
 msgid "Toggle Terminal"
 msgstr "Basculer le terminal"
+
+#: src/renderer/commands/shortcutCatalog.ts
+msgid "Toggle Work or Plan"
+msgstr "Basculer entre Travail et Plan"
 
 #: src/renderer/views/ProfileOverlay/parts/ActivitySection.tsx
 msgid "Tokens"
@@ -5515,10 +5647,6 @@ msgstr "Recherche d'outils"
 #: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
 msgid "Total prompts"
 msgstr "Total des prompts"
-
-#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
-#~ msgid "Total skills used"
-#~ msgstr "Total des compétences utilisées"
 
 #: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
 msgid "Total threads"
@@ -5679,6 +5807,10 @@ msgstr "Impossible de mettre à jour {0} : {detailText}"
 msgid "Unable to update {0}."
 msgstr "Impossible de mettre à jour {0}."
 
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
+msgid "Unassigned"
+msgstr "Non attribué"
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadGroup.tsx
 msgid "Ungroup All"
 msgstr "Dissocier tout"
@@ -5694,6 +5826,7 @@ msgstr "Désinstaller"
 
 #: src/renderer/components/thread/threadContextUsage.ts
 #: src/renderer/views/PrReviewOverlay/parts/PrChecksTab.tsx
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Unknown"
 msgstr "Inconnu"
 
@@ -5891,6 +6024,10 @@ msgstr "Utiliser l'accélération WebGPU"
 #: src/renderer/components/thread/threadContextUsage.ts
 msgid "Used"
 msgstr "Utilisé"
+
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
+msgid "Used by {conflict}"
+msgstr "Utilisé par {conflict}"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Using the built-in Claude model list."

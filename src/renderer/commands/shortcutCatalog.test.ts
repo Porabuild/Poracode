@@ -67,6 +67,26 @@ describe("shortcut catalog", () => {
     expect(duplicates).toEqual([]);
   });
 
+  it("detects command contexts independent of the active locale", () => {
+    // Simulate a non-English locale: a resolver that mangles every label so any
+    // context detection that keyed off the *translated* group (instead of the
+    // canonical English token) would silently fall back to ["global"].
+    const translate = (value: string | MessageDescriptor): string =>
+      `xx-${typeof value === "string" ? value : (value.message ?? String(value.id))}`;
+
+    const rows = buildShortcutRows(
+      buildCommandRegistry(),
+      DEFAULT_KEYBINDINGS.keybindings,
+      "darwin",
+      translate,
+    );
+
+    // `terminal.toggle` (group "Terminal") and `thread.search.open` (group
+    // "Thread", no `when`) categorize purely off their group token.
+    expect(rows.find((row) => row.id === "terminal.toggle")?.contexts).toContain("terminal");
+    expect(rows.find((row) => row.id === "thread.search.open")?.contexts).toContain("thread");
+  });
+
   it("does not show conflicting shortcuts inside a context", () => {
     const conflicts: string[] = [];
 

@@ -189,7 +189,7 @@ export function SettingsSidebar(props: {
             <SidebarButton
               iconOnly
               icon={<Keyboard className="size-4" />}
-              label="Shortcuts"
+              label={t`Shortcuts`}
               isActive={activeSection === "shortcuts"}
               onPress={() => onSectionChange("shortcuts")}
             />
@@ -410,7 +410,7 @@ export function SettingsSidebar(props: {
             />
             <SidebarButton
               icon={<Keyboard className="size-4" />}
-              label="Shortcuts"
+              label={t`Shortcuts`}
               isActive={activeSection === "shortcuts"}
               onPress={() => onSectionChange("shortcuts")}
             />

@@ -43,7 +43,7 @@ import {
   readSharedSettingsFile,
   writeSharedSettingsFile,
 } from "../sharedSettingsFile";
-import { readKeybindingsFile } from "../keybindingsFile";
+import { readKeybindingsFile, writeKeybindingsFile } from "../keybindingsFile";
 import type { AutoUpdaterController } from "../updates/autoUpdater";
 import {
   defineMainLocalIpcHandlers,
@@ -184,6 +184,8 @@ export function createLocalIpcHandlers(
         ? { kind: "windows", path: homedir() }
         : { kind: "posix", path: homedir() },
     getKeybindings: () => readKeybindingsFile(options.requireLightcodePaths().keybindingsPath),
+    setKeybindings: (file) =>
+      writeKeybindingsFile(options.requireLightcodePaths().keybindingsPath, file),
     revealProjectEntry: async (payload) => {
       shell.showItemInFolder(resolveProjectFsPath(payload));
     },

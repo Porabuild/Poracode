@@ -505,6 +505,10 @@ msgstr "Proje seçeneklerini ekle"
 msgid "Add Remote"
 msgstr "Uzak Depo Ekle"
 
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
+msgid "Add shortcut"
+msgstr "Kısayol ekle"
+
 #: src/renderer/components/composer/ComposerAddMenu.tsx
 msgid "Add to composer"
 msgstr "Yazım alanına ekle"
@@ -592,6 +596,7 @@ msgstr "AI aracı orkestratörü — kodlama aracılarını Terminal ve Yerel AC
 msgid "AI git actions"
 msgstr "Yapay zeka git işlemleri"
 
+#: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "All"
 msgstr "Tümü"
@@ -624,6 +629,10 @@ msgstr "Aracıların çerezleri ve depolamayı okumasına/yazmasına izin ver"
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
 msgid "Allow eval"
 msgstr "Değerlendirmeye izin ver"
+
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
+msgid "Already used by {conflict}"
+msgstr "Zaten {conflict} tarafından kullanılıyor"
 
 #. Notification filter: always notify
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
@@ -936,6 +945,7 @@ msgstr "Ana klasöre göz atın"
 msgid "Browse your GitHub repositories or paste a clone URL."
 msgstr "GitHub depolarınıza göz atın veya bir klon URL'si yapıştırın."
 
+#: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/composer/AttachmentBar.tsx
 #: src/renderer/components/composer/ComposerAddMenu.tsx
 #: src/renderer/components/layout/UnifiedRightPanel.tsx
@@ -980,6 +990,10 @@ msgstr "Bütçe sınırına ulaşıldı"
 msgid "Building diff…"
 msgstr "Fark oluşturuluyor…"
 
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
+msgid "Built-in shortcut — can't be changed"
+msgstr "Yerleşik kısayol — değiştirilemez"
+
 #: src/renderer/views/PrReviewOverlay/parts/PrMetaRow.tsx
 msgid "by <0>{author}</0>"
 msgstr "<0>{author}</0> tarafından"
@@ -1019,6 +1033,7 @@ msgstr "Şube koruma kurallarını atla (yönetici birleştirme)"
 #: src/renderer/views/MainView/parts/Sidebar/parts/DeleteWorktreeDialog.tsx
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
 #: src/renderer/views/PrReviewOverlay/parts/SubmitReviewPopover.tsx
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Cancel"
 msgstr "İptal"
 
@@ -1050,6 +1065,10 @@ msgstr "Dallar değiştirilemiyor; önce değişikliklerinizi commit edin veya "
 #: src/renderer/views/ProjectSettingsOverlay/parts/GeneralSection.tsx
 msgid "Change project folder"
 msgstr "Proje klasörünü değiştir"
+
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
+msgid "Change shortcut"
+msgstr "Kısayolu değiştir"
 
 #: src/renderer/views/MainView/parts/AppOverlays.tsx
 msgid "Change User"
@@ -1091,6 +1110,7 @@ msgid "Chat"
 msgstr "Sohbet"
 
 #: src/renderer/commands/registry.ts
+#: src/renderer/commands/shortcutCatalog.ts
 msgid "Chat Commands"
 msgstr "Sohbet Komutları"
 
@@ -1195,6 +1215,11 @@ msgstr "CLI"
 msgid "CLI hooks"
 msgstr "CLI kancaları"
 
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
+msgid "Click a shortcut to record a new key, or ＋ to add another."
+msgstr "Yeni bir tuş kaydetmek için bir kısayola tıklayın veya başka bir tane "
+"eklemek için ＋ simgesine tıklayın."
+
 #: src/renderer/views/MainView/parts/AppContent/parts/Thread/parts/ContinueInProviderDialog.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "Clone"
@@ -1244,6 +1269,10 @@ msgstr "Hedefi kapat"
 #: src/renderer/views/MainView/parts/AppContent/AppContent.tsx
 msgid "Close group"
 msgstr "Grubu kapat"
+
+#: src/renderer/commands/shortcutCatalog.ts
+msgid "Close overlay"
+msgstr "Yer paylaşımını kapat"
 
 #: src/renderer/components/thread/ThreadDraftChrome.tsx
 #: src/renderer/components/thread/ThreadView.tsx
@@ -1407,6 +1436,10 @@ msgstr "Commit Mesajı Oluşturma"
 msgid "Commit options"
 msgstr "Commit seçenekleri"
 
+#: src/renderer/commands/shortcutCatalog.ts
+msgid "Commit, PR, and review composers"
+msgstr "Commit, PR ve inceleme composer'ları"
+
 #: src/renderer/views/PrReviewOverlay/parts/PrTabsPill.tsx
 msgid "Commits"
 msgstr "Commit'ler"
@@ -1452,10 +1485,15 @@ msgstr "Bu terminaldeki istemleri tamamlayın. Bittiğinde kapanır."
 msgid "completed"
 msgstr "tamamlandı"
 
+#: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Composer"
 msgstr "Composer"
+
+#: src/renderer/commands/shortcutCatalog.ts
+msgid "Composer controls"
+msgstr "Composer denetimleri"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Config directory"
@@ -1592,6 +1630,10 @@ msgstr "Yolu Kopyala"
 msgid "Copy Relative Path"
 msgstr "Göreli Yolu Kopyala"
 
+#: src/renderer/commands/shortcutCatalog.ts
+msgid "Copy selection"
+msgstr "Seçimi kopyala"
+
 #: src/renderer/components/thread/WorktreeModeSelect.tsx
 msgid "Copy uncommitted changes here (keeps them on this branch)"
 msgstr "Taahhüt edilmemiş değişiklikleri buraya kopyalayın (onları bu dalda "
@@ -1639,6 +1681,10 @@ msgstr "Depolar listelenemedi."
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "Couldn't load your profile stats."
 msgstr "Profil istatistikleriniz yüklenemedi."
+
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
+msgid "Couldn't save the shortcut."
+msgstr "Kısayol kaydedilemedi."
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CreatePrModal.tsx
 msgid "Create Draft PR"
@@ -1714,6 +1760,7 @@ msgstr "güncel seri"
 msgid "Current streak"
 msgstr "Güncel seri"
 
+#: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
@@ -1723,6 +1770,14 @@ msgstr "Özel"
 #: src/renderer/views/ProjectSettingsOverlay/parts/ActionsSection.tsx
 msgid "Custom commands available from the project context menu (right-click)."
 msgstr "Proje içerik menüsünden erişilebilen özel komutlar (sağ tıklama)."
+
+#: src/renderer/commands/shortcutCatalog.ts
+msgid "Cycle permission mode"
+msgstr "İzin modunu değiştir"
+
+#: src/renderer/commands/shortcutCatalog.ts
+msgid "Cycle reasoning effort"
+msgstr "Akıl yürütme çabasını değiştir"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Dark"
@@ -1898,6 +1953,10 @@ msgstr "Harici bir sağlayıcının birleştirdiği düzeyleri devre dışı bı
 msgid "Disabled"
 msgstr "Devre dışı"
 
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
+msgid "Discard"
+msgstr "Sil"
+
 #: src/renderer/commands/registry.ts
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
 msgid "Discard unsaved changes in {path}?"
@@ -2031,6 +2090,7 @@ msgid "Edit:"
 msgstr "Düzenle:"
 
 #: src/renderer/commands/registry.ts
+#: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/views/FileEditorOverlay/FileEditorOverlay.tsx
 msgid "Editor"
 msgstr "Editör"
@@ -2368,6 +2428,10 @@ msgstr "Silmeye Zorla"
 msgid "Force delete? Unmerged changes will be lost."
 msgstr "Silmeye zorlansın mı? Birleştirilmeyen değişiklikler kaybolacak."
 
+#: src/renderer/commands/shortcutCatalog.ts
+msgid "Force reload browser page"
+msgstr "Tarayıcı sayfasını zorla yeniden yükle"
+
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 msgid "Fork"
 msgstr "Fork"
@@ -2408,6 +2472,7 @@ msgstr "Tam erişim"
 msgid "Fullscreen overlay"
 msgstr "Tam ekran yer paylaşımı"
 
+#: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/views/ProjectSettingsOverlay/parts/GeneralSection.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/SettingsSidebar.tsx
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
@@ -2443,6 +2508,7 @@ msgstr "Yeni konular için kısa başlıklar oluşturur."
 msgid "Get task"
 msgstr "Görev al"
 
+#: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/layout/UnifiedRightPanel.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
@@ -2489,6 +2555,10 @@ msgstr "Ana projeden her yeni çalışma ağacına kopyalanacak Git yok sayılan
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "GLM 5.2 (optional label)"
 msgstr "GLM 5.2 (isteğe bağlı etiket)"
+
+#: src/renderer/commands/shortcutCatalog.ts
+msgid "Global"
+msgstr "Genel"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Global folder"
@@ -2725,6 +2795,10 @@ msgstr "Kesintiye uğradı: Ajan oturumu tamamlanmadan sona erdi."
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesEditor.tsx
 msgid "Italic"
 msgstr "italik"
+
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
+msgid "Jump to section"
+msgstr "Bölüme git"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/UsagePanel.tsx
 msgid "just now"
@@ -3246,6 +3320,10 @@ msgstr "Yeni Dosya"
 msgid "New Folder"
 msgstr "Yeni Klasör"
 
+#: src/renderer/commands/shortcutCatalog.ts
+msgid "New line"
+msgstr "Yeni satır"
+
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
 msgid "New project"
 msgstr "Yeni proje"
@@ -3479,6 +3557,10 @@ msgstr "Hiçbir depo bulunamadı."
 msgid "No runtime items yet for this thread."
 msgstr "Bu konu için henüz çalışma zamanı öğesi yok."
 
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
+msgid "No shortcuts found"
+msgstr "Hiçbir kısayol bulunamadı"
+
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "No skills used yet."
 msgstr "Henüz beceri kullanılmadı."
@@ -3689,6 +3771,10 @@ msgstr "Düzenleyicide aç"
 msgid "Open links in"
 msgstr "Bağlantıları şurada aç:"
 
+#: src/renderer/commands/shortcutCatalog.ts
+msgid "Open model picker"
+msgstr "Model seçiciyi aç"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserEmptyState.tsx
 msgid "Open new tab"
 msgstr "Yeni sekme aç"
@@ -3803,10 +3889,16 @@ msgstr "Paket yöneticisi"
 msgid "Page"
 msgstr "Sayfa"
 
+#: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Panel"
 msgstr "Panel"
 
+#: src/renderer/commands/shortcutCatalog.ts
+msgid "Panels and overlays"
+msgstr "Paneller ve yer paylaşımları"
+
+#: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/terminal/XTermSurface.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 msgid "Paste"
@@ -3927,6 +4019,10 @@ msgstr "Pre-commit kancası başarısız oldu"
 msgid "Presets"
 msgstr "Hazır ayarlar"
 
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
+msgid "Press shortcut…"
+msgstr "Kısayola basın…"
+
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 msgid "Prevent sleep while working"
 msgstr "Çalışırken uykuyu önleyin"
@@ -3953,6 +4049,7 @@ msgid "Profiles"
 msgstr "Profiller"
 
 #: src/renderer/commands/registry.ts
+#: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/views/ProjectSettingsOverlay/ProjectSettingsOverlay.tsx
 msgid "Project"
 msgstr "Proje"
@@ -4197,6 +4294,10 @@ msgstr "{env} {0} kimlik doğrulama durumu yenileniyor."
 msgid "Reload"
 msgstr "Yeniden yükle"
 
+#: src/renderer/commands/shortcutCatalog.ts
+msgid "Reload browser page"
+msgstr "Tarayıcı sayfasını yeniden yükle"
+
 #: src/renderer/components/common/BranchSelector/parts/useBranchList.ts
 msgid "Remote"
 msgstr "Uzak"
@@ -4258,6 +4359,10 @@ msgstr "Modeli kaldır"
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
 msgid "Remove Project"
 msgstr "Projeyi Kaldır"
+
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
+msgid "Remove shortcut"
+msgstr "Kısayolu kaldır"
 
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
 msgid "Remove worktree?"
@@ -4354,6 +4459,7 @@ msgid "Reset sidebar frosting to default"
 msgstr "Kenar çubuğu buzlu cam efektini varsayılana sıfırla"
 
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Reset to default"
 msgstr "Varsayılana sıfırla"
 
@@ -4589,6 +4695,10 @@ msgstr "Claude profilini kaydet"
 msgid "Save File"
 msgstr "Dosyayı Kaydet"
 
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
+msgid "Save shortcut"
+msgstr "Kısayolu kaydet"
+
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
 msgid "Saved credentials are shared across all environments."
 msgstr "Kaydedilen kimlik bilgileri tüm ortamlarda paylaşılır."
@@ -4612,6 +4722,7 @@ msgstr "Kurulu CLI'ler için sisteminiz taranıyor. Bu genellikle birkaç saniye
 "sürer."
 
 #: src/renderer/commands/registry.ts
+#: src/renderer/commands/shortcutCatalog.ts
 msgid "Scripts"
 msgstr "Komut dosyaları"
 
@@ -4677,6 +4788,10 @@ msgstr "Depolarda ara…"
 #: src/renderer/components/thread/ChatPane/ChatRuntimeDebugPanel.tsx
 msgid "Search runtime items…"
 msgstr "Çalışma zamanı öğelerini ara…"
+
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
+msgid "Search shortcuts"
+msgstr "Kısayolları ara"
 
 #: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
 msgid "Search threads"
@@ -4747,6 +4862,7 @@ msgstr "Proje seçin"
 msgid "Send a message..."
 msgstr "Mesaj gönder..."
 
+#: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/thread/ThreadComposerSection.tsx
 msgid "Send message"
 msgstr "Mesaj gönder"
@@ -4768,6 +4884,10 @@ msgstr "Claude Code hesaplarını yapılandırma dizinine göre ayırın ya da b
 msgid "Set or view an experimental goal"
 msgstr "Deneysel bir hedef belirleyin veya görüntüleyin"
 
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
+msgid "Set shortcut"
+msgstr "Kısayol belirle"
+
 #: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 #: src/renderer/views/SettingsOverlay/SettingsOverlay.tsx
@@ -4785,6 +4905,11 @@ msgstr "Paylaş"
 #: src/renderer/views/ProfileOverlay/parts/ShareDialog.tsx
 msgid "Share your activity"
 msgstr "Etkinliğinizi paylaşın"
+
+#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
+msgid "Shortcuts"
+msgstr "Kısayollar"
 
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Show a compact per-provider usage ring in the sidebar."
@@ -4931,10 +5056,6 @@ msgstr "Beceri/alt aracı çalıştırmaları"
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "Skills"
 msgstr "Beceriler"
-
-#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
-#~ msgid "Skills explored"
-#~ msgstr "Keşfedilen beceriler"
 
 #: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
 msgid "Skills/subagents explored"
@@ -5136,6 +5257,10 @@ msgstr "Birleştirmeden önce ele alınması gereken geri bildirimleri gönderin
 msgid "Submit feedback without explicit approval."
 msgstr "Açık onay olmadan geri bildirim gönderin."
 
+#: src/renderer/commands/shortcutCatalog.ts
+msgid "Submit Git form"
+msgstr "Git formunu gönder"
+
 #: src/renderer/views/PrReviewOverlay/parts/SubmitReviewPopover.tsx
 msgid "Submit review"
 msgstr "İncelemeyi gönder"
@@ -5248,6 +5373,7 @@ msgid "Tell the target provider what to do next..."
 msgstr "Hedef sağlayıcıya bundan sonra ne yapacağını söyleyin..."
 
 #: src/renderer/commands/registry.ts
+#: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/layout/UnifiedRightPanel.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
@@ -5394,6 +5520,7 @@ msgid "Thought"
 msgstr "Düşünce"
 
 #: src/renderer/commands/registry.ts
+#: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/hooks/useElementPicker.ts
 msgid "Thread"
 msgstr "Konu"
@@ -5465,6 +5592,7 @@ msgstr "Başlık Oluşturma"
 msgid "To-dos"
 msgstr "Yapılacaklar"
 
+#: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/providers/codex/index.tsx
 msgid "Toggle Fast mode"
 msgstr "Hızlı modu aç/kapat"
@@ -5476,6 +5604,10 @@ msgstr "Seçiciden gizlemek için modelleri kapatın."
 #: src/renderer/commands/registry.ts
 msgid "Toggle Terminal"
 msgstr "Terminali Aç/Kapat"
+
+#: src/renderer/commands/shortcutCatalog.ts
+msgid "Toggle Work or Plan"
+msgstr "İş veya Plan modunu aç/kapat"
 
 #: src/renderer/views/ProfileOverlay/parts/ActivitySection.tsx
 msgid "Tokens"
@@ -5493,10 +5625,6 @@ msgstr "Araç arama"
 #: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
 msgid "Total prompts"
 msgstr "Toplam istem"
-
-#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
-#~ msgid "Total skills used"
-#~ msgstr "Kullanılan toplam beceri"
 
 #: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
 msgid "Total threads"
@@ -5655,6 +5783,10 @@ msgstr "{0} güncellenemiyor: {detailText}"
 msgid "Unable to update {0}."
 msgstr "{0} güncellenemiyor."
 
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
+msgid "Unassigned"
+msgstr "Atanmamış"
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadGroup.tsx
 msgid "Ungroup All"
 msgstr "Tüm grupları çöz"
@@ -5670,6 +5802,7 @@ msgstr "Kaldır"
 
 #: src/renderer/components/thread/threadContextUsage.ts
 #: src/renderer/views/PrReviewOverlay/parts/PrChecksTab.tsx
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Unknown"
 msgstr "Bilinmiyor"
 
@@ -5867,6 +6000,10 @@ msgstr "WebGPU hızlandırmasını kullanın"
 #: src/renderer/components/thread/threadContextUsage.ts
 msgid "Used"
 msgstr "Kullanılmış"
+
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
+msgid "Used by {conflict}"
+msgstr "{conflict} tarafından kullanılıyor"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Using the built-in Claude model list."

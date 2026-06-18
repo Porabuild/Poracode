@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { readBridge } from "@/renderer/bridge";
+import { isCapturingKeybinding } from "@/renderer/commands/keybindingCapture";
 import { useKeybindingStore } from "@/renderer/commands/keybindingStore";
 import {
   bindingForPlatform,
@@ -23,6 +24,9 @@ export function useKeyboardShortcuts() {
       });
 
     function onKeyDown(e: KeyboardEvent) {
+      // The Shortcuts editor is recording a chord — let it capture the keystroke
+      // instead of dispatching whatever command that chord is currently bound to.
+      if (isCapturingKeybinding()) return;
       const eventKey = eventToKeybinding(e, readBridge().platform);
       if (!eventKey) return;
 
