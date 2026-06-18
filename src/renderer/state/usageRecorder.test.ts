@@ -37,6 +37,10 @@ function emittedTokenValues(provider: string): number[] {
     .map((event) => event.value ?? 0);
 }
 
+function emittedEvents(): UsageEventInputPayload[] {
+  return bridgeMock.appendUsageEvents.mock.calls.flatMap((call) => call[0].events);
+}
+
 describe("usageRecorder token baseline", () => {
   beforeEach(() => {
     flushNow(); // drain anything a prior test left buffered
@@ -72,5 +76,115 @@ describe("usageRecorder token baseline", () => {
     recordRuntimeUsage("new-thread", [contextUpdated("new-thread", 1_200)], [thread]);
     flushNow();
     expect(emittedTokenValues(provider)).toEqual([1_200]);
+  });
+});
+
+describe("usageRecorder item classification", () => {
+  beforeEach(() => {
+    flushNow();
+    bridgeMock.appendUsageEvents.mockReset();
+    bridgeMock.appendUsageEvents.mockResolvedValue(undefined);
+  });
+  afterEach(() => {
+    flushNow();
+  });
+
+  it("records Codex skill calls with lower-case skill names", () => {
+    const thread = makeThread("skill-thread", "codex");
+    recordRuntimeUsage(
+      "skill-thread",
+      [
+        {
+          type: "item.started",
+          threadId: "skill-thread",
+          itemId: "skill-codex",
+          itemType: "tool_call",
+          payload: { name: "skill", args: { skill: "imagegen" }, status: "running" },
+        },
+      ],
+      [thread],
+    );
+
+    flushNow();
+    expect(emittedEvents()).toContainEqual(
+      expect.objectContaining({ kind: "skill", provider: "codex", name: "imagegen" }),
+    );
+  });
+
+  it("records Codex skill file reads as skills", () => {
+    const thread = makeThread("skill-file-thread", "codex");
+    recordRuntimeUsage(
+      "skill-file-thread",
+      [
+        {
+          type: "item.started",
+          threadId: "skill-file-thread",
+          itemId: "skill-file-codex",
+          itemType: "dynamic_tool_call",
+          payload: {
+            name: "Read",
+            args: {
+              file_path: String.raw`C:\Users\sdsle\.codex\skills\.system\imagegen\SKILL.md`,
+            },
+            status: "running",
+          },
+        },
+      ],
+      [thread],
+    );
+
+    flushNow();
+    expect(emittedEvents()).toContainEqual(
+      expect.objectContaining({ kind: "skill", provider: "codex", name: "imagegen" }),
+    );
+  });
+
+  it("records Codex collab agent tool calls as subagents", () => {
+    const thread = makeThread("subagent-thread", "codex");
+    recordRuntimeUsage(
+      "subagent-thread",
+      [
+        {
+          type: "item.started",
+          threadId: "subagent-thread",
+          itemId: "collab-agent",
+          itemType: "tool_call",
+          payload: {
+            name: "spawn_agent",
+            isSubAgent: true,
+            args: { prompt: "inspect one thing", agentType: "worker" },
+            status: "running",
+          },
+        },
+      ],
+      [thread],
+    );
+
+    flushNow();
+    expect(emittedEvents()).toContainEqual(
+      expect.objectContaining({ kind: "subagent", provider: "codex", name: "worker" }),
+    );
+  });
+
+  it("records Codex MCP calls by server instead of generic mcp", () => {
+    const thread = makeThread("mcp-thread", "codex");
+    recordRuntimeUsage(
+      "mcp-thread",
+      [
+        {
+          type: "item.started",
+          threadId: "mcp-thread",
+          itemId: "mcp-codex",
+          itemType: "mcp_tool_call",
+          payload: { name: "mcpToolCall", server: "browser", status: "running" },
+        },
+      ],
+      [thread],
+    );
+
+    flushNow();
+    expect(emittedEvents()).toContainEqual(
+      expect.objectContaining({ kind: "mcp", provider: "codex", name: "browser" }),
+    );
   });
 });

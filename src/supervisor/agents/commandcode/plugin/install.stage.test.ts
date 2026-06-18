@@ -46,10 +46,9 @@ describe("installCommandCodePlugin (native staging)", () => {
     for (const ev of ["PreToolUse", "PostToolUse", "Stop"]) {
       const entry = doc.hooks[ev]?.[0]?.hooks?.[0];
       expect(entry?.type).toBe("command");
-      expect(entry?.command.replace(/\\/g, "/")).toContain(
-        `agent-plugins/commandcode/${wrapperName}`,
-      );
-      expect(entry?.command.endsWith(` ${ev}`)).toBe(true);
+      const command = entry?.command ?? "";
+      expect(command.replace(/\\/g, "/")).toContain(`agent-plugins/commandcode/${wrapperName}`);
+      expect(command.endsWith(` ${ev}`)).toBe(true);
     }
   });
 

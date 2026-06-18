@@ -63,16 +63,24 @@ export function extractAcpResultPart(payload: unknown): ExtractedPart {
     return asPart(prettyIfJson(r.detailedContent));
   if (typeof r.text === "string" && r.text.length > 0) return asPart(prettyIfJson(r.text));
   if (typeof r.content === "string" && r.content.length > 0) return asPart(prettyIfJson(r.content));
+  if (Array.isArray(r.content)) {
+    const part = extractTextBlockPart(r.content);
+    if (part.text.length > 0) return part;
+  }
   if (Array.isArray(r.contents)) {
-    const parts = r.contents
-      .map((c) => (c && typeof c.text === "string" ? prettyIfJson(c.text) : ""))
-      .filter((t) => t.length > 0);
-    if (parts.length > 0) {
-      const joined = parts.join("\n\n");
-      return { text: joined, language: parts.every(isJsonText) ? "json" : "plain" };
-    }
+    const part = extractTextBlockPart(r.contents);
+    if (part.text.length > 0) return part;
   }
   return { text: safeJson(result), language: "json" };
+}
+
+function extractTextBlockPart(blocks: readonly ({ text?: unknown } | undefined)[]): ExtractedPart {
+  const parts = blocks
+    .map((c) => (c && typeof c.text === "string" ? prettyIfJson(c.text) : ""))
+    .filter((t) => t.length > 0);
+  if (parts.length === 0) return emptyPart();
+  const joined = parts.join("\n\n");
+  return { text: joined, language: parts.every(isJsonText) ? "json" : "plain" };
 }
 
 /**

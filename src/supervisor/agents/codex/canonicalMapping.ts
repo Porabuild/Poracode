@@ -48,6 +48,7 @@ import {
   canonicalTypeFor,
   createCodexMapperState,
   newItemId,
+  normalizeItemType,
   streamForType,
   type CodexMapperState,
 } from "./canonicalMappingState";
@@ -105,6 +106,23 @@ export interface CodexItemPayload {
   changeKind?: string;
   changes?: unknown;
   content?: unknown;
+  server?: string;
+  serverId?: string;
+  tool?: string;
+  arguments?: unknown;
+  error?: unknown;
+  senderThreadId?: string;
+  sender_thread_id?: string;
+  receiverThreadIds?: unknown;
+  receiver_thread_ids?: unknown;
+  agentsStates?: unknown;
+  agents_states?: unknown;
+  prompt?: string;
+  model?: unknown;
+  reasoningEffort?: unknown;
+  reasoning_effort?: unknown;
+  toolKind?: unknown;
+  tool_kind?: unknown;
   /** Generic tool input (codex `mcp` / `dynamic` tool items). */
   input?: unknown;
   args?: unknown;
@@ -766,9 +784,15 @@ export function buildStartedPayload(
   }
   if (isToolLikeItemType(itemType)) {
     const args = pickToolInput(source);
+    const serverId = toolServerId(source);
+    const isSubAgent = isCodexCollabAgentToolCall(source);
+    const progress = isSubAgent ? readCollabAgentProgress(source) : undefined;
     return {
       name: toolName(source) ?? "tool",
+      ...(serverId ? { serverId } : {}),
       ...(args !== undefined ? { args } : {}),
+      ...(progress ? { progress } : {}),
+      ...(isSubAgent ? { isSubAgent: true } : {}),
       status: "running" as const,
     };
   }
@@ -803,9 +827,13 @@ export function buildCompletedPayload(
   }
   if (isToolLikeItemType(itemType)) {
     const result = pickToolOutput(source);
+    const progress = isCodexCollabAgentToolCall(source)
+      ? readCollabAgentProgress(source)
+      : undefined;
     return {
       status: codexFinalStatus(source.status),
       ...(result !== undefined ? { result } : {}),
+      ...(progress ? { progress } : {}),
     };
   }
   if (itemType === "file_change") {
@@ -877,8 +905,10 @@ function codexFinalStatus(raw: unknown): "success" | "error" {
  * the common aliases — `args` / `input` — without inventing new ones.
  */
 function pickToolInput(source: CodexItemPayload): unknown {
+  if (isCodexCollabAgentToolCall(source)) return pickCollabAgentInput(source);
   if (source.args !== undefined) return source.args;
   if (source.input !== undefined) return source.input;
+  if (source.arguments !== undefined) return source.arguments;
   return undefined;
 }
 
@@ -890,6 +920,7 @@ function pickCodexWebSearchInput(source: CodexItemPayload): unknown {
 function pickToolOutput(source: CodexItemPayload): unknown {
   if (source.result !== undefined) return source.result;
   if (source.output !== undefined) return source.output;
+  if (isCodexCollabAgentToolCall(source)) return pickCollabAgentResult(source);
   return undefined;
 }
 
@@ -977,10 +1008,109 @@ function extractTitlePath(value: unknown): string | undefined {
 }
 
 function toolName(source: CodexItemPayload): string | undefined {
+  const mcpName = mcpToolName(source);
+  if (mcpName) return mcpName;
+  if (isCodexCollabAgentToolCall(source) && readNonEmptyString(source.tool)) return source.tool;
   if (typeof source.title === "string" && source.title.length > 0) return source.title;
   if (typeof source.name === "string" && source.name.length > 0) return source.name;
+  if (readNonEmptyString(source.tool)) return source.tool;
   if (typeof source.type === "string" && source.type.length > 0) return source.type;
   return undefined;
+}
+
+function mcpToolName(source: CodexItemPayload): string | undefined {
+  const server = toolServerId(source);
+  const tool = readNonEmptyString(source.tool);
+  return server && tool ? `mcp__${server}__${tool}` : undefined;
+}
+
+function toolServerId(source: CodexItemPayload): string | undefined {
+  if (canonicalTypeFor(source.type ?? source.kind) !== "mcp_tool_call") return undefined;
+  return readNonEmptyString(source.server) ?? readNonEmptyString(source.serverId);
+}
+
+function isCodexCollabAgentToolCall(source: CodexItemPayload): boolean {
+  const type = normalizeItemType(source.type ?? source.kind);
+  return type === "collab agent tool call" || type === "collab agent";
+}
+
+function pickCollabAgentInput(source: CodexItemPayload): unknown {
+  const prompt = readNonEmptyString(source.prompt);
+  const senderThreadId =
+    readNonEmptyString(source.senderThreadId) ?? readNonEmptyString(source.sender_thread_id);
+  const receiverThreadIds = readStringArray(source.receiverThreadIds ?? source.receiver_thread_ids);
+  const agentsStates = readCollabAgentStates(source);
+  const model = readNonEmptyString(source.model);
+  const reasoningEffort =
+    readNonEmptyString(source.reasoningEffort) ?? readNonEmptyString(source.reasoning_effort);
+  const toolKind = readNonEmptyString(source.toolKind) ?? readNonEmptyString(source.tool_kind);
+
+  const input: Record<string, unknown> = {};
+  if (prompt) {
+    input.description = prompt;
+    input.prompt = prompt;
+  }
+  if (senderThreadId) input.senderThreadId = senderThreadId;
+  if (receiverThreadIds.length > 0) input.receiverThreadIds = receiverThreadIds;
+  if (agentsStates !== undefined) input.agentsStates = agentsStates;
+  if (model) input.model = model;
+  if (reasoningEffort) input.reasoningEffort = reasoningEffort;
+  if (toolKind) input.toolKind = toolKind;
+  return Object.keys(input).length > 0 ? input : undefined;
+}
+
+function pickCollabAgentResult(source: CodexItemPayload): unknown {
+  const agentsStates = readCollabAgentStates(source);
+  const messages = readCollabAgentMessages(agentsStates);
+  if (messages.length === 1) return messages[0];
+  if (messages.length > 1) return messages.join("\n\n");
+  return agentsStates !== undefined ? { agentsStates } : undefined;
+}
+
+function readCollabAgentProgress(source: CodexItemPayload):
+  | {
+      description?: string;
+      model?: string;
+      stepCount?: number;
+    }
+  | undefined {
+  const agentsStates = readCollabAgentStates(source);
+  const description = readCollabAgentMessages(agentsStates)[0] ?? readNonEmptyString(source.prompt);
+  const model = readNonEmptyString(source.model);
+  const receiverThreadIds = readStringArray(source.receiverThreadIds ?? source.receiver_thread_ids);
+  const stepCount =
+    receiverThreadIds.length > 0
+      ? receiverThreadIds.length
+      : agentsStates && typeof agentsStates === "object" && !Array.isArray(agentsStates)
+        ? Object.keys(agentsStates as Record<string, unknown>).length
+        : undefined;
+  const progress = {
+    ...(description ? { description } : {}),
+    ...(model ? { model } : {}),
+    ...(stepCount !== undefined ? { stepCount } : {}),
+  };
+  return Object.keys(progress).length > 0 ? progress : undefined;
+}
+
+function readCollabAgentStates(source: CodexItemPayload): unknown {
+  return source.agentsStates ?? source.agents_states;
+}
+
+function readCollabAgentMessages(states: unknown): string[] {
+  if (!states || typeof states !== "object" || Array.isArray(states)) return [];
+  const messages: string[] = [];
+  for (const state of Object.values(states as Record<string, unknown>)) {
+    if (!state || typeof state !== "object" || Array.isArray(state)) continue;
+    const message = readNonEmptyString((state as Record<string, unknown>).message);
+    if (message) messages.push(message);
+  }
+  return messages;
+}
+
+function readStringArray(value: unknown): string[] {
+  return Array.isArray(value)
+    ? value.filter((item): item is string => typeof item === "string" && item.length > 0)
+    : [];
 }
 
 function extractCodexWebSearchQuery(source: CodexItemPayload): string | undefined {
