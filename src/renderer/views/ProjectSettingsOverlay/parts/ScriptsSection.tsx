@@ -5,6 +5,7 @@ import { useAppStore } from "@/renderer/state/appStore";
 import { useProject } from "@/renderer/state/useThread";
 import { TextArea } from "@/renderer/components/common";
 import { parseCopyPatterns } from "@/shared/worktree";
+import { ProjectWorktreeLocation } from "./ProjectWorktreeLocation";
 
 export function ScriptsSection(props: { projectId: string }) {
   const { t } = useLingui();
@@ -30,6 +31,8 @@ export function ScriptsSection(props: { projectId: string }) {
         </h1>
 
         <div className="space-y-6">
+          <ProjectWorktreeLocation projectId={props.projectId} />
+
           <div className="space-y-2">
             <div>
               <p className="text-sm font-medium text-foreground">

@@ -1,9 +1,13 @@
+import { toast } from "@heroui/react";
 import type { Project, ProjectLocation } from "@/shared/contracts";
+import { deriveLocationFromPath } from "@/shared/createProject";
+import { friendlyError } from "@/shared/messages";
 import { readBridge } from "@/renderer/bridge";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useDevTerminalStore } from "@/renderer/state/devTerminalStore";
 import { useFileEditorStore } from "@/renderer/state/fileEditorStore";
 import { useGitStore } from "@/renderer/state/gitStore";
+import { refreshGitProject } from "@/renderer/state/gitRefresh";
 import { usePanelStore } from "@/renderer/state/panelStore";
 
 // The home dir doesn't change at runtime, so cache the single IPC roundtrip
@@ -58,6 +62,51 @@ export function setProjectDisabled(projectId: string, disabled: boolean): void {
       useFileEditorStore.getState().clearSession();
     }
   }
+}
+
+/**
+ * Re-point a project at a new on-disk folder after the user moved it. The repo
+ * itself isn't copied — git worktrees are repaired and watchers/caches rebuilt
+ * supervisor-side, then the project's stored location is updated. Blocks while
+ * the project has running threads, whose captured working directory can't be
+ * updated live. Native (non-WSL) projects only.
+ */
+export async function relocateProject(projectId: string): Promise<void> {
+  const store = useAppStore.getState();
+  const project = store.projects.find((p) => p.id === projectId);
+  if (!project) return;
+
+  const hasRunningThread = store.threads.some(
+    (thread) => thread.projectId === projectId && thread.status === "working",
+  );
+  if (hasRunningThread) {
+    toast.danger("Stop the project's running threads before changing its folder.");
+    return;
+  }
+
+  // WSL folders are browsed via their `\\wsl.localhost` UNC path (the native
+  // dialog can open them); deriveLocationFromPath turns the pick back into the
+  // right location kind — WSL when a UNC path is chosen, native otherwise.
+  const location = project.location;
+  const currentPath = location.kind === "wsl" ? location.uncPath : location.path;
+  const picked = await readBridge().pickFolder(currentPath || undefined);
+  if (!picked || picked === currentPath) return;
+
+  const newLocation = deriveLocationFromPath(picked, readBridge().platform);
+
+  try {
+    await readBridge().relocateProject({ projectId, newLocation });
+  } catch (error) {
+    toast.danger(friendlyError(error));
+    return;
+  }
+
+  store.updateProjectLocation(projectId, newLocation);
+  void readBridge()
+    .gitWatchProject({ projectId, projectLocation: newLocation })
+    .catch(() => undefined);
+  void refreshGitProject({ id: projectId, location: newLocation }, "manual", "full");
+  toast.success("Project folder updated. Reopen any terminals in this project.");
 }
 
 export function deleteProject(projectId: string): void {

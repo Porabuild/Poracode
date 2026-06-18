@@ -6,6 +6,7 @@ export type SettingsSection =
   | "terminal"
   | "threads"
   | "git"
+  | "worktrees"
   | "notifications"
   | "ai"
   | "acpRegistry"

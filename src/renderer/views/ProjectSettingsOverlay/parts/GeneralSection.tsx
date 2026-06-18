@@ -1,8 +1,10 @@
 import { useState } from "react";
+import { FolderOpen } from "lucide-react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useProject } from "@/renderer/state/useThread";
-import { Input } from "@/renderer/components/common";
+import { relocateProject } from "@/renderer/actions/projectActions";
+import { Button, Input, PathDisplay } from "@/renderer/components/common";
 
 export function GeneralSection(props: { projectId: string }) {
   const { t } = useLingui();
@@ -11,6 +13,9 @@ export function GeneralSection(props: { projectId: string }) {
   const [name, setName] = useState(project?.name ?? "");
 
   if (!project) return null;
+
+  const projectPath =
+    project.location.kind === "wsl" ? project.location.linuxPath : project.location.path;
 
   return (
     <div className="h-full min-h-0 overflow-y-auto px-6 pb-8 pt-4">
@@ -46,6 +51,26 @@ export function GeneralSection(props: { projectId: string }) {
                 if (e.key === "Enter") (e.target as HTMLInputElement).blur();
               }}
             />
+          </div>
+
+          <div className="flex items-center justify-between gap-4">
+            <div className="min-w-0">
+              <p className="text-sm font-medium text-foreground">
+                <Trans>Project folder</Trans>
+              </p>
+              <p className="text-xs text-muted">
+                <Trans>The repository location on disk. Update it if you moved the folder.</Trans>
+              </p>
+            </div>
+            <Button
+              aria-label={t`Change project folder`}
+              variant="tertiary"
+              className="w-[240px] shrink-0 justify-start gap-2 font-normal"
+              onPress={() => void relocateProject(project.id)}
+            >
+              <FolderOpen className="size-4 shrink-0 text-muted" />
+              <PathDisplay path={projectPath} className="min-w-0 flex-1 text-xs" />
+            </Button>
           </div>
         </div>
       </div>

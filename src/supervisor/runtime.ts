@@ -93,6 +93,9 @@ import type {
   GitPullPayload,
   GitPruneWorktreesPayload,
   GitPushPayload,
+  ProjectLocation,
+  RelocateProjectPayload,
+  RelocateProjectResult,
   GitRemoveWorktreePayload,
   GitRevertAllPayload,
   GitRevertPayload,
@@ -199,7 +202,8 @@ import {
   extractContextFromScrollback,
 } from "./contextExtractor";
 import { FileIndexService } from "./fileIndex";
-import { GitService } from "./git";
+import { GitService, resolveBuiltInWorktreeRoot } from "./git";
+import { resolveWorktreePlacement } from "@/shared/worktree";
 import { GitCheckpointService } from "./git/checkpointService";
 import { GitHubService } from "./github";
 import { ProjectWatcher } from "./projectWatcher";
@@ -1065,6 +1069,10 @@ export class SupervisorRuntime {
       payload.copyIgnoredPatterns,
       payload.transferUncommitted,
       payload.keepChangesInSource,
+      {
+        ...(payload.worktreeRoot ? { root: payload.worktreeRoot } : {}),
+        ...(payload.worktreeOmitRepoDir ? { omitRepoDir: true } : {}),
+      },
     );
   }
 
@@ -1097,7 +1105,53 @@ export class SupervisorRuntime {
   }
 
   async gitPruneWorktrees(payload: GitPruneWorktreesPayload): Promise<void> {
-    return this.gitService.pruneWorktrees(payload.projectLocation, payload.activeWorktreePaths);
+    const managedRoots = await this.collectManagedWorktreeRoots(payload.projectLocation);
+    return this.gitService.pruneWorktrees(
+      payload.projectLocation,
+      payload.activeWorktreePaths,
+      managedRoots,
+    );
+  }
+
+  /**
+   * The worktree roots Lightcode considers "managed" for prune: the built-in
+   * default, the resolved global root (custom base or project-relative), and the
+   * project-relative root. Per-project custom bases are excluded on purpose so we
+   * never auto-delete a user-chosen directory.
+   */
+  private async collectManagedWorktreeRoots(location: ProjectLocation): Promise<string[]> {
+    const settings = this.sharedSettingsCache.read();
+    const builtIn = await resolveBuiltInWorktreeRoot(location);
+    const global = resolveWorktreePlacement(settings, undefined, location);
+    const projectRelative = resolveWorktreePlacement(
+      settings,
+      { mode: "project-relative" },
+      location,
+    );
+    const roots = [builtIn, global.root, projectRelative.root].filter((root): root is string =>
+      Boolean(root),
+    );
+    return [...new Set(roots)];
+  }
+
+  async relocateProject(payload: RelocateProjectPayload): Promise<RelocateProjectResult> {
+    const { newLocation } = payload;
+
+    // The moved repo's linked worktrees still point their `.git` files at the old
+    // main-repo path; `worktree repair` rewrites those back-pointers. This also
+    // implicitly validates that `newLocation` is a real git repository (it errors
+    // otherwise), which we surface to the caller.
+    const repairedWorktrees = await this.gitService.repairWorktrees(newLocation);
+
+    // Path-keyed caches were built under the old location identity; drop them so
+    // the next read recomputes against the new path.
+    this.projectTreeService.invalidateAllCaches();
+    this.fileIndexService.invalidateCacheForLocation(newLocation);
+
+    // Re-point the file watcher at the new path (idempotent: replaces the old entry).
+    this.projectWatcher.watch(payload.projectId, newLocation);
+
+    return { repairedWorktrees };
   }
 
   async gitDeleteBranch(payload: GitDeleteBranchPayload): Promise<void> {

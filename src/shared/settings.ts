@@ -12,6 +12,7 @@ import {
   themeModeSchema,
   threadPresentationModeSchema,
   threadRemoveActionSchema,
+  worktreeStorageModeSchema,
 } from "./contracts";
 import { DEFAULT_SEARCH_EXCLUDE } from "./searchExclude";
 import { AI_LANGUAGE_VALUES, LOCALE_SETTING_VALUES } from "./locale";
@@ -229,6 +230,23 @@ export const sharedSettingsSchema = z.object({
   }),
   /** Automatically show the terminal panel when running commands or creating worktrees. */
   autoShowTerminalPanel: z.boolean(),
+  /**
+   * Where git worktrees are created: under a global root (`global`) or nested in
+   * each project at `<project>/.lightcode/worktrees` (`project-relative`).
+   */
+  worktreeStorageMode: worktreeStorageModeSchema,
+  /**
+   * Custom global worktree root for native projects. Empty string = built-in
+   * default (`~/.lightcode/worktrees`). Only used when `worktreeStorageMode` is
+   * `global`.
+   */
+  worktreeBasePath: z.string(),
+  /**
+   * Custom global worktree root for WSL projects (a Linux path). Empty string =
+   * WSL default (`~/.lightcode/worktrees` in the distro home). Only used when
+   * `worktreeStorageMode` is `global`.
+   */
+  wslWorktreeBasePath: z.string(),
   /** Open git review as a right-side panel or a full page overlay. */
   gitReviewMode: gitReviewModeSchema,
   /**
@@ -369,6 +387,9 @@ export const defaultSharedSettings: SharedSettings = {
   sidebarTranslucency: true,
   sidebarGlassTint: { light: null, dark: null },
   autoShowTerminalPanel: true,
+  worktreeStorageMode: "global",
+  worktreeBasePath: "",
+  wslWorktreeBasePath: "",
   gitReviewMode: "panel",
   prCreateMode: "dialog",
   commitDefaultAction: "commit-push",

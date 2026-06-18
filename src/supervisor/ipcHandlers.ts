@@ -85,6 +85,7 @@ export function createSupervisorIpcHandlers(runtime: SupervisorRuntime): Supervi
     gitWatchProject: (payload) => runtime.gitWatchProject(payload),
     gitWatchWorktrees: (payload) => runtime.gitWatchWorktrees(payload),
     gitUnwatchProject: (payload) => runtime.gitUnwatchProject(payload),
+    relocateProject: (payload) => runtime.relocateProject(payload),
     searchProjectFiles: (payload) => runtime.searchProjectFiles(payload),
     listProjectTree: (payload) => runtime.listProjectTree(payload),
     searchProjectTree: (payload) => runtime.searchProjectTree(payload),

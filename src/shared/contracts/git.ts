@@ -334,6 +334,17 @@ export const gitAddWorktreePayloadSchema = z.object({
   branch: z.string().optional(),
   createBranch: z.boolean().default(false),
   startPoint: z.string().optional(),
+  /**
+   * Resolved worktree root (from global settings + per-project override). When
+   * set, worktrees go under this directory instead of the built-in default.
+   * Ignored when an explicit `path` is supplied.
+   */
+  worktreeRoot: z.string().min(1).optional(),
+  /**
+   * When true (project-relative mode), skip the disambiguating `<repo-hash>`
+   * segment so the worktree lands directly at `<root>/<branch>`.
+   */
+  worktreeOmitRepoDir: z.boolean().optional(),
   /** Gitignore-style patterns for ignored files to copy from the main project. */
   copyIgnoredPatterns: z.array(z.string()).optional(),
   /**
@@ -506,3 +517,15 @@ export const gitUnwatchProjectPayloadSchema = z.object({
   projectId: z.string().min(1),
 });
 export type GitUnwatchProjectPayload = z.infer<typeof gitUnwatchProjectPayloadSchema>;
+
+export const relocateProjectPayloadSchema = z.object({
+  projectId: z.string().min(1),
+  /** New on-disk location the project folder was moved to. */
+  newLocation: projectLocationSchema,
+});
+export type RelocateProjectPayload = z.infer<typeof relocateProjectPayloadSchema>;
+
+export interface RelocateProjectResult {
+  /** Number of linked worktrees git re-pointed via `worktree repair`. */
+  repairedWorktrees: number;
+}

@@ -54,6 +54,16 @@ export const prCreateModeOptions = [
   { id: "auto", label: msg`Auto-generate` },
 ] as const satisfies readonly LocalizedOption[];
 
+export const worktreeStorageModeOptions = [
+  { id: "global", label: msg`Global folder` },
+  { id: "project-relative", label: msg`Inside each project` },
+] as const satisfies readonly LocalizedOption[];
+
+export const projectWorktreeLocationOptions = [
+  { id: "global", label: msg`Custom` },
+  { id: "project-relative", label: msg`Inside this project` },
+] as const satisfies readonly LocalizedOption[];
+
 export const scrollSpeedOptions = Array.from({ length: 10 }, (_, i) => ({
   id: String(i + 1),
   label: `${i + 1}x`,

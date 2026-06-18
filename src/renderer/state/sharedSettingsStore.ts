@@ -21,6 +21,7 @@ import type {
   ThemeMode,
   ThreadPresentationMode,
   ThreadRemoveAction,
+  WorktreeStorageMode,
 } from "@/shared/contracts";
 
 const STORAGE_KEY = "lightcode-shared-settings";
@@ -61,6 +62,9 @@ interface SharedSettingsState extends SharedSettings {
   setSidebarTranslucency: (value: boolean) => void;
   setSidebarGlassTint: (appearance: "light" | "dark", value: number | null) => void;
   setAutoShowTerminalPanel: (value: boolean) => void;
+  setWorktreeStorageMode: (value: WorktreeStorageMode) => void;
+  setWorktreeBasePath: (value: string) => void;
+  setWslWorktreeBasePath: (value: string) => void;
   setGitReviewMode: (value: GitReviewMode) => void;
   setPrCreateMode: (value: PrCreateMode) => void;
   setCommitDefaultAction: (value: CommitDefaultAction) => void;
@@ -343,6 +347,21 @@ export const useSharedSettings = create<SharedSettingsState>()((set, get) => ({
     set({ autoShowTerminalPanel });
     persistSettings(selectSharedSettings(get()));
   },
+  setWorktreeStorageMode: (worktreeStorageMode) => {
+    if (get().worktreeStorageMode === worktreeStorageMode) return;
+    set({ worktreeStorageMode });
+    persistSettings(selectSharedSettings(get()));
+  },
+  setWorktreeBasePath: (worktreeBasePath) => {
+    if (get().worktreeBasePath === worktreeBasePath) return;
+    set({ worktreeBasePath });
+    persistSettings(selectSharedSettings(get()));
+  },
+  setWslWorktreeBasePath: (wslWorktreeBasePath) => {
+    if (get().wslWorktreeBasePath === wslWorktreeBasePath) return;
+    set({ wslWorktreeBasePath });
+    persistSettings(selectSharedSettings(get()));
+  },
   setGitReviewMode: (gitReviewMode) => {
     set({ gitReviewMode });
     persistSettings(selectSharedSettings(get()));
@@ -599,6 +618,9 @@ function selectSharedSettings(state: SharedSettingsState): SharedSettingsInput {
     sidebarTranslucency: state.sidebarTranslucency,
     sidebarGlassTint: state.sidebarGlassTint,
     autoShowTerminalPanel: state.autoShowTerminalPanel,
+    worktreeStorageMode: state.worktreeStorageMode,
+    worktreeBasePath: state.worktreeBasePath,
+    wslWorktreeBasePath: state.wslWorktreeBasePath,
     gitReviewMode: state.gitReviewMode,
     prCreateMode: state.prCreateMode,
     commitDefaultAction: state.commitDefaultAction,

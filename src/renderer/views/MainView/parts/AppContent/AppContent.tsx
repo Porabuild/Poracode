@@ -32,6 +32,7 @@ import {
 } from "@/renderer/state/useThread";
 import { useDevTerminalStore, type DevTerminalTab } from "@/renderer/state/devTerminalStore";
 import { closeAllPanels } from "@/renderer/actions/panelActions";
+import { worktreePlacementPayload } from "@/renderer/actions/worktreePlacement";
 import { SplitPaneContainer, type Rect } from "@/renderer/components/layout/SplitPaneContainer";
 import { macosTrafficLightPadClass } from "@/renderer/components/layout/sidebarChrome";
 import { ThreadDraftView } from "@/renderer/components/thread/ThreadDraftView";
@@ -104,6 +105,7 @@ export function AppContent() {
           branch: worktreeBranch,
           createBranch: worktreeIsNewBranch ?? false,
           startPoint: worktreeBaseBranch,
+          ...worktreePlacementPayload(project),
           copyIgnoredPatterns: project.scripts?.worktreeCopyPatterns,
           transferUncommitted: worktreeTransferUncommitted ?? false,
           // The composer's "Worktree + changes" option copies the changes and

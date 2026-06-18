@@ -296,12 +296,18 @@ vi.mock("./state/sharedSettingsStore", () => ({
         themeMode: "system",
         staleThreadUnloadMinutes: 20,
         autoArchiveDoneAfterDays: 7,
+        worktreeStorageMode: "global",
+        worktreeBasePath: "",
+        wslWorktreeBasePath: "",
       }),
     {
       getState: () => ({
         themeMode: "system",
         staleThreadUnloadMinutes: 20,
         autoArchiveDoneAfterDays: 7,
+        worktreeStorageMode: "global",
+        worktreeBasePath: "",
+        wslWorktreeBasePath: "",
         setThemeMode: () => undefined,
       }),
     },

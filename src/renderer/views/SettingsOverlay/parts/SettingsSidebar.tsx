@@ -6,6 +6,7 @@ import {
   Bot,
   Boxes,
   FlaskConical,
+  FolderGit2,
   Gauge,
   GitFork,
   Globe,
@@ -152,6 +153,13 @@ export function SettingsSidebar(props: {
               label={t`Git`}
               isActive={activeSection === "git"}
               onPress={() => onSectionChange("git")}
+            />
+            <SidebarButton
+              iconOnly
+              icon={<FolderGit2 className="size-4" />}
+              label={t`Worktrees`}
+              isActive={activeSection === "worktrees"}
+              onPress={() => onSectionChange("worktrees")}
             />
             <SidebarButton
               iconOnly
@@ -364,6 +372,12 @@ export function SettingsSidebar(props: {
               label={t`Git`}
               isActive={activeSection === "git"}
               onPress={() => onSectionChange("git")}
+            />
+            <SidebarButton
+              icon={<FolderGit2 className="size-4" />}
+              label={t`Worktrees`}
+              isActive={activeSection === "worktrees"}
+              onPress={() => onSectionChange("worktrees")}
             />
             <SidebarButton
               icon={<Bell className="size-4" />}

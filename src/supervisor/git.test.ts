@@ -123,6 +123,27 @@ describe("computeDefaultWorktreePath", () => {
     },
   );
 
+  it("places worktrees under a custom root, keeping the repo-hash segment", async () => {
+    const root = join(homedir(), "custom-worktrees");
+    const path = await computeDefaultWorktreePath(
+      { kind: process.platform === "win32" ? "windows" : "posix", path: join(homedir(), "repo") },
+      "feature/x",
+      { root },
+    );
+    expect(path.startsWith(root)).toBe(true);
+    expect(path).toMatch(/[/\\][^/\\]+-[a-f0-9]{4}[/\\]feature-x$/);
+  });
+
+  it("omits the repo-hash segment for project-relative placement", async () => {
+    const root = join(homedir(), "repo", ".lightcode", "worktrees");
+    const path = await computeDefaultWorktreePath(
+      { kind: process.platform === "win32" ? "windows" : "posix", path: join(homedir(), "repo") },
+      "feature/x",
+      { root, omitRepoDir: true },
+    );
+    expect(path).toBe(join(root, "feature-x"));
+  });
+
   it("stores WSL worktrees under the distro home .lightcode root", async () => {
     const service = new GitService();
     const home = vi.fn<() => Promise<{ home: string }>>(async () => ({ home: "/home/demo" }));
@@ -1730,6 +1751,48 @@ describe("GitService.removeWorktree", () => {
         (call[1] as string[])[1] === "remove",
     );
     expect(removeCall?.[1]).toEqual(["worktree", "remove", "--force", "--force", worktreePath]);
+  });
+
+  it("does not prune worktrees from a sibling path with the same prefix", async () => {
+    const managedRoot = "C:\\Users\\demo\\.lightcode\\worktrees";
+    const siblingPath = "C:\\Users\\demo\\.lightcode\\worktrees-old\\repo-1234\\feature-x";
+    const staleManagedPath = "C:\\Users\\demo\\.lightcode\\worktrees\\repo-1234\\feature-y";
+
+    mockGitCommands((args) => {
+      if (args[0] === "worktree" && args[1] === "prune") return { stdout: "" };
+      if (args[0] === "worktree" && args[1] === "remove") return { stdout: "" };
+      if (args[0] === "worktree" && args[1] === "list") {
+        return {
+          stdout: [
+            `worktree ${location.path}`,
+            "HEAD abc123",
+            "branch refs/heads/main",
+            "",
+            `worktree ${siblingPath.replace(/\\/g, "/")}`,
+            "HEAD def456",
+            "branch refs/heads/feature-x",
+            "",
+            `worktree ${staleManagedPath.replace(/\\/g, "/")}`,
+            "HEAD fed987",
+            "branch refs/heads/feature-y",
+            "",
+          ].join("\n"),
+        };
+      }
+      return { stdout: "" };
+    });
+
+    await new GitService().pruneWorktrees(location, [], [managedRoot]);
+
+    const removeCalls = execFileMock.mock.calls.filter(
+      (call: unknown[]) =>
+        Array.isArray(call[1]) &&
+        (call[1] as string[])[0] === "worktree" &&
+        (call[1] as string[])[1] === "remove",
+    );
+    expect(removeCalls.map((call) => call[1])).toEqual([
+      ["worktree", "remove", "--force", "--force", staleManagedPath],
+    ]);
   });
 
   it("prunes when Git removed worktree metadata but reported a remove error", async () => {

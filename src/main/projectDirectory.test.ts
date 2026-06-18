@@ -6,6 +6,7 @@ import { createProjectDirectory, describeMkdirError } from "./projectDirectory";
 
 describe("createProjectDirectory", () => {
   let root: string;
+  const kind = process.platform === "win32" ? "windows" : "posix";
 
   beforeEach(() => {
     root = mkdtempSync(join(tmpdir(), "lc-create-project-"));
@@ -16,7 +17,7 @@ describe("createProjectDirectory", () => {
   });
 
   test("creates the folder under the parent and returns its path", async () => {
-    const result = await createProjectDirectory({ parent: root, name: "new-app", kind: "posix" });
+    const result = await createProjectDirectory({ parent: root, name: "new-app", kind });
 
     const expected = join(root, "new-app");
     expect(result.path).toBe(expected);
@@ -25,16 +26,16 @@ describe("createProjectDirectory", () => {
   });
 
   test("throws when a folder with that name already exists", async () => {
-    await createProjectDirectory({ parent: root, name: "dup", kind: "posix" });
+    await createProjectDirectory({ parent: root, name: "dup", kind });
 
-    await expect(
-      createProjectDirectory({ parent: root, name: "dup", kind: "posix" }),
-    ).rejects.toThrow(/already exists/i);
+    await expect(createProjectDirectory({ parent: root, name: "dup", kind })).rejects.toThrow(
+      /already exists/i,
+    );
   });
 
   test("surfaces a friendly message when the parent does not exist", async () => {
     await expect(
-      createProjectDirectory({ parent: join(root, "missing"), name: "app", kind: "posix" }),
+      createProjectDirectory({ parent: join(root, "missing"), name: "app", kind }),
     ).rejects.toThrow(/no longer exists/i);
   });
 });

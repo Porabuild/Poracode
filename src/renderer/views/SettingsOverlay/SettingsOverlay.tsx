@@ -15,6 +15,7 @@ import { UsageSettings } from "./parts/UsageSettings";
 import { AudioSettings } from "./parts/AudioSettings";
 import { GeneralSettings } from "./parts/GeneralSettings";
 import { GitSettings } from "./parts/GitSettings";
+import { WorktreeSettings } from "./parts/WorktreeSettings";
 import { NotificationSettings } from "./parts/NotificationSettings";
 import { AISettings } from "./parts/AISettings";
 import { AcpRegistrySettings } from "./parts/AcpRegistrySettings";
@@ -37,6 +38,7 @@ const SECTION_VIEWS: Partial<Record<SettingsSection, () => ReactNode>> = {
   terminal: () => <TerminalSettings />,
   threads: () => <ThreadSettings />,
   git: () => <GitSettings />,
+  worktrees: () => <WorktreeSettings />,
   notifications: () => <NotificationSettings />,
   ai: () => <AISettings />,
   search: () => <SearchSettings />,
