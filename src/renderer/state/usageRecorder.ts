@@ -54,6 +54,8 @@ const pendingTokens = new Map<
 >();
 const seenItems = new Set<string>();
 const seenTurns = new Set<string>();
+const pendingItemHits = new Map<string, ItemHit>();
+const itemTypesById = new Map<string, string>();
 
 function flush(): void {
   if (scheduled) {
@@ -109,6 +111,14 @@ function remember(set: Set<string>, id: string): boolean {
   return true;
 }
 
+// Insert into a bounded item-lifecycle map. Entries are normally evicted on
+// item.completed, but an item that starts and never completes (aborted turn,
+// dropped frame) would otherwise leak forever - so cap like the dedup sets.
+function rememberInMap<V>(map: Map<string, V>, key: string, value: V): void {
+  if (map.size >= DEDUP_CAP && !map.has(key)) map.clear();
+  map.set(key, value);
+}
+
 // Don't lose buffered events when the window is hidden or closed.
 if (typeof window !== "undefined") {
   window.addEventListener("pagehide", flush);
@@ -141,14 +151,38 @@ function metaOf(thread: Thread): Meta {
 function asRecord(value: unknown): Record<string, unknown> | undefined {
   return value && typeof value === "object" ? (value as Record<string, unknown>) : undefined;
 }
-function str(obj: Record<string, unknown> | undefined, key: string): string | undefined {
-  const v = obj?.[key];
-  return typeof v === "string" && v.trim() ? v.trim() : undefined;
+function str(obj: Record<string, unknown> | undefined, ...keys: string[]): string | undefined {
+  for (const key of keys) {
+    const v = obj?.[key];
+    if (typeof v === "string" && v.trim()) return v.trim();
+  }
+  return undefined;
 }
 
 interface ItemHit {
   kind: "message" | "goal" | "skill" | "subagent" | "mcp";
   name?: string;
+}
+
+function genericName(kind: ItemHit["kind"], name: string | undefined): boolean {
+  const normalized = name?.trim().toLowerCase();
+  if (!normalized) return true;
+  if (kind === "skill") return normalized === "skill";
+  if (kind === "subagent") {
+    return normalized === "subagent" || normalized === "agent" || normalized === "task";
+  }
+  if (kind === "mcp") return normalized === "mcp";
+  return false;
+}
+
+function isSpecificToolHit(hit: ItemHit): boolean {
+  if (hit.kind === "message" || hit.kind === "goal") return true;
+  return !genericName(hit.kind, hit.name);
+}
+
+function betterHit(current: ItemHit | undefined, next: ItemHit): ItemHit {
+  if (!current) return next;
+  return isSpecificToolHit(next) ? next : current;
 }
 
 function classifyItem(itemType: string, payload: unknown): ItemHit | undefined {
@@ -195,6 +229,7 @@ function classifyItem(itemType: string, payload: unknown): ItemHit | undefined {
       title
         .replace(/^(loaded|using) skill[:\s]*/i, "")
         .replace(/^skill:\s*/i, "")
+        .replace(/^Skill$/i, "")
         .trim();
     return { kind: "skill", name: skill || "skill" };
   }
@@ -285,6 +320,25 @@ export function recordThreadStarted(thread: Thread): void {
   });
 }
 
+function recordItemHit(itemId: string, hit: ItemHit, meta: Meta, ts: number, final: boolean): void {
+  const next = betterHit(pendingItemHits.get(itemId), hit);
+  if (!isSpecificToolHit(next) && !final) {
+    rememberInMap(pendingItemHits, itemId, next);
+    return;
+  }
+  if (!remember(seenItems, itemId)) return;
+  pendingItemHits.delete(itemId);
+  push({
+    ts,
+    kind: next.kind,
+    provider: meta.provider,
+    model: meta.model,
+    mode: meta.mode,
+    ...(next.name ? { name: next.name } : {}),
+    value: 1,
+  });
+}
+
 /**
  * Derive durable usage events from a batch of canonical runtime events. Thread
  * metadata is resolved lazily so a pure `content.delta` frame (the streaming
@@ -364,20 +418,39 @@ export function recordRuntimeUsage(
         break;
       }
       case "item.started": {
+        rememberInMap(itemTypesById, event.itemId, event.itemType);
         const hit = classifyItem(event.itemType, event.payload);
         if (!hit) break;
-        if (!remember(seenItems, event.itemId)) break;
         const m = getMeta();
         if (!m) break;
-        push({
-          ts: now,
-          kind: hit.kind,
-          provider: m.provider,
-          model: m.model,
-          mode: m.mode,
-          ...(hit.name ? { name: hit.name } : {}),
-          value: 1,
-        });
+        recordItemHit(event.itemId, hit, m, now, false);
+        break;
+      }
+      case "item.updated": {
+        const itemType = itemTypesById.get(event.itemId);
+        if (!itemType || seenItems.has(event.itemId)) break;
+        const hit = classifyItem(itemType, event.payload);
+        if (!hit) break;
+        const m = getMeta();
+        if (!m) break;
+        recordItemHit(event.itemId, hit, m, now, false);
+        break;
+      }
+      case "item.completed": {
+        const itemType = itemTypesById.get(event.itemId);
+        if (!itemType || seenItems.has(event.itemId)) {
+          itemTypesById.delete(event.itemId);
+          pendingItemHits.delete(event.itemId);
+          break;
+        }
+        const hit = event.payload ? classifyItem(itemType, event.payload) : undefined;
+        const pending = pendingItemHits.get(event.itemId);
+        const best = hit ? betterHit(pending, hit) : pending;
+        if (best) {
+          const m = getMeta();
+          if (m) recordItemHit(event.itemId, best, m, now, true);
+        }
+        itemTypesById.delete(event.itemId);
         break;
       }
       default:

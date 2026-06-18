@@ -4,7 +4,7 @@ import { Check, Copy } from "lucide-react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { Button } from "@/renderer/components/common";
 import { readBridge } from "@/renderer/bridge";
-import type { ProfileCoreStats, ProfileTokenStats } from "@/shared/contracts";
+import type { ProfileCoreStats, ProfileStatsWindow, ProfileTokenStats } from "@/shared/contracts";
 import { ShareCard } from "./ShareCard";
 import type { ActivityMetric } from "./ActivitySection";
 
@@ -13,10 +13,11 @@ export function ShareDialog(props: {
   core: ProfileCoreStats;
   tokens: ProfileTokenStats | null;
   metric: ActivityMetric;
+  window: ProfileStatsWindow;
   onClose: () => void;
 }) {
   const { t } = useLingui();
-  const { open, core, tokens, metric, onClose } = props;
+  const { open, core, tokens, metric, window, onClose } = props;
   const cardRef = useRef<HTMLDivElement>(null);
   const [copied, setCopied] = useState(false);
 
@@ -44,7 +45,13 @@ export function ShareDialog(props: {
             </h2>
 
             <div className="flex justify-center">
-              <ShareCard ref={cardRef} core={core} tokens={tokens} metric={metric} />
+              <ShareCard
+                ref={cardRef}
+                core={core}
+                tokens={tokens}
+                metric={metric}
+                window={window}
+              />
             </div>
 
             <div className="flex justify-center">

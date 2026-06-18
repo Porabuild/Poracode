@@ -1,7 +1,7 @@
 import { forwardRef } from "react";
 import { msg } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
-import type { ProfileCoreStats, ProfileTokenStats } from "@/shared/contracts";
+import type { ProfileCoreStats, ProfileStatsWindow, ProfileTokenStats } from "@/shared/contracts";
 import { ProviderIcon } from "@/renderer/components/providers/ProviderIcon";
 import type { TranslateFn } from "@/renderer/i18n/i18n";
 import { formatCompact, initialsFor } from "../format";
@@ -31,8 +31,9 @@ export const ShareCard = forwardRef<
     core: ProfileCoreStats;
     tokens: ProfileTokenStats | null;
     metric: ActivityMetric;
+    window: ProfileStatsWindow;
   }
->(function ShareCard({ core, tokens, metric }, ref) {
+>(function ShareCard({ core, tokens, metric, window }, ref) {
   const { t } = useLingui();
   const { identity, totals, insights, promptHeatmap } = core;
   const provider = insights.topProvider;
@@ -74,7 +75,7 @@ export const ShareCard = forwardRef<
       <ActivityHeatmap heatmap={heatmap} />
 
       <div className="grid grid-cols-4 gap-2 border-t border-separator pt-4">
-        <Stat value={lifetime} label={t`lifetime tokens`} />
+        <Stat value={lifetime} label={window === "all" ? t`lifetime tokens` : t`total tokens`} />
         <Stat value={peak} label={t`peak day`} />
         <Stat value={formatDaysLabel(totals.currentStreakDays, t)} label={t`current streak`} />
         <Stat value={formatDaysLabel(totals.longestStreakDays, t)} label={t`longest streak`} />

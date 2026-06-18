@@ -28,6 +28,9 @@ export const profileStatScopeSchema = z.enum(["device", "all"]);
 /** "device" = this install only; "all" = merged across the user's devices (Cloud). */
 export type ProfileStatScope = z.infer<typeof profileStatScopeSchema>;
 
+export const profileStatsWindowSchema = z.enum(["7d", "30d", "all"]);
+export type ProfileStatsWindow = z.infer<typeof profileStatsWindowSchema>;
+
 export interface ProfileDevice {
   /** Stable per-install id (generated once, persisted in app_state). */
   id: string;
@@ -128,7 +131,7 @@ export interface ProfileInsights {
 
 export interface ProfileSkillUsage {
   name: string;
-  /** `$skill` for skills, `@agent` for subagents, raw name for plain tools/MCP. */
+  /** User-facing label for the skill, subagent, tool, or MCP server. */
   displayName: string;
   kind: "skill" | "subagent" | "tool" | "mcp";
   runCount: number;
@@ -194,9 +197,9 @@ export interface ProfileCoreStats {
   models: ProfileBreakdownEntry[];
   /** Threads started by presentation mode (chat vs CLI). */
   modes: ProfileBreakdownEntry[];
-  /** Top skills by run count (`$skill`). */
+  /** Top skills by run count. */
   skills: ProfileSkillUsage[];
-  /** Top subagents by run count (`@agent`). */
+  /** Top subagents by run count. */
   subagents: ProfileSkillUsage[];
   /** Top MCP servers by tool-call count. */
   mcps: ProfileSkillUsage[];
@@ -261,6 +264,7 @@ export const profileStatsRequestSchema = z.object({
    * matches exactly, e.g. "claude" or "claude:work". Omit for all accounts.
    */
   provider: z.string().optional(),
+  window: profileStatsWindowSchema.optional(),
 });
 export type ProfileStatsRequest = z.infer<typeof profileStatsRequestSchema>;
 

@@ -91,8 +91,8 @@ export function ProfileHeader(props: {
             const provider = selection.provider ? { provider: selection.provider } : {};
             onSelect(
               id === ALL_DEVICES
-                ? { scope: "all", ...provider }
-                : { scope: "device", deviceId: id, ...provider },
+                ? { scope: "all", window: selection.window, ...provider }
+                : { scope: "device", deviceId: id, window: selection.window, ...provider },
             );
           }}
         />

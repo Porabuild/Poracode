@@ -6,7 +6,14 @@ import {
   type ProfileTokenStats,
 } from "@/shared/contracts";
 import { dbGetAllUsageEvents, getProfileDataGeneration } from "../db";
-import { buildHeatmap, dayKeyFromIndex, HEATMAP_WINDOW_DAYS, localDayIndex } from "./heatmap";
+import {
+  buildHeatmap,
+  dayKeyFromIndex,
+  HEATMAP_WINDOW_DAYS,
+  localDayIndex,
+  statsWindowDays,
+  windowStartIndex,
+} from "./heatmap";
 import { recordCurrentDevice, resolveProfileDevice } from "./identity";
 import { accountLabel, providerLabel } from "./labels";
 
@@ -28,14 +35,15 @@ function emptyTokenStats(
   nowMs: number,
   todayIndex: number,
 ): ProfileTokenStats {
-  const { heatmap } = buildHeatmap(new Map(), todayIndex, "tokens");
+  const windowDays = statsWindowDays(req.window) ?? HEATMAP_WINDOW_DAYS;
+  const { heatmap } = buildHeatmap(new Map(), todayIndex, "tokens", windowDays);
   return {
     available: false,
     scope: req.scope ?? "device",
     device,
     generatedAt: nowMs,
     timezoneOffsetMinutes: req.utcOffsetMinutes,
-    windowDays: HEATMAP_WINDOW_DAYS,
+    windowDays,
     lifetimeTokens: 0,
     peakDayTokens: 0,
     providers: [],
@@ -55,7 +63,7 @@ export function computeProfileTokenStats(req: ProfileStatsRequest): ProfileToken
   // Reuse the last aggregation until a usage write bumps the generation, so
   // repeated opens don't re-scan the log.
   const generation = getProfileDataGeneration();
-  const cacheKey = `${offset}|${todayIndex}|${req.scope ?? "device"}|${req.deviceId ?? "current"}|${req.provider ?? "all"}`;
+  const cacheKey = `${offset}|${todayIndex}|${req.scope ?? "device"}|${req.deviceId ?? "current"}|${req.provider ?? "all"}|${req.window ?? "all"}`;
   const cached = tokenCache.get(cacheKey);
   if (cached && cached.generation === generation) return cached.result;
 
@@ -73,13 +81,19 @@ export function computeProfileTokenStats(req: ProfileStatsRequest): ProfileToken
   const perAccount = new Map<string, number>();
   const perModel = new Map<string, number>();
   let lifetimeTokens = 0;
+  const windowDays = statsWindowDays(req.window);
+  const startDayIndex = windowDays ? windowStartIndex(todayIndex, windowDays) : undefined;
 
   for (const row of dbGetAllUsageEvents()) {
     if (row.kind !== "tokens" || row.value <= 0) continue;
     // Scope to the selected account (exact account-kind match) when filtering.
     if (req.provider && row.provider !== req.provider) continue;
+    const dayIndex = localDayIndex(row.ts, offset);
+    if (startDayIndex !== undefined && (dayIndex < startDayIndex || dayIndex > todayIndex)) {
+      continue;
+    }
     lifetimeTokens += row.value;
-    const day = dayKeyFromIndex(localDayIndex(row.ts, offset));
+    const day = dayKeyFromIndex(dayIndex);
     perDay.set(day, (perDay.get(day) ?? 0) + row.value);
     if (row.provider) {
       const base = baseAgentKind(row.provider);
@@ -89,7 +103,7 @@ export function computeProfileTokenStats(req: ProfileStatsRequest): ProfileToken
     if (row.model) perModel.set(row.model, (perModel.get(row.model) ?? 0) + row.value);
   }
 
-  const { heatmap: tokenHeatmap } = buildHeatmap(perDay, todayIndex, "tokens");
+  const { heatmap: tokenHeatmap } = buildHeatmap(perDay, todayIndex, "tokens", windowDays);
 
   let peakDay: string | undefined;
   let peakDayTokens = 0;
@@ -135,7 +149,7 @@ export function computeProfileTokenStats(req: ProfileStatsRequest): ProfileToken
     device: currentDevice,
     generatedAt: nowMs,
     timezoneOffsetMinutes: offset,
-    windowDays: HEATMAP_WINDOW_DAYS,
+    windowDays: windowDays ?? HEATMAP_WINDOW_DAYS,
     lifetimeTokens,
     peakDayTokens,
     ...(peakDay ? { peakDay } : {}),

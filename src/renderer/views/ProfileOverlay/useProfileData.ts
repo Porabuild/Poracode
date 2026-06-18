@@ -5,6 +5,7 @@ import type {
   ProfileDevice,
   ProfileIdentity,
   ProfileStatScope,
+  ProfileStatsWindow,
   ProfileTokenStats,
 } from "@/shared/contracts";
 import { readBridge } from "@/renderer/bridge";
@@ -15,6 +16,7 @@ export interface ProfileSelection {
   deviceId?: string;
   /** Account-scoped provider filter; undefined = all accounts. */
   provider?: string;
+  window: ProfileStatsWindow;
 }
 
 export interface ProfileData {
@@ -41,7 +43,7 @@ export function useProfileData(): ProfileData {
   const { t } = useLingui();
   const [devices, setDevices] = useState<ProfileDevice[]>([]);
   const [currentDeviceId, setCurrentDeviceId] = useState<string | null>(null);
-  const [selection, setSelection] = useState<ProfileSelection>({ scope: "device" });
+  const [selection, setSelection] = useState<ProfileSelection>({ scope: "device", window: "all" });
   const [core, setCore] = useState<ProfileCoreStats | null>(null);
   const [coreLoading, setCoreLoading] = useState(true);
   const [tokens, setTokens] = useState<ProfileTokenStats | null>(null);
@@ -66,13 +68,14 @@ export function useProfileData(): ProfileData {
     };
   }, []);
 
-  const { scope, deviceId, provider } = selection;
+  const { scope, deviceId, provider, window } = selection;
   useEffect(() => {
     let active = true;
     const utcOffsetMinutes = -new Date().getTimezoneOffset();
     const req = {
       utcOffsetMinutes,
       scope,
+      window,
       ...(deviceId ? { deviceId } : {}),
       ...(provider ? { provider } : {}),
     };
@@ -114,7 +117,7 @@ export function useProfileData(): ProfileData {
     return () => {
       active = false;
     };
-  }, [scope, deviceId, provider, t]);
+  }, [scope, deviceId, provider, window, t]);
 
   async function saveIdentity(identity: ProfileIdentity): Promise<void> {
     const response = await readBridge().setProfileIdentity(identity);

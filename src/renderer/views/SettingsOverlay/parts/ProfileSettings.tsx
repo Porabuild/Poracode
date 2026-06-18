@@ -1,8 +1,17 @@
 import { useState } from "react";
 import { Pencil, Share2 } from "lucide-react";
 import { Trans, useLingui } from "@lingui/react/macro";
-import type { ProfileBreakdownEntry, ProfileTokenProvider } from "@/shared/contracts";
-import { Button, PixelLoader } from "@/renderer/components/common";
+import type {
+  ProfileBreakdownEntry,
+  ProfileStatsWindow,
+  ProfileTokenProvider,
+} from "@/shared/contracts";
+import {
+  Button,
+  LightballTabs,
+  PixelLoader,
+  type LightballTab,
+} from "@/renderer/components/common";
 import { useProfileData } from "@/renderer/views/ProfileOverlay/useProfileData";
 import { ProfileHeader } from "@/renderer/views/ProfileOverlay/parts/ProfileHeader";
 import { StatStrip } from "@/renderer/views/ProfileOverlay/parts/StatStrip";
@@ -47,6 +56,11 @@ export function ProfileSettings() {
       ? "prompts"
       : (pickedMetric ?? (tokensAvailable ? "tokens" : "prompts"));
   const handleMetricChange = (next: ActivityMetric) => setPickedMetric(next);
+  const windowTabs: ReadonlyArray<LightballTab<ProfileStatsWindow>> = [
+    { id: "7d", label: t`7d` },
+    { id: "30d", label: t`30d` },
+    { id: "all", label: t`All` },
+  ];
 
   if (coreLoading && !core) {
     return (
@@ -89,6 +103,7 @@ export function ProfileSettings() {
         onChange={(provider) =>
           data.setSelection({
             scope: data.selection.scope,
+            window: data.selection.window,
             ...(data.selection.deviceId ? { deviceId: data.selection.deviceId } : {}),
             ...(provider ? { provider } : {}),
           })
@@ -121,7 +136,25 @@ export function ProfileSettings() {
           filter={accountFilter}
           actions={headerActions}
         />
-        <StatStrip core={core} tokens={tokens} tokensLoading={tokensLoading} />
+        <div className="flex flex-col gap-3">
+          <div className="flex justify-center">
+            <LightballTabs
+              tabs={windowTabs}
+              active={data.selection.window}
+              onChange={(window) => data.setSelection({ ...data.selection, window })}
+              ariaLabel={t`Profile stats range`}
+              className="w-[180px]"
+              equalWidth
+              shape="rounded"
+            />
+          </div>
+          <StatStrip
+            core={core}
+            tokens={tokens}
+            tokensLoading={tokensLoading}
+            window={data.selection.window}
+          />
+        </div>
         <ActivitySection
           promptHeatmap={core.promptHeatmap}
           tokenHeatmap={tokens?.tokenHeatmap ?? null}
@@ -188,6 +221,7 @@ export function ProfileSettings() {
         core={core}
         tokens={tokens}
         metric={metric}
+        window={data.selection.window}
         onClose={() => setShareOpen(false)}
       />
     </div>

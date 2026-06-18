@@ -37,8 +37,9 @@ function emittedTokenValues(provider: string): number[] {
     .map((event) => event.value ?? 0);
 }
 
-function emittedEvents(): UsageEventInputPayload[] {
-  return bridgeMock.appendUsageEvents.mock.calls.flatMap((call) => call[0].events);
+function emittedEvents(kind?: string): UsageEventInputPayload[] {
+  const events = bridgeMock.appendUsageEvents.mock.calls.flatMap((call) => call[0].events);
+  return kind === undefined ? events : events.filter((event) => event.kind === kind);
 }
 
 describe("usageRecorder token baseline", () => {
@@ -76,6 +77,114 @@ describe("usageRecorder token baseline", () => {
     recordRuntimeUsage("new-thread", [contextUpdated("new-thread", 1_200)], [thread]);
     flushNow();
     expect(emittedTokenValues(provider)).toEqual([1_200]);
+  });
+
+  it("records a skill name from the completed payload when the start was generic", () => {
+    const thread = makeThread("skill-thread", "skill-provider");
+    recordRuntimeUsage(
+      "skill-thread",
+      [
+        {
+          type: "item.started",
+          threadId: "skill-thread",
+          itemId: "skill-item",
+          itemType: "dynamic_tool_call",
+          payload: { name: "Skill", status: "running" },
+        },
+        {
+          type: "item.completed",
+          threadId: "skill-thread",
+          itemId: "skill-item",
+          payload: {
+            name: "Skill",
+            title: "Loaded skill: heroui-react",
+            args: { name: "heroui-react" },
+            status: "success",
+          },
+        },
+      ],
+      [thread],
+    );
+
+    flushNow();
+    expect(emittedEvents("skill")).toMatchObject([{ name: "heroui-react" }]);
+  });
+
+  it("records the subagent type from a later payload instead of the generic label", () => {
+    const thread = makeThread("subagent-thread", "subagent-provider");
+    recordRuntimeUsage(
+      "subagent-thread",
+      [
+        {
+          type: "item.started",
+          threadId: "subagent-thread",
+          itemId: "subagent-item",
+          itemType: "tool_call",
+          payload: { name: "Agent", isSubAgent: true, status: "running" },
+        },
+        {
+          type: "item.updated",
+          threadId: "subagent-thread",
+          itemId: "subagent-item",
+          payload: {
+            name: "Agent",
+            isSubAgent: true,
+            args: { description: "Review", subagent_type: "general-purpose" },
+            status: "running",
+          },
+        },
+        {
+          type: "item.completed",
+          threadId: "subagent-thread",
+          itemId: "subagent-item",
+          payload: {
+            name: "Agent",
+            isSubAgent: true,
+            args: { description: "Review", subagent_type: "general-purpose" },
+            status: "success",
+          },
+        },
+      ],
+      [thread],
+    );
+
+    flushNow();
+    expect(emittedEvents("subagent")).toMatchObject([{ name: "general-purpose" }]);
+  });
+
+  it("does not duplicate a skill that started with a specific name", () => {
+    const thread = makeThread("specific-skill-thread", "skill-provider");
+    recordRuntimeUsage(
+      "specific-skill-thread",
+      [
+        {
+          type: "item.started",
+          threadId: "specific-skill-thread",
+          itemId: "specific-skill-item",
+          itemType: "dynamic_tool_call",
+          payload: {
+            name: "Skill",
+            args: { name: "interactive-testing" },
+            status: "running",
+          },
+        },
+        {
+          type: "item.completed",
+          threadId: "specific-skill-thread",
+          itemId: "specific-skill-item",
+          payload: {
+            name: "Skill",
+            args: { name: "interactive-testing" },
+            status: "success",
+          },
+        },
+      ],
+      [thread],
+    );
+
+    flushNow();
+    expect(emittedEvents("skill")).toMatchObject([{ name: "interactive-testing" }]);
+    expect(emittedEvents("skill")).toHaveLength(1);
   });
 });
 

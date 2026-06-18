@@ -11,7 +11,14 @@ import {
   type ProfileTotals,
 } from "@/shared/contracts";
 import { dbGetAllUsageEvents, getProfileDataGeneration, type UsageEventRow } from "../db";
-import { buildHeatmap, dayKeyFromIndex, localDayIndex, localHour } from "./heatmap";
+import {
+  buildHeatmap,
+  dayKeyFromIndex,
+  localDayIndex,
+  localHour,
+  statsWindowDays,
+  windowStartIndex,
+} from "./heatmap";
 import { getProfileIdentity, recordCurrentDevice, resolveProfileDevice } from "./identity";
 import { accountLabel, providerLabel, titleCase } from "./labels";
 
@@ -33,6 +40,20 @@ function hourLabel(hour: number): string {
 
 function round1(value: number): number {
   return Math.round(value * 10) / 10;
+}
+
+function filterRowsByWindow(
+  rows: UsageEventRow[],
+  todayIndex: number,
+  offset: number,
+  windowDays: number | undefined,
+): UsageEventRow[] {
+  if (!windowDays) return rows;
+  const startIndex = windowStartIndex(todayIndex, windowDays);
+  return rows.filter((row) => {
+    const dayIndex = localDayIndex(row.ts, offset);
+    return dayIndex >= startIndex && dayIndex <= todayIndex;
+  });
 }
 
 function rank(
@@ -163,8 +184,8 @@ function computeSkills(rows: UsageEventRow[]): {
       .slice(0, MAX_SKILLS)
       .map(([name, runCount]) => ({ name, displayName: display(name), kind, runCount }));
 
-  const skills = topBy(skillCounts, "skill", (n) => `$${n}`);
-  const subagents = topBy(subagentCounts, "subagent", (n) => `@${n}`);
+  const skills = topBy(skillCounts, "skill", (n) => n);
+  const subagents = topBy(subagentCounts, "subagent", (n) => n);
   const mcps = topBy(mcpCounts, "mcp", (n) => n);
   // "Explored" / "total" still span skills + subagents, matching the Activity
   // insights labels (a subagent run is a skill-like invocation for that metric).
@@ -204,7 +225,7 @@ function emptyCoreStats(
   generatedAt: number,
   todayIndex: number,
 ): ProfileCoreStats {
-  const { heatmap } = buildHeatmap(new Map(), todayIndex, "prompts");
+  const { heatmap } = buildHeatmap(new Map(), todayIndex, "prompts", statsWindowDays(req.window));
   return {
     scope: req.scope ?? "device",
     device,
@@ -238,7 +259,7 @@ export function computeProfileCoreStats(req: ProfileStatsRequest): ProfileCoreSt
   const todayIndex = localDayIndex(generatedAt, offset);
 
   const generation = getProfileDataGeneration();
-  const cacheKey = `${offset}|${todayIndex}|${req.scope ?? "device"}|${req.deviceId ?? "current"}|${req.provider ?? "all"}`;
+  const cacheKey = `${offset}|${todayIndex}|${req.scope ?? "device"}|${req.deviceId ?? "current"}|${req.provider ?? "all"}|${req.window ?? "all"}`;
   const cached = coreCache.get(cacheKey);
   if (cached && cached.generation === generation) return cached.result;
 
@@ -261,7 +282,9 @@ export function computeProfileCoreStats(req: ProfileStatsRequest): ProfileCoreSt
   // filter, so selecting one account doesn't collapse the picker to itself.
   const availableAccounts = collectAccounts(allRows);
   // Scope every downstream aggregation to the selected account (whole page).
-  const rows = req.provider ? allRows.filter((r) => r.provider === req.provider) : allRows;
+  const providerRows = req.provider ? allRows.filter((r) => r.provider === req.provider) : allRows;
+  const windowDays = statsWindowDays(req.window);
+  const rows = filterRowsByWindow(providerRows, todayIndex, offset, windowDays);
 
   // -- thread starts -> totals + mode breakdown --
   const modeCounts = new Map<string, number>();
@@ -320,7 +343,12 @@ export function computeProfileCoreStats(req: ProfileStatsRequest): ProfileCoreSt
     }
   }
 
-  const { heatmap: promptHeatmap, activeDays } = buildHeatmap(countsByDay, todayIndex, "prompts");
+  const { heatmap: promptHeatmap, activeDays } = buildHeatmap(
+    countsByDay,
+    todayIndex,
+    "prompts",
+    windowDays,
+  );
   const { current: currentStreakDays, longest: longestStreakDays } = computeStreaks(
     activeDayIndices,
     todayIndex,

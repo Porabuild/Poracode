@@ -32,8 +32,8 @@ export function ActivityInsights(props: { core: ProfileCoreStats }) {
         <Row label={t`Most active hour`} value={activeHour} />
         <Row label={t`Messages sent`} value={totals.messagesSent.toLocaleString()} />
         <Row label={t`Goals set`} value={totals.goalsSet.toLocaleString()} />
-        <Row label={t`Skills explored`} value={String(insights.skillsExplored)} />
-        <Row label={t`Total skills used`} value={insights.totalSkillsUsed.toLocaleString()} />
+        <Row label={t`Skills/subagents explored`} value={String(insights.skillsExplored)} />
+        <Row label={t`Skill/subagent runs`} value={insights.totalSkillsUsed.toLocaleString()} />
         <Row label={t`Total threads`} value={totals.totalThreads.toLocaleString()} />
         <Row label={t`Total prompts`} value={totals.totalPrompts.toLocaleString()} />
       </div>

@@ -82,9 +82,44 @@ function buildColumns(
   return { columns, monthLabels };
 }
 
+function HeatmapLegend() {
+  const { t } = useLingui();
+  return (
+    <div className="flex items-center justify-end gap-1.5 pt-1 text-[10px] text-muted">
+      <span>{t`Less`}</span>
+      {([0, 1, 2, 3, 4] as ProfileHeatmapIntensity[]).map((level) => (
+        <div
+          key={level}
+          className="size-2.5 rounded-[2px]"
+          style={{ backgroundColor: colorFor(level) }}
+        />
+      ))}
+      <span>{t`More`}</span>
+    </div>
+  );
+}
+
 export function ActivityHeatmap(props: { heatmap: ProfileHeatmap }) {
   const { t, i18n } = useLingui();
   const { heatmap } = props;
+  if (heatmap.windowDays <= 30) {
+    return (
+      <div className="flex flex-col gap-1.5">
+        <div className="flex justify-end gap-[3px]">
+          {heatmap.cells.map((cell) => (
+            <div
+              key={cell.day}
+              className="size-3 rounded-[2px]"
+              style={{ backgroundColor: colorFor(cell.intensity) }}
+              title={tooltipFor(cell, heatmap.metric, t)}
+            />
+          ))}
+        </div>
+        <HeatmapLegend />
+      </div>
+    );
+  }
+
   const monthFormatter = new Intl.DateTimeFormat(i18n.locale, {
     month: "short",
     timeZone: "UTC",
@@ -121,17 +156,7 @@ export function ActivityHeatmap(props: { heatmap: ProfileHeatmap }) {
           </div>
         ))}
       </div>
-      <div className="flex items-center justify-end gap-1.5 pt-1 text-[10px] text-muted">
-        <span>{t`Less`}</span>
-        {([0, 1, 2, 3, 4] as ProfileHeatmapIntensity[]).map((level) => (
-          <div
-            key={level}
-            className="size-2.5 rounded-[2px]"
-            style={{ backgroundColor: colorFor(level) }}
-          />
-        ))}
-        <span>{t`More`}</span>
-      </div>
+      <HeatmapLegend />
     </div>
   );
 }

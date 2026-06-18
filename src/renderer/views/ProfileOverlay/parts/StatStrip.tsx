@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { msg } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
-import type { ProfileCoreStats, ProfileTokenStats } from "@/shared/contracts";
+import type { ProfileCoreStats, ProfileStatsWindow, ProfileTokenStats } from "@/shared/contracts";
 import type { TranslateFn } from "@/renderer/i18n/i18n";
 import { formatCompact, formatDayLabel, formatDuration } from "../format";
 
@@ -34,9 +34,10 @@ export function StatStrip(props: {
   core: ProfileCoreStats;
   tokens: ProfileTokenStats | null;
   tokensLoading: boolean;
+  window: ProfileStatsWindow;
 }) {
   const { t } = useLingui();
-  const { core, tokens, tokensLoading } = props;
+  const { core, tokens, tokensLoading, window } = props;
   const totals = core.totals;
   const pending = tokensLoading && !tokens;
 
@@ -57,7 +58,7 @@ export function StatStrip(props: {
 
   return (
     <div className="grid grid-cols-2 gap-px overflow-hidden rounded-2xl border border-border bg-border sm:grid-cols-3 lg:grid-cols-5">
-      <Tile value={lifetime} label={t`Lifetime tokens`} />
+      <Tile value={lifetime} label={window === "all" ? t`Lifetime tokens` : t`Total tokens`} />
       <Tile
         value={peak}
         label={t`Peak day`}
