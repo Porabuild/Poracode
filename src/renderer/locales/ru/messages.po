@@ -831,6 +831,11 @@ msgstr "Фоновые задачи"
 msgid "Base branch is ahead — branch must be updated first."
 msgstr "Базовая ветка опережает — сначала нужно обновить ветку."
 
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectWorktreeLocation.tsx
+#: src/renderer/views/SettingsOverlay/parts/WorktreeSettings.tsx
+msgid "Base folder"
+msgstr "Базовая папка"
+
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Base font size for agent terminals. Auto-shrinks in narrow or short "
 "panes."
@@ -1030,6 +1035,10 @@ msgid "Cannot switch branches — commit or stash your changes first"
 msgstr "Невозможно переключить ветки — сначала закоммитьте изменения или "
 "поместите их в stash"
 
+#: src/renderer/views/ProjectSettingsOverlay/parts/GeneralSection.tsx
+msgid "Change project folder"
+msgstr "Изменить папку проекта"
+
 #: src/renderer/views/MainView/parts/AppOverlays.tsx
 msgid "Change User"
 msgstr "Сменить пользователя"
@@ -1120,6 +1129,10 @@ msgid "Choose whether links from Lightcode and browser popups stay in Lightcode 
 "or open externally."
 msgstr "Выберите, остаются ли ссылки из Lightcode и всплывающие окна браузера "
 "внутри Lightcode или открываются во внешнем приложении."
+
+#: src/renderer/views/SettingsOverlay/parts/WorktreeBaseFolderField.tsx
+msgid "Choose worktree base folder"
+msgstr "Выбрать базовую папку worktree"
 
 #. placeholder {0}: trimmedName || displayLabel
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
@@ -1690,6 +1703,7 @@ msgstr "Текущая серия"
 
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Custom"
 msgstr "Пользовательский"
 
@@ -2324,6 +2338,17 @@ msgstr "Исправить в агенте"
 msgid "Folder name"
 msgstr "Имя папки"
 
+#: src/renderer/views/SettingsOverlay/parts/WorktreeSettings.tsx
+msgid "Folder that holds all worktrees. Tip: a Dev Drive here speeds up builds."
+msgstr "Папка, в которой хранятся все worktree. Совет: Dev Drive здесь ускоряет "
+"сборки."
+
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectWorktreeLocation.tsx
+msgid "Folder that holds this project's worktrees. Reset to use the global "
+"setting."
+msgstr "Папка, в которой хранятся worktree этого проекта. Сбросьте, чтобы "
+"использовать глобальную настройку."
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/ForceDeleteBranchDialog.tsx
 msgid "Force Delete"
 msgstr "Принудительно удалить"
@@ -2452,6 +2477,10 @@ msgstr "Игнорируемые Git файлы для копирования и
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "GLM 5.2 (optional label)"
 msgstr "GLM 5.2 (необязательная метка)"
+
+#: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
+msgid "Global folder"
+msgstr "Глобальная папка"
 
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 msgid "Goal"
@@ -2589,6 +2618,14 @@ msgstr "Инициализировать репозиторий"
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 msgid "Input level"
 msgstr "Уровень входного сигнала"
+
+#: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
+msgid "Inside each project"
+msgstr "Внутри каждого проекта"
+
+#: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
+msgid "Inside this project"
+msgstr "Внутри этого проекта"
 
 #: src/renderer/components/thread/ThreadView.tsx
 msgid "Inspect canonical runtime items"
@@ -3735,6 +3772,12 @@ msgid "Override Claude defaults — e.g. ANTHROPIC_BASE_URL and "
 msgstr "Переопределить значения Claude по умолчанию — например, "
 "ANTHROPIC_BASE_URL и ANTHROPIC_AUTH_TOKEN."
 
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectWorktreeLocation.tsx
+msgid "Override where this project's worktrees are created. Applies to "
+"worktrees created from now on."
+msgstr "Переопределить, где создаются worktree этого проекта. Применяется к "
+"worktree, создаваемым с этого момента."
+
 #: src/renderer/views/ProjectSettingsOverlay/parts/SearchSection.tsx
 msgid "Overriding the global setting for this project."
 msgstr "Переопределение глобальной настройки для этого проекта."
@@ -3901,6 +3944,14 @@ msgstr "Профили"
 #: src/renderer/views/ProjectSettingsOverlay/ProjectSettingsOverlay.tsx
 msgid "Project"
 msgstr "Проект"
+
+#: src/renderer/views/ProjectSettingsOverlay/parts/GeneralSection.tsx
+msgid "Project folder"
+msgstr "Папка проекта"
+
+#: src/renderer/actions/projectActions.ts
+msgid "Project folder updated. Reopen any terminals in this project."
+msgstr "Папка проекта обновлена. Откройте заново все терминалы в этом проекте."
 
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/GeneralSection.tsx
@@ -4337,6 +4388,10 @@ msgstr "Восстановить"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 msgid "Restore browser"
 msgstr "Восстановить браузер"
+
+#: src/renderer/views/SettingsOverlay/parts/WorktreeBaseFolderField.tsx
+msgid "Restore default worktree base folder"
+msgstr "Восстановить базовую папку worktree по умолчанию"
 
 #: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
 msgid "Restore thread"
@@ -5002,9 +5057,17 @@ msgstr "Остановить ответ"
 msgid "Stop task"
 msgstr "Остановить задачу"
 
+#: src/renderer/actions/projectActions.ts
+msgid "Stop the project's running threads before changing its folder."
+msgstr "Остановите запущенные треды проекта перед изменением его папки."
+
 #: src/renderer/components/composer/VoiceInputButton.tsx
 msgid "Stop voice input"
 msgstr "Остановить голосовой ввод"
+
+#: src/renderer/views/SettingsOverlay/parts/WorktreeSettings.tsx
+msgid "Storage location"
+msgstr "Место хранения"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Store as plain text"
@@ -5223,6 +5286,11 @@ msgid "The normal app shell could not render. The diagnostics below are shown "
 "before reload so the failure can be investigated."
 msgstr "Обычная оболочка приложения не смогла отрендериться. Диагностика ниже "
 "показана перед перезагрузкой, чтобы проблему можно было исследовать."
+
+#: src/renderer/views/ProjectSettingsOverlay/parts/GeneralSection.tsx
+msgid "The repository location on disk. Update it if you moved the folder."
+msgstr "Расположение репозитория на диске. Обновите его, если вы переместили "
+"папку."
 
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 msgid "the target provider"
@@ -5746,6 +5814,12 @@ msgstr "Использовать обнаруженную сессию?"
 msgid "Use ignore files"
 msgstr "Использовать файлы ignore"
 
+#: src/renderer/views/SettingsOverlay/parts/WorktreeSettings.tsx
+msgid "Use one global folder, or nest worktrees inside each project at "
+".lightcode/worktrees."
+msgstr "Используйте одну глобальную папку или вкладывайте worktree внутрь "
+"каждого проекта в .lightcode/worktrees."
+
 #: src/renderer/views/MainView/parts/AppOverlays.tsx
 msgid "Use Session"
 msgstr "Использовать сессию"
@@ -5935,6 +6009,13 @@ msgstr "Куда направляется выбор элемента брауз
 msgid "Where do you want to begin?"
 msgstr "С чего вы хотите начать?"
 
+#: src/renderer/views/SettingsOverlay/parts/WorktreeSettings.tsx
+msgid "Where Lightcode creates git worktrees for new branches. Changes apply to "
+"worktrees created from now on; existing worktrees stay where they are."
+msgstr "Где Lightcode создаёт git worktree для новых веток. Изменения "
+"применяются к worktree, создаваемым с этого момента; существующие "
+"worktree остаются на месте."
+
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Where the terminal panel appears."
 msgstr "Где появляется панель терминала."
@@ -6023,9 +6104,31 @@ msgstr "Worktree"
 msgid "Worktree + changes"
 msgstr "Worktree + изменения"
 
+#: src/renderer/views/SettingsOverlay/parts/WorktreeBaseFolderField.tsx
+msgid "Worktree base folder"
+msgstr "Базовая папка worktree"
+
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectWorktreeLocation.tsx
+msgid "Worktree location"
+msgstr "Расположение worktree"
+
 #: src/renderer/components/thread/WorktreeModeSelect.tsx
 msgid "Worktree mode"
 msgstr "Режим worktree"
+
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectWorktreeLocation.tsx
+msgid "Worktree root for this project (a Linux path). Reset to use the global "
+"setting."
+msgstr "Корневая папка worktree для этого проекта (путь Linux). Сбросьте, чтобы "
+"использовать глобальную настройку."
+
+#: src/renderer/views/SettingsOverlay/parts/WorktreeSettings.tsx
+msgid "Worktree root for WSL projects (a Linux path)."
+msgstr "Корневая папка worktree для проектов WSL (путь Linux)."
+
+#: src/renderer/views/SettingsOverlay/parts/WorktreeSettings.tsx
+msgid "Worktree storage location"
+msgstr "Место хранения worktree"
 
 #. placeholder {0}: props.projectName
 #. placeholder {0}: props.worktreeBranch
@@ -6036,6 +6139,8 @@ msgstr "Worktree: {0}"
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ScriptsSection.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/SettingsSidebar.tsx
+#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
+#: src/renderer/views/SettingsOverlay/parts/WorktreeSettings.tsx
 msgid "Worktrees"
 msgstr "Worktrees"
 
@@ -6064,6 +6169,10 @@ msgstr "WSL"
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "WSL ({0})"
 msgstr "WSL ({0})"
+
+#: src/renderer/views/SettingsOverlay/parts/WorktreeSettings.tsx
+msgid "WSL base folder"
+msgstr "Базовая папка WSL"
 
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
 msgid "Your name"

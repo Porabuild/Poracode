@@ -823,6 +823,11 @@ msgstr "백그라운드 작업"
 msgid "Base branch is ahead — branch must be updated first."
 msgstr "기본 분기가 앞서 있습니다. 먼저 분기를 업데이트해야 합니다."
 
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectWorktreeLocation.tsx
+#: src/renderer/views/SettingsOverlay/parts/WorktreeSettings.tsx
+msgid "Base folder"
+msgstr "기본 폴더"
+
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Base font size for agent terminals. Auto-shrinks in narrow or short "
 "panes."
@@ -1018,6 +1023,10 @@ msgstr "브랜치 이름 없이 기본 작업 트리 경로를 생성할 수 없
 msgid "Cannot switch branches — commit or stash your changes first"
 msgstr "브랜치를 전환할 수 없습니다. 먼저 변경 사항을 커밋하거나 숨기세요."
 
+#: src/renderer/views/ProjectSettingsOverlay/parts/GeneralSection.tsx
+msgid "Change project folder"
+msgstr "프로젝트 폴더 변경"
+
 #: src/renderer/views/MainView/parts/AppOverlays.tsx
 msgid "Change User"
 msgstr "사용자 변경"
@@ -1106,6 +1115,10 @@ msgstr "첨부할 스레드를 선택하세요."
 msgid "Choose whether links from Lightcode and browser popups stay in Lightcode "
 "or open externally."
 msgstr "Lightcode 및 브라우저 팝업의 링크를 Lightcode에 유지할지 아니면 외부에서 열지 선택합니다."
+
+#: src/renderer/views/SettingsOverlay/parts/WorktreeBaseFolderField.tsx
+msgid "Choose worktree base folder"
+msgstr "작업 트리 기본 폴더 선택"
 
 #. placeholder {0}: trimmedName || displayLabel
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
@@ -1673,6 +1686,7 @@ msgstr "현재 연속 기록"
 
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Custom"
 msgstr "맞춤"
 
@@ -2288,6 +2302,15 @@ msgstr "에이전트에서 수정"
 msgid "Folder name"
 msgstr "폴더 이름"
 
+#: src/renderer/views/SettingsOverlay/parts/WorktreeSettings.tsx
+msgid "Folder that holds all worktrees. Tip: a Dev Drive here speeds up builds."
+msgstr "모든 작업 트리를 보관하는 폴더입니다. 팁: 여기에 Dev Drive를 사용하면 빌드 속도가 빨라집니다."
+
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectWorktreeLocation.tsx
+msgid "Folder that holds this project's worktrees. Reset to use the global "
+"setting."
+msgstr "이 프로젝트의 작업 트리를 보관하는 폴더입니다. 전역 설정을 사용하려면 재설정하세요."
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/ForceDeleteBranchDialog.tsx
 msgid "Force Delete"
 msgstr "강제삭제"
@@ -2414,6 +2437,10 @@ msgstr "기본 프로젝트에서 각각의 새 작업 트리로 복사할 Gitig
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "GLM 5.2 (optional label)"
 msgstr "GLM 5.2 (선택 레이블)"
+
+#: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
+msgid "Global folder"
+msgstr "전역 폴더"
 
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 msgid "Goal"
@@ -2549,6 +2576,14 @@ msgstr "저장소 초기화"
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 msgid "Input level"
 msgstr "입력 레벨"
+
+#: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
+msgid "Inside each project"
+msgstr "각 프로젝트 내부"
+
+#: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
+msgid "Inside this project"
+msgstr "이 프로젝트 내부"
 
 #: src/renderer/components/thread/ThreadView.tsx
 msgid "Inspect canonical runtime items"
@@ -3683,6 +3718,11 @@ msgid "Override Claude defaults — e.g. ANTHROPIC_BASE_URL and "
 "ANTHROPIC_AUTH_TOKEN."
 msgstr "Claude 기본값을 재정의합니다 — 예: ANTHROPIC_BASE_URL 및 ANTHROPIC_AUTH_TOKEN."
 
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectWorktreeLocation.tsx
+msgid "Override where this project's worktrees are created. Applies to "
+"worktrees created from now on."
+msgstr "이 프로젝트의 작업 트리가 생성되는 위치를 재정의합니다. 지금부터 생성되는 작업 트리에 적용됩니다."
+
 #: src/renderer/views/ProjectSettingsOverlay/parts/SearchSection.tsx
 msgid "Overriding the global setting for this project."
 msgstr "이 프로젝트의 전역 설정을 재정의합니다."
@@ -3846,6 +3886,14 @@ msgstr "프로필"
 #: src/renderer/views/ProjectSettingsOverlay/ProjectSettingsOverlay.tsx
 msgid "Project"
 msgstr "프로젝트"
+
+#: src/renderer/views/ProjectSettingsOverlay/parts/GeneralSection.tsx
+msgid "Project folder"
+msgstr "프로젝트 폴더"
+
+#: src/renderer/actions/projectActions.ts
+msgid "Project folder updated. Reopen any terminals in this project."
+msgstr "프로젝트 폴더가 업데이트되었습니다. 이 프로젝트의 터미널을 다시 여세요."
 
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/GeneralSection.tsx
@@ -4278,6 +4326,10 @@ msgstr "복원"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 msgid "Restore browser"
 msgstr "브라우저 복원"
+
+#: src/renderer/views/SettingsOverlay/parts/WorktreeBaseFolderField.tsx
+msgid "Restore default worktree base folder"
+msgstr "작업 트리 기본 폴더 복원"
 
 #: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
 msgid "Restore thread"
@@ -4933,9 +4985,17 @@ msgstr "응답 중지"
 msgid "Stop task"
 msgstr "작업 중지"
 
+#: src/renderer/actions/projectActions.ts
+msgid "Stop the project's running threads before changing its folder."
+msgstr "폴더를 변경하기 전에 프로젝트에서 실행 중인 스레드를 중지하세요."
+
 #: src/renderer/components/composer/VoiceInputButton.tsx
 msgid "Stop voice input"
 msgstr "음성 입력 중지"
+
+#: src/renderer/views/SettingsOverlay/parts/WorktreeSettings.tsx
+msgid "Storage location"
+msgstr "저장 위치"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Store as plain text"
@@ -5153,6 +5213,10 @@ msgstr "선택한 폴더"
 msgid "The normal app shell could not render. The diagnostics below are shown "
 "before reload so the failure can be investigated."
 msgstr "일반 앱 셸을 렌더링할 수 없습니다. 아래 진단은 다시 로드하기 전에 표시되므로 오류를 조사할 수 있습니다."
+
+#: src/renderer/views/ProjectSettingsOverlay/parts/GeneralSection.tsx
+msgid "The repository location on disk. Update it if you moved the folder."
+msgstr "디스크에 있는 저장소 위치입니다. 폴더를 옮겼다면 업데이트하세요."
 
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 msgid "the target provider"
@@ -5667,6 +5731,11 @@ msgstr "감지된 세션을 사용하시겠습니까?"
 msgid "Use ignore files"
 msgstr "무시 파일 사용"
 
+#: src/renderer/views/SettingsOverlay/parts/WorktreeSettings.tsx
+msgid "Use one global folder, or nest worktrees inside each project at "
+".lightcode/worktrees."
+msgstr "하나의 전역 폴더를 사용하거나, 각 프로젝트의 .lightcode/worktrees에 작업 트리를 중첩합니다."
+
 #: src/renderer/views/MainView/parts/AppOverlays.tsx
 msgid "Use Session"
 msgstr "세션 사용"
@@ -5845,6 +5914,12 @@ msgstr "브라우저 요소 선택기 선택이 터미널 기본 스레드에서
 msgid "Where do you want to begin?"
 msgstr "어디서부터 시작하시겠습니까?"
 
+#: src/renderer/views/SettingsOverlay/parts/WorktreeSettings.tsx
+msgid "Where Lightcode creates git worktrees for new branches. Changes apply to "
+"worktrees created from now on; existing worktrees stay where they are."
+msgstr "Lightcode가 새 브랜치를 위해 git 작업 트리를 생성하는 위치입니다. 변경 사항은 지금부터 생성되는 작업 트리에 "
+"적용되며, 기존 작업 트리는 그대로 유지됩니다."
+
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Where the terminal panel appears."
 msgstr "터미널 패널이 나타나는 위치."
@@ -5931,9 +6006,30 @@ msgstr "작업 트리"
 msgid "Worktree + changes"
 msgstr "작업 트리 + 변경 사항"
 
+#: src/renderer/views/SettingsOverlay/parts/WorktreeBaseFolderField.tsx
+msgid "Worktree base folder"
+msgstr "작업 트리 기본 폴더"
+
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectWorktreeLocation.tsx
+msgid "Worktree location"
+msgstr "작업 트리 위치"
+
 #: src/renderer/components/thread/WorktreeModeSelect.tsx
 msgid "Worktree mode"
 msgstr "작업 트리 모드"
+
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectWorktreeLocation.tsx
+msgid "Worktree root for this project (a Linux path). Reset to use the global "
+"setting."
+msgstr "이 프로젝트의 작업 트리 루트입니다(Linux 경로). 전역 설정을 사용하려면 재설정하세요."
+
+#: src/renderer/views/SettingsOverlay/parts/WorktreeSettings.tsx
+msgid "Worktree root for WSL projects (a Linux path)."
+msgstr "WSL 프로젝트의 작업 트리 루트입니다(Linux 경로)."
+
+#: src/renderer/views/SettingsOverlay/parts/WorktreeSettings.tsx
+msgid "Worktree storage location"
+msgstr "작업 트리 저장 위치"
 
 #. placeholder {0}: props.projectName
 #. placeholder {0}: props.worktreeBranch
@@ -5944,6 +6040,8 @@ msgstr "작업 트리:{0}"
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ScriptsSection.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/SettingsSidebar.tsx
+#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
+#: src/renderer/views/SettingsOverlay/parts/WorktreeSettings.tsx
 msgid "Worktrees"
 msgstr "작업 트리"
 
@@ -5972,6 +6070,10 @@ msgstr "WSL"
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "WSL ({0})"
 msgstr "WSL({0})"
+
+#: src/renderer/views/SettingsOverlay/parts/WorktreeSettings.tsx
+msgid "WSL base folder"
+msgstr "WSL 기본 폴더"
 
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
 msgid "Your name"

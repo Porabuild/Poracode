@@ -830,6 +830,11 @@ msgstr "Tác vụ nền"
 msgid "Base branch is ahead — branch must be updated first."
 msgstr "Nhánh cơ sở ở phía trước - nhánh phải được cập nhật trước."
 
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectWorktreeLocation.tsx
+#: src/renderer/views/SettingsOverlay/parts/WorktreeSettings.tsx
+msgid "Base folder"
+msgstr "Thư mục gốc"
+
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Base font size for agent terminals. Auto-shrinks in narrow or short "
 "panes."
@@ -1029,6 +1034,10 @@ msgid "Cannot switch branches — commit or stash your changes first"
 msgstr "Không thể chuyển nhánh — trước tiên hãy commit hoặc stash các thay đổi "
 "của bạn"
 
+#: src/renderer/views/ProjectSettingsOverlay/parts/GeneralSection.tsx
+msgid "Change project folder"
+msgstr "Thay đổi thư mục dự án"
+
 #: src/renderer/views/MainView/parts/AppOverlays.tsx
 msgid "Change User"
 msgstr "Thay đổi người dùng"
@@ -1118,6 +1127,10 @@ msgid "Choose whether links from Lightcode and browser popups stay in Lightcode 
 "or open externally."
 msgstr "Chọn xem các liên kết từ Lightcode và cửa sổ bật lên của trình duyệt "
 "vẫn ở trong Lightcode hay mở bên ngoài."
+
+#: src/renderer/views/SettingsOverlay/parts/WorktreeBaseFolderField.tsx
+msgid "Choose worktree base folder"
+msgstr "Chọn thư mục gốc của cây làm việc"
 
 #. placeholder {0}: trimmedName || displayLabel
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
@@ -1690,6 +1703,7 @@ msgstr "Chuỗi ngày hiện tại"
 
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Custom"
 msgstr "Tùy chỉnh"
 
@@ -2319,6 +2333,17 @@ msgstr "Sửa trong Tác nhân"
 msgid "Folder name"
 msgstr "Tên thư mục"
 
+#: src/renderer/views/SettingsOverlay/parts/WorktreeSettings.tsx
+msgid "Folder that holds all worktrees. Tip: a Dev Drive here speeds up builds."
+msgstr "Thư mục chứa tất cả các cây làm việc. Mẹo: một Dev Drive ở đây sẽ tăng "
+"tốc các bản dựng."
+
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectWorktreeLocation.tsx
+msgid "Folder that holds this project's worktrees. Reset to use the global "
+"setting."
+msgstr "Thư mục chứa các cây làm việc của dự án này. Đặt lại để dùng thiết lập "
+"toàn cục."
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/ForceDeleteBranchDialog.tsx
 msgid "Force Delete"
 msgstr "Buộc xóa"
@@ -2446,6 +2471,10 @@ msgstr "Các tệp được Gitignored để sao chép từ dự án chính vào
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "GLM 5.2 (optional label)"
 msgstr "GLM 5.2 (nhãn tùy chọn)"
+
+#: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
+msgid "Global folder"
+msgstr "Thư mục toàn cục"
 
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 msgid "Goal"
@@ -2583,6 +2612,14 @@ msgstr "Khởi tạo kho lưu trữ"
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 msgid "Input level"
 msgstr "Mức đầu vào"
+
+#: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
+msgid "Inside each project"
+msgstr "Bên trong mỗi dự án"
+
+#: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
+msgid "Inside this project"
+msgstr "Bên trong dự án này"
 
 #: src/renderer/components/thread/ThreadView.tsx
 msgid "Inspect canonical runtime items"
@@ -3727,6 +3764,12 @@ msgid "Override Claude defaults — e.g. ANTHROPIC_BASE_URL and "
 msgstr "Ghi đè giá trị mặc định của Claude — ví dụ ANTHROPIC_BASE_URL và "
 "ANTHROPIC_AUTH_TOKEN."
 
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectWorktreeLocation.tsx
+msgid "Override where this project's worktrees are created. Applies to "
+"worktrees created from now on."
+msgstr "Ghi đè nơi tạo các cây làm việc của dự án này. Áp dụng cho các cây làm "
+"việc được tạo từ giờ trở đi."
+
 #: src/renderer/views/ProjectSettingsOverlay/parts/SearchSection.tsx
 msgid "Overriding the global setting for this project."
 msgstr "Ghi đè cài đặt chung cho dự án này."
@@ -3892,6 +3935,15 @@ msgstr "Hồ sơ"
 #: src/renderer/views/ProjectSettingsOverlay/ProjectSettingsOverlay.tsx
 msgid "Project"
 msgstr "dự án"
+
+#: src/renderer/views/ProjectSettingsOverlay/parts/GeneralSection.tsx
+msgid "Project folder"
+msgstr "Thư mục dự án"
+
+#: src/renderer/actions/projectActions.ts
+msgid "Project folder updated. Reopen any terminals in this project."
+msgstr "Đã cập nhật thư mục dự án. Hãy mở lại bất kỳ terminal nào trong dự án "
+"này."
 
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/GeneralSection.tsx
@@ -4328,6 +4380,10 @@ msgstr "Khôi phục"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 msgid "Restore browser"
 msgstr "Khôi phục trình duyệt"
+
+#: src/renderer/views/SettingsOverlay/parts/WorktreeBaseFolderField.tsx
+msgid "Restore default worktree base folder"
+msgstr "Khôi phục thư mục gốc mặc định của cây làm việc"
 
 #: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
 msgid "Restore thread"
@@ -4993,9 +5049,17 @@ msgstr "Dừng phản hồi"
 msgid "Stop task"
 msgstr "Dừng tác vụ"
 
+#: src/renderer/actions/projectActions.ts
+msgid "Stop the project's running threads before changing its folder."
+msgstr "Dừng các luồng đang chạy của dự án trước khi thay đổi thư mục của nó."
+
 #: src/renderer/components/composer/VoiceInputButton.tsx
 msgid "Stop voice input"
 msgstr "Dừng nhập bằng giọng nói"
+
+#: src/renderer/views/SettingsOverlay/parts/WorktreeSettings.tsx
+msgid "Storage location"
+msgstr "Vị trí lưu trữ"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Store as plain text"
@@ -5214,6 +5278,11 @@ msgid "The normal app shell could not render. The diagnostics below are shown "
 "before reload so the failure can be investigated."
 msgstr "Shell ứng dụng bình thường không thể hiển thị. Chẩn đoán bên dưới được "
 "hiển thị trước khi tải lại để có thể điều tra lỗi."
+
+#: src/renderer/views/ProjectSettingsOverlay/parts/GeneralSection.tsx
+msgid "The repository location on disk. Update it if you moved the folder."
+msgstr "Vị trí của kho lưu trữ trên đĩa. Hãy cập nhật nếu bạn đã di chuyển thư "
+"mục."
 
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 msgid "the target provider"
@@ -5735,6 +5804,12 @@ msgstr "Sử dụng phiên được phát hiện?"
 msgid "Use ignore files"
 msgstr "Sử dụng tập tin bỏ qua"
 
+#: src/renderer/views/SettingsOverlay/parts/WorktreeSettings.tsx
+msgid "Use one global folder, or nest worktrees inside each project at "
+".lightcode/worktrees."
+msgstr "Dùng một thư mục toàn cục, hoặc lồng các cây làm việc bên trong mỗi dự "
+"án tại .lightcode/worktrees."
+
 #: src/renderer/views/MainView/parts/AppOverlays.tsx
 msgid "Use Session"
 msgstr "Sử dụng phiên"
@@ -5925,6 +6000,13 @@ msgstr "Nơi lựa chọn từ bộ chọn phần tử trình duyệt được �
 msgid "Where do you want to begin?"
 msgstr "Bạn muốn bắt đầu từ đâu?"
 
+#: src/renderer/views/SettingsOverlay/parts/WorktreeSettings.tsx
+msgid "Where Lightcode creates git worktrees for new branches. Changes apply to "
+"worktrees created from now on; existing worktrees stay where they are."
+msgstr "Nơi Lightcode tạo các cây làm việc git cho các nhánh mới. Các thay đổi "
+"áp dụng cho các cây làm việc được tạo từ giờ trở đi; các cây làm việc "
+"hiện có vẫn giữ nguyên vị trí."
+
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Where the terminal panel appears."
 msgstr "Nơi bảng điều khiển đầu cuối xuất hiện."
@@ -6013,9 +6095,31 @@ msgstr "Cây làm việc"
 msgid "Worktree + changes"
 msgstr "Cây làm việc + thay đổi"
 
+#: src/renderer/views/SettingsOverlay/parts/WorktreeBaseFolderField.tsx
+msgid "Worktree base folder"
+msgstr "Thư mục gốc của cây làm việc"
+
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectWorktreeLocation.tsx
+msgid "Worktree location"
+msgstr "Vị trí cây làm việc"
+
 #: src/renderer/components/thread/WorktreeModeSelect.tsx
 msgid "Worktree mode"
 msgstr "Chế độ cây làm việc"
+
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectWorktreeLocation.tsx
+msgid "Worktree root for this project (a Linux path). Reset to use the global "
+"setting."
+msgstr "Thư mục gốc của cây làm việc cho dự án này (một đường dẫn Linux). Đặt "
+"lại để dùng thiết lập toàn cục."
+
+#: src/renderer/views/SettingsOverlay/parts/WorktreeSettings.tsx
+msgid "Worktree root for WSL projects (a Linux path)."
+msgstr "Thư mục gốc của cây làm việc cho các dự án WSL (một đường dẫn Linux)."
+
+#: src/renderer/views/SettingsOverlay/parts/WorktreeSettings.tsx
+msgid "Worktree storage location"
+msgstr "Vị trí lưu trữ cây làm việc"
 
 #. placeholder {0}: props.projectName
 #. placeholder {0}: props.worktreeBranch
@@ -6026,6 +6130,8 @@ msgstr "Cây làm việc: {0}"
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ScriptsSection.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/SettingsSidebar.tsx
+#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
+#: src/renderer/views/SettingsOverlay/parts/WorktreeSettings.tsx
 msgid "Worktrees"
 msgstr "Cây làm việc"
 
@@ -6054,6 +6160,10 @@ msgstr "WSL"
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "WSL ({0})"
 msgstr "WSL ({0})"
+
+#: src/renderer/views/SettingsOverlay/parts/WorktreeSettings.tsx
+msgid "WSL base folder"
+msgstr "Thư mục gốc WSL"
 
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
 msgid "Your name"

@@ -834,6 +834,11 @@ msgid "Base branch is ahead — branch must be updated first."
 msgstr "La branche de base est en avance — la branche doit être mise à jour en "
 "premier."
 
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectWorktreeLocation.tsx
+#: src/renderer/views/SettingsOverlay/parts/WorktreeSettings.tsx
+msgid "Base folder"
+msgstr "Dossier de base"
+
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Base font size for agent terminals. Auto-shrinks in narrow or short "
 "panes."
@@ -1035,6 +1040,10 @@ msgid "Cannot switch branches — commit or stash your changes first"
 msgstr "Impossible de changer de branche : validez ou stockez d'abord vos "
 "modifications"
 
+#: src/renderer/views/ProjectSettingsOverlay/parts/GeneralSection.tsx
+msgid "Change project folder"
+msgstr "Changer le dossier du projet"
+
 #: src/renderer/views/MainView/parts/AppOverlays.tsx
 msgid "Change User"
 msgstr "Changer d'utilisateur"
@@ -1124,6 +1133,10 @@ msgid "Choose whether links from Lightcode and browser popups stay in Lightcode 
 "or open externally."
 msgstr "Choisissez si les liens de Lightcode et les fenêtres contextuelles du "
 "navigateur restent dans Lightcode ou s'ouvrent en externe."
+
+#: src/renderer/views/SettingsOverlay/parts/WorktreeBaseFolderField.tsx
+msgid "Choose worktree base folder"
+msgstr "Choisir le dossier de base des arbres de travail"
 
 #. placeholder {0}: trimmedName || displayLabel
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
@@ -1697,6 +1710,7 @@ msgstr "Série actuelle"
 
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Custom"
 msgstr "Personnalisé"
 
@@ -2332,6 +2346,17 @@ msgstr "Correction dans l'agent"
 msgid "Folder name"
 msgstr "Nom du dossier"
 
+#: src/renderer/views/SettingsOverlay/parts/WorktreeSettings.tsx
+msgid "Folder that holds all worktrees. Tip: a Dev Drive here speeds up builds."
+msgstr "Dossier qui contient tous les arbres de travail. Astuce : un Dev Drive "
+"ici accélère les builds."
+
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectWorktreeLocation.tsx
+msgid "Folder that holds this project's worktrees. Reset to use the global "
+"setting."
+msgstr "Dossier qui contient les arbres de travail de ce projet. Réinitialisez "
+"pour utiliser le paramètre global."
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/ForceDeleteBranchDialog.tsx
 msgid "Force Delete"
 msgstr "Forcer la suppression"
@@ -2462,6 +2487,10 @@ msgstr "Fichiers Gitignorés à copier du projet principal dans chaque nouvel "
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "GLM 5.2 (optional label)"
 msgstr "GLM 5.2 (libellé optionnel)"
+
+#: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
+msgid "Global folder"
+msgstr "Dossier global"
 
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 msgid "Goal"
@@ -2599,6 +2628,14 @@ msgstr "Initialiser le dépôt"
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 msgid "Input level"
 msgstr "Niveau d'entrée"
+
+#: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
+msgid "Inside each project"
+msgstr "Dans chaque projet"
+
+#: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
+msgid "Inside this project"
+msgstr "Dans ce projet"
 
 #: src/renderer/components/thread/ThreadView.tsx
 msgid "Inspect canonical runtime items"
@@ -3747,6 +3784,12 @@ msgid "Override Claude defaults — e.g. ANTHROPIC_BASE_URL and "
 msgstr "Remplacez les valeurs par défaut de Claude — par ex. ANTHROPIC_BASE_URL "
 "et ANTHROPIC_AUTH_TOKEN."
 
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectWorktreeLocation.tsx
+msgid "Override where this project's worktrees are created. Applies to "
+"worktrees created from now on."
+msgstr "Remplacez l'emplacement de création des arbres de travail de ce projet. "
+"S'applique aux arbres de travail créés à partir de maintenant."
+
 #: src/renderer/views/ProjectSettingsOverlay/parts/SearchSection.tsx
 msgid "Overriding the global setting for this project."
 msgstr "Remplacement du paramètre global pour ce projet."
@@ -3913,6 +3956,14 @@ msgstr "Profils"
 #: src/renderer/views/ProjectSettingsOverlay/ProjectSettingsOverlay.tsx
 msgid "Project"
 msgstr "Projet"
+
+#: src/renderer/views/ProjectSettingsOverlay/parts/GeneralSection.tsx
+msgid "Project folder"
+msgstr "Dossier du projet"
+
+#: src/renderer/actions/projectActions.ts
+msgid "Project folder updated. Reopen any terminals in this project."
+msgstr "Dossier du projet mis à jour. Rouvrez les terminaux de ce projet."
 
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/GeneralSection.tsx
@@ -4351,6 +4402,10 @@ msgstr "Restaurer"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 msgid "Restore browser"
 msgstr "Restaurer le navigateur"
+
+#: src/renderer/views/SettingsOverlay/parts/WorktreeBaseFolderField.tsx
+msgid "Restore default worktree base folder"
+msgstr "Restaurer le dossier de base par défaut des arbres de travail"
 
 #: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
 msgid "Restore thread"
@@ -5022,9 +5077,18 @@ msgstr "Arrêter la réponse"
 msgid "Stop task"
 msgstr "Arrêter la tâche"
 
+#: src/renderer/actions/projectActions.ts
+msgid "Stop the project's running threads before changing its folder."
+msgstr "Arrêtez les fils de discussion en cours du projet avant de changer son "
+"dossier."
+
 #: src/renderer/components/composer/VoiceInputButton.tsx
 msgid "Stop voice input"
 msgstr "Arrêter la saisie vocale"
+
+#: src/renderer/views/SettingsOverlay/parts/WorktreeSettings.tsx
+msgid "Storage location"
+msgstr "Emplacement de stockage"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Store as plain text"
@@ -5244,6 +5308,11 @@ msgid "The normal app shell could not render. The diagnostics below are shown "
 msgstr "Le shell d'application normal n'a pas pu être rendu. Les diagnostics "
 "ci-dessous sont affichés avant le rechargement afin que la panne puisse "
 "être étudiée."
+
+#: src/renderer/views/ProjectSettingsOverlay/parts/GeneralSection.tsx
+msgid "The repository location on disk. Update it if you moved the folder."
+msgstr "L'emplacement du dépôt sur le disque. Mettez-le à jour si vous avez "
+"déplacé le dossier."
 
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 msgid "the target provider"
@@ -5767,6 +5836,12 @@ msgstr "Utiliser la session détectée ?"
 msgid "Use ignore files"
 msgstr "Utiliser les fichiers ignorés"
 
+#: src/renderer/views/SettingsOverlay/parts/WorktreeSettings.tsx
+msgid "Use one global folder, or nest worktrees inside each project at "
+".lightcode/worktrees."
+msgstr "Utilisez un seul dossier global, ou imbriquez les arbres de travail "
+"dans chaque projet sous .lightcode/worktrees."
+
 #: src/renderer/views/MainView/parts/AppOverlays.tsx
 msgid "Use Session"
 msgstr "Utiliser la session"
@@ -5960,6 +6035,14 @@ msgstr "Où aboutit une sélection du sélecteur d'éléments du navigateur dans
 msgid "Where do you want to begin?"
 msgstr "Par où voulez-vous commencer ?"
 
+#: src/renderer/views/SettingsOverlay/parts/WorktreeSettings.tsx
+msgid "Where Lightcode creates git worktrees for new branches. Changes apply to "
+"worktrees created from now on; existing worktrees stay where they are."
+msgstr "Emplacement où Lightcode crée les arbres de travail git pour les "
+"nouvelles branches. Les changements s'appliquent aux arbres de travail "
+"créés à partir de maintenant ; les arbres de travail existants restent "
+"à leur place."
+
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Where the terminal panel appears."
 msgstr "Où le panneau du terminal apparaît."
@@ -6049,9 +6132,31 @@ msgstr "Arbre de travail"
 msgid "Worktree + changes"
 msgstr "Arbre de travail + modifications"
 
+#: src/renderer/views/SettingsOverlay/parts/WorktreeBaseFolderField.tsx
+msgid "Worktree base folder"
+msgstr "Dossier de base des arbres de travail"
+
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectWorktreeLocation.tsx
+msgid "Worktree location"
+msgstr "Emplacement de l'arbre de travail"
+
 #: src/renderer/components/thread/WorktreeModeSelect.tsx
 msgid "Worktree mode"
 msgstr "Mode arbre de travail"
+
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectWorktreeLocation.tsx
+msgid "Worktree root for this project (a Linux path). Reset to use the global "
+"setting."
+msgstr "Racine des arbres de travail pour ce projet (un chemin Linux). "
+"Réinitialisez pour utiliser le paramètre global."
+
+#: src/renderer/views/SettingsOverlay/parts/WorktreeSettings.tsx
+msgid "Worktree root for WSL projects (a Linux path)."
+msgstr "Racine des arbres de travail pour les projets WSL (un chemin Linux)."
+
+#: src/renderer/views/SettingsOverlay/parts/WorktreeSettings.tsx
+msgid "Worktree storage location"
+msgstr "Emplacement de stockage des arbres de travail"
 
 #. placeholder {0}: props.projectName
 #. placeholder {0}: props.worktreeBranch
@@ -6062,6 +6167,8 @@ msgstr "Arbre de travail : {0}"
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ScriptsSection.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/SettingsSidebar.tsx
+#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
+#: src/renderer/views/SettingsOverlay/parts/WorktreeSettings.tsx
 msgid "Worktrees"
 msgstr "Arbres de travail"
 
@@ -6090,6 +6197,10 @@ msgstr "WSL"
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "WSL ({0})"
 msgstr "WSL ({0})"
+
+#: src/renderer/views/SettingsOverlay/parts/WorktreeSettings.tsx
+msgid "WSL base folder"
+msgstr "Dossier de base WSL"
 
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
 msgid "Your name"

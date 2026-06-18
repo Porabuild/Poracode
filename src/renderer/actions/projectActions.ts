@@ -1,8 +1,10 @@
 import { toast } from "@heroui/react";
+import { msg } from "@lingui/core/macro";
 import type { Project, ProjectLocation } from "@/shared/contracts";
 import { deriveLocationFromPath } from "@/shared/createProject";
 import { friendlyError } from "@/shared/messages";
 import { readBridge } from "@/renderer/bridge";
+import { i18n } from "@/renderer/i18n/i18n";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useDevTerminalStore } from "@/renderer/state/devTerminalStore";
 import { useFileEditorStore } from "@/renderer/state/fileEditorStore";
@@ -80,7 +82,7 @@ export async function relocateProject(projectId: string): Promise<void> {
     (thread) => thread.projectId === projectId && thread.status === "working",
   );
   if (hasRunningThread) {
-    toast.danger("Stop the project's running threads before changing its folder.");
+    toast.danger(i18n._(msg`Stop the project's running threads before changing its folder.`));
     return;
   }
 
@@ -106,7 +108,7 @@ export async function relocateProject(projectId: string): Promise<void> {
     .gitWatchProject({ projectId, projectLocation: newLocation })
     .catch(() => undefined);
   void refreshGitProject({ id: projectId, location: newLocation }, "manual", "full");
-  toast.success("Project folder updated. Reopen any terminals in this project.");
+  toast.success(i18n._(msg`Project folder updated. Reopen any terminals in this project.`));
 }
 
 export function deleteProject(projectId: string): void {
