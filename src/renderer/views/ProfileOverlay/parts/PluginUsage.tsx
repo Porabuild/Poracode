@@ -1,6 +1,6 @@
 import { Bot, Plug, Sparkles, Wrench } from "lucide-react";
+import { useLingui } from "@lingui/react/macro";
 import type { ProfileSkillUsage } from "@/shared/contracts";
-import { formatRuns } from "../format";
 
 function iconFor(kind: ProfileSkillUsage["kind"]) {
   if (kind === "subagent") return Bot;
@@ -14,15 +14,16 @@ export function PluginUsage(props: {
   title?: string;
   emptyText?: string;
 }) {
-  const { items, title = "Most used plugins", emptyText } = props;
+  const { t } = useLingui();
+  const { items, title, emptyText } = props;
+  const heading = title ?? t`Most used plugins`;
+  const empty = emptyText ?? t`Nothing tracked yet. It'll appear here as you use it.`;
 
   return (
     <section className="flex flex-col gap-1">
-      <h2 className="mb-1 text-sm font-semibold text-foreground">{title}</h2>
+      <h2 className="mb-1 text-sm font-semibold text-foreground">{heading}</h2>
       {items.length === 0 ? (
-        <p className="py-2 text-sm text-muted">
-          {emptyText ?? "Nothing tracked yet. It'll appear here as you use it."}
-        </p>
+        <p className="py-2 text-sm text-muted">{empty}</p>
       ) : (
         <div className="divide-y divide-separator">
           {items.map((item) => {
@@ -37,7 +38,9 @@ export function PluginUsage(props: {
                   <span className="truncate font-medium text-foreground">{item.displayName}</span>
                 </span>
                 <span className="shrink-0 tabular-nums text-muted">
-                  {formatRuns(item.runCount)}
+                  {item.runCount === 1
+                    ? t`${item.runCount.toLocaleString()} run`
+                    : t`${item.runCount.toLocaleString()} runs`}
                 </span>
               </div>
             );

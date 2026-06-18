@@ -1,14 +1,17 @@
 import { type ReactNode, useEffect, useRef, useState } from "react";
+import { Plural, Trans, useLingui } from "@lingui/react/macro";
 import { ChevronDown, GitBranch, GitFork, Search } from "lucide-react";
 import { Popover, toast, Tooltip } from "@heroui/react";
 import type { GitBranchInfo } from "@/shared/contracts";
 import { friendlyError } from "@/shared/messages";
 import { readBridge } from "@/renderer/bridge";
+import { useAppStore } from "@/renderer/state/appStore";
 import { useGitStore } from "@/renderer/state/gitStore";
 import { prefetchBranchPrData, refreshGitProject } from "@/renderer/state/gitRefresh";
 import { buildBranchNamePrKey } from "@/renderer/state/gitSelectors";
 import { usePanelStore } from "@/renderer/state/panelStore";
 import { openNewThreadInWorktree } from "@/renderer/actions/threadActions";
+import { worktreePlacementPayload } from "@/renderer/actions/worktreePlacement";
 import { deleteWorktreeGroup } from "@/renderer/actions/worktreeActions";
 import { Button } from "../Button";
 import { ConfirmDialog } from "../ConfirmDialog";
@@ -77,6 +80,7 @@ export function BranchSelector(props: BranchSelectorProps) {
     compact = false,
   } = props;
   const triggerIconSize = compact ? "size-3" : "size-3.5";
+  const { t } = useLingui();
 
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState("");
@@ -166,7 +170,7 @@ export function BranchSelector(props: BranchSelectorProps) {
     setPendingDelete({
       branch,
       ...(worktreePath ? { worktreePath } : {}),
-      threadIds: threads.map((t) => t.id),
+      threadIds: threads.map((thread) => thread.id),
       threadCount: threads.length,
     });
   }
@@ -226,6 +230,7 @@ export function BranchSelector(props: BranchSelectorProps) {
     setIsOpen(false);
     try {
       const newBranch = generateWorktreeBranch();
+      const project = useAppStore.getState().projects.find((p) => p.id === projectId);
       const result = await readBridge().gitAddWorktree({
         projectLocation,
         branch: newBranch,
@@ -234,6 +239,7 @@ export function BranchSelector(props: BranchSelectorProps) {
         transferUncommitted: true,
         // This action MOVES the changes — leave the current branch clean.
         keepChangesInSource: false,
+        ...(project ? worktreePlacementPayload(project) : {}),
         ...(moveBranchCopyIgnoredPatterns?.length
           ? { copyIgnoredPatterns: moveBranchCopyIgnoredPatterns }
           : {}),
@@ -246,11 +252,11 @@ export function BranchSelector(props: BranchSelectorProps) {
       });
       if (result.changesTransferred === false) {
         toast.danger(
-          `Created a worktree on "${newBranch}", but the changes conflicted and remain in a git stash — resolve them in the worktree.`,
+          t`Created a worktree on "${newBranch}", but the changes conflicted and remain in a git stash — resolve them in the worktree.`,
         );
       } else {
         toast.success(
-          `Moved your changes into a new worktree on "${newBranch}". "${currentBranch}" is now clean.`,
+          t`Moved your changes into a new worktree on "${newBranch}". "${currentBranch}" is now clean.`,
         );
       }
     } catch (error) {
@@ -268,7 +274,7 @@ export function BranchSelector(props: BranchSelectorProps) {
           {trigger ?? (
             <Tooltip delay={0}>
               <Button
-                aria-label="Select branch"
+                aria-label={t`Select branch`}
                 isDisabled={isDisabled ?? false}
                 size="sm"
                 variant="ghost"
@@ -316,7 +322,7 @@ export function BranchSelector(props: BranchSelectorProps) {
               <input
                 ref={searchRef}
                 className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted outline-none"
-                placeholder="Search branches..."
+                placeholder={t`Search branches...`}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 onKeyDown={(e) => {
@@ -379,21 +385,33 @@ export function BranchSelector(props: BranchSelectorProps) {
       </Popover>
       <ConfirmDialog
         isOpen={pendingDelete !== null}
-        title={pendingDelete?.worktreePath ? "Remove worktree?" : "Delete branch?"}
+        title={pendingDelete?.worktreePath ? t`Remove worktree?` : t`Delete branch?`}
         body={
-          pendingDelete?.worktreePath
-            ? `This removes the worktree on "${pendingDelete.branch.name}"${
-                pendingDelete.threadCount > 0
-                  ? ` and closes ${pendingDelete.threadCount} linked thread${
-                      pendingDelete.threadCount === 1 ? "" : "s"
-                    }`
-                  : ""
-              }, then deletes the branch.`
-            : `This permanently deletes the branch "${pendingDelete?.branch.name ?? ""}"${
-                pendingDelete?.branch.isRemote ? " from its remote" : ""
-              }.`
+          pendingDelete?.worktreePath ? (
+            pendingDelete.threadCount > 0 ? (
+              <Trans>
+                This removes the worktree on "{pendingDelete.branch.name}" and closes{" "}
+                <Plural
+                  value={pendingDelete.threadCount}
+                  one="# linked thread"
+                  other="# linked threads"
+                />
+                , then deletes the branch.
+              </Trans>
+            ) : (
+              <Trans>
+                This removes the worktree on "{pendingDelete.branch.name}", then deletes the branch.
+              </Trans>
+            )
+          ) : pendingDelete?.branch.isRemote ? (
+            <Trans>
+              This permanently deletes the branch "{pendingDelete.branch.name}" from its remote.
+            </Trans>
+          ) : (
+            <Trans>This permanently deletes the branch "{pendingDelete?.branch.name ?? ""}".</Trans>
+          )
         }
-        confirmLabel={pendingDelete?.worktreePath ? "Remove" : "Delete"}
+        confirmLabel={pendingDelete?.worktreePath ? t`Remove` : t`Delete`}
         onConfirm={() => void confirmDelete()}
         onClose={() => setPendingDelete(null)}
       />

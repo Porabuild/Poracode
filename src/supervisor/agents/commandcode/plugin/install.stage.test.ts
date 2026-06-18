@@ -20,7 +20,8 @@ describe("installCommandCodePlugin (native staging)", () => {
   beforeEach(() => {
     baseDir = mkdtempSync(join(tmpdir(), "cc-lc-base-"));
     ccDir = mkdtempSync(join(tmpdir(), "cc-global-"));
-    ctx = { envKind: "posix", baseDir } as AgentEnvContext;
+    const envKind = process.platform === "win32" ? "windows" : "posix";
+    ctx = { envKind, baseDir } as AgentEnvContext;
   });
   afterEach(() => {
     rmSync(baseDir, { recursive: true, force: true });
@@ -45,12 +46,9 @@ describe("installCommandCodePlugin (native staging)", () => {
     for (const ev of ["PreToolUse", "PostToolUse", "Stop"]) {
       const entry = doc.hooks[ev]?.[0]?.hooks?.[0];
       expect(entry?.type).toBe("command");
-      expect(entry?.command).toMatch(
-        process.platform === "win32"
-          ? /agent-plugins[\\/]commandcode[\\/]lightcode-hook\.cmd/
-          : /agent-plugins[\\/]commandcode[\\/]lightcode-hook\.sh/,
-      );
-      expect(entry?.command.endsWith(` ${ev}`)).toBe(true);
+      const command = entry?.command ?? "";
+      expect(command.replace(/\\/g, "/")).toContain(`agent-plugins/commandcode/${wrapperName}`);
+      expect(command.endsWith(` ${ev}`)).toBe(true);
     }
   });
 

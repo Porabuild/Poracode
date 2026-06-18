@@ -1,5 +1,6 @@
 import React, { useEffect, useLayoutEffect, useReducer, useRef } from "react";
 import { useDroppable } from "@dnd-kit/react";
+import { useLingui } from "@lingui/react/macro";
 import { type PaneLayout, type PaneLayoutAxis } from "@/shared/paneLayout";
 import { useIsInsertSplitHighlighted, useIsRootInsertHighlighted } from "@/renderer/dnd";
 import {
@@ -123,6 +124,7 @@ function Divider(props: {
   onResizeStart: (event: React.MouseEvent, divider: ComputedDivider) => void;
 }) {
   const { divider } = props;
+  const { t } = useLingui();
   const elementRef = useRef<HTMLDivElement>(null);
   useDroppable({
     id: divider.zoneId,
@@ -159,7 +161,7 @@ function Divider(props: {
       onMouseDown={(event) => props.onResizeStart(event, divider)}
       role="separator"
       aria-orientation={divider.parentAxis === "vertical" ? "vertical" : "horizontal"}
-      aria-label={divider.parentAxis === "vertical" ? "Resize column" : "Resize row"}
+      aria-label={divider.parentAxis === "vertical" ? t`Resize column` : t`Resize row`}
     />
   );
 }

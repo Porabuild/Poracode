@@ -7,6 +7,7 @@ import {
   useState,
   type RefObject,
 } from "react";
+import { Trans, useLingui } from "@lingui/react/macro";
 import { Check, ChevronDown, Search, Star } from "lucide-react";
 import { Popover, Tooltip } from "@heroui/react";
 import { ProviderIcon } from "@/renderer/components/providers/ProviderIcon";
@@ -223,6 +224,7 @@ export function ProviderModelMenu(props: ProviderModelMenuProps) {
     onOpenChange,
   } = props;
 
+  const { t } = useLingui();
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [sessionFavorites, setSessionFavorites] = useState<readonly ModelRef[] | undefined>(
@@ -345,7 +347,7 @@ export function ProviderModelMenu(props: ProviderModelMenuProps) {
 
   const trigger = (
     <Button
-      aria-label="Select model"
+      aria-label={t`Select model`}
       isDisabled={(isDisabled ?? false) || providers.length === 0}
       size="sm"
       variant="ghost"
@@ -365,7 +367,7 @@ export function ProviderModelMenu(props: ProviderModelMenuProps) {
         }
       >
         <span className="max-w-full truncate leading-tight">
-          {currentLabelParts.name || "Select model"}
+          {currentLabelParts.name || t`Select model`}
         </span>
         {currentSubProvider ? (
           <span className="max-w-full truncate text-[10px] font-medium leading-tight text-muted/70">
@@ -390,7 +392,7 @@ export function ProviderModelMenu(props: ProviderModelMenuProps) {
           <Tooltip>
             {trigger}
             <Tooltip.Content placement="top">
-              {currentDisplayLabel || "Select model"}
+              {currentDisplayLabel || t`Select model`}
             </Tooltip.Content>
           </Tooltip>
         ) : (
@@ -404,7 +406,7 @@ export function ProviderModelMenu(props: ProviderModelMenuProps) {
             <input
               ref={searchRef}
               className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted outline-none"
-              placeholder="Search models..."
+              placeholder={t`Search models...`}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               onKeyDown={(e) => {
@@ -421,7 +423,9 @@ export function ProviderModelMenu(props: ProviderModelMenuProps) {
             />
           </div>
           {items.length === 0 ? (
-            <div className="px-3 py-3 text-center text-sm text-muted">No models found</div>
+            <div className="px-3 py-3 text-center text-sm text-muted">
+              <Trans>No models found</Trans>
+            </div>
           ) : (
             <WindowedProviderModelList
               domIdPrefix={listboxDomIdPrefix}
@@ -457,6 +461,7 @@ function WindowedProviderModelList(props: {
   onSelect: (itemId: string) => void;
 }) {
   const { domIdPrefix, items, selectedKeys, scrollRef, toggleFavorite, onSelect } = props;
+  const { t } = useLingui();
   const [visibleRow, setVisibleRow] = useState(0);
   const [scrollTop, setScrollTop] = useState(0);
   const [activeRowId, setActiveRowId] = useState<string | null>(() => {
@@ -596,7 +601,7 @@ function WindowedProviderModelList(props: {
     <div
       ref={scrollRef}
       role="listbox"
-      aria-label="Models"
+      aria-label={t`Models`}
       aria-activedescendant={
         activeIndex >= 0 ? `${domIdPrefix}-${items[activeIndex]?.id}` : undefined
       }
@@ -765,7 +770,7 @@ function WindowedProviderModelList(props: {
             {item.hideFavoriteToggle ? null : (
               <button
                 type="button"
-                aria-label={item.isFavorite ? "Remove from favorites" : "Add to favorites"}
+                aria-label={item.isFavorite ? t`Remove from favorites` : t`Add to favorites`}
                 className={`ml-1 flex size-5 shrink-0 items-center justify-center rounded transition ${
                   item.isFavorite
                     ? "text-foreground"
@@ -826,12 +831,13 @@ function HeaderPlain(props: {
   className?: string;
 }) {
   const { item, className = "" } = props;
+  const { t } = useLingui();
   return (
     <div
       role="presentation"
       className={`${className} flex h-7 items-center border-b border-border/40 bg-overlay px-2 text-[10px] font-semibold uppercase tracking-wider text-muted/80`}
     >
-      {item.label}
+      {t(item.label)}
     </div>
   );
 }

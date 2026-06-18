@@ -1,4 +1,5 @@
 import { useEffect, useEffectEvent, useId, useLayoutEffect, useRef, type ReactNode } from "react";
+import { Trans, useLingui } from "@lingui/react/macro";
 import { Bot, X } from "lucide-react";
 import type { ProjectLocation, ToolCallPayload } from "@/shared/contracts";
 import { PixelLoader } from "@/renderer/components/common";
@@ -62,6 +63,7 @@ function SubAgentOverlayBody({
   onClose,
   projectLocation,
 }: SubAgentOverlayBodyProps) {
+  const { t } = useLingui();
   const item = useAppStore(getRuntimeItemStoreSelector(threadId, parentItemId));
   const childIds = useAppStore(getChildItemIdsStoreSelector(threadId, parentItemId));
   const applyRuntimeEvents = useAppStore((s) => s.applyRuntimeEvents);
@@ -94,8 +96,10 @@ function SubAgentOverlayBody({
 
   if (!item) {
     return (
-      <Shell title="Subagent" onClose={onClose}>
-        <p className="px-3 py-4 text-sm text-foreground-muted">Subagent not found.</p>
+      <Shell title={t`Subagent`} onClose={onClose}>
+        <p className="px-3 py-4 text-sm text-foreground-muted">
+          <Trans>Subagent not found.</Trans>
+        </p>
       </Shell>
     );
   }
@@ -103,7 +107,7 @@ function SubAgentOverlayBody({
   const payload = getRuntimeItemPayload<ToolCallPayload>(item, "tool_call");
   const display = payload ? deriveToolDisplay(payload) : null;
   const Icon = display?.Icon ?? Bot;
-  const title = display?.title ?? "Subagent";
+  const title = display?.title ?? t`Subagent`;
   const isRunning = item.state !== "completed" || payload?.status === "running";
   const workflow = payload && isWorkflowTool(payload) ? parseWorkflowInfo(payload) : null;
   const workflowProgress: WorkflowOverlayProgress | null = workflow
@@ -170,6 +174,7 @@ function Shell({
    */
   hideTitleBorder?: boolean;
 }) {
+  const { t } = useLingui();
   const titleId = useId();
   return (
     <div
@@ -192,7 +197,7 @@ function Shell({
         </h2>
         <button
           type="button"
-          aria-label="Close subagent"
+          aria-label={t`Close subagent`}
           className="shrink-0 rounded p-1 text-muted/60 transition-colors hover:bg-[var(--row-hover)] hover:text-foreground"
           onClick={onClose}
         >
@@ -281,7 +286,9 @@ function ChildList({
           workflow ? (
             <WorkflowEmptyState progress={workflowProgress} />
           ) : (
-            <p className="text-sm text-foreground-muted">Working…</p>
+            <p className="text-sm text-foreground-muted">
+              <Trans>Working…</Trans>
+            </p>
           )
         ) : (
           childIds.map((id) => (
@@ -330,7 +337,7 @@ function WorkflowOverlayHeader({
       ) : null}
       {workflow.runId ? (
         <p className="font-mono text-[length:var(--lc-chat-font-size-meta)] text-foreground-muted/80">
-          Run {workflow.runId}
+          <Trans>Run {workflow.runId}</Trans>
         </p>
       ) : null}
     </div>
@@ -356,15 +363,19 @@ function WorkflowEmptyState({ progress }: { progress: WorkflowOverlayProgress | 
   if (!progress?.isRunning) {
     return (
       <p className="text-sm text-foreground-muted">
-        Workflow finished. Child agents ran in a separate process and aren&rsquo;t streamed here
-        yet.
+        <Trans>
+          Workflow finished. Child agents ran in a separate process and aren&rsquo;t streamed here
+          yet.
+        </Trans>
       </p>
     );
   }
   return (
     <p className="text-sm text-foreground-muted">
-      Workflow is running in the background. Child agents run in a separate process and aren&rsquo;t
-      streamed here yet.
+      <Trans>
+        Workflow is running in the background. Child agents run in a separate process and
+        aren&rsquo;t streamed here yet.
+      </Trans>
     </p>
   );
 }

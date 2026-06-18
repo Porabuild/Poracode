@@ -1,5 +1,6 @@
 import { ChevronDown, GitPullRequest, Sparkles } from "lucide-react";
 import { Button, ButtonGroup, Dropdown, Label, Modal, Tooltip } from "@heroui/react";
+import { Trans, useLingui } from "@lingui/react/macro";
 import type { GitBranchInfo } from "@/shared/contracts";
 import { PixelLoader, TextArea } from "@/renderer/components/common";
 
@@ -39,6 +40,7 @@ export function CreatePrModal(props: {
     handleCreatePr,
     handleGeneratePrSummary,
   } = props;
+  const { t } = useLingui();
 
   return (
     <Modal.Backdrop isOpen={isOpen} onOpenChange={onOpenChange}>
@@ -46,7 +48,9 @@ export function CreatePrModal(props: {
         <Modal.Dialog className="sm:max-w-[600px]">
           <Modal.CloseTrigger />
           <Modal.Header>
-            <Modal.Heading>Create PR</Modal.Heading>
+            <Modal.Heading>
+              <Trans>Create PR</Trans>
+            </Modal.Heading>
             <div className="mt-1 flex items-center gap-1.5 text-xs text-muted">
               <span className="truncate">{effectiveBranch}</span>
               <span className="shrink-0">→</span>
@@ -57,7 +61,7 @@ export function CreatePrModal(props: {
                 </Button>
                 <Dropdown.Popover placement="bottom start" className="max-h-60">
                   <Dropdown.Menu
-                    aria-label="Target branch"
+                    aria-label={t`Target branch`}
                     selectionMode="single"
                     selectedKeys={new Set([prTargetBranch || sourceBranch || ""])}
                     onSelectionChange={(keys) => {
@@ -83,7 +87,7 @@ export function CreatePrModal(props: {
                 <TextArea
                   fullWidth
                   autoSize
-                  placeholder="PR title (leave empty to auto-generate)"
+                  placeholder={t`PR title (leave empty to auto-generate)`}
                   rows={1}
                   maxRows={3}
                   value={prTitle}
@@ -99,7 +103,7 @@ export function CreatePrModal(props: {
                   <Button
                     isIconOnly
                     variant="tertiary"
-                    aria-label="Generate PR summary"
+                    aria-label={t`Generate PR summary`}
                     isDisabled={isGeneratingPr || !canGenerateMessage}
                     isPending={isGeneratingPr}
                     onPress={() => void handleGeneratePrSummary()}
@@ -107,12 +111,14 @@ export function CreatePrModal(props: {
                   >
                     {isGeneratingPr ? <PixelLoader size="xs" /> : <Sparkles className="size-3.5" />}
                   </Button>
-                  <Tooltip.Content>Generate with AI</Tooltip.Content>
+                  <Tooltip.Content>
+                    <Trans>Generate with AI</Trans>
+                  </Tooltip.Content>
                 </Tooltip>
               </div>
               <TextArea
                 fullWidth
-                placeholder="Description (optional)"
+                placeholder={t`Description (optional)`}
                 rows={8}
                 value={prBody}
                 onChange={(e) => setPrBody(e.target.value)}
@@ -121,7 +127,7 @@ export function CreatePrModal(props: {
           </Modal.Body>
           <Modal.Footer>
             <Button slot="close" variant="ghost" className="text-muted">
-              Cancel
+              <Trans>Cancel</Trans>
             </Button>
             <ButtonGroup>
               <Button
@@ -137,7 +143,7 @@ export function CreatePrModal(props: {
                     ) : (
                       <GitPullRequest className="size-3.5" />
                     )}
-                    Create PR
+                    <Trans>Create PR</Trans>
                   </>
                 )}
               </Button>
@@ -145,7 +151,7 @@ export function CreatePrModal(props: {
                 <Button
                   isIconOnly
                   variant="tertiary"
-                  aria-label="More PR options"
+                  aria-label={t`More PR options`}
                   isDisabled={prLoading || isGeneratingPr}
                 >
                   <ButtonGroup.Separator />
@@ -153,16 +159,18 @@ export function CreatePrModal(props: {
                 </Button>
                 <Dropdown.Popover placement="top end">
                   <Dropdown.Menu
-                    aria-label="PR options"
+                    aria-label={t`PR options`}
                     onAction={(key) => {
                       if (key === "draft") {
                         void handleCreatePr(true).then(() => onOpenChange(false));
                       }
                     }}
                   >
-                    <Dropdown.Item id="draft" textValue="Create Draft PR">
+                    <Dropdown.Item id="draft" textValue={t`Create Draft PR`}>
                       <GitPullRequest className="size-3.5 opacity-60" />
-                      <Label>Create Draft PR</Label>
+                      <Label>
+                        <Trans>Create Draft PR</Trans>
+                      </Label>
                     </Dropdown.Item>
                   </Dropdown.Menu>
                 </Dropdown.Popover>

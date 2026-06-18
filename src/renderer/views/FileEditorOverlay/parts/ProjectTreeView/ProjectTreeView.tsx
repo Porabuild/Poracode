@@ -1,4 +1,5 @@
 import { Button, Tooltip, toast } from "@heroui/react";
+import { Trans, useLingui } from "@lingui/react/macro";
 import {
   ChevronsDownUp,
   FilePlus,
@@ -35,6 +36,7 @@ export function ProjectTreeView(props: {
   onSelectFile: (path: string) => void;
   onPinFile?: (path: string) => void;
 }) {
+  const { t } = useLingui();
   const tree = useProjectTree(props);
   const rootIsDropTarget = useIsDropTarget("");
   const rootLoading = useIsPathLoading("");
@@ -65,17 +67,17 @@ export function ProjectTreeView(props: {
       items={[
         {
           id: "reveal-root",
-          label: "Reveal in File Explorer",
+          label: t`Reveal in File Explorer`,
           icon: <FolderOpen className="size-3.5" />,
         },
-        { id: "new-file", label: "New File", icon: <FilePlus className="size-3.5" /> },
-        { id: "new-folder", label: "New Folder", icon: <FolderPlus className="size-3.5" /> },
+        { id: "new-file", label: t`New File`, icon: <FilePlus className="size-3.5" /> },
+        { id: "new-folder", label: t`New Folder`, icon: <FolderPlus className="size-3.5" /> },
         {
           id: "collapse-all",
-          label: "Collapse All",
+          label: t`Collapse All`,
           icon: <ChevronsDownUp className="size-3.5" />,
         },
-        { id: "refresh", label: "Refresh", icon: <RefreshCw className="size-3.5" /> },
+        { id: "refresh", label: t`Refresh`, icon: <RefreshCw className="size-3.5" /> },
       ]}
       onAction={(action) => {
         void tree.handleRootAction(action);
@@ -114,7 +116,7 @@ export function ProjectTreeView(props: {
             <Search className="size-3.5 shrink-0 text-muted" />
             <input
               className="min-w-0 flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-muted"
-              placeholder="Search files"
+              placeholder={t`Search files`}
               value={tree.searchQuery}
               onChange={(event) => tree.setSearchQuery(event.target.value)}
               onKeyDown={(event) => {
@@ -127,7 +129,7 @@ export function ProjectTreeView(props: {
             {tree.searchQuery && (
               <button
                 type="button"
-                aria-label="Clear search"
+                aria-label={t`Clear search`}
                 onClick={() => tree.setSearchQuery("")}
                 className="flex size-4 shrink-0 items-center justify-center rounded text-muted hover:bg-[var(--row-hover)] hover:text-foreground"
               >
@@ -146,7 +148,9 @@ export function ProjectTreeView(props: {
                 <ChevronsDownUp className="size-4" />
               </Button>
             </Tooltip.Trigger>
-            <Tooltip.Content placement="bottom">Collapse all folders</Tooltip.Content>
+            <Tooltip.Content placement="bottom">
+              <Trans>Collapse all folders</Trans>
+            </Tooltip.Content>
           </Tooltip>
         </div>
 
@@ -161,7 +165,7 @@ export function ProjectTreeView(props: {
             tree.searchLoading ? (
               <div className="flex items-center gap-2 px-2 py-2 text-xs text-muted">
                 <PixelLoader size="xs" />
-                Searching…
+                <Trans>Searching…</Trans>
               </div>
             ) : tree.searchResults.length > 0 ? (
               <div>
@@ -175,7 +179,7 @@ export function ProjectTreeView(props: {
               </div>
             ) : (
               <div className="px-2 py-2 text-xs text-muted">
-                No files match "{tree.searchQuery}".
+                <Trans>No files match "{tree.searchQuery}".</Trans>
               </div>
             )
           ) : (
@@ -183,7 +187,7 @@ export function ProjectTreeView(props: {
               {rootLoading && !isAnyDirectoryLoaded ? (
                 <div className="flex items-center gap-2 px-2 py-2 text-xs text-muted">
                   <PixelLoader size="xs" />
-                  Loading…
+                  <Trans>Loading…</Trans>
                 </div>
               ) : (
                 <div className="relative" style={{ height: `${virtualizer.getTotalSize()}px` }}>
@@ -273,7 +277,7 @@ function ProjectTreeVirtualRow(props: {
         style={{ paddingLeft: `${row.depth * 14 + 8}px` }}
       >
         <PixelLoader size="xs" />
-        Loading…
+        <Trans>Loading…</Trans>
       </div>
     );
   }

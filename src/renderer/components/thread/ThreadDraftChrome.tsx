@@ -1,5 +1,6 @@
 import type { RefCallback } from "react";
 import { TerminalSquare, X } from "lucide-react";
+import { Trans, useLingui } from "@lingui/react/macro";
 import { macosTrafficLightPadClass } from "@/renderer/components/layout/sidebarChrome";
 import { ProjectSwitchMenu } from "./ProjectSwitchMenu";
 
@@ -21,6 +22,7 @@ export function ThreadDraftCompactHeader(props: {
   paneId?: string | undefined;
   showCloseButton?: boolean | undefined;
 }) {
+  const { t } = useLingui();
   return (
     <div className={`px-2 ${props.headerNeedsTrafficLightPad ? macosTrafficLightPadClass : ""}`}>
       <div
@@ -29,7 +31,7 @@ export function ThreadDraftCompactHeader(props: {
       >
         <TerminalSquare className="size-3.5 shrink-0 text-muted/60" />
         <span className="min-w-0 flex-1 truncate text-sm font-medium leading-tight text-muted">
-          New thread
+          <Trans>New thread</Trans>
         </span>
         <div className="flex shrink-0 items-center">
           {props.scopeLabel ? (
@@ -44,7 +46,7 @@ export function ThreadDraftCompactHeader(props: {
           {props.showCloseButton && props.onClose && (
             <button
               type="button"
-              aria-label="Close pane"
+              aria-label={t`Close pane`}
               className="lightcode-overlay-header__controls shrink-0 rounded p-1 text-muted/60 transition-colors hover:bg-[var(--row-hover)] hover:text-foreground"
               onClick={(e) => {
                 e.stopPropagation();

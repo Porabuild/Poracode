@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import { Tooltip } from "@heroui/react";
 import { ArrowRightLeft, Check, ChevronDown, Hourglass, ListChecks, X } from "lucide-react";
+import { Trans, useLingui } from "@lingui/react/macro";
 import type { ThreadTodoDockPlacement } from "@/renderer/state/threadTodoDockStore";
 import { PixelLoader } from "@/renderer/components/common/PixelLoader";
 import type { ThreadTodoDockState, ThreadTodoStepStatus } from "./threadTodoState";
@@ -17,6 +18,7 @@ interface ThreadTodoDockProps {
 
 export function ThreadTodoDock(props: ThreadTodoDockProps) {
   const { state, placement, collapsed, onPlacementChange, onCollapsedChange, onRetire } = props;
+  const { t } = useLingui();
   const activeRowRef = useRef<HTMLLIElement>(null);
 
   useEffect(() => {
@@ -39,7 +41,7 @@ export function ThreadTodoDock(props: ThreadTodoDockProps) {
   if (displayedStepIndices.length === 0) return null;
 
   const moveLabel =
-    placement === "composer" ? "Move todo dock to right panel" : "Attach todo dock to composer";
+    placement === "composer" ? t`Move todo dock to right panel` : t`Attach todo dock to composer`;
   const completedCount = state.steps.reduce(
     (count, step) => (step.status === "completed" ? count + 1 : count),
     0,
@@ -47,10 +49,10 @@ export function ThreadTodoDock(props: ThreadTodoDockProps) {
   const countLabel = `${completedCount}/${state.steps.length}`;
 
   return (
-    <ThreadDockSection ariaLabel="Thread todo dock" placement={placement} collapsed={collapsed}>
+    <ThreadDockSection ariaLabel={t`Thread todo dock`} placement={placement} collapsed={collapsed}>
       <ThreadDockHeader
         icon={ListChecks}
-        title="Plan"
+        title={t`Plan`}
         countLabel={countLabel}
         actions={
           <>
@@ -70,7 +72,7 @@ export function ThreadTodoDock(props: ThreadTodoDockProps) {
             <Tooltip delay={0}>
               <Tooltip.Trigger>
                 <button
-                  aria-label={collapsed ? "Expand todo dock" : "Collapse todo dock"}
+                  aria-label={collapsed ? t`Expand todo dock` : t`Collapse todo dock`}
                   className="shrink-0 rounded p-1 text-muted/70 transition-colors hover:bg-foreground/5 hover:text-foreground"
                   type="button"
                   onClick={() => onCollapsedChange(!collapsed)}
@@ -80,12 +82,14 @@ export function ThreadTodoDock(props: ThreadTodoDockProps) {
                   />
                 </button>
               </Tooltip.Trigger>
-              <Tooltip.Content>{collapsed ? "Expand" : "Collapse"}</Tooltip.Content>
+              <Tooltip.Content>
+                {collapsed ? <Trans>Expand</Trans> : <Trans>Collapse</Trans>}
+              </Tooltip.Content>
             </Tooltip>
             <Tooltip delay={0}>
               <Tooltip.Trigger>
                 <button
-                  aria-label="Close plan"
+                  aria-label={t`Close plan`}
                   className="shrink-0 rounded p-1 text-muted/70 transition-colors hover:bg-danger-500/10 hover:text-danger-500"
                   type="button"
                   onClick={onRetire}
@@ -93,7 +97,9 @@ export function ThreadTodoDock(props: ThreadTodoDockProps) {
                   <X className="size-3.5" />
                 </button>
               </Tooltip.Trigger>
-              <Tooltip.Content>Close plan</Tooltip.Content>
+              <Tooltip.Content>
+                <Trans>Close plan</Trans>
+              </Tooltip.Content>
             </Tooltip>
           </>
         }
@@ -128,9 +134,12 @@ export function ThreadTodoDock(props: ThreadTodoDockProps) {
 }
 
 function StatusIcon({ status }: { status: ThreadTodoStepStatus }) {
+  const { t } = useLingui();
   switch (status) {
     case "completed":
-      return <Check aria-label="completed" className="size-3.5 shrink-0 text-foreground-muted" />;
+      return (
+        <Check aria-label={t`completed`} className="size-3.5 shrink-0 text-foreground-muted" />
+      );
     case "in_progress":
       return (
         <span className="inline-flex size-3.5 shrink-0 items-center justify-center">
@@ -139,7 +148,7 @@ function StatusIcon({ status }: { status: ThreadTodoStepStatus }) {
       );
     default:
       return (
-        <Hourglass aria-label="pending" className="size-3.5 shrink-0 text-foreground-muted/50" />
+        <Hourglass aria-label={t`pending`} className="size-3.5 shrink-0 text-foreground-muted/50" />
       );
   }
 }

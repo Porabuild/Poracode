@@ -1,10 +1,12 @@
+import { msg } from "@lingui/core/macro";
+import type { MessageDescriptor } from "@lingui/core";
 import type { AgentKind, Project } from "@/shared/contracts";
 import { isMac, isWindows } from "@/renderer/bridge";
 
 export interface NativeAgentRegistryEntry {
   id: AgentKind;
   label: string;
-  description: string;
+  description: MessageDescriptor;
   installCommand: (project: Project) => string;
   docsUrl: string;
   /**
@@ -45,7 +47,7 @@ export const NATIVE_AGENT_REGISTRY_ENTRIES: NativeAgentRegistryEntry[] = [
   {
     id: "codex",
     label: "Codex",
-    description: "First-class Codex CLI integration using Lightcode's native app-server runtime.",
+    description: msg`First-class Codex CLI integration using Lightcode's native app-server runtime.`,
     docsUrl: "https://developers.openai.com/codex/cli",
     installCommand: (project) =>
       nativeInstallCommand(project, {
@@ -67,7 +69,7 @@ export const NATIVE_AGENT_REGISTRY_ENTRIES: NativeAgentRegistryEntry[] = [
   {
     id: "claude",
     label: "Claude Code",
-    description: "First-class Claude Code integration using Lightcode's native SDK runtime.",
+    description: msg`First-class Claude Code integration using Lightcode's native SDK runtime.`,
     docsUrl: "https://code.claude.com/docs/en/setup",
     installCommand: (project) =>
       nativeInstallCommand(project, {
@@ -87,7 +89,7 @@ export const NATIVE_AGENT_REGISTRY_ENTRIES: NativeAgentRegistryEntry[] = [
   {
     id: "opencode",
     label: "OpenCode",
-    description: "First-class OpenCode integration using Lightcode's native SDK runtime.",
+    description: msg`First-class OpenCode integration using Lightcode's native SDK runtime.`,
     docsUrl: "https://opencode.ai/docs/",
     installCommand: (project) =>
       nativeInstallCommand(project, {
@@ -109,7 +111,7 @@ export const NATIVE_AGENT_REGISTRY_ENTRIES: NativeAgentRegistryEntry[] = [
   {
     id: "grok",
     label: "Grok Build",
-    description: "First-class Grok Build CLI integration using Lightcode's native runtime.",
+    description: msg`First-class Grok Build CLI integration using Lightcode's native runtime.`,
     docsUrl: "https://docs.x.ai/build/overview",
     installCommand: (project) =>
       nativeInstallCommand(project, {
@@ -126,7 +128,7 @@ export const NATIVE_AGENT_REGISTRY_ENTRIES: NativeAgentRegistryEntry[] = [
   {
     id: "antigravity",
     label: "Antigravity",
-    description: "First-class Antigravity CLI integration using Lightcode's native runtime.",
+    description: msg`First-class Antigravity CLI integration using Lightcode's native runtime.`,
     docsUrl: "https://antigravity.google/docs/cli-getting-started",
     installCommand: (project) =>
       posixOrWindows(
@@ -139,7 +141,7 @@ export const NATIVE_AGENT_REGISTRY_ENTRIES: NativeAgentRegistryEntry[] = [
   {
     id: "commandcode",
     label: "Command Code",
-    description: "First-class Command Code CLI integration using Lightcode's native runtime.",
+    description: msg`First-class Command Code CLI integration using Lightcode's native runtime.`,
     docsUrl: "https://commandcode.ai/docs/quickstart",
     installCommand: (project) =>
       nativeInstallCommand(project, {

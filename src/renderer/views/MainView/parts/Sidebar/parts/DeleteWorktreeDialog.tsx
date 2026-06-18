@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { AlertDialog, Checkbox } from "@heroui/react";
+import { Trans } from "@lingui/react/macro";
 import { Button } from "@/renderer/components/common/Button";
 
 const PREF_KEY = "lightcode-delete-worktree-pref";
@@ -36,11 +37,15 @@ export function DeleteWorktreeDialog(props: {
       <AlertDialog.Container size="sm">
         <AlertDialog.Dialog className="sm:max-w-[420px] !p-4">
           <AlertDialog.Header className="gap-1">
-            <AlertDialog.Heading>Delete thread?</AlertDialog.Heading>
+            <AlertDialog.Heading>
+              <Trans>Delete thread?</Trans>
+            </AlertDialog.Heading>
             <p className="text-sm leading-5 text-muted">
-              This thread uses worktree{" "}
-              <strong className="font-medium text-foreground">{props.worktreeBranch}</strong>. Also
-              remove the worktree directory?
+              <Trans>
+                This thread uses worktree{" "}
+                <strong className="font-medium text-foreground">{props.worktreeBranch}</strong>.
+                Also remove the worktree directory?
+              </Trans>
             </p>
           </AlertDialog.Header>
           <AlertDialog.Body>
@@ -48,18 +53,22 @@ export function DeleteWorktreeDialog(props: {
               <Checkbox.Control>
                 <Checkbox.Indicator />
               </Checkbox.Control>
-              Don&apos;t ask again
+              <Trans>Don&apos;t ask again</Trans>
             </Checkbox>
           </AlertDialog.Body>
           <AlertDialog.Footer>
             <Button slot="close" variant="ghost" className="text-muted">
-              Cancel
+              <Trans comment="Dialog button: dismiss without deleting">Cancel</Trans>
             </Button>
             <Button variant="tertiary" className="text-warning" onPress={handleThreadOnly}>
-              Thread Only
+              <Trans comment="Dialog button: delete the thread but keep the worktree directory">
+                Thread Only
+              </Trans>
             </Button>
             <Button variant="danger" onPress={handleThreadAndWorktree}>
-              Thread + Worktree
+              <Trans comment="Dialog button: delete the thread and remove its worktree directory">
+                Thread + Worktree
+              </Trans>
             </Button>
           </AlertDialog.Footer>
         </AlertDialog.Dialog>

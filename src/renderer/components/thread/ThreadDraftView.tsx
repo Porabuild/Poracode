@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { toast } from "@heroui/react";
+import { Trans } from "@lingui/react/macro";
 import type {
   AgentStatus,
   Project,
@@ -801,15 +802,21 @@ export function ThreadDraftView(props: {
       return (
         <div className="flex h-full flex-col items-center justify-center gap-3 px-6 text-center">
           <PixelLoader size="md" />
-          <p className="text-sm text-muted">Detecting agents&hellip;</p>
+          <p className="text-sm text-muted">
+            <Trans>Detecting agents…</Trans>
+          </p>
         </div>
       );
     }
     return (
       <div className="flex h-full flex-col items-center justify-center gap-3 px-6 text-center">
-        <h1 className="text-2xl font-semibold tracking-tight">No supported agents detected</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">
+          <Trans>No supported agents detected</Trans>
+        </h1>
         <p className="text-muted">
-          Install {formatAgentList(props.agentStatuses.map((s) => s.label))} to create a thread.
+          <Trans>
+            Install {formatAgentList(props.agentStatuses.map((s) => s.label))} to create a thread.
+          </Trans>
         </p>
       </div>
     );

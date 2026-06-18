@@ -28,6 +28,7 @@ import {
   resolveProjectFsPath,
   saveClipboardImageFile,
   saveHandoffContextFile,
+  writeImageFile,
 } from "../attachments/localFiles";
 import { createProjectDirectory } from "../projectDirectory";
 import {
@@ -132,6 +133,28 @@ export function createLocalIpcHandlers(
       saveClipboardImageFile(options.requireLightcodePaths(), payload),
     saveHandoffContext: (payload) =>
       saveHandoffContextFile(options.requireLightcodePaths(), payload),
+    saveImageFile: async ({ data, suggestedName }) => {
+      const win = options.getMainWindow();
+      const result = await dialog.showSaveDialog(win!, {
+        title: "Save image",
+        defaultPath: suggestedName,
+        filters: [
+          { name: "Images", extensions: ["png", "jpg", "jpeg", "gif", "webp", "svg", "bmp"] },
+        ],
+      });
+      if (result.canceled || !result.filePath) return null;
+      writeImageFile(result.filePath, data);
+      return result.filePath;
+    },
+    copyImageToClipboard: ({ data }) => {
+      // `nativeImage.createFromBuffer` only decodes PNG/JPEG; the renderer
+      // converts other formats to PNG first. Report whether anything landed on
+      // the clipboard so the UI doesn't claim success on an empty image.
+      const image = nativeImage.createFromBuffer(Buffer.from(data));
+      if (image.isEmpty()) return false;
+      clipboard.writeImage(image);
+      return true;
+    },
     createProjectDirectory: (payload) => createProjectDirectory(payload),
     openExternal: async (url) => {
       const safeUrl = assertSafeExternalUrl(url);

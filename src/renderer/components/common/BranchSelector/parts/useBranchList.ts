@@ -1,4 +1,6 @@
 import { useMemo } from "react";
+import { msg } from "@lingui/core/macro";
+import type { MessageDescriptor } from "@lingui/core";
 import { useShallow } from "zustand/shallow";
 import type { GitBranchInfo, Thread } from "@/shared/contracts";
 import { useAppStore } from "@/renderer/state/appStore";
@@ -85,11 +87,11 @@ export function useBranchList(params: { projectId: string; search: string }) {
     const containsRemote = allRemote.length > 0;
     const list: BranchListItem[] = [];
     if (containsLocal) {
-      list.push({ type: "header", id: "header-local", name: "Local" });
+      list.push({ type: "header", id: "header-local", name: msg`Local` });
       allLocal.forEach((b) => list.push({ type: "branch", id: b.name, branch: b }));
     }
     if (containsRemote) {
-      list.push({ type: "header", id: "header-remote", name: "Remote" });
+      list.push({ type: "header", id: "header-remote", name: msg`Remote` });
       allRemote.forEach((b) => list.push({ type: "branch", id: b.name, branch: b }));
     }
     return { items: list, hasLocal: containsLocal, hasRemote: containsRemote };
@@ -107,5 +109,5 @@ export function useBranchList(params: { projectId: string; search: string }) {
 }
 
 export type BranchListItem =
-  | { type: "header"; id: string; name: string }
+  | { type: "header"; id: string; name: MessageDescriptor }
   | { type: "branch"; id: string; branch: GitBranchInfo };

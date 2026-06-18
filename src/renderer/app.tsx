@@ -1,4 +1,5 @@
 import { toast } from "@heroui/react";
+import { Trans } from "@lingui/react/macro";
 import { useEffect } from "react";
 import { PixelLoader } from "./components/common";
 import { msg } from "@/shared/messages";
@@ -272,7 +273,9 @@ export function App() {
         <div className="flex h-screen w-screen items-center justify-center bg-background text-foreground">
           <div className="flex flex-col items-center gap-4">
             <PixelLoader size="lg" />
-            <p className="text-sm text-muted">Loading&hellip;</p>
+            <p className="text-sm text-muted">
+              <Trans>Loading…</Trans>
+            </p>
           </div>
         </div>
       </AppProvider>

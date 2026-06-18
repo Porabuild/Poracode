@@ -1,3 +1,4 @@
+import { Trans, useLingui } from "@lingui/react/macro";
 import {
   Check,
   GitBranch,
@@ -77,9 +78,14 @@ export function BranchListBox(props: {
     onDelete,
     onOpenPrReview,
   } = props;
+  const { t } = useLingui();
 
   if (!hasLocal && !hasRemote) {
-    return <div className="px-3 py-3 text-center text-sm text-muted">No branches found</div>;
+    return (
+      <div className="px-3 py-3 text-center text-sm text-muted">
+        <Trans>No branches found</Trans>
+      </div>
+    );
   }
 
   const selectedKey = isWorktree || worktreeMode ? (baseBranch ?? value) : value;
@@ -90,7 +96,7 @@ export function BranchListBox(props: {
       layoutOptions={{ rowHeight: COMPACT_DROPDOWN_ROW_HEIGHT, padding: 8 }}
     >
       <ListBox
-        aria-label="Branches"
+        aria-label={t`Branches`}
         className={`lightcode-menu max-h-60 overflow-y-auto ${VIRTUALIZED_COMPACT_DROPDOWN_ITEM_CLASS}`}
         items={items}
         selectedKeys={
@@ -111,15 +117,16 @@ export function BranchListBox(props: {
       >
         {(item) => {
           if (item.type === "header") {
+            const headerLabel = t(item.name);
             return (
               <ListBox.Item
                 id={item.id}
                 isDisabled
                 className="!bg-transparent !cursor-default !opacity-100 !p-0 h-7 flex items-center"
-                textValue={item.name}
+                textValue={headerLabel}
               >
                 <Header className="px-2 text-[10px] font-semibold uppercase tracking-wider text-muted/70">
-                  {item.name}
+                  {headerLabel}
                 </Header>
               </ListBox.Item>
             );
@@ -182,6 +189,7 @@ function BranchRowBody(props: {
     onDelete,
     onOpenPrReview,
   } = props;
+  const { t } = useLingui();
   const canDelete = !isCurrent;
 
   const prKey = worktreePath ?? buildBranchNamePrKey(projectId, branch.name);
@@ -217,12 +225,12 @@ function BranchRowBody(props: {
             </Tooltip.Trigger>
             <Tooltip.Content placement="top" className="max-w-[16rem]">
               <div className="flex flex-col gap-1 py-0.5">
-                {threads.map((t) => (
-                  <div key={t.id} className="flex items-center gap-1.5 text-xs">
+                {threads.map((thread) => (
+                  <div key={thread.id} className="flex items-center gap-1.5 text-xs">
                     <span
-                      className={`size-1.5 shrink-0 rounded-full ${STATUS_DOT_CLASS[getStatusTone(t)]}`}
+                      className={`size-1.5 shrink-0 rounded-full ${STATUS_DOT_CLASS[getStatusTone(thread)]}`}
                     />
-                    <span className="truncate">{t.title}</span>
+                    <span className="truncate">{thread.title}</span>
                   </div>
                 ))}
               </div>
@@ -234,7 +242,7 @@ function BranchRowBody(props: {
             <Tooltip.Trigger tabIndex={-1} role="none">
               <button
                 type="button"
-                aria-label={`Review PR #${prNumber} for ${branch.name}`}
+                aria-label={t`Review PR #${prNumber} for ${branch.name}`}
                 className={`flex items-center rounded border-0 bg-transparent p-0.5 transition hover:bg-[var(--row-hover)] ${PR_TONE_TEXT_CLASS[getPrStatusTone(prState, prChecksStatus)]}`}
                 onPointerDown={(e) => e.stopPropagation()}
                 onPointerUp={(e) => e.stopPropagation()}
@@ -267,7 +275,7 @@ function BranchRowBody(props: {
           ) : canDelete ? (
             <button
               type="button"
-              aria-label={`Delete ${branch.name}`}
+              aria-label={t`Delete ${branch.name}`}
               className="flex items-center justify-center rounded border-0 bg-transparent p-0 text-muted/55 opacity-0 transition hover:text-danger group-hover:opacity-100"
               onPointerDown={(e) => e.stopPropagation()}
               onPointerUp={(e) => e.stopPropagation()}

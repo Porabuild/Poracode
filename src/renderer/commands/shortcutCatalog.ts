@@ -1,6 +1,9 @@
+import type { MessageDescriptor } from "@lingui/core";
 import type { KeybindingEntry } from "@/shared/keybindings";
 import { bindingForPlatform, formatKeybinding, type PlatformName } from "./keybindingMatcher";
 import type { AppCommand } from "./registry";
+
+type ResolveLabel = (value: string | MessageDescriptor) => string;
 
 export const SHORTCUT_CONTEXTS = [
   { id: "all", label: "All" },
@@ -146,6 +149,7 @@ export function buildShortcutRows(
   commands: AppCommand[],
   keybindings: readonly KeybindingEntry[],
   platform: PlatformName,
+  resolve: ResolveLabel,
 ): ShortcutRow[] {
   const bindingsByCommand = new Map<string, KeybindingEntry[]>();
   for (const binding of keybindings) {
@@ -157,7 +161,8 @@ export function buildShortcutRows(
   const knownCommandIds = new Set(commands.map((command) => command.id));
   const commandRows = commands.map((command) => {
     const bindings = bindingsByCommand.get(command.id) ?? [];
-    const contexts = contextsForCommand(command, bindings);
+    const group = resolve(command.group);
+    const contexts = contextsForCommand(command, bindings, group);
     const bound = formatBindings(bindings, platform);
     const keys =
       bound.length > 0
@@ -165,9 +170,9 @@ export function buildShortcutRows(
         : (command.keys ?? []).map((key) => formatKeybinding(key, platform) || key);
     return rowWithSearchText({
       id: command.id,
-      title: command.title,
-      description: command.subtitle ?? command.group,
-      group: command.group,
+      title: resolve(command.title),
+      description: resolve(command.subtitle ?? command.group),
+      group,
       contexts,
       keys,
     });
@@ -239,11 +244,12 @@ function formatBindings(bindings: readonly KeybindingEntry[], platform: Platform
 function contextsForCommand(
   command: AppCommand,
   bindings: readonly KeybindingEntry[],
+  group: string,
 ): ShortcutContext[] {
   const when = [command.when, ...bindings.map((binding) => binding.when)]
     .filter((item): item is string => Boolean(item))
     .join(" ");
-  return contextsForWhen(when, command.group, command.id);
+  return contextsForWhen(when, group, command.id);
 }
 
 function contextsForWhen(

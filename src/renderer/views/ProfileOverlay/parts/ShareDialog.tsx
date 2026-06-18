@@ -1,9 +1,10 @@
 import { useRef, useState } from "react";
 import { Modal } from "@heroui/react";
 import { Check, Copy } from "lucide-react";
+import { Trans, useLingui } from "@lingui/react/macro";
 import { Button } from "@/renderer/components/common";
 import { readBridge } from "@/renderer/bridge";
-import type { ProfileCoreStats, ProfileTokenStats } from "@/shared/contracts";
+import type { ProfileCoreStats, ProfileStatsWindow, ProfileTokenStats } from "@/shared/contracts";
 import { ShareCard } from "./ShareCard";
 import type { ActivityMetric } from "./ActivitySection";
 
@@ -12,9 +13,11 @@ export function ShareDialog(props: {
   core: ProfileCoreStats;
   tokens: ProfileTokenStats | null;
   metric: ActivityMetric;
+  window: ProfileStatsWindow;
   onClose: () => void;
 }) {
-  const { open, core, tokens, metric, onClose } = props;
+  const { t } = useLingui();
+  const { open, core, tokens, metric, window, onClose } = props;
   const cardRef = useRef<HTMLDivElement>(null);
   const [copied, setCopied] = useState(false);
 
@@ -38,17 +41,23 @@ export function ShareDialog(props: {
         <Modal.Dialog className="sm:max-w-[680px]">
           <div className="flex flex-col gap-6 p-6">
             <h2 className="text-center text-lg font-semibold text-foreground">
-              Share your activity
+              <Trans>Share your activity</Trans>
             </h2>
 
             <div className="flex justify-center">
-              <ShareCard ref={cardRef} core={core} tokens={tokens} metric={metric} />
+              <ShareCard
+                ref={cardRef}
+                core={core}
+                tokens={tokens}
+                metric={metric}
+                window={window}
+              />
             </div>
 
             <div className="flex justify-center">
               <Button variant="tertiary" onPress={() => void copyImage()} className="gap-1.5">
                 {copied ? <Check className="size-4" /> : <Copy className="size-4" />}
-                {copied ? "Copied to clipboard" : "Copy image"}
+                {copied ? t`Copied to clipboard` : t`Copy image`}
               </Button>
             </div>
           </div>

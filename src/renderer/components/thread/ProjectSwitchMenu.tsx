@@ -1,6 +1,7 @@
 import { startTransition } from "react";
 import { ChevronDown, FolderOpen, House, Monitor } from "lucide-react";
 import { Dropdown, Label } from "@heroui/react";
+import { useLingui } from "@lingui/react/macro";
 import { useShallow } from "zustand/shallow";
 import type { Project } from "@/shared/contracts";
 import { HOME_PROJECT_NAME, isHomeProject, isHomeProjectId } from "@/shared/homeScope";
@@ -30,6 +31,7 @@ export function ProjectSwitchMenu(props: {
   paneId?: string;
 }) {
   const { currentProjectId, variant, paneId } = props;
+  const { t } = useLingui();
   // Show every selectable project. Home is intentionally stored with
   // `disabled: true` as an internal marker (it's not a user-disabled
   // project), so we let it through the filter and only exclude
@@ -42,7 +44,7 @@ export function ProjectSwitchMenu(props: {
 
   const current = projects.find((p) => p.id === currentProjectId);
   const isHomeCurrent = isHomeProjectId(currentProjectId);
-  const label = isHomeCurrent ? HOME_PROJECT_NAME : (current?.name ?? "Select project");
+  const label = isHomeCurrent ? HOME_PROJECT_NAME : (current?.name ?? t`Select project`);
   const triggerIcon = isHomeCurrent ? (
     <House className="size-3.5 shrink-0 text-muted" />
   ) : current ? (
@@ -63,7 +65,7 @@ export function ProjectSwitchMenu(props: {
 
   const menu = (
     <Dropdown.Menu
-      aria-label="Switch project"
+      aria-label={t`Switch project`}
       selectionMode="single"
       selectedKeys={[currentProjectId]}
       onAction={(key) => handleSelect(String(key))}
@@ -90,7 +92,7 @@ export function ProjectSwitchMenu(props: {
     return (
       <Dropdown>
         <Dropdown.Trigger
-          aria-label="Switch project"
+          aria-label={t`Switch project`}
           isDisabled={isDisabled}
           className="group mx-auto inline-flex max-w-full items-center gap-1.5 rounded border border-transparent px-2 py-0.5 outline-none transition-colors hover:border-border/60 hover:bg-[var(--row-hover)] focus-visible:border-border focus-visible:bg-[var(--row-hover)] disabled:cursor-default disabled:hover:border-transparent disabled:hover:bg-transparent"
         >
@@ -109,7 +111,7 @@ export function ProjectSwitchMenu(props: {
   return (
     <Dropdown>
       <Dropdown.Trigger
-        aria-label="Switch project"
+        aria-label={t`Switch project`}
         isDisabled={isDisabled}
         className="group inline-flex min-w-0 max-w-full items-center gap-1 rounded px-1 py-0.5 text-sm leading-tight text-muted/60 outline-none transition-colors hover:bg-[var(--row-hover)] hover:text-foreground focus-visible:bg-[var(--row-hover)] disabled:cursor-default disabled:hover:bg-transparent disabled:hover:text-muted/60"
       >

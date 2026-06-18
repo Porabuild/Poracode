@@ -7,6 +7,7 @@ import {
   type SharedSettings,
   type SharedSettingsInput,
 } from "@/shared/settings";
+import type { AiContentLanguage, LocaleSetting } from "@/shared/locale";
 import type {
   GitReviewMode,
   AgentInstanceConfig,
@@ -20,6 +21,7 @@ import type {
   ThemeMode,
   ThreadPresentationMode,
   ThreadRemoveAction,
+  WorktreeStorageMode,
 } from "@/shared/contracts";
 
 const STORAGE_KEY = "lightcode-shared-settings";
@@ -28,6 +30,8 @@ interface SharedSettingsState extends SharedSettings {
   sharedSettingsHydrated: boolean;
   setThemeMode: (mode: ThemeMode) => void;
   setThemePreset: (id: string) => void;
+  setLocale: (locale: LocaleSetting) => void;
+  setGitTextLanguage: (value: AiContentLanguage) => void;
   setTerminalPosition: (position: TerminalPosition) => void;
   setCommitGenConfig: (provider: string, model: string, effort: string) => void;
   setTitleGenConfig: (provider: string, model: string, effort: string) => void;
@@ -58,6 +62,9 @@ interface SharedSettingsState extends SharedSettings {
   setSidebarTranslucency: (value: boolean) => void;
   setSidebarGlassTint: (appearance: "light" | "dark", value: number | null) => void;
   setAutoShowTerminalPanel: (value: boolean) => void;
+  setWorktreeStorageMode: (value: WorktreeStorageMode) => void;
+  setWorktreeBasePath: (value: string) => void;
+  setWslWorktreeBasePath: (value: string) => void;
   setGitReviewMode: (value: GitReviewMode) => void;
   setPrCreateMode: (value: PrCreateMode) => void;
   setCommitDefaultAction: (value: CommitDefaultAction) => void;
@@ -180,6 +187,16 @@ export const useSharedSettings = create<SharedSettingsState>()((set, get) => ({
   setThemePreset: (themePreset) => {
     if (get().themePreset === themePreset) return;
     set({ themePreset });
+    persistSettings(selectSharedSettings(get()));
+  },
+  setLocale: (locale) => {
+    if (get().locale === locale) return;
+    set({ locale });
+    persistSettings(selectSharedSettings(get()));
+  },
+  setGitTextLanguage: (gitTextLanguage) => {
+    if (get().gitTextLanguage === gitTextLanguage) return;
+    set({ gitTextLanguage });
     persistSettings(selectSharedSettings(get()));
   },
   setTerminalPosition: (terminalPosition) => {
@@ -328,6 +345,21 @@ export const useSharedSettings = create<SharedSettingsState>()((set, get) => ({
   },
   setAutoShowTerminalPanel: (autoShowTerminalPanel) => {
     set({ autoShowTerminalPanel });
+    persistSettings(selectSharedSettings(get()));
+  },
+  setWorktreeStorageMode: (worktreeStorageMode) => {
+    if (get().worktreeStorageMode === worktreeStorageMode) return;
+    set({ worktreeStorageMode });
+    persistSettings(selectSharedSettings(get()));
+  },
+  setWorktreeBasePath: (worktreeBasePath) => {
+    if (get().worktreeBasePath === worktreeBasePath) return;
+    set({ worktreeBasePath });
+    persistSettings(selectSharedSettings(get()));
+  },
+  setWslWorktreeBasePath: (wslWorktreeBasePath) => {
+    if (get().wslWorktreeBasePath === wslWorktreeBasePath) return;
+    set({ wslWorktreeBasePath });
     persistSettings(selectSharedSettings(get()));
   },
   setGitReviewMode: (gitReviewMode) => {
@@ -541,6 +573,8 @@ function selectSharedSettings(state: SharedSettingsState): SharedSettingsInput {
   return {
     themeMode: state.themeMode,
     themePreset: state.themePreset,
+    locale: state.locale,
+    gitTextLanguage: state.gitTextLanguage,
     terminalPosition: state.terminalPosition,
     commitGenProvider: state.commitGenProvider,
     commitGenModel: state.commitGenModel,
@@ -584,6 +618,9 @@ function selectSharedSettings(state: SharedSettingsState): SharedSettingsInput {
     sidebarTranslucency: state.sidebarTranslucency,
     sidebarGlassTint: state.sidebarGlassTint,
     autoShowTerminalPanel: state.autoShowTerminalPanel,
+    worktreeStorageMode: state.worktreeStorageMode,
+    worktreeBasePath: state.worktreeBasePath,
+    wslWorktreeBasePath: state.wslWorktreeBasePath,
     gitReviewMode: state.gitReviewMode,
     prCreateMode: state.prCreateMode,
     commitDefaultAction: state.commitDefaultAction,

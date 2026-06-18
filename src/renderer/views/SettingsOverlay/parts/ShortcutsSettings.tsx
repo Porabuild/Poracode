@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useLingui } from "@lingui/react/macro";
 import { Search } from "lucide-react";
 import { readBridge } from "@/renderer/bridge";
 import { Input, LightballTabs, type LightballTab } from "@/renderer/components/common";
@@ -15,6 +16,7 @@ import { buildCommandRegistry } from "@/renderer/commands/registry";
 import { SettingsPage } from "./SettingsForm";
 
 export function ShortcutsSettings() {
+  const { t } = useLingui();
   const [query, setQuery] = useState("");
   const [activeContext, setActiveContext] = useState<ShortcutContext>("all");
   const keybindings = useKeybindingStore((state) => state.keybindings);
@@ -29,7 +31,9 @@ export function ShortcutsSettings() {
     });
   }, [loadKeybindings, loaded]);
 
-  const rows = buildShortcutRows(buildCommandRegistry(), keybindings, platform);
+  const rows = buildShortcutRows(buildCommandRegistry(), keybindings, platform, (value) =>
+    typeof value === "string" ? value : t(value),
+  );
   const normalizedQuery = query.trim().toLowerCase();
   const visibleRows = rows.filter((row) => {
     if (activeContext !== "all" && !row.contexts.includes(activeContext)) return false;

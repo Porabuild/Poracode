@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState } from "react";
+import { useLingui } from "@lingui/react/macro";
 
 export function InlineRenameInput(props: {
   initialValue: string;
   onCommit: (value: string) => void;
   onCancel: () => void;
 }) {
+  const { t } = useLingui();
   const inputRef = useRef<HTMLInputElement>(null);
   const [value, setValue] = useState(props.initialValue);
   const committedRef = useRef(false);
@@ -31,7 +33,7 @@ export function InlineRenameInput(props: {
   return (
     <input
       ref={inputRef}
-      aria-label="Rename thread"
+      aria-label={t`Rename thread`}
       className="block w-full bg-transparent text-[inherit] leading-[inherit] outline-none"
       value={value}
       onChange={(e) => setValue(e.target.value)}

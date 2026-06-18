@@ -1,5 +1,6 @@
 import { ExternalLink, GitCommit } from "lucide-react";
 import { Link } from "@heroui/react";
+import { useLingui } from "@lingui/react/macro";
 import type { PrCommitSummary } from "@/shared/contracts";
 import { readBridge } from "@/renderer/bridge";
 import { PixelLoader } from "@/renderer/components/common";
@@ -9,6 +10,7 @@ import { formatShortDateTime } from "@/renderer/utils/formatTime";
 
 export function PrCommitsTab(props: { cacheKey: string; prKey: string; loading: boolean }) {
   const { cacheKey, prKey, loading } = props;
+  const { t } = useLingui();
   const details = useGitStore((s) => s.prDetails[cacheKey]);
   const prUrl = usePrUrl(prKey);
   const commits = details?.commits ?? [];
@@ -22,7 +24,9 @@ export function PrCommitsTab(props: { cacheKey: string; prKey: string; loading: 
   }
 
   if (commits.length === 0) {
-    return <div className="px-6 py-6 text-center text-xs text-muted/60">No commits found.</div>;
+    return (
+      <div className="px-6 py-6 text-center text-xs text-muted/60">{t`No commits found.`}</div>
+    );
   }
 
   return (
@@ -38,6 +42,7 @@ export function PrCommitsTab(props: { cacheKey: string; prKey: string; loading: 
 
 function PrCommitRow(props: { commit: PrCommitSummary; prUrl: string | undefined }) {
   const { commit, prUrl } = props;
+  const { t } = useLingui();
   // gh's commits payload doesn't include a direct commit URL — build one from the PR URL.
   const commitUrl = (() => {
     if (commit.url) return commit.url;
@@ -53,7 +58,7 @@ function PrCommitRow(props: { commit: PrCommitSummary; prUrl: string | undefined
           className="truncate text-xs font-medium text-foreground"
           title={commit.messageHeadline}
         >
-          {commit.messageHeadline || "(no message)"}
+          {commit.messageHeadline || t`(no message)`}
         </div>
         <div className="mt-0.5 flex items-center gap-2 text-[11px] text-muted">
           {commit.author?.login && <span className="text-foreground">{commit.author.login}</span>}
@@ -66,7 +71,7 @@ function PrCommitRow(props: { commit: PrCommitSummary; prUrl: string | undefined
         </code>
         {commitUrl && (
           <Link
-            aria-label="Open commit on GitHub"
+            aria-label={t`Open commit on GitHub`}
             className="text-muted hover:text-foreground"
             onPress={() => void readBridge().openExternal(commitUrl)}
           >

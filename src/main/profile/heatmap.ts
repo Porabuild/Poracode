@@ -2,11 +2,24 @@ import type {
   ProfileHeatmap,
   ProfileHeatmapCell,
   ProfileHeatmapIntensity,
+  ProfileStatsWindow,
 } from "@/shared/contracts";
 
 /** 52 weeks - a full GitHub-style contribution grid. */
 export const HEATMAP_WINDOW_DAYS = 364;
 const DAY_MS = 86_400_000;
+
+/** Days a stats window spans; undefined = unbounded (lifetime / "all"). */
+export function statsWindowDays(window: ProfileStatsWindow | undefined): number | undefined {
+  if (window === "7d") return 7;
+  if (window === "30d") return 30;
+  return undefined;
+}
+
+/** First day index included in a `windowDays`-long window ending today. */
+export function windowStartIndex(todayIndex: number, windowDays: number): number {
+  return todayIndex - (windowDays - 1);
+}
 
 function pad2(n: number): string {
   return n < 10 ? `0${n}` : String(n);
@@ -45,8 +58,9 @@ export function buildHeatmap(
   countsByDay: Map<string, number>,
   todayIndex: number,
   metric: ProfileHeatmap["metric"],
+  windowDays = HEATMAP_WINDOW_DAYS,
 ): { heatmap: ProfileHeatmap; activeDays: number } {
-  const startIndex = todayIndex - (HEATMAP_WINDOW_DAYS - 1);
+  const startIndex = windowStartIndex(todayIndex, windowDays);
   let max = 0;
   let activeDays = 0;
   const raw: Array<{ day: string; count: number }> = [];
@@ -62,5 +76,5 @@ export function buildHeatmap(
     count: c.count,
     intensity: intensityFor(c.count, max),
   }));
-  return { heatmap: { metric, windowDays: HEATMAP_WINDOW_DAYS, cells, max }, activeDays };
+  return { heatmap: { metric, windowDays, cells, max }, activeDays };
 }

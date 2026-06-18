@@ -1,9 +1,13 @@
 import { memo } from "react";
 import { Surface } from "@heroui/react";
+import { msg } from "@lingui/core/macro";
+import { useLingui } from "@lingui/react/macro";
+import type { TranslateFn } from "@/renderer/i18n/i18n";
 import { Layers } from "lucide-react";
 import type { ToolCallPayload } from "@/shared/contracts";
 import type { RuntimeChatItem } from "@/renderer/state/slices/runtimeEventSlice";
 import { formatTokenCount } from "@/renderer/components/thread/formatTokenCount";
+import { useShimmer } from "@/renderer/thinkingAnimator";
 import { chatMessageSurfaceClass } from "./chatMessageSurface";
 
 interface ContextCompactionProps {
@@ -11,19 +15,23 @@ interface ContextCompactionProps {
 }
 
 export const ContextCompaction = memo(function ContextCompaction({ item }: ContextCompactionProps) {
+  const { t } = useLingui();
   const isRunning = item.state !== "completed";
-  const summary = isRunning ? null : formatCompactionSummary(item.payload);
+  const summary = isRunning ? null : formatCompactionSummary(item.payload, t);
+  const thinkingTextRef = useShimmer<HTMLSpanElement>(isRunning);
 
   if (isRunning) {
+    const compactingLabel = t`Compacting context`;
     return (
       <Surface variant="transparent" className={chatMessageSurfaceClass}>
         <div className="inline-flex min-w-0 items-center gap-1.5 text-[length:var(--lc-chat-font-size-meta)] text-foreground-muted">
           <Layers className="size-3 shrink-0 lightcode-compacting-icon" />
           <span
+            ref={thinkingTextRef}
             className="lightcode-thinking-text"
-            data-lightcode-shimmer-text="Compacting context"
+            data-lightcode-shimmer-text={compactingLabel}
           >
-            Compacting context
+            {compactingLabel}
           </span>
         </div>
       </Surface>
@@ -34,7 +42,7 @@ export const ContextCompaction = memo(function ContextCompaction({ item }: Conte
     <div className="flex w-full flex-col items-stretch justify-center px-3 py-2 text-[length:var(--lc-chat-font-size-meta)] text-foreground-muted">
       <span className="inline-flex min-w-0 items-center gap-1.5 self-start leading-none italic opacity-80">
         <Layers className="size-3 shrink-0 lightcode-compacted-icon" />
-        {summary ?? "Context compacted"}
+        {summary ?? t`Context compacted`}
       </span>
     </div>
   );
@@ -47,14 +55,22 @@ interface CompactMetadata {
   duration_ms?: number;
 }
 
-function formatCompactionSummary(payload: unknown): string | null {
+function formatCompactionSummary(payload: unknown, t: TranslateFn): string | null {
   const meta = readCompactMetadata(payload);
   if (!meta) return null;
   const before = formatTokenLabel(meta.pre_tokens);
   const after = formatTokenLabel(meta.post_tokens);
-  const trigger = meta.trigger === "manual" ? "manually compacted" : "compacted";
-  if (before && after) return `Context ${trigger}: ${before} → ${after} tokens`;
-  if (before) return `Context ${trigger} from ${before} tokens`;
+  const isManual = meta.trigger === "manual";
+  if (before && after) {
+    return isManual
+      ? t(msg`Context manually compacted: ${before} → ${after} tokens`)
+      : t(msg`Context compacted: ${before} → ${after} tokens`);
+  }
+  if (before) {
+    return isManual
+      ? t(msg`Context manually compacted from ${before} tokens`)
+      : t(msg`Context compacted from ${before} tokens`);
+  }
   return null;
 }
 

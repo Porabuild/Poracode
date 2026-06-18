@@ -3,6 +3,7 @@ import { PointerActivationConstraints } from "@dnd-kit/dom";
 import { DragDropProvider, KeyboardSensor, PointerSensor, type DragEndEvent } from "@dnd-kit/react";
 import { isSortable } from "@dnd-kit/react/sortable";
 import { Plus } from "lucide-react";
+import { Plural, Trans, useLingui } from "@lingui/react/macro";
 import { newThreadFromText } from "@/renderer/actions/notesActions";
 import { useNotesStore } from "@/renderer/state/notesStore";
 import { TodoRow } from "./TodoRow";
@@ -27,6 +28,7 @@ const todoListSensors = [
 /** Structured per-project to-do list rendered alongside the notes editor. */
 export function TodoList(props: { projectId: string }) {
   const { projectId } = props;
+  const { t } = useLingui();
   const todos = useNotesStore((s) => s.byProject[projectId]?.todos ?? []);
   const addTodo = useNotesStore((s) => s.addTodo);
   const toggleTodo = useNotesStore((s) => s.toggleTodo);
@@ -35,7 +37,7 @@ export function TodoList(props: { projectId: string }) {
   const moveTodo = useNotesStore((s) => s.moveTodo);
   const [draft, setDraft] = useState("");
 
-  const remaining = todos.reduce((n, t) => (t.done ? n : n + 1), 0);
+  const remaining = todos.reduce((n, todo) => (todo.done ? n : n + 1), 0);
 
   function handleDragEnd(event: DragEndEvent) {
     if (event.canceled) return;
@@ -55,9 +57,13 @@ export function TodoList(props: { projectId: string }) {
   return (
     <div className="flex h-full min-h-0 flex-col">
       <div className="flex h-7 shrink-0 items-center gap-1.5 border-b border-[color:var(--border)] px-3">
-        <span className="text-[11px] font-medium uppercase tracking-wide text-muted">To-dos</span>
+        <span className="text-[11px] font-medium uppercase tracking-wide text-muted">
+          <Trans>To-dos</Trans>
+        </span>
         {todos.length > 0 ? (
-          <span className="text-[11px] text-muted/70">{remaining} open</span>
+          <span className="text-[11px] text-muted/70">
+            <Plural value={remaining} one="# open" other="# open" />
+          </span>
         ) : null}
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden pl-2 pr-3 py-1">
@@ -82,7 +88,7 @@ export function TodoList(props: { projectId: string }) {
           <Plus className="size-3.5 shrink-0 text-muted/70" />
           <input
             className="m-0 h-5 min-w-0 flex-1 border-0 bg-transparent p-0 text-xs leading-5 text-foreground placeholder:text-muted/60 outline-none"
-            placeholder="Add a to-do…"
+            placeholder={t`Add a to-do…`}
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
             onKeyDown={(e) => {

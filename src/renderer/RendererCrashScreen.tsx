@@ -1,7 +1,10 @@
 import { Component, useState, type ErrorInfo, type ReactNode } from "react";
 import { Copy, RefreshCw } from "lucide-react";
+import { msg } from "@lingui/core/macro";
+import type { MessageDescriptor } from "@lingui/core";
 import { Button } from "./components/common";
 import { captureRendererException } from "./diagnostics/sentry";
+import { i18n } from "./i18n/i18n";
 
 export type RendererCrashKind = "bootstrap" | "react" | "uncaught" | "unhandled-rejection";
 
@@ -117,16 +120,16 @@ export function formatRendererCrashReport(report: RendererCrashReport): string {
   return lines.filter((line): line is string => line !== null).join("\n");
 }
 
-function crashTitle(kind: RendererCrashKind): string {
+function crashTitle(kind: RendererCrashKind): MessageDescriptor {
   switch (kind) {
     case "bootstrap":
-      return "Renderer failed during startup";
+      return msg`Renderer failed during startup`;
     case "react":
-      return "Renderer hit a React error";
+      return msg`Renderer hit a React error`;
     case "unhandled-rejection":
-      return "Renderer hit an unhandled promise rejection";
+      return msg`Renderer hit an unhandled promise rejection`;
     case "uncaught":
-      return "Renderer hit an uncaught error";
+      return msg`Renderer hit an uncaught error`;
   }
 }
 
@@ -153,25 +156,26 @@ export function RendererCrashScreen(props: RendererCrashScreenProps) {
       <div className="flex min-h-0 w-full flex-col gap-4 px-8 pt-14 pb-8">
         <header className="flex shrink-0 items-start justify-between gap-4">
           <div className="min-w-0">
-            <p className="text-xs font-medium text-danger">Renderer crashed</p>
-            <h1 className="mt-2 text-xl font-semibold">{crashTitle(report.kind)}</h1>
+            <p className="text-xs font-medium text-danger">{i18n._(msg`Renderer crashed`)}</p>
+            <h1 className="mt-2 text-xl font-semibold">{i18n._(crashTitle(report.kind))}</h1>
             <p className="mt-1 max-w-3xl text-sm text-muted">
-              The normal app shell could not render. The diagnostics below are shown before reload
-              so the failure can be investigated.
+              {i18n._(
+                msg`The normal app shell could not render. The diagnostics below are shown before reload so the failure can be investigated.`,
+              )}
             </p>
           </div>
           <div className="flex shrink-0 items-center gap-2">
             <Button size="sm" variant="secondary" onPress={() => window.location.reload()}>
               <RefreshCw className="size-3.5" />
-              Reload
+              {i18n._(msg`Reload`)}
             </Button>
             <Button size="sm" variant="secondary" onPress={() => void copyDiagnostics()}>
               <Copy className="size-3.5" />
               {copyState === "copied"
-                ? "Copied"
+                ? i18n._(msg`Copied`)
                 : copyState === "failed"
-                  ? "Copy failed"
-                  : "Copy diagnostics"}
+                  ? i18n._(msg`Copy failed`)
+                  : i18n._(msg`Copy diagnostics`)}
             </Button>
           </div>
         </header>

@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { Tooltip } from "@heroui/react";
+import { Trans, useLingui } from "@lingui/react/macro";
 import { Bot, Check, GitBranch, X } from "lucide-react";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useThreadSubAgentDockStore } from "@/renderer/state/threadSubAgentDockStore";
@@ -24,6 +25,7 @@ interface ActiveSubAgentTileProps {
 }
 
 export function ActiveSubAgentTile({ threadId, projectLocation }: ActiveSubAgentTileProps) {
+  const { t } = useLingui();
   const ids = useAppStore((s) => selectActiveSubAgentParentItemIds(s, threadId));
   const dismissed = useThreadSubAgentDockStore((s) => s.dismissedByThread[threadId]);
   const dismissMany = useThreadSubAgentDockStore((s) => s.dismissMany);
@@ -51,10 +53,10 @@ export function ActiveSubAgentTile({ threadId, projectLocation }: ActiveSubAgent
   if (visibleIds.length === 0) return null;
   const title =
     workflowCount === visibleIds.length
-      ? "Workflows"
+      ? t`Workflows`
       : workflowCount > 0
-        ? "Background tasks"
-        : "Subagents";
+        ? t`Background tasks`
+        : t`Subagents`;
   const HeaderIcon = workflowCount === visibleIds.length ? GitBranch : Bot;
 
   return (
@@ -67,7 +69,7 @@ export function ActiveSubAgentTile({ threadId, projectLocation }: ActiveSubAgent
           <Tooltip delay={0}>
             <Tooltip.Trigger>
               <button
-                aria-label="Close subagents panel"
+                aria-label={t`Close subagents panel`}
                 className="shrink-0 rounded p-1 text-muted/70 transition-colors hover:bg-danger-500/10 hover:text-danger-500"
                 type="button"
                 onClick={() => dismissMany(threadId, visibleIds)}
@@ -75,7 +77,9 @@ export function ActiveSubAgentTile({ threadId, projectLocation }: ActiveSubAgent
                 <X className="size-3.5" />
               </button>
             </Tooltip.Trigger>
-            <Tooltip.Content>Close subagents</Tooltip.Content>
+            <Tooltip.Content>
+              <Trans>Close subagents</Trans>
+            </Tooltip.Content>
           </Tooltip>
         }
       />
@@ -102,6 +106,7 @@ function ActiveSubAgentRow({
   itemId: string;
   projectLocation?: ProjectLocation;
 }) {
+  const { t } = useLingui();
   const item = useAppStore(getRuntimeItemStoreSelector(threadId, itemId));
   const childCount = useAppStore(getChildItemIdsStoreSelector(threadId, itemId)).length;
   const openSubAgent = useAppStore((s) => s.openSubAgent);
@@ -159,7 +164,7 @@ function ActiveSubAgentRow({
         title={display.title}
       >
         {isDone ? (
-          <Check aria-label="completed" className="size-3.5 shrink-0 text-foreground-muted" />
+          <Check aria-label={t`completed`} className="size-3.5 shrink-0 text-foreground-muted" />
         ) : (
           <span className="inline-flex size-3.5 shrink-0 items-center justify-center">
             <PixelLoader size="xxs" className="text-foreground" />
@@ -173,7 +178,9 @@ function ActiveSubAgentRow({
         {workflow && workflowRun ? (
           <WorkflowDockStats run={workflowRun} />
         ) : workflowIsLive ? (
-          <span className="shrink-0 text-foreground-muted opacity-80">starting…</span>
+          <span className="shrink-0 text-foreground-muted opacity-80">
+            <Trans>starting…</Trans>
+          </span>
         ) : isRunning ? (
           <SubAgentProgressMeta
             progress={progress}
@@ -194,8 +201,8 @@ function ActiveSubAgentRow({
       </button>
       <button
         type="button"
-        aria-label={`Remove ${display.title} from panel`}
-        title="Remove from panel"
+        aria-label={t`Remove ${display.title} from panel`}
+        title={t`Remove from panel`}
         onClick={(e) => {
           e.stopPropagation();
           dismiss(threadId, itemId);

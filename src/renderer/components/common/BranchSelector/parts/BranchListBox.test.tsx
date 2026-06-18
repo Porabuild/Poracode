@@ -1,4 +1,6 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, screen } from "@testing-library/react";
+import { msg } from "@lingui/core/macro";
+import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { PrData, Thread } from "@/shared/contracts";
 import { buildBranchNamePrKey } from "@/renderer/state/gitSelectors";
@@ -72,7 +74,7 @@ describe("BranchListBox", () => {
       <BranchListBox
         {...props}
         items={[
-          { type: "header", id: "header-remote", name: "Remote" },
+          { type: "header", id: "header-remote", name: msg`Remote` },
           { type: "branch", id: branch.name, branch },
         ]}
       />,
@@ -101,7 +103,7 @@ describe("BranchListBox", () => {
       <BranchListBox
         {...props}
         items={[
-          { type: "header", id: "header-remote", name: "Remote" },
+          { type: "header", id: "header-remote", name: msg`Remote` },
           { type: "branch", id: branch.name, branch },
         ]}
       />,
@@ -131,7 +133,7 @@ describe("BranchListBox", () => {
         branchWorktreePath={new Map([["feature/x", "/wt/feature-x"]])}
         threadsByBranch={new Map([["feature/x", [makeThread({ id: "t1", projectId: "p1" })]]])}
         items={[
-          { type: "header", id: "header-local", name: "Local" },
+          { type: "header", id: "header-local", name: msg`Local` },
           { type: "branch", id: branch.name, branch },
         ]}
       />,

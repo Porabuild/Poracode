@@ -1,4 +1,5 @@
 import { Archive, FolderOpen, Star, Trash2 } from "lucide-react";
+import { useLingui } from "@lingui/react/macro";
 import type { Thread } from "@/shared/contracts";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { GitBadge } from "@/renderer/views/MainView/parts/Sidebar/parts/GitBadge";
@@ -23,6 +24,7 @@ export function ThreadItemSuffix(props: {
   showWorktreeFilesButton: boolean;
 }) {
   const { thread, showWorktreeBadge, showWorktreeFilesButton } = props;
+  const { t } = useLingui();
   const threadRemoveAction = useSharedSettings((s) => s.threadRemoveAction);
   const isFilesActive = useIsWorktreeFilesPanelActive(thread.worktreePath);
   const isGitActive = useIsWorktreeGitPanelActive(thread.worktreePath);
@@ -35,7 +37,7 @@ export function ThreadItemSuffix(props: {
 
   return (
     <>
-      {thread.starred && <Star className="size-3 shrink-0 fill-current" aria-label="Pinned" />}
+      {thread.starred && <Star className="size-3 shrink-0 fill-current" aria-label={t`Pinned`} />}
       {showWorktreeBadge && thread.worktreePath && (
         <>
           {showWorktreeFilesButton ? (
@@ -43,7 +45,7 @@ export function ThreadItemSuffix(props: {
               panel="files"
               projectId={thread.projectId}
               worktreePath={thread.worktreePath}
-              ariaLabel={`Files for ${thread.worktreeBranch ?? thread.title}`}
+              ariaLabel={t`Files for ${thread.worktreeBranch ?? thread.title}`}
               className={`flex h-[18px] shrink-0 cursor-grab items-center justify-center rounded transition-[opacity,color,background-color] hover:bg-[var(--row-hover)] hover:text-foreground active:cursor-grabbing ${
                 isFilesActive
                   ? "w-[18px] p-0.5 text-accent"
@@ -58,7 +60,7 @@ export function ThreadItemSuffix(props: {
             panel="terminal"
             projectId={thread.projectId}
             worktreePath={thread.worktreePath}
-            ariaLabel={`Terminal for ${thread.worktreeBranch}`}
+            ariaLabel={t`Terminal for ${thread.worktreeBranch}`}
             className={`flex h-[18px] shrink-0 cursor-grab items-center justify-center rounded transition-[opacity,color,background-color] hover:bg-[var(--row-hover)] hover:text-foreground active:cursor-grabbing ${
               isTerminalVisible
                 ? `w-[18px] p-0.5 ${isTerminalActive ? "text-accent" : "text-foreground"}`
@@ -88,7 +90,9 @@ export function ThreadItemSuffix(props: {
           role="button"
           tabIndex={0}
           aria-label={
-            threadRemoveAction === "archive" ? `Archive ${thread.title}` : `Delete ${thread.title}`
+            threadRemoveAction === "archive"
+              ? t`Archive ${thread.title}`
+              : t`Delete ${thread.title}`
           }
           className={`absolute inset-0 flex items-center justify-center rounded text-muted/55 opacity-0 transition group-hover:opacity-100 ${threadRemoveAction === "archive" ? "hover:text-warning" : "hover:text-danger"}`}
           onClick={(event) => {

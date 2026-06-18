@@ -1,9 +1,12 @@
 import { toast } from "@heroui/react";
+import { useLingui } from "@lingui/react/macro";
 import type { GitBranchInfo, GitStatusResult, Project, ProjectLocation } from "@/shared/contracts";
 import { getProjectAgentStatuses } from "@/shared/agentStatus";
 import { buildWorktreeLocation } from "@/shared/worktree";
+import { resolveAiLanguageName } from "@/shared/locale";
 import { msg, friendlyError, friendlyErrorWithDetail } from "@/shared/messages";
 import { readBridge } from "@/renderer/bridge";
+import { detectOSLocale } from "@/renderer/i18n/locales";
 import { captureProductEvent } from "@/renderer/analytics/posthog";
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
 import {
@@ -60,6 +63,7 @@ function truncateForToast(details: string): string {
 }
 
 export function useGitReviewActions(args: UseGitReviewActionsArgs) {
+  const { t } = useLingui();
   const {
     project,
     gitStatus,
@@ -94,6 +98,15 @@ export function useGitReviewActions(args: UseGitReviewActionsArgs) {
   const commitGenModel = useSharedSettings((s) => (isWsl ? s.wslCommitGenModel : s.commitGenModel));
   const commitGenEffort = useSharedSettings((s) =>
     isWsl ? s.wslCommitGenEffort : s.commitGenEffort,
+  );
+  // Commit messages and PR summaries are "git text": they follow the dedicated
+  // gitTextLanguage setting (default English), independent of the UI language.
+  const gitTextLanguageSetting = useSharedSettings((s) => s.gitTextLanguage);
+  const appLocale = useSharedSettings((s) => s.locale);
+  const gitTextLanguage = resolveAiLanguageName(
+    gitTextLanguageSetting,
+    appLocale,
+    detectOSLocale(),
   );
 
   const agentStatuses = useAgentStatusesStore((s) => s.agentStatuses);
@@ -149,6 +162,8 @@ export function useGitReviewActions(args: UseGitReviewActionsArgs) {
     projectLocation: project.location,
     localSyncLocation: getWorktreeLocation(),
     prKey: effectivePrKey,
+    branch: effectiveBranch,
+    projectId: project.id,
     onRefresh,
   });
   const prLoading = isCreatingPr || writeActions.prLoading;
@@ -183,6 +198,7 @@ export function useGitReviewActions(args: UseGitReviewActionsArgs) {
       provider: commitGenProvider,
       model: commitGenModel,
       effort: commitGenEffort,
+      ...(gitTextLanguage ? { language: gitTextLanguage } : {}),
       invoke: (payload) => readBridge().generateCommitMessage(payload),
     });
   }
@@ -273,7 +289,7 @@ export function useGitReviewActions(args: UseGitReviewActionsArgs) {
         toast.danger(summary, {
           description: truncateForToast(details),
           actionProps: {
-            children: "Copy details",
+            children: t`Copy details`,
             onPress: () => void navigator.clipboard.writeText(details),
           },
           timeout: 0,
@@ -509,6 +525,7 @@ export function useGitReviewActions(args: UseGitReviewActionsArgs) {
           baseBranch,
           ...(resolved.model ? { model: resolved.model } : {}),
           ...(resolved.effort ? { effort: resolved.effort } : {}),
+          ...(gitTextLanguage ? { language: gitTextLanguage } : {}),
         });
         captureProductEvent("git.pr_summary_generated", {
           effort: resolved.effort || "default",
@@ -608,7 +625,7 @@ export function useGitReviewActions(args: UseGitReviewActionsArgs) {
 
     const candidates = getCommitGenCandidates(projectAgentStatuses, commitGenProvider);
     if (candidates.length === 0) {
-      toast.danger("No agent available to generate PR summary");
+      toast.danger(t`No agent available to generate PR summary`);
       return;
     }
 
@@ -670,6 +687,8 @@ export function useGitReviewActions(args: UseGitReviewActionsArgs) {
     handleClosePr: writeActions.handleClosePr,
     handleMarkPrReady: writeActions.handleMarkPrReady,
     handleUpdatePrBranch: writeActions.handleUpdatePrBranch,
+    handleRefreshPr: writeActions.handleRefreshPr,
+    isRefreshingPr: writeActions.isRefreshing,
     handleGeneratePrSummary,
   };
 }

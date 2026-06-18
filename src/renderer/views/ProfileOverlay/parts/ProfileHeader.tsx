@@ -1,6 +1,9 @@
 import type { ReactNode } from "react";
 import { Globe, Laptop, Monitor, MonitorSmartphone } from "lucide-react";
+import { msg } from "@lingui/core/macro";
+import { useLingui } from "@lingui/react/macro";
 import type { ProfileDevice, ProfileIdentity } from "@/shared/contracts";
+import type { TranslateFn } from "@/renderer/i18n/i18n";
 import { initialsFor } from "../format";
 import type { ProfileSelection } from "../useProfileData";
 import { DevicePicker } from "./DevicePicker";
@@ -13,15 +16,15 @@ function platformIcon(platform: string): ReactNode {
   return <MonitorSmartphone className="size-4" />;
 }
 
-function lastActiveLabel(device: ProfileDevice): string {
-  if (device.isCurrent) return "This device";
+function lastActiveLabel(device: ProfileDevice, t: TranslateFn): string {
+  if (device.isCurrent) return t`This device`;
   if (!device.lastActiveAt) return "";
   const diff = Date.now() - device.lastActiveAt;
   const day = 86_400_000;
-  if (diff < day) return "Active today";
+  if (diff < day) return t`Active today`;
   const days = Math.floor(diff / day);
-  if (days < 30) return `${days}d ago`;
-  return `${Math.floor(days / 30)}mo ago`;
+  if (days < 30) return t(msg`${days}d ago`);
+  return t(msg`${Math.floor(days / 30)}mo ago`);
 }
 
 export function ProfileHeader(props: {
@@ -30,11 +33,14 @@ export function ProfileHeader(props: {
   currentDeviceId: string | null;
   selection: ProfileSelection;
   onSelect: (selection: ProfileSelection) => void;
+  /** Rendered on the same row as the device picker, before the actions. */
+  filter?: ReactNode;
   /** Rendered on the same row as the device picker (Share / Edit). */
   actions?: ReactNode;
 }) {
-  const { identity, devices, currentDeviceId, selection, onSelect, actions } = props;
-  const plan = identity.plan ?? "Local";
+  const { t } = useLingui();
+  const { identity, devices, currentDeviceId, selection, onSelect, filter, actions } = props;
+  const plan = identity.plan ?? t`Local`;
 
   const value =
     selection.scope === "all"
@@ -44,15 +50,15 @@ export function ProfileHeader(props: {
   const options = [
     {
       id: ALL_DEVICES,
-      label: "All devices",
+      label: t`All devices`,
       icon: <Globe className="size-4" />,
-      hint: devices.length > 1 ? `${devices.length} devices` : "Syncs with Cloud",
+      hint: devices.length > 1 ? t(msg`${devices.length} devices`) : t`Syncs with Cloud`,
     },
     ...devices.map((d) => ({
       id: d.id,
       label: d.label,
       icon: platformIcon(d.platform),
-      hint: lastActiveLabel(d),
+      hint: lastActiveLabel(d, t),
     })),
   ];
 
@@ -80,10 +86,17 @@ export function ProfileHeader(props: {
         <DevicePicker
           value={value}
           options={options}
-          onChange={(id) =>
-            onSelect(id === ALL_DEVICES ? { scope: "all" } : { scope: "device", deviceId: id })
-          }
+          onChange={(id) => {
+            // Preserve the active account filter across a device/scope switch.
+            const provider = selection.provider ? { provider: selection.provider } : {};
+            onSelect(
+              id === ALL_DEVICES
+                ? { scope: "all", window: selection.window, ...provider }
+                : { scope: "device", deviceId: id, window: selection.window, ...provider },
+            );
+          }}
         />
+        {filter}
         {actions}
       </div>
     </div>

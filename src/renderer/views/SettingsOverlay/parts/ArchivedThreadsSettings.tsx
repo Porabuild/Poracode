@@ -1,20 +1,24 @@
 import { Button, Surface, Tooltip } from "@heroui/react";
 import { ArchiveRestore, Trash2 } from "lucide-react";
+import { Trans, useLingui } from "@lingui/react/macro";
 import { useAppStore } from "@/renderer/state/appStore";
 import { ThreadProviderIcon } from "@/renderer/components/providers/ThreadProviderIcon";
 import { SettingsPage } from "./SettingsForm";
 
 export function ArchivedThreadsSettings() {
+  const { t } = useLingui();
   const threads = useAppStore((s) => s.threads);
   const projects = useAppStore((s) => s.projects);
   const unarchiveThread = useAppStore((s) => s.unarchiveThread);
   const deleteThread = useAppStore((s) => s.deleteThread);
-  const archivedThreads = threads.filter((t) => t.archived);
+  const archivedThreads = threads.filter((thread) => thread.archived);
 
   return (
-    <SettingsPage title="Archived Threads" bodyClassName="">
+    <SettingsPage title={t`Archived Threads`} bodyClassName="">
       {archivedThreads.length === 0 ? (
-        <p className="text-sm text-muted">No archived threads.</p>
+        <p className="text-sm text-muted">
+          <Trans>No archived threads.</Trans>
+        </p>
       ) : (
         <Surface variant="secondary" className="divide-y divide-[var(--hairline)] rounded-xl">
           {archivedThreads.map((thread) => {
@@ -37,13 +41,15 @@ export function ArchivedThreadsSettings() {
                         variant="ghost"
                         size="sm"
                         isIconOnly
-                        aria-label="Restore thread"
+                        aria-label={t`Restore thread`}
                         onPress={() => unarchiveThread(thread.id)}
                       >
                         <ArchiveRestore className="size-4" />
                       </Button>
                     </Tooltip.Trigger>
-                    <Tooltip.Content>Restore thread</Tooltip.Content>
+                    <Tooltip.Content>
+                      <Trans>Restore thread</Trans>
+                    </Tooltip.Content>
                   </Tooltip>
                   <Tooltip delay={150}>
                     <Tooltip.Trigger>
@@ -51,13 +57,17 @@ export function ArchivedThreadsSettings() {
                         variant="ghost"
                         size="sm"
                         isIconOnly
-                        aria-label="Delete thread"
+                        aria-label={t`Delete thread`}
                         onPress={() => deleteThread(thread.id)}
                       >
                         <Trash2 className="size-4 text-danger" />
                       </Button>
                     </Tooltip.Trigger>
-                    <Tooltip.Content>Delete permanently</Tooltip.Content>
+                    <Tooltip.Content>
+                      <Trans comment="Tooltip: permanently delete the archived thread">
+                        Delete permanently
+                      </Trans>
+                    </Tooltip.Content>
                   </Tooltip>
                 </div>
               </div>

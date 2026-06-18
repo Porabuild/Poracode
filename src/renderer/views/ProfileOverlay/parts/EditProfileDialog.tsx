@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Check } from "lucide-react";
 import { Label, Modal } from "@heroui/react";
+import { Trans, useLingui } from "@lingui/react/macro";
 import { Button, Input } from "@/renderer/components/common";
 import type { ProfileIdentity } from "@/shared/contracts";
 import { initialsFor } from "../format";
@@ -20,6 +21,7 @@ export function EditProfileDialog(props: {
   onClose: () => void;
   onSave: (identity: ProfileIdentity) => Promise<void>;
 }) {
+  const { t } = useLingui();
   const { open, identity, onClose, onSave } = props;
   const [name, setName] = useState(identity.name);
   const [handle, setHandle] = useState(identity.handle);
@@ -64,37 +66,45 @@ export function EditProfileDialog(props: {
               >
                 {initialsFor(name || identity.name)}
               </div>
-              <h2 className="text-base font-semibold text-foreground">Edit profile</h2>
+              <h2 className="text-base font-semibold text-foreground">
+                <Trans>Edit profile</Trans>
+              </h2>
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <Label className="text-xs text-muted">Name</Label>
+              <Label className="text-xs text-muted">
+                <Trans>Name</Trans>
+              </Label>
               <Input
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="Your name"
+                placeholder={t`Your name`}
               />
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <Label className="text-xs text-muted">Handle</Label>
+              <Label className="text-xs text-muted">
+                <Trans>Handle</Trans>
+              </Label>
               <Input
                 value={handle}
                 onChange={(e) =>
                   setHandle(e.target.value.replace(/[^a-zA-Z0-9]/g, "").toLowerCase())
                 }
-                placeholder="handle"
+                placeholder={t`handle`}
               />
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <Label className="text-xs text-muted">Avatar color</Label>
+              <Label className="text-xs text-muted">
+                <Trans>Avatar color</Trans>
+              </Label>
               <div className="flex gap-2">
                 {AVATAR_PALETTE.map((color) => (
                   <button
                     key={color}
                     type="button"
-                    aria-label={`Avatar color ${color}`}
+                    aria-label={t`Avatar color ${color}`}
                     onClick={() => setAvatarColor(color)}
                     className="flex size-7 items-center justify-center rounded-full transition-transform hover:scale-105"
                     style={{ backgroundColor: color }}
@@ -107,10 +117,10 @@ export function EditProfileDialog(props: {
 
             <div className="flex justify-end gap-2 pt-1">
               <Button variant="ghost" onPress={onClose} className="text-muted">
-                Cancel
+                <Trans>Cancel</Trans>
               </Button>
               <Button variant="tertiary" isPending={saving} onPress={() => void handleSave()}>
-                Save
+                <Trans>Save</Trans>
               </Button>
             </div>
           </div>

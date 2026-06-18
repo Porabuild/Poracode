@@ -1,6 +1,8 @@
 import { ReactNode, useEffect, useLayoutEffect, useRef, useState, type DragEvent } from "react";
 import { ArrowUp, Square } from "lucide-react";
 import { ToggleButton, Tooltip } from "@heroui/react";
+import type { MessageDescriptor } from "@lingui/core";
+import { Trans, useLingui } from "@lingui/react/macro";
 import {
   Button,
   EffortContextMenu,
@@ -39,7 +41,14 @@ export type ComposerControl =
     }
   | {
       kind: "toggle";
+      /**
+       * Stable English identity used for control logic (shortcuts, tier
+       * defaults, tests compare against `"Plan"` / `"Work"` / `"Fast"` /
+       * `"Supervised"`). Never localize this — set `displayLabel` instead.
+       */
       label: string;
+      /** Localized label shown to the user; falls back to `label` when absent. */
+      displayLabel?: MessageDescriptor;
       icon?: ReactNode;
       iconKind?: ComposerIconKind;
       isSelected: boolean;
@@ -202,6 +211,7 @@ export function ThreadComposer(props: {
     toolbarLayoutKey,
     toolbarOnly = false,
   } = props;
+  const { t } = useLingui();
 
   const [wrapLevel, setWrapLevel] = useState(0);
   const [isAttachmentDropActive, setIsAttachmentDropActive] = useState(false);
@@ -404,13 +414,16 @@ export function ThreadComposer(props: {
 
     if (control.kind === "toggle") {
       const hideLabel = control.iconOnly || shouldHideLabel;
+      // `label` is the stable English logic key; `displayLabel` (when present)
+      // is the localized text actually shown to the user.
+      const toggleLabel = control.displayLabel ? t(control.displayLabel) : control.label;
       // A `disabledReason` toggle stays hoverable (not natively `disabled`) so
       // its explanatory tooltip still fires; it's dimmed and click is a no-op.
       const gated = Boolean(control.disabledReason);
       const toggle = (
         <ToggleButton
           key={`toggle-${index}`}
-          aria-label={control.label}
+          aria-label={toggleLabel}
           aria-disabled={gated}
           className={`lightcode-composer-toggle ${
             control.fillIconOnSelect ? "lightcode-composer-toggle--fill-icon-selected " : ""
@@ -428,13 +441,13 @@ export function ThreadComposer(props: {
           {resolveIcon(control)}
           {!control.iconOnly && (
             <span className={hideLabel ? "lightcode-composer-label-hideable is-hidden" : undefined}>
-              {control.label}
+              {toggleLabel}
             </span>
           )}
         </ToggleButton>
       );
 
-      const tooltipText = gated ? control.disabledReason : hideLabel ? control.label : undefined;
+      const tooltipText = gated ? control.disabledReason : hideLabel ? toggleLabel : undefined;
       if (tooltipText) {
         return (
           <Tooltip key={`toggle-tooltip-${index}`} delay={0}>
@@ -576,7 +589,7 @@ export function ThreadComposer(props: {
           <Tooltip.Trigger>
             <Button
               isIconOnly
-              aria-label="Stop response"
+              aria-label={t`Stop response`}
               className="lightcode-composer-send"
               isDisabled={stopPending}
               isPending={stopPending}
@@ -588,7 +601,9 @@ export function ThreadComposer(props: {
               }
             </Button>
           </Tooltip.Trigger>
-          <Tooltip.Content>Stop response</Tooltip.Content>
+          <Tooltip.Content>
+            <Trans>Stop response</Trans>
+          </Tooltip.Content>
         </Tooltip>
       );
     }
@@ -692,7 +707,9 @@ export function ThreadComposer(props: {
       >
         {variant === "draft" && <div className="lightcode-composer-border-glow" />}
         {isAttachmentDropActive ? (
-          <div className="lightcode-composer-drop-overlay">Drop here to attach</div>
+          <div className="lightcode-composer-drop-overlay">
+            <Trans>Drop here to attach</Trans>
+          </div>
         ) : null}
         {fixedContent}
         {attachmentBar}

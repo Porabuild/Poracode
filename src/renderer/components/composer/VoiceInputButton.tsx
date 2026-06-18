@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Mic, Square } from "lucide-react";
 import { toast, Tooltip } from "@heroui/react";
+import { useLingui } from "@lingui/react/macro";
 import { Button, PixelLoader } from "@/renderer/components/common";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { formatVoiceError, showVoiceCaptureError } from "./voiceError";
@@ -38,19 +39,13 @@ function createAudioContext(): AudioContext {
   return new AudioContextCtor();
 }
 
-function formatDownloadProgress(progress: VoiceTranscriptionProgress): string {
-  if (typeof progress.progress === "number") {
-    return `Downloading voice model ${Math.round(progress.progress)}%`;
-  }
-  return "Downloading voice model...";
-}
-
 export function VoiceInputButton(props: {
   isDisabled?: boolean;
   onTranscript: (text: string) => void;
   onTranscriptPreview?: (text: string) => void;
   onTranscriptCancel?: () => void;
 }) {
+  const { t } = useLingui();
   const { isDisabled = false, onTranscript, onTranscriptPreview, onTranscriptCancel } = props;
   const [downloadProgress, setDownloadProgress] = useState<VoiceTranscriptionProgress | null>(null);
   const [state, setState] = useState<VoiceInputState>("idle");
@@ -94,7 +89,7 @@ export function VoiceInputButton(props: {
 
   async function transcribeSamples(samples: Float32Array) {
     if (samples.length === 0) {
-      toast.danger("No speech detected.");
+      toast.danger(t`No speech detected.`);
       onTranscriptCancel?.();
       setState("idle");
       return;
@@ -124,7 +119,7 @@ export function VoiceInputButton(props: {
         onTranscript(text);
       } else {
         onTranscriptCancel?.();
-        toast.danger("No speech detected.");
+        toast.danger(t`No speech detected.`);
       }
     } catch (error) {
       if (!disposedRef.current) {
@@ -140,7 +135,7 @@ export function VoiceInputButton(props: {
 
   async function startRecording() {
     if (!navigator.mediaDevices?.getUserMedia) {
-      toast.danger("Voice input is not available in this environment.");
+      toast.danger(t`Voice input is not available in this environment.`);
       return;
     }
 
@@ -229,16 +224,20 @@ export function VoiceInputButton(props: {
   const isStarting = state === "starting";
   const isTranscribing = state === "transcribing";
   const downloadLabel =
-    downloadProgress && isTranscribing ? formatDownloadProgress(downloadProgress) : null;
+    downloadProgress && isTranscribing
+      ? typeof downloadProgress.progress === "number"
+        ? t`Downloading voice model ${Math.round(downloadProgress.progress)}%`
+        : t`Downloading voice model...`
+      : null;
   const label =
     downloadLabel ??
     (isRecording
-      ? "Stop voice input"
+      ? t`Stop voice input`
       : isStarting
-        ? "Starting voice input"
+        ? t`Starting voice input`
         : isTranscribing
-          ? "Transcribing voice"
-          : "Start voice input");
+          ? t`Transcribing voice`
+          : t`Start voice input`);
 
   return (
     <Tooltip delay={300}>

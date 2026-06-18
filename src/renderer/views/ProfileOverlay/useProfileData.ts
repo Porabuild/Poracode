@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
+import { useLingui } from "@lingui/react/macro";
 import type {
   ProfileCoreStats,
   ProfileDevice,
   ProfileIdentity,
   ProfileStatScope,
+  ProfileStatsWindow,
   ProfileTokenStats,
 } from "@/shared/contracts";
 import { readBridge } from "@/renderer/bridge";
@@ -12,6 +14,9 @@ export interface ProfileSelection {
   scope: ProfileStatScope;
   /** Selected device id when scope === "device"; undefined = current device. */
   deviceId?: string;
+  /** Account-scoped provider filter; undefined = all accounts. */
+  provider?: string;
+  window: ProfileStatsWindow;
 }
 
 export interface ProfileData {
@@ -35,9 +40,10 @@ export interface ProfileData {
  * Cloud will populate the rest.
  */
 export function useProfileData(): ProfileData {
+  const { t } = useLingui();
   const [devices, setDevices] = useState<ProfileDevice[]>([]);
   const [currentDeviceId, setCurrentDeviceId] = useState<string | null>(null);
-  const [selection, setSelection] = useState<ProfileSelection>({ scope: "device" });
+  const [selection, setSelection] = useState<ProfileSelection>({ scope: "device", window: "all" });
   const [core, setCore] = useState<ProfileCoreStats | null>(null);
   const [coreLoading, setCoreLoading] = useState(true);
   const [tokens, setTokens] = useState<ProfileTokenStats | null>(null);
@@ -62,14 +68,26 @@ export function useProfileData(): ProfileData {
     };
   }, []);
 
-  const { scope, deviceId } = selection;
+  const { scope, deviceId, provider, window } = selection;
   useEffect(() => {
     let active = true;
     const utcOffsetMinutes = -new Date().getTimezoneOffset();
-    const req = { utcOffsetMinutes, scope, ...(deviceId ? { deviceId } : {}) };
+    const req = {
+      utcOffsetMinutes,
+      scope,
+      window,
+      ...(deviceId ? { deviceId } : {}),
+      ...(provider ? { provider } : {}),
+    };
     setCoreLoading(true);
     setTokensLoading(true);
     setError(null);
+    // Drop the previous selection's token rollup so the token-weighted sections
+    // (StatStrip, Providers, Model usage) fall back to their skeletons instead of
+    // briefly showing another account's numbers under the newly selected filter.
+    // `core` is kept (it reloads from the fast SQLite tier) so the page chrome -
+    // including the account filter itself - stays mounted during the refetch.
+    setTokens(null);
 
     void readBridge()
       .getProfileCoreStats(req)
@@ -77,7 +95,7 @@ export function useProfileData(): ProfileData {
         if (active) setCore(result);
       })
       .catch((err: unknown) => {
-        if (active) setError(err instanceof Error ? err.message : "Failed to load profile stats.");
+        if (active) setError(err instanceof Error ? err.message : t`Failed to load profile stats.`);
       })
       .finally(() => {
         if (active) setCoreLoading(false);
@@ -99,7 +117,7 @@ export function useProfileData(): ProfileData {
     return () => {
       active = false;
     };
-  }, [scope, deviceId]);
+  }, [scope, deviceId, provider, window, t]);
 
   async function saveIdentity(identity: ProfileIdentity): Promise<void> {
     const response = await readBridge().setProfileIdentity(identity);

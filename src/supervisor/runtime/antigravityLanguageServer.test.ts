@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { modelsFromBody, planFromUserStatus } from "./antigravityLanguageServer";
+import {
+  emailFromUserStatus,
+  modelsFromBody,
+  planFromUserStatus,
+} from "./antigravityLanguageServer";
 
 describe("modelsFromBody", () => {
   it("collects model labels + remaining fractions from nested clientModelConfigs", () => {
@@ -53,5 +57,21 @@ describe("planFromUserStatus", () => {
   it("returns undefined when neither is present", () => {
     expect(planFromUserStatus({ userStatus: {} })).toBeUndefined();
     expect(planFromUserStatus(null)).toBeUndefined();
+  });
+});
+
+describe("emailFromUserStatus", () => {
+  it("reads the trimmed account email from userStatus", () => {
+    expect(emailFromUserStatus({ userStatus: { email: "  user@example.com " } })).toBe(
+      "user@example.com",
+    );
+  });
+
+  it("returns undefined when email is missing, blank, or the body is malformed", () => {
+    expect(emailFromUserStatus({ userStatus: { email: "" } })).toBeUndefined();
+    expect(emailFromUserStatus({ userStatus: { email: 42 } })).toBeUndefined();
+    expect(emailFromUserStatus({ userStatus: {} })).toBeUndefined();
+    expect(emailFromUserStatus(undefined)).toBeUndefined();
+    expect(emailFromUserStatus(null)).toBeUndefined();
   });
 });

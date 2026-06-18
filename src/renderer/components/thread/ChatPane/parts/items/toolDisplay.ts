@@ -17,10 +17,42 @@ import {
   Wrench,
   type LucideIcon,
 } from "lucide-react";
+import type { MessageDescriptor } from "@lingui/core";
+import { msg } from "@lingui/core/macro";
 import type { ToolCallPayload } from "@/shared/contracts";
 import { extractLeadingPath } from "@/shared/extractLeadingPath";
+import { i18n } from "@/renderer/i18n/i18n";
 import { extractAcpPatchTargetPath } from "./acpToolPayload";
 import { parseWorkflowInfo } from "./workflowDisplay";
+
+/**
+ * Localize a fixed English verb used as a display prefix (e.g. "View",
+ * "Edit", "Search"). Callers keep the *English* verb as the categorization /
+ * round-trip token (it is compared case-insensitively against provider-supplied
+ * titles) and only localize the rendered label. Unknown verbs pass through
+ * unchanged so dynamically-composed verbs (e.g. "View 1:80") still render.
+ */
+/** Display labels keyed by the stable English verb; resolved at call time via `i18n._`. */
+const verbLabels: Record<string, MessageDescriptor> = {
+  View: msg`View`,
+  List: msg`List`,
+  Fetch: msg`Fetch`,
+  Search: msg`Search`,
+  Edit: msg`Edit`,
+  Delete: msg`Delete`,
+  Move: msg`Move`,
+  Run: msg`Run`,
+  Image: msg`Image`,
+};
+
+function localizeVerb(verb: string): string {
+  const label = verbLabels[verb];
+  if (label) return i18n._(label);
+  // Dynamic verbs such as "View 1:80" keep their English line-range suffix
+  // but localize the leading "View" word.
+  if (verb.startsWith("View ")) return `${i18n._(verbLabels.View!)}${verb.slice("View".length)}`;
+  return verb;
+}
 
 export interface ToolDisplay {
   title: string;
@@ -76,8 +108,8 @@ export function deriveToolDisplay(payload: ToolCallPayload): ToolDisplay {
   }
 
   if (isSkillTool(payload)) {
-    const skill = readStr(args, "skill") ?? readStr(args, "name");
-    return { title: skill ? `Skill: ${skill}` : payload.name, Icon: Sparkles };
+    const skill = readStr(args, "skill") ?? readStr(args, "name") ?? readSkillName(payload);
+    return { title: skill ? i18n._(msg`Skill: ${skill}`) : payload.name, Icon: Sparkles };
   }
 
   const summary = mapPersistedToolSummary(payload.name);
@@ -85,7 +117,10 @@ export function deriveToolDisplay(payload: ToolCallPayload): ToolDisplay {
 
   if (isWorkflowTool(payload)) {
     const { description } = parseWorkflowInfo(payload);
-    return { title: description ? `Workflow: ${description}` : "Workflow", Icon: GitBranch };
+    return {
+      title: description ? i18n._(msg`Workflow: ${description}`) : i18n._(msg`Workflow`),
+      Icon: GitBranch,
+    };
   }
 
   const claude = mapClaudeRawTool(payload.name, args);
@@ -125,34 +160,40 @@ function mapClaudeRawTool(
     case "Agent":
       return { title: formatAgentTitle(args), Icon: Bot };
     case "BashOutput":
-      return { title: titleWithValue("Bash output", args, "bash_id"), Icon: Terminal };
+      return { title: titleWithValue(i18n._(msg`Bash output`), args, "bash_id"), Icon: Terminal };
     case "KillBash":
     case "KillShell":
-      return { title: titleWithValue("Kill bash", args, "shell_id", "bash_id"), Icon: Terminal };
+      return {
+        title: titleWithValue(i18n._(msg`Kill bash`), args, "shell_id", "bash_id"),
+        Icon: Terminal,
+      };
     case "ExitPlanMode":
-      return { title: "Exit plan mode", Icon: Wrench };
+      return { title: i18n._(msg`Exit plan mode`), Icon: Wrench };
     case "EnterPlanMode":
-      return { title: "Enter plan mode", Icon: Wrench };
+      return { title: i18n._(msg`Enter plan mode`), Icon: Wrench };
     case "WebFetch":
       return withPath("Fetch", args, ["url"], Globe);
     case "WebSearch":
-      return { title: titleWithValue("Web search", args, "query"), Icon: Globe };
+      return { title: titleWithValue(i18n._(msg`Web search`), args, "query"), Icon: Globe };
     case "ToolSearch":
-      return { title: titleWithValue("Tool search", args, "query"), Icon: SearchCode };
+      return { title: titleWithValue(i18n._(msg`Tool search`), args, "query"), Icon: SearchCode };
     case "ScheduleWakeup":
       return formatScheduleWakeupDisplay(args);
     case "TaskCreate":
-      return { title: titleWithValue("Create task", args, "description"), Icon: FilePlus };
+      return {
+        title: titleWithValue(i18n._(msg`Create task`), args, "description"),
+        Icon: FilePlus,
+      };
     case "TaskList":
-      return { title: "List tasks", Icon: FolderSearch };
+      return { title: i18n._(msg`List tasks`), Icon: FolderSearch };
     case "TaskGet":
-      return { title: titleWithValue("Get task", args, "id"), Icon: Eye };
+      return { title: titleWithValue(i18n._(msg`Get task`), args, "id"), Icon: Eye };
     case "TaskUpdate":
-      return { title: titleWithValue("Update task", args, "id"), Icon: Pencil };
+      return { title: titleWithValue(i18n._(msg`Update task`), args, "id"), Icon: Pencil };
     case "TaskOutput":
-      return { title: titleWithValue("Task output", args, "id"), Icon: Terminal };
+      return { title: titleWithValue(i18n._(msg`Task output`), args, "id"), Icon: Terminal };
     case "TaskStop":
-      return { title: titleWithValue("Stop task", args, "id"), Icon: Trash2 };
+      return { title: titleWithValue(i18n._(msg`Stop task`), args, "id"), Icon: Trash2 };
     case "ViewImage":
     case "Image":
       return withPath("Image", args, ["path", "file_path", "image_path", "source"], ImageIcon, {
@@ -171,8 +212,9 @@ function withPath(
   options?: { filePath?: boolean },
 ): ToolDisplay {
   const path = readStr(args, ...keys);
-  if (!path) return { title: verb, Icon };
-  const prefix = `${verb}: `;
+  const label = localizeVerb(verb);
+  if (!path) return { title: label, Icon };
+  const prefix = `${label}: `;
   const parts: NonNullable<ToolDisplay["parts"]> = { prefix, path };
   if (options?.filePath) parts.filePath = true;
   return { title: `${prefix}${path}`, Icon, parts };
@@ -188,7 +230,7 @@ function withReadPath(
 
 function readVerb(args: Record<string, unknown> | undefined): string {
   const range = readLineRange(args);
-  return range ? `View ${range}` : "View";
+  return range ? `${i18n._(msg`View`)} ${range}` : i18n._(msg`View`);
 }
 
 function readLineRange(args: Record<string, unknown> | undefined): string | undefined {
@@ -259,11 +301,11 @@ function formatScheduleWakeupDisplay(args: Record<string, unknown> | undefined):
   const reason = readStr(args, "reason");
   const interval = seconds !== undefined ? formatDelaySeconds(seconds) : undefined;
   if (interval && reason) {
-    return { title: `Wake up in ${interval}: ${reason}`, Icon: Clock };
+    return { title: i18n._(msg`Wake up in ${interval}: ${reason}`), Icon: Clock };
   }
-  if (interval) return { title: `Wake up in ${interval}`, Icon: Clock };
-  if (reason) return { title: `Wake up: ${reason}`, Icon: Clock };
-  return { title: "Wake up", Icon: Clock };
+  if (interval) return { title: i18n._(msg`Wake up in ${interval}`), Icon: Clock };
+  if (reason) return { title: i18n._(msg`Wake up: ${reason}`), Icon: Clock };
+  return { title: i18n._(msg`Wake up`), Icon: Clock };
 }
 
 function formatDelaySeconds(seconds: number): string {
@@ -301,9 +343,11 @@ function formatAgentTitle(
     : (argsDescription ?? fallbackDescription);
   const subagent = readSubAgentType(args);
   if (description) {
-    return subagent ? `Agent (${subagent}): ${description}` : `Agent: ${description}`;
+    return subagent
+      ? i18n._(msg`Agent (${subagent}): ${description}`)
+      : i18n._(msg`Agent: ${description}`);
   }
-  return subagent ? `Agent: ${subagent}` : "Agent";
+  return subagent ? i18n._(msg`Agent: ${subagent}`) : i18n._(msg`Agent`);
 }
 
 function readSubAgentType(args: Record<string, unknown> | undefined): string | undefined {
@@ -346,10 +390,15 @@ function mapAcpTool(
     case "fetch":
       return withTarget("Fetch", readStr(args, "url") ?? title, Globe);
     case "switch_mode":
-      return { title: title ? `Switch mode: ${title}` : "Switch mode", Icon: Wrench };
+      return {
+        title: title ? i18n._(msg`Switch mode: ${title}`) : i18n._(msg`Switch mode`),
+        Icon: Wrench,
+      };
     case "execute":
       return {
-        title: readStr(args, "command") ? titleWithValue("Run", args, "command") : `Run: ${title}`,
+        title: readStr(args, "command")
+          ? titleWithValue(localizeVerb("Run"), args, "command")
+          : `${localizeVerb("Run")}: ${title}`,
         Icon: Terminal,
       };
     case "think":
@@ -409,7 +458,30 @@ export function isSkillTool(payload: ToolCallPayload): boolean {
   const n = payload.name.trim();
   if (n === "Skill" || /^(loaded|using) skill\b/i.test(n)) return true;
   const args = readArgsObject(payload);
-  return readStr(args, "skill") !== undefined;
+  return readStr(args, "skill") !== undefined || readSkillName(payload) !== undefined;
+}
+
+function readSkillName(payload: ToolCallPayload): string | undefined {
+  const args = readArgsObject(payload);
+  return (
+    readSkillNameFromPath(readPathArg(args)) ??
+    readSkillNameFromPath(payload.title) ??
+    readSkillNameFromPath(payload.name)
+  );
+}
+
+function readSkillNameFromPath(value: string | undefined): string | undefined {
+  if (!value) return undefined;
+  const cleaned = value
+    .replace(/^(?:view(?:\s+\d+(?::\d+)?)?|read(?:ing)?|open(?:ing)?)[:\s]+/i, "")
+    .trim()
+    .replace(/^["'`]+|["'`]+$/g, "");
+  const parts = cleaned.split(/[\\/]+/).filter(Boolean);
+  if (parts.at(-1)?.toLowerCase() !== "skill.md") return undefined;
+  const skillsIndex = parts.findLastIndex((part) => part.toLowerCase() === "skills");
+  if (skillsIndex === -1 || skillsIndex >= parts.length - 2) return undefined;
+  const skill = parts.at(-2);
+  return skill && !skill.startsWith(".") ? skill : undefined;
 }
 
 function formatAcpPathDisplay(
@@ -419,10 +491,13 @@ function formatAcpPathDisplay(
   Icon: LucideIcon,
 ): ToolDisplay {
   if (path) return withTarget(verb, path, Icon, { filePath: true });
-  if (title.length === 0) return { title: verb, Icon };
+  const label = localizeVerb(verb);
+  if (title.length === 0) return { title: label, Icon };
+  // Compare against the English `verb` token (titles are provider data) but
+  // render the localized label.
   return title.toLowerCase().startsWith(verb.toLowerCase())
     ? { title, Icon }
-    : { title: `${verb}: ${title}`, Icon };
+    : { title: `${label}: ${title}`, Icon };
 }
 
 function formatAcpMoveDisplay(
@@ -433,7 +508,7 @@ function formatAcpMoveDisplay(
   if (locations.length >= 2) {
     const from = locations[0]!.path;
     const to = locations[locations.length - 1]!.path;
-    return { title: `Move: ${from} -> ${to}`, Icon: Pencil };
+    return { title: `${localizeVerb("Move")}: ${from} -> ${to}`, Icon: Pencil };
   }
   return formatAcpPathDisplay("Move", path, title, Pencil);
 }
@@ -447,11 +522,13 @@ function formatAcpSearchDisplay(
   const pattern = readStr(args, "pattern");
   const scope = readScope(args) ?? locationPath;
   const searchTerm = query ?? pattern;
-  if (searchTerm) return { title: `Search: "${searchTerm}"`, Icon: SearchCode };
+  const label = localizeVerb("Search");
+  if (searchTerm) return { title: `${label}: "${searchTerm}"`, Icon: SearchCode };
   if (scope) return withTarget("Search", scope, SearchCode);
+  // Compare against the English "search" token (titles are provider data).
   return title.toLowerCase().startsWith("search")
     ? { title, Icon: SearchCode }
-    : { title: `Search: ${title}`, Icon: SearchCode };
+    : { title: `${label}: ${title}`, Icon: SearchCode };
 }
 
 function pickAcpLocationPath(
@@ -494,8 +571,9 @@ function withTarget(
   Icon: LucideIcon,
   options?: { filePath?: boolean },
 ): ToolDisplay {
-  if (!target) return { title: verb, Icon };
-  const prefix = `${verb}: `;
+  const label = localizeVerb(verb);
+  if (!target) return { title: label, Icon };
+  const prefix = `${label}: `;
   const parts: NonNullable<ToolDisplay["parts"]> = { prefix, path: target };
   if (options?.filePath) parts.filePath = true;
   return { title: `${prefix}${target}`, Icon, parts };

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { DiffFile, DiffView } from "@git-diff-view/react";
+import { Trans } from "@lingui/react/macro";
 import type { Project } from "@/shared/contracts";
 import { readBridge } from "@/renderer/bridge";
 import {
@@ -65,12 +66,12 @@ export function SingleFileDiff(props: {
     <div className="absolute inset-0 z-10 overflow-y-auto bg-[var(--content-background)] px-4">
       {loading && (
         <div className="flex items-center justify-center py-8 text-sm text-muted">
-          Loading diff...
+          <Trans>Loading diff...</Trans>
         </div>
       )}
       {!loading && !diffFile && (
         <div className="flex items-center justify-center py-8 text-sm text-muted">
-          No changes to display
+          <Trans>No changes to display</Trans>
         </div>
       )}
       {diffFile && (

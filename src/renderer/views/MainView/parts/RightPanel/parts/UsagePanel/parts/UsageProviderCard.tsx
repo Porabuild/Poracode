@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useSortable } from "@dnd-kit/react/sortable";
 import { ChevronDown, ChevronRight, GripVertical, LogOut } from "lucide-react";
+import { Trans, useLingui } from "@lingui/react/macro";
 import { type UsageSnapshot, usageWindowDisplayLabel } from "@lightcode/agents-usage";
 import { readBridge } from "@/renderer/bridge";
 import { ProviderIcon } from "@/renderer/components/providers/ProviderIcon";
@@ -66,6 +67,7 @@ export function UsageProviderCard(props: {
   onToggleCollapse: (id: string) => void;
 }) {
   const { id, label, index, collapsed, onToggleCollapse } = props;
+  const { t } = useLingui();
   const snapshot = useProviderUsage(id);
   const hasStoredSession = useHasStoredSession(id);
   const [signingIn, setSigningIn] = useState(false);
@@ -167,7 +169,7 @@ export function UsageProviderCard(props: {
         <button
           ref={handleRef}
           type="button"
-          aria-label={`Reorder ${label}`}
+          aria-label={t`Reorder ${label}`}
           className="flex size-4 shrink-0 cursor-grab items-center justify-center text-muted/40 transition-colors hover:text-foreground active:cursor-grabbing"
         >
           <GripVertical className="size-3.5" />
@@ -175,7 +177,7 @@ export function UsageProviderCard(props: {
         <button
           type="button"
           aria-expanded={!collapsed}
-          aria-label={`${collapsed ? "Expand" : "Collapse"} ${label}`}
+          aria-label={collapsed ? t`Expand ${label}` : t`Collapse ${label}`}
           onClick={() => onToggleCollapse(id)}
           className="flex min-w-0 flex-1 items-center gap-2 text-left outline-none focus-visible:focus-ring"
         >
@@ -208,8 +210,8 @@ export function UsageProviderCard(props: {
         {canSignOut ? (
           <button
             type="button"
-            aria-label={`Sign out ${label}`}
-            title={`Sign out ${label}`}
+            aria-label={t`Sign out ${label}`}
+            title={t`Sign out ${label}`}
             onClick={() => void handleSignOut()}
             disabled={signingOut}
             className="flex size-5 shrink-0 items-center justify-center rounded-md text-muted/60 transition-colors hover:bg-muted/10 hover:text-foreground disabled:opacity-50"
@@ -220,7 +222,7 @@ export function UsageProviderCard(props: {
         <button
           type="button"
           aria-expanded={!collapsed}
-          aria-label={`${collapsed ? "Expand" : "Collapse"} ${label}`}
+          aria-label={collapsed ? t`Expand ${label}` : t`Collapse ${label}`}
           onClick={() => onToggleCollapse(id)}
           className="flex size-5 shrink-0 items-center justify-center rounded-md text-muted/60 transition-colors hover:bg-muted/10 hover:text-foreground"
         >
@@ -255,7 +257,7 @@ export function UsageProviderCard(props: {
                   disabled={signingIn}
                   className="rounded-lg border border-[color:var(--separator)] bg-surface px-2.5 py-1 text-xs font-medium text-foreground transition-colors hover:bg-muted/10 disabled:opacity-50"
                 >
-                  {signingIn ? "Signing in…" : "Sign in"}
+                  {signingIn ? <Trans>Signing in…</Trans> : <Trans>Sign in</Trans>}
                 </button>
               ) : null}
             </div>
@@ -267,19 +269,21 @@ export function UsageProviderCard(props: {
 }
 
 function UsageProviderMeta(props: { snapshot: UsageSnapshot }) {
+  const { t } = useLingui();
   const { snapshot } = props;
   const lines: string[] = [];
   if (snapshot.cost) {
-    const tokens = snapshot.tokens?.total ? ` · ${formatTokens(snapshot.tokens.total)} tokens` : "";
-    lines.push(
-      `~${formatMoney(snapshot.cost.amount, snapshot.cost.currency)}${tokens} · ${snapshot.cost.period} · est.`,
-    );
+    const tokens = snapshot.tokens?.total
+      ? ` · ${t`${formatTokens(snapshot.tokens.total)} tokens`}`
+      : "";
+    const money = formatMoney(snapshot.cost.amount, snapshot.cost.currency);
+    lines.push(t`~${money}${tokens} · ${snapshot.cost.period} · est.`);
   }
   if (snapshot.credits?.unlimited) {
-    lines.push("Unlimited");
+    lines.push(t`Unlimited`);
   } else if (snapshot.credits) {
     lines.push(
-      `${snapshot.credits.label ?? "Credits"}: ${formatMoney(
+      `${snapshot.credits.label ?? t`Credits`}: ${formatMoney(
         snapshot.credits.balance,
         snapshot.credits.currency,
       )}`,

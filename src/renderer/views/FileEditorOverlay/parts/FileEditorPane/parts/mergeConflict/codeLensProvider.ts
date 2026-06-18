@@ -1,5 +1,7 @@
+import { msg } from "@lingui/core/macro";
 import type { Monaco } from "@monaco-editor/react";
 import type { editor as MonacoEditor, languages, IRange, IDisposable } from "monaco-editor";
+import { i18n } from "@/renderer/i18n/i18n";
 import type { ConflictBlock } from "@/renderer/utils/mergeConflicts";
 
 export interface CodeLensCommandIds {
@@ -40,7 +42,7 @@ export function createMergeConflictCodeLensProvider(
           id: `lc-merge-${index}-current`,
           command: {
             id: commandIds.acceptCurrent,
-            title: "Accept Current Change",
+            title: i18n._(msg`Accept Current Change`),
             arguments: [model.uri.toString(), index],
           },
         });
@@ -49,7 +51,7 @@ export function createMergeConflictCodeLensProvider(
           id: `lc-merge-${index}-incoming`,
           command: {
             id: commandIds.acceptIncoming,
-            title: "Accept Incoming Change",
+            title: i18n._(msg`Accept Incoming Change`),
             arguments: [model.uri.toString(), index],
           },
         });
@@ -58,7 +60,7 @@ export function createMergeConflictCodeLensProvider(
           id: `lc-merge-${index}-both`,
           command: {
             id: commandIds.acceptBoth,
-            title: "Accept Both Changes",
+            title: i18n._(msg`Accept Both Changes`),
             arguments: [model.uri.toString(), index],
           },
         });

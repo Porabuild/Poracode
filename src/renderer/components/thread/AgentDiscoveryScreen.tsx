@@ -1,36 +1,45 @@
 import { Button } from "@heroui/react";
 import { X } from "lucide-react";
+import { msg } from "@lingui/core/macro";
+import { Plural, Trans, useLingui } from "@lingui/react/macro";
+import type { MessageDescriptor } from "@lingui/core";
 import { PixelLoader } from "@/renderer/components/common";
 import { getRegisteredProviders, ProviderIcon } from "@/renderer/components/providers/ProviderIcon";
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
 import type { AgentStatus, ProjectLocation } from "@/shared/contracts";
-import type { CSSProperties } from "react";
+import type { CSSProperties, ReactNode } from "react";
 
-function readyBadge(status: AgentStatus): { label: string; toneClass: string } | null {
-  if (!status.installed) return null;
-  if (status.authState === "missing") {
-    return { label: "Sign in needed", toneClass: "text-warning" };
-  }
-  return { label: "Ready", toneClass: "text-success" };
-}
-
-function statusLine(scopedCount: number, installedCount: number, wslDistro: string | undefined) {
+function renderStatusLine(
+  scopedCount: number,
+  installedCount: number,
+  wslDistro: string | undefined,
+): ReactNode {
   if (scopedCount === 0) {
-    return wslDistro ? "Warming up WSL shell environment…" : "Warming up shell environment…";
+    return wslDistro ? (
+      <Trans>Warming up WSL shell environment…</Trans>
+    ) : (
+      <Trans>Warming up shell environment…</Trans>
+    );
   }
-  if (installedCount === 0) return "No agents installed yet";
-  if (installedCount === 1) return "1 agent ready";
-  return `${installedCount} agents ready`;
+  if (installedCount === 0) return <Trans>No agents installed yet</Trans>;
+  return <Plural value={installedCount} one="# agent ready" other="# agents ready" />;
 }
 
-function combinedStatusLine(discovered: readonly AgentStatus[]): string {
-  if (discovered.length === 0) return "Warming up shell environments...";
+function renderCombinedStatusLine(discovered: readonly AgentStatus[]): ReactNode {
+  if (discovered.length === 0) return <Trans>Warming up shell environments...</Trans>;
   const readyKinds = new Set(
     discovered.filter((status) => status.installed).map((status) => status.kind),
   );
-  if (readyKinds.size === 0) return "No providers ready yet";
-  if (readyKinds.size === 1) return "1 provider ready";
-  return `${readyKinds.size} providers ready`;
+  if (readyKinds.size === 0) return <Trans>No providers ready yet</Trans>;
+  return <Plural value={readyKinds.size} one="# provider ready" other="# providers ready" />;
+}
+
+function readyBadge(status: AgentStatus): { label: MessageDescriptor; toneClass: string } | null {
+  if (!status.installed) return null;
+  if (status.authState === "missing") {
+    return { label: msg`Sign in needed`, toneClass: "text-warning" };
+  }
+  return { label: msg`Ready`, toneClass: "text-success" };
 }
 
 function statusRank(status: AgentStatus): number {
@@ -52,11 +61,14 @@ function statusForTarget(
   return matching.toSorted((left, right) => statusRank(right) - statusRank(left))[0];
 }
 
-function statusLabel(status: AgentStatus | undefined): { label: string; toneClass: string } {
-  if (!status) return { label: "Searching...", toneClass: "text-muted/60" };
+function statusLabel(status: AgentStatus | undefined): {
+  label: MessageDescriptor;
+  toneClass: string;
+} {
+  if (!status) return { label: msg`Searching...`, toneClass: "text-muted/60" };
   const badge = readyBadge(status);
   if (badge) return badge;
-  return { label: "Not found", toneClass: "text-muted/55" };
+  return { label: msg`Not found`, toneClass: "text-muted/55" };
 }
 
 export function AgentDiscoveryScreen(props: {
@@ -64,6 +76,7 @@ export function AgentDiscoveryScreen(props: {
   onCancel?: () => void;
   wslDistros?: string[];
 }) {
+  const { t } = useLingui();
   // `discoveredAgents` is already scoped by `pushDiscoveredAgent` to the active
   // discovery scope, so no additional location filtering is needed here.
   const discovered = useAgentStatusesStore((s) => s.discoveredAgents);
@@ -92,7 +105,7 @@ export function AgentDiscoveryScreen(props: {
         ? [
             {
               key: "native",
-              label: "Windows",
+              label: t`Windows`,
               matches: (status) => status.envKind !== "wsl",
             },
             ...props.wslDistros.map((distro) => ({
@@ -127,7 +140,7 @@ export function AgentDiscoveryScreen(props: {
       : [
           {
             key: "system",
-            label: "System",
+            label: t`System`,
             matches: () => true,
           },
         ];
@@ -139,13 +152,15 @@ export function AgentDiscoveryScreen(props: {
     <div className="agent-discovery-screen flex h-full min-h-0 flex-col items-center gap-6 overflow-y-auto px-6 py-6 text-center">
       <div className="flex shrink-0 flex-col items-center gap-3">
         <PixelLoader size="lg" className="text-foreground" />
-        <h1 className="text-xl font-semibold tracking-tight">Discovering coding agents…</h1>
+        <h1 className="text-xl font-semibold tracking-tight">
+          <Trans>Discovering coding agents…</Trans>
+        </h1>
         <p className="max-w-sm text-sm text-muted">
           {wslDistro
-            ? `Scanning ${wslDistro} for installed CLIs. This usually takes a couple of seconds.`
+            ? t`Scanning ${wslDistro} for installed CLIs. This usually takes a couple of seconds.`
             : scanTargets.length > 1
-              ? "Scanning Windows and WSL for installed CLIs. This usually takes a couple of seconds."
-              : "Scanning your system for installed CLIs. This usually takes a couple of seconds."}
+              ? t`Scanning Windows and WSL for installed CLIs. This usually takes a couple of seconds.`
+              : t`Scanning your system for installed CLIs. This usually takes a couple of seconds.`}
         </p>
         {scanTargets.length > 1 ? (
           <div className="flex flex-wrap items-center justify-center gap-1.5">
@@ -166,7 +181,9 @@ export function AgentDiscoveryScreen(props: {
           className="grid shrink-0 grid-cols-[minmax(11rem,1fr)_repeat(var(--agent-target-count),minmax(7rem,8rem))] border-b border-border/60 px-3 py-2 text-[0.6875rem] font-medium uppercase text-muted/70"
           style={matrixGridStyle}
         >
-          <div>Provider</div>
+          <div>
+            <Trans>Provider</Trans>
+          </div>
           {statusTargets.map((target) => (
             <div key={target.key} className="text-center">
               {/* The per-system label (e.g. "Windows", "WSL: …") only disambiguates
@@ -197,7 +214,7 @@ export function AgentDiscoveryScreen(props: {
                       key={target.key}
                       className={`text-center text-xs font-medium ${labelInfo.toneClass}`}
                     >
-                      {labelInfo.label}
+                      {t(labelInfo.label)}
                     </div>
                   );
                 })}
@@ -209,15 +226,15 @@ export function AgentDiscoveryScreen(props: {
 
       <div className="shrink-0 text-xs text-muted/70" aria-live="polite">
         {useMatrixLayout
-          ? combinedStatusLine(discovered)
-          : statusLine(discovered.length, installedCount, wslDistro)}
+          ? renderCombinedStatusLine(discovered)
+          : renderStatusLine(discovered.length, installedCount, wslDistro)}
       </div>
 
       {props.onCancel ? (
         <div className="shrink-0">
           <Button size="sm" variant="tertiary" onPress={props.onCancel}>
             <X className="size-3.5" />
-            Cancel
+            <Trans>Cancel</Trans>
           </Button>
         </div>
       ) : null}

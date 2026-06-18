@@ -1,5 +1,7 @@
 import { startTransition, useDeferredValue, useEffect, useState } from "react";
 import { Button, Popover, Switch, Tooltip, toast } from "@heroui/react";
+import { msg } from "@lingui/core/macro";
+import { Trans, useLingui } from "@lingui/react/macro";
 import {
   AlertTriangle,
   ArrowUpCircle,
@@ -22,6 +24,7 @@ import type {
   AgentHookPluginEnv,
   AgentHookPluginStatus,
   AgentOwnedAuthMethod,
+  AgentProviderMetadata,
   AgentSettingDef,
   AgentStatus,
   AgentTerminalAuthMethod,
@@ -34,6 +37,7 @@ import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
 import { buildWslProjectDistrosKey } from "@/renderer/state/projectKeys";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { readBridge } from "@/renderer/bridge";
+import { i18n } from "@/renderer/i18n/i18n";
 import {
   acpGenericInstanceId,
   agentAuthTarget,
@@ -116,6 +120,7 @@ function ModelVisibilityDropdown(props: {
   settingsKey: string;
   provider: ProviderModelMenuProvider;
 }) {
+  const { t } = useLingui();
   const { settingsKey, provider } = props;
   const hiddenIds = useSharedSettings((s) => s.hiddenModels[settingsKey]);
   const setHiddenModels = useSharedSettings((s) => s.setHiddenModels);
@@ -190,10 +195,10 @@ function ModelVisibilityDropdown(props: {
     <div className="flex items-center justify-between gap-4 py-2 border-b border-border/10 last:border-0 group">
       <div className="flex flex-col min-w-0 flex-1">
         <p className="text-sm font-medium text-foreground">
-          {provider.kind === "cursor" ? `Visible ${provider.label} models` : "Visible models"}
+          {provider.kind === "cursor" ? t`Visible ${provider.label} models` : t`Visible models`}
         </p>
         <p className="text-[11px] text-muted line-clamp-1 group-hover:line-clamp-none transition-all">
-          Toggle models off to hide them from the selector.
+          <Trans>Toggle models off to hide them from the selector.</Trans>
         </p>
       </div>
       <Popover isOpen={isOpen} onOpenChange={setIsOpen}>
@@ -207,9 +212,9 @@ function ModelVisibilityDropdown(props: {
             <div className="flex items-center gap-2 border-b border-border px-3 py-2">
               <Search className="size-3.5 shrink-0 text-muted" />
               <input
-                aria-label="Search models"
+                aria-label={t`Search models`}
                 className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted outline-none"
-                placeholder="Search models..."
+                placeholder={t`Search models...`}
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
                 onKeyDown={(event) => event.stopPropagation()}
@@ -217,7 +222,9 @@ function ModelVisibilityDropdown(props: {
             </div>
             <div className="flex items-center justify-between gap-2 border-b border-border/40 px-3 py-1.5 text-[10px] uppercase tracking-wider text-muted/80">
               <span className="tabular-nums">
-                {visibleCount} of {totalCount} visible
+                <Trans>
+                  {visibleCount} of {totalCount} visible
+                </Trans>
               </span>
               <div className="flex items-center gap-2">
                 <button
@@ -225,7 +232,7 @@ function ModelVisibilityDropdown(props: {
                   className="text-foreground/70 hover:text-foreground"
                   onClick={() => setAllHidden(false)}
                 >
-                  Show all
+                  <Trans>Show all</Trans>
                 </button>
                 <span className="text-muted/40">·</span>
                 <button
@@ -233,16 +240,18 @@ function ModelVisibilityDropdown(props: {
                   className="text-foreground/70 hover:text-foreground"
                   onClick={() => setAllHidden(true)}
                 >
-                  Hide all
+                  <Trans>Hide all</Trans>
                 </button>
               </div>
             </div>
             {items.length === 0 ? (
-              <div className="px-3 py-3 text-center text-sm text-muted">No models found</div>
+              <div className="px-3 py-3 text-center text-sm text-muted">
+                <Trans>No models found</Trans>
+              </div>
             ) : (
               <div
                 role="listbox"
-                aria-label="Visible models"
+                aria-label={t`Visible models`}
                 aria-multiselectable="true"
                 className="lightcode-menu no-scrollbar max-h-[22rem] overflow-y-auto py-1.5"
               >
@@ -275,6 +284,7 @@ function ModelVisibilityRow(props: {
   onToggleSubGroup?: (headerId: string) => void;
 }) {
   const { item, isVisible, subGroupState, onToggle, onToggleSubGroup } = props;
+  const { t } = useLingui();
 
   if (item.type === "header-sub") {
     const state = subGroupState ?? "all";
@@ -315,7 +325,7 @@ function ModelVisibilityRow(props: {
         role="presentation"
         className="mx-1.5 mb-1 flex h-7 items-center border-b border-border/40 bg-overlay px-2 text-[10px] font-semibold uppercase tracking-wider text-muted/80"
       >
-        {item.label}
+        {t(item.label)}
       </div>
     );
   }
@@ -390,13 +400,17 @@ function formatAgentMetadataSummary(
   const providers = metadata?.connectedProviders ?? [];
   if (providers.length > 0) {
     const labels = providers.map((p) => p.label).join(", ");
-    const noun = providers.length === 1 ? "provider" : "providers";
-    return `${providers.length} ${noun} · ${labels}`;
+    const count = providers.length;
+    const noun =
+      count === 1
+        ? i18n._(msg`provider`)
+        : i18n._(msg({ message: "providers", comment: "plural" }));
+    return `${count} ${noun} · ${labels}`;
   }
 
   if (options?.includeAuthFallback === false) return undefined;
-  if (metadata?.authMethod) return `via ${metadata.authMethod}`;
-  if (status.authState === "authenticated") return "Signed in";
+  if (metadata?.authMethod) return i18n._(msg`via ${metadata.authMethod}`);
+  if (status.authState === "authenticated") return i18n._(msg`Signed in`);
   return undefined;
 }
 
@@ -451,34 +465,33 @@ function AgentInstallEnvironmentRow(props: {
   installPending: boolean;
   onInstall: (status: AgentStatus) => void;
 }) {
+  const { t } = useLingui();
   const env = envLabel(props.status);
-  const envSuffix = env ? ` ${env}` : "";
 
   return (
     <div className="flex flex-col py-1.5 px-2 -mx-2 hover:bg-surface-secondary/40 rounded-lg transition-colors group/env">
       <div className="flex items-center justify-between gap-4">
         <div className="flex min-w-0 items-center gap-2 text-sm font-medium">
-          <span className="shrink-0 text-foreground/90">{env || "Default"}</span>
+          <span className="shrink-0 text-foreground/90">{env || t`Default`}</span>
           <span className="shrink-0 tabular-nums text-muted/60 font-normal text-xs">
-            Not installed
+            <Trans>Not installed</Trans>
           </span>
         </div>
         <Button
           size="sm"
           variant="tertiary"
           className="h-6 min-h-6 px-2 py-0 text-[10px] text-muted hover:text-foreground"
-          aria-label={`Install${envSuffix}`}
+          aria-label={env ? t`Install ${env}` : t`Install`}
           isPending={props.installPending}
           onPress={() => props.onInstall(props.status)}
         >
           {props.installPending ? <PixelLoader size="xs" /> : <Download className="size-3" />}
-          {props.installPending ? "Installing" : "Install"}
+          {props.installPending ? t`Installing` : t`Install`}
         </Button>
       </div>
       <div className="flex min-w-0 h-4 items-center">
         <span className="min-w-0 truncate text-[11px] font-normal text-muted/60">
-          Install {props.agentLabel}
-          {env ? ` for ${env}` : ""}.
+          {env ? t`Install ${props.agentLabel} for ${env}.` : t`Install ${props.agentLabel}.`}
         </span>
       </div>
     </div>
@@ -503,26 +516,38 @@ function AgentEnvironmentRow(props: {
 
   includeAuthFallback: boolean;
   acpInstanceId: string | undefined;
+  /**
+   * Identity resolved out-of-band (Antigravity's account lives behind its
+   * language server, not in the detected status). When present it overrides the
+   * status's own `providerMetadata` for the summary line.
+   */
+  accountMetadata?: AgentProviderMetadata | undefined;
 }) {
+  const { t } = useLingui();
   const { status, authMethods } = props;
   const hasAnyMethod = authMethods.length > 0;
   const isAuthenticated = status.authState === "authenticated";
   const isMissing =
     status.authState === "missing" || (status.authState === "unknown" && hasAnyMethod);
   const env = envLabel(status);
-  const envSuffix = env ? ` ${env}` : "";
   const canLogout = isAuthenticated && props.canLogout;
   const canReLogin = isAuthenticated && !canLogout && hasAnyMethod;
   const canLogin = (isMissing || canReLogin) && hasAnyMethod;
-  const loginLabel = canReLogin ? "Re-login" : "Login";
-  const pendingLabel = canLogout ? "Logging out" : "Logging in";
+  const loginLabel = canReLogin ? t`Re-login` : t`Login`;
+  const pendingLabel = canLogout ? t`Logging out` : t`Logging in`;
 
   const hasMultipleMethods = authMethods.length > 1;
   const singleMethod = !hasMultipleMethods ? authMethods[0] : undefined;
 
-  const metadataSummary = formatAgentMetadataSummary(status, {
-    includeAuthFallback: props.includeAuthFallback,
-  });
+  // Only override with the out-of-band account on an env that is itself signed
+  // in — otherwise a not-authenticated row (e.g. a WSL distro pending login)
+  // would show the shared account next to its own "Login required" warning.
+  const metadataSummary = formatAgentMetadataSummary(
+    props.accountMetadata && isAuthenticated
+      ? { ...status, providerMetadata: props.accountMetadata }
+      : status,
+    { includeAuthFallback: props.includeAuthFallback },
+  );
 
   const installedVer = status.version;
   const registryTargetVersion =
@@ -555,19 +580,24 @@ function AgentEnvironmentRow(props: {
     : undefined;
   const previewCommandLine = previewCommand ? formatUpdateCommandLine(previewCommand) : undefined;
 
+  const envOrAgentLabel = env || t`Agent`;
   const description = isMissing
     ? hasMultipleMethods
-      ? `Choose how to sign in${env ? ` for ${env}` : ""}.`
+      ? env
+        ? t`Choose how to sign in for ${env}.`
+        : t`Choose how to sign in.`
       : singleMethod
-        ? `Complete ${singleMethod.name} sign-in${env ? ` for ${env}` : ""}.`
-        : `${env || "Agent"} needs authentication.`
+        ? env
+          ? t`Complete ${singleMethod.name} sign-in for ${env}.`
+          : t`Complete ${singleMethod.name} sign-in.`
+        : t`${envOrAgentLabel} needs authentication.`
     : "";
 
   return (
     <div className="flex flex-col py-1.5 px-2 -mx-2 hover:bg-surface-secondary/40 rounded-lg transition-colors group/env">
       <div className="flex items-center justify-between gap-4">
         <div className="flex min-w-0 items-center gap-2 text-sm font-medium">
-          <span className="shrink-0 text-foreground/90">{env || "Default"}</span>
+          <span className="shrink-0 text-foreground/90">{env || t`Default`}</span>
           {props.isRedetecting ? (
             <PixelLoader size="xs" />
           ) : (
@@ -579,7 +609,9 @@ function AgentEnvironmentRow(props: {
             <div
               className="flex h-5 min-h-5 items-center"
               role="status"
-              aria-label={`Updating ${props.agentLabel}${env ? ` (${env})` : ""}`}
+              aria-label={
+                env ? t`Updating ${props.agentLabel} (${env})` : t`Updating ${props.agentLabel}`
+              }
             >
               <PixelLoader size="xs" />
             </div>
@@ -590,24 +622,30 @@ function AgentEnvironmentRow(props: {
                   size="sm"
                   variant="ghost"
                   className="h-5 min-h-5 gap-1 px-1.5 py-0 text-[10px] text-muted hover:text-foreground"
-                  aria-label={`Update to ${updateLabel} for ${props.agentLabel}${env ? ` (${env})` : ""}`}
+                  aria-label={
+                    env
+                      ? t`Update to ${updateLabel} for ${props.agentLabel} (${env})`
+                      : t`Update to ${updateLabel} for ${props.agentLabel}`
+                  }
                   onPress={() => props.onUpdate(status)}
                 >
                   <ArrowUpCircle className="size-3" />
-                  Update to {updateLabel}
+                  <Trans>Update to {updateLabel}</Trans>
                 </Button>
               </Tooltip.Trigger>
               <Tooltip.Content placement="right" className="max-w-[440px]">
                 {previewCommandLine ? (
                   <div className="flex flex-col gap-0.5">
                     <span className="text-[11px] text-muted">
-                      Will run in {env || "this environment"}:
+                      <Trans>Will run in {env || t`this environment`}:</Trans>
                     </span>
                     <code className="font-mono text-[11px]">{previewCommandLine}</code>
                   </div>
                 ) : (
                   <span className="text-[11px]">
-                    Update {props.agentLabel} to {updateLabel}
+                    <Trans>
+                      Update {props.agentLabel} to {updateLabel}
+                    </Trans>
                   </span>
                 )}
               </Tooltip.Content>
@@ -616,7 +654,7 @@ function AgentEnvironmentRow(props: {
           {isMissing && (
             <span className="text-warning flex items-center gap-1.5 whitespace-nowrap text-[11px] font-normal">
               <AlertTriangle className="size-3" />
-              Login required
+              <Trans>Login required</Trans>
             </span>
           )}
         </div>
@@ -638,7 +676,11 @@ function AgentEnvironmentRow(props: {
                       size="sm"
                       variant="tertiary"
                       className="h-6 min-h-6 px-2 py-0 text-[10px] text-muted hover:text-foreground"
-                      aria-label={`${loginLabel} ${method.name}${envSuffix}`}
+                      aria-label={
+                        env
+                          ? t`${loginLabel} ${method.name} ${env}`
+                          : t`${loginLabel} ${method.name}`
+                      }
                       onPress={() => props.onLogin(method)}
                     >
                       {method.name}
@@ -650,7 +692,7 @@ function AgentEnvironmentRow(props: {
                   size="sm"
                   variant="tertiary"
                   className="h-6 min-h-6 px-2 py-0 text-[10px] text-muted hover:text-foreground"
-                  aria-label={`${loginLabel}${envSuffix}`}
+                  aria-label={env ? t`${loginLabel} ${env}` : loginLabel}
                   onPress={() => props.onLogin(singleMethod)}
                 >
                   {loginLabel}
@@ -661,10 +703,10 @@ function AgentEnvironmentRow(props: {
                   size="sm"
                   variant="tertiary"
                   className="h-6 min-h-6 px-2 py-0 text-[10px] text-muted hover:text-foreground"
-                  aria-label={`Logout${envSuffix}`}
+                  aria-label={env ? t`Logout ${env}` : t`Logout`}
                   onPress={props.onLogout}
                 >
-                  Logout
+                  <Trans>Logout</Trans>
                 </Button>
               ) : null}
             </>
@@ -696,14 +738,15 @@ function HookPluginEnvironmentRow(props: {
   onRefresh: (status: AgentHookPluginStatus) => void;
   onPending: (pending: boolean) => void;
 }) {
+  const { t } = useLingui();
   const { status } = props;
   const versionText = status.installed
     ? status.version
       ? `v${status.version}`
-      : "Installed"
+      : t`Installed`
     : status.supported
-      ? "Not installed"
-      : "Unsupported";
+      ? t`Not installed`
+      : t`Unsupported`;
   const isOutdated =
     status.installed && status.version !== undefined && status.version !== status.bundledVersion;
   // Install and update both go through installAgentHookPlugin. Only offer
@@ -716,7 +759,8 @@ function HookPluginEnvironmentRow(props: {
       : status.canUninstall
         ? "uninstall"
         : "none";
-  const actionLabel = mode === "install" ? "Install" : mode === "update" ? "Update" : "Uninstall";
+  const actionLabel =
+    mode === "install" ? t`Install` : mode === "update" ? t`Update` : t`Uninstall`;
   const runAction = () => {
     props.onPending(true);
     const action =
@@ -726,15 +770,16 @@ function HookPluginEnvironmentRow(props: {
     action({ agentKind: props.agentKind, env: status.env })
       .then((result) => {
         props.onRefresh(result.status);
+        const envName = hookEnvLabel(status.env);
         toast.success(
           mode === "uninstall"
-            ? `${props.agentLabel} hooks removed for ${hookEnvLabel(status.env)}.`
-            : `${props.agentLabel} hooks installed for ${hookEnvLabel(status.env)}.`,
+            ? t`${props.agentLabel} hooks removed for ${envName}.`
+            : t`${props.agentLabel} hooks installed for ${envName}.`,
         );
       })
       .catch((error) =>
         toast.danger(
-          error instanceof Error ? error.message : `Unable to update ${props.agentLabel} hooks.`,
+          error instanceof Error ? error.message : t`Unable to update ${props.agentLabel} hooks.`,
         ),
       )
       .finally(() => props.onPending(false));
@@ -747,7 +792,7 @@ function HookPluginEnvironmentRow(props: {
         <span className="shrink-0 tabular-nums text-xs text-muted/60">{versionText}</span>
         {isOutdated ? (
           <span className="shrink-0 text-[10px] text-warning">
-            v{status.bundledVersion} available
+            <Trans>v{status.bundledVersion} available</Trans>
           </span>
         ) : null}
       </div>
@@ -820,10 +865,14 @@ function HookPluginSettings(props: {
   return (
     <div className="mt-6 border-t border-border/10 pt-3">
       <div className="mb-2">
-        <p className="text-sm font-medium text-foreground">CLI hooks</p>
+        <p className="text-sm font-medium text-foreground">
+          <Trans>CLI hooks</Trans>
+        </p>
         <p className="text-xs text-muted">
-          Optional status hooks. Installed hooks update automatically; missing hooks are never
-          installed automatically.
+          <Trans>
+            Optional status hooks. Installed hooks update automatically; missing hooks are never
+            installed automatically.
+          </Trans>
         </p>
       </div>
       <div className="space-y-0.5">
@@ -854,6 +903,7 @@ export function SingleAgentSettings(props: {
   agentKind: string;
   onOpenProfile?: (profileKind: string) => void;
 }) {
+  const { t } = useLingui();
   const [authValues, setAuthValues] = useState<Record<string, string>>({});
   const [authPending, setAuthPending] = useState(false);
   const [authPendingMessage, setAuthPendingMessage] = useState<string | undefined>();
@@ -873,6 +923,10 @@ export function SingleAgentSettings(props: {
   }>();
   const [installPendingEnvKey, setInstallPendingEnvKey] = useState<string | undefined>();
   const [updatePending, setUpdatePending] = useState(false);
+  // Antigravity's signed-in account lives behind its language server (the
+  // credential sits in the OS keyring), so it isn't in the detected status.
+  // Resolved lazily when this page opens; undefined for every other agent.
+  const [antigravityAccount, setAntigravityAccount] = useState<AgentProviderMetadata | undefined>();
   const [binaryUpdatePendingEnvKey, setBinaryUpdatePendingEnvKey] = useState<string | undefined>();
   // After a successful update we hide the stale version and show a loader on
   // that row until `refreshAgentStatuses` returns with the freshly-detected
@@ -978,6 +1032,27 @@ export function SingleAgentSettings(props: {
     };
   }, [props.agentKind, registryAgentId]);
 
+  // Resolve the Antigravity account on open. The supervisor reuses a running
+  // `agy` language server or briefly spawns one to read GetUserStatus, so this
+  // can take a moment; it stays undefined (no account line) when unavailable.
+  useEffect(() => {
+    if (props.agentKind !== "antigravity") {
+      setAntigravityAccount(undefined);
+      return;
+    }
+    let cancelled = false;
+    readBridge()
+      .getAntigravityAccount({ wslDistros })
+      .then((result) => {
+        if (!cancelled) setAntigravityAccount(result.account);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [props.agentKind, wslProjectDistrosKey]);
+
   if (!agent) {
     if (claudeProfileInstanceId && claudeProfileInstance?.driver === "claude") {
       return (
@@ -990,8 +1065,10 @@ export function SingleAgentSettings(props: {
       );
     }
     return (
-      <SettingsPage title="Agent not found" bodyClassName="">
-        <p className="text-sm text-muted">This agent is not installed.</p>
+      <SettingsPage title={t`Agent not found`} bodyClassName="">
+        <p className="text-sm text-muted">
+          <Trans>This agent is not installed.</Trans>
+        </p>
       </SettingsPage>
     );
   }
@@ -1008,7 +1085,7 @@ export function SingleAgentSettings(props: {
     for (const s of installedWsl) versionRows.push({ label: envLabel(s), status: s });
   } else {
     for (const s of installedHere)
-      versionRows.push({ label: envLabel(s) || "Installed", status: s });
+      versionRows.push({ label: envLabel(s) || t`Installed`, status: s });
   }
   const missingAuthStatuses = installedStatuses.filter((status) => status.authState === "missing");
   const envVarAuthMethod =
@@ -1067,11 +1144,11 @@ export function SingleAgentSettings(props: {
       .then(() => readBridge().refreshAgentStatuses(wslDistros, { agentKinds: [props.agentKind] }))
       .then(() => {
         setAuthValues({});
-        toast.success(`${agent.label} credentials saved.`);
+        toast.success(t`${agent.label} credentials saved.`);
       })
       .catch((error) =>
         toast.danger(
-          error instanceof Error ? error.message : `Unable to save ${agent.label} credentials.`,
+          error instanceof Error ? error.message : t`Unable to save ${agent.label} credentials.`,
         ),
       )
       .finally(() => setAuthPending(false));
@@ -1080,8 +1157,12 @@ export function SingleAgentSettings(props: {
     if (!auth || !supportsAcpAgentAuth) return;
     setAuthPending(true);
     setAuthPendingEnvKey(statusEnvKey(auth.status));
+    const authEnv = envLabel(auth.status);
+    const authMethodName = auth.method.name;
     setAuthPendingMessage(
-      `Waiting for ${envLabel(auth.status) ? `${envLabel(auth.status)} ` : ""}${auth.method.name} authentication. Detected agents will refresh when it finishes.`,
+      authEnv
+        ? t`Waiting for ${authEnv} ${authMethodName} authentication. Detected agents will refresh when it finishes.`
+        : t`Waiting for ${authMethodName} authentication. Detected agents will refresh when it finishes.`,
     );
     readBridge()
       .authenticateAcpAgent({
@@ -1096,10 +1177,10 @@ export function SingleAgentSettings(props: {
           envs: [scopeEnvForStatus(auth.status)],
         }),
       )
-      .then(() => toast.success(`${agent.label} authenticated.`))
+      .then(() => toast.success(t`${agent.label} authenticated.`))
       .catch((error: unknown) =>
         toast.danger(
-          error instanceof Error ? error.message : `Unable to authenticate ${agent.label}.`,
+          error instanceof Error ? error.message : t`Unable to authenticate ${agent.label}.`,
         ),
       )
       .finally(() => {
@@ -1114,8 +1195,11 @@ export function SingleAgentSettings(props: {
     const env = envLabel(status);
     setAuthPending(true);
     setAuthPendingEnvKey(statusEnvKey(status));
+    const methodName = method?.name ?? t`login`;
     setAuthPendingMessage(
-      `Waiting for ${env ? `${env} ` : ""}${method?.name ?? "login"} authentication. Detected agents will refresh when it finishes.`,
+      env
+        ? t`Waiting for ${env} ${methodName} authentication. Detected agents will refresh when it finishes.`
+        : t`Waiting for ${methodName} authentication. Detected agents will refresh when it finishes.`,
     );
     const opened = runAgentLoginCommand({
       label: status.label,
@@ -1130,7 +1214,9 @@ export function SingleAgentSettings(props: {
           return;
         }
         setAuthPendingMessage(
-          `Refreshing ${env ? `${env} ` : ""}${status.label} authentication status.`,
+          env
+            ? t`Refreshing ${env} ${status.label} authentication status.`
+            : t`Refreshing ${status.label} authentication status.`,
         );
         void readBridge()
           .refreshAgentStatuses(wslDistros, {
@@ -1139,7 +1225,7 @@ export function SingleAgentSettings(props: {
           })
           .catch((error) =>
             toast.danger(
-              error instanceof Error ? error.message : `Unable to refresh ${status.label} status.`,
+              error instanceof Error ? error.message : t`Unable to refresh ${status.label} status.`,
             ),
           )
           .finally(() => {
@@ -1164,7 +1250,9 @@ export function SingleAgentSettings(props: {
     setAuthPending(true);
     setAuthPendingEnvKey(statusEnvKey(status));
     setAuthPendingMessage(
-      `Signing out${env ? ` ${env}` : ""}. Detected agents will refresh when it finishes.`,
+      env
+        ? t`Signing out ${env}. Detected agents will refresh when it finishes.`
+        : t`Signing out. Detected agents will refresh when it finishes.`,
     );
     readBridge()
       .logoutAcpAgent({
@@ -1177,9 +1265,9 @@ export function SingleAgentSettings(props: {
           envs: [scopeEnvForStatus(status)],
         }),
       )
-      .then(() => toast.success(`${agent.label} logged out.`))
+      .then(() => toast.success(t`${agent.label} logged out.`))
       .catch((error: unknown) =>
-        toast.danger(error instanceof Error ? error.message : `Unable to log out ${agent.label}.`),
+        toast.danger(error instanceof Error ? error.message : t`Unable to log out ${agent.label}.`),
       )
       .finally(() => {
         setAuthPending(false);
@@ -1230,11 +1318,11 @@ export function SingleAgentSettings(props: {
       .then(() => readBridge().refreshAgentStatuses(wslDistros, { agentKinds: [props.agentKind] }))
       .then(() => {
         setAuthValues({});
-        toast.success(`${agent.label} credentials removed.`);
+        toast.success(t`${agent.label} credentials removed.`);
       })
       .catch((error) =>
         toast.danger(
-          error instanceof Error ? error.message : `Unable to remove ${agent.label} credentials.`,
+          error instanceof Error ? error.message : t`Unable to remove ${agent.label} credentials.`,
         ),
       )
       .finally(() => setAuthPending(false));
@@ -1255,9 +1343,9 @@ export function SingleAgentSettings(props: {
         syncInstalledAgents(result.installed);
       })
       .then(() => readBridge().refreshAgentStatuses(wslDistros, { agentKinds: [props.agentKind] }))
-      .then(() => toast.success(`${agent.label} updated to v${latestRegistryVersion}.`))
+      .then(() => toast.success(t`${agent.label} updated to v${latestRegistryVersion}.`))
       .catch((error) =>
-        toast.danger(error instanceof Error ? error.message : `Unable to update ${agent.label}.`),
+        toast.danger(error instanceof Error ? error.message : t`Unable to update ${agent.label}.`),
       )
       .finally(() => setUpdatePending(false));
   };
@@ -1265,7 +1353,7 @@ export function SingleAgentSettings(props: {
   const performBinaryUpdate = (status: AgentStatus) => {
     const scope = statusUpdateScope(status);
     const envKey = statusEnvKey(status);
-    const envSuffix = envLabel(status) ? ` (${envLabel(status)})` : "";
+    const envName = envLabel(status);
     const previousVersion = status.version;
     setBinaryUpdatePendingEnvKey(envKey);
     readBridge()
@@ -1294,24 +1382,43 @@ export function SingleAgentSettings(props: {
               entry.envDistro === status.envDistro,
           )?.version;
           if (newVersion && newVersion === previousVersion) {
-            toast.success(`${agent.label}${envSuffix} is already up to date.`);
+            toast.success(
+              envName
+                ? t`${agent.label} (${envName}) is already up to date.`
+                : t`${agent.label} is already up to date.`,
+            );
           } else if (newVersion) {
-            toast.success(`${agent.label}${envSuffix} updated to v${newVersion}.`);
+            toast.success(
+              envName
+                ? t`${agent.label} (${envName}) updated to v${newVersion}.`
+                : t`${agent.label} updated to v${newVersion}.`,
+            );
           } else {
-            toast.success(`${agent.label}${envSuffix} updated.`);
+            toast.success(
+              envName ? t`${agent.label} (${envName}) updated.` : t`${agent.label} updated.`,
+            );
           }
           return;
         }
         const detail = result.output?.trim();
+        const detailText = detail ? detail.slice(0, 240) : "";
         toast.danger(
           detail
-            ? `Unable to update ${agent.label}${envSuffix}: ${detail.slice(0, 240)}`
-            : `Unable to update ${agent.label}${envSuffix}.`,
+            ? envName
+              ? t`Unable to update ${agent.label} (${envName}): ${detailText}`
+              : t`Unable to update ${agent.label}: ${detailText}`
+            : envName
+              ? t`Unable to update ${agent.label} (${envName}).`
+              : t`Unable to update ${agent.label}.`,
         );
       })
       .catch((error) =>
         toast.danger(
-          error instanceof Error ? error.message : `Unable to update ${agent.label}${envSuffix}.`,
+          error instanceof Error
+            ? error.message
+            : envName
+              ? t`Unable to update ${agent.label} (${envName}).`
+              : t`Unable to update ${agent.label}.`,
         ),
       )
       .finally(() => setBinaryUpdatePendingEnvKey(undefined));
@@ -1353,7 +1460,7 @@ export function SingleAgentSettings(props: {
       ? (findTerminalAuthMethodForStatus(status) ??
         sharedTerminalAuthMethod ?? {
           id: "terminal-login",
-          name: "Login",
+          name: t`Login`,
           type: "terminal" as const,
         })
       : undefined;
@@ -1369,6 +1476,7 @@ export function SingleAgentSettings(props: {
     return (
       <AgentEnvironmentRow
         key={`${status.kind}-${envKey}`}
+        accountMetadata={antigravityAccount}
         acpInstanceId={acpInstanceId}
         agentLabel={agent.label}
         authMethods={methods}
@@ -1421,7 +1529,7 @@ export function SingleAgentSettings(props: {
             <div className="flex flex-col">
               <h1 className="text-lg font-semibold text-foreground leading-tight">{agent.label}</h1>
               <p className="text-[11px] text-muted">
-                {isDisabled ? "Agent is currently disabled" : "Agent is active and ready"}
+                {isDisabled ? t`Agent is currently disabled` : t`Agent is active and ready`}
               </p>
             </div>
           </div>
@@ -1435,14 +1543,14 @@ export function SingleAgentSettings(props: {
                 onPress={performUpdate}
               >
                 <ArrowUpCircle className="size-3" />
-                Update to v{latestRegistryVersion}
+                <Trans>Update to v{latestRegistryVersion}</Trans>
               </Button>
             )}
             <Switch
               isSelected={!isDisabled}
               isDisabled={binaryUpdatePendingEnvKey !== undefined}
               size="sm"
-              aria-label="Enabled"
+              aria-label={t`Enabled`}
               onChange={(selected) => {
                 startTransition(() => {
                   setAgentDisabled(agent.kind, !selected);
@@ -1488,7 +1596,7 @@ export function SingleAgentSettings(props: {
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-medium">{envVarAuthMethod.name}</p>
                     <p className="text-xs text-muted">
-                      Saved credentials are shared across all environments.
+                      <Trans>Saved credentials are shared across all environments.</Trans>
                     </p>
                     <div className="mt-3 flex flex-col gap-2">
                       {envVarAuthMethod.vars.map((variable) => {
@@ -1558,7 +1666,7 @@ export function SingleAgentSettings(props: {
                     size="sm"
                     variant="tertiary"
                     isIconOnly
-                    aria-label="Save"
+                    aria-label={t`Save`}
                     isDisabled={!canSaveEnvAuth}
                     isPending={authPending}
                     data-acp-auth-save=""
@@ -1571,7 +1679,7 @@ export function SingleAgentSettings(props: {
                       size="sm"
                       variant="tertiary"
                       isIconOnly
-                      aria-label="Logout"
+                      aria-label={t`Logout`}
                       isPending={authPending}
                       onPress={clearEnvVarCredentials}
                     >
@@ -1592,23 +1700,23 @@ export function SingleAgentSettings(props: {
                       {authMissing ? (
                         <AlertTriangle className="mr-1.5 inline size-4 -translate-y-px text-warning" />
                       ) : null}
-                      {authMissing ? "Login required" : "Authentication"}
+                      {authMissing ? t`Login required` : t`Authentication`}
                     </p>
                     <p className="text-xs text-muted truncate">
                       {authPendingMessage ??
                         (authMissing
-                          ? `${missingAuthLabel ? `${missingAuthLabel} needs authentication. ` : ""}${
+                          ? `${missingAuthLabel ? `${t`${missingAuthLabel} needs authentication.`} ` : ""}${
                               envVarAuthMethod
                                 ? agentAuth
-                                  ? `Complete ${agentAuth.method.name} sign-in or save ${envVarAuthMethod.name} credentials.`
-                                  : `Save ${envVarAuthMethod.name} credentials.`
+                                  ? t`Complete ${agentAuth.method.name} sign-in or save ${envVarAuthMethod.name} credentials.`
+                                  : t`Save ${envVarAuthMethod.name} credentials.`
                                 : agentAuth
-                                  ? `Complete ${agentAuth.method.name} sign-in.`
+                                  ? t`Complete ${agentAuth.method.name} sign-in.`
                                   : loginCommand
-                                    ? `Run ${loginCommand} to sign in.`
-                                    : "Sign in with the agent CLI."
+                                    ? t`Run ${loginCommand} to sign in.`
+                                    : t`Sign in with the agent CLI.`
                             }`
-                          : "Credentials are configured.")}
+                          : t`Credentials are configured.`)}
                     </p>
                   </div>
                 </div>
@@ -1625,7 +1733,7 @@ export function SingleAgentSettings(props: {
                           onPress={() => authenticateAgent(entry)}
                         >
                           <LogIn className="size-3" />
-                          {authMissing ? "Login" : "Re-login"}
+                          {authMissing ? t`Login` : t`Re-login`}
                         </Button>
                       ),
                     )
@@ -1637,7 +1745,7 @@ export function SingleAgentSettings(props: {
                       onPress={() => runTerminalLogin(loginStatus, terminalLoginMethod)}
                     >
                       <LogIn className="size-3" />
-                      {authMissing ? "Login" : "Re-login"}
+                      {authMissing ? t`Login` : t`Re-login`}
                     </Button>
                   ) : null}
                   {logoutStatuses.map((status, index) => (
@@ -1650,7 +1758,7 @@ export function SingleAgentSettings(props: {
                       onPress={() => logoutAgent(status)}
                     >
                       <LogOut className="size-3 text-danger" />
-                      Logout
+                      <Trans>Logout</Trans>
                     </Button>
                   ))}
                 </div>
@@ -1692,9 +1800,12 @@ export function SingleAgentSettings(props: {
 }
 
 export function AgentSettingsEmpty() {
+  const { t } = useLingui();
   return (
-    <SettingsPage title="Agents" bodyClassName="">
-      <p className="text-sm text-muted">No agents installed.</p>
+    <SettingsPage title={t`Agents`} bodyClassName="">
+      <p className="text-sm text-muted">
+        <Trans>No agents installed.</Trans>
+      </p>
     </SettingsPage>
   );
 }

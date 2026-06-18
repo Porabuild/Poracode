@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type {
   AcpRegistryListResult,
@@ -7,6 +7,7 @@ import type {
   InstalledAcpRegistryAgent,
   Project,
 } from "@/shared/contracts";
+import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 
 const statusesState = {
   agentStatuses: [] as AgentStatus[],

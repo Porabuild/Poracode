@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { Disclosure } from "@heroui/react";
+import { Trans, useLingui } from "@lingui/react/macro";
 import { useAppStore } from "@/renderer/state/appStore";
 import type {
   OpenRuntimeRequest,
@@ -67,7 +68,9 @@ function RuntimeItemDebug(props: { index: number; item: RuntimeChatItem }) {
             </pre>
           </div>
           {streamEntries.length === 0 ? (
-            <p className="text-[color:var(--muted)]">No content streams.</p>
+            <p className="text-[color:var(--muted)]">
+              <Trans>No content streams.</Trans>
+            </p>
           ) : (
             streamEntries.map(([key, text]) => (
               <div key={key}>
@@ -101,7 +104,9 @@ function OpenRequestDebug(props: { index: number; request: OpenRuntimeRequest })
       <Disclosure.Content>
         <Disclosure.Body className="space-y-1.5 border-t border-[color:var(--border)] px-2 py-1.5">
           <p className="text-[0.85em] text-[color:var(--muted)]">
-            Opened {request.receivedAt} (#{index + 1})
+            <Trans>
+              Opened {request.receivedAt} (#{index + 1})
+            </Trans>
           </p>
           <pre className="max-h-[min(12rem,30vh)] overflow-auto rounded-sm bg-foreground/5 p-1.5 font-mono leading-snug whitespace-pre-wrap break-words text-foreground">
             {formatJsonBlock(request.payload)}
@@ -114,6 +119,7 @@ function OpenRequestDebug(props: { index: number; request: OpenRuntimeRequest })
 
 /** Inspector for canonical runtime chat items (payload + streams) for one thread. */
 export function ChatRuntimeDebugPanel({ threadId }: ChatRuntimeDebugPanelProps) {
+  const { t } = useLingui();
   const itemIds = useAppStore((s) => s.runtimeItemIdsByThread[threadId] ?? EMPTY_IDS);
   const itemsById = useAppStore((s) => s.runtimeItemsByIdByThread[threadId] ?? EMPTY_ITEMS_BY_ID);
   const requests = useAppStore((s) => s.runtimeRequestsByThread[threadId] ?? EMPTY_REQ);
@@ -144,28 +150,34 @@ export function ChatRuntimeDebugPanel({ threadId }: ChatRuntimeDebugPanelProps) 
         <input
           type="text"
           className="w-full rounded-md border border-[color:var(--border)] bg-[var(--composer-surface)] px-2 py-1 text-sm text-foreground placeholder:text-muted outline-none focus:border-[color:var(--focus,var(--border))]"
-          placeholder="Search runtime items…"
+          placeholder={t`Search runtime items…`}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
         />
         {trimmed ? (
           <p className="mt-1 text-[0.85em] text-[color:var(--muted)]">
-            {filteredCount} / {totalCount} matches
+            <Trans>
+              {filteredCount} / {totalCount} matches
+            </Trans>
           </p>
         ) : null}
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto rounded-md border border-[color:var(--border)] [scrollbar-gutter:stable]">
         {totalCount === 0 ? (
-          <p className="p-2 text-[color:var(--muted)]">No runtime items yet for this thread.</p>
+          <p className="p-2 text-[color:var(--muted)]">
+            <Trans>No runtime items yet for this thread.</Trans>
+          </p>
         ) : filteredCount === 0 ? (
-          <p className="p-2 text-[color:var(--muted)]">No matches for “{query}”.</p>
+          <p className="p-2 text-[color:var(--muted)]">
+            <Trans>No matches for “{query}”.</Trans>
+          </p>
         ) : null}
         {filteredItems.map((item) => (
           <RuntimeItemDebug key={item.id} index={items.indexOf(item)} item={item} />
         ))}
         {filteredRequests.length > 0 ? (
           <p className="border-t border-[color:var(--border)] bg-foreground/5 px-2 py-0.5 text-[0.85em] font-medium uppercase tracking-wide text-[color:var(--muted)]">
-            Open requests
+            <Trans>Open requests</Trans>
           </p>
         ) : null}
         {filteredRequests.map((req) => (

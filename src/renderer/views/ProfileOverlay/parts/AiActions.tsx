@@ -1,4 +1,5 @@
 import { GitCommitHorizontal, GitMerge, GitPullRequest } from "lucide-react";
+import { Trans } from "@lingui/react/macro";
 import type { AiActionType, ProfileAiAction } from "@/shared/contracts";
 
 const ICONS: Record<AiActionType, typeof GitCommitHorizontal> = {
@@ -13,10 +14,12 @@ export function AiActions(props: { actions: ProfileAiAction[] }) {
 
   return (
     <section className="flex flex-col gap-1">
-      <h2 className="mb-1 text-sm font-semibold text-foreground">AI git actions</h2>
+      <h2 className="mb-1 text-sm font-semibold text-foreground">
+        <Trans>AI git actions</Trans>
+      </h2>
       {actions.length === 0 ? (
         <p className="py-2 text-sm text-muted">
-          No AI commits, PRs, or conflict resolutions tracked yet.
+          <Trans>No AI commits, PRs, or conflict resolutions tracked yet.</Trans>
         </p>
       ) : (
         <div className="divide-y divide-separator">

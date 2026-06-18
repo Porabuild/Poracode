@@ -46,6 +46,8 @@ export async function generateTitleWithFallback(input: {
   model: string;
   effort: string;
   prompt: string;
+  /** English name of the language to write the title in. Omitted = match the user's message. */
+  language?: string;
   invoke: (payload: GenerateTitlePayload) => Promise<GenerateTitleResult>;
 }): Promise<string> {
   const candidates = getTitleGenCandidates(input.agentStatuses, input.provider);
@@ -65,6 +67,7 @@ export async function generateTitleWithFallback(input: {
         prompt: input.prompt,
         ...(resolved.model ? { model: resolved.model } : {}),
         ...(resolved.effort ? { effort: resolved.effort } : {}),
+        ...(input.language ? { language: input.language } : {}),
       });
       return result.title;
     } catch (error) {

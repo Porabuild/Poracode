@@ -1,7 +1,10 @@
 import { toast } from "@heroui/react";
+import { msg } from "@lingui/core/macro";
+import type { MessageDescriptor } from "@lingui/core";
 import { buildWorktreeLocation } from "@/shared/worktree";
 import type { AgentSlashCommand, Project, Thread } from "@/shared/contracts";
 import { readBridge } from "@/renderer/bridge";
+import { i18n } from "@/renderer/i18n/i18n";
 import { captureThreadInputSubmitted } from "@/renderer/analytics/posthog";
 import { getCurrentProjectId } from "@/renderer/actions/currentProject";
 import {
@@ -24,9 +27,9 @@ import { evaluateWhenClause } from "./when";
 
 export interface AppCommand {
   id: string;
-  title: string;
-  group: string;
-  subtitle?: string;
+  title: string | MessageDescriptor;
+  group: string | MessageDescriptor;
+  subtitle?: string | MessageDescriptor;
   keywords?: string[];
   when?: string;
   /**
@@ -98,20 +101,20 @@ function baseCommands(): AppCommand[] {
   return [
     {
       id: "palette.open",
-      title: "Open Command Palette",
+      title: msg`Open Command Palette`,
       group: "Lightcode",
       run: () => useCommandPaletteStore.getState().open(),
     },
     {
       id: "settings.open",
-      title: "Open Settings",
+      title: msg`Open Settings`,
       group: "Lightcode",
       run: openSettings,
     },
     {
       id: "project.settings.open",
-      title: "Open Project Settings",
-      group: "Project",
+      title: msg`Open Project Settings`,
+      group: msg`Project`,
       when: "hasProject",
       run: () => {
         const project = resolveActiveContext().project;
@@ -120,21 +123,21 @@ function baseCommands(): AppCommand[] {
     },
     {
       id: "thread.new",
-      title: "New Thread",
-      group: "Thread",
+      title: msg`New Thread`,
+      group: msg`Thread`,
       when: "hasProject",
       run: () => openNewThread(resolveActiveContext().project?.id),
     },
     {
       id: "thread.search.open",
-      title: "Search Threads",
-      group: "Thread",
+      title: msg`Search Threads`,
+      group: msg`Thread`,
       run: () => usePanelStore.getState().openThreadSearch(),
     },
     {
       id: "terminal.toggle",
-      title: "Toggle Terminal",
-      group: "Terminal",
+      title: msg`Toggle Terminal`,
+      group: msg`Terminal`,
       when: "hasProject",
       run: () => {
         const active = resolveActiveContext();
@@ -148,15 +151,15 @@ function baseCommands(): AppCommand[] {
     },
     {
       id: "terminal.command.run",
-      title: "Run Terminal Command",
-      group: "Terminal",
+      title: msg`Run Terminal Command`,
+      group: msg`Terminal`,
       when: "hasProject",
       run: (args) => runTerminalCommand(args),
     },
     {
       id: "files.open",
-      title: "Open Files",
-      group: "Project",
+      title: msg`Open Files`,
+      group: msg`Project`,
       when: "hasProject",
       run: () => {
         const active = resolveActiveContext();
@@ -165,8 +168,8 @@ function baseCommands(): AppCommand[] {
     },
     {
       id: "git.open",
-      title: "Open Git Review",
-      group: "Project",
+      title: msg`Open Git Review`,
+      group: msg`Project`,
       when: "hasProject",
       run: () => {
         const active = resolveActiveContext();
@@ -175,15 +178,15 @@ function baseCommands(): AppCommand[] {
     },
     {
       id: "pane.close",
-      title: "Close Pane",
-      group: "Thread",
+      title: msg`Close Pane`,
+      group: msg`Thread`,
       when: "threadView",
       run: closeFocusedPane,
     },
     {
       id: "editor.save",
-      title: "Save File",
-      group: "Editor",
+      title: msg`Save File`,
+      group: msg`Editor`,
       when: "editorOpen",
       run: () => {
         const editor = useFileEditorStore.getState();
@@ -192,8 +195,8 @@ function baseCommands(): AppCommand[] {
     },
     {
       id: "editor.close",
-      title: "Close Editor Tab",
-      group: "Editor",
+      title: msg`Close Editor Tab`,
+      group: msg`Editor`,
       when: "editorOpen",
       keys: ["Mod+W"],
       run: () => {
@@ -201,14 +204,15 @@ function baseCommands(): AppCommand[] {
         const path = editor.activePath;
         if (!path) return;
         const buffer = editor.buffers[path];
-        if (buffer?.isDirty && !window.confirm(`Discard unsaved changes in ${path}?`)) return;
+        if (buffer?.isDirty && !window.confirm(i18n._(msg`Discard unsaved changes in ${path}?`)))
+          return;
         editor.closeTab(path);
       },
     },
     {
       id: "editor.open",
-      title: "Open File",
-      group: "Editor",
+      title: msg`Open File`,
+      group: msg`Editor`,
       when: "hasProject",
       run: (args) => openFileFromArgs(args),
     },
@@ -222,7 +226,7 @@ function projectScriptCommands(): AppCommand[] {
     const command: AppCommand = {
       id: `script.${action.id}.run`,
       title: action.name,
-      group: "Scripts",
+      group: msg`Scripts`,
       keywords: [action.command, "project action", "script"],
       when: "hasProject",
       run: () =>
@@ -244,7 +248,7 @@ function chatCommand(command: AgentSlashCommand, thread: Thread): AppCommand {
   return {
     id: `chat.command.${command.id}`,
     title: `/${command.id}`,
-    group: "Chat Commands",
+    group: msg`Chat Commands`,
     subtitle: command.description ?? command.label,
     keywords: [command.label, command.description ?? ""],
     when: "hasThread",
@@ -304,7 +308,9 @@ function openFileFromArgs(args: unknown): void {
   void useFileEditorStore
     .getState()
     .openFile(args.path, "fullscreen", false, readLineNumber(args))
-    .catch((error) => toast.danger(error instanceof Error ? error.message : "Unable to open file"));
+    .catch((error) =>
+      toast.danger(error instanceof Error ? error.message : i18n._(msg`Unable to open file`)),
+    );
 }
 
 function readLineNumber(args: Record<string, unknown>): { lineNumber?: number } | undefined {

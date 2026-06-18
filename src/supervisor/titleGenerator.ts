@@ -2,16 +2,28 @@ import type { ProjectLocation } from "@/shared/contracts";
 import type { AgentAdapter } from "./agents/base";
 import { prepareOneShot } from "./oneShotSpawn";
 
-const PROMPT =
-  "Generate a concise title for a coding conversation based on the user's first message below.\n" +
-  "Rules:\n" +
-  "- Single line, at most 50 characters\n" +
-  "- Focus on the user's intent, not tools or agents mentioned\n" +
-  "- Match the language of the user's message\n" +
-  "- Preserve technical terms, function names, file names, and libraries exactly\n" +
-  "- No quotes, no prefix label, no markdown — just the title text\n" +
-  "- Use sentence case (capitalize only the first word)\n" +
-  "- Reply with only the title, nothing else\n\n";
+/**
+ * Build the title instruction prompt. With no `language`, the title matches the
+ * user's message language (default behavior). When `language` is set — i.e. the
+ * app is running in a non-English locale — that explicit directive replaces the
+ * match-the-message rule.
+ */
+function buildPrompt(language?: string): string {
+  const languageRule = language
+    ? `- Write the title in ${language}\n`
+    : "- Match the language of the user's message\n";
+  return (
+    "Generate a concise title for a coding conversation based on the user's first message below.\n" +
+    "Rules:\n" +
+    "- Single line, at most 50 characters\n" +
+    "- Focus on the user's intent, not tools or agents mentioned\n" +
+    languageRule +
+    "- Preserve technical terms, function names, file names, and libraries exactly\n" +
+    "- No quotes, no prefix label, no markdown — just the title text\n" +
+    "- Use sentence case (capitalize only the first word)\n" +
+    "- Reply with only the title, nothing else\n\n"
+  );
+}
 
 const MAX_PROMPT_CHARS = 2000;
 const TITLE_GEN_TIMEOUT_MS = 30_000;
@@ -63,6 +75,7 @@ export async function generateTitle(
   prompt: string,
   model?: string,
   effort?: string,
+  language?: string,
 ): Promise<string> {
   const effectiveModel = model ?? adapter.defaultOneShotModel;
   if (!effectiveModel) {
@@ -73,7 +86,7 @@ export async function generateTitle(
     throw new Error(`${adapter.label} does not support one-shot generation`);
   }
 
-  const finalPrompt = PROMPT + truncatePrompt(prompt);
+  const finalPrompt = buildPrompt(language) + truncatePrompt(prompt);
 
   // Prefer the SDK / structured-runtime path: no cold-start cost, no argv
   // length limit. Fall back to spawning the CLI when the adapter only

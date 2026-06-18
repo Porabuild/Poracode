@@ -1,4 +1,6 @@
 import type { ReactNode } from "react";
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/renderer/i18n/i18n";
 
 const LONG_ERROR_TITLE_CHARS = 160;
 const LONG_ERROR_TITLE_LINES = 4;
@@ -30,7 +32,7 @@ function deriveLongErrorTitle(text: string): string {
     .find((line) => line.trim().length > 0)
     ?.trim();
   if (!firstLine) {
-    return "Error";
+    return i18n._(msg`Error`);
   }
 
   const prefixMatch = firstLine.match(/^([^:\n]{1,80}):\s+/);

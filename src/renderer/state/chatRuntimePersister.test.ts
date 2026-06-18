@@ -146,6 +146,33 @@ describe("prepareRuntimeSnapshotForPersistence", () => {
     ]);
   });
 
+  it("keeps an image-bearing tool call discrete so the image survives reload", () => {
+    // A PNG base64 prefix — recognized as a renderable inline image.
+    const imagePayload = {
+      name: "imageGeneration",
+      status: "success",
+      result: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+M9QDwAD",
+    };
+    const snapshot = prepareRuntimeSnapshotForPersistence(
+      [
+        makeItem({
+          id: "command-1",
+          type: "command_execution",
+          payload: { command: "ls", exitCode: 0 },
+        }),
+        makeItem({ id: "image-1", type: "image_view", payload: imagePayload }),
+      ],
+      [],
+    );
+
+    const ids = snapshot.items.map((item) => item.id);
+    // The image is NOT folded into a "1 command, 1 tool" summary (which would
+    // strip the payload); it stays a discrete row with its image intact.
+    expect(ids).toEqual(["command-1", "image-1"]);
+    expect(snapshot.items.find((item) => item.id === "image-1")?.payload).toEqual(imagePayload);
+    expect(ids.some((id) => id.startsWith("tool-call-summary:"))).toBe(false);
+  });
+
   it("keeps dropped-anchor markers attached to the previous surviving row", () => {
     const snapshot = prepareRuntimeSnapshotForPersistence(
       [

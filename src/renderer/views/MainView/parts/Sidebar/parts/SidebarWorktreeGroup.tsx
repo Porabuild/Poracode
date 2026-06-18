@@ -1,4 +1,5 @@
 import { CircleCheck, GitFork, Play, Plus, Trash2 } from "lucide-react";
+import { useLingui } from "@lingui/react/macro";
 import { useSortable } from "@dnd-kit/react/sortable";
 import type { Project } from "@/shared/contracts";
 import { ContextMenu } from "@/renderer/components/common";
@@ -40,6 +41,7 @@ export function SidebarWorktreeGroup(props: {
   sortDisabled?: boolean;
 }) {
   const { group, project, sortDisabled = false } = props;
+  const { t } = useLingui();
   const isGroupCollapsed = useIsWorktreeCollapsed(group.worktreePath);
   const toggleWorktreeCollapsed = useSidebarUiStore((s) => s.toggleWorktreeCollapsed);
   const worktreeGitItems = useWorktreeGitItems(project.id, group.worktreePath, gitMenuIcons);
@@ -48,9 +50,9 @@ export function SidebarWorktreeGroup(props: {
   const isBusyTerminal = useIsWorktreeTerminalBusy(group.worktreePath);
   const isActiveFiles = useIsWorktreeFilesPanelActive(group.worktreePath);
   const isActiveGit = useIsWorktreeGitPanelActive(group.worktreePath);
-  const groupThreadIds = group.threads.map((t) => t.id);
-  const activeThreads = group.threads.filter((t) => !t.done);
-  const isDone = group.threads.every((t) => t.done);
+  const groupThreadIds = group.threads.map((thread) => thread.id);
+  const activeThreads = group.threads.filter((thread) => !thread.done);
+  const isDone = group.threads.every((thread) => thread.done);
   const latestThreadUpdatedAt = group.threads.reduce(
     (latest, thread) => (thread.updatedAt > latest ? thread.updatedAt : latest),
     group.threads[0]!.updatedAt,
@@ -66,7 +68,7 @@ export function SidebarWorktreeGroup(props: {
       type: "worktree-group",
       worktreePath: group.worktreePath,
       projectId: project.id,
-      threadIds: group.threads.map((t) => t.id),
+      threadIds: group.threads.map((thread) => thread.id),
     } satisfies DragSourceData,
   });
 
@@ -79,19 +81,19 @@ export function SidebarWorktreeGroup(props: {
         items={[
           {
             id: "new-thread-in-worktree",
-            label: "New Thread in Worktree",
+            label: t`New Thread in Worktree`,
             icon: <Plus className="size-3.5" />,
           },
           {
             type: "submenu" as const,
             id: "git",
-            label: "Git",
+            label: t`Git`,
             icon: <GitFork className="size-3.5" />,
             items: worktreeGitItems,
           },
           {
             id: "mark-all-done",
-            label: "Mark All Done",
+            label: t`Mark All Done`,
             icon: <CircleCheck className="size-3.5" />,
             isDisabled: activeThreads.length === 0,
           },
@@ -100,7 +102,7 @@ export function SidebarWorktreeGroup(props: {
                 {
                   type: "submenu" as const,
                   id: "run-action",
-                  label: "Run",
+                  label: t`Run`,
                   icon: <Play className="size-3.5" />,
                   items: project.scripts.actions.map((action) => ({
                     id: `action:${action.id}`,
@@ -112,7 +114,7 @@ export function SidebarWorktreeGroup(props: {
             : []),
           {
             id: "delete-worktree",
-            label: "Delete Worktree",
+            label: t`Delete Worktree`,
             icon: <Trash2 className="size-3.5" />,
             variant: "danger" as const,
           },

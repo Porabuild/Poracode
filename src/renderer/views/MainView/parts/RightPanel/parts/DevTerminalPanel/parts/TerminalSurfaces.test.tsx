@@ -1,5 +1,6 @@
-import { act, render } from "@testing-library/react";
+import { act } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import type { DevTerminalTab } from "@/renderer/state/devTerminalStore";
 import { TerminalSurfaces } from "./TerminalSurfaces";
 

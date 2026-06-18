@@ -4,7 +4,7 @@ import { buildDiffPromptContext } from "./diffPromptContext";
 import { GitService } from "./git";
 import { runOneShotPromptWithFallback } from "./oneShotPromptRunner";
 
-const PROMPT =
+const PROMPT_RULES =
   "Generate a git commit message for the following diff using the Conventional Commits format.\n" +
   "Rules:\n" +
   "- Format: <type>(<scope>): <description>\n" +
@@ -15,8 +15,20 @@ const PROMPT =
   "- Use the changed files list as the source of truth for coverage\n" +
   "- If multiple major areas changed, add a blank line then concise body bullets\n" +
   "- Cover every major area; do not focus only on the largest or first diff\n" +
-  "- If there are breaking changes, add a BREAKING CHANGE footer or use ! after the type\n" +
-  "- Reply with only the commit message, nothing else\n\n";
+  "- If there are breaking changes, add a BREAKING CHANGE footer or use ! after the type\n";
+
+/**
+ * Build the commit-message instruction prompt. When `language` is set, the
+ * subject and body are written in that language while the Conventional Commits
+ * type prefix stays English (so `cleanCommitMessage`'s `feat|fix|…` detection
+ * and the convention itself are preserved).
+ */
+function buildPrompt(language?: string): string {
+  const languageRule = language
+    ? `- Write the commit message subject and body in ${language}; keep the Conventional Commits type prefix (feat, fix, …) in English\n`
+    : "";
+  return PROMPT_RULES + languageRule + "- Reply with only the commit message, nothing else\n\n";
+}
 
 const COMMIT_MESSAGE_TIMEOUT_MS = 120_000;
 
@@ -83,6 +95,7 @@ export async function generateCommitMessage(
   adapter: AgentAdapter,
   model?: string,
   effort?: string,
+  language?: string,
 ): Promise<string> {
   const effectiveModel = model ?? adapter.defaultOneShotModel;
   if (!effectiveModel) {
@@ -114,6 +127,7 @@ export async function generateCommitMessage(
   }
 
   const sourceLabel = `Change source: ${source}`;
+  const prompt = buildPrompt(language);
   const raw = await runOneShotPromptWithFallback({
     location,
     adapter,
@@ -124,11 +138,11 @@ export async function generateCommitMessage(
     attempts: [
       {
         level: "full",
-        buildPrompt: () => PROMPT + buildDiffPromptContext({ diff, files, sourceLabel }),
+        buildPrompt: () => prompt + buildDiffPromptContext({ diff, files, sourceLabel }),
       },
       {
         level: "files-only",
-        buildPrompt: () => PROMPT + buildDiffPromptContext({ diff: "", files, sourceLabel }),
+        buildPrompt: () => prompt + buildDiffPromptContext({ diff: "", files, sourceLabel }),
       },
     ],
   });

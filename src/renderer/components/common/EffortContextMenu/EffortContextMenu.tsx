@@ -1,4 +1,5 @@
 import { startTransition, useEffect, useState, type ReactNode } from "react";
+import { Trans, useLingui } from "@lingui/react/macro";
 import { Check, ChevronDown } from "lucide-react";
 import { Header, Label, ListBox, Popover, Tooltip } from "@heroui/react";
 import type { LabeledOption } from "@/shared/contracts";
@@ -42,6 +43,7 @@ export function EffortContextMenu(props: EffortContextMenuProps) {
     onOpenChange,
   } = props;
 
+  const { t } = useLingui();
   const [isOpen, setIsOpen] = useState(false);
 
   const hasEffort = efforts.length > 0;
@@ -66,7 +68,7 @@ export function EffortContextMenu(props: EffortContextMenuProps) {
 
   const triggerLabel =
     [effortLabel, contextLabel].filter((p) => p.length > 0).join(" · ") ||
-    (hasThinking ? "Thinking" : "");
+    (hasThinking ? t`Thinking` : "");
 
   function handleOpenChange(open: boolean) {
     setIsOpen(open);
@@ -88,7 +90,7 @@ export function EffortContextMenu(props: EffortContextMenuProps) {
 
   const trigger = (
     <Button
-      aria-label="Effort and context"
+      aria-label={t`Effort and context`}
       isDisabled={isDisabled ?? false}
       size="sm"
       variant="ghost"
@@ -138,7 +140,7 @@ export function EffortContextMenu(props: EffortContextMenuProps) {
             >
               {hasContext ? (
                 <Column
-                  label="Context"
+                  label={t`Context`}
                   options={contextSizes}
                   value={contextValue}
                   hasNeighbor={hasEffort}
@@ -147,7 +149,7 @@ export function EffortContextMenu(props: EffortContextMenuProps) {
               ) : null}
               {hasEffort ? (
                 <Column
-                  label="Reasoning"
+                  label={t`Reasoning`}
                   options={efforts}
                   value={effortValue}
                   hasNeighbor={false}
@@ -159,7 +161,7 @@ export function EffortContextMenu(props: EffortContextMenuProps) {
           {hasThinking ? (
             <div className={columnCount > 0 ? "border-t border-border" : ""}>
               <Header className="block border-b border-border px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted/80">
-                Options
+                <Trans>Options</Trans>
               </Header>
               <button
                 type="button"
@@ -168,7 +170,9 @@ export function EffortContextMenu(props: EffortContextMenuProps) {
                 className="flex h-9 w-full items-center justify-between gap-3 px-3 text-left text-sm text-foreground hover:bg-surface-hover focus-visible:outline-none"
                 onClick={() => startTransition(() => onThinkingChange?.(!thinkingValue))}
               >
-                <span className="truncate">Thinking</span>
+                <span className="truncate">
+                  <Trans>Thinking</Trans>
+                </span>
                 <span
                   className={`relative h-5 w-9 shrink-0 rounded-full transition-colors ${
                     thinkingValue ? "bg-success" : "bg-surface-tertiary"

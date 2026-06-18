@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { FileEdit, Lock, Minus, Plus, Undo2 } from "lucide-react";
+import { Trans, useLingui } from "@lingui/react/macro";
 import type { Project } from "@/shared/contracts";
 import { readBridge } from "@/renderer/bridge";
 import { useGitStore } from "@/renderer/state/gitStore";
@@ -39,6 +40,7 @@ export function FileRow(props: {
     worktreePath,
     worktreeBranch,
   } = props;
+  const { t } = useLingui();
   const rowPadX = useGitReviewRowPadX();
   const file = useGitFile(storeKey, path, isWorktree);
   const [revertOpen, setRevertOpen] = useState(false);
@@ -128,7 +130,7 @@ export function FileRow(props: {
               role="button"
               tabIndex={0}
               className="rounded p-0.5 text-muted transition-colors hover:bg-[var(--row-hover)] hover:text-foreground"
-              title="Open in editor"
+              title={t`Open in editor`}
               onClick={(e) => {
                 e.stopPropagation();
                 handleOpenInEditor();
@@ -141,7 +143,7 @@ export function FileRow(props: {
               role="button"
               tabIndex={0}
               className="rounded p-0.5 text-muted transition-colors hover:bg-[var(--row-hover)] hover:text-foreground"
-              title={file.staged ? "Unstage" : "Stage"}
+              title={file.staged ? t`Unstage` : t`Stage`}
               onClick={(e) => {
                 e.stopPropagation();
                 void handleStageToggle();
@@ -157,7 +159,7 @@ export function FileRow(props: {
                 role="button"
                 tabIndex={0}
                 className="rounded p-0.5 text-muted transition-colors hover:bg-danger/10 hover:text-danger"
-                title="Revert changes"
+                title={t`Revert changes`}
                 onClick={(e) => {
                   e.stopPropagation();
                   setRevertOpen(true);
@@ -175,13 +177,13 @@ export function FileRow(props: {
 
       <ConfirmDialog
         isOpen={revertOpen}
-        title="Revert changes"
+        title={t`Revert changes`}
         body={
-          <>
+          <Trans>
             Are you sure you want to revert <strong>{path}</strong>? This cannot be undone.
-          </>
+          </Trans>
         }
-        confirmLabel="Revert"
+        confirmLabel={t`Revert`}
         onConfirm={() => void handleRevert()}
         onClose={() => setRevertOpen(false)}
       />

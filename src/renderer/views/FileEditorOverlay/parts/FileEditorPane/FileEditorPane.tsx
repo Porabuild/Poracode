@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { toast } from "@heroui/react";
+import { Trans, useLingui } from "@lingui/react/macro";
 import { MarkdownPreview } from "../MarkdownPreview";
 import { Editor, type BeforeMount, type Monaco, type OnMount } from "@monaco-editor/react";
 import type { editor as MonacoEditor } from "monaco-editor";
@@ -52,6 +53,7 @@ export function FileEditorPane(props: {
   onOpenFullscreen?: () => void;
   onClose?: () => void;
 }) {
+  const { t } = useLingui();
   const activePath = useFileEditorStore((state) => state.activePath);
   const rootProjectLocation = useFileEditorStore(
     (state) => state.rootContext?.projectLocation ?? null,
@@ -85,7 +87,7 @@ export function FileEditorPane(props: {
     const store = useFileEditorStore.getState();
     const tabBuffer = store.buffers[path];
     if (tabBuffer?.status === "ready" && tabBuffer.isDirty) {
-      if (!window.confirm(`Discard unsaved changes in ${path}?`)) {
+      if (!window.confirm(t`Discard unsaved changes in ${path}?`)) {
         return;
       }
       store.discardFileChanges(path);
@@ -173,7 +175,7 @@ export function FileEditorPane(props: {
         </>
       ) : (
         <div className="flex h-full items-center justify-center px-8 text-center text-sm text-muted">
-          Select a file to start editing.
+          <Trans>Select a file to start editing.</Trans>
         </div>
       )}
     </div>
@@ -192,6 +194,7 @@ function TabStripHeader(props: {
   onOpenFullscreen?: () => void;
   onClose?: () => void;
 }) {
+  const { t } = useLingui();
   const paths = useTabPaths();
   if (paths.length === 0) return null;
 
@@ -205,7 +208,7 @@ function TabStripHeader(props: {
       <div
         className="flex min-w-0 flex-1 items-center gap-0.5 overflow-x-auto"
         role="tablist"
-        aria-label="Editor tabs"
+        aria-label={t`Editor tabs`}
       >
         {paths.map((path, index) => (
           <SortableTab
@@ -315,17 +318,19 @@ function EditorBody(props: {
           options={EDITOR_OPTIONS}
           loading={
             <div className="flex h-full items-center justify-center text-sm text-muted">
-              Loading editor…
+              <Trans>Loading editor…</Trans>
             </div>
           }
         />
       ) : (
         <div className="flex h-full items-center justify-center px-8 text-center text-sm text-muted">
-          {bufferStatus === "binary"
-            ? "Binary files can't be edited here."
-            : bufferStatus === "too_large"
-              ? "This file is too large for the built-in editor."
-              : "This file uses an unsupported encoding."}
+          {bufferStatus === "binary" ? (
+            <Trans>Binary files can't be edited here.</Trans>
+          ) : bufferStatus === "too_large" ? (
+            <Trans>This file is too large for the built-in editor.</Trans>
+          ) : (
+            <Trans>This file uses an unsupported encoding.</Trans>
+          )}
         </div>
       )}
     </div>

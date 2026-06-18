@@ -4,6 +4,7 @@ import type {
   ProjectLocation,
   ProjectScripts,
   ProjectSearchSettings,
+  ProjectWorktreeLocation,
   AppView,
 } from "@/shared/contracts";
 import { HOME_PROJECT_ID, HOME_PROJECT_NAME } from "@/shared/homeScope";
@@ -43,6 +44,11 @@ export interface ProjectSlice {
     projectId: string,
     searchSettings: ProjectSearchSettings | undefined,
   ) => void;
+  updateProjectWorktreeLocation: (
+    projectId: string,
+    worktreeLocation: ProjectWorktreeLocation | undefined,
+  ) => void;
+  updateProjectLocation: (projectId: string, location: ProjectLocation) => void;
   renameProject: (projectId: string, name: string) => void;
   setProjectDisabled: (projectId: string, disabled: boolean) => void;
   reorderProjects: (sourceId: string, targetId: string, placement: ReorderPlacement) => void;
@@ -177,6 +183,23 @@ export const createProjectSlice: SliceCreator<ProjectSlice> = (set) => ({
         }
         return { ...project, searchSettings };
       }),
+    })),
+  updateProjectWorktreeLocation: (projectId, worktreeLocation) =>
+    set((state) => ({
+      projects: state.projects.map((project) => {
+        if (project.id !== projectId) return project;
+        if (!worktreeLocation) {
+          const { worktreeLocation: _, ...rest } = project;
+          return rest;
+        }
+        return { ...project, worktreeLocation };
+      }),
+    })),
+  updateProjectLocation: (projectId, location) =>
+    set((state) => ({
+      projects: state.projects.map((project) =>
+        project.id === projectId ? { ...project, location } : project,
+      ),
     })),
   renameProject: (projectId, name) =>
     set((state) => ({

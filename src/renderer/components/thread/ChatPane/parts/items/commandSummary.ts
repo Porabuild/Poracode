@@ -2,6 +2,8 @@
  * Derives a short, human-facing title for verbose shell wrappers (e.g. PowerShell
  * `-Command '…'`, leading `cd … &&`, or `-c "…"`), used in chat command rows.
  */
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/renderer/i18n/i18n";
 
 const MAX_TITLE_LEN = 120;
 
@@ -127,7 +129,17 @@ export function humanIntentTitle(fullCommandLine: string): string {
 export function commandIntentDisplay(fullCommandLine: string): CommandIntentDisplay {
   const command = extractShellCommand(fullCommandLine);
   const short = finalizeTitle(command);
-  return intentFromSummarizedCommand(command) ?? { title: `Run: ${short}`, kind: "command" };
+  return (
+    intentFromSummarizedCommand(command) ?? {
+      title: `${i18n._(msg`Run`)}: ${short}`,
+      kind: "command",
+    }
+  );
+}
+
+/** Localized "View" / "View <line-range>" display prefix (line range is data). */
+function viewPrefix(lines?: string): string {
+  return lines ? `${i18n._(msg`View`)} ${formatLineRange(lines)}: ` : `${i18n._(msg`View`)}: `;
 }
 
 function intentFromSummarizedCommand(t: string): CommandIntentDisplay | null {
@@ -135,9 +147,7 @@ function intentFromSummarizedCommand(t: string): CommandIntentDisplay | null {
 
   const powerShellFileView = parsePowerShellGetContentView(trimmed);
   if (powerShellFileView) {
-    const prefix = powerShellFileView.lines
-      ? `View ${formatLineRange(powerShellFileView.lines)}: `
-      : "View: ";
+    const prefix = viewPrefix(powerShellFileView.lines);
     const label = powerShellFileView.lines
       ? powerShellFileView.path
       : basenameFromPath(powerShellFileView.path);
@@ -151,7 +161,7 @@ function intentFromSummarizedCommand(t: string): CommandIntentDisplay | null {
   const typeCmd = /^type\s+(.+)$/i.exec(trimmed);
   if (typeCmd) {
     const p = typeCmd[1]!.trim().replace(/^['"]|['"]$/g, "");
-    const prefix = "View: ";
+    const prefix = viewPrefix();
     return {
       title: `${prefix}${basenameFromPath(p)}`,
       parts: { prefix, path: p, filePath: true },
@@ -161,7 +171,7 @@ function intentFromSummarizedCommand(t: string): CommandIntentDisplay | null {
 
   const sedView = parseSedView(trimmed);
   if (sedView) {
-    const prefix = `View ${formatLineRange(sedView.lines)}: `;
+    const prefix = viewPrefix(sedView.lines);
     return {
       title: `${prefix}${sedView.path}`,
       parts: { prefix, path: sedView.path },
@@ -171,7 +181,7 @@ function intentFromSummarizedCommand(t: string): CommandIntentDisplay | null {
 
   const pipedFileView = parsePipedFileView(trimmed);
   if (pipedFileView) {
-    const prefix = `View ${formatLineRange(pipedFileView.lines)}: `;
+    const prefix = viewPrefix(pipedFileView.lines);
     return {
       title: `${prefix}${pipedFileView.path}`,
       parts: { prefix, path: pipedFileView.path },
@@ -182,7 +192,7 @@ function intentFromSummarizedCommand(t: string): CommandIntentDisplay | null {
   const grepLike = parseGrepLikeSearch(trimmed);
   if (grepLike) {
     return {
-      title: `Search: "${grepLike.pattern}"`,
+      title: `${i18n._(msg`Search`)}: "${grepLike.pattern}"`,
       kind: "search",
     };
   }
@@ -191,19 +201,19 @@ function intentFromSummarizedCommand(t: string): CommandIntentDisplay | null {
   if (findSearch) {
     if (findSearch.pattern) {
       return {
-        title: `Search: "${findSearch.pattern}"`,
+        title: `${i18n._(msg`Search`)}: "${findSearch.pattern}"`,
         kind: "search",
       };
     }
     return {
-      title: `Search: ${findSearch.scope}`,
+      title: `${i18n._(msg`Search`)}: ${findSearch.scope}`,
       kind: "search",
     };
   }
 
   const listDir = parseListDirectory(trimmed);
   if (listDir) {
-    return { title: `List: ${listDir}`, kind: "list" };
+    return { title: `${i18n._(msg`List`)}: ${listDir}`, kind: "list" };
   }
 
   const run = /^(pnpm|npm|yarn)\s+run\s+(\S+)/i.exec(trimmed);
@@ -211,9 +221,9 @@ function intentFromSummarizedCommand(t: string): CommandIntentDisplay | null {
     const pm = run[1]!.toLowerCase();
     const script = run[2]!.replace(/['",]/g, "");
     if (CHECK_SCRIPTS.has(script)) {
-      return { title: `Check: ${pm} run ${script}`, kind: "check" };
+      return { title: `${i18n._(msg`Check`)}: ${pm} run ${script}`, kind: "check" };
     }
-    return { title: `Run: ${pm} run ${script}`, kind: "command" };
+    return { title: `${i18n._(msg`Run`)}: ${pm} run ${script}`, kind: "command" };
   }
 
   const packageManager = parsePackageManager(trimmed);
@@ -222,14 +232,16 @@ function intentFromSummarizedCommand(t: string): CommandIntentDisplay | null {
   const exec = /^(pnpm|npm)\s+exec\s+(.+)$/i.exec(trimmed);
   if (exec) {
     const rest = exec[2]!.trim();
-    if (/^oxfmt\b/i.test(rest)) return { title: "Format files", kind: "command" };
+    if (/^oxfmt\b/i.test(rest)) return { title: i18n._(msg`Format files`), kind: "command" };
     const shortRest = rest.length > 72 ? `${rest.slice(0, 71)}…` : rest;
-    return { title: `Run: ${shortRest}`, kind: "command" };
+    return { title: `${i18n._(msg`Run`)}: ${shortRest}`, kind: "command" };
   }
 
   if (/^git\s+/i.test(trimmed)) {
+    const gitLabel = i18n._(msg`Git`);
     return {
-      title: trimmed.length > 72 ? `Git: ${trimmed.slice(0, 71)}…` : `Git: ${trimmed}`,
+      title:
+        trimmed.length > 72 ? `${gitLabel}: ${trimmed.slice(0, 71)}…` : `${gitLabel}: ${trimmed}`,
       kind: "git",
     };
   }
@@ -528,26 +540,27 @@ function parsePackageManager(command: string): CommandIntentDisplay | null {
   if (pm !== "pnpm" && pm !== "npm" && pm !== "yarn") return null;
   const firstArg = words[1]?.toLowerCase();
   if (firstArg === "--version" || firstArg === "-v") {
-    return { title: `Package manager: ${pm} ${firstArg}`, kind: "package" };
+    return { title: `${i18n._(msg`Package manager`)}: ${pm} ${firstArg}`, kind: "package" };
   }
 
   const sub = words.find((word, index) => index > 0 && !word.startsWith("-"))?.toLowerCase();
   if (!sub) return null;
   if (sub === "install" || sub === "add") {
-    return { title: `Install packages: ${pm} ${sub}`, kind: "install" };
+    return { title: `${i18n._(msg`Install packages`)}: ${pm} ${sub}`, kind: "install" };
   }
   if (sub === "list" || sub === "ls") {
-    return { title: `List packages: ${pm} ${sub}`, kind: "list" };
+    return { title: `${i18n._(msg`List packages`)}: ${pm} ${sub}`, kind: "list" };
   }
   if (sub === "config") {
     const action = words.find((word, index) => index > 1 && !word.startsWith("-")) ?? "";
+    const configLabel = i18n._(msg`Package config`);
     return {
-      title: action ? `Package config: ${pm} config ${action}` : `Package config: ${pm}`,
+      title: action ? `${configLabel}: ${pm} config ${action}` : `${configLabel}: ${pm}`,
       kind: "package",
     };
   }
   if (sub === "version") {
-    return { title: `Package manager: ${pm} ${sub}`, kind: "package" };
+    return { title: `${i18n._(msg`Package manager`)}: ${pm} ${sub}`, kind: "package" };
   }
   return null;
 }

@@ -1,5 +1,6 @@
 import { Code, Eye, Maximize2, Save, X } from "lucide-react";
 import { Tooltip } from "@heroui/react";
+import { Trans, useLingui } from "@lingui/react/macro";
 
 export function EditorToolbar(props: {
   isMarkdown: boolean;
@@ -11,6 +12,7 @@ export function EditorToolbar(props: {
   onOpenFullscreen?: () => void;
   onClose?: () => void;
 }) {
+  const { t } = useLingui();
   const {
     isMarkdown,
     showPreview,
@@ -36,7 +38,7 @@ export function EditorToolbar(props: {
             </button>
           </Tooltip.Trigger>
           <Tooltip.Content placement="bottom">
-            {showPreview ? "Show source" : "Show preview"}
+            {showPreview ? <Trans>Show source</Trans> : <Trans>Show preview</Trans>}
           </Tooltip.Content>
         </Tooltip>
       ) : null}
@@ -51,14 +53,16 @@ export function EditorToolbar(props: {
               <Save className="size-3" />
             </button>
           </Tooltip.Trigger>
-          <Tooltip.Content placement="bottom">Save</Tooltip.Content>
+          <Tooltip.Content placement="bottom">
+            <Trans>Save</Trans>
+          </Tooltip.Content>
         </Tooltip>
       ) : null}
       {onOpenFullscreen ? (
         <button
           type="button"
           className="rounded p-0.5 text-muted hover:text-foreground"
-          title="Open fullscreen"
+          title={t`Open fullscreen`}
           onClick={onOpenFullscreen}
         >
           <Maximize2 className="size-3" />
@@ -68,7 +72,7 @@ export function EditorToolbar(props: {
         <button
           type="button"
           className="rounded p-0.5 text-muted hover:text-foreground"
-          title="Close editor"
+          title={t`Close editor`}
           onClick={onClose}
         >
           <X className="size-3.5" />

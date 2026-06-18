@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type RefObject } from "react";
 import { Tooltip } from "@heroui/react";
 import { ChevronDown, GitFork } from "lucide-react";
+import { useLingui } from "@lingui/react/macro";
 import type {
   AgentStatus,
   ProjectLocation,
@@ -214,6 +215,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
     goalDockState,
     errorDockStates,
   } = props;
+  const { t } = useLingui();
   const [prompt, setPrompt] = useState("");
   const [hasContent, setHasContent] = useState(false);
   const showVoiceInputButton = useSharedSettings((s) => s.audio.showVoiceInputButton);
@@ -368,6 +370,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
   const project = useAppStore((s) =>
     s.projects.find((candidate) => candidate.id === thread.projectId),
   );
+  const agentFallbackLabel = t`the agent`;
 
   useEffect(() => {
     if (!showContextIndicator && contextDockOpen) {
@@ -780,10 +783,10 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                       disabled={!(showServerComposer || showTerminalComposer)}
                       placeholder={
                         approvalDenyOption
-                          ? "Deny and tell the agent what to do differently…"
+                          ? t`Deny and tell the agent what to do differently…`
                           : isServerControlled
-                            ? `Ask ${agentStatus?.label ?? "the agent"} anything about this workspace`
-                            : "Send a message..."
+                            ? t`Ask ${agentStatus?.label ?? agentFallbackLabel} anything about this workspace`
+                            : t`Send a message...`
                       }
                       projectLocation={projectLocation}
                       projectId={thread.projectId}
@@ -852,13 +855,13 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                     />
                   }
                   controls={controlsWithOpenSignal}
-                  placeholder="Send a message..."
+                  placeholder={t`Send a message...`}
                   prompt={prompt}
                   promptDisabled={!(showServerComposer || showTerminalComposer)}
                   preserveDisabledControlStyle={isStructuredLaunching}
                   stopPending={isInterrupting || isStructuredLaunching}
                   submitDisabled={!(hasContent || attachments.attachments.length > 0) || !canSubmit}
-                  submitLabel="Send message"
+                  submitLabel={t`Send message`}
                   onStop={
                     canInterruptStructuredTurn
                       ? handleInterrupt
@@ -976,7 +979,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
             <div className="relative z-10 flex h-0 justify-center">
               <button
                 type="button"
-                aria-label={isComposerCollapsed ? "Show composer" : "Collapse composer"}
+                aria-label={isComposerCollapsed ? t`Show composer` : t`Collapse composer`}
                 className="absolute -top-[9px] flex items-center rounded-full border border-[var(--border)] bg-[var(--background)] px-2 py-0 text-muted transition-colors hover:text-foreground"
                 onClick={() => setComposerCollapsed(!composerCollapsed)}
               >

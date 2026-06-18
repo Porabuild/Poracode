@@ -57,6 +57,8 @@ export const MAIN_LOCAL_PROCEDURE_NAMES = [
   "pickFiles",
   "saveClipboardImage",
   "saveHandoffContext",
+  "saveImageFile",
+  "copyImageToClipboard",
   "createProjectDirectory",
   "openExternal",
   "openExternalNative",

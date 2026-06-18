@@ -1,6 +1,7 @@
 import type { CSSProperties, ReactNode } from "react";
 import { baseAgentKind } from "@/shared/contracts";
 import type { StatusTone } from "./statusTone";
+import { syncMaskScanPhase } from "./syncMaskScanPhase";
 import {
   getUtilityTaskCandidates,
   getUtilityTaskDefaultsHint,
@@ -61,6 +62,7 @@ function ExternalProviderIcon(props: { src: string; tone: StatusTone; className?
       />
       {props.tone === "working" ? (
         <span
+          ref={syncMaskScanPhase}
           className="lightcode-provider-icon__mask lightcode-provider-icon__mask-scan"
           style={style}
         />

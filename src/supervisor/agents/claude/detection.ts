@@ -117,6 +117,18 @@ export const claudeCapabilities: AgentCapability = {
   ],
 };
 
+/**
+ * Built-in Claude model ids whose `[<size>]` suffix Lightcode owns — it derives
+ * that suffix from the thread's `contextSize` selector (see
+ * {@link applyClaudeContextSuffix}). Any model id NOT in this set is a custom /
+ * external-provider model (e.g. z.ai `glm-5.2[1m]`) whose suffix is part of the
+ * provider's real model name and must be sent to the CLI/SDK verbatim. Keyed off
+ * `modelContextSizes` so adding a context-managed model stays a one-line change.
+ */
+export const CLAUDE_CONTEXT_MANAGED_MODEL_IDS: ReadonlySet<string> = new Set(
+  Object.keys(claudeCapabilities.modelContextSizes ?? {}),
+);
+
 interface ClaudeAuthStatusResponse {
   loggedIn?: boolean;
   authMethod?: string;

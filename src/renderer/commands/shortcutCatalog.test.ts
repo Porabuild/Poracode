@@ -1,8 +1,12 @@
+import type { MessageDescriptor } from "@lingui/core";
 import { describe, expect, it } from "vitest";
 import { DEFAULT_KEYBINDINGS } from "@/shared/keybindings";
 import { buildCommandRegistry } from "./registry";
 import { buildShortcutRows, SHORTCUT_CONTEXTS, type ShortcutContext } from "./shortcutCatalog";
 import { formatKeybinding, type PlatformName } from "./keybindingMatcher";
+
+const resolveLabel = (value: string | MessageDescriptor): string =>
+  typeof value === "string" ? value : (value.message ?? String(value.id));
 
 const PLATFORMS: PlatformName[] = ["darwin", "win32", "linux"];
 const CONTEXTS = SHORTCUT_CONTEXTS.map((context) => context.id).filter(
@@ -16,6 +20,7 @@ describe("shortcut catalog", () => {
         buildCommandRegistry(),
         DEFAULT_KEYBINDINGS.keybindings,
         platform,
+        resolveLabel,
       );
       const row = rows.find((item) => item.id === "browser.hard-reload");
 
@@ -29,6 +34,7 @@ describe("shortcut catalog", () => {
         buildCommandRegistry(),
         DEFAULT_KEYBINDINGS.keybindings,
         platform,
+        resolveLabel,
       );
       const closeRows = rows.filter((row) => row.title.trim().toLowerCase() === "close editor tab");
       expect(closeRows).toHaveLength(1);
@@ -43,6 +49,7 @@ describe("shortcut catalog", () => {
         buildCommandRegistry(),
         DEFAULT_KEYBINDINGS.keybindings,
         platform,
+        resolveLabel,
       );
       for (const context of CONTEXTS) {
         const seen = new Map<string, string>();
@@ -68,6 +75,7 @@ describe("shortcut catalog", () => {
         buildCommandRegistry(),
         DEFAULT_KEYBINDINGS.keybindings,
         platform,
+        resolveLabel,
       );
 
       for (const context of CONTEXTS) {

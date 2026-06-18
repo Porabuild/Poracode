@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from "react";
 import { Popover } from "@heroui/react";
 import { Check, ChevronDown } from "lucide-react";
+import { useLingui } from "@lingui/react/macro";
 import { Button } from "@/renderer/components/common";
 
 export interface DeviceOption {
@@ -20,6 +21,7 @@ export function DevicePicker(props: {
   options: DeviceOption[];
   onChange: (id: string) => void;
 }) {
+  const { t } = useLingui();
   const { value, options, onChange } = props;
   const [open, setOpen] = useState(false);
   const selected = options.find((o) => o.id === value) ?? options[0];
@@ -29,7 +31,7 @@ export function DevicePicker(props: {
       <Popover.Trigger>
         <Button size="sm" variant="ghost" className="gap-1.5 text-foreground">
           {selected?.icon}
-          <span className="truncate text-foreground">{selected?.label ?? "Select device"}</span>
+          <span className="truncate text-foreground">{selected?.label ?? t`Select device`}</span>
           <ChevronDown className="size-3.5 text-muted" />
         </Button>
       </Popover.Trigger>

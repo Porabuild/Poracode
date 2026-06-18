@@ -3,6 +3,9 @@ import { PointerActivationConstraints } from "@dnd-kit/dom";
 import { DragDropProvider, type DragEndEvent, KeyboardSensor, PointerSensor } from "@dnd-kit/react";
 import { isSortable, useSortable } from "@dnd-kit/react/sortable";
 import { Tooltip } from "@heroui/react";
+import { msg } from "@lingui/core/macro";
+import { Trans, useLingui } from "@lingui/react/macro";
+import type { MessageDescriptor } from "@lingui/core";
 import {
   formatResetCountdown,
   type UsageSnapshot,
@@ -22,23 +25,23 @@ import {
 } from "./usageFormat";
 import { resolveDisplayedProviders, usesSharedWindowReset } from "./usageProviders";
 
-function statusText(snapshot: UsageSnapshot | undefined): string {
-  if (!snapshot) return "No data yet";
+function statusText(snapshot: UsageSnapshot | undefined): MessageDescriptor | null {
+  if (!snapshot) return msg`No data yet`;
   switch (snapshot.status) {
     case "ok":
-      return "";
+      return null;
     case "auth-missing":
-      return "Not signed in";
+      return msg`Not signed in`;
     case "app-not-running":
-      return "Not running";
+      return msg`Not running`;
     case "rate-limited":
-      return "Rate limited";
+      return msg`Rate limited`;
     case "quota-hit":
-      return "Quota reached";
+      return msg`Quota reached`;
     case "unsupported":
-      return "Not supported";
+      return msg`Not supported`;
     default:
-      return "Error";
+      return msg`Error`;
   }
 }
 
@@ -48,6 +51,7 @@ function UsageTooltipBody(props: {
   snapshot: UsageSnapshot | undefined;
 }) {
   const { id, label, snapshot } = props;
+  const { t } = useLingui();
   const now = Date.now();
   const message = statusText(snapshot);
   const sharedReset = usesSharedWindowReset(id) ? sharedWindowResetLabel(snapshot, now) : undefined;
@@ -89,7 +93,7 @@ function UsageTooltipBody(props: {
           })}
         </div>
       ) : (
-        <div className="text-muted">{message}</div>
+        <div className="text-muted">{message ? t(message) : null}</div>
       )}
     </div>
   );
@@ -97,6 +101,7 @@ function UsageTooltipBody(props: {
 
 function ProviderUsageRailItem(props: { id: string; label: string; index: number; group: string }) {
   const { id, label, index, group } = props;
+  const { t } = useLingui();
   const snapshot = useProviderUsage(id);
   const { ref, isDragging } = useSortable({
     id: `${group}:${id}`,
@@ -113,7 +118,7 @@ function ProviderUsageRailItem(props: { id: string; label: string; index: number
         <Tooltip.Trigger>
           <button
             type="button"
-            aria-label={`${label} usage — open usage panel`}
+            aria-label={t`${label} usage — open usage panel`}
             onClick={openUsagePanel}
             className="cursor-grab rounded-full outline-none focus-visible:focus-ring active:cursor-grabbing"
           >
@@ -209,7 +214,7 @@ export function ProviderUsageRail(props: { orientation?: "row" | "column" }) {
   return (
     <div className="px-2">
       <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted/70">
-        Usage
+        <Trans>Usage</Trans>
       </p>
       <DragDropProvider sensors={sensors} onDragEnd={handleDragEnd}>
         <div className="flex flex-row flex-wrap items-center gap-2.5">{items}</div>

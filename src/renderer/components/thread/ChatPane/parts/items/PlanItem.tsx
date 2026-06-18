@@ -1,3 +1,4 @@
+import { useLingui } from "@lingui/react/macro";
 import { Check, Hourglass, ListChecks } from "lucide-react";
 import type { PlanItemPayload } from "@/shared/contracts";
 import type { RuntimeChatItem } from "@/renderer/state/slices/runtimeEventSlice";
@@ -42,9 +43,12 @@ export function PlanItem({ item }: PlanItemProps) {
 }
 
 function StatusIcon({ status }: { status: StepStatus }) {
+  const { t } = useLingui();
   switch (status) {
     case "completed":
-      return <Check aria-label="completed" className="size-3.5 shrink-0 text-foreground-muted" />;
+      return (
+        <Check aria-label={t`completed`} className="size-3.5 shrink-0 text-foreground-muted" />
+      );
     case "in_progress":
       return (
         <span className="inline-flex size-3.5 shrink-0 items-center justify-center">
@@ -53,7 +57,7 @@ function StatusIcon({ status }: { status: StepStatus }) {
       );
     default:
       return (
-        <Hourglass aria-label="pending" className="size-3.5 shrink-0 text-foreground-muted/50" />
+        <Hourglass aria-label={t`pending`} className="size-3.5 shrink-0 text-foreground-muted/50" />
       );
   }
 }

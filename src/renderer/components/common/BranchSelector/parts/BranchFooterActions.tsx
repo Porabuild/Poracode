@@ -1,4 +1,5 @@
 import type { RefObject } from "react";
+import { Trans, useLingui } from "@lingui/react/macro";
 import { FolderInput, GitFork, Plus } from "lucide-react";
 import { Checkbox, Label, ListBox } from "@heroui/react";
 import type { BranchSelection } from "./types";
@@ -43,12 +44,13 @@ export function BranchFooterActions(props: {
     isMovingBranch,
     onMoveBranchToWorktree,
   } = props;
+  const { t } = useLingui();
 
   return (
     <div className="border-t border-border px-1.5 pt-1.5">
       {/* Create new branch */}
       <ListBox
-        aria-label="Actions"
+        aria-label={t`Actions`}
         className="lightcode-menu"
         selectionMode="none"
         onAction={() => {
@@ -58,7 +60,7 @@ export function BranchFooterActions(props: {
       >
         <ListBox.Item
           id="create"
-          textValue="Create new branch"
+          textValue={t`Create new branch`}
           className={`focus-visible:outline-none ${isCreating ? "!transform-none !transition-none" : ""}`}
         >
           {isCreating ? (
@@ -67,7 +69,7 @@ export function BranchFooterActions(props: {
               <input
                 ref={createRef}
                 className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted outline-none"
-                placeholder="New branch name..."
+                placeholder={t`New branch name...`}
                 value={newBranchName}
                 onClick={(e) => e.stopPropagation()}
                 onChange={(e) => setNewBranchName(e.target.value)}
@@ -89,7 +91,9 @@ export function BranchFooterActions(props: {
           ) : (
             <>
               <Plus className="size-3.5 shrink-0 text-muted" />
-              <Label>Create new branch...</Label>
+              <Label>
+                <Trans>Create new branch...</Trans>
+              </Label>
             </>
           )}
         </ListBox.Item>
@@ -98,7 +102,7 @@ export function BranchFooterActions(props: {
       {/* Worktree toggle */}
       {!hideWorktreeToggle && (
         <ListBox
-          aria-label="Options"
+          aria-label={t`Options`}
           className="lightcode-menu"
           selectionMode="none"
           onAction={() => {
@@ -124,11 +128,13 @@ export function BranchFooterActions(props: {
         >
           <ListBox.Item
             id="worktree"
-            textValue="New worktree"
+            textValue={t`New worktree`}
             className="focus-visible:outline-none"
           >
             <GitFork className="size-3.5 text-muted" />
-            <Label className="flex-1">New worktree</Label>
+            <Label className="flex-1">
+              <Trans>New worktree</Trans>
+            </Label>
             <Checkbox
               slot={null}
               isSelected={worktreeMode}
@@ -167,7 +173,7 @@ export function BranchFooterActions(props: {
       {/* Move the current uncommitted changes into a new worktree */}
       {showMoveBranch && (
         <ListBox
-          aria-label="Move changes to a new worktree"
+          aria-label={t`Move changes to a new worktree`}
           className="lightcode-menu"
           selectionMode="none"
           disabledKeys={isMovingBranch ? ["move-branch"] : []}
@@ -175,12 +181,16 @@ export function BranchFooterActions(props: {
         >
           <ListBox.Item
             id="move-branch"
-            textValue="Move changes to a new worktree"
+            textValue={t`Move changes to a new worktree`}
             className="focus-visible:outline-none"
           >
             <FolderInput className="size-3.5 shrink-0 text-muted" />
             <Label className="flex-1">
-              {isMovingBranch ? "Moving changes…" : "Move changes to a new worktree"}
+              {isMovingBranch ? (
+                <Trans>Moving changes…</Trans>
+              ) : (
+                <Trans>Move changes to a new worktree</Trans>
+              )}
             </Label>
           </ListBox.Item>
         </ListBox>

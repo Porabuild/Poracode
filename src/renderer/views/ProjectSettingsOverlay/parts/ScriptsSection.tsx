@@ -1,11 +1,14 @@
 import { useState } from "react";
+import { Trans, useLingui } from "@lingui/react/macro";
 import type { ProjectScripts } from "@/shared/contracts";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useProject } from "@/renderer/state/useThread";
 import { TextArea } from "@/renderer/components/common";
 import { parseCopyPatterns } from "@/shared/worktree";
+import { ProjectWorktreeLocation } from "./ProjectWorktreeLocation";
 
 export function ScriptsSection(props: { projectId: string }) {
+  const { t } = useLingui();
   const project = useProject(props.projectId);
   const updateProjectScripts = useAppStore((s) => s.updateProjectScripts);
 
@@ -23,19 +26,27 @@ export function ScriptsSection(props: { projectId: string }) {
   return (
     <div className="h-full min-h-0 overflow-y-auto px-6 pb-8 pt-4">
       <div className="mx-auto max-w-[720px]">
-        <h1 className="mb-6 text-lg font-semibold text-foreground">Worktrees</h1>
+        <h1 className="mb-6 text-lg font-semibold text-foreground">
+          <Trans>Worktrees</Trans>
+        </h1>
 
         <div className="space-y-6">
+          <ProjectWorktreeLocation projectId={props.projectId} />
+
           <div className="space-y-2">
             <div>
-              <p className="text-sm font-medium text-foreground">Setup script</p>
+              <p className="text-sm font-medium text-foreground">
+                <Trans>Setup script</Trans>
+              </p>
               <p className="text-xs text-muted">
-                Runs in a terminal after a new worktree is created (e.g., <code>pnpm install</code>
-                ).
+                <Trans>
+                  Runs in a terminal after a new worktree is created (e.g.,{" "}
+                  <code>pnpm install</code>).
+                </Trans>
               </p>
             </div>
             <TextArea
-              aria-label="Setup script"
+              aria-label={t`Setup script`}
               className="w-full font-mono text-xs"
               rows={3}
               placeholder={"pnpm install"}
@@ -47,13 +58,17 @@ export function ScriptsSection(props: { projectId: string }) {
 
           <div className="space-y-2">
             <div>
-              <p className="text-sm font-medium text-foreground">Cleanup script</p>
+              <p className="text-sm font-medium text-foreground">
+                <Trans>Cleanup script</Trans>
+              </p>
               <p className="text-xs text-muted">
-                Runs before a worktree is removed (e.g., <code>rm -rf node_modules</code>).
+                <Trans>
+                  Runs before a worktree is removed (e.g., <code>rm -rf node_modules</code>).
+                </Trans>
               </p>
             </div>
             <TextArea
-              aria-label="Cleanup script"
+              aria-label={t`Cleanup script`}
               className="w-full font-mono text-xs"
               rows={3}
               placeholder={"rm -rf node_modules"}
@@ -65,14 +80,18 @@ export function ScriptsSection(props: { projectId: string }) {
 
           <div className="space-y-2">
             <div>
-              <p className="text-sm font-medium text-foreground">Copy ignored files</p>
+              <p className="text-sm font-medium text-foreground">
+                <Trans>Copy ignored files</Trans>
+              </p>
               <p className="text-xs text-muted">
-                Gitignored files to copy from the main project into each new worktree.
-                Gitignore-style patterns, one per line (e.g., <code>.env.*</code>).
+                <Trans>
+                  Gitignored files to copy from the main project into each new worktree.
+                  Gitignore-style patterns, one per line (e.g., <code>.env.*</code>).
+                </Trans>
               </p>
             </div>
             <TextArea
-              aria-label="Copy ignored files"
+              aria-label={t`Copy ignored files`}
               className="w-full font-mono text-xs"
               rows={3}
               placeholder={".env\n.env.*"}

@@ -1,5 +1,6 @@
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, screen } from "@testing-library/react";
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
+import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import { ThreadComposer, type ComposerControl } from "./ThreadComposer";
 
 const originalResizeObserver = globalThis.ResizeObserver;

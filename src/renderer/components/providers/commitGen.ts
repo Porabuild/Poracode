@@ -39,6 +39,8 @@ interface GenerateCommitMessageWithFallbackInput {
   provider: string;
   model: string;
   effort: string;
+  /** English name of the language to write the commit message in. Omitted = English. */
+  language?: string;
   invoke: (payload: GenerateCommitMessagePayload) => Promise<GenerateCommitMessageResult>;
 }
 
@@ -67,6 +69,7 @@ export async function generateCommitMessageWithFallbackDetails(
         agentKind: candidate.kind,
         ...(resolvedCommitGen.model ? { model: resolvedCommitGen.model } : {}),
         ...(resolvedCommitGen.effort ? { effort: resolvedCommitGen.effort } : {}),
+        ...(input.language ? { language: input.language } : {}),
       });
       return {
         message: result.message,

@@ -8,6 +8,7 @@ import { TerminalLinkProvider } from "./TerminalLinkProvider";
 import { resolveTerminalColor } from "./terminalColors";
 import { Terminal } from "@xterm/xterm";
 import { Button } from "@heroui/react";
+import { useLingui } from "@lingui/react/macro";
 import { ArrowDown } from "lucide-react";
 import {
   forwardRef,
@@ -92,6 +93,7 @@ export const XTermSurface = forwardRef<
     baseFontSize = 12,
     openLinksInNativeBrowser = false,
   } = props;
+  const { t } = useLingui();
   const appearance = useResolvedAppearance();
   const themePreset = useSharedSettings((state) => state.themePreset);
   const mountRef = useRef<HTMLDivElement | null>(null);
@@ -635,9 +637,9 @@ export const XTermSurface = forwardRef<
   }, [appearance, themePreset]);
 
   const contextMenuItems: ContextMenuItem[] = [
-    { id: "copy", label: "Copy", isDisabled: !hasSelection },
-    ...(!readOnly ? [{ id: "paste", label: "Paste" }] : []),
-    { id: "paste-in-input", label: "Paste in input", isDisabled: !hasSelection },
+    { id: "copy", label: t`Copy`, isDisabled: !hasSelection },
+    ...(!readOnly ? [{ id: "paste", label: t`Paste` }] : []),
+    { id: "paste-in-input", label: t`Paste in input`, isDisabled: !hasSelection },
   ];
 
   function handleContextMenuAction(key: string) {
@@ -730,7 +732,7 @@ export const XTermSurface = forwardRef<
           isIconOnly
           variant="tertiary"
           size="sm"
-          aria-label="Scroll to bottom"
+          aria-label={t`Scroll to bottom`}
           onPress={() => terminalRef.current?.scrollToBottom()}
           className={`absolute bottom-4 right-4 z-10 transition-opacity duration-200 ease-out ${
             showScrollDown ? "opacity-80 hover:opacity-100" : "pointer-events-none opacity-0"

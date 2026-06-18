@@ -19,6 +19,30 @@ export const projectScriptsSchema = z.object({
 });
 export type ProjectScripts = z.infer<typeof projectScriptsSchema>;
 
+/**
+ * Where git worktrees are created. `global` places them under a global root
+ * (built-in default or a user-configured base); `project-relative` nests them
+ * inside the project at `<project>/.lightcode/worktrees`.
+ */
+export const worktreeStorageModeSchema = z.enum(["global", "project-relative"]);
+export type WorktreeStorageMode = z.infer<typeof worktreeStorageModeSchema>;
+
+/**
+ * Per-project worktree-location override (mirrors {@link projectSearchSettingsSchema}).
+ * Absent = inherit the global settings.
+ */
+export const projectWorktreeLocationSchema = z.object({
+  /** Overrides the global worktree storage mode for this project. */
+  mode: worktreeStorageModeSchema.optional(),
+  /**
+   * Custom worktree root for this project: a native path on native projects, a
+   * Linux path on WSL projects. Only meaningful in `global` mode; ignored for
+   * `project-relative`.
+   */
+  basePath: z.string().optional(),
+});
+export type ProjectWorktreeLocation = z.infer<typeof projectWorktreeLocationSchema>;
+
 export const projectSearchSettingsSchema = z.object({
   /** When set, overrides the global `searchUseIgnoreFiles` for this project. */
   useIgnoreFiles: z.boolean().optional(),
@@ -38,6 +62,7 @@ export const projectSchema = z.object({
   lastDraftConfig: projectDraftConfigSchema.optional(),
   scripts: projectScriptsSchema.optional(),
   searchSettings: projectSearchSettingsSchema.optional(),
+  worktreeLocation: projectWorktreeLocationSchema.optional(),
   disabled: z.boolean().optional(),
   createdAt: z.string().min(1),
 });

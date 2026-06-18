@@ -1,6 +1,9 @@
 import type { ReactNode } from "react";
-import type { ProfileCoreStats, ProfileTokenStats } from "@/shared/contracts";
-import { formatCompact, formatDays, formatDayLabel, formatDuration } from "../format";
+import { msg } from "@lingui/core/macro";
+import { useLingui } from "@lingui/react/macro";
+import type { ProfileCoreStats, ProfileStatsWindow, ProfileTokenStats } from "@/shared/contracts";
+import type { TranslateFn } from "@/renderer/i18n/i18n";
+import { formatCompact, formatDayLabel, formatDuration } from "../format";
 
 function Skeleton() {
   return <div className="h-6 w-14 animate-pulse rounded-md bg-foreground/10" />;
@@ -23,12 +26,18 @@ function Tile(props: { value: ReactNode; label: string; sub?: string }) {
   );
 }
 
+function formatDaysLabel(days: number, t: TranslateFn): string {
+  return days === 1 ? t(msg`${days} day`) : t(msg`${days} days`);
+}
+
 export function StatStrip(props: {
   core: ProfileCoreStats;
   tokens: ProfileTokenStats | null;
   tokensLoading: boolean;
+  window: ProfileStatsWindow;
 }) {
-  const { core, tokens, tokensLoading } = props;
+  const { t } = useLingui();
+  const { core, tokens, tokensLoading, window } = props;
   const totals = core.totals;
   const pending = tokensLoading && !tokens;
 
@@ -49,15 +58,15 @@ export function StatStrip(props: {
 
   return (
     <div className="grid grid-cols-2 gap-px overflow-hidden rounded-2xl border border-border bg-border sm:grid-cols-3 lg:grid-cols-5">
-      <Tile value={lifetime} label="Lifetime tokens" />
+      <Tile value={lifetime} label={window === "all" ? t`Lifetime tokens` : t`Total tokens`} />
       <Tile
         value={peak}
-        label="Peak day"
+        label={t`Peak day`}
         {...(tokens?.peakDay ? { sub: formatDayLabel(tokens.peakDay) } : {})}
       />
-      <Tile value={formatDuration(totals.longestTaskMs)} label="Longest task" />
-      <Tile value={formatDays(totals.currentStreakDays)} label="Current streak" />
-      <Tile value={formatDays(totals.longestStreakDays)} label="Longest streak" />
+      <Tile value={formatDuration(totals.longestTaskMs)} label={t`Longest task`} />
+      <Tile value={formatDaysLabel(totals.currentStreakDays, t)} label={t`Current streak`} />
+      <Tile value={formatDaysLabel(totals.longestStreakDays, t)} label={t`Longest streak`} />
     </div>
   );
 }

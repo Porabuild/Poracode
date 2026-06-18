@@ -1,11 +1,12 @@
+import { msg } from "@lingui/core/macro";
+import { useLingui } from "@lingui/react/macro";
 import type {
   ProfileHeatmap,
   ProfileHeatmapCell,
   ProfileHeatmapIntensity,
 } from "@/shared/contracts";
+import type { TranslateFn } from "@/renderer/i18n/i18n";
 import { formatCompact, formatDayLabel } from "../format";
-
-const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
 /** Monochrome ramp built from the theme foreground (white in dark, black in light). */
 function colorFor(intensity: ProfileHeatmapIntensity): string {
@@ -32,13 +33,22 @@ function monthOf(day: string): number {
   return Number.parseInt(day.split("-")[1] ?? "1", 10) - 1;
 }
 
-function tooltipFor(cell: ProfileHeatmapCell, metric: ProfileHeatmap["metric"]): string {
+function tooltipFor(
+  cell: ProfileHeatmapCell,
+  metric: ProfileHeatmap["metric"],
+  t: TranslateFn,
+): string {
   const when = formatDayLabel(cell.day);
-  if (metric === "tokens") return `${formatCompact(cell.count)} tokens - ${when}`;
-  return `${cell.count} ${cell.count === 1 ? "prompt" : "prompts"} - ${when}`;
+  if (metric === "tokens") return t(msg`${formatCompact(cell.count)} tokens - ${when}`);
+  return cell.count === 1
+    ? t(msg`${cell.count} prompt - ${when}`)
+    : t(msg`${cell.count} prompts - ${when}`);
 }
 
-function buildColumns(cells: readonly ProfileHeatmapCell[]): {
+function buildColumns(
+  cells: readonly ProfileHeatmapCell[],
+  monthNames: readonly string[],
+): {
   columns: Array<Array<ProfileHeatmapCell | null>>;
   monthLabels: Array<string | null>;
 } {
@@ -63,7 +73,7 @@ function buildColumns(cells: readonly ProfileHeatmapCell[]): {
     }
     const month = monthOf(first.day);
     if (month !== prevMonth) {
-      monthLabels.push(MONTHS[month]!);
+      monthLabels.push(monthNames[month]!);
       prevMonth = month;
     } else {
       monthLabels.push(null);
@@ -72,9 +82,52 @@ function buildColumns(cells: readonly ProfileHeatmapCell[]): {
   return { columns, monthLabels };
 }
 
+function HeatmapLegend() {
+  const { t } = useLingui();
+  return (
+    <div className="flex items-center justify-end gap-1.5 pt-1 text-[10px] text-muted">
+      <span>{t`Less`}</span>
+      {([0, 1, 2, 3, 4] as ProfileHeatmapIntensity[]).map((level) => (
+        <div
+          key={level}
+          className="size-2.5 rounded-[2px]"
+          style={{ backgroundColor: colorFor(level) }}
+        />
+      ))}
+      <span>{t`More`}</span>
+    </div>
+  );
+}
+
 export function ActivityHeatmap(props: { heatmap: ProfileHeatmap }) {
+  const { t, i18n } = useLingui();
   const { heatmap } = props;
-  const { columns, monthLabels } = buildColumns(heatmap.cells);
+  if (heatmap.windowDays <= 30) {
+    return (
+      <div className="flex flex-col gap-1.5">
+        <div className="flex justify-end gap-[3px]">
+          {heatmap.cells.map((cell) => (
+            <div
+              key={cell.day}
+              className="size-3 rounded-[2px]"
+              style={{ backgroundColor: colorFor(cell.intensity) }}
+              title={tooltipFor(cell, heatmap.metric, t)}
+            />
+          ))}
+        </div>
+        <HeatmapLegend />
+      </div>
+    );
+  }
+
+  const monthFormatter = new Intl.DateTimeFormat(i18n.locale, {
+    month: "short",
+    timeZone: "UTC",
+  });
+  const monthNames = Array.from({ length: 12 }, (_, month) =>
+    monthFormatter.format(new Date(Date.UTC(2026, month, 1))),
+  );
+  const { columns, monthLabels } = buildColumns(heatmap.cells, monthNames);
 
   return (
     <div className="flex flex-col gap-1.5">
@@ -94,7 +147,7 @@ export function ActivityHeatmap(props: { heatmap: ProfileHeatmap }) {
                   key={j}
                   className="aspect-square w-full rounded-[2px]"
                   style={{ backgroundColor: colorFor(cell.intensity) }}
-                  title={tooltipFor(cell, heatmap.metric)}
+                  title={tooltipFor(cell, heatmap.metric, t)}
                 />
               ) : (
                 <div key={j} className="aspect-square w-full" />
@@ -103,17 +156,7 @@ export function ActivityHeatmap(props: { heatmap: ProfileHeatmap }) {
           </div>
         ))}
       </div>
-      <div className="flex items-center justify-end gap-1.5 pt-1 text-[10px] text-muted">
-        <span>Less</span>
-        {([0, 1, 2, 3, 4] as ProfileHeatmapIntensity[]).map((level) => (
-          <div
-            key={level}
-            className="size-2.5 rounded-[2px]"
-            style={{ backgroundColor: colorFor(level) }}
-          />
-        ))}
-        <span>More</span>
-      </div>
+      <HeatmapLegend />
     </div>
   );
 }

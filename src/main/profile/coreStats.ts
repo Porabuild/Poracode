@@ -11,7 +11,14 @@ import {
   type ProfileTotals,
 } from "@/shared/contracts";
 import { dbGetAllUsageEvents, getProfileDataGeneration, type UsageEventRow } from "../db";
-import { buildHeatmap, dayKeyFromIndex, localDayIndex, localHour } from "./heatmap";
+import {
+  buildHeatmap,
+  dayKeyFromIndex,
+  localDayIndex,
+  localHour,
+  statsWindowDays,
+  windowStartIndex,
+} from "./heatmap";
 import { getProfileIdentity, recordCurrentDevice, resolveProfileDevice } from "./identity";
 import { accountLabel, providerLabel, titleCase } from "./labels";
 
@@ -33,6 +40,20 @@ function hourLabel(hour: number): string {
 
 function round1(value: number): number {
   return Math.round(value * 10) / 10;
+}
+
+function filterRowsByWindow(
+  rows: UsageEventRow[],
+  todayIndex: number,
+  offset: number,
+  windowDays: number | undefined,
+): UsageEventRow[] {
+  if (!windowDays) return rows;
+  const startIndex = windowStartIndex(todayIndex, windowDays);
+  return rows.filter((row) => {
+    const dayIndex = localDayIndex(row.ts, offset);
+    return dayIndex >= startIndex && dayIndex <= todayIndex;
+  });
 }
 
 function rank(
@@ -131,43 +152,56 @@ function computeAiActions(rows: UsageEventRow[]): ProfileAiAction[] {
 
 function computeSkills(rows: UsageEventRow[]): {
   skills: ProfileSkillUsage[];
+  subagents: ProfileSkillUsage[];
   explored: number;
   total: number;
   mcps: ProfileSkillUsage[];
 } {
-  const skillCounts = new Map<
-    string,
-    { kind: "skill" | "subagent"; name: string; runCount: number }
-  >();
+  const skillCounts = new Map<string, number>();
+  const subagentCounts = new Map<string, number>();
   const mcpCounts = new Map<string, number>();
   let total = 0;
   for (const row of rows) {
-    if (row.kind === "skill" || row.kind === "subagent") {
-      const name = row.name ?? row.kind;
-      const key = `${row.kind}:${name}`;
-      const existing = skillCounts.get(key);
-      if (existing) existing.runCount++;
-      else skillCounts.set(key, { kind: row.kind, name, runCount: 1 });
+    if (row.kind === "skill") {
+      skillCounts.set(row.name ?? "skill", (skillCounts.get(row.name ?? "skill") ?? 0) + 1);
+      total++;
+    } else if (row.kind === "subagent") {
+      const name = row.name ?? "subagent";
+      subagentCounts.set(name, (subagentCounts.get(name) ?? 0) + 1);
       total++;
     } else if (row.kind === "mcp") {
       const name = row.name ?? "mcp";
       mcpCounts.set(name, (mcpCounts.get(name) ?? 0) + 1);
     }
   }
-  const skills = [...skillCounts.values()]
-    .sort((a, b) => b.runCount - a.runCount)
-    .slice(0, MAX_SKILLS)
-    .map((s) => ({
-      name: s.name,
-      displayName: s.kind === "skill" ? `$${s.name}` : `@${s.name}`,
-      kind: s.kind,
-      runCount: s.runCount,
-    }));
-  const mcps: ProfileSkillUsage[] = [...mcpCounts.entries()]
+  const topBy = (
+    counts: Map<string, number>,
+    kind: ProfileSkillUsage["kind"],
+    display: (name: string) => string,
+  ): ProfileSkillUsage[] =>
+    [...counts.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, MAX_SKILLS)
+      .map(([name, runCount]) => ({ name, displayName: display(name), kind, runCount }));
+
+  const skills = topBy(skillCounts, "skill", (n) => n);
+  const subagents = topBy(subagentCounts, "subagent", (n) => n);
+  const mcps = topBy(mcpCounts, "mcp", (n) => n);
+  // "Explored" / "total" still span skills + subagents, matching the Activity
+  // insights labels (a subagent run is a skill-like invocation for that metric).
+  return { skills, subagents, explored: skillCounts.size + subagentCounts.size, total, mcps };
+}
+
+/** Distinct accounts (account-scoped provider kinds) seen across all events. */
+function collectAccounts(rows: UsageEventRow[]): { key: string; label: string }[] {
+  const counts = new Map<string, number>();
+  for (const row of rows) {
+    if (!row.provider) continue;
+    counts.set(row.provider, (counts.get(row.provider) ?? 0) + 1);
+  }
+  return [...counts.entries()]
     .sort((a, b) => b[1] - a[1])
-    .slice(0, MAX_SKILLS)
-    .map(([name, runCount]) => ({ name, displayName: name, kind: "mcp", runCount }));
-  return { skills, explored: skillCounts.size, total, mcps };
+    .map(([key]) => ({ key, label: accountLabel(key) }));
 }
 
 // -- Entry point ------------------------------------------------------
@@ -191,7 +225,7 @@ function emptyCoreStats(
   generatedAt: number,
   todayIndex: number,
 ): ProfileCoreStats {
-  const { heatmap } = buildHeatmap(new Map(), todayIndex, "prompts");
+  const { heatmap } = buildHeatmap(new Map(), todayIndex, "prompts", statsWindowDays(req.window));
   return {
     scope: req.scope ?? "device",
     device,
@@ -206,8 +240,10 @@ function emptyCoreStats(
     accounts: [],
     models: [],
     skills: [],
+    subagents: [],
     mcps: [],
     aiActions: [],
+    availableAccounts: [],
   };
 }
 
@@ -223,7 +259,7 @@ export function computeProfileCoreStats(req: ProfileStatsRequest): ProfileCoreSt
   const todayIndex = localDayIndex(generatedAt, offset);
 
   const generation = getProfileDataGeneration();
-  const cacheKey = `${offset}|${todayIndex}|${req.scope ?? "device"}|${req.deviceId ?? "current"}`;
+  const cacheKey = `${offset}|${todayIndex}|${req.scope ?? "device"}|${req.deviceId ?? "current"}|${req.provider ?? "all"}|${req.window ?? "all"}`;
   const cached = coreCache.get(cacheKey);
   if (cached && cached.generation === generation) return cached.result;
 
@@ -241,7 +277,14 @@ export function computeProfileCoreStats(req: ProfileStatsRequest): ProfileCoreSt
     return empty;
   }
 
-  const rows = dbGetAllUsageEvents();
+  const allRows = dbGetAllUsageEvents();
+  // The account picker lists every account ever seen, independent of the active
+  // filter, so selecting one account doesn't collapse the picker to itself.
+  const availableAccounts = collectAccounts(allRows);
+  // Scope every downstream aggregation to the selected account (whole page).
+  const providerRows = req.provider ? allRows.filter((r) => r.provider === req.provider) : allRows;
+  const windowDays = statsWindowDays(req.window);
+  const rows = filterRowsByWindow(providerRows, todayIndex, offset, windowDays);
 
   // -- thread starts -> totals + mode breakdown --
   const modeCounts = new Map<string, number>();
@@ -300,7 +343,12 @@ export function computeProfileCoreStats(req: ProfileStatsRequest): ProfileCoreSt
     }
   }
 
-  const { heatmap: promptHeatmap, activeDays } = buildHeatmap(countsByDay, todayIndex, "prompts");
+  const { heatmap: promptHeatmap, activeDays } = buildHeatmap(
+    countsByDay,
+    todayIndex,
+    "prompts",
+    windowDays,
+  );
   const { current: currentStreakDays, longest: longestStreakDays } = computeStreaks(
     activeDayIndices,
     todayIndex,
@@ -320,7 +368,7 @@ export function computeProfileCoreStats(req: ProfileStatsRequest): ProfileCoreSt
     }
   }
 
-  const { skills, explored, total: totalSkillsUsed, mcps } = computeSkills(rows);
+  const { skills, subagents, explored, total: totalSkillsUsed, mcps } = computeSkills(rows);
 
   const totals: ProfileTotals = {
     totalThreads,
@@ -357,8 +405,10 @@ export function computeProfileCoreStats(req: ProfileStatsRequest): ProfileCoreSt
     models,
     modes,
     skills,
+    subagents,
     mcps,
     aiActions: computeAiActions(rows),
+    availableAccounts,
   };
   coreCache.set(cacheKey, { generation, result });
   return result;

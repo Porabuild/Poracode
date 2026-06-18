@@ -1,4 +1,7 @@
 import { FileDiff, GitCommit, MessageSquare, ShieldCheck } from "lucide-react";
+import { msg } from "@lingui/core/macro";
+import { useLingui } from "@lingui/react/macro";
+import type { MessageDescriptor } from "@lingui/core";
 import { LightballTabs, type LightballTab } from "@/renderer/components/common";
 import {
   getChecksStatusTone,
@@ -17,13 +20,13 @@ export interface PrTabCounts {
 
 const TAB_DEFS: ReadonlyArray<{
   id: PrTabKey;
-  label: string;
+  label: MessageDescriptor;
   icon: typeof MessageSquare;
 }> = [
-  { id: "conversation", label: "Conversation", icon: MessageSquare },
-  { id: "commits", label: "Commits", icon: GitCommit },
-  { id: "checks", label: "Checks", icon: ShieldCheck },
-  { id: "changes", label: "Changes", icon: FileDiff },
+  { id: "conversation", label: msg`Conversation`, icon: MessageSquare },
+  { id: "commits", label: msg`Commits`, icon: GitCommit },
+  { id: "checks", label: msg`Checks`, icon: ShieldCheck },
+  { id: "changes", label: msg`Changes`, icon: FileDiff },
 ];
 
 const CHECKS_ICON_TONE_CLASS: Record<PrChecksTone, string> = {
@@ -52,6 +55,7 @@ export function PrTabsPill(props: {
   className?: string;
 }) {
   const { active, onChange, counts, checksStatus, className } = props;
+  const { t } = useLingui();
   const checksTone = getChecksStatusTone(checksStatus);
 
   const tabs: ReadonlyArray<LightballTab<PrTabKey>> = TAB_DEFS.map((def) => {
@@ -62,7 +66,7 @@ export function PrTabsPill(props: {
     const iconClassName = `size-3${iconToneClass ? ` ${iconToneClass}` : ""}`;
     return {
       id: def.id,
-      label: def.label,
+      label: t(def.label),
       icon: <Icon className={iconClassName} />,
       ...(count > 0
         ? { trailing: (isActive: boolean) => <CountChip value={count} active={isActive} /> }
@@ -75,7 +79,7 @@ export function PrTabsPill(props: {
       tabs={tabs}
       active={active}
       onChange={onChange}
-      ariaLabel="PR sections"
+      ariaLabel={t`PR sections`}
       {...(className ? { className } : {})}
     />
   );

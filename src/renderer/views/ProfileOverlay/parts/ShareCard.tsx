@@ -1,7 +1,10 @@
 import { forwardRef } from "react";
-import type { ProfileCoreStats, ProfileTokenStats } from "@/shared/contracts";
+import { msg } from "@lingui/core/macro";
+import { useLingui } from "@lingui/react/macro";
+import type { ProfileCoreStats, ProfileStatsWindow, ProfileTokenStats } from "@/shared/contracts";
 import { ProviderIcon } from "@/renderer/components/providers/ProviderIcon";
-import { formatCompact, formatDays, initialsFor } from "../format";
+import type { TranslateFn } from "@/renderer/i18n/i18n";
+import { formatCompact, initialsFor } from "../format";
 import { ActivityHeatmap } from "./ActivityHeatmap";
 import type { ActivityMetric } from "./ActivitySection";
 
@@ -14,6 +17,10 @@ function Stat(props: { value: string; label: string }) {
   );
 }
 
+function formatDaysLabel(days: number, t: TranslateFn): string {
+  return days === 1 ? t(msg`${days} day`) : t(msg`${days} days`);
+}
+
 /**
  * A fixed-width, opaque, screenshot-ready summary card. Captured to a PNG by the
  * main process (webContents.capturePage) so it can be pasted into social posts.
@@ -24,8 +31,10 @@ export const ShareCard = forwardRef<
     core: ProfileCoreStats;
     tokens: ProfileTokenStats | null;
     metric: ActivityMetric;
+    window: ProfileStatsWindow;
   }
->(function ShareCard({ core, tokens, metric }, ref) {
+>(function ShareCard({ core, tokens, metric, window }, ref) {
+  const { t } = useLingui();
   const { identity, totals, insights, promptHeatmap } = core;
   const provider = insights.topProvider;
   const lifetime = tokens?.available ? formatCompact(tokens.lifetimeTokens) : "-";
@@ -66,10 +75,10 @@ export const ShareCard = forwardRef<
       <ActivityHeatmap heatmap={heatmap} />
 
       <div className="grid grid-cols-4 gap-2 border-t border-separator pt-4">
-        <Stat value={lifetime} label="lifetime tokens" />
-        <Stat value={peak} label="peak day" />
-        <Stat value={formatDays(totals.currentStreakDays)} label="current streak" />
-        <Stat value={formatDays(totals.longestStreakDays)} label="longest streak" />
+        <Stat value={lifetime} label={window === "all" ? t`lifetime tokens` : t`total tokens`} />
+        <Stat value={peak} label={t`peak day`} />
+        <Stat value={formatDaysLabel(totals.currentStreakDays, t)} label={t`current streak`} />
+        <Stat value={formatDaysLabel(totals.longestStreakDays, t)} label={t`longest streak`} />
       </div>
 
       <div className="flex items-center justify-center pt-1 text-[11px] font-medium uppercase tracking-[0.18em] text-muted/60">

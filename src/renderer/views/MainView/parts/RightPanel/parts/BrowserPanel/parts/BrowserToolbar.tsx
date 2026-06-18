@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent, type Key } from "react";
 import { createPortal } from "react-dom";
 import { Button, Dropdown, Label, Separator } from "@heroui/react";
+import { Trans, useLingui } from "@lingui/react/macro";
 import {
   ArrowLeft,
   ArrowRight,
@@ -50,10 +51,11 @@ export function BrowserToolbar(props: {
   onMenuPreviewChange: (dataUrl: string | null) => void;
 }) {
   const { onMenuPreviewChange } = props;
+  const { t } = useLingui();
   const { activeTabId, activeTab } = useBrowserPanelStore(
     useShallow((s) => ({
       activeTabId: s.activeTabId,
-      activeTab: s.activeTabId ? s.tabs.find((t) => t.tabId === s.activeTabId) : undefined,
+      activeTab: s.activeTabId ? s.tabs.find((tab) => tab.tabId === s.activeTabId) : undefined,
     })),
   );
   const [urlInput, setUrlInput] = useState("");
@@ -77,7 +79,7 @@ export function BrowserToolbar(props: {
   const consoleButtonClass = `${toolbarButtonClass} ${
     activeTab?.devToolsOpen ? "text-accent hover:text-accent" : ""
   }`;
-  const pickerLabel = props.pickerActive ? "Cancel picker" : "Pick element";
+  const pickerLabel = props.pickerActive ? t`Cancel picker` : t`Pick element`;
 
   useEffect(() => {
     return () => onMenuPreviewChange(null);
@@ -147,18 +149,22 @@ export function BrowserToolbar(props: {
             <Dropdown.Item
               key={`terminal:${target.threadId}`}
               id={`terminal:${target.threadId}`}
-              textValue={`${target.title} — Terminal`}
+              textValue={t`${target.title} — Terminal`}
             >
               <Label>{target.title}</Label>
-              <span className="ml-auto pl-3 text-muted">Terminal</span>
+              <span className="ml-auto pl-3 text-muted">
+                <Trans>Terminal</Trans>
+              </span>
             </Dropdown.Item>,
             <Dropdown.Item
               key={`composer:${target.threadId}`}
               id={`composer:${target.threadId}`}
-              textValue={`${target.title} — Composer`}
+              textValue={t`${target.title} — Composer`}
             >
               <Label>{target.title}</Label>
-              <span className="ml-auto pl-3 text-muted">Composer</span>
+              <span className="ml-auto pl-3 text-muted">
+                <Trans>Composer</Trans>
+              </span>
             </Dropdown.Item>,
           ]
         : [
@@ -177,7 +183,7 @@ export function BrowserToolbar(props: {
       <button
         type="button"
         className={toolbarButtonClass}
-        title="Back"
+        title={t`Back`}
         disabled={disabled || !activeTab?.canGoBack}
         onClick={() =>
           activeTabId &&
@@ -191,7 +197,7 @@ export function BrowserToolbar(props: {
       <button
         type="button"
         className={toolbarButtonClass}
-        title="Forward"
+        title={t`Forward`}
         disabled={disabled || !activeTab?.canGoForward}
         onClick={() =>
           activeTabId &&
@@ -205,7 +211,7 @@ export function BrowserToolbar(props: {
       <button
         type="button"
         className={toolbarButtonClass}
-        title="Reload"
+        title={t`Reload`}
         disabled={disabled}
         onClick={() =>
           activeTabId &&
@@ -220,7 +226,7 @@ export function BrowserToolbar(props: {
         <input
           type="text"
           className="h-7 w-full rounded border border-border bg-[var(--field-background)] px-2 text-[12px] text-foreground outline-none placeholder:text-[color:var(--field-placeholder)] focus:border-[color:var(--accent)]"
-          placeholder="Search or enter address"
+          placeholder={t`Search or enter address`}
           value={urlInput}
           onChange={(e) => setUrlInput(e.target.value)}
           onFocus={(e) => {
@@ -257,7 +263,7 @@ export function BrowserToolbar(props: {
                 className="z-[1000] min-w-[220px]"
                 isNonModal
               >
-                <Dropdown.Menu aria-label="Attach to thread" onAction={onChoosePickAction}>
+                <Dropdown.Menu aria-label={t`Attach to thread`} onAction={onChoosePickAction}>
                   {renderPickItems()}
                 </Dropdown.Menu>
               </Dropdown.Popover>
@@ -274,7 +280,7 @@ export function BrowserToolbar(props: {
         >
           <Button
             isIconOnly
-            aria-label="Choose thread to attach to"
+            aria-label={t`Choose thread to attach to`}
             size="sm"
             variant="ghost"
             className={pickerDropdownButtonClass}
@@ -282,7 +288,7 @@ export function BrowserToolbar(props: {
             <MousePointerSquareDashed className="size-3.5" />
           </Button>
           <Dropdown.Popover className="z-[1000] min-w-[220px]">
-            <Dropdown.Menu aria-label="Attach to thread" onAction={onChoosePickAction}>
+            <Dropdown.Menu aria-label={t`Attach to thread`} onAction={onChoosePickAction}>
               {renderPickItems()}
             </Dropdown.Menu>
           </Dropdown.Popover>
@@ -301,7 +307,7 @@ export function BrowserToolbar(props: {
       <button
         type="button"
         className={consoleButtonClass}
-        title="Console"
+        title={t`Console`}
         disabled={disabled}
         onClick={() =>
           activeTabId &&
@@ -315,7 +321,7 @@ export function BrowserToolbar(props: {
       <button
         type="button"
         className={toolbarButtonClass}
-        title="New tab"
+        title={t`New tab`}
         onClick={props.onCreateTab}
       >
         <Plus className="size-3.5" />
@@ -323,7 +329,7 @@ export function BrowserToolbar(props: {
       <Dropdown onOpenChange={onMenuOpenChange}>
         <Button
           isIconOnly
-          aria-label="Browser menu"
+          aria-label={t`Browser menu`}
           ref={menuButtonRef}
           size="sm"
           variant="ghost"
@@ -334,33 +340,47 @@ export function BrowserToolbar(props: {
         </Button>
         <Dropdown.Popover placement="bottom end" className="z-[1000] min-w-[218px]">
           <Dropdown.Menu
-            aria-label="Browser menu"
+            aria-label={t`Browser menu`}
             disabledKeys={["bookmarkBar"]}
             onAction={onMenuAction}
           >
-            <Dropdown.Item id="screenshot" textValue="Take Screenshot">
-              <Label>Take Screenshot</Label>
+            <Dropdown.Item id="screenshot" textValue={t`Take Screenshot`}>
+              <Label>
+                <Trans>Take Screenshot</Trans>
+              </Label>
             </Dropdown.Item>
-            <Dropdown.Item id="hardReload" textValue="Hard Reload">
-              <Label>Hard Reload</Label>
+            <Dropdown.Item id="hardReload" textValue={t`Hard Reload`}>
+              <Label>
+                <Trans>Hard Reload</Trans>
+              </Label>
             </Dropdown.Item>
-            <Dropdown.Item id="copyUrl" textValue="Copy Current URL">
-              <Label>Copy Current URL</Label>
+            <Dropdown.Item id="copyUrl" textValue={t`Copy Current URL`}>
+              <Label>
+                <Trans>Copy Current URL</Trans>
+              </Label>
             </Dropdown.Item>
             <Separator />
-            <Dropdown.Item id="bookmarkBar" textValue="Show Bookmark Bar">
-              <Label>Show Bookmark Bar</Label>
+            <Dropdown.Item id="bookmarkBar" textValue={t`Show Bookmark Bar`}>
+              <Label>
+                <Trans>Show Bookmark Bar</Trans>
+              </Label>
               <span className="ml-auto h-4 w-7 rounded-full bg-default after:block after:size-3 after:translate-x-0.5 after:translate-y-0.5 after:rounded-full after:bg-muted" />
             </Dropdown.Item>
             <Separator />
-            <Dropdown.Item id="clearHistory" textValue="Clear Browsing History">
-              <Label>Clear Browsing History</Label>
+            <Dropdown.Item id="clearHistory" textValue={t`Clear Browsing History`}>
+              <Label>
+                <Trans>Clear Browsing History</Trans>
+              </Label>
             </Dropdown.Item>
-            <Dropdown.Item id="clearCookies" textValue="Clear Cookies">
-              <Label>Clear Cookies</Label>
+            <Dropdown.Item id="clearCookies" textValue={t`Clear Cookies`}>
+              <Label>
+                <Trans>Clear Cookies</Trans>
+              </Label>
             </Dropdown.Item>
-            <Dropdown.Item id="clearCache" textValue="Clear Cache">
-              <Label>Clear Cache</Label>
+            <Dropdown.Item id="clearCache" textValue={t`Clear Cache`}>
+              <Label>
+                <Trans>Clear Cache</Trans>
+              </Label>
             </Dropdown.Item>
           </Dropdown.Menu>
         </Dropdown.Popover>

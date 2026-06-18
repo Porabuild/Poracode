@@ -1,7 +1,8 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { Button } from "@heroui/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { usePanelStore } from "@/renderer/state/panelStore";
+import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 
 const mocks = vi.hoisted(() => ({
   addExistingProject: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),

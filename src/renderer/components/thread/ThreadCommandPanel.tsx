@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import { Terminal } from "lucide-react";
+import { useLingui } from "@lingui/react/macro";
 import type { AgentSlashCommand } from "@/shared/contracts";
 import { ThreadDockHeader, ThreadDockSection } from "./ThreadDockUI";
 
@@ -12,6 +13,7 @@ interface ThreadCommandPanelProps {
 
 export function ThreadCommandPanel(props: ThreadCommandPanelProps) {
   const { commands, activeIndex, onSelect } = props;
+  const { t } = useLingui();
   const activeRowRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
@@ -24,7 +26,7 @@ export function ThreadCommandPanel(props: ThreadCommandPanelProps) {
 
   return (
     <ThreadDockSection placement="composer" collapsed={false}>
-      <ThreadDockHeader icon={Terminal} title="Commands" countLabel={String(commands.length)} />
+      <ThreadDockHeader icon={Terminal} title={t`Commands`} countLabel={String(commands.length)} />
 
       <div className="px-1 pb-1">
         <ul

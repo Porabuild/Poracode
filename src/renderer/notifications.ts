@@ -1,9 +1,11 @@
 import { toast } from "@heroui/react";
+import { msg } from "@lingui/core/macro";
 import type { Thread, ThreadAttention, ThreadStatus } from "@/shared/contracts";
 import { openThread } from "@/renderer/actions/threadActions";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { readBridge } from "@/renderer/bridge";
+import { i18n } from "@/renderer/i18n/i18n";
 
 type NotificationCategory = "done" | "needsAttention" | "error";
 
@@ -74,21 +76,21 @@ function isThreadInActivePanes(threadId: string): boolean {
 
 function getProjectName(projectId: string): string {
   const project = useAppStore.getState().projects.find((p) => p.id === projectId);
-  return project?.name ?? "Unknown project";
+  return project?.name ?? i18n._(msg`Unknown project`);
 }
 
 function getStatusDetail(category: NotificationCategory, status: ThreadStatus): string {
   switch (category) {
     case "done":
       return status === "finished"
-        ? "Finished · Waiting for your input"
-        : "Done · Waiting for your input";
+        ? i18n._(msg`Finished · Waiting for your input`)
+        : i18n._(msg`Done · Waiting for your input`);
     case "needsAttention":
       return status === "needs_approval"
-        ? "Needs Attention · Approval required"
-        : "Needs Attention · Reply required";
+        ? i18n._(msg`Needs Attention · Approval required`)
+        : i18n._(msg`Needs Attention · Reply required`);
     case "error":
-      return "Error · Agent encountered an error";
+      return i18n._(msg`Error · Agent encountered an error`);
   }
 }
 
@@ -120,7 +122,7 @@ function showToastNotification(
 
   const toastId = toast[variant](projectName, {
     actionProps: {
-      children: "Open",
+      children: i18n._(msg`Open`),
       onPress: open,
       variant: "secondary",
     },

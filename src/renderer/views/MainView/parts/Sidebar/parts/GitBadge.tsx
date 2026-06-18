@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { GitBranch, GitBranchMinus, GitFork, GitPullRequest } from "lucide-react";
 import { Tooltip } from "@heroui/react";
+import { Trans, useLingui } from "@lingui/react/macro";
 import { useDraggable } from "@dnd-kit/react";
 import { readBridge } from "@/renderer/bridge";
 import { useAppStore } from "@/renderer/state/appStore";
@@ -35,6 +36,7 @@ export function GitBadge(props: {
    */
   fallbackToWorktreeIcon?: boolean;
 }) {
+  const { t } = useLingui();
   const elementRef = useRef<HTMLDivElement>(null);
   const dragId = useId();
   useDraggable({
@@ -144,7 +146,7 @@ export function GitBadge(props: {
             ref={elementRef}
             role="button"
             tabIndex={0}
-            aria-label={`Git status for ${props.projectName}: not a Git repository`}
+            aria-label={t`Git status for ${props.projectName}: not a Git repository`}
             className={`${gitBadgeButtonClass} ${
               props.isActive ? "bg-accent/15 ring-1 ring-accent/40" : "text-muted/60"
             }`}
@@ -159,7 +161,9 @@ export function GitBadge(props: {
             <GitBranchMinus className="size-3 shrink-0 text-warning" />
           </div>
         </Tooltip.Trigger>
-        <Tooltip.Content placement="right">Not a Git repository</Tooltip.Content>
+        <Tooltip.Content placement="right">
+          <Trans>Not a Git repository</Trans>
+        </Tooltip.Content>
       </Tooltip>
     );
   }
@@ -175,7 +179,7 @@ export function GitBadge(props: {
             ref={elementRef}
             role="button"
             tabIndex={0}
-            aria-label={`Git status for ${props.projectName}`}
+            aria-label={t`Git status for ${props.projectName}`}
             className={`${gitBadgeButtonClass} ${
               props.isActive
                 ? "bg-accent/15 ring-1 ring-accent/40"
@@ -194,7 +198,9 @@ export function GitBadge(props: {
             </span>
           </div>
         </Tooltip.Trigger>
-        <Tooltip.Content placement="right">Open Git panel</Tooltip.Content>
+        <Tooltip.Content placement="right">
+          <Trans>Open Git panel</Trans>
+        </Tooltip.Content>
       </Tooltip>
     );
   }
@@ -206,7 +212,7 @@ export function GitBadge(props: {
       ref={elementRef}
       role="button"
       tabIndex={0}
-      aria-label={`Git status for ${props.projectName}`}
+      aria-label={t`Git status for ${props.projectName}`}
       className={`shrink-0 cursor-grab rounded px-1 py-0.5 transition-colors hover:bg-[var(--row-hover)] hover:text-foreground active:cursor-grabbing ${
         props.isActive ? "bg-accent/15 ring-1 ring-accent/40" : "text-muted/60"
       }`}
@@ -231,7 +237,9 @@ export function GitBadge(props: {
                 <GitFork className="size-3 text-[color:var(--git-branch-tone)]" />
               </span>
             </Tooltip.Trigger>
-            <Tooltip.Content placement="right">Worktree: {props.projectName}</Tooltip.Content>
+            <Tooltip.Content placement="right">
+              <Trans>Worktree: {props.projectName}</Trans>
+            </Tooltip.Content>
           </Tooltip>
         )}
       </span>

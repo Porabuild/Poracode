@@ -1,4 +1,5 @@
 import { toast } from "@heroui/react";
+import { Trans, useLingui } from "@lingui/react/macro";
 import { ChevronRight, Copy, FilePlus, FolderOpen, FolderPlus, Pencil, Trash2 } from "lucide-react";
 import type { ProjectTreeEntry } from "@/shared/contracts";
 import { ContextMenu, PixelLoader } from "@/renderer/components/common";
@@ -31,6 +32,7 @@ export function TreeEntryRow(props: {
   onHandleCreate: (parentPath: string, type: "file" | "directory", value: string) => Promise<void>;
   renderChildren?: boolean;
 }) {
+  const { t } = useLingui();
   const { entry, depth, draft, setDraft } = props;
   const isDirectory = entry.type === "directory";
   const isSelected = useIsTabActive(entry.path);
@@ -48,41 +50,41 @@ export function TreeEntryRow(props: {
         items={[
           {
             id: "reveal",
-            label: "Reveal in File Explorer",
+            label: t`Reveal in File Explorer`,
             icon: <FolderOpen className="size-3.5" />,
           },
           ...(isDirectory
             ? [
                 {
                   id: "new-file",
-                  label: "New File",
+                  label: t`New File`,
                   icon: <FilePlus className="size-3.5" />,
                 },
                 {
                   id: "new-folder",
-                  label: "New Folder",
+                  label: t`New Folder`,
                   icon: <FolderPlus className="size-3.5" />,
                 },
               ]
             : []),
           {
             id: "copy-path",
-            label: "Copy Path",
+            label: t`Copy Path`,
             icon: <Copy className="size-3.5" />,
           },
           {
             id: "copy-relative-path",
-            label: "Copy Relative Path",
+            label: t`Copy Relative Path`,
             icon: <Copy className="size-3.5" />,
           },
           {
             id: "rename",
-            label: "Rename",
+            label: t`Rename`,
             icon: <Pencil className="size-3.5" />,
           },
           {
             id: "delete",
-            label: "Delete",
+            label: t`Delete`,
             icon: <Trash2 className="size-3.5" />,
             variant: "danger",
           },
@@ -257,7 +259,7 @@ function TreeChildren(props: {
           style={{ paddingLeft: `${depth * 14 + 8}px` }}
         >
           <PixelLoader size="xs" />
-          Loading…
+          <Trans>Loading…</Trans>
         </div>
       ) : (
         entries.map((child) => (

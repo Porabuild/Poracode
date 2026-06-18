@@ -54,6 +54,8 @@ const pendingTokens = new Map<
 >();
 const seenItems = new Set<string>();
 const seenTurns = new Set<string>();
+const pendingItemHits = new Map<string, ItemHit>();
+const itemTypesById = new Map<string, string>();
 
 function flush(): void {
   if (scheduled) {
@@ -109,6 +111,14 @@ function remember(set: Set<string>, id: string): boolean {
   return true;
 }
 
+// Insert into a bounded item-lifecycle map. Entries are normally evicted on
+// item.completed, but an item that starts and never completes (aborted turn,
+// dropped frame) would otherwise leak forever - so cap like the dedup sets.
+function rememberInMap<V>(map: Map<string, V>, key: string, value: V): void {
+  if (map.size >= DEDUP_CAP && !map.has(key)) map.clear();
+  map.set(key, value);
+}
+
 // Don't lose buffered events when the window is hidden or closed.
 if (typeof window !== "undefined") {
   window.addEventListener("pagehide", flush);
@@ -141,14 +151,38 @@ function metaOf(thread: Thread): Meta {
 function asRecord(value: unknown): Record<string, unknown> | undefined {
   return value && typeof value === "object" ? (value as Record<string, unknown>) : undefined;
 }
-function str(obj: Record<string, unknown> | undefined, key: string): string | undefined {
-  const v = obj?.[key];
-  return typeof v === "string" && v.trim() ? v.trim() : undefined;
+function str(obj: Record<string, unknown> | undefined, ...keys: string[]): string | undefined {
+  for (const key of keys) {
+    const v = obj?.[key];
+    if (typeof v === "string" && v.trim()) return v.trim();
+  }
+  return undefined;
 }
 
 interface ItemHit {
   kind: "message" | "goal" | "skill" | "subagent" | "mcp";
   name?: string;
+}
+
+function genericName(kind: ItemHit["kind"], name: string | undefined): boolean {
+  const normalized = name?.trim().toLowerCase();
+  if (!normalized) return true;
+  if (kind === "skill") return normalized === "skill";
+  if (kind === "subagent") {
+    return normalized === "subagent" || normalized === "agent" || normalized === "task";
+  }
+  if (kind === "mcp") return normalized === "mcp";
+  return false;
+}
+
+function isSpecificToolHit(hit: ItemHit): boolean {
+  if (hit.kind === "message" || hit.kind === "goal") return true;
+  return !genericName(hit.kind, hit.name);
+}
+
+function betterHit(current: ItemHit | undefined, next: ItemHit): ItemHit {
+  if (!current) return next;
+  return isSpecificToolHit(next) ? next : current;
 }
 
 function classifyItem(itemType: string, payload: unknown): ItemHit | undefined {
@@ -167,32 +201,99 @@ function classifyItem(itemType: string, payload: unknown): ItemHit | undefined {
   const name = str(p, "name") ?? "";
   const title = str(p, "title") ?? "";
   const args = asRecord(p?.["args"]);
+  const lowerName = name.toLowerCase();
 
   if (itemType === "mcp_tool_call" || /^mcp__/.test(name)) {
     const match = /^mcp__(.+?)__/.exec(name);
-    return { kind: "mcp", name: match?.[1] ?? str(p, "serverId") ?? "mcp" };
+    return {
+      kind: "mcp",
+      name:
+        match?.[1] ??
+        str(p, "serverId") ??
+        str(p, "server") ??
+        str(args, "serverId") ??
+        str(args, "server") ??
+        "mcp",
+    };
   }
   if (
-    name === "Skill" ||
+    lowerName === "skill" ||
     /^(loaded|using) skill\b/i.test(name) ||
-    /^(loaded|using) skill\b/i.test(title)
+    /^(loaded|using) skill\b/i.test(title) ||
+    readSkillName(p, args) !== undefined
   ) {
     const skill =
       str(args, "skill") ??
       str(args, "name") ??
+      readSkillName(p, args) ??
       title
         .replace(/^(loaded|using) skill[:\s]*/i, "")
         .replace(/^skill:\s*/i, "")
+        .replace(/^Skill$/i, "")
         .trim();
     return { kind: "skill", name: skill || "skill" };
   }
-  const subagentType = str(args, "subagent_type");
-  if (p?.["isSubAgent"] === true || name === "Task" || name === "Workflow" || subagentType) {
+  const subagentType =
+    str(args, "subagent_type") ?? str(args, "agent_type") ?? str(args, "agentType");
+  if (
+    p?.["isSubAgent"] === true ||
+    lowerName === "task" ||
+    lowerName === "workflow" ||
+    lowerName === "agent" ||
+    lowerName === "collabagenttoolcall" ||
+    lowerName === "collab agent tool call" ||
+    subagentType
+  ) {
+    // Prefer the agent type (Task/Agent); for workflows use the saved name or
+    // description (inline script workflows carry neither, so they bucket under a
+    // generic "workflow"); otherwise the task description.
     const agent =
-      subagentType ?? (name === "Workflow" ? "workflow" : str(args, "description")) ?? "subagent";
+      subagentType ??
+      (lowerName === "workflow"
+        ? (str(args, "name") ?? str(args, "description") ?? "workflow")
+        : (str(args, "description") ?? str(args, "prompt") ?? "subagent"));
     return { kind: "subagent", name: agent };
   }
   return undefined;
+}
+
+function readSkillName(
+  payload: Record<string, unknown> | undefined,
+  args: Record<string, unknown> | undefined,
+): string | undefined {
+  return (
+    str(args, "skill") ??
+    str(args, "name") ??
+    readSkillNameFromPath(readPathArg(args)) ??
+    readSkillNameFromPath(str(payload, "title")) ??
+    readSkillNameFromPath(str(payload, "name"))
+  );
+}
+
+function readPathArg(args: Record<string, unknown> | undefined): string | undefined {
+  return (
+    str(args, "file_path") ??
+    str(args, "filePath") ??
+    str(args, "path") ??
+    str(args, "relative_path") ??
+    str(args, "relativePath") ??
+    str(args, "notebook_path") ??
+    str(args, "notebookPath")
+  );
+}
+
+function readSkillNameFromPath(value: string | undefined): string | undefined {
+  if (!value) return undefined;
+  const cleaned = value
+    .replace(/^(?:view(?:\s+\d+(?::\d+)?)?|read(?:ing)?|open(?:ing)?)[:\s]+/i, "")
+    .trim()
+    .replace(/^["'`]+|["'`]+$/g, "");
+  const parts = cleaned.split(/[\\/]+/).filter(Boolean);
+  if (parts.at(-1)?.toLowerCase() !== "skill.md") return undefined;
+  const skillsIndex = parts.findLastIndex((part) => part.toLowerCase() === "skills");
+  if (skillsIndex === -1 || skillsIndex >= parts.length - 2) return undefined;
+  const skill = parts.at(-2);
+  return skill && !skill.startsWith(".") ? skill : undefined;
 }
 
 /** Record an AI-performed git action (commit / PR / conflict) into the buffer. */
@@ -215,6 +316,25 @@ export function recordThreadStarted(thread: Thread): void {
     mode: m.mode,
     fast: m.fast,
     effort: m.effort,
+    value: 1,
+  });
+}
+
+function recordItemHit(itemId: string, hit: ItemHit, meta: Meta, ts: number, final: boolean): void {
+  const next = betterHit(pendingItemHits.get(itemId), hit);
+  if (!isSpecificToolHit(next) && !final) {
+    rememberInMap(pendingItemHits, itemId, next);
+    return;
+  }
+  if (!remember(seenItems, itemId)) return;
+  pendingItemHits.delete(itemId);
+  push({
+    ts,
+    kind: next.kind,
+    provider: meta.provider,
+    model: meta.model,
+    mode: meta.mode,
+    ...(next.name ? { name: next.name } : {}),
     value: 1,
   });
 }
@@ -298,20 +418,39 @@ export function recordRuntimeUsage(
         break;
       }
       case "item.started": {
+        rememberInMap(itemTypesById, event.itemId, event.itemType);
         const hit = classifyItem(event.itemType, event.payload);
         if (!hit) break;
-        if (!remember(seenItems, event.itemId)) break;
         const m = getMeta();
         if (!m) break;
-        push({
-          ts: now,
-          kind: hit.kind,
-          provider: m.provider,
-          model: m.model,
-          mode: m.mode,
-          ...(hit.name ? { name: hit.name } : {}),
-          value: 1,
-        });
+        recordItemHit(event.itemId, hit, m, now, false);
+        break;
+      }
+      case "item.updated": {
+        const itemType = itemTypesById.get(event.itemId);
+        if (!itemType || seenItems.has(event.itemId)) break;
+        const hit = classifyItem(itemType, event.payload);
+        if (!hit) break;
+        const m = getMeta();
+        if (!m) break;
+        recordItemHit(event.itemId, hit, m, now, false);
+        break;
+      }
+      case "item.completed": {
+        const itemType = itemTypesById.get(event.itemId);
+        if (!itemType || seenItems.has(event.itemId)) {
+          itemTypesById.delete(event.itemId);
+          pendingItemHits.delete(event.itemId);
+          break;
+        }
+        const hit = event.payload ? classifyItem(itemType, event.payload) : undefined;
+        const pending = pendingItemHits.get(event.itemId);
+        const best = hit ? betterHit(pending, hit) : pending;
+        if (best) {
+          const m = getMeta();
+          if (m) recordItemHit(event.itemId, best, m, now, true);
+        }
+        itemTypesById.delete(event.itemId);
         break;
       }
       default:

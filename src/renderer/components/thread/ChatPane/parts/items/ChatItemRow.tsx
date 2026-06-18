@@ -13,11 +13,11 @@ import {
 import { AssistantMessage } from "./AssistantMessage";
 import { CommandExecution } from "./CommandExecution";
 import { FileChange } from "./FileChange";
+import { ImageView } from "./ImageView";
 import { PlanItem } from "./PlanItem";
 import { QuestionAnswer } from "./QuestionAnswer";
 import { Reasoning } from "./Reasoning";
 import { SubAgentToolCall } from "./SubAgentToolCall";
-import { ToolCall } from "./ToolCall";
 import { ToolCallGroup } from "./ToolCallGroup";
 import { UserMessage } from "./UserMessage";
 import { WebSearchItem } from "./WebSearchItem";
@@ -103,11 +103,14 @@ function renderItem(item: RuntimeChatItem, checkpointRevertControl: ReactNode | 
       return <CommandExecution item={item} />;
     case "file_change":
       return <FileChange item={item} />;
+    // Any tool-like row may carry a generated image (Codex `imageGeneration`,
+    // ACP/Claude image tools). ImageView renders the inline image card and
+    // falls back to the standard ToolCall accordion when there's no image.
+    case "image_view":
     case "tool_call":
     case "mcp_tool_call":
-    case "image_view":
     case "dynamic_tool_call":
-      return <ToolCall item={item} />;
+      return <ImageView item={item} />;
     case "web_search":
       return <WebSearchItem item={item} />;
     case "error":

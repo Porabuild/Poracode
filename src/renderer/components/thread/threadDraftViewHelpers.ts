@@ -1,3 +1,4 @@
+import { msg } from "@lingui/core/macro";
 import type {
   AgentCapability,
   AgentStatus,
@@ -6,6 +7,7 @@ import type {
   ThreadPresentationMode,
 } from "@/shared/contracts";
 import { migrateCursorBaseId, parseCursorModelId } from "@/shared/cursorModelId";
+import { i18n } from "@/renderer/i18n/i18n";
 import { capabilitiesForPresentation } from "./threadComposerOptions";
 
 export function resolvePreferredAgentKind(
@@ -97,7 +99,7 @@ export function resolveModeValue(agent: AgentStatus, preferred?: string): string
 }
 
 export function formatEffortLabel(id: string): string {
-  if (id === "xhigh" || id === "xHigh") return "Extra High";
+  if (id === "xhigh" || id === "xHigh") return i18n._(msg`Extra High`);
   if (id === "ultracode") return "Ultracode";
   return id.charAt(0).toUpperCase() + id.slice(1);
 }
@@ -204,7 +206,9 @@ export function agentWithCapabilities(
 }
 
 export function formatAgentList(names: string[]): string {
-  if (names.length === 0) return "a supported coding agent";
+  if (names.length === 0) return i18n._(msg`a supported coding agent`);
   if (names.length === 1) return names[0]!;
-  return `${names.slice(0, -1).join(", ")}, or ${names.at(-1)}`;
+  const head = names.slice(0, -1).join(", ");
+  const tail = names.at(-1)!;
+  return i18n._(msg`${head}, or ${tail}`);
 }

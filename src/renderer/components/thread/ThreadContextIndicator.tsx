@@ -1,4 +1,5 @@
 import { Tooltip } from "@heroui/react";
+import { useLingui } from "@lingui/react/macro";
 import type { ThreadContextUsageSummary } from "./threadContextUsage";
 
 export function ThreadContextIndicator({
@@ -10,6 +11,7 @@ export function ThreadContextIndicator({
   isOpen: boolean;
   onToggle: () => void;
 }) {
+  const { t } = useLingui();
   const label = `${summary.headline}: ${summary.detail}`;
   const tone = resolveContextTone(summary.percent);
   const percent = summary.percent;
@@ -23,7 +25,7 @@ export function ThreadContextIndicator({
       <Tooltip.Trigger>
         <button
           type="button"
-          aria-label={isOpen ? "Hide context usage details" : "Show context usage details"}
+          aria-label={isOpen ? t`Hide context usage details` : t`Show context usage details`}
           aria-pressed={isOpen}
           className={`lightcode-context-indicator ${isOpen ? "lightcode-context-indicator--open" : ""}`}
           data-tone={tone}

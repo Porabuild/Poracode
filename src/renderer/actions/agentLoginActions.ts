@@ -1,7 +1,9 @@
 import { toast } from "@heroui/react";
+import { msg } from "@lingui/core/macro";
 import type { Project, ProjectLocation } from "@/shared/contracts";
 import { stripAnsi } from "@/shared/ansi";
 import { readBridge } from "@/renderer/bridge";
+import { i18n } from "@/renderer/i18n/i18n";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useDevTerminalStore } from "@/renderer/state/devTerminalStore";
 import { useLoginTerminalStore } from "@/renderer/state/loginTerminalStore";
@@ -45,7 +47,7 @@ export function runAgentLoginCommand(input: {
 }): boolean {
   const project = input.project ?? resolveLoginProject();
   if (!project) {
-    toast.warning("Add a project before signing in.");
+    toast.warning(i18n._(msg`Add a project before signing in.`));
     return false;
   }
 
@@ -120,7 +122,9 @@ export function runAgentLoginCommand(input: {
       // (and leave callers' pending UI stuck). Tear it down and report failure.
       stopWatching();
       fireOnce(-1);
-      toast.danger(error instanceof Error ? error.message : `Unable to open ${input.label} login.`);
+      toast.danger(
+        error instanceof Error ? error.message : i18n._(msg`Unable to open ${input.label} login.`),
+      );
       useLoginTerminalStore.getState().close();
     });
   writeScriptToShell(shellId, script);
@@ -144,7 +148,7 @@ export function runAgentInstallCommand(input: {
 }): boolean {
   const project = input.project ?? resolveLoginProject();
   if (!project) {
-    toast.warning("Add a project before installing an agent.");
+    toast.warning(i18n._(msg`Add a project before installing an agent.`));
     return false;
   }
 
@@ -201,7 +205,9 @@ export function runAgentInstallCommand(input: {
     .catch((error) => {
       stopWatching();
       fireOnce(-1);
-      toast.danger(error instanceof Error ? error.message : `Unable to install ${input.label}.`);
+      toast.danger(
+        error instanceof Error ? error.message : i18n._(msg`Unable to install ${input.label}.`),
+      );
       useLoginTerminalStore.getState().close();
     });
   writeScriptToShell(shellId, script);

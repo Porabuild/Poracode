@@ -1,4 +1,5 @@
 import { ClipboardList, Hammer } from "lucide-react";
+import { msg } from "@lingui/core/macro";
 import type { ComposerControl } from "@/renderer/components/thread/ThreadComposer";
 
 /**
@@ -20,6 +21,7 @@ export function planWorkToggle(input: {
       <Hammer className="size-3.5" />
     ),
     label: input.isPlanMode ? "Plan" : "Work",
+    displayLabel: input.isPlanMode ? msg`Plan` : msg`Work`,
     hideLabelOnWrap: true,
     isSelected: input.isPlanMode,
     isCurrentState: true,
@@ -42,6 +44,7 @@ export function fullAccessToggle(input: {
   return {
     kind: "toggle",
     label: input.isFullAccess ? "Full access" : "Supervised",
+    displayLabel: input.isFullAccess ? msg`Full access` : msg`Supervised`,
     iconKind: "permission",
     isSelected: input.isFullAccess,
     isCurrentState: true,

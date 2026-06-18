@@ -1,4 +1,5 @@
 import { Button, Modal, toast } from "@heroui/react";
+import { useLingui } from "@lingui/react/macro";
 import { Maximize2, X } from "lucide-react";
 import { overlaySidebarColumnClass } from "@/renderer/components/layout/sidebarChrome";
 import { useFileEditorStore } from "@/renderer/state/fileEditorStore";
@@ -6,6 +7,7 @@ import { FileEditorPane } from "./FileEditorPane/FileEditorPane";
 import { ProjectTreeView } from "./ProjectTreeView/ProjectTreeView";
 
 export function FileEditorModal() {
+  const { t } = useLingui();
   const rootContext = useFileEditorStore((state) => state.rootContext);
   const overlayMode = useFileEditorStore((state) => state.overlayMode);
   const activePath = useFileEditorStore((state) => state.activePath);
@@ -20,7 +22,7 @@ export function FileEditorModal() {
   );
 
   function requestClose() {
-    if (hasDirtyBuffers && !window.confirm("Discard unsaved editor changes?")) {
+    if (hasDirtyBuffers && !window.confirm(t`Discard unsaved editor changes?`)) {
       return;
     }
     setOverlayMode(null);
@@ -48,7 +50,7 @@ export function FileEditorModal() {
               <div className="min-w-0 flex-1">
                 <Modal.Heading>{rootContext.rootLabel}</Modal.Heading>
                 <p className="truncate text-xs text-muted">
-                  {activePath ?? "Select a file from the tree"}
+                  {activePath ?? t`Select a file from the tree`}
                 </p>
               </div>
               <Button

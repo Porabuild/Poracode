@@ -1,5 +1,4 @@
-import { homedir } from "node:os";
-import { join, normalize, posix as posixPath, win32 as win32Path } from "node:path";
+import { normalize, posix as posixPath, win32 as win32Path } from "node:path";
 import {
   type GitAddWorktreeResult,
   type GitBranchListResult,
@@ -10,7 +9,6 @@ import {
   type ProjectLocation,
 } from "@/shared/contracts";
 import { msg } from "@/shared/messages";
-import { resolveLightcodePaths } from "@/shared/lightcodePaths";
 import { buildWorktreeLocation } from "@/shared/worktree";
 import {
   computeDefaultWorktreePath,
@@ -20,9 +18,23 @@ import {
   GIT_NETWORK_TIMEOUT,
   GIT_STATUS_TIMEOUT,
   normalizeWorktreePath,
+  resolveBuiltInWorktreeRoot,
+  type WorktreePathOptions,
 } from "./exec";
 import { copyIgnoredFilesIntoWorktree } from "./copyIgnoredFiles";
 import { parseStatusPorcelainV2 } from "./statusService";
+
+function trimTrailingSeparators(path: string): string {
+  const trimmed = path.replace(/[\\/]+$/, "");
+  return trimmed || path;
+}
+
+function isPathUnderRoot(path: string, root: string): boolean {
+  if (path === root) return true;
+  if (!path.startsWith(root)) return false;
+  const next = path.charAt(root.length);
+  return next === "/" || next === "\\";
+}
 
 /** Argv for `git branch` to feed {@link parseBranchListOutput}. */
 export function buildBranchListArgs(includeRemote: boolean): string[] {
@@ -165,9 +177,11 @@ export class GitWorktreeService {
     copyIgnoredPatterns?: string[],
     transferUncommitted?: boolean,
     keepChangesInSource?: boolean,
+    worktreePlacement?: WorktreePathOptions,
   ): Promise<GitAddWorktreeResult> {
     const resolvedPath =
-      path ?? (branch ? await computeDefaultWorktreePath(location, branch) : undefined);
+      path ??
+      (branch ? await computeDefaultWorktreePath(location, branch, worktreePlacement) : undefined);
     if (!resolvedPath) {
       throw new Error(msg("git.worktree.noBranch"));
     }
@@ -454,18 +468,39 @@ export class GitWorktreeService {
     );
   }
 
-  async pruneWorktrees(location: ProjectLocation, activeWorktreePaths: string[]): Promise<void> {
+  /** Re-point linked worktrees after the main repo (or a worktree) moved on disk. */
+  async repairWorktrees(location: ProjectLocation): Promise<number> {
+    await execGit(location, ["worktree", "repair"]);
+    const { worktrees } = await this.listWorktrees(location);
+    return worktrees.filter((worktree) => !worktree.isMain).length;
+  }
+
+  /**
+   * Remove orphaned Lightcode-managed worktrees (registered but not in the
+   * active set). A worktree counts as managed only when it lives under one of
+   * `managedRoots` — the resolved global root, the project-relative root, and the
+   * legacy default. Per-project *custom* bases are intentionally excluded so we
+   * never auto-delete a user-chosen directory.
+   */
+  async pruneWorktrees(
+    location: ProjectLocation,
+    activeWorktreePaths: string[],
+    managedRoots?: string[],
+  ): Promise<void> {
     await execGit(location, ["worktree", "prune"]);
     const { worktrees } = await this.listWorktrees(location);
-    const managedBase = resolveLightcodePaths(join(homedir(), ".lightcode")).worktreesDir;
-    const normalizedManagedBase = normalize(managedBase).toLowerCase();
+    const roots = (
+      managedRoots && managedRoots.length > 0
+        ? managedRoots
+        : [await resolveBuiltInWorktreeRoot(location)]
+    ).map((root) => trimTrailingSeparators(normalize(root).toLowerCase()));
 
     for (const worktree of worktrees) {
       if (worktree.isMain) continue;
-      const normalizedPath = normalize(worktree.path);
-      const isManaged = normalizedPath.toLowerCase().startsWith(normalizedManagedBase);
+      const normalizedPath = normalize(worktree.path).toLowerCase();
+      const isManaged = roots.some((root) => isPathUnderRoot(normalizedPath, root));
       const isActive = activeWorktreePaths.some(
-        (path) => normalize(path).toLowerCase() === normalizedPath.toLowerCase(),
+        (path) => normalize(path).toLowerCase() === normalizedPath,
       );
       if (isManaged && !isActive) {
         await this.removeWorktree(location, worktree.path, true).catch(() => undefined);

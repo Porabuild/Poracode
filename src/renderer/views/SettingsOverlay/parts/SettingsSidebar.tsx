@@ -6,6 +6,7 @@ import {
   Bot,
   Boxes,
   FlaskConical,
+  FolderGit2,
   Gauge,
   GitFork,
   Globe,
@@ -23,6 +24,7 @@ import {
   TerminalSquare,
   UserRound,
 } from "lucide-react";
+import { useLingui } from "@lingui/react/macro";
 import { isClaudeProfileKind, type AgentStatus } from "@/shared/contracts";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import {
@@ -79,6 +81,7 @@ export function SettingsSidebar(props: {
     isRefreshingAgents,
     onRefreshAgents,
   } = props;
+  const { t } = useLingui();
   const { isCollapsed, collapse, expand } = useSidebar();
   const disabledAgents = useSharedSettings((s) => s.disabledAgents);
   const primaryAgents = installedAgents.filter((agent) => !isClaudeProfileKind(agent.kind));
@@ -106,70 +109,80 @@ export function SettingsSidebar(props: {
             <SidebarButton
               iconOnly
               icon={<UserRound className="size-4" />}
-              label="Profile"
+              label={t`Profile`}
               isActive={activeSection === "profile"}
               onPress={() => onSectionChange("profile")}
             />
             <SidebarButton
               iconOnly
               icon={<Settings2 className="size-4" />}
-              label="General"
+              label={t`General`}
               isActive={activeSection === "general"}
               onPress={() => onSectionChange("general")}
             />
             <SidebarButton
               iconOnly
               icon={<Mic className="size-4" />}
-              label="Audio"
+              label={t`Audio`}
               isActive={activeSection === "audio"}
               onPress={() => onSectionChange("audio")}
             />
             <SidebarButton
               iconOnly
               icon={<Palette className="size-4" />}
-              label="Appearance"
+              label={t`Appearance`}
               isActive={activeSection === "appearance"}
               onPress={() => onSectionChange("appearance")}
             />
             <SidebarButton
               iconOnly
               icon={<TerminalSquare className="size-4" />}
-              label="Terminal"
+              label={t`Terminal`}
               isActive={activeSection === "terminal"}
               onPress={() => onSectionChange("terminal")}
             />
             <SidebarButton
               iconOnly
               icon={<MessageSquare className="size-4" />}
-              label="Threads"
+              label={t`Threads`}
               isActive={activeSection === "threads"}
               onPress={() => onSectionChange("threads")}
             />
             <SidebarButton
               iconOnly
               icon={<GitFork className="size-4" />}
-              label="Git"
+              label={t`Git`}
               isActive={activeSection === "git"}
               onPress={() => onSectionChange("git")}
             />
             <SidebarButton
               iconOnly
+              icon={<FolderGit2 className="size-4" />}
+              label={t`Worktrees`}
+              isActive={activeSection === "worktrees"}
+              onPress={() => onSectionChange("worktrees")}
+            />
+            <SidebarButton
+              iconOnly
               icon={<Bell className="size-4" />}
-              label="Notifications"
+              label={t`Notifications`}
               isActive={activeSection === "notifications"}
               onPress={() => onSectionChange("notifications")}
             />
             <SidebarButton
               iconOnly
               icon={<Sparkles className="size-4" />}
-              label="AI"
+              label={t({
+                message: "AI",
+                comment: "Settings section: AI / assistant configuration",
+              })}
               isActive={activeSection === "ai"}
               onPress={() => onSectionChange("ai")}
             />
             <SidebarButton
               iconOnly
               icon={<Search className="size-4" />}
-              label="Search"
+              label={t`Search`}
               isActive={activeSection === "search"}
               onPress={() => onSectionChange("search")}
             />
@@ -183,7 +196,7 @@ export function SettingsSidebar(props: {
             <SidebarButton
               iconOnly
               icon={<Bot className="size-4" />}
-              label="Agents"
+              label={t`Agents`}
               isActive={isAgentsActive}
               onPress={openAgents}
             />
@@ -193,7 +206,7 @@ export function SettingsSidebar(props: {
                 icon={
                   isRefreshingAgents ? <PixelLoader size="sm" /> : <RefreshCw className="size-4" />
                 }
-                label="Refresh detected agents"
+                label={t`Refresh detected agents`}
                 isDisabled={isRefreshingAgents}
                 onPress={onRefreshAgents}
               />
@@ -202,7 +215,7 @@ export function SettingsSidebar(props: {
               <SidebarButton
                 iconOnly
                 icon={<Settings2 className="size-4" />}
-                label="Agents · General"
+                label={t`Agents · General`}
                 isActive={activeSection === "agentsGeneral"}
                 onPress={() => onSectionChange("agentsGeneral")}
               />
@@ -211,7 +224,7 @@ export function SettingsSidebar(props: {
               <SidebarButton
                 iconOnly
                 icon={<Boxes className="size-4" />}
-                label="Agent Registry"
+                label={t`Agent Registry`}
                 isActive={activeSection === "acpRegistry"}
                 onPress={() => onSectionChange("acpRegistry")}
               />
@@ -269,28 +282,28 @@ export function SettingsSidebar(props: {
             <SidebarButton
               iconOnly
               icon={<Globe className="size-4" />}
-              label="Browser"
+              label={t`Browser`}
               isActive={activeSection === "browser"}
               onPress={() => onSectionChange("browser")}
             />
             <SidebarButton
               iconOnly
               icon={<Gauge className="size-4" />}
-              label="Usage"
+              label={t`Usage`}
               isActive={activeSection === "usage"}
               onPress={() => onSectionChange("usage")}
             />
             <SidebarButton
               iconOnly
               icon={<Archive className="size-4" />}
-              label="Archived Threads"
+              label={t`Archived Threads`}
               isActive={activeSection === "archived"}
               onPress={() => onSectionChange("archived")}
             />
             <SidebarButton
               iconOnly
               icon={<Info className="size-4" />}
-              label="About"
+              label={t`About`}
               isActive={activeSection === "about"}
               onPress={() => onSectionChange("about")}
             />
@@ -298,7 +311,7 @@ export function SettingsSidebar(props: {
               <SidebarButton
                 iconOnly
                 icon={<FlaskConical className="size-4" />}
-                label="Dev"
+                label={t({ message: "Dev", comment: "Settings section: developer/debug tools" })}
                 isActive={activeSection === "dev"}
                 onPress={() => onSectionChange("dev")}
               />
@@ -308,13 +321,13 @@ export function SettingsSidebar(props: {
             <SidebarButton
               iconOnly
               icon={<ArrowLeft className="size-4" />}
-              label="Return to app"
+              label={t`Return to app`}
               onPress={onClose}
             />
             <SidebarButton
               iconOnly
               icon={<PanelLeft className="size-4" />}
-              label="Show sidebar"
+              label={t`Show sidebar`}
               onPress={expand}
             />
           </div>
@@ -328,61 +341,70 @@ export function SettingsSidebar(props: {
           <div className="space-y-0.5">
             <SidebarButton
               icon={<UserRound className="size-4" />}
-              label="Profile"
+              label={t`Profile`}
               isActive={activeSection === "profile"}
               onPress={() => onSectionChange("profile")}
             />
             <SidebarButton
               icon={<Settings2 className="size-4" />}
-              label="General"
+              label={t`General`}
               isActive={activeSection === "general"}
               onPress={() => onSectionChange("general")}
             />
             <SidebarButton
               icon={<Mic className="size-4" />}
-              label="Audio"
+              label={t`Audio`}
               isActive={activeSection === "audio"}
               onPress={() => onSectionChange("audio")}
             />
             <SidebarButton
               icon={<Palette className="size-4" />}
-              label="Appearance"
+              label={t`Appearance`}
               isActive={activeSection === "appearance"}
               onPress={() => onSectionChange("appearance")}
             />
             <SidebarButton
               icon={<TerminalSquare className="size-4" />}
-              label="Terminal"
+              label={t`Terminal`}
               isActive={activeSection === "terminal"}
               onPress={() => onSectionChange("terminal")}
             />
             <SidebarButton
               icon={<MessageSquare className="size-4" />}
-              label="Threads"
+              label={t`Threads`}
               isActive={activeSection === "threads"}
               onPress={() => onSectionChange("threads")}
             />
             <SidebarButton
               icon={<GitFork className="size-4" />}
-              label="Git"
+              label={t`Git`}
               isActive={activeSection === "git"}
               onPress={() => onSectionChange("git")}
             />
             <SidebarButton
+              icon={<FolderGit2 className="size-4" />}
+              label={t`Worktrees`}
+              isActive={activeSection === "worktrees"}
+              onPress={() => onSectionChange("worktrees")}
+            />
+            <SidebarButton
               icon={<Bell className="size-4" />}
-              label="Notifications"
+              label={t`Notifications`}
               isActive={activeSection === "notifications"}
               onPress={() => onSectionChange("notifications")}
             />
             <SidebarButton
               icon={<Sparkles className="size-4" />}
-              label="AI"
+              label={t({
+                message: "AI",
+                comment: "Settings section: AI / assistant configuration",
+              })}
               isActive={activeSection === "ai"}
               onPress={() => onSectionChange("ai")}
             />
             <SidebarButton
               icon={<Search className="size-4" />}
-              label="Search"
+              label={t`Search`}
               isActive={activeSection === "search"}
               onPress={() => onSectionChange("search")}
             />
@@ -394,13 +416,13 @@ export function SettingsSidebar(props: {
             />
             <SidebarButton
               icon={<Bot className="size-4" />}
-              label="Agents"
+              label={t`Agents`}
               isActive={activeSection === "agents"}
               onPress={openAgents}
               suffix={
                 <button
                   type="button"
-                  aria-label="Refresh detected agents"
+                  aria-label={t`Refresh detected agents`}
                   className="flex size-5 shrink-0 cursor-default items-center justify-center text-muted/70 transition-colors hover:text-foreground disabled:cursor-not-allowed disabled:text-muted/40"
                   disabled={isRefreshingAgents}
                   onClick={(e) => {
@@ -420,13 +442,13 @@ export function SettingsSidebar(props: {
               <div className="space-y-0.5 pl-4">
                 <SidebarButton
                   icon={<Settings2 className="size-4" />}
-                  label="General"
+                  label={t`General`}
                   isActive={activeSection === "agentsGeneral"}
                   onPress={() => onSectionChange("agentsGeneral")}
                 />
                 <SidebarButton
                   icon={<Boxes className="size-4" />}
-                  label="Agent Registry"
+                  label={t`Agent Registry`}
                   isActive={activeSection === "acpRegistry"}
                   onPress={() => onSectionChange("acpRegistry")}
                 />
@@ -485,32 +507,32 @@ export function SettingsSidebar(props: {
             )}
             <SidebarButton
               icon={<Globe className="size-4" />}
-              label="Browser"
+              label={t`Browser`}
               isActive={activeSection === "browser"}
               onPress={() => onSectionChange("browser")}
             />
             <SidebarButton
               icon={<Gauge className="size-4" />}
-              label="Usage"
+              label={t`Usage`}
               isActive={activeSection === "usage"}
               onPress={() => onSectionChange("usage")}
             />
             <SidebarButton
               icon={<Archive className="size-4" />}
-              label="Archived Threads"
+              label={t`Archived Threads`}
               isActive={activeSection === "archived"}
               onPress={() => onSectionChange("archived")}
             />
             <SidebarButton
               icon={<Info className="size-4" />}
-              label="About"
+              label={t`About`}
               isActive={activeSection === "about"}
               onPress={() => onSectionChange("about")}
             />
             {devMode && (
               <SidebarButton
                 icon={<FlaskConical className="size-4" />}
-                label="Dev"
+                label={t({ message: "Dev", comment: "Settings section: developer/debug tools" })}
                 isActive={activeSection === "dev"}
                 onPress={() => onSectionChange("dev")}
               />
@@ -521,12 +543,12 @@ export function SettingsSidebar(props: {
         <div className={sidebarFooterNavClass}>
           <SidebarButton
             icon={<ArrowLeft className="size-4" />}
-            label="Return to app"
+            label={t`Return to app`}
             onPress={onClose}
           />
           <SidebarButton
             icon={<PanelLeftClose className="size-4" />}
-            label="Hide sidebar"
+            label={t`Hide sidebar`}
             onPress={collapse}
           />
         </div>

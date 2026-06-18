@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Button } from "@heroui/react";
+import { Trans, useLingui } from "@lingui/react/macro";
 import type { RequestOutcome } from "@/shared/contracts";
 
 type StructuredElicitationSchemaProperty =
@@ -188,6 +189,7 @@ export function StructuredElicitationForm(props: {
   onSubmit: (response: unknown, outcome: RequestOutcome) => void;
 }) {
   const { params, isDisabled, onSubmit } = props;
+  const { t } = useLingui();
   const [formValues, setFormValues] = useState<Record<string, StructuredFormValue>>(() =>
     params.mode === "form" ? getInitialStructuredFormValues(params.requestedSchema) : {},
   );
@@ -215,7 +217,7 @@ export function StructuredElicitationForm(props: {
           rel="noreferrer"
           target="_blank"
         >
-          Open required URL
+          <Trans>Open required URL</Trans>
         </a>
       ) : (
         <div className="space-y-2">
@@ -333,7 +335,7 @@ export function StructuredElicitationForm(props: {
           className="text-muted"
           onPress={() => onSubmit({ action: "cancel" }, "cancelled")}
         >
-          Cancel
+          <Trans>Cancel</Trans>
         </Button>
         <Button
           isDisabled={isDisabled}
@@ -341,7 +343,7 @@ export function StructuredElicitationForm(props: {
           variant="ghost"
           onPress={() => onSubmit({ action: "decline" }, "declined")}
         >
-          Decline
+          <Trans>Decline</Trans>
         </Button>
         <Button
           isDisabled={isDisabled || hasMissing}
@@ -349,7 +351,7 @@ export function StructuredElicitationForm(props: {
           variant="secondary"
           onPress={submitAccept}
         >
-          {params.mode === "url" ? "Continue" : "Submit"}
+          {params.mode === "url" ? t`Continue` : t`Submit`}
         </Button>
       </div>
     </div>

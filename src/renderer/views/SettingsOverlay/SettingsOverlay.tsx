@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useLingui } from "@lingui/react/macro";
 import { AgentDiscoveryScreen } from "@/renderer/components/thread/AgentDiscoveryScreen";
 import { readBridge } from "@/renderer/bridge";
 import { useAppStore } from "@/renderer/state/appStore";
@@ -14,6 +15,7 @@ import { UsageSettings } from "./parts/UsageSettings";
 import { AudioSettings } from "./parts/AudioSettings";
 import { GeneralSettings } from "./parts/GeneralSettings";
 import { GitSettings } from "./parts/GitSettings";
+import { WorktreeSettings } from "./parts/WorktreeSettings";
 import { NotificationSettings } from "./parts/NotificationSettings";
 import { AISettings } from "./parts/AISettings";
 import { AcpRegistrySettings } from "./parts/AcpRegistrySettings";
@@ -37,6 +39,7 @@ const SECTION_VIEWS: Partial<Record<SettingsSection, () => ReactNode>> = {
   terminal: () => <TerminalSettings />,
   threads: () => <ThreadSettings />,
   git: () => <GitSettings />,
+  worktrees: () => <WorktreeSettings />,
   notifications: () => <NotificationSettings />,
   ai: () => <AISettings />,
   search: () => <SearchSettings />,
@@ -72,6 +75,7 @@ function renderSection(
 
 export function SettingsOverlay(props: { onClose: () => void }) {
   const { onClose } = props;
+  const { t } = useLingui();
   const requestedSection = usePanelStore((s) => s.settingsSection);
   const clearSettingsSection = usePanelStore((s) => s.clearSettingsSection);
   const [activeSection, setActiveSection] = useState<SettingsSection>(
@@ -137,7 +141,7 @@ export function SettingsOverlay(props: { onClose: () => void }) {
 
   return (
     <PageLayout
-      title="Settings"
+      title={t`Settings`}
       sidebar={
         <SettingsSidebar
           activeSection={activeSection}

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Trans, useLingui } from "@lingui/react/macro";
 import { Bot, Check, CircleAlert } from "lucide-react";
 import type {
   ProjectLocation,
@@ -39,6 +40,7 @@ export function WorkflowOverlayBody({
   // isRunning unused now — the shared store polls until the manifest reports
   // a terminal status, regardless of what the parent SDK item reports.
   void isRunning;
+  const { t } = useLingui();
   const { run, error } = useWorkflowRun(
     workflow.manifestPath ? itemId : null,
     workflow.manifestPath ?? null,
@@ -85,10 +87,10 @@ export function WorkflowOverlayBody({
           loading={!run && !error && !!workflow.manifestPath}
           emptyHint={
             showUnphasedAtTop
-              ? "Waiting for workflow to spawn agents…"
+              ? t`Waiting for workflow to spawn agents…`
               : phases.length === 0
-                ? "No phases yet."
-                : "No agents in this phase."
+                ? t`No phases yet.`
+                : t`No agents in this phase.`
           }
         />
         <AgentDetail agent={selectedAgent} phaseTitle={selectedAgent?.phaseTitle ?? phase.title} />
@@ -120,6 +122,7 @@ function WorkflowToolbar({
   run: WorkflowRun | null;
   error: string | null;
 }) {
+  const { t } = useLingui();
   const status = run?.status ?? "unknown";
   const completed = run ? countCompletedAgents(run) : 0;
   const total = run?.agentCount ?? 0;
@@ -158,7 +161,7 @@ function WorkflowToolbar({
             tabs={phaseTabs}
             active={activeTitle}
             onChange={onSelectPhase}
-            ariaLabel="Workflow phases"
+            ariaLabel={t`Workflow phases`}
             shape="rounded"
             transparent
           />
@@ -200,11 +203,12 @@ function AgentsColumn({
   loading: boolean;
   emptyHint: string;
 }) {
+  const { t } = useLingui();
   return (
     <div className="min-h-0 overflow-y-auto border-r border-[color:var(--border)] [scrollbar-gutter:stable]">
       {agents.length === 0 ? (
         <p className="px-3 py-3 text-[length:var(--lc-chat-font-size-meta)] text-foreground-muted">
-          {loading ? "Loading…" : emptyHint}
+          {loading ? t`Loading…` : emptyHint}
         </p>
       ) : (
         <ul className="flex flex-col">
@@ -266,7 +270,7 @@ function AgentDetail({ agent, phaseTitle }: { agent: WorkflowAgent | null; phase
     return (
       <div className="hidden min-h-0 overflow-y-auto px-3 py-3 sm:block">
         <p className="text-[length:var(--lc-chat-font-size-meta)] text-foreground-muted">
-          Select an agent to see its prompt and outcome.
+          <Trans>Select an agent to see its prompt and outcome.</Trans>
         </p>
       </div>
     );
@@ -293,13 +297,15 @@ function AgentDetail({ agent, phaseTitle }: { agent: WorkflowAgent | null; phase
       </p>
       {agent.lastToolName ? (
         <p className="pt-1 text-[length:var(--lc-chat-font-size-meta)] text-foreground-muted">
-          Last tool: <span className="font-mono">{agent.lastToolName}</span>
+          <Trans>
+            Last tool: <span className="font-mono">{agent.lastToolName}</span>
+          </Trans>
         </p>
       ) : null}
       {agent.promptPreview ? (
         <section className="pt-3">
           <h3 className="pb-1 text-[length:var(--lc-chat-font-size-meta)] font-medium text-foreground">
-            Prompt
+            <Trans>Prompt</Trans>
           </h3>
           <pre className="whitespace-pre-wrap break-words rounded border border-[color:var(--border)] bg-[var(--composer-surface)] px-2 py-1.5 font-mono text-[length:var(--lc-chat-font-size-meta)] text-foreground/90">
             {agent.promptPreview}
@@ -309,7 +315,7 @@ function AgentDetail({ agent, phaseTitle }: { agent: WorkflowAgent | null; phase
       {agent.resultPreview ? (
         <section className="pt-3">
           <h3 className="pb-1 text-[length:var(--lc-chat-font-size-meta)] font-medium text-foreground">
-            Outcome
+            <Trans>Outcome</Trans>
           </h3>
           <pre className="whitespace-pre-wrap break-words rounded border border-[color:var(--border)] bg-[var(--composer-surface)] px-2 py-1.5 font-mono text-[length:var(--lc-chat-font-size-meta)] text-foreground/90">
             {agent.resultPreview}
@@ -319,7 +325,7 @@ function AgentDetail({ agent, phaseTitle }: { agent: WorkflowAgent | null; phase
       {agent.chat?.length ? (
         <section className="pt-3">
           <h3 className="pb-1 text-[length:var(--lc-chat-font-size-meta)] font-medium text-foreground">
-            Chat
+            <Trans>Chat</Trans>
           </h3>
           <ol className="flex flex-col gap-2">
             {agent.chat.map((entry, index) => (
@@ -361,7 +367,9 @@ function UnphasedAgents({
 }) {
   return (
     <div className="shrink-0 border-t border-dashed border-[color:var(--border)] px-3 py-1 text-[length:var(--lc-chat-font-size-meta)] text-foreground-muted">
-      <span className="pr-2 font-medium">Unphased:</span>
+      <span className="pr-2 font-medium">
+        <Trans>Unphased:</Trans>
+      </span>
       {agents.map((agent) => (
         <button
           type="button"
@@ -378,8 +386,9 @@ function UnphasedAgents({
 }
 
 function AgentStateIcon({ state }: { state: WorkflowAgentState | undefined }) {
+  const { t } = useLingui();
   if (state === "done") {
-    return <Check aria-label="done" className="size-3 shrink-0 text-foreground-muted" />;
+    return <Check aria-label={t`done`} className="size-3 shrink-0 text-foreground-muted" />;
   }
   if (state === "failed" || state === "cancelled") {
     return <CircleAlert aria-label={state} className="size-3 shrink-0 text-danger" />;
@@ -392,15 +401,16 @@ function AgentStateIcon({ state }: { state: WorkflowAgentState | undefined }) {
 }
 
 function StatusBadge({ status }: { status: WorkflowRunStatus }) {
+  const { t } = useLingui();
   const label =
     status === "running"
-      ? "running"
+      ? t`running`
       : status === "completed"
-        ? "done"
+        ? t`done`
         : status === "failed"
-          ? "failed"
+          ? t`failed`
           : status === "cancelled"
-            ? "cancelled"
+            ? t`cancelled`
             : null;
   if (!label) return null;
   const className =

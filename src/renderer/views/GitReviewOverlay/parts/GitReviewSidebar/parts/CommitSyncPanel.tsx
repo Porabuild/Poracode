@@ -9,6 +9,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import { Button, ButtonGroup, Dropdown, Label, Tooltip } from "@heroui/react";
+import { Trans, useLingui } from "@lingui/react/macro";
 import type { CommitDefaultAction } from "@/shared/contracts";
 import { PixelLoader, TextArea } from "@/renderer/components/common";
 import type { GitSyncCommand } from "@/renderer/actions/gitCommandRunner";
@@ -86,6 +87,7 @@ export function CommitSyncPanel(props: {
     handleSyncAction,
     handlePullFromSource,
   } = props;
+  const { t } = useLingui();
 
   // Resolve which commit action the primary button performs. The user's
   // sticky last-used choice wins when it's actually available; otherwise we
@@ -120,8 +122,8 @@ export function CommitSyncPanel(props: {
               fullWidth
               autoSize
               maxRows={8}
-              aria-label="Commit message"
-              placeholder="Commit message (Ctrl+Enter)"
+              aria-label={t`Commit message`}
+              placeholder={t`Commit message (Ctrl+Enter)`}
               rows={1}
               value={commitMessage}
               className={`lc-commit-message ${canGenerateMessage ? "pr-8" : ""}`}
@@ -152,7 +154,9 @@ export function CommitSyncPanel(props: {
                     isPending ? <PixelLoader size="xs" /> : <Sparkles className="size-3.5" />
                   }
                 </Button>
-                <Tooltip.Content>Generate commit message</Tooltip.Content>
+                <Tooltip.Content>
+                  <Trans>Generate commit message</Trans>
+                </Tooltip.Content>
               </Tooltip>
             )}
           </div>
@@ -178,7 +182,7 @@ export function CommitSyncPanel(props: {
                     ) : (
                       COMMIT_ACTION_ICONS[primaryCommitAction]
                     )}
-                    {COMMIT_ACTION_LABELS[primaryCommitAction]}
+                    {t(COMMIT_ACTION_LABELS[primaryCommitAction])}
                   </>
                 )}
               </Button>
@@ -195,7 +199,7 @@ export function CommitSyncPanel(props: {
                   <Button
                     isIconOnly
                     variant="tertiary"
-                    aria-label="More commit options"
+                    aria-label={t`More commit options`}
                     isDisabled={!canCommitStaged}
                   >
                     <ButtonGroup.Separator />
@@ -203,7 +207,7 @@ export function CommitSyncPanel(props: {
                   </Button>
                   <Dropdown.Popover placement="top end">
                     <Dropdown.Menu
-                      aria-label="Commit options"
+                      aria-label={t`Commit options`}
                       onAction={(key) => {
                         if (key === "pull-from-source") {
                           void handlePullFromSource();
@@ -216,22 +220,24 @@ export function CommitSyncPanel(props: {
                         <Dropdown.Item
                           key={action}
                           id={action}
-                          textValue={COMMIT_ACTION_LABELS[action]}
+                          textValue={t(COMMIT_ACTION_LABELS[action])}
                           isDisabled={!canCommitStaged}
                         >
                           {COMMIT_ACTION_ICONS[action]}
-                          <Label>{COMMIT_ACTION_LABELS[action]}</Label>
+                          <Label>{t(COMMIT_ACTION_LABELS[action])}</Label>
                         </Dropdown.Item>
                       ))}
                       {showPullFromSource ? (
                         <Dropdown.Item
                           id="pull-from-source"
-                          textValue={`Pull from ${sourceBranch} (${sourceAhead})`}
+                          textValue={t`Pull from ${sourceBranch} (${sourceAhead})`}
                           isDisabled={isPullingFromSource}
                         >
                           <ArrowDown className="size-3.5" />
                           <Label>
-                            Pull from {sourceBranch} ({sourceAhead})
+                            <Trans>
+                              Pull from {sourceBranch} ({sourceAhead})
+                            </Trans>
                           </Label>
                         </Dropdown.Item>
                       ) : null}
@@ -252,7 +258,7 @@ export function CommitSyncPanel(props: {
               {({ isPending }) => (
                 <>
                   {isPending ? <PixelLoader size="xs" /> : <ArrowUp className="size-3.5" />}
-                  Push ({ahead})
+                  <Trans>Push ({ahead})</Trans>
                 </>
               )}
             </Button>
@@ -286,10 +292,12 @@ export function CommitSyncPanel(props: {
                     <ArrowUpDown className="size-3.5" />
                   )}
                   {needsPush
-                    ? `Push${ahead > 0 ? ` (${ahead})` : ""}`
+                    ? ahead > 0
+                      ? t`Push (${ahead})`
+                      : t`Push`
                     : behind > 0 || ahead > 0
-                      ? `Sync${behind > 0 ? ` ↓${behind}` : ""}${ahead > 0 ? ` ↑${ahead}` : ""}`
-                      : "Sync"}
+                      ? `${t`Sync`}${behind > 0 ? ` ↓${behind}` : ""}${ahead > 0 ? ` ↑${ahead}` : ""}`
+                      : t`Sync`}
                 </>
               )}
             </Button>
@@ -306,7 +314,7 @@ export function CommitSyncPanel(props: {
                 <Button
                   isIconOnly
                   variant="tertiary"
-                  aria-label="More sync options"
+                  aria-label={t`More sync options`}
                   isDisabled={isSyncing || isPullingFromSource}
                 >
                   <ButtonGroup.Separator />
@@ -314,7 +322,7 @@ export function CommitSyncPanel(props: {
                 </Button>
                 <Dropdown.Popover placement="top end">
                   <Dropdown.Menu
-                    aria-label="Sync options"
+                    aria-label={t`Sync options`}
                     onAction={(key) => {
                       if (key === "pull-from-source") {
                         void handlePullFromSource();
@@ -324,44 +332,46 @@ export function CommitSyncPanel(props: {
                     }}
                   >
                     {showPull ? (
-                      <Dropdown.Item id="pull" textValue={`Pull (${behind})`}>
+                      <Dropdown.Item id="pull" textValue={t`Pull (${behind})`}>
                         <ArrowDown className="size-3.5" />
-                        <Label>Pull ({behind})</Label>
+                        <Label>{t`Pull (${behind})`}</Label>
                       </Dropdown.Item>
                     ) : null}
                     {showPull ? (
-                      <Dropdown.Item id="pullRebase" textValue={`Pull Rebase (${behind})`}>
+                      <Dropdown.Item id="pullRebase" textValue={t`Pull Rebase (${behind})`}>
                         <ArrowDown className="size-3.5" />
-                        <Label>Pull Rebase ({behind})</Label>
+                        <Label>{t`Pull Rebase (${behind})`}</Label>
                       </Dropdown.Item>
                     ) : null}
                     {showPush ? (
-                      <Dropdown.Item id="push" textValue={`Push${ahead > 0 ? ` (${ahead})` : ""}`}>
+                      <Dropdown.Item id="push" textValue={ahead > 0 ? t`Push (${ahead})` : t`Push`}>
                         <ArrowUp className="size-3.5" />
-                        <Label>Push{ahead > 0 ? ` (${ahead})` : ""}</Label>
+                        <Label>{ahead > 0 ? t`Push (${ahead})` : t`Push`}</Label>
                       </Dropdown.Item>
                     ) : null}
                     {showSyncBoth ? (
-                      <Dropdown.Item id="sync" textValue="Sync">
+                      <Dropdown.Item id="sync" textValue={t`Sync`}>
                         <ArrowUpDown className="size-3.5" />
-                        <Label>Sync</Label>
+                        <Label>{t`Sync`}</Label>
                       </Dropdown.Item>
                     ) : null}
                     {showSyncBoth ? (
-                      <Dropdown.Item id="syncRebase" textValue="Sync (Rebase)">
+                      <Dropdown.Item id="syncRebase" textValue={t`Sync (Rebase)`}>
                         <ArrowUpDown className="size-3.5" />
-                        <Label>Sync (Rebase)</Label>
+                        <Label>{t`Sync (Rebase)`}</Label>
                       </Dropdown.Item>
                     ) : null}
                     {showPullFromSourceItem ? (
                       <Dropdown.Item
                         id="pull-from-source"
-                        textValue={`Pull from ${sourceBranch} (${sourceAhead})`}
+                        textValue={t`Pull from ${sourceBranch} (${sourceAhead})`}
                         isDisabled={isPullingFromSource}
                       >
                         <ArrowDown className="size-3.5" />
                         <Label>
-                          Pull from {sourceBranch} ({sourceAhead})
+                          <Trans>
+                            Pull from {sourceBranch} ({sourceAhead})
+                          </Trans>
                         </Label>
                       </Dropdown.Item>
                     ) : null}

@@ -1,7 +1,8 @@
-import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { AgentInstanceConfig, AgentStatus, Project } from "@/shared/contracts";
+import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 
 const statusesState = {
   agentStatuses: [] as AgentStatus[],
@@ -147,6 +148,16 @@ const getLatestAgentVersionMock = vi.hoisted(() =>
     .mockResolvedValue({}),
 );
 
+const getAntigravityAccountMock = vi.hoisted(() =>
+  vi
+    .fn<
+      (payload: { wslDistros?: string[] }) => Promise<{
+        account?: { authenticatedAs?: string; organization?: string; plan?: string };
+      }>
+    >()
+    .mockResolvedValue({}),
+);
+
 const updateAgentBinaryMock = vi.hoisted(() =>
   vi
     .fn<
@@ -177,6 +188,7 @@ vi.mock("@/renderer/bridge", () => ({
     focusWindow: focusWindowMock,
     listAcpRegistry: listAcpRegistryMock,
     getLatestAgentVersion: getLatestAgentVersionMock,
+    getAntigravityAccount: getAntigravityAccountMock,
     updateAgentBinary: updateAgentBinaryMock,
     getAgentHookPluginStatuses: getAgentHookPluginStatusesMock,
     installAgentHookPlugin: installAgentHookPluginMock,
@@ -319,6 +331,7 @@ describe("SingleAgentSettings", () => {
     focusWindowMock.mockReset().mockResolvedValue(undefined);
     listAcpRegistryMock.mockReset().mockResolvedValue([]);
     getLatestAgentVersionMock.mockReset().mockResolvedValue({});
+    getAntigravityAccountMock.mockReset().mockResolvedValue({});
     updateAgentBinaryMock.mockReset().mockResolvedValue({ ok: true });
     toastMock.danger.mockReset();
     toastMock.success.mockReset();
@@ -719,6 +732,66 @@ describe("SingleAgentSettings", () => {
       onCommandComplete: expect.any(Function),
     });
     expect(authenticateAcpAgentMock).not.toHaveBeenCalled();
+  });
+
+  it("surfaces the lazily-resolved Antigravity account and a Re-login (no Logout) button", async () => {
+    statusesState.agentStatuses = [
+      makeStatus("antigravity", {
+        label: "Antigravity",
+        version: "1.0.8",
+        authState: "authenticated",
+        loginCommand: "agy",
+        authMethods: [
+          { type: "terminal", id: "antigravity-login", name: "Antigravity login", args: [] },
+        ],
+      }),
+    ];
+    getAntigravityAccountMock.mockResolvedValue({
+      account: { authenticatedAs: "user@example.com", plan: "Google AI Pro" },
+    });
+
+    render(<SingleAgentSettings agentKind="antigravity" />);
+
+    // Account line resolves out-of-band via the bridge, so it appears async.
+    expect(await screen.findByText(/user@example\.com · Google AI Pro/)).toBeInTheDocument();
+    expect(getAntigravityAccountMock).toHaveBeenCalledWith({ wslDistros: [] });
+
+    const row = envRow("Default");
+    // No `agy logout` exists, so authLogoutSupported is absent → Re-login, never Logout.
+    expect(within(row).getByRole("button", { name: /re-login/i })).toBeInTheDocument();
+    expect(within(row).queryByRole("button", { name: /logout/i })).not.toBeInTheDocument();
+  });
+
+  it("shows Login (not the shared account) for an Antigravity env that isn't signed in", async () => {
+    statusesState.agentStatuses = [
+      makeStatus("antigravity", {
+        label: "Antigravity",
+        version: "1.0.8",
+        authState: "unknown",
+        loginCommand: "agy",
+        authMethods: [
+          { type: "terminal", id: "antigravity-login", name: "Antigravity login", args: [] },
+        ],
+      }),
+    ];
+    // Even once the shared account resolves, it must not appear on an env whose
+    // own auth state is unauthenticated (avoids "account + Login required").
+    getAntigravityAccountMock.mockResolvedValue({
+      account: { authenticatedAs: "user@example.com", plan: "Google AI Pro" },
+    });
+
+    render(<SingleAgentSettings agentKind="antigravity" />);
+
+    await waitFor(() => expect(getAntigravityAccountMock).toHaveBeenCalledWith({ wslDistros: [] }));
+    const row = envRow("Default");
+    expect(within(row).queryByText(/user@example\.com/)).not.toBeInTheDocument();
+
+    fireEvent.click(within(row).getByRole("button", { name: /login/i }));
+    expect(runAgentLoginCommandMock).toHaveBeenCalledWith({
+      label: "Antigravity",
+      command: "agy",
+      onCommandComplete: expect.any(Function),
+    });
   });
 
   it("shows a native Windows install row when Grok is only installed in WSL", async () => {

@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { startTransition, useEffect } from "react";
 import { useShallow } from "zustand/shallow";
+import { Trans, useLingui } from "@lingui/react/macro";
 import { AnimatedTerminalIcon } from "@/renderer/components/common/AnimatedTerminalIcon";
 import { getAppName } from "@/shared/appName";
 import type { Thread } from "@/shared/contracts";
@@ -50,6 +51,7 @@ import { SidebarProjectThreadList } from "./parts/SidebarProjectThreadList";
 
 function UpdateButtons(props: { iconOnly?: boolean }) {
   const { iconOnly = false } = props;
+  const { t } = useLingui();
   const updatePhase = useUpdateStore((s) => s.phase);
   const updateVersion = useUpdateStore((s) => s.version);
   const downloadPercent = useUpdateStore((s) => s.downloadPercent);
@@ -79,7 +81,7 @@ function UpdateButtons(props: { iconOnly?: boolean }) {
             </div>
           </Tooltip.Trigger>
           <Tooltip.Content placement="right">
-            Downloading{versionLabel} — {Math.round(downloadPercent)}%
+            <Trans>Downloading{versionLabel}</Trans> — {Math.round(downloadPercent)}%
             {byteLine ? ` · ${byteLine}` : ""}
             {speedLine ? ` · ${speedLine}` : ""}
           </Tooltip.Content>
@@ -91,7 +93,9 @@ function UpdateButtons(props: { iconOnly?: boolean }) {
       <div className="flex w-full items-center gap-2 rounded-3xl px-2 py-1.5 text-muted">
         <Download className="size-4 shrink-0 animate-pulse text-accent" />
         <div className="flex min-w-0 flex-1 flex-col gap-1">
-          <span className="truncate text-xs">Downloading{versionLabel}</span>
+          <span className="truncate text-xs">
+            <Trans>Downloading{versionLabel}</Trans>
+          </span>
           <div className="flex min-w-0 items-center justify-between gap-2 text-xs opacity-80">
             <span className="truncate">{byteLine ?? ""}</span>
             <span className="shrink-0 whitespace-nowrap">
@@ -113,13 +117,14 @@ function UpdateButtons(props: { iconOnly?: boolean }) {
     <SidebarButton
       iconOnly={iconOnly}
       icon={<RefreshCw className="size-4 text-accent" />}
-      label={updateVersion ? `Install v${updateVersion}` : "Install update"}
+      label={updateVersion ? t`Install v${updateVersion}` : t`Install update`}
       onPress={() => void readBridge().installUpdate()}
     />
   );
 }
 
 function HomeTerminalButton(props: { projectId: string; projectName: string }) {
+  const { t } = useLingui();
   const hasTerminal = useIsProjectTerminalOpen(props.projectId);
   const isActiveTerminal = useIsProjectTerminalActive(props.projectId);
   const isBusy = useIsProjectTerminalBusy(props.projectId);
@@ -127,7 +132,7 @@ function HomeTerminalButton(props: { projectId: string; projectName: string }) {
     <SidebarPanelDragButton
       panel="terminal"
       projectId={props.projectId}
-      ariaLabel={`Terminal for ${props.projectName}`}
+      ariaLabel={t`Terminal for ${props.projectName}`}
       className={`shrink-0 cursor-grab rounded p-0.5 transition-colors hover:bg-[var(--row-hover)] hover:text-foreground active:cursor-grabbing ${
         isActiveTerminal
           ? "text-accent"
@@ -191,6 +196,7 @@ function CollapsedThreadRail() {
 }
 
 export function Sidebar() {
+  const { t } = useLingui();
   const projectIds = useAppStore(
     useShallow((state) =>
       state.projects.filter((project) => !isHomeProject(project)).map((project) => project.id),
@@ -244,7 +250,7 @@ export function Sidebar() {
             <SidebarButton
               iconOnly
               icon={<Search className="size-3.5" />}
-              label="Search"
+              label={t`Search`}
               isActive={threadSearchOpen}
               onPress={openThreadSearch}
             />
@@ -257,13 +263,13 @@ export function Sidebar() {
             <SidebarButton
               iconOnly
               icon={<Settings2 className="size-4" />}
-              label="Settings"
+              label={t`Settings`}
               onPress={openSettings}
             />
             <SidebarButton
               iconOnly
               icon={<PanelLeft className="size-4" />}
-              label="Show sidebar"
+              label={t`Show sidebar`}
               onPress={expand}
             />
           </div>
@@ -277,7 +283,9 @@ export function Sidebar() {
         <div ref={setScrollContainer} className={sidebarBodyScrollClass()} style={scrollFadeStyle}>
           {projectIds.length === 0 && !(homeScopeEnabled && homeProject) ? (
             <div className="pt-4">
-              <p className="text-center text-sm text-muted">Add a project to start</p>
+              <p className="text-center text-sm text-muted">
+                <Trans>Add a project to start</Trans>
+              </p>
             </div>
           ) : (
             <div className="space-y-4">
@@ -294,7 +302,9 @@ export function Sidebar() {
                     label={
                       <span className="flex items-center gap-1.5">
                         <House className="size-3.5 shrink-0 text-muted" />
-                        <span className="truncate text-xs font-semibold text-foreground">Home</span>
+                        <span className="truncate text-xs font-semibold text-foreground">
+                          <Trans>Home</Trans>
+                        </span>
                       </span>
                     }
                     className="lightcode-sidebar-project-nudge !pl-1"
@@ -328,12 +338,12 @@ export function Sidebar() {
           <UpdateButtons />
           <SidebarButton
             icon={<Settings2 className="size-4" />}
-            label="Settings"
+            label={t`Settings`}
             onPress={openSettings}
           />
           <SidebarButton
             icon={<PanelLeftClose className="size-4" />}
-            label="Hide sidebar"
+            label={t`Hide sidebar`}
             onPress={collapse}
           />
         </div>

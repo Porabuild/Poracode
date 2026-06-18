@@ -1,3 +1,4 @@
+import { Plural, Trans } from "@lingui/react/macro";
 import type { PermissionRequestDetails } from "@/shared/contracts";
 import { PathDisplay } from "@/renderer/components/common/PathDisplay";
 import { formatInputSubject, type OpenCodePermissionDetails } from "../helpers";
@@ -9,13 +10,15 @@ export function OpenCodePermissionDetailsLine({ details }: { details: OpenCodePe
   return (
     <div className="mt-0.5 space-y-0.5 font-mono text-[11px]">
       <div>
-        <span className="text-foreground/60">permission</span>
+        <span className="text-foreground/60">
+          <Trans>permission</Trans>
+        </span>
         <span className="ml-1 text-foreground">{details.permission}</span>
       </div>
       {details.patterns.length > 0 ? (
         <div className="whitespace-pre-wrap break-words">
           <span className="text-foreground/60">
-            {details.patterns.length === 1 ? "target" : "targets"}
+            <Plural value={details.patterns.length} one="target" other="targets" />
           </span>
           <span className="ml-1 text-foreground">{details.patterns.join(", ")}</span>
         </div>
@@ -48,7 +51,7 @@ export function PermissionDetailsLine({ details }: { details: PermissionRequestD
       ) : null}
       {details.blockedPath ? (
         <div className="font-mono text-[11px] whitespace-pre-wrap break-words text-foreground/60">
-          blocked: <span className="text-foreground/80">{details.blockedPath}</span>
+          <Trans>blocked:</Trans> <span className="text-foreground/80">{details.blockedPath}</span>
         </div>
       ) : null}
     </div>

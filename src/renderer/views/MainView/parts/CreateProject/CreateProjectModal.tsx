@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { ChevronDown, FolderOpen, Monitor } from "lucide-react";
 import { Button, Dropdown, Label, Modal } from "@heroui/react";
+import { Trans, useLingui } from "@lingui/react/macro";
 import { Input, TuxIcon } from "@/renderer/components/common";
 import {
   buildScratchTargetPath,
@@ -44,6 +45,7 @@ export function CreateProjectModal() {
 }
 
 function CreateProjectForm() {
+  const { t } = useLingui();
   const platform = readBridge().platform;
   const lastUsedProjectDirs = useSharedSettings((s) => s.lastUsedProjectDirs);
 
@@ -140,27 +142,33 @@ function CreateProjectForm() {
       await commitCreateProject({ mode: "scratch", choice, dir: scratchParent, name });
       usePanelStore.getState().closeCreateProjectModal();
     } catch (error) {
-      setSubmitError(error instanceof Error ? error.message : "Couldn't create the project.");
+      setSubmitError(error instanceof Error ? error.message : t`Couldn't create the project.`);
     } finally {
       setBusy(false);
     }
   }
 
-  const runtimeLabel = runtimeKey === "native" ? "Native" : runtimeKey;
+  const runtimeLabel = runtimeKey === "native" ? t`Native` : runtimeKey;
 
   return (
     <>
       <Modal.CloseTrigger />
       <Modal.Header>
-        <Modal.Heading>Start from scratch</Modal.Heading>
-        <p className="mt-1 text-xs text-muted">Name your project and choose where to create it.</p>
+        <Modal.Heading>
+          <Trans>Start from scratch</Trans>
+        </Modal.Heading>
+        <p className="mt-1 text-xs text-muted">
+          <Trans>Name your project and choose where to create it.</Trans>
+        </p>
       </Modal.Header>
       <Modal.Body className="flex flex-col gap-3 p-4">
         <div className="flex flex-col gap-1.5">
-          <Label className="text-xs font-medium text-muted">Project name</Label>
+          <Label className="text-xs font-medium text-muted">
+            <Trans>Project name</Trans>
+          </Label>
           <Input
-            aria-label="Project name"
-            placeholder="New project"
+            aria-label={t`Project name`}
+            placeholder={t`New project`}
             value={name}
             onChange={(e) => setName(e.target.value)}
             onKeyDown={(e) => {
@@ -174,9 +182,11 @@ function CreateProjectForm() {
 
         {showRuntime ? (
           <div className="flex flex-col gap-1.5">
-            <Label className="text-xs font-medium text-muted">Runtime</Label>
+            <Label className="text-xs font-medium text-muted">
+              <Trans>Runtime</Trans>
+            </Label>
             <Dropdown>
-              <Button aria-label="Runtime" variant="tertiary" className="justify-between">
+              <Button aria-label={t`Runtime`} variant="tertiary" className="justify-between">
                 <span className="flex items-center gap-2">
                   {runtimeKey === "native" ? (
                     <Monitor className="size-4 text-muted" />
@@ -189,14 +199,16 @@ function CreateProjectForm() {
               </Button>
               <Dropdown.Popover className="min-w-[--trigger-width]">
                 <Dropdown.Menu
-                  aria-label="Runtime options"
+                  aria-label={t`Runtime options`}
                   selectionMode="single"
                   selectedKeys={[runtimeKey]}
                   onAction={(key) => setRuntimeKey(String(key))}
                 >
-                  <Dropdown.Item id="native" textValue="Native">
+                  <Dropdown.Item id="native" textValue={t`Native`}>
                     <Monitor className="size-4 shrink-0 text-muted" />
-                    <Label>Native</Label>
+                    <Label>
+                      <Trans>Native</Trans>
+                    </Label>
                   </Dropdown.Item>
                   {distros.map((distro) => (
                     <Dropdown.Item key={distro} id={distro} textValue={distro}>
@@ -211,9 +223,11 @@ function CreateProjectForm() {
         ) : null}
 
         <div className="flex flex-col gap-1.5">
-          <Label className="text-xs font-medium text-muted">Location</Label>
+          <Label className="text-xs font-medium text-muted">
+            <Trans>Location</Trans>
+          </Label>
           <Button
-            aria-label="Browse for parent folder"
+            aria-label={t`Browse for parent folder`}
             variant="tertiary"
             className="w-full justify-start gap-2 font-normal"
             onPress={() => void handleBrowse()}
@@ -227,7 +241,9 @@ function CreateProjectForm() {
                 <span className="shrink-0">{pickerLeaf.tail}</span>
               </span>
             ) : (
-              <span className="flex-1 text-left text-muted">Choose a folder…</span>
+              <span className="flex-1 text-left text-muted">
+                <Trans>Choose a folder…</Trans>
+              </span>
             )}
           </Button>
         </div>
@@ -236,7 +252,7 @@ function CreateProjectForm() {
       </Modal.Body>
       <Modal.Footer>
         <Button slot="close" variant="ghost" className="text-muted">
-          Cancel
+          <Trans>Cancel</Trans>
         </Button>
         <Button
           variant="tertiary"
@@ -244,7 +260,7 @@ function CreateProjectForm() {
           isPending={busy}
           onPress={() => void handleSubmit()}
         >
-          Create project
+          <Trans>Create project</Trans>
         </Button>
       </Modal.Footer>
     </>

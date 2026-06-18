@@ -36,7 +36,7 @@ Match the canonical dialog look — do not restyle. Reference: `CreatePrModal`, 
 
 ## ACP Composer Behavior
 
-- **Inline file mentions stay text-first, then serialize to structured segments.** `MentionInput` + `serializeMentions` accept raw `@path` tokens, so repo-relative references like `@.agents/docs/ui-patterns.md` become `{ kind: "file" }` prompt segments on submit without requiring a picker chip.
+- **Inline file mentions stay text-first, then serialize to structured segments.** `MentionInput` + the `serializeMentions.ts` helpers (`serializeToSegments` / `flattenSegments`) accept raw `@path` tokens, so repo-relative references like `@.agents/docs/ui-patterns.md` become `{ kind: "file" }` prompt segments on submit without requiring a picker chip.
 - **ACP resource paths resolve from the active project root.** Relative file mentions and attachments are normalized before ACP conversion so Windows, WSL, spaces, and `file://` URIs stay valid.
 - **GUI ACP threads support steering via follow-up submits while working.** A new submit during `working` interrupts the active turn, queues the follow-up as structured `{ prompt, segments, config }`, and drains queued turns FIFO once the session returns to `idle` / `needs_reply`.
 - **Terminal presentation stays PTY-owned.** Do not add queueing or fake stop/steering UI to terminal-native threads; the terminal surface remains the source of truth there.
@@ -94,8 +94,8 @@ Three modes: light, dark, system. Resolved via `useResolvedAppearance()` hook in
 
 ## Layout
 
-- **AppShell**: Collapsible sidebar (220-500px, collapsed to 48px icon rail) + main content + optional right panel (320-700px). Drag-to-resize with localStorage persistence.
-- **SplitPaneContainer**: Horizontal multi-pane for side-by-side threads (1-3 panes, equal initial distribution, 15% minimum each).
+- **AppShell**: Collapsible sidebar (240-500px, collapsed to 48px icon rail) + main content + optional right panel (320-1100px). Drag-to-resize with localStorage persistence.
+- **SplitPaneContainer**: Recursive horizontal/vertical multi-pane tree for side-by-side threads (unbounded pane count, equal initial distribution, 15% minimum each).
 - Resizable panels use **local state only** (not Zustand) to avoid resize lag.
 
 ## Module Loading

@@ -25,6 +25,7 @@
     "packages/agents-usage/src",
     "vite.config.ts",
     "tsdown.config.ts",
+    "lingui.config.ts",
     "vitest.config.ts",
     "vitest.integration.config.ts"
   ]

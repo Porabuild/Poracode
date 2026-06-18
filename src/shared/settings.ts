@@ -12,8 +12,10 @@ import {
   themeModeSchema,
   threadPresentationModeSchema,
   threadRemoveActionSchema,
+  worktreeStorageModeSchema,
 } from "./contracts";
 import { DEFAULT_SEARCH_EXCLUDE } from "./searchExclude";
+import { AI_LANGUAGE_VALUES, LOCALE_SETTING_VALUES } from "./locale";
 
 const modelPickerEntrySchema = z.object({
   agentKind: z.string().min(1),
@@ -118,6 +120,20 @@ export const sharedSettingsSchema = z.object({
    * base "default" theme at apply time.
    */
   themePreset: z.string(),
+  /**
+   * UI language. `"system"` follows the OS/browser preferred language at
+   * runtime (resolved by `resolveLocale`), mirroring `themeMode: "system"`.
+   */
+  locale: z.enum(LOCALE_SETTING_VALUES).default("system"),
+  /**
+   * Language for AI-generated git text (commit messages, PR title/description).
+   * `"match-app"` follows the resolved UI `locale`; any other value pins a
+   * specific language. Defaults to `"en"` so shared/team-facing artifacts stay
+   * English regardless of the interface language. Thread titles and other
+   * "conversation" text instead always follow the app language and are not
+   * governed by this setting.
+   */
+  gitTextLanguage: z.enum(AI_LANGUAGE_VALUES).default("en"),
   terminalPosition: terminalPositionSchema,
   commitGenProvider: z.string(),
   commitGenModel: z.string(),
@@ -214,6 +230,23 @@ export const sharedSettingsSchema = z.object({
   }),
   /** Automatically show the terminal panel when running commands or creating worktrees. */
   autoShowTerminalPanel: z.boolean(),
+  /**
+   * Where git worktrees are created: under a global root (`global`) or nested in
+   * each project at `<project>/.lightcode/worktrees` (`project-relative`).
+   */
+  worktreeStorageMode: worktreeStorageModeSchema,
+  /**
+   * Custom global worktree root for native projects. Empty string = built-in
+   * default (`~/.lightcode/worktrees`). Only used when `worktreeStorageMode` is
+   * `global`.
+   */
+  worktreeBasePath: z.string(),
+  /**
+   * Custom global worktree root for WSL projects (a Linux path). Empty string =
+   * WSL default (`~/.lightcode/worktrees` in the distro home). Only used when
+   * `worktreeStorageMode` is `global`.
+   */
+  wslWorktreeBasePath: z.string(),
   /** Open git review as a right-side panel or a full page overlay. */
   gitReviewMode: gitReviewModeSchema,
   /**
@@ -309,6 +342,8 @@ export type SharedSettingsInput = Omit<SharedSettings, "agentHookSupport">;
 export const defaultSharedSettings: SharedSettings = {
   themeMode: "dark",
   themePreset: "default",
+  locale: "system",
+  gitTextLanguage: "en",
   terminalPosition: "bottom",
   commitGenProvider: "auto",
   commitGenModel: "",
@@ -352,6 +387,9 @@ export const defaultSharedSettings: SharedSettings = {
   sidebarTranslucency: true,
   sidebarGlassTint: { light: null, dark: null },
   autoShowTerminalPanel: true,
+  worktreeStorageMode: "global",
+  worktreeBasePath: "",
+  wslWorktreeBasePath: "",
   gitReviewMode: "panel",
   prCreateMode: "dialog",
   commitDefaultAction: "commit-push",

@@ -33,6 +33,18 @@ export const saveHandoffContextPayloadSchema = z.object({
   content: z.string(),
 });
 
+export const saveImageFilePayloadSchema = z.object({
+  /** Raw image bytes to write to the user-chosen path. */
+  data: z.instanceof(Uint8Array),
+  /** Default file name shown in the Save dialog (e.g. `"generated-image.png"`). */
+  suggestedName: z.string().min(1),
+});
+
+export const copyImageToClipboardPayloadSchema = z.object({
+  /** Raw image bytes to place on the OS clipboard as an image. */
+  data: z.instanceof(Uint8Array),
+});
+
 export const createProjectDirectoryPayloadSchema = z.object({
   /** Absolute parent directory (native path, or a `\\wsl...` UNC path). */
   parent: z.string().min(1),

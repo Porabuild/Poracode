@@ -1,8 +1,10 @@
 import { Popover } from "@heroui/react";
+import { useLingui } from "@lingui/react/macro";
 import { Button } from "@/renderer/components/common";
 import { ACTION_ICONS } from "@/renderer/utils/actionIcons";
 
 export function ActionIconPicker(props: { value: string; onChange: (name: string) => void }) {
+  const { t } = useLingui();
   const { value, onChange } = props;
   const selected = ACTION_ICONS.find((i) => i.name === value) ?? ACTION_ICONS[0]!;
 
@@ -11,7 +13,7 @@ export function ActionIconPicker(props: { value: string; onChange: (name: string
       <Button
         isIconOnly
         variant="ghost"
-        aria-label="Pick icon"
+        aria-label={t`Pick icon`}
         className="size-8 min-w-0 shrink-0 border border-[var(--hairline-strong)] bg-[var(--row-hover)] text-muted hover:border-[var(--hairline-strong)] hover:text-foreground"
       >
         <selected.Icon className="size-4" />
