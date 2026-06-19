@@ -199,7 +199,13 @@ describe("runtimeEventSlice.applyRuntimeEvent", () => {
   // per-event reducer and the batch coalescer must preserve it.
   const repeatedCharChunks: RuntimeEvent[] = [
     { type: "item.started", threadId: "t1", itemId: "i1", itemType: "assistant_message" },
-    { type: "content.delta", threadId: "t1", itemId: "i1", stream: "assistant_text", delta: "aws s" },
+    {
+      type: "content.delta",
+      threadId: "t1",
+      itemId: "i1",
+      stream: "assistant_text",
+      delta: "aws s",
+    },
     {
       type: "content.delta",
       threadId: "t1",
@@ -207,7 +213,13 @@ describe("runtimeEventSlice.applyRuntimeEvent", () => {
       stream: "assistant_text",
       delta: "so login --profile DataScience-Team-228",
     },
-    { type: "content.delta", threadId: "t1", itemId: "i1", stream: "assistant_text", delta: "889582725" },
+    {
+      type: "content.delta",
+      threadId: "t1",
+      itemId: "i1",
+      stream: "assistant_text",
+      delta: "889582725",
+    },
   ];
   const repeatedCharResult = "aws sso login --profile DataScience-Team-228889582725";
 
