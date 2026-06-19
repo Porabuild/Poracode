@@ -57,6 +57,7 @@ export interface AppCommand {
    * only resolves keys from the keybindings store, so it has no runtime effect.
    */
   keys?: string[];
+  showInShortcuts?: boolean;
   run: (args?: unknown) => void | Promise<void>;
 }
 
@@ -451,6 +452,7 @@ function chatCommand(command: AgentSlashCommand, thread: Thread): AppCommand {
     subtitle: command.description ?? command.label,
     keywords: [command.label, command.description ?? ""],
     when: "hasThread",
+    showInShortcuts: false,
     run: async () => {
       await readBridge().sendThreadInput({
         threadId: thread.id,

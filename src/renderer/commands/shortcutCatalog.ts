@@ -38,7 +38,6 @@ export const SHORTCUT_SECTIONS = [
   { id: "project", label: msg`Project`, groups: ["Project"] },
   { id: "thread", label: msg`Thread`, groups: ["Thread"] },
   { id: "scripts", label: msg`Scripts`, groups: ["Scripts"] },
-  { id: "chat", label: msg`Chat Commands`, groups: ["Chat Commands"] },
   { id: "general", label: msg`General`, groups: ["Lightcode"] },
   { id: "custom", label: msg`Custom`, groups: ["Custom"] },
 ] as const;
@@ -197,41 +196,44 @@ export function buildShortcutRows(
     ...commands.map((command) => command.id),
     ...COMPOSER_CONTROL_COMMANDS.map((command) => command.id),
   ]);
-  const commandRows = commands.map((command) => {
-    const bindings = bindingsByCommand.get(command.id) ?? [];
-    const defaultBindings = DEFAULT_BINDINGS_BY_COMMAND.get(command.id) ?? [];
-    const group = resolve(command.group);
-    // Context and section detection match canonical English group tokens (e.g.
-    // `group === "Editor"`), so feed them the source label — not the translated
-    // `group` above, which would never match `===` in a non-English locale.
-    const canonicalGroup = canonicalLabel(command.group);
-    const contexts = contextsForCommand(command, bindings, canonicalGroup);
-    const bound = formatBindings(bindings, platform);
-    const keys =
-      bound.length > 0
-        ? bound
-        : (command.keys ?? []).map((key) => formatKeybinding(key, platform) || key);
-    return rowWithSearchText(
-      {
-        id: command.id,
-        title: resolve(command.title),
-        description: resolve(command.subtitle ?? command.group),
-        group,
-        section: sectionForGroup(canonicalGroup),
-        contexts,
-        keys,
-        commandId: command.id,
-        editable: true,
-        bindings,
-        defaultBindings,
-        whenTemplate: bindings[0]?.when ?? defaultBindings[0]?.when ?? null,
-      },
-      resolve,
-    );
-  });
+  const commandRows = commands
+    .filter((command) => command.showInShortcuts !== false)
+    .map((command) => {
+      const bindings = bindingsByCommand.get(command.id) ?? [];
+      const defaultBindings = DEFAULT_BINDINGS_BY_COMMAND.get(command.id) ?? [];
+      const group = resolve(command.group);
+      // Context and section detection match canonical English group tokens (e.g.
+      // `group === "Editor"`), so feed them the source label — not the translated
+      // `group` above, which would never match `===` in a non-English locale.
+      const canonicalGroup = canonicalLabel(command.group);
+      const contexts = contextsForCommand(command, bindings, canonicalGroup);
+      const bound = formatBindings(bindings, platform);
+      const keys =
+        bound.length > 0
+          ? bound
+          : (command.keys ?? []).map((key) => formatKeybinding(key, platform) || key);
+      return rowWithSearchText(
+        {
+          id: command.id,
+          title: resolve(command.title),
+          description: resolve(command.subtitle ?? command.group),
+          group,
+          section: sectionForGroup(canonicalGroup),
+          contexts,
+          keys,
+          commandId: command.id,
+          editable: true,
+          bindings,
+          defaultBindings,
+          whenTemplate: bindings[0]?.when ?? defaultBindings[0]?.when ?? null,
+        },
+        resolve,
+      );
+    });
 
   const customRows = keybindings
     .filter((binding) => !knownCommandIds.has(binding.command))
+    .filter((binding) => !isProjectScriptCommandId(binding.command))
     .map((binding) =>
       rowWithSearchText(
         {
@@ -307,6 +309,10 @@ export function buildShortcutRows(
 
 export function labelForContext(context: ShortcutContext): string | MessageDescriptor {
   return SHORTCUT_CONTEXTS.find((item) => item.id === context)?.label ?? context;
+}
+
+export function isProjectScriptCommandId(commandId: string): boolean {
+  return /^script\..+\.run$/.test(commandId);
 }
 
 const SECTION_BY_GROUP = new Map<string, ShortcutSection>();

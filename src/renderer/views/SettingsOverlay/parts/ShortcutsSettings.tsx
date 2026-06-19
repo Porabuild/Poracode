@@ -17,6 +17,7 @@ import {
 import {
   buildShortcutRows,
   groupRowsBySection,
+  isProjectScriptCommandId,
   type ResolveLabel,
   type ShortcutRow,
   type ShortcutSection,
@@ -146,6 +147,9 @@ export function ShortcutsSettings() {
     conflictName: (canonicalKey, excludeCommand) => {
       for (const binding of current()) {
         if (binding.command === excludeCommand) continue;
+        if (isProjectScriptCommandId(binding.command) && !titleByCommand.has(binding.command)) {
+          continue;
+        }
         const raw = bindingForPlatform(binding, platform);
         if (raw && canonicalizeKeybinding(raw, platform) === canonicalKey) {
           return titleByCommand.get(binding.command) ?? binding.command;

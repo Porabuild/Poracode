@@ -49,6 +49,48 @@ describe("shortcut catalog", () => {
     expect(effort?.keys).toContain(formatKeybinding("Ctrl+T", "win32"));
   });
 
+  it("does not expose chat slash commands as shortcut rows", () => {
+    const rows = buildShortcutRows(
+      [
+        {
+          id: "chat.command.skill",
+          title: "/skill",
+          group: "Chat Commands",
+          showInShortcuts: false,
+          run: () => {},
+        },
+      ],
+      [],
+      "win32",
+      resolveLabel,
+    );
+
+    expect(rows.some((row) => row.id === "chat.command.skill")).toBe(false);
+  });
+
+  it("does not expose inactive project script bindings as custom rows", () => {
+    const rows = buildShortcutRows(
+      [
+        {
+          id: "script.active.run",
+          title: "Run active",
+          group: "Scripts",
+          when: "hasProject",
+          run: () => {},
+        },
+      ],
+      [
+        { command: "script.active.run", key: "Ctrl+R" },
+        { command: "script.other-project.run", key: "Ctrl+R" },
+      ],
+      "win32",
+      resolveLabel,
+    );
+
+    expect(rows.some((row) => row.commandId === "script.active.run")).toBe(true);
+    expect(rows.some((row) => row.commandId === "script.other-project.run")).toBe(false);
+  });
+
   it("exposes the browser focus-address-bar command as an editable browser row", () => {
     for (const platform of PLATFORMS) {
       const rows = buildShortcutRows(
