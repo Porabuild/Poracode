@@ -189,6 +189,17 @@ function intentFromSummarizedCommand(t: string): CommandIntentDisplay | null {
     };
   }
 
+  const grepFileView = parseGrepLikeFileView(trimmed);
+  if (grepFileView) {
+    const prefix = viewPrefix(grepFileView.lines);
+    const label = grepFileView.lines ? grepFileView.path : basenameFromPath(grepFileView.path);
+    return {
+      title: `${prefix}${label}`,
+      parts: { prefix, path: grepFileView.path, filePath: true },
+      kind: "view",
+    };
+  }
+
   const grepLike = parseGrepLikeSearch(trimmed);
   if (grepLike) {
     return {
@@ -337,7 +348,22 @@ function parsePipedFileView(command: string): PipedFileView | null {
   return sed ? { path, lines: sed.lines } : null;
 }
 
+function parseGrepLikeFileView(command: string): PowerShellFileView | null {
+  const parts = splitPowerShellPipeline(command);
+  const path = extractGrepLikeFileViewPath(splitPowerShellWords(parts[0] ?? command));
+  if (!path) return null;
+
+  const lines = parts
+    .slice(1)
+    .map((part) => parseSelectObjectLineWindow(splitPowerShellWords(part)))
+    .find((lineWindow): lineWindow is string => !!lineWindow);
+  return { path, ...(lines ? { lines } : {}) };
+}
+
 function parsePowerShellGetContentView(command: string): PowerShellFileView | null {
+  const indexedView = parsePowerShellIndexedGetContentView(command);
+  if (indexedView) return indexedView;
+
   const parts = splitPowerShellPipeline(command);
   const path = extractPowerShellGetContentPath(splitPowerShellWords(parts[0] ?? command));
   if (!path) return null;
@@ -347,6 +373,69 @@ function parsePowerShellGetContentView(command: string): PowerShellFileView | nu
     .map((part) => parseSelectObjectLineWindow(splitPowerShellWords(part)))
     .find((lineWindow): lineWindow is string => !!lineWindow);
   return { path, ...(lines ? { lines } : {}) };
+}
+
+function parsePowerShellIndexedGetContentView(command: string): PowerShellFileView | null {
+  const match =
+    /^\s*(\$\w+)\s*=\s*((?:Get-Content|gc)\b.*?)\s*;\s*(\$\w+)\s*\[\s*(\d+)\s*\.\.\s*(\d+)\s*\]/i.exec(
+      command,
+    );
+  if (!match || match[1]!.toLowerCase() !== match[3]!.toLowerCase()) return null;
+
+  const path = extractPowerShellGetContentPath(splitPowerShellWords(match[2]!));
+  const startIndex = readNonNegativeInteger(match[4]);
+  const endIndex = readNonNegativeInteger(match[5]);
+  if (!path || startIndex === undefined || endIndex === undefined || endIndex < startIndex)
+    return null;
+
+  return { path, lines: `${startIndex + 1}-${endIndex + 1}` };
+}
+
+function extractGrepLikeFileViewPath(words: string[]): string | undefined {
+  const executable = words[0]?.split(/[/\\]/).pop()?.toLowerCase();
+  if (!executable || !GREP_LIKE_EXECUTABLES.has(executable)) return undefined;
+
+  let pattern: string | undefined;
+  const paths: string[] = [];
+  for (let i = 1; i < words.length; i++) {
+    const word = words[i]!;
+    if (word === "--") {
+      if (pattern === undefined) {
+        pattern = words[++i];
+      } else {
+        paths.push(...words.slice(i + 1));
+      }
+      break;
+    }
+    if (word === "-e" || word === "--regexp" || word === "-f" || word === "--file") {
+      pattern = words[++i] ?? pattern;
+      continue;
+    }
+    if (word.startsWith("--regexp=")) {
+      pattern = word.slice("--regexp=".length);
+      continue;
+    }
+    if (word.startsWith("--file=")) {
+      pattern = word.slice("--file=".length);
+      continue;
+    }
+    if (word === "-g" || word === "--glob" || word === "--type" || word === "-t") {
+      i++;
+      continue;
+    }
+    if (word.startsWith("-")) continue;
+    if (pattern === undefined) {
+      pattern = word;
+      continue;
+    }
+    paths.push(word);
+  }
+
+  return pattern && isAllLinesRegex(pattern) && paths.length === 1 ? paths[0] : undefined;
+}
+
+function isAllLinesRegex(pattern: string): boolean {
+  return pattern.replace(/^'+/u, "") === "^";
 }
 
 function extractPowerShellGetContentPath(words: string[]): string | undefined {

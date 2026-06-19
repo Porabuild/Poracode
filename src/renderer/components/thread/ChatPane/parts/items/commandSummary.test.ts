@@ -56,6 +56,20 @@ describe("humanIntentTitle", () => {
     });
   });
 
+  it("describes PowerShell Get-Content array slices as viewed lines", () => {
+    const full =
+      "pwsh -Command '$lines = Get-Content src/renderer/commands/registry.ts; $lines[430..490] -join \"`n\"'";
+    const display = commandIntentDisplay(full);
+
+    expect(display.title).toBe("View 431:491: src/renderer/commands/registry.ts");
+    expect(display.kind).toBe("view");
+    expect(display.parts).toEqual({
+      prefix: "View 431:491: ",
+      path: "src/renderer/commands/registry.ts",
+      filePath: true,
+    });
+  });
+
   it("preserves Windows paths in PowerShell Get-Content -LiteralPath", () => {
     const full = String.raw`pwsh -Command 'Get-Content -LiteralPath C:\Users\sdsle\work\lightcode\src\foo.ts'`;
     const display = commandIntentDisplay(full);
@@ -99,6 +113,21 @@ describe("humanIntentTitle", () => {
     expect(humanIntentTitle(full)).toBe('Search: "agent status|AgentStatus"');
     expect(commandIntentDisplay(full).kind).toBe("search");
     expect(commandIntentDisplay(full).parts).toBeUndefined();
+  });
+
+  it("describes ripgrep all-line windows as viewed lines", () => {
+    const full = String.raw`"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command 'rg -n "''^" src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts | Select-Object -Skip 1 -First 180'`;
+    const display = commandIntentDisplay(full);
+
+    expect(display.title).toBe(
+      "View 2:181: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts",
+    );
+    expect(display.kind).toBe("view");
+    expect(display.parts).toEqual({
+      prefix: "View 2:181: ",
+      path: "src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts",
+      filePath: true,
+    });
   });
 
   it("describes plain grep commands as searches", () => {
