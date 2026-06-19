@@ -1,9 +1,4 @@
-import { findBestHint, type HintEntry, type TerminalStatusHint } from "../base";
-
-interface CommandCodeHintEntry extends HintEntry {
-  status: TerminalStatusHint["status"];
-  attention: TerminalStatusHint["attention"];
-}
+import { detectTerminalStatusFromHints, type TerminalStatusHint } from "../base";
 
 // Heuristics tuned against captured `command-code` v0.37 TUI output.
 //
@@ -20,31 +15,21 @@ interface CommandCodeHintEntry extends HintEntry {
 // `index.ts` — supplies the `working` edge for follow-up text turns plus the
 // `needs_approval` / `needs_reply` interactive states, which have no hook event.
 // (Command Code emits no OSC, so there is no OSC-based signal to fall back to.)
-const COMMANDCODE_STRONG: CommandCodeHintEntry[] = [
-  { re: /Enter to select|Choose an option/i, status: "needs_reply", attention: "needs_reply" },
+const COMMANDCODE_STRONG = [
+  { re: /Enter to select|Choose an option/i, status: "needs_reply" as const, attention: "needs_reply" as const },
   {
     re: /\[y\/n\]|\(y\/N\)|Allow\s+.*\?|Do you want to proceed|Continue\?|Approve\??|Trust this folder/i,
-    status: "needs_approval",
-    attention: "needs_approval",
+    status: "needs_approval" as const,
+    attention: "needs_approval" as const,
   },
-  { re: /\besc to interrupt\b/i, status: "working", attention: "working" },
+  { re: /\besc to interrupt\b/i, status: "working" as const, attention: "working" as const },
 ];
 
-const COMMANDCODE_FALLBACK_IDLE: CommandCodeHintEntry[] = [
-  { re: /Ask your question/i, status: "idle", attention: "none" },
-  { re: /\?\s+for shortcuts|\/\s+for commands/i, status: "idle", attention: "none" },
+const COMMANDCODE_FALLBACK_IDLE = [
+  { re: /Ask your question/i, status: "idle" as const, attention: "none" as const },
+  { re: /\?\s+for shortcuts|\/\s+for commands/i, status: "idle" as const, attention: "none" as const },
 ];
 
 export function detectCommandCodeTerminalStatus(text: string): TerminalStatusHint | null {
-  const tail = text.slice(-1200);
-
-  const strong = findBestHint(tail, COMMANDCODE_STRONG);
-  if (strong) {
-    return { status: strong.status, attention: strong.attention, corroborated: true };
-  }
-
-  const fallback = findBestHint(tail, COMMANDCODE_FALLBACK_IDLE);
-  if (!fallback) return null;
-  const bothPresent = COMMANDCODE_FALLBACK_IDLE.every((entry) => entry.re.test(tail));
-  return { status: fallback.status, attention: fallback.attention, corroborated: bothPresent };
+  return detectTerminalStatusFromHints(text, COMMANDCODE_STRONG, COMMANDCODE_FALLBACK_IDLE);
 }

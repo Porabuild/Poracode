@@ -5,12 +5,9 @@ import type {
   ProjectLocation,
 } from "@/shared/contracts";
 import { resolveFastValue } from "@/renderer/components/thread/threadDraftViewHelpers";
+import { toErrorMessage } from "@/shared/errorMessage";
 import { getCommitGenDefaults } from "./ProviderIcon";
 import { getMiniModelId, getUtilityTaskCandidates, resolveUtilityTaskConfig } from "./utilityTask";
-
-function toErrorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
-}
 
 export function resolveCommitGenConfig(
   agent: AgentStatus | undefined,
