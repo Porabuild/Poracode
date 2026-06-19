@@ -78,7 +78,9 @@ export class GitMergeService {
       };
     } finally {
       await execGit(repoLocation, ["worktree", "remove", "--force", tempPath]).catch(
-        () => undefined,
+        (cleanupError) => {
+          console.warn("[git] failed to remove temporary merge worktree:", cleanupError);
+        },
       );
     }
   }
@@ -258,7 +260,9 @@ export class GitMergeService {
     } catch (mergeError: unknown) {
       const detail = errorDetail(mergeError);
       if (detail.includes("CONFLICT") || detail.includes("Merge conflict")) {
-        await execGit(location, ["merge", "--abort"]).catch(() => undefined);
+        await execGit(location, ["merge", "--abort"]).catch((abortErr) => {
+          console.warn("[git] merge --abort failed:", abortErr);
+        });
         return {
           merged: false,
           fastForward: false,

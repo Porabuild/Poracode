@@ -345,7 +345,10 @@ export const commandCodeDetectionSpec: DetectionSpec = {
         // Suppress the CLI's background self-updater (sourced from spec.probeEnv).
         ...(ctx.probeEnv ? { env: ctx.probeEnv } : {}),
       },
-    ).catch(() => undefined);
+    ).catch((error) => {
+      console.warn("[commandcode] model list probe failed:", error);
+      return undefined;
+    });
     const parsed = result?.ok ? parseCommandCodeModels(result.stdout) : [];
     const modelCapabilities =
       parsed.length > 0 ? buildCommandCodeModelPickerCapabilities(parsed) : undefined;

@@ -320,7 +320,9 @@ export class ProjectWatcher {
       entry.gitWatcher?.close();
       entry.workTreeWatcher?.close();
       if (entry.wslUnsubscribe) {
-        await entry.wslUnsubscribe().catch(() => undefined);
+        await entry.wslUnsubscribe().catch((error) => {
+          console.warn(`[watcher] WSL unsubscribe failed for project ${projectId}:`, error);
+        });
       }
       this.watchers.delete(projectId);
     }
@@ -393,7 +395,9 @@ export class ProjectWatcher {
     if (entry.treeDebounceTimer) clearTimeout(entry.treeDebounceTimer);
     entry.watcher?.close();
     if (entry.wslUnsubscribe) {
-      await entry.wslUnsubscribe().catch(() => undefined);
+      await entry.wslUnsubscribe().catch((error) => {
+        console.warn(`[watcher] WSL worktree unsubscribe failed for ${path}:`, error);
+      });
     }
     this.worktreeWatchers.delete(path);
   }
@@ -408,7 +412,9 @@ export class ProjectWatcher {
     if (!subscription) return;
     if (!this.watchers.has(entry.projectId) || this.watchers.get(entry.projectId) !== entry) {
       // Entry was already unwatched while we awaited — tear down immediately.
-      await subscription.unsubscribe().catch(() => undefined);
+      await subscription.unsubscribe().catch((error) => {
+        console.warn("[watcher] WSL unsubscribe failed during teardown:", error);
+      });
       return;
     }
     entry.wslUnsubscribe = subscription.unsubscribe;
@@ -436,7 +442,9 @@ export class ProjectWatcher {
       }
     }
     if (!stillActive) {
-      await subscription.unsubscribe().catch(() => undefined);
+      await subscription.unsubscribe().catch((error) => {
+        console.warn("[watcher] WSL worktree unsubscribe failed during teardown:", error);
+      });
       return;
     }
     entry.wslUnsubscribe = subscription.unsubscribe;
@@ -455,7 +463,10 @@ export class ProjectWatcher {
     const paths: { path: string; scope: "git" | "worktree" }[] = [
       { path: linuxPath, scope: "worktree" },
     ];
-    const gitStat = await client.stat(location, [gitPath], { follow: true }).catch(() => null);
+    const gitStat = await client.stat(location, [gitPath], { follow: true }).catch((error) => {
+      console.warn(`[watcher] WSL stat failed for ${gitPath}:`, error);
+      return null;
+    });
     let hasGitScope = false;
     if (gitStat?.stats[0]?.isDirectory) {
       paths.push({ path: gitPath, scope: "git" });

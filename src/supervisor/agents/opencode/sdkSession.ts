@@ -896,7 +896,9 @@ export class OpencodeSdkSession implements StructuredSessionHandle {
     this.sseAbort?.abort();
     this.sseAbort = undefined;
     this.acquired = undefined;
-    await previous?.dispose().catch(() => undefined);
+    await previous?.dispose().catch((error) => {
+      console.warn("[opencode] failed to dispose previous session:", error);
+    });
     this.acquired = await acquireOpenCodeServer({
       projectLocation: this.input.projectLocation,
       browserMcpEnabled: this.browserMcpEnabled,

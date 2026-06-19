@@ -386,11 +386,20 @@ export class GitStatusService {
 
     const [statusOutput, remoteOutput, stagedNumstat, unstagedNumstat] = await Promise.all([
       execGit(location, ["status", "--porcelain=v2", "-b"], { timeout: GIT_STATUS_TIMEOUT }),
-      execGit(location, ["remote", "-v"], { timeout: GIT_STATUS_TIMEOUT }).catch(() => ""),
+      execGit(location, ["remote", "-v"], { timeout: GIT_STATUS_TIMEOUT }).catch((error) => {
+        console.warn("[git] 'remote -v' failed:", error);
+        return "";
+      }),
       execGit(location, ["diff", "--cached", "--numstat"], { timeout: GIT_STATUS_TIMEOUT }).catch(
-        () => "",
+        (error) => {
+          console.warn("[git] 'diff --cached --numstat' failed:", error);
+          return "";
+        },
       ),
-      execGit(location, ["diff", "--numstat"], { timeout: GIT_STATUS_TIMEOUT }).catch(() => ""),
+      execGit(location, ["diff", "--numstat"], { timeout: GIT_STATUS_TIMEOUT }).catch((error) => {
+        console.warn("[git] 'diff --numstat' failed:", error);
+        return "";
+      }),
     ]);
 
     const parsed = parseStatusPorcelainV2(statusOutput);
@@ -476,10 +485,16 @@ export class GitStatusService {
     try {
       const [statusOutput, untrackedOutput] = await Promise.all([
         execGit(location, ["status", "--porcelain=v2", "-b"], { timeout: GIT_STATUS_TIMEOUT }),
-        execGit(location, LS_FILES_UNTRACKED_ARGS, { timeout: GIT_STATUS_TIMEOUT }).catch(() => ""),
+        execGit(location, LS_FILES_UNTRACKED_ARGS, { timeout: GIT_STATUS_TIMEOUT }).catch(
+          (error) => {
+            console.warn("[git] ls-files untracked failed:", error);
+            return "";
+          },
+        ),
       ]);
       return buildGitStatusSummaryFromOutput(statusOutput, untrackedOutput);
-    } catch {
+    } catch (error) {
+      console.warn("[git] status summary failed, treating as non-repo:", error);
       return nonRepoSummaryStatus();
     }
   }
@@ -706,14 +721,20 @@ export class GitStatusService {
     if (filePath && /^diff --(?:cc|combined)\b/m.test(diff)) {
       const headDiff = await execGit(location, ["diff", "HEAD", "--", filePath], {
         timeout: GIT_DIFF_TIMEOUT,
-      }).catch(() => "");
+      }).catch((error) => {
+        console.warn(`[git] diff HEAD -- ${filePath} failed:`, error);
+        return "";
+      });
       if (headDiff.trim()) diff = headDiff;
     }
     if (!diff.trim() && filePath) {
       diff = await execGit(location, ["diff", "--no-index", "--", "/dev/null", filePath], {
         timeout: GIT_DIFF_TIMEOUT,
         allowNonZeroExit: true,
-      }).catch(() => "");
+      }).catch((error) => {
+        console.warn(`[git] diff --no-index for ${filePath} failed:`, error);
+        return "";
+      });
     }
 
     return { diff };
@@ -724,8 +745,14 @@ export class GitStatusService {
     untrackedPaths: string[],
   ): Promise<GitDiffBatchResult> {
     const [stagedRaw, unstagedRaw] = await Promise.all([
-      execGit(location, ["diff", "--cached"], { timeout: GIT_DIFF_TIMEOUT }).catch(() => ""),
-      execGit(location, ["diff"], { timeout: GIT_DIFF_TIMEOUT }).catch(() => ""),
+      execGit(location, ["diff", "--cached"], { timeout: GIT_DIFF_TIMEOUT }).catch((error) => {
+        console.warn("[git] diff --cached failed:", error);
+        return "";
+      }),
+      execGit(location, ["diff"], { timeout: GIT_DIFF_TIMEOUT }).catch((error) => {
+        console.warn("[git] diff failed:", error);
+        return "";
+      }),
     ]);
 
     const staged = this.splitCombinedDiff(stagedRaw);
@@ -756,17 +783,23 @@ export class GitStatusService {
     if (staged) {
       const [oldContent, newContent] = await Promise.all([
         execGit(location, ["show", `HEAD:${filePath}`], { timeout: GIT_DIFF_TIMEOUT }).catch(
-          () => "",
+          () => "", // expected for newly added files not yet in HEAD
         ),
-        execGit(location, ["show", `:${filePath}`], { timeout: GIT_DIFF_TIMEOUT }).catch(() => ""),
+        execGit(location, ["show", `:${filePath}`], { timeout: GIT_DIFF_TIMEOUT }).catch(
+          () => "", // expected for deleted files not in the index
+        ),
       ]);
       return { oldContent, newContent };
     }
 
     const repoPath = getProjectFsPath(location);
     const [oldContent, newContent] = await Promise.all([
-      execGit(location, ["show", `:${filePath}`], { timeout: GIT_DIFF_TIMEOUT }).catch(() => ""),
-      readFile(join(repoPath, filePath), "utf-8").catch(() => ""),
+      execGit(location, ["show", `:${filePath}`], { timeout: GIT_DIFF_TIMEOUT }).catch(
+        () => "", // expected for untracked files not in the index
+      ),
+      readFile(join(repoPath, filePath), "utf-8").catch(
+        () => "", // expected for deleted files
+      ),
     ]);
     return { oldContent, newContent };
   }
@@ -794,7 +827,10 @@ export class GitStatusService {
 
     const lsFilesOutput = await execGit(location, LS_FILES_UNTRACKED_ARGS, {
       timeout: GIT_STATUS_TIMEOUT,
-    }).catch(() => "");
+    }).catch((error) => {
+      console.warn("[git] ls-files untracked failed:", error);
+      return "";
+    });
     // Share the row-shaping with the summary path so the two never disagree on
     // untracked-entry shape (the key the renderer's count backfill matches on).
     expandUntrackedEntries(parsed, lsFilesOutput);

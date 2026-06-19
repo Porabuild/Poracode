@@ -246,7 +246,9 @@ async function seedWslCodexHome(
     `touch ${quotePosixShellArg(`${globalCodexHome}/session_index.jsonl`)}`,
     ...CODEX_LINK_TARGETS.map(({ name, kind }) => linkLine(name, kind)),
   ].join("\n");
-  await execInWsl(distro, "/", "sh", ["-lc", script], { timeout: 15_000 }).catch(() => undefined);
+  await execInWsl(distro, "/", "sh", ["-lc", script], { timeout: 15_000 }).catch((error) => {
+    console.warn(`[codex] WSL plugin install failed for distro ${distro}:`, error);
+  });
 }
 
 const MIN_CODEX_SEMVER = [0, 122, 0] as const;

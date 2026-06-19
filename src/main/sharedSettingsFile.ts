@@ -23,7 +23,8 @@ export function readSharedSettingsFile(settingsPath: string): SharedSettings {
 
   try {
     return normalizeSharedSettings(JSON.parse(readFileSync(settingsPath, "utf8")));
-  } catch {
+  } catch (error) {
+    console.warn("[settings] failed to read shared settings, using defaults:", error);
     return { ...defaultSharedSettings };
   }
 }

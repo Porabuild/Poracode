@@ -30,7 +30,10 @@ async function loadSqliteCtor(): Promise<SqliteCtor | null> {
   if (ctorPromise === undefined) {
     ctorPromise = import("better-sqlite3")
       .then((mod) => ((mod as { default?: SqliteCtor }).default ?? mod) as SqliteCtor)
-      .catch(() => null);
+      .catch((error) => {
+        console.warn("[sqlite] failed to load better-sqlite3:", error);
+        return null;
+      });
   }
   return ctorPromise;
 }
@@ -47,13 +50,14 @@ export async function withReadonlyDb<T>(
   try {
     db = new Ctor(dbPath, { readonly: true, fileMustExist: true });
     return fn(db);
-  } catch {
+  } catch (error) {
+    console.warn(`[sqlite] failed to read from ${dbPath}:`, error);
     return undefined;
   } finally {
     try {
       db?.close();
     } catch {
-      // ignore close errors
+      // ignore close errors — the DB handle is already discarded
     }
   }
 }

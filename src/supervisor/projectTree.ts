@@ -848,7 +848,10 @@ export class ProjectTreeService {
     while (stack.length > 0 && results.length < MAX_SEARCH_INDEX_SIZE) {
       const directoryPath = stack.pop()!;
       const fullPath = directoryPath ? this.resolveEntryPath(location, directoryPath) : rootPath;
-      const entries = await readdir(fullPath, { withFileTypes: true }).catch(() => []);
+      const entries = await readdir(fullPath, { withFileTypes: true }).catch((error) => {
+        console.warn(`[project-tree] failed to read directory ${fullPath}:`, error);
+        return [] as import("node:fs").Dirent[];
+      });
       for (const entry of entries) {
         if (ignoreSet.has(entry.name)) continue;
         const path = joinRelativePath(directoryPath, entry.name);
@@ -953,7 +956,10 @@ export class ProjectTreeService {
   }
 
   private async directoryHasVisibleChildren(fullPath: string): Promise<boolean> {
-    const entries = await readdir(fullPath, { withFileTypes: true }).catch(() => []);
+    const entries = await readdir(fullPath, { withFileTypes: true }).catch((error) => {
+      console.warn(`[project-tree] failed to read directory ${fullPath}:`, error);
+      return [] as import("node:fs").Dirent[];
+    });
     return entries.some((entry) => entry.name !== ".git");
   }
 

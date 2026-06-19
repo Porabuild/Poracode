@@ -308,7 +308,9 @@ export class GitWorktreeService {
     try {
       await execGit(location, removeArgs);
       if (branchToDelete) {
-        await this.deleteBranch(location, branchToDelete, force).catch(() => undefined);
+        await this.deleteBranch(location, branchToDelete, force).catch((error) => {
+          console.warn(`[git] failed to delete branch ${branchToDelete} after worktree removal:`, error);
+        });
       }
     } catch (error) {
       if (!force || registeredWorktree?.isMain) {
@@ -322,7 +324,9 @@ export class GitWorktreeService {
         throw error;
       }
       if (branchToDelete) {
-        await this.deleteBranch(location, branchToDelete, force).catch(() => undefined);
+        await this.deleteBranch(location, branchToDelete, force).catch((branchErr) => {
+          console.warn(`[git] failed to delete branch ${branchToDelete} after worktree removal:`, branchErr);
+        });
       }
     }
   }
@@ -334,7 +338,9 @@ export class GitWorktreeService {
   ): Promise<void> {
     await execGit(location, ["push", remote, "--delete", branch], { timeout: GIT_NETWORK_TIMEOUT });
     await execGit(location, ["update-ref", "-d", `refs/remotes/${remote}/${branch}`]).catch(
-      () => undefined,
+      (error) => {
+        console.warn(`[git] failed to delete local ref refs/remotes/${remote}/${branch}:`, error);
+      },
     );
   }
 
@@ -464,7 +470,9 @@ export class GitWorktreeService {
     sourceBranch: string,
   ): Promise<void> {
     await execGit(location, ["config", `branch.${branch}.lightcodeSource`, sourceBranch]).catch(
-      () => undefined,
+      (error) => {
+        console.warn(`[git] failed to write lightcodeSource config for branch ${branch}:`, error);
+      },
     );
   }
 
@@ -503,7 +511,9 @@ export class GitWorktreeService {
         (path) => normalize(path).toLowerCase() === normalizedPath,
       );
       if (isManaged && !isActive) {
-        await this.removeWorktree(location, worktree.path, true).catch(() => undefined);
+        await this.removeWorktree(location, worktree.path, true).catch((error) => {
+          console.warn(`[git] failed to remove stale worktree ${worktree.path}:`, error);
+        });
       }
     }
   }
@@ -520,7 +530,9 @@ export class GitWorktreeService {
       if (!this.shouldRetryBranchDeleteAfterPrune(error)) {
         throw error;
       }
-      await execGit(location, ["worktree", "prune"]).catch(() => undefined);
+      await execGit(location, ["worktree", "prune"]).catch((pruneErr) => {
+        console.warn("[git] worktree prune before branch delete retry failed:", pruneErr);
+      });
       await execGit(location, args);
     }
   }

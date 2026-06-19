@@ -169,8 +169,9 @@ export class UsageService {
       .filter((snap): snap is UsageSnapshot => snap !== undefined);
 
     if (ids.some((id) => this.isStale(id))) {
-      void this.refreshProviderUsage({ providerIds: ids }).catch(() => {
-        // Errors surface as per-provider error snapshots; nothing to do here.
+      void this.refreshProviderUsage({ providerIds: ids }).catch((error) => {
+        // Errors surface as per-provider error snapshots; log for diagnostics.
+        console.warn("[usage] background refresh failed:", error);
       });
     }
 

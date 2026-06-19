@@ -402,7 +402,10 @@ function runBackgroundInstall(
   if (inflight) return inflight;
 
   const promise = installNativeRuntime(baseDir, target, onProgress)
-    .catch(() => null)
+    .catch((error) => {
+      console.warn("[native-runtime] background install failed:", error);
+      return null;
+    })
     .finally(() => {
       backgroundInstallCache.delete(key);
     });

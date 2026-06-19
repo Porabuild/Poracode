@@ -249,7 +249,9 @@ export class WslBridgeClient {
         disposed = true;
         this.server.unregisterWatchListener(subscriptionId);
         await this.call(location, "/v1/watch/unsubscribe", { subscriptionId }).catch(
-          () => undefined,
+          (error) => {
+            console.warn(`[wsl-bridge] unsubscribe ${subscriptionId} failed:`, error);
+          },
         );
       },
     };

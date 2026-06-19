@@ -151,7 +151,9 @@ export class UsageLoginManager {
           cookieUrl: config.cookieUrl,
           authCookiePattern: config.authCookiePattern,
         })
-        .catch(() => {});
+        .catch((error) => {
+          console.warn("[usage-login] failed to clear login cookies:", error);
+        });
     }
     return { ok: true };
   }
@@ -240,7 +242,10 @@ export class UsageLoginManager {
         settled = true;
         this.deviceLoginCancel.delete(providerId);
         if (pollTimer) clearTimeout(pollTimer);
-        if (tabId) void panel.closeTab(tabId).catch(() => {});
+        if (tabId)
+          void panel.closeTab(tabId).catch((error) => {
+            console.warn("[usage-login] failed to close login tab:", error);
+          });
         panel.clearUsageLoginDeviceCode(providerId);
         resolve(result);
       };

@@ -89,7 +89,10 @@ async function spawnAndReadAccount(
     const deadline = Date.now() + SPAWN_LS_TIMEOUT_MS;
     while (Date.now() < deadline) {
       await sleep(SPAWN_POLL_INTERVAL_MS);
-      const account = await readRunningAccount([]).catch(() => undefined);
+      const account = await readRunningAccount([]).catch((error) => {
+        console.warn("[antigravity] readRunningAccount during spawn poll failed:", error);
+        return undefined;
+      });
       if (account) return account;
       // `agy -p` exited before the LS answered (e.g. not actually signed in).
       if (child.exitCode !== null) break;
@@ -98,7 +101,9 @@ async function spawnAndReadAccount(
   } finally {
     // taskkill /T tears down the `agy` → `language_server` tree on Windows.
     terminateChildProcessTree(child);
-    await rm(cwd, { recursive: true, force: true }).catch(() => undefined);
+    await rm(cwd, { recursive: true, force: true }).catch((error) => {
+      console.warn("[antigravity] failed to clean up temp dir:", error);
+    });
   }
 }
 
@@ -113,10 +118,16 @@ export async function probeAntigravityAccount(
   deps: AntigravityAccountProbeDeps = defaultDeps,
 ): Promise<AgentProviderMetadata | undefined> {
   const wslDistros = options.wslDistros ?? [];
-  const running = await deps.readRunningAccount(wslDistros).catch(() => undefined);
+  const running = await deps.readRunningAccount(wslDistros).catch((error) => {
+    console.warn("[antigravity] readRunningAccount failed:", error);
+    return undefined;
+  });
   if (running) return running;
   if (options.allowSpawn !== false && options.executablePath) {
-    return deps.spawnAndReadAccount(options.executablePath).catch(() => undefined);
+    return deps.spawnAndReadAccount(options.executablePath).catch((error) => {
+      console.warn("[antigravity] spawnAndReadAccount failed:", error);
+      return undefined;
+    });
   }
   return undefined;
 }
