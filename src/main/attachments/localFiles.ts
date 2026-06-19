@@ -1,5 +1,5 @@
 import { mkdirSync, rmSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { join, normalize, resolve } from "node:path";
 import { net, protocol } from "electron";
 import type { ProjectLocation } from "@/shared/contracts";
 import type { LightcodePaths } from "@/shared/lightcodePaths";
@@ -54,7 +54,14 @@ export function resolveProjectFsPath(payload: {
   if (!payload.path) {
     return rootPath;
   }
-  return join(rootPath, ...payload.path.split("/").filter(Boolean));
+  const resolved = normalize(join(rootPath, ...payload.path.split("/").filter(Boolean)));
+  const normalizedRoot = normalize(rootPath);
+  const sep = process.platform === "win32" ? "\\" : "/";
+  const rootPrefix = normalizedRoot.endsWith(sep) ? normalizedRoot : normalizedRoot + sep;
+  if (resolved !== normalizedRoot && !resolved.startsWith(rootPrefix)) {
+    throw new Error("Path escapes the project root");
+  }
+  return resolved;
 }
 
 export function registerLocalFileProtocolScheme(): void {
@@ -81,6 +88,10 @@ export function installLocalFileProtocolHandler(): void {
     const raw = decodeURIComponent(new URL(request.url).pathname);
     const { pathToFileURL } = require("node:url") as typeof import("node:url");
     const filePath = process.platform === "win32" && /^\/[A-Za-z]:/.test(raw) ? raw.slice(1) : raw;
-    return net.fetch(pathToFileURL(filePath).href);
+    if (filePath.includes("\0")) {
+      return new Response("invalid path", { status: 400 });
+    }
+    const normalized = resolve(filePath);
+    return net.fetch(pathToFileURL(normalized).href);
   });
 }
