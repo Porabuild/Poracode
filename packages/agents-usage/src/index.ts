@@ -31,9 +31,14 @@ export {
   collectClaude,
   parseClaudeUsage,
   formatClaudePlan,
+  parseClaudeRefreshResponse,
+  refreshClaudeOAuthToken,
   CLAUDE_USAGE_ENDPOINT,
   CLAUDE_OAUTH_BETA,
+  CLAUDE_OAUTH_TOKEN_ENDPOINT,
+  CLAUDE_OAUTH_CLIENT_ID,
 } from "./collectors/claude";
+export type { ClaudeRefreshedToken } from "./collectors/claude";
 export {
   collectCodex,
   parseCodexUsage,
