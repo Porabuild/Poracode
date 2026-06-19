@@ -86,7 +86,7 @@ export function resolveOrFallbackBrowserMcpConfig(
   browserMcp?: BrowserMcpHttpConfig,
 ): BrowserMcpHttpConfig | undefined {
   if (location.kind === "wsl" && !browserMcp) return undefined;
-  return (browserMcp ?? resolveBrowserMcpHttpConfig(location)) ?? undefined;
+  return browserMcp ?? resolveBrowserMcpHttpConfig(location) ?? undefined;
 }
 
 export async function resolveBrowserMcpHttpConfigForLaunch(
