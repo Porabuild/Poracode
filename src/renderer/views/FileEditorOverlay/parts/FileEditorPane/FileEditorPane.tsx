@@ -22,6 +22,7 @@ import { EditorToolbar } from "./parts/EditorToolbar";
 import { useLspSync } from "./parts/useLspSync";
 import { useMergeConflictContribution } from "./parts/mergeConflict/useMergeConflictContribution";
 import { useGitDiffContribution } from "./parts/gitDiff/useGitDiffContribution";
+import { setActiveFindEditor } from "@/renderer/components/find/editorFindBridge";
 
 export { getLanguageFromPath } from "./parts/langMap";
 
@@ -267,6 +268,18 @@ function EditorBody(props: {
 
   useMergeConflictContribution({ editor: editorInstance, monaco: monacoInstance });
   useGitDiffContribution({ editor: editorInstance, gitDiff, bufferStatus });
+
+  // Register this editor as the Find target while it's focused so the global
+  // Find command (Ctrl+F) can open Monaco's built-in find widget on it.
+  useEffect(() => {
+    if (!editorInstance) return;
+    setActiveFindEditor(editorInstance);
+    const focusSub = editorInstance.onDidFocusEditorText(() => setActiveFindEditor(editorInstance));
+    return () => {
+      focusSub.dispose();
+      setActiveFindEditor(null);
+    };
+  }, [editorInstance]);
 
   useEffect(() => {
     if (!pendingReveal || !editorInstance) return;

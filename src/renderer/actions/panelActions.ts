@@ -93,6 +93,22 @@ export function openNotesPanel(): void {
   panelStore.openNotesPanel();
 }
 
+/**
+ * Toggle the docked browser panel: reveal it (switching the right panel to the
+ * browser tab) when it's hidden, or hide it when it's already the active right
+ * panel. Backs both the `browser.toggle` command and the sidebar Globe button,
+ * keeping the two entry points in lockstep.
+ */
+export function toggleBrowserPanel(): void {
+  const panelStore = usePanelStore.getState();
+  if (panelStore.browserPanelOpen && panelStore.rightPanelTab === "browser") {
+    panelStore.setBrowserPanelOpen(false);
+  } else {
+    panelStore.setBrowserPanelOpen(true);
+    panelStore.setRightPanelTab("browser");
+  }
+}
+
 export function openProjectSettings(projectId: string): void {
   usePanelStore.getState().openProjectSettings(projectId);
 }

@@ -1,9 +1,11 @@
 import { startTransition } from "react";
+import type { Thread } from "@/shared/contracts";
 import { isHomeProject } from "@/shared/homeScope";
 import { isDraftPaneId } from "@/shared/paneId";
 import { readBridge } from "@/renderer/bridge";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useDevTerminalStore } from "@/renderer/state/devTerminalStore";
+import { usePanelStore } from "@/renderer/state/panelStore";
 import {
   hasHydratedThreadRuntimeItems,
   hydrateThreadRuntimeItems,
@@ -11,6 +13,7 @@ import {
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useWorktreeDeleteStore } from "@/renderer/state/worktreeDeleteStore";
 import { readWorktreeDeletePref } from "@/renderer/views/MainView/parts/Sidebar/parts/DeleteWorktreeDialog";
+import { buildSidebarProjectRows } from "@/renderer/views/MainView/parts/Sidebar/parts/sidebarProjectRows";
 import { resolveWorktreeBranch } from "@/renderer/utils/gitHelpers";
 import { closeThreads } from "@/renderer/utils/shellUtils";
 import { closePanelsForUnloadedThread } from "./panelActions";
@@ -110,6 +113,36 @@ export function openThread(threadId: string, options?: { focusComposer?: boolean
   }
 
   applyOpen();
+}
+
+/**
+ * Open the thread immediately before/after the current one in the sidebar's
+ * visible order (the "Next chat" / "Previous chat" shortcuts). Navigation is
+ * scoped to the current thread's project and wraps around at the ends. The order
+ * mirrors the sidebar exactly — same sort mode and starred/recent grouping — but
+ * with worktree groups expanded and the "See more" cap lifted so every
+ * non-archived thread is reachable, even ones not currently rendered.
+ */
+export function switchToAdjacentThread(current: Thread, direction: "next" | "previous"): void {
+  const store = useAppStore.getState();
+  const projectThreads = store.threads.filter(
+    (thread) => thread.projectId === current.projectId && !thread.archived,
+  );
+  if (projectThreads.length < 2) return;
+
+  const orderedIds = buildSidebarProjectRows({
+    projectId: current.projectId,
+    projectThreads,
+    sortMode: usePanelStore.getState().threadSortMode,
+    collapsedWorktrees: {},
+    visibleLimit: Number.MAX_SAFE_INTEGER,
+  }).flatMap((row) => (row.kind === "thread" ? [row.thread.id] : []));
+
+  const index = orderedIds.indexOf(current.id);
+  if (index === -1) return;
+  const delta = direction === "next" ? 1 : -1;
+  const nextId = orderedIds[(index + delta + orderedIds.length) % orderedIds.length];
+  if (nextId && nextId !== current.id) openThread(nextId);
 }
 
 function getGuiThreadIdsToHydrateBeforeOpen(threadId: string): string[] {

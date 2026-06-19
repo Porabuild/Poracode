@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import { Button, Tooltip, toast } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import {
@@ -14,6 +15,7 @@ import type { ProjectTreeEntry } from "@/shared/contracts";
 import { ContextMenu, PixelLoader } from "@/renderer/components/common";
 import { getEntryIconUrl } from "@/renderer/components/common/fileIcons";
 import { useScrollFade } from "@/renderer/hooks/useScrollFade";
+import { useFindFocusStore } from "@/renderer/state/findFocusStore";
 import type { FileEditorRootContext } from "@/renderer/state/fileEditorStore";
 import { useIsTabActive, useIsPathOpenInTab } from "@/renderer/state/fileEditorSelectors";
 import {
@@ -38,6 +40,15 @@ export function ProjectTreeView(props: {
 }) {
   const { t } = useLingui();
   const tree = useProjectTree(props);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const treeFocusToken = useFindFocusStore((state) => state.treeFocusToken);
+  const lastTreeFocusToken = useRef(treeFocusToken);
+  useEffect(() => {
+    if (treeFocusToken === lastTreeFocusToken.current) return;
+    lastTreeFocusToken.current = treeFocusToken;
+    searchInputRef.current?.focus();
+    searchInputRef.current?.select();
+  }, [treeFocusToken]);
   const rootIsDropTarget = useIsDropTarget("");
   const rootLoading = useIsPathLoading("");
   const { setScrollContainer, scrollRef, scrollFadeStyle } = useScrollFade<HTMLDivElement>({
@@ -112,9 +123,13 @@ export function ProjectTreeView(props: {
         }}
       >
         <div className="flex items-center gap-2 border-b border-[color:var(--border)] px-0 py-2">
-          <div className="flex min-w-0 flex-1 items-center gap-2 rounded-xl border border-[color:var(--border)] bg-background px-3 py-1.5">
+          <div
+            data-lightcode-find-scope="tree"
+            className="flex min-w-0 flex-1 items-center gap-2 rounded-xl border border-[color:var(--border)] bg-background px-3 py-1.5"
+          >
             <Search className="size-3.5 shrink-0 text-muted" />
             <input
+              ref={searchInputRef}
               className="min-w-0 flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-muted"
               placeholder={t`Search files`}
               value={tree.searchQuery}

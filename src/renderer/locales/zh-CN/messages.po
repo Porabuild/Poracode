@@ -129,6 +129,11 @@ msgstr "{0}已注销。"
 msgid "{0} needs authentication."
 msgstr "{0}需要身份验证。"
 
+#. placeholder {0}: currentIndex + 1
+#: src/renderer/components/find/FindBar.tsx
+msgid "{0} of {matchCount}"
+msgstr "{0} / {matchCount}"
+
 #. placeholder {0}: cell.count
 #: src/renderer/views/ProfileOverlay/parts/ActivityHeatmap.tsx
 msgid "{0} prompt - {when}"
@@ -442,6 +447,10 @@ msgstr "活动指标"
 msgid "Add"
 msgstr "添加"
 
+#: src/renderer/commands/registry.ts
+msgid "Add a local project"
+msgstr "添加本地项目"
+
 #: src/renderer/actions/agentLoginActions.ts
 msgid "Add a project before installing an agent."
 msgstr "在安装代理之前添加项目。"
@@ -692,6 +701,14 @@ msgstr "存档{0}"
 msgid "Archive All"
 msgstr "全部存档"
 
+#: src/renderer/commands/registry.ts
+msgid "Archive the current thread"
+msgstr "归档当前线程"
+
+#: src/renderer/commands/registry.ts
+msgid "Archive thread"
+msgstr "归档线程"
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
 msgid "Archive Thread"
 msgstr "存档线程"
@@ -818,6 +835,7 @@ msgstr "头像颜色"
 msgid "Avatar color {color}"
 msgstr "头像颜色{color}"
 
+#: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Back"
 msgstr "返回"
@@ -932,6 +950,7 @@ msgstr "浏览父文件夹"
 msgid "Browse your GitHub repositories or paste a clone URL."
 msgstr "浏览您的 GitHub 存储库或粘贴克隆 URL。"
 
+#: src/renderer/commands/registry.ts
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/composer/AttachmentBar.tsx
 #: src/renderer/components/composer/ComposerAddMenu.tsx
@@ -1246,6 +1265,10 @@ msgstr "关闭编辑器"
 msgid "Close Editor Tab"
 msgstr "关闭编辑器选项卡"
 
+#: src/renderer/components/find/FindBar.tsx
+msgid "Close find"
+msgstr "关闭查找"
+
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 msgid "Close goal"
 msgstr "关闭目标"
@@ -1474,7 +1497,7 @@ msgstr "已完成"
 msgid "Composer"
 msgstr "Composer"
 
-#: src/renderer/commands/shortcutCatalog.ts
+#: src/renderer/commands/composerCommands.ts
 msgid "Composer controls"
 msgstr "Composer 控件"
 
@@ -1749,13 +1772,21 @@ msgstr "定制"
 msgid "Custom commands available from the project context menu (right-click)."
 msgstr "可从项目上下文菜单（右键单击）使用自定义命令。"
 
-#: src/renderer/commands/shortcutCatalog.ts
+#: src/renderer/commands/composerCommands.ts
 msgid "Cycle permission mode"
 msgstr "循环切换权限模式"
 
-#: src/renderer/commands/shortcutCatalog.ts
+#: src/renderer/commands/composerCommands.ts
 msgid "Cycle reasoning effort"
 msgstr "循环切换推理强度"
+
+#: src/renderer/commands/registry.ts
+msgid "Cycle to the next recently viewed chat"
+msgstr "循环切换到下一个最近查看的聊天"
+
+#: src/renderer/commands/registry.ts
+msgid "Cycle to the previous recently viewed chat"
+msgstr "循环切换到上一个最近查看的聊天"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Dark"
@@ -1885,6 +1916,7 @@ msgstr "检测到 <0>{0}</0>"
 msgid "Detecting agents…"
 msgstr "正在检测代理……"
 
+#. Settings section: developer/debug tools
 #. Settings section: developer/debug tools
 #. Settings section: developer/debug tools
 #: src/renderer/views/SettingsOverlay/parts/DevSettings.tsx
@@ -2322,6 +2354,27 @@ msgstr "{0}的文件"
 msgid "Files matching these globs are hidden from the @file mention search."
 msgstr "与这些 glob 匹配的文件在 @file 提及搜索中隐藏。"
 
+#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
+msgid "Filter settings"
+msgstr "筛选设置"
+
+#: src/renderer/commands/registry.ts
+#: src/renderer/components/find/FindBar.tsx
+msgid "Find"
+msgstr "查找"
+
+#: src/renderer/components/find/ChatFindBar.tsx
+msgid "Find in chat"
+msgstr "在聊天中查找"
+
+#: src/renderer/components/find/GitFindBar.tsx
+msgid "Find in diff"
+msgstr "在差异中查找"
+
+#: src/renderer/components/terminal/XTermSurface.tsx
+msgid "Find in terminal"
+msgstr "在终端中查找"
+
 #: src/renderer/views/PrReviewOverlay/parts/SubmitReviewPopover.tsx
 msgid "Finish your review"
 msgstr "完成您的审查"
@@ -2366,6 +2419,14 @@ msgstr "使用 Lightcode 的本机 SDK 运行时进行一流的 OpenCode 集成�
 msgid "Fix in Agent"
 msgstr "在代理中修复"
 
+#: src/renderer/commands/registry.ts
+msgid "Focus browser address bar"
+msgstr "聚焦浏览器地址栏"
+
+#: src/renderer/commands/registry.ts
+msgid "Focus the in-app browser address bar"
+msgstr "聚焦应用内浏览器地址栏"
+
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "Folder name"
 msgstr "文件夹名称"
@@ -2399,6 +2460,7 @@ msgstr "派生"
 msgid "Format files"
 msgstr "格式化文件"
 
+#: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Forward"
 msgstr "前进"
@@ -2516,6 +2578,14 @@ msgstr "全局"
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Global folder"
 msgstr "全局文件夹"
+
+#: src/renderer/commands/shortcutCatalog.ts
+msgid "Go back in navigation history"
+msgstr "在导航历史记录中后退"
+
+#: src/renderer/commands/shortcutCatalog.ts
+msgid "Go forward in navigation history"
+msgstr "在导航历史记录中前进"
 
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 msgid "Goal"
@@ -2978,6 +3048,10 @@ msgstr "标记完成"
 msgid "Match app language"
 msgstr "跟随应用语言"
 
+#: src/renderer/components/find/FindBar.tsx
+msgid "Match case"
+msgstr "区分大小写"
+
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
 msgid "Match your system, or force light or dark."
 msgstr "匹配您的系统，或强制使用浅色或深色。"
@@ -3271,6 +3345,10 @@ msgstr "换行"
 msgid "New project"
 msgstr "新项目"
 
+#: src/renderer/commands/registry.ts
+msgid "New quick thread"
+msgstr "新快速线程"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabStrip.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "New tab"
@@ -3308,9 +3386,25 @@ msgstr "工作树中的新线程"
 msgid "New worktree"
 msgstr "新工作树"
 
+#: src/renderer/commands/registry.ts
+msgid "Next chat"
+msgstr "下一个聊天"
+
 #: src/renderer/components/composer/ImageLightbox.tsx
 msgid "Next image"
 msgstr "下一张图片"
+
+#: src/renderer/components/find/FindBar.tsx
+msgid "Next match"
+msgstr "下一个匹配项"
+
+#: src/renderer/commands/registry.ts
+msgid "Next recently viewed chat"
+msgstr "下一个最近查看的聊天"
+
+#: src/renderer/commands/registry.ts
+msgid "Next tab"
+msgstr "下一个选项卡"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/hooks/useElementPicker.ts
 msgid "No active browser tab"
@@ -3494,6 +3588,10 @@ msgstr "未配置远程仓库。添加远程仓库以启用推送和拉取。"
 msgid "No repositories found."
 msgstr "未找到存储库。"
 
+#: src/renderer/components/find/FindBar.tsx
+msgid "No results"
+msgstr "没有结果"
+
 #: src/renderer/components/thread/ChatPane/ChatRuntimeDebugPanel.tsx
 msgid "No runtime items yet for this thread."
 msgstr "该线程还没有运行时项目。"
@@ -3624,6 +3722,10 @@ msgstr "打开"
 msgid "Open {label}"
 msgstr "打开{label}"
 
+#: src/renderer/commands/registry.ts
+msgid "Open a new browser tab"
+msgstr "在浏览器中打开新选项卡"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/DevTerminalPanel.tsx
 msgid "Open a terminal"
 msgstr "打开终端"
@@ -3653,6 +3755,10 @@ msgstr "作为面板打开"
 msgid "Open browser"
 msgstr "打开浏览器"
 
+#: src/renderer/commands/registry.ts
+msgid "Open browser tab"
+msgstr "打开浏览器选项卡"
+
 #: src/renderer/views/PrReviewOverlay/parts/PrChecksTab.tsx
 msgid "Open check"
 msgstr "打开检查"
@@ -3680,6 +3786,10 @@ msgstr "打开文件"
 #: src/renderer/commands/registry.ts
 msgid "Open Files"
 msgstr "打开文件"
+
+#: src/renderer/commands/registry.ts
+msgid "Open folder"
+msgstr "打开文件夹"
 
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorToolbar.tsx
 msgid "Open fullscreen"
@@ -3712,7 +3822,7 @@ msgstr "在编辑器中打开"
 msgid "Open links in"
 msgstr "在以下位置打开链接"
 
-#: src/renderer/commands/shortcutCatalog.ts
+#: src/renderer/commands/composerCommands.ts
 msgid "Open model picker"
 msgstr "打开模型选择器"
 
@@ -3968,9 +4078,25 @@ msgstr "工作时阻止系统休眠"
 msgid "Preview {0}"
 msgstr "预览{0}"
 
+#: src/renderer/commands/registry.ts
+msgid "Previous chat"
+msgstr "上一个聊天"
+
 #: src/renderer/components/composer/ImageLightbox.tsx
 msgid "Previous image"
 msgstr "上一张图片"
+
+#: src/renderer/components/find/FindBar.tsx
+msgid "Previous match"
+msgstr "上一个匹配项"
+
+#: src/renderer/commands/registry.ts
+msgid "Previous recently viewed chat"
+msgstr "上一个最近查看的聊天"
+
+#: src/renderer/commands/registry.ts
+msgid "Previous tab"
+msgstr "上一个选项卡"
 
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Profile"
@@ -4304,9 +4430,17 @@ msgstr "删除工作树？"
 msgid "Rename"
 msgstr "重命名"
 
+#: src/renderer/commands/registry.ts
+msgid "Rename chat"
+msgstr "重命名聊天"
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadGroup.tsx
 msgid "Rename Group"
 msgstr "重命名组"
+
+#: src/renderer/commands/registry.ts
+msgid "Rename the current chat"
+msgstr "重命名当前聊天"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/InlineRenameInput.tsx
 msgid "Rename thread"
@@ -4717,6 +4851,10 @@ msgstr "搜索运行时项目..."
 msgid "Search shortcuts"
 msgstr "搜索快捷键"
 
+#: src/renderer/commands/registry.ts
+msgid "Search the current view"
+msgstr "搜索当前视图"
+
 #: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
 msgid "Search threads"
 msgstr "搜索线程"
@@ -4891,6 +5029,14 @@ msgstr "当线程状态更改时显示通知。"
 msgid "Show opened links in"
 msgstr "打开链接的方式"
 
+#: src/renderer/commands/registry.ts
+msgid "Show or hide the browser panel"
+msgstr "显示或隐藏浏览器面板"
+
+#: src/renderer/commands/registry.ts
+msgid "Show or hide the sidebar"
+msgstr "显示或隐藏侧边栏"
+
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorToolbar.tsx
 msgid "Show preview"
 msgstr "显示预览"
@@ -5030,6 +5176,10 @@ msgstr "已暂存"
 msgid "Staged ({0})"
 msgstr "已暂存（{0}）"
 
+#: src/renderer/commands/registry.ts
+msgid "Star or unstar the current chat or model"
+msgstr "收藏或取消收藏当前聊天或模型"
+
 #. Button: start the microphone level test
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 msgid "Start"
@@ -5039,6 +5189,10 @@ msgstr "开始"
 msgid "Start {appName} to see usage"
 msgstr "启动{appName}以查看用量"
 
+#: src/renderer/commands/registry.ts
+msgid "Start a new thread as panel instead of page"
+msgstr "以面板而非页面形式开始一个新线程"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesEditor.tsx
 msgid "Start a new thread from the selected text"
 msgstr "从选定的文本开始一个新线程"
@@ -5046,6 +5200,14 @@ msgstr "从选定的文本开始一个新线程"
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/TodoRow.tsx
 msgid "Start a new thread from this to-do"
 msgstr "从此待办事项开始一个新线程"
+
+#: src/renderer/commands/composerCommands.ts
+msgid "Start dictation"
+msgstr "开始语音输入"
+
+#: src/renderer/commands/composerCommands.ts
+msgid "Start dictation in the current composer"
+msgstr "在当前输入框中开始语音输入"
 
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
@@ -5221,6 +5383,22 @@ msgstr "将此聊天切换到代理模式"
 #: src/renderer/components/providers/codex/index.tsx
 msgid "Switch this chat to plan mode"
 msgstr "将此聊天切换到计划模式"
+
+#: src/renderer/commands/registry.ts
+msgid "Switch to the next chat"
+msgstr "切换到下一个聊天"
+
+#: src/renderer/commands/registry.ts
+msgid "Switch to the next tab"
+msgstr "切换到下一个选项卡"
+
+#: src/renderer/commands/registry.ts
+msgid "Switch to the previous chat"
+msgstr "切换到上一个聊天"
+
+#: src/renderer/commands/registry.ts
+msgid "Switch to the previous tab"
+msgstr "切换到上一个选项卡"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CommitSyncPanel.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
@@ -5499,20 +5677,40 @@ msgstr "标题生成"
 msgid "To-dos"
 msgstr "待办事项"
 
-#: src/renderer/commands/shortcutCatalog.ts
+#: src/renderer/commands/registry.ts
+msgid "Toggle browser panel"
+msgstr "切换浏览器面板"
+
+#: src/renderer/commands/composerCommands.ts
 #: src/renderer/components/providers/codex/index.tsx
 msgid "Toggle Fast mode"
 msgstr "切换快速模式"
+
+#: src/renderer/commands/registry.ts
+msgid "Toggle File Tree"
+msgstr "切换文件树"
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
 msgid "Toggle models off to hide them from the selector."
 msgstr "关闭模型以将其隐藏在选择器中。"
 
 #: src/renderer/commands/registry.ts
+msgid "Toggle sidebar"
+msgstr "切换侧边栏"
+
+#: src/renderer/commands/registry.ts
+msgid "Toggle star"
+msgstr "切换收藏"
+
+#: src/renderer/commands/registry.ts
 msgid "Toggle Terminal"
 msgstr "切换终端"
 
-#: src/renderer/commands/shortcutCatalog.ts
+#: src/renderer/commands/registry.ts
+msgid "Toggle the file tree panel"
+msgstr "切换文件树面板"
+
+#: src/renderer/commands/composerCommands.ts
 msgid "Toggle Work or Plan"
 msgstr "切换工作或计划"
 

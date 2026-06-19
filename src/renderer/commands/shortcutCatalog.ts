@@ -2,6 +2,7 @@ import { msg } from "@lingui/core/macro";
 import type { MessageDescriptor } from "@lingui/core";
 import type { KeybindingEntry } from "@/shared/keybindings";
 import { DEFAULT_KEYBINDINGS } from "@/shared/keybindings";
+import { COMPOSER_CONTROL_COMMANDS } from "./composerCommands";
 import { bindingForPlatform, formatKeybinding, type PlatformName } from "./keybindingMatcher";
 import type { AppCommand } from "./registry";
 
@@ -105,46 +106,6 @@ export const LOCAL_SHORTCUTS: readonly LocalShortcut[] = [
     keys: ["Shift+Enter"],
   },
   {
-    id: "composer.toggle-work-plan",
-    title: msg`Toggle Work or Plan`,
-    description: msg`Composer controls`,
-    group: "Composer",
-    when: "composerFocus",
-    keys: ["Shift+Tab"],
-  },
-  {
-    id: "composer.cycle-effort",
-    title: msg`Cycle reasoning effort`,
-    description: msg`Composer controls`,
-    group: "Composer",
-    when: "composerFocus",
-    keys: ["Mod+T"],
-  },
-  {
-    id: "composer.toggle-fast",
-    title: msg`Toggle Fast mode`,
-    description: msg`Composer controls`,
-    group: "Composer",
-    when: "composerFocus",
-    keys: ["Mod+F"],
-  },
-  {
-    id: "composer.cycle-permission",
-    title: msg`Cycle permission mode`,
-    description: msg`Composer controls`,
-    group: "Composer",
-    when: "composerFocus",
-    keys: ["Mod+P"],
-  },
-  {
-    id: "composer.open-model-picker",
-    title: msg`Open model picker`,
-    description: msg`Composer controls`,
-    group: "Composer",
-    when: "composerFocus",
-    keys: ["Mod+M"],
-  },
-  {
     id: "terminal.copy",
     title: msg`Copy selection`,
     description: msg`Terminal`,
@@ -175,6 +136,22 @@ export const LOCAL_SHORTCUTS: readonly LocalShortcut[] = [
     group: "Browser",
     when: "browserFocus",
     keys: ["Mod+Shift+R", "Shift+F5"],
+  },
+  {
+    id: "browser.back",
+    title: msg`Back`,
+    description: msg`Go back in navigation history`,
+    group: "Browser",
+    when: "browserFocus",
+    keys: ["Mod+["],
+  },
+  {
+    id: "browser.forward",
+    title: msg`Forward`,
+    description: msg`Go forward in navigation history`,
+    group: "Browser",
+    when: "browserFocus",
+    keys: ["Mod+]"],
   },
   {
     id: "overlay.close",
@@ -214,7 +191,12 @@ export function buildShortcutRows(
     else bindingsByCommand.set(binding.command, [binding]);
   }
 
-  const knownCommandIds = new Set(commands.map((command) => command.id));
+  // Treat composer-control ids as "known" so their store entries don't also
+  // surface as generic custom rows — they get their own editable rows below.
+  const knownCommandIds = new Set([
+    ...commands.map((command) => command.id),
+    ...COMPOSER_CONTROL_COMMANDS.map((command) => command.id),
+  ]);
   const commandRows = commands.map((command) => {
     const bindings = bindingsByCommand.get(command.id) ?? [];
     const defaultBindings = DEFAULT_BINDINGS_BY_COMMAND.get(command.id) ?? [];
@@ -270,6 +252,33 @@ export function buildShortcutRows(
       ),
     );
 
+  // Composer controls are rebindable (store-backed) but dispatched locally by
+  // the focused composer rather than the global hook, so they aren't in the
+  // command registry — build their editable rows here.
+  const composerRows = COMPOSER_CONTROL_COMMANDS.map((command) => {
+    const bindings = bindingsByCommand.get(command.id) ?? [];
+    const defaultBindings = DEFAULT_BINDINGS_BY_COMMAND.get(command.id) ?? [];
+    const bound = formatBindings(bindings, platform);
+    const keys = bound.length > 0 ? bound : formatBindings(defaultBindings, platform);
+    return rowWithSearchText(
+      {
+        id: command.id,
+        title: resolve(command.title),
+        description: resolve(command.description),
+        group: resolve(msg`Composer`),
+        section: "composer",
+        contexts: contextsForWhen("composerFocus", "Composer", command.id),
+        keys,
+        commandId: command.id,
+        editable: true,
+        bindings,
+        defaultBindings,
+        whenTemplate: bindings[0]?.when ?? defaultBindings[0]?.when ?? "composerFocus",
+      },
+      resolve,
+    );
+  });
+
   const localRows = LOCAL_SHORTCUTS.map((shortcut) =>
     rowWithSearchText(
       {
@@ -290,7 +299,7 @@ export function buildShortcutRows(
     ),
   );
 
-  return [...commandRows, ...customRows, ...localRows].sort((a, b) => {
+  return [...commandRows, ...customRows, ...composerRows, ...localRows].sort((a, b) => {
     const groupCompare = a.group.localeCompare(b.group);
     return groupCompare === 0 ? a.title.localeCompare(b.title) : groupCompare;
   });

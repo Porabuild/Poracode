@@ -130,6 +130,11 @@ msgstr "{0} oturumu kapatıldı."
 msgid "{0} needs authentication."
 msgstr "{0} kimlik doğrulaması gerektiriyor."
 
+#. placeholder {0}: currentIndex + 1
+#: src/renderer/components/find/FindBar.tsx
+msgid "{0} of {matchCount}"
+msgstr "{0} / {matchCount}"
+
 #. placeholder {0}: cell.count
 #: src/renderer/views/ProfileOverlay/parts/ActivityHeatmap.tsx
 msgid "{0} prompt - {when}"
@@ -445,6 +450,10 @@ msgstr "Etkinlik metriği"
 msgid "Add"
 msgstr "Ekle"
 
+#: src/renderer/commands/registry.ts
+msgid "Add a local project"
+msgstr "Yerel bir proje ekle"
+
 #: src/renderer/actions/agentLoginActions.ts
 msgid "Add a project before installing an agent."
 msgstr "Bir aracıyı yüklemeden önce bir proje ekleyin."
@@ -698,6 +707,14 @@ msgstr "Arşiv {0}"
 msgid "Archive All"
 msgstr "Tümünü Arşivle"
 
+#: src/renderer/commands/registry.ts
+msgid "Archive the current thread"
+msgstr "Geçerli konuyu arşivle"
+
+#: src/renderer/commands/registry.ts
+msgid "Archive thread"
+msgstr "Konuyu arşivle"
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
 msgid "Archive Thread"
 msgstr "İleti Dizisini Arşivle"
@@ -828,6 +845,7 @@ msgstr "Avatar rengi"
 msgid "Avatar color {color}"
 msgstr "Avatar rengi {color}"
 
+#: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Back"
 msgstr "Geri"
@@ -945,6 +963,7 @@ msgstr "Ana klasöre göz atın"
 msgid "Browse your GitHub repositories or paste a clone URL."
 msgstr "GitHub depolarınıza göz atın veya bir klon URL'si yapıştırın."
 
+#: src/renderer/commands/registry.ts
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/composer/AttachmentBar.tsx
 #: src/renderer/components/composer/ComposerAddMenu.tsx
@@ -1262,6 +1281,10 @@ msgstr "Düzenleyiciyi kapat"
 msgid "Close Editor Tab"
 msgstr "Düzenleyici Sekmesini Kapat"
 
+#: src/renderer/components/find/FindBar.tsx
+msgid "Close find"
+msgstr "Aramayı kapat"
+
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 msgid "Close goal"
 msgstr "Hedefi kapat"
@@ -1491,7 +1514,7 @@ msgstr "tamamlandı"
 msgid "Composer"
 msgstr "Composer"
 
-#: src/renderer/commands/shortcutCatalog.ts
+#: src/renderer/commands/composerCommands.ts
 msgid "Composer controls"
 msgstr "Composer denetimleri"
 
@@ -1771,13 +1794,21 @@ msgstr "Özel"
 msgid "Custom commands available from the project context menu (right-click)."
 msgstr "Proje içerik menüsünden erişilebilen özel komutlar (sağ tıklama)."
 
-#: src/renderer/commands/shortcutCatalog.ts
+#: src/renderer/commands/composerCommands.ts
 msgid "Cycle permission mode"
 msgstr "İzin modunu değiştir"
 
-#: src/renderer/commands/shortcutCatalog.ts
+#: src/renderer/commands/composerCommands.ts
 msgid "Cycle reasoning effort"
 msgstr "Akıl yürütme çabasını değiştir"
+
+#: src/renderer/commands/registry.ts
+msgid "Cycle to the next recently viewed chat"
+msgstr "Son görüntülenen sonraki sohbete geç"
+
+#: src/renderer/commands/registry.ts
+msgid "Cycle to the previous recently viewed chat"
+msgstr "Son görüntülenen önceki sohbete geç"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Dark"
@@ -1907,6 +1938,7 @@ msgstr "Algılandı <0>{0}</0>"
 msgid "Detecting agents…"
 msgstr "Aracılar algılanıyor…"
 
+#. Settings section: developer/debug tools
 #. Settings section: developer/debug tools
 #. Settings section: developer/debug tools
 #: src/renderer/views/SettingsOverlay/parts/DevSettings.tsx
@@ -2355,6 +2387,27 @@ msgstr "{0} için dosyalar"
 msgid "Files matching these globs are hidden from the @file mention search."
 msgstr "Bu glob'larla eşleşen dosyalar, @file bahsetme aramasında gizlenir."
 
+#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
+msgid "Filter settings"
+msgstr "Ayarları filtrele"
+
+#: src/renderer/commands/registry.ts
+#: src/renderer/components/find/FindBar.tsx
+msgid "Find"
+msgstr "Bul"
+
+#: src/renderer/components/find/ChatFindBar.tsx
+msgid "Find in chat"
+msgstr "Sohbette bul"
+
+#: src/renderer/components/find/GitFindBar.tsx
+msgid "Find in diff"
+msgstr "Farkta bul"
+
+#: src/renderer/components/terminal/XTermSurface.tsx
+msgid "Find in terminal"
+msgstr "Terminalde bul"
+
 #: src/renderer/views/PrReviewOverlay/parts/SubmitReviewPopover.tsx
 msgid "Finish your review"
 msgstr "İncelemenizi tamamlayın"
@@ -2405,6 +2458,14 @@ msgstr "Lightcode'un yerel SDK çalışma zamanını kullanan birinci sınıf Op
 msgid "Fix in Agent"
 msgstr "Aracıda Düzelt"
 
+#: src/renderer/commands/registry.ts
+msgid "Focus browser address bar"
+msgstr "Tarayıcı adres çubuğuna odakla"
+
+#: src/renderer/commands/registry.ts
+msgid "Focus the in-app browser address bar"
+msgstr "Uygulama içi tarayıcı adres çubuğuna odakla"
+
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "Folder name"
 msgstr "Klasör adı"
@@ -2440,6 +2501,7 @@ msgstr "Fork"
 msgid "Format files"
 msgstr "Dosyaları biçimlendir"
 
+#: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Forward"
 msgstr "İleri"
@@ -2563,6 +2625,14 @@ msgstr "Genel"
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Global folder"
 msgstr "Genel klasör"
+
+#: src/renderer/commands/shortcutCatalog.ts
+msgid "Go back in navigation history"
+msgstr "Gezinme geçmişinde geri git"
+
+#: src/renderer/commands/shortcutCatalog.ts
+msgid "Go forward in navigation history"
+msgstr "Gezinme geçmişinde ileri git"
 
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 msgid "Goal"
@@ -3033,6 +3103,10 @@ msgstr "Tamamlandı Olarak İşaretle"
 msgid "Match app language"
 msgstr "Uygulama diliyle eşleştir"
 
+#: src/renderer/components/find/FindBar.tsx
+msgid "Match case"
+msgstr "Büyük/küçük harf eşleştir"
+
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
 msgid "Match your system, or force light or dark."
 msgstr "Sisteminizle eşleştirin veya açık veya koyu olanı zorlayın."
@@ -3328,6 +3402,10 @@ msgstr "Yeni satır"
 msgid "New project"
 msgstr "Yeni proje"
 
+#: src/renderer/commands/registry.ts
+msgid "New quick thread"
+msgstr "Yeni hızlı konu"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabStrip.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "New tab"
@@ -3365,9 +3443,25 @@ msgstr "Worktree'de Yeni Konu"
 msgid "New worktree"
 msgstr "Yeni çalışma ağacı"
 
+#: src/renderer/commands/registry.ts
+msgid "Next chat"
+msgstr "Sonraki sohbet"
+
 #: src/renderer/components/composer/ImageLightbox.tsx
 msgid "Next image"
 msgstr "Sonraki resim"
+
+#: src/renderer/components/find/FindBar.tsx
+msgid "Next match"
+msgstr "Sonraki eşleşme"
+
+#: src/renderer/commands/registry.ts
+msgid "Next recently viewed chat"
+msgstr "Sonraki son görüntülenen sohbet"
+
+#: src/renderer/commands/registry.ts
+msgid "Next tab"
+msgstr "Sonraki sekme"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/hooks/useElementPicker.ts
 msgid "No active browser tab"
@@ -3553,6 +3647,10 @@ msgstr "Uzak ayarlanmamış. Push ve pull işlemlerini etkinleştirmek için bir
 msgid "No repositories found."
 msgstr "Hiçbir depo bulunamadı."
 
+#: src/renderer/components/find/FindBar.tsx
+msgid "No results"
+msgstr "Sonuç yok"
+
 #: src/renderer/components/thread/ChatPane/ChatRuntimeDebugPanel.tsx
 msgid "No runtime items yet for this thread."
 msgstr "Bu konu için henüz çalışma zamanı öğesi yok."
@@ -3683,6 +3781,10 @@ msgstr "Açık"
 msgid "Open {label}"
 msgstr "{label} öğesini aç"
 
+#: src/renderer/commands/registry.ts
+msgid "Open a new browser tab"
+msgstr "Yeni bir tarayıcı sekmesi aç"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/DevTerminalPanel.tsx
 msgid "Open a terminal"
 msgstr "Bir terminal aç"
@@ -3712,6 +3814,10 @@ msgstr "Panel Olarak Aç"
 msgid "Open browser"
 msgstr "Tarayıcıyı aç"
 
+#: src/renderer/commands/registry.ts
+msgid "Open browser tab"
+msgstr "Tarayıcı sekmesi aç"
+
 #: src/renderer/views/PrReviewOverlay/parts/PrChecksTab.tsx
 msgid "Open check"
 msgstr "Kontrolü aç"
@@ -3739,6 +3845,10 @@ msgstr "Dosyayı Aç"
 #: src/renderer/commands/registry.ts
 msgid "Open Files"
 msgstr "Dosyaları Aç"
+
+#: src/renderer/commands/registry.ts
+msgid "Open folder"
+msgstr "Klasörü Aç"
 
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorToolbar.tsx
 msgid "Open fullscreen"
@@ -3771,7 +3881,7 @@ msgstr "Düzenleyicide aç"
 msgid "Open links in"
 msgstr "Bağlantıları şurada aç:"
 
-#: src/renderer/commands/shortcutCatalog.ts
+#: src/renderer/commands/composerCommands.ts
 msgid "Open model picker"
 msgstr "Model seçiciyi aç"
 
@@ -4032,9 +4142,25 @@ msgstr "Çalışırken uykuyu önleyin"
 msgid "Preview {0}"
 msgstr "Önizleme {0}"
 
+#: src/renderer/commands/registry.ts
+msgid "Previous chat"
+msgstr "Önceki sohbet"
+
 #: src/renderer/components/composer/ImageLightbox.tsx
 msgid "Previous image"
 msgstr "Önceki resim"
+
+#: src/renderer/components/find/FindBar.tsx
+msgid "Previous match"
+msgstr "Önceki eşleşme"
+
+#: src/renderer/commands/registry.ts
+msgid "Previous recently viewed chat"
+msgstr "Önceki son görüntülenen sohbet"
+
+#: src/renderer/commands/registry.ts
+msgid "Previous tab"
+msgstr "Önceki sekme"
 
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Profile"
@@ -4373,9 +4499,17 @@ msgstr "Çalışma ağacı kaldırılsın mı?"
 msgid "Rename"
 msgstr "Yeniden adlandır"
 
+#: src/renderer/commands/registry.ts
+msgid "Rename chat"
+msgstr "Sohbeti yeniden adlandır"
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadGroup.tsx
 msgid "Rename Group"
 msgstr "Grubu Yeniden Adlandır"
+
+#: src/renderer/commands/registry.ts
+msgid "Rename the current chat"
+msgstr "Geçerli sohbeti yeniden adlandır"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/InlineRenameInput.tsx
 msgid "Rename thread"
@@ -4793,6 +4927,10 @@ msgstr "Çalışma zamanı öğelerini ara…"
 msgid "Search shortcuts"
 msgstr "Kısayolları ara"
 
+#: src/renderer/commands/registry.ts
+msgid "Search the current view"
+msgstr "Geçerli görünümde ara"
+
 #: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
 msgid "Search threads"
 msgstr "Konuları ara"
@@ -4971,6 +5109,14 @@ msgstr "Konu durumu değiştiğinde bildirimleri göster."
 msgid "Show opened links in"
 msgstr "Açılan bağlantıları şurada göster:"
 
+#: src/renderer/commands/registry.ts
+msgid "Show or hide the browser panel"
+msgstr "Tarayıcı panelini göster veya gizle"
+
+#: src/renderer/commands/registry.ts
+msgid "Show or hide the sidebar"
+msgstr "Kenar çubuğunu göster veya gizle"
+
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorToolbar.tsx
 msgid "Show preview"
 msgstr "Önizlemeyi göster"
@@ -5111,6 +5257,11 @@ msgstr "Hazırlanmış"
 msgid "Staged ({0})"
 msgstr "Hazırlanmış ({0})"
 
+#: src/renderer/commands/registry.ts
+msgid "Star or unstar the current chat or model"
+msgstr "Mevcut sohbeti veya modeli favorilere ekleyin veya favorilerden "
+"kaldırın"
+
 #. Button: start the microphone level test
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 msgid "Start"
@@ -5120,6 +5271,10 @@ msgstr "Başlat"
 msgid "Start {appName} to see usage"
 msgstr "Kullanımı görmek için {appName} uygulamasını başlatın"
 
+#: src/renderer/commands/registry.ts
+msgid "Start a new thread as panel instead of page"
+msgstr "Yeni bir konuyu sayfa yerine panel olarak başlatın"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesEditor.tsx
 msgid "Start a new thread from the selected text"
 msgstr "Seçilen metinden yeni bir konu başlatın"
@@ -5127,6 +5282,14 @@ msgstr "Seçilen metinden yeni bir konu başlatın"
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/TodoRow.tsx
 msgid "Start a new thread from this to-do"
 msgstr "Bu yapılacaklardan yeni bir konu başlatın"
+
+#: src/renderer/commands/composerCommands.ts
+msgid "Start dictation"
+msgstr "Dikteyi başlat"
+
+#: src/renderer/commands/composerCommands.ts
+msgid "Start dictation in the current composer"
+msgstr "Geçerli composer'da dikteyi başlat"
 
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
@@ -5306,6 +5469,22 @@ msgstr "Bu sohbeti temsilci moduna geçir"
 #: src/renderer/components/providers/codex/index.tsx
 msgid "Switch this chat to plan mode"
 msgstr "Bu sohbeti plan moduna geçir"
+
+#: src/renderer/commands/registry.ts
+msgid "Switch to the next chat"
+msgstr "Sonraki sohbete geç"
+
+#: src/renderer/commands/registry.ts
+msgid "Switch to the next tab"
+msgstr "Sonraki sekmeye geç"
+
+#: src/renderer/commands/registry.ts
+msgid "Switch to the previous chat"
+msgstr "Önceki sohbete geç"
+
+#: src/renderer/commands/registry.ts
+msgid "Switch to the previous tab"
+msgstr "Önceki sekmeye geç"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CommitSyncPanel.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
@@ -5592,20 +5771,40 @@ msgstr "Başlık Oluşturma"
 msgid "To-dos"
 msgstr "Yapılacaklar"
 
-#: src/renderer/commands/shortcutCatalog.ts
+#: src/renderer/commands/registry.ts
+msgid "Toggle browser panel"
+msgstr "Tarayıcı panelini aç/kapat"
+
+#: src/renderer/commands/composerCommands.ts
 #: src/renderer/components/providers/codex/index.tsx
 msgid "Toggle Fast mode"
 msgstr "Hızlı modu aç/kapat"
+
+#: src/renderer/commands/registry.ts
+msgid "Toggle File Tree"
+msgstr "Dosya Ağacını Aç/Kapat"
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
 msgid "Toggle models off to hide them from the selector."
 msgstr "Seçiciden gizlemek için modelleri kapatın."
 
 #: src/renderer/commands/registry.ts
+msgid "Toggle sidebar"
+msgstr "Kenar çubuğunu Aç/Kapat"
+
+#: src/renderer/commands/registry.ts
+msgid "Toggle star"
+msgstr "Favoriyi aç/kapat"
+
+#: src/renderer/commands/registry.ts
 msgid "Toggle Terminal"
 msgstr "Terminali Aç/Kapat"
 
-#: src/renderer/commands/shortcutCatalog.ts
+#: src/renderer/commands/registry.ts
+msgid "Toggle the file tree panel"
+msgstr "Dosya ağacı panelini aç/kapat"
+
+#: src/renderer/commands/composerCommands.ts
 msgid "Toggle Work or Plan"
 msgstr "İş veya Plan modunu aç/kapat"
 

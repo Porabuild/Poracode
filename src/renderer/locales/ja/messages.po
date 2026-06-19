@@ -130,6 +130,11 @@ msgstr "{0}がログアウトしました。"
 msgid "{0} needs authentication."
 msgstr "{0}には認証が必要です。"
 
+#. placeholder {0}: currentIndex + 1
+#: src/renderer/components/find/FindBar.tsx
+msgid "{0} of {matchCount}"
+msgstr "{0} / {matchCount}"
+
 #. placeholder {0}: cell.count
 #: src/renderer/views/ProfileOverlay/parts/ActivityHeatmap.tsx
 msgid "{0} prompt - {when}"
@@ -443,6 +448,10 @@ msgstr "アクティビティ指標"
 msgid "Add"
 msgstr "追加"
 
+#: src/renderer/commands/registry.ts
+msgid "Add a local project"
+msgstr "ローカルプロジェクトを追加"
+
 #: src/renderer/actions/agentLoginActions.ts
 msgid "Add a project before installing an agent."
 msgstr "エージェントをインストールする前にプロジェクトを追加します。"
@@ -694,6 +703,14 @@ msgstr "アーカイブ{0}"
 msgid "Archive All"
 msgstr "すべてをアーカイブする"
 
+#: src/renderer/commands/registry.ts
+msgid "Archive the current thread"
+msgstr "現在のスレッドをアーカイブ"
+
+#: src/renderer/commands/registry.ts
+msgid "Archive thread"
+msgstr "スレッドをアーカイブ"
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
 msgid "Archive Thread"
 msgstr "アーカイブスレッド"
@@ -820,6 +837,7 @@ msgstr "アバターの色"
 msgid "Avatar color {color}"
 msgstr "アバターの色：{color}"
 
+#: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Back"
 msgstr "戻る"
@@ -934,6 +952,7 @@ msgstr "親フォルダーを参照します"
 msgid "Browse your GitHub repositories or paste a clone URL."
 msgstr "GitHub リポジトリを参照するか、クローン URL を貼り付けます。"
 
+#: src/renderer/commands/registry.ts
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/composer/AttachmentBar.tsx
 #: src/renderer/components/composer/ComposerAddMenu.tsx
@@ -1248,6 +1267,10 @@ msgstr "エディタを閉じる"
 msgid "Close Editor Tab"
 msgstr "エディタタブを閉じる"
 
+#: src/renderer/components/find/FindBar.tsx
+msgid "Close find"
+msgstr "検索を閉じる"
+
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 msgid "Close goal"
 msgstr "ゴールを閉じる"
@@ -1476,7 +1499,7 @@ msgstr "完了しました"
 msgid "Composer"
 msgstr "コンポーザー"
 
-#: src/renderer/commands/shortcutCatalog.ts
+#: src/renderer/commands/composerCommands.ts
 msgid "Composer controls"
 msgstr "コンポーザーの操作"
 
@@ -1751,13 +1774,21 @@ msgstr "カスタム"
 msgid "Custom commands available from the project context menu (right-click)."
 msgstr "プロジェクトのコンテキスト メニュー (右クリック) から使用できるカスタム コマンド。"
 
-#: src/renderer/commands/shortcutCatalog.ts
+#: src/renderer/commands/composerCommands.ts
 msgid "Cycle permission mode"
 msgstr "許可モードを切り替え"
 
-#: src/renderer/commands/shortcutCatalog.ts
+#: src/renderer/commands/composerCommands.ts
 msgid "Cycle reasoning effort"
 msgstr "推論レベルを切り替え"
+
+#: src/renderer/commands/registry.ts
+msgid "Cycle to the next recently viewed chat"
+msgstr "最近表示したチャットを新しい順に切り替え"
+
+#: src/renderer/commands/registry.ts
+msgid "Cycle to the previous recently viewed chat"
+msgstr "最近表示したチャットを古い順に切り替え"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Dark"
@@ -1887,6 +1918,7 @@ msgstr "<0>{0}</0> を検出しました"
 msgid "Detecting agents…"
 msgstr "エージェントを検出中…"
 
+#. Settings section: developer/debug tools
 #. Settings section: developer/debug tools
 #. Settings section: developer/debug tools
 #: src/renderer/views/SettingsOverlay/parts/DevSettings.tsx
@@ -2325,6 +2357,27 @@ msgstr "{0}のファイル"
 msgid "Files matching these globs are hidden from the @file mention search."
 msgstr "これらのグロブに一致するファイルは、@file メンション検索から非表示になります。"
 
+#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
+msgid "Filter settings"
+msgstr "設定を絞り込む"
+
+#: src/renderer/commands/registry.ts
+#: src/renderer/components/find/FindBar.tsx
+msgid "Find"
+msgstr "検索"
+
+#: src/renderer/components/find/ChatFindBar.tsx
+msgid "Find in chat"
+msgstr "チャット内を検索"
+
+#: src/renderer/components/find/GitFindBar.tsx
+msgid "Find in diff"
+msgstr "差分内を検索"
+
+#: src/renderer/components/terminal/XTermSurface.tsx
+msgid "Find in terminal"
+msgstr "ターミナル内を検索"
+
 #: src/renderer/views/PrReviewOverlay/parts/SubmitReviewPopover.tsx
 msgid "Finish your review"
 msgstr "レビューを完了する"
@@ -2369,6 +2422,14 @@ msgstr "Lightcode のネイティブ SDK ランタイムを使用したファー
 msgid "Fix in Agent"
 msgstr "エージェントで修正する"
 
+#: src/renderer/commands/registry.ts
+msgid "Focus browser address bar"
+msgstr "ブラウザのアドレスバーをフォーカス"
+
+#: src/renderer/commands/registry.ts
+msgid "Focus the in-app browser address bar"
+msgstr "組み込みブラウザのアドレスバーをフォーカス"
+
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "Folder name"
 msgstr "フォルダ名"
@@ -2402,6 +2463,7 @@ msgstr "フォーク"
 msgid "Format files"
 msgstr "ファイルのフォーマット"
 
+#: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Forward"
 msgstr "進む"
@@ -2522,6 +2584,14 @@ msgstr "グローバル"
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Global folder"
 msgstr "グローバルフォルダー"
+
+#: src/renderer/commands/shortcutCatalog.ts
+msgid "Go back in navigation history"
+msgstr "ナビゲーション履歴で戻る"
+
+#: src/renderer/commands/shortcutCatalog.ts
+msgid "Go forward in navigation history"
+msgstr "ナビゲーション履歴で進む"
 
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 msgid "Goal"
@@ -2985,6 +3055,10 @@ msgstr "完了マークを付ける"
 msgid "Match app language"
 msgstr "アプリの言語に合わせる"
 
+#: src/renderer/components/find/FindBar.tsx
+msgid "Match case"
+msgstr "大文字と小文字を区別"
+
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
 msgid "Match your system, or force light or dark."
 msgstr "システムに合わせたり、明暗を強制したりできます。"
@@ -3278,6 +3352,10 @@ msgstr "改行"
 msgid "New project"
 msgstr "新しいプロジェクト"
 
+#: src/renderer/commands/registry.ts
+msgid "New quick thread"
+msgstr "新しいクイックスレッド"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabStrip.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "New tab"
@@ -3315,9 +3393,25 @@ msgstr "ワークツリーの新しいスレッド"
 msgid "New worktree"
 msgstr "新しいワークツリー"
 
+#: src/renderer/commands/registry.ts
+msgid "Next chat"
+msgstr "次のチャット"
+
 #: src/renderer/components/composer/ImageLightbox.tsx
 msgid "Next image"
 msgstr "次の画像"
+
+#: src/renderer/components/find/FindBar.tsx
+msgid "Next match"
+msgstr "次の一致"
+
+#: src/renderer/commands/registry.ts
+msgid "Next recently viewed chat"
+msgstr "次の最近表示したチャット"
+
+#: src/renderer/commands/registry.ts
+msgid "Next tab"
+msgstr "次のタブ"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/hooks/useElementPicker.ts
 msgid "No active browser tab"
@@ -3502,6 +3596,10 @@ msgstr "リモートが設定されていません。リモートを追加して
 msgid "No repositories found."
 msgstr "リポジトリが見つかりません。"
 
+#: src/renderer/components/find/FindBar.tsx
+msgid "No results"
+msgstr "結果なし"
+
 #: src/renderer/components/thread/ChatPane/ChatRuntimeDebugPanel.tsx
 msgid "No runtime items yet for this thread."
 msgstr "このスレッドにはランタイム アイテムがまだありません。"
@@ -3632,6 +3730,10 @@ msgstr "開く"
 msgid "Open {label}"
 msgstr "{label}を開く"
 
+#: src/renderer/commands/registry.ts
+msgid "Open a new browser tab"
+msgstr "新しいブラウザタブを開く"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/DevTerminalPanel.tsx
 msgid "Open a terminal"
 msgstr "ターミナルを開く"
@@ -3661,6 +3763,10 @@ msgstr "パネルとして開く"
 msgid "Open browser"
 msgstr "ブラウザを開く"
 
+#: src/renderer/commands/registry.ts
+msgid "Open browser tab"
+msgstr "ブラウザタブを開く"
+
 #: src/renderer/views/PrReviewOverlay/parts/PrChecksTab.tsx
 msgid "Open check"
 msgstr "チェックを開く"
@@ -3688,6 +3794,10 @@ msgstr "ファイルを開く"
 #: src/renderer/commands/registry.ts
 msgid "Open Files"
 msgstr "ファイルを開く"
+
+#: src/renderer/commands/registry.ts
+msgid "Open folder"
+msgstr "フォルダーを開く"
 
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorToolbar.tsx
 msgid "Open fullscreen"
@@ -3720,7 +3830,7 @@ msgstr "エディタで開く"
 msgid "Open links in"
 msgstr "リンクを開く"
 
-#: src/renderer/commands/shortcutCatalog.ts
+#: src/renderer/commands/composerCommands.ts
 msgid "Open model picker"
 msgstr "モデルピッカーを開く"
 
@@ -3976,9 +4086,25 @@ msgstr "作業中のスリープを防止する"
 msgid "Preview {0}"
 msgstr "{0}をプレビューする"
 
+#: src/renderer/commands/registry.ts
+msgid "Previous chat"
+msgstr "前のチャット"
+
 #: src/renderer/components/composer/ImageLightbox.tsx
 msgid "Previous image"
 msgstr "前の画像"
+
+#: src/renderer/components/find/FindBar.tsx
+msgid "Previous match"
+msgstr "前の一致"
+
+#: src/renderer/commands/registry.ts
+msgid "Previous recently viewed chat"
+msgstr "前の最近表示したチャット"
+
+#: src/renderer/commands/registry.ts
+msgid "Previous tab"
+msgstr "前のタブ"
 
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Profile"
@@ -4314,9 +4440,17 @@ msgstr "ワークツリーを削除しますか?"
 msgid "Rename"
 msgstr "名前の変更"
 
+#: src/renderer/commands/registry.ts
+msgid "Rename chat"
+msgstr "チャット名の変更"
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadGroup.tsx
 msgid "Rename Group"
 msgstr "グループ名の変更"
+
+#: src/renderer/commands/registry.ts
+msgid "Rename the current chat"
+msgstr "現在のチャット名を変更"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/InlineRenameInput.tsx
 msgid "Rename thread"
@@ -4727,6 +4861,10 @@ msgstr "ランタイム項目を検索…"
 msgid "Search shortcuts"
 msgstr "ショートカットを検索"
 
+#: src/renderer/commands/registry.ts
+msgid "Search the current view"
+msgstr "現在のビューを検索"
+
 #: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
 msgid "Search threads"
 msgstr "スレッドを検索する"
@@ -4903,6 +5041,14 @@ msgstr "スレッドのステータスが変化したときに通知を表示し
 msgid "Show opened links in"
 msgstr "開いているリンクを表示する"
 
+#: src/renderer/commands/registry.ts
+msgid "Show or hide the browser panel"
+msgstr "ブラウザパネルの表示／非表示を切り替えます"
+
+#: src/renderer/commands/registry.ts
+msgid "Show or hide the sidebar"
+msgstr "サイドバーの表示／非表示を切り替えます"
+
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorToolbar.tsx
 msgid "Show preview"
 msgstr "プレビューを表示"
@@ -5042,6 +5188,10 @@ msgstr "ステージ済み"
 msgid "Staged ({0})"
 msgstr "ステージング済み ({0})"
 
+#: src/renderer/commands/registry.ts
+msgid "Star or unstar the current chat or model"
+msgstr "現在のチャットまたはモデルをお気に入りに追加または解除する"
+
 #. Button: start the microphone level test
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 msgid "Start"
@@ -5051,6 +5201,10 @@ msgstr "スタート"
 msgid "Start {appName} to see usage"
 msgstr "使用状況を見るには{appName}を起動してください"
 
+#: src/renderer/commands/registry.ts
+msgid "Start a new thread as panel instead of page"
+msgstr "新しいスレッドをページではなくパネルとして開始する"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesEditor.tsx
 msgid "Start a new thread from the selected text"
 msgstr "選択したテキストから新しいスレッドを開始します"
@@ -5058,6 +5212,14 @@ msgstr "選択したテキストから新しいスレッドを開始します"
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/TodoRow.tsx
 msgid "Start a new thread from this to-do"
 msgstr "この ToDo から新しいスレッドを開始します"
+
+#: src/renderer/commands/composerCommands.ts
+msgid "Start dictation"
+msgstr "音声入力を開始する"
+
+#: src/renderer/commands/composerCommands.ts
+msgid "Start dictation in the current composer"
+msgstr "現在のコンポーザーで音声入力を開始する"
 
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
@@ -5234,6 +5396,22 @@ msgstr "このチャットをエージェント モードに切り替えます"
 #: src/renderer/components/providers/codex/index.tsx
 msgid "Switch this chat to plan mode"
 msgstr "このチャットを計画モードに切り替えます"
+
+#: src/renderer/commands/registry.ts
+msgid "Switch to the next chat"
+msgstr "次のチャットに切り替え"
+
+#: src/renderer/commands/registry.ts
+msgid "Switch to the next tab"
+msgstr "次のタブに切り替え"
+
+#: src/renderer/commands/registry.ts
+msgid "Switch to the previous chat"
+msgstr "前のチャットに切り替え"
+
+#: src/renderer/commands/registry.ts
+msgid "Switch to the previous tab"
+msgstr "前のタブに切り替え"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CommitSyncPanel.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
@@ -5513,20 +5691,40 @@ msgstr "タイトルの生成"
 msgid "To-dos"
 msgstr "やるべきこと"
 
-#: src/renderer/commands/shortcutCatalog.ts
+#: src/renderer/commands/registry.ts
+msgid "Toggle browser panel"
+msgstr "ブラウザパネルの切り替え"
+
+#: src/renderer/commands/composerCommands.ts
 #: src/renderer/components/providers/codex/index.tsx
 msgid "Toggle Fast mode"
 msgstr "高速モードの切り替え"
+
+#: src/renderer/commands/registry.ts
+msgid "Toggle File Tree"
+msgstr "ファイルツリーの切り替え"
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
 msgid "Toggle models off to hide them from the selector."
 msgstr "モデルをオフに切り替えて、セレクターから非表示にします。"
 
 #: src/renderer/commands/registry.ts
+msgid "Toggle sidebar"
+msgstr "サイドバーの切り替え"
+
+#: src/renderer/commands/registry.ts
+msgid "Toggle star"
+msgstr "お気に入りを切り替える"
+
+#: src/renderer/commands/registry.ts
 msgid "Toggle Terminal"
 msgstr "ターミナルの切り替え"
 
-#: src/renderer/commands/shortcutCatalog.ts
+#: src/renderer/commands/registry.ts
+msgid "Toggle the file tree panel"
+msgstr "ファイルツリーパネルを切り替えます"
+
+#: src/renderer/commands/composerCommands.ts
 msgid "Toggle Work or Plan"
 msgstr "作業と計画を切り替え"
 

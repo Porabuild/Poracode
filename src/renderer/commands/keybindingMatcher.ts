@@ -3,6 +3,11 @@ import type { KeybindingEntry } from "@/shared/keybindings";
 const MODIFIER_ORDER = ["ctrl", "meta", "alt", "shift"] as const;
 export type PlatformName = "darwin" | "win32" | "linux" | NodeJS.Platform;
 
+/** The subset of a keyboard event needed to derive a chord. Lets callers pass a
+ * real `KeyboardEvent` or a lightweight stand-in (e.g. the composer's intercept
+ * event) without depending on the full DOM type. */
+export type ChordEvent = Pick<KeyboardEvent, "key" | "ctrlKey" | "metaKey" | "altKey" | "shiftKey">;
+
 export function bindingForPlatform(
   binding: KeybindingEntry,
   platform: PlatformName,
@@ -35,7 +40,7 @@ export function formatKeybinding(raw: string | undefined, platform: PlatformName
     .join(platform === "darwin" ? "" : "+");
 }
 
-export function eventToKeybinding(event: KeyboardEvent, platform: PlatformName): string {
+export function eventToKeybinding(event: ChordEvent, platform: PlatformName): string {
   const parts: string[] = [];
   if (event.ctrlKey) parts.push("ctrl");
   if (event.metaKey) parts.push("meta");
@@ -85,6 +90,39 @@ function normalizeKeyPart(part: string, platform: PlatformName): string | undefi
   return normalizeMainKey(lower);
 }
 
+/**
+ * US-layout shifted punctuation → its base key. While Shift is held the browser
+ * reports the shifted glyph in `event.key` (pressing `]` yields `}`), so without
+ * this a binding written with the base key (`Ctrl+Shift+]`) would never match
+ * the event it describes. Mapping the glyph back keeps Shift in the chord, so
+ * `Ctrl+Shift+]` resolves identically whether it came from a binding string or a
+ * live keystroke. Non-US layouts that produce these glyphs from other keys fall
+ * outside this best-effort mapping.
+ */
+const SHIFTED_PUNCTUATION: Record<string, string> = {
+  "~": "`",
+  "!": "1",
+  "@": "2",
+  "#": "3",
+  $: "4",
+  "%": "5",
+  "^": "6",
+  "&": "7",
+  "*": "8",
+  "(": "9",
+  ")": "0",
+  _: "-",
+  "+": "=",
+  "{": "[",
+  "}": "]",
+  "|": "\\",
+  ":": ";",
+  '"': "'",
+  "<": ",",
+  ">": ".",
+  "?": "/",
+};
+
 function normalizeMainKey(key: string): string {
   const lower = key.toLowerCase();
   if (lower === " ") return "space";
@@ -93,5 +131,5 @@ function normalizeMainKey(key: string): string {
   if (lower === "arrowdown") return "down";
   if (lower === "arrowleft") return "left";
   if (lower === "arrowright") return "right";
-  return lower;
+  return SHIFTED_PUNCTUATION[lower] ?? lower;
 }

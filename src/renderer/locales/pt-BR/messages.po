@@ -130,6 +130,11 @@ msgstr "{0} desconectado."
 msgid "{0} needs authentication."
 msgstr "{0} precisa de autenticação."
 
+#. placeholder {0}: currentIndex + 1
+#: src/renderer/components/find/FindBar.tsx
+msgid "{0} of {matchCount}"
+msgstr "{0} de {matchCount}"
+
 #. placeholder {0}: cell.count
 #: src/renderer/views/ProfileOverlay/parts/ActivityHeatmap.tsx
 msgid "{0} prompt - {when}"
@@ -445,6 +450,10 @@ msgstr "Métrica de atividade"
 msgid "Add"
 msgstr "Adicionar"
 
+#: src/renderer/commands/registry.ts
+msgid "Add a local project"
+msgstr "Adicione um projeto local"
+
 #: src/renderer/actions/agentLoginActions.ts
 msgid "Add a project before installing an agent."
 msgstr "Adicione um projeto antes de instalar um agente."
@@ -698,6 +707,14 @@ msgstr "Arquivar {0}"
 msgid "Archive All"
 msgstr "Arquivar tudo"
 
+#: src/renderer/commands/registry.ts
+msgid "Archive the current thread"
+msgstr "Arquivar o tópico atual"
+
+#: src/renderer/commands/registry.ts
+msgid "Archive thread"
+msgstr "Arquivar tópico"
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
 msgid "Archive Thread"
 msgstr "Arquivar Tópico"
@@ -828,6 +845,7 @@ msgstr "Cor do avatar"
 msgid "Avatar color {color}"
 msgstr "Cor do avatar {color}"
 
+#: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Back"
 msgstr "Voltar"
@@ -946,6 +964,7 @@ msgstr "Procure a pasta pai"
 msgid "Browse your GitHub repositories or paste a clone URL."
 msgstr "Navegue pelos seus repositórios do GitHub ou cole uma URL de clonagem."
 
+#: src/renderer/commands/registry.ts
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/composer/AttachmentBar.tsx
 #: src/renderer/components/composer/ComposerAddMenu.tsx
@@ -1264,6 +1283,10 @@ msgstr "Fechar editor"
 msgid "Close Editor Tab"
 msgstr "Fechar guia do editor"
 
+#: src/renderer/components/find/FindBar.tsx
+msgid "Close find"
+msgstr "Fechar busca"
+
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 msgid "Close goal"
 msgstr "Fechar meta"
@@ -1492,7 +1515,7 @@ msgstr "concluído"
 msgid "Composer"
 msgstr "Composer"
 
-#: src/renderer/commands/shortcutCatalog.ts
+#: src/renderer/commands/composerCommands.ts
 msgid "Composer controls"
 msgstr "Controles do Composer"
 
@@ -1773,13 +1796,21 @@ msgid "Custom commands available from the project context menu (right-click)."
 msgstr "Comandos personalizados disponíveis no menu de contexto do projeto "
 "(clique com o botão direito)."
 
-#: src/renderer/commands/shortcutCatalog.ts
+#: src/renderer/commands/composerCommands.ts
 msgid "Cycle permission mode"
 msgstr "Alternar modo de permissão"
 
-#: src/renderer/commands/shortcutCatalog.ts
+#: src/renderer/commands/composerCommands.ts
 msgid "Cycle reasoning effort"
 msgstr "Alternar esforço de raciocínio"
+
+#: src/renderer/commands/registry.ts
+msgid "Cycle to the next recently viewed chat"
+msgstr "Alternar para o próximo chat visualizado recentemente"
+
+#: src/renderer/commands/registry.ts
+msgid "Cycle to the previous recently viewed chat"
+msgstr "Alternar para o chat anterior visualizado recentemente"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Dark"
@@ -1909,6 +1940,7 @@ msgstr "Detectado <0>{0}</0>"
 msgid "Detecting agents…"
 msgstr "Detectando agentes…"
 
+#. Settings section: developer/debug tools
 #. Settings section: developer/debug tools
 #. Settings section: developer/debug tools
 #: src/renderer/views/SettingsOverlay/parts/DevSettings.tsx
@@ -2358,6 +2390,27 @@ msgid "Files matching these globs are hidden from the @file mention search."
 msgstr "Os arquivos que correspondem a esses globs ficam ocultos na pesquisa de "
 "menção @file."
 
+#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
+msgid "Filter settings"
+msgstr "Filtrar configurações"
+
+#: src/renderer/commands/registry.ts
+#: src/renderer/components/find/FindBar.tsx
+msgid "Find"
+msgstr "Localizar"
+
+#: src/renderer/components/find/ChatFindBar.tsx
+msgid "Find in chat"
+msgstr "Localizar no chat"
+
+#: src/renderer/components/find/GitFindBar.tsx
+msgid "Find in diff"
+msgstr "Localizar na comparação"
+
+#: src/renderer/components/terminal/XTermSurface.tsx
+msgid "Find in terminal"
+msgstr "Localizar no terminal"
+
 #: src/renderer/views/PrReviewOverlay/parts/SubmitReviewPopover.tsx
 msgid "Finish your review"
 msgstr "Conclua sua avaliação"
@@ -2408,6 +2461,14 @@ msgstr "Integração OpenCode de primeira classe usando o tempo de execução SD
 msgid "Fix in Agent"
 msgstr "Correção no agente"
 
+#: src/renderer/commands/registry.ts
+msgid "Focus browser address bar"
+msgstr "Acessar barra de endereços do navegador"
+
+#: src/renderer/commands/registry.ts
+msgid "Focus the in-app browser address bar"
+msgstr "Acessar barra de endereços do navegador no aplicativo"
+
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "Folder name"
 msgstr "Nome da pasta"
@@ -2443,6 +2504,7 @@ msgstr "Fork"
 msgid "Format files"
 msgstr "Formatar arquivos"
 
+#: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Forward"
 msgstr "Avançar"
@@ -2566,6 +2628,14 @@ msgstr "Global"
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Global folder"
 msgstr "Pasta global"
+
+#: src/renderer/commands/shortcutCatalog.ts
+msgid "Go back in navigation history"
+msgstr "Voltar no histórico de navegação"
+
+#: src/renderer/commands/shortcutCatalog.ts
+msgid "Go forward in navigation history"
+msgstr "Avançar no histórico de navegação"
 
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 msgid "Goal"
@@ -3038,6 +3108,10 @@ msgstr "Marcar como concluído"
 msgid "Match app language"
 msgstr "Acompanhar o idioma do aplicativo"
 
+#: src/renderer/components/find/FindBar.tsx
+msgid "Match case"
+msgstr "Diferenciar maiúsculas de minúsculas"
+
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
 msgid "Match your system, or force light or dark."
 msgstr "Combine com seu sistema ou force claro ou escuro."
@@ -3333,6 +3407,10 @@ msgstr "Nova linha"
 msgid "New project"
 msgstr "Novo projeto"
 
+#: src/renderer/commands/registry.ts
+msgid "New quick thread"
+msgstr "Novo tópico rápido"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabStrip.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "New tab"
@@ -3370,9 +3448,25 @@ msgstr "Novo tópico na árvore de trabalho"
 msgid "New worktree"
 msgstr "Nova árvore de trabalho"
 
+#: src/renderer/commands/registry.ts
+msgid "Next chat"
+msgstr "Próximo chat"
+
 #: src/renderer/components/composer/ImageLightbox.tsx
 msgid "Next image"
 msgstr "Próxima imagem"
+
+#: src/renderer/components/find/FindBar.tsx
+msgid "Next match"
+msgstr "Próxima ocorrência"
+
+#: src/renderer/commands/registry.ts
+msgid "Next recently viewed chat"
+msgstr "Próximo chat visualizado recentemente"
+
+#: src/renderer/commands/registry.ts
+msgid "Next tab"
+msgstr "Próxima guia"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/hooks/useElementPicker.ts
 msgid "No active browser tab"
@@ -3558,6 +3652,10 @@ msgstr "Nenhum controle remoto configurado. Adicione um controle remoto para "
 msgid "No repositories found."
 msgstr "Nenhum repositório encontrado."
 
+#: src/renderer/components/find/FindBar.tsx
+msgid "No results"
+msgstr "Nenhum resultado"
+
 #: src/renderer/components/thread/ChatPane/ChatRuntimeDebugPanel.tsx
 msgid "No runtime items yet for this thread."
 msgstr "Ainda não há itens de tempo de execução para este tópico."
@@ -3688,6 +3786,10 @@ msgstr "Abrir"
 msgid "Open {label}"
 msgstr "Abrir {label}"
 
+#: src/renderer/commands/registry.ts
+msgid "Open a new browser tab"
+msgstr "Abrir uma nova aba do navegador"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/DevTerminalPanel.tsx
 msgid "Open a terminal"
 msgstr "Abrir um terminal"
@@ -3717,6 +3819,10 @@ msgstr "Abrir como painel"
 msgid "Open browser"
 msgstr "Abrir navegador"
 
+#: src/renderer/commands/registry.ts
+msgid "Open browser tab"
+msgstr "Abrir aba do navegador"
+
 #: src/renderer/views/PrReviewOverlay/parts/PrChecksTab.tsx
 msgid "Open check"
 msgstr "Abrir verificação"
@@ -3744,6 +3850,10 @@ msgstr "Abrir arquivo"
 #: src/renderer/commands/registry.ts
 msgid "Open Files"
 msgstr "Abrir arquivos"
+
+#: src/renderer/commands/registry.ts
+msgid "Open folder"
+msgstr "Abrir pasta"
 
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorToolbar.tsx
 msgid "Open fullscreen"
@@ -3777,7 +3887,7 @@ msgstr "Abrir no editor"
 msgid "Open links in"
 msgstr "Abrir links em"
 
-#: src/renderer/commands/shortcutCatalog.ts
+#: src/renderer/commands/composerCommands.ts
 msgid "Open model picker"
 msgstr "Abrir seletor de modelo"
 
@@ -4039,9 +4149,25 @@ msgstr "Impedir suspensão durante o trabalho"
 msgid "Preview {0}"
 msgstr "Visualizar {0}"
 
+#: src/renderer/commands/registry.ts
+msgid "Previous chat"
+msgstr "Chat anterior"
+
 #: src/renderer/components/composer/ImageLightbox.tsx
 msgid "Previous image"
 msgstr "Imagem anterior"
+
+#: src/renderer/components/find/FindBar.tsx
+msgid "Previous match"
+msgstr "Ocorrência anterior"
+
+#: src/renderer/commands/registry.ts
+msgid "Previous recently viewed chat"
+msgstr "Chat visualizado recentemente anterior"
+
+#: src/renderer/commands/registry.ts
+msgid "Previous tab"
+msgstr "Guia anterior"
 
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Profile"
@@ -4381,9 +4507,17 @@ msgstr "Remover árvore de trabalho?"
 msgid "Rename"
 msgstr "Renomear"
 
+#: src/renderer/commands/registry.ts
+msgid "Rename chat"
+msgstr "Renomear chat"
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadGroup.tsx
 msgid "Rename Group"
 msgstr "Renomear grupo"
+
+#: src/renderer/commands/registry.ts
+msgid "Rename the current chat"
+msgstr "Renomear o chat atual"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/InlineRenameInput.tsx
 msgid "Rename thread"
@@ -4801,6 +4935,10 @@ msgstr "Pesquisar itens de tempo de execução…"
 msgid "Search shortcuts"
 msgstr "Pesquisar atalhos"
 
+#: src/renderer/commands/registry.ts
+msgid "Search the current view"
+msgstr "Pesquisar na visualização atual"
+
 #: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
 msgid "Search threads"
 msgstr "Pesquisar tópicos"
@@ -4978,6 +5116,14 @@ msgstr "Mostrar notificações quando o status do tópico for alterado."
 msgid "Show opened links in"
 msgstr "Mostrar links abertos em"
 
+#: src/renderer/commands/registry.ts
+msgid "Show or hide the browser panel"
+msgstr "Mostrar ou ocultar o painel do navegador"
+
+#: src/renderer/commands/registry.ts
+msgid "Show or hide the sidebar"
+msgstr "Mostrar ou ocultar a barra lateral"
+
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorToolbar.tsx
 msgid "Show preview"
 msgstr "Mostrar visualização"
@@ -5118,6 +5264,10 @@ msgstr "Em stage"
 msgid "Staged ({0})"
 msgstr "Em stage ({0})"
 
+#: src/renderer/commands/registry.ts
+msgid "Star or unstar the current chat or model"
+msgstr "Adicionar ou remover o chat ou modelo atual dos favoritos"
+
 #. Button: start the microphone level test
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 msgid "Start"
@@ -5127,6 +5277,10 @@ msgstr "Começar"
 msgid "Start {appName} to see usage"
 msgstr "Inicie o {appName} para ver o uso"
 
+#: src/renderer/commands/registry.ts
+msgid "Start a new thread as panel instead of page"
+msgstr "Iniciar um novo tópico como painel em vez de página"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesEditor.tsx
 msgid "Start a new thread from the selected text"
 msgstr "Inicie um novo tópico a partir do texto selecionado"
@@ -5134,6 +5288,14 @@ msgstr "Inicie um novo tópico a partir do texto selecionado"
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/TodoRow.tsx
 msgid "Start a new thread from this to-do"
 msgstr "Inicie um novo tópico com esta tarefa"
+
+#: src/renderer/commands/composerCommands.ts
+msgid "Start dictation"
+msgstr "Iniciar ditado"
+
+#: src/renderer/commands/composerCommands.ts
+msgid "Start dictation in the current composer"
+msgstr "Iniciar ditado no compositor atual"
 
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
@@ -5312,6 +5474,22 @@ msgstr "Mude este chat para o modo de agente"
 #: src/renderer/components/providers/codex/index.tsx
 msgid "Switch this chat to plan mode"
 msgstr "Mude este chat para o modo de planejamento"
+
+#: src/renderer/commands/registry.ts
+msgid "Switch to the next chat"
+msgstr "Mudar para o próximo chat"
+
+#: src/renderer/commands/registry.ts
+msgid "Switch to the next tab"
+msgstr "Mudar para a próxima guia"
+
+#: src/renderer/commands/registry.ts
+msgid "Switch to the previous chat"
+msgstr "Mudar para o chat anterior"
+
+#: src/renderer/commands/registry.ts
+msgid "Switch to the previous tab"
+msgstr "Mudar para a guia anterior"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CommitSyncPanel.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
@@ -5601,20 +5779,40 @@ msgstr "Geração de Título"
 msgid "To-dos"
 msgstr "Tarefas"
 
-#: src/renderer/commands/shortcutCatalog.ts
+#: src/renderer/commands/registry.ts
+msgid "Toggle browser panel"
+msgstr "Alternar painel do navegador"
+
+#: src/renderer/commands/composerCommands.ts
 #: src/renderer/components/providers/codex/index.tsx
 msgid "Toggle Fast mode"
 msgstr "Alternar modo rápido"
+
+#: src/renderer/commands/registry.ts
+msgid "Toggle File Tree"
+msgstr "Alternar árvore de arquivos"
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
 msgid "Toggle models off to hide them from the selector."
 msgstr "Desative os modelos para ocultá-los do seletor."
 
 #: src/renderer/commands/registry.ts
+msgid "Toggle sidebar"
+msgstr "Alternar barra lateral"
+
+#: src/renderer/commands/registry.ts
+msgid "Toggle star"
+msgstr "Alternar favorito"
+
+#: src/renderer/commands/registry.ts
 msgid "Toggle Terminal"
 msgstr "Alternar terminal"
 
-#: src/renderer/commands/shortcutCatalog.ts
+#: src/renderer/commands/registry.ts
+msgid "Toggle the file tree panel"
+msgstr "Alternar o painel da árvore de arquivos"
+
+#: src/renderer/commands/composerCommands.ts
 msgid "Toggle Work or Plan"
 msgstr "Alternar entre Trabalho e Plano"
 

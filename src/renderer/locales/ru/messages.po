@@ -131,6 +131,11 @@ msgstr "{0} вышел из системы."
 msgid "{0} needs authentication."
 msgstr "{0} требует аутентификации."
 
+#. placeholder {0}: currentIndex + 1
+#: src/renderer/components/find/FindBar.tsx
+msgid "{0} of {matchCount}"
+msgstr "{0} из {matchCount}"
+
 #. placeholder {0}: cell.count
 #: src/renderer/views/ProfileOverlay/parts/ActivityHeatmap.tsx
 msgid "{0} prompt - {when}"
@@ -447,6 +452,10 @@ msgstr "Метрика активности"
 msgid "Add"
 msgstr "Добавить"
 
+#: src/renderer/commands/registry.ts
+msgid "Add a local project"
+msgstr "Добавить локальный проект"
+
 #: src/renderer/actions/agentLoginActions.ts
 msgid "Add a project before installing an agent."
 msgstr "Добавьте проект перед установкой агента."
@@ -700,6 +709,14 @@ msgstr "Архивировать {0}"
 msgid "Archive All"
 msgstr "Архивировать всё"
 
+#: src/renderer/commands/registry.ts
+msgid "Archive the current thread"
+msgstr "Архивировать текущий тред"
+
+#: src/renderer/commands/registry.ts
+msgid "Archive thread"
+msgstr "Архивировать тред"
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
 msgid "Archive Thread"
 msgstr "Архивировать тред"
@@ -828,6 +845,7 @@ msgstr "Цвет аватара"
 msgid "Avatar color {color}"
 msgstr "Цвет аватара {color}"
 
+#: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Back"
 msgstr "Назад"
@@ -945,6 +963,7 @@ msgstr "Выбрать родительскую папку"
 msgid "Browse your GitHub repositories or paste a clone URL."
 msgstr "Просмотрите свои репозитории GitHub или вставьте URL для клонирования."
 
+#: src/renderer/commands/registry.ts
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/composer/AttachmentBar.tsx
 #: src/renderer/components/composer/ComposerAddMenu.tsx
@@ -1263,6 +1282,10 @@ msgstr "Закрыть редактор"
 msgid "Close Editor Tab"
 msgstr "Закрыть вкладку редактора"
 
+#: src/renderer/components/find/FindBar.tsx
+msgid "Close find"
+msgstr "Закрыть поиск"
+
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 msgid "Close goal"
 msgstr "Закрыть цель"
@@ -1491,7 +1514,7 @@ msgstr "завершено"
 msgid "Composer"
 msgstr "Поле ввода"
 
-#: src/renderer/commands/shortcutCatalog.ts
+#: src/renderer/commands/composerCommands.ts
 msgid "Composer controls"
 msgstr "Управление полем ввода"
 
@@ -1771,13 +1794,21 @@ msgid "Custom commands available from the project context menu (right-click)."
 msgstr "Пользовательские команды доступны из контекстного меню проекта (правый "
 "клик)."
 
-#: src/renderer/commands/shortcutCatalog.ts
+#: src/renderer/commands/composerCommands.ts
 msgid "Cycle permission mode"
 msgstr "Переключить режим разрешений"
 
-#: src/renderer/commands/shortcutCatalog.ts
+#: src/renderer/commands/composerCommands.ts
 msgid "Cycle reasoning effort"
 msgstr "Переключить уровень рассуждений"
+
+#: src/renderer/commands/registry.ts
+msgid "Cycle to the next recently viewed chat"
+msgstr "Перейти к следующему недавно просмотренному чату"
+
+#: src/renderer/commands/registry.ts
+msgid "Cycle to the previous recently viewed chat"
+msgstr "Перейти к предыдущему недавно просмотренному чату"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Dark"
@@ -1907,6 +1938,7 @@ msgstr "Обнаружено <0>{0}</0>"
 msgid "Detecting agents…"
 msgstr "Обнаружение агентов…"
 
+#. Settings section: developer/debug tools
 #. Settings section: developer/debug tools
 #. Settings section: developer/debug tools
 #: src/renderer/views/SettingsOverlay/parts/DevSettings.tsx
@@ -2356,6 +2388,27 @@ msgid "Files matching these globs are hidden from the @file mention search."
 msgstr "Файлы, соответствующие этим glob-шаблонам, скрыты из поиска упоминаний "
 "@file."
 
+#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
+msgid "Filter settings"
+msgstr "Фильтр настроек"
+
+#: src/renderer/commands/registry.ts
+#: src/renderer/components/find/FindBar.tsx
+msgid "Find"
+msgstr "Найти"
+
+#: src/renderer/components/find/ChatFindBar.tsx
+msgid "Find in chat"
+msgstr "Найти в чате"
+
+#: src/renderer/components/find/GitFindBar.tsx
+msgid "Find in diff"
+msgstr "Найти в diff"
+
+#: src/renderer/components/terminal/XTermSurface.tsx
+msgid "Find in terminal"
+msgstr "Найти в терминале"
+
 #: src/renderer/views/PrReviewOverlay/parts/SubmitReviewPopover.tsx
 msgid "Finish your review"
 msgstr "Завершите проверку"
@@ -2406,6 +2459,14 @@ msgstr "Первоклассная интеграция OpenCode с исполь
 msgid "Fix in Agent"
 msgstr "Исправить в агенте"
 
+#: src/renderer/commands/registry.ts
+msgid "Focus browser address bar"
+msgstr "Перейти на адресную строку браузера"
+
+#: src/renderer/commands/registry.ts
+msgid "Focus the in-app browser address bar"
+msgstr "Перейти на адресную строку встроенного браузера"
+
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "Folder name"
 msgstr "Имя папки"
@@ -2441,6 +2502,7 @@ msgstr "Развилка"
 msgid "Format files"
 msgstr "Форматировать файлы"
 
+#: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Forward"
 msgstr "Вперёд"
@@ -2563,6 +2625,14 @@ msgstr "Глобальные"
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Global folder"
 msgstr "Глобальная папка"
+
+#: src/renderer/commands/shortcutCatalog.ts
+msgid "Go back in navigation history"
+msgstr "Назад по истории навигации"
+
+#: src/renderer/commands/shortcutCatalog.ts
+msgid "Go forward in navigation history"
+msgstr "Вперёд по истории навигации"
 
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 msgid "Goal"
@@ -3034,6 +3104,10 @@ msgstr "Отметить выполненным"
 msgid "Match app language"
 msgstr "Как в приложении"
 
+#: src/renderer/components/find/FindBar.tsx
+msgid "Match case"
+msgstr "Учитывать регистр"
+
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
 msgid "Match your system, or force light or dark."
 msgstr "Следовать настройкам системы либо принудительно использовать светлую "
@@ -3330,6 +3404,10 @@ msgstr "Новая строка"
 msgid "New project"
 msgstr "Новый проект"
 
+#: src/renderer/commands/registry.ts
+msgid "New quick thread"
+msgstr "Новый быстрый тред"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabStrip.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "New tab"
@@ -3367,9 +3445,25 @@ msgstr "Новый тред в worktree"
 msgid "New worktree"
 msgstr "Новый worktree"
 
+#: src/renderer/commands/registry.ts
+msgid "Next chat"
+msgstr "Следующий чат"
+
 #: src/renderer/components/composer/ImageLightbox.tsx
 msgid "Next image"
 msgstr "Следующее изображение"
+
+#: src/renderer/components/find/FindBar.tsx
+msgid "Next match"
+msgstr "Следующее совпадение"
+
+#: src/renderer/commands/registry.ts
+msgid "Next recently viewed chat"
+msgstr "Следующий недавно просмотренный чат"
+
+#: src/renderer/commands/registry.ts
+msgid "Next tab"
+msgstr "Следующая вкладка"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/hooks/useElementPicker.ts
 msgid "No active browser tab"
@@ -3555,6 +3649,10 @@ msgstr "Удалённый репозиторий не настроен. Доб�
 msgid "No repositories found."
 msgstr "Репозитории не найдены."
 
+#: src/renderer/components/find/FindBar.tsx
+msgid "No results"
+msgstr "Нет результатов"
+
 #: src/renderer/components/thread/ChatPane/ChatRuntimeDebugPanel.tsx
 msgid "No runtime items yet for this thread."
 msgstr "Для этого треда пока нет runtime-элементов."
@@ -3685,6 +3783,10 @@ msgstr "Открыть"
 msgid "Open {label}"
 msgstr "Открыть {label}"
 
+#: src/renderer/commands/registry.ts
+msgid "Open a new browser tab"
+msgstr "Открыть новую вкладку браузера"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/DevTerminalPanel.tsx
 msgid "Open a terminal"
 msgstr "Открыть терминал"
@@ -3714,6 +3816,10 @@ msgstr "Открыть как панель"
 msgid "Open browser"
 msgstr "Открыть браузер"
 
+#: src/renderer/commands/registry.ts
+msgid "Open browser tab"
+msgstr "Открыть вкладку браузера"
+
 #: src/renderer/views/PrReviewOverlay/parts/PrChecksTab.tsx
 msgid "Open check"
 msgstr "Открыть проверку"
@@ -3741,6 +3847,10 @@ msgstr "Открыть файл"
 #: src/renderer/commands/registry.ts
 msgid "Open Files"
 msgstr "Открыть файлы"
+
+#: src/renderer/commands/registry.ts
+msgid "Open folder"
+msgstr "Открыть папку"
 
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorToolbar.tsx
 msgid "Open fullscreen"
@@ -3773,7 +3883,7 @@ msgstr "Открыть в редакторе"
 msgid "Open links in"
 msgstr "Открывать ссылки в"
 
-#: src/renderer/commands/shortcutCatalog.ts
+#: src/renderer/commands/composerCommands.ts
 msgid "Open model picker"
 msgstr "Открыть выбор модели"
 
@@ -4036,9 +4146,25 @@ msgstr "Запрещать сон во время работы"
 msgid "Preview {0}"
 msgstr "Предпросмотр {0}"
 
+#: src/renderer/commands/registry.ts
+msgid "Previous chat"
+msgstr "Предыдущий чат"
+
 #: src/renderer/components/composer/ImageLightbox.tsx
 msgid "Previous image"
 msgstr "Предыдущее изображение"
+
+#: src/renderer/components/find/FindBar.tsx
+msgid "Previous match"
+msgstr "Предыдущее совпадение"
+
+#: src/renderer/commands/registry.ts
+msgid "Previous recently viewed chat"
+msgstr "Предыдущий недавно просмотренный чат"
+
+#: src/renderer/commands/registry.ts
+msgid "Previous tab"
+msgstr "Предыдущая вкладка"
 
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Profile"
@@ -4377,9 +4503,17 @@ msgstr "Удалить worktree?"
 msgid "Rename"
 msgstr "Переименовать"
 
+#: src/renderer/commands/registry.ts
+msgid "Rename chat"
+msgstr "Переименовать чат"
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadGroup.tsx
 msgid "Rename Group"
 msgstr "Переименовать группу"
+
+#: src/renderer/commands/registry.ts
+msgid "Rename the current chat"
+msgstr "Переименовать текущий чат"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/InlineRenameInput.tsx
 msgid "Rename thread"
@@ -4795,6 +4929,10 @@ msgstr "Поиск runtime-элементов…"
 msgid "Search shortcuts"
 msgstr "Поиск сочетаний клавиш"
 
+#: src/renderer/commands/registry.ts
+msgid "Search the current view"
+msgstr "Поиск в текущем виде"
+
 #: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
 msgid "Search threads"
 msgstr "Поиск тредов"
@@ -4973,6 +5111,14 @@ msgstr "Показывать уведомления при изменении с
 msgid "Show opened links in"
 msgstr "Показывать открытые ссылки в"
 
+#: src/renderer/commands/registry.ts
+msgid "Show or hide the browser panel"
+msgstr "Показать или скрыть панель браузера"
+
+#: src/renderer/commands/registry.ts
+msgid "Show or hide the sidebar"
+msgstr "Показать или скрыть боковую панель"
+
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorToolbar.tsx
 msgid "Show preview"
 msgstr "Показать предпросмотр"
@@ -5112,6 +5258,10 @@ msgstr "Подготовлено"
 msgid "Staged ({0})"
 msgstr "Подготовлено ({0})"
 
+#: src/renderer/commands/registry.ts
+msgid "Star or unstar the current chat or model"
+msgstr "Добавить в избранное или удалить из избранного текущий чат или модель"
+
 #. Button: start the microphone level test
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 msgid "Start"
@@ -5121,6 +5271,10 @@ msgstr "Начать"
 msgid "Start {appName} to see usage"
 msgstr "Запустите {appName}, чтобы увидеть статистику использования"
 
+#: src/renderer/commands/registry.ts
+msgid "Start a new thread as panel instead of page"
+msgstr "Открыть новый тред в виде панели, а не страницы"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesEditor.tsx
 msgid "Start a new thread from the selected text"
 msgstr "Создать новый тред из выделенного текста"
@@ -5128,6 +5282,14 @@ msgstr "Создать новый тред из выделенного текс�
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/TodoRow.tsx
 msgid "Start a new thread from this to-do"
 msgstr "Создать новый тред из этой задачи"
+
+#: src/renderer/commands/composerCommands.ts
+msgid "Start dictation"
+msgstr "Начать диктовку"
+
+#: src/renderer/commands/composerCommands.ts
+msgid "Start dictation in the current composer"
+msgstr "Начать диктовку в текущем поле ввода"
 
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
@@ -5305,6 +5467,22 @@ msgstr "Переключить этот чат в режим агента"
 #: src/renderer/components/providers/codex/index.tsx
 msgid "Switch this chat to plan mode"
 msgstr "Переключить этот чат в режим плана"
+
+#: src/renderer/commands/registry.ts
+msgid "Switch to the next chat"
+msgstr "Перейти к следующему чату"
+
+#: src/renderer/commands/registry.ts
+msgid "Switch to the next tab"
+msgstr "Перейти к следующей вкладке"
+
+#: src/renderer/commands/registry.ts
+msgid "Switch to the previous chat"
+msgstr "Перейти к предыдущему чату"
+
+#: src/renderer/commands/registry.ts
+msgid "Switch to the previous tab"
+msgstr "Перейти к предыдущей вкладке"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CommitSyncPanel.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
@@ -5593,20 +5771,40 @@ msgstr "Генерация заголовков"
 msgid "To-dos"
 msgstr "Задачи"
 
-#: src/renderer/commands/shortcutCatalog.ts
+#: src/renderer/commands/registry.ts
+msgid "Toggle browser panel"
+msgstr "Переключить панель браузера"
+
+#: src/renderer/commands/composerCommands.ts
 #: src/renderer/components/providers/codex/index.tsx
 msgid "Toggle Fast mode"
 msgstr "Переключить быстрый режим"
+
+#: src/renderer/commands/registry.ts
+msgid "Toggle File Tree"
+msgstr "Переключить дерево файлов"
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
 msgid "Toggle models off to hide them from the selector."
 msgstr "Отключите модели, чтобы скрыть их из селектора."
 
 #: src/renderer/commands/registry.ts
+msgid "Toggle sidebar"
+msgstr "Переключить боковую панель"
+
+#: src/renderer/commands/registry.ts
+msgid "Toggle star"
+msgstr "Переключить избранное"
+
+#: src/renderer/commands/registry.ts
 msgid "Toggle Terminal"
 msgstr "Переключить терминал"
 
-#: src/renderer/commands/shortcutCatalog.ts
+#: src/renderer/commands/registry.ts
+msgid "Toggle the file tree panel"
+msgstr "Переключить панель дерева файлов"
+
+#: src/renderer/commands/composerCommands.ts
 msgid "Toggle Work or Plan"
 msgstr "Переключить Работа или План"
 

@@ -87,3 +87,17 @@ export function collapseSidebar(): void {
 export function expandSidebar(): void {
   useSidebarOverlayStore.getState().setCollapsed(false);
 }
+
+/**
+ * Toggle the sidebar's collapsed state. Expanding is a plain state flip;
+ * collapsing routes through {@link collapseSidebar} so the overlay (narrow
+ * viewport) slide-out animation still plays. Backs the `sidebar.toggle`
+ * command.
+ */
+export function toggleSidebar(): void {
+  if (useSidebarOverlayStore.getState().isCollapsed) {
+    expandSidebar();
+  } else {
+    collapseSidebar();
+  }
+}
