@@ -172,11 +172,9 @@ async function syncBrowserMcp(
   const directory = resolveOpenCodeSessionDirectory(input.projectLocation);
   if (input.browserMcpEnabled === undefined) return;
   if (!input.browserMcpEnabled) {
-    await client.mcp
-      .disconnect({ directory, name: BROWSER_MCP_SERVER_NAME })
-      .catch((error) => {
-        console.warn("[opencode] failed to disconnect browser MCP:", error);
-      });
+    await client.mcp.disconnect({ directory, name: BROWSER_MCP_SERVER_NAME }).catch((error) => {
+      console.warn("[opencode] failed to disconnect browser MCP:", error);
+    });
     return;
   }
 

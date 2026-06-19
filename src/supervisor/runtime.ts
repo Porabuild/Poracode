@@ -1089,7 +1089,10 @@ export class SupervisorRuntime {
           : session.projectLocation.path;
       if (sessionPath.replace(/\\/g, "/").toLowerCase() === normalizedTarget) {
         await this.closeThread({ threadId }).catch((error) => {
-          console.warn(`[supervisor] failed to close thread ${threadId} during worktree removal:`, error);
+          console.warn(
+            `[supervisor] failed to close thread ${threadId} during worktree removal:`,
+            error,
+          );
         });
       }
     }
@@ -1097,7 +1100,10 @@ export class SupervisorRuntime {
     for (const [threadId, shell] of this.shellSessions) {
       if (shell.worktreePath?.replace(/\\/g, "/").toLowerCase() === normalizedTarget) {
         await this.closeThread({ threadId }).catch((error) => {
-          console.warn(`[supervisor] failed to close shell thread ${threadId} during worktree removal:`, error);
+          console.warn(
+            `[supervisor] failed to close shell thread ${threadId} during worktree removal:`,
+            error,
+          );
         });
       }
     }

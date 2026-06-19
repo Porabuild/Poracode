@@ -309,7 +309,10 @@ export class GitWorktreeService {
       await execGit(location, removeArgs);
       if (branchToDelete) {
         await this.deleteBranch(location, branchToDelete, force).catch((error) => {
-          console.warn(`[git] failed to delete branch ${branchToDelete} after worktree removal:`, error);
+          console.warn(
+            `[git] failed to delete branch ${branchToDelete} after worktree removal:`,
+            error,
+          );
         });
       }
     } catch (error) {
@@ -325,7 +328,10 @@ export class GitWorktreeService {
       }
       if (branchToDelete) {
         await this.deleteBranch(location, branchToDelete, force).catch((branchErr) => {
-          console.warn(`[git] failed to delete branch ${branchToDelete} after worktree removal:`, branchErr);
+          console.warn(
+            `[git] failed to delete branch ${branchToDelete} after worktree removal:`,
+            branchErr,
+          );
         });
       }
     }
