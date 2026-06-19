@@ -1068,6 +1068,34 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
     });
   };
 
+  /**
+   * The SDK can resume the model after a turn has already settled to `idle` —
+   * a `ScheduleWakeup`, a `/loop` tick, or a backgrounded Bash task finishing
+   * all re-invoke it WITHOUT a user prompt, so none of them flow through
+   * `startTurn`. Such a resume streams assistant content (`item.started` /
+   * `content.delta`) with neither a fresh `turn.started` nor a `working`
+   * status, which leaves the GUI thread stuck on `idle` while answers stream
+   * in: the renderer's reopen safety-net is gated off by the prior
+   * `turn.completed`, and the SDK does not reliably emit
+   * `session_state_changed: "running"` on these resumes. Detect the first
+   * assistant activity after a settled turn and open a new runtime turn so both
+   * the status channel and the renderer's turn-open gate reflect that the model
+   * is working again. The eventual `result` then closes this turn normally.
+   */
+  private beginResumedTurnIfNeeded(message: SDKMessage): void {
+    if (this.disposed || this.currentTurnInFlight) return;
+    if (!isResumedAssistantActivity(message)) return;
+    const turnId = `turn-${randomUUID()}`;
+    this.currentTurnInFlight = true;
+    this.currentTurnAssistantUuid = undefined;
+    // Seed the mapper's turn id so the eventual `result` emits the matching
+    // `turn.completed`, re-closing the renderer's turn-open gate.
+    this.mapperState.currentTurnId = turnId;
+    this.emitRuntimeEvents([{ type: "turn.started", threadId: this.input.threadId, turnId }]);
+    this.emitUpdate({ status: "working", attention: "working" });
+    this.startGoalTracking();
+  }
+
   private handleSdkMessage(message: SDKMessage): void {
     const sessionId =
       "session_id" in message && typeof message.session_id === "string"
@@ -1081,6 +1109,8 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
         sessionRef: createKnownSessionRef(sessionId),
       });
     }
+
+    this.beginResumedTurnIfNeeded(message);
 
     if (message.type === "system" && message.subtype === "session_state_changed") {
       const mapped = mapSessionState(message.state);
@@ -1203,6 +1233,23 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
     console.error(`[claude-sdk-session] ${this.input.threadId} pre-listener error: ${message}`);
     this.pendingError = message;
   }
+}
+
+/**
+ * Whether an SDK message represents the model starting to produce fresh
+ * assistant output. A streamed message opens with a `message_start` stream
+ * event; non-streaming transports deliver a whole `assistant` message instead.
+ * Sub-agent (`Task`) output also arrives as assistant messages, but only while
+ * a turn is already in flight, so callers gate on `currentTurnInFlight` to
+ * exclude it. Used to detect a wakeup/background resume that bypassed
+ * `startTurn`.
+ */
+function isResumedAssistantActivity(message: SDKMessage): boolean {
+  if (message.type === "assistant") return true;
+  if (message.type === "stream_event") {
+    return message.event.type === "message_start";
+  }
+  return false;
 }
 
 function isInterruptedResult(message: Extract<SDKMessage, { type: "result" }>): boolean {

@@ -62,6 +62,28 @@ describe("createAutoUpdaterController", () => {
     expect(autoUpdaterMock.quitAndInstall).toHaveBeenCalledWith(process.platform === "win32", true);
   });
 
+  it("does not reject from a manual check when checkForUpdates() fails", async () => {
+    // A freshly-published release whose channel manifest hasn't finished
+    // uploading 404s, so electron-updater emits "error" and then rejects.
+    // The renderer invokes checkForUpdate() fire-and-forget, so a rejection
+    // here would escalate into a fatal unhandled-rejection crash screen.
+    const sendStatus = vi.fn<(status: { type: string; message?: string }) => void>();
+    const reportError = vi.fn<(error: unknown, tags?: Record<string, string>) => void>();
+    const controller = createAutoUpdaterController(sendStatus, "nightly", false, reportError);
+    controller.initialize();
+
+    const failure = new Error("Cannot find latest-mac.yml in the latest release artifacts");
+    autoUpdaterMock.checkForUpdates.mockRejectedValueOnce(failure);
+
+    await expect(controller.checkForUpdate()).resolves.toBeUndefined();
+
+    // The user still sees the failure: electron-updater's "error" event drives
+    // the toast + Sentry report, independent of the swallowed rejection.
+    autoUpdaterMock.emit("error", failure);
+    expect(sendStatus).toHaveBeenCalledWith({ type: "error", message: failure.message });
+    expect(reportError).toHaveBeenCalledWith(failure, { "lightcode.feature_area": "updates" });
+  });
+
   it("runs an initial check after launch and then keeps checking on the hourly interval", async () => {
     const controller = createAutoUpdaterController(vi.fn(), "stable", false);
     controller.initialize();

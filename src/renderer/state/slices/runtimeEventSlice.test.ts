@@ -30,6 +30,10 @@ describe("runtimeEventSlice.applyRuntimeEvent", () => {
     store.getState().applyRuntimeEvent(threadId, event);
   }
 
+  function applyBatch(threadId: string, events: RuntimeEvent[]) {
+    store.getState().applyRuntimeEvents(threadId, events);
+  }
+
   it("appends a new item on item.started", () => {
     apply("t1", {
       type: "item.started",
@@ -190,29 +194,42 @@ describe("runtimeEventSlice.applyRuntimeEvent", () => {
     });
   });
 
-  it("deduplicates overlapping streamed chunks", () => {
-    apply("t1", {
-      type: "item.started",
-      threadId: "t1",
-      itemId: "i1",
-      itemType: "assistant_message",
-    });
-    apply("t1", {
+  // Streams are append-only: a delta boundary that lands on a repeated
+  // character (e.g. "aws s" + "so login") must not be deduplicated. Both the
+  // per-event reducer and the batch coalescer must preserve it.
+  const repeatedCharChunks: RuntimeEvent[] = [
+    { type: "item.started", threadId: "t1", itemId: "i1", itemType: "assistant_message" },
+    {
       type: "content.delta",
       threadId: "t1",
       itemId: "i1",
       stream: "assistant_text",
-      delta: "WorkingWorking through through tasks tasks.",
-    });
-    apply("t1", {
+      delta: "aws s",
+    },
+    {
       type: "content.delta",
       threadId: "t1",
       itemId: "i1",
       stream: "assistant_text",
-      delta: " tasks tasks. What What do do you you need need done done??",
-    });
+      delta: "so login --profile DataScience-Team-228",
+    },
+    {
+      type: "content.delta",
+      threadId: "t1",
+      itemId: "i1",
+      stream: "assistant_text",
+      delta: "889582725",
+    },
+  ];
+  const repeatedCharResult = "aws sso login --profile DataScience-Team-228889582725";
+
+  it.each([
+    ["applied one at a time", (events: RuntimeEvent[]) => events.forEach((e) => apply("t1", e))],
+    ["coalesced as a batch", (events: RuntimeEvent[]) => applyBatch("t1", events)],
+  ])("preserves repeated characters across streamed chunk boundaries (%s)", (_label, deliver) => {
+    deliver(repeatedCharChunks);
     expect(store.getState().runtimeItemsByIdByThread["t1"]?.["i1"]?.streams.assistant_text).toBe(
-      "WorkingWorking through through tasks tasks. What What do do you you need need done done??",
+      repeatedCharResult,
     );
   });
 

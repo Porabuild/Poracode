@@ -486,6 +486,60 @@ describe("ClaudeSdkSession", () => {
     await session.dispose();
   });
 
+  it("reopens the turn to working when the model resumes after idle without a new prompt", async () => {
+    const fake = createFakeQuery();
+    mockSdk.query.mockReturnValue(fake.runtime);
+    const runtimeEvents: RuntimeEvent[] = [];
+    const updates: StructuredSessionUpdate[] = [];
+    const session = await ClaudeSdkSession.create({
+      threadId: "thread-claude-wakeup",
+      projectLocation,
+      config,
+      presentationMode: "gui",
+    });
+    session.setListener({
+      onRuntimeEvent: (event) => runtimeEvents.push(event),
+      onUpdate: (update) => updates.push(update),
+      onError: () => {},
+      onClose: () => {},
+    });
+
+    const openedSessionId = await session.openThread(config);
+    await session.startTurn("kick off some background work", config);
+    await flushAsyncWork();
+
+    // First turn settles to idle (the model scheduled a wakeup / backgrounded a task).
+    fake.emitMessage(sdkAssistantMessage(openedSessionId, "assistant-uuid-1", "on it"));
+    fake.emitMessage(sdkSuccessResult(openedSessionId));
+    await flushAsyncWork();
+    expect(updates.at(-1)).toMatchObject({ status: "idle" });
+
+    const turnStartsAfterFirst = runtimeEvents.filter((e) => e.type === "turn.started").length;
+    const turnCompletesAfterFirst = runtimeEvents.filter((e) => e.type === "turn.completed").length;
+
+    // The wakeup re-invokes the model with NO new user prompt (no startTurn).
+    fake.emitMessage(
+      sdkAssistantMessage(openedSessionId, "assistant-uuid-2", "background job done"),
+    );
+    await flushAsyncWork();
+
+    // Status flips back to working and a fresh turn is opened on the wire.
+    expect(updates.at(-1)).toMatchObject({ status: "working", attention: "working" });
+    expect(runtimeEvents.filter((e) => e.type === "turn.started").length).toBe(
+      turnStartsAfterFirst + 1,
+    );
+
+    // The resumed turn settles cleanly back to idle with its own turn.completed.
+    fake.emitMessage(sdkSuccessResult(openedSessionId));
+    await flushAsyncWork();
+    expect(updates.at(-1)).toMatchObject({ status: "idle" });
+    expect(runtimeEvents.filter((e) => e.type === "turn.completed").length).toBe(
+      turnCompletesAfterFirst + 1,
+    );
+
+    await session.dispose();
+  });
+
   it("rolls back SDK sessions by reopening Claude at the target assistant UUID", async () => {
     mockSdk.query.mockClear();
     const firstQuery = createFakeQuery();

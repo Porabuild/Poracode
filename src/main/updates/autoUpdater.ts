@@ -122,7 +122,20 @@ export function createAutoUpdaterController(
       sendStatus({ type: "error", message: "Update check is not available in dev mode." });
       return;
     }
-    await autoUpdater.checkForUpdates();
+    try {
+      await autoUpdater.checkForUpdates();
+    } catch {
+      // checkForUpdates() rejects on any check failure — most commonly a
+      // freshly-published release whose channel manifest (e.g. nightly-mac.yml)
+      // hasn't finished uploading yet, which 404s and then falls back to a
+      // 404 on latest-mac.yml. electron-updater emits an "error" event before
+      // this promise rejects, and the listener registered in initialize()
+      // already reports it (reportError) and surfaces it to the UI (sendStatus
+      // error → toast). Swallow the rejection here so this IPC never rejects:
+      // the renderer invokes it fire-and-forget, where an unhandled rejection
+      // is escalated into a fatal full-screen crash. This mirrors the
+      // .catch() guard on the background runScheduledCheck path.
+    }
   }
 
   async function startUpdateDownload(): Promise<void> {

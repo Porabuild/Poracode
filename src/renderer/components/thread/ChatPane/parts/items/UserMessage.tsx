@@ -25,8 +25,19 @@ interface UserMessageProps {
 const COLLAPSED_LINE_COUNT = 4;
 const FALLBACK_LINE_HEIGHT_RATIO = 1.375;
 const OVERFLOW_EPSILON_PX = 2;
-const collapsedMessageClass =
-  "overflow-hidden [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:4] [mask-image:linear-gradient(to_bottom,black_65%,transparent)] [-webkit-mask-image:linear-gradient(to_bottom,black_65%,transparent)]";
+// The height clamp and the fade mask are deliberately separate. The clamp is
+// applied on the very first render — before overflow is measured — so the
+// virtualizer measures the 4-line collapsed height rather than the message's
+// full un-clamped height. A long paste rendered full-height on (re)mount would
+// otherwise be cached at that height for one commit, then shrink to 4 lines the
+// next, feeding a large size delta into the chat scroll-compensation /
+// stick-to-bottom path and snapping the view to the bottom (so the user can no
+// longer scroll up past the message). The fade mask is held back until overflow
+// is confirmed so a short, non-overflowing message never flashes a gradient.
+const lineClampClass =
+  "overflow-hidden [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:4]";
+const collapsedFadeClass =
+  "[mask-image:linear-gradient(to_bottom,black_65%,transparent)] [-webkit-mask-image:linear-gradient(to_bottom,black_65%,transparent)]";
 
 export const UserMessage = memo(function UserMessage({
   item,
@@ -36,9 +47,14 @@ export const UserMessage = memo(function UserMessage({
   const actions = useChatPaneActions();
   const [isExpanded, setIsExpanded] = useState(false);
   const [hasVisualOverflow, setHasVisualOverflow] = useState(false);
+  // Starts false so the body renders clamped on first paint; flipped true after
+  // the first measurement, which is the only thing that lifts the default clamp
+  // off a non-overflowing message.
+  const [hasMeasured, setHasMeasured] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
   const hasVisualOverflowRef = useRef(false);
+  const hasMeasuredRef = useRef(false);
   const payload = getRuntimeItemPayload<MessageItemPayload>(item, "user_message");
   const content = payload?.content ?? [];
   const rawText = buildUserPromptText(content);
@@ -58,10 +74,19 @@ export const UserMessage = memo(function UserMessage({
     const element = bodyRef.current;
     if (!element) return;
     const nextHasVisualOverflow = measureUserMessageOverflow(element);
-    if (hasVisualOverflowRef.current !== nextHasVisualOverflow) {
+    // Run the body on the first measurement even when the overflow value is
+    // unchanged from its initial `false`: a non-overflowing message renders
+    // clamped-by-default, and this pass is what lifts that clamp. Relying on the
+    // ref-equality short-circuit alone would leave a short message clamped
+    // forever (its overflow value never differs from the initial state).
+    if (hasVisualOverflowRef.current !== nextHasVisualOverflow || !hasMeasuredRef.current) {
       hasVisualOverflowRef.current = nextHasVisualOverflow;
       setHasVisualOverflow(nextHasVisualOverflow);
       actions?.onContentHeightChange();
+    }
+    if (!hasMeasuredRef.current) {
+      hasMeasuredRef.current = true;
+      setHasMeasured(true);
     }
     if (!nextHasVisualOverflow) setIsExpanded(false);
   });
@@ -86,11 +111,16 @@ export const UserMessage = memo(function UserMessage({
   const isCollapsed = isCollapsible && !isExpanded;
   const tooltipLabel = isExpanded ? t`Show less` : t`Show more`;
   const Icon = isExpanded ? ChevronUp : ChevronDown;
-  const collapseClass = isCollapsed
-    ? collapsedMessageClass
-    : isCollapsible
-      ? "max-h-[50vh] overflow-y-auto"
-      : "";
+  // Before the first measurement, clamp height only (no fade) so the virtualizer
+  // never measures the full un-clamped height on (re)mount. Once measured, fall
+  // back to the real collapsed / expanded / no-overflow states.
+  const collapseClass = !hasMeasured
+    ? lineClampClass
+    : isCollapsed
+      ? `${lineClampClass} ${collapsedFadeClass}`
+      : isCollapsible
+        ? "max-h-[50vh] overflow-y-auto"
+        : "";
   const baseBodyClass = `min-w-0 leading-snug ${checkpointRevertControl ? "pr-12" : "pr-7"} ${collapseClass}`;
   const inlineBodyClass = `${baseBodyClass} lightcode-user-message-inline-content whitespace-pre-wrap break-words text-[length:var(--lc-chat-font-size)] text-foreground`;
 

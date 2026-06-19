@@ -87,7 +87,20 @@ function UpdateButton() {
   }
 
   return (
-    <Button size="sm" variant="ghost" onPress={() => void readBridge().checkForUpdate()}>
+    <Button
+      size="sm"
+      variant="ghost"
+      onPress={() =>
+        void readBridge()
+          .checkForUpdate()
+          .catch((error: unknown) => {
+            // Updater failures already surface via onUpdateStatus (toast). This
+            // catch only keeps an IPC transport rejection from bubbling to the
+            // window as an unhandled rejection, which renders the crash screen.
+            console.error("[lightcode][updates] check-for-update failed", error);
+          })
+      }
+    >
       <Trans>Check for updates</Trans>
     </Button>
   );
