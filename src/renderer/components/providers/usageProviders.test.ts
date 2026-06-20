@@ -60,4 +60,25 @@ describe("usageProviders", () => {
       inner: windows[0],
     });
   });
+
+  it("rings z.ai with the 5h window only when there is no weekly (MCP/monthly stays off the ring)", () => {
+    const windows: UsageWindow[] = [
+      { id: "session-5h", label: "Session (5h)", usedPercent: 0 },
+      { id: "monthly", label: "MCP", usedPercent: 2 },
+    ];
+    const rings = pickUsageRings("zai", windows);
+    expect(rings.outer?.id).toBe("session-5h");
+    expect(rings.inner).toBeUndefined();
+  });
+
+  it("rings z.ai with 5h + weekly when a weekly window is present, never the monthly MCP window", () => {
+    const windows: UsageWindow[] = [
+      { id: "session-5h", label: "Session (5h)", usedPercent: 25 },
+      { id: "weekly", label: "Weekly", usedPercent: 9 },
+      { id: "monthly", label: "MCP", usedPercent: 22 },
+    ];
+    const rings = pickUsageRings("zai", windows);
+    expect(rings.outer?.id).toBe("session-5h");
+    expect(rings.inner?.id).toBe("weekly");
+  });
 });

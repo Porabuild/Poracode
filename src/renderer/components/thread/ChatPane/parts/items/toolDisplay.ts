@@ -194,6 +194,8 @@ function mapClaudeRawTool(
       return { title: titleWithValue(i18n._(msg`Task output`), args, "id"), Icon: Terminal };
     case "TaskStop":
       return { title: titleWithValue(i18n._(msg`Stop task`), args, "id"), Icon: Trash2 };
+    case "imageView":
+    case "ImageView":
     case "ViewImage":
     case "Image":
       return withPath("Image", args, ["path", "file_path", "image_path", "source"], ImageIcon, {

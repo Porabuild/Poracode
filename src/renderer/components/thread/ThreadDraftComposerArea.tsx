@@ -21,6 +21,7 @@ import {
   MentionInput,
   VoiceInputButton,
   type MentionInputHandle,
+  type VoiceInputHandle,
   useAttachments,
 } from "@/renderer/components/composer";
 import { getBrowserMcpScope } from "@/renderer/components/composer/browserMcpScope";
@@ -49,6 +50,7 @@ import {
   resolveAvailableSlashCommands,
   resolveLocalSlashCommandAction,
 } from "./threadSlashCommands";
+import { useKeybindingStore } from "@/renderer/commands/keybindingStore";
 import { handleComposerControlShortcut } from "./threadComposerShortcuts";
 import { WorktreeModeSelect, type WorktreeMode } from "./WorktreeModeSelect";
 
@@ -210,6 +212,7 @@ export function ThreadDraftComposerArea(props: {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const showVoiceInputButton = useSharedSettings((s) => s.audio.showVoiceInputButton);
   const mentionRef = useRef<MentionInputHandle>(null);
+  const voiceInputRef = useRef<VoiceInputHandle>(null);
   const attachments = useAttachments();
   const inboxKey = props.paneId ?? `draft:${props.project.id}`;
   const pendingPickedAttachments = useBrowserAttachInbox((s) =>
@@ -588,12 +591,15 @@ export function ThreadDraftComposerArea(props: {
               if (
                 handleComposerControlShortcut(e, {
                   controls,
+                  keybindings: useKeybindingStore.getState().keybindings,
+                  platform: readBridge().platform,
                   onOpenModelPicker: () => {
                     setControlOpenRequest((prev) => ({
                       target: "model",
                       nonce: (prev?.nonce ?? 0) + 1,
                     }));
                   },
+                  onStartDictation: () => voiceInputRef.current?.toggle() ?? false,
                 })
               ) {
                 return true;
@@ -645,6 +651,7 @@ export function ThreadDraftComposerArea(props: {
             />
             {showVoiceInputButton ? (
               <VoiceInputButton
+                ref={voiceInputRef}
                 isDisabled={authRequired || agentUpdating || isSubmitting}
                 onTranscript={(text) => {
                   mentionRef.current?.commitVoiceTranscript(text);

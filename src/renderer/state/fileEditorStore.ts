@@ -125,6 +125,12 @@ interface FileEditorStoreState {
   pinTab: (path: string) => void;
   setOverlayMode: (mode: FileEditorOverlayMode | null) => void;
   setActivePath: (path: string | null) => void;
+  /**
+   * Switch to the adjacent open tab in `tabs` order, wrapping at the ends.
+   * No-op with fewer than two tabs. Mirrors the tab strip's click-to-activate
+   * ({@link setActivePath}).
+   */
+  cycleTab: (direction: "next" | "previous") => void;
   updateBuffer: (path: string, content: string) => void;
   discardFileChanges: (path: string) => void;
   saveFile: (path: string) => Promise<void>;
@@ -453,6 +459,17 @@ export const useFileEditorStore = create<FileEditorStoreState>((set, get) => ({
   pinTab: (path) => set((state) => (state.previewTab === path ? { previewTab: null } : {})),
   setOverlayMode: (overlayMode) => set({ overlayMode }),
   setActivePath: (activePath) => set({ activePath }),
+  cycleTab: (direction) =>
+    set((state) => {
+      if (state.tabs.length < 2) return {};
+      const currentIndex = state.activePath ? state.tabs.indexOf(state.activePath) : -1;
+      const delta = direction === "next" ? 1 : -1;
+      // With no active tab, step from the edge so "next" lands on the first tab
+      // and "previous" on the last.
+      const from = currentIndex === -1 ? (direction === "next" ? -1 : 0) : currentIndex;
+      const nextPath = state.tabs[(from + delta + state.tabs.length) % state.tabs.length];
+      return nextPath && nextPath !== state.activePath ? { activePath: nextPath } : {};
+    }),
   updateBuffer: (path, content) =>
     set((state) => {
       const buffer = state.buffers[path];

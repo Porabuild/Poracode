@@ -32,6 +32,7 @@ import {
   openFileInEditor,
   resolveWorktreeBranch,
 } from "@/renderer/utils/gitHelpers";
+import { ChatFindBar, type ScrollToIndex } from "@/renderer/components/find/ChatFindBar";
 import { ChatPaneActionsContext, type ChatPaneActions } from "./chatPaneActionsContext";
 import { isElementAtBottom } from "./chatScrollGeometry";
 import {
@@ -76,6 +77,10 @@ export function ChatPane(props: ChatPaneProps) {
   const { thread, hiddenRuntimeItemId, hasSupplementaryContent = false, layoutChangeToken } = props;
   const { id: threadId, projectId, status, worktreePath, worktreeBranch } = thread;
   const contentRef = useRef<HTMLDivElement>(null);
+  const scrollToIndexRef = useRef<ScrollToIndex | null>(null);
+  const registerScrollToIndex = (handler: ScrollToIndex | null) => {
+    scrollToIndexRef.current = handler;
+  };
   // `scrollEl` mirrors `scrollRef.current` as React state so the virtualizer
   // in `MessageList` sees the element transition from `null` to mounted across
   // a real React render. Without this, after a drag-drop pane move the
@@ -298,6 +303,7 @@ export function ChatPane(props: ChatPaneProps) {
                     threadId={threadId}
                     entries={timelineEntries}
                     scrollElement={scrollEl}
+                    registerScrollToIndex={registerScrollToIndex}
                     suppressInlineTurnAnchorId={suppressInlineTurnAnchorId}
                     canRevertCheckpoints={!isLive && !isHomeScope}
                     checkpointGuard={checkpointGuard}
@@ -325,6 +331,11 @@ export function ChatPane(props: ChatPaneProps) {
           <SubAgentOverlay
             threadId={threadId}
             {...(project ? { projectLocation: project.location } : {})}
+          />
+          <ChatFindBar
+            threadId={threadId}
+            scrollToIndexRef={scrollToIndexRef}
+            scrollElement={scrollEl}
           />
         </div>
       </div>

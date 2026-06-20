@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type FormEvent } from "react";
 import { useSortable } from "@dnd-kit/react/sortable";
 import { ChevronDown, ChevronRight, GripVertical, LogOut } from "lucide-react";
 import { Trans, useLingui } from "@lingui/react/macro";
@@ -15,6 +15,7 @@ import {
 } from "@/renderer/components/providers/usageFormat";
 import { usageToneColor } from "@/renderer/components/providers/usageTone";
 import {
+  supportsApiKeyLogin,
   supportsBrowserLogin,
   usesSharedWindowReset,
 } from "@/renderer/components/providers/usageProviders";
@@ -72,7 +73,9 @@ export function UsageProviderCard(props: {
   const hasStoredSession = useHasStoredSession(id);
   const [signingIn, setSigningIn] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
-  const supportsLogin = supportsBrowserLogin(id);
+  const [apiKey, setApiKey] = useState("");
+  const isApiKeyLogin = supportsApiKeyLogin(id);
+  const supportsLogin = supportsBrowserLogin(id) || isApiKeyLogin;
   // A stored session that the latest fetch reports as rejected (expired cookie)
   // still warrants a "Sign in" to re-auth; an unauthenticated provider always does.
   // But never prompt sign-in once a fetch succeeds ("ok"): a provider authenticated
@@ -123,6 +126,25 @@ export function UsageProviderCard(props: {
       if (fresh) useProviderUsageStore.getState().mergeSnapshot(fresh);
     } finally {
       unsubscribe();
+      setSigningIn(false);
+    }
+  };
+  const handleSubmitApiKey = async (event: FormEvent) => {
+    event.preventDefault();
+    const key = apiKey.trim();
+    if (!key || signingIn) return;
+    setSigningIn(true);
+    try {
+      const outcome = await readBridge().submitUsageApiKey({ providerId: id, apiKey: key });
+      if (!outcome.ok) return;
+      setApiKey("");
+      // Mark stored immediately so the card reads as signed in regardless of
+      // whether the usage fetch below yields displayable windows.
+      useUsageLoginStateStore.getState().setStored(id, true);
+      const usage = await readBridge().refreshProviderUsage({ providerIds: [id] });
+      const fresh = usage.snapshots.find((s) => s.providerId === id);
+      if (fresh) useProviderUsageStore.getState().mergeSnapshot(fresh);
+    } finally {
       setSigningIn(false);
     }
   };
@@ -250,7 +272,30 @@ export function UsageProviderCard(props: {
           ) : (
             <div className="space-y-2">
               <p className="text-xs text-muted">{usageStatusText(snapshot, label)}</p>
-              {canSignIn ? (
+              {canSignIn && isApiKeyLogin ? (
+                <form
+                  onSubmit={(e) => void handleSubmitApiKey(e)}
+                  className="flex items-center gap-1.5"
+                >
+                  <input
+                    type="password"
+                    value={apiKey}
+                    onChange={(e) => setApiKey(e.target.value)}
+                    placeholder={t`Paste ${label} API key`}
+                    aria-label={t`${label} API key`}
+                    autoComplete="off"
+                    spellCheck={false}
+                    className="min-w-0 flex-1 rounded-lg border border-[color:var(--separator)] bg-background px-2 py-1 text-xs text-foreground outline-none focus-visible:focus-ring"
+                  />
+                  <button
+                    type="submit"
+                    disabled={signingIn || apiKey.trim().length === 0}
+                    className="shrink-0 rounded-lg border border-[color:var(--separator)] bg-surface px-2.5 py-1 text-xs font-medium text-foreground transition-colors hover:bg-muted/10 disabled:opacity-50"
+                  >
+                    {signingIn ? <Trans>Signing in…</Trans> : <Trans>Sign in</Trans>}
+                  </button>
+                </form>
+              ) : canSignIn ? (
                 <button
                   type="button"
                   onClick={() => void handleSignIn()}

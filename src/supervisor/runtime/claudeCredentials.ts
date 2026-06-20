@@ -1,8 +1,15 @@
 import { existsSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
-import type { OAuthToken } from "@lightcode/agents-usage";
+import {
+  type ClaudeRefreshedToken,
+  type OAuthToken,
+  refreshClaudeOAuthToken,
+} from "@lightcode/agents-usage";
+import { writeFileAtomic } from "@/shared/atomicFile";
+import { coalesceByKey } from "@/shared/coalesce";
 import { readClaudeCredentialsFromMacKeychain } from "./macClaudeKeychain";
+import { createNodeHttpClient } from "./usageHttpClient";
 import { readClaudeCredentialsFromWindowsVault } from "./windowsClaudeVault";
 import { readClaudeCredsFromWsl } from "./wslCredentials";
 
@@ -73,13 +80,24 @@ function hasExplicitClaudeConfig(env: ClaudeCredentialEnv): boolean {
 
 export async function resolveClaudeToken(
   env: ClaudeCredentialEnv = process.env,
+  deps: ClaudeRefreshDeps = prodClaudeRefreshDeps(),
 ): Promise<OAuthToken | undefined> {
   for (const dir of claudeConfigDirs(env)) {
     const path = join(dir, ".credentials.json");
     if (!existsSync(path)) continue;
     try {
-      const token = parseClaudeCredentials(readFileSync(path, "utf8"));
-      if (token) return token;
+      const content = readFileSync(path, "utf8");
+      const token = parseClaudeCredentials(content);
+      // File-backed creds are the only source we can persist a rotated token to,
+      // so refresh is scoped here (covers every Claude profile + the common base
+      // case). Keychain/vault/WSL sources below are returned as-is. Coalesce per
+      // path so the base "claude" resolver and a profile aliasing the same file
+      // share one refresh instead of both POSTing (and burning) the refresh token.
+      if (token) {
+        return await coalesceByKey(claudeRefreshInFlight, path, () =>
+          refreshClaudeFileTokenIfExpired(path, content, token, deps),
+        );
+      }
     } catch {
       // try the next candidate dir
     }
@@ -114,4 +132,129 @@ export async function resolveClaudeToken(
     }
   }
   return undefined;
+}
+
+/**
+ * Self-refresh of an expired Claude OAuth access token, the way the Claude Code
+ * CLI does it: POST the stored refresh token to Anthropic's OAuth endpoint and
+ * rewrite the credentials file with the rotated token. The access token has a
+ * short (~8h) TTL; when no running CLI keeps it fresh it expires, the usage
+ * endpoint 401s, and the provider card flips to "Not signed in" until the
+ * account is used again. Refreshing here keeps usage live for idle accounts.
+ *
+ * Refresh tokens are single-use, and the on-disk file is shared with the Claude
+ * Code CLI (anthropics/claude-code#24317), so this is deliberately conservative:
+ *  - It only fires once the token is *past* expiry plus a grace window — never
+ *    while it is still valid — so a CLI that refreshes proactively always wins
+ *    the rotation and we step in only for genuinely idle/dead tokens.
+ *  - Concurrent refreshes of one file are coalesced per path (in-process) and
+ *    the file is re-read after the network call to defer to a rotation another
+ *    writer just performed instead of clobbering it.
+ *  - Any failure returns the original token (degrades to "not signed in",
+ *    exactly as before). Secrets are never logged.
+ *
+ * A residual race remains and is inherent to single-use refresh tokens: a CLI
+ * that has been running but idle *past* the access-token expiry holds the old
+ * refresh token in memory, so our rotation can force it to re-login when it next
+ * wakes. We accept this (rare) case rather than not refreshing at all.
+ */
+
+/** Refresh only once the token is this far PAST expiry (lets a live CLI rotate first). */
+const EXPIRY_GRACE_MS = 30_000;
+
+export function isClaudeTokenExpired(
+  token: Pick<OAuthToken, "expiresAt">,
+  nowMs: number,
+  graceMs = EXPIRY_GRACE_MS,
+): boolean {
+  return typeof token.expiresAt === "number" && token.expiresAt + graceMs <= nowMs;
+}
+
+/**
+ * Merge a refreshed token into the original credentials JSON, preserving the
+ * file's wrapper shape (`{ claudeAiOauth: {...} }` or a bare object) and every
+ * other field (subscriptionType, scopes, …). Returns the serialized JSON.
+ */
+export function mergeClaudeCredentialsJson(
+  originalContent: string,
+  refreshed: ClaudeRefreshedToken,
+): string {
+  const parsed = JSON.parse(originalContent) as Record<string, unknown>;
+  const wrapped = typeof parsed?.claudeAiOauth === "object" && parsed.claudeAiOauth !== null;
+  const oauth = (wrapped ? parsed.claudeAiOauth : parsed) as Record<string, unknown>;
+  oauth.accessToken = refreshed.accessToken;
+  oauth.refreshToken = refreshed.refreshToken;
+  oauth.expiresAt = refreshed.expiresAt;
+  return JSON.stringify(parsed);
+}
+
+/** Injectable I/O for {@link refreshClaudeFileTokenIfExpired}; defaulted for prod. */
+export interface ClaudeRefreshDeps {
+  now(): number;
+  refresh(refreshToken: string, nowMs: number): Promise<ClaudeRefreshedToken | undefined>;
+  readFile(path: string): string;
+  writeFile(path: string, content: string): void;
+}
+
+export function defaultClaudeRefreshDeps(): ClaudeRefreshDeps {
+  const http = createNodeHttpClient();
+  return {
+    now: () => Date.now(),
+    refresh: (refreshToken, nowMs) => refreshClaudeOAuthToken(http, refreshToken, nowMs),
+    readFile: (path) => readFileSync(path, "utf8"),
+    // Atomic write with owner-only perms (cleans up its temp file on failure),
+    // so a torn or crashed write never corrupts or leaks the credentials file.
+    writeFile: (path, content) => writeFileAtomic(path, content, { encoding: "utf8", mode: 0o600 }),
+  };
+}
+
+/** Built once and reused so the http client isn't rebuilt on every resolve. */
+let cachedRefreshDeps: ClaudeRefreshDeps | undefined;
+function prodClaudeRefreshDeps(): ClaudeRefreshDeps {
+  return (cachedRefreshDeps ??= defaultClaudeRefreshDeps());
+}
+
+/** In-flight refresh per resolved creds path, so same-tick callers share one POST. */
+const claudeRefreshInFlight = new Map<string, Promise<OAuthToken>>();
+
+/**
+ * Given the credentials file content the caller just read and its parsed token,
+ * refresh + persist when the access token is (grace-)expired. Returns the token
+ * the collector should use: the rotated one on success, the original otherwise.
+ */
+export async function refreshClaudeFileTokenIfExpired(
+  path: string,
+  originalContent: string,
+  token: OAuthToken,
+  deps: ClaudeRefreshDeps,
+): Promise<OAuthToken> {
+  if (!token.refreshToken || !isClaudeTokenExpired(token, deps.now())) return token;
+
+  const refreshed = await deps.refresh(token.refreshToken, deps.now());
+  if (!refreshed) return token;
+
+  // Re-read after the network round-trip (up to ~15s): if another writer rotated
+  // the token while we were in flight, return theirs rather than clobbering it
+  // with a write derived from now-stale content.
+  let latestContent = originalContent;
+  try {
+    latestContent = deps.readFile(path);
+    const after = parseClaudeCredentials(latestContent);
+    if (after?.accessToken && !isClaudeTokenExpired(after, deps.now())) return after;
+  } catch {
+    // Re-read failed; merge into the content the caller already gave us.
+  }
+
+  try {
+    deps.writeFile(path, mergeClaudeCredentialsJson(latestContent, refreshed));
+  } catch {
+    // Persisting failed (read-only fs, perms). Still return the fresh token so
+    // this fetch succeeds; the next cycle re-refreshes from the unchanged file.
+  }
+  return {
+    ...token,
+    accessToken: refreshed.accessToken,
+    refreshToken: refreshed.refreshToken,
+    expiresAt: refreshed.expiresAt,
+  };
 }

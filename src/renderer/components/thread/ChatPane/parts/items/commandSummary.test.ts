@@ -56,6 +56,20 @@ describe("humanIntentTitle", () => {
     });
   });
 
+  it("describes PowerShell Get-Content array slices as viewed lines", () => {
+    const full =
+      "pwsh -Command '$lines = Get-Content src/renderer/commands/registry.ts; $lines[430..490] -join \"`n\"'";
+    const display = commandIntentDisplay(full);
+
+    expect(display.title).toBe("View 431:491: src/renderer/commands/registry.ts");
+    expect(display.kind).toBe("view");
+    expect(display.parts).toEqual({
+      prefix: "View 431:491: ",
+      path: "src/renderer/commands/registry.ts",
+      filePath: true,
+    });
+  });
+
   it("preserves Windows paths in PowerShell Get-Content -LiteralPath", () => {
     const full = String.raw`pwsh -Command 'Get-Content -LiteralPath C:\Users\sdsle\work\lightcode\src\foo.ts'`;
     const display = commandIntentDisplay(full);
@@ -101,6 +115,21 @@ describe("humanIntentTitle", () => {
     expect(commandIntentDisplay(full).parts).toBeUndefined();
   });
 
+  it("describes ripgrep all-line windows as viewed lines", () => {
+    const full = String.raw`"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command 'rg -n "''^" src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts | Select-Object -Skip 1 -First 180'`;
+    const display = commandIntentDisplay(full);
+
+    expect(display.title).toBe(
+      "View 2:181: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts",
+    );
+    expect(display.kind).toBe("view");
+    expect(display.parts).toEqual({
+      prefix: "View 2:181: ",
+      path: "src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts",
+      filePath: true,
+    });
+  });
+
   it("describes plain grep commands as searches", () => {
     const full = `grep -n "toastId" src/renderer/notifications.ts`;
     expect(humanIntentTitle(full)).toBe('Search: "toastId"');
@@ -129,6 +158,57 @@ describe("humanIntentTitle", () => {
     const full = `cat node_modules/.modules.yaml 2>/dev/null | sed -n '1,180p'`;
     expect(humanIntentTitle(full)).toBe("View 1:180: node_modules/.modules.yaml");
     expect(commandIntentDisplay(full).kind).toBe("view");
+  });
+
+  it("describes cat piped through head as viewed lines", () => {
+    const full = `cat package.json 2>/dev/null | head -100`;
+    expect(humanIntentTitle(full)).toBe("View 1:100: package.json");
+    expect(commandIntentDisplay(full).kind).toBe("view");
+    expect(commandIntentDisplay(full).parts).toEqual({
+      prefix: "View 1:100: ",
+      path: "package.json",
+    });
+  });
+
+  it("describes cat piped through head inside an && chain", () => {
+    const full = `cd /home/me/proj && echo "=== ROOT ===" && ls -la && echo "=== package.json ===" && cat package.json 2>/dev/null | head -100`;
+    const display = commandIntentDisplay(full);
+    expect(display.title).toBe("View 1:100: package.json");
+    expect(display.kind).toBe("view");
+  });
+
+  it("describes head -n N file as viewed lines", () => {
+    expect(humanIntentTitle("head -n 40 src/supervisor/runtime.ts")).toBe(
+      "View 1:40: src/supervisor/runtime.ts",
+    );
+    expect(commandIntentDisplay("head -40 src/supervisor/runtime.ts").kind).toBe("view");
+  });
+
+  it("defaults a bare head to its 10-line window", () => {
+    expect(humanIntentTitle("cat src/foo.ts | head")).toBe("View 1:10: src/foo.ts");
+  });
+
+  it("describes head with the file operand before the count flag", () => {
+    expect(humanIntentTitle("head src/foo.ts -n 40")).toBe("View 1:40: src/foo.ts");
+    expect(humanIntentTitle("head src/foo.ts -40")).toBe("View 1:40: src/foo.ts");
+  });
+
+  it("skips shell redirections when locating the head file operand", () => {
+    expect(humanIntentTitle("head 2>/dev/null -100 package.json")).toBe("View 1:100: package.json");
+  });
+
+  it("keeps grep piped through head as a search, not a view", () => {
+    expect(commandIntentDisplay('grep -n "foo" src/foo.ts | head -20').kind).toBe("search");
+  });
+
+  it("does not treat a filtered pipeline before head as a file view", () => {
+    expect(commandIntentDisplay("cat foo | grep x | head -20").kind).not.toBe("view");
+    expect(commandIntentDisplay("cat a | nl | grep x | head -20").kind).not.toBe("view");
+  });
+
+  it("does not treat head byte windows as line views", () => {
+    expect(commandIntentDisplay("cat src/foo.ts | head -c 200").kind).toBe("command");
+    expect(commandIntentDisplay("head -c-200 src/foo.ts").kind).toBe("command");
   });
 
   it("describes numbered file output piped through sed as viewed lines", () => {

@@ -25,6 +25,22 @@ import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { isMac, readBridge } from "@/renderer/bridge";
 import { ContextMenu, type ContextMenuItem } from "@/renderer/components/common";
 import { useResolvedAppearance } from "@/renderer/components/ui/provider";
+import { FindBar } from "@/renderer/components/find/FindBar";
+import {
+  clearActiveTerminalFind,
+  setActiveTerminalFind,
+} from "@/renderer/components/find/terminalFindBridge";
+
+/** Decoration colors for in-terminal find matches (kept in sync with the CSS
+ * highlight colors used elsewhere: amber for matches, orange for the active). */
+const TERMINAL_FIND_DECORATIONS = {
+  matchBackground: "#facc1566",
+  matchBorder: "#facc15",
+  matchOverviewRuler: "#facc15",
+  activeMatchBackground: "#f97316",
+  activeMatchBorder: "#f97316",
+  activeMatchColorOverviewRuler: "#f97316",
+} as const;
 
 export interface XTermSurfaceHandle {
   focus(): void;
@@ -126,6 +142,24 @@ export const XTermSurface = forwardRef<
     isVisible: false,
     thumbTopPercent: 0,
     thumbHeightPercent: 100,
+  });
+  const [findOpen, setFindOpen] = useState(false);
+  const [findQuery, setFindQuery] = useState("");
+  const [findCaseSensitive, setFindCaseSensitive] = useState(false);
+  const [findResult, setFindResult] = useState<{ count: number; index: number }>({
+    count: 0,
+    index: -1,
+  });
+  const [findOpenToken, setFindOpenToken] = useState(0);
+  const findInputRef = useRef<HTMLInputElement>(null);
+  // Stable controller registered with the find bridge on focus so the global
+  // Find command can open this terminal's find bar. Closure uses only stable
+  // setters, so creating it once is safe.
+  const findControllerRef = useRef({
+    open: () => {
+      setFindOpen(true);
+      setFindOpenToken((token) => token + 1);
+    },
   });
 
   useImperativeHandle(ref, () => ({
@@ -389,6 +423,12 @@ export const XTermSurface = forwardRef<
 
     const search = new SearchAddon();
     searchRef.current = search;
+    const searchResultsDisposable = search.onDidChangeResults((event) => {
+      setFindResult({ count: event.resultCount, index: event.resultIndex });
+    });
+    const findController = findControllerRef.current;
+    const onTerminalFocusIn = () => setActiveTerminalFind(findController);
+    mount.addEventListener("focusin", onTerminalFocusIn);
 
     terminal.loadAddon(fit);
     terminal.loadAddon(search);
@@ -607,6 +647,9 @@ export const XTermSurface = forwardRef<
       webglContextLossDisposable?.dispose();
       webglAddon?.dispose();
       linkDisposable.dispose();
+      searchResultsDisposable.dispose();
+      mount.removeEventListener("focusin", onTerminalFocusIn);
+      clearActiveTerminalFind(findController);
       unsubscribe();
       resizeObserver.disconnect();
       terminal.dispose();
@@ -621,6 +664,43 @@ export const XTermSurface = forwardRef<
   useEffect(() => {
     requestRefitRef.current?.();
   }, [baseFontSize]);
+
+  // Re-run the search (highlighting all matches and jumping to the nearest) as
+  // the query/case toggle changes; clear decorations when find closes or empties.
+  useEffect(() => {
+    const search = searchRef.current;
+    if (!search) return;
+    if (findOpen && findQuery) {
+      search.findNext(findQuery, {
+        caseSensitive: findCaseSensitive,
+        incremental: true,
+        decorations: TERMINAL_FIND_DECORATIONS,
+      });
+    } else {
+      search.clearDecorations();
+      setFindResult({ count: 0, index: -1 });
+    }
+  }, [findOpen, findQuery, findCaseSensitive]);
+
+  useEffect(() => {
+    if (!findOpen) return;
+    findInputRef.current?.focus();
+    findInputRef.current?.select();
+  }, [findOpen, findOpenToken]);
+
+  function stepTerminalFind(direction: "next" | "prev") {
+    const search = searchRef.current;
+    if (!search || !findQuery) return;
+    const options = { caseSensitive: findCaseSensitive, decorations: TERMINAL_FIND_DECORATIONS };
+    if (direction === "next") search.findNext(findQuery, options);
+    else search.findPrevious(findQuery, options);
+  }
+
+  function closeTerminalFind() {
+    setFindOpen(false);
+    searchRef.current?.clearDecorations();
+    terminalRef.current?.focus();
+  }
 
   // The terminal is created once (mount-once effect above) and won't pick up
   // theme switches on its own. AppProvider rewrites the theme CSS vars in its
@@ -713,6 +793,23 @@ export const XTermSurface = forwardRef<
         }
       >
         <div ref={mountRef} className="lightcode-terminal-pane h-full min-w-0 overflow-hidden" />
+        {findOpen ? (
+          <div className="pointer-events-auto absolute right-2 top-2 z-20">
+            <FindBar
+              ref={findInputRef}
+              query={findQuery}
+              onQueryChange={setFindQuery}
+              caseSensitive={findCaseSensitive}
+              onToggleCaseSensitive={() => setFindCaseSensitive((value) => !value)}
+              matchCount={findResult.count}
+              currentIndex={findResult.index}
+              onNext={() => stepTerminalFind("next")}
+              onPrev={() => stepTerminalFind("prev")}
+              onClose={closeTerminalFind}
+              placeholder={t`Find in terminal`}
+            />
+          </div>
+        ) : null}
         <div
           ref={scrollbarTrackRef}
           className={`lightcode-terminal-scrollbar absolute bottom-0 right-0 top-0 ${

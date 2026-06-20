@@ -27,4 +27,5 @@ export * from "./commandcode";
 export * from "./cursor";
 export * from "./factory";
 export * from "./opencode";
+export * from "./zai";
 export * from "./acpGeneric";

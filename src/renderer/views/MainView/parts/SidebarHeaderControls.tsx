@@ -2,6 +2,7 @@ import { FolderPlus, Globe, Search } from "lucide-react";
 import { Button, Dropdown, Label, Tooltip } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { usePanelStore } from "@/renderer/state/panelStore";
+import { toggleBrowserPanel } from "@/renderer/actions/panelActions";
 import {
   type ThreadSortMode,
   sortModeOrder,
@@ -90,15 +91,7 @@ export function SidebarHeaderControls() {
             size="sm"
             variant="ghost"
             className="size-6 min-w-0 text-muted hover:text-foreground"
-            onPress={() => {
-              const store = usePanelStore.getState();
-              if (store.browserPanelOpen && store.rightPanelTab === "browser") {
-                store.setBrowserPanelOpen(false);
-              } else {
-                store.setBrowserPanelOpen(true);
-                store.setRightPanelTab("browser");
-              }
-            }}
+            onPress={toggleBrowserPanel}
           >
             <Globe className="size-3.5" />
           </Button>

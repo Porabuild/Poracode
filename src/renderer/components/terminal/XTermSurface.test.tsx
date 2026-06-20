@@ -86,7 +86,18 @@ vi.mock("@xterm/addon-clipboard", () => ({
 }));
 
 vi.mock("@xterm/addon-search", () => ({
-  SearchAddon: class MockSearchAddon {},
+  SearchAddon: class MockSearchAddon {
+    onDidChangeResults() {
+      return { dispose() {} };
+    }
+    findNext() {
+      return false;
+    }
+    findPrevious() {
+      return false;
+    }
+    clearDecorations() {}
+  },
 }));
 
 vi.mock("@xterm/addon-webgl", () => ({

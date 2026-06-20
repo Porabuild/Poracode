@@ -81,6 +81,7 @@ describe("UsageService", () => {
       "gemini",
       "grok",
       "opencode",
+      "zai",
     ]);
 
     const claude = result.snapshots.find((s) => s.providerId === "claude");

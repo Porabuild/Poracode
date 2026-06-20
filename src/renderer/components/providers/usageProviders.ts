@@ -19,6 +19,8 @@ export type UsageProvider = {
   label: string;
   /** Offers an in-app browser login (web-session cookie or OAuth device flow). */
   supportsBrowserLogin?: boolean;
+  /** Offers an in-app API-key paste sign-in (no browser step, e.g. z.ai). */
+  supportsApiKeyLogin?: boolean;
   /**
    * All windows reset on one shared clock, so the UI shows a single reset
    * countdown in the header instead of one per window (e.g. Cursor).
@@ -57,6 +59,14 @@ const RENDERER_META: Record<string, Omit<UsageProvider, "id" | "label">> = {
   },
   grok: { supportsBrowserLogin: true },
   opencode: { supportsBrowserLogin: true },
+  // z.ai authenticates with a pasted API key, not a browser session.
+  // The ring tracks token rate-limits only: the 5h window plus the weekly window
+  // when the plan returns one. The monthly MCP-tools quota is a different kind of
+  // limit, so it's deliberately omitted from the ring (it still shows as a card bar).
+  zai: {
+    supportsApiKeyLogin: true,
+    rings: { outer: ["session-5h"], inner: ["weekly"] },
+  },
 };
 
 const STATIC_USAGE_PROVIDERS: ReadonlyArray<UsageProvider> = allUsageProviderDescriptors().map(
@@ -110,6 +120,11 @@ export function usageProvidersForAgentInstances(
 /** Providers that expose the browser-overlay login (cookie or device flow). */
 export function supportsBrowserLogin(providerId: string): boolean {
   return rendererMeta(providerId)?.supportsBrowserLogin === true;
+}
+
+/** Providers that sign in by pasting an API key (no browser step, e.g. z.ai). */
+export function supportsApiKeyLogin(providerId: string): boolean {
+  return rendererMeta(providerId)?.supportsApiKeyLogin === true;
 }
 
 /** Providers whose windows share one reset clock (one header countdown, no per-window resets). */

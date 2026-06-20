@@ -137,6 +137,7 @@ export const usageMechanismSchema = z.enum([
   "oauth-endpoint",
   "cli-jsonrpc",
   "cookie",
+  "api-key",
   "local-log",
 ]);
 export type UsageMechanism = z.infer<typeof usageMechanismSchema>;

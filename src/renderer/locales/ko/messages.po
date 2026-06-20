@@ -130,6 +130,11 @@ msgstr "{0} 로그아웃되었습니다."
 msgid "{0} needs authentication."
 msgstr "{0}에는 인증이 필요합니다."
 
+#. placeholder {0}: currentIndex + 1
+#: src/renderer/components/find/FindBar.tsx
+msgid "{0} of {matchCount}"
+msgstr "{0} / {matchCount}"
+
 #. placeholder {0}: cell.count
 #: src/renderer/views/ProfileOverlay/parts/ActivityHeatmap.tsx
 msgid "{0} prompt - {when}"
@@ -247,6 +252,10 @@ msgstr "{hours}시간 전"
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 msgid "{installedCount, plural, one {# agent ready} other {# agents ready}}"
 msgstr "{installedCount, plural, one {# 에이전트 준비됨} other {# 에이전트 준비됨}}"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
+msgid "{label} API key"
+msgstr "{label} API 키"
 
 #: src/renderer/components/providers/ProviderUsageRail.tsx
 msgid "{label} usage — open usage panel"
@@ -443,6 +452,10 @@ msgstr "활동 지표"
 msgid "Add"
 msgstr "추가"
 
+#: src/renderer/commands/registry.ts
+msgid "Add a local project"
+msgstr "로컬 프로젝트 추가"
+
 #: src/renderer/actions/agentLoginActions.ts
 msgid "Add a project before installing an agent."
 msgstr "에이전트를 설치하기 전에 프로젝트를 추가하세요."
@@ -502,6 +515,10 @@ msgstr "프로젝트 추가 옵션"
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 msgid "Add Remote"
 msgstr "리모트 추가"
+
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
+msgid "Add shortcut"
+msgstr "단축키 추가"
 
 #: src/renderer/components/composer/ComposerAddMenu.tsx
 msgid "Add to composer"
@@ -589,6 +606,7 @@ msgstr "AI 에이전트 오케스트레이터 — 터미널 및 기본 ACP를 �
 msgid "AI git actions"
 msgstr "AI git 작업"
 
+#: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "All"
 msgstr "전체"
@@ -621,6 +639,10 @@ msgstr "에이전트가 쿠키 및 저장소를 읽고 쓸 수 있도록 허용"
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
 msgid "Allow eval"
 msgstr "평가 허용"
+
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
+msgid "Already used by {conflict}"
+msgstr "이미 {conflict}에서 사용 중"
 
 #. Notification filter: always notify
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
@@ -684,6 +706,14 @@ msgstr "{0} 보관"
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadGroup.tsx
 msgid "Archive All"
 msgstr "모두 보관"
+
+#: src/renderer/commands/registry.ts
+msgid "Archive the current thread"
+msgstr "현재 스레드 보관"
+
+#: src/renderer/commands/registry.ts
+msgid "Archive thread"
+msgstr "스레드 보관"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
 msgid "Archive Thread"
@@ -811,6 +841,7 @@ msgstr "아바타 색상"
 msgid "Avatar color {color}"
 msgstr "아바타 색상 {color}"
 
+#: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Back"
 msgstr "뒤로"
@@ -925,6 +956,8 @@ msgstr "상위 폴더 찾아보기"
 msgid "Browse your GitHub repositories or paste a clone URL."
 msgstr "GitHub 리포지토리를 찾아보거나 복제 URL을 붙여넣으세요."
 
+#: src/renderer/commands/registry.ts
+#: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/composer/AttachmentBar.tsx
 #: src/renderer/components/composer/ComposerAddMenu.tsx
 #: src/renderer/components/layout/UnifiedRightPanel.tsx
@@ -969,6 +1002,10 @@ msgstr "예산 한도 도달"
 msgid "Building diff…"
 msgstr "diff 생성 중…"
 
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
+msgid "Built-in shortcut — can't be changed"
+msgstr "기본 제공 단축키 — 변경할 수 없습니다"
+
 #: src/renderer/views/PrReviewOverlay/parts/PrMetaRow.tsx
 msgid "by <0>{author}</0>"
 msgstr "작성자: <0>{author}</0>"
@@ -1008,6 +1045,7 @@ msgstr "브랜치 보호 규칙 우회(관리자 병합)"
 #: src/renderer/views/MainView/parts/Sidebar/parts/DeleteWorktreeDialog.tsx
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
 #: src/renderer/views/PrReviewOverlay/parts/SubmitReviewPopover.tsx
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Cancel"
 msgstr "취소"
 
@@ -1038,6 +1076,10 @@ msgstr "브랜치를 전환할 수 없습니다. 먼저 변경 사항을 커밋�
 #: src/renderer/views/ProjectSettingsOverlay/parts/GeneralSection.tsx
 msgid "Change project folder"
 msgstr "프로젝트 폴더 변경"
+
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
+msgid "Change shortcut"
+msgstr "단축키 변경"
 
 #: src/renderer/views/MainView/parts/AppOverlays.tsx
 msgid "Change User"
@@ -1190,6 +1232,10 @@ msgstr "CLI"
 msgid "CLI hooks"
 msgstr "CLI 후크"
 
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
+msgid "Click a shortcut to record a new key, or ＋ to add another."
+msgstr "단축키를 클릭하여 새 키를 기록하거나 ＋를 눌러 추가하세요."
+
 #: src/renderer/views/MainView/parts/AppContent/parts/Thread/parts/ContinueInProviderDialog.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "Clone"
@@ -1232,6 +1278,10 @@ msgstr "편집기 닫기"
 msgid "Close Editor Tab"
 msgstr "편집기 탭 닫기"
 
+#: src/renderer/components/find/FindBar.tsx
+msgid "Close find"
+msgstr "찾기 닫기"
+
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 msgid "Close goal"
 msgstr "목표 닫기"
@@ -1239,6 +1289,10 @@ msgstr "목표 닫기"
 #: src/renderer/views/MainView/parts/AppContent/AppContent.tsx
 msgid "Close group"
 msgstr "그룹 닫기"
+
+#: src/renderer/commands/shortcutCatalog.ts
+msgid "Close overlay"
+msgstr "오버레이 닫기"
 
 #: src/renderer/components/thread/ThreadDraftChrome.tsx
 #: src/renderer/components/thread/ThreadView.tsx
@@ -1402,6 +1456,10 @@ msgstr "커밋 메시지 생성"
 msgid "Commit options"
 msgstr "커밋 옵션"
 
+#: src/renderer/commands/shortcutCatalog.ts
+msgid "Commit, PR, and review composers"
+msgstr "커밋, PR, 리뷰 작성기"
+
 #: src/renderer/views/PrReviewOverlay/parts/PrTabsPill.tsx
 msgid "Commits"
 msgstr "커밋"
@@ -1446,10 +1504,15 @@ msgstr "이 터미널의 프롬프트를 완료하세요. 완료되면 닫힙니
 msgid "completed"
 msgstr "완료"
 
+#: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Composer"
 msgstr "작성기"
+
+#: src/renderer/commands/composerCommands.ts
+msgid "Composer controls"
+msgstr "작성기 컨트롤"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Config directory"
@@ -1585,6 +1648,10 @@ msgstr "경로 복사"
 msgid "Copy Relative Path"
 msgstr "상대 경로 복사"
 
+#: src/renderer/commands/shortcutCatalog.ts
+msgid "Copy selection"
+msgstr "선택 항목 복사"
+
 #: src/renderer/components/thread/WorktreeModeSelect.tsx
 msgid "Copy uncommitted changes here (keeps them on this branch)"
 msgstr "커밋되지 않은 변경 사항을 여기에 복사합니다(이 브랜치에 유지)."
@@ -1630,6 +1697,10 @@ msgstr "저장소를 나열할 수 없습니다."
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "Couldn't load your profile stats."
 msgstr "프로필 통계를 불러오지 못했습니다."
+
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
+msgid "Couldn't save the shortcut."
+msgstr "단축키를 저장하지 못했습니다."
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CreatePrModal.tsx
 msgid "Create Draft PR"
@@ -1704,6 +1775,7 @@ msgstr "현재 연속 기록"
 msgid "Current streak"
 msgstr "현재 연속 기록"
 
+#: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
@@ -1713,6 +1785,22 @@ msgstr "맞춤"
 #: src/renderer/views/ProjectSettingsOverlay/parts/ActionsSection.tsx
 msgid "Custom commands available from the project context menu (right-click)."
 msgstr "프로젝트 상황에 맞는 메뉴(오른쪽 클릭)에서 사용할 수 있는 사용자 정의 명령."
+
+#: src/renderer/commands/composerCommands.ts
+msgid "Cycle permission mode"
+msgstr "권한 모드 순환"
+
+#: src/renderer/commands/composerCommands.ts
+msgid "Cycle reasoning effort"
+msgstr "추론 강도 순환"
+
+#: src/renderer/commands/registry.ts
+msgid "Cycle to the next recently viewed chat"
+msgstr "최근 본 다음 채팅으로 순환"
+
+#: src/renderer/commands/registry.ts
+msgid "Cycle to the previous recently viewed chat"
+msgstr "최근 본 이전 채팅으로 순환"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Dark"
@@ -1844,6 +1932,7 @@ msgstr "에이전트 감지 중…"
 
 #. Settings section: developer/debug tools
 #. Settings section: developer/debug tools
+#. Settings section: developer/debug tools
 #: src/renderer/views/SettingsOverlay/parts/DevSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Dev"
@@ -1885,6 +1974,10 @@ msgstr "외부 제공자가 통합하는 등급을 비활성화합니다 (예: H
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 msgid "Disabled"
 msgstr "비활성화됨"
+
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
+msgid "Discard"
+msgstr "삭제"
 
 #: src/renderer/commands/registry.ts
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
@@ -2016,6 +2109,7 @@ msgid "Edit:"
 msgstr "편집:"
 
 #: src/renderer/commands/registry.ts
+#: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/views/FileEditorOverlay/FileEditorOverlay.tsx
 msgid "Editor"
 msgstr "편집기"
@@ -2274,6 +2368,27 @@ msgstr "{0}에 대한 파일"
 msgid "Files matching these globs are hidden from the @file mention search."
 msgstr "이러한 glob과 일치하는 파일은 @file 멘션 검색에서 숨겨집니다."
 
+#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
+msgid "Filter settings"
+msgstr "설정 필터링"
+
+#: src/renderer/commands/registry.ts
+#: src/renderer/components/find/FindBar.tsx
+msgid "Find"
+msgstr "찾기"
+
+#: src/renderer/components/find/ChatFindBar.tsx
+msgid "Find in chat"
+msgstr "채팅에서 찾기"
+
+#: src/renderer/components/find/GitFindBar.tsx
+msgid "Find in diff"
+msgstr "diff에서 찾기"
+
+#: src/renderer/components/terminal/XTermSurface.tsx
+msgid "Find in terminal"
+msgstr "터미널에서 찾기"
+
 #: src/renderer/views/PrReviewOverlay/parts/SubmitReviewPopover.tsx
 msgid "Finish your review"
 msgstr "리뷰를 마무리하세요"
@@ -2318,6 +2433,14 @@ msgstr "Lightcode의 기본 SDK 런타임을 사용한 최고 수준의 OpenCode
 msgid "Fix in Agent"
 msgstr "에이전트에서 수정"
 
+#: src/renderer/commands/registry.ts
+msgid "Focus browser address bar"
+msgstr "브라우저 주소 표시줄에 포커스"
+
+#: src/renderer/commands/registry.ts
+msgid "Focus the in-app browser address bar"
+msgstr "인앱 브라우저 주소 표시줄에 포커스"
+
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "Folder name"
 msgstr "폴더 이름"
@@ -2339,6 +2462,10 @@ msgstr "강제삭제"
 msgid "Force delete? Unmerged changes will be lost."
 msgstr "강제 삭제하시겠습니까? 병합되지 않은 변경사항은 손실됩니다."
 
+#: src/renderer/commands/shortcutCatalog.ts
+msgid "Force reload browser page"
+msgstr "브라우저 페이지 강제 새로고침"
+
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 msgid "Fork"
 msgstr "포크"
@@ -2347,6 +2474,7 @@ msgstr "포크"
 msgid "Format files"
 msgstr "파일 포맷팅"
 
+#: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Forward"
 msgstr "앞으로"
@@ -2377,6 +2505,7 @@ msgstr "전체 액세스"
 msgid "Fullscreen overlay"
 msgstr "전체화면 오버레이"
 
+#: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/views/ProjectSettingsOverlay/parts/GeneralSection.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/SettingsSidebar.tsx
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
@@ -2412,6 +2541,7 @@ msgstr "새 스레드에 대한 짧은 제목을 생성합니다."
 msgid "Get task"
 msgstr "작업 가져오기"
 
+#: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/layout/UnifiedRightPanel.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
@@ -2458,9 +2588,21 @@ msgstr "기본 프로젝트에서 각각의 새 작업 트리로 복사할 Gitig
 msgid "GLM 5.2 (optional label)"
 msgstr "GLM 5.2 (선택 레이블)"
 
+#: src/renderer/commands/shortcutCatalog.ts
+msgid "Global"
+msgstr "전역"
+
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Global folder"
 msgstr "전역 폴더"
+
+#: src/renderer/commands/shortcutCatalog.ts
+msgid "Go back in navigation history"
+msgstr "탐색 기록에서 뒤로 이동"
+
+#: src/renderer/commands/shortcutCatalog.ts
+msgid "Go forward in navigation history"
+msgstr "탐색 기록에서 앞으로 이동"
 
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 msgid "Goal"
@@ -2692,6 +2834,10 @@ msgstr "중단됨: 에이전트 세션이 완료되기 전에 종료되었습니
 msgid "Italic"
 msgstr "이탤릭체"
 
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
+msgid "Jump to section"
+msgstr "섹션으로 이동"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/UsagePanel.tsx
 msgid "just now"
 msgstr "지금 막"
@@ -2919,6 +3065,10 @@ msgstr "완료로 표시"
 #: src/renderer/i18n/locales.ts
 msgid "Match app language"
 msgstr "앱 언어와 동일하게"
+
+#: src/renderer/components/find/FindBar.tsx
+msgid "Match case"
+msgstr "대/소문자 구분"
 
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
 msgid "Match your system, or force light or dark."
@@ -3214,9 +3364,17 @@ msgstr "새 파일"
 msgid "New Folder"
 msgstr "새 폴더"
 
+#: src/renderer/commands/shortcutCatalog.ts
+msgid "New line"
+msgstr "줄 바꿈"
+
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
 msgid "New project"
 msgstr "새 프로젝트"
+
+#: src/renderer/commands/registry.ts
+msgid "New quick thread"
+msgstr "새 빠른 스레드"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabStrip.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
@@ -3255,9 +3413,25 @@ msgstr "작업 트리의 새 스레드"
 msgid "New worktree"
 msgstr "새 작업 트리"
 
+#: src/renderer/commands/registry.ts
+msgid "Next chat"
+msgstr "다음 채팅"
+
 #: src/renderer/components/composer/ImageLightbox.tsx
 msgid "Next image"
 msgstr "다음 이미지"
+
+#: src/renderer/components/find/FindBar.tsx
+msgid "Next match"
+msgstr "다음 일치 항목"
+
+#: src/renderer/commands/registry.ts
+msgid "Next recently viewed chat"
+msgstr "최근 본 다음 채팅"
+
+#: src/renderer/commands/registry.ts
+msgid "Next tab"
+msgstr "다음 탭"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/hooks/useElementPicker.ts
 msgid "No active browser tab"
@@ -3442,9 +3616,17 @@ msgstr "원격이 구성되지 않았습니다. push 및 pull을 활성화하려
 msgid "No repositories found."
 msgstr "저장소를 찾을 수 없습니다."
 
+#: src/renderer/components/find/FindBar.tsx
+msgid "No results"
+msgstr "결과 없음"
+
 #: src/renderer/components/thread/ChatPane/ChatRuntimeDebugPanel.tsx
 msgid "No runtime items yet for this thread."
 msgstr "이 스레드에는 아직 런타임 항목이 없습니다."
+
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
+msgid "No shortcuts found"
+msgstr "단축키를 찾을 수 없습니다."
 
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "No skills used yet."
@@ -3568,6 +3750,10 @@ msgstr "열기"
 msgid "Open {label}"
 msgstr "{label} 열기"
 
+#: src/renderer/commands/registry.ts
+msgid "Open a new browser tab"
+msgstr "새 브라우저 탭 열기"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/DevTerminalPanel.tsx
 msgid "Open a terminal"
 msgstr "터미널 열기"
@@ -3597,6 +3783,10 @@ msgstr "패널로 열기"
 msgid "Open browser"
 msgstr "브라우저 열기"
 
+#: src/renderer/commands/registry.ts
+msgid "Open browser tab"
+msgstr "브라우저 탭 열기"
+
 #: src/renderer/views/PrReviewOverlay/parts/PrChecksTab.tsx
 msgid "Open check"
 msgstr "체크 열기"
@@ -3624,6 +3814,10 @@ msgstr "파일 열기"
 #: src/renderer/commands/registry.ts
 msgid "Open Files"
 msgstr "파일 열기"
+
+#: src/renderer/commands/registry.ts
+msgid "Open folder"
+msgstr "폴더 열기"
 
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorToolbar.tsx
 msgid "Open fullscreen"
@@ -3655,6 +3849,10 @@ msgstr "편집기에서 열기"
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
 msgid "Open links in"
 msgstr "링크 열기"
+
+#: src/renderer/commands/composerCommands.ts
+msgid "Open model picker"
+msgstr "모델 선택기 열기"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserEmptyState.tsx
 msgid "Open new tab"
@@ -3767,14 +3965,24 @@ msgstr "패키지 관리자"
 msgid "Page"
 msgstr "페이지"
 
+#: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Panel"
 msgstr "패널"
 
+#: src/renderer/commands/shortcutCatalog.ts
+msgid "Panels and overlays"
+msgstr "패널 및 오버레이"
+
+#: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/terminal/XTermSurface.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 msgid "Paste"
 msgstr "붙여넣기"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
+msgid "Paste {label} API key"
+msgstr "{label} API 키 붙여넣기"
 
 #. placeholder {0}: activeDeviceCode.code
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
@@ -3889,6 +4097,10 @@ msgstr "사전 커밋 후크 실패"
 msgid "Presets"
 msgstr "프리셋"
 
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
+msgid "Press shortcut…"
+msgstr "단축키를 누르세요…"
+
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 msgid "Prevent sleep while working"
 msgstr "작업 중 수면 방지"
@@ -3898,9 +4110,25 @@ msgstr "작업 중 수면 방지"
 msgid "Preview {0}"
 msgstr "미리보기 {0}"
 
+#: src/renderer/commands/registry.ts
+msgid "Previous chat"
+msgstr "이전 채팅"
+
 #: src/renderer/components/composer/ImageLightbox.tsx
 msgid "Previous image"
 msgstr "이전 이미지"
+
+#: src/renderer/components/find/FindBar.tsx
+msgid "Previous match"
+msgstr "이전 일치 항목"
+
+#: src/renderer/commands/registry.ts
+msgid "Previous recently viewed chat"
+msgstr "최근 본 이전 채팅"
+
+#: src/renderer/commands/registry.ts
+msgid "Previous tab"
+msgstr "이전 탭"
 
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Profile"
@@ -3915,6 +4143,7 @@ msgid "Profiles"
 msgstr "프로필"
 
 #: src/renderer/commands/registry.ts
+#: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/views/ProjectSettingsOverlay/ProjectSettingsOverlay.tsx
 msgid "Project"
 msgstr "프로젝트"
@@ -4155,6 +4384,10 @@ msgstr "{env} {0} 인증 상태를 새로 고치는 중입니다."
 msgid "Reload"
 msgstr "새로고침"
 
+#: src/renderer/commands/shortcutCatalog.ts
+msgid "Reload browser page"
+msgstr "브라우저 페이지 새로고침"
+
 #: src/renderer/components/common/BranchSelector/parts/useBranchList.ts
 msgid "Remote"
 msgstr "원격"
@@ -4217,6 +4450,10 @@ msgstr "모델 제거"
 msgid "Remove Project"
 msgstr "프로젝트 제거"
 
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
+msgid "Remove shortcut"
+msgstr "단축키 제거"
+
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
 msgid "Remove worktree?"
 msgstr "작업 트리를 삭제하시겠습니까?"
@@ -4226,9 +4463,17 @@ msgstr "작업 트리를 삭제하시겠습니까?"
 msgid "Rename"
 msgstr "이름 바꾸기"
 
+#: src/renderer/commands/registry.ts
+msgid "Rename chat"
+msgstr "채팅 이름 바꾸기"
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadGroup.tsx
 msgid "Rename Group"
 msgstr "그룹 이름 바꾸기"
+
+#: src/renderer/commands/registry.ts
+msgid "Rename the current chat"
+msgstr "현재 채팅 이름 바꾸기"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/InlineRenameInput.tsx
 msgid "Rename thread"
@@ -4312,6 +4557,7 @@ msgid "Reset sidebar frosting to default"
 msgstr "사이드바 프로스트를 기본값으로 재설정"
 
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Reset to default"
 msgstr "기본값으로 재설정"
 
@@ -4543,6 +4789,10 @@ msgstr "Claude 프로필 저장"
 msgid "Save File"
 msgstr "파일 저장"
 
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
+msgid "Save shortcut"
+msgstr "단축키 저장"
+
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
 msgid "Saved credentials are shared across all environments."
 msgstr "저장된 자격 증명은 모든 환경에서 공유됩니다."
@@ -4563,6 +4813,7 @@ msgid "Scanning your system for installed CLIs. This usually takes a couple of "
 msgstr "설치된 CLI를 찾기 위해 시스템을 검색합니다. 이 작업은 일반적으로 몇 초 정도 걸립니다."
 
 #: src/renderer/commands/registry.ts
+#: src/renderer/commands/shortcutCatalog.ts
 msgid "Scripts"
 msgstr "스크립트"
 
@@ -4628,6 +4879,14 @@ msgstr "저장소 검색…"
 #: src/renderer/components/thread/ChatPane/ChatRuntimeDebugPanel.tsx
 msgid "Search runtime items…"
 msgstr "런타임 항목 검색…"
+
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
+msgid "Search shortcuts"
+msgstr "단축키 검색"
+
+#: src/renderer/commands/registry.ts
+msgid "Search the current view"
+msgstr "현재 보기에서 검색"
 
 #: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
 msgid "Search threads"
@@ -4698,6 +4957,7 @@ msgstr "프로젝트 선택"
 msgid "Send a message..."
 msgstr "메시지 보내기..."
 
+#: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/thread/ThreadComposerSection.tsx
 msgid "Send message"
 msgstr "메시지 보내기"
@@ -4717,6 +4977,10 @@ msgstr "Claude Code 계정을 설정 디렉터리별로 분리하거나, 프로�
 msgid "Set or view an experimental goal"
 msgstr "실험 목표 설정 또는 보기"
 
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
+msgid "Set shortcut"
+msgstr "단축키 설정"
+
 #: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 #: src/renderer/views/SettingsOverlay/SettingsOverlay.tsx
@@ -4734,6 +4998,11 @@ msgstr "공유"
 #: src/renderer/views/ProfileOverlay/parts/ShareDialog.tsx
 msgid "Share your activity"
 msgstr "활동 공유하기"
+
+#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
+msgid "Shortcuts"
+msgstr "단축키"
 
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Show a compact per-provider usage ring in the sidebar."
@@ -4793,6 +5062,14 @@ msgstr "스레드 상태가 변경되면 알림을 표시합니다."
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
 msgid "Show opened links in"
 msgstr "열린 링크 표시"
+
+#: src/renderer/commands/registry.ts
+msgid "Show or hide the browser panel"
+msgstr "브라우저 패널을 표시하거나 숨깁니다."
+
+#: src/renderer/commands/registry.ts
+msgid "Show or hide the sidebar"
+msgstr "사이드바를 표시하거나 숨깁니다."
 
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorToolbar.tsx
 msgid "Show preview"
@@ -4880,10 +5157,6 @@ msgid "Skills"
 msgstr "스킬"
 
 #: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
-#~ msgid "Skills explored"
-#~ msgstr "탐색한 스킬"
-
-#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
 msgid "Skills/subagents explored"
 msgstr "탐색한 스킬/서브에이전트"
 
@@ -4939,7 +5212,7 @@ msgstr "스테이지됨 ({0})"
 
 #: src/renderer/commands/registry.ts
 msgid "Star or unstar the current chat or model"
-msgstr "현재 채팅 또는 모델에 별표를 추가하거나 해제합니다"
+msgstr "현재 채팅 또는 모델을 즐겨찾기에 추가하거나 제거"
 
 #. Button: start the microphone level test
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
@@ -4950,6 +5223,10 @@ msgstr "시작"
 msgid "Start {appName} to see usage"
 msgstr "사용량을 보려면 {appName}을(를) 시작하세요"
 
+#: src/renderer/commands/registry.ts
+msgid "Start a new thread as panel instead of page"
+msgstr "새 스레드를 페이지가 아닌 패널로 시작"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesEditor.tsx
 msgid "Start a new thread from the selected text"
 msgstr "선택한 텍스트에서 새 스레드 시작"
@@ -4957,6 +5234,14 @@ msgstr "선택한 텍스트에서 새 스레드 시작"
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/TodoRow.tsx
 msgid "Start a new thread from this to-do"
 msgstr "이 할 일에서 새 스레드를 시작하세요"
+
+#: src/renderer/commands/composerCommands.ts
+msgid "Start dictation"
+msgstr "받아쓰기 시작"
+
+#: src/renderer/commands/composerCommands.ts
+msgid "Start dictation in the current composer"
+msgstr "현재 작성기에서 받아쓰기 시작"
 
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
@@ -5083,6 +5368,10 @@ msgstr "병합하기 전에 해결해야 하는 피드백을 제출하세요."
 msgid "Submit feedback without explicit approval."
 msgstr "명시적인 승인 없이 피드백을 제출하세요."
 
+#: src/renderer/commands/shortcutCatalog.ts
+msgid "Submit Git form"
+msgstr "Git 양식 제출"
+
 #: src/renderer/views/PrReviewOverlay/parts/SubmitReviewPopover.tsx
 msgid "Submit review"
 msgstr "리뷰 제출"
@@ -5128,6 +5417,22 @@ msgstr "이 채팅을 에이전트 모드로 전환하세요"
 #: src/renderer/components/providers/codex/index.tsx
 msgid "Switch this chat to plan mode"
 msgstr "이 채팅을 계획 모드로 전환하세요"
+
+#: src/renderer/commands/registry.ts
+msgid "Switch to the next chat"
+msgstr "다음 채팅으로 전환"
+
+#: src/renderer/commands/registry.ts
+msgid "Switch to the next tab"
+msgstr "다음 탭으로 전환"
+
+#: src/renderer/commands/registry.ts
+msgid "Switch to the previous chat"
+msgstr "이전 채팅으로 전환"
+
+#: src/renderer/commands/registry.ts
+msgid "Switch to the previous tab"
+msgstr "이전 탭으로 전환"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CommitSyncPanel.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
@@ -5195,6 +5500,7 @@ msgid "Tell the target provider what to do next..."
 msgstr "대상 공급자에게 다음에 무엇을 해야 할지 알려주세요..."
 
 #: src/renderer/commands/registry.ts
+#: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/layout/UnifiedRightPanel.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
@@ -5337,6 +5643,7 @@ msgid "Thought"
 msgstr "생각"
 
 #: src/renderer/commands/registry.ts
+#: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/hooks/useElementPicker.ts
 msgid "Thread"
 msgstr "스레드"
@@ -5406,21 +5713,42 @@ msgstr "제목 생성"
 msgid "To-dos"
 msgstr "할 일"
 
+#: src/renderer/commands/registry.ts
+msgid "Toggle browser panel"
+msgstr "브라우저 패널 표시 전환"
+
+#: src/renderer/commands/composerCommands.ts
 #: src/renderer/components/providers/codex/index.tsx
 msgid "Toggle Fast mode"
 msgstr "빠른 모드 전환"
+
+#: src/renderer/commands/registry.ts
+msgid "Toggle File Tree"
+msgstr "파일 트리 표시 전환"
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
 msgid "Toggle models off to hide them from the selector."
 msgstr "선택기에서 모델을 숨기려면 모델을 끄세요."
 
 #: src/renderer/commands/registry.ts
-msgid "Toggle Star"
-msgstr "별표 전환"
+msgid "Toggle sidebar"
+msgstr "사이드바 표시 전환"
+
+#: src/renderer/commands/registry.ts
+msgid "Toggle star"
+msgstr "즐겨찾기 전환"
 
 #: src/renderer/commands/registry.ts
 msgid "Toggle Terminal"
 msgstr "터미널 표시 전환"
+
+#: src/renderer/commands/registry.ts
+msgid "Toggle the file tree panel"
+msgstr "파일 트리 패널 표시 전환"
+
+#: src/renderer/commands/composerCommands.ts
+msgid "Toggle Work or Plan"
+msgstr "작업 또는 계획 전환"
 
 #: src/renderer/views/ProfileOverlay/parts/ActivitySection.tsx
 msgid "Tokens"
@@ -5438,10 +5766,6 @@ msgstr "도구 검색"
 #: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
 msgid "Total prompts"
 msgstr "전체 프롬프트"
-
-#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
-#~ msgid "Total skills used"
-#~ msgstr "사용한 전체 스킬"
 
 #: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
 msgid "Total threads"
@@ -5598,6 +5922,10 @@ msgstr "{0}을(를) 업데이트할 수 없습니다: {detailText}"
 msgid "Unable to update {0}."
 msgstr "{0}을(를) 업데이트할 수 없습니다."
 
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
+msgid "Unassigned"
+msgstr "미지정"
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadGroup.tsx
 msgid "Ungroup All"
 msgstr "모두 그룹 해제"
@@ -5613,6 +5941,7 @@ msgstr "제거"
 
 #: src/renderer/components/thread/threadContextUsage.ts
 #: src/renderer/views/PrReviewOverlay/parts/PrChecksTab.tsx
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Unknown"
 msgstr "알 수 없음"
 
@@ -5808,6 +6137,10 @@ msgstr "WebGPU 가속 사용"
 #: src/renderer/components/thread/threadContextUsage.ts
 msgid "Used"
 msgstr "사용됨"
+
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
+msgid "Used by {conflict}"
+msgstr "{conflict}에서 사용 중"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Using the built-in Claude model list."

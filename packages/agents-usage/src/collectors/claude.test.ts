@@ -2,10 +2,14 @@ import { describe, expect, it } from "vitest";
 import { createFakeHost, FAKE_NOW_MS } from "../testHost";
 import {
   CLAUDE_OAUTH_BETA,
+  CLAUDE_OAUTH_CLIENT_ID,
+  CLAUDE_OAUTH_TOKEN_ENDPOINT,
   CLAUDE_USAGE_ENDPOINT,
   collectClaude,
   formatClaudePlan,
+  parseClaudeRefreshResponse,
   parseClaudeUsage,
+  refreshClaudeOAuthToken,
 } from "./claude";
 
 // The Claude /api/oauth/usage endpoint reports `utilization` in percent (0-100)
@@ -116,5 +120,105 @@ describe("collectClaude", () => {
       }),
     );
     expect(unauth.status).toBe("auth-missing");
+  });
+});
+
+describe("parseClaudeRefreshResponse", () => {
+  it("maps the OAuth body and derives expiresAt from expires_in", () => {
+    const got = parseClaudeRefreshResponse(
+      { access_token: "new-acc", refresh_token: "new-ref", expires_in: 3600 },
+      FAKE_NOW_MS,
+      "old-ref",
+    );
+    expect(got).toEqual({
+      accessToken: "new-acc",
+      refreshToken: "new-ref",
+      expiresAt: FAKE_NOW_MS + 3600 * 1000,
+    });
+  });
+
+  it("retains the current refresh token when the body omits a new one", () => {
+    const got = parseClaudeRefreshResponse(
+      { access_token: "new-acc", expires_in: 100 },
+      FAKE_NOW_MS,
+      "keep-ref",
+    );
+    expect(got?.refreshToken).toBe("keep-ref");
+  });
+
+  it("returns undefined without an access token", () => {
+    expect(parseClaudeRefreshResponse({ refresh_token: "r" }, FAKE_NOW_MS, "old")).toBeUndefined();
+  });
+
+  it("rejects a non-string access token rather than corrupting the creds file", () => {
+    expect(
+      parseClaudeRefreshResponse(
+        { access_token: { nested: "oops" }, expires_in: 3600 },
+        FAKE_NOW_MS,
+        "old",
+      ),
+    ).toBeUndefined();
+    expect(
+      parseClaudeRefreshResponse({ access_token: 12345, expires_in: 3600 }, FAKE_NOW_MS, "old"),
+    ).toBeUndefined();
+  });
+
+  it("rejects a missing or non-positive expires_in (would mark the token instantly stale)", () => {
+    expect(parseClaudeRefreshResponse({ access_token: "a" }, FAKE_NOW_MS, "old")).toBeUndefined();
+    expect(
+      parseClaudeRefreshResponse({ access_token: "a", expires_in: "soon" }, FAKE_NOW_MS, "old"),
+    ).toBeUndefined();
+    expect(
+      parseClaudeRefreshResponse({ access_token: "a", expires_in: 0 }, FAKE_NOW_MS, "old"),
+    ).toBeUndefined();
+  });
+
+  it("falls back to the current refresh token when the body's is not a string", () => {
+    const got = parseClaudeRefreshResponse(
+      { access_token: "a", refresh_token: ["x"], expires_in: 100 },
+      FAKE_NOW_MS,
+      "keep-ref",
+    );
+    expect(got?.refreshToken).toBe("keep-ref");
+  });
+});
+
+describe("refreshClaudeOAuthToken", () => {
+  it("posts the refresh grant to the OAuth endpoint and returns the rotated token", async () => {
+    let captured: {
+      headers?: Record<string, string> | undefined;
+      body?: string | undefined;
+      method?: string | undefined;
+    } = {};
+    const host = createFakeHost({
+      routes: {
+        [CLAUDE_OAUTH_TOKEN_ENDPOINT]: {
+          body: JSON.stringify({ access_token: "fresh", refresh_token: "rot", expires_in: 28800 }),
+        },
+      },
+      onRequest: (req) => {
+        captured = { headers: req.headers, body: req.body, method: req.method };
+      },
+    });
+    const got = await refreshClaudeOAuthToken(host.http, "old-ref", FAKE_NOW_MS);
+    expect(got).toEqual({
+      accessToken: "fresh",
+      refreshToken: "rot",
+      expiresAt: FAKE_NOW_MS + 28800 * 1000,
+    });
+    expect(captured.method).toBe("POST");
+    expect(captured.headers?.["Content-Type"]).toBe("application/json");
+    expect(JSON.parse(captured.body ?? "{}")).toEqual({
+      grant_type: "refresh_token",
+      refresh_token: "old-ref",
+      client_id: CLAUDE_OAUTH_CLIENT_ID,
+    });
+  });
+
+  it("returns undefined on a non-2xx response", async () => {
+    const host = createFakeHost({
+      routes: { [CLAUDE_OAUTH_TOKEN_ENDPOINT]: { status: 400, body: "{}" } },
+    });
+    expect(await refreshClaudeOAuthToken(host.http, "old-ref", FAKE_NOW_MS)).toBeUndefined();
   });
 });

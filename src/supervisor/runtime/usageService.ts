@@ -9,6 +9,7 @@ import {
   type UsageCollectorRegistry,
   type UsageSnapshot,
 } from "@lightcode/agents-usage";
+import { coalesceByKey } from "@/shared/coalesce";
 import { claudeProfileKind, parseClaudeProfileInstanceConfig } from "@/shared/contracts";
 import type { ProviderUsagePayload, ProviderUsageResponse } from "@/shared/contracts";
 import type { SupervisorEvent } from "@/shared/ipc";
@@ -189,15 +190,7 @@ export class UsageService {
     // endpoints. Keyed by the sorted ids so it holds for any subset, not just the
     // full default set.
     const key = [...ids].sort().join(",");
-    const existing = this.refreshesInFlight.get(key);
-    if (existing) return existing;
-
-    // Track the SAME promise we store so the finally clears the right entry.
-    const tracked: Promise<ProviderUsageResponse> = this.runRefresh(ids).finally(() => {
-      if (this.refreshesInFlight.get(key) === tracked) this.refreshesInFlight.delete(key);
-    });
-    this.refreshesInFlight.set(key, tracked);
-    return tracked;
+    return coalesceByKey(this.refreshesInFlight, key, () => this.runRefresh(ids));
   }
 
   private async runRefresh(ids: string[]): Promise<ProviderUsageResponse> {

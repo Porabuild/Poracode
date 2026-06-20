@@ -5,7 +5,7 @@ import { Trans, useLingui } from "@lingui/react/macro";
 import type { TranslateFn } from "@/renderer/i18n/i18n";
 import { Bot, ChevronDown, ChevronRight, CircleAlert, type LucideIcon } from "lucide-react";
 import type { ToolCallPayload, WorkflowRun } from "@/shared/contracts";
-import { PathDisplay, PixelLoader } from "@/renderer/components/common";
+import { PixelLoader } from "@/renderer/components/common";
 import { useAppStore } from "@/renderer/state/appStore";
 import {
   getRuntimeItemPayload,
@@ -16,6 +16,7 @@ import { formatTokenCount } from "@/renderer/components/thread/formatTokenCount"
 import { useChatPaneActions } from "../../chatPaneActionsContext";
 import { getChildItemIdsStoreSelector } from "../../chatPaneSelectors";
 import { extractAcpResultPart } from "./acpToolPayload";
+import { ChatFilePath } from "./ChatFilePath";
 import { ItemMarkdown } from "./ItemMarkdown";
 import { SubAgentProgressMeta, hasSubAgentProgressMeta } from "./subAgentProgressMeta";
 import { deriveToolDisplay, isWorkflowTool } from "./toolDisplay";
@@ -99,7 +100,7 @@ export const SubAgentToolCall = memo(function SubAgentToolCall({
           <code className="flex min-w-0 flex-1 items-baseline overflow-hidden font-mono text-[color:var(--muted)]">
             <span className="shrink-0 whitespace-pre">{display.parts.prefix}</span>
             {display.parts.filePath ? (
-              <PathDisplay
+              <ChatFilePath
                 className="flex-1"
                 path={display.parts.path}
                 basenameClassName="!text-[color:var(--foreground)]"

@@ -140,5 +140,11 @@ describe("BrowserPanel", () => {
 
     fireEvent.keyDown(panel, { key: "R", ctrlKey: true, shiftKey: true });
     expect(bridge.browserHardReload).toHaveBeenCalledWith({ tabId: "tab-1" });
+
+    fireEvent.keyDown(panel, { key: "F5" });
+    expect(bridge.browserReload).toHaveBeenCalledTimes(2);
+
+    fireEvent.keyDown(panel, { key: "F5", shiftKey: true });
+    expect(bridge.browserHardReload).toHaveBeenCalledTimes(2);
   });
 });

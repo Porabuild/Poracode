@@ -93,6 +93,7 @@ export function BrowserPanel(props: { visible: boolean }) {
   };
   return (
     <div
+      data-lightcode-browser=""
       role="group"
       aria-label={t`Browser`}
       className="flex h-full min-h-0 flex-col bg-[var(--content-background)]"

@@ -1,6 +1,6 @@
 import { DEFAULT_CLIENT_VERSIONS } from "../clientVersions";
 import { toEpochMs } from "../formatters";
-import type { CollectOptions, HostPort } from "../host";
+import type { CollectOptions, HostPort, HttpClient, HttpResponse } from "../host";
 import type { UsageSnapshot, UsageWindow, UsageWindowId } from "../types";
 
 /**
@@ -183,4 +183,104 @@ export async function collectClaude(
 
   const plan = formatClaudePlan(token.subscriptionType);
   return parseClaudeUsage(parsed, now, plan ? { plan } : {});
+}
+
+/**
+ * Claude Code OAuth token endpoint and public client id, used to exchange a
+ * stored refresh token for a fresh access token — the same grant the CLI runs.
+ * The access token is short-lived (~8h); when no running CLI keeps it fresh it
+ * expires and the usage endpoint 401s, so a caller that can persist the rotated
+ * token uses {@link refreshClaudeOAuthToken} to renew it before collecting.
+ */
+export const CLAUDE_OAUTH_TOKEN_ENDPOINT = "https://console.anthropic.com/v1/oauth/token";
+export const CLAUDE_OAUTH_CLIENT_ID = "9d1c250a-e61b-44d9-88ed-5944d1962f5e";
+
+export interface ClaudeRefreshedToken {
+  accessToken: string;
+  refreshToken: string;
+  /** Epoch milliseconds. */
+  expiresAt: number;
+}
+
+interface ClaudeRefreshResponse {
+  access_token?: string;
+  refresh_token?: string;
+  expires_in?: number;
+}
+
+/**
+ * Pure: map a parsed `/v1/oauth/token` refresh response to a token bundle.
+ * Anthropic rotates the refresh token but may omit it from the body, in which
+ * case the current one is retained. Every field is type-checked at runtime (the
+ * body is untrusted network JSON, not the `as`-cast shape) so a malformed 200 —
+ * e.g. from a proxy or captive portal — yields undefined (a failed refresh that
+ * keeps the stale token) instead of writing garbage into the credentials file.
+ * Requires a finite, positive `expires_in`; otherwise the derived expiry would
+ * be "now", marking the token instantly stale and re-refreshing every cycle.
+ */
+export function parseClaudeRefreshResponse(
+  body: unknown,
+  nowMs: number,
+  currentRefreshToken: string,
+): ClaudeRefreshedToken | undefined {
+  const data = (body ?? {}) as ClaudeRefreshResponse;
+  if (typeof data.access_token !== "string" || !data.access_token) return undefined;
+  if (
+    typeof data.expires_in !== "number" ||
+    !Number.isFinite(data.expires_in) ||
+    data.expires_in <= 0
+  ) {
+    return undefined;
+  }
+  const refreshToken =
+    typeof data.refresh_token === "string" && data.refresh_token
+      ? data.refresh_token
+      : currentRefreshToken;
+  return {
+    accessToken: data.access_token,
+    refreshToken,
+    expiresAt: nowMs + data.expires_in * 1000,
+  };
+}
+
+/**
+ * Exchange a Claude Code refresh token for a fresh access token via the same
+ * OAuth endpoint + public client id the CLI uses. Returns undefined on any
+ * network error, non-2xx, or unparseable body — the caller then keeps the
+ * existing (stale) token, which degrades to "not signed in" exactly as before.
+ * Secrets are never logged.
+ */
+export async function refreshClaudeOAuthToken(
+  http: HttpClient,
+  refreshToken: string,
+  nowMs: number,
+  clientVersion?: string,
+): Promise<ClaudeRefreshedToken | undefined> {
+  const version = clientVersion ?? DEFAULT_CLIENT_VERSIONS.claudeCode;
+  let res: HttpResponse;
+  try {
+    res = await http.request({
+      method: "POST",
+      url: CLAUDE_OAUTH_TOKEN_ENDPOINT,
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+        "User-Agent": `claude-code/${version}`,
+      },
+      body: JSON.stringify({
+        grant_type: "refresh_token",
+        refresh_token: refreshToken,
+        client_id: CLAUDE_OAUTH_CLIENT_ID,
+      }),
+      timeoutMs: 15_000,
+    });
+  } catch {
+    return undefined;
+  }
+  if (res.status < 200 || res.status >= 300) return undefined;
+  try {
+    return parseClaudeRefreshResponse(JSON.parse(res.body), nowMs, refreshToken);
+  } catch {
+    return undefined;
+  }
 }

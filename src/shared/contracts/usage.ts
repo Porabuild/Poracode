@@ -43,6 +43,14 @@ export const usageLoginPayloadSchema = z.object({
 });
 export type UsageLoginPayload = z.infer<typeof usageLoginPayloadSchema>;
 
+export const usageApiKeyPayloadSchema = z.object({
+  /** Provider whose pasted API key is being stored (e.g. "zai"). */
+  providerId: z.string(),
+  /** The API key the user pasted into the in-app sign-in. */
+  apiKey: z.string().min(1),
+});
+export type UsageApiKeyPayload = z.infer<typeof usageApiKeyPayloadSchema>;
+
 export interface UsageLoginResult {
   ok: boolean;
   /** True when the user closed the login window before completing. */

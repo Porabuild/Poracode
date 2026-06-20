@@ -130,6 +130,11 @@ msgstr "{0} logged out."
 msgid "{0} needs authentication."
 msgstr "{0} needs authentication."
 
+#. placeholder {0}: currentIndex + 1
+#: src/renderer/components/find/FindBar.tsx
+msgid "{0} of {matchCount}"
+msgstr "{0} of {matchCount}"
+
 #. placeholder {0}: cell.count
 #: src/renderer/views/ProfileOverlay/parts/ActivityHeatmap.tsx
 msgid "{0} prompt - {when}"
@@ -247,6 +252,10 @@ msgstr "{hours}h ago"
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 msgid "{installedCount, plural, one {# agent ready} other {# agents ready}}"
 msgstr "{installedCount, plural, one {# agent ready} other {# agents ready}}"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
+msgid "{label} API key"
+msgstr "{label} API key"
 
 #: src/renderer/components/providers/ProviderUsageRail.tsx
 msgid "{label} usage — open usage panel"
@@ -443,6 +452,10 @@ msgstr "Activity metric"
 msgid "Add"
 msgstr "Add"
 
+#: src/renderer/commands/registry.ts
+msgid "Add a local project"
+msgstr "Add a local project"
+
 #: src/renderer/actions/agentLoginActions.ts
 msgid "Add a project before installing an agent."
 msgstr "Add a project before installing an agent."
@@ -502,6 +515,10 @@ msgstr "Add project options"
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 msgid "Add Remote"
 msgstr "Add Remote"
+
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
+msgid "Add shortcut"
+msgstr "Add shortcut"
 
 #: src/renderer/components/composer/ComposerAddMenu.tsx
 msgid "Add to composer"
@@ -590,6 +607,7 @@ msgstr "AI agent orchestrator — manage coding agents via Terminal and Native "
 msgid "AI git actions"
 msgstr "AI git actions"
 
+#: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "All"
 msgstr "All"
@@ -622,6 +640,10 @@ msgstr "Allow agents to read/write cookies and storage"
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
 msgid "Allow eval"
 msgstr "Allow eval"
+
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
+msgid "Already used by {conflict}"
+msgstr "Already used by {conflict}"
 
 #. Notification filter: always notify
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
@@ -686,6 +708,14 @@ msgstr "Archive {0}"
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadGroup.tsx
 msgid "Archive All"
 msgstr "Archive All"
+
+#: src/renderer/commands/registry.ts
+msgid "Archive the current thread"
+msgstr "Archive the current thread"
+
+#: src/renderer/commands/registry.ts
+msgid "Archive thread"
+msgstr "Archive thread"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
 msgid "Archive Thread"
@@ -815,6 +845,7 @@ msgstr "Avatar color"
 msgid "Avatar color {color}"
 msgstr "Avatar color {color}"
 
+#: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Back"
 msgstr "Back"
@@ -932,6 +963,8 @@ msgstr "Browse for parent folder"
 msgid "Browse your GitHub repositories or paste a clone URL."
 msgstr "Browse your GitHub repositories or paste a clone URL."
 
+#: src/renderer/commands/registry.ts
+#: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/composer/AttachmentBar.tsx
 #: src/renderer/components/composer/ComposerAddMenu.tsx
 #: src/renderer/components/layout/UnifiedRightPanel.tsx
@@ -976,6 +1009,10 @@ msgstr "Budget limit reached"
 msgid "Building diff…"
 msgstr "Building diff…"
 
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
+msgid "Built-in shortcut — can't be changed"
+msgstr "Built-in shortcut — can't be changed"
+
 #: src/renderer/views/PrReviewOverlay/parts/PrMetaRow.tsx
 msgid "by <0>{author}</0>"
 msgstr "by <0>{author}</0>"
@@ -1015,6 +1052,7 @@ msgstr "Bypass branch protection rules (admin merge)"
 #: src/renderer/views/MainView/parts/Sidebar/parts/DeleteWorktreeDialog.tsx
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
 #: src/renderer/views/PrReviewOverlay/parts/SubmitReviewPopover.tsx
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Cancel"
 msgstr "Cancel"
 
@@ -1045,6 +1083,10 @@ msgstr "Cannot switch branches — commit or stash your changes first"
 #: src/renderer/views/ProjectSettingsOverlay/parts/GeneralSection.tsx
 msgid "Change project folder"
 msgstr "Change project folder"
+
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
+msgid "Change shortcut"
+msgstr "Change shortcut"
 
 #: src/renderer/views/MainView/parts/AppOverlays.tsx
 msgid "Change User"
@@ -1198,6 +1240,10 @@ msgstr "CLI"
 msgid "CLI hooks"
 msgstr "CLI hooks"
 
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
+msgid "Click a shortcut to record a new key, or ＋ to add another."
+msgstr "Click a shortcut to record a new key, or ＋ to add another."
+
 #: src/renderer/views/MainView/parts/AppContent/parts/Thread/parts/ContinueInProviderDialog.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "Clone"
@@ -1240,6 +1286,10 @@ msgstr "Close editor"
 msgid "Close Editor Tab"
 msgstr "Close Editor Tab"
 
+#: src/renderer/components/find/FindBar.tsx
+msgid "Close find"
+msgstr "Close find"
+
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 msgid "Close goal"
 msgstr "Close goal"
@@ -1247,6 +1297,10 @@ msgstr "Close goal"
 #: src/renderer/views/MainView/parts/AppContent/AppContent.tsx
 msgid "Close group"
 msgstr "Close group"
+
+#: src/renderer/commands/shortcutCatalog.ts
+msgid "Close overlay"
+msgstr "Close overlay"
 
 #: src/renderer/components/thread/ThreadDraftChrome.tsx
 #: src/renderer/components/thread/ThreadView.tsx
@@ -1410,6 +1464,10 @@ msgstr "Commit Message Generation"
 msgid "Commit options"
 msgstr "Commit options"
 
+#: src/renderer/commands/shortcutCatalog.ts
+msgid "Commit, PR, and review composers"
+msgstr "Commit, PR, and review composers"
+
 #: src/renderer/views/PrReviewOverlay/parts/PrTabsPill.tsx
 msgid "Commits"
 msgstr "Commits"
@@ -1454,10 +1512,15 @@ msgstr "Complete the prompts in this terminal. Closes when finished."
 msgid "completed"
 msgstr "completed"
 
+#: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Composer"
 msgstr "Composer"
+
+#: src/renderer/commands/composerCommands.ts
+msgid "Composer controls"
+msgstr "Composer controls"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Config directory"
@@ -1594,6 +1657,10 @@ msgstr "Copy Path"
 msgid "Copy Relative Path"
 msgstr "Copy Relative Path"
 
+#: src/renderer/commands/shortcutCatalog.ts
+msgid "Copy selection"
+msgstr "Copy selection"
+
 #: src/renderer/components/thread/WorktreeModeSelect.tsx
 msgid "Copy uncommitted changes here (keeps them on this branch)"
 msgstr "Copy uncommitted changes here (keeps them on this branch)"
@@ -1640,6 +1707,10 @@ msgstr "Couldn't list repositories."
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "Couldn't load your profile stats."
 msgstr "Couldn't load your profile stats."
+
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
+msgid "Couldn't save the shortcut."
+msgstr "Couldn't save the shortcut."
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CreatePrModal.tsx
 msgid "Create Draft PR"
@@ -1714,6 +1785,7 @@ msgstr "current streak"
 msgid "Current streak"
 msgstr "Current streak"
 
+#: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
@@ -1723,6 +1795,22 @@ msgstr "Custom"
 #: src/renderer/views/ProjectSettingsOverlay/parts/ActionsSection.tsx
 msgid "Custom commands available from the project context menu (right-click)."
 msgstr "Custom commands available from the project context menu (right-click)."
+
+#: src/renderer/commands/composerCommands.ts
+msgid "Cycle permission mode"
+msgstr "Cycle permission mode"
+
+#: src/renderer/commands/composerCommands.ts
+msgid "Cycle reasoning effort"
+msgstr "Cycle reasoning effort"
+
+#: src/renderer/commands/registry.ts
+msgid "Cycle to the next recently viewed chat"
+msgstr "Cycle to the next recently viewed chat"
+
+#: src/renderer/commands/registry.ts
+msgid "Cycle to the previous recently viewed chat"
+msgstr "Cycle to the previous recently viewed chat"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Dark"
@@ -1854,6 +1942,7 @@ msgstr "Detecting agents…"
 
 #. Settings section: developer/debug tools
 #. Settings section: developer/debug tools
+#. Settings section: developer/debug tools
 #: src/renderer/views/SettingsOverlay/parts/DevSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Dev"
@@ -1896,6 +1985,10 @@ msgstr "Disable tiers an external provider collapses (e.g. keep only High and "
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 msgid "Disabled"
 msgstr "Disabled"
+
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
+msgid "Discard"
+msgstr "Discard"
 
 #: src/renderer/commands/registry.ts
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
@@ -2028,6 +2121,7 @@ msgid "Edit:"
 msgstr "Edit:"
 
 #: src/renderer/commands/registry.ts
+#: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/views/FileEditorOverlay/FileEditorOverlay.tsx
 msgid "Editor"
 msgstr "Editor"
@@ -2289,6 +2383,27 @@ msgstr "Files for {0}"
 msgid "Files matching these globs are hidden from the @file mention search."
 msgstr "Files matching these globs are hidden from the @file mention search."
 
+#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
+msgid "Filter settings"
+msgstr "Filter settings"
+
+#: src/renderer/commands/registry.ts
+#: src/renderer/components/find/FindBar.tsx
+msgid "Find"
+msgstr "Find"
+
+#: src/renderer/components/find/ChatFindBar.tsx
+msgid "Find in chat"
+msgstr "Find in chat"
+
+#: src/renderer/components/find/GitFindBar.tsx
+msgid "Find in diff"
+msgstr "Find in diff"
+
+#: src/renderer/components/terminal/XTermSurface.tsx
+msgid "Find in terminal"
+msgstr "Find in terminal"
+
 #: src/renderer/views/PrReviewOverlay/parts/SubmitReviewPopover.tsx
 msgid "Finish your review"
 msgstr "Finish your review"
@@ -2338,6 +2453,14 @@ msgstr "First-class OpenCode integration using Lightcode's native SDK runtime."
 msgid "Fix in Agent"
 msgstr "Fix in Agent"
 
+#: src/renderer/commands/registry.ts
+msgid "Focus browser address bar"
+msgstr "Focus browser address bar"
+
+#: src/renderer/commands/registry.ts
+msgid "Focus the in-app browser address bar"
+msgstr "Focus the in-app browser address bar"
+
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "Folder name"
 msgstr "Folder name"
@@ -2361,6 +2484,10 @@ msgstr "Force Delete"
 msgid "Force delete? Unmerged changes will be lost."
 msgstr "Force delete? Unmerged changes will be lost."
 
+#: src/renderer/commands/shortcutCatalog.ts
+msgid "Force reload browser page"
+msgstr "Force reload browser page"
+
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 msgid "Fork"
 msgstr "Fork"
@@ -2369,6 +2496,7 @@ msgstr "Fork"
 msgid "Format files"
 msgstr "Format files"
 
+#: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Forward"
 msgstr "Forward"
@@ -2399,6 +2527,7 @@ msgstr "Full access"
 msgid "Fullscreen overlay"
 msgstr "Fullscreen overlay"
 
+#: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/views/ProjectSettingsOverlay/parts/GeneralSection.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/SettingsSidebar.tsx
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
@@ -2434,6 +2563,7 @@ msgstr "Generates short titles for new threads."
 msgid "Get task"
 msgstr "Get task"
 
+#: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/layout/UnifiedRightPanel.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
@@ -2480,9 +2610,21 @@ msgstr "Gitignored files to copy from the main project into each new worktree. "
 msgid "GLM 5.2 (optional label)"
 msgstr "GLM 5.2 (optional label)"
 
+#: src/renderer/commands/shortcutCatalog.ts
+msgid "Global"
+msgstr "Global"
+
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Global folder"
 msgstr "Global folder"
+
+#: src/renderer/commands/shortcutCatalog.ts
+msgid "Go back in navigation history"
+msgstr "Go back in navigation history"
+
+#: src/renderer/commands/shortcutCatalog.ts
+msgid "Go forward in navigation history"
+msgstr "Go forward in navigation history"
 
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 msgid "Goal"
@@ -2715,6 +2857,10 @@ msgstr "Interrupted: agent session ended before completion."
 msgid "Italic"
 msgstr "Italic"
 
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
+msgid "Jump to section"
+msgstr "Jump to section"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/UsagePanel.tsx
 msgid "just now"
 msgstr "just now"
@@ -2946,6 +3092,10 @@ msgstr "Mark Done"
 #: src/renderer/i18n/locales.ts
 msgid "Match app language"
 msgstr "Match app language"
+
+#: src/renderer/components/find/FindBar.tsx
+msgid "Match case"
+msgstr "Match case"
 
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
 msgid "Match your system, or force light or dark."
@@ -3242,9 +3392,17 @@ msgstr "New File"
 msgid "New Folder"
 msgstr "New Folder"
 
+#: src/renderer/commands/shortcutCatalog.ts
+msgid "New line"
+msgstr "New line"
+
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
 msgid "New project"
 msgstr "New project"
+
+#: src/renderer/commands/registry.ts
+msgid "New quick thread"
+msgstr "New quick thread"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabStrip.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
@@ -3283,9 +3441,25 @@ msgstr "New Thread in Worktree"
 msgid "New worktree"
 msgstr "New worktree"
 
+#: src/renderer/commands/registry.ts
+msgid "Next chat"
+msgstr "Next chat"
+
 #: src/renderer/components/composer/ImageLightbox.tsx
 msgid "Next image"
 msgstr "Next image"
+
+#: src/renderer/components/find/FindBar.tsx
+msgid "Next match"
+msgstr "Next match"
+
+#: src/renderer/commands/registry.ts
+msgid "Next recently viewed chat"
+msgstr "Next recently viewed chat"
+
+#: src/renderer/commands/registry.ts
+msgid "Next tab"
+msgstr "Next tab"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/hooks/useElementPicker.ts
 msgid "No active browser tab"
@@ -3470,9 +3644,17 @@ msgstr "No remote configured. Add a remote to enable push and pull."
 msgid "No repositories found."
 msgstr "No repositories found."
 
+#: src/renderer/components/find/FindBar.tsx
+msgid "No results"
+msgstr "No results"
+
 #: src/renderer/components/thread/ChatPane/ChatRuntimeDebugPanel.tsx
 msgid "No runtime items yet for this thread."
 msgstr "No runtime items yet for this thread."
+
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
+msgid "No shortcuts found"
+msgstr "No shortcuts found"
 
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "No skills used yet."
@@ -3596,6 +3778,10 @@ msgstr "Open"
 msgid "Open {label}"
 msgstr "Open {label}"
 
+#: src/renderer/commands/registry.ts
+msgid "Open a new browser tab"
+msgstr "Open a new browser tab"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/DevTerminalPanel.tsx
 msgid "Open a terminal"
 msgstr "Open a terminal"
@@ -3625,6 +3811,10 @@ msgstr "Open as Panel"
 msgid "Open browser"
 msgstr "Open browser"
 
+#: src/renderer/commands/registry.ts
+msgid "Open browser tab"
+msgstr "Open browser tab"
+
 #: src/renderer/views/PrReviewOverlay/parts/PrChecksTab.tsx
 msgid "Open check"
 msgstr "Open check"
@@ -3652,6 +3842,10 @@ msgstr "Open File"
 #: src/renderer/commands/registry.ts
 msgid "Open Files"
 msgstr "Open Files"
+
+#: src/renderer/commands/registry.ts
+msgid "Open folder"
+msgstr "Open folder"
 
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorToolbar.tsx
 msgid "Open fullscreen"
@@ -3683,6 +3877,10 @@ msgstr "Open in editor"
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
 msgid "Open links in"
 msgstr "Open links in"
+
+#: src/renderer/commands/composerCommands.ts
+msgid "Open model picker"
+msgstr "Open model picker"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserEmptyState.tsx
 msgid "Open new tab"
@@ -3798,14 +3996,24 @@ msgstr "Package manager"
 msgid "Page"
 msgstr "Page"
 
+#: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Panel"
 msgstr "Panel"
 
+#: src/renderer/commands/shortcutCatalog.ts
+msgid "Panels and overlays"
+msgstr "Panels and overlays"
+
+#: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/terminal/XTermSurface.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 msgid "Paste"
 msgstr "Paste"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
+msgid "Paste {label} API key"
+msgstr "Paste {label} API key"
 
 #. placeholder {0}: activeDeviceCode.code
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
@@ -3922,6 +4130,10 @@ msgstr "Pre-commit hook failed"
 msgid "Presets"
 msgstr "Presets"
 
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
+msgid "Press shortcut…"
+msgstr "Press shortcut…"
+
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 msgid "Prevent sleep while working"
 msgstr "Prevent sleep while working"
@@ -3931,9 +4143,25 @@ msgstr "Prevent sleep while working"
 msgid "Preview {0}"
 msgstr "Preview {0}"
 
+#: src/renderer/commands/registry.ts
+msgid "Previous chat"
+msgstr "Previous chat"
+
 #: src/renderer/components/composer/ImageLightbox.tsx
 msgid "Previous image"
 msgstr "Previous image"
+
+#: src/renderer/components/find/FindBar.tsx
+msgid "Previous match"
+msgstr "Previous match"
+
+#: src/renderer/commands/registry.ts
+msgid "Previous recently viewed chat"
+msgstr "Previous recently viewed chat"
+
+#: src/renderer/commands/registry.ts
+msgid "Previous tab"
+msgstr "Previous tab"
 
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Profile"
@@ -3948,6 +4176,7 @@ msgid "Profiles"
 msgstr "Profiles"
 
 #: src/renderer/commands/registry.ts
+#: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/views/ProjectSettingsOverlay/ProjectSettingsOverlay.tsx
 msgid "Project"
 msgstr "Project"
@@ -4189,6 +4418,10 @@ msgstr "Refreshing {env} {0} authentication status."
 msgid "Reload"
 msgstr "Reload"
 
+#: src/renderer/commands/shortcutCatalog.ts
+msgid "Reload browser page"
+msgstr "Reload browser page"
+
 #: src/renderer/components/common/BranchSelector/parts/useBranchList.ts
 msgid "Remote"
 msgstr "Remote"
@@ -4251,6 +4484,10 @@ msgstr "Remove model"
 msgid "Remove Project"
 msgstr "Remove Project"
 
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
+msgid "Remove shortcut"
+msgstr "Remove shortcut"
+
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
 msgid "Remove worktree?"
 msgstr "Remove worktree?"
@@ -4260,9 +4497,17 @@ msgstr "Remove worktree?"
 msgid "Rename"
 msgstr "Rename"
 
+#: src/renderer/commands/registry.ts
+msgid "Rename chat"
+msgstr "Rename chat"
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadGroup.tsx
 msgid "Rename Group"
 msgstr "Rename Group"
+
+#: src/renderer/commands/registry.ts
+msgid "Rename the current chat"
+msgstr "Rename the current chat"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/InlineRenameInput.tsx
 msgid "Rename thread"
@@ -4346,6 +4591,7 @@ msgid "Reset sidebar frosting to default"
 msgstr "Reset sidebar frosting to default"
 
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Reset to default"
 msgstr "Reset to default"
 
@@ -4578,6 +4824,10 @@ msgstr "Save Claude profile"
 msgid "Save File"
 msgstr "Save File"
 
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
+msgid "Save shortcut"
+msgstr "Save shortcut"
+
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
 msgid "Saved credentials are shared across all environments."
 msgstr "Saved credentials are shared across all environments."
@@ -4601,6 +4851,7 @@ msgstr "Scanning your system for installed CLIs. This usually takes a couple of 
 "seconds."
 
 #: src/renderer/commands/registry.ts
+#: src/renderer/commands/shortcutCatalog.ts
 msgid "Scripts"
 msgstr "Scripts"
 
@@ -4666,6 +4917,14 @@ msgstr "Search repositories…"
 #: src/renderer/components/thread/ChatPane/ChatRuntimeDebugPanel.tsx
 msgid "Search runtime items…"
 msgstr "Search runtime items…"
+
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
+msgid "Search shortcuts"
+msgstr "Search shortcuts"
+
+#: src/renderer/commands/registry.ts
+msgid "Search the current view"
+msgstr "Search the current view"
 
 #: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
 msgid "Search threads"
@@ -4736,6 +4995,7 @@ msgstr "Select project"
 msgid "Send a message..."
 msgstr "Send a message..."
 
+#: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/thread/ThreadComposerSection.tsx
 msgid "Send message"
 msgstr "Send message"
@@ -4756,6 +5016,10 @@ msgstr "Separate Claude Code accounts by config directory, or point a profile "
 msgid "Set or view an experimental goal"
 msgstr "Set or view an experimental goal"
 
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
+msgid "Set shortcut"
+msgstr "Set shortcut"
+
 #: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 #: src/renderer/views/SettingsOverlay/SettingsOverlay.tsx
@@ -4773,6 +5037,11 @@ msgstr "Share"
 #: src/renderer/views/ProfileOverlay/parts/ShareDialog.tsx
 msgid "Share your activity"
 msgstr "Share your activity"
+
+#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
+msgid "Shortcuts"
+msgstr "Shortcuts"
 
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Show a compact per-provider usage ring in the sidebar."
@@ -4832,6 +5101,14 @@ msgstr "Show notifications when thread status changes."
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
 msgid "Show opened links in"
 msgstr "Show opened links in"
+
+#: src/renderer/commands/registry.ts
+msgid "Show or hide the browser panel"
+msgstr "Show or hide the browser panel"
+
+#: src/renderer/commands/registry.ts
+msgid "Show or hide the sidebar"
+msgstr "Show or hide the sidebar"
 
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorToolbar.tsx
 msgid "Show preview"
@@ -4919,10 +5196,6 @@ msgid "Skills"
 msgstr "Skills"
 
 #: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
-#~ msgid "Skills explored"
-#~ msgstr "Skills explored"
-
-#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
 msgid "Skills/subagents explored"
 msgstr "Skills/subagents explored"
 
@@ -4989,6 +5262,10 @@ msgstr "Start"
 msgid "Start {appName} to see usage"
 msgstr "Start {appName} to see usage"
 
+#: src/renderer/commands/registry.ts
+msgid "Start a new thread as panel instead of page"
+msgstr "Start a new thread as panel instead of page"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesEditor.tsx
 msgid "Start a new thread from the selected text"
 msgstr "Start a new thread from the selected text"
@@ -4996,6 +5273,14 @@ msgstr "Start a new thread from the selected text"
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/TodoRow.tsx
 msgid "Start a new thread from this to-do"
 msgstr "Start a new thread from this to-do"
+
+#: src/renderer/commands/composerCommands.ts
+msgid "Start dictation"
+msgstr "Start dictation"
+
+#: src/renderer/commands/composerCommands.ts
+msgid "Start dictation in the current composer"
+msgstr "Start dictation in the current composer"
 
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
@@ -5124,6 +5409,10 @@ msgstr "Submit feedback that must be addressed before merging."
 msgid "Submit feedback without explicit approval."
 msgstr "Submit feedback without explicit approval."
 
+#: src/renderer/commands/shortcutCatalog.ts
+msgid "Submit Git form"
+msgstr "Submit Git form"
+
 #: src/renderer/views/PrReviewOverlay/parts/SubmitReviewPopover.tsx
 msgid "Submit review"
 msgstr "Submit review"
@@ -5169,6 +5458,22 @@ msgstr "Switch this chat to agent mode"
 #: src/renderer/components/providers/codex/index.tsx
 msgid "Switch this chat to plan mode"
 msgstr "Switch this chat to plan mode"
+
+#: src/renderer/commands/registry.ts
+msgid "Switch to the next chat"
+msgstr "Switch to the next chat"
+
+#: src/renderer/commands/registry.ts
+msgid "Switch to the next tab"
+msgstr "Switch to the next tab"
+
+#: src/renderer/commands/registry.ts
+msgid "Switch to the previous chat"
+msgstr "Switch to the previous chat"
+
+#: src/renderer/commands/registry.ts
+msgid "Switch to the previous tab"
+msgstr "Switch to the previous tab"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CommitSyncPanel.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
@@ -5236,6 +5541,7 @@ msgid "Tell the target provider what to do next..."
 msgstr "Tell the target provider what to do next..."
 
 #: src/renderer/commands/registry.ts
+#: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/layout/UnifiedRightPanel.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
@@ -5381,6 +5687,7 @@ msgid "Thought"
 msgstr "Thought"
 
 #: src/renderer/commands/registry.ts
+#: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/hooks/useElementPicker.ts
 msgid "Thread"
 msgstr "Thread"
@@ -5451,21 +5758,42 @@ msgstr "Title Generation"
 msgid "To-dos"
 msgstr "To-dos"
 
+#: src/renderer/commands/registry.ts
+msgid "Toggle browser panel"
+msgstr "Toggle browser panel"
+
+#: src/renderer/commands/composerCommands.ts
 #: src/renderer/components/providers/codex/index.tsx
 msgid "Toggle Fast mode"
 msgstr "Toggle Fast mode"
+
+#: src/renderer/commands/registry.ts
+msgid "Toggle File Tree"
+msgstr "Toggle File Tree"
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
 msgid "Toggle models off to hide them from the selector."
 msgstr "Toggle models off to hide them from the selector."
 
 #: src/renderer/commands/registry.ts
-msgid "Toggle Star"
-msgstr "Toggle Star"
+msgid "Toggle sidebar"
+msgstr "Toggle sidebar"
+
+#: src/renderer/commands/registry.ts
+msgid "Toggle star"
+msgstr "Toggle star"
 
 #: src/renderer/commands/registry.ts
 msgid "Toggle Terminal"
 msgstr "Toggle Terminal"
+
+#: src/renderer/commands/registry.ts
+msgid "Toggle the file tree panel"
+msgstr "Toggle the file tree panel"
+
+#: src/renderer/commands/composerCommands.ts
+msgid "Toggle Work or Plan"
+msgstr "Toggle Work or Plan"
 
 #: src/renderer/views/ProfileOverlay/parts/ActivitySection.tsx
 msgid "Tokens"
@@ -5483,10 +5811,6 @@ msgstr "Tool search"
 #: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
 msgid "Total prompts"
 msgstr "Total prompts"
-
-#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
-#~ msgid "Total skills used"
-#~ msgstr "Total skills used"
 
 #: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
 msgid "Total threads"
@@ -5645,6 +5969,10 @@ msgstr "Unable to update {0}: {detailText}"
 msgid "Unable to update {0}."
 msgstr "Unable to update {0}."
 
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
+msgid "Unassigned"
+msgstr "Unassigned"
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadGroup.tsx
 msgid "Ungroup All"
 msgstr "Ungroup All"
@@ -5660,6 +5988,7 @@ msgstr "Uninstall"
 
 #: src/renderer/components/thread/threadContextUsage.ts
 #: src/renderer/views/PrReviewOverlay/parts/PrChecksTab.tsx
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Unknown"
 msgstr "Unknown"
 
@@ -5857,6 +6186,10 @@ msgstr "Use WebGPU acceleration"
 #: src/renderer/components/thread/threadContextUsage.ts
 msgid "Used"
 msgstr "Used"
+
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
+msgid "Used by {conflict}"
+msgstr "Used by {conflict}"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Using the built-in Claude model list."

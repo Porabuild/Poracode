@@ -21,7 +21,7 @@ import {
   VoiceInputButton,
   useAttachments,
 } from "../composer";
-import type { MentionInputHandle } from "../composer";
+import type { MentionInputHandle, VoiceInputHandle } from "../composer";
 import { flattenSegments } from "../composer/serializeMentions";
 import { getTriggerWords } from "@/renderer/components/providers";
 import { readBridge } from "@/renderer/bridge";
@@ -64,6 +64,7 @@ import {
   resolveAvailableSlashCommands,
   resolveLocalSlashCommandAction,
 } from "./threadSlashCommands";
+import { useKeybindingStore } from "@/renderer/commands/keybindingStore";
 import { handleComposerControlShortcut } from "./threadComposerShortcuts";
 import { isAuthErrorMessage, type ThreadErrorDockState } from "./threadErrorState";
 import type { ThreadGoalDockState } from "./threadGoalState";
@@ -220,6 +221,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
   const [hasContent, setHasContent] = useState(false);
   const showVoiceInputButton = useSharedSettings((s) => s.audio.showVoiceInputButton);
   const mentionRef = useRef<MentionInputHandle>(null);
+  const voiceInputRef = useRef<VoiceInputHandle>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isInterrupting, setIsInterrupting] = useState(false);
   const attachments = useAttachments();
@@ -801,12 +803,15 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                           !usesTerminalPresentation &&
                           handleComposerControlShortcut(e, {
                             controls: controlsWithOpenSignal,
+                            keybindings: useKeybindingStore.getState().keybindings,
+                            platform: readBridge().platform,
                             onOpenModelPicker: () => {
                               setControlOpenRequest((prev) => ({
                                 target: "model",
                                 nonce: (prev?.nonce ?? 0) + 1,
                               }));
                             },
+                            onStartDictation: () => voiceInputRef.current?.toggle() ?? false,
                           })
                         ) {
                           return true;
@@ -934,6 +939,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                     const renderVoiceInput = () =>
                       showVoiceInputButton ? (
                         <VoiceInputButton
+                          ref={voiceInputRef}
                           isDisabled={
                             authRequired ||
                             isSubmitting ||

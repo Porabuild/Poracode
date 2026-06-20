@@ -225,6 +225,7 @@ export function BrowserToolbar(props: {
       <form className="flex-1" onSubmit={onSubmit}>
         <input
           type="text"
+          data-lightcode-browser-address=""
           className="h-7 w-full rounded border border-border bg-[var(--field-background)] px-2 text-[12px] text-foreground outline-none placeholder:text-[color:var(--field-placeholder)] focus:border-[color:var(--accent)]"
           placeholder={t`Search or enter address`}
           value={urlInput}
