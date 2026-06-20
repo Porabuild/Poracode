@@ -4,6 +4,7 @@ import { Trans, useLingui } from "@lingui/react/macro";
 import { Bot, Check, GitBranch, X } from "lucide-react";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useThreadSubAgentDockStore } from "@/renderer/state/threadSubAgentDockStore";
+import { useThreadLiveWorkflowStore } from "@/renderer/state/threadLiveWorkflowStore";
 import { useWorkflowRun } from "@/renderer/state/useWorkflowRun";
 import {
   getChildItemIdsStoreSelector,
@@ -12,6 +13,7 @@ import {
 } from "../../chatPaneSelectors";
 import { getRuntimeItemPayload } from "@/renderer/state/slices/runtimeEventSlice";
 import type { ProjectLocation, ToolCallPayload, WorkflowRun } from "@/shared/contracts";
+import { isLiveWorkflowRunStatus } from "@/shared/contracts";
 import { deriveToolDisplay, isWorkflowTool } from "./toolDisplay";
 import { PixelLoader } from "@/renderer/components/common/PixelLoader";
 import { formatTokenCount } from "@/renderer/components/thread/formatTokenCount";
@@ -111,6 +113,8 @@ function ActiveSubAgentRow({
   const childCount = useAppStore(getChildItemIdsStoreSelector(threadId, itemId)).length;
   const openSubAgent = useAppStore((s) => s.openSubAgent);
   const dismiss = useThreadSubAgentDockStore((s) => s.dismiss);
+  const registerLiveWorkflow = useThreadLiveWorkflowStore((s) => s.register);
+  const markWorkflowTerminal = useThreadLiveWorkflowStore((s) => s.markTerminal);
 
   const payload = item ? getRuntimeItemPayload<ToolCallPayload>(item, "tool_call") : undefined;
   const workflow = payload && isWorkflowTool(payload) ? parseWorkflowInfo(payload) : null;
@@ -124,11 +128,11 @@ function ActiveSubAgentRow({
   // A background workflow is "live" from the moment the SDK reports its
   // launch tool call as completed (because the work is in flight in a
   // separate process). The manifest takes a few seconds to appear on disk,
-  // during which `workflowRun` is null — we MUST NOT flip the row to done
+  // during which `workflowRun` is null - we MUST NOT flip the row to done
   // in that gap, otherwise the composer dock shows ✓ while the chat row
   // still says "starting…".
   const workflowIsBackground = workflow !== null && !!workflow.manifestPath;
-  const workflowIsTerminal = workflowRun !== null && !isLiveWorkflowStatus(workflowRun.status);
+  const workflowIsTerminal = workflowRun !== null && !isLiveWorkflowRunStatus(workflowRun.status);
   const workflowIsLive = workflowIsBackground && !workflowIsTerminal;
 
   // Auto-dismiss workflows once their manifest reports a terminal status. We
@@ -140,6 +144,38 @@ function ActiveSubAgentRow({
     const timer = setTimeout(() => dismiss(threadId, itemId), 1500);
     return () => clearTimeout(timer);
   }, [workflow, workflowIsTerminal, dismiss, threadId, itemId]);
+
+  // Publish this workflow's liveness to the thread-level tracker so the sidebar
+  // row and chat header keep showing the working spinner after the foreground
+  // turn ends - and even after this dock unmounts (the tracker polls on its
+  // own). We register (not unregister) on unmount: the tracker clears the entry
+  // when its own poll sees a terminal status, so dismissing the dock or
+  // switching threads doesn't drop a still-running workflow.
+  const liveWorkflowManifestPath = workflow?.manifestPath;
+  const liveWorkflowTranscriptDir = workflow?.transcriptDir;
+  useEffect(() => {
+    if (!liveWorkflowManifestPath || !projectLocation) return;
+    if (workflowIsTerminal) {
+      markWorkflowTerminal(threadId, itemId);
+      return;
+    }
+    registerLiveWorkflow({
+      threadId,
+      itemId,
+      manifestPath: liveWorkflowManifestPath,
+      location: projectLocation,
+      ...(liveWorkflowTranscriptDir ? { transcriptDir: liveWorkflowTranscriptDir } : {}),
+    });
+  }, [
+    liveWorkflowManifestPath,
+    liveWorkflowTranscriptDir,
+    projectLocation,
+    workflowIsTerminal,
+    threadId,
+    itemId,
+    registerLiveWorkflow,
+    markWorkflowTerminal,
+  ]);
 
   if (!item || !payload?.name) return null;
 
@@ -226,10 +262,6 @@ function WorkflowDockStats({ run }: { run: WorkflowRun }) {
       {parts.join(" · ")}
     </span>
   );
-}
-
-function isLiveWorkflowStatus(status: WorkflowRun["status"]): boolean {
-  return status === "running" || status === "unknown";
 }
 
 function countDoneWorkflowAgents(run: WorkflowRun): number {

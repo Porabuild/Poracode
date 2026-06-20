@@ -26,6 +26,7 @@ import {
 } from "@/renderer/state/fileCheckpointActions";
 import { useFileEditorStore } from "@/renderer/state/fileEditorStore";
 import { useProjectRootNames } from "@/renderer/state/projectRootNamesStore";
+import { useThreadHasLiveWorkflow } from "@/renderer/state/threadLiveWorkflowStore";
 import { useProjectTreeStore } from "@/renderer/state/projectTreeStore";
 import {
   buildFileEditorContext,
@@ -209,6 +210,12 @@ export function ChatPane(props: ChatPaneProps) {
 
   const isEmpty = timelineEntries.length === 0 && !hasSupplementaryContent;
   const isLive = isThreadTurnActive(status);
+  // A detached background workflow keeps the thread doing real work after the
+  // foreground turn settles. Treat that as "still working" for the tail-loader
+  // timer (so it keeps ticking "Working for ...") without touching `status` -
+  // composer interrupt/steer and notifications stay on the raw status.
+  const hasLiveWorkflow = useThreadHasLiveWorkflow(threadId);
+  const showWorkingTimer = isLive || hasLiveWorkflow;
   const hasOpenRuntimeRequest = useAppStore(
     (s) => (s.runtimeRequestsByThread[threadId]?.length ?? 0) > 0,
   );
@@ -216,22 +223,22 @@ export function ChatPane(props: ChatPaneProps) {
   // disappear in the gap between an item flipping to `completed` and the next
   // `item.started` arriving, even though the runtime was still working the
   // turn.
-  const turn = resolveTurnTiming(thread);
+  const turn = resolveTurnTiming(thread, showWorkingTimer);
   const mostRecentDisplayableCompletedTurn = useAppStore((s) =>
-    isLive
+    showWorkingTimer
       ? null
       : selectMostRecentDisplayableCompletedTurn(s.runtimeCompletedTurnsByThread[threadId]),
   );
   const mostRecentCompletedTurnAnchor = mostRecentDisplayableCompletedTurn?.anchorItemId ?? null;
   const completedTurnCanRenderInTail =
-    !isLive &&
+    !showWorkingTimer &&
     (turn?.endedAt != null || mostRecentDisplayableCompletedTurn !== null) &&
     isCompletedTurnAnchorAtTimelineTail(mostRecentCompletedTurnAnchor, timelineEntries);
   const tailTurn =
     completedTurnCanRenderInTail && mostRecentDisplayableCompletedTurn
       ? mostRecentDisplayableCompletedTurn
       : turn;
-  const showTailLoader = isLive || completedTurnCanRenderInTail;
+  const showTailLoader = showWorkingTimer || completedTurnCanRenderInTail;
   // The agent is not actually working while it waits for a user answer, so the
   // tail loader keeps rendering but its elapsed-time counter freezes for the
   // duration of the wait and resumes once the user submits a response. Anchor
@@ -648,11 +655,17 @@ function parseTurnTimestamp(iso: string | undefined): number | null {
  * Derives the current or last completed run window from persisted thread timing
  * so reopening a thread doesn't reseed the footer timer from mount time.
  */
-function resolveTurnTiming(thread: Thread): TurnTiming | null {
-  const isLive = isThreadTurnActive(thread.status);
+function resolveTurnTiming(thread: Thread, forceLive = false): TurnTiming | null {
+  const isLive = forceLive || isThreadTurnActive(thread.status);
 
   if (isLive) {
-    const startedAt = parseTurnTimestamp(thread.activeTurnStartedAt ?? thread.createdAt);
+    // When only a background workflow keeps the thread live, the foreground
+    // turn has ended and `activeTurnStartedAt` is cleared - fall back to the
+    // just-completed turn's start so the timer continues from there instead of
+    // reseeding at mount time.
+    const startedAt = parseTurnTimestamp(
+      thread.activeTurnStartedAt ?? thread.lastTurnStartedAt ?? thread.createdAt,
+    );
     return startedAt === null ? null : { startedAt, endedAt: null };
   }
 
