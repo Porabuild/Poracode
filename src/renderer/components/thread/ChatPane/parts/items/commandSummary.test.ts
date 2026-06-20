@@ -70,6 +70,19 @@ describe("humanIntentTitle", () => {
     });
   });
 
+  it("describes PowerShell Get-Content variable paths with range loops as viewed lines", () => {
+    const full = String.raw`"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command '$p='"'src/supervisor/agents/base/index.ts'; "'$lines=Get-Content -LiteralPath $p; foreach($range in @(@(250,315),@(380,430),@(610,650))){ for($i=$range[0];$i -le $range[1];$i++){ if($i -le $lines.Length){ '"'{0}: {1}' -f "'$i,$lines[$i-1] }} }'`;
+    const display = commandIntentDisplay(full);
+
+    expect(display.title).toBe("View 250:315,380:430,610:650: src/supervisor/agents/base/index.ts");
+    expect(display.kind).toBe("view");
+    expect(display.parts).toEqual({
+      prefix: "View 250:315,380:430,610:650: ",
+      path: "src/supervisor/agents/base/index.ts",
+      filePath: true,
+    });
+  });
+
   it("preserves Windows paths in PowerShell Get-Content -LiteralPath", () => {
     const full = String.raw`pwsh -Command 'Get-Content -LiteralPath C:\Users\sdsle\work\lightcode\src\foo.ts'`;
     const display = commandIntentDisplay(full);
