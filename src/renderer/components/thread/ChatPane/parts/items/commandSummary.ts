@@ -189,6 +189,16 @@ function intentFromSummarizedCommand(t: string): CommandIntentDisplay | null {
     };
   }
 
+  const headFileView = parseHeadFileView(trimmed);
+  if (headFileView) {
+    const prefix = viewPrefix(headFileView.lines);
+    return {
+      title: `${prefix}${headFileView.path}`,
+      parts: { prefix, path: headFileView.path },
+      kind: "view",
+    };
+  }
+
   const grepFileView = parseGrepLikeFileView(trimmed);
   if (grepFileView) {
     const prefix = viewPrefix(grepFileView.lines);
@@ -346,6 +356,68 @@ function parsePipedFileView(command: string): PipedFileView | null {
 
   const sed = parseSedView(`${sedPart} ${path}`);
   return sed ? { path, lines: sed.lines } : null;
+}
+
+/**
+ * `head -100 file`, `head -n 40 file`, or `cat file | head -100`. `head` always
+ * reads from the top, so the window is `1..N` (default 10). Byte windows (`-c`)
+ * aren't line-addressable and fall through to the generic command label.
+ */
+function parseHeadFileView(command: string): PipedFileView | null {
+  const parts = splitShellPipeline(command);
+  // A filter between the reader and head (`cat f | grep x | head`) changes what
+  // head sees, so only the direct `<reader> | head` and bare `head file` forms
+  // map cleanly to a 1..N window of a single file.
+  if (parts.length > 2) return null;
+  const invocation = parseHeadInvocation(splitShellWords(parts[parts.length - 1]!));
+  if (!invocation) return null;
+
+  const path =
+    parts.length === 2 ? extractPipedReadableFilePath(splitShellWords(parts[0]!)) : invocation.path;
+  if (!path) return null;
+  return { path, lines: invocation.lines };
+}
+
+function parseHeadInvocation(words: string[]): { path: string | undefined; lines: string } | null {
+  const executable = words[0]?.split(/[/\\]/).pop()?.toLowerCase();
+  if (executable !== "head" && executable !== "ghead") return null;
+
+  let count = 10; // `head`'s default line count
+  let path: string | undefined;
+  for (let i = 1; i < words.length; i++) {
+    const word = words[i]!;
+    if (word === "--") {
+      path = words[i + 1] ?? path;
+      break;
+    }
+    const legacy = /^-(\d+)$/.exec(word);
+    if (legacy) {
+      count = Number(legacy[1]);
+      continue;
+    }
+    if (word === "-n" || word === "--lines") {
+      const value = readNonNegativeInteger(words[++i]);
+      if (value === undefined) return null;
+      count = value;
+      continue;
+    }
+    const attached = /^-n(\d+)$/.exec(word) ?? /^--lines=(\d+)$/.exec(word);
+    if (attached) {
+      count = Number(attached[1]);
+      continue;
+    }
+    // Byte windows aren't line-addressable (covers -c, -c200, -c-200, --bytes, --bytes=N).
+    if (/^-c/.test(word) || /^--bytes(=|$)/.test(word)) return null;
+    if (word === "-") continue; // explicit stdin
+    if (/^\d*>/.test(word)) continue; // shell redirection (e.g. 2>/dev/null), not a path
+    if (word.startsWith("-")) continue; // -q/-v/-z and other flags
+    // First file operand. Keep scanning so trailing flags still apply (GNU permutes
+    // operands and options, e.g. `head file -n 40`).
+    if (path === undefined) path = word;
+  }
+
+  if (count <= 0) return null;
+  return { path, lines: count === 1 ? "1" : `1-${count}` };
 }
 
 function parseGrepLikeFileView(command: string): PowerShellFileView | null {
