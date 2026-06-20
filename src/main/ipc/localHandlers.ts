@@ -357,6 +357,11 @@ export function createLocalIpcHandlers(
         options.requireLightcodePaths,
         options.getBrowserPanelManager,
       ).clearLogin(payload.providerId),
+    submitUsageApiKey: (payload) =>
+      getUsageLoginManager(
+        options.requireLightcodePaths,
+        options.getBrowserPanelManager,
+      ).submitApiKey(payload.providerId, payload.apiKey),
     resolveUsageLoginConfirmation: (payload) => {
       requireBrowserPanel(options.getBrowserPanelManager).resolveUsageLoginConfirmation(payload);
     },

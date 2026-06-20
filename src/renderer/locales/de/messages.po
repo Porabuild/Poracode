@@ -249,6 +249,10 @@ msgstr "vor {hours} Std."
 msgid "{installedCount, plural, one {# agent ready} other {# agents ready}}"
 msgstr "{installedCount, plural, one {# Agent bereit} other {# Agenten bereit}}"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
+msgid "{label} API key"
+msgstr "{label} API-Schlüssel"
+
 #: src/renderer/components/providers/ProviderUsageRail.tsx
 msgid "{label} usage — open usage panel"
 msgstr "{label}-Nutzung – Nutzungsbereich öffnen"
@@ -3832,6 +3836,10 @@ msgstr "Fügen Sie hier <0>{0}</0> ein. Zum Kopieren klicken."
 #: src/renderer/components/terminal/XTermSurface.tsx
 msgid "Paste in input"
 msgstr "In Eingabefeld einfügen"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
+msgid "Paste {label} API key"
+msgstr "{label} API-Schlüssel einfügen"
 
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 msgid "Paused"

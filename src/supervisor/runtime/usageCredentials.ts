@@ -6,6 +6,7 @@ import { resolveCopilotToken } from "./copilotCredentials";
 import { resolveCursorToken } from "./cursorCredentials";
 import { resolveGeminiToken } from "./geminiCredentials";
 import { resolveGrokToken } from "./grokCredentials";
+import { resolveZaiToken } from "./zaiCredentials";
 
 /**
  * Assembles the native (host) credential store consumed by the usage HostPort
@@ -34,6 +35,8 @@ export function createNativeCredentialStore(cacheDir?: string): CredentialStore 
           return resolveGrokToken();
         case "gemini":
           return resolveGeminiToken();
+        case "zai":
+          return resolveZaiToken();
         default:
           return undefined;
       }

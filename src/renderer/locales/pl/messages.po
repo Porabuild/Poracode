@@ -251,6 +251,10 @@ msgid "{installedCount, plural, one {# agent ready} other {# agents ready}}"
 msgstr "{installedCount, plural, one {# agent gotowy} few {# agenci gotowi} "
 "many {# agentów gotowych} other {# agenta gotowego}}"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
+msgid "{label} API key"
+msgstr "Klucz API {label}"
+
 #: src/renderer/components/providers/ProviderUsageRail.tsx
 msgid "{label} usage — open usage panel"
 msgstr "{label} – użycie — otwórz panel użycia"
@@ -3823,6 +3827,10 @@ msgstr "Wklej tutaj <0>{0}</0>. Kliknij, aby skopiować."
 #: src/renderer/components/terminal/XTermSurface.tsx
 msgid "Paste in input"
 msgstr "Wklej do pola"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
+msgid "Paste {label} API key"
+msgstr "Wklej klucz API {label}"
 
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 msgid "Paused"

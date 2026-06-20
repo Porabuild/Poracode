@@ -250,6 +250,10 @@ msgid "{installedCount, plural, one {# agent ready} other {# agents ready}}"
 msgstr "{installedCount, plural, one {# agente pronto} other {# agentes "
 "prontos}}"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
+msgid "{label} API key"
+msgstr "Chave de API do {label}"
+
 #: src/renderer/components/providers/ProviderUsageRail.tsx
 msgid "{label} usage — open usage panel"
 msgstr "Uso de {label} — abrir o painel de uso"
@@ -3826,6 +3830,10 @@ msgstr "Cole <0>{0}</0> aqui. Clique para copiar."
 #: src/renderer/components/terminal/XTermSurface.tsx
 msgid "Paste in input"
 msgstr "Colar na entrada"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
+msgid "Paste {label} API key"
+msgstr "Cole a chave de API do {label}"
 
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 msgid "Paused"

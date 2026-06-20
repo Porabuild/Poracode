@@ -70,5 +70,14 @@ export {
   GEMINI_LOAD_ENDPOINT,
   GEMINI_QUOTA_ENDPOINT,
 } from "./collectors/gemini";
+export {
+  collectZai,
+  parseZaiUsage,
+  resolveZaiQuotaUrl,
+  ZAI_PROVIDER_ID,
+  ZAI_GLOBAL_QUOTA_ENDPOINT,
+  ZAI_BIGMODEL_QUOTA_ENDPOINT,
+} from "./collectors/zai";
+export type { ZaiQuotaResponse } from "./collectors/zai";
 export { antigravityPool, antigravityPoolWindows } from "./collectors/antigravity";
 export type { AntigravityModelQuota } from "./collectors/antigravity";
