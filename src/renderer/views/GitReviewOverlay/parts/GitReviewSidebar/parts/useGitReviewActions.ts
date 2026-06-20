@@ -99,6 +99,7 @@ export function useGitReviewActions(args: UseGitReviewActionsArgs) {
   const commitGenEffort = useSharedSettings((s) =>
     isWsl ? s.wslCommitGenEffort : s.commitGenEffort,
   );
+  const commitGenFast = useSharedSettings((s) => (isWsl ? s.wslCommitGenFast : s.commitGenFast));
   // Commit messages and PR summaries are "git text": they follow the dedicated
   // gitTextLanguage setting (default English), independent of the UI language.
   const gitTextLanguageSetting = useSharedSettings((s) => s.gitTextLanguage);
@@ -198,6 +199,7 @@ export function useGitReviewActions(args: UseGitReviewActionsArgs) {
       provider: commitGenProvider,
       model: commitGenModel,
       effort: commitGenEffort,
+      fast: commitGenFast,
       ...(gitTextLanguage ? { language: gitTextLanguage } : {}),
       invoke: (payload) => readBridge().generateCommitMessage(payload),
     });

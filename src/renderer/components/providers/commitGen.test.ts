@@ -193,6 +193,54 @@ describe("generateCommitMessageWithFallback", () => {
     });
   });
 
+  const fastClaude: AgentStatus = {
+    ...claudeStatus,
+    capabilities: { ...claudeStatus.capabilities, fastModels: ["claude-opus-4-7"] },
+  };
+
+  it("forwards fast mode when the resolved model supports it", async () => {
+    const invoke = vi.fn<CommitMessageInvoker>().mockResolvedValue({ message: "feat: x" });
+
+    await generateCommitMessageWithFallback({
+      projectLocation,
+      agentStatuses: [fastClaude],
+      provider: "claude",
+      model: "claude-opus-4-7",
+      effort: "high",
+      fast: true,
+      invoke,
+    });
+
+    expect(invoke).toHaveBeenCalledWith({
+      projectLocation,
+      agentKind: "claude",
+      model: "claude-opus-4-7",
+      effort: "high",
+      fast: true,
+    });
+  });
+
+  it("omits fast mode when the resolved model is not fast-capable", async () => {
+    const invoke = vi.fn<CommitMessageInvoker>().mockResolvedValue({ message: "feat: x" });
+
+    await generateCommitMessageWithFallback({
+      projectLocation,
+      agentStatuses: [fastClaude],
+      provider: "claude",
+      model: "sonnet",
+      effort: "high",
+      fast: true,
+      invoke,
+    });
+
+    expect(invoke).toHaveBeenCalledWith({
+      projectLocation,
+      agentKind: "claude",
+      model: "sonnet",
+      effort: "high",
+    });
+  });
+
   it("does not fall back when a specific provider is selected", async () => {
     const invoke = vi.fn<CommitMessageInvoker>();
     invoke.mockRejectedValueOnce(new Error("Codex CLI not found: codex"));

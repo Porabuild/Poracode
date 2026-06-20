@@ -19,6 +19,7 @@ export function generateTitleAsync(
 
   const model = isWsl ? settings.wslTitleGenModel : settings.titleGenModel;
   const effort = isWsl ? settings.wslTitleGenEffort : settings.titleGenEffort;
+  const fast = isWsl ? settings.wslTitleGenFast : settings.titleGenFast;
   // Thread titles are "conversation" text: they follow the app language. When
   // it resolves to English the directive is omitted, preserving the default
   // "match the user's message language" behavior.
@@ -30,6 +31,7 @@ export function generateTitleAsync(
     provider,
     model,
     effort,
+    fast,
     prompt,
     ...(language ? { language } : {}),
     invoke: (payload) => {

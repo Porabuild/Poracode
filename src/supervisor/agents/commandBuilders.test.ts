@@ -372,6 +372,41 @@ describe("agent command builders", () => {
     });
   });
 
+  it("appends fast-mode settings to the Claude one-shot command when fast is set", () => {
+    expect(
+      createClaudeAdapter().buildOneShotCommand?.(
+        "claude-opus-4-8",
+        "high",
+        "Summarize this diff",
+        undefined,
+        true,
+      ),
+    ).toEqual({
+      command: "claude",
+      args: [
+        "-p",
+        "Summarize this diff",
+        "--model",
+        "claude-opus-4-8",
+        "--fallback-model",
+        "haiku",
+        "--no-session-persistence",
+        "--effort",
+        "high",
+        "--settings",
+        '{"fastMode":true}',
+      ],
+      stdin: "",
+    });
+
+    // Without the flag the command is unchanged (no stray --settings).
+    expect(
+      createClaudeAdapter()
+        .buildOneShotCommand?.("claude-opus-4-8", "high", "Summarize this diff")
+        ?.args.includes("--settings"),
+    ).toBe(false);
+  });
+
   it.skipIf(process.platform !== "win32")(
     "builds a Copilot launch command with a pre-assigned session id",
     () => {

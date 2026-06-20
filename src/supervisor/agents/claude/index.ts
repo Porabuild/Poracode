@@ -305,7 +305,7 @@ export function createClaudeAdapter(options: ClaudeAdapterOptions = {}): AgentAd
     oscHintsDeferToHookPlugin: true,
     workingSilenceTimeoutMs: null,
     defaultOneShotModel: "haiku",
-    buildOneShotCommand(model, effort, prompt, location) {
+    buildOneShotCommand(model, effort, prompt, location, fast) {
       if (!prompt) return undefined;
       // --no-session-persistence keeps title/commit/PR-summary calls out of
       // the `/resume` picker. --fallback-model auto-degrades to Haiku if the
@@ -322,6 +322,12 @@ export function createClaudeAdapter(options: ClaudeAdapterOptions = {}): AgentAd
       ];
       if (effort) {
         args.push("--effort", effort);
+      }
+      if (fast) {
+        // Fast mode is a session flag, not a model/effort value. On the CLI it
+        // rides on --settings JSON (the SDK path uses applyFlagSettings). One-shot
+        // calls pass no other --settings, so a single inline flag is safe here.
+        args.push("--settings", JSON.stringify({ fastMode: true }));
       }
       const env = location ? profileEnv(location) : undefined;
       return {

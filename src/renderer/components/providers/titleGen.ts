@@ -4,6 +4,7 @@ import type {
   GenerateTitleResult,
   ProjectLocation,
 } from "@/shared/contracts";
+import { resolveFastValue } from "@/renderer/components/thread/threadDraftViewHelpers";
 import { getTitleGenDefaults } from "./ProviderIcon";
 import { getMiniModelId, getUtilityTaskCandidates, resolveUtilityTaskConfig } from "./utilityTask";
 
@@ -45,6 +46,8 @@ export async function generateTitleWithFallback(input: {
   provider: string;
   model: string;
   effort: string;
+  /** Opus-only fast mode; only forwarded when the resolved candidate model supports it. */
+  fast?: boolean;
   prompt: string;
   /** English name of the language to write the title in. Omitted = match the user's message. */
   language?: string;
@@ -59,6 +62,7 @@ export async function generateTitleWithFallback(input: {
 
   for (const candidate of candidates) {
     const resolved = resolveTitleGenConfig(candidate, input.model, input.effort);
+    const fast = resolveFastValue(candidate, resolved.model, input.fast);
 
     try {
       const result = await input.invoke({
@@ -67,6 +71,7 @@ export async function generateTitleWithFallback(input: {
         prompt: input.prompt,
         ...(resolved.model ? { model: resolved.model } : {}),
         ...(resolved.effort ? { effort: resolved.effort } : {}),
+        ...(fast ? { fast: true } : {}),
         ...(input.language ? { language: input.language } : {}),
       });
       return result.title;

@@ -4,6 +4,7 @@ import type {
   GenerateCommitMessageResult,
   ProjectLocation,
 } from "@/shared/contracts";
+import { resolveFastValue } from "@/renderer/components/thread/threadDraftViewHelpers";
 import { getCommitGenDefaults } from "./ProviderIcon";
 import { getMiniModelId, getUtilityTaskCandidates, resolveUtilityTaskConfig } from "./utilityTask";
 
@@ -39,6 +40,8 @@ interface GenerateCommitMessageWithFallbackInput {
   provider: string;
   model: string;
   effort: string;
+  /** Opus-only fast mode; only forwarded when the resolved candidate model supports it. */
+  fast?: boolean;
   /** English name of the language to write the commit message in. Omitted = English. */
   language?: string;
   invoke: (payload: GenerateCommitMessagePayload) => Promise<GenerateCommitMessageResult>;
@@ -62,6 +65,7 @@ export async function generateCommitMessageWithFallbackDetails(
 
   for (const candidate of candidates) {
     const resolvedCommitGen = resolveCommitGenConfig(candidate, input.model, input.effort);
+    const fast = resolveFastValue(candidate, resolvedCommitGen.model, input.fast);
 
     try {
       const result = await input.invoke({
@@ -69,6 +73,7 @@ export async function generateCommitMessageWithFallbackDetails(
         agentKind: candidate.kind,
         ...(resolvedCommitGen.model ? { model: resolvedCommitGen.model } : {}),
         ...(resolvedCommitGen.effort ? { effort: resolvedCommitGen.effort } : {}),
+        ...(fast ? { fast: true } : {}),
         ...(input.language ? { language: input.language } : {}),
       });
       return {

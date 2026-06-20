@@ -76,6 +76,7 @@ export async function generateTitle(
   model?: string,
   effort?: string,
   language?: string,
+  fast?: boolean,
 ): Promise<string> {
   const effectiveModel = model ?? adapter.defaultOneShotModel;
   if (!effectiveModel) {
@@ -96,10 +97,11 @@ export async function generateTitle(
         location,
         model: effectiveModel,
         effort,
+        fast,
         prompt: finalPrompt,
         signal: timeoutSignal(TITLE_GEN_TIMEOUT_MS),
       })
-    : await runViaCli(location, adapter, effectiveModel, effort, finalPrompt);
+    : await runViaCli(location, adapter, effectiveModel, effort, finalPrompt, fast);
 
   const title = cleanTitle(raw);
   if (!title) {
@@ -114,8 +116,9 @@ async function runViaCli(
   model: string,
   effort: string | undefined,
   prompt: string,
+  fast: boolean | undefined,
 ): Promise<string> {
-  const cmd = adapter.buildOneShotCommand!(model, effort, prompt, location);
+  const cmd = adapter.buildOneShotCommand!(model, effort, prompt, location, fast);
   if (!cmd) {
     throw new Error(`${adapter.label} does not support one-shot generation`);
   }
