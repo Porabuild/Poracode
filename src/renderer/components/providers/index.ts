@@ -25,5 +25,6 @@ export * from "./grok";
 export * from "./antigravity";
 export * from "./commandcode";
 export * from "./cursor";
+export * from "./factory";
 export * from "./opencode";
 export * from "./acpGeneric";

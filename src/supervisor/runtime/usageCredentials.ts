@@ -1,5 +1,5 @@
 import type { CredentialStore } from "@lightcode/agents-usage";
-import { getUsageSecret } from "@/shared/usageSecretStore";
+import { getUsageSecret, setUsageSecret } from "@/shared/usageSecretStore";
 import { resolveClaudeToken } from "./claudeCredentials";
 import { resolveCodexToken } from "./codexCredentials";
 import { resolveCopilotToken } from "./copilotCredentials";
@@ -43,5 +43,10 @@ export function createNativeCredentialStore(cacheDir?: string): CredentialStore 
     // Never logged.
     getSecret: async (providerId, key) =>
       cacheDir ? getUsageSecret(cacheDir, providerId, key) : undefined,
+    // Persist a rotated secret (e.g. Factory's WorkOS refresh token, which
+    // WorkOS rotates on every exchange). Sealed with the same safeStorage key.
+    setSecret: async (providerId, key, value) => {
+      if (cacheDir) setUsageSecret(cacheDir, providerId, key, value);
+    },
   };
 }

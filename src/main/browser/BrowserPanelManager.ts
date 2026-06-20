@@ -413,6 +413,21 @@ export class BrowserPanelManager {
     return this.loginCoordinator.captureLoginCookies(opts);
   }
 
+  captureLoginLocalStorage(opts: {
+    loginUrl: string;
+    keys: string[];
+    requiredKey: string;
+    timeoutMs: number;
+    providerLabel?: string;
+  }): Promise<{
+    ok: boolean;
+    values?: Record<string, string>;
+    cancelled?: boolean;
+    error?: string;
+  }> {
+    return this.loginCoordinator.captureLoginLocalStorage(opts);
+  }
+
   resolveUsageLoginConfirmation(payload: {
     requestId: string;
     action: UsageLoginConfirmationAction;

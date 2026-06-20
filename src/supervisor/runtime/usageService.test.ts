@@ -77,6 +77,7 @@ describe("UsageService", () => {
       "commandcode",
       "copilot",
       "cursor",
+      "factory",
       "gemini",
       "grok",
       "opencode",
@@ -90,7 +91,7 @@ describe("UsageService", () => {
 
     const perProvider = events.filter((e) => e.type === "provider-usage");
     const terminal = events.filter((e) => e.type === "provider-usage-all");
-    expect(perProvider).toHaveLength(9);
+    expect(perProvider).toHaveLength(10);
     expect(terminal).toHaveLength(1);
   });
 

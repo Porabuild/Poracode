@@ -1082,6 +1082,14 @@ msgstr "채팅"
 msgid "Chat Commands"
 msgstr "채팅 명령"
 
+#: src/renderer/commands/registry.ts
+msgid "Chat starred"
+msgstr "채팅에 별표 추가됨"
+
+#: src/renderer/commands/registry.ts
+msgid "Chat unstarred"
+msgstr "채팅 별표 해제됨"
+
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 msgid "Check"
 msgstr "확인"
@@ -3033,6 +3041,10 @@ msgstr "패널로 최소화"
 msgid "Mode"
 msgstr "모드"
 
+#: src/renderer/commands/registry.ts
+msgid "Model added to favorites"
+msgstr "모델을 즐겨찾기에 추가함"
+
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Model id"
 msgstr "모델 ID"
@@ -3044,6 +3056,10 @@ msgstr "모델 레이블"
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 msgid "Model order"
 msgstr "모델 순서"
+
+#: src/renderer/commands/registry.ts
+msgid "Model removed from favorites"
+msgstr "모델을 즐겨찾기에서 제거함"
 
 #: src/renderer/views/ProfileOverlay/parts/ModelUsage.tsx
 msgid "Model usage"
@@ -4921,6 +4937,10 @@ msgstr "스테이지됨"
 msgid "Staged ({0})"
 msgstr "스테이지됨 ({0})"
 
+#: src/renderer/commands/registry.ts
+msgid "Star or unstar the current chat or model"
+msgstr "현재 채팅 또는 모델에 별표를 추가하거나 해제합니다"
+
 #. Button: start the microphone level test
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 msgid "Start"
@@ -5393,6 +5413,10 @@ msgstr "빠른 모드 전환"
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
 msgid "Toggle models off to hide them from the selector."
 msgstr "선택기에서 모델을 숨기려면 모델을 끄세요."
+
+#: src/renderer/commands/registry.ts
+msgid "Toggle Star"
+msgstr "별표 전환"
 
 #: src/renderer/commands/registry.ts
 msgid "Toggle Terminal"

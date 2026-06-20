@@ -11,5 +11,7 @@ describe("DEFAULT_KEYBINDINGS", () => {
     expect(byCommand["pane.close"]?.when).toContain("!terminalFocus");
     expect(byCommand["editor.save"]?.when).toBe("editorFocus");
     expect(byCommand["thread.search.open"]?.when).toContain("!inputFocus");
+    expect(byCommand["star.toggle"]?.when).toContain("!inputFocus");
+    expect(byCommand["star.toggle"]?.when).toContain("!terminalFocus");
   });
 });

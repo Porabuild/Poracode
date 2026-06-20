@@ -1094,6 +1094,14 @@ msgstr "Чат"
 msgid "Chat Commands"
 msgstr "Команди чату"
 
+#: src/renderer/commands/registry.ts
+msgid "Chat starred"
+msgstr "Чат позначено зіркою"
+
+#: src/renderer/commands/registry.ts
+msgid "Chat unstarred"
+msgstr "Позначку зірки знято з чату"
+
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 msgid "Check"
 msgstr "Перевірити"
@@ -3082,6 +3090,10 @@ msgstr "Згорнути в панель"
 msgid "Mode"
 msgstr "Режим"
 
+#: src/renderer/commands/registry.ts
+msgid "Model added to favorites"
+msgstr "Модель додано до обраного"
+
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Model id"
 msgstr "Ідентифікатор моделі"
@@ -3093,6 +3105,10 @@ msgstr "Мітка моделі"
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 msgid "Model order"
 msgstr "Порядок моделей"
+
+#: src/renderer/commands/registry.ts
+msgid "Model removed from favorites"
+msgstr "Модель видалено з обраного"
 
 #: src/renderer/views/ProfileOverlay/parts/ModelUsage.tsx
 msgid "Model usage"
@@ -4990,6 +5006,10 @@ msgstr "Підготовлено"
 msgid "Staged ({0})"
 msgstr "Підготовлено ({0})"
 
+#: src/renderer/commands/registry.ts
+msgid "Star or unstar the current chat or model"
+msgstr "Позначити зіркою або зняти позначку з поточного чату чи моделі"
+
 #. Button: start the microphone level test
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 msgid "Start"
@@ -5471,6 +5491,10 @@ msgstr "Перемкнути швидкий режим"
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
 msgid "Toggle models off to hide them from the selector."
 msgstr "Вимкніть моделі, щоб приховати їх із селектора."
+
+#: src/renderer/commands/registry.ts
+msgid "Toggle Star"
+msgstr "Перемкнути зірку"
 
 #: src/renderer/commands/registry.ts
 msgid "Toggle Terminal"

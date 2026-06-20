@@ -1080,6 +1080,14 @@ msgstr "聊天"
 msgid "Chat Commands"
 msgstr "聊天命令"
 
+#: src/renderer/commands/registry.ts
+msgid "Chat starred"
+msgstr "已为聊天加星标"
+
+#: src/renderer/commands/registry.ts
+msgid "Chat unstarred"
+msgstr "已取消聊天星标"
+
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 msgid "Check"
 msgstr "检查"
@@ -3025,6 +3033,10 @@ msgstr "最小化到面板"
 msgid "Mode"
 msgstr "模式"
 
+#: src/renderer/commands/registry.ts
+msgid "Model added to favorites"
+msgstr "已将模型添加到收藏夹"
+
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Model id"
 msgstr "模型id"
@@ -3036,6 +3048,10 @@ msgstr "模型标签"
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 msgid "Model order"
 msgstr "模型排序"
+
+#: src/renderer/commands/registry.ts
+msgid "Model removed from favorites"
+msgstr "已将模型从收藏夹中删除"
 
 #: src/renderer/views/ProfileOverlay/parts/ModelUsage.tsx
 msgid "Model usage"
@@ -4910,6 +4926,10 @@ msgstr "已暂存"
 msgid "Staged ({0})"
 msgstr "已暂存（{0}）"
 
+#: src/renderer/commands/registry.ts
+msgid "Star or unstar the current chat or model"
+msgstr "为当前聊天或模型添加或取消星标"
+
 #. Button: start the microphone level test
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 msgid "Start"
@@ -5380,6 +5400,10 @@ msgstr "切换快速模式"
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
 msgid "Toggle models off to hide them from the selector."
 msgstr "关闭模型以将其隐藏在选择器中。"
+
+#: src/renderer/commands/registry.ts
+msgid "Toggle Star"
+msgstr "切换星标"
 
 #: src/renderer/commands/registry.ts
 msgid "Toggle Terminal"

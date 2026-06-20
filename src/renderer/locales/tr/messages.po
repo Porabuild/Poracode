@@ -1094,6 +1094,14 @@ msgstr "Sohbet"
 msgid "Chat Commands"
 msgstr "Sohbet Komutları"
 
+#: src/renderer/commands/registry.ts
+msgid "Chat starred"
+msgstr "Sohbet yıldızlandı"
+
+#: src/renderer/commands/registry.ts
+msgid "Chat unstarred"
+msgstr "Sohbetin yıldızı kaldırıldı"
+
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 msgid "Check"
 msgstr "Kontrol et"
@@ -3080,6 +3088,10 @@ msgstr "Panele küçült"
 msgid "Mode"
 msgstr "Mod"
 
+#: src/renderer/commands/registry.ts
+msgid "Model added to favorites"
+msgstr "Model favorilere eklendi"
+
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Model id"
 msgstr "Model kimliği"
@@ -3091,6 +3103,10 @@ msgstr "Model etiketi"
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 msgid "Model order"
 msgstr "Model sırası"
+
+#: src/renderer/commands/registry.ts
+msgid "Model removed from favorites"
+msgstr "Model favorilerden kaldırıldı"
 
 #: src/renderer/views/ProfileOverlay/parts/ModelUsage.tsx
 msgid "Model usage"
@@ -4990,6 +5006,10 @@ msgstr "Hazırlanmış"
 msgid "Staged ({0})"
 msgstr "Hazırlanmış ({0})"
 
+#: src/renderer/commands/registry.ts
+msgid "Star or unstar the current chat or model"
+msgstr "Geçerli sohbeti veya modeli yıldızla ya da yıldızını kaldır"
+
 #. Button: start the microphone level test
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 msgid "Start"
@@ -5472,6 +5492,10 @@ msgstr "Hızlı modu aç/kapat"
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
 msgid "Toggle models off to hide them from the selector."
 msgstr "Seçiciden gizlemek için modelleri kapatın."
+
+#: src/renderer/commands/registry.ts
+msgid "Toggle Star"
+msgstr "Yıldızı Aç/Kapat"
 
 #: src/renderer/commands/registry.ts
 msgid "Toggle Terminal"

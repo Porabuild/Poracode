@@ -1089,6 +1089,14 @@ msgstr "Chat"
 msgid "Chat Commands"
 msgstr "Chat Commands"
 
+#: src/renderer/commands/registry.ts
+msgid "Chat starred"
+msgstr "Chat starred"
+
+#: src/renderer/commands/registry.ts
+msgid "Chat unstarred"
+msgstr "Chat unstarred"
+
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 msgid "Check"
 msgstr "Check"
@@ -3060,6 +3068,10 @@ msgstr "Minimize to panel"
 msgid "Mode"
 msgstr "Mode"
 
+#: src/renderer/commands/registry.ts
+msgid "Model added to favorites"
+msgstr "Model added to favorites"
+
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Model id"
 msgstr "Model id"
@@ -3071,6 +3083,10 @@ msgstr "Model label"
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 msgid "Model order"
 msgstr "Model order"
+
+#: src/renderer/commands/registry.ts
+msgid "Model removed from favorites"
+msgstr "Model removed from favorites"
 
 #: src/renderer/views/ProfileOverlay/parts/ModelUsage.tsx
 msgid "Model usage"
@@ -4960,6 +4976,10 @@ msgstr "Staged"
 msgid "Staged ({0})"
 msgstr "Staged ({0})"
 
+#: src/renderer/commands/registry.ts
+msgid "Star or unstar the current chat or model"
+msgstr "Star or unstar the current chat or model"
+
 #. Button: start the microphone level test
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 msgid "Start"
@@ -5438,6 +5458,10 @@ msgstr "Toggle Fast mode"
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
 msgid "Toggle models off to hide them from the selector."
 msgstr "Toggle models off to hide them from the selector."
+
+#: src/renderer/commands/registry.ts
+msgid "Toggle Star"
+msgstr "Toggle Star"
 
 #: src/renderer/commands/registry.ts
 msgid "Toggle Terminal"

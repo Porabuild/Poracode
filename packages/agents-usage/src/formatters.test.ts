@@ -49,6 +49,12 @@ describe("toEpochMs", () => {
     expect(toEpochMs(null)).toBeUndefined();
     expect(toEpochMs(undefined)).toBeUndefined();
   });
+
+  it("parses all-digit STRING epochs with the seconds/ms heuristic (Date.parse would NaN)", () => {
+    expect(toEpochMs("1700000000000")).toBe(1_700_000_000_000);
+    expect(toEpochMs("1700000000")).toBe(1_700_000_000_000);
+    expect(toEpochMs("  1700000000000  ")).toBe(1_700_000_000_000);
+  });
 });
 
 const HOUR = 3_600_000;
@@ -61,6 +67,7 @@ describe("windowDurationMs", () => {
     expect(windowDurationMs("weekly-opus", 0)).toBe(7 * DAY);
     expect(windowDurationMs("codex:gpt-5:session-5h", 0)).toBe(5 * HOUR);
     expect(windowDurationMs("codex:gpt-5:weekly", 0)).toBe(7 * DAY);
+    expect(windowDurationMs("factory:core:weekly", 0)).toBe(7 * DAY);
     expect(windowDurationMs("gemini:gemini-2.5-pro", 0)).toBe(DAY);
   });
 
@@ -71,6 +78,14 @@ describe("windowDurationMs", () => {
     expect(ms).toBeDefined();
     expect(ms).toBeGreaterThanOrEqual(27.5 * DAY);
     expect(ms).toBeLessThan(29 * DAY);
+
+    const factoryPremiumMs = windowDurationMs(
+      "factory:premium",
+      Date.parse("2026-03-15T00:00:00Z"),
+    );
+    expect(factoryPremiumMs).toBeDefined();
+    expect(factoryPremiumMs).toBeGreaterThanOrEqual(27.5 * DAY);
+    expect(factoryPremiumMs).toBeLessThan(29 * DAY);
   });
 
   it("returns undefined for windows with no inferable cadence", () => {

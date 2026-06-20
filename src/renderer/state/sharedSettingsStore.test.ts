@@ -89,6 +89,51 @@ describe("sharedSettingsStore", () => {
     expect(useSharedSettings.getState().lastUsedProjectDirs.native).toBe("/Users/me/b");
   });
 
+  describe("toggleFavoriteModelAnyMode", () => {
+    it("adds a favorite under the fallback mode when none exists", () => {
+      const nowFavorite = useSharedSettings
+        .getState()
+        .toggleFavoriteModelAnyMode("claude", "sonnet", "gui");
+
+      expect(nowFavorite).toBe(true);
+      expect(useSharedSettings.getState().favoriteModels).toEqual([
+        { agentKind: "claude", modelId: "sonnet", presentationMode: "gui" },
+      ]);
+    });
+
+    it("removes the favorite when it already exists", () => {
+      useSharedSettings.setState({
+        favoriteModels: [{ agentKind: "claude", modelId: "sonnet", presentationMode: "terminal" }],
+      });
+
+      const nowFavorite = useSharedSettings
+        .getState()
+        .toggleFavoriteModelAnyMode("claude", "sonnet", "terminal");
+
+      expect(nowFavorite).toBe(false);
+      expect(useSharedSettings.getState().favoriteModels).toEqual([]);
+    });
+
+    it("removes every stored mode for the model regardless of the fallback mode", () => {
+      useSharedSettings.setState({
+        favoriteModels: [
+          { agentKind: "claude", modelId: "sonnet", presentationMode: "terminal" },
+          { agentKind: "claude", modelId: "sonnet", presentationMode: "gui" },
+          { agentKind: "codex", modelId: "gpt-5", presentationMode: "terminal" },
+        ],
+      });
+
+      const nowFavorite = useSharedSettings
+        .getState()
+        .toggleFavoriteModelAnyMode("claude", "sonnet", "gui");
+
+      expect(nowFavorite).toBe(false);
+      expect(useSharedSettings.getState().favoriteModels).toEqual([
+        { agentKind: "codex", modelId: "gpt-5", presentationMode: "terminal" },
+      ]);
+    });
+  });
+
   it("adds and removes Claude profile instances with their profile-scoped settings", () => {
     useSharedSettings.getState().setAgentInstance({
       id: "work",

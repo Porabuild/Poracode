@@ -53,6 +53,12 @@ export const DEFAULT_KEYBINDINGS: KeybindingsFile = {
       mac: "Meta+S",
       when: "editorFocus",
     },
+    {
+      command: "star.toggle",
+      key: "Ctrl+Alt+P",
+      mac: "Meta+Alt+P",
+      when: "(hasThread || draftView) && !inputFocus && !editorFocus && !terminalFocus",
+    },
   ],
 };
 

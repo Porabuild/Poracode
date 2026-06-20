@@ -3,6 +3,7 @@ import { collectCodex } from "./collectors/codex";
 import { collectCommandCode } from "./collectors/commandcode";
 import { collectCopilot } from "./collectors/copilot";
 import { collectCursor } from "./collectors/cursor";
+import { collectFactory } from "./collectors/factory";
 import { collectGemini } from "./collectors/gemini";
 import { collectGrok } from "./collectors/grok";
 import type { CollectOptions, HostPort } from "./host";
@@ -96,6 +97,19 @@ const COMMANDCODE_COLLECTOR: UsageCollector = {
   collect: collectCommandCode,
 };
 
+const FACTORY_COLLECTOR: UsageCollector = {
+  descriptor: {
+    id: "factory",
+    label: "Droid",
+    mechanism: "cookie",
+    needsLogin: true,
+    // Standard token-rate-limit pool; the optional "core" pool and legacy
+    // "premium" pool flow through dynamically as `factory:<pool>` ids.
+    windowIds: ["session-5h", "weekly", "monthly"],
+  },
+  collect: collectFactory,
+};
+
 // Antigravity is collected supervisor-side from its local language server
 // (LS-only), not here; see src/supervisor/runtime/antigravityUsageScanner.ts.
 
@@ -107,6 +121,7 @@ const BUILT_IN: UsageCollector[] = [
   GROK_COLLECTOR,
   GEMINI_COLLECTOR,
   COMMANDCODE_COLLECTOR,
+  FACTORY_COLLECTOR,
 ];
 
 /** Descriptors for the built-in HTTP collectors, in registration order. */
