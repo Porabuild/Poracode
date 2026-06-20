@@ -132,6 +132,11 @@ export const createProjectSlice: SliceCreator<ProjectSlice> = (set) => ({
       );
 
       const { [projectId]: _draft, ...nextDraftContents } = state.draftContents;
+      const nextThreadDraftContents = Object.fromEntries(
+        Object.entries(state.threadDraftContents).filter(
+          ([threadId]) => !projectThreadIds.has(threadId),
+        ),
+      );
 
       let nextView = state.view;
       if (state.view.kind === "draft" && state.view.projectId === projectId) {
@@ -152,6 +157,7 @@ export const createProjectSlice: SliceCreator<ProjectSlice> = (set) => ({
         pendingThreadLaunches: nextPendingThreadLaunches,
         pendingLaunchSegments: nextPendingLaunchSegments,
         draftContents: nextDraftContents,
+        threadDraftContents: nextThreadDraftContents,
         view: nextView,
       };
     }),
