@@ -5,8 +5,25 @@ import {
   projectWindowUsage,
   toEpochMs,
   usageTone,
+  usageWindowDisplayLabel,
   windowDurationMs,
 } from "./formatters";
+import type { UsageWindow } from "./types";
+
+describe("usageWindowDisplayLabel", () => {
+  it("uses the canonical label for known window ids", () => {
+    const monthly: UsageWindow = { id: "monthly", label: "Monthly", usedPercent: 0 };
+    expect(usageWindowDisplayLabel(monthly)).toBe("Monthly");
+    expect(usageWindowDisplayLabel({ id: "session-5h", label: "x", usedPercent: 0 })).toBe(
+      "Session (5h)",
+    );
+  });
+
+  it("honors a collector's custom monthly label (e.g. z.ai 'MCP')", () => {
+    const mcp: UsageWindow = { id: "monthly", label: "MCP", usedPercent: 1.6 };
+    expect(usageWindowDisplayLabel(mcp)).toBe("MCP");
+  });
+});
 
 describe("usageTone", () => {
   it("applies normal/warning/danger thresholds", () => {

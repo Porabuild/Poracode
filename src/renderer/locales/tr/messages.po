@@ -254,6 +254,10 @@ msgstr "{hours} saat önce"
 msgid "{installedCount, plural, one {# agent ready} other {# agents ready}}"
 msgstr "{installedCount, plural, one {# aracı hazır} other {# aracı hazır}}"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
+msgid "{label} API key"
+msgstr "{label} API anahtarı"
+
 #: src/renderer/components/providers/ProviderUsageRail.tsx
 msgid "{label} usage — open usage panel"
 msgstr "{label} kullanımı — kullanım panelini aç"
@@ -4022,6 +4026,10 @@ msgstr "<0>{0}</0> öğesini buraya yapıştırın. Kopyalamak için tıklayın.
 #: src/renderer/components/terminal/XTermSurface.tsx
 msgid "Paste in input"
 msgstr "Girişe yapıştır"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
+msgid "Paste {label} API key"
+msgstr "{label} API anahtarını yapıştır"
 
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 msgid "Paused"

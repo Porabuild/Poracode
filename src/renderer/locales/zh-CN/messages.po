@@ -252,6 +252,10 @@ msgstr "{hours}小时前"
 msgid "{installedCount, plural, one {# agent ready} other {# agents ready}}"
 msgstr "{installedCount, plural, one {# 个代理准备就绪} other {# 个代理准备就绪}}"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
+msgid "{label} API key"
+msgstr "{label} API 密钥"
+
 #: src/renderer/components/providers/ProviderUsageRail.tsx
 msgid "{label} usage — open usage panel"
 msgstr "{label}用法 — 打开用法面板"
@@ -3960,6 +3964,10 @@ msgstr "将 <0>{0}</0> 粘贴到此处。点击复制。"
 #: src/renderer/components/terminal/XTermSurface.tsx
 msgid "Paste in input"
 msgstr "粘贴到输入中"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
+msgid "Paste {label} API key"
+msgstr "粘贴 {label} API 密钥"
 
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 msgid "Paused"

@@ -253,6 +253,10 @@ msgstr "{hours}시간 전"
 msgid "{installedCount, plural, one {# agent ready} other {# agents ready}}"
 msgstr "{installedCount, plural, one {# 에이전트 준비됨} other {# 에이전트 준비됨}}"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
+msgid "{label} API key"
+msgstr "{label} API 키"
+
 #: src/renderer/components/providers/ProviderUsageRail.tsx
 msgid "{label} usage — open usage panel"
 msgstr "{label} 사용량 — 사용량 패널 열기"
@@ -3969,6 +3973,10 @@ msgstr "여기에 <0>{0}</0>을 붙여넣으세요. 복사하려면 클릭하세
 #: src/renderer/components/terminal/XTermSurface.tsx
 msgid "Paste in input"
 msgstr "입력에 붙여넣기"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
+msgid "Paste {label} API key"
+msgstr "{label} API 키 붙여넣기"
 
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 msgid "Paused"

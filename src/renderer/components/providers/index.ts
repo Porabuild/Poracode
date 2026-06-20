@@ -26,4 +26,5 @@ export * from "./antigravity";
 export * from "./commandcode";
 export * from "./cursor";
 export * from "./opencode";
+export * from "./zai";
 export * from "./acpGeneric";

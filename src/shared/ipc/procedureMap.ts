@@ -115,6 +115,7 @@ export const MAIN_LOCAL_PROCEDURE_NAMES = [
   "startUsageLogin",
   "cancelUsageLogin",
   "clearUsageLogin",
+  "submitUsageApiKey",
   "resolveUsageLoginConfirmation",
   "getUsageLoginState",
   "getProfileCoreStats",

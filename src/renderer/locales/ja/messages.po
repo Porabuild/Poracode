@@ -254,6 +254,10 @@ msgid "{installedCount, plural, one {# agent ready} other {# agents ready}}"
 msgstr "{installedCount, plural, one {#エージェントの準備ができています} other "
 "{#エージェントの準備ができています}}"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
+msgid "{label} API key"
+msgstr "{label} APIキー"
+
 #: src/renderer/components/providers/ProviderUsageRail.tsx
 msgid "{label} usage — open usage panel"
 msgstr "{label}使用量 — 使用量パネルを開く"
@@ -3968,6 +3972,10 @@ msgstr "<0>{0}</0> をここに貼り付けます。クリックしてコピー�
 #: src/renderer/components/terminal/XTermSurface.tsx
 msgid "Paste in input"
 msgstr "入力に貼り付けます"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
+msgid "Paste {label} API key"
+msgstr "{label} APIキーを貼り付け"
 
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 msgid "Paused"
