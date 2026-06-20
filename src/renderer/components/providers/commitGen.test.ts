@@ -34,6 +34,7 @@ const codexStatus: AgentStatus = {
     approvalPolicies: [{ id: "on-request", label: "On Request" }],
     sandboxModes: [{ id: "workspace-write", label: "Workspace Write" }],
     supportsResume: true,
+    supportsOneShot: true,
     supportsDirectInput: true,
     liveInputMode: "server",
     presentationMode: "terminal",
@@ -68,6 +69,7 @@ const claudeStatus: AgentStatus = {
     sandboxModes: [],
     settingDefs: [],
     supportsResume: true,
+    supportsOneShot: true,
     supportsDirectInput: true,
     liveInputMode: "terminal",
     presentationMode: "terminal",
@@ -107,6 +109,19 @@ describe("getCommitGenCandidates", () => {
         "auto",
       ),
     ).toEqual([codexStatus]);
+  });
+
+  it("excludes installed providers that cannot run a one-shot generation", () => {
+    // Factory Droid (ACP-registry generic) speaks only interactive sessions, so
+    // it must never appear as a commit-message candidate — auto or explicit.
+    const factoryDroid: AgentStatus = {
+      ...codexStatus,
+      kind: "acp-generic:factory-droid",
+      label: "Factory Droid",
+      capabilities: { ...codexStatus.capabilities, supportsOneShot: false },
+    };
+    expect(getCommitGenCandidates([codexStatus, factoryDroid], "auto")).toEqual([codexStatus]);
+    expect(getCommitGenCandidates([factoryDroid], "acp-generic:factory-droid")).toEqual([]);
   });
 
   it("falls back to all installed agents when no provider has its preferred model", () => {

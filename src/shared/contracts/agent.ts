@@ -191,6 +191,15 @@ export const agentCapabilitySchema = z.object({
   supportsResume: z.boolean().default(false),
   supportsDirectInput: z.boolean().default(true),
   /**
+   * Whether the adapter can run a single-shot, non-interactive generation
+   * (thread title / commit message). True iff the supervisor adapter implements
+   * `runOneShot` or `buildOneShotCommand`. Surfaced so the renderer's AI
+   * settings can hide providers that only speak interactive sessions — e.g.
+   * ACP-registry generic agents like Factory Droid, or Grok — from one-shot-only
+   * selectors (Title / Commit Message generation). Optional: absent = false.
+   */
+  supportsOneShot: z.boolean().optional(),
+  /**
    * When true, the agent can only read files inside its working directory (e.g.
    * Command Code sandboxes file access to the project/worktree). Attachments
    * that live outside the workspace are copied into a workspace-local dir and

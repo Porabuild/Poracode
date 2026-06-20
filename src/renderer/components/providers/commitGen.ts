@@ -30,7 +30,10 @@ export function getCommitGenCandidates(
   agentStatuses: readonly AgentStatus[],
   provider: string,
 ): AgentStatus[] {
-  return getUtilityTaskCandidates(agentStatuses, provider, getCommitGenDefaults);
+  // Commit-message generation is one-shot, so only offer providers that can run one.
+  return getUtilityTaskCandidates(agentStatuses, provider, getCommitGenDefaults, {
+    requireOneShot: true,
+  });
 }
 
 interface GenerateCommitMessageWithFallbackInput {

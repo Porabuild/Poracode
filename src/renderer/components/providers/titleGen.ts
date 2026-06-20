@@ -36,7 +36,10 @@ export function getTitleGenCandidates(
   agentStatuses: readonly AgentStatus[],
   provider: string,
 ): AgentStatus[] {
-  return getUtilityTaskCandidates(agentStatuses, provider, getTitleGenDefaults);
+  // Title generation is one-shot, so only offer providers that can run one.
+  return getUtilityTaskCandidates(agentStatuses, provider, getTitleGenDefaults, {
+    requireOneShot: true,
+  });
 }
 
 export async function generateTitleWithFallback(input: {
