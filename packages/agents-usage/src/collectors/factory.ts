@@ -147,12 +147,16 @@ function factoryRateWindow(
   };
 }
 
+function windowHasData(raw: FactoryBillingWindowRaw | undefined): boolean {
+  return (
+    raw != null &&
+    ((raw.usedPercent ?? 0) > 0 || raw.windowEnd != null || raw.secondsRemaining != null)
+  );
+}
+
 function poolHasUsageData(pool: FactoryLimitPool | undefined): boolean {
   if (!pool) return false;
-  return [pool.fiveHour, pool.weekly, pool.monthly].some(
-    (w) =>
-      w != null && ((w.usedPercent ?? 0) > 0 || w.windowEnd != null || w.secondsRemaining != null),
-  );
+  return [pool.fiveHour, pool.weekly, pool.monthly].some(windowHasData);
 }
 
 /**
@@ -226,13 +230,22 @@ function tokenRateLimitWindows(
   push(factoryRateWindow("weekly", "Weekly", standard?.weekly, nowMs));
   push(factoryRateWindow("monthly", "Monthly", standard?.monthly, nowMs));
 
-  // The "core" pool only exists on some accounts; surface it only when it
-  // actually carries usage so empty plans don't render three zero bars.
+  // "Core" is a secondary fallback pool the web UI tucks behind its own tab.
+  // Surface only the core windows that individually carry usage, so a single
+  // in-use window (e.g. org-shared Core Monthly) doesn't drag two empty 0% bars
+  // onto the tile alongside it.
   if (poolHasUsageData(limits?.core)) {
     const core = limits!.core!;
-    push(factoryRateWindow("factory:core:session-5h", "Core (5h)", core.fiveHour, nowMs));
-    push(factoryRateWindow("factory:core:weekly", "Core Weekly", core.weekly, nowMs));
-    push(factoryRateWindow("factory:core:monthly", "Core Monthly", core.monthly, nowMs));
+    const pushCore = (
+      id: UsageWindow["id"],
+      label: string,
+      raw: FactoryBillingWindowRaw | undefined,
+    ) => {
+      if (windowHasData(raw)) push(factoryRateWindow(id, label, raw, nowMs));
+    };
+    pushCore("factory:core:session-5h", "Core (5h)", core.fiveHour);
+    pushCore("factory:core:weekly", "Core Weekly", core.weekly);
+    pushCore("factory:core:monthly", "Core Monthly", core.monthly);
   }
   return windows;
 }
@@ -501,12 +514,6 @@ async function fetchFactoryUsage(
       ? (parseJsonBody(limitsRes) as FactoryBillingLimitsResponse | undefined)
       : undefined;
 
-  // TODO(factory-debug): remove. Raw billing/limits body — usage %s + reset
-  // times only, no secrets — to confirm the Core pool numbers are correct.
-  console.error(
-    `[factory-debug] limits ${limitsRes.status}: ${limitsRes.body.slice(0, 700).replace(/\s+/g, " ")}`,
-  );
-
   if (limits?.usesTokenRateLimitsBilling && limits.limits) {
     return parseFactoryUsage(auth, limits, undefined, now);
   }
@@ -529,30 +536,75 @@ async function fetchFactoryUsage(
   return parseFactoryUsage(auth, undefined, parseJsonBody(usageRes), now);
 }
 
+/** Epoch ms at which a JWT access token expires, or undefined if not decodable. */
+function jwtExpMs(token: string): number | undefined {
+  const segment = token.split(".")[1];
+  if (!segment || typeof atob !== "function") return undefined;
+  try {
+    const b64 = segment.replace(/-/g, "+").replace(/_/g, "/");
+    const padded = b64 + "=".repeat((4 - (b64.length % 4)) % 4);
+    const payload = JSON.parse(atob(padded)) as { exp?: number };
+    return typeof payload.exp === "number" ? payload.exp * 1000 : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 /**
- * Collect Factory/Droid usage. Factory keeps no session cookie — the in-app
- * login captures the WorkOS tokens from app.factory.ai localStorage. We hold the
- * (long-lived, rotating) refresh token, exchange it for a short-lived access
- * token as needed, and call the Factory API with that Bearer. Returns
- * `auth-missing` when no token is stored or the refresh token is dead.
+ * Whether an access token is worth attempting. Unknown expiry → optimistically
+ * try it (the API 401s if it's dead); known expiry → require ~60s of validity so
+ * we skip a doomed request and refresh instead. This avoids burning a WorkOS
+ * refresh — and its refresh-token rotation — until the current token is actually
+ * near expiry (the openusage approach, which minimizes rotation churn).
+ */
+function accessTokenLikelyValid(token: string, nowMs: number): boolean {
+  const expMs = jwtExpMs(token);
+  return expMs === undefined || nowMs < expMs - 60_000;
+}
+
+/**
+ * Collect Factory/Droid usage. Auth comes from two sources, tried in order:
+ *
+ *   1. The local `droid` CLI's own token (read-only via `getOAuthToken`). When
+ *      the CLI is signed in we use its still-valid access token directly — never
+ *      its refresh token, so we never rotate/break the CLI's session. No in-app
+ *      login needed.
+ *   2. The WorkOS tokens captured from app.factory.ai localStorage by the in-app
+ *      browser login. We hold the (rotating) refresh token, exchange it for a
+ *      short-lived access token when ours is missing/expired, persist the rotated
+ *      pair, and call the Factory API with that Bearer.
+ *
+ * Returns `auth-missing` when neither source yields a usable token, so the UI
+ * offers sign-in.
  */
 export async function collectFactory(
   host: HostPort,
   _opts?: CollectOptions,
 ): Promise<UsageSnapshot> {
   const now = host.now();
+
+  // 1. Primary: the droid CLI's token, used read-only while its access token is
+  //    valid. The CLI keeps it fresh whenever droid is used.
+  const cli = await host.credentials.getOAuthToken(FACTORY_PROVIDER_ID);
+  if (cli?.accessToken && accessTokenLikelyValid(cli.accessToken, now)) {
+    const result = await fetchFactoryUsage(host.http, now, cli.accessToken);
+    if (result !== "expired") return result;
+    // CLI token rejected despite a valid-looking expiry — fall through to login.
+  }
+
+  // 2. Fallback: tokens captured via the in-app browser sign-in.
   const refreshToken = unwrapStoredToken(
     await host.credentials.getSecret(FACTORY_PROVIDER_ID, "refresh-token"),
   );
   if (!refreshToken) return factorySnap("auth-missing", now);
 
-  // Try a cached access token first to avoid a WorkOS round-trip — and the
-  // refresh-token rotation it triggers — on every poll; refresh only when the
-  // cached token is missing or rejected.
+  // A cached access token avoids a WorkOS round-trip — and the refresh-token
+  // rotation it triggers — on every poll; refresh only when ours is missing,
+  // expired, or rejected.
   const cached = unwrapStoredToken(
     await host.credentials.getSecret(FACTORY_PROVIDER_ID, "access-token"),
   );
-  if (cached) {
+  if (cached && accessTokenLikelyValid(cached, now)) {
     const result = await fetchFactoryUsage(host.http, now, cached);
     if (result !== "expired") return result;
   }

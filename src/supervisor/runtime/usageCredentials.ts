@@ -4,6 +4,7 @@ import { resolveClaudeToken } from "./claudeCredentials";
 import { resolveCodexToken } from "./codexCredentials";
 import { resolveCopilotToken } from "./copilotCredentials";
 import { resolveCursorToken } from "./cursorCredentials";
+import { resolveFactoryCliToken } from "./factoryCredentials";
 import { resolveGeminiToken } from "./geminiCredentials";
 import { resolveGrokToken } from "./grokCredentials";
 
@@ -34,6 +35,10 @@ export function createNativeCredentialStore(cacheDir?: string): CredentialStore 
           return resolveGrokToken();
         case "gemini":
           return resolveGeminiToken();
+        // Factory/Droid: the local `droid` CLI's token (read-only). Used as the
+        // primary source before the captured browser-login secret.
+        case "factory":
+          return resolveFactoryCliToken();
         default:
           return undefined;
       }

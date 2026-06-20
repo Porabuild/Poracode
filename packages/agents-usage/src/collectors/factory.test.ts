@@ -88,13 +88,13 @@ describe("parseFactoryUsage (modern token-rate-limits)", () => {
     expect(snap.authenticatedAs).toBe("dev@acme.test");
 
     const byId = new Map(snap.windows.map((w) => [w.id, w]));
+    // Core weekly/monthly are 0% with no reset → individually gated out; only the
+    // in-use Core (5h) window surfaces alongside the standard pool.
     expect([...byId.keys()]).toEqual([
       "session-5h",
       "weekly",
       "monthly",
       "factory:core:session-5h",
-      "factory:core:weekly",
-      "factory:core:monthly",
     ]);
 
     const session = byId.get("session-5h")!;
@@ -153,6 +153,28 @@ describe("parseFactoryUsage (modern token-rate-limits)", () => {
     const session = snap.windows.find((w) => w.id === "session-5h")!;
     expect(session.usedPercent).toBe(0);
     expect(session.resetsAt).toBeUndefined();
+  });
+
+  it("emits only the core windows that individually carry usage", () => {
+    const snap = parseFactoryUsage(
+      AUTH_BODY,
+      {
+        usesTokenRateLimitsBilling: true,
+        limits: {
+          standard: { fiveHour: { usedPercent: 0 }, weekly: {}, monthly: {} },
+          core: {
+            fiveHour: { usedPercent: 0 },
+            weekly: { usedPercent: 0 },
+            monthly: { usedPercent: 34, secondsRemaining: 600_000 },
+          },
+        },
+      },
+      undefined,
+      FAKE_NOW_MS,
+    );
+    const coreIds = snap.windows.filter((w) => w.id.startsWith("factory:core")).map((w) => w.id);
+    expect(coreIds).toEqual(["factory:core:monthly"]);
+    expect(snap.windows.find((w) => w.id === "factory:core:monthly")!.usedPercent).toBe(34);
   });
 
   it("preserves a window whose windowEnd is an all-digit epoch STRING", () => {
@@ -226,6 +248,12 @@ const WORKOS_AUTH_ENDPOINT = "https://api.workos.com/user_management/authenticat
 const bearer = (req: { headers?: Record<string, string> }) =>
   req.headers?.Authorization?.replace(/^Bearer /, "");
 
+/** A minimal JWT carrying just an `exp` claim (ms → seconds), for exp-gating. */
+function jwtWithExp(expMs: number): string {
+  const seg = (o: object) => Buffer.from(JSON.stringify(o)).toString("base64url");
+  return `${seg({ alg: "none" })}.${seg({ exp: Math.floor(expMs / 1000) })}.sig`;
+}
+
 describe("isFactoryAccessTokenLive", () => {
   it("returns true when /auth/me returns a JSON object for the token", async () => {
     const host = createFakeHost({
@@ -277,6 +305,38 @@ describe("collectFactory", () => {
     const snap = await collectFactory(host);
     expect(snap.status).toBe("auth-missing");
     expect(snap.windows).toEqual([]);
+  });
+
+  it("uses the droid CLI access token (read-only) when it is valid, no login needed", async () => {
+    let workosCalls = 0;
+    const host = createFakeHost({
+      tokens: { factory: { accessToken: jwtWithExp(FAKE_NOW_MS + 3_600_000) } },
+      onRequest: (req) => {
+        if (req.url === WORKOS_AUTH_ENDPOINT) workosCalls += 1;
+      },
+      routes: {
+        [FACTORY_AUTH_ME_ENDPOINT]: { body: JSON.stringify(AUTH_BODY) },
+        [FACTORY_BILLING_LIMITS_ENDPOINT]: { body: JSON.stringify(MODERN_LIMITS_BODY) },
+      },
+    });
+    const snap = await collectFactory(host);
+    expect(snap.status).toBe("ok");
+    expect(snap.windows.find((w) => w.id === "session-5h")!.usedPercent).toBe(42.5);
+    expect(workosCalls).toBe(0); // never touched the refresh token / WorkOS
+  });
+
+  it("falls back to the captured login when the CLI token is expired", async () => {
+    const host = createFakeHost({
+      tokens: { factory: { accessToken: jwtWithExp(FAKE_NOW_MS - 1_000) } }, // expired
+      secrets: { factory: { "refresh-token": "rt0", "access-token": "at0" } },
+      routes: {
+        [FACTORY_AUTH_ME_ENDPOINT]: { body: JSON.stringify(AUTH_BODY) },
+        [FACTORY_BILLING_LIMITS_ENDPOINT]: { body: JSON.stringify(MODERN_LIMITS_BODY) },
+      },
+    });
+    const snap = await collectFactory(host);
+    expect(snap.status).toBe("ok");
+    expect(snap.windows.find((w) => w.id === "session-5h")!.usedPercent).toBe(42.5);
   });
 
   it("uses a cached access token without a WorkOS round-trip", async () => {
