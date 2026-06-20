@@ -1121,9 +1121,16 @@ msgid "Chat"
 msgstr "チャット"
 
 #: src/renderer/commands/registry.ts
-#: src/renderer/commands/shortcutCatalog.ts
 msgid "Chat Commands"
 msgstr "チャットコマンド"
+
+#: src/renderer/commands/registry.ts
+msgid "Chat starred"
+msgstr "チャットにスターを付けました"
+
+#: src/renderer/commands/registry.ts
+msgid "Chat unstarred"
+msgstr "チャットのスターを外しました"
 
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 msgid "Check"
@@ -3183,6 +3190,10 @@ msgstr "パネルに最小化する"
 msgid "Mode"
 msgstr "モード"
 
+#: src/renderer/commands/registry.ts
+msgid "Model added to favorites"
+msgstr "モデルをお気に入りに追加しました"
+
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Model id"
 msgstr "モデルID"
@@ -3194,6 +3205,10 @@ msgstr "モデルラベル"
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 msgid "Model order"
 msgstr "モデルオーダー"
+
+#: src/renderer/commands/registry.ts
+msgid "Model removed from favorites"
+msgstr "モデルをお気に入りから削除しました"
 
 #: src/renderer/views/ProfileOverlay/parts/ModelUsage.tsx
 msgid "Model usage"
@@ -3964,6 +3979,10 @@ msgstr "パネルとオーバーレイ"
 msgid "Paste"
 msgstr "ペースト"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
+msgid "Paste {label} API key"
+msgstr "{label} APIキーを貼り付け"
+
 #. placeholder {0}: activeDeviceCode.code
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 msgid "Paste <0>{0}</0> here. Click to copy."
@@ -3972,10 +3991,6 @@ msgstr "<0>{0}</0> をここに貼り付けます。クリックしてコピー�
 #: src/renderer/components/terminal/XTermSurface.tsx
 msgid "Paste in input"
 msgstr "入力に貼り付けます"
-
-#: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
-msgid "Paste {label} API key"
-msgstr "{label} APIキーを貼り付け"
 
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 msgid "Paused"

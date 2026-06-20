@@ -206,7 +206,7 @@ export const DEFAULT_KEYBINDINGS: KeybindingsFile = {
       command: "thread.star",
       key: "Ctrl+Alt+P",
       mac: "Meta+Alt+P",
-      when: "hasThread && (sidebarFocus || panelFocus)",
+      when: "((hasThread && (sidebarFocus || panelFocus)) || draftView) && !inputFocus && !editorFocus && !terminalFocus && !composerFocus && !browserFocus",
     },
     {
       command: "thread.rename",

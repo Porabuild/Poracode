@@ -58,6 +58,8 @@ export interface RunOneShotPromptOptions {
   adapter: AgentAdapter;
   model: string;
   effort: string | undefined;
+  /** Opus-only fast-mode flag, forwarded to the adapter when set. */
+  fast?: boolean | undefined;
   timeoutMs: number;
   signal?: AbortSignal;
   /** Tag for log lines, e.g. "commit-gen", "pr-summary-gen". */
@@ -115,6 +117,7 @@ export async function runOneShotPromptWithFallback(
           location: options.location,
           model: options.model,
           effort: options.effort,
+          fast: options.fast,
           prompt,
           signal,
         });
@@ -141,6 +144,7 @@ export async function runOneShotPromptWithFallback(
       options.effort,
       prompt,
       options.location,
+      options.fast,
     );
     if (!cmd) {
       throw new Error(`${options.adapter.label} does not support one-shot generation`);

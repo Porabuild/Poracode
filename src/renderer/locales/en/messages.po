@@ -1128,9 +1128,16 @@ msgid "Chat"
 msgstr "Chat"
 
 #: src/renderer/commands/registry.ts
-#: src/renderer/commands/shortcutCatalog.ts
 msgid "Chat Commands"
 msgstr "Chat Commands"
+
+#: src/renderer/commands/registry.ts
+msgid "Chat starred"
+msgstr "Chat starred"
+
+#: src/renderer/commands/registry.ts
+msgid "Chat unstarred"
+msgstr "Chat unstarred"
 
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 msgid "Check"
@@ -3211,6 +3218,10 @@ msgstr "Minimize to panel"
 msgid "Mode"
 msgstr "Mode"
 
+#: src/renderer/commands/registry.ts
+msgid "Model added to favorites"
+msgstr "Model added to favorites"
+
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Model id"
 msgstr "Model id"
@@ -3222,6 +3233,10 @@ msgstr "Model label"
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 msgid "Model order"
 msgstr "Model order"
+
+#: src/renderer/commands/registry.ts
+msgid "Model removed from favorites"
+msgstr "Model removed from favorites"
 
 #: src/renderer/views/ProfileOverlay/parts/ModelUsage.tsx
 msgid "Model usage"
@@ -3996,6 +4011,10 @@ msgstr "Panels and overlays"
 msgid "Paste"
 msgstr "Paste"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
+msgid "Paste {label} API key"
+msgstr "Paste {label} API key"
+
 #. placeholder {0}: activeDeviceCode.code
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 msgid "Paste <0>{0}</0> here. Click to copy."
@@ -4004,10 +4023,6 @@ msgstr "Paste <0>{0}</0> here. Click to copy."
 #: src/renderer/components/terminal/XTermSurface.tsx
 msgid "Paste in input"
 msgstr "Paste in input"
-
-#: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
-msgid "Paste {label} API key"
-msgstr "Paste {label} API key"
 
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 msgid "Paused"

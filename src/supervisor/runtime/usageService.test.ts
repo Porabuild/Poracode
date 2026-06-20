@@ -77,6 +77,7 @@ describe("UsageService", () => {
       "commandcode",
       "copilot",
       "cursor",
+      "factory",
       "gemini",
       "grok",
       "opencode",

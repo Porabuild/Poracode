@@ -6,6 +6,7 @@ import type { AgentStatus, ThreadPresentationMode } from "@/shared/contracts";
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { capabilitiesForPresentation } from "@/renderer/components/thread/threadComposerOptions";
+import { resolveFastValue } from "@/renderer/components/thread/threadDraftViewHelpers";
 import {
   buildModelPickerControls,
   buildProviderModelMenuProviders,
@@ -41,6 +42,7 @@ function GenConfigSection(props: {
   provider: string;
   model: string;
   effort: string;
+  fast: boolean;
   resolve: (
     agent: AgentStatus | undefined,
     model: string,
@@ -50,7 +52,7 @@ function GenConfigSection(props: {
   allowDisabled?: boolean;
   defaultsHint?: string | undefined;
   agentStatuses: AgentStatus[];
-  onConfigChange: (provider: string, model: string, effort: string) => void;
+  onConfigChange: (provider: string, model: string, effort: string, fast: boolean) => void;
   /** Extra controls rendered below the model/effort toolbar (e.g. presentation mode picker). */
   extraControls?: ReactNode;
   /** When set, model lists mirror the selected thread presentation surface (CLI vs Chat/ACP). */
@@ -70,6 +72,7 @@ function GenConfigSection(props: {
     provider,
     model,
     effort,
+    fast,
     resolve,
     getCandidates,
     agentStatuses,
@@ -100,7 +103,7 @@ function GenConfigSection(props: {
     customAgent === undefined &&
     installedAgents.some((a) => a.kind === provider && a.capabilities.supportsOneShot !== true);
   useEffect(() => {
-    if (savedProviderIneligible) onConfigChange("auto", "", "");
+    if (savedProviderIneligible) onConfigChange("auto", "", "", false);
   }, [savedProviderIneligible, onConfigChange]);
   // In Auto mode, ask the section's candidate helper so the toolbar mirrors the
   // runtime fallback chain — including the "skip provider without preferred model"
@@ -130,21 +133,24 @@ function GenConfigSection(props: {
   function changeMode(next: Mode) {
     if (next === mode) return;
     if (next === "auto") {
-      onConfigChange("auto", "", "");
+      onConfigChange("auto", "", "", false);
       return;
     }
     if (next === "disabled") {
-      onConfigChange("disabled", "", "");
+      onConfigChange("disabled", "", "", false);
       return;
     }
     const first = sortByAutoPreference(eligibleAgents)[0];
     if (!first) return;
     const r = resolve(agentForPresentation(first), "", "");
-    onConfigChange(first.kind, r.model, r.effort);
+    onConfigChange(first.kind, r.model, r.effort, false);
   }
 
   const showToolbar = (mode === "custom" || mode === "auto") && displayAgent && displayResolved;
   const isReadOnly = mode === "auto";
+  // Fast mode is only meaningful in Custom mode for a fast-capable model — Auto
+  // never opts a utility task into fast, so the read-only mirror shows it off.
+  const resolvedFast = mode === "custom" ? fast : false;
 
   const modelPickerControls =
     showToolbar && displayAgent && displayResolved
@@ -153,19 +159,29 @@ function GenConfigSection(props: {
           selectedAgentKind: displayAgent.kind,
           model: displayResolved.model,
           effort: displayResolved.effort,
+          fast: resolvedFast,
           capabilities:
             agentForPresentation(displayAgent)?.capabilities ?? displayAgent.capabilities,
           ...(presentationMode ? { presentationMode } : {}),
           isDisabled: isReadOnly,
-          includeFastToggle: false,
+          includeFastToggle: true,
           onProviderModelChange: (next) => {
             const nextAgent = installedAgents.find((a) => a.kind === next.agentKind);
-            const r = resolve(agentForPresentation(nextAgent), next.model, effort);
-            onConfigChange(next.agentKind, r.model, r.effort);
+            const presented = agentForPresentation(nextAgent);
+            const r = resolve(presented, next.model, effort);
+            // Drop fast when the newly selected model can't actually use it.
+            const nextFast = presented ? resolveFastValue(presented, r.model, fast) : false;
+            onConfigChange(next.agentKind, r.model, r.effort, nextFast);
           },
           onConfigPatch: (patch) => {
-            if (!customAgent || !displayResolved || patch.effort === undefined) return;
-            onConfigChange(provider, displayResolved.model, patch.effort);
+            if (!customAgent || !displayResolved) return;
+            if (patch.fast !== undefined) {
+              onConfigChange(provider, displayResolved.model, displayResolved.effort, patch.fast);
+              return;
+            }
+            if (patch.effort !== undefined) {
+              onConfigChange(provider, displayResolved.model, patch.effort, fast);
+            }
           },
         })
       : [];
@@ -283,6 +299,9 @@ export function AISettings() {
   const titleGenEffort = useSharedSettings((s) =>
     envKind === "wsl" ? s.wslTitleGenEffort : s.titleGenEffort,
   );
+  const titleGenFast = useSharedSettings((s) =>
+    envKind === "wsl" ? s.wslTitleGenFast : s.titleGenFast,
+  );
   const setTitleGenConfig = useSharedSettings((s) =>
     envKind === "wsl" ? s.setWslTitleGenConfig : s.setTitleGenConfig,
   );
@@ -296,6 +315,9 @@ export function AISettings() {
   const commitGenEffort = useSharedSettings((s) =>
     envKind === "wsl" ? s.wslCommitGenEffort : s.commitGenEffort,
   );
+  const commitGenFast = useSharedSettings((s) =>
+    envKind === "wsl" ? s.wslCommitGenFast : s.commitGenFast,
+  );
   const setCommitGenConfig = useSharedSettings((s) =>
     envKind === "wsl" ? s.setWslCommitGenConfig : s.setCommitGenConfig,
   );
@@ -308,6 +330,9 @@ export function AISettings() {
   );
   const conflictResolverEffort = useSharedSettings((s) =>
     envKind === "wsl" ? s.wslConflictResolverEffort : s.conflictResolverEffort,
+  );
+  const conflictResolverFast = useSharedSettings((s) =>
+    envKind === "wsl" ? s.wslConflictResolverFast : s.conflictResolverFast,
   );
   const setConflictResolverConfig = useSharedSettings((s) =>
     envKind === "wsl" ? s.setWslConflictResolverConfig : s.setConflictResolverConfig,
@@ -360,6 +385,7 @@ export function AISettings() {
         provider={titleGenProvider}
         model={titleGenModel}
         effort={titleGenEffort}
+        fast={titleGenFast}
         resolve={resolveTitleGenConfig}
         getCandidates={getTitleGenCandidates}
         onConfigChange={setTitleGenConfig}
@@ -374,6 +400,7 @@ export function AISettings() {
         provider={commitGenProvider}
         model={commitGenModel}
         effort={commitGenEffort}
+        fast={commitGenFast}
         resolve={resolveCommitGenConfig}
         getCandidates={getCommitGenCandidates}
         onConfigChange={setCommitGenConfig}
@@ -387,6 +414,7 @@ export function AISettings() {
         provider={conflictResolverProvider}
         model={conflictResolverModel}
         effort={conflictResolverEffort}
+        fast={conflictResolverFast}
         resolve={resolveConflictResolverConfig}
         getCandidates={getConflictResolverCandidates}
         onConfigChange={setConflictResolverConfig}

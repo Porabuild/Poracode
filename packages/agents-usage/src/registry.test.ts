@@ -10,14 +10,24 @@ describe("createUsageCollectorRegistry", () => {
         .descriptors()
         .map((d) => d.id)
         .sort(),
-    ).toEqual(["claude", "codex", "commandcode", "copilot", "cursor", "gemini", "grok", "zai"]);
+    ).toEqual([
+      "claude",
+      "codex",
+      "commandcode",
+      "copilot",
+      "cursor",
+      "factory",
+      "gemini",
+      "grok",
+      "zai",
+    ]);
     expect(reg.has("claude")).toBe(true);
     expect(reg.has("nope")).toBe(false);
   });
 
   it("collectAll returns one snapshot per provider, auth-missing without tokens", async () => {
     const snaps = await createUsageCollectorRegistry().collectAll(undefined, createFakeHost());
-    expect(snaps).toHaveLength(8);
+    expect(snaps).toHaveLength(9);
     expect(snaps.every((s) => s.status === "auth-missing")).toBe(true);
   });
 

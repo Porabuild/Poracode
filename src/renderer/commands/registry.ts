@@ -1,13 +1,14 @@
 import { toast } from "@heroui/react";
 import { msg } from "@lingui/core/macro";
 import type { MessageDescriptor } from "@lingui/core";
+import { parseDraftProjectId } from "@/shared/paneId";
 import { buildWorktreeLocation } from "@/shared/worktree";
 import type { AgentSlashCommand, Project, Thread } from "@/shared/contracts";
 import { readBridge } from "@/renderer/bridge";
 import { i18n } from "@/renderer/i18n/i18n";
 import { captureThreadInputSubmitted } from "@/renderer/analytics/posthog";
 import { addExistingProject } from "@/renderer/actions/createProjectActions";
-import { getCurrentProjectId } from "@/renderer/actions/currentProject";
+import { getCurrentProjectId, resolveActivePaneId } from "@/renderer/actions/currentProject";
 import {
   openFilesPanel,
   openGitReview,
@@ -64,6 +65,7 @@ export interface AppCommand {
 interface ActiveContext {
   project?: Project | undefined;
   thread?: Thread | undefined;
+  draftProjectId?: string | undefined;
   worktreePath?: string | undefined;
 }
 
@@ -101,7 +103,7 @@ export function buildWhenContext(
     hasThread: Boolean(active.thread),
     view: app.view.kind,
     homeView: app.view.kind === "home",
-    draftView: app.view.kind === "draft",
+    draftView: app.view.kind === "draft" || Boolean(active.draftProjectId),
     threadView: app.view.kind === "thread",
     guiThread: active.thread?.presentationMode === "gui",
     terminalThread: (active.thread?.presentationMode ?? "terminal") === "terminal",
@@ -207,13 +209,11 @@ function baseCommands(): AppCommand[] {
       title: msg`Toggle star`,
       subtitle: msg`Star or unstar the current chat or model`,
       group: msg`Thread`,
-      // Mirrors thread.archive: active while navigating the sidebar or a side
-      // panel, but not while typing. Stars/unstars the open thread.
-      when: "hasThread && (sidebarFocus || panelFocus)",
-      run: () => {
-        const thread = resolveActiveContext().thread;
-        if (thread) toggleStarThread(thread.id);
-      },
+      keywords: ["star", "unstar", "favorite", "favourite", "pin"],
+      // Threads mirror archive scope; drafts have no thread yet, so they toggle
+      // the selected model favorite instead.
+      when: "(hasThread && (sidebarFocus || panelFocus)) || draftView",
+      run: toggleStarCurrent,
     },
     {
       id: "thread.rename",
@@ -468,19 +468,21 @@ function chatCommand(command: AgentSlashCommand, thread: Thread): AppCommand {
 function resolveActiveContext(): ActiveContext {
   const app = useAppStore.getState();
   let thread: Thread | undefined;
+  let draftProjectId: string | undefined;
   if (app.view.kind === "thread") {
-    const paneId =
-      app.focusedPaneId && app.view.panes.includes(app.focusedPaneId)
-        ? app.focusedPaneId
-        : app.view.panes[0];
-    thread = app.threads.find((item) => item.id === paneId);
+    const paneId = resolveActivePaneId(app.view.panes, app.focusedPaneId);
+    draftProjectId = parseDraftProjectId(paneId);
+    if (!draftProjectId) {
+      thread = app.threads.find((item) => item.id === paneId);
+    }
   }
 
-  const projectId = thread?.projectId ?? getCurrentProjectId();
+  const projectId = draftProjectId ?? thread?.projectId ?? getCurrentProjectId();
   const project = projectId ? app.projects.find((item) => item.id === projectId) : undefined;
   return {
     project,
     thread,
+    draftProjectId,
     worktreePath: thread?.worktreePath,
   };
 }
@@ -528,6 +530,40 @@ function closeFocusedPane(): void {
       ? app.focusedPaneId
       : app.view.panes.at(-1);
   if (target) app.closePane(target);
+}
+
+/**
+ * Context-aware star toggle. In a thread the "current chat" is the focused
+ * thread, so we flip its star. On the new-thread (draft) screen there is no
+ * chat yet, so we flip the favorite on the model selected in the composer —
+ * read from the project's persisted draft config, which updates on every model
+ * pick. The draft has no active presentation mode to scope by, so the favorite
+ * is toggled across every mode; the agent's last-used mode is only used to key
+ * a freshly-added entry.
+ */
+function toggleStarCurrent(): void {
+  const active = resolveActiveContext();
+  if (active.thread) {
+    const thread = active.thread;
+    const willStar = !thread.starred;
+    toggleStarThread(thread.id);
+    toast.success(willStar ? i18n._(msg`Chat starred`) : i18n._(msg`Chat unstarred`));
+    return;
+  }
+
+  const draft = active.project?.lastDraftConfig;
+  if (!draft?.agentKind || !draft.model) return;
+
+  const settings = useSharedSettings.getState();
+  const fallbackMode = settings.lastPresentationModeByAgent[draft.agentKind] ?? "terminal";
+  const nowFavorite = settings.toggleFavoriteModelAnyMode(
+    draft.agentKind,
+    draft.model,
+    fallbackMode,
+  );
+  toast.success(
+    nowFavorite ? i18n._(msg`Model added to favorites`) : i18n._(msg`Model removed from favorites`),
+  );
 }
 
 function openFileFromArgs(args: unknown): void {

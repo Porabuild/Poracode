@@ -78,14 +78,18 @@ export function normalizePercent(value: number | undefined): number | undefined 
   return Math.min(100, Math.max(0, Math.round(pct * 10) / 10));
 }
 
-/** Parse an ISO-8601 timestamp (or epoch seconds/ms) to epoch milliseconds. */
+/** Parse an ISO-8601 timestamp (or epoch seconds/ms, numeric or string) to epoch ms. */
 export function toEpochMs(value: string | number | null | undefined): number | undefined {
   if (value === null || value === undefined) return undefined;
-  if (typeof value === "number") {
-    if (!Number.isFinite(value) || value < 0) return undefined;
-    // Heuristic: 10-digit values are epoch seconds, 13-digit are milliseconds.
-    return value < 1e12 ? Math.round(value * 1000) : Math.round(value);
-  }
+  // Heuristic: sub-1e12 epoch values are seconds, larger ones are milliseconds.
+  const fromEpoch = (n: number): number | undefined =>
+    !Number.isFinite(n) || n < 0 ? undefined : n < 1e12 ? Math.round(n * 1000) : Math.round(n);
+  if (typeof value === "number") return fromEpoch(value);
+  // An all-digit string is an epoch value, not an ISO date — `Date.parse` returns
+  // NaN for it, so apply the same seconds/ms heuristic as numbers (some providers,
+  // e.g. Factory's `windowEnd`, send the epoch as a string).
+  const trimmed = value.trim();
+  if (/^\d+$/.test(trimmed)) return fromEpoch(Number(trimmed));
   const ms = Date.parse(value);
   return Number.isFinite(ms) ? ms : undefined;
 }
@@ -130,9 +134,19 @@ export function windowDurationMs(windowId: string, resetsAt: number): number | u
       return calendarMonthBeforeMs(resetsAt);
   }
   if (windowId.startsWith("gemini:")) return DAY_MS;
-  if (windowId.startsWith("codex:")) {
-    if (windowId.endsWith(":session-5h")) return 5 * HOUR_MS;
-    if (windowId.endsWith(":weekly")) return 7 * DAY_MS;
+  // Factory's legacy per-cycle "premium" pool is calendar-month aligned, not a
+  // rolling-cadence window.
+  if (windowId === "factory:premium") return calendarMonthBeforeMs(resetsAt);
+  // Namespaced rate-limit ids (codex:<limit>:<cadence>, factory:<pool>:<cadence>)
+  // carry their cadence as the trailing `:`-segment. Antigravity pools name a
+  // model family there (never a cadence word), so they fall through to undefined.
+  switch (windowId.slice(windowId.lastIndexOf(":") + 1)) {
+    case "session-5h":
+      return 5 * HOUR_MS;
+    case "weekly":
+      return 7 * DAY_MS;
+    case "monthly":
+      return calendarMonthBeforeMs(resetsAt);
   }
   return undefined;
 }

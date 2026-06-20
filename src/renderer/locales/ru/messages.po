@@ -1133,9 +1133,16 @@ msgid "Chat"
 msgstr "Чат"
 
 #: src/renderer/commands/registry.ts
-#: src/renderer/commands/shortcutCatalog.ts
 msgid "Chat Commands"
 msgstr "Команды чата"
+
+#: src/renderer/commands/registry.ts
+msgid "Chat starred"
+msgstr "Чат отмечен звездой"
+
+#: src/renderer/commands/registry.ts
+msgid "Chat unstarred"
+msgstr "Звезда с чата снята"
 
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 msgid "Check"
@@ -3234,6 +3241,10 @@ msgstr "Свернуть в панель"
 msgid "Mode"
 msgstr "Режим"
 
+#: src/renderer/commands/registry.ts
+msgid "Model added to favorites"
+msgstr "Модель добавлена в избранное"
+
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Model id"
 msgstr "ID модели"
@@ -3245,6 +3256,10 @@ msgstr "Метка модели"
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 msgid "Model order"
 msgstr "Порядок моделей"
+
+#: src/renderer/commands/registry.ts
+msgid "Model removed from favorites"
+msgstr "Модель удалена из избранного"
 
 #: src/renderer/views/ProfileOverlay/parts/ModelUsage.tsx
 msgid "Model usage"
@@ -4021,6 +4036,10 @@ msgstr "Панели и наложения"
 msgid "Paste"
 msgstr "Вставить"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
+msgid "Paste {label} API key"
+msgstr "Вставьте API-ключ {label}"
+
 #. placeholder {0}: activeDeviceCode.code
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 msgid "Paste <0>{0}</0> here. Click to copy."
@@ -4029,10 +4048,6 @@ msgstr "Вставьте <0>{0}</0> сюда. Нажмите, чтобы ско�
 #: src/renderer/components/terminal/XTermSurface.tsx
 msgid "Paste in input"
 msgstr "Вставить в поле ввода"
-
-#: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
-msgid "Paste {label} API key"
-msgstr "Вставьте API-ключ {label}"
 
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 msgid "Paused"

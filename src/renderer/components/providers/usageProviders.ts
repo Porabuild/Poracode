@@ -48,6 +48,15 @@ const RENDERER_META: Record<string, Omit<UsageProvider, "id" | "label">> = {
   commandcode: { supportsBrowserLogin: true },
   copilot: { supportsBrowserLogin: true },
   cursor: { sharedWindowReset: true, rings: { outer: ["cursor-auto"], inner: ["cursor-api"] } },
+  // Droid signs in via the in-app app.factory.ai browser session. The standard
+  // pool's 5h window is the fast outer ring; weekly/monthly the slower inner one.
+  // On a legacy (per-cycle) account only `monthly` (Standard) is ring-eligible —
+  // the glance ring intentionally tracks the Standard pool; the separate
+  // `factory:premium` pool still renders as a bar in the expanded detail panel.
+  factory: {
+    supportsBrowserLogin: true,
+    rings: { outer: ["session-5h"], inner: ["weekly", "monthly"] },
+  },
   grok: { supportsBrowserLogin: true },
   opencode: { supportsBrowserLogin: true },
   // z.ai authenticates with a pasted API key, not a browser session.

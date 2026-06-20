@@ -293,6 +293,8 @@ export interface RunOneShotInput {
   location: ProjectLocation;
   model: string;
   effort?: string | undefined;
+  /** Opus-only fast-mode session flag. Adapters that don't support it ignore it. */
+  fast?: boolean | undefined;
   prompt: string;
   signal?: AbortSignal | undefined;
 }
@@ -304,6 +306,7 @@ export interface AgentOneShotRunner {
     effort?: string,
     prompt?: string,
     location?: ProjectLocation,
+    fast?: boolean,
   ):
     | {
         command: string;

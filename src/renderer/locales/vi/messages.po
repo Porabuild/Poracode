@@ -1132,9 +1132,16 @@ msgid "Chat"
 msgstr "Trò chuyện"
 
 #: src/renderer/commands/registry.ts
-#: src/renderer/commands/shortcutCatalog.ts
 msgid "Chat Commands"
 msgstr "Lệnh trò chuyện"
+
+#: src/renderer/commands/registry.ts
+msgid "Chat starred"
+msgstr "Đã gắn sao cuộc trò chuyện"
+
+#: src/renderer/commands/registry.ts
+msgid "Chat unstarred"
+msgstr "Đã bỏ gắn sao cuộc trò chuyện"
 
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 msgid "Check"
@@ -3226,6 +3233,10 @@ msgstr "Thu nhỏ vào bảng điều khiển"
 msgid "Mode"
 msgstr "Chế độ"
 
+#: src/renderer/commands/registry.ts
+msgid "Model added to favorites"
+msgstr "Đã thêm mô hình vào mục yêu thích"
+
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Model id"
 msgstr "ID mô hình"
@@ -3237,6 +3248,10 @@ msgstr "Nhãn mô hình"
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 msgid "Model order"
 msgstr "Thứ tự mô hình"
+
+#: src/renderer/commands/registry.ts
+msgid "Model removed from favorites"
+msgstr "Đã xóa mô hình khỏi mục yêu thích"
 
 #: src/renderer/views/ProfileOverlay/parts/ModelUsage.tsx
 msgid "Model usage"
@@ -4012,6 +4027,10 @@ msgstr "Bảng điều khiển và lớp phủ"
 msgid "Paste"
 msgstr "Dán"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
+msgid "Paste {label} API key"
+msgstr "Dán khóa API {label}"
+
 #. placeholder {0}: activeDeviceCode.code
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 msgid "Paste <0>{0}</0> here. Click to copy."
@@ -4020,10 +4039,6 @@ msgstr "Dán <0>{0}</0> vào đây. Nhấn vào đây để sao chép."
 #: src/renderer/components/terminal/XTermSurface.tsx
 msgid "Paste in input"
 msgstr "Dán vào đầu vào"
-
-#: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
-msgid "Paste {label} API key"
-msgstr "Dán khóa API {label}"
 
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 msgid "Paused"

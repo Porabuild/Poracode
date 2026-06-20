@@ -1135,9 +1135,16 @@ msgid "Chat"
 msgstr "Chat"
 
 #: src/renderer/commands/registry.ts
-#: src/renderer/commands/shortcutCatalog.ts
 msgid "Chat Commands"
 msgstr "Comandos de bate-papo"
+
+#: src/renderer/commands/registry.ts
+msgid "Chat starred"
+msgstr "Chat marcado com estrela"
+
+#: src/renderer/commands/registry.ts
+msgid "Chat unstarred"
+msgstr "Chat desmarcado"
 
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 msgid "Check"
@@ -3237,6 +3244,10 @@ msgstr "Minimizar para painel"
 msgid "Mode"
 msgstr "Modo"
 
+#: src/renderer/commands/registry.ts
+msgid "Model added to favorites"
+msgstr "Modelo adicionado aos favoritos"
+
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Model id"
 msgstr "ID do modelo"
@@ -3248,6 +3259,10 @@ msgstr "Rótulo do modelo"
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 msgid "Model order"
 msgstr "Ordem do modelo"
+
+#: src/renderer/commands/registry.ts
+msgid "Model removed from favorites"
+msgstr "Modelo removido dos favoritos"
 
 #: src/renderer/views/ProfileOverlay/parts/ModelUsage.tsx
 msgid "Model usage"
@@ -4024,6 +4039,10 @@ msgstr "Painéis e sobreposições"
 msgid "Paste"
 msgstr "Colar"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
+msgid "Paste {label} API key"
+msgstr "Cole a chave de API do {label}"
+
 #. placeholder {0}: activeDeviceCode.code
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 msgid "Paste <0>{0}</0> here. Click to copy."
@@ -4032,10 +4051,6 @@ msgstr "Cole <0>{0}</0> aqui. Clique para copiar."
 #: src/renderer/components/terminal/XTermSurface.tsx
 msgid "Paste in input"
 msgstr "Colar na entrada"
-
-#: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
-msgid "Paste {label} API key"
-msgstr "Cole a chave de API do {label}"
 
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 msgid "Paused"

@@ -1121,9 +1121,16 @@ msgid "Chat"
 msgstr "채팅"
 
 #: src/renderer/commands/registry.ts
-#: src/renderer/commands/shortcutCatalog.ts
 msgid "Chat Commands"
 msgstr "채팅 명령"
+
+#: src/renderer/commands/registry.ts
+msgid "Chat starred"
+msgstr "채팅에 별표 추가됨"
+
+#: src/renderer/commands/registry.ts
+msgid "Chat unstarred"
+msgstr "채팅 별표 해제됨"
 
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 msgid "Check"
@@ -3184,6 +3191,10 @@ msgstr "패널로 최소화"
 msgid "Mode"
 msgstr "모드"
 
+#: src/renderer/commands/registry.ts
+msgid "Model added to favorites"
+msgstr "모델을 즐겨찾기에 추가함"
+
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Model id"
 msgstr "모델 ID"
@@ -3195,6 +3206,10 @@ msgstr "모델 레이블"
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 msgid "Model order"
 msgstr "모델 순서"
+
+#: src/renderer/commands/registry.ts
+msgid "Model removed from favorites"
+msgstr "모델을 즐겨찾기에서 제거함"
 
 #: src/renderer/views/ProfileOverlay/parts/ModelUsage.tsx
 msgid "Model usage"
@@ -3965,6 +3980,10 @@ msgstr "패널 및 오버레이"
 msgid "Paste"
 msgstr "붙여넣기"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
+msgid "Paste {label} API key"
+msgstr "{label} API 키 붙여넣기"
+
 #. placeholder {0}: activeDeviceCode.code
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 msgid "Paste <0>{0}</0> here. Click to copy."
@@ -3973,10 +3992,6 @@ msgstr "여기에 <0>{0}</0>을 붙여넣으세요. 복사하려면 클릭하세
 #: src/renderer/components/terminal/XTermSurface.tsx
 msgid "Paste in input"
 msgstr "입력에 붙여넣기"
-
-#: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
-msgid "Paste {label} API key"
-msgstr "{label} API 키 붙여넣기"
 
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 msgid "Paused"

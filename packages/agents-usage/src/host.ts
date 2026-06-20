@@ -50,6 +50,13 @@ export interface CredentialStore {
   getOAuthToken(providerId: string): Promise<OAuthToken | undefined>;
   /** Generic secret (e.g. a captured session cookie) for cookie providers. */
   getSecret(providerId: string, key: string): Promise<string | undefined>;
+  /**
+   * Persist a generic secret. Optional: only hosts with a writable secret store
+   * implement it. Needed by collectors that rotate a stored credential — e.g.
+   * Factory exchanges a WorkOS refresh token (which WorkOS rotates on each use)
+   * for a fresh access token and must write the new refresh token back.
+   */
+  setSecret?(providerId: string, key: string, value: string): Promise<void>;
 }
 
 export interface Logger {
