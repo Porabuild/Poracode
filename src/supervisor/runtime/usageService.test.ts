@@ -92,7 +92,7 @@ describe("UsageService", () => {
 
     const perProvider = events.filter((e) => e.type === "provider-usage");
     const terminal = events.filter((e) => e.type === "provider-usage-all");
-    expect(perProvider).toHaveLength(10);
+    expect(perProvider).toHaveLength(result.snapshots.length);
     expect(terminal).toHaveLength(1);
   });
 
