@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { readFile } from "node:fs/promises";
-import { spawn } from "node:child_process";
+import { spawn, type ChildProcess } from "node:child_process";
 import type {
   CanUseTool,
   Options as ClaudeQueryOptions,
@@ -26,6 +26,7 @@ import type {
   TurnState,
 } from "@/shared/contracts";
 import { areAgentSlashCommandsEqual } from "@/shared/contracts";
+import { terminateChildProcessTree } from "@/shared/processTree";
 import { buildClaudeBrowserMcpServers } from "./mcpBrowser";
 import {
   createKnownSessionRef,
@@ -419,6 +420,11 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
   private promptQueue = new AsyncPromptQueue();
   private queryRuntime: Query | undefined;
   private queryReady: Promise<Query> | undefined;
+  // OS processes the SDK spawned through our custom spawn hook (win32 native +
+  // WSL). Captured so dispose() can force-kill the whole tree; the SDK's own
+  // Query.close() only ends the immediate child after a grace window. See
+  // trackSpawnedProcess.
+  private readonly spawnedProcesses = new Set<ChildProcess>();
   private streamStarted = false;
   private disposed = false;
   private sessionId: string | undefined;
@@ -812,7 +818,43 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
     } catch {
       // ignore
     }
+    // Query.close() only ends the immediate child — and only after a ~2s
+    // stdin-EOF grace — so on Windows it orphans claude's descendant tool
+    // processes, and for WSL it kills the host wsl.exe relay rather than the
+    // in-distro tree. Force-kill the captured process tree so a removed /
+    // archived / unloaded / app-closed GUI Claude thread can't keep running
+    // tools and modifying files. Mirrors the ACP and Codex structured sessions.
+    for (const child of [...this.spawnedProcesses]) {
+      this.killSpawnedProcess(child);
+    }
     this.listener?.onClose();
+  }
+
+  /**
+   * Record an OS process spawned by the SDK through our custom spawn hook so
+   * {@link dispose} can force-kill its tree. The process drops out of the set on
+   * its own exit. If a spawn races in after disposal, kill it immediately so it
+   * can't outlive the session.
+   */
+  private trackSpawnedProcess(proc: SpawnedProcess): SpawnedProcess {
+    const child = proc as unknown as ChildProcess;
+    this.spawnedProcesses.add(child);
+    const forget = (): void => {
+      this.spawnedProcesses.delete(child);
+    };
+    child.once("exit", forget);
+    if (this.disposed) {
+      this.killSpawnedProcess(child);
+    }
+    return proc;
+  }
+
+  private killSpawnedProcess(child: ChildProcess): void {
+    this.spawnedProcesses.delete(child);
+    // Windows: taskkill /T /F reaps the whole tree. POSIX: best-effort kill of
+    // the captured process (the SDK's own teardown handles the rest).
+    // terminateChildProcessTree swallows its own errors, so no guard is needed.
+    terminateChildProcessTree(child);
   }
 
   private requireQuery(): Promise<Query> {
@@ -916,12 +958,14 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
       switch (this.input.projectLocation.kind) {
         case "wsl": {
           const location = this.input.projectLocation;
-          spawnClaudeCodeProcess = (spawnOptions) => spawnClaudeInWsl(location, spawnOptions);
+          spawnClaudeCodeProcess = (spawnOptions) =>
+            this.trackSpawnedProcess(spawnClaudeInWsl(location, spawnOptions));
           break;
         }
         case "windows": {
           const location = this.input.projectLocation;
-          spawnClaudeCodeProcess = (spawnOptions) => spawnClaudeNative(location, spawnOptions);
+          spawnClaudeCodeProcess = (spawnOptions) =>
+            this.trackSpawnedProcess(spawnClaudeNative(location, spawnOptions));
           break;
         }
       }
