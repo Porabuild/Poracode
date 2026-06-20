@@ -61,6 +61,7 @@ import { createCopilotAdapter } from "./copilot";
 import { buildCodexAppServerCommand, createCodexAdapter } from "./codex";
 import { primeCodexGoalsSupport } from "./codex/argv";
 import { createCursorAdapter } from "./cursor";
+import { createGrokAdapter } from "./grok";
 
 function launch(
   adapter: AgentAdapter,
@@ -370,6 +371,22 @@ describe("agent command builders", () => {
       ],
       stdin: "",
     });
+  });
+
+  it("builds a Grok one-shot command via the headless `grok -p` path", () => {
+    expect(
+      createGrokAdapter().buildOneShotCommand?.("grok-build", undefined, "Summarize this diff"),
+    ).toEqual({
+      command: "grok",
+      args: ["-p", "Summarize this diff", "-m", "grok-build", "--always-approve"],
+      stdin: "",
+    });
+  });
+
+  it("returns undefined for a Grok one-shot when no prompt is supplied", () => {
+    expect(createGrokAdapter().buildOneShotCommand?.("grok-build", undefined, undefined)).toBe(
+      undefined,
+    );
   });
 
   it.skipIf(process.platform !== "win32")(

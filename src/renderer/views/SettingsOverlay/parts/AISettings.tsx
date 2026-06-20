@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { ToggleButton, ToggleButtonGroup, Tooltip } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { Monitor } from "lucide-react";
@@ -87,6 +87,21 @@ function GenConfigSection(props: {
   const mode = deriveMode(provider);
   const customAgent =
     mode === "custom" ? eligibleAgents.find((a) => a.kind === provider) : undefined;
+
+  // Self-heal a stale saved selection. A one-shot section can still point at a
+  // provider that was selectable before one-shot filtering existed but can't run
+  // a one-shot (e.g. Grok / Factory Droid). That provider is gone from the
+  // picker, so the toolbar disappears with no way to re-pick — reset to Auto.
+  // Guarded on the provider being *installed but ineligible* so it never fires
+  // mid-detection (when the provider is merely absent from the list yet).
+  const savedProviderIneligible =
+    props.requireOneShot === true &&
+    mode === "custom" &&
+    customAgent === undefined &&
+    installedAgents.some((a) => a.kind === provider && a.capabilities.supportsOneShot !== true);
+  useEffect(() => {
+    if (savedProviderIneligible) onConfigChange("auto", "", "");
+  }, [savedProviderIneligible, onConfigChange]);
   // In Auto mode, ask the section's candidate helper so the toolbar mirrors the
   // runtime fallback chain — including the "skip provider without preferred model"
   // rule that's evaluated independently per section.

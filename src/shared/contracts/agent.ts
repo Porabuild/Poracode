@@ -193,10 +193,11 @@ export const agentCapabilitySchema = z.object({
   /**
    * Whether the adapter can run a single-shot, non-interactive generation
    * (thread title / commit message). True iff the supervisor adapter implements
-   * `runOneShot` or `buildOneShotCommand`. Surfaced so the renderer's AI
-   * settings can hide providers that only speak interactive sessions — e.g.
-   * ACP-registry generic agents like Factory Droid, or Grok — from one-shot-only
-   * selectors (Title / Commit Message generation). Optional: absent = false.
+   * `runOneShot` or `buildOneShotCommand`. All first-class CLI providers support
+   * it; surfaced so the renderer's AI settings can hide providers that only
+   * speak interactive sessions — e.g. ACP-registry generic agents like Factory
+   * Droid — from one-shot-only selectors (Title / Commit Message generation).
+   * Optional: absent = false.
    */
   supportsOneShot: z.boolean().optional(),
   /**
