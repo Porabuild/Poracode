@@ -248,12 +248,16 @@ function ShellSidebarAside(props: {
       : glassActive
         ? "border-transparent"
         : "border-[color:var(--border)]";
-  // Windows: stop the sidebar divider below the header so it doesn't run through the title row.
+  // Windows: stop the sidebar divider below the header so it doesn't run through the title row —
+  // the opaque title row shares --content-background across sidebar + content, reading as one
+  // continuous titlebar that a line through would split. EXCEPT when the sidebar is translucent:
+  // the header turns to glass, the seam already exists, so we keep the divider full-height to let
+  // the resize-handle hover accent run all the way to the top.
   // macOS keeps the full-height border because the header sits inside the hidden-inset titlebar.
   // HOWEVER, if the sidebar is too narrow (e.g. collapsed), the full-height border would run
   // directly through the macOS traffic light controls, so we push it below the header in that case.
   const sidebarDividerBelowHeader =
-    hasHeaders && !effectiveIsOverlay && (!isMac() || effectiveIsCollapsed);
+    hasHeaders && !effectiveIsOverlay && (isMac() ? effectiveIsCollapsed : !glassActive);
 
   // `width` and `min-width` are driven imperatively by `SidebarWidthDriver`
   // (raf-interpolated to match the drag path). React just owns the rest of

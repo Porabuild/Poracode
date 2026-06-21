@@ -971,6 +971,7 @@ export class SupervisorRuntime {
         payload.model,
         payload.effort,
         payload.language,
+        payload.fast,
       ),
     };
   }
@@ -985,6 +986,7 @@ export class SupervisorRuntime {
         payload.model,
         payload.effort,
         payload.language,
+        payload.fast,
       ),
     };
   }

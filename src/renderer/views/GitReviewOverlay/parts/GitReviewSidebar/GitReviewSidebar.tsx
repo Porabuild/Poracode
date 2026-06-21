@@ -534,13 +534,16 @@ export function GitReviewSidebar(props: {
                     <Dropdown.Menu
                       aria-label={t`Pull request options`}
                       onAction={(key) => {
-                        if (key === "pr-auto") selectPrMode("auto");
-                        else if (key === "pr-dialog") selectPrMode("dialog");
+                        // `pr-mode` must be a stable id — React Aria collections
+                        // throw "Cannot change the id of an item" if a keyless
+                        // item's id mutates between renders, so the alt mode is
+                        // resolved here rather than baked into the id.
+                        if (key === "pr-mode") selectPrMode(altPrMode);
                         else if (key === "merge-only") void handleMergeOnly();
                         else if (key === "merge-and-remove") void handleMergeAndRemove();
                       }}
                     >
-                      <Dropdown.Item id={`pr-${altPrMode}`} textValue={altPrModeLabel}>
+                      <Dropdown.Item id="pr-mode" textValue={altPrModeLabel}>
                         <GitPullRequest className="size-3.5" />
                         <Label>{altPrModeLabel}</Label>
                       </Dropdown.Item>

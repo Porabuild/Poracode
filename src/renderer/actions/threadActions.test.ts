@@ -3,11 +3,13 @@ import { waitFor } from "@testing-library/react";
 import type { Thread } from "@/shared/contracts";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useDevTerminalStore } from "@/renderer/state/devTerminalStore";
+import { usePanelStore } from "@/renderer/state/panelStore";
 import { useWorktreeDeleteStore } from "@/renderer/state/worktreeDeleteStore";
 import {
   deleteThread,
   openThread,
   reopenStoredThread,
+  switchToAdjacentThread,
   toggleMarkThreadDone,
 } from "./threadActions";
 
@@ -399,6 +401,56 @@ describe("threadActions", () => {
     expect(
       useAppStore.getState().threads.find((thread) => thread.id === secondThread.id)?.done,
     ).toBe(false);
+  });
+
+  describe("switchToAdjacentThread", () => {
+    beforeEach(() => {
+      // Manual sort keeps the sidebar order equal to store order (modulo
+      // starred-first), so navigation order is deterministic in the test.
+      usePanelStore.setState({ threadSortMode: "manual" });
+    });
+
+    it("opens the next thread in sidebar order and wraps at the end", () => {
+      const threads = ["a", "b", "c"].map((id) => makeThread({ id }));
+      useAppStore.setState((state) => ({ ...state, threads }));
+
+      switchToAdjacentThread(threads[1]!, "next");
+      expect(useAppStore.getState().view).toEqual({ kind: "thread", panes: ["c"] });
+
+      switchToAdjacentThread(threads[2]!, "next");
+      expect(useAppStore.getState().view).toEqual({ kind: "thread", panes: ["a"] });
+    });
+
+    it("opens the previous thread and wraps at the start", () => {
+      const threads = ["a", "b", "c"].map((id) => makeThread({ id }));
+      useAppStore.setState((state) => ({ ...state, threads }));
+
+      switchToAdjacentThread(threads[1]!, "previous");
+      expect(useAppStore.getState().view).toEqual({ kind: "thread", panes: ["a"] });
+
+      switchToAdjacentThread(threads[0]!, "previous");
+      expect(useAppStore.getState().view).toEqual({ kind: "thread", panes: ["c"] });
+    });
+
+    it("stays within the current thread's project", () => {
+      const threads = [
+        makeThread({ id: "a", projectId: "p1" }),
+        makeThread({ id: "x", projectId: "p2" }),
+        makeThread({ id: "b", projectId: "p1" }),
+      ];
+      useAppStore.setState((state) => ({ ...state, threads }));
+
+      switchToAdjacentThread(threads[0]!, "next");
+      expect(useAppStore.getState().view).toEqual({ kind: "thread", panes: ["b"] });
+    });
+
+    it("does nothing when the project has a single thread", () => {
+      const only = makeThread({ id: "only" });
+      useAppStore.setState((state) => ({ ...state, threads: [only], view: { kind: "home" } }));
+
+      switchToAdjacentThread(only, "next");
+      expect(useAppStore.getState().view).toEqual({ kind: "home" });
+    });
   });
 });
 

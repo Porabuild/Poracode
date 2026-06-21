@@ -628,6 +628,59 @@ describe("mapCodexNotification — item lifecycle (item/started, item/completed)
     });
   });
 
+  it("preserves Codex skill-file reads and codex_apps MCP names for usage capture", () => {
+    const state = createCodexMapperState("t-codex");
+    const skill = mapCodexNotification(
+      "item/started",
+      {
+        threadId: "x",
+        itemId: "skill-read-1",
+        item: {
+          id: "skill-read-1",
+          type: "dynamicToolCall",
+          title: "Read",
+          input: {
+            file_path: String.raw`C:\Users\sdsle\.codex\skills\.system\imagegen\SKILL.md`,
+          },
+        },
+      },
+      state,
+    );
+
+    expect((skill[0] as { itemType: string }).itemType).toBe("dynamic_tool_call");
+    expect((skill[0] as { payload: Record<string, unknown> }).payload).toMatchObject({
+      name: "Read",
+      args: {
+        file_path: String.raw`C:\Users\sdsle\.codex\skills\.system\imagegen\SKILL.md`,
+      },
+      status: "running",
+    });
+
+    const mcp = mapCodexNotification(
+      "item/started",
+      {
+        threadId: "x",
+        itemId: "codex-app-1",
+        item: {
+          id: "codex-app-1",
+          type: "mcpToolCall",
+          server: "codex_apps",
+          tool: "target_search",
+          arguments: { query: "desk lamp" },
+        },
+      },
+      state,
+    );
+
+    expect((mcp[0] as { itemType: string }).itemType).toBe("mcp_tool_call");
+    expect((mcp[0] as { payload: Record<string, unknown> }).payload).toMatchObject({
+      name: "mcp__codex_apps__target_search",
+      serverId: "codex_apps",
+      args: { query: "desk lamp" },
+      status: "running",
+    });
+  });
+
   it("maps Codex collabAgentToolCall items as subagent tool calls", () => {
     const state = createCodexMapperState("t-codex");
     const started = mapCodexNotification(

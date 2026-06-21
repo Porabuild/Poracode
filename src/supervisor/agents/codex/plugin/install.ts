@@ -11,7 +11,8 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { toWslUncPath } from "@/shared/wsl";
 import type { AgentEnvContext } from "../../base";
-import { execInWsl, quotePosixShellArg } from "../../base";
+import { buildAgentCommand, execInWsl, quotePosixShellArg } from "../../base";
+import { resolveAgentBinaryPath } from "../../binaryResolver";
 import {
   FORWARD_RUNTIME_FILE,
   buildNativeHookCommandHeads,
@@ -34,6 +35,7 @@ import {
   writeNativeHookWrapper,
   type PluginManifest,
 } from "../../plugin/installerBase";
+import { resolveCodexNativeExecutableForWindows } from "../windowsExecutable";
 
 export interface CodexPluginPaths {
   pluginDir: string;
@@ -270,19 +272,30 @@ function semverGte(a: [number, number, number], b: readonly [number, number, num
 /**
  * Probe `codex --version` on PATH. Returns null if unavailable or unparsable.
  *
- * On Windows the `codex` binary from npm global install is a `.cmd` shim,
- * which Node's `execFile` cannot invoke directly (`ENOENT` without `shell`,
- * `EINVAL` with the full `.cmd` path). We enable `shell: true` on win32 so
- * cmd.exe resolves PATHEXT for us. Args are hardcoded `--version` with no
- * user input, so the shell invocation carries no injection risk.
+ * On Windows the shared launch builder bypasses npm `.cmd` shims so probe
+ * grandchildren do not create visible console windows.
  */
 export function probeCodexCliSemver(): [number, number, number] | null {
   try {
-    const out = execFileSync("codex", ["--version"], {
+    const windowsLocation = { kind: "windows" as const, path: homedir() };
+    const resolvedCodexPath =
+      process.platform === "win32" ? resolveAgentBinaryPath(windowsLocation, "codex") : undefined;
+    const nativeCodexPath = resolveCodexNativeExecutableForWindows(resolvedCodexPath);
+    const spec =
+      process.platform === "win32"
+        ? buildAgentCommand(
+            windowsLocation,
+            nativeCodexPath ?? resolvedCodexPath ?? "codex",
+            ["--version"],
+            nativeCodexPath ?? resolvedCodexPath,
+          )
+        : { command: "codex", args: ["--version"] };
+    const out = execFileSync(spec.command, spec.args, {
       encoding: "utf8",
       timeout: 8000,
       windowsHide: true,
-      shell: process.platform === "win32",
+      ...(spec.cwd ? { cwd: spec.cwd } : {}),
+      ...(spec.env ? { env: spec.env } : {}),
     });
     return parseCodexVersionLine(out);
   } catch {

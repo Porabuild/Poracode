@@ -5,8 +5,25 @@ import {
   projectWindowUsage,
   toEpochMs,
   usageTone,
+  usageWindowDisplayLabel,
   windowDurationMs,
 } from "./formatters";
+import type { UsageWindow } from "./types";
+
+describe("usageWindowDisplayLabel", () => {
+  it("uses the canonical label for known window ids", () => {
+    const monthly: UsageWindow = { id: "monthly", label: "Monthly", usedPercent: 0 };
+    expect(usageWindowDisplayLabel(monthly)).toBe("Monthly");
+    expect(usageWindowDisplayLabel({ id: "session-5h", label: "x", usedPercent: 0 })).toBe(
+      "Session (5h)",
+    );
+  });
+
+  it("honors a collector's custom monthly label (e.g. z.ai 'MCP')", () => {
+    const mcp: UsageWindow = { id: "monthly", label: "MCP", usedPercent: 1.6 };
+    expect(usageWindowDisplayLabel(mcp)).toBe("MCP");
+  });
+});
 
 describe("usageTone", () => {
   it("applies normal/warning/danger thresholds", () => {
@@ -49,6 +66,12 @@ describe("toEpochMs", () => {
     expect(toEpochMs(null)).toBeUndefined();
     expect(toEpochMs(undefined)).toBeUndefined();
   });
+
+  it("parses all-digit STRING epochs with the seconds/ms heuristic (Date.parse would NaN)", () => {
+    expect(toEpochMs("1700000000000")).toBe(1_700_000_000_000);
+    expect(toEpochMs("1700000000")).toBe(1_700_000_000_000);
+    expect(toEpochMs("  1700000000000  ")).toBe(1_700_000_000_000);
+  });
 });
 
 const HOUR = 3_600_000;
@@ -61,6 +84,7 @@ describe("windowDurationMs", () => {
     expect(windowDurationMs("weekly-opus", 0)).toBe(7 * DAY);
     expect(windowDurationMs("codex:gpt-5:session-5h", 0)).toBe(5 * HOUR);
     expect(windowDurationMs("codex:gpt-5:weekly", 0)).toBe(7 * DAY);
+    expect(windowDurationMs("factory:core:weekly", 0)).toBe(7 * DAY);
     expect(windowDurationMs("gemini:gemini-2.5-pro", 0)).toBe(DAY);
   });
 
@@ -71,6 +95,14 @@ describe("windowDurationMs", () => {
     expect(ms).toBeDefined();
     expect(ms).toBeGreaterThanOrEqual(27.5 * DAY);
     expect(ms).toBeLessThan(29 * DAY);
+
+    const factoryPremiumMs = windowDurationMs(
+      "factory:premium",
+      Date.parse("2026-03-15T00:00:00Z"),
+    );
+    expect(factoryPremiumMs).toBeDefined();
+    expect(factoryPremiumMs).toBeGreaterThanOrEqual(27.5 * DAY);
+    expect(factoryPremiumMs).toBeLessThan(29 * DAY);
   });
 
   it("returns undefined for windows with no inferable cadence", () => {

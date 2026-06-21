@@ -96,6 +96,7 @@ export async function generateCommitMessage(
   model?: string,
   effort?: string,
   language?: string,
+  fast?: boolean,
 ): Promise<string> {
   const effectiveModel = model ?? adapter.defaultOneShotModel;
   if (!effectiveModel) {
@@ -133,6 +134,7 @@ export async function generateCommitMessage(
     adapter,
     model: effectiveModel,
     effort,
+    fast,
     timeoutMs: COMMIT_MESSAGE_TIMEOUT_MS,
     logTag: "commit-gen",
     attempts: [

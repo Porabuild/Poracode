@@ -21,13 +21,14 @@ import type {
   ToolCallPayload,
   WebSearchPayload,
 } from "@/shared/contracts";
-import { PathDisplay, PixelLoader } from "@/renderer/components/common";
+import { PixelLoader } from "@/renderer/components/common";
 import { useAppStore } from "@/renderer/state/appStore";
 import {
   getRuntimeItemPayload,
   type RuntimeChatItem,
 } from "@/renderer/state/slices/runtimeEventSlice";
 import { useChatPaneActions } from "../../chatPaneActionsContext";
+import { ChatFilePath } from "./ChatFilePath";
 import { CommandOutputViewport } from "./CommandOutputViewport";
 import { iconForCommandIntent } from "./CommandExecution";
 import { isContextCompactionToolCall } from "./ContextCompaction";
@@ -191,7 +192,7 @@ function SameFileEditGroupTitle({ summary }: { summary: SameFileEditGroupSummary
         <code className="font-mono tabular-nums !text-[color:var(--muted)]">{label}</code>
       </span>
       <code className="flex min-w-0 flex-1 font-mono !text-[color:var(--muted)]">
-        <PathDisplay
+        <ChatFilePath
           className="flex-1"
           path={summary.path}
           basenameClassName="!text-[color:var(--foreground)]"
@@ -333,7 +334,7 @@ function InlineRowTitle({
         {titleParts.filePath ? (
           <>
             <span className="sr-only">{titleParts.path}</span>
-            <PathDisplay
+            <ChatFilePath
               className="flex-1"
               path={titleParts.path}
               basenameClassName="!text-[color:var(--foreground)]"

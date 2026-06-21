@@ -123,10 +123,13 @@ export interface ProfileInsights {
   /** Share of turns run with fast mode on, 0-100. */
   fastModePercent: number;
   mostActiveHour?: ProfileActiveHour;
-  /** Distinct skills/subagents invoked. */
+  /** Distinct named skills invoked. */
   skillsExplored: number;
-  /** Total skill/subagent invocations. */
+  /** Total named skill invocations. */
   totalSkillsUsed: number;
+  workflowRuns: number;
+  subagentRuns: number;
+  mcpToolCalls: number;
 }
 
 export interface ProfileSkillUsage {
@@ -199,8 +202,6 @@ export interface ProfileCoreStats {
   modes: ProfileBreakdownEntry[];
   /** Top skills by run count. */
   skills: ProfileSkillUsage[];
-  /** Top subagents by run count. */
-  subagents: ProfileSkillUsage[];
   /** Top MCP servers by tool-call count. */
   mcps: ProfileSkillUsage[];
   /** AI-performed git actions (commits / PRs / conflict resolutions). */

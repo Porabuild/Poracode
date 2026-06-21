@@ -15,10 +15,21 @@ export interface PendingComposerSeed {
 
 export interface DraftSlice {
   draftContents: Record<string, DraftContent>;
+  /**
+   * Unsent composer content for *already-launched* threads, keyed by threadId.
+   * Saved when a thread's composer unmounts (switching panes/threads remounts
+   * it, see ThreadPane's `key={threadId}`) and restored when it mounts again,
+   * so an in-progress message survives navigating away. In-memory only — not
+   * persisted across app restarts (see appStore `partialize`), matching the
+   * per-project `draftContents` behavior.
+   */
+  threadDraftContents: Record<string, DraftContent>;
   pendingDraftWorktreeSelections: Record<string, PendingDraftWorktreeSelection>;
   pendingComposerSeeds: Record<string, PendingComposerSeed>;
   saveDraftContent: (projectId: string, content: DraftContent) => void;
   clearDraftContent: (projectId: string) => void;
+  saveThreadDraftContent: (threadId: string, content: DraftContent) => void;
+  clearThreadDraftContent: (threadId: string) => void;
   setPendingDraftWorktreeSelection: (
     projectId: string,
     selection: PendingDraftWorktreeSelection,
@@ -30,6 +41,7 @@ export interface DraftSlice {
 
 export const createDraftSlice: SliceCreator<DraftSlice> = (set) => ({
   draftContents: {},
+  threadDraftContents: {},
   pendingDraftWorktreeSelections: {},
   pendingComposerSeeds: {},
   saveDraftContent: (projectId, content) =>
@@ -41,6 +53,16 @@ export const createDraftSlice: SliceCreator<DraftSlice> = (set) => ({
       if (!(projectId in state.draftContents)) return {};
       const { [projectId]: _, ...rest } = state.draftContents;
       return { draftContents: rest };
+    }),
+  saveThreadDraftContent: (threadId, content) =>
+    set((state) => ({
+      threadDraftContents: { ...state.threadDraftContents, [threadId]: content },
+    })),
+  clearThreadDraftContent: (threadId) =>
+    set((state) => {
+      if (!(threadId in state.threadDraftContents)) return {};
+      const { [threadId]: _, ...rest } = state.threadDraftContents;
+      return { threadDraftContents: rest };
     }),
   setPendingDraftWorktreeSelection: (projectId, selection) =>
     set((state) => ({

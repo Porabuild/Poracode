@@ -139,8 +139,25 @@ export function injectWslEnv(
   return { ...spec, args };
 }
 
+/**
+ * Drop `undefined` values so an `env` record matches the `Record<string, string>`
+ * shape that `buildAgentCommand` expects (the SDK's `SpawnOptions.env` allows
+ * `undefined` values).
+ */
+export function definedEnv(env: Record<string, string | undefined>): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const [key, value] of Object.entries(env)) {
+    if (value !== undefined) out[key] = value;
+  }
+  return out;
+}
+
 function encodePowerShellCommand(script: string): string {
   return Buffer.from(script, "utf16le").toString("base64");
+}
+
+function isWindowsDirectExecutable(command: string): boolean {
+  return /^(?:[a-zA-Z]:[\\/]|\\\\)/.test(command) && /\.(?:exe|com)$/i.test(command);
 }
 
 /** Detect the best available shell. Returns a shell path on Windows (pwsh > powershell > cmd), or `true` on Unix (default shell). */
@@ -163,6 +180,10 @@ export function buildWindowsCommand(
   args: string[],
   resolvePath: ResolveExecutablePath = resolveExecutablePath,
 ): CommandSpec {
+  if (isWindowsDirectExecutable(command)) {
+    return { command, args, cwd };
+  }
+
   const shell = detectShell(resolvePath);
   if (typeof shell === "string") {
     const script = [

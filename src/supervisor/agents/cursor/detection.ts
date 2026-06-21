@@ -33,6 +33,7 @@ export const cursorDefaultCapabilities: AgentCapability = {
   ],
   sandboxModes: [],
   supportsResume: true,
+  supportsOneShot: true,
   supportsDirectInput: true,
   liveInputMode: "terminal",
   presentationMode: "terminal",

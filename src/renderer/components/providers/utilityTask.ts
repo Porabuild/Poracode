@@ -18,7 +18,20 @@ export interface UtilityTaskCandidateAgent {
   authState?: string;
   capabilities: {
     models: readonly UtilityTaskModel[];
+    /** Whether the provider can run a non-interactive one-shot generation. */
+    supportsOneShot?: boolean | undefined;
   };
+}
+
+export interface UtilityTaskCandidateOptions {
+  /**
+   * Drop providers that cannot run a one-shot generation. Used by the title /
+   * commit-message sections, which shell out to a single non-interactive call;
+   * interactive-only providers (e.g. Factory Droid / Grok) would always throw
+   * "does not support one-shot generation". Conflict resolution launches a full
+   * thread session instead, so it leaves this unset and keeps every provider.
+   */
+  requireOneShot?: boolean;
 }
 
 export interface UtilityTaskConfigAgent extends UtilityTaskCandidateAgent {
@@ -97,9 +110,13 @@ export function getUtilityTaskCandidates<T extends UtilityTaskCandidateAgent>(
   agentStatuses: readonly T[],
   provider: string,
   getDefaults: (kind: string) => UtilityTaskDefaults | undefined,
+  options: UtilityTaskCandidateOptions = {},
 ): T[] {
   const available = agentStatuses.filter(
-    (agent) => agent.installed !== false && agent.authState !== "missing",
+    (agent) =>
+      agent.installed !== false &&
+      agent.authState !== "missing" &&
+      (!options.requireOneShot || agent.capabilities.supportsOneShot === true),
   );
   if (provider === "auto") {
     const withPreferred = available.filter((agent) =>

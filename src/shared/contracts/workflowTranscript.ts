@@ -83,3 +83,14 @@ export const workflowRunSchema = z.object({
   unphasedAgents: z.array(workflowAgentSchema),
 });
 export type WorkflowRun = z.infer<typeof workflowRunSchema>;
+
+/**
+ * A workflow run is "live" while its manifest reports `running` - or `unknown`,
+ * the pre-manifest / can't-parse state that precedes the first on-disk write.
+ * Terminal states are `completed` / `failed` / `cancelled`. Shared so the
+ * per-item dock poller, the chat row, and the per-thread live-workflow tracker
+ * all agree on what counts as still in flight.
+ */
+export function isLiveWorkflowRunStatus(status: WorkflowRunStatus): boolean {
+  return status === "running" || status === "unknown";
+}

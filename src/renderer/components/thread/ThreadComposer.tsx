@@ -697,7 +697,7 @@ export function ThreadComposer(props: {
   }
 
   return (
-    <div>
+    <div data-lightcode-composer="">
       <div
         className={shellClassName}
         onDragEnter={handleAttachmentDragEnter}

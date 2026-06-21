@@ -121,6 +121,19 @@ describe("deriveToolDisplay", () => {
     expect(display.Icon).toBe(ImageIcon);
   });
 
+  it("labels Codex imageView tools as image rows", () => {
+    const display = deriveToolDisplay(
+      makePayload({
+        name: "imageView",
+        args: { path: "screen.png" },
+      }),
+    );
+
+    expect(display.title).toBe("Image: screen.png");
+    expect(display.parts).toEqual({ prefix: "Image: ", path: "screen.png", filePath: true });
+    expect(display.Icon).toBe(ImageIcon);
+  });
+
   it("normalizes Claude raw read tools to view file displays", () => {
     const display = deriveToolDisplay(
       makePayload({

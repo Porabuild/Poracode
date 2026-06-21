@@ -28,6 +28,7 @@ export function WorktreeSettings() {
       description={t`Where Lightcode creates git worktrees for new branches. Changes apply to worktrees created from now on; existing worktrees stay where they are.`}
     >
       <SettingRow
+        anchorId="worktrees.storageLocation"
         title={t`Storage location`}
         description={t`Use one global folder, or nest worktrees inside each project at .lightcode/worktrees.`}
       >
@@ -42,6 +43,7 @@ export function WorktreeSettings() {
 
       {isGlobal ? (
         <SettingRow
+          anchorId="worktrees.baseFolder"
           title={t`Base folder`}
           description={t`Folder that holds all worktrees. Tip: a Dev Drive here speeds up builds.`}
         >
@@ -51,6 +53,7 @@ export function WorktreeSettings() {
 
       {isGlobal && hasWslProject ? (
         <SettingRow
+          anchorId="worktrees.wslBaseFolder"
           title={t`WSL base folder`}
           description={t`Worktree root for WSL projects (a Linux path).`}
         >

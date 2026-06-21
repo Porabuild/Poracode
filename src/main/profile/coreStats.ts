@@ -20,7 +20,14 @@ import {
   windowStartIndex,
 } from "./heatmap";
 import { getProfileIdentity, recordCurrentDevice, resolveProfileDevice } from "./identity";
-import { accountLabel, providerLabel, titleCase } from "./labels";
+import {
+  accountLabel,
+  mcpServerLabel,
+  modelKey,
+  modelLabel,
+  providerLabel,
+  titleCase,
+} from "./labels";
 
 /**
  * Profile core stats, computed entirely from the durable `usage_events` log
@@ -150,27 +157,46 @@ function computeAiActions(rows: UsageEventRow[]): ProfileAiAction[] {
   return out;
 }
 
+function isGenericMcpName(name: string): boolean {
+  const normalized = name
+    .trim()
+    .toLowerCase()
+    .replace(/[\s_-]+/g, "");
+  return normalized === "mcp" || normalized === "mcptoolcall";
+}
+
 function computeSkills(rows: UsageEventRow[]): {
   skills: ProfileSkillUsage[];
-  subagents: ProfileSkillUsage[];
   explored: number;
   total: number;
   mcps: ProfileSkillUsage[];
+  workflowRuns: number;
+  subagentRuns: number;
+  mcpToolCalls: number;
 } {
   const skillCounts = new Map<string, number>();
-  const subagentCounts = new Map<string, number>();
   const mcpCounts = new Map<string, number>();
   let total = 0;
+  let workflowRuns = 0;
+  let subagentRuns = 0;
+  let mcpToolCalls = 0;
   for (const row of rows) {
     if (row.kind === "skill") {
-      skillCounts.set(row.name ?? "skill", (skillCounts.get(row.name ?? "skill") ?? 0) + 1);
+      const name = row.name?.trim();
+      if (!name || name.toLowerCase() === "skill") continue;
+      skillCounts.set(name, (skillCounts.get(name) ?? 0) + 1);
       total++;
+    } else if (row.kind === "workflow") {
+      workflowRuns++;
     } else if (row.kind === "subagent") {
-      const name = row.name ?? "subagent";
-      subagentCounts.set(name, (subagentCounts.get(name) ?? 0) + 1);
-      total++;
+      // Legacy rows recorded before workflows got their own kind still arrive as
+      // subagents named "workflow" - re-bucket those into the workflow count.
+      if ((row.name ?? "").trim().toLowerCase() === "workflow") workflowRuns++;
+      else subagentRuns++;
     } else if (row.kind === "mcp") {
-      const name = row.name ?? "mcp";
+      const name = row.name?.trim();
+      if (!name || isGenericMcpName(name) || isGenericMcpName(mcpServerLabel(name))) continue;
+      mcpToolCalls++;
       mcpCounts.set(name, (mcpCounts.get(name) ?? 0) + 1);
     }
   }
@@ -185,11 +211,16 @@ function computeSkills(rows: UsageEventRow[]): {
       .map(([name, runCount]) => ({ name, displayName: display(name), kind, runCount }));
 
   const skills = topBy(skillCounts, "skill", (n) => n);
-  const subagents = topBy(subagentCounts, "subagent", (n) => n);
-  const mcps = topBy(mcpCounts, "mcp", (n) => n);
-  // "Explored" / "total" still span skills + subagents, matching the Activity
-  // insights labels (a subagent run is a skill-like invocation for that metric).
-  return { skills, subagents, explored: skillCounts.size + subagentCounts.size, total, mcps };
+  const mcps = topBy(mcpCounts, "mcp", mcpServerLabel);
+  return {
+    skills,
+    explored: skillCounts.size,
+    total,
+    mcps,
+    workflowRuns,
+    subagentRuns,
+    mcpToolCalls,
+  };
 }
 
 /** Distinct accounts (account-scoped provider kinds) seen across all events. */
@@ -234,13 +265,19 @@ function emptyCoreStats(
     identity: getProfileIdentity(),
     totals: emptyTotals(),
     promptHeatmap: heatmap,
-    insights: { fastModePercent: 0, skillsExplored: 0, totalSkillsUsed: 0 },
+    insights: {
+      fastModePercent: 0,
+      skillsExplored: 0,
+      totalSkillsUsed: 0,
+      workflowRuns: 0,
+      subagentRuns: 0,
+      mcpToolCalls: 0,
+    },
     modes: [],
     providers: [],
     accounts: [],
     models: [],
     skills: [],
-    subagents: [],
     mcps: [],
     aiActions: [],
     availableAccounts: [],
@@ -335,7 +372,10 @@ export function computeProfileCoreStats(req: ProfileStatsRequest): ProfileCoreSt
       providerCounts.set(base, (providerCounts.get(base) ?? 0) + 1);
       accountCounts.set(row.provider, (accountCounts.get(row.provider) ?? 0) + 1);
     }
-    if (row.model) modelCounts.set(row.model, (modelCounts.get(row.model) ?? 0) + 1);
+    if (row.model) {
+      const key = modelKey(row.provider, row.model);
+      modelCounts.set(key, (modelCounts.get(key) ?? 0) + 1);
+    }
     if (row.fast) fastTurns++;
     if (row.effort) {
       effortTurns++;
@@ -356,7 +396,7 @@ export function computeProfileCoreStats(req: ProfileStatsRequest): ProfileCoreSt
 
   const providers = rank(providerCounts, providerLabel, totalTurns);
   const accounts = rank(accountCounts, accountLabel, totalTurns);
-  const models = rank(modelCounts, (m) => m, totalTurns);
+  const models = rank(modelCounts, modelLabel, totalTurns);
   const reasoning = rank(effortCounts, (e) => titleCase(e), effortTurns);
 
   let mostActiveHour: ProfileInsights["mostActiveHour"];
@@ -368,7 +408,15 @@ export function computeProfileCoreStats(req: ProfileStatsRequest): ProfileCoreSt
     }
   }
 
-  const { skills, subagents, explored, total: totalSkillsUsed, mcps } = computeSkills(rows);
+  const {
+    skills,
+    explored,
+    total: totalSkillsUsed,
+    mcps,
+    workflowRuns,
+    subagentRuns,
+    mcpToolCalls,
+  } = computeSkills(rows);
 
   const totals: ProfileTotals = {
     totalThreads,
@@ -389,6 +437,9 @@ export function computeProfileCoreStats(req: ProfileStatsRequest): ProfileCoreSt
     ...(mostActiveHour ? { mostActiveHour } : {}),
     skillsExplored: explored,
     totalSkillsUsed,
+    workflowRuns,
+    subagentRuns,
+    mcpToolCalls,
   };
 
   const result: ProfileCoreStats = {
@@ -405,7 +456,6 @@ export function computeProfileCoreStats(req: ProfileStatsRequest): ProfileCoreSt
     models,
     modes,
     skills,
-    subagents,
     mcps,
     aiActions: computeAiActions(rows),
     availableAccounts,

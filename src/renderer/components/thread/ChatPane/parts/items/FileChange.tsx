@@ -4,12 +4,12 @@ import { useLingui } from "@lingui/react/macro";
 import type { TranslateFn } from "@/renderer/i18n/i18n";
 import { CircleAlert, FileEdit } from "lucide-react";
 import type { FileChangePayload } from "@/shared/contracts";
-import { PathDisplay } from "@/renderer/components/common";
 import {
   getRuntimeItemPayload,
   type RuntimeChatItem,
 } from "@/renderer/state/slices/runtimeEventSlice";
 import { useChatPaneActions } from "../../chatPaneActionsContext";
+import { ChatFilePath } from "./ChatFilePath";
 import { ChatItemAccordion } from "./ChatItemAccordion";
 import { CommandOutputViewport } from "./CommandOutputViewport";
 import { ToolCallSections, type ToolCallSection } from "./ToolCallSections";
@@ -92,7 +92,7 @@ export const FileChange = memo(function FileChange({ item }: FileChangeProps) {
     <span className="flex min-w-0 flex-1 items-baseline gap-1.5">
       <span className="shrink-0 !text-[color:var(--muted)]">{kindLabel}</span>
       {hasPath ? (
-        <PathDisplay
+        <ChatFilePath
           className="flex-1"
           path={payload.path}
           basenameClassName="!text-[color:var(--foreground)]"

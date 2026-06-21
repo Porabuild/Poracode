@@ -130,6 +130,11 @@ msgstr "{0} oturumu kapatıldı."
 msgid "{0} needs authentication."
 msgstr "{0} kimlik doğrulaması gerektiriyor."
 
+#. placeholder {0}: currentIndex + 1
+#: src/renderer/components/find/FindBar.tsx
+msgid "{0} of {matchCount}"
+msgstr "{0} / {matchCount}"
+
 #. placeholder {0}: cell.count
 #: src/renderer/views/ProfileOverlay/parts/ActivityHeatmap.tsx
 msgid "{0} prompt - {when}"
@@ -248,6 +253,15 @@ msgstr "{hours} saat önce"
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 msgid "{installedCount, plural, one {# agent ready} other {# agents ready}}"
 msgstr "{installedCount, plural, one {# aracı hazır} other {# aracı hazır}}"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+msgid "{label} API key"
+msgstr "{label} API anahtarı"
+
+#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+msgid "{label} auto-refresh interval in minutes"
+msgstr "{label} otomatik yenileme aralığı (dakika)"
 
 #: src/renderer/components/providers/ProviderUsageRail.tsx
 msgid "{label} usage — open usage panel"
@@ -408,6 +422,7 @@ msgstr "ACP Temsilcileri"
 msgid "Action command"
 msgstr "Eylem komutu"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
 msgid "Action for the quick-remove button on sidebar threads."
 msgstr "Kenar çubuğundaki ileti dizilerindeki hızlı kaldırma düğmesi için "
@@ -444,6 +459,10 @@ msgstr "Etkinlik metriği"
 #: src/renderer/views/SettingsOverlay/parts/SearchExcludeBody.tsx
 msgid "Add"
 msgstr "Ekle"
+
+#: src/renderer/commands/registry.ts
+msgid "Add a local project"
+msgstr "Yerel bir proje ekle"
 
 #: src/renderer/actions/agentLoginActions.ts
 msgid "Add a project before installing an agent."
@@ -505,6 +524,10 @@ msgstr "Proje seçeneklerini ekle"
 msgid "Add Remote"
 msgstr "Uzak Depo Ekle"
 
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
+msgid "Add shortcut"
+msgstr "Kısayol ekle"
+
 #: src/renderer/components/composer/ComposerAddMenu.tsx
 msgid "Add to composer"
 msgstr "Yazım alanına ekle"
@@ -529,6 +552,7 @@ msgstr "Temsilci sohbeti (ACP / markdown). Komut satırları bu boyutu eksi "
 "1 piksel kullanır; araç ve plan satırları 2 piksel eksiğini kullanır."
 
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Agent encountered an error."
 msgstr "Temsilci bir hatayla karşılaştı."
 
@@ -549,6 +573,7 @@ msgstr "Temsilci bulunamadı"
 msgid "Agent Registry"
 msgstr "Temsilci Kaydı"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Agent terminal font size"
 msgstr "Temsilci terminali yazı tipi boyutu"
@@ -592,6 +617,7 @@ msgstr "AI aracı orkestratörü — kodlama aracılarını Terminal ve Yerel AC
 msgid "AI git actions"
 msgstr "Yapay zeka git işlemleri"
 
+#: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "All"
 msgstr "Tümü"
@@ -618,12 +644,18 @@ msgid "Allow"
 msgstr "İzin ver"
 
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Allow agents to read/write cookies and storage"
 msgstr "Aracıların çerezleri ve depolamayı okumasına/yazmasına izin ver"
 
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Allow eval"
 msgstr "Değerlendirmeye izin ver"
+
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
+msgid "Already used by {conflict}"
+msgstr "Zaten {conflict} tarafından kullanılıyor"
 
 #. Notification filter: always notify
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
@@ -658,6 +690,7 @@ msgid "Apply provider preset"
 msgstr "Sağlayıcı hazır ayarını uygula"
 
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Approval or reply required from you."
 msgstr "Onayınız veya yanıtınız isteniyor."
 
@@ -688,6 +721,14 @@ msgstr "Arşiv {0}"
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadGroup.tsx
 msgid "Archive All"
 msgstr "Tümünü Arşivle"
+
+#: src/renderer/commands/registry.ts
+msgid "Archive the current thread"
+msgstr "Geçerli konuyu arşivle"
+
+#: src/renderer/commands/registry.ts
+msgid "Archive thread"
+msgstr "Konuyu arşivle"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
 msgid "Archive Thread"
@@ -769,6 +810,7 @@ msgstr "Otomatik"
 msgid "Auto Approve"
 msgstr "Otomatik Onayla"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
 msgid "Auto-archive done threads after"
 msgstr "Tamamlanan ileti dizilerini şu süreden sonra otomatik olarak arşivle:"
@@ -781,9 +823,10 @@ msgstr "Tamamlanan ileti dizilerini (gün) sonra otomatik olarak arşivle"
 msgid "Auto-generate"
 msgstr "Otomatik oluştur"
 
+#. Label for the per-provider auto-refresh cadence field
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
-msgid "Auto-refresh (minutes)"
-msgstr "Otomatik yenileme (dakika)"
+msgid "Auto-refresh"
+msgstr "Otomatik yenileme"
 
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Auto-refresh interval in minutes, 0 to turn off"
@@ -793,10 +836,12 @@ msgstr "Dakika cinsinden otomatik yenileme aralığı, kapatmak için 0"
 msgid "Auto-review"
 msgstr "Otomatik inceleme"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Auto-show terminal panel"
 msgstr "Terminal panelini otomatik göster"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Automatically show the terminal panel when running commands or creating "
 "worktrees."
@@ -819,6 +864,7 @@ msgstr "Avatar rengi"
 msgid "Avatar color {color}"
 msgstr "Avatar rengi {color}"
 
+#: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Back"
 msgstr "Geri"
@@ -844,16 +890,19 @@ msgid "Base branch is ahead — branch must be updated first."
 msgstr "Ana şube önde; önce şubenin güncellenmesi gerekiyor."
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectWorktreeLocation.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/WorktreeSettings.tsx
 msgid "Base folder"
 msgstr "Temel klasör"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Base font size for agent terminals. Auto-shrinks in narrow or short "
 "panes."
 msgstr "Aracı terminalleri için temel yazı tipi boyutu. Dar veya kısa "
 "bölmelerde otomatik olarak küçülür."
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Base font size for the terminal panel. Auto-shrinks in narrow or short "
 "panes."
@@ -936,6 +985,8 @@ msgstr "Ana klasöre göz atın"
 msgid "Browse your GitHub repositories or paste a clone URL."
 msgstr "GitHub depolarınıza göz atın veya bir klon URL'si yapıştırın."
 
+#: src/renderer/commands/registry.ts
+#: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/composer/AttachmentBar.tsx
 #: src/renderer/components/composer/ComposerAddMenu.tsx
 #: src/renderer/components/layout/UnifiedRightPanel.tsx
@@ -963,6 +1014,7 @@ msgstr "Bu konu için Tarayıcı MCP'si etkinleştirildi"
 msgid "Browser menu"
 msgstr "Tarayıcı menüsü"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Browser pick target (CLI threads)"
 msgstr "Tarayıcı seçim hedefi (CLI konuları)"
@@ -979,6 +1031,10 @@ msgstr "Bütçe sınırına ulaşıldı"
 #: src/renderer/components/thread/ChatPane/parts/items/InlineDiffView.tsx
 msgid "Building diff…"
 msgstr "Fark oluşturuluyor…"
+
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
+msgid "Built-in shortcut — can't be changed"
+msgstr "Yerleşik kısayol — değiştirilemez"
 
 #: src/renderer/views/PrReviewOverlay/parts/PrMetaRow.tsx
 msgid "by <0>{author}</0>"
@@ -1019,6 +1075,7 @@ msgstr "Şube koruma kurallarını atla (yönetici birleştirme)"
 #: src/renderer/views/MainView/parts/Sidebar/parts/DeleteWorktreeDialog.tsx
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
 #: src/renderer/views/PrReviewOverlay/parts/SubmitReviewPopover.tsx
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Cancel"
 msgstr "İptal"
 
@@ -1050,6 +1107,10 @@ msgstr "Dallar değiştirilemiyor; önce değişikliklerinizi commit edin veya "
 #: src/renderer/views/ProjectSettingsOverlay/parts/GeneralSection.tsx
 msgid "Change project folder"
 msgstr "Proje klasörünü değiştir"
+
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
+msgid "Change shortcut"
+msgstr "Kısayolu değiştir"
 
 #: src/renderer/views/MainView/parts/AppOverlays.tsx
 msgid "Change User"
@@ -1094,6 +1155,14 @@ msgstr "Sohbet"
 msgid "Chat Commands"
 msgstr "Sohbet Komutları"
 
+#: src/renderer/commands/registry.ts
+msgid "Chat starred"
+msgstr "Sohbet yıldızlandı"
+
+#: src/renderer/commands/registry.ts
+msgid "Chat unstarred"
+msgstr "Sohbetin yıldızı kaldırıldı"
+
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 msgid "Check"
 msgstr "Kontrol et"
@@ -1103,6 +1172,7 @@ msgid "Check for updates"
 msgstr "Güncellemeleri kontrol edin"
 
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Check the live input level from the selected device."
 msgstr "Seçilen cihazdan canlı giriş seviyesini kontrol edin."
 
@@ -1128,6 +1198,7 @@ msgid "Choose how to sign in."
 msgstr "Nasıl oturum açılacağını seçin."
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Choose the display language for Lightcode's interface."
 msgstr "Lightcode'un arayüzü için görüntüleme dilini seçin."
 
@@ -1136,6 +1207,7 @@ msgid "Choose thread to attach to"
 msgstr "Eklenecek konuyu seçin"
 
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Choose whether links from Lightcode and browser popups stay in Lightcode "
 "or open externally."
 msgstr "Lightcode ve tarayıcı açılır pencerelerindeki bağlantıların "
@@ -1195,6 +1267,11 @@ msgstr "CLI"
 msgid "CLI hooks"
 msgstr "CLI kancaları"
 
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
+msgid "Click a shortcut to record a new key, or ＋ to add another."
+msgstr "Yeni bir tuş kaydetmek için bir kısayola tıklayın veya başka bir tane "
+"eklemek için ＋ simgesine tıklayın."
+
 #: src/renderer/views/MainView/parts/AppContent/parts/Thread/parts/ContinueInProviderDialog.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "Clone"
@@ -1237,6 +1314,10 @@ msgstr "Düzenleyiciyi kapat"
 msgid "Close Editor Tab"
 msgstr "Düzenleyici Sekmesini Kapat"
 
+#: src/renderer/components/find/FindBar.tsx
+msgid "Close find"
+msgstr "Aramayı kapat"
+
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 msgid "Close goal"
 msgstr "Hedefi kapat"
@@ -1244,6 +1325,10 @@ msgstr "Hedefi kapat"
 #: src/renderer/views/MainView/parts/AppContent/AppContent.tsx
 msgid "Close group"
 msgstr "Grubu kapat"
+
+#: src/renderer/commands/shortcutCatalog.ts
+msgid "Close overlay"
+msgstr "Yer paylaşımını kapat"
 
 #: src/renderer/components/thread/ThreadDraftChrome.tsx
 #: src/renderer/components/thread/ThreadView.tsx
@@ -1291,6 +1376,7 @@ msgid "Close tab"
 msgstr "Sekmeyi kapat"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Close to tray"
 msgstr "Tepsiye küçült"
 
@@ -1335,6 +1421,7 @@ msgstr "Yazma alanını daralt"
 msgid "Collapse error"
 msgstr "Hatayı daralt"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Collapse terminal composer"
 msgstr "Terminal yazma alanını daralt"
@@ -1380,6 +1467,7 @@ msgid "Commit & Create PR"
 msgstr "Commit Et ve PR Oluştur"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Commit & PR language"
 msgstr "Commit ve PR dili"
 
@@ -1400,12 +1488,17 @@ msgid "Commit message (Ctrl+Enter)"
 msgstr "Commit mesajı (Ctrl+Enter)"
 
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Commit Message Generation"
 msgstr "Commit Mesajı Oluşturma"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CommitSyncPanel.tsx
 msgid "Commit options"
 msgstr "Commit seçenekleri"
+
+#: src/renderer/commands/shortcutCatalog.ts
+msgid "Commit, PR, and review composers"
+msgstr "Commit, PR ve inceleme composer'ları"
 
 #: src/renderer/views/PrReviewOverlay/parts/PrTabsPill.tsx
 msgid "Commits"
@@ -1452,16 +1545,22 @@ msgstr "Bu terminaldeki istemleri tamamlayın. Bittiğinde kapanır."
 msgid "completed"
 msgstr "tamamlandı"
 
+#: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Composer"
 msgstr "Composer"
+
+#: src/renderer/commands/composerCommands.ts
+msgid "Composer controls"
+msgstr "Composer denetimleri"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Config directory"
 msgstr "Yapılandırma dizini"
 
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Conflict Resolver"
 msgstr "Çatışma Çözücü"
 
@@ -1592,6 +1691,10 @@ msgstr "Yolu Kopyala"
 msgid "Copy Relative Path"
 msgstr "Göreli Yolu Kopyala"
 
+#: src/renderer/commands/shortcutCatalog.ts
+msgid "Copy selection"
+msgstr "Seçimi kopyala"
+
 #: src/renderer/components/thread/WorktreeModeSelect.tsx
 msgid "Copy uncommitted changes here (keeps them on this branch)"
 msgstr "Taahhüt edilmemiş değişiklikleri buraya kopyalayın (onları bu dalda "
@@ -1639,6 +1742,10 @@ msgstr "Depolar listelenemedi."
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "Couldn't load your profile stats."
 msgstr "Profil istatistikleriniz yüklenemedi."
+
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
+msgid "Couldn't save the shortcut."
+msgstr "Kısayol kaydedilemedi."
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CreatePrModal.tsx
 msgid "Create Draft PR"
@@ -1714,6 +1821,7 @@ msgstr "güncel seri"
 msgid "Current streak"
 msgstr "Güncel seri"
 
+#: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
@@ -1723,6 +1831,22 @@ msgstr "Özel"
 #: src/renderer/views/ProjectSettingsOverlay/parts/ActionsSection.tsx
 msgid "Custom commands available from the project context menu (right-click)."
 msgstr "Proje içerik menüsünden erişilebilen özel komutlar (sağ tıklama)."
+
+#: src/renderer/commands/composerCommands.ts
+msgid "Cycle permission mode"
+msgstr "İzin modunu değiştir"
+
+#: src/renderer/commands/composerCommands.ts
+msgid "Cycle reasoning effort"
+msgstr "Akıl yürütme çabasını değiştir"
+
+#: src/renderer/commands/registry.ts
+msgid "Cycle to the next recently viewed chat"
+msgstr "Son görüntülenen sonraki sohbete geç"
+
+#: src/renderer/commands/registry.ts
+msgid "Cycle to the previous recently viewed chat"
+msgstr "Son görüntülenen önceki sohbete geç"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Dark"
@@ -1736,11 +1860,18 @@ msgstr "Reddet"
 msgid "Default"
 msgstr "Varsayılan"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+msgid "Default auto-refresh (minutes)"
+msgstr "Varsayılan otomatik yenileme (dakika)"
+
 #: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Default Create PR action"
 msgstr "Varsayılan PR Oluşturma eylemi"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Default new thread"
 msgstr "Varsayılan yeni konu"
 
@@ -1748,6 +1879,7 @@ msgstr "Varsayılan yeni konu"
 msgid "Default permissions"
 msgstr "Varsayılan izinler"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
 msgid "Default thread removal"
 msgstr "Varsayılan konu kaldırma"
@@ -1854,6 +1986,8 @@ msgstr "Aracılar algılanıyor…"
 
 #. Settings section: developer/debug tools
 #. Settings section: developer/debug tools
+#. Settings section: developer/debug tools
+#. Settings section: developer/debug tools
 #: src/renderer/views/SettingsOverlay/parts/DevSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Dev"
@@ -1865,6 +1999,7 @@ msgstr "Yalnızca geliştirme amaçlı geçersiz kılmalar. Yalnızca LIGHTCODE 
 "yapısında görünür."
 
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Device used by the composer voice input button."
 msgstr "Oluşturucu ses giriş düğmesi tarafından kullanılan cihaz."
 
@@ -1881,6 +2016,7 @@ msgid "Disable Browser MCP"
 msgstr "Tarayıcı MCP'yi Devre Dışı Bırak"
 
 #: src/renderer/views/SettingsOverlay/parts/DevSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Disable CLI hook plugin (L1)"
 msgstr "CLI kanca eklentisini devre dışı bırak (L1)"
 
@@ -1897,6 +2033,10 @@ msgstr "Harici bir sağlayıcının birleştirdiği düzeyleri devre dışı bı
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 msgid "Disabled"
 msgstr "Devre dışı"
+
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
+msgid "Discard"
+msgstr "Sil"
 
 #: src/renderer/commands/registry.ts
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
@@ -1950,6 +2090,7 @@ msgstr "bitti"
 
 #. Notification status: thread is done
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Done"
 msgstr "Bitti"
 
@@ -1988,6 +2129,7 @@ msgid "Draft"
 msgstr "Taslak"
 
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Drag to reorder how providers appear in the model picker."
 msgstr "Sağlayıcıların model seçicide nasıl görüneceğini yeniden sıralamak için "
 "sürükleyin."
@@ -2001,6 +2143,7 @@ msgid "Drop here to attach"
 msgstr "Eklemek için buraya bırakın"
 
 #: src/renderer/views/SettingsOverlay/parts/DevSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Drops incoming hook envelopes on the supervisor so agents fall back to "
 "L2 (OSC 9;4 progress) without touching install or iTerm2 notifications. "
 "Takes effect on the next hook event — no restart needed."
@@ -2031,11 +2174,13 @@ msgid "Edit:"
 msgstr "Düzenle:"
 
 #: src/renderer/commands/registry.ts
+#: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/views/FileEditorOverlay/FileEditorOverlay.tsx
 msgid "Editor"
 msgstr "Editör"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Editor LSP"
 msgstr "LSP Düzenleyicisi"
 
@@ -2065,6 +2210,7 @@ msgid "Enable {tierLabel} effort"
 msgstr "{tierLabel} efor düzeyini etkinleştir"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Enable language server support for type checking, completions, and "
 "diagnostics. Requires a language server installed."
 msgstr "Tür denetimi, tamamlamalar ve tanılama için dil sunucusu desteğini "
@@ -2076,6 +2222,7 @@ msgstr "Sistem ayarlarınızdan mikrofon erişimini etkinleştirin ve tekrar "
 "deneyin."
 
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Enable notifications"
 msgstr "Bildirimleri etkinleştir"
 
@@ -2143,6 +2290,7 @@ msgstr "hata"
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 #: src/renderer/components/ui/toastContent.ts
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Error"
 msgstr "Hata"
 
@@ -2151,6 +2299,7 @@ msgid "Error · Agent encountered an error"
 msgstr "Hata · Temsilci bir hatayla karşılaştı"
 
 #: src/renderer/views/SettingsOverlay/parts/SearchExcludeBody.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Exclude patterns"
 msgstr "Kalıpları hariç tut"
 
@@ -2236,6 +2385,7 @@ msgid "Fastest (Whisper tiny)"
 msgstr "En hızlı (Whisper tiny)"
 
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Fastest uses Whisper tiny; Better uses Whisper base."
 msgstr "En hızlı, Whisper tiny modelini kullanır; Daha iyi, Whisper base "
 "modelini kullanır."
@@ -2292,8 +2442,30 @@ msgid "Files for {0}"
 msgstr "{0} için dosyalar"
 
 #: src/renderer/views/SettingsOverlay/parts/SearchExcludeBody.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Files matching these globs are hidden from the @file mention search."
 msgstr "Bu glob'larla eşleşen dosyalar, @file bahsetme aramasında gizlenir."
+
+#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
+msgid "Filter settings"
+msgstr "Ayarları filtrele"
+
+#: src/renderer/commands/registry.ts
+#: src/renderer/components/find/FindBar.tsx
+msgid "Find"
+msgstr "Bul"
+
+#: src/renderer/components/find/ChatFindBar.tsx
+msgid "Find in chat"
+msgstr "Sohbette bul"
+
+#: src/renderer/components/find/GitFindBar.tsx
+msgid "Find in diff"
+msgstr "Farkta bul"
+
+#: src/renderer/components/terminal/XTermSurface.tsx
+msgid "Find in terminal"
+msgstr "Terminalde bul"
 
 #: src/renderer/views/PrReviewOverlay/parts/SubmitReviewPopover.tsx
 msgid "Finish your review"
@@ -2345,10 +2517,19 @@ msgstr "Lightcode'un yerel SDK çalışma zamanını kullanan birinci sınıf Op
 msgid "Fix in Agent"
 msgstr "Aracıda Düzelt"
 
+#: src/renderer/commands/registry.ts
+msgid "Focus browser address bar"
+msgstr "Tarayıcı adres çubuğuna odakla"
+
+#: src/renderer/commands/registry.ts
+msgid "Focus the in-app browser address bar"
+msgstr "Uygulama içi tarayıcı adres çubuğuna odakla"
+
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "Folder name"
 msgstr "Klasör adı"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/WorktreeSettings.tsx
 msgid "Folder that holds all worktrees. Tip: a Dev Drive here speeds up builds."
 msgstr "Tüm çalışma ağaçlarını barındıran klasör. İpucu: buradaki bir Dev Drive "
@@ -2368,6 +2549,10 @@ msgstr "Silmeye Zorla"
 msgid "Force delete? Unmerged changes will be lost."
 msgstr "Silmeye zorlansın mı? Birleştirilmeyen değişiklikler kaybolacak."
 
+#: src/renderer/commands/shortcutCatalog.ts
+msgid "Force reload browser page"
+msgstr "Tarayıcı sayfasını zorla yeniden yükle"
+
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 msgid "Fork"
 msgstr "Fork"
@@ -2376,6 +2561,7 @@ msgstr "Fork"
 msgid "Format files"
 msgstr "Dosyaları biçimlendir"
 
+#: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Forward"
 msgstr "İleri"
@@ -2408,6 +2594,7 @@ msgstr "Tam erişim"
 msgid "Fullscreen overlay"
 msgstr "Tam ekran yer paylaşımı"
 
+#: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/views/ProjectSettingsOverlay/parts/GeneralSection.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/SettingsSidebar.tsx
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
@@ -2432,10 +2619,12 @@ msgid "Generated image"
 msgstr "Oluşturulan görsel"
 
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Generates commit messages from staged changes."
 msgstr "Hazırlanmış (staged) değişikliklerden commit mesajları oluşturur."
 
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Generates short titles for new threads."
 msgstr "Yeni konular için kısa başlıklar oluşturur."
 
@@ -2443,6 +2632,7 @@ msgstr "Yeni konular için kısa başlıklar oluşturur."
 msgid "Get task"
 msgstr "Görev al"
 
+#: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/layout/UnifiedRightPanel.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
@@ -2462,6 +2652,7 @@ msgid "Git Review"
 msgstr "Git İncelemesi"
 
 #: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Git review mode"
 msgstr "Git inceleme modu"
 
@@ -2490,9 +2681,21 @@ msgstr "Ana projeden her yeni çalışma ağacına kopyalanacak Git yok sayılan
 msgid "GLM 5.2 (optional label)"
 msgstr "GLM 5.2 (isteğe bağlı etiket)"
 
+#: src/renderer/commands/shortcutCatalog.ts
+msgid "Global"
+msgstr "Genel"
+
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Global folder"
 msgstr "Genel klasör"
+
+#: src/renderer/commands/shortcutCatalog.ts
+msgid "Go back in navigation history"
+msgstr "Gezinme geçmişinde geri git"
+
+#: src/renderer/commands/shortcutCatalog.ts
+msgid "Go forward in navigation history"
+msgstr "Gezinme geçmişinde ileri git"
 
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 msgid "Goal"
@@ -2511,6 +2714,7 @@ msgid "Group open threads"
 msgstr "Açık konuları gruplandır"
 
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "GUI chat font size"
 msgstr "GUI sohbet yazı tipi boyutu"
 
@@ -2526,6 +2730,7 @@ msgstr "Kullanıcı adı"
 msgid "Hard Reload"
 msgstr "Sert Yeniden Yükleme"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
 msgid "Hidden resumable threads are swept every 5 minutes and unloaded after "
 "this idle age."
@@ -2535,6 +2740,10 @@ msgstr "Gizli devam ettirilebilir konular her 5 dakikada bir taranır ve bu "
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewPanel.tsx
 msgid "Hide"
 msgstr "Gizle"
+
+#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+msgid "Hide {label} circle in sidebar"
+msgstr "{label} dairesini kenar çubuğunda gizle"
 
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilitySection.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
@@ -2585,6 +2794,7 @@ msgid "Home"
 msgstr "Ana sayfa"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Home scope"
 msgstr "Ana kapsam"
 
@@ -2726,6 +2936,10 @@ msgstr "Kesintiye uğradı: Ajan oturumu tamamlanmadan sona erdi."
 msgid "Italic"
 msgstr "italik"
 
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
+msgid "Jump to section"
+msgstr "Bölüme git"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/UsagePanel.tsx
 msgid "just now"
 msgstr "şimdi"
@@ -2735,6 +2949,7 @@ msgid "Keep Branch"
 msgstr "Şubeyi Koru"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Keep the system awake while any thread is actively working."
 msgstr "Herhangi bir konu aktif olarak çalışırken sistemi uyanık tutun."
 
@@ -2743,10 +2958,12 @@ msgid "Kill bash"
 msgstr "Bash'ı öldür"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Language"
 msgstr "Dil"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Language for AI-generated commit messages and pull request summaries. "
 "Thread titles always follow the app language."
 msgstr "Yapay zeka tarafından oluşturulan commit mesajları ve çekme isteği "
@@ -2754,6 +2971,7 @@ msgstr "Yapay zeka tarafından oluşturulan commit mesajları ve çekme isteği 
 "izler."
 
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Language the speech model should expect when transcribing composer "
 "dictation."
 msgstr "Yazma alanı diktesini yazıya dökerken konuşma modelinin beklemesi "
@@ -2959,7 +3177,12 @@ msgstr "Tamamlandı Olarak İşaretle"
 msgid "Match app language"
 msgstr "Uygulama diliyle eşleştir"
 
+#: src/renderer/components/find/FindBar.tsx
+msgid "Match case"
+msgstr "Büyük/küçük harf eşleştir"
+
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Match your system, or force light or dark."
 msgstr "Sisteminizle eşleştirin veya açık veya koyu olanı zorlayın."
 
@@ -2975,6 +3198,10 @@ msgstr "Tarayıcıyı büyüt"
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "MCP servers"
 msgstr "MCP sunucuları"
+
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "MCP tool calls"
+msgstr "MCP araç çağrıları"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/useWorktreeActions.ts
 msgid "Merge & Remove"
@@ -3044,6 +3271,7 @@ msgid "Messages sent"
 msgstr "Gönderilen mesajlar"
 
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Microphone"
 msgstr "Mikrofon"
 
@@ -3068,6 +3296,11 @@ msgstr "Mikrofon izni reddedildi."
 msgid "Microphone testing is not available in this environment."
 msgstr "Bu ortamda mikrofon testi yapılamaz."
 
+#. Unit suffix: minutes
+#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+msgid "min"
+msgstr "dk"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 msgid "Minimize browser to right panel"
 msgstr "Tarayıcıyı sağ panele küçült"
@@ -3077,8 +3310,13 @@ msgid "Minimize to panel"
 msgstr "Panele küçült"
 
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Mode"
 msgstr "Mod"
+
+#: src/renderer/commands/registry.ts
+msgid "Model added to favorites"
+msgstr "Model favorilere eklendi"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Model id"
@@ -3089,8 +3327,13 @@ msgid "Model label"
 msgstr "Model etiketi"
 
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Model order"
 msgstr "Model sırası"
+
+#: src/renderer/commands/registry.ts
+msgid "Model removed from favorites"
+msgstr "Model favorilerden kaldırıldı"
 
 #: src/renderer/views/ProfileOverlay/parts/ModelUsage.tsx
 msgid "Model usage"
@@ -3201,6 +3444,7 @@ msgid "Needs approval"
 msgstr "Onay gerekiyor"
 
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Needs Attention"
 msgstr "Dikkat Gerekiyor"
 
@@ -3246,9 +3490,17 @@ msgstr "Yeni Dosya"
 msgid "New Folder"
 msgstr "Yeni Klasör"
 
+#: src/renderer/commands/shortcutCatalog.ts
+msgid "New line"
+msgstr "Yeni satır"
+
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
 msgid "New project"
 msgstr "Yeni proje"
+
+#: src/renderer/commands/registry.ts
+msgid "New quick thread"
+msgstr "Yeni hızlı konu"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabStrip.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
@@ -3287,9 +3539,25 @@ msgstr "Worktree'de Yeni Konu"
 msgid "New worktree"
 msgstr "Yeni çalışma ağacı"
 
+#: src/renderer/commands/registry.ts
+msgid "Next chat"
+msgstr "Sonraki sohbet"
+
 #: src/renderer/components/composer/ImageLightbox.tsx
 msgid "Next image"
 msgstr "Sonraki resim"
+
+#: src/renderer/components/find/FindBar.tsx
+msgid "Next match"
+msgstr "Sonraki eşleşme"
+
+#: src/renderer/commands/registry.ts
+msgid "Next recently viewed chat"
+msgstr "Sonraki son görüntülenen sohbet"
+
+#: src/renderer/commands/registry.ts
+msgid "Next tab"
+msgstr "Sonraki sekme"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/hooks/useElementPicker.ts
 msgid "No active browser tab"
@@ -3475,9 +3743,18 @@ msgstr "Uzak ayarlanmamış. Push ve pull işlemlerini etkinleştirmek için bir
 msgid "No repositories found."
 msgstr "Hiçbir depo bulunamadı."
 
+#: src/renderer/components/find/FindBar.tsx
+#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
+msgid "No results"
+msgstr "Sonuç yok"
+
 #: src/renderer/components/thread/ChatPane/ChatRuntimeDebugPanel.tsx
 msgid "No runtime items yet for this thread."
 msgstr "Bu konu için henüz çalışma zamanı öğesi yok."
+
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
+msgid "No shortcuts found"
+msgstr "Hiçbir kısayol bulunamadı"
 
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "No skills used yet."
@@ -3490,10 +3767,6 @@ msgstr "Konuşma algılanmadı."
 #: src/renderer/views/GitReviewOverlay/parts/GitDiffContent/GitDiffContent.tsx
 msgid "No staged changes"
 msgstr "Aşamalı değişiklik yok"
-
-#: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
-msgid "No subagents used yet."
-msgstr "Henüz alt aracı kullanılmadı."
 
 #: src/renderer/components/thread/ThreadDraftView.tsx
 msgid "No supported agents detected"
@@ -3568,6 +3841,7 @@ msgid "Notifications"
 msgstr "Bildirimler"
 
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Notify for L2 CLI threads"
 msgstr "L2 CLI konuları için bildirim"
 
@@ -3601,6 +3875,10 @@ msgstr "Açık"
 msgid "Open {label}"
 msgstr "{label} öğesini aç"
 
+#: src/renderer/commands/registry.ts
+msgid "Open a new browser tab"
+msgstr "Yeni bir tarayıcı sekmesi aç"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/DevTerminalPanel.tsx
 msgid "Open a terminal"
 msgstr "Bir terminal aç"
@@ -3630,6 +3908,10 @@ msgstr "Panel Olarak Aç"
 msgid "Open browser"
 msgstr "Tarayıcıyı aç"
 
+#: src/renderer/commands/registry.ts
+msgid "Open browser tab"
+msgstr "Tarayıcı sekmesi aç"
+
 #: src/renderer/views/PrReviewOverlay/parts/PrChecksTab.tsx
 msgid "Open check"
 msgstr "Kontrolü aç"
@@ -3658,6 +3940,10 @@ msgstr "Dosyayı Aç"
 msgid "Open Files"
 msgstr "Dosyaları Aç"
 
+#: src/renderer/commands/registry.ts
+msgid "Open folder"
+msgstr "Klasörü Aç"
+
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorToolbar.tsx
 msgid "Open fullscreen"
 msgstr "Tam ekranı aç"
@@ -3671,6 +3957,7 @@ msgid "Open Git Review"
 msgstr "Git İncelemesini Aç"
 
 #: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Open git review as a right-side panel or a full page."
 msgstr "Git incelemesini sağ taraftaki panel veya tam sayfa olarak açın."
 
@@ -3686,14 +3973,20 @@ msgid "Open in editor"
 msgstr "Düzenleyicide aç"
 
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Open links in"
 msgstr "Bağlantıları şurada aç:"
+
+#: src/renderer/commands/composerCommands.ts
+msgid "Open model picker"
+msgstr "Model seçiciyi aç"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserEmptyState.tsx
 msgid "Open new tab"
 msgstr "Yeni sekme aç"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Open new threads as a full page or a side-by-side panel."
 msgstr "Yeni konuları tam sayfa veya yan yana panel olarak açın."
 
@@ -3803,14 +4096,25 @@ msgstr "Paket yöneticisi"
 msgid "Page"
 msgstr "Sayfa"
 
+#: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Panel"
 msgstr "Panel"
 
+#: src/renderer/commands/shortcutCatalog.ts
+msgid "Panels and overlays"
+msgstr "Paneller ve yer paylaşımları"
+
+#: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/terminal/XTermSurface.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 msgid "Paste"
 msgstr "Yapıştır"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+msgid "Paste {label} API key"
+msgstr "{label} API anahtarını yapıştır"
 
 #. placeholder {0}: activeDeviceCode.code
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
@@ -3880,10 +4184,12 @@ msgid "Plan"
 msgstr "Plan"
 
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Play a sound when a notification is shown."
 msgstr "Bir bildirim gösterildiğinde ses çalın."
 
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Play notification sound"
 msgstr "Bildirim sesini çal"
 
@@ -3894,6 +4200,7 @@ msgstr "Bu profili özel ortam değişkenleri, model adları ve efor düzeyleriy
 "Anthropic dışı bir sağlayıcıya (z.ai, …) yönlendirin."
 
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Popular editor themes adapted to Lightcode. Each follows the light or "
 "dark mode above."
 msgstr "Lightcode'a uyarlanmış popüler editör temaları. Her biri yukarıdaki "
@@ -3927,7 +4234,12 @@ msgstr "Pre-commit kancası başarısız oldu"
 msgid "Presets"
 msgstr "Hazır ayarlar"
 
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
+msgid "Press shortcut…"
+msgstr "Kısayola basın…"
+
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Prevent sleep while working"
 msgstr "Çalışırken uykuyu önleyin"
 
@@ -3936,9 +4248,25 @@ msgstr "Çalışırken uykuyu önleyin"
 msgid "Preview {0}"
 msgstr "Önizleme {0}"
 
+#: src/renderer/commands/registry.ts
+msgid "Previous chat"
+msgstr "Önceki sohbet"
+
 #: src/renderer/components/composer/ImageLightbox.tsx
 msgid "Previous image"
 msgstr "Önceki resim"
+
+#: src/renderer/components/find/FindBar.tsx
+msgid "Previous match"
+msgstr "Önceki eşleşme"
+
+#: src/renderer/commands/registry.ts
+msgid "Previous recently viewed chat"
+msgstr "Önceki son görüntülenen sohbet"
+
+#: src/renderer/commands/registry.ts
+msgid "Previous tab"
+msgstr "Önceki sekme"
 
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Profile"
@@ -3953,6 +4281,7 @@ msgid "Profiles"
 msgstr "Profiller"
 
 #: src/renderer/commands/registry.ts
+#: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/views/ProjectSettingsOverlay/ProjectSettingsOverlay.tsx
 msgid "Project"
 msgstr "Proje"
@@ -4144,6 +4473,7 @@ msgstr "Son"
 msgid "Recent threads"
 msgstr "Son konular"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Reconstructed from local logs at public API rates — it does not reflect "
 "your real bill on subscription plans. Shown only in the usage panel."
@@ -4151,6 +4481,7 @@ msgstr "Yerel günlüklerden genel API oranlarıyla yeniden oluşturulmuştur; "
 "abonelik planlarındaki gerçek faturanızı yansıtmaz. Yalnızca kullanım "
 "panelinde gösterilir."
 
+#. Button: re-fetch one provider's usage now
 #. Button: re-fetch provider usage now
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
 #: src/renderer/views/GitReviewOverlay/GitReviewOverlay.tsx
@@ -4167,6 +4498,10 @@ msgstr "Yenile"
 msgid "Refresh {0} authentication"
 msgstr "{0} kimlik doğrulamasını yenile"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
+msgid "Refresh {label}"
+msgstr "{label} sağlayıcısını yenile"
+
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Refresh detected agents"
 msgstr "Algılanan aracıları yenile"
@@ -4174,13 +4509,6 @@ msgstr "Algılanan aracıları yenile"
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Refresh registry"
 msgstr "Kayıt defterini yenile"
-
-#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
-msgid "Refresh usage in the background every N minutes. Set to 0 to turn off "
-"(manual only). The 2-minute floor respects provider rate limits."
-msgstr "Arka planda kullanımı her N dakikada bir yenileyin. Kapatmak için 0'a "
-"ayarlayın (yalnızca manuel). 2 dakikalık alt sınır, sağlayıcının hız "
-"limitlerine uyar."
 
 #. placeholder {0}: status.label
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
@@ -4196,6 +4524,10 @@ msgstr "{env} {0} kimlik doğrulama durumu yenileniyor."
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Reload"
 msgstr "Yeniden yükle"
+
+#: src/renderer/commands/shortcutCatalog.ts
+msgid "Reload browser page"
+msgstr "Tarayıcı sayfasını yeniden yükle"
 
 #: src/renderer/components/common/BranchSelector/parts/useBranchList.ts
 msgid "Remote"
@@ -4259,6 +4591,10 @@ msgstr "Modeli kaldır"
 msgid "Remove Project"
 msgstr "Projeyi Kaldır"
 
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
+msgid "Remove shortcut"
+msgstr "Kısayolu kaldır"
+
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
 msgid "Remove worktree?"
 msgstr "Çalışma ağacı kaldırılsın mı?"
@@ -4268,9 +4604,17 @@ msgstr "Çalışma ağacı kaldırılsın mı?"
 msgid "Rename"
 msgstr "Yeniden adlandır"
 
+#: src/renderer/commands/registry.ts
+msgid "Rename chat"
+msgstr "Sohbeti yeniden adlandır"
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadGroup.tsx
 msgid "Rename Group"
 msgstr "Grubu Yeniden Adlandır"
+
+#: src/renderer/commands/registry.ts
+msgid "Rename the current chat"
+msgstr "Geçerli sohbeti yeniden adlandır"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/InlineRenameInput.tsx
 msgid "Rename thread"
@@ -4354,6 +4698,7 @@ msgid "Reset sidebar frosting to default"
 msgstr "Kenar çubuğu buzlu cam efektini varsayılana sıfırla"
 
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Reset to default"
 msgstr "Varsayılana sıfırla"
 
@@ -4390,6 +4735,7 @@ msgid "Resize terminal panel"
 msgstr "Terminal panelini yeniden boyutlandır"
 
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Resolves merge conflicts during rebase or merge."
 msgstr "Yeniden temel alma veya birleştirme sırasındaki birleştirme "
 "çakışmalarını çözer."
@@ -4524,6 +4870,7 @@ msgid "Run in a separate worktree"
 msgstr "Ayrı bir çalışma ağacında çalıştır"
 
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Run local transcription on the GPU when available."
 msgstr "Mümkün olduğunda GPU'da yerel transkripsiyonu çalıştırın."
 
@@ -4589,6 +4936,10 @@ msgstr "Claude profilini kaydet"
 msgid "Save File"
 msgstr "Dosyayı Kaydet"
 
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
+msgid "Save shortcut"
+msgstr "Kısayolu kaydet"
+
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
 msgid "Saved credentials are shared across all environments."
 msgstr "Kaydedilen kimlik bilgileri tüm ortamlarda paylaşılır."
@@ -4612,9 +4963,11 @@ msgstr "Kurulu CLI'ler için sisteminiz taranıyor. Bu genellikle birkaç saniye
 "sürer."
 
 #: src/renderer/commands/registry.ts
+#: src/renderer/commands/shortcutCatalog.ts
 msgid "Scripts"
 msgstr "Komut dosyaları"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Scroll speed multiplier for the terminal scrollback buffer."
 msgstr "Terminal geri kaydırma arabelleği için kaydırma hızı çarpanı."
@@ -4677,6 +5030,14 @@ msgstr "Depolarda ara…"
 #: src/renderer/components/thread/ChatPane/ChatRuntimeDebugPanel.tsx
 msgid "Search runtime items…"
 msgstr "Çalışma zamanı öğelerini ara…"
+
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
+msgid "Search shortcuts"
+msgstr "Kısayolları ara"
+
+#: src/renderer/commands/registry.ts
+msgid "Search the current view"
+msgstr "Geçerli görünümde ara"
 
 #: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
 msgid "Search threads"
@@ -4747,6 +5108,7 @@ msgstr "Proje seçin"
 msgid "Send a message..."
 msgstr "Mesaj gönder..."
 
+#: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/thread/ThreadComposerSection.tsx
 msgid "Send message"
 msgstr "Mesaj gönder"
@@ -4768,6 +5130,10 @@ msgstr "Claude Code hesaplarını yapılandırma dizinine göre ayırın ya da b
 msgid "Set or view an experimental goal"
 msgstr "Deneysel bir hedef belirleyin veya görüntüleyin"
 
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
+msgid "Set shortcut"
+msgstr "Kısayol belirle"
+
 #: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 #: src/renderer/views/SettingsOverlay/SettingsOverlay.tsx
@@ -4786,11 +5152,17 @@ msgstr "Paylaş"
 msgid "Share your activity"
 msgstr "Etkinliğinizi paylaşın"
 
+#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
+msgid "Shortcuts"
+msgstr "Kısayollar"
+
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
-msgid "Show a compact per-provider usage ring in the sidebar."
-msgstr "Kenar çubuğunda sağlayıcı başına kompakt bir kullanım halkası gösterin."
+msgid "Show {label} circle in sidebar"
+msgstr "{label} dairesini kenar çubuğunda göster"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Show a projectless Home scope for OS-level agent sessions."
 msgstr "İşletim sistemi düzeyindeki aracı oturumları için projesiz bir Ana "
 "Sayfa kapsamı gösterin."
@@ -4805,9 +5177,17 @@ msgstr "Tümünü göster"
 msgid "Show Bookmark Bar"
 msgstr "Yer İşareti Çubuğunu Göster"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Show circles in sidebar"
 msgstr "Kenar çubuğunda daireleri göster"
+
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+msgid "Show compact per-provider usage rings in the sidebar. Hide individual "
+"providers' circles in the list below."
+msgstr "Kenar çubuğunda sağlayıcı başına kompakt kullanım halkaları gösterin. "
+"Aşağıdaki listeden tek tek sağlayıcıların dairelerini gizleyin."
 
 #: src/renderer/components/thread/ThreadComposerSection.tsx
 msgid "Show composer"
@@ -4817,6 +5197,7 @@ msgstr "Composer'ı göster"
 msgid "Show context usage details"
 msgstr "Bağlam kullanım ayrıntılarını göster"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Show estimated cost"
 msgstr "Tahmini maliyeti göster"
@@ -4835,16 +5216,27 @@ msgid "Show more"
 msgstr "Daha fazlasını göster"
 
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Show notifications"
 msgstr "Bildirimleri göster"
 
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Show notifications when thread status changes."
 msgstr "Konu durumu değiştiğinde bildirimleri göster."
 
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Show opened links in"
 msgstr "Açılan bağlantıları şurada göster:"
+
+#: src/renderer/commands/registry.ts
+msgid "Show or hide the browser panel"
+msgstr "Tarayıcı panelini göster veya gizle"
+
+#: src/renderer/commands/registry.ts
+msgid "Show or hide the sidebar"
+msgstr "Kenar çubuğunu göster veya gizle"
 
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorToolbar.tsx
 msgid "Show preview"
@@ -4867,18 +5259,31 @@ msgid "Show source"
 msgstr "Kaynağı göster"
 
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Show the microphone button in the composer."
 msgstr "Composer'da mikrofon düğmesini gösterin."
 
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Show voice input button"
 msgstr "Ses girişi düğmesini göster"
 
+#. Toggle: show this provider's usage ring in the sidebar
+#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+msgid "Sidebar"
+msgstr "Kenar çubuğu"
+
+#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+msgid "Sidebar circles are turned off globally above"
+msgstr "Kenar çubuğu daireleri yukarıda genel olarak kapatılmış"
+
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Sidebar frosting"
 msgstr "Kenar çubuğu buzlu cam efekti"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Sign in"
 msgstr "Oturum aç"
 
@@ -4895,6 +5300,10 @@ msgstr "Oturum açmanız gerekiyor"
 msgid "Sign in with the agent CLI."
 msgstr "Aracı CLI ile oturum açın."
 
+#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+msgid "Sign out"
+msgstr "Oturumu kapat"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
 msgid "Sign out {label}"
 msgstr "{label} oturumunu kapat"
@@ -4908,6 +5317,7 @@ msgid "Signing in"
 msgstr "Oturum açılıyor"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Signing in…"
 msgstr "Oturum açılıyor…"
 
@@ -4920,25 +5330,21 @@ msgstr "{env} oturumu kapatılıyor. Algılanan aracılar tamamlandığında "
 msgid "Signing out. Detected agents will refresh when it finishes."
 msgstr "Çıkış yapılıyor. Algılanan aracılar tamamlandığında yenilenecektir."
 
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "Skill runs"
+msgstr "Skill çalıştırmaları"
+
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Skill: {skill}"
 msgstr "Beceri: {skill}"
-
-#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
-msgid "Skill/subagent runs"
-msgstr "Beceri/alt aracı çalıştırmaları"
 
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "Skills"
 msgstr "Beceriler"
 
 #: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
-#~ msgid "Skills explored"
-#~ msgstr "Keşfedilen beceriler"
-
-#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
-msgid "Skills/subagents explored"
-msgstr "Keşfedilen beceri/alt aracılar"
+msgid "Skills explored"
+msgstr "Kullanılan skill’ler"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "Some checks are failing or pending."
@@ -4990,6 +5396,11 @@ msgstr "Hazırlanmış"
 msgid "Staged ({0})"
 msgstr "Hazırlanmış ({0})"
 
+#: src/renderer/commands/registry.ts
+msgid "Star or unstar the current chat or model"
+msgstr "Mevcut sohbeti veya modeli favorilere ekleyin veya favorilerden "
+"kaldırın"
+
 #. Button: start the microphone level test
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 msgid "Start"
@@ -4999,6 +5410,10 @@ msgstr "Başlat"
 msgid "Start {appName} to see usage"
 msgstr "Kullanımı görmek için {appName} uygulamasını başlatın"
 
+#: src/renderer/commands/registry.ts
+msgid "Start a new thread as panel instead of page"
+msgstr "Yeni bir konuyu sayfa yerine panel olarak başlatın"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesEditor.tsx
 msgid "Start a new thread from the selected text"
 msgstr "Seçilen metinden yeni bir konu başlatın"
@@ -5007,11 +5422,20 @@ msgstr "Seçilen metinden yeni bir konu başlatın"
 msgid "Start a new thread from this to-do"
 msgstr "Bu yapılacaklardan yeni bir konu başlatın"
 
+#: src/renderer/commands/composerCommands.ts
+msgid "Start dictation"
+msgstr "Dikteyi başlat"
+
+#: src/renderer/commands/composerCommands.ts
+msgid "Start dictation in the current composer"
+msgstr "Geçerli composer'da dikteyi başlat"
+
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
 msgid "Start from scratch"
 msgstr "Sıfırdan başla"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Start the composer collapsed in terminal-native threads. A collapsed "
 "composer routes browser element picks straight to the terminal."
@@ -5089,6 +5513,7 @@ msgstr "Klasörünü değiştirmeden önce projenin çalışan konularını durd
 msgid "Stop voice input"
 msgstr "Ses girişini durdur"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/WorktreeSettings.tsx
 msgid "Storage location"
 msgstr "Depolama konumu"
@@ -5113,8 +5538,11 @@ msgstr "Alt aracı bulunamadı."
 msgid "Subagent Result"
 msgstr "Alt Aracı Sonucu"
 
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "Subagent runs"
+msgstr "Alt ajan çalıştırmaları"
+
 #: src/renderer/components/thread/ChatPane/parts/items/ActiveSubAgentTile.tsx
-#: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "Subagents"
 msgstr "Alt aracılar"
 
@@ -5135,6 +5563,10 @@ msgstr "Birleştirmeden önce ele alınması gereken geri bildirimleri gönderin
 #: src/renderer/views/PrReviewOverlay/parts/SubmitReviewPopover.tsx
 msgid "Submit feedback without explicit approval."
 msgstr "Açık onay olmadan geri bildirim gönderin."
+
+#: src/renderer/commands/shortcutCatalog.ts
+msgid "Submit Git form"
+msgstr "Git formunu gönder"
 
 #: src/renderer/views/PrReviewOverlay/parts/SubmitReviewPopover.tsx
 msgid "Submit review"
@@ -5181,6 +5613,22 @@ msgstr "Bu sohbeti temsilci moduna geçir"
 #: src/renderer/components/providers/codex/index.tsx
 msgid "Switch this chat to plan mode"
 msgstr "Bu sohbeti plan moduna geçir"
+
+#: src/renderer/commands/registry.ts
+msgid "Switch to the next chat"
+msgstr "Sonraki sohbete geç"
+
+#: src/renderer/commands/registry.ts
+msgid "Switch to the next tab"
+msgstr "Sonraki sekmeye geç"
+
+#: src/renderer/commands/registry.ts
+msgid "Switch to the previous chat"
+msgstr "Önceki sohbete geç"
+
+#: src/renderer/commands/registry.ts
+msgid "Switch to the previous tab"
+msgstr "Önceki sekmeye geç"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CommitSyncPanel.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
@@ -5248,6 +5696,7 @@ msgid "Tell the target provider what to do next..."
 msgstr "Hedef sağlayıcıya bundan sonra ne yapacağını söyleyin..."
 
 #: src/renderer/commands/registry.ts
+#: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/layout/UnifiedRightPanel.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
@@ -5273,14 +5722,17 @@ msgstr "Terminal girişi"
 msgid "Terminal not ready — added selection to composer."
 msgstr "Terminal hazır değil — seçim Composer'a eklendi."
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Terminal panel font size"
 msgstr "Terminal paneli yazı tipi boyutu"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Terminal position"
 msgstr "Terminal konumu"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Terminal scroll speed"
 msgstr "Terminal kaydırma hızı"
@@ -5291,6 +5743,7 @@ msgid "Terminal tabs"
 msgstr "Terminal sekmeleri"
 
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Test microphone"
 msgstr "Mikrofonu test edin"
 
@@ -5305,6 +5758,16 @@ msgstr "uygulama"
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "the chosen folder"
 msgstr "seçilen klasör"
+
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+msgid "The default background refresh cadence, used for any provider without "
+"its own interval set below. Set to 0 to turn off (manual only). The "
+"2-minute floor respects provider rate limits."
+msgstr "Aşağıda kendi aralığı ayarlanmamış sağlayıcılar için kullanılan "
+"varsayılan arka plan yenileme aralığı. Kapatmak için 0'a ayarlayın "
+"(yalnızca manuel). 2 dakikalık alt sınır, sağlayıcının hız sınırlarına "
+"uyar."
 
 #: src/renderer/RendererCrashScreen.tsx
 msgid "The normal app shell could not render. The diagnostics below are shown "
@@ -5321,6 +5784,7 @@ msgid "the target provider"
 msgstr "hedef sağlayıcı"
 
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Theme"
 msgstr "Tema"
 
@@ -5394,6 +5858,7 @@ msgid "Thought"
 msgstr "Düşünce"
 
 #: src/renderer/commands/registry.ts
+#: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/hooks/useElementPicker.ts
 msgid "Thread"
 msgstr "Konu"
@@ -5416,6 +5881,7 @@ msgid "Thread failed to start."
 msgstr "Konu başlatılamadı."
 
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Thread finished or waiting for your input."
 msgstr "Konu bitti veya girişinizi bekliyor."
 
@@ -5450,6 +5916,7 @@ msgstr "Konu yapılacaklar yuvası"
 msgid "Threads"
 msgstr "Konular"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
 msgid "Threads marked done that have not been touched for this many days are "
 "archived automatically on app launch. Set to 0 to disable."
@@ -5458,6 +5925,7 @@ msgstr "Bu kadar gün boyunca dokunulmayan ve tamamlandı olarak işaretlenen "
 "dışı bırakmak için 0'a ayarlayın."
 
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Title Generation"
 msgstr "Başlık Oluşturma"
 
@@ -5465,17 +5933,42 @@ msgstr "Başlık Oluşturma"
 msgid "To-dos"
 msgstr "Yapılacaklar"
 
+#: src/renderer/commands/registry.ts
+msgid "Toggle browser panel"
+msgstr "Tarayıcı panelini aç/kapat"
+
+#: src/renderer/commands/composerCommands.ts
 #: src/renderer/components/providers/codex/index.tsx
 msgid "Toggle Fast mode"
 msgstr "Hızlı modu aç/kapat"
+
+#: src/renderer/commands/registry.ts
+msgid "Toggle File Tree"
+msgstr "Dosya Ağacını Aç/Kapat"
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
 msgid "Toggle models off to hide them from the selector."
 msgstr "Seçiciden gizlemek için modelleri kapatın."
 
 #: src/renderer/commands/registry.ts
+msgid "Toggle sidebar"
+msgstr "Kenar çubuğunu Aç/Kapat"
+
+#: src/renderer/commands/registry.ts
+msgid "Toggle star"
+msgstr "Favoriyi aç/kapat"
+
+#: src/renderer/commands/registry.ts
 msgid "Toggle Terminal"
 msgstr "Terminali Aç/Kapat"
+
+#: src/renderer/commands/registry.ts
+msgid "Toggle the file tree panel"
+msgstr "Dosya ağacı panelini aç/kapat"
+
+#: src/renderer/commands/composerCommands.ts
+msgid "Toggle Work or Plan"
+msgstr "İş veya Plan modunu aç/kapat"
 
 #: src/renderer/views/ProfileOverlay/parts/ActivitySection.tsx
 msgid "Tokens"
@@ -5493,10 +5986,6 @@ msgstr "Araç arama"
 #: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
 msgid "Total prompts"
 msgstr "Toplam istem"
-
-#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
-#~ msgid "Total skills used"
-#~ msgstr "Kullanılan toplam beceri"
 
 #: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
 msgid "Total threads"
@@ -5532,6 +6021,7 @@ msgid "Transcribing voice"
 msgstr "Sesi yazıya dökme"
 
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Translucent sidebar"
 msgstr "Yarı saydam kenar çubuğu"
 
@@ -5655,6 +6145,10 @@ msgstr "{0} güncellenemiyor: {detailText}"
 msgid "Unable to update {0}."
 msgstr "{0} güncellenemiyor."
 
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
+msgid "Unassigned"
+msgstr "Atanmamış"
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadGroup.tsx
 msgid "Ungroup All"
 msgstr "Tüm grupları çöz"
@@ -5670,6 +6164,7 @@ msgstr "Kaldır"
 
 #: src/renderer/components/thread/threadContextUsage.ts
 #: src/renderer/views/PrReviewOverlay/parts/PrChecksTab.tsx
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Unknown"
 msgstr "Bilinmiyor"
 
@@ -5682,6 +6177,7 @@ msgstr "Bilinmeyen proje"
 msgid "Unlimited"
 msgstr "Sınırsız"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
 msgid "Unload idle threads after"
 msgstr "Boşta kalan konuları şu süreden sonra kaldır"
@@ -5841,9 +6337,11 @@ msgid "Use detected session?"
 msgstr "Algılanan oturum kullanılsın mı?"
 
 #: src/renderer/views/SettingsOverlay/parts/SearchExcludeBody.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Use ignore files"
 msgstr "Yoksayılan dosyaları kullan"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/WorktreeSettings.tsx
 msgid "Use one global folder, or nest worktrees inside each project at "
 ".lightcode/worktrees."
@@ -5861,12 +6359,17 @@ msgstr "Kullanım takibi için bu hesabı kullanın veya devam etmeden önce "
 "tarayıcıdaki kullanıcıları değiştirin."
 
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Use WebGPU acceleration"
 msgstr "WebGPU hızlandırmasını kullanın"
 
 #: src/renderer/components/thread/threadContextUsage.ts
 msgid "Used"
 msgstr "Kullanılmış"
+
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
+msgid "Used by {conflict}"
+msgstr "{conflict} tarafından kullanılıyor"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Using the built-in Claude model list."
@@ -5902,6 +6405,7 @@ msgid "Visible {0} models"
 msgstr "Görünür {0} modelleri"
 
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilitySection.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
 msgid "Visible models"
 msgstr "Görünür modeller"
@@ -5911,10 +6415,12 @@ msgid "Voice input is not available in this environment."
 msgstr "Bu ortamda ses girişi kullanılamaz."
 
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Voice input language"
 msgstr "Ses giriş dili"
 
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Voice input model"
 msgstr "Ses girişi modeli"
 
@@ -5995,6 +6501,7 @@ msgid "Website"
 msgstr "Web sitesi"
 
 #: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "What the Create PR button does by default: open a dialog to edit the "
 "title and description first, or auto-generate them and create the PR in "
 "one click. You can also switch this from the button's menu."
@@ -6008,6 +6515,7 @@ msgid "When enabled, search respects <0>.gitignore</0> entries."
 msgstr "Etkinleştirildiğinde, arama <0>.gitignore</0> girişlerine saygı duyar."
 
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "When links open in a Lightcode browser tab, choose where the browser is "
 "revealed."
 msgstr "Bağlantılar Lightcode tarayıcı sekmesinde açıldığında, tarayıcının "
@@ -6020,16 +6528,19 @@ msgstr "Kapalıyken, durumu OSC yedeğinden alınan terminal konularının "
 "bildirimlerini gizleyin (CLI kanca eklentisi yok)."
 
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "When to display in-app toasts for visible threads."
 msgstr "Görünür konular için uygulama içi bildirimlerin ne zaman "
 "görüntüleneceği."
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "When you close the window, keep Lightcode running in the system tray. "
 "Disable to quit on close."
 msgstr "Pencereyi kapattığınızda Lightcode'u sistem tepsisinde çalışır durumda "
 "tutun. Kapatınca çıkmak için devre dışı bırakın."
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Where a browser element-picker selection goes in terminal-native "
 "threads. A collapsed composer always routes to the terminal."
@@ -6047,6 +6558,7 @@ msgstr "Lightcode'un yeni dallar için git çalışma ağaçlarını nerede "
 "oluşturduğu. Değişiklikler bundan sonra oluşturulan çalışma ağaçları "
 "için geçerlidir; mevcut çalışma ağaçları olduğu yerde kalır."
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Where the terminal panel appears."
 msgstr "Terminal panelinin göründüğü yer."
@@ -6104,6 +6616,10 @@ msgstr "İş akışı aşamaları"
 msgid "Workflow results"
 msgstr "İş akışı sonuçları"
 
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "Workflow runs"
+msgstr "Workflow çalıştırmaları"
+
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Workflow: {description}"
 msgstr "İş akışı: {description}"
@@ -6154,6 +6670,7 @@ msgid "Worktree root for this project (a Linux path). Reset to use the global "
 msgstr "Bu projenin çalışma ağacı kök dizini (bir Linux yolu). Genel ayarı "
 "kullanmak için sıfırlayın."
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/WorktreeSettings.tsx
 msgid "Worktree root for WSL projects (a Linux path)."
 msgstr "WSL projeleri için çalışma ağacı kök dizini (bir Linux yolu)."
@@ -6202,6 +6719,7 @@ msgstr "WSL"
 msgid "WSL ({0})"
 msgstr "WSL ({0})"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/WorktreeSettings.tsx
 msgid "WSL base folder"
 msgstr "WSL temel klasörü"

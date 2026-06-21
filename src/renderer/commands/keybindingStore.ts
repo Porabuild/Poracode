@@ -8,14 +8,28 @@ interface KeybindingState {
   keybindings: KeybindingEntry[];
   loaded: boolean;
   load: () => Promise<void>;
+  /**
+   * Replace the full keybinding list and persist it to keybindings.json. The
+   * live shortcut hook reads `keybindings` from this store on every keydown, so
+   * the new bindings take effect as soon as state updates.
+   */
+  save: (next: KeybindingEntry[]) => Promise<void>;
 }
+
+type KeybindingBridge = {
+  getKeybindings?: () => Promise<KeybindingsConfig>;
+  setKeybindings?: (file: {
+    version: 1;
+    keybindings: KeybindingEntry[];
+  }) => Promise<KeybindingsConfig>;
+};
 
 export const useKeybindingStore = create<KeybindingState>((set) => ({
   path: null,
   keybindings: DEFAULT_KEYBINDINGS.keybindings,
   loaded: false,
   load: async () => {
-    const bridge = readBridge() as { getKeybindings?: () => Promise<KeybindingsConfig> };
+    const bridge = readBridge() as KeybindingBridge;
     if (typeof bridge.getKeybindings !== "function") {
       set({
         path: "",
@@ -31,5 +45,14 @@ export const useKeybindingStore = create<KeybindingState>((set) => ({
       keybindings: config.file.keybindings,
       loaded: true,
     });
+  },
+  save: async (next) => {
+    // Optimistically apply so the UI and the keydown hook react immediately;
+    // the persisted config (with its canonical path) reconciles on resolve.
+    set({ keybindings: next });
+    const bridge = readBridge() as KeybindingBridge;
+    if (typeof bridge.setKeybindings !== "function") return;
+    const config = await bridge.setKeybindings({ version: 1, keybindings: next });
+    set({ path: config.path, keybindings: config.file.keybindings });
   },
 }));

@@ -296,4 +296,154 @@ describe("usageRecorder item classification", () => {
       expect.objectContaining({ kind: "mcp", provider: "codex", name: "browser" }),
     );
   });
+
+  it("does not record generic MCP tool calls without a server name", () => {
+    const thread = makeThread("generic-mcp-thread", "codex");
+    recordRuntimeUsage(
+      "generic-mcp-thread",
+      [
+        {
+          type: "item.started",
+          threadId: "generic-mcp-thread",
+          itemId: "generic-mcp",
+          itemType: "mcp_tool_call",
+          payload: { name: "Mcp", status: "running" },
+        },
+        {
+          type: "item.completed",
+          threadId: "generic-mcp-thread",
+          itemId: "generic-mcp",
+          payload: { name: "Mcp", status: "success" },
+        },
+      ],
+      [thread],
+    );
+
+    flushNow();
+    expect(emittedEvents("mcp")).toEqual([]);
+  });
+
+  it("captures skills, workflows, subagents, and MCP servers across provider shapes", () => {
+    const claude = makeThread("probe-claude", "claude");
+    const codex = makeThread("probe-codex", "codex");
+    const opencode = makeThread("probe-opencode", "opencode");
+    const grok = makeThread("probe-grok", "grok");
+    const factory = makeThread("probe-factory", "acp-generic:factory-droid");
+
+    recordRuntimeUsage(
+      "probe-claude",
+      [
+        {
+          type: "item.started",
+          threadId: "probe-claude",
+          itemId: "claude-skill",
+          itemType: "tool_call",
+          payload: { name: "Skill", args: { name: "heroui-react" }, status: "running" },
+        },
+        {
+          type: "item.started",
+          threadId: "probe-claude",
+          itemId: "claude-workflow",
+          itemType: "tool_call",
+          payload: {
+            name: "Workflow",
+            args: { description: "Probe profile stats" },
+            status: "running",
+          },
+        },
+      ],
+      [claude],
+    );
+    recordRuntimeUsage(
+      "probe-codex",
+      [
+        {
+          type: "item.started",
+          threadId: "probe-codex",
+          itemId: "codex-skill-file",
+          itemType: "dynamic_tool_call",
+          payload: {
+            name: "Read",
+            args: {
+              file_path: String.raw`C:\Users\sdsle\.codex\skills\.system\imagegen\SKILL.md`,
+            },
+            status: "running",
+          },
+        },
+        {
+          type: "item.started",
+          threadId: "probe-codex",
+          itemId: "codex-apps",
+          itemType: "mcp_tool_call",
+          payload: { name: "mcpToolCall", server: "codex_apps", status: "running" },
+        },
+      ],
+      [codex],
+    );
+    recordRuntimeUsage(
+      "probe-opencode",
+      [
+        {
+          type: "item.started",
+          threadId: "probe-opencode",
+          itemId: "opencode-skill",
+          itemType: "tool_call",
+          payload: { name: "Skill", args: { skill: "skill-creator" }, status: "running" },
+        },
+      ],
+      [opencode],
+    );
+    recordRuntimeUsage(
+      "probe-grok",
+      [
+        {
+          type: "item.started",
+          threadId: "probe-grok",
+          itemId: "grok-mcp",
+          itemType: "mcp_tool_call",
+          payload: { name: "mcp__browser__snapshot", status: "running" },
+        },
+      ],
+      [grok],
+    );
+    recordRuntimeUsage(
+      "probe-factory",
+      [
+        {
+          type: "item.started",
+          threadId: "probe-factory",
+          itemId: "factory-agent",
+          itemType: "tool_call",
+          payload: {
+            name: "Agent",
+            isSubAgent: true,
+            args: { agent_type: "worker", description: "Probe Factory Droid capture" },
+            status: "running",
+          },
+        },
+      ],
+      [factory],
+    );
+
+    flushNow();
+    expect(emittedEvents("skill")).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ provider: "claude", name: "heroui-react" }),
+        expect.objectContaining({ provider: "codex", name: "imagegen" }),
+        expect.objectContaining({ provider: "opencode", name: "skill-creator" }),
+      ]),
+    );
+    expect(emittedEvents("workflow")).toContainEqual(
+      expect.objectContaining({ provider: "claude", name: "Probe profile stats" }),
+    );
+    expect(emittedEvents("mcp")).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ provider: "codex", name: "codex_apps" }),
+        expect.objectContaining({ provider: "grok", name: "browser" }),
+      ]),
+    );
+    expect(emittedEvents("subagent")).toContainEqual(
+      expect.objectContaining({ provider: "acp-generic:factory-droid", name: "worker" }),
+    );
+  });
 });

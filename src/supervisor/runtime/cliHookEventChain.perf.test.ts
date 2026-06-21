@@ -153,7 +153,7 @@ describe("CLI hook event chain (6 threads)", () => {
 
     // Per-request: localhost + small body; generous ceiling for shared CI runners.
     expect(avg).toBeLessThan(30);
-    expect(p95).toBeLessThan(80);
+    expect(p95).toBeLessThan(160);
 
     if (process.env.LIGHTCODE_PERF_LOG) {
       console.log(

@@ -1,10 +1,12 @@
 import {
   providerUsagePayloadSchema,
+  usageApiKeyPayloadSchema,
   usageLoginConfirmationPayloadSchema,
   usageLoginPayloadSchema,
   usageLoginStatePayloadSchema,
   type ProviderUsagePayload,
   type ProviderUsageResponse,
+  type UsageApiKeyPayload,
   type UsageLoginConfirmationPayload,
   type UsageLoginPayload,
   type UsageLoginResult,
@@ -29,6 +31,11 @@ export const usageProcedures = {
     "clearUsageLogin",
     "main-local",
     usageLoginPayloadSchema,
+  ),
+  submitUsageApiKey: definePayloadProcedure<UsageApiKeyPayload, UsageLoginResult, "main-local">(
+    "submitUsageApiKey",
+    "main-local",
+    usageApiKeyPayloadSchema,
   ),
   resolveUsageLoginConfirmation: definePayloadProcedure<
     UsageLoginConfirmationPayload,
