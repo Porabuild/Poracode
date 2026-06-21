@@ -277,6 +277,68 @@ describe("fileEditorStore preview tabs", () => {
   });
 });
 
+describe("fileEditorStore cycleTab", () => {
+  beforeEach(() => {
+    useFileEditorStore.setState({
+      rootContext: null,
+      overlayMode: "fullscreen",
+      tabs: [],
+      activePath: null,
+      previewTab: null,
+      markdownPreviewPath: null,
+      buffers: {},
+      refreshToken: 0,
+      pendingReveal: null,
+    });
+  });
+
+  function seed(tabs: string[], activePath: string | null) {
+    useFileEditorStore.setState({
+      tabs,
+      activePath,
+      buffers: Object.fromEntries(tabs.map((path) => [path, makeBuffer(path)])),
+    });
+  }
+
+  it("moves to the next and previous tab", () => {
+    seed(["a.ts", "b.ts", "c.ts"], "b.ts");
+
+    useFileEditorStore.getState().cycleTab("next");
+    expect(useFileEditorStore.getState().activePath).toBe("c.ts");
+
+    useFileEditorStore.getState().cycleTab("previous");
+    expect(useFileEditorStore.getState().activePath).toBe("b.ts");
+  });
+
+  it("wraps around at both ends", () => {
+    seed(["a.ts", "b.ts", "c.ts"], "c.ts");
+
+    useFileEditorStore.getState().cycleTab("next");
+    expect(useFileEditorStore.getState().activePath).toBe("a.ts");
+
+    useFileEditorStore.getState().cycleTab("previous");
+    expect(useFileEditorStore.getState().activePath).toBe("c.ts");
+  });
+
+  it("is a no-op with fewer than two tabs", () => {
+    seed(["only.ts"], "only.ts");
+
+    useFileEditorStore.getState().cycleTab("next");
+    expect(useFileEditorStore.getState().activePath).toBe("only.ts");
+  });
+
+  it("selects the first tab for next and the last for previous when none is active", () => {
+    seed(["a.ts", "b.ts", "c.ts"], null);
+
+    useFileEditorStore.getState().cycleTab("next");
+    expect(useFileEditorStore.getState().activePath).toBe("a.ts");
+
+    useFileEditorStore.setState({ activePath: null });
+    useFileEditorStore.getState().cycleTab("previous");
+    expect(useFileEditorStore.getState().activePath).toBe("c.ts");
+  });
+});
+
 describe("resolvePathForFileOpen (worktree-relative traversal regression)", () => {
   const posixWorktreeLocation = {
     kind: "posix" as const,

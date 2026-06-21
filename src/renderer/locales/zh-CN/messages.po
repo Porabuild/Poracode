@@ -129,6 +129,11 @@ msgstr "{0}已注销。"
 msgid "{0} needs authentication."
 msgstr "{0}需要身份验证。"
 
+#. placeholder {0}: currentIndex + 1
+#: src/renderer/components/find/FindBar.tsx
+msgid "{0} of {matchCount}"
+msgstr "{0} / {matchCount}"
+
 #. placeholder {0}: cell.count
 #: src/renderer/views/ProfileOverlay/parts/ActivityHeatmap.tsx
 msgid "{0} prompt - {when}"
@@ -246,6 +251,15 @@ msgstr "{hours}小时前"
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 msgid "{installedCount, plural, one {# agent ready} other {# agents ready}}"
 msgstr "{installedCount, plural, one {# 个代理准备就绪} other {# 个代理准备就绪}}"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+msgid "{label} API key"
+msgstr "{label} API 密钥"
+
+#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+msgid "{label} auto-refresh interval in minutes"
+msgstr "{label} 自动刷新间隔（分钟）"
 
 #: src/renderer/components/providers/ProviderUsageRail.tsx
 msgid "{label} usage — open usage panel"
@@ -406,6 +420,7 @@ msgstr "ACP 代理"
 msgid "Action command"
 msgstr "操作指令"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
 msgid "Action for the quick-remove button on sidebar threads."
 msgstr "侧边栏线程上的快速删除按钮的操作。"
@@ -441,6 +456,10 @@ msgstr "活动指标"
 #: src/renderer/views/SettingsOverlay/parts/SearchExcludeBody.tsx
 msgid "Add"
 msgstr "添加"
+
+#: src/renderer/commands/registry.ts
+msgid "Add a local project"
+msgstr "添加本地项目"
 
 #: src/renderer/actions/agentLoginActions.ts
 msgid "Add a project before installing an agent."
@@ -502,6 +521,10 @@ msgstr "添加项目选项"
 msgid "Add Remote"
 msgstr "添加远程仓库"
 
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
+msgid "Add shortcut"
+msgstr "添加快捷键"
+
 #: src/renderer/components/composer/ComposerAddMenu.tsx
 msgid "Add to composer"
 msgstr "添加到编写器"
@@ -525,6 +548,7 @@ msgid "Agent chat (ACP / markdown). Command rows use this size minus 1 px; tool
 msgstr "代理聊天（ACP / markdown）。命令行使用此大小减去 1 像素；工具和计划线减去 2 像素。"
 
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Agent encountered an error."
 msgstr "代理遇到错误。"
 
@@ -545,6 +569,7 @@ msgstr "未找到代理"
 msgid "Agent Registry"
 msgstr "代理注册表"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Agent terminal font size"
 msgstr "代理终端字体大小"
@@ -587,6 +612,7 @@ msgstr "AI 代理协调器 — 通过终端和本机 ACP 管理编码代理。"
 msgid "AI git actions"
 msgstr "AI git操作"
 
+#: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "All"
 msgstr "全部"
@@ -613,12 +639,18 @@ msgid "Allow"
 msgstr "允许"
 
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Allow agents to read/write cookies and storage"
 msgstr "允许代理读/写 cookie 和存储"
 
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Allow eval"
 msgstr "允许评估"
+
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
+msgid "Already used by {conflict}"
+msgstr "已被{conflict}使用"
 
 #. Notification filter: always notify
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
@@ -652,6 +684,7 @@ msgid "Apply provider preset"
 msgstr "应用服务商预设"
 
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Approval or reply required from you."
 msgstr "需要您的批准或答复。"
 
@@ -682,6 +715,14 @@ msgstr "存档{0}"
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadGroup.tsx
 msgid "Archive All"
 msgstr "全部存档"
+
+#: src/renderer/commands/registry.ts
+msgid "Archive the current thread"
+msgstr "归档当前线程"
+
+#: src/renderer/commands/registry.ts
+msgid "Archive thread"
+msgstr "归档线程"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
 msgid "Archive Thread"
@@ -760,6 +801,7 @@ msgstr "自动"
 msgid "Auto Approve"
 msgstr "自动批准"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
 msgid "Auto-archive done threads after"
 msgstr "之后自动存档已完成的线程"
@@ -772,9 +814,10 @@ msgstr "自动存档已完成线程的等待天数"
 msgid "Auto-generate"
 msgstr "自动生成"
 
+#. Label for the per-provider auto-refresh cadence field
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
-msgid "Auto-refresh (minutes)"
-msgstr "自动刷新（分钟）"
+msgid "Auto-refresh"
+msgstr "自动刷新"
 
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Auto-refresh interval in minutes, 0 to turn off"
@@ -784,10 +827,12 @@ msgstr "自动刷新间隔以分钟为单位，0为关闭"
 msgid "Auto-review"
 msgstr "自动审核"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Auto-show terminal panel"
 msgstr "自动显示终端面板"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Automatically show the terminal panel when running commands or creating "
 "worktrees."
@@ -809,6 +854,7 @@ msgstr "头像颜色"
 msgid "Avatar color {color}"
 msgstr "头像颜色{color}"
 
+#: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Back"
 msgstr "返回"
@@ -834,15 +880,18 @@ msgid "Base branch is ahead — branch must be updated first."
 msgstr "基础分支在前——必须首先更新分支。"
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectWorktreeLocation.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/WorktreeSettings.tsx
 msgid "Base folder"
 msgstr "基础文件夹"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Base font size for agent terminals. Auto-shrinks in narrow or short "
 "panes."
 msgstr "代理终端的基本字体大小。在狭窄或短的窗格中自动缩小。"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Base font size for the terminal panel. Auto-shrinks in narrow or short "
 "panes."
@@ -923,6 +972,8 @@ msgstr "浏览父文件夹"
 msgid "Browse your GitHub repositories or paste a clone URL."
 msgstr "浏览您的 GitHub 存储库或粘贴克隆 URL。"
 
+#: src/renderer/commands/registry.ts
+#: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/composer/AttachmentBar.tsx
 #: src/renderer/components/composer/ComposerAddMenu.tsx
 #: src/renderer/components/layout/UnifiedRightPanel.tsx
@@ -950,6 +1001,7 @@ msgstr "为此线程启用浏览器 MCP"
 msgid "Browser menu"
 msgstr "浏览器菜单"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Browser pick target (CLI threads)"
 msgstr "浏览器选择目标（CLI 线程）"
@@ -966,6 +1018,10 @@ msgstr "已达到预算限额"
 #: src/renderer/components/thread/ChatPane/parts/items/InlineDiffView.tsx
 msgid "Building diff…"
 msgstr "正在生成差异…"
+
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
+msgid "Built-in shortcut — can't be changed"
+msgstr "内置快捷键 — 无法更改"
 
 #: src/renderer/views/PrReviewOverlay/parts/PrMetaRow.tsx
 msgid "by <0>{author}</0>"
@@ -1006,6 +1062,7 @@ msgstr "绕过分支保护规则（管理合并）"
 #: src/renderer/views/MainView/parts/Sidebar/parts/DeleteWorktreeDialog.tsx
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
 #: src/renderer/views/PrReviewOverlay/parts/SubmitReviewPopover.tsx
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Cancel"
 msgstr "取消"
 
@@ -1036,6 +1093,10 @@ msgstr "无法切换分支 - 首先提交或存储您的更改"
 #: src/renderer/views/ProjectSettingsOverlay/parts/GeneralSection.tsx
 msgid "Change project folder"
 msgstr "更改项目文件夹"
+
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
+msgid "Change shortcut"
+msgstr "更改快捷键"
 
 #: src/renderer/views/MainView/parts/AppOverlays.tsx
 msgid "Change User"
@@ -1080,6 +1141,14 @@ msgstr "聊天"
 msgid "Chat Commands"
 msgstr "聊天命令"
 
+#: src/renderer/commands/registry.ts
+msgid "Chat starred"
+msgstr "已为聊天加星标"
+
+#: src/renderer/commands/registry.ts
+msgid "Chat unstarred"
+msgstr "已取消聊天星标"
+
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 msgid "Check"
 msgstr "检查"
@@ -1089,6 +1158,7 @@ msgid "Check for updates"
 msgstr "检查更新"
 
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Check the live input level from the selected device."
 msgstr "检查所选设备的实时输入电平。"
 
@@ -1114,6 +1184,7 @@ msgid "Choose how to sign in."
 msgstr "选择登录方式。"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Choose the display language for Lightcode's interface."
 msgstr "选择 Lightcode 界面的显示语言。"
 
@@ -1122,6 +1193,7 @@ msgid "Choose thread to attach to"
 msgstr "选择要附加到的线程"
 
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Choose whether links from Lightcode and browser popups stay in Lightcode "
 "or open externally."
 msgstr "选择来自 Lightcode 和浏览器弹出窗口的链接是保留在 Lightcode 中还是在外部打开。"
@@ -1180,6 +1252,10 @@ msgstr "CLI"
 msgid "CLI hooks"
 msgstr "CLI 挂钩"
 
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
+msgid "Click a shortcut to record a new key, or ＋ to add another."
+msgstr "点击快捷键以录制新的按键，或点击 ＋ 添加另一个。"
+
 #: src/renderer/views/MainView/parts/AppContent/parts/Thread/parts/ContinueInProviderDialog.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "Clone"
@@ -1222,6 +1298,10 @@ msgstr "关闭编辑器"
 msgid "Close Editor Tab"
 msgstr "关闭编辑器选项卡"
 
+#: src/renderer/components/find/FindBar.tsx
+msgid "Close find"
+msgstr "关闭查找"
+
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 msgid "Close goal"
 msgstr "关闭目标"
@@ -1229,6 +1309,10 @@ msgstr "关闭目标"
 #: src/renderer/views/MainView/parts/AppContent/AppContent.tsx
 msgid "Close group"
 msgstr "关闭组"
+
+#: src/renderer/commands/shortcutCatalog.ts
+msgid "Close overlay"
+msgstr "关闭覆盖层"
 
 #: src/renderer/components/thread/ThreadDraftChrome.tsx
 #: src/renderer/components/thread/ThreadView.tsx
@@ -1276,6 +1360,7 @@ msgid "Close tab"
 msgstr "关闭选项卡"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Close to tray"
 msgstr "关闭到托盘"
 
@@ -1320,6 +1405,7 @@ msgstr "折叠输入框"
 msgid "Collapse error"
 msgstr "折叠错误"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Collapse terminal composer"
 msgstr "折叠终端输入框"
@@ -1365,6 +1451,7 @@ msgid "Commit & Create PR"
 msgstr "提交并创建 PR"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Commit & PR language"
 msgstr "提交与 PR 语言"
 
@@ -1385,12 +1472,17 @@ msgid "Commit message (Ctrl+Enter)"
 msgstr "提交消息（Ctrl+Enter）"
 
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Commit Message Generation"
 msgstr "提交消息生成"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CommitSyncPanel.tsx
 msgid "Commit options"
 msgstr "提交选项"
+
+#: src/renderer/commands/shortcutCatalog.ts
+msgid "Commit, PR, and review composers"
+msgstr "提交、PR 和审查 Composer"
 
 #: src/renderer/views/PrReviewOverlay/parts/PrTabsPill.tsx
 msgid "Commits"
@@ -1436,16 +1528,22 @@ msgstr "完成此终端中的提示。完成后关闭。"
 msgid "completed"
 msgstr "已完成"
 
+#: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Composer"
 msgstr "Composer"
+
+#: src/renderer/commands/composerCommands.ts
+msgid "Composer controls"
+msgstr "Composer 控件"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Config directory"
 msgstr "配置目录"
 
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Conflict Resolver"
 msgstr "冲突解决者"
 
@@ -1575,6 +1673,10 @@ msgstr "复制路径"
 msgid "Copy Relative Path"
 msgstr "复制相对路径"
 
+#: src/renderer/commands/shortcutCatalog.ts
+msgid "Copy selection"
+msgstr "复制选区"
+
 #: src/renderer/components/thread/WorktreeModeSelect.tsx
 msgid "Copy uncommitted changes here (keeps them on this branch)"
 msgstr "将未提交的更改复制到此处（将它们保留在此分支上）"
@@ -1620,6 +1722,10 @@ msgstr "无法列出存储库。"
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "Couldn't load your profile stats."
 msgstr "无法加载你的资料统计。"
+
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
+msgid "Couldn't save the shortcut."
+msgstr "无法保存快捷键。"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CreatePrModal.tsx
 msgid "Create Draft PR"
@@ -1693,6 +1799,7 @@ msgstr "当前连续天数"
 msgid "Current streak"
 msgstr "当前连续天数"
 
+#: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
@@ -1702,6 +1809,22 @@ msgstr "定制"
 #: src/renderer/views/ProjectSettingsOverlay/parts/ActionsSection.tsx
 msgid "Custom commands available from the project context menu (right-click)."
 msgstr "可从项目上下文菜单（右键单击）使用自定义命令。"
+
+#: src/renderer/commands/composerCommands.ts
+msgid "Cycle permission mode"
+msgstr "循环切换权限模式"
+
+#: src/renderer/commands/composerCommands.ts
+msgid "Cycle reasoning effort"
+msgstr "循环切换推理强度"
+
+#: src/renderer/commands/registry.ts
+msgid "Cycle to the next recently viewed chat"
+msgstr "循环切换到下一个最近查看的聊天"
+
+#: src/renderer/commands/registry.ts
+msgid "Cycle to the previous recently viewed chat"
+msgstr "循环切换到上一个最近查看的聊天"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Dark"
@@ -1715,11 +1838,18 @@ msgstr "拒绝"
 msgid "Default"
 msgstr "默认"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+msgid "Default auto-refresh (minutes)"
+msgstr "默认自动刷新（分钟）"
+
 #: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Default Create PR action"
 msgstr "默认创建 PR 操作"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Default new thread"
 msgstr "默认新线程"
 
@@ -1727,6 +1857,7 @@ msgstr "默认新线程"
 msgid "Default permissions"
 msgstr "默认权限"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
 msgid "Default thread removal"
 msgstr "默认线程删除"
@@ -1833,6 +1964,8 @@ msgstr "正在检测代理……"
 
 #. Settings section: developer/debug tools
 #. Settings section: developer/debug tools
+#. Settings section: developer/debug tools
+#. Settings section: developer/debug tools
 #: src/renderer/views/SettingsOverlay/parts/DevSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Dev"
@@ -1843,6 +1976,7 @@ msgid "Development-only overrides. Only visible in the LIGHTCODE DEV build."
 msgstr "仅开发覆盖。仅在 LIGHTCODE DEV 版本中可见。"
 
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Device used by the composer voice input button."
 msgstr "输入框语音输入按钮使用的设备。"
 
@@ -1859,6 +1993,7 @@ msgid "Disable Browser MCP"
 msgstr "禁用浏览器 MCP"
 
 #: src/renderer/views/SettingsOverlay/parts/DevSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Disable CLI hook plugin (L1)"
 msgstr "禁用 CLI 挂钩插件 (L1)"
 
@@ -1874,6 +2009,10 @@ msgstr "禁用外部服务商合并的级别（例如仅保留High和Max）。"
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 msgid "Disabled"
 msgstr "已禁用"
+
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
+msgid "Discard"
+msgstr "放弃"
 
 #: src/renderer/commands/registry.ts
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
@@ -1927,6 +2066,7 @@ msgstr "完成"
 
 #. Notification status: thread is done
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Done"
 msgstr "完成"
 
@@ -1965,6 +2105,7 @@ msgid "Draft"
 msgstr "草稿"
 
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Drag to reorder how providers appear in the model picker."
 msgstr "拖动以重新排序提供程序在模型选择器中的显示方式。"
 
@@ -1977,6 +2118,7 @@ msgid "Drop here to attach"
 msgstr "拖放到此处以附加"
 
 #: src/renderer/views/SettingsOverlay/parts/DevSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Drops incoming hook envelopes on the supervisor so agents fall back to "
 "L2 (OSC 9;4 progress) without touching install or iTerm2 notifications. "
 "Takes effect on the next hook event — no restart needed."
@@ -2005,11 +2147,13 @@ msgid "Edit:"
 msgstr "编辑："
 
 #: src/renderer/commands/registry.ts
+#: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/views/FileEditorOverlay/FileEditorOverlay.tsx
 msgid "Editor"
 msgstr "编辑器"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Editor LSP"
 msgstr "编辑器 LSP"
 
@@ -2039,6 +2183,7 @@ msgid "Enable {tierLabel} effort"
 msgstr "启用{tierLabel}级别"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Enable language server support for type checking, completions, and "
 "diagnostics. Requires a language server installed."
 msgstr "启用语言服务器对类型检查、完成和诊断的支持。需要安装语言服务器。"
@@ -2048,6 +2193,7 @@ msgid "Enable microphone access in your system settings, then try again."
 msgstr "在系统设置中启用麦克风访问，然后重试。"
 
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Enable notifications"
 msgstr "启用通知"
 
@@ -2113,6 +2259,7 @@ msgstr "错误"
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 #: src/renderer/components/ui/toastContent.ts
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Error"
 msgstr "错误"
 
@@ -2121,6 +2268,7 @@ msgid "Error · Agent encountered an error"
 msgstr "错误 · 代理遇到错误"
 
 #: src/renderer/views/SettingsOverlay/parts/SearchExcludeBody.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Exclude patterns"
 msgstr "排除模式"
 
@@ -2206,6 +2354,7 @@ msgid "Fastest (Whisper tiny)"
 msgstr "最快（Whisper tiny）"
 
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Fastest uses Whisper tiny; Better uses Whisper base."
 msgstr "“最快”使用 Whisper tiny；“更好”使用 Whisper base。"
 
@@ -2260,8 +2409,30 @@ msgid "Files for {0}"
 msgstr "{0}的文件"
 
 #: src/renderer/views/SettingsOverlay/parts/SearchExcludeBody.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Files matching these globs are hidden from the @file mention search."
 msgstr "与这些 glob 匹配的文件在 @file 提及搜索中隐藏。"
+
+#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
+msgid "Filter settings"
+msgstr "筛选设置"
+
+#: src/renderer/commands/registry.ts
+#: src/renderer/components/find/FindBar.tsx
+msgid "Find"
+msgstr "查找"
+
+#: src/renderer/components/find/ChatFindBar.tsx
+msgid "Find in chat"
+msgstr "在聊天中查找"
+
+#: src/renderer/components/find/GitFindBar.tsx
+msgid "Find in diff"
+msgstr "在差异中查找"
+
+#: src/renderer/components/terminal/XTermSurface.tsx
+msgid "Find in terminal"
+msgstr "在终端中查找"
 
 #: src/renderer/views/PrReviewOverlay/parts/SubmitReviewPopover.tsx
 msgid "Finish your review"
@@ -2307,10 +2478,19 @@ msgstr "使用 Lightcode 的本机 SDK 运行时进行一流的 OpenCode 集成�
 msgid "Fix in Agent"
 msgstr "在代理中修复"
 
+#: src/renderer/commands/registry.ts
+msgid "Focus browser address bar"
+msgstr "聚焦浏览器地址栏"
+
+#: src/renderer/commands/registry.ts
+msgid "Focus the in-app browser address bar"
+msgstr "聚焦应用内浏览器地址栏"
+
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "Folder name"
 msgstr "文件夹名称"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/WorktreeSettings.tsx
 msgid "Folder that holds all worktrees. Tip: a Dev Drive here speeds up builds."
 msgstr "存放所有工作树的文件夹。提示：在此使用 Dev Drive 可加快构建速度。"
@@ -2328,6 +2508,10 @@ msgstr "强制删除"
 msgid "Force delete? Unmerged changes will be lost."
 msgstr "强行删除？未合并的更改将会丢失。"
 
+#: src/renderer/commands/shortcutCatalog.ts
+msgid "Force reload browser page"
+msgstr "强制重新加载浏览器页面"
+
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 msgid "Fork"
 msgstr "派生"
@@ -2336,6 +2520,7 @@ msgstr "派生"
 msgid "Format files"
 msgstr "格式化文件"
 
+#: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Forward"
 msgstr "前进"
@@ -2364,6 +2549,7 @@ msgstr "完全访问权限"
 msgid "Fullscreen overlay"
 msgstr "全屏覆盖"
 
+#: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/views/ProjectSettingsOverlay/parts/GeneralSection.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/SettingsSidebar.tsx
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
@@ -2388,10 +2574,12 @@ msgid "Generated image"
 msgstr "生成的图片"
 
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Generates commit messages from staged changes."
 msgstr "从分阶段更改生成提交消息。"
 
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Generates short titles for new threads."
 msgstr "为新线程生成短标题。"
 
@@ -2399,6 +2587,7 @@ msgstr "为新线程生成短标题。"
 msgid "Get task"
 msgstr "获取任务"
 
+#: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/layout/UnifiedRightPanel.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
@@ -2418,6 +2607,7 @@ msgid "Git Review"
 msgstr "git 审查"
 
 #: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Git review mode"
 msgstr "Git 审核模式"
 
@@ -2444,9 +2634,21 @@ msgstr "Gitignored 文件从主项目复制到每个新工作树中。 Gitignore
 msgid "GLM 5.2 (optional label)"
 msgstr "GLM 5.2（可选标签）"
 
+#: src/renderer/commands/shortcutCatalog.ts
+msgid "Global"
+msgstr "全局"
+
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Global folder"
 msgstr "全局文件夹"
+
+#: src/renderer/commands/shortcutCatalog.ts
+msgid "Go back in navigation history"
+msgstr "在导航历史记录中后退"
+
+#: src/renderer/commands/shortcutCatalog.ts
+msgid "Go forward in navigation history"
+msgstr "在导航历史记录中前进"
 
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 msgid "Goal"
@@ -2465,6 +2667,7 @@ msgid "Group open threads"
 msgstr "对打开的线程进行分组"
 
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "GUI chat font size"
 msgstr "GUI聊天字体大小"
 
@@ -2480,6 +2683,7 @@ msgstr "用户名"
 msgid "Hard Reload"
 msgstr "硬重载"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
 msgid "Hidden resumable threads are swept every 5 minutes and unloaded after "
 "this idle age."
@@ -2488,6 +2692,10 @@ msgstr "隐藏的可恢复线程每 5 分钟清理一次，并在此空闲期限
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewPanel.tsx
 msgid "Hide"
 msgstr "隐藏"
+
+#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+msgid "Hide {label} circle in sidebar"
+msgstr "在侧边栏中隐藏 {label} 圆环"
 
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilitySection.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
@@ -2538,6 +2746,7 @@ msgid "Home"
 msgstr "首页"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Home scope"
 msgstr "主页范围"
 
@@ -2678,6 +2887,10 @@ msgstr "已中断：代理会话在完成之前结束。"
 msgid "Italic"
 msgstr "斜体"
 
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
+msgid "Jump to section"
+msgstr "跳转到部分"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/UsagePanel.tsx
 msgid "just now"
 msgstr "刚才"
@@ -2687,6 +2900,7 @@ msgid "Keep Branch"
 msgstr "保留分支"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Keep the system awake while any thread is actively working."
 msgstr "当任何线程正在工作时保持系统唤醒状态（不休眠）。"
 
@@ -2695,15 +2909,18 @@ msgid "Kill bash"
 msgstr "终止 bash"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Language"
 msgstr "语言"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Language for AI-generated commit messages and pull request summaries. "
 "Thread titles always follow the app language."
 msgstr "AI 生成的提交信息和拉取请求摘要所使用的语言。线程标题始终跟随应用语言。"
 
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Language the speech model should expect when transcribing composer "
 "dictation."
 msgstr "语音模型在转录编辑器口述输入时应预期的语言。"
@@ -2905,7 +3122,12 @@ msgstr "标记完成"
 msgid "Match app language"
 msgstr "跟随应用语言"
 
+#: src/renderer/components/find/FindBar.tsx
+msgid "Match case"
+msgstr "区分大小写"
+
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Match your system, or force light or dark."
 msgstr "匹配您的系统，或强制使用浅色或深色。"
 
@@ -2921,6 +3143,10 @@ msgstr "最大化浏览器"
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "MCP servers"
 msgstr "MCP服务器"
+
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "MCP tool calls"
+msgstr "MCP 工具调用"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/useWorktreeActions.ts
 msgid "Merge & Remove"
@@ -2989,6 +3215,7 @@ msgid "Messages sent"
 msgstr "已发送消息"
 
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Microphone"
 msgstr "麦克风"
 
@@ -3013,6 +3240,11 @@ msgstr "麦克风权限被拒绝。"
 msgid "Microphone testing is not available in this environment."
 msgstr "在此环境中无法进行麦克风测试。"
 
+#. Unit suffix: minutes
+#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+msgid "min"
+msgstr "分钟"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 msgid "Minimize browser to right panel"
 msgstr "将浏览器最小化到右侧面板"
@@ -3022,8 +3254,13 @@ msgid "Minimize to panel"
 msgstr "最小化到面板"
 
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Mode"
 msgstr "模式"
+
+#: src/renderer/commands/registry.ts
+msgid "Model added to favorites"
+msgstr "已将模型添加到收藏夹"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Model id"
@@ -3034,8 +3271,13 @@ msgid "Model label"
 msgstr "模型标签"
 
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Model order"
 msgstr "模型排序"
+
+#: src/renderer/commands/registry.ts
+msgid "Model removed from favorites"
+msgstr "已将模型从收藏夹中删除"
 
 #: src/renderer/views/ProfileOverlay/parts/ModelUsage.tsx
 msgid "Model usage"
@@ -3145,6 +3387,7 @@ msgid "Needs approval"
 msgstr "需要批准"
 
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Needs Attention"
 msgstr "需要注意"
 
@@ -3190,9 +3433,17 @@ msgstr "新文件"
 msgid "New Folder"
 msgstr "新建文件夹"
 
+#: src/renderer/commands/shortcutCatalog.ts
+msgid "New line"
+msgstr "换行"
+
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
 msgid "New project"
 msgstr "新项目"
+
+#: src/renderer/commands/registry.ts
+msgid "New quick thread"
+msgstr "新快速线程"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabStrip.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
@@ -3231,9 +3482,25 @@ msgstr "工作树中的新线程"
 msgid "New worktree"
 msgstr "新工作树"
 
+#: src/renderer/commands/registry.ts
+msgid "Next chat"
+msgstr "下一个聊天"
+
 #: src/renderer/components/composer/ImageLightbox.tsx
 msgid "Next image"
 msgstr "下一张图片"
+
+#: src/renderer/components/find/FindBar.tsx
+msgid "Next match"
+msgstr "下一个匹配项"
+
+#: src/renderer/commands/registry.ts
+msgid "Next recently viewed chat"
+msgstr "下一个最近查看的聊天"
+
+#: src/renderer/commands/registry.ts
+msgid "Next tab"
+msgstr "下一个选项卡"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/hooks/useElementPicker.ts
 msgid "No active browser tab"
@@ -3417,9 +3684,18 @@ msgstr "未配置远程仓库。添加远程仓库以启用推送和拉取。"
 msgid "No repositories found."
 msgstr "未找到存储库。"
 
+#: src/renderer/components/find/FindBar.tsx
+#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
+msgid "No results"
+msgstr "没有结果"
+
 #: src/renderer/components/thread/ChatPane/ChatRuntimeDebugPanel.tsx
 msgid "No runtime items yet for this thread."
 msgstr "该线程还没有运行时项目。"
+
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
+msgid "No shortcuts found"
+msgstr "未找到快捷键"
 
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "No skills used yet."
@@ -3432,10 +3708,6 @@ msgstr "未检测到语音。"
 #: src/renderer/views/GitReviewOverlay/parts/GitDiffContent/GitDiffContent.tsx
 msgid "No staged changes"
 msgstr "没有暂存的更改"
-
-#: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
-msgid "No subagents used yet."
-msgstr "暂未使用任何子智能体。"
 
 #: src/renderer/components/thread/ThreadDraftView.tsx
 msgid "No supported agents detected"
@@ -3510,6 +3782,7 @@ msgid "Notifications"
 msgstr "通知"
 
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Notify for L2 CLI threads"
 msgstr "通知 L2 CLI 线程"
 
@@ -3543,6 +3816,10 @@ msgstr "打开"
 msgid "Open {label}"
 msgstr "打开{label}"
 
+#: src/renderer/commands/registry.ts
+msgid "Open a new browser tab"
+msgstr "在浏览器中打开新选项卡"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/DevTerminalPanel.tsx
 msgid "Open a terminal"
 msgstr "打开终端"
@@ -3572,6 +3849,10 @@ msgstr "作为面板打开"
 msgid "Open browser"
 msgstr "打开浏览器"
 
+#: src/renderer/commands/registry.ts
+msgid "Open browser tab"
+msgstr "打开浏览器选项卡"
+
 #: src/renderer/views/PrReviewOverlay/parts/PrChecksTab.tsx
 msgid "Open check"
 msgstr "打开检查"
@@ -3600,6 +3881,10 @@ msgstr "打开文件"
 msgid "Open Files"
 msgstr "打开文件"
 
+#: src/renderer/commands/registry.ts
+msgid "Open folder"
+msgstr "打开文件夹"
+
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorToolbar.tsx
 msgid "Open fullscreen"
 msgstr "全屏打开"
@@ -3613,6 +3898,7 @@ msgid "Open Git Review"
 msgstr "打开 Git 审查"
 
 #: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Open git review as a right-side panel or a full page."
 msgstr "将 git review 作为右侧面板或整页打开。"
 
@@ -3628,14 +3914,20 @@ msgid "Open in editor"
 msgstr "在编辑器中打开"
 
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Open links in"
 msgstr "在以下位置打开链接"
+
+#: src/renderer/commands/composerCommands.ts
+msgid "Open model picker"
+msgstr "打开模型选择器"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserEmptyState.tsx
 msgid "Open new tab"
 msgstr "打开新选项卡"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Open new threads as a full page or a side-by-side panel."
 msgstr "以整页或并排面板的形式打开新线程。"
 
@@ -3742,14 +4034,25 @@ msgstr "包管理器"
 msgid "Page"
 msgstr "页面"
 
+#: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Panel"
 msgstr "面板"
 
+#: src/renderer/commands/shortcutCatalog.ts
+msgid "Panels and overlays"
+msgstr "面板和覆盖层"
+
+#: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/terminal/XTermSurface.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 msgid "Paste"
 msgstr "粘贴"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+msgid "Paste {label} API key"
+msgstr "粘贴 {label} API 密钥"
 
 #. placeholder {0}: activeDeviceCode.code
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
@@ -3819,10 +4122,12 @@ msgid "Plan"
 msgstr "计划"
 
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Play a sound when a notification is shown."
 msgstr "显示通知时播放声音。"
 
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Play notification sound"
 msgstr "播放通知声音"
 
@@ -3832,6 +4137,7 @@ msgid "Point this profile at a non-Anthropic provider (z.ai, …) with custom en
 msgstr "将此配置指向非Anthropic服务商（z.ai，…），并自定义环境变量、模型名称和思考级别。"
 
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Popular editor themes adapted to Lightcode. Each follows the light or "
 "dark mode above."
 msgstr "流行的编辑器主题适应 Lightcode。每个都遵循上面的浅色或深色模式。"
@@ -3864,7 +4170,12 @@ msgstr "预提交挂钩失败"
 msgid "Presets"
 msgstr "预设"
 
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
+msgid "Press shortcut…"
+msgstr "请按快捷键…"
+
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Prevent sleep while working"
 msgstr "工作时阻止系统休眠"
 
@@ -3873,9 +4184,25 @@ msgstr "工作时阻止系统休眠"
 msgid "Preview {0}"
 msgstr "预览{0}"
 
+#: src/renderer/commands/registry.ts
+msgid "Previous chat"
+msgstr "上一个聊天"
+
 #: src/renderer/components/composer/ImageLightbox.tsx
 msgid "Previous image"
 msgstr "上一张图片"
+
+#: src/renderer/components/find/FindBar.tsx
+msgid "Previous match"
+msgstr "上一个匹配项"
+
+#: src/renderer/commands/registry.ts
+msgid "Previous recently viewed chat"
+msgstr "上一个最近查看的聊天"
+
+#: src/renderer/commands/registry.ts
+msgid "Previous tab"
+msgstr "上一个选项卡"
 
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Profile"
@@ -3890,6 +4217,7 @@ msgid "Profiles"
 msgstr "配置文件"
 
 #: src/renderer/commands/registry.ts
+#: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/views/ProjectSettingsOverlay/ProjectSettingsOverlay.tsx
 msgid "Project"
 msgstr "项目"
@@ -4080,11 +4408,13 @@ msgstr "最近"
 msgid "Recent threads"
 msgstr "最近的线程"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Reconstructed from local logs at public API rates — it does not reflect "
 "your real bill on subscription plans. Shown only in the usage panel."
 msgstr "以公共 API 费率从本地日志重建 — 它不反映您订阅计划的真实账单。仅在使用面板中显示。"
 
+#. Button: re-fetch one provider's usage now
 #. Button: re-fetch provider usage now
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
 #: src/renderer/views/GitReviewOverlay/GitReviewOverlay.tsx
@@ -4101,6 +4431,10 @@ msgstr "刷新"
 msgid "Refresh {0} authentication"
 msgstr "刷新{0}身份验证"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
+msgid "Refresh {label}"
+msgstr "刷新 {label}"
+
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Refresh detected agents"
 msgstr "刷新检测到的代理"
@@ -4108,11 +4442,6 @@ msgstr "刷新检测到的代理"
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Refresh registry"
 msgstr "刷新注册表"
-
-#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
-msgid "Refresh usage in the background every N minutes. Set to 0 to turn off "
-"(manual only). The 2-minute floor respects provider rate limits."
-msgstr "每N分钟在后台刷新一次使用情况。设置为 0 关闭（仅限手动）。 2 分钟下限遵守提供商的速率限制。"
 
 #. placeholder {0}: status.label
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
@@ -4128,6 +4457,10 @@ msgstr "正在刷新{env}{0}身份验证状态。"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Reload"
 msgstr "重新加载"
+
+#: src/renderer/commands/shortcutCatalog.ts
+msgid "Reload browser page"
+msgstr "重新加载浏览器页面"
 
 #: src/renderer/components/common/BranchSelector/parts/useBranchList.ts
 msgid "Remote"
@@ -4191,6 +4524,10 @@ msgstr "移除模型"
 msgid "Remove Project"
 msgstr "删除项目"
 
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
+msgid "Remove shortcut"
+msgstr "移除快捷键"
+
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
 msgid "Remove worktree?"
 msgstr "删除工作树？"
@@ -4200,9 +4537,17 @@ msgstr "删除工作树？"
 msgid "Rename"
 msgstr "重命名"
 
+#: src/renderer/commands/registry.ts
+msgid "Rename chat"
+msgstr "重命名聊天"
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadGroup.tsx
 msgid "Rename Group"
 msgstr "重命名组"
+
+#: src/renderer/commands/registry.ts
+msgid "Rename the current chat"
+msgstr "重命名当前聊天"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/InlineRenameInput.tsx
 msgid "Rename thread"
@@ -4286,6 +4631,7 @@ msgid "Reset sidebar frosting to default"
 msgstr "将侧边栏磨砂效果重置为默认"
 
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Reset to default"
 msgstr "重置为默认"
 
@@ -4322,6 +4668,7 @@ msgid "Resize terminal panel"
 msgstr "调整终端面板大小"
 
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Resolves merge conflicts during rebase or merge."
 msgstr "解决变基或合并期间的合并冲突。"
 
@@ -4454,6 +4801,7 @@ msgid "Run in a separate worktree"
 msgstr "在单独的工作树中运行"
 
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Run local transcription on the GPU when available."
 msgstr "如果可用，请在 GPU 上运行本地转录。"
 
@@ -4517,6 +4865,10 @@ msgstr "保存 Claude 配置文件"
 msgid "Save File"
 msgstr "保存文件"
 
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
+msgid "Save shortcut"
+msgstr "保存快捷键"
+
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
 msgid "Saved credentials are shared across all environments."
 msgstr "保存的凭据在所有环境中共享。"
@@ -4537,9 +4889,11 @@ msgid "Scanning your system for installed CLIs. This usually takes a couple of "
 msgstr "扫描系统中已安装的 CLI。这通常需要几秒钟。"
 
 #: src/renderer/commands/registry.ts
+#: src/renderer/commands/shortcutCatalog.ts
 msgid "Scripts"
 msgstr "脚本"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Scroll speed multiplier for the terminal scrollback buffer."
 msgstr "终端回滚缓冲区的滚动速度倍增器。"
@@ -4602,6 +4956,14 @@ msgstr "搜索存储库..."
 #: src/renderer/components/thread/ChatPane/ChatRuntimeDebugPanel.tsx
 msgid "Search runtime items…"
 msgstr "搜索运行时项目..."
+
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
+msgid "Search shortcuts"
+msgstr "搜索快捷键"
+
+#: src/renderer/commands/registry.ts
+msgid "Search the current view"
+msgstr "搜索当前视图"
 
 #: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
 msgid "Search threads"
@@ -4672,6 +5034,7 @@ msgstr "选择项目"
 msgid "Send a message..."
 msgstr "发送消息..."
 
+#: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/thread/ThreadComposerSection.tsx
 msgid "Send message"
 msgstr "发送消息"
@@ -4689,6 +5052,10 @@ msgstr "按配置目录区分Claude Code账户，或将配置指向外部服务�
 #: src/renderer/components/providers/codex/index.tsx
 msgid "Set or view an experimental goal"
 msgstr "设置或查看实验目标"
+
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
+msgid "Set shortcut"
+msgstr "设置快捷键"
 
 #: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
@@ -4708,11 +5075,17 @@ msgstr "分享"
 msgid "Share your activity"
 msgstr "分享你的活动"
 
+#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
+msgid "Shortcuts"
+msgstr "快捷键"
+
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
-msgid "Show a compact per-provider usage ring in the sidebar."
-msgstr "在侧边栏中显示每个提供商的紧凑使用环。"
+msgid "Show {label} circle in sidebar"
+msgstr "在侧边栏中显示 {label} 圆环"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Show a projectless Home scope for OS-level agent sessions."
 msgstr "为操作系统级别的代理会话显示一个无项目的主页范围。"
 
@@ -4726,9 +5099,16 @@ msgstr "显示全部"
 msgid "Show Bookmark Bar"
 msgstr "显示书签栏"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Show circles in sidebar"
 msgstr "在侧边栏中显示圆圈"
+
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+msgid "Show compact per-provider usage rings in the sidebar. Hide individual "
+"providers' circles in the list below."
+msgstr "在侧边栏中显示每个提供商的紧凑使用环。可在下方列表中隐藏单个提供商的圆环。"
 
 #: src/renderer/components/thread/ThreadComposerSection.tsx
 msgid "Show composer"
@@ -4738,6 +5118,7 @@ msgstr "显示编辑器"
 msgid "Show context usage details"
 msgstr "显示上下文使用详细信息"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Show estimated cost"
 msgstr "显示预计费用"
@@ -4756,16 +5137,27 @@ msgid "Show more"
 msgstr "显示更多"
 
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Show notifications"
 msgstr "显示通知"
 
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Show notifications when thread status changes."
 msgstr "当线程状态更改时显示通知。"
 
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Show opened links in"
 msgstr "打开链接的方式"
+
+#: src/renderer/commands/registry.ts
+msgid "Show or hide the browser panel"
+msgstr "显示或隐藏浏览器面板"
+
+#: src/renderer/commands/registry.ts
+msgid "Show or hide the sidebar"
+msgstr "显示或隐藏侧边栏"
 
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorToolbar.tsx
 msgid "Show preview"
@@ -4788,18 +5180,31 @@ msgid "Show source"
 msgstr "显示来源"
 
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Show the microphone button in the composer."
 msgstr "在编辑器中显示麦克风按钮。"
 
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Show voice input button"
 msgstr "显示语音输入按钮"
 
+#. Toggle: show this provider's usage ring in the sidebar
+#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+msgid "Sidebar"
+msgstr "侧边栏"
+
+#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+msgid "Sidebar circles are turned off globally above"
+msgstr "侧边栏圆环已在上方全局关闭"
+
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Sidebar frosting"
 msgstr "侧边栏磨砂效果"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Sign in"
 msgstr "登录"
 
@@ -4816,6 +5221,10 @@ msgstr "需要登录"
 msgid "Sign in with the agent CLI."
 msgstr "使用代理 CLI 登录。"
 
+#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+msgid "Sign out"
+msgstr "退出登录"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
 msgid "Sign out {label}"
 msgstr "退出{label}"
@@ -4829,6 +5238,7 @@ msgid "Signing in"
 msgstr "正在登录"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Signing in…"
 msgstr "正在登录..."
 
@@ -4840,25 +5250,21 @@ msgstr "注销{env}。检测到的代理将在完成后刷新。"
 msgid "Signing out. Detected agents will refresh when it finishes."
 msgstr "正在退出。检测到的代理将在完成后刷新。"
 
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "Skill runs"
+msgstr "技能运行次数"
+
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Skill: {skill}"
 msgstr "技能：{skill}"
-
-#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
-msgid "Skill/subagent runs"
-msgstr "技能/子代理运行次数"
 
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "Skills"
 msgstr "技能"
 
 #: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
-#~ msgid "Skills explored"
-#~ msgstr "已探索技能"
-
-#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
-msgid "Skills/subagents explored"
-msgstr "已探索技能/子代理"
+msgid "Skills explored"
+msgstr "已使用的技能"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "Some checks are failing or pending."
@@ -4910,6 +5316,10 @@ msgstr "已暂存"
 msgid "Staged ({0})"
 msgstr "已暂存（{0}）"
 
+#: src/renderer/commands/registry.ts
+msgid "Star or unstar the current chat or model"
+msgstr "收藏或取消收藏当前聊天或模型"
+
 #. Button: start the microphone level test
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 msgid "Start"
@@ -4919,6 +5329,10 @@ msgstr "开始"
 msgid "Start {appName} to see usage"
 msgstr "启动{appName}以查看用量"
 
+#: src/renderer/commands/registry.ts
+msgid "Start a new thread as panel instead of page"
+msgstr "以面板而非页面形式开始一个新线程"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesEditor.tsx
 msgid "Start a new thread from the selected text"
 msgstr "从选定的文本开始一个新线程"
@@ -4927,11 +5341,20 @@ msgstr "从选定的文本开始一个新线程"
 msgid "Start a new thread from this to-do"
 msgstr "从此待办事项开始一个新线程"
 
+#: src/renderer/commands/composerCommands.ts
+msgid "Start dictation"
+msgstr "开始语音输入"
+
+#: src/renderer/commands/composerCommands.ts
+msgid "Start dictation in the current composer"
+msgstr "在当前输入框中开始语音输入"
+
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
 msgid "Start from scratch"
 msgstr "从头开始"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Start the composer collapsed in terminal-native threads. A collapsed "
 "composer routes browser element picks straight to the terminal."
@@ -5006,6 +5429,7 @@ msgstr "在更改项目文件夹之前，请停止该项目正在运行的线程
 msgid "Stop voice input"
 msgstr "停止语音输入"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/WorktreeSettings.tsx
 msgid "Storage location"
 msgstr "存储位置"
@@ -5030,8 +5454,11 @@ msgstr "未找到子代理。"
 msgid "Subagent Result"
 msgstr "子代理结果"
 
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "Subagent runs"
+msgstr "子代理运行次数"
+
 #: src/renderer/components/thread/ChatPane/parts/items/ActiveSubAgentTile.tsx
-#: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "Subagents"
 msgstr "子代理"
 
@@ -5051,6 +5478,10 @@ msgstr "提交合并前必须解决的反馈。"
 #: src/renderer/views/PrReviewOverlay/parts/SubmitReviewPopover.tsx
 msgid "Submit feedback without explicit approval."
 msgstr "未经明确批准就提交反馈。"
+
+#: src/renderer/commands/shortcutCatalog.ts
+msgid "Submit Git form"
+msgstr "提交 Git 表单"
 
 #: src/renderer/views/PrReviewOverlay/parts/SubmitReviewPopover.tsx
 msgid "Submit review"
@@ -5097,6 +5528,22 @@ msgstr "将此聊天切换到代理模式"
 #: src/renderer/components/providers/codex/index.tsx
 msgid "Switch this chat to plan mode"
 msgstr "将此聊天切换到计划模式"
+
+#: src/renderer/commands/registry.ts
+msgid "Switch to the next chat"
+msgstr "切换到下一个聊天"
+
+#: src/renderer/commands/registry.ts
+msgid "Switch to the next tab"
+msgstr "切换到下一个选项卡"
+
+#: src/renderer/commands/registry.ts
+msgid "Switch to the previous chat"
+msgstr "切换到上一个聊天"
+
+#: src/renderer/commands/registry.ts
+msgid "Switch to the previous tab"
+msgstr "切换到上一个选项卡"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CommitSyncPanel.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
@@ -5164,6 +5611,7 @@ msgid "Tell the target provider what to do next..."
 msgstr "告诉目标提供商下一步该做什么..."
 
 #: src/renderer/commands/registry.ts
+#: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/layout/UnifiedRightPanel.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
@@ -5189,14 +5637,17 @@ msgstr "终端输入"
 msgid "Terminal not ready — added selection to composer."
 msgstr "终端未就绪 — 已将所选内容添加到编辑器。"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Terminal panel font size"
 msgstr "终端面板字体大小"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Terminal position"
 msgstr "终端位置"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Terminal scroll speed"
 msgstr "终端滚动速度"
@@ -5207,6 +5658,7 @@ msgid "Terminal tabs"
 msgstr "终端选项卡"
 
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Test microphone"
 msgstr "测试麦克风"
 
@@ -5222,6 +5674,13 @@ msgstr "该应用程序"
 msgid "the chosen folder"
 msgstr "所选文件夹"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+msgid "The default background refresh cadence, used for any provider without "
+"its own interval set below. Set to 0 to turn off (manual only). The "
+"2-minute floor respects provider rate limits."
+msgstr "默认的后台刷新频率，适用于下方未单独设置间隔的任何提供商。设为 0 可关闭（仅手动刷新）。最低 2 分钟以遵守提供商的速率限制。"
+
 #: src/renderer/RendererCrashScreen.tsx
 msgid "The normal app shell could not render. The diagnostics below are shown "
 "before reload so the failure can be investigated."
@@ -5236,6 +5695,7 @@ msgid "the target provider"
 msgstr "目标提供商"
 
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Theme"
 msgstr "主题"
 
@@ -5304,6 +5764,7 @@ msgid "Thought"
 msgstr "思考"
 
 #: src/renderer/commands/registry.ts
+#: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/hooks/useElementPicker.ts
 msgid "Thread"
 msgstr "线程"
@@ -5326,6 +5787,7 @@ msgid "Thread failed to start."
 msgstr "线程无法启动。"
 
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Thread finished or waiting for your input."
 msgstr "线程已完成或正在等待您的输入。"
 
@@ -5360,12 +5822,14 @@ msgstr "线程待办事项停靠栏"
 msgid "Threads"
 msgstr "线程"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
 msgid "Threads marked done that have not been touched for this many days are "
 "archived automatically on app launch. Set to 0 to disable."
 msgstr "标记为“已完成”且已多日未触及的线程将在应用程序启动时自动存档。设置为 0 以禁用。"
 
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Title Generation"
 msgstr "标题生成"
 
@@ -5373,17 +5837,42 @@ msgstr "标题生成"
 msgid "To-dos"
 msgstr "待办事项"
 
+#: src/renderer/commands/registry.ts
+msgid "Toggle browser panel"
+msgstr "切换浏览器面板"
+
+#: src/renderer/commands/composerCommands.ts
 #: src/renderer/components/providers/codex/index.tsx
 msgid "Toggle Fast mode"
 msgstr "切换快速模式"
+
+#: src/renderer/commands/registry.ts
+msgid "Toggle File Tree"
+msgstr "切换文件树"
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
 msgid "Toggle models off to hide them from the selector."
 msgstr "关闭模型以将其隐藏在选择器中。"
 
 #: src/renderer/commands/registry.ts
+msgid "Toggle sidebar"
+msgstr "切换侧边栏"
+
+#: src/renderer/commands/registry.ts
+msgid "Toggle star"
+msgstr "切换收藏"
+
+#: src/renderer/commands/registry.ts
 msgid "Toggle Terminal"
 msgstr "切换终端"
+
+#: src/renderer/commands/registry.ts
+msgid "Toggle the file tree panel"
+msgstr "切换文件树面板"
+
+#: src/renderer/commands/composerCommands.ts
+msgid "Toggle Work or Plan"
+msgstr "切换工作或计划"
 
 #: src/renderer/views/ProfileOverlay/parts/ActivitySection.tsx
 msgid "Tokens"
@@ -5401,10 +5890,6 @@ msgstr "工具搜索"
 #: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
 msgid "Total prompts"
 msgstr "提示总数"
-
-#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
-#~ msgid "Total skills used"
-#~ msgstr "已用技能总数"
 
 #: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
 msgid "Total threads"
@@ -5438,6 +5923,7 @@ msgid "Transcribing voice"
 msgstr "正在转录语音"
 
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Translucent sidebar"
 msgstr "半透明侧边栏"
 
@@ -5560,6 +6046,10 @@ msgstr "无法更新{0}：{detailText}"
 msgid "Unable to update {0}."
 msgstr "无法更新{0}。"
 
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
+msgid "Unassigned"
+msgstr "未分配"
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadGroup.tsx
 msgid "Ungroup All"
 msgstr "全部取消分组"
@@ -5575,6 +6065,7 @@ msgstr "卸载"
 
 #: src/renderer/components/thread/threadContextUsage.ts
 #: src/renderer/views/PrReviewOverlay/parts/PrChecksTab.tsx
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Unknown"
 msgstr "未知"
 
@@ -5587,6 +6078,7 @@ msgstr "未知项目"
 msgid "Unlimited"
 msgstr "无限"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
 msgid "Unload idle threads after"
 msgstr "在以下时间后卸载空闲线程"
@@ -5746,9 +6238,11 @@ msgid "Use detected session?"
 msgstr "使用检测到的会话？"
 
 #: src/renderer/views/SettingsOverlay/parts/SearchExcludeBody.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Use ignore files"
 msgstr "使用忽略文件"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/WorktreeSettings.tsx
 msgid "Use one global folder, or nest worktrees inside each project at "
 ".lightcode/worktrees."
@@ -5764,12 +6258,17 @@ msgid "Use this account for usage tracking, or change users in the browser "
 msgstr "使用此帐户进行使用情况跟踪，或在继续之前更改浏览器中的用户。"
 
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Use WebGPU acceleration"
 msgstr "使用WebGPU加速"
 
 #: src/renderer/components/thread/threadContextUsage.ts
 msgid "Used"
 msgstr "已使用"
+
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
+msgid "Used by {conflict}"
+msgstr "已被{conflict}使用"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Using the built-in Claude model list."
@@ -5805,6 +6304,7 @@ msgid "Visible {0} models"
 msgstr "可见{0}模型"
 
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilitySection.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
 msgid "Visible models"
 msgstr "可见模型"
@@ -5814,10 +6314,12 @@ msgid "Voice input is not available in this environment."
 msgstr "在此环境中无法使用语音输入。"
 
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Voice input language"
 msgstr "语音输入语言"
 
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Voice input model"
 msgstr "语音输入模型"
 
@@ -5894,6 +6396,7 @@ msgid "Website"
 msgstr "网站"
 
 #: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "What the Create PR button does by default: open a dialog to edit the "
 "title and description first, or auto-generate them and create the PR in "
 "one click. You can also switch this from the button's menu."
@@ -5904,6 +6407,7 @@ msgid "When enabled, search respects <0>.gitignore</0> entries."
 msgstr "启用后，搜索会考虑 <0>.gitignore</0> 条目。"
 
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "When links open in a Lightcode browser tab, choose where the browser is "
 "revealed."
 msgstr "当链接在 Lightcode 浏览器选项卡中打开时，选择浏览器的显示位置。"
@@ -5914,14 +6418,17 @@ msgid "When off, suppress notifications from terminal threads whose status "
 msgstr "关闭时，抑制状态来自 OSC 回退（无 CLI 挂钩插件）的终端线程的通知。"
 
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "When to display in-app toasts for visible threads."
 msgstr "何时显示可见线程的应用内 Toast。"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "When you close the window, keep Lightcode running in the system tray. "
 "Disable to quit on close."
 msgstr "当您关闭窗口时，请保持 Lightcode 在系统托盘中运行。禁用关闭时退出。"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Where a browser element-picker selection goes in terminal-native "
 "threads. A collapsed composer always routes to the terminal."
@@ -5936,6 +6443,7 @@ msgid "Where Lightcode creates git worktrees for new branches. Changes apply to 
 "worktrees created from now on; existing worktrees stay where they are."
 msgstr "Lightcode 为新分支创建 git 工作树的位置。更改适用于从现在起创建的工作树；现有工作树保持原位不变。"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Where the terminal panel appears."
 msgstr "终端面板出现的位置。"
@@ -5990,6 +6498,10 @@ msgstr "工作流程阶段"
 msgid "Workflow results"
 msgstr "工作流程结果"
 
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "Workflow runs"
+msgstr "工作流运行次数"
+
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Workflow: {description}"
 msgstr "工作流程：{description}"
@@ -6039,6 +6551,7 @@ msgid "Worktree root for this project (a Linux path). Reset to use the global "
 "setting."
 msgstr "此项目的工作树根目录（Linux 路径）。重置以使用全局设置。"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/WorktreeSettings.tsx
 msgid "Worktree root for WSL projects (a Linux path)."
 msgstr "WSL 项目的工作树根目录（Linux 路径）。"
@@ -6087,6 +6600,7 @@ msgstr "WSL"
 msgid "WSL ({0})"
 msgstr "WSL（{0}）"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/WorktreeSettings.tsx
 msgid "WSL base folder"
 msgstr "WSL 基础文件夹"

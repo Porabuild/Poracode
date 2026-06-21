@@ -33,13 +33,23 @@ interface SharedSettingsState extends SharedSettings {
   setLocale: (locale: LocaleSetting) => void;
   setGitTextLanguage: (value: AiContentLanguage) => void;
   setTerminalPosition: (position: TerminalPosition) => void;
-  setCommitGenConfig: (provider: string, model: string, effort: string) => void;
-  setTitleGenConfig: (provider: string, model: string, effort: string) => void;
-  setConflictResolverConfig: (provider: string, model: string, effort: string) => void;
+  setCommitGenConfig: (provider: string, model: string, effort: string, fast: boolean) => void;
+  setTitleGenConfig: (provider: string, model: string, effort: string, fast: boolean) => void;
+  setConflictResolverConfig: (
+    provider: string,
+    model: string,
+    effort: string,
+    fast: boolean,
+  ) => void;
   setConflictResolverPresentationMode: (mode: ThreadPresentationMode) => void;
-  setWslCommitGenConfig: (provider: string, model: string, effort: string) => void;
-  setWslTitleGenConfig: (provider: string, model: string, effort: string) => void;
-  setWslConflictResolverConfig: (provider: string, model: string, effort: string) => void;
+  setWslCommitGenConfig: (provider: string, model: string, effort: string, fast: boolean) => void;
+  setWslTitleGenConfig: (provider: string, model: string, effort: string, fast: boolean) => void;
+  setWslConflictResolverConfig: (
+    provider: string,
+    model: string,
+    effort: string,
+    fast: boolean,
+  ) => void;
   setWslConflictResolverPresentationMode: (mode: ThreadPresentationMode) => void;
   setAgentSetting: (agentKind: string, key: string, value: boolean | string) => void;
   setModelHidden: (agentKind: string, modelId: string, hidden: boolean) => void;
@@ -105,6 +115,18 @@ interface SharedSettingsState extends SharedSettings {
     modelId: string,
     presentationMode: ThreadPresentationMode,
   ) => void;
+  /**
+   * Flip a model's favorite state independent of presentation mode: remove every
+   * stored entry for `(agentKind, modelId)` if any exist, otherwise add one under
+   * `fallbackMode`. Used where no presentation mode is in scope (e.g. the draft
+   * screen), so a single keypress clears the favorite across every mode at once
+   * and never leaves a duplicate. Returns `true` when the model is now favorited.
+   */
+  toggleFavoriteModelAnyMode: (
+    agentKind: string,
+    modelId: string,
+    fallbackMode: ThreadPresentationMode,
+  ) => boolean;
   pushRecentModel: (
     agentKind: string,
     modelId: string,
@@ -203,20 +225,26 @@ export const useSharedSettings = create<SharedSettingsState>()((set, get) => ({
     set({ terminalPosition });
     persistSettings(selectSharedSettings(get()));
   },
-  setCommitGenConfig: (commitGenProvider, commitGenModel, commitGenEffort) => {
-    set({ commitGenProvider, commitGenModel, commitGenEffort });
+  setCommitGenConfig: (commitGenProvider, commitGenModel, commitGenEffort, commitGenFast) => {
+    set({ commitGenProvider, commitGenModel, commitGenEffort, commitGenFast });
     persistSettings(selectSharedSettings(get()));
   },
-  setTitleGenConfig: (titleGenProvider, titleGenModel, titleGenEffort) => {
-    set({ titleGenProvider, titleGenModel, titleGenEffort });
+  setTitleGenConfig: (titleGenProvider, titleGenModel, titleGenEffort, titleGenFast) => {
+    set({ titleGenProvider, titleGenModel, titleGenEffort, titleGenFast });
     persistSettings(selectSharedSettings(get()));
   },
   setConflictResolverConfig: (
     conflictResolverProvider,
     conflictResolverModel,
     conflictResolverEffort,
+    conflictResolverFast,
   ) => {
-    set({ conflictResolverProvider, conflictResolverModel, conflictResolverEffort });
+    set({
+      conflictResolverProvider,
+      conflictResolverModel,
+      conflictResolverEffort,
+      conflictResolverFast,
+    });
     persistSettings(selectSharedSettings(get()));
   },
   setConflictResolverPresentationMode: (conflictResolverPresentationMode) => {
@@ -224,20 +252,36 @@ export const useSharedSettings = create<SharedSettingsState>()((set, get) => ({
     set({ conflictResolverPresentationMode });
     persistSettings(selectSharedSettings(get()));
   },
-  setWslCommitGenConfig: (wslCommitGenProvider, wslCommitGenModel, wslCommitGenEffort) => {
-    set({ wslCommitGenProvider, wslCommitGenModel, wslCommitGenEffort });
+  setWslCommitGenConfig: (
+    wslCommitGenProvider,
+    wslCommitGenModel,
+    wslCommitGenEffort,
+    wslCommitGenFast,
+  ) => {
+    set({ wslCommitGenProvider, wslCommitGenModel, wslCommitGenEffort, wslCommitGenFast });
     persistSettings(selectSharedSettings(get()));
   },
-  setWslTitleGenConfig: (wslTitleGenProvider, wslTitleGenModel, wslTitleGenEffort) => {
-    set({ wslTitleGenProvider, wslTitleGenModel, wslTitleGenEffort });
+  setWslTitleGenConfig: (
+    wslTitleGenProvider,
+    wslTitleGenModel,
+    wslTitleGenEffort,
+    wslTitleGenFast,
+  ) => {
+    set({ wslTitleGenProvider, wslTitleGenModel, wslTitleGenEffort, wslTitleGenFast });
     persistSettings(selectSharedSettings(get()));
   },
   setWslConflictResolverConfig: (
     wslConflictResolverProvider,
     wslConflictResolverModel,
     wslConflictResolverEffort,
+    wslConflictResolverFast,
   ) => {
-    set({ wslConflictResolverProvider, wslConflictResolverModel, wslConflictResolverEffort });
+    set({
+      wslConflictResolverProvider,
+      wslConflictResolverModel,
+      wslConflictResolverEffort,
+      wslConflictResolverFast,
+    });
     persistSettings(selectSharedSettings(get()));
   },
   setWslConflictResolverPresentationMode: (wslConflictResolverPresentationMode) => {
@@ -541,6 +585,18 @@ export const useSharedSettings = create<SharedSettingsState>()((set, get) => ({
     set({ favoriteModels: next });
     persistSettings(selectSharedSettings(get()));
   },
+  toggleFavoriteModelAnyMode: (agentKind, modelId, fallbackMode) => {
+    const current = get().favoriteModels;
+    const matches = (m: (typeof current)[number]) =>
+      m.agentKind === agentKind && m.modelId === modelId;
+    const isFavorite = current.some(matches);
+    const next = isFavorite
+      ? current.filter((m) => !matches(m))
+      : [...current, { agentKind, modelId, presentationMode: fallbackMode }];
+    set({ favoriteModels: next });
+    persistSettings(selectSharedSettings(get()));
+    return !isFavorite;
+  },
   pushRecentModel: (agentKind, modelId, presentationMode) => {
     const current = get().recentModels;
     const samePresentation = current.filter((m) => m.presentationMode === presentationMode);
@@ -579,22 +635,28 @@ function selectSharedSettings(state: SharedSettingsState): SharedSettingsInput {
     commitGenProvider: state.commitGenProvider,
     commitGenModel: state.commitGenModel,
     commitGenEffort: state.commitGenEffort,
+    commitGenFast: state.commitGenFast,
     titleGenProvider: state.titleGenProvider,
     titleGenModel: state.titleGenModel,
     titleGenEffort: state.titleGenEffort,
+    titleGenFast: state.titleGenFast,
     conflictResolverProvider: state.conflictResolverProvider,
     conflictResolverModel: state.conflictResolverModel,
     conflictResolverEffort: state.conflictResolverEffort,
+    conflictResolverFast: state.conflictResolverFast,
     conflictResolverPresentationMode: state.conflictResolverPresentationMode,
     wslCommitGenProvider: state.wslCommitGenProvider,
     wslCommitGenModel: state.wslCommitGenModel,
     wslCommitGenEffort: state.wslCommitGenEffort,
+    wslCommitGenFast: state.wslCommitGenFast,
     wslTitleGenProvider: state.wslTitleGenProvider,
     wslTitleGenModel: state.wslTitleGenModel,
     wslTitleGenEffort: state.wslTitleGenEffort,
+    wslTitleGenFast: state.wslTitleGenFast,
     wslConflictResolverProvider: state.wslConflictResolverProvider,
     wslConflictResolverModel: state.wslConflictResolverModel,
     wslConflictResolverEffort: state.wslConflictResolverEffort,
+    wslConflictResolverFast: state.wslConflictResolverFast,
     wslConflictResolverPresentationMode: state.wslConflictResolverPresentationMode,
     agentSettings: state.agentSettings,
     hiddenModels: state.hiddenModels,

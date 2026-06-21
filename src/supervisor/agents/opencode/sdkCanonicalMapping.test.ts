@@ -635,6 +635,61 @@ describe("sdkCanonicalMapping — tool parts", () => {
     });
   });
 
+  it("preserves OpenCode Skill and MCP tool names for usage capture", () => {
+    const state = createOpenCodeMapperState("thread-1");
+
+    const skill = mapOpenCodeEvent(
+      toolPartUpdatedEvent({
+        id: "prt_skill",
+        sessionID: "ses_test",
+        messageID: "msg_1",
+        type: "tool",
+        tool: "skill",
+        callID: "call_skill",
+        state: {
+          status: "running",
+          input: { skill: "skill-creator" },
+          time: { start: 0 },
+        },
+      }),
+      state,
+    );
+    expect(skill.find((e) => e.type === "item.started")).toMatchObject({
+      itemType: "tool_call",
+      payload: {
+        name: "Skill",
+        title: "skill-creator",
+        args: { skill: "skill-creator" },
+        status: "running",
+      },
+    });
+
+    const mcp = mapOpenCodeEvent(
+      toolPartUpdatedEvent({
+        id: "prt_mcp",
+        sessionID: "ses_test",
+        messageID: "msg_1",
+        type: "tool",
+        tool: "mcp__codex_apps__target_search",
+        callID: "call_mcp",
+        state: {
+          status: "running",
+          input: { query: "desk lamp" },
+          time: { start: 0 },
+        },
+      }),
+      state,
+    );
+    expect(mcp.find((e) => e.type === "item.started")).toMatchObject({
+      itemType: "tool_call",
+      payload: {
+        name: "mcp__codex_apps__target_search",
+        args: { query: "desk lamp" },
+        status: "running",
+      },
+    });
+  });
+
   it("counts child-session tool parts as subagent progress.stepCount", () => {
     const state = createOpenCodeMapperState("thread-1");
     setOpenCodeMainSessionId(state, "ses_main");

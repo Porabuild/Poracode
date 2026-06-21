@@ -144,3 +144,40 @@ describe("UsageLoginManager GitHub device flow", () => {
     expect(hasUsageSecret(cacheDir, "copilot")).toBe(false);
   });
 });
+
+describe("UsageLoginManager API-key flow", () => {
+  it("seals a pasted key and reports it stored", async () => {
+    const manager = newManager(makePanel());
+    await expect(manager.submitApiKey("zai", "  zai-secret  ")).resolves.toEqual({ ok: true });
+    expect(hasUsageSecret(cacheDir, "zai")).toBe(true);
+  });
+
+  it("rejects an empty key without storing anything", async () => {
+    const manager = newManager(makePanel());
+    await expect(manager.submitApiKey("zai", "   ")).resolves.toMatchObject({ ok: false });
+    expect(hasUsageSecret(cacheDir, "zai")).toBe(false);
+  });
+
+  it("rejects submitApiKey for a non-api-key provider", async () => {
+    const manager = newManager(makePanel());
+    await expect(manager.submitApiKey("grok", "x")).resolves.toMatchObject({ ok: false });
+    expect(hasUsageSecret(cacheDir, "grok")).toBe(false);
+  });
+
+  it("startLogin on an api-key provider returns a guard error, no browser step", async () => {
+    const panel = makePanel();
+    const manager = newManager(panel);
+    const result = await manager.startLogin("zai");
+    expect(result.ok).toBe(false);
+    expect(panel.captureLoginCookies).not.toHaveBeenCalled();
+    expect(hasUsageSecret(cacheDir, "zai")).toBe(false);
+  });
+
+  it("clears a stored api-key secret on sign-out", async () => {
+    const manager = newManager(makePanel());
+    await manager.submitApiKey("zai", "zai-secret");
+    expect(hasUsageSecret(cacheDir, "zai")).toBe(true);
+    await expect(manager.clearLogin("zai")).resolves.toEqual({ ok: true });
+    expect(hasUsageSecret(cacheDir, "zai")).toBe(false);
+  });
+});

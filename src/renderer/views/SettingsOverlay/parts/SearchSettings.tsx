@@ -22,6 +22,8 @@ export function SearchSettings() {
       }
     >
       <SearchExcludeBody
+        useIgnoreFilesAnchorId="search.useIgnoreFiles"
+        excludePatternsAnchorId="search.excludePatterns"
         useIgnoreFiles={useIgnoreFiles}
         useIgnoreFilesNote={
           <Trans>

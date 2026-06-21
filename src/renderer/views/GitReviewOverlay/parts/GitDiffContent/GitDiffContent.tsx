@@ -18,6 +18,7 @@ import type { DiffBuildItem } from "@/renderer/workers/diffBuildWorker";
 }
 import { readBridge } from "@/renderer/bridge";
 import { PixelLoader } from "@/renderer/components/common";
+import { GitFindBar } from "@/renderer/components/find/GitFindBar";
 import { buildInWorker, diffFileFromBundle, useDiffTheme } from "../diffBuildClient";
 import { DiffSection } from "./parts/DiffSection";
 import { SingleFileDiff } from "./parts/SingleFileDiff";
@@ -48,6 +49,7 @@ export function GitDiffContent(props: {
   const [loading, setLoading] = useState(false);
   const [panelReady, setPanelReady] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const singleFileScrollRef = useRef<HTMLDivElement>(null);
   const statusKeyRef = useRef<string | null>(null);
   const refreshKeyRef = useRef(refreshKey);
 
@@ -179,7 +181,11 @@ export function GitDiffContent(props: {
   const showLoader = (loading || !panelReady) && filtered.length > 0;
 
   return (
-    <div className="lightcode-git-diff-content relative h-full min-h-0">
+    <div
+      data-lightcode-find-scope="git"
+      className="lightcode-git-diff-content relative h-full min-h-0"
+    >
+      <GitFindBar containerRef={selectedFile ? singleFileScrollRef : scrollRef} />
       {showLoader && (
         <div className="absolute inset-0 z-20 flex items-center justify-center bg-[var(--content-background)]">
           <PixelLoader size="lg" />
@@ -218,6 +224,7 @@ export function GitDiffContent(props: {
           staged={selectedStaged}
           diffMode={diffMode}
           refreshKey={refreshKey}
+          containerRef={singleFileScrollRef}
         />
       )}
     </div>

@@ -32,11 +32,17 @@ interface DevTerminalActions {
   openPanel: (projectId: string) => void;
   openWorktreePanel: (projectId: string, worktreePath: string) => void;
   closePanel: () => void;
-  togglePanel: (projectId?: string) => void;
   setActiveProject: (projectId: string) => void;
   addTab: (projectId: string, projectName: string, worktreePath?: string) => DevTerminalTab;
   removeTab: (tabId: string) => void;
   setActiveTab: (tabId: string) => void;
+  /**
+   * Switch to the adjacent tab within the visible strip (active project +
+   * worktree scope), wrapping at the ends. No-op with fewer than two tabs.
+   * Mirrors DevTerminalPanel's `projectTabs` filter so it cycles exactly the
+   * tabs the user sees.
+   */
+  cycleTab: (direction: "next" | "previous") => void;
   removeTabsForProject: (projectId: string) => string[];
   removeTabsForWorktree: (worktreePath: string) => string[];
   /** Create a split shell on the given tab. Returns the split shell ID. */
@@ -90,17 +96,6 @@ export const useDevTerminalStore = create<DevTerminalState & DevTerminalActions>
       focusRequestId: state.focusRequestId + 1,
     })),
   closePanel: () => set({ isOpen: false, activeProjectId: null, activeWorktreePath: null }),
-  togglePanel: (projectId) =>
-    set((state) => {
-      if (state.isOpen && state.activeProjectId === projectId) {
-        return { isOpen: false, activeWorktreePath: null };
-      }
-      return {
-        isOpen: true,
-        activeProjectId: projectId ?? state.activeProjectId,
-        focusRequestId: state.focusRequestId + 1,
-      };
-    }),
 
   setActiveProject: (projectId) => {
     const tabs = get().tabs.filter((t) => t.projectId === projectId);
@@ -149,6 +144,24 @@ export const useDevTerminalStore = create<DevTerminalState & DevTerminalActions>
       return set({ activeTabId: tabId, focusRequestId: focusRequestId + 1, tabActivity: next });
     }
     set({ activeTabId: tabId, focusRequestId: focusRequestId + 1 });
+  },
+
+  cycleTab: (direction) => {
+    const state = get();
+    // The same predicate DevTerminalPanel uses to render its visible tab strip.
+    const visible = state.tabs.filter((tab) => {
+      if (tab.projectId !== state.activeProjectId) return false;
+      if (state.activeWorktreePath) return tab.worktreePath === state.activeWorktreePath;
+      return !tab.worktreePath;
+    });
+    if (visible.length < 2) return;
+    // Fall back to the last tab when none is active — matches the panel's
+    // `selectedTabId` default (projectTabs.at(-1)).
+    const currentIndex = visible.findIndex((tab) => tab.id === state.activeTabId);
+    const base = currentIndex === -1 ? visible.length - 1 : currentIndex;
+    const delta = direction === "next" ? 1 : -1;
+    const next = visible[(base + delta + visible.length) % visible.length];
+    if (next && next.id !== state.activeTabId) state.setActiveTab(next.id);
   },
 
   removeTabsForProject: (projectId: string) => {

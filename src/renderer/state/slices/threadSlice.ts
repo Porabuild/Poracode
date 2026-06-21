@@ -317,8 +317,10 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
         state.lastRuntimeConfigByThreadId;
       const { [threadId]: _droppedLastViewed, ...lastViewedAtByThreadId } =
         state.lastViewedAtByThreadId;
+      const { [threadId]: _droppedThreadDraft, ...threadDraftContents } = state.threadDraftContents;
       return {
         threads: nextThreads,
+        threadDraftContents,
         pendingThreadLaunches: Object.fromEntries(
           Object.entries(state.pendingThreadLaunches).filter(([id]) => id !== threadId),
         ),

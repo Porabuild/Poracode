@@ -147,6 +147,10 @@ vi.mock("./parts/SearchSettings", () => ({
   SearchSettings: () => <div>Search</div>,
 }));
 
+vi.mock("./parts/ShortcutsSettings", () => ({
+  ShortcutsSettings: () => <div>Shortcuts</div>,
+}));
+
 vi.mock("./parts/UsageSettings", () => ({
   UsageSettings: () => <div>Usage</div>,
 }));
@@ -311,7 +315,7 @@ describe("SettingsOverlay", () => {
   it("routes split general sections from the sidebar", () => {
     render(<SettingsOverlay onClose={() => undefined} />);
 
-    for (const section of ["Appearance", "Terminal", "Threads", "Git"]) {
+    for (const section of ["Appearance", "Terminal", "Threads", "Git", "Shortcuts"]) {
       fireEvent.click(screen.getByRole("button", { name: section }));
       expect(within(screen.getByRole("main")).getByText(section)).toBeInTheDocument();
     }
@@ -413,5 +417,52 @@ describe("SettingsOverlay", () => {
 
     expect(screen.queryByText("Discovering coding agents…")).not.toBeInTheDocument();
     expect(resetDiscoveredAgentsMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("searches across individual settings, not just sections", () => {
+    render(<SettingsOverlay onClose={() => undefined} />);
+
+    // "sleep" matches no section label, but a setting under General.
+    fireEvent.change(screen.getByPlaceholderText("Filter settings"), {
+      target: { value: "sleep" },
+    });
+
+    expect(screen.getByText("Prevent sleep while working")).toBeInTheDocument();
+    // The section list is replaced — unrelated sections are gone.
+    expect(screen.queryByRole("button", { name: "Audio" })).not.toBeInTheDocument();
+  });
+
+  it("surfaces the description snippet when only the description matches", () => {
+    render(<SettingsOverlay onClose={() => undefined} />);
+
+    fireEvent.change(screen.getByPlaceholderText("Filter settings"), {
+      target: { value: "awake" },
+    });
+
+    expect(
+      screen.getByText("Keep the system awake while any thread is actively working."),
+    ).toBeInTheDocument();
+  });
+
+  it("navigates to the section when a setting result is clicked", () => {
+    render(<SettingsOverlay onClose={() => undefined} />);
+
+    fireEvent.change(screen.getByPlaceholderText("Filter settings"), {
+      target: { value: "sleep" },
+    });
+    fireEvent.click(screen.getByText("Prevent sleep while working"));
+
+    expect(within(screen.getByRole("main")).getByText("General")).toBeInTheDocument();
+  });
+
+  it("restores the section list when the query is cleared", () => {
+    render(<SettingsOverlay onClose={() => undefined} />);
+    const input = screen.getByPlaceholderText("Filter settings");
+
+    fireEvent.change(input, { target: { value: "sleep" } });
+    expect(screen.queryByRole("button", { name: "Audio" })).not.toBeInTheDocument();
+
+    fireEvent.change(input, { target: { value: "" } });
+    expect(screen.getByRole("button", { name: "Audio" })).toBeInTheDocument();
   });
 });

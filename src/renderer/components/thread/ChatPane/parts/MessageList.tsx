@@ -44,6 +44,14 @@ interface MessageListProps {
    * the most recent completed turn while the thread is idle).
    */
   suppressInlineTurnAnchorId?: string | null;
+  /**
+   * Lets the chat Find controller drive the virtualizer to scroll a matched
+   * row into the rendered window before highlighting it. Registered with the
+   * live handler on mount, null on unmount.
+   */
+  registerScrollToIndex?: (
+    handler: ((index: number, options?: { align?: "start" | "center" | "end" }) => void) | null,
+  ) => void;
 }
 
 const CHAT_TRANSCRIPT_OVERSCAN = 8;
@@ -60,6 +68,7 @@ export function MessageList({
   checkpointGuard,
   projectLocation,
   suppressInlineTurnAnchorId = null,
+  registerScrollToIndex,
 }: MessageListProps) {
   const hasItems = entries.length > 0;
   const parentActions = useChatPaneActions();
@@ -94,6 +103,15 @@ export function MessageList({
     });
     return () => parentActions.registerVirtualScrollToBottom?.(null);
   }, [entries.length, parentActions, virtualizer]);
+
+  useLayoutEffect(() => {
+    if (!registerScrollToIndex) return;
+    registerScrollToIndex((index, options) => {
+      if (index < 0 || index >= entries.length) return;
+      virtualizer.scrollToIndex(index, options ?? { align: "center" });
+    });
+    return () => registerScrollToIndex(null);
+  }, [entries.length, registerScrollToIndex, virtualizer]);
 
   useLayoutEffect(() => {
     // Compensate scroll when a row above the viewport (or any row while

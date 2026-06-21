@@ -19,6 +19,7 @@ export function GitSettings() {
   return (
     <SettingsPage title={t`Git`}>
       <SettingRow
+        anchorId="git.gitReviewMode"
         title={t`Git review mode`}
         description={<Trans>Open git review as a right-side panel or a full page.</Trans>}
       >
@@ -35,6 +36,7 @@ export function GitSettings() {
         />
       </SettingRow>
       <SettingRow
+        anchorId="git.defaultCreatePrAction"
         title={t`Default Create PR action`}
         description={
           <Trans>

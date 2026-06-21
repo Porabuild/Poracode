@@ -102,7 +102,11 @@ export function ModelOrderSection() {
   if (orderedAgents.length === 0) return null;
 
   return (
-    <div className="space-y-2">
+    <div
+      id="agentsGeneral.modelOrder"
+      data-settings-anchor="agentsGeneral.modelOrder"
+      className="scroll-mt-4 space-y-2"
+    >
       <div className="flex items-center gap-2">
         <p className="text-sm font-medium text-foreground">
           <Trans>Model order</Trans>

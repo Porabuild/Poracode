@@ -216,6 +216,8 @@ export const generateCommitMessagePayloadSchema = z.object({
   agentKind: agentKindSchema,
   model: z.string().min(1).optional(),
   effort: z.string().min(1).optional(),
+  /** Run generation in fast mode (Opus-only session flag; ignored by other models). */
+  fast: z.boolean().optional(),
   /** English name of the language to write the commit message in (e.g. "German"). Omitted = English. */
   language: z.string().min(1).optional(),
 });
@@ -231,6 +233,8 @@ export const generateTitlePayloadSchema = z.object({
   prompt: z.string().min(1),
   model: z.string().min(1).optional(),
   effort: z.string().min(1).optional(),
+  /** Run generation in fast mode (Opus-only session flag; ignored by other models). */
+  fast: z.boolean().optional(),
   /** English name of the language to write the title in (e.g. "German"). Omitted = match the user's message. */
   language: z.string().min(1).optional(),
 });

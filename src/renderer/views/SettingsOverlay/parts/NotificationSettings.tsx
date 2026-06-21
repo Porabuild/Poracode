@@ -31,6 +31,7 @@ export function NotificationSettings() {
   return (
     <SettingsPage title={t`Notifications`}>
       <SettingRow
+        anchorId="notifications.enableNotifications"
         title={t`Enable notifications`}
         description={<Trans>Show notifications when thread status changes.</Trans>}
       >
@@ -52,6 +53,7 @@ export function NotificationSettings() {
         className={`space-y-4 transition-opacity ${notificationsEnabled ? "" : "pointer-events-none opacity-40"}`}
       >
         <SettingRow
+          anchorId="notifications.playNotificationSound"
           title={t`Play notification sound`}
           description={<Trans>Play a sound when a notification is shown.</Trans>}
         >
@@ -70,6 +72,7 @@ export function NotificationSettings() {
         </SettingRow>
 
         <SettingRow
+          anchorId="notifications.showNotifications"
           title={t`Show notifications`}
           description={<Trans>When to display in-app toasts for visible threads.</Trans>}
         >
@@ -91,7 +94,11 @@ export function NotificationSettings() {
             <Trans>Notify me about</Trans>
           </p>
           <div className="space-y-3">
-            <div className="flex items-center justify-between gap-4">
+            <div
+              id="notifications.notifyDone"
+              data-settings-anchor="notifications.notifyDone"
+              className="flex scroll-mt-4 items-center justify-between gap-4"
+            >
               <div className="min-w-0">
                 <p className="text-sm text-foreground">
                   <Trans comment="Notification status: thread is done">Done</Trans>
@@ -114,7 +121,11 @@ export function NotificationSettings() {
               </Switch>
             </div>
 
-            <div className="flex items-center justify-between gap-4">
+            <div
+              id="notifications.notifyNeedsAttention"
+              data-settings-anchor="notifications.notifyNeedsAttention"
+              className="flex scroll-mt-4 items-center justify-between gap-4"
+            >
               <div className="min-w-0">
                 <p className="text-sm text-foreground">
                   <Trans>Needs Attention</Trans>
@@ -137,7 +148,11 @@ export function NotificationSettings() {
               </Switch>
             </div>
 
-            <div className="flex items-center justify-between gap-4">
+            <div
+              id="notifications.notifyError"
+              data-settings-anchor="notifications.notifyError"
+              className="flex scroll-mt-4 items-center justify-between gap-4"
+            >
               <div className="min-w-0">
                 <p className="text-sm text-foreground">
                   <Trans comment="Notification status: agent error">Error</Trans>
@@ -163,6 +178,7 @@ export function NotificationSettings() {
         </div>
 
         <SettingRow
+          anchorId="notifications.notifyL2Cli"
           className="pt-2"
           title={t`Notify for L2 CLI threads`}
           description={

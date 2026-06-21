@@ -30,10 +30,12 @@ describe("readConflictResolverSettingsForProject", () => {
     conflictResolverProvider: "cursor",
     conflictResolverModel: "composer-2.5",
     conflictResolverEffort: "",
+    conflictResolverFast: false,
     conflictResolverPresentationMode: "terminal" as const,
     wslConflictResolverProvider: "auto",
     wslConflictResolverModel: "",
     wslConflictResolverEffort: "",
+    wslConflictResolverFast: false,
     wslConflictResolverPresentationMode: "gui" as const,
   };
 
@@ -42,6 +44,7 @@ describe("readConflictResolverSettingsForProject", () => {
       provider: "cursor",
       model: "composer-2.5",
       effort: "",
+      fast: false,
       presentationMode: "terminal",
     });
   });
@@ -51,6 +54,7 @@ describe("readConflictResolverSettingsForProject", () => {
       provider: "cursor",
       model: "composer-2.5",
       effort: "",
+      fast: false,
       presentationMode: "terminal",
     });
   });
@@ -67,6 +71,7 @@ describe("readConflictResolverSettingsForProject", () => {
       provider: "cursor",
       model: "composer-2.5-fast",
       effort: "",
+      fast: false,
       presentationMode: "terminal",
     });
   });

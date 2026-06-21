@@ -185,13 +185,25 @@ export class BrowserTab {
     this.wcCleanups.push(() => wc.removeListener("will-prevent-unload", onWillPreventUnload));
 
     const onBeforeInputEvent = (event: Electron.Event, input: Electron.Input) => {
-      if (!isBrowserReloadKeyDown(input)) return;
-      event.preventDefault();
-      if (isBrowserHardReloadKeyDown(input)) {
-        this.hardReload();
+      if (isBrowserReloadKeyDown(input)) {
+        event.preventDefault();
+        if (isBrowserHardReloadKeyDown(input)) {
+          this.hardReload();
+          return;
+        }
+        wc.reload();
         return;
       }
-      wc.reload();
+      if (isBrowserBackKeyDown(input)) {
+        event.preventDefault();
+        this.goBack();
+        return;
+      }
+      if (isBrowserForwardKeyDown(input)) {
+        event.preventDefault();
+        this.goForward();
+        return;
+      }
     };
     wc.on("before-input-event", onBeforeInputEvent);
     this.wcCleanups.push(() => wc.removeListener("before-input-event", onBeforeInputEvent));
@@ -352,6 +364,18 @@ export class BrowserTab {
     this.webContents.reloadIgnoringCache();
   }
 
+  goBack(): void {
+    if (this.destroyed || !this.isAttached()) return;
+    const wc = this.webContents;
+    if (wc.navigationHistory.canGoBack()) wc.navigationHistory.goBack();
+  }
+
+  goForward(): void {
+    if (this.destroyed || !this.isAttached()) return;
+    const wc = this.webContents;
+    if (wc.navigationHistory.canGoForward()) wc.navigationHistory.goForward();
+  }
+
   toggleDevTools(): void {
     if (this.destroyed || !this.isAttached()) return;
     const wc = this.webContents;
@@ -434,4 +458,16 @@ function isBrowserReloadKeyDown(input: Electron.Input): boolean {
 
 function isBrowserHardReloadKeyDown(input: Electron.Input): boolean {
   return isBrowserReloadKeyDown(input) && input.shift === true;
+}
+
+// Ctrl+[ / ⌘[ goes back, Ctrl+] / ⌘] goes forward. Electron has no built-in
+// browser chrome, so these navigation chords don't fire unless handled here.
+function isBrowserBackKeyDown(input: Electron.Input): boolean {
+  if (input.type !== "keyDown") return false;
+  return (input.control || input.meta) && !input.shift && !input.alt && input.key === "[";
+}
+
+function isBrowserForwardKeyDown(input: Electron.Input): boolean {
+  if (input.type !== "keyDown") return false;
+  return (input.control || input.meta) && !input.shift && !input.alt && input.key === "]";
 }

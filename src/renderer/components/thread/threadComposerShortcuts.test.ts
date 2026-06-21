@@ -1,6 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
+import { DEFAULT_KEYBINDINGS } from "@/shared/keybindings";
+import type { PlatformName } from "@/renderer/commands/keybindingMatcher";
 import type { ComposerControl } from "./ThreadComposer";
 import { handleComposerControlShortcut } from "./threadComposerShortcuts";
+
+const KB = DEFAULT_KEYBINDINGS.keybindings;
 
 type ShortcutModifiers = Partial<{
   shiftKey: boolean;
@@ -21,12 +25,26 @@ function shortcutEvent(key: string, modifiers: ShortcutModifiers = {}) {
   };
 }
 
+/** Run the handler against the real default keybindings so each test exercises
+ * the chord → action resolution, not just the action dispatch. */
+function dispatch(
+  event: ReturnType<typeof shortcutEvent>,
+  input: {
+    controls: readonly ComposerControl[];
+    onOpenModelPicker: () => void;
+    onStartDictation?: () => boolean;
+  },
+  platform: PlatformName = "win32",
+): boolean {
+  return handleComposerControlShortcut(event, { ...input, keybindings: KB, platform });
+}
+
 describe("handleComposerControlShortcut", () => {
   it("toggles Work/Plan with Shift+Tab", () => {
     const onChange = vi.fn<(value: boolean) => void>();
     const event = shortcutEvent("Tab", { shiftKey: true, ctrlKey: false });
 
-    const handled = handleComposerControlShortcut(event, {
+    const handled = dispatch(event, {
       controls: [
         {
           kind: "toggle",
@@ -47,7 +65,7 @@ describe("handleComposerControlShortcut", () => {
     const onEffortChange = vi.fn<(value: string) => void>();
     const event = shortcutEvent("T");
 
-    handleComposerControlShortcut(event, {
+    dispatch(event, {
       controls: [
         {
           kind: "effort-context",
@@ -68,11 +86,11 @@ describe("handleComposerControlShortcut", () => {
     expect(onEffortChange).toHaveBeenCalledWith("high");
   });
 
-  it("toggles Fast with Ctrl+F", () => {
+  it("toggles Fast with Ctrl+Shift+F", () => {
     const onChange = vi.fn<(value: boolean) => void>();
-    const event = shortcutEvent("f");
+    const event = shortcutEvent("f", { shiftKey: true });
 
-    handleComposerControlShortcut(event, {
+    dispatch(event, {
       controls: [
         {
           kind: "toggle",
@@ -92,7 +110,7 @@ describe("handleComposerControlShortcut", () => {
     const onChange = vi.fn<(value: string) => void>();
     const event = shortcutEvent("p");
 
-    handleComposerControlShortcut(event, {
+    dispatch(event, {
       controls: [
         {
           iconKind: "permission",
@@ -116,7 +134,7 @@ describe("handleComposerControlShortcut", () => {
     const onChange = vi.fn<(value: boolean) => void>();
     const event = shortcutEvent("p");
 
-    handleComposerControlShortcut(event, {
+    dispatch(event, {
       controls: [
         {
           kind: "toggle",
@@ -137,7 +155,7 @@ describe("handleComposerControlShortcut", () => {
     const onOpenModelPicker = vi.fn<() => void>();
     const event = shortcutEvent("m");
 
-    handleComposerControlShortcut(event, {
+    dispatch(event, {
       controls: [
         {
           kind: "provider-model",
@@ -154,22 +172,56 @@ describe("handleComposerControlShortcut", () => {
     expect(onOpenModelPicker).toHaveBeenCalledOnce();
   });
 
+  it("starts dictation with Ctrl+Shift+D", () => {
+    const onStartDictation = vi.fn<() => boolean>(() => true);
+    const event = shortcutEvent("d", { shiftKey: true });
+
+    const handled = dispatch(event, {
+      controls: [],
+      onOpenModelPicker: () => undefined,
+      onStartDictation,
+    });
+
+    expect(handled).toBe(true);
+    expect(event.preventDefault).toHaveBeenCalledOnce();
+    expect(onStartDictation).toHaveBeenCalledOnce();
+  });
+
+  it("lets Ctrl+Shift+D fall through when dictation is unavailable", () => {
+    const onStartDictation = vi.fn<() => boolean>(() => false);
+    const event = shortcutEvent("d", { shiftKey: true });
+
+    const handled = dispatch(event, {
+      controls: [],
+      onOpenModelPicker: () => undefined,
+      onStartDictation,
+    });
+
+    expect(handled).toBe(false);
+    expect(event.preventDefault).not.toHaveBeenCalled();
+    expect(onStartDictation).toHaveBeenCalledOnce();
+  });
+
   it("supports Meta as the platform command modifier", () => {
     const onOpenModelPicker = vi.fn<() => void>();
     const event = shortcutEvent("m", { ctrlKey: false, metaKey: true });
 
-    const handled = handleComposerControlShortcut(event, {
-      controls: [
-        {
-          kind: "provider-model",
-          providers: [],
-          currentAgentKind: "codex",
-          currentModel: "gpt-5.4",
-          onChange: () => undefined,
-        },
-      ],
-      onOpenModelPicker,
-    });
+    const handled = dispatch(
+      event,
+      {
+        controls: [
+          {
+            kind: "provider-model",
+            providers: [],
+            currentAgentKind: "codex",
+            currentModel: "gpt-5.4",
+            onChange: () => undefined,
+          },
+        ],
+        onOpenModelPicker,
+      },
+      "darwin",
+    );
 
     expect(handled).toBe(true);
     expect(event.preventDefault).toHaveBeenCalledOnce();
@@ -180,7 +232,7 @@ describe("handleComposerControlShortcut", () => {
     const onOpenModelPicker = vi.fn<() => void>();
     const event = shortcutEvent("m", { shiftKey: true, ctrlKey: false });
 
-    const handled = handleComposerControlShortcut(event, {
+    const handled = dispatch(event, {
       controls: [
         {
           kind: "provider-model",
@@ -201,7 +253,7 @@ describe("handleComposerControlShortcut", () => {
   it("does not consume unhandled shortcut keys", () => {
     const event = shortcutEvent("x");
 
-    const handled = handleComposerControlShortcut(event, {
+    const handled = dispatch(event, {
       controls: [] satisfies ComposerControl[],
       onOpenModelPicker: () => undefined,
     });

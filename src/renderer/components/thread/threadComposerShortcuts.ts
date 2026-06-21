@@ -1,3 +1,9 @@
+import type { KeybindingEntry } from "@/shared/keybindings";
+import {
+  type ComposerActionId,
+  resolveComposerActionId,
+} from "@/renderer/commands/composerCommands";
+import type { PlatformName } from "@/renderer/commands/keybindingMatcher";
 import type { ComposerControl, OptionMenuOption } from "./ThreadComposer";
 
 type ComposerShortcutEvent = {
@@ -76,41 +82,45 @@ export function handleComposerControlShortcut(
   input: {
     controls: readonly ComposerControl[];
     onOpenModelPicker: () => void;
+    /** Press the focused composer's voice-input button. Returns false (a no-op)
+     *  when dictation is unavailable, so the key falls through. */
+    onStartDictation?: () => boolean;
+    keybindings: readonly KeybindingEntry[];
+    platform: PlatformName;
   },
 ): boolean {
-  if (event.key === "Tab") {
-    if (!event.shiftKey || event.ctrlKey || event.metaKey || event.altKey) return false;
+  const action = resolveComposerActionId(event, input.keybindings, input.platform);
+  if (!action) return false;
+  return handleAction(event, () => runComposerAction(action, input));
+}
 
-    return handleAction(event, () => {
+function runComposerAction(
+  action: ComposerActionId,
+  input: {
+    controls: readonly ComposerControl[];
+    onOpenModelPicker: () => void;
+    onStartDictation?: () => boolean;
+  },
+): boolean {
+  switch (action) {
+    case "toggle-work-plan": {
       const control = input.controls.find(
         (candidate) =>
           candidate.kind === "toggle" && (candidate.label === "Work" || candidate.label === "Plan"),
       );
       return control ? toggleControl(control) : false;
-    });
-  }
-
-  if (event.shiftKey || event.altKey || (!event.ctrlKey && !event.metaKey)) return false;
-
-  const key = event.key.toLowerCase();
-  if (key === "t") {
-    return handleAction(event, () => {
+    }
+    case "cycle-effort": {
       const control = input.controls.find((candidate) => candidate.kind === "effort-context");
       return control ? cycleEffortControl(control) : false;
-    });
-  }
-
-  if (key === "f") {
-    return handleAction(event, () => {
+    }
+    case "toggle-fast": {
       const control = input.controls.find(
         (candidate) => candidate.kind === "toggle" && candidate.label === "Fast",
       );
       return control ? toggleControl(control) : false;
-    });
-  }
-
-  if (key === "p") {
-    return handleAction(event, () => {
+    }
+    case "cycle-permission": {
       const control = input.controls.find((candidate) => {
         if (
           candidate.kind === "static" ||
@@ -123,19 +133,17 @@ export function handleComposerControlShortcut(
       });
       if (!control) return false;
       return control.kind === "toggle" ? toggleControl(control) : cycleMenuControl(control);
-    });
-  }
-
-  if (key === "m") {
-    return handleAction(event, () => {
+    }
+    case "open-model-picker": {
       const control = input.controls.find(
         (candidate) => candidate.kind === "provider-model" && !candidate.isDisabled,
       );
       if (!control) return false;
       input.onOpenModelPicker();
       return true;
-    });
+    }
+    case "start-dictation": {
+      return input.onStartDictation?.() ?? false;
+    }
   }
-
-  return false;
 }

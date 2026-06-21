@@ -59,6 +59,18 @@ export {
   COMMANDCODE_USAGE_SUMMARY_ENDPOINT,
 } from "./collectors/commandcode";
 export {
+  collectFactory,
+  parseFactoryUsage,
+  formatFactoryPlanLabel,
+  isFactoryAccessTokenLive,
+  refreshWorkOSToken,
+  FACTORY_PROVIDER_ID,
+  FACTORY_AUTH_ME_ENDPOINT,
+  FACTORY_BILLING_LIMITS_ENDPOINT,
+  FACTORY_USAGE_ENDPOINT,
+} from "./collectors/factory";
+export type { WorkOSRefreshResult } from "./collectors/factory";
+export {
   collectGrok,
   parseGrokUsage,
   GROK_BILLING_ENDPOINT,
@@ -70,5 +82,14 @@ export {
   GEMINI_LOAD_ENDPOINT,
   GEMINI_QUOTA_ENDPOINT,
 } from "./collectors/gemini";
+export {
+  collectZai,
+  parseZaiUsage,
+  resolveZaiQuotaUrl,
+  ZAI_PROVIDER_ID,
+  ZAI_GLOBAL_QUOTA_ENDPOINT,
+  ZAI_BIGMODEL_QUOTA_ENDPOINT,
+} from "./collectors/zai";
+export type { ZaiQuotaResponse } from "./collectors/zai";
 export { antigravityPool, antigravityPoolWindows } from "./collectors/antigravity";
 export type { AntigravityModelQuota } from "./collectors/antigravity";

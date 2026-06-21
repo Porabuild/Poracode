@@ -71,6 +71,7 @@ export function AppearanceSettings() {
   return (
     <SettingsPage title={t`Appearance`}>
       <SettingRow
+        anchorId="appearance.mode"
         title={t`Mode`}
         description={<Trans>Match your system, or force light or dark.</Trans>}
       >
@@ -87,7 +88,11 @@ export function AppearanceSettings() {
         />
       </SettingRow>
 
-      <div className="space-y-2.5">
+      <div
+        id="appearance.theme"
+        data-settings-anchor="appearance.theme"
+        className="scroll-mt-4 space-y-2.5"
+      >
         <button
           type="button"
           aria-expanded={themeOpen}
@@ -117,6 +122,7 @@ export function AppearanceSettings() {
       </div>
 
       <SettingRow
+        anchorId="appearance.guiChatFontSize"
         title={t`GUI chat font size`}
         description={
           <Trans>
@@ -139,6 +145,7 @@ export function AppearanceSettings() {
       </SettingRow>
 
       <SettingRow
+        anchorId="appearance.translucentSidebar"
         title={t`Translucent sidebar`}
         description={
           isMac()
@@ -162,6 +169,7 @@ export function AppearanceSettings() {
 
       {showGlassTintSlider ? (
         <SettingRow
+          anchorId="appearance.sidebarFrosting"
           title={t`Sidebar frosting`}
           description={t`Frosting of the ${appearance}-mode sidebar over the system blur. Higher holds the theme color; lower shows more of what's behind.`}
         >

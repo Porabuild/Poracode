@@ -194,6 +194,7 @@ export const codexDefaultCapabilities: AgentCapability = {
   approvalPolicies: [],
   sandboxModes: [],
   supportsResume: true,
+  supportsOneShot: true,
   supportsDirectInput: true,
   liveInputMode: "terminal",
   presentationMode: "terminal",

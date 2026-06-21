@@ -12,6 +12,7 @@ export type SettingsSection =
   | "acpRegistry"
   | "agentsGeneral"
   | "search"
+  | "shortcuts"
   | "agents"
   | "browser"
   | "usage"

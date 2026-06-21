@@ -4,18 +4,24 @@ import { Trans, useLingui } from "@lingui/react/macro";
 import type { Thread, ThreadStatusSource } from "@/shared/contracts";
 import { ProviderIcon, getStatusTone } from "@/renderer/components/providers";
 import { useThread } from "@/renderer/state/useThread";
+import { useThreadHasLiveWorkflow } from "@/renderer/state/threadLiveWorkflowStore";
 import type { TranslateFn } from "@/renderer/i18n/i18n";
 
-export function threadRuntimeStatusLabel(thread: Thread, t: TranslateFn): string {
+export function threadRuntimeStatusLabel(
+  thread: Thread,
+  t: TranslateFn,
+  opts?: { hasLiveWorkflow?: boolean },
+): string {
   const { status, attention } = thread;
   if (status === "launching") return t(msg`Launching…`);
   if (status === "inactive") return t(msg`Inactive`);
   if (status === "error") return t(msg`Error`);
-  if (status === "finished") return t(msg`Finished`);
+  // A settled thread with a live background workflow still reads as "Working".
+  if (status === "finished") return opts?.hasLiveWorkflow ? t(msg`Working`) : t(msg`Finished`);
   if (status === "needs_approval" || attention === "needs_approval") return t(msg`Needs approval`);
   if (status === "needs_reply" || attention === "needs_reply") return t(msg`Needs reply`);
   if (status === "working" || attention === "working") return t(msg`Working`);
-  if (status === "idle") return t(msg`Idle`);
+  if (status === "idle") return opts?.hasLiveWorkflow ? t(msg`Working`) : t(msg`Idle`);
   return status;
 }
 
@@ -66,7 +72,8 @@ function ThreadStatusSupportDetail({ source }: { source: ThreadStatusSource | un
 export function ThreadHeaderStatusTooltipBody(props: { thread: Thread }) {
   const { thread } = props;
   const { t } = useLingui();
-  const runtime = threadRuntimeStatusLabel(thread, t);
+  const hasLiveWorkflow = useThreadHasLiveWorkflow(thread.id);
+  const runtime = threadRuntimeStatusLabel(thread, t, { hasLiveWorkflow });
   const source = thread.threadStatusSource;
   const isServer = source === "server";
   const errorMessage = thread.status === "error" ? thread.errorMessage?.trim() : undefined;
@@ -115,8 +122,9 @@ export function ThreadHeaderStatusButton(props: {
 }) {
   const { t } = useLingui();
   const thread = useThread(props.threadId) ?? props.fallbackThread;
+  const hasLiveWorkflow = useThreadHasLiveWorkflow(props.threadId);
   const agentLabel = props.agentLabel ?? props.fallbackAgentKind;
-  const statusLabel = threadRuntimeStatusLabel(thread, t);
+  const statusLabel = threadRuntimeStatusLabel(thread, t, { hasLiveWorkflow });
 
   return (
     <Tooltip delay={0}>
@@ -133,7 +141,7 @@ export function ThreadHeaderStatusButton(props: {
             kind={thread.agentKind}
             {...(props.agentIcon ? { icon: props.agentIcon } : {})}
             fallbackLabel={props.agentLabel}
-            tone={getStatusTone(thread)}
+            tone={getStatusTone(thread, { hasLiveWorkflow })}
             className="size-3.5 shrink-0"
           />
         </button>

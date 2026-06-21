@@ -10,7 +10,7 @@ function Row(props: { label: string; value: string }) {
   );
 }
 
-export function ActivityInsights(props: { core: ProfileCoreStats }) {
+export function ActivityInsights(props: { core: ProfileCoreStats; className?: string }) {
   const { t } = useLingui();
   const { insights, totals } = props.core;
 
@@ -21,21 +21,38 @@ export function ActivityInsights(props: { core: ProfileCoreStats }) {
     ? `${insights.topProvider.label} - ${insights.topProvider.percent}%`
     : "-";
   const activeHour = insights.mostActiveHour ? insights.mostActiveHour.label : "-";
+  const rows = [
+    { label: t`Most used provider`, value: provider },
+    { label: t`Most used reasoning`, value: reasoning },
+    { label: t`Fast mode`, value: `${insights.fastModePercent}%` },
+    { label: t`Most active hour`, value: activeHour },
+    { label: t`Messages sent`, value: totals.messagesSent.toLocaleString() },
+    { label: t`Goals set`, value: totals.goalsSet.toLocaleString() },
+    { label: t`Skills explored`, value: String(insights.skillsExplored) },
+    { label: t`Skill runs`, value: insights.totalSkillsUsed.toLocaleString() },
+    { label: t`Workflow runs`, value: insights.workflowRuns.toLocaleString() },
+    { label: t`Subagent runs`, value: insights.subagentRuns.toLocaleString() },
+    { label: t`MCP tool calls`, value: insights.mcpToolCalls.toLocaleString() },
+    { label: t`Total threads`, value: totals.totalThreads.toLocaleString() },
+    { label: t`Total prompts`, value: totals.totalPrompts.toLocaleString() },
+  ];
+  const midpoint = Math.ceil(rows.length / 2);
+  const groups = [
+    { key: "primary", rows: rows.slice(0, midpoint) },
+    { key: "secondary", rows: rows.slice(midpoint) },
+  ];
 
   return (
-    <section className="flex flex-col gap-1">
+    <section className={`flex flex-col gap-1 ${props.className ?? ""}`}>
       <h2 className="mb-1 text-sm font-semibold text-foreground">{t`Activity insights`}</h2>
-      <div className="divide-y divide-separator">
-        <Row label={t`Most used provider`} value={provider} />
-        <Row label={t`Most used reasoning`} value={reasoning} />
-        <Row label={t`Fast mode`} value={`${insights.fastModePercent}%`} />
-        <Row label={t`Most active hour`} value={activeHour} />
-        <Row label={t`Messages sent`} value={totals.messagesSent.toLocaleString()} />
-        <Row label={t`Goals set`} value={totals.goalsSet.toLocaleString()} />
-        <Row label={t`Skills/subagents explored`} value={String(insights.skillsExplored)} />
-        <Row label={t`Skill/subagent runs`} value={insights.totalSkillsUsed.toLocaleString()} />
-        <Row label={t`Total threads`} value={totals.totalThreads.toLocaleString()} />
-        <Row label={t`Total prompts`} value={totals.totalPrompts.toLocaleString()} />
+      <div className="grid grid-cols-1 gap-x-10 sm:grid-cols-2">
+        {groups.map((group) => (
+          <div key={group.key} className="divide-y divide-separator">
+            {group.rows.map((row) => (
+              <Row key={row.label} label={row.label} value={row.value} />
+            ))}
+          </div>
+        ))}
       </div>
     </section>
   );

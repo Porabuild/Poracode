@@ -28,6 +28,13 @@ interface SearchExcludeBodyProps {
   baseline: Record<string, boolean>;
   /** Replace the scope's exclude map. */
   onValueChange: (next: Record<string, boolean>) => void;
+  /** Search anchors — set only by the global Settings view (see ./settingsSearchIndex). */
+  useIgnoreFilesAnchorId?: string;
+  excludePatternsAnchorId?: string;
+}
+
+function anchorProps(anchorId: string | undefined) {
+  return anchorId ? { id: anchorId, "data-settings-anchor": anchorId } : {};
 }
 
 interface Row {
@@ -45,6 +52,8 @@ export function SearchExcludeBody(props: SearchExcludeBodyProps) {
     value,
     baseline,
     onValueChange,
+    useIgnoreFilesAnchorId,
+    excludePatternsAnchorId,
   } = props;
 
   const rows = buildRows(baseline, value);
@@ -67,7 +76,10 @@ export function SearchExcludeBody(props: SearchExcludeBodyProps) {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between gap-4">
+      <div
+        {...anchorProps(useIgnoreFilesAnchorId)}
+        className={`flex items-center justify-between gap-4 ${useIgnoreFilesAnchorId ? "scroll-mt-4" : ""}`}
+      >
         <div className="min-w-0">
           <p className="text-sm font-medium text-foreground">
             <Trans>Use ignore files</Trans>
@@ -89,7 +101,10 @@ export function SearchExcludeBody(props: SearchExcludeBodyProps) {
         </div>
       </div>
 
-      <div className="space-y-2">
+      <div
+        {...anchorProps(excludePatternsAnchorId)}
+        className={`space-y-2 ${excludePatternsAnchorId ? "scroll-mt-4" : ""}`}
+      >
         <div>
           <p className="text-sm font-medium text-foreground">
             <Trans>Exclude patterns</Trans>

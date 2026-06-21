@@ -45,13 +45,39 @@ interface GitHubDeviceLoginConfig {
   scope: string;
 }
 
-type ProviderLoginConfig = CookieLoginConfig | GitHubDeviceLoginConfig;
+interface LocalStorageLoginConfig {
+  kind: "local-storage";
+  /** Page the user signs in on (whose localStorage holds the session tokens). */
+  loginUrl: string;
+  /** A non-empty value for this localStorage key signals a completed login. */
+  requiredKey: string;
+  /** localStorage key → stored secret key. All present keys are sealed on success. */
+  store: Record<string, string>;
+}
+
+/**
+ * The provider authenticates its usage API with a long-lived key the user pastes
+ * in (z.ai). There is no browser/OAuth step — the key is sealed via
+ * {@link submitApiKey} and read back by the collector — but the provider still
+ * lives in `PROVIDER_CONFIGS` so its stored-secret state surfaces like any login.
+ */
+interface ApiKeyLoginConfig {
+  kind: "api-key";
+}
+
+type ProviderLoginConfig =
+  | CookieLoginConfig
+  | GitHubDeviceLoginConfig
+  | LocalStorageLoginConfig
+  | ApiKeyLoginConfig;
 
 const PROVIDER_LABELS: Record<string, string> = {
   commandcode: "Command Code",
   copilot: "GitHub Copilot",
+  factory: "Droid",
   grok: "Grok",
   opencode: "OpenCode",
+  zai: "z.ai",
 };
 
 const PROVIDER_CONFIGS: Record<string, ProviderLoginConfig> = {
@@ -72,6 +98,20 @@ const PROVIDER_CONFIGS: Record<string, ProviderLoginConfig> = {
     clientId: "Iv1.b507a08c87ecfe98",
     scope: "read:user",
   },
+  factory: {
+    kind: "local-storage",
+    loginUrl: "https://app.factory.ai/",
+    // app.factory.ai sets NO session cookie — it stores WorkOS AuthKit tokens in
+    // localStorage. Capture the rotating refresh token (the durable credential)
+    // plus the current access token; the collector exchanges/refreshes as needed.
+    // The refresh-token key only appears after a completed login, so its presence
+    // alone is a safe prompt gate (no private-endpoint probe — the Grok lesson).
+    requiredKey: "workos:refresh-token",
+    store: {
+      "workos:refresh-token": "refresh-token",
+      "workos:access-token": "access-token",
+    },
+  },
   grok: {
     kind: "cookie",
     loginUrl: "https://grok.com/",
@@ -91,6 +131,10 @@ const PROVIDER_CONFIGS: Record<string, ProviderLoginConfig> = {
     // actually authenticates before prompting.
     validateSession: isOpenCodeLoginCookieLive,
   },
+  // z.ai's GLM Coding Plan quota API takes a Bearer API key, not a web cookie.
+  // The user pastes it in (see `submitApiKey`); the env/config key is resolved
+  // host-side instead and needs no entry here.
+  zai: { kind: "api-key" },
 };
 
 const LOGIN_TIMEOUT_MS = 5 * 60 * 1000;
@@ -156,12 +200,35 @@ export class UsageLoginManager {
     return { ok: true };
   }
 
+  /**
+   * Seal a user-pasted API key for an `api-key` provider (z.ai). The stored
+   * secret is the persistent "signed in" signal; the collector validates the key
+   * itself on the next fetch, so a bad key simply re-prompts via `auth-missing`.
+   */
+  submitApiKey(providerId: string, apiKey: string): Promise<UsageLoginResult> {
+    const config = PROVIDER_CONFIGS[providerId];
+    if (config?.kind !== "api-key") {
+      return Promise.resolve({ ok: false, error: `No API-key login for ${providerId}` });
+    }
+    const trimmed = apiKey.trim();
+    if (!trimmed) return Promise.resolve({ ok: false, error: "API key is empty" });
+    setUsageSecret(this.paths.cacheDir, providerId, "apiKey", trimmed);
+    return Promise.resolve({ ok: true });
+  }
+
   startLogin(providerId: string): Promise<UsageLoginResult> {
     const existing = this.inFlight.get(providerId);
     if (existing) return existing;
     const config = PROVIDER_CONFIGS[providerId];
     if (!config) {
       return Promise.resolve({ ok: false, error: `No usage login for ${providerId}` });
+    }
+    if (config.kind === "api-key") {
+      // API-key providers have no browser step; the renderer calls submitApiKey.
+      return Promise.resolve({
+        ok: false,
+        error: `${PROVIDER_LABELS[providerId] ?? providerId} uses a pasted API key`,
+      });
     }
     const panel = this.getBrowserPanel();
     if (!panel) {
@@ -182,6 +249,14 @@ export class UsageLoginManager {
     if (config.kind === "github-device") {
       return this.runGitHubDeviceLogin(providerId, config, panel);
     }
+    if (config.kind === "local-storage") {
+      return this.runLocalStorageLogin(providerId, config, panel);
+    }
+    if (config.kind === "api-key") {
+      // Unreachable: startLogin returns before calling runLogin for api-key
+      // providers. Present only to narrow the union to CookieLoginConfig below.
+      throw new Error(`runLogin reached for api-key provider ${providerId}`);
+    }
 
     const result = await panel.captureLoginCookies({
       loginUrl: config.loginUrl,
@@ -199,6 +274,32 @@ export class UsageLoginManager {
       };
     }
     setUsageSecret(this.paths.cacheDir, providerId, "cookie", result.cookie);
+    return { ok: true };
+  }
+
+  private async runLocalStorageLogin(
+    providerId: string,
+    config: LocalStorageLoginConfig,
+    panel: BrowserPanelManager,
+  ): Promise<UsageLoginResult> {
+    const result = await panel.captureLoginLocalStorage({
+      loginUrl: config.loginUrl,
+      keys: Object.keys(config.store),
+      requiredKey: config.requiredKey,
+      timeoutMs: LOGIN_TIMEOUT_MS,
+      providerLabel: PROVIDER_LABELS[providerId] ?? providerId,
+    });
+    if (!result.ok || !result.values) {
+      return {
+        ok: false,
+        ...(result.cancelled ? { cancelled: true } : {}),
+        ...(result.error ? { error: result.error } : {}),
+      };
+    }
+    for (const [storageKey, secretKey] of Object.entries(config.store)) {
+      const value = result.values[storageKey];
+      if (value) setUsageSecret(this.paths.cacheDir, providerId, secretKey, value);
+    }
     return { ok: true };
   }
 

@@ -191,6 +191,56 @@ describe("mapAcpSessionUpdate", () => {
     expect(state.toolCallItems.has("tc-1")).toBe(false);
   });
 
+  it("preserves generic ACP Skill and MCP tool names for Grok and Factory-style adapters", () => {
+    const state = createAcpMapperState("t-generic-tools");
+
+    const skill = mapAcpSessionUpdate(
+      note({
+        sessionUpdate: "tool_call",
+        toolCallId: "tc-skill",
+        title: "Skill",
+        kind: "other",
+        status: "in_progress",
+        rawInput: { name: "browser" },
+      } as Parameters<typeof mapAcpSessionUpdate>[0]["update"]),
+      state,
+    );
+    expect(skill[0]).toMatchObject({
+      type: "item.started",
+      itemType: "tool_call",
+      payload: {
+        name: "Skill",
+        title: "Skill",
+        kind: "other",
+        args: { name: "browser" },
+        status: "running",
+      },
+    });
+
+    const mcp = mapAcpSessionUpdate(
+      note({
+        sessionUpdate: "tool_call",
+        toolCallId: "tc-mcp",
+        title: "mcp__browser__snapshot",
+        kind: "other",
+        status: "in_progress",
+        rawInput: { url: "https://lightcode.app" },
+      } as Parameters<typeof mapAcpSessionUpdate>[0]["update"]),
+      state,
+    );
+    expect(mcp[0]).toMatchObject({
+      type: "item.started",
+      itemType: "tool_call",
+      payload: {
+        name: "mcp__browser__snapshot",
+        title: "mcp__browser__snapshot",
+        kind: "other",
+        args: { url: "https://lightcode.app" },
+        status: "running",
+      },
+    });
+  });
+
   it("preserves inline image content from a tool result onto payload.images", () => {
     const state = createAcpMapperState("t-image");
     mapAcpSessionUpdate(
