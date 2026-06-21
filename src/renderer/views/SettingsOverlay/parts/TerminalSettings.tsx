@@ -39,6 +39,7 @@ export function TerminalSettings() {
   return (
     <SettingsPage title={t`Terminal`}>
       <SettingRow
+        anchorId="terminal.terminalPosition"
         title={t`Terminal position`}
         description={<Trans>Where the terminal panel appears.</Trans>}
       >
@@ -56,6 +57,7 @@ export function TerminalSettings() {
       </SettingRow>
 
       <SettingRow
+        anchorId="terminal.autoShowTerminalPanel"
         title={t`Auto-show terminal panel`}
         description={
           <Trans>
@@ -78,6 +80,7 @@ export function TerminalSettings() {
       </SettingRow>
 
       <SettingRow
+        anchorId="terminal.collapseTerminalComposer"
         title={t`Collapse terminal composer`}
         description={
           <Trans>
@@ -101,6 +104,7 @@ export function TerminalSettings() {
       </SettingRow>
 
       <SettingRow
+        anchorId="terminal.cliPickerTarget"
         title={t`Browser pick target (CLI threads)`}
         description={
           <Trans>
@@ -123,6 +127,7 @@ export function TerminalSettings() {
       </SettingRow>
 
       <SettingRow
+        anchorId="terminal.agentTerminalFontSize"
         title={t`Agent terminal font size`}
         description={
           <Trans>Base font size for agent terminals. Auto-shrinks in narrow or short panes.</Trans>
@@ -142,6 +147,7 @@ export function TerminalSettings() {
       </SettingRow>
 
       <SettingRow
+        anchorId="terminal.terminalPanelFontSize"
         title={t`Terminal panel font size`}
         description={
           <Trans>
@@ -163,6 +169,7 @@ export function TerminalSettings() {
       </SettingRow>
 
       <SettingRow
+        anchorId="terminal.scrollSpeed"
         title={t`Terminal scroll speed`}
         description={<Trans>Scroll speed multiplier for the terminal scrollback buffer.</Trans>}
       >

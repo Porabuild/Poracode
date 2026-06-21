@@ -90,15 +90,32 @@ const audioSettingsSchema = z.object({
 const usageSettingsSchema = z.object({
   /** Auto-refresh provider usage on a background timer. */
   autoRefresh: z.boolean().default(true),
-  /** Minutes between auto-refreshes. Floored at 2 to respect provider 429 limits. */
+  /**
+   * Default minutes between auto-refreshes, used for any provider without its
+   * own `providerRefreshIntervals` override. Floored at 2 to respect provider
+   * 429 limits.
+   */
   refreshIntervalMinutes: z.number().int().min(2).max(120).default(5),
+  /**
+   * Per-provider auto-refresh cadence override (minutes), keyed by provider id.
+   * A provider absent from this map uses the global `refreshIntervalMinutes`.
+   * Values are floored at 2 (provider 429 limits) and capped at 120; the UI
+   * removes a provider's entry to fall back to the default rather than storing 0.
+   */
+  providerRefreshIntervals: z.record(z.string(), z.number().int().min(2).max(120)).default({}),
   /**
    * Show estimated $ cost (reconstructed from local logs at public API rates).
    * Opt-in and panel-only — it is meaningless for subscription/OAuth users.
    */
   showEstimatedCost: z.boolean().default(false),
-  /** Show the per-provider usage circles in the sidebar. */
+  /** Show the per-provider usage circles in the sidebar (master toggle). */
   showInSidebar: z.boolean().default(true),
+  /**
+   * Provider ids whose sidebar circle the user hid individually. The provider is
+   * still tracked and still shown in the usage panel — only its sidebar ring is
+   * omitted. Gated under the `showInSidebar` master toggle.
+   */
+  sidebarHiddenProviders: z.array(z.string()).default([]),
   /** Provider ids the user turned OFF for usage tracking. Default = all on. */
   disabledProviders: z.array(z.string()).default([]),
   /**
@@ -440,8 +457,10 @@ export const defaultSharedSettings: SharedSettings = {
   usage: {
     autoRefresh: true,
     refreshIntervalMinutes: 5,
+    providerRefreshIntervals: {},
     showEstimatedCost: false,
     showInSidebar: true,
+    sidebarHiddenProviders: [],
     disabledProviders: [],
     providerOrder: [],
     collapsedProviders: [],

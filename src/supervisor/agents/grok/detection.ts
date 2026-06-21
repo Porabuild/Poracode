@@ -43,6 +43,7 @@ export const grokDefaultCapabilities: AgentCapability = {
   approvalPolicies: [...GROK_APPROVAL_POLICIES],
   sandboxModes: [],
   supportsResume: true,
+  supportsOneShot: true,
   supportsDirectInput: true,
   liveInputMode: "terminal",
   presentationMode: "terminal",

@@ -268,7 +268,11 @@ export function ModelVisibilitySection() {
   if (providers.length === 0) return null;
 
   return (
-    <div className="flex items-center justify-between gap-4">
+    <div
+      id="agentsGeneral.visibleModels"
+      data-settings-anchor="agentsGeneral.visibleModels"
+      className="flex scroll-mt-4 items-center justify-between gap-4"
+    >
       <div className="min-w-0">
         <p className="text-sm font-medium text-foreground">
           <Trans>Visible models</Trans>

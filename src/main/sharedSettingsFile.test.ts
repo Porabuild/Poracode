@@ -124,8 +124,10 @@ describe("sharedSettingsFile", () => {
       usage: {
         autoRefresh: true,
         refreshIntervalMinutes: 5,
+        providerRefreshIntervals: {},
         showEstimatedCost: false,
         showInSidebar: true,
+        sidebarHiddenProviders: [],
         disabledProviders: [],
         providerOrder: [],
         collapsedProviders: [],
@@ -224,8 +226,10 @@ describe("sharedSettingsFile", () => {
       usage: {
         autoRefresh: true,
         refreshIntervalMinutes: 5,
+        providerRefreshIntervals: {},
         showEstimatedCost: false,
         showInSidebar: true,
+        sidebarHiddenProviders: [],
         disabledProviders: [],
         providerOrder: [],
         collapsedProviders: [],

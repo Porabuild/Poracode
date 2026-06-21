@@ -1,7 +1,9 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import { COMPOSER_CONTROL_COMMAND_IDS, DEFAULT_KEYBINDINGS } from "@/shared/keybindings";
+import { getCurrentProjectId } from "@/renderer/actions/currentProject";
+import { useAppStore } from "@/renderer/state/appStore";
 import { bindingForPlatform, canonicalizeKeybinding, type PlatformName } from "./keybindingMatcher";
-import { buildCommandRegistry } from "./registry";
+import { buildCommandRegistry, buildWhenContext } from "./registry";
 import { evaluateWhenClause } from "./when";
 
 const PLATFORMS: PlatformName[] = ["darwin", "win32", "linux"];
@@ -28,6 +30,16 @@ function keyspaceFor(command: string): "composer" | "surface" | "global" {
 }
 
 describe("default keybindings", () => {
+  beforeEach(() => {
+    useAppStore.setState((state) => ({
+      ...state,
+      projects: [],
+      threads: [],
+      view: { kind: "home" },
+      focusedPaneId: null,
+    }));
+  });
+
   it("reference registered commands", () => {
     const commandIds = new Set(buildCommandRegistry().map((command) => command.id));
 
@@ -62,6 +74,7 @@ describe("default keybindings", () => {
     );
     const idleThreadContext = {
       hasProject: true,
+      hasThread: true,
       threadView: true,
       inputFocus: false,
       editorFocus: false,
@@ -126,8 +139,13 @@ describe("default keybindings", () => {
     const star = bindings["thread.star"]?.when;
     expect(evaluateWhenClause(star, { hasThread: true, sidebarFocus: true })).toBe(true);
     expect(evaluateWhenClause(star, { hasThread: true, panelFocus: true })).toBe(true);
+    expect(evaluateWhenClause(star, { hasThread: true, panelFocus: true, inputFocus: true })).toBe(
+      false,
+    );
     expect(evaluateWhenClause(star, { hasThread: true, composerFocus: true })).toBe(false);
     expect(evaluateWhenClause(star, { hasThread: false, sidebarFocus: true })).toBe(false);
+    expect(evaluateWhenClause(star, { draftView: true })).toBe(true);
+    expect(evaluateWhenClause(star, { draftView: true, inputFocus: true })).toBe(false);
 
     // Rename-chat shares archive/star's scope: sidebar or side panel, never typing.
     const rename = bindings["thread.rename"]?.when;
@@ -174,5 +192,40 @@ describe("default keybindings", () => {
       expect(evaluateWhenClause(when, { composerFocus: true })).toBe(false);
       expect(evaluateWhenClause(when, { browserFocus: true })).toBe(false);
     }
+  });
+
+  it("treats the focused split draft pane as draft context", () => {
+    const firstProject = useAppStore.getState().addProject({ kind: "windows", path: "C:\\one" });
+    const draftProject = useAppStore.getState().addProject({ kind: "windows", path: "C:\\two" });
+    const thread = useAppStore.getState().createThread({
+      projectId: firstProject.id,
+      agentKind: "codex",
+      config: { model: "gpt-5.5", effort: "high" },
+      prompt: "hello",
+    });
+    useAppStore.getState().updateProjectDraftConfig(draftProject.id, {
+      agentKind: "codex",
+      model: "gpt-5.5",
+      effort: "high",
+      mode: "agent",
+      approvalPolicy: "never",
+      sandboxMode: "danger-full-access",
+      worktreeMode: false,
+    });
+
+    const draftPaneId = `draft:${draftProject.id}#test`;
+    useAppStore.setState({
+      view: { kind: "thread", panes: [thread.id, draftPaneId] },
+      focusedPaneId: draftPaneId,
+    });
+
+    const context = buildWhenContext(null);
+    const starCommand = buildCommandRegistry().find((command) => command.id === "thread.star");
+
+    expect(getCurrentProjectId()).toBe(draftProject.id);
+    expect(context.draftView).toBe(true);
+    expect(context.hasProject).toBe(true);
+    expect(starCommand).toBeDefined();
+    expect(evaluateWhenClause(starCommand?.when, context)).toBe(true);
   });
 });

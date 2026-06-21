@@ -163,15 +163,8 @@ export function ProfileSettings() {
           onMetricChange={handleMetricChange}
         />
         <div className="grid grid-cols-1 gap-x-10 gap-y-8 sm:grid-cols-2">
-          <ActivityInsights core={core} />
+          <ActivityInsights core={core} className="sm:col-span-2" />
           <PluginUsage items={core.skills} title={t`Skills`} emptyText={t`No skills used yet.`} />
-        </div>
-        <div className="grid grid-cols-1 gap-x-10 gap-y-8 sm:grid-cols-2">
-          <PluginUsage
-            items={core.subagents}
-            title={t`Subagents`}
-            emptyText={t`No subagents used yet.`}
-          />
           <PluginUsage
             items={core.mcps}
             title={t`MCP servers`}

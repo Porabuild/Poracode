@@ -32,6 +32,7 @@ export function BrowserSettings() {
   return (
     <SettingsPage title={t`Browser`}>
       <SettingRow
+        anchorId="browser.linkOpenTarget"
         title={t`Open links in`}
         description={t`Choose whether links from Lightcode and browser popups stay in Lightcode or open externally.`}
       >
@@ -48,6 +49,7 @@ export function BrowserSettings() {
         />
       </SettingRow>
       <SettingRow
+        anchorId="browser.linkPresentationMode"
         title={t`Show opened links in`}
         description={t`When links open in a Lightcode browser tab, choose where the browser is revealed.`}
       >
@@ -64,6 +66,7 @@ export function BrowserSettings() {
         />
       </SettingRow>
       <SettingRow
+        anchorId="browser.allowEval"
         title={t`Allow eval`}
         description={
           <Trans>
@@ -86,6 +89,7 @@ export function BrowserSettings() {
         </Switch>
       </SettingRow>
       <SettingRow
+        anchorId="browser.allowDataAccess"
         title={t`Allow agents to read/write cookies and storage`}
         description={
           <Trans>

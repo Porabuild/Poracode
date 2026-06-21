@@ -31,6 +31,7 @@ import { buildClaudeBrowserMcpServers } from "./mcpBrowser";
 import {
   createKnownSessionRef,
   buildAgentCommand,
+  definedEnv,
   getWslCommand,
   getPrimedPosixEnv,
   getProjectShellEnv,
@@ -160,14 +161,6 @@ function filteredEnv(env: Record<string, string | undefined>): Record<string, st
     if (value === undefined) continue;
     if (WINDOWS_HOST_ENV_KEYS.has(key.toLowerCase())) continue;
     out[key] = value;
-  }
-  return out;
-}
-
-function definedEnv(env: Record<string, string | undefined>): Record<string, string> {
-  const out: Record<string, string> = {};
-  for (const [key, value] of Object.entries(env)) {
-    if (value !== undefined) out[key] = value;
   }
   return out;
 }

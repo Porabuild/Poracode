@@ -115,6 +115,18 @@ interface SharedSettingsState extends SharedSettings {
     modelId: string,
     presentationMode: ThreadPresentationMode,
   ) => void;
+  /**
+   * Flip a model's favorite state independent of presentation mode: remove every
+   * stored entry for `(agentKind, modelId)` if any exist, otherwise add one under
+   * `fallbackMode`. Used where no presentation mode is in scope (e.g. the draft
+   * screen), so a single keypress clears the favorite across every mode at once
+   * and never leaves a duplicate. Returns `true` when the model is now favorited.
+   */
+  toggleFavoriteModelAnyMode: (
+    agentKind: string,
+    modelId: string,
+    fallbackMode: ThreadPresentationMode,
+  ) => boolean;
   pushRecentModel: (
     agentKind: string,
     modelId: string,
@@ -572,6 +584,18 @@ export const useSharedSettings = create<SharedSettingsState>()((set, get) => ({
         : [...current, { agentKind, modelId, presentationMode }];
     set({ favoriteModels: next });
     persistSettings(selectSharedSettings(get()));
+  },
+  toggleFavoriteModelAnyMode: (agentKind, modelId, fallbackMode) => {
+    const current = get().favoriteModels;
+    const matches = (m: (typeof current)[number]) =>
+      m.agentKind === agentKind && m.modelId === modelId;
+    const isFavorite = current.some(matches);
+    const next = isFavorite
+      ? current.filter((m) => !matches(m))
+      : [...current, { agentKind, modelId, presentationMode: fallbackMode }];
+    set({ favoriteModels: next });
+    persistSettings(selectSharedSettings(get()));
+    return !isFavorite;
   },
   pushRecentModel: (agentKind, modelId, presentationMode) => {
     const current = get().recentModels;

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { useLingui } from "@lingui/react/macro";
 import { AgentDiscoveryScreen } from "@/renderer/components/thread/AgentDiscoveryScreen";
 import { readBridge } from "@/renderer/bridge";
@@ -89,6 +89,51 @@ export function SettingsOverlay(props: { onClose: () => void }) {
       clearSettingsSection();
     }
   }, [requestedSection, clearSettingsSection]);
+
+  // Pending scroll-to-setting target, set when a settings search result is
+  // clicked. The token re-fires the effect when the same setting is picked
+  // twice. Local (not a store): only this overlay coordinates the scroll, and it
+  // has to land *after* the section content remounts (`key={activeSection}`).
+  const [scrollTarget, setScrollTarget] = useState<{ anchor: string; token: number } | null>(null);
+  const scrollTokenRef = useRef(0);
+  const navigateToSection = useCallback((section: SettingsSection, anchor?: string) => {
+    setActiveSection(section);
+    if (anchor) {
+      scrollTokenRef.current += 1;
+      setScrollTarget({ anchor, token: scrollTokenRef.current });
+    }
+  }, []);
+
+  // After the target section mounts, scroll its anchor into view and flash it.
+  // Runs on rAF (with a short retry) so the freshly-remounted row is in the DOM.
+  useEffect(() => {
+    if (!scrollTarget) return;
+    const { anchor } = scrollTarget;
+    let frames = 0;
+    let raf = requestAnimationFrame(function tryScroll() {
+      const el = document.querySelector<HTMLElement>(`[data-settings-anchor="${anchor}"]`);
+      if (el) {
+        if (typeof el.scrollIntoView === "function") {
+          el.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
+        el.classList.add("lightcode-setting-highlight");
+        el.addEventListener(
+          "animationend",
+          () => el.classList.remove("lightcode-setting-highlight"),
+          { once: true },
+        );
+        setScrollTarget(null);
+        return;
+      }
+      if (frames++ < 4) {
+        raf = requestAnimationFrame(tryScroll);
+      } else {
+        setScrollTarget(null);
+      }
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [scrollTarget]);
+
   const [isRefreshingAgents, setIsRefreshingAgents] = useState(false);
   const refreshRunRef = useRef(0);
   const agentStatuses = useAgentStatusesStore((s) => s.agentStatuses);
@@ -102,7 +147,7 @@ export function SettingsOverlay(props: { onClose: () => void }) {
   );
   const isAgentsSectionActive = activeSection === "agents" || activeSection.startsWith("agents:");
   const wslDistros = wslProjectDistrosKey ? wslProjectDistrosKey.split("\0") : [];
-  const section = renderSection(activeSection, setActiveSection);
+  const section = renderSection(activeSection, navigateToSection);
 
   const refreshAgents = () => {
     if (isRefreshingAgents) {
@@ -145,7 +190,7 @@ export function SettingsOverlay(props: { onClose: () => void }) {
       sidebar={
         <SettingsSidebar
           activeSection={activeSection}
-          onSectionChange={setActiveSection}
+          onSectionChange={navigateToSection}
           onClose={onClose}
           installedAgents={installedAgents}
           attentionAgentKinds={attentionAgentKinds}

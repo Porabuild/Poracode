@@ -256,8 +256,13 @@ msgstr "{installedCount, plural, one {# агент готовий} few {# аге
 "many {# агентів готові} other {# агента готові}}"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "{label} API key"
 msgstr "API-ключ {label}"
+
+#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+msgid "{label} auto-refresh interval in minutes"
+msgstr "Інтервал автооновлення {label} у хвилинах"
 
 #: src/renderer/components/providers/ProviderUsageRail.tsx
 msgid "{label} usage — open usage panel"
@@ -420,6 +425,7 @@ msgstr "Агенти ACP"
 msgid "Action command"
 msgstr "Команда дії"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
 msgid "Action for the quick-remove button on sidebar threads."
 msgstr "Дія для кнопки швидкого видалення тредів на бічній панелі."
@@ -548,6 +554,7 @@ msgstr "Чат агента (ACP / markdown). Рядки команд викор
 "мінус 1 px; рядки інструментів і планів — мінус 2 px."
 
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Agent encountered an error."
 msgstr "Агент натрапив на помилку."
 
@@ -568,6 +575,7 @@ msgstr "Агента не знайдено"
 msgid "Agent Registry"
 msgstr "Реєстр агентів"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Agent terminal font size"
 msgstr "Розмір шрифту термінала агента"
@@ -638,10 +646,12 @@ msgid "Allow"
 msgstr "Дозволити"
 
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Allow agents to read/write cookies and storage"
 msgstr "Дозволити агентам читати/записувати файли cookie та сховище"
 
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Allow eval"
 msgstr "Дозволити eval"
 
@@ -682,6 +692,7 @@ msgid "Apply provider preset"
 msgstr "Застосувати пресет провайдера"
 
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Approval or reply required from you."
 msgstr "Потрібне ваше підтвердження або відповідь."
 
@@ -799,6 +810,7 @@ msgstr "Авто"
 msgid "Auto Approve"
 msgstr "Автосхвалення"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
 msgid "Auto-archive done threads after"
 msgstr "Автоархівувати завершені треди через"
@@ -811,9 +823,10 @@ msgstr "Автоархівувати завершені треди через (�
 msgid "Auto-generate"
 msgstr "Генерувати автоматично"
 
+#. Label for the per-provider auto-refresh cadence field
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
-msgid "Auto-refresh (minutes)"
-msgstr "Автооновлення (хвилин)"
+msgid "Auto-refresh"
+msgstr "Автооновлення"
 
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Auto-refresh interval in minutes, 0 to turn off"
@@ -823,10 +836,12 @@ msgstr "Інтервал автооновлення у хвилинах, 0 — �
 msgid "Auto-review"
 msgstr "Автоперевірка"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Auto-show terminal panel"
 msgstr "Автоматично показувати панель термінала"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Automatically show the terminal panel when running commands or creating "
 "worktrees."
@@ -875,16 +890,19 @@ msgid "Base branch is ahead — branch must be updated first."
 msgstr "Базова гілка випереджає — спершу потрібно оновити гілку."
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectWorktreeLocation.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/WorktreeSettings.tsx
 msgid "Base folder"
 msgstr "Базова папка"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Base font size for agent terminals. Auto-shrinks in narrow or short "
 "panes."
 msgstr "Базовий розмір шрифту для терміналів агента. Автоматично зменшується у "
 "вузьких або низьких панелях."
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Base font size for the terminal panel. Auto-shrinks in narrow or short "
 "panes."
@@ -996,6 +1014,7 @@ msgstr "Browser MCP увімкнено для цього треду"
 msgid "Browser menu"
 msgstr "Меню браузера"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Browser pick target (CLI threads)"
 msgstr "Ціль вибору в браузері (треди CLI)"
@@ -1133,9 +1152,16 @@ msgid "Chat"
 msgstr "Чат"
 
 #: src/renderer/commands/registry.ts
-#: src/renderer/commands/shortcutCatalog.ts
 msgid "Chat Commands"
 msgstr "Команди чату"
+
+#: src/renderer/commands/registry.ts
+msgid "Chat starred"
+msgstr "Чат позначено зіркою"
+
+#: src/renderer/commands/registry.ts
+msgid "Chat unstarred"
+msgstr "Позначку зірки знято з чату"
 
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 msgid "Check"
@@ -1146,6 +1172,7 @@ msgid "Check for updates"
 msgstr "Перевірити наявність оновлень"
 
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Check the live input level from the selected device."
 msgstr "Перевірте поточний рівень вхідного сигналу з обраного пристрою."
 
@@ -1171,6 +1198,7 @@ msgid "Choose how to sign in."
 msgstr "Виберіть спосіб входу."
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Choose the display language for Lightcode's interface."
 msgstr "Виберіть мову відображення інтерфейсу Lightcode."
 
@@ -1179,6 +1207,7 @@ msgid "Choose thread to attach to"
 msgstr "Виберіть тред для прикріплення"
 
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Choose whether links from Lightcode and browser popups stay in Lightcode "
 "or open externally."
 msgstr "Виберіть, чи посилання з Lightcode і спливні вікна браузера залишаються "
@@ -1347,6 +1376,7 @@ msgid "Close tab"
 msgstr "Закрити вкладку"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Close to tray"
 msgstr "Закривати в лоток"
 
@@ -1391,6 +1421,7 @@ msgstr "Згорнути Composer"
 msgid "Collapse error"
 msgstr "Згорнути помилку"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Collapse terminal composer"
 msgstr "Згорнути поле вводу термінала"
@@ -1436,6 +1467,7 @@ msgid "Commit & Create PR"
 msgstr "Коміт і створити PR"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Commit & PR language"
 msgstr "Мова комітів і PR"
 
@@ -1456,6 +1488,7 @@ msgid "Commit message (Ctrl+Enter)"
 msgstr "Повідомлення коміту (Ctrl+Enter)"
 
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Commit Message Generation"
 msgstr "Генерація повідомлення коміту"
 
@@ -1526,6 +1559,7 @@ msgid "Config directory"
 msgstr "Каталог конфігурації"
 
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Conflict Resolver"
 msgstr "Вирішення конфліктів"
 
@@ -1825,11 +1859,18 @@ msgstr "Відхилити"
 msgid "Default"
 msgstr "За замовчуванням"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+msgid "Default auto-refresh (minutes)"
+msgstr "Автооновлення за замовчуванням (хвилин)"
+
 #: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Default Create PR action"
 msgstr "Типова дія створення PR"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Default new thread"
 msgstr "Типовий новий тред"
 
@@ -1837,6 +1878,7 @@ msgstr "Типовий новий тред"
 msgid "Default permissions"
 msgstr "Дозволи за замовчуванням"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
 msgid "Default thread removal"
 msgstr "Типове видалення треду"
@@ -1944,6 +1986,7 @@ msgstr "Виявлення агентів…"
 #. Settings section: developer/debug tools
 #. Settings section: developer/debug tools
 #. Settings section: developer/debug tools
+#. Settings section: developer/debug tools
 #: src/renderer/views/SettingsOverlay/parts/DevSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Dev"
@@ -1954,6 +1997,7 @@ msgid "Development-only overrides. Only visible in the LIGHTCODE DEV build."
 msgstr "Перевизначення лише для розробки. Видимі лише у збірці LIGHTCODE DEV."
 
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Device used by the composer voice input button."
 msgstr "Пристрій, який використовує кнопка голосового вводу в полі вводу."
 
@@ -1970,6 +2014,7 @@ msgid "Disable Browser MCP"
 msgstr "Вимкнути Browser MCP"
 
 #: src/renderer/views/SettingsOverlay/parts/DevSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Disable CLI hook plugin (L1)"
 msgstr "Вимкнути плагін хука CLI (L1)"
 
@@ -2043,6 +2088,7 @@ msgstr "готово"
 
 #. Notification status: thread is done
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Done"
 msgstr "Завершено"
 
@@ -2082,6 +2128,7 @@ msgid "Draft"
 msgstr "Чернетка"
 
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Drag to reorder how providers appear in the model picker."
 msgstr "Перетягніть, щоб змінити порядок відображення провайдерів у виборі "
 "моделі."
@@ -2095,6 +2142,7 @@ msgid "Drop here to attach"
 msgstr "Перетягніть сюди, щоб прикріпити"
 
 #: src/renderer/views/SettingsOverlay/parts/DevSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Drops incoming hook envelopes on the supervisor so agents fall back to "
 "L2 (OSC 9;4 progress) without touching install or iTerm2 notifications. "
 "Takes effect on the next hook event — no restart needed."
@@ -2131,6 +2179,7 @@ msgid "Editor"
 msgstr "Редактор"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Editor LSP"
 msgstr "LSP редактора"
 
@@ -2160,6 +2209,7 @@ msgid "Enable {tierLabel} effort"
 msgstr "Увімкнути рівень зусиль {tierLabel}"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Enable language server support for type checking, completions, and "
 "diagnostics. Requires a language server installed."
 msgstr "Увімкнути підтримку мовного сервера для перевірки типів, автодоповнень "
@@ -2171,6 +2221,7 @@ msgstr "Увімкніть доступ до мікрофона в налашт�
 "раз."
 
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Enable notifications"
 msgstr "Увімкнути сповіщення"
 
@@ -2238,6 +2289,7 @@ msgstr "помилка"
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 #: src/renderer/components/ui/toastContent.ts
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Error"
 msgstr "Помилка"
 
@@ -2246,6 +2298,7 @@ msgid "Error · Agent encountered an error"
 msgstr "Помилка · Агент зіткнувся з помилкою"
 
 #: src/renderer/views/SettingsOverlay/parts/SearchExcludeBody.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Exclude patterns"
 msgstr "Шаблони виключення"
 
@@ -2331,6 +2384,7 @@ msgid "Fastest (Whisper tiny)"
 msgstr "Найшвидше (Whisper tiny)"
 
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Fastest uses Whisper tiny; Better uses Whisper base."
 msgstr "Найшвидше використовує Whisper tiny; Краще використовує Whisper base."
 
@@ -2387,6 +2441,7 @@ msgid "Files for {0}"
 msgstr "Файли для {0}"
 
 #: src/renderer/views/SettingsOverlay/parts/SearchExcludeBody.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Files matching these globs are hidden from the @file mention search."
 msgstr "Файли, що відповідають цим glob-шаблонам, приховані з пошуку згадок "
 "@file."
@@ -2474,6 +2529,7 @@ msgstr "Встановити фокус на адресний рядок бра�
 msgid "Folder name"
 msgstr "Ім'я папки"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/WorktreeSettings.tsx
 msgid "Folder that holds all worktrees. Tip: a Dev Drive here speeds up builds."
 msgstr "Папка, у якій зберігаються всі worktree. Порада: Dev Drive тут "
@@ -2563,10 +2619,12 @@ msgid "Generated image"
 msgstr "Згенероване зображення"
 
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Generates commit messages from staged changes."
 msgstr "Генерує повідомлення комітів із підготовлених змін."
 
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Generates short titles for new threads."
 msgstr "Генерує короткі заголовки для нових тредів."
 
@@ -2594,6 +2652,7 @@ msgid "Git Review"
 msgstr "Перевірка Git"
 
 #: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Git review mode"
 msgstr "Режим перегляду Git"
 
@@ -2655,6 +2714,7 @@ msgid "Group open threads"
 msgstr "Групувати відкриті треди"
 
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "GUI chat font size"
 msgstr "Розмір шрифту чату GUI"
 
@@ -2670,6 +2730,7 @@ msgstr "Нік"
 msgid "Hard Reload"
 msgstr "Жорстке перезавантаження"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
 msgid "Hidden resumable threads are swept every 5 minutes and unloaded after "
 "this idle age."
@@ -2679,6 +2740,10 @@ msgstr "Приховані відновлювані треди перевіря�
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewPanel.tsx
 msgid "Hide"
 msgstr "Сховати"
+
+#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+msgid "Hide {label} circle in sidebar"
+msgstr "Сховати коло {label} на бічній панелі"
 
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilitySection.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
@@ -2730,6 +2795,7 @@ msgid "Home"
 msgstr "Головна"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Home scope"
 msgstr "Домашня область"
 
@@ -2885,6 +2951,7 @@ msgid "Keep Branch"
 msgstr "Зберегти гілку"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Keep the system awake while any thread is actively working."
 msgstr "Не давати системі засинати, поки будь-який тред активно працює."
 
@@ -2893,16 +2960,19 @@ msgid "Kill bash"
 msgstr "Завершити bash"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Language"
 msgstr "Мова"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Language for AI-generated commit messages and pull request summaries. "
 "Thread titles always follow the app language."
 msgstr "Мова для згенерованих ШІ повідомлень комітів і описів pull request. "
 "Заголовки тредів завжди використовують мову програми."
 
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Language the speech model should expect when transcribing composer "
 "dictation."
 msgstr "Мова, яку модель розпізнавання мовлення має очікувати під час "
@@ -3114,6 +3184,7 @@ msgid "Match case"
 msgstr "Враховувати регістр"
 
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Match your system, or force light or dark."
 msgstr "Підлаштовуватися під систему або примусово світла чи темна."
 
@@ -3129,6 +3200,10 @@ msgstr "Розгорнути браузер"
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "MCP servers"
 msgstr "Сервери MCP"
+
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "MCP tool calls"
+msgstr "Виклики інструментів MCP"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/useWorktreeActions.ts
 msgid "Merge & Remove"
@@ -3198,6 +3273,7 @@ msgid "Messages sent"
 msgstr "Надіслано повідомлень"
 
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Microphone"
 msgstr "Мікрофон"
 
@@ -3222,6 +3298,11 @@ msgstr "Доступ до мікрофона відхилено."
 msgid "Microphone testing is not available in this environment."
 msgstr "Перевірка мікрофона недоступна в цьому середовищі."
 
+#. Unit suffix: minutes
+#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+msgid "min"
+msgstr "хв"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 msgid "Minimize browser to right panel"
 msgstr "Згорнути браузер у праву панель"
@@ -3231,8 +3312,13 @@ msgid "Minimize to panel"
 msgstr "Згорнути в панель"
 
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Mode"
 msgstr "Режим"
+
+#: src/renderer/commands/registry.ts
+msgid "Model added to favorites"
+msgstr "Модель додано до обраного"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Model id"
@@ -3243,8 +3329,13 @@ msgid "Model label"
 msgstr "Мітка моделі"
 
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Model order"
 msgstr "Порядок моделей"
+
+#: src/renderer/commands/registry.ts
+msgid "Model removed from favorites"
+msgstr "Модель видалено з обраного"
 
 #: src/renderer/views/ProfileOverlay/parts/ModelUsage.tsx
 msgid "Model usage"
@@ -3355,6 +3446,7 @@ msgid "Needs approval"
 msgstr "Потребує підтвердження"
 
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Needs Attention"
 msgstr "Потребує уваги"
 
@@ -3654,6 +3746,7 @@ msgid "No repositories found."
 msgstr "Репозиторії не знайдено."
 
 #: src/renderer/components/find/FindBar.tsx
+#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "No results"
 msgstr "Немає результатів"
 
@@ -3676,10 +3769,6 @@ msgstr "Мовлення не виявлено."
 #: src/renderer/views/GitReviewOverlay/parts/GitDiffContent/GitDiffContent.tsx
 msgid "No staged changes"
 msgstr "Немає підготовлених змін"
-
-#: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
-msgid "No subagents used yet."
-msgstr "Субагенти ще не використовувалися."
 
 #: src/renderer/components/thread/ThreadDraftView.tsx
 msgid "No supported agents detected"
@@ -3754,6 +3843,7 @@ msgid "Notifications"
 msgstr "Сповіщення"
 
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Notify for L2 CLI threads"
 msgstr "Сповіщати про треди CLI рівня L2"
 
@@ -3869,6 +3959,7 @@ msgid "Open Git Review"
 msgstr "Відкрити перегляд Git"
 
 #: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Open git review as a right-side panel or a full page."
 msgstr "Відкривати перегляд Git як праву панель або повну сторінку."
 
@@ -3884,6 +3975,7 @@ msgid "Open in editor"
 msgstr "Відкрити в редакторі"
 
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Open links in"
 msgstr "Відкривати посилання в"
 
@@ -3896,6 +3988,7 @@ msgid "Open new tab"
 msgstr "Відкрити нову вкладку"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Open new threads as a full page or a side-by-side panel."
 msgstr "Відкривати нові треди як повну сторінку або панель поруч."
 
@@ -4020,6 +4113,11 @@ msgstr "Панелі та накладання"
 msgid "Paste"
 msgstr "Вставити"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+msgid "Paste {label} API key"
+msgstr "Вставте API-ключ {label}"
+
 #. placeholder {0}: activeDeviceCode.code
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 msgid "Paste <0>{0}</0> here. Click to copy."
@@ -4028,10 +4126,6 @@ msgstr "Вставте <0>{0}</0> сюди. Натисніть, щоб скоп�
 #: src/renderer/components/terminal/XTermSurface.tsx
 msgid "Paste in input"
 msgstr "Вставити в поле введення"
-
-#: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
-msgid "Paste {label} API key"
-msgstr "Вставте API-ключ {label}"
 
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 msgid "Paused"
@@ -4092,10 +4186,12 @@ msgid "Plan"
 msgstr "План"
 
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Play a sound when a notification is shown."
 msgstr "Відтворювати звук, коли показується сповіщення."
 
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Play notification sound"
 msgstr "Відтворювати звук сповіщення"
 
@@ -4106,6 +4202,7 @@ msgstr "Спрямуйте цей профіль на провайдера, ві
 "…), із власними змінними середовища, назвами моделей і рівнями зусиль."
 
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Popular editor themes adapted to Lightcode. Each follows the light or "
 "dark mode above."
 msgstr "Популярні теми редакторів, адаптовані для Lightcode. Кожна слідує за "
@@ -4144,6 +4241,7 @@ msgid "Press shortcut…"
 msgstr "Натисніть комбінацію клавіш…"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Prevent sleep while working"
 msgstr "Запобігати засинанню під час роботи"
 
@@ -4378,6 +4476,7 @@ msgstr "Нещодавні"
 msgid "Recent threads"
 msgstr "Нещодавні треди"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Reconstructed from local logs at public API rates — it does not reflect "
 "your real bill on subscription plans. Shown only in the usage panel."
@@ -4385,6 +4484,7 @@ msgstr "Відтворено з локальних журналів за пуб�
 "відображає ваш реальний рахунок за тарифними планами підписки. "
 "Показується лише на панелі використання."
 
+#. Button: re-fetch one provider's usage now
 #. Button: re-fetch provider usage now
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
 #: src/renderer/views/GitReviewOverlay/GitReviewOverlay.tsx
@@ -4401,6 +4501,10 @@ msgstr "Оновити"
 msgid "Refresh {0} authentication"
 msgstr "Оновити автентифікацію {0}"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
+msgid "Refresh {label}"
+msgstr "Оновити {label}"
+
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Refresh detected agents"
 msgstr "Оновити виявлених агентів"
@@ -4408,13 +4512,6 @@ msgstr "Оновити виявлених агентів"
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Refresh registry"
 msgstr "Оновити реєстр"
-
-#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
-msgid "Refresh usage in the background every N minutes. Set to 0 to turn off "
-"(manual only). The 2-minute floor respects provider rate limits."
-msgstr "Оновлювати використання у фоні кожні N хвилин. Встановіть 0, щоб "
-"вимкнути (лише вручну). Нижня межа у 2 хвилини враховує обмеження "
-"частоти постачальника."
 
 #. placeholder {0}: status.label
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
@@ -4641,6 +4738,7 @@ msgid "Resize terminal panel"
 msgstr "Змінити розмір панелі термінала"
 
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Resolves merge conflicts during rebase or merge."
 msgstr "Розв'язує конфлікти злиття під час rebase або злиття."
 
@@ -4773,6 +4871,7 @@ msgid "Run in a separate worktree"
 msgstr "Запустити в окремому worktree"
 
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Run local transcription on the GPU when available."
 msgstr "Виконувати локальне транскрибування на GPU, коли це можливо."
 
@@ -4869,6 +4968,7 @@ msgstr "Сканування вашої системи на наявність �
 msgid "Scripts"
 msgstr "Скрипти"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Scroll speed multiplier for the terminal scrollback buffer."
 msgstr "Множник швидкості прокручування буфера прокрутки термінала."
@@ -5059,11 +5159,11 @@ msgid "Shortcuts"
 msgstr "Комбінації клавіш"
 
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
-msgid "Show a compact per-provider usage ring in the sidebar."
-msgstr "Показувати компактне кільце використання для кожного постачальника на "
-"бічній панелі."
+msgid "Show {label} circle in sidebar"
+msgstr "Показати коло {label} на бічній панелі"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Show a projectless Home scope for OS-level agent sessions."
 msgstr "Показувати домашню область без проєкту для сеансів агентів на рівні OS."
 
@@ -5077,9 +5177,17 @@ msgstr "Показати все"
 msgid "Show Bookmark Bar"
 msgstr "Показати панель закладок"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Show circles in sidebar"
 msgstr "Показувати кола на бічній панелі"
+
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+msgid "Show compact per-provider usage rings in the sidebar. Hide individual "
+"providers' circles in the list below."
+msgstr "Показувати компактні кільця використання для кожного провайдера на "
+"бічній панелі. Приховувати кола окремих провайдерів у списку нижче."
 
 #: src/renderer/components/thread/ThreadComposerSection.tsx
 msgid "Show composer"
@@ -5089,6 +5197,7 @@ msgstr "Показати Composer"
 msgid "Show context usage details"
 msgstr "Показати деталі використання контексту"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Show estimated cost"
 msgstr "Показувати орієнтовну вартість"
@@ -5107,14 +5216,17 @@ msgid "Show more"
 msgstr "Показати більше"
 
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Show notifications"
 msgstr "Показувати сповіщення"
 
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Show notifications when thread status changes."
 msgstr "Показувати сповіщення, коли змінюється статус треду."
 
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Show opened links in"
 msgstr "Показувати відкриті посилання в"
 
@@ -5147,18 +5259,31 @@ msgid "Show source"
 msgstr "Показати джерело"
 
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Show the microphone button in the composer."
 msgstr "Показувати кнопку мікрофона в полі вводу."
 
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Show voice input button"
 msgstr "Показувати кнопку голосового вводу"
 
+#. Toggle: show this provider's usage ring in the sidebar
+#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+msgid "Sidebar"
+msgstr "Бічна панель"
+
+#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+msgid "Sidebar circles are turned off globally above"
+msgstr "Кола на бічній панелі вимкнено глобально вище"
+
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Sidebar frosting"
 msgstr "Матовість бічної панелі"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Sign in"
 msgstr "Увійти"
 
@@ -5175,6 +5300,10 @@ msgstr "Потрібен вхід"
 msgid "Sign in with the agent CLI."
 msgstr "Увійдіть через CLI агента."
 
+#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+msgid "Sign out"
+msgstr "Вийти"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
 msgid "Sign out {label}"
 msgstr "Вийти {label}"
@@ -5188,6 +5317,7 @@ msgid "Signing in"
 msgstr "Виконується вхід"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Signing in…"
 msgstr "Виконується вхід…"
 
@@ -5199,21 +5329,21 @@ msgstr "Вихід із {env}. Виявлені агенти оновлятьс�
 msgid "Signing out. Detected agents will refresh when it finishes."
 msgstr "Вихід. Виявлені агенти оновляться після завершення."
 
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "Skill runs"
+msgstr "Запуски skills"
+
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Skill: {skill}"
 msgstr "Навичка: {skill}"
-
-#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
-msgid "Skill/subagent runs"
-msgstr "Запусків навичок/субагентів"
 
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "Skills"
 msgstr "Навички"
 
 #: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
-msgid "Skills/subagents explored"
-msgstr "Опрацьовано навичок/субагентів"
+msgid "Skills explored"
+msgstr "Використані skills"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "Some checks are failing or pending."
@@ -5303,6 +5433,7 @@ msgstr "Почати диктування в поточному полі вво�
 msgid "Start from scratch"
 msgstr "Почати з нуля"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Start the composer collapsed in terminal-native threads. A collapsed "
 "composer routes browser element picks straight to the terminal."
@@ -5379,6 +5510,7 @@ msgstr "Зупиніть запущені треди проєкту перед �
 msgid "Stop voice input"
 msgstr "Зупинити голосове введення"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/WorktreeSettings.tsx
 msgid "Storage location"
 msgstr "Розташування сховища"
@@ -5403,8 +5535,11 @@ msgstr "Субагент не знайдено."
 msgid "Subagent Result"
 msgstr "Результат субагента"
 
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "Subagent runs"
+msgstr "Запуски субагентів"
+
 #: src/renderer/components/thread/ChatPane/parts/items/ActiveSubAgentTile.tsx
-#: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "Subagents"
 msgstr "Субагенти"
 
@@ -5583,14 +5718,17 @@ msgstr "Ввід у термінал"
 msgid "Terminal not ready — added selection to composer."
 msgstr "Термінал не готовий — вибір додано в композер."
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Terminal panel font size"
 msgstr "Розмір шрифту панелі термінала"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Terminal position"
 msgstr "Розташування термінала"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Terminal scroll speed"
 msgstr "Швидкість прокручування термінала"
@@ -5601,6 +5739,7 @@ msgid "Terminal tabs"
 msgstr "Вкладки термінала"
 
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Test microphone"
 msgstr "Перевірити мікрофон"
 
@@ -5615,6 +5754,16 @@ msgstr "програму"
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "the chosen folder"
 msgstr "обрана папка"
+
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+msgid "The default background refresh cadence, used for any provider without "
+"its own interval set below. Set to 0 to turn off (manual only). The "
+"2-minute floor respects provider rate limits."
+msgstr "Періодичність фонового оновлення за замовчуванням, що застосовується до "
+"будь-якого провайдера без власного інтервалу, заданого нижче. "
+"Встановіть 0, щоб вимкнути (лише вручну). Нижня межа у 2 хвилини "
+"враховує обмеження частоти провайдера."
 
 #: src/renderer/RendererCrashScreen.tsx
 msgid "The normal app shell could not render. The diagnostics below are shown "
@@ -5632,6 +5781,7 @@ msgid "the target provider"
 msgstr "цільовий провайдер"
 
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Theme"
 msgstr "Тема"
 
@@ -5728,6 +5878,7 @@ msgid "Thread failed to start."
 msgstr "Не вдалося запустити тред."
 
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Thread finished or waiting for your input."
 msgstr "Тред завершено або він очікує на ваш ввід."
 
@@ -5762,6 +5913,7 @@ msgstr "Панель завдань треда"
 msgid "Threads"
 msgstr "Треди"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
 msgid "Threads marked done that have not been touched for this many days are "
 "archived automatically on app launch. Set to 0 to disable."
@@ -5770,6 +5922,7 @@ msgstr "Треди, позначені як завершені, до яких н
 "вимкнути."
 
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Title Generation"
 msgstr "Генерація заголовків"
 
@@ -5865,6 +6018,7 @@ msgid "Transcribing voice"
 msgstr "Транскрибування голосу"
 
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Translucent sidebar"
 msgstr "Напівпрозора бічна панель"
 
@@ -6020,6 +6174,7 @@ msgstr "Невідомий проєкт"
 msgid "Unlimited"
 msgstr "Без обмежень"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
 msgid "Unload idle threads after"
 msgstr "Вивантажувати неактивні треди через"
@@ -6179,9 +6334,11 @@ msgid "Use detected session?"
 msgstr "Використати виявлену сесію?"
 
 #: src/renderer/views/SettingsOverlay/parts/SearchExcludeBody.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Use ignore files"
 msgstr "Використовувати файли ignore"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/WorktreeSettings.tsx
 msgid "Use one global folder, or nest worktrees inside each project at "
 ".lightcode/worktrees."
@@ -6199,6 +6356,7 @@ msgstr "Використовуйте цей обліковий запис для
 "змініть користувача у браузері перед продовженням."
 
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Use WebGPU acceleration"
 msgstr "Використовувати прискорення WebGPU"
 
@@ -6244,6 +6402,7 @@ msgid "Visible {0} models"
 msgstr "Видимі моделі {0}"
 
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilitySection.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
 msgid "Visible models"
 msgstr "Видимі моделі"
@@ -6253,10 +6412,12 @@ msgid "Voice input is not available in this environment."
 msgstr "Голосове введення недоступне в цьому середовищі."
 
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Voice input language"
 msgstr "Мова голосового вводу"
 
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Voice input model"
 msgstr "Модель голосового вводу"
 
@@ -6337,6 +6498,7 @@ msgid "Website"
 msgstr "Вебсайт"
 
 #: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "What the Create PR button does by default: open a dialog to edit the "
 "title and description first, or auto-generate them and create the PR in "
 "one click. You can also switch this from the button's menu."
@@ -6349,6 +6511,7 @@ msgid "When enabled, search respects <0>.gitignore</0> entries."
 msgstr "Коли увімкнено, пошук враховує записи <0>.gitignore</0>."
 
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "When links open in a Lightcode browser tab, choose where the browser is "
 "revealed."
 msgstr "Коли посилання відкриваються у вкладці браузера Lightcode, виберіть, де "
@@ -6361,15 +6524,18 @@ msgstr "Коли вимкнено, придушувати сповіщення �
 "яких надходить із резервного механізму OSC (без плагіна хуків CLI)."
 
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "When to display in-app toasts for visible threads."
 msgstr "Коли показувати спливні повідомлення в програмі для видимих тредів."
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "When you close the window, keep Lightcode running in the system tray. "
 "Disable to quit on close."
 msgstr "Коли ви закриваєте вікно, залишати Lightcode запущеним у системному "
 "лотку. Вимкніть, щоб завершувати роботу під час закриття."
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Where a browser element-picker selection goes in terminal-native "
 "threads. A collapsed composer always routes to the terminal."
@@ -6386,6 +6552,7 @@ msgid "Where Lightcode creates git worktrees for new branches. Changes apply to 
 msgstr "Де Lightcode створює git worktree для нових гілок. Зміни застосовуються "
 "до worktree, створених відтепер; наявні worktree залишаються на місці."
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Where the terminal panel appears."
 msgstr "Де з'являється панель термінала."
@@ -6442,6 +6609,10 @@ msgstr "Фази робочого процесу"
 msgid "Workflow results"
 msgstr "Результати робочого процесу"
 
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "Workflow runs"
+msgstr "Запуски workflow"
+
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Workflow: {description}"
 msgstr "Робочий процес: {description}"
@@ -6492,6 +6663,7 @@ msgid "Worktree root for this project (a Linux path). Reset to use the global "
 msgstr "Коренева папка worktree для цього проєкту (шлях Linux). Скиньте, щоб "
 "використовувати глобальне налаштування."
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/WorktreeSettings.tsx
 msgid "Worktree root for WSL projects (a Linux path)."
 msgstr "Коренева папка worktree для проєктів WSL (шлях Linux)."
@@ -6540,6 +6712,7 @@ msgstr "WSL"
 msgid "WSL ({0})"
 msgstr "WSL ({0})"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/WorktreeSettings.tsx
 msgid "WSL base folder"
 msgstr "Базова папка WSL"

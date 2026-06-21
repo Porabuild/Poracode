@@ -144,6 +144,7 @@ export function ProviderUsageRail(props: { orientation?: "row" | "column" }) {
   const orientation = props.orientation ?? "row";
   const showInSidebar = useSharedSettings((s) => s.usage.showInSidebar);
   const disabledProviders = useSharedSettings((s) => s.usage.disabledProviders);
+  const sidebarHiddenProviders = useSharedSettings((s) => s.usage.sidebarHiddenProviders);
   const providerOrder = useSharedSettings((s) => s.usage.providerOrder);
   const agentInstances = useSharedSettings((s) => s.agentInstances);
   const setUsageSetting = useSharedSettings((s) => s.setUsageSetting);
@@ -172,7 +173,11 @@ export function ProviderUsageRail(props: { orientation?: "row" | "column" }) {
     KeyboardSensor,
   ];
 
-  const providers = resolveDisplayedProviders(providerOrder, disabledProviders, agentInstances);
+  // Full set drives the persisted order; the rail only renders the providers
+  // whose circle the user hasn't individually hidden. Hidden providers still
+  // hold their slot in `providerOrder` (the docked panel can still reorder them).
+  const allProviders = resolveDisplayedProviders(providerOrder, disabledProviders, agentInstances);
+  const providers = allProviders.filter((p) => !sidebarHiddenProviders.includes(p.id));
 
   if (!showInSidebar || providers.length === 0) return null;
 
@@ -187,10 +192,15 @@ export function ProviderUsageRail(props: { orientation?: "row" | "column" }) {
     const fromIndex = src.initialIndex;
     const toIndex = src.index;
     if (fromIndex === toIndex || fromIndex < 0 || toIndex < 0) return;
-    const next = providers.map((p) => p.id);
-    const [moved] = next.splice(fromIndex, 1);
+    // Reorder only the visible ids, then splice the result back into the full
+    // order so hidden providers keep their absolute positions.
+    const visibleIds = providers.map((p) => p.id);
+    const [moved] = visibleIds.splice(fromIndex, 1);
     if (!moved) return;
-    next.splice(toIndex, 0, moved);
+    visibleIds.splice(toIndex, 0, moved);
+    const hidden = new Set(sidebarHiddenProviders);
+    let v = 0;
+    const next = allProviders.map((p) => (hidden.has(p.id) ? p.id : visibleIds[v++]!));
     startTransition(() => setUsageSetting("providerOrder", next));
   }
 

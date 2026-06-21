@@ -254,8 +254,13 @@ msgid "{installedCount, plural, one {# agent ready} other {# agents ready}}"
 msgstr "{installedCount, plural, one {# 에이전트 준비됨} other {# 에이전트 준비됨}}"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "{label} API key"
 msgstr "{label} API 키"
+
+#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+msgid "{label} auto-refresh interval in minutes"
+msgstr "{label} 자동 새로고침 간격(분)"
 
 #: src/renderer/components/providers/ProviderUsageRail.tsx
 msgid "{label} usage — open usage panel"
@@ -416,6 +421,7 @@ msgstr "ACP 에이전트"
 msgid "Action command"
 msgstr "액션 명령"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
 msgid "Action for the quick-remove button on sidebar threads."
 msgstr "사이드바 스레드의 빠른 제거 버튼에 대한 작업입니다."
@@ -544,6 +550,7 @@ msgstr "에이전트 채팅 (ACP / markdown). 명령 행은 이 크기에서 1px
 "사용합니다."
 
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Agent encountered an error."
 msgstr "에이전트에 오류가 발생했습니다."
 
@@ -564,6 +571,7 @@ msgstr "에이전트를 찾을 수 없습니다."
 msgid "Agent Registry"
 msgstr "에이전트 레지스트리"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Agent terminal font size"
 msgstr "에이전트 터미널 글꼴 크기"
@@ -633,10 +641,12 @@ msgid "Allow"
 msgstr "허용"
 
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Allow agents to read/write cookies and storage"
 msgstr "에이전트가 쿠키 및 저장소를 읽고 쓸 수 있도록 허용"
 
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Allow eval"
 msgstr "평가 허용"
 
@@ -676,6 +686,7 @@ msgid "Apply provider preset"
 msgstr "제공자 프리셋 적용"
 
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Approval or reply required from you."
 msgstr "사용자의 승인 또는 응답이 필요합니다."
 
@@ -792,6 +803,7 @@ msgstr "자동"
 msgid "Auto Approve"
 msgstr "자동 승인"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
 msgid "Auto-archive done threads after"
 msgstr "다음 이후에 완료된 스레드 자동 보관"
@@ -804,9 +816,10 @@ msgstr "완료된 스레드 자동 보관 기간(일)"
 msgid "Auto-generate"
 msgstr "자동 생성"
 
+#. Label for the per-provider auto-refresh cadence field
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
-msgid "Auto-refresh (minutes)"
-msgstr "자동 새로고침(분)"
+msgid "Auto-refresh"
+msgstr "자동 새로고침"
 
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Auto-refresh interval in minutes, 0 to turn off"
@@ -816,10 +829,12 @@ msgstr "자동 새로고침 간격(분), 0이면 끄기"
 msgid "Auto-review"
 msgstr "자동 검토"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Auto-show terminal panel"
 msgstr "터미널 패널 자동 표시"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Automatically show the terminal panel when running commands or creating "
 "worktrees."
@@ -867,15 +882,18 @@ msgid "Base branch is ahead — branch must be updated first."
 msgstr "기본 분기가 앞서 있습니다. 먼저 분기를 업데이트해야 합니다."
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectWorktreeLocation.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/WorktreeSettings.tsx
 msgid "Base folder"
 msgstr "기본 폴더"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Base font size for agent terminals. Auto-shrinks in narrow or short "
 "panes."
 msgstr "에이전트 터미널의 기본 글꼴 크기입니다. 좁거나 짧은 창에서는 자동으로 축소됩니다."
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Base font size for the terminal panel. Auto-shrinks in narrow or short "
 "panes."
@@ -985,6 +1003,7 @@ msgstr "이 스레드에 대해 브라우저 MCP가 활성화되었습니다."
 msgid "Browser menu"
 msgstr "브라우저 메뉴"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Browser pick target (CLI threads)"
 msgstr "브라우저 선택 대상(CLI 스레드)"
@@ -1121,9 +1140,16 @@ msgid "Chat"
 msgstr "채팅"
 
 #: src/renderer/commands/registry.ts
-#: src/renderer/commands/shortcutCatalog.ts
 msgid "Chat Commands"
 msgstr "채팅 명령"
+
+#: src/renderer/commands/registry.ts
+msgid "Chat starred"
+msgstr "채팅에 별표 추가됨"
+
+#: src/renderer/commands/registry.ts
+msgid "Chat unstarred"
+msgstr "채팅 별표 해제됨"
 
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 msgid "Check"
@@ -1134,6 +1160,7 @@ msgid "Check for updates"
 msgstr "업데이트 확인"
 
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Check the live input level from the selected device."
 msgstr "선택한 장치의 실시간 입력 레벨을 확인하세요."
 
@@ -1159,6 +1186,7 @@ msgid "Choose how to sign in."
 msgstr "로그인 방법을 선택하세요."
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Choose the display language for Lightcode's interface."
 msgstr "Lightcode 인터페이스의 표시 언어를 선택하세요."
 
@@ -1167,6 +1195,7 @@ msgid "Choose thread to attach to"
 msgstr "첨부할 스레드를 선택하세요."
 
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Choose whether links from Lightcode and browser popups stay in Lightcode "
 "or open externally."
 msgstr "Lightcode 및 브라우저 팝업의 링크를 Lightcode에 유지할지 아니면 외부에서 열지 선택합니다."
@@ -1333,6 +1362,7 @@ msgid "Close tab"
 msgstr "탭 닫기"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Close to tray"
 msgstr "트레이로 닫기"
 
@@ -1377,6 +1407,7 @@ msgstr "작성기 접기"
 msgid "Collapse error"
 msgstr "오류 접기"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Collapse terminal composer"
 msgstr "터미널 작성기 접기"
@@ -1422,6 +1453,7 @@ msgid "Commit & Create PR"
 msgstr "커밋 및 PR 작성"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Commit & PR language"
 msgstr "커밋 및 PR 언어"
 
@@ -1442,6 +1474,7 @@ msgid "Commit message (Ctrl+Enter)"
 msgstr "커밋 메시지(Ctrl+Enter)"
 
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Commit Message Generation"
 msgstr "커밋 메시지 생성"
 
@@ -1512,6 +1545,7 @@ msgid "Config directory"
 msgstr "설정 디렉터리"
 
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Conflict Resolver"
 msgstr "충돌 해결사"
 
@@ -1807,11 +1841,18 @@ msgstr "거절"
 msgid "Default"
 msgstr "기본값"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+msgid "Default auto-refresh (minutes)"
+msgstr "기본 자동 새로고침(분)"
+
 #: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Default Create PR action"
 msgstr "기본 PR 생성 작업"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Default new thread"
 msgstr "기본 새 스레드"
 
@@ -1819,6 +1860,7 @@ msgstr "기본 새 스레드"
 msgid "Default permissions"
 msgstr "기본 권한"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
 msgid "Default thread removal"
 msgstr "기본 스레드 제거"
@@ -1926,6 +1968,7 @@ msgstr "에이전트 감지 중…"
 #. Settings section: developer/debug tools
 #. Settings section: developer/debug tools
 #. Settings section: developer/debug tools
+#. Settings section: developer/debug tools
 #: src/renderer/views/SettingsOverlay/parts/DevSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Dev"
@@ -1936,6 +1979,7 @@ msgid "Development-only overrides. Only visible in the LIGHTCODE DEV build."
 msgstr "개발 전용 재정의. LIGHTCODE DEV 빌드에서만 볼 수 있습니다."
 
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Device used by the composer voice input button."
 msgstr "컴포저 음성 입력 버튼에 사용되는 장치입니다."
 
@@ -1952,6 +1996,7 @@ msgid "Disable Browser MCP"
 msgstr "브라우저 MCP 비활성화"
 
 #: src/renderer/views/SettingsOverlay/parts/DevSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Disable CLI hook plugin (L1)"
 msgstr "CLI 후크 플러그인 비활성화(L1)"
 
@@ -2024,6 +2069,7 @@ msgstr "완료"
 
 #. Notification status: thread is done
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Done"
 msgstr "완료"
 
@@ -2062,6 +2108,7 @@ msgid "Draft"
 msgstr "초안"
 
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Drag to reorder how providers appear in the model picker."
 msgstr "모델 선택기에 공급자가 표시되는 방식을 바꾸려면 드래그하세요."
 
@@ -2074,6 +2121,7 @@ msgid "Drop here to attach"
 msgstr "첨부하려면 여기에 드롭하세요."
 
 #: src/renderer/views/SettingsOverlay/parts/DevSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Drops incoming hook envelopes on the supervisor so agents fall back to "
 "L2 (OSC 9;4 progress) without touching install or iTerm2 notifications. "
 "Takes effect on the next hook event — no restart needed."
@@ -2108,6 +2156,7 @@ msgid "Editor"
 msgstr "편집기"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Editor LSP"
 msgstr "에디터 LSP"
 
@@ -2137,6 +2186,7 @@ msgid "Enable {tierLabel} effort"
 msgstr "{tierLabel} 추론 강도 활성화"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Enable language server support for type checking, completions, and "
 "diagnostics. Requires a language server installed."
 msgstr "유형 확인, 완성 및 진단을 위한 언어 서버 지원을 활성화합니다. 언어 서버가 설치되어 있어야 합니다."
@@ -2146,6 +2196,7 @@ msgid "Enable microphone access in your system settings, then try again."
 msgstr "시스템 설정에서 마이크 액세스를 활성화한 후 다시 시도하세요."
 
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Enable notifications"
 msgstr "알림 활성화"
 
@@ -2211,6 +2262,7 @@ msgstr "오류"
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 #: src/renderer/components/ui/toastContent.ts
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Error"
 msgstr "오류"
 
@@ -2219,6 +2271,7 @@ msgid "Error · Agent encountered an error"
 msgstr "오류 · 에이전트에 오류가 발생했습니다."
 
 #: src/renderer/views/SettingsOverlay/parts/SearchExcludeBody.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Exclude patterns"
 msgstr "패턴 제외"
 
@@ -2304,6 +2357,7 @@ msgid "Fastest (Whisper tiny)"
 msgstr "가장 빠름 (Whisper tiny)"
 
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Fastest uses Whisper tiny; Better uses Whisper base."
 msgstr "가장 빠름은 Whisper tiny를, 더 좋음은 Whisper base를 사용합니다."
 
@@ -2358,6 +2412,7 @@ msgid "Files for {0}"
 msgstr "{0}에 대한 파일"
 
 #: src/renderer/views/SettingsOverlay/parts/SearchExcludeBody.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Files matching these globs are hidden from the @file mention search."
 msgstr "이러한 glob과 일치하는 파일은 @file 멘션 검색에서 숨겨집니다."
 
@@ -2438,6 +2493,7 @@ msgstr "인앱 브라우저 주소 표시줄에 포커스"
 msgid "Folder name"
 msgstr "폴더 이름"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/WorktreeSettings.tsx
 msgid "Folder that holds all worktrees. Tip: a Dev Drive here speeds up builds."
 msgstr "모든 작업 트리를 보관하는 폴더입니다. 팁: 여기에 Dev Drive를 사용하면 빌드 속도가 빨라집니다."
@@ -2523,10 +2579,12 @@ msgid "Generated image"
 msgstr "생성된 이미지"
 
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Generates commit messages from staged changes."
 msgstr "스테이징된 변경 사항에서 커밋 메시지를 생성합니다."
 
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Generates short titles for new threads."
 msgstr "새 스레드에 대한 짧은 제목을 생성합니다."
 
@@ -2554,6 +2612,7 @@ msgid "Git Review"
 msgstr "Git 리뷰"
 
 #: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Git review mode"
 msgstr "Git 리뷰 모드"
 
@@ -2614,6 +2673,7 @@ msgid "Group open threads"
 msgstr "열린 스레드 그룹화"
 
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "GUI chat font size"
 msgstr "GUI 채팅 글꼴 크기"
 
@@ -2629,6 +2689,7 @@ msgstr "핸들"
 msgid "Hard Reload"
 msgstr "강제 새로고침"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
 msgid "Hidden resumable threads are swept every 5 minutes and unloaded after "
 "this idle age."
@@ -2637,6 +2698,10 @@ msgstr "숨겨진 재개 가능 스레드는 5분마다 청소되고 이 유휴 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewPanel.tsx
 msgid "Hide"
 msgstr "숨기기"
+
+#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+msgid "Hide {label} circle in sidebar"
+msgstr "사이드바에서 {label} 원 숨기기"
 
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilitySection.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
@@ -2687,6 +2752,7 @@ msgid "Home"
 msgstr "홈"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Home scope"
 msgstr "홈 범위"
 
@@ -2840,6 +2906,7 @@ msgid "Keep Branch"
 msgstr "브랜치 유지"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Keep the system awake while any thread is actively working."
 msgstr "스레드가 활발하게 작동하는 동안 시스템을 활성 상태로 유지합니다."
 
@@ -2848,15 +2915,18 @@ msgid "Kill bash"
 msgstr "bash 종료"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Language"
 msgstr "언어"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Language for AI-generated commit messages and pull request summaries. "
 "Thread titles always follow the app language."
 msgstr "AI가 생성하는 커밋 메시지와 풀 요청 요약에 사용할 언어입니다. 스레드 제목은 항상 앱 언어를 따릅니다."
 
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Language the speech model should expect when transcribing composer "
 "dictation."
 msgstr "작성기 받아쓰기를 기록할 때 음성 모델이 예상해야 하는 언어입니다."
@@ -3064,6 +3134,7 @@ msgid "Match case"
 msgstr "대/소문자 구분"
 
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Match your system, or force light or dark."
 msgstr "시스템을 일치시키거나 밝게 또는 어둡게 만듭니다."
 
@@ -3079,6 +3150,10 @@ msgstr "브라우저 최대화"
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "MCP servers"
 msgstr "MCP 서버"
+
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "MCP tool calls"
+msgstr "MCP 도구 호출"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/useWorktreeActions.ts
 msgid "Merge & Remove"
@@ -3148,6 +3223,7 @@ msgid "Messages sent"
 msgstr "보낸 메시지"
 
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Microphone"
 msgstr "마이크"
 
@@ -3172,6 +3248,11 @@ msgstr "마이크 권한이 거부되었습니다."
 msgid "Microphone testing is not available in this environment."
 msgstr "이 환경에서는 마이크 테스트를 사용할 수 없습니다."
 
+#. Unit suffix: minutes
+#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+msgid "min"
+msgstr "분"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 msgid "Minimize browser to right panel"
 msgstr "브라우저를 오른쪽 패널로 최소화"
@@ -3181,8 +3262,13 @@ msgid "Minimize to panel"
 msgstr "패널로 최소화"
 
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Mode"
 msgstr "모드"
+
+#: src/renderer/commands/registry.ts
+msgid "Model added to favorites"
+msgstr "모델을 즐겨찾기에 추가함"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Model id"
@@ -3193,8 +3279,13 @@ msgid "Model label"
 msgstr "모델 레이블"
 
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Model order"
 msgstr "모델 순서"
+
+#: src/renderer/commands/registry.ts
+msgid "Model removed from favorites"
+msgstr "모델을 즐겨찾기에서 제거함"
 
 #: src/renderer/views/ProfileOverlay/parts/ModelUsage.tsx
 msgid "Model usage"
@@ -3304,6 +3395,7 @@ msgid "Needs approval"
 msgstr "승인 필요"
 
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Needs Attention"
 msgstr "주의가 필요함"
 
@@ -3602,6 +3694,7 @@ msgid "No repositories found."
 msgstr "저장소를 찾을 수 없습니다."
 
 #: src/renderer/components/find/FindBar.tsx
+#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "No results"
 msgstr "결과 없음"
 
@@ -3624,10 +3717,6 @@ msgstr "음성이 감지되지 않았습니다."
 #: src/renderer/views/GitReviewOverlay/parts/GitDiffContent/GitDiffContent.tsx
 msgid "No staged changes"
 msgstr "단계적 변경 없음"
-
-#: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
-msgid "No subagents used yet."
-msgstr "아직 사용한 서브에이전트가 없습니다."
 
 #: src/renderer/components/thread/ThreadDraftView.tsx
 msgid "No supported agents detected"
@@ -3702,6 +3791,7 @@ msgid "Notifications"
 msgstr "알림"
 
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Notify for L2 CLI threads"
 msgstr "L2 CLI 스레드에 대해 알림"
 
@@ -3817,6 +3907,7 @@ msgid "Open Git Review"
 msgstr "Git 검토 열기"
 
 #: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Open git review as a right-side panel or a full page."
 msgstr "Git 검토를 오른쪽 패널이나 전체 페이지로 엽니다."
 
@@ -3832,6 +3923,7 @@ msgid "Open in editor"
 msgstr "편집기에서 열기"
 
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Open links in"
 msgstr "링크 열기"
 
@@ -3844,6 +3936,7 @@ msgid "Open new tab"
 msgstr "새 탭 열기"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Open new threads as a full page or a side-by-side panel."
 msgstr "새 스레드를 전체 페이지 또는 병렬 패널로 엽니다."
 
@@ -3965,6 +4058,11 @@ msgstr "패널 및 오버레이"
 msgid "Paste"
 msgstr "붙여넣기"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+msgid "Paste {label} API key"
+msgstr "{label} API 키 붙여넣기"
+
 #. placeholder {0}: activeDeviceCode.code
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 msgid "Paste <0>{0}</0> here. Click to copy."
@@ -3973,10 +4071,6 @@ msgstr "여기에 <0>{0}</0>을 붙여넣으세요. 복사하려면 클릭하세
 #: src/renderer/components/terminal/XTermSurface.tsx
 msgid "Paste in input"
 msgstr "입력에 붙여넣기"
-
-#: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
-msgid "Paste {label} API key"
-msgstr "{label} API 키 붙여넣기"
 
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 msgid "Paused"
@@ -4037,10 +4131,12 @@ msgid "Plan"
 msgstr "계획"
 
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Play a sound when a notification is shown."
 msgstr "알림이 표시되면 소리를 재생합니다."
 
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Play notification sound"
 msgstr "알림 소리 재생"
 
@@ -4050,6 +4146,7 @@ msgid "Point this profile at a non-Anthropic provider (z.ai, …) with custom en
 msgstr "사용자 지정 환경 변수, 모델 이름, 추론 강도 단계로 이 프로필을 Anthropic이 아닌 제공자(z.ai 등)로 지정합니다."
 
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Popular editor themes adapted to Lightcode. Each follows the light or "
 "dark mode above."
 msgstr "Lightcode에 맞게 조정된 인기 있는 편집기 테마입니다. 각각은 위의 밝은 모드 또는 어두운 모드를 따릅니다."
@@ -4087,6 +4184,7 @@ msgid "Press shortcut…"
 msgstr "단축키를 누르세요…"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Prevent sleep while working"
 msgstr "작업 중 수면 방지"
 
@@ -4319,11 +4417,13 @@ msgstr "최근"
 msgid "Recent threads"
 msgstr "최근 스레드"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Reconstructed from local logs at public API rates — it does not reflect "
 "your real bill on subscription plans. Shown only in the usage panel."
 msgstr "공개 API 요금으로 로컬 로그에서 재구성되며 구독 계획에 대한 실제 청구서를 반영하지 않습니다. 사용량 패널에만 표시됩니다."
 
+#. Button: re-fetch one provider's usage now
 #. Button: re-fetch provider usage now
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
 #: src/renderer/views/GitReviewOverlay/GitReviewOverlay.tsx
@@ -4340,6 +4440,10 @@ msgstr "새로고침"
 msgid "Refresh {0} authentication"
 msgstr "{0} 인증 새로 고침"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
+msgid "Refresh {label}"
+msgstr "{label} 새로고침"
+
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Refresh detected agents"
 msgstr "감지된 에이전트 새로 고침"
@@ -4347,12 +4451,6 @@ msgstr "감지된 에이전트 새로 고침"
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Refresh registry"
 msgstr "레지스트리 새로 고침"
-
-#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
-msgid "Refresh usage in the background every N minutes. Set to 0 to turn off "
-"(manual only). The 2-minute floor respects provider rate limits."
-msgstr "N분마다 백그라운드에서 사용량을 새로 고칩니다. 끄려면 0으로 설정합니다(수동만 해당). 최소 2분 간격은 공급자 속도 제한을 "
-"준수합니다."
 
 #. placeholder {0}: status.label
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
@@ -4579,6 +4677,7 @@ msgid "Resize terminal panel"
 msgstr "터미널 패널 크기 조정"
 
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Resolves merge conflicts during rebase or merge."
 msgstr "리베이스 또는 병합 중 병합 충돌을 해결합니다."
 
@@ -4711,6 +4810,7 @@ msgid "Run in a separate worktree"
 msgstr "별도의 작업 트리에서 실행"
 
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Run local transcription on the GPU when available."
 msgstr "가능한 경우 GPU에서 로컬 전사를 실행합니다."
 
@@ -4802,6 +4902,7 @@ msgstr "설치된 CLI를 찾기 위해 시스템을 검색합니다. 이 작업�
 msgid "Scripts"
 msgstr "스크립트"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Scroll speed multiplier for the terminal scrollback buffer."
 msgstr "터미널 스크롤백 버퍼의 스크롤 속도 승수입니다."
@@ -4990,10 +5091,11 @@ msgid "Shortcuts"
 msgstr "단축키"
 
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
-msgid "Show a compact per-provider usage ring in the sidebar."
-msgstr "사이드바에 간단한 공급자별 사용량 링을 표시합니다."
+msgid "Show {label} circle in sidebar"
+msgstr "사이드바에 {label} 원 표시"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Show a projectless Home scope for OS-level agent sessions."
 msgstr "OS 수준 에이전트 세션에 대해 프로젝트 없는 홈 범위를 표시합니다."
 
@@ -5007,9 +5109,16 @@ msgstr "모두 표시"
 msgid "Show Bookmark Bar"
 msgstr "북마크바 표시"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Show circles in sidebar"
 msgstr "사이드바에 원 표시"
+
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+msgid "Show compact per-provider usage rings in the sidebar. Hide individual "
+"providers' circles in the list below."
+msgstr "사이드바에 간단한 공급자별 사용량 링을 표시합니다. 아래 목록에서 개별 공급자의 원을 숨길 수 있습니다."
 
 #: src/renderer/components/thread/ThreadComposerSection.tsx
 msgid "Show composer"
@@ -5019,6 +5128,7 @@ msgstr "작성기 표시"
 msgid "Show context usage details"
 msgstr "컨텍스트 사용 세부정보 표시"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Show estimated cost"
 msgstr "예상 비용 표시"
@@ -5037,14 +5147,17 @@ msgid "Show more"
 msgstr "더 보기"
 
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Show notifications"
 msgstr "알림 표시"
 
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Show notifications when thread status changes."
 msgstr "스레드 상태가 변경되면 알림을 표시합니다."
 
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Show opened links in"
 msgstr "열린 링크 표시"
 
@@ -5077,18 +5190,31 @@ msgid "Show source"
 msgstr "소스 표시"
 
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Show the microphone button in the composer."
 msgstr "작성기에 마이크 버튼을 표시합니다."
 
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Show voice input button"
 msgstr "음성 입력 버튼 표시"
 
+#. Toggle: show this provider's usage ring in the sidebar
+#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+msgid "Sidebar"
+msgstr "사이드바"
+
+#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+msgid "Sidebar circles are turned off globally above"
+msgstr "위에서 사이드바 원이 전체적으로 꺼져 있습니다"
+
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Sidebar frosting"
 msgstr "사이드바 프로스트"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Sign in"
 msgstr "로그인"
 
@@ -5105,6 +5231,10 @@ msgstr "로그인이 필요합니다"
 msgid "Sign in with the agent CLI."
 msgstr "에이전트 CLI로 로그인합니다."
 
+#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+msgid "Sign out"
+msgstr "로그아웃"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
 msgid "Sign out {label}"
 msgstr "{label} 로그아웃"
@@ -5118,6 +5248,7 @@ msgid "Signing in"
 msgstr "로그인 중"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Signing in…"
 msgstr "로그인 중…"
 
@@ -5129,21 +5260,21 @@ msgstr "{env} 로그아웃 중입니다. 감지된 에이전트는 완료되면 
 msgid "Signing out. Detected agents will refresh when it finishes."
 msgstr "로그아웃합니다. 감지된 에이전트는 완료되면 새로 고쳐집니다."
 
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "Skill runs"
+msgstr "스킬 실행"
+
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Skill: {skill}"
 msgstr "스킬: {skill}"
-
-#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
-msgid "Skill/subagent runs"
-msgstr "사용한 전체 스킬/서브에이전트"
 
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "Skills"
 msgstr "스킬"
 
 #: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
-msgid "Skills/subagents explored"
-msgstr "탐색한 스킬/서브에이전트"
+msgid "Skills explored"
+msgstr "탐색한 스킬"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "Some checks are failing or pending."
@@ -5233,6 +5364,7 @@ msgstr "현재 작성기에서 받아쓰기 시작"
 msgid "Start from scratch"
 msgstr "처음부터 시작하세요"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Start the composer collapsed in terminal-native threads. A collapsed "
 "composer routes browser element picks straight to the terminal."
@@ -5307,6 +5439,7 @@ msgstr "폴더를 변경하기 전에 프로젝트에서 실행 중인 스레드
 msgid "Stop voice input"
 msgstr "음성 입력 중지"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/WorktreeSettings.tsx
 msgid "Storage location"
 msgstr "저장 위치"
@@ -5331,8 +5464,11 @@ msgstr "하위 에이전트를 찾을 수 없습니다."
 msgid "Subagent Result"
 msgstr "하위 에이전트 결과"
 
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "Subagent runs"
+msgstr "서브에이전트 실행"
+
 #: src/renderer/components/thread/ChatPane/parts/items/ActiveSubAgentTile.tsx
-#: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "Subagents"
 msgstr "하위 에이전트"
 
@@ -5511,14 +5647,17 @@ msgstr "터미널 입력"
 msgid "Terminal not ready — added selection to composer."
 msgstr "터미널이 준비되지 않음 - 작성기에 선택 항목이 추가되었습니다."
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Terminal panel font size"
 msgstr "터미널 패널 글꼴 크기"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Terminal position"
 msgstr "터미널 위치"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Terminal scroll speed"
 msgstr "터미널 스크롤 속도"
@@ -5529,6 +5668,7 @@ msgid "Terminal tabs"
 msgstr "터미널 탭"
 
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Test microphone"
 msgstr "마이크 테스트"
 
@@ -5544,6 +5684,14 @@ msgstr "앱"
 msgid "the chosen folder"
 msgstr "선택한 폴더"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+msgid "The default background refresh cadence, used for any provider without "
+"its own interval set below. Set to 0 to turn off (manual only). The "
+"2-minute floor respects provider rate limits."
+msgstr "아래에서 자체 간격이 설정되지 않은 모든 공급자에 사용되는 기본 백그라운드 새로고침 주기입니다. 0이면 끄기(수동 전용)입니다. "
+"최소 2분 제한은 공급자의 속도 제한을 준수합니다."
+
 #: src/renderer/RendererCrashScreen.tsx
 msgid "The normal app shell could not render. The diagnostics below are shown "
 "before reload so the failure can be investigated."
@@ -5558,6 +5706,7 @@ msgid "the target provider"
 msgstr "대상 공급자"
 
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Theme"
 msgstr "테마"
 
@@ -5651,6 +5800,7 @@ msgid "Thread failed to start."
 msgstr "스레드를 시작하지 못했습니다."
 
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Thread finished or waiting for your input."
 msgstr "스레드가 완료되었거나 입력을 기다리는 중입니다."
 
@@ -5685,12 +5835,14 @@ msgstr "스레드 할 일 도크"
 msgid "Threads"
 msgstr "스레드"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
 msgid "Threads marked done that have not been touched for this many days are "
 "archived automatically on app launch. Set to 0 to disable."
 msgstr "완료로 표시된 스레드 중 며칠 동안 건드리지 않은 스레드는 앱 실행 시 자동으로 보관됩니다. 비활성화하려면 0으로 설정합니다."
 
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Title Generation"
 msgstr "제목 생성"
 
@@ -5785,6 +5937,7 @@ msgid "Transcribing voice"
 msgstr "음성 받아쓰는 중"
 
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Translucent sidebar"
 msgstr "반투명 사이드바"
 
@@ -5939,6 +6092,7 @@ msgstr "알 수 없는 프로젝트"
 msgid "Unlimited"
 msgstr "무제한"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
 msgid "Unload idle threads after"
 msgstr "다음 이후에 유휴 스레드 언로드"
@@ -6098,9 +6252,11 @@ msgid "Use detected session?"
 msgstr "감지된 세션을 사용하시겠습니까?"
 
 #: src/renderer/views/SettingsOverlay/parts/SearchExcludeBody.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Use ignore files"
 msgstr "무시 파일 사용"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/WorktreeSettings.tsx
 msgid "Use one global folder, or nest worktrees inside each project at "
 ".lightcode/worktrees."
@@ -6116,6 +6272,7 @@ msgid "Use this account for usage tracking, or change users in the browser "
 msgstr "사용 추적을 위해 이 계정을 사용하거나 계속하기 전에 브라우저에서 사용자를 변경하세요."
 
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Use WebGPU acceleration"
 msgstr "WebGPU 가속 사용"
 
@@ -6161,6 +6318,7 @@ msgid "Visible {0} models"
 msgstr "표시되는 {0} 모델"
 
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilitySection.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
 msgid "Visible models"
 msgstr "보이는 모델"
@@ -6170,10 +6328,12 @@ msgid "Voice input is not available in this environment."
 msgstr "이 환경에서는 음성 입력을 사용할 수 없습니다."
 
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Voice input language"
 msgstr "음성 입력 언어"
 
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Voice input model"
 msgstr "음성 입력 모델"
 
@@ -6250,6 +6410,7 @@ msgid "Website"
 msgstr "웹사이트"
 
 #: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "What the Create PR button does by default: open a dialog to edit the "
 "title and description first, or auto-generate them and create the PR in "
 "one click. You can also switch this from the button's menu."
@@ -6261,6 +6422,7 @@ msgid "When enabled, search respects <0>.gitignore</0> entries."
 msgstr "활성화되면 검색은 <0>.gitignore</0> 항목을 존중합니다."
 
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "When links open in a Lightcode browser tab, choose where the browser is "
 "revealed."
 msgstr "Lightcode 브라우저 탭에서 링크가 열리면 브라우저가 표시되는 위치를 선택하세요."
@@ -6271,14 +6433,17 @@ msgid "When off, suppress notifications from terminal threads whose status "
 msgstr "꺼져 있으면 상태가 OSC 대체(CLI 후크 플러그인 없음)에서 나오는 터미널 스레드의 알림을 억제합니다."
 
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "When to display in-app toasts for visible threads."
 msgstr "표시되는 스레드에 대한 인앱 토스트를 표시하는 경우입니다."
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "When you close the window, keep Lightcode running in the system tray. "
 "Disable to quit on close."
 msgstr "창을 닫을 때 시스템 트레이에서 Lightcode를 계속 실행하십시오. 닫을 때 종료하려면 비활성화하세요."
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Where a browser element-picker selection goes in terminal-native "
 "threads. A collapsed composer always routes to the terminal."
@@ -6294,6 +6459,7 @@ msgid "Where Lightcode creates git worktrees for new branches. Changes apply to 
 msgstr "Lightcode가 새 브랜치를 위해 git 작업 트리를 생성하는 위치입니다. 변경 사항은 지금부터 생성되는 작업 트리에 "
 "적용되며, 기존 작업 트리는 그대로 유지됩니다."
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Where the terminal panel appears."
 msgstr "터미널 패널이 나타나는 위치."
@@ -6348,6 +6514,10 @@ msgstr "워크플로 단계"
 msgid "Workflow results"
 msgstr "워크플로 결과"
 
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "Workflow runs"
+msgstr "워크플로 실행"
+
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Workflow: {description}"
 msgstr "워크플로: {description}"
@@ -6397,6 +6567,7 @@ msgid "Worktree root for this project (a Linux path). Reset to use the global "
 "setting."
 msgstr "이 프로젝트의 작업 트리 루트입니다(Linux 경로). 전역 설정을 사용하려면 재설정하세요."
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/WorktreeSettings.tsx
 msgid "Worktree root for WSL projects (a Linux path)."
 msgstr "WSL 프로젝트의 작업 트리 루트입니다(Linux 경로)."
@@ -6445,6 +6616,7 @@ msgstr "WSL"
 msgid "WSL ({0})"
 msgstr "WSL({0})"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/WorktreeSettings.tsx
 msgid "WSL base folder"
 msgstr "WSL 기본 폴더"

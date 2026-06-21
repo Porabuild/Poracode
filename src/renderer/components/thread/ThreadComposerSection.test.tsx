@@ -74,6 +74,34 @@ const codexGuiStatus: AgentStatus = {
   },
 };
 
+const terminalThread: Thread = {
+  ...guiThread,
+  id: "thread-terminal-idle",
+  agentKind: "claude",
+  config: { model: "claude" },
+  presentationMode: "terminal",
+};
+
+const claudeTerminalStatus: AgentStatus = {
+  kind: "claude",
+  label: "Claude",
+  installed: true,
+  authState: "authenticated",
+  capabilities: {
+    models: [{ id: "claude", label: "Claude" }],
+    efforts: [],
+    modelEfforts: {},
+    modes: ["agent"],
+    approvalPolicies: [],
+    sandboxModes: [],
+    supportsResume: true,
+    supportsDirectInput: true,
+    liveInputMode: "terminal",
+    presentationMode: "terminal",
+    settingDefs: [],
+  },
+};
+
 describe("ThreadComposerSection", () => {
   beforeEach(() => {
     useSharedSettings.setState({ collapseTerminalComposer: false });
@@ -87,7 +115,158 @@ describe("ThreadComposerSection", () => {
       runtimeItemsByIdByThread: {},
       runtimeRequestsByThread: {},
       pendingSteerByThreadId: {},
+      threadDraftContents: {},
     });
+  });
+
+  function composerElement(opts?: {
+    thread?: Thread;
+    agentStatus?: AgentStatus;
+    onSubmitInput?: (prompt: string, segments?: unknown) => Promise<void>;
+  }) {
+    const thread = opts?.thread ?? guiThread;
+    const agentStatus = opts?.agentStatus ?? codexGuiStatus;
+    return (
+      <ThreadComposerSection
+        threadId={thread.id}
+        fallbackThread={thread}
+        agentStatus={agentStatus}
+        projectLocation={{ kind: "windows", path: "C:\\repo" }}
+        paneCount={1}
+        terminalPaneRef={{ current: null }}
+        todoDockCollapsed={false}
+        todoDockPlacement="composer"
+        todoDockState={null}
+        goalDockState={null}
+        errorDockStates={[]}
+        onGoalDockDismiss={() => undefined}
+        onDismissError={() => undefined}
+        onConfigChange={() => undefined}
+        onResolveServerRequest={async () => undefined}
+        onSubmitInput={opts?.onSubmitInput ?? (async () => undefined)}
+        onTodoDockCollapsedChange={() => undefined}
+        onTodoDockPlacementChange={() => undefined}
+      />
+    );
+  }
+
+  function renderComposer(opts?: {
+    thread?: Thread;
+    agentStatus?: AgentStatus;
+    onSubmitInput?: ReturnType<typeof vi.fn<(prompt: string, segments?: unknown) => Promise<void>>>;
+  }) {
+    const onSubmitInput =
+      opts?.onSubmitInput ??
+      vi.fn<(prompt: string, segments?: unknown) => Promise<void>>(() => Promise.resolve());
+    const result = render(composerElement({ ...opts, onSubmitInput }));
+    return { ...result, onSubmitInput };
+  }
+
+  it("preserves an unsent draft when the composer unmounts and restores it on remount", async () => {
+    const { unmount } = renderComposer();
+
+    const input = screen.getByRole("textbox");
+    input.appendChild(document.createTextNode("half-written thought"));
+    fireEvent.input(input);
+
+    unmount();
+
+    expect(useAppStore.getState().threadDraftContents[guiThread.id]?.segments).toEqual([
+      { kind: "text", content: "half-written thought" },
+    ]);
+
+    renderComposer();
+
+    await waitFor(() => {
+      expect(screen.getByRole("textbox").textContent).toContain("half-written thought");
+    });
+    // The draft is consumed on restore so a later real send can't resurrect it.
+    expect(useAppStore.getState().threadDraftContents[guiThread.id]).toBeUndefined();
+  });
+
+  it("does not leave a draft behind once the message is sent", async () => {
+    const { unmount, onSubmitInput } = renderComposer();
+
+    const input = screen.getByRole("textbox");
+    input.appendChild(document.createTextNode("ship it"));
+    fireEvent.input(input);
+    fireEvent.click(screen.getByText("send"));
+
+    await waitFor(() => {
+      expect(onSubmitInput).toHaveBeenCalledWith("ship it", [{ kind: "text", content: "ship it" }]);
+    });
+
+    unmount();
+
+    expect(useAppStore.getState().threadDraftContents[guiThread.id]).toBeUndefined();
+  });
+
+  it("does not re-save an in-flight terminal send as a stale draft when navigating away", async () => {
+    // Terminal threads clear the composer only after the send resolves, so the
+    // unmount cleanup must skip saving while a submit is in flight.
+    let resolveSubmit: (() => void) | undefined;
+    const onSubmitInput = vi.fn<(prompt: string, segments?: unknown) => Promise<void>>(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveSubmit = resolve;
+        }),
+    );
+    const { unmount } = renderComposer({
+      thread: terminalThread,
+      agentStatus: claudeTerminalStatus,
+      onSubmitInput,
+    });
+
+    const input = screen.getByRole("textbox");
+    input.appendChild(document.createTextNode("terminal message"));
+    fireEvent.input(input);
+    fireEvent.click(screen.getByText("send"));
+
+    await waitFor(() => {
+      expect(onSubmitInput).toHaveBeenCalledWith("terminal message", [
+        { kind: "text", content: "terminal message" },
+      ]);
+    });
+
+    // Send is still pending — navigating away must not stash the sent text.
+    unmount();
+    expect(useAppStore.getState().threadDraftContents[terminalThread.id]).toBeUndefined();
+
+    await act(async () => {
+      resolveSubmit?.();
+      await Promise.resolve();
+    });
+  });
+
+  it("defers a terminal thread's draft restore until the composer mounts after launching", async () => {
+    useAppStore.setState({
+      threadDraftContents: {
+        [terminalThread.id]: {
+          segments: [{ kind: "text", content: "resume me" }],
+          attachments: [],
+        },
+      },
+    });
+
+    const { rerender } = render(
+      composerElement({
+        thread: { ...terminalThread, status: "launching" },
+        agentStatus: claudeTerminalStatus,
+      }),
+    );
+
+    // While launching, the terminal composer (and its editor) is not rendered,
+    // so the draft must be left intact rather than silently consumed.
+    expect(screen.queryByRole("textbox")).toBeNull();
+    expect(useAppStore.getState().threadDraftContents[terminalThread.id]).toBeDefined();
+
+    // Same instance leaves launching → editor mounts → draft restores + consumes.
+    rerender(composerElement({ thread: terminalThread, agentStatus: claudeTerminalStatus }));
+
+    await waitFor(() => {
+      expect(screen.getByRole("textbox").textContent).toContain("resume me");
+    });
+    expect(useAppStore.getState().threadDraftContents[terminalThread.id]).toBeUndefined();
   });
 
   it("clears the GUI ACP composer as soon as a direct send starts", async () => {

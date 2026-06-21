@@ -170,6 +170,113 @@ export class BrowserLoginCaptureCoordinator {
     });
   }
 
+  /**
+   * Like {@link captureLoginCookies}, but for providers that store their session
+   * in `localStorage` rather than a cookie (e.g. Factory/Droid keeps WorkOS
+   * AuthKit tokens there and sets no session cookie). Opens the login tab, polls
+   * the page's localStorage for `keys`, and prompts once `requiredKey` is
+   * present and non-empty. Resolves with the captured key→value map. Reads names
+   * the caller asked for only; never touches secrets beyond returning them.
+   */
+  async captureLoginLocalStorage(opts: {
+    loginUrl: string;
+    keys: string[];
+    requiredKey: string;
+    timeoutMs: number;
+    providerLabel?: string;
+  }): Promise<{
+    ok: boolean;
+    values?: Record<string, string>;
+    cancelled?: boolean;
+    error?: string;
+  }> {
+    let tabId: string;
+    try {
+      tabId = (await this.host.createTab({ url: opts.loginUrl, activate: true })).tabId;
+    } catch (err) {
+      return { ok: false, error: (err as Error).message ?? "Failed to open login tab" };
+    }
+
+    return await new Promise((resolve) => {
+      let settled = false;
+      let confirming = false;
+      const ignoredSignatures = new Set<string>();
+      const finish = (result: {
+        ok: boolean;
+        values?: Record<string, string>;
+        cancelled?: boolean;
+        error?: string;
+      }): void => {
+        if (settled) return;
+        settled = true;
+        this.activeLoginCancel = null;
+        this.cancelLoginConfirmations();
+        clearInterval(timer);
+        clearTimeout(timeout);
+        if (this.host.findTab(tabId)) void this.host.closeTab(tabId).catch(() => {});
+        resolve(result);
+      };
+      this.activeLoginCancel = () => finish({ ok: false, cancelled: true });
+
+      const readLocalStorage = async (tab: BrowserTab): Promise<Record<string, string>> => {
+        // Read only the requested keys from the page's own localStorage. JSON in,
+        // JSON out so the value survives the IPC boundary unchanged.
+        const code =
+          `(() => { try { const out = {}; for (const k of ${JSON.stringify(opts.keys)}) {` +
+          ` const v = window.localStorage.getItem(k); if (v != null) out[k] = v; }` +
+          ` return JSON.stringify(out); } catch { return "{}"; } })()`;
+        const raw = (await tab.webContents.executeJavaScript(code, true)) as unknown;
+        if (typeof raw !== "string") return {};
+        try {
+          const parsed = JSON.parse(raw) as unknown;
+          return parsed && typeof parsed === "object" ? (parsed as Record<string, string>) : {};
+        } catch {
+          return {};
+        }
+      };
+
+      const tryCapture = async (): Promise<void> => {
+        if (settled || confirming) return;
+        const tab = this.host.findTab(tabId);
+        if (!tab || tab.isDestroyed()) {
+          finish({ ok: false, cancelled: true });
+          return;
+        }
+        if (!tab.isAttached()) return;
+        try {
+          const values = await readLocalStorage(tab);
+          const required = values[opts.requiredKey];
+          if (!required) return;
+          const signature = JSON.stringify(values);
+          if (ignoredSignatures.has(signature)) return;
+          confirming = true;
+          const action = await this.confirmLoginCookies(opts.providerLabel ?? "provider");
+          confirming = false;
+          if (settled) return;
+          if (action === "use") {
+            finish({ ok: true, values });
+            return;
+          }
+          if (action === "change") {
+            ignoredSignatures.add(signature);
+            await tab.loadURL(opts.loginUrl).catch(() => {});
+            return;
+          }
+          finish({ ok: false, cancelled: true });
+        } catch {
+          // page not ready / mid-navigation — keep polling
+        }
+      };
+
+      const timer = setInterval(() => void tryCapture(), 1_000);
+      const timeout = setTimeout(
+        () => finish({ ok: false, error: "Login timed out" }),
+        opts.timeoutMs,
+      );
+      void tryCapture();
+    });
+  }
+
   private async confirmLoginCookies(providerLabel: string): Promise<UsageLoginConfirmationAction> {
     if (!this.host.hasHostWindow()) return "cancel";
     const requestId = `usage-login-${randomUUID()}`;

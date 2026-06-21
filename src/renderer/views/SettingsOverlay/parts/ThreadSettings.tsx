@@ -25,6 +25,7 @@ export function ThreadSettings() {
   return (
     <SettingsPage title={t`Threads`}>
       <SettingRow
+        anchorId="threads.unloadIdleThreadsAfter"
         title={t`Unload idle threads after`}
         description={
           <Trans>
@@ -54,6 +55,7 @@ export function ThreadSettings() {
       </SettingRow>
 
       <SettingRow
+        anchorId="threads.autoArchiveDoneAfter"
         title={t`Auto-archive done threads after`}
         description={
           <Trans>
@@ -85,6 +87,7 @@ export function ThreadSettings() {
       </SettingRow>
 
       <SettingRow
+        anchorId="threads.defaultThreadRemoval"
         title={t`Default thread removal`}
         description={<Trans>Action for the quick-remove button on sidebar threads.</Trans>}
       >

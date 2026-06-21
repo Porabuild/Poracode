@@ -97,9 +97,12 @@ minimumReleaseAgeExclude:
   # 2026-06-15 Dependabot advisory batch: security patches published within the
   # 7-day guard window, adopted immediately (alerts #88-#102).
   - "@opentelemetry/core@2.8.0"
-  - "dompurify@3.4.10"
   - "protobufjs@7.6.4"
   - "form-data@4.0.6"
+  # 2026-06-18 Dependabot advisory batch: security patches published within the
+  # 7-day guard window, adopted immediately (alerts #129-#131).
+  - "dompurify@3.4.11"
+  - "undici@6.27.0 || 7.28.0"
   # 2026-06-16 Dependabot advisory batch: hono security patch published within
   # the 7-day guard window, adopted immediately (alerts #124-#128).
   - "hono@4.12.25"
@@ -120,8 +123,11 @@ overrides:
   "brace-expansion@>=5.0.0 <5.0.6": "^5.0.6"
   "esbuild@<0.28.1": "0.28.1"
   "shell-quote@<1.8.4": "^1.8.4"
+  "cross-spawn@<6.0.6": "6.0.6"
+  "@xmldom/xmldom@<0.8.13": "0.8.13"
+  # 2026-06-18 advisory batch.
+  "dompurify@>=3.0.0 <3.4.11": "3.4.11"
   # 2026-06-15 advisory batch (alerts #88-#102).
-  "dompurify@>=3.0.0 <3.4.10": "3.4.10"
   "@opentelemetry/core@>=2.0.0 <2.8.0": "2.8.0"
   "protobufjs@>=7.0.0 <7.6.4": "7.6.4"
   "form-data@>=4.0.0 <4.0.6": "4.0.6"
@@ -129,6 +135,12 @@ overrides:
   "vite@>=8.0.0 <8.0.16": "^8.0.16"
   "js-yaml@>=4.0.0 <4.2.0": "^4.2.0"
   "@babel/core@>=7.0.0 <7.29.6": "^7.29.6"
+  "postcss@<8.5.10": "8.5.10"
+  "mermaid@>=11.0.0-alpha.1 <=11.14.0": "11.15.0"
+  "joi@>=18.0.0 <18.2.1": "18.2.1"
+  # 2026-06-18 advisory batch.
+  "undici@>=6.0.0 <6.27.0": "6.27.0"
+  "undici@>=7.0.0 <7.28.0": "7.28.0"
   # 2026-06-16 advisory batch.
   # hono CORS wildcard-with-credentials + path traversal etc. (#124-#128).
   "hono@<4.12.25": "4.12.25"

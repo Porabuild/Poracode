@@ -192,5 +192,19 @@ export function createGrokAdapter(): AgentAdapter {
     shouldDeferPromptToTerminal() {
       return true;
     },
+
+    // One-shot (title / commit) generation reuses Grok's documented headless
+    // path: `grok -p <prompt>`. `--always-approve` keeps the non-interactive run
+    // from blocking on a tool-approval prompt it cannot answer (mirrors the
+    // launch/ACP bypass in argv.ts). Effort is intentionally not passed: it's
+    // headless-only and Grok does not surface effort tiers (see detection.ts).
+    defaultOneShotModel: "grok-build",
+    buildOneShotCommand(model, _effort, prompt) {
+      if (!prompt) return undefined;
+      const args = ["-p", prompt];
+      if (model) args.push("-m", model);
+      args.push("--always-approve");
+      return { command: "grok", args, stdin: "" };
+    },
   };
 }

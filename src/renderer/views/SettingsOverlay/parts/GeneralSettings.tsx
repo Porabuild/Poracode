@@ -41,6 +41,7 @@ export function GeneralSettings() {
   return (
     <SettingsPage title={t`General`}>
       <SettingRow
+        anchorId="general.language"
         title={t`Language`}
         description={<Trans>Choose the display language for Lightcode's interface.</Trans>}
       >
@@ -58,6 +59,7 @@ export function GeneralSettings() {
       </SettingRow>
 
       <SettingRow
+        anchorId="general.commitPrLanguage"
         title={t`Commit & PR language`}
         description={
           <Trans>
@@ -76,6 +78,7 @@ export function GeneralSettings() {
       </SettingRow>
 
       <SettingRow
+        anchorId="general.defaultNewThread"
         title={t`Default new thread`}
         description={<Trans>Open new threads as a full page or a side-by-side panel.</Trans>}
       >
@@ -93,6 +96,7 @@ export function GeneralSettings() {
       </SettingRow>
 
       <SettingRow
+        anchorId="general.homeScope"
         title={t`Home scope`}
         description={<Trans>Show a projectless Home scope for OS-level agent sessions.</Trans>}
       >
@@ -111,6 +115,7 @@ export function GeneralSettings() {
       </SettingRow>
 
       <SettingRow
+        anchorId="general.preventSleepWhileWorking"
         title={t`Prevent sleep while working`}
         description={<Trans>Keep the system awake while any thread is actively working.</Trans>}
       >
@@ -129,6 +134,7 @@ export function GeneralSettings() {
       </SettingRow>
 
       <SettingRow
+        anchorId="general.closeToTray"
         title={t`Close to tray`}
         description={
           <Trans>
@@ -152,6 +158,7 @@ export function GeneralSettings() {
       </SettingRow>
 
       <SettingRow
+        anchorId="general.editorLsp"
         title={t`Editor LSP`}
         description={
           <Trans>

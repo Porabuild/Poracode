@@ -69,6 +69,22 @@ describe("setAgentStatuses", () => {
     );
   });
 
+  it("replaces the array when only supportsOneShot flips (post-upgrade flag backfill)", () => {
+    // A status persisted before the flag existed lacks supportsOneShot; the
+    // freshly-detected one sets it. The store must adopt the fresh status so the
+    // one-shot AI selectors stop hiding a one-shot-capable provider.
+    const cached = makeStatus();
+    expect(cached.capabilities.supportsOneShot).toBeUndefined();
+    const fresh = makeStatus({
+      capabilities: { ...cached.capabilities, supportsOneShot: true },
+    });
+    useAgentStatusesStore.getState().hydrateFromCache({ windows: [cached], wsl: [] });
+    useAgentStatusesStore.getState().setAgentStatuses([fresh]);
+    expect(useAgentStatusesStore.getState().agentStatuses[0]?.capabilities.supportsOneShot).toBe(
+      true,
+    );
+  });
+
   it("flips windowsLoaded to true on first apply, ending first-launch discovery", () => {
     useAgentStatusesStore.setState({ inFirstLaunchDiscovery: true });
     useAgentStatusesStore.getState().setAgentStatuses([]);

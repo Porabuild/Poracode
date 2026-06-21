@@ -1523,6 +1523,26 @@ html[data-app-unfocused] .lightcode-provider-icon--finished {
   }
 }
 
+/* Transient highlight when the settings search scrolls to a specific setting.
+   Net-zero layout: the symmetric negative margin / padding keeps content in
+   place while the tinted band gets a little breathing room. Removed on
+   animationend so re-triggering the same setting flashes again. */
+.lightcode-setting-highlight {
+  animation: lightcode-setting-highlight 1.4s ease-out;
+  margin-inline: -0.5rem;
+  padding-inline: 0.5rem;
+  border-radius: 0.5rem;
+}
+
+@keyframes lightcode-setting-highlight {
+  0% {
+    background-color: color-mix(in oklab, var(--accent) 22%, transparent);
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+
 .lightcode-provider-icon--done {
   color: var(--muted);
 }

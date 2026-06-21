@@ -15,6 +15,7 @@ import {
   probeCodexCliSemver,
 } from "./plugin/install";
 import { buildCodexBrowserMcpArgs, buildCodexBrowserMcpEnv } from "./mcpBrowser";
+import { resolveCodexWindowsLaunchBinary } from "./windowsExecutable";
 
 const CODEX_GOALS_FEATURE_FLAG = "goals";
 const codexGoalsSupportCache = new Map<string, boolean>();
@@ -84,6 +85,7 @@ export function buildCodexArgvFor(
   sessionRef?: SessionRef,
   launchOptions?: AgentLaunchOptions,
 ): AgentArgvSpec {
+  const binary = resolveCodexWindowsLaunchBinary(location) ?? "codex";
   const browserMcpEnv = buildCodexBrowserMcpEnv(launchOptions?.browserMcp);
   const enableGoals = isCodexGoalsSupported(location);
   const baseArgsOptions: BuildCodexArgsOptions = {
@@ -106,7 +108,7 @@ export function buildCodexArgvFor(
         ]
       : baseArgs;
     return {
-      binary: "codex",
+      binary,
       args,
       ...(browserMcpEnv ? { env: browserMcpEnv } : {}),
     };
@@ -123,7 +125,7 @@ export function buildCodexArgvFor(
     : codexArgs;
 
   return {
-    binary: "codex",
+    binary,
     args,
     ...(browserMcpEnv ? { env: browserMcpEnv } : {}),
   };
@@ -175,7 +177,13 @@ export function buildCodexAppServerCommand(
       ],
     };
   }
-  return buildAgentCommand(location, "codex", args, wslExecPath, browserMcpEnv);
+  return buildAgentCommand(
+    location,
+    "codex",
+    args,
+    resolveCodexWindowsLaunchBinary(location) ?? wslExecPath,
+    browserMcpEnv,
+  );
 }
 
 function isCodexGoalsSupported(location: ProjectLocation, executablePath?: string): boolean {

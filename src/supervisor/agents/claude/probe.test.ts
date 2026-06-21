@@ -1,5 +1,8 @@
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { PassThrough } from "node:stream";
-import { describe, expect, it, vi, beforeEach } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type {
   Query,
   SDKMessage,
@@ -90,10 +93,20 @@ function createProbeQuery(): Query {
   } as unknown as Query;
 }
 
+const originalPlatform = process.platform;
+const tempDirs: string[] = [];
+
 beforeEach(() => {
   mockSdk.query.mockReset();
   mockChildProcess.spawn.mockReset();
   mockChildProcess.spawn.mockImplementation(() => makeSpawnedProcess());
+});
+
+afterEach(() => {
+  Object.defineProperty(process, "platform", { value: originalPlatform, configurable: true });
+  for (const dir of tempDirs.splice(0)) {
+    rmSync(dir, { recursive: true, force: true });
+  }
 });
 
 describe("claudeCapabilitiesFromCliVersion", () => {
@@ -150,6 +163,7 @@ describe("win32PathToWslMount", () => {
 
 describe("Claude SDK probe process handling", () => {
   it("contains probe-owned stdin EPIPE from the Claude SDK child", async () => {
+    Object.defineProperty(process, "platform", { value: "linux", configurable: true });
     mockSdk.query.mockImplementation((input: unknown) => {
       const params = input as {
         options?: {
@@ -201,5 +215,48 @@ describe("Claude SDK probe process handling", () => {
     });
 
     expect(() => child.stdin.emit("error", ebadfError())).toThrow("write EBADF");
+  });
+
+  it("wraps native Windows SDK .cmd shims instead of spawning them directly", () => {
+    Object.defineProperty(process, "platform", { value: "win32", configurable: true });
+    const dir = mkdtempSync(join(tmpdir(), "lightcode-claude-probe-shim-"));
+    tempDirs.push(dir);
+    const scriptPath = join(dir, "node_modules", "@anthropic-ai", "claude-code", "cli.mjs");
+    mkdirSync(join(scriptPath, ".."), { recursive: true });
+    writeFileSync(scriptPath, "", "utf8");
+    writeFileSync(join(dir, "node.exe"), "", "utf8");
+    const shimPath = join(dir, "claude.cmd");
+    writeFileSync(
+      shimPath,
+      [
+        "@ECHO off",
+        "SETLOCAL",
+        'endLocal & goto #_undefined_# 2>NUL || title %COMSPEC% & "%dp0%\\node.exe" "%dp0%\\node_modules\\@anthropic-ai\\claude-code\\cli.mjs" %*',
+      ].join("\r\n"),
+      "utf8",
+    );
+
+    spawnClaudeProbeProcess({
+      command: shimPath,
+      args: ["--sdk-mcp-server"],
+      cwd: "C:\\repo",
+      env: { FOO: "bar" },
+      signal: new AbortController().signal,
+    });
+
+    expect(mockChildProcess.spawn).toHaveBeenCalledOnce();
+    const [command, args, options] = mockChildProcess.spawn.mock.calls[0] as [
+      string,
+      string[],
+      Record<string, unknown>,
+    ];
+    expect(command).not.toBe(shimPath);
+    expect(args).not.toContain(shimPath);
+    expect(options).toMatchObject({
+      cwd: "C:\\repo",
+      env: expect.objectContaining({ FOO: "bar" }),
+      stdio: ["pipe", "pipe", "pipe"],
+      windowsHide: true,
+    });
   });
 });

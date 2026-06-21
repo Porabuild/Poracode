@@ -45,6 +45,16 @@ interface GitHubDeviceLoginConfig {
   scope: string;
 }
 
+interface LocalStorageLoginConfig {
+  kind: "local-storage";
+  /** Page the user signs in on (whose localStorage holds the session tokens). */
+  loginUrl: string;
+  /** A non-empty value for this localStorage key signals a completed login. */
+  requiredKey: string;
+  /** localStorage key → stored secret key. All present keys are sealed on success. */
+  store: Record<string, string>;
+}
+
 /**
  * The provider authenticates its usage API with a long-lived key the user pastes
  * in (z.ai). There is no browser/OAuth step — the key is sealed via
@@ -55,11 +65,16 @@ interface ApiKeyLoginConfig {
   kind: "api-key";
 }
 
-type ProviderLoginConfig = CookieLoginConfig | GitHubDeviceLoginConfig | ApiKeyLoginConfig;
+type ProviderLoginConfig =
+  | CookieLoginConfig
+  | GitHubDeviceLoginConfig
+  | LocalStorageLoginConfig
+  | ApiKeyLoginConfig;
 
 const PROVIDER_LABELS: Record<string, string> = {
   commandcode: "Command Code",
   copilot: "GitHub Copilot",
+  factory: "Droid",
   grok: "Grok",
   opencode: "OpenCode",
   zai: "z.ai",
@@ -82,6 +97,20 @@ const PROVIDER_CONFIGS: Record<string, ProviderLoginConfig> = {
     host: "github.com",
     clientId: "Iv1.b507a08c87ecfe98",
     scope: "read:user",
+  },
+  factory: {
+    kind: "local-storage",
+    loginUrl: "https://app.factory.ai/",
+    // app.factory.ai sets NO session cookie — it stores WorkOS AuthKit tokens in
+    // localStorage. Capture the rotating refresh token (the durable credential)
+    // plus the current access token; the collector exchanges/refreshes as needed.
+    // The refresh-token key only appears after a completed login, so its presence
+    // alone is a safe prompt gate (no private-endpoint probe — the Grok lesson).
+    requiredKey: "workos:refresh-token",
+    store: {
+      "workos:refresh-token": "refresh-token",
+      "workos:access-token": "access-token",
+    },
   },
   grok: {
     kind: "cookie",
@@ -220,6 +249,9 @@ export class UsageLoginManager {
     if (config.kind === "github-device") {
       return this.runGitHubDeviceLogin(providerId, config, panel);
     }
+    if (config.kind === "local-storage") {
+      return this.runLocalStorageLogin(providerId, config, panel);
+    }
     if (config.kind === "api-key") {
       // Unreachable: startLogin returns before calling runLogin for api-key
       // providers. Present only to narrow the union to CookieLoginConfig below.
@@ -242,6 +274,32 @@ export class UsageLoginManager {
       };
     }
     setUsageSecret(this.paths.cacheDir, providerId, "cookie", result.cookie);
+    return { ok: true };
+  }
+
+  private async runLocalStorageLogin(
+    providerId: string,
+    config: LocalStorageLoginConfig,
+    panel: BrowserPanelManager,
+  ): Promise<UsageLoginResult> {
+    const result = await panel.captureLoginLocalStorage({
+      loginUrl: config.loginUrl,
+      keys: Object.keys(config.store),
+      requiredKey: config.requiredKey,
+      timeoutMs: LOGIN_TIMEOUT_MS,
+      providerLabel: PROVIDER_LABELS[providerId] ?? providerId,
+    });
+    if (!result.ok || !result.values) {
+      return {
+        ok: false,
+        ...(result.cancelled ? { cancelled: true } : {}),
+        ...(result.error ? { error: result.error } : {}),
+      };
+    }
+    for (const [storageKey, secretKey] of Object.entries(config.store)) {
+      const value = result.values[storageKey];
+      if (value) setUsageSecret(this.paths.cacheDir, providerId, secretKey, value);
+    }
     return { ok: true };
   }
 

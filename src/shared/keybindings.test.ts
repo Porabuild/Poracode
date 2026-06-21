@@ -15,5 +15,8 @@ describe("DEFAULT_KEYBINDINGS", () => {
     expect(byCommand["editor.save"]?.when).toBe("editorFocus");
     expect(byCommand["thread.search.open"]?.when).toContain("!inputFocus");
     expect(byCommand["thread.search.open"]?.when).toContain("!panelFocus");
+    expect(byCommand["thread.star"]?.when).toContain("draftView");
+    expect(byCommand["thread.star"]?.when).toContain("!inputFocus");
+    expect(byCommand["thread.star"]?.when).toContain("!terminalFocus");
   });
 });

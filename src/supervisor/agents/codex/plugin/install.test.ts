@@ -1,7 +1,20 @@
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+const mockExecFileSync = vi.hoisted(() =>
+  vi.fn<(command: string, args?: string[], options?: Record<string, unknown>) => string | Buffer>(),
+);
+
+vi.mock("node:child_process", async () => {
+  const actual = await vi.importActual<typeof import("node:child_process")>("node:child_process");
+  return {
+    ...actual,
+    execFileSync: mockExecFileSync,
+  };
+});
+
 import {
   codexHooksFeatureFlagForSemver,
   getCodexPluginPaths,
@@ -9,6 +22,7 @@ import {
   isCodexSemverSupportedForHooks,
   mergeCodexHooksDocument,
   parseCodexVersionLine,
+  probeCodexCliSemver,
 } from "./install";
 import { buildNativeHookCommandHead } from "../../plugin/installerBase";
 
@@ -33,6 +47,16 @@ function commandFor(head: string, event: string): string {
   return `${head} ${event}`;
 }
 
+const originalPlatform = process.platform;
+
+beforeEach(() => {
+  mockExecFileSync.mockReset();
+});
+
+afterEach(() => {
+  Object.defineProperty(process, "platform", { value: originalPlatform, configurable: true });
+});
+
 describe("getCodexPluginPaths", () => {
   it("places Codex hooks under Lightcode's private CODEX_HOME", () => {
     const baseDir = mkdtempSync(join(tmpdir(), "lightcode-codex-paths-"));
@@ -43,6 +67,23 @@ describe("getCodexPluginPaths", () => {
     expect(paths.codexHooksPath).toBe(
       join(baseDir, "agent-plugins", "codex", "home", "hooks.json"),
     );
+  });
+});
+
+describe("probeCodexCliSemver", () => {
+  it("does not use shell:true for Windows version probes", () => {
+    Object.defineProperty(process, "platform", { value: "win32", configurable: true });
+    mockExecFileSync.mockReturnValue("codex-cli 0.130.0");
+
+    expect(probeCodexCliSemver()).toEqual([0, 130, 0]);
+
+    const options = mockExecFileSync.mock.calls[0]?.[2] as Record<string, unknown>;
+    expect(options).toMatchObject({
+      encoding: "utf8",
+      timeout: 8000,
+      windowsHide: true,
+    });
+    expect(options).not.toHaveProperty("shell");
   });
 });
 
