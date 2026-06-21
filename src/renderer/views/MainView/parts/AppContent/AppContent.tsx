@@ -389,7 +389,7 @@ export function AppContent() {
   );
 }
 
-async function primeWorktreeGitState(project: Project, worktreePath: string): Promise<void> {
+export async function primeWorktreeGitState(project: Project, worktreePath: string): Promise<void> {
   const worktreePaths = [
     ...new Set([...getProjectActiveWorktreePaths(project.id), worktreePath]),
   ].sort();
@@ -404,7 +404,11 @@ async function primeWorktreeGitState(project: Project, worktreePath: string): Pr
     .catch(() => undefined);
 }
 
-function runWorktreeSetupScript(project: Project, worktreePath: string, setupScript: string): void {
+export function runWorktreeSetupScript(
+  project: Project,
+  worktreePath: string,
+  setupScript: string,
+): void {
   // Blank / comments-only scripts have nothing to run — skip the terminal
   // entirely rather than leaving an idle "setup" shell behind.
   if (!normalizeShellScript(setupScript)) return;

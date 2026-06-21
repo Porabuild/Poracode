@@ -29,7 +29,9 @@ import {
 } from "../attachments/localFiles";
 import { createProjectDirectory } from "../projectDirectory";
 import { readSharedSettingsFile, writeSharedSettingsFile } from "../sharedSettingsFile";
+import type { RemoteGitSummaries } from "@/shared/remote";
 import { readKeybindingsFile } from "../keybindingsFile";
+import type { RemoteAccessServer } from "../remote";
 import type { AutoUpdaterController } from "../updates/autoUpdater";
 import {
   defineMainLocalIpcHandlers,
@@ -42,10 +44,13 @@ import { UsageLoginManager } from "../usageLogin/UsageLoginManager";
 interface CreateLocalIpcHandlersOptions {
   getMainWindow(): BrowserWindow | null;
   getBrowserPanelManager(): BrowserPanelManager | null;
+  getRemoteAccessServer(): RemoteAccessServer | null;
   requireLightcodePaths(): LightcodePaths;
   updatePowerSaveBlocker(): void;
   autoUpdater: AutoUpdaterController;
   onSharedSettingsChanged?(): void;
+  /** Per-thread git/PR summaries mirrored from the renderer for remote clients. */
+  onRemoteGitSummaries?(summaries: RemoteGitSummaries): void;
 }
 
 function requireBrowserPanel(getter: () => BrowserPanelManager | null): BrowserPanelManager {
@@ -131,8 +136,35 @@ export function createLocalIpcHandlers(
         ? { kind: "windows", path: homedir() }
         : { kind: "posix", path: homedir() },
     getKeybindings: () => readKeybindingsFile(options.requireLightcodePaths().keybindingsPath),
+    getRemoteAccessPairing: () => {
+      const server = options.getRemoteAccessServer();
+      if (!server) {
+        return { status: "disabled" };
+      }
+      const info = server.getInfo();
+      if (!info) {
+        return { status: "starting" };
+      }
+      return {
+        status: "ready",
+        httpBaseUrl: info.httpBaseUrl,
+        wsBaseUrl: info.wsBaseUrl,
+        pairingUrl: server.issuePairingUrl("Settings QR"),
+        sessions: server.listAccessSessions(),
+      };
+    },
+    revokeRemoteAccessSession: (payload) => {
+      const server = options.getRemoteAccessServer();
+      if (!server) {
+        return { revoked: false };
+      }
+      return { revoked: server.revokeAccessSession(payload.sessionId) };
+    },
     revealProjectEntry: async (payload) => {
       shell.showItemInFolder(resolveProjectFsPath(payload));
+    },
+    publishRemoteGitSummaries: (payload) => {
+      options.onRemoteGitSummaries?.(payload.summaries);
     },
     getSharedSettings: () => readSharedSettingsFile(options.requireLightcodePaths().settingsPath),
     setSharedSettings: (settings) => {

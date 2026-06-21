@@ -28,6 +28,13 @@ interface AudioCapture {
   stream: MediaStream;
 }
 
+export interface VoiceInputButtonProps {
+  isDisabled?: boolean;
+  onTranscript: (text: string) => void;
+  onTranscriptPreview?: (text: string) => void;
+  onTranscriptCancel?: () => void;
+}
+
 function createAudioContext(): AudioContext {
   const AudioContextCtor =
     window.AudioContext ??
@@ -45,12 +52,7 @@ function formatDownloadProgress(progress: VoiceTranscriptionProgress): string {
   return "Downloading voice model...";
 }
 
-export function VoiceInputButton(props: {
-  isDisabled?: boolean;
-  onTranscript: (text: string) => void;
-  onTranscriptPreview?: (text: string) => void;
-  onTranscriptCancel?: () => void;
-}) {
+export function VoiceInputButton(props: VoiceInputButtonProps) {
   const { isDisabled = false, onTranscript, onTranscriptPreview, onTranscriptCancel } = props;
   const [downloadProgress, setDownloadProgress] = useState<VoiceTranscriptionProgress | null>(null);
   const [state, setState] = useState<VoiceInputState>("idle");

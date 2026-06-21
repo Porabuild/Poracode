@@ -1,6 +1,7 @@
 import { startTransition } from "react";
 import { Switch } from "@heroui/react";
 import type { NewThreadMode } from "@/shared/contracts";
+import { isRemoteSession } from "@/renderer/bridge";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { Select } from "@/renderer/components/common";
 import { SettingRow, SettingsPage } from "./SettingsForm";
@@ -19,6 +20,9 @@ export function GeneralSettings() {
   const setHomeScopeEnabled = useSharedSettings((state) => state.setHomeScopeEnabled);
   const editorLspEnabled = useSharedSettings((state) => state.editorLspEnabled);
   const setEditorLspEnabled = useSharedSettings((state) => state.setEditorLspEnabled);
+  // System sleep and tray behavior belong to the desktop OS; a remote session
+  // can't affect them, so hide the rows there.
+  const remote = isRemoteSession();
 
   return (
     <SettingsPage title="General">
@@ -57,41 +61,45 @@ export function GeneralSettings() {
         </Switch>
       </SettingRow>
 
-      <SettingRow
-        title="Prevent sleep while working"
-        description="Keep the system awake while any thread is actively working."
-      >
-        <Switch
-          isSelected={preventSleepWhileWorking}
-          onChange={(selected) => {
-            startTransition(() => {
-              setPreventSleepWhileWorking(selected);
-            });
-          }}
+      {!remote && (
+        <SettingRow
+          title="Prevent sleep while working"
+          description="Keep the system awake while any thread is actively working."
         >
-          <Switch.Control>
-            <Switch.Thumb />
-          </Switch.Control>
-        </Switch>
-      </SettingRow>
+          <Switch
+            isSelected={preventSleepWhileWorking}
+            onChange={(selected) => {
+              startTransition(() => {
+                setPreventSleepWhileWorking(selected);
+              });
+            }}
+          >
+            <Switch.Control>
+              <Switch.Thumb />
+            </Switch.Control>
+          </Switch>
+        </SettingRow>
+      )}
 
-      <SettingRow
-        title="Close to tray"
-        description="When you close the window, keep Lightcode running in the system tray. Disable to quit on close."
-      >
-        <Switch
-          isSelected={closeToTray}
-          onChange={(selected) => {
-            startTransition(() => {
-              setCloseToTray(selected);
-            });
-          }}
+      {!remote && (
+        <SettingRow
+          title="Close to tray"
+          description="When you close the window, keep Lightcode running in the system tray. Disable to quit on close."
         >
-          <Switch.Control>
-            <Switch.Thumb />
-          </Switch.Control>
-        </Switch>
-      </SettingRow>
+          <Switch
+            isSelected={closeToTray}
+            onChange={(selected) => {
+              startTransition(() => {
+                setCloseToTray(selected);
+              });
+            }}
+          >
+            <Switch.Control>
+              <Switch.Thumb />
+            </Switch.Control>
+          </Switch>
+        </SettingRow>
+      )}
 
       <SettingRow
         title="Editor LSP"

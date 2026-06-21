@@ -1,12 +1,13 @@
 import { useState } from "react";
 import { AlertDialog, Button } from "@heroui/react";
-import { ChevronDown, ChevronRight, Minus, Plus, Undo2 } from "lucide-react";
+import { ChevronDown, ChevronRight, Minus, MoreVertical, Plus, Undo2 } from "lucide-react";
 import type { GitFileChange, Project } from "@/shared/contracts";
 import { readBridge } from "@/renderer/bridge";
 import { useGitStore } from "@/renderer/state/gitStore";
 import { compareFilesByDirThenName } from "@/renderer/utils/gitHelpers";
 import { StackedFileCard } from "../../GitStackedDiff";
 import { useGitReviewRowPadX } from "../gitReviewPadXContext";
+import { useGitTouch } from "../gitTouchContext";
 import { FileRow } from "./FileRow";
 
 export function FileGroup(props: {
@@ -44,9 +45,12 @@ export function FileGroup(props: {
     wrapLines,
   } = props;
   const rowPadX = useGitReviewRowPadX();
+  const touch = useGitTouch();
   const [expanded, setExpanded] = useState(true);
   const [revertAllOpen, setRevertAllOpen] = useState(false);
   const inlineDiffs = mode === "panel";
+  const totalInsertions = files.reduce((s, f) => s + f.insertions, 0);
+  const totalDeletions = files.reduce((s, f) => s + f.deletions, 0);
 
   async function handleStageAll() {
     useGitStore.getState().optimisticStageAll(storeKey, isWorktree);
@@ -94,45 +98,60 @@ export function FileGroup(props: {
           <span className="font-normal text-muted/60">({count})</span>
         </button>
         <span className="ml-auto flex items-center gap-0.5">
-          <span className="mr-1.5 flex items-center gap-0.5 text-[10px] leading-4 font-medium font-normal group-hover/header:hidden">
-            {files.reduce((s, f) => s + f.insertions, 0) > 0 && (
-              <span className="text-success">+{files.reduce((s, f) => s + f.insertions, 0)}</span>
-            )}
-            {files.reduce((s, f) => s + f.deletions, 0) > 0 && (
-              <span className="text-danger">-{files.reduce((s, f) => s + f.deletions, 0)}</span>
-            )}
-          </span>
-          <span className="hidden items-center gap-0.5 group-hover/header:flex">
-            {staged ? (
+          {touch ? (
+            <>
+              <span className="mr-1 flex items-center gap-0.5 text-[11px] leading-4 font-medium font-normal tabular-nums">
+                {totalInsertions > 0 && <span className="text-success">+{totalInsertions}</span>}
+                {totalDeletions > 0 && <span className="text-danger">-{totalDeletions}</span>}
+              </span>
               <button
                 type="button"
-                className="rounded p-0.5 text-muted transition-colors hover:bg-[var(--row-hover)] hover:text-foreground"
-                title="Unstage all"
-                onClick={() => void handleUnstageAll()}
+                aria-label={`${title} actions`}
+                className="rounded p-1 text-muted/70 active:bg-[var(--row-hover)]"
+                onClick={() => touch.openGroupMenu({ title, staged })}
               >
-                <Minus className="size-3" />
+                <MoreVertical className="size-4" />
               </button>
-            ) : (
-              <>
-                <button
-                  type="button"
-                  className="rounded p-0.5 text-muted transition-colors hover:bg-[var(--row-hover)] hover:text-foreground"
-                  title="Stage all"
-                  onClick={() => void handleStageAll()}
-                >
-                  <Plus className="size-3" />
-                </button>
-                <button
-                  type="button"
-                  className="rounded p-0.5 text-muted transition-colors hover:bg-danger/10 hover:text-danger"
-                  title="Revert all"
-                  onClick={() => setRevertAllOpen(true)}
-                >
-                  <Undo2 className="size-3" />
-                </button>
-              </>
-            )}
-          </span>
+            </>
+          ) : (
+            <>
+              <span className="mr-1.5 flex items-center gap-0.5 text-[10px] leading-4 font-medium font-normal group-hover/header:hidden">
+                {totalInsertions > 0 && <span className="text-success">+{totalInsertions}</span>}
+                {totalDeletions > 0 && <span className="text-danger">-{totalDeletions}</span>}
+              </span>
+              <span className="hidden items-center gap-0.5 group-hover/header:flex">
+                {staged ? (
+                  <button
+                    type="button"
+                    className="rounded p-0.5 text-muted transition-colors hover:bg-[var(--row-hover)] hover:text-foreground"
+                    title="Unstage all"
+                    onClick={() => void handleUnstageAll()}
+                  >
+                    <Minus className="size-3" />
+                  </button>
+                ) : (
+                  <>
+                    <button
+                      type="button"
+                      className="rounded p-0.5 text-muted transition-colors hover:bg-[var(--row-hover)] hover:text-foreground"
+                      title="Stage all"
+                      onClick={() => void handleStageAll()}
+                    >
+                      <Plus className="size-3" />
+                    </button>
+                    <button
+                      type="button"
+                      className="rounded p-0.5 text-muted transition-colors hover:bg-danger/10 hover:text-danger"
+                      title="Revert all"
+                      onClick={() => setRevertAllOpen(true)}
+                    >
+                      <Undo2 className="size-3" />
+                    </button>
+                  </>
+                )}
+              </span>
+            </>
+          )}
         </span>
       </div>
 

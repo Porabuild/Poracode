@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Lightcode">
+  <defs>
+    <linearGradient id="lc-bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1b2433" />
+      <stop offset="1" stop-color="#0d1018" />
+    </linearGradient>
+    <linearGradient id="lc-bar" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#7ef3ff" />
+      <stop offset="1" stop-color="#22cfe6" />
+    </linearGradient>
+    <filter id="lc-glow" x="-80%" y="-80%" width="260%" height="260%">
+      <feGaussianBlur stdDeviation="16" result="b" />
+      <feMerge>
+        <feMergeNode in="b" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#lc-bg)" />
+  <g filter="url(#lc-glow)">
+    <rect x="234" y="148" width="44" height="216" rx="22" fill="url(#lc-bar)" />
+  </g>
+</svg>

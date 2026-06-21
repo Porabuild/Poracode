@@ -69,6 +69,9 @@ export function GitReviewSidebar(props: {
   statusKey?: string | undefined;
   mode?: "overlay" | "panel";
   wrapLines?: boolean;
+  /** Hide the desktop "Return to app / Hide sidebar" footer (mobile shells
+   * provide their own navigation chrome). */
+  hideFooterNav?: boolean;
 }) {
   const {
     project,
@@ -87,6 +90,7 @@ export function GitReviewSidebar(props: {
     statusKey,
     mode = "overlay",
     wrapLines = false,
+    hideFooterNav = false,
   } = props;
   const storeKey = statusKey ?? project.id;
   const isWorktreeStatus = Boolean(statusKey);
@@ -632,7 +636,7 @@ export function GitReviewSidebar(props: {
             </Modal.Backdrop>
           )}
 
-          {mode !== "panel" && (
+          {mode !== "panel" && !hideFooterNav && (
             <div className={sidebarFooterNavClass}>
               <SidebarButton
                 icon={<ArrowLeft className="size-4" />}

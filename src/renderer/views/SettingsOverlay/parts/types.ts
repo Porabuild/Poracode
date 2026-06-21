@@ -9,6 +9,7 @@ export type SettingsSection =
   | "ai"
   | "acpRegistry"
   | "agentsGeneral"
+  | "remoteAccess"
   | "search"
   | "agents"
   | "browser"

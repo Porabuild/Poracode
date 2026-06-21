@@ -44,6 +44,23 @@ describe("appStore runtime config sync", () => {
     expect(useAppStore.getState().threads[0]?.config.effort).toBe("high");
   });
 
+  it("tags an existing thread with worktree metadata (set-worktree command path)", () => {
+    const project = useAppStore.getState().addProject({ kind: "posix", path: "/repo" });
+    const thread = useAppStore.getState().createThread({
+      projectId: project.id,
+      agentKind: "claude",
+      config: { model: "sonnet" },
+      prompt: "hi",
+    });
+    expect(useAppStore.getState().threads[0]?.worktreePath).toBeUndefined();
+
+    useAppStore.getState().setThreadWorktree(thread.id, "/repo/wt", "feature/x");
+
+    const updated = useAppStore.getState().threads.find((t) => t.id === thread.id);
+    expect(updated?.worktreePath).toBe("/repo/wt");
+    expect(updated?.worktreeBranch).toBe("feature/x");
+  });
+
   it("ensures the hidden Home project without replacing its draft config", () => {
     const location = { kind: "windows" as const, path: "C:\\Users\\demo" };
     const first = useAppStore.getState().ensureHomeProject(location);

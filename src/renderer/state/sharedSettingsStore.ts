@@ -593,6 +593,17 @@ function selectSharedSettings(state: SharedSettingsState): SharedSettingsInput {
   };
 }
 
+/**
+ * Applies settings that changed outside this renderer's setters — a remote
+ * client editing desktop settings, or (in the PWA) the paired desktop's
+ * values arriving over the remote API. Updates the store and the local cache
+ * WITHOUT writing back through the bridge, so external updates never echo.
+ */
+export function applyExternalSharedSettings(partial: Partial<SharedSettings>): void {
+  useSharedSettings.setState((state) => ({ ...state, ...partial }));
+  cacheSettingsSnapshot(selectSharedSettings(useSharedSettings.getState()));
+}
+
 if (hasBridge()) {
   void readBridge()
     .getSharedSettings()

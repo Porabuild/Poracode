@@ -26,7 +26,8 @@ import { setRendererRuntimeDiagnosticContext } from "@/renderer/diagnostics/sent
 import { macosTrafficLightPadClass } from "@/renderer/components/layout/sidebarChrome";
 import type { TerminalPaneHandle } from "./TerminalPane";
 import { ContinueInProviderDialog } from "./ContinueInProviderDialog";
-import { GuiThreadContent, TerminalThreadContent } from "./ThreadContent";
+import { GuiThreadContent } from "./ThreadContent";
+import { TerminalThreadContent } from "./TerminalThreadContent";
 import { ThreadHeaderStatusButton } from "./ThreadHeaderStatus";
 
 const DEFAULT_HIDDEN_TERMINAL_SIZE: TerminalSize = { cols: 120, rows: 30 };

@@ -542,7 +542,7 @@ export interface PersistedRuntimeItem {
   id: string;
   type: string;
   state: "started" | "updated" | "completed";
-  payload: unknown;
+  payload?: unknown;
   streams: Record<string, string>;
   parentItemId?: string | undefined;
 }

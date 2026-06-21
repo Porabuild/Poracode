@@ -10,6 +10,16 @@ import {
 } from "./notifications";
 
 import { useAppStore } from "./state/appStore";
+import {
+  archiveThread,
+  deleteThread,
+  renameThread,
+  toggleMarkThreadDone,
+  toggleStarThread,
+} from "./actions/threadActions";
+import { installRemoteGitSummaryPublisher } from "./remoteGitSummaries";
+import { applyExternalSharedSettings } from "./state/sharedSettingsStore";
+import { normalizeSharedSettings } from "@/shared/settings";
 import { useDevTerminalStore } from "./state/devTerminalStore";
 import { useAgentStatusesStore } from "./state/agentStatusesStore";
 import { useProviderUsageStore } from "./state/providerUsageStore";
@@ -20,6 +30,10 @@ import { clearRuntimeItemStoreSelectorCacheForThread } from "./components/thread
 import { useAppHydration } from "@/renderer/hooks/useAppHydration";
 import { AppProvider } from "./components/ui/provider";
 import { MainView } from "@/renderer/views/MainView/MainView";
+import {
+  primeWorktreeGitState,
+  runWorktreeSetupScript,
+} from "@/renderer/views/MainView/parts/AppContent/AppContent";
 import { CommandPalette } from "@/renderer/commands/CommandPalette";
 import {
   captureAppStarted,
@@ -209,7 +223,60 @@ const unsubUpdate = readBridge().onUpdateStatus((status) => {
   }
 });
 
+// Thread-metadata commands issued from paired remote clients (mobile PWA).
+// They run through the same actions as local edits so persistence and
+// side effects (unload on archive, …) stay identical.
+const unsubRemoteThreadCommand = readBridge().onRemoteThreadCommand((command) => {
+  const thread = useAppStore.getState().threads.find((t) => t.id === command.threadId);
+  if (!thread) return;
+  switch (command.kind) {
+    case "rename":
+      renameThread(command.threadId, command.title);
+      break;
+    case "set-done":
+      if (thread.done !== command.done) toggleMarkThreadDone(command.threadId);
+      break;
+    case "set-starred":
+      if ((thread.starred ?? false) !== command.starred) toggleStarThread(command.threadId);
+      break;
+    case "set-worktree": {
+      useAppStore
+        .getState()
+        .setThreadWorktree(command.threadId, command.worktreePath, command.worktreeBranch);
+      // A freshly-created remote worktree needs the same desktop-side follow-up
+      // a local "new thread in worktree" gets: prime its git state and run the
+      // project setup script.
+      if (command.isNewWorktree) {
+        const project = useAppStore.getState().projects.find((p) => p.id === thread.projectId);
+        if (project) {
+          void primeWorktreeGitState(project, command.worktreePath);
+          const setupScript = project.scripts?.setupScript;
+          if (setupScript) runWorktreeSetupScript(project, command.worktreePath, setupScript);
+        }
+      }
+      break;
+    }
+    case "archive":
+      archiveThread(command.threadId);
+      break;
+    case "unarchive":
+      useAppStore.getState().unarchiveThread(command.threadId);
+      break;
+    case "delete":
+      // Thread-only delete: remote clients never trigger worktree removal.
+      deleteThread(command.threadId);
+      break;
+  }
+});
+
+// Settings rewritten outside this renderer (remote clients editing desktop
+// settings over the remote API) — apply without echoing a persist.
+const unsubSharedSettingsChanged = readBridge().onSharedSettingsChanged((settings) => {
+  applyExternalSharedSettings(normalizeSharedSettings(settings));
+});
+
 const uninstallRuntimePersister = installRuntimeItemsPersister();
+const uninstallRemoteGitSummaries = installRemoteGitSummaryPublisher();
 let uninstallProductAnalytics: (() => void) | null = null;
 let productAnalyticsStarted = false;
 
@@ -217,7 +284,10 @@ if (import.meta.hot) {
   import.meta.hot.dispose(() => {
     unsubSupervisor();
     unsubUpdate();
+    unsubRemoteThreadCommand();
+    unsubSharedSettingsChanged();
     uninstallRuntimePersister();
+    uninstallRemoteGitSummaries();
     if (runtimeFlushHandle !== null) {
       cancelAnimationFrame(runtimeFlushHandle);
       runtimeFlushHandle = null;

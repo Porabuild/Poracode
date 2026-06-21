@@ -87,6 +87,7 @@ vi.mock("@/renderer/views/MainView/parts/AppShell/AppShell", () => ({
 
 vi.mock("@/renderer/bridge", () => ({
   isDevApp: () => false,
+  isRemoteSession: () => false,
   isWindows: () => false,
   readBridge: () => ({
     refreshAgentStatuses: refreshAgentStatusesMock,

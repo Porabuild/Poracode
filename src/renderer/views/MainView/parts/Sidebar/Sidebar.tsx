@@ -8,6 +8,7 @@ import {
   RefreshCw,
   Search,
   Settings2,
+  Smartphone,
 } from "lucide-react";
 import { startTransition, useEffect } from "react";
 import { useShallow } from "zustand/shallow";
@@ -28,7 +29,7 @@ import { SIDEBAR_MIN_WIDTH } from "@/renderer/views/MainView/parts/AppShell/part
 import { SidebarPanelDragButton } from "@/renderer/views/MainView/parts/Sidebar/parts/SidebarPanelDragButton";
 import { SidebarProjectSection } from "@/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectSection";
 import { readBridge } from "@/renderer/bridge";
-import { openSettings } from "@/renderer/actions/panelActions";
+import { openRemoteAccessSettings, openSettings } from "@/renderer/actions/panelActions";
 import { ProviderUsageRail } from "@/renderer/components/providers/ProviderUsageRail";
 import { openTerminal } from "@/renderer/actions/terminalActions";
 import { openThread } from "@/renderer/actions/threadActions";
@@ -201,6 +202,12 @@ export function Sidebar() {
   const currentProjectId = useCurrentProjectId();
   const currentWorktreePath = useCurrentWorktreePath();
   const sortMode = usePanelStore((s) => s.threadSortMode);
+  const settingsOpen = usePanelStore((s) => s.settingsOpen);
+  const settingsSection = usePanelStore((s) => s.settingsSection);
+  // Remote Access has its own sidebar entry, so the generic Settings button
+  // lights up for every other section.
+  const remoteAccessSettingsActive = settingsOpen && settingsSection === "remoteAccess";
+  const otherSettingsActive = settingsOpen && !remoteAccessSettingsActive;
   const threadSearchOpen = usePanelStore((s) => s.threadSearchOpen);
   const openThreadSearch = usePanelStore((s) => s.openThreadSearch);
   const isHomeProjectCollapsed = useSidebarUiStore((s) =>
@@ -258,7 +265,15 @@ export function Sidebar() {
               iconOnly
               icon={<Settings2 className="size-4" />}
               label="Settings"
+              isActive={otherSettingsActive}
               onPress={openSettings}
+            />
+            <SidebarButton
+              iconOnly
+              icon={<Smartphone className="size-4" />}
+              label="Remote Access"
+              isActive={remoteAccessSettingsActive}
+              onPress={openRemoteAccessSettings}
             />
             <SidebarButton
               iconOnly
@@ -326,11 +341,23 @@ export function Sidebar() {
         <ProviderUsageRail orientation="row" />
         <div className={sidebarFooterNavClass}>
           <UpdateButtons />
-          <SidebarButton
-            icon={<Settings2 className="size-4" />}
-            label="Settings"
-            onPress={openSettings}
-          />
+          <div className="flex items-center gap-1">
+            <div className="min-w-0 flex-1">
+              <SidebarButton
+                icon={<Settings2 className="size-4" />}
+                label="Settings"
+                isActive={otherSettingsActive}
+                onPress={openSettings}
+              />
+            </div>
+            <SidebarButton
+              iconOnly
+              icon={<Smartphone className="size-4" />}
+              label="Remote Access"
+              isActive={remoteAccessSettingsActive}
+              onPress={openRemoteAccessSettings}
+            />
+          </div>
           <SidebarButton
             icon={<PanelLeftClose className="size-4" />}
             label="Hide sidebar"

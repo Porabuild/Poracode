@@ -131,6 +131,9 @@ const { bridge } = vi.hoisted(() => ({
     onUpdateStatus: vi.fn<() => () => void>(() => () => undefined),
     listAcpRegistry: vi.fn<() => Promise<unknown>>().mockResolvedValue([]),
     onBrowserEvent: vi.fn<() => () => void>(() => () => undefined),
+    onRemoteThreadCommand: vi.fn<() => () => void>(() => () => undefined),
+    onSharedSettingsChanged: vi.fn<() => () => void>(() => () => undefined),
+    publishRemoteGitSummaries: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
     browserGetState: vi
       .fn<() => Promise<{ tabs: []; activeTabId: null }>>()
       .mockResolvedValue({ tabs: [], activeTabId: null }),

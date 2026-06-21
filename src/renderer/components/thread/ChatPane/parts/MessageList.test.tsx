@@ -58,8 +58,16 @@ const {
   getTotalSizeMock: vi.fn<() => number>(),
 }));
 
+const { isIosTouchScrollMock } = vi.hoisted(() => ({
+  isIosTouchScrollMock: vi.fn<() => boolean>(() => false),
+}));
+
 vi.mock("@tanstack/react-virtual", () => ({
   useVirtualizer: useVirtualizerMock,
+}));
+
+vi.mock("@/renderer/utils/iosScroll", () => ({
+  isIosTouchScroll: isIosTouchScrollMock,
 }));
 
 vi.mock("./items/ChatItemRow", () => ({
@@ -76,6 +84,9 @@ vi.mock("./items/ChatItemRow", () => ({
 describe("MessageList", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // Default to the non-iOS (desktop) path; iOS-specific tests opt in.
+    // `clearAllMocks` resets call history but not the return value, so reset here.
+    isIosTouchScrollMock.mockReturnValue(false);
     useAppStore.setState((state) => ({
       ...state,
       runtimeItemIdsByThread: {},
@@ -185,6 +196,80 @@ describe("MessageList", () => {
 
     commit();
     expect(scrollElement.scrollTop).toBe(80);
+  });
+
+  it("defers above-viewport upward-scroll compensation on iOS until scrollend", () => {
+    isIosTouchScrollMock.mockReturnValue(true);
+    const { scrollElement, shouldAdjust, commit } = renderCompensationList();
+
+    scrollElement.scrollTop = 120;
+    expect(
+      shouldAdjust({ start: 0, size: 80 }, -40, {
+        isScrolling: true,
+        scrollDirection: "backward",
+      }),
+    ).toBe(false);
+
+    commit();
+    // Buffered, not written: a mid-momentum scrollTop write would cancel the
+    // iOS inertial scroll.
+    expect(scrollElement.scrollTop).toBe(120);
+
+    // Once the scroll settles, the buffered delta lands in a single write.
+    scrollElement.dispatchEvent(new Event("scrollend"));
+    expect(scrollElement.scrollTop).toBe(80);
+  });
+
+  it("flushes the deferred iOS compensation once the scroll idles", () => {
+    vi.useFakeTimers();
+    isIosTouchScrollMock.mockReturnValue(true);
+    try {
+      const { scrollElement, shouldAdjust, commit } = renderCompensationList();
+
+      scrollElement.scrollTop = 120;
+      shouldAdjust({ start: 0, size: 80 }, -40, {
+        isScrolling: true,
+        scrollDirection: "backward",
+      });
+      commit();
+      expect(scrollElement.scrollTop).toBe(120);
+
+      // Each scroll tick re-arms the settle timer; it fires only once momentum
+      // stops emitting scroll events.
+      scrollElement.dispatchEvent(new Event("scroll"));
+      vi.advanceTimersByTime(149);
+      expect(scrollElement.scrollTop).toBe(120);
+      vi.advanceTimersByTime(1);
+      expect(scrollElement.scrollTop).toBe(80);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("still writes the bottom-sticky compensation immediately on iOS", () => {
+    isIosTouchScrollMock.mockReturnValue(true);
+    const actions = {
+      openProjectRelativePath: vi.fn<(path: string, lineNumber?: number) => void>(),
+      revealProjectFolderInTree: vi.fn<(path: string) => void>(),
+      showProjectEntryInExplorer: vi.fn<(path: string) => void>(),
+      onContentHeightChange: vi.fn<() => void>(),
+      isStickToBottom: vi.fn<() => boolean>().mockReturnValue(true),
+      projectLocation: { kind: "windows" as const, path: "C:\\repo" },
+      projectRootNames: new Set<string>(),
+    };
+    const { scrollElement, shouldAdjust, commit } = renderCompensationList(actions);
+
+    // Below-viewport streaming row while pinned: never deferred (no upward
+    // momentum at the bottom), so the pin stays tight.
+    expect(
+      shouldAdjust({ start: 96, size: 100 }, 24, {
+        isScrolling: true,
+        scrollDirection: "forward",
+      }),
+    ).toBe(false);
+
+    commit();
+    expect(scrollElement.scrollTop).toBe(184);
   });
 
   it("compensates streaming row height changes when bottom-sticky", () => {

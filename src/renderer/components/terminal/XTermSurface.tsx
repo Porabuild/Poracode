@@ -77,6 +77,22 @@ export const XTermSurface = forwardRef<
     className?: string;
     baseFontSize?: number;
     openLinksInNativeBrowser?: boolean;
+    /**
+     * Pluggable output feed. When provided (the remote PWA), the surface gets
+     * PTY bytes / reset / exit through this subscription instead of the local
+     * supervisor IPC event stream. Returns an unsubscribe.
+     */
+    outputSource?: (listener: {
+      onOutput: (data: string) => void;
+      onReset: () => void;
+      onExited: (exitCode: number | null) => void;
+    }) => () => void;
+    /**
+     * Initial scrollback to hydrate with, instead of reading it over the bridge
+     * (the PWA already has it from the thread snapshot, or none for a fresh
+     * shell). An empty string hydrates nothing but still skips the bridge read.
+     */
+    initialScrollback?: string;
   }
 >(function XTermSurface(props, ref) {
   const {
@@ -91,6 +107,8 @@ export const XTermSurface = forwardRef<
     className,
     baseFontSize = 12,
     openLinksInNativeBrowser = false,
+    outputSource,
+    initialScrollback,
   } = props;
   const appearance = useResolvedAppearance();
   const themePreset = useSharedSettings((state) => state.themePreset);
@@ -173,6 +191,20 @@ export const XTermSurface = forwardRef<
       const token = ++scrollbackHydrationToken;
       hydratingScrollback = true;
       bufferedOutputDuringHydration = "";
+      // Caller-supplied scrollback (the PWA) hydrates synchronously — no bridge
+      // round-trip, so live output that arrives next isn't buffered/lost.
+      if (initialScrollback !== undefined) {
+        if (initialScrollback.length > 0) {
+          terminal.reset();
+          terminal.write(initialScrollback);
+        }
+        hydratingScrollback = false;
+        if (bufferedOutputDuringHydration.length > 0) {
+          terminal.write(bufferedOutputDuringHydration);
+          bufferedOutputDuringHydration = "";
+        }
+        return;
+      }
       void readBridge()
         .readTerminalScrollback({ threadId: terminalId })
         .then((scrollback) => {
@@ -493,26 +525,32 @@ export const XTermSurface = forwardRef<
     });
     resizeObserver.observe(mount);
 
-    // Subscribe to supervisor events - this stays alive for the terminal's entire lifecycle
-    const unsubscribe = readBridge().onSupervisorEvent((event) => {
-      if (event.type === "thread-reset" && event.threadId === terminalId) {
-        resetForNewPty();
+    // Terminal lifecycle feed (stays alive for the terminal's whole lifecycle).
+    // Output/reset/exit handlers are shared between the local supervisor IPC
+    // stream (desktop) and a caller-provided feed (the remote PWA's WebSocket).
+    const handleReset = () => resetForNewPty();
+    const handleOutput = (data: string) => {
+      if (hydratingScrollback) {
+        bufferedOutputDuringHydration += data;
         return;
       }
+      terminal.write(data);
+    };
+    const handleExited = (exitCode: number | null) => {
+      onExitedRef.current?.(exitCode);
+    };
 
-      if (event.type === "thread-output" && event.threadId === terminalId) {
-        if (hydratingScrollback) {
-          bufferedOutputDuringHydration += event.data;
-          return;
-        }
-        terminal.write(event.data);
-        return;
-      }
-
-      if (event.type === "thread-exited" && event.threadId === terminalId) {
-        onExitedRef.current?.(event.exitCode);
-      }
-    });
+    const unsubscribe = outputSource
+      ? outputSource({ onOutput: handleOutput, onReset: handleReset, onExited: handleExited })
+      : readBridge().onSupervisorEvent((event) => {
+          if (event.type === "thread-reset" && event.threadId === terminalId) {
+            handleReset();
+          } else if (event.type === "thread-output" && event.threadId === terminalId) {
+            handleOutput(event.data);
+          } else if (event.type === "thread-exited" && event.threadId === terminalId) {
+            handleExited(event.exitCode);
+          }
+        });
 
     hydrateScrollback();
 

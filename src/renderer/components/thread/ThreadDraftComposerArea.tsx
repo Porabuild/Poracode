@@ -11,14 +11,14 @@ import type {
 } from "@/shared/contracts";
 import { hookEnvForProject, hookEnvKey } from "@/shared/agentHookPluginEnv";
 import { isHomeProjectId } from "@/shared/homeScope";
-import { readBridge } from "@/renderer/bridge";
+import { isRemoteSession, readBridge } from "@/renderer/bridge";
 import {
   AttachmentBar,
   BrowserChip,
   ComposerAddMenu,
+  ComposerVoiceInput,
   ImageLightbox,
   MentionInput,
-  VoiceInputButton,
   type MentionInputHandle,
   useAttachments,
 } from "@/renderer/components/composer";
@@ -203,7 +203,8 @@ export function ThreadDraftComposerArea(props: {
   // either binary, which is a confusing state to debug.
   const [agentUpdating, setAgentUpdating] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const showVoiceInputButton = useSharedSettings((s) => s.audio.showVoiceInputButton);
+  const showVoiceInputButton =
+    useSharedSettings((s) => s.audio.showVoiceInputButton) && !isRemoteSession();
   const mentionRef = useRef<MentionInputHandle>(null);
   const attachments = useAttachments();
   const inboxKey = props.paneId ?? `draft:${props.project.id}`;
@@ -624,20 +625,11 @@ export function ThreadDraftComposerArea(props: {
               }}
               onToggleBrowserMcp={(next) => props.onConfigChange({ browserMcp: next })}
             />
-            {showVoiceInputButton ? (
-              <VoiceInputButton
-                isDisabled={authRequired || agentUpdating || isSubmitting}
-                onTranscript={(text) => {
-                  mentionRef.current?.commitVoiceTranscript(text);
-                }}
-                onTranscriptPreview={(text) => {
-                  mentionRef.current?.previewVoiceTranscript(text);
-                }}
-                onTranscriptCancel={() => {
-                  mentionRef.current?.clearVoiceTranscriptPreview();
-                }}
-              />
-            ) : null}
+            <ComposerVoiceInput
+              show={showVoiceInputButton}
+              isDisabled={authRequired || agentUpdating || isSubmitting}
+              mentionRef={mentionRef}
+            />
           </>
         )}
       />

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { FileEdit, Lock, Minus, Plus, Undo2 } from "lucide-react";
+import { FileEdit, Lock, Minus, MoreVertical, Plus, Undo2 } from "lucide-react";
 import type { Project } from "@/shared/contracts";
 import { readBridge } from "@/renderer/bridge";
 import { useGitStore } from "@/renderer/state/gitStore";
@@ -14,6 +14,7 @@ import {
 import { handleKeyActivate } from "@/renderer/utils/a11y";
 import { openFileInEditor } from "@/renderer/utils/gitHelpers";
 import { useGitReviewRowPadX } from "../gitReviewPadXContext";
+import { useGitTouch, useLongPress } from "../gitTouchContext";
 
 const COMPOSER_FILE_DRAG_TYPE = "application/lightcode-composer-file";
 
@@ -42,6 +43,18 @@ export function FileRow(props: {
   const rowPadX = useGitReviewRowPadX();
   const file = useGitFile(storeKey, path, isWorktree);
   const [revertOpen, setRevertOpen] = useState(false);
+  const touch = useGitTouch();
+  function openMenu() {
+    if (!file) return;
+    touch?.openFileMenu({
+      path,
+      staged: file.staged,
+      status: file.status,
+      insertions: file.insertions,
+      deletions: file.deletions,
+    });
+  }
+  const longPress = useLongPress(openMenu);
 
   if (!file) return null;
 
@@ -90,13 +103,27 @@ export function FileRow(props: {
     <>
       <button
         type="button"
-        draggable
-        className={`group flex w-full cursor-default items-center gap-1.5 rounded py-1 text-left text-xs transition-colors ${rowPadX} ${
+        draggable={!touch}
+        className={`group flex w-full cursor-default items-center gap-1.5 rounded text-left transition-colors ${rowPadX} ${
+          touch ? "min-h-[2.75rem] py-2 text-sm" : "py-1 text-xs"
+        } ${
           isSelected
             ? "bg-[var(--row-active)] text-foreground"
-            : "text-muted hover:bg-[var(--row-hover)] hover:text-foreground"
+            : touch
+              ? "text-muted active:bg-[var(--row-hover)]"
+              : "text-muted hover:bg-[var(--row-hover)] hover:text-foreground"
         }`}
-        onClick={onSelect}
+        onClick={(event) => {
+          // A long-press fires before the synthetic click on touch release;
+          // swallow that click so press-and-hold never also opens the file.
+          if (touch && longPress.firedRef.current) {
+            longPress.firedRef.current = false;
+            event.preventDefault();
+            return;
+          }
+          onSelect();
+        }}
+        {...(touch ? { ...longPress.handlers, style: longPress.style } : {})}
         onDragStart={(event) => {
           event.dataTransfer.setData(
             COMPOSER_FILE_DRAG_TYPE,
@@ -118,59 +145,83 @@ export function FileRow(props: {
             </>
           }
         />
-        <span className="relative w-14 shrink-0">
-          <span className="flex items-center justify-end text-[10px] leading-4 font-medium transition-opacity group-hover:opacity-0">
-            {file.insertions > 0 && <span className="text-success">+{file.insertions}</span>}
-            {file.deletions > 0 && <span className="ml-0.5 text-danger">-{file.deletions}</span>}
+        {touch ? (
+          <span className="flex shrink-0 items-center gap-1.5">
+            <span className="flex items-center justify-end text-[11px] leading-4 font-medium tabular-nums">
+              {file.insertions > 0 && <span className="text-success">+{file.insertions}</span>}
+              {file.deletions > 0 && <span className="ml-0.5 text-danger">-{file.deletions}</span>}
+            </span>
+            <span
+              role="button"
+              tabIndex={0}
+              aria-label="File actions"
+              className="-mr-1 rounded p-1 text-muted/70 active:bg-[var(--row-hover)]"
+              onClick={(e) => {
+                e.stopPropagation();
+                openMenu();
+              }}
+              onKeyDown={(e) => handleKeyActivate(e, openMenu, { stopPropagation: true })}
+            >
+              <MoreVertical className="size-4" />
+            </span>
           </span>
-          <span className="absolute inset-0 flex items-center justify-end gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
-            <div
-              role="button"
-              tabIndex={0}
-              className="rounded p-0.5 text-muted transition-colors hover:bg-[var(--row-hover)] hover:text-foreground"
-              title="Open in editor"
-              onClick={(e) => {
-                e.stopPropagation();
-                handleOpenInEditor();
-              }}
-              onKeyDown={(e) => handleKeyActivate(e, handleOpenInEditor, { stopPropagation: true })}
-            >
-              <FileEdit className="size-3" />
-            </div>
-            <div
-              role="button"
-              tabIndex={0}
-              className="rounded p-0.5 text-muted transition-colors hover:bg-[var(--row-hover)] hover:text-foreground"
-              title={file.staged ? "Unstage" : "Stage"}
-              onClick={(e) => {
-                e.stopPropagation();
-                void handleStageToggle();
-              }}
-              onKeyDown={(e) =>
-                handleKeyActivate(e, () => void handleStageToggle(), { stopPropagation: true })
-              }
-            >
-              {file.staged ? <Minus className="size-3" /> : <Plus className="size-3" />}
-            </div>
-            {!file.staged && (
+        ) : (
+          <span className="relative w-14 shrink-0">
+            <span className="flex items-center justify-end text-[10px] leading-4 font-medium transition-opacity group-hover:opacity-0">
+              {file.insertions > 0 && <span className="text-success">+{file.insertions}</span>}
+              {file.deletions > 0 && <span className="ml-0.5 text-danger">-{file.deletions}</span>}
+            </span>
+            <span className="absolute inset-0 flex items-center justify-end gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
               <div
                 role="button"
                 tabIndex={0}
-                className="rounded p-0.5 text-muted transition-colors hover:bg-danger/10 hover:text-danger"
-                title="Revert changes"
+                className="rounded p-0.5 text-muted transition-colors hover:bg-[var(--row-hover)] hover:text-foreground"
+                title="Open in editor"
                 onClick={(e) => {
                   e.stopPropagation();
-                  setRevertOpen(true);
+                  handleOpenInEditor();
                 }}
                 onKeyDown={(e) =>
-                  handleKeyActivate(e, () => setRevertOpen(true), { stopPropagation: true })
+                  handleKeyActivate(e, handleOpenInEditor, { stopPropagation: true })
                 }
               >
-                <Undo2 className="size-3" />
+                <FileEdit className="size-3" />
               </div>
-            )}
+              <div
+                role="button"
+                tabIndex={0}
+                className="rounded p-0.5 text-muted transition-colors hover:bg-[var(--row-hover)] hover:text-foreground"
+                title={file.staged ? "Unstage" : "Stage"}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  void handleStageToggle();
+                }}
+                onKeyDown={(e) =>
+                  handleKeyActivate(e, () => void handleStageToggle(), { stopPropagation: true })
+                }
+              >
+                {file.staged ? <Minus className="size-3" /> : <Plus className="size-3" />}
+              </div>
+              {!file.staged && (
+                <div
+                  role="button"
+                  tabIndex={0}
+                  className="rounded p-0.5 text-muted transition-colors hover:bg-danger/10 hover:text-danger"
+                  title="Revert changes"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setRevertOpen(true);
+                  }}
+                  onKeyDown={(e) =>
+                    handleKeyActivate(e, () => setRevertOpen(true), { stopPropagation: true })
+                  }
+                >
+                  <Undo2 className="size-3" />
+                </div>
+              )}
+            </span>
           </span>
-        </span>
+        )}
       </button>
 
       <ConfirmDialog

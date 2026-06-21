@@ -8,6 +8,7 @@ import { useThreadTodoDockStore } from "@/renderer/state/threadTodoDockStore";
 import { ThreadComposerSection } from "./ThreadComposerSection";
 
 vi.mock("../../bridge", () => ({
+  isRemoteSession: () => false,
   readBridge: () => ({
     pickFiles: vi.fn<() => Promise<string[] | undefined>>().mockResolvedValue(undefined),
     setPendingSteer: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),

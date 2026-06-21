@@ -28,6 +28,7 @@ describe("ipcProcedureMap", () => {
     const handlers = createLocalIpcHandlers({
       getMainWindow: () => null as never,
       getBrowserPanelManager: () => null,
+      getRemoteAccessServer: () => null,
       requireLightcodePaths: () =>
         ({
           baseDir: "C:\\tmp",

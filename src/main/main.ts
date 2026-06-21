@@ -28,11 +28,25 @@ import { type LightcodePaths, resolveLightcodeBaseDir } from "@/shared/lightcode
 import { getAppName } from "@/shared/appName";
 import { resolveLightcodeChannel } from "@/shared/channel";
 import { IPC_EVENT_CHANNELS } from "@/shared/ipc";
-import { readSharedSettingsFile } from "./sharedSettingsFile";
+import { patchSharedSettingsFile, readSharedSettingsFile } from "./sharedSettingsFile";
 import { WindowsJobObjectManager } from "./windowsJobObject";
 import { captureMainException, initializeMainSentry } from "./diagnostics/sentry";
 import { configureSecretStorageKey } from "@/shared/secretStorage";
 import { readOrCreateSafeStorageSecretKey } from "./secretStorageKey";
+import {
+  createPersistentRemoteAuthStore,
+  readOrCreateRemoteAccessIdentity,
+  RemoteAccessServer,
+  RemoteBrowserGateway,
+} from "./remote";
+import { pickRemoteSettings, type RemoteGitSummaries } from "@/shared/remote";
+import {
+  isRemoteAccessEnabled,
+  remoteAccessAdvertisedHost,
+  remoteAccessHost,
+  remoteAccessPairingAppUrl,
+  remoteAccessPort,
+} from "./remote/config";
 
 const isDev = Boolean(process.env.VITE_DEV_SERVER_URL);
 const channel = resolveLightcodeChannel();
@@ -79,6 +93,9 @@ let lightcodePaths: LightcodePaths | null = null;
 let windowsJobObjectManager: WindowsJobObjectManager | null = null;
 let browserPanelManager: BrowserPanelManager | null = null;
 let browserMcpIngress: BrowserMcpIngress | null = null;
+let remoteAccessServer: RemoteAccessServer | null = null;
+/** Per-thread git/PR summaries mirrored from the renderer for remote clients. */
+let remoteGitSummaries: RemoteGitSummaries = {};
 // Retained module-scope so the native Tray icon stays reachable from GC.
 let tray: TrayHandle | null = null;
 let isQuitting = false;
@@ -241,6 +258,7 @@ if (!hasSingleInstanceLock) {
       },
       onEvent: (event) => {
         handleSupervisorEventForSleep(event);
+        remoteAccessServer?.publishSupervisorEvent(event);
         mainWindow?.webContents.send(IPC_EVENT_CHANNELS.supervisorEvent, event);
       },
       onReset: () => {
@@ -274,10 +292,18 @@ if (!hasSingleInstanceLock) {
       localHandlers: createLocalIpcHandlers({
         getMainWindow: () => mainWindow,
         getBrowserPanelManager: () => browserPanelManager,
+        getRemoteAccessServer: () => remoteAccessServer,
         requireLightcodePaths,
         updatePowerSaveBlocker,
         autoUpdater: autoUpdaterController,
         onSharedSettingsChanged: primeBrowserAllowFlags,
+        onRemoteGitSummaries: (summaries) => {
+          remoteGitSummaries = summaries;
+          remoteAccessServer?.publishSupervisorEvent({
+            type: "remote-git-summaries",
+            summaries,
+          });
+        },
       }),
       callSupervisor: (name, payload) => supervisorClient.call(name, payload),
     });
@@ -334,6 +360,69 @@ if (!hasSingleInstanceLock) {
 
     await mcpInfoReady;
     supervisorClient.start(lightcodePaths.baseDir);
+
+    if (isRemoteAccessEnabled()) {
+      const identity = readOrCreateRemoteAccessIdentity(lightcodePaths.baseDir);
+      const remoteHost = remoteAccessHost();
+      const advertisedHost = remoteAccessAdvertisedHost({ bindHost: remoteHost });
+      const pairingAppUrl = remoteAccessPairingAppUrl();
+      // In dev, phones load the PWA from the Vite dev server (hot reload)
+      // instead of the built bundle; swap the loopback host for the LAN one.
+      let devMobileAppUrl: string | undefined;
+      if (process.env.VITE_DEV_SERVER_URL) {
+        const devUrl = new URL("/mobile.html", process.env.VITE_DEV_SERVER_URL);
+        devUrl.hostname = advertisedHost;
+        devMobileAppUrl = devUrl.toString();
+      }
+      const authStore = createPersistentRemoteAuthStore(lightcodePaths.baseDir);
+      const server = new RemoteAccessServer({
+        appVersion: app.getVersion(),
+        identity,
+        authStore,
+        host: remoteHost,
+        port: remoteAccessPort(),
+        advertisedHost,
+        ...(pairingAppUrl ? { pairingAppUrl } : {}),
+        ...(devMobileAppUrl ? { devMobileAppUrl } : {}),
+        callSupervisor: (name, payload) => supervisorClient.call(name, payload),
+        // Thread metadata lives in the renderer store; hand remote commands to
+        // the window so they run through the same actions as local edits.
+        dispatchThreadCommand: (command) => {
+          if (!mainWindow) return false;
+          mainWindow.webContents.send(IPC_EVENT_CHANNELS.remoteThreadCommand, command);
+          return true;
+        },
+        browser: new RemoteBrowserGateway(() => browserPanelManager),
+        // Remote-editable settings (the AI helpers). Reads/writes the same
+        // settings file as the renderer; after a remote write the desktop
+        // renderer is told so its store reflects the change without restart.
+        gitSummaries: () => remoteGitSummaries,
+        settings: {
+          read: () =>
+            pickRemoteSettings(readSharedSettingsFile(requireLightcodePaths().settingsPath)),
+          update: (patch) => {
+            const next = patchSharedSettingsFile(requireLightcodePaths().settingsPath, patch);
+            mainWindow?.webContents.send(IPC_EVENT_CHANNELS.sharedSettingsChanged, next);
+            return pickRemoteSettings(next);
+          },
+        },
+      });
+      remoteAccessServer = server;
+      server
+        .start()
+        .then((info) => {
+          console.log("[lightcode] remote access enabled at %s", info.httpBaseUrl);
+          console.log("[lightcode] remote pairing URL: %s", info.pairingUrl);
+        })
+        .catch((error) => {
+          remoteAccessServer = null;
+          console.error(
+            "[lightcode] remote access failed to start:",
+            error instanceof Error ? error.message : String(error),
+          );
+          captureMainException(error, { "lightcode.feature_area": "remote-access" });
+        });
+    }
 
     mainWindow.once("ready-to-show", () => {
       setTimeout(() => {
@@ -410,6 +499,8 @@ if (!hasSingleInstanceLock) {
       windowsJobObjectManager = null;
       browserMcpIngress?.dispose();
       browserMcpIngress = null;
+      remoteAccessServer?.dispose();
+      remoteAccessServer = null;
       browserPanelManager?.dispose();
       browserPanelManager = null;
       sleepInhibitor.dispose();

@@ -30,12 +30,21 @@ function buildPostHogEnvDefines(mode: string): Record<string, string> {
 // src/shared/channel.config-parity.test.ts.
 const lightcodeChannel = process.env.LIGHTCODE_CHANNEL === "nightly" ? "nightly" : "stable";
 
+// Mobile-only build target (LIGHTCODE_BUILD_TARGET=mobile) produces a
+// self-contained PWA bundle in dist/mobile for standalone hosting (Vercel),
+// omitting the desktop renderer entry. The default build emits both entries to
+// dist/renderer for the Electron app and its embedded remote-access server.
+const mobileOnly = process.env.LIGHTCODE_BUILD_TARGET === "mobile";
+
 export default defineConfig(({ mode }) => ({
   plugins: [react(), babel({ presets: [compilerPreset] })],
   base: "./",
   define: {
     ...buildPostHogEnvDefines(mode),
     __LIGHTCODE_CHANNEL__: JSON.stringify(lightcodeChannel),
+    "import.meta.env.VITE_LIGHTCODE_BUILD_TARGET": JSON.stringify(
+      mobileOnly ? "mobile" : "desktop",
+    ),
   },
   resolve: {
     tsconfigPaths: true,
@@ -44,9 +53,9 @@ export default defineConfig(({ mode }) => ({
     },
   },
   build: {
-    outDir: "dist/renderer",
+    outDir: mobileOnly ? "dist/mobile" : "dist/renderer",
     emptyOutDir: true,
-    sourcemap: "hidden",
+    sourcemap: mobileOnly ? false : "hidden",
     // Filter modulePreload so the heaviest async chunks (shiki grammars,
     // @git-diff-view, xterm) are not parsed by V8 at startup. They load on
     // demand when the code path that needs them runs (first code block,
@@ -56,6 +65,12 @@ export default defineConfig(({ mode }) => ({
         deps.filter((dep) => !/(?:^|\/)(shiki-|git-diff-|xterm-|vendor-)/.test(dep)),
     },
     rolldownOptions: {
+      input: mobileOnly
+        ? { mobile: resolve(__dirname, "mobile.html") }
+        : {
+            index: resolve(__dirname, "index.html"),
+            mobile: resolve(__dirname, "mobile.html"),
+          },
       output: {
         minify: {
           compress: {
@@ -118,7 +133,10 @@ export default defineConfig(({ mode }) => ({
   },
   server: {
     forwardConsole: true,
-    host: "127.0.0.1",
+    // Bind all interfaces so phones on the LAN can load the mobile PWA
+    // (mobile.html) straight from the dev server with HMR; the remote access
+    // server redirects /app and /pair here in dev.
+    host: "0.0.0.0",
     port: 3100,
     strictPort: true,
   },

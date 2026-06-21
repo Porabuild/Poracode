@@ -1,6 +1,7 @@
 import { z } from "zod";
 import type { ProjectLocation } from "../../contracts";
 import type { KeybindingsConfig } from "../../keybindings";
+import { remoteGitSummariesSchema, type RemoteAccessPairingInfo } from "../../remote";
 import { defineIpcProcedure, defineNoArgProcedure, definePayloadProcedure } from "../core";
 import {
   createProjectDirectoryPayloadSchema,
@@ -10,6 +11,14 @@ import {
   saveHandoffContextPayloadSchema,
   type CreateProjectDirectoryResult,
 } from "../schemas";
+
+export const publishRemoteGitSummariesPayloadSchema = z.object({
+  summaries: remoteGitSummariesSchema,
+});
+
+export const revokeRemoteAccessSessionPayloadSchema = z.object({
+  sessionId: z.string().min(1),
+});
 
 export const appProcedures = {
   pickFolder: defineIpcProcedure<[string?], string | undefined, string | null, "main-local">(
@@ -67,4 +76,20 @@ export const appProcedures = {
     "getKeybindings",
     "main-local",
   ),
+  getRemoteAccessPairing: defineNoArgProcedure<RemoteAccessPairingInfo, "main-local">(
+    "getRemoteAccessPairing",
+    "main-local",
+  ),
+  revokeRemoteAccessSession: definePayloadProcedure<
+    z.infer<typeof revokeRemoteAccessSessionPayloadSchema>,
+    { revoked: boolean },
+    "main-local"
+  >("revokeRemoteAccessSession", "main-local", revokeRemoteAccessSessionPayloadSchema),
+  // The renderer owns live git state; it mirrors compact per-thread summaries
+  // to main so the remote access server can serve them to paired clients.
+  publishRemoteGitSummaries: definePayloadProcedure<
+    z.infer<typeof publishRemoteGitSummariesPayloadSchema>,
+    void,
+    "main-local"
+  >("publishRemoteGitSummaries", "main-local", publishRemoteGitSummariesPayloadSchema),
 } as const;

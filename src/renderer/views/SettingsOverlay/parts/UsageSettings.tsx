@@ -1,7 +1,7 @@
 import { startTransition, useEffect, useState } from "react";
 import { RefreshCw } from "lucide-react";
 import { NumberField, Switch } from "@heroui/react";
-import { readBridge } from "@/renderer/bridge";
+import { isRemoteSession, readBridge } from "@/renderer/bridge";
 import { Button } from "@/renderer/components/common";
 import { ProviderIcon } from "@/renderer/components/providers/ProviderIcon";
 import {
@@ -145,37 +145,41 @@ export function UsageSettings() {
         </Button>
       }
     >
-      <SettingRow
-        title="Auto-refresh (minutes)"
-        description="Refresh usage in the background every N minutes. Set to 0 to turn off (manual only). The 2-minute floor respects provider rate limits."
-      >
-        <NumberField
-          aria-label="Auto-refresh interval in minutes, 0 to turn off"
-          className="w-[140px] shrink-0"
-          minValue={0}
-          maxValue={120}
-          step={1}
-          value={autoRefresh ? refreshIntervalMinutes : 0}
-          onChange={(value) => {
-            if (value === undefined || Number.isNaN(value)) return;
-            const minutes = Math.floor(value);
-            startTransition(() => {
-              if (minutes <= 0) {
-                setUsageSetting("autoRefresh", false);
-                return;
-              }
-              setUsageSetting("autoRefresh", true);
-              setUsageSetting("refreshIntervalMinutes", Math.min(120, Math.max(2, minutes)));
-            });
-          }}
+      {/* The background refresher runs on the desktop; a remote session's
+          interval is never read, so hide the row there. */}
+      {!isRemoteSession() && (
+        <SettingRow
+          title="Auto-refresh (minutes)"
+          description="Refresh usage in the background every N minutes. Set to 0 to turn off (manual only). The 2-minute floor respects provider rate limits."
         >
-          <NumberField.Group>
-            <NumberField.DecrementButton />
-            <NumberField.Input />
-            <NumberField.IncrementButton />
-          </NumberField.Group>
-        </NumberField>
-      </SettingRow>
+          <NumberField
+            aria-label="Auto-refresh interval in minutes, 0 to turn off"
+            className="w-[140px] shrink-0"
+            minValue={0}
+            maxValue={120}
+            step={1}
+            value={autoRefresh ? refreshIntervalMinutes : 0}
+            onChange={(value) => {
+              if (value === undefined || Number.isNaN(value)) return;
+              const minutes = Math.floor(value);
+              startTransition(() => {
+                if (minutes <= 0) {
+                  setUsageSetting("autoRefresh", false);
+                  return;
+                }
+                setUsageSetting("autoRefresh", true);
+                setUsageSetting("refreshIntervalMinutes", Math.min(120, Math.max(2, minutes)));
+              });
+            }}
+          >
+            <NumberField.Group>
+              <NumberField.DecrementButton />
+              <NumberField.Input />
+              <NumberField.IncrementButton />
+            </NumberField.Group>
+          </NumberField>
+        </SettingRow>
+      )}
 
       <SettingRow
         title="Show circles in sidebar"

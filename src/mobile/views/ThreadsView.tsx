@@ -1,0 +1,678 @@
+import { useRef, useState } from "react";
+import { Button } from "@heroui/react";
+import {
+  Archive,
+  ChevronDown,
+  ChevronRight,
+  CircleCheck,
+  GitFork,
+  History,
+  Pencil,
+  Plus,
+  Star,
+  Terminal,
+  Trash2,
+} from "lucide-react";
+import type { PointerEvent as ReactPointerEvent } from "react";
+import type { Project, Thread } from "@/shared/contracts";
+import { RelativeTime } from "@/renderer/components/common/RelativeTime";
+import { ThreadProviderIcon, getStatusTone } from "@/renderer/components/providers";
+import { InlineRenameInput } from "@/renderer/views/MainView/parts/Sidebar/parts/InlineRenameInput";
+import {
+  groupThreads,
+  type ThreadListEntry,
+} from "@/renderer/views/MainView/parts/Sidebar/parts/groupThreads";
+import { BottomSheet, EmptyState, SheetMenu, Skeleton, useSheet } from "../components";
+import { GitSummaryBadge, WorktreeGitSummaryBadge } from "../GitSummaryParts";
+import type { ThreadAction } from "../useRemoteDesktop";
+
+export interface ThreadsViewProps {
+  readonly projects: readonly Project[];
+  readonly threads: readonly Thread[];
+  readonly selectedThreadId: string | null;
+  /** `null` shows every project in one flat list. */
+  readonly projectFilter: string | null;
+  /** First load with no cached threads yet: show placeholder rows. */
+  readonly loading?: boolean;
+  readonly onProjectFilterChange: (projectId: string | null) => void;
+  readonly onOpenThread: (thread: Thread) => void;
+  readonly onThreadAction: (thread: Thread, action: ThreadAction) => void;
+  readonly onNew: () => void;
+  /** Opens the composer pre-targeted at an existing worktree. */
+  readonly onNewThreadInWorktree: (input: {
+    readonly projectId: string;
+    readonly worktreePath: string;
+    readonly worktreeBranch: string;
+  }) => void;
+  /** Opens a live shell for a project (or worktree, when a path is given). */
+  readonly onOpenTerminal: (input: {
+    readonly projectId: string;
+    readonly worktreePath?: string;
+  }) => void;
+}
+
+/** Placeholder rows shown on first load before any thread data arrives. */
+function ThreadListSkeleton() {
+  return (
+    <div className="m-skeleton-list" aria-busy="true" aria-label="Loading threads">
+      {Array.from({ length: 6 }, (_unused, index) => (
+        <div className="m-skeleton-row" key={index}>
+          <Skeleton className="size-4 shrink-0 !rounded-md" />
+          <span className="m-skeleton-row__body">
+            <Skeleton className="h-3 w-1/2" />
+            <Skeleton className="h-2.5 w-1/3" />
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+const LONG_PRESS_MS = 450;
+const LONG_PRESS_SLOP_PX = 10;
+
+/**
+ * Touch long-press / right-click → context menu, shared by thread rows and
+ * group headers. The release click after a long-press is swallowed (via
+ * `onClick`) so the row/header doesn't also fire its tap action; moving past
+ * the slop cancels (the gesture was a scroll).
+ */
+function useLongPress(onLongPress: () => void) {
+  const pressRef = useRef<{
+    timer: ReturnType<typeof setTimeout>;
+    x: number;
+    y: number;
+  } | null>(null);
+  const suppressClickRef = useRef(false);
+
+  const cancel = () => {
+    if (pressRef.current) {
+      clearTimeout(pressRef.current.timer);
+      pressRef.current = null;
+    }
+  };
+
+  const pressHandlers = {
+    onPointerDown: (event: ReactPointerEvent<HTMLElement>) => {
+      cancel();
+      pressRef.current = {
+        x: event.clientX,
+        y: event.clientY,
+        timer: setTimeout(() => {
+          pressRef.current = null;
+          suppressClickRef.current = true;
+          onLongPress();
+        }, LONG_PRESS_MS),
+      };
+    },
+    onPointerMove: (event: ReactPointerEvent<HTMLElement>) => {
+      const press = pressRef.current;
+      if (!press) return;
+      if (Math.hypot(event.clientX - press.x, event.clientY - press.y) > LONG_PRESS_SLOP_PX) {
+        cancel();
+      }
+    },
+    onPointerUp: cancel,
+    onPointerCancel: cancel,
+    onPointerLeave: cancel,
+  };
+
+  const onClick = (action: () => void) => () => {
+    if (suppressClickRef.current) {
+      suppressClickRef.current = false;
+      return;
+    }
+    action();
+  };
+
+  const onContextMenu = (event: { preventDefault: () => void }) => {
+    event.preventDefault();
+    cancel();
+    onLongPress();
+  };
+
+  return { pressHandlers, onClick, onContextMenu };
+}
+
+/** Long-press (touch) or right-click context menu for a thread row. */
+function ThreadActionsSheet(props: {
+  readonly thread: Thread;
+  readonly closing?: boolean;
+  readonly onAction: (action: ThreadAction) => void;
+  readonly onOpenTerminal: ThreadsViewProps["onOpenTerminal"];
+  readonly onClose: () => void;
+}) {
+  const { thread } = props;
+  const [renaming, setRenaming] = useState(false);
+
+  const act = (action: ThreadAction) => {
+    props.onAction(action);
+    props.onClose();
+  };
+
+  const openTerminal = () => {
+    props.onOpenTerminal({
+      projectId: thread.projectId,
+      ...(thread.worktreePath ? { worktreePath: thread.worktreePath } : {}),
+    });
+    props.onClose();
+  };
+
+  return (
+    <BottomSheet
+      label={`Actions for ${thread.title}`}
+      closeLabel="Close thread actions"
+      closing={props.closing}
+      onClose={props.onClose}
+    >
+      <div className="m-sheet-head">
+        <span className="truncate">{thread.title}</span>
+      </div>
+      <div className="m-sheet-list">
+        <button type="button" className="m-sheet-action" onClick={openTerminal}>
+          <Terminal className="size-4 shrink-0 text-muted" />
+          <span>Open terminal{thread.worktreePath ? " in worktree" : ""}</span>
+        </button>
+        {renaming ? (
+          <div className="m-sheet-action" data-static="true">
+            <Pencil className="size-4 shrink-0 text-muted" />
+            <InlineRenameInput
+              initialValue={thread.title}
+              onCommit={(title) => act({ kind: "rename", title })}
+              onCancel={() => setRenaming(false)}
+            />
+          </div>
+        ) : (
+          <button type="button" className="m-sheet-action" onClick={() => setRenaming(true)}>
+            <Pencil className="size-4 shrink-0 text-muted" />
+            <span>Rename</span>
+          </button>
+        )}
+        <button
+          type="button"
+          className="m-sheet-action"
+          onClick={() => act({ kind: "set-done", done: !thread.done })}
+        >
+          <CircleCheck className="size-4 shrink-0 text-muted" />
+          <span>{thread.done ? "Unmark Done" : "Mark Done"}</span>
+        </button>
+        <button
+          type="button"
+          className="m-sheet-action"
+          onClick={() => act({ kind: "set-starred", starred: !(thread.starred ?? false) })}
+        >
+          <Star className="size-4 shrink-0 text-muted" />
+          <span>{thread.starred ? "Unpin" : "Pin to top"}</span>
+        </button>
+        <button
+          type="button"
+          className="m-sheet-action text-warning"
+          onClick={() => act({ kind: "archive" })}
+        >
+          <Archive className="size-4 shrink-0" />
+          <span>Archive Thread</span>
+        </button>
+        <button
+          type="button"
+          className="m-sheet-action text-danger"
+          onClick={() => act({ kind: "delete" })}
+        >
+          <Trash2 className="size-4 shrink-0" />
+          <span>Delete Thread</span>
+        </button>
+      </div>
+    </BottomSheet>
+  );
+}
+
+/**
+ * Touch-sized two-line thread row: title on top, project + worktree below.
+ * Same provider icon and status semantics as the desktop sidebar rows, but
+ * without desktop-only chrome (drag handle, context menu, hover actions).
+ */
+function ThreadRow(props: {
+  readonly thread: Thread;
+  readonly projectName: string | undefined;
+  readonly isActive: boolean;
+  /** Hide the worktree badge when the row sits under a worktree group header. */
+  readonly hideWorktree?: boolean;
+  /** Hide the per-row diff/PR badge; the worktree group header shows it instead. */
+  readonly hideGitSummary?: boolean;
+  readonly onPress: () => void;
+  readonly onMenu: () => void;
+}) {
+  const { thread } = props;
+  const tone = getStatusTone(thread);
+  const live = tone !== "inactive" && tone !== "done";
+  const worktreeName = props.hideWorktree ? undefined : thread.worktreePath?.split(/[\\/]/).pop();
+  const { pressHandlers, onClick, onContextMenu } = useLongPress(props.onMenu);
+
+  return (
+    <button
+      type="button"
+      className="m-thread-row"
+      data-active={props.isActive || undefined}
+      data-live={live || undefined}
+      onClick={onClick(props.onPress)}
+      onContextMenu={onContextMenu}
+      {...pressHandlers}
+    >
+      <ThreadProviderIcon thread={thread} className="size-4 shrink-0" />
+      <span className="m-thread-row__body">
+        <span className="m-thread-row__title" data-done={thread.done || undefined}>
+          {thread.title}
+        </span>
+        <span className="m-thread-row__meta">
+          {props.projectName ? (
+            <span className="m-thread-row__meta-item">{props.projectName}</span>
+          ) : null}
+          {worktreeName ? (
+            <span className="m-thread-row__meta-item">
+              <GitFork className="size-3 shrink-0" aria-label="Worktree" />
+              <span className="m-thread-row__meta-text">{worktreeName}</span>
+            </span>
+          ) : null}
+          {props.hideGitSummary ? null : <GitSummaryBadge threadId={thread.id} />}
+        </span>
+      </span>
+      <span className="m-thread-row__side">
+        {thread.starred && <Star className="size-3 shrink-0 fill-current" aria-label="Pinned" />}
+        <RelativeTime
+          iso={thread.updatedAt}
+          className="block shrink-0 text-center font-mono text-[10px] tabular-nums text-muted"
+        />
+      </span>
+    </button>
+  );
+}
+
+type GroupEntry = Extract<ThreadListEntry, { kind: "worktree-group" | "thread-group" }>;
+
+/** Stable collapse key per group: worktree path or explicit group id. */
+function groupEntryKey(entry: GroupEntry): string {
+  return entry.kind === "worktree-group"
+    ? `wt:${entry.group.worktreePath}`
+    : `group:${entry.group.groupId}`;
+}
+
+/** Header label: the branch (or worktree folder), else the group's name. */
+function groupEntryTitle(entry: GroupEntry): string {
+  if (entry.kind === "worktree-group") {
+    const { worktreeBranch, worktreePath } = entry.group;
+    if (worktreeBranch && worktreeBranch !== worktreePath) return worktreeBranch;
+    return worktreePath.split(/[\\/]/).pop() ?? worktreePath;
+  }
+  return entry.group.groupName;
+}
+
+function groupLatestUpdatedAt(threads: readonly Thread[]): string {
+  return threads.reduce(
+    (latest, thread) => (thread.updatedAt > latest ? thread.updatedAt : latest),
+    threads[0]!.updatedAt,
+  );
+}
+
+/**
+ * Collapsed group keys persist across remounts within the session (e.g. tabbing
+ * away and back) without touching storage; a full reload starts expanded.
+ */
+const collapsedGroupCache = new Set<string>();
+
+/** Test-only: clear session collapse state so cases don't leak into each other. */
+export function __resetCollapsedGroupCache() {
+  collapsedGroupCache.clear();
+}
+
+/**
+ * Collapsible header for a worktree (or "continue in other provider") group.
+ * Tapping toggles the child rows; the long-press actions stay on each row.
+ */
+function ThreadGroupHeader(props: {
+  readonly entry: GroupEntry;
+  readonly projectName: string | undefined;
+  readonly collapsed: boolean;
+  readonly onToggle: () => void;
+  readonly onMenu: () => void;
+}) {
+  const { entry } = props;
+  const threads = entry.group.threads;
+  const allDone = threads.every((thread) => thread.done);
+  const { pressHandlers, onClick, onContextMenu } = useLongPress(props.onMenu);
+
+  return (
+    <button
+      type="button"
+      className="m-thread-group__header"
+      data-collapsed={props.collapsed || undefined}
+      aria-expanded={!props.collapsed}
+      onClick={onClick(props.onToggle)}
+      onContextMenu={onContextMenu}
+      {...pressHandlers}
+    >
+      <ChevronRight className="m-thread-group__chevron size-3.5 shrink-0" />
+      {entry.kind === "worktree-group" ? (
+        <GitFork className="size-3.5 shrink-0" aria-label="Worktree" />
+      ) : null}
+      <span className="m-thread-group__title" data-done={allDone || undefined}>
+        {groupEntryTitle(entry)}
+      </span>
+      {entry.kind === "worktree-group" ? (
+        <WorktreeGitSummaryBadge threadIds={threads.map((thread) => thread.id)} />
+      ) : null}
+      {props.projectName ? (
+        <span className="m-thread-group__project">{props.projectName}</span>
+      ) : null}
+      <span className="m-thread-group__count" aria-label={`${threads.length} threads`}>
+        {threads.length}
+      </span>
+      <RelativeTime
+        iso={groupLatestUpdatedAt(threads)}
+        className="block shrink-0 font-mono text-[10px] tabular-nums text-muted"
+      />
+    </button>
+  );
+}
+
+/**
+ * Long-press menu for a worktree / provider group — the mobile stand-in for the
+ * desktop sidebar's group context menu. Bulk actions fan out over the existing
+ * per-thread command path, so no extra remote plumbing is needed.
+ */
+function GroupActionsSheet(props: {
+  readonly entry: GroupEntry;
+  readonly closing?: boolean;
+  readonly onThreadAction: (thread: Thread, action: ThreadAction) => void;
+  readonly onNewThreadInWorktree: ThreadsViewProps["onNewThreadInWorktree"];
+  readonly onOpenTerminal: ThreadsViewProps["onOpenTerminal"];
+  readonly onClose: () => void;
+}) {
+  const { entry } = props;
+  const threads = entry.group.threads;
+  const title = groupEntryTitle(entry);
+  const activeThreads = threads.filter((thread) => !thread.done);
+  const allDone = activeThreads.length === 0;
+
+  const act = (run: () => void) => {
+    run();
+    props.onClose();
+  };
+
+  return (
+    <BottomSheet
+      label={`Actions for ${title}`}
+      closeLabel="Close group actions"
+      closing={props.closing}
+      onClose={props.onClose}
+    >
+      <div className="m-sheet-head">
+        <span className="truncate">{title}</span>
+        <span className="shrink-0 font-normal text-muted">{threads.length}</span>
+      </div>
+      <div className="m-sheet-list">
+        {entry.kind === "worktree-group" ? (
+          <button
+            type="button"
+            className="m-sheet-action"
+            onClick={() =>
+              act(() =>
+                props.onNewThreadInWorktree({
+                  projectId: entry.group.threads[0]!.projectId,
+                  worktreePath: entry.group.worktreePath,
+                  worktreeBranch: entry.group.worktreeBranch,
+                }),
+              )
+            }
+          >
+            <Plus className="size-4 shrink-0 text-muted" />
+            <span>New thread in worktree</span>
+          </button>
+        ) : null}
+        {entry.kind === "worktree-group" ? (
+          <button
+            type="button"
+            className="m-sheet-action"
+            onClick={() =>
+              act(() =>
+                props.onOpenTerminal({
+                  projectId: entry.group.threads[0]!.projectId,
+                  worktreePath: entry.group.worktreePath,
+                }),
+              )
+            }
+          >
+            <Terminal className="size-4 shrink-0 text-muted" />
+            <span>Open terminal</span>
+          </button>
+        ) : null}
+        {allDone ? (
+          <button
+            type="button"
+            className="m-sheet-action"
+            onClick={() =>
+              act(() =>
+                threads.forEach(
+                  (thread) =>
+                    thread.done &&
+                    props.onThreadAction(thread, {
+                      kind: "set-done",
+                      done: false,
+                    }),
+                ),
+              )
+            }
+          >
+            <CircleCheck className="size-4 shrink-0 text-muted" />
+            <span>Unmark all done</span>
+          </button>
+        ) : (
+          <button
+            type="button"
+            className="m-sheet-action"
+            onClick={() =>
+              act(() =>
+                activeThreads.forEach((thread) =>
+                  props.onThreadAction(thread, { kind: "set-done", done: true }),
+                ),
+              )
+            }
+          >
+            <CircleCheck className="size-4 shrink-0 text-muted" />
+            <span>Mark all done</span>
+          </button>
+        )}
+        <button
+          type="button"
+          className="m-sheet-action text-warning"
+          onClick={() =>
+            act(() =>
+              threads.forEach((thread) => props.onThreadAction(thread, { kind: "archive" })),
+            )
+          }
+        >
+          <Archive className="size-4 shrink-0" />
+          <span>Archive all threads</span>
+        </button>
+      </div>
+    </BottomSheet>
+  );
+}
+
+export function ThreadsView(props: ThreadsViewProps) {
+  // Each menu keeps a snapshot of its target (the thread / group), so the
+  // slide-out still plays even when the action removes it from the list.
+  const threadMenu = useSheet<Thread>();
+  const groupMenu = useSheet<GroupEntry>();
+  const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(
+    () => new Set(collapsedGroupCache),
+  );
+  const toggleCollapsed = (key: string) => {
+    setCollapsed((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      collapsedGroupCache.clear();
+      for (const groupKey of next) collapsedGroupCache.add(groupKey);
+      return next;
+    });
+  };
+  const counts = new Map<string, number>();
+  for (const thread of props.threads) {
+    counts.set(thread.projectId, (counts.get(thread.projectId) ?? 0) + 1);
+  }
+  const projectNames = new Map(props.projects.map((project) => [project.id, project.name]));
+  const pickerProjects = props.projects.filter(
+    (project) => !project.disabled || counts.has(project.id),
+  );
+
+  const currentProjectLabel = props.projectFilter
+    ? (projectNames.get(props.projectFilter) ?? "Project")
+    : "All projects";
+  const picker =
+    pickerProjects.length > 1 ? (
+      <div className="m-threads__picker">
+        <SheetMenu
+          label="Filter by project"
+          closeLabel="Close project filter"
+          items={[
+            {
+              id: "all",
+              label: "All projects",
+              hint: String(props.threads.length),
+              selected: !props.projectFilter,
+            },
+            ...pickerProjects.map((project) => ({
+              id: project.id,
+              label: project.name,
+              hint: String(counts.get(project.id) ?? 0),
+              selected: props.projectFilter === project.id,
+            })),
+          ]}
+          onSelect={(id) => props.onProjectFilterChange(id === "all" ? null : id)}
+          trigger={({ open, isOpen }) => (
+            <Button
+              aria-label="Project"
+              aria-expanded={isOpen}
+              className="text-foreground"
+              size="sm"
+              variant="ghost"
+              onPress={open}
+            >
+              <span className="truncate">{currentProjectLabel}</span>
+              <ChevronDown className="size-3.5 text-muted" />
+            </Button>
+          )}
+        />
+      </div>
+    ) : null;
+
+  const visibleThreads = props.projectFilter
+    ? props.threads.filter((thread) => thread.projectId === props.projectFilter)
+    : props.threads;
+
+  if (visibleThreads.length === 0 && props.loading) {
+    return (
+      <div className="m-threads">
+        <ThreadListSkeleton />
+      </div>
+    );
+  }
+
+  if (visibleThreads.length === 0) {
+    return (
+      <div className="m-threads">
+        {picker}
+        <EmptyState
+          icon={<History className="size-5" />}
+          title={props.projectFilter ? "No threads in this project" : "No threads yet"}
+          hint="Start a new thread to put an agent to work from this device."
+          action={
+            <Button size="sm" variant="secondary" onPress={props.onNew}>
+              <Plus className="size-4" />
+              New thread
+            </Button>
+          }
+        />
+      </div>
+    );
+  }
+
+  // Collapse threads that share a worktree (or an explicit group) into one
+  // header. Standalone threads stay as plain rows. Reuses the desktop sidebar's
+  // grouping so both surfaces agree on what counts as a group.
+  const entries = groupThreads([...visibleThreads]);
+
+  // A worktree-group child drops its worktree + git badges (the header carries
+  // them); any group child drops the project name (the header carries that too).
+  const renderThreadRow = (thread: Thread, group?: "worktree" | "thread") => (
+    <ThreadRow
+      key={thread.id}
+      thread={thread}
+      projectName={group ? undefined : projectNames.get(thread.projectId)}
+      isActive={thread.id === props.selectedThreadId}
+      hideWorktree={group === "worktree"}
+      hideGitSummary={group === "worktree"}
+      onPress={() => props.onOpenThread(thread)}
+      onMenu={() => threadMenu.open(thread)}
+    />
+  );
+
+  const menuThread = threadMenu.target;
+  const menuGroupEntry = groupMenu.target;
+
+  return (
+    <div className="m-threads">
+      {picker}
+      <div className="m-thread-list">
+        {entries.map((entry) => {
+          if (entry.kind === "thread") return renderThreadRow(entry.thread);
+
+          const key = groupEntryKey(entry);
+          const isCollapsed = collapsed.has(key);
+          // The worktree path is project-unique, so a group is always one
+          // project; surface its name only in the cross-project "All" view.
+          const headerProjectName = props.projectFilter
+            ? undefined
+            : projectNames.get(entry.group.threads[0]!.projectId);
+          const groupKind = entry.kind === "worktree-group" ? "worktree" : "thread";
+          return (
+            <div className="m-thread-group" key={key} data-collapsed={isCollapsed || undefined}>
+              <ThreadGroupHeader
+                entry={entry}
+                projectName={headerProjectName}
+                collapsed={isCollapsed}
+                onToggle={() => toggleCollapsed(key)}
+                onMenu={() => groupMenu.open(entry)}
+              />
+              {isCollapsed ? null : (
+                <div className="m-thread-group__items">
+                  {entry.group.threads.map((thread) => renderThreadRow(thread, groupKind))}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+      {menuThread ? (
+        <ThreadActionsSheet
+          key={menuThread.id}
+          thread={menuThread}
+          closing={threadMenu.closing}
+          onAction={(action) => props.onThreadAction(menuThread, action)}
+          onOpenTerminal={props.onOpenTerminal}
+          onClose={threadMenu.close}
+        />
+      ) : null}
+      {menuGroupEntry ? (
+        <GroupActionsSheet
+          key={groupEntryKey(menuGroupEntry)}
+          entry={menuGroupEntry}
+          closing={groupMenu.closing}
+          onThreadAction={props.onThreadAction}
+          onNewThreadInWorktree={props.onNewThreadInWorktree}
+          onOpenTerminal={props.onOpenTerminal}
+          onClose={groupMenu.close}
+        />
+      ) : null}
+    </div>
+  );
+}

@@ -156,6 +156,39 @@ export interface PendingSteerState {
   stagedAt: number;
 }
 
+/**
+ * Thread-metadata mutation issued by a remote client (the mobile PWA). Thread
+ * metadata is owned by the desktop renderer's store (which persists it via
+ * `dbSyncAll`), so these commands are forwarded main → renderer and applied
+ * through the regular thread actions instead of writing to the DB directly.
+ */
+export const remoteThreadCommandSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("rename"), threadId: z.string().min(1), title: z.string().min(1) }),
+  z.object({ kind: z.literal("set-done"), threadId: z.string().min(1), done: z.boolean() }),
+  z.object({
+    kind: z.literal("set-starred"),
+    threadId: z.string().min(1),
+    starred: z.boolean(),
+  }),
+  // Tags a remotely-started thread with its worktree so it groups under that
+  // worktree. The supervisor launches in the dir (via projectLocation) but
+  // never records this metadata; the desktop renderer owns it. `isNewWorktree`
+  // means the remote client just created the worktree, so the desktop should
+  // also prime its git state and run the project setup script (parity with a
+  // local "new thread in worktree").
+  z.object({
+    kind: z.literal("set-worktree"),
+    threadId: z.string().min(1),
+    worktreePath: z.string().min(1),
+    worktreeBranch: z.string().optional(),
+    isNewWorktree: z.boolean().optional(),
+  }),
+  z.object({ kind: z.literal("archive"), threadId: z.string().min(1) }),
+  z.object({ kind: z.literal("unarchive"), threadId: z.string().min(1) }),
+  z.object({ kind: z.literal("delete"), threadId: z.string().min(1) }),
+]);
+export type RemoteThreadCommand = z.infer<typeof remoteThreadCommandSchema>;
+
 export const writeTerminalPayloadSchema = z.object({
   threadId: z.string().min(1),
   data: z.string().min(1),

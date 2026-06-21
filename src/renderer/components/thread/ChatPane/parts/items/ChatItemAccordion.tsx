@@ -49,7 +49,13 @@ const shellClass =
 const triggerClass =
   "flex w-full min-w-0 items-center gap-1.5 py-0 text-left [&>code]:!text-[color:var(--muted)]";
 
-const codeClass = "block truncate font-mono !text-[color:var(--muted)]";
+// `w-full` is load-bearing: HeroUI's `Tooltip.Trigger` computes to
+// `display: inline-flex`, so this `<code>` is a flex item. Without an explicit
+// width it shrink-wraps to its content instead of filling the trigger, which
+// starves the nested PathDisplay's width measurement and collapses the muted
+// directory to a lone "…". Filling the trigger gives PathDisplay the real row
+// width to lay the directory out against.
+const codeClass = "block w-full truncate font-mono !text-[color:var(--muted)]";
 
 export function ChatItemAccordion({
   icon,

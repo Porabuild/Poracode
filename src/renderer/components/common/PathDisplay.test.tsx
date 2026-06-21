@@ -88,4 +88,25 @@ describe("PathDisplay", () => {
     expect(container.textContent?.startsWith("db.ts")).toBe(true);
     expect(container.textContent?.indexOf("…")).toBeGreaterThan(0);
   });
+
+  it("drops the directory when only a 1-char tail would fit (no '…_' noise)", () => {
+    const path = "verylongdir/nested/here/db.ts";
+    const { container, rerender } = render(<PathDisplay path={path} />);
+    // dirAvailable = 100 - 80 - FIT_SLACK(4) = 16px → only "…" + one 8px char
+    // fits, which is below MIN_DIR_TAIL, so the directory is dropped entirely.
+    fireWidths(100, 80);
+    rerender(<PathDisplay path={path} />);
+    expect(container.textContent).toBe("db.ts");
+    expect(container.textContent).not.toContain("…");
+  });
+
+  it("omits the directory (no lone ellipsis) when the basename fills the row", () => {
+    const path = "src/components/views/useVeryLongFileNameComponent.tsx";
+    const { container, rerender } = render(<PathDisplay path={path} />);
+    // Basename consumes the whole container — zero room for any dir character.
+    fireWidths(200, 200);
+    rerender(<PathDisplay path={path} />);
+    expect(container.textContent).toBe("useVeryLongFileNameComponent.tsx");
+    expect(container.textContent).not.toContain("…");
+  });
 });

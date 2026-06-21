@@ -1,0 +1,232 @@
+name: Release Mobile
+
+# Releases the Lightcode mobile PWA to its three targets. Each target is
+# independently selectable so you can ship a partial release (e.g. web only,
+# or push an iOS hotfix without re-releasing Android).
+#
+#   • Manual:  Actions → Release Mobile → Run workflow, tick the platforms.
+#   • Tag:     push a tag `mobile-vX.Y.Z` to release ALL platforms at once.
+#
+# See docs/RELEASE_MOBILE.md for the required secrets and one-time setup.
+
+on:
+  workflow_dispatch:
+    inputs:
+      web:
+        description: "Release the PWA to Vercel"
+        type: boolean
+        default: true
+      android:
+        description: "Build & release the Android app (Play)"
+        type: boolean
+        default: false
+      ios:
+        description: "Build & release the iOS app (App Store)"
+        type: boolean
+        default: false
+  push:
+    tags:
+      - "mobile-v*"
+
+concurrency:
+  group: release-mobile-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  # Resolve which platforms to release: explicit inputs for a manual run, all
+  # platforms for a tag push.
+  setup:
+    name: Resolve targets
+    runs-on: ubuntu-latest
+    outputs:
+      web: ${{ steps.flags.outputs.web }}
+      android: ${{ steps.flags.outputs.android }}
+      ios: ${{ steps.flags.outputs.ios }}
+    steps:
+      - id: flags
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "web=${{ inputs.web }}" >> "$GITHUB_OUTPUT"
+            echo "android=${{ inputs.android }}" >> "$GITHUB_OUTPUT"
+            echo "ios=${{ inputs.ios }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "web=true" >> "$GITHUB_OUTPUT"
+            echo "android=true" >> "$GITHUB_OUTPUT"
+            echo "ios=true" >> "$GITHUB_OUTPUT"
+          fi
+
+  web:
+    name: Web (Vercel)
+    needs: setup
+    if: needs.setup.outputs.web == 'true'
+    runs-on: ubuntu-latest
+    environment: mobile-web
+    env:
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+      LIGHTCODE_MOBILE_APP_HOST: ${{ vars.LIGHTCODE_MOBILE_APP_HOST }}
+      LIGHTCODE_MOBILE_ANDROID_SHA256_CERT_FINGERPRINTS: ${{ secrets.LIGHTCODE_MOBILE_ANDROID_SHA256_CERT_FINGERPRINTS }}
+      LIGHTCODE_MOBILE_APPLE_TEAM_ID: ${{ secrets.LIGHTCODE_MOBILE_APPLE_TEAM_ID }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          cache: pnpm
+      - name: Install Vercel CLI
+        run: npm install --global vercel@latest
+      - name: Pull Vercel environment
+        run: vercel pull --yes --environment=production --token="${{ secrets.VERCEL_TOKEN }}"
+      - name: Build (Vercel uses vercel.json buildCommand)
+        run: vercel build --prod --token="${{ secrets.VERCEL_TOKEN }}"
+      - name: Deploy
+        run: vercel deploy --prebuilt --prod --token="${{ secrets.VERCEL_TOKEN }}"
+
+  android:
+    name: Android (Play)
+    needs: setup
+    if: needs.setup.outputs.android == 'true'
+    runs-on: ubuntu-latest
+    environment: mobile-android
+    env:
+      ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+      ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+      ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+      ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+      PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+      LIGHTCODE_MOBILE_APP_HOST: ${{ vars.LIGHTCODE_MOBILE_APP_HOST }}
+      LIGHTCODE_MOBILE_ANDROID_SHA256_CERT_FINGERPRINTS: ${{ secrets.LIGHTCODE_MOBILE_ANDROID_SHA256_CERT_FINGERPRINTS }}
+      LIGHTCODE_MOBILE_REQUIRE_ANDROID_LINKS: "1"
+    steps:
+      - uses: actions/checkout@v6
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          cache: pnpm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - uses: android-actions/setup-android@v3
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Build web assets
+        run: pnpm run build:mobile
+
+      - name: Sync Capacitor (bootstrap project if missing)
+        run: |
+          if [ ! -d android ]; then
+            pnpm exec cap add android
+          fi
+          pnpm exec cap sync android
+          pnpm run cap:configure
+
+      - name: Decode release keystore
+        if: env.ANDROID_KEYSTORE_BASE64 != ''
+        run: echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > android/release.keystore
+
+      - name: Build AAB
+        working-directory: android
+        run: |
+          if [ -n "$ANDROID_KEYSTORE_BASE64" ]; then
+            ./gradlew bundleRelease \
+              -Pandroid.injected.signing.store.file="$GITHUB_WORKSPACE/android/release.keystore" \
+              -Pandroid.injected.signing.store.password="$ANDROID_KEYSTORE_PASSWORD" \
+              -Pandroid.injected.signing.key.alias="$ANDROID_KEY_ALIAS" \
+              -Pandroid.injected.signing.key.password="$ANDROID_KEY_PASSWORD"
+          else
+            ./gradlew bundleRelease
+          fi
+
+      - name: Upload AAB artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: lightcode-android-aab
+          path: android/app/build/outputs/bundle/release/*.aab
+          if-no-files-found: error
+
+      # Store upload only runs when a Play service-account secret is present;
+      # otherwise the AAB artifact above is the release output.
+      - name: Publish to Google Play
+        if: env.PLAY_SERVICE_ACCOUNT_JSON != '' && env.ANDROID_KEYSTORE_BASE64 != ''
+        uses: r0adkll/upload-google-play@v1
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+          packageName: com.lightcodeapp.mobile
+          releaseFiles: android/app/build/outputs/bundle/release/*.aab
+          track: ${{ vars.PLAY_TRACK || 'internal' }}
+
+  ios:
+    name: iOS (App Store)
+    needs: setup
+    if: needs.setup.outputs.ios == 'true'
+    runs-on: macos-14
+    environment: mobile-ios
+    env:
+      IOS_DIST_CERT_BASE64: ${{ secrets.IOS_DIST_CERT_BASE64 }}
+      IOS_DIST_CERT_PASSWORD: ${{ secrets.IOS_DIST_CERT_PASSWORD }}
+      APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+      APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+      APP_STORE_CONNECT_PRIVATE_KEY: ${{ secrets.APP_STORE_CONNECT_PRIVATE_KEY }}
+      LIGHTCODE_MOBILE_APP_HOST: ${{ vars.LIGHTCODE_MOBILE_APP_HOST }}
+      LIGHTCODE_MOBILE_APPLE_TEAM_ID: ${{ secrets.LIGHTCODE_MOBILE_APPLE_TEAM_ID }}
+      LIGHTCODE_MOBILE_REQUIRE_IOS_LINKS: "1"
+    steps:
+      - uses: actions/checkout@v6
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Build web assets
+        run: pnpm run build:mobile
+
+      - name: Sync Capacitor (bootstrap project if missing)
+        run: |
+          if [ ! -d ios ]; then
+            pnpm exec cap add ios
+          fi
+          pnpm exec cap sync ios
+          pnpm run cap:configure
+
+      - name: Import signing certificate & provisioning profile
+        if: env.IOS_DIST_CERT_BASE64 != ''
+        uses: apple-actions/import-codesign-certs@v3
+        with:
+          p12-file-base64: ${{ secrets.IOS_DIST_CERT_BASE64 }}
+          p12-password: ${{ secrets.IOS_DIST_CERT_PASSWORD }}
+
+      - name: Build & export IPA
+        if: env.IOS_DIST_CERT_BASE64 != ''
+        run: |
+          cd ios/App
+          xcodebuild -workspace App.xcworkspace -scheme App \
+            -configuration Release -archivePath "$RUNNER_TEMP/App.xcarchive" \
+            -destination 'generic/platform=iOS' archive
+          xcodebuild -exportArchive -archivePath "$RUNNER_TEMP/App.xcarchive" \
+            -exportPath "$RUNNER_TEMP/export" \
+            -exportOptionsPlist exportOptions.plist
+
+      - name: Upload IPA artifact
+        if: env.IOS_DIST_CERT_BASE64 != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: lightcode-ios-ipa
+          path: ${{ runner.temp }}/export/*.ipa
+          if-no-files-found: error
+
+      # Upload to App Store Connect / TestFlight via an API key when present.
+      - name: Upload to TestFlight
+        if: env.IOS_DIST_CERT_BASE64 != '' && env.APP_STORE_CONNECT_KEY_ID != ''
+        uses: apple-actions/upload-testflight-build@v3
+        with:
+          app-path: ${{ runner.temp }}/export/App.ipa
+          issuer-id: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          api-key-id: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          api-private-key: ${{ secrets.APP_STORE_CONNECT_PRIVATE_KEY }}

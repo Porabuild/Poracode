@@ -4,6 +4,8 @@ export function InlineRenameInput(props: {
   initialValue: string;
   onCommit: (value: string) => void;
   onCancel: () => void;
+  /** Accessible name for the input; defaults to "Rename thread". */
+  ariaLabel?: string;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [value, setValue] = useState(props.initialValue);
@@ -31,7 +33,7 @@ export function InlineRenameInput(props: {
   return (
     <input
       ref={inputRef}
-      aria-label="Rename thread"
+      aria-label={props.ariaLabel ?? "Rename thread"}
       className="block w-full bg-transparent text-[inherit] leading-[inherit] outline-none"
       value={value}
       onChange={(e) => setValue(e.target.value)}

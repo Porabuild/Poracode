@@ -1,4 +1,6 @@
 import type { LightcodeChannel } from "../channel";
+import type { RemoteThreadCommand } from "../contracts";
+import type { SharedSettings } from "../settings";
 import { createChannel } from "./core";
 import {
   ipcProcedureMap,
@@ -35,6 +37,10 @@ export type LightcodeBridge = LightcodeInvokeBridge & {
   onSupervisorEvent(listener: (event: SupervisorEvent) => void): () => void;
   onUpdateStatus(listener: (status: UpdateStatus) => void): () => void;
   onBrowserEvent(listener: (event: BrowserEvent) => void): () => void;
+  /** Thread-metadata mutations issued by paired remote clients (mobile PWA). */
+  onRemoteThreadCommand(listener: (command: RemoteThreadCommand) => void): () => void;
+  /** Shared settings rewritten outside this renderer (e.g. by a remote client). */
+  onSharedSettingsChanged(listener: (settings: SharedSettings) => void): () => void;
 };
 
 export function createInvokeBridge(
@@ -86,4 +92,6 @@ export const IPC_EVENT_CHANNELS = {
   supervisorEvent: createChannel("supervisorEvent"),
   updateStatus: createChannel("updateStatus"),
   browserEvent: createChannel("browserEvent"),
+  remoteThreadCommand: createChannel("remoteThreadCommand"),
+  sharedSettingsChanged: createChannel("sharedSettingsChanged"),
 } as const;

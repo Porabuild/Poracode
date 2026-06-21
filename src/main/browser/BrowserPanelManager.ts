@@ -50,6 +50,9 @@ export class BrowserPanelManager {
   private tabs: BrowserTab[] = [];
   private activeTabId: string | null = null;
   private host: BrowserWindow | null = null;
+  /** Out-of-window observers (remote access gateway) fed the same events as
+   * the renderer; the renderer stays the only consumer of host-window IPC. */
+  private readonly eventListeners = new Set<(event: BrowserEvent) => void>();
   private pendingPicker: PendingPicker | null = null;
   private unsubscribePicker: (() => void) | null = null;
   private persistTimer: ReturnType<typeof setTimeout> | null = null;
@@ -164,10 +167,22 @@ export class BrowserPanelManager {
   }
 
   private emit(event: BrowserEvent): void {
+    for (const listener of this.eventListeners) {
+      try {
+        listener(event);
+      } catch {}
+    }
     if (!this.host || this.host.isDestroyed()) return;
     try {
       this.host.webContents.send(IPC_EVENT_CHANNELS.browserEvent, event);
     } catch {}
+  }
+
+  addEventListener(listener: (event: BrowserEvent) => void): () => void {
+    this.eventListeners.add(listener);
+    return () => {
+      this.eventListeners.delete(listener);
+    };
   }
 
   private emitState(): void {
