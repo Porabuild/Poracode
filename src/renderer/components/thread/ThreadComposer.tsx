@@ -549,9 +549,14 @@ export function ThreadComposer(props: {
           ? toggleLabel
           : undefined;
       if (tooltipText) {
+        // Place the ToggleButton directly inside <Tooltip> (no <Tooltip.Trigger>
+        // wrapper) so the tooltip attaches to the button itself. Wrapping a
+        // focusable control in <Tooltip.Trigger> would add a redundant
+        // `role="button"` host element, duplicating the toggle in the
+        // accessibility tree. Mirrors the OptionMenu tooltip pattern.
         return (
           <Tooltip key={`toggle-tooltip-${index}`} delay={0}>
-            <Tooltip.Trigger>{toggle}</Tooltip.Trigger>
+            {toggle}
             <Tooltip.Content placement="top">{tooltipText}</Tooltip.Content>
           </Tooltip>
         );
