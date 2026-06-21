@@ -30,6 +30,7 @@ import {
   useIsCurrentThread,
   useProjectAgentStatuses,
 } from "@/renderer/hooks/uiSelectors";
+import { useThreadHasLiveWorkflow } from "@/renderer/state/threadLiveWorkflowStore";
 import { openGitReview } from "@/renderer/actions/panelActions";
 import {
   gitPull,
@@ -106,7 +107,8 @@ export function SortableThreadItem(props: {
 
   const isDragging = useIsDraggingThread(thread.id);
 
-  const statusTone = getStatusTone(thread);
+  const hasLiveWorkflow = useThreadHasLiveWorkflow(thread.id);
+  const statusTone = getStatusTone(thread, { hasLiveWorkflow });
 
   return (
     <div ref={ref} className="relative w-full pb-0.5">
@@ -298,7 +300,9 @@ export function SortableThreadItem(props: {
         <SidebarButton
           size="xs"
           statusTone={statusTone}
-          icon={<ThreadProviderIcon thread={thread} className="size-3.5 shrink-0" />}
+          icon={
+            <ThreadProviderIcon thread={thread} tone={statusTone} className="size-3.5 shrink-0" />
+          }
           label={
             editingThreadId === thread.id ? (
               <InlineRenameInput

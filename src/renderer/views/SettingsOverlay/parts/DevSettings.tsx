@@ -15,6 +15,7 @@ export function DevSettings() {
       description={t`Development-only overrides. Only visible in the LIGHTCODE DEV build.`}
     >
       <SettingRow
+        anchorId="dev.disableCliHookPlugin"
         title={t`Disable CLI hook plugin (L1)`}
         description={t`Drops incoming hook envelopes on the supervisor so agents fall back to L2 (OSC 9;4 progress) without touching install or iTerm2 notifications. Takes effect on the next hook event — no restart needed.`}
       >

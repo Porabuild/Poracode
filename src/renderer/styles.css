@@ -11,6 +11,18 @@
   border-radius: var(--lightcode-modal-radius);
 }
 
+/* In-content Find highlights (chat, git diff). Painted via the CSS Custom
+   Highlight API so matches never mutate React-managed / virtualized DOM. The
+   active match (lc-find-current) is registered at higher priority so it paints
+   over the base set. Theme-independent colors so both light and dark read well. */
+::highlight(lc-find) {
+  background-color: rgb(250 204 21 / 0.4);
+}
+::highlight(lc-find-current) {
+  background-color: rgb(249 115 22 / 0.95);
+  color: rgb(0 0 0 / 0.92);
+}
+
 @property --lc-chat-bottom-mask-end-alpha {
   syntax: "<number>";
   initial-value: 0;
@@ -1508,6 +1520,26 @@ html[data-app-unfocused] .lightcode-provider-icon--finished {
   }
   50% {
     opacity: 1;
+  }
+}
+
+/* Transient highlight when the settings search scrolls to a specific setting.
+   Net-zero layout: the symmetric negative margin / padding keeps content in
+   place while the tinted band gets a little breathing room. Removed on
+   animationend so re-triggering the same setting flashes again. */
+.lightcode-setting-highlight {
+  animation: lightcode-setting-highlight 1.4s ease-out;
+  margin-inline: -0.5rem;
+  padding-inline: 0.5rem;
+  border-radius: 0.5rem;
+}
+
+@keyframes lightcode-setting-highlight {
+  0% {
+    background-color: color-mix(in oklab, var(--accent) 22%, transparent);
+  }
+  100% {
+    background-color: transparent;
   }
 }
 

@@ -1,11 +1,13 @@
 import type { CredentialStore } from "@lightcode/agents-usage";
-import { getUsageSecret } from "@/shared/usageSecretStore";
+import { getUsageSecret, setUsageSecret } from "@/shared/usageSecretStore";
 import { resolveClaudeToken } from "./claudeCredentials";
 import { resolveCodexToken } from "./codexCredentials";
 import { resolveCopilotToken } from "./copilotCredentials";
 import { resolveCursorToken } from "./cursorCredentials";
+import { resolveFactoryCliToken } from "./factoryCredentials";
 import { resolveGeminiToken } from "./geminiCredentials";
 import { resolveGrokToken } from "./grokCredentials";
+import { resolveZaiToken } from "./zaiCredentials";
 
 /**
  * Assembles the native (host) credential store consumed by the usage HostPort
@@ -34,6 +36,12 @@ export function createNativeCredentialStore(cacheDir?: string): CredentialStore 
           return resolveGrokToken();
         case "gemini":
           return resolveGeminiToken();
+        // Factory/Droid: the local `droid` CLI's token (read-only). Used as the
+        // primary source before the captured browser-login secret.
+        case "factory":
+          return resolveFactoryCliToken();
+        case "zai":
+          return resolveZaiToken();
         default:
           return undefined;
       }
@@ -43,5 +51,10 @@ export function createNativeCredentialStore(cacheDir?: string): CredentialStore 
     // Never logged.
     getSecret: async (providerId, key) =>
       cacheDir ? getUsageSecret(cacheDir, providerId, key) : undefined,
+    // Persist a rotated secret (e.g. Factory's WorkOS refresh token, which
+    // WorkOS rotates on every exchange). Sealed with the same safeStorage key.
+    setSecret: async (providerId, key, value) => {
+      if (cacheDir) setUsageSecret(cacheDir, providerId, key, value);
+    },
   };
 }

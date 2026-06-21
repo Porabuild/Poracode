@@ -77,6 +77,7 @@ export const claudeCapabilities: AgentCapability = {
   ],
   sandboxModes: [],
   supportsResume: true,
+  supportsOneShot: true,
   supportsDirectInput: true,
   slashCommands: CLAUDE_BUILT_IN_SLASH_COMMANDS,
   liveInputMode: "terminal",

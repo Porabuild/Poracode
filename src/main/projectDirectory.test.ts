@@ -2,11 +2,12 @@ import { existsSync, mkdtempSync, rmSync, statSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, test } from "vitest";
+import type { ScratchKind } from "@/shared/createProject";
 import { createProjectDirectory, describeMkdirError } from "./projectDirectory";
 
 describe("createProjectDirectory", () => {
   let root: string;
-  const nativeKind = process.platform === "win32" ? "windows" : "posix";
+  const nativeKind: ScratchKind = process.platform === "win32" ? "windows" : "posix";
 
   beforeEach(() => {
     root = mkdtempSync(join(tmpdir(), "lc-create-project-"));

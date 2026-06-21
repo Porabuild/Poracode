@@ -131,6 +131,11 @@ msgstr "{0} đã đăng xuất."
 msgid "{0} needs authentication."
 msgstr "{0} cần xác thực."
 
+#. placeholder {0}: currentIndex + 1
+#: src/renderer/components/find/FindBar.tsx
+msgid "{0} of {matchCount}"
+msgstr "{0} / {matchCount}"
+
 #. placeholder {0}: cell.count
 #: src/renderer/views/ProfileOverlay/parts/ActivityHeatmap.tsx
 msgid "{0} prompt - {when}"
@@ -249,6 +254,15 @@ msgstr "{hours} giờ trước"
 msgid "{installedCount, plural, one {# agent ready} other {# agents ready}}"
 msgstr "{installedCount, plural, one {# tác nhân đã sẵn sàng} other {# tác nhân "
 "đã sẵn sàng}}"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+msgid "{label} API key"
+msgstr "Khóa API {label}"
+
+#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+msgid "{label} auto-refresh interval in minutes"
+msgstr "Khoảng thời gian tự động làm mới {label} tính bằng phút"
 
 #: src/renderer/components/providers/ProviderUsageRail.tsx
 msgid "{label} usage — open usage panel"
@@ -409,6 +423,7 @@ msgstr "Tác nhân ACP"
 msgid "Action command"
 msgstr "Lệnh hành động"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
 msgid "Action for the quick-remove button on sidebar threads."
 msgstr "Hành động dành cho nút loại bỏ nhanh trên các chuỗi thanh bên."
@@ -444,6 +459,10 @@ msgstr "Chỉ số hoạt động"
 #: src/renderer/views/SettingsOverlay/parts/SearchExcludeBody.tsx
 msgid "Add"
 msgstr "Thêm vào"
+
+#: src/renderer/commands/registry.ts
+msgid "Add a local project"
+msgstr "Thêm một dự án cục bộ"
 
 #: src/renderer/actions/agentLoginActions.ts
 msgid "Add a project before installing an agent."
@@ -505,6 +524,10 @@ msgstr "Thêm tùy chọn dự án"
 msgid "Add Remote"
 msgstr "Thêm remote"
 
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
+msgid "Add shortcut"
+msgstr "Thêm phím tắt"
+
 #: src/renderer/components/composer/ComposerAddMenu.tsx
 msgid "Add to composer"
 msgstr "Thêm vào trình soạn thảo"
@@ -529,6 +552,7 @@ msgstr "Trò chuyện tác nhân (ACP / markdown). Các hàng lệnh dùng kích
 "trừ 1 px; dòng công cụ và dòng kế hoạch trừ 2 px."
 
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Agent encountered an error."
 msgstr "Tác nhân đã gặp lỗi."
 
@@ -549,6 +573,7 @@ msgstr "Không tìm thấy tác nhân"
 msgid "Agent Registry"
 msgstr "Sổ đăng ký tác nhân"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Agent terminal font size"
 msgstr "Kích thước phông chữ terminal của tác nhân"
@@ -592,6 +617,7 @@ msgstr "Trình điều phối tác nhân AI - quản lý các tác nhân mã hó
 msgid "AI git actions"
 msgstr "Thao tác git bằng AI"
 
+#: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "All"
 msgstr "Tất cả"
@@ -618,12 +644,18 @@ msgid "Allow"
 msgstr "Cho phép"
 
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Allow agents to read/write cookies and storage"
 msgstr "Cho phép tác nhân đọc/ghi cookie và bộ nhớ lưu trữ"
 
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Allow eval"
 msgstr "Cho phép eval"
+
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
+msgid "Already used by {conflict}"
+msgstr "Đã được dùng bởi {conflict}"
 
 #. Notification filter: always notify
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
@@ -658,6 +690,7 @@ msgid "Apply provider preset"
 msgstr "Áp dụng cấu hình nhà cung cấp"
 
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Approval or reply required from you."
 msgstr "Cần có sự phê duyệt hoặc trả lời từ bạn."
 
@@ -688,6 +721,14 @@ msgstr "Lưu trữ {0}"
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadGroup.tsx
 msgid "Archive All"
 msgstr "Lưu trữ tất cả"
+
+#: src/renderer/commands/registry.ts
+msgid "Archive the current thread"
+msgstr "Lưu trữ luồng hiện tại"
+
+#: src/renderer/commands/registry.ts
+msgid "Archive thread"
+msgstr "Lưu trữ luồng"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
 msgid "Archive Thread"
@@ -769,6 +810,7 @@ msgstr "Tự động"
 msgid "Auto Approve"
 msgstr "Tự động phê duyệt"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
 msgid "Auto-archive done threads after"
 msgstr "Tự động lưu trữ các chủ đề đã hoàn thành sau"
@@ -781,9 +823,10 @@ msgstr "Tự động lưu trữ các chủ đề đã hoàn thành sau (ngày)"
 msgid "Auto-generate"
 msgstr "Tự động tạo"
 
+#. Label for the per-provider auto-refresh cadence field
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
-msgid "Auto-refresh (minutes)"
-msgstr "Tự động làm mới (phút)"
+msgid "Auto-refresh"
+msgstr "Tự động làm mới"
 
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Auto-refresh interval in minutes, 0 to turn off"
@@ -793,10 +836,12 @@ msgstr "Khoảng thời gian tự động làm mới tính bằng phút, 0 để
 msgid "Auto-review"
 msgstr "Tự động xem xét"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Auto-show terminal panel"
 msgstr "Tự động hiển thị bảng điều khiển thiết bị đầu cuối"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Automatically show the terminal panel when running commands or creating "
 "worktrees."
@@ -818,6 +863,7 @@ msgstr "Màu ảnh đại diện"
 msgid "Avatar color {color}"
 msgstr "Màu ảnh đại diện {color}"
 
+#: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Back"
 msgstr "Quay lại"
@@ -843,16 +889,19 @@ msgid "Base branch is ahead — branch must be updated first."
 msgstr "Nhánh cơ sở ở phía trước - nhánh phải được cập nhật trước."
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectWorktreeLocation.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/WorktreeSettings.tsx
 msgid "Base folder"
 msgstr "Thư mục gốc"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Base font size for agent terminals. Auto-shrinks in narrow or short "
 "panes."
 msgstr "Kích thước phông chữ cơ sở cho thiết bị đầu cuối của tác nhân. Tự động "
 "thu nhỏ trong các ô hẹp hoặc ngắn."
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Base font size for the terminal panel. Auto-shrinks in narrow or short "
 "panes."
@@ -935,6 +984,8 @@ msgstr "Duyệt tìm thư mục mẹ"
 msgid "Browse your GitHub repositories or paste a clone URL."
 msgstr "Duyệt qua kho GitHub của bạn hoặc dán URL nhân bản."
 
+#: src/renderer/commands/registry.ts
+#: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/composer/AttachmentBar.tsx
 #: src/renderer/components/composer/ComposerAddMenu.tsx
 #: src/renderer/components/layout/UnifiedRightPanel.tsx
@@ -962,6 +1013,7 @@ msgstr "Đã bật MCP trình duyệt cho chủ đề này"
 msgid "Browser menu"
 msgstr "Trình đơn trình duyệt"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Browser pick target (CLI threads)"
 msgstr "Mục tiêu chọn trình duyệt (chủ đề CLI)"
@@ -978,6 +1030,10 @@ msgstr "Đã đạt đến giới hạn ngân sách"
 #: src/renderer/components/thread/ChatPane/parts/items/InlineDiffView.tsx
 msgid "Building diff…"
 msgstr "Đang dựng diff…"
+
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
+msgid "Built-in shortcut — can't be changed"
+msgstr "Phím tắt tích hợp sẵn — không thể thay đổi"
 
 #: src/renderer/views/PrReviewOverlay/parts/PrMetaRow.tsx
 msgid "by <0>{author}</0>"
@@ -1018,6 +1074,7 @@ msgstr "Bỏ qua các quy tắc bảo vệ nhánh (hợp nhất với quyền qu
 #: src/renderer/views/MainView/parts/Sidebar/parts/DeleteWorktreeDialog.tsx
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
 #: src/renderer/views/PrReviewOverlay/parts/SubmitReviewPopover.tsx
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Cancel"
 msgstr "Hủy bỏ"
 
@@ -1049,6 +1106,10 @@ msgstr "Không thể chuyển nhánh — trước tiên hãy commit hoặc stash
 #: src/renderer/views/ProjectSettingsOverlay/parts/GeneralSection.tsx
 msgid "Change project folder"
 msgstr "Thay đổi thư mục dự án"
+
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
+msgid "Change shortcut"
+msgstr "Thay đổi phím tắt"
 
 #: src/renderer/views/MainView/parts/AppOverlays.tsx
 msgid "Change User"
@@ -1093,6 +1154,14 @@ msgstr "Trò chuyện"
 msgid "Chat Commands"
 msgstr "Lệnh trò chuyện"
 
+#: src/renderer/commands/registry.ts
+msgid "Chat starred"
+msgstr "Đã gắn sao cuộc trò chuyện"
+
+#: src/renderer/commands/registry.ts
+msgid "Chat unstarred"
+msgstr "Đã bỏ gắn sao cuộc trò chuyện"
+
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 msgid "Check"
 msgstr "Kiểm tra"
@@ -1102,6 +1171,7 @@ msgid "Check for updates"
 msgstr "Kiểm tra các bản cập nhật"
 
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Check the live input level from the selected device."
 msgstr "Kiểm tra mức đầu vào trực tiếp từ thiết bị đã chọn."
 
@@ -1127,6 +1197,7 @@ msgid "Choose how to sign in."
 msgstr "Chọn cách đăng nhập."
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Choose the display language for Lightcode's interface."
 msgstr "Chọn ngôn ngữ hiển thị cho giao diện của Lightcode."
 
@@ -1135,6 +1206,7 @@ msgid "Choose thread to attach to"
 msgstr "Chọn chủ đề để đính kèm"
 
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Choose whether links from Lightcode and browser popups stay in Lightcode "
 "or open externally."
 msgstr "Chọn xem các liên kết từ Lightcode và cửa sổ bật lên của trình duyệt "
@@ -1194,6 +1266,10 @@ msgstr "CLI"
 msgid "CLI hooks"
 msgstr "Hook CLI"
 
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
+msgid "Click a shortcut to record a new key, or ＋ to add another."
+msgstr "Nhấp vào một phím tắt để ghi lại phím mới, hoặc ＋ để thêm phím khác."
+
 #: src/renderer/views/MainView/parts/AppContent/parts/Thread/parts/ContinueInProviderDialog.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "Clone"
@@ -1236,6 +1312,10 @@ msgstr "Đóng trình chỉnh sửa"
 msgid "Close Editor Tab"
 msgstr "Đóng tab trình chỉnh sửa"
 
+#: src/renderer/components/find/FindBar.tsx
+msgid "Close find"
+msgstr "Đóng tìm kiếm"
+
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 msgid "Close goal"
 msgstr "Đóng mục tiêu"
@@ -1243,6 +1323,10 @@ msgstr "Đóng mục tiêu"
 #: src/renderer/views/MainView/parts/AppContent/AppContent.tsx
 msgid "Close group"
 msgstr "Đóng nhóm"
+
+#: src/renderer/commands/shortcutCatalog.ts
+msgid "Close overlay"
+msgstr "Đóng lớp phủ"
 
 #: src/renderer/components/thread/ThreadDraftChrome.tsx
 #: src/renderer/components/thread/ThreadView.tsx
@@ -1290,6 +1374,7 @@ msgid "Close tab"
 msgstr "Đóng tab"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Close to tray"
 msgstr "Thu nhỏ vào khay"
 
@@ -1334,6 +1419,7 @@ msgstr "Thu gọn trình soạn thảo"
 msgid "Collapse error"
 msgstr "Thu gọn lỗi"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Collapse terminal composer"
 msgstr "Thu gọn trình soạn thảo thiết bị đầu cuối"
@@ -1379,6 +1465,7 @@ msgid "Commit & Create PR"
 msgstr "Cam kết & Tạo PR"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Commit & PR language"
 msgstr "Ngôn ngữ commit & PR"
 
@@ -1399,12 +1486,17 @@ msgid "Commit message (Ctrl+Enter)"
 msgstr "Thông báo cam kết (Ctrl+Enter)"
 
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Commit Message Generation"
 msgstr "Tạo thông báo commit"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CommitSyncPanel.tsx
 msgid "Commit options"
 msgstr "Tùy chọn cam kết"
+
+#: src/renderer/commands/shortcutCatalog.ts
+msgid "Commit, PR, and review composers"
+msgstr "Trình soạn thảo commit, PR và đánh giá"
 
 #: src/renderer/views/PrReviewOverlay/parts/PrTabsPill.tsx
 msgid "Commits"
@@ -1451,16 +1543,22 @@ msgstr "Hoàn thành các lời nhắc trong thiết bị đầu cuối này. Đ
 msgid "completed"
 msgstr "hoàn thành"
 
+#: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Composer"
 msgstr "Composer"
+
+#: src/renderer/commands/composerCommands.ts
+msgid "Composer controls"
+msgstr "Điều khiển trình soạn thảo"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Config directory"
 msgstr "Thư mục cấu hình"
 
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Conflict Resolver"
 msgstr "Giải quyết xung đột"
 
@@ -1591,6 +1689,10 @@ msgstr "Sao chép đường dẫn"
 msgid "Copy Relative Path"
 msgstr "Sao chép đường dẫn tương đối"
 
+#: src/renderer/commands/shortcutCatalog.ts
+msgid "Copy selection"
+msgstr "Sao chép lựa chọn"
+
 #: src/renderer/components/thread/WorktreeModeSelect.tsx
 msgid "Copy uncommitted changes here (keeps them on this branch)"
 msgstr "Sao chép các thay đổi chưa được cam kết tại đây (giữ chúng trên nhánh "
@@ -1638,6 +1740,10 @@ msgstr "Không thể liệt kê các kho lưu trữ."
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "Couldn't load your profile stats."
 msgstr "Không thể tải thống kê hồ sơ của bạn."
+
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
+msgid "Couldn't save the shortcut."
+msgstr "Không thể lưu phím tắt."
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CreatePrModal.tsx
 msgid "Create Draft PR"
@@ -1713,6 +1819,7 @@ msgstr "chuỗi ngày hiện tại"
 msgid "Current streak"
 msgstr "Chuỗi ngày hiện tại"
 
+#: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
@@ -1722,6 +1829,22 @@ msgstr "Tùy chỉnh"
 #: src/renderer/views/ProjectSettingsOverlay/parts/ActionsSection.tsx
 msgid "Custom commands available from the project context menu (right-click)."
 msgstr "Các lệnh tùy chỉnh có sẵn từ menu ngữ cảnh của dự án (nhấp chuột phải)."
+
+#: src/renderer/commands/composerCommands.ts
+msgid "Cycle permission mode"
+msgstr "Luân chuyển chế độ cho phép"
+
+#: src/renderer/commands/composerCommands.ts
+msgid "Cycle reasoning effort"
+msgstr "Luân chuyển mức nỗ lực suy luận"
+
+#: src/renderer/commands/registry.ts
+msgid "Cycle to the next recently viewed chat"
+msgstr "Chuyển đến cuộc trò chuyện đã xem gần đây tiếp theo"
+
+#: src/renderer/commands/registry.ts
+msgid "Cycle to the previous recently viewed chat"
+msgstr "Chuyển đến cuộc trò chuyện đã xem gần đây trước đó"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Dark"
@@ -1735,11 +1858,18 @@ msgstr "Từ chối"
 msgid "Default"
 msgstr "Mặc định"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+msgid "Default auto-refresh (minutes)"
+msgstr "Tự động làm mới mặc định (phút)"
+
 #: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Default Create PR action"
 msgstr "Hành động Tạo PR mặc định"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Default new thread"
 msgstr "Chủ đề mới mặc định"
 
@@ -1747,6 +1877,7 @@ msgstr "Chủ đề mới mặc định"
 msgid "Default permissions"
 msgstr "Quyền mặc định"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
 msgid "Default thread removal"
 msgstr "Hành vi xóa chủ đề mặc định"
@@ -1853,6 +1984,8 @@ msgstr "Đang phát hiện tác nhân…"
 
 #. Settings section: developer/debug tools
 #. Settings section: developer/debug tools
+#. Settings section: developer/debug tools
+#. Settings section: developer/debug tools
 #: src/renderer/views/SettingsOverlay/parts/DevSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Dev"
@@ -1864,6 +1997,7 @@ msgstr "Ghi đè chỉ dành cho phát triển. Chỉ hiển thị trong bản d
 "DEV."
 
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Device used by the composer voice input button."
 msgstr "Thiết bị được dùng cho nút nhập giọng nói của khung soạn thảo."
 
@@ -1880,6 +2014,7 @@ msgid "Disable Browser MCP"
 msgstr "Tắt MCP trình duyệt"
 
 #: src/renderer/views/SettingsOverlay/parts/DevSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Disable CLI hook plugin (L1)"
 msgstr "Vô hiệu hóa plugin hook CLI (L1)"
 
@@ -1896,6 +2031,10 @@ msgstr "Tắt các mức mà nhà cung cấp bên ngoài gộp lại (ví dụ c
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 msgid "Disabled"
 msgstr "Đã tắt"
+
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
+msgid "Discard"
+msgstr "Hủy bỏ"
 
 #: src/renderer/commands/registry.ts
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
@@ -1949,6 +2088,7 @@ msgstr "xong"
 
 #. Notification status: thread is done
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Done"
 msgstr "Xong"
 
@@ -1988,6 +2128,7 @@ msgid "Draft"
 msgstr "Bản nháp"
 
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Drag to reorder how providers appear in the model picker."
 msgstr "Kéo để sắp xếp lại cách các nhà cung cấp xuất hiện trong bộ chọn mô "
 "hình."
@@ -2001,6 +2142,7 @@ msgid "Drop here to attach"
 msgstr "Thả vào đây để đính kèm"
 
 #: src/renderer/views/SettingsOverlay/parts/DevSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Drops incoming hook envelopes on the supervisor so agents fall back to "
 "L2 (OSC 9;4 progress) without touching install or iTerm2 notifications. "
 "Takes effect on the next hook event — no restart needed."
@@ -2030,11 +2172,13 @@ msgid "Edit:"
 msgstr "Chỉnh sửa:"
 
 #: src/renderer/commands/registry.ts
+#: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/views/FileEditorOverlay/FileEditorOverlay.tsx
 msgid "Editor"
 msgstr "Trình chỉnh sửa"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Editor LSP"
 msgstr "LSP của trình chỉnh sửa"
 
@@ -2064,6 +2208,7 @@ msgid "Enable {tierLabel} effort"
 msgstr "Bật mức nỗ lực {tierLabel}"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Enable language server support for type checking, completions, and "
 "diagnostics. Requires a language server installed."
 msgstr "Bật hỗ trợ máy chủ ngôn ngữ để kiểm tra loại, hoàn thành và chẩn đoán. "
@@ -2075,6 +2220,7 @@ msgstr "Bật quyền truy cập micrô trong cài đặt hệ thống của b�
 "lại."
 
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Enable notifications"
 msgstr "Bật thông báo"
 
@@ -2141,6 +2287,7 @@ msgstr "lỗi"
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 #: src/renderer/components/ui/toastContent.ts
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Error"
 msgstr "Lỗi"
 
@@ -2149,6 +2296,7 @@ msgid "Error · Agent encountered an error"
 msgstr "Lỗi · Tác nhân gặp lỗi"
 
 #: src/renderer/views/SettingsOverlay/parts/SearchExcludeBody.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Exclude patterns"
 msgstr "Loại trừ mẫu"
 
@@ -2234,6 +2382,7 @@ msgid "Fastest (Whisper tiny)"
 msgstr "Nhanh nhất (Whisper tiny)"
 
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Fastest uses Whisper tiny; Better uses Whisper base."
 msgstr "Nhanh nhất dùng Whisper tiny; Tốt hơn dùng Whisper base."
 
@@ -2289,8 +2438,30 @@ msgid "Files for {0}"
 msgstr "Tập tin cho {0}"
 
 #: src/renderer/views/SettingsOverlay/parts/SearchExcludeBody.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Files matching these globs are hidden from the @file mention search."
 msgstr "Các tệp khớp với các mẫu glob này sẽ bị ẩn khỏi tìm kiếm @file."
+
+#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
+msgid "Filter settings"
+msgstr "Lọc cài đặt"
+
+#: src/renderer/commands/registry.ts
+#: src/renderer/components/find/FindBar.tsx
+msgid "Find"
+msgstr "Tìm kiếm"
+
+#: src/renderer/components/find/ChatFindBar.tsx
+msgid "Find in chat"
+msgstr "Tìm trong cuộc trò chuyện"
+
+#: src/renderer/components/find/GitFindBar.tsx
+msgid "Find in diff"
+msgstr "Tìm trong diff"
+
+#: src/renderer/components/terminal/XTermSurface.tsx
+msgid "Find in terminal"
+msgstr "Tìm trong terminal"
 
 #: src/renderer/views/PrReviewOverlay/parts/SubmitReviewPopover.tsx
 msgid "Finish your review"
@@ -2341,10 +2512,19 @@ msgstr "Tích hợp OpenCode hạng nhất bằng thời gian chạy SDK gốc c
 msgid "Fix in Agent"
 msgstr "Sửa trong Tác nhân"
 
+#: src/renderer/commands/registry.ts
+msgid "Focus browser address bar"
+msgstr "Tập trung vào thanh địa chỉ trình duyệt"
+
+#: src/renderer/commands/registry.ts
+msgid "Focus the in-app browser address bar"
+msgstr "Tập trung vào thanh địa chỉ của trình duyệt tích hợp"
+
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "Folder name"
 msgstr "Tên thư mục"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/WorktreeSettings.tsx
 msgid "Folder that holds all worktrees. Tip: a Dev Drive here speeds up builds."
 msgstr "Thư mục chứa tất cả các cây làm việc. Mẹo: một Dev Drive ở đây sẽ tăng "
@@ -2364,6 +2544,10 @@ msgstr "Buộc xóa"
 msgid "Force delete? Unmerged changes will be lost."
 msgstr "Buộc xóa? Những thay đổi chưa được hợp nhất sẽ bị mất."
 
+#: src/renderer/commands/shortcutCatalog.ts
+msgid "Force reload browser page"
+msgstr "Buộc tải lại trang trình duyệt"
+
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 msgid "Fork"
 msgstr "Fork"
@@ -2372,6 +2556,7 @@ msgstr "Fork"
 msgid "Format files"
 msgstr "Định dạng tập tin"
 
+#: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Forward"
 msgstr "Chuyển tiếp"
@@ -2402,6 +2587,7 @@ msgstr "Toàn quyền truy cập"
 msgid "Fullscreen overlay"
 msgstr "Lớp phủ toàn màn hình"
 
+#: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/views/ProjectSettingsOverlay/parts/GeneralSection.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/SettingsSidebar.tsx
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
@@ -2426,10 +2612,12 @@ msgid "Generated image"
 msgstr "Hình ảnh đã tạo"
 
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Generates commit messages from staged changes."
 msgstr "Tạo thông điệp commit từ các thay đổi đã staged."
 
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Generates short titles for new threads."
 msgstr "Tạo tiêu đề ngắn cho chủ đề mới."
 
@@ -2437,6 +2625,7 @@ msgstr "Tạo tiêu đề ngắn cho chủ đề mới."
 msgid "Get task"
 msgstr "Nhận nhiệm vụ"
 
+#: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/layout/UnifiedRightPanel.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
@@ -2456,6 +2645,7 @@ msgid "Git Review"
 msgstr "Đánh giá Git"
 
 #: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Git review mode"
 msgstr "Chế độ đánh giá Git"
 
@@ -2484,9 +2674,21 @@ msgstr "Các tệp được Gitignored để sao chép từ dự án chính vào
 msgid "GLM 5.2 (optional label)"
 msgstr "GLM 5.2 (nhãn tùy chọn)"
 
+#: src/renderer/commands/shortcutCatalog.ts
+msgid "Global"
+msgstr "Toàn cục"
+
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Global folder"
 msgstr "Thư mục toàn cục"
+
+#: src/renderer/commands/shortcutCatalog.ts
+msgid "Go back in navigation history"
+msgstr "Quay lại trong lịch sử điều hướng"
+
+#: src/renderer/commands/shortcutCatalog.ts
+msgid "Go forward in navigation history"
+msgstr "Tiến tới trong lịch sử điều hướng"
 
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 msgid "Goal"
@@ -2505,6 +2707,7 @@ msgid "Group open threads"
 msgstr "Nhóm chủ đề mở"
 
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "GUI chat font size"
 msgstr "Kích thước phông chữ trò chuyện GUI"
 
@@ -2520,6 +2723,7 @@ msgstr "Handle"
 msgid "Hard Reload"
 msgstr "Tải lại cứng"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
 msgid "Hidden resumable threads are swept every 5 minutes and unloaded after "
 "this idle age."
@@ -2529,6 +2733,10 @@ msgstr "Các chủ đề tiếp tục ẩn sẽ được quét 5 phút một l�
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewPanel.tsx
 msgid "Hide"
 msgstr "Ẩn"
+
+#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+msgid "Hide {label} circle in sidebar"
+msgstr "Ẩn vòng tròn {label} ở thanh bên"
 
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilitySection.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
@@ -2580,6 +2788,7 @@ msgid "Home"
 msgstr "Trang chủ"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Home scope"
 msgstr "phạm vi thư mục chính"
 
@@ -2721,6 +2930,10 @@ msgstr "Bị gián đoạn: phiên tác nhân đã kết thúc trước khi hoà
 msgid "Italic"
 msgstr "Nghiêng"
 
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
+msgid "Jump to section"
+msgstr "Chuyển đến phần"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/UsagePanel.tsx
 msgid "just now"
 msgstr "ngay bây giờ"
@@ -2730,6 +2943,7 @@ msgid "Keep Branch"
 msgstr "Giữ nhánh"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Keep the system awake while any thread is actively working."
 msgstr "Giữ cho hệ thống luôn hoạt động trong khi bất kỳ luồng nào đang hoạt "
 "động tích cực."
@@ -2739,16 +2953,19 @@ msgid "Kill bash"
 msgstr "Dừng bash"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Language"
 msgstr "Ngôn ngữ"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Language for AI-generated commit messages and pull request summaries. "
 "Thread titles always follow the app language."
 msgstr "Ngôn ngữ cho thông điệp commit và tóm tắt pull request do AI tạo. Tiêu "
 "đề chủ đề luôn theo ngôn ngữ ứng dụng."
 
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Language the speech model should expect when transcribing composer "
 "dictation."
 msgstr "Ngôn ngữ mà mô hình giọng nói cần dùng khi phiên âm lời đọc trong trình "
@@ -2954,7 +3171,12 @@ msgstr "Đánh dấu xong"
 msgid "Match app language"
 msgstr "Theo ngôn ngữ ứng dụng"
 
+#: src/renderer/components/find/FindBar.tsx
+msgid "Match case"
+msgstr "Phân biệt chữ hoa/thường"
+
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Match your system, or force light or dark."
 msgstr "Theo hệ thống của bạn, hoặc buộc dùng giao diện sáng hoặc tối."
 
@@ -2970,6 +3192,10 @@ msgstr "Tối đa hóa trình duyệt"
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "MCP servers"
 msgstr "Máy chủ MCP"
+
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "MCP tool calls"
+msgstr "Lượt gọi công cụ MCP"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/useWorktreeActions.ts
 msgid "Merge & Remove"
@@ -3039,6 +3265,7 @@ msgid "Messages sent"
 msgstr "Tin nhắn đã gửi"
 
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Microphone"
 msgstr "Micrô"
 
@@ -3063,6 +3290,11 @@ msgstr "Quyền sử dụng micrô đã bị từ chối."
 msgid "Microphone testing is not available in this environment."
 msgstr "Kiểm tra micrô không có sẵn trong môi trường này."
 
+#. Unit suffix: minutes
+#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+msgid "min"
+msgstr "phút"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 msgid "Minimize browser to right panel"
 msgstr "Thu nhỏ trình duyệt sang bảng bên phải"
@@ -3072,8 +3304,13 @@ msgid "Minimize to panel"
 msgstr "Thu nhỏ vào bảng điều khiển"
 
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Mode"
 msgstr "Chế độ"
+
+#: src/renderer/commands/registry.ts
+msgid "Model added to favorites"
+msgstr "Đã thêm mô hình vào mục yêu thích"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Model id"
@@ -3084,8 +3321,13 @@ msgid "Model label"
 msgstr "Nhãn mô hình"
 
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Model order"
 msgstr "Thứ tự mô hình"
+
+#: src/renderer/commands/registry.ts
+msgid "Model removed from favorites"
+msgstr "Đã xóa mô hình khỏi mục yêu thích"
 
 #: src/renderer/views/ProfileOverlay/parts/ModelUsage.tsx
 msgid "Model usage"
@@ -3196,6 +3438,7 @@ msgid "Needs approval"
 msgstr "Cần phê duyệt"
 
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Needs Attention"
 msgstr "Cần chú ý"
 
@@ -3241,9 +3484,17 @@ msgstr "Tệp mới"
 msgid "New Folder"
 msgstr "Thư mục mới"
 
+#: src/renderer/commands/shortcutCatalog.ts
+msgid "New line"
+msgstr "Dòng mới"
+
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
 msgid "New project"
 msgstr "Dự án mới"
+
+#: src/renderer/commands/registry.ts
+msgid "New quick thread"
+msgstr "Luồng nhanh mới"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabStrip.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
@@ -3282,9 +3533,25 @@ msgstr "Luồng mới trong Worktree"
 msgid "New worktree"
 msgstr "Cây làm việc mới"
 
+#: src/renderer/commands/registry.ts
+msgid "Next chat"
+msgstr "Cuộc trò chuyện tiếp theo"
+
 #: src/renderer/components/composer/ImageLightbox.tsx
 msgid "Next image"
 msgstr "Hình ảnh tiếp theo"
+
+#: src/renderer/components/find/FindBar.tsx
+msgid "Next match"
+msgstr "Kết quả tiếp theo"
+
+#: src/renderer/commands/registry.ts
+msgid "Next recently viewed chat"
+msgstr "Cuộc trò chuyện đã xem gần đây tiếp theo"
+
+#: src/renderer/commands/registry.ts
+msgid "Next tab"
+msgstr "Tab tiếp theo"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/hooks/useElementPicker.ts
 msgid "No active browser tab"
@@ -3470,9 +3737,18 @@ msgstr "Không có cấu hình từ xa. Thêm một điều khiển từ xa đ�
 msgid "No repositories found."
 msgstr "Không tìm thấy kho lưu trữ nào."
 
+#: src/renderer/components/find/FindBar.tsx
+#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
+msgid "No results"
+msgstr "Không có kết quả"
+
 #: src/renderer/components/thread/ChatPane/ChatRuntimeDebugPanel.tsx
 msgid "No runtime items yet for this thread."
 msgstr "Chưa có mục thời gian chạy nào cho luồng này."
+
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
+msgid "No shortcuts found"
+msgstr "Không tìm thấy phím tắt nào"
 
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "No skills used yet."
@@ -3485,10 +3761,6 @@ msgstr "Không phát hiện thấy giọng nói nào."
 #: src/renderer/views/GitReviewOverlay/parts/GitDiffContent/GitDiffContent.tsx
 msgid "No staged changes"
 msgstr "Không có thay đổi nào được đưa vào staging"
-
-#: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
-msgid "No subagents used yet."
-msgstr "Chưa dùng subagent nào."
 
 #: src/renderer/components/thread/ThreadDraftView.tsx
 msgid "No supported agents detected"
@@ -3563,6 +3835,7 @@ msgid "Notifications"
 msgstr "Thông báo"
 
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Notify for L2 CLI threads"
 msgstr "Thông báo về các luồng L2 CLI"
 
@@ -3596,6 +3869,10 @@ msgstr "Mở"
 msgid "Open {label}"
 msgstr "Mở {label}"
 
+#: src/renderer/commands/registry.ts
+msgid "Open a new browser tab"
+msgstr "Mở tab trình duyệt mới"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/DevTerminalPanel.tsx
 msgid "Open a terminal"
 msgstr "Mở terminal"
@@ -3625,6 +3902,10 @@ msgstr "Mở dưới dạng bảng điều khiển"
 msgid "Open browser"
 msgstr "Mở trình duyệt"
 
+#: src/renderer/commands/registry.ts
+msgid "Open browser tab"
+msgstr "Mở tab trình duyệt"
+
 #: src/renderer/views/PrReviewOverlay/parts/PrChecksTab.tsx
 msgid "Open check"
 msgstr "Mở kiểm tra"
@@ -3653,6 +3934,10 @@ msgstr "Mở tệp"
 msgid "Open Files"
 msgstr "Mở tệp"
 
+#: src/renderer/commands/registry.ts
+msgid "Open folder"
+msgstr "Mở thư mục"
+
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorToolbar.tsx
 msgid "Open fullscreen"
 msgstr "Mở toàn màn hình"
@@ -3666,6 +3951,7 @@ msgid "Open Git Review"
 msgstr "Mở Git Review"
 
 #: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Open git review as a right-side panel or a full page."
 msgstr "Mở đánh giá git dưới dạng bảng điều khiển bên phải hoặc toàn trang."
 
@@ -3681,14 +3967,20 @@ msgid "Open in editor"
 msgstr "Mở trong trình chỉnh sửa"
 
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Open links in"
 msgstr "Mở liên kết trong"
+
+#: src/renderer/commands/composerCommands.ts
+msgid "Open model picker"
+msgstr "Mở bộ chọn mô hình"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserEmptyState.tsx
 msgid "Open new tab"
 msgstr "Mở tab mới"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Open new threads as a full page or a side-by-side panel."
 msgstr "Mở luồng mới dưới dạng toàn trang hoặc bảng cạnh nhau."
 
@@ -3798,14 +4090,25 @@ msgstr "Trình quản lý gói"
 msgid "Page"
 msgstr "Trang"
 
+#: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Panel"
 msgstr "bảng điều khiển"
 
+#: src/renderer/commands/shortcutCatalog.ts
+msgid "Panels and overlays"
+msgstr "Bảng điều khiển và lớp phủ"
+
+#: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/terminal/XTermSurface.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 msgid "Paste"
 msgstr "Dán"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+msgid "Paste {label} API key"
+msgstr "Dán khóa API {label}"
 
 #. placeholder {0}: activeDeviceCode.code
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
@@ -3875,10 +4178,12 @@ msgid "Plan"
 msgstr "kế hoạch"
 
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Play a sound when a notification is shown."
 msgstr "Phát âm thanh khi thông báo được hiển thị."
 
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Play notification sound"
 msgstr "Phát âm thanh thông báo"
 
@@ -3889,6 +4194,7 @@ msgstr "Trỏ hồ sơ này tới nhà cung cấp ngoài Anthropic (z.ai, …) v
 "trường, tên mô hình và mức nỗ lực tùy chỉnh."
 
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Popular editor themes adapted to Lightcode. Each follows the light or "
 "dark mode above."
 msgstr "Các chủ đề biên tập phổ biến được điều chỉnh cho phù hợp với Lightcode. "
@@ -3922,7 +4228,12 @@ msgstr "Hook pre-commit không thành công"
 msgid "Presets"
 msgstr "Cấu hình sẵn"
 
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
+msgid "Press shortcut…"
+msgstr "Nhấn phím tắt…"
+
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Prevent sleep while working"
 msgstr "Ngăn chế độ ngủ khi đang làm việc"
 
@@ -3931,9 +4242,25 @@ msgstr "Ngăn chế độ ngủ khi đang làm việc"
 msgid "Preview {0}"
 msgstr "Xem trước {0}"
 
+#: src/renderer/commands/registry.ts
+msgid "Previous chat"
+msgstr "Cuộc trò chuyện trước"
+
 #: src/renderer/components/composer/ImageLightbox.tsx
 msgid "Previous image"
 msgstr "Hình ảnh trước đó"
+
+#: src/renderer/components/find/FindBar.tsx
+msgid "Previous match"
+msgstr "Kết quả trước đó"
+
+#: src/renderer/commands/registry.ts
+msgid "Previous recently viewed chat"
+msgstr "Cuộc trò chuyện đã xem gần đây trước đó"
+
+#: src/renderer/commands/registry.ts
+msgid "Previous tab"
+msgstr "Tab trước"
 
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Profile"
@@ -3948,6 +4275,7 @@ msgid "Profiles"
 msgstr "Hồ sơ"
 
 #: src/renderer/commands/registry.ts
+#: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/views/ProjectSettingsOverlay/ProjectSettingsOverlay.tsx
 msgid "Project"
 msgstr "dự án"
@@ -4140,6 +4468,7 @@ msgstr "Gần đây"
 msgid "Recent threads"
 msgstr "Luồng gần đây"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Reconstructed from local logs at public API rates — it does not reflect "
 "your real bill on subscription plans. Shown only in the usage panel."
@@ -4147,6 +4476,7 @@ msgstr "Được xây dựng lại từ nhật ký cục bộ ở mức API côn
 "ánh hóa đơn thực của bạn đối với các gói đăng ký. Chỉ hiển thị trong "
 "bảng sử dụng."
 
+#. Button: re-fetch one provider's usage now
 #. Button: re-fetch provider usage now
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
 #: src/renderer/views/GitReviewOverlay/GitReviewOverlay.tsx
@@ -4163,6 +4493,10 @@ msgstr "Làm mới"
 msgid "Refresh {0} authentication"
 msgstr "Làm mới xác thực {0}"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
+msgid "Refresh {label}"
+msgstr "Làm mới {label}"
+
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Refresh detected agents"
 msgstr "Làm mới các tác nhân được phát hiện"
@@ -4170,12 +4504,6 @@ msgstr "Làm mới các tác nhân được phát hiện"
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Refresh registry"
 msgstr "Làm mới registry"
-
-#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
-msgid "Refresh usage in the background every N minutes. Set to 0 to turn off "
-"(manual only). The 2-minute floor respects provider rate limits."
-msgstr "Làm mới mức sử dụng ở chế độ nền cứ sau N phút. Đặt thành 0 để tắt (chỉ "
-"thủ công). Tầng 2 phút tôn trọng giới hạn tỷ lệ của nhà cung cấp."
 
 #. placeholder {0}: status.label
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
@@ -4191,6 +4519,10 @@ msgstr "Đang làm mới trạng thái xác thực {env} {0}."
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Reload"
 msgstr "Tải lại"
+
+#: src/renderer/commands/shortcutCatalog.ts
+msgid "Reload browser page"
+msgstr "Tải lại trang trình duyệt"
 
 #: src/renderer/components/common/BranchSelector/parts/useBranchList.ts
 msgid "Remote"
@@ -4254,6 +4586,10 @@ msgstr "Xóa mô hình"
 msgid "Remove Project"
 msgstr "Xóa dự án"
 
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
+msgid "Remove shortcut"
+msgstr "Xóa phím tắt"
+
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
 msgid "Remove worktree?"
 msgstr "Xóa worktree?"
@@ -4263,9 +4599,17 @@ msgstr "Xóa worktree?"
 msgid "Rename"
 msgstr "Đổi tên"
 
+#: src/renderer/commands/registry.ts
+msgid "Rename chat"
+msgstr "Đổi tên cuộc trò chuyện"
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadGroup.tsx
 msgid "Rename Group"
 msgstr "Đổi tên nhóm"
+
+#: src/renderer/commands/registry.ts
+msgid "Rename the current chat"
+msgstr "Đổi tên cuộc trò chuyện hiện tại"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/InlineRenameInput.tsx
 msgid "Rename thread"
@@ -4350,6 +4694,7 @@ msgid "Reset sidebar frosting to default"
 msgstr "Đặt lại độ mờ thanh bên về mặc định"
 
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Reset to default"
 msgstr "Đặt lại về mặc định"
 
@@ -4386,6 +4731,7 @@ msgid "Resize terminal panel"
 msgstr "Thay đổi kích thước bảng điều khiển thiết bị đầu cuối"
 
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Resolves merge conflicts during rebase or merge."
 msgstr "Giải quyết xung đột hợp nhất trong quá trình rebase hoặc hợp nhất."
 
@@ -4518,6 +4864,7 @@ msgid "Run in a separate worktree"
 msgstr "Chạy trong một cây làm việc riêng"
 
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Run local transcription on the GPU when available."
 msgstr "Chạy phiên âm cục bộ trên GPU khi có sẵn."
 
@@ -4582,6 +4929,10 @@ msgstr "Lưu hồ sơ Claude"
 msgid "Save File"
 msgstr "Lưu tập tin"
 
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
+msgid "Save shortcut"
+msgstr "Lưu phím tắt"
+
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
 msgid "Saved credentials are shared across all environments."
 msgstr "Thông tin đăng nhập đã lưu được chia sẻ trên tất cả các môi trường."
@@ -4605,9 +4956,11 @@ msgstr "Đang quét hệ thống của bạn để tìm CLI đã cài đặt. Vi
 "vài giây."
 
 #: src/renderer/commands/registry.ts
+#: src/renderer/commands/shortcutCatalog.ts
 msgid "Scripts"
 msgstr "Tập lệnh"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Scroll speed multiplier for the terminal scrollback buffer."
 msgstr "Hệ số nhân tốc độ cuộn cho bộ đệm cuộn ngược đầu cuối."
@@ -4670,6 +5023,14 @@ msgstr "Tìm kiếm kho lưu trữ…"
 #: src/renderer/components/thread/ChatPane/ChatRuntimeDebugPanel.tsx
 msgid "Search runtime items…"
 msgstr "Tìm kiếm các mục thời gian chạy…"
+
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
+msgid "Search shortcuts"
+msgstr "Tìm kiếm phím tắt"
+
+#: src/renderer/commands/registry.ts
+msgid "Search the current view"
+msgstr "Tìm kiếm trong chế độ xem hiện tại"
 
 #: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
 msgid "Search threads"
@@ -4740,6 +5101,7 @@ msgstr "Chọn dự án"
 msgid "Send a message..."
 msgstr "Gửi tin nhắn..."
 
+#: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/thread/ThreadComposerSection.tsx
 msgid "Send message"
 msgstr "Gửi tin nhắn"
@@ -4760,6 +5122,10 @@ msgstr "Tách các tài khoản Claude Code theo thư mục cấu hình, hoặc 
 msgid "Set or view an experimental goal"
 msgstr "Đặt hoặc xem mục tiêu thử nghiệm"
 
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
+msgid "Set shortcut"
+msgstr "Đặt phím tắt"
+
 #: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 #: src/renderer/views/SettingsOverlay/SettingsOverlay.tsx
@@ -4778,11 +5144,17 @@ msgstr "Chia sẻ"
 msgid "Share your activity"
 msgstr "Chia sẻ hoạt động của bạn"
 
+#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
+msgid "Shortcuts"
+msgstr "Phím tắt"
+
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
-msgid "Show a compact per-provider usage ring in the sidebar."
-msgstr "Hiển thị vòng sử dụng nhỏ gọn theo nhà cung cấp ở thanh bên."
+msgid "Show {label} circle in sidebar"
+msgstr "Hiển thị vòng tròn {label} ở thanh bên"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Show a projectless Home scope for OS-level agent sessions."
 msgstr "Hiển thị phạm vi Trang chủ không có dự án cho các phiên tác nhân cấp hệ "
 "điều hành."
@@ -4797,9 +5169,17 @@ msgstr "Hiển thị tất cả"
 msgid "Show Bookmark Bar"
 msgstr "Hiển thị thanh dấu trang"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Show circles in sidebar"
 msgstr "Hiển thị vòng tròn trong thanh bên"
+
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+msgid "Show compact per-provider usage rings in the sidebar. Hide individual "
+"providers' circles in the list below."
+msgstr "Hiển thị các vòng sử dụng nhỏ gọn theo nhà cung cấp ở thanh bên. Ẩn "
+"vòng tròn của từng nhà cung cấp trong danh sách bên dưới."
 
 #: src/renderer/components/thread/ThreadComposerSection.tsx
 msgid "Show composer"
@@ -4809,6 +5189,7 @@ msgstr "Hiển thị trình soạn thảo"
 msgid "Show context usage details"
 msgstr "Hiển thị chi tiết sử dụng ngữ cảnh"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Show estimated cost"
 msgstr "Hiển thị chi phí ước tính"
@@ -4827,16 +5208,27 @@ msgid "Show more"
 msgstr "Hiển thị thêm"
 
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Show notifications"
 msgstr "Hiển thị thông báo"
 
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Show notifications when thread status changes."
 msgstr "Hiển thị thông báo khi trạng thái luồng thay đổi."
 
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Show opened links in"
 msgstr "Hiển thị các liên kết đã mở trong"
+
+#: src/renderer/commands/registry.ts
+msgid "Show or hide the browser panel"
+msgstr "Hiển thị hoặc ẩn bảng điều khiển trình duyệt"
+
+#: src/renderer/commands/registry.ts
+msgid "Show or hide the sidebar"
+msgstr "Hiển thị hoặc ẩn thanh bên"
 
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorToolbar.tsx
 msgid "Show preview"
@@ -4859,18 +5251,31 @@ msgid "Show source"
 msgstr "Hiển thị nguồn"
 
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Show the microphone button in the composer."
 msgstr "Hiển thị nút micrô trong trình soạn thảo."
 
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Show voice input button"
 msgstr "Hiển thị nút nhập bằng giọng nói"
 
+#. Toggle: show this provider's usage ring in the sidebar
+#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+msgid "Sidebar"
+msgstr "Thanh bên"
+
+#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+msgid "Sidebar circles are turned off globally above"
+msgstr "Vòng tròn thanh bên đã bị tắt toàn cục ở trên"
+
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Sidebar frosting"
 msgstr "Độ mờ thanh bên"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Sign in"
 msgstr "Đăng nhập"
 
@@ -4887,6 +5292,10 @@ msgstr "Yêu cầu đăng nhập"
 msgid "Sign in with the agent CLI."
 msgstr "Đăng nhập bằng CLI tác nhân."
 
+#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+msgid "Sign out"
+msgstr "Đăng xuất"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
 msgid "Sign out {label}"
 msgstr "Đăng xuất {label}"
@@ -4900,6 +5309,7 @@ msgid "Signing in"
 msgstr "Đăng nhập"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Signing in…"
 msgstr "Đang đăng nhập…"
 
@@ -4912,25 +5322,21 @@ msgstr "Đang đăng xuất {env}. Các tác nhân được phát hiện sẽ l�
 msgid "Signing out. Detected agents will refresh when it finishes."
 msgstr "Đang đăng xuất. Các tác nhân được phát hiện sẽ làm mới khi nó kết thúc."
 
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "Skill runs"
+msgstr "Lượt chạy skill"
+
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Skill: {skill}"
 msgstr "Kỹ năng: {skill}"
-
-#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
-msgid "Skill/subagent runs"
-msgstr "Tổng số lần chạy skill/subagent"
 
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "Skills"
 msgstr "Skill"
 
 #: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
-#~ msgid "Skills explored"
-#~ msgstr "Skill đã khám phá"
-
-#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
-msgid "Skills/subagents explored"
-msgstr "Skill/subagent đã khám phá"
+msgid "Skills explored"
+msgstr "Skill đã dùng"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "Some checks are failing or pending."
@@ -4982,6 +5388,10 @@ msgstr "Đã stage"
 msgid "Staged ({0})"
 msgstr "Đã stage ({0})"
 
+#: src/renderer/commands/registry.ts
+msgid "Star or unstar the current chat or model"
+msgstr "Thêm hoặc xóa yêu thích cho cuộc trò chuyện hoặc mô hình hiện tại"
+
 #. Button: start the microphone level test
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 msgid "Start"
@@ -4991,6 +5401,10 @@ msgstr "Bắt đầu"
 msgid "Start {appName} to see usage"
 msgstr "Khởi động {appName} để xem mức sử dụng"
 
+#: src/renderer/commands/registry.ts
+msgid "Start a new thread as panel instead of page"
+msgstr "Mở luồng mới dưới dạng bảng thay vì trang"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesEditor.tsx
 msgid "Start a new thread from the selected text"
 msgstr "Bắt đầu một chủ đề mới từ văn bản đã chọn"
@@ -4999,11 +5413,20 @@ msgstr "Bắt đầu một chủ đề mới từ văn bản đã chọn"
 msgid "Start a new thread from this to-do"
 msgstr "Bắt đầu một chủ đề mới từ việc cần làm này"
 
+#: src/renderer/commands/composerCommands.ts
+msgid "Start dictation"
+msgstr "Bắt đầu đọc chính tả"
+
+#: src/renderer/commands/composerCommands.ts
+msgid "Start dictation in the current composer"
+msgstr "Bắt đầu đọc chính tả trong trình soạn thảo hiện tại"
+
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
 msgid "Start from scratch"
 msgstr "Bắt đầu lại từ đầu"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Start the composer collapsed in terminal-native threads. A collapsed "
 "composer routes browser element picks straight to the terminal."
@@ -5081,6 +5504,7 @@ msgstr "Dừng các luồng đang chạy của dự án trước khi thay đổi
 msgid "Stop voice input"
 msgstr "Dừng nhập bằng giọng nói"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/WorktreeSettings.tsx
 msgid "Storage location"
 msgstr "Vị trí lưu trữ"
@@ -5105,8 +5529,11 @@ msgstr "Không tìm thấy tác nhân phụ."
 msgid "Subagent Result"
 msgstr "Kết quả tác nhân phụ"
 
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "Subagent runs"
+msgstr "Lượt chạy subagent"
+
 #: src/renderer/components/thread/ChatPane/parts/items/ActiveSubAgentTile.tsx
-#: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "Subagents"
 msgstr "Tác nhân phụ"
 
@@ -5126,6 +5553,10 @@ msgstr "Gửi phản hồi phải được giải quyết trước khi hợp nh�
 #: src/renderer/views/PrReviewOverlay/parts/SubmitReviewPopover.tsx
 msgid "Submit feedback without explicit approval."
 msgstr "Gửi phản hồi mà không có sự chấp thuận rõ ràng."
+
+#: src/renderer/commands/shortcutCatalog.ts
+msgid "Submit Git form"
+msgstr "Gửi biểu mẫu Git"
 
 #: src/renderer/views/PrReviewOverlay/parts/SubmitReviewPopover.tsx
 msgid "Submit review"
@@ -5172,6 +5603,22 @@ msgstr "Chuyển cuộc trò chuyện này sang chế độ tác nhân"
 #: src/renderer/components/providers/codex/index.tsx
 msgid "Switch this chat to plan mode"
 msgstr "Chuyển cuộc trò chuyện này sang chế độ lập kế hoạch"
+
+#: src/renderer/commands/registry.ts
+msgid "Switch to the next chat"
+msgstr "Chuyển đến cuộc trò chuyện tiếp theo"
+
+#: src/renderer/commands/registry.ts
+msgid "Switch to the next tab"
+msgstr "Chuyển đến tab tiếp theo"
+
+#: src/renderer/commands/registry.ts
+msgid "Switch to the previous chat"
+msgstr "Chuyển đến cuộc trò chuyện trước"
+
+#: src/renderer/commands/registry.ts
+msgid "Switch to the previous tab"
+msgstr "Chuyển đến tab trước"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CommitSyncPanel.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
@@ -5239,6 +5686,7 @@ msgid "Tell the target provider what to do next..."
 msgstr "Cho nhà cung cấp mục tiêu biết phải làm gì tiếp theo..."
 
 #: src/renderer/commands/registry.ts
+#: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/layout/UnifiedRightPanel.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
@@ -5264,14 +5712,17 @@ msgstr "Đầu vào đầu cuối"
 msgid "Terminal not ready — added selection to composer."
 msgstr "Thiết bị đầu cuối chưa sẵn sàng - đã thêm lựa chọn vào trình soạn thảo."
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Terminal panel font size"
 msgstr "Kích thước phông chữ của bảng điều khiển thiết bị đầu cuối"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Terminal position"
 msgstr "Vị trí đầu cuối"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Terminal scroll speed"
 msgstr "Tốc độ cuộn thiết bị đầu cuối"
@@ -5282,6 +5733,7 @@ msgid "Terminal tabs"
 msgstr "Tab đầu cuối"
 
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Test microphone"
 msgstr "Kiểm tra micrô"
 
@@ -5296,6 +5748,15 @@ msgstr "ứng dụng"
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "the chosen folder"
 msgstr "thư mục đã chọn"
+
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+msgid "The default background refresh cadence, used for any provider without "
+"its own interval set below. Set to 0 to turn off (manual only). The "
+"2-minute floor respects provider rate limits."
+msgstr "Nhịp làm mới nền mặc định, được dùng cho mọi nhà cung cấp chưa đặt "
+"khoảng thời gian riêng bên dưới. Đặt thành 0 để tắt (chỉ làm mới thủ "
+"công). Mức tối thiểu 2 phút tôn trọng giới hạn tốc độ của nhà cung cấp."
 
 #: src/renderer/RendererCrashScreen.tsx
 msgid "The normal app shell could not render. The diagnostics below are shown "
@@ -5313,6 +5774,7 @@ msgid "the target provider"
 msgstr "nhà cung cấp mục tiêu"
 
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Theme"
 msgstr "Chủ đề"
 
@@ -5387,6 +5849,7 @@ msgid "Thought"
 msgstr "Suy nghĩ"
 
 #: src/renderer/commands/registry.ts
+#: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/hooks/useElementPicker.ts
 msgid "Thread"
 msgstr "luồng"
@@ -5409,6 +5872,7 @@ msgid "Thread failed to start."
 msgstr "Luồng không thể bắt đầu."
 
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Thread finished or waiting for your input."
 msgstr "Luồng đã kết thúc hoặc đang chờ bạn nhập."
 
@@ -5443,6 +5907,7 @@ msgstr "Dock việc cần làm của luồng"
 msgid "Threads"
 msgstr "luồng"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
 msgid "Threads marked done that have not been touched for this many days are "
 "archived automatically on app launch. Set to 0 to disable."
@@ -5450,6 +5915,7 @@ msgstr "Các luồng được đánh dấu hoàn thành mà không được đ�
 "này sẽ tự động được lưu trữ khi khởi chạy ứng dụng. Đặt thành 0 để tắt."
 
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Title Generation"
 msgstr "Tạo tiêu đề"
 
@@ -5457,17 +5923,42 @@ msgstr "Tạo tiêu đề"
 msgid "To-dos"
 msgstr "Việc cần làm"
 
+#: src/renderer/commands/registry.ts
+msgid "Toggle browser panel"
+msgstr "Bật/tắt bảng điều khiển trình duyệt"
+
+#: src/renderer/commands/composerCommands.ts
 #: src/renderer/components/providers/codex/index.tsx
 msgid "Toggle Fast mode"
 msgstr "Chuyển đổi chế độ Nhanh"
+
+#: src/renderer/commands/registry.ts
+msgid "Toggle File Tree"
+msgstr "Bật/tắt cây tập tin"
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
 msgid "Toggle models off to hide them from the selector."
 msgstr "Tắt các mô hình để ẩn chúng khỏi bộ chọn."
 
 #: src/renderer/commands/registry.ts
+msgid "Toggle sidebar"
+msgstr "Bật/tắt thanh bên"
+
+#: src/renderer/commands/registry.ts
+msgid "Toggle star"
+msgstr "Bật/tắt yêu thích"
+
+#: src/renderer/commands/registry.ts
 msgid "Toggle Terminal"
 msgstr "Bật/tắt thiết bị đầu cuối"
+
+#: src/renderer/commands/registry.ts
+msgid "Toggle the file tree panel"
+msgstr "Bật/tắt bảng điều khiển cây tập tin"
+
+#: src/renderer/commands/composerCommands.ts
+msgid "Toggle Work or Plan"
+msgstr "Chuyển đổi công việc hoặc kế hoạch"
 
 #: src/renderer/views/ProfileOverlay/parts/ActivitySection.tsx
 msgid "Tokens"
@@ -5485,10 +5976,6 @@ msgstr "Tìm kiếm công cụ"
 #: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
 msgid "Total prompts"
 msgstr "Tổng số prompt"
-
-#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
-#~ msgid "Total skills used"
-#~ msgstr "Tổng số skill đã dùng"
 
 #: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
 msgid "Total threads"
@@ -5524,6 +6011,7 @@ msgid "Transcribing voice"
 msgstr "Phiên âm giọng nói"
 
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Translucent sidebar"
 msgstr "Thanh bên trong suốt"
 
@@ -5647,6 +6135,10 @@ msgstr "Không thể cập nhật {0}: {detailText}"
 msgid "Unable to update {0}."
 msgstr "Không thể cập nhật {0}."
 
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
+msgid "Unassigned"
+msgstr "Chưa gán"
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadGroup.tsx
 msgid "Ungroup All"
 msgstr "Bỏ nhóm tất cả"
@@ -5662,6 +6154,7 @@ msgstr "Gỡ cài đặt"
 
 #: src/renderer/components/thread/threadContextUsage.ts
 #: src/renderer/views/PrReviewOverlay/parts/PrChecksTab.tsx
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Unknown"
 msgstr "Không xác định"
 
@@ -5674,6 +6167,7 @@ msgstr "Dự án không xác định"
 msgid "Unlimited"
 msgstr "Không giới hạn"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
 msgid "Unload idle threads after"
 msgstr "Dỡ bỏ các luồng nhàn rỗi sau"
@@ -5833,9 +6327,11 @@ msgid "Use detected session?"
 msgstr "Sử dụng phiên được phát hiện?"
 
 #: src/renderer/views/SettingsOverlay/parts/SearchExcludeBody.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Use ignore files"
 msgstr "Sử dụng tập tin bỏ qua"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/WorktreeSettings.tsx
 msgid "Use one global folder, or nest worktrees inside each project at "
 ".lightcode/worktrees."
@@ -5853,12 +6349,17 @@ msgstr "Sử dụng tài khoản này để theo dõi việc sử dụng hoặc 
 "trong trình duyệt trước khi tiếp tục."
 
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Use WebGPU acceleration"
 msgstr "Sử dụng tính năng tăng tốc WebGPU"
 
 #: src/renderer/components/thread/threadContextUsage.ts
 msgid "Used"
 msgstr "Đã dùng"
+
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
+msgid "Used by {conflict}"
+msgstr "Đã được dùng bởi {conflict}"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Using the built-in Claude model list."
@@ -5894,6 +6395,7 @@ msgid "Visible {0} models"
 msgstr "Mô hình {0} có thể nhìn thấy"
 
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilitySection.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
 msgid "Visible models"
 msgstr "Mô hình hiển thị"
@@ -5903,10 +6405,12 @@ msgid "Voice input is not available in this environment."
 msgstr "Nhập liệu bằng giọng nói không khả dụng trong môi trường này."
 
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Voice input language"
 msgstr "Ngôn ngữ nhập bằng giọng nói"
 
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Voice input model"
 msgstr "Mô hình nhập liệu bằng giọng nói"
 
@@ -5987,6 +6491,7 @@ msgid "Website"
 msgstr "Trang web"
 
 #: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "What the Create PR button does by default: open a dialog to edit the "
 "title and description first, or auto-generate them and create the PR in "
 "one click. You can also switch this from the button's menu."
@@ -5999,6 +6504,7 @@ msgid "When enabled, search respects <0>.gitignore</0> entries."
 msgstr "Khi được bật, tìm kiếm sẽ tôn trọng các mục nhập <0>.gitignore</0>."
 
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "When links open in a Lightcode browser tab, choose where the browser is "
 "revealed."
 msgstr "Khi các liên kết mở trong tab trình duyệt Lightcode, hãy chọn nơi trình "
@@ -6011,16 +6517,19 @@ msgstr "Khi tắt, hãy chặn thông báo từ các luồng đầu cuối có t
 "dự phòng OSC (không có plugin hook CLI)."
 
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "When to display in-app toasts for visible threads."
 msgstr "Thời điểm hiển thị thông báo nhanh (toast) trong ứng dụng cho các luồng "
 "đang hiển thị."
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "When you close the window, keep Lightcode running in the system tray. "
 "Disable to quit on close."
 msgstr "Khi bạn đóng cửa sổ, hãy giữ Lightcode chạy trong khay hệ thống. Tắt để "
 "thoát khi đóng."
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Where a browser element-picker selection goes in terminal-native "
 "threads. A collapsed composer always routes to the terminal."
@@ -6039,6 +6548,7 @@ msgstr "Nơi Lightcode tạo các cây làm việc git cho các nhánh mới. C�
 "áp dụng cho các cây làm việc được tạo từ giờ trở đi; các cây làm việc "
 "hiện có vẫn giữ nguyên vị trí."
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Where the terminal panel appears."
 msgstr "Nơi bảng điều khiển đầu cuối xuất hiện."
@@ -6095,6 +6605,10 @@ msgstr "Các giai đoạn của quy trình làm việc"
 msgid "Workflow results"
 msgstr "Kết quả quy trình làm việc"
 
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "Workflow runs"
+msgstr "Lượt chạy workflow"
+
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Workflow: {description}"
 msgstr "Quy trình làm việc: {description}"
@@ -6145,6 +6659,7 @@ msgid "Worktree root for this project (a Linux path). Reset to use the global "
 msgstr "Thư mục gốc của cây làm việc cho dự án này (một đường dẫn Linux). Đặt "
 "lại để dùng thiết lập toàn cục."
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/WorktreeSettings.tsx
 msgid "Worktree root for WSL projects (a Linux path)."
 msgstr "Thư mục gốc của cây làm việc cho các dự án WSL (một đường dẫn Linux)."
@@ -6193,6 +6708,7 @@ msgstr "WSL"
 msgid "WSL ({0})"
 msgstr "WSL ({0})"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/WorktreeSettings.tsx
 msgid "WSL base folder"
 msgstr "Thư mục gốc WSL"

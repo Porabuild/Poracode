@@ -19,17 +19,27 @@ export interface FakeHostConfig {
   routes?: Record<string, FakeRoute>;
   /** Observe each outbound request (e.g. to assert headers). */
   onRequest?: (req: HttpRequest) => void;
+  /** Observe `setSecret` writes (e.g. to assert a rotated token was persisted). */
+  onSetSecret?: (providerId: string, key: string, value: string) => void;
 }
 
 export const FAKE_NOW_MS = 1_700_000_000_000;
 
 export function createFakeHost(config: FakeHostConfig = {}): HostPort {
   const now = config.nowMs ?? FAKE_NOW_MS;
+  // Live, mutable view so a collector that writes via setSecret reads back its
+  // own rotated values within the same test run.
+  const secrets = config.secrets ?? {};
   return {
     now: () => now,
     credentials: {
       getOAuthToken: (id) => Promise.resolve(config.tokens?.[id]),
-      getSecret: (id, key) => Promise.resolve(config.secrets?.[id]?.[key]),
+      getSecret: (id, key) => Promise.resolve(secrets[id]?.[key]),
+      setSecret: (id, key, value) => {
+        (secrets[id] ??= {})[key] = value;
+        config.onSetSecret?.(id, key, value);
+        return Promise.resolve();
+      },
     },
     http: {
       request: (req) => {

@@ -8,6 +8,7 @@ export interface ConflictResolverSettings {
   provider: string;
   model: string;
   effort: string;
+  fast: boolean;
   presentationMode: ThreadPresentationMode;
 }
 
@@ -15,10 +16,12 @@ type ConflictResolverSettingsSource = {
   conflictResolverProvider: string;
   conflictResolverModel: string;
   conflictResolverEffort: string;
+  conflictResolverFast: boolean;
   conflictResolverPresentationMode: ThreadPresentationMode;
   wslConflictResolverProvider: string;
   wslConflictResolverModel: string;
   wslConflictResolverEffort: string;
+  wslConflictResolverFast: boolean;
   wslConflictResolverPresentationMode: ThreadPresentationMode;
 };
 
@@ -38,6 +41,7 @@ export function readConflictResolverSettingsForProject(
       provider: settings.conflictResolverProvider,
       model: settings.conflictResolverModel,
       effort: settings.conflictResolverEffort,
+      fast: settings.conflictResolverFast,
       presentationMode: settings.conflictResolverPresentationMode,
     };
   }
@@ -47,6 +51,7 @@ export function readConflictResolverSettingsForProject(
       provider: settings.conflictResolverProvider,
       model: settings.conflictResolverModel,
       effort: settings.conflictResolverEffort,
+      fast: settings.conflictResolverFast,
       presentationMode: settings.conflictResolverPresentationMode,
     };
   }
@@ -55,6 +60,7 @@ export function readConflictResolverSettingsForProject(
     provider: settings.wslConflictResolverProvider,
     model: settings.wslConflictResolverModel,
     effort: settings.wslConflictResolverEffort,
+    fast: settings.wslConflictResolverFast,
     presentationMode: settings.wslConflictResolverPresentationMode,
   };
 }

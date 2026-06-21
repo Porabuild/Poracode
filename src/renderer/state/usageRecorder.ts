@@ -160,7 +160,7 @@ function str(obj: Record<string, unknown> | undefined, ...keys: string[]): strin
 }
 
 interface ItemHit {
-  kind: "message" | "goal" | "skill" | "subagent" | "mcp";
+  kind: "message" | "goal" | "skill" | "subagent" | "workflow" | "mcp";
   name?: string;
 }
 
@@ -171,6 +171,7 @@ function genericName(kind: ItemHit["kind"], name: string | undefined): boolean {
   if (kind === "subagent") {
     return normalized === "subagent" || normalized === "agent" || normalized === "task";
   }
+  if (kind === "workflow") return normalized === "workflow";
   if (kind === "mcp") return normalized === "mcp";
   return false;
 }
@@ -235,23 +236,19 @@ function classifyItem(itemType: string, payload: unknown): ItemHit | undefined {
   }
   const subagentType =
     str(args, "subagent_type") ?? str(args, "agent_type") ?? str(args, "agentType");
+  if (lowerName === "workflow") {
+    const workflow = str(args, "name") ?? str(args, "description") ?? "workflow";
+    return { kind: "workflow", name: workflow };
+  }
   if (
     p?.["isSubAgent"] === true ||
     lowerName === "task" ||
-    lowerName === "workflow" ||
     lowerName === "agent" ||
     lowerName === "collabagenttoolcall" ||
     lowerName === "collab agent tool call" ||
     subagentType
   ) {
-    // Prefer the agent type (Task/Agent); for workflows use the saved name or
-    // description (inline script workflows carry neither, so they bucket under a
-    // generic "workflow"); otherwise the task description.
-    const agent =
-      subagentType ??
-      (lowerName === "workflow"
-        ? (str(args, "name") ?? str(args, "description") ?? "workflow")
-        : (str(args, "description") ?? str(args, "prompt") ?? "subagent"));
+    const agent = subagentType ?? str(args, "description") ?? str(args, "prompt") ?? "subagent";
     return { kind: "subagent", name: agent };
   }
   return undefined;
@@ -324,6 +321,10 @@ function recordItemHit(itemId: string, hit: ItemHit, meta: Meta, ts: number, fin
   const next = betterHit(pendingItemHits.get(itemId), hit);
   if (!isSpecificToolHit(next) && !final) {
     rememberInMap(pendingItemHits, itemId, next);
+    return;
+  }
+  if (next.kind === "mcp" && genericName(next.kind, next.name)) {
+    pendingItemHits.delete(itemId);
     return;
   }
   if (!remember(seenItems, itemId)) return;

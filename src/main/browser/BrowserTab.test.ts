@@ -47,11 +47,31 @@ function createWebContents() {
     on: vi.fn<() => void>(),
     removeListener: vi.fn<() => void>(),
     navigationHistory: {
-      canGoBack: vi.fn<() => boolean>(() => false),
-      canGoForward: vi.fn<() => boolean>(() => false),
+      canGoBack: vi.fn<() => boolean>(() => true),
+      canGoForward: vi.fn<() => boolean>(() => true),
+      goBack: vi.fn<() => void>(),
+      goForward: vi.fn<() => void>(),
       clear: vi.fn<() => void>(),
     },
+    reload: vi.fn<() => void>(),
   };
+}
+
+type SimulatedInput = {
+  type: string;
+  key: string;
+  code?: string;
+  control?: boolean;
+  meta?: boolean;
+  shift?: boolean;
+};
+type BeforeInputHandler = (event: { preventDefault: () => void }, input: SimulatedInput) => void;
+
+function captureBeforeInput(webContents: ReturnType<typeof createWebContents>): BeforeInputHandler {
+  const calls = webContents.on.mock.calls as unknown as Array<[string, BeforeInputHandler]>;
+  const handler = calls.find(([event]) => event === "before-input-event")?.[1];
+  if (!handler) throw new Error("before-input-event handler not registered");
+  return handler;
 }
 
 describe("BrowserTab", () => {
@@ -77,5 +97,68 @@ describe("BrowserTab", () => {
     expect(webContents.setUserAgent).toHaveBeenCalledWith(userAgent);
     expect(installSessionPermissions).toHaveBeenCalledWith(webContents.session);
     expect(installNavigationGuards).toHaveBeenCalled();
+  });
+
+  it("navigates back/forward on Ctrl+[ and Ctrl+] keydown", async () => {
+    const { BrowserTab } = await import("./BrowserTab");
+    const tab = new BrowserTab({
+      tabId: "tab-1",
+      userAgent: "ua",
+      onUpdate: vi.fn<() => void>(),
+      onAttention: vi.fn<() => void>(),
+      onPopup: vi.fn<() => void>(),
+    });
+    const webContents = createWebContents();
+    tab.attach(webContents as never);
+
+    const handler = captureBeforeInput(webContents);
+    const back = { preventDefault: vi.fn<() => void>() };
+    handler(back, { type: "keyDown", control: true, key: "[" });
+    expect(back.preventDefault).toHaveBeenCalled();
+    expect(webContents.navigationHistory.goBack).toHaveBeenCalledTimes(1);
+    expect(webContents.navigationHistory.goForward).not.toHaveBeenCalled();
+
+    const forward = { preventDefault: vi.fn<() => void>() };
+    handler(forward, { type: "keyDown", meta: true, key: "]" });
+    expect(forward.preventDefault).toHaveBeenCalled();
+    expect(webContents.navigationHistory.goForward).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not navigate when the bracket key is pressed without a modifier", async () => {
+    const { BrowserTab } = await import("./BrowserTab");
+    const tab = new BrowserTab({
+      tabId: "tab-1",
+      userAgent: "ua",
+      onUpdate: vi.fn<() => void>(),
+      onAttention: vi.fn<() => void>(),
+      onPopup: vi.fn<() => void>(),
+    });
+    const webContents = createWebContents();
+    tab.attach(webContents as never);
+
+    const handler = captureBeforeInput(webContents);
+    const event = { preventDefault: vi.fn<() => void>() };
+    handler(event, { type: "keyDown", key: "[" });
+    expect(event.preventDefault).not.toHaveBeenCalled();
+    expect(webContents.navigationHistory.goBack).not.toHaveBeenCalled();
+  });
+
+  it("does not navigate on shifted bracket chords", async () => {
+    const { BrowserTab } = await import("./BrowserTab");
+    const tab = new BrowserTab({
+      tabId: "tab-1",
+      userAgent: "ua",
+      onUpdate: vi.fn<() => void>(),
+      onAttention: vi.fn<() => void>(),
+      onPopup: vi.fn<() => void>(),
+    });
+    const webContents = createWebContents();
+    tab.attach(webContents as never);
+
+    const handler = captureBeforeInput(webContents);
+    const event = { preventDefault: vi.fn<() => void>() };
+    handler(event, { type: "keyDown", control: true, shift: true, key: "[" });
+    expect(event.preventDefault).not.toHaveBeenCalled();
+    expect(webContents.navigationHistory.goBack).not.toHaveBeenCalled();
   });
 });

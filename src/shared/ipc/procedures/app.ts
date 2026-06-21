@@ -1,6 +1,10 @@
 import { z } from "zod";
 import type { ProjectLocation } from "../../contracts";
-import type { KeybindingsConfig } from "../../keybindings";
+import {
+  type KeybindingsConfig,
+  type KeybindingsFile,
+  keybindingsFileSchema,
+} from "../../keybindings";
 import { defineIpcProcedure, defineNoArgProcedure, definePayloadProcedure } from "../core";
 import {
   copyImageToClipboardPayloadSchema,
@@ -79,5 +83,10 @@ export const appProcedures = {
   getKeybindings: defineNoArgProcedure<KeybindingsConfig, "main-local">(
     "getKeybindings",
     "main-local",
+  ),
+  setKeybindings: definePayloadProcedure<KeybindingsFile, KeybindingsConfig, "main-local">(
+    "setKeybindings",
+    "main-local",
+    keybindingsFileSchema,
   ),
 } as const;

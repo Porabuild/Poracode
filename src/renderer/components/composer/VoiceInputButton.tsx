@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
 import { Mic, Square } from "lucide-react";
 import { toast, Tooltip } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
@@ -39,12 +39,25 @@ function createAudioContext(): AudioContext {
   return new AudioContextCtor();
 }
 
-export function VoiceInputButton(props: {
-  isDisabled?: boolean;
-  onTranscript: (text: string) => void;
-  onTranscriptPreview?: (text: string) => void;
-  onTranscriptCancel?: () => void;
-}) {
+export interface VoiceInputHandle {
+  /**
+   * Start recording — or stop it if already recording — mirroring a press of
+   * the on-screen button. Returns false (a no-op) when the button is disabled
+   * or mid-flight (starting/transcribing), so a keyboard caller can let the key
+   * fall through instead of swallowing it.
+   */
+  toggle: () => boolean;
+}
+
+export const VoiceInputButton = forwardRef<
+  VoiceInputHandle,
+  {
+    isDisabled?: boolean;
+    onTranscript: (text: string) => void;
+    onTranscriptPreview?: (text: string) => void;
+    onTranscriptCancel?: () => void;
+  }
+>(function VoiceInputButton(props, ref) {
   const { t } = useLingui();
   const { isDisabled = false, onTranscript, onTranscriptPreview, onTranscriptCancel } = props;
   const [downloadProgress, setDownloadProgress] = useState<VoiceTranscriptionProgress | null>(null);
@@ -223,6 +236,28 @@ export function VoiceInputButton(props: {
   const isRecording = state === "recording";
   const isStarting = state === "starting";
   const isTranscribing = state === "transcribing";
+  // Mirror the Button's effective disabled state: a started/transcribing run is
+  // busy, and an externally-disabled composer blocks starting (but never blocks
+  // stopping an in-progress recording).
+  const pressDisabled = (isDisabled && !isRecording) || isStarting || isTranscribing;
+
+  function togglePress(): boolean {
+    if (pressDisabled) return false;
+    if (isRecording) {
+      stopRecording();
+    } else {
+      void startRecording();
+    }
+    return true;
+  }
+
+  // The dictation shortcut presses the same button. Keep a ref to the latest
+  // closure rather than rebuilding the handle each render, so `toggle` always
+  // sees current state and audio settings without a stale-deps footgun.
+  const togglePressRef = useRef(togglePress);
+  togglePressRef.current = togglePress;
+  useImperativeHandle(ref, () => ({ toggle: () => togglePressRef.current() }), []);
+
   const downloadLabel =
     downloadProgress && isTranscribing
       ? typeof downloadProgress.progress === "number"
@@ -245,14 +280,8 @@ export function VoiceInputButton(props: {
         isIconOnly
         aria-label={label}
         className={`lightcode-composer-menu min-w-9 px-2 ${isRecording ? "text-danger" : ""}`}
-        isDisabled={(isDisabled && !isRecording) || isStarting || isTranscribing}
-        onPress={() => {
-          if (isRecording) {
-            stopRecording();
-          } else {
-            void startRecording();
-          }
-        }}
+        isDisabled={pressDisabled}
+        onPress={togglePress}
         size="sm"
         variant="ghost"
       >
@@ -267,4 +296,4 @@ export function VoiceInputButton(props: {
       <Tooltip.Content placement="top">{label}</Tooltip.Content>
     </Tooltip>
   );
-}
+});

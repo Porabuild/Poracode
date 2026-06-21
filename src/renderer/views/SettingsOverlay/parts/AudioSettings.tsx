@@ -114,6 +114,7 @@ export function AudioSettings() {
   return (
     <SettingsPage title={t`Audio`} bodyClassName="space-y-5">
       <SettingRow
+        anchorId="audio.showVoiceInputButton"
         title={t`Show voice input button`}
         description={<Trans>Show the microphone button in the composer.</Trans>}
       >
@@ -131,6 +132,7 @@ export function AudioSettings() {
         </Switch>
       </SettingRow>
       <SettingRow
+        anchorId="audio.microphoneDevice"
         title={t`Microphone`}
         description={<Trans>Device used by the composer voice input button.</Trans>}
       >
@@ -147,12 +149,14 @@ export function AudioSettings() {
         />
       </SettingRow>
       <SettingRow
+        anchorId="audio.testMicrophone"
         title={t`Test microphone`}
         description={<Trans>Check the live input level from the selected device.</Trans>}
       >
         <MicrophoneTestBar microphoneDeviceId={microphoneDeviceId} />
       </SettingRow>
       <SettingRow
+        anchorId="audio.voiceInputLanguage"
         title={t`Voice input language`}
         description={
           <Trans>
@@ -173,6 +177,7 @@ export function AudioSettings() {
         />
       </SettingRow>
       <SettingRow
+        anchorId="audio.voiceInputModel"
         title={t`Voice input model`}
         description={<Trans>Fastest uses Whisper tiny; Better uses Whisper base.</Trans>}
       >
@@ -189,6 +194,7 @@ export function AudioSettings() {
         />
       </SettingRow>
       <SettingRow
+        anchorId="audio.useWebGpu"
         title={t`Use WebGPU acceleration`}
         description={<Trans>Run local transcription on the GPU when available.</Trans>}
       >
@@ -341,9 +347,14 @@ function SettingRow(props: {
   title: string;
   description: React.ReactNode;
   children: React.ReactNode;
+  /** Search anchor — see the shared SettingRow in ./SettingsForm. */
+  anchorId?: string;
 }) {
   return (
-    <div className="flex items-start justify-between gap-6">
+    <div
+      {...(props.anchorId ? { id: props.anchorId, "data-settings-anchor": props.anchorId } : {})}
+      className={`flex items-start justify-between gap-6 ${props.anchorId ? "scroll-mt-4" : ""}`}
+    >
       <div className="min-w-0">
         <p className="text-sm font-medium text-foreground">{props.title}</p>
         <p className="text-xs text-muted">{props.description}</p>

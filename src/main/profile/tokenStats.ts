@@ -15,7 +15,7 @@ import {
   windowStartIndex,
 } from "./heatmap";
 import { recordCurrentDevice, resolveProfileDevice } from "./identity";
-import { accountLabel, providerLabel } from "./labels";
+import { accountLabel, modelKey, modelLabel, providerLabel } from "./labels";
 
 /**
  * Token usage from Lightcode's own activity, read from the durable `usage_events`
@@ -100,7 +100,10 @@ export function computeProfileTokenStats(req: ProfileStatsRequest): ProfileToken
       perProvider.set(base, (perProvider.get(base) ?? 0) + row.value);
       perAccount.set(row.provider, (perAccount.get(row.provider) ?? 0) + row.value);
     }
-    if (row.model) perModel.set(row.model, (perModel.get(row.model) ?? 0) + row.value);
+    if (row.model) {
+      const key = modelKey(row.provider, row.model);
+      perModel.set(key, (perModel.get(key) ?? 0) + row.value);
+    }
   }
 
   const { heatmap: tokenHeatmap } = buildHeatmap(perDay, todayIndex, "tokens", windowDays);
@@ -135,9 +138,9 @@ export function computeProfileTokenStats(req: ProfileStatsRequest): ProfileToken
     .sort((a, b) => b.tokens - a.tokens);
 
   const models: ProfileBreakdownEntry[] = [...perModel.entries()]
-    .map(([model, tokens]) => ({
-      key: model,
-      label: model,
+    .map(([key, tokens]) => ({
+      key,
+      label: modelLabel(key),
       count: tokens,
       percent: lifetimeTokens > 0 ? round1((tokens / lifetimeTokens) * 100) : 0,
     }))
