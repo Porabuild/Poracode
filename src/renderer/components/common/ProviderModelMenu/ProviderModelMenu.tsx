@@ -59,6 +59,7 @@ export interface ProviderModelMenuProps {
   isDisabled?: boolean;
   hideLabelOnWrap?: boolean;
   forceHideLabel?: boolean;
+  collapseTier?: number;
   openSignal?: number;
   onChange: (next: {
     agentKind: string;
@@ -219,6 +220,7 @@ export function ProviderModelMenu(props: ProviderModelMenuProps) {
     isDisabled,
     hideLabelOnWrap,
     forceHideLabel = false,
+    collapseTier,
     openSignal,
     onChange,
     onOpenChange,
@@ -360,6 +362,7 @@ export function ProviderModelMenu(props: ProviderModelMenuProps) {
         className="size-3.5 shrink-0"
       />
       <span
+        data-collapse-tier={collapseTier}
         className={
           hideLabelOnWrap
             ? `lightcode-composer-label-hideable flex min-w-0 flex-col items-start justify-center gap-0.5${forceHideLabel ? " is-hidden" : ""}`
@@ -376,6 +379,7 @@ export function ProviderModelMenu(props: ProviderModelMenuProps) {
         ) : null}
       </span>
       <ChevronDown
+        data-collapse-tier={collapseTier}
         className={
           hideLabelOnWrap
             ? `lightcode-composer-label-hideable size-3.5 text-muted${forceHideLabel ? " is-hidden" : ""}`

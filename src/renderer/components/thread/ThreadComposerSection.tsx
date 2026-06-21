@@ -16,8 +16,8 @@ import { migrateCursorBaseId, parseCursorModelId } from "@/shared/cursorModelId"
 import {
   AttachmentBar,
   ComposerAddMenu,
-  ImageLightbox,
   MentionInput,
+  openAttachmentLightbox,
   VoiceInputButton,
   useAttachments,
 } from "../composer";
@@ -271,8 +271,6 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
     nonce: number;
   } | null>(null);
   const [contextDockOpen, setContextDockOpen] = useState(false);
-  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
-  const imageAttachments = attachments.attachments.filter((a) => a.isImage);
   const presentationMode =
     thread.presentationMode ?? agentStatus?.capabilities.presentationMode ?? "terminal";
   const usesTerminalPresentation = presentationMode === "terminal";
@@ -848,8 +846,9 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                       attachments={attachments.attachments}
                       onRemove={attachments.removeAttachment}
                       onPreviewImage={(att) => {
+                        const imageAttachments = attachments.attachments.filter((a) => a.isImage);
                         const idx = imageAttachments.findIndex((a) => a.id === att.id);
-                        if (idx >= 0) setLightboxIndex(idx);
+                        if (idx >= 0) openAttachmentLightbox(imageAttachments, idx);
                       }}
                     />
                   }
@@ -954,7 +953,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                         : undefined
                   }
                   {...(() => {
-                    const renderExtras = (level: number) => (
+                    const renderExtras = () => (
                       <>
                         {showContextIndicator ? (
                           <ThreadContextIndicator
@@ -983,9 +982,17 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                               <Tooltip.Trigger tabIndex={-1} role="none">
                                 <div className="lightcode-composer-static lightcode-composer-worktree min-w-0 max-w-48 px-2.5">
                                   <GitFork className="size-3.5 text-muted" />
-                                  {level < 3 && <span className="truncate">{branchName}</span>}
-                                  {level < 3 && thread.prNumber ? (
-                                    <span className="shrink-0 text-muted/60">
+                                  <span
+                                    data-collapse-tier={3}
+                                    className="lightcode-composer-label-hideable truncate"
+                                  >
+                                    {branchName}
+                                  </span>
+                                  {thread.prNumber ? (
+                                    <span
+                                      data-collapse-tier={3}
+                                      className="lightcode-composer-label-hideable shrink-0 text-muted/60"
+                                    >
                                       PR #{thread.prNumber}
                                     </span>
                                   ) : null}
@@ -1008,8 +1015,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                                       project.scripts.worktreeCopyPatterns,
                                   }
                                 : {})}
-                              forceHideLabel={level >= 3}
-                              iconOnly={level >= 3}
+                              collapseTier={3}
                             />
                           )
                         ) : null}
@@ -1038,9 +1044,9 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                     return isCliThread
                       ? { leadingControls: renderExtras, afterControls: renderVoiceInput }
                       : {
-                          afterControls: (level: number) => (
+                          afterControls: () => (
                             <>
-                              {renderExtras(level)}
+                              {renderExtras()}
                               {renderVoiceInput()}
                             </>
                           ),
@@ -1075,14 +1081,6 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
             </div>
           ) : null}
         </div>
-      ) : null}
-
-      {lightboxIndex !== null && imageAttachments.length > 0 ? (
-        <ImageLightbox
-          images={imageAttachments}
-          initialIndex={lightboxIndex}
-          onClose={() => setLightboxIndex(null)}
-        />
       ) : null}
     </>
   );

@@ -90,6 +90,7 @@ function AttachmentChip(props: {
           className="lightcode-attachment-chip__thumb"
           src={toLocalFileUrl(att.path)}
           alt={att.name}
+          decoding="async"
           draggable={false}
         />
       ) : (
@@ -150,12 +151,15 @@ function ImagePreview(props: {
 }) {
   const { t } = useLingui();
   const { attachment: att, onPreviewImage } = props;
-  const img = <img src={toLocalFileUrl(att.path)} alt={att.name} draggable={false} />;
+  const img = (
+    <img src={toLocalFileUrl(att.path)} alt={att.name} decoding="async" draggable={false} />
+  );
   if (onPreviewImage) {
     return (
       <button
         type="button"
         className="lightcode-attachment-image-preview"
+        data-lightcode-attachment-image-preview="true"
         onClick={() => onPreviewImage(att)}
         aria-label={t`Preview ${att.name}`}
       >
@@ -163,7 +167,14 @@ function ImagePreview(props: {
       </button>
     );
   }
-  return <span className="lightcode-attachment-image-preview">{img}</span>;
+  return (
+    <span
+      className="lightcode-attachment-image-preview"
+      data-lightcode-attachment-image-preview="true"
+    >
+      {img}
+    </span>
+  );
 }
 
 export function AttachmentBar(props: {

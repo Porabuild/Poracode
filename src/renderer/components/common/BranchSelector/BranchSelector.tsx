@@ -49,6 +49,7 @@ export interface BranchSelectorProps {
   moveBranchCopyIgnoredPatterns?: string[];
   popoverPlacement?: "top" | "bottom";
   forceHideLabel?: boolean;
+  collapseTier?: number;
   iconOnly?: boolean;
   /** Hide the leading branch/fork glyph on the trigger (e.g. when a sibling control already shows it). */
   hideTriggerIcon?: boolean;
@@ -75,11 +76,13 @@ export function BranchSelector(props: BranchSelectorProps) {
     moveBranchCopyIgnoredPatterns,
     popoverPlacement = "top",
     forceHideLabel = false,
+    collapseTier,
     iconOnly = false,
     hideTriggerIcon = false,
     compact = false,
   } = props;
   const triggerIconSize = compact ? "size-3" : "size-3.5";
+  const hideLabelOnWrap = collapseTier !== undefined;
   const { t } = useLingui();
 
   const [isOpen, setIsOpen] = useState(false);
@@ -291,9 +294,10 @@ export function BranchSelector(props: BranchSelectorProps) {
                 ) : null}
                 {!iconOnly && (
                   <span
+                    data-collapse-tier={collapseTier}
                     className={
-                      forceHideLabel
-                        ? "lightcode-composer-label-hideable truncate is-hidden"
+                      hideLabelOnWrap
+                        ? `lightcode-composer-label-hideable truncate${forceHideLabel ? " is-hidden" : ""}`
                         : "truncate"
                     }
                   >
@@ -302,9 +306,10 @@ export function BranchSelector(props: BranchSelectorProps) {
                 )}
                 {!iconOnly && (
                   <ChevronDown
+                    data-collapse-tier={collapseTier}
                     className={
-                      forceHideLabel
-                        ? `lightcode-composer-label-hideable ${triggerIconSize} text-muted is-hidden`
+                      hideLabelOnWrap
+                        ? `lightcode-composer-label-hideable ${triggerIconSize} text-muted${forceHideLabel ? " is-hidden" : ""}`
                         : `${triggerIconSize} text-muted`
                     }
                   />

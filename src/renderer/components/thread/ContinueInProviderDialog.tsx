@@ -23,7 +23,7 @@ import {
   buildModelPickerControls,
   buildProviderModelMenuProviders,
 } from "./buildModelPickerControls";
-import { AttachmentBar, ImageLightbox, MentionInput, useAttachments } from "../composer";
+import { AttachmentBar, MentionInput, openAttachmentLightbox, useAttachments } from "../composer";
 import type { MentionInputHandle } from "../composer";
 import { flattenSegments } from "../composer/serializeMentions";
 import { PresentationModeTabs } from "./PresentationModeTabs";
@@ -268,10 +268,8 @@ export function ContinueInProviderDialog(props: {
   const [errorMessage, setErrorMessage] = useState("");
   const [pendingCloseOriginal, setPendingCloseOriginal] = useState(false);
   const [pendingSubmission, setPendingSubmission] = useState<PendingSubmission | null>(null);
-  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const mentionRef = useRef<MentionInputHandle>(null);
   const attachments = useAttachments();
-  const imageAttachments = attachments.attachments.filter((a) => a.isImage);
 
   const sourceAgent = installedAgents.find((a) => a.kind === thread.agentKind);
   const selectedAgent = otherAgents.find((a) => a.kind === selectedKind);
@@ -589,8 +587,11 @@ export function ContinueInProviderDialog(props: {
                           attachments={attachments.attachments}
                           onRemove={attachments.removeAttachment}
                           onPreviewImage={(att) => {
+                            const imageAttachments = attachments.attachments.filter(
+                              (a) => a.isImage,
+                            );
                             const idx = imageAttachments.findIndex((a) => a.id === att.id);
-                            if (idx >= 0) setLightboxIndex(idx);
+                            if (idx >= 0) openAttachmentLightbox(imageAttachments, idx);
                           }}
                         />
                       }
@@ -710,13 +711,6 @@ export function ContinueInProviderDialog(props: {
           </Modal.Dialog>
         </Modal.Container>
       </Modal.Backdrop>
-      {lightboxIndex !== null && imageAttachments.length > 0 ? (
-        <ImageLightbox
-          images={imageAttachments}
-          initialIndex={lightboxIndex}
-          onClose={() => setLightboxIndex(null)}
-        />
-      ) : null}
     </>
   );
 }

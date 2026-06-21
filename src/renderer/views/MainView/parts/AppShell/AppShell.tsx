@@ -1,5 +1,6 @@
 import {
   createContext,
+  memo,
   type ReactNode,
   type RefObject,
   useContext,
@@ -311,9 +312,8 @@ function ShellSidebarResizeHandle(props: {
   hasHeaders: boolean;
   hasContentHeader: boolean;
   forceSidebarExpanded: boolean;
-  onMouseEnter: () => void;
-  onMouseLeave: () => void;
-  onMouseDown: (event: React.MouseEvent<HTMLDivElement>) => void;
+  onHoverChange: (hovered: boolean) => void;
+  onResizeStart: (event: React.MouseEvent<HTMLDivElement>) => void;
 }) {
   const { t } = useLingui();
   const { isCollapsed, isOverlay } = useSidebarOverlayStore(
@@ -338,15 +338,20 @@ function ShellSidebarResizeHandle(props: {
             }
           : undefined
       }
-      onMouseEnter={props.onMouseEnter}
-      onMouseLeave={props.onMouseLeave}
-      onMouseDown={props.onMouseDown}
+      onMouseEnter={() => props.onHoverChange(true)}
+      onMouseLeave={() => props.onHoverChange(false)}
+      onMouseDown={(event) => {
+        props.onHoverChange(false);
+        props.onResizeStart(event);
+      }}
       role="separator"
       aria-orientation="vertical"
       aria-label={t`Resize sidebar`}
     />
   );
 }
+
+const MemoShellSidebarResizeHandle = memo(ShellSidebarResizeHandle);
 
 export function AppShell(props: {
   sidebar: ReactNode;
@@ -552,16 +557,12 @@ export function AppShell(props: {
         forceSidebarExpanded={forceSidebarExpanded}
       />
 
-      <ShellSidebarResizeHandle
+      <MemoShellSidebarResizeHandle
         hasHeaders={hasHeaders}
         hasContentHeader={hasContentHeader}
         forceSidebarExpanded={forceSidebarExpanded}
-        onMouseEnter={() => setIsSidebarHandleHovered(true)}
-        onMouseLeave={() => setIsSidebarHandleHovered(false)}
-        onMouseDown={(event) => {
-          setIsSidebarHandleHovered(false);
-          handleSidebarResizeStart(event);
-        }}
+        onHoverChange={setIsSidebarHandleHovered}
+        onResizeStart={handleSidebarResizeStart}
       />
 
       <div

@@ -32,6 +32,9 @@ type MockVirtualizer = {
 type MockVirtualizerOptions = {
   count: number;
   getScrollElement: () => Element | null;
+  estimateSize: (index: number) => number;
+  getItemKey: (index: number) => string | number;
+  measureElement?: unknown;
   useFlushSync?: boolean;
   useAnimationFrameWithResizeObserver?: boolean;
 };
@@ -72,6 +75,9 @@ vi.mock("./items/ChatItemRow", () => ({
     );
   },
 }));
+
+const PNG_BASE64 =
+  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
 
 describe("MessageList", () => {
   beforeEach(() => {
@@ -133,6 +139,7 @@ describe("MessageList", () => {
     const virtualizerOptions = useVirtualizerMock.mock.calls[0]![0];
     expect(virtualizerOptions.count).toBe(4);
     expect(virtualizerOptions.getScrollElement()).toBe(scrollElement);
+    expect(virtualizerOptions.measureElement).toBeUndefined();
     expect(virtualizerOptions.useFlushSync).toBe(true);
     expect(virtualizerOptions.useAnimationFrameWithResizeObserver).toBe(true);
     expect(screen.queryByText("item-1")).not.toBeInTheDocument();
@@ -152,6 +159,50 @@ describe("MessageList", () => {
       transform: "translateY(96px)",
     });
     expect(document.querySelector("[data-item-id='item-2']")).not.toHaveAttribute("style");
+  });
+
+  it("estimates inline image rows near their rendered height before measurement", () => {
+    const threadId = "thread-1";
+    useAppStore.getState().hydrateThreadRuntimeItems(threadId, [
+      {
+        id: "image-1",
+        type: "image_view",
+        state: "completed",
+        payload: {
+          name: "imageGeneration",
+          status: "success",
+          result: PNG_BASE64,
+        },
+        streams: {},
+      },
+      {
+        id: "assistant-1",
+        type: "assistant_message",
+        state: "completed",
+        payload: {
+          content: [
+            {
+              kind: "image",
+              mimeType: "image/png",
+              dataUrl: `data:image/png;base64,${PNG_BASE64}`,
+            },
+          ],
+        },
+        streams: {},
+      },
+    ]);
+
+    render(
+      <MessageList
+        threadId={threadId}
+        entries={makeEntries(["image-1", "assistant-1"])}
+        scrollElement={document.createElement("div")}
+      />,
+    );
+
+    const virtualizerOptions = useVirtualizerMock.mock.calls[0]![0];
+    expect(virtualizerOptions.estimateSize(0)).toBe(384);
+    expect(virtualizerOptions.estimateSize(1)).toBe(448);
   });
 
   it("never lets TanStack adjust scroll itself and compensates rows fully above the viewport on the next commit", () => {
@@ -420,7 +471,7 @@ describe("MessageList", () => {
     expect(onContentHeightChange).toHaveBeenCalledTimes(2);
   });
 
-  it("delegates height change to parent actions without calling virtualizer.measure()", () => {
+  it("delegates height change to parent actions without forcing list measurement", () => {
     const onContentHeightChange = vi.fn<() => void>();
     const actions = {
       openProjectRelativePath: vi.fn<(path: string, lineNumber?: number) => void>(),
@@ -445,10 +496,9 @@ describe("MessageList", () => {
 
     fireEvent.click(screen.getByText("item-2"));
 
-    // The row-action path remeasures mounted rows with measureElement.
-    // Calling virtualizer.measure() (no args) resets the entire size cache
-    // which causes translateY gaps — so it must NOT be called here.
-    expect(measureElementMock).toHaveBeenCalled();
+    // Row ResizeObservers own size recalculation. This callback is only for
+    // parent scroll pinning; forcing list measurement here creates resize churn.
+    expect(measureElementMock).not.toHaveBeenCalled();
     expect(measureMock).not.toHaveBeenCalled();
     expect(onContentHeightChange).toHaveBeenCalledOnce();
   });

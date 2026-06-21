@@ -17,8 +17,8 @@ import {
   AttachmentBar,
   BrowserChip,
   ComposerAddMenu,
-  ImageLightbox,
   MentionInput,
+  openAttachmentLightbox,
   VoiceInputButton,
   type MentionInputHandle,
   type VoiceInputHandle,
@@ -234,7 +234,6 @@ export function ThreadDraftComposerArea(props: {
       });
     }
   }, [pendingPickedAttachments, inboxKey]);
-  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const [branchSelection, setBranchSelection] = useState<BranchSelection | null>(
     () => useAppStore.getState().pendingDraftWorktreeSelections[props.project.id] ?? null,
   );
@@ -248,7 +247,6 @@ export function ThreadDraftComposerArea(props: {
     target: "model" | "effort";
     nonce: number;
   } | null>(null);
-  const imageAttachments = attachments.attachments.filter((a) => a.isImage);
   const saveDraftContent = useAppStore((s) => s.saveDraftContent);
   const clearDraftContent = useAppStore((s) => s.clearDraftContent);
   const latestSegmentsRef = useRef<PromptSegment[]>([]);
@@ -555,8 +553,9 @@ export function ThreadDraftComposerArea(props: {
             attachments={attachments.attachments}
             onRemove={attachments.removeAttachment}
             onPreviewImage={(att) => {
+              const imageAttachments = attachments.attachments.filter((a) => a.isImage);
               const idx = imageAttachments.findIndex((a) => a.id === att.id);
-              if (idx >= 0) setLightboxIndex(idx);
+              if (idx >= 0) openAttachmentLightbox(imageAttachments, idx);
             }}
             leading={
               props.config.browserMcp === true ? (
@@ -696,13 +695,6 @@ export function ThreadDraftComposerArea(props: {
               : {})}
           />
         </div>
-      ) : null}
-      {lightboxIndex !== null && imageAttachments.length > 0 ? (
-        <ImageLightbox
-          images={imageAttachments}
-          initialIndex={lightboxIndex}
-          onClose={() => setLightboxIndex(null)}
-        />
       ) : null}
     </>
   );

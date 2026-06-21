@@ -1,18 +1,20 @@
-import React, { useEffect, useLayoutEffect, useReducer, useRef } from "react";
+import React, { useCallback, useEffect, useLayoutEffect, useReducer, useRef } from "react";
 import { useDroppable } from "@dnd-kit/react";
-import { useLingui } from "@lingui/react/macro";
+import { msg } from "@lingui/core/macro";
 import { type PaneLayout, type PaneLayoutAxis } from "@/shared/paneLayout";
 import { useIsInsertSplitHighlighted, useIsRootInsertHighlighted } from "@/renderer/dnd";
+import { i18n } from "@/renderer/i18n/i18n";
+import { beginPanelResize, endPanelResize } from "@/renderer/state/panelResizeSignal";
 import {
   MIN_PANE_PERCENT,
   readStoredSizes,
+  samePath,
   splitStorageKey,
   writeStoredSizes,
 } from "./paneSizeStorage";
 
 const DIVIDER_SIZE = 8;
 const ROOT_INSERT_ZONE_INSET = DIVIDER_SIZE / 2;
-const CONTAINER_RESIZE_COMMIT_IDLE_MS = 120;
 
 export type Rect = { left: number; top: number; width: number; height: number };
 type ContainerSize = { width: number; height: number };
@@ -32,6 +34,7 @@ type ComputedDivider = {
 };
 
 type ComputedLayout = { panes: ComputedPane[]; dividers: ComputedDivider[] };
+type RenderedDivider = Pick<ComputedDivider, "zoneId" | "path" | "parentAxis" | "insertIndex">;
 
 function sameContainerSize(a: ContainerSize, b: ContainerSize): boolean {
   return a.width === b.width && a.height === b.height;
@@ -118,55 +121,89 @@ function setRectStyle(element: HTMLElement | null, rect: Rect) {
   element.style.height = `${rect.height}px`;
 }
 
-function Divider(props: {
-  divider: ComputedDivider;
-  registerRef: (zoneId: string, element: HTMLDivElement | null) => void;
-  onResizeStart: (event: React.MouseEvent, divider: ComputedDivider) => void;
-}) {
-  const { divider } = props;
-  const { t } = useLingui();
-  const elementRef = useRef<HTMLDivElement>(null);
-  useDroppable({
-    id: divider.zoneId,
-    accept: ["pane", "thread", "new-thread"],
-    data: {
-      type: "pane-insert-zone",
-      path: divider.path,
-      axis: divider.parentAxis,
-      index: divider.insertIndex,
-      zoneId: divider.zoneId,
-    },
-    element: elementRef,
-  });
-  const isHighlighted = useIsInsertSplitHighlighted(divider.zoneId);
+function layoutSignature(layout: PaneLayout): string {
+  if (layout.kind === "leaf") return `leaf:${layout.paneId}`;
+  return `${layout.axis}(${layout.children.map(layoutSignature).join(",")})`;
+}
 
+function sameRenderedDivider(a: RenderedDivider, b: RenderedDivider): boolean {
   return (
-    <div
-      ref={(element) => {
-        elementRef.current = element;
-        props.registerRef(divider.zoneId, element);
-      }}
-      className={`${
-        divider.parentAxis === "vertical"
-          ? "lightcode-pane-divider"
-          : "lightcode-pane-divider-horizontal"
-      } ${isHighlighted ? "is-highlighted" : ""}`}
-      style={{
-        position: "absolute",
-        left: divider.rect.left,
-        top: divider.rect.top,
-        width: divider.rect.width,
-        height: divider.rect.height,
-      }}
-      onMouseDown={(event) => props.onResizeStart(event, divider)}
-      role="separator"
-      aria-orientation={divider.parentAxis === "vertical" ? "vertical" : "horizontal"}
-      aria-label={divider.parentAxis === "vertical" ? t`Resize column` : t`Resize row`}
-    />
+    a.zoneId === b.zoneId &&
+    a.parentAxis === b.parentAxis &&
+    a.insertIndex === b.insertIndex &&
+    samePath(a.path, b.path)
   );
 }
 
-function RootInsertZone(props: {
+const Divider = React.memo(
+  function Divider(props: {
+    divider: RenderedDivider;
+    registerRef: (zoneId: string, element: HTMLDivElement | null) => void;
+    onResizeStart: (event: React.MouseEvent, zoneId: string) => void;
+  }) {
+    const { divider } = props;
+
+    return (
+      <div
+        ref={(element) => {
+          props.registerRef(divider.zoneId, element);
+        }}
+        className={`${
+          divider.parentAxis === "vertical"
+            ? "lightcode-pane-divider"
+            : "lightcode-pane-divider-horizontal"
+        }`}
+        style={{
+          position: "absolute",
+        }}
+        onMouseDown={(event) => props.onResizeStart(event, divider.zoneId)}
+        role="separator"
+        aria-orientation={divider.parentAxis === "vertical" ? "vertical" : "horizontal"}
+        aria-label={
+          divider.parentAxis === "vertical" ? i18n._(msg`Resize column`) : i18n._(msg`Resize row`)
+        }
+      >
+        <DividerDropZone divider={divider} />
+      </div>
+    );
+  },
+  (prev, next) => sameRenderedDivider(prev.divider, next.divider),
+);
+
+const DividerDropZone = React.memo(
+  function DividerDropZone(props: { divider: RenderedDivider }) {
+    const { divider } = props;
+    const elementRef = useRef<HTMLDivElement>(null);
+    useDroppable({
+      id: divider.zoneId,
+      accept: ["pane", "thread", "new-thread"],
+      data: {
+        type: "pane-insert-zone",
+        path: divider.path,
+        axis: divider.parentAxis,
+        index: divider.insertIndex,
+        zoneId: divider.zoneId,
+      },
+      element: elementRef,
+    });
+    const isHighlighted = useIsInsertSplitHighlighted(divider.zoneId);
+
+    return (
+      <div
+        ref={elementRef}
+        aria-hidden="true"
+        className={`lightcode-pane-divider-drop-zone ${
+          divider.parentAxis === "vertical"
+            ? "lightcode-pane-divider-drop-zone--vertical"
+            : "lightcode-pane-divider-drop-zone--horizontal"
+        } ${isHighlighted ? "is-highlighted" : ""}`}
+      />
+    );
+  },
+  (prev, next) => sameRenderedDivider(prev.divider, next.divider),
+);
+
+const RootInsertZone = React.memo(function RootInsertZone(props: {
   axis: PaneLayoutAxis;
   index: number;
   side: "top" | "right" | "bottom" | "left";
@@ -220,7 +257,7 @@ function RootInsertZone(props: {
       ) : null}
     </div>
   );
-}
+});
 
 export function SplitPaneContainer(props: {
   layout: PaneLayout;
@@ -230,6 +267,7 @@ export function SplitPaneContainer(props: {
   const overlayRef = useRef<HTMLDivElement>(null);
   const paneElementRefs = useRef<Map<string, HTMLDivElement | null>>(new Map());
   const dividerElementRefs = useRef<Map<string, HTMLDivElement | null>>(new Map());
+  const latestDividersRef = useRef<Map<string, ComputedDivider>>(new Map());
   const containerSizeRef = useRef<ContainerSize>({ width: 0, height: 0 });
   const layoutRef = useRef(props.layout);
   layoutRef.current = props.layout;
@@ -238,6 +276,7 @@ export function SplitPaneContainer(props: {
   const committedSizesRef = useRef<Map<string, number[]>>(new Map());
   // Transient sizes during a drag — applied imperatively, not stored.
   const transientSizesRef = useRef<Map<string, number[]>>(new Map());
+  const layoutSignatureRef = useRef<string | null>(null);
   // Forces a re-render after an imperative layout commit so React's pane styles
   // converge with the DOM positions. Read isn't needed; dispatching is the side effect.
   const [, bumpLayoutTick] = useReducer((tick: number) => tick + 1, 0);
@@ -247,16 +286,10 @@ export function SplitPaneContainer(props: {
     if (!element) return;
 
     let resizeFrame: number | null = null;
-    let commitTimer: number | null = null;
-
     function cancelPendingResizeWork() {
       if (resizeFrame !== null) {
         cancelAnimationFrame(resizeFrame);
         resizeFrame = null;
-      }
-      if (commitTimer !== null) {
-        clearTimeout(commitTimer);
-        commitTimer = null;
       }
     }
 
@@ -265,16 +298,6 @@ export function SplitPaneContainer(props: {
       if (sameContainerSize(containerSizeRef.current, next)) return;
       containerSizeRef.current = next;
       bumpLayoutTick();
-    }
-
-    function scheduleCommit() {
-      if (commitTimer !== null) {
-        clearTimeout(commitTimer);
-      }
-      commitTimer = window.setTimeout(() => {
-        commitTimer = null;
-        bumpLayoutTick();
-      }, CONTAINER_RESIZE_COMMIT_IDLE_MS);
     }
 
     function scheduleLiveLayout() {
@@ -293,7 +316,6 @@ export function SplitPaneContainer(props: {
         return;
       }
       scheduleLiveLayout();
-      scheduleCommit();
     }
 
     const observer = new ResizeObserver((entries) => {
@@ -312,7 +334,7 @@ export function SplitPaneContainer(props: {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- observer lifetime is fixed; resize work reads latest layout from refs
   }, []);
 
-  function resolveSizes(storageKey: string, count: number): number[] {
+  const resolveSizes = useCallback((storageKey: string, count: number): number[] => {
     const transient = transientSizesRef.current.get(storageKey);
     if (transient && transient.length === count) return transient;
     const committed = committedSizesRef.current.get(storageKey);
@@ -320,6 +342,13 @@ export function SplitPaneContainer(props: {
     const restored = readStoredSizes(storageKey, count);
     committedSizesRef.current.set(storageKey, restored);
     return restored;
+  }, []);
+
+  const currentLayoutSignature = layoutSignature(props.layout);
+  if (layoutSignatureRef.current !== currentLayoutSignature) {
+    layoutSignatureRef.current = currentLayoutSignature;
+    committedSizesRef.current.clear();
+    transientSizesRef.current.clear();
   }
 
   // Account for the inset padding around the layout.
@@ -329,88 +358,123 @@ export function SplitPaneContainer(props: {
     containerRect.width > 0 && containerRect.height > 0
       ? computeLayout(props.layout, containerRect, resolveSizes)
       : { panes: [], dividers: [] };
+  latestDividersRef.current = new Map(
+    computed.dividers.map((divider) => [divider.zoneId, divider]),
+  );
 
-  function applyLayoutForSize(size: ContainerSize) {
-    const rect = getContainerRect(size);
-    if (rect.width <= 0 || rect.height <= 0) return;
-    const layoutNow = computeLayout(layoutRef.current, rect, resolveSizes);
-    for (const pane of layoutNow.panes) {
-      setRectStyle(paneElementRefs.current.get(pane.paneId) ?? null, pane.rect);
-    }
-    for (const divider of layoutNow.dividers) {
+  const applyLayoutForSize = useCallback(
+    (size: ContainerSize) => {
+      const rect = getContainerRect(size);
+      if (rect.width <= 0 || rect.height <= 0) return;
+      const layoutNow = computeLayout(layoutRef.current, rect, resolveSizes);
+      latestDividersRef.current = new Map(
+        layoutNow.dividers.map((divider) => [divider.zoneId, divider]),
+      );
+      for (const pane of layoutNow.panes) {
+        setRectStyle(paneElementRefs.current.get(pane.paneId) ?? null, pane.rect);
+      }
+      for (const divider of layoutNow.dividers) {
+        setRectStyle(dividerElementRefs.current.get(divider.zoneId) ?? null, divider.rect);
+      }
+    },
+    [resolveSizes],
+  );
+
+  const applyTransientLayout = useCallback(() => {
+    applyLayoutForSize(containerSizeRef.current);
+  }, [applyLayoutForSize]);
+
+  useLayoutEffect(() => {
+    for (const divider of computed.dividers) {
       setRectStyle(dividerElementRefs.current.get(divider.zoneId) ?? null, divider.rect);
     }
-  }
+  }, [computed.dividers]);
 
-  function applyTransientLayout() {
-    applyLayoutForSize(containerSizeRef.current);
-  }
+  const registerDividerRef = useCallback((zoneId: string, element: HTMLDivElement | null) => {
+    if (element) {
+      dividerElementRefs.current.set(zoneId, element);
+      const rect = latestDividersRef.current.get(zoneId)?.rect;
+      if (rect) setRectStyle(element, rect);
+    } else {
+      dividerElementRefs.current.delete(zoneId);
+    }
+  }, []);
 
   const cleanupRef = useRef<(() => void) | null>(null);
   useEffect(() => {
     return () => cleanupRef.current?.();
   }, []);
 
-  function handleResizeStart(event: React.MouseEvent, divider: ComputedDivider) {
-    event.preventDefault();
-    cleanupRef.current?.();
+  const handleResizeStart = useCallback(
+    (event: React.MouseEvent, zoneId: string) => {
+      event.preventDefault();
+      cleanupRef.current?.();
 
-    const isVertical = divider.parentAxis === "vertical";
-    const startPos = isVertical ? event.clientX : event.clientY;
-    const initialSizes =
-      committedSizesRef.current.get(divider.storageKey) ??
-      readStoredSizes(divider.storageKey, divider.childCount);
-    const beforeIndex = divider.dividerIndex - 1;
-    const afterIndex = divider.dividerIndex;
-    const beforeStart = initialSizes[beforeIndex]!;
-    const afterStart = initialSizes[afterIndex]!;
-    const dividerSpace = DIVIDER_SIZE * (divider.childCount - 1);
-    const availableDim = Math.max(1, divider.parentDim - dividerSpace);
+      const divider = latestDividersRef.current.get(zoneId);
+      if (!divider) return;
 
-    const overlay = overlayRef.current;
-    if (overlay) {
-      overlay.style.display = "block";
-      overlay.style.cursor = isVertical ? "col-resize" : "row-resize";
-    }
+      const storageKey = divider.storageKey;
+      const isVertical = divider.parentAxis === "vertical";
+      const startPos = isVertical ? event.clientX : event.clientY;
+      const initialSizes =
+        committedSizesRef.current.get(storageKey) ??
+        readStoredSizes(storageKey, divider.childCount);
+      const beforeIndex = divider.dividerIndex - 1;
+      const afterIndex = divider.dividerIndex;
+      const beforeStart = initialSizes[beforeIndex]!;
+      const afterStart = initialSizes[afterIndex]!;
+      const dividerSpace = DIVIDER_SIZE * (divider.childCount - 1);
+      const availableDim = Math.max(1, divider.parentDim - dividerSpace);
 
-    let lastSizes = initialSizes;
-
-    function onMouseMove(ev: MouseEvent) {
-      const deltaPx = (isVertical ? ev.clientX : ev.clientY) - startPos;
-      const deltaPercent = (deltaPx / availableDim) * 100;
-      const newBefore = beforeStart + deltaPercent;
-      const newAfter = afterStart - deltaPercent;
-      if (newBefore < MIN_PANE_PERCENT || newAfter < MIN_PANE_PERCENT) return;
-      const next = [...initialSizes];
-      next[beforeIndex] = newBefore;
-      next[afterIndex] = newAfter;
-      lastSizes = next;
-      transientSizesRef.current.set(divider.storageKey, next);
-      applyTransientLayout();
-    }
-
-    function teardown() {
-      document.removeEventListener("mousemove", onMouseMove);
-      document.removeEventListener("mouseup", onMouseUp);
+      const overlay = overlayRef.current;
       if (overlay) {
-        overlay.style.display = "none";
-        overlay.style.cursor = "";
+        overlay.style.display = "block";
+        overlay.style.cursor = isVertical ? "col-resize" : "row-resize";
       }
-      cleanupRef.current = null;
-    }
 
-    function onMouseUp() {
-      teardown();
-      transientSizesRef.current.delete(divider.storageKey);
-      committedSizesRef.current.set(divider.storageKey, lastSizes);
-      writeStoredSizes(divider.storageKey, lastSizes);
-      bumpLayoutTick();
-    }
+      beginPanelResize();
 
-    cleanupRef.current = teardown;
-    document.addEventListener("mousemove", onMouseMove);
-    document.addEventListener("mouseup", onMouseUp);
-  }
+      let lastSizes = initialSizes;
+
+      function onMouseMove(ev: MouseEvent) {
+        const deltaPx = (isVertical ? ev.clientX : ev.clientY) - startPos;
+        const deltaPercent = (deltaPx / availableDim) * 100;
+        const newBefore = beforeStart + deltaPercent;
+        const newAfter = afterStart - deltaPercent;
+        if (newBefore < MIN_PANE_PERCENT || newAfter < MIN_PANE_PERCENT) return;
+        const next = [...initialSizes];
+        next[beforeIndex] = newBefore;
+        next[afterIndex] = newAfter;
+        lastSizes = next;
+        transientSizesRef.current.set(storageKey, next);
+        applyTransientLayout();
+      }
+
+      function teardown() {
+        document.removeEventListener("mousemove", onMouseMove);
+        document.removeEventListener("mouseup", onMouseUp);
+        if (overlay) {
+          overlay.style.display = "none";
+          overlay.style.cursor = "";
+        }
+        endPanelResize();
+        cleanupRef.current = null;
+      }
+
+      function onMouseUp() {
+        teardown();
+        transientSizesRef.current.delete(storageKey);
+        committedSizesRef.current.set(storageKey, lastSizes);
+        writeStoredSizes(storageKey, lastSizes);
+        bumpLayoutTick();
+      }
+
+      cleanupRef.current = teardown;
+      document.addEventListener("mousemove", onMouseMove);
+      document.addEventListener("mouseup", onMouseUp);
+    },
+    [applyTransientLayout, bumpLayoutTick],
+  );
 
   // Root-insert-zone indices: when the root is a split aligned with the edge,
   // the index appends/prepends within that split; otherwise it wraps the layout.
@@ -460,10 +524,7 @@ export function SplitPaneContainer(props: {
           <Divider
             key={divider.zoneId}
             divider={divider}
-            registerRef={(zoneId, element) => {
-              if (element) dividerElementRefs.current.set(zoneId, element);
-              else dividerElementRefs.current.delete(zoneId);
-            }}
+            registerRef={registerDividerRef}
             onResizeStart={handleResizeStart}
           />
         ))}

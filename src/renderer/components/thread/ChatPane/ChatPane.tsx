@@ -19,6 +19,7 @@ import { readBridge } from "@/renderer/bridge";
 import { useShimmerRef } from "@/renderer/thinkingAnimator";
 import { useScrollFade } from "@/renderer/hooks/useScrollFade";
 import { useAppStore } from "@/renderer/state/appStore";
+import { isPanelResizing, subscribePanelResize } from "@/renderer/state/panelResizeSignal";
 import { hydrateThreadRuntimeItems } from "@/renderer/state/chatRuntimePersister";
 import {
   finalizeFileCheckpoint,
@@ -423,7 +424,7 @@ const ChatScrollControls = forwardRef<
     const el = scrollRef.current;
     if (!el) return;
     const virtualScrollToBottom = virtualScrollToBottomRef.current;
-    if ((options.reconcileVirtualizer || stickToBottomRef.current) && virtualScrollToBottom) {
+    if (options.reconcileVirtualizer && virtualScrollToBottom) {
       virtualScrollToBottom();
     }
     el.scrollTop = el.scrollHeight;
@@ -451,9 +452,26 @@ const ChatScrollControls = forwardRef<
     }
   }
 
+  function hasScheduledLayoutSync() {
+    return layoutSyncRafRef.current !== null || layoutSyncSecondRafRef.current !== null;
+  }
+
   const syncLayoutNowAndAfterPaint = useEffectEvent(() => {
+    if (hasScheduledLayoutSync()) return;
+    // During an active panel/divider drag the viewport changes every frame, and
+    // both this scroller's ResizeObserver and MessageList's totalSize effect
+    // call in here per frame. Collapse to a single coalesced rAF (no synchronous
+    // read, no chained settle passes) so the content still reflows and stays
+    // bottom-pinned live, but we do at most one forced reflow per frame instead
+    // of stacking several. The drag-end reconcile below runs the full settle.
+    if (isPanelResizing()) {
+      layoutSyncRafRef.current = requestAnimationFrame(() => {
+        layoutSyncRafRef.current = null;
+        syncLayoutNow();
+      });
+      return;
+    }
     syncLayoutNow();
-    cancelScheduledLayoutSync();
     layoutSyncRafRef.current = requestAnimationFrame(() => {
       layoutSyncRafRef.current = null;
       syncLayoutNow();
@@ -575,7 +593,7 @@ const ChatScrollControls = forwardRef<
       cancelAnimationFrame(pinRafRef.current);
     }
     if (stickToBottomRef.current) {
-      scrollToBottom();
+      scrollToBottom({ reconcileVirtualizer: true });
       if (!initialScrollSettled) {
         scheduleInitialScrollSettle();
       }
@@ -583,7 +601,7 @@ const ChatScrollControls = forwardRef<
     pinRafRef.current = requestAnimationFrame(() => {
       pinRafRef.current = null;
       if (!stickToBottomRef.current) return;
-      scrollToBottom();
+      scrollToBottom({ reconcileVirtualizer: true });
       if (!initialScrollSettled) {
         scheduleInitialScrollSettle();
       }
@@ -611,6 +629,19 @@ const ChatScrollControls = forwardRef<
     syncPinnedContentChange();
     // eslint-disable-next-line react-hooks/exhaustive-deps -- pinning is keyed to loader visibility changes; the effect event reads latest layout refs.
   }, [tailLoaderVisible, initialScrollSettled]);
+
+  // When a panel/divider drag ends, the coalesced in-drag syncs above skipped
+  // the full settle pass. Run it once now so the final bottom-pin / scroll-down
+  // button state is correct against the settled layout.
+  useLayoutEffect(
+    () =>
+      subscribePanelResize((resizing) => {
+        if (resizing) return;
+        cancelScheduledLayoutSync();
+        syncLayoutNowAndAfterPaint();
+      }),
+    [],
+  );
 
   useEffect(() => cancelScheduledLayoutSync, []);
   useEffect(() => cancelScheduledInitialSettle, []);

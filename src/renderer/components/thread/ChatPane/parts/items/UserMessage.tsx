@@ -3,7 +3,11 @@ import { Link, Surface, Tooltip } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import { ChevronDown, ChevronUp, Copy } from "lucide-react";
 import type { CanonicalContentBlock, MessageItemPayload } from "@/shared/contracts";
-import { AttachmentBar, ImageLightbox, type Attachment } from "@/renderer/components/composer";
+import {
+  AttachmentBar,
+  openAttachmentLightbox,
+  type Attachment,
+} from "@/renderer/components/composer";
 import { readBridge } from "@/renderer/bridge";
 import { fileNameFromPath } from "@/shared/promptContent";
 import {
@@ -51,7 +55,6 @@ export const UserMessage = memo(function UserMessage({
   // the first measurement, which is the only thing that lifts the default clamp
   // off a non-overflowing message.
   const [hasMeasured, setHasMeasured] = useState(false);
-  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
   const hasVisualOverflowRef = useRef(false);
   const hasMeasuredRef = useRef(false);
@@ -68,7 +71,6 @@ export const UserMessage = memo(function UserMessage({
     buildUserPromptAttachments(content),
     extractSelectorPayloads(rawText),
   );
-  const imageAttachments = attachments.filter((a) => a.isImage);
 
   const syncVisualOverflow = useEffectEvent(() => {
     const element = bodyRef.current;
@@ -154,8 +156,9 @@ export const UserMessage = memo(function UserMessage({
               layout="flush"
               imagesAsPreview
               onPreviewImage={(att) => {
+                const imageAttachments = attachments.filter((a) => a.isImage);
                 const idx = imageAttachments.findIndex((a) => a.id === att.id);
-                if (idx >= 0) setLightboxIndex(idx);
+                if (idx >= 0) openAttachmentLightbox(imageAttachments, idx);
               }}
             />
           </div>
@@ -188,13 +191,6 @@ export const UserMessage = memo(function UserMessage({
         {checkpointRevertControl}
         <CopyUserMessageButton text={rawText} />
       </div>
-      {lightboxIndex !== null ? (
-        <ImageLightbox
-          images={imageAttachments}
-          initialIndex={lightboxIndex}
-          onClose={() => setLightboxIndex(null)}
-        />
-      ) : null}
     </Surface>
   );
 });

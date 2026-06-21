@@ -42,6 +42,13 @@ if (process.env.LIGHTCODE_CDP_PORT) {
   app.commandLine.appendSwitch("remote-debugging-port", process.env.LIGHTCODE_CDP_PORT);
 }
 
+// Windows HDR can make DWM acrylic visibly change opacity when Chromium starts
+// compositing image content in the display color space. Keep Chromium in sRGB so
+// acrylic stays translucent without breathing as image planes appear/disappear.
+if (process.platform === "win32") {
+  app.commandLine.appendSwitch("force-color-profile", "srgb");
+}
+
 const chromeLikeUserAgent = buildChromeLikeUserAgent(app.userAgentFallback);
 app.userAgentFallback = chromeLikeUserAgent;
 

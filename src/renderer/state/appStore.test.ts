@@ -1,6 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { HOME_PROJECT_ID, HOME_PROJECT_NAME } from "@/shared/homeScope";
 import type { PaneLayout } from "@/shared/paneLayout";
+import {
+  readStoredSizes,
+  splitStorageKey,
+  writeStoredSizes,
+} from "@/renderer/components/layout/paneSizeStorage";
 import { useAppStore } from "./appStore";
 
 describe("appStore runtime config sync", () => {
@@ -1452,6 +1457,69 @@ describe("grid layout actions", () => {
         { kind: "leaf", paneId: ids[2] },
       ],
     });
+  });
+
+  it("splitPaneById preserves ancestor split sizes", () => {
+    const ids = createThreads(3);
+    const initialLayout: PaneLayout = {
+      kind: "split",
+      axis: "vertical",
+      children: [
+        { kind: "leaf", paneId: ids[0]! },
+        { kind: "leaf", paneId: ids[1]! },
+      ],
+    };
+    useAppStore.setState((s) => ({
+      ...s,
+      view: {
+        kind: "thread",
+        panes: [ids[0]!, ids[1]!] as [string, ...string[]],
+        paneLayout: initialLayout,
+      },
+    }));
+    writeStoredSizes(splitStorageKey(initialLayout, "vertical"), [40, 60]);
+
+    useAppStore.getState().splitPaneById(ids[2]!, ids[1]!, "bottom");
+
+    const view = useAppStore.getState().view;
+    expect(view.kind).toBe("thread");
+    if (view.kind !== "thread" || !view.paneLayout) return;
+    expect(readStoredSizes(splitStorageKey(view.paneLayout, "vertical"), 2)).toEqual([40, 60]);
+  });
+
+  it("closePane preserves ancestor split sizes", () => {
+    const ids = createThreads(3);
+    const initialLayout: PaneLayout = {
+      kind: "split",
+      axis: "vertical",
+      children: [
+        { kind: "leaf", paneId: ids[0]! },
+        {
+          kind: "split",
+          axis: "horizontal",
+          children: [
+            { kind: "leaf", paneId: ids[1]! },
+            { kind: "leaf", paneId: ids[2]! },
+          ],
+        },
+      ],
+    };
+    useAppStore.setState((s) => ({
+      ...s,
+      view: {
+        kind: "thread",
+        panes: [ids[0]!, ids[1]!, ids[2]!] as [string, ...string[]],
+        paneLayout: initialLayout,
+      },
+    }));
+    writeStoredSizes(splitStorageKey(initialLayout, "vertical"), [35, 65]);
+
+    useAppStore.getState().closePane(ids[2]!);
+
+    const view = useAppStore.getState().view;
+    expect(view.kind).toBe("thread");
+    if (view.kind !== "thread" || !view.paneLayout) return;
+    expect(readStoredSizes(splitStorageKey(view.paneLayout, "vertical"), 2)).toEqual([35, 65]);
   });
 
   it("insertPaneAtLayoutTarget can create a global second row", () => {

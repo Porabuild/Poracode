@@ -1,6 +1,7 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { AppProvider } from "@/renderer/components/ui/provider";
+import { ImageLightboxHost } from "@/renderer/components/composer";
 import type { RuntimeChatItem } from "@/renderer/state/slices/runtimeEventSlice";
 import { ImageView } from "./ImageView";
 
@@ -35,6 +36,9 @@ describe("ImageView", () => {
     const img = screen.getByAltText("A red square") as HTMLImageElement;
     expect(img.tagName).toBe("IMG");
     expect(img.getAttribute("src")).toBe(`data:image/png;base64,${PNG_BASE64}`);
+    expect(img.getAttribute("width")).toBe("1");
+    expect(img.getAttribute("height")).toBe("1");
+    expect(img.getAttribute("loading")).toBeNull();
     // The prompt lives only on the <img> alt for a11y — it is not written as a
     // visible caption (the picture may be shared, not "generated").
     expect(screen.queryByText("A red square")).toBeNull();
@@ -47,6 +51,7 @@ describe("ImageView", () => {
     render(
       <AppProvider>
         <ImageView item={imageItem({ name: "imageGeneration", result: PNG_BASE64 })} />
+        <ImageLightboxHost />
       </AppProvider>,
     );
 

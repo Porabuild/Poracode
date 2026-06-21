@@ -21,6 +21,7 @@ export interface OptionMenuProps {
   buttonVariant?: ButtonProps["variant"];
   hideLabelOnWrap?: boolean;
   forceHideLabel?: boolean;
+  collapseTier?: number;
   iconOnly?: boolean;
   tooltip?: string | undefined;
   onOpenChange?: (open: boolean) => void;
@@ -39,6 +40,7 @@ export function OptionMenu(props: OptionMenuProps) {
     buttonVariant = "secondary",
     hideLabelOnWrap = false,
     forceHideLabel = false,
+    collapseTier,
     iconOnly = false,
     tooltip,
     onOpenChange,
@@ -52,7 +54,7 @@ export function OptionMenu(props: OptionMenuProps) {
   );
   const currentValue =
     normalizedOptions.find((option) => option.id === value)?.label || value || resolvedPlaceholder;
-  const effectiveTooltip = tooltip ?? (iconOnly ? currentValue : undefined);
+  const effectiveTooltip = tooltip ?? (hideLabelOnWrap || iconOnly ? currentValue : undefined);
   const buttonProps = className ? { className } : {};
 
   const button = (
@@ -66,6 +68,7 @@ export function OptionMenu(props: OptionMenuProps) {
       {icon}
       {!iconOnly && (
         <span
+          data-collapse-tier={collapseTier}
           className={
             hideLabelOnWrap
               ? `lightcode-composer-label-hideable truncate${forceHideLabel ? " is-hidden" : ""}`
@@ -77,6 +80,7 @@ export function OptionMenu(props: OptionMenuProps) {
       )}
       {!iconOnly && (
         <ChevronDown
+          data-collapse-tier={collapseTier}
           className={
             hideLabelOnWrap
               ? `lightcode-composer-label-hideable size-3.5 text-muted${forceHideLabel ? " is-hidden" : ""}`

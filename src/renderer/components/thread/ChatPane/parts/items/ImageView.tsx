@@ -5,7 +5,7 @@ import { useLingui } from "@lingui/react/macro";
 import type { ToolCallPayload } from "@/shared/contracts";
 import type { RuntimeChatItem } from "@/renderer/state/slices/runtimeEventSlice";
 import { readBridge } from "@/renderer/bridge";
-import { ImageLightboxView } from "@/renderer/components/composer";
+import { openImageLightbox } from "@/renderer/components/composer";
 import { resolveImageViewSource, type ImageViewSource } from "./imageViewSource";
 import { ToolCall } from "./ToolCall";
 
@@ -40,43 +40,41 @@ export const ImageView = memo(function ImageView({ item }: ImageViewProps) {
  * The toolbar sits on a translucent backdrop so its icons stay legible over any
  * image, and reveals on hover / keyboard focus to keep the picture uncluttered.
  */
-export function ImageCard({ source }: { source: ImageViewSource }) {
+export const ImageCard = memo(function ImageCard({ source }: { source: ImageViewSource }) {
   const { t } = useLingui();
-  const [isLightboxOpen, setLightboxOpen] = useState(false);
   const imageAlt = source.alt || t`Image`;
+  const openPreview = () => openImageLightbox([{ src: source.src, alt: imageAlt }], 0);
 
   return (
-    <figure className="group relative m-0 inline-flex max-w-full overflow-hidden rounded-2xl border border-[color:var(--border)] bg-[var(--composer-surface)]">
+    <figure
+      className="lightcode-image-card group relative m-0 inline-flex max-w-full overflow-hidden rounded-2xl border border-[color:var(--border)] bg-[var(--composer-surface)]"
+      data-lightcode-image-card="true"
+    >
       <button
         type="button"
         className="block cursor-zoom-in bg-black/20"
         aria-label={t`Open image preview`}
-        onClick={() => setLightboxOpen(true)}
+        onClick={openPreview}
       >
         <img
           src={source.src}
           alt={imageAlt}
           draggable={false}
+          decoding="async"
+          {...(source.width && source.height ? { width: source.width, height: source.height } : {})}
           className="block max-h-[22rem] w-auto max-w-full object-contain"
         />
       </button>
       <div className="pointer-events-none absolute right-1.5 top-1.5 flex items-center gap-0.5 rounded-lg bg-black/50 p-0.5 opacity-0 backdrop-blur-sm transition-opacity duration-150 group-hover:pointer-events-auto group-hover:opacity-100 focus-within:pointer-events-auto focus-within:opacity-100">
         <CopyImageButton source={source} />
         <DownloadImageButton src={source.src} fileName={source.fileName} />
-        <IconButton label={t`Open preview`} onClick={() => setLightboxOpen(true)}>
+        <IconButton label={t`Open preview`} onClick={openPreview}>
           <Maximize2 className="size-3.5" />
         </IconButton>
       </div>
-      {isLightboxOpen ? (
-        <ImageLightboxView
-          images={[{ src: source.src, alt: imageAlt }]}
-          initialIndex={0}
-          onClose={() => setLightboxOpen(false)}
-        />
-      ) : null}
     </figure>
   );
-}
+});
 
 function CopyImageButton({ source }: { source: ImageViewSource }) {
   const { t } = useLingui();

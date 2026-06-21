@@ -48,6 +48,7 @@ export function useScrollFade<T extends HTMLElement = HTMLDivElement>(
 ): ScrollFadeHandles<T> {
   const { contentRef, maxFadePx = DEFAULT_MAX_FADE_PX } = options ?? {};
   const scrollRef = useRef<T | null>(null);
+  const resizeFrameRef = useRef<number | null>(null);
   const [scrollEl, setScrollEl] = useState<T | null>(null);
 
   // Stable identity: an inline closure would cycle the ref null→element on
@@ -68,11 +69,18 @@ export function useScrollFade<T extends HTMLElement = HTMLDivElement>(
       el.style.setProperty("--top-fade-size", `${topFade}px`);
       el.style.setProperty("--bottom-fade-size", `${bottomFade}px`);
     };
+    const scheduleUpdate = () => {
+      if (resizeFrameRef.current !== null) return;
+      resizeFrameRef.current = requestAnimationFrame(() => {
+        resizeFrameRef.current = null;
+        update();
+      });
+    };
 
     update();
     el.addEventListener("scroll", update, { passive: true });
 
-    const observer = new ResizeObserver(update);
+    const observer = new ResizeObserver(scheduleUpdate);
     observer.observe(el);
     const contentEl = contentRef?.current;
     if (contentEl) observer.observe(contentEl);
@@ -80,6 +88,10 @@ export function useScrollFade<T extends HTMLElement = HTMLDivElement>(
     return () => {
       el.removeEventListener("scroll", update);
       observer.disconnect();
+      if (resizeFrameRef.current !== null) {
+        cancelAnimationFrame(resizeFrameRef.current);
+        resizeFrameRef.current = null;
+      }
     };
   }, [scrollEl, contentRef, maxFadePx]);
 

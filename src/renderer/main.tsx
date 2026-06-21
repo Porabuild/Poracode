@@ -110,15 +110,24 @@ function showCrash(
   }
 }
 
-window.addEventListener("error", (event) => {
-  if (!(event instanceof ErrorEvent)) return;
-  if (isIgnorableWindowError(event)) {
-    event.preventDefault();
-    return;
-  }
-  // Sentry's Electron renderer integration already captures global errors; this only swaps UI.
-  showCrash("uncaught", event.error ?? event.message, buildSource(event), { capture: false });
-});
+// Capture phase so this runs before other window `error` listeners (e.g. Vite's
+// dev overlay): for the benign "ResizeObserver loop … undelivered notifications"
+// warning we stopImmediatePropagation so it never reaches the dev overlay, which
+// would otherwise flood with it during panel resizes. Already harmless in prod.
+window.addEventListener(
+  "error",
+  (event) => {
+    if (!(event instanceof ErrorEvent)) return;
+    if (isIgnorableWindowError(event)) {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      return;
+    }
+    // Sentry's Electron renderer integration already captures global errors; this only swaps UI.
+    showCrash("uncaught", event.error ?? event.message, buildSource(event), { capture: false });
+  },
+  { capture: true },
+);
 
 window.addEventListener("unhandledrejection", (event) => {
   if (isIgnorableRejection(event.reason)) {

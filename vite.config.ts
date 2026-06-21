@@ -61,8 +61,43 @@ function reactDevtoolsStandalone(): Plugin {
   };
 }
 
+function resizeObserverLoopErrorFilter(): Plugin {
+  return {
+    name: "lightcode:resize-observer-loop-error-filter",
+    apply: "serve",
+    transformIndexHtml() {
+      return [
+        {
+          tag: "script",
+          children: `
+(function () {
+  var resizeObserverLoopMessages = {
+    "ResizeObserver loop completed with undelivered notifications.": true,
+    "ResizeObserver loop limit exceeded": true
+  };
+  window.addEventListener("error", function (event) {
+    var message =
+      event && event.error && typeof event.error.message === "string"
+        ? event.error.message
+        : event && typeof event.message === "string"
+          ? event.message
+          : "";
+    if (!resizeObserverLoopMessages[message]) return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+  }, { capture: true });
+})();
+          `.trim(),
+          injectTo: "head-prepend",
+        },
+      ];
+    },
+  };
+}
+
 export default defineConfig(({ mode }) => ({
   plugins: [
+    resizeObserverLoopErrorFilter(),
     reactDevtoolsStandalone(),
     react(),
     // The Lingui macro must expand BEFORE the React Compiler. Babel applies

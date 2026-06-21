@@ -1267,6 +1267,22 @@ html[data-platform="darwin"] .lightcode-content-over-drag-region--drag {
   background: var(--accent);
 }
 
+.lightcode-pane-divider-drop-zone {
+  position: absolute;
+  inset: 0;
+}
+
+.lightcode-pane-divider-drop-zone--vertical.is-highlighted::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 2px;
+  transform: translateX(-50%);
+  background: var(--accent);
+}
+
 .lightcode-pane-divider-horizontal {
   height: 8px;
   cursor: row-resize;
@@ -1291,6 +1307,17 @@ html[data-platform="darwin"] .lightcode-content-over-drag-region--drag {
 .lightcode-pane-divider-horizontal:hover::after,
 .lightcode-pane-divider-horizontal.is-highlighted::after {
   height: 2px;
+  background: var(--accent);
+}
+
+.lightcode-pane-divider-drop-zone--horizontal.is-highlighted::after {
+  content: "";
+  position: absolute;
+  right: 0;
+  left: 0;
+  top: 50%;
+  height: 2px;
+  transform: translateY(-50%);
   background: var(--accent);
 }
 
@@ -1804,6 +1831,39 @@ html[data-app-unfocused] .lightcode-provider-icon--finished {
 }
 
 .lightcode-composer-label-hideable.is-hidden {
+  display: none;
+}
+
+.lightcode-composer-toolbar[data-wrap-level="1"]
+  .lightcode-composer-label-hideable[data-collapse-tier="1"],
+.lightcode-composer-toolbar[data-wrap-level="2"]
+  .lightcode-composer-label-hideable[data-collapse-tier="1"],
+.lightcode-composer-toolbar[data-wrap-level="2"]
+  .lightcode-composer-label-hideable[data-collapse-tier="2"],
+.lightcode-composer-toolbar[data-wrap-level="3"]
+  .lightcode-composer-label-hideable[data-collapse-tier="1"],
+.lightcode-composer-toolbar[data-wrap-level="3"]
+  .lightcode-composer-label-hideable[data-collapse-tier="2"],
+.lightcode-composer-toolbar[data-wrap-level="3"]
+  .lightcode-composer-label-hideable[data-collapse-tier="3"],
+.lightcode-composer-toolbar[data-wrap-level="4"]
+  .lightcode-composer-label-hideable[data-collapse-tier="1"],
+.lightcode-composer-toolbar[data-wrap-level="4"]
+  .lightcode-composer-label-hideable[data-collapse-tier="2"],
+.lightcode-composer-toolbar[data-wrap-level="4"]
+  .lightcode-composer-label-hideable[data-collapse-tier="3"],
+.lightcode-composer-toolbar[data-wrap-level="4"]
+  .lightcode-composer-label-hideable[data-collapse-tier="4"],
+.lightcode-composer-toolbar[data-wrap-level="5"]
+  .lightcode-composer-label-hideable[data-collapse-tier="1"],
+.lightcode-composer-toolbar[data-wrap-level="5"]
+  .lightcode-composer-label-hideable[data-collapse-tier="2"],
+.lightcode-composer-toolbar[data-wrap-level="5"]
+  .lightcode-composer-label-hideable[data-collapse-tier="3"],
+.lightcode-composer-toolbar[data-wrap-level="5"]
+  .lightcode-composer-label-hideable[data-collapse-tier="4"],
+.lightcode-composer-toolbar[data-wrap-level="5"]
+  .lightcode-composer-label-hideable[data-collapse-tier="5"] {
   display: none;
 }
 
@@ -2417,6 +2477,7 @@ html[data-app-unfocused] .lightcode-provider-icon--finished {
   border-radius: 0.4rem;
   overflow: hidden;
   cursor: var(--interactive-cursor);
+  contain: layout paint;
 }
 
 .lightcode-attachment-image-preview img {
@@ -2425,6 +2486,10 @@ html[data-app-unfocused] .lightcode-provider-icon--finished {
   height: 100%;
   object-fit: cover;
   user-select: none;
+}
+
+.lightcode-image-card {
+  contain: layout paint;
 }
 
 /* ── Image Lightbox ──────────────────────────────────────── */

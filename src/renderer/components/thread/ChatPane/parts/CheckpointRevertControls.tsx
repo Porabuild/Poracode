@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { AlertDialog, Checkbox, Tooltip } from "@heroui/react";
 import { Plural, Trans, useLingui } from "@lingui/react/macro";
 import { RotateCcw } from "lucide-react";
@@ -42,7 +43,11 @@ export function CheckpointRevertButton(props: {
   );
 }
 
-export function RevertCheckpointDialog(props: {
+// Memoized so it doesn't re-render with its (unconditionally mounted) parent on
+// every frame of a panel resize while closed — its props are stable then, so
+// `memo` skips the whole React-Aria overlay subtree. Kept mounted (not gated on
+// `isOpen`) so HeroUI still plays the open/close transition.
+export const RevertCheckpointDialog = memo(function RevertCheckpointDialog(props: {
   isOpen: boolean;
   dontAskAgain: boolean;
   checkpointGuard: CheckpointGuard;
@@ -115,4 +120,4 @@ export function RevertCheckpointDialog(props: {
       </AlertDialog.Container>
     </AlertDialog.Backdrop>
   );
-}
+});

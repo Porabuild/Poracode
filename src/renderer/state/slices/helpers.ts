@@ -19,7 +19,10 @@ import {
   paneIndexToRowCol,
   removeIndicesFromRowLayout,
 } from "@/shared/rowLayout";
-import { migratePaneSizeStorage } from "@/renderer/components/layout/paneSizeStorage";
+import {
+  migratePaneSizeStorage,
+  preservePaneSizeStorageForLayoutChange,
+} from "@/renderer/components/layout/paneSizeStorage";
 import type { SavedGroupLayout } from "./types";
 
 /**
@@ -265,14 +268,21 @@ export function removePaneFromView(
   view: Extract<AppView, { kind: "thread" }>,
   paneId: string,
 ): AppView {
+  const previousLayout = currentPaneLayout(view);
   if (view.paneLayout) {
-    return viewFromPaneLayout(removePaneFromLayout(view.paneLayout, paneId), view.activeGroupId);
+    const layout = removePaneFromLayout(view.paneLayout, paneId);
+    if (layout) preservePaneSizeStorageForLayoutChange(previousLayout, layout);
+    return viewFromPaneLayout(layout, view.activeGroupId);
   }
 
   const idx = view.panes.indexOf(paneId);
   const remaining = view.panes.filter((id) => id !== paneId);
   if (remaining.length === 0) return { kind: "home" };
-  return viewAfterPaneRemoval(view, remaining, new Set(idx !== -1 ? [idx] : []));
+  const nextView = viewAfterPaneRemoval(view, remaining, new Set(idx !== -1 ? [idx] : []));
+  if (nextView.kind === "thread") {
+    preservePaneSizeStorageForLayoutChange(previousLayout, currentPaneLayout(nextView));
+  }
+  return nextView;
 }
 
 export type { AppView, Thread, ThreadAttention, ThreadStatus };

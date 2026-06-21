@@ -21,6 +21,7 @@ import { clearRuntimeItemStoreSelectorCacheForThread } from "./components/thread
 
 import { useAppHydration } from "@/renderer/hooks/useAppHydration";
 import { AppProvider } from "./components/ui/provider";
+import { ImageLightboxHost } from "./components/composer";
 import { MainView } from "@/renderer/views/MainView/MainView";
 import { CommandPalette } from "@/renderer/commands/CommandPalette";
 import {
@@ -286,6 +287,7 @@ export function App() {
     <AppProvider contentReady>
       <MainView storeHydrated={storeHydrated} loadT0={loadT0} />
       <CommandPalette />
+      <ImageLightboxHost />
     </AppProvider>
   );
 }

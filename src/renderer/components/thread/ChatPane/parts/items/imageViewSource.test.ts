@@ -24,6 +24,8 @@ describe("resolveImageViewSource", () => {
     expect(source?.extension).toBe("png");
     expect(source?.fileName).toBe("a-red-square.png");
     expect(source?.alt).toBe("A red square");
+    expect(source?.width).toBe(1);
+    expect(source?.height).toBe(1);
   });
 
   it("prefers payload.images (the provider-agnostic channel) over result", () => {
@@ -36,6 +38,8 @@ describe("resolveImageViewSource", () => {
     });
     expect(source?.src).toBe(`data:image/png;base64,${PNG_BASE64}`);
     expect(source?.mime).toBe("image/png");
+    expect(source?.width).toBe(1);
+    expect(source?.height).toBe(1);
   });
 
   it("passes through an existing data: URL result", () => {
@@ -43,6 +47,8 @@ describe("resolveImageViewSource", () => {
     const source = resolveImageViewSource({ name: "imageGeneration", result: dataUrl });
     expect(source?.src).toBe(dataUrl);
     expect(source?.mime).toBe("image/png");
+    expect(source?.width).toBe(1);
+    expect(source?.height).toBe(1);
   });
 
   it("strips whitespace/newlines from chunked base64", () => {
@@ -134,6 +140,8 @@ describe("imageViewSourceFromImageBlock", () => {
     expect(source?.mime).toBe("image/png");
     expect(source?.alt).toBe("diagram");
     expect(source?.fileName).toBe("diagram.png");
+    expect(source?.width).toBe(1);
+    expect(source?.height).toBe(1);
   });
 
   it("returns null for a non-image / missing data URL", () => {

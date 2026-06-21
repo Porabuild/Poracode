@@ -20,6 +20,7 @@ export interface EffortContextMenuProps {
   isDisabled?: boolean;
   hideLabelOnWrap?: boolean;
   forceHideLabel?: boolean;
+  collapseTier?: number;
   openSignal?: number;
   onOpenChange?: (open: boolean) => void;
 }
@@ -39,6 +40,7 @@ export function EffortContextMenu(props: EffortContextMenuProps) {
     isDisabled,
     hideLabelOnWrap,
     forceHideLabel = false,
+    collapseTier,
     openSignal,
     onOpenChange,
   } = props;
@@ -98,6 +100,7 @@ export function EffortContextMenu(props: EffortContextMenuProps) {
     >
       {icon}
       <span
+        data-collapse-tier={collapseTier}
         className={
           hideLabelOnWrap
             ? `lightcode-composer-label-hideable truncate${forceHideLabel ? " is-hidden" : ""}`
@@ -107,6 +110,7 @@ export function EffortContextMenu(props: EffortContextMenuProps) {
         {triggerLabel}
       </span>
       <ChevronDown
+        data-collapse-tier={collapseTier}
         className={
           hideLabelOnWrap
             ? `lightcode-composer-label-hideable size-3.5 text-muted${forceHideLabel ? " is-hidden" : ""}`
