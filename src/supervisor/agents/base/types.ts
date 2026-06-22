@@ -143,6 +143,8 @@ export interface DetectProbeCtx {
   location: ProjectLocation;
   executablePath: string | undefined;
   version?: string | undefined;
+  /** {@link DetectionSpec.probeEnv}, so `capabilitiesProbe`/`statusProbe` can forward it. */
+  probeEnv?: Record<string, string> | undefined;
 }
 
 export type AuthProbe = (ctx: DetectProbeCtx) => Promise<AuthState | undefined>;
@@ -181,6 +183,15 @@ export interface DetectionSpec {
   capabilities: AgentCapability;
   update?: AgentUpdateInfo;
   versionArgs?: string[];
+  /**
+   * Env merged onto the `--version` probe spawn. Used to neutralize a CLI's own
+   * background self-updater during detection — e.g. `command-code` spawns a
+   * detached npm install on every invocation unless `COMMANDCODE_SKIP_UPDATES`
+   * is set, which otherwise surfaces as a stray terminal window on app launch.
+   * Also exposed to `capabilitiesProbe`/`statusProbe` via `DetectProbeCtx.probeEnv`
+   * so they can forward it to their own `readAgentCommandOutput` calls.
+   */
+  probeEnv?: Record<string, string>;
   statusProbe?: StatusProbe;
   authProbes?: AuthProbe[];
   capabilitiesProbe?: (ctx: DetectProbeCtx) => Promise<CapabilitiesProbeResult | undefined>;
@@ -251,6 +262,16 @@ export interface AgentTerminalObserver {
   detectInvalidSessionRef?(text: string): boolean;
   detectAutoResponse?(text: string): string | null;
   workingSilenceTimeoutMs?: number | null;
+  /**
+   * Set `working` optimistically the moment the user submits a prompt to a live
+   * terminal session, instead of waiting for a status signal. Command Code (and
+   * any CLI whose hooks/OSC emit no turn-START event — it only has
+   * PreToolUse/Stop) has no reliable `working` edge for a pure-text turn
+   * otherwise; the authoritative `Stop` hook clears it back to `idle`. Only
+   * honored while a CLI hook plugin is active (`cliHookEnvInjected`) so a
+   * missing turn-finished signal can never strand the thread in `working`.
+   */
+  optimisticWorkingOnSubmit?: boolean;
   handleOscNotification?(notification: OscNotification): TerminalStatusHint | null;
   handleOscTitle?(title: OscTitle): TerminalStatusHint | null;
   handleOscShellEvent?(event: OscShellEvent): TerminalStatusHint | null;
@@ -272,6 +293,8 @@ export interface RunOneShotInput {
   location: ProjectLocation;
   model: string;
   effort?: string | undefined;
+  /** Opus-only fast-mode session flag. Adapters that don't support it ignore it. */
+  fast?: boolean | undefined;
   prompt: string;
   signal?: AbortSignal | undefined;
 }
@@ -283,6 +306,7 @@ export interface AgentOneShotRunner {
     effort?: string,
     prompt?: string,
     location?: ProjectLocation,
+    fast?: boolean,
   ):
     | {
         command: string;

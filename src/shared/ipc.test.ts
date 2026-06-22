@@ -49,6 +49,7 @@ describe("ipcProcedureMap", () => {
         startUpdateDownload: vi.fn<() => Promise<void>>(),
         installUpdate: vi.fn<() => void>(),
       },
+      requestRelaunch: vi.fn<() => void>(),
     });
 
     expect(Object.keys(handlers).sort()).toEqual([...MAIN_LOCAL_PROCEDURE_NAMES].sort());

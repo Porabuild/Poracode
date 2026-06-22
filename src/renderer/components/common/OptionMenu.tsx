@@ -1,4 +1,5 @@
 import { useState, type ReactNode } from "react";
+import { useLingui } from "@lingui/react/macro";
 import type { Selection } from "@heroui/react";
 import { Label, ListBox, ListLayout, Popover, Tooltip, Virtualizer } from "@heroui/react";
 import { ChevronDown } from "lucide-react";
@@ -20,27 +21,31 @@ export interface OptionMenuProps {
   buttonVariant?: ButtonProps["variant"];
   hideLabelOnWrap?: boolean;
   forceHideLabel?: boolean;
+  collapseTier?: number;
   iconOnly?: boolean;
   tooltip?: string | undefined;
   onOpenChange?: (open: boolean) => void;
 }
 
 export function OptionMenu(props: OptionMenuProps) {
+  const { t } = useLingui();
   const {
     value,
     options,
     onChange,
     icon,
-    placeholder = "Select",
+    placeholder,
     isDisabled = false,
     className,
     buttonVariant = "secondary",
     hideLabelOnWrap = false,
     forceHideLabel = false,
+    collapseTier,
     iconOnly = false,
     tooltip,
     onOpenChange,
   } = props;
+  const resolvedPlaceholder = placeholder ?? t`Select`;
   const [isOpen, setIsOpen] = useState(false);
   const normalizedOptions = options.map((option) =>
     typeof option === "string"
@@ -48,13 +53,13 @@ export function OptionMenu(props: OptionMenuProps) {
       : option,
   );
   const currentValue =
-    normalizedOptions.find((option) => option.id === value)?.label || value || placeholder;
-  const effectiveTooltip = tooltip ?? (iconOnly ? currentValue : undefined);
+    normalizedOptions.find((option) => option.id === value)?.label || value || resolvedPlaceholder;
+  const effectiveTooltip = tooltip ?? (hideLabelOnWrap || iconOnly ? currentValue : undefined);
   const buttonProps = className ? { className } : {};
 
   const button = (
     <Button
-      aria-label={placeholder}
+      aria-label={resolvedPlaceholder}
       isDisabled={isDisabled || normalizedOptions.length === 0}
       size="sm"
       variant={buttonVariant}
@@ -63,6 +68,7 @@ export function OptionMenu(props: OptionMenuProps) {
       {icon}
       {!iconOnly && (
         <span
+          data-collapse-tier={collapseTier}
           className={
             hideLabelOnWrap
               ? `lightcode-composer-label-hideable truncate${forceHideLabel ? " is-hidden" : ""}`
@@ -74,6 +80,7 @@ export function OptionMenu(props: OptionMenuProps) {
       )}
       {!iconOnly && (
         <ChevronDown
+          data-collapse-tier={collapseTier}
           className={
             hideLabelOnWrap
               ? `lightcode-composer-label-hideable size-3.5 text-muted${forceHideLabel ? " is-hidden" : ""}`
@@ -95,7 +102,7 @@ export function OptionMenu(props: OptionMenuProps) {
     : "lightcode-menu max-h-60 overflow-y-auto";
   const listBox = (
     <ListBox
-      aria-label="Options"
+      aria-label={t`Options`}
       className={listBoxClassName}
       items={normalizedOptions}
       selectedKeys={selectedKeys}

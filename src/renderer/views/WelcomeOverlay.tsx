@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from "react";
 import { FolderPlus, MessageSquareText } from "lucide-react";
 import { Button } from "@heroui/react";
+import { Trans } from "@lingui/react/macro";
 import { isHomeProject } from "@/shared/homeScope";
 import { loadHomeScopeLocation } from "@/renderer/actions/projectActions";
 import { useAppStore } from "@/renderer/state/appStore";
@@ -190,7 +191,9 @@ export function WelcomeOverlay() {
                 Lightcode
               </span>
             </h1>
-            <p className="text-sm text-muted">Where do you want to begin?</p>
+            <p className="text-sm text-muted">
+              <Trans>Where do you want to begin?</Trans>
+            </p>
           </div>
 
           <div
@@ -206,9 +209,9 @@ export function WelcomeOverlay() {
               onPress={handleAskQuestion}
             >
               <MessageSquareText className="size-4" />
-              Ask Question
+              <Trans>Ask Question</Trans>
               <span className="rounded-full bg-white/12 px-1.5 py-0.5 text-[10px] leading-none text-white/90">
-                Home
+                <Trans>Home</Trans>
               </span>
             </Button>
             <CreateProjectMenu onSelect={dismissWelcome}>
@@ -219,7 +222,7 @@ export function WelcomeOverlay() {
                 className="lightcode-welcome-button h-12 justify-center gap-2 !text-white"
               >
                 <FolderPlus className="size-4" />
-                Add Project
+                <Trans>Add Project</Trans>
               </Button>
             </CreateProjectMenu>
           </div>

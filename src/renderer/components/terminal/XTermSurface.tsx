@@ -8,6 +8,7 @@ import { TerminalLinkProvider } from "./TerminalLinkProvider";
 import { resolveTerminalColor } from "./terminalColors";
 import { Terminal } from "@xterm/xterm";
 import { Button } from "@heroui/react";
+import { useLingui } from "@lingui/react/macro";
 import { ArrowDown } from "lucide-react";
 import {
   forwardRef,
@@ -24,6 +25,22 @@ import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { isMac, readBridge } from "@/renderer/bridge";
 import { ContextMenu, type ContextMenuItem } from "@/renderer/components/common";
 import { useResolvedAppearance } from "@/renderer/components/ui/provider";
+import { FindBar } from "@/renderer/components/find/FindBar";
+import {
+  clearActiveTerminalFind,
+  setActiveTerminalFind,
+} from "@/renderer/components/find/terminalFindBridge";
+
+/** Decoration colors for in-terminal find matches (kept in sync with the CSS
+ * highlight colors used elsewhere: amber for matches, orange for the active). */
+const TERMINAL_FIND_DECORATIONS = {
+  matchBackground: "#facc1566",
+  matchBorder: "#facc15",
+  matchOverviewRuler: "#facc15",
+  activeMatchBackground: "#f97316",
+  activeMatchBorder: "#f97316",
+  activeMatchColorOverviewRuler: "#f97316",
+} as const;
 
 export interface XTermSurfaceHandle {
   focus(): void;
@@ -110,6 +127,7 @@ export const XTermSurface = forwardRef<
     outputSource,
     initialScrollback,
   } = props;
+  const { t } = useLingui();
   const appearance = useResolvedAppearance();
   const themePreset = useSharedSettings((state) => state.themePreset);
   const mountRef = useRef<HTMLDivElement | null>(null);
@@ -142,6 +160,24 @@ export const XTermSurface = forwardRef<
     isVisible: false,
     thumbTopPercent: 0,
     thumbHeightPercent: 100,
+  });
+  const [findOpen, setFindOpen] = useState(false);
+  const [findQuery, setFindQuery] = useState("");
+  const [findCaseSensitive, setFindCaseSensitive] = useState(false);
+  const [findResult, setFindResult] = useState<{ count: number; index: number }>({
+    count: 0,
+    index: -1,
+  });
+  const [findOpenToken, setFindOpenToken] = useState(0);
+  const findInputRef = useRef<HTMLInputElement>(null);
+  // Stable controller registered with the find bridge on focus so the global
+  // Find command can open this terminal's find bar. Closure uses only stable
+  // setters, so creating it once is safe.
+  const findControllerRef = useRef({
+    open: () => {
+      setFindOpen(true);
+      setFindOpenToken((token) => token + 1);
+    },
   });
 
   useImperativeHandle(ref, () => ({
@@ -178,14 +214,52 @@ export const XTermSurface = forwardRef<
     let lastFitHeight = -1;
     let resizeFrame = 0;
     let ptyResizeTimer = 0;
-    let lastPtyResizeAt = 0;
     let scrollbackHydrationToken = 0;
     let hydratingScrollback = false;
     let bufferedOutputDuringHydration = "";
-    // Fit the canvas immediately; throttle (leading + trailing) the PTY resize
-    // RPC so the agent sees cols updates ~40×/s during a drag — not only after
-    // the user releases — while still coalescing rapid mount-time transitions.
-    const PTY_RESIZE_THROTTLE_MS = 25;
+    let reopenRepaintDone = false;
+    // Fit the canvas every frame for live visual feedback, but DEBOUNCE the PTY
+    // resize RPC, mirroring VS Code's TerminalResizeDebouncer. A full-height
+    // repaint-in-place TUI (Claude no-flicker, codex) re-emits its whole frame
+    // on every SIGWINCH, and a continuous drag firing ~40 resizes/sec piled
+    // those repaints up as duplicate frames in scrollback ("artifacts on top" +
+    // a growing scrollbar). While the normal buffer is still small there is
+    // nothing to orphan, so resize immediately (snappy, and cheap for alt-screen
+    // apps whose normal buffer stays small); past the threshold, debounce so a
+    // drag coalesces to one resize/repaint. Constants from microsoft/vscode
+    // terminalResizeDebouncer.ts (DebounceResizeXDelay, StartDebouncingThreshold).
+    const PTY_RESIZE_DEBOUNCE_MS = 100;
+    const RESIZE_DEBOUNCE_BUFFER_THRESHOLD = 200;
+
+    // Force the live agent to repaint a clean full frame. On reopen the PTY kept
+    // running at the same winsize, so a fresh same-size fit issues a no-op
+    // TIOCSWINSZ that the kernel never turns into SIGWINCH — a no-alt-screen
+    // repaint-in-place agent (Claude Code's no-flicker TUI, Command Code) thus
+    // never redraws and its bottom input row can be missing until the user
+    // manually resizes the window. Send one deliberate winsize delta so the
+    // kernel delivers SIGWINCH and the agent emits a fresh frame over the
+    // (possibly stale / byte-sliced) replayed scrollback. One-shot per mount.
+    const forceAgentRepaint = () => {
+      if (!isActive || reopenRepaintDone) return;
+      const cols = terminal.cols;
+      const rows = terminal.rows;
+      if (cols < 20 || rows < 5) return;
+      reopenRepaintDone = true;
+      // Pin our throttle bookkeeping to the REAL size so the next doFit doesn't
+      // also fire a (now-redundant) resize for the same dimensions.
+      lastCols = cols;
+      lastRows = rows;
+      const intermediateRows = rows > 5 ? rows - 1 : rows + 1;
+      void readBridge()
+        .resizeTerminal({ threadId: terminalId, cols, rows: intermediateRows })
+        .catch(() => {});
+      requestAnimationFrame(() => {
+        if (!isActive) return;
+        void readBridge()
+          .resizeTerminal({ threadId: terminalId, cols, rows })
+          .catch(() => {});
+      });
+    };
 
     const hydrateScrollback = () => {
       const token = ++scrollbackHydrationToken;
@@ -205,6 +279,7 @@ export const XTermSurface = forwardRef<
         }
         return;
       }
+      let restoredScrollback = false;
       void readBridge()
         .readTerminalScrollback({ threadId: terminalId })
         .then((scrollback) => {
@@ -215,6 +290,7 @@ export const XTermSurface = forwardRef<
             terminal.reset();
             terminal.write(scrollback);
             bufferedOutputDuringHydration = "";
+            restoredScrollback = true;
           }
         })
         .catch(() => undefined)
@@ -226,6 +302,11 @@ export const XTermSurface = forwardRef<
           if (bufferedOutputDuringHydration.length > 0) {
             terminal.write(bufferedOutputDuringHydration);
             bufferedOutputDuringHydration = "";
+          }
+          // Reopen of an existing session: nudge the live agent into a fresh
+          // repaint over the replayed (and possibly stale) frame.
+          if (restoredScrollback) {
+            forceAgentRepaint();
           }
         });
     };
@@ -324,18 +405,36 @@ export const XTermSurface = forwardRef<
         terminal.options.fontSize = desiredFontSize;
       }
 
+      // A no-alt-screen full-height TUI (Claude no-flicker, Command Code)
+      // repaints in the main buffer, so a row change during a refit can leave
+      // the viewport parked on stale scrollback instead of the live frame —
+      // reading as "the window resized but the terminal scrolled instead of
+      // repainting". Re-pin to the bottom after fitting, but only when the user
+      // hadn't deliberately scrolled up (so we never steal an intentional
+      // scroll-back). In an alternate-screen buffer baseY is 0, so this is a
+      // no-op there.
+      const wasPinnedToBottom = terminal.buffer.active.viewportY >= terminal.buffer.active.baseY;
+
       fit.fit();
 
-      const now = performance.now();
-      const elapsed = now - lastPtyResizeAt;
-      if (elapsed >= PTY_RESIZE_THROTTLE_MS) {
-        lastPtyResizeAt = now;
+      if (wasPinnedToBottom) {
+        terminal.scrollToBottom();
+      }
+
+      // Resize immediately while the normal buffer is small (nothing to orphan
+      // yet); once it holds real content, debounce so a continuous drag settles
+      // to one resize/repaint instead of a per-frame storm. Restart the timer on
+      // every fit so only the final size reaches the agent.
+      if (ptyResizeTimer !== 0) {
+        clearTimeout(ptyResizeTimer);
+        ptyResizeTimer = 0;
+      }
+      if (terminal.buffer.normal.length < RESIZE_DEBOUNCE_BUFFER_THRESHOLD) {
         flushPtyResize();
-      } else if (ptyResizeTimer === 0) {
+      } else {
         ptyResizeTimer = window.setTimeout(() => {
-          lastPtyResizeAt = performance.now();
           flushPtyResize();
-        }, PTY_RESIZE_THROTTLE_MS - elapsed) as unknown as number;
+        }, PTY_RESIZE_DEBOUNCE_MS) as unknown as number;
       }
     };
 
@@ -356,6 +455,12 @@ export const XTermSurface = forwardRef<
 
     const search = new SearchAddon();
     searchRef.current = search;
+    const searchResultsDisposable = search.onDidChangeResults((event) => {
+      setFindResult({ count: event.resultCount, index: event.resultIndex });
+    });
+    const findController = findControllerRef.current;
+    const onTerminalFocusIn = () => setActiveTerminalFind(findController);
+    mount.addEventListener("focusin", onTerminalFocusIn);
 
     terminal.loadAddon(fit);
     terminal.loadAddon(search);
@@ -552,9 +657,15 @@ export const XTermSurface = forwardRef<
           }
         });
 
+    // Fit synchronously before hydrating: reading clientWidth forces layout, so
+    // in a real browser the terminal is already at the viewport width when the
+    // (async) scrollback replay writes — otherwise the raw transcript is written
+    // at xterm's 80-col default and then reflowed, garbling a restored
+    // full-height TUI frame. No-op when the pane has no layout yet (e.g. tests).
+    doFit();
     hydrateScrollback();
 
-    // Double-rAF to ensure layout has settled before fitting
+    // Double-rAF backstop in case layout hadn't settled at mount.
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
         if (isActive) {
@@ -574,6 +685,9 @@ export const XTermSurface = forwardRef<
       webglContextLossDisposable?.dispose();
       webglAddon?.dispose();
       linkDisposable.dispose();
+      searchResultsDisposable.dispose();
+      mount.removeEventListener("focusin", onTerminalFocusIn);
+      clearActiveTerminalFind(findController);
       unsubscribe();
       resizeObserver.disconnect();
       terminal.dispose();
@@ -588,6 +702,43 @@ export const XTermSurface = forwardRef<
   useEffect(() => {
     requestRefitRef.current?.();
   }, [baseFontSize]);
+
+  // Re-run the search (highlighting all matches and jumping to the nearest) as
+  // the query/case toggle changes; clear decorations when find closes or empties.
+  useEffect(() => {
+    const search = searchRef.current;
+    if (!search) return;
+    if (findOpen && findQuery) {
+      search.findNext(findQuery, {
+        caseSensitive: findCaseSensitive,
+        incremental: true,
+        decorations: TERMINAL_FIND_DECORATIONS,
+      });
+    } else {
+      search.clearDecorations();
+      setFindResult({ count: 0, index: -1 });
+    }
+  }, [findOpen, findQuery, findCaseSensitive]);
+
+  useEffect(() => {
+    if (!findOpen) return;
+    findInputRef.current?.focus();
+    findInputRef.current?.select();
+  }, [findOpen, findOpenToken]);
+
+  function stepTerminalFind(direction: "next" | "prev") {
+    const search = searchRef.current;
+    if (!search || !findQuery) return;
+    const options = { caseSensitive: findCaseSensitive, decorations: TERMINAL_FIND_DECORATIONS };
+    if (direction === "next") search.findNext(findQuery, options);
+    else search.findPrevious(findQuery, options);
+  }
+
+  function closeTerminalFind() {
+    setFindOpen(false);
+    searchRef.current?.clearDecorations();
+    terminalRef.current?.focus();
+  }
 
   // The terminal is created once (mount-once effect above) and won't pick up
   // theme switches on its own. AppProvider rewrites the theme CSS vars in its
@@ -604,9 +755,9 @@ export const XTermSurface = forwardRef<
   }, [appearance, themePreset]);
 
   const contextMenuItems: ContextMenuItem[] = [
-    { id: "copy", label: "Copy", isDisabled: !hasSelection },
-    ...(!readOnly ? [{ id: "paste", label: "Paste" }] : []),
-    { id: "paste-in-input", label: "Paste in input", isDisabled: !hasSelection },
+    { id: "copy", label: t`Copy`, isDisabled: !hasSelection },
+    ...(!readOnly ? [{ id: "paste", label: t`Paste` }] : []),
+    { id: "paste-in-input", label: t`Paste in input`, isDisabled: !hasSelection },
   ];
 
   function handleContextMenuAction(key: string) {
@@ -680,6 +831,23 @@ export const XTermSurface = forwardRef<
         }
       >
         <div ref={mountRef} className="lightcode-terminal-pane h-full min-w-0 overflow-hidden" />
+        {findOpen ? (
+          <div className="pointer-events-auto absolute right-2 top-2 z-20">
+            <FindBar
+              ref={findInputRef}
+              query={findQuery}
+              onQueryChange={setFindQuery}
+              caseSensitive={findCaseSensitive}
+              onToggleCaseSensitive={() => setFindCaseSensitive((value) => !value)}
+              matchCount={findResult.count}
+              currentIndex={findResult.index}
+              onNext={() => stepTerminalFind("next")}
+              onPrev={() => stepTerminalFind("prev")}
+              onClose={closeTerminalFind}
+              placeholder={t`Find in terminal`}
+            />
+          </div>
+        ) : null}
         <div
           ref={scrollbarTrackRef}
           className={`lightcode-terminal-scrollbar absolute bottom-0 right-0 top-0 ${
@@ -699,7 +867,7 @@ export const XTermSurface = forwardRef<
           isIconOnly
           variant="tertiary"
           size="sm"
-          aria-label="Scroll to bottom"
+          aria-label={t`Scroll to bottom`}
           onPress={() => terminalRef.current?.scrollToBottom()}
           className={`absolute bottom-4 right-4 z-10 transition-opacity duration-200 ease-out ${
             showScrollDown ? "opacity-80 hover:opacity-100" : "pointer-events-none opacity-0"

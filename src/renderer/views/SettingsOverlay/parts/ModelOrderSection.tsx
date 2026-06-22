@@ -1,6 +1,7 @@
 import { DragDropProvider, type DragEndEvent } from "@dnd-kit/react";
 import { isSortable, useSortable } from "@dnd-kit/react/sortable";
 import { GripVertical, RotateCcw } from "lucide-react";
+import { Trans, useLingui } from "@lingui/react/macro";
 import type { AgentStatus } from "@/shared/contracts";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
@@ -32,6 +33,7 @@ function resolveDisplayedKinds(
 
 function SortableProviderRow(props: { agent: AgentStatus; index: number }) {
   const { agent, index } = props;
+  const { t } = useLingui();
   const { ref, handleRef, isDragging } = useSortable({
     id: `provider-order:${agent.kind}`,
     index,
@@ -51,7 +53,7 @@ function SortableProviderRow(props: { agent: AgentStatus; index: number }) {
       <button
         ref={handleRef}
         type="button"
-        aria-label={`Reorder ${agent.label}`}
+        aria-label={t`Reorder ${agent.label}`}
         className="flex size-4 shrink-0 cursor-grab items-center justify-center text-muted/60 transition-colors hover:text-foreground active:cursor-grabbing"
       >
         <GripVertical className="size-3.5" />
@@ -68,6 +70,7 @@ function SortableProviderRow(props: { agent: AgentStatus; index: number }) {
 }
 
 export function ModelOrderSection() {
+  const { t } = useLingui();
   const agentStatuses = useAgentStatusesStore((s) => s.agentStatuses);
   const wslAgentStatuses = useAgentStatusesStore((s) => s.wslAgentStatuses);
   const providerOrder = useSharedSettings((s) => s.providerOrder);
@@ -99,14 +102,20 @@ export function ModelOrderSection() {
   if (orderedAgents.length === 0) return null;
 
   return (
-    <div className="space-y-2">
+    <div
+      id="agentsGeneral.modelOrder"
+      data-settings-anchor="agentsGeneral.modelOrder"
+      className="scroll-mt-4 space-y-2"
+    >
       <div className="flex items-center gap-2">
-        <p className="text-sm font-medium text-foreground">Model order</p>
+        <p className="text-sm font-medium text-foreground">
+          <Trans>Model order</Trans>
+        </p>
         {isCustomized ? (
           <button
             type="button"
             onClick={() => setProviderOrder([])}
-            aria-label="Reset model order"
+            aria-label={t`Reset model order`}
             className="flex size-5 items-center justify-center rounded text-muted/70 transition-colors hover:bg-surface hover:text-foreground"
           >
             <RotateCcw className="size-3" />
@@ -114,7 +123,7 @@ export function ModelOrderSection() {
         ) : null}
       </div>
       <p className="text-xs text-muted">
-        Drag to reorder how providers appear in the model picker.
+        <Trans>Drag to reorder how providers appear in the model picker.</Trans>
       </p>
       <DragDropProvider onDragEnd={handleDragEnd}>
         <div className="flex flex-col gap-1">

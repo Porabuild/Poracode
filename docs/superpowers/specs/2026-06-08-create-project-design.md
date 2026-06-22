@@ -1,12 +1,13 @@
 # Create Project — Design
 
 Date: 2026-06-08
+Status: **Implemented** — shipped in PR #149 (commit `5927b617`); the repo-clone flow was added later in PR #167. The sections below have been reconciled with the shipped code (see notes inline where the implementation diverged from the original design).
 
 ## Goal
 
 Implement a unified "create project" flow with:
 
-- A `+` menu offering **Start from scratch** and **Use an existing folder**.
+- A `+` menu offering **Start from scratch**, **Clone a repository**, and **Use an existing folder**.
 - A runtime picker for **Native / WSL** (WSL shown only when distros exist).
 - A folder picker whose default is preselected as **last-used → home**, scoped **per runtime**.
 
@@ -26,31 +27,28 @@ Implement a unified "create project" flow with:
 - `ProjectLocation` (`src/shared/contracts/common.ts`): discriminated union `windows | wsl | posix`.
 - Helpers (`src/shared/wsl.ts`): `parseWslUncPath`, `getProjectName`, `toWslUncPath`, `getProjectFsPath`.
 - IPC: `pickFolder(defaultPath?)`, `listWslDistros()` already exist (`procedures/app.ts`, `localHandlers.ts`).
-- Settings: JSON at `~/.lightcode/settings.json`; renderer store `sharedSettingsStore.ts`; schema `src/shared/settings.ts`. **No last-used directory persisted today.** **No create-directory IPC today.**
+- Settings: JSON at `~/.lightcode/settings.json`; renderer store `sharedSettingsStore.ts`; schema `src/shared/settings.ts`. At design time: no last-used directory persisted, no create-directory IPC.
 
-The screenshots' "Start from scratch" / "Use an existing folder" menu and "Name project" modal do **not** exist in code yet — they are the target.
+This section captures the **pre-implementation baseline**. All of the targets below — the "Start from scratch" / "Use an existing folder" menu, the "Name project" modal, per-runtime last-used-dir persistence (`lastUsedProjectDirs`), and the `createProjectDirectory` IPC — have since shipped.
 
 ## Architecture
 
 ### Entry points
 
-- Sidebar `+` (`SidebarHeaderControls`) and the `WelcomeOverlay` CTA both render `CreateProjectMenu` (two items).
+- Sidebar `+` (`SidebarHeaderControls`) and the `WelcomeOverlay` CTA both render `CreateProjectMenu` (three items: Start from scratch / Clone a repository / Use an existing folder).
 - "Start from scratch" → `panelStore.openCreateProjectModal()` (the scratch modal, mounted once in `AppOverlays`).
+- "Clone a repository" → `panelStore.openCloneProjectModal()` → `CloneProjectModal` (GitHub-account browse + paste-a-URL modes; `cloneRepo` IPC). Added after the original design — see Out of scope note.
 - "Use an existing folder" → `addExistingProject()` → native `pickFolder` → create project. No modal.
 
 ### `CreateProjectModal` (scratch only)
 
-HeroUI `Modal` (mirrors `CreatePrModal`). Fields:
+HeroUI `Modal` (mirrors `CreatePrModal`). The modal is **scratch-only** — there is no `mode` toggle and no "existing folder" variant (the existing-folder path bypasses this modal entirely, as above). Fields as shipped:
 
 - **Runtime selector** — visible only when WSL distros exist. Options: `Native` + one per distro. Hidden on macOS/Linux (runtime = `posix`). Changing it re-resolves the default location.
-- **Location** (read-only path + **Browse** → `pickFolder(defaultPath)`):
-  - scratch: "Parent folder".
-  - existing: "Folder".
+- **Location** (read-only path, label "Location", + **Browse** → `pickFolder(defaultPath)`):
   - Default on open / runtime change: `lastUsedProjectDirs[runtimeKey]` → else runtime home (`homeDir` native; `\\wsl.localhost\<distro>\home` for WSL).
-- **Name** (text input, placeholder "New project"):
-  - scratch: required; legal single path segment.
-  - existing: prefilled with basename of picked folder; editable; display-name only.
-- **Footer**: Cancel / Save. Save disabled until valid. Scratch shows a live preview of the final path.
+- **Name** (text input, label "Project name", placeholder "New project"): required; legal single path segment.
+- **Footer**: Cancel / **Create project**. The create button is disabled until valid; the modal shows a live preview of the final path.
 
 `runtimeKey` = `"native"` for windows/posix native, else the distro name.
 
@@ -72,8 +70,8 @@ HeroUI `Modal` (mirrors `CreatePrModal`). Fields:
 
 ### State / components / files
 
-- `panelStore`: `createProjectModal: { open, mode }` + `openCreateProject(mode)` / `closeCreateProject()`.
-- New files: `CreateProjectMenu`, `CreateProjectModal`, `useCreateProjectFlow` controller (with pure `deriveLocationFromPath`, name validation, target-path build).
+- `panelStore`: separate boolean flags `createProjectModalOpen` / `cloneProjectModalOpen`, each with no-arg openers/closers (`openCreateProjectModal()` / `closeCreateProjectModal()` / `openCloneProjectModal()` / `closeCloneProjectModal()`). There is no `{ open, mode }` object or `mode` argument — scratch and clone are distinct modals.
+- New files: `CreateProjectMenu`, `CreateProjectModal`, `CloneProjectModal`, the flow module `src/renderer/actions/createProjectActions.ts`, and pure helpers in `src/shared/createProject.ts` (`deriveLocationFromPath`, `validateProjectName`, `buildScratchTargetPath`). (Implemented as an actions module + shared helpers, not the originally-proposed `useCreateProjectFlow` hook.)
 - Edits: `SidebarHeaderControls.tsx`, `WelcomeOverlay.tsx`, `settings.ts`, `sharedSettingsStore.ts`, preload + bridge type, IPC procedure map + handler, `AppOverlays`.
 
 ## Testing (TDD)
@@ -85,6 +83,6 @@ HeroUI `Modal` (mirrors `CreatePrModal`). Fields:
 
 ## Out of scope
 
-- Cloning a repo from a URL.
+- ~~Cloning a repo from a URL.~~ — was out of scope at design time, but later **shipped** (`CloneProjectModal` with GitHub + URL modes, `cloneRepo` IPC → `git clone` / `gh repo clone`).
 - Multi-folder / monorepo workspace projects.
 - Renaming/migrating existing projects' runtimes.

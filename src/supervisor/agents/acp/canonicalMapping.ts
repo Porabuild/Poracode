@@ -592,12 +592,14 @@ function buildAcpToolCallPayload(
   const locations = extractToolLocations(toolCall.locations);
   const name = title ?? kind ?? "tool";
   const contentResult = extractToolCallContentText(toolCall.content, resolveTerminalOutput);
+  const images = extractToolCallContentImages(toolCall.content);
   const subAgentModel = isSubAgent ? readStringField(toolCall.rawInput, "model") : undefined;
   const base: Record<string, unknown> = {
     name,
     args: toolCall.rawInput,
     status,
     ...(contentResult !== undefined ? { result: contentResult } : {}),
+    ...(images.length > 0 ? { images } : {}),
     ...(title ? { title } : {}),
     ...(kind ? { kind } : {}),
     ...(locations.length > 0 ? { locations } : {}),
@@ -681,6 +683,7 @@ function buildAcpToolCallUpdatePayload(
     resolveTerminalOutput,
     item.terminalId,
   );
+  const images = extractToolCallContentImages(toolCall.content);
   const isFileChange = item.itemType === "file_change";
   const contentDiffs = isFileChange ? extractAcpFileChangesFromContent(toolCall.content) : [];
   const contentDiffText = isFileChange ? joinAcpContentFileChangeDiffs(contentDiffs) : undefined;
@@ -695,6 +698,7 @@ function buildAcpToolCallUpdatePayload(
   const payload: Record<string, unknown> = {
     status,
     ...(result !== undefined ? { result } : {}),
+    ...(images.length > 0 ? { images } : {}),
     ...(title || kind ? { name: title ?? kind } : {}),
     ...(title ? { title } : {}),
     ...(kind ? { kind } : {}),
@@ -1079,6 +1083,32 @@ function extractToolCallContentText(
     if (out && out.length > 0) parts.push(out);
   }
   return parts.length > 0 ? parts.join("\n") : undefined;
+}
+
+/**
+ * Collect inline images from an ACP tool result's `ToolCallContent[]` as
+ * renderable `data:` URLs. ACP carries images as
+ * `{ type: "content", content: { type: "image", data: "<base64>", mimeType } }`
+ * — `extractToolCallContentText` keeps only text, so this preserves the picture
+ * for the renderer's inline image card. Only inline base64 `data` is honored;
+ * `uri`-only references are left to fall through to the accordion.
+ */
+function extractToolCallContentImages(content: unknown): string[] {
+  if (!Array.isArray(content)) return [];
+  const images: string[] = [];
+  for (const entry of content) {
+    if (!entry || typeof entry !== "object") continue;
+    const e = entry as Record<string, unknown>;
+    if (e.type !== "content") continue;
+    const inner = e.content;
+    if (!inner || typeof inner !== "object") continue;
+    const block = inner as Record<string, unknown>;
+    if (block.type !== "image") continue;
+    if (typeof block.data !== "string" || block.data.length === 0) continue;
+    const mime = typeof block.mimeType === "string" ? block.mimeType : "image/png";
+    images.push(`data:${mime};base64,${block.data}`);
+  }
+  return images;
 }
 
 /**

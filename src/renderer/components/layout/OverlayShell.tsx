@@ -65,6 +65,11 @@ export function OverlayShell(props: {
   return (
     <div
       data-overlay-surface=""
+      // Present only while fully shown (not during fade-in/out). The glass-sidebar
+      // CSS hides the base app behind a translucent overlay, but only when the
+      // overlay is opaque — so on close the app reappears as the overlay fades,
+      // instead of revealing bare desktop underneath.
+      {...(visible ? { "data-overlay-visible": "" } : {})}
       className={`${positionClass} flex flex-col bg-background transition-opacity duration-150 ${
         visible ? "opacity-100" : "opacity-0"
       }`}

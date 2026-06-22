@@ -2,7 +2,13 @@ import { randomUUID } from "node:crypto";
 import { homedir } from "node:os";
 import path, { posix as posixPath } from "node:path";
 
-import type { AgentInstanceConfig, ProjectLocation, PromptSegment } from "@/shared/contracts";
+import type {
+  AgentCapability,
+  AgentInstanceConfig,
+  ClaudeProfileModel,
+  ProjectLocation,
+  PromptSegment,
+} from "@/shared/contracts";
 import { claudeProfileKind, parseClaudeProfileInstanceConfig } from "@/shared/contracts";
 import {
   brailleSpinnerOscTitleHint,
@@ -41,6 +47,16 @@ interface ClaudeAdapterOptions {
   kind?: string;
   label?: string;
   configDir?: string;
+  /**
+   * Extra environment variables merged into every spawn (PTY/SDK/probe), e.g.
+   * `ANTHROPIC_BASE_URL` / `ANTHROPIC_AUTH_TOKEN` to point a profile at an
+   * external provider. `CLAUDE_CONFIG_DIR` still wins (the profile's identity).
+   */
+  customEnv?: Record<string, string>;
+  /** Profile-specific picker model list (overrides the built-in Claude list). */
+  models?: ClaudeProfileModel[];
+  /** Profile-specific effort allow-list (hides built-in tiers outside it). */
+  efforts?: string[];
 }
 
 function resolveTildePath(rawPath: string, location: ProjectLocation): string {
@@ -58,19 +74,99 @@ function resolveTildePath(rawPath: string, location: ProjectLocation): string {
 
 function profileEnvForLocation(
   configDir: string | undefined,
+  customEnv: Record<string, string> | undefined,
   location: ProjectLocation,
 ): Record<string, string> | undefined {
-  if (!configDir?.trim()) return undefined;
-  return { CLAUDE_CONFIG_DIR: resolveTildePath(configDir, location) };
+  // customEnv already has its empty keys filtered out (resolveInstanceEnv).
+  // CLAUDE_CONFIG_DIR is set last so the profile's identity always wins over a
+  // user-supplied override of the same key.
+  const env: Record<string, string> = { ...customEnv };
+  if (configDir?.trim()) {
+    env.CLAUDE_CONFIG_DIR = resolveTildePath(configDir, location);
+  }
+  return Object.keys(env).length > 0 ? env : undefined;
+}
+
+/**
+ * Flatten an instance's `environment` map (values already decrypted by the
+ * supervisor's settings read) into a plain name→value map for spawning.
+ */
+function resolveInstanceEnv(
+  environment: AgentInstanceConfig["environment"],
+): Record<string, string> | undefined {
+  if (!environment) return undefined;
+  const resolved: Record<string, string> = {};
+  for (const [name, variable] of Object.entries(environment)) {
+    if (name.trim().length === 0) continue;
+    resolved[name] = variable.value;
+  }
+  return Object.keys(resolved).length > 0 ? resolved : undefined;
+}
+
+/**
+ * Apply a profile's optional model additions / effort allow-list on top of the
+ * built-in Claude capabilities. A no-op when neither override is set (so the
+ * default adapter is unaffected). Custom models are *appended* to the built-in
+ * list (the user can still pick the Claude models); they aren't in the built-in
+ * per-model maps, so the picker falls back to the global effort/context lists.
+ */
+function overrideProfileCapabilities(
+  base: AgentCapability,
+  models: ClaudeProfileModel[] | undefined,
+  efforts: readonly string[] | undefined,
+): AgentCapability {
+  let caps = base;
+
+  if (efforts && efforts.length > 0) {
+    const allowed = new Set(efforts);
+    const keep = (list: readonly string[]) => list.filter((effort) => allowed.has(effort));
+    const nextEfforts = keep(caps.efforts);
+    // If a hand-edited config lists only unknown tier names, the allow-list is
+    // empty — keep the full built-in list rather than leaving the picker with no
+    // efforts to choose from. (The UI only ever writes valid tiers.)
+    if (nextEfforts.length > 0) {
+      caps = {
+        ...caps,
+        efforts: nextEfforts,
+        defaultEffort:
+          caps.defaultEffort && allowed.has(caps.defaultEffort)
+            ? caps.defaultEffort
+            : nextEfforts[0],
+        modelEfforts: Object.fromEntries(
+          Object.entries(caps.modelEfforts).map(([id, list]) => [id, keep(list)]),
+        ),
+      };
+    }
+  }
+
+  if (models && models.length > 0) {
+    const existingIds = new Set(caps.models.map((model) => model.id));
+    const additions: AgentCapability["models"] = [];
+    for (const model of models) {
+      const id = model.id.trim();
+      if (!id || existingIds.has(id)) continue;
+      existingIds.add(id);
+      additions.push({ id, label: model.label?.trim() || id });
+    }
+    if (additions.length > 0) {
+      caps = { ...caps, models: [...caps.models, ...additions] };
+    }
+  }
+
+  return caps;
 }
 
 export function createClaudeProfileAdapter(instance: AgentInstanceConfig): AgentAdapter {
   const cfg = parseClaudeProfileInstanceConfig(instance.config);
   const profileLabel = instance.displayName ?? instance.id;
+  const customEnv = resolveInstanceEnv(instance.environment);
   return createClaudeAdapter({
     kind: claudeProfileKind(instance.id),
     label: `Claude ${profileLabel}`,
     configDir: cfg.configDir,
+    ...(customEnv ? { customEnv } : {}),
+    ...(cfg.models && cfg.models.length > 0 ? { models: cfg.models } : {}),
+    ...(cfg.efforts && cfg.efforts.length > 0 ? { efforts: cfg.efforts } : {}),
   });
 }
 
@@ -78,13 +174,18 @@ export function createClaudeAdapter(options: ClaudeAdapterOptions = {}): AgentAd
   const kind = options.kind ?? "claude";
   const label = options.label ?? "Claude Code";
   const profileEnv = (location: ProjectLocation) =>
-    profileEnvForLocation(options.configDir, location);
+    profileEnvForLocation(options.configDir, options.customEnv, location);
+  const capabilities = overrideProfileCapabilities(
+    claudeCapabilities,
+    options.models,
+    options.efforts,
+  );
 
   return {
     kind,
     label,
     binary: "claude",
-    capabilities: claudeCapabilities,
+    capabilities,
     ...(claudeDetectionSpec.update ? { update: claudeDetectionSpec.update } : {}),
     // WSL OAuth flows try to open a browser; no-op it so the PTY doesn't hang.
     spawnEnv: { wsl: { BROWSER: "/bin/true" } },
@@ -126,7 +227,7 @@ export function createClaudeAdapter(options: ClaudeAdapterOptions = {}): AgentAd
               ...claudeDetectionSpec,
               kind,
               label,
-              capabilities: claudeCapabilities,
+              capabilities,
               statusProbe: (probeCtx: DetectProbeCtx) => {
                 const env = profileEnv(probeCtx.location);
                 return probeClaudeStatus(probeCtx, env ? { env } : undefined);
@@ -141,7 +242,13 @@ export function createClaudeAdapter(options: ClaudeAdapterOptions = {}): AgentAd
         ...status,
         kind,
         label,
-        capabilities: status.capabilities,
+        // Re-assert the profile overrides on top of whatever the probe returned,
+        // so the model list / effort allow-list always wins.
+        capabilities: overrideProfileCapabilities(
+          status.capabilities,
+          options.models,
+          options.efforts,
+        ),
       };
     },
     buildLaunchArgv(location, config, prompt, _sessionRef, _launchOptions) {
@@ -198,7 +305,7 @@ export function createClaudeAdapter(options: ClaudeAdapterOptions = {}): AgentAd
     oscHintsDeferToHookPlugin: true,
     workingSilenceTimeoutMs: null,
     defaultOneShotModel: "haiku",
-    buildOneShotCommand(model, effort, prompt, location) {
+    buildOneShotCommand(model, effort, prompt, location, fast) {
       if (!prompt) return undefined;
       // --no-session-persistence keeps title/commit/PR-summary calls out of
       // the `/resume` picker. --fallback-model auto-degrades to Haiku if the
@@ -215,6 +322,12 @@ export function createClaudeAdapter(options: ClaudeAdapterOptions = {}): AgentAd
       ];
       if (effort) {
         args.push("--effort", effort);
+      }
+      if (fast) {
+        // Fast mode is a session flag, not a model/effort value. On the CLI it
+        // rides on --settings JSON (the SDK path uses applyFlagSettings). One-shot
+        // calls pass no other --settings, so a single inline flag is safe here.
+        args.push("--settings", JSON.stringify({ fastMode: true }));
       }
       const env = location ? profileEnv(location) : undefined;
       return {

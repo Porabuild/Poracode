@@ -56,6 +56,13 @@ if (process.env.LIGHTCODE_CDP_PORT) {
   app.commandLine.appendSwitch("remote-debugging-port", process.env.LIGHTCODE_CDP_PORT);
 }
 
+// Windows HDR can make DWM acrylic visibly change opacity when Chromium starts
+// compositing image content in the display color space. Keep Chromium in sRGB so
+// acrylic stays translucent without breathing as image planes appear/disappear.
+if (process.platform === "win32") {
+  app.commandLine.appendSwitch("force-color-profile", "srgb");
+}
+
 const chromeLikeUserAgent = buildChromeLikeUserAgent(app.userAgentFallback);
 app.userAgentFallback = chromeLikeUserAgent;
 
@@ -110,19 +117,29 @@ function isCloseToTrayEnabled(): boolean {
 }
 
 /**
- * Resolves the saved appearance so the native window opens with a matching
- * background instead of flashing a fixed color before the renderer paints.
+ * Resolves the saved appearance + opt-in translucent ("liquid glass") sidebar in
+ * a single settings read, so the window opens already matching the theme and
+ * material (flash-free first paint) before the renderer paints.
  */
-function resolveAppAppearance(): "light" | "dark" {
+function resolveWindowChromeOptions(): {
+  appearance: "light" | "dark";
+  sidebarTranslucency: boolean;
+} {
   let mode: "system" | "light" | "dark" = "dark";
+  let wantGlass = false;
   if (lightcodePaths) {
     try {
-      mode = readSharedSettingsFile(lightcodePaths.settingsPath).themeMode;
+      const settings = readSharedSettingsFile(lightcodePaths.settingsPath);
+      mode = settings.themeMode;
+      wantGlass = settings.sidebarTranslucency === true;
     } catch {
-      // Fall back to dark.
+      // Fall back to dark / opaque.
     }
   }
-  return resolveThemeMode(mode, nativeTheme.shouldUseDarkColors);
+  return {
+    appearance: resolveThemeMode(mode, nativeTheme.shouldUseDarkColors),
+    sidebarTranslucency: wantGlass,
+  };
 }
 
 function primeBrowserAllowFlags(): void {
@@ -304,10 +321,16 @@ if (!hasSingleInstanceLock) {
             summaries,
           });
         },
+        requestRelaunch: () => {
+          isQuitting = true;
+          app.relaunch();
+          app.quit();
+        },
       }),
       callSupervisor: (name, payload) => supervisorClient.call(name, payload),
     });
 
+    const windowChrome = resolveWindowChromeOptions();
     mainWindow = createMainWindow({
       title: getAppName(channel, isDev),
       isDev,
@@ -322,7 +345,8 @@ if (!hasSingleInstanceLock) {
       sentryEnabled,
       windowChromeHeight: WINDOW_CHROME_HEIGHT,
       browserUserAgent: chromeLikeUserAgent,
-      appearance: resolveAppAppearance(),
+      appearance: windowChrome.appearance,
+      sidebarTranslucency: windowChrome.sidebarTranslucency,
       ...(process.env.VITE_DEV_SERVER_URL ? { devServerUrl: process.env.VITE_DEV_SERVER_URL } : {}),
       onClosed: () => {
         mainWindow = null;
@@ -460,6 +484,7 @@ if (!hasSingleInstanceLock) {
         return;
       }
       if (BrowserWindow.getAllWindows().length === 0) {
+        const reopenChrome = resolveWindowChromeOptions();
         mainWindow = createMainWindow({
           title: getAppName(channel, isDev),
           isDev,
@@ -474,7 +499,8 @@ if (!hasSingleInstanceLock) {
           sentryEnabled,
           windowChromeHeight: WINDOW_CHROME_HEIGHT,
           browserUserAgent: chromeLikeUserAgent,
-          appearance: resolveAppAppearance(),
+          appearance: reopenChrome.appearance,
+          sidebarTranslucency: reopenChrome.sidebarTranslucency,
           ...(process.env.VITE_DEV_SERVER_URL
             ? { devServerUrl: process.env.VITE_DEV_SERVER_URL }
             : {}),

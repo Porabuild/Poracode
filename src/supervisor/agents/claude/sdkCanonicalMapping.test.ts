@@ -726,6 +726,79 @@ describe("sdkCanonicalMapping — tool use", () => {
     ]);
   });
 
+  it("preserves Claude Skill and MCP tool names for usage capture", () => {
+    const state = createClaudeMapperState("thread-1");
+
+    const skill = mapClaudeSdkMessage(
+      streamEvent({
+        type: "content_block_start",
+        index: 0,
+        content_block: {
+          type: "tool_use",
+          id: "toolu_skill",
+          name: "Skill",
+          input: { skill: "heroui-react" },
+        },
+      }),
+      state,
+    );
+    expect(skill[0]).toMatchObject({
+      type: "item.started",
+      itemType: "dynamic_tool_call",
+      payload: {
+        name: "Skill",
+        args: { skill: "heroui-react" },
+        status: "running",
+      },
+    });
+
+    const mcp = mapClaudeSdkMessage(
+      streamEvent({
+        type: "content_block_start",
+        index: 1,
+        content_block: {
+          type: "tool_use",
+          id: "toolu_mcp",
+          name: "mcp__github__search",
+          input: { query: "deploy" },
+        },
+      }),
+      state,
+    );
+    expect(mcp[0]).toMatchObject({
+      type: "item.started",
+      itemType: "mcp_tool_call",
+      payload: {
+        name: "mcp__github__search",
+        args: { query: "deploy" },
+        status: "running",
+      },
+    });
+
+    const resource = mapClaudeSdkMessage(
+      streamEvent({
+        type: "content_block_start",
+        index: 2,
+        content_block: {
+          type: "tool_use",
+          id: "toolu_mcp_resource",
+          name: "ListMcpResources",
+          input: { server: "github" },
+        },
+      }),
+      state,
+    );
+    expect(resource[0]).toMatchObject({
+      type: "item.started",
+      itemType: "mcp_tool_call",
+      payload: {
+        name: "ListMcpResources",
+        args: { server: "github" },
+        status: "running",
+      },
+    });
+  });
+
   it.each([["Read"], ["NotebookRead"]] as const)(
     "tags %s tool_use payloads with kind: read so the renderer applies syntax highlighting",
     (toolName) => {
@@ -1074,6 +1147,54 @@ describe("sdkCanonicalMapping — tool use", () => {
       },
       { type: "item.completed", threadId: "thread-1", itemId: "toolu_bash" },
     ]);
+  });
+
+  it("preserves image content blocks from a tool result onto payload.images", () => {
+    const state = createClaudeMapperState("thread-1");
+    mapClaudeSdkMessage(
+      streamEvent({
+        type: "content_block_start",
+        index: 0,
+        content_block: {
+          type: "tool_use",
+          id: "toolu_img",
+          name: "generate_picture",
+          input: { prompt: "a cat" },
+        },
+      }),
+      state,
+    );
+
+    const events = mapClaudeSdkMessage(
+      {
+        type: "user",
+        session_id: "claude-session",
+        parent_tool_use_id: null,
+        message: {
+          role: "user",
+          content: [
+            {
+              type: "tool_result",
+              tool_use_id: "toolu_img",
+              content: [
+                {
+                  type: "image",
+                  source: { type: "base64", media_type: "image/png", data: "iVBORw0KGgo=" },
+                },
+              ],
+            },
+          ],
+        },
+      } as unknown as SDKMessage,
+      state,
+    );
+
+    const updated = events.find((e) => e.type === "item.updated") as
+      | { payload: Record<string, unknown> }
+      | undefined;
+    // The text-only extractor would drop the image; it must survive onto
+    // payload.images as a renderable data URL so the chat row shows it inline.
+    expect(updated?.payload.images).toEqual(["data:image/png;base64,iVBORw0KGgo="]);
   });
 
   it("maps Edit tool results as ACP-shaped file changes", () => {

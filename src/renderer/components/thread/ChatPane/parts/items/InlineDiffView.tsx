@@ -1,4 +1,5 @@
 import { Component, useEffect, useState, type ReactNode } from "react";
+import { Trans } from "@lingui/react/macro";
 import { DiffView, highlighter } from "@git-diff-view/react";
 import type { DiffFile } from "@git-diff-view/react";
 import "@git-diff-view/react/styles/diff-view.css";
@@ -88,7 +89,11 @@ export function InlineDiffView({ diffText, filePath, oldText, newText }: InlineD
   }
 
   if (state === "building" || diffFiles.length === 0) {
-    return <div className="py-2 text-xs text-[color:var(--muted)]">Building diff…</div>;
+    return (
+      <div className="py-2 text-xs text-[color:var(--muted)]">
+        <Trans>Building diff…</Trans>
+      </div>
+    );
   }
 
   return (

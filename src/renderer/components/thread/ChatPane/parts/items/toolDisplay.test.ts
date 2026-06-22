@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { Eye, GitBranch, ImageIcon, Pencil, SearchCode, Terminal } from "lucide-react";
+import { Eye, GitBranch, ImageIcon, Pencil, SearchCode, Sparkles, Terminal } from "lucide-react";
 import type { ToolCallPayload } from "@/shared/contracts";
 import { deriveToolDisplay, isSubAgentTool } from "./toolDisplay";
 
@@ -121,6 +121,19 @@ describe("deriveToolDisplay", () => {
     expect(display.Icon).toBe(ImageIcon);
   });
 
+  it("labels Codex imageView tools as image rows", () => {
+    const display = deriveToolDisplay(
+      makePayload({
+        name: "imageView",
+        args: { path: "screen.png" },
+      }),
+    );
+
+    expect(display.title).toBe("Image: screen.png");
+    expect(display.parts).toEqual({ prefix: "Image: ", path: "screen.png", filePath: true });
+    expect(display.Icon).toBe(ImageIcon);
+  });
+
   it("normalizes Claude raw read tools to view file displays", () => {
     const display = deriveToolDisplay(
       makePayload({
@@ -132,6 +145,19 @@ describe("deriveToolDisplay", () => {
     expect(display.title).toBe("View: src/foo.ts");
     expect(display.parts).toEqual({ prefix: "View: ", path: "src/foo.ts", filePath: true });
     expect(display.Icon).toBe(Eye);
+  });
+
+  it("normalizes skill file reads to skill displays", () => {
+    const display = deriveToolDisplay(
+      makePayload({
+        name: "Read",
+        args: { file_path: String.raw`C:\Users\sdsle\.codex\skills\.system\imagegen\SKILL.md` },
+      }),
+    );
+
+    expect(display.title).toBe("Skill: imagegen");
+    expect(display.parts).toBeUndefined();
+    expect(display.Icon).toBe(Sparkles);
   });
 
   it("includes line ranges for read tools that provide offsets", () => {

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ChevronLeft, GitBranch, RefreshCw } from "lucide-react";
 import type { GitStatusResult, Project, ProjectLocation } from "@/shared/contracts";
 import { readBridge } from "@/renderer/bridge";
@@ -52,6 +52,7 @@ export function GitView(props: { target: GitTarget; onClose: () => void }) {
   const [diffMode, setDiffMode] = useState<number>(DIFF_MODE.Unified);
   const [refreshKey, setRefreshKey] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
+  const singleFileScrollRef = useRef<HTMLDivElement>(null);
   const sheet = useSheet<GitSheetTarget>();
 
   const gitStatus = useGitStore((s) =>
@@ -203,6 +204,7 @@ export function GitView(props: { target: GitTarget; onClose: () => void }) {
                     staged={selectedStaged}
                     diffMode={diffMode}
                     refreshKey={refreshKey}
+                    containerRef={singleFileScrollRef}
                   />
                 </div>
               </div>

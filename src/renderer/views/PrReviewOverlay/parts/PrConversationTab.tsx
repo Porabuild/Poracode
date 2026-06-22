@@ -1,6 +1,9 @@
 import { useState, type KeyboardEvent } from "react";
 import { Check, MessageSquare, Send, ThumbsDown, ThumbsUp } from "lucide-react";
 import { toast } from "@heroui/react";
+import { msg } from "@lingui/core/macro";
+import { Trans, useLingui } from "@lingui/react/macro";
+import type { MessageDescriptor } from "@lingui/core";
 import type {
   PrComment,
   PrDetails,
@@ -17,13 +20,17 @@ import { formatShortDateTime } from "@/renderer/utils/formatTime";
 
 const REVIEW_STATE_META: Record<
   PrReviewState,
-  { label: string; toneClass: string; Icon: typeof Check }
+  { label: MessageDescriptor; toneClass: string; Icon: typeof Check }
 > = {
-  APPROVED: { label: "approved", toneClass: "text-success", Icon: ThumbsUp },
-  CHANGES_REQUESTED: { label: "requested changes", toneClass: "text-danger", Icon: ThumbsDown },
-  COMMENTED: { label: "commented", toneClass: "text-muted", Icon: MessageSquare },
-  DISMISSED: { label: "dismissed review", toneClass: "text-muted/60", Icon: MessageSquare },
-  PENDING: { label: "pending review", toneClass: "text-warning", Icon: MessageSquare },
+  APPROVED: { label: msg`approved`, toneClass: "text-success", Icon: ThumbsUp },
+  CHANGES_REQUESTED: {
+    label: msg`requested changes`,
+    toneClass: "text-danger",
+    Icon: ThumbsDown,
+  },
+  COMMENTED: { label: msg`commented`, toneClass: "text-muted", Icon: MessageSquare },
+  DISMISSED: { label: msg`dismissed review`, toneClass: "text-muted/60", Icon: MessageSquare },
+  PENDING: { label: msg`pending review`, toneClass: "text-warning", Icon: MessageSquare },
 };
 
 type TimelineEntry =
@@ -53,6 +60,7 @@ export function PrConversationTab(props: {
   onPosted: () => void;
 }) {
   const { cacheKey, projectLocation, prNumber, loading, onPosted } = props;
+  const { t } = useLingui();
   const details = useGitStore((s) => s.prDetails[cacheKey]);
   const [composerValue, setComposerValue] = useState("");
   const [posting, setPosting] = useState(false);
@@ -70,7 +78,7 @@ export function PrConversationTab(props: {
       });
       useGitStore.getState().appendPrComment(cacheKey, comment);
       setComposerValue("");
-      toast.success("Comment posted");
+      toast.success(t`Comment posted`);
       onPosted();
     } catch (err) {
       toast.danger(friendlyError(err));
@@ -101,7 +109,7 @@ export function PrConversationTab(props: {
         <div className="mx-auto w-full max-w-3xl px-6 py-4">
           {entries.length === 0 ? (
             <div className="py-6 text-center text-xs text-muted/60">
-              No conversation yet. Be the first to comment.
+              <Trans>No conversation yet. Be the first to comment.</Trans>
             </div>
           ) : (
             <ul className="flex flex-col gap-3">
@@ -119,8 +127,8 @@ export function PrConversationTab(props: {
       <div className="shrink-0 border-t border-[color:var(--border)] py-3">
         <div className="mx-auto flex w-full max-w-3xl items-stretch gap-2 px-6">
           <TextArea
-            aria-label="Write a comment"
-            placeholder="Write a comment…"
+            aria-label={t`Write a comment`}
+            placeholder={t`Write a comment…`}
             value={composerValue}
             onChange={(e) => setComposerValue(e.target.value)}
             onKeyDown={handleComposerKeyDown}
@@ -140,7 +148,7 @@ export function PrConversationTab(props: {
             {({ isPending }) => (
               <>
                 {isPending ? <PixelLoader size="xs" /> : <Send className="size-3.5" />}
-                Comment
+                <Trans>Comment</Trans>
               </>
             )}
           </Button>
@@ -169,7 +177,9 @@ function CommentRow(props: { comment: PrComment }) {
       <div className="flex items-center gap-2 border-b border-[color:var(--border)] bg-foreground/[0.03] px-3 py-1.5 text-xs">
         <AuthorAvatar login={comment.author.login} />
         <span className="font-medium text-foreground">{comment.author.login}</span>
-        <span className="text-muted">commented</span>
+        <span className="text-muted">
+          <Trans>commented</Trans>
+        </span>
         {comment.createdAt && (
           <span className="text-muted/60">· {formatShortDateTime(comment.createdAt)}</span>
         )}
@@ -183,6 +193,7 @@ function CommentRow(props: { comment: PrComment }) {
 
 function ReviewRow(props: { review: PrReviewSummary }) {
   const { review } = props;
+  const { t } = useLingui();
   const meta = REVIEW_STATE_META[review.state];
   const Icon = meta.Icon;
   return (
@@ -192,7 +203,7 @@ function ReviewRow(props: { review: PrReviewSummary }) {
         <span className="font-medium text-foreground">{review.author.login}</span>
         <span className={`flex items-center gap-1 ${meta.toneClass}`}>
           <Icon className="size-3.5" />
-          {meta.label}
+          {t(meta.label)}
         </span>
         {review.submittedAt && (
           <span className="text-muted/60">· {formatShortDateTime(review.submittedAt)}</span>

@@ -33,6 +33,7 @@ export const cursorDefaultCapabilities: AgentCapability = {
   ],
   sandboxModes: [],
   supportsResume: true,
+  supportsOneShot: true,
   supportsDirectInput: true,
   liveInputMode: "terminal",
   presentationMode: "terminal",
@@ -719,8 +720,14 @@ export const cursorDetectionSpec: DetectionSpec = {
         : readCursorProbeOutputAsync(ctx.executablePath, ["--list-models"]);
     const [cliResult, acpProbeResult, logoutSupported] = await Promise.all([
       cliResultPromise,
-      probeCursorAcpCapabilities(ctx).catch(() => undefined),
-      probeCursorLogoutSupport(ctx).catch(() => false),
+      probeCursorAcpCapabilities(ctx).catch((error) => {
+        console.warn("[cursor] ACP capabilities probe failed:", error);
+        return undefined;
+      }),
+      probeCursorLogoutSupport(ctx).catch((error) => {
+        console.warn("[cursor] logout support probe failed:", error);
+        return false;
+      }),
     ]);
     const cliModels = cliResult.ok ? parseCursorModels(cliResult.stdout) : [];
     const terminalCapabilities =

@@ -1,5 +1,6 @@
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, screen } from "@testing-library/react";
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
+import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import { ThreadComposer, type ComposerControl } from "./ThreadComposer";
 
 const originalResizeObserver = globalThis.ResizeObserver;
@@ -84,14 +85,31 @@ function visibleText(text: string): HTMLElement {
   return visible!;
 }
 
-function setProbeMeasurements(container: HTMLElement, widths: readonly number[]) {
+function setProbeMeasurements(
+  container: HTMLElement,
+  widths: readonly number[],
+  clientWidth = 100,
+) {
   const probes = [...container.querySelectorAll<HTMLElement>(".probe-wrap-container")];
   for (const [index, probe] of probes.entries()) {
     Object.defineProperties(probe, {
-      clientWidth: { configurable: true, get: () => 100 },
+      clientWidth: { configurable: true, get: () => clientWidth },
       scrollWidth: { configurable: true, get: () => widths[index] ?? 100 },
     });
   }
+}
+
+function composerToolbar(container: HTMLElement): HTMLElement {
+  const toolbar = container.querySelector<HTMLElement>(".lightcode-composer-toolbar");
+  expect(toolbar).not.toBeNull();
+  return toolbar!;
+}
+
+function setToolbarWidth(container: HTMLElement, width: number) {
+  Object.defineProperty(composerToolbar(container), "clientWidth", {
+    configurable: true,
+    get: () => width,
+  });
 }
 
 describe("ThreadComposer", () => {
@@ -124,8 +142,85 @@ describe("ThreadComposer", () => {
       MockResizeObserver.notify(controls!);
     });
 
-    expect(visibleText("Auto")).toHaveClass("is-hidden");
-    expect(visibleText("Plan")).toHaveClass("is-hidden");
+    expect(composerToolbar(container)).toHaveAttribute("data-wrap-level", "1");
+    expect(visibleText("Auto")).toHaveAttribute("data-collapse-tier", "1");
+    expect(visibleText("Plan")).toHaveAttribute("data-collapse-tier", "1");
+  });
+
+  it("does not expand collapsed labels again at the same measured width", () => {
+    const { container } = renderComposer();
+    const controls = container.querySelector<HTMLElement>(
+      ".lightcode-composer-toolbar > .relative",
+    );
+    expect(controls).not.toBeNull();
+
+    setProbeMeasurements(container, [101, 100, 100, 100, 100, 100]);
+
+    act(() => {
+      MockResizeObserver.notify(controls!);
+    });
+
+    expect(composerToolbar(container)).toHaveAttribute("data-wrap-level", "1");
+
+    setProbeMeasurements(container, [100, 100, 100, 100, 100, 100]);
+
+    act(() => {
+      MockResizeObserver.notify(controls!);
+    });
+
+    expect(composerToolbar(container)).toHaveAttribute("data-wrap-level", "1");
+
+    setProbeMeasurements(container, [101, 100, 100, 100, 100, 100], 101);
+
+    act(() => {
+      MockResizeObserver.notify(controls!);
+    });
+
+    expect(composerToolbar(container)).toHaveAttribute("data-wrap-level", "0");
+  });
+
+  it("does not expand labels while the outer toolbar width is decreasing", () => {
+    const { container } = renderComposer();
+    const controls = container.querySelector<HTMLElement>(
+      ".lightcode-composer-toolbar > .relative",
+    );
+    expect(controls).not.toBeNull();
+
+    setToolbarWidth(container, 200);
+    setProbeMeasurements(container, [100, 100, 100, 100, 100, 100]);
+
+    act(() => {
+      MockResizeObserver.notify(controls!);
+    });
+
+    expect(composerToolbar(container)).toHaveAttribute("data-wrap-level", "0");
+
+    setToolbarWidth(container, 120);
+    setProbeMeasurements(container, [121, 100, 100, 100, 100, 100]);
+
+    act(() => {
+      MockResizeObserver.notify(controls!);
+    });
+
+    expect(composerToolbar(container)).toHaveAttribute("data-wrap-level", "1");
+    expect(composerToolbar(container)).toHaveAttribute("data-width-decreasing");
+
+    setProbeMeasurements(container, [110, 100, 100, 100, 100, 100], 130);
+
+    act(() => {
+      MockResizeObserver.notify(controls!);
+    });
+
+    expect(composerToolbar(container)).toHaveAttribute("data-wrap-level", "1");
+
+    setToolbarWidth(container, 121);
+
+    act(() => {
+      MockResizeObserver.notify(controls!);
+    });
+
+    expect(composerToolbar(container)).toHaveAttribute("data-wrap-level", "0");
+    expect(composerToolbar(container)).not.toHaveAttribute("data-width-decreasing");
   });
 
   it("can collapse permission labels before mode labels", () => {
@@ -157,8 +252,9 @@ describe("ThreadComposer", () => {
       MockResizeObserver.notify(controls!);
     });
 
-    expect(visibleText("Full access")).toHaveClass("is-hidden");
-    expect(visibleText("Work")).not.toHaveClass("is-hidden");
+    expect(composerToolbar(container)).toHaveAttribute("data-wrap-level", "2");
+    expect(visibleText("Full access")).toHaveAttribute("data-collapse-tier", "2");
+    expect(visibleText("Work")).toHaveAttribute("data-collapse-tier", "3");
   });
 
   it("labels a thinking-only effort context control", () => {

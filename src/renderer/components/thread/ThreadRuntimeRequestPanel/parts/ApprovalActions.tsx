@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { Button, Dropdown, Label } from "@heroui/react";
 import { ChevronDown } from "lucide-react";
+import { useLingui } from "@lingui/react/macro";
 import type { CanonicalRequestType, UserInputOption } from "@/shared/contracts";
 import { isNegativeOption } from "../helpers";
 
@@ -14,6 +15,7 @@ export function ApprovalActions(props: {
   onSelect: (optionId: string) => void;
 }) {
   const { options, isDisabled, leadingAction, showAllOptions, stackOnNarrow, onSelect } = props;
+  const { t } = useLingui();
   const negatives = options.filter(isNegativeOption);
   const positives = options.filter((o) => !isNegativeOption(o));
   const primary = positives[0];
@@ -72,7 +74,7 @@ export function ApprovalActions(props: {
             size="sm"
             variant="tertiary"
             isIconOnly
-            aria-label="More approval options"
+            aria-label={t`More approval options`}
             isDisabled={isDisabled}
           >
             <ChevronDown className="size-3.5" />

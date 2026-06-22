@@ -1,7 +1,7 @@
 export * from "./ClaudeIcon";
 
 import { ClaudeIcon } from "./ClaudeIcon";
-import { planWorkToggle } from "../composerControlBuilders";
+import { approvalPolicyDropdown, planWorkToggle } from "../composerControlBuilders";
 import {
   registerCommitGenDefaults,
   registerComposerControls,
@@ -73,14 +73,12 @@ registerComposerControls("claude", ({ capabilities, config, isDisabled, onConfig
       : []),
     ...(filteredPolicies.length > 0
       ? [
-          {
-            iconKind: "permission" as const,
-            options: filteredPolicies,
-            hideLabelOnWrap: true,
-            value: effectivePolicy,
+          approvalPolicyDropdown({
+            policies: filteredPolicies,
+            currentPolicy: effectivePolicy,
             isDisabled,
-            onChange: (value: string) => onConfigChange({ approvalPolicy: value }),
-          },
+            onChange: (value) => onConfigChange({ approvalPolicy: value }),
+          }),
         ]
       : []),
   ];

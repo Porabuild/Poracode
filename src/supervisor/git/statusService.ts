@@ -45,6 +45,9 @@ function parseUntrackedPaths(output: string): string[] {
     .map((path) => toForwardSlash(path));
 }
 
+/** Lists untracked, non-ignored files NUL-separated — one path per file. */
+const LS_FILES_UNTRACKED_ARGS = ["ls-files", "--others", "--exclude-standard", "-z"];
+
 export function parseStatusPorcelainV2(output: string): ParsedPorcelainStatus {
   let branch = "";
   let tracking = "";
@@ -274,8 +277,40 @@ export function buildGitStatusResultFromOutputs(args: {
   };
 }
 
-function buildGitStatusSummaryFromOutput(statusOutput: string): GitStatusResult {
+/**
+ * Expand the single collapsed `? dir/` porcelain entries into one entry per
+ * untracked file, using the paths from `git ls-files --others --exclude-standard
+ * -z`. Insertion/deletion counts are left at 0 so the summary path stays cheap
+ * (no file reads); {@link mergeSummaryStatus} in the renderer backfills the
+ * counts from the prior full refresh by matching `path`/`status` keys.
+ *
+ * The point is to keep the summary file list structurally identical to the full
+ * path's expanded list. Without this, the cheap summary (poll/fetch) returns one
+ * collapsed directory row while the full refresh (watcher/initial) returns one
+ * row per file — so the Changes panel visibly flips between a collapsed and an
+ * expanded view of the same working tree, and the key-based count backfill fails.
+ */
+export function expandUntrackedEntries(parsed: ParsedPorcelainStatus, lsFilesOutput: string): void {
+  if (!parsed.unstaged.some((file) => file.status === "?")) return;
+  const untrackedPaths = parseUntrackedPaths(lsFilesOutput);
+  if (untrackedPaths.length === 0) return;
+  const trackedUnstaged = parsed.unstaged.filter((file) => file.status !== "?");
+  const untracked: GitFileChange[] = untrackedPaths.map((path) => ({
+    path,
+    status: "?",
+    staged: false,
+    insertions: 0,
+    deletions: 0,
+  }));
+  parsed.unstaged = [...trackedUnstaged, ...untracked];
+}
+
+export function buildGitStatusSummaryFromOutput(
+  statusOutput: string,
+  untrackedOutput: string,
+): GitStatusResult {
   const parsed = parseStatusPorcelainV2(statusOutput);
+  expandUntrackedEntries(parsed, untrackedOutput);
   return {
     detail: "summary",
     isRepo: true,
@@ -351,11 +386,20 @@ export class GitStatusService {
 
     const [statusOutput, remoteOutput, stagedNumstat, unstagedNumstat] = await Promise.all([
       execGit(location, ["status", "--porcelain=v2", "-b"], { timeout: GIT_STATUS_TIMEOUT }),
-      execGit(location, ["remote", "-v"], { timeout: GIT_STATUS_TIMEOUT }).catch(() => ""),
+      execGit(location, ["remote", "-v"], { timeout: GIT_STATUS_TIMEOUT }).catch((error) => {
+        console.warn("[git] 'remote -v' failed:", error);
+        return "";
+      }),
       execGit(location, ["diff", "--cached", "--numstat"], { timeout: GIT_STATUS_TIMEOUT }).catch(
-        () => "",
+        (error) => {
+          console.warn("[git] 'diff --cached --numstat' failed:", error);
+          return "";
+        },
       ),
-      execGit(location, ["diff", "--numstat"], { timeout: GIT_STATUS_TIMEOUT }).catch(() => ""),
+      execGit(location, ["diff", "--numstat"], { timeout: GIT_STATUS_TIMEOUT }).catch((error) => {
+        console.warn("[git] 'diff --numstat' failed:", error);
+        return "";
+      }),
     ]);
 
     const parsed = parseStatusPorcelainV2(statusOutput);
@@ -425,19 +469,32 @@ export class GitStatusService {
     if (location.kind === "wsl") {
       const results = await execGitBatchWslBridge(
         location,
-        [{ cwd: location.linuxPath, args: ["status", "--porcelain=v2", "-b"] }],
+        [
+          { cwd: location.linuxPath, args: ["status", "--porcelain=v2", "-b"] },
+          { cwd: location.linuxPath, args: LS_FILES_UNTRACKED_ARGS },
+        ],
         GIT_STATUS_TIMEOUT,
       );
       const result = results[0];
-      return result?.ok ? buildGitStatusSummaryFromOutput(result.stdout) : nonRepoSummaryStatus();
+      const untracked = results[1];
+      return result?.ok
+        ? buildGitStatusSummaryFromOutput(result.stdout, untracked?.ok ? untracked.stdout : "")
+        : nonRepoSummaryStatus();
     }
 
     try {
-      const statusOutput = await execGit(location, ["status", "--porcelain=v2", "-b"], {
-        timeout: GIT_STATUS_TIMEOUT,
-      });
-      return buildGitStatusSummaryFromOutput(statusOutput);
-    } catch {
+      const [statusOutput, untrackedOutput] = await Promise.all([
+        execGit(location, ["status", "--porcelain=v2", "-b"], { timeout: GIT_STATUS_TIMEOUT }),
+        execGit(location, LS_FILES_UNTRACKED_ARGS, { timeout: GIT_STATUS_TIMEOUT }).catch(
+          (error) => {
+            console.warn("[git] ls-files untracked failed:", error);
+            return "";
+          },
+        ),
+      ]);
+      return buildGitStatusSummaryFromOutput(statusOutput, untrackedOutput);
+    } catch (error) {
+      console.warn("[git] status summary failed, treating as non-repo:", error);
       return nonRepoSummaryStatus();
     }
   }
@@ -566,18 +623,27 @@ export class GitStatusService {
   ): Promise<Record<string, GitStatusResult>> {
     if (worktreePaths.length === 0) return {};
 
-    const bridgeCommands = worktreePaths.map((cwd) => ({
-      cwd,
-      args: ["status", "--porcelain=v2", "-b"],
-    }));
+    const PER_WORKTREE_CMDS = 2;
+    const bridgeCommands: { cwd: string; args: string[] }[] = [];
+    for (const cwd of worktreePaths) {
+      bridgeCommands.push(
+        { cwd, args: ["status", "--porcelain=v2", "-b"] },
+        { cwd, args: LS_FILES_UNTRACKED_ARGS },
+      );
+    }
     const results = await execGitBatchWslBridge(location, bridgeCommands, GIT_STATUS_TIMEOUT);
 
     const out: Record<string, GitStatusResult> = {};
     for (let i = 0; i < worktreePaths.length; i += 1) {
-      const result = results[i];
-      if (!result) continue;
-      out[worktreePaths[i]!] = result.ok
-        ? buildGitStatusSummaryFromOutput(result.stdout)
+      const off = i * PER_WORKTREE_CMDS;
+      const statusResult = results[off];
+      if (!statusResult) continue;
+      const untrackedResult = results[off + 1];
+      out[worktreePaths[i]!] = statusResult.ok
+        ? buildGitStatusSummaryFromOutput(
+            statusResult.stdout,
+            untrackedResult?.ok ? untrackedResult.stdout : "",
+          )
         : nonRepoSummaryStatus();
     }
     return out;
@@ -655,14 +721,20 @@ export class GitStatusService {
     if (filePath && /^diff --(?:cc|combined)\b/m.test(diff)) {
       const headDiff = await execGit(location, ["diff", "HEAD", "--", filePath], {
         timeout: GIT_DIFF_TIMEOUT,
-      }).catch(() => "");
+      }).catch((error) => {
+        console.warn(`[git] diff HEAD -- ${filePath} failed:`, error);
+        return "";
+      });
       if (headDiff.trim()) diff = headDiff;
     }
     if (!diff.trim() && filePath) {
       diff = await execGit(location, ["diff", "--no-index", "--", "/dev/null", filePath], {
         timeout: GIT_DIFF_TIMEOUT,
         allowNonZeroExit: true,
-      }).catch(() => "");
+      }).catch((error) => {
+        console.warn(`[git] diff --no-index for ${filePath} failed:`, error);
+        return "";
+      });
     }
 
     return { diff };
@@ -673,8 +745,14 @@ export class GitStatusService {
     untrackedPaths: string[],
   ): Promise<GitDiffBatchResult> {
     const [stagedRaw, unstagedRaw] = await Promise.all([
-      execGit(location, ["diff", "--cached"], { timeout: GIT_DIFF_TIMEOUT }).catch(() => ""),
-      execGit(location, ["diff"], { timeout: GIT_DIFF_TIMEOUT }).catch(() => ""),
+      execGit(location, ["diff", "--cached"], { timeout: GIT_DIFF_TIMEOUT }).catch((error) => {
+        console.warn("[git] diff --cached failed:", error);
+        return "";
+      }),
+      execGit(location, ["diff"], { timeout: GIT_DIFF_TIMEOUT }).catch((error) => {
+        console.warn("[git] diff failed:", error);
+        return "";
+      }),
     ]);
 
     const staged = this.splitCombinedDiff(stagedRaw);
@@ -705,17 +783,23 @@ export class GitStatusService {
     if (staged) {
       const [oldContent, newContent] = await Promise.all([
         execGit(location, ["show", `HEAD:${filePath}`], { timeout: GIT_DIFF_TIMEOUT }).catch(
-          () => "",
+          () => "", // expected for newly added files not yet in HEAD
         ),
-        execGit(location, ["show", `:${filePath}`], { timeout: GIT_DIFF_TIMEOUT }).catch(() => ""),
+        execGit(location, ["show", `:${filePath}`], { timeout: GIT_DIFF_TIMEOUT }).catch(
+          () => "", // expected for deleted files not in the index
+        ),
       ]);
       return { oldContent, newContent };
     }
 
     const repoPath = getProjectFsPath(location);
     const [oldContent, newContent] = await Promise.all([
-      execGit(location, ["show", `:${filePath}`], { timeout: GIT_DIFF_TIMEOUT }).catch(() => ""),
-      readFile(join(repoPath, filePath), "utf-8").catch(() => ""),
+      execGit(location, ["show", `:${filePath}`], { timeout: GIT_DIFF_TIMEOUT }).catch(
+        () => "", // expected for untracked files not in the index
+      ),
+      readFile(join(repoPath, filePath), "utf-8").catch(
+        () => "", // expected for deleted files
+      ),
     ]);
     return { oldContent, newContent };
   }
@@ -739,34 +823,26 @@ export class GitStatusService {
     location: ProjectLocation,
     parsed: ParsedPorcelainStatus,
   ): Promise<void> {
-    const hasUntracked = parsed.unstaged.some((file) => file.status === "?");
-    if (!hasUntracked) {
-      return;
-    }
+    if (!parsed.unstaged.some((file) => file.status === "?")) return;
 
-    const lsFilesOutput = await execGit(
-      location,
-      ["ls-files", "--others", "--exclude-standard", "-z"],
-      {
-        timeout: GIT_STATUS_TIMEOUT,
-      },
-    ).catch(() => "");
-    const actualUntrackedPaths = parseUntrackedPaths(lsFilesOutput);
-    if (actualUntrackedPaths.length === 0) {
-      return;
-    }
+    const lsFilesOutput = await execGit(location, LS_FILES_UNTRACKED_ARGS, {
+      timeout: GIT_STATUS_TIMEOUT,
+    }).catch((error) => {
+      console.warn("[git] ls-files untracked failed:", error);
+      return "";
+    });
+    // Share the row-shaping with the summary path so the two never disagree on
+    // untracked-entry shape (the key the renderer's count backfill matches on).
+    expandUntrackedEntries(parsed, lsFilesOutput);
 
-    const trackedUnstaged = parsed.unstaged.filter((file) => file.status !== "?");
-    const untracked = await Promise.all(
-      actualUntrackedPaths.map(async (path) => ({
-        path,
-        status: "?",
-        staged: false,
-        insertions: await this.readUntrackedInsertions(location, path),
-        deletions: 0,
-      })),
+    // The full path additionally counts insertions per untracked file; the
+    // expanded rows arrive with counts at 0, so fill them in here.
+    await Promise.all(
+      parsed.unstaged.map(async (file) => {
+        if (file.status !== "?") return;
+        file.insertions = await this.readUntrackedInsertions(location, file.path);
+      }),
     );
-    parsed.unstaged = [...trackedUnstaged, ...untracked];
   }
 
   private async readUntrackedInsertions(

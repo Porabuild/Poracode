@@ -1,8 +1,13 @@
 import { memo, type ReactNode, useEffectEvent, useLayoutEffect, useRef, useState } from "react";
 import { Link, Surface, Tooltip } from "@heroui/react";
+import { useLingui } from "@lingui/react/macro";
 import { ChevronDown, ChevronUp, Copy } from "lucide-react";
 import type { CanonicalContentBlock, MessageItemPayload } from "@/shared/contracts";
-import { AttachmentBar, ImageLightbox, type Attachment } from "@/renderer/components/composer";
+import {
+  AttachmentBar,
+  openAttachmentLightbox,
+  type Attachment,
+} from "@/renderer/components/composer";
 import { readBridge } from "@/renderer/bridge";
 import { fileNameFromPath } from "@/shared/promptContent";
 import {
@@ -24,19 +29,35 @@ interface UserMessageProps {
 const COLLAPSED_LINE_COUNT = 4;
 const FALLBACK_LINE_HEIGHT_RATIO = 1.375;
 const OVERFLOW_EPSILON_PX = 2;
-const collapsedMessageClass =
-  "overflow-hidden [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:4] [mask-image:linear-gradient(to_bottom,black_65%,transparent)] [-webkit-mask-image:linear-gradient(to_bottom,black_65%,transparent)]";
+// The height clamp and the fade mask are deliberately separate. The clamp is
+// applied on the very first render — before overflow is measured — so the
+// virtualizer measures the 4-line collapsed height rather than the message's
+// full un-clamped height. A long paste rendered full-height on (re)mount would
+// otherwise be cached at that height for one commit, then shrink to 4 lines the
+// next, feeding a large size delta into the chat scroll-compensation /
+// stick-to-bottom path and snapping the view to the bottom (so the user can no
+// longer scroll up past the message). The fade mask is held back until overflow
+// is confirmed so a short, non-overflowing message never flashes a gradient.
+const lineClampClass =
+  "overflow-hidden [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:4]";
+const collapsedFadeClass =
+  "[mask-image:linear-gradient(to_bottom,black_65%,transparent)] [-webkit-mask-image:linear-gradient(to_bottom,black_65%,transparent)]";
 
 export const UserMessage = memo(function UserMessage({
   item,
   checkpointRevertControl,
 }: UserMessageProps) {
+  const { t } = useLingui();
   const actions = useChatPaneActions();
   const [isExpanded, setIsExpanded] = useState(false);
   const [hasVisualOverflow, setHasVisualOverflow] = useState(false);
-  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+  // Starts false so the body renders clamped on first paint; flipped true after
+  // the first measurement, which is the only thing that lifts the default clamp
+  // off a non-overflowing message.
+  const [hasMeasured, setHasMeasured] = useState(false);
   const bodyRef = useRef<HTMLDivElement>(null);
   const hasVisualOverflowRef = useRef(false);
+  const hasMeasuredRef = useRef(false);
   const payload = getRuntimeItemPayload<MessageItemPayload>(item, "user_message");
   const content = payload?.content ?? [];
   const rawText = buildUserPromptText(content);
@@ -50,16 +71,24 @@ export const UserMessage = memo(function UserMessage({
     buildUserPromptAttachments(content),
     extractSelectorPayloads(rawText),
   );
-  const imageAttachments = attachments.filter((a) => a.isImage);
 
   const syncVisualOverflow = useEffectEvent(() => {
     const element = bodyRef.current;
     if (!element) return;
     const nextHasVisualOverflow = measureUserMessageOverflow(element);
-    if (hasVisualOverflowRef.current !== nextHasVisualOverflow) {
+    // Run the body on the first measurement even when the overflow value is
+    // unchanged from its initial `false`: a non-overflowing message renders
+    // clamped-by-default, and this pass is what lifts that clamp. Relying on the
+    // ref-equality short-circuit alone would leave a short message clamped
+    // forever (its overflow value never differs from the initial state).
+    if (hasVisualOverflowRef.current !== nextHasVisualOverflow || !hasMeasuredRef.current) {
       hasVisualOverflowRef.current = nextHasVisualOverflow;
       setHasVisualOverflow(nextHasVisualOverflow);
       actions?.onContentHeightChange();
+    }
+    if (!hasMeasuredRef.current) {
+      hasMeasuredRef.current = true;
+      setHasMeasured(true);
     }
     if (!nextHasVisualOverflow) setIsExpanded(false);
   });
@@ -82,13 +111,18 @@ export const UserMessage = memo(function UserMessage({
     return null;
   const isCollapsible = hasVisualOverflow;
   const isCollapsed = isCollapsible && !isExpanded;
-  const tooltipLabel = isExpanded ? "Show less" : "Show more";
+  const tooltipLabel = isExpanded ? t`Show less` : t`Show more`;
   const Icon = isExpanded ? ChevronUp : ChevronDown;
-  const collapseClass = isCollapsed
-    ? collapsedMessageClass
-    : isCollapsible
-      ? "max-h-[50vh] overflow-y-auto"
-      : "";
+  // Before the first measurement, clamp height only (no fade) so the virtualizer
+  // never measures the full un-clamped height on (re)mount. Once measured, fall
+  // back to the real collapsed / expanded / no-overflow states.
+  const collapseClass = !hasMeasured
+    ? lineClampClass
+    : isCollapsed
+      ? `${lineClampClass} ${collapsedFadeClass}`
+      : isCollapsible
+        ? "max-h-[50vh] overflow-y-auto"
+        : "";
   const baseBodyClass = `min-w-0 leading-snug ${checkpointRevertControl ? "pr-12" : "pr-7"} ${collapseClass}`;
   const inlineBodyClass = `${baseBodyClass} lightcode-user-message-inline-content whitespace-pre-wrap break-words text-[length:var(--lc-chat-font-size)] text-foreground`;
 
@@ -122,8 +156,9 @@ export const UserMessage = memo(function UserMessage({
               layout="flush"
               imagesAsPreview
               onPreviewImage={(att) => {
+                const imageAttachments = attachments.filter((a) => a.isImage);
                 const idx = imageAttachments.findIndex((a) => a.id === att.id);
-                if (idx >= 0) setLightboxIndex(idx);
+                if (idx >= 0) openAttachmentLightbox(imageAttachments, idx);
               }}
             />
           </div>
@@ -156,18 +191,12 @@ export const UserMessage = memo(function UserMessage({
         {checkpointRevertControl}
         <CopyUserMessageButton text={rawText} />
       </div>
-      {lightboxIndex !== null ? (
-        <ImageLightbox
-          images={imageAttachments}
-          initialIndex={lightboxIndex}
-          onClose={() => setLightboxIndex(null)}
-        />
-      ) : null}
     </Surface>
   );
 });
 
 function CopyUserMessageButton({ text }: { text: string }) {
+  const { t } = useLingui();
   const [copyState, setCopyState] = useState<"idle" | "copied">("idle");
   const [isTooltipOpen, setIsTooltipOpen] = useState(false);
   const resetTimerRef = useRef<number | null>(null);
@@ -186,7 +215,7 @@ function CopyUserMessageButton({ text }: { text: string }) {
       <Tooltip.Trigger>
         <button
           type="button"
-          aria-label={copyState === "copied" ? "Copied" : "Copy message"}
+          aria-label={copyState === "copied" ? t`Copied` : t`Copy message`}
           className="flex size-5 items-center justify-center rounded text-muted/70 transition-colors hover:bg-foreground/5 hover:text-foreground"
           onClick={(event) => {
             event.stopPropagation();
@@ -217,7 +246,7 @@ function CopyUserMessageButton({ text }: { text: string }) {
         </button>
       </Tooltip.Trigger>
       <Tooltip.Content placement="top">
-        {copyState === "copied" ? "Copied" : "Copy message"}
+        {copyState === "copied" ? t`Copied` : t`Copy message`}
       </Tooltip.Content>
     </Tooltip>
   );

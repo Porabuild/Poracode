@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { setEnableFastDiffTemplate } from "@git-diff-view/react";
+import { Trans } from "@lingui/react/macro";
 import "@git-diff-view/react/styles/diff-view.css";
 
 // Must match worker setting — enables pre-rendered HTML templates (dangerouslySetInnerHTML)
@@ -17,6 +18,7 @@ import type { DiffBuildItem } from "@/renderer/workers/diffBuildWorker";
 }
 import { readBridge } from "@/renderer/bridge";
 import { PixelLoader } from "@/renderer/components/common";
+import { GitFindBar } from "@/renderer/components/find/GitFindBar";
 import { buildInWorker, diffFileFromBundle, useDiffTheme } from "../diffBuildClient";
 import { DiffSection } from "./parts/DiffSection";
 import { SingleFileDiff } from "./parts/SingleFileDiff";
@@ -47,6 +49,7 @@ export function GitDiffContent(props: {
   const [loading, setLoading] = useState(false);
   const [panelReady, setPanelReady] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const singleFileScrollRef = useRef<HTMLDivElement>(null);
   const statusKeyRef = useRef<string | null>(null);
   const refreshKeyRef = useRef(refreshKey);
 
@@ -170,7 +173,7 @@ export function GitDiffContent(props: {
   if (!gitStatus?.isRepo) {
     return (
       <div className="flex h-full items-center justify-center text-sm text-muted">
-        Not a git repository
+        <Trans>Not a git repository</Trans>
       </div>
     );
   }
@@ -178,7 +181,11 @@ export function GitDiffContent(props: {
   const showLoader = (loading || !panelReady) && filtered.length > 0;
 
   return (
-    <div className="lightcode-git-diff-content relative h-full min-h-0">
+    <div
+      data-lightcode-find-scope="git"
+      className="lightcode-git-diff-content relative h-full min-h-0"
+    >
+      <GitFindBar containerRef={selectedFile ? singleFileScrollRef : scrollRef} />
       {showLoader && (
         <div className="absolute inset-0 z-20 flex items-center justify-center bg-[var(--content-background)]">
           <PixelLoader size="lg" />
@@ -188,7 +195,11 @@ export function GitDiffContent(props: {
       <div ref={scrollRef} className="h-full min-h-0 overflow-y-auto px-4">
         {filtered.length === 0 && !loading && (
           <div className="flex items-center justify-center py-8 text-sm text-muted">
-            {diffFilter === "staged" ? "No staged changes" : "No changes to display"}
+            {diffFilter === "staged" ? (
+              <Trans>No staged changes</Trans>
+            ) : (
+              <Trans>No changes to display</Trans>
+            )}
           </div>
         )}
         <div className="space-y-4">
@@ -213,6 +224,7 @@ export function GitDiffContent(props: {
           staged={selectedStaged}
           diffMode={diffMode}
           refreshKey={refreshKey}
+          containerRef={singleFileScrollRef}
         />
       )}
     </div>

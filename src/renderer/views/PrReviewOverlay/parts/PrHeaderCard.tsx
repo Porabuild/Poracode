@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from "react";
 import { ChevronDown, ChevronRight } from "lucide-react";
+import { Trans } from "@lingui/react/macro";
 import { useGitStore } from "@/renderer/state/gitStore";
 import { ItemMarkdown } from "@/renderer/components/thread/ChatPane/parts/items/ItemMarkdown";
 
@@ -33,7 +34,7 @@ export function PrHeaderCard(props: {
             ) : (
               <ChevronRight className="size-3" />
             )}
-            Description
+            <Trans>Description</Trans>
           </button>
           {bodyExpanded && (
             <div className="max-h-60 overflow-y-auto rounded-2xl border border-[color:var(--border)] bg-surface-tertiary/30 px-4 py-3 text-xs">

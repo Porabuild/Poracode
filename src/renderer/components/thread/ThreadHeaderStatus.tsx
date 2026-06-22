@@ -1,44 +1,40 @@
 import { Tooltip } from "@heroui/react";
+import { msg } from "@lingui/core/macro";
+import { Trans, useLingui } from "@lingui/react/macro";
 import type { Thread, ThreadStatusSource } from "@/shared/contracts";
 import { ProviderIcon, getStatusTone } from "@/renderer/components/providers";
 import { useThread } from "@/renderer/state/useThread";
+import { useThreadHasLiveWorkflow } from "@/renderer/state/threadLiveWorkflowStore";
+import type { TranslateFn } from "@/renderer/i18n/i18n";
 
-export function threadRuntimeStatusLabel(thread: Thread): string {
+export function threadRuntimeStatusLabel(
+  thread: Thread,
+  t: TranslateFn,
+  opts?: { hasLiveWorkflow?: boolean },
+): string {
   const { status, attention } = thread;
-  if (status === "launching") return "Launching…";
-  if (status === "inactive") return "Inactive";
-  if (status === "error") return "Error";
-  if (status === "finished") return "Finished";
-  if (status === "needs_approval" || attention === "needs_approval") return "Needs approval";
-  if (status === "needs_reply" || attention === "needs_reply") return "Needs reply";
-  if (status === "working" || attention === "working") return "Working";
-  if (status === "idle") return "Idle";
+  if (status === "launching") return t(msg`Launching…`);
+  if (status === "inactive") return t(msg`Inactive`);
+  if (status === "error") return t(msg`Error`);
+  // A settled thread with a live background workflow still reads as "Working".
+  if (status === "finished") return opts?.hasLiveWorkflow ? t(msg`Working`) : t(msg`Finished`);
+  if (status === "needs_approval" || attention === "needs_approval") return t(msg`Needs approval`);
+  if (status === "needs_reply" || attention === "needs_reply") return t(msg`Needs reply`);
+  if (status === "working" || attention === "working") return t(msg`Working`);
+  if (status === "idle") return opts?.hasLiveWorkflow ? t(msg`Working`) : t(msg`Idle`);
   return status;
 }
 
-function activeSupportLabel(source: ThreadStatusSource | undefined): string {
+function activeSupportLabel(source: ThreadStatusSource | undefined, t: TranslateFn): string {
   switch (source) {
     case "cli_hook":
-      return "Enhanced (Hooks)";
+      return t(msg`Enhanced (Hooks)`);
     case "terminal_parse":
-      return "Basic (CLI)";
+      return t(msg`Basic (CLI)`);
     case "server":
-      return "ACP";
+      return t(msg`ACP`);
     default:
-      return "Basic (CLI)";
-  }
-}
-
-function threadStatusSupportDetail(source: ThreadStatusSource | undefined): string {
-  switch (source) {
-    case "cli_hook":
-      return "Status updates come from the CLI hook plugin.";
-    case "terminal_parse":
-      return "Status is inferred from terminal output (L2). Install the hook plugin in settings for structured updates.";
-    case "server":
-      return "Status is provided by the agent control protocol (ACP).";
-    default:
-      return "Support mode appears once the session connects.";
+      return t(msg`Basic (CLI)`);
   }
 }
 
@@ -55,9 +51,29 @@ function supportSourceDotClass(source: ThreadStatusSource | undefined): string {
   }
 }
 
+function ThreadStatusSupportDetail({ source }: { source: ThreadStatusSource | undefined }) {
+  switch (source) {
+    case "cli_hook":
+      return <Trans>Status updates come from the CLI hook plugin.</Trans>;
+    case "terminal_parse":
+      return (
+        <Trans>
+          Status is inferred from terminal output (L2). Install the hook plugin in settings for
+          structured updates.
+        </Trans>
+      );
+    case "server":
+      return <Trans>Status is provided by the agent control protocol (ACP).</Trans>;
+    default:
+      return <Trans>Support mode appears once the session connects.</Trans>;
+  }
+}
+
 export function ThreadHeaderStatusTooltipBody(props: { thread: Thread }) {
   const { thread } = props;
-  const runtime = threadRuntimeStatusLabel(thread);
+  const { t } = useLingui();
+  const hasLiveWorkflow = useThreadHasLiveWorkflow(thread.id);
+  const runtime = threadRuntimeStatusLabel(thread, t, { hasLiveWorkflow });
   const source = thread.threadStatusSource;
   const isServer = source === "server";
   const errorMessage = thread.status === "error" ? thread.errorMessage?.trim() : undefined;
@@ -66,17 +82,21 @@ export function ThreadHeaderStatusTooltipBody(props: { thread: Thread }) {
     <div className="w-[min(22rem,calc(100vw-2rem))] space-y-3 py-3 pl-2 pr-5 [overflow-wrap:break-word] [word-break:normal] hyphens-none">
       <div className="space-y-2.5">
         <p className="text-sm leading-snug">
-          <span className="text-muted">Status: </span>
+          <span className="text-muted">
+            <Trans>Status:</Trans>{" "}
+          </span>
           <span className="font-semibold text-foreground">{runtime}</span>
         </p>
         {!isServer && (
           <p className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-xs leading-relaxed">
-            <span className="text-muted">Support:</span>
+            <span className="text-muted">
+              <Trans>Support:</Trans>
+            </span>
             <span
               className={`relative top-px size-1.5 shrink-0 rounded-full ring-1 ring-[var(--hairline-strong)] ${supportSourceDotClass(source)}`}
               aria-hidden
             />
-            <span className="font-semibold text-foreground">{activeSupportLabel(source)}</span>
+            <span className="font-semibold text-foreground">{activeSupportLabel(source, t)}</span>
           </p>
         )}
       </div>
@@ -86,7 +106,7 @@ export function ThreadHeaderStatusTooltipBody(props: { thread: Thread }) {
         </p>
       ) : (
         <p className="border-t border-border/60 pt-2.5 text-xs leading-snug text-muted [overflow-wrap:break-word] [word-break:normal] hyphens-none">
-          {threadStatusSupportDetail(source)}
+          <ThreadStatusSupportDetail source={source} />
         </p>
       )}
     </div>
@@ -100,7 +120,11 @@ export function ThreadHeaderStatusButton(props: {
   agentLabel?: string | undefined;
   agentIcon?: string | undefined;
 }) {
+  const { t } = useLingui();
   const thread = useThread(props.threadId) ?? props.fallbackThread;
+  const hasLiveWorkflow = useThreadHasLiveWorkflow(props.threadId);
+  const agentLabel = props.agentLabel ?? props.fallbackAgentKind;
+  const statusLabel = threadRuntimeStatusLabel(thread, t, { hasLiveWorkflow });
 
   return (
     <Tooltip delay={0}>
@@ -108,7 +132,7 @@ export function ThreadHeaderStatusButton(props: {
         <button
           type="button"
           className="lightcode-overlay-header__controls inline-flex shrink-0 rounded-sm p-0.5 outline-offset-2 hover:bg-[var(--row-hover)]"
-          aria-label={`${props.agentLabel ?? props.fallbackAgentKind}: ${threadRuntimeStatusLabel(thread)}. Hover for status details.`}
+          aria-label={t`${agentLabel}: ${statusLabel}. Hover for status details.`}
           onClick={(e) => {
             e.stopPropagation();
           }}
@@ -117,7 +141,7 @@ export function ThreadHeaderStatusButton(props: {
             kind={thread.agentKind}
             {...(props.agentIcon ? { icon: props.agentIcon } : {})}
             fallbackLabel={props.agentLabel}
-            tone={getStatusTone(thread)}
+            tone={getStatusTone(thread, { hasLiveWorkflow })}
             className="size-3.5 shrink-0"
           />
         </button>

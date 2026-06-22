@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { useShallow } from "zustand/react/shallow";
+import { Trans } from "@lingui/react/macro";
 import type {
   AgentStatus,
   ProjectLocation,
@@ -155,7 +156,9 @@ export function GuiThreadContent(
               ) : null}
               {runtimeDebugOpen ? (
                 <div className="flex min-h-0 flex-1 flex-col gap-1.5">
-                  <p className="shrink-0 text-xs font-medium text-foreground">Runtime debug</p>
+                  <p className="shrink-0 text-xs font-medium text-foreground">
+                    <Trans>Runtime debug</Trans>
+                  </p>
                   <ChatRuntimeDebugPanel threadId={thread.id} />
                 </div>
               ) : null}

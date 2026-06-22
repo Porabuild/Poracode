@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { readFile } from "node:fs/promises";
-import { spawn } from "node:child_process";
+import { spawn, type ChildProcess } from "node:child_process";
 import type {
   CanUseTool,
   Options as ClaudeQueryOptions,
@@ -26,10 +26,12 @@ import type {
   TurnState,
 } from "@/shared/contracts";
 import { areAgentSlashCommandsEqual } from "@/shared/contracts";
+import { terminateChildProcessTree } from "@/shared/processTree";
 import { buildClaudeBrowserMcpServers } from "./mcpBrowser";
 import {
   createKnownSessionRef,
   buildAgentCommand,
+  definedEnv,
   getWslCommand,
   getPrimedPosixEnv,
   getProjectShellEnv,
@@ -159,14 +161,6 @@ function filteredEnv(env: Record<string, string | undefined>): Record<string, st
     if (value === undefined) continue;
     if (WINDOWS_HOST_ENV_KEYS.has(key.toLowerCase())) continue;
     out[key] = value;
-  }
-  return out;
-}
-
-function definedEnv(env: Record<string, string | undefined>): Record<string, string> {
-  const out: Record<string, string> = {};
-  for (const [key, value] of Object.entries(env)) {
-    if (value !== undefined) out[key] = value;
   }
   return out;
 }
@@ -419,6 +413,11 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
   private promptQueue = new AsyncPromptQueue();
   private queryRuntime: Query | undefined;
   private queryReady: Promise<Query> | undefined;
+  // OS processes the SDK spawned through our custom spawn hook (win32 native +
+  // WSL). Captured so dispose() can force-kill the whole tree; the SDK's own
+  // Query.close() only ends the immediate child after a grace window. See
+  // trackSpawnedProcess.
+  private readonly spawnedProcesses = new Set<ChildProcess>();
   private streamStarted = false;
   private disposed = false;
   private sessionId: string | undefined;
@@ -812,7 +811,43 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
     } catch {
       // ignore
     }
+    // Query.close() only ends the immediate child — and only after a ~2s
+    // stdin-EOF grace — so on Windows it orphans claude's descendant tool
+    // processes, and for WSL it kills the host wsl.exe relay rather than the
+    // in-distro tree. Force-kill the captured process tree so a removed /
+    // archived / unloaded / app-closed GUI Claude thread can't keep running
+    // tools and modifying files. Mirrors the ACP and Codex structured sessions.
+    for (const child of [...this.spawnedProcesses]) {
+      this.killSpawnedProcess(child);
+    }
     this.listener?.onClose();
+  }
+
+  /**
+   * Record an OS process spawned by the SDK through our custom spawn hook so
+   * {@link dispose} can force-kill its tree. The process drops out of the set on
+   * its own exit. If a spawn races in after disposal, kill it immediately so it
+   * can't outlive the session.
+   */
+  private trackSpawnedProcess(proc: SpawnedProcess): SpawnedProcess {
+    const child = proc as unknown as ChildProcess;
+    this.spawnedProcesses.add(child);
+    const forget = (): void => {
+      this.spawnedProcesses.delete(child);
+    };
+    child.once("exit", forget);
+    if (this.disposed) {
+      this.killSpawnedProcess(child);
+    }
+    return proc;
+  }
+
+  private killSpawnedProcess(child: ChildProcess): void {
+    this.spawnedProcesses.delete(child);
+    // Windows: taskkill /T /F reaps the whole tree. POSIX: best-effort kill of
+    // the captured process (the SDK's own teardown handles the rest).
+    // terminateChildProcessTree swallows its own errors, so no guard is needed.
+    terminateChildProcessTree(child);
   }
 
   private requireQuery(): Promise<Query> {
@@ -916,12 +951,14 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
       switch (this.input.projectLocation.kind) {
         case "wsl": {
           const location = this.input.projectLocation;
-          spawnClaudeCodeProcess = (spawnOptions) => spawnClaudeInWsl(location, spawnOptions);
+          spawnClaudeCodeProcess = (spawnOptions) =>
+            this.trackSpawnedProcess(spawnClaudeInWsl(location, spawnOptions));
           break;
         }
         case "windows": {
           const location = this.input.projectLocation;
-          spawnClaudeCodeProcess = (spawnOptions) => spawnClaudeNative(location, spawnOptions);
+          spawnClaudeCodeProcess = (spawnOptions) =>
+            this.trackSpawnedProcess(spawnClaudeNative(location, spawnOptions));
           break;
         }
       }
@@ -1068,6 +1105,34 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
     });
   };
 
+  /**
+   * The SDK can resume the model after a turn has already settled to `idle` —
+   * a `ScheduleWakeup`, a `/loop` tick, or a backgrounded Bash task finishing
+   * all re-invoke it WITHOUT a user prompt, so none of them flow through
+   * `startTurn`. Such a resume streams assistant content (`item.started` /
+   * `content.delta`) with neither a fresh `turn.started` nor a `working`
+   * status, which leaves the GUI thread stuck on `idle` while answers stream
+   * in: the renderer's reopen safety-net is gated off by the prior
+   * `turn.completed`, and the SDK does not reliably emit
+   * `session_state_changed: "running"` on these resumes. Detect the first
+   * assistant activity after a settled turn and open a new runtime turn so both
+   * the status channel and the renderer's turn-open gate reflect that the model
+   * is working again. The eventual `result` then closes this turn normally.
+   */
+  private beginResumedTurnIfNeeded(message: SDKMessage): void {
+    if (this.disposed || this.currentTurnInFlight) return;
+    if (!isResumedAssistantActivity(message)) return;
+    const turnId = `turn-${randomUUID()}`;
+    this.currentTurnInFlight = true;
+    this.currentTurnAssistantUuid = undefined;
+    // Seed the mapper's turn id so the eventual `result` emits the matching
+    // `turn.completed`, re-closing the renderer's turn-open gate.
+    this.mapperState.currentTurnId = turnId;
+    this.emitRuntimeEvents([{ type: "turn.started", threadId: this.input.threadId, turnId }]);
+    this.emitUpdate({ status: "working", attention: "working" });
+    this.startGoalTracking();
+  }
+
   private handleSdkMessage(message: SDKMessage): void {
     const sessionId =
       "session_id" in message && typeof message.session_id === "string"
@@ -1081,6 +1146,8 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
         sessionRef: createKnownSessionRef(sessionId),
       });
     }
+
+    this.beginResumedTurnIfNeeded(message);
 
     if (message.type === "system" && message.subtype === "session_state_changed") {
       const mapped = mapSessionState(message.state);
@@ -1203,6 +1270,23 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
     console.error(`[claude-sdk-session] ${this.input.threadId} pre-listener error: ${message}`);
     this.pendingError = message;
   }
+}
+
+/**
+ * Whether an SDK message represents the model starting to produce fresh
+ * assistant output. A streamed message opens with a `message_start` stream
+ * event; non-streaming transports deliver a whole `assistant` message instead.
+ * Sub-agent (`Task`) output also arrives as assistant messages, but only while
+ * a turn is already in flight, so callers gate on `currentTurnInFlight` to
+ * exclude it. Used to detect a wakeup/background resume that bypassed
+ * `startTurn`.
+ */
+function isResumedAssistantActivity(message: SDKMessage): boolean {
+  if (message.type === "assistant") return true;
+  if (message.type === "stream_event") {
+    return message.event.type === "message_start";
+  }
+  return false;
 }
 
 function isInterruptedResult(message: Extract<SDKMessage, { type: "result" }>): boolean {

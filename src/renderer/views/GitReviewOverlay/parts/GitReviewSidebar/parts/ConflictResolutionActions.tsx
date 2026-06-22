@@ -1,5 +1,6 @@
 import { Sparkles } from "lucide-react";
 import { Button } from "@heroui/react";
+import { Trans } from "@lingui/react/macro";
 import { PixelLoader } from "@/renderer/components/common";
 import { GitReviewSection } from "./GitReviewSection";
 
@@ -23,7 +24,7 @@ export function ConflictResolutionActions(props: {
             onPress={onResolveWithAgent}
           >
             <Sparkles className="size-3.5" />
-            Fix in Agent
+            <Trans>Fix in Agent</Trans>
           </Button>
           <Button
             variant="tertiary"
@@ -35,7 +36,7 @@ export function ConflictResolutionActions(props: {
             {({ isPending }) => (
               <>
                 {isPending && <PixelLoader size="xs" />}
-                Abort Merge
+                <Trans>Abort Merge</Trans>
               </>
             )}
           </Button>

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useLingui } from "@lingui/react/macro";
 import type { RequestOutcome } from "@/shared/contracts";
 import { QuestionOptionRow } from "./parts/QuestionOptionRow";
 
@@ -232,6 +233,7 @@ export function UserInputForm(props: {
   onSubmit: (response: unknown, outcome: RequestOutcome) => void;
 }) {
   const { formId, controller, isDisabled, onSubmit } = props;
+  const { t } = useLingui();
   const activeQuestion = controller.questions[controller.activeIndex] ?? controller.questions[0];
   if (!activeQuestion) return null;
   const customAnswer = controller.customAnswers[activeQuestion.id] ?? "";
@@ -290,7 +292,7 @@ export function UserInputForm(props: {
               disabled={isDisabled}
               value={customAnswer}
               onChange={(e) => controller.setCustomAnswer(activeQuestion.id, e.target.value)}
-              placeholder="Or write a custom answer"
+              placeholder={t`Or write a custom answer`}
               className="w-full rounded border border-[color:var(--border)] bg-[var(--composer-surface)] px-2 py-1 text-[11px] text-foreground outline-none"
             />
           </div>

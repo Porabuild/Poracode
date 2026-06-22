@@ -1,10 +1,38 @@
-import { describe, expect, it } from "vitest";
+import React from "react";
+import { render } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { PaneLayout } from "@/shared/paneLayout";
-import { computeLayout } from "./SplitPaneContainer";
+import { computeLayout, SplitPaneContainer } from "./SplitPaneContainer";
+import { splitStorageKey, writeStoredSizes } from "./paneSizeStorage";
+
+vi.mock("@dnd-kit/react", () => ({
+  useDroppable: () => undefined,
+}));
+
+vi.mock("@/renderer/dnd", () => ({
+  useIsInsertSplitHighlighted: () => false,
+  useIsRootInsertHighlighted: () => false,
+}));
 
 const containerRect = { left: 0, top: 0, width: 1000, height: 600 };
 const equalSizes = (_key: string, count: number) =>
   Array.from({ length: count }, () => 100 / count);
+const originalGetBoundingClientRect = HTMLElement.prototype.getBoundingClientRect;
+
+function setElementRect(width: number, height: number) {
+  HTMLElement.prototype.getBoundingClientRect = () =>
+    ({
+      x: 0,
+      y: 0,
+      left: 0,
+      top: 0,
+      right: width,
+      bottom: height,
+      width,
+      height,
+      toJSON: () => ({}),
+    }) as DOMRect;
+}
 
 describe("computeLayout", () => {
   it("emits a single full-rect pane for a leaf layout", () => {
@@ -133,5 +161,102 @@ describe("computeLayout", () => {
       expect(Number.isFinite(pane.rect.width)).toBe(true);
       expect(Number.isFinite(pane.rect.height)).toBe(true);
     }
+  });
+});
+
+describe("SplitPaneContainer", () => {
+  beforeEach(() => {
+    localStorage.clear();
+    setElementRect(1000, 600);
+  });
+
+  afterEach(() => {
+    HTMLElement.prototype.getBoundingClientRect = originalGetBoundingClientRect;
+  });
+
+  it("updates an existing divider position when panes are added at the same container size", () => {
+    const twoPanes: PaneLayout = {
+      kind: "split",
+      axis: "vertical",
+      children: [
+        { kind: "leaf", paneId: "p1" },
+        { kind: "leaf", paneId: "p2" },
+      ],
+    };
+    const threePanes: PaneLayout = {
+      kind: "split",
+      axis: "vertical",
+      children: [
+        { kind: "leaf", paneId: "p1" },
+        { kind: "leaf", paneId: "p2" },
+        { kind: "leaf", paneId: "p3" },
+      ],
+    };
+    const renderPane = (paneId: string) => React.createElement("div", { "data-pane-id": paneId });
+
+    const { container, rerender } = render(
+      React.createElement(SplitPaneContainer, { layout: twoPanes, renderPane }),
+    );
+    const divider = container.querySelector<HTMLElement>(
+      '[role="separator"][aria-orientation="vertical"]',
+    );
+    expect(divider).not.toBeNull();
+    expect(parseFloat(divider!.style.left)).toBeCloseTo(492);
+
+    rerender(React.createElement(SplitPaneContainer, { layout: threePanes, renderPane }));
+
+    expect(container.querySelector<HTMLElement>('[role="separator"]')).toBe(divider);
+    expect(parseFloat(divider!.style.left)).toBeCloseTo(976 / 3);
+  });
+
+  it("rereads projected sizes when returning to a previously cached layout key", () => {
+    const twoPanes: PaneLayout = {
+      kind: "split",
+      axis: "vertical",
+      children: [
+        { kind: "leaf", paneId: "left" },
+        { kind: "leaf", paneId: "right" },
+      ],
+    };
+    const fourPanes: PaneLayout = {
+      kind: "split",
+      axis: "vertical",
+      children: [
+        {
+          kind: "split",
+          axis: "horizontal",
+          children: [
+            { kind: "leaf", paneId: "left-top" },
+            { kind: "leaf", paneId: "left-bottom" },
+          ],
+        },
+        {
+          kind: "split",
+          axis: "horizontal",
+          children: [
+            { kind: "leaf", paneId: "right-top" },
+            { kind: "leaf", paneId: "right-bottom" },
+          ],
+        },
+      ],
+    };
+    const renderPane = (paneId: string) => React.createElement("div", { "data-pane-id": paneId });
+
+    writeStoredSizes(splitStorageKey(fourPanes, "vertical"), [50, 50]);
+    const { container, rerender } = render(
+      React.createElement(SplitPaneContainer, { layout: fourPanes, renderPane }),
+    );
+    const divider = container.querySelector<HTMLElement>(
+      '[role="separator"][aria-orientation="vertical"]',
+    );
+    expect(divider).not.toBeNull();
+    expect(parseFloat(divider!.style.left)).toBeCloseTo(492);
+
+    rerender(React.createElement(SplitPaneContainer, { layout: twoPanes, renderPane }));
+    writeStoredSizes(splitStorageKey(fourPanes, "vertical"), [35, 65]);
+
+    rerender(React.createElement(SplitPaneContainer, { layout: fourPanes, renderPane }));
+
+    expect(parseFloat(divider!.style.left)).toBeCloseTo(344.4);
   });
 });

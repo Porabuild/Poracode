@@ -1,5 +1,6 @@
 import { startTransition } from "react";
 import { Switch } from "@heroui/react";
+import { Trans, useLingui } from "@lingui/react/macro";
 import type { TerminalPosition } from "@/shared/contracts";
 import type { CliPickerTarget } from "@/shared/settings";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
@@ -10,9 +11,11 @@ import {
   fontSizeOptions,
   scrollSpeedOptions,
   terminalPositionOptions,
+  useLocalizedOptions,
 } from "./settingsOptions";
 
 export function TerminalSettings() {
+  const { t } = useLingui();
   const terminalPosition = useSharedSettings((state) => state.terminalPosition);
   const setTerminalPosition = useSharedSettings((state) => state.setTerminalPosition);
   const collapseTerminalComposer = useSharedSettings((state) => state.collapseTerminalComposer);
@@ -30,13 +33,20 @@ export function TerminalSettings() {
   const terminalPanelFontSize = useSharedSettings((state) => state.terminalPanelFontSize);
   const setTerminalPanelFontSize = useSharedSettings((state) => state.setTerminalPanelFontSize);
 
+  const terminalPositionOpts = useLocalizedOptions(terminalPositionOptions);
+  const cliPickerTargetOpts = useLocalizedOptions(cliPickerTargetOptions);
+
   return (
-    <SettingsPage title="Terminal">
-      <SettingRow title="Terminal position" description="Where the terminal panel appears.">
+    <SettingsPage title={t`Terminal`}>
+      <SettingRow
+        anchorId="terminal.terminalPosition"
+        title={t`Terminal position`}
+        description={<Trans>Where the terminal panel appears.</Trans>}
+      >
         <Select
-          aria-label="Terminal position"
+          aria-label={t`Terminal position`}
           className="w-[160px] shrink-0"
-          options={terminalPositionOptions}
+          options={terminalPositionOpts}
           value={terminalPosition}
           onChange={(value) => {
             startTransition(() => {
@@ -47,8 +57,13 @@ export function TerminalSettings() {
       </SettingRow>
 
       <SettingRow
-        title="Auto-show terminal panel"
-        description="Automatically show the terminal panel when running commands or creating worktrees."
+        anchorId="terminal.autoShowTerminalPanel"
+        title={t`Auto-show terminal panel`}
+        description={
+          <Trans>
+            Automatically show the terminal panel when running commands or creating worktrees.
+          </Trans>
+        }
       >
         <Switch
           isSelected={autoShowTerminalPanel}
@@ -65,8 +80,14 @@ export function TerminalSettings() {
       </SettingRow>
 
       <SettingRow
-        title="Collapse terminal composer"
-        description="Start the composer collapsed in terminal-native threads. A collapsed composer routes browser element picks straight to the terminal."
+        anchorId="terminal.collapseTerminalComposer"
+        title={t`Collapse terminal composer`}
+        description={
+          <Trans>
+            Start the composer collapsed in terminal-native threads. A collapsed composer routes
+            browser element picks straight to the terminal.
+          </Trans>
+        }
       >
         <Switch
           isSelected={collapseTerminalComposer}
@@ -83,13 +104,19 @@ export function TerminalSettings() {
       </SettingRow>
 
       <SettingRow
-        title="Browser pick target (CLI threads)"
-        description="Where a browser element-picker selection goes in terminal-native threads. A collapsed composer always routes to the terminal."
+        anchorId="terminal.cliPickerTarget"
+        title={t`Browser pick target (CLI threads)`}
+        description={
+          <Trans>
+            Where a browser element-picker selection goes in terminal-native threads. A collapsed
+            composer always routes to the terminal.
+          </Trans>
+        }
       >
         <Select
-          aria-label="Browser pick target for CLI threads"
+          aria-label={t`Browser pick target for CLI threads`}
           className="w-[160px] shrink-0"
-          options={cliPickerTargetOptions}
+          options={cliPickerTargetOpts}
           value={cliPickerTarget}
           onChange={(value) => {
             startTransition(() => {
@@ -100,11 +127,14 @@ export function TerminalSettings() {
       </SettingRow>
 
       <SettingRow
-        title="Agent terminal font size"
-        description="Base font size for agent terminals. Auto-shrinks in narrow or short panes."
+        anchorId="terminal.agentTerminalFontSize"
+        title={t`Agent terminal font size`}
+        description={
+          <Trans>Base font size for agent terminals. Auto-shrinks in narrow or short panes.</Trans>
+        }
       >
         <Select
-          aria-label="Agent terminal font size"
+          aria-label={t`Agent terminal font size`}
           className="w-[160px] shrink-0"
           options={fontSizeOptions}
           value={String(agentTerminalFontSize)}
@@ -117,11 +147,16 @@ export function TerminalSettings() {
       </SettingRow>
 
       <SettingRow
-        title="Terminal panel font size"
-        description="Base font size for the terminal panel. Auto-shrinks in narrow or short panes."
+        anchorId="terminal.terminalPanelFontSize"
+        title={t`Terminal panel font size`}
+        description={
+          <Trans>
+            Base font size for the terminal panel. Auto-shrinks in narrow or short panes.
+          </Trans>
+        }
       >
         <Select
-          aria-label="Terminal panel font size"
+          aria-label={t`Terminal panel font size`}
           className="w-[160px] shrink-0"
           options={fontSizeOptions}
           value={String(terminalPanelFontSize)}
@@ -134,11 +169,12 @@ export function TerminalSettings() {
       </SettingRow>
 
       <SettingRow
-        title="Terminal scroll speed"
-        description="Scroll speed multiplier for the terminal scrollback buffer."
+        anchorId="terminal.scrollSpeed"
+        title={t`Terminal scroll speed`}
+        description={<Trans>Scroll speed multiplier for the terminal scrollback buffer.</Trans>}
       >
         <Select
-          aria-label="Terminal scroll speed"
+          aria-label={t`Terminal scroll speed`}
           className="w-[160px] shrink-0"
           options={scrollSpeedOptions}
           value={String(scrollSpeed)}

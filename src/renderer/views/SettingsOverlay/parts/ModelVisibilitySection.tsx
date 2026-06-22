@@ -1,6 +1,7 @@
 import { useDeferredValue, useEffect, useState } from "react";
 import { Button, Popover } from "@heroui/react";
 import { Check, Minus, Search } from "lucide-react";
+import { Trans, useLingui } from "@lingui/react/macro";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
 import { getSettingsInstalledAgents } from "@/shared/agentStatus";
@@ -140,6 +141,7 @@ function ModelVisibilityRow(props: {
 }
 
 export function ModelVisibilitySection() {
+  const { t } = useLingui();
   const agentStatuses = useAgentStatusesStore((s) => s.agentStatuses);
   const wslAgentStatuses = useAgentStatusesStore((s) => s.wslAgentStatuses);
   const hiddenModels = useSharedSettings((s) => s.hiddenModels);
@@ -266,11 +268,17 @@ export function ModelVisibilitySection() {
   if (providers.length === 0) return null;
 
   return (
-    <div className="flex items-center justify-between gap-4">
+    <div
+      id="agentsGeneral.visibleModels"
+      data-settings-anchor="agentsGeneral.visibleModels"
+      className="flex scroll-mt-4 items-center justify-between gap-4"
+    >
       <div className="min-w-0">
-        <p className="text-sm font-medium text-foreground">Visible models</p>
+        <p className="text-sm font-medium text-foreground">
+          <Trans>Visible models</Trans>
+        </p>
         <p className="text-xs text-muted">
-          Hide models you don&apos;t use from the model picker across every provider.
+          <Trans>Hide models you don&apos;t use from the model picker across every provider.</Trans>
         </p>
       </div>
       <Popover isOpen={isOpen} onOpenChange={setIsOpen}>
@@ -284,9 +292,9 @@ export function ModelVisibilitySection() {
             <div className="flex items-center gap-2 border-b border-border px-3 py-2">
               <Search className="size-3.5 shrink-0 text-muted" />
               <input
-                aria-label="Search models"
+                aria-label={t`Search models`}
                 className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted outline-none"
-                placeholder="Search models..."
+                placeholder={t`Search models...`}
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
                 onKeyDown={(event) => event.stopPropagation()}
@@ -294,7 +302,9 @@ export function ModelVisibilitySection() {
             </div>
             <div className="flex items-center justify-between gap-2 border-b border-border/40 px-3 py-1.5 text-[10px] uppercase tracking-wider text-muted/80">
               <span className="tabular-nums">
-                {visibleCount} of {totalCount} visible
+                <Trans>
+                  {visibleCount} of {totalCount} visible
+                </Trans>
               </span>
               <div className="flex items-center gap-2">
                 <button
@@ -302,7 +312,7 @@ export function ModelVisibilitySection() {
                   className="text-foreground/70 hover:text-foreground"
                   onClick={() => setAllHidden(false)}
                 >
-                  Show all
+                  <Trans>Show all</Trans>
                 </button>
                 <span className="text-muted/40">·</span>
                 <button
@@ -310,16 +320,18 @@ export function ModelVisibilitySection() {
                   className="text-foreground/70 hover:text-foreground"
                   onClick={() => setAllHidden(true)}
                 >
-                  Hide all
+                  <Trans>Hide all</Trans>
                 </button>
               </div>
             </div>
             {items.length === 0 ? (
-              <div className="px-3 py-3 text-center text-sm text-muted">No models found</div>
+              <div className="px-3 py-3 text-center text-sm text-muted">
+                <Trans>No models found</Trans>
+              </div>
             ) : (
               <div
                 role="listbox"
-                aria-label="Visible models"
+                aria-label={t`Visible models`}
                 aria-multiselectable="true"
                 className="lightcode-menu no-scrollbar max-h-[26rem] overflow-y-auto py-1.5"
               >

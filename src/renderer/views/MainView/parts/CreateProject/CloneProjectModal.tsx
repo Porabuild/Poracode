@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { ChevronDown, FolderOpen, Link2, Lock, Monitor, Search } from "lucide-react";
 import { Button, Dropdown, Label, Modal } from "@heroui/react";
+import { Trans, useLingui } from "@lingui/react/macro";
 import type { GitHubAccount, GitHubRepoSummary } from "@/shared/contracts";
 import {
   cloneFolderNameFromRepo,
@@ -68,6 +69,7 @@ export function CloneProjectModal() {
 }
 
 function CloneProjectForm() {
+  const { t } = useLingui();
   const lastUsedProjectDirs = useSharedSettings((s) => s.lastUsedProjectDirs);
 
   const [distros, setDistros] = useState<string[]>([]);
@@ -184,7 +186,7 @@ function CloneProjectForm() {
       .catch((error) => {
         if (!active) return;
         setRepos([]);
-        setReposError(errorMessage(error, "Couldn't list repositories."));
+        setReposError(errorMessage(error, t`Couldn't list repositories.`));
       });
     return () => {
       active = false;
@@ -207,10 +209,10 @@ function CloneProjectForm() {
     mode === "github"
       ? selectedRepo
         ? null
-        : "Select a repository."
+        : t`Select a repository.`
       : url.trim()
         ? null
-        : "Enter a repository URL.";
+        : t`Enter a repository URL.`;
   const nameError = validateProjectName(name);
   const parentError = validateScratchParent(scratchParent, choice);
   const validationError = targetError ?? nameError ?? parentError;
@@ -258,48 +260,58 @@ function CloneProjectForm() {
       await commitCloneProject({ choice, parentDir: scratchParent, name, source });
       usePanelStore.getState().closeCloneProjectModal();
     } catch (error) {
-      setSubmitError(errorMessage(error, "Couldn't clone the repository."));
+      setSubmitError(errorMessage(error, t`Couldn't clone the repository.`));
     } finally {
       setBusy(false);
     }
   }
   const cloneTarget =
-    mode === "github" ? (selectedRepo?.nameWithOwner ?? "repository") : url.trim() || "repository";
+    mode === "github"
+      ? (selectedRepo?.nameWithOwner ?? t`repository`)
+      : url.trim() || t`repository`;
 
   if (busy) {
     return (
       <>
         <Modal.Header>
-          <Modal.Heading>Cloning…</Modal.Heading>
+          <Modal.Heading>
+            <Trans>Cloning…</Trans>
+          </Modal.Heading>
         </Modal.Header>
         <Modal.Body className="flex flex-col items-center justify-center gap-4 px-4 py-12 text-center">
           <PixelLoader size="lg" className="text-foreground" />
           <div className="flex flex-col gap-1">
-            <p className="text-sm font-medium text-foreground">Cloning {cloneTarget}</p>
+            <p className="text-sm font-medium text-foreground">
+              <Trans>Cloning {cloneTarget}</Trans>
+            </p>
             <p className="text-xs text-muted">
-              Downloading into “{name || "the chosen folder"}”. This can take a moment for large
-              repositories.
+              <Trans>
+                Downloading into “{name || t`the chosen folder`}”. This can take a moment for large
+                repositories.
+              </Trans>
             </p>
           </div>
         </Modal.Body>
         <Modal.Footer>
           <Button variant="tertiary" isDisabled isPending>
-            Cloning…
+            <Trans>Cloning…</Trans>
           </Button>
         </Modal.Footer>
       </>
     );
   }
 
-  const runtimeLabel = runtimeKey === "native" ? "Native" : runtimeKey;
+  const runtimeLabel = runtimeKey === "native" ? t`Native` : runtimeKey;
 
   return (
     <>
       <Modal.CloseTrigger />
       <Modal.Header>
-        <Modal.Heading>Clone a repository</Modal.Heading>
+        <Modal.Heading>
+          <Trans>Clone a repository</Trans>
+        </Modal.Heading>
         <p className="mt-1 text-xs text-muted">
-          Browse your GitHub repositories or paste a clone URL.
+          <Trans>Browse your GitHub repositories or paste a clone URL.</Trans>
         </p>
       </Modal.Header>
       <Modal.Body className="flex flex-col gap-3 p-4">
@@ -311,7 +323,7 @@ function CloneProjectForm() {
           </ModeTab>
           <ModeTab active={mode === "url"} onPress={() => selectMode("url")}>
             <Link2 className="size-4" />
-            Clone URL
+            <Trans>Clone URL</Trans>
           </ModeTab>
         </div>
 
@@ -331,9 +343,11 @@ function CloneProjectForm() {
           />
         ) : (
           <div className="flex flex-col gap-1.5">
-            <Label className="text-xs font-medium text-muted">Repository URL</Label>
+            <Label className="text-xs font-medium text-muted">
+              <Trans>Repository URL</Trans>
+            </Label>
             <Input
-              aria-label="Repository URL"
+              aria-label={t`Repository URL`}
               placeholder="https://github.com/owner/repo.git"
               value={url}
               onChange={(e) => changeUrl(e.target.value)}
@@ -344,9 +358,11 @@ function CloneProjectForm() {
         {/* Runtime (WSL only) */}
         {showRuntime ? (
           <div className="flex flex-col gap-1.5">
-            <Label className="text-xs font-medium text-muted">Runtime</Label>
+            <Label className="text-xs font-medium text-muted">
+              <Trans>Runtime</Trans>
+            </Label>
             <Dropdown>
-              <Button aria-label="Runtime" variant="tertiary" className="justify-between">
+              <Button aria-label={t`Runtime`} variant="tertiary" className="justify-between">
                 <span className="flex items-center gap-2">
                   {runtimeKey === "native" ? (
                     <Monitor className="size-4 text-muted" />
@@ -359,14 +375,16 @@ function CloneProjectForm() {
               </Button>
               <Dropdown.Popover className="min-w-[--trigger-width]">
                 <Dropdown.Menu
-                  aria-label="Runtime options"
+                  aria-label={t`Runtime options`}
                   selectionMode="single"
                   selectedKeys={[runtimeKey]}
                   onAction={(key) => setRuntimeKey(String(key))}
                 >
-                  <Dropdown.Item id="native" textValue="Native">
+                  <Dropdown.Item id="native" textValue={t`Native`}>
                     <Monitor className="size-4 shrink-0 text-muted" />
-                    <Label>Native</Label>
+                    <Label>
+                      <Trans>Native</Trans>
+                    </Label>
                   </Dropdown.Item>
                   {distros.map((distro) => (
                     <Dropdown.Item key={distro} id={distro} textValue={distro}>
@@ -382,10 +400,12 @@ function CloneProjectForm() {
 
         {/* Folder name */}
         <div className="flex flex-col gap-1.5">
-          <Label className="text-xs font-medium text-muted">Folder name</Label>
+          <Label className="text-xs font-medium text-muted">
+            <Trans>Folder name</Trans>
+          </Label>
           <Input
-            aria-label="Folder name"
-            placeholder="repository"
+            aria-label={t`Folder name`}
+            placeholder={t`repository`}
             value={name}
             onChange={(e) => {
               nameTouched.current = true;
@@ -396,9 +416,11 @@ function CloneProjectForm() {
 
         {/* Location */}
         <div className="flex flex-col gap-1.5">
-          <Label className="text-xs font-medium text-muted">Location</Label>
+          <Label className="text-xs font-medium text-muted">
+            <Trans>Location</Trans>
+          </Label>
           <Button
-            aria-label="Browse for parent folder"
+            aria-label={t`Browse for parent folder`}
             variant="tertiary"
             className="w-full justify-start gap-2 font-normal"
             onPress={() => void handleBrowse()}
@@ -410,7 +432,9 @@ function CloneProjectForm() {
                 <span className="shrink-0">{pickerLeaf.tail}</span>
               </span>
             ) : (
-              <span className="flex-1 text-left text-muted">Choose a folder…</span>
+              <span className="flex-1 text-left text-muted">
+                <Trans>Choose a folder…</Trans>
+              </span>
             )}
           </Button>
         </div>
@@ -419,14 +443,14 @@ function CloneProjectForm() {
       </Modal.Body>
       <Modal.Footer>
         <Button slot="close" variant="ghost" className="text-muted">
-          Cancel
+          <Trans>Cancel</Trans>
         </Button>
         <Button
           variant="tertiary"
           isDisabled={!!validationError}
           onPress={() => void handleSubmit()}
         >
-          Clone
+          <Trans>Clone</Trans>
         </Button>
       </Modal.Footer>
     </>
@@ -459,25 +483,32 @@ function GitHubBrowser(props: {
   onSelectRepo: (repo: GitHubRepoSummary) => void;
   onSwitchToUrl: () => void;
 }) {
+  const { t } = useLingui();
   const { accounts, selectedAccount } = props;
 
   if (accounts === null) {
-    return <p className="text-xs text-muted">Loading accounts…</p>;
+    return (
+      <p className="text-xs text-muted">
+        <Trans>Loading accounts…</Trans>
+      </p>
+    );
   }
 
   if (accounts.length === 0) {
     return (
       <div className="rounded-lg border border-dashed border-default-300 p-3 text-xs text-muted">
-        No GitHub CLI accounts found. Sign in with{" "}
-        <code className="rounded bg-content2 px-1 py-0.5">gh auth login</code>, or{" "}
-        <button
-          type="button"
-          className="text-accent underline-offset-2 hover:underline"
-          onClick={props.onSwitchToUrl}
-        >
-          paste a clone URL
-        </button>
-        .
+        <Trans>
+          No GitHub CLI accounts found. Sign in with{" "}
+          <code className="rounded bg-content2 px-1 py-0.5">gh auth login</code>, or{" "}
+          <button
+            type="button"
+            className="text-accent underline-offset-2 hover:underline"
+            onClick={props.onSwitchToUrl}
+          >
+            paste a clone URL
+          </button>
+          .
+        </Trans>
       </div>
     );
   }
@@ -486,16 +517,16 @@ function GitHubBrowser(props: {
     <div className="flex flex-col gap-2">
       {accounts.length > 1 ? (
         <Dropdown>
-          <Button aria-label="Account" variant="tertiary" className="justify-between">
+          <Button aria-label={t`Account`} variant="tertiary" className="justify-between">
             <span className="flex items-center gap-2">
               <GithubMark className="size-4 text-muted" />
-              {selectedAccount?.login ?? "Select account"}
+              {selectedAccount?.login ?? t`Select account`}
             </span>
             <ChevronDown className="size-3.5 text-muted/60" />
           </Button>
           <Dropdown.Popover className="min-w-[--trigger-width]">
             <Dropdown.Menu
-              aria-label="Account options"
+              aria-label={t`Account options`}
               selectionMode="single"
               selectedKeys={
                 selectedAccount ? [`${selectedAccount.host}\n${selectedAccount.login}`] : []
@@ -530,8 +561,8 @@ function GitHubBrowser(props: {
       <div className="relative w-full">
         <Search className="pointer-events-none absolute left-2.5 top-1/2 z-10 size-3.5 -translate-y-1/2 text-muted" />
         <Input
-          aria-label="Search repositories"
-          placeholder="Search repositories…"
+          aria-label={t`Search repositories`}
+          placeholder={t`Search repositories…`}
           value={props.repoSearch}
           onChange={(e) => props.onSearch(e.target.value)}
           className="w-full pl-8"
@@ -556,6 +587,7 @@ function RepoList(props: {
   selectedRepoId: string | null;
   onSelectRepo: (repo: GitHubRepoSummary) => void;
 }) {
+  const { t } = useLingui();
   if (props.reposError) {
     return (
       <div className="rounded-lg border border-default-200 p-3 text-xs text-danger">
@@ -575,7 +607,7 @@ function RepoList(props: {
   if (props.filteredRepos.length === 0) {
     return (
       <p className="px-1 py-10 text-center text-xs text-muted">
-        {props.repos.length === 0 ? "No repositories found." : "No matches."}
+        {props.repos.length === 0 ? t`No repositories found.` : t`No matches.`}
       </p>
     );
   }
@@ -601,7 +633,7 @@ function RepoList(props: {
                 {repo.isPrivate ? <Lock className="size-3 shrink-0 text-muted" /> : null}
               </div>
               {/* Keep every row two lines tall so the list reads like the sidebar. */}
-              <p className="truncate text-xs text-muted">{repo.description || "No description"}</p>
+              <p className="truncate text-xs text-muted">{repo.description || t`No description`}</p>
             </div>
             {repo.pushedAt ? (
               <span className="mt-0.5 shrink-0 text-[10px] text-muted/70">

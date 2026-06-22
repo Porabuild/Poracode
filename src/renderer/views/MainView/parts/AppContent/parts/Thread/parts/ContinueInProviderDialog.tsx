@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Modal, ToggleButton, Tooltip } from "@heroui/react";
+import { Trans } from "@lingui/react/macro";
 import type {
   AgentStatus,
   ExtractContextResult,
@@ -256,7 +257,9 @@ export function ContinueInProviderDialog(props: {
         <Modal.Dialog className="sm:max-w-[540px]">
           <Modal.CloseTrigger />
           <Modal.Header>
-            <Modal.Heading>Continue in another provider</Modal.Heading>
+            <Modal.Heading>
+              <Trans>Continue in another provider</Trans>
+            </Modal.Heading>
           </Modal.Header>
 
           <Modal.Body className="px-5 pb-5 pt-2">
@@ -264,7 +267,9 @@ export function ContinueInProviderDialog(props: {
               <div className="flex flex-col gap-4">
                 {/* Target provider + config */}
                 <div className="flex flex-col gap-1.5">
-                  <span className="text-xs font-medium text-muted">Target provider</span>
+                  <span className="text-xs font-medium text-muted">
+                    <Trans>Target provider</Trans>
+                  </span>
                   <div className="flex flex-wrap items-center gap-1">
                     <OptionMenu
                       buttonVariant="ghost"
@@ -305,7 +310,7 @@ export function ContinueInProviderDialog(props: {
                 {modelEffortControls.length > 0 && (
                   <div className="flex flex-col gap-1.5">
                     <span className="text-xs font-medium text-muted">
-                      Context extraction ({sourceAgent?.label ?? thread.agentKind})
+                      <Trans>Context extraction ({sourceAgent?.label ?? thread.agentKind})</Trans>
                     </span>
                     <div className="flex flex-wrap items-center gap-1">
                       {modelEffortControls.map((control, index) =>
@@ -321,14 +326,16 @@ export function ContinueInProviderDialog(props: {
               <div className="flex items-center gap-3 py-2">
                 <PixelLoader size="sm" />
                 <p className="text-sm text-muted">
-                  Extracting context from {sourceAgent?.label ?? thread.agentKind}...
+                  <Trans>Extracting context from {sourceAgent?.label ?? thread.agentKind}...</Trans>
                 </p>
               </div>
             )}
 
             {phase === "error" && (
               <div className="flex flex-col gap-2">
-                <p className="text-sm">Could not extract context.</p>
+                <p className="text-sm">
+                  <Trans>Could not extract context.</Trans>
+                </p>
                 {errorMessage && (
                   <p className="max-h-20 overflow-y-auto text-xs text-muted">{errorMessage}</p>
                 )}
@@ -340,36 +347,36 @@ export function ContinueInProviderDialog(props: {
             {phase === "select" && (
               <>
                 <Button slot="close" variant="tertiary">
-                  Cancel
+                  <Trans>Cancel</Trans>
                 </Button>
                 <Button
                   variant="secondary"
                   isDisabled={!selectedKind}
                   onPress={() => handleAction(false)}
                 >
-                  Clone
+                  <Trans>Clone</Trans>
                 </Button>
                 <Button
                   variant="primary"
                   isDisabled={!selectedKind}
                   onPress={() => handleAction(true)}
                 >
-                  Move
+                  <Trans>Move</Trans>
                 </Button>
               </>
             )}
             {phase === "extracting" && (
               <Button variant="tertiary" onPress={handleCancel}>
-                Cancel
+                <Trans>Cancel</Trans>
               </Button>
             )}
             {phase === "error" && (
               <>
                 <Button variant="tertiary" onPress={handleCancel}>
-                  Cancel
+                  <Trans>Cancel</Trans>
                 </Button>
                 <Button variant="secondary" onPress={handleStartWithoutContext}>
-                  Start Without Context
+                  <Trans>Start Without Context</Trans>
                 </Button>
               </>
             )}

@@ -1,6 +1,8 @@
 import { toast } from "@heroui/react";
+import { msg } from "@lingui/core/macro";
 import type { ProjectLocation } from "@/shared/contracts";
 import { readBridge } from "@/renderer/bridge";
+import { i18n } from "@/renderer/i18n/i18n";
 
 interface StartShellPayload {
   shellId: string;
@@ -12,7 +14,7 @@ export function startShellWithToast(payload: StartShellPayload, label: string): 
   void readBridge()
     .startShell(payload)
     .catch((error) =>
-      toast.danger(error instanceof Error ? error.message : `Unable to start ${label}.`),
+      toast.danger(error instanceof Error ? error.message : i18n._(msg`Unable to start ${label}.`)),
     );
 }
 

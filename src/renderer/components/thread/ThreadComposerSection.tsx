@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState, type RefObject } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type RefObject } from "react";
 import { Tooltip } from "@heroui/react";
 import { ChevronDown, GitFork } from "lucide-react";
+import { useLingui } from "@lingui/react/macro";
 import type {
   AgentStatus,
   ProjectLocation,
@@ -16,11 +17,11 @@ import {
   AttachmentBar,
   ComposerAddMenu,
   ComposerVoiceInput,
-  ImageLightbox,
   MentionInput,
+  openAttachmentLightbox,
   useAttachments,
 } from "../composer";
-import type { MentionInputHandle } from "../composer";
+import type { MentionInputHandle, VoiceInputHandle } from "../composer";
 import { flattenSegments } from "../composer/serializeMentions";
 import { getTriggerWords } from "@/renderer/components/providers";
 import { isRemoteSession, readBridge } from "@/renderer/bridge";
@@ -63,6 +64,7 @@ import {
   resolveAvailableSlashCommands,
   resolveLocalSlashCommandAction,
 } from "./threadSlashCommands";
+import { useKeybindingStore } from "@/renderer/commands/keybindingStore";
 import { handleComposerControlShortcut } from "./threadComposerShortcuts";
 import { isAuthErrorMessage, type ThreadErrorDockState } from "./threadErrorState";
 import type { ThreadGoalDockState } from "./threadGoalState";
@@ -214,14 +216,39 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
     goalDockState,
     errorDockStates,
   } = props;
+  const { t } = useLingui();
   const [prompt, setPrompt] = useState("");
   const [hasContent, setHasContent] = useState(false);
   const showVoiceInputButton =
     useSharedSettings((s) => s.audio.showVoiceInputButton) && !isRemoteSession();
   const mentionRef = useRef<MentionInputHandle>(null);
+  const voiceInputRef = useRef<VoiceInputHandle>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isInterrupting, setIsInterrupting] = useState(false);
   const attachments = useAttachments();
+  // Unsent composer content survives leaving this thread: switching panes
+  // remounts this section (ThreadPane is keyed by threadId), so we save the
+  // typed segments + attachments on unmount and restore them on the next mount.
+  const saveThreadDraftContent = useAppStore((s) => s.saveThreadDraftContent);
+  const clearThreadDraftContent = useAppStore((s) => s.clearThreadDraftContent);
+  // The MentionInput owns the live editor DOM; mirror its latest serialized
+  // segments here (updated on every text change) so the unmount cleanup can read
+  // them without touching a possibly-detached editor ref. Attachments are synced
+  // every render below.
+  const latestSegmentsRef = useRef<PromptSegment[]>([]);
+  const attachmentsRef = useRef(attachments.attachments);
+  attachmentsRef.current = attachments.attachments;
+  // True only while a real submit is in flight. Terminal/CLI threads clear the
+  // composer *after* the send resolves (the synchronous pre-send clear below is
+  // GUI-only), so without this guard, navigating away mid-send would unmount and
+  // re-save the just-sent text as a stale draft. Reset every time (success or
+  // failure) because this composer is reused for the next message.
+  const submittedRef = useRef(false);
+  // Captured once at mount; consumed (and cleared) by the restore effect below.
+  const initialThreadDraftRef = useRef(useAppStore.getState().threadDraftContents[thread.id]);
+  // Guards the restore effect so it runs exactly once — when the editor first
+  // mounts — even though its dep (`editorMounted`) can flip after mount.
+  const draftRestoredRef = useRef(false);
   const pendingPickedAttachments = useBrowserAttachInbox((s) => s.itemsByThread[thread.id]);
   const addPickedRef = useRef(attachments.addPicked);
   addPickedRef.current = attachments.addPicked;
@@ -245,8 +272,6 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
     nonce: number;
   } | null>(null);
   const [contextDockOpen, setContextDockOpen] = useState(false);
-  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
-  const imageAttachments = attachments.attachments.filter((a) => a.isImage);
   const presentationMode =
     thread.presentationMode ?? agentStatus?.capabilities.presentationMode ?? "terminal";
   const usesTerminalPresentation = presentationMode === "terminal";
@@ -369,6 +394,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
   const project = useAppStore((s) =>
     s.projects.find((candidate) => candidate.id === thread.projectId),
   );
+  const agentFallbackLabel = t`the agent`;
 
   useEffect(() => {
     if (!showContextIndicator && contextDockOpen) {
@@ -448,6 +474,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
       mentionRef.current?.focus();
       setPrompt("");
       setHasContent(false);
+      latestSegmentsRef.current = [];
       return;
     }
     if (localAction?.kind === "open-control") {
@@ -458,6 +485,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
       mentionRef.current?.clear();
       setPrompt("");
       setHasContent(false);
+      latestSegmentsRef.current = [];
       return;
     }
     if (localAction?.kind === "toggle-fast") {
@@ -468,6 +496,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
       mentionRef.current?.focus();
       setPrompt("");
       setHasContent(false);
+      latestSegmentsRef.current = [];
       return;
     }
     const submittedInputSegments = segments;
@@ -477,6 +506,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
       mentionRef.current?.focus();
       setPrompt("");
       setHasContent(false);
+      latestSegmentsRef.current = [];
       attachments.clearAll();
     };
     const restoreSubmittedComposer = () => {
@@ -489,6 +519,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
       }
     };
     let clearedBeforeSendSettled = false;
+    submittedRef.current = true;
     setIsSubmitting(true);
     if (!usesTerminalPresentation) {
       useAppStore.getState().requestChatScrollToBottom(thread.id);
@@ -555,6 +586,9 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
         }
       })
       .finally(() => {
+        // The composer is now either cleared (success) or restored (failure);
+        // either way the refs reflect the real state, so re-arm draft-saving.
+        submittedRef.current = false;
         setIsSubmitting(false);
       });
   }
@@ -591,6 +625,51 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
     setContextDockOpen(false);
     setComposerCollapsed(collapseTerminalComposerSetting);
   }, [thread.id, collapseTerminalComposerSetting]);
+
+  // Restore an unsent draft saved the last time this thread's composer was
+  // mounted. useLayoutEffect (and reading the editor via the imperative handle)
+  // runs before paint so the text never flashes empty. Consume the entry so a
+  // later real send doesn't resurrect it.
+  //
+  // A terminal thread that is still `launching` hides the whole composer (so the
+  // MentionInput — and `mentionRef` — does not exist yet). Restoring into a null
+  // editor would silently drop the text while still consuming the stored draft,
+  // so defer until the editor mounts; the effect re-runs when `editorMounted`
+  // flips, at which point `mentionRef` is attached.
+  const editorMounted = !usesTerminalPresentation || thread.status !== "launching";
+  useLayoutEffect(() => {
+    if (draftRestoredRef.current || !editorMounted) return;
+    draftRestoredRef.current = true;
+    const saved = initialThreadDraftRef.current;
+    if (!saved) return;
+    if (saved.segments.length > 0) {
+      mentionRef.current?.restoreFromSegments(saved.segments);
+      latestSegmentsRef.current = saved.segments;
+    }
+    if (saved.attachments.length > 0) {
+      attachments.restore(saved.attachments);
+    }
+    clearThreadDraftContent(thread.id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- restore runs once, when the editor first mounts
+  }, [editorMounted]);
+
+  // Save whatever is left in the composer when this thread's section unmounts
+  // (navigating to another thread/pane). A cleared composer leaves both refs
+  // empty, so a just-sent message is not re-saved; an in-flight submit is
+  // skipped via submittedRef because its text has already been handed off.
+  useEffect(() => {
+    const tid = thread.id;
+    return () => {
+      if (submittedRef.current) return;
+      const segments = latestSegmentsRef.current;
+      const atts = attachmentsRef.current;
+      if (segments.length > 0 || atts.length > 0) {
+        saveThreadDraftContent(tid, { segments, attachments: atts });
+      } else {
+        clearThreadDraftContent(tid);
+      }
+    };
+  }, [thread.id, saveThreadDraftContent, clearThreadDraftContent]);
 
   useEffect(() => {
     if (thread.status !== "working") setIsInterrupting(false);
@@ -768,8 +847,9 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                       attachments={attachments.attachments}
                       onRemove={attachments.removeAttachment}
                       onPreviewImage={(att) => {
+                        const imageAttachments = attachments.attachments.filter((a) => a.isImage);
                         const idx = imageAttachments.findIndex((a) => a.id === att.id);
-                        if (idx >= 0) setLightboxIndex(idx);
+                        if (idx >= 0) openAttachmentLightbox(imageAttachments, idx);
                       }}
                     />
                   }
@@ -781,15 +861,18 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                       disabled={!(showServerComposer || showTerminalComposer)}
                       placeholder={
                         approvalDenyOption
-                          ? "Deny and tell the agent what to do differently…"
+                          ? t`Deny and tell the agent what to do differently…`
                           : isServerControlled
-                            ? `Ask ${agentStatus?.label ?? "the agent"} anything about this workspace`
-                            : "Send a message..."
+                            ? t`Ask ${agentStatus?.label ?? agentFallbackLabel} anything about this workspace`
+                            : t`Send a message...`
                       }
                       projectLocation={projectLocation}
                       projectId={thread.projectId}
                       triggerWords={getTriggerWords(thread.agentKind, thread.config.model)}
-                      onTextChange={setHasContent}
+                      onTextChange={(hasText) => {
+                        setHasContent(hasText);
+                        latestSegmentsRef.current = mentionRef.current?.serializeSegments() ?? [];
+                      }}
                       onSubmit={submitPrompt}
                       onPasteImage={(file) => {
                         void attachments.addClipboardImage(file, thread.id);
@@ -799,12 +882,15 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                           !usesTerminalPresentation &&
                           handleComposerControlShortcut(e, {
                             controls: controlsWithOpenSignal,
+                            keybindings: useKeybindingStore.getState().keybindings,
+                            platform: readBridge().platform,
                             onOpenModelPicker: () => {
                               setControlOpenRequest((prev) => ({
                                 target: "model",
                                 nonce: (prev?.nonce ?? 0) + 1,
                               }));
                             },
+                            onStartDictation: () => voiceInputRef.current?.toggle() ?? false,
                           })
                         ) {
                           return true;
@@ -853,13 +939,13 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                     />
                   }
                   controls={controlsWithOpenSignal}
-                  placeholder="Send a message..."
+                  placeholder={t`Send a message...`}
                   prompt={prompt}
                   promptDisabled={!(showServerComposer || showTerminalComposer)}
                   preserveDisabledControlStyle={isStructuredLaunching}
                   stopPending={isInterrupting || isStructuredLaunching}
                   submitDisabled={!(hasContent || attachments.attachments.length > 0) || !canSubmit}
-                  submitLabel="Send message"
+                  submitLabel={t`Send message`}
                   onStop={
                     canInterruptStructuredTurn
                       ? handleInterrupt
@@ -868,7 +954,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                         : undefined
                   }
                   {...(() => {
-                    const renderExtras = (level: number) => (
+                    const renderExtras = () => (
                       <>
                         {showContextIndicator ? (
                           <ThreadContextIndicator
@@ -897,9 +983,17 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                               <Tooltip.Trigger tabIndex={-1} role="none">
                                 <div className="lightcode-composer-static lightcode-composer-worktree min-w-0 max-w-48 px-2.5">
                                   <GitFork className="size-3.5 text-muted" />
-                                  {level < 3 && <span className="truncate">{branchName}</span>}
-                                  {level < 3 && thread.prNumber ? (
-                                    <span className="shrink-0 text-muted/60">
+                                  <span
+                                    data-collapse-tier={3}
+                                    className="lightcode-composer-label-hideable truncate"
+                                  >
+                                    {branchName}
+                                  </span>
+                                  {thread.prNumber ? (
+                                    <span
+                                      data-collapse-tier={3}
+                                      className="lightcode-composer-label-hideable shrink-0 text-muted/60"
+                                    >
                                       PR #{thread.prNumber}
                                     </span>
                                   ) : null}
@@ -922,8 +1016,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                                       project.scripts.worktreeCopyPatterns,
                                   }
                                 : {})}
-                              forceHideLabel={level >= 3}
-                              iconOnly={level >= 3}
+                              collapseTier={3}
                             />
                           )
                         ) : null}
@@ -938,14 +1031,15 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                           !(showServerComposer || showTerminalComposer)
                         }
                         mentionRef={mentionRef}
+                        voiceInputRef={voiceInputRef}
                       />
                     );
                     return isCliThread
                       ? { leadingControls: renderExtras, afterControls: renderVoiceInput }
                       : {
-                          afterControls: (level: number) => (
+                          afterControls: () => (
                             <>
-                              {renderExtras(level)}
+                              {renderExtras()}
                               {renderVoiceInput()}
                             </>
                           ),
@@ -969,7 +1063,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
             <div className="relative z-10 flex h-0 justify-center">
               <button
                 type="button"
-                aria-label={isComposerCollapsed ? "Show composer" : "Collapse composer"}
+                aria-label={isComposerCollapsed ? t`Show composer` : t`Collapse composer`}
                 className="absolute -top-[9px] flex items-center rounded-full border border-[var(--border)] bg-[var(--background)] px-2 py-0 text-muted transition-colors hover:text-foreground"
                 onClick={() => setComposerCollapsed(!composerCollapsed)}
               >
@@ -980,14 +1074,6 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
             </div>
           ) : null}
         </div>
-      ) : null}
-
-      {lightboxIndex !== null && imageAttachments.length > 0 ? (
-        <ImageLightbox
-          images={imageAttachments}
-          initialIndex={lightboxIndex}
-          onClose={() => setLightboxIndex(null)}
-        />
       ) : null}
     </>
   );

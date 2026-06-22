@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ArrowUpDown } from "lucide-react";
+import { Trans, useLingui } from "@lingui/react/macro";
 import { overlaySidebarSurfaceClass } from "@/renderer/components/layout/sidebarChrome";
 import { useNotesStore } from "@/renderer/state/notesStore";
 import {
@@ -26,6 +27,7 @@ const clampRatio = (n: number) => Math.min(MAX_RATIO, Math.max(MIN_RATIO, n));
  */
 export function NotesPanel(props: { projectId: string }) {
   const { projectId } = props;
+  const { t } = useLingui();
   const ensureLoaded = useNotesStore((s) => s.ensureLoaded);
   const flush = useNotesStore((s) => s.flush);
   const status = useNotesStore((s) => s.byProject[projectId]?.status ?? "unloaded");
@@ -67,7 +69,7 @@ export function NotesPanel(props: { projectId: string }) {
       <div
         className={`flex h-full min-h-0 items-center justify-center ${overlaySidebarSurfaceClass} text-xs text-muted`}
       >
-        Loading notes…
+        <Trans>Loading notes…</Trans>
       </div>
     );
   }
@@ -96,14 +98,14 @@ export function NotesPanel(props: { projectId: string }) {
         <div
           role="separator"
           aria-orientation="horizontal"
-          aria-label="Resize notes and to-dos"
+          aria-label={t`Resize notes and to-dos`}
           className="absolute inset-x-0 -top-1.5 z-0 h-3 cursor-row-resize"
           onPointerDown={onResizePointerDown}
         />
         <button
           type="button"
-          title="Swap notes and to-dos"
-          aria-label="Swap notes and to-dos"
+          title={t`Swap notes and to-dos`}
+          aria-label={t`Swap notes and to-dos`}
           className="absolute z-10 flex size-5 items-center justify-center rounded-full border border-[color:var(--border)] bg-[var(--content-background)] text-muted opacity-0 transition-opacity hover:text-foreground group-hover/divider:opacity-100"
           onPointerDown={(e) => e.stopPropagation()}
           onClick={() => {

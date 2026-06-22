@@ -102,6 +102,34 @@ export function findBestHint<T extends HintEntry>(
   return best?.entry ?? null;
 }
 
+interface StatusHintEntry extends HintEntry {
+  status: TerminalStatusHint["status"];
+  attention: TerminalStatusHint["attention"];
+}
+
+/**
+ * Detect terminal status from strong + fallback-idle hint entries. Shared by
+ * agents whose TUI uses the same pattern: try strong hints first, then
+ * fallback-idle hints with corroboration when all fallback entries match.
+ */
+export function detectTerminalStatusFromHints(
+  text: string,
+  strongHints: readonly StatusHintEntry[],
+  fallbackIdleHints: readonly StatusHintEntry[],
+): TerminalStatusHint | null {
+  const tail = text.slice(-1200);
+
+  const strong = findBestHint(tail, strongHints);
+  if (strong) {
+    return { status: strong.status, attention: strong.attention, corroborated: true };
+  }
+
+  const fallback = findBestHint(tail, fallbackIdleHints);
+  if (!fallback) return null;
+  const bothPresent = fallbackIdleHints.every((entry) => entry.re.test(tail));
+  return { status: fallback.status, attention: fallback.attention, corroborated: bothPresent };
+}
+
 export function applyTerminalHintToConfig(
   input: SyncConfigFromTerminalStateInput,
 ): ThreadConfig | undefined {

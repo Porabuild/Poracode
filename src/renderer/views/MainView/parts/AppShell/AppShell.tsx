@@ -1,5 +1,6 @@
 import {
   createContext,
+  memo,
   type ReactNode,
   type RefObject,
   useContext,
@@ -9,8 +10,10 @@ import {
   useState,
 } from "react";
 import { useShallow } from "zustand/shallow";
+import { useLingui } from "@lingui/react/macro";
 import { isMac, isWindows } from "@/renderer/bridge";
 import { useTwoRafReady } from "@/renderer/hooks/useTwoRafReady";
+import { useSidebarGlassActive } from "@/renderer/hooks/useGlassState";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { macosTrafficLightPadClass } from "@/renderer/components/layout/sidebarChrome";
 import {
@@ -205,7 +208,7 @@ function ShellSidebarSpacer(props: { hasHeaders: boolean; forceSidebarExpanded: 
   if (!isOverlay) return null;
   return (
     <div
-      className={`shrink-0 ${!props.hasHeaders ? "-mt-5 h-[calc(100%+0.75rem)]" : ""}`}
+      className={`lightcode-sidebar-spacer shrink-0 ${!props.hasHeaders ? "-mt-5 h-[calc(100%+0.75rem)]" : ""}`}
       style={{ width: SIDEBAR_COLLAPSED_WIDTH, minWidth: SIDEBAR_COLLAPSED_WIDTH }}
     />
   );
@@ -235,16 +238,27 @@ function ShellSidebarAside(props: {
   const effectiveClosingOverlay = forceSidebarExpanded ? false : closingOverlay;
   const effectiveIsOverlay = forceSidebarExpanded ? false : isOverlay;
 
+  // A translucent sidebar reads as its own glass edge, so the hard hairline
+  // between it and the content looks heavy. Drop it (transparent, keeping the
+  // 1px so width doesn't shift) while glass is active — but still flash the
+  // accent on resize-handle hover, since that border is the only resize cue.
+  const glassActive = useSidebarGlassActive();
   const sidebarDividerColorClass =
     isSidebarHandleHovered && !effectiveIsOverlay
       ? "border-[color:var(--accent)]"
-      : "border-[color:var(--border)]";
-  // Windows: stop the sidebar divider below the header so it doesn't run through the title row.
+      : glassActive
+        ? "border-transparent"
+        : "border-[color:var(--border)]";
+  // Windows: stop the sidebar divider below the header so it doesn't run through the title row —
+  // the opaque title row shares --content-background across sidebar + content, reading as one
+  // continuous titlebar that a line through would split. EXCEPT when the sidebar is translucent:
+  // the header turns to glass, the seam already exists, so we keep the divider full-height to let
+  // the resize-handle hover accent run all the way to the top.
   // macOS keeps the full-height border because the header sits inside the hidden-inset titlebar.
   // HOWEVER, if the sidebar is too narrow (e.g. collapsed), the full-height border would run
   // directly through the macOS traffic light controls, so we push it below the header in that case.
   const sidebarDividerBelowHeader =
-    hasHeaders && !effectiveIsOverlay && (!isMac() || effectiveIsCollapsed);
+    hasHeaders && !effectiveIsOverlay && (isMac() ? effectiveIsCollapsed : !glassActive);
 
   // `width` and `min-width` are driven imperatively by `SidebarWidthDriver`
   // (raf-interpolated to match the drag path). React just owns the rest of
@@ -254,9 +268,9 @@ function ShellSidebarAside(props: {
   return (
     <aside
       ref={sidebarRef}
-      className={`flex min-h-0 flex-col overflow-hidden transition-[border-color] duration-200 ${
+      className={`lightcode-sidebar-aside flex min-h-0 flex-col overflow-hidden transition-[border-color] duration-200 ${
         effectiveIsOverlay
-          ? `fixed inset-y-0 left-0 z-[60] border-r border-[color:var(--border)] bg-background shadow-2xl transition-transform duration-200 ${
+          ? `lightcode-sidebar-aside--overlay fixed inset-y-0 left-0 z-[60] border-r border-[color:var(--border)] bg-background shadow-2xl transition-transform duration-200 ${
               effectiveClosingOverlay || !overlayReady ? "-translate-x-full" : "translate-x-0"
             }`
           : `relative ${
@@ -298,10 +312,10 @@ function ShellSidebarResizeHandle(props: {
   hasHeaders: boolean;
   hasContentHeader: boolean;
   forceSidebarExpanded: boolean;
-  onMouseEnter: () => void;
-  onMouseLeave: () => void;
-  onMouseDown: (event: React.MouseEvent<HTMLDivElement>) => void;
+  onHoverChange: (hovered: boolean) => void;
+  onResizeStart: (event: React.MouseEvent<HTMLDivElement>) => void;
 }) {
+  const { t } = useLingui();
   const { isCollapsed, isOverlay } = useSidebarOverlayStore(
     useShallow((s) => ({
       isCollapsed: s.isCollapsed,
@@ -324,15 +338,20 @@ function ShellSidebarResizeHandle(props: {
             }
           : undefined
       }
-      onMouseEnter={props.onMouseEnter}
-      onMouseLeave={props.onMouseLeave}
-      onMouseDown={props.onMouseDown}
+      onMouseEnter={() => props.onHoverChange(true)}
+      onMouseLeave={() => props.onHoverChange(false)}
+      onMouseDown={(event) => {
+        props.onHoverChange(false);
+        props.onResizeStart(event);
+      }}
       role="separator"
       aria-orientation="vertical"
-      aria-label="Resize sidebar"
+      aria-label={t`Resize sidebar`}
     />
   );
 }
+
+const MemoShellSidebarResizeHandle = memo(ShellSidebarResizeHandle);
 
 export function AppShell(props: {
   sidebar: ReactNode;
@@ -345,6 +364,7 @@ export function AppShell(props: {
   onRequestClosePanels?: () => void;
   onDismissRightOverlay?: () => void;
 }) {
+  const { t } = useLingui();
   const { sidebar, content, sidebarHeader, contentHeader, rightPanel, gitPanel } = props;
   const forceSidebarExpanded = props.forceSidebarExpanded === true;
   const terminalPosition = useSharedSettings((s) => s.terminalPosition);
@@ -537,16 +557,12 @@ export function AppShell(props: {
         forceSidebarExpanded={forceSidebarExpanded}
       />
 
-      <ShellSidebarResizeHandle
+      <MemoShellSidebarResizeHandle
         hasHeaders={hasHeaders}
         hasContentHeader={hasContentHeader}
         forceSidebarExpanded={forceSidebarExpanded}
-        onMouseEnter={() => setIsSidebarHandleHovered(true)}
-        onMouseLeave={() => setIsSidebarHandleHovered(false)}
-        onMouseDown={(event) => {
-          setIsSidebarHandleHovered(false);
-          handleSidebarResizeStart(event);
-        }}
+        onHoverChange={setIsSidebarHandleHovered}
+        onResizeStart={handleSidebarResizeStart}
       />
 
       <div
@@ -604,7 +620,7 @@ export function AppShell(props: {
                 onResizeStart={isBottom ? handlePanelBottomResizeStart : handlePanelResizeStart}
                 panelRef={panelRef}
                 panelInnerRef={panelInnerRef}
-                ariaLabel="Resize terminal panel"
+                ariaLabel={t`Resize terminal panel`}
                 overlay={rightPanelAsOverlay}
                 overlayReady={rightOverlayReadyForDisplay}
                 overlayTop={rightOverlayTop}
@@ -622,7 +638,7 @@ export function AppShell(props: {
               onResizeStart={handleGitPanelResizeStart}
               panelRef={gitPanelRef}
               panelInnerRef={gitPanelInnerRef}
-              ariaLabel="Resize git panel"
+              ariaLabel={t`Resize git panel`}
               overlay={gitPanelAsOverlay}
               overlayReady={rightOverlayReadyForDisplay}
               overlayTop={rightOverlayTop}

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Button, Input, Tooltip, Card, Dropdown, Label, toast } from "@heroui/react";
+import { Trans, useLingui } from "@lingui/react/macro";
 import {
   AlertTriangle,
   ArrowUpCircle,
@@ -20,7 +21,9 @@ import type {
   Project,
   RefreshAgentScope,
 } from "@/shared/contracts";
+import { msg } from "@lingui/core/macro";
 import { isWindows, readBridge } from "@/renderer/bridge";
+import { i18n } from "@/renderer/i18n/i18n";
 import { runAgentInstallCommand, runAgentLoginCommand } from "@/renderer/actions/agentLoginActions";
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
 import { useAppStore } from "@/renderer/state/appStore";
@@ -58,7 +61,10 @@ function NativeAgentVersionLabel(props: {
   if (props.latestNpmVersion) {
     return (
       <span>
-        v{props.latestNpmVersion} <span className="text-muted/60">available</span>
+        v{props.latestNpmVersion}{" "}
+        <span className="text-muted/60">
+          <Trans>available</Trans>
+        </span>
       </span>
     );
   }
@@ -82,8 +88,8 @@ function registrySearchText(agent: AcpRegistryAgent): string {
 function distributionLabel(agent: AcpRegistryAgent): string {
   if (agent.distribution.npx) return `npx ${agent.distribution.npx.package}`;
   if (agent.distribution.uvx) return `uvx ${agent.distribution.uvx.package}`;
-  if (agent.distribution.binary) return "Binary";
-  return "Custom";
+  if (agent.distribution.binary) return i18n._(msg`Binary`);
+  return i18n._(msg`Custom`);
 }
 
 interface InstallTarget {
@@ -117,6 +123,7 @@ function AgentIcon(props: {
 }
 
 export function AcpRegistrySettings(props: { onOpenAgentSettings?: (kind: string) => void }) {
+  const { t } = useLingui();
   const [agents, setAgents] = useState<AcpRegistryAgent[]>([]);
   const [query, setQuery] = useState("");
   const [isLoading, setIsLoading] = useState(true);
@@ -242,7 +249,7 @@ export function AcpRegistrySettings(props: { onOpenAgentSettings?: (kind: string
   }
   const visibleNativeAgents = NATIVE_AGENT_REGISTRY_ENTRIES.filter((agent) => {
     if (!normalizedQuery) return true;
-    return [agent.id, agent.label, agent.description]
+    return [agent.id, agent.label, t(agent.description)]
       .join(" ")
       .toLowerCase()
       .includes(normalizedQuery);
@@ -284,9 +291,9 @@ export function AcpRegistrySettings(props: { onOpenAgentSettings?: (kind: string
           REGISTRY_AGENT_FAMILY_KIND[agentId],
         );
         if (status?.authState === "missing") {
-          toast.warning(`${agent.name} needs authentication.`, {
+          toast.warning(t`${agent.name} needs authentication.`, {
             actionProps: {
-              children: "Open settings",
+              children: t`Open settings`,
               onPress: () => props.onOpenAgentSettings?.(adapterKind),
             },
           });
@@ -323,7 +330,7 @@ export function AcpRegistrySettings(props: { onOpenAgentSettings?: (kind: string
         const adapterKind = registryAdapterKind(agentId);
         await refreshStatuses({ reset: false, scope: { agentKinds: [adapterKind] } });
         syncInstalledAgents(result.installed);
-        toast.success(`${agent.name} updated to v${agent.version}.`);
+        toast.success(t`${agent.name} updated to v${agent.version}.`);
       })
       .catch((err: unknown) => {
         setError(err instanceof Error ? err.message : String(err));
@@ -426,10 +433,10 @@ export function AcpRegistrySettings(props: { onOpenAgentSettings?: (kind: string
 
   function detectionScopeLabel(status: AgentStatus): string {
     if (status.envKind === "wsl") {
-      return status.envDistro ? `WSL (${status.envDistro})` : "WSL";
+      return status.envDistro ? t`WSL (${status.envDistro})` : t`WSL`;
     }
-    if (status.envKind === "windows") return "Windows";
-    return "local";
+    if (status.envKind === "windows") return t`Windows`;
+    return t`local`;
   }
 
   const renderNativeAgentCard = (agent: NativeAgentRegistryEntry) => {
@@ -457,7 +464,7 @@ export function AcpRegistrySettings(props: { onOpenAgentSettings?: (kind: string
       if (supportsNativeWindows && !nativeStatus && firstWindowsProject) {
         installTargets.push({
           id: "windows",
-          label: "Install on Windows",
+          label: t`Install on Windows`,
           project: firstWindowsProject,
         });
       }
@@ -465,12 +472,12 @@ export function AcpRegistrySettings(props: { onOpenAgentSettings?: (kind: string
         if (installedWslDistros.has(distro)) continue;
         installTargets.push({
           id: `wsl:${distro}`,
-          label: `Install in WSL: ${distro}`,
+          label: t`Install in WSL: ${distro}`,
           project,
         });
       }
     } else if (!nativeStatus && (supportsNativeWindows || !isWindowsPlatform)) {
-      installTargets.push({ id: "default", label: "Install" });
+      installTargets.push({ id: "default", label: t`Install` });
     }
     // Native Windows without WSL available, for an agent that has no Windows
     // installer (e.g. Grok Build): nothing to install here yet.
@@ -518,7 +525,7 @@ export function AcpRegistrySettings(props: { onOpenAgentSettings?: (kind: string
             {({ isPending }) => (
               <>
                 {isPending ? <PixelLoader size="xs" /> : <Download className="size-4" />}
-                {isPending ? "Installing" : (target?.label ?? "Install")}
+                {isPending ? t`Installing` : (target?.label ?? t`Install`)}
               </>
             )}
           </Button>
@@ -531,14 +538,14 @@ export function AcpRegistrySettings(props: { onOpenAgentSettings?: (kind: string
             {({ isPending }) => (
               <>
                 {isPending ? <PixelLoader size="xs" /> : <Download className="size-4" />}
-                {isPending ? "Installing" : "Install"}
+                {isPending ? t`Installing` : t`Install`}
                 {isPending ? null : <ChevronDown className="size-3.5" />}
               </>
             )}
           </Button>
           <Dropdown.Popover placement="bottom end">
             <Dropdown.Menu
-              aria-label={`${agent.label} install targets`}
+              aria-label={t`${agent.label} install targets`}
               onAction={(key) => runInstallTarget(targetsById.get(String(key)))}
             >
               {installTargets.map((target) => (
@@ -571,10 +578,10 @@ export function AcpRegistrySettings(props: { onOpenAgentSettings?: (kind: string
                   <Card.Title className="truncate text-base font-semibold">
                     {agent.label}
                   </Card.Title>
-                  {renderTag("Native")}
+                  {renderTag(t`Native`)}
                 </div>
                 <Card.Description className="line-clamp-2 text-sm text-foreground/85">
-                  {agent.description}
+                  {t(agent.description)}
                 </Card.Description>
               </Card.Header>
 
@@ -584,7 +591,9 @@ export function AcpRegistrySettings(props: { onOpenAgentSettings?: (kind: string
                     {nativeStatus ? (
                       <span className="inline-flex h-8 items-center gap-1 rounded-md px-2 text-xs text-muted">
                         <CheckCircle2 className="size-3.5 text-success" />
-                        Detected <span className="text-muted/70">(local)</span>
+                        <Trans>
+                          Detected <span className="text-muted/70">(local)</span>
+                        </Trans>
                       </span>
                     ) : null}
                     {installedWslStatuses.map((status) => (
@@ -593,10 +602,12 @@ export function AcpRegistrySettings(props: { onOpenAgentSettings?: (kind: string
                         className="inline-flex h-8 items-center gap-1 rounded-md px-2 text-xs text-muted"
                       >
                         <CheckCircle2 className="size-3.5 text-success" />
-                        Detected{" "}
-                        <span className="text-muted/70">
-                          {status.envDistro ? `WSL (${status.envDistro})` : "WSL"}
-                        </span>
+                        <Trans>
+                          Detected{" "}
+                          <span className="text-muted/70">
+                            {status.envDistro ? `WSL (${status.envDistro})` : "WSL"}
+                          </span>
+                        </Trans>
                       </span>
                     ))}
                   </div>
@@ -604,14 +615,16 @@ export function AcpRegistrySettings(props: { onOpenAgentSettings?: (kind: string
                 {renderInstallControl()}
                 {showWindowsUnsupportedNotice ? (
                   <span className="max-w-[13rem] text-right text-xs text-muted">
-                    Windows is not supported yet. Install inside WSL or on macOS/Linux.
+                    <Trans>
+                      Windows is not supported yet. Install inside WSL or on macOS/Linux.
+                    </Trans>
                   </span>
                 ) : null}
                 {isInstalled && missingAuthStatus ? (
                   <div className="flex items-center gap-2 text-xs text-warning">
                     <span className="inline-flex items-center gap-1 whitespace-nowrap">
                       <AlertTriangle className="size-3.5" />
-                      Sign in required
+                      <Trans>Sign in required</Trans>
                     </span>
                     {loginCommand ? (
                       <Button
@@ -632,7 +645,7 @@ export function AcpRegistrySettings(props: { onOpenAgentSettings?: (kind: string
                         {({ isPending }) => (
                           <>
                             {isPending ? <PixelLoader size="xs" /> : <LogIn className="size-3.5" />}
-                            {isPending ? "Signing in" : "Login"}
+                            {isPending ? t`Signing in` : t`Login`}
                           </>
                         )}
                       </Button>
@@ -643,7 +656,9 @@ export function AcpRegistrySettings(props: { onOpenAgentSettings?: (kind: string
             </div>
 
             <Card.Footer className="flex flex-wrap items-center gap-x-4 gap-y-2 p-0 text-xs text-muted">
-              <span className="font-medium">ID: {agent.id}</span>
+              <span className="font-medium">
+                <Trans>ID: {agent.id}</Trans>
+              </span>
               <NativeAgentVersionLabel
                 installedVersion={nativeStatus?.version ?? installedWslStatuses[0]?.version}
                 latestNpmVersion={nativeLatestVersions[agent.id]}
@@ -654,7 +669,7 @@ export function AcpRegistrySettings(props: { onOpenAgentSettings?: (kind: string
                 onClick={() => void readBridge().openExternal(agent.docsUrl)}
               >
                 <Link className="size-3.5" />
-                Docs
+                <Trans>Docs</Trans>
               </button>
             </Card.Footer>
           </div>
@@ -708,8 +723,8 @@ export function AcpRegistrySettings(props: { onOpenAgentSettings?: (kind: string
                   <span className="text-sm font-medium tabular-nums text-muted">
                     v{installedRecord?.version ?? agent.version}
                   </span>
-                  {renderTag("ACP")}
-                  {APP_SUPPORTED_ACP_AGENT_IDS.has(agent.id) ? renderTag("Native support") : null}
+                  {renderTag(t`ACP`)}
+                  {APP_SUPPORTED_ACP_AGENT_IDS.has(agent.id) ? renderTag(t`Native support`) : null}
                 </div>
                 <Card.Description className="line-clamp-2 text-xs text-foreground/85">
                   {agent.description}
@@ -733,7 +748,7 @@ export function AcpRegistrySettings(props: { onOpenAgentSettings?: (kind: string
                             ) : (
                               <ArrowUpCircle className="size-4" />
                             )}
-                            {isPending ? "Updating" : `Update to v${agent.version}`}
+                            {isPending ? t`Updating` : t`Update to v${agent.version}`}
                           </>
                         )}
                       </Button>
@@ -748,7 +763,7 @@ export function AcpRegistrySettings(props: { onOpenAgentSettings?: (kind: string
                       {({ isPending }) => (
                         <>
                           {isPending ? <PixelLoader size="xs" /> : <Trash2 className="size-4" />}
-                          {isPending ? "Deleting" : "Delete"}
+                          {isPending ? t`Deleting` : t`Delete`}
                         </>
                       )}
                     </Button>
@@ -761,8 +776,10 @@ export function AcpRegistrySettings(props: { onOpenAgentSettings?: (kind: string
                         className="inline-flex h-8 items-center gap-1 rounded-md px-2 text-xs text-muted"
                       >
                         <CheckCircle2 className="size-3.5 text-success" />
-                        Detected{" "}
-                        <span className="text-muted/70">({detectionScopeLabel(status)})</span>
+                        <Trans>
+                          Detected{" "}
+                          <span className="text-muted/70">({detectionScopeLabel(status)})</span>
+                        </Trans>
                       </span>
                     ))}
                   </div>
@@ -776,7 +793,7 @@ export function AcpRegistrySettings(props: { onOpenAgentSettings?: (kind: string
                     {({ isPending }) => (
                       <>
                         {isPending ? <PixelLoader size="xs" /> : <Download className="size-4" />}
-                        {isPending ? "Installing" : "Install"}
+                        {isPending ? t`Installing` : t`Install`}
                       </>
                     )}
                   </Button>
@@ -785,7 +802,7 @@ export function AcpRegistrySettings(props: { onOpenAgentSettings?: (kind: string
                   <div className="flex max-w-[13rem] flex-col items-end gap-1 text-right text-xs text-warning">
                     <span className="inline-flex items-center gap-1">
                       <AlertTriangle className="size-3.5" />
-                      Sign in required
+                      <Trans>Sign in required</Trans>
                     </span>
                     {agentAuthMethod ? (
                       <div className="flex flex-col items-end gap-2">
@@ -805,10 +822,9 @@ export function AcpRegistrySettings(props: { onOpenAgentSettings?: (kind: string
                             }
                           >
                             <LogIn className="size-3.5" />
-                            Login
                             {agentAuthEntries.length > 1
-                              ? ` ${detectionScopeLabel(entry.status)}`
-                              : ""}
+                              ? t`Login ${detectionScopeLabel(entry.status)}`
+                              : t`Login`}
                           </Button>
                         ))}
                       </div>
@@ -831,7 +847,7 @@ export function AcpRegistrySettings(props: { onOpenAgentSettings?: (kind: string
                         {({ isPending }) => (
                           <>
                             {isPending ? <PixelLoader size="xs" /> : <LogIn className="size-3.5" />}
-                            {isPending ? "Signing in" : "Login"}
+                            {isPending ? t`Signing in` : t`Login`}
                           </>
                         )}
                       </Button>
@@ -842,7 +858,9 @@ export function AcpRegistrySettings(props: { onOpenAgentSettings?: (kind: string
             </div>
 
             <Card.Footer className="flex flex-wrap items-center gap-x-4 gap-y-2 p-0 text-xs text-muted">
-              <span className="font-medium">ID: {agent.id}</span>
+              <span className="font-medium">
+                <Trans>ID: {agent.id}</Trans>
+              </span>
               <span>{distributionLabel(agent)}</span>
               {agent.repository ? (
                 <button
@@ -851,7 +869,7 @@ export function AcpRegistrySettings(props: { onOpenAgentSettings?: (kind: string
                   onClick={() => void readBridge().openExternal(agent.repository!)}
                 >
                   <GitFork className="size-3.5" />
-                  Repository
+                  <Trans>Repository</Trans>
                 </button>
               ) : null}
               {agent.website ? (
@@ -861,7 +879,7 @@ export function AcpRegistrySettings(props: { onOpenAgentSettings?: (kind: string
                   onClick={() => void readBridge().openExternal(agent.website!)}
                 >
                   <Link className="size-3.5" />
-                  Website
+                  <Trans>Website</Trans>
                 </button>
               ) : null}
             </Card.Footer>
@@ -873,7 +891,11 @@ export function AcpRegistrySettings(props: { onOpenAgentSettings?: (kind: string
 
   const renderAgentList = () => {
     if (isLoading) {
-      return <div className="py-10 text-sm text-muted">Loading registry...</div>;
+      return (
+        <div className="py-10 text-sm text-muted">
+          <Trans>Loading registry...</Trans>
+        </div>
+      );
     }
 
     if (
@@ -881,28 +903,38 @@ export function AcpRegistrySettings(props: { onOpenAgentSettings?: (kind: string
       installedAgents.length === 0 &&
       availableAgents.length === 0
     ) {
-      return <div className="py-10 text-sm text-muted">No matching agents.</div>;
+      return (
+        <div className="py-10 text-sm text-muted">
+          <Trans>No matching agents.</Trans>
+        </div>
+      );
     }
 
     return (
       <div className="flex flex-col gap-8">
         {visibleNativeAgents.length > 0 && (
           <div className="flex flex-col gap-3">
-            <h2 className="text-sm font-semibold text-muted">Native Providers</h2>
+            <h2 className="text-sm font-semibold text-muted">
+              <Trans>Native Providers</Trans>
+            </h2>
             {visibleNativeAgents.map(renderNativeAgentCard)}
           </div>
         )}
 
         {installedAgents.length > 0 && (
           <div className="flex flex-col gap-3">
-            <h2 className="text-sm font-semibold text-muted">ACP Agents</h2>
+            <h2 className="text-sm font-semibold text-muted">
+              <Trans>ACP Agents</Trans>
+            </h2>
             {installedAgents.map(renderAgentCard)}
           </div>
         )}
 
         {availableAgents.length > 0 && (
           <div className="flex flex-col gap-3">
-            <h2 className="text-sm font-semibold text-muted">Available ACP Agents</h2>
+            <h2 className="text-sm font-semibold text-muted">
+              <Trans>Available ACP Agents</Trans>
+            </h2>
             {availableAgents.map(renderAgentCard)}
           </div>
         )}
@@ -916,9 +948,13 @@ export function AcpRegistrySettings(props: { onOpenAgentSettings?: (kind: string
         <div className="mb-6 flex flex-col gap-4 shrink-0">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="min-w-0">
-              <h1 className="text-xl font-semibold text-foreground">Agent Registry</h1>
+              <h1 className="text-xl font-semibold text-foreground">
+                <Trans>Agent Registry</Trans>
+              </h1>
               <p className="text-sm text-muted">
-                Install native providers first; use ACP for additional protocol agents.
+                <Trans>
+                  Install native providers first; use ACP for additional protocol agents.
+                </Trans>
               </p>
             </div>
             <div className="flex items-center gap-2">
@@ -949,7 +985,9 @@ export function AcpRegistrySettings(props: { onOpenAgentSettings?: (kind: string
                     }
                   </Button>
                 </Tooltip.Trigger>
-                <Tooltip.Content>Refresh registry</Tooltip.Content>
+                <Tooltip.Content>
+                  <Trans>Refresh registry</Trans>
+                </Tooltip.Content>
               </Tooltip>
             </div>
           </div>
@@ -957,9 +995,9 @@ export function AcpRegistrySettings(props: { onOpenAgentSettings?: (kind: string
           <div className="relative w-full shrink-0">
             <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted" />
             <Input
-              aria-label="Search agents"
+              aria-label={t`Search agents`}
               className="w-full pl-9"
-              placeholder="Search agents..."
+              placeholder={t`Search agents...`}
               value={query}
               onChange={(event) => setQuery(event.target.value)}
             />

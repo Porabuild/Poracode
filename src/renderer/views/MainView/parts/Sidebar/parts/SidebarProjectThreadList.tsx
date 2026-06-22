@@ -1,3 +1,4 @@
+import { useLingui } from "@lingui/react/macro";
 import type { Project } from "@/shared/contracts";
 import {
   useCurrentThreadIdsCount,
@@ -9,6 +10,7 @@ import { ChevronDown } from "lucide-react";
 import { useDragSource } from "@/renderer/dnd";
 import { openNewThread, openNewThreadSideBySide } from "@/renderer/actions/threadActions";
 import { useSidebarUiStore, useThreadListLimit } from "@/renderer/state/sidebarUiStore";
+import { useThreadLiveWorkflowStore } from "@/renderer/state/threadLiveWorkflowStore";
 import { SidebarButton } from "@/renderer/components/common";
 import { NewThreadButton } from "./NewThreadButton";
 import { buildSidebarProjectRows, type SidebarRow } from "./sidebarProjectRows";
@@ -29,6 +31,7 @@ export function SidebarProjectThreadList(props: { project: Project; sortMode: Th
   const currentThreadCount = useCurrentThreadIdsCount();
   const isDraftActive = useIsCurrentProjectDraft(project.id);
   const source = useDragSource();
+  const liveWorkflowThreadIds = useThreadLiveWorkflowStore((s) => s.liveThreadIds);
 
   const rows = buildSidebarProjectRows({
     projectId: project.id,
@@ -36,6 +39,7 @@ export function SidebarProjectThreadList(props: { project: Project; sortMode: Th
     sortMode,
     collapsedWorktrees,
     visibleLimit,
+    liveWorkflowThreadIds,
   });
 
   return (
@@ -70,11 +74,12 @@ export function SidebarProjectThreadList(props: { project: Project; sortMode: Th
 }
 
 function SeeMoreThreadsButton(props: { onPress: () => void }) {
+  const { t } = useLingui();
   return (
     <SidebarButton
       size="xs"
       icon={<ChevronDown className="size-3.5" />}
-      label="See more"
+      label={t`See more`}
       onPress={props.onPress}
     />
   );
@@ -87,6 +92,7 @@ function SidebarThreadRow(props: {
   setEditingThreadId: (id: string | null) => void;
 }) {
   const { row, project, editingThreadId, setEditingThreadId } = props;
+  const { t } = useLingui();
 
   if (row.kind === "thread") {
     return (
@@ -125,7 +131,7 @@ function SidebarThreadRow(props: {
         />
       ) : row.kind === "section-label" ? (
         <div className="px-1.5 pb-0.5 pt-2 text-[10px] font-medium uppercase tracking-wider text-muted">
-          {row.label}
+          {t(row.label)}
         </div>
       ) : (
         <div aria-hidden className="mx-1.5 my-1 h-px bg-[var(--hairline)]" />

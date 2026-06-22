@@ -1,3 +1,4 @@
+import { msg } from "@lingui/core/macro";
 import type {
   AgentCapability,
   AgentStatus,
@@ -5,6 +6,7 @@ import type {
   Thread,
   ThreadContextUsage,
 } from "@/shared/contracts";
+import { i18n } from "@/renderer/i18n/i18n";
 import { capabilitiesForPresentation } from "./threadComposerOptions";
 import { formatTokenCount } from "./formatTokenCount";
 
@@ -53,25 +55,25 @@ export function resolveThreadContextUsageSummary(input: {
     reportedUsage?.breakdown && reportedUsage.breakdown.length > 0
       ? reportedUsage.breakdown
       : usedTokens !== undefined
-        ? [{ id: "used", label: "Used", tokens: usedTokens }]
+        ? [{ id: "used", label: i18n._(msg`Used`), tokens: usedTokens }]
         : [];
-  const usedLabel = usedTokens === undefined ? "Unknown" : formatTokenCount(usedTokens);
-  const maxLabel = maxTokens === undefined ? "Unknown" : formatTokenCount(maxTokens);
+  const usedLabel = usedTokens === undefined ? i18n._(msg`Unknown`) : formatTokenCount(usedTokens);
+  const maxLabel = maxTokens === undefined ? i18n._(msg`Unknown`) : formatTokenCount(maxTokens);
   const remainingLabel =
-    remainingTokens === undefined ? "Unknown" : formatTokenCount(remainingTokens);
-  const percentLabel = percent === undefined ? "Context" : `${percent}%`;
+    remainingTokens === undefined ? i18n._(msg`Unknown`) : formatTokenCount(remainingTokens);
+  const percentLabel = percent === undefined ? i18n._(msg`Context`) : `${percent}%`;
   const headline =
     percent === undefined
       ? maxTokens === undefined
-        ? "Context usage"
-        : `${maxLabel} context`
-      : `${percent}% full`;
+        ? i18n._(msg`Context usage`)
+        : i18n._(msg`${maxLabel} context`)
+      : i18n._(msg`${percent}% full`);
   const detail =
     usedTokens === undefined && maxTokens === undefined
-      ? "Provider has not reported token usage."
+      ? i18n._(msg`Provider has not reported token usage.`)
       : maxTokens === undefined
-        ? `${usedLabel} tokens`
-        : `${usedLabel} / ${maxLabel} tokens`;
+        ? i18n._(msg`${usedLabel} tokens`)
+        : i18n._(msg`${usedLabel} / ${maxLabel} tokens`);
 
   return {
     ...(usedTokens !== undefined ? { usedTokens } : {}),

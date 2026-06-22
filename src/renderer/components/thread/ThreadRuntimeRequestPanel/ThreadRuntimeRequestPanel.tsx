@@ -1,5 +1,6 @@
 import { useId, useState } from "react";
 import { Button } from "@heroui/react";
+import { useLingui } from "@lingui/react/macro";
 import { FileText, HelpCircle, ListChecks, Plug, ShieldAlert } from "lucide-react";
 import {
   asPermissionRequestDetails,
@@ -11,8 +12,8 @@ import type { OpenRuntimeRequest } from "@/renderer/state/slices/runtimeEventSli
 import { ThreadDockSection } from "../ThreadDockUI";
 import {
   asOpenCodePermissionDetails,
-  DEFAULT_APPROVAL_OPTIONS,
   formatRawDetails,
+  getDefaultApprovalOptions,
   isPlanApprovalRequest,
   outcomeForSelection,
   readInputString,
@@ -55,6 +56,7 @@ interface ThreadRuntimeRequestPanelProps {
  */
 export function ThreadRuntimeRequestPanel(props: ThreadRuntimeRequestPanelProps) {
   const { threadId, request, agentLabel, onResolve, onPlanApproved, onOpenPlanFile } = props;
+  const { t } = useLingui();
   const [resolving, setResolving] = useState(false);
   const formId = useId();
 
@@ -99,7 +101,7 @@ export function ThreadRuntimeRequestPanel(props: ThreadRuntimeRequestPanelProps)
   const userInputForm = !structuredElicitation
     ? asUserInputFormDetails(request.payload.details)
     : undefined;
-  const options = request.payload.options ?? DEFAULT_APPROVAL_OPTIONS;
+  const options = request.payload.options ?? getDefaultApprovalOptions();
   const isQuestion = request.requestType === "tool_user_input" && !isPlanApproval;
   const isCustomForm = !!(structuredElicitation || userInputForm);
   const Icon = isPlanApproval
@@ -218,7 +220,7 @@ export function ThreadRuntimeRequestPanel(props: ThreadRuntimeRequestPanelProps)
           {requestDetails || planFilePath ? (
             <div
               role="region"
-              aria-label="Request details"
+              aria-label={t`Request details`}
               className="mt-0.5 max-h-[min(12rem,35vh)] overflow-y-auto pr-1 [scrollbar-gutter:stable]"
             >
               {requestDetails}

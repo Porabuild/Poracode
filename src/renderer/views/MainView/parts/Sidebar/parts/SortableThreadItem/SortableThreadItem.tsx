@@ -11,6 +11,7 @@ import {
   Star,
   Trash2,
 } from "lucide-react";
+import { useLingui } from "@lingui/react/macro";
 import type { Project, Thread } from "@/shared/contracts";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useGitStore } from "@/renderer/state/gitStore";
@@ -29,6 +30,7 @@ import {
   useIsCurrentThread,
   useProjectAgentStatuses,
 } from "@/renderer/hooks/uiSelectors";
+import { useThreadHasLiveWorkflow } from "@/renderer/state/threadLiveWorkflowStore";
 import { openGitReview } from "@/renderer/actions/panelActions";
 import {
   gitPull,
@@ -71,6 +73,7 @@ export function SortableThreadItem(props: {
     editingThreadId,
     sortDisabled = false,
   } = props;
+  const { t } = useLingui();
   const isCurrentThread = useIsCurrentThread(thread.id);
   const currentThreadCount = useCurrentThreadIdsCount();
   const projectAgents = useProjectAgentStatuses(project.location);
@@ -81,9 +84,9 @@ export function SortableThreadItem(props: {
   );
   const unloadDisabledReason =
     thread.status === "inactive"
-      ? "Thread is already unloaded."
+      ? t`Thread is already unloaded.`
       : thread.status === "launching"
-        ? "Wait for the thread to finish starting."
+        ? t`Wait for the thread to finish starting.`
         : undefined;
 
   const { ref } = useSortable({
@@ -104,7 +107,8 @@ export function SortableThreadItem(props: {
 
   const isDragging = useIsDraggingThread(thread.id);
 
-  const statusTone = getStatusTone(thread);
+  const hasLiveWorkflow = useThreadHasLiveWorkflow(thread.id);
+  const statusTone = getStatusTone(thread, { hasLiveWorkflow });
 
   return (
     <div ref={ref} className="relative w-full pb-0.5">
@@ -114,13 +118,13 @@ export function SortableThreadItem(props: {
             ? [
                 {
                   id: "new-thread-in-worktree",
-                  label: "New Thread in Worktree",
+                  label: t`New Thread in Worktree`,
                   icon: <Plus className="size-3.5" />,
                 },
                 {
                   type: "submenu" as const,
                   id: "git",
-                  label: "Git",
+                  label: t`Git`,
                   icon: <GitFork className="size-3.5" />,
                   items: worktreeGitItems,
                 },
@@ -131,7 +135,7 @@ export function SortableThreadItem(props: {
                 {
                   type: "submenu" as const,
                   id: "run-action",
-                  label: "Run",
+                  label: t`Run`,
                   icon: <Play className="size-3.5" />,
                   items: project.scripts.actions.map((action) => ({
                     id: `action:${action.id}`,
@@ -143,29 +147,29 @@ export function SortableThreadItem(props: {
             : []),
           {
             id: "rename",
-            label: "Rename",
+            label: t`Rename`,
             icon: <Pencil className="size-3.5" />,
           },
           {
             id: "unload",
-            label: "Unload Thread",
+            label: t`Unload Thread`,
             icon: <ArrowDownToLine className="size-3.5" />,
             isDisabled: unloadDisabledReason !== undefined,
             ...(unloadDisabledReason ? { disabledReason: unloadDisabledReason } : {}),
           },
           {
             id: "mark-done",
-            label: thread.done ? "Unmark Done" : "Mark Done",
+            label: thread.done ? t`Unmark Done` : t`Mark Done`,
             icon: <CircleCheck className="size-3.5" />,
           },
           {
             id: "toggle-star",
-            label: thread.starred ? "Unpin" : "Pin to top",
+            label: thread.starred ? t`Unpin` : t`Pin to top`,
             icon: <Star className="size-3.5" />,
           },
           {
             id: "continue-in",
-            label: "Continue in...",
+            label: t`Continue in...`,
             icon: <ArrowRightLeft className="size-3.5" />,
             isDisabled:
               !thread.sessionRef ||
@@ -174,8 +178,8 @@ export function SortableThreadItem(props: {
             projectAgents.filter((a) => a.kind !== thread.agentKind).length === 0
               ? {
                   disabledReason: !thread.sessionRef
-                    ? "No active session"
-                    : "No other agents installed",
+                    ? t`No active session`
+                    : t`No other agents installed`,
                 }
               : {}),
           },
@@ -183,7 +187,7 @@ export function SortableThreadItem(props: {
             ? [
                 {
                   id: "ungroup",
-                  label: "Remove from group",
+                  label: t`Remove from group`,
                 },
               ]
             : []),
@@ -191,7 +195,7 @@ export function SortableThreadItem(props: {
             ? [
                 {
                   id: "group-open-threads",
-                  label: "Group open threads",
+                  label: t`Group open threads`,
                   icon: <Columns2 className="size-3.5" />,
                 },
               ]
@@ -199,13 +203,13 @@ export function SortableThreadItem(props: {
           { type: "separator" as const },
           {
             id: "archive",
-            label: "Archive Thread",
+            label: t`Archive Thread`,
             icon: <Archive className="size-3.5" />,
             variant: "warning",
           },
           {
             id: "delete",
-            label: "Delete Thread",
+            label: t`Delete Thread`,
             icon: <Trash2 className="size-3.5" />,
             variant: "danger",
           },
@@ -245,32 +249,34 @@ export function SortableThreadItem(props: {
             const state = useAppStore.getState();
             if (state.view.kind !== "thread") return;
             const openThreads = state.threads.filter(
-              (t) => state.view.kind === "thread" && state.view.panes.includes(t.id),
+              (other) => state.view.kind === "thread" && state.view.panes.includes(other.id),
             );
             const projectId = openThreads[0]?.projectId;
-            if (!projectId || !openThreads.every((t) => t.projectId === projectId)) return;
+            if (!projectId || !openThreads.every((other) => other.projectId === projectId)) return;
             const groupId = crypto.randomUUID();
             const groupName = thread.title;
             useAppStore.setState((s) => ({
-              threads: s.threads.map((t) =>
-                s.view.kind === "thread" && s.view.panes.includes(t.id)
-                  ? { ...t, groupId, groupName }
-                  : t,
+              threads: s.threads.map((other) =>
+                s.view.kind === "thread" && s.view.panes.includes(other.id)
+                  ? { ...other, groupId, groupName }
+                  : other,
               ),
               view: s.view.kind === "thread" ? { ...s.view, activeGroupId: groupId } : s.view,
             }));
           }
           if (key === "ungroup") {
             useAppStore.setState((state) => {
-              let updatedThreads = state.threads.map((t) =>
-                t.id === thread.id ? { ...t, groupId: undefined, groupName: undefined } : t,
+              let updatedThreads = state.threads.map((other) =>
+                other.id === thread.id
+                  ? { ...other, groupId: undefined, groupName: undefined }
+                  : other,
               );
-              const remaining = updatedThreads.filter((t) => t.groupId === thread.groupId);
+              const remaining = updatedThreads.filter((other) => other.groupId === thread.groupId);
               if (remaining.length === 1) {
-                updatedThreads = updatedThreads.map((t) =>
-                  t.id === remaining[0]!.id
-                    ? { ...t, groupId: undefined, groupName: undefined }
-                    : t,
+                updatedThreads = updatedThreads.map((other) =>
+                  other.id === remaining[0]!.id
+                    ? { ...other, groupId: undefined, groupName: undefined }
+                    : other,
                 );
               }
               const view =
@@ -294,7 +300,9 @@ export function SortableThreadItem(props: {
         <SidebarButton
           size="xs"
           statusTone={statusTone}
-          icon={<ThreadProviderIcon thread={thread} className="size-3.5 shrink-0" />}
+          icon={
+            <ThreadProviderIcon thread={thread} tone={statusTone} className="size-3.5 shrink-0" />
+          }
           label={
             editingThreadId === thread.id ? (
               <InlineRenameInput

@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import { Paperclip } from "lucide-react";
 import { Modal } from "@heroui/react";
+import { Trans, useLingui } from "@lingui/react/macro";
 import type {
   AgentCapability,
   AgentStatus,
@@ -22,7 +23,7 @@ import {
   buildModelPickerControls,
   buildProviderModelMenuProviders,
 } from "./buildModelPickerControls";
-import { AttachmentBar, ImageLightbox, MentionInput, useAttachments } from "../composer";
+import { AttachmentBar, MentionInput, openAttachmentLightbox, useAttachments } from "../composer";
 import type { MentionInputHandle } from "../composer";
 import { flattenSegments } from "../composer/serializeMentions";
 import { PresentationModeTabs } from "./PresentationModeTabs";
@@ -259,6 +260,7 @@ export function ContinueInProviderDialog(props: {
   ) => void;
 }) {
   const { thread, installedAgents, onClose, onContinue } = props;
+  const { t } = useLingui();
 
   const otherAgents = installedAgents.filter((a) => a.kind !== thread.agentKind);
   const [selectedKind, setSelectedKind] = useState<string>(otherAgents[0]?.kind ?? "");
@@ -266,10 +268,8 @@ export function ContinueInProviderDialog(props: {
   const [errorMessage, setErrorMessage] = useState("");
   const [pendingCloseOriginal, setPendingCloseOriginal] = useState(false);
   const [pendingSubmission, setPendingSubmission] = useState<PendingSubmission | null>(null);
-  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const mentionRef = useRef<MentionInputHandle>(null);
   const attachments = useAttachments();
-  const imageAttachments = attachments.attachments.filter((a) => a.isImage);
 
   const sourceAgent = installedAgents.find((a) => a.kind === thread.agentKind);
   const selectedAgent = otherAgents.find((a) => a.kind === selectedKind);
@@ -543,6 +543,7 @@ export function ContinueInProviderDialog(props: {
   }
 
   const canSubmit = Boolean(selectedKind && targetConfig.model);
+  const targetProviderFallback = t`the target provider`;
 
   return (
     <>
@@ -551,7 +552,9 @@ export function ContinueInProviderDialog(props: {
           <Modal.Dialog className="sm:max-w-[760px]">
             <Modal.CloseTrigger />
             <Modal.Header>
-              <Modal.Heading>Continue in another provider</Modal.Heading>
+              <Modal.Heading>
+                <Trans>Continue in another provider</Trans>
+              </Modal.Heading>
             </Modal.Header>
 
             <Modal.Body className="px-5 pb-5 pt-2">
@@ -584,8 +587,11 @@ export function ContinueInProviderDialog(props: {
                           attachments={attachments.attachments}
                           onRemove={attachments.removeAttachment}
                           onPreviewImage={(att) => {
+                            const imageAttachments = attachments.attachments.filter(
+                              (a) => a.isImage,
+                            );
                             const idx = imageAttachments.findIndex((a) => a.id === att.id);
-                            if (idx >= 0) setLightboxIndex(idx);
+                            if (idx >= 0) openAttachmentLightbox(imageAttachments, idx);
                           }}
                         />
                       }
@@ -594,7 +600,7 @@ export function ContinueInProviderDialog(props: {
                           ref={mentionRef}
                           autoFocus // eslint-disable-line jsx-a11y/no-autofocus -- desktop app, expected UX
                           compact
-                          placeholder={`Tell ${selectedAgent?.label ?? "the target provider"} what to do next...`}
+                          placeholder={t`Tell ${selectedAgent?.label ?? targetProviderFallback} what to do next...`}
                           projectLocation={props.projectLocation}
                           projectId={thread.projectId}
                           onTextChange={() => undefined}
@@ -606,10 +612,10 @@ export function ContinueInProviderDialog(props: {
                           }}
                         />
                       }
-                      placeholder="Tell the target provider what to do next..."
+                      placeholder={t`Tell the target provider what to do next...`}
                       prompt=""
                       submitDisabled={!canSubmit}
-                      submitLabel="Fork"
+                      submitLabel={t`Fork`}
                       onPromptChange={() => undefined}
                       onSubmit={() => {
                         void handleAction(false);
@@ -617,7 +623,7 @@ export function ContinueInProviderDialog(props: {
                       afterControls={
                         <Button
                           isIconOnly
-                          aria-label="Attach files"
+                          aria-label={t`Attach files`}
                           className="lightcode-composer-menu min-w-9 px-2"
                           size="sm"
                           variant="ghost"
@@ -641,14 +647,18 @@ export function ContinueInProviderDialog(props: {
                 <div className="flex items-center gap-3 py-2">
                   <PixelLoader size="sm" />
                   <p className="text-sm text-muted">
-                    Extracting context from {sourceAgent?.label ?? thread.agentKind}...
+                    <Trans>
+                      Extracting context from {sourceAgent?.label ?? thread.agentKind}...
+                    </Trans>
                   </p>
                 </div>
               )}
 
               {phase === "error" && (
                 <div className="flex flex-col gap-2">
-                  <p className="text-sm">Could not extract context.</p>
+                  <p className="text-sm">
+                    <Trans>Could not extract context.</Trans>
+                  </p>
                   {errorMessage && (
                     <p className="max-h-20 overflow-y-auto text-xs text-muted">{errorMessage}</p>
                   )}
@@ -660,7 +670,7 @@ export function ContinueInProviderDialog(props: {
               {phase === "select" && (
                 <>
                   <Button slot="close" variant="ghost" className="text-muted">
-                    Cancel
+                    <Trans>Cancel</Trans>
                   </Button>
                   <Button
                     variant="secondary"
@@ -669,7 +679,7 @@ export function ContinueInProviderDialog(props: {
                       void handleAction(false);
                     }}
                   >
-                    Fork
+                    <Trans>Fork</Trans>
                   </Button>
                   <Button
                     variant="tertiary"
@@ -678,22 +688,22 @@ export function ContinueInProviderDialog(props: {
                       void handleAction(true);
                     }}
                   >
-                    Move
+                    <Trans>Move</Trans>
                   </Button>
                 </>
               )}
               {phase === "extracting" && (
                 <Button variant="ghost" className="text-muted" onPress={handleCancel}>
-                  Cancel
+                  <Trans>Cancel</Trans>
                 </Button>
               )}
               {phase === "error" && (
                 <>
                   <Button variant="ghost" className="text-muted" onPress={handleCancel}>
-                    Cancel
+                    <Trans>Cancel</Trans>
                   </Button>
                   <Button variant="secondary" onPress={handleStartWithoutContext}>
-                    Start Without Context
+                    <Trans>Start Without Context</Trans>
                   </Button>
                 </>
               )}
@@ -701,13 +711,6 @@ export function ContinueInProviderDialog(props: {
           </Modal.Dialog>
         </Modal.Container>
       </Modal.Backdrop>
-      {lightboxIndex !== null && imageAttachments.length > 0 ? (
-        <ImageLightbox
-          images={imageAttachments}
-          initialIndex={lightboxIndex}
-          onClose={() => setLightboxIndex(null)}
-        />
-      ) : null}
     </>
   );
 }

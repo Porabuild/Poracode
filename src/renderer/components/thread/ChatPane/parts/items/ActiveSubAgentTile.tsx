@@ -1,8 +1,10 @@
 import { useEffect } from "react";
 import { Tooltip } from "@heroui/react";
+import { Trans, useLingui } from "@lingui/react/macro";
 import { Bot, Check, GitBranch, X } from "lucide-react";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useThreadSubAgentDockStore } from "@/renderer/state/threadSubAgentDockStore";
+import { useThreadLiveWorkflowStore } from "@/renderer/state/threadLiveWorkflowStore";
 import { useWorkflowRun } from "@/renderer/state/useWorkflowRun";
 import {
   getChildItemIdsStoreSelector,
@@ -11,6 +13,7 @@ import {
 } from "../../chatPaneSelectors";
 import { getRuntimeItemPayload } from "@/renderer/state/slices/runtimeEventSlice";
 import type { ProjectLocation, ToolCallPayload, WorkflowRun } from "@/shared/contracts";
+import { isLiveWorkflowRunStatus } from "@/shared/contracts";
 import { deriveToolDisplay, isWorkflowTool } from "./toolDisplay";
 import { PixelLoader } from "@/renderer/components/common/PixelLoader";
 import { formatTokenCount } from "@/renderer/components/thread/formatTokenCount";
@@ -24,6 +27,7 @@ interface ActiveSubAgentTileProps {
 }
 
 export function ActiveSubAgentTile({ threadId, projectLocation }: ActiveSubAgentTileProps) {
+  const { t } = useLingui();
   const ids = useAppStore((s) => selectActiveSubAgentParentItemIds(s, threadId));
   const dismissed = useThreadSubAgentDockStore((s) => s.dismissedByThread[threadId]);
   const dismissMany = useThreadSubAgentDockStore((s) => s.dismissMany);
@@ -51,10 +55,10 @@ export function ActiveSubAgentTile({ threadId, projectLocation }: ActiveSubAgent
   if (visibleIds.length === 0) return null;
   const title =
     workflowCount === visibleIds.length
-      ? "Workflows"
+      ? t`Workflows`
       : workflowCount > 0
-        ? "Background tasks"
-        : "Subagents";
+        ? t`Background tasks`
+        : t`Subagents`;
   const HeaderIcon = workflowCount === visibleIds.length ? GitBranch : Bot;
 
   return (
@@ -67,7 +71,7 @@ export function ActiveSubAgentTile({ threadId, projectLocation }: ActiveSubAgent
           <Tooltip delay={0}>
             <Tooltip.Trigger>
               <button
-                aria-label="Close subagents panel"
+                aria-label={t`Close subagents panel`}
                 className="shrink-0 rounded p-1 text-muted/70 transition-colors hover:bg-danger-500/10 hover:text-danger-500"
                 type="button"
                 onClick={() => dismissMany(threadId, visibleIds)}
@@ -75,7 +79,9 @@ export function ActiveSubAgentTile({ threadId, projectLocation }: ActiveSubAgent
                 <X className="size-3.5" />
               </button>
             </Tooltip.Trigger>
-            <Tooltip.Content>Close subagents</Tooltip.Content>
+            <Tooltip.Content>
+              <Trans>Close subagents</Trans>
+            </Tooltip.Content>
           </Tooltip>
         }
       />
@@ -102,10 +108,13 @@ function ActiveSubAgentRow({
   itemId: string;
   projectLocation?: ProjectLocation;
 }) {
+  const { t } = useLingui();
   const item = useAppStore(getRuntimeItemStoreSelector(threadId, itemId));
   const childCount = useAppStore(getChildItemIdsStoreSelector(threadId, itemId)).length;
   const openSubAgent = useAppStore((s) => s.openSubAgent);
   const dismiss = useThreadSubAgentDockStore((s) => s.dismiss);
+  const registerLiveWorkflow = useThreadLiveWorkflowStore((s) => s.register);
+  const markWorkflowTerminal = useThreadLiveWorkflowStore((s) => s.markTerminal);
 
   const payload = item ? getRuntimeItemPayload<ToolCallPayload>(item, "tool_call") : undefined;
   const workflow = payload && isWorkflowTool(payload) ? parseWorkflowInfo(payload) : null;
@@ -119,11 +128,11 @@ function ActiveSubAgentRow({
   // A background workflow is "live" from the moment the SDK reports its
   // launch tool call as completed (because the work is in flight in a
   // separate process). The manifest takes a few seconds to appear on disk,
-  // during which `workflowRun` is null — we MUST NOT flip the row to done
+  // during which `workflowRun` is null - we MUST NOT flip the row to done
   // in that gap, otherwise the composer dock shows ✓ while the chat row
   // still says "starting…".
   const workflowIsBackground = workflow !== null && !!workflow.manifestPath;
-  const workflowIsTerminal = workflowRun !== null && !isLiveWorkflowStatus(workflowRun.status);
+  const workflowIsTerminal = workflowRun !== null && !isLiveWorkflowRunStatus(workflowRun.status);
   const workflowIsLive = workflowIsBackground && !workflowIsTerminal;
 
   // Auto-dismiss workflows once their manifest reports a terminal status. We
@@ -135,6 +144,38 @@ function ActiveSubAgentRow({
     const timer = setTimeout(() => dismiss(threadId, itemId), 1500);
     return () => clearTimeout(timer);
   }, [workflow, workflowIsTerminal, dismiss, threadId, itemId]);
+
+  // Publish this workflow's liveness to the thread-level tracker so the sidebar
+  // row and chat header keep showing the working spinner after the foreground
+  // turn ends - and even after this dock unmounts (the tracker polls on its
+  // own). We register (not unregister) on unmount: the tracker clears the entry
+  // when its own poll sees a terminal status, so dismissing the dock or
+  // switching threads doesn't drop a still-running workflow.
+  const liveWorkflowManifestPath = workflow?.manifestPath;
+  const liveWorkflowTranscriptDir = workflow?.transcriptDir;
+  useEffect(() => {
+    if (!liveWorkflowManifestPath || !projectLocation) return;
+    if (workflowIsTerminal) {
+      markWorkflowTerminal(threadId, itemId);
+      return;
+    }
+    registerLiveWorkflow({
+      threadId,
+      itemId,
+      manifestPath: liveWorkflowManifestPath,
+      location: projectLocation,
+      ...(liveWorkflowTranscriptDir ? { transcriptDir: liveWorkflowTranscriptDir } : {}),
+    });
+  }, [
+    liveWorkflowManifestPath,
+    liveWorkflowTranscriptDir,
+    projectLocation,
+    workflowIsTerminal,
+    threadId,
+    itemId,
+    registerLiveWorkflow,
+    markWorkflowTerminal,
+  ]);
 
   if (!item || !payload?.name) return null;
 
@@ -159,7 +200,7 @@ function ActiveSubAgentRow({
         title={display.title}
       >
         {isDone ? (
-          <Check aria-label="completed" className="size-3.5 shrink-0 text-foreground-muted" />
+          <Check aria-label={t`completed`} className="size-3.5 shrink-0 text-foreground-muted" />
         ) : (
           <span className="inline-flex size-3.5 shrink-0 items-center justify-center">
             <PixelLoader size="xxs" className="text-foreground" />
@@ -173,7 +214,9 @@ function ActiveSubAgentRow({
         {workflow && workflowRun ? (
           <WorkflowDockStats run={workflowRun} />
         ) : workflowIsLive ? (
-          <span className="shrink-0 text-foreground-muted opacity-80">starting…</span>
+          <span className="shrink-0 text-foreground-muted opacity-80">
+            <Trans>starting…</Trans>
+          </span>
         ) : isRunning ? (
           <SubAgentProgressMeta
             progress={progress}
@@ -194,8 +237,8 @@ function ActiveSubAgentRow({
       </button>
       <button
         type="button"
-        aria-label={`Remove ${display.title} from panel`}
-        title="Remove from panel"
+        aria-label={t`Remove ${display.title} from panel`}
+        title={t`Remove from panel`}
         onClick={(e) => {
           e.stopPropagation();
           dismiss(threadId, itemId);
@@ -219,10 +262,6 @@ function WorkflowDockStats({ run }: { run: WorkflowRun }) {
       {parts.join(" · ")}
     </span>
   );
-}
-
-function isLiveWorkflowStatus(status: WorkflowRun["status"]): boolean {
-  return status === "running" || status === "unknown";
 }
 
 function countDoneWorkflowAgents(run: WorkflowRun): number {

@@ -1,5 +1,6 @@
 import { PanelRightClose, Plus, Trash2 } from "lucide-react";
 import { Tabs } from "@heroui/react";
+import { useLingui } from "@lingui/react/macro";
 import type { Project, TerminalSize } from "@/shared/contracts";
 import { useDevTerminalStore, type DevTerminalTab } from "@/renderer/state/devTerminalStore";
 import { PanelHeaderProjectName } from "@/renderer/components/layout/PanelHeaderProjectName";
@@ -25,6 +26,7 @@ export function RightTerminalLayout(props: {
   handleSelectionChange: (key: string | number) => void;
   onTerminalResize?: (terminalId: string, size: TerminalSize) => void;
 }) {
+  const { t } = useLingui();
   const {
     tabs,
     projectTabs,
@@ -51,7 +53,7 @@ export function RightTerminalLayout(props: {
           <button
             type="button"
             className={panelHeaderIconButtonClass}
-            title="Hide terminal"
+            title={t`Hide terminal`}
             onClick={() => useDevTerminalStore.getState().closePanel()}
           >
             <PanelRightClose className="size-3" />
@@ -66,7 +68,7 @@ export function RightTerminalLayout(props: {
           onSelectionChange={handleSelectionChange}
         >
           <Tabs.ListContainer className="w-fit p-0.5">
-            <Tabs.List aria-label="Terminal tabs" className="*:h-6">
+            <Tabs.List aria-label={t`Terminal tabs`} className="*:h-6">
               {projectTabs.map((tab) => (
                 <Tabs.Tab
                   key={tab.id}

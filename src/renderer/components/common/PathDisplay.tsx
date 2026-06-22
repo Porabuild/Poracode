@@ -10,6 +10,9 @@ interface PathDisplayProps {
   /** Inline content rendered between the basename and the muted directory,
    *  e.g. status badges that should follow the filename. */
   trailing?: ReactNode;
+  /** Overrides the hover tooltip (defaults to `path`). Lets callers show the
+   *  full path while the visible text is shortened/relativized. */
+  title?: string;
 }
 
 /**
@@ -24,6 +27,7 @@ export function PathDisplay({
   basenameClassName = "text-foreground",
   dirClassName = "text-muted/60",
   trailing,
+  title,
 }: PathDisplayProps) {
   const containerRef = useRef<HTMLSpanElement>(null);
   const fixedRef = useRef<HTMLSpanElement>(null);
@@ -82,7 +86,7 @@ export function PathDisplay({
     <span
       ref={containerRef}
       className={`flex min-w-0 items-center whitespace-nowrap overflow-hidden ${className ?? ""}`}
-      title={path}
+      title={title ?? path}
     >
       {/* The basename slot is `shrink-0` on purpose: its measured width must be
           its *intrinsic* width so it never reacts to the directory's size.

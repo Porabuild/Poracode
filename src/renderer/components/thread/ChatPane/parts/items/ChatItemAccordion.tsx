@@ -1,7 +1,7 @@
 import { Disclosure, Tooltip } from "@heroui/react";
 import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
-import { PathDisplay } from "@/renderer/components/common";
 import { useChatPaneActions } from "../../chatPaneActionsContext";
+import { ChatFilePath } from "./ChatFilePath";
 
 export interface ChatItemAccordionProps {
   /** Leading icon (sized 12px to match the command row icon). */
@@ -102,7 +102,7 @@ export function ChatItemAccordion({
     <code className={`${codeClass} flex items-baseline overflow-hidden`}>
       <span className="shrink-0 whitespace-pre">{titleParts.prefix}</span>
       {titleParts.filePath ? (
-        <PathDisplay
+        <ChatFilePath
           className="flex-1"
           path={titleParts.path}
           basenameClassName="!text-[color:var(--foreground)]"

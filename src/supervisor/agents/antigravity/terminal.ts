@@ -1,39 +1,32 @@
-import { findBestHint, type HintEntry, type TerminalStatusHint } from "../base";
+import { detectTerminalStatusFromHints, type TerminalStatusHint } from "../base";
 
-interface AntigravityHintEntry extends HintEntry {
-  status: TerminalStatusHint["status"];
-  attention: TerminalStatusHint["attention"];
-}
-
-const ANTIGRAVITY_STRONG: AntigravityHintEntry[] = [
-  { re: /✋\s+Action Required/i, status: "needs_reply", attention: "needs_reply" },
-  { re: /Enter to select/i, status: "needs_reply", attention: "needs_reply" },
+const ANTIGRAVITY_STRONG = [
+  {
+    re: /✋\s+Action Required/i,
+    status: "needs_reply" as const,
+    attention: "needs_reply" as const,
+  },
+  { re: /Enter to select/i, status: "needs_reply" as const, attention: "needs_reply" as const },
   {
     re: /\[y\/n\]|\(y\/N\)|Allow\s+.*\?|Do you want to proceed|Continue\?/i,
-    status: "needs_approval",
-    attention: "needs_approval",
+    status: "needs_approval" as const,
+    attention: "needs_approval" as const,
   },
-  { re: /^[^\S\r\n]*[⣷⣯⣟⡿⢿⣻⣽⣾](?:\s|$)/m, status: "working", attention: "working" },
-  { re: /✦\s+Working|⚙\s+Working/i, status: "working", attention: "working" },
-  { re: /\(esc to cancel/i, status: "working", attention: "working" },
-  { re: /◇\s+Ready/i, status: "idle", attention: "none" },
+  {
+    re: /^[^\S\r\n]*[⣷⣯⣟⡿⢿⣻⣽⣾](?:\s|$)/m,
+    status: "working" as const,
+    attention: "working" as const,
+  },
+  { re: /✦\s+Working|⚙\s+Working/i, status: "working" as const, attention: "working" as const },
+  { re: /\(esc to cancel/i, status: "working" as const, attention: "working" as const },
+  { re: /◇\s+Ready/i, status: "idle" as const, attention: "none" as const },
 ];
 
-const ANTIGRAVITY_FALLBACK_IDLE: AntigravityHintEntry[] = [
-  { re: /^\s*>\s*$/m, status: "idle", attention: "none" },
-  { re: /\?\s+for shortcuts/i, status: "idle", attention: "none" },
+const ANTIGRAVITY_FALLBACK_IDLE = [
+  { re: /^\s*>\s*$/m, status: "idle" as const, attention: "none" as const },
+  { re: /\?\s+for shortcuts/i, status: "idle" as const, attention: "none" as const },
 ];
 
 export function detectAntigravityTerminalStatus(text: string): TerminalStatusHint | null {
-  const tail = text.slice(-1200);
-
-  const strong = findBestHint(tail, ANTIGRAVITY_STRONG);
-  if (strong) {
-    return { status: strong.status, attention: strong.attention, corroborated: true };
-  }
-
-  const fallback = findBestHint(tail, ANTIGRAVITY_FALLBACK_IDLE);
-  if (!fallback) return null;
-  const bothPresent = ANTIGRAVITY_FALLBACK_IDLE.every((entry) => entry.re.test(tail));
-  return { status: fallback.status, attention: fallback.attention, corroborated: bothPresent };
+  return detectTerminalStatusFromHints(text, ANTIGRAVITY_STRONG, ANTIGRAVITY_FALLBACK_IDLE);
 }

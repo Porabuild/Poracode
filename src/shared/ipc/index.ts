@@ -45,6 +45,7 @@ export {
   type SubAgentSubscribePayload,
   type SubAgentSubscribeResult,
   type WindowChromePayload,
+  type WindowChromeResult,
   type WorkflowGetRunPayload,
   type WorkflowGetRunResult,
 } from "./schemas";

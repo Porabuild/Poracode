@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Tooltip } from "@heroui/react";
 import { AlertTriangle, ChevronDown, X } from "lucide-react";
+import { Trans, useLingui } from "@lingui/react/macro";
 import type { ThreadErrorDockState } from "./threadErrorState";
 import { ThreadDockHeader, ThreadDockSection } from "./ThreadDockUI";
 
@@ -11,10 +12,11 @@ interface ThreadErrorDockProps {
 
 export function ThreadErrorDock(props: ThreadErrorDockProps) {
   const { state, onDismiss } = props;
+  const { t } = useLingui();
   const [collapsed, setCollapsed] = useState(true);
   const isMultiline = state.message.includes("\n") || state.message.length > 120;
   const canExpand = isMultiline;
-  const { title, body } = splitErrorTitle(state.message);
+  const { title, body } = splitErrorTitle(state.message, t`Error`);
 
   return (
     <ThreadDockSection placement="composer" collapsed={collapsed}>
@@ -28,7 +30,7 @@ export function ThreadErrorDock(props: ThreadErrorDockProps) {
               <Tooltip delay={0}>
                 <Tooltip.Trigger>
                   <button
-                    aria-label={collapsed ? "Expand error" : "Collapse error"}
+                    aria-label={collapsed ? t`Expand error` : t`Collapse error`}
                     className="shrink-0 rounded p-1 text-muted/70 transition-colors hover:bg-foreground/5 hover:text-foreground"
                     type="button"
                     onClick={() => setCollapsed(!collapsed)}
@@ -38,14 +40,16 @@ export function ThreadErrorDock(props: ThreadErrorDockProps) {
                     />
                   </button>
                 </Tooltip.Trigger>
-                <Tooltip.Content>{collapsed ? "Expand" : "Collapse"}</Tooltip.Content>
+                <Tooltip.Content>
+                  {collapsed ? <Trans>Expand</Trans> : <Trans>Collapse</Trans>}
+                </Tooltip.Content>
               </Tooltip>
             ) : null}
             {onDismiss ? (
               <Tooltip delay={0}>
                 <Tooltip.Trigger>
                   <button
-                    aria-label="Dismiss error"
+                    aria-label={t`Dismiss error`}
                     className="shrink-0 rounded p-1 text-muted/70 transition-colors hover:bg-foreground/5 hover:text-foreground"
                     type="button"
                     onClick={onDismiss}
@@ -53,7 +57,9 @@ export function ThreadErrorDock(props: ThreadErrorDockProps) {
                     <X className="size-3.5" />
                   </button>
                 </Tooltip.Trigger>
-                <Tooltip.Content>Dismiss</Tooltip.Content>
+                <Tooltip.Content>
+                  <Trans>Dismiss</Trans>
+                </Tooltip.Content>
               </Tooltip>
             ) : null}
           </>
@@ -83,13 +89,13 @@ function firstLine(message: string): string {
 
 // If the first line is shaped like "<short category>: <details>", surface the
 // category as the dock title (e.g. "Invalid request", "Network error", "Auth
-// failed") instead of the generic "Error". Falls back to "Error" when the
-// message has no useful prefix.
-function splitErrorTitle(message: string): { title: string; body: string } {
+// failed") instead of the generic "Error". Falls back to `fallbackTitle` when
+// the message has no useful prefix.
+function splitErrorTitle(message: string, fallbackTitle: string): { title: string; body: string } {
   const head = firstLine(message).trim();
   const match = /^([A-Z][^:\n]{1,48}):\s+(\S.*)$/.exec(head);
   if (match) {
     return { title: match[1]!, body: match[2]! };
   }
-  return { title: "Error", body: head };
+  return { title: fallbackTitle, body: head };
 }

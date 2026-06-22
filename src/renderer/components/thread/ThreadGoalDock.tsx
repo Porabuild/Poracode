@@ -1,7 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { Tooltip } from "@heroui/react";
 import { CircleCheckBig, Target, X } from "lucide-react";
+import { msg } from "@lingui/core/macro";
+import { Trans, useLingui } from "@lingui/react/macro";
 import type { ThreadGoalDockState } from "./threadGoalState";
+import type { TranslateFn } from "@/renderer/i18n/i18n";
 import { ThreadDockSection } from "./ThreadDockUI";
 import { formatElapsed } from "./ChatPane/formatElapsed";
 import { formatTokenCount } from "./formatTokenCount";
@@ -17,6 +20,7 @@ const localGoalTimingByItemId = new Map<
 >();
 
 export function ThreadGoalDock({ state, onDismiss }: ThreadGoalDockProps) {
+  const { t } = useLingui();
   const [localAnchorSeconds, setLocalAnchorSeconds] = useState(() =>
     resolveLocalGoalAnchorSeconds(state, Date.now() / 1000),
   );
@@ -37,7 +41,7 @@ export function ThreadGoalDock({ state, onDismiss }: ThreadGoalDockProps) {
   }, [isActive]);
 
   const elapsedSeconds = resolveGoalElapsedSeconds(state, nowSeconds, localAnchorSeconds);
-  const meta = goalMeta(state);
+  const meta = goalMeta(state, t);
   const elapsedLabel = elapsedSeconds > 0 ? formatElapsed(elapsedSeconds) : null;
   const hasMeta = meta.length > 0;
   const StatusIcon = isComplete ? CircleCheckBig : Target;
@@ -48,7 +52,7 @@ export function ThreadGoalDock({ state, onDismiss }: ThreadGoalDockProps) {
       : "text-foreground-muted";
 
   return (
-    <ThreadDockSection ariaLabel="Thread goal dock" className="px-2 py-1">
+    <ThreadDockSection ariaLabel={t`Thread goal dock`} className="px-2 py-1">
       <div className="flex min-w-0 items-center gap-2 leading-5">
         {isActive ? (
           <span className="lightcode-goal-active-icon shrink-0" aria-hidden="true">
@@ -58,7 +62,9 @@ export function ThreadGoalDock({ state, onDismiss }: ThreadGoalDockProps) {
         ) : (
           <StatusIcon className={`size-3.5 shrink-0 ${statusIconClass}`} />
         )}
-        <span className="shrink-0 font-semibold text-foreground">Goal</span>
+        <span className="shrink-0 font-semibold text-foreground">
+          <Trans>Goal</Trans>
+        </span>
         {hasMeta || elapsedLabel ? (
           <span className="flex min-w-0 shrink items-center gap-1 text-[0.85em] text-[color:var(--muted)] [font-variant-numeric:tabular-nums]">
             {hasMeta ? <span className="truncate">{meta.join(" · ")}</span> : null}
@@ -75,7 +81,7 @@ export function ThreadGoalDock({ state, onDismiss }: ThreadGoalDockProps) {
         <Tooltip delay={0}>
           <Tooltip.Trigger>
             <button
-              aria-label="Close goal"
+              aria-label={t`Close goal`}
               className="shrink-0 rounded p-1 text-muted/70 transition-colors hover:bg-danger-500/10 hover:text-danger-500"
               type="button"
               onClick={onDismiss}
@@ -83,7 +89,9 @@ export function ThreadGoalDock({ state, onDismiss }: ThreadGoalDockProps) {
               <X className="size-3.5" />
             </button>
           </Tooltip.Trigger>
-          <Tooltip.Content>Close goal</Tooltip.Content>
+          <Tooltip.Content>
+            <Trans>Close goal</Trans>
+          </Tooltip.Content>
         </Tooltip>
       </div>
     </ThreadDockSection>
@@ -128,29 +136,30 @@ function GoalObjectiveText({ objective }: { objective: string }) {
   );
 }
 
-function goalMeta(state: ThreadGoalDockState): string[] {
+function goalMeta(state: ThreadGoalDockState, t: TranslateFn): string[] {
   const details: string[] = [];
-  if (state.status !== "active") details.push(goalStatusLabel(state.status));
+  if (state.status !== "active") details.push(goalStatusLabel(state.status, t));
   if (state.tokenBudget != null) {
-    details.push(
-      `${formatTokenCount(state.tokensUsed ?? 0)}/${formatTokenCount(state.tokenBudget)} tokens`,
-    );
+    const used = formatTokenCount(state.tokensUsed ?? 0);
+    const budget = formatTokenCount(state.tokenBudget);
+    details.push(t(msg`${used}/${budget} tokens`));
   } else if (state.tokensUsed !== undefined && state.tokensUsed > 0) {
-    details.push(`${formatTokenCount(state.tokensUsed)} tokens`);
+    const used = formatTokenCount(state.tokensUsed);
+    details.push(t(msg`${used} tokens`));
   }
   return details;
 }
 
-function goalStatusLabel(status: ThreadGoalDockState["status"]): string {
+function goalStatusLabel(status: ThreadGoalDockState["status"], t: TranslateFn): string {
   switch (status) {
     case "active":
-      return "Active";
+      return t(msg`Active`);
     case "paused":
-      return "Paused";
+      return t(msg`Paused`);
     case "budget_limited":
-      return "Budget limit reached";
+      return t(msg`Budget limit reached`);
     case "complete":
-      return "Complete";
+      return t(msg`Complete`);
   }
 }
 

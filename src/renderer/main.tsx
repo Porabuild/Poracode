@@ -1,5 +1,6 @@
 import { createRoot, type Root } from "react-dom/client";
 import "./styles.css";
+import "./uiAnimationActivity";
 import { readBridge } from "./bridge";
 import { captureRendererException, initializeRendererSentry } from "./diagnostics/sentry";
 import { getAppName } from "@/shared/appName";
@@ -12,6 +13,7 @@ import {
 } from "./RendererCrashScreen";
 import { isIgnorableRejection, isIgnorableWindowError } from "./rendererGlobalErrors";
 import { bootstrapAppThemeFromCache } from "./theme/applyAppTheme";
+import { bootstrapAppLocaleFromCache } from "./i18n/i18n";
 
 if (import.meta.env.DEV) {
   const warn = console.warn.bind(console);
@@ -36,6 +38,10 @@ initializeRendererSentry();
 
 document.documentElement.dataset.platform =
   typeof window !== "undefined" && "lightcode" in window ? readBridge().platform : "unknown";
+
+// The translucent ("liquid glass") sidebar is applied by provider.tsx only once
+// the main content is ready — the window stays opaque (the index.html boot
+// background) through loading so it doesn't show a bare translucent window.
 
 // Apply the cached appearance + theme before first paint so a non-default theme
 // doesn't flash the base palette on launch.
@@ -104,15 +110,24 @@ function showCrash(
   }
 }
 
-window.addEventListener("error", (event) => {
-  if (!(event instanceof ErrorEvent)) return;
-  if (isIgnorableWindowError(event)) {
-    event.preventDefault();
-    return;
-  }
-  // Sentry's Electron renderer integration already captures global errors; this only swaps UI.
-  showCrash("uncaught", event.error ?? event.message, buildSource(event), { capture: false });
-});
+// Capture phase so this runs before other window `error` listeners (e.g. Vite's
+// dev overlay): for the benign "ResizeObserver loop … undelivered notifications"
+// warning we stopImmediatePropagation so it never reaches the dev overlay, which
+// would otherwise flood with it during panel resizes. Already harmless in prod.
+window.addEventListener(
+  "error",
+  (event) => {
+    if (!(event instanceof ErrorEvent)) return;
+    if (isIgnorableWindowError(event)) {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      return;
+    }
+    // Sentry's Electron renderer integration already captures global errors; this only swaps UI.
+    showCrash("uncaught", event.error ?? event.message, buildSource(event), { capture: false });
+  },
+  { capture: true },
+);
 
 window.addEventListener("unhandledrejection", (event) => {
   if (isIgnorableRejection(event.reason)) {
@@ -144,8 +159,13 @@ reactRoot = createRoot(root, {
   },
 });
 
-void import("./app")
-  .then(({ App }) => {
+// Load the app chunk and the cached locale's catalog in parallel, then mount
+// once the catalog is active so non-English users don't flash the source locale
+// on first paint. bootstrapAppLocaleFromCache never rejects and is time-bounded
+// (a hung catalog can't wedge mount), so the app-chunk import stays the only
+// bootstrap rejection (handled below).
+void Promise.all([import("./app"), bootstrapAppLocaleFromCache()])
+  .then(([{ App }]) => {
     reactRoot?.render(
       <RendererErrorBoundary>
         <App />

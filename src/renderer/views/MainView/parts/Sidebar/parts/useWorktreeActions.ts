@@ -1,4 +1,6 @@
 import { useShallow } from "zustand/shallow";
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/renderer/i18n/i18n";
 import { useGitStore } from "@/renderer/state/gitStore";
 import { deriveSyncAction, type SyncAction } from "@/renderer/actions/gitCommandRunner";
 
@@ -79,41 +81,41 @@ export function buildWorktreeGitItems(
   icons: GitMenuIcons,
 ): GitMenuItem[] {
   const syncMap: Record<SyncAction, GitMenuItem> = {
-    sync: { id: "git-sync", label: "Sync", icon: icons.sync },
+    sync: { id: "git-sync", label: i18n._(msg`Sync`), icon: icons.sync },
     push: {
       id: "git-push",
-      label: vis.ahead > 0 ? `Push (${vis.ahead})` : "Push",
+      label: vis.ahead > 0 ? i18n._(msg`Push (${vis.ahead})`) : i18n._(msg`Push`),
       icon: icons.push,
     },
     pull: {
       id: "git-pull",
-      label: vis.behind > 0 ? `Pull (${vis.behind})` : "Pull",
+      label: vis.behind > 0 ? i18n._(msg`Pull (${vis.behind})`) : i18n._(msg`Pull`),
       icon: icons.pull,
     },
   };
 
   return [
-    { id: "git-review", label: "Review Changes", icon: icons.review },
+    { id: "git-review", label: i18n._(msg`Review Changes`), icon: icons.review },
     syncMap[vis.syncAction],
     ...(vis.showPullFromSource
       ? [
           {
             id: "git-pull-from-source",
-            label: `Pull from Source (${vis.sourceAhead})`,
+            label: i18n._(msg`Pull from Source (${vis.sourceAhead})`),
             icon: icons.pullFromSource,
           },
         ]
       : []),
     ...(vis.showMerge
       ? [
-          { id: "git-merge-to-source", label: "Merge to Source", icon: icons.merge },
-          { id: "git-merge-and-remove", label: "Merge & Remove", icon: icons.merge },
+          { id: "git-merge-to-source", label: i18n._(msg`Merge to Source`), icon: icons.merge },
+          { id: "git-merge-and-remove", label: i18n._(msg`Merge & Remove`), icon: icons.merge },
         ]
       : []),
-    ...(vis.showOpenPr
-      ? [{ id: "open-pr", label: `Open PR #${vis.prNumber}`, icon: icons.openPr }]
+    ...(vis.showOpenPr && vis.prNumber !== undefined
+      ? [{ id: "open-pr", label: i18n._(msg`Open PR #${vis.prNumber}`), icon: icons.openPr }]
       : vis.showCreatePr
-        ? [{ id: "create-pr", label: "Create Pull Request", icon: icons.createPr }]
+        ? [{ id: "create-pr", label: i18n._(msg`Create Pull Request`), icon: icons.createPr }]
         : []),
   ];
 }

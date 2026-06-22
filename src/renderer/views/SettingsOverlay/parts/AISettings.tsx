@@ -1,10 +1,12 @@
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { ToggleButton, ToggleButtonGroup, Tooltip } from "@heroui/react";
+import { Trans, useLingui } from "@lingui/react/macro";
 import { Monitor } from "lucide-react";
 import type { AgentStatus, ThreadPresentationMode } from "@/shared/contracts";
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { capabilitiesForPresentation } from "@/renderer/components/thread/threadComposerOptions";
+import { resolveFastValue } from "@/renderer/components/thread/threadDraftViewHelpers";
 import {
   buildModelPickerControls,
   buildProviderModelMenuProviders,
@@ -40,6 +42,7 @@ function GenConfigSection(props: {
   provider: string;
   model: string;
   effort: string;
+  fast: boolean;
   resolve: (
     agent: AgentStatus | undefined,
     model: string,
@@ -49,18 +52,29 @@ function GenConfigSection(props: {
   allowDisabled?: boolean;
   defaultsHint?: string | undefined;
   agentStatuses: AgentStatus[];
-  onConfigChange: (provider: string, model: string, effort: string) => void;
+  onConfigChange: (provider: string, model: string, effort: string, fast: boolean) => void;
   /** Extra controls rendered below the model/effort toolbar (e.g. presentation mode picker). */
   extraControls?: ReactNode;
   /** When set, model lists mirror the selected thread presentation surface (CLI vs Chat/ACP). */
   presentationMode?: ThreadPresentationMode;
+  /**
+   * Restrict the provider list to agents that support one-shot generation. Set
+   * for the one-shot sections (Title / Commit Message); left off for the
+   * conflict resolver, which launches a full interactive session instead and so
+   * works with every provider.
+   */
+  requireOneShot?: boolean;
+  /** Search anchor for the section host — see ./settingsSearchIndex. */
+  anchorId?: string;
 }) {
+  const { t } = useLingui();
   const {
     heading,
     description,
     provider,
     model,
     effort,
+    fast,
     resolve,
     getCandidates,
     agentStatuses,
@@ -69,9 +83,30 @@ function GenConfigSection(props: {
   } = props;
 
   const installedAgents = agentStatuses.filter((a) => a.installed);
+  // One-shot sections (title / commit) only offer providers that can run a
+  // one-shot generation; the conflict resolver leaves this off (full session),
+  // so providers like Factory Droid stay available there.
+  const eligibleAgents = props.requireOneShot
+    ? installedAgents.filter((a) => a.capabilities.supportsOneShot === true)
+    : installedAgents;
   const mode = deriveMode(provider);
   const customAgent =
-    mode === "custom" ? installedAgents.find((a) => a.kind === provider) : undefined;
+    mode === "custom" ? eligibleAgents.find((a) => a.kind === provider) : undefined;
+
+  // Self-heal a stale saved selection. A one-shot section can still point at a
+  // provider that was selectable before one-shot filtering existed but can't run
+  // a one-shot (e.g. Grok / Factory Droid). That provider is gone from the
+  // picker, so the toolbar disappears with no way to re-pick — reset to Auto.
+  // Guarded on the provider being *installed but ineligible* so it never fires
+  // mid-detection (when the provider is merely absent from the list yet).
+  const savedProviderIneligible =
+    props.requireOneShot === true &&
+    mode === "custom" &&
+    customAgent === undefined &&
+    installedAgents.some((a) => a.kind === provider && a.capabilities.supportsOneShot !== true);
+  useEffect(() => {
+    if (savedProviderIneligible) onConfigChange("auto", "", "", false);
+  }, [savedProviderIneligible, onConfigChange]);
   // In Auto mode, ask the section's candidate helper so the toolbar mirrors the
   // runtime fallback chain — including the "skip provider without preferred model"
   // rule that's evaluated independently per section.
@@ -93,28 +128,31 @@ function GenConfigSection(props: {
       )
     : undefined;
 
-  const providers = buildProviderModelMenuProviders(installedAgents, {
+  const providers = buildProviderModelMenuProviders(eligibleAgents, {
     ...(presentationMode ? { presentationMode } : {}),
   });
 
   function changeMode(next: Mode) {
     if (next === mode) return;
     if (next === "auto") {
-      onConfigChange("auto", "", "");
+      onConfigChange("auto", "", "", false);
       return;
     }
     if (next === "disabled") {
-      onConfigChange("disabled", "", "");
+      onConfigChange("disabled", "", "", false);
       return;
     }
-    const first = sortByAutoPreference(installedAgents)[0];
+    const first = sortByAutoPreference(eligibleAgents)[0];
     if (!first) return;
     const r = resolve(agentForPresentation(first), "", "");
-    onConfigChange(first.kind, r.model, r.effort);
+    onConfigChange(first.kind, r.model, r.effort, false);
   }
 
   const showToolbar = (mode === "custom" || mode === "auto") && displayAgent && displayResolved;
   const isReadOnly = mode === "auto";
+  // Fast mode is only meaningful in Custom mode for a fast-capable model — Auto
+  // never opts a utility task into fast, so the read-only mirror shows it off.
+  const resolvedFast = mode === "custom" ? fast : false;
 
   const modelPickerControls =
     showToolbar && displayAgent && displayResolved
@@ -123,19 +161,29 @@ function GenConfigSection(props: {
           selectedAgentKind: displayAgent.kind,
           model: displayResolved.model,
           effort: displayResolved.effort,
+          fast: resolvedFast,
           capabilities:
             agentForPresentation(displayAgent)?.capabilities ?? displayAgent.capabilities,
           ...(presentationMode ? { presentationMode } : {}),
           isDisabled: isReadOnly,
-          includeFastToggle: false,
+          includeFastToggle: true,
           onProviderModelChange: (next) => {
             const nextAgent = installedAgents.find((a) => a.kind === next.agentKind);
-            const r = resolve(agentForPresentation(nextAgent), next.model, effort);
-            onConfigChange(next.agentKind, r.model, r.effort);
+            const presented = agentForPresentation(nextAgent);
+            const r = resolve(presented, next.model, effort);
+            // Drop fast when the newly selected model can't actually use it.
+            const nextFast = presented ? resolveFastValue(presented, r.model, fast) : false;
+            onConfigChange(next.agentKind, r.model, r.effort, nextFast);
           },
           onConfigPatch: (patch) => {
-            if (!customAgent || !displayResolved || patch.effort === undefined) return;
-            onConfigChange(provider, displayResolved.model, patch.effort);
+            if (!customAgent || !displayResolved) return;
+            if (patch.fast !== undefined) {
+              onConfigChange(provider, displayResolved.model, displayResolved.effort, patch.fast);
+              return;
+            }
+            if (patch.effort !== undefined) {
+              onConfigChange(provider, displayResolved.model, patch.effort, fast);
+            }
           },
         })
       : [];
@@ -152,7 +200,10 @@ function GenConfigSection(props: {
   );
 
   return (
-    <section className="space-y-3">
+    <section
+      {...(props.anchorId ? { id: props.anchorId, "data-settings-anchor": props.anchorId } : {})}
+      className={`space-y-3 ${props.anchorId ? "scroll-mt-4" : ""}`}
+    >
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
           {heading2}
@@ -162,7 +213,7 @@ function GenConfigSection(props: {
         <div className="flex shrink-0 items-center gap-2">
           {mode !== "disabled" && props.extraControls ? props.extraControls : null}
           <ToggleButtonGroup
-            aria-label={`${heading} mode`}
+            aria-label={t`${heading} mode`}
             className="h-7 [&_button]:h-7 [&_button]:min-h-0 [&_button]:min-w-0 [&_button]:px-2"
             selectionMode="single"
             disallowEmptySelection
@@ -173,11 +224,17 @@ function GenConfigSection(props: {
               if (next) changeMode(next);
             }}
           >
-            <ToggleButton id="auto">Auto</ToggleButton>
-            <ToggleButton id="custom" isDisabled={installedAgents.length === 0}>
-              Custom
+            <ToggleButton id="auto">
+              <Trans>Auto</Trans>
             </ToggleButton>
-            {props.allowDisabled ? <ToggleButton id="disabled">Disabled</ToggleButton> : null}
+            <ToggleButton id="custom" isDisabled={eligibleAgents.length === 0}>
+              <Trans>Custom</Trans>
+            </ToggleButton>
+            {props.allowDisabled ? (
+              <ToggleButton id="disabled">
+                <Trans>Disabled</Trans>
+              </ToggleButton>
+            ) : null}
           </ToggleButtonGroup>
         </div>
       </div>
@@ -219,13 +276,18 @@ function PresentationModeToggle(props: {
         if (next) props.onChange(next);
       }}
     >
-      <ToggleButton id="gui">Chat</ToggleButton>
-      <ToggleButton id="terminal">CLI</ToggleButton>
+      <ToggleButton id="gui">
+        <Trans>Chat</Trans>
+      </ToggleButton>
+      <ToggleButton id="terminal">
+        <Trans>CLI</Trans>
+      </ToggleButton>
     </ToggleButtonGroup>
   );
 }
 
 export function AISettings() {
+  const { t } = useLingui();
   const [envKind, setEnvKind] = useState<EnvKind>("windows");
 
   const agentStatuses = useAgentStatusesStore((s) => s.agentStatuses);
@@ -242,6 +304,9 @@ export function AISettings() {
   const titleGenEffort = useSharedSettings((s) =>
     envKind === "wsl" ? s.wslTitleGenEffort : s.titleGenEffort,
   );
+  const titleGenFast = useSharedSettings((s) =>
+    envKind === "wsl" ? s.wslTitleGenFast : s.titleGenFast,
+  );
   const setTitleGenConfig = useSharedSettings((s) =>
     envKind === "wsl" ? s.setWslTitleGenConfig : s.setTitleGenConfig,
   );
@@ -255,6 +320,9 @@ export function AISettings() {
   const commitGenEffort = useSharedSettings((s) =>
     envKind === "wsl" ? s.wslCommitGenEffort : s.commitGenEffort,
   );
+  const commitGenFast = useSharedSettings((s) =>
+    envKind === "wsl" ? s.wslCommitGenFast : s.commitGenFast,
+  );
   const setCommitGenConfig = useSharedSettings((s) =>
     envKind === "wsl" ? s.setWslCommitGenConfig : s.setCommitGenConfig,
   );
@@ -267,6 +335,9 @@ export function AISettings() {
   );
   const conflictResolverEffort = useSharedSettings((s) =>
     envKind === "wsl" ? s.wslConflictResolverEffort : s.conflictResolverEffort,
+  );
+  const conflictResolverFast = useSharedSettings((s) =>
+    envKind === "wsl" ? s.wslConflictResolverFast : s.conflictResolverFast,
   );
   const setConflictResolverConfig = useSharedSettings((s) =>
     envKind === "wsl" ? s.setWslConflictResolverConfig : s.setConflictResolverConfig,
@@ -282,12 +353,12 @@ export function AISettings() {
 
   return (
     <SettingsPage
-      title="AI"
+      title={t`AI`}
       bodyClassName="space-y-8"
       actions={
         hasWsl ? (
           <ToggleButtonGroup
-            aria-label="Environment"
+            aria-label={t`Environment`}
             className="h-7 [&_button]:h-7 [&_button]:min-h-0 [&_button]:min-w-0 [&_button]:px-2"
             selectionMode="single"
             disallowEmptySelection
@@ -298,10 +369,10 @@ export function AISettings() {
               if (next) setEnvKind(next);
             }}
           >
-            <ToggleButton isIconOnly id="windows" aria-label="Windows">
+            <ToggleButton isIconOnly id="windows" aria-label={t`Windows`}>
               <Monitor className="size-3.5" />
             </ToggleButton>
-            <ToggleButton isIconOnly id="wsl" aria-label="WSL">
+            <ToggleButton isIconOnly id="wsl" aria-label={t`WSL`}>
               <ToggleButtonGroup.Separator />
               <TuxIcon className="size-7" />
             </ToggleButton>
@@ -310,47 +381,55 @@ export function AISettings() {
       }
     >
       <GenConfigSection
-        heading="Title Generation"
+        anchorId="ai.titleGeneration"
+        heading={t`Title Generation`}
         allowDisabled
-        description="Generates short titles for new threads."
+        requireOneShot
+        description={t`Generates short titles for new threads.`}
         defaultsHint={getTitleGenDefaultsHint()}
         agentStatuses={activeStatuses}
         provider={titleGenProvider}
         model={titleGenModel}
         effort={titleGenEffort}
+        fast={titleGenFast}
         resolve={resolveTitleGenConfig}
         getCandidates={getTitleGenCandidates}
         onConfigChange={setTitleGenConfig}
       />
 
       <GenConfigSection
-        heading="Commit Message Generation"
-        description="Generates commit messages from staged changes."
+        anchorId="ai.commitMessageGeneration"
+        heading={t`Commit Message Generation`}
+        requireOneShot
+        description={t`Generates commit messages from staged changes.`}
         defaultsHint={getCommitGenDefaultsHint()}
         agentStatuses={activeStatuses}
         provider={commitGenProvider}
         model={commitGenModel}
         effort={commitGenEffort}
+        fast={commitGenFast}
         resolve={resolveCommitGenConfig}
         getCandidates={getCommitGenCandidates}
         onConfigChange={setCommitGenConfig}
       />
 
       <GenConfigSection
-        heading="Conflict Resolver"
-        description="Resolves merge conflicts during rebase or merge."
+        anchorId="ai.conflictResolver"
+        heading={t`Conflict Resolver`}
+        description={t`Resolves merge conflicts during rebase or merge.`}
         defaultsHint={getConflictResolverDefaultsHint()}
         agentStatuses={activeStatuses}
         provider={conflictResolverProvider}
         model={conflictResolverModel}
         effort={conflictResolverEffort}
+        fast={conflictResolverFast}
         resolve={resolveConflictResolverConfig}
         getCandidates={getConflictResolverCandidates}
         onConfigChange={setConflictResolverConfig}
         presentationMode={conflictResolverPresentationMode}
         extraControls={
           <PresentationModeToggle
-            ariaLabel="Open conflict resolver in"
+            ariaLabel={t`Open conflict resolver in`}
             value={conflictResolverPresentationMode}
             onChange={setConflictResolverPresentationMode}
           />

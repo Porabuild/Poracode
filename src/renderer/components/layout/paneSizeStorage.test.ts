@@ -1,11 +1,13 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import {
   migratePaneSizeStorage,
+  preservePaneSizeStorageForLayoutChange,
   readStoredSizes,
   SPLIT_SIZE_STORAGE_PREFIX,
   swapPaneIdsInStorage,
   writeStoredSizes,
 } from "./paneSizeStorage";
+import type { PaneLayout } from "@/shared/paneLayout";
 
 function key(axis: "vertical" | "horizontal", ids: string[]): string {
   return `${SPLIT_SIZE_STORAGE_PREFIX}:${axis}:${ids.join("\0")}`;
@@ -69,6 +71,72 @@ describe("paneSizeStorage", () => {
       writeStoredSizes(key("vertical", ["c", "d"]), [70, 30]);
       swapPaneIdsInStorage("a", "b");
       expect(readStoredSizes(key("vertical", ["c", "d"]), 2)).toEqual([70, 30]);
+    });
+  });
+
+  describe("preservePaneSizeStorageForLayoutChange", () => {
+    it("keeps ancestor split sizes when a pane is inserted inside one child", () => {
+      const previous: PaneLayout = {
+        kind: "split",
+        axis: "vertical",
+        children: [
+          { kind: "leaf", paneId: "left" },
+          { kind: "leaf", paneId: "right" },
+        ],
+      };
+      const next: PaneLayout = {
+        kind: "split",
+        axis: "vertical",
+        children: [
+          { kind: "leaf", paneId: "left" },
+          {
+            kind: "split",
+            axis: "horizontal",
+            children: [
+              { kind: "leaf", paneId: "right" },
+              { kind: "leaf", paneId: "new" },
+            ],
+          },
+        ],
+      };
+
+      writeStoredSizes(key("vertical", ["left", "right"]), [38, 62]);
+      preservePaneSizeStorageForLayoutChange(previous, next);
+
+      expect(readStoredSizes(key("vertical", ["left", "right", "new"]), 2)).toEqual([38, 62]);
+    });
+
+    it("keeps ancestor split sizes when a pane is removed inside one child", () => {
+      const previous: PaneLayout = {
+        kind: "split",
+        axis: "vertical",
+        children: [
+          { kind: "leaf", paneId: "left" },
+          {
+            kind: "split",
+            axis: "horizontal",
+            children: [
+              { kind: "leaf", paneId: "top" },
+              { kind: "leaf", paneId: "bottom" },
+            ],
+          },
+        ],
+      };
+      const next: PaneLayout = {
+        kind: "split",
+        axis: "vertical",
+        children: [
+          { kind: "leaf", paneId: "left" },
+          { kind: "leaf", paneId: "top" },
+        ],
+      };
+
+      writeStoredSizes(key("vertical", ["left", "top", "bottom"]), [42, 58]);
+      preservePaneSizeStorageForLayoutChange(previous, next);
+
+      const sizes = readStoredSizes(key("vertical", ["left", "top"]), 2);
+      expect(sizes[0]).toBeCloseTo(42);
+      expect(sizes[1]).toBeCloseTo(58);
     });
   });
 });

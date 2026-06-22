@@ -39,6 +39,7 @@ import {
   gitWatchWorktreesPayloadSchema,
   gitWorktreeStatusBatchPayloadSchema,
   listFileCheckpointsPayloadSchema,
+  relocateProjectPayloadSchema,
   restoreFileCheckpointPayloadSchema,
 } from "../../contracts";
 import type {
@@ -104,6 +105,8 @@ import type {
   GitWorktreeStatusBatchResult,
   ListFileCheckpointsPayload,
   ListFileCheckpointsResult,
+  RelocateProjectPayload,
+  RelocateProjectResult,
   RestoreFileCheckpointPayload,
 } from "../../contracts";
 import { definePayloadProcedure } from "../core";
@@ -324,4 +327,9 @@ export const gitProcedures = {
     "supervisor",
     gitUnwatchProjectPayloadSchema,
   ),
+  relocateProject: definePayloadProcedure<
+    RelocateProjectPayload,
+    RelocateProjectResult,
+    "supervisor"
+  >("relocateProject", "supervisor", relocateProjectPayloadSchema),
 } as const;

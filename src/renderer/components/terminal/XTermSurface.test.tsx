@@ -1,5 +1,6 @@
-import { act, render } from "@testing-library/react";
+import { act } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import type { SupervisorEvent } from "@/shared/ipc";
 
 // ── Hoisted state shared between mock factories and test code ────
@@ -54,7 +55,7 @@ vi.mock("@xterm/xterm", () => ({
       .mockReturnValue({ dispose: vi.fn<() => void>() });
     attachCustomKeyEventHandler = vi.fn<(handler: (event: KeyboardEvent) => boolean) => void>();
     unicode = { activeVersion: "6" };
-    buffer = { active: { baseY: 0, viewportY: 0 } };
+    buffer = { active: { baseY: 0, viewportY: 0 }, normal: { length: 0 } };
     cols = 80;
     rows = 24;
     options: Record<string, unknown> = {};
@@ -85,7 +86,18 @@ vi.mock("@xterm/addon-clipboard", () => ({
 }));
 
 vi.mock("@xterm/addon-search", () => ({
-  SearchAddon: class MockSearchAddon {},
+  SearchAddon: class MockSearchAddon {
+    onDidChangeResults() {
+      return { dispose() {} };
+    }
+    findNext() {
+      return false;
+    }
+    findPrevious() {
+      return false;
+    }
+    clearDecorations() {}
+  },
 }));
 
 vi.mock("@xterm/addon-webgl", () => ({
@@ -214,6 +226,37 @@ describe("XTermSurface", () => {
 
     expect(state.bridge.readTerminalScrollback).toHaveBeenCalledWith({ threadId: "test-1" });
     expect(terminal().write).toHaveBeenCalledWith("existing output");
+  });
+
+  it("nudges the live agent to repaint after restoring scrollback on reopen", async () => {
+    // Reopen restores a non-empty transcript. A no-alt-screen repaint-in-place
+    // agent (Claude no-flicker) won't redraw from a same-size resize (no
+    // SIGWINCH), so the surface must force one genuine winsize delta — rows-1
+    // then rows — to make the agent emit a fresh frame over the replay.
+    state.bridge.readTerminalScrollback.mockResolvedValueOnce("restored frame");
+
+    render(<XTermSurface terminalId="test-1" />);
+    await flushFrame();
+
+    expect(state.bridge.resizeTerminal).toHaveBeenCalledWith({
+      threadId: "test-1",
+      cols: 80,
+      rows: 23,
+    });
+    expect(state.bridge.resizeTerminal).toHaveBeenCalledWith({
+      threadId: "test-1",
+      cols: 80,
+      rows: 24,
+    });
+  });
+
+  it("does not nudge on a fresh launch with no scrollback", async () => {
+    state.bridge.readTerminalScrollback.mockResolvedValueOnce("");
+
+    render(<XTermSurface terminalId="test-1" />);
+    await flushFrame();
+
+    expect(state.bridge.resizeTerminal).not.toHaveBeenCalled();
   });
 
   it("disposes terminal and unsubscribes on unmount", () => {

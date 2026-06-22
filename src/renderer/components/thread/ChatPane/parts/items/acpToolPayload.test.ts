@@ -40,6 +40,21 @@ describe("acpToolPayload", () => {
     });
   });
 
+  it("unwraps MCP content text blocks from result objects", () => {
+    expect(
+      extractAcpResultPart({
+        result: {
+          content: [{ type: "text", text: '{"count":1}' }],
+          structuredContent: null,
+          _meta: null,
+        },
+      }),
+    ).toEqual({
+      text: '{\n  "count": 1\n}',
+      language: "json",
+    });
+  });
+
   it("synthesizes a unified diff from replacement-style edit args", () => {
     expect(
       extractAcpDiffResultPart({

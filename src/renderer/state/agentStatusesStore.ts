@@ -51,6 +51,7 @@ interface AgentStatusesStore {
    * everything else lands in `agentStatuses`.
    */
   mergeAgentStatus: (status: AgentStatus) => void;
+  removeAgentStatus: (kind: string) => void;
 }
 
 function capabilitiesEqual(
@@ -66,6 +67,11 @@ function capabilitiesEqual(
     if (a.efforts[i] !== b.efforts[i]) return false;
   }
   if (!areAgentSlashCommandsEqual(a.slashCommands, b.slashCommands)) return false;
+  // Compared so a status persisted before `supportsOneShot` existed (flag
+  // absent) is treated as different from a freshly-detected one (flag set) and
+  // gets replaced — otherwise the one-shot AI selectors would keep hiding
+  // one-shot-capable providers for the whole first post-upgrade session.
+  if ((a.supportsOneShot ?? false) !== (b.supportsOneShot ?? false)) return false;
   return true;
 }
 
@@ -214,10 +220,40 @@ export const useAgentStatusesStore = create<AgentStatusesStore>()(
               : prev.agentStatuses.map((entry, i) => (i === idx ? status : entry));
           return { agentStatuses: next, windowsLoaded: true };
         }),
+      removeAgentStatus: (kind) =>
+        set((prev) => {
+          const agentStatuses = prev.agentStatuses.filter((status) => status.kind !== kind);
+          const wslAgentStatuses = prev.wslAgentStatuses.filter((status) => status.kind !== kind);
+          const discoveredAgents = prev.discoveredAgents.filter((status) => status.kind !== kind);
+          if (
+            agentStatuses.length === prev.agentStatuses.length &&
+            wslAgentStatuses.length === prev.wslAgentStatuses.length &&
+            discoveredAgents.length === prev.discoveredAgents.length
+          ) {
+            return prev;
+          }
+          return { agentStatuses, wslAgentStatuses, discoveredAgents };
+        }),
     }),
     {
       name: "lightcode-agent-statuses-v1",
-      version: 1,
+      version: 2,
+      // v1 -> v2: statuses persisted before `AgentCapability.supportsOneShot`
+      // existed lack the flag. Drop them (and the loaded flags) so the one-shot
+      // AI selectors don't hide one-shot-capable providers until fresh detection
+      // repopulates the store. Mirrors the supervisor STATUS_CACHE_VERSION bump,
+      // which only invalidates the supervisor's on-disk cache, not this
+      // renderer-side localStorage copy.
+      migrate: (persisted) => {
+        const prev = (persisted ?? {}) as Partial<AgentStatusesStore>;
+        return {
+          ...prev,
+          agentStatuses: [],
+          wslAgentStatuses: [],
+          windowsLoaded: false,
+          wslLoaded: false,
+        } as AgentStatusesStore;
+      },
       // Synchronous localStorage hydration (unlike the IndexedDB-backed app
       // store) so the last-known statuses — and their already-cached provider
       // icons — are in the store on the very first paint, before the async

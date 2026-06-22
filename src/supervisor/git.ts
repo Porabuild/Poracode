@@ -24,8 +24,10 @@ import {
   getLocationIdentity,
   ghVersionWslBridge,
   parseRemoteUrl,
+  resolveBuiltInWorktreeRoot,
   resolveClonedProjectPath,
   setWslGitBridgeClient,
+  type WorktreePathOptions,
 } from "./git/exec";
 import { GitMergeService } from "./git/mergeService";
 import {
@@ -49,6 +51,7 @@ export {
   getLocationIdentity,
   parseRemoteUrl,
   parseStatusPorcelainV2,
+  resolveBuiltInWorktreeRoot,
   resolveClonedProjectPath,
 };
 
@@ -319,6 +322,7 @@ export class GitService {
     copyIgnoredPatterns?: string[],
     transferUncommitted?: boolean,
     keepChangesInSource?: boolean,
+    worktreePlacement?: WorktreePathOptions,
   ): Promise<GitAddWorktreeResult> {
     return this.worktreeService.addWorktree(
       location,
@@ -329,6 +333,7 @@ export class GitService {
       copyIgnoredPatterns,
       transferUncommitted,
       keepChangesInSource,
+      worktreePlacement,
     );
   }
 
@@ -399,7 +404,15 @@ export class GitService {
     return this.mergeService.finishMerge(worktreeLocation);
   }
 
-  async pruneWorktrees(location: ProjectLocation, activeWorktreePaths: string[]): Promise<void> {
-    return this.worktreeService.pruneWorktrees(location, activeWorktreePaths);
+  async pruneWorktrees(
+    location: ProjectLocation,
+    activeWorktreePaths: string[],
+    managedRoots?: string[],
+  ): Promise<void> {
+    return this.worktreeService.pruneWorktrees(location, activeWorktreePaths, managedRoots);
+  }
+
+  async repairWorktrees(location: ProjectLocation): Promise<number> {
+    return this.worktreeService.repairWorktrees(location);
   }
 }

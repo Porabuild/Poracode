@@ -130,15 +130,32 @@ jobs:
 
           gh api repos/${{ github.repository }}/releases/generate-notes "${args[@]}" --jq .body > release-notes.md
 
-      - name: Create GitHub prerelease
+      # Upload every asset to a DRAFT release first. A draft is invisible to
+      # electron-updater (it isn't in releases.atom and its assets aren't
+      # publicly downloadable), so clients never observe a release whose
+      # channel manifest (nightly-mac.yml) is still mid-upload — the partial
+      # publish that surfaces as "Cannot find latest-mac.yml" 404s.
+      - name: Create GitHub prerelease (draft)
         uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ needs.prepare.outputs.tag }}
           name: Lightcode Nightly ${{ needs.prepare.outputs.tag }}
           prerelease: true
+          draft: true
           make_latest: false
           body_path: release-notes.md
           fail_on_unmatched_files: true
           files: release-assets/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # Flip draft → published only after all assets (manifests included) are
+      # uploaded. This is the single atomic moment the release becomes visible
+      # to the updater. prerelease stays true so nightly clients still match it.
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release edit "${{ needs.prepare.outputs.tag }}" \
+            --repo "${{ github.repository }}" \
+            --draft=false --prerelease

@@ -1,10 +1,12 @@
 import { memo } from "react";
 import { Surface } from "@heroui/react";
+import { useLingui } from "@lingui/react/macro";
 import { AnimatingPlanIcon } from "@/renderer/components/common";
 import type { ToolCallPayload } from "@/shared/contracts";
 import type { RuntimeChatItem } from "@/renderer/state/slices/runtimeEventSlice";
 import { ItemMarkdown } from "./ItemMarkdown";
 import { PathDisplay } from "@/renderer/components/common/PathDisplay";
+import { useShimmer } from "@/renderer/thinkingAnimator";
 import { chatMessageSurfaceClass } from "./chatMessageSurface";
 
 interface PlanProposalProps {
@@ -21,13 +23,17 @@ interface PlanProposalProps {
  * accordion in the way.
  */
 export const PlanProposal = memo(function PlanProposal({ item }: PlanProposalProps) {
+  const { t } = useLingui();
   const payload = item.payload as ToolCallPayload | undefined;
   const args = readArgsObject(payload);
   const plan = readString(args, "plan");
   const planFilePath = readString(args, "planFilePath") ?? readString(args, "plan_filename");
   const isStreaming = item.state !== "completed";
+  const thinkingTextRef = useShimmer<HTMLSpanElement>(isStreaming);
 
   if (!plan && !isStreaming && !planFilePath) return null;
+
+  const proposedPlanLabel = t`Proposed plan`;
 
   return (
     <Surface variant="transparent" className={chatMessageSurfaceClass}>
@@ -37,10 +43,11 @@ export const PlanProposal = memo(function PlanProposal({ item }: PlanProposalPro
             className={`size-3 shrink-0 ${isStreaming ? "lightcode-plan-proposal-icon" : ""}`}
           />
           <span
+            ref={thinkingTextRef}
             className={isStreaming ? "lightcode-thinking-text" : ""}
-            {...(isStreaming ? { "data-lightcode-shimmer-text": "Proposed plan" } : {})}
+            {...(isStreaming ? { "data-lightcode-shimmer-text": proposedPlanLabel } : {})}
           >
-            Proposed plan
+            {proposedPlanLabel}
           </span>
         </div>
         {plan ? <ItemMarkdown text={plan} /> : null}

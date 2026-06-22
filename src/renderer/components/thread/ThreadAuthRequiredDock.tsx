@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { toast } from "@heroui/react";
 import { KeyRound, LogIn, RefreshCw, Settings } from "lucide-react";
+import { Trans, useLingui } from "@lingui/react/macro";
 import type { AgentStatus, Project } from "@/shared/contracts";
 import { readBridge } from "@/renderer/bridge";
 import { runAgentLoginCommand } from "@/renderer/actions/agentLoginActions";
@@ -39,6 +40,7 @@ function shouldPreferTerminalLogin(status: AgentStatus): boolean {
 
 export function ThreadAuthRequiredDock(props: { agentStatus: AgentStatus; project?: Project }) {
   const { agentStatus, project } = props;
+  const { t } = useLingui();
   const [pendingAction, setPendingAction] = useState<"login" | "refresh" | undefined>();
   const agentAuthMethod = findAgentAuthMethodForStatus(agentStatus);
   const terminalAuthMethod = findTerminalAuthMethodForStatus(agentStatus);
@@ -48,10 +50,10 @@ export function ThreadAuthRequiredDock(props: { agentStatus: AgentStatus; projec
   const preferTerminalLogin = shouldPreferTerminalLogin(agentStatus);
   const useTerminalLogin = canUseTerminalLogin && (preferTerminalLogin || !canUseAgentAuth);
   const description = useTerminalLogin
-    ? `Run ${agentStatus.loginCommand} before this thread can run.`
+    ? t`Run ${agentStatus.loginCommand} before this thread can run.`
     : agentAuthMethod
-      ? `Complete ${agentAuthMethod.name} sign-in before this thread can run.`
-      : "Add credentials before this thread can run.";
+      ? t`Complete ${agentAuthMethod.name} sign-in before this thread can run.`
+      : t`Add credentials before this thread can run.`;
 
   async function handleLogin() {
     if (pendingAction) return;
@@ -69,13 +71,13 @@ export function ThreadAuthRequiredDock(props: { agentStatus: AgentStatus; projec
           setPendingAction(undefined);
           void refreshAgentStatus(agentStatus)
             .then(() => {
-              if (exitCode === 0) toast.success(`${agentStatus.label} authenticated.`);
+              if (exitCode === 0) toast.success(t`${agentStatus.label} authenticated.`);
             })
             .catch((error: unknown) => {
               toast.danger(
                 error instanceof Error
                   ? error.message
-                  : `Unable to refresh ${agentStatus.label} status.`,
+                  : t`Unable to refresh ${agentStatus.label} status.`,
               );
             });
         },
@@ -94,10 +96,10 @@ export function ThreadAuthRequiredDock(props: { agentStatus: AgentStatus; projec
         });
         void readBridge().focusWindow();
         await refreshAgentStatus(agentStatus);
-        toast.success(`${agentStatus.label} authenticated.`);
+        toast.success(t`${agentStatus.label} authenticated.`);
       } catch (error) {
         toast.danger(
-          error instanceof Error ? error.message : `Unable to authenticate ${agentStatus.label}.`,
+          error instanceof Error ? error.message : t`Unable to authenticate ${agentStatus.label}.`,
         );
       } finally {
         setPendingAction(undefined);
@@ -113,7 +115,7 @@ export function ThreadAuthRequiredDock(props: { agentStatus: AgentStatus; projec
       await refreshAgentStatus(agentStatus);
     } catch (error) {
       toast.danger(
-        error instanceof Error ? error.message : `Unable to refresh ${agentStatus.label}.`,
+        error instanceof Error ? error.message : t`Unable to refresh ${agentStatus.label}.`,
       );
     } finally {
       setPendingAction(undefined);
@@ -121,11 +123,15 @@ export function ThreadAuthRequiredDock(props: { agentStatus: AgentStatus; projec
   }
 
   return (
-    <ThreadDockSection placement="composer" collapsed={false} ariaLabel="Authentication required">
+    <ThreadDockSection
+      placement="composer"
+      collapsed={false}
+      ariaLabel={t`Authentication required`}
+    >
       <ThreadDockHeader
         icon={KeyRound}
         iconClassName="text-warning"
-        title="Sign in required"
+        title={t`Sign in required`}
         actions={
           <div className="flex shrink-0 items-center gap-1">
             {hasDirectLogin ? (
@@ -139,7 +145,7 @@ export function ThreadAuthRequiredDock(props: { agentStatus: AgentStatus; projec
                 onPress={() => void handleLogin()}
               >
                 <LogIn className="size-3.5" />
-                Login
+                <Trans>Login</Trans>
               </Button>
             ) : (
               <Button
@@ -150,12 +156,12 @@ export function ThreadAuthRequiredDock(props: { agentStatus: AgentStatus; projec
                 onPress={openSettings}
               >
                 <Settings className="size-3.5" />
-                Settings
+                <Trans>Settings</Trans>
               </Button>
             )}
             <Button
               isIconOnly
-              aria-label={`Refresh ${agentStatus.label} authentication`}
+              aria-label={t`Refresh ${agentStatus.label} authentication`}
               size="sm"
               variant="ghost"
               className="h-6 w-6 min-w-0 text-muted"

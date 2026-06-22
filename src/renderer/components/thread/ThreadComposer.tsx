@@ -1,6 +1,8 @@
 import { ReactNode, useEffect, useLayoutEffect, useRef, useState, type DragEvent } from "react";
 import { ArrowUp, Square } from "lucide-react";
 import { ToggleButton, Tooltip } from "@heroui/react";
+import type { MessageDescriptor } from "@lingui/core";
+import { Trans, useLingui } from "@lingui/react/macro";
 import {
   Button,
   EffortContextMenu,
@@ -39,7 +41,14 @@ export type ComposerControl =
     }
   | {
       kind: "toggle";
+      /**
+       * Stable English identity used for control logic (shortcuts, tier
+       * defaults, tests compare against `"Plan"` / `"Work"` / `"Fast"` /
+       * `"Supervised"`). Never localize this — set `displayLabel` instead.
+       */
       label: string;
+      /** Localized label shown to the user; falls back to `label` when absent. */
+      displayLabel?: MessageDescriptor;
       icon?: ReactNode;
       iconKind?: ComposerIconKind;
       isSelected: boolean;
@@ -145,8 +154,57 @@ function shouldHideControlLabel(
   forceShowLabels: boolean,
 ): boolean {
   if (forceShowLabels) return false;
-  if (!control.hideLabelOnWrap && control.tier === undefined) return false;
-  return targetWrapLevel >= (control.tier ?? DEFAULT_LABEL_COLLAPSE_LEVEL);
+  const collapseTier = getControlCollapseTier(control);
+  if (collapseTier === undefined) return false;
+  return targetWrapLevel >= collapseTier;
+}
+
+function getControlCollapseTier(control: ComposerControl): number | undefined {
+  if (!control.hideLabelOnWrap && control.tier === undefined) return undefined;
+  return control.tier ?? DEFAULT_LABEL_COLLAPSE_LEVEL;
+}
+
+function getOptionLabel(option: OptionMenuOption): string {
+  return typeof option === "string" ? option : option.label;
+}
+
+function resolveControlProbeLabel(control: ComposerControl, thinkingLabel: string): string {
+  if (control.kind === "provider-model") {
+    const provider =
+      control.providers.find((candidate) => candidate.kind === control.currentAgentKind) ??
+      control.providers[0];
+    return (
+      provider?.capabilities.models.find((model) => model.id === control.currentModel)?.label ??
+      control.currentModel
+    );
+  }
+
+  if (control.kind === "effort-context") {
+    const effortLabel =
+      control.efforts.find((option) => option.id === control.effortValue)?.label ??
+      control.effortValue ??
+      "";
+    const contextLabel =
+      control.contextSizes.find((option) => option.id === control.contextValue)?.label ??
+      control.contextValue ??
+      "";
+    return (
+      [effortLabel, contextLabel].filter((part) => part.length > 0).join(" · ") || thinkingLabel
+    );
+  }
+
+  if (control.kind === "toggle") return control.label;
+  if (control.kind === "static") return control.value;
+  const selectedOption = control.options.find(
+    (option) => (typeof option === "string" ? option : option.id) === control.value,
+  );
+  return selectedOption ? getOptionLabel(selectedOption) : control.value;
+}
+
+function hasProbeIcon(control: ComposerControl): boolean {
+  if (control.kind === "provider-model" || control.kind === "effort-context") return true;
+  if (control.kind === "static") return Boolean(control.icon);
+  return Boolean(control.icon || control.iconKind);
 }
 
 export function ThreadComposer(props: {
@@ -202,10 +260,11 @@ export function ThreadComposer(props: {
     toolbarLayoutKey,
     toolbarOnly = false,
   } = props;
+  const { t } = useLingui();
 
-  const [wrapLevel, setWrapLevel] = useState(0);
   const [isAttachmentDropActive, setIsAttachmentDropActive] = useState(false);
   const controlsRef = useRef<HTMLDivElement>(null);
+  const toolbarRef = useRef<HTMLDivElement>(null);
   const probeContainerRef = useRef<HTMLDivElement>(null);
   const editorHostRef = useRef<HTMLDivElement>(null);
   const attachmentDragDepthRef = useRef(0);
@@ -249,6 +308,15 @@ export function ThreadComposer(props: {
 
   // Use a ref to track the current wrapping level to avoid unnecessary state updates
   const wrapLevelRef = useRef(0);
+  const lastCollapseWidthRef = useRef<number | undefined>(undefined);
+  const lastToolbarWidthRef = useRef<number | undefined>(undefined);
+  const isToolbarWidthDecreasingRef = useRef(false);
+
+  const applyWrapLevel = (level: number) => {
+    wrapLevelRef.current = level;
+    toolbarRef.current?.setAttribute("data-wrap-level", String(level));
+    controlsRef.current?.classList.toggle("is-wrapping", level > 0);
+  };
 
   // Stable check function to find the best wrapLevel (0-5)
   // Each wrap level corresponds to a tier of controls collapsing.
@@ -257,21 +325,53 @@ export function ThreadComposer(props: {
     const probes = probeContainerRef.current.children;
     if (probes.length === 0) return;
 
+    const currentLevel = wrapLevelRef.current;
+    let availableWidth = 0;
+
     // Find the first wrap level that fits on one row.
     // We check from level 0 (all expanded) up to 5 (all collapsed).
     let bestLevel = 5;
     for (let level = 0; level <= 5; level++) {
       const probeToolbar = probes[level] as HTMLElement;
       const wrappingContainer = probeToolbar?.querySelector(".probe-wrap-container") as HTMLElement;
-      if (wrappingContainer && wrappingContainer.scrollWidth <= wrappingContainer.clientWidth) {
+      if (!wrappingContainer) continue;
+
+      availableWidth ||= wrappingContainer.clientWidth;
+      if (wrappingContainer.scrollWidth <= wrappingContainer.clientWidth) {
         bestLevel = level;
         break;
       }
     }
 
-    if (bestLevel !== wrapLevelRef.current) {
-      wrapLevelRef.current = bestLevel;
-      setWrapLevel(bestLevel);
+    const toolbarWidth = toolbarRef.current?.clientWidth || availableWidth;
+    const previousToolbarWidth = lastToolbarWidthRef.current;
+    if (toolbarWidth > 0) {
+      if (previousToolbarWidth !== undefined) {
+        if (toolbarWidth < previousToolbarWidth) {
+          isToolbarWidthDecreasingRef.current = true;
+        } else if (toolbarWidth > previousToolbarWidth) {
+          isToolbarWidthDecreasingRef.current = false;
+        }
+      }
+      lastToolbarWidthRef.current = toolbarWidth;
+    }
+    toolbarRef.current?.toggleAttribute(
+      "data-width-decreasing",
+      isToolbarWidthDecreasingRef.current,
+    );
+
+    if (bestLevel !== currentLevel) {
+      const isExpanding = bestLevel < currentLevel;
+      if (
+        isExpanding &&
+        (isToolbarWidthDecreasingRef.current ||
+          (lastCollapseWidthRef.current !== undefined &&
+            toolbarWidth <= lastCollapseWidthRef.current))
+      ) {
+        return;
+      }
+      lastCollapseWidthRef.current = bestLevel > currentLevel ? toolbarWidth : undefined;
+      applyWrapLevel(bestLevel);
     }
   };
 
@@ -316,6 +416,8 @@ export function ThreadComposer(props: {
     targetWrapLevel: number,
     forceShowLabels: boolean,
   ) => {
+    const collapseTier = getControlCollapseTier(control);
+    const hideOnWrap = collapseTier !== undefined;
     const shouldHideLabel = shouldHideControlLabel(control, targetWrapLevel, forceShowLabels);
     if (control.kind === "provider-model") {
       return (
@@ -328,10 +430,11 @@ export function ThreadComposer(props: {
           {...(control.presentationMode ? { presentationMode: control.presentationMode } : {})}
           {...(control.isDisabled !== undefined ? { isDisabled: control.isDisabled } : {})}
           {...(control.openSignal !== undefined ? { openSignal: control.openSignal } : {})}
-          {...(control.hideLabelOnWrap || shouldHideLabel
+          {...(hideOnWrap || shouldHideLabel
             ? {
                 hideLabelOnWrap: true,
                 forceHideLabel: shouldHideLabel,
+                ...(collapseTier !== undefined ? { collapseTier } : {}),
               }
             : {})}
           onChange={control.onChange}
@@ -360,10 +463,11 @@ export function ThreadComposer(props: {
           {...(control.icon ? { icon: control.icon } : {})}
           {...(control.isDisabled !== undefined ? { isDisabled: control.isDisabled } : {})}
           {...(control.openSignal !== undefined ? { openSignal: control.openSignal } : {})}
-          {...(control.hideLabelOnWrap || shouldHideLabel
+          {...(hideOnWrap || shouldHideLabel
             ? {
                 hideLabelOnWrap: true,
                 forceHideLabel: shouldHideLabel,
+                ...(collapseTier !== undefined ? { collapseTier } : {}),
               }
             : {})}
           onOpenChange={(open) => {
@@ -375,22 +479,21 @@ export function ThreadComposer(props: {
 
     if (control.kind === "static") {
       const hideLabel = control.iconOnly || shouldHideLabel;
+      const labelClassName = hideOnWrap
+        ? `lightcode-composer-label-hideable truncate${hideLabel ? " is-hidden" : ""}`
+        : "truncate";
       const content = (
         <div key={`${control.value}-${index}`} className="lightcode-composer-static min-w-0 px-2.5">
           {control.icon}
           {!control.iconOnly && (
-            <span
-              className={
-                hideLabel ? "lightcode-composer-label-hideable truncate is-hidden" : "truncate"
-              }
-            >
+            <span data-collapse-tier={collapseTier} className={labelClassName}>
               {control.value}
             </span>
           )}
         </div>
       );
 
-      if (control.iconOnly || (hideLabel && targetWrapLevel > 0)) {
+      if (control.iconOnly || hideOnWrap || (hideLabel && targetWrapLevel > 0)) {
         return (
           <Tooltip key={`static-tooltip-${index}`}>
             {content}
@@ -404,13 +507,19 @@ export function ThreadComposer(props: {
 
     if (control.kind === "toggle") {
       const hideLabel = control.iconOnly || shouldHideLabel;
+      const labelClassName = hideOnWrap
+        ? `lightcode-composer-label-hideable${hideLabel ? " is-hidden" : ""}`
+        : undefined;
+      // `label` is the stable English logic key; `displayLabel` (when present)
+      // is the localized text actually shown to the user.
+      const toggleLabel = control.displayLabel ? t(control.displayLabel) : control.label;
       // A `disabledReason` toggle stays hoverable (not natively `disabled`) so
       // its explanatory tooltip still fires; it's dimmed and click is a no-op.
       const gated = Boolean(control.disabledReason);
       const toggle = (
         <ToggleButton
           key={`toggle-${index}`}
-          aria-label={control.label}
+          aria-label={toggleLabel}
           aria-disabled={gated}
           className={`lightcode-composer-toggle ${
             control.fillIconOnSelect ? "lightcode-composer-toggle--fill-icon-selected " : ""
@@ -427,18 +536,27 @@ export function ThreadComposer(props: {
         >
           {resolveIcon(control)}
           {!control.iconOnly && (
-            <span className={hideLabel ? "lightcode-composer-label-hideable is-hidden" : undefined}>
-              {control.label}
+            <span data-collapse-tier={collapseTier} className={labelClassName}>
+              {toggleLabel}
             </span>
           )}
         </ToggleButton>
       );
 
-      const tooltipText = gated ? control.disabledReason : hideLabel ? control.label : undefined;
+      const tooltipText = gated
+        ? control.disabledReason
+        : hideOnWrap || hideLabel
+          ? toggleLabel
+          : undefined;
       if (tooltipText) {
+        // Place the ToggleButton directly inside <Tooltip> (no <Tooltip.Trigger>
+        // wrapper) so the tooltip attaches to the button itself. Wrapping a
+        // focusable control in <Tooltip.Trigger> would add a redundant
+        // `role="button"` host element, duplicating the toggle in the
+        // accessibility tree. Mirrors the OptionMenu tooltip pattern.
         return (
           <Tooltip key={`toggle-tooltip-${index}`} delay={0}>
-            <Tooltip.Trigger>{toggle}</Tooltip.Trigger>
+            {toggle}
             <Tooltip.Content placement="top">{tooltipText}</Tooltip.Content>
           </Tooltip>
         );
@@ -453,11 +571,12 @@ export function ThreadComposer(props: {
       ...(control.iconOnly ? { iconOnly: control.iconOnly } : {}),
       ...(control.placeholder ? { placeholder: control.placeholder } : {}),
       ...(control.isDisabled !== undefined ? { isDisabled: control.isDisabled } : {}),
-      ...(control.hideLabelOnWrap || shouldHideLabel
+      ...(hideOnWrap || shouldHideLabel
         ? {
             hideLabelOnWrap: true,
             forceHideLabel: shouldHideLabel,
-            tooltip: shouldHideLabel && targetWrapLevel > 0 ? control.value : undefined,
+            ...(collapseTier !== undefined ? { collapseTier } : {}),
+            tooltip: control.value,
           }
         : {}),
     };
@@ -483,11 +602,50 @@ export function ThreadComposer(props: {
       renderControlItem(control, index, targetWrapLevel, forceShowLabels),
     );
 
+  const renderProbeControlItem = (
+    control: ComposerControl,
+    index: number,
+    targetWrapLevel: number,
+    forceShowLabels: boolean,
+  ) => {
+    const hideLabel = shouldHideControlLabel(control, targetWrapLevel, forceShowLabels);
+    const iconOnly =
+      control.kind !== "provider-model" &&
+      control.kind !== "effort-context" &&
+      control.iconOnly === true;
+    const isStatic = control.kind === "static";
+    const isToggle = control.kind === "toggle";
+    const probeClassName = isStatic
+      ? "lightcode-composer-static min-w-0 px-2.5"
+      : isToggle
+        ? `lightcode-composer-toggle inline-flex min-w-0 items-center gap-[0.35rem] px-2.5 ${
+            control.iconOnly ? "min-w-9 px-2" : ""
+          }`
+        : "lightcode-composer-menu inline-flex min-w-0 items-center gap-[0.35rem] px-2.5";
+    const label = resolveControlProbeLabel(control, t`Thinking`);
+
+    return (
+      <div key={`probe-control-${index}`} className={probeClassName}>
+        {hasProbeIcon(control) ? <span className="size-4 shrink-0" /> : null}
+        {!iconOnly && !hideLabel ? (
+          <span className="truncate whitespace-nowrap">{label}</span>
+        ) : null}
+        {!isStatic && !isToggle && !iconOnly && !hideLabel ? (
+          <span className="size-3.5 shrink-0" />
+        ) : null}
+      </div>
+    );
+  };
+
+  const renderProbeControlsList = (targetWrapLevel: number, forceShowLabels = false) =>
+    controls.map((control, index) =>
+      renderProbeControlItem(control, index, targetWrapLevel, forceShowLabels),
+    );
+
   const probeContentCacheKey = `${effectiveToolbarLayoutKey}|compact=${compact}`;
   if (!probeContentCacheRef.current || probeContentCacheRef.current.key !== probeContentCacheKey) {
-    // The hidden probe tree renders a full copy of the toolbar for every
-    // collapse level. Rebuild it only when layout-affecting inputs change;
-    // state-only toggles such as Plan/Work can reuse the previous probe tree.
+    // The hidden probe tree uses cheap geometry stubs for controls instead of
+    // mounting full menu/popover trigger trees for every collapse level.
     probeContentCacheRef.current = {
       key: probeContentCacheKey,
       content: (
@@ -500,6 +658,7 @@ export function ThreadComposer(props: {
           {COLLAPSE_LEVELS.map((level) => (
             <div
               key={`probe-${level}`}
+              data-wrap-level={level}
               className={toolbarClassName.replace("relative", "")}
               style={{ position: "absolute", inset: 0 }}
             >
@@ -512,7 +671,7 @@ export function ThreadComposer(props: {
                 className="probe-wrap-container flex min-w-0 flex-1 flex-nowrap items-center gap-1 overflow-hidden [&>*]:shrink-0"
                 style={{ height: "2.25rem" }}
               >
-                {renderControlsList(level)}
+                {renderProbeControlsList(level)}
               </div>
               <div className="flex shrink-0 items-end gap-2">
                 {typeof afterControls === "function" ? afterControls(level) : afterControls}
@@ -528,17 +687,17 @@ export function ThreadComposer(props: {
 
   const renderControls = () => (
     <div className="relative min-w-0 flex-1">
-      {/* Real controls: wraps and respects wrapLevel state.
+      {/* Real controls: wrap collapse is applied through DOM attributes/classes.
          Fixed height + overflow-hidden prevents a visible two-row blink
          while labels collapse — wrapped items are clipped, not shown. */}
       <div
         ref={controlsRef}
         className={`flex min-w-0 flex-nowrap items-center gap-1 overflow-hidden [&>*]:shrink-0 ${
-          wrapLevel > 0 ? "is-wrapping" : ""
+          wrapLevelRef.current > 0 ? "is-wrapping" : ""
         }`}
         style={{ height: "2.25rem" }}
       >
-        {renderControlsList(wrapLevel)}
+        {renderControlsList(0)}
       </div>
     </div>
   );
@@ -576,7 +735,7 @@ export function ThreadComposer(props: {
           <Tooltip.Trigger>
             <Button
               isIconOnly
-              aria-label="Stop response"
+              aria-label={t`Stop response`}
               className="lightcode-composer-send"
               isDisabled={stopPending}
               isPending={stopPending}
@@ -588,7 +747,9 @@ export function ThreadComposer(props: {
               }
             </Button>
           </Tooltip.Trigger>
-          <Tooltip.Content>Stop response</Tooltip.Content>
+          <Tooltip.Content>
+            <Trans>Stop response</Trans>
+          </Tooltip.Content>
         </Tooltip>
       );
     }
@@ -661,15 +822,15 @@ export function ThreadComposer(props: {
   };
 
   const toolbar = (
-    <div className={toolbarClassName}>
+    <div ref={toolbarRef} className={toolbarClassName} data-wrap-level={wrapLevelRef.current}>
       {leadingControls && (
         <div className="flex shrink-0 items-end gap-2">
-          {typeof leadingControls === "function" ? leadingControls(wrapLevel) : leadingControls}
+          {typeof leadingControls === "function" ? leadingControls(0) : leadingControls}
         </div>
       )}
       {renderControls()}
       <div className="flex shrink-0 items-end gap-2">
-        {typeof afterControls === "function" ? afterControls(wrapLevel) : afterControls}
+        {typeof afterControls === "function" ? afterControls(0) : afterControls}
         {renderSendButton()}
       </div>
       {/* Probes: invisible, each represents a collapse level for the entire toolbar layout. */}
@@ -682,7 +843,7 @@ export function ThreadComposer(props: {
   }
 
   return (
-    <div>
+    <div data-lightcode-composer="">
       <div
         className={shellClassName}
         onDragEnter={handleAttachmentDragEnter}
@@ -692,7 +853,9 @@ export function ThreadComposer(props: {
       >
         {variant === "draft" && <div className="lightcode-composer-border-glow" />}
         {isAttachmentDropActive ? (
-          <div className="lightcode-composer-drop-overlay">Drop here to attach</div>
+          <div className="lightcode-composer-drop-overlay">
+            <Trans>Drop here to attach</Trans>
+          </div>
         ) : null}
         {fixedContent}
         {attachmentBar}

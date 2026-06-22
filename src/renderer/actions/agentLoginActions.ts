@@ -1,7 +1,9 @@
 import { toast } from "@heroui/react";
-import type { Project } from "@/shared/contracts";
+import { msg } from "@lingui/core/macro";
+import type { Project, ProjectLocation } from "@/shared/contracts";
 import { stripAnsi } from "@/shared/ansi";
 import { readBridge } from "@/renderer/bridge";
+import { i18n } from "@/renderer/i18n/i18n";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useDevTerminalStore } from "@/renderer/state/devTerminalStore";
 import { useLoginTerminalStore } from "@/renderer/state/loginTerminalStore";
@@ -45,7 +47,7 @@ export function runAgentLoginCommand(input: {
 }): boolean {
   const project = input.project ?? resolveLoginProject();
   if (!project) {
-    toast.warning("Add a project before signing in.");
+    toast.warning(i18n._(msg`Add a project before signing in.`));
     return false;
   }
 
@@ -71,6 +73,7 @@ export function runAgentLoginCommand(input: {
   const loginCommand = buildTerminalCommand({
     command: input.command,
     env: suppressWslBrowser ? { BROWSER: "/bin/true", ...(input.env ?? {}) } : input.env,
+    locationKind: project.location.kind,
   });
   const command =
     project.location.kind === "windows" ? `Clear-Host; ${loginCommand}` : `clear; ${loginCommand}`;
@@ -119,7 +122,9 @@ export function runAgentLoginCommand(input: {
       // (and leave callers' pending UI stuck). Tear it down and report failure.
       stopWatching();
       fireOnce(-1);
-      toast.danger(error instanceof Error ? error.message : `Unable to open ${input.label} login.`);
+      toast.danger(
+        error instanceof Error ? error.message : i18n._(msg`Unable to open ${input.label} login.`),
+      );
       useLoginTerminalStore.getState().close();
     });
   writeScriptToShell(shellId, script);
@@ -143,7 +148,7 @@ export function runAgentInstallCommand(input: {
 }): boolean {
   const project = input.project ?? resolveLoginProject();
   if (!project) {
-    toast.warning("Add a project before installing an agent.");
+    toast.warning(i18n._(msg`Add a project before installing an agent.`));
     return false;
   }
 
@@ -160,6 +165,7 @@ export function runAgentInstallCommand(input: {
   const command = buildTerminalCommand({
     command: typeof input.command === "function" ? input.command(project) : input.command,
     env: input.env,
+    locationKind: project.location.kind,
   });
   const completionToken = createCompletionToken();
   const script = appendCompletionSignal(command, project, completionToken);
@@ -199,7 +205,9 @@ export function runAgentInstallCommand(input: {
     .catch((error) => {
       stopWatching();
       fireOnce(-1);
-      toast.danger(error instanceof Error ? error.message : `Unable to install ${input.label}.`);
+      toast.danger(
+        error instanceof Error ? error.message : i18n._(msg`Unable to install ${input.label}.`),
+      );
       useLoginTerminalStore.getState().close();
     });
   writeScriptToShell(shellId, script);
@@ -210,20 +218,44 @@ function quotePosixShellArg(value: string): string {
   return `'${value.replaceAll("'", "'\\''")}'`;
 }
 
-function shellEnvPrefix(env: Record<string, string> | undefined): string {
-  if (!env) return "";
-  return Object.entries(env)
-    .filter(([key]) => /^[A-Za-z_][A-Za-z0-9_]*$/u.test(key))
-    .map(([key, value]) => `${key}=${quotePosixShellArg(value)}`)
-    .join(" ");
+// PowerShell single-quoted literals take backslashes verbatim (so Windows paths
+// like C:\Users\... need no escaping) and escape an embedded single quote by
+// doubling it.
+function quotePowerShellArg(value: string): string {
+  return `'${value.replaceAll("'", "''")}'`;
 }
 
+const ENV_KEY_PATTERN = /^[A-Za-z_][A-Za-z0-9_]*$/u;
+
+function validEnvEntries(env: Record<string, string>): Array<[string, string]> {
+  return Object.entries(env).filter(([key]) => ENV_KEY_PATTERN.test(key));
+}
+
+/**
+ * Prefix `command` with the env vars in a shell-correct way for the location.
+ *
+ * POSIX / WSL shells accept an inline `KEY='value' command` prefix. PowerShell
+ * (native Windows) does NOT — it parses `KEY='value'` as a command name and
+ * fails with "not recognized as a name of a cmdlet". There we emit `$env:KEY =
+ * 'value'` assignment statements separated from the command by `;`, which set
+ * the vars in the session the command then inherits.
+ */
 function buildTerminalCommand(input: {
   command: string;
   env: Record<string, string> | undefined;
+  locationKind: ProjectLocation["kind"];
 }): string {
-  const envPrefix = shellEnvPrefix(input.env);
-  return envPrefix ? `${envPrefix} ${input.command}` : input.command;
+  if (!input.env) return input.command;
+  const entries = validEnvEntries(input.env);
+  if (entries.length === 0) return input.command;
+  if (input.locationKind === "windows") {
+    const assignments = entries
+      .map(([key, value]) => `$env:${key} = ${quotePowerShellArg(value)}`)
+      .join("; ");
+    return `${assignments}; ${input.command}`;
+  }
+  const prefix = entries.map(([key, value]) => `${key}=${quotePosixShellArg(value)}`).join(" ");
+  return `${prefix} ${input.command}`;
 }
 
 function isGeminiLoginCommand(input: { label: string; command: string }): boolean {

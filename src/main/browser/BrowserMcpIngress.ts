@@ -154,16 +154,19 @@ export class BrowserMcpIngress {
       }
       const path = new URL(req.url, "http://x").pathname;
 
-      // CORS preflight — not strictly required for an MCP HTTP endpoint hit
-      // from local processes, but harmless.
+      // CORS preflight — restrict to localhost origins so remote web pages
+      // cannot issue cross-origin requests to the MCP ingress.
       if (req.method === "OPTIONS") {
+        const origin = req.headers.origin;
+        if (typeof origin === "string" && isLocalhostOrigin(origin)) {
+          res.setHeader("Access-Control-Allow-Origin", origin);
+          res.setHeader(
+            "Access-Control-Allow-Headers",
+            "Authorization, X-Lightcode-Token, Content-Type, Mcp-Session-Id",
+          );
+          res.setHeader("Access-Control-Allow-Methods", "POST, GET, OPTIONS");
+        }
         res.statusCode = 204;
-        res.setHeader(
-          "Access-Control-Allow-Headers",
-          "Authorization, X-Lightcode-Token, Content-Type, Mcp-Session-Id",
-        );
-        res.setHeader("Access-Control-Allow-Methods", "POST, GET, OPTIONS");
-        res.setHeader("Access-Control-Allow-Origin", "*");
         res.end();
         return;
       }
@@ -320,6 +323,17 @@ export class BrowserMcpIngress {
         error: { code: -32000, message: (err as Error).message ?? "internal" },
       };
     }
+  }
+}
+
+const LOCALHOST_HOSTS = new Set(["localhost", "127.0.0.1", "[::1]"]);
+
+function isLocalhostOrigin(origin: string): boolean {
+  try {
+    const url = new URL(origin);
+    return LOCALHOST_HOSTS.has(url.hostname);
+  } catch {
+    return false;
   }
 }
 

@@ -12,8 +12,10 @@ import {
   themeModeSchema,
   threadPresentationModeSchema,
   threadRemoveActionSchema,
+  worktreeStorageModeSchema,
 } from "./contracts";
 import { DEFAULT_SEARCH_EXCLUDE } from "./searchExclude";
+import { AI_LANGUAGE_VALUES, LOCALE_SETTING_VALUES } from "./locale";
 
 const modelPickerEntrySchema = z.object({
   agentKind: z.string().min(1),
@@ -88,15 +90,32 @@ const audioSettingsSchema = z.object({
 const usageSettingsSchema = z.object({
   /** Auto-refresh provider usage on a background timer. */
   autoRefresh: z.boolean().default(true),
-  /** Minutes between auto-refreshes. Floored at 2 to respect provider 429 limits. */
+  /**
+   * Default minutes between auto-refreshes, used for any provider without its
+   * own `providerRefreshIntervals` override. Floored at 2 to respect provider
+   * 429 limits.
+   */
   refreshIntervalMinutes: z.number().int().min(2).max(120).default(5),
+  /**
+   * Per-provider auto-refresh cadence override (minutes), keyed by provider id.
+   * A provider absent from this map uses the global `refreshIntervalMinutes`.
+   * Values are floored at 2 (provider 429 limits) and capped at 120; the UI
+   * removes a provider's entry to fall back to the default rather than storing 0.
+   */
+  providerRefreshIntervals: z.record(z.string(), z.number().int().min(2).max(120)).default({}),
   /**
    * Show estimated $ cost (reconstructed from local logs at public API rates).
    * Opt-in and panel-only — it is meaningless for subscription/OAuth users.
    */
   showEstimatedCost: z.boolean().default(false),
-  /** Show the per-provider usage circles in the sidebar. */
+  /** Show the per-provider usage circles in the sidebar (master toggle). */
   showInSidebar: z.boolean().default(true),
+  /**
+   * Provider ids whose sidebar circle the user hid individually. The provider is
+   * still tracked and still shown in the usage panel — only its sidebar ring is
+   * omitted. Gated under the `showInSidebar` master toggle.
+   */
+  sidebarHiddenProviders: z.array(z.string()).default([]),
   /** Provider ids the user turned OFF for usage tracking. Default = all on. */
   disabledProviders: z.array(z.string()).default([]),
   /**
@@ -118,16 +137,36 @@ export const sharedSettingsSchema = z.object({
    * base "default" theme at apply time.
    */
   themePreset: z.string(),
+  /**
+   * UI language. `"system"` follows the OS/browser preferred language at
+   * runtime (resolved by `resolveLocale`), mirroring `themeMode: "system"`.
+   */
+  locale: z.enum(LOCALE_SETTING_VALUES).default("system"),
+  /**
+   * Language for AI-generated git text (commit messages, PR title/description).
+   * `"match-app"` follows the resolved UI `locale`; any other value pins a
+   * specific language. Defaults to `"en"` so shared/team-facing artifacts stay
+   * English regardless of the interface language. Thread titles and other
+   * "conversation" text instead always follow the app language and are not
+   * governed by this setting.
+   */
+  gitTextLanguage: z.enum(AI_LANGUAGE_VALUES).default("en"),
   terminalPosition: terminalPositionSchema,
   commitGenProvider: z.string(),
   commitGenModel: z.string(),
   commitGenEffort: z.string(),
+  /** Run commit-message generation in fast mode (Opus-only; ignored otherwise). */
+  commitGenFast: z.boolean(),
   titleGenProvider: z.string(),
   titleGenModel: z.string(),
   titleGenEffort: z.string(),
+  /** Run title generation in fast mode (Opus-only; ignored otherwise). */
+  titleGenFast: z.boolean(),
   conflictResolverProvider: z.string(),
   conflictResolverModel: z.string(),
   conflictResolverEffort: z.string(),
+  /** Launch the conflict-resolver session in fast mode (Opus-only; ignored otherwise). */
+  conflictResolverFast: z.boolean(),
   /**
    * Where "Fix in Agent" opens the conflict-resolver thread: structured chat
    * (`gui`) or terminal-native (`terminal`). Defaults to `gui`. If the resolved
@@ -138,12 +177,15 @@ export const sharedSettingsSchema = z.object({
   wslCommitGenProvider: z.string(),
   wslCommitGenModel: z.string(),
   wslCommitGenEffort: z.string(),
+  wslCommitGenFast: z.boolean(),
   wslTitleGenProvider: z.string(),
   wslTitleGenModel: z.string(),
   wslTitleGenEffort: z.string(),
+  wslTitleGenFast: z.boolean(),
   wslConflictResolverProvider: z.string(),
   wslConflictResolverModel: z.string(),
   wslConflictResolverEffort: z.string(),
+  wslConflictResolverFast: z.boolean(),
   wslConflictResolverPresentationMode: threadPresentationModeSchema,
   /** Per-agent settings keyed by agent kind, then setting key. */
   agentSettings: z.record(z.string(), z.record(z.string(), z.union([z.boolean(), z.string()]))),
@@ -195,8 +237,42 @@ export const sharedSettingsSchema = z.object({
   newThreadMode: newThreadModeSchema,
   /** Show the projectless Home scope for OS-level agent sessions. */
   homeScopeEnabled: z.boolean(),
+  /**
+   * Translucent ("liquid glass") sidebar. When on, the window uses a
+   * native blur material where supported (macOS vibrancy, Windows 11 acrylic)
+   * and an in-app translucent fallback elsewhere. Default on.
+   */
+  sidebarTranslucency: z.boolean(),
+  /**
+   * Per-appearance override for the translucent sidebar's frosting: the alpha
+   * (0–100) of the `--sidebar-glass-tint` content-background mix. Higher is more
+   * frosted (holds the theme color); lower shows more of the blurred backdrop.
+   * `null` keeps the built-in per-platform default (see styles.css). Applied
+   * Windows-only — macOS vibrancy keeps its own tint.
+   */
+  sidebarGlassTint: z.object({
+    light: z.number().int().min(0).max(100).nullable().default(null),
+    dark: z.number().int().min(0).max(100).nullable().default(null),
+  }),
   /** Automatically show the terminal panel when running commands or creating worktrees. */
   autoShowTerminalPanel: z.boolean(),
+  /**
+   * Where git worktrees are created: under a global root (`global`) or nested in
+   * each project at `<project>/.lightcode/worktrees` (`project-relative`).
+   */
+  worktreeStorageMode: worktreeStorageModeSchema,
+  /**
+   * Custom global worktree root for native projects. Empty string = built-in
+   * default (`~/.lightcode/worktrees`). Only used when `worktreeStorageMode` is
+   * `global`.
+   */
+  worktreeBasePath: z.string(),
+  /**
+   * Custom global worktree root for WSL projects (a Linux path). Empty string =
+   * WSL default (`~/.lightcode/worktrees` in the distro home). Only used when
+   * `worktreeStorageMode` is `global`.
+   */
+  wslWorktreeBasePath: z.string(),
   /** Open git review as a right-side panel or a full page overlay. */
   gitReviewMode: gitReviewModeSchema,
   /**
@@ -292,26 +368,34 @@ export type SharedSettingsInput = Omit<SharedSettings, "agentHookSupport">;
 export const defaultSharedSettings: SharedSettings = {
   themeMode: "dark",
   themePreset: "default",
+  locale: "system",
+  gitTextLanguage: "en",
   terminalPosition: "bottom",
   commitGenProvider: "auto",
   commitGenModel: "",
   commitGenEffort: "",
+  commitGenFast: false,
   titleGenProvider: "auto",
   titleGenModel: "",
   titleGenEffort: "",
+  titleGenFast: false,
   conflictResolverProvider: "auto",
   conflictResolverModel: "",
   conflictResolverEffort: "",
+  conflictResolverFast: false,
   conflictResolverPresentationMode: "gui",
   wslCommitGenProvider: "auto",
   wslCommitGenModel: "",
   wslCommitGenEffort: "",
+  wslCommitGenFast: false,
   wslTitleGenProvider: "auto",
   wslTitleGenModel: "",
   wslTitleGenEffort: "",
+  wslTitleGenFast: false,
   wslConflictResolverProvider: "auto",
   wslConflictResolverModel: "",
   wslConflictResolverEffort: "",
+  wslConflictResolverFast: false,
   wslConflictResolverPresentationMode: "gui",
   agentSettings: {},
   hiddenModels: {},
@@ -332,7 +416,12 @@ export const defaultSharedSettings: SharedSettings = {
   threadRemoveAction: "archive",
   newThreadMode: "page",
   homeScopeEnabled: true,
+  sidebarTranslucency: true,
+  sidebarGlassTint: { light: null, dark: null },
   autoShowTerminalPanel: true,
+  worktreeStorageMode: "global",
+  worktreeBasePath: "",
+  wslWorktreeBasePath: "",
   gitReviewMode: "panel",
   prCreateMode: "dialog",
   commitDefaultAction: "commit-push",
@@ -368,8 +457,10 @@ export const defaultSharedSettings: SharedSettings = {
   usage: {
     autoRefresh: true,
     refreshIntervalMinutes: 5,
+    providerRefreshIntervals: {},
     showEstimatedCost: false,
     showInSidebar: true,
+    sidebarHiddenProviders: [],
     disabledProviders: [],
     providerOrder: [],
     collapsedProviders: [],

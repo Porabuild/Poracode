@@ -7,6 +7,7 @@ import {
   Search,
   Settings2,
 } from "lucide-react";
+import { useLingui } from "@lingui/react/macro";
 import {
   overlaySidebarColumnClass,
   overlaySidebarSurfaceClass,
@@ -24,13 +25,14 @@ export function SettingsSidebar(props: {
   onClose: () => void;
 }) {
   const { activeSection, onSectionChange, onClose } = props;
+  const { t } = useLingui();
   const { isCollapsed, collapse, expand } = useSidebar();
 
   const sections: { id: ProjectSettingsSection; icon: React.ReactNode; label: string }[] = [
-    { id: "general", icon: <Settings2 className="size-4" />, label: "General" },
-    { id: "worktrees", icon: <GitFork className="size-4" />, label: "Worktrees" },
-    { id: "actions", icon: <Play className="size-4" />, label: "Actions" },
-    { id: "search", icon: <Search className="size-4" />, label: "Search" },
+    { id: "general", icon: <Settings2 className="size-4" />, label: t`General` },
+    { id: "worktrees", icon: <GitFork className="size-4" />, label: t`Worktrees` },
+    { id: "actions", icon: <Play className="size-4" />, label: t`Actions` },
+    { id: "search", icon: <Search className="size-4" />, label: t`Search` },
   ];
 
   return (
@@ -53,13 +55,13 @@ export function SettingsSidebar(props: {
             <SidebarButton
               iconOnly
               icon={<ArrowLeft className="size-4" />}
-              label="Return to app"
+              label={t`Return to app`}
               onPress={onClose}
             />
             <SidebarButton
               iconOnly
               icon={<PanelLeft className="size-4" />}
-              label="Show sidebar"
+              label={t`Show sidebar`}
               onPress={expand}
             />
           </div>
@@ -86,12 +88,12 @@ export function SettingsSidebar(props: {
         <div className={sidebarFooterNavClass}>
           <SidebarButton
             icon={<ArrowLeft className="size-4" />}
-            label="Return to app"
+            label={t`Return to app`}
             onPress={onClose}
           />
           <SidebarButton
             icon={<PanelLeftClose className="size-4" />}
-            label="Hide sidebar"
+            label={t`Hide sidebar`}
             onPress={collapse}
           />
         </div>

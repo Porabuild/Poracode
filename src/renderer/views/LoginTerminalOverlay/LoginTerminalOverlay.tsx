@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@heroui/react";
+import { useLingui } from "@lingui/react/macro";
 import { X } from "lucide-react";
 import { readBridge } from "@/renderer/bridge";
 import {
@@ -19,6 +20,7 @@ import { XTermSurface, type XTermSurfaceHandle } from "@/renderer/components/ter
  * reset their pending state.
  */
 export function LoginTerminalOverlay() {
+  const { t } = useLingui();
   const active = useLoginTerminalStore((state) => state.active);
   const [renderedSession, setRenderedSession] = useState<LoginTerminalSession | null>(null);
   const [visible, setVisible] = useState(false);
@@ -94,7 +96,7 @@ export function LoginTerminalOverlay() {
   if (!renderedSession) return null;
 
   const isInstall = renderedSession.purpose === "install";
-  const purposeNoun = isInstall ? "install" : "login";
+  const purposeNoun = isInstall ? t`install` : t`login`;
 
   return (
     <div className="fixed inset-0 z-[60]">
@@ -124,21 +126,21 @@ export function LoginTerminalOverlay() {
               }`}
             >
               {renderedSession.label} {purposeNoun}
-              {renderedSession.failedExitCode !== undefined ? " failed" : ""}
+              {renderedSession.failedExitCode !== undefined ? <> {t`failed`}</> : null}
             </p>
             <p className="text-xs text-muted">
               {renderedSession.failedExitCode !== undefined
-                ? `Exited with code ${renderedSession.failedExitCode}. Close to retry.`
+                ? t`Exited with code ${renderedSession.failedExitCode}. Close to retry.`
                 : isInstall
-                  ? "Installing in this terminal. Closes when finished."
-                  : "Complete the prompts in this terminal. Closes when finished."}
+                  ? t`Installing in this terminal. Closes when finished.`
+                  : t`Complete the prompts in this terminal. Closes when finished.`}
             </p>
           </div>
           <Button
             size="sm"
             variant="ghost"
             isIconOnly
-            aria-label={`Close ${purposeNoun} terminal`}
+            aria-label={t`Close ${purposeNoun} terminal`}
             onPress={closeSession}
           >
             <X className="size-4" />

@@ -232,6 +232,45 @@ describe("generateCommitMessage", () => {
     await expect(pending).resolves.toBe("fix(git): restore Windows commit generation");
   });
 
+  it("injects a language directive when a language is requested", async () => {
+    const child = createMockChildProcess();
+    spawnMock.mockReturnValue(child);
+
+    const pending = generateCommitMessage(
+      windowsProject,
+      createAdapter(),
+      undefined,
+      undefined,
+      "German",
+    );
+    await flushPromises();
+
+    const stdin = child.stdin.end.mock.calls[0]?.[0];
+    expect(stdin).toContain("Write the commit message subject and body in German");
+    // The Conventional Commits prefix must stay English so cleanCommitMessage's
+    // feat|fix|… detection still works.
+    expect(stdin).toContain("keep the Conventional Commits type prefix (feat, fix, …) in English");
+
+    child.stdout.emit("data", Buffer.from("feat(ui): Seitenleiste hinzufügen"));
+    child.emit("close", 0);
+    await expect(pending).resolves.toBe("feat(ui): Seitenleiste hinzufügen");
+  });
+
+  it("omits the language directive by default", async () => {
+    const child = createMockChildProcess();
+    spawnMock.mockReturnValue(child);
+
+    const pending = generateCommitMessage(windowsProject, createAdapter());
+    await flushPromises();
+
+    const stdin = child.stdin.end.mock.calls[0]?.[0];
+    expect(stdin).not.toContain("Write the commit message subject and body in");
+
+    child.stdout.emit("data", Buffer.from("feat(ui): add sidebar"));
+    child.emit("close", 0);
+    await expect(pending).resolves.toBe("feat(ui): add sidebar");
+  });
+
   it("delegates to buildAgentCommand for WSL projects", async () => {
     const child = createMockChildProcess();
     spawnMock.mockReturnValue(child);

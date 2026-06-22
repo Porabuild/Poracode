@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { DiffFile, DiffView, highlighter } from "@git-diff-view/react";
 import "@git-diff-view/react/styles/diff-view.css";
+import { Trans } from "@lingui/react/macro";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { handleKeyActivate } from "@/renderer/utils/a11y";
 import { PathDisplay, PixelLoader } from "@/renderer/components/common";
@@ -101,7 +102,9 @@ export function DiffCardList(props: {
 
   if (rendered.length === 0) {
     return (
-      <div className="flex h-full items-center justify-center text-sm text-muted">No changes</div>
+      <div className="flex h-full items-center justify-center text-sm text-muted">
+        <Trans>No changes</Trans>
+      </div>
     );
   }
 
@@ -119,7 +122,7 @@ export function DiffCardList(props: {
           ))}
           {visible.length === 0 && !building && (
             <div className="flex items-center justify-center py-8 text-sm text-muted">
-              No diff for {visiblePath}
+              <Trans>No diff for {visiblePath}</Trans>
             </div>
           )}
         </div>
@@ -170,9 +173,13 @@ function DiffCard(props: { entry: RenderedEntry; mode: number; theme: "light" | 
               diffViewWrap={false}
             />
           ) : entry.patch.trim() ? (
-            <div className="px-4 py-3 text-xs text-muted">Building diff…</div>
+            <div className="px-4 py-3 text-xs text-muted">
+              <Trans>Building diff…</Trans>
+            </div>
           ) : (
-            <div className="px-4 py-3 text-xs text-muted">Binary file or no diff available</div>
+            <div className="px-4 py-3 text-xs text-muted">
+              <Trans>Binary file or no diff available</Trans>
+            </div>
           )}
         </>
       )}

@@ -16,6 +16,7 @@ import {
   Plus,
   Undo2,
 } from "lucide-react";
+import { Plural, Trans, useLingui } from "@lingui/react/macro";
 import type { GitFileChange, Project } from "@/shared/contracts";
 import { isLockFile } from "@/shared/gitUtils";
 import { getFileIconUrl } from "@/renderer/components/common/fileIcons";
@@ -74,6 +75,7 @@ export function StackedFileCard(props: {
     worktreePath,
     worktreeBranch,
   } = props;
+  const { t } = useLingui();
   const rowPadX = useGitReviewRowPadX();
   const [expanded, setExpanded] = useState(false);
   const [revertOpen, setRevertOpen] = useState(false);
@@ -253,7 +255,7 @@ export function StackedFileCard(props: {
                 role="button"
                 tabIndex={0}
                 className="rounded p-0.5 text-muted transition-colors hover:bg-[var(--row-hover)] hover:text-foreground"
-                title="Open in editor"
+                title={t`Open in editor`}
                 onClick={(e) => {
                   e.stopPropagation();
                   handleOpenInEditor();
@@ -268,7 +270,7 @@ export function StackedFileCard(props: {
                 role="button"
                 tabIndex={0}
                 className="rounded p-0.5 text-muted transition-colors hover:bg-[var(--row-hover)] hover:text-foreground"
-                title={file.staged ? "Unstage" : "Stage"}
+                title={file.staged ? t`Unstage` : t`Stage`}
                 onClick={handleStageToggle}
                 onKeyDown={(e) =>
                   handleKeyActivate(
@@ -285,7 +287,7 @@ export function StackedFileCard(props: {
                   role="button"
                   tabIndex={0}
                   className="rounded p-0.5 text-muted transition-colors hover:bg-danger/10 hover:text-danger"
-                  title="Revert changes"
+                  title={t`Revert changes`}
                   onClick={handleRevertClick}
                   onKeyDown={(e) =>
                     handleKeyActivate(e, () => setRevertOpen(true), { stopPropagation: true })
@@ -308,11 +310,21 @@ export function StackedFileCard(props: {
             )}
             {!loading && tooLarge && (
               <div className="px-4 py-3 text-xs text-muted">
-                {`File too large to display (${(file.insertions + file.deletions).toLocaleString()} lines changed)`}
+                <Trans>
+                  File too large to display (
+                  <Plural
+                    value={file.insertions + file.deletions}
+                    one="# line changed"
+                    other="# lines changed"
+                  />
+                  )
+                </Trans>
               </div>
             )}
             {!loading && !tooLarge && !diffFile && loadedKeyRef.current !== null && (
-              <div className="px-4 py-3 text-xs text-muted">No changes to display</div>
+              <div className="px-4 py-3 text-xs text-muted">
+                <Trans>No changes to display</Trans>
+              </div>
             )}
             {diffFile && (
               <div className={isNewFile ? "diff-new-file" : undefined}>
@@ -333,13 +345,13 @@ export function StackedFileCard(props: {
 
       <ConfirmDialog
         isOpen={revertOpen}
-        title="Revert changes"
+        title={t`Revert changes`}
         body={
-          <>
+          <Trans>
             Are you sure you want to revert <strong>{file.path}</strong>? This cannot be undone.
-          </>
+          </Trans>
         }
-        confirmLabel="Revert"
+        confirmLabel={t`Revert`}
         onConfirm={() => void handleRevert()}
         onClose={() => setRevertOpen(false)}
       />

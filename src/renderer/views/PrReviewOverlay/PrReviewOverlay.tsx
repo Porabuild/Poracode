@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { ArrowLeft, Columns2, ExternalLink, RefreshCw, Rows2 } from "lucide-react";
 import { Link, toast } from "@heroui/react";
+import { Trans, useLingui } from "@lingui/react/macro";
 import type { Project, ProjectLocation } from "@/shared/contracts";
 import { friendlyError } from "@/shared/messages";
 import { readBridge } from "@/renderer/bridge";
@@ -31,6 +32,7 @@ export function PrReviewOverlay(props: {
   onClose: () => void;
 }) {
   const { project, prNumber, locationOverride, worktreePath, prKey, onClose } = props;
+  const { t } = useLingui();
   const effectiveLocation = locationOverride ?? project.location;
   const cacheKey = `${project.id}#${prNumber}`;
 
@@ -98,7 +100,7 @@ export function PrReviewOverlay(props: {
 
   return (
     <PageLayout
-      title="PR Review"
+      title={t`PR Review`}
       contentHeaderChildren={
         <>
           <div className="flex min-w-0 shrink items-center gap-2 pl-1.5 leading-none">
@@ -115,7 +117,7 @@ export function PrReviewOverlay(props: {
             )}
             {prUrl && (
               <Link
-                aria-label="Open PR on GitHub"
+                aria-label={t`Open PR on GitHub`}
                 className="lightcode-overlay-header__controls shrink-0 text-muted hover:text-foreground"
                 onPress={() => void readBridge().openExternal(prUrl)}
               >
@@ -137,7 +139,7 @@ export function PrReviewOverlay(props: {
                 onClick={() => setSelectedFile(null)}
               >
                 <ArrowLeft className="size-3" />
-                All files
+                <Trans>All files</Trans>
               </button>
               <span className="min-w-0 truncate text-xs font-medium text-foreground">
                 {selectedFile}
@@ -153,7 +155,7 @@ export function PrReviewOverlay(props: {
                 <button
                   type="button"
                   className="rounded p-1 text-muted hover:text-foreground"
-                  title="Split view"
+                  title={t`Split view`}
                   onClick={() => setDiffMode(DIFF_MODE.Split)}
                 >
                   <Columns2
@@ -163,7 +165,7 @@ export function PrReviewOverlay(props: {
                 <button
                   type="button"
                   className="rounded p-1 text-muted hover:text-foreground"
-                  title="Unified view"
+                  title={t`Unified view`}
                   onClick={() => setDiffMode(DIFF_MODE.Unified)}
                 >
                   <Rows2
@@ -175,7 +177,7 @@ export function PrReviewOverlay(props: {
             <button
               type="button"
               className="rounded p-1 text-muted hover:text-foreground"
-              title="Refresh"
+              title={t`Refresh`}
               onClick={() => void load()}
             >
               <RefreshCw className={`size-4 ${loading ? "animate-spin" : ""}`} />

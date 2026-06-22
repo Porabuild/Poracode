@@ -66,7 +66,7 @@ export function canonicalTypeFor(raw: string | undefined | null): CanonicalItemT
   return "tool_call";
 }
 
-function normalizeItemType(raw: string | undefined | null): string {
+export function normalizeItemType(raw: string | undefined | null): string {
   if (!raw) return "";
   return raw
     .replace(/([a-z0-9])([A-Z])/g, "$1 $2")

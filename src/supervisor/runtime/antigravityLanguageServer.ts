@@ -108,6 +108,14 @@ export function planFromUserStatus(body: unknown): string | undefined {
   return typeof planName === "string" && planName.trim() ? planName.trim() : undefined;
 }
 
+/** Pull the signed-in account email out of a GetUserStatus body. */
+export function emailFromUserStatus(body: unknown): string | undefined {
+  const status = (body as { userStatus?: Record<string, unknown> } | null | undefined)?.userStatus;
+  if (!status || typeof status !== "object") return undefined;
+  const email = (status as { email?: unknown }).email;
+  return typeof email === "string" && email.trim() ? email.trim() : undefined;
+}
+
 /**
  * Walk the LS response for `clientModelConfigs` entries — objects carrying a
  * string `label` next to `quotaInfo.remainingFraction`. Pooled downstream into

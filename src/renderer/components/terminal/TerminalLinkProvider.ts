@@ -121,11 +121,20 @@ export class TerminalLinkProvider implements ILinkProvider {
     }
 
     // ── Continue past hard breaks when the text ends mid-URL ─────
-    // Only extend if a URL regex match reaches the very end of the
-    // accumulated text (i.e. the URL was cut off by a hard newline).
+    // Only extend when a URL regex match reaches the very end of the
+    // accumulated text (the URL was cut off mid-token) AND the line holding it
+    // is a wrap edge (filled to the terminal's right edge). A URL only
+    // "continues" across a newline when the break is really a soft-wrap whose
+    // `isWrapped` flag was lost — Windows ConPTY repaints and sliced scrollback
+    // replay both drop that flag. A URL that stops short of the edge ended on
+    // purpose: the following line is unrelated output (e.g. a `concurrently`
+    // "[1]" prefix, or Vite's next "Network:" URL) and must not be glued on.
     while (length < 2048) {
       const joined = lines.join("");
       if (!this._endsWithPartialUrl(joined)) break;
+
+      const edgeLine = buf.getLine(bottomIdx - 1);
+      if (!edgeLine || !this._isWrapEdge(edgeLine)) break;
 
       const nextLine = buf.getLine(bottomIdx);
       if (!nextLine) break;
@@ -147,6 +156,35 @@ export class TerminalLinkProvider implements ILinkProvider {
     }
 
     return [lines, topIdx];
+  }
+
+  /**
+   * Whether `line` was filled to the terminal's right edge — i.e. the newline
+   * after it is a soft-wrap whose `isWrapped` flag was lost, not a deliberate
+   * line ending. The visible content width (one past the rightmost non-blank
+   * column) is measured in COLUMNS from the buffer cells, so a wide/CJK glyph
+   * counts as its cell width rather than its UTF-16 length. The whole cell
+   * array is scanned — including any cells past the live `cols`, which xterm
+   * leaves un-trimmed after a shrink-resize (see `IBufferLine.length`) — so an
+   * overrunning row measures wider than `cols` and is rejected (a real wrap
+   * would have reflowed the overflow onto a wrapped line). Unknown width
+   * (cols <= 0) fails safe to `false`.
+   */
+  private _isWrapEdge(line: IBufferLine): boolean {
+    const cols = this._terminal.cols;
+    if (cols <= 0) return false;
+    const cell = this._terminal.buffer.active.getNullCell();
+    let edge = 0;
+    for (let i = 0; i < line.length; i++) {
+      line.getCell(i, cell);
+      const width = cell.getWidth();
+      if (width === 0) continue; // spacer cell trailing a wide glyph
+      const chars = cell.getChars();
+      if (chars !== "" && chars !== " ") {
+        edge = i + width; // content reaches through this cell to column i+width
+      }
+    }
+    return edge === cols;
   }
 
   /** Returns true when the text ends with an in-progress URL (http(s)://...). */

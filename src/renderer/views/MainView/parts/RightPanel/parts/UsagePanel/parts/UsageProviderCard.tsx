@@ -1,8 +1,8 @@
-import { useState } from "react";
+import { type FormEvent } from "react";
 import { useSortable } from "@dnd-kit/react/sortable";
-import { ChevronDown, ChevronRight, GripVertical, LogOut } from "lucide-react";
+import { ChevronDown, ChevronRight, GripVertical, LogOut, RefreshCw } from "lucide-react";
+import { Trans, useLingui } from "@lingui/react/macro";
 import { type UsageSnapshot, usageWindowDisplayLabel } from "@lightcode/agents-usage";
-import { readBridge } from "@/renderer/bridge";
 import { ProviderIcon } from "@/renderer/components/providers/ProviderIcon";
 import { UsageWindowBars } from "@/renderer/components/providers/UsageWindowBars";
 import {
@@ -13,16 +13,10 @@ import {
   usageStatusText,
 } from "@/renderer/components/providers/usageFormat";
 import { usageToneColor } from "@/renderer/components/providers/usageTone";
-import {
-  supportsBrowserLogin,
-  usesSharedWindowReset,
-} from "@/renderer/components/providers/usageProviders";
-import { usePanelStore } from "@/renderer/state/panelStore";
-import { useProviderUsage, useProviderUsageStore } from "@/renderer/state/providerUsageStore";
-import {
-  useHasStoredSession,
-  useUsageLoginStateStore,
-} from "@/renderer/state/usageLoginStateStore";
+import { usesSharedWindowReset } from "@/renderer/components/providers/usageProviders";
+import { useProviderUsageRefresh } from "@/renderer/components/providers/useProviderUsageRefresh";
+import { useUsageProviderLogin } from "@/renderer/components/providers/useUsageProviderLogin";
+import { useProviderUsage } from "@/renderer/state/providerUsageStore";
 
 /** Compact one-line window chips shown when the card is collapsed. */
 function WindowChips(props: { windows: UsageSnapshot["windows"] }) {
@@ -66,76 +60,24 @@ export function UsageProviderCard(props: {
   onToggleCollapse: (id: string) => void;
 }) {
   const { id, label, index, collapsed, onToggleCollapse } = props;
+  const { t } = useLingui();
   const snapshot = useProviderUsage(id);
-  const hasStoredSession = useHasStoredSession(id);
-  const [signingIn, setSigningIn] = useState(false);
-  const [signingOut, setSigningOut] = useState(false);
-  const supportsLogin = supportsBrowserLogin(id);
-  // A stored session that the latest fetch reports as rejected (expired cookie)
-  // still warrants a "Sign in" to re-auth; an unauthenticated provider always does.
-  // But never prompt sign-in once a fetch succeeds ("ok"): a provider authenticated
-  // by another path (e.g. Copilot's OAuth/CLI token) has no stored cookie session,
-  // yet is signed in — offering "Sign in" there is wrong.
-  const sessionRejected = snapshot?.status === "auth-missing";
-  const canSignIn =
-    supportsLogin && snapshot?.status !== "ok" && (!hasStoredSession || sessionRejected);
-
-  const handleSignIn = async () => {
-    setSigningIn(true);
-    // Open the browser-overlay drawer (not maximized) so the login tab renders
-    // there. Force-clear maximized in case a prior session left it fullscreen.
-    usePanelStore.getState().setBrowserOverlayMaximized(false);
-    usePanelStore.getState().setBrowserOverlayOpen(true);
-
-    // Release the moment the user closes the overlay — don't depend on main's
-    // cancel round-trip resolving, so the button can never hang in "Signing in…".
-    let unsubscribe = () => {};
-    const overlayClosed = new Promise<"closed">((resolve) => {
-      unsubscribe = usePanelStore.subscribe((state, prev) => {
-        if (prev.browserOverlayOpen && !state.browserOverlayOpen) resolve("closed");
-      });
-    });
-
-    try {
-      const outcome = await Promise.race([
-        readBridge().startUsageLogin({ providerId: id }),
-        overlayClosed,
-      ]);
-      if (outcome === "closed") {
-        // Best-effort: tell main to stop the in-flight capture.
-        void readBridge()
-          .cancelUsageLogin({ providerId: id })
-          .catch(() => {});
-        return;
-      }
-      // Dismiss the overlay once the login completes.
-      usePanelStore.getState().setBrowserOverlayOpen(false);
-      if (!outcome.ok) return;
-      // Mark the session stored so the card reads as signed in immediately,
-      // independent of whether the usage fetch below yields displayable data.
-      useUsageLoginStateStore.getState().setStored(id, true);
-      // Pull a fresh snapshot now that the cookie is captured; the supervisor
-      // also emits `provider-usage`, but merge the reply for immediacy.
-      const usage = await readBridge().refreshProviderUsage({ providerIds: [id] });
-      const fresh = usage.snapshots.find((s) => s.providerId === id);
-      if (fresh) useProviderUsageStore.getState().mergeSnapshot(fresh);
-    } finally {
-      unsubscribe();
-      setSigningIn(false);
-    }
-  };
-  const handleSignOut = async () => {
-    if (signingOut) return;
-    setSigningOut(true);
-    try {
-      await readBridge().clearUsageLogin({ providerId: id });
-      useUsageLoginStateStore.getState().setStored(id, false);
-      const usage = await readBridge().refreshProviderUsage({ providerIds: [id] });
-      const fresh = usage.snapshots.find((s) => s.providerId === id);
-      if (fresh) useProviderUsageStore.getState().mergeSnapshot(fresh);
-    } finally {
-      setSigningOut(false);
-    }
+  const {
+    isApiKeyLogin,
+    canSignIn,
+    canSignOut,
+    signingIn,
+    signingOut,
+    apiKey,
+    setApiKey,
+    handleSignIn,
+    handleSubmitApiKey,
+    handleSignOut,
+  } = useUsageProviderLogin(id);
+  const { refreshing, refresh } = useProviderUsageRefresh(id);
+  const onSubmitApiKey = (event: FormEvent) => {
+    event.preventDefault();
+    void handleSubmitApiKey();
   };
   const { ref, handleRef, isDragging } = useSortable({
     id: `usage-order:${id}`,
@@ -150,7 +92,6 @@ export function UsageProviderCard(props: {
     snapshot?.status === "ok" &&
     (snapshot.windows.length > 0 || Boolean(snapshot.cost) || Boolean(snapshot.credits));
   const hasWindows = snapshot?.status === "ok" && snapshot.windows.length > 0;
-  const canSignOut = supportsLogin && hasStoredSession;
   const sharedReset = usesSharedWindowReset(id)
     ? sharedWindowResetLabel(snapshot, Date.now())
     : undefined;
@@ -167,7 +108,7 @@ export function UsageProviderCard(props: {
         <button
           ref={handleRef}
           type="button"
-          aria-label={`Reorder ${label}`}
+          aria-label={t`Reorder ${label}`}
           className="flex size-4 shrink-0 cursor-grab items-center justify-center text-muted/40 transition-colors hover:text-foreground active:cursor-grabbing"
         >
           <GripVertical className="size-3.5" />
@@ -175,7 +116,7 @@ export function UsageProviderCard(props: {
         <button
           type="button"
           aria-expanded={!collapsed}
-          aria-label={`${collapsed ? "Expand" : "Collapse"} ${label}`}
+          aria-label={collapsed ? t`Expand ${label}` : t`Collapse ${label}`}
           onClick={() => onToggleCollapse(id)}
           className="flex min-w-0 flex-1 items-center gap-2 text-left outline-none focus-visible:focus-ring"
         >
@@ -205,11 +146,21 @@ export function UsageProviderCard(props: {
             ) : null}
           </span>
         </button>
+        <button
+          type="button"
+          aria-label={t`Refresh ${label}`}
+          title={t`Refresh ${label}`}
+          onClick={() => void refresh()}
+          disabled={refreshing}
+          className="flex size-5 shrink-0 items-center justify-center rounded-md text-muted/60 transition-colors hover:bg-muted/10 hover:text-foreground disabled:opacity-50"
+        >
+          <RefreshCw className={`size-3.5 ${refreshing ? "animate-spin" : ""}`} />
+        </button>
         {canSignOut ? (
           <button
             type="button"
-            aria-label={`Sign out ${label}`}
-            title={`Sign out ${label}`}
+            aria-label={t`Sign out ${label}`}
+            title={t`Sign out ${label}`}
             onClick={() => void handleSignOut()}
             disabled={signingOut}
             className="flex size-5 shrink-0 items-center justify-center rounded-md text-muted/60 transition-colors hover:bg-muted/10 hover:text-foreground disabled:opacity-50"
@@ -220,7 +171,7 @@ export function UsageProviderCard(props: {
         <button
           type="button"
           aria-expanded={!collapsed}
-          aria-label={`${collapsed ? "Expand" : "Collapse"} ${label}`}
+          aria-label={collapsed ? t`Expand ${label}` : t`Collapse ${label}`}
           onClick={() => onToggleCollapse(id)}
           className="flex size-5 shrink-0 items-center justify-center rounded-md text-muted/60 transition-colors hover:bg-muted/10 hover:text-foreground"
         >
@@ -248,14 +199,34 @@ export function UsageProviderCard(props: {
           ) : (
             <div className="space-y-2">
               <p className="text-xs text-muted">{usageStatusText(snapshot, label)}</p>
-              {canSignIn ? (
+              {canSignIn && isApiKeyLogin ? (
+                <form onSubmit={onSubmitApiKey} className="flex items-center gap-1.5">
+                  <input
+                    type="password"
+                    value={apiKey}
+                    onChange={(e) => setApiKey(e.target.value)}
+                    placeholder={t`Paste ${label} API key`}
+                    aria-label={t`${label} API key`}
+                    autoComplete="off"
+                    spellCheck={false}
+                    className="min-w-0 flex-1 rounded-lg border border-[color:var(--separator)] bg-background px-2 py-1 text-xs text-foreground outline-none focus-visible:focus-ring"
+                  />
+                  <button
+                    type="submit"
+                    disabled={signingIn || apiKey.trim().length === 0}
+                    className="shrink-0 rounded-lg border border-[color:var(--separator)] bg-surface px-2.5 py-1 text-xs font-medium text-foreground transition-colors hover:bg-muted/10 disabled:opacity-50"
+                  >
+                    {signingIn ? <Trans>Signing in…</Trans> : <Trans>Sign in</Trans>}
+                  </button>
+                </form>
+              ) : canSignIn ? (
                 <button
                   type="button"
                   onClick={() => void handleSignIn()}
                   disabled={signingIn}
                   className="rounded-lg border border-[color:var(--separator)] bg-surface px-2.5 py-1 text-xs font-medium text-foreground transition-colors hover:bg-muted/10 disabled:opacity-50"
                 >
-                  {signingIn ? "Signing in…" : "Sign in"}
+                  {signingIn ? <Trans>Signing in…</Trans> : <Trans>Sign in</Trans>}
                 </button>
               ) : null}
             </div>
@@ -267,19 +238,21 @@ export function UsageProviderCard(props: {
 }
 
 function UsageProviderMeta(props: { snapshot: UsageSnapshot }) {
+  const { t } = useLingui();
   const { snapshot } = props;
   const lines: string[] = [];
   if (snapshot.cost) {
-    const tokens = snapshot.tokens?.total ? ` · ${formatTokens(snapshot.tokens.total)} tokens` : "";
-    lines.push(
-      `~${formatMoney(snapshot.cost.amount, snapshot.cost.currency)}${tokens} · ${snapshot.cost.period} · est.`,
-    );
+    const tokens = snapshot.tokens?.total
+      ? ` · ${t`${formatTokens(snapshot.tokens.total)} tokens`}`
+      : "";
+    const money = formatMoney(snapshot.cost.amount, snapshot.cost.currency);
+    lines.push(t`~${money}${tokens} · ${snapshot.cost.period} · est.`);
   }
   if (snapshot.credits?.unlimited) {
-    lines.push("Unlimited");
+    lines.push(t`Unlimited`);
   } else if (snapshot.credits) {
     lines.push(
-      `${snapshot.credits.label ?? "Credits"}: ${formatMoney(
+      `${snapshot.credits.label ?? t`Credits`}: ${formatMoney(
         snapshot.credits.balance,
         snapshot.credits.currency,
       )}`,

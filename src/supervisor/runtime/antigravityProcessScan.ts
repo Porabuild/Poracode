@@ -222,3 +222,24 @@ export function parseLsof(stdout: string): { pid: number; port: number }[] {
   }
   return out;
 }
+
+/**
+ * Walk the `agy`/IDE process trees and map them to the loopback ports their
+ * language server is listening on, plus any CSRF tokens seen. Returns empty
+ * `ports` when no Antigravity process is running. Shared by the usage scanner
+ * and the account probe so the discovery half lives in exactly one place.
+ */
+export async function resolveAntigravityLsEndpoints(
+  wslDistros: readonly string[] = [],
+): Promise<{ ports: number[]; csrfTokens: string[] }> {
+  const { pids, csrfTokens } = resolveTargets(await listProcesses(wslDistros));
+  if (pids.size === 0) return { ports: [], csrfTokens };
+  const ports = [
+    ...new Set(
+      (await listListeningPorts(wslDistros))
+        .filter((entry) => pids.has(entry.pid))
+        .map((entry) => entry.port),
+    ),
+  ];
+  return { ports, csrfTokens };
+}

@@ -1,13 +1,15 @@
 import { startTransition } from "react";
 import { NumberField } from "@heroui/react";
+import { Trans, useLingui } from "@lingui/react/macro";
 import type { ThreadRemoveAction } from "@/shared/contracts";
 import { isRemoteSession } from "@/renderer/bridge";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { Select } from "@/renderer/components/common";
 import { SettingRow, SettingsPage } from "./SettingsForm";
-import { threadRemoveActionOptions } from "./settingsOptions";
+import { threadRemoveActionOptions, useLocalizedOptions } from "./settingsOptions";
 
 export function ThreadSettings() {
+  const { t } = useLingui();
   const staleThreadUnloadMinutes = useSharedSettings((state) => state.staleThreadUnloadMinutes);
   const setStaleThreadUnloadMinutes = useSharedSettings(
     (state) => state.setStaleThreadUnloadMinutes,
@@ -22,15 +24,22 @@ export function ThreadSettings() {
   // session's copy of these values is never read, so hide the rows there.
   const remote = isRemoteSession();
 
+  const threadRemoveActionOpts = useLocalizedOptions(threadRemoveActionOptions);
+
   return (
-    <SettingsPage title="Threads">
+    <SettingsPage title={t`Threads`}>
       {!remote && (
         <SettingRow
-          title="Unload idle threads after"
-          description="Hidden resumable threads are swept every 5 minutes and unloaded after this idle age."
+          anchorId="threads.unloadIdleThreadsAfter"
+          title={t`Unload idle threads after`}
+          description={
+            <Trans>
+              Hidden resumable threads are swept every 5 minutes and unloaded after this idle age.
+            </Trans>
+          }
         >
           <NumberField
-            aria-label="Unload idle threads after (minutes)"
+            aria-label={t`Unload idle threads after (minutes)`}
             className="w-[160px] shrink-0"
             minValue={0}
             step={10}
@@ -53,11 +62,17 @@ export function ThreadSettings() {
 
       {!remote && (
         <SettingRow
-          title="Auto-archive done threads after"
-          description="Threads marked done that have not been touched for this many days are archived automatically on app launch. Set to 0 to disable."
+          anchorId="threads.autoArchiveDoneAfter"
+          title={t`Auto-archive done threads after`}
+          description={
+            <Trans>
+              Threads marked done that have not been touched for this many days are archived
+              automatically on app launch. Set to 0 to disable.
+            </Trans>
+          }
         >
           <NumberField
-            aria-label="Auto-archive done threads after (days)"
+            aria-label={t`Auto-archive done threads after (days)`}
             className="w-[160px] shrink-0"
             minValue={0}
             maxValue={3650}
@@ -80,13 +95,14 @@ export function ThreadSettings() {
       )}
 
       <SettingRow
-        title="Default thread removal"
-        description="Action for the quick-remove button on sidebar threads."
+        anchorId="threads.defaultThreadRemoval"
+        title={t`Default thread removal`}
+        description={<Trans>Action for the quick-remove button on sidebar threads.</Trans>}
       >
         <Select
-          aria-label="Default thread removal"
+          aria-label={t`Default thread removal`}
           className="w-[160px] shrink-0"
-          options={threadRemoveActionOptions}
+          options={threadRemoveActionOpts}
           value={threadRemoveAction}
           onChange={(value) => {
             startTransition(() => {

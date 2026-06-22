@@ -1,5 +1,6 @@
 import { Button } from "@heroui/react";
 import { Download, ExternalLink, RefreshCw } from "lucide-react";
+import { Trans, useLingui } from "@lingui/react/macro";
 import { readBridge } from "@/renderer/bridge";
 import { PixelLoader } from "@/renderer/components/common";
 import { useUpdateStore } from "@/renderer/state/updateStore";
@@ -26,6 +27,7 @@ function AboutLink(props: { href: string; children: React.ReactNode }) {
 }
 
 function UpdateButton() {
+  const { t } = useLingui();
   const phase = useUpdateStore((s) => s.phase);
   const version = useUpdateStore((s) => s.version);
   const downloadPercent = useUpdateStore((s) => s.downloadPercent);
@@ -37,7 +39,7 @@ function UpdateButton() {
     return (
       <Button size="sm" isDisabled variant="ghost">
         <PixelLoader size="sm" />
-        Checking…
+        <Trans>Checking…</Trans>
       </Button>
     );
   }
@@ -50,13 +52,17 @@ function UpdateButton() {
         : null;
     const speedLine =
       bytesPerSecond != null && bytesPerSecond > 0 ? `${formatBytes(bytesPerSecond)}/s` : null;
+    const percent = Math.round(downloadPercent);
+    const speedSuffix = speedLine ? ` · ${speedLine}` : "";
 
     return (
       <div className="flex min-w-0 max-w-[min(100%,280px)] flex-col items-stretch gap-2 text-left">
         <div className="flex items-center gap-2 text-sm text-foreground">
           <Download className="size-3.5 shrink-0 animate-pulse" />
           <span className="min-w-0 truncate">
-            Downloading{v} — {Math.round(downloadPercent)}%{speedLine ? ` · ${speedLine}` : ""}
+            <Trans>
+              Downloading{v} — {percent}%{speedSuffix}
+            </Trans>
           </span>
         </div>
         {byteLine ? <p className="text-xs text-muted">{byteLine}</p> : null}
@@ -71,7 +77,7 @@ function UpdateButton() {
   }
 
   if (phase === "downloaded") {
-    const label = version ? `Install v${version}` : "Install update";
+    const label = version ? t`Install v${version}` : t`Install update`;
     return (
       <Button size="sm" variant="primary" onPress={() => void readBridge().installUpdate()}>
         <RefreshCw className="size-3.5" />
@@ -81,25 +87,40 @@ function UpdateButton() {
   }
 
   return (
-    <Button size="sm" variant="ghost" onPress={() => void readBridge().checkForUpdate()}>
-      Check for updates
+    <Button
+      size="sm"
+      variant="ghost"
+      onPress={() =>
+        void readBridge()
+          .checkForUpdate()
+          .catch((error: unknown) => {
+            // Updater failures already surface via onUpdateStatus (toast). This
+            // catch only keeps an IPC transport rejection from bubbling to the
+            // window as an unhandled rejection, which renders the crash screen.
+            console.error("[lightcode][updates] check-for-update failed", error);
+          })
+      }
+    >
+      <Trans>Check for updates</Trans>
     </Button>
   );
 }
 
 export function AboutSettings() {
+  const { t } = useLingui();
   const bridge = readBridge();
   const productName = productNameFor(bridge.channel);
   const appIconUrl = bridge.channel === "nightly" ? appIconNightlyUrl : appIconStableUrl;
+  const currentYear = new Date().getFullYear();
 
   return (
-    <SettingsPage title="About" bodyClassName="">
+    <SettingsPage title={t`About`} bodyClassName="">
       <div className="mb-8 flex items-center gap-4">
         <img src={appIconUrl} alt={productName} className="size-12 shrink-0 rounded-lg" />
         <div>
           <p className="text-lg font-semibold text-foreground">{productName}</p>
           <p className="text-xs text-muted">
-            AI agent orchestrator — manage coding agents via Terminal and Native ACP.
+            <Trans>AI agent orchestrator — manage coding agents via Terminal and Native ACP.</Trans>
           </p>
         </div>
       </div>
@@ -107,7 +128,9 @@ export function AboutSettings() {
       <div className="space-y-4">
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0">
-            <p className="text-sm font-medium text-foreground">Version</p>
+            <p className="text-sm font-medium text-foreground">
+              <Trans comment="About page label: app version row">Version</Trans>
+            </p>
             <p className="text-xs text-muted">{bridge.appVersion}</p>
           </div>
           <div className="shrink-0">
@@ -116,35 +139,51 @@ export function AboutSettings() {
         </div>
 
         <div className="flex items-center justify-between gap-4">
-          <p className="text-sm font-medium text-foreground">Channel</p>
+          <p className="text-sm font-medium text-foreground">
+            <Trans comment="About page label: release channel (stable/nightly)">Channel</Trans>
+          </p>
           <p className="text-sm text-muted capitalize">{bridge.channel}</p>
         </div>
 
         <div className="flex items-center justify-between gap-4">
-          <p className="text-sm font-medium text-foreground">Electron</p>
+          <p className="text-sm font-medium text-foreground">
+            <Trans comment="About page label: Electron framework version">Electron</Trans>
+          </p>
           <p className="text-sm text-muted">{bridge.electronVersion}</p>
         </div>
 
         <div className="flex items-center justify-between gap-4">
-          <p className="text-sm font-medium text-foreground">License</p>
+          <p className="text-sm font-medium text-foreground">
+            <Trans comment="About page label: software license row">License</Trans>
+          </p>
           <p className="text-sm text-muted">Apache-2.0</p>
         </div>
       </div>
 
       <div className="mt-8 space-y-3 border-t border-[var(--hairline)] pt-6">
-        <AboutLink href={WEBSITE_URL}>Website</AboutLink>
+        <AboutLink href={WEBSITE_URL}>
+          <Trans comment="External link to the product website">Website</Trans>
+        </AboutLink>
         <br />
-        <AboutLink href={GITHUB_REPO}>GitHub Repository</AboutLink>
+        <AboutLink href={GITHUB_REPO}>
+          <Trans>GitHub Repository</Trans>
+        </AboutLink>
         <br />
-        <AboutLink href={`${GITHUB_REPO}/releases`}>Changelog</AboutLink>
+        <AboutLink href={`${GITHUB_REPO}/releases`}>
+          <Trans comment="Link to the list of release notes">Changelog</Trans>
+        </AboutLink>
         <br />
-        <AboutLink href={`${GITHUB_REPO}/issues`}>Report an Issue</AboutLink>
+        <AboutLink href={`${GITHUB_REPO}/issues`}>
+          <Trans>Report an Issue</Trans>
+        </AboutLink>
         <br />
-        <AboutLink href={`${GITHUB_REPO}/blob/master/LICENSE`}>License</AboutLink>
+        <AboutLink href={`${GITHUB_REPO}/blob/master/LICENSE`}>
+          <Trans comment="Link to the license file">License</Trans>
+        </AboutLink>
       </div>
 
       <p className="mt-8 text-xs text-muted">
-        &copy; {new Date().getFullYear()} Serhii Vecherenko. All rights reserved.
+        <Trans>&copy; {currentYear} Serhii Vecherenko. All rights reserved.</Trans>
       </p>
     </SettingsPage>
   );

@@ -1,4 +1,7 @@
 import { memo, useMemo, useState } from "react";
+import { msg } from "@lingui/core/macro";
+import { Plural, useLingui } from "@lingui/react/macro";
+import type { TranslateFn } from "@/renderer/i18n/i18n";
 import { Globe } from "lucide-react";
 import type { WebSearchPayload } from "@/shared/contracts";
 import {
@@ -14,6 +17,7 @@ interface WebSearchItemProps {
 }
 
 export const WebSearchItem = memo(function WebSearchItem({ item }: WebSearchItemProps) {
+  const { t } = useLingui();
   const payload = getRuntimeItemPayload<WebSearchPayload>(item, "web_search");
   const [isExpanded, setIsExpanded] = useState(false);
   const sections = useMemo<ToolCallSection[]>(() => {
@@ -24,11 +28,13 @@ export const WebSearchItem = memo(function WebSearchItem({ item }: WebSearchItem
     ];
   }, [isExpanded, payload]);
   if (!payload) return null;
-  const title = payload.query || formatWebSearchName(readPayloadString(payload, "name"));
+  const title = payload.query || formatWebSearchName(readPayloadString(payload, "name"), t);
   const hasDetails = hasAuxFields(payload);
   const resultCount = payload.resultCount ?? deriveResultCount(payload);
   const right =
-    resultCount != null ? `${resultCount} result${resultCount === 1 ? "" : "s"}` : undefined;
+    resultCount != null ? (
+      <Plural value={resultCount} one="# result" other="# results" />
+    ) : undefined;
 
   return (
     <ChatItemAccordion
@@ -56,8 +62,8 @@ function readPayloadString(payload: unknown, key: string): string | undefined {
   return typeof v === "string" && v.length > 0 ? v : undefined;
 }
 
-function formatWebSearchName(name: string | undefined): string {
-  return name === "WebSearch" || !name ? "Web search" : name;
+function formatWebSearchName(name: string | undefined, t: TranslateFn): string {
+  return name === "WebSearch" || !name ? t(msg`Web search`) : name;
 }
 
 /**

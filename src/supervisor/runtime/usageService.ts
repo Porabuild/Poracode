@@ -9,6 +9,7 @@ import {
   type UsageCollectorRegistry,
   type UsageSnapshot,
 } from "@lightcode/agents-usage";
+import { coalesceByKey } from "@/shared/coalesce";
 import { claudeProfileKind, parseClaudeProfileInstanceConfig } from "@/shared/contracts";
 import type { ProviderUsagePayload, ProviderUsageResponse } from "@/shared/contracts";
 import type { SupervisorEvent } from "@/shared/ipc";
@@ -168,8 +169,9 @@ export class UsageService {
       .filter((snap): snap is UsageSnapshot => snap !== undefined);
 
     if (ids.some((id) => this.isStale(id))) {
-      void this.refreshProviderUsage({ providerIds: ids }).catch(() => {
-        // Errors surface as per-provider error snapshots; nothing to do here.
+      void this.refreshProviderUsage({ providerIds: ids }).catch((error) => {
+        // Errors surface as per-provider error snapshots; log for diagnostics.
+        console.warn("[usage] background refresh failed:", error);
       });
     }
 
@@ -189,15 +191,7 @@ export class UsageService {
     // endpoints. Keyed by the sorted ids so it holds for any subset, not just the
     // full default set.
     const key = [...ids].sort().join(",");
-    const existing = this.refreshesInFlight.get(key);
-    if (existing) return existing;
-
-    // Track the SAME promise we store so the finally clears the right entry.
-    const tracked: Promise<ProviderUsageResponse> = this.runRefresh(ids).finally(() => {
-      if (this.refreshesInFlight.get(key) === tracked) this.refreshesInFlight.delete(key);
-    });
-    this.refreshesInFlight.set(key, tracked);
-    return tracked;
+    return coalesceByKey(this.refreshesInFlight, key, () => this.runRefresh(ids));
   }
 
   private async runRefresh(ids: string[]): Promise<ProviderUsageResponse> {
@@ -323,7 +317,7 @@ export class UsageService {
    */
   startAutoRefresh(): void {
     if (this.autoRefreshTimer || this.stopped) return;
-    this.scheduleNextTick(this.intervalMs(this.readUsageSettings()));
+    this.scheduleNextTick(this.nextTickDelayMs(this.readUsageSettings()));
   }
 
   stop(): void {
@@ -332,8 +326,68 @@ export class UsageService {
     this.autoRefreshTimer = undefined;
   }
 
+  /** Global default cadence (minutes → ms), floored at the rate-limit minimum. */
   private intervalMs(settings: UsageSettings): number {
     return Math.max(2, settings.refreshIntervalMinutes) * 60_000;
+  }
+
+  /**
+   * A single provider's effective cadence: its own `providerRefreshIntervals`
+   * override when present, otherwise the global default. Floored at the 2-minute
+   * rate-limit minimum either way.
+   */
+  private effectiveIntervalMs(settings: UsageSettings, providerId: string): number {
+    const override = settings.providerRefreshIntervals[providerId];
+    const minutes = override ?? settings.refreshIntervalMinutes;
+    return Math.max(2, minutes) * 60_000;
+  }
+
+  /**
+   * Enabled providers whose own cadence has elapsed since their last fetch (or
+   * that have never been fetched). Each provider runs on its own clock derived
+   * from the snapshot's `fetchedAt`, so one tick can refresh a fast provider
+   * while leaving a slow one untouched.
+   */
+  private dueProviderIds(settings: UsageSettings): string[] {
+    const now = this.host.now();
+    return this.enabledProviderIds(settings.disabledProviders).filter((id) => {
+      const snap = this.snapshots.get(id);
+      if (!snap) return true;
+      return now - snap.fetchedAt >= this.effectiveIntervalMs(settings, id);
+    });
+  }
+
+  /**
+   * Delay until the next tick: the shortest effective cadence among enabled
+   * providers (so a provider on a 2-minute interval is honored even when others
+   * are slower). Falls back to the global default when nothing is enabled, which
+   * keeps the loop alive so re-enabling resumes without a restart.
+   */
+  private nextTickDelayMs(settings: UsageSettings): number {
+    let min = Infinity;
+    for (const id of this.enabledProviderIds(settings.disabledProviders)) {
+      min = Math.min(min, this.effectiveIntervalMs(settings, id));
+    }
+    return Number.isFinite(min) ? min : this.intervalMs(settings);
+  }
+
+  /**
+   * Refresh every provider whose per-provider cadence has elapsed. Exposed
+   * (beyond the private tick) so the timer behavior is unit-testable without
+   * driving real `setTimeout`s. Returns the ids that were refreshed.
+   */
+  async refreshDueProviders(): Promise<string[]> {
+    if (this.stopped) return [];
+    const settings = this.readUsageSettings();
+    if (!settings.autoRefresh) return [];
+    const ids = this.dueProviderIds(settings);
+    if (ids.length === 0) return [];
+    try {
+      await this.refreshProviderUsage({ providerIds: ids });
+    } catch {
+      // Per-provider errors are already captured as error snapshots.
+    }
+    return ids;
   }
 
   private scheduleNextTick(delayMs: number): void {
@@ -346,21 +400,10 @@ export class UsageService {
 
   private async tick(): Promise<void> {
     if (this.stopped) return;
-    const settings = this.readUsageSettings();
-    if (settings.autoRefresh) {
-      const ids = this.enabledProviderIds(settings.disabledProviders);
-      if (ids.length > 0) {
-        try {
-          await this.refreshProviderUsage({ providerIds: ids });
-        } catch {
-          // Per-provider errors are already captured as error snapshots.
-        }
-      }
-    }
+    await this.refreshDueProviders();
     // Keep the loop alive even when auto-refresh is off so re-enabling (or an
-    // interval change) resumes without a restart. Reuse the settings read at the
-    // top of the tick rather than re-reading the file.
-    this.scheduleNextTick(this.intervalMs(settings));
+    // interval change) resumes without a restart.
+    this.scheduleNextTick(this.nextTickDelayMs(this.readUsageSettings()));
   }
 
   private loadCache(): void {

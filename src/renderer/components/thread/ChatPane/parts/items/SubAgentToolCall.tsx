@@ -1,8 +1,15 @@
 import { memo, useState, type ReactNode } from "react";
 import { Tooltip } from "@heroui/react";
+import { msg } from "@lingui/core/macro";
+import { Trans, useLingui } from "@lingui/react/macro";
+import type { TranslateFn } from "@/renderer/i18n/i18n";
 import { Bot, ChevronDown, ChevronRight, CircleAlert, type LucideIcon } from "lucide-react";
-import type { ToolCallPayload, WorkflowRun } from "@/shared/contracts";
-import { PathDisplay, PixelLoader } from "@/renderer/components/common";
+import {
+  isLiveWorkflowRunStatus,
+  type ToolCallPayload,
+  type WorkflowRun,
+} from "@/shared/contracts";
+import { PixelLoader } from "@/renderer/components/common";
 import { useAppStore } from "@/renderer/state/appStore";
 import {
   getRuntimeItemPayload,
@@ -13,6 +20,7 @@ import { formatTokenCount } from "@/renderer/components/thread/formatTokenCount"
 import { useChatPaneActions } from "../../chatPaneActionsContext";
 import { getChildItemIdsStoreSelector } from "../../chatPaneSelectors";
 import { extractAcpResultPart } from "./acpToolPayload";
+import { ChatFilePath } from "./ChatFilePath";
 import { ItemMarkdown } from "./ItemMarkdown";
 import { SubAgentProgressMeta, hasSubAgentProgressMeta } from "./subAgentProgressMeta";
 import { deriveToolDisplay, isWorkflowTool } from "./toolDisplay";
@@ -28,6 +36,7 @@ export const SubAgentToolCall = memo(function SubAgentToolCall({
   threadId,
   item,
 }: SubAgentToolCallProps) {
+  const { t } = useLingui();
   const payload = getRuntimeItemPayload<ToolCallPayload>(item, "tool_call");
   const childCount = useAppStore(getChildItemIdsStoreSelector(threadId, item.id)).length;
   const openSubAgent = useAppStore((s) => s.openSubAgent);
@@ -69,7 +78,7 @@ export const SubAgentToolCall = memo(function SubAgentToolCall({
   const workflowIsBackground = workflow !== null && !!workflow.manifestPath;
   const workflowIsLive =
     workflowIsBackground &&
-    (workflowRun.run === null || isLiveWorkflowStatus(workflowRun.run.status));
+    (workflowRun.run === null || isLiveWorkflowRunStatus(workflowRun.run.status));
   const status = resolveStatus(
     item,
     payload,
@@ -77,6 +86,7 @@ export const SubAgentToolCall = memo(function SubAgentToolCall({
     workflowErrorText,
     workflow ? workflowRun.run : null,
     workflowIsLive,
+    t,
   );
 
   return (
@@ -85,7 +95,7 @@ export const SubAgentToolCall = memo(function SubAgentToolCall({
         type="button"
         onClick={() => openSubAgent(threadId, item.id)}
         className="group flex w-full min-w-0 items-center gap-1.5 rounded-2xl border border-[color:var(--border)] bg-[var(--composer-surface)] px-2 py-1 text-left text-[length:var(--lc-chat-font-size-command)] leading-tight transition-colors hover:bg-foreground/5"
-        aria-label={`Open subagent: ${display.title}`}
+        aria-label={t`Open subagent: ${display.title}`}
       >
         <span className="size-3 shrink-0 text-[color:var(--muted)]">
           <Icon className="size-3" />
@@ -94,7 +104,7 @@ export const SubAgentToolCall = memo(function SubAgentToolCall({
           <code className="flex min-w-0 flex-1 items-baseline overflow-hidden font-mono text-[color:var(--muted)]">
             <span className="shrink-0 whitespace-pre">{display.parts.prefix}</span>
             {display.parts.filePath ? (
-              <PathDisplay
+              <ChatFilePath
                 className="flex-1"
                 path={display.parts.path}
                 basenameClassName="!text-[color:var(--foreground)]"
@@ -144,7 +154,9 @@ function SubAgentResultDisclosure({ text }: { text: string }) {
         className="inline-flex min-w-0 items-center gap-1.5 self-start leading-none italic opacity-80 hover:text-foreground hover:opacity-100"
       >
         <Bot className="size-3 shrink-0" />
-        <span>Subagent Result</span>
+        <span>
+          <Trans>Subagent Result</Trans>
+        </span>
         <ChevronDown
           className={`size-3 shrink-0 transition-transform ${isOpen ? "rotate-180" : ""}`}
         />
@@ -170,6 +182,7 @@ function resolveStatus(
   errorTooltipText: string,
   workflowRun: WorkflowRun | null,
   workflowIsLive: boolean,
+  t: TranslateFn,
 ): SubAgentStatus {
   const isRunning = item.state !== "completed" || payload?.status === "running" || workflowIsLive;
   const progress = payload?.progress;
@@ -191,7 +204,9 @@ function resolveStatus(
     return {
       rightLabel: (
         <span className="inline-flex min-w-0 items-center gap-1.5 text-[color:var(--muted)]">
-          <span>starting…</span>
+          <span>
+            <Trans>starting…</Trans>
+          </span>
           <PixelLoader size="xxs" className="text-[color:var(--muted)]" />
         </span>
       ),
@@ -217,7 +232,7 @@ function resolveStatus(
     };
   }
   if (payload?.status === "error") {
-    const icon = <CircleAlert className="size-3 text-danger" aria-label="error" />;
+    const icon = <CircleAlert className="size-3 text-danger" aria-label={t(msg`error`)} />;
     return {
       rightLabel: errorTooltipText ? (
         <Tooltip delay={0}>
@@ -247,16 +262,17 @@ function resolveStatus(
     };
   }
   return {
-    rightLabel: <span className="text-[color:var(--muted)]">done</span>,
+    rightLabel: (
+      <span className="text-[color:var(--muted)]">
+        <Trans>done</Trans>
+      </span>
+    ),
     rightLabelClassName: "!text-[color:var(--muted)]",
   };
 }
 
-function isLiveWorkflowStatus(status: WorkflowRun["status"]): boolean {
-  return status === "running" || status === "unknown";
-}
-
 function WorkflowRunStats({ run }: { run: WorkflowRun }) {
+  const { t } = useLingui();
   const completed = countDoneAgents(run);
   // Workflow runtime only records agents in `workflowProgress` once they
   // complete, so mid-run `agentCount` can be 0 even though work is in
@@ -265,14 +281,14 @@ function WorkflowRunStats({ run }: { run: WorkflowRun }) {
   // an empty `0/0 agents` while the workflow is genuinely running.
   const trackedAgents = sumTrackedAgents(run);
   const total = Math.max(run.agentCount, trackedAgents);
-  const isLive = run.status === "running" || run.status === "unknown";
+  const isLive = isLiveWorkflowRunStatus(run.status);
   const parts: string[] = [];
   if (total > 0) {
     parts.push(`${completed}/${total} agents`);
   } else if (isLive) {
     // No agents have completed yet and the manifest hasn't pre-declared
     // a count — surface a generic "running" so the row isn't blank.
-    parts.push("running");
+    parts.push(t`running`);
   }
   if (run.durationMs !== undefined && run.durationMs > 0) {
     parts.push(formatWorkflowDuration(run.durationMs));
@@ -286,7 +302,7 @@ function WorkflowRunStats({ run }: { run: WorkflowRun }) {
   return (
     <span className="inline-flex min-w-0 items-center gap-1.5 text-[color:var(--muted)]">
       <span className="tabular-nums">
-        {parts.length > 0 ? parts.join(" · ") : isLive ? "running" : "done"}
+        {parts.length > 0 ? parts.join(" · ") : isLive ? t`running` : t`done`}
       </span>
       {isLive ? <PixelLoader size="xxs" className="text-[color:var(--muted)]" /> : null}
     </span>

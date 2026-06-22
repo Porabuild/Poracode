@@ -1,12 +1,13 @@
-import { lazy, type ComponentType } from "react";
-import type { VoiceInputButtonProps } from "./VoiceInputButton";
+import { forwardRef, lazy } from "react";
+import type { VoiceInputButtonProps, VoiceInputHandle } from "./VoiceInputButton";
 
-const DisabledVoiceInputButton: ComponentType<VoiceInputButtonProps> =
-  function DisabledVoiceInputButton(_props) {
+const DisabledVoiceInputButton = forwardRef<VoiceInputHandle, VoiceInputButtonProps>(
+  function DisabledVoiceInputButton(_props, _ref) {
     return null;
-  };
+  },
+);
 
-export const LazyVoiceInputButton = lazy<ComponentType<VoiceInputButtonProps>>(async () => {
+export const LazyVoiceInputButton = lazy(async () => {
   if (import.meta.env.VITE_LIGHTCODE_BUILD_TARGET === "mobile") {
     return { default: DisabledVoiceInputButton };
   }

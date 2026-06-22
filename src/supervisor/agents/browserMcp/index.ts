@@ -74,6 +74,21 @@ export function resolveBrowserMcpHttpConfig(
   };
 }
 
+/**
+ * Resolve a BrowserMcpHttpConfig from an optional pre-resolved config or by
+ * falling back to the environment. Returns `undefined` when the config cannot
+ * be resolved (WSL without a pre-resolved bridge, or env vars absent).
+ *
+ * Shared guard used by every provider's `buildXxxBrowserMcp*()` function.
+ */
+export function resolveOrFallbackBrowserMcpConfig(
+  location: BrowserMcpLocation,
+  browserMcp?: BrowserMcpHttpConfig,
+): BrowserMcpHttpConfig | undefined {
+  if (location.kind === "wsl" && !browserMcp) return undefined;
+  return browserMcp ?? resolveBrowserMcpHttpConfig(location) ?? undefined;
+}
+
 export async function resolveBrowserMcpHttpConfigForLaunch(
   location: BrowserMcpLocation,
   enabled: boolean,

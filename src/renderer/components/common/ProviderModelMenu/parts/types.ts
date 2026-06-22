@@ -1,9 +1,10 @@
+import type { MessageDescriptor } from "@lingui/core";
 import type { ThreadPresentationMode } from "@/shared/contracts";
 
 export interface ProviderModelHeaderPlain {
   type: "header-plain";
   id: string;
-  label: string;
+  label: MessageDescriptor;
 }
 
 export interface ProviderModelHeaderProvider {

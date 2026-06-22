@@ -1,11 +1,15 @@
-import { memo, useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useLayoutEffect, useRef, useState } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { Surface } from "@heroui/react";
-import type { ProjectLocation } from "@/shared/contracts";
+import { Trans } from "@lingui/react/macro";
+import type { MessageItemPayload, ProjectLocation } from "@/shared/contracts";
 import { readBridge } from "@/renderer/bridge";
 import { isIosTouchScroll } from "@/renderer/utils/iosScroll";
 import { useAppStore } from "@/renderer/state/appStore";
-import type { CompletedTurnRecord } from "@/renderer/state/slices/runtimeEventSlice";
+import {
+  getRuntimeItemPayload,
+  type CompletedTurnRecord,
+} from "@/renderer/state/slices/runtimeEventSlice";
 import type { AppStoreState } from "@/renderer/state/slices/shared";
 import {
   CheckpointRevertButton,
@@ -14,11 +18,7 @@ import {
   type CheckpointGuard,
 } from "./CheckpointRevertControls";
 import { formatElapsed } from "../formatElapsed";
-import {
-  ChatPaneActionsContext,
-  type ChatPaneActions,
-  useChatPaneActions,
-} from "../chatPaneActionsContext";
+import { useChatPaneActions } from "../chatPaneActionsContext";
 import {
   selectCompletedTurnForEntry,
   selectRuntimeItemById,
@@ -26,6 +26,7 @@ import {
 } from "../chatPaneSelectors";
 import { ChatItemRow } from "./items/ChatItemRow";
 import { chatMessageSurfaceClass } from "./items/chatMessageSurface";
+import { imageViewRendersInline } from "./items/imageViewSource";
 
 interface MessageListProps {
   threadId: string;
@@ -44,10 +45,20 @@ interface MessageListProps {
    * the most recent completed turn while the thread is idle).
    */
   suppressInlineTurnAnchorId?: string | null;
+  /**
+   * Lets the chat Find controller drive the virtualizer to scroll a matched
+   * row into the rendered window before highlighting it. Registered with the
+   * live handler on mount, null on unmount.
+   */
+  registerScrollToIndex?: (
+    handler: ((index: number, options?: { align?: "start" | "center" | "end" }) => void) | null,
+  ) => void;
 }
 
 const CHAT_TRANSCRIPT_OVERSCAN = 8;
 const DEFAULT_ROW_ESTIMATE_PX = 96;
+const INLINE_IMAGE_ROW_ESTIMATE_PX = 384;
+const ASSISTANT_IMAGE_ROW_ESTIMATE_PX = 448;
 const SKIP_REVERT_CONFIRM_PREF_KEY = "lightcode-chat-checkpoint-revert-skip-confirm";
 // How long the iOS scroll-compensation flush waits for momentum to idle before
 // applying the buffered delta. Matches @tanstack/virtual-core's
@@ -65,6 +76,7 @@ export function MessageList({
   checkpointGuard,
   projectLocation,
   suppressInlineTurnAnchorId = null,
+  registerScrollToIndex,
 }: MessageListProps) {
   const hasItems = entries.length > 0;
   const parentActions = useChatPaneActions();
@@ -81,7 +93,6 @@ export function MessageList({
   const isCompensationDeferredRef = useRef(false);
   const compensationFlushTimerRef = useRef<number | null>(null);
   const scheduleCompensationFlushRef = useRef<(() => void) | null>(null);
-  const [measureEpoch, setMeasureEpoch] = useState(0);
   const [pendingRevertItemId, setPendingRevertItemId] = useState<string | null>(null);
   const [dontAskAgain, setDontAskAgain] = useState(false);
   const [revertError, setRevertError] = useState<string | null>(null);
@@ -113,6 +124,15 @@ export function MessageList({
     });
     return () => parentActions.registerVirtualScrollToBottom?.(null);
   }, [entries.length, parentActions, virtualizer]);
+
+  useLayoutEffect(() => {
+    if (!registerScrollToIndex) return;
+    registerScrollToIndex((index, options) => {
+      if (index < 0 || index >= entries.length) return;
+      virtualizer.scrollToIndex(index, options ?? { align: "center" });
+    });
+    return () => registerScrollToIndex(null);
+  }, [entries.length, registerScrollToIndex, virtualizer]);
 
   useLayoutEffect(() => {
     // Compensate scroll when a row above the viewport (or any row while
@@ -258,13 +278,6 @@ export function MessageList({
     parentActions?.onContentHeightChange();
   }, [parentActions, totalSize]);
 
-  useLayoutEffect(() => {
-    if (measureEpoch === 0) return;
-    for (const element of rowElementsRef.current.values()) {
-      virtualizer.measureElement(element);
-    }
-  }, [measureEpoch, virtualizer]);
-
   const measureRowElement = useCallback(
     (index: number, element: HTMLDivElement | null) => {
       if (element) {
@@ -339,6 +352,12 @@ export function MessageList({
     [performRevert],
   );
 
+  const closeRevertDialog = useCallback(() => {
+    setPendingRevertItemId(null);
+    setDontAskAgain(false);
+    setRevertError(null);
+  }, []);
+
   const confirmRevert = useCallback(() => {
     if (!pendingRevertItemId) return;
     setRevertError(null);
@@ -362,28 +381,10 @@ export function MessageList({
       : undefined,
   );
 
-  // Row actions bubble up through ChatPaneActionsContext so disclosure rows can
-  // notify the parent scroll controls when their height changes. We do NOT call
-  // virtualizer.measure() here — that would reset the entire size cache back to
-  // estimates and cause every row to jump. TanStack Virtual's measureElement ref
-  // already attaches a ResizeObserver to each row wrapper; when a disclosure
-  // expands or collapses the observer fires automatically and recalculates only
-  // the affected row's position.
-  const rowActions = useMemo<ChatPaneActions | null>(() => {
-    if (!parentActions) return null;
-    return {
-      ...parentActions,
-      onContentHeightChange: () => {
-        setMeasureEpoch((epoch) => epoch + 1);
-        parentActions.onContentHeightChange();
-      },
-    };
-  }, [parentActions]);
-
   if (!hasItems) return null;
 
   return (
-    <ChatPaneActionsContext.Provider value={rowActions}>
+    <>
       <div className="mx-auto w-full max-w-[920px] pb-1">
         <div
           ref={virtualSizeBoxRef}
@@ -431,14 +432,10 @@ export function MessageList({
         canRestoreFiles={projectLocation !== undefined && pendingCheckpoint !== undefined}
         errorMessage={revertError ?? undefined}
         onDontAskAgainChange={setDontAskAgain}
-        onClose={() => {
-          setPendingRevertItemId(null);
-          setDontAskAgain(false);
-          setRevertError(null);
-        }}
+        onClose={closeRevertDialog}
         onConfirm={confirmRevert}
       />
-    </ChatPaneActionsContext.Provider>
+    </>
   );
 }
 
@@ -569,11 +566,14 @@ const VirtualChatListRow = memo(function VirtualChatListRow({
 function CompletedTurnIndicator({ record }: { threadId: string; record: CompletedTurnRecord }) {
   const elapsedSeconds = Math.max(0, Math.floor((record.endedAt - record.startedAt) / 1000));
   if (elapsedSeconds < 1) return null;
+  const elapsed = formatElapsed(elapsedSeconds);
   return (
     <Surface variant="transparent" className={chatMessageSurfaceClass}>
       <div className="flex flex-col gap-0.5 text-[length:var(--lc-chat-font-size-meta)] text-foreground-muted">
         {elapsedSeconds >= 1 ? (
-          <span className="text-muted">Worked for {formatElapsed(elapsedSeconds)}</span>
+          <span className="text-muted">
+            <Trans>Worked for {elapsed}</Trans>
+          </span>
         ) : null}
       </div>
     </Surface>
@@ -616,6 +616,7 @@ function estimateRuntimeItemSize(item: ReturnType<typeof selectRuntimeItemById>)
   if (!item) return DEFAULT_ROW_ESTIMATE_PX;
   switch (item.type) {
     case "assistant_message":
+      if (assistantMessageHasImageContent(item)) return ASSISTANT_IMAGE_ROW_ESTIMATE_PX;
       return item.state === "completed" ? 168 : 208;
     case "user_message":
       return 88;
@@ -623,11 +624,13 @@ function estimateRuntimeItemSize(item: ReturnType<typeof selectRuntimeItemById>)
       return item.state === "completed" ? 52 : 128;
     case "plan":
       return 128;
-    case "command_execution":
     case "tool_call":
     case "mcp_tool_call":
     case "image_view":
     case "dynamic_tool_call":
+      if (imageViewRendersInline(item.payload)) return INLINE_IMAGE_ROW_ESTIMATE_PX;
+      return item.state === "completed" ? 56 : 132;
+    case "command_execution":
     case "file_change":
     case "web_search":
       return item.state === "completed" ? 56 : 132;
@@ -636,6 +639,13 @@ function estimateRuntimeItemSize(item: ReturnType<typeof selectRuntimeItemById>)
     default:
       return DEFAULT_ROW_ESTIMATE_PX;
   }
+}
+
+function assistantMessageHasImageContent(
+  item: NonNullable<ReturnType<typeof selectRuntimeItemById>>,
+): boolean {
+  const payload = getRuntimeItemPayload<MessageItemPayload>(item, "assistant_message");
+  return payload?.content.some((block) => block.kind === "image") ?? false;
 }
 
 function findCheckpointBeforeUserMessage(

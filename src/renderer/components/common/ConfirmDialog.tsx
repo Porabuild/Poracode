@@ -1,4 +1,5 @@
 import { AlertDialog } from "@heroui/react";
+import { useLingui } from "@lingui/react/macro";
 import { Button } from "./Button";
 
 type ConfirmVariant = "danger" | "primary" | "secondary";
@@ -14,17 +15,19 @@ export function ConfirmDialog(props: {
   onConfirm: () => void;
   onClose: () => void;
 }) {
+  const { t } = useLingui();
   const {
     isOpen,
     title,
     body,
     confirmLabel,
-    cancelLabel = "Cancel",
+    cancelLabel,
     confirmVariant = "danger",
     status = "danger",
     onConfirm,
     onClose,
   } = props;
+  const resolvedCancelLabel = cancelLabel ?? t`Cancel`;
 
   return (
     <AlertDialog.Backdrop isOpen={isOpen} onOpenChange={(open) => !open && onClose()}>
@@ -37,7 +40,7 @@ export function ConfirmDialog(props: {
           <AlertDialog.Body>{body}</AlertDialog.Body>
           <AlertDialog.Footer>
             <Button slot="close" variant="tertiary">
-              {cancelLabel}
+              {resolvedCancelLabel}
             </Button>
             <Button variant={confirmVariant} onPress={onConfirm}>
               {confirmLabel}

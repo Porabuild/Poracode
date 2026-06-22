@@ -1,4 +1,5 @@
 import { ChevronDown, ChevronRight } from "lucide-react";
+import { Trans } from "@lingui/react/macro";
 import { handleKeyActivate } from "@/renderer/utils/a11y";
 import type { DiffEntry } from "./diffHelpers";
 
@@ -22,7 +23,7 @@ export function FileHeader(props: {
         <ChevronDown className="size-3 shrink-0 text-muted" />
       )}
       <span className={entry.staged ? "text-success" : "text-warning"}>
-        {entry.staged ? "staged" : "unstaged"}
+        {entry.staged ? <Trans>staged</Trans> : <Trans>unstaged</Trans>}
       </span>
       <span className="min-w-0 truncate font-medium text-foreground">{entry.filePath}</span>
       <span className="ml-auto flex shrink-0 gap-2">

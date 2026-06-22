@@ -130,16 +130,33 @@ jobs:
       - name: List release assets
         run: ls -lh release-assets
 
-      - name: Create GitHub Release
+      # Upload every asset to a DRAFT release first. A draft is invisible to
+      # electron-updater (it isn't in releases.atom and its assets aren't
+      # publicly downloadable), so clients never observe a release whose
+      # channel manifest (latest-mac.yml) is still mid-upload — the partial
+      # publish that surfaces as a "Cannot find latest-mac.yml" 404.
+      - name: Create GitHub Release (draft)
         uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ needs.prepare.outputs.tag }}
           name: Lightcode ${{ needs.prepare.outputs.tag }}
+          draft: true
           generate_release_notes: true
           fail_on_unmatched_files: true
           files: release-assets/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # Flip draft → published only after all assets (manifests included) are
+      # uploaded. This is the single atomic moment the release becomes visible
+      # to the updater, and marks it as the latest stable release.
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release edit "${{ needs.prepare.outputs.tag }}" \
+            --repo "${{ github.repository }}" \
+            --draft=false --latest
 
   # ── Step 4: Bump master to next plain patch version ──────────────
   post-release:

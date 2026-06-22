@@ -1,5 +1,6 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
+import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import { AttachmentBar } from "./AttachmentBar";
 import type { Attachment } from "./useAttachments";
 
@@ -25,6 +26,7 @@ describe("AttachmentBar", () => {
       "lightcode-attachment-bar",
       "lightcode-attachment-bar--inset",
     );
+    expect(screen.getByAltText("screenshot.png").getAttribute("loading")).toBeNull();
     expect(screen.getByText("screenshot.png")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button"));
@@ -34,6 +36,25 @@ describe("AttachmentBar", () => {
         path: "/tmp/screenshot.png",
       }),
     );
+  });
+
+  it("renders eager fixed-size image previews for inline message attachments", () => {
+    render(
+      <AttachmentBar
+        attachments={[
+          {
+            id: "image-1",
+            path: "/tmp/screenshot.png",
+            name: "screenshot.png",
+            mimeType: "image/png",
+            isImage: true,
+          },
+        ]}
+        imagesAsPreview
+      />,
+    );
+
+    expect(screen.getByAltText("screenshot.png").getAttribute("loading")).toBeNull();
   });
 
   it("renders flush attachment bars for inline message attachments", () => {

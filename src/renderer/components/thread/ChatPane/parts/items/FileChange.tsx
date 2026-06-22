@@ -1,12 +1,15 @@
 import { memo, useMemo, useState, type ReactNode } from "react";
+import { msg } from "@lingui/core/macro";
+import { useLingui } from "@lingui/react/macro";
+import type { TranslateFn } from "@/renderer/i18n/i18n";
 import { CircleAlert, FileEdit } from "lucide-react";
 import type { FileChangePayload } from "@/shared/contracts";
-import { PathDisplay } from "@/renderer/components/common";
 import {
   getRuntimeItemPayload,
   type RuntimeChatItem,
 } from "@/renderer/state/slices/runtimeEventSlice";
 import { useChatPaneActions } from "../../chatPaneActionsContext";
+import { ChatFilePath } from "./ChatFilePath";
 import { ChatItemAccordion } from "./ChatItemAccordion";
 import { CommandOutputViewport } from "./CommandOutputViewport";
 import { ToolCallSections, type ToolCallSection } from "./ToolCallSections";
@@ -28,6 +31,7 @@ interface FileChangeProps {
 }
 
 export const FileChange = memo(function FileChange({ item }: FileChangeProps) {
+  const { t } = useLingui();
   const payload = getRuntimeItemPayload<FileChangePayload>(item, "file_change");
   const [isExpanded, setIsExpanded] = useState(false);
   const stream = item.streams.file_change_output;
@@ -70,7 +74,7 @@ export const FileChange = memo(function FileChange({ item }: FileChangeProps) {
     ];
   }, [isExpanded, payload, hasStream, argContent, diffText, fetched.content]);
   if (!payload) return null;
-  const right = formatRightLabel(payload);
+  const right = formatRightLabel(payload, t);
   const fallbackTitle = readPayloadString(payload, "title") ?? readPayloadString(payload, "name");
   const hasDetails =
     hasStream ||
@@ -82,12 +86,13 @@ export const FileChange = memo(function FileChange({ item }: FileChangeProps) {
   const hasPath = !!payload.path && payload.path.length > 0;
   const showsFallback =
     !hasPath && !!fallbackTitle && fallbackTitle.toLowerCase() !== kindVerb.toLowerCase();
-  const kindLabel = hasPath || showsFallback ? `${kindVerb}:` : `${kindVerb} file`;
+  const withPath = hasPath || showsFallback;
+  const kindLabel = localizeKindLabel(payload.changeKind, withPath, t);
   const titleNode = (
     <span className="flex min-w-0 flex-1 items-baseline gap-1.5">
       <span className="shrink-0 !text-[color:var(--muted)]">{kindLabel}</span>
       {hasPath ? (
-        <PathDisplay
+        <ChatFilePath
           className="flex-1"
           path={payload.path}
           basenameClassName="!text-[color:var(--foreground)]"
@@ -171,6 +176,26 @@ export function formatKindLabel(kind: FileChangePayload["changeKind"]): string {
 }
 
 /**
+ * Localized counterpart of `formatKindVerb`/`formatKindLabel` for the chat row
+ * title. `withPath` true renders the verb followed by a `:` (a path/title comes
+ * next); false renders the standalone "<verb> file" form.
+ */
+function localizeKindLabel(
+  kind: FileChangePayload["changeKind"],
+  withPath: boolean,
+  t: TranslateFn,
+): string {
+  switch (kind) {
+    case "create":
+      return withPath ? t(msg`Create:`) : t(msg`Create file`);
+    case "delete":
+      return withPath ? t(msg`Delete:`) : t(msg`Delete file`);
+    default:
+      return withPath ? t(msg`Edit:`) : t(msg`Edit file`);
+  }
+}
+
+/**
  * Prefer the language detected from the file path over the structural guess
  * — `apply_patch` args for `foo.ts` should render as TypeScript, not plain.
  * Falls back to whatever `extractAcpArgsPart` decided when the path has no
@@ -196,9 +221,9 @@ export function formatDiffSummaryLabel(
   );
 }
 
-function formatRightLabel(payload: FileChangePayload): ReactNode | undefined {
+function formatRightLabel(payload: FileChangePayload, t: TranslateFn): ReactNode | undefined {
   if (payload.status === "error") {
-    return <CircleAlert className="size-3 text-danger" aria-label="error" />;
+    return <CircleAlert className="size-3 text-danger" aria-label={t(msg`error`)} />;
   }
   return formatDiffSummaryLabel(payload.diffSummary ?? extractAcpDiffSummary(payload));
 }

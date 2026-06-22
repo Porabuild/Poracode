@@ -1,5 +1,6 @@
 import { Globe, X } from "lucide-react";
 import { useState } from "react";
+import { useLingui } from "@lingui/react/macro";
 import { readBridge } from "@/renderer/bridge";
 import { useBrowserPanelStore } from "@/renderer/state/browserPanelStore";
 
@@ -29,6 +30,7 @@ function TabFavicon(props: { faviconUrl?: string; loading: boolean }) {
 }
 
 export function BrowserTabStrip() {
+  const { t } = useLingui();
   const tabs = useBrowserPanelStore((s) => s.tabs);
   const activeTabId = useBrowserPanelStore((s) => s.activeTabId);
   const attentionTabId = useBrowserPanelStore((s) => s.attentionTabId);
@@ -39,7 +41,7 @@ export function BrowserTabStrip() {
   }
 
   return (
-    <div className="flex items-center gap-1 overflow-x-auto border-b border-border bg-[var(--surface)] px-1 py-1">
+    <div className="flex items-center gap-1 overflow-x-auto border-b border-border bg-[var(--content-background)] px-1 py-1">
       {tabs.map((tab) => {
         const active = tab.tabId === activeTabId;
         const attention = !active && tab.tabId === attentionTabId;
@@ -95,12 +97,12 @@ export function BrowserTabStrip() {
               loading={tab.loading}
               {...(tab.faviconUrl ? { faviconUrl: tab.faviconUrl } : {})}
             />
-            <span className="flex-1 truncate">{tab.title || tab.url || "New tab"}</span>
+            <span className="flex-1 truncate">{tab.title || tab.url || t`New tab`}</span>
             <button
               type="button"
-              aria-label="Close tab"
+              aria-label={t`Close tab`}
               className="invisible flex h-4 w-4 items-center justify-center rounded text-foreground/50 hover:bg-[var(--row-hover)] hover:text-foreground group-hover:visible group-focus-within:visible"
-              title="Close tab"
+              title={t`Close tab`}
               onClick={(e) => {
                 e.stopPropagation();
                 readBridge()

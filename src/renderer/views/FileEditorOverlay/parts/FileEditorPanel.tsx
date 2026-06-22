@@ -1,4 +1,5 @@
 import { useEffect, useEffectEvent, useState } from "react";
+import { useLingui } from "@lingui/react/macro";
 import { useFileEditorStore } from "@/renderer/state/fileEditorStore";
 import { FileEditorPane } from "./FileEditorPane/FileEditorPane";
 
@@ -7,6 +8,7 @@ import { FileEditorPane } from "./FileEditorPane/FileEditorPane";
  * Files are selected from the right sidebar's file tree.
  */
 export function FileEditorPanel() {
+  const { t } = useLingui();
   const rootContext = useFileEditorStore((state) => state.rootContext);
   const overlayMode = useFileEditorStore((state) => state.overlayMode);
   const setOverlayMode = useFileEditorStore((state) => state.setOverlayMode);
@@ -27,7 +29,7 @@ export function FileEditorPanel() {
     const hasDirty = Object.values(useFileEditorStore.getState().buffers).some(
       (buffer) => buffer.status === "ready" && buffer.isDirty,
     );
-    if (hasDirty && !window.confirm("Discard unsaved editor changes?")) {
+    if (hasDirty && !window.confirm(t`Discard unsaved editor changes?`)) {
       return;
     }
     setOverlayMode(null);

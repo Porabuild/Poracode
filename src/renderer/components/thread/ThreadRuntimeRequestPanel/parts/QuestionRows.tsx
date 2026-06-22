@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Button } from "@heroui/react";
+import { Trans, useLingui } from "@lingui/react/macro";
 import type { UserInputOption } from "@/shared/contracts";
 import { QuestionOptionRow } from "./QuestionOptionRow";
 
@@ -10,10 +11,11 @@ export function QuestionRows(props: {
   multiSelect: boolean;
 }) {
   const { options, isDisabled, onSubmit, multiSelect } = props;
+  const { t } = useLingui();
   const [selected, setSelected] = useState<ReadonlySet<string>>(() => new Set());
   if (!multiSelect) {
     return (
-      <div role="listbox" aria-label="Options" className="flex flex-col px-1 pb-1">
+      <div role="listbox" aria-label={t`Options`} className="flex flex-col px-1 pb-1">
         {options.map((option, index) => (
           <QuestionOptionRow
             key={option.optionId}
@@ -43,7 +45,7 @@ export function QuestionRows(props: {
   return (
     <div
       role="listbox"
-      aria-label="Options"
+      aria-label={t`Options`}
       aria-multiselectable="true"
       className="flex flex-col px-1 pb-1"
     >
@@ -65,7 +67,7 @@ export function QuestionRows(props: {
           className="text-white"
           onPress={() => onSubmit(selectedIds)}
         >
-          Submit
+          <Trans>Submit</Trans>
         </Button>
       </div>
     </div>

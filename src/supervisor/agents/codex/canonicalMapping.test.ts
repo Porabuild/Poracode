@@ -573,6 +573,185 @@ describe("mapCodexNotification — item lifecycle (item/started, item/completed)
     expect(completedPayload).toMatchObject({ status: "success", result: { hits: 3 } });
   });
 
+  it("normalizes Codex mcpToolCall items for MCP display", () => {
+    const state = createCodexMapperState("t-codex");
+    const started = mapCodexNotification(
+      "item/started",
+      {
+        threadId: "x",
+        itemId: "mcp-tool-1",
+        item: {
+          id: "mcp-tool-1",
+          type: "mcpToolCall",
+          server: "browser",
+          tool: "console_logs",
+          arguments: { limit: 10 },
+        },
+      },
+      state,
+    );
+
+    expect((started[0] as { itemType: string }).itemType).toBe("mcp_tool_call");
+    expect((started[0] as { payload: Record<string, unknown> }).payload).toMatchObject({
+      name: "mcp__browser__console_logs",
+      serverId: "browser",
+      args: { limit: 10 },
+      status: "running",
+    });
+
+    const completed = mapCodexNotification(
+      "item/completed",
+      {
+        threadId: "x",
+        itemId: "mcp-tool-1",
+        item: {
+          id: "mcp-tool-1",
+          type: "mcpToolCall",
+          status: "completed",
+          result: {
+            content: [{ type: "text", text: '{"count":1}' }],
+            structuredContent: null,
+            _meta: null,
+          },
+        },
+      },
+      state,
+    );
+
+    expect((completed.at(-1) as { payload: Record<string, unknown> }).payload).toMatchObject({
+      status: "success",
+      result: {
+        content: [{ type: "text", text: '{"count":1}' }],
+        structuredContent: null,
+        _meta: null,
+      },
+    });
+  });
+
+  it("preserves Codex skill-file reads and codex_apps MCP names for usage capture", () => {
+    const state = createCodexMapperState("t-codex");
+    const skill = mapCodexNotification(
+      "item/started",
+      {
+        threadId: "x",
+        itemId: "skill-read-1",
+        item: {
+          id: "skill-read-1",
+          type: "dynamicToolCall",
+          title: "Read",
+          input: {
+            file_path: String.raw`C:\Users\sdsle\.codex\skills\.system\imagegen\SKILL.md`,
+          },
+        },
+      },
+      state,
+    );
+
+    expect((skill[0] as { itemType: string }).itemType).toBe("dynamic_tool_call");
+    expect((skill[0] as { payload: Record<string, unknown> }).payload).toMatchObject({
+      name: "Read",
+      args: {
+        file_path: String.raw`C:\Users\sdsle\.codex\skills\.system\imagegen\SKILL.md`,
+      },
+      status: "running",
+    });
+
+    const mcp = mapCodexNotification(
+      "item/started",
+      {
+        threadId: "x",
+        itemId: "codex-app-1",
+        item: {
+          id: "codex-app-1",
+          type: "mcpToolCall",
+          server: "codex_apps",
+          tool: "target_search",
+          arguments: { query: "desk lamp" },
+        },
+      },
+      state,
+    );
+
+    expect((mcp[0] as { itemType: string }).itemType).toBe("mcp_tool_call");
+    expect((mcp[0] as { payload: Record<string, unknown> }).payload).toMatchObject({
+      name: "mcp__codex_apps__target_search",
+      serverId: "codex_apps",
+      args: { query: "desk lamp" },
+      status: "running",
+    });
+  });
+
+  it("maps Codex collabAgentToolCall items as subagent tool calls", () => {
+    const state = createCodexMapperState("t-codex");
+    const started = mapCodexNotification(
+      "item/started",
+      {
+        threadId: "x",
+        itemId: "collab-1",
+        item: {
+          id: "collab-1",
+          type: "collabAgentToolCall",
+          tool: "spawn_agent",
+          status: "in_progress",
+          senderThreadId: "parent-thread",
+          receiverThreadIds: ["child-thread"],
+          prompt: "inspect one thing",
+          model: "gpt-5.3-codex",
+          agentsStates: {
+            "child-thread": { status: "pending_init", message: null },
+          },
+        },
+      },
+      state,
+    );
+
+    expect((started[0] as { itemType: string }).itemType).toBe("tool_call");
+    expect((started[0] as { payload: Record<string, unknown> }).payload).toMatchObject({
+      name: "spawn_agent",
+      isSubAgent: true,
+      args: {
+        description: "inspect one thing",
+        prompt: "inspect one thing",
+        senderThreadId: "parent-thread",
+        receiverThreadIds: ["child-thread"],
+        model: "gpt-5.3-codex",
+      },
+      progress: {
+        description: "inspect one thing",
+        model: "gpt-5.3-codex",
+        stepCount: 1,
+      },
+      status: "running",
+    });
+
+    const completed = mapCodexNotification(
+      "item/completed",
+      {
+        threadId: "x",
+        itemId: "collab-1",
+        item: {
+          id: "collab-1",
+          type: "collabAgentToolCall",
+          tool: "wait",
+          status: "completed",
+          agentsStates: {
+            "child-thread": { status: "completed", message: "done" },
+          },
+        },
+      },
+      state,
+    );
+
+    expect((completed.at(-1) as { payload: Record<string, unknown> }).payload).toMatchObject({
+      status: "success",
+      result: "done",
+      progress: {
+        description: "done",
+        stepCount: 1,
+      },
+    });
+  });
+
   it("preserves Codex dynamic and image tool item types", () => {
     const state = createCodexMapperState("t-codex");
     const dynamic = mapCodexNotification(

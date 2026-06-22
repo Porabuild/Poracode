@@ -39,6 +39,10 @@ const mockBase = vi.hoisted(() => ({
     vi.fn<(distro: string, cwd: string) => Promise<Record<string, string> | undefined>>(),
 }));
 
+const mockProcessTree = vi.hoisted(() => ({
+  terminateChildProcessTree: vi.fn<(child: { pid?: number }) => void>(),
+}));
+
 vi.mock("@anthropic-ai/claude-agent-sdk", () => ({
   query: mockSdk.query,
 }));
@@ -63,6 +67,19 @@ vi.mock("node:child_process", async () => {
 vi.mock("../binaryResolver", () => ({
   resolveAgentBinaryPath: mockBinaryResolver.resolveAgentBinaryPath,
 }));
+
+vi.mock("@/shared/processTree", () => ({
+  terminateChildProcessTree: mockProcessTree.terminateChildProcessTree,
+}));
+
+// Real spawned objects are Node ChildProcess instances; ClaudeSdkSession
+// registers an `exit` listener on them to track the process for teardown.
+function makeFakeSpawnedChild(pid: number): SpawnedProcess {
+  return {
+    pid,
+    once: vi.fn<(event: string, listener: (...args: unknown[]) => void) => void>(),
+  } as unknown as SpawnedProcess;
+}
 
 function createFakeQuery(initCommands: Array<Record<string, string>> = []) {
   let closed = false;
@@ -200,7 +217,7 @@ describe("ClaudeSdkSession", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    mockChildProcess.spawn.mockReturnValue({} as SpawnedProcess);
+    mockChildProcess.spawn.mockReturnValue(makeFakeSpawnedChild(1234));
     mockBase.getWslProjectShellEnv.mockReturnValue(undefined);
     mockBase.primeWslProjectShellEnv.mockResolvedValue(undefined);
     mockBinaryResolver.resolveAgentBinaryPath.mockImplementation(
@@ -248,6 +265,44 @@ describe("ClaudeSdkSession", () => {
     expect(fake.setPermissionMode).not.toHaveBeenCalled();
 
     await session.dispose();
+  });
+
+  it("force-kills the spawned process tree on dispose", async () => {
+    const fake = createFakeQuery();
+    mockSdk.query.mockReturnValue(fake.runtime);
+    const spawnedChild = makeFakeSpawnedChild(4242);
+    mockChildProcess.spawn.mockReturnValue(spawnedChild);
+
+    const session = await ClaudeSdkSession.create({
+      threadId: "thread-claude-kill",
+      projectLocation: wslProjectLocation,
+      config,
+      presentationMode: "gui",
+    });
+    session.setListener({
+      onRuntimeEvent: () => {},
+      onUpdate: () => {},
+      onError: () => {},
+      onClose: () => {},
+    });
+    await session.openThread(config);
+
+    // The SDK transport drives process spawning lazily through the custom hook;
+    // invoke it the way the SDK would so the session captures the child.
+    const queryInput = mockSdk.query.mock.calls[0]?.[0] as {
+      options?: { spawnClaudeCodeProcess?: (opts: SpawnOptions) => SpawnedProcess };
+    };
+    const spawnHook = queryInput.options?.spawnClaudeCodeProcess;
+    expect(spawnHook).toBeTypeOf("function");
+    expect(spawnHook!({ args: [], env: {} } as unknown as SpawnOptions)).toBe(spawnedChild);
+    expect(mockProcessTree.terminateChildProcessTree).not.toHaveBeenCalled();
+
+    await session.dispose();
+
+    expect(mockProcessTree.terminateChildProcessTree).toHaveBeenCalledTimes(1);
+    expect(mockProcessTree.terminateChildProcessTree).toHaveBeenCalledWith(
+      expect.objectContaining({ pid: 4242 }),
+    );
   });
 
   it("switches the SDK permission mode for plan turns instead of changing the base policy", async () => {
@@ -482,6 +537,60 @@ describe("ClaudeSdkSession", () => {
       );
     });
     expect(updates.some((update) => update.status === "working")).toBe(false);
+
+    await session.dispose();
+  });
+
+  it("reopens the turn to working when the model resumes after idle without a new prompt", async () => {
+    const fake = createFakeQuery();
+    mockSdk.query.mockReturnValue(fake.runtime);
+    const runtimeEvents: RuntimeEvent[] = [];
+    const updates: StructuredSessionUpdate[] = [];
+    const session = await ClaudeSdkSession.create({
+      threadId: "thread-claude-wakeup",
+      projectLocation,
+      config,
+      presentationMode: "gui",
+    });
+    session.setListener({
+      onRuntimeEvent: (event) => runtimeEvents.push(event),
+      onUpdate: (update) => updates.push(update),
+      onError: () => {},
+      onClose: () => {},
+    });
+
+    const openedSessionId = await session.openThread(config);
+    await session.startTurn("kick off some background work", config);
+    await flushAsyncWork();
+
+    // First turn settles to idle (the model scheduled a wakeup / backgrounded a task).
+    fake.emitMessage(sdkAssistantMessage(openedSessionId, "assistant-uuid-1", "on it"));
+    fake.emitMessage(sdkSuccessResult(openedSessionId));
+    await flushAsyncWork();
+    expect(updates.at(-1)).toMatchObject({ status: "idle" });
+
+    const turnStartsAfterFirst = runtimeEvents.filter((e) => e.type === "turn.started").length;
+    const turnCompletesAfterFirst = runtimeEvents.filter((e) => e.type === "turn.completed").length;
+
+    // The wakeup re-invokes the model with NO new user prompt (no startTurn).
+    fake.emitMessage(
+      sdkAssistantMessage(openedSessionId, "assistant-uuid-2", "background job done"),
+    );
+    await flushAsyncWork();
+
+    // Status flips back to working and a fresh turn is opened on the wire.
+    expect(updates.at(-1)).toMatchObject({ status: "working", attention: "working" });
+    expect(runtimeEvents.filter((e) => e.type === "turn.started").length).toBe(
+      turnStartsAfterFirst + 1,
+    );
+
+    // The resumed turn settles cleanly back to idle with its own turn.completed.
+    fake.emitMessage(sdkSuccessResult(openedSessionId));
+    await flushAsyncWork();
+    expect(updates.at(-1)).toMatchObject({ status: "idle" });
+    expect(runtimeEvents.filter((e) => e.type === "turn.completed").length).toBe(
+      turnCompletesAfterFirst + 1,
+    );
 
     await session.dispose();
   });

@@ -1,3 +1,5 @@
+import { msg } from "@lingui/core/macro";
+import type { MessageDescriptor } from "@lingui/core";
 import type { CommitDefaultAction } from "@/shared/contracts";
 
 export interface CommitActionAvailability {
@@ -7,10 +9,11 @@ export interface CommitActionAvailability {
   canCreatePr: boolean;
 }
 
-export const COMMIT_ACTION_LABELS: Record<CommitDefaultAction, string> = {
-  commit: "Commit",
-  "commit-push": "Commit & Push",
-  "commit-push-pr": "Commit & Create PR",
+/** Display labels keyed by the stable {@link CommitDefaultAction} id; resolve via `useLingui().t`. */
+export const COMMIT_ACTION_LABELS: Record<CommitDefaultAction, MessageDescriptor> = {
+  commit: msg`Commit`,
+  "commit-push": msg`Commit & Push`,
+  "commit-push-pr": msg`Commit & Create PR`,
 };
 
 /**

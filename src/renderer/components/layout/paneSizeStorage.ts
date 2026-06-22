@@ -106,3 +106,110 @@ export function swapPaneIdsInStorage(firstPaneId: string, secondPaneId: string):
     return id;
   });
 }
+
+type SplitStorageEntry = {
+  layout: Extract<PaneLayout, { kind: "split" }>;
+  path: number[];
+  paneIds: Set<string>;
+  childPaneIds: Set<string>[];
+};
+
+function collectSplitStorageEntries(
+  layout: PaneLayout,
+  path: number[] = [],
+  entries: SplitStorageEntry[] = [],
+): SplitStorageEntry[] {
+  if (layout.kind === "leaf") return entries;
+
+  entries.push({
+    layout,
+    path,
+    paneIds: new Set(collectPaneIds(layout)),
+    childPaneIds: layout.children.map((child) => new Set(collectPaneIds(child))),
+  });
+
+  for (let i = 0; i < layout.children.length; i++) {
+    collectSplitStorageEntries(layout.children[i]!, [...path, i], entries);
+  }
+
+  return entries;
+}
+
+function countOverlap(left: Set<string>, right: Set<string>): number {
+  let count = 0;
+  for (const id of left) {
+    if (right.has(id)) count++;
+  }
+  return count;
+}
+
+export function samePath(left: readonly number[], right: readonly number[]): boolean {
+  return left.length === right.length && left.every((value, index) => value === right[index]);
+}
+
+function findBestPreviousSplit(
+  next: SplitStorageEntry,
+  previousEntries: SplitStorageEntry[],
+): SplitStorageEntry | undefined {
+  let best: { entry: SplitStorageEntry; score: number } | undefined;
+
+  for (const previous of previousEntries) {
+    if (previous.layout.axis !== next.layout.axis) continue;
+    const overlap = countOverlap(previous.paneIds, next.paneIds);
+    if (overlap === 0) continue;
+    const score =
+      overlap * 10 +
+      (samePath(previous.path, next.path) ? 1000 : 0) +
+      (previous.layout.children.length === next.layout.children.length ? 500 : 0);
+    if (!best || score > best.score) {
+      best = { entry: previous, score };
+    }
+  }
+
+  return best?.entry;
+}
+
+function projectSizes(previous: SplitStorageEntry, next: SplitStorageEntry): number[] {
+  const previousKey = splitStorageKey(previous.layout, previous.layout.axis);
+  const previousSizes = readStoredSizes(previousKey, previous.layout.children.length);
+
+  if (previous.layout.children.length === next.layout.children.length) {
+    return previousSizes;
+  }
+
+  const usedPreviousIndexes = new Set<number>();
+  const equalNewSize = 100 / next.layout.children.length;
+  const nextSizes = next.childPaneIds.map((nextChildIds) => {
+    let bestIndex = -1;
+    let bestOverlap = 0;
+    for (let i = 0; i < previous.childPaneIds.length; i++) {
+      if (usedPreviousIndexes.has(i)) continue;
+      const overlap = countOverlap(previous.childPaneIds[i]!, nextChildIds);
+      if (overlap > bestOverlap) {
+        bestIndex = i;
+        bestOverlap = overlap;
+      }
+    }
+    if (bestIndex === -1) return equalNewSize;
+    usedPreviousIndexes.add(bestIndex);
+    return previousSizes[bestIndex] ?? equalNewSize;
+  });
+
+  const total = nextSizes.reduce((sum, value) => sum + value, 0);
+  return total > 0 ? nextSizes.map((value) => (value / total) * 100) : equalSizes(nextSizes.length);
+}
+
+export function preservePaneSizeStorageForLayoutChange(
+  previousLayout: PaneLayout,
+  nextLayout: PaneLayout,
+): void {
+  const previousEntries = collectSplitStorageEntries(previousLayout);
+  if (previousEntries.length === 0) return;
+
+  for (const nextEntry of collectSplitStorageEntries(nextLayout)) {
+    const previousEntry = findBestPreviousSplit(nextEntry, previousEntries);
+    if (!previousEntry) continue;
+    const nextKey = splitStorageKey(nextEntry.layout, nextEntry.layout.axis);
+    writeStoredSizes(nextKey, projectSizes(previousEntry, nextEntry));
+  }
+}

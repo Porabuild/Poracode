@@ -9,14 +9,17 @@ import {
   useState,
 } from "react";
 import { Button, Surface } from "@heroui/react";
+import { Trans, useLingui } from "@lingui/react/macro";
 import { ArrowDown } from "lucide-react";
 import { useShallow } from "zustand/react/shallow";
 import { isThreadTurnActive, type Thread } from "@/shared/contracts";
 import { isHomeProjectId } from "@/shared/homeScope";
 import { chatMessageSurfaceClass } from "./parts/items/chatMessageSurface";
 import { readBridge } from "@/renderer/bridge";
+import { useShimmerRef } from "@/renderer/thinkingAnimator";
 import { useScrollFade } from "@/renderer/hooks/useScrollFade";
 import { useAppStore } from "@/renderer/state/appStore";
+import { isPanelResizing, subscribePanelResize } from "@/renderer/state/panelResizeSignal";
 import { hydrateThreadRuntimeItems } from "@/renderer/state/chatRuntimePersister";
 import {
   finalizeFileCheckpoint,
@@ -24,12 +27,14 @@ import {
 } from "@/renderer/state/fileCheckpointActions";
 import { useFileEditorStore } from "@/renderer/state/fileEditorStore";
 import { useProjectRootNames } from "@/renderer/state/projectRootNamesStore";
+import { useThreadHasLiveWorkflow } from "@/renderer/state/threadLiveWorkflowStore";
 import { useProjectTreeStore } from "@/renderer/state/projectTreeStore";
 import {
   buildFileEditorContext,
   openFileInEditor,
   resolveWorktreeBranch,
 } from "@/renderer/utils/gitHelpers";
+import { ChatFindBar, type ScrollToIndex } from "@/renderer/components/find/ChatFindBar";
 import { ChatPaneActionsContext, type ChatPaneActions } from "./chatPaneActionsContext";
 import { isElementAtBottom } from "./chatScrollGeometry";
 import {
@@ -74,6 +79,10 @@ export function ChatPane(props: ChatPaneProps) {
   const { thread, hiddenRuntimeItemId, hasSupplementaryContent = false, layoutChangeToken } = props;
   const { id: threadId, projectId, status, worktreePath, worktreeBranch } = thread;
   const contentRef = useRef<HTMLDivElement>(null);
+  const scrollToIndexRef = useRef<ScrollToIndex | null>(null);
+  const registerScrollToIndex = (handler: ScrollToIndex | null) => {
+    scrollToIndexRef.current = handler;
+  };
   // `scrollEl` mirrors `scrollRef.current` as React state so the virtualizer
   // in `MessageList` sees the element transition from `null` to mounted across
   // a real React render. Without this, after a drag-drop pane move the
@@ -202,6 +211,12 @@ export function ChatPane(props: ChatPaneProps) {
 
   const isEmpty = timelineEntries.length === 0 && !hasSupplementaryContent;
   const isLive = isThreadTurnActive(status);
+  // A detached background workflow keeps the thread doing real work after the
+  // foreground turn settles. Treat that as "still working" for the tail-loader
+  // timer (so it keeps ticking "Working for ...") without touching `status` -
+  // composer interrupt/steer and notifications stay on the raw status.
+  const hasLiveWorkflow = useThreadHasLiveWorkflow(threadId);
+  const showWorkingTimer = isLive || hasLiveWorkflow;
   const hasOpenRuntimeRequest = useAppStore(
     (s) => (s.runtimeRequestsByThread[threadId]?.length ?? 0) > 0,
   );
@@ -209,22 +224,22 @@ export function ChatPane(props: ChatPaneProps) {
   // disappear in the gap between an item flipping to `completed` and the next
   // `item.started` arriving, even though the runtime was still working the
   // turn.
-  const turn = resolveTurnTiming(thread);
+  const turn = resolveTurnTiming(thread, showWorkingTimer);
   const mostRecentDisplayableCompletedTurn = useAppStore((s) =>
-    isLive
+    showWorkingTimer
       ? null
       : selectMostRecentDisplayableCompletedTurn(s.runtimeCompletedTurnsByThread[threadId]),
   );
   const mostRecentCompletedTurnAnchor = mostRecentDisplayableCompletedTurn?.anchorItemId ?? null;
   const completedTurnCanRenderInTail =
-    !isLive &&
+    !showWorkingTimer &&
     (turn?.endedAt != null || mostRecentDisplayableCompletedTurn !== null) &&
     isCompletedTurnAnchorAtTimelineTail(mostRecentCompletedTurnAnchor, timelineEntries);
   const tailTurn =
     completedTurnCanRenderInTail && mostRecentDisplayableCompletedTurn
       ? mostRecentDisplayableCompletedTurn
       : turn;
-  const showTailLoader = isLive || completedTurnCanRenderInTail;
+  const showTailLoader = showWorkingTimer || completedTurnCanRenderInTail;
   // The agent is not actually working while it waits for a user answer, so the
   // tail loader keeps rendering but its elapsed-time counter freezes for the
   // duration of the wait and resumes once the user submits a response. Anchor
@@ -284,7 +299,9 @@ export function ChatPane(props: ChatPaneProps) {
               {isEmpty && !showTailLoader ? (
                 showEmptyHint ? (
                   <div className="flex h-full flex-col items-center justify-center gap-2 text-foreground-muted">
-                    <span>No messages yet</span>
+                    <span>
+                      <Trans>No messages yet</Trans>
+                    </span>
                   </div>
                 ) : null
               ) : (
@@ -294,6 +311,7 @@ export function ChatPane(props: ChatPaneProps) {
                     threadId={threadId}
                     entries={timelineEntries}
                     scrollElement={scrollEl}
+                    registerScrollToIndex={registerScrollToIndex}
                     suppressInlineTurnAnchorId={suppressInlineTurnAnchorId}
                     canRevertCheckpoints={!isLive && !isHomeScope}
                     checkpointGuard={checkpointGuard}
@@ -322,6 +340,11 @@ export function ChatPane(props: ChatPaneProps) {
             threadId={threadId}
             {...(project ? { projectLocation: project.location } : {})}
           />
+          <ChatFindBar
+            threadId={threadId}
+            scrollToIndexRef={scrollToIndexRef}
+            scrollElement={scrollEl}
+          />
         </div>
       </div>
     </ChatPaneActionsContext.Provider>
@@ -349,6 +372,7 @@ const ChatScrollControls = forwardRef<
     onInitialScrollSettled: () => void;
   }
 >(function ChatScrollControls(props, ref) {
+  const { t } = useLingui();
   const {
     scrollRef,
     contentRef,
@@ -400,7 +424,7 @@ const ChatScrollControls = forwardRef<
     const el = scrollRef.current;
     if (!el) return;
     const virtualScrollToBottom = virtualScrollToBottomRef.current;
-    if ((options.reconcileVirtualizer || stickToBottomRef.current) && virtualScrollToBottom) {
+    if (options.reconcileVirtualizer && virtualScrollToBottom) {
       virtualScrollToBottom();
     }
     el.scrollTop = el.scrollHeight;
@@ -428,9 +452,26 @@ const ChatScrollControls = forwardRef<
     }
   }
 
+  function hasScheduledLayoutSync() {
+    return layoutSyncRafRef.current !== null || layoutSyncSecondRafRef.current !== null;
+  }
+
   const syncLayoutNowAndAfterPaint = useEffectEvent(() => {
+    if (hasScheduledLayoutSync()) return;
+    // During an active panel/divider drag the viewport changes every frame, and
+    // both this scroller's ResizeObserver and MessageList's totalSize effect
+    // call in here per frame. Collapse to a single coalesced rAF (no synchronous
+    // read, no chained settle passes) so the content still reflows and stays
+    // bottom-pinned live, but we do at most one forced reflow per frame instead
+    // of stacking several. The drag-end reconcile below runs the full settle.
+    if (isPanelResizing()) {
+      layoutSyncRafRef.current = requestAnimationFrame(() => {
+        layoutSyncRafRef.current = null;
+        syncLayoutNow();
+      });
+      return;
+    }
     syncLayoutNow();
-    cancelScheduledLayoutSync();
     layoutSyncRafRef.current = requestAnimationFrame(() => {
       layoutSyncRafRef.current = null;
       syncLayoutNow();
@@ -552,7 +593,7 @@ const ChatScrollControls = forwardRef<
       cancelAnimationFrame(pinRafRef.current);
     }
     if (stickToBottomRef.current) {
-      scrollToBottom();
+      scrollToBottom({ reconcileVirtualizer: true });
       if (!initialScrollSettled) {
         scheduleInitialScrollSettle();
       }
@@ -560,7 +601,7 @@ const ChatScrollControls = forwardRef<
     pinRafRef.current = requestAnimationFrame(() => {
       pinRafRef.current = null;
       if (!stickToBottomRef.current) return;
-      scrollToBottom();
+      scrollToBottom({ reconcileVirtualizer: true });
       if (!initialScrollSettled) {
         scheduleInitialScrollSettle();
       }
@@ -589,6 +630,19 @@ const ChatScrollControls = forwardRef<
     // eslint-disable-next-line react-hooks/exhaustive-deps -- pinning is keyed to loader visibility changes; the effect event reads latest layout refs.
   }, [tailLoaderVisible, initialScrollSettled]);
 
+  // When a panel/divider drag ends, the coalesced in-drag syncs above skipped
+  // the full settle pass. Run it once now so the final bottom-pin / scroll-down
+  // button state is correct against the settled layout.
+  useLayoutEffect(
+    () =>
+      subscribePanelResize((resizing) => {
+        if (resizing) return;
+        cancelScheduledLayoutSync();
+        syncLayoutNowAndAfterPaint();
+      }),
+    [],
+  );
+
   useEffect(() => cancelScheduledLayoutSync, []);
   useEffect(() => cancelScheduledInitialSettle, []);
 
@@ -601,7 +655,7 @@ const ChatScrollControls = forwardRef<
       isIconOnly
       variant="tertiary"
       size="sm"
-      aria-label="Scroll to bottom"
+      aria-label={t`Scroll to bottom`}
       onPress={handleScrollButtonPress}
       className={`absolute bottom-4 right-4 z-10 transition-opacity duration-200 ease-out ${
         showScrollDown ? "opacity-80 hover:opacity-100" : "pointer-events-none opacity-0"
@@ -632,11 +686,17 @@ function parseTurnTimestamp(iso: string | undefined): number | null {
  * Derives the current or last completed run window from persisted thread timing
  * so reopening a thread doesn't reseed the footer timer from mount time.
  */
-function resolveTurnTiming(thread: Thread): TurnTiming | null {
-  const isLive = isThreadTurnActive(thread.status);
+function resolveTurnTiming(thread: Thread, forceLive = false): TurnTiming | null {
+  const isLive = forceLive || isThreadTurnActive(thread.status);
 
   if (isLive) {
-    const startedAt = parseTurnTimestamp(thread.activeTurnStartedAt ?? thread.createdAt);
+    // When only a background workflow keeps the thread live, the foreground
+    // turn has ended and `activeTurnStartedAt` is cleared - fall back to the
+    // just-completed turn's start so the timer continues from there instead of
+    // reseeding at mount time.
+    const startedAt = parseTurnTimestamp(
+      thread.activeTurnStartedAt ?? thread.lastTurnStartedAt ?? thread.createdAt,
+    );
     return startedAt === null ? null : { startedAt, endedAt: null };
   }
 
@@ -686,6 +746,7 @@ function ChatTailLoader({ turn, isPaused }: { turn: TurnTiming; isPaused: boolea
  * streaming.
  */
 function WorkingFor({ turn, isPaused }: { turn: TurnTiming; isPaused: boolean }) {
+  const { t } = useLingui();
   const textRef = useRef<HTMLSpanElement>(null);
   const pauseStateRef = useRef<{ accumulatedPauseMs: number; pausedSinceMs: number | null }>({
     accumulatedPauseMs: 0,
@@ -702,7 +763,8 @@ function WorkingFor({ turn, isPaused }: { turn: TurnTiming; isPaused: boolean })
       if (!node) return;
       if (turn.endedAt !== null) {
         const elapsedSeconds = Math.max(0, Math.floor((turn.endedAt - turn.startedAt) / 1000));
-        const text = elapsedSeconds < 1 ? "" : `Worked for ${formatElapsed(elapsedSeconds)}`;
+        const elapsed = formatElapsed(elapsedSeconds);
+        const text = elapsedSeconds < 1 ? "" : t`Worked for ${elapsed}`;
         node.textContent = text;
         node.dataset.lightcodeShimmerText = text;
         return;
@@ -713,7 +775,8 @@ function WorkingFor({ turn, isPaused }: { turn: TurnTiming; isPaused: boolean })
         pauseState.pausedSinceMs !== null ? Math.max(0, now - pauseState.pausedSinceMs) : 0;
       const elapsedMs = now - turn.startedAt - pauseState.accumulatedPauseMs - currentPauseMs;
       const elapsedSeconds = Math.max(0, Math.floor(elapsedMs / 1000));
-      const text = elapsedSeconds < 1 ? "" : `Working for ${formatElapsed(elapsedSeconds)}`;
+      const elapsed = formatElapsed(elapsedSeconds);
+      const text = elapsedSeconds < 1 ? "" : t`Working for ${elapsed}`;
       node.textContent = text;
       node.dataset.lightcodeShimmerText = text;
     };
@@ -737,13 +800,11 @@ function WorkingFor({ turn, isPaused }: { turn: TurnTiming; isPaused: boolean })
     if (turn.endedAt !== null) return;
     const id = setInterval(update, 1000);
     return () => clearInterval(id);
-  }, [turn.startedAt, turn.endedAt, isPaused]);
+  }, [turn.startedAt, turn.endedAt, isPaused, t]);
 
-  const className = isPaused
-    ? "text-muted"
-    : turn.endedAt === null
-      ? "lightcode-thinking-text"
-      : "text-muted";
+  const isThinking = !isPaused && turn.endedAt === null;
+  useShimmerRef(textRef, isThinking);
+  const className = isThinking ? "lightcode-thinking-text" : "text-muted";
   return <span ref={textRef} className={className} aria-live="polite" />;
 }
 

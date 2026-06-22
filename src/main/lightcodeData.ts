@@ -28,7 +28,8 @@ export function cleanupOrphanedAttachments(attachmentsDir: string, validThreadId
   let entries: string[];
   try {
     entries = readdirSync(attachmentsDir);
-  } catch {
+  } catch (error) {
+    console.warn("[attachments] failed to read attachments directory for cleanup:", error);
     return;
   }
 

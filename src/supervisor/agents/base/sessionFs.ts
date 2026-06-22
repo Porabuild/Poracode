@@ -77,7 +77,10 @@ export async function listSessionDir(
   }
   const client = bridgeClient;
   if (!client) return undefined;
-  const synLoc = await bridgeLocationForHome(client, location.distro).catch(() => undefined);
+  const synLoc = await bridgeLocationForHome(client, location.distro).catch((error) => {
+    console.warn("[session-fs] WSL bridge location resolution failed:", error);
+    return undefined;
+  });
   if (!synLoc) return undefined;
   try {
     const result = await client.readdir(synLoc, absolutePath);
@@ -118,7 +121,10 @@ export async function statSessionPaths(
   }
   const client = bridgeClient;
   const synLoc = client
-    ? await bridgeLocationForHome(client, location.distro).catch(() => undefined)
+    ? await bridgeLocationForHome(client, location.distro).catch((error) => {
+        console.warn("[session-fs] WSL bridge location resolution failed (stat):", error);
+        return undefined;
+      })
     : undefined;
   if (!client || !synLoc) {
     return new Map(paths.map((p) => [p, { exists: false }]));
@@ -161,7 +167,10 @@ export async function readSessionFileText(
   }
   const client = bridgeClient;
   const synLoc = client
-    ? await bridgeLocationForHome(client, location.distro).catch(() => undefined)
+    ? await bridgeLocationForHome(client, location.distro).catch((error) => {
+        console.warn("[session-fs] WSL bridge location resolution failed (readFile):", error);
+        return undefined;
+      })
     : undefined;
   if (!client || !synLoc) return undefined;
   try {
@@ -237,7 +246,10 @@ export async function findSessionFiles(
 
   const client = bridgeClient;
   const synLoc = client
-    ? await bridgeLocationForHome(client, location.distro).catch(() => undefined)
+    ? await bridgeLocationForHome(client, location.distro).catch((error) => {
+        console.warn("[session-fs] WSL bridge location resolution failed (find):", error);
+        return undefined;
+      })
     : undefined;
   if (!client || !synLoc) return [];
   try {
@@ -324,7 +336,10 @@ export function watchSessionPaths(
   // so pre-filter to paths that exist on disk. The home root itself is the
   // safest broad watch when no specific subpath is present yet.
   (async () => {
-    const synLoc = await bridgeLocationForHome(client, location.distro).catch(() => undefined);
+    const synLoc = await bridgeLocationForHome(client, location.distro).catch((error) => {
+      console.warn("[session-fs] WSL bridge location resolution failed (watch):", error);
+      return undefined;
+    });
     if (!synLoc || disposed) return;
     const stats = await client.stat(synLoc, paths);
     const existing = stats.stats.filter((s) => s.exists).map((s) => s.path);

@@ -1,4 +1,5 @@
 import { compactAgentProviderMetadata, type AgentCapability } from "@/shared/contracts";
+import { CLAUDE_EFFORT_TIERS } from "@/shared/agents/claudeEfforts";
 import { readAgentCommandOutput, type DetectionSpec, type StatusProbeResult } from "../base";
 import { getAgentProbeCwd } from "../probeCwd";
 import { probeClaudeCapabilities } from "./probe";
@@ -21,7 +22,7 @@ const CLAUDE_BUILT_IN_SLASH_COMMANDS: AgentCapability["slashCommands"] = [
 ];
 
 /** Effort tiers shared by the frontier models (Opus 4.7/4.8 and Fable 5). */
-const PREMIUM_EFFORT_TIERS = ["low", "medium", "high", "xHigh", "max", "ultracode"];
+const PREMIUM_EFFORT_TIERS: string[] = [...CLAUDE_EFFORT_TIERS];
 
 /**
  * Master switch for the Fable 5 model. Flip to `true` to surface it again in the
@@ -76,6 +77,7 @@ export const claudeCapabilities: AgentCapability = {
   ],
   sandboxModes: [],
   supportsResume: true,
+  supportsOneShot: true,
   supportsDirectInput: true,
   slashCommands: CLAUDE_BUILT_IN_SLASH_COMMANDS,
   liveInputMode: "terminal",
@@ -115,6 +117,18 @@ export const claudeCapabilities: AgentCapability = {
     },
   ],
 };
+
+/**
+ * Built-in Claude model ids whose `[<size>]` suffix Lightcode owns — it derives
+ * that suffix from the thread's `contextSize` selector (see
+ * {@link applyClaudeContextSuffix}). Any model id NOT in this set is a custom /
+ * external-provider model (e.g. z.ai `glm-5.2[1m]`) whose suffix is part of the
+ * provider's real model name and must be sent to the CLI/SDK verbatim. Keyed off
+ * `modelContextSizes` so adding a context-managed model stays a one-line change.
+ */
+export const CLAUDE_CONTEXT_MANAGED_MODEL_IDS: ReadonlySet<string> = new Set(
+  Object.keys(claudeCapabilities.modelContextSizes ?? {}),
+);
 
 interface ClaudeAuthStatusResponse {
   loggedIn?: boolean;

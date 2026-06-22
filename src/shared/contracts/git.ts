@@ -216,6 +216,10 @@ export const generateCommitMessagePayloadSchema = z.object({
   agentKind: agentKindSchema,
   model: z.string().min(1).optional(),
   effort: z.string().min(1).optional(),
+  /** Run generation in fast mode (Opus-only session flag; ignored by other models). */
+  fast: z.boolean().optional(),
+  /** English name of the language to write the commit message in (e.g. "German"). Omitted = English. */
+  language: z.string().min(1).optional(),
 });
 export type GenerateCommitMessagePayload = z.infer<typeof generateCommitMessagePayloadSchema>;
 
@@ -229,6 +233,10 @@ export const generateTitlePayloadSchema = z.object({
   prompt: z.string().min(1),
   model: z.string().min(1).optional(),
   effort: z.string().min(1).optional(),
+  /** Run generation in fast mode (Opus-only session flag; ignored by other models). */
+  fast: z.boolean().optional(),
+  /** English name of the language to write the title in (e.g. "German"). Omitted = match the user's message. */
+  language: z.string().min(1).optional(),
 });
 export type GenerateTitlePayload = z.infer<typeof generateTitlePayloadSchema>;
 
@@ -243,6 +251,8 @@ export const generatePrSummaryPayloadSchema = z.object({
   baseBranch: z.string().min(1),
   model: z.string().min(1).optional(),
   effort: z.string().min(1).optional(),
+  /** English name of the language to write the PR title/description in (e.g. "German"). Omitted = English. */
+  language: z.string().min(1).optional(),
 });
 export type GeneratePrSummaryPayload = z.infer<typeof generatePrSummaryPayloadSchema>;
 
@@ -328,6 +338,17 @@ export const gitAddWorktreePayloadSchema = z.object({
   branch: z.string().optional(),
   createBranch: z.boolean().default(false),
   startPoint: z.string().optional(),
+  /**
+   * Resolved worktree root (from global settings + per-project override). When
+   * set, worktrees go under this directory instead of the built-in default.
+   * Ignored when an explicit `path` is supplied.
+   */
+  worktreeRoot: z.string().min(1).optional(),
+  /**
+   * When true (project-relative mode), skip the disambiguating `<repo-hash>`
+   * segment so the worktree lands directly at `<root>/<branch>`.
+   */
+  worktreeOmitRepoDir: z.boolean().optional(),
   /** Gitignore-style patterns for ignored files to copy from the main project. */
   copyIgnoredPatterns: z.array(z.string()).optional(),
   /**
@@ -500,3 +521,15 @@ export const gitUnwatchProjectPayloadSchema = z.object({
   projectId: z.string().min(1),
 });
 export type GitUnwatchProjectPayload = z.infer<typeof gitUnwatchProjectPayloadSchema>;
+
+export const relocateProjectPayloadSchema = z.object({
+  projectId: z.string().min(1),
+  /** New on-disk location the project folder was moved to. */
+  newLocation: projectLocationSchema,
+});
+export type RelocateProjectPayload = z.infer<typeof relocateProjectPayloadSchema>;
+
+export interface RelocateProjectResult {
+  /** Number of linked worktrees git re-pointed via `worktree repair`. */
+  repairedWorktrees: number;
+}

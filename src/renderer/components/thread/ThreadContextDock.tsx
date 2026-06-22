@@ -1,5 +1,6 @@
 import { Tooltip } from "@heroui/react";
 import { Gauge, X } from "lucide-react";
+import { Trans, useLingui } from "@lingui/react/macro";
 import type { CSSProperties } from "react";
 import { ThreadDockHeader, ThreadDockSection } from "./ThreadDockUI";
 import type { ThreadContextUsageSummary } from "./threadContextUsage";
@@ -11,10 +12,11 @@ export function ThreadContextDock({
   summary: ThreadContextUsageSummary;
   onClose: () => void;
 }) {
+  const { t } = useLingui();
   const usageStyle = {
     "--lc-context-progress": `${summary.percent ?? 0}%`,
   } as CSSProperties;
-  const countLabel = summary.percent === undefined ? "Usage unknown" : `${summary.percent}% Full`;
+  const countLabel = summary.percent === undefined ? t`Usage unknown` : t`${summary.percent}% Full`;
   const tone = resolveContextUsageTone(summary);
   const fillClassName =
     tone === "danger"
@@ -24,16 +26,16 @@ export function ThreadContextDock({
         : "lightcode-context-dock__bar-fill";
 
   return (
-    <ThreadDockSection ariaLabel="Thread context usage" placement="composer" collapsed={false}>
+    <ThreadDockSection ariaLabel={t`Thread context usage`} placement="composer" collapsed={false}>
       <ThreadDockHeader
         icon={Gauge}
-        title="Usage"
+        title={t`Usage`}
         countLabel={countLabel}
         actions={
           <Tooltip delay={0}>
             <Tooltip.Trigger>
               <button
-                aria-label="Close usage details"
+                aria-label={t`Close usage details`}
                 className="shrink-0 rounded p-1 text-muted/70 transition-colors hover:bg-danger-500/10 hover:text-danger-500"
                 type="button"
                 onClick={onClose}
@@ -41,14 +43,20 @@ export function ThreadContextDock({
                 <X className="size-3.5" />
               </button>
             </Tooltip.Trigger>
-            <Tooltip.Content>Close usage details</Tooltip.Content>
+            <Tooltip.Content>
+              <Trans>Close usage details</Trans>
+            </Tooltip.Content>
           </Tooltip>
         }
       />
       <div className="flex flex-col gap-2 px-3 pb-2">
         <div className="flex items-center justify-between gap-3 text-xs text-foreground-muted">
-          <span>{summary.usedLabel} used</span>
-          <span>{summary.maxLabel} limit</span>
+          <span>
+            <Trans>{summary.usedLabel} used</Trans>
+          </span>
+          <span>
+            <Trans>{summary.maxLabel} limit</Trans>
+          </span>
         </div>
         <div className="lightcode-context-dock__bar" style={usageStyle} aria-hidden="true">
           <div className={fillClassName} />
@@ -68,7 +76,9 @@ export function ThreadContextDock({
             ))}
           </ul>
         ) : (
-          <p className="text-xs text-foreground-muted">Provider has not reported token usage.</p>
+          <p className="text-xs text-foreground-muted">
+            <Trans>Provider has not reported token usage.</Trans>
+          </p>
         )}
       </div>
     </ThreadDockSection>

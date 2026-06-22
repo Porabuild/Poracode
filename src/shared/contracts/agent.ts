@@ -191,6 +191,16 @@ export const agentCapabilitySchema = z.object({
   supportsResume: z.boolean().default(false),
   supportsDirectInput: z.boolean().default(true),
   /**
+   * Whether the adapter can run a single-shot, non-interactive generation
+   * (thread title / commit message). True iff the supervisor adapter implements
+   * `runOneShot` or `buildOneShotCommand`. All first-class CLI providers support
+   * it; surfaced so the renderer's AI settings can hide providers that only
+   * speak interactive sessions — e.g. ACP-registry generic agents like Factory
+   * Droid — from one-shot-only selectors (Title / Commit Message generation).
+   * Optional: absent = false.
+   */
+  supportsOneShot: z.boolean().optional(),
+  /**
    * When true, the agent can only read files inside its working directory (e.g.
    * Command Code sandboxes file access to the project/worktree). Attachments
    * that live outside the workspace are copied into a workspace-local dir and
@@ -438,6 +448,21 @@ export const getLatestAgentVersionResultSchema = z.object({
   source: z.enum(["npm", "homebrew-cask", "version-url", "unknown"]).optional(),
 });
 export type GetLatestAgentVersionResult = z.infer<typeof getLatestAgentVersionResultSchema>;
+
+export const getAntigravityAccountPayloadSchema = z.object({
+  /** WSL distros to include when scanning for an already-running language server. */
+  wslDistros: z.array(z.string()).optional(),
+});
+export type GetAntigravityAccountPayload = z.infer<typeof getAntigravityAccountPayloadSchema>;
+
+export const getAntigravityAccountResultSchema = z.object({
+  /**
+   * Signed-in identity (email) + plan, resolved from the Antigravity language
+   * server. Undefined when no LS could be reached (and none could be spawned).
+   */
+  account: agentProviderMetadataSchema.optional(),
+});
+export type GetAntigravityAccountResult = z.infer<typeof getAntigravityAccountResultSchema>;
 
 export function areAgentSlashCommandsEqual(
   left: readonly AgentSlashCommand[] | undefined,

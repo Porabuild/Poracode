@@ -139,8 +139,25 @@ export function injectWslEnv(
   return { ...spec, args };
 }
 
+/**
+ * Drop `undefined` values so an `env` record matches the `Record<string, string>`
+ * shape that `buildAgentCommand` expects (the SDK's `SpawnOptions.env` allows
+ * `undefined` values).
+ */
+export function definedEnv(env: Record<string, string | undefined>): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const [key, value] of Object.entries(env)) {
+    if (value !== undefined) out[key] = value;
+  }
+  return out;
+}
+
 function encodePowerShellCommand(script: string): string {
   return Buffer.from(script, "utf16le").toString("base64");
+}
+
+function isWindowsDirectExecutable(command: string): boolean {
+  return /^(?:[a-zA-Z]:[\\/]|\\\\)/.test(command) && /\.(?:exe|com)$/i.test(command);
 }
 
 /** Detect the best available shell. Returns a shell path on Windows (pwsh > powershell > cmd), or `true` on Unix (default shell). */
@@ -163,6 +180,10 @@ export function buildWindowsCommand(
   args: string[],
   resolvePath: ResolveExecutablePath = resolveExecutablePath,
 ): CommandSpec {
+  if (isWindowsDirectExecutable(command)) {
+    return { command, args, cwd };
+  }
+
   const shell = detectShell(resolvePath);
   if (typeof shell === "string") {
     const script = [
@@ -456,6 +477,7 @@ async function readDetectedVersion(
   location: ProjectLocation,
   executablePath: string | undefined,
   versionArgs: string[],
+  probeEnv?: Record<string, string>,
 ): Promise<string | undefined> {
   if (!executablePath) return undefined;
   if (location.kind === "wsl") {
@@ -464,6 +486,7 @@ async function readDetectedVersion(
       PROBE_WSL_LINUX_PATH,
       executablePath,
       versionArgs,
+      probeEnv ? { env: probeEnv } : undefined,
     );
     return result.ok ? extractSemverFromVersionOutput(result.stdout) : undefined;
   }
@@ -473,7 +496,7 @@ async function readDetectedVersion(
   // detection — which uses the registry-backed fallback — but its `--version`
   // would miss and the version would render blank. Matches the WSL branch above
   // and readAgentCommandOutput.
-  const spec = buildAgentCommand(location, executablePath, versionArgs);
+  const spec = buildAgentCommand(location, executablePath, versionArgs, undefined, probeEnv);
   const result = await readCommandOutputAsync(
     spec.command,
     spec.args,
@@ -618,7 +641,7 @@ export async function detectAgentInstall(
   const executablePath = await resolveDetectedBinary(ctx, spec.binary);
 
   const versionArgs = spec.versionArgs ?? ["--version"];
-  const version = await readDetectedVersion(location, executablePath, versionArgs);
+  const version = await readDetectedVersion(location, executablePath, versionArgs, spec.probeEnv);
 
   let capabilities = spec.capabilities;
   let statusProbeResult: StatusProbeResult | undefined;
@@ -627,7 +650,7 @@ export async function detectAgentInstall(
   let probedAuthState: AuthState | undefined;
   let probedProviderMetadata: AgentProviderMetadata | undefined;
   if (executablePath) {
-    const probeCtx: DetectProbeCtx = { location, executablePath, version };
+    const probeCtx: DetectProbeCtx = { location, executablePath, version, probeEnv: spec.probeEnv };
     const [capabilityPartial, nextStatusProbeResult] = await Promise.all([
       spec.capabilitiesProbe ? spec.capabilitiesProbe(probeCtx) : Promise.resolve(undefined),
       spec.statusProbe ? spec.statusProbe(probeCtx) : Promise.resolve(undefined),

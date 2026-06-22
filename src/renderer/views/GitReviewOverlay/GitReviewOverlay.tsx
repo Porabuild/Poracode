@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { ArrowLeft, ChevronDown, Columns2, GitBranch, RefreshCw, Rows2 } from "lucide-react";
 import { Button, Dropdown, Label, toast, Tooltip } from "@heroui/react";
 import type { Selection } from "@heroui/react";
+import { Trans, useLingui } from "@lingui/react/macro";
 import type { Project, ProjectLocation, GitStatusResult } from "@/shared/contracts";
 import { friendlyError } from "@/shared/messages";
 import { readBridge } from "@/renderer/bridge";
@@ -34,6 +35,7 @@ export function GitReviewOverlay(props: {
     onMergeAndRemove,
     onClose,
   } = props;
+  const { t } = useLingui();
   const effectiveLocation = locationOverride ?? project.location;
   // Create a project view with the effective location so child components
   // (GitReviewSidebar, GitDiffContent) use the right path for IPC calls.
@@ -147,7 +149,7 @@ export function GitReviewOverlay(props: {
 
   return (
     <PageLayout
-      title="Git Review"
+      title={t`Git Review`}
       contentHeaderChildren={
         <>
           <div className="lightcode-overlay-header__controls flex min-w-0 shrink items-center gap-2 pl-1.5">
@@ -187,7 +189,7 @@ export function GitReviewOverlay(props: {
                         variant="ghost"
                         size="sm"
                         className="h-5 min-w-0 max-w-[min(140px,24vw)] shrink px-1.5 text-xs text-muted"
-                        aria-label="Switch branch"
+                        aria-label={t`Switch branch`}
                       >
                         <GitBranch className="size-3 shrink-0 text-muted/50" />
                         <span className="min-w-0 truncate">{gitStatus.branch}</span>
@@ -212,7 +214,7 @@ export function GitReviewOverlay(props: {
                 onClick={() => handleSelectFile(null, false)}
               >
                 <ArrowLeft className="size-3" />
-                All files
+                <Trans>All files</Trans>
               </button>
               <span className="min-w-0 truncate text-xs font-medium text-foreground">
                 {selectedFile}
@@ -227,8 +229,12 @@ export function GitReviewOverlay(props: {
               <Dropdown>
                 <Button variant="ghost" size="sm" className="h-5 px-1.5 text-xs text-muted">
                   {diffFilter === "changes"
-                    ? `Changes${gitStatus ? ` (${gitStatus.unstaged.length})` : ""}`
-                    : `Staged${gitStatus ? ` (${gitStatus.staged.length})` : ""}`}
+                    ? gitStatus
+                      ? t`Changes (${gitStatus.unstaged.length})`
+                      : t`Changes`
+                    : gitStatus
+                      ? t`Staged (${gitStatus.staged.length})`
+                      : t`Staged`}
                   <ChevronDown className="size-3" />
                 </Button>
                 <Dropdown.Popover placement="bottom" className="min-w-0">
@@ -242,15 +248,15 @@ export function GitReviewOverlay(props: {
                     }}
                   >
                     {gitStatus && gitStatus.staged.length > 0 ? (
-                      <Dropdown.Item id="staged" textValue="Staged">
+                      <Dropdown.Item id="staged" textValue={t`Staged`}>
                         <Dropdown.ItemIndicator />
-                        <Label>Staged ({gitStatus.staged.length})</Label>
+                        <Label>{t`Staged (${gitStatus.staged.length})`}</Label>
                       </Dropdown.Item>
                     ) : null}
                     {gitStatus && gitStatus.unstaged.length > 0 ? (
-                      <Dropdown.Item id="changes" textValue="Changes">
+                      <Dropdown.Item id="changes" textValue={t`Changes`}>
                         <Dropdown.ItemIndicator />
-                        <Label>Changes ({gitStatus.unstaged.length})</Label>
+                        <Label>{t`Changes (${gitStatus.unstaged.length})`}</Label>
                       </Dropdown.Item>
                     ) : null}
                   </Dropdown.Menu>
@@ -263,7 +269,7 @@ export function GitReviewOverlay(props: {
             <button
               type="button"
               className="rounded p-1 text-muted hover:text-foreground"
-              title="Split view"
+              title={t`Split view`}
               onClick={() => setDiffMode(DIFF_MODE.Split)}
             >
               <Columns2
@@ -273,7 +279,7 @@ export function GitReviewOverlay(props: {
             <button
               type="button"
               className="rounded p-1 text-muted hover:text-foreground"
-              title="Unified view"
+              title={t`Unified view`}
               onClick={() => setDiffMode(DIFF_MODE.Unified)}
             >
               <Rows2
@@ -283,7 +289,7 @@ export function GitReviewOverlay(props: {
             <button
               type="button"
               className="rounded p-1 text-muted hover:text-foreground"
-              title="Refresh"
+              title={t`Refresh`}
               onClick={() => void handleRefresh()}
             >
               <RefreshCw className={`size-4 ${refreshing ? "animate-spin" : ""}`} />

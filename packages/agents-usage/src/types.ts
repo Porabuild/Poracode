@@ -25,21 +25,25 @@ export type KnownUsageWindowId = z.infer<typeof knownUsageWindowIdSchema>;
 /**
  * A usage window id. Most providers use a fixed vocabulary, but some report a
  * dynamic, namespaced set: Gemini Code Assist reports one daily bucket per model
- * (`gemini:<modelId>`), Codex has model-specific limits (`codex:<limitId>`), and
- * Antigravity folds models into broad quota pools (`antigravity:<pool>`). These
- * ids flow through without a schema change.
+ * (`gemini:<modelId>`), Codex has model-specific limits (`codex:<limitId>`),
+ * Antigravity folds models into broad quota pools (`antigravity:<pool>`), and
+ * Factory/Droid carries an extra "core" token-rate-limit pool plus a legacy
+ * "premium" cycle pool (`factory:<pool>`). These ids flow through without a
+ * schema change.
  */
 export const usageWindowIdSchema = z.union([
   knownUsageWindowIdSchema,
   z.string().regex(/^gemini:.+/, "expected gemini:<modelId>"),
   z.string().regex(/^codex:.+/, "expected codex:<limitId>"),
   z.string().regex(/^antigravity:.+/, "expected antigravity:<pool>"),
+  z.string().regex(/^factory:.+/, "expected factory:<pool>"),
 ]);
 export type UsageWindowId =
   | KnownUsageWindowId
   | `gemini:${string}`
   | `codex:${string}`
-  | `antigravity:${string}`;
+  | `antigravity:${string}`
+  | `factory:${string}`;
 
 export const usageUnitSchema = z.enum(["percent", "tokens", "requests", "credits", "usd"]);
 export type UsageUnit = z.infer<typeof usageUnitSchema>;
@@ -133,6 +137,7 @@ export const usageMechanismSchema = z.enum([
   "oauth-endpoint",
   "cli-jsonrpc",
   "cookie",
+  "api-key",
   "local-log",
 ]);
 export type UsageMechanism = z.infer<typeof usageMechanismSchema>;

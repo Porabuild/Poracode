@@ -1,3 +1,4 @@
+import { msg } from "@lingui/core/macro";
 import type {
   CanonicalItemType,
   CanonicalRequestType,
@@ -9,9 +10,10 @@ import type {
   ThreadContextUsage,
   ToolCallPayload,
 } from "@/shared/contracts";
+import { i18n } from "@/renderer/i18n/i18n";
 import type { AppStoreState, SliceCreator } from "./shared";
 
-const STALE_SUB_AGENT_ERROR_MESSAGE = "Interrupted: agent session ended before completion.";
+const STALE_SUB_AGENT_ERROR_MESSAGE = msg`Interrupted: agent session ended before completion.`;
 
 type RuntimePersistenceDirtyListener = (threadIds: readonly string[]) => void;
 
@@ -685,7 +687,7 @@ function applyRuntimeEventToRuntimeState(
       const next: RuntimeChatItem = {
         ...prev,
         state: prev.state === "completed" ? "completed" : "updated",
-        streams: { ...prev.streams, [event.stream]: mergeStreamChunk(prevStream, event.delta) },
+        streams: { ...prev.streams, [event.stream]: prevStream + event.delta },
       };
       items[event.itemId] = next;
       return {
@@ -815,7 +817,7 @@ function coalesceRuntimeEvents(events: RuntimeEvent[]): RuntimeEvent[] {
     ) {
       pendingDelta = {
         ...pendingDelta,
-        delta: mergeStreamChunk(pendingDelta.delta, event.delta),
+        delta: pendingDelta.delta + event.delta,
       };
       continue;
     }
@@ -901,7 +903,9 @@ function terminateSubAgentItem(item: RuntimeChatItem): RuntimeChatItem {
   const nextPayload: ToolCallPayload = {
     ...payload,
     status: "error",
-    ...(payload.result === undefined ? { result: { error: STALE_SUB_AGENT_ERROR_MESSAGE } } : {}),
+    ...(payload.result === undefined
+      ? { result: { error: i18n._(STALE_SUB_AGENT_ERROR_MESSAGE) } }
+      : {}),
   };
   return {
     ...item,
@@ -915,40 +919,4 @@ function mergePayload(prev: unknown, next: unknown): unknown {
   if (!prev || typeof prev !== "object") return next;
   if (!next || typeof next !== "object") return next;
   return { ...(prev as Record<string, unknown>), ...(next as Record<string, unknown>) };
-}
-
-/**
- * Some providers emit overlapping text chunks (next chunk starts with the tail
- * of the previous chunk) rather than strict append-only deltas. Merge the
- * largest shared suffix/prefix so streamed text stays stable.
- *
- * Append-only is by far the common case (Codex/Copilot ACP, OpenCode, Claude),
- * so the algorithm is biased to bail out cheaply when no overlap is possible:
- * we use `indexOf` to find candidate suffix-start positions in O(N) total
- * rather than iterating overlap sizes from `maxOverlap` down to 1 (each step
- * doing an O(K) `endsWith` check, which was O(N²) for long messages).
- */
-function mergeStreamChunk(existing: string, incoming: string): string {
-  if (!incoming) return existing;
-  if (!existing) return incoming;
-  if (existing.endsWith(incoming)) return existing;
-  if (incoming.startsWith(existing)) return incoming;
-
-  const maxOverlap = Math.min(existing.length, incoming.length);
-  const firstChar = incoming[0]!;
-  // Scan existing's tail (length up to maxOverlap) for positions where the
-  // first character of `incoming` appears. The leftmost match yields the
-  // largest possible overlap, so we accept the first one whose suffix matches
-  // and short-circuit. When `firstChar` doesn't appear in the tail at all
-  // (the typical append-only case), `indexOf` returns -1 and we skip the
-  // body entirely — O(N) at worst, O(1) in the fast path.
-  let candidate = existing.indexOf(firstChar, existing.length - maxOverlap);
-  while (candidate !== -1) {
-    const overlap = existing.length - candidate;
-    if (existing.slice(candidate) === incoming.slice(0, overlap)) {
-      return existing + incoming.slice(overlap);
-    }
-    candidate = existing.indexOf(firstChar, candidate + 1);
-  }
-  return existing + incoming;
 }

@@ -3,6 +3,7 @@ import type { AgentStatus, GenerateCommitMessagePayload } from "@/shared/contrac
 import { getCommitGenDefaultsHint } from "./ProviderIcon";
 import {
   generateCommitMessageWithFallback,
+  generateCommitMessageWithFallbackDetails,
   getCommitGenCandidates,
   resolveCommitGenConfig,
 } from "./commitGen";
@@ -33,6 +34,7 @@ const codexStatus: AgentStatus = {
     approvalPolicies: [{ id: "on-request", label: "On Request" }],
     sandboxModes: [{ id: "workspace-write", label: "Workspace Write" }],
     supportsResume: true,
+    supportsOneShot: true,
     supportsDirectInput: true,
     liveInputMode: "server",
     presentationMode: "terminal",
@@ -67,6 +69,7 @@ const claudeStatus: AgentStatus = {
     sandboxModes: [],
     settingDefs: [],
     supportsResume: true,
+    supportsOneShot: true,
     supportsDirectInput: true,
     liveInputMode: "terminal",
     presentationMode: "terminal",
@@ -106,6 +109,19 @@ describe("getCommitGenCandidates", () => {
         "auto",
       ),
     ).toEqual([codexStatus]);
+  });
+
+  it("excludes installed providers that cannot run a one-shot generation", () => {
+    // Factory Droid (ACP-registry generic) speaks only interactive sessions, so
+    // it must never appear as a commit-message candidate — auto or explicit.
+    const factoryDroid: AgentStatus = {
+      ...codexStatus,
+      kind: "acp-generic:factory-droid",
+      label: "Factory Droid",
+      capabilities: { ...codexStatus.capabilities, supportsOneShot: false },
+    };
+    expect(getCommitGenCandidates([codexStatus, factoryDroid], "auto")).toEqual([codexStatus]);
+    expect(getCommitGenCandidates([factoryDroid], "acp-generic:factory-droid")).toEqual([]);
   });
 
   it("falls back to all installed agents when no provider has its preferred model", () => {
@@ -164,6 +180,75 @@ describe("generateCommitMessageWithFallback", () => {
       effort: "xhigh",
     });
     expect(invoke).toHaveBeenNthCalledWith(2, {
+      projectLocation,
+      agentKind: "claude",
+      model: "sonnet",
+      effort: "high",
+    });
+  });
+
+  it("returns the provider and model that actually generated the message", async () => {
+    const invoke = vi.fn<CommitMessageInvoker>();
+    invoke.mockRejectedValueOnce(new Error("Codex CLI not found: codex"));
+    invoke.mockResolvedValueOnce({ message: "fix(git): restore commit generation" });
+
+    await expect(
+      generateCommitMessageWithFallbackDetails({
+        projectLocation,
+        agentStatuses: [codexStatus, claudeStatus],
+        provider: "auto",
+        model: "",
+        effort: "",
+        invoke,
+      }),
+    ).resolves.toEqual({
+      message: "fix(git): restore commit generation",
+      provider: "claude",
+      model: "sonnet",
+    });
+  });
+
+  const fastClaude: AgentStatus = {
+    ...claudeStatus,
+    capabilities: { ...claudeStatus.capabilities, fastModels: ["claude-opus-4-7"] },
+  };
+
+  it("forwards fast mode when the resolved model supports it", async () => {
+    const invoke = vi.fn<CommitMessageInvoker>().mockResolvedValue({ message: "feat: x" });
+
+    await generateCommitMessageWithFallback({
+      projectLocation,
+      agentStatuses: [fastClaude],
+      provider: "claude",
+      model: "claude-opus-4-7",
+      effort: "high",
+      fast: true,
+      invoke,
+    });
+
+    expect(invoke).toHaveBeenCalledWith({
+      projectLocation,
+      agentKind: "claude",
+      model: "claude-opus-4-7",
+      effort: "high",
+      fast: true,
+    });
+  });
+
+  it("omits fast mode when the resolved model is not fast-capable", async () => {
+    const invoke = vi.fn<CommitMessageInvoker>().mockResolvedValue({ message: "feat: x" });
+
+    await generateCommitMessageWithFallback({
+      projectLocation,
+      agentStatuses: [fastClaude],
+      provider: "claude",
+      model: "sonnet",
+      effort: "high",
+      fast: true,
+      invoke,
+    });
+
+    expect(invoke).toHaveBeenCalledWith({
       projectLocation,
       agentKind: "claude",
       model: "sonnet",

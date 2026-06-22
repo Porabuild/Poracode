@@ -1,5 +1,7 @@
 import { ClipboardList, Hammer } from "lucide-react";
+import { msg } from "@lingui/core/macro";
 import type { ComposerControl } from "@/renderer/components/thread/ThreadComposer";
+import type { AgentCapability, ThreadConfig } from "@/shared/contracts";
 
 /**
  * Plan/Work toggle shared by Claude, Codex, Copilot, Cursor, Gemini, and
@@ -20,6 +22,7 @@ export function planWorkToggle(input: {
       <Hammer className="size-3.5" />
     ),
     label: input.isPlanMode ? "Plan" : "Work",
+    displayLabel: input.isPlanMode ? msg`Plan` : msg`Work`,
     hideLabelOnWrap: true,
     isSelected: input.isPlanMode,
     isCurrentState: true,
@@ -42,6 +45,7 @@ export function fullAccessToggle(input: {
   return {
     kind: "toggle",
     label: input.isFullAccess ? "Full access" : "Supervised",
+    displayLabel: input.isFullAccess ? msg`Full access` : msg`Supervised`,
     iconKind: "permission",
     isSelected: input.isFullAccess,
     isCurrentState: true,
@@ -49,4 +53,61 @@ export function fullAccessToggle(input: {
     isDisabled: input.isDisabled,
     onChange: input.onChange,
   };
+}
+
+/**
+ * Approval-policy dropdown shared by Antigravity, Claude, Command Code, and
+ * Gemini. Produces a menu control bound to `capabilities.approvalPolicies`.
+ */
+export function approvalPolicyDropdown(input: {
+  policies: AgentCapability["approvalPolicies"];
+  currentPolicy: string;
+  isDisabled: boolean;
+  onChange: (value: string) => void;
+}): ComposerControl {
+  return {
+    iconKind: "permission" as const,
+    options: input.policies,
+    hideLabelOnWrap: true,
+    value: input.currentPolicy,
+    isDisabled: input.isDisabled,
+    onChange: input.onChange,
+  };
+}
+
+/**
+ * Standard composer controls shared by providers that combine a conditional
+ * plan/work toggle (when 2 modes are available) with a conditional
+ * approval-policy dropdown. Used by Antigravity, Command Code, and Gemini.
+ */
+export function standardPlanApprovalControls(input: {
+  capabilities: AgentCapability;
+  config: ThreadConfig;
+  isDisabled: boolean;
+  onConfigChange: (patch: Partial<ThreadConfig>) => void;
+}): ComposerControl[] {
+  const { capabilities, config, isDisabled, onConfigChange } = input;
+  const isPlanMode = (config.mode ?? "agent") !== "agent";
+  return [
+    ...(capabilities.modes.length === 2
+      ? [
+          planWorkToggle({
+            isPlanMode,
+            isDisabled,
+            onChange: (isSelected) => onConfigChange({ mode: isSelected ? "plan" : "agent" }),
+          }),
+        ]
+      : []),
+    ...(capabilities.approvalPolicies.length > 0
+      ? [
+          approvalPolicyDropdown({
+            policies: capabilities.approvalPolicies,
+            currentPolicy:
+              config.approvalPolicy ?? capabilities.approvalPolicies[0]?.id ?? "default",
+            isDisabled,
+            onChange: (value) => onConfigChange({ approvalPolicy: value }),
+          }),
+        ]
+      : []),
+  ];
 }

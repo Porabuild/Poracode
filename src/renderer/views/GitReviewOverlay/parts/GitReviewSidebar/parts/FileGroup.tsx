@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { AlertDialog, Button } from "@heroui/react";
 import { ChevronDown, ChevronRight, Minus, MoreVertical, Plus, Undo2 } from "lucide-react";
+import { Trans, useLingui } from "@lingui/react/macro";
 import type { GitFileChange, Project } from "@/shared/contracts";
 import { readBridge } from "@/renderer/bridge";
 import { useGitStore } from "@/renderer/state/gitStore";
@@ -44,6 +45,7 @@ export function FileGroup(props: {
     diffTheme,
     wrapLines,
   } = props;
+  const { t } = useLingui();
   const rowPadX = useGitReviewRowPadX();
   const touch = useGitTouch();
   const [expanded, setExpanded] = useState(true);
@@ -124,7 +126,7 @@ export function FileGroup(props: {
                   <button
                     type="button"
                     className="rounded p-0.5 text-muted transition-colors hover:bg-[var(--row-hover)] hover:text-foreground"
-                    title="Unstage all"
+                    title={t`Unstage all`}
                     onClick={() => void handleUnstageAll()}
                   >
                     <Minus className="size-3" />
@@ -134,7 +136,7 @@ export function FileGroup(props: {
                     <button
                       type="button"
                       className="rounded p-0.5 text-muted transition-colors hover:bg-[var(--row-hover)] hover:text-foreground"
-                      title="Stage all"
+                      title={t`Stage all`}
                       onClick={() => void handleStageAll()}
                     >
                       <Plus className="size-3" />
@@ -142,7 +144,7 @@ export function FileGroup(props: {
                     <button
                       type="button"
                       className="rounded p-0.5 text-muted transition-colors hover:bg-danger/10 hover:text-danger"
-                      title="Revert all"
+                      title={t`Revert all`}
                       onClick={() => setRevertAllOpen(true)}
                     >
                       <Undo2 className="size-3" />
@@ -161,17 +163,21 @@ export function FileGroup(props: {
             <AlertDialog.Dialog>
               <AlertDialog.Header>
                 <AlertDialog.Icon status="danger" />
-                <AlertDialog.Heading>Revert all changes</AlertDialog.Heading>
+                <AlertDialog.Heading>
+                  <Trans>Revert all changes</Trans>
+                </AlertDialog.Heading>
               </AlertDialog.Header>
               <AlertDialog.Body>
-                Are you sure you want to revert all unstaged changes? This cannot be undone.
+                <Trans>
+                  Are you sure you want to revert all unstaged changes? This cannot be undone.
+                </Trans>
               </AlertDialog.Body>
               <AlertDialog.Footer>
                 <Button slot="close" variant="tertiary">
-                  Cancel
+                  <Trans>Cancel</Trans>
                 </Button>
                 <Button variant="danger" onPress={() => void handleRevertAll()}>
-                  Revert all
+                  <Trans>Revert all</Trans>
                 </Button>
               </AlertDialog.Footer>
             </AlertDialog.Dialog>

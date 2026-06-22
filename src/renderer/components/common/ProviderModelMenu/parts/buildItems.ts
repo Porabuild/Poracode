@@ -1,3 +1,5 @@
+import { msg } from "@lingui/core/macro";
+import type { MessageDescriptor } from "@lingui/core";
 import {
   baseAgentKind,
   type AgentCapability,
@@ -396,7 +398,7 @@ export function buildProviderModelItems(input: BuildProviderModelItemsInput): Pr
 
   function pushShortcutSection(
     sectionId: string,
-    headerLabel: string,
+    headerLabel: MessageDescriptor,
     refs: readonly ModelRef[],
   ): void {
     // Favorites/recents store one entry per (agentKind, modelId, presentationMode).
@@ -447,14 +449,14 @@ export function buildProviderModelItems(input: BuildProviderModelItemsInput): Pr
 
   if (!singleProviderMode) {
     if (favorites?.length) {
-      pushShortcutSection("fav", "Favorites", favorites);
+      pushShortcutSection("fav", msg`Favorites`, favorites);
     }
     if (recents?.length) {
       const filteredRecents = recents
         .filter((r) => !sectionFavoriteSet.has(refKey(r)))
         .slice(0, recentsLimit);
       if (filteredRecents.length > 0) {
-        pushShortcutSection("recent", "Recent", filteredRecents);
+        pushShortcutSection("recent", msg`Recent`, filteredRecents);
       }
     }
   }

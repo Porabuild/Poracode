@@ -172,9 +172,9 @@ async function syncBrowserMcp(
   const directory = resolveOpenCodeSessionDirectory(input.projectLocation);
   if (input.browserMcpEnabled === undefined) return;
   if (!input.browserMcpEnabled) {
-    await client.mcp
-      .disconnect({ directory, name: BROWSER_MCP_SERVER_NAME })
-      .catch(() => undefined);
+    await client.mcp.disconnect({ directory, name: BROWSER_MCP_SERVER_NAME }).catch((error) => {
+      console.warn("[opencode] failed to disconnect browser MCP:", error);
+    });
     return;
   }
 
@@ -253,7 +253,9 @@ async function acquireOpenCodeServerInner(
       released = true;
       acquiringEntry.refCount -= 1;
       if (pool.get(key) === acquiringEntry) pool.delete(key);
-      await snapshot.handle.dispose().catch(() => undefined);
+      await snapshot.handle.dispose().catch((disposeErr) => {
+        console.warn("[opencode] failed to dispose handle during retry:", disposeErr);
+      });
       return acquireOpenCodeServerInner(input, false);
     }
   }

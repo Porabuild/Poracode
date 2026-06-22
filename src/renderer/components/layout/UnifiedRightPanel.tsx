@@ -9,6 +9,7 @@ import {
   PanelRightClose,
   TerminalSquare,
 } from "lucide-react";
+import { useLingui } from "@lingui/react/macro";
 import { PanelHeaderProjectName } from "@/renderer/components/layout/PanelHeaderProjectName";
 import {
   panelHeaderIconButtonClass,
@@ -74,6 +75,7 @@ export function UnifiedRightPanel(props: {
     onOpenNotes,
     onClose,
   } = props;
+  const { t } = useLingui();
 
   /** Inline opacity/transition so animation is not dropped if Tailwind misses dynamic class strings. */
   const tabLayerStyle = (tab: RightPanelTab): CSSProperties => {
@@ -89,7 +91,10 @@ export function UnifiedRightPanel(props: {
   const dragCtl = "lightcode-overlay-header__controls";
 
   return (
-    <div className="flex h-full min-h-0 flex-col bg-[var(--content-background)]">
+    <div
+      data-lightcode-panel=""
+      className="flex h-full min-h-0 flex-col bg-[var(--content-background)]"
+    >
       <div className={`lightcode-overlay-header ${panelHeaderRowClass}`}>
         {projectName && (
           <PanelHeaderProjectName
@@ -103,7 +108,7 @@ export function UnifiedRightPanel(props: {
           <button
             type="button"
             className={`${dragCtl} ${panelHeaderIconButtonClass}`}
-            title="Maximize"
+            title={t`Maximize`}
             onClick={onExpandGitToOverlay}
           >
             <Maximize2 className="size-3" />
@@ -113,7 +118,7 @@ export function UnifiedRightPanel(props: {
           <button
             type="button"
             className={`${dragCtl} ${panelHeaderIconButtonClass}`}
-            title="Maximize"
+            title={t`Maximize`}
             onClick={onExpandFilesToOverlay}
           >
             <Maximize2 className="size-3" />
@@ -123,7 +128,7 @@ export function UnifiedRightPanel(props: {
           <button
             type="button"
             className={`${dragCtl} ${panelHeaderIconButtonClass}`}
-            title="Maximize"
+            title={t`Maximize`}
             onClick={onExpandBrowserToOverlay}
           >
             <Maximize2 className="size-3" />
@@ -135,7 +140,7 @@ export function UnifiedRightPanel(props: {
           <button
             type="button"
             className={`${dragCtl} ${panelHeaderTabIconButtonClass(activeTab === "terminal")}`}
-            title="Terminal"
+            title={t`Terminal`}
             onClick={() => {
               if (onOpenTerminal) onOpenTerminal();
               else onTabChange("terminal");
@@ -148,7 +153,7 @@ export function UnifiedRightPanel(props: {
           <button
             type="button"
             className={`${dragCtl} ${panelHeaderTabIconButtonClass(activeTab === "files")}`}
-            title="Files"
+            title={t`Files`}
             onClick={() => {
               if (onOpenFiles) onOpenFiles();
               else onTabChange("files");
@@ -161,7 +166,7 @@ export function UnifiedRightPanel(props: {
           <button
             type="button"
             className={`${dragCtl} ${panelHeaderTabIconButtonClass(activeTab === "git")}`}
-            title="Git"
+            title={t`Git`}
             onClick={() => {
               if (onOpenGit) onOpenGit();
               else onTabChange("git");
@@ -174,7 +179,7 @@ export function UnifiedRightPanel(props: {
           <button
             type="button"
             className={`${dragCtl} ${panelHeaderTabIconButtonClass(activeTab === "usage")}`}
-            title="Usage"
+            title={t`Usage`}
             onClick={() => {
               if (onOpenUsage) onOpenUsage();
               else onTabChange("usage");
@@ -187,7 +192,7 @@ export function UnifiedRightPanel(props: {
           <button
             type="button"
             className={`${dragCtl} ${panelHeaderTabIconButtonClass(activeTab === "notes")}`}
-            title="Notes"
+            title={t`Notes`}
             onClick={() => {
               if (onOpenNotes) onOpenNotes();
               else onTabChange("notes");
@@ -199,7 +204,7 @@ export function UnifiedRightPanel(props: {
         <button
           type="button"
           className={`${dragCtl} ${panelHeaderTabIconButtonClass(activeTab === "browser")}`}
-          title="Browser"
+          title={t`Browser`}
           onClick={() => {
             if (onOpenBrowser) onOpenBrowser();
             else onTabChange("browser");
@@ -210,7 +215,7 @@ export function UnifiedRightPanel(props: {
         <button
           type="button"
           className={`${dragCtl} ${panelHeaderIconButtonClass}`}
-          title="Hide panel"
+          title={t`Hide panel`}
           onClick={onClose}
         >
           <PanelRightClose className="size-3.5" />

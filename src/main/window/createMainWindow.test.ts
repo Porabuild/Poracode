@@ -85,6 +85,7 @@ describe("createMainWindow", () => {
       windowChromeHeight: 32,
       browserUserAgent: userAgent,
       appearance: "dark",
+      sidebarTranslucency: false,
       onClosed: vi.fn<() => void>(),
     });
 

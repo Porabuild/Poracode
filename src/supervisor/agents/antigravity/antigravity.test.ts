@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { ProjectLocation, ThreadConfig } from "@/shared/contracts";
 import { createAntigravityAdapter } from ".";
 import { buildAntigravityArgs } from "./argv";
-import { ANTIGRAVITY_DEFAULT_MODEL_ID } from "./detection";
+import { ANTIGRAVITY_DEFAULT_MODEL_ID, antigravityDetectionSpec } from "./detection";
 import {
   ANTIGRAVITY_KNOWN_MODEL_VARIANTS,
   buildAntigravityModelCapabilities,
@@ -103,6 +103,33 @@ describe("createAntigravityAdapter", () => {
       "yolo",
     ]);
     expect(adapter.defaultOneShotModel).toBe(ANTIGRAVITY_DEFAULT_MODEL_ID);
+  });
+
+  it("advertises a terminal login method and bare-agy login command", async () => {
+    // `agy` has no `agy login` subcommand — the bare binary is the login path.
+    expect(antigravityDetectionSpec.loginCommand).toBe("agy");
+
+    // executablePath undefined → probeAntigravityModels short-circuits without
+    // spawning, but the login method must still be advertised so the Settings
+    // UI renders the Login/Re-login button.
+    const result = await antigravityDetectionSpec.capabilitiesProbe?.({
+      location: project,
+      executablePath: undefined,
+    });
+    expect(result?.authMethods).toEqual([
+      { type: "terminal", id: "antigravity-login", name: "Antigravity login", args: [] },
+    ]);
+    // No non-interactive `agy logout` exists, so the spec must NOT advertise
+    // logout — that would render a Logout button the UI cannot fulfill (the UI
+    // then correctly shows "Re-login" when authenticated instead).
+    expect(result?.authLogoutSupported).toBeUndefined();
+  });
+
+  it("wires no ACP auth/logout dispatch (agy is terminal-only, not ACP)", () => {
+    const adapter = createAntigravityAdapter();
+
+    expect(adapter.buildAcpAuthCommand).toBeUndefined();
+    expect(adapter.buildAcpLogoutCommand).toBeUndefined();
   });
 
   it("builds agy launch, resume, and one-shot commands", () => {

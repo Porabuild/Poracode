@@ -1,6 +1,7 @@
 import type { CSSProperties, ReactNode } from "react";
 import { baseAgentKind } from "@/shared/contracts";
 import type { StatusTone } from "./statusTone";
+import { syncMaskScanPhase } from "./syncMaskScanPhase";
 import {
   getUtilityTaskCandidates,
   getUtilityTaskDefaultsHint,
@@ -61,6 +62,7 @@ function ExternalProviderIcon(props: { src: string; tone: StatusTone; className?
       />
       {props.tone === "working" ? (
         <span
+          ref={syncMaskScanPhase}
           className="lightcode-provider-icon__mask lightcode-provider-icon__mask-scan"
           style={style}
         />
@@ -333,59 +335,49 @@ export function getTriggerWords(
   return matcher ? matcher(model) : [];
 }
 
+// --- Utility-task defaults registry factory ---
+
+function createUtilityTaskRegistry() {
+  const registry = new Map<string, UtilityTaskDefaults>();
+  return {
+    register(kind: string, defaults: UtilityTaskDefaults) {
+      registry.set(kind, defaults);
+    },
+    get(kind: string): UtilityTaskDefaults | undefined {
+      return lookupByKind(registry, kind);
+    },
+    getHint(): string | undefined {
+      return getUtilityTaskDefaultsHint(registry.values());
+    },
+  };
+}
+
 // --- Commit generation defaults registry ---
 
 export interface CommitGenDefaults extends UtilityTaskDefaults {}
 
-const COMMIT_GEN_REGISTRY = new Map<string, CommitGenDefaults>();
-
-export function registerCommitGenDefaults(kind: string, defaults: CommitGenDefaults) {
-  COMMIT_GEN_REGISTRY.set(kind, defaults);
-}
-
-export function getCommitGenDefaults(kind: string): CommitGenDefaults | undefined {
-  return lookupByKind(COMMIT_GEN_REGISTRY, kind);
-}
-
-export function getCommitGenDefaultsHint(): string | undefined {
-  return getUtilityTaskDefaultsHint(COMMIT_GEN_REGISTRY.values());
-}
+const commitGenRegistry = createUtilityTaskRegistry();
+export const registerCommitGenDefaults = commitGenRegistry.register;
+export const getCommitGenDefaults = commitGenRegistry.get;
+export const getCommitGenDefaultsHint = commitGenRegistry.getHint;
 
 // --- Title generation defaults registry ---
 
 export interface TitleGenDefaults extends UtilityTaskDefaults {}
 
-const TITLE_GEN_REGISTRY = new Map<string, TitleGenDefaults>();
-
-export function registerTitleGenDefaults(kind: string, defaults: TitleGenDefaults) {
-  TITLE_GEN_REGISTRY.set(kind, defaults);
-}
-
-export function getTitleGenDefaults(kind: string): TitleGenDefaults | undefined {
-  return lookupByKind(TITLE_GEN_REGISTRY, kind);
-}
-
-export function getTitleGenDefaultsHint(): string | undefined {
-  return getUtilityTaskDefaultsHint(TITLE_GEN_REGISTRY.values());
-}
+const titleGenRegistry = createUtilityTaskRegistry();
+export const registerTitleGenDefaults = titleGenRegistry.register;
+export const getTitleGenDefaults = titleGenRegistry.get;
+export const getTitleGenDefaultsHint = titleGenRegistry.getHint;
 
 // --- Conflict resolver defaults registry ---
 
 export interface ConflictResolverDefaults extends UtilityTaskDefaults {}
 
-const CONFLICT_RESOLVER_REGISTRY = new Map<string, ConflictResolverDefaults>();
-
-export function registerConflictResolverDefaults(kind: string, defaults: ConflictResolverDefaults) {
-  CONFLICT_RESOLVER_REGISTRY.set(kind, defaults);
-}
-
-export function getConflictResolverDefaults(kind: string): ConflictResolverDefaults | undefined {
-  return lookupByKind(CONFLICT_RESOLVER_REGISTRY, kind);
-}
-
-export function getConflictResolverDefaultsHint(): string | undefined {
-  return getUtilityTaskDefaultsHint(CONFLICT_RESOLVER_REGISTRY.values());
-}
+const conflictResolverRegistry = createUtilityTaskRegistry();
+export const registerConflictResolverDefaults = conflictResolverRegistry.register;
+export const getConflictResolverDefaults = conflictResolverRegistry.get;
+export const getConflictResolverDefaultsHint = conflictResolverRegistry.getHint;
 
 type ConflictResolverAgentLike = UtilityTaskCandidateAgent;
 

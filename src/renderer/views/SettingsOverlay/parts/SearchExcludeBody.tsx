@@ -1,5 +1,6 @@
 import { type ReactNode, startTransition, useState } from "react";
 import { Switch } from "@heroui/react";
+import { Trans, useLingui } from "@lingui/react/macro";
 import { Lock, Trash2 } from "lucide-react";
 import { Button, Input } from "@/renderer/components/common";
 import { LOCKED_SEARCH_EXCLUDE } from "@/shared/searchExclude";
@@ -27,6 +28,13 @@ interface SearchExcludeBodyProps {
   baseline: Record<string, boolean>;
   /** Replace the scope's exclude map. */
   onValueChange: (next: Record<string, boolean>) => void;
+  /** Search anchors — set only by the global Settings view (see ./settingsSearchIndex). */
+  useIgnoreFilesAnchorId?: string;
+  excludePatternsAnchorId?: string;
+}
+
+function anchorProps(anchorId: string | undefined) {
+  return anchorId ? { id: anchorId, "data-settings-anchor": anchorId } : {};
 }
 
 interface Row {
@@ -44,6 +52,8 @@ export function SearchExcludeBody(props: SearchExcludeBodyProps) {
     value,
     baseline,
     onValueChange,
+    useIgnoreFilesAnchorId,
+    excludePatternsAnchorId,
   } = props;
 
   const rows = buildRows(baseline, value);
@@ -66,9 +76,14 @@ export function SearchExcludeBody(props: SearchExcludeBodyProps) {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between gap-4">
+      <div
+        {...anchorProps(useIgnoreFilesAnchorId)}
+        className={`flex items-center justify-between gap-4 ${useIgnoreFilesAnchorId ? "scroll-mt-4" : ""}`}
+      >
         <div className="min-w-0">
-          <p className="text-sm font-medium text-foreground">Use ignore files</p>
+          <p className="text-sm font-medium text-foreground">
+            <Trans>Use ignore files</Trans>
+          </p>
           <p className="text-xs text-muted">{useIgnoreFilesNote}</p>
         </div>
         <div className="flex items-center gap-2">
@@ -86,11 +101,16 @@ export function SearchExcludeBody(props: SearchExcludeBodyProps) {
         </div>
       </div>
 
-      <div className="space-y-2">
+      <div
+        {...anchorProps(excludePatternsAnchorId)}
+        className={`space-y-2 ${excludePatternsAnchorId ? "scroll-mt-4" : ""}`}
+      >
         <div>
-          <p className="text-sm font-medium text-foreground">Exclude patterns</p>
+          <p className="text-sm font-medium text-foreground">
+            <Trans>Exclude patterns</Trans>
+          </p>
           <p className="text-xs text-muted">
-            Files matching these globs are hidden from the @file mention search.
+            <Trans>Files matching these globs are hidden from the @file mention search.</Trans>
           </p>
         </div>
         <ExcludeList rows={rows} onRemove={remove} />
@@ -101,45 +121,54 @@ export function SearchExcludeBody(props: SearchExcludeBodyProps) {
 }
 
 function ExcludeList(props: { rows: Row[]; onRemove: (pattern: string) => void }) {
+  const { t } = useLingui();
   if (props.rows.length === 0) {
     return (
       <div className="rounded border border-[var(--hairline)] bg-surface/40 px-2.5 py-1 text-xs text-muted">
-        No patterns.
+        <Trans>No patterns.</Trans>
       </div>
     );
   }
   return (
     <div className="max-h-[280px] divide-y divide-[var(--hairline)] overflow-y-auto rounded border border-[var(--hairline)] bg-surface/40">
-      {props.rows.map((row) => (
-        <div key={row.pattern} className="flex h-8 items-center gap-2 px-2.5">
-          <code className="flex-1 truncate font-mono text-xs text-foreground">{row.pattern}</code>
-          {row.inherited && !row.locked && (
-            <span className="text-[10px] uppercase tracking-wide text-muted">inherited</span>
-          )}
-          {row.locked ? (
-            <span
-              className="flex size-5 items-center justify-center text-muted"
-              title="Always excluded"
-            >
-              <Lock className="size-3" />
-            </span>
-          ) : (
-            <button
-              type="button"
-              aria-label={`Remove ${row.pattern}`}
-              onClick={() => props.onRemove(row.pattern)}
-              className="flex size-5 items-center justify-center rounded text-muted hover:bg-[var(--row-hover)] hover:text-foreground"
-            >
-              <Trash2 className="size-3" />
-            </button>
-          )}
-        </div>
-      ))}
+      {props.rows.map((row) => {
+        const pattern = row.pattern;
+        return (
+          <div key={pattern} className="flex h-8 items-center gap-2 px-2.5">
+            <code className="flex-1 truncate font-mono text-xs text-foreground">{pattern}</code>
+            {row.inherited && !row.locked && (
+              <span className="text-[10px] uppercase tracking-wide text-muted">
+                <Trans comment="Badge on an exclude pattern inherited from a lower scope">
+                  inherited
+                </Trans>
+              </span>
+            )}
+            {row.locked ? (
+              <span
+                className="flex size-5 items-center justify-center text-muted"
+                title={t`Always excluded`}
+              >
+                <Lock className="size-3" />
+              </span>
+            ) : (
+              <button
+                type="button"
+                aria-label={t`Remove ${pattern}`}
+                onClick={() => props.onRemove(pattern)}
+                className="flex size-5 items-center justify-center rounded text-muted hover:bg-[var(--row-hover)] hover:text-foreground"
+              >
+                <Trash2 className="size-3" />
+              </button>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }
 
 function AddPatternInput(props: { onAdd: (pattern: string) => void }) {
+  const { t } = useLingui();
   const [draft, setDraft] = useState("");
 
   function commit() {
@@ -152,7 +181,7 @@ function AddPatternInput(props: { onAdd: (pattern: string) => void }) {
   return (
     <div className="flex gap-2">
       <Input
-        aria-label="Add pattern"
+        aria-label={t`Add pattern`}
         className="flex-1"
         placeholder="**/your-glob"
         value={draft}
@@ -165,7 +194,7 @@ function AddPatternInput(props: { onAdd: (pattern: string) => void }) {
         }}
       />
       <Button variant="secondary" onPress={commit}>
-        Add
+        <Trans>Add</Trans>
       </Button>
     </div>
   );

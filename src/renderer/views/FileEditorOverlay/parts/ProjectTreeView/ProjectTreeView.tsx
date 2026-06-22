@@ -1,4 +1,6 @@
+import { useEffect, useRef } from "react";
 import { Button, Tooltip, toast } from "@heroui/react";
+import { Trans, useLingui } from "@lingui/react/macro";
 import {
   ChevronsDownUp,
   FilePlus,
@@ -13,6 +15,7 @@ import type { ProjectTreeEntry } from "@/shared/contracts";
 import { ContextMenu, PixelLoader } from "@/renderer/components/common";
 import { getEntryIconUrl } from "@/renderer/components/common/fileIcons";
 import { useScrollFade } from "@/renderer/hooks/useScrollFade";
+import { useFindFocusStore } from "@/renderer/state/findFocusStore";
 import type { FileEditorRootContext } from "@/renderer/state/fileEditorStore";
 import { useIsTabActive, useIsPathOpenInTab } from "@/renderer/state/fileEditorSelectors";
 import {
@@ -35,7 +38,17 @@ export function ProjectTreeView(props: {
   onSelectFile: (path: string) => void;
   onPinFile?: (path: string) => void;
 }) {
+  const { t } = useLingui();
   const tree = useProjectTree(props);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const treeFocusToken = useFindFocusStore((state) => state.treeFocusToken);
+  const lastTreeFocusToken = useRef(treeFocusToken);
+  useEffect(() => {
+    if (treeFocusToken === lastTreeFocusToken.current) return;
+    lastTreeFocusToken.current = treeFocusToken;
+    searchInputRef.current?.focus();
+    searchInputRef.current?.select();
+  }, [treeFocusToken]);
   const rootIsDropTarget = useIsDropTarget("");
   const rootLoading = useIsPathLoading("");
   const { setScrollContainer, scrollRef, scrollFadeStyle } = useScrollFade<HTMLDivElement>({
@@ -65,17 +78,17 @@ export function ProjectTreeView(props: {
       items={[
         {
           id: "reveal-root",
-          label: "Reveal in File Explorer",
+          label: t`Reveal in File Explorer`,
           icon: <FolderOpen className="size-3.5" />,
         },
-        { id: "new-file", label: "New File", icon: <FilePlus className="size-3.5" /> },
-        { id: "new-folder", label: "New Folder", icon: <FolderPlus className="size-3.5" /> },
+        { id: "new-file", label: t`New File`, icon: <FilePlus className="size-3.5" /> },
+        { id: "new-folder", label: t`New Folder`, icon: <FolderPlus className="size-3.5" /> },
         {
           id: "collapse-all",
-          label: "Collapse All",
+          label: t`Collapse All`,
           icon: <ChevronsDownUp className="size-3.5" />,
         },
-        { id: "refresh", label: "Refresh", icon: <RefreshCw className="size-3.5" /> },
+        { id: "refresh", label: t`Refresh`, icon: <RefreshCw className="size-3.5" /> },
       ]}
       onAction={(action) => {
         void tree.handleRootAction(action);
@@ -110,11 +123,15 @@ export function ProjectTreeView(props: {
         }}
       >
         <div className="flex items-center gap-2 border-b border-[color:var(--border)] px-0 py-2">
-          <div className="flex min-w-0 flex-1 items-center gap-2 rounded-xl border border-[color:var(--border)] bg-background px-3 py-1.5">
+          <div
+            data-lightcode-find-scope="tree"
+            className="flex min-w-0 flex-1 items-center gap-2 rounded-xl border border-[color:var(--border)] bg-background px-3 py-1.5"
+          >
             <Search className="size-3.5 shrink-0 text-muted" />
             <input
+              ref={searchInputRef}
               className="min-w-0 flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-muted"
-              placeholder="Search files"
+              placeholder={t`Search files`}
               value={tree.searchQuery}
               onChange={(event) => tree.setSearchQuery(event.target.value)}
               onKeyDown={(event) => {
@@ -127,7 +144,7 @@ export function ProjectTreeView(props: {
             {tree.searchQuery && (
               <button
                 type="button"
-                aria-label="Clear search"
+                aria-label={t`Clear search`}
                 onClick={() => tree.setSearchQuery("")}
                 className="flex size-4 shrink-0 items-center justify-center rounded text-muted hover:bg-[var(--row-hover)] hover:text-foreground"
               >
@@ -146,7 +163,9 @@ export function ProjectTreeView(props: {
                 <ChevronsDownUp className="size-4" />
               </Button>
             </Tooltip.Trigger>
-            <Tooltip.Content placement="bottom">Collapse all folders</Tooltip.Content>
+            <Tooltip.Content placement="bottom">
+              <Trans>Collapse all folders</Trans>
+            </Tooltip.Content>
           </Tooltip>
         </div>
 
@@ -161,7 +180,7 @@ export function ProjectTreeView(props: {
             tree.searchLoading ? (
               <div className="flex items-center gap-2 px-2 py-2 text-xs text-muted">
                 <PixelLoader size="xs" />
-                Searching…
+                <Trans>Searching…</Trans>
               </div>
             ) : tree.searchResults.length > 0 ? (
               <div>
@@ -175,7 +194,7 @@ export function ProjectTreeView(props: {
               </div>
             ) : (
               <div className="px-2 py-2 text-xs text-muted">
-                No files match "{tree.searchQuery}".
+                <Trans>No files match "{tree.searchQuery}".</Trans>
               </div>
             )
           ) : (
@@ -183,7 +202,7 @@ export function ProjectTreeView(props: {
               {rootLoading && !isAnyDirectoryLoaded ? (
                 <div className="flex items-center gap-2 px-2 py-2 text-xs text-muted">
                   <PixelLoader size="xs" />
-                  Loading…
+                  <Trans>Loading…</Trans>
                 </div>
               ) : (
                 <div className="relative" style={{ height: `${virtualizer.getTotalSize()}px` }}>
@@ -273,7 +292,7 @@ function ProjectTreeVirtualRow(props: {
         style={{ paddingLeft: `${row.depth * 14 + 8}px` }}
       >
         <PixelLoader size="xs" />
-        Loading…
+        <Trans>Loading…</Trans>
       </div>
     );
   }

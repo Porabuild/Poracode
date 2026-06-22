@@ -9,7 +9,10 @@ import {
   swapPaneIdsInLayout,
   type PaneLayoutInsertTarget,
 } from "@/shared/paneLayout";
-import { swapPaneIdsInStorage } from "@/renderer/components/layout/paneSizeStorage";
+import {
+  preservePaneSizeStorageForLayoutChange,
+  swapPaneIdsInStorage,
+} from "@/renderer/components/layout/paneSizeStorage";
 import { reorderIds, type ReorderPlacement } from "../reorder";
 import {
   clearFinishedAndDone,
@@ -101,6 +104,7 @@ export const createViewSlice: SliceCreator<ViewSlice> = (set) => ({
       const draftPaneId = makeDraftPaneId(projectId);
       const existing = state.view.panes;
       if (state.view.paneLayout) {
+        const previousLayout = currentPaneLayout(state.view);
         const layout = insertPaneInLayout(
           state.view.paneLayout,
           {
@@ -113,6 +117,7 @@ export const createViewSlice: SliceCreator<ViewSlice> = (set) => ({
           },
           draftPaneId,
         );
+        preservePaneSizeStorageForLayoutChange(previousLayout, layout);
         return {
           view: {
             kind: "thread",
@@ -123,12 +128,18 @@ export const createViewSlice: SliceCreator<ViewSlice> = (set) => ({
       }
       const rl = state.view.rowLayout;
       const newRl = rl ? [...rl.slice(0, -1), rl[rl.length - 1]! + 1] : undefined;
+      const nextPanes = [...existing, draftPaneId] as [string, ...string[]];
+      const nextView: AppView = {
+        ...state.view,
+        panes: nextPanes,
+        ...(newRl ? { rowLayout: newRl } : {}),
+      };
+      preservePaneSizeStorageForLayoutChange(
+        currentPaneLayout(state.view),
+        currentPaneLayout(nextView),
+      );
       return {
-        view: {
-          ...state.view,
-          panes: [...existing, draftPaneId] as [string, ...string[]],
-          ...(newRl ? { rowLayout: newRl } : {}),
-        },
+        view: nextView,
       };
     }),
   openHome: () => set({ view: { kind: "home" } }),
@@ -151,6 +162,7 @@ export const createViewSlice: SliceCreator<ViewSlice> = (set) => ({
                 }
               : { path: [] as number[], axis: "vertical" as const, index: 1 };
           const newLayout = insertPaneInLayout(layout, insertTarget, threadId);
+          preservePaneSizeStorageForLayoutChange(layout, newLayout);
           const nextView: AppView = {
             kind: "thread",
             panes: collectPaneIds(newLayout),
@@ -213,6 +225,7 @@ export const createViewSlice: SliceCreator<ViewSlice> = (set) => ({
         return cleared ? { threads: cleared } : {};
       }
       if (state.view.paneLayout) {
+        const previousLayout = currentPaneLayout(state.view);
         const layout = insertPaneInLayout(
           state.view.paneLayout,
           {
@@ -225,6 +238,7 @@ export const createViewSlice: SliceCreator<ViewSlice> = (set) => ({
           },
           threadId,
         );
+        preservePaneSizeStorageForLayoutChange(previousLayout, layout);
         const panes = collectPaneIds(layout);
         const nextView: AppView = {
           kind: "thread",
@@ -243,6 +257,10 @@ export const createViewSlice: SliceCreator<ViewSlice> = (set) => ({
         panes: nextPanes,
         ...(newRl ? { rowLayout: newRl } : {}),
       };
+      preservePaneSizeStorageForLayoutChange(
+        currentPaneLayout(state.view),
+        currentPaneLayout(nextView),
+      );
       const cleared = clearFinishedAndDone(state.threads, nextPanes);
       return cleared ? { view: nextView, threads: cleared } : { view: nextView };
     }),
@@ -319,6 +337,10 @@ export const createViewSlice: SliceCreator<ViewSlice> = (set) => ({
         panes: nextPanes as [string, ...string[]],
         ...(newRl ? { rowLayout: newRl } : {}),
       };
+      preservePaneSizeStorageForLayoutChange(
+        currentPaneLayout(state.view),
+        currentPaneLayout(nextView),
+      );
       const cleared = clearFinishedAndDone(state.threads, nextPanes);
       return cleared ? { view: nextView, threads: cleared } : { view: nextView };
     }),
@@ -340,12 +362,17 @@ export const createViewSlice: SliceCreator<ViewSlice> = (set) => ({
         clampedIndex,
         edge,
       );
+      const nextView: AppView = {
+        ...state.view,
+        panes: nextPanes as [string, ...string[]],
+        ...(nextRowLayout ? { rowLayout: nextRowLayout } : {}),
+      };
+      preservePaneSizeStorageForLayoutChange(
+        currentPaneLayout(state.view),
+        currentPaneLayout(nextView),
+      );
       return {
-        view: {
-          ...state.view,
-          panes: nextPanes as [string, ...string[]],
-          ...(nextRowLayout ? { rowLayout: nextRowLayout } : {}),
-        },
+        view: nextView,
       };
     }),
   replacePaneById: (threadId, targetPaneId) =>
@@ -373,7 +400,9 @@ export const createViewSlice: SliceCreator<ViewSlice> = (set) => ({
       if (state.view.panes.includes(threadId) || !state.view.panes.includes(targetPaneId)) {
         return {};
       }
-      const layout = splitPaneInLayout(currentPaneLayout(state.view), targetPaneId, threadId, edge);
+      const previousLayout = currentPaneLayout(state.view);
+      const layout = splitPaneInLayout(previousLayout, targetPaneId, threadId, edge);
+      preservePaneSizeStorageForLayoutChange(previousLayout, layout);
       const panes = collectPaneIds(layout);
       const nextView: AppView = {
         kind: "thread",
@@ -392,7 +421,9 @@ export const createViewSlice: SliceCreator<ViewSlice> = (set) => ({
         return cleared ? { view: nextView, threads: cleared } : { view: nextView };
       }
       if (state.view.panes.includes(threadId)) return {};
-      const layout = insertPaneInLayout(currentPaneLayout(state.view), target, threadId);
+      const previousLayout = currentPaneLayout(state.view);
+      const layout = insertPaneInLayout(previousLayout, target, threadId);
+      preservePaneSizeStorageForLayoutChange(previousLayout, layout);
       const panes = collectPaneIds(layout);
       const nextView: AppView = {
         kind: "thread",
@@ -423,6 +454,7 @@ export const createViewSlice: SliceCreator<ViewSlice> = (set) => ({
               adjustInsertTargetForRemoval(layout, paneId, target),
               paneId,
             );
+      preservePaneSizeStorageForLayoutChange(layout, nextLayout);
       return {
         view: {
           kind: "thread",

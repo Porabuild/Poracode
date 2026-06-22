@@ -6,6 +6,8 @@ import {
   readConflictResolverSettingsForProject,
   resolveConflictResolverLaunchConfig,
 } from "@/renderer/components/providers/conflictResolver";
+import { resolveFastValue } from "@/renderer/components/thread/threadDraftViewHelpers";
+import { recordAiAction } from "@/renderer/state/usageRecorder";
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
@@ -40,10 +42,12 @@ export function useConflictResolver(params: {
       conflictResolverProvider: s.conflictResolverProvider,
       conflictResolverModel: s.conflictResolverModel,
       conflictResolverEffort: s.conflictResolverEffort,
+      conflictResolverFast: s.conflictResolverFast,
       conflictResolverPresentationMode: s.conflictResolverPresentationMode,
       wslConflictResolverProvider: s.wslConflictResolverProvider,
       wslConflictResolverModel: s.wslConflictResolverModel,
       wslConflictResolverEffort: s.wslConflictResolverEffort,
+      wslConflictResolverFast: s.wslConflictResolverFast,
       wslConflictResolverPresentationMode: s.wslConflictResolverPresentationMode,
     })),
   );
@@ -83,6 +87,9 @@ export function useConflictResolver(params: {
       liveSettings.model,
       liveSettings.effort,
     );
+    // Only carry fast through when the resolved model can actually use it, so a
+    // stale fast=true on a non-Opus model doesn't set an unusable session flag.
+    const fast = resolveFastValue(provider, model, liveSettings.fast);
 
     const fileList = mergeConflictFiles.map((f) => `- ${f.path}`).join("\n");
     const prompt =
@@ -102,6 +109,7 @@ export function useConflictResolver(params: {
       config: {
         model,
         ...(effort ? { effort } : {}),
+        ...(fast ? { fast: true } : {}),
         approvalPolicy: bypass?.approvalPolicy ?? "bypassPermissions",
         ...(bypass?.sandboxMode ? { sandboxMode: bypass.sandboxMode } : {}),
       },
@@ -111,6 +119,7 @@ export function useConflictResolver(params: {
       ...(worktreeBranch ? { worktreeBranch } : {}),
     });
     store.queueThreadLaunch(thread.id, prompt);
+    recordAiAction("conflict", provider.kind, model || "default");
   }
 
   return { canResolveWithAgent, handleResolveWithAgent, projectAgentStatuses };

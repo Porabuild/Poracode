@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { ChevronDown, ChevronRight, FileEdit, Plus } from "lucide-react";
 import { DiffFile, DiffView, highlighter } from "@git-diff-view/react";
+import { Plural, Trans, useLingui } from "@lingui/react/macro";
 import type { GitFileChange, Project } from "@/shared/contracts";
 import { readBridge } from "@/renderer/bridge";
 import { useGitStore } from "@/renderer/state/gitStore";
@@ -40,6 +41,7 @@ export function ConflictFileCard(props: {
     theme,
     wrapLines,
   } = props;
+  const { t } = useLingui();
   const rowPadX = useGitReviewRowPadX();
   const [expanded, setExpanded] = useState(false);
   const [diffFile, setDiffFile] = useState<DiffFile | null>(null);
@@ -157,7 +159,7 @@ export function ConflictFileCard(props: {
               role="button"
               tabIndex={0}
               className="rounded p-0.5 text-muted transition-colors hover:bg-[var(--row-hover)] hover:text-foreground"
-              title="Stage"
+              title={t`Stage`}
               onClick={handleStageConflict}
               onKeyDown={(e) =>
                 handleKeyActivate(e, () => void handleStageConflict(e), { stopPropagation: true })
@@ -169,7 +171,7 @@ export function ConflictFileCard(props: {
               role="button"
               tabIndex={0}
               className="rounded p-0.5 text-muted transition-colors hover:bg-[var(--row-hover)] hover:text-foreground"
-              title="Open in editor"
+              title={t`Open in editor`}
               onClick={handleOpenInEditor}
               onKeyDown={(e) =>
                 handleKeyActivate(e, () => handleOpenInEditor(e), { stopPropagation: true })
@@ -190,11 +192,21 @@ export function ConflictFileCard(props: {
           )}
           {!loading && tooLarge && (
             <div className="px-4 py-3 text-xs text-muted">
-              {`File too large to display (${(file.insertions + file.deletions).toLocaleString()} lines changed)`}
+              <Trans>
+                File too large to display (
+                <Plural
+                  value={file.insertions + file.deletions}
+                  one="# line changed"
+                  other="# lines changed"
+                />
+                )
+              </Trans>
             </div>
           )}
           {!loading && !tooLarge && !diffFile && loadedKeyRef.current !== null && (
-            <div className="px-4 py-3 text-xs text-muted">No changes to display</div>
+            <div className="px-4 py-3 text-xs text-muted">
+              <Trans>No changes to display</Trans>
+            </div>
           )}
           {diffFile && (
             <DiffView

@@ -1,6 +1,6 @@
 import {
   BROWSER_MCP_SERVER_NAME,
-  resolveBrowserMcpHttpConfig,
+  resolveOrFallbackBrowserMcpConfig,
   type BrowserMcpHttpConfig,
   type BrowserMcpLocation,
 } from "@/supervisor/agents/browserMcp";
@@ -28,8 +28,7 @@ export function buildCodexBrowserMcpArgs(
   browserMcp?: BrowserMcpHttpConfig,
 ): string[] {
   if (!enabled) return [];
-  if (location.kind === "wsl" && !browserMcp) return [];
-  const cfg = browserMcp ?? resolveBrowserMcpHttpConfig(location);
+  const cfg = resolveOrFallbackBrowserMcpConfig(location, browserMcp);
   if (!cfg) return [];
 
   const name = BROWSER_MCP_SERVER_NAME;

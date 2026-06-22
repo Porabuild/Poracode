@@ -3,15 +3,15 @@
 ## Layers
 
 - `src/main/`: Electron shell (`main.ts`), context-isolated preload bridge (`preload.ts`), SQLite database (`db.ts`, `db.schema.ts` via Drizzle ORM + better-sqlite3).
-- `src/supervisor/`: Forked Node process owning all agent PTY sessions, git operations, terminal log persistence, agent status caching, and commit message generation. Entry point: `index.ts` (IPC dispatcher with Zod-validated payloads).
-- `src/renderer/`: React 19 + HeroUI v3 + xterm.js. Zustand stores for state, persisted to SQLite via the preload bridge.
+- `src/supervisor/`: Forked Node process owning all agent PTY sessions, git operations, terminal log persistence, agent status caching, and commit message generation. Entry point: `index.ts` (IPC dispatcher that trusts pre-validated payloads — Zod validation runs caller-side in the main process before dispatch, not in the supervisor).
+- `src/renderer/`: React 19 + HeroUI v3 + xterm.js. Zustand stores for state; a couple persist to SQLite via the preload bridge (`appStore`, `threadTodoDockStore`), several persist to `localStorage`, and many are ephemeral — see the State Management table for the per-store breakdown.
 - `src/shared/`: Zod schemas, TypeScript types, IPC contracts (`ipc.ts`), and pure helpers (ANSI stripping, WSL path utilities, worktree path computation, theme resolution, agent status filtering).
 
 ## IPC Architecture
 
-The main process forks the supervisor as a child process. Communication is UUID-keyed request/reply over `process.send()` + `process.on("message")`. The supervisor also emits fire-and-forget events (thread output, state changes, agent statuses) that the main process forwards to the renderer via `ipcRenderer`.
+The main process forks the supervisor as a child process. Communication is UUID-keyed request/reply over `process.send()` + `process.on("message")`. The supervisor also emits fire-and-forget events (thread output, state changes, agent statuses) that the main process forwards to the renderer via `webContents.send` (received in the renderer through `ipcRenderer.on`).
 
-The preload bridge (`window.lightcode`) wraps all IPC into typed async methods defined by the `LightcodeBridge` interface in `src/shared/ipc.ts`.
+The preload bridge (`window.lightcode`) wraps all IPC into typed async methods defined by the `LightcodeBridge` type, declared in `src/shared/ipc/bridge.ts` and re-exported via the `src/shared/ipc.ts` barrel.
 
 ## State Management
 
@@ -59,7 +59,7 @@ Native modules (`node-pty`, `better-sqlite3`, `electron`) are excluded from bund
 
 ## Database
 
-SQLite via Drizzle ORM (`src/main/db.ts`). Tables: `projects`, `threads`, `appState`, `threadRuntimeItems`, `threadContextUsage`, `threadCompletedTurns`. The renderer reads/writes through preload bridge methods (`dbGetProjects`, `dbUpsertThread`, `dbSyncAll`, etc.). Zustand persistence uses a custom `dbStorage` backend.
+SQLite via Drizzle ORM (`src/main/db.ts`, `db.schema.ts`). Drizzle tables: `projects`, `threads`, `appState`, `projectNotes`, `threadRuntimeItems`, `threadContextUsage`, `threadCompletedTurns`. Plus `usage_events`, created via raw `CREATE TABLE` DDL in `db.ts` rather than the Drizzle schema. The renderer reads/writes through preload bridge methods (`dbGetProjects`, `dbUpsertThread`, `dbSyncAll`, etc.). Zustand persistence uses a custom `dbStorage` backend.
 
 ## Git Integration
 

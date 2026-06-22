@@ -452,7 +452,10 @@ export async function probeCodexCapabilities(
   const result = await runWithCodexAppServer(location, options, async ({ client, initResult }) => {
     const [modelResult, requirementsResult] = await Promise.all([
       client.request("model/list", { includeHidden: false }),
-      client.request("configRequirements/read", {}).catch(() => undefined),
+      client.request("configRequirements/read", {}).catch((error) => {
+        console.warn("[codex] configRequirements/read failed:", error);
+        return undefined;
+      }),
     ]);
     return { initResult, modelResult, requirementsResult };
   });

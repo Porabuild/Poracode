@@ -207,21 +207,37 @@ async function resolveWslHomeDirectory(distro: string): Promise<string> {
   return result.home;
 }
 
+export interface WorktreePathOptions {
+  /** Worktree root; falls back to the built-in default per location when absent. */
+  root?: string;
+  /** Skip the disambiguating `<repo-hash>` segment (project-relative placement). */
+  omitRepoDir?: boolean;
+}
+
+/** Built-in default worktree root for a location (`~/.lightcode/worktrees`). */
+export async function resolveBuiltInWorktreeRoot(location: ProjectLocation): Promise<string> {
+  if (location.kind === "wsl") {
+    const homePath = await resolveWslHomeDirectory(location.distro);
+    return posix.join(homePath, ".lightcode", "worktrees");
+  }
+  return resolveLightcodePaths(join(homedir(), ".lightcode")).worktreesDir;
+}
+
 export async function computeDefaultWorktreePath(
   location: ProjectLocation,
   branch: string,
+  options?: WorktreePathOptions,
 ): Promise<string> {
-  const repoDir = getWorktreeRepoDirName(location);
   const branchDir = sanitizeWorktreeBranchName(branch);
+  const segments = options?.omitRepoDir
+    ? [branchDir]
+    : [getWorktreeRepoDirName(location), branchDir];
   if (location.kind === "wsl") {
-    const homePath = await resolveWslHomeDirectory(location.distro);
-    return posix.join(homePath, ".lightcode", "worktrees", repoDir, branchDir);
+    const root = options?.root ?? (await resolveBuiltInWorktreeRoot(location));
+    return posix.join(root, ...segments);
   }
-  return join(
-    resolveLightcodePaths(join(homedir(), ".lightcode")).worktreesDir,
-    repoDir,
-    branchDir,
-  );
+  const root = options?.root ?? (await resolveBuiltInWorktreeRoot(location));
+  return join(root, ...segments);
 }
 
 export async function ensureWorktreeParentExists(

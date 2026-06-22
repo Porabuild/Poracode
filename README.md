@@ -6,7 +6,7 @@
 
 <p align="center">
   <strong>One window for all your AI coding agents.</strong><br />
-  Run Claude, Codex, OpenCode, Gemini, Antigravity, Cursor, and Copilot side-by-side. Terminal and chat, any layout.
+  Run Claude, Codex, OpenCode, Gemini, Grok, Antigravity, Cursor, Command Code, and Copilot side-by-side. Terminal and chat, any layout.
 </p>
 
 <p align="center">
@@ -25,7 +25,7 @@
 
 ## Supported Agents
 
-**Claude** · **Codex** · **OpenCode** · **Gemini** · **Antigravity** · **Cursor** · **Copilot** and any agent from the [ACP registry](https://agentclientprotocol.com).
+**Claude** · **Codex** · **OpenCode** · **Gemini** · **Grok** · **Antigravity** · **Cursor** · **Command Code** · **Copilot** and any agent from the [ACP registry](https://agentclientprotocol.com).
 
 ## Why Lightcode?
 

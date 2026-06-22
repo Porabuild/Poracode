@@ -33,12 +33,20 @@ export function SettingRow(props: {
   description: ReactNode;
   children: ReactNode;
   className?: string;
+  /**
+   * Marks this row as a search target. When set, the row carries
+   * `data-settings-anchor` so the settings search can scroll to / highlight it.
+   * `scroll-mt-4` clears the scroller's top padding (there is no sticky header).
+   * Must match the corresponding `anchor` in {@link ./settingsSearchIndex}.
+   */
+  anchorId?: string;
 }) {
   // The stable settings-row classes let the mobile PWA reflow rows on narrow
   // viewports (see src/mobile/styles.css).
   return (
     <div
-      className={`settings-row flex items-center justify-between gap-4 ${props.className ?? ""}`}
+      {...(props.anchorId ? { id: props.anchorId, "data-settings-anchor": props.anchorId } : {})}
+      className={`settings-row flex items-center justify-between gap-4 ${props.anchorId ? "scroll-mt-4" : ""} ${props.className ?? ""}`}
     >
       <div className="settings-row__text min-w-0">
         <p className="text-sm font-medium text-foreground">{props.title}</p>

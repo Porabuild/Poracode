@@ -118,18 +118,55 @@ export function parseAcpGenericInstanceConfig(value: unknown): AcpGenericInstanc
 
 // ── claude profile driver config ────────────────────────────────────────
 
+/**
+ * A model entry advertised by a Claude profile's picker. `id` is sent verbatim
+ * to the CLI via `--model`; `label` is the display name (falls back to `id`).
+ * Used to surface an external provider's model names (e.g. GLM) on a profile
+ * that points Claude Code at a non-Anthropic `ANTHROPIC_BASE_URL`.
+ */
+export const claudeProfileModelSchema = z.object({
+  id: z.string().min(1).max(200),
+  label: z.string().min(1).max(120).optional(),
+});
+export type ClaudeProfileModel = z.infer<typeof claudeProfileModelSchema>;
+
 export const claudeProfileInstanceConfigSchema = z.object({
   /**
    * Directory passed to Claude Code as CLAUDE_CONFIG_DIR. A leading "~/" is
    * resolved against the target runtime environment (native home or WSL home).
    */
   configDir: z.string().min(1),
+  /**
+   * Optional extension of the model list the picker shows for this profile.
+   * When omitted, only the built-in Claude model list is used.
+   */
+  models: z.array(claudeProfileModelSchema).max(50).optional(),
+  /**
+   * Optional allow-list of effort tiers for this profile (subset of the
+   * built-in tiers, e.g. `["high", "max"]`). Tiers outside this set are hidden
+   * from the picker. When omitted, all built-in tiers are offered.
+   */
+  efforts: z.array(z.string().min(1).max(40)).max(20).optional(),
 });
 export type ClaudeProfileInstanceConfig = z.infer<typeof claudeProfileInstanceConfigSchema>;
 
 export function parseClaudeProfileInstanceConfig(value: unknown): ClaudeProfileInstanceConfig {
   return claudeProfileInstanceConfigSchema.parse(value ?? {});
 }
+
+/**
+ * Payload for the `setClaudeProfileEnvironment` main-local IPC. The renderer
+ * sends the full desired environment (plaintext for freshly-entered values,
+ * already-sealed `lc-safe:` blobs round-tripped for unchanged secrets); the
+ * main process seals any `sensitive` plaintext before writing settings.json.
+ */
+export const setClaudeProfileEnvironmentPayloadSchema = z.object({
+  instanceId: agentInstanceIdSchema,
+  environment: z.record(z.string().min(1).max(200), agentInstanceEnvVarSchema),
+});
+export type SetClaudeProfileEnvironmentPayload = z.infer<
+  typeof setClaudeProfileEnvironmentPayloadSchema
+>;
 
 export function claudeProfileKind(instanceId: string): AgentDriverKind {
   return `${CLAUDE_PROFILE_KIND_PREFIX}${instanceId}` as AgentDriverKind;

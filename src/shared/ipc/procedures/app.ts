@@ -1,14 +1,20 @@
 import { z } from "zod";
 import type { ProjectLocation } from "../../contracts";
-import type { KeybindingsConfig } from "../../keybindings";
+import {
+  type KeybindingsConfig,
+  type KeybindingsFile,
+  keybindingsFileSchema,
+} from "../../keybindings";
 import { remoteGitSummariesSchema, type RemoteAccessPairingInfo } from "../../remote";
 import { defineIpcProcedure, defineNoArgProcedure, definePayloadProcedure } from "../core";
 import {
+  copyImageToClipboardPayloadSchema,
   createProjectDirectoryPayloadSchema,
   openExternalPayloadSchema,
   pickFilesOptionsSchema,
   saveClipboardImagePayloadSchema,
   saveHandoffContextPayloadSchema,
+  saveImageFilePayloadSchema,
   type CreateProjectDirectoryResult,
 } from "../schemas";
 
@@ -45,6 +51,16 @@ export const appProcedures = {
     string,
     "main-local"
   >("saveHandoffContext", "main-local", saveHandoffContextPayloadSchema),
+  saveImageFile: definePayloadProcedure<
+    z.infer<typeof saveImageFilePayloadSchema>,
+    string | null,
+    "main-local"
+  >("saveImageFile", "main-local", saveImageFilePayloadSchema),
+  copyImageToClipboard: definePayloadProcedure<
+    z.infer<typeof copyImageToClipboardPayloadSchema>,
+    boolean,
+    "main-local"
+  >("copyImageToClipboard", "main-local", copyImageToClipboardPayloadSchema),
   createProjectDirectory: definePayloadProcedure<
     z.infer<typeof createProjectDirectoryPayloadSchema>,
     CreateProjectDirectoryResult,
@@ -68,6 +84,7 @@ export const appProcedures = {
     "main-local",
   ),
   focusWindow: defineNoArgProcedure<void, "main-local">("focusWindow", "main-local"),
+  relaunchApp: defineNoArgProcedure<void, "main-local">("relaunchApp", "main-local"),
   getHomeScopeLocation: defineNoArgProcedure<ProjectLocation, "main-local">(
     "getHomeScopeLocation",
     "main-local",
@@ -75,6 +92,11 @@ export const appProcedures = {
   getKeybindings: defineNoArgProcedure<KeybindingsConfig, "main-local">(
     "getKeybindings",
     "main-local",
+  ),
+  setKeybindings: definePayloadProcedure<KeybindingsFile, KeybindingsConfig, "main-local">(
+    "setKeybindings",
+    "main-local",
+    keybindingsFileSchema,
   ),
   getRemoteAccessPairing: defineNoArgProcedure<RemoteAccessPairingInfo, "main-local">(
     "getRemoteAccessPairing",

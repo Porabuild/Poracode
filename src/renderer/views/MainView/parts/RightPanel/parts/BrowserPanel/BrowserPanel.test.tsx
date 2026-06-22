@@ -1,5 +1,6 @@
-import { fireEvent, render } from "@testing-library/react";
+import { fireEvent } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import { useBrowserPanelStore } from "@/renderer/state/browserPanelStore";
 import { usePanelStore } from "@/renderer/state/panelStore";
 import { BrowserPanel } from "./BrowserPanel";
@@ -139,5 +140,11 @@ describe("BrowserPanel", () => {
 
     fireEvent.keyDown(panel, { key: "R", ctrlKey: true, shiftKey: true });
     expect(bridge.browserHardReload).toHaveBeenCalledWith({ tabId: "tab-1" });
+
+    fireEvent.keyDown(panel, { key: "F5" });
+    expect(bridge.browserReload).toHaveBeenCalledTimes(2);
+
+    fireEvent.keyDown(panel, { key: "F5", shiftKey: true });
+    expect(bridge.browserHardReload).toHaveBeenCalledTimes(2);
   });
 });

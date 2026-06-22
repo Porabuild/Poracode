@@ -64,6 +64,48 @@ minimumReleaseAgeExclude:
   - "react-dom@19.2.7"
   - "@types/react@19.2.16"
   - "lucide-react@1.17.0"
+  # esbuild 0.28.1 is the security patch for GHSA-gv7w-rqvm-qjhr (RCE via
+  # NPM_CONFIG_REGISTRY). Adopted immediately via the override below; it and its
+  # platform binaries were published too recently to clear the 7-day guard.
+  - "esbuild@0.28.1"
+  - "@esbuild/aix-ppc64@0.28.1"
+  - "@esbuild/android-arm@0.28.1"
+  - "@esbuild/android-arm64@0.28.1"
+  - "@esbuild/android-x64@0.28.1"
+  - "@esbuild/darwin-arm64@0.28.1"
+  - "@esbuild/darwin-x64@0.28.1"
+  - "@esbuild/freebsd-arm64@0.28.1"
+  - "@esbuild/freebsd-x64@0.28.1"
+  - "@esbuild/linux-arm@0.28.1"
+  - "@esbuild/linux-arm64@0.28.1"
+  - "@esbuild/linux-ia32@0.28.1"
+  - "@esbuild/linux-loong64@0.28.1"
+  - "@esbuild/linux-mips64el@0.28.1"
+  - "@esbuild/linux-ppc64@0.28.1"
+  - "@esbuild/linux-riscv64@0.28.1"
+  - "@esbuild/linux-s390x@0.28.1"
+  - "@esbuild/linux-x64@0.28.1"
+  - "@esbuild/netbsd-arm64@0.28.1"
+  - "@esbuild/netbsd-x64@0.28.1"
+  - "@esbuild/openbsd-arm64@0.28.1"
+  - "@esbuild/openbsd-x64@0.28.1"
+  - "@esbuild/openharmony-arm64@0.28.1"
+  - "@esbuild/sunos-x64@0.28.1"
+  - "@esbuild/win32-arm64@0.28.1"
+  - "@esbuild/win32-ia32@0.28.1"
+  - "@esbuild/win32-x64@0.28.1"
+  # 2026-06-15 Dependabot advisory batch: security patches published within the
+  # 7-day guard window, adopted immediately (alerts #88-#102).
+  - "@opentelemetry/core@2.8.0"
+  - "protobufjs@7.6.4"
+  - "form-data@4.0.6"
+  # 2026-06-18 Dependabot advisory batch: security patches published within the
+  # 7-day guard window, adopted immediately (alerts #129-#131).
+  - "dompurify@3.4.11"
+  - "undici@6.27.0 || 7.28.0"
+  # 2026-06-16 Dependabot advisory batch: hono security patch published within
+  # the 7-day guard window, adopted immediately (alerts #124-#128).
+  - "hono@4.12.25"
 
 # Supply-chain guard: refuse to install any package version published less
 # than this many minutes ago. 7 days catches the typical window in which
@@ -73,10 +115,40 @@ minimumReleaseAgeExclude:
 minimumReleaseAge: 10080
 
 # Force-bump vulnerable transitive dependencies flagged by GitHub Dependabot.
-# These selectors only rewrite versions that fall inside the advisory range,
-# leaving already-patched copies (e.g. dompurify 3.4.5) untouched.
+# Each selector is scoped to the affected major so it only rewrites versions
+# inside the advisory range and never force-upgrades a different major line.
 overrides:
   "axios@<1.16.0": "^1.16.0"
   "tmp@<0.2.6": "^0.2.6"
   "brace-expansion@>=5.0.0 <5.0.6": "^5.0.6"
-  "dompurify@<3.3.2": "^3.3.2"
+  "esbuild@<0.28.1": "0.28.1"
+  "shell-quote@<1.8.4": "^1.8.4"
+  "cross-spawn@<6.0.6": "6.0.6"
+  "@xmldom/xmldom@<0.8.13": "0.8.13"
+  # 2026-06-18 advisory batch.
+  "dompurify@>=3.0.0 <3.4.11": "3.4.11"
+  # 2026-06-15 advisory batch (alerts #88-#102).
+  "@opentelemetry/core@>=2.0.0 <2.8.0": "2.8.0"
+  "protobufjs@>=7.0.0 <7.6.4": "7.6.4"
+  "form-data@>=4.0.0 <4.0.6": "4.0.6"
+  "tar@>=7.0.0 <7.5.16": "^7.5.16"
+  "vite@>=8.0.0 <8.0.16": "^8.0.16"
+  "js-yaml@>=4.0.0 <4.2.0": "^4.2.0"
+  "@babel/core@>=7.0.0 <7.29.6": "^7.29.6"
+  "postcss@<8.5.10": "8.5.10"
+  "mermaid@>=11.0.0-alpha.1 <=11.14.0": "11.15.0"
+  "joi@>=18.0.0 <18.2.1": "18.2.1"
+  # 2026-06-18 advisory batch.
+  "undici@>=6.0.0 <6.27.0": "6.27.0"
+  "undici@>=7.0.0 <7.28.0": "7.28.0"
+  # 2026-06-16 advisory batch.
+  # hono CORS wildcard-with-credentials + path traversal etc. (#124-#128).
+  "hono@<4.12.25": "4.12.25"
+  # got UNIX-socket redirect (#103); only the dev react-devtools update-notifier
+  # chain pulls the vulnerable 6.x. Pin to the last CJS line (11.x), since
+  # package-json@4 `require()`s got and got@12+ is ESM-only.
+  "got@<11.8.5": "11.8.6"
+  # electron use-after-free / injection batch (#106-#123). The vulnerable 23.x
+  # comes only from react-devtools (dev-only standalone inspector); 23.x has no
+  # in-line patch (#104), so dedupe it onto the app's own electron major.
+  "electron@>=23.0.0 <39.8.5": "41.7.0"

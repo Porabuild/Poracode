@@ -1,6 +1,6 @@
 import {
   BROWSER_MCP_SERVER_NAME,
-  resolveBrowserMcpHttpConfig,
+  resolveOrFallbackBrowserMcpConfig,
   type BrowserMcpHttpConfig,
   type BrowserMcpLocation,
 } from "@/supervisor/agents/browserMcp";
@@ -24,8 +24,7 @@ export function buildGeminiBrowserMcpServers(
   location: BrowserMcpLocation,
   browserMcp?: BrowserMcpHttpConfig,
 ): GeminiMcpServers | undefined {
-  if (location.kind === "wsl" && !browserMcp) return undefined;
-  const cfg = browserMcp ?? resolveBrowserMcpHttpConfig(location);
+  const cfg = resolveOrFallbackBrowserMcpConfig(location, browserMcp);
   if (!cfg) return undefined;
   return {
     [BROWSER_MCP_SERVER_NAME]: {

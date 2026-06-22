@@ -1,4 +1,5 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import { describe, expect, it, vi } from "vitest";
 import { BranchFooterActions } from "./BranchFooterActions";
 import type { BranchSelection } from "./types";

@@ -33,6 +33,18 @@ export const saveHandoffContextPayloadSchema = z.object({
   content: z.string(),
 });
 
+export const saveImageFilePayloadSchema = z.object({
+  /** Raw image bytes to write to the user-chosen path. */
+  data: z.instanceof(Uint8Array),
+  /** Default file name shown in the Save dialog (e.g. `"generated-image.png"`). */
+  suggestedName: z.string().min(1),
+});
+
+export const copyImageToClipboardPayloadSchema = z.object({
+  /** Raw image bytes to place on the OS clipboard as an image. */
+  data: z.instanceof(Uint8Array),
+});
+
 export const createProjectDirectoryPayloadSchema = z.object({
   /** Absolute parent directory (native path, or a `\\wsl...` UNC path). */
   parent: z.string().min(1),
@@ -145,5 +157,28 @@ export const openExternalPayloadSchema = z.string().min(1);
 export const windowChromePayloadSchema = z.object({
   backgroundColor: z.string(),
   symbolColor: z.string(),
+  /**
+   * Whether the translucent ("liquid glass") sidebar material should be active.
+   * The main process toggles it live (Windows acrylic; macOS vibrancy is created
+   * with the window and revealed via CSS). Optional for callers predating it.
+   */
+  materialEnabled: z.boolean().optional(),
+  /**
+   * Resolved app appearance. When a native translucency material is active the
+   * main process mirrors this onto `nativeTheme.themeSource` so the vibrancy /
+   * acrylic material renders in the matching light/dark variant instead of the
+   * OS default. Optional for callers that predate the toggle.
+   */
+  appearance: z.enum(["light", "dark"]).optional(),
 });
 export type WindowChromePayload = z.infer<typeof windowChromePayloadSchema>;
+
+/**
+ * Result of {@link windowChromePayloadSchema}: whether the OS supports a native
+ * blur material (macOS vibrancy / Windows 11 acrylic). The renderer uses it to
+ * decide whether to reveal the real material (transparent-window CSS) or the
+ * pure-CSS fallback (Linux / Windows 10). The material itself is toggled live.
+ */
+export interface WindowChromeResult {
+  nativeCapable: boolean;
+}

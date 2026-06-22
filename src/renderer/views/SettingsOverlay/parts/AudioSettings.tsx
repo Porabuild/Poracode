@@ -1,10 +1,14 @@
 import { startTransition, useEffect, useRef, useState } from "react";
 import { Switch, toast } from "@heroui/react";
+import { msg } from "@lingui/core/macro";
+import { Trans, useLingui } from "@lingui/react/macro";
+import type { I18n } from "@lingui/core";
 import { Button, Select } from "@/renderer/components/common";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { friendlyError } from "@/shared/messages";
 import type { AudioTranscriptionModel } from "@/shared/settings";
 import { SettingsPage } from "./SettingsForm";
+import { useLocalizedOptions } from "./settingsOptions";
 
 const SYSTEM_MICROPHONE_ID = "system-default";
 
@@ -29,8 +33,8 @@ const languageOptions = [
 ] as const;
 
 const modelOptions = [
-  { id: "tiny", label: "Fastest (Whisper tiny)" },
-  { id: "base", label: "Better (Whisper base)" },
+  { id: "tiny", label: msg`Fastest (Whisper tiny)` },
+  { id: "base", label: msg`Better (Whisper base)` },
 ] as const;
 
 interface MicrophoneTest {
@@ -51,20 +55,31 @@ function createAudioContext(): AudioContext {
   return new AudioContextCtor();
 }
 
-function buildMicrophoneOptions(devices: MediaDeviceInfo[]) {
+function buildMicrophoneOptions(devices: MediaDeviceInfo[], t: I18n["_"]) {
   const microphones = devices.filter((device) => device.kind === "audioinput");
   return [
-    { id: SYSTEM_MICROPHONE_ID, label: "System default" },
-    ...microphones.map((device, index) => ({
-      id: device.deviceId,
-      label: device.label || `Microphone ${index + 1}`,
-    })),
+    { id: SYSTEM_MICROPHONE_ID, label: t(msg`System default`) },
+    ...microphones.map((device, index) => {
+      const fallbackNumber = index + 1;
+      return {
+        id: device.deviceId,
+        label:
+          device.label ||
+          t(
+            msg({
+              message: `Microphone ${fallbackNumber}`,
+              comment: "Fallback microphone device name with index",
+            }),
+          ),
+      };
+    }),
   ];
 }
 
 export function AudioSettings() {
+  const { t, i18n } = useLingui();
   const [microphoneOptions, setMicrophoneOptions] = useState([
-    { id: SYSTEM_MICROPHONE_ID, label: "System default" },
+    { id: SYSTEM_MICROPHONE_ID, label: t`System default` },
   ]);
   const microphoneDeviceId = useSharedSettings((s) => s.audio.microphoneDeviceId);
   const showVoiceInputButton = useSharedSettings((s) => s.audio.showVoiceInputButton);
@@ -72,6 +87,8 @@ export function AudioSettings() {
   const transcriptionModel = useSharedSettings((s) => s.audio.transcriptionModel);
   const useWebGpu = useSharedSettings((s) => s.audio.useWebGpu);
   const setAudioSetting = useSharedSettings((s) => s.setAudioSetting);
+
+  const modelOpts = useLocalizedOptions(modelOptions);
 
   useEffect(() => {
     const mediaDevices = navigator.mediaDevices;
@@ -81,7 +98,7 @@ export function AudioSettings() {
     const refresh = () => {
       void mediaDevices.enumerateDevices().then((devices) => {
         if (!disposed) {
-          setMicrophoneOptions(buildMicrophoneOptions(devices));
+          setMicrophoneOptions(buildMicrophoneOptions(devices, i18n._.bind(i18n)));
         }
       });
     };
@@ -92,13 +109,14 @@ export function AudioSettings() {
       disposed = true;
       mediaDevices.removeEventListener("devicechange", refresh);
     };
-  }, []);
+  }, [i18n]);
 
   return (
-    <SettingsPage title="Audio" bodyClassName="space-y-5">
+    <SettingsPage title={t`Audio`} bodyClassName="space-y-5">
       <SettingRow
-        title="Show voice input button"
-        description="Show the microphone button in the composer."
+        anchorId="audio.showVoiceInputButton"
+        title={t`Show voice input button`}
+        description={<Trans>Show the microphone button in the composer.</Trans>}
       >
         <Switch
           isSelected={showVoiceInputButton}
@@ -113,9 +131,13 @@ export function AudioSettings() {
           </Switch.Control>
         </Switch>
       </SettingRow>
-      <SettingRow title="Microphone" description="Device used by the composer voice input button.">
+      <SettingRow
+        anchorId="audio.microphoneDevice"
+        title={t`Microphone`}
+        description={<Trans>Device used by the composer voice input button.</Trans>}
+      >
         <Select
-          aria-label="Microphone"
+          aria-label={t`Microphone`}
           className="w-[280px] shrink-0"
           options={microphoneOptions}
           value={microphoneDeviceId || SYSTEM_MICROPHONE_ID}
@@ -127,17 +149,23 @@ export function AudioSettings() {
         />
       </SettingRow>
       <SettingRow
-        title="Test microphone"
-        description="Check the live input level from the selected device."
+        anchorId="audio.testMicrophone"
+        title={t`Test microphone`}
+        description={<Trans>Check the live input level from the selected device.</Trans>}
       >
         <MicrophoneTestBar microphoneDeviceId={microphoneDeviceId} />
       </SettingRow>
       <SettingRow
-        title="Voice input language"
-        description="Language the speech model should expect when transcribing composer dictation."
+        anchorId="audio.voiceInputLanguage"
+        title={t`Voice input language`}
+        description={
+          <Trans>
+            Language the speech model should expect when transcribing composer dictation.
+          </Trans>
+        }
       >
         <Select
-          aria-label="Voice input language"
+          aria-label={t`Voice input language`}
           className="w-[280px] shrink-0"
           options={languageOptions}
           value={transcriptionLanguage}
@@ -149,13 +177,14 @@ export function AudioSettings() {
         />
       </SettingRow>
       <SettingRow
-        title="Voice input model"
-        description="Fastest uses Whisper tiny; Better uses Whisper base."
+        anchorId="audio.voiceInputModel"
+        title={t`Voice input model`}
+        description={<Trans>Fastest uses Whisper tiny; Better uses Whisper base.</Trans>}
       >
         <Select
-          aria-label="Voice input model"
+          aria-label={t`Voice input model`}
           className="w-[280px] shrink-0"
-          options={modelOptions}
+          options={modelOpts}
           value={transcriptionModel}
           onChange={(value) => {
             startTransition(() => {
@@ -165,8 +194,9 @@ export function AudioSettings() {
         />
       </SettingRow>
       <SettingRow
-        title="Use WebGPU acceleration"
-        description="Run local transcription on the GPU when available."
+        anchorId="audio.useWebGpu"
+        title={t`Use WebGPU acceleration`}
+        description={<Trans>Run local transcription on the GPU when available.</Trans>}
       >
         <Switch
           isSelected={useWebGpu}
@@ -187,6 +217,7 @@ export function AudioSettings() {
 
 function MicrophoneTestBar(props: { microphoneDeviceId: string }) {
   const { microphoneDeviceId } = props;
+  const { t } = useLingui();
   const [isStarting, setIsStarting] = useState(false);
   const [isTesting, setIsTesting] = useState(false);
   const [level, setLevel] = useState(0);
@@ -208,7 +239,7 @@ function MicrophoneTestBar(props: { microphoneDeviceId: string }) {
 
   async function startTest() {
     if (!navigator.mediaDevices?.getUserMedia) {
-      toast.danger("Microphone testing is not available in this environment.");
+      toast.danger(t`Microphone testing is not available in this environment.`);
       return;
     }
 
@@ -274,15 +305,28 @@ function MicrophoneTestBar(props: { microphoneDeviceId: string }) {
         size="sm"
         variant={isTesting ? "danger" : "secondary"}
       >
-        {isTesting ? "Stop" : isStarting ? "Starting" : "Start"}
+        {isTesting
+          ? t({ message: "Stop", comment: "Button: stop the microphone level test" })
+          : isStarting
+            ? t({
+                message: "Starting",
+                comment: "Button label while the microphone test is starting",
+              })
+            : t({ message: "Start", comment: "Button: start the microphone level test" })}
       </Button>
       <div className="min-w-0 flex-1">
         <div className="mb-1 flex items-center justify-between gap-2 text-[11px] text-muted">
-          <span>Input level</span>
-          <span className="tabular-nums">{isTesting ? `${Math.round(level * 100)}%` : "Idle"}</span>
+          <span>
+            <Trans>Input level</Trans>
+          </span>
+          <span className="tabular-nums">
+            {isTesting
+              ? `${Math.round(level * 100)}%`
+              : t({ message: "Idle", comment: "Microphone input level when not testing" })}
+          </span>
         </div>
         <div
-          aria-label="Microphone input level"
+          aria-label={t`Microphone input level`}
           aria-valuemax={100}
           aria-valuemin={0}
           aria-valuenow={Math.round(level * 100)}
@@ -303,9 +347,14 @@ function SettingRow(props: {
   title: string;
   description: React.ReactNode;
   children: React.ReactNode;
+  /** Search anchor — see the shared SettingRow in ./SettingsForm. */
+  anchorId?: string;
 }) {
   return (
-    <div className="flex items-start justify-between gap-6">
+    <div
+      {...(props.anchorId ? { id: props.anchorId, "data-settings-anchor": props.anchorId } : {})}
+      className={`flex items-start justify-between gap-6 ${props.anchorId ? "scroll-mt-4" : ""}`}
+    >
       <div className="min-w-0">
         <p className="text-sm font-medium text-foreground">{props.title}</p>
         <p className="text-xs text-muted">{props.description}</p>

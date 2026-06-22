@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useLingui } from "@lingui/react/macro";
 import type { ProjectLocation } from "@/shared/contracts";
 import { readBridge } from "@/renderer/bridge";
 import { resolveAbsolutePath as resolveAbsolutePathForLocation } from "@/renderer/utils/resolveAbsolutePath";
@@ -65,18 +66,19 @@ interface FileContentPlaceholderProps {
 }
 
 export function FileContentPlaceholder({ state, reason }: FileContentPlaceholderProps) {
+  const { t } = useLingui();
   const message =
     state === "loading" || state === "idle"
-      ? "Loading file…"
+      ? t`Loading file…`
       : state === "missing"
-        ? "File no longer exists on disk."
+        ? t`File no longer exists on disk.`
         : state === "binary"
-          ? "Binary file — preview unavailable."
+          ? t`Binary file — preview unavailable.`
           : state === "too_large"
-            ? "File is too large to preview."
+            ? t`File is too large to preview.`
             : state === "unsupported"
-              ? "File uses an unsupported encoding."
-              : (reason ?? "Could not read file.");
+              ? t`File uses an unsupported encoding.`
+              : (reason ?? t`Could not read file.`);
   return <div className="font-mono text-[color:var(--muted)]/80 text-xs">{message}</div>;
 }
 

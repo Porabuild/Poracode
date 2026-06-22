@@ -1,5 +1,4 @@
-import { homedir } from "node:os";
-import { join, normalize, posix as posixPath, win32 as win32Path } from "node:path";
+import { normalize, posix as posixPath, win32 as win32Path } from "node:path";
 import {
   type GitAddWorktreeResult,
   type GitBranchListResult,
@@ -10,7 +9,6 @@ import {
   type ProjectLocation,
 } from "@/shared/contracts";
 import { msg } from "@/shared/messages";
-import { resolveLightcodePaths } from "@/shared/lightcodePaths";
 import { buildWorktreeLocation } from "@/shared/worktree";
 import {
   computeDefaultWorktreePath,
@@ -20,9 +18,23 @@ import {
   GIT_NETWORK_TIMEOUT,
   GIT_STATUS_TIMEOUT,
   normalizeWorktreePath,
+  resolveBuiltInWorktreeRoot,
+  type WorktreePathOptions,
 } from "./exec";
 import { copyIgnoredFilesIntoWorktree } from "./copyIgnoredFiles";
 import { parseStatusPorcelainV2 } from "./statusService";
+
+function trimTrailingSeparators(path: string): string {
+  const trimmed = path.replace(/[\\/]+$/, "");
+  return trimmed || path;
+}
+
+function isPathUnderRoot(path: string, root: string): boolean {
+  if (path === root) return true;
+  if (!path.startsWith(root)) return false;
+  const next = path.charAt(root.length);
+  return next === "/" || next === "\\";
+}
 
 /** Argv for `git branch` to feed {@link parseBranchListOutput}. */
 export function buildBranchListArgs(includeRemote: boolean): string[] {
@@ -165,9 +177,11 @@ export class GitWorktreeService {
     copyIgnoredPatterns?: string[],
     transferUncommitted?: boolean,
     keepChangesInSource?: boolean,
+    worktreePlacement?: WorktreePathOptions,
   ): Promise<GitAddWorktreeResult> {
     const resolvedPath =
-      path ?? (branch ? await computeDefaultWorktreePath(location, branch) : undefined);
+      path ??
+      (branch ? await computeDefaultWorktreePath(location, branch, worktreePlacement) : undefined);
     if (!resolvedPath) {
       throw new Error(msg("git.worktree.noBranch"));
     }
@@ -188,9 +202,18 @@ export class GitWorktreeService {
         )
       : undefined;
 
+    // A bare remote-tracking branch name (e.g. "feature/x" when only
+    // `origin/feature/x` exists locally) is not a valid object on its own, so
+    // `git worktree add -b <new> <path> feature/x` fails with "not a valid
+    // object name". Qualify it with its remote before forking.
+    const resolvedStartPoint =
+      startPoint && createBranch
+        ? await this.resolveStartPointRef(location, startPoint)
+        : startPoint;
+
     const args = ["worktree", "add"];
     if (createBranch && branch) {
-      args.push("-b", branch, resolvedPath, ...(startPoint ? [startPoint] : []));
+      args.push("-b", branch, resolvedPath, ...(resolvedStartPoint ? [resolvedStartPoint] : []));
     } else {
       args.push(resolvedPath, ...(branch ? [branch] : []));
     }
@@ -221,7 +244,9 @@ export class GitWorktreeService {
     }
 
     if (branch && createBranch) {
-      const sourceBranch = startPoint ?? (await this.getCurrentBranch(location));
+      // Record the resolved (qualified) start-point so the diff base matches
+      // what we actually forked from — e.g. "origin/feature/x", not "feature/x".
+      const sourceBranch = resolvedStartPoint ?? (await this.getCurrentBranch(location));
       if (sourceBranch && sourceBranch !== branch) {
         await this.writeWorktreeSourceBranch(location, branch, sourceBranch);
       }
@@ -283,7 +308,12 @@ export class GitWorktreeService {
     try {
       await execGit(location, removeArgs);
       if (branchToDelete) {
-        await this.deleteBranch(location, branchToDelete, force).catch(() => undefined);
+        await this.deleteBranch(location, branchToDelete, force).catch((error) => {
+          console.warn(
+            `[git] failed to delete branch ${branchToDelete} after worktree removal:`,
+            error,
+          );
+        });
       }
     } catch (error) {
       if (!force || registeredWorktree?.isMain) {
@@ -297,7 +327,12 @@ export class GitWorktreeService {
         throw error;
       }
       if (branchToDelete) {
-        await this.deleteBranch(location, branchToDelete, force).catch(() => undefined);
+        await this.deleteBranch(location, branchToDelete, force).catch((branchErr) => {
+          console.warn(
+            `[git] failed to delete branch ${branchToDelete} after worktree removal:`,
+            branchErr,
+          );
+        });
       }
     }
   }
@@ -309,7 +344,9 @@ export class GitWorktreeService {
   ): Promise<void> {
     await execGit(location, ["push", remote, "--delete", branch], { timeout: GIT_NETWORK_TIMEOUT });
     await execGit(location, ["update-ref", "-d", `refs/remotes/${remote}/${branch}`]).catch(
-      () => undefined,
+      (error) => {
+        console.warn(`[git] failed to delete local ref refs/remotes/${remote}/${branch}:`, error);
+      },
     );
   }
 
@@ -373,6 +410,53 @@ export class GitWorktreeService {
     return { sourceBranch, commitsAhead, sourceAhead };
   }
 
+  /**
+   * Resolve a worktree start-point into a ref `git worktree add` can fork from.
+   * A bare remote-tracking branch name (e.g. "feature/x" when only
+   * `origin/feature/x` exists) is not a valid object on its own, so we qualify
+   * it with its remote. Local branches, tags, SHAs and already-qualified remote
+   * refs resolve directly and pass through unchanged. When the name lives on
+   * several remotes we prefer `origin` (matching this module's origin-centric
+   * defaults — fetch/resolveFetchedSourceRef); a genuinely origin-less clash
+   * stays ambiguous, so we leave it for git to report rather than guessing.
+   */
+  private async resolveStartPointRef(
+    location: ProjectLocation,
+    startPoint: string,
+  ): Promise<string> {
+    if (await this.refResolves(location, startPoint)) return startPoint;
+
+    let remotesRaw: string;
+    try {
+      remotesRaw = await execGit(location, ["remote"], { timeout: GIT_STATUS_TIMEOUT });
+    } catch {
+      return startPoint;
+    }
+    const remotes = remotesRaw
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean);
+    const matchingRemotes: string[] = [];
+    for (const remote of remotes) {
+      if (await this.refResolves(location, `refs/remotes/${remote}/${startPoint}`)) {
+        matchingRemotes.push(remote);
+      }
+    }
+    if (matchingRemotes.length === 1) return `${matchingRemotes[0]}/${startPoint}`;
+    if (matchingRemotes.includes("origin")) return `origin/${startPoint}`;
+    return startPoint;
+  }
+
+  /** True when `ref` resolves to an object in this repository. */
+  private async refResolves(location: ProjectLocation, ref: string): Promise<boolean> {
+    try {
+      await execGit(location, ["rev-parse", "--verify", "--quiet", ref]);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
   async resolveFetchedSourceRef(location: ProjectLocation, sourceBranch: string): Promise<string> {
     await this.fetch(location, "origin", true);
     if (sourceBranch.startsWith("origin/")) return sourceBranch;
@@ -392,25 +476,50 @@ export class GitWorktreeService {
     sourceBranch: string,
   ): Promise<void> {
     await execGit(location, ["config", `branch.${branch}.lightcodeSource`, sourceBranch]).catch(
-      () => undefined,
+      (error) => {
+        console.warn(`[git] failed to write lightcodeSource config for branch ${branch}:`, error);
+      },
     );
   }
 
-  async pruneWorktrees(location: ProjectLocation, activeWorktreePaths: string[]): Promise<void> {
+  /** Re-point linked worktrees after the main repo (or a worktree) moved on disk. */
+  async repairWorktrees(location: ProjectLocation): Promise<number> {
+    await execGit(location, ["worktree", "repair"]);
+    const { worktrees } = await this.listWorktrees(location);
+    return worktrees.filter((worktree) => !worktree.isMain).length;
+  }
+
+  /**
+   * Remove orphaned Lightcode-managed worktrees (registered but not in the
+   * active set). A worktree counts as managed only when it lives under one of
+   * `managedRoots` — the resolved global root, the project-relative root, and the
+   * legacy default. Per-project *custom* bases are intentionally excluded so we
+   * never auto-delete a user-chosen directory.
+   */
+  async pruneWorktrees(
+    location: ProjectLocation,
+    activeWorktreePaths: string[],
+    managedRoots?: string[],
+  ): Promise<void> {
     await execGit(location, ["worktree", "prune"]);
     const { worktrees } = await this.listWorktrees(location);
-    const managedBase = resolveLightcodePaths(join(homedir(), ".lightcode")).worktreesDir;
-    const normalizedManagedBase = normalize(managedBase).toLowerCase();
+    const roots = (
+      managedRoots && managedRoots.length > 0
+        ? managedRoots
+        : [await resolveBuiltInWorktreeRoot(location)]
+    ).map((root) => trimTrailingSeparators(normalize(root).toLowerCase()));
 
     for (const worktree of worktrees) {
       if (worktree.isMain) continue;
-      const normalizedPath = normalize(worktree.path);
-      const isManaged = normalizedPath.toLowerCase().startsWith(normalizedManagedBase);
+      const normalizedPath = normalize(worktree.path).toLowerCase();
+      const isManaged = roots.some((root) => isPathUnderRoot(normalizedPath, root));
       const isActive = activeWorktreePaths.some(
-        (path) => normalize(path).toLowerCase() === normalizedPath.toLowerCase(),
+        (path) => normalize(path).toLowerCase() === normalizedPath,
       );
       if (isManaged && !isActive) {
-        await this.removeWorktree(location, worktree.path, true).catch(() => undefined);
+        await this.removeWorktree(location, worktree.path, true).catch((error) => {
+          console.warn(`[git] failed to remove stale worktree ${worktree.path}:`, error);
+        });
       }
     }
   }
@@ -427,7 +536,9 @@ export class GitWorktreeService {
       if (!this.shouldRetryBranchDeleteAfterPrune(error)) {
         throw error;
       }
-      await execGit(location, ["worktree", "prune"]).catch(() => undefined);
+      await execGit(location, ["worktree", "prune"]).catch((pruneErr) => {
+        console.warn("[git] worktree prune before branch delete retry failed:", pruneErr);
+      });
       await execGit(location, args);
     }
   }

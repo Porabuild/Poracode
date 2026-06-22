@@ -1,4 +1,5 @@
 import { Dropdown, Label } from "@heroui/react";
+import { Trans, useLingui } from "@lingui/react/macro";
 import { getFolderIconUrl } from "@/renderer/components/common/fileIcons";
 import { getBasename } from "@/shared/pathUtils";
 
@@ -20,6 +21,7 @@ export function InlineFolderPathChip({
   onRevealInTree,
   onShowInExplorer,
 }: InlineFolderPathChipProps) {
+  const { t } = useLingui();
   const basename = getBasename(path);
   const iconUrl = getFolderIconUrl(basename);
 
@@ -36,11 +38,15 @@ export function InlineFolderPathChip({
       </button>
       <Dropdown.Popover className="min-w-[220px]">
         <Dropdown.Menu onAction={(key) => handleAction(key as FolderAction)}>
-          <Dropdown.Item id="tree" textValue="Reveal in file tree">
-            <Label>Reveal in file tree</Label>
+          <Dropdown.Item id="tree" textValue={t`Reveal in file tree`}>
+            <Label>
+              <Trans>Reveal in file tree</Trans>
+            </Label>
           </Dropdown.Item>
-          <Dropdown.Item id="explorer" textValue="Show in file explorer">
-            <Label>Show in file explorer</Label>
+          <Dropdown.Item id="explorer" textValue={t`Show in file explorer`}>
+            <Label>
+              <Trans>Show in file explorer</Trans>
+            </Label>
           </Dropdown.Item>
         </Dropdown.Menu>
       </Dropdown.Popover>

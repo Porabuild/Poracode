@@ -2,6 +2,8 @@
  * Derives a short, human-facing title for verbose shell wrappers (e.g. PowerShell
  * `-Command '…'`, leading `cd … &&`, or `-c "…"`), used in chat command rows.
  */
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/renderer/i18n/i18n";
 
 const MAX_TITLE_LEN = 120;
 
@@ -67,11 +69,25 @@ function collapseWhitespace(s: string): string {
 function extractPowerShellQuotedCommand(s: string): string | null {
   const re = /-Command\s+'((?:''|[^'])*)'/i;
   const m = re.exec(s);
-  if (m?.[1] != null) return m[1]!.replace(/''/g, "'");
+  if (m?.[1] != null) {
+    const next = s[m.index + m[0].length];
+    if (next === "'" || next === '"') {
+      const joined = extractPowerShellCommandShellWord(s);
+      if (joined) return joined;
+    }
+    return m[1]!.replace(/''/g, "'");
+  }
   const reDq = /-Command\s+"((?:\\.|[^"\\])*)"/i;
   const m2 = reDq.exec(s);
   if (m2?.[1] != null) return m2[1]!.replace(/\\"/g, '"').replace(/\\n/g, "\n");
   return null;
+}
+
+function extractPowerShellCommandShellWord(s: string): string | null {
+  const words = splitShellWords(s);
+  const commandIndex = words.findIndex((word) => word.toLowerCase() === "-command");
+  const command = commandIndex >= 0 ? words[commandIndex + 1] : undefined;
+  return command && command.trim().length > 0 ? command : null;
 }
 
 /** `-c '…'` / `-c "…"` (pwsh/bash). */
@@ -127,7 +143,17 @@ export function humanIntentTitle(fullCommandLine: string): string {
 export function commandIntentDisplay(fullCommandLine: string): CommandIntentDisplay {
   const command = extractShellCommand(fullCommandLine);
   const short = finalizeTitle(command);
-  return intentFromSummarizedCommand(command) ?? { title: `Run: ${short}`, kind: "command" };
+  return (
+    intentFromSummarizedCommand(command) ?? {
+      title: `${i18n._(msg`Run`)}: ${short}`,
+      kind: "command",
+    }
+  );
+}
+
+/** Localized "View" / "View <line-range>" display prefix (line range is data). */
+function viewPrefix(lines?: string): string {
+  return lines ? `${i18n._(msg`View`)} ${formatLineRange(lines)}: ` : `${i18n._(msg`View`)}: `;
 }
 
 function intentFromSummarizedCommand(t: string): CommandIntentDisplay | null {
@@ -135,9 +161,7 @@ function intentFromSummarizedCommand(t: string): CommandIntentDisplay | null {
 
   const powerShellFileView = parsePowerShellGetContentView(trimmed);
   if (powerShellFileView) {
-    const prefix = powerShellFileView.lines
-      ? `View ${formatLineRange(powerShellFileView.lines)}: `
-      : "View: ";
+    const prefix = viewPrefix(powerShellFileView.lines);
     const label = powerShellFileView.lines
       ? powerShellFileView.path
       : basenameFromPath(powerShellFileView.path);
@@ -151,7 +175,7 @@ function intentFromSummarizedCommand(t: string): CommandIntentDisplay | null {
   const typeCmd = /^type\s+(.+)$/i.exec(trimmed);
   if (typeCmd) {
     const p = typeCmd[1]!.trim().replace(/^['"]|['"]$/g, "");
-    const prefix = "View: ";
+    const prefix = viewPrefix();
     return {
       title: `${prefix}${basenameFromPath(p)}`,
       parts: { prefix, path: p, filePath: true },
@@ -161,7 +185,7 @@ function intentFromSummarizedCommand(t: string): CommandIntentDisplay | null {
 
   const sedView = parseSedView(trimmed);
   if (sedView) {
-    const prefix = `View ${formatLineRange(sedView.lines)}: `;
+    const prefix = viewPrefix(sedView.lines);
     return {
       title: `${prefix}${sedView.path}`,
       parts: { prefix, path: sedView.path },
@@ -171,7 +195,7 @@ function intentFromSummarizedCommand(t: string): CommandIntentDisplay | null {
 
   const pipedFileView = parsePipedFileView(trimmed);
   if (pipedFileView) {
-    const prefix = `View ${formatLineRange(pipedFileView.lines)}: `;
+    const prefix = viewPrefix(pipedFileView.lines);
     return {
       title: `${prefix}${pipedFileView.path}`,
       parts: { prefix, path: pipedFileView.path },
@@ -179,10 +203,31 @@ function intentFromSummarizedCommand(t: string): CommandIntentDisplay | null {
     };
   }
 
+  const headFileView = parseHeadFileView(trimmed);
+  if (headFileView) {
+    const prefix = viewPrefix(headFileView.lines);
+    return {
+      title: `${prefix}${headFileView.path}`,
+      parts: { prefix, path: headFileView.path },
+      kind: "view",
+    };
+  }
+
+  const grepFileView = parseGrepLikeFileView(trimmed);
+  if (grepFileView) {
+    const prefix = viewPrefix(grepFileView.lines);
+    const label = grepFileView.lines ? grepFileView.path : basenameFromPath(grepFileView.path);
+    return {
+      title: `${prefix}${label}`,
+      parts: { prefix, path: grepFileView.path, filePath: true },
+      kind: "view",
+    };
+  }
+
   const grepLike = parseGrepLikeSearch(trimmed);
   if (grepLike) {
     return {
-      title: `Search: "${grepLike.pattern}"`,
+      title: `${i18n._(msg`Search`)}: "${grepLike.pattern}"`,
       kind: "search",
     };
   }
@@ -191,19 +236,19 @@ function intentFromSummarizedCommand(t: string): CommandIntentDisplay | null {
   if (findSearch) {
     if (findSearch.pattern) {
       return {
-        title: `Search: "${findSearch.pattern}"`,
+        title: `${i18n._(msg`Search`)}: "${findSearch.pattern}"`,
         kind: "search",
       };
     }
     return {
-      title: `Search: ${findSearch.scope}`,
+      title: `${i18n._(msg`Search`)}: ${findSearch.scope}`,
       kind: "search",
     };
   }
 
   const listDir = parseListDirectory(trimmed);
   if (listDir) {
-    return { title: `List: ${listDir}`, kind: "list" };
+    return { title: `${i18n._(msg`List`)}: ${listDir}`, kind: "list" };
   }
 
   const run = /^(pnpm|npm|yarn)\s+run\s+(\S+)/i.exec(trimmed);
@@ -211,9 +256,9 @@ function intentFromSummarizedCommand(t: string): CommandIntentDisplay | null {
     const pm = run[1]!.toLowerCase();
     const script = run[2]!.replace(/['",]/g, "");
     if (CHECK_SCRIPTS.has(script)) {
-      return { title: `Check: ${pm} run ${script}`, kind: "check" };
+      return { title: `${i18n._(msg`Check`)}: ${pm} run ${script}`, kind: "check" };
     }
-    return { title: `Run: ${pm} run ${script}`, kind: "command" };
+    return { title: `${i18n._(msg`Run`)}: ${pm} run ${script}`, kind: "command" };
   }
 
   const packageManager = parsePackageManager(trimmed);
@@ -222,14 +267,16 @@ function intentFromSummarizedCommand(t: string): CommandIntentDisplay | null {
   const exec = /^(pnpm|npm)\s+exec\s+(.+)$/i.exec(trimmed);
   if (exec) {
     const rest = exec[2]!.trim();
-    if (/^oxfmt\b/i.test(rest)) return { title: "Format files", kind: "command" };
+    if (/^oxfmt\b/i.test(rest)) return { title: i18n._(msg`Format files`), kind: "command" };
     const shortRest = rest.length > 72 ? `${rest.slice(0, 71)}…` : rest;
-    return { title: `Run: ${shortRest}`, kind: "command" };
+    return { title: `${i18n._(msg`Run`)}: ${shortRest}`, kind: "command" };
   }
 
   if (/^git\s+/i.test(trimmed)) {
+    const gitLabel = i18n._(msg`Git`);
     return {
-      title: trimmed.length > 72 ? `Git: ${trimmed.slice(0, 71)}…` : `Git: ${trimmed}`,
+      title:
+        trimmed.length > 72 ? `${gitLabel}: ${trimmed.slice(0, 71)}…` : `${gitLabel}: ${trimmed}`,
       kind: "git",
     };
   }
@@ -305,7 +352,7 @@ function parseSedView(command: string): SedView | null {
 }
 
 function formatLineRange(lines: string): string {
-  return lines.replace("-", ":");
+  return lines.replace(/-/g, ":");
 }
 
 function parsePipedFileView(command: string): PipedFileView | null {
@@ -325,9 +372,71 @@ function parsePipedFileView(command: string): PipedFileView | null {
   return sed ? { path, lines: sed.lines } : null;
 }
 
-function parsePowerShellGetContentView(command: string): PowerShellFileView | null {
+/**
+ * `head -100 file`, `head -n 40 file`, or `cat file | head -100`. `head` always
+ * reads from the top, so the window is `1..N` (default 10). Byte windows (`-c`)
+ * aren't line-addressable and fall through to the generic command label.
+ */
+function parseHeadFileView(command: string): PipedFileView | null {
+  const parts = splitShellPipeline(command);
+  // A filter between the reader and head (`cat f | grep x | head`) changes what
+  // head sees, so only the direct `<reader> | head` and bare `head file` forms
+  // map cleanly to a 1..N window of a single file.
+  if (parts.length > 2) return null;
+  const invocation = parseHeadInvocation(splitShellWords(parts[parts.length - 1]!));
+  if (!invocation) return null;
+
+  const path =
+    parts.length === 2 ? extractPipedReadableFilePath(splitShellWords(parts[0]!)) : invocation.path;
+  if (!path) return null;
+  return { path, lines: invocation.lines };
+}
+
+function parseHeadInvocation(words: string[]): { path: string | undefined; lines: string } | null {
+  const executable = words[0]?.split(/[/\\]/).pop()?.toLowerCase();
+  if (executable !== "head" && executable !== "ghead") return null;
+
+  let count = 10; // `head`'s default line count
+  let path: string | undefined;
+  for (let i = 1; i < words.length; i++) {
+    const word = words[i]!;
+    if (word === "--") {
+      path = words[i + 1] ?? path;
+      break;
+    }
+    const legacy = /^-(\d+)$/.exec(word);
+    if (legacy) {
+      count = Number(legacy[1]);
+      continue;
+    }
+    if (word === "-n" || word === "--lines") {
+      const value = readNonNegativeInteger(words[++i]);
+      if (value === undefined) return null;
+      count = value;
+      continue;
+    }
+    const attached = /^-n(\d+)$/.exec(word) ?? /^--lines=(\d+)$/.exec(word);
+    if (attached) {
+      count = Number(attached[1]);
+      continue;
+    }
+    // Byte windows aren't line-addressable (covers -c, -c200, -c-200, --bytes, --bytes=N).
+    if (/^-c/.test(word) || /^--bytes(=|$)/.test(word)) return null;
+    if (word === "-") continue; // explicit stdin
+    if (/^\d*>/.test(word)) continue; // shell redirection (e.g. 2>/dev/null), not a path
+    if (word.startsWith("-")) continue; // -q/-v/-z and other flags
+    // First file operand. Keep scanning so trailing flags still apply (GNU permutes
+    // operands and options, e.g. `head file -n 40`).
+    if (path === undefined) path = word;
+  }
+
+  if (count <= 0) return null;
+  return { path, lines: count === 1 ? "1" : `1-${count}` };
+}
+
+function parseGrepLikeFileView(command: string): PowerShellFileView | null {
   const parts = splitPowerShellPipeline(command);
-  const path = extractPowerShellGetContentPath(splitPowerShellWords(parts[0] ?? command));
+  const path = extractGrepLikeFileViewPath(splitPowerShellWords(parts[0] ?? command));
   if (!path) return null;
 
   const lines = parts
@@ -337,23 +446,155 @@ function parsePowerShellGetContentView(command: string): PowerShellFileView | nu
   return { path, ...(lines ? { lines } : {}) };
 }
 
-function extractPowerShellGetContentPath(words: string[]): string | undefined {
+function parsePowerShellGetContentView(command: string): PowerShellFileView | null {
+  const indexedView = parsePowerShellIndexedGetContentView(command);
+  if (indexedView) return indexedView;
+
+  const parts = splitPowerShellPipeline(command);
+  const path = extractPowerShellGetContentPath(splitPowerShellWords(parts[0] ?? command));
+  if (path) {
+    const lines = parts
+      .slice(1)
+      .map((part) => parseSelectObjectLineWindow(splitPowerShellWords(part)))
+      .find((lineWindow): lineWindow is string => !!lineWindow);
+    return { path, ...(lines ? { lines } : {}) };
+  }
+
+  return parsePowerShellScriptGetContentView(command);
+}
+
+function parsePowerShellScriptGetContentView(command: string): PowerShellFileView | null {
+  const match = /(?:^|;)\s*(?:\$\w+\s*=\s*)?((?:Get-Content|gc)\b[^;|]*)/i.exec(command);
+  if (!match?.[1]) return null;
+
+  const variables = extractPowerShellStringAssignments(command);
+  const path = extractPowerShellGetContentPath(splitPowerShellWords(match[1]), variables);
+  if (!path) return null;
+
+  const lines = parsePowerShellForeachLineRanges(command);
+  return { path, ...(lines ? { lines } : {}) };
+}
+
+function parsePowerShellIndexedGetContentView(command: string): PowerShellFileView | null {
+  const match =
+    /^\s*(\$\w+)\s*=\s*((?:Get-Content|gc)\b.*?)\s*;\s*(\$\w+)\s*\[\s*(\d+)\s*\.\.\s*(\d+)\s*\]/i.exec(
+      command,
+    );
+  if (!match || match[1]!.toLowerCase() !== match[3]!.toLowerCase()) return null;
+
+  const path = extractPowerShellGetContentPath(splitPowerShellWords(match[2]!));
+  const startIndex = readNonNegativeInteger(match[4]);
+  const endIndex = readNonNegativeInteger(match[5]);
+  if (!path || startIndex === undefined || endIndex === undefined || endIndex < startIndex)
+    return null;
+
+  return { path, lines: `${startIndex + 1}-${endIndex + 1}` };
+}
+
+function extractPowerShellStringAssignments(command: string): ReadonlyMap<string, string> {
+  const variables = new Map<string, string>();
+  const re = /(?:^|;)\s*(\$\w+)\s*=\s*(?:"((?:`.|[^"`])*)"|'((?:''|[^'])*)')/gi;
+  for (const match of command.matchAll(re)) {
+    const value =
+      match[2] !== undefined ? match[2].replace(/`(.)/g, "$1") : match[3]!.replace(/''/g, "'");
+    variables.set(match[1]!.toLowerCase(), value);
+  }
+  return variables;
+}
+
+function parsePowerShellForeachLineRanges(command: string): string | undefined {
+  const match =
+    /foreach\s*\(\s*\$\w+\s+in\s+@\(\s*((?:@\(\s*\d+\s*,\s*\d+\s*\)\s*,?\s*)+)\)\s*\)/i.exec(
+      command,
+    );
+  if (!match?.[1]) return undefined;
+
+  const ranges = [...match[1].matchAll(/@\(\s*(\d+)\s*,\s*(\d+)\s*\)/g)].map((range) => {
+    const start = Number(range[1]);
+    const end = Number(range[2]);
+    return end >= start ? (start === end ? `${start}` : `${start}-${end}`) : undefined;
+  });
+  return ranges.every((range): range is string => !!range) ? ranges.join(",") : undefined;
+}
+
+function extractGrepLikeFileViewPath(words: string[]): string | undefined {
+  const executable = words[0]?.split(/[/\\]/).pop()?.toLowerCase();
+  if (!executable || !GREP_LIKE_EXECUTABLES.has(executable)) return undefined;
+
+  let pattern: string | undefined;
+  const paths: string[] = [];
+  for (let i = 1; i < words.length; i++) {
+    const word = words[i]!;
+    if (word === "--") {
+      if (pattern === undefined) {
+        pattern = words[++i];
+      } else {
+        paths.push(...words.slice(i + 1));
+      }
+      break;
+    }
+    if (word === "-e" || word === "--regexp" || word === "-f" || word === "--file") {
+      pattern = words[++i] ?? pattern;
+      continue;
+    }
+    if (word.startsWith("--regexp=")) {
+      pattern = word.slice("--regexp=".length);
+      continue;
+    }
+    if (word.startsWith("--file=")) {
+      pattern = word.slice("--file=".length);
+      continue;
+    }
+    if (word === "-g" || word === "--glob" || word === "--type" || word === "-t") {
+      i++;
+      continue;
+    }
+    if (word.startsWith("-")) continue;
+    if (pattern === undefined) {
+      pattern = word;
+      continue;
+    }
+    paths.push(word);
+  }
+
+  return pattern && isAllLinesRegex(pattern) && paths.length === 1 ? paths[0] : undefined;
+}
+
+function isAllLinesRegex(pattern: string): boolean {
+  return pattern.replace(/^'+/u, "") === "^";
+}
+
+function extractPowerShellGetContentPath(
+  words: string[],
+  variables?: ReadonlyMap<string, string>,
+): string | undefined {
   const executable = words[0]?.split(/[/\\]/).pop()?.toLowerCase();
   if (executable !== "get-content" && executable !== "gc") return undefined;
 
   for (let i = 1; i < words.length; i++) {
     const word = words[i]!;
     const lower = word.toLowerCase();
-    if (lower === "-path" || lower === "-literalpath") return words[i + 1];
-    if (lower.startsWith("-path:")) return word.slice("-Path:".length);
-    if (lower.startsWith("-literalpath:")) return word.slice("-LiteralPath:".length);
+    if (lower === "-path" || lower === "-literalpath")
+      return resolvePowerShellPathOperand(words[i + 1], variables);
+    if (lower.startsWith("-path:"))
+      return resolvePowerShellPathOperand(word.slice("-Path:".length), variables);
+    if (lower.startsWith("-literalpath:"))
+      return resolvePowerShellPathOperand(word.slice("-LiteralPath:".length), variables);
     if (word.startsWith("-")) {
       if (getContentOptionConsumesValue(lower)) i++;
       continue;
     }
-    return word;
+    return resolvePowerShellPathOperand(word, variables);
   }
   return undefined;
+}
+
+function resolvePowerShellPathOperand(
+  value: string | undefined,
+  variables?: ReadonlyMap<string, string>,
+): string | undefined {
+  if (!value) return undefined;
+  return variables?.get(value.toLowerCase()) ?? value;
 }
 
 function getContentOptionConsumesValue(option: string): boolean {
@@ -528,26 +769,27 @@ function parsePackageManager(command: string): CommandIntentDisplay | null {
   if (pm !== "pnpm" && pm !== "npm" && pm !== "yarn") return null;
   const firstArg = words[1]?.toLowerCase();
   if (firstArg === "--version" || firstArg === "-v") {
-    return { title: `Package manager: ${pm} ${firstArg}`, kind: "package" };
+    return { title: `${i18n._(msg`Package manager`)}: ${pm} ${firstArg}`, kind: "package" };
   }
 
   const sub = words.find((word, index) => index > 0 && !word.startsWith("-"))?.toLowerCase();
   if (!sub) return null;
   if (sub === "install" || sub === "add") {
-    return { title: `Install packages: ${pm} ${sub}`, kind: "install" };
+    return { title: `${i18n._(msg`Install packages`)}: ${pm} ${sub}`, kind: "install" };
   }
   if (sub === "list" || sub === "ls") {
-    return { title: `List packages: ${pm} ${sub}`, kind: "list" };
+    return { title: `${i18n._(msg`List packages`)}: ${pm} ${sub}`, kind: "list" };
   }
   if (sub === "config") {
     const action = words.find((word, index) => index > 1 && !word.startsWith("-")) ?? "";
+    const configLabel = i18n._(msg`Package config`);
     return {
-      title: action ? `Package config: ${pm} config ${action}` : `Package config: ${pm}`,
+      title: action ? `${configLabel}: ${pm} config ${action}` : `${configLabel}: ${pm}`,
       kind: "package",
     };
   }
   if (sub === "version") {
-    return { title: `Package manager: ${pm} ${sub}`, kind: "package" };
+    return { title: `${i18n._(msg`Package manager`)}: ${pm} ${sub}`, kind: "package" };
   }
   return null;
 }

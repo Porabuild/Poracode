@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { DiffFile, DiffView, highlighter } from "@git-diff-view/react";
+import { Plural, Trans } from "@lingui/react/macro";
 import type { Project } from "@/shared/contracts";
 import { readBridge } from "@/renderer/bridge";
 import { buildInWorker, diffFileFromBundle } from "../../diffBuildClient";
@@ -108,7 +109,15 @@ export function DiffSection(props: {
         <FileHeader entry={entry} collapsed={collapsed} onToggleCollapse={onToggleCollapse} />
         {!collapsed && (
           <div className="px-4 py-3 text-xs text-muted">
-            {`File too large to display (${(entry.insertions + entry.deletions).toLocaleString()} lines changed)`}
+            <Trans>
+              File too large to display (
+              <Plural
+                value={entry.insertions + entry.deletions}
+                one="# line changed"
+                other="# lines changed"
+              />
+              )
+            </Trans>
           </div>
         )}
       </div>
@@ -118,7 +127,7 @@ export function DiffSection(props: {
   if (!activeDiffFile) {
     return (
       <div className="rounded border border-border px-4 py-3 text-xs text-muted">
-        No diff available for {entry.filePath}
+        <Trans>No diff available for {entry.filePath}</Trans>
       </div>
     );
   }

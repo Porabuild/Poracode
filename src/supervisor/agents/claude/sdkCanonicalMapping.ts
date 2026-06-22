@@ -728,10 +728,48 @@ export function parseClaudeQuestions(input: Record<string, unknown>): ClaudeQues
   });
 }
 
+/**
+ * Collect inline images out of a Claude `tool_result` content (Anthropic image
+ * blocks: `{ type: "image", source: { type: "base64", media_type, data } }`) as
+ * renderable `data:` URLs, so MCP/tool-generated images survive onto the
+ * payload instead of being dropped by the text-only `extractText`. Only inline
+ * base64 sources are honored; remote `url` sources are intentionally skipped.
+ */
+function extractToolResultImages(value: unknown): string[] {
+  const images: string[] = [];
+  const walk = (node: unknown): void => {
+    if (Array.isArray(node)) {
+      for (const entry of node) walk(entry);
+      return;
+    }
+    if (!node || typeof node !== "object") return;
+    const obj = node as Record<string, unknown>;
+    if (obj.type === "image") {
+      const source = obj.source;
+      if (source && typeof source === "object") {
+        const s = source as Record<string, unknown>;
+        if (
+          s.type === "base64" &&
+          typeof s.data === "string" &&
+          s.data.length > 0 &&
+          typeof s.media_type === "string"
+        ) {
+          images.push(`data:${s.media_type};base64,${s.data}`);
+        }
+      }
+      return;
+    }
+    if (obj.content !== undefined) walk(obj.content);
+  };
+  walk(value);
+  return images;
+}
+
 function toolPayload(
   tool: ToolItemState,
   status: "running" | "success" | "error",
   result?: unknown,
+  images?: string[],
 ): unknown {
   const errorMessage =
     status === "error" && result && typeof result === "object"
@@ -784,6 +822,7 @@ function toolPayload(
     ...(kind ? { kind } : {}),
     args: tool.input,
     result,
+    ...(images && images.length > 0 ? { images } : {}),
     status,
     ...(tool.progress ? { progress: tool.progress } : {}),
     ...(tool.toolName === "Workflow" ? { isSubAgent: true } : {}),
@@ -1689,6 +1728,7 @@ function mapClaudeSdkMessageInner(
       const tool = state.toolItemsById.get(toolUseId);
       if (!tool) continue;
       const text = extractText(obj.content);
+      const images = extractToolResultImages(obj.content);
       if (tool.planAggregatorRole) {
         if (tool.planAggregatorRole === "TaskCreate" && text.length > 0) {
           bindTaskCreateResult(state, tool, text);
@@ -1730,7 +1770,7 @@ function mapClaudeSdkMessageInner(
         itemId: tool.itemId,
         payload:
           hasToolCallPayload(tool.itemType) || tool.itemType === "file_change"
-            ? toolPayload(tool, isError ? "error" : "success", text)
+            ? toolPayload(tool, isError ? "error" : "success", text, images)
             : toolPayload(tool, isError ? "error" : "success"),
       });
       events.push({ type: "item.completed", threadId: state.threadId, itemId: tool.itemId });

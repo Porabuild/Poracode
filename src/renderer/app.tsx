@@ -1,4 +1,5 @@
 import { toast } from "@heroui/react";
+import { Trans } from "@lingui/react/macro";
 import { useEffect } from "react";
 import { PixelLoader } from "./components/common";
 import { msg } from "@/shared/messages";
@@ -20,6 +21,7 @@ import {
 import { installRemoteGitSummaryPublisher } from "./remoteGitSummaries";
 import { applyExternalSharedSettings } from "./state/sharedSettingsStore";
 import { normalizeSharedSettings } from "@/shared/settings";
+import { recordRuntimeUsage } from "./state/usageRecorder";
 import { useDevTerminalStore } from "./state/devTerminalStore";
 import { useAgentStatusesStore } from "./state/agentStatusesStore";
 import { useProviderUsageStore } from "./state/providerUsageStore";
@@ -29,6 +31,7 @@ import { clearRuntimeItemStoreSelectorCacheForThread } from "./components/thread
 
 import { useAppHydration } from "@/renderer/hooks/useAppHydration";
 import { AppProvider } from "./components/ui/provider";
+import { ImageLightboxHost } from "./components/composer";
 import { MainView } from "@/renderer/views/MainView/MainView";
 import {
   primeWorktreeGitState,
@@ -68,8 +71,12 @@ function flushPendingRuntimeEvents(): void {
   runtimeFlushHandle = null;
   if (pendingRuntimeEvents.size === 0) return;
   const store = useAppStore.getState();
+  const threads = store.threads;
   for (const [threadId, events] of pendingRuntimeEvents) {
     store.applyRuntimeEvents(threadId, events);
+    // Durable usage capture at the canonical layer (all providers normalized).
+    // Thread metadata is resolved lazily inside, so pure-delta frames are free.
+    recordRuntimeUsage(threadId, events, threads);
   }
   pendingRuntimeEvents.clear();
 }
@@ -333,11 +340,13 @@ export function App() {
       `[renderer] +${Date.now() - loadT0}ms: rendering spinner (hydrated=${storeHydrated})`,
     );
     return (
-      <AppProvider>
+      <AppProvider contentReady={false}>
         <div className="flex h-screen w-screen items-center justify-center bg-background text-foreground">
           <div className="flex flex-col items-center gap-4">
             <PixelLoader size="lg" />
-            <p className="text-sm text-muted">Loading&hellip;</p>
+            <p className="text-sm text-muted">
+              <Trans>Loading…</Trans>
+            </p>
           </div>
         </div>
       </AppProvider>
@@ -345,9 +354,10 @@ export function App() {
   }
 
   return (
-    <AppProvider>
+    <AppProvider contentReady>
       <MainView storeHydrated={storeHydrated} loadT0={loadT0} />
       <CommandPalette />
+      <ImageLightboxHost />
     </AppProvider>
   );
 }

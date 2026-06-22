@@ -3,8 +3,10 @@ import { collectCodex } from "./collectors/codex";
 import { collectCommandCode } from "./collectors/commandcode";
 import { collectCopilot } from "./collectors/copilot";
 import { collectCursor } from "./collectors/cursor";
+import { collectFactory } from "./collectors/factory";
 import { collectGemini } from "./collectors/gemini";
 import { collectGrok } from "./collectors/grok";
+import { collectZai } from "./collectors/zai";
 import type { CollectOptions, HostPort } from "./host";
 import type { UsageProviderDescriptor, UsageSnapshot } from "./types";
 
@@ -96,6 +98,32 @@ const COMMANDCODE_COLLECTOR: UsageCollector = {
   collect: collectCommandCode,
 };
 
+const FACTORY_COLLECTOR: UsageCollector = {
+  descriptor: {
+    id: "factory",
+    label: "Droid",
+    mechanism: "cookie",
+    needsLogin: true,
+    // Standard token-rate-limit pool; the optional "core" pool and legacy
+    // "premium" pool flow through dynamically as `factory:<pool>` ids.
+    windowIds: ["session-5h", "weekly", "monthly"],
+  },
+  collect: collectFactory,
+};
+
+const ZAI_COLLECTOR: UsageCollector = {
+  descriptor: {
+    id: "zai",
+    label: "z.ai",
+    // HTTP collector reading a Bearer API key — native (`Z_AI_API_KEY`) or a key
+    // pasted into the in-app sign-in. `needsLogin` drives that sign-in affordance.
+    mechanism: "api-key",
+    needsLogin: true,
+    windowIds: ["session-5h", "weekly", "monthly"],
+  },
+  collect: collectZai,
+};
+
 // Antigravity is collected supervisor-side from its local language server
 // (LS-only), not here; see src/supervisor/runtime/antigravityUsageScanner.ts.
 
@@ -107,6 +135,8 @@ const BUILT_IN: UsageCollector[] = [
   GROK_COLLECTOR,
   GEMINI_COLLECTOR,
   COMMANDCODE_COLLECTOR,
+  FACTORY_COLLECTOR,
+  ZAI_COLLECTOR,
 ];
 
 /** Descriptors for the built-in HTTP collectors, in registration order. */

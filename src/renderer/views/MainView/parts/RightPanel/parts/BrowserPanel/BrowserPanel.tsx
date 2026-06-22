@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { Tooltip } from "@heroui/react";
+import { Trans, useLingui } from "@lingui/react/macro";
 import { Check, Copy, Maximize2, Minimize2, X } from "lucide-react";
 import { isMac, readBridge } from "@/renderer/bridge";
 import { useBrowserPanelStore } from "@/renderer/state/browserPanelStore";
@@ -17,6 +18,7 @@ import { useElementPicker } from "./hooks/useElementPicker";
 const DEFAULT_HOME = "https://www.google.com";
 
 export function BrowserPanel(props: { visible: boolean }) {
+  const { t } = useLingui();
   const tabs = useBrowserPanelStore((s) => s.tabs);
   const activeTabId = useBrowserPanelStore((s) => s.activeTabId);
   const browserPanelOpen = usePanelStore((s) => s.browserPanelOpen);
@@ -91,8 +93,9 @@ export function BrowserPanel(props: { visible: boolean }) {
   };
   return (
     <div
+      data-lightcode-browser=""
       role="group"
-      aria-label="Browser"
+      aria-label={t`Browser`}
       className="flex h-full min-h-0 flex-col bg-[var(--content-background)]"
       onKeyDown={onKeyDown}
     >
@@ -108,15 +111,17 @@ export function BrowserPanel(props: { visible: boolean }) {
           {isMac() && isFullscreenOverlay ? (
             <div className={macosTrafficLightGutterClass} aria-hidden />
           ) : null}
-          <div className="text-xs font-medium text-foreground">Browser</div>
+          <div className="text-xs font-medium text-foreground">
+            <Trans>Browser</Trans>
+          </div>
           <BrowserDeviceCodeButton />
           <div className="flex-1" />
           {browserPanelOpen ? (
             <button
               type="button"
               className={headerButtonClass}
-              title="Minimize to panel"
-              aria-label="Minimize browser to right panel"
+              title={t`Minimize to panel`}
+              aria-label={t`Minimize browser to right panel`}
               onClick={restoreToPanel}
             >
               <Minimize2 className="size-3.5" />
@@ -127,8 +132,8 @@ export function BrowserPanel(props: { visible: boolean }) {
                 <button
                   type="button"
                   className={headerButtonClass}
-                  title="Restore"
-                  aria-label="Restore browser"
+                  title={t`Restore`}
+                  aria-label={t`Restore browser`}
                   onClick={() => setBrowserOverlayMaximized(false)}
                 >
                   <Minimize2 className="size-3.5" />
@@ -137,8 +142,8 @@ export function BrowserPanel(props: { visible: boolean }) {
                 <button
                   type="button"
                   className={headerButtonClass}
-                  title="Maximize"
-                  aria-label="Maximize browser"
+                  title={t`Maximize`}
+                  aria-label={t`Maximize browser`}
                   onClick={() => setBrowserOverlayMaximized(true)}
                 >
                   <Maximize2 className="size-3.5" />
@@ -147,8 +152,8 @@ export function BrowserPanel(props: { visible: boolean }) {
               <button
                 type="button"
                 className={headerButtonClass}
-                title="Close"
-                aria-label="Close browser"
+                title={t`Close`}
+                aria-label={t`Close browser`}
                 onClick={() => setBrowserOverlayOpen(false)}
               >
                 <X className="size-3.5" />
@@ -203,6 +208,7 @@ export function BrowserPanel(props: { visible: boolean }) {
 }
 
 function BrowserDeviceCodeButton() {
+  const { t } = useLingui();
   const deviceCode = useBrowserPanelStore((s) => s.usageLoginDeviceCode);
   const [copied, setCopied] = useState(false);
   const [tooltipOpen, setTooltipOpen] = useState(false);
@@ -247,8 +253,8 @@ function BrowserDeviceCodeButton() {
         <button
           type="button"
           className="ml-1.5 flex h-5 max-w-[170px] items-center gap-1 rounded border border-accent/30 bg-accent/10 px-1.5 text-[11px] text-foreground transition-colors hover:bg-accent/15"
-          title={`Copy ${activeDeviceCode.providerLabel} device code ${activeDeviceCode.code}`}
-          aria-label={`Copy ${activeDeviceCode.providerLabel} device code ${activeDeviceCode.code}`}
+          title={t`Copy ${activeDeviceCode.providerLabel} device code ${activeDeviceCode.code}`}
+          aria-label={t`Copy ${activeDeviceCode.providerLabel} device code ${activeDeviceCode.code}`}
           onClick={copyDeviceCode}
         >
           {copied ? (
@@ -256,15 +262,19 @@ function BrowserDeviceCodeButton() {
           ) : (
             <Copy className="size-3 shrink-0 text-accent" />
           )}
-          <span className="shrink-0 text-muted">Paste</span>
+          <span className="shrink-0 text-muted">
+            <Trans>Paste</Trans>
+          </span>
           <span className="truncate font-mono text-foreground">{activeDeviceCode.code}</span>
         </button>
       </Tooltip.Trigger>
       <Tooltip.Content placement="bottom" className="z-[1000] px-2 py-1.5 text-xs">
         <span className="block whitespace-nowrap">
-          {copied ? "Code copied. " : ""}
-          Paste <span className="font-mono text-foreground">{activeDeviceCode.code}</span> here.
-          Click to copy.
+          {copied ? <Trans>Code copied. </Trans> : ""}
+          <Trans>
+            Paste <span className="font-mono text-foreground">{activeDeviceCode.code}</span> here.
+            Click to copy.
+          </Trans>
         </span>
       </Tooltip.Content>
     </Tooltip>

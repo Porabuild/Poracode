@@ -1,8 +1,8 @@
 import { useShallow } from "zustand/shallow";
 import { X } from "lucide-react";
 import { toast } from "@heroui/react";
+import { useLingui } from "@lingui/react/macro";
 import type {
-  AgentStatus,
   ExtractContextResult,
   Project,
   PromptSegment,
@@ -11,6 +11,7 @@ import type {
   ThreadPresentationMode,
 } from "@/shared/contracts";
 import { getProjectAgentStatuses } from "@/shared/agentStatus";
+import { friendlyError } from "@/shared/messages";
 import { isHomeProject } from "@/shared/homeScope";
 import { buildWorktreeLocation } from "@/shared/worktree";
 import { isDraftPaneId, parseDraftProjectId } from "@/shared/paneId";
@@ -31,9 +32,11 @@ import {
 } from "@/renderer/state/useThread";
 import { useDevTerminalStore, type DevTerminalTab } from "@/renderer/state/devTerminalStore";
 import { closeAllPanels } from "@/renderer/actions/panelActions";
+import { worktreePlacementPayload } from "@/renderer/actions/worktreePlacement";
 import { SplitPaneContainer, type Rect } from "@/renderer/components/layout/SplitPaneContainer";
 import { macosTrafficLightPadClass } from "@/renderer/components/layout/sidebarChrome";
 import { ThreadDraftView } from "@/renderer/components/thread/ThreadDraftView";
+import type { DraftStartInput } from "@/renderer/components/thread/ThreadDraftComposerArea";
 import {
   normalizeShellScript,
   startShellWithToast,
@@ -46,6 +49,7 @@ import { ThreadPane } from "./parts/ThreadPane";
 import { DraftPane } from "./parts/DraftPane";
 
 export function AppContent() {
+  const { t } = useLingui();
   const view = useAppStore((state) => state.view);
   const projectIds = useProjectIds();
   const draftProjectId = view.kind === "draft" ? view.projectId : undefined;
@@ -57,23 +61,12 @@ export function AppContent() {
   const activeGroupName = useAppStore((s) => {
     const v = s.view;
     if (v.kind !== "thread" || !v.activeGroupId) return undefined;
-    const match = s.threads.find((t) => t.groupId === v.activeGroupId);
-    return match?.groupName ?? match?.title ?? "Group";
+    const match = s.threads.find((thread) => thread.groupId === v.activeGroupId);
+    return match?.groupName ?? match?.title ?? t`Group`;
   });
   async function handleDraftStart(
     project: Project,
-    input: {
-      agentKind: AgentStatus["kind"];
-      config: import("@/shared/contracts").ThreadConfig;
-      prompt: string;
-      segments?: PromptSegment[];
-      existingWorktreePath?: string;
-      worktreeBranch?: string;
-      worktreeBaseBranch?: string;
-      worktreeIsNewBranch?: boolean;
-      worktreeTransferUncommitted?: boolean;
-      presentationMode?: import("@/shared/contracts").ThreadPresentationMode;
-    },
+    input: DraftStartInput,
     replacePaneIdParam?: string,
   ) {
     const {
@@ -112,6 +105,7 @@ export function AppContent() {
           branch: worktreeBranch,
           createBranch: worktreeIsNewBranch ?? false,
           startPoint: worktreeBaseBranch,
+          ...worktreePlacementPayload(project),
           copyIgnoredPatterns: project.scripts?.worktreeCopyPatterns,
           transferUncommitted: worktreeTransferUncommitted ?? false,
           // The composer's "Worktree + changes" option copies the changes and
@@ -122,12 +116,15 @@ export function AppContent() {
         newWorktreeSetupPath = result.path;
         if (worktreeTransferUncommitted && result.changesTransferred === false) {
           toast.danger(
-            "Couldn't copy your uncommitted changes into the new worktree — they remain on the current branch.",
+            t`Couldn't copy your uncommitted changes into the new worktree — they remain on the current branch.`,
           );
         }
       } catch (err) {
         console.error("[renderer] failed to create worktree:", err);
-        return;
+        // Surface the failure and propagate so the composer can re-enable
+        // itself — otherwise it stays stuck on the launch spinner forever.
+        toast.danger(friendlyError(err));
+        throw err;
       }
     }
 
@@ -151,7 +148,7 @@ export function AppContent() {
             groupId: currentView.activeGroupId,
             groupName: useAppStore
               .getState()
-              .threads.find((t) => t.groupId === currentView.activeGroupId)?.groupName,
+              .threads.find((thread) => thread.groupId === currentView.activeGroupId)?.groupName,
           }
         : undefined;
 
@@ -204,8 +201,8 @@ export function AppContent() {
       groupName = sourceThread.groupName ?? sourceThread.title;
       if (!sourceThread.groupId) {
         useAppStore.setState((state) => ({
-          threads: state.threads.map((t) =>
-            t.id === sourceThread.id ? { ...t, groupId, groupName } : t,
+          threads: state.threads.map((thread) =>
+            thread.id === sourceThread.id ? { ...thread, groupId, groupName } : thread,
           ),
         }));
       }
@@ -275,7 +272,9 @@ export function AppContent() {
 
     const targetLabel = agents.find((a) => a.kind === targetAgentKind)?.label ?? targetAgentKind;
     toast.success(
-      extractedContext ? `Context transferred to ${targetLabel}` : `Started ${targetLabel} thread`,
+      extractedContext
+        ? t`Context transferred to ${targetLabel}`
+        : t`Started ${targetLabel} thread`,
     );
   }
 
@@ -288,7 +287,7 @@ export function AppContent() {
         <DraftViewContent
           project={draftProject}
           lastDraftConfig={draftLastDraftConfig}
-          onStart={(input) => void handleDraftStart(draftProject, input)}
+          onStart={(input) => handleDraftStart(draftProject, input)}
         />
       </div>
     );
@@ -304,7 +303,7 @@ export function AppContent() {
     const hasValidPanes = view.panes.some((id) =>
       isDraftPaneId(id)
         ? projectIds.includes(parseDraftProjectId(id) ?? "")
-        : storeThreads.some((t) => t.id === id),
+        : storeThreads.some((thread) => thread.id === id),
     );
 
     if (!hasValidPanes) {
@@ -333,7 +332,7 @@ export function AppContent() {
           paneAlign={paneAlign}
           headerNeedsTrafficLightPad={headerNeedsTrafficLightPad}
           onClose={() => closePane(paneId)}
-          onStart={(project, input) => void handleDraftStart(project, input, paneId)}
+          onStart={(project, input) => handleDraftStart(project, input, paneId)}
         />
       ) : (
         <ThreadPane
@@ -367,7 +366,7 @@ export function AppContent() {
             <span className="truncate text-xs font-medium text-muted">{activeGroupName}</span>
             <button
               type="button"
-              aria-label="Close group"
+              aria-label={t`Close group`}
               className="shrink-0 rounded p-0.5 text-muted/60 transition-colors hover:bg-[var(--row-hover)] hover:text-foreground"
               onClick={() => useAppStore.getState().closeGroupView()}
             >
@@ -489,17 +488,7 @@ function removeWorktreeSetupTab(tab: DevTerminalTab): void {
 function DraftViewContent(props: {
   project: Project;
   lastDraftConfig?: Project["lastDraftConfig"];
-  onStart: (input: {
-    agentKind: AgentStatus["kind"];
-    config: ThreadConfig;
-    prompt: string;
-    segments?: PromptSegment[];
-    existingWorktreePath?: string;
-    worktreeBranch?: string;
-    worktreeBaseBranch?: string;
-    worktreeIsNewBranch?: boolean;
-    worktreeTransferUncommitted?: boolean;
-  }) => void;
+  onStart: (input: DraftStartInput) => void | Promise<void>;
 }) {
   const { project, lastDraftConfig, onStart } = props;
   const projectAgentStatuses = useAgentStatusesStore(

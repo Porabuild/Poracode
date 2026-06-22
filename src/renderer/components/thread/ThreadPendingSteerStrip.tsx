@@ -1,5 +1,6 @@
 import { Tooltip } from "@heroui/react";
 import { Loader2, Send, X } from "lucide-react";
+import { Trans, useLingui } from "@lingui/react/macro";
 import type { PendingSteerState } from "@/shared/contracts";
 import { ThreadDockHeader, ThreadDockList, ThreadDockRow, ThreadDockSection } from "./ThreadDockUI";
 
@@ -16,23 +17,24 @@ interface ThreadPendingSteerStripProps {
  */
 export function ThreadPendingSteerStrip(props: ThreadPendingSteerStripProps) {
   const { pending, onCancel } = props;
+  const { t } = useLingui();
   const preview = pending.prompt.trim();
   return (
     <ThreadDockSection placement="composer" collapsed={false}>
       <ThreadDockHeader
         icon={Send}
-        title="Pending steer"
+        title={t`Pending steer`}
         countLabel={
           <>
             <Loader2 className="size-3 animate-spin" />
-            waiting for agent to stop
+            <Trans>waiting for agent to stop</Trans>
           </>
         }
         actions={
           <Tooltip delay={0}>
             <Tooltip.Trigger>
               <button
-                aria-label="Cancel pending steer"
+                aria-label={t`Cancel pending steer`}
                 className="shrink-0 rounded p-1 text-muted/70 transition-colors hover:bg-foreground/5 hover:text-foreground"
                 type="button"
                 onClick={onCancel}
@@ -40,7 +42,9 @@ export function ThreadPendingSteerStrip(props: ThreadPendingSteerStripProps) {
                 <X className="size-3.5" />
               </button>
             </Tooltip.Trigger>
-            <Tooltip.Content>Cancel pending steer</Tooltip.Content>
+            <Tooltip.Content>
+              <Trans>Cancel pending steer</Trans>
+            </Tooltip.Content>
           </Tooltip>
         }
       />

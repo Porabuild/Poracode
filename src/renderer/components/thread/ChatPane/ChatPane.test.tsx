@@ -167,7 +167,7 @@ describe("ChatPane", () => {
     await waitFor(() => expect(metrics.getScrollTop()).toBe(300));
   });
 
-  it("reconciles the virtualizer when sticky content growth pins to the bottom", async () => {
+  it("pins sticky content growth without virtualizer reconciliation", async () => {
     const thread = makeThread();
     seedAssistantMessage(thread.id, "Inspect output");
     useAppStore.setState({ projects: [project] });
@@ -194,7 +194,37 @@ describe("ChatPane", () => {
       MockResizeObserver.notify(contentElement);
     });
 
-    expect(virtualizerScrollToIndex).toHaveBeenCalledWith(0, { align: "end" });
+    expect(virtualizerScrollToIndex).not.toHaveBeenCalled();
+    expect(metrics.getScrollTop()).toBe(300);
+  });
+
+  it("reconciles the virtualizer when sticky tail content changes", async () => {
+    const thread = makeThread();
+    seedAssistantMessage(thread.id, "Inspect output");
+    useAppStore.setState({ projects: [project] });
+
+    const { container } = renderChatPane(thread);
+    await waitFor(() => expect(hydrateThreadRuntimeItems).toHaveBeenCalledWith(thread.id));
+
+    const scrollElement = getScrollElement(container);
+    const metrics = installScrollMetrics(scrollElement, {
+      scrollHeight: 200,
+      clientHeight: 100,
+      scrollTop: 0,
+    });
+
+    act(() => {
+      metrics.setScrollTop(200);
+      fireEvent.scroll(scrollElement);
+    });
+    virtualizerScrollToIndex.mockClear();
+
+    act(() => {
+      metrics.setScrollHeight(300);
+      appendAssistantText(thread.id, " continued");
+    });
+
+    await waitFor(() => expect(virtualizerScrollToIndex).toHaveBeenCalledWith(0, { align: "end" }));
     expect(metrics.getScrollTop()).toBe(300);
   });
 

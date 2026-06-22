@@ -79,6 +79,16 @@ describe.skipIf(process.platform !== "win32")("buildWindowsCommand", () => {
     expect(script).toContain(quotePowerShellLiteral(SPICY_PROMPT));
   });
 
+  it("spawns absolute Windows executables directly", () => {
+    const spec = buildWindowsCommand("C:\\repo", "C:\\Tools\\codex.exe", ["app-server"]);
+
+    expect(spec).toEqual({
+      command: "C:\\Tools\\codex.exe",
+      args: ["app-server"],
+      cwd: "C:\\repo",
+    });
+  });
+
   it("falls back to powershell.exe (PS 5.1) when pwsh is missing", () => {
     const resolvePath = vi.fn<(name: string) => string | undefined>((name) =>
       name === "powershell.exe"
@@ -128,12 +138,9 @@ describe.skipIf(process.platform !== "win32")("buildWindowsCommand", () => {
       ["debug", "prompt-input", "hi\n1\n2"],
       shimPath,
     );
-    const script = decodePowerShellEncoded(spec.args.at(-1)!);
 
-    expect(script).toContain(quotePowerShellLiteral(nodePath));
-    expect(script).toContain(quotePowerShellLiteral(scriptPath));
-    expect(script).toContain(quotePowerShellLiteral("hi\n1\n2"));
-    expect(script).not.toContain(quotePowerShellLiteral(shimPath));
+    expect(spec.command).toBe(nodePath);
+    expect(spec.args).toEqual([scriptPath, "debug", "prompt-input", "hi\n1\n2"]);
   });
 });
 

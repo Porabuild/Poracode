@@ -2,6 +2,7 @@ import type React from "react";
 import type { RefObject } from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { readStoredNumber } from "@/renderer/utils/localStorage";
+import { beginPanelResize, endPanelResize } from "@/renderer/state/panelResizeSignal";
 
 // Wide enough to fit a Home-row suffix button (terminal icon) plus a few
 // characters of an active thread title without truncating to ellipses.
@@ -223,6 +224,8 @@ export function useResizablePanels(refs: {
         overlay.style.cursor = target === "panel-bottom" ? "row-resize" : "col-resize";
       }
 
+      beginPanelResize();
+
       let rafId: number | null = null;
       let pendingX = startX;
       let pendingY = startY;
@@ -287,6 +290,7 @@ export function useResizablePanels(refs: {
           overlay.style.display = "none";
           overlay.style.cursor = "";
         }
+        endPanelResize();
         endResizeRef.current = null;
       }
 
@@ -317,21 +321,33 @@ export function useResizablePanels(refs: {
     ],
   );
 
-  function handleSidebarResizeStart(e: React.MouseEvent) {
-    startResize("sidebar", e);
-  }
+  const handleSidebarResizeStart = useCallback(
+    (e: React.MouseEvent) => {
+      startResize("sidebar", e);
+    },
+    [startResize],
+  );
 
-  function handlePanelResizeStart(e: React.MouseEvent) {
-    startResize("panel", e);
-  }
+  const handlePanelResizeStart = useCallback(
+    (e: React.MouseEvent) => {
+      startResize("panel", e);
+    },
+    [startResize],
+  );
 
-  function handlePanelBottomResizeStart(e: React.MouseEvent) {
-    startResize("panel-bottom", e);
-  }
+  const handlePanelBottomResizeStart = useCallback(
+    (e: React.MouseEvent) => {
+      startResize("panel-bottom", e);
+    },
+    [startResize],
+  );
 
-  function handleGitPanelResizeStart(e: React.MouseEvent) {
-    startResize("git-panel", e);
-  }
+  const handleGitPanelResizeStart = useCallback(
+    (e: React.MouseEvent) => {
+      startResize("git-panel", e);
+    },
+    [startResize],
+  );
 
   return {
     sidebarWidth,
