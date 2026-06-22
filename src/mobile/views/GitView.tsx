@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useLingui } from "@lingui/react/macro";
 import { ChevronLeft, GitBranch, RefreshCw } from "lucide-react";
 import type { GitStatusResult, Project, ProjectLocation } from "@/shared/contracts";
 import { readBridge } from "@/renderer/bridge";
@@ -41,6 +42,7 @@ export interface GitTarget {
  */
 export function GitView(props: { target: GitTarget; onClose: () => void }) {
   const { target, onClose } = props;
+  const { t } = useLingui();
   const { project, statusKey, locationOverride, worktreeBranch, worktreePath } = target;
   const effectiveLocation = locationOverride ?? project.location;
   const effectiveProject = locationOverride ? { ...project, location: effectiveLocation } : project;
@@ -135,7 +137,7 @@ export function GitView(props: { target: GitTarget; onClose: () => void }) {
       <GitTouchProvider value={touchActions}>
         <section className="m-git-overlay">
           <header className="m-git-head">
-            <button className="m-back" type="button" aria-label="Back" onClick={onClose}>
+            <button className="m-back" type="button" aria-label={t`Back`} onClick={onClose}>
               <ChevronLeft className="size-5" />
             </button>
             <span className="m-git-head__title">
@@ -152,7 +154,7 @@ export function GitView(props: { target: GitTarget; onClose: () => void }) {
               <button
                 type="button"
                 className="m-git-head__btn"
-                aria-label="Refresh"
+                aria-label={t`Refresh`}
                 onClick={() => void handleRefresh()}
               >
                 <RefreshCw className={`size-4 ${refreshing ? "m-spin" : ""}`} />
@@ -185,7 +187,7 @@ export function GitView(props: { target: GitTarget; onClose: () => void }) {
                   <button
                     className="m-back"
                     type="button"
-                    aria-label="Back to files"
+                    aria-label={t`Back to files`}
                     onClick={() => setSelectedFile(null)}
                   >
                     <ChevronLeft className="size-5" />

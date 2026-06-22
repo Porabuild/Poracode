@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
-import { render, screen, waitFor } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { GitProjectSnapshotResult, GitStatusResult, Project } from "@/shared/contracts";
+import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import { useGitStore } from "@/renderer/state/gitStore";
 import { NewThreadView } from "./NewThreadView";
 

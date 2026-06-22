@@ -1,3 +1,4 @@
+import { useLingui } from "@lingui/react/macro";
 import { ChevronRight, GitBranch, GitPullRequest } from "lucide-react";
 import { getPrStatusTone, PR_TONE_TEXT_CLASS } from "@/renderer/utils/prStatus";
 import type { RemoteThreadGitSummary } from "@/shared/remote";
@@ -24,12 +25,13 @@ function PrGlyph(props: {
   readonly summary: RemoteThreadGitSummary;
   readonly withNumber?: boolean;
 }) {
+  const { t } = useLingui();
   const pr = props.summary.pr;
   if (!pr || pr.state === "closed") return null;
   const tone = getPrStatusTone(pr.state, pr.checksStatus);
   return (
     <span className={`m-git-pr ${PR_TONE_TEXT_CLASS[tone]}`}>
-      <GitPullRequest className="size-3 shrink-0" aria-label={`PR ${pr.state}`} />
+      <GitPullRequest className="size-3 shrink-0" aria-label={t`Pull request ${pr.state}`} />
       {props.withNumber ? <span>#{pr.number}</span> : null}
     </span>
   );
@@ -69,13 +71,14 @@ export function ThreadGitBar(props: {
   readonly threadId: string;
   readonly onOpen?: (() => void) | undefined;
 }) {
+  const { t } = useLingui();
   const summary = useGitSummariesStore((s) => s.byThread[props.threadId]);
   if (!summary || !summary.isRepo) return null;
 
   return (
     <button type="button" className="m-git-bar" onClick={props.onOpen} disabled={!props.onOpen}>
       <GitBranch className="size-3.5 shrink-0 text-muted" />
-      <span className="m-git-bar__branch">{summary.branch || "(no branch)"}</span>
+      <span className="m-git-bar__branch">{summary.branch || t`(no branch)`}</span>
       {summary.ahead > 0 ? <span className="text-accent">↑{summary.ahead}</span> : null}
       {summary.behind > 0 ? <span className="text-accent">↓{summary.behind}</span> : null}
       <DiffCounts summary={summary} />

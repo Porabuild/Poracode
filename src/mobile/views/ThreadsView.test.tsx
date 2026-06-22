@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, screen } from "@testing-library/react";
 import type { Project, Thread } from "@/shared/contracts";
+import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import { __resetCollapsedGroupCache, ThreadsView } from "./ThreadsView";
 
 // Keep these tests focused on grouping: stub the provider icon/status helpers

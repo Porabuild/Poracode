@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Button } from "@heroui/react";
+import { Plural, Trans, useLingui } from "@lingui/react/macro";
 import {
   Check,
   Download,
@@ -21,6 +22,7 @@ import type { StoredDesktop } from "../storage";
 
 /** "Add to Home Screen" button — only shown when the browser offers install. */
 function InstallAppButton() {
+  const { t } = useLingui();
   const canInstall = useCanInstall();
   if (!canInstall || isStandaloneDisplay() || isNativeApp()) return null;
   return (
@@ -31,7 +33,7 @@ function InstallAppButton() {
       onPress={() => void promptInstall()}
     >
       <Download className="size-4" />
-      Add to Home Screen
+      {t`Add to Home Screen`}
     </Button>
   );
 }
@@ -81,6 +83,7 @@ function DesktopRow(props: {
   readonly onForget: () => void;
 }) {
   const { desktop } = props;
+  const { t } = useLingui();
   const [renaming, setRenaming] = useState(false);
   const title = desktopTitle(desktop.label);
   return (
@@ -91,7 +94,7 @@ function DesktopRow(props: {
           <span className="min-w-0 flex-1">
             <InlineRenameInput
               initialValue={title}
-              ariaLabel="Rename desktop"
+              ariaLabel={t`Rename desktop`}
               onCommit={(value) => {
                 props.onRename(value);
                 setRenaming(false);
@@ -109,24 +112,24 @@ function DesktopRow(props: {
               <span className="m-thread-row__meta-item">{endpointHost(desktop.endpoint)}</span>
               <span className="m-thread-row__meta-item">
                 {desktop.lastConnectedAt
-                  ? `Live ${formatShortDateTime(desktop.lastConnectedAt)}`
-                  : "Cached only"}
+                  ? t`Live ${formatShortDateTime(desktop.lastConnectedAt)}`
+                  : t`Cached only`}
               </span>
             </span>
           </span>
           {props.isActive ? (
-            <Check className="m-desktop-row__check size-4 shrink-0" aria-label="Active" />
+            <Check className="m-desktop-row__check size-4 shrink-0" aria-label={t`Active`} />
           ) : null}
         </button>
       )}
       <SheetMenu
         label={title}
-        closeLabel="Close desktop actions"
+        closeLabel={t`Close desktop actions`}
         items={[
-          { id: "rename", label: "Rename", icon: <Pencil className="size-4 text-muted" /> },
+          { id: "rename", label: t`Rename`, icon: <Pencil className="size-4 text-muted" /> },
           {
             id: "forget",
-            label: "Remove desktop",
+            label: t`Remove desktop`,
             icon: <Trash2 className="size-4" />,
             tone: "danger",
           },
@@ -138,7 +141,7 @@ function DesktopRow(props: {
         trigger={({ open }) => (
           <Button
             isIconOnly
-            aria-label={`Actions for ${title}`}
+            aria-label={t`Actions for ${title}`}
             size="sm"
             variant="tertiary"
             onPress={open}
@@ -152,6 +155,7 @@ function DesktopRow(props: {
 }
 
 export function DesktopsView(props: DesktopsViewProps) {
+  const { t } = useLingui();
   const [scanning, setScanning] = useState(false);
   const { pairing, onScan } = props;
   return (
@@ -167,9 +171,15 @@ export function DesktopsView(props: DesktopsViewProps) {
       ) : null}
       <div className="m-page-head">
         <div>
-          <h1>Desktops</h1>
+          <h1>
+            <Trans>Desktops</Trans>
+          </h1>
           <p>
-            {props.desktops.length} paired desktop{props.desktops.length === 1 ? "" : "s"}
+            <Plural
+              value={props.desktops.length}
+              one="# paired desktop"
+              other="# paired desktops"
+            />
           </p>
         </div>
       </div>
@@ -192,14 +202,18 @@ export function DesktopsView(props: DesktopsViewProps) {
       <div className="m-card">
         <h2 className="m-card__title">
           <Link2 className="size-4" />
-          Pair a desktop
+          <Trans>Pair a desktop</Trans>
         </h2>
         <p className="m-card__hint">
-          Open Settings → Remote Access in Lightcode on your desktop, then scan the QR code from
-          here — or enter the endpoint and pairing token manually.
+          <Trans>
+            Open Settings → Remote Access in Lightcode on your desktop, then scan the QR code from
+            here — or enter the endpoint and pairing token manually.
+          </Trans>
         </p>
         {props.showPairingHint ? (
-          <p className="m-card__hint m-card__hint--accent">Pairing link detected.</p>
+          <p className="m-card__hint m-card__hint--accent">
+            <Trans>Pairing link detected.</Trans>
+          </p>
         ) : null}
         <Button
           className="m-form__submit text-foreground mb-2.5"
@@ -209,14 +223,17 @@ export function DesktopsView(props: DesktopsViewProps) {
           onPress={() => setScanning(true)}
         >
           <QrCode className="size-4" />
-          Scan QR code
+          <Trans>Scan QR code</Trans>
         </Button>
         <InstallAppButton />
         <div className="m-form">
           <label className="m-field">
-            <span className="m-field__label">Endpoint</span>
+            <span className="m-field__label">
+              <Trans>Endpoint</Trans>
+            </span>
             <input
               value={props.manualEndpoint}
+              aria-label={t`Endpoint`}
               inputMode="url"
               autoCapitalize="off"
               autoCorrect="off"
@@ -226,9 +243,12 @@ export function DesktopsView(props: DesktopsViewProps) {
             />
           </label>
           <label className="m-field">
-            <span className="m-field__label">Pairing token</span>
+            <span className="m-field__label">
+              <Trans>Pairing token</Trans>
+            </span>
             <input
               value={props.manualToken}
+              aria-label={t`Pairing token`}
               autoCapitalize="off"
               autoCorrect="off"
               spellCheck={false}
@@ -244,7 +264,7 @@ export function DesktopsView(props: DesktopsViewProps) {
             onPress={props.onPair}
           >
             {pairing ? <Loader2 className="size-4 m-spin" /> : <Smartphone className="size-4" />}
-            {pairing ? "Pairing…" : "Pair"}
+            {pairing ? t`Pairing…` : t`Pair`}
           </Button>
         </div>
       </div>

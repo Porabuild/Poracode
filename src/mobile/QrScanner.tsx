@@ -1,4 +1,7 @@
 import { useEffect, useRef, useState } from "react";
+import type { MessageDescriptor } from "@lingui/core";
+import { msg } from "@lingui/core/macro";
+import { Trans, useLingui } from "@lingui/react/macro";
 import jsQR from "jsqr";
 import { CameraOff, Loader2, X } from "lucide-react";
 
@@ -27,22 +30,22 @@ function getBarcodeDetector(): BarcodeDetectorLike | null {
   }
 }
 
-const ERROR_COPY: Record<ScanError, { title: string; hint: string }> = {
+const ERROR_COPY: Record<ScanError, { title: MessageDescriptor; hint: MessageDescriptor }> = {
   insecure: {
-    title: "Scanning needs a secure connection",
-    hint: "In-app camera scanning only works over HTTPS. Use your phone's camera app to scan the desktop QR code, or enter the endpoint and token below.",
+    title: msg`Scanning needs a secure connection`,
+    hint: msg`In-app camera scanning only works over HTTPS. Use your phone's camera app to scan the desktop QR code, or enter the endpoint and token below.`,
   },
   denied: {
-    title: "Camera access blocked",
-    hint: "Allow camera access for this site in your browser settings and try again — or enter the endpoint and token below.",
+    title: msg`Camera access blocked`,
+    hint: msg`Allow camera access for this site in your browser settings and try again — or enter the endpoint and token below.`,
   },
   "no-camera": {
-    title: "No camera found",
-    hint: "This device has no usable camera. Enter the endpoint and token below to pair instead.",
+    title: msg`No camera found`,
+    hint: msg`This device has no usable camera. Enter the endpoint and token below to pair instead.`,
   },
   error: {
-    title: "Couldn't start the camera",
-    hint: "Something went wrong starting the camera. Enter the endpoint and token below to pair instead.",
+    title: msg`Couldn't start the camera`,
+    hint: msg`Something went wrong starting the camera. Enter the endpoint and token below to pair instead.`,
   },
 };
 
@@ -56,6 +59,7 @@ export function QrScanner(props: {
   readonly onResult: (value: string) => void;
   readonly onCancel: () => void;
 }) {
+  const { t } = useLingui();
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const onResultRef = useRef(props.onResult);
   onResultRef.current = props.onResult;
@@ -155,13 +159,13 @@ export function QrScanner(props: {
   }, []);
 
   return (
-    <div className="m-scanner" role="dialog" aria-label="Scan pairing QR code">
+    <div className="m-scanner" role="dialog" aria-label={t`Scan pairing QR code`}>
       <div className="m-scanner__stage">
         {error ? (
           <div className="m-scanner__error">
             <CameraOff className="size-7" />
-            <strong>{ERROR_COPY[error].title}</strong>
-            <p>{ERROR_COPY[error].hint}</p>
+            <strong>{t(ERROR_COPY[error].title)}</strong>
+            <p>{t(ERROR_COPY[error].hint)}</p>
           </div>
         ) : (
           <>
@@ -171,10 +175,10 @@ export function QrScanner(props: {
               {starting ? (
                 <>
                   <Loader2 className="size-4 m-spin" />
-                  Starting camera…
+                  <Trans>Starting camera…</Trans>
                 </>
               ) : (
-                "Point at the QR code in Settings → Remote Access"
+                <Trans>Point at the QR code in Settings → Remote Access</Trans>
               )}
             </p>
           </>
@@ -183,7 +187,7 @@ export function QrScanner(props: {
       <button
         type="button"
         className="m-scanner__close"
-        aria-label="Close scanner"
+        aria-label={t`Close scanner`}
         onClick={props.onCancel}
       >
         <X className="size-5" />

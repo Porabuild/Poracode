@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { Trans } from "@lingui/react/macro";
 import { FolderOpen } from "lucide-react";
 import type { Project } from "@/shared/contracts";
 import type { DraftStartInput } from "@/renderer/components/thread/ThreadDraftComposerArea";
@@ -58,8 +59,8 @@ export function NewThreadView(props: {
       <section className="m-draft">
         <EmptyState
           icon={<FolderOpen className="size-5" />}
-          title="No projects available"
-          hint="Open a project in Lightcode on your desktop, then refresh."
+          title={<Trans>No projects available</Trans>}
+          hint={<Trans>Open a project in Lightcode on your desktop, then refresh.</Trans>}
         />
       </section>
     );

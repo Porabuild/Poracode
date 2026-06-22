@@ -1,5 +1,8 @@
 import type { ReactNode } from "react";
 import { Button, Surface } from "@heroui/react";
+import type { MessageDescriptor } from "@lingui/core";
+import { msg } from "@lingui/core/macro";
+import { Trans, useLingui } from "@lingui/react/macro";
 import {
   ArchiveRestore,
   Archive,
@@ -44,12 +47,15 @@ export interface SettingsThreadHandlers {
  * through the remote thread-command API so the desktop actually applies them.
  */
 function RemoteArchivedThreads(props: SettingsThreadHandlers) {
-  const archivedThreads = props.threads.filter((t) => t.archived);
+  const { t } = useLingui();
+  const archivedThreads = props.threads.filter((thread) => thread.archived);
 
   return (
-    <SettingsPage title="Archived Threads" bodyClassName="">
+    <SettingsPage title={t`Archived Threads`} bodyClassName="">
       {archivedThreads.length === 0 ? (
-        <p className="text-sm text-muted">No archived threads.</p>
+        <p className="text-sm text-muted">
+          <Trans>No archived threads.</Trans>
+        </p>
       ) : (
         <Surface variant="secondary" className="divide-y divide-[var(--hairline)] rounded-xl">
           {archivedThreads.map((thread) => {
@@ -70,7 +76,7 @@ function RemoteArchivedThreads(props: SettingsThreadHandlers) {
                     variant="tertiary"
                     size="sm"
                     isIconOnly
-                    aria-label="Restore thread"
+                    aria-label={t`Restore thread`}
                     onPress={() => props.onThreadAction(thread, { kind: "unarchive" })}
                   >
                     <ArchiveRestore className="size-4" />
@@ -79,7 +85,7 @@ function RemoteArchivedThreads(props: SettingsThreadHandlers) {
                     variant="tertiary"
                     size="sm"
                     isIconOnly
-                    aria-label="Delete thread"
+                    aria-label={t`Delete thread`}
                     onPress={() => props.onThreadAction(thread, { kind: "delete" })}
                   >
                     <Trash2 className="size-4 text-danger" />
@@ -96,15 +102,15 @@ function RemoteArchivedThreads(props: SettingsThreadHandlers) {
 
 interface SectionDef {
   readonly id: string;
-  readonly label: string;
-  readonly hint: string;
+  readonly label: MessageDescriptor;
+  readonly hint: MessageDescriptor;
   readonly icon: ReactNode;
   readonly render: (handlers: SettingsThreadHandlers) => ReactNode;
 }
 
 interface SectionGroup {
-  readonly title: string;
-  readonly hint: string;
+  readonly title: MessageDescriptor;
+  readonly hint: MessageDescriptor;
   readonly sections: readonly SectionDef[];
 }
 
@@ -118,89 +124,89 @@ interface SectionGroup {
  */
 const SECTION_GROUPS: readonly SectionGroup[] = [
   {
-    title: "This device",
-    hint: "Stored on this phone; the desktop keeps its own values.",
+    title: msg`This device`,
+    hint: msg`Stored on this phone; the desktop keeps its own values.`,
     sections: [
       {
         id: "general",
         label: MOBILE_SETTINGS_SECTION_LABELS.general,
-        hint: "Thread defaults and home scope",
+        hint: msg`Thread defaults and home scope`,
         icon: <Settings2 className="size-4" />,
         render: () => <GeneralSettings />,
       },
       {
         id: "appearance",
         label: MOBILE_SETTINGS_SECTION_LABELS.appearance,
-        hint: "Theme and chat font size",
+        hint: msg`Theme and chat font size`,
         icon: <Palette className="size-4" />,
         render: () => <AppearanceSettings />,
       },
       {
         id: "notifications",
         label: MOBILE_SETTINGS_SECTION_LABELS.notifications,
-        hint: "Alerts when threads need you",
+        hint: msg`Alerts when threads need you`,
         icon: <Bell className="size-4" />,
         render: () => <NotificationSettings />,
       },
       {
         id: "terminal",
         label: MOBILE_SETTINGS_SECTION_LABELS.terminal,
-        hint: "Fonts and scrolling",
+        hint: msg`Fonts and scrolling`,
         icon: <TerminalSquare className="size-4" />,
         render: () => <TerminalSettings />,
       },
       {
         id: "threads",
         label: MOBILE_SETTINGS_SECTION_LABELS.threads,
-        hint: "Removal behavior",
+        hint: msg`Removal behavior`,
         icon: <MessageSquare className="size-4" />,
         render: () => <ThreadSettings />,
       },
       {
         id: "git",
         label: MOBILE_SETTINGS_SECTION_LABELS.git,
-        hint: "Review presentation",
+        hint: msg`Review presentation`,
         icon: <GitFork className="size-4" />,
         render: () => <GitSettings />,
       },
       {
         id: "browser",
         label: MOBILE_SETTINGS_SECTION_LABELS.browser,
-        hint: "Links and page behavior",
+        hint: msg`Links and page behavior`,
         icon: <Globe className="size-4" />,
         render: () => <BrowserSettings />,
       },
       {
         id: "usage",
         label: MOBILE_SETTINGS_SECTION_LABELS.usage,
-        hint: "Tracking and display",
+        hint: msg`Tracking and display`,
         icon: <Gauge className="size-4" />,
         render: () => <UsageSettings />,
       },
     ],
   },
   {
-    title: "Desktop",
-    hint: "Edits the paired desktop and syncs back to it.",
+    title: msg`Desktop`,
+    hint: msg`Edits the paired desktop and syncs back to it.`,
     sections: [
       {
         id: "ai",
         label: MOBILE_SETTINGS_SECTION_LABELS.ai,
-        hint: "Title, commit, and conflict models",
+        hint: msg`Title, commit, and conflict models`,
         icon: <Sparkles className="size-4" />,
         render: () => <AISettings />,
       },
       {
         id: "models",
         label: MOBILE_SETTINGS_SECTION_LABELS.models,
-        hint: "Enabled agents, model visibility and order",
+        hint: msg`Enabled agents, model visibility and order`,
         icon: <Bot className="size-4" />,
         render: () => <AgentsGeneralSettings />,
       },
       {
         id: "archived",
         label: MOBILE_SETTINGS_SECTION_LABELS.archived,
-        hint: "Restore or delete",
+        hint: msg`Restore or delete`,
         icon: <Archive className="size-4" />,
         render: (handlers) => <RemoteArchivedThreads {...handlers} />,
       },
@@ -220,6 +226,7 @@ export function SettingsView(
     readonly onSectionChange: (sectionId: string | null) => void;
   },
 ) {
+  const { t } = useLingui();
   const section = props.sectionId ? ALL_SECTIONS.find((s) => s.id === props.sectionId) : undefined;
 
   if (section) {
@@ -233,18 +240,18 @@ export function SettingsView(
   return (
     <div className="m-page">
       {SECTION_GROUPS.map((group) => (
-        <div key={group.title} className="m-settings-group">
+        <div key={group.title.id} className="m-settings-group">
           <div className="m-settings-group__head">
-            <strong>{group.title}</strong>
-            <span>{group.hint}</span>
+            <strong>{t(group.title)}</strong>
+            <span>{t(group.hint)}</span>
           </div>
           <div className="m-more-list">
             {group.sections.map((entry) => (
               <MoreRow
                 key={entry.id}
                 icon={entry.icon}
-                label={entry.label}
-                hint={entry.hint}
+                label={t(entry.label)}
+                hint={t(entry.hint)}
                 onPress={() => props.onSectionChange(entry.id)}
               />
             ))}

@@ -1,5 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { Button, toast } from "@heroui/react";
+import type { MessageDescriptor } from "@lingui/core";
+import { msg } from "@lingui/core/macro";
+import { Plural, Trans, useLingui } from "@lingui/react/macro";
 import { ChevronLeft, Ellipsis, Home, Plus, Server } from "lucide-react";
 import type { ReactNode } from "react";
 import { Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
@@ -23,7 +26,7 @@ type Chrome =
   | { readonly layout: "tab"; readonly tab: TabKey }
   | {
       readonly layout: "subscreen";
-      readonly title: string;
+      readonly title: MessageDescriptor;
       readonly backTo: "/more" | "/more/settings";
       readonly tab: "more";
     }
@@ -40,19 +43,19 @@ function getChrome(pathname: string): Chrome {
     const id = decodeURIComponent(sectionMatch[1]);
     return {
       layout: "subscreen",
-      title: getSettingsSectionLabel(id) ?? "Settings",
+      title: getSettingsSectionLabel(id) ?? msg`Settings`,
       backTo: "/more/settings",
       tab: "more",
     };
   }
   if (pathname === "/more/settings") {
-    return { layout: "subscreen", title: "Settings", backTo: "/more", tab: "more" };
+    return { layout: "subscreen", title: msg`Settings`, backTo: "/more", tab: "more" };
   }
   if (pathname === "/more/usage") {
-    return { layout: "subscreen", title: "Usage", backTo: "/more", tab: "more" };
+    return { layout: "subscreen", title: msg`Usage`, backTo: "/more", tab: "more" };
   }
   if (pathname === "/more/browser") {
-    return { layout: "subscreen", title: "Browser", backTo: "/more", tab: "more" };
+    return { layout: "subscreen", title: msg`Browser`, backTo: "/more", tab: "more" };
   }
   if (pathname === "/more") return { layout: "tab", tab: "more" };
   if (pathname === "/new") return { layout: "tab", tab: "new" };
@@ -74,7 +77,7 @@ function Brand(props: { readonly subtitle?: string | undefined; readonly onPress
 function TabButton(props: {
   readonly active: boolean;
   readonly icon: ReactNode;
-  readonly label: string;
+  readonly label: ReactNode;
   readonly onPress: () => void;
 }) {
   return (
@@ -113,6 +116,7 @@ function ConnectionControl(props: {
 function NarrowShell(props: { readonly remote: RemoteDesktopSession; readonly chrome: Chrome }) {
   const { remote, chrome } = props;
   const navigate = useNavigate();
+  const { t } = useLingui();
 
   // Fullscreen routes (git panel, PR review) render their own chrome.
   if (chrome.layout === "fullscreen") {
@@ -151,7 +155,9 @@ function NarrowShell(props: { readonly remote: RemoteDesktopSession; readonly ch
               />
             ) : (
               <span className="m-topbar__thread">
-                <span className="m-topbar__title">Thread</span>
+                <span className="m-topbar__title">
+                  <Trans>Thread</Trans>
+                </span>
               </span>
             )}
           </>
@@ -165,7 +171,7 @@ function NarrowShell(props: { readonly remote: RemoteDesktopSession; readonly ch
               <ChevronLeft className="size-5" />
             </button>
             <span className="m-topbar__thread">
-              <span className="m-topbar__title">{chrome.title}</span>
+              <span className="m-topbar__title">{t(chrome.title)}</span>
             </span>
           </>
         ) : (
@@ -182,29 +188,29 @@ function NarrowShell(props: { readonly remote: RemoteDesktopSession; readonly ch
       </main>
 
       {chrome.layout === "thread" ? null : (
-        <nav className="m-tabbar" aria-label="Lightcode mobile navigation">
+        <nav className="m-tabbar" aria-label={t`Lightcode mobile navigation`}>
           <TabButton
             active={activeTab === "threads"}
             icon={<Home className="size-4" />}
-            label="Threads"
+            label={t`Threads`}
             onPress={() => void navigate({ to: "/threads" })}
           />
           <TabButton
             active={activeTab === "new"}
             icon={<Plus className="size-4" />}
-            label="New"
+            label={t`New`}
             onPress={() => void navigate({ to: "/new" })}
           />
           <TabButton
             active={activeTab === "desktops"}
             icon={<Server className="size-4" />}
-            label="Desktops"
+            label={t`Desktops`}
             onPress={() => void navigate({ to: "/desktops" })}
           />
           <TabButton
             active={activeTab === "more"}
             icon={<Ellipsis className="size-4" />}
-            label="More"
+            label={t`More`}
             onPress={() => void navigate({ to: "/more" })}
           />
         </nav>
@@ -222,6 +228,7 @@ function WideShell(props: {
 }) {
   const { remote, pathname, projectFilter, setProjectFilter } = props;
   const navigate = useNavigate();
+  const { t } = useLingui();
   const selectedThreadId = threadIdFromPath(pathname);
 
   return (
@@ -242,10 +249,10 @@ function WideShell(props: {
             onPress={() => void navigate({ to: "/new" })}
           >
             <Plus className="size-4" />
-            New thread
+            <Trans>New thread</Trans>
           </Button>
           <Button
-            aria-label="More"
+            aria-label={t`More`}
             className="text-foreground"
             size="sm"
             variant="secondary"
@@ -293,9 +300,13 @@ function WideShell(props: {
           >
             <Server className="size-4" />
             <span>
-              <strong>{remote.activeDesktop?.label ?? "No desktop paired"}</strong>
+              <strong>{remote.activeDesktop?.label ?? t`No desktop paired`}</strong>
               <span>
-                {remote.desktops.length} paired desktop{remote.desktops.length === 1 ? "" : "s"}
+                <Plural
+                  value={remote.desktops.length}
+                  one="# paired desktop"
+                  other="# paired desktops"
+                />
               </span>
             </span>
           </button>

@@ -17,6 +17,10 @@ msgstr ""
 msgid "(Draft)"
 msgstr "(Bản nháp)"
 
+#: src/mobile/GitSummaryParts.tsx
+msgid "(no branch)"
+msgstr "(không có nhánh)"
+
 #: src/renderer/views/PrReviewOverlay/parts/PrCommitsTab.tsx
 msgid "(no message)"
 msgstr "(không có tin nhắn)"
@@ -25,6 +29,13 @@ msgstr "(không có tin nhắn)"
 #: src/renderer/views/PrReviewOverlay/parts/PrMetaRow.tsx
 msgid "{0, plural, one {# file} other {# files}}"
 msgstr "{0, plural, one {# tập tin} other {# tập tin}}"
+
+#. placeholder {0}: props.desktops.length
+#. placeholder {0}: remote.desktops.length
+#: src/mobile/RootLayout.tsx
+#: src/mobile/views/DesktopsView.tsx
+msgid "{0, plural, one {# paired desktop} other {# paired desktops}}"
+msgstr "{0, plural, one {# desktop đã ghép đôi} other {# desktop đã ghép đôi}}"
 
 #. placeholder {0}: readyKinds.size
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
@@ -156,6 +167,11 @@ msgstr "{0} lần chạy"
 msgid "{0} runs"
 msgstr "{0} lần chạy"
 
+#. placeholder {0}: threads.length
+#: src/mobile/views/ThreadsView.tsx
+msgid "{0} threads"
+msgstr "{0} luồng"
+
 #. placeholder {0}: formatTokens(snapshot.tokens.total)
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
@@ -212,6 +228,16 @@ msgstr "{0} tháng trước"
 msgid "{agentLabel}: {statusLabel}. Hover for status details."
 msgstr "{agentLabel}: {statusLabel}. Di chuột để biết chi tiết trạng thái."
 
+#: src/mobile/views/pr/PrOverviewPage.tsx
+msgid "{commitsCount, plural, one {# commit} other {# commits}}"
+msgstr "{commitsCount, plural, one {# commit} other {# commit}}"
+
+#: src/mobile/views/pr/PrOverviewPage.tsx
+msgid "{conversationCount, plural, one {# comment or review} other {# comments "
+"& reviews}}"
+msgstr "{conversationCount, plural, one {# bình luận hoặc đánh giá} other {# "
+"bình luận và đánh giá}}"
+
 #: src/renderer/views/ProfileOverlay/parts/ShareCard.tsx
 #: src/renderer/views/ProfileOverlay/parts/StatStrip.tsx
 msgid "{days} day"
@@ -230,6 +256,10 @@ msgstr "{days} ngày trước"
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
 msgid "{envOrAgentLabel} needs authentication."
 msgstr "{envOrAgentLabel} cần xác thực."
+
+#: src/mobile/views/pr/PrOverviewPage.tsx
+msgid "{filesCount, plural, one {# file changed} other {# files changed}}"
+msgstr "{filesCount, plural, one {# tệp đã đổi} other {# tệp đã đổi}}"
 
 #: src/renderer/components/thread/ChatPane/ChatRuntimeDebugPanel.tsx
 msgid "{filteredCount} / {totalCount} matches"
@@ -367,6 +397,10 @@ msgstr "~{money}{tokens} · {0} · ước tính."
 msgid "≈{0}% by reset"
 msgstr "≈{0}% khi đặt lại"
 
+#: src/mobile/views/ThreadsView.tsx
+msgid "1 thread"
+msgstr "1 luồng"
+
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "30d"
 msgstr "30 ngày"
@@ -440,6 +474,17 @@ msgstr "Tên hành động"
 msgid "Actions"
 msgstr "Hành động"
 
+#. placeholder {0}: thread.title
+#: src/mobile/views/ThreadsView.tsx
+msgid "Actions for {0}"
+msgstr "Hành động cho {0}"
+
+#: src/mobile/views/DesktopsView.tsx
+#: src/mobile/views/ThreadsView.tsx
+msgid "Actions for {title}"
+msgstr "Hành động cho {title}"
+
+#: src/mobile/views/DesktopsView.tsx
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 msgid "Active"
 msgstr "Đang hoạt động"
@@ -538,6 +583,10 @@ msgstr "Thêm vào trình soạn thảo"
 msgid "Add to favorites"
 msgstr "Thêm vào mục yêu thích"
 
+#: src/mobile/views/DesktopsView.tsx
+msgid "Add to Home Screen"
+msgstr "Thêm vào màn hình chính"
+
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
 msgid "Agent"
@@ -592,6 +641,7 @@ msgstr "Tác nhân: {description}"
 msgid "Agent: {subagent}"
 msgstr "Tác nhân: {subagent}"
 
+#: src/mobile/settingsSections.ts
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
 msgid "Agents"
@@ -604,6 +654,7 @@ msgstr "Tác nhân · Chung"
 
 #. Settings section: AI / assistant configuration
 #. Settings section: AI / assistant configuration
+#: src/mobile/settingsSections.ts
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "AI"
@@ -618,6 +669,10 @@ msgstr "Trình điều phối tác nhân AI - quản lý các tác nhân mã hó
 #: src/renderer/views/ProfileOverlay/parts/AiActions.tsx
 msgid "AI git actions"
 msgstr "Thao tác git bằng AI"
+
+#: src/mobile/views/SettingsView.tsx
+msgid "Alerts when threads need you"
+msgstr "Cảnh báo khi luồng cần bạn"
 
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
@@ -641,6 +696,10 @@ msgstr "Tất cả mức nỗ lực"
 msgid "All files"
 msgstr "Tất cả các tập tin"
 
+#: src/mobile/views/ThreadsView.tsx
+msgid "All projects"
+msgstr "Tất cả dự án"
+
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/helpers.ts
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
 msgid "Allow"
@@ -650,6 +709,12 @@ msgstr "Cho phép"
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Allow agents to read/write cookies and storage"
 msgstr "Cho phép tác nhân đọc/ghi cookie và bộ nhớ lưu trữ"
+
+#: src/mobile/QrScanner.tsx
+msgid "Allow camera access for this site in your browser settings and try again "
+"— or enter the endpoint and token below."
+msgstr "Cho phép trang này truy cập camera trong cài đặt trình duyệt rồi thử "
+"lại, hoặc nhập endpoint và token bên dưới."
 
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -684,6 +749,11 @@ msgstr "Một cuộc trò chuyện khác cũng sử dụng cây này. Khôi ph�
 msgid "App Browser"
 msgstr "Trình duyệt ứng dụng"
 
+#: src/mobile/views/MoreView.tsx
+msgid "App preferences"
+msgstr "Tùy chọn ứng dụng"
+
+#: src/mobile/settingsSections.ts
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Appearance"
@@ -730,6 +800,10 @@ msgstr "Lưu trữ {0}"
 msgid "Archive All"
 msgstr "Lưu trữ tất cả"
 
+#: src/mobile/views/ThreadsView.tsx
+msgid "Archive all threads"
+msgstr "Lưu trữ tất cả luồng"
+
 #: src/renderer/commands/registry.ts
 msgid "Archive the current thread"
 msgstr "Lưu trữ luồng hiện tại"
@@ -738,10 +812,14 @@ msgstr "Lưu trữ luồng hiện tại"
 msgid "Archive thread"
 msgstr "Lưu trữ luồng"
 
+#: src/mobile/ThreadTitleRow.tsx
+#: src/mobile/views/ThreadsView.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
 msgid "Archive Thread"
 msgstr "Lưu trữ luồng"
 
+#: src/mobile/settingsSections.ts
+#: src/mobile/views/SettingsView.tsx
 #: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Archived Threads"
@@ -871,10 +949,25 @@ msgstr "Màu ảnh đại diện"
 msgid "Avatar color {color}"
 msgstr "Màu ảnh đại diện {color}"
 
+#: src/mobile/views/BrowserView.tsx
+#: src/mobile/views/GitView.tsx
+#: src/mobile/views/pr/PrPageHeader.tsx
+#: src/mobile/views/TerminalView.tsx
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Back"
 msgstr "Quay lại"
+
+#: src/mobile/views/GitView.tsx
+msgid "Back to files"
+msgstr "Quay lại tệp"
+
+#: src/mobile/views/pr/PrChangesPage.tsx
+#: src/mobile/views/pr/PrChecksPage.tsx
+#: src/mobile/views/pr/PrCommitsPage.tsx
+#: src/mobile/views/pr/PrConversationPage.tsx
+msgid "Back to overview"
+msgstr "Quay lại tổng quan"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Background process exited unexpectedly"
@@ -892,6 +985,7 @@ msgstr "Tiến trình nền đã được khởi động lại"
 msgid "Background tasks"
 msgstr "Tác vụ nền"
 
+#: src/mobile/views/pr/PrOverviewPage.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "Base branch is ahead — branch must be updated first."
 msgstr "Nhánh cơ sở ở phía trước - nhánh phải được cập nhật trước."
@@ -998,6 +1092,9 @@ msgstr "Duyệt tìm thư mục mẹ"
 msgid "Browse your GitHub repositories or paste a clone URL."
 msgstr "Duyệt qua kho GitHub của bạn hoặc dán URL nhân bản."
 
+#: src/mobile/RootLayout.tsx
+#: src/mobile/settingsSections.ts
+#: src/mobile/views/MoreView.tsx
 #: src/renderer/commands/registry.ts
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/composer/AttachmentBar.tsx
@@ -1036,6 +1133,10 @@ msgstr "Mục tiêu chọn trình duyệt (chủ đề CLI)"
 msgid "Browser pick target for CLI threads"
 msgstr "Mục tiêu chọn trình duyệt cho các chủ đề CLI"
 
+#: src/mobile/views/BrowserView.tsx
+msgid "Browser tabs"
+msgstr "Thẻ trình duyệt"
+
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 msgid "Budget limit reached"
 msgstr "Đã đạt đến giới hạn ngân sách"
@@ -1071,7 +1172,16 @@ msgstr "Bỏ qua các quy tắc bảo vệ nhánh"
 msgid "Bypass branch protection rules (admin merge)"
 msgstr "Bỏ qua các quy tắc bảo vệ nhánh (hợp nhất với quyền quản trị)"
 
+#: src/mobile/views/DesktopsView.tsx
+msgid "Cached only"
+msgstr "Chỉ có trong bộ nhớ đệm"
+
+#: src/mobile/QrScanner.tsx
+msgid "Camera access blocked"
+msgstr "Quyền truy cập camera bị chặn"
+
 #. Dialog button: dismiss without deleting
+#: src/mobile/views/GitActionSheet.tsx
 #: src/renderer/components/common/ConfirmDialog.tsx
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 #: src/renderer/components/thread/ChatPane/parts/CheckpointRevertControls.tsx
@@ -1134,6 +1244,8 @@ msgstr "Thay đổi người dùng"
 msgid "Changelog"
 msgstr "Nhật ký thay đổi"
 
+#: src/mobile/views/pr/PrChangesPage.tsx
+#: src/mobile/views/pr/PrOverviewPage.tsx
 #: src/renderer/views/GitReviewOverlay/GitReviewOverlay.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 #: src/renderer/views/PrReviewOverlay/parts/PrTabsPill.tsx
@@ -1193,6 +1305,8 @@ msgstr "Kiểm tra mức đầu vào trực tiếp từ thiết bị đã chọn
 msgid "Checking…"
 msgstr "Đang kiểm tra…"
 
+#: src/mobile/views/pr/PrChecksPage.tsx
+#: src/mobile/views/pr/PrOverviewPage.tsx
 #: src/renderer/views/PrReviewOverlay/parts/PrTabsPill.tsx
 msgid "Checks"
 msgstr "Kiểm tra"
@@ -1306,9 +1420,14 @@ msgstr "Đang nhân bản {cloneTarget}"
 msgid "Cloning…"
 msgstr "Nhân bản…"
 
+#: src/mobile/components.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 msgid "Close"
 msgstr "Đóng"
+
+#: src/mobile/views/BrowserView.tsx
+msgid "Close {closeTarget}"
+msgstr "Đóng {closeTarget}"
 
 #: src/renderer/views/LoginTerminalOverlay/LoginTerminalOverlay.tsx
 msgid "Close {purposeNoun} terminal"
@@ -1317,6 +1436,10 @@ msgstr "Đóng terminal {purposeNoun}"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 msgid "Close browser"
 msgstr "Đóng trình duyệt"
+
+#: src/mobile/views/DesktopsView.tsx
+msgid "Close desktop actions"
+msgstr "Đóng hành động desktop"
 
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorToolbar.tsx
 msgid "Close editor"
@@ -1337,6 +1460,14 @@ msgstr "Đóng mục tiêu"
 #: src/renderer/views/MainView/parts/AppContent/AppContent.tsx
 msgid "Close group"
 msgstr "Đóng nhóm"
+
+#: src/mobile/views/ThreadsView.tsx
+msgid "Close group actions"
+msgstr "Đóng hành động nhóm"
+
+#: src/mobile/views/GitActionSheet.tsx
+msgid "Close menu"
+msgstr "Đóng menu"
 
 #: src/renderer/commands/shortcutCatalog.ts
 msgid "Close overlay"
@@ -1359,9 +1490,21 @@ msgstr "Đóng kế hoạch"
 msgid "Close PR"
 msgstr "Đóng PR"
 
+#: src/mobile/views/pr/PrOverviewPage.tsx
+msgid "Close PR review"
+msgstr "Đóng đánh giá PR"
+
 #: src/renderer/components/composer/ImageLightbox.tsx
 msgid "Close preview"
 msgstr "Đóng bản xem trước"
+
+#: src/mobile/views/ThreadsView.tsx
+msgid "Close project filter"
+msgstr "Đóng bộ lọc dự án"
+
+#: src/mobile/QrScanner.tsx
+msgid "Close scanner"
+msgstr "Đóng trình quét"
 
 #: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
 msgid "Close search"
@@ -1386,6 +1529,15 @@ msgstr "Đóng bảng tác nhân phụ"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabStrip.tsx
 msgid "Close tab"
 msgstr "Đóng tab"
+
+#: src/mobile/views/BrowserView.tsx
+msgid "Close tab switcher"
+msgstr "Đóng bộ chuyển thẻ"
+
+#: src/mobile/ThreadTitleRow.tsx
+#: src/mobile/views/ThreadsView.tsx
+msgid "Close thread actions"
+msgstr "Đóng hành động luồng"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -1512,6 +1664,7 @@ msgstr "Tùy chọn cam kết"
 msgid "Commit, PR, and review composers"
 msgstr "Trình soạn thảo commit, PR và đánh giá"
 
+#: src/mobile/views/pr/PrCommitsPage.tsx
 #: src/renderer/views/PrReviewOverlay/parts/PrTabsPill.tsx
 msgid "Commits"
 msgstr "Cam kết"
@@ -1580,6 +1733,14 @@ msgstr "Giải quyết xung đột"
 msgid "Conflicts"
 msgstr "Xung đột"
 
+#: src/mobile/views/BrowserView.tsx
+msgid "Connecting to the desktop browser…"
+msgstr "Đang kết nối tới trình duyệt trên desktop…"
+
+#: src/mobile/components.tsx
+msgid "Connection error."
+msgstr "Lỗi kết nối."
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Console"
 msgstr "Console"
@@ -1642,6 +1803,8 @@ msgid "Control which files appear in the @file mention search. Per-project "
 msgstr "Kiểm soát những tập tin nào xuất hiện trong tìm kiếm đề cập đến @file. "
 "Ghi đè cho mỗi dự án trực tiếp trong cài đặt của từng dự án."
 
+#: src/mobile/views/pr/PrConversationPage.tsx
+#: src/mobile/views/pr/PrOverviewPage.tsx
 #: src/renderer/views/PrReviewOverlay/parts/PrTabsPill.tsx
 msgid "Conversation"
 msgstr "Cuộc trò chuyện"
@@ -1747,6 +1910,10 @@ msgstr "Không thể sao chép những thay đổi chưa được cam kết củ
 msgid "Couldn't create the project."
 msgstr "Không thể tạo dự án."
 
+#: src/mobile/useRemoteDesktop.ts
+msgid "Couldn't create the worktree."
+msgstr "Không thể tạo worktree."
+
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "Couldn't list repositories."
 msgstr "Không thể liệt kê các kho lưu trữ."
@@ -1758,6 +1925,14 @@ msgstr "Không thể tải thống kê hồ sơ của bạn."
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Couldn't save the shortcut."
 msgstr "Không thể lưu phím tắt."
+
+#: src/mobile/QrScanner.tsx
+msgid "Couldn't start the camera"
+msgstr "Không thể khởi động camera"
+
+#: src/mobile/useRemoteDesktop.ts
+msgid "Couldn't tag the thread's worktree."
+msgstr "Không thể gắn thẻ worktree của luồng."
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CreatePrModal.tsx
 msgid "Create Draft PR"
@@ -1929,10 +2104,13 @@ msgstr "Xóa tập tin"
 msgid "Delete permanently"
 msgstr "Xóa vĩnh viễn"
 
+#: src/mobile/views/SettingsView.tsx
 #: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
 msgid "Delete thread"
 msgstr "Xóa chủ đề"
 
+#: src/mobile/ThreadTitleRow.tsx
+#: src/mobile/views/ThreadsView.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
 msgid "Delete Thread"
 msgstr "Xóa chủ đề"
@@ -1977,6 +2155,19 @@ msgstr "Mô tả"
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CreatePrModal.tsx
 msgid "Description (optional)"
 msgstr "Mô tả (tùy chọn)"
+
+#: src/mobile/views/SettingsView.tsx
+msgid "Desktop"
+msgstr "Desktop"
+
+#: src/mobile/useRemoteDesktop.ts
+msgid "Desktop is unreachable."
+msgstr "Không thể kết nối tới desktop."
+
+#: src/mobile/RootLayout.tsx
+#: src/mobile/views/DesktopsView.tsx
+msgid "Desktops"
+msgstr "Desktop"
 
 #. placeholder {0}: detectionScopeLabel(status)
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
@@ -2049,6 +2240,18 @@ msgstr "Đã tắt"
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Discard"
 msgstr "Hủy bỏ"
+
+#: src/mobile/views/GitActionSheet.tsx
+msgid "Discard all changes"
+msgstr "Hủy tất cả thay đổi"
+
+#: src/mobile/views/GitActionSheet.tsx
+msgid "Discard changes"
+msgstr "Hủy thay đổi"
+
+#: src/mobile/views/GitActionSheet.tsx
+msgid "Discard changes to <0>{title}</0>? This cannot be undone."
+msgstr "Hủy thay đổi trong <0>{title}</0>? Không thể hoàn tác."
 
 #: src/renderer/commands/registry.ts
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
@@ -2200,6 +2403,10 @@ msgstr "LSP của trình chỉnh sửa"
 msgid "Editor tabs"
 msgstr "Tab trình chỉnh sửa"
 
+#: src/mobile/views/SettingsView.tsx
+msgid "Edits the paired desktop and syncs back to it."
+msgstr "Chỉnh sửa desktop đã ghép đôi và đồng bộ lại về đó."
+
 #: src/renderer/components/common/EffortContextMenu/EffortContextMenu.tsx
 msgid "Effort and context"
 msgstr "Nỗ lực và bối cảnh"
@@ -2250,6 +2457,10 @@ msgstr "Bật nhà cung cấp trong cài đặt"
 msgid "Enabled"
 msgstr "Đã bật"
 
+#: src/mobile/views/SettingsView.tsx
+msgid "Enabled agents, model visibility and order"
+msgstr "Agent đã bật, khả năng hiển thị và thứ tự mô hình"
+
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
 msgid "Enables <0>cookies</0> and <1>storage</1>. Cookies can contain session "
 "tokens and storage often holds auth state — only enable when you trust "
@@ -2257,6 +2468,10 @@ msgid "Enables <0>cookies</0> and <1>storage</1>. Cookies can contain session "
 msgstr "Bật <0>cookie</0> và <1>bộ nhớ</1>. Cookie có thể chứa mã thông báo "
 "phiên và bộ lưu trữ thường giữ trạng thái xác thực — chỉ bật khi bạn "
 "tin cậy cả tác nhân và các trang web mà nó truy cập."
+
+#: src/mobile/views/DesktopsView.tsx
+msgid "Endpoint"
+msgstr "Endpoint"
 
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 msgid "Enhanced (Hooks)"
@@ -2294,6 +2509,8 @@ msgid "error"
 msgstr "lỗi"
 
 #. Notification status: agent error
+#: src/mobile/presentation.ts
+#: src/mobile/useRemoteDesktop.ts
 #: src/renderer/components/providers/ProviderUsageRail.tsx
 #: src/renderer/components/providers/usageFormat.ts
 #: src/renderer/components/thread/ChatPane/parts/items/ErrorItem.tsx
@@ -2317,6 +2534,14 @@ msgstr "Loại trừ mẫu"
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Exit plan mode"
 msgstr "Thoát khỏi chế độ kế hoạch"
+
+#: src/mobile/views/TerminalView.tsx
+msgid "exited"
+msgstr "đã thoát"
+
+#: src/mobile/views/TerminalView.tsx
+msgid "exited ({exitCode})"
+msgstr "đã thoát ({exitCode})"
 
 #. placeholder {0}: renderedSession.failedExitCode
 #: src/renderer/views/LoginTerminalOverlay/LoginTerminalOverlay.tsx
@@ -2456,6 +2681,10 @@ msgstr "Tập tin cho {0}"
 msgid "Files matching these globs are hidden from the @file mention search."
 msgstr "Các tệp khớp với các mẫu glob này sẽ bị ẩn khỏi tìm kiếm @file."
 
+#: src/mobile/views/ThreadsView.tsx
+msgid "Filter by project"
+msgstr "Lọc theo dự án"
+
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Filter settings"
 msgstr "Lọc cài đặt"
@@ -2481,6 +2710,7 @@ msgstr "Tìm trong terminal"
 msgid "Finish your review"
 msgstr "Kết thúc bài đánh giá của bạn"
 
+#: src/mobile/presentation.ts
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 msgid "Finished"
 msgstr "Đã hoàn thành"
@@ -2550,6 +2780,10 @@ msgid "Folder that holds this project's worktrees. Reset to use the global "
 msgstr "Thư mục chứa các cây làm việc của dự án này. Đặt lại để dùng thiết lập "
 "toàn cục."
 
+#: src/mobile/views/SettingsView.tsx
+msgid "Fonts and scrolling"
+msgstr "Phông chữ và cuộn"
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/ForceDeleteBranchDialog.tsx
 msgid "Force Delete"
 msgstr "Buộc xóa"
@@ -2570,6 +2804,7 @@ msgstr "Fork"
 msgid "Format files"
 msgstr "Định dạng tập tin"
 
+#: src/mobile/views/BrowserView.tsx
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Forward"
@@ -2601,6 +2836,7 @@ msgstr "Toàn quyền truy cập"
 msgid "Fullscreen overlay"
 msgstr "Lớp phủ toàn màn hình"
 
+#: src/mobile/settingsSections.ts
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/views/ProjectSettingsOverlay/parts/GeneralSection.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/SettingsSidebar.tsx
@@ -2639,6 +2875,7 @@ msgstr "Tạo tiêu đề ngắn cho chủ đề mới."
 msgid "Get task"
 msgstr "Nhận nhiệm vụ"
 
+#: src/mobile/settingsSections.ts
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/layout/UnifiedRightPanel.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
@@ -2653,6 +2890,10 @@ msgstr "Git"
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Git {command} failed: {detail}"
 msgstr "Git {command} không thành công: {detail}"
+
+#: src/mobile/views/GitActionSheet.tsx
+msgid "Git actions"
+msgstr "Hành động Git"
 
 #: src/renderer/views/GitReviewOverlay/GitReviewOverlay.tsx
 msgid "Git Review"
@@ -2769,6 +3010,10 @@ msgstr "Ẩn trình kiểm tra mục thời gian chạy chuẩn"
 msgid "Hide context usage details"
 msgstr "Ẩn chi tiết sử dụng ngữ cảnh"
 
+#: src/mobile/views/BrowserView.tsx
+msgid "Hide keyboard"
+msgstr "Ẩn bàn phím"
+
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilitySection.tsx
 msgid "Hide models you don't use from the model picker across every provider."
 msgstr "Ẩn các mô hình bạn không sử dụng khỏi bộ chọn mô hình trên mọi nhà cung "
@@ -2812,6 +3057,7 @@ msgid "ID: {0}"
 msgstr "Mã số: {0}"
 
 #. Microphone input level when not testing
+#: src/mobile/presentation.ts
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 msgid "Idle"
@@ -2826,6 +3072,14 @@ msgstr "Hình ảnh"
 msgid "Image preview"
 msgstr "Xem trước hình ảnh"
 
+#: src/mobile/QrScanner.tsx
+msgid "In-app camera scanning only works over HTTPS. Use your phone's camera "
+"app to scan the desktop QR code, or enter the endpoint and token below."
+msgstr "Quét bằng camera trong ứng dụng chỉ hoạt động qua HTTPS. Dùng ứng dụng "
+"camera trên điện thoại để quét mã QR của desktop, hoặc nhập endpoint và "
+"token bên dưới."
+
+#: src/mobile/presentation.ts
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 msgid "Inactive"
 msgstr "Không hoạt động"
@@ -2994,6 +3248,10 @@ msgstr "Công cụ cuối cùng: <0>{0}</0>"
 msgid "Launch thread"
 msgstr "Khởi chạy luồng"
 
+#: src/mobile/presentation.ts
+msgid "Launching"
+msgstr "Đang khởi chạy"
+
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 msgid "Launching…"
 msgstr "Đang khởi chạy…"
@@ -3032,6 +3290,14 @@ msgstr "Tokens trọn đời"
 msgid "Light"
 msgstr "Sáng"
 
+#: src/mobile/RootLayout.tsx
+msgid "Lightcode mobile navigation"
+msgstr "Điều hướng di động Lightcode"
+
+#: src/mobile/views/SettingsView.tsx
+msgid "Links and page behavior"
+msgstr "Liên kết và hành vi trang"
+
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "List"
@@ -3044,6 +3310,15 @@ msgstr "Liệt kê các gói"
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "List tasks"
 msgstr "Liệt kê nhiệm vụ"
+
+#: src/mobile/useRemoteDesktop.ts
+msgid "Live"
+msgstr "Trực tuyến"
+
+#. placeholder {0}: formatShortDateTime(desktop.lastConnectedAt)
+#: src/mobile/views/DesktopsView.tsx
+msgid "Live {0}"
+msgstr "Trực tuyến {0}"
 
 #: src/renderer/components/common/PixelLoader.tsx
 msgid "Loading"
@@ -3077,6 +3352,15 @@ msgstr "Đang tải PR…"
 msgid "Loading registry..."
 msgstr "Đang tải sổ đăng ký..."
 
+#: src/mobile/views/ThreadView.tsx
+msgid "Loading thread"
+msgstr "Đang tải luồng"
+
+#: src/mobile/views/ThreadsView.tsx
+msgid "Loading threads"
+msgstr "Đang tải luồng"
+
+#: src/mobile/routeComponents.tsx
 #: src/renderer/app.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/parts/TreeEntryRow.tsx
@@ -3160,6 +3444,10 @@ msgstr "Làm thanh bên trong suốt — hiệu ứng làm mờ của hệ thố
 msgid "Manual order"
 msgstr "Sắp xếp thủ công"
 
+#: src/mobile/views/ThreadsView.tsx
+msgid "Mark all done"
+msgstr "Đánh dấu tất cả đã xong"
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadGroup.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarWorktreeGroup.tsx
 msgid "Mark All Done"
@@ -3177,6 +3465,8 @@ msgstr "Đánh dấu là chưa xong"
 msgid "Mark done"
 msgstr "Đánh dấu là xong"
 
+#: src/mobile/ThreadTitleRow.tsx
+#: src/mobile/views/ThreadsView.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
 msgid "Mark Done"
 msgstr "Đánh dấu xong"
@@ -3215,6 +3505,7 @@ msgstr "Lượt gọi công cụ MCP"
 msgid "Merge & Remove"
 msgstr "Hợp nhất & Xóa"
 
+#: src/mobile/views/pr/PrOverviewPage.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "Merge conflicts must be resolved."
 msgstr "Xung đột hợp nhất phải được giải quyết."
@@ -3317,6 +3608,14 @@ msgstr "Thu nhỏ trình duyệt sang bảng bên phải"
 msgid "Minimize to panel"
 msgstr "Thu nhỏ vào bảng điều khiển"
 
+#: src/mobile/views/BrowserView.tsx
+msgid "Mirrored desktop browser tab"
+msgstr "Thẻ trình duyệt desktop được phản chiếu"
+
+#: src/mobile/views/BrowserView.tsx
+msgid "Mirroring is unavailable."
+msgstr "Không thể phản chiếu."
+
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Mode"
@@ -3357,6 +3656,7 @@ msgstr "Mô hình"
 msgid "Modes"
 msgstr "Chế độ"
 
+#: src/mobile/RootLayout.tsx
 #: src/renderer/views/ProfileOverlay/parts/ActivityHeatmap.tsx
 msgid "More"
 msgstr "Nhiều"
@@ -3448,6 +3748,7 @@ msgstr "Nhà cung cấp bản địa"
 msgid "Native support"
 msgstr "Hỗ trợ bản địa"
 
+#: src/mobile/presentation.ts
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 msgid "Needs approval"
 msgstr "Cần phê duyệt"
@@ -3465,9 +3766,14 @@ msgstr "Cần chú ý · Cần có sự phê duyệt"
 msgid "Needs Attention · Reply required"
 msgstr "Cần chú ý · Cần trả lời"
 
+#: src/mobile/presentation.ts
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 msgid "Needs reply"
 msgstr "Cần trả lời"
+
+#: src/mobile/RootLayout.tsx
+msgid "New"
+msgstr "Mới"
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ActionsSection.tsx
 msgid "New action command"
@@ -3511,11 +3817,14 @@ msgstr "Dự án mới"
 msgid "New quick thread"
 msgstr "Luồng nhanh mới"
 
+#: src/mobile/views/BrowserView.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabStrip.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "New tab"
 msgstr "Tab mới"
 
+#: src/mobile/RootLayout.tsx
+#: src/mobile/views/ThreadsView.tsx
 #: src/renderer/components/thread/ThreadDraftChrome.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/hooks/useElementPicker.ts
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesEditor.tsx
@@ -3538,6 +3847,10 @@ msgstr "Luồng mới (bản nháp)"
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/TodoRow.tsx
 msgid "New thread from this to-do"
 msgstr "Luồng mới từ việc cần làm này"
+
+#: src/mobile/views/ThreadsView.tsx
+msgid "New thread in worktree"
+msgstr "Luồng mới trong worktree"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarWorktreeGroup.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
@@ -3604,6 +3917,7 @@ msgstr "Không có tác nhân nào được cài đặt."
 msgid "No AI commits, PRs, or conflict resolutions tracked yet."
 msgstr "Chưa ghi nhận commit, PR hay giải quyết xung đột nào bằng AI."
 
+#: src/mobile/views/SettingsView.tsx
 #: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
 msgid "No archived threads."
 msgstr "Không có luồng nào đã lưu trữ."
@@ -3615,6 +3929,10 @@ msgstr "Không tìm thấy chi nhánh nào"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserEmptyState.tsx
 msgid "No browser tab open"
 msgstr "Không có tab trình duyệt nào mở"
+
+#: src/mobile/QrScanner.tsx
+msgid "No camera found"
+msgstr "Không tìm thấy camera"
 
 #: src/renderer/components/diff/DiffCardList.tsx
 #: src/renderer/views/PrReviewOverlay/parts/PrReviewSidebar.tsx
@@ -3660,6 +3978,10 @@ msgstr "Chưa có dữ liệu."
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "No description"
 msgstr "Không có mô tả"
+
+#: src/mobile/RootLayout.tsx
+msgid "No desktop paired"
+msgstr "Chưa ghép đôi desktop nào"
 
 #. placeholder {0}: entry.filePath
 #: src/renderer/views/GitReviewOverlay/parts/GitDiffContent/parts/DiffSection.tsx
@@ -3731,6 +4053,10 @@ msgstr "Không có mẫu."
 msgid "No phases yet."
 msgstr "Chưa có giai đoạn nào."
 
+#: src/mobile/views/NewThreadView.tsx
+msgid "No projects available"
+msgstr "Không có dự án nào"
+
 #: src/renderer/components/providers/codex/index.tsx
 msgid "No prompts"
 msgstr "Không có lời nhắc"
@@ -3781,9 +4107,21 @@ msgstr "Không có thay đổi nào được đưa vào staging"
 msgid "No supported agents detected"
 msgstr "Không phát hiện thấy tác nhân được hỗ trợ nào"
 
+#: src/mobile/views/ThreadView.tsx
+msgid "No thread selected"
+msgstr "Chưa chọn luồng"
+
 #: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
 msgid "No threads"
 msgstr "Không có luồng nào"
+
+#: src/mobile/views/ThreadsView.tsx
+msgid "No threads in this project"
+msgstr "Không có luồng trong dự án này"
+
+#: src/mobile/views/ThreadsView.tsx
+msgid "No threads yet"
+msgstr "Chưa có luồng nào"
 
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "No threads yet."
@@ -3844,6 +4182,7 @@ msgstr "Ghi chú"
 msgid "Nothing tracked yet. It'll appear here as you use it."
 msgstr "Chưa ghi nhận gì. Nội dung sẽ xuất hiện ở đây khi bạn sử dụng."
 
+#: src/mobile/settingsSections.ts
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Notifications"
@@ -3861,6 +4200,14 @@ msgstr "Thông báo cho tôi về"
 #: src/renderer/views/ProjectSettingsOverlay/parts/SearchSection.tsx
 msgid "off"
 msgstr "tắt"
+
+#: src/mobile/useRemoteDesktop.ts
+msgid "Offline"
+msgstr "Ngoại tuyến"
+
+#: src/mobile/components.tsx
+msgid "Offline. Showing the last synced data."
+msgstr "Ngoại tuyến. Đang hiển thị dữ liệu đã đồng bộ gần nhất."
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/sidebarProjectRows.ts
 msgid "Older"
@@ -3887,6 +4234,10 @@ msgstr "Mở {label}"
 #: src/renderer/commands/registry.ts
 msgid "Open a new browser tab"
 msgstr "Mở tab trình duyệt mới"
+
+#: src/mobile/views/NewThreadView.tsx
+msgid "Open a project in Lightcode on your desktop, then refresh."
+msgstr "Mở một dự án trong Lightcode trên desktop rồi làm mới."
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/DevTerminalPanel.tsx
 msgid "Open a terminal"
@@ -3999,6 +4350,10 @@ msgstr "Mở tab mới"
 msgid "Open new threads as a full page or a side-by-side panel."
 msgstr "Mở luồng mới dưới dạng toàn trang hoặc bảng cạnh nhau."
 
+#: src/mobile/views/pr/PrOverviewPage.tsx
+msgid "Open on GitHub"
+msgstr "Mở trên GitHub"
+
 #. placeholder {0}: vis.prNumber
 #: src/renderer/views/MainView/parts/Sidebar/parts/useWorktreeActions.ts
 msgid "Open PR #{0}"
@@ -4033,10 +4388,25 @@ msgstr "Mở cài đặt"
 msgid "Open Settings"
 msgstr "Mở Cài đặt"
 
+#: src/mobile/views/DesktopsView.tsx
+msgid "Open Settings → Remote Access in Lightcode on your desktop, then scan "
+"the QR code from here — or enter the endpoint and pairing token "
+"manually."
+msgstr "Mở Cài đặt → Truy cập từ xa trong Lightcode trên desktop, rồi quét mã "
+"QR từ đây — hoặc nhập endpoint và token ghép đôi thủ công."
+
 #. placeholder {0}: display.title
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentToolCall.tsx
 msgid "Open subagent: {0}"
 msgstr "Mở tác nhân phụ: {0}"
+
+#: src/mobile/views/ThreadsView.tsx
+msgid "Open terminal"
+msgstr "Mở terminal"
+
+#: src/mobile/views/ThreadsView.tsx
+msgid "Open terminal in worktree"
+msgstr "Mở terminal trong worktree"
 
 #: src/renderer/components/providers/codex/index.tsx
 msgid "Open the effort picker"
@@ -4105,6 +4475,39 @@ msgstr "Trình quản lý gói"
 msgid "Page"
 msgstr "Trang"
 
+#: src/mobile/views/DesktopsView.tsx
+msgid "Pair"
+msgstr "Ghép đôi"
+
+#: src/mobile/views/DesktopsView.tsx
+msgid "Pair a desktop"
+msgstr "Ghép đôi desktop"
+
+#: src/mobile/components.tsx
+#: src/mobile/useRemoteDesktop.ts
+msgid "Pair again"
+msgstr "Ghép đôi lại"
+
+#: src/mobile/useRemoteDesktop.ts
+msgid "Pairing"
+msgstr "Đang ghép đôi"
+
+#: src/mobile/components.tsx
+msgid "Pairing expired — pair again to reconnect."
+msgstr "Ghép đôi đã hết hạn — hãy ghép đôi lại để kết nối."
+
+#: src/mobile/views/DesktopsView.tsx
+msgid "Pairing link detected."
+msgstr "Đã phát hiện liên kết ghép đôi."
+
+#: src/mobile/views/DesktopsView.tsx
+msgid "Pairing token"
+msgstr "Token ghép đôi"
+
+#: src/mobile/views/DesktopsView.tsx
+msgid "Pairing…"
+msgstr "Đang ghép đôi…"
+
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Panel"
@@ -4163,6 +4566,10 @@ msgstr "Đang chờ chỉ đạo"
 msgid "permission"
 msgstr "sự cho phép"
 
+#: src/mobile/views/ThreadView.tsx
+msgid "Pick a thread from the list to follow the agent from here."
+msgstr "Chọn một luồng trong danh sách để theo dõi agent từ đây."
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Pick element"
 msgstr "Chọn phần tử"
@@ -4179,10 +4586,13 @@ msgstr "Bộ chọn không thành công"
 msgid "Picker returned no attachment"
 msgstr "Bộ chọn không trả về tệp đính kèm nào"
 
+#: src/mobile/ThreadTitleRow.tsx
+#: src/mobile/views/ThreadsView.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
 msgid "Pin to top"
 msgstr "Ghim lên đầu"
 
+#: src/mobile/views/ThreadsView.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/parts/ThreadItemSuffix.tsx
 msgid "Pinned"
 msgstr "Đã ghim"
@@ -4201,6 +4611,10 @@ msgstr "Phát âm thanh khi thông báo được hiển thị."
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Play notification sound"
 msgstr "Phát âm thanh thông báo"
+
+#: src/mobile/QrScanner.tsx
+msgid "Point at the QR code in Settings → Remote Access"
+msgstr "Hướng vào mã QR trong Cài đặt → Truy cập từ xa"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Point this profile at a non-Anthropic provider (z.ai, …) with custom env "
@@ -4289,6 +4703,7 @@ msgstr "Phạm vi thống kê hồ sơ"
 msgid "Profiles"
 msgstr "Hồ sơ"
 
+#: src/mobile/views/ThreadsView.tsx
 #: src/renderer/commands/registry.ts
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/views/ProjectSettingsOverlay/ProjectSettingsOverlay.tsx
@@ -4345,6 +4760,10 @@ msgstr "nhà cung cấp"
 #: src/renderer/components/thread/threadContextUsage.ts
 msgid "Provider has not reported token usage."
 msgstr "Nhà cung cấp chưa báo cáo việc sử dụng mã thông báo."
+
+#: src/mobile/views/MoreView.tsx
+msgid "Provider limits and spend"
+msgstr "Giới hạn và chi tiêu của provider"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Provider presets"
@@ -4403,6 +4822,16 @@ msgstr "Kéo từ Nguồn ({0})"
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CommitSyncPanel.tsx
 msgid "Pull Rebase ({behind})"
 msgstr "Kéo Rebase ({behind})"
+
+#. placeholder {0}: pr.state
+#: src/mobile/GitSummaryParts.tsx
+msgid "Pull request {0}"
+msgstr "Pull request {0}"
+
+#. placeholder {0}: pr.prNumber
+#: src/mobile/views/pr/PrOverviewPage.tsx
+msgid "Pull request #{0}"
+msgstr "Pull request #{0}"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 msgid "Pull request options"
@@ -4483,6 +4912,18 @@ msgstr "Gần đây"
 msgid "Recent threads"
 msgstr "Luồng gần đây"
 
+#: src/mobile/components.tsx
+msgid "Reconnect"
+msgstr "Kết nối lại"
+
+#: src/mobile/useRemoteDesktop.ts
+msgid "Reconnecting"
+msgstr "Đang kết nối lại"
+
+#: src/mobile/components.tsx
+msgid "Reconnecting to your desktop…"
+msgstr "Đang kết nối lại với desktop…"
+
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Reconstructed from local logs at public API rates — it does not reflect "
@@ -4493,6 +4934,8 @@ msgstr "Được xây dựng lại từ nhật ký cục bộ ở mức API côn
 
 #. Button: re-fetch one provider's usage now
 #. Button: re-fetch provider usage now
+#: src/mobile/views/GitView.tsx
+#: src/mobile/views/pr/PrOverviewPage.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
 #: src/renderer/views/GitReviewOverlay/GitReviewOverlay.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewPanel.tsx
@@ -4530,6 +4973,7 @@ msgstr "Đang làm mới trạng thái xác thực {0}."
 msgid "Refreshing {env} {0} authentication status."
 msgstr "Đang làm mới trạng thái xác thực {env} {0}."
 
+#: src/mobile/views/BrowserView.tsx
 #: src/renderer/RendererCrashScreen.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Reload"
@@ -4554,6 +4998,10 @@ msgstr "Tên từ xa"
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 msgid "Remote URL"
 msgstr "URL từ xa"
+
+#: src/mobile/views/SettingsView.tsx
+msgid "Removal behavior"
+msgstr "Hành vi xóa"
 
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
 msgid "Remove"
@@ -4580,6 +5028,10 @@ msgstr "Xóa hành động"
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Remove Claude profile"
 msgstr "Xóa hồ sơ Claude"
+
+#: src/mobile/views/DesktopsView.tsx
+msgid "Remove desktop"
+msgstr "Xóa desktop"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Remove environment variable"
@@ -4613,6 +5065,9 @@ msgstr "Xóa phím tắt"
 msgid "Remove worktree?"
 msgstr "Xóa worktree?"
 
+#: src/mobile/ThreadTitleRow.tsx
+#: src/mobile/views/DesktopsView.tsx
+#: src/mobile/views/ThreadsView.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/parts/TreeEntryRow.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
 msgid "Rename"
@@ -4621,6 +5076,10 @@ msgstr "Đổi tên"
 #: src/renderer/commands/registry.ts
 msgid "Rename chat"
 msgstr "Đổi tên cuộc trò chuyện"
+
+#: src/mobile/views/DesktopsView.tsx
+msgid "Rename desktop"
+msgstr "Đổi tên desktop"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadGroup.tsx
 msgid "Rename Group"
@@ -4675,6 +5134,7 @@ msgstr "kho lưu trữ"
 msgid "Repository"
 msgstr "Kho lưu trữ"
 
+#: src/mobile/views/pr/PrOverviewPage.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "Repository pre-receive hook is blocking the merge."
 msgstr "Hook pre-receive của kho lưu trữ đang chặn việc hợp nhất."
@@ -4695,6 +5155,7 @@ msgstr "Yêu cầu chi tiết"
 msgid "requested changes"
 msgstr "yêu cầu thay đổi"
 
+#: src/mobile/views/pr/PrOverviewPage.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "Required reviews, conversations, or status checks not met."
 msgstr "Các đánh giá, cuộc trò chuyện hoặc kiểm tra trạng thái bắt buộc không "
@@ -4766,9 +5227,22 @@ msgstr "Khôi phục trình duyệt"
 msgid "Restore default worktree base folder"
 msgstr "Khôi phục thư mục gốc mặc định của cây làm việc"
 
+#: src/mobile/views/SettingsView.tsx
+msgid "Restore or delete"
+msgstr "Khôi phục hoặc xóa"
+
+#: src/mobile/views/SettingsView.tsx
 #: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
 msgid "Restore thread"
 msgstr "Khôi phục luồng"
+
+#: src/mobile/views/BrowserView.tsx
+msgid "Retry"
+msgstr "Thử lại"
+
+#: src/mobile/components.tsx
+msgid "Retry now"
+msgstr "Thử lại ngay"
 
 #: src/renderer/hooks/usePrWriteActions.ts
 msgid "Retry with admin"
@@ -4843,6 +5317,10 @@ msgstr "Xem xét PR"
 #: src/renderer/components/common/BranchSelector/parts/BranchListBox.tsx
 msgid "Review PR #{prNumber} for {0}"
 msgstr "Xem lại PR #{prNumber} cho {0}"
+
+#: src/mobile/views/SettingsView.tsx
+msgid "Review presentation"
+msgstr "Hiển thị đánh giá"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Right"
@@ -4956,11 +5434,23 @@ msgstr "Lưu phím tắt"
 msgid "Saved credentials are shared across all environments."
 msgstr "Thông tin đăng nhập đã lưu được chia sẻ trên tất cả các môi trường."
 
+#: src/mobile/QrScanner.tsx
+msgid "Scan pairing QR code"
+msgstr "Quét mã QR ghép đôi"
+
+#: src/mobile/views/DesktopsView.tsx
+msgid "Scan QR code"
+msgstr "Quét mã QR"
+
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 msgid "Scanning {wslDistro} for installed CLIs. This usually takes a couple of "
 "seconds."
 msgstr "Đang quét {wslDistro} để tìm CLI đã cài đặt. Việc này thường mất vài "
 "giây."
+
+#: src/mobile/QrScanner.tsx
+msgid "Scanning needs a secure connection"
+msgstr "Quét cần kết nối an toàn"
 
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 msgid "Scanning Windows and WSL for installed CLIs. This usually takes a couple "
@@ -5027,6 +5517,7 @@ msgstr "Tìm kiếm mô hình"
 msgid "Search models..."
 msgstr "Tìm kiếm mô hình..."
 
+#: src/mobile/views/BrowserView.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Search or enter address"
 msgstr "Tìm kiếm hoặc nhập địa chỉ"
@@ -5145,6 +5636,8 @@ msgstr "Đặt hoặc xem mục tiêu thử nghiệm"
 msgid "Set shortcut"
 msgstr "Đặt phím tắt"
 
+#: src/mobile/RootLayout.tsx
+#: src/mobile/views/MoreView.tsx
 #: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 #: src/renderer/views/SettingsOverlay/SettingsOverlay.tsx
@@ -5357,9 +5850,16 @@ msgstr "Skill"
 msgid "Skills explored"
 msgstr "Skill đã dùng"
 
+#: src/mobile/views/pr/PrOverviewPage.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "Some checks are failing or pending."
 msgstr "Một số kiểm tra không thành công hoặc đang chờ xử lý."
+
+#: src/mobile/QrScanner.tsx
+msgid "Something went wrong starting the camera. Enter the endpoint and token "
+"below to pair instead."
+msgstr "Có lỗi khi khởi động camera. Hãy nhập endpoint và token bên dưới để "
+"ghép đôi thay thế."
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/sortMode.ts
 msgid "Sort by created"
@@ -5377,11 +5877,13 @@ msgstr "Sắp xếp luồng"
 msgid "Split Terminal"
 msgstr "Chia đôi Terminal"
 
+#: src/mobile/components.tsx
 #: src/renderer/views/GitReviewOverlay/GitReviewOverlay.tsx
 #: src/renderer/views/PrReviewOverlay/PrReviewOverlay.tsx
 msgid "Split view"
 msgstr "Chế độ xem chia đôi"
 
+#: src/mobile/views/GitActionSheet.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ConflictFileCard.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ConflictGroup.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/FileRow.tsx
@@ -5389,6 +5891,7 @@ msgstr "Chế độ xem chia đôi"
 msgid "Stage"
 msgstr "Đưa vào stage"
 
+#: src/mobile/views/GitActionSheet.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/FileGroup.tsx
 msgid "Stage all"
 msgstr "Stage tất cả"
@@ -5432,6 +5935,10 @@ msgstr "Bắt đầu một chủ đề mới từ văn bản đã chọn"
 msgid "Start a new thread from this to-do"
 msgstr "Bắt đầu một chủ đề mới từ việc cần làm này"
 
+#: src/mobile/views/ThreadsView.tsx
+msgid "Start a new thread to put an agent to work from this device."
+msgstr "Bắt đầu một luồng mới để cho agent làm việc từ thiết bị này."
+
 #: src/renderer/commands/composerCommands.ts
 msgid "Start dictation"
 msgstr "Bắt đầu đọc chính tả"
@@ -5467,9 +5974,18 @@ msgid "Started {targetLabel} thread"
 msgstr "Đã bắt đầu chủ đề {targetLabel}"
 
 #. Button label while the microphone test is starting
+#: src/mobile/useRemoteDesktop.ts
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 msgid "Starting"
 msgstr "Bắt đầu"
+
+#: src/mobile/QrScanner.tsx
+msgid "Starting camera…"
+msgstr "Đang khởi động camera…"
+
+#: src/mobile/views/BrowserView.tsx
+msgid "Starting mirror…"
+msgstr "Đang khởi động phản chiếu…"
 
 #: src/renderer/components/composer/VoiceInputButton.tsx
 msgid "Starting voice input"
@@ -5483,6 +5999,10 @@ msgstr "bắt đầu…"
 #: src/renderer/views/MainView/parts/PullFromSourceDialog.tsx
 msgid "Stash & Pull"
 msgstr "Cất & Kéo"
+
+#: src/mobile/views/pr/PrOverviewPage.tsx
+msgid "Status"
+msgstr "Trạng thái"
 
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 msgid "Status is inferred from terminal output (L2). Install the hook plugin in "
@@ -5535,6 +6055,10 @@ msgstr "Lưu dưới dạng văn bản thuần"
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Store as secret (encrypted at rest)"
 msgstr "Lưu dưới dạng bí mật (mã hóa khi lưu trữ)"
+
+#: src/mobile/views/SettingsView.tsx
+msgid "Stored on this phone; the desktop keeps its own values."
+msgstr "Được lưu trên điện thoại này; desktop giữ các giá trị riêng."
 
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentOverlay.tsx
 msgid "Subagent"
@@ -5661,6 +6185,10 @@ msgstr "Đồng bộ hóa không thành công: {detail}"
 msgid "Sync options"
 msgstr "Tùy chọn đồng bộ hóa"
 
+#: src/mobile/components.tsx
+msgid "Sync with desktop"
+msgstr "Đồng bộ với desktop"
+
 #: src/renderer/views/ProfileOverlay/parts/ProfileHeader.tsx
 msgid "Syncs with Cloud"
 msgstr "Đồng bộ với Cloud"
@@ -5682,6 +6210,19 @@ msgstr "Mặc định hệ thống"
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
 msgid "System notifications"
 msgstr "Thông báo hệ thống"
+
+#: src/mobile/views/BrowserView.tsx
+msgid "tab"
+msgstr "thẻ"
+
+#: src/mobile/views/BrowserView.tsx
+msgid "Tabs"
+msgstr "Thẻ"
+
+#. placeholder {0}: state?.tabs.length ?? 0
+#: src/mobile/views/BrowserView.tsx
+msgid "Tabs ({0})"
+msgstr "Thẻ ({0})"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Take Screenshot"
@@ -5708,6 +6249,7 @@ msgstr "Hãy cho {0} biết phải làm gì tiếp theo..."
 msgid "Tell the target provider what to do next..."
 msgstr "Cho nhà cung cấp mục tiêu biết phải làm gì tiếp theo..."
 
+#: src/mobile/settingsSections.ts
 #: src/renderer/commands/registry.ts
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/layout/UnifiedRightPanel.tsx
@@ -5760,6 +6302,10 @@ msgstr "Tab đầu cuối"
 msgid "Test microphone"
 msgstr "Kiểm tra micrô"
 
+#: src/mobile/routeComponents.tsx
+msgid "That QR code isn't a Lightcode pairing link."
+msgstr "Mã QR đó không phải là liên kết ghép đôi Lightcode."
+
 #: src/renderer/components/thread/ThreadComposerSection.tsx
 msgid "the agent"
 msgstr "tác nhân"
@@ -5781,6 +6327,10 @@ msgstr "Nhịp làm mới nền mặc định, được dùng cho mọi nhà cun
 "khoảng thời gian riêng bên dưới. Đặt thành 0 để tắt (chỉ làm mới thủ "
 "công). Mức tối thiểu 2 phút tôn trọng giới hạn tốc độ của nhà cung cấp."
 
+#: src/mobile/views/MoreView.tsx
+msgid "The desktop's built-in browser"
+msgstr "Trình duyệt tích hợp của desktop"
+
 #: src/renderer/RendererCrashScreen.tsx
 msgid "The normal app shell could not render. The diagnostics below are shown "
 "before reload so the failure can be investigated."
@@ -5801,6 +6351,10 @@ msgstr "nhà cung cấp mục tiêu"
 msgid "Theme"
 msgstr "Chủ đề"
 
+#: src/mobile/views/SettingsView.tsx
+msgid "Theme and chat font size"
+msgstr "Giao diện và cỡ chữ chat"
+
 #: src/renderer/components/common/EffortContextMenu/EffortContextMenu.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/Reasoning.tsx
 #: src/renderer/components/thread/ThreadComposer.tsx
@@ -5811,11 +6365,29 @@ msgstr "Đang suy nghĩ"
 msgid "This agent is not installed."
 msgstr "Tác nhân này chưa được cài đặt."
 
+#: src/mobile/routeComponents.tsx
+msgid "This app is served over HTTPS but the desktop is on plain HTTP, which "
+"browsers block. Open the pairing link directly from the desktop (LAN), "
+"or expose the desktop over HTTPS."
+msgstr "Ứng dụng này được phục vụ qua HTTPS nhưng desktop dùng HTTP thường, bị "
+"trình duyệt chặn. Mở liên kết ghép đôi trực tiếp từ desktop (LAN), hoặc "
+"cung cấp desktop qua HTTPS."
+
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
 msgid "This browser does not support system notifications here; you will still "
 "see in-app toasts."
 msgstr "Trình duyệt này không hỗ trợ thông báo hệ thống ở đây; bạn vẫn sẽ thấy "
 "thông báo trong ứng dụng."
+
+#: src/mobile/views/SettingsView.tsx
+msgid "This device"
+msgstr "Thiết bị này"
+
+#: src/mobile/QrScanner.tsx
+msgid "This device has no usable camera. Enter the endpoint and token below to "
+"pair instead."
+msgstr "Thiết bị này không có camera dùng được. Hãy nhập endpoint và token bên "
+"dưới để ghép đôi thay thế."
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
 msgid "this environment"
@@ -5878,6 +6450,7 @@ msgstr "Cây làm việc này có các thay đổi cục bộ. Lightcode có th�
 msgid "Thought"
 msgstr "Suy nghĩ"
 
+#: src/mobile/RootLayout.tsx
 #: src/renderer/commands/registry.ts
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/hooks/useElementPicker.ts
@@ -5889,9 +6462,17 @@ msgstr "luồng"
 msgid "Thread + Worktree"
 msgstr "Luồng + Cây làm việc"
 
+#: src/mobile/ThreadTitleRow.tsx
+msgid "Thread actions"
+msgstr "Hành động luồng"
+
 #: src/renderer/components/thread/ThreadContextDock.tsx
 msgid "Thread context usage"
 msgstr "Mức sử dụng bối cảnh luồng"
+
+#: src/mobile/views/SettingsView.tsx
+msgid "Thread defaults and home scope"
+msgstr "Mặc định luồng và phạm vi Home"
 
 #: src/renderer/components/thread/ThreadDockUI.tsx
 msgid "Thread dock"
@@ -5931,6 +6512,8 @@ msgstr "Thứ tự sắp xếp luồng"
 msgid "Thread todo dock"
 msgstr "Dock việc cần làm của luồng"
 
+#: src/mobile/RootLayout.tsx
+#: src/mobile/settingsSections.ts
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 #: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
 #: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
@@ -5948,6 +6531,10 @@ msgstr "Các luồng được đánh dấu hoàn thành mà không được đ�
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Title Generation"
 msgstr "Tạo tiêu đề"
+
+#: src/mobile/views/SettingsView.tsx
+msgid "Title, commit, and conflict models"
+msgstr "Mô hình tiêu đề, commit và xung đột"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/TodoList.tsx
 msgid "To-dos"
@@ -6031,6 +6618,10 @@ msgstr "Theo dõi mức sử dụng theo phiên, hàng tuần và hàng tháng c
 "cung cấp. Các khoảng thời gian (windows) do từng nhà cung cấp báo cáo; "
 "chi phí ước tính được tái dựng từ các bản ghi cục bộ."
 
+#: src/mobile/views/SettingsView.tsx
+msgid "Tracking and display"
+msgstr "Theo dõi và hiển thị"
+
 #. Usage status when provider tracking is disabled
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Tracking off"
@@ -6055,6 +6646,14 @@ msgstr "Bật hoặc tắt theo dõi cho mỗi nhà cung cấp. Tính năng tự
 msgid "Type a command"
 msgstr "Nhập lệnh"
 
+#: src/mobile/views/BrowserView.tsx
+msgid "Type into the page"
+msgstr "Nhập vào trang"
+
+#: src/mobile/views/BrowserView.tsx
+msgid "Type into the page (tap a field first)"
+msgstr "Nhập vào trang (chạm vào trường trước)"
+
 #. placeholder {0}: agent.label
 #. placeholder {0}: agentStatus.label
 #: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
@@ -6076,10 +6675,18 @@ msgstr "Không thể cài đặt hook {0}."
 msgid "Unable to install {0}."
 msgstr "Không thể cài đặt {0}."
 
+#: src/mobile/useRemoteDesktop.ts
+msgid "Unable to load thread."
+msgstr "Không thể tải luồng."
+
 #. placeholder {0}: agent.label
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
 msgid "Unable to log out {0}."
 msgstr "Không thể đăng xuất {0}."
+
+#: src/mobile/views/pr/PrOverviewPage.tsx
+msgid "Unable to merge"
+msgstr "Không thể merge"
 
 #. placeholder {0}: input.label
 #: src/renderer/actions/agentLoginActions.ts
@@ -6089,6 +6696,10 @@ msgstr "Không thể mở đăng nhập {0}."
 #: src/renderer/commands/registry.ts
 msgid "Unable to open file"
 msgstr "Không thể mở tập tin"
+
+#: src/mobile/routeComponents.tsx
+msgid "Unable to pair with that desktop."
+msgstr "Không thể ghép đôi với desktop đó."
 
 #. placeholder {0}: agentStatus.label
 #. placeholder {0}: status.label
@@ -6132,6 +6743,14 @@ msgstr "Không thể lưu hồ sơ Claude {displayLabel}."
 msgid "Unable to start {label}."
 msgstr "Không thể khởi động {label}."
 
+#: src/mobile/useRemoteDesktop.ts
+msgid "Unable to start mobile app."
+msgstr "Không thể khởi động ứng dụng di động."
+
+#: src/mobile/routeComponents.tsx
+msgid "Unable to start the thread."
+msgstr "Không thể khởi động luồng."
+
 #. placeholder {0}: agent.label
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
 msgid "Unable to update {0} ({envName}): {detailText}"
@@ -6165,6 +6784,10 @@ msgstr "Không thể cập nhật {0}: {detailText}"
 msgid "Unable to update {0}."
 msgstr "Không thể cập nhật {0}."
 
+#: src/mobile/useRemoteDesktop.ts
+msgid "Unable to update the thread."
+msgstr "Không thể cập nhật luồng."
+
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Unassigned"
 msgstr "Chưa gán"
@@ -6173,6 +6796,7 @@ msgstr "Chưa gán"
 msgid "Ungroup All"
 msgstr "Bỏ nhóm tất cả"
 
+#: src/mobile/components.tsx
 #: src/renderer/views/GitReviewOverlay/GitReviewOverlay.tsx
 #: src/renderer/views/PrReviewOverlay/PrReviewOverlay.tsx
 msgid "Unified view"
@@ -6210,10 +6834,16 @@ msgstr "Gỡ bỏ các chủ đề không hoạt động sau (phút)"
 msgid "Unload Thread"
 msgstr "Dỡ bỏ chủ đề"
 
+#: src/mobile/views/ThreadsView.tsx
+msgid "Unmark all done"
+msgstr "Bỏ đánh dấu tất cả đã xong"
+
 #: src/renderer/components/thread/ThreadView.tsx
 msgid "Unmark done"
 msgstr "Bỏ đánh dấu xong"
 
+#: src/mobile/ThreadTitleRow.tsx
+#: src/mobile/views/ThreadsView.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
 msgid "Unmark Done"
 msgstr "Bỏ đánh dấu xong"
@@ -6222,15 +6852,19 @@ msgstr "Bỏ đánh dấu xong"
 msgid "Unphased:"
 msgstr "Không phân giai đoạn:"
 
+#: src/mobile/ThreadTitleRow.tsx
+#: src/mobile/views/ThreadsView.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
 msgid "Unpin"
 msgstr "Bỏ ghim"
 
+#: src/mobile/views/GitActionSheet.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/FileRow.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitStackedDiff.tsx
 msgid "Unstage"
 msgstr "Bỏ khỏi staging"
 
+#: src/mobile/views/GitActionSheet.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/FileGroup.tsx
 msgid "Unstage all"
 msgstr "Bỏ khỏi staging tất cả"
@@ -6323,6 +6957,9 @@ msgstr "Đang cập nhật {0}"
 msgid "Updating {0} ({env})"
 msgstr "Đang cập nhật {0} ({env})"
 
+#: src/mobile/RootLayout.tsx
+#: src/mobile/settingsSections.ts
+#: src/mobile/views/MoreView.tsx
 #: src/renderer/components/layout/UnifiedRightPanel.tsx
 #: src/renderer/components/providers/ProviderUsageRail.tsx
 #: src/renderer/components/thread/ThreadContextDock.tsx
@@ -6418,6 +7055,10 @@ msgstr "qua {0}"
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "View"
 msgstr "Xem"
+
+#: src/mobile/views/GitActionSheet.tsx
+msgid "View diff"
+msgstr "Xem diff"
 
 #. placeholder {0}: provider.label
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
@@ -6647,6 +7288,7 @@ msgstr "Quy trình làm việc: {description}"
 msgid "Workflows"
 msgstr "Quy trình làm việc"
 
+#: src/mobile/presentation.ts
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 msgid "Working"
 msgstr "Đang làm việc"
@@ -6663,6 +7305,7 @@ msgstr "Cây làm việc sạch sẽ"
 msgid "Working…"
 msgstr "Đang làm việc…"
 
+#: src/mobile/views/ThreadsView.tsx
 #: src/renderer/components/thread/WorktreeModeSelect.tsx
 msgid "Worktree"
 msgstr "Cây làm việc"

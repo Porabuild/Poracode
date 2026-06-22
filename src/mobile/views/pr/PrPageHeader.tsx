@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { useLingui } from "@lingui/react/macro";
 import { ChevronLeft } from "lucide-react";
 
 /** Shared back-header chrome for the PR overview and its deep pages. */
@@ -8,12 +9,13 @@ export function PrPageHeader(props: {
   readonly backLabel?: string;
   readonly actions?: ReactNode;
 }) {
+  const { t } = useLingui();
   return (
     <header className="m-git-head">
       <button
         className="m-back"
         type="button"
-        aria-label={props.backLabel ?? "Back"}
+        aria-label={props.backLabel ?? t`Back`}
         onClick={props.onBack}
       >
         <ChevronLeft className="size-5" />

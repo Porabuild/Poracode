@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
 import { Button } from "@heroui/react";
+import { Trans, useLingui } from "@lingui/react/macro";
 import {
   Archive,
   ChevronDown,
@@ -53,8 +54,9 @@ export interface ThreadsViewProps {
 
 /** Placeholder rows shown on first load before any thread data arrives. */
 function ThreadListSkeleton() {
+  const { t } = useLingui();
   return (
-    <div className="m-skeleton-list" aria-busy="true" aria-label="Loading threads">
+    <div className="m-skeleton-list" aria-busy="true" aria-label={t`Loading threads`}>
       {Array.from({ length: 6 }, (_unused, index) => (
         <div className="m-skeleton-row" key={index}>
           <Skeleton className="size-4 shrink-0 !rounded-md" />
@@ -143,6 +145,7 @@ function ThreadActionsSheet(props: {
   readonly onClose: () => void;
 }) {
   const { thread } = props;
+  const { t } = useLingui();
   const [renaming, setRenaming] = useState(false);
 
   const act = (action: ThreadAction) => {
@@ -160,8 +163,8 @@ function ThreadActionsSheet(props: {
 
   return (
     <BottomSheet
-      label={`Actions for ${thread.title}`}
-      closeLabel="Close thread actions"
+      label={t`Actions for ${thread.title}`}
+      closeLabel={t`Close thread actions`}
       closing={props.closing}
       onClose={props.onClose}
     >
@@ -171,7 +174,7 @@ function ThreadActionsSheet(props: {
       <div className="m-sheet-list">
         <button type="button" className="m-sheet-action" onClick={openTerminal}>
           <Terminal className="size-4 shrink-0 text-muted" />
-          <span>Open terminal{thread.worktreePath ? " in worktree" : ""}</span>
+          <span>{thread.worktreePath ? t`Open terminal in worktree` : t`Open terminal`}</span>
         </button>
         {renaming ? (
           <div className="m-sheet-action" data-static="true">
@@ -185,7 +188,9 @@ function ThreadActionsSheet(props: {
         ) : (
           <button type="button" className="m-sheet-action" onClick={() => setRenaming(true)}>
             <Pencil className="size-4 shrink-0 text-muted" />
-            <span>Rename</span>
+            <span>
+              <Trans>Rename</Trans>
+            </span>
           </button>
         )}
         <button
@@ -194,7 +199,7 @@ function ThreadActionsSheet(props: {
           onClick={() => act({ kind: "set-done", done: !thread.done })}
         >
           <CircleCheck className="size-4 shrink-0 text-muted" />
-          <span>{thread.done ? "Unmark Done" : "Mark Done"}</span>
+          <span>{thread.done ? t`Unmark Done` : t`Mark Done`}</span>
         </button>
         <button
           type="button"
@@ -202,7 +207,7 @@ function ThreadActionsSheet(props: {
           onClick={() => act({ kind: "set-starred", starred: !(thread.starred ?? false) })}
         >
           <Star className="size-4 shrink-0 text-muted" />
-          <span>{thread.starred ? "Unpin" : "Pin to top"}</span>
+          <span>{thread.starred ? t`Unpin` : t`Pin to top`}</span>
         </button>
         <button
           type="button"
@@ -210,7 +215,9 @@ function ThreadActionsSheet(props: {
           onClick={() => act({ kind: "archive" })}
         >
           <Archive className="size-4 shrink-0" />
-          <span>Archive Thread</span>
+          <span>
+            <Trans>Archive Thread</Trans>
+          </span>
         </button>
         <button
           type="button"
@@ -218,7 +225,9 @@ function ThreadActionsSheet(props: {
           onClick={() => act({ kind: "delete" })}
         >
           <Trash2 className="size-4 shrink-0" />
-          <span>Delete Thread</span>
+          <span>
+            <Trans>Delete Thread</Trans>
+          </span>
         </button>
       </div>
     </BottomSheet>
@@ -242,6 +251,7 @@ function ThreadRow(props: {
   readonly onMenu: () => void;
 }) {
   const { thread } = props;
+  const { t } = useLingui();
   const tone = getStatusTone(thread);
   const live = tone !== "inactive" && tone !== "done";
   const worktreeName = props.hideWorktree ? undefined : thread.worktreePath?.split(/[\\/]/).pop();
@@ -268,7 +278,7 @@ function ThreadRow(props: {
           ) : null}
           {worktreeName ? (
             <span className="m-thread-row__meta-item">
-              <GitFork className="size-3 shrink-0" aria-label="Worktree" />
+              <GitFork className="size-3 shrink-0" aria-label={t`Worktree`} />
               <span className="m-thread-row__meta-text">{worktreeName}</span>
             </span>
           ) : null}
@@ -276,7 +286,7 @@ function ThreadRow(props: {
         </span>
       </span>
       <span className="m-thread-row__side">
-        {thread.starred && <Star className="size-3 shrink-0 fill-current" aria-label="Pinned" />}
+        {thread.starred && <Star className="size-3 shrink-0 fill-current" aria-label={t`Pinned`} />}
         <RelativeTime
           iso={thread.updatedAt}
           className="block shrink-0 text-center font-mono text-[10px] tabular-nums text-muted"
@@ -335,6 +345,7 @@ function ThreadGroupHeader(props: {
   readonly onMenu: () => void;
 }) {
   const { entry } = props;
+  const { t } = useLingui();
   const threads = entry.group.threads;
   const allDone = threads.every((thread) => thread.done);
   const { pressHandlers, onClick, onContextMenu } = useLongPress(props.onMenu);
@@ -351,7 +362,7 @@ function ThreadGroupHeader(props: {
     >
       <ChevronRight className="m-thread-group__chevron size-3.5 shrink-0" />
       {entry.kind === "worktree-group" ? (
-        <GitFork className="size-3.5 shrink-0" aria-label="Worktree" />
+        <GitFork className="size-3.5 shrink-0" aria-label={t`Worktree`} />
       ) : null}
       <span className="m-thread-group__title" data-done={allDone || undefined}>
         {groupEntryTitle(entry)}
@@ -362,7 +373,10 @@ function ThreadGroupHeader(props: {
       {props.projectName ? (
         <span className="m-thread-group__project">{props.projectName}</span>
       ) : null}
-      <span className="m-thread-group__count" aria-label={`${threads.length} threads`}>
+      <span
+        className="m-thread-group__count"
+        aria-label={threads.length === 1 ? t`1 thread` : t`${threads.length} threads`}
+      >
         {threads.length}
       </span>
       <RelativeTime
@@ -387,6 +401,7 @@ function GroupActionsSheet(props: {
   readonly onClose: () => void;
 }) {
   const { entry } = props;
+  const { t } = useLingui();
   const threads = entry.group.threads;
   const title = groupEntryTitle(entry);
   const activeThreads = threads.filter((thread) => !thread.done);
@@ -399,8 +414,8 @@ function GroupActionsSheet(props: {
 
   return (
     <BottomSheet
-      label={`Actions for ${title}`}
-      closeLabel="Close group actions"
+      label={t`Actions for ${title}`}
+      closeLabel={t`Close group actions`}
       closing={props.closing}
       onClose={props.onClose}
     >
@@ -424,7 +439,9 @@ function GroupActionsSheet(props: {
             }
           >
             <Plus className="size-4 shrink-0 text-muted" />
-            <span>New thread in worktree</span>
+            <span>
+              <Trans>New thread in worktree</Trans>
+            </span>
           </button>
         ) : null}
         {entry.kind === "worktree-group" ? (
@@ -441,7 +458,9 @@ function GroupActionsSheet(props: {
             }
           >
             <Terminal className="size-4 shrink-0 text-muted" />
-            <span>Open terminal</span>
+            <span>
+              <Trans>Open terminal</Trans>
+            </span>
           </button>
         ) : null}
         {allDone ? (
@@ -462,7 +481,9 @@ function GroupActionsSheet(props: {
             }
           >
             <CircleCheck className="size-4 shrink-0 text-muted" />
-            <span>Unmark all done</span>
+            <span>
+              <Trans>Unmark all done</Trans>
+            </span>
           </button>
         ) : (
           <button
@@ -477,7 +498,9 @@ function GroupActionsSheet(props: {
             }
           >
             <CircleCheck className="size-4 shrink-0 text-muted" />
-            <span>Mark all done</span>
+            <span>
+              <Trans>Mark all done</Trans>
+            </span>
           </button>
         )}
         <button
@@ -490,7 +513,9 @@ function GroupActionsSheet(props: {
           }
         >
           <Archive className="size-4 shrink-0" />
-          <span>Archive all threads</span>
+          <span>
+            <Trans>Archive all threads</Trans>
+          </span>
         </button>
       </div>
     </BottomSheet>
@@ -498,6 +523,7 @@ function GroupActionsSheet(props: {
 }
 
 export function ThreadsView(props: ThreadsViewProps) {
+  const { t } = useLingui();
   // Each menu keeps a snapshot of its target (the thread / group), so the
   // slide-out still plays even when the action removes it from the list.
   const threadMenu = useSheet<Thread>();
@@ -525,18 +551,18 @@ export function ThreadsView(props: ThreadsViewProps) {
   );
 
   const currentProjectLabel = props.projectFilter
-    ? (projectNames.get(props.projectFilter) ?? "Project")
-    : "All projects";
+    ? (projectNames.get(props.projectFilter) ?? t`Project`)
+    : t`All projects`;
   const picker =
     pickerProjects.length > 1 ? (
       <div className="m-threads__picker">
         <SheetMenu
-          label="Filter by project"
-          closeLabel="Close project filter"
+          label={t`Filter by project`}
+          closeLabel={t`Close project filter`}
           items={[
             {
               id: "all",
-              label: "All projects",
+              label: t`All projects`,
               hint: String(props.threads.length),
               selected: !props.projectFilter,
             },
@@ -550,7 +576,7 @@ export function ThreadsView(props: ThreadsViewProps) {
           onSelect={(id) => props.onProjectFilterChange(id === "all" ? null : id)}
           trigger={({ open, isOpen }) => (
             <Button
-              aria-label="Project"
+              aria-label={t`Project`}
               aria-expanded={isOpen}
               className="text-foreground"
               size="sm"
@@ -583,12 +609,12 @@ export function ThreadsView(props: ThreadsViewProps) {
         {picker}
         <EmptyState
           icon={<History className="size-5" />}
-          title={props.projectFilter ? "No threads in this project" : "No threads yet"}
-          hint="Start a new thread to put an agent to work from this device."
+          title={props.projectFilter ? t`No threads in this project` : t`No threads yet`}
+          hint={t`Start a new thread to put an agent to work from this device.`}
           action={
             <Button size="sm" variant="secondary" onPress={props.onNew}>
               <Plus className="size-4" />
-              New thread
+              <Trans>New thread</Trans>
             </Button>
           }
         />

@@ -8,6 +8,7 @@ import {
   type RendererCrashKind,
   type RendererCrashReport,
 } from "@/renderer/RendererCrashScreen";
+import { bootstrapAppLocaleFromCache } from "@/renderer/i18n/i18n";
 import { isIgnorableRejection, isIgnorableWindowError } from "@/renderer/rendererGlobalErrors";
 
 // The PWA had no error boundary: any throw during boot or first render left the
@@ -91,8 +92,11 @@ reactRoot = createRoot(root, {
   },
 });
 
-void import("./bootstrapApp")
-  .then(({ MobileApp, registerServiceWorker }) => {
+// Load the mobile app chunk and the cached locale's catalog in parallel, then
+// mount once the catalog is active. This mirrors the desktop renderer boot path
+// and keeps translated PWA installs from flashing the source locale.
+void Promise.all([import("./bootstrapApp"), bootstrapAppLocaleFromCache()])
+  .then(([{ MobileApp, registerServiceWorker }]) => {
     reactRoot?.render(
       <RendererErrorBoundary>
         <MobileApp />

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { Trans, useLingui } from "@lingui/react/macro";
 import type { ReactNode } from "react";
 import { Check, ChevronRight, Columns2, Loader2, Rows2, Wifi, WifiOff } from "lucide-react";
 import type { ThreadStatus } from "@/shared/contracts";
@@ -10,6 +11,7 @@ export function ConnectionPill(props: {
   /** Tapping the pill re-syncs with the desktop (replaces a refresh button). */
   readonly onPress?: () => void;
 }) {
+  const { t } = useLingui();
   const icon =
     props.state === "online" ? (
       <Wifi className="size-3.5" />
@@ -23,11 +25,11 @@ export function ConnectionPill(props: {
       className="m-connection"
       data-state={props.state}
       type="button"
-      title="Sync with desktop"
+      title={t`Sync with desktop`}
       onClick={props.onPress}
     >
       {icon}
-      {CONNECTION_LABELS[props.state]}
+      {t(CONNECTION_LABELS[props.state])}
     </button>
   );
 }
@@ -43,6 +45,7 @@ export function ConnectionBanner(props: {
   readonly onReconnect: () => void;
   readonly onPair?: () => void;
 }) {
+  const { t } = useLingui();
   if (props.state === "online" || props.state === "booting" || props.state === "pairing") {
     return null;
   }
@@ -50,12 +53,12 @@ export function ConnectionBanner(props: {
   const unauthorized = props.state === "unauthorized";
   const tone = reconnecting || unauthorized ? "warn" : "danger";
   const text = reconnecting
-    ? "Reconnecting to your desktop…"
+    ? t`Reconnecting to your desktop…`
     : unauthorized
-      ? "Pairing expired — pair again to reconnect."
+      ? t`Pairing expired — pair again to reconnect.`
       : props.state === "offline"
-        ? "Offline. Showing the last synced data."
-        : props.message || "Connection error.";
+        ? t`Offline. Showing the last synced data.`
+        : props.message || t`Connection error.`;
   return (
     <div className="m-banner" data-tone={tone} role="status" aria-live="polite">
       <span className="m-banner__icon">
@@ -64,11 +67,11 @@ export function ConnectionBanner(props: {
       <span className="m-banner__text">{text}</span>
       {unauthorized && props.onPair ? (
         <button className="m-banner__action" type="button" onClick={props.onPair}>
-          Pair again
+          <Trans>Pair again</Trans>
         </button>
       ) : (
         <button className="m-banner__action" type="button" onClick={props.onReconnect}>
-          {reconnecting ? "Retry now" : "Reconnect"}
+          {reconnecting ? t`Retry now` : t`Reconnect`}
         </button>
       )}
     </div>
@@ -83,11 +86,12 @@ export function Skeleton(props: { readonly className?: string }) {
 }
 
 export function StatusBadge(props: { readonly status: ThreadStatus }) {
+  const { t } = useLingui();
   const tone = threadStatusTone(props.status);
   return (
     <span className="m-status" data-tone={tone}>
       <span className="m-status__dot" data-tone={tone} />
-      {THREAD_STATUS_LABELS[props.status]}
+      {t(THREAD_STATUS_LABELS[props.status])}
     </span>
   );
 }
@@ -120,13 +124,14 @@ export function DiffModeToggle(props: {
   readonly mode: number;
   readonly onChange: (mode: number) => void;
 }) {
+  const { t } = useLingui();
   return (
     <>
       <button
         type="button"
         className="m-git-head__btn"
         data-active={props.mode === DIFF_MODE.Split || undefined}
-        aria-label="Split view"
+        aria-label={t`Split view`}
         onClick={() => props.onChange(DIFF_MODE.Split)}
       >
         <Columns2 className="size-4" />
@@ -135,7 +140,7 @@ export function DiffModeToggle(props: {
         type="button"
         className="m-git-head__btn"
         data-active={props.mode === DIFF_MODE.Unified || undefined}
-        aria-label="Unified view"
+        aria-label={t`Unified view`}
         onClick={() => props.onChange(DIFF_MODE.Unified)}
       >
         <Rows2 className="size-4" />
@@ -146,8 +151,8 @@ export function DiffModeToggle(props: {
 
 export function EmptyState(props: {
   readonly icon: ReactNode;
-  readonly title: string;
-  readonly hint?: string;
+  readonly title: ReactNode;
+  readonly hint?: ReactNode;
   readonly action?: ReactNode;
 }) {
   return (
@@ -224,12 +229,13 @@ export function BottomSheet(props: {
   readonly onClose: () => void;
   readonly children: ReactNode;
 }) {
+  const { t } = useLingui();
   return (
     <div className="m-sheet-backdrop" data-closing={props.closing || undefined}>
       <button
         type="button"
         className="m-sheet-scrim"
-        aria-label={props.closeLabel ?? "Close"}
+        aria-label={props.closeLabel ?? t`Close`}
         onClick={props.onClose}
       />
       <div className="m-sheet" role="dialog" aria-label={props.label}>
@@ -243,10 +249,10 @@ export function BottomSheet(props: {
 export interface SheetMenuItem {
   /** Stable id handed back to `onSelect`. */
   readonly id: string;
-  readonly label: string;
+  readonly label: ReactNode;
   readonly icon?: ReactNode;
   /** Trailing muted text — e.g. a count next to a picker option. */
-  readonly hint?: string;
+  readonly hint?: ReactNode;
   /** Marks the current choice in a picker with a trailing check. */
   readonly selected?: boolean;
   /** Tints destructive / cautionary actions. */

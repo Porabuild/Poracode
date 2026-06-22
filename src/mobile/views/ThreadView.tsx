@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { Trans, useLingui } from "@lingui/react/macro";
 import { MessageCircle } from "lucide-react";
 import type {
   PromptSegment,
@@ -66,6 +67,7 @@ function TerminalScrollbackPane(props: { readonly scrollback: string }) {
 }
 
 export function ThreadView(props: ThreadViewProps) {
+  const { t } = useLingui();
   const thread = props.thread;
   const project = useProject(thread?.projectId);
   const projectAgentStatuses = useProjectAgentStatuses(project?.location);
@@ -76,8 +78,8 @@ export function ThreadView(props: ThreadViewProps) {
       <section className="m-thread">
         <EmptyState
           icon={<MessageCircle className="size-5" />}
-          title="No thread selected"
-          hint="Pick a thread from the list to follow the agent from here."
+          title={<Trans>No thread selected</Trans>}
+          hint={<Trans>Pick a thread from the list to follow the agent from here.</Trans>}
         />
       </section>
     );
@@ -122,7 +124,7 @@ export function ThreadView(props: ThreadViewProps) {
   return (
     <section className="m-thread">
       {props.loading ? (
-        <span className="m-loading-bar" role="progressbar" aria-label="Loading thread" />
+        <span className="m-loading-bar" role="progressbar" aria-label={t`Loading thread`} />
       ) : null}
       {props.hideHeader ? null : (
         <header className="mx-auto flex w-full max-w-[920px] items-center gap-2 px-3 py-1">

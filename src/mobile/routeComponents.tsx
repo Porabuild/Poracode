@@ -1,5 +1,6 @@
 import { lazy, Suspense, useEffect, useState, type ReactNode } from "react";
 import { toast } from "@heroui/react";
+import { Trans, useLingui } from "@lingui/react/macro";
 import { getRouteApi, useNavigate } from "@tanstack/react-router";
 import type { Project, Thread } from "@/shared/contracts";
 import { buildWorktreeLocation } from "@/shared/worktree";
@@ -57,7 +58,9 @@ function LazyRoute(props: { readonly children: ReactNode }) {
     <Suspense
       fallback={
         <div className="m-page">
-          <div className="text-sm text-muted">Loading…</div>
+          <div className="text-sm text-muted">
+            <Trans>Loading…</Trans>
+          </div>
         </div>
       }
     >
@@ -164,6 +167,7 @@ export function ThreadRoute() {
 export function NewThreadRoute() {
   const { remote } = useMobileApp();
   const navigate = useNavigate();
+  const { t } = useLingui();
   const [draftProjectId, setDraftProjectId] = useState<string | null>(null);
   const [draftNonce, setDraftNonce] = useState(0);
 
@@ -186,7 +190,7 @@ export function NewThreadRoute() {
         if (threadId) void navigate({ to: "/thread/$threadId", params: { threadId } });
       })
       .catch((error: unknown) => {
-        toast.danger(error instanceof Error ? error.message : "Unable to start the thread.");
+        toast.danger(error instanceof Error ? error.message : t`Unable to start the thread.`);
         // Remount the draft view so its internal pending state resets.
         setDraftNonce((nonce) => nonce + 1);
       });
@@ -198,13 +202,14 @@ export function NewThreadRoute() {
 export function DesktopsRoute() {
   const { remote } = useMobileApp();
   const navigate = useNavigate();
+  const { t } = useLingui();
   const [manualEndpoint, setManualEndpoint] = useState(() => parsePairingLaunch().endpoint);
   const [manualToken, setManualToken] = useState("");
 
   async function pair(endpoint: string, credential: string) {
     if (isMixedContentEndpoint(endpoint)) {
       toast.danger(
-        "This app is served over HTTPS but the desktop is on plain HTTP, which browsers block. Open the pairing link directly from the desktop (LAN), or expose the desktop over HTTPS.",
+        t`This app is served over HTTPS but the desktop is on plain HTTP, which browsers block. Open the pairing link directly from the desktop (LAN), or expose the desktop over HTTPS.`,
       );
       return;
     }
@@ -213,7 +218,7 @@ export function DesktopsRoute() {
       setManualToken("");
       void navigate({ to: "/threads" });
     } catch (error) {
-      toast.danger(error instanceof Error ? error.message : "Unable to pair with that desktop.");
+      toast.danger(error instanceof Error ? error.message : t`Unable to pair with that desktop.`);
     }
   }
 
@@ -225,7 +230,7 @@ export function DesktopsRoute() {
   function handleScan(value: string) {
     const parsed = parsePairingUrl(value);
     if (!parsed?.credential) {
-      toast.danger("That QR code isn't a Lightcode pairing link.");
+      toast.danger(t`That QR code isn't a Lightcode pairing link.`);
       return;
     }
     void pair(parsed.endpoint, parsed.credential);

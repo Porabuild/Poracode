@@ -1,12 +1,18 @@
+import { useLingui } from "@lingui/react/macro";
 import { PrConversationTab } from "@/renderer/views/PrReviewOverlay/parts/PrConversationTab";
 import { usePr } from "./prContext";
 import { PrPageHeader } from "./PrPageHeader";
 
 export function PrConversationPage() {
+  const { t } = useLingui();
   const pr = usePr();
   return (
     <>
-      <PrPageHeader title="Conversation" onBack={pr.toOverview} backLabel="Back to overview" />
+      <PrPageHeader
+        title={t`Conversation`}
+        onBack={pr.toOverview}
+        backLabel={t`Back to overview`}
+      />
       <div className="m-git-overlay__body">
         <PrConversationTab
           cacheKey={pr.cacheKey}

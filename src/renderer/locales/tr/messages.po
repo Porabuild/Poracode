@@ -17,6 +17,10 @@ msgstr ""
 msgid "(Draft)"
 msgstr "(Taslak)"
 
+#: src/mobile/GitSummaryParts.tsx
+msgid "(no branch)"
+msgstr "(dal yok)"
+
 #: src/renderer/views/PrReviewOverlay/parts/PrCommitsTab.tsx
 msgid "(no message)"
 msgstr "(mesaj yok)"
@@ -25,6 +29,14 @@ msgstr "(mesaj yok)"
 #: src/renderer/views/PrReviewOverlay/parts/PrMetaRow.tsx
 msgid "{0, plural, one {# file} other {# files}}"
 msgstr "{0, plural, one {# dosya} other {# dosya}}"
+
+#. placeholder {0}: props.desktops.length
+#. placeholder {0}: remote.desktops.length
+#: src/mobile/RootLayout.tsx
+#: src/mobile/views/DesktopsView.tsx
+msgid "{0, plural, one {# paired desktop} other {# paired desktops}}"
+msgstr "{0, plural, one {# eşleştirilmiş masaüstü} other {# eşleştirilmiş "
+"masaüstü}}"
 
 #. placeholder {0}: readyKinds.size
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
@@ -155,6 +167,11 @@ msgstr "{0} çalıştırma"
 msgid "{0} runs"
 msgstr "{0} çalıştırma"
 
+#. placeholder {0}: threads.length
+#: src/mobile/views/ThreadsView.tsx
+msgid "{0} threads"
+msgstr "{0} iş parçacığı"
+
 #. placeholder {0}: formatTokens(snapshot.tokens.total)
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
@@ -212,6 +229,16 @@ msgid "{agentLabel}: {statusLabel}. Hover for status details."
 msgstr "{agentLabel}: {statusLabel}. Durum ayrıntıları için fareyle üzerine "
 "gelin."
 
+#: src/mobile/views/pr/PrOverviewPage.tsx
+msgid "{commitsCount, plural, one {# commit} other {# commits}}"
+msgstr "{commitsCount, plural, one {# commit} other {# commit}}"
+
+#: src/mobile/views/pr/PrOverviewPage.tsx
+msgid "{conversationCount, plural, one {# comment or review} other {# comments "
+"& reviews}}"
+msgstr "{conversationCount, plural, one {# yorum veya inceleme} other {# yorum "
+"ve inceleme}}"
+
 #: src/renderer/views/ProfileOverlay/parts/ShareCard.tsx
 #: src/renderer/views/ProfileOverlay/parts/StatStrip.tsx
 msgid "{days} day"
@@ -230,6 +257,10 @@ msgstr "{days} gün önce"
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
 msgid "{envOrAgentLabel} needs authentication."
 msgstr "{envOrAgentLabel} kimlik doğrulaması gerektiriyor."
+
+#: src/mobile/views/pr/PrOverviewPage.tsx
+msgid "{filesCount, plural, one {# file changed} other {# files changed}}"
+msgstr "{filesCount, plural, one {# dosya değişti} other {# dosya değişti}}"
 
 #: src/renderer/components/thread/ChatPane/ChatRuntimeDebugPanel.tsx
 msgid "{filteredCount} / {totalCount} matches"
@@ -366,6 +397,10 @@ msgstr "~{money}{tokens} · {0} · tahmini"
 msgid "≈{0}% by reset"
 msgstr "sıfırlamaya kadar ≈%{0}"
 
+#: src/mobile/views/ThreadsView.tsx
+msgid "1 thread"
+msgstr "1 iş parçacığı"
+
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "30d"
 msgstr "30g"
@@ -440,6 +475,17 @@ msgstr "İşlem adı"
 msgid "Actions"
 msgstr "Eylemler"
 
+#. placeholder {0}: thread.title
+#: src/mobile/views/ThreadsView.tsx
+msgid "Actions for {0}"
+msgstr "{0} için işlemler"
+
+#: src/mobile/views/DesktopsView.tsx
+#: src/mobile/views/ThreadsView.tsx
+msgid "Actions for {title}"
+msgstr "{title} için işlemler"
+
+#: src/mobile/views/DesktopsView.tsx
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 msgid "Active"
 msgstr "Aktif"
@@ -538,6 +584,10 @@ msgstr "Yazım alanına ekle"
 msgid "Add to favorites"
 msgstr "Favorilere ekle"
 
+#: src/mobile/views/DesktopsView.tsx
+msgid "Add to Home Screen"
+msgstr "Ana Ekrana ekle"
+
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
 msgid "Agent"
@@ -592,6 +642,7 @@ msgstr "Temsilci: {description}"
 msgid "Agent: {subagent}"
 msgstr "Temsilci: {subagent}"
 
+#: src/mobile/settingsSections.ts
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
 msgid "Agents"
@@ -604,6 +655,7 @@ msgstr "Temsilciler · Genel"
 
 #. Settings section: AI / assistant configuration
 #. Settings section: AI / assistant configuration
+#: src/mobile/settingsSections.ts
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "AI"
@@ -618,6 +670,10 @@ msgstr "AI aracı orkestratörü — kodlama aracılarını Terminal ve Yerel AC
 #: src/renderer/views/ProfileOverlay/parts/AiActions.tsx
 msgid "AI git actions"
 msgstr "Yapay zeka git işlemleri"
+
+#: src/mobile/views/SettingsView.tsx
+msgid "Alerts when threads need you"
+msgstr "İş parçacıkları size ihtiyaç duyduğunda uyarılar"
 
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
@@ -641,6 +697,10 @@ msgstr "Tüm efor düzeyleri"
 msgid "All files"
 msgstr "Tüm dosyalar"
 
+#: src/mobile/views/ThreadsView.tsx
+msgid "All projects"
+msgstr "Tüm projeler"
+
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/helpers.ts
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
 msgid "Allow"
@@ -650,6 +710,12 @@ msgstr "İzin ver"
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Allow agents to read/write cookies and storage"
 msgstr "Aracıların çerezleri ve depolamayı okumasına/yazmasına izin ver"
+
+#: src/mobile/QrScanner.tsx
+msgid "Allow camera access for this site in your browser settings and try again "
+"— or enter the endpoint and token below."
+msgstr "Tarayıcı ayarlarında bu site için kamera erişimine izin verip tekrar "
+"deneyin ya da endpoint ve token'ı aşağıya girin."
 
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -684,6 +750,11 @@ msgstr "Başka bir sohbet de aynı ağacı kullanıyor. Dosya geri yükleme, "
 msgid "App Browser"
 msgstr "Uygulama Tarayıcısı"
 
+#: src/mobile/views/MoreView.tsx
+msgid "App preferences"
+msgstr "Uygulama tercihleri"
+
+#: src/mobile/settingsSections.ts
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Appearance"
@@ -730,6 +801,10 @@ msgstr "Arşiv {0}"
 msgid "Archive All"
 msgstr "Tümünü Arşivle"
 
+#: src/mobile/views/ThreadsView.tsx
+msgid "Archive all threads"
+msgstr "Tüm iş parçacıklarını arşivle"
+
 #: src/renderer/commands/registry.ts
 msgid "Archive the current thread"
 msgstr "Geçerli konuyu arşivle"
@@ -738,10 +813,14 @@ msgstr "Geçerli konuyu arşivle"
 msgid "Archive thread"
 msgstr "Konuyu arşivle"
 
+#: src/mobile/ThreadTitleRow.tsx
+#: src/mobile/views/ThreadsView.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
 msgid "Archive Thread"
 msgstr "İleti Dizisini Arşivle"
 
+#: src/mobile/settingsSections.ts
+#: src/mobile/views/SettingsView.tsx
 #: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Archived Threads"
@@ -872,10 +951,25 @@ msgstr "Avatar rengi"
 msgid "Avatar color {color}"
 msgstr "Avatar rengi {color}"
 
+#: src/mobile/views/BrowserView.tsx
+#: src/mobile/views/GitView.tsx
+#: src/mobile/views/pr/PrPageHeader.tsx
+#: src/mobile/views/TerminalView.tsx
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Back"
 msgstr "Geri"
+
+#: src/mobile/views/GitView.tsx
+msgid "Back to files"
+msgstr "Dosyalara dön"
+
+#: src/mobile/views/pr/PrChangesPage.tsx
+#: src/mobile/views/pr/PrChecksPage.tsx
+#: src/mobile/views/pr/PrCommitsPage.tsx
+#: src/mobile/views/pr/PrConversationPage.tsx
+msgid "Back to overview"
+msgstr "Genel bakışa dön"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Background process exited unexpectedly"
@@ -893,6 +987,7 @@ msgstr "Arka plan işlemi yeniden başlatıldı"
 msgid "Background tasks"
 msgstr "Arka plan görevleri"
 
+#: src/mobile/views/pr/PrOverviewPage.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "Base branch is ahead — branch must be updated first."
 msgstr "Ana şube önde; önce şubenin güncellenmesi gerekiyor."
@@ -999,6 +1094,9 @@ msgstr "Ana klasöre göz atın"
 msgid "Browse your GitHub repositories or paste a clone URL."
 msgstr "GitHub depolarınıza göz atın veya bir klon URL'si yapıştırın."
 
+#: src/mobile/RootLayout.tsx
+#: src/mobile/settingsSections.ts
+#: src/mobile/views/MoreView.tsx
 #: src/renderer/commands/registry.ts
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/composer/AttachmentBar.tsx
@@ -1037,6 +1135,10 @@ msgstr "Tarayıcı seçim hedefi (CLI konuları)"
 msgid "Browser pick target for CLI threads"
 msgstr "CLI konuları için tarayıcı seçim hedefi"
 
+#: src/mobile/views/BrowserView.tsx
+msgid "Browser tabs"
+msgstr "Tarayıcı sekmeleri"
+
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 msgid "Budget limit reached"
 msgstr "Bütçe sınırına ulaşıldı"
@@ -1072,7 +1174,16 @@ msgstr "Dal koruma kurallarını atla"
 msgid "Bypass branch protection rules (admin merge)"
 msgstr "Şube koruma kurallarını atla (yönetici birleştirme)"
 
+#: src/mobile/views/DesktopsView.tsx
+msgid "Cached only"
+msgstr "Yalnızca önbellekte"
+
+#: src/mobile/QrScanner.tsx
+msgid "Camera access blocked"
+msgstr "Kamera erişimi engellendi"
+
 #. Dialog button: dismiss without deleting
+#: src/mobile/views/GitActionSheet.tsx
 #: src/renderer/components/common/ConfirmDialog.tsx
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 #: src/renderer/components/thread/ChatPane/parts/CheckpointRevertControls.tsx
@@ -1135,6 +1246,8 @@ msgstr "Kullanıcıyı Değiştir"
 msgid "Changelog"
 msgstr "Değişiklik günlüğü"
 
+#: src/mobile/views/pr/PrChangesPage.tsx
+#: src/mobile/views/pr/PrOverviewPage.tsx
 #: src/renderer/views/GitReviewOverlay/GitReviewOverlay.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 #: src/renderer/views/PrReviewOverlay/parts/PrTabsPill.tsx
@@ -1194,6 +1307,8 @@ msgstr "Seçilen cihazdan canlı giriş seviyesini kontrol edin."
 msgid "Checking…"
 msgstr "Kontrol ediliyor…"
 
+#: src/mobile/views/pr/PrChecksPage.tsx
+#: src/mobile/views/pr/PrOverviewPage.tsx
 #: src/renderer/views/PrReviewOverlay/parts/PrTabsPill.tsx
 msgid "Checks"
 msgstr "Kontroller"
@@ -1308,9 +1423,14 @@ msgstr "{cloneTarget} klonlanıyor"
 msgid "Cloning…"
 msgstr "Klonlanıyor…"
 
+#: src/mobile/components.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 msgid "Close"
 msgstr "Kapat"
+
+#: src/mobile/views/BrowserView.tsx
+msgid "Close {closeTarget}"
+msgstr "{closeTarget} kapat"
 
 #: src/renderer/views/LoginTerminalOverlay/LoginTerminalOverlay.tsx
 msgid "Close {purposeNoun} terminal"
@@ -1319,6 +1439,10 @@ msgstr "{purposeNoun} terminalini kapat"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 msgid "Close browser"
 msgstr "Tarayıcıyı kapat"
+
+#: src/mobile/views/DesktopsView.tsx
+msgid "Close desktop actions"
+msgstr "Masaüstü işlemlerini kapat"
 
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorToolbar.tsx
 msgid "Close editor"
@@ -1339,6 +1463,14 @@ msgstr "Hedefi kapat"
 #: src/renderer/views/MainView/parts/AppContent/AppContent.tsx
 msgid "Close group"
 msgstr "Grubu kapat"
+
+#: src/mobile/views/ThreadsView.tsx
+msgid "Close group actions"
+msgstr "Grup işlemlerini kapat"
+
+#: src/mobile/views/GitActionSheet.tsx
+msgid "Close menu"
+msgstr "Menüyü kapat"
 
 #: src/renderer/commands/shortcutCatalog.ts
 msgid "Close overlay"
@@ -1361,9 +1493,21 @@ msgstr "Planı kapat"
 msgid "Close PR"
 msgstr "PR'yi kapat"
 
+#: src/mobile/views/pr/PrOverviewPage.tsx
+msgid "Close PR review"
+msgstr "PR incelemesini kapat"
+
 #: src/renderer/components/composer/ImageLightbox.tsx
 msgid "Close preview"
 msgstr "Önizlemeyi kapat"
+
+#: src/mobile/views/ThreadsView.tsx
+msgid "Close project filter"
+msgstr "Proje filtresini kapat"
+
+#: src/mobile/QrScanner.tsx
+msgid "Close scanner"
+msgstr "Tarayıcıyı kapat"
 
 #: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
 msgid "Close search"
@@ -1388,6 +1532,15 @@ msgstr "Alt aracılar panelini kapat"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabStrip.tsx
 msgid "Close tab"
 msgstr "Sekmeyi kapat"
+
+#: src/mobile/views/BrowserView.tsx
+msgid "Close tab switcher"
+msgstr "Sekme değiştiriciyi kapat"
+
+#: src/mobile/ThreadTitleRow.tsx
+#: src/mobile/views/ThreadsView.tsx
+msgid "Close thread actions"
+msgstr "İş parçacığı işlemlerini kapat"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -1514,6 +1667,7 @@ msgstr "Commit seçenekleri"
 msgid "Commit, PR, and review composers"
 msgstr "Commit, PR ve inceleme composer'ları"
 
+#: src/mobile/views/pr/PrCommitsPage.tsx
 #: src/renderer/views/PrReviewOverlay/parts/PrTabsPill.tsx
 msgid "Commits"
 msgstr "Commit'ler"
@@ -1582,6 +1736,14 @@ msgstr "Çatışma Çözücü"
 msgid "Conflicts"
 msgstr "Çatışmalar"
 
+#: src/mobile/views/BrowserView.tsx
+msgid "Connecting to the desktop browser…"
+msgstr "Masaüstü tarayıcısına bağlanılıyor…"
+
+#: src/mobile/components.tsx
+msgid "Connection error."
+msgstr "Bağlantı hatası."
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Console"
 msgstr "Konsol"
@@ -1644,6 +1806,8 @@ msgid "Control which files appear in the @file mention search. Per-project "
 msgstr "@file bahsetme aramasında hangi dosyaların görüneceğini kontrol edin. "
 "Projeye özel geçersiz kılmalar her projenin ayarlarında bulunur."
 
+#: src/mobile/views/pr/PrConversationPage.tsx
+#: src/mobile/views/pr/PrOverviewPage.tsx
 #: src/renderer/views/PrReviewOverlay/parts/PrTabsPill.tsx
 msgid "Conversation"
 msgstr "Konuşma"
@@ -1749,6 +1913,10 @@ msgstr "Taahhüt edilmemiş değişiklikleriniz yeni çalışma ağacına kopyal
 msgid "Couldn't create the project."
 msgstr "Proje oluşturulamadı."
 
+#: src/mobile/useRemoteDesktop.ts
+msgid "Couldn't create the worktree."
+msgstr "Worktree oluşturulamadı."
+
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "Couldn't list repositories."
 msgstr "Depolar listelenemedi."
@@ -1760,6 +1928,14 @@ msgstr "Profil istatistikleriniz yüklenemedi."
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Couldn't save the shortcut."
 msgstr "Kısayol kaydedilemedi."
+
+#: src/mobile/QrScanner.tsx
+msgid "Couldn't start the camera"
+msgstr "Kamera başlatılamadı"
+
+#: src/mobile/useRemoteDesktop.ts
+msgid "Couldn't tag the thread's worktree."
+msgstr "İş parçacığının worktree'si etiketlenemedi."
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CreatePrModal.tsx
 msgid "Create Draft PR"
@@ -1931,10 +2107,13 @@ msgstr "Dosyayı sil"
 msgid "Delete permanently"
 msgstr "Kalıcı olarak sil"
 
+#: src/mobile/views/SettingsView.tsx
 #: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
 msgid "Delete thread"
 msgstr "Konuyu sil"
 
+#: src/mobile/ThreadTitleRow.tsx
+#: src/mobile/views/ThreadsView.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
 msgid "Delete Thread"
 msgstr "Konuyu Sil"
@@ -1979,6 +2158,19 @@ msgstr "Açıklama"
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CreatePrModal.tsx
 msgid "Description (optional)"
 msgstr "Açıklama (isteğe bağlı)"
+
+#: src/mobile/views/SettingsView.tsx
+msgid "Desktop"
+msgstr "Masaüstü"
+
+#: src/mobile/useRemoteDesktop.ts
+msgid "Desktop is unreachable."
+msgstr "Masaüstüne ulaşılamıyor."
+
+#: src/mobile/RootLayout.tsx
+#: src/mobile/views/DesktopsView.tsx
+msgid "Desktops"
+msgstr "Masaüstleri"
 
 #. placeholder {0}: detectionScopeLabel(status)
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
@@ -2051,6 +2243,18 @@ msgstr "Devre dışı"
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Discard"
 msgstr "Sil"
+
+#: src/mobile/views/GitActionSheet.tsx
+msgid "Discard all changes"
+msgstr "Tüm değişiklikleri at"
+
+#: src/mobile/views/GitActionSheet.tsx
+msgid "Discard changes"
+msgstr "Değişiklikleri at"
+
+#: src/mobile/views/GitActionSheet.tsx
+msgid "Discard changes to <0>{title}</0>? This cannot be undone."
+msgstr "<0>{title}</0> üzerindeki değişiklikler atılsın mı? Bu geri alınamaz."
 
 #: src/renderer/commands/registry.ts
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
@@ -2202,6 +2406,10 @@ msgstr "LSP Düzenleyicisi"
 msgid "Editor tabs"
 msgstr "Düzenleyici sekmeleri"
 
+#: src/mobile/views/SettingsView.tsx
+msgid "Edits the paired desktop and syncs back to it."
+msgstr "Eşleştirilmiş masaüstünü düzenler ve geri senkronize eder."
+
 #: src/renderer/components/common/EffortContextMenu/EffortContextMenu.tsx
 msgid "Effort and context"
 msgstr "Çaba ve bağlam"
@@ -2252,6 +2460,10 @@ msgstr "Ayarlarda sağlayıcıları etkinleştirin"
 msgid "Enabled"
 msgstr "Etkin"
 
+#: src/mobile/views/SettingsView.tsx
+msgid "Enabled agents, model visibility and order"
+msgstr "Etkin ajanlar, model görünürlüğü ve sırası"
+
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
 msgid "Enables <0>cookies</0> and <1>storage</1>. Cookies can contain session "
 "tokens and storage often holds auth state — only enable when you trust "
@@ -2260,6 +2472,10 @@ msgstr "<0>Çerezler</0>'i ve <1>depolamayı</1> etkinleştirir. Çerezler oturu
 "belirteçleri içerebilir ve depolama genellikle kimlik doğrulama "
 "durumunu tutar; yalnızca hem aracıya hem de onun ziyaret ettiği "
 "sitelere güvendiğinizde etkinleştirilir."
+
+#: src/mobile/views/DesktopsView.tsx
+msgid "Endpoint"
+msgstr "Endpoint"
 
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 msgid "Enhanced (Hooks)"
@@ -2297,6 +2513,8 @@ msgid "error"
 msgstr "hata"
 
 #. Notification status: agent error
+#: src/mobile/presentation.ts
+#: src/mobile/useRemoteDesktop.ts
 #: src/renderer/components/providers/ProviderUsageRail.tsx
 #: src/renderer/components/providers/usageFormat.ts
 #: src/renderer/components/thread/ChatPane/parts/items/ErrorItem.tsx
@@ -2320,6 +2538,14 @@ msgstr "Kalıpları hariç tut"
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Exit plan mode"
 msgstr "Plan modundan çık"
+
+#: src/mobile/views/TerminalView.tsx
+msgid "exited"
+msgstr "çıktı"
+
+#: src/mobile/views/TerminalView.tsx
+msgid "exited ({exitCode})"
+msgstr "çıktı ({exitCode})"
 
 #. placeholder {0}: renderedSession.failedExitCode
 #: src/renderer/views/LoginTerminalOverlay/LoginTerminalOverlay.tsx
@@ -2460,6 +2686,10 @@ msgstr "{0} için dosyalar"
 msgid "Files matching these globs are hidden from the @file mention search."
 msgstr "Bu glob'larla eşleşen dosyalar, @file bahsetme aramasında gizlenir."
 
+#: src/mobile/views/ThreadsView.tsx
+msgid "Filter by project"
+msgstr "Projeye göre filtrele"
+
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Filter settings"
 msgstr "Ayarları filtrele"
@@ -2485,6 +2715,7 @@ msgstr "Terminalde bul"
 msgid "Finish your review"
 msgstr "İncelemenizi tamamlayın"
 
+#: src/mobile/presentation.ts
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 msgid "Finished"
 msgstr "Bitti"
@@ -2555,6 +2786,10 @@ msgid "Folder that holds this project's worktrees. Reset to use the global "
 msgstr "Bu projenin çalışma ağaçlarını barındıran klasör. Genel ayarı kullanmak "
 "için sıfırlayın."
 
+#: src/mobile/views/SettingsView.tsx
+msgid "Fonts and scrolling"
+msgstr "Yazı tipleri ve kaydırma"
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/ForceDeleteBranchDialog.tsx
 msgid "Force Delete"
 msgstr "Silmeye Zorla"
@@ -2575,6 +2810,7 @@ msgstr "Fork"
 msgid "Format files"
 msgstr "Dosyaları biçimlendir"
 
+#: src/mobile/views/BrowserView.tsx
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Forward"
@@ -2608,6 +2844,7 @@ msgstr "Tam erişim"
 msgid "Fullscreen overlay"
 msgstr "Tam ekran yer paylaşımı"
 
+#: src/mobile/settingsSections.ts
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/views/ProjectSettingsOverlay/parts/GeneralSection.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/SettingsSidebar.tsx
@@ -2646,6 +2883,7 @@ msgstr "Yeni konular için kısa başlıklar oluşturur."
 msgid "Get task"
 msgstr "Görev al"
 
+#: src/mobile/settingsSections.ts
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/layout/UnifiedRightPanel.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
@@ -2660,6 +2898,10 @@ msgstr "Git"
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Git {command} failed: {detail}"
 msgstr "Git {command} başarısız oldu: {detail}"
+
+#: src/mobile/views/GitActionSheet.tsx
+msgid "Git actions"
+msgstr "Git işlemleri"
 
 #: src/renderer/views/GitReviewOverlay/GitReviewOverlay.tsx
 msgid "Git Review"
@@ -2776,6 +3018,10 @@ msgstr "Kanonik çalışma zamanı öğe denetçisini gizle"
 msgid "Hide context usage details"
 msgstr "Bağlam kullanım ayrıntılarını gizle"
 
+#: src/mobile/views/BrowserView.tsx
+msgid "Hide keyboard"
+msgstr "Klavyeyi gizle"
+
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilitySection.tsx
 msgid "Hide models you don't use from the model picker across every provider."
 msgstr "Kullanmadığınız modelleri her sağlayıcıdaki model seçiciden gizleyin."
@@ -2818,6 +3064,7 @@ msgid "ID: {0}"
 msgstr "Kimlik: {0}"
 
 #. Microphone input level when not testing
+#: src/mobile/presentation.ts
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 msgid "Idle"
@@ -2832,6 +3079,14 @@ msgstr "Resim"
 msgid "Image preview"
 msgstr "Resim önizlemesi"
 
+#: src/mobile/QrScanner.tsx
+msgid "In-app camera scanning only works over HTTPS. Use your phone's camera "
+"app to scan the desktop QR code, or enter the endpoint and token below."
+msgstr "Uygulama içi kamera taraması yalnızca HTTPS üzerinden çalışır. "
+"Masaüstündeki QR kodunu taramak için telefonunuzun kamera uygulamasını "
+"kullanın veya endpoint ve token'ı aşağıya girin."
+
+#: src/mobile/presentation.ts
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 msgid "Inactive"
 msgstr "Etkin değil"
@@ -3000,6 +3255,10 @@ msgstr "Son araç: <0>{0}</0>"
 msgid "Launch thread"
 msgstr "Konuyu başlat"
 
+#: src/mobile/presentation.ts
+msgid "Launching"
+msgstr "Başlatılıyor"
+
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 msgid "Launching…"
 msgstr "Başlatılıyor…"
@@ -3038,6 +3297,14 @@ msgstr "Toplam token"
 msgid "Light"
 msgstr "Açık"
 
+#: src/mobile/RootLayout.tsx
+msgid "Lightcode mobile navigation"
+msgstr "Lightcode mobil gezinme"
+
+#: src/mobile/views/SettingsView.tsx
+msgid "Links and page behavior"
+msgstr "Bağlantılar ve sayfa davranışı"
+
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "List"
@@ -3050,6 +3317,15 @@ msgstr "Paketleri listele"
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "List tasks"
 msgstr "Görevleri listele"
+
+#: src/mobile/useRemoteDesktop.ts
+msgid "Live"
+msgstr "Canlı"
+
+#. placeholder {0}: formatShortDateTime(desktop.lastConnectedAt)
+#: src/mobile/views/DesktopsView.tsx
+msgid "Live {0}"
+msgstr "Canlı {0}"
 
 #: src/renderer/components/common/PixelLoader.tsx
 msgid "Loading"
@@ -3083,6 +3359,15 @@ msgstr "PR yükleniyor…"
 msgid "Loading registry..."
 msgstr "Kayıt defteri yükleniyor..."
 
+#: src/mobile/views/ThreadView.tsx
+msgid "Loading thread"
+msgstr "İş parçacığı yükleniyor"
+
+#: src/mobile/views/ThreadsView.tsx
+msgid "Loading threads"
+msgstr "İş parçacıkları yükleniyor"
+
+#: src/mobile/routeComponents.tsx
 #: src/renderer/app.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/parts/TreeEntryRow.tsx
@@ -3166,6 +3451,10 @@ msgstr "Kenar çubuğunu yarı saydam yapın — Windows 11'de sistem bulanıkl�
 msgid "Manual order"
 msgstr "Manuel sıralama"
 
+#: src/mobile/views/ThreadsView.tsx
+msgid "Mark all done"
+msgstr "Tümünü tamamlandı olarak işaretle"
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadGroup.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarWorktreeGroup.tsx
 msgid "Mark All Done"
@@ -3183,6 +3472,8 @@ msgstr "Tamamlanmadı olarak işaretle"
 msgid "Mark done"
 msgstr "Tamamlandı olarak işaretle"
 
+#: src/mobile/ThreadTitleRow.tsx
+#: src/mobile/views/ThreadsView.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
 msgid "Mark Done"
 msgstr "Tamamlandı Olarak İşaretle"
@@ -3221,6 +3512,7 @@ msgstr "MCP araç çağrıları"
 msgid "Merge & Remove"
 msgstr "Birleştir ve Kaldır"
 
+#: src/mobile/views/pr/PrOverviewPage.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "Merge conflicts must be resolved."
 msgstr "Birleştirme çakışmaları çözülmelidir."
@@ -3323,6 +3615,14 @@ msgstr "Tarayıcıyı sağ panele küçült"
 msgid "Minimize to panel"
 msgstr "Panele küçült"
 
+#: src/mobile/views/BrowserView.tsx
+msgid "Mirrored desktop browser tab"
+msgstr "Yansıtılan masaüstü tarayıcı sekmesi"
+
+#: src/mobile/views/BrowserView.tsx
+msgid "Mirroring is unavailable."
+msgstr "Yansıtma kullanılamıyor."
+
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Mode"
@@ -3363,6 +3663,7 @@ msgstr "Modeller"
 msgid "Modes"
 msgstr "Modlar"
 
+#: src/mobile/RootLayout.tsx
 #: src/renderer/views/ProfileOverlay/parts/ActivityHeatmap.tsx
 msgid "More"
 msgstr "Çok"
@@ -3454,6 +3755,7 @@ msgstr "Yerel Sağlayıcılar"
 msgid "Native support"
 msgstr "Yerel destek"
 
+#: src/mobile/presentation.ts
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 msgid "Needs approval"
 msgstr "Onay gerekiyor"
@@ -3471,9 +3773,14 @@ msgstr "Dikkat Edilmesi Gerekiyor · Onay gerekiyor"
 msgid "Needs Attention · Reply required"
 msgstr "Dikkat Edilmesi Gerekiyor · Yanıt gerekli"
 
+#: src/mobile/presentation.ts
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 msgid "Needs reply"
 msgstr "Yanıt gerekiyor"
+
+#: src/mobile/RootLayout.tsx
+msgid "New"
+msgstr "Yeni"
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ActionsSection.tsx
 msgid "New action command"
@@ -3517,11 +3824,14 @@ msgstr "Yeni proje"
 msgid "New quick thread"
 msgstr "Yeni hızlı konu"
 
+#: src/mobile/views/BrowserView.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabStrip.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "New tab"
 msgstr "Yeni sekme"
 
+#: src/mobile/RootLayout.tsx
+#: src/mobile/views/ThreadsView.tsx
 #: src/renderer/components/thread/ThreadDraftChrome.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/hooks/useElementPicker.ts
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesEditor.tsx
@@ -3544,6 +3854,10 @@ msgstr "Yeni konu (taslak)"
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/TodoRow.tsx
 msgid "New thread from this to-do"
 msgstr "Bu yapılacaklardan yeni konu"
+
+#: src/mobile/views/ThreadsView.tsx
+msgid "New thread in worktree"
+msgstr "Worktree'de yeni iş parçacığı"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarWorktreeGroup.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
@@ -3610,6 +3924,7 @@ msgstr "Hiçbir aracı yüklü değil."
 msgid "No AI commits, PRs, or conflict resolutions tracked yet."
 msgstr "Henüz yapay zeka commit'leri, PR'ları veya çakışma çözümleri izlenmedi."
 
+#: src/mobile/views/SettingsView.tsx
 #: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
 msgid "No archived threads."
 msgstr "Arşivlenmiş konu yok."
@@ -3621,6 +3936,10 @@ msgstr "Şube bulunamadı"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserEmptyState.tsx
 msgid "No browser tab open"
 msgstr "Tarayıcı sekmesi açık değil"
+
+#: src/mobile/QrScanner.tsx
+msgid "No camera found"
+msgstr "Kamera bulunamadı"
 
 #: src/renderer/components/diff/DiffCardList.tsx
 #: src/renderer/views/PrReviewOverlay/parts/PrReviewSidebar.tsx
@@ -3666,6 +3985,10 @@ msgstr "Henüz veri yok."
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "No description"
 msgstr "Açıklama yok"
+
+#: src/mobile/RootLayout.tsx
+msgid "No desktop paired"
+msgstr "Eşleştirilmiş masaüstü yok"
 
 #. placeholder {0}: entry.filePath
 #: src/renderer/views/GitReviewOverlay/parts/GitDiffContent/parts/DiffSection.tsx
@@ -3737,6 +4060,10 @@ msgstr "Desen yok."
 msgid "No phases yet."
 msgstr "Henüz aşama yok."
 
+#: src/mobile/views/NewThreadView.tsx
+msgid "No projects available"
+msgstr "Kullanılabilir proje yok"
+
 #: src/renderer/components/providers/codex/index.tsx
 msgid "No prompts"
 msgstr "İstem yok"
@@ -3787,9 +4114,21 @@ msgstr "Aşamalı değişiklik yok"
 msgid "No supported agents detected"
 msgstr "Desteklenen aracı algılanmadı"
 
+#: src/mobile/views/ThreadView.tsx
+msgid "No thread selected"
+msgstr "İş parçacığı seçilmedi"
+
 #: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
 msgid "No threads"
 msgstr "Konu yok"
+
+#: src/mobile/views/ThreadsView.tsx
+msgid "No threads in this project"
+msgstr "Bu projede iş parçacığı yok"
+
+#: src/mobile/views/ThreadsView.tsx
+msgid "No threads yet"
+msgstr "Henüz iş parçacığı yok"
 
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "No threads yet."
@@ -3850,6 +4189,7 @@ msgstr "Notlar"
 msgid "Nothing tracked yet. It'll appear here as you use it."
 msgstr "Henüz hiçbir şey izlenmedi. Kullandıkça burada görünecek."
 
+#: src/mobile/settingsSections.ts
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Notifications"
@@ -3867,6 +4207,14 @@ msgstr "Beni bilgilendir"
 #: src/renderer/views/ProjectSettingsOverlay/parts/SearchSection.tsx
 msgid "off"
 msgstr "kapalı"
+
+#: src/mobile/useRemoteDesktop.ts
+msgid "Offline"
+msgstr "Çevrimdışı"
+
+#: src/mobile/components.tsx
+msgid "Offline. Showing the last synced data."
+msgstr "Çevrimdışı. Son senkronize edilen veriler gösteriliyor."
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/sidebarProjectRows.ts
 msgid "Older"
@@ -3893,6 +4241,10 @@ msgstr "{label} öğesini aç"
 #: src/renderer/commands/registry.ts
 msgid "Open a new browser tab"
 msgstr "Yeni bir tarayıcı sekmesi aç"
+
+#: src/mobile/views/NewThreadView.tsx
+msgid "Open a project in Lightcode on your desktop, then refresh."
+msgstr "Masaüstünüzde Lightcode'da bir proje açın, sonra yenileyin."
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/DevTerminalPanel.tsx
 msgid "Open a terminal"
@@ -4005,6 +4357,10 @@ msgstr "Yeni sekme aç"
 msgid "Open new threads as a full page or a side-by-side panel."
 msgstr "Yeni konuları tam sayfa veya yan yana panel olarak açın."
 
+#: src/mobile/views/pr/PrOverviewPage.tsx
+msgid "Open on GitHub"
+msgstr "GitHub'da aç"
+
 #. placeholder {0}: vis.prNumber
 #: src/renderer/views/MainView/parts/Sidebar/parts/useWorktreeActions.ts
 msgid "Open PR #{0}"
@@ -4039,10 +4395,26 @@ msgstr "Ayarları aç"
 msgid "Open Settings"
 msgstr "Ayarları Aç"
 
+#: src/mobile/views/DesktopsView.tsx
+msgid "Open Settings → Remote Access in Lightcode on your desktop, then scan "
+"the QR code from here — or enter the endpoint and pairing token "
+"manually."
+msgstr "Masaüstünüzde Lightcode'da Ayarlar → Uzaktan Erişim'i açın, ardından QR "
+"kodunu buradan tarayın veya endpoint ve eşleştirme token'ını elle "
+"girin."
+
 #. placeholder {0}: display.title
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentToolCall.tsx
 msgid "Open subagent: {0}"
 msgstr "Alt aracıyı aç: {0}"
+
+#: src/mobile/views/ThreadsView.tsx
+msgid "Open terminal"
+msgstr "Terminali aç"
+
+#: src/mobile/views/ThreadsView.tsx
+msgid "Open terminal in worktree"
+msgstr "Terminali worktree'de aç"
 
 #: src/renderer/components/providers/codex/index.tsx
 msgid "Open the effort picker"
@@ -4111,6 +4483,39 @@ msgstr "Paket yöneticisi"
 msgid "Page"
 msgstr "Sayfa"
 
+#: src/mobile/views/DesktopsView.tsx
+msgid "Pair"
+msgstr "Eşleştir"
+
+#: src/mobile/views/DesktopsView.tsx
+msgid "Pair a desktop"
+msgstr "Bir masaüstü eşleştir"
+
+#: src/mobile/components.tsx
+#: src/mobile/useRemoteDesktop.ts
+msgid "Pair again"
+msgstr "Tekrar eşleştir"
+
+#: src/mobile/useRemoteDesktop.ts
+msgid "Pairing"
+msgstr "Eşleştiriliyor"
+
+#: src/mobile/components.tsx
+msgid "Pairing expired — pair again to reconnect."
+msgstr "Eşleştirme süresi doldu — yeniden bağlanmak için tekrar eşleştirin."
+
+#: src/mobile/views/DesktopsView.tsx
+msgid "Pairing link detected."
+msgstr "Eşleştirme bağlantısı algılandı."
+
+#: src/mobile/views/DesktopsView.tsx
+msgid "Pairing token"
+msgstr "Eşleştirme token'ı"
+
+#: src/mobile/views/DesktopsView.tsx
+msgid "Pairing…"
+msgstr "Eşleştiriliyor…"
+
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Panel"
@@ -4169,6 +4574,10 @@ msgstr "Yönlendirme bekleniyor"
 msgid "permission"
 msgstr "izin"
 
+#: src/mobile/views/ThreadView.tsx
+msgid "Pick a thread from the list to follow the agent from here."
+msgstr "Ajanı buradan takip etmek için listeden bir iş parçacığı seçin."
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Pick element"
 msgstr "Öğeyi seç"
@@ -4185,10 +4594,13 @@ msgstr "Seçici başarısız oldu"
 msgid "Picker returned no attachment"
 msgstr "Seçici hiçbir ek döndürmedi"
 
+#: src/mobile/ThreadTitleRow.tsx
+#: src/mobile/views/ThreadsView.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
 msgid "Pin to top"
 msgstr "En üste sabitle"
 
+#: src/mobile/views/ThreadsView.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/parts/ThreadItemSuffix.tsx
 msgid "Pinned"
 msgstr "Sabitlendi"
@@ -4207,6 +4619,10 @@ msgstr "Bir bildirim gösterildiğinde ses çalın."
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Play notification sound"
 msgstr "Bildirim sesini çal"
+
+#: src/mobile/QrScanner.tsx
+msgid "Point at the QR code in Settings → Remote Access"
+msgstr "Ayarlar → Uzaktan Erişim'deki QR koduna doğrultun"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Point this profile at a non-Anthropic provider (z.ai, …) with custom env "
@@ -4295,6 +4711,7 @@ msgstr "Profil istatistikleri aralığı"
 msgid "Profiles"
 msgstr "Profiller"
 
+#: src/mobile/views/ThreadsView.tsx
 #: src/renderer/commands/registry.ts
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/views/ProjectSettingsOverlay/ProjectSettingsOverlay.tsx
@@ -4350,6 +4767,10 @@ msgstr "Sağlayıcı"
 #: src/renderer/components/thread/threadContextUsage.ts
 msgid "Provider has not reported token usage."
 msgstr "Sağlayıcı token kullanımını bildirmedi."
+
+#: src/mobile/views/MoreView.tsx
+msgid "Provider limits and spend"
+msgstr "Sağlayıcı sınırları ve harcama"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Provider presets"
@@ -4408,6 +4829,16 @@ msgstr "Kaynaktan Çek ({0})"
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CommitSyncPanel.tsx
 msgid "Pull Rebase ({behind})"
 msgstr "Rebase ile Çek ({behind})"
+
+#. placeholder {0}: pr.state
+#: src/mobile/GitSummaryParts.tsx
+msgid "Pull request {0}"
+msgstr "Pull request {0}"
+
+#. placeholder {0}: pr.prNumber
+#: src/mobile/views/pr/PrOverviewPage.tsx
+msgid "Pull request #{0}"
+msgstr "Pull request #{0}"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 msgid "Pull request options"
@@ -4488,6 +4919,18 @@ msgstr "Son"
 msgid "Recent threads"
 msgstr "Son konular"
 
+#: src/mobile/components.tsx
+msgid "Reconnect"
+msgstr "Yeniden bağlan"
+
+#: src/mobile/useRemoteDesktop.ts
+msgid "Reconnecting"
+msgstr "Yeniden bağlanıyor"
+
+#: src/mobile/components.tsx
+msgid "Reconnecting to your desktop…"
+msgstr "Masaüstünüze yeniden bağlanılıyor…"
+
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Reconstructed from local logs at public API rates — it does not reflect "
@@ -4498,6 +4941,8 @@ msgstr "Yerel günlüklerden genel API oranlarıyla yeniden oluşturulmuştur; "
 
 #. Button: re-fetch one provider's usage now
 #. Button: re-fetch provider usage now
+#: src/mobile/views/GitView.tsx
+#: src/mobile/views/pr/PrOverviewPage.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
 #: src/renderer/views/GitReviewOverlay/GitReviewOverlay.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewPanel.tsx
@@ -4535,6 +4980,7 @@ msgstr "{0} kimlik doğrulama durumu yenileniyor."
 msgid "Refreshing {env} {0} authentication status."
 msgstr "{env} {0} kimlik doğrulama durumu yenileniyor."
 
+#: src/mobile/views/BrowserView.tsx
 #: src/renderer/RendererCrashScreen.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Reload"
@@ -4559,6 +5005,10 @@ msgstr "Uzak ad"
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 msgid "Remote URL"
 msgstr "Uzak URL"
+
+#: src/mobile/views/SettingsView.tsx
+msgid "Removal behavior"
+msgstr "Kaldırma davranışı"
 
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
 msgid "Remove"
@@ -4585,6 +5035,10 @@ msgstr "Eylemi kaldır"
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Remove Claude profile"
 msgstr "Claude profilini kaldır"
+
+#: src/mobile/views/DesktopsView.tsx
+msgid "Remove desktop"
+msgstr "Masaüstünü kaldır"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Remove environment variable"
@@ -4618,6 +5072,9 @@ msgstr "Kısayolu kaldır"
 msgid "Remove worktree?"
 msgstr "Çalışma ağacı kaldırılsın mı?"
 
+#: src/mobile/ThreadTitleRow.tsx
+#: src/mobile/views/DesktopsView.tsx
+#: src/mobile/views/ThreadsView.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/parts/TreeEntryRow.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
 msgid "Rename"
@@ -4626,6 +5083,10 @@ msgstr "Yeniden adlandır"
 #: src/renderer/commands/registry.ts
 msgid "Rename chat"
 msgstr "Sohbeti yeniden adlandır"
+
+#: src/mobile/views/DesktopsView.tsx
+msgid "Rename desktop"
+msgstr "Masaüstünü yeniden adlandır"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadGroup.tsx
 msgid "Rename Group"
@@ -4680,6 +5141,7 @@ msgstr "depo"
 msgid "Repository"
 msgstr "Depo"
 
+#: src/mobile/views/pr/PrOverviewPage.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "Repository pre-receive hook is blocking the merge."
 msgstr "Depo ön alma kancası birleştirmeyi engelliyor."
@@ -4700,6 +5162,7 @@ msgstr "Ayrıntıları talep et"
 msgid "requested changes"
 msgstr "talep edilen değişiklikler"
 
+#: src/mobile/views/pr/PrOverviewPage.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "Required reviews, conversations, or status checks not met."
 msgstr "Gerekli incelemeler, görüşmeler veya durum kontrolleri karşılanmadı."
@@ -4771,9 +5234,22 @@ msgstr "Tarayıcıyı geri yükle"
 msgid "Restore default worktree base folder"
 msgstr "Varsayılan çalışma ağacı temel klasörünü geri yükle"
 
+#: src/mobile/views/SettingsView.tsx
+msgid "Restore or delete"
+msgstr "Geri yükle veya sil"
+
+#: src/mobile/views/SettingsView.tsx
 #: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
 msgid "Restore thread"
 msgstr "Konuyu geri yükle"
+
+#: src/mobile/views/BrowserView.tsx
+msgid "Retry"
+msgstr "Tekrar dene"
+
+#: src/mobile/components.tsx
+msgid "Retry now"
+msgstr "Şimdi tekrar dene"
 
 #: src/renderer/hooks/usePrWriteActions.ts
 msgid "Retry with admin"
@@ -4848,6 +5324,10 @@ msgstr "PR'ı incele"
 #: src/renderer/components/common/BranchSelector/parts/BranchListBox.tsx
 msgid "Review PR #{prNumber} for {0}"
 msgstr "{0} için PR #{prNumber}'ı inceleyin"
+
+#: src/mobile/views/SettingsView.tsx
+msgid "Review presentation"
+msgstr "İnceleme görünümü"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Right"
@@ -4963,11 +5443,23 @@ msgstr "Kısayolu kaydet"
 msgid "Saved credentials are shared across all environments."
 msgstr "Kaydedilen kimlik bilgileri tüm ortamlarda paylaşılır."
 
+#: src/mobile/QrScanner.tsx
+msgid "Scan pairing QR code"
+msgstr "Eşleştirme QR kodunu tara"
+
+#: src/mobile/views/DesktopsView.tsx
+msgid "Scan QR code"
+msgstr "QR kodunu tara"
+
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 msgid "Scanning {wslDistro} for installed CLIs. This usually takes a couple of "
 "seconds."
 msgstr "Yüklü CLI'ler için {wslDistro} taranıyor. Bu genellikle birkaç saniye "
 "sürer."
+
+#: src/mobile/QrScanner.tsx
+msgid "Scanning needs a secure connection"
+msgstr "Tarama için güvenli bağlantı gerekir"
 
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 msgid "Scanning Windows and WSL for installed CLIs. This usually takes a couple "
@@ -5034,6 +5526,7 @@ msgstr "Modelleri ara"
 msgid "Search models..."
 msgstr "Modelleri ara..."
 
+#: src/mobile/views/BrowserView.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Search or enter address"
 msgstr "Adres arayın veya girin"
@@ -5153,6 +5646,8 @@ msgstr "Deneysel bir hedef belirleyin veya görüntüleyin"
 msgid "Set shortcut"
 msgstr "Kısayol belirle"
 
+#: src/mobile/RootLayout.tsx
+#: src/mobile/views/MoreView.tsx
 #: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 #: src/renderer/views/SettingsOverlay/SettingsOverlay.tsx
@@ -5365,9 +5860,16 @@ msgstr "Beceriler"
 msgid "Skills explored"
 msgstr "Kullanılan skill’ler"
 
+#: src/mobile/views/pr/PrOverviewPage.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "Some checks are failing or pending."
 msgstr "Bazı kontroller başarısız oluyor veya beklemede."
+
+#: src/mobile/QrScanner.tsx
+msgid "Something went wrong starting the camera. Enter the endpoint and token "
+"below to pair instead."
+msgstr "Kamera başlatılırken bir sorun oluştu. Bunun yerine eşleştirmek için "
+"endpoint ve token'ı aşağıya girin."
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/sortMode.ts
 msgid "Sort by created"
@@ -5385,11 +5887,13 @@ msgstr "Konuları sırala"
 msgid "Split Terminal"
 msgstr "Bölünmüş Terminal"
 
+#: src/mobile/components.tsx
 #: src/renderer/views/GitReviewOverlay/GitReviewOverlay.tsx
 #: src/renderer/views/PrReviewOverlay/PrReviewOverlay.tsx
 msgid "Split view"
 msgstr "Bölünmüş görünüm"
 
+#: src/mobile/views/GitActionSheet.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ConflictFileCard.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ConflictGroup.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/FileRow.tsx
@@ -5397,6 +5901,7 @@ msgstr "Bölünmüş görünüm"
 msgid "Stage"
 msgstr "Hazırla"
 
+#: src/mobile/views/GitActionSheet.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/FileGroup.tsx
 msgid "Stage all"
 msgstr "Tümünü hazırla"
@@ -5441,6 +5946,10 @@ msgstr "Seçilen metinden yeni bir konu başlatın"
 msgid "Start a new thread from this to-do"
 msgstr "Bu yapılacaklardan yeni bir konu başlatın"
 
+#: src/mobile/views/ThreadsView.tsx
+msgid "Start a new thread to put an agent to work from this device."
+msgstr "Bu cihazdan bir ajanı çalıştırmak için yeni bir iş parçacığı başlatın."
+
 #: src/renderer/commands/composerCommands.ts
 msgid "Start dictation"
 msgstr "Dikteyi başlat"
@@ -5476,9 +5985,18 @@ msgid "Started {targetLabel} thread"
 msgstr "{targetLabel} iş parçacığı başlatıldı"
 
 #. Button label while the microphone test is starting
+#: src/mobile/useRemoteDesktop.ts
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 msgid "Starting"
 msgstr "Başlatılıyor"
+
+#: src/mobile/QrScanner.tsx
+msgid "Starting camera…"
+msgstr "Kamera başlatılıyor…"
+
+#: src/mobile/views/BrowserView.tsx
+msgid "Starting mirror…"
+msgstr "Yansıtma başlatılıyor…"
 
 #: src/renderer/components/composer/VoiceInputButton.tsx
 msgid "Starting voice input"
@@ -5492,6 +6010,10 @@ msgstr "başlıyor…"
 #: src/renderer/views/MainView/parts/PullFromSourceDialog.tsx
 msgid "Stash & Pull"
 msgstr "Sakla ve Çek"
+
+#: src/mobile/views/pr/PrOverviewPage.tsx
+msgid "Status"
+msgstr "Durum"
 
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 msgid "Status is inferred from terminal output (L2). Install the hook plugin in "
@@ -5544,6 +6066,10 @@ msgstr "Düz metin olarak sakla"
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Store as secret (encrypted at rest)"
 msgstr "Gizli olarak sakla (beklemede şifrelenir)"
+
+#: src/mobile/views/SettingsView.tsx
+msgid "Stored on this phone; the desktop keeps its own values."
+msgstr "Bu telefonda saklanır; masaüstü kendi değerlerini korur."
 
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentOverlay.tsx
 msgid "Subagent"
@@ -5671,6 +6197,10 @@ msgstr "Senkronizasyon başarısız oldu: {detail}"
 msgid "Sync options"
 msgstr "Senkronizasyon seçenekleri"
 
+#: src/mobile/components.tsx
+msgid "Sync with desktop"
+msgstr "Masaüstüyle senkronize et"
+
 #: src/renderer/views/ProfileOverlay/parts/ProfileHeader.tsx
 msgid "Syncs with Cloud"
 msgstr "Cloud ile senkronize olur"
@@ -5692,6 +6222,19 @@ msgstr "Sistem varsayılanı"
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
 msgid "System notifications"
 msgstr "Sistem bildirimleri"
+
+#: src/mobile/views/BrowserView.tsx
+msgid "tab"
+msgstr "sekme"
+
+#: src/mobile/views/BrowserView.tsx
+msgid "Tabs"
+msgstr "Sekmeler"
+
+#. placeholder {0}: state?.tabs.length ?? 0
+#: src/mobile/views/BrowserView.tsx
+msgid "Tabs ({0})"
+msgstr "Sekmeler ({0})"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Take Screenshot"
@@ -5718,6 +6261,7 @@ msgstr "{0}'a bundan sonra ne yapacağını söyle..."
 msgid "Tell the target provider what to do next..."
 msgstr "Hedef sağlayıcıya bundan sonra ne yapacağını söyleyin..."
 
+#: src/mobile/settingsSections.ts
 #: src/renderer/commands/registry.ts
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/layout/UnifiedRightPanel.tsx
@@ -5770,6 +6314,10 @@ msgstr "Terminal sekmeleri"
 msgid "Test microphone"
 msgstr "Mikrofonu test edin"
 
+#: src/mobile/routeComponents.tsx
+msgid "That QR code isn't a Lightcode pairing link."
+msgstr "Bu QR kodu bir Lightcode eşleştirme bağlantısı değil."
+
 #: src/renderer/components/thread/ThreadComposerSection.tsx
 msgid "the agent"
 msgstr "aracı"
@@ -5792,6 +6340,10 @@ msgstr "Aşağıda kendi aralığı ayarlanmamış sağlayıcılar için kullan�
 "(yalnızca manuel). 2 dakikalık alt sınır, sağlayıcının hız sınırlarına "
 "uyar."
 
+#: src/mobile/views/MoreView.tsx
+msgid "The desktop's built-in browser"
+msgstr "Masaüstünün yerleşik tarayıcısı"
+
 #: src/renderer/RendererCrashScreen.tsx
 msgid "The normal app shell could not render. The diagnostics below are shown "
 "before reload so the failure can be investigated."
@@ -5811,6 +6363,10 @@ msgstr "hedef sağlayıcı"
 msgid "Theme"
 msgstr "Tema"
 
+#: src/mobile/views/SettingsView.tsx
+msgid "Theme and chat font size"
+msgstr "Tema ve sohbet yazı tipi boyutu"
+
 #: src/renderer/components/common/EffortContextMenu/EffortContextMenu.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/Reasoning.tsx
 #: src/renderer/components/thread/ThreadComposer.tsx
@@ -5821,11 +6377,29 @@ msgstr "Düşünme"
 msgid "This agent is not installed."
 msgstr "Bu aracı yüklü değil."
 
+#: src/mobile/routeComponents.tsx
+msgid "This app is served over HTTPS but the desktop is on plain HTTP, which "
+"browsers block. Open the pairing link directly from the desktop (LAN), "
+"or expose the desktop over HTTPS."
+msgstr "Bu uygulama HTTPS üzerinden sunuluyor, ancak masaüstü tarayıcıların "
+"engellediği düz HTTP kullanıyor. Eşleştirme bağlantısını doğrudan "
+"masaüstünden (LAN) açın veya masaüstünü HTTPS üzerinden yayımlayın."
+
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
 msgid "This browser does not support system notifications here; you will still "
 "see in-app toasts."
 msgstr "Bu tarayıcı burada sistem bildirimlerini desteklemiyor; uygulama içi "
 "bildirimleri yine de göreceksiniz."
+
+#: src/mobile/views/SettingsView.tsx
+msgid "This device"
+msgstr "Bu cihaz"
+
+#: src/mobile/QrScanner.tsx
+msgid "This device has no usable camera. Enter the endpoint and token below to "
+"pair instead."
+msgstr "Bu cihazda kullanılabilir kamera yok. Bunun yerine eşleştirmek için "
+"endpoint ve token'ı aşağıya girin."
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
 msgid "this environment"
@@ -5887,6 +6461,7 @@ msgstr "Bu çalışma ağacında yerel değişiklikler var. Lightcode bunları g
 msgid "Thought"
 msgstr "Düşünce"
 
+#: src/mobile/RootLayout.tsx
 #: src/renderer/commands/registry.ts
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/hooks/useElementPicker.ts
@@ -5898,9 +6473,17 @@ msgstr "Konu"
 msgid "Thread + Worktree"
 msgstr "Konu + Çalışma Ağacı"
 
+#: src/mobile/ThreadTitleRow.tsx
+msgid "Thread actions"
+msgstr "İş parçacığı işlemleri"
+
 #: src/renderer/components/thread/ThreadContextDock.tsx
 msgid "Thread context usage"
 msgstr "Konu içeriği kullanımı"
+
+#: src/mobile/views/SettingsView.tsx
+msgid "Thread defaults and home scope"
+msgstr "İş parçacığı varsayılanları ve Home kapsamı"
 
 #: src/renderer/components/thread/ThreadDockUI.tsx
 msgid "Thread dock"
@@ -5940,6 +6523,8 @@ msgstr "Konu sıralama düzeni"
 msgid "Thread todo dock"
 msgstr "Konu yapılacaklar yuvası"
 
+#: src/mobile/RootLayout.tsx
+#: src/mobile/settingsSections.ts
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 #: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
 #: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
@@ -5958,6 +6543,10 @@ msgstr "Bu kadar gün boyunca dokunulmayan ve tamamlandı olarak işaretlenen "
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Title Generation"
 msgstr "Başlık Oluşturma"
+
+#: src/mobile/views/SettingsView.tsx
+msgid "Title, commit, and conflict models"
+msgstr "Başlık, commit ve çakışma modelleri"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/TodoList.tsx
 msgid "To-dos"
@@ -6041,6 +6630,10 @@ msgstr "Sağlayıcı başına oturum, haftalık ve aylık kullanımı izleyin. "
 "Pencereler her sağlayıcı tarafından raporlanır; tahmini maliyet yerel "
 "günlüklerden yeniden oluşturulur."
 
+#: src/mobile/views/SettingsView.tsx
+msgid "Tracking and display"
+msgstr "İzleme ve görüntüleme"
+
 #. Usage status when provider tracking is disabled
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Tracking off"
@@ -6065,6 +6658,14 @@ msgstr "Sağlayıcıya göre izlemeyi açın veya kapatın. Devre dışı bırak
 msgid "Type a command"
 msgstr "Bir komut yazın"
 
+#: src/mobile/views/BrowserView.tsx
+msgid "Type into the page"
+msgstr "Sayfaya yaz"
+
+#: src/mobile/views/BrowserView.tsx
+msgid "Type into the page (tap a field first)"
+msgstr "Sayfaya yazın (önce bir alana dokunun)"
+
 #. placeholder {0}: agent.label
 #. placeholder {0}: agentStatus.label
 #: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
@@ -6086,10 +6687,18 @@ msgstr "{0} kancaları yüklenemiyor."
 msgid "Unable to install {0}."
 msgstr "{0} yüklenemiyor."
 
+#: src/mobile/useRemoteDesktop.ts
+msgid "Unable to load thread."
+msgstr "İş parçacığı yüklenemiyor."
+
 #. placeholder {0}: agent.label
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
 msgid "Unable to log out {0}."
 msgstr "{0} oturumu kapatılamıyor."
+
+#: src/mobile/views/pr/PrOverviewPage.tsx
+msgid "Unable to merge"
+msgstr "Merge yapılamıyor"
 
 #. placeholder {0}: input.label
 #: src/renderer/actions/agentLoginActions.ts
@@ -6099,6 +6708,10 @@ msgstr "{0} oturum açma işlemi açılamıyor."
 #: src/renderer/commands/registry.ts
 msgid "Unable to open file"
 msgstr "Dosya açılamıyor"
+
+#: src/mobile/routeComponents.tsx
+msgid "Unable to pair with that desktop."
+msgstr "Bu masaüstüyle eşleştirilemiyor."
 
 #. placeholder {0}: agentStatus.label
 #. placeholder {0}: status.label
@@ -6142,6 +6755,14 @@ msgstr "Claude {displayLabel} profili kaydedilemedi."
 msgid "Unable to start {label}."
 msgstr "{label} başlatılamıyor."
 
+#: src/mobile/useRemoteDesktop.ts
+msgid "Unable to start mobile app."
+msgstr "Mobil uygulama başlatılamıyor."
+
+#: src/mobile/routeComponents.tsx
+msgid "Unable to start the thread."
+msgstr "İş parçacığı başlatılamıyor."
+
 #. placeholder {0}: agent.label
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
 msgid "Unable to update {0} ({envName}): {detailText}"
@@ -6175,6 +6796,10 @@ msgstr "{0} güncellenemiyor: {detailText}"
 msgid "Unable to update {0}."
 msgstr "{0} güncellenemiyor."
 
+#: src/mobile/useRemoteDesktop.ts
+msgid "Unable to update the thread."
+msgstr "İş parçacığı güncellenemiyor."
+
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Unassigned"
 msgstr "Atanmamış"
@@ -6183,6 +6808,7 @@ msgstr "Atanmamış"
 msgid "Ungroup All"
 msgstr "Tüm grupları çöz"
 
+#: src/mobile/components.tsx
 #: src/renderer/views/GitReviewOverlay/GitReviewOverlay.tsx
 #: src/renderer/views/PrReviewOverlay/PrReviewOverlay.tsx
 msgid "Unified view"
@@ -6220,10 +6846,16 @@ msgstr "Boşta kalan konuları şu süreden sonra kaldır (dakika)"
 msgid "Unload Thread"
 msgstr "Konuyu Kaldır"
 
+#: src/mobile/views/ThreadsView.tsx
+msgid "Unmark all done"
+msgstr "Tüm tamamlandı işaretlerini kaldır"
+
 #: src/renderer/components/thread/ThreadView.tsx
 msgid "Unmark done"
 msgstr "Tamamlandı işaretini kaldır"
 
+#: src/mobile/ThreadTitleRow.tsx
+#: src/mobile/views/ThreadsView.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
 msgid "Unmark Done"
 msgstr "Bitti işaretini kaldır"
@@ -6232,15 +6864,19 @@ msgstr "Bitti işaretini kaldır"
 msgid "Unphased:"
 msgstr "Aşamasız:"
 
+#: src/mobile/ThreadTitleRow.tsx
+#: src/mobile/views/ThreadsView.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
 msgid "Unpin"
 msgstr "Sabitlemeyi kaldır"
 
+#: src/mobile/views/GitActionSheet.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/FileRow.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitStackedDiff.tsx
 msgid "Unstage"
 msgstr "Hazırlamayı geri al"
 
+#: src/mobile/views/GitActionSheet.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/FileGroup.tsx
 msgid "Unstage all"
 msgstr "Tümünü hazırlamadan çıkar"
@@ -6333,6 +6969,9 @@ msgstr "{0} güncelleniyor"
 msgid "Updating {0} ({env})"
 msgstr "{0} ({env}) güncelleniyor"
 
+#: src/mobile/RootLayout.tsx
+#: src/mobile/settingsSections.ts
+#: src/mobile/views/MoreView.tsx
 #: src/renderer/components/layout/UnifiedRightPanel.tsx
 #: src/renderer/components/providers/ProviderUsageRail.tsx
 #: src/renderer/components/thread/ThreadContextDock.tsx
@@ -6428,6 +7067,10 @@ msgstr "{0} aracılığıyla"
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "View"
 msgstr "Görüntüle"
+
+#: src/mobile/views/GitActionSheet.tsx
+msgid "View diff"
+msgstr "Diff'i görüntüle"
 
 #. placeholder {0}: provider.label
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
@@ -6658,6 +7301,7 @@ msgstr "İş akışı: {description}"
 msgid "Workflows"
 msgstr "İş akışları"
 
+#: src/mobile/presentation.ts
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 msgid "Working"
 msgstr "Çalışıyor"
@@ -6674,6 +7318,7 @@ msgstr "Çalışma ağacı temiz"
 msgid "Working…"
 msgstr "Çalışıyor…"
 
+#: src/mobile/views/ThreadsView.tsx
 #: src/renderer/components/thread/WorktreeModeSelect.tsx
 msgid "Worktree"
 msgstr "Çalışma Ağacı"

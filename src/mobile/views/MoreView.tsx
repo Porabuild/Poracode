@@ -1,3 +1,4 @@
+import { Trans } from "@lingui/react/macro";
 import { Gauge, Globe, Settings } from "lucide-react";
 import { MoreRow } from "../components";
 
@@ -10,20 +11,20 @@ export function MoreView(props: { readonly onOpen: (destination: MoreDestination
       <div className="m-more-list">
         <MoreRow
           icon={<Gauge className="size-4" />}
-          label="Usage"
-          hint="Provider limits and spend"
+          label={<Trans>Usage</Trans>}
+          hint={<Trans>Provider limits and spend</Trans>}
           onPress={() => props.onOpen("usage")}
         />
         <MoreRow
           icon={<Globe className="size-4" />}
-          label="Browser"
-          hint="The desktop's built-in browser"
+          label={<Trans>Browser</Trans>}
+          hint={<Trans>The desktop's built-in browser</Trans>}
           onPress={() => props.onOpen("browser")}
         />
         <MoreRow
           icon={<Settings className="size-4" />}
-          label="Settings"
-          hint="App preferences"
+          label={<Trans>Settings</Trans>}
+          hint={<Trans>App preferences</Trans>}
           onPress={() => props.onOpen("settings")}
         />
       </div>

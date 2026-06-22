@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useLingui } from "@lingui/react/macro";
 import { ChevronLeft, Terminal } from "lucide-react";
 import type { ProjectLocation } from "@/shared/contracts";
 import { readBridge } from "@/renderer/bridge";
@@ -17,6 +18,7 @@ export function TerminalView(props: {
   readonly onClose: () => void;
 }) {
   const { projectLocation, worktreePath, onClose } = props;
+  const { t } = useLingui();
   // The id keys both the supervisor PTY and the output feed subscription.
   const [shellId] = useState(() => `shell:${crypto.randomUUID()}`);
   const [exitCode, setExitCode] = useState<number | null | undefined>(undefined);
@@ -41,7 +43,7 @@ export function TerminalView(props: {
   return (
     <section className="m-git-overlay">
       <header className="m-git-head">
-        <button className="m-back" type="button" aria-label="Back" onClick={onClose}>
+        <button className="m-back" type="button" aria-label={t`Back`} onClick={onClose}>
           <ChevronLeft className="size-5" />
         </button>
         <span className="m-git-head__title">
@@ -49,7 +51,7 @@ export function TerminalView(props: {
           <span className="m-git-head__branch">{props.title}</span>
           {exitCode !== undefined ? (
             <span className="shrink-0 text-xs text-muted/70">
-              exited{exitCode === null ? "" : ` (${exitCode})`}
+              {exitCode === null ? t`exited` : t`exited (${exitCode})`}
             </span>
           ) : null}
         </span>

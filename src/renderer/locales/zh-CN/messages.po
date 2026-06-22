@@ -17,6 +17,10 @@ msgstr ""
 msgid "(Draft)"
 msgstr "（草案）"
 
+#: src/mobile/GitSummaryParts.tsx
+msgid "(no branch)"
+msgstr "（无分支）"
+
 #: src/renderer/views/PrReviewOverlay/parts/PrCommitsTab.tsx
 msgid "(no message)"
 msgstr "（没有消息）"
@@ -25,6 +29,13 @@ msgstr "（没有消息）"
 #: src/renderer/views/PrReviewOverlay/parts/PrMetaRow.tsx
 msgid "{0, plural, one {# file} other {# files}}"
 msgstr "{0, plural, one {# 个文件} other {# 个文件}}"
+
+#. placeholder {0}: props.desktops.length
+#. placeholder {0}: remote.desktops.length
+#: src/mobile/RootLayout.tsx
+#: src/mobile/views/DesktopsView.tsx
+msgid "{0, plural, one {# paired desktop} other {# paired desktops}}"
+msgstr "{0, plural, one {# 个已配对桌面} other {# 个已配对桌面}}"
 
 #. placeholder {0}: readyKinds.size
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
@@ -154,6 +165,11 @@ msgstr "运行{0}次"
 msgid "{0} runs"
 msgstr "运行{0}次"
 
+#. placeholder {0}: threads.length
+#: src/mobile/views/ThreadsView.tsx
+msgid "{0} threads"
+msgstr "{0} 个线程"
+
 #. placeholder {0}: formatTokens(snapshot.tokens.total)
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
@@ -210,6 +226,15 @@ msgstr "{0}个月前"
 msgid "{agentLabel}: {statusLabel}. Hover for status details."
 msgstr "{agentLabel}：{statusLabel}。将鼠标悬停以查看状态详细信息。"
 
+#: src/mobile/views/pr/PrOverviewPage.tsx
+msgid "{commitsCount, plural, one {# commit} other {# commits}}"
+msgstr "{commitsCount, plural, one {# 个提交} other {# 个提交}}"
+
+#: src/mobile/views/pr/PrOverviewPage.tsx
+msgid "{conversationCount, plural, one {# comment or review} other {# comments "
+"& reviews}}"
+msgstr "{conversationCount, plural, one {# 条评论或评审} other {# 条评论和评审}}"
+
 #: src/renderer/views/ProfileOverlay/parts/ShareCard.tsx
 #: src/renderer/views/ProfileOverlay/parts/StatStrip.tsx
 msgid "{days} day"
@@ -228,6 +253,10 @@ msgstr "{days}天前"
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
 msgid "{envOrAgentLabel} needs authentication."
 msgstr "{envOrAgentLabel}需要身份验证。"
+
+#: src/mobile/views/pr/PrOverviewPage.tsx
+msgid "{filesCount, plural, one {# file changed} other {# files changed}}"
+msgstr "{filesCount, plural, one {# 个文件已更改} other {# 个文件已更改}}"
 
 #: src/renderer/components/thread/ChatPane/ChatRuntimeDebugPanel.tsx
 msgid "{filteredCount} / {totalCount} matches"
@@ -364,6 +393,10 @@ msgstr "~{money}{tokens} · {0} · 预计"
 msgid "≈{0}% by reset"
 msgstr "≈{0}% 重置时"
 
+#: src/mobile/views/ThreadsView.tsx
+msgid "1 thread"
+msgstr "1 个线程"
+
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "30d"
 msgstr "30天"
@@ -437,6 +470,17 @@ msgstr "操作名称"
 msgid "Actions"
 msgstr "操作"
 
+#. placeholder {0}: thread.title
+#: src/mobile/views/ThreadsView.tsx
+msgid "Actions for {0}"
+msgstr "{0} 的操作"
+
+#: src/mobile/views/DesktopsView.tsx
+#: src/mobile/views/ThreadsView.tsx
+msgid "Actions for {title}"
+msgstr "{title} 的操作"
+
+#: src/mobile/views/DesktopsView.tsx
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 msgid "Active"
 msgstr "活动"
@@ -535,6 +579,10 @@ msgstr "添加到编写器"
 msgid "Add to favorites"
 msgstr "添加到收藏夹"
 
+#: src/mobile/views/DesktopsView.tsx
+msgid "Add to Home Screen"
+msgstr "添加到主屏幕"
+
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
 msgid "Agent"
@@ -588,6 +636,7 @@ msgstr "代理：{description}"
 msgid "Agent: {subagent}"
 msgstr "代理：{subagent}"
 
+#: src/mobile/settingsSections.ts
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
 msgid "Agents"
@@ -600,6 +649,7 @@ msgstr "代理·一般"
 
 #. Settings section: AI / assistant configuration
 #. Settings section: AI / assistant configuration
+#: src/mobile/settingsSections.ts
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "AI"
@@ -613,6 +663,10 @@ msgstr "AI 代理协调器 — 通过终端和本机 ACP 管理编码代理。"
 #: src/renderer/views/ProfileOverlay/parts/AiActions.tsx
 msgid "AI git actions"
 msgstr "AI git操作"
+
+#: src/mobile/views/SettingsView.tsx
+msgid "Alerts when threads need you"
+msgstr "线程需要你时提醒"
 
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
@@ -636,6 +690,10 @@ msgstr "全部级别"
 msgid "All files"
 msgstr "所有文件"
 
+#: src/mobile/views/ThreadsView.tsx
+msgid "All projects"
+msgstr "所有项目"
+
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/helpers.ts
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
 msgid "Allow"
@@ -645,6 +703,11 @@ msgstr "允许"
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Allow agents to read/write cookies and storage"
 msgstr "允许代理读/写 cookie 和存储"
+
+#: src/mobile/QrScanner.tsx
+msgid "Allow camera access for this site in your browser settings and try again "
+"— or enter the endpoint and token below."
+msgstr "请在浏览器设置中允许此站点访问摄像头后重试，或在下方输入端点和令牌。"
 
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -678,6 +741,11 @@ msgstr "另一个聊天使用同一棵树。文件恢复可能会覆盖该聊天
 msgid "App Browser"
 msgstr "应用程序浏览器"
 
+#: src/mobile/views/MoreView.tsx
+msgid "App preferences"
+msgstr "应用偏好设置"
+
+#: src/mobile/settingsSections.ts
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Appearance"
@@ -724,6 +792,10 @@ msgstr "存档{0}"
 msgid "Archive All"
 msgstr "全部存档"
 
+#: src/mobile/views/ThreadsView.tsx
+msgid "Archive all threads"
+msgstr "归档所有线程"
+
 #: src/renderer/commands/registry.ts
 msgid "Archive the current thread"
 msgstr "归档当前线程"
@@ -732,10 +804,14 @@ msgstr "归档当前线程"
 msgid "Archive thread"
 msgstr "归档线程"
 
+#: src/mobile/ThreadTitleRow.tsx
+#: src/mobile/views/ThreadsView.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
 msgid "Archive Thread"
 msgstr "存档线程"
 
+#: src/mobile/settingsSections.ts
+#: src/mobile/views/SettingsView.tsx
 #: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Archived Threads"
@@ -862,10 +938,25 @@ msgstr "头像颜色"
 msgid "Avatar color {color}"
 msgstr "头像颜色{color}"
 
+#: src/mobile/views/BrowserView.tsx
+#: src/mobile/views/GitView.tsx
+#: src/mobile/views/pr/PrPageHeader.tsx
+#: src/mobile/views/TerminalView.tsx
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Back"
 msgstr "返回"
+
+#: src/mobile/views/GitView.tsx
+msgid "Back to files"
+msgstr "返回文件"
+
+#: src/mobile/views/pr/PrChangesPage.tsx
+#: src/mobile/views/pr/PrChecksPage.tsx
+#: src/mobile/views/pr/PrCommitsPage.tsx
+#: src/mobile/views/pr/PrConversationPage.tsx
+msgid "Back to overview"
+msgstr "返回概览"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Background process exited unexpectedly"
@@ -883,6 +974,7 @@ msgstr "后台进程重新启动"
 msgid "Background tasks"
 msgstr "后台任务"
 
+#: src/mobile/views/pr/PrOverviewPage.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "Base branch is ahead — branch must be updated first."
 msgstr "基础分支在前——必须首先更新分支。"
@@ -985,6 +1077,9 @@ msgstr "浏览父文件夹"
 msgid "Browse your GitHub repositories or paste a clone URL."
 msgstr "浏览您的 GitHub 存储库或粘贴克隆 URL。"
 
+#: src/mobile/RootLayout.tsx
+#: src/mobile/settingsSections.ts
+#: src/mobile/views/MoreView.tsx
 #: src/renderer/commands/registry.ts
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/composer/AttachmentBar.tsx
@@ -1023,6 +1118,10 @@ msgstr "浏览器选择目标（CLI 线程）"
 msgid "Browser pick target for CLI threads"
 msgstr "为 CLI 线程在浏览器中选取目标"
 
+#: src/mobile/views/BrowserView.tsx
+msgid "Browser tabs"
+msgstr "浏览器标签页"
+
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 msgid "Budget limit reached"
 msgstr "已达到预算限额"
@@ -1058,7 +1157,16 @@ msgstr "绕过分支保护规则"
 msgid "Bypass branch protection rules (admin merge)"
 msgstr "绕过分支保护规则（管理合并）"
 
+#: src/mobile/views/DesktopsView.tsx
+msgid "Cached only"
+msgstr "仅缓存"
+
+#: src/mobile/QrScanner.tsx
+msgid "Camera access blocked"
+msgstr "摄像头访问已被阻止"
+
 #. Dialog button: dismiss without deleting
+#: src/mobile/views/GitActionSheet.tsx
 #: src/renderer/components/common/ConfirmDialog.tsx
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 #: src/renderer/components/thread/ChatPane/parts/CheckpointRevertControls.tsx
@@ -1120,6 +1228,8 @@ msgstr "更改用户"
 msgid "Changelog"
 msgstr "变更日志"
 
+#: src/mobile/views/pr/PrChangesPage.tsx
+#: src/mobile/views/pr/PrOverviewPage.tsx
 #: src/renderer/views/GitReviewOverlay/GitReviewOverlay.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 #: src/renderer/views/PrReviewOverlay/parts/PrTabsPill.tsx
@@ -1179,6 +1289,8 @@ msgstr "检查所选设备的实时输入电平。"
 msgid "Checking…"
 msgstr "正在检查..."
 
+#: src/mobile/views/pr/PrChecksPage.tsx
+#: src/mobile/views/pr/PrOverviewPage.tsx
 #: src/renderer/views/PrReviewOverlay/parts/PrTabsPill.tsx
 msgid "Checks"
 msgstr "检查项"
@@ -1291,9 +1403,14 @@ msgstr "克隆{cloneTarget}"
 msgid "Cloning…"
 msgstr "克隆…"
 
+#: src/mobile/components.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 msgid "Close"
 msgstr "关闭"
+
+#: src/mobile/views/BrowserView.tsx
+msgid "Close {closeTarget}"
+msgstr "关闭 {closeTarget}"
 
 #: src/renderer/views/LoginTerminalOverlay/LoginTerminalOverlay.tsx
 msgid "Close {purposeNoun} terminal"
@@ -1302,6 +1419,10 @@ msgstr "关闭{purposeNoun}终端"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 msgid "Close browser"
 msgstr "关闭浏览器"
+
+#: src/mobile/views/DesktopsView.tsx
+msgid "Close desktop actions"
+msgstr "关闭桌面操作"
 
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorToolbar.tsx
 msgid "Close editor"
@@ -1322,6 +1443,14 @@ msgstr "关闭目标"
 #: src/renderer/views/MainView/parts/AppContent/AppContent.tsx
 msgid "Close group"
 msgstr "关闭组"
+
+#: src/mobile/views/ThreadsView.tsx
+msgid "Close group actions"
+msgstr "关闭组操作"
+
+#: src/mobile/views/GitActionSheet.tsx
+msgid "Close menu"
+msgstr "关闭菜单"
 
 #: src/renderer/commands/shortcutCatalog.ts
 msgid "Close overlay"
@@ -1344,9 +1473,21 @@ msgstr "关闭计划"
 msgid "Close PR"
 msgstr "关闭 PR"
 
+#: src/mobile/views/pr/PrOverviewPage.tsx
+msgid "Close PR review"
+msgstr "关闭 PR 评审"
+
 #: src/renderer/components/composer/ImageLightbox.tsx
 msgid "Close preview"
 msgstr "关闭预览"
+
+#: src/mobile/views/ThreadsView.tsx
+msgid "Close project filter"
+msgstr "关闭项目筛选"
+
+#: src/mobile/QrScanner.tsx
+msgid "Close scanner"
+msgstr "关闭扫描器"
 
 #: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
 msgid "Close search"
@@ -1371,6 +1512,15 @@ msgstr "关闭子代理面板"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabStrip.tsx
 msgid "Close tab"
 msgstr "关闭选项卡"
+
+#: src/mobile/views/BrowserView.tsx
+msgid "Close tab switcher"
+msgstr "关闭标签页切换器"
+
+#: src/mobile/ThreadTitleRow.tsx
+#: src/mobile/views/ThreadsView.tsx
+msgid "Close thread actions"
+msgstr "关闭线程操作"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -1497,6 +1647,7 @@ msgstr "提交选项"
 msgid "Commit, PR, and review composers"
 msgstr "提交、PR 和审查 Composer"
 
+#: src/mobile/views/pr/PrCommitsPage.tsx
 #: src/renderer/views/PrReviewOverlay/parts/PrTabsPill.tsx
 msgid "Commits"
 msgstr "提交"
@@ -1564,6 +1715,14 @@ msgstr "冲突解决者"
 msgid "Conflicts"
 msgstr "冲突"
 
+#: src/mobile/views/BrowserView.tsx
+msgid "Connecting to the desktop browser…"
+msgstr "正在连接桌面浏览器…"
+
+#: src/mobile/components.tsx
+msgid "Connection error."
+msgstr "连接错误。"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Console"
 msgstr "控制台"
@@ -1625,6 +1784,8 @@ msgid "Control which files appear in the @file mention search. Per-project "
 "overrides live in each project's settings."
 msgstr "控制哪些文件出现在 @file 提及搜索中。可在各项目的设置中进行项目级覆盖。"
 
+#: src/mobile/views/pr/PrConversationPage.tsx
+#: src/mobile/views/pr/PrOverviewPage.tsx
 #: src/renderer/views/PrReviewOverlay/parts/PrTabsPill.tsx
 msgid "Conversation"
 msgstr "对话"
@@ -1728,6 +1889,10 @@ msgstr "无法将未提交的更改复制到新工作树中 - 它们保留在当
 msgid "Couldn't create the project."
 msgstr "无法创建项目。"
 
+#: src/mobile/useRemoteDesktop.ts
+msgid "Couldn't create the worktree."
+msgstr "无法创建 worktree。"
+
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "Couldn't list repositories."
 msgstr "无法列出存储库。"
@@ -1739,6 +1904,14 @@ msgstr "无法加载你的资料统计。"
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Couldn't save the shortcut."
 msgstr "无法保存快捷键。"
+
+#: src/mobile/QrScanner.tsx
+msgid "Couldn't start the camera"
+msgstr "无法启动摄像头"
+
+#: src/mobile/useRemoteDesktop.ts
+msgid "Couldn't tag the thread's worktree."
+msgstr "无法标记该线程的 worktree。"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CreatePrModal.tsx
 msgid "Create Draft PR"
@@ -1908,10 +2081,13 @@ msgstr "删除文件"
 msgid "Delete permanently"
 msgstr "永久删除"
 
+#: src/mobile/views/SettingsView.tsx
 #: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
 msgid "Delete thread"
 msgstr "删除线程"
 
+#: src/mobile/ThreadTitleRow.tsx
+#: src/mobile/views/ThreadsView.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
 msgid "Delete Thread"
 msgstr "删除线程"
@@ -1956,6 +2132,19 @@ msgstr "描述"
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CreatePrModal.tsx
 msgid "Description (optional)"
 msgstr "说明（可选）"
+
+#: src/mobile/views/SettingsView.tsx
+msgid "Desktop"
+msgstr "桌面"
+
+#: src/mobile/useRemoteDesktop.ts
+msgid "Desktop is unreachable."
+msgstr "无法访问桌面。"
+
+#: src/mobile/RootLayout.tsx
+#: src/mobile/views/DesktopsView.tsx
+msgid "Desktops"
+msgstr "桌面"
 
 #. placeholder {0}: detectionScopeLabel(status)
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
@@ -2026,6 +2215,18 @@ msgstr "已禁用"
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Discard"
 msgstr "放弃"
+
+#: src/mobile/views/GitActionSheet.tsx
+msgid "Discard all changes"
+msgstr "放弃所有更改"
+
+#: src/mobile/views/GitActionSheet.tsx
+msgid "Discard changes"
+msgstr "放弃更改"
+
+#: src/mobile/views/GitActionSheet.tsx
+msgid "Discard changes to <0>{title}</0>? This cannot be undone."
+msgstr "要放弃 <0>{title}</0> 的更改吗？此操作无法撤销。"
 
 #: src/renderer/commands/registry.ts
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
@@ -2174,6 +2375,10 @@ msgstr "编辑器 LSP"
 msgid "Editor tabs"
 msgstr "编辑器选项卡"
 
+#: src/mobile/views/SettingsView.tsx
+msgid "Edits the paired desktop and syncs back to it."
+msgstr "编辑已配对桌面并同步回去。"
+
 #: src/renderer/components/common/EffortContextMenu/EffortContextMenu.tsx
 msgid "Effort and context"
 msgstr "思考强度与上下文"
@@ -2222,12 +2427,20 @@ msgstr "在设置中启用提供商"
 msgid "Enabled"
 msgstr "启用"
 
+#: src/mobile/views/SettingsView.tsx
+msgid "Enabled agents, model visibility and order"
+msgstr "已启用的代理、模型可见性和顺序"
+
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
 msgid "Enables <0>cookies</0> and <1>storage</1>. Cookies can contain session "
 "tokens and storage often holds auth state — only enable when you trust "
 "both the agent and the sites it visits."
 msgstr "启用<0>cookie</0>和<1>存储</1>。Cookie "
 "可以包含会话令牌，并且存储通常保存身份验证状态——仅当您信任代理及其访问的站点时才启用。"
+
+#: src/mobile/views/DesktopsView.tsx
+msgid "Endpoint"
+msgstr "端点"
 
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 msgid "Enhanced (Hooks)"
@@ -2265,6 +2478,8 @@ msgid "error"
 msgstr "错误"
 
 #. Notification status: agent error
+#: src/mobile/presentation.ts
+#: src/mobile/useRemoteDesktop.ts
 #: src/renderer/components/providers/ProviderUsageRail.tsx
 #: src/renderer/components/providers/usageFormat.ts
 #: src/renderer/components/thread/ChatPane/parts/items/ErrorItem.tsx
@@ -2288,6 +2503,14 @@ msgstr "排除模式"
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Exit plan mode"
 msgstr "退出计划模式"
+
+#: src/mobile/views/TerminalView.tsx
+msgid "exited"
+msgstr "已退出"
+
+#: src/mobile/views/TerminalView.tsx
+msgid "exited ({exitCode})"
+msgstr "已退出（{exitCode}）"
 
 #. placeholder {0}: renderedSession.failedExitCode
 #: src/renderer/views/LoginTerminalOverlay/LoginTerminalOverlay.tsx
@@ -2426,6 +2649,10 @@ msgstr "{0}的文件"
 msgid "Files matching these globs are hidden from the @file mention search."
 msgstr "与这些 glob 匹配的文件在 @file 提及搜索中隐藏。"
 
+#: src/mobile/views/ThreadsView.tsx
+msgid "Filter by project"
+msgstr "按项目筛选"
+
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Filter settings"
 msgstr "筛选设置"
@@ -2451,6 +2678,7 @@ msgstr "在终端中查找"
 msgid "Finish your review"
 msgstr "完成您的审查"
 
+#: src/mobile/presentation.ts
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 msgid "Finished"
 msgstr "完成"
@@ -2513,6 +2741,10 @@ msgid "Folder that holds this project's worktrees. Reset to use the global "
 "setting."
 msgstr "存放此项目工作树的文件夹。重置以使用全局设置。"
 
+#: src/mobile/views/SettingsView.tsx
+msgid "Fonts and scrolling"
+msgstr "字体和滚动"
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/ForceDeleteBranchDialog.tsx
 msgid "Force Delete"
 msgstr "强制删除"
@@ -2533,6 +2765,7 @@ msgstr "派生"
 msgid "Format files"
 msgstr "格式化文件"
 
+#: src/mobile/views/BrowserView.tsx
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Forward"
@@ -2562,6 +2795,7 @@ msgstr "完全访问权限"
 msgid "Fullscreen overlay"
 msgstr "全屏覆盖"
 
+#: src/mobile/settingsSections.ts
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/views/ProjectSettingsOverlay/parts/GeneralSection.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/SettingsSidebar.tsx
@@ -2600,6 +2834,7 @@ msgstr "为新线程生成短标题。"
 msgid "Get task"
 msgstr "获取任务"
 
+#: src/mobile/settingsSections.ts
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/layout/UnifiedRightPanel.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
@@ -2614,6 +2849,10 @@ msgstr "git"
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Git {command} failed: {detail}"
 msgstr "Git {command}失败：{detail}"
+
+#: src/mobile/views/GitActionSheet.tsx
+msgid "Git actions"
+msgstr "Git 操作"
 
 #: src/renderer/views/GitReviewOverlay/GitReviewOverlay.tsx
 msgid "Git Review"
@@ -2727,6 +2966,10 @@ msgstr "隐藏规范运行时项目检查器"
 msgid "Hide context usage details"
 msgstr "隐藏上下文使用详细信息"
 
+#: src/mobile/views/BrowserView.tsx
+msgid "Hide keyboard"
+msgstr "隐藏键盘"
+
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilitySection.tsx
 msgid "Hide models you don't use from the model picker across every provider."
 msgstr "从每个提供商的模型选择器中隐藏您不使用的模型。"
@@ -2769,6 +3012,7 @@ msgid "ID: {0}"
 msgstr "编号：{0}"
 
 #. Microphone input level when not testing
+#: src/mobile/presentation.ts
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 msgid "Idle"
@@ -2783,6 +3027,12 @@ msgstr "图片"
 msgid "Image preview"
 msgstr "图片预览"
 
+#: src/mobile/QrScanner.tsx
+msgid "In-app camera scanning only works over HTTPS. Use your phone's camera "
+"app to scan the desktop QR code, or enter the endpoint and token below."
+msgstr "应用内摄像头扫描仅支持 HTTPS。请使用手机相机应用扫描桌面的二维码，或在下方输入端点和令牌。"
+
+#: src/mobile/presentation.ts
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 msgid "Inactive"
 msgstr "不活跃"
@@ -2947,6 +3197,10 @@ msgstr "最后一个工具：<0>{0}</0>"
 msgid "Launch thread"
 msgstr "启动线程"
 
+#: src/mobile/presentation.ts
+msgid "Launching"
+msgstr "正在启动"
+
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 msgid "Launching…"
 msgstr "正在启动…"
@@ -2983,6 +3237,14 @@ msgstr "累计token数"
 msgid "Light"
 msgstr "浅色"
 
+#: src/mobile/RootLayout.tsx
+msgid "Lightcode mobile navigation"
+msgstr "Lightcode 移动导航"
+
+#: src/mobile/views/SettingsView.tsx
+msgid "Links and page behavior"
+msgstr "链接和页面行为"
+
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "List"
@@ -2995,6 +3257,15 @@ msgstr "列出包"
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "List tasks"
 msgstr "列出任务"
+
+#: src/mobile/useRemoteDesktop.ts
+msgid "Live"
+msgstr "在线"
+
+#. placeholder {0}: formatShortDateTime(desktop.lastConnectedAt)
+#: src/mobile/views/DesktopsView.tsx
+msgid "Live {0}"
+msgstr "在线 {0}"
 
 #: src/renderer/components/common/PixelLoader.tsx
 msgid "Loading"
@@ -3028,6 +3299,15 @@ msgstr "正在加载 PR…"
 msgid "Loading registry..."
 msgstr "正在加载注册表..."
 
+#: src/mobile/views/ThreadView.tsx
+msgid "Loading thread"
+msgstr "正在加载线程"
+
+#: src/mobile/views/ThreadsView.tsx
+msgid "Loading threads"
+msgstr "正在加载线程"
+
+#: src/mobile/routeComponents.tsx
 #: src/renderer/app.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/parts/TreeEntryRow.tsx
@@ -3110,6 +3390,10 @@ msgstr "将侧边栏设为半透明——在Windows 11上使用系统模糊材�
 msgid "Manual order"
 msgstr "手动排序"
 
+#: src/mobile/views/ThreadsView.tsx
+msgid "Mark all done"
+msgstr "全部标记为完成"
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadGroup.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarWorktreeGroup.tsx
 msgid "Mark All Done"
@@ -3127,6 +3411,8 @@ msgstr "标记为未完成"
 msgid "Mark done"
 msgstr "标记完成"
 
+#: src/mobile/ThreadTitleRow.tsx
+#: src/mobile/views/ThreadsView.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
 msgid "Mark Done"
 msgstr "标记完成"
@@ -3165,6 +3451,7 @@ msgstr "MCP 工具调用"
 msgid "Merge & Remove"
 msgstr "合并和删除"
 
+#: src/mobile/views/pr/PrOverviewPage.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "Merge conflicts must be resolved."
 msgstr "必须解决合并冲突。"
@@ -3266,6 +3553,14 @@ msgstr "将浏览器最小化到右侧面板"
 msgid "Minimize to panel"
 msgstr "最小化到面板"
 
+#: src/mobile/views/BrowserView.tsx
+msgid "Mirrored desktop browser tab"
+msgstr "镜像的桌面浏览器标签页"
+
+#: src/mobile/views/BrowserView.tsx
+msgid "Mirroring is unavailable."
+msgstr "镜像不可用。"
+
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Mode"
@@ -3306,6 +3601,7 @@ msgstr "模型"
 msgid "Modes"
 msgstr "模式"
 
+#: src/mobile/RootLayout.tsx
 #: src/renderer/views/ProfileOverlay/parts/ActivityHeatmap.tsx
 msgid "More"
 msgstr "多"
@@ -3396,6 +3692,7 @@ msgstr "原生提供商"
 msgid "Native support"
 msgstr "原生支持"
 
+#: src/mobile/presentation.ts
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 msgid "Needs approval"
 msgstr "需要批准"
@@ -3413,9 +3710,14 @@ msgstr "需要注意 · 需要批准"
 msgid "Needs Attention · Reply required"
 msgstr "需要关注 · 需要回复"
 
+#: src/mobile/presentation.ts
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 msgid "Needs reply"
 msgstr "需要回复"
+
+#: src/mobile/RootLayout.tsx
+msgid "New"
+msgstr "新建"
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ActionsSection.tsx
 msgid "New action command"
@@ -3459,11 +3761,14 @@ msgstr "新项目"
 msgid "New quick thread"
 msgstr "新快速线程"
 
+#: src/mobile/views/BrowserView.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabStrip.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "New tab"
 msgstr "新标签页"
 
+#: src/mobile/RootLayout.tsx
+#: src/mobile/views/ThreadsView.tsx
 #: src/renderer/components/thread/ThreadDraftChrome.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/hooks/useElementPicker.ts
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesEditor.tsx
@@ -3486,6 +3791,10 @@ msgstr "新线程（草稿）"
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/TodoRow.tsx
 msgid "New thread from this to-do"
 msgstr "基于此待办事项的新线程"
+
+#: src/mobile/views/ThreadsView.tsx
+msgid "New thread in worktree"
+msgstr "在 worktree 中新建线程"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarWorktreeGroup.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
@@ -3552,6 +3861,7 @@ msgstr "没有安装代理。"
 msgid "No AI commits, PRs, or conflict resolutions tracked yet."
 msgstr "暂未记录任何AI提交、PR或冲突解决。"
 
+#: src/mobile/views/SettingsView.tsx
 #: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
 msgid "No archived threads."
 msgstr "没有存档的线程。"
@@ -3563,6 +3873,10 @@ msgstr "未找到分支"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserEmptyState.tsx
 msgid "No browser tab open"
 msgstr "没有打开浏览器选项卡"
+
+#: src/mobile/QrScanner.tsx
+msgid "No camera found"
+msgstr "未找到摄像头"
 
 #: src/renderer/components/diff/DiffCardList.tsx
 #: src/renderer/views/PrReviewOverlay/parts/PrReviewSidebar.tsx
@@ -3608,6 +3922,10 @@ msgstr "暂无数据。"
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "No description"
 msgstr "无描述"
+
+#: src/mobile/RootLayout.tsx
+msgid "No desktop paired"
+msgstr "未配对桌面"
 
 #. placeholder {0}: entry.filePath
 #: src/renderer/views/GitReviewOverlay/parts/GitDiffContent/parts/DiffSection.tsx
@@ -3678,6 +3996,10 @@ msgstr "没有模式。"
 msgid "No phases yet."
 msgstr "还没有阶段。"
 
+#: src/mobile/views/NewThreadView.tsx
+msgid "No projects available"
+msgstr "没有可用项目"
+
 #: src/renderer/components/providers/codex/index.tsx
 msgid "No prompts"
 msgstr "无提示"
@@ -3727,9 +4049,21 @@ msgstr "没有暂存的更改"
 msgid "No supported agents detected"
 msgstr "未检测到支持的代理"
 
+#: src/mobile/views/ThreadView.tsx
+msgid "No thread selected"
+msgstr "未选择线程"
+
 #: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
 msgid "No threads"
 msgstr "没有线程"
+
+#: src/mobile/views/ThreadsView.tsx
+msgid "No threads in this project"
+msgstr "此项目中没有线程"
+
+#: src/mobile/views/ThreadsView.tsx
+msgid "No threads yet"
+msgstr "还没有线程"
 
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "No threads yet."
@@ -3790,6 +4124,7 @@ msgstr "注释"
 msgid "Nothing tracked yet. It'll appear here as you use it."
 msgstr "暂无记录。使用过程中将在此显示。"
 
+#: src/mobile/settingsSections.ts
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Notifications"
@@ -3807,6 +4142,14 @@ msgstr "通知我有关"
 #: src/renderer/views/ProjectSettingsOverlay/parts/SearchSection.tsx
 msgid "off"
 msgstr "关闭"
+
+#: src/mobile/useRemoteDesktop.ts
+msgid "Offline"
+msgstr "离线"
+
+#: src/mobile/components.tsx
+msgid "Offline. Showing the last synced data."
+msgstr "离线。正在显示上次同步的数据。"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/sidebarProjectRows.ts
 msgid "Older"
@@ -3833,6 +4176,10 @@ msgstr "打开{label}"
 #: src/renderer/commands/registry.ts
 msgid "Open a new browser tab"
 msgstr "在浏览器中打开新选项卡"
+
+#: src/mobile/views/NewThreadView.tsx
+msgid "Open a project in Lightcode on your desktop, then refresh."
+msgstr "请在桌面上的 Lightcode 中打开一个项目，然后刷新。"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/DevTerminalPanel.tsx
 msgid "Open a terminal"
@@ -3945,6 +4292,10 @@ msgstr "打开新选项卡"
 msgid "Open new threads as a full page or a side-by-side panel."
 msgstr "以整页或并排面板的形式打开新线程。"
 
+#: src/mobile/views/pr/PrOverviewPage.tsx
+msgid "Open on GitHub"
+msgstr "在 GitHub 上打开"
+
 #. placeholder {0}: vis.prNumber
 #: src/renderer/views/MainView/parts/Sidebar/parts/useWorktreeActions.ts
 msgid "Open PR #{0}"
@@ -3979,10 +4330,24 @@ msgstr "打开设置"
 msgid "Open Settings"
 msgstr "打开设置"
 
+#: src/mobile/views/DesktopsView.tsx
+msgid "Open Settings → Remote Access in Lightcode on your desktop, then scan "
+"the QR code from here — or enter the endpoint and pairing token "
+"manually."
+msgstr "在桌面 Lightcode 中打开“设置”→“远程访问”，然后在这里扫描二维码，或手动输入端点和配对令牌。"
+
 #. placeholder {0}: display.title
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentToolCall.tsx
 msgid "Open subagent: {0}"
 msgstr "打开子代理：{0}"
+
+#: src/mobile/views/ThreadsView.tsx
+msgid "Open terminal"
+msgstr "打开终端"
+
+#: src/mobile/views/ThreadsView.tsx
+msgid "Open terminal in worktree"
+msgstr "在 worktree 中打开终端"
 
 #: src/renderer/components/providers/codex/index.tsx
 msgid "Open the effort picker"
@@ -4048,6 +4413,39 @@ msgstr "包管理器"
 msgid "Page"
 msgstr "页面"
 
+#: src/mobile/views/DesktopsView.tsx
+msgid "Pair"
+msgstr "配对"
+
+#: src/mobile/views/DesktopsView.tsx
+msgid "Pair a desktop"
+msgstr "配对桌面"
+
+#: src/mobile/components.tsx
+#: src/mobile/useRemoteDesktop.ts
+msgid "Pair again"
+msgstr "重新配对"
+
+#: src/mobile/useRemoteDesktop.ts
+msgid "Pairing"
+msgstr "正在配对"
+
+#: src/mobile/components.tsx
+msgid "Pairing expired — pair again to reconnect."
+msgstr "配对已过期，请重新配对以重新连接。"
+
+#: src/mobile/views/DesktopsView.tsx
+msgid "Pairing link detected."
+msgstr "检测到配对链接。"
+
+#: src/mobile/views/DesktopsView.tsx
+msgid "Pairing token"
+msgstr "配对令牌"
+
+#: src/mobile/views/DesktopsView.tsx
+msgid "Pairing…"
+msgstr "正在配对…"
+
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Panel"
@@ -4106,6 +4504,10 @@ msgstr "等待引导"
 msgid "permission"
 msgstr "权限"
 
+#: src/mobile/views/ThreadView.tsx
+msgid "Pick a thread from the list to follow the agent from here."
+msgstr "从列表中选择一个线程，即可在此跟进代理。"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Pick element"
 msgstr "选取元素"
@@ -4122,10 +4524,13 @@ msgstr "选取器失败"
 msgid "Picker returned no attachment"
 msgstr "选择器未返回任何附件"
 
+#: src/mobile/ThreadTitleRow.tsx
+#: src/mobile/views/ThreadsView.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
 msgid "Pin to top"
 msgstr "固定到顶部"
 
+#: src/mobile/views/ThreadsView.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/parts/ThreadItemSuffix.tsx
 msgid "Pinned"
 msgstr "已固定"
@@ -4144,6 +4549,10 @@ msgstr "显示通知时播放声音。"
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Play notification sound"
 msgstr "播放通知声音"
+
+#: src/mobile/QrScanner.tsx
+msgid "Point at the QR code in Settings → Remote Access"
+msgstr "对准“设置”→“远程访问”中的二维码"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Point this profile at a non-Anthropic provider (z.ai, …) with custom env "
@@ -4230,6 +4639,7 @@ msgstr "个人资料统计范围"
 msgid "Profiles"
 msgstr "配置文件"
 
+#: src/mobile/views/ThreadsView.tsx
 #: src/renderer/commands/registry.ts
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/views/ProjectSettingsOverlay/ProjectSettingsOverlay.tsx
@@ -4285,6 +4695,10 @@ msgstr "提供商"
 #: src/renderer/components/thread/threadContextUsage.ts
 msgid "Provider has not reported token usage."
 msgstr "提供商尚未报告令牌使用情况。"
+
+#: src/mobile/views/MoreView.tsx
+msgid "Provider limits and spend"
+msgstr "提供商限制和花费"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Provider presets"
@@ -4342,6 +4756,16 @@ msgstr "从源拉取 ({0})"
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CommitSyncPanel.tsx
 msgid "Pull Rebase ({behind})"
 msgstr "拉变基 ({behind})"
+
+#. placeholder {0}: pr.state
+#: src/mobile/GitSummaryParts.tsx
+msgid "Pull request {0}"
+msgstr "拉取请求 {0}"
+
+#. placeholder {0}: pr.prNumber
+#: src/mobile/views/pr/PrOverviewPage.tsx
+msgid "Pull request #{0}"
+msgstr "拉取请求 #{0}"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 msgid "Pull request options"
@@ -4422,6 +4846,18 @@ msgstr "最近"
 msgid "Recent threads"
 msgstr "最近的线程"
 
+#: src/mobile/components.tsx
+msgid "Reconnect"
+msgstr "重新连接"
+
+#: src/mobile/useRemoteDesktop.ts
+msgid "Reconnecting"
+msgstr "正在重新连接"
+
+#: src/mobile/components.tsx
+msgid "Reconnecting to your desktop…"
+msgstr "正在重新连接到桌面…"
+
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Reconstructed from local logs at public API rates — it does not reflect "
@@ -4430,6 +4866,8 @@ msgstr "以公共 API 费率从本地日志重建 — 它不反映您订阅计�
 
 #. Button: re-fetch one provider's usage now
 #. Button: re-fetch provider usage now
+#: src/mobile/views/GitView.tsx
+#: src/mobile/views/pr/PrOverviewPage.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
 #: src/renderer/views/GitReviewOverlay/GitReviewOverlay.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewPanel.tsx
@@ -4467,6 +4905,7 @@ msgstr "正在刷新{0}身份验证状态。"
 msgid "Refreshing {env} {0} authentication status."
 msgstr "正在刷新{env}{0}身份验证状态。"
 
+#: src/mobile/views/BrowserView.tsx
 #: src/renderer/RendererCrashScreen.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Reload"
@@ -4491,6 +4930,10 @@ msgstr "远程名称"
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 msgid "Remote URL"
 msgstr "远程网址"
+
+#: src/mobile/views/SettingsView.tsx
+msgid "Removal behavior"
+msgstr "移除行为"
 
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
 msgid "Remove"
@@ -4517,6 +4960,10 @@ msgstr "删除动作"
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Remove Claude profile"
 msgstr "删除 Claude 配置文件"
+
+#: src/mobile/views/DesktopsView.tsx
+msgid "Remove desktop"
+msgstr "移除桌面"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Remove environment variable"
@@ -4550,6 +4997,9 @@ msgstr "移除快捷键"
 msgid "Remove worktree?"
 msgstr "删除工作树？"
 
+#: src/mobile/ThreadTitleRow.tsx
+#: src/mobile/views/DesktopsView.tsx
+#: src/mobile/views/ThreadsView.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/parts/TreeEntryRow.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
 msgid "Rename"
@@ -4558,6 +5008,10 @@ msgstr "重命名"
 #: src/renderer/commands/registry.ts
 msgid "Rename chat"
 msgstr "重命名聊天"
+
+#: src/mobile/views/DesktopsView.tsx
+msgid "Rename desktop"
+msgstr "重命名桌面"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadGroup.tsx
 msgid "Rename Group"
@@ -4612,6 +5066,7 @@ msgstr "仓库"
 msgid "Repository"
 msgstr "仓库"
 
+#: src/mobile/views/pr/PrOverviewPage.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "Repository pre-receive hook is blocking the merge."
 msgstr "存储库预接收挂钩正在阻止合并。"
@@ -4632,6 +5087,7 @@ msgstr "请求详情"
 msgid "requested changes"
 msgstr "要求更改"
 
+#: src/mobile/views/pr/PrOverviewPage.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "Required reviews, conversations, or status checks not met."
 msgstr "未满足所需的审查、对话或状态检查。"
@@ -4702,9 +5158,22 @@ msgstr "恢复浏览器"
 msgid "Restore default worktree base folder"
 msgstr "恢复默认工作树基础文件夹"
 
+#: src/mobile/views/SettingsView.tsx
+msgid "Restore or delete"
+msgstr "恢复或删除"
+
+#: src/mobile/views/SettingsView.tsx
 #: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
 msgid "Restore thread"
 msgstr "恢复线程"
+
+#: src/mobile/views/BrowserView.tsx
+msgid "Retry"
+msgstr "重试"
+
+#: src/mobile/components.tsx
+msgid "Retry now"
+msgstr "立即重试"
 
 #: src/renderer/hooks/usePrWriteActions.ts
 msgid "Retry with admin"
@@ -4779,6 +5248,10 @@ msgstr "审查 PR"
 #: src/renderer/components/common/BranchSelector/parts/BranchListBox.tsx
 msgid "Review PR #{prNumber} for {0}"
 msgstr "查看{0}的 PR #{prNumber}"
+
+#: src/mobile/views/SettingsView.tsx
+msgid "Review presentation"
+msgstr "评审显示"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Right"
@@ -4891,10 +5364,22 @@ msgstr "保存快捷键"
 msgid "Saved credentials are shared across all environments."
 msgstr "保存的凭据在所有环境中共享。"
 
+#: src/mobile/QrScanner.tsx
+msgid "Scan pairing QR code"
+msgstr "扫描配对二维码"
+
+#: src/mobile/views/DesktopsView.tsx
+msgid "Scan QR code"
+msgstr "扫描二维码"
+
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 msgid "Scanning {wslDistro} for installed CLIs. This usually takes a couple of "
 "seconds."
 msgstr "扫描{wslDistro}来查找已安装的 CLI。这通常需要几秒钟。"
+
+#: src/mobile/QrScanner.tsx
+msgid "Scanning needs a secure connection"
+msgstr "扫描需要安全连接"
 
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 msgid "Scanning Windows and WSL for installed CLIs. This usually takes a couple "
@@ -4959,6 +5444,7 @@ msgstr "搜索模型"
 msgid "Search models..."
 msgstr "搜索模型..."
 
+#: src/mobile/views/BrowserView.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Search or enter address"
 msgstr "搜索或输入地址"
@@ -5075,6 +5561,8 @@ msgstr "设置或查看实验目标"
 msgid "Set shortcut"
 msgstr "设置快捷键"
 
+#: src/mobile/RootLayout.tsx
+#: src/mobile/views/MoreView.tsx
 #: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 #: src/renderer/views/SettingsOverlay/SettingsOverlay.tsx
@@ -5284,9 +5772,15 @@ msgstr "技能"
 msgid "Skills explored"
 msgstr "已使用的技能"
 
+#: src/mobile/views/pr/PrOverviewPage.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "Some checks are failing or pending."
 msgstr "一些检查失败或待处理。"
+
+#: src/mobile/QrScanner.tsx
+msgid "Something went wrong starting the camera. Enter the endpoint and token "
+"below to pair instead."
+msgstr "启动摄像头时出错。请改为在下方输入端点和令牌进行配对。"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/sortMode.ts
 msgid "Sort by created"
@@ -5304,11 +5798,13 @@ msgstr "对线程进行排序"
 msgid "Split Terminal"
 msgstr "拆分终端"
 
+#: src/mobile/components.tsx
 #: src/renderer/views/GitReviewOverlay/GitReviewOverlay.tsx
 #: src/renderer/views/PrReviewOverlay/PrReviewOverlay.tsx
 msgid "Split view"
 msgstr "分割视图"
 
+#: src/mobile/views/GitActionSheet.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ConflictFileCard.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ConflictGroup.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/FileRow.tsx
@@ -5316,6 +5812,7 @@ msgstr "分割视图"
 msgid "Stage"
 msgstr "暂存"
 
+#: src/mobile/views/GitActionSheet.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/FileGroup.tsx
 msgid "Stage all"
 msgstr "全部暂存"
@@ -5359,6 +5856,10 @@ msgstr "从选定的文本开始一个新线程"
 msgid "Start a new thread from this to-do"
 msgstr "从此待办事项开始一个新线程"
 
+#: src/mobile/views/ThreadsView.tsx
+msgid "Start a new thread to put an agent to work from this device."
+msgstr "新建一个线程，从此设备让代理开始工作。"
+
 #: src/renderer/commands/composerCommands.ts
 msgid "Start dictation"
 msgstr "开始语音输入"
@@ -5392,9 +5893,18 @@ msgid "Started {targetLabel} thread"
 msgstr "开始{targetLabel}线程"
 
 #. Button label while the microphone test is starting
+#: src/mobile/useRemoteDesktop.ts
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 msgid "Starting"
 msgstr "启动中"
+
+#: src/mobile/QrScanner.tsx
+msgid "Starting camera…"
+msgstr "正在启动摄像头…"
+
+#: src/mobile/views/BrowserView.tsx
+msgid "Starting mirror…"
+msgstr "正在启动镜像…"
 
 #: src/renderer/components/composer/VoiceInputButton.tsx
 msgid "Starting voice input"
@@ -5408,6 +5918,10 @@ msgstr "开始…"
 #: src/renderer/views/MainView/parts/PullFromSourceDialog.tsx
 msgid "Stash & Pull"
 msgstr "贮藏并拉取"
+
+#: src/mobile/views/pr/PrOverviewPage.tsx
+msgid "Status"
+msgstr "状态"
 
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 msgid "Status is inferred from terminal output (L2). Install the hook plugin in "
@@ -5459,6 +5973,10 @@ msgstr "以明文存储"
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Store as secret (encrypted at rest)"
 msgstr "以密文存储（静态加密）"
+
+#: src/mobile/views/SettingsView.tsx
+msgid "Stored on this phone; the desktop keeps its own values."
+msgstr "存储在这部手机上；桌面保留自己的值。"
 
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentOverlay.tsx
 msgid "Subagent"
@@ -5585,6 +6103,10 @@ msgstr "同步失败：{detail}"
 msgid "Sync options"
 msgstr "同步选项"
 
+#: src/mobile/components.tsx
+msgid "Sync with desktop"
+msgstr "与桌面同步"
+
 #: src/renderer/views/ProfileOverlay/parts/ProfileHeader.tsx
 msgid "Syncs with Cloud"
 msgstr "与Cloud同步"
@@ -5606,6 +6128,19 @@ msgstr "系统默认"
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
 msgid "System notifications"
 msgstr "系统通知"
+
+#: src/mobile/views/BrowserView.tsx
+msgid "tab"
+msgstr "标签页"
+
+#: src/mobile/views/BrowserView.tsx
+msgid "Tabs"
+msgstr "标签页"
+
+#. placeholder {0}: state?.tabs.length ?? 0
+#: src/mobile/views/BrowserView.tsx
+msgid "Tabs ({0})"
+msgstr "标签页 ({0})"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Take Screenshot"
@@ -5632,6 +6167,7 @@ msgstr "告诉{0}下一步该做什么..."
 msgid "Tell the target provider what to do next..."
 msgstr "告诉目标提供商下一步该做什么..."
 
+#: src/mobile/settingsSections.ts
 #: src/renderer/commands/registry.ts
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/layout/UnifiedRightPanel.tsx
@@ -5684,6 +6220,10 @@ msgstr "终端选项卡"
 msgid "Test microphone"
 msgstr "测试麦克风"
 
+#: src/mobile/routeComponents.tsx
+msgid "That QR code isn't a Lightcode pairing link."
+msgstr "该二维码不是 Lightcode 配对链接。"
+
 #: src/renderer/components/thread/ThreadComposerSection.tsx
 msgid "the agent"
 msgstr "代理"
@@ -5703,6 +6243,10 @@ msgid "The default background refresh cadence, used for any provider without "
 "2-minute floor respects provider rate limits."
 msgstr "默认的后台刷新频率，适用于下方未单独设置间隔的任何提供商。设为 0 可关闭（仅手动刷新）。最低 2 分钟以遵守提供商的速率限制。"
 
+#: src/mobile/views/MoreView.tsx
+msgid "The desktop's built-in browser"
+msgstr "桌面内置浏览器"
+
 #: src/renderer/RendererCrashScreen.tsx
 msgid "The normal app shell could not render. The diagnostics below are shown "
 "before reload so the failure can be investigated."
@@ -5721,6 +6265,10 @@ msgstr "目标提供商"
 msgid "Theme"
 msgstr "主题"
 
+#: src/mobile/views/SettingsView.tsx
+msgid "Theme and chat font size"
+msgstr "主题和聊天字号"
+
 #: src/renderer/components/common/EffortContextMenu/EffortContextMenu.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/Reasoning.tsx
 #: src/renderer/components/thread/ThreadComposer.tsx
@@ -5731,10 +6279,25 @@ msgstr "思考"
 msgid "This agent is not installed."
 msgstr "未安装此代理。"
 
+#: src/mobile/routeComponents.tsx
+msgid "This app is served over HTTPS but the desktop is on plain HTTP, which "
+"browsers block. Open the pairing link directly from the desktop (LAN), "
+"or expose the desktop over HTTPS."
+msgstr "此应用通过 HTTPS 提供，但桌面使用浏览器会阻止的普通 HTTP。请直接从桌面（LAN）打开配对链接，或通过 HTTPS 暴露桌面。"
+
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
 msgid "This browser does not support system notifications here; you will still "
 "see in-app toasts."
 msgstr "此浏览器不支持在此处显示系统通知；你仍会看到应用内提示。"
+
+#: src/mobile/views/SettingsView.tsx
+msgid "This device"
+msgstr "此设备"
+
+#: src/mobile/QrScanner.tsx
+msgid "This device has no usable camera. Enter the endpoint and token below to "
+"pair instead."
+msgstr "此设备没有可用摄像头。请改为在下方输入端点和令牌进行配对。"
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
 msgid "this environment"
@@ -5791,6 +6354,7 @@ msgstr "该工作树有本地更改。Lightcode 可以暂时贮藏（stash）它
 msgid "Thought"
 msgstr "思考"
 
+#: src/mobile/RootLayout.tsx
 #: src/renderer/commands/registry.ts
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/hooks/useElementPicker.ts
@@ -5802,9 +6366,17 @@ msgstr "线程"
 msgid "Thread + Worktree"
 msgstr "线程+工作树"
 
+#: src/mobile/ThreadTitleRow.tsx
+msgid "Thread actions"
+msgstr "线程操作"
+
 #: src/renderer/components/thread/ThreadContextDock.tsx
 msgid "Thread context usage"
 msgstr "线程上下文使用"
+
+#: src/mobile/views/SettingsView.tsx
+msgid "Thread defaults and home scope"
+msgstr "线程默认值和主页范围"
 
 #: src/renderer/components/thread/ThreadDockUI.tsx
 msgid "Thread dock"
@@ -5844,6 +6416,8 @@ msgstr "线程排序顺序"
 msgid "Thread todo dock"
 msgstr "线程待办事项停靠栏"
 
+#: src/mobile/RootLayout.tsx
+#: src/mobile/settingsSections.ts
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 #: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
 #: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
@@ -5860,6 +6434,10 @@ msgstr "标记为“已完成”且已多日未触及的线程将在应用程序
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Title Generation"
 msgstr "标题生成"
+
+#: src/mobile/views/SettingsView.tsx
+msgid "Title, commit, and conflict models"
+msgstr "标题、提交和冲突模型"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/TodoList.tsx
 msgid "To-dos"
@@ -5941,6 +6519,10 @@ msgid "Track per-provider session, weekly, and monthly usage. Windows are "
 "logs."
 msgstr "跟踪每个提供商的会话、每周和每月使用情况。各时间窗口由每个提供商报告；估计成本根据本地日志重建。"
 
+#: src/mobile/views/SettingsView.tsx
+msgid "Tracking and display"
+msgstr "跟踪和显示"
+
 #. Usage status when provider tracking is disabled
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Tracking off"
@@ -5964,6 +6546,14 @@ msgstr "打开或关闭每个提供商的跟踪。自动刷新会跳过已禁用
 msgid "Type a command"
 msgstr "输入命令"
 
+#: src/mobile/views/BrowserView.tsx
+msgid "Type into the page"
+msgstr "在页面中输入"
+
+#: src/mobile/views/BrowserView.tsx
+msgid "Type into the page (tap a field first)"
+msgstr "在页面中输入（请先点按一个字段）"
+
 #. placeholder {0}: agent.label
 #. placeholder {0}: agentStatus.label
 #: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
@@ -5985,10 +6575,18 @@ msgstr "无法安装{0}挂钩。"
 msgid "Unable to install {0}."
 msgstr "无法安装{0}。"
 
+#: src/mobile/useRemoteDesktop.ts
+msgid "Unable to load thread."
+msgstr "无法加载线程。"
+
 #. placeholder {0}: agent.label
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
 msgid "Unable to log out {0}."
 msgstr "无法注销{0}。"
+
+#: src/mobile/views/pr/PrOverviewPage.tsx
+msgid "Unable to merge"
+msgstr "无法合并"
 
 #. placeholder {0}: input.label
 #: src/renderer/actions/agentLoginActions.ts
@@ -5998,6 +6596,10 @@ msgstr "无法打开{0}登录。"
 #: src/renderer/commands/registry.ts
 msgid "Unable to open file"
 msgstr "无法打开文件"
+
+#: src/mobile/routeComponents.tsx
+msgid "Unable to pair with that desktop."
+msgstr "无法与该桌面配对。"
 
 #. placeholder {0}: agentStatus.label
 #. placeholder {0}: status.label
@@ -6041,6 +6643,14 @@ msgstr "无法保存Claude {displayLabel}配置。"
 msgid "Unable to start {label}."
 msgstr "无法启动{label}。"
 
+#: src/mobile/useRemoteDesktop.ts
+msgid "Unable to start mobile app."
+msgstr "无法启动移动应用。"
+
+#: src/mobile/routeComponents.tsx
+msgid "Unable to start the thread."
+msgstr "无法启动线程。"
+
 #. placeholder {0}: agent.label
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
 msgid "Unable to update {0} ({envName}): {detailText}"
@@ -6074,6 +6684,10 @@ msgstr "无法更新{0}：{detailText}"
 msgid "Unable to update {0}."
 msgstr "无法更新{0}。"
 
+#: src/mobile/useRemoteDesktop.ts
+msgid "Unable to update the thread."
+msgstr "无法更新线程。"
+
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Unassigned"
 msgstr "未分配"
@@ -6082,6 +6696,7 @@ msgstr "未分配"
 msgid "Ungroup All"
 msgstr "全部取消分组"
 
+#: src/mobile/components.tsx
 #: src/renderer/views/GitReviewOverlay/GitReviewOverlay.tsx
 #: src/renderer/views/PrReviewOverlay/PrReviewOverlay.tsx
 msgid "Unified view"
@@ -6119,10 +6734,16 @@ msgstr "在以下分钟数后卸载空闲线程"
 msgid "Unload Thread"
 msgstr "卸载线程"
 
+#: src/mobile/views/ThreadsView.tsx
+msgid "Unmark all done"
+msgstr "取消全部完成标记"
+
 #: src/renderer/components/thread/ThreadView.tsx
 msgid "Unmark done"
 msgstr "取消标记完成"
 
+#: src/mobile/ThreadTitleRow.tsx
+#: src/mobile/views/ThreadsView.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
 msgid "Unmark Done"
 msgstr "取消标记完成"
@@ -6131,15 +6752,19 @@ msgstr "取消标记完成"
 msgid "Unphased:"
 msgstr "未分阶段："
 
+#: src/mobile/ThreadTitleRow.tsx
+#: src/mobile/views/ThreadsView.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
 msgid "Unpin"
 msgstr "取消固定"
 
+#: src/mobile/views/GitActionSheet.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/FileRow.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitStackedDiff.tsx
 msgid "Unstage"
 msgstr "取消暂存"
 
+#: src/mobile/views/GitActionSheet.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/FileGroup.tsx
 msgid "Unstage all"
 msgstr "全部取消暂存"
@@ -6232,6 +6857,9 @@ msgstr "正在更新{0}"
 msgid "Updating {0} ({env})"
 msgstr "更新{0}({env})"
 
+#: src/mobile/RootLayout.tsx
+#: src/mobile/settingsSections.ts
+#: src/mobile/views/MoreView.tsx
 #: src/renderer/components/layout/UnifiedRightPanel.tsx
 #: src/renderer/components/providers/ProviderUsageRail.tsx
 #: src/renderer/components/thread/ThreadContextDock.tsx
@@ -6325,6 +6953,10 @@ msgstr "通过{0}"
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "View"
 msgstr "查看"
+
+#: src/mobile/views/GitActionSheet.tsx
+msgid "View diff"
+msgstr "查看 diff"
 
 #. placeholder {0}: provider.label
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
@@ -6538,6 +7170,7 @@ msgstr "工作流程：{description}"
 msgid "Workflows"
 msgstr "工作流程"
 
+#: src/mobile/presentation.ts
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 msgid "Working"
 msgstr "工作中"
@@ -6554,6 +7187,7 @@ msgstr "工作树干净"
 msgid "Working…"
 msgstr "工作…"
 
+#: src/mobile/views/ThreadsView.tsx
 #: src/renderer/components/thread/WorktreeModeSelect.tsx
 msgid "Worktree"
 msgstr "工作树"

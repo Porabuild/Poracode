@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useLingui } from "@lingui/react/macro";
 import { Archive, CircleCheck, Ellipsis, Pencil, Star, Trash2 } from "lucide-react";
 import type { Thread } from "@/shared/contracts";
 import { Button } from "@/renderer/components/common";
@@ -17,26 +18,27 @@ function ThreadActionsMenu(props: {
   readonly onAction: (action: ThreadAction) => void;
 }) {
   const { thread } = props;
+  const { t } = useLingui();
 
   const items: SheetMenuItem[] = [
-    { id: "rename", label: "Rename", icon: <Pencil className="size-4 text-muted" /> },
+    { id: "rename", label: t`Rename`, icon: <Pencil className="size-4 text-muted" /> },
     {
       id: "toggle-done",
-      label: thread.done ? "Unmark Done" : "Mark Done",
+      label: thread.done ? t`Unmark Done` : t`Mark Done`,
       icon: <CircleCheck className="size-4 text-muted" />,
     },
     {
       id: "toggle-star",
-      label: thread.starred ? "Unpin" : "Pin to top",
+      label: thread.starred ? t`Unpin` : t`Pin to top`,
       icon: <Star className="size-4 text-muted" />,
     },
     {
       id: "archive",
-      label: "Archive Thread",
+      label: t`Archive Thread`,
       icon: <Archive className="size-4" />,
       tone: "warning",
     },
-    { id: "delete", label: "Delete Thread", icon: <Trash2 className="size-4" />, tone: "danger" },
+    { id: "delete", label: t`Delete Thread`, icon: <Trash2 className="size-4" />, tone: "danger" },
   ];
 
   const handleSelect = (id: string) => {
@@ -50,11 +52,12 @@ function ThreadActionsMenu(props: {
 
   return (
     <SheetMenu
-      label="Thread actions"
+      label={t`Thread actions`}
+      closeLabel={t`Close thread actions`}
       items={items}
       onSelect={handleSelect}
       trigger={({ open }) => (
-        <Button isIconOnly aria-label="Thread actions" size="sm" variant="ghost" onPress={open}>
+        <Button isIconOnly aria-label={t`Thread actions`} size="sm" variant="ghost" onPress={open}>
           <Ellipsis className="size-4" />
         </Button>
       )}

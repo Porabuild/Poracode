@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@heroui/react";
+import { Trans, useLingui } from "@lingui/react/macro";
 import { ArrowLeft, ArrowRight, Globe, Keyboard, Loader2, Plus, RotateCw, X } from "lucide-react";
 import type {
   FormEvent,
@@ -95,6 +96,7 @@ interface ViewTransform {
  * are derived from the transformed image's bounding box.
  */
 function MirrorSurface(props: { readonly frame: BrowserMirrorFrame }) {
+  const { t } = useLingui();
   const zoomRef = useRef<HTMLDivElement | null>(null);
   const imgRef = useRef<HTMLImageElement | null>(null);
   const pointersRef = useRef(new Map<number, { x: number; y: number }>());
@@ -255,7 +257,7 @@ function MirrorSurface(props: { readonly frame: BrowserMirrorFrame }) {
       <div ref={zoomRef} className="m-browser__zoom">
         <img
           ref={imgRef}
-          alt="Mirrored desktop browser tab"
+          alt={t`Mirrored desktop browser tab`}
           draggable={false}
           src={props.frame.dataUrl}
         />
@@ -270,6 +272,7 @@ function MirrorSurface(props: { readonly frame: BrowserMirrorFrame }) {
  * never accumulate locally — the mirrored page is the echo.
  */
 function TypingBar(props: { readonly onClose: () => void }) {
+  const { t } = useLingui();
   function onKeyDown(event: ReactKeyboardEvent<HTMLInputElement>) {
     const mapped = FORWARDED_KEYS[event.key];
     if (!mapped) return;
@@ -299,7 +302,7 @@ function TypingBar(props: { readonly onClose: () => void }) {
         autoCapitalize="off"
         autoCorrect="off"
         spellCheck={false}
-        placeholder="Type into the page (tap a field first)"
+        placeholder={t`Type into the page (tap a field first)`}
         value=""
         onBeforeInput={onBeforeInput}
         onChange={() => {}}
@@ -307,7 +310,7 @@ function TypingBar(props: { readonly onClose: () => void }) {
       />
       <Button
         isIconOnly
-        aria-label="Hide keyboard"
+        aria-label={t`Hide keyboard`}
         size="sm"
         variant="tertiary"
         onPress={props.onClose}
@@ -324,6 +327,7 @@ function TypingBar(props: { readonly onClose: () => void }) {
  */
 function AddressPill(props: { readonly activeTab: RemoteBrowserTab | null }) {
   const { activeTab } = props;
+  const { t } = useLingui();
   const [editing, setEditing] = useState(false);
   const [value, setValue] = useState("");
 
@@ -358,7 +362,7 @@ function AddressPill(props: { readonly activeTab: RemoteBrowserTab | null }) {
           autoCorrect="off"
           spellCheck={false}
           enterKeyHint="go"
-          placeholder="Search or enter address"
+          placeholder={t`Search or enter address`}
           value={value}
           onChange={(event) => setValue(event.currentTarget.value)}
           onFocus={(event) => event.currentTarget.select()}
@@ -379,13 +383,13 @@ function AddressPill(props: { readonly activeTab: RemoteBrowserTab | null }) {
       >
         {activeTab?.loading ? <Loader2 className="m-spin size-3.5 shrink-0" /> : null}
         <span data-placeholder={host ? undefined : "true"}>
-          {host || "Search or enter address"}
+          {host || t`Search or enter address`}
         </span>
       </button>
       <button
         type="button"
         className="m-browser__address-action"
-        aria-label="Reload"
+        aria-label={t`Reload`}
         disabled={!activeTab}
         onClick={() =>
           activeTab &&
@@ -428,6 +432,7 @@ function TabSheet(props: {
   readonly closing?: boolean;
   readonly onClose: () => void;
 }) {
+  const { t } = useLingui();
   function createTab() {
     readBridge()
       .browserCreateTab({ url: DEFAULT_HOME, activate: true })
@@ -437,59 +442,66 @@ function TabSheet(props: {
 
   return (
     <BottomSheet
-      label="Browser tabs"
-      closeLabel="Close tab switcher"
+      label={t`Browser tabs`}
+      closeLabel={t`Close tab switcher`}
       closing={props.closing}
       onClose={props.onClose}
     >
       <div className="m-sheet-head">
-        <span>Tabs</span>
-        <Button isIconOnly aria-label="New tab" size="sm" variant="tertiary" onPress={createTab}>
+        <span>
+          <Trans>Tabs</Trans>
+        </span>
+        <Button isIconOnly aria-label={t`New tab`} size="sm" variant="tertiary" onPress={createTab}>
           <Plus className="size-4" />
         </Button>
       </div>
       <div className="m-sheet-list">
-        {props.tabs.map((tab) => (
-          <div
-            key={tab.tabId}
-            className="m-thread-row m-tab-row"
-            data-active={tab.tabId === props.activeTabId || undefined}
-          >
-            <button
-              type="button"
-              className="m-tab-row__main"
-              onClick={() => {
-                readBridge()
-                  .browserActivateTab({ tabId: tab.tabId })
-                  .catch(() => {});
-                props.onClose();
-              }}
+        {props.tabs.map((tab) => {
+          const title = tab.title || tab.url || t`New tab`;
+          const closeTarget = tab.title || t`tab`;
+          const closeLabel = t`Close ${closeTarget}`;
+          return (
+            <div
+              key={tab.tabId}
+              className="m-thread-row m-tab-row"
+              data-active={tab.tabId === props.activeTabId || undefined}
             >
-              <TabFavicon tab={tab} />
-              <span className="m-thread-row__body">
-                <span className="m-thread-row__title">{tab.title || tab.url || "New tab"}</span>
-                <span className="m-thread-row__meta">
-                  <span className="m-thread-row__meta-text">
-                    {hostOf(tab.url) || "about:blank"}
+              <button
+                type="button"
+                className="m-tab-row__main"
+                onClick={() => {
+                  readBridge()
+                    .browserActivateTab({ tabId: tab.tabId })
+                    .catch(() => {});
+                  props.onClose();
+                }}
+              >
+                <TabFavicon tab={tab} />
+                <span className="m-thread-row__body">
+                  <span className="m-thread-row__title">{title}</span>
+                  <span className="m-thread-row__meta">
+                    <span className="m-thread-row__meta-text">
+                      {hostOf(tab.url) || "about:blank"}
+                    </span>
                   </span>
                 </span>
-              </span>
-            </button>
-            <Button
-              isIconOnly
-              aria-label={`Close ${tab.title || "tab"}`}
-              size="sm"
-              variant="tertiary"
-              onPress={() =>
-                readBridge()
-                  .browserCloseTab({ tabId: tab.tabId })
-                  .catch(() => {})
-              }
-            >
-              <X className="size-4" />
-            </Button>
-          </div>
-        ))}
+              </button>
+              <Button
+                isIconOnly
+                aria-label={closeLabel}
+                size="sm"
+                variant="tertiary"
+                onPress={() =>
+                  readBridge()
+                    .browserCloseTab({ tabId: tab.tabId })
+                    .catch(() => {})
+                }
+              >
+                <X className="size-4" />
+              </Button>
+            </div>
+          );
+        })}
       </div>
     </BottomSheet>
   );
@@ -507,6 +519,7 @@ function DesktopBrowserToolbar(props: {
   readonly onToggleTyping: () => void;
 }) {
   const { activeTab } = props;
+  const { t } = useLingui();
   const [urlInput, setUrlInput] = useState("");
   const [focused, setFocused] = useState(false);
 
@@ -539,7 +552,7 @@ function DesktopBrowserToolbar(props: {
       <button
         type="button"
         className={desktopToolbarButtonClass}
-        title="Back"
+        title={t`Back`}
         disabled={disabled || !activeTab?.canGoBack}
         onClick={() =>
           activeTab &&
@@ -553,7 +566,7 @@ function DesktopBrowserToolbar(props: {
       <button
         type="button"
         className={desktopToolbarButtonClass}
-        title="Forward"
+        title={t`Forward`}
         disabled={disabled || !activeTab?.canGoForward}
         onClick={() =>
           activeTab &&
@@ -567,7 +580,7 @@ function DesktopBrowserToolbar(props: {
       <button
         type="button"
         className={desktopToolbarButtonClass}
-        title="Reload"
+        title={t`Reload`}
         disabled={disabled}
         onClick={() =>
           activeTab &&
@@ -582,7 +595,7 @@ function DesktopBrowserToolbar(props: {
         <input
           type="text"
           className="h-7 w-full rounded border border-border bg-[var(--field-background)] px-2 text-[12px] text-foreground outline-none placeholder:text-[color:var(--field-placeholder)] focus:border-[color:var(--accent)]"
-          placeholder="Search or enter address"
+          placeholder={t`Search or enter address`}
           autoCapitalize="off"
           autoCorrect="off"
           spellCheck={false}
@@ -601,7 +614,7 @@ function DesktopBrowserToolbar(props: {
       <button
         type="button"
         className={keyboardButtonClass}
-        title="Type into the page"
+        title={t`Type into the page`}
         disabled={!props.typingEnabled}
         onClick={props.onToggleTyping}
       >
@@ -610,7 +623,7 @@ function DesktopBrowserToolbar(props: {
       <button
         type="button"
         className={desktopToolbarButtonClass}
-        title="New tab"
+        title={t`New tab`}
         onClick={() =>
           readBridge()
             .browserCreateTab({ url: DEFAULT_HOME, activate: true })
@@ -624,6 +637,7 @@ function DesktopBrowserToolbar(props: {
 }
 
 export function BrowserView() {
+  const { t } = useLingui();
   const state = useBrowserMirrorStore((s) => s.state);
   const frame = useBrowserMirrorStore((s) => s.frame);
   const status = useBrowserMirrorStore((s) => s.status);
@@ -678,7 +692,8 @@ export function BrowserView() {
         {!state ? (
           <div className="m-browser__status">
             <p>
-              <Loader2 className="m-spin size-4" /> Connecting to the desktop browser…
+              <Loader2 className="m-spin size-4" />{" "}
+              <Trans>Connecting to the desktop browser…</Trans>
             </p>
           </div>
         ) : state.tabs.length === 0 ? (
@@ -689,14 +704,14 @@ export function BrowserView() {
           <div className="m-browser__status" data-dim={frame ? "true" : undefined}>
             {status?.status === "unavailable" ? (
               <>
-                <p>{status.reason ?? "Mirroring is unavailable."}</p>
+                <p>{status.reason ?? t`Mirroring is unavailable.`}</p>
                 <Button size="sm" variant="secondary" onPress={() => startBrowserWatch()}>
-                  Retry
+                  <Trans>Retry</Trans>
                 </Button>
               </>
             ) : (
               <p>
-                <Loader2 className="m-spin size-4" /> Starting mirror…
+                <Loader2 className="m-spin size-4" /> <Trans>Starting mirror…</Trans>
               </p>
             )}
           </div>
@@ -711,7 +726,7 @@ export function BrowserView() {
             <button
               type="button"
               className="m-browser__nav-btn"
-              aria-label="Back"
+              aria-label={t`Back`}
               disabled={!activeTab?.canGoBack}
               onClick={() =>
                 activeTab &&
@@ -725,7 +740,7 @@ export function BrowserView() {
             <button
               type="button"
               className="m-browser__nav-btn"
-              aria-label="Forward"
+              aria-label={t`Forward`}
               disabled={!activeTab?.canGoForward}
               onClick={() =>
                 activeTab &&
@@ -739,7 +754,7 @@ export function BrowserView() {
             <button
               type="button"
               className="m-browser__nav-btn"
-              aria-label="New tab"
+              aria-label={t`New tab`}
               onClick={createTab}
             >
               <span className="m-browser__nav-plus">
@@ -749,7 +764,7 @@ export function BrowserView() {
             <button
               type="button"
               className="m-browser__nav-btn"
-              aria-label={`Tabs (${state?.tabs.length ?? 0})`}
+              aria-label={t`Tabs (${state?.tabs.length ?? 0})`}
               disabled={!state}
               onClick={() => tabSheet.open(true)}
             >
@@ -758,7 +773,7 @@ export function BrowserView() {
             <button
               type="button"
               className="m-browser__nav-btn"
-              aria-label="Type into the page"
+              aria-label={t`Type into the page`}
               data-active={typing || undefined}
               disabled={!mirrorActive}
               onClick={() => setTyping(true)}

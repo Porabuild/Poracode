@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Trans, useLingui } from "@lingui/react/macro";
 import { FileDiff, Minus, Plus, Undo2 } from "lucide-react";
 import type { ProjectLocation } from "@/shared/contracts";
 import { readBridge } from "@/renderer/bridge";
@@ -29,6 +30,7 @@ export function GitActionSheet(props: {
   readonly onRefetch: () => Promise<void>;
   readonly onClose: () => void;
 }) {
+  const { t } = useLingui();
   const {
     target,
     closing,
@@ -91,7 +93,12 @@ export function GitActionSheet(props: {
       : target.group.title;
 
   return (
-    <BottomSheet label="Git actions" closeLabel="Close menu" closing={closing} onClose={onClose}>
+    <BottomSheet
+      label={t`Git actions`}
+      closeLabel={t`Close menu`}
+      closing={closing}
+      onClose={onClose}
+    >
       <div className="m-sheet-head">
         <span className="min-w-0 truncate">{title}</span>
         {target.kind === "file" ? (
@@ -109,10 +116,12 @@ export function GitActionSheet(props: {
       {confirmingRevert ? (
         <div className="m-sheet-list">
           <p className="m-git-empty">
-            Discard changes to <strong>{title}</strong>? This cannot be undone.
+            <Trans>
+              Discard changes to <strong>{title}</strong>? This cannot be undone.
+            </Trans>
           </p>
           <button type="button" className="m-sheet-action" onClick={onClose}>
-            Cancel
+            <Trans>Cancel</Trans>
           </button>
           <button
             type="button"
@@ -123,7 +132,7 @@ export function GitActionSheet(props: {
             }}
           >
             <Undo2 className="size-4" />
-            Discard changes
+            <Trans>Discard changes</Trans>
           </button>
         </div>
       ) : target.kind === "file" ? (
@@ -137,7 +146,7 @@ export function GitActionSheet(props: {
             }}
           >
             <FileDiff className="size-4" />
-            View diff
+            <Trans>View diff</Trans>
           </button>
           <button
             type="button"
@@ -145,7 +154,7 @@ export function GitActionSheet(props: {
             onClick={() => void toggleStageFile(target.file)}
           >
             {target.file.staged ? <Minus className="size-4" /> : <Plus className="size-4" />}
-            {target.file.staged ? "Unstage" : "Stage"}
+            {target.file.staged ? t`Unstage` : t`Stage`}
           </button>
           {!target.file.staged ? (
             <button
@@ -154,7 +163,7 @@ export function GitActionSheet(props: {
               onClick={() => setConfirmingRevert(true)}
             >
               <Undo2 className="size-4" />
-              Discard changes
+              <Trans>Discard changes</Trans>
             </button>
           ) : null}
         </div>
@@ -163,13 +172,13 @@ export function GitActionSheet(props: {
           {target.group.staged ? (
             <button type="button" className="m-sheet-action" onClick={() => void unstageAll()}>
               <Minus className="size-4" />
-              Unstage all
+              <Trans>Unstage all</Trans>
             </button>
           ) : (
             <>
               <button type="button" className="m-sheet-action" onClick={() => void stageAll()}>
                 <Plus className="size-4" />
-                Stage all
+                <Trans>Stage all</Trans>
               </button>
               <button
                 type="button"
@@ -177,7 +186,7 @@ export function GitActionSheet(props: {
                 onClick={() => setConfirmingRevert(true)}
               >
                 <Undo2 className="size-4" />
-                Discard all changes
+                <Trans>Discard all changes</Trans>
               </button>
             </>
           )}

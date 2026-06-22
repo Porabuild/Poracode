@@ -1,3 +1,6 @@
+import type { MessageDescriptor } from "@lingui/core";
+import { msg } from "@lingui/core/macro";
+import { Plural, Trans, useLingui } from "@lingui/react/macro";
 import {
   AlertTriangle,
   CheckCircle2,
@@ -20,34 +23,35 @@ import {
   usePrUrl,
 } from "@/renderer/state/gitSelectors";
 import { usePrCombinedChecksStatus } from "@/renderer/hooks/usePrCombinedChecksStatus";
+import type { TranslateFn } from "@/renderer/i18n/i18n";
 import { PrHeaderCard } from "@/renderer/views/PrReviewOverlay/parts/PrHeaderCard";
 import { PrMetaRow } from "@/renderer/views/PrReviewOverlay/parts/PrMetaRow";
 import { usePr } from "./prContext";
 import { PrPageHeader } from "./PrPageHeader";
 
 // Mirrors PrSection's merge-block reasons (the desktop git-review sidebar).
-const BLOCK_REASON: Record<string, string> = {
-  BLOCKED: "Required reviews, conversations, or status checks not met.",
-  BEHIND: "Base branch is ahead — branch must be updated first.",
-  DIRTY: "Merge conflicts must be resolved.",
-  UNSTABLE: "Some checks are failing or pending.",
-  HAS_HOOKS: "Repository pre-receive hook is blocking the merge.",
+const BLOCK_REASON: Record<string, MessageDescriptor> = {
+  BLOCKED: msg`Required reviews, conversations, or status checks not met.`,
+  BEHIND: msg`Base branch is ahead — branch must be updated first.`,
+  DIRTY: msg`Merge conflicts must be resolved.`,
+  UNSTABLE: msg`Some checks are failing or pending.`,
+  HAS_HOOKS: msg`Repository pre-receive hook is blocking the merge.`,
 };
 
 /** Status line for the checks row — derived from the same combined status as
  * the glyph so the two never disagree (e.g. green icon + "0 passed"). */
-function checksSummary(status: string | undefined, total: number): string {
-  if (total === 0) return "No checks reported";
+function checksSummary(status: string | undefined, total: number, t: TranslateFn): string {
+  if (total === 0) return t`No checks reported`;
   switch (status?.toUpperCase()) {
     case "SUCCESS":
-      return "All checks passed";
+      return t`All checks passed`;
     case "FAILURE":
     case "ERROR":
-      return "Some checks failed";
+      return t`Some checks failed`;
     case "PENDING":
-      return "Checks running";
+      return t`Checks running`;
     default:
-      return `${total} check${total === 1 ? "" : "s"}`;
+      return total === 1 ? t`1 check` : t`${total} checks`;
   }
 }
 
@@ -65,10 +69,11 @@ function ChecksGlyph(props: { readonly status: string | undefined }) {
  * deep pages, plus the merge/review status.
  */
 export function PrOverviewPage() {
+  const { t } = useLingui();
   const pr = usePr();
   const details = useGitStore((s) => s.prDetails[pr.cacheKey]);
   const files = useGitStore((s) => s.prFiles[pr.cacheKey]);
-  const title = usePrTitle(pr.prKey) || details?.title || `Pull request #${pr.prNumber}`;
+  const title = usePrTitle(pr.prKey) || details?.title || t`Pull request #${pr.prNumber}`;
   const url = usePrUrl(pr.prKey);
   const state = usePrState(pr.prKey);
   const checksStatus = usePrCombinedChecksStatus(pr.prKey, pr.cacheKey);
@@ -102,14 +107,14 @@ export function PrOverviewPage() {
       <PrPageHeader
         title={`#${pr.prNumber}`}
         onBack={pr.close}
-        backLabel="Close PR review"
+        backLabel={t`Close PR review`}
         actions={
           <>
             {url ? (
               <button
                 type="button"
                 className="m-git-head__btn"
-                aria-label="Open on GitHub"
+                aria-label={t`Open on GitHub`}
                 onClick={() => void readBridge().openExternal(url)}
               >
                 <ExternalLink className="size-4" />
@@ -118,7 +123,7 @@ export function PrOverviewPage() {
             <button
               type="button"
               className="m-git-head__btn"
-              aria-label="Refresh"
+              aria-label={t`Refresh`}
               onClick={pr.reload}
             >
               <RefreshCw className={`size-4 ${pr.loading ? "m-spin" : ""}`} />
@@ -136,14 +141,16 @@ export function PrOverviewPage() {
           <PrHeaderCard cacheKey={pr.cacheKey} />
 
           <div className="m-pr-section">
-            <div className="m-pr-section__head">Changes</div>
+            <div className="m-pr-section__head">
+              <Trans>Changes</Trans>
+            </div>
             <button type="button" className="m-more-row" onClick={() => pr.toPage("changes")}>
               <span className="m-more-row__icon">
                 <FileDiff className="size-4" />
               </span>
               <span className="m-more-row__body">
                 <strong>
-                  {filesCount} file{filesCount === 1 ? "" : "s"} changed
+                  <Plural value={filesCount} one="# file changed" other="# files changed" />
                 </strong>
                 <span className="m-pr-diffstat">
                   {additions > 0 ? <span className="text-success">+{additions}</span> : null}
@@ -158,7 +165,7 @@ export function PrOverviewPage() {
               </span>
               <span className="m-more-row__body">
                 <strong>
-                  {commitsCount} commit{commitsCount === 1 ? "" : "s"}
+                  <Plural value={commitsCount} one="# commit" other="# commits" />
                 </strong>
               </span>
               <ChevronRight className="size-4 shrink-0 text-muted" />
@@ -166,15 +173,23 @@ export function PrOverviewPage() {
           </div>
 
           <div className="m-pr-section">
-            <div className="m-pr-section__head">Status</div>
+            <div className="m-pr-section__head">
+              <Trans>Status</Trans>
+            </div>
             <button type="button" className="m-more-row" onClick={() => pr.toPage("conversation")}>
               <span className="m-more-row__icon">
                 <MessageSquare className="size-4" />
               </span>
               <span className="m-more-row__body">
-                <strong>Conversation</strong>
+                <strong>
+                  <Trans>Conversation</Trans>
+                </strong>
                 <span>
-                  {conversationCount} comment{conversationCount === 1 ? "" : "s"} &amp; reviews
+                  <Plural
+                    value={conversationCount}
+                    one="# comment or review"
+                    other="# comments & reviews"
+                  />
                 </span>
               </span>
               <ChevronRight className="size-4 shrink-0 text-muted" />
@@ -184,8 +199,10 @@ export function PrOverviewPage() {
                 <ChecksGlyph status={checksStatus} />
               </span>
               <span className="m-more-row__body">
-                <strong>Checks</strong>
-                <span>{checksSummary(checksStatus, checks.length)}</span>
+                <strong>
+                  <Trans>Checks</Trans>
+                </strong>
+                <span>{checksSummary(checksStatus, checks.length, t)}</span>
               </span>
               <ChevronRight className="size-4 shrink-0 text-muted" />
             </button>
@@ -193,8 +210,10 @@ export function PrOverviewPage() {
               <div className="m-pr-merge">
                 <AlertTriangle className="size-4 shrink-0 text-danger" />
                 <span className="m-pr-merge__body">
-                  <strong>Unable to merge</strong>
-                  {blockReason ? <span>{blockReason}</span> : null}
+                  <strong>
+                    <Trans>Unable to merge</Trans>
+                  </strong>
+                  {blockReason ? <span>{t(blockReason)}</span> : null}
                 </span>
               </div>
             ) : null}

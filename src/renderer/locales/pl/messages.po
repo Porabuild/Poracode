@@ -17,6 +17,10 @@ msgstr ""
 msgid "(Draft)"
 msgstr "(wersja robocza)"
 
+#: src/mobile/GitSummaryParts.tsx
+msgid "(no branch)"
+msgstr "(brak gałęzi)"
+
 #: src/renderer/views/PrReviewOverlay/parts/PrCommitsTab.tsx
 msgid "(no message)"
 msgstr "(brak wiadomości)"
@@ -25,6 +29,14 @@ msgstr "(brak wiadomości)"
 #: src/renderer/views/PrReviewOverlay/parts/PrMetaRow.tsx
 msgid "{0, plural, one {# file} other {# files}}"
 msgstr "{0, plural, one {# plik} few {# pliki} many {# plików} other {# pliku}}"
+
+#. placeholder {0}: props.desktops.length
+#. placeholder {0}: remote.desktops.length
+#: src/mobile/RootLayout.tsx
+#: src/mobile/views/DesktopsView.tsx
+msgid "{0, plural, one {# paired desktop} other {# paired desktops}}"
+msgstr "{0, plural, one {# sparowany desktop} few {# sparowane desktopy} many "
+"{# sparowanych desktopów} other {# sparowanego desktopa}}"
 
 #. placeholder {0}: readyKinds.size
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
@@ -156,6 +168,11 @@ msgstr "{0} uruchomień"
 msgid "{0} runs"
 msgstr "{0} uruchomień"
 
+#. placeholder {0}: threads.length
+#: src/mobile/views/ThreadsView.tsx
+msgid "{0} threads"
+msgstr "{0} wątków"
+
 #. placeholder {0}: formatTokens(snapshot.tokens.total)
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
@@ -213,6 +230,18 @@ msgid "{agentLabel}: {statusLabel}. Hover for status details."
 msgstr "{agentLabel}: {statusLabel}. Najedź kursorem, aby wyświetlić szczegóły "
 "statusu."
 
+#: src/mobile/views/pr/PrOverviewPage.tsx
+msgid "{commitsCount, plural, one {# commit} other {# commits}}"
+msgstr "{commitsCount, plural, one {# commit} few {# commity} many {# commitów} "
+"other {# commita}}"
+
+#: src/mobile/views/pr/PrOverviewPage.tsx
+msgid "{conversationCount, plural, one {# comment or review} other {# comments "
+"& reviews}}"
+msgstr "{conversationCount, plural, one {# komentarz lub recenzja} few {# "
+"komentarze i recenzje} many {# komentarzy i recenzji} other {# "
+"komentarza i recenzji}}"
+
 #: src/renderer/views/ProfileOverlay/parts/ShareCard.tsx
 #: src/renderer/views/ProfileOverlay/parts/StatStrip.tsx
 msgid "{days} day"
@@ -231,6 +260,11 @@ msgstr "{days} dni temu"
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
 msgid "{envOrAgentLabel} needs authentication."
 msgstr "{envOrAgentLabel} wymaga uwierzytelnienia."
+
+#: src/mobile/views/pr/PrOverviewPage.tsx
+msgid "{filesCount, plural, one {# file changed} other {# files changed}}"
+msgstr "{filesCount, plural, one {# plik zmieniony} few {# pliki zmienione} "
+"many {# plików zmienionych} other {# pliku zmienionego}}"
 
 #: src/renderer/components/thread/ChatPane/ChatRuntimeDebugPanel.tsx
 msgid "{filteredCount} / {totalCount} matches"
@@ -370,6 +404,10 @@ msgstr "~{money}{tokens} · {0} · szac."
 msgid "≈{0}% by reset"
 msgstr "≈{0}% do resetu"
 
+#: src/mobile/views/ThreadsView.tsx
+msgid "1 thread"
+msgstr "1 wątek"
+
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "30d"
 msgstr "30d"
@@ -443,6 +481,17 @@ msgstr "Nazwa akcji"
 msgid "Actions"
 msgstr "Działania"
 
+#. placeholder {0}: thread.title
+#: src/mobile/views/ThreadsView.tsx
+msgid "Actions for {0}"
+msgstr "Akcje dla {0}"
+
+#: src/mobile/views/DesktopsView.tsx
+#: src/mobile/views/ThreadsView.tsx
+msgid "Actions for {title}"
+msgstr "Akcje dla {title}"
+
+#: src/mobile/views/DesktopsView.tsx
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 msgid "Active"
 msgstr "Aktywny"
@@ -541,6 +590,10 @@ msgstr "Dodaj do kompozytora"
 msgid "Add to favorites"
 msgstr "Dodaj do ulubionych"
 
+#: src/mobile/views/DesktopsView.tsx
+msgid "Add to Home Screen"
+msgstr "Dodaj do ekranu głównego"
+
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
 msgid "Agent"
@@ -595,6 +648,7 @@ msgstr "Agent:{description}"
 msgid "Agent: {subagent}"
 msgstr "Agent:{subagent}"
 
+#: src/mobile/settingsSections.ts
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
 msgid "Agents"
@@ -607,6 +661,7 @@ msgstr "Agenci · Ogólne"
 
 #. Settings section: AI / assistant configuration
 #. Settings section: AI / assistant configuration
+#: src/mobile/settingsSections.ts
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "AI"
@@ -621,6 +676,10 @@ msgstr "Koordynator agentów AI — zarządzaj agentami kodującymi za pośredni
 #: src/renderer/views/ProfileOverlay/parts/AiActions.tsx
 msgid "AI git actions"
 msgstr "Akcje AI w git"
+
+#: src/mobile/views/SettingsView.tsx
+msgid "Alerts when threads need you"
+msgstr "Alerty, gdy wątki wymagają Twojej uwagi"
 
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
@@ -644,6 +703,10 @@ msgstr "Wszystkie poziomy"
 msgid "All files"
 msgstr "Wszystkie pliki"
 
+#: src/mobile/views/ThreadsView.tsx
+msgid "All projects"
+msgstr "Wszystkie projekty"
+
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/helpers.ts
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
 msgid "Allow"
@@ -653,6 +716,12 @@ msgstr "Zezwól"
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Allow agents to read/write cookies and storage"
 msgstr "Zezwalaj agentom na odczyt/zapis plików cookie i przechowywanie"
+
+#: src/mobile/QrScanner.tsx
+msgid "Allow camera access for this site in your browser settings and try again "
+"— or enter the endpoint and token below."
+msgstr "Zezwól tej stronie na dostęp do kamery w ustawieniach przeglądarki i "
+"spróbuj ponownie albo wpisz poniżej endpoint i token."
 
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -688,6 +757,11 @@ msgstr "Inny czat korzysta z tego samego drzewa. Przywrócenie pliku może "
 msgid "App Browser"
 msgstr "Przeglądarka aplikacji"
 
+#: src/mobile/views/MoreView.tsx
+msgid "App preferences"
+msgstr "Preferencje aplikacji"
+
+#: src/mobile/settingsSections.ts
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Appearance"
@@ -734,6 +808,10 @@ msgstr "Archiwum {0}"
 msgid "Archive All"
 msgstr "Archiwizuj wszystko"
 
+#: src/mobile/views/ThreadsView.tsx
+msgid "Archive all threads"
+msgstr "Archiwizuj wszystkie wątki"
+
 #: src/renderer/commands/registry.ts
 msgid "Archive the current thread"
 msgstr "Archiwizuj bieżący wątek"
@@ -742,10 +820,14 @@ msgstr "Archiwizuj bieżący wątek"
 msgid "Archive thread"
 msgstr "Archiwizuj wątek"
 
+#: src/mobile/ThreadTitleRow.tsx
+#: src/mobile/views/ThreadsView.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
 msgid "Archive Thread"
 msgstr "Archiwum wątku"
 
+#: src/mobile/settingsSections.ts
+#: src/mobile/views/SettingsView.tsx
 #: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Archived Threads"
@@ -874,10 +956,25 @@ msgstr "Kolor awatara"
 msgid "Avatar color {color}"
 msgstr "Kolor awatara {color}"
 
+#: src/mobile/views/BrowserView.tsx
+#: src/mobile/views/GitView.tsx
+#: src/mobile/views/pr/PrPageHeader.tsx
+#: src/mobile/views/TerminalView.tsx
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Back"
 msgstr "Powrót"
+
+#: src/mobile/views/GitView.tsx
+msgid "Back to files"
+msgstr "Wróć do plików"
+
+#: src/mobile/views/pr/PrChangesPage.tsx
+#: src/mobile/views/pr/PrChecksPage.tsx
+#: src/mobile/views/pr/PrCommitsPage.tsx
+#: src/mobile/views/pr/PrConversationPage.tsx
+msgid "Back to overview"
+msgstr "Wróć do przeglądu"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Background process exited unexpectedly"
@@ -895,6 +992,7 @@ msgstr "Proces w tle został wznowiony"
 msgid "Background tasks"
 msgstr "Zadania w tle"
 
+#: src/mobile/views/pr/PrOverviewPage.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "Base branch is ahead — branch must be updated first."
 msgstr "Gałąź bazowa wyprzedza — gałąź musi najpierw zostać zaktualizowana."
@@ -1002,6 +1100,9 @@ msgstr "Wyszukaj folder nadrzędny"
 msgid "Browse your GitHub repositories or paste a clone URL."
 msgstr "Przeglądaj swoje repozytoria GitHub lub wklej adres URL do klonowania."
 
+#: src/mobile/RootLayout.tsx
+#: src/mobile/settingsSections.ts
+#: src/mobile/views/MoreView.tsx
 #: src/renderer/commands/registry.ts
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/composer/AttachmentBar.tsx
@@ -1040,6 +1141,10 @@ msgstr "Cel wyboru przeglądarki (wątki CLI)"
 msgid "Browser pick target for CLI threads"
 msgstr "Cel wyboru przeglądarki dla wątków CLI"
 
+#: src/mobile/views/BrowserView.tsx
+msgid "Browser tabs"
+msgstr "Karty przeglądarki"
+
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 msgid "Budget limit reached"
 msgstr "Osiągnięto limit budżetu"
@@ -1075,7 +1180,16 @@ msgstr "Omiń zasady ochrony gałęzi"
 msgid "Bypass branch protection rules (admin merge)"
 msgstr "Omiń reguły ochrony gałęzi (scalanie administracyjne)"
 
+#: src/mobile/views/DesktopsView.tsx
+msgid "Cached only"
+msgstr "Tylko z pamięci podręcznej"
+
+#: src/mobile/QrScanner.tsx
+msgid "Camera access blocked"
+msgstr "Dostęp do kamery zablokowany"
+
 #. Dialog button: dismiss without deleting
+#: src/mobile/views/GitActionSheet.tsx
 #: src/renderer/components/common/ConfirmDialog.tsx
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 #: src/renderer/components/thread/ChatPane/parts/CheckpointRevertControls.tsx
@@ -1137,6 +1251,8 @@ msgstr "Zmień użytkownika"
 msgid "Changelog"
 msgstr "Dziennik zmian"
 
+#: src/mobile/views/pr/PrChangesPage.tsx
+#: src/mobile/views/pr/PrOverviewPage.tsx
 #: src/renderer/views/GitReviewOverlay/GitReviewOverlay.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 #: src/renderer/views/PrReviewOverlay/parts/PrTabsPill.tsx
@@ -1196,6 +1312,8 @@ msgstr "Sprawdź poziom sygnału wejściowego na żywo z wybranego urządzenia."
 msgid "Checking…"
 msgstr "Sprawdzam…"
 
+#: src/mobile/views/pr/PrChecksPage.tsx
+#: src/mobile/views/pr/PrOverviewPage.tsx
 #: src/renderer/views/PrReviewOverlay/parts/PrTabsPill.tsx
 msgid "Checks"
 msgstr "Kontrole"
@@ -1310,9 +1428,14 @@ msgstr "Klonowanie {cloneTarget}"
 msgid "Cloning…"
 msgstr "Klonowanie…"
 
+#: src/mobile/components.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 msgid "Close"
 msgstr "Zamknij"
+
+#: src/mobile/views/BrowserView.tsx
+msgid "Close {closeTarget}"
+msgstr "Zamknij {closeTarget}"
 
 #: src/renderer/views/LoginTerminalOverlay/LoginTerminalOverlay.tsx
 msgid "Close {purposeNoun} terminal"
@@ -1321,6 +1444,10 @@ msgstr "Zamknij terminal {purposeNoun}"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 msgid "Close browser"
 msgstr "Zamknij przeglądarkę"
+
+#: src/mobile/views/DesktopsView.tsx
+msgid "Close desktop actions"
+msgstr "Zamknij akcje desktopa"
 
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorToolbar.tsx
 msgid "Close editor"
@@ -1341,6 +1468,14 @@ msgstr "Zamknij cel"
 #: src/renderer/views/MainView/parts/AppContent/AppContent.tsx
 msgid "Close group"
 msgstr "Zamknij grupę"
+
+#: src/mobile/views/ThreadsView.tsx
+msgid "Close group actions"
+msgstr "Zamknij akcje grupy"
+
+#: src/mobile/views/GitActionSheet.tsx
+msgid "Close menu"
+msgstr "Zamknij menu"
 
 #: src/renderer/commands/shortcutCatalog.ts
 msgid "Close overlay"
@@ -1363,9 +1498,21 @@ msgstr "Zamknij plan"
 msgid "Close PR"
 msgstr "Zamknij PR"
 
+#: src/mobile/views/pr/PrOverviewPage.tsx
+msgid "Close PR review"
+msgstr "Zamknij recenzję PR"
+
 #: src/renderer/components/composer/ImageLightbox.tsx
 msgid "Close preview"
 msgstr "Zamknij podgląd"
+
+#: src/mobile/views/ThreadsView.tsx
+msgid "Close project filter"
+msgstr "Zamknij filtr projektów"
+
+#: src/mobile/QrScanner.tsx
+msgid "Close scanner"
+msgstr "Zamknij skaner"
 
 #: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
 msgid "Close search"
@@ -1390,6 +1537,15 @@ msgstr "Zamknij panel subagentów"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabStrip.tsx
 msgid "Close tab"
 msgstr "Zamknij kartę"
+
+#: src/mobile/views/BrowserView.tsx
+msgid "Close tab switcher"
+msgstr "Zamknij przełącznik kart"
+
+#: src/mobile/ThreadTitleRow.tsx
+#: src/mobile/views/ThreadsView.tsx
+msgid "Close thread actions"
+msgstr "Zamknij akcje wątku"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -1516,6 +1672,7 @@ msgstr "Opcje zatwierdzenia"
 msgid "Commit, PR, and review composers"
 msgstr "Kompozytory commita, PR i recenzji"
 
+#: src/mobile/views/pr/PrCommitsPage.tsx
 #: src/renderer/views/PrReviewOverlay/parts/PrTabsPill.tsx
 msgid "Commits"
 msgstr "Commity"
@@ -1583,6 +1740,14 @@ msgstr "Rozwiązywanie konfliktów"
 msgid "Conflicts"
 msgstr "Konflikty"
 
+#: src/mobile/views/BrowserView.tsx
+msgid "Connecting to the desktop browser…"
+msgstr "Łączenie z przeglądarką desktopa…"
+
+#: src/mobile/components.tsx
+msgid "Connection error."
+msgstr "Błąd połączenia."
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Console"
 msgstr "Konsola"
@@ -1646,6 +1811,8 @@ msgstr "Kontroluj, które pliki pojawiają się w wyszukiwaniu wzmianek @plik. "
 "Zastąpienia poszczególnych projektów są dostępne w ustawieniach każdego "
 "projektu."
 
+#: src/mobile/views/pr/PrConversationPage.tsx
+#: src/mobile/views/pr/PrOverviewPage.tsx
 #: src/renderer/views/PrReviewOverlay/parts/PrTabsPill.tsx
 msgid "Conversation"
 msgstr "Rozmowa"
@@ -1750,6 +1917,10 @@ msgstr "Nie można skopiować niezatwierdzonych zmian do nowego drzewa roboczego
 msgid "Couldn't create the project."
 msgstr "Nie udało się utworzyć projektu."
 
+#: src/mobile/useRemoteDesktop.ts
+msgid "Couldn't create the worktree."
+msgstr "Nie udało się utworzyć worktree."
+
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "Couldn't list repositories."
 msgstr "Nie udało się wyświetlić listy repozytoriów."
@@ -1761,6 +1932,14 @@ msgstr "Nie udało się wczytać statystyk profilu."
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Couldn't save the shortcut."
 msgstr "Nie udało się zapisać skrótu."
+
+#: src/mobile/QrScanner.tsx
+msgid "Couldn't start the camera"
+msgstr "Nie udało się uruchomić kamery"
+
+#: src/mobile/useRemoteDesktop.ts
+msgid "Couldn't tag the thread's worktree."
+msgstr "Nie udało się oznaczyć worktree wątku."
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CreatePrModal.tsx
 msgid "Create Draft PR"
@@ -1932,10 +2111,13 @@ msgstr "Usuń plik"
 msgid "Delete permanently"
 msgstr "Usuń trwale"
 
+#: src/mobile/views/SettingsView.tsx
 #: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
 msgid "Delete thread"
 msgstr "Usuń wątek"
 
+#: src/mobile/ThreadTitleRow.tsx
+#: src/mobile/views/ThreadsView.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
 msgid "Delete Thread"
 msgstr "Usuń wątek"
@@ -1980,6 +2162,19 @@ msgstr "Opis"
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CreatePrModal.tsx
 msgid "Description (optional)"
 msgstr "Opis (opcjonalnie)"
+
+#: src/mobile/views/SettingsView.tsx
+msgid "Desktop"
+msgstr "Desktop"
+
+#: src/mobile/useRemoteDesktop.ts
+msgid "Desktop is unreachable."
+msgstr "Desktop jest niedostępny."
+
+#: src/mobile/RootLayout.tsx
+#: src/mobile/views/DesktopsView.tsx
+msgid "Desktops"
+msgstr "Desktopy"
 
 #. placeholder {0}: detectionScopeLabel(status)
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
@@ -2052,6 +2247,18 @@ msgstr "Wyłączone"
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Discard"
 msgstr "Odrzuć"
+
+#: src/mobile/views/GitActionSheet.tsx
+msgid "Discard all changes"
+msgstr "Odrzuć wszystkie zmiany"
+
+#: src/mobile/views/GitActionSheet.tsx
+msgid "Discard changes"
+msgstr "Odrzuć zmiany"
+
+#: src/mobile/views/GitActionSheet.tsx
+msgid "Discard changes to <0>{title}</0>? This cannot be undone."
+msgstr "Odrzucić zmiany w <0>{title}</0>? Tego nie można cofnąć."
 
 #: src/renderer/commands/registry.ts
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
@@ -2203,6 +2410,10 @@ msgstr "Edytor LSP"
 msgid "Editor tabs"
 msgstr "Zakładki edytora"
 
+#: src/mobile/views/SettingsView.tsx
+msgid "Edits the paired desktop and syncs back to it."
+msgstr "Edytuje sparowany desktop i synchronizuje zmiany z powrotem."
+
 #: src/renderer/components/common/EffortContextMenu/EffortContextMenu.tsx
 msgid "Effort and context"
 msgstr "Wysiłek i kontekst"
@@ -2253,6 +2464,10 @@ msgstr "Włącz dostawców w ustawieniach"
 msgid "Enabled"
 msgstr "Włączone"
 
+#: src/mobile/views/SettingsView.tsx
+msgid "Enabled agents, model visibility and order"
+msgstr "Włączeni agenci, widoczność i kolejność modeli"
+
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
 msgid "Enables <0>cookies</0> and <1>storage</1>. Cookies can contain session "
 "tokens and storage often holds auth state — only enable when you trust "
@@ -2261,6 +2476,10 @@ msgstr "Włącza <0>pliki cookie</0> i <1>przechowywanie</1>. Pliki cookie mogą
 "zawierać tokeny sesji, a pamięć często przechowuje stan "
 "uwierzytelnienia — włącz tę opcję tylko wtedy, gdy ufasz zarówno "
 "agentowi, jak i odwiedzanym przez niego witrynom."
+
+#: src/mobile/views/DesktopsView.tsx
+msgid "Endpoint"
+msgstr "Endpoint"
 
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 msgid "Enhanced (Hooks)"
@@ -2298,6 +2517,8 @@ msgid "error"
 msgstr "błąd"
 
 #. Notification status: agent error
+#: src/mobile/presentation.ts
+#: src/mobile/useRemoteDesktop.ts
 #: src/renderer/components/providers/ProviderUsageRail.tsx
 #: src/renderer/components/providers/usageFormat.ts
 #: src/renderer/components/thread/ChatPane/parts/items/ErrorItem.tsx
@@ -2321,6 +2542,14 @@ msgstr "Wyklucz wzorce"
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Exit plan mode"
 msgstr "Wyjdź z trybu planu"
+
+#: src/mobile/views/TerminalView.tsx
+msgid "exited"
+msgstr "zakończono"
+
+#: src/mobile/views/TerminalView.tsx
+msgid "exited ({exitCode})"
+msgstr "zakończono ({exitCode})"
 
 #. placeholder {0}: renderedSession.failedExitCode
 #: src/renderer/views/LoginTerminalOverlay/LoginTerminalOverlay.tsx
@@ -2463,6 +2692,10 @@ msgid "Files matching these globs are hidden from the @file mention search."
 msgstr "Pliki pasujące do tych globów są ukryte przed wyszukiwaniem wzmianek "
 "@file."
 
+#: src/mobile/views/ThreadsView.tsx
+msgid "Filter by project"
+msgstr "Filtruj według projektu"
+
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Filter settings"
 msgstr "Filtruj ustawienia"
@@ -2488,6 +2721,7 @@ msgstr "Znajdź w terminalu"
 msgid "Finish your review"
 msgstr "Zakończ swoją recenzję"
 
+#: src/mobile/presentation.ts
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 msgid "Finished"
 msgstr "Zakończono"
@@ -2558,6 +2792,10 @@ msgid "Folder that holds this project's worktrees. Reset to use the global "
 msgstr "Folder przechowujący drzewa robocze tego projektu. Zresetuj, aby użyć "
 "ustawienia globalnego."
 
+#: src/mobile/views/SettingsView.tsx
+msgid "Fonts and scrolling"
+msgstr "Czcionki i przewijanie"
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/ForceDeleteBranchDialog.tsx
 msgid "Force Delete"
 msgstr "Wymuś usunięcie"
@@ -2578,6 +2816,7 @@ msgstr "Fork"
 msgid "Format files"
 msgstr "Formatuj pliki"
 
+#: src/mobile/views/BrowserView.tsx
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Forward"
@@ -2611,6 +2850,7 @@ msgstr "Pełny dostęp"
 msgid "Fullscreen overlay"
 msgstr "Nakładka pełnoekranowa"
 
+#: src/mobile/settingsSections.ts
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/views/ProjectSettingsOverlay/parts/GeneralSection.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/SettingsSidebar.tsx
@@ -2649,6 +2889,7 @@ msgstr "Generuje krótkie tytuły nowych wątków."
 msgid "Get task"
 msgstr "Pobierz zadanie"
 
+#: src/mobile/settingsSections.ts
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/layout/UnifiedRightPanel.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
@@ -2663,6 +2904,10 @@ msgstr "Git"
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Git {command} failed: {detail}"
 msgstr "Git {command} nie powiódł się: {detail}"
+
+#: src/mobile/views/GitActionSheet.tsx
+msgid "Git actions"
+msgstr "Akcje Git"
 
 #: src/renderer/views/GitReviewOverlay/GitReviewOverlay.tsx
 msgid "Git Review"
@@ -2779,6 +3024,10 @@ msgstr "Ukryj kanonicznego inspektora elementów środowiska wykonawczego"
 msgid "Hide context usage details"
 msgstr "Ukryj szczegóły użycia kontekstu"
 
+#: src/mobile/views/BrowserView.tsx
+msgid "Hide keyboard"
+msgstr "Ukryj klawiaturę"
+
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilitySection.tsx
 msgid "Hide models you don't use from the model picker across every provider."
 msgstr "Ukryj modele, których nie używasz, w selektorze modeli u każdego "
@@ -2822,6 +3071,7 @@ msgid "ID: {0}"
 msgstr "Identyfikator: {0}"
 
 #. Microphone input level when not testing
+#: src/mobile/presentation.ts
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 msgid "Idle"
@@ -2836,6 +3086,14 @@ msgstr "Obraz"
 msgid "Image preview"
 msgstr "Podgląd obrazu"
 
+#: src/mobile/QrScanner.tsx
+msgid "In-app camera scanning only works over HTTPS. Use your phone's camera "
+"app to scan the desktop QR code, or enter the endpoint and token below."
+msgstr "Skanowanie kamerą w aplikacji działa tylko przez HTTPS. Użyj aplikacji "
+"aparatu w telefonie, aby zeskanować kod QR desktopa, albo wpisz poniżej "
+"endpoint i token."
+
+#: src/mobile/presentation.ts
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 msgid "Inactive"
 msgstr "Nieaktywny"
@@ -3004,6 +3262,10 @@ msgstr "Ostatnie narzędzie: <0>{0}</0>"
 msgid "Launch thread"
 msgstr "Uruchom wątek"
 
+#: src/mobile/presentation.ts
+msgid "Launching"
+msgstr "Uruchamianie"
+
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 msgid "Launching…"
 msgstr "Uruchamiam…"
@@ -3042,6 +3304,14 @@ msgstr "Tokeny ogółem"
 msgid "Light"
 msgstr "Jasny"
 
+#: src/mobile/RootLayout.tsx
+msgid "Lightcode mobile navigation"
+msgstr "Nawigacja mobilna Lightcode"
+
+#: src/mobile/views/SettingsView.tsx
+msgid "Links and page behavior"
+msgstr "Linki i zachowanie stron"
+
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "List"
@@ -3054,6 +3324,15 @@ msgstr "Lista pakietów"
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "List tasks"
 msgstr "Lista zadań"
+
+#: src/mobile/useRemoteDesktop.ts
+msgid "Live"
+msgstr "Na żywo"
+
+#. placeholder {0}: formatShortDateTime(desktop.lastConnectedAt)
+#: src/mobile/views/DesktopsView.tsx
+msgid "Live {0}"
+msgstr "Na żywo {0}"
 
 #: src/renderer/components/common/PixelLoader.tsx
 msgid "Loading"
@@ -3087,6 +3366,15 @@ msgstr "Ładowanie PR…"
 msgid "Loading registry..."
 msgstr "Ładowanie rejestru..."
 
+#: src/mobile/views/ThreadView.tsx
+msgid "Loading thread"
+msgstr "Ładowanie wątku"
+
+#: src/mobile/views/ThreadsView.tsx
+msgid "Loading threads"
+msgstr "Ładowanie wątków"
+
+#: src/mobile/routeComponents.tsx
 #: src/renderer/app.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/parts/TreeEntryRow.tsx
@@ -3170,6 +3458,10 @@ msgstr "Uczyń pasek boczny półprzezroczystym — systemowy efekt rozmycia w "
 msgid "Manual order"
 msgstr "Kolejność ręczna"
 
+#: src/mobile/views/ThreadsView.tsx
+msgid "Mark all done"
+msgstr "Oznacz wszystkie jako ukończone"
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadGroup.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarWorktreeGroup.tsx
 msgid "Mark All Done"
@@ -3187,6 +3479,8 @@ msgstr "Oznacz jako niezrobione"
 msgid "Mark done"
 msgstr "Oznacz gotowe"
 
+#: src/mobile/ThreadTitleRow.tsx
+#: src/mobile/views/ThreadsView.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
 msgid "Mark Done"
 msgstr "Oznacz gotowe"
@@ -3225,6 +3519,7 @@ msgstr "Wywołania narzędzi MCP"
 msgid "Merge & Remove"
 msgstr "Scal i usuń"
 
+#: src/mobile/views/pr/PrOverviewPage.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "Merge conflicts must be resolved."
 msgstr "Należy rozwiązać konflikty scalania."
@@ -3327,6 +3622,14 @@ msgstr "Minimalizuj przeglądarkę do prawego panelu"
 msgid "Minimize to panel"
 msgstr "Minimalizuj do panelu"
 
+#: src/mobile/views/BrowserView.tsx
+msgid "Mirrored desktop browser tab"
+msgstr "Lustrzana karta przeglądarki desktopa"
+
+#: src/mobile/views/BrowserView.tsx
+msgid "Mirroring is unavailable."
+msgstr "Kopia lustrzana jest niedostępna."
+
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Mode"
@@ -3367,6 +3670,7 @@ msgstr "Modele"
 msgid "Modes"
 msgstr "Tryby"
 
+#: src/mobile/RootLayout.tsx
 #: src/renderer/views/ProfileOverlay/parts/ActivityHeatmap.tsx
 msgid "More"
 msgstr "Więcej"
@@ -3458,6 +3762,7 @@ msgstr "Dostawcy natywni"
 msgid "Native support"
 msgstr "Wsparcie natywne"
 
+#: src/mobile/presentation.ts
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 msgid "Needs approval"
 msgstr "Potrzebuje zgody"
@@ -3475,9 +3780,14 @@ msgstr "Wymaga uwagi · Wymagana zgoda"
 msgid "Needs Attention · Reply required"
 msgstr "Wymaga uwagi · Wymagana odpowiedź"
 
+#: src/mobile/presentation.ts
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 msgid "Needs reply"
 msgstr "Potrzebuje odpowiedzi"
+
+#: src/mobile/RootLayout.tsx
+msgid "New"
+msgstr "Nowy"
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ActionsSection.tsx
 msgid "New action command"
@@ -3521,11 +3831,14 @@ msgstr "Nowy projekt"
 msgid "New quick thread"
 msgstr "Nowy szybki wątek"
 
+#: src/mobile/views/BrowserView.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabStrip.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "New tab"
 msgstr "Nowa zakładka"
 
+#: src/mobile/RootLayout.tsx
+#: src/mobile/views/ThreadsView.tsx
 #: src/renderer/components/thread/ThreadDraftChrome.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/hooks/useElementPicker.ts
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesEditor.tsx
@@ -3548,6 +3861,10 @@ msgstr "Nowy wątek (wersja robocza)"
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/TodoRow.tsx
 msgid "New thread from this to-do"
 msgstr "Nowy wątek z tego zadania"
+
+#: src/mobile/views/ThreadsView.tsx
+msgid "New thread in worktree"
+msgstr "Nowy wątek w worktree"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarWorktreeGroup.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
@@ -3615,6 +3932,7 @@ msgid "No AI commits, PRs, or conflict resolutions tracked yet."
 msgstr "Nie zarejestrowano jeszcze żadnych commitów AI, PR ani rozwiązanych "
 "konfliktów."
 
+#: src/mobile/views/SettingsView.tsx
 #: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
 msgid "No archived threads."
 msgstr "Brak zarchiwizowanych wątków."
@@ -3626,6 +3944,10 @@ msgstr "Nie znaleziono gałęzi"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserEmptyState.tsx
 msgid "No browser tab open"
 msgstr "Żadna karta przeglądarki nie jest otwarta"
+
+#: src/mobile/QrScanner.tsx
+msgid "No camera found"
+msgstr "Nie znaleziono kamery"
 
 #: src/renderer/components/diff/DiffCardList.tsx
 #: src/renderer/views/PrReviewOverlay/parts/PrReviewSidebar.tsx
@@ -3671,6 +3993,10 @@ msgstr "Brak danych."
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "No description"
 msgstr "Brak opisu"
+
+#: src/mobile/RootLayout.tsx
+msgid "No desktop paired"
+msgstr "Nie sparowano desktopa"
 
 #. placeholder {0}: entry.filePath
 #: src/renderer/views/GitReviewOverlay/parts/GitDiffContent/parts/DiffSection.tsx
@@ -3742,6 +4068,10 @@ msgstr "Żadnych wzorów."
 msgid "No phases yet."
 msgstr "Nie ma jeszcze faz."
 
+#: src/mobile/views/NewThreadView.tsx
+msgid "No projects available"
+msgstr "Brak dostępnych projektów"
+
 #: src/renderer/components/providers/codex/index.tsx
 msgid "No prompts"
 msgstr "Brak podpowiedzi"
@@ -3792,9 +4122,21 @@ msgstr "Żadnych zmian etapowych"
 msgid "No supported agents detected"
 msgstr "Nie wykryto obsługiwanych agentów"
 
+#: src/mobile/views/ThreadView.tsx
+msgid "No thread selected"
+msgstr "Nie wybrano wątku"
+
 #: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
 msgid "No threads"
 msgstr "Brak wątków"
+
+#: src/mobile/views/ThreadsView.tsx
+msgid "No threads in this project"
+msgstr "Brak wątków w tym projekcie"
+
+#: src/mobile/views/ThreadsView.tsx
+msgid "No threads yet"
+msgstr "Nie ma jeszcze wątków"
 
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "No threads yet."
@@ -3855,6 +4197,7 @@ msgstr "Notatki"
 msgid "Nothing tracked yet. It'll appear here as you use it."
 msgstr "Nic jeszcze nie zarejestrowano. Pojawi się tutaj w miarę korzystania."
 
+#: src/mobile/settingsSections.ts
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Notifications"
@@ -3872,6 +4215,14 @@ msgstr "Powiadom mnie o"
 #: src/renderer/views/ProjectSettingsOverlay/parts/SearchSection.tsx
 msgid "off"
 msgstr "wyłączone"
+
+#: src/mobile/useRemoteDesktop.ts
+msgid "Offline"
+msgstr "Offline"
+
+#: src/mobile/components.tsx
+msgid "Offline. Showing the last synced data."
+msgstr "Offline. Pokazywane są ostatnio zsynchronizowane dane."
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/sidebarProjectRows.ts
 msgid "Older"
@@ -3898,6 +4249,10 @@ msgstr "Otwórz {label}"
 #: src/renderer/commands/registry.ts
 msgid "Open a new browser tab"
 msgstr "Otwórz nową kartę przeglądarki"
+
+#: src/mobile/views/NewThreadView.tsx
+msgid "Open a project in Lightcode on your desktop, then refresh."
+msgstr "Otwórz projekt w Lightcode na desktopie, a potem odśwież."
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/DevTerminalPanel.tsx
 msgid "Open a terminal"
@@ -4010,6 +4365,10 @@ msgstr "Otwórz nową kartę"
 msgid "Open new threads as a full page or a side-by-side panel."
 msgstr "Otwieraj nowe wątki jako całą stronę lub panel obok siebie."
 
+#: src/mobile/views/pr/PrOverviewPage.tsx
+msgid "Open on GitHub"
+msgstr "Otwórz w GitHub"
+
 #. placeholder {0}: vis.prNumber
 #: src/renderer/views/MainView/parts/Sidebar/parts/useWorktreeActions.ts
 msgid "Open PR #{0}"
@@ -4044,10 +4403,25 @@ msgstr "Otwórz ustawienia"
 msgid "Open Settings"
 msgstr "Otwórz Ustawienia"
 
+#: src/mobile/views/DesktopsView.tsx
+msgid "Open Settings → Remote Access in Lightcode on your desktop, then scan "
+"the QR code from here — or enter the endpoint and pairing token "
+"manually."
+msgstr "Otwórz Ustawienia → Dostęp zdalny w Lightcode na desktopie, a potem "
+"zeskanuj tutaj kod QR albo wpisz endpoint i token parowania ręcznie."
+
 #. placeholder {0}: display.title
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentToolCall.tsx
 msgid "Open subagent: {0}"
 msgstr "Otwórz subagenta: {0}"
+
+#: src/mobile/views/ThreadsView.tsx
+msgid "Open terminal"
+msgstr "Otwórz terminal"
+
+#: src/mobile/views/ThreadsView.tsx
+msgid "Open terminal in worktree"
+msgstr "Otwórz terminal w worktree"
 
 #: src/renderer/components/providers/codex/index.tsx
 msgid "Open the effort picker"
@@ -4116,6 +4490,39 @@ msgstr "Menedżer pakietów"
 msgid "Page"
 msgstr "Strona"
 
+#: src/mobile/views/DesktopsView.tsx
+msgid "Pair"
+msgstr "Sparuj"
+
+#: src/mobile/views/DesktopsView.tsx
+msgid "Pair a desktop"
+msgstr "Sparuj desktop"
+
+#: src/mobile/components.tsx
+#: src/mobile/useRemoteDesktop.ts
+msgid "Pair again"
+msgstr "Sparuj ponownie"
+
+#: src/mobile/useRemoteDesktop.ts
+msgid "Pairing"
+msgstr "Parowanie"
+
+#: src/mobile/components.tsx
+msgid "Pairing expired — pair again to reconnect."
+msgstr "Parowanie wygasło — sparuj ponownie, aby połączyć."
+
+#: src/mobile/views/DesktopsView.tsx
+msgid "Pairing link detected."
+msgstr "Wykryto link parowania."
+
+#: src/mobile/views/DesktopsView.tsx
+msgid "Pairing token"
+msgstr "Token parowania"
+
+#: src/mobile/views/DesktopsView.tsx
+msgid "Pairing…"
+msgstr "Parowanie…"
+
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Panel"
@@ -4174,6 +4581,10 @@ msgstr "Oczekujące sterowanie"
 msgid "permission"
 msgstr "pozwolenie"
 
+#: src/mobile/views/ThreadView.tsx
+msgid "Pick a thread from the list to follow the agent from here."
+msgstr "Wybierz wątek z listy, aby śledzić agenta stąd."
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Pick element"
 msgstr "Wybierz element"
@@ -4190,10 +4601,13 @@ msgstr "Selektor nie powiódł się"
 msgid "Picker returned no attachment"
 msgstr "Selektor nie zwrócił żadnego załącznika"
 
+#: src/mobile/ThreadTitleRow.tsx
+#: src/mobile/views/ThreadsView.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
 msgid "Pin to top"
 msgstr "Przypnij do góry"
 
+#: src/mobile/views/ThreadsView.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/parts/ThreadItemSuffix.tsx
 msgid "Pinned"
 msgstr "Przypięty"
@@ -4212,6 +4626,10 @@ msgstr "Odtwórz dźwięk po wyświetleniu powiadomienia."
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Play notification sound"
 msgstr "Odtwórz dźwięk powiadomienia"
+
+#: src/mobile/QrScanner.tsx
+msgid "Point at the QR code in Settings → Remote Access"
+msgstr "Skieruj aparat na kod QR w Ustawienia → Dostęp zdalny"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Point this profile at a non-Anthropic provider (z.ai, …) with custom env "
@@ -4301,6 +4719,7 @@ msgstr "Zakres statystyk profilu"
 msgid "Profiles"
 msgstr "Profile"
 
+#: src/mobile/views/ThreadsView.tsx
 #: src/renderer/commands/registry.ts
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/views/ProjectSettingsOverlay/ProjectSettingsOverlay.tsx
@@ -4359,6 +4778,10 @@ msgstr "Dostawca"
 msgid "Provider has not reported token usage."
 msgstr "Dostawca nie zgłosił użycia tokenów."
 
+#: src/mobile/views/MoreView.tsx
+msgid "Provider limits and spend"
+msgstr "Limity i wydatki dostawców"
+
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Provider presets"
 msgstr "Predefiniowani dostawcy"
@@ -4416,6 +4839,16 @@ msgstr "Pull ze źródła ({0})"
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CommitSyncPanel.tsx
 msgid "Pull Rebase ({behind})"
 msgstr "Pull Rebase ({behind})"
+
+#. placeholder {0}: pr.state
+#: src/mobile/GitSummaryParts.tsx
+msgid "Pull request {0}"
+msgstr "Pull request {0}"
+
+#. placeholder {0}: pr.prNumber
+#: src/mobile/views/pr/PrOverviewPage.tsx
+msgid "Pull request #{0}"
+msgstr "Pull request #{0}"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 msgid "Pull request options"
@@ -4496,6 +4929,18 @@ msgstr "Najnowsze"
 msgid "Recent threads"
 msgstr "Najnowsze wątki"
 
+#: src/mobile/components.tsx
+msgid "Reconnect"
+msgstr "Połącz ponownie"
+
+#: src/mobile/useRemoteDesktop.ts
+msgid "Reconnecting"
+msgstr "Ponowne łączenie"
+
+#: src/mobile/components.tsx
+msgid "Reconnecting to your desktop…"
+msgstr "Ponowne łączenie z desktopem…"
+
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Reconstructed from local logs at public API rates — it does not reflect "
@@ -4506,6 +4951,8 @@ msgstr "Zrekonstruowane z lokalnych dzienników po stawkach publicznego API — 
 
 #. Button: re-fetch one provider's usage now
 #. Button: re-fetch provider usage now
+#: src/mobile/views/GitView.tsx
+#: src/mobile/views/pr/PrOverviewPage.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
 #: src/renderer/views/GitReviewOverlay/GitReviewOverlay.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewPanel.tsx
@@ -4543,6 +4990,7 @@ msgstr "Odświeżanie statusu uwierzytelnienia {0}."
 msgid "Refreshing {env} {0} authentication status."
 msgstr "Odświeżanie stanu uwierzytelnienia {env} {0}."
 
+#: src/mobile/views/BrowserView.tsx
 #: src/renderer/RendererCrashScreen.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Reload"
@@ -4567,6 +5015,10 @@ msgstr "Zdalna nazwa"
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 msgid "Remote URL"
 msgstr "Zdalny adres URL"
+
+#: src/mobile/views/SettingsView.tsx
+msgid "Removal behavior"
+msgstr "Zachowanie usuwania"
 
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
 msgid "Remove"
@@ -4593,6 +5045,10 @@ msgstr "Usuń akcję"
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Remove Claude profile"
 msgstr "Usuń profil Claude"
+
+#: src/mobile/views/DesktopsView.tsx
+msgid "Remove desktop"
+msgstr "Usuń desktop"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Remove environment variable"
@@ -4626,6 +5082,9 @@ msgstr "Usuń skrót"
 msgid "Remove worktree?"
 msgstr "Usunąć drzewo robocze?"
 
+#: src/mobile/ThreadTitleRow.tsx
+#: src/mobile/views/DesktopsView.tsx
+#: src/mobile/views/ThreadsView.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/parts/TreeEntryRow.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
 msgid "Rename"
@@ -4634,6 +5093,10 @@ msgstr "Zmień nazwę"
 #: src/renderer/commands/registry.ts
 msgid "Rename chat"
 msgstr "Zmień nazwę czatu"
+
+#: src/mobile/views/DesktopsView.tsx
+msgid "Rename desktop"
+msgstr "Zmień nazwę desktopa"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadGroup.tsx
 msgid "Rename Group"
@@ -4688,6 +5151,7 @@ msgstr "repozytorium"
 msgid "Repository"
 msgstr "Repozytorium"
 
+#: src/mobile/views/pr/PrOverviewPage.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "Repository pre-receive hook is blocking the merge."
 msgstr "Hak pre-receive repozytorium blokuje scalanie."
@@ -4708,6 +5172,7 @@ msgstr "Szczegóły żądania"
 msgid "requested changes"
 msgstr "żądane zmiany"
 
+#: src/mobile/views/pr/PrOverviewPage.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "Required reviews, conversations, or status checks not met."
 msgstr "Nie spełniono wymaganych recenzji, rozmów lub kontroli stanu."
@@ -4778,9 +5243,22 @@ msgstr "Przywróć przeglądarkę"
 msgid "Restore default worktree base folder"
 msgstr "Przywróć domyślny folder bazowy drzew roboczych"
 
+#: src/mobile/views/SettingsView.tsx
+msgid "Restore or delete"
+msgstr "Przywróć lub usuń"
+
+#: src/mobile/views/SettingsView.tsx
 #: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
 msgid "Restore thread"
 msgstr "Przywróć wątek"
+
+#: src/mobile/views/BrowserView.tsx
+msgid "Retry"
+msgstr "Spróbuj ponownie"
+
+#: src/mobile/components.tsx
+msgid "Retry now"
+msgstr "Spróbuj teraz"
 
 #: src/renderer/hooks/usePrWriteActions.ts
 msgid "Retry with admin"
@@ -4855,6 +5333,10 @@ msgstr "Przejrzyj PR"
 #: src/renderer/components/common/BranchSelector/parts/BranchListBox.tsx
 msgid "Review PR #{prNumber} for {0}"
 msgstr "Przejrzyj PR #{prNumber} dla {0}"
+
+#: src/mobile/views/SettingsView.tsx
+msgid "Review presentation"
+msgstr "Prezentacja recenzji"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Right"
@@ -4969,11 +5451,23 @@ msgstr "Zapisz skrót"
 msgid "Saved credentials are shared across all environments."
 msgstr "Zapisane poświadczenia są udostępniane we wszystkich środowiskach."
 
+#: src/mobile/QrScanner.tsx
+msgid "Scan pairing QR code"
+msgstr "Skanuj kod QR parowania"
+
+#: src/mobile/views/DesktopsView.tsx
+msgid "Scan QR code"
+msgstr "Skanuj kod QR"
+
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 msgid "Scanning {wslDistro} for installed CLIs. This usually takes a couple of "
 "seconds."
 msgstr "Skanowanie {wslDistro} w poszukiwaniu zainstalowanych interfejsów CLI. "
 "Zwykle zajmuje to kilka sekund."
+
+#: src/mobile/QrScanner.tsx
+msgid "Scanning needs a secure connection"
+msgstr "Skanowanie wymaga bezpiecznego połączenia"
 
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 msgid "Scanning Windows and WSL for installed CLIs. This usually takes a couple "
@@ -5040,6 +5534,7 @@ msgstr "Wyszukaj modele"
 msgid "Search models..."
 msgstr "Wyszukaj modele..."
 
+#: src/mobile/views/BrowserView.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Search or enter address"
 msgstr "Wyszukaj lub wpisz adres"
@@ -5158,6 +5653,8 @@ msgstr "Ustaw lub wyświetl cel eksperymentalny"
 msgid "Set shortcut"
 msgstr "Ustaw skrót"
 
+#: src/mobile/RootLayout.tsx
+#: src/mobile/views/MoreView.tsx
 #: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 #: src/renderer/views/SettingsOverlay/SettingsOverlay.tsx
@@ -5370,9 +5867,16 @@ msgstr "Umiejętności"
 msgid "Skills explored"
 msgstr "Użyte skills"
 
+#: src/mobile/views/pr/PrOverviewPage.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "Some checks are failing or pending."
 msgstr "Niektóre kontrole kończą się niepowodzeniem lub oczekują na realizację."
+
+#: src/mobile/QrScanner.tsx
+msgid "Something went wrong starting the camera. Enter the endpoint and token "
+"below to pair instead."
+msgstr "Coś poszło nie tak podczas uruchamiania kamery. Zamiast tego wpisz "
+"poniżej endpoint i token, aby sparować."
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/sortMode.ts
 msgid "Sort by created"
@@ -5390,11 +5894,13 @@ msgstr "Sortuj wątki"
 msgid "Split Terminal"
 msgstr "Podzielony terminal"
 
+#: src/mobile/components.tsx
 #: src/renderer/views/GitReviewOverlay/GitReviewOverlay.tsx
 #: src/renderer/views/PrReviewOverlay/PrReviewOverlay.tsx
 msgid "Split view"
 msgstr "Widok podzielony"
 
+#: src/mobile/views/GitActionSheet.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ConflictFileCard.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ConflictGroup.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/FileRow.tsx
@@ -5402,6 +5908,7 @@ msgstr "Widok podzielony"
 msgid "Stage"
 msgstr "Przygotuj"
 
+#: src/mobile/views/GitActionSheet.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/FileGroup.tsx
 msgid "Stage all"
 msgstr "Przygotuj wszystko"
@@ -5445,6 +5952,10 @@ msgstr "Rozpocznij nowy wątek od zaznaczonego tekstu"
 msgid "Start a new thread from this to-do"
 msgstr "Rozpocznij nowy wątek od tego zadania"
 
+#: src/mobile/views/ThreadsView.tsx
+msgid "Start a new thread to put an agent to work from this device."
+msgstr "Rozpocznij nowy wątek, aby uruchomić agenta z tego urządzenia."
+
 #: src/renderer/commands/composerCommands.ts
 msgid "Start dictation"
 msgstr "Rozpocznij dyktowanie"
@@ -5479,9 +5990,18 @@ msgid "Started {targetLabel} thread"
 msgstr "Rozpoczęto wątek {targetLabel}"
 
 #. Button label while the microphone test is starting
+#: src/mobile/useRemoteDesktop.ts
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 msgid "Starting"
 msgstr "Rozpoczęcie"
+
+#: src/mobile/QrScanner.tsx
+msgid "Starting camera…"
+msgstr "Uruchamianie kamery…"
+
+#: src/mobile/views/BrowserView.tsx
+msgid "Starting mirror…"
+msgstr "Uruchamianie kopii lustrzanej…"
 
 #: src/renderer/components/composer/VoiceInputButton.tsx
 msgid "Starting voice input"
@@ -5495,6 +6015,10 @@ msgstr "uruchamianie…"
 #: src/renderer/views/MainView/parts/PullFromSourceDialog.tsx
 msgid "Stash & Pull"
 msgstr "Schowaj (stash) i pobierz (pull)"
+
+#: src/mobile/views/pr/PrOverviewPage.tsx
+msgid "Status"
+msgstr "Status"
 
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 msgid "Status is inferred from terminal output (L2). Install the hook plugin in "
@@ -5547,6 +6071,10 @@ msgstr "Przechowuj jako zwykły tekst"
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Store as secret (encrypted at rest)"
 msgstr "Przechowuj jako sekret (szyfrowany w spoczynku)"
+
+#: src/mobile/views/SettingsView.tsx
+msgid "Stored on this phone; the desktop keeps its own values."
+msgstr "Przechowywane na tym telefonie; desktop zachowuje własne wartości."
 
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentOverlay.tsx
 msgid "Subagent"
@@ -5673,6 +6201,10 @@ msgstr "Synchronizacja nie powiodła się: {detail}"
 msgid "Sync options"
 msgstr "Opcje synchronizacji"
 
+#: src/mobile/components.tsx
+msgid "Sync with desktop"
+msgstr "Synchronizuj z desktopem"
+
 #: src/renderer/views/ProfileOverlay/parts/ProfileHeader.tsx
 msgid "Syncs with Cloud"
 msgstr "Synchronizuje się z Cloud"
@@ -5694,6 +6226,19 @@ msgstr "Domyślne systemowe"
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
 msgid "System notifications"
 msgstr "Powiadomienia systemowe"
+
+#: src/mobile/views/BrowserView.tsx
+msgid "tab"
+msgstr "kartę"
+
+#: src/mobile/views/BrowserView.tsx
+msgid "Tabs"
+msgstr "Karty"
+
+#. placeholder {0}: state?.tabs.length ?? 0
+#: src/mobile/views/BrowserView.tsx
+msgid "Tabs ({0})"
+msgstr "Karty ({0})"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Take Screenshot"
@@ -5720,6 +6265,7 @@ msgstr "Powiedz {0}, co ma dalej robić..."
 msgid "Tell the target provider what to do next..."
 msgstr "Powiedz dostawcy docelowemu, co ma dalej robić..."
 
+#: src/mobile/settingsSections.ts
 #: src/renderer/commands/registry.ts
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/layout/UnifiedRightPanel.tsx
@@ -5773,6 +6319,10 @@ msgstr "Zakładki terminala"
 msgid "Test microphone"
 msgstr "Przetestuj mikrofon"
 
+#: src/mobile/routeComponents.tsx
+msgid "That QR code isn't a Lightcode pairing link."
+msgstr "Ten kod QR nie jest linkiem parowania Lightcode."
+
 #: src/renderer/components/thread/ThreadComposerSection.tsx
 msgid "the agent"
 msgstr "agent"
@@ -5794,6 +6344,10 @@ msgstr "Domyślna częstotliwość odświeżania w tle, używana dla każdego do
 "bez własnego interwału ustawionego poniżej. Ustaw na 0, aby wyłączyć "
 "(tylko ręcznie). Minimum 2 minuty respektuje limity żądań dostawcy."
 
+#: src/mobile/views/MoreView.tsx
+msgid "The desktop's built-in browser"
+msgstr "Wbudowana przeglądarka desktopa"
+
 #: src/renderer/RendererCrashScreen.tsx
 msgid "The normal app shell could not render. The diagnostics below are shown "
 "before reload so the failure can be investigated."
@@ -5814,6 +6368,10 @@ msgstr "docelowego dostawcy"
 msgid "Theme"
 msgstr "Motyw"
 
+#: src/mobile/views/SettingsView.tsx
+msgid "Theme and chat font size"
+msgstr "Motyw i rozmiar czcionki czatu"
+
 #: src/renderer/components/common/EffortContextMenu/EffortContextMenu.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/Reasoning.tsx
 #: src/renderer/components/thread/ThreadComposer.tsx
@@ -5824,11 +6382,29 @@ msgstr "Myślenie"
 msgid "This agent is not installed."
 msgstr "Ten agent nie jest zainstalowany."
 
+#: src/mobile/routeComponents.tsx
+msgid "This app is served over HTTPS but the desktop is on plain HTTP, which "
+"browsers block. Open the pairing link directly from the desktop (LAN), "
+"or expose the desktop over HTTPS."
+msgstr "Ta aplikacja jest serwowana przez HTTPS, ale desktop używa zwykłego "
+"HTTP, które przeglądarki blokują. Otwórz link parowania bezpośrednio z "
+"desktopa (LAN) albo udostępnij desktop przez HTTPS."
+
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
 msgid "This browser does not support system notifications here; you will still "
 "see in-app toasts."
 msgstr "Ta przeglądarka nie obsługuje tutaj powiadomień systemowych; nadal "
 "zobaczysz powiadomienia w aplikacji."
+
+#: src/mobile/views/SettingsView.tsx
+msgid "This device"
+msgstr "To urządzenie"
+
+#: src/mobile/QrScanner.tsx
+msgid "This device has no usable camera. Enter the endpoint and token below to "
+"pair instead."
+msgstr "To urządzenie nie ma użytecznej kamery. Zamiast tego wpisz poniżej "
+"endpoint i token, aby sparować."
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
 msgid "this environment"
@@ -5892,6 +6468,7 @@ msgstr "To drzewo robocze zawiera zmiany lokalne. Lightcode może je tymczasowo 
 msgid "Thought"
 msgstr "Myśl"
 
+#: src/mobile/RootLayout.tsx
 #: src/renderer/commands/registry.ts
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/hooks/useElementPicker.ts
@@ -5903,9 +6480,17 @@ msgstr "Wątek"
 msgid "Thread + Worktree"
 msgstr "Wątek + drzewo robocze"
 
+#: src/mobile/ThreadTitleRow.tsx
+msgid "Thread actions"
+msgstr "Akcje wątku"
+
 #: src/renderer/components/thread/ThreadContextDock.tsx
 msgid "Thread context usage"
 msgstr "Użycie kontekstu wątku"
+
+#: src/mobile/views/SettingsView.tsx
+msgid "Thread defaults and home scope"
+msgstr "Domyślne ustawienia wątków i zakres Home"
 
 #: src/renderer/components/thread/ThreadDockUI.tsx
 msgid "Thread dock"
@@ -5945,6 +6530,8 @@ msgstr "Kolejność sortowania wątków"
 msgid "Thread todo dock"
 msgstr "Dok zadań wątku"
 
+#: src/mobile/RootLayout.tsx
+#: src/mobile/settingsSections.ts
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 #: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
 #: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
@@ -5963,6 +6550,10 @@ msgstr "Wątki oznaczone jako zakończone, które nie były poruszane przez tyle
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Title Generation"
 msgstr "Generowanie tytułów"
+
+#: src/mobile/views/SettingsView.tsx
+msgid "Title, commit, and conflict models"
+msgstr "Modele tytułów, commitów i konfliktów"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/TodoList.tsx
 msgid "To-dos"
@@ -6046,6 +6637,10 @@ msgstr "Śledź wykorzystanie sesyjne, tygodniowe i miesięczne dla każdego "
 "dostawcy. Okna są zgłaszane przez każdego dostawcę; szacowany koszt "
 "jest rekonstruowany na podstawie lokalnych dzienników."
 
+#: src/mobile/views/SettingsView.tsx
+msgid "Tracking and display"
+msgstr "Śledzenie i wyświetlanie"
+
 #. Usage status when provider tracking is disabled
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Tracking off"
@@ -6070,6 +6665,14 @@ msgstr "Włącz lub wyłącz śledzenie dla każdego dostawcy. Wyłączeni dosta
 msgid "Type a command"
 msgstr "Wpisz polecenie"
 
+#: src/mobile/views/BrowserView.tsx
+msgid "Type into the page"
+msgstr "Pisz na stronie"
+
+#: src/mobile/views/BrowserView.tsx
+msgid "Type into the page (tap a field first)"
+msgstr "Pisz na stronie (najpierw stuknij pole)"
+
 #. placeholder {0}: agent.label
 #. placeholder {0}: agentStatus.label
 #: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
@@ -6091,10 +6694,18 @@ msgstr "Nie można zainstalować haków {0}."
 msgid "Unable to install {0}."
 msgstr "Nie można zainstalować {0}."
 
+#: src/mobile/useRemoteDesktop.ts
+msgid "Unable to load thread."
+msgstr "Nie można załadować wątku."
+
 #. placeholder {0}: agent.label
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
 msgid "Unable to log out {0}."
 msgstr "Nie można wylogować {0}."
+
+#: src/mobile/views/pr/PrOverviewPage.tsx
+msgid "Unable to merge"
+msgstr "Nie można wykonać merge"
 
 #. placeholder {0}: input.label
 #: src/renderer/actions/agentLoginActions.ts
@@ -6104,6 +6715,10 @@ msgstr "Nie można otworzyć logowania {0}."
 #: src/renderer/commands/registry.ts
 msgid "Unable to open file"
 msgstr "Nie można otworzyć pliku"
+
+#: src/mobile/routeComponents.tsx
+msgid "Unable to pair with that desktop."
+msgstr "Nie można sparować z tym desktopem."
 
 #. placeholder {0}: agentStatus.label
 #. placeholder {0}: status.label
@@ -6147,6 +6762,14 @@ msgstr "Nie można zapisać profilu Claude {displayLabel}."
 msgid "Unable to start {label}."
 msgstr "Nie można uruchomić {label}."
 
+#: src/mobile/useRemoteDesktop.ts
+msgid "Unable to start mobile app."
+msgstr "Nie można uruchomić aplikacji mobilnej."
+
+#: src/mobile/routeComponents.tsx
+msgid "Unable to start the thread."
+msgstr "Nie można uruchomić wątku."
+
 #. placeholder {0}: agent.label
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
 msgid "Unable to update {0} ({envName}): {detailText}"
@@ -6180,6 +6803,10 @@ msgstr "Nie można zaktualizować {0}: {detailText}"
 msgid "Unable to update {0}."
 msgstr "Nie można zaktualizować {0}."
 
+#: src/mobile/useRemoteDesktop.ts
+msgid "Unable to update the thread."
+msgstr "Nie można zaktualizować wątku."
+
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Unassigned"
 msgstr "Nieprzypisany"
@@ -6188,6 +6815,7 @@ msgstr "Nieprzypisany"
 msgid "Ungroup All"
 msgstr "Rozgrupuj wszystko"
 
+#: src/mobile/components.tsx
 #: src/renderer/views/GitReviewOverlay/GitReviewOverlay.tsx
 #: src/renderer/views/PrReviewOverlay/PrReviewOverlay.tsx
 msgid "Unified view"
@@ -6225,10 +6853,16 @@ msgstr "Zwolnij bezczynne wątki po (minutach)"
 msgid "Unload Thread"
 msgstr "Zwolnij wątek"
 
+#: src/mobile/views/ThreadsView.tsx
+msgid "Unmark all done"
+msgstr "Odznacz wszystkie jako ukończone"
+
 #: src/renderer/components/thread/ThreadView.tsx
 msgid "Unmark done"
 msgstr "Odznacz jako gotowe"
 
+#: src/mobile/ThreadTitleRow.tsx
+#: src/mobile/views/ThreadsView.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
 msgid "Unmark Done"
 msgstr "Odznacz jako gotowe"
@@ -6237,15 +6871,19 @@ msgstr "Odznacz jako gotowe"
 msgid "Unphased:"
 msgstr "Bez fazy:"
 
+#: src/mobile/ThreadTitleRow.tsx
+#: src/mobile/views/ThreadsView.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
 msgid "Unpin"
 msgstr "Odepnij"
 
+#: src/mobile/views/GitActionSheet.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/FileRow.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitStackedDiff.tsx
 msgid "Unstage"
 msgstr "Wycofaj z poczekalni"
 
+#: src/mobile/views/GitActionSheet.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/FileGroup.tsx
 msgid "Unstage all"
 msgstr "Wycofaj wszystko z poczekalni"
@@ -6338,6 +6976,9 @@ msgstr "Aktualizowanie {0}"
 msgid "Updating {0} ({env})"
 msgstr "Aktualizowanie {0} ({env})"
 
+#: src/mobile/RootLayout.tsx
+#: src/mobile/settingsSections.ts
+#: src/mobile/views/MoreView.tsx
 #: src/renderer/components/layout/UnifiedRightPanel.tsx
 #: src/renderer/components/providers/ProviderUsageRail.tsx
 #: src/renderer/components/thread/ThreadContextDock.tsx
@@ -6433,6 +7074,10 @@ msgstr "przez {0}"
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "View"
 msgstr "Zobacz"
+
+#: src/mobile/views/GitActionSheet.tsx
+msgid "View diff"
+msgstr "Pokaż diff"
 
 #. placeholder {0}: provider.label
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
@@ -6664,6 +7309,7 @@ msgstr "Przepływ pracy: {description}"
 msgid "Workflows"
 msgstr "Przepływy pracy"
 
+#: src/mobile/presentation.ts
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 msgid "Working"
 msgstr "Pracuje"
@@ -6680,6 +7326,7 @@ msgstr "Drzewo robocze czyste"
 msgid "Working…"
 msgstr "Pracuję…"
 
+#: src/mobile/views/ThreadsView.tsx
 #: src/renderer/components/thread/WorktreeModeSelect.tsx
 msgid "Worktree"
 msgstr "Drzewo robocze"

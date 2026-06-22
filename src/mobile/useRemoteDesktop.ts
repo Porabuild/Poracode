@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import type { MessageDescriptor } from "@lingui/core";
+import { msg } from "@lingui/core/macro";
 import { useShallow } from "zustand/react/shallow";
 import type { Project, PromptSegment, Thread, ThreadServerRequestId } from "@/shared/contracts";
 import { buildPromptContentBlocks } from "@/shared/promptContent";
@@ -11,6 +13,7 @@ import type {
 import { useAppStore } from "@/renderer/state/appStore";
 import { readBridge } from "@/renderer/bridge";
 import type { DraftStartInput } from "@/renderer/components/thread/ThreadDraftComposerArea";
+import { i18n } from "@/renderer/i18n/i18n";
 import { setRemoteBridgeClient } from "./bridge";
 import {
   handleBrowserServerMessage,
@@ -67,14 +70,14 @@ export type ThreadAction =
   | { readonly kind: "unarchive" }
   | { readonly kind: "delete" };
 
-export const CONNECTION_LABELS: Record<ConnectionState, string> = {
-  booting: "Starting",
-  pairing: "Pairing",
-  online: "Live",
-  reconnecting: "Reconnecting",
-  offline: "Offline",
-  unauthorized: "Pair again",
-  error: "Error",
+export const CONNECTION_LABELS: Record<ConnectionState, MessageDescriptor> = {
+  booting: msg`Starting`,
+  pairing: msg`Pairing`,
+  online: msg`Live`,
+  reconnecting: msg`Reconnecting`,
+  offline: msg`Offline`,
+  unauthorized: msg`Pair again`,
+  error: msg`Error`,
 };
 
 /** WebSocket reconnect backoff: full-jitter exponential, capped. */
@@ -169,7 +172,9 @@ export function useRemoteDesktop() {
       .catch((error: unknown) => {
         if (cancelled) return;
         setConnection("error");
-        setMessage(error instanceof Error ? error.message : "Unable to start mobile app.");
+        setMessage(
+          error instanceof Error ? error.message : i18n._(msg`Unable to start mobile app.`),
+        );
       })
       .finally(() => {
         if (!cancelled) setBooted(true);
@@ -446,7 +451,7 @@ export function useRemoteDesktop() {
       }
     } catch (error) {
       setConnection(isUnauthorizedRemoteError(error) ? "unauthorized" : "offline");
-      setMessage(error instanceof Error ? error.message : "Desktop is unreachable.");
+      setMessage(error instanceof Error ? error.message : i18n._(msg`Desktop is unreachable.`));
     }
   }
 
@@ -475,7 +480,7 @@ export function useRemoteDesktop() {
       applyThreadSnapshot(next);
     } catch (error) {
       setConnection(isUnauthorizedRemoteError(error) ? "unauthorized" : "offline");
-      setMessage(error instanceof Error ? error.message : "Unable to load thread.");
+      setMessage(error instanceof Error ? error.message : i18n._(msg`Unable to load thread.`));
     }
   }
 
@@ -559,7 +564,9 @@ export function useRemoteDesktop() {
         worktreePath = created.path;
         isNewWorktree = true;
       } catch (error) {
-        setMessage(error instanceof Error ? error.message : "Couldn't create the worktree.");
+        setMessage(
+          error instanceof Error ? error.message : i18n._(msg`Couldn't create the worktree.`),
+        );
         return null;
       }
     }
@@ -590,7 +597,9 @@ export function useRemoteDesktop() {
         });
         await refresh(desktop);
       } catch (error) {
-        setMessage(error instanceof Error ? error.message : "Couldn't tag the thread's worktree.");
+        setMessage(
+          error instanceof Error ? error.message : i18n._(msg`Couldn't tag the thread's worktree.`),
+        );
       }
     }
     setSelectedThreadId(result.threadId);
@@ -656,7 +665,9 @@ export function useRemoteDesktop() {
     try {
       await clientFor(desktop).sendThreadCommand({ ...action, threadId: thread.id });
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Unable to update the thread.");
+      setMessage(
+        error instanceof Error ? error.message : i18n._(msg`Unable to update the thread.`),
+      );
       void refresh(desktop, { refreshSelectedThread: true });
     }
   }
