@@ -4,6 +4,7 @@ import type { RuntimeEvent } from "@/shared/contracts";
 import {
   createRuntimeEventSlice,
   subscribeRuntimePersistenceDirtyThreads,
+  type RuntimeChatItem,
   type RuntimeEventSlice,
 } from "./runtimeEventSlice";
 
@@ -607,5 +608,26 @@ describe("runtimeEventSlice.applyRuntimeEvent", () => {
       { startedAt: 1, endedAt: 10, anchorItemId: "old" },
       { startedAt: 20, endedAt: 30, anchorItemId: "live" },
     ]);
+  });
+
+  it("flags live-streamed items as observedLive for session-scoped liveness", () => {
+    apply("t1", {
+      type: "item.started",
+      threadId: "t1",
+      itemId: "i1",
+      itemType: "tool_call",
+    });
+    expect(store.getState().runtimeItemsByIdByThread["t1"]?.["i1"]?.observedLive).toBe(true);
+  });
+
+  it("does not flag DB-hydrated items as observedLive (replayed on thread open)", () => {
+    const seeded: RuntimeChatItem = {
+      id: "i1",
+      type: "tool_call",
+      state: "completed",
+      streams: {},
+    };
+    store.getState().hydrateThreadRuntimeItems("t1", [seeded]);
+    expect(store.getState().runtimeItemsByIdByThread["t1"]?.["i1"]?.observedLive).toBeUndefined();
   });
 });

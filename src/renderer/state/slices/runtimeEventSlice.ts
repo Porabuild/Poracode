@@ -65,6 +65,16 @@ export interface RuntimeChatItem {
    * under their parent row instead of listing them as top-level entries.
    */
   parentItemId?: string;
+  /**
+   * True when this item was first seen via the LIVE event stream in the current
+   * app session (`item.started`), as opposed to being seeded from the DB on
+   * thread open (`hydrateThreadRuntimeItems`). Scopes background-workflow
+   * liveness: a detached workflow only keeps running if THIS session launched
+   * it, so a row replayed from a prior session's transcript must never light
+   * the working spinner (manifest status can't tell - a crashed run stays
+   * pinned "running" on disk). Never persisted; absent on DB-hydrated items.
+   */
+  observedLive?: boolean;
 }
 
 export interface OpenRuntimeRequest {
@@ -611,6 +621,7 @@ function applyRuntimeEventToRuntimeState(
         state: "started",
         payload: event.payload,
         streams: {},
+        observedLive: true,
         ...(event.parentItemId ? { parentItemId: event.parentItemId } : {}),
       };
       return {

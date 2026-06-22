@@ -1,5 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { ProjectLocation } from "@/shared/contracts";
+import {
+  WORKFLOW_STALE_PROGRESS_MS,
+  type ProjectLocation,
+  type WorkflowRun,
+} from "@/shared/contracts";
 
 const { workflowGetRun } = vi.hoisted(() => ({
   workflowGetRun: vi.fn<(payload: unknown) => Promise<{ run: unknown }>>(),
@@ -17,6 +21,22 @@ const isLive = (threadId: string) =>
   useThreadLiveWorkflowStore.getState().liveThreadIds.has(threadId);
 const running = { run: { status: "running", phases: [], unphasedAgents: [], agentCount: 0 } };
 const completed = { run: { status: "completed", phases: [], unphasedAgents: [], agentCount: 0 } };
+
+function runningRun(lastProgressAt: number): WorkflowRun {
+  return {
+    runId: "wf-test",
+    status: "running",
+    startTime: lastProgressAt,
+    agentCount: 1,
+    phases: [
+      {
+        title: "Run",
+        agents: [{ agentId: "agent-1", label: "agent-1", state: "running", lastProgressAt }],
+      },
+    ],
+    unphasedAgents: [],
+  };
+}
 
 beforeEach(() => {
   workflowGetRun.mockReset();
@@ -55,6 +75,7 @@ describe("threadLiveWorkflowStore", () => {
   describe("manifest poller", () => {
     beforeEach(() => {
       vi.useFakeTimers();
+      vi.setSystemTime(new Date("2026-06-01T12:00:00.000Z"));
     });
     afterEach(() => {
       vi.useRealTimers();
@@ -108,6 +129,17 @@ describe("threadLiveWorkflowStore", () => {
       workflowGetRun.mockResolvedValue(completed);
       await vi.advanceTimersByTimeAsync(POLL_MS + 1);
       expect(isLive("live")).toBe(false);
+    });
+
+    it("clears a running manifest when its own progress is stale", async () => {
+      workflowGetRun.mockResolvedValue({
+        run: runningRun(Date.now() - WORKFLOW_STALE_PROGRESS_MS - 1),
+      });
+      register({ threadId: "stale", itemId: "i", manifestPath: "/stale.json", location });
+      expect(isLive("stale")).toBe(true);
+
+      await vi.advanceTimersByTimeAsync(POLL_MS + 1);
+      expect(isLive("stale")).toBe(false);
     });
   });
 });

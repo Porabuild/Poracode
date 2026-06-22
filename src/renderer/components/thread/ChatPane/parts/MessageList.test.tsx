@@ -34,6 +34,7 @@ type MockVirtualizerOptions = {
   getScrollElement: () => Element | null;
   estimateSize: (index: number) => number;
   getItemKey: (index: number) => string | number;
+  overscan?: number;
   measureElement?: unknown;
   useFlushSync?: boolean;
   useAnimationFrameWithResizeObserver?: boolean;
@@ -150,6 +151,7 @@ describe("MessageList", () => {
     const virtualizerOptions = useVirtualizerMock.mock.calls[0]![0];
     expect(virtualizerOptions.count).toBe(4);
     expect(virtualizerOptions.getScrollElement()).toBe(scrollElement);
+    expect(virtualizerOptions.overscan).toBe(16);
     expect(virtualizerOptions.measureElement).toBeUndefined();
     expect(virtualizerOptions.useFlushSync).toBe(true);
     expect(virtualizerOptions.useAnimationFrameWithResizeObserver).toBe(true);
@@ -341,7 +343,7 @@ describe("MessageList", () => {
     expect(scrollElement.scrollTop).toBe(184);
   });
 
-  it("measures newly mounted rows synchronously so the size correction lands in the mount commit", () => {
+  it("measures newly mounted rows synchronously so estimate corrections land pre-paint", () => {
     const scrollElement = document.createElement("div");
     optionsMeasureElementMock.mockReturnValue(132);
 
@@ -353,6 +355,22 @@ describe("MessageList", () => {
       />,
     );
 
+    expect(measureElementMock).toHaveBeenCalledWith(
+      document.querySelector("[data-item-id='item-2']"),
+    );
+    expect(measureElementMock).toHaveBeenCalledWith(
+      document.querySelector("[data-item-id='item-3']"),
+    );
+    expect(optionsMeasureElementMock).toHaveBeenCalledWith(
+      document.querySelector("[data-item-id='item-2']"),
+      undefined,
+      expect.any(Object),
+    );
+    expect(optionsMeasureElementMock).toHaveBeenCalledWith(
+      document.querySelector("[data-item-id='item-3']"),
+      undefined,
+      expect.any(Object),
+    );
     expect(resizeItemMock).toHaveBeenCalledWith(1, 132);
     expect(resizeItemMock).toHaveBeenCalledWith(2, 132);
   });

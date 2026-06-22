@@ -4,11 +4,7 @@ import { msg } from "@lingui/core/macro";
 import { Trans, useLingui } from "@lingui/react/macro";
 import type { TranslateFn } from "@/renderer/i18n/i18n";
 import { Bot, ChevronDown, ChevronRight, CircleAlert, type LucideIcon } from "lucide-react";
-import {
-  isLiveWorkflowRunStatus,
-  type ToolCallPayload,
-  type WorkflowRun,
-} from "@/shared/contracts";
+import { isWorkflowRunLive, type ToolCallPayload, type WorkflowRun } from "@/shared/contracts";
 import { PixelLoader } from "@/renderer/components/common";
 import { useAppStore } from "@/renderer/state/appStore";
 import {
@@ -76,9 +72,14 @@ export const SubAgentToolCall = memo(function SubAgentToolCall({
   // a missing manifest file (ENOENT) is normal in the first ~second after
   // launch and must NOT collapse the row to "done".
   const workflowIsBackground = workflow !== null && !!workflow.manifestPath;
+  // Only a workflow launched in THIS session can still be live; a row replayed
+  // from a prior session's transcript on thread open renders with its final
+  // manifest stats, never a live spinner (its detached process is gone).
+  const workflowOwnedThisSession = item.observedLive === true;
   const workflowIsLive =
     workflowIsBackground &&
-    (workflowRun.run === null || isLiveWorkflowRunStatus(workflowRun.run.status));
+    workflowOwnedThisSession &&
+    (workflowRun.run === null || isWorkflowRunLive(workflowRun.run));
   const status = resolveStatus(
     item,
     payload,
@@ -196,7 +197,7 @@ function resolveStatus(
   // see N/N agents instead of "0 steps" when the manifest data is in.
   if (workflowRun) {
     return {
-      rightLabel: <WorkflowRunStats run={workflowRun} />,
+      rightLabel: <WorkflowRunStats run={workflowRun} live={workflowIsLive} />,
       rightLabelClassName: "!text-[color:var(--muted)]",
     };
   }
@@ -271,7 +272,7 @@ function resolveStatus(
   };
 }
 
-function WorkflowRunStats({ run }: { run: WorkflowRun }) {
+function WorkflowRunStats({ run, live }: { run: WorkflowRun; live: boolean }) {
   const { t } = useLingui();
   const completed = countDoneAgents(run);
   // Workflow runtime only records agents in `workflowProgress` once they
@@ -281,7 +282,9 @@ function WorkflowRunStats({ run }: { run: WorkflowRun }) {
   // an empty `0/0 agents` while the workflow is genuinely running.
   const trackedAgents = sumTrackedAgents(run);
   const total = Math.max(run.agentCount, trackedAgents);
-  const isLive = isLiveWorkflowRunStatus(run.status);
+  // Liveness is decided by the caller (session ownership + manifest status),
+  // not the manifest alone, so a replayed dead run shows stats without a spinner.
+  const isLive = live;
   const parts: string[] = [];
   if (total > 0) {
     parts.push(`${completed}/${total} agents`);

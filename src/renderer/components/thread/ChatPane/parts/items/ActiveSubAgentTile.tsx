@@ -12,8 +12,12 @@ import {
   selectActiveSubAgentParentItemIds,
 } from "../../chatPaneSelectors";
 import { getRuntimeItemPayload } from "@/renderer/state/slices/runtimeEventSlice";
-import type { ProjectLocation, ToolCallPayload, WorkflowRun } from "@/shared/contracts";
-import { isLiveWorkflowRunStatus } from "@/shared/contracts";
+import {
+  isWorkflowRunLive,
+  type ProjectLocation,
+  type ToolCallPayload,
+  type WorkflowRun,
+} from "@/shared/contracts";
 import { deriveToolDisplay, isWorkflowTool } from "./toolDisplay";
 import { PixelLoader } from "@/renderer/components/common/PixelLoader";
 import { formatTokenCount } from "@/renderer/components/thread/formatTokenCount";
@@ -132,8 +136,15 @@ function ActiveSubAgentRow({
   // in that gap, otherwise the composer dock shows ✓ while the chat row
   // still says "starting…".
   const workflowIsBackground = workflow !== null && !!workflow.manifestPath;
-  const workflowIsTerminal = workflowRun !== null && !isLiveWorkflowRunStatus(workflowRun.status);
-  const workflowIsLive = workflowIsBackground && !workflowIsTerminal;
+  // A detached background workflow only keeps running while THIS app session's
+  // process is alive. Opening a thread whose workflow was launched in a prior
+  // session (or before a restart) must not show it as live - that process is
+  // gone, even if the manifest is still pinned "running" on disk. `observedLive`
+  // is set only on items that streamed in live this session, so it tells us
+  // whether this session is the one that launched the workflow.
+  const workflowOwnedThisSession = item?.observedLive === true;
+  const workflowIsTerminal = workflowRun !== null && !isWorkflowRunLive(workflowRun);
+  const workflowIsLive = workflowIsBackground && workflowOwnedThisSession && !workflowIsTerminal;
 
   // Auto-dismiss workflows once their manifest reports a terminal status. We
   // intentionally leave the row visible for one render cycle so the user
@@ -155,6 +166,9 @@ function ActiveSubAgentRow({
   const liveWorkflowTranscriptDir = workflow?.transcriptDir;
   useEffect(() => {
     if (!liveWorkflowManifestPath || !projectLocation) return;
+    // Never light the thread spinner for a workflow this session didn't launch
+    // (replayed from history on thread open) - it's already dead.
+    if (!workflowOwnedThisSession) return;
     if (workflowIsTerminal) {
       markWorkflowTerminal(threadId, itemId);
       return;
@@ -170,6 +184,7 @@ function ActiveSubAgentRow({
     liveWorkflowManifestPath,
     liveWorkflowTranscriptDir,
     projectLocation,
+    workflowOwnedThisSession,
     workflowIsTerminal,
     threadId,
     itemId,

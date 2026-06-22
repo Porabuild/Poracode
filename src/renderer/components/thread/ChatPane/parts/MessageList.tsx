@@ -55,7 +55,10 @@ interface MessageListProps {
   ) => void;
 }
 
-const CHAT_TRANSCRIPT_OVERSCAN = 8;
+// Trackpad deltas can jump farther than a viewport before React commits the
+// next virtual range. Keep a larger item-count band mounted so fast scrolls do
+// not expose the spacer before rows render.
+const CHAT_TRANSCRIPT_OVERSCAN = 16;
 const DEFAULT_ROW_ESTIMATE_PX = 96;
 const INLINE_IMAGE_ROW_ESTIMATE_PX = 384;
 const ASSISTANT_IMAGE_ROW_ESTIMATE_PX = 448;
@@ -81,7 +84,6 @@ export function MessageList({
   const hasItems = entries.length > 0;
   const parentActions = useChatPaneActions();
   const virtualSizeBoxRef = useRef<HTMLDivElement | null>(null);
-  const rowElementsRef = useRef(new Map<number, HTMLDivElement>());
   const pendingScrollCompensationRef = useRef(0);
   // iOS WebKit cancels an in-flight momentum scroll the instant any
   // programmatic `scrollTop` write lands, so the per-commit compensation write
@@ -280,22 +282,18 @@ export function MessageList({
 
   const measureRowElement = useCallback(
     (index: number, element: HTMLDivElement | null) => {
-      if (element) {
-        rowElementsRef.current.set(index, element);
-        virtualizer.measureElement(element);
-        // TanStack defers ref-time measurement to the next ResizeObserver
-        // frame while scrolling, but the row's real DOM height is already on
-        // screen this commit — a frame with the old scroll offset would paint
-        // shifted. Measure synchronously so the estimate correction (and the
-        // pending scroll compensation it accumulates) applies pre-paint.
-        virtualizer.resizeItem(
-          index,
-          virtualizer.options.measureElement(element, undefined, virtualizer),
-        );
-      } else {
-        rowElementsRef.current.delete(index);
-        virtualizer.measureElement(element);
+      if (element && element.dataset.index !== String(index)) {
+        // TanStack reads data-index during measurement; keep reused rows aligned.
+        element.dataset.index = String(index);
       }
+      virtualizer.measureElement(element);
+      if (!element) return;
+      // Measure newly mounted rows before paint so estimate corrections do not
+      // arrive from ResizeObserver a frame later and jump the scroll position.
+      virtualizer.resizeItem(
+        index,
+        virtualizer.options.measureElement(element, undefined, virtualizer),
+      );
     },
     [virtualizer],
   );
