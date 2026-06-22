@@ -1,9 +1,5 @@
 import { create } from "zustand";
-import {
-  isLiveWorkflowRunStatus,
-  type ProjectLocation,
-  type WorkflowRun,
-} from "@/shared/contracts";
+import { isWorkflowRunLive, type ProjectLocation, type WorkflowRun } from "@/shared/contracts";
 import { readBridge } from "@/renderer/bridge";
 
 /**
@@ -84,7 +80,7 @@ export const useWorkflowRunStore = create<WorkflowRunStore>((set, get) => {
       // Keep polling at the active cadence rather than backing off; the
       // file usually shows up within a couple of seconds of launch.
       setEntry(itemId, { run: result.run, loading: false, error: null });
-      const isLive = !result.run || isLiveWorkflowRunStatus(result.run.status);
+      const isLive = !result.run || isWorkflowRunLive(result.run);
       if (isLive) {
         poller.timer = setTimeout(() => void tick(itemId), ACTIVE_POLL_MS);
       } else {

@@ -1,6 +1,10 @@
 import { create } from "zustand";
 import { shallow } from "zustand/shallow";
-import { isLiveWorkflowRunStatus, type ProjectLocation } from "@/shared/contracts";
+import {
+  WORKFLOW_STALE_PROGRESS_MS,
+  isWorkflowRunLive,
+  type ProjectLocation,
+} from "@/shared/contracts";
 import { readBridge } from "@/renderer/bridge";
 
 /**
@@ -34,7 +38,7 @@ const LAUNCH_DEADLINE_MS = 10 * 60_000;
 // Backstop for a workflow whose manifest was seen but never reaches a terminal
 // status (e.g. the runtime crashed mid-run leaving it pinned "running"). Long
 // enough not to cut off legitimately long orchestrations.
-const MAX_ENTRY_AGE_MS = 3 * 60 * 60 * 1000;
+const MAX_ENTRY_AGE_MS = WORKFLOW_STALE_PROGRESS_MS;
 
 interface LiveWorkflowEntry {
   threadId: string;
@@ -131,9 +135,10 @@ export const useThreadLiveWorkflowStore = create<ThreadLiveWorkflowStore>((set, 
       if (!current) return;
       if (result.run) {
         current.manifestSeen = true;
-        // Drop on terminal status, or as an ultimate backstop for a manifest
-        // that never reaches one.
-        if (!isLiveWorkflowRunStatus(result.run.status) || isExpired(current)) {
+        // Drop once the manifest reports a terminal status, or its `running`
+        // status has gone stale - a crashed runtime that never wrote a terminal
+        // manifest (see isWorkflowRunLive).
+        if (!isWorkflowRunLive(result.run)) {
           removeEntry(key);
         }
         return;

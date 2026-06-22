@@ -84,13 +84,60 @@ export const workflowRunSchema = z.object({
 });
 export type WorkflowRun = z.infer<typeof workflowRunSchema>;
 
+export const WORKFLOW_STALE_PROGRESS_MS = 3 * 60 * 60 * 1000;
+
 /**
- * A workflow run is "live" while its manifest reports `running` - or `unknown`,
- * the pre-manifest / can't-parse state that precedes the first on-disk write.
- * Terminal states are `completed` / `failed` / `cancelled`. Shared so the
- * per-item dock poller, the chat row, and the per-thread live-workflow tracker
- * all agree on what counts as still in flight.
+ * A workflow run reports a "live" status while its manifest says `running` - or
+ * `unknown`, the pre-manifest / can't-parse state that precedes the first
+ * on-disk write. Terminal states are `completed` / `failed` / `cancelled`.
+ * Internal: callers should use `isWorkflowRunLive`, which also rejects stale
+ * `running` manifests left behind by a crashed runtime.
  */
-export function isLiveWorkflowRunStatus(status: WorkflowRunStatus): boolean {
+function isLiveWorkflowRunStatus(status: WorkflowRunStatus): boolean {
   return status === "running" || status === "unknown";
+}
+
+/**
+ * Most recent timestamp at which the run shows any sign of activity: the latest
+ * agent queued/started/progress time, the run start, or its computed end. Single
+ * pass with no intermediate arrays, since this runs on the manifest poll path.
+ * Every timestamp is a zod-validated int, so no NaN/Infinity guarding is needed.
+ */
+function getWorkflowRunLastActivityAt(run: WorkflowRun): number | undefined {
+  let last = -Infinity;
+  const consider = (time: number | undefined): void => {
+    if (time !== undefined && time > last) last = time;
+  };
+  for (const phase of run.phases) {
+    for (const agent of phase.agents) {
+      consider(agent.queuedAt);
+      consider(agent.startedAt);
+      consider(agent.lastProgressAt);
+    }
+  }
+  for (const agent of run.unphasedAgents) {
+    consider(agent.queuedAt);
+    consider(agent.startedAt);
+    consider(agent.lastProgressAt);
+  }
+  consider(run.startTime);
+  if (run.startTime !== undefined && run.durationMs !== undefined) {
+    consider(run.startTime + run.durationMs);
+  }
+  return last === -Infinity ? undefined : last;
+}
+
+/**
+ * Status-only liveness is not enough: if a workflow process dies before writing
+ * a terminal manifest, the persisted status remains `running` forever. Treat a
+ * `running` manifest with no activity for `WORKFLOW_STALE_PROGRESS_MS` as dead.
+ */
+export function isWorkflowRunLive(run: WorkflowRun, options: { now?: number } = {}): boolean {
+  if (!isLiveWorkflowRunStatus(run.status)) return false;
+
+  const lastActivityAt = getWorkflowRunLastActivityAt(run);
+  if (lastActivityAt === undefined) return true;
+
+  const now = options.now ?? Date.now();
+  return now - lastActivityAt <= WORKFLOW_STALE_PROGRESS_MS;
 }
