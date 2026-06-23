@@ -950,6 +950,14 @@ msgstr "bloqueado:"
 msgid "Bold"
 msgstr "Negrito"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
+msgid "Bookmark this page"
+msgstr "Adicionar esta página aos favoritos"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
+msgid "Bookmarks"
+msgstr "Favoritos"
+
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Bottom"
 msgstr "Inferior"
@@ -977,6 +985,15 @@ msgstr "As regras de proteção de branch bloquearam essa mesclagem."
 msgid "Branches"
 msgstr "Branches"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserDockSlot.tsx
+msgid "Bring back to panel"
+msgstr "Trazer de volta ao painel"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserDockSlot.tsx
+msgid "Bring it back into this panel, or jump to the window it’s running in."
+msgstr "Traga-o de volta para este painel ou vá para a janela em que ele está "
+"sendo executado."
+
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
 msgid "Browse for parent folder"
@@ -998,6 +1015,10 @@ msgstr "Navegue pelos seus repositórios do GitHub ou cole uma URL de clonagem."
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Browser"
 msgstr "Navegador"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserDockSlot.tsx
+msgid "Browser is open in a separate window"
+msgstr "O navegador está aberto em uma janela separada"
 
 #: src/renderer/components/composer/MentionPopover.tsx
 msgid "Browser MCP"
@@ -1243,6 +1264,10 @@ msgstr "Perfil de Claude removido."
 #: src/renderer/views/ProjectSettingsOverlay/parts/ScriptsSection.tsx
 msgid "Cleanup script"
 msgstr "Script de limpeza"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
+msgid "Clear browsing history"
+msgstr "Limpar histórico de navegação"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Clear Browsing History"
@@ -2348,11 +2373,6 @@ msgstr "Provedor externo"
 msgid "Extra High"
 msgstr "Extra Alto"
 
-#: src/renderer/components/layout/UnifiedRightPanel.tsx
-#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
-#~ msgid "Extract browser"
-#~ msgstr "Extrair navegador"
-
 #. placeholder {0}: sourceAgent?.label ?? thread.agentKind
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #: src/renderer/views/MainView/parts/AppContent/parts/Thread/parts/ContinueInProviderDialog.tsx
@@ -2532,6 +2552,10 @@ msgstr "Acessar barra de endereços do navegador"
 #: src/renderer/commands/registry.ts
 msgid "Focus the in-app browser address bar"
 msgstr "Acessar barra de endereços do navegador no aplicativo"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserDockSlot.tsx
+msgid "Focus window"
+msgstr "Focar a janela"
 
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "Folder name"
@@ -2796,6 +2820,10 @@ msgstr "Ocultar barra lateral"
 msgid "Hide terminal"
 msgstr "Ocultar terminal"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
+msgid "History"
+msgstr "Histórico"
+
 #: src/renderer/views/HomeView.tsx
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 #: src/renderer/views/WelcomeOverlay.tsx
@@ -2844,10 +2872,6 @@ msgstr "Herdando a configuração global (atualmente {0})."
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 msgid "Initialize Repository"
 msgstr "Inicializar repositório"
-
-#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
-#~ msgid "Inject browser"
-#~ msgstr "Injetar navegador"
 
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 msgid "Input level"
@@ -3622,6 +3646,10 @@ msgstr "Nenhum commit, PR ou resolução de conflito por IA registrado ainda."
 msgid "No archived threads."
 msgstr "Nenhum tópico arquivado."
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserBookmarkBar.tsx
+msgid "No bookmarks yet — add the current page with the star."
+msgstr "Ainda não há favoritos — adicione a página atual com a estrela."
+
 #: src/renderer/components/common/BranchSelector/parts/BranchListBox.tsx
 msgid "No branches found"
 msgstr "Nenhuma branch encontrada"
@@ -3698,6 +3726,10 @@ msgid "No GitHub CLI accounts found. Sign in with <0>gh auth login</0>, or "
 "<1>paste a clone URL</1>."
 msgstr "Nenhuma conta GitHub CLI encontrada. Faça login com <0>gh auth "
 "login</0> ou <1>cole um URL clone</1>."
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
+msgid "No history yet"
+msgstr "Ainda não há histórico"
 
 #: src/renderer/components/thread/ChatPane/ChatRuntimeDebugPanel.tsx
 msgid "No matches for “{query}”."
@@ -4589,6 +4621,11 @@ msgstr "Remover {pattern}"
 msgid "Remove action"
 msgstr "Remover ação"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserBookmarkBar.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
+msgid "Remove bookmark"
+msgstr "Remover favorito"
+
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Remove Claude profile"
 msgstr "Remover perfil do Claude"
@@ -4729,7 +4766,7 @@ msgstr "Redefinir efeito fosco da barra lateral para o padrão"
 msgid "Reset to default"
 msgstr "Redefinir para o padrão"
 
-#: src/renderer/components/layout/BrowserDrawerShell.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserHost.tsx
 msgid "Resize browser drawer"
 msgstr "Redimensionar gaveta do navegador"
 
@@ -5041,7 +5078,7 @@ msgstr "Pesquisar modelos"
 msgid "Search models..."
 msgstr "Pesquisar modelos..."
 
-#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserOmnibox.tsx
 msgid "Search or enter address"
 msgstr "Pesquise ou digite o endereço"
 
@@ -5160,6 +5197,7 @@ msgid "Set shortcut"
 msgstr "Definir atalho"
 
 #: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 #: src/renderer/views/SettingsOverlay/SettingsOverlay.tsx
 msgid "Settings"
@@ -5197,6 +5235,10 @@ msgstr "Mostre um escopo inicial sem projeto para sessões de agente no nível d
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
 msgid "Show all"
 msgstr "Mostrar tudo"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
+msgid "Show bookmark bar"
+msgstr "Mostrar barra de favoritos"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Show Bookmark Bar"

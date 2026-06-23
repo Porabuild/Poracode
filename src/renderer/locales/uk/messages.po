@@ -949,6 +949,14 @@ msgstr "заблоковано:"
 msgid "Bold"
 msgstr "Жирний"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
+msgid "Bookmark this page"
+msgstr "Додати сторінку в закладки"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
+msgid "Bookmarks"
+msgstr "Закладки"
+
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Bottom"
 msgstr "Знизу"
@@ -976,6 +984,14 @@ msgstr "Правила захисту гілки заблокували це з�
 msgid "Branches"
 msgstr "Гілки"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserDockSlot.tsx
+msgid "Bring back to panel"
+msgstr "Повернути на панель"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserDockSlot.tsx
+msgid "Bring it back into this panel, or jump to the window it’s running in."
+msgstr "Поверніть його на цю панель або перейдіть до вікна, де він запущений."
+
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
 msgid "Browse for parent folder"
@@ -997,6 +1013,10 @@ msgstr "Перегляньте свої репозиторії GitHub або в�
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Browser"
 msgstr "Браузер"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserDockSlot.tsx
+msgid "Browser is open in a separate window"
+msgstr "Браузер відкритий в окремому вікні"
 
 #: src/renderer/components/composer/MentionPopover.tsx
 msgid "Browser MCP"
@@ -1241,6 +1261,10 @@ msgstr "Профіль Claude видалено."
 #: src/renderer/views/ProjectSettingsOverlay/parts/ScriptsSection.tsx
 msgid "Cleanup script"
 msgstr "Скрипт очищення"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
+msgid "Clear browsing history"
+msgstr "Очистити історію перегляду"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Clear Browsing History"
@@ -2344,11 +2368,6 @@ msgstr "Зовнішній провайдер"
 msgid "Extra High"
 msgstr "Дуже високий"
 
-#: src/renderer/components/layout/UnifiedRightPanel.tsx
-#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
-#~ msgid "Extract browser"
-#~ msgstr "Винести браузер"
-
 #. placeholder {0}: sourceAgent?.label ?? thread.agentKind
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #: src/renderer/views/MainView/parts/AppContent/parts/Thread/parts/ContinueInProviderDialog.tsx
@@ -2529,6 +2548,10 @@ msgstr "Встановити фокус на адресний рядок бра�
 #: src/renderer/commands/registry.ts
 msgid "Focus the in-app browser address bar"
 msgstr "Встановити фокус на адресний рядок браузера у програмі"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserDockSlot.tsx
+msgid "Focus window"
+msgstr "Перейти до вікна"
 
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "Folder name"
@@ -2793,6 +2816,10 @@ msgstr "Сховати бічну панель"
 msgid "Hide terminal"
 msgstr "Сховати термінал"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
+msgid "History"
+msgstr "Історія"
+
 #: src/renderer/views/HomeView.tsx
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 #: src/renderer/views/WelcomeOverlay.tsx
@@ -2841,10 +2868,6 @@ msgstr "Успадковується глобальне налаштування
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 msgid "Initialize Repository"
 msgstr "Ініціалізувати репозиторій"
-
-#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
-#~ msgid "Inject browser"
-#~ msgstr "Повернути браузер"
 
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 msgid "Input level"
@@ -3619,6 +3642,10 @@ msgstr "Ще не відстежено жодних комітів, PR чи ро
 msgid "No archived threads."
 msgstr "Немає архівованих тредів."
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserBookmarkBar.tsx
+msgid "No bookmarks yet — add the current page with the star."
+msgstr "Закладок ще немає — додайте поточну сторінку зірочкою."
+
 #: src/renderer/components/common/BranchSelector/parts/BranchListBox.tsx
 msgid "No branches found"
 msgstr "Гілки не знайдено"
@@ -3695,6 +3722,10 @@ msgid "No GitHub CLI accounts found. Sign in with <0>gh auth login</0>, or "
 "<1>paste a clone URL</1>."
 msgstr "Облікові записи GitHub CLI не знайдено. Увійдіть за допомогою <0>gh "
 "auth login</0> або <1>вставте URL для клонування</1>."
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
+msgid "No history yet"
+msgstr "Історії ще немає"
 
 #: src/renderer/components/thread/ChatPane/ChatRuntimeDebugPanel.tsx
 msgid "No matches for “{query}”."
@@ -4584,6 +4615,11 @@ msgstr "Видалити {pattern}"
 msgid "Remove action"
 msgstr "Видалити дію"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserBookmarkBar.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
+msgid "Remove bookmark"
+msgstr "Видалити закладку"
+
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Remove Claude profile"
 msgstr "Видалити профіль Claude"
@@ -4723,7 +4759,7 @@ msgstr "Скинути матовість бічної панелі до тип�
 msgid "Reset to default"
 msgstr "Скинути до типового"
 
-#: src/renderer/components/layout/BrowserDrawerShell.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserHost.tsx
 msgid "Resize browser drawer"
 msgstr "Змінити розмір панелі браузера"
 
@@ -5034,7 +5070,7 @@ msgstr "Пошук моделей"
 msgid "Search models..."
 msgstr "Пошук моделей..."
 
-#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserOmnibox.tsx
 msgid "Search or enter address"
 msgstr "Пошук або введення адреси"
 
@@ -5154,6 +5190,7 @@ msgid "Set shortcut"
 msgstr "Призначити комбінацію клавіш"
 
 #: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 #: src/renderer/views/SettingsOverlay/SettingsOverlay.tsx
 msgid "Settings"
@@ -5190,6 +5227,10 @@ msgstr "Показувати домашню область без проєкту
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
 msgid "Show all"
 msgstr "Показати все"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
+msgid "Show bookmark bar"
+msgstr "Показати панель закладок"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Show Bookmark Bar"

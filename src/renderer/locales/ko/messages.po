@@ -939,6 +939,14 @@ msgstr "차단됨:"
 msgid "Bold"
 msgstr "굵게"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
+msgid "Bookmark this page"
+msgstr "이 페이지 북마크"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
+msgid "Bookmarks"
+msgstr "북마크"
+
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Bottom"
 msgstr "아래쪽"
@@ -965,6 +973,14 @@ msgstr "브랜치 보호 규칙이 이 병합을 차단했습니다."
 msgid "Branches"
 msgstr "브랜치"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserDockSlot.tsx
+msgid "Bring back to panel"
+msgstr "패널로 되돌리기"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserDockSlot.tsx
+msgid "Bring it back into this panel, or jump to the window it’s running in."
+msgstr "이 패널로 되돌리거나 실행 중인 창으로 이동하세요."
+
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
 msgid "Browse for parent folder"
@@ -986,6 +1002,10 @@ msgstr "GitHub 리포지토리를 찾아보거나 복제 URL을 붙여넣으세�
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Browser"
 msgstr "브라우저"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserDockSlot.tsx
+msgid "Browser is open in a separate window"
+msgstr "브라우저가 별도의 창에서 열려 있습니다"
 
 #: src/renderer/components/composer/MentionPopover.tsx
 msgid "Browser MCP"
@@ -1228,6 +1248,10 @@ msgstr "Claude 프로필이 삭제되었습니다."
 #: src/renderer/views/ProjectSettingsOverlay/parts/ScriptsSection.tsx
 msgid "Cleanup script"
 msgstr "정리 스크립트"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
+msgid "Clear browsing history"
+msgstr "방문 기록 지우기"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Clear Browsing History"
@@ -2317,11 +2341,6 @@ msgstr "외부 제공자"
 msgid "Extra High"
 msgstr "매우 높음"
 
-#: src/renderer/components/layout/UnifiedRightPanel.tsx
-#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
-#~ msgid "Extract browser"
-#~ msgstr "브라우저 분리"
-
 #. placeholder {0}: sourceAgent?.label ?? thread.agentKind
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #: src/renderer/views/MainView/parts/AppContent/parts/Thread/parts/ContinueInProviderDialog.tsx
@@ -2493,6 +2512,10 @@ msgstr "브라우저 주소 표시줄에 포커스"
 #: src/renderer/commands/registry.ts
 msgid "Focus the in-app browser address bar"
 msgstr "인앱 브라우저 주소 표시줄에 포커스"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserDockSlot.tsx
+msgid "Focus window"
+msgstr "창 활성화"
 
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "Folder name"
@@ -2750,6 +2773,10 @@ msgstr "사이드바 숨기기"
 msgid "Hide terminal"
 msgstr "터미널 숨기기"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
+msgid "History"
+msgstr "기록"
+
 #: src/renderer/views/HomeView.tsx
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 #: src/renderer/views/WelcomeOverlay.tsx
@@ -2798,10 +2825,6 @@ msgstr "전역 설정 상속(현재 {0})"
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 msgid "Initialize Repository"
 msgstr "저장소 초기화"
-
-#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
-#~ msgid "Inject browser"
-#~ msgstr "브라우저 되돌리기"
 
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 msgid "Input level"
@@ -3568,6 +3591,10 @@ msgstr "아직 추적된 AI 커밋, PR, 충돌 해결이 없습니다."
 msgid "No archived threads."
 msgstr "보관된 스레드가 없습니다."
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserBookmarkBar.tsx
+msgid "No bookmarks yet — add the current page with the star."
+msgstr "아직 북마크가 없습니다 — 별표로 현재 페이지를 추가하세요."
+
 #: src/renderer/components/common/BranchSelector/parts/BranchListBox.tsx
 msgid "No branches found"
 msgstr "브랜치를 찾을 수 없습니다."
@@ -3644,6 +3671,10 @@ msgid "No GitHub CLI accounts found. Sign in with <0>gh auth login</0>, or "
 "<1>paste a clone URL</1>."
 msgstr "GitHub CLI 계정을 찾을 수 없습니다. <0>gh auth login</0>으로 로그인하거나 <1>복제 URL을 "
 "붙여넣으세요</1>."
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
+msgid "No history yet"
+msgstr "아직 기록이 없습니다"
 
 #: src/renderer/components/thread/ChatPane/ChatRuntimeDebugPanel.tsx
 msgid "No matches for “{query}”."
@@ -4523,6 +4554,11 @@ msgstr "{pattern} 제거"
 msgid "Remove action"
 msgstr "작업 제거"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserBookmarkBar.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
+msgid "Remove bookmark"
+msgstr "북마크 삭제"
+
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Remove Claude profile"
 msgstr "Claude 프로필 삭제"
@@ -4662,7 +4698,7 @@ msgstr "사이드바 프로스트를 기본값으로 재설정"
 msgid "Reset to default"
 msgstr "기본값으로 재설정"
 
-#: src/renderer/components/layout/BrowserDrawerShell.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserHost.tsx
 msgid "Resize browser drawer"
 msgstr "브라우저 서랍 크기 조정"
 
@@ -4968,7 +5004,7 @@ msgstr "모델 검색"
 msgid "Search models..."
 msgstr "모델 검색..."
 
-#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserOmnibox.tsx
 msgid "Search or enter address"
 msgstr "주소 검색 또는 입력"
 
@@ -5086,6 +5122,7 @@ msgid "Set shortcut"
 msgstr "단축키 설정"
 
 #: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 #: src/renderer/views/SettingsOverlay/SettingsOverlay.tsx
 msgid "Settings"
@@ -5122,6 +5159,10 @@ msgstr "OS 수준 에이전트 세션에 대해 프로젝트 없는 홈 범위�
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
 msgid "Show all"
 msgstr "모두 표시"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
+msgid "Show bookmark bar"
+msgstr "북마크 막대 표시"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Show Bookmark Bar"

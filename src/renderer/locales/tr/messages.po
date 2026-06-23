@@ -949,6 +949,14 @@ msgstr "engellendi:"
 msgid "Bold"
 msgstr "Kalın"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
+msgid "Bookmark this page"
+msgstr "Bu sayfayı yer imlerine ekle"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
+msgid "Bookmarks"
+msgstr "Yer imleri"
+
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Bottom"
 msgstr "Alt"
@@ -976,6 +984,14 @@ msgstr "Dal koruma kuralları bu birleştirmeyi engelledi."
 msgid "Branches"
 msgstr "Şubeler"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserDockSlot.tsx
+msgid "Bring back to panel"
+msgstr "Panele geri getir"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserDockSlot.tsx
+msgid "Bring it back into this panel, or jump to the window it’s running in."
+msgstr "Bu panele geri getirin veya çalıştığı pencereye geçin."
+
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
 msgid "Browse for parent folder"
@@ -997,6 +1013,10 @@ msgstr "GitHub depolarınıza göz atın veya bir klon URL'si yapıştırın."
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Browser"
 msgstr "Tarayıcı"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserDockSlot.tsx
+msgid "Browser is open in a separate window"
+msgstr "Tarayıcı ayrı bir pencerede açık"
 
 #: src/renderer/components/composer/MentionPopover.tsx
 msgid "Browser MCP"
@@ -1241,6 +1261,10 @@ msgstr "Claude profili kaldırıldı."
 #: src/renderer/views/ProjectSettingsOverlay/parts/ScriptsSection.tsx
 msgid "Cleanup script"
 msgstr "Temizleme komut dosyası"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
+msgid "Clear browsing history"
+msgstr "Tarama geçmişini temizle"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Clear Browsing History"
@@ -2345,11 +2369,6 @@ msgstr "Harici sağlayıcı"
 msgid "Extra High"
 msgstr "Ekstra Yüksek"
 
-#: src/renderer/components/layout/UnifiedRightPanel.tsx
-#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
-#~ msgid "Extract browser"
-#~ msgstr "Tarayıcıyı ayır"
-
 #. placeholder {0}: sourceAgent?.label ?? thread.agentKind
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #: src/renderer/views/MainView/parts/AppContent/parts/Thread/parts/ContinueInProviderDialog.tsx
@@ -2529,6 +2548,10 @@ msgstr "Tarayıcı adres çubuğuna odakla"
 #: src/renderer/commands/registry.ts
 msgid "Focus the in-app browser address bar"
 msgstr "Uygulama içi tarayıcı adres çubuğuna odakla"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserDockSlot.tsx
+msgid "Focus window"
+msgstr "Pencereyi öne getir"
 
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "Folder name"
@@ -2792,6 +2815,10 @@ msgstr "Kenar çubuğunu gizle"
 msgid "Hide terminal"
 msgstr "Terminali gizle"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
+msgid "History"
+msgstr "Geçmiş"
+
 #: src/renderer/views/HomeView.tsx
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 #: src/renderer/views/WelcomeOverlay.tsx
@@ -2840,10 +2867,6 @@ msgstr "Genel ayar devralınıyor (şu anda {0})."
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 msgid "Initialize Repository"
 msgstr "Depoyu Başlat"
-
-#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
-#~ msgid "Inject browser"
-#~ msgstr "Tarayıcıyı geri ekle"
 
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 msgid "Input level"
@@ -3617,6 +3640,10 @@ msgstr "Henüz yapay zeka commit'leri, PR'ları veya çakışma çözümleri izl
 msgid "No archived threads."
 msgstr "Arşivlenmiş konu yok."
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserBookmarkBar.tsx
+msgid "No bookmarks yet — add the current page with the star."
+msgstr "Henüz yer imi yok — geçerli sayfayı yıldızla ekleyin."
+
 #: src/renderer/components/common/BranchSelector/parts/BranchListBox.tsx
 msgid "No branches found"
 msgstr "Şube bulunamadı"
@@ -3693,6 +3720,10 @@ msgid "No GitHub CLI accounts found. Sign in with <0>gh auth login</0>, or "
 "<1>paste a clone URL</1>."
 msgstr "GitHub CLI hesabı bulunamadı. <0>gh auth login</0> ile oturum açın veya "
 "<1>bir klon URL'si yapıştırın</1>."
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
+msgid "No history yet"
+msgstr "Henüz geçmiş yok"
 
 #: src/renderer/components/thread/ChatPane/ChatRuntimeDebugPanel.tsx
 msgid "No matches for “{query}”."
@@ -4581,6 +4612,11 @@ msgstr "{pattern} öğesini kaldır"
 msgid "Remove action"
 msgstr "Eylemi kaldır"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserBookmarkBar.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
+msgid "Remove bookmark"
+msgstr "Yer imini kaldır"
+
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Remove Claude profile"
 msgstr "Claude profilini kaldır"
@@ -4720,7 +4756,7 @@ msgstr "Kenar çubuğu buzlu cam efektini varsayılana sıfırla"
 msgid "Reset to default"
 msgstr "Varsayılana sıfırla"
 
-#: src/renderer/components/layout/BrowserDrawerShell.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserHost.tsx
 msgid "Resize browser drawer"
 msgstr "Tarayıcı çekmecesini yeniden boyutlandır"
 
@@ -5033,7 +5069,7 @@ msgstr "Modelleri ara"
 msgid "Search models..."
 msgstr "Modelleri ara..."
 
-#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserOmnibox.tsx
 msgid "Search or enter address"
 msgstr "Adres arayın veya girin"
 
@@ -5153,6 +5189,7 @@ msgid "Set shortcut"
 msgstr "Kısayol belirle"
 
 #: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 #: src/renderer/views/SettingsOverlay/SettingsOverlay.tsx
 msgid "Settings"
@@ -5190,6 +5227,10 @@ msgstr "İşletim sistemi düzeyindeki aracı oturumları için projesiz bir Ana
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
 msgid "Show all"
 msgstr "Tümünü göster"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
+msgid "Show bookmark bar"
+msgstr "Yer imi çubuğunu göster"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Show Bookmark Bar"

@@ -948,6 +948,14 @@ msgstr "bị chặn:"
 msgid "Bold"
 msgstr "Đậm"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
+msgid "Bookmark this page"
+msgstr "Đánh dấu trang này"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
+msgid "Bookmarks"
+msgstr "Dấu trang"
+
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Bottom"
 msgstr "Dưới cùng"
@@ -975,6 +983,14 @@ msgstr "Quy tắc bảo vệ nhánh đã chặn lần hợp nhất này."
 msgid "Branches"
 msgstr "Nhánh"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserDockSlot.tsx
+msgid "Bring back to panel"
+msgstr "Đưa về bảng điều khiển"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserDockSlot.tsx
+msgid "Bring it back into this panel, or jump to the window it’s running in."
+msgstr "Đưa trở lại bảng điều khiển này, hoặc chuyển đến cửa sổ đang chạy."
+
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
 msgid "Browse for parent folder"
@@ -996,6 +1012,10 @@ msgstr "Duyệt qua kho GitHub của bạn hoặc dán URL nhân bản."
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Browser"
 msgstr "Trình duyệt"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserDockSlot.tsx
+msgid "Browser is open in a separate window"
+msgstr "Trình duyệt đang mở trong một cửa sổ riêng"
 
 #: src/renderer/components/composer/MentionPopover.tsx
 msgid "Browser MCP"
@@ -1240,6 +1260,10 @@ msgstr "Hồ sơ Claude đã bị xóa."
 #: src/renderer/views/ProjectSettingsOverlay/parts/ScriptsSection.tsx
 msgid "Cleanup script"
 msgstr "Tập lệnh dọn dẹp"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
+msgid "Clear browsing history"
+msgstr "Xóa lịch sử duyệt web"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Clear Browsing History"
@@ -2342,11 +2366,6 @@ msgstr "Nhà cung cấp bên ngoài"
 msgid "Extra High"
 msgstr "Cực cao"
 
-#: src/renderer/components/layout/UnifiedRightPanel.tsx
-#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
-#~ msgid "Extract browser"
-#~ msgstr "Tách trình duyệt"
-
 #. placeholder {0}: sourceAgent?.label ?? thread.agentKind
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #: src/renderer/views/MainView/parts/AppContent/parts/Thread/parts/ContinueInProviderDialog.tsx
@@ -2524,6 +2543,10 @@ msgstr "Tập trung vào thanh địa chỉ trình duyệt"
 #: src/renderer/commands/registry.ts
 msgid "Focus the in-app browser address bar"
 msgstr "Tập trung vào thanh địa chỉ của trình duyệt tích hợp"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserDockSlot.tsx
+msgid "Focus window"
+msgstr "Chuyển đến cửa sổ"
 
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "Folder name"
@@ -2786,6 +2809,10 @@ msgstr "Ẩn thanh bên"
 msgid "Hide terminal"
 msgstr "Ẩn thiết bị đầu cuối"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
+msgid "History"
+msgstr "Lịch sử"
+
 #: src/renderer/views/HomeView.tsx
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 #: src/renderer/views/WelcomeOverlay.tsx
@@ -2834,10 +2861,6 @@ msgstr "Kế thừa cài đặt chung (hiện tại {0})."
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 msgid "Initialize Repository"
 msgstr "Khởi tạo kho lưu trữ"
-
-#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
-#~ msgid "Inject browser"
-#~ msgstr "Đưa trình duyệt về lại"
 
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 msgid "Input level"
@@ -3611,6 +3634,10 @@ msgstr "Chưa ghi nhận commit, PR hay giải quyết xung đột nào bằng A
 msgid "No archived threads."
 msgstr "Không có luồng nào đã lưu trữ."
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserBookmarkBar.tsx
+msgid "No bookmarks yet — add the current page with the star."
+msgstr "Chưa có dấu trang nào — thêm trang hiện tại bằng biểu tượng ngôi sao."
+
 #: src/renderer/components/common/BranchSelector/parts/BranchListBox.tsx
 msgid "No branches found"
 msgstr "Không tìm thấy chi nhánh nào"
@@ -3687,6 +3714,10 @@ msgid "No GitHub CLI accounts found. Sign in with <0>gh auth login</0>, or "
 "<1>paste a clone URL</1>."
 msgstr "Không tìm thấy tài khoản GitHub CLI nào. Đăng nhập bằng <0>gh auth "
 "login</0> hoặc <1>dán URL sao chép</1>."
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
+msgid "No history yet"
+msgstr "Chưa có lịch sử"
 
 #: src/renderer/components/thread/ChatPane/ChatRuntimeDebugPanel.tsx
 msgid "No matches for “{query}”."
@@ -4576,6 +4607,11 @@ msgstr "Xóa {pattern}"
 msgid "Remove action"
 msgstr "Xóa hành động"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserBookmarkBar.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
+msgid "Remove bookmark"
+msgstr "Xóa dấu trang"
+
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Remove Claude profile"
 msgstr "Xóa hồ sơ Claude"
@@ -4716,7 +4752,7 @@ msgstr "Đặt lại độ mờ thanh bên về mặc định"
 msgid "Reset to default"
 msgstr "Đặt lại về mặc định"
 
-#: src/renderer/components/layout/BrowserDrawerShell.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserHost.tsx
 msgid "Resize browser drawer"
 msgstr "Thay đổi kích thước ngăn trình duyệt"
 
@@ -5026,7 +5062,7 @@ msgstr "Tìm kiếm mô hình"
 msgid "Search models..."
 msgstr "Tìm kiếm mô hình..."
 
-#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserOmnibox.tsx
 msgid "Search or enter address"
 msgstr "Tìm kiếm hoặc nhập địa chỉ"
 
@@ -5145,6 +5181,7 @@ msgid "Set shortcut"
 msgstr "Đặt phím tắt"
 
 #: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 #: src/renderer/views/SettingsOverlay/SettingsOverlay.tsx
 msgid "Settings"
@@ -5182,6 +5219,10 @@ msgstr "Hiển thị phạm vi Trang chủ không có dự án cho các phiên t
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
 msgid "Show all"
 msgstr "Hiển thị tất cả"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
+msgid "Show bookmark bar"
+msgstr "Hiển thị thanh dấu trang"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Show Bookmark Bar"
