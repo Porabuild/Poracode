@@ -93,7 +93,11 @@ export async function prefetchBranchPrData(project: {
   }
 }
 
-function getWorktreeStatusDetail(reason: GitRefreshReason): GitStatusDetail {
+function getWorktreeStatusDetail(
+  reason: GitRefreshReason,
+  location: ProjectLocation,
+): GitStatusDetail {
+  if (location.kind === "wsl" && (reason === "fetch" || reason === "poll")) return "full";
   return reason === "fetch" || reason === "poll" ? "summary" : "full";
 }
 
@@ -508,7 +512,7 @@ async function refreshProjectStatusOnly(
     .gitWorktreeStatusBatch({
       projectLocation: project.location,
       worktreePaths: threadWorktreePaths,
-      detail: getWorktreeStatusDetail(reason),
+      detail: getWorktreeStatusDetail(reason, project.location),
     })
     .catch(() => undefined);
   if (!isActive() || !batch) return;
@@ -621,13 +625,14 @@ export async function refreshGitProject(
           );
 
           const statusesPromise =
-            reason === "fetch" || watchWorktreePaths.length === 0
+            (reason === "fetch" && project.location.kind !== "wsl") ||
+            watchWorktreePaths.length === 0
               ? Promise.resolve()
               : readBridge()
                   .gitWorktreeStatusBatch({
                     projectLocation: project.location,
                     worktreePaths: watchWorktreePaths,
-                    detail: getWorktreeStatusDetail(reason),
+                    detail: getWorktreeStatusDetail(reason, project.location),
                   })
                   .then((batch) => {
                     if (!isRefreshCurrent(project.id, refreshToken, isActive)) return;

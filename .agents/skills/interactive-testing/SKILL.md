@@ -104,7 +104,7 @@ Current CLI notes:
    New-Item -ItemType Directory -Force $projectDir | Out-Null
    ```
 
-   Then seed the test project — see **Seeding a test project** below — _before_ launching the app, so the path exists when we add it.
+   Then seed the test project into sqlite — see **Seeding a test project** below — _before_ launching the app, so the app boots with the project already selected.
 
 3. **Launch dev in background** with both env vars set. Use `run_in_background: true` on the Bash call. Do NOT poll — let the harness notify on log lines via Monitor.
 
@@ -149,11 +149,11 @@ Current CLI notes:
 
    This harness pins to the real Lightcode page target from `/json/list`, creates or reuses an in-app browser tab, navigates deterministic `data:` pages, verifies the embedded browser target DOM, checks toolbar/back/forward state, opens Settings > Browser, captures screenshots outside the repo, and reports console errors. Keeping artifacts outside the repo avoids `electronmon` restarts from screenshot file writes.
 
-8. **Add the seeded test project to the app** — see **Seeding a test project** below for the `pickFolder` stub + click sequence.
+8. **Confirm the seeded project loaded** — the first snapshot should show the sidebar and ThreadDraftView for the seeded project. If the WelcomeOverlay appears, sqlite seeding or `LIGHTCODE_BASE_DIR` did not land in the app process.
 
 ## Seeding a test project
 
-Lightcode's "Add Project" flow goes through a native OS folder picker (`window.lightcode.pickFolder()`) which `agent-browser` cannot drive. To make this scriptable without source changes, monkey-patch the preload bridge in the renderer right before triggering the picker.
+Lightcode's "Add Project" flow goes through a native OS folder picker (`window.lightcode.pickFolder()`), which `agent-browser` cannot drive. Smoke runs should avoid that flow by seeding `$env:LIGHTCODE_BASE_DIR\state.sqlite` before Electron starts.
 
 ### Step A — Create the project directory on disk
 
@@ -170,49 +170,41 @@ git -C $projectDir -c user.email=smoke@lightcode.local -c user.name="Smoke Test"
 
 This gives the app a real git repo (so git features in the sidebar / status panels work), with two files for chat scenarios that need to reference content.
 
-### Step B — Stub `pickFolder` after attach
+### Step B — Seed sqlite before launch
 
-After attaching to the app target but before clicking the Add-Project button:
-
-```bash
-npx agent-browser --cdp 9222 eval "(() => {
-  const projectPath = $JSON_PROJECT_PATH;   // see note below
-  const bridge = window.lightcode;
-  if (!bridge) return 'bridge-missing';
-  bridge.pickFolder = async () => projectPath;
-  return 'patched:' + projectPath;
-})()"
+```powershell
+node --no-warnings .agents/skills/interactive-testing/scripts/seed-lightcode-smoke-db.mjs `
+  --baseDir $env:LIGHTCODE_BASE_DIR `
+  --projectDir $projectDir `
+  --projectId smoke-project `
+  --projectName "Smoke Project" `
+  --reset
 ```
 
-`$JSON_PROJECT_PATH` must be a JSON-encoded absolute path string — on Windows, escape backslashes (`"C:\\\\Users\\\\sdsle\\\\.lightcode-smoke\\\\..."`). Build it from PowerShell with `ConvertTo-Json` and inject into the `eval` command.
+For a WSL fixture, create the repo inside the distro and seed the WSL location instead:
 
-### Step C — Trigger the add
+```powershell
+$distro = "Ubuntu"
+$linuxPath = "/tmp/lightcode-smoke/$ts/project"
+wsl.exe -d $distro -- sh -lc "rm -rf '$linuxPath' && mkdir -p '$linuxPath' && cd '$linuxPath' && git init >/dev/null && printf '# Smoke test project\n' > README.md && git add -A && git -c user.email=smoke@lightcode.local -c user.name='Smoke Test' commit -m 'initial smoke fixture' >/dev/null"
+node --no-warnings .agents/skills/interactive-testing/scripts/seed-lightcode-smoke-db.mjs `
+  --baseDir $env:LIGHTCODE_BASE_DIR `
+  --wslDistro $distro `
+  --wslLinuxPath $linuxPath `
+  --projectId smoke-project `
+  --projectName "Smoke WSL Project" `
+  --reset
+```
 
-Two entry points exist:
+The script writes the project row and `app_state.view = {"kind":"draft","projectId":"smoke-project"}`. It intentionally does not write `app_state.schema_version`; app startup still owns migrations.
 
-- **WelcomeOverlay** ("Get Started" button) — appears when there are zero projects. Empty-settings runs always land here.
-- **Sidebar "Add Project" affordance** — when projects already exist.
-
-For an empty-settings smoke run (the default), the WelcomeOverlay flow is what you'll see:
+### Step C — Verify the project landed
 
 ```bash
 npx agent-browser --cdp 9222 snapshot -i
-# Find the "Get started" / "Add project" button by accessible name
-npx agent-browser --cdp 9222 click '@eXX'
-# WelcomeOverlay calls bridge.pickFolder() -> returns our stub -> addProject runs
-npx agent-browser --cdp 9222 snapshot -i
-# Confirm the ThreadDraftView opened for the new project (handleStart calls openDraft)
 ```
 
-If `pickFolder` returns the path but `addProject` doesn't fire, check `autoDetectSetupScript` and `openDraft` weren't broken — view-slice changes are the usual culprit.
-
-### Step D — Verify the project landed
-
-```bash
-npx agent-browser --cdp 9222 eval "JSON.stringify(window.__lightcodeStore?.getState?.().projects ?? 'no-store')"
-```
-
-This requires the store to be exposed on window. If it isn't (Lightcode currently doesn't expose it), fall back to a visual check: the sidebar should now list the project, and ThreadDraftView should be open with the project's name in the header. Note this gap in the test report — it'd be a nice future patch to expose `useAppStore` on `window.__lightcodeStore` in dev for assertion ergonomics.
+Confirm the sidebar lists the seeded project and ThreadDraftView is open. Do not click "Add Project" during normal smoke tests; if the native picker appears, stop and fix the seed or launch environment.
 
 ## Targeting the right surfaces
 
@@ -380,7 +372,7 @@ Do not narrate every snapshot in the final summary — that goes to chat as you 
 - **Two tabs returned by `tab`**: pick the one whose URL contains `localhost:3100`. The other may be a DevTools window.
 - **Elements not in snapshot**: HeroUI portals (modals, menus) render to a different root — re-snapshot with the menu open, or pass `-C` to include div-onclick elements.
 - **App didn't pick up `LIGHTCODE_CDP_PORT`**: env var must be set in the same shell that runs `pnpm run dev`. On PowerShell, `$env:LIGHTCODE_CDP_PORT="9222"; pnpm run dev` — `LIGHTCODE_CDP_PORT=9222 pnpm run dev` is bash syntax and silently does nothing in PowerShell.
-- **Vite hot-reload mid-test**: if a file watch fires during the smoke run (e.g. you edited something), the renderer remounts and refs go stale. Re-snapshot before continuing. The `pickFolder` stub is also lost on remount — re-apply before clicking Add Project.
+- **Vite hot-reload mid-test**: if a file watch fires during the smoke run (e.g. you edited something), the renderer remounts and refs go stale. Re-snapshot before continuing.
 - **App didn't pick up `LIGHTCODE_BASE_DIR`**: confirm patch 2 landed in `main.ts` (`grep LIGHTCODE_BASE_DIR src/main/main.ts`) and that `app.setPath("userData", join(baseDirOverride, "userData"))` exists. Also confirm `$env:LIGHTCODE_BASE_DIR` was set in the _same_ PowerShell session that ran `pnpm run dev` — `concurrently` inherits env from that parent.
 - **Smoke screenshots cause app restarts**: screenshots were probably written inside the repo. Use `$env:LIGHTCODE_SMOKE_OUT_DIR` under `$HOME\.lightcode-smoke\...`; `electronmon` may see repo-local artifact writes as renderer file changes.
-- **Project doesn't appear after click**: the `pickFolder` monkey-patch only sticks until the next renderer reload. Re-snapshot, re-apply the stub, retry. Also confirm the path you injected exists on disk and is a directory the supervisor can stat.
+- **Seeded project does not appear**: confirm the seed script wrote `$env:LIGHTCODE_BASE_DIR\state.sqlite`, confirm the app was launched from the same shell with that `LIGHTCODE_BASE_DIR`, and confirm the seeded path exists on disk.
