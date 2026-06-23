@@ -21,9 +21,20 @@ export const browserTabSchema = z.object({
 });
 export type BrowserTabInfo = z.infer<typeof browserTabSchema>;
 
+export const browserBookmarkSchema = z.object({
+  url: z.string(),
+  title: z.string(),
+  faviconUrl: z.string().optional(),
+  createdAt: z.number(),
+});
+export type BrowserBookmarkInfo = z.infer<typeof browserBookmarkSchema>;
+
 export const browserStateSchema = z.object({
   tabs: z.array(browserTabSchema),
   activeTabId: z.string().nullable(),
+  extracted: z.boolean().optional(),
+  bookmarks: z.array(browserBookmarkSchema).optional(),
+  bookmarkBarVisible: z.boolean().optional(),
 });
 export type BrowserState = z.infer<typeof browserStateSchema>;
 
@@ -91,6 +102,37 @@ export const browserStartPickerResultSchema = z.object({
   error: z.string().optional(),
 });
 export type BrowserStartPickerResult = z.infer<typeof browserStartPickerResultSchema>;
+
+export const browserSuggestPayloadSchema = z.object({
+  query: z.string(),
+});
+
+export const browserHistoryEntrySchema = z.object({ url: z.string(), title: z.string() });
+export type BrowserHistoryEntryInfo = z.infer<typeof browserHistoryEntrySchema>;
+
+export const browserSuggestResultSchema = z.object({
+  history: z.array(browserHistoryEntrySchema),
+  suggestions: z.array(z.string()),
+});
+export type BrowserSuggestResult = z.infer<typeof browserSuggestResultSchema>;
+
+export const browserAddBookmarkPayloadSchema = z.object({
+  url: z.string().min(1),
+  title: z.string(),
+  faviconUrl: z.string().optional(),
+});
+
+export const browserRemoveBookmarkPayloadSchema = z.object({
+  url: z.string().min(1),
+});
+
+export const browserSetBookmarkBarVisiblePayloadSchema = z.object({
+  visible: z.boolean(),
+});
+
+export const browserRecentHistoryPayloadSchema = z.object({
+  limit: z.number().int().positive().max(50),
+});
 
 export const browserProcedures = {
   browserGetState: defineNoArgProcedure<BrowserState, "main-local">(
@@ -184,6 +226,39 @@ export const browserProcedures = {
   >("browserStartPicker", "main-local", browserStartPickerPayloadSchema),
   browserCancelPicker: defineNoArgProcedure<void, "main-local">(
     "browserCancelPicker",
+    "main-local",
+  ),
+  browserSuggest: definePayloadProcedure<
+    z.infer<typeof browserSuggestPayloadSchema>,
+    BrowserSuggestResult,
+    "main-local"
+  >("browserSuggest", "main-local", browserSuggestPayloadSchema),
+  browserAddBookmark: definePayloadProcedure<
+    z.infer<typeof browserAddBookmarkPayloadSchema>,
+    void,
+    "main-local"
+  >("browserAddBookmark", "main-local", browserAddBookmarkPayloadSchema),
+  browserRemoveBookmark: definePayloadProcedure<
+    z.infer<typeof browserRemoveBookmarkPayloadSchema>,
+    void,
+    "main-local"
+  >("browserRemoveBookmark", "main-local", browserRemoveBookmarkPayloadSchema),
+  browserSetBookmarkBarVisible: definePayloadProcedure<
+    z.infer<typeof browserSetBookmarkBarVisiblePayloadSchema>,
+    void,
+    "main-local"
+  >("browserSetBookmarkBarVisible", "main-local", browserSetBookmarkBarVisiblePayloadSchema),
+  browserRecentHistory: definePayloadProcedure<
+    z.infer<typeof browserRecentHistoryPayloadSchema>,
+    BrowserHistoryEntryInfo[],
+    "main-local"
+  >("browserRecentHistory", "main-local", browserRecentHistoryPayloadSchema),
+  browserExtractToWindow: defineNoArgProcedure<void, "main-local">(
+    "browserExtractToWindow",
+    "main-local",
+  ),
+  browserInjectToMain: defineNoArgProcedure<void, "main-local">(
+    "browserInjectToMain",
     "main-local",
   ),
 } as const;

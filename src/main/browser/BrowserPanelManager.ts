@@ -15,6 +15,8 @@ import { saveClipboardImageFile } from "../attachments/localFiles";
 import { IPC_EVENT_CHANNELS } from "@/shared/ipc";
 import { BrowserLoginCaptureCoordinator } from "./BrowserLoginCaptureCoordinator";
 import { BrowserTab, resolveWebContentsById } from "./BrowserTab";
+import { BrowserHistoryStore, fetchSearchSuggestions } from "./browserHistory";
+import { BrowserBookmarkStore, type BrowserBookmark } from "./browserBookmarks";
 import { PICKER_COMMIT_ORIGIN, onPickerCommit } from "./picker/pickerProtocol";
 import { buildPickerScript } from "./picker/pickerScript";
 
@@ -46,13 +48,20 @@ type PickerPayload =
       title: string;
     };
 
+interface BrowserPanelManagerOptions {
+  isExtracted?: () => boolean;
+  focusExtractedWindow?: () => void;
+}
+
 export class BrowserPanelManager {
   private tabs: BrowserTab[] = [];
   private activeTabId: string | null = null;
-  private host: BrowserWindow | null = null;
+  private hosts = new Set<BrowserWindow>();
   private pendingPicker: PendingPicker | null = null;
   private unsubscribePicker: (() => void) | null = null;
   private persistTimer: ReturnType<typeof setTimeout> | null = null;
+  private readonly history = new BrowserHistoryStore();
+  private readonly bookmarks = new BrowserBookmarkStore();
   private restored = false;
   private pickerKeyCleanup: (() => void) | null = null;
   private readonly loginCoordinator = new BrowserLoginCaptureCoordinator({
@@ -60,12 +69,13 @@ export class BrowserPanelManager {
     closeTab: (tabId) => this.closeTab(tabId),
     findTab: (tabId) => this.findTab(tabId),
     emit: (event) => this.emit(event),
-    hasHostWindow: () => this.host !== null && !this.host.isDestroyed(),
+    hasHostWindow: () => this.hasHostWindow(),
   });
 
   constructor(
     private readonly paths: LightcodePaths,
     private readonly browserUserAgent: string,
+    private readonly options: BrowserPanelManagerOptions = {},
   ) {
     this.unsubscribePicker = onPickerCommit((commit) => this.onPickerCommit(commit));
   }
@@ -112,16 +122,21 @@ export class BrowserPanelManager {
   }
 
   bindHost(window: BrowserWindow): void {
-    this.host = window;
-    window.webContents.on("before-input-event", (event, input) => {
+    this.hosts.add(window);
+    const onBeforeInputEvent = (event: Electron.Event, input: Electron.Input) => {
       if (!this.pendingPicker || !isEscapeKeyDown(input)) return;
       event.preventDefault();
       this.cancelPicker();
-    });
+    };
+    window.webContents.on("before-input-event", onBeforeInputEvent);
     window.once("closed", () => {
-      this.dispose();
+      this.hosts.delete(window);
+      try {
+        window.webContents.removeListener("before-input-event", onBeforeInputEvent);
+      } catch {}
     });
     void this.restoreFromDisk();
+    this.emitState();
   }
 
   dispose(): void {
@@ -138,6 +153,7 @@ export class BrowserPanelManager {
     }
     this.tabs = [];
     this.activeTabId = null;
+    this.hosts.clear();
   }
 
   private clearPickerShortcut(): void {
@@ -164,18 +180,38 @@ export class BrowserPanelManager {
   }
 
   private emit(event: BrowserEvent): void {
-    if (!this.host || this.host.isDestroyed()) return;
-    try {
-      this.host.webContents.send(IPC_EVENT_CHANNELS.browserEvent, event);
-    } catch {}
+    for (const host of this.hosts) {
+      if (host.isDestroyed()) {
+        this.hosts.delete(host);
+        continue;
+      }
+      try {
+        host.webContents.send(IPC_EVENT_CHANNELS.browserEvent, event);
+      } catch {}
+    }
   }
 
   private emitState(): void {
     this.emit({ type: "state", state: this.snapshot() });
   }
 
+  notifyState(): void {
+    this.emitState();
+  }
+
   revealPanel(): void {
+    if (this.options.isExtracted?.()) {
+      this.options.focusExtractedWindow?.();
+      return;
+    }
     this.emit({ type: "open-panel" });
+  }
+
+  private hasHostWindow(): boolean {
+    for (const host of this.hosts) {
+      if (!host.isDestroyed()) return true;
+    }
+    return false;
   }
 
   private readLinkSettings(): {
@@ -218,7 +254,11 @@ export class BrowserPanelManager {
       return this.openSystemBrowser(url.toString());
     }
 
-    this.emit({ type: "open-panel", mode: settings.linkPresentationMode });
+    if (this.options.isExtracted?.()) {
+      this.options.focusExtractedWindow?.();
+    } else {
+      this.emit({ type: "open-panel", mode: settings.linkPresentationMode });
+    }
     void this.createTab({ url: url.toString(), activate: true }).catch(() => {});
     return true;
   }
@@ -241,7 +281,25 @@ export class BrowserPanelManager {
     return {
       tabs: this.tabs.map((t) => this.toInfo(t)),
       activeTabId: this.activeTabId,
+      extracted: this.options.isExtracted?.() === true,
+      bookmarks: this.bookmarks.list(),
+      bookmarkBarVisible: this.bookmarks.isBarVisible(),
     };
+  }
+
+  addBookmark(bookmark: BrowserBookmark): void {
+    this.bookmarks.add(bookmark);
+    this.emitState();
+  }
+
+  removeBookmark(url: string): void {
+    this.bookmarks.remove(url);
+    this.emitState();
+  }
+
+  setBookmarkBarVisible(visible: boolean): void {
+    this.bookmarks.setBarVisible(visible);
+    this.emitState();
   }
 
   private findTab(tabId: string): BrowserTab | undefined {
@@ -251,10 +309,15 @@ export class BrowserPanelManager {
   attachWebContents(tabId: string, webContentsId: number): void {
     const tab = this.findTab(tabId);
     if (!tab) return;
-    if (this.host?.webContents.id === webContentsId) return;
+    // Reject a host window's own WebContents by id first, before resolving it.
+    for (const host of this.hosts) {
+      if (host.webContents.id === webContentsId) return;
+    }
     const wc = resolveWebContentsById(webContentsId);
     if (!wc) return;
-    if (this.host?.webContents === wc) return;
+    for (const host of this.hosts) {
+      if (host.webContents === wc) return;
+    }
     tab.attach(wc);
   }
 
@@ -266,6 +329,7 @@ export class BrowserPanelManager {
       userAgent: this.browserUserAgent,
       onUpdate: (snap) => {
         this.emit({ type: "tab-updated", tab: { ...snap } });
+        if (!snap.loading) this.history.record(snap.url, snap.title, Date.now());
         this.schedulePersist();
       },
       onAttention: (id) => {
@@ -374,9 +438,23 @@ export class BrowserPanelManager {
   }
 
   async clearHistory(tabId: string): Promise<void> {
+    this.history.clear();
     const t = this.findTab(tabId);
     if (!t) return;
     t.clearHistory();
+  }
+
+  async suggest(query: string): Promise<{
+    history: Array<{ url: string; title: string }>;
+    suggestions: string[];
+  }> {
+    const history = this.history.query(query, 6).map((e) => ({ url: e.url, title: e.title }));
+    const suggestions = await fetchSearchSuggestions(query, this.browserUserAgent);
+    return { history, suggestions };
+  }
+
+  recentHistory(limit: number): Array<{ url: string; title: string }> {
+    return this.history.recent(limit).map((e) => ({ url: e.url, title: e.title }));
   }
 
   async clearCookies(tabId: string): Promise<void> {

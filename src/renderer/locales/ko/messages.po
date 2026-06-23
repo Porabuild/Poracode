@@ -2317,6 +2317,11 @@ msgstr "외부 제공자"
 msgid "Extra High"
 msgstr "매우 높음"
 
+#: src/renderer/components/layout/UnifiedRightPanel.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
+#~ msgid "Extract browser"
+#~ msgstr "브라우저 분리"
+
 #. placeholder {0}: sourceAgent?.label ?? thread.agentKind
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #: src/renderer/views/MainView/parts/AppContent/parts/Thread/parts/ContinueInProviderDialog.tsx
@@ -2793,6 +2798,10 @@ msgstr "전역 설정 상속(현재 {0})"
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 msgid "Initialize Repository"
 msgstr "저장소 초기화"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
+#~ msgid "Inject browser"
+#~ msgstr "브라우저 되돌리기"
 
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 msgid "Input level"
@@ -3349,6 +3358,15 @@ msgstr "가장 많이 사용한 추론 강도"
 #: src/renderer/views/MainView/parts/AppContent/parts/Thread/parts/ContinueInProviderDialog.tsx
 msgid "Move"
 msgstr "이동"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
+msgid "Move browser back to main window"
+msgstr "브라우저를 메인 창으로 다시 이동"
+
+#: src/renderer/components/layout/UnifiedRightPanel.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
+msgid "Move browser to window"
+msgstr "브라우저를 창으로 이동"
 
 #: src/renderer/components/common/BranchSelector/parts/BranchFooterActions.tsx
 msgid "Move changes to a new worktree"
@@ -5712,6 +5730,7 @@ msgstr "테마"
 
 #: src/renderer/components/common/EffortContextMenu/EffortContextMenu.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/Reasoning.tsx
+#: src/renderer/components/thread/ThreadComposer.tsx
 msgid "Thinking"
 msgstr "생각 중"
 

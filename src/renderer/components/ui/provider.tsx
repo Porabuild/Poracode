@@ -73,11 +73,15 @@ function ToastAction({ actionProps, actionLabel, isCopyAction }: ToastActionProp
   );
 }
 
-export function AppProvider(props: { children: ReactNode; contentReady?: boolean }) {
+export function AppProvider(props: {
+  children: ReactNode;
+  contentReady?: boolean;
+  syncWindowChrome?: boolean;
+}) {
   // `contentReady` gates the glass material: the window stays opaque through
   // loading and only goes translucent once the main content is mounted, so the
   // app never shows a bare translucent window mid-load.
-  const { children, contentReady = false } = props;
+  const { children, contentReady = false, syncWindowChrome = true } = props;
   const themeMode = useSharedSettings((state) => state.themeMode);
   const themePreset = useSharedSettings((state) => state.themePreset);
   const locale = useSharedSettings((state) => state.locale);
@@ -154,7 +158,7 @@ export function AppProvider(props: { children: ReactNode; contentReady?: boolean
   }, [glassEnabled, contentReady]);
 
   useEffect(() => {
-    if (typeof window === "undefined" || !("lightcode" in window)) {
+    if (!syncWindowChrome || typeof window === "undefined" || !("lightcode" in window)) {
       return;
     }
 
@@ -180,7 +184,7 @@ export function AppProvider(props: { children: ReactNode; contentReady?: boolean
         captureRendererException(error, { featureArea: "window-chrome" });
         // Keep renderer boot resilient if Electron rejects a color value.
       });
-  }, [appearance, glassEnabled, contentReady]);
+  }, [appearance, glassEnabled, contentReady, syncWindowChrome]);
 
   // User-tuned sidebar frosting (Appearance slider): override the glass tint
   // alpha for the active appearance. No-op on platforms without a native blur

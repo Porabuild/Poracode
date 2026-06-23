@@ -2344,6 +2344,11 @@ msgstr "Зовнішній провайдер"
 msgid "Extra High"
 msgstr "Дуже високий"
 
+#: src/renderer/components/layout/UnifiedRightPanel.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
+#~ msgid "Extract browser"
+#~ msgstr "Винести браузер"
+
 #. placeholder {0}: sourceAgent?.label ?? thread.agentKind
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #: src/renderer/views/MainView/parts/AppContent/parts/Thread/parts/ContinueInProviderDialog.tsx
@@ -2836,6 +2841,10 @@ msgstr "Успадковується глобальне налаштування
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 msgid "Initialize Repository"
 msgstr "Ініціалізувати репозиторій"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
+#~ msgid "Inject browser"
+#~ msgstr "Повернути браузер"
 
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 msgid "Input level"
@@ -3399,6 +3408,15 @@ msgstr "Найуживаніший рівень міркувань"
 #: src/renderer/views/MainView/parts/AppContent/parts/Thread/parts/ContinueInProviderDialog.tsx
 msgid "Move"
 msgstr "Перемістити"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
+msgid "Move browser back to main window"
+msgstr "Повернути браузер у головне вікно"
+
+#: src/renderer/components/layout/UnifiedRightPanel.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
+msgid "Move browser to window"
+msgstr "Перемістити браузер у вікно"
 
 #: src/renderer/components/common/BranchSelector/parts/BranchFooterActions.tsx
 msgid "Move changes to a new worktree"
@@ -5787,6 +5805,7 @@ msgstr "Тема"
 
 #: src/renderer/components/common/EffortContextMenu/EffortContextMenu.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/Reasoning.tsx
+#: src/renderer/components/thread/ThreadComposer.tsx
 msgid "Thinking"
 msgstr "Міркування"
 

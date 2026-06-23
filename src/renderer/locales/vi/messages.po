@@ -2342,6 +2342,11 @@ msgstr "Nhà cung cấp bên ngoài"
 msgid "Extra High"
 msgstr "Cực cao"
 
+#: src/renderer/components/layout/UnifiedRightPanel.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
+#~ msgid "Extract browser"
+#~ msgstr "Tách trình duyệt"
+
 #. placeholder {0}: sourceAgent?.label ?? thread.agentKind
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #: src/renderer/views/MainView/parts/AppContent/parts/Thread/parts/ContinueInProviderDialog.tsx
@@ -2829,6 +2834,10 @@ msgstr "Kế thừa cài đặt chung (hiện tại {0})."
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 msgid "Initialize Repository"
 msgstr "Khởi tạo kho lưu trữ"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
+#~ msgid "Inject browser"
+#~ msgstr "Đưa trình duyệt về lại"
 
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 msgid "Input level"
@@ -3391,6 +3400,15 @@ msgstr "Mức suy luận dùng nhiều nhất"
 #: src/renderer/views/MainView/parts/AppContent/parts/Thread/parts/ContinueInProviderDialog.tsx
 msgid "Move"
 msgstr "Di chuyển"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
+msgid "Move browser back to main window"
+msgstr "Chuyển trình duyệt về cửa sổ chính"
+
+#: src/renderer/components/layout/UnifiedRightPanel.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
+msgid "Move browser to window"
+msgstr "Chuyển trình duyệt sang cửa sổ"
 
 #: src/renderer/components/common/BranchSelector/parts/BranchFooterActions.tsx
 msgid "Move changes to a new worktree"
@@ -5780,6 +5798,7 @@ msgstr "Chủ đề"
 
 #: src/renderer/components/common/EffortContextMenu/EffortContextMenu.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/Reasoning.tsx
+#: src/renderer/components/thread/ThreadComposer.tsx
 msgid "Thinking"
 msgstr "Đang suy nghĩ"
 

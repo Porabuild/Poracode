@@ -1,6 +1,7 @@
 import { dbGetState, dbSetState } from "../db";
 import { BrowserWindow, screen, type RenderProcessGoneDetails } from "electron";
 import type { LightcodeChannel } from "@/shared/channel";
+import type { LightcodeWindowKind } from "@/shared/ipc";
 import { installSessionPermissions } from "../browser/permissions";
 import { supportsNativeWindowMaterial, syncNativeThemeForMaterial } from "./windowMaterial";
 
@@ -12,9 +13,9 @@ interface WindowBounds {
   isMaximized: boolean;
 }
 
-function getSavedWindowBounds(): WindowBounds | null {
+function getSavedWindowBounds(stateKey: string): WindowBounds | null {
   try {
-    const raw = dbGetState("window-bounds");
+    const raw = dbGetState(stateKey);
     if (!raw) {
       return null;
     }
@@ -42,14 +43,20 @@ function getSavedWindowBounds(): WindowBounds | null {
   }
 }
 
-function saveWindowBounds(window: BrowserWindow): void {
+function saveWindowBounds(window: BrowserWindow, stateKey: string): void {
   const isMaximized = window.isMaximized();
   const { x, y, width, height } = window.getNormalBounds();
-  dbSetState("window-bounds", JSON.stringify({ x, y, width, height, isMaximized }));
+  dbSetState(stateKey, JSON.stringify({ x, y, width, height, isMaximized }));
 }
 
 export interface CreateMainWindowOptions {
   title: string;
+  windowKind?: LightcodeWindowKind;
+  boundsStateKey?: string | null;
+  defaultWidth?: number;
+  defaultHeight?: number;
+  minWidth?: number;
+  minHeight?: number;
   isDev: boolean;
   channel: LightcodeChannel;
   preloadPath: string;
@@ -70,10 +77,13 @@ export interface CreateMainWindowOptions {
   onClose?: (event: Electron.Event) => void;
   onRendererProcessGone?: (details: RenderProcessGoneDetails) => void;
   devServerUrl?: string;
+  openDevTools?: boolean;
 }
 
 export function createMainWindow(options: CreateMainWindowOptions): BrowserWindow {
-  const saved = getSavedWindowBounds();
+  const boundsStateKey =
+    options.boundsStateKey === undefined ? "window-bounds" : options.boundsStateKey;
+  const saved = boundsStateKey ? getSavedWindowBounds(boundsStateKey) : null;
   const supportsTitleBarOverlay = process.platform === "win32" || process.platform === "linux";
   const isDark = options.appearance === "dark";
   // Base bg/symbol per appearance, matching styles.css and the runtime
@@ -97,11 +107,11 @@ export function createMainWindow(options: CreateMainWindowOptions): BrowserWindo
   const window = new BrowserWindow({
     title: options.title,
     show: false,
-    width: saved?.width ?? 1460,
-    height: saved?.height ?? 920,
+    width: saved?.width ?? options.defaultWidth ?? 1460,
+    height: saved?.height ?? options.defaultHeight ?? 920,
     ...(saved?.x != null && saved?.y != null ? { x: saved.x, y: saved.y } : {}),
-    minWidth: 540,
-    minHeight: 720,
+    minWidth: options.minWidth ?? 540,
+    minHeight: options.minHeight ?? 720,
     backgroundColor: isMacOS || winGlassAtStart ? "#00000000" : backgroundColor,
     autoHideMenuBar: true,
     ...(isMacOS
@@ -129,6 +139,7 @@ export function createMainWindow(options: CreateMainWindowOptions): BrowserWindo
       additionalArguments: [
         `--lc-app-version=${encodeURIComponent(options.appVersion)}`,
         `--lc-is-dev=${options.isDev ? "1" : "0"}`,
+        `--lc-window-kind=${options.windowKind ?? "main"}`,
         `--lc-channel=${options.channel}`,
         `--lc-posthog-enable-dev=${options.posthogEnableDev ? "1" : "0"}`,
         `--lc-posthog-enabled=${options.posthogEnabled ? "1" : "0"}`,
@@ -193,7 +204,7 @@ export function createMainWindow(options: CreateMainWindowOptions): BrowserWindo
   };
 
   loadRenderer();
-  if (options.isDev) {
+  if (options.isDev && options.openDevTools !== false) {
     window.webContents.openDevTools({ mode: "detach" });
   }
 
@@ -226,7 +237,9 @@ export function createMainWindow(options: CreateMainWindowOptions): BrowserWindo
     if (boundsTimer) {
       clearTimeout(boundsTimer);
     }
-    boundsTimer = setTimeout(() => saveWindowBounds(window), 500);
+    if (boundsStateKey) {
+      boundsTimer = setTimeout(() => saveWindowBounds(window, boundsStateKey), 500);
+    }
   };
   window.on("resize", debouncedSave);
   window.on("move", debouncedSave);
@@ -236,7 +249,9 @@ export function createMainWindow(options: CreateMainWindowOptions): BrowserWindo
     if (boundsTimer) {
       clearTimeout(boundsTimer);
     }
-    saveWindowBounds(window);
+    if (boundsStateKey) {
+      saveWindowBounds(window, boundsStateKey);
+    }
     options.onClose?.(event);
   });
   window.on("closed", options.onClosed);

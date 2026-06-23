@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import type { UsageLoginConfirmationRequest, UsageLoginDeviceCode } from "@/shared/contracts";
-import type { BrowserState, BrowserTabInfo } from "@/shared/ipc";
+import type { BrowserBookmarkInfo, BrowserState, BrowserTabInfo } from "@/shared/ipc";
 
 export interface PendingPickerAttachment {
   attachmentPath: string;
@@ -15,6 +15,9 @@ export interface PendingPickerAttachment {
 interface BrowserPanelState {
   tabs: BrowserTabInfo[];
   activeTabId: string | null;
+  extracted: boolean;
+  bookmarks: BrowserBookmarkInfo[];
+  bookmarkBarVisible: boolean;
   pickerActive: boolean;
   attentionTabId: string | null;
   pendingPickerAttachment: PendingPickerAttachment | null;
@@ -35,6 +38,9 @@ interface BrowserPanelState {
 export const useBrowserPanelStore = create<BrowserPanelState>((set) => ({
   tabs: [],
   activeTabId: null,
+  extracted: false,
+  bookmarks: [],
+  bookmarkBarVisible: false,
   pickerActive: false,
   attentionTabId: null,
   pendingPickerAttachment: null,
@@ -43,8 +49,25 @@ export const useBrowserPanelStore = create<BrowserPanelState>((set) => ({
 
   setState: (state) =>
     set((s) => {
-      if (s.activeTabId === state.activeTabId && tabsEqual(s.tabs, state.tabs)) return {};
-      return { tabs: state.tabs, activeTabId: state.activeTabId };
+      const extracted = state.extracted === true;
+      const bookmarks = state.bookmarks ?? [];
+      const bookmarkBarVisible = state.bookmarkBarVisible === true;
+      if (
+        s.activeTabId === state.activeTabId &&
+        s.extracted === extracted &&
+        s.bookmarkBarVisible === bookmarkBarVisible &&
+        bookmarksEqual(s.bookmarks, bookmarks) &&
+        tabsEqual(s.tabs, state.tabs)
+      ) {
+        return {};
+      }
+      return {
+        tabs: state.tabs,
+        activeTabId: state.activeTabId,
+        extracted,
+        bookmarks,
+        bookmarkBarVisible,
+      };
     }),
   upsertTab: (tab) =>
     set((s) => {
@@ -80,6 +103,16 @@ export const useBrowserPanelStore = create<BrowserPanelState>((set) => ({
 
 function tabsEqual(a: BrowserTabInfo[], b: BrowserTabInfo[]): boolean {
   return a.length === b.length && a.every((tab, i) => tabInfoEqual(tab, b[i]!));
+}
+
+function bookmarksEqual(a: BrowserBookmarkInfo[], b: BrowserBookmarkInfo[]): boolean {
+  return (
+    a.length === b.length &&
+    a.every(
+      (bm, i) =>
+        bm.url === b[i]!.url && bm.title === b[i]!.title && bm.faviconUrl === b[i]!.faviconUrl,
+    )
+  );
 }
 
 function tabInfoEqual(a: BrowserTabInfo, b: BrowserTabInfo): boolean {

@@ -63,6 +63,8 @@ interface CreateLocalIpcHandlersOptions {
   updatePowerSaveBlocker(): void;
   autoUpdater: AutoUpdaterController;
   onSharedSettingsChanged?(): void;
+  extractBrowserToWindow(): void;
+  injectBrowserToMain(): void;
   /** Relaunch the app (exposed via the relaunchApp IPC). */
   requestRelaunch(): void;
 }
@@ -342,6 +344,30 @@ export function createLocalIpcHandlers(
       requireBrowserPanel(options.getBrowserPanelManager).startPicker(payload),
     browserCancelPicker: () => {
       requireBrowserPanel(options.getBrowserPanelManager).cancelPicker();
+    },
+    browserSuggest: ({ query }) =>
+      requireBrowserPanel(options.getBrowserPanelManager).suggest(query),
+    browserAddBookmark: ({ url, title, faviconUrl }) => {
+      requireBrowserPanel(options.getBrowserPanelManager).addBookmark({
+        url,
+        title,
+        createdAt: Date.now(),
+        ...(faviconUrl ? { faviconUrl } : {}),
+      });
+    },
+    browserRemoveBookmark: ({ url }) => {
+      requireBrowserPanel(options.getBrowserPanelManager).removeBookmark(url);
+    },
+    browserSetBookmarkBarVisible: ({ visible }) => {
+      requireBrowserPanel(options.getBrowserPanelManager).setBookmarkBarVisible(visible);
+    },
+    browserRecentHistory: ({ limit }) =>
+      requireBrowserPanel(options.getBrowserPanelManager).recentHistory(limit),
+    browserExtractToWindow: () => {
+      options.extractBrowserToWindow();
+    },
+    browserInjectToMain: () => {
+      options.injectBrowserToMain();
     },
     startUsageLogin: (payload) =>
       getUsageLoginManager(

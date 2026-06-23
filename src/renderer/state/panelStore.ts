@@ -191,19 +191,18 @@ export const usePanelStore = create<PanelState>((set) => ({
     }),
   setRightPanelTab: (tab) =>
     set((state) => (state.rightPanelTab === tab ? {} : { rightPanelTab: tab })),
+  // Toggling the docked right-panel browser is independent of the floating
+  // overlay (drawer/fullscreen): hiding the panel must NOT tear down an active
+  // overlay, otherwise maximizing the browser and then hiding the right panel
+  // would make the fullscreen page vanish. Callers that genuinely want to
+  // dismiss both (e.g. the last tab closing) close the overlay explicitly.
   setBrowserPanelOpen: (v) =>
-    set((state) =>
-      state.browserPanelOpen === v && (v || !state.browserOverlayOpen)
-        ? {}
-        : {
-            browserPanelOpen: v,
-            ...(v ? {} : { browserOverlayOpen: false, browserOverlayMaximized: false }),
-          },
-    ),
+    set((state) => (state.browserPanelOpen === v ? {} : { browserPanelOpen: v })),
   // NOTE: overlay state is intentionally independent of the right-panel
-  // browser. Opening the overlay does NOT enable the right-panel browser tab,
-  // and closing the overlay leaves the right panel in whatever state the user
-  // had it. Maximized resets on close so the next open lands in drawer mode.
+  // browser in both directions. Opening the overlay does NOT enable the
+  // right-panel browser tab, and closing the overlay leaves the right panel in
+  // whatever state the user had it. Maximized resets on close so the next open
+  // lands in drawer mode.
   setBrowserOverlayOpen: (v) =>
     set((state) =>
       state.browserOverlayOpen === v
@@ -279,14 +278,17 @@ export const usePanelStore = create<PanelState>((set) => ({
   closeAllPanels: () => {
     localStorage.removeItem(STORAGE_KEY);
     set((state) => {
+      // The floating browser overlay (drawer/fullscreen) is intentionally NOT
+      // touched here: it is a standalone surface with its own close controls.
+      // Closing the docked right panel — including the narrow-viewport auto-hide
+      // that fires when the window shrinks — must not tear it down, otherwise a
+      // maximized browser vanishes the moment the right panel auto-closes.
       if (
         state.gitReviewContext === null &&
         state.filesPanelContext === null &&
         !state.browserPanelOpen &&
         !state.usagePanelOpen &&
-        !state.notesPanelOpen &&
-        !state.browserOverlayOpen &&
-        !state.browserOverlayMaximized
+        !state.notesPanelOpen
       ) {
         return {};
       }
@@ -296,8 +298,6 @@ export const usePanelStore = create<PanelState>((set) => ({
         browserPanelOpen: false,
         usagePanelOpen: false,
         notesPanelOpen: false,
-        browserOverlayOpen: false,
-        browserOverlayMaximized: false,
       };
     });
   },

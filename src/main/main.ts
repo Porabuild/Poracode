@@ -86,6 +86,7 @@ let lightcodePaths: LightcodePaths | null = null;
 let windowsJobObjectManager: WindowsJobObjectManager | null = null;
 let browserPanelManager: BrowserPanelManager | null = null;
 let browserMcpIngress: BrowserMcpIngress | null = null;
+let browserExtractWindow: BrowserWindow | null = null;
 // Retained module-scope so the native Tray icon stays reachable from GC.
 let tray: TrayHandle | null = null;
 let isQuitting = false;
@@ -145,6 +146,99 @@ function handleMainWindowClose(event: Electron.Event): void {
   mainWindow.hide();
 }
 
+function showAndFocusWindow(window: BrowserWindow): void {
+  if (window.isMinimized()) {
+    window.restore();
+  }
+  if (!window.isVisible()) {
+    window.show();
+  }
+  window.focus();
+}
+
+function focusBrowserExtractWindow(): void {
+  if (!browserExtractWindow || browserExtractWindow.isDestroyed()) return;
+  showAndFocusWindow(browserExtractWindow);
+}
+
+function revealBrowserInMainWindow(): void {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    showAndFocusWindow(mainWindow);
+  }
+  browserPanelManager?.notifyState();
+  browserPanelManager?.revealPanel();
+}
+
+function createBrowserExtractWindow(): BrowserWindow {
+  const windowChrome = resolveWindowChromeOptions();
+  const window = createMainWindow({
+    title: `${getAppName(channel, isDev)} Browser`,
+    windowKind: "browserExtract",
+    boundsStateKey: "browser-extract-window-bounds",
+    defaultWidth: 1120,
+    defaultHeight: 760,
+    minWidth: 520,
+    minHeight: 420,
+    isDev,
+    channel,
+    preloadPath: join(__dirname, "preload.cjs"),
+    rendererHtmlPath: join(__dirname, "../renderer/index.html"),
+    appVersion: app.getVersion(),
+    posthogEnableDev,
+    posthogEnabled,
+    posthogHost,
+    posthogKey,
+    sentryEnabled,
+    windowChromeHeight: WINDOW_CHROME_HEIGHT,
+    browserUserAgent: chromeLikeUserAgent,
+    appearance: windowChrome.appearance,
+    sidebarTranslucency: windowChrome.sidebarTranslucency,
+    openDevTools: false,
+    ...(process.env.VITE_DEV_SERVER_URL ? { devServerUrl: process.env.VITE_DEV_SERVER_URL } : {}),
+    onClosed: () => {
+      browserExtractWindow = null;
+      browserPanelManager?.notifyState();
+      // Closing the window — whether via the OS controls or "bring back to
+      // panel" (injectBrowserToMain) — returns the browser to the main window.
+      if (!isQuitting) {
+        revealBrowserInMainWindow();
+      }
+    },
+    onRendererProcessGone: (details) => {
+      captureMainException(new Error(`Browser renderer process gone: ${details.reason}`), {
+        "lightcode.feature_area": "browser",
+        "lightcode.process": "renderer",
+      });
+    },
+  });
+  return window;
+}
+
+function extractBrowserToWindow(): void {
+  if (browserExtractWindow && !browserExtractWindow.isDestroyed()) {
+    browserPanelManager?.notifyState();
+    focusBrowserExtractWindow();
+    return;
+  }
+  browserExtractWindow = createBrowserExtractWindow();
+  // Bind the host (which emits state) only after `browserExtractWindow` is
+  // assigned, so the snapshot's `extracted` flag reads true. Otherwise the main
+  // window keeps showing its own browser until the next unrelated state emit.
+  browserPanelManager?.bindHost(browserExtractWindow);
+  focusBrowserExtractWindow();
+}
+
+function injectBrowserToMain(): void {
+  const window = browserExtractWindow;
+  if (!window || window.isDestroyed()) {
+    browserExtractWindow = null;
+    revealBrowserInMainWindow();
+    return;
+  }
+  // The window's `onClosed` handler returns the browser to the main window.
+  window.close();
+}
+
 const workingThreads = new Set<string>();
 const sleepInhibitor = createSleepInhibitor();
 
@@ -189,13 +283,7 @@ if (!hasSingleInstanceLock) {
     if (!mainWindow) {
       return;
     }
-    if (mainWindow.isMinimized()) {
-      mainWindow.restore();
-    }
-    if (!mainWindow.isVisible()) {
-      mainWindow.show();
-    }
-    mainWindow.focus();
+    showAndFocusWindow(mainWindow);
   });
 
   app.whenReady().then(async () => {
@@ -278,7 +366,10 @@ if (!hasSingleInstanceLock) {
       },
     );
 
-    browserPanelManager = new BrowserPanelManager(lightcodePaths, chromeLikeUserAgent);
+    browserPanelManager = new BrowserPanelManager(lightcodePaths, chromeLikeUserAgent, {
+      isExtracted: () => browserExtractWindow !== null && !browserExtractWindow.isDestroyed(),
+      focusExtractedWindow: focusBrowserExtractWindow,
+    });
     browserMcpIngress = new BrowserMcpIngress();
     browserMcpIngress.setManagerAccessor(() => browserPanelManager);
     primeBrowserAllowFlags();
@@ -295,6 +386,8 @@ if (!hasSingleInstanceLock) {
         updatePowerSaveBlocker,
         autoUpdater: autoUpdaterController,
         onSharedSettingsChanged: primeBrowserAllowFlags,
+        extractBrowserToWindow,
+        injectBrowserToMain,
         requestRelaunch: () => {
           isQuitting = true;
           app.relaunch();
@@ -436,6 +529,8 @@ if (!hasSingleInstanceLock) {
       windowsJobObjectManager = null;
       browserMcpIngress?.dispose();
       browserMcpIngress = null;
+      browserExtractWindow?.close();
+      browserExtractWindow = null;
       browserPanelManager?.dispose();
       browserPanelManager = null;
       sleepInhibitor.dispose();

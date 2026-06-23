@@ -1,4 +1,4 @@
-import { fireEvent } from "@testing-library/react";
+import { act, fireEvent } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import { useBrowserPanelStore } from "@/renderer/state/browserPanelStore";
@@ -10,6 +10,8 @@ const bridge = vi.hoisted(() => ({
   browserAttachWebContents: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
   browserReload: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
   browserHardReload: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+  browserExtractToWindow: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+  browserInjectToMain: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
 }));
 
 vi.mock("./hooks/useElementPicker", () => ({
@@ -33,11 +35,14 @@ vi.mock("./parts/BrowserTabStrip", () => ({
 
 vi.mock("@/renderer/bridge", () => ({
   isMac: () => false,
+  isWindows: () => false,
   readBridge: () => ({
     browserCreateTab: bridge.browserCreateTab,
     browserAttachWebContents: bridge.browserAttachWebContents,
     browserReload: bridge.browserReload,
     browserHardReload: bridge.browserHardReload,
+    browserExtractToWindow: bridge.browserExtractToWindow,
+    browserInjectToMain: bridge.browserInjectToMain,
   }),
 }));
 
@@ -47,11 +52,14 @@ describe("BrowserPanel", () => {
     useBrowserPanelStore.setState({
       tabs: [],
       activeTabId: null,
+      extracted: false,
       pickerActive: false,
       attentionTabId: null,
     });
     usePanelStore.setState({
+      browserPanelOpen: false,
       browserOverlayOpen: false,
+      browserOverlayMaximized: false,
     });
   });
 
@@ -90,6 +98,38 @@ describe("BrowserPanel", () => {
     expect((webviews[1] as HTMLElement).style.display).toBe("none");
   });
 
+  it("keeps the same webview mounted when browser panel goes fullscreen", () => {
+    useBrowserPanelStore.setState({
+      tabs: [
+        {
+          tabId: "tab-1",
+          url: "https://example.com/",
+          title: "Example",
+          loading: false,
+          canGoBack: false,
+          canGoForward: false,
+        },
+      ],
+      activeTabId: "tab-1",
+    });
+    usePanelStore.setState({
+      browserPanelOpen: true,
+      browserOverlayOpen: false,
+      browserOverlayMaximized: false,
+    });
+    const { container } = render(<BrowserPanel visible />);
+    const webview = container.querySelector("webview");
+
+    act(() => {
+      usePanelStore.setState({
+        browserOverlayOpen: true,
+        browserOverlayMaximized: true,
+      });
+    });
+
+    expect(container.querySelector("webview")).toBe(webview);
+  });
+
   it("attaches the right-panel webview contents to the browser tab", () => {
     useBrowserPanelStore.setState({
       tabs: [
@@ -111,6 +151,35 @@ describe("BrowserPanel", () => {
     webview.getWebContentsId = vi.fn<() => number>().mockReturnValue(42);
 
     fireEvent(webview, new Event("dom-ready"));
+
+    expect(bridge.browserAttachWebContents).toHaveBeenCalledWith({
+      tabId: "tab-1",
+      webContentsId: 42,
+    });
+  });
+
+  it("reattaches a mounted webview when it becomes visible again", () => {
+    useBrowserPanelStore.setState({
+      tabs: [
+        {
+          tabId: "tab-1",
+          url: "https://example.com/",
+          title: "Example",
+          loading: false,
+          canGoBack: false,
+          canGoForward: false,
+        },
+      ],
+      activeTabId: "tab-1",
+    });
+    const { container, rerender } = render(<BrowserPanel visible={false} />);
+    const webview = container.querySelector("webview") as HTMLElement & {
+      getWebContentsId(): number;
+    };
+    webview.getWebContentsId = vi.fn<() => number>().mockReturnValue(42);
+    bridge.browserAttachWebContents.mockClear();
+
+    rerender(<BrowserPanel visible />);
 
     expect(bridge.browserAttachWebContents).toHaveBeenCalledWith({
       tabId: "tab-1",
@@ -146,5 +215,25 @@ describe("BrowserPanel", () => {
 
     fireEvent.keyDown(panel, { key: "F5", shiftKey: true });
     expect(bridge.browserHardReload).toHaveBeenCalledTimes(2);
+  });
+
+  it("moves the overlay browser to a separate window", () => {
+    usePanelStore.setState({
+      browserOverlayOpen: true,
+      browserOverlayMaximized: true,
+    });
+    const { getByTitle } = render(<BrowserPanel visible />);
+
+    fireEvent.click(getByTitle("Move browser to window"));
+
+    expect(bridge.browserExtractToWindow).toHaveBeenCalledOnce();
+  });
+
+  it("moves the separate browser window back into the main window", () => {
+    const { getByTitle } = render(<BrowserPanel visible surface="window" />);
+
+    fireEvent.click(getByTitle("Move browser back to main window"));
+
+    expect(bridge.browserInjectToMain).toHaveBeenCalledOnce();
   });
 });

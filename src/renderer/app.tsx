@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { PixelLoader } from "./components/common";
 import { msg } from "@/shared/messages";
 import type { RuntimeEvent } from "@/shared/contracts";
+import type { SupervisorEvent, UpdateStatus } from "@/shared/ipc";
 import { readBridge } from "./bridge";
 import {
   handleThreadStateNotification,
@@ -24,6 +25,8 @@ import { AppProvider } from "./components/ui/provider";
 import { ImageLightboxHost } from "./components/composer";
 import { MainView } from "@/renderer/views/MainView/MainView";
 import { CommandPalette } from "@/renderer/commands/CommandPalette";
+import { BrowserPanel } from "@/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel";
+import { useBrowserSync } from "@/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/hooks/useBrowserSync";
 import {
   captureAppStarted,
   flushProductAnalytics,
@@ -40,6 +43,7 @@ import {
 // so that Vite HMR can tear them down before re-executing the module.
 
 let threadStateNotificationsArmed = false;
+const isBrowserExtractWindow = readBridge().windowKind === "browserExtract";
 
 // ── Runtime event rAF batcher ───────────────────────────────────
 // With 6-8 concurrent streaming chats, the supervisor produces ~500
@@ -88,7 +92,7 @@ function flushPendingRuntimeEventsSync(): void {
   if (pendingRuntimeEvents.size > 0) flushPendingRuntimeEvents();
 }
 
-const unsubSupervisor = readBridge().onSupervisorEvent((event) => {
+function handleSupervisorEvent(event: SupervisorEvent): void {
   if ("threadId" in event && event.threadId.startsWith("shell:")) {
     if (event.type === "thread-output") {
       useDevTerminalStore.getState().noteShellOutput(event.threadId);
@@ -185,9 +189,9 @@ const unsubSupervisor = readBridge().onSupervisorEvent((event) => {
       store.setWslAgentStatuses(event.statuses);
     }
   }
-});
+}
 
-const unsubUpdate = readBridge().onUpdateStatus((status) => {
+function handleUpdateStatus(status: UpdateStatus): void {
   const store = useUpdateStore.getState();
   switch (status.type) {
     case "checking":
@@ -214,17 +218,24 @@ const unsubUpdate = readBridge().onUpdateStatus((status) => {
       toast.danger(msg("update.error", { detail: status.message }));
       break;
   }
-});
+}
 
-const uninstallRuntimePersister = installRuntimeItemsPersister();
+// The browser-extract window renders a standalone BrowserPanel; it has no use
+// for supervisor/update streams or runtime persistence, so only the main window
+// wires these up (and tears them down on HMR dispose).
+const mainWindowCleanups: Array<() => void> = isBrowserExtractWindow
+  ? []
+  : [
+      readBridge().onSupervisorEvent(handleSupervisorEvent),
+      readBridge().onUpdateStatus(handleUpdateStatus),
+      installRuntimeItemsPersister(),
+    ];
 let uninstallProductAnalytics: (() => void) | null = null;
 let productAnalyticsStarted = false;
 
 if (import.meta.hot) {
   import.meta.hot.dispose(() => {
-    unsubSupervisor();
-    unsubUpdate();
-    uninstallRuntimePersister();
+    for (const cleanup of mainWindowCleanups) cleanup();
     if (runtimeFlushHandle !== null) {
       cancelAnimationFrame(runtimeFlushHandle);
       runtimeFlushHandle = null;
@@ -237,6 +248,25 @@ if (import.meta.hot) {
 }
 
 export function App() {
+  if (isBrowserExtractWindow) {
+    return <BrowserExtractApp />;
+  }
+  return <MainApp />;
+}
+
+function BrowserExtractApp() {
+  useBrowserSync();
+
+  return (
+    <AppProvider contentReady syncWindowChrome={false}>
+      <div className="flex h-screen w-screen overflow-hidden bg-[var(--content-background)] text-foreground">
+        <BrowserPanel visible surface="window" />
+      </div>
+    </AppProvider>
+  );
+}
+
+function MainApp() {
   const { initialLoading, storeHydrated, loadT0 } = useAppHydration();
 
   useEffect(() => {
